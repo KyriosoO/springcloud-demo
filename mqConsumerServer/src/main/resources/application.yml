@@ -1,0 +1,23 @@
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:8761/eureka/
+        register-with-eureka: true
+        fetch-registry: true
+    instance:
+        prefer-ip-address: true # 注册为 IP，避免 hostname 解析错误
+        lease-renewal-interval-in-seconds: 5 # 心跳间隔
+        lease-expiration-duration-in-seconds: 15 # 服务过期时间
+server:
+    port: 8083
+spring:
+    application:
+        name: mqconsumerserver
+    config:
+        import: optional:configserver:http://localhost:9888
+rocketmq:
+    name-server: localhost:9876 # 替换成你RocketMQ NameServer地址
+    producer:
+        group: stock-producer-group
+    consumer:
+        group: stock-consumer-group

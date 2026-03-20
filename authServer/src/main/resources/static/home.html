@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Home</title>
+</head>
+<body>
+
+	<h2>系统首页</h2>
+
+	<button onclick="callApi()">调用 /api</button>
+	<button onclick="callMy()">调用 /my</button>
+	<br>
+	<br>
+
+	<button onclick="callTest()">调用 /test</button>
+
+	<br>
+	<br>
+	<button onclick="mqTest()">mqTest</button>
+	<button onclick="createOrder()">crate order</button>
+
+	<br>
+	<br>
+
+	<pre id="result"></pre>
+
+	<script>
+		async function callApi() {
+			const res = await
+			fetch("/api", {
+				credentials : "include"
+			});
+			const text = document.getElementById("result").innerText + "\r\n"
+					+ await
+			res.text() + " " + Date.now();
+			document.getElementById("result").innerText = text;
+		}
+
+		async function callMy() {
+			const res = await
+			fetch("/my", {
+				credentials : "include"
+			});
+			const text = document.getElementById("result").innerText + "\r\n"
+					+ await
+			res.text() + " " + Date.now();
+			document.getElementById("result").innerText = text;
+		}
+
+		async function callTest() {
+			try {
+				const res = await
+				fetch("/test?user=admin", {
+					credentials : "include"
+				});
+				const text = document.getElementById("result").innerText
+						+ "\r\n" + await
+				res.text() + " " + Date.now();
+				document.getElementById("result").innerText = text;
+			} catch (err) {
+				console.error("Error calling /test:", err);
+				document.getElementById("result").innerText = "请求失败";
+			}
+		}
+
+		async function createOrder() {
+			try {
+				const url = "/orders/create?userId=dylan&productId=1001&quantity=12";
+				const res = await
+				fetch(url, {
+					method : "POST",
+					credentials : "include"
+				});
+				const text = document.getElementById("result").innerText
+						+ "\r\n" + await
+				res.text() + " " + Date.now();
+				document.getElementById("result").innerText = text;
+			} catch (err) {
+				console.error("Error creating order:", err);
+				document.getElementById("result").innerText = "创建订单失败";
+			}
+		}
+		
+		async function mqTest() {
+			try {
+				const url = "/orders/mqTest?orderId=1001&quantity=1";
+				const res = await
+				fetch(url, {
+					method : "POST",
+					credentials : "include"
+				});
+				const text = document.getElementById("result").innerText
+						+ "\r\n" + await
+				res.text() + " " + Date.now();
+				document.getElementById("result").innerText = text;
+			} catch (err) {
+				console.error("Error creating order:", err);
+				document.getElementById("result").innerText = "创建订单失败";
+			}
+		}
+	</script>
+</body>
+</html>

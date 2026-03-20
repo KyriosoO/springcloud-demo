@@ -1,0 +1,75 @@
+server:
+    port: 9000
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:8761/eureka/
+        register-with-eureka: true
+        fetch-registry: true
+    instance:
+        prefer-ip-address: true # 注册为 IP，避免 hostname 解析错误
+        lease-renewal-interval-in-seconds: 5 # 心跳间隔
+        lease-expiration-duration-in-seconds: 15 # 服务过期时间
+spring:
+    application:
+        name: feignserver
+    cloud:
+        config:
+            enabled: false
+#  cloud:
+#    openfeign:
+#      circuitbreaker:
+#        enabled: true
+#      client:
+#        config:
+#          defalut:
+#            connect-timeout: 5000
+#            read-timeout: 5000
+#            logger-level: full
+
+#resilience4j:
+#  circuitbreaker:
+#    configs:
+#      default:  # 全局默认（开发推荐）
+#        sliding-window-type: count-based
+#        sliding-window-size: 100
+#        failure-rate-threshold: 50
+#        slow-call-rate-threshold: 50
+#        slow-call-duration-threshold: 60000
+#        wait-duration-in-open-state: 5s
+#        permitted-number-of-calls-in-half-open-state: 3
+#        automatic-transition-from-open-to-half-open-enabled: true
+#    instances:
+#      feignServiceCB1:
+#        base-config: default
+#        sliding-window-type: count-based
+#        sliding-window-size: 100
+#        failure-rate-threshold: 50
+#        minimum-number-of-calls: 10
+#        wait-duration-in-open-state: 10s
+#        permitted-number-of-calls-in-half-open-state: 3
+#  retry:
+#    instances:
+#      feignServiceRetry:
+#        max-attempts: 3
+#        wait-duration: 500ms
+#        retry-exceptions:
+#          - java.lang.Exception
+#          - feign.RetryableException
+#  ratelimiter:
+#    instances:
+#      orderRL:
+#        limit-for-period: 20
+#        limit-refresh-period: 1s
+#        timeout-duration: 3s  # 等待超时
+#  bulkhead:
+#    instances:
+#      orderBulkhead:
+#        max-concurrent-calls: 10  # 信号量隔离
+#        max-wait-duration: 0
+#  thread-pool-bulkhead:  # 线程池隔离（开发慎用，高开销）
+#    instances:
+#      orderTP:
+#        max-thread-pool-size: 10
+#        core-thread-pool-size: 2
+#        queue-capacity: 20

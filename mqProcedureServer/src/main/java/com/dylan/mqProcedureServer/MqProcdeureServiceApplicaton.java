@@ -1,0 +1,17 @@
+package com.dylan.mqProcedureServer;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.context.annotation.ComponentScan;
+
+@SpringBootApplication
+@EnableDiscoveryClient
+@ComponentScan(basePackages = { "com.dylan.mqProcedureService", // 本项目
+		"com.dylan.common.redis" // 公共模块
+})
+public class MqProcdeureServiceApplicaton {
+	public static void main(String[] args) {
+		SpringApplication.run(MqProcdeureServiceApplicaton.class, args);
+	}
+}

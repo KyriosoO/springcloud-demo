@@ -1,0 +1,14 @@
+server:
+    port: 8761
+spring:
+    cloud:
+        config:
+            enabled: false
+    application:
+        name: eurekaServer
+eureka:
+    client:
+        register-with-eureka: false # Server 不注册自己
+        fetch-registry: false # 单节点本地，不拉取 peer
+    server:
+        enable-self-preservation: true # 开启自我保护，避免误剔除实例

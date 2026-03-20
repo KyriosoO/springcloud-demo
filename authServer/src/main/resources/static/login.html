@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cookie 验证页面</title>
+</head>
+<body>
+	<h2>登录并验证 Cookie</h2>
+
+	<form id="loginForm">
+		<label>用户名: <input type="text" name="username" value="dylan"></label><br>
+		<br> <label>密码: <input type="password" name="password"
+			value="123456"></label><br>
+		<br>
+		<button type="submit">登录</button>
+	</form>
+
+	<h3>Cookie 内容:</h3>
+	<pre id="cookieDisplay">还没有登录...</pre>
+
+	<script>
+    const form = document.getElementById('loginForm');
+    const cookieDisplay = document.getElementById('cookieDisplay');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const data = {
+            username: formData.get('username'),
+            password: formData.get('password')
+        };
+
+        try {
+            // 登录请求
+            const res = await fetch('http://localhost:8888/login', { // 修改为你的 gateway login 地址
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                credentials: 'include' // 关键！允许前端接收 HttpOnly Cookie
+            });
+
+            if (res.ok) {
+                alert('登录成功，Cookie 已设置（HttpOnly Cookie 不能通过 JS 读取）');
+                window.location.replace("/home.html");
+            } else {
+                alert('登录失败');
+            }
+
+            // 显示非 HttpOnly Cookie（仅测试可见的 Cookie）
+            cookieDisplay.textContent = document.cookie || "当前没有可见 Cookie";
+        } catch (err) {
+            console.error(err);
+        }
+    });
+</script>
+
+</body>
+</html>
