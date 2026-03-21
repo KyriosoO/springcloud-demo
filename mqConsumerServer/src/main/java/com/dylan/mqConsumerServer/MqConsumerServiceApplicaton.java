@@ -7,7 +7,7 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@ComponentScan(basePackages = { "com.dylan.mqConsumerService", // 本项目
+@ComponentScan(basePackages = { "com.dylan.mqConsumerServer", // 本项目
 		"com.dylan.common.redis" // 公共模块
 })
 public class MqConsumerServiceApplicaton {

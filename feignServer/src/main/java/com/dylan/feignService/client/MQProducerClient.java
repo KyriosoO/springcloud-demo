@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "mqprocedureserver", path = "/orders/", contextId = "feign2mqProducer")
 public interface MQProducerClient {
 	@PostMapping(path = "create")
-	String createOrders(@RequestParam String userId, @RequestParam Integer quantity, @RequestParam String productId);
+	String createOrders(@RequestParam String userId, @RequestParam String productId, @RequestParam Integer quantity);
 
 	@PostMapping(path = "mqTest")
 	String mqTest(@RequestParam String orderId, @RequestParam Integer quantity);

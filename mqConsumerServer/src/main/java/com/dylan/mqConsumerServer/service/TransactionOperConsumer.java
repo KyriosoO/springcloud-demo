@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 import org.apache.rocketmq.spring.annotation.ConsumeMode;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -31,16 +30,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 )
 public class TransactionOperConsumer implements RocketMQListener<TransactionLog> {
 
-	@Autowired
+//	@Autowired
 	private SeqNoGenerator seqNoGenerator;
 
-	@Autowired
+//	@Autowired
 	private TransactionLogMapper transactionLogMapper;
 
-	@Autowired
+//	@Autowired
 	private TransactionLogArchiveMapper transactionLogArchiveMapper;
 
-	@Autowired
+//	@Autowired
 	private TransactionMapper transactionMapper;
 
 	// 消息批量累积

@@ -61,10 +61,10 @@ public class DecoratorService {
 						}).build());
 	}
 
-	public String mqCreateOrderService(String userId, Integer quantity, String productId) {
+	public String mqCreateOrderService(String userId, String productId, Integer quantity) {
 		return resilienceExecutor.execute(ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL")
 				.retry("feignServiceRetry").circuitBreaker("feignServiceCB")
-				.run(() -> mqProducerClient.createOrders(userId, quantity, productId)).fallback(ex -> {
+				.run(() -> mqProducerClient.createOrders(userId, productId, quantity)).fallback(ex -> {
 					if (ex instanceof CallNotPermittedException) {
 						return "系统繁忙（熔断中），请稍后再试";
 					}

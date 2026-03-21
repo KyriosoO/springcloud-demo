@@ -29,7 +29,7 @@ public class DemoController {
 
 	@PostMapping("orders/create")
 	public String createOrder(String userId, Integer quantity, String productId) {
-		return decoratorService.mqCreateOrderService(userId, quantity, productId);
+		return decoratorService.mqCreateOrderService(userId, productId, quantity);
 	}
 
 	@PostMapping("orders/mqTest")
