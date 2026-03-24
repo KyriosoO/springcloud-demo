@@ -15,6 +15,27 @@ spring:
         name: mqprocedureserver
     config:
         import: optional:configserver:http://localhost:9888
+    datasource:
+        url: jdbc:mysql://localhost:3306/springboot_db?serverTimezone=Asia/Shanghai&allowMultiQueries=true
+        username: root
+        password: admin
+        driver-class-name: com.mysql.jdbc.Driver
+    kafka:
+        bootstrap-servers: localhost:9092 # Kafka 服务地址
+        producer:
+            retries: 3
+            acks: all
+        #            key-serializer: org.apache.kafka.common.serialization.StringSerializer
+        #            value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+        consumer:
+            group-id: order-consumer-group
+            enable-auto-commit: false # 手动提交 offset，保证幂等
+            auto-offset-reset: earliest # 消费器重启时从最早位置开始
+            max-poll-records: 100 # 批量拉取大小
+#            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#            value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+#        properties:
+#          spring.json.value.default.type: com.example.demo.model.Order  # 反序列化类型
 rocketmq:
     name-server: localhost:9876 # 替换成你RocketMQ NameServer地址
     producer:

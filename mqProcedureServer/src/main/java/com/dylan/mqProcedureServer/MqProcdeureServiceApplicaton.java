@@ -8,7 +8,7 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @EnableDiscoveryClient
 @ComponentScan(basePackages = { "com.dylan.mqProcedureServer", // 本项目
-		"com.dylan.common.redis" // 公共模块
+		"com.dylan.common.redis", "com.dylan.common.db", "com.dylan.common.kafka"// 公共模块
 })
 public class MqProcdeureServiceApplicaton {
 	public static void main(String[] args) {

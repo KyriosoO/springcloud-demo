@@ -1,12 +1,10 @@
 package com.dylan.mqConsumerServer.trans.mapper;
 
-import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
 
 import com.dylan.common.model.trans.TransactionLogArchive;
 
-//@Mapper
+@Mapper
 public interface TransactionLogArchiveMapper {
-	public void save(List<TransactionLogArchive> list);
-
-	public void deleteProcessed();
+	public void save(TransactionLogArchive archive);
 }

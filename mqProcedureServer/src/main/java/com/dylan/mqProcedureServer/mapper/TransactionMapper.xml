@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dylan.mqProcedureServer.mapper.TransactionMapper">
+	<!-- resultMap -->
+	<resultMap id="TransactionResultMap" type="com.dylan.common.model.trans.Transaction">
+		<id property="transId" column="TRANS_ID" />
+		<result property="transType" column="TRANS_TYPE" />
+		<result property="transDate" column="TRANS_DATE" />
+		<result property="amount" column="AMOUNT" />
+	</resultMap>
+	<select id="fetchAll" resultMap="TransactionResultMap">
+		select * from t_transaction
+	</select>
+</mapper>

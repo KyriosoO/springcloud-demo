@@ -6,7 +6,6 @@ import java.util.Objects;
 public class TransactionLog {
 	private String transId;
 	private Long seqNo;
-	private boolean processed;
 	private String payload;
 	private Date createdAt;
 
@@ -20,14 +19,6 @@ public class TransactionLog {
 
 	public Long getSeqNo() {
 		return seqNo;
-	}
-
-	public boolean isProcessed() {
-		return processed;
-	}
-
-	public void setProcessed(boolean processed) {
-		this.processed = processed;
 	}
 
 	public void setSeqNo(Long seqNo) {

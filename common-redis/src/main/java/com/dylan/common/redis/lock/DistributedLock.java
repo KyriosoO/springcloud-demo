@@ -10,7 +10,7 @@ public @interface DistributedLock {
 	String key();
 
 	// 自动lock前缀
-	String prefix() default "lock:";
+	String prefix() default "";
 
 	// 等待时间
 	long waitTime() default 5;

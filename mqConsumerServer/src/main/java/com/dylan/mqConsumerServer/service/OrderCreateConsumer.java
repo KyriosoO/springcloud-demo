@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.dylan.common.model.order.OrderMessage;
 import com.dylan.common.model.order.OrderResult;
+import com.dylan.mqConsumerServer.support.StockOperService;
 
 @Service
 @RocketMQMessageListener(topic = "order-topic", selectorExpression = "create", consumerGroup = "order-consumer-group")
@@ -21,19 +22,12 @@ public class OrderCreateConsumer implements RocketMQListener<OrderMessage> {
 	@Autowired
 	private StockOperService stockOperService;
 
-	// 消息批量累积
-	private int batch = 0;
 
 	// 消费订单消息
 	@Override
 	public void onMessage(OrderMessage order) {
 		StockOperService.DeductResult result = stockOperService.deductStock(order.getProductId(), order.getOrderId(),
 				order.getQuantity());
-		System.out.println(batch);
-		if (batch < 8) {
-			batch ++;
-			throw new RuntimeException();
-		}
 		switch (result) {
 		case SUCCESS:
 			rocketMQTemplate.convertAndSend("order-topic:feedback", new OrderResult(order.getOrderId(), "UNPAID"));

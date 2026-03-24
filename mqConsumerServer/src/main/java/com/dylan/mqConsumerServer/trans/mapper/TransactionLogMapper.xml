@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+	namespace="com.dylan.mqConsumerServer.trans.mapper.TransactionLogMapper">
+
+	<!-- ResultMap -->
+	<resultMap id="TransactionLogResultMap"
+		type="com.dylan.common.model.trans.TransactionLog">
+		<id property="transId" column="trans_id" />
+		<id property="seqNo" column="seq_no" />
+		<result property="payload" column="payload" />
+		<result property="createdAt" column="created_at" />
+	</resultMap>
+
+	<!-- 插入单条 -->
+	<insert id="save"
+		parameterType="com.dylan.common.model.trans.TransactionLog">
+		INSERT INTO transaction_log (trans_id, seq_no, payload,
+		created_at)
+		VALUES (#{transId}, #{seqNo}, #{payload}, #{createdAt})
+	</insert>
+
+	<!-- 插入单条 -->
+	<insert id="saveException"
+		parameterType="com.dylan.common.model.trans.TransactionLog">
+		INSERT INTO transaction_log_exception (trans_id, seq_no, payload,
+		created_at)
+		VALUES (#{transId}, #{seqNo}, #{payload}, #{createdAt})
+	</insert>
+
+	<delete id="clear"
+		parameterType="com.dylan.common.model.trans.TransactionLog">
+		DELETE FROM transaction_log
+	</delete>
+
+	<select id="fetchNewTransByIdentityAsSet" resultType="string">
+		SELECT
+		DISTINCT a.trans_id
+		FROM transaction_log a
+		WHERE not exists (select 1
+		from t_transaction b where b.trans_id = a.trans_id)
+	</select>
+
+</mapper>

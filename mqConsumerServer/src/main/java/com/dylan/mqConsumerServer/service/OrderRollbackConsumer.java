@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.dylan.common.model.order.OrderMessage;
 import com.dylan.common.model.order.OrderResult;
 import com.dylan.common.redis.service.RedisService;
+import com.dylan.mqConsumerServer.support.StockOperService;
 
 @Service
 @RocketMQMessageListener(topic = "order-topic", selectorExpression = "rollback", consumerGroup = "order-fallback-group")

@@ -1,9 +1,14 @@
 package com.dylan.mqProcedureServer.service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import org.apache.rocketmq.client.exception.MQBrokerException;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +47,7 @@ public class OrderService {
 	// 创建订单
 	@DistributedLock(key = "#userId + ':' + #productId")
 	public String createOrder(String userId, Integer quantity, String productId) {
-		redisService.set("stock:1001", 10);
+		redisService.set("stock:1001", 20);
 		String orderId = UUID.randomUUID().toString();
 		OrderMessage order = new OrderMessage(orderId, userId, productId, quantity, "PEDDING");
 		// 1. 写入 Redis
@@ -60,20 +65,26 @@ public class OrderService {
 			return;
 		}
 		order.setOrderStatus(result.getStatus());
+		redisService.set(key, order);
 		if (result.getStatus().equals(OrderStatus.UNPAID.name())) {
-			redisService.set(key, order);
 			// 设置 TTL 自动取消（例如 30 分钟）
 			String timeoutKey = ORDER_KEY_PREFIX + ORDER_TIMEOUT_PREFIX + result.getOrderId();
-			redisService.set(timeoutKey, result.getOrderId(), 10);
+			redisService.set(timeoutKey, result.getOrderId(), 60);
+			// 设置超时mq消息
+			Message<String> message = MessageBuilder
+					.withPayload(ORDER_KEY_PREFIX + ORDER_TIMEOUT_PREFIX + result.getOrderId()).build();
+			rocketMQTemplate.syncSend("order-topic:timeout", message, 3000, 16);
+		} else {
+			// TODO: 可异步落库 DB
+
 		}
-		// TODO: 可异步落库 DB
 	}
 
-	@DistributedLock(key = "#orderId")
+	@DistributedLock(prefix = ORDER_KEY_PREFIX, key = "#orderId")
 	public void handlerOrderTimeout(String orderId) {
 		String key = ORDER_KEY_PREFIX + orderId;
 		OrderMessage order = (OrderMessage) redisService.get(key);
-		if (order == null) {
+		if (order == null || order.getOrderStatus() != OrderStatus.UNPAID.name()) {
 			return;
 		}
 		order.setOrderStatus("CLOSED");

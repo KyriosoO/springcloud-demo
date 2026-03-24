@@ -1,7 +1,5 @@
 package com.dylan.common.redis.lock;
 
-import java.lang.reflect.Method;
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -18,12 +16,13 @@ import org.springframework.stereotype.Component;
 @Aspect
 @Component
 public class DistributedLockAspect {
+	private static final String LOCK = "lock:";
 	@Autowired
 	private RedissonClient redissonClient;
 
 	@Around("@annotation(distributedLock)")
 	public Object around(ProceedingJoinPoint joinPoint, DistributedLock distributedLock) throws Throwable {
-		String key = parseKey(distributedLock.key(), joinPoint);
+		String key = parseKey(distributedLock.prefix(), distributedLock.key(), joinPoint);
 		RLock lock = redissonClient.getLock(key);
 		boolean success = false;
 		try {
@@ -43,9 +42,9 @@ public class DistributedLockAspect {
 	}
 
 	// SpEL 解析
-	private String parseKey(String key, ProceedingJoinPoint joinPoint) {
+	private String parseKey(String prefix, String key, ProceedingJoinPoint joinPoint) {
+		prefix = null == prefix ? "" : prefix;
 		MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-		Method method = signature.getMethod();
 		Object[] args = joinPoint.getArgs();
 		String[] paramNames = signature.getParameterNames();
 		EvaluationContext context = new StandardEvaluationContext();
@@ -53,6 +52,6 @@ public class DistributedLockAspect {
 			context.setVariable(paramNames[i], args[i]);
 		}
 		ExpressionParser parser = new SpelExpressionParser();
-		return parser.parseExpression(key).getValue(context, String.class);
+		return LOCK + prefix + parser.parseExpression(key).getValue(context, String.class);
 	}
 }

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dylan.mqConsumerServer.trans.mapper.TransactionMapper">
+
+	<!-- resultMap -->
+	<resultMap id="TransactionResultMap" type="com.dylan.common.model.trans.Transaction">
+		<id property="transId" column="TRANS_ID" />
+		<result property="transType" column="TRANS_TYPE" />
+		<result property="transDate" column="TRANS_DATE" />
+		<result property="amount" column="AMOUNT" />
+	</resultMap>
+
+	<insert id="insertTransaction"
+		parameterType="com.dylan.common.model.trans.Transaction">
+		INSERT INTO t_transaction (trans_id, trans_type,
+		trans_date, amount)
+		VALUES (#{transId}, #{transType}, #{transDate},
+		#{amount})
+	</insert>
+	<!-- 更新 -->
+	<update id="updateTransaction"
+		parameterType="com.dylan.common.model.trans.Transaction">
+		UPDATE t_transaction
+		SET
+		trans_type = #{transType},
+		trans_date = #{transDate},
+		amount = #{amount}
+		WHERE trans_id = #{transId}
+	</update>
+</mapper>

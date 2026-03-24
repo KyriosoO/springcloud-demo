@@ -7,12 +7,12 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
-import com.dylan.mqProcedureServer.service.OrderTimeoutListener;
+import com.dylan.mqProcedureServer.service.OrderTimeoutRedisListener;
 
 @Configuration
 public class RedisTTLConfig {
 	@Autowired
-	OrderTimeoutListener orderTimeoutListener;
+	OrderTimeoutRedisListener orderTimeoutListener;
 
 	@Bean
 	public RedisMessageListenerContainer redisContainer(RedisConnectionFactory connectionFactory) {
