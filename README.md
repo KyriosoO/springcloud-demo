@@ -1,29 +1,41 @@
-基于spring-cloud的微服务demo
+1. Authentication
 
-1.oauth2.0
+OAuth 2.0
 
-  1.1.JWT认证
+JWT Authentication: Secures microservices with JSON Web Tokens.
 
-2.gateway
+2. API Gateway
 
-  2.1.Sentinel 令牌桶模式
-  
-  2.2.限流
+Sentinel Token Bucket Mode: Controls traffic with token-based rate limiting.
 
-  2.3.负载均衡
+Rate Limiting: Protects services from overload.
 
-3.feign
+Load Balancing: Distributes requests across multiple service instances.
 
-  3.1.resilience4j 重试 熔断 限流
+3. Service-to-Service Communication (Feign)
 
-4.eureka服务发现
-  
-6.rocketmq
+Resilience4j Integration:
 
-  6.1.异步消息驱动落库 + 批量回放
+Retry
 
-  6.2.订单投放
+Circuit Breaker
 
-7.kafka
+Rate Limiting
 
-  7.1.异步消息驱动落库 + 批量回放
+4. Service Discovery
+
+Eureka: Automatically detects and registers service instances for dynamic discovery.
+
+5. RocketMQ
+
+Asynchronous Message-Driven Persistence: Handles high-throughput data writes asynchronously.
+
+Batch Replay: Supports replaying messages in batches.
+
+Order Dispatch: Manages the delivery of order messages reliably.
+
+6. Kafka
+
+Asynchronous Message-Driven Persistence: Similar to RocketMQ, supports asynchronous persistence.
+
+Batch Replay: Enables replaying messages in batches for data consistency or recovery.
