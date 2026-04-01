@@ -1,11 +1,8 @@
 package com.dylan.mqProcedureServer.service;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 
-import org.apache.rocketmq.client.exception.MQBrokerException;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
@@ -17,6 +14,8 @@ import com.dylan.common.model.order.OrderResult;
 import com.dylan.common.model.order.OrderStatus;
 import com.dylan.common.redis.lock.DistributedLock;
 import com.dylan.common.redis.service.RedisService;
+import com.dylan.common.ws.support.WsSender;
+import com.dylan.mqProcedureServer.model.OrderResp;
 
 @Service
 public class OrderService {
@@ -26,6 +25,8 @@ public class OrderService {
 	private RocketMQTemplate rocketMQTemplate;
 	@Autowired
 	private RedisService redisService;
+	@Autowired
+	WsSender wsSender;
 
 	// 发送普通消息
 	public void send(String topic, String msg) {
@@ -46,7 +47,7 @@ public class OrderService {
 
 	// 创建订单
 	@DistributedLock(key = "#userId + ':' + #productId")
-	public String createOrder(String userId, Integer quantity, String productId) {
+	public OrderResp createOrder(String userId, Integer quantity, String productId) {
 		redisService.set("stock:1001", 20);
 		String orderId = UUID.randomUUID().toString();
 		OrderMessage order = new OrderMessage(orderId, userId, productId, quantity, "PEDDING");
@@ -54,7 +55,7 @@ public class OrderService {
 		redisService.set(ORDER_KEY_PREFIX + orderId, order);
 		// 2. 发送 MQ
 		rocketMQTemplate.convertAndSend("order-topic:create", order);
-		return "下单成功，处理中..." + "订单Id:" + orderId;
+		return new OrderResp(orderId, userId, "下单成功，处理中...");
 	}
 
 	@DistributedLock(key = "#result.orderId")
@@ -74,9 +75,10 @@ public class OrderService {
 			Message<String> message = MessageBuilder
 					.withPayload(ORDER_KEY_PREFIX + ORDER_TIMEOUT_PREFIX + result.getOrderId()).build();
 			rocketMQTemplate.syncSend("order-topic:timeout", message, 3000, 16);
+			wsSender.send(order.getUserId(), "ORDER",
+					Map.of("orderId", order.getOrderId(), "status", order.getOrderStatus(), "msg", "订单处理成功，等待付款"));
 		} else {
 			// TODO: 可异步落库 DB
-
 		}
 	}
 
@@ -93,5 +95,7 @@ public class OrderService {
 		// 发送退库消息
 		rocketMQTemplate.convertAndSend("order-topic:rollback", order);
 		// TODO: 可异步落库 DB
+		wsSender.send(order.getUserId(), "ORDER",
+				Map.of("orderId", order.getOrderId(), "status", order.getOrderStatus(), "msg", "订单超时已关闭"));
 	}
 }

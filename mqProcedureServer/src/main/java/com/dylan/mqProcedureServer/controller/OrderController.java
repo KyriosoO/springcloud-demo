@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dylan.common.model.order.OrderMessage;
+import com.dylan.mqProcedureServer.model.OrderResp;
 import com.dylan.mqProcedureServer.service.OrderService;
 
 @RestController
@@ -23,7 +24,7 @@ public class OrderController {
 	}
 
 	@PostMapping("/create")
-	public String createOrder(String userId, String productId, Integer quantity) {
+	public OrderResp createOrder(String userId, String productId, Integer quantity) {
 		return orderService.createOrder(userId, quantity, productId);
 	}
 }
