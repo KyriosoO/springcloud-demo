@@ -9,7 +9,7 @@ eureka:
         lease-renewal-interval-in-seconds: 5 # 心跳间隔
         lease-expiration-duration-in-seconds: 15 # 服务过期时间
 server:
-    port: 8082
+    port: 8182
 spring:
     application:
         name: mqprocedureserver

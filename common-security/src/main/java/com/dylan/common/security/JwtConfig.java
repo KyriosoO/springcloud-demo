@@ -34,8 +34,8 @@ public class JwtConfig {
 		return NimbusJwtDecoder.withSecretKey(secretKey).build();
 	}
 
-	@Bean
-	ReactiveJwtDecoder reactiveJwtDecoder(SecretKey secretKey) {
-		return NimbusReactiveJwtDecoder.withSecretKey(secretKey).build();
-	}
+//	@Bean
+//	ReactiveJwtDecoder reactiveJwtDecoder(SecretKey secretKey) {
+//		return NimbusReactiveJwtDecoder.withSecretKey(secretKey).build();
+//	}
 }
