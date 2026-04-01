@@ -79,6 +79,8 @@ public class OrderService {
 					Map.of("orderId", order.getOrderId(), "status", order.getOrderStatus(), "msg", "订单处理成功，等待付款"));
 		} else {
 			// TODO: 可异步落库 DB
+			wsSender.send(order.getUserId(), "ORDER",
+					Map.of("orderId", order.getOrderId(), "status", order.getOrderStatus(), "msg", "订单异常"));
 		}
 	}
 
