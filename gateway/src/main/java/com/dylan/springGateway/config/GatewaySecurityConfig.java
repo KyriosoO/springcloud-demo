@@ -16,6 +16,9 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.authorization.ServerAccessDeniedHandler;
@@ -49,9 +52,10 @@ public class GatewaySecurityConfig {
 
 	@Bean
 	@Order(Integer.MIN_VALUE) // 最早执行
-	public GlobalFilter authTokenFilter() {
+	public GlobalFilter authTokenFilter(JwtDecoder jwtDecoder) {
 		return (exchange, chain) -> {
-			System.out.println("GlobalFilter executed: " + exchange.getRequest().getId() + " path=" + exchange.getRequest().getURI().getPath());
+			System.out.println("GlobalFilter executed: " + exchange.getRequest().getId() + " path="
+					+ exchange.getRequest().getURI().getPath());
 			String path = exchange.getRequest().getURI().getPath();
 			// 1️ 白名单直接放行
 			if (WHITE_LIST.stream().anyMatch(path::startsWith)) {
@@ -65,10 +69,18 @@ public class GatewaySecurityConfig {
 			if (cookie == null) {
 				return redirectLogin(exchange);
 			}
-
+			String token = cookie.getValue();
+			Jwt jwt;
+			try {
+				jwt = jwtDecoder.decode(token);
+			} catch (Exception e) {
+				return redirectLogin(exchange);
+			}
+			String userId = jwt.getSubject();
 			// 4️ 将 Cookie 中的 Token 转发到下游服务
 			ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-					.header(HttpHeaders.AUTHORIZATION, "Bearer " + cookie.getValue()).build();
+					.header(HttpHeaders.AUTHORIZATION, "Bearer " + cookie.getValue()).header("X-USER-ID", userId)
+					.build();
 
 			ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
 			// 5️ 放行请求

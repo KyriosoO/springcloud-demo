@@ -126,7 +126,7 @@ public class TransBatchService {
 				try {
 					m.save(i);
 				} catch (DuplicateKeyException e) {
-					// TODO: handle exception
+					
 				}
 			});
 			// 4. 获取新增交易集合（Set便于O(1)判断）

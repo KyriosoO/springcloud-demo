@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.dylan.authCenter.model.LoginRequest;
 import com.dylan.authCenter.service.JwtService;
+import com.dylan.authCenter.service.UserService;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -22,6 +23,8 @@ public class AuthController {
 
 	@Autowired
 	private JwtService jwtService;
+	@Autowired
+	UserService userService;
 
 	@PostMapping("/login")
 	public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
@@ -37,8 +40,13 @@ public class AuthController {
 		return "ok";
 	}
 
-	@GetMapping("/my")
-	public String hello(Authentication authentication) {
-		return "Hello " + authentication.getName();
+	@GetMapping("/as/getUserId")
+	public String getUserId() {
+		return userService.getCurrentUserId();
+	}
+
+	@GetMapping("/as/my")
+	public String hello() {
+		return "Hello " + userService.getCurrentUserId();
 	}
 }

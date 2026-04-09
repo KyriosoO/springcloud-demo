@@ -1,5 +1,8 @@
 package com.dylan.mqProcedureServer.controller;
 
+import org.apache.rocketmq.client.exception.MQBrokerException;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.dylan.common.model.order.OrderMessage;
 import com.dylan.mqProcedureServer.model.OrderResp;
 import com.dylan.mqProcedureServer.service.OrderService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 @RestController
 @RequestMapping("/orders")
@@ -24,7 +28,8 @@ public class OrderController {
 	}
 
 	@PostMapping("/create")
-	public OrderResp createOrder(String userId, String productId, Integer quantity) {
+	public OrderResp createOrder(String userId, String productId, Integer quantity) throws JsonProcessingException,
+			MQClientException, RemotingException, MQBrokerException, InterruptedException {
 		return orderService.createOrder(userId, quantity, productId);
 	}
 }

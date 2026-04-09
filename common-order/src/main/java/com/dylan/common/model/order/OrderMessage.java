@@ -73,4 +73,12 @@ public class OrderMessage implements Serializable {
 			this.orderStatus = OrderStatus.valueOf(orderStatus);
 		}
 	}
+
+	public void reset(String orderId, String userId, String productId, int quantity, OrderStatus orderStatus) {
+		this.orderId = orderId;
+		this.userId = userId;
+		this.productId = productId;
+		this.quantity = quantity;
+		this.orderStatus = orderStatus;
+	}
 }

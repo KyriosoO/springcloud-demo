@@ -20,9 +20,9 @@ public class GatewayRouter {
 			c.setBackoff(Duration.ofMillis(500), Duration.ofMillis(500), 1, false);
 		});
 		return builder.routes()
-				.route("hello_route", r -> r.path("/test", "/api", "/orders/**").filters(f -> f.filter(retry)).uri("lb://feignserver"))
-				.route("ws_route", r -> r.path("/ws/**").uri("lb://feignserver"))
-				.route("auth_route", r -> r.path("/login", "/my", "/login.html", "/home.html").filters(f -> f.filter(retry)).uri("lb://authcenter"))
+				.route("hello_route", r -> r.path("/test", "/api/**", "/orders/**").filters(f -> f.filter(retry)).uri("lb://feignserver"))
+				.route("ws_route", r -> r.path("/ws/**").uri("lb://mqprocedureserver"))
+				.route("auth_route", r -> r.path("/login", "/login.html", "/home.html", "/as/**").filters(f -> f.filter(retry)).uri("lb://authcenter"))
 				.route("direct_route", r -> r.path("/index").filters(f -> f.filter(retry)).uri("lb://mserver"))
 				.route("mq_route", r -> r.path("/txn/**").filters(f -> f.filter(retry)).uri("lb://mqprocedureserver"))
 				.build();

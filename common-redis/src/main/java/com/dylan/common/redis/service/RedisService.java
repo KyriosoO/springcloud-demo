@@ -1,10 +1,15 @@
 package com.dylan.common.redis.service;
 
+import org.redisson.api.RBloomFilter;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -13,6 +18,8 @@ public class RedisService {
 
 	@Autowired
 	private RedisTemplate<String, Object> redisTemplate;
+	@Autowired
+	RedissonClient redissonClient;
 
 	@Value("${redis.key-prefix:}") // 默认空前缀
 	private String keyPrefix;
@@ -265,5 +272,61 @@ public class RedisService {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * 初始化 Bloom Filter，如果已存在则忽略异常
+	 *
+	 * @param bloomKey           Bloom Key
+	 * @param expectedInsertions 预计元素数
+	 * @param falsePositiveRate  误判率
+	 */
+	public void initBloomIfAbsent(String bloomKey, long expectedInsertions, double falsePositiveRate) {
+		RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(bloomKey);
+		try {
+			if (!bloomFilter.isExists()) {
+				bloomFilter.tryInit(expectedInsertions, falsePositiveRate);
+			}
+		} catch (Exception ignored) {
+			// 已存在 Bloom，忽略异常
+		}
+	}
+
+	/**
+	 * 判断元素是否存在 Bloom
+	 */
+	public boolean existsInBloom(String bloomKey, String value) {
+		RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(bloomKey);
+		return bloomFilter.contains(value);
+	}
+
+	/**
+	 * 添加元素到 Bloom
+	 */
+	public void addToBloom(String bloomKey, String value) {
+		RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(bloomKey);
+		bloomFilter.add(value);
+	}
+
+	/**
+	 * 设置 Bloom 过期
+	 */
+	public void expire(String bloomKey, long time, ChronoUnit unit) {
+		RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(bloomKey);
+		bloomFilter.expire(Duration.of(time, unit));
+	}
+
+	/**
+	 * 获取全局 seq_no 自增起点
+	 */
+	public long incrementGlobalSeq(String key, long delta) {
+		return redissonClient.getAtomicLong(key).addAndGet(delta);
+	}
+
+	/**
+	 * 获取全局 seq_no 当前值（可选）
+	 */
+	public long getGlobalSeq(String key) {
+		return redissonClient.getAtomicLong(key).get();
 	}
 }

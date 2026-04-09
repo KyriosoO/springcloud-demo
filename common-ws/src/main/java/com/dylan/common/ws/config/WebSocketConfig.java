@@ -1,22 +1,41 @@
 package com.dylan.common.ws.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
+import org.springframework.web.reactive.socket.WebSocketHandler;
+import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter;
 import com.dylan.common.ws.support.CommonWebSocketHandler;
+import com.dylan.common.ws.support.OrderWebSocketHandler;
+import com.dylan.common.ws.support.TransWebSocketHandler;
 
 @Configuration
-@EnableWebSocket
-public class WebSocketConfig implements WebSocketConfigurer {
+public class WebSocketConfig {
 
 	@Autowired
-	private CommonWebSocketHandler handler;
+	OrderWebSocketHandler orderWebSocketHandler;
+	@Autowired
+	TransWebSocketHandler transWebSocketHandler;
 
-	@Override
-	public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-		registry.addHandler(handler, "/ws/**").addInterceptors(new AuthHandshakeInterceptor()).setAllowedOrigins("*");
+	// 1️ 注册 WebSocketHandlerAdapter
+	@Bean
+	public WebSocketHandlerAdapter webSocketHandlerAdapter() {
+		return new WebSocketHandlerAdapter();
+	}
+
+	// 2️ 注册 WebSocket 路径
+	@Bean
+	public SimpleUrlHandlerMapping webSocketHandlerMapping() {
+		Map<String, WebSocketHandler> map = new HashMap<>();
+		map.put("/ws/order", new CookieAuthWebSocketHandler(orderWebSocketHandler)); // 注册 WebSocket 端点
+		map.put("/ws/trans", new CookieAuthWebSocketHandler(transWebSocketHandler));
+		SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
+		mapping.setUrlMap(map);
+		mapping.setOrder(-1); // 优先级高
+		return mapping;
 	}
 }
