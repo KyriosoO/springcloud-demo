@@ -11,6 +11,8 @@ eureka:
 server:
     port: 8182
 spring:
+    main:
+      web-application-type: reactive
     application:
         name: mqprocedureserver
     config:

@@ -21,8 +21,14 @@ public class DemoController {
 		return decoratorService.indexService(user);
 	}
 
-	@GetMapping("/api")
+	@GetMapping("/api/my")
 	public String getMy() {
+		// 调用 Service 中的 index 方法
+		return decoratorService.myService();
+	}
+	
+	@GetMapping("/api/getUserId")
+	public String getUserId() {
 		// 调用 Service 中的 index 方法
 		return decoratorService.myService();
 	}

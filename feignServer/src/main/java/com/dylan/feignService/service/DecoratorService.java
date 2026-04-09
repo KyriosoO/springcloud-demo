@@ -6,9 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.dylan.feignService.client.AsFeignClient;
 import com.dylan.feignService.client.IndexFeignClient;
 import com.dylan.feignService.client.MQProducerClient;
-import com.dylan.feignService.client.MyFeignClient;
 import com.dylan.feignService.decorator.ResilienceCommand;
 import com.dylan.feignService.decorator.ResilienceExecutor;
 
@@ -21,7 +21,7 @@ public class DecoratorService {
 	@Autowired
 	IndexFeignClient indexFeignClient;
 	@Autowired
-	MyFeignClient myFeignClient;
+	AsFeignClient asFeignClient;
 	@Autowired
 	MQProducerClient mqProducerClient;
 	@Autowired
@@ -47,7 +47,24 @@ public class DecoratorService {
 	public String myService() {
 		return resilienceExecutor.execute(
 				ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL").retry("feignServiceRetry")
-						.circuitBreaker("feignServiceCB").run(() -> myFeignClient.my()).fallback(ex -> {
+						.circuitBreaker("feignServiceCB").run(() -> asFeignClient.my()).fallback(ex -> {
+							if (ex instanceof CallNotPermittedException) {
+								return "系统繁忙（熔断中），请稍后再试";
+							}
+							if (ex instanceof feign.RetryableException) {
+								return "网络异常，请检查网络";
+							}
+							if (ex instanceof RequestNotPermitted) {
+								return "系统繁忙（限流），请稍后再试";
+							}
+							return ex.toString();
+						}).build());
+	}
+
+	public String getUsrIdService() {
+		return resilienceExecutor.execute(
+				ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL").retry("feignServiceRetry")
+						.circuitBreaker("feignServiceCB").run(() -> asFeignClient.getUserId()).fallback(ex -> {
 							if (ex instanceof CallNotPermittedException) {
 								return "系统繁忙（熔断中），请稍后再试";
 							}

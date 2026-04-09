@@ -2,15 +2,20 @@ package com.dylan.mqProcedureServer.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
+import com.dylan.common.kafka.util.KryoUtils;
 import com.dylan.common.model.trans.Transaction;
 import com.dylan.common.model.trans.TransactionLog;
 import com.dylan.common.redis.lock.DistributedLock;
 import com.dylan.common.redis.service.RedisService;
+import com.dylan.common.ws.support.WsSender;
 import com.dylan.mqProcedureServer.mapper.TransactionMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,10 +26,13 @@ public class TransactionOperKafkaProducer {
 	private RedisService redisService;
 
 	@Autowired
-	private KafkaTemplate<String, Object> kafkaTemplate;
+	private KafkaTemplate<String, byte[]> bytesKafkaTemplate;
 
 	@Autowired
 	TransactionMapper transactionMapper;
+
+	@Autowired
+	WsSender wsSender;
 
 	@DistributedLock(prefix = "txn:", key = "#op.transId")
 	public void submitOperation(TransactionLog op) {
@@ -33,8 +41,9 @@ public class TransactionOperKafkaProducer {
 //		redisService.rPush(cacheKey, op.getPayload());
 		String dirtyKey = "dirty:txn:" + op.getTransId();
 		redisService.set(dirtyKey, op.getPayload());
+		byte[] payloads = KryoUtils.serialize(op);
 		// 2. 顺序发送消息到 MQ（同一 transactionId hashKey 保证顺序消费）
-		kafkaTemplate.send("transaction-topic", op.getTransId(), op);
+		bytesKafkaTemplate.send("transaction-topic", op.getTransId(), payloads);
 	}
 
 	public void startTest() {
