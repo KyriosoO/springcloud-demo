@@ -1,0 +1,18 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+employee:
+  es:
+    index: employee
+    source-url: http://localhost:9210/internal/es/employees
+    embedding-field: embedding
+  kafka:
+    change-topic: employee-change-topic
+    es-sync-group: employee-es-sync-group
+  embedding:
+    provider: bge
+    base-url: http://127.0.0.1:8908
+    api-key:
+    model: bge-m3
+    dims: 1024

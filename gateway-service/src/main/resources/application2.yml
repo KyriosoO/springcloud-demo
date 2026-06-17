@@ -1,0 +1,14 @@
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+server:
+  port: 8888
+spring:
+  application:
+    name: gateway
+ # security:
+ #   oauth2:
+ #     resourceserver:
+ #       jwt:
+ #         jwk-set-uri: http://authCenter/.well-known/jwks.json

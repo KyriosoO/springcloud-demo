@@ -31,6 +31,15 @@
 	<properties>
 		<java.version>25</java.version>
 		<spring-cloud.version>2025.0.1</spring-cloud.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<!-- 第三方依赖版本统一管理 -->
+		<mybatis-spring-boot.version>3.0.3</mybatis-spring-boot.version>
+		<rocketmq-spring-boot.version>2.3.5</rocketmq-spring-boot.version>
+		<redisson.version>3.52.0</redisson.version>
+		<kryo.version>5.6.2</kryo.version>
+		<disruptor.version>4.0.0</disruptor.version>
+		<sentinel.version>1.8.9</sentinel.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -56,6 +65,47 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+			<!-- 第三方依赖版本统一管理，子模块只需声明 groupId 和 artifactId -->
+			<dependency>
+				<groupId>org.mybatis.spring.boot</groupId>
+				<artifactId>mybatis-spring-boot-starter</artifactId>
+				<version>${mybatis-spring-boot.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.rocketmq</groupId>
+				<artifactId>rocketmq-spring-boot-starter</artifactId>
+				<version>${rocketmq-spring-boot.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.redisson</groupId>
+				<artifactId>redisson-spring-boot-starter</artifactId>
+				<version>${redisson.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.esotericsoftware</groupId>
+				<artifactId>kryo</artifactId>
+				<version>${kryo.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.lmax</groupId>
+				<artifactId>disruptor</artifactId>
+				<version>${disruptor.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.alibaba.csp</groupId>
+				<artifactId>sentinel-spring-cloud-gateway-adapter</artifactId>
+				<version>${sentinel.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.alibaba.csp</groupId>
+				<artifactId>sentinel-core</artifactId>
+				<version>${sentinel.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.alibaba.csp</groupId>
+				<artifactId>sentinel-transport-simple-http</artifactId>
+				<version>${sentinel.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -68,13 +118,26 @@
 		</plugins>
 	</build>
 	<modules>
-		<module>eurekaServer</module>
-		<module>gateway</module>
-		<module>feignService</module>
-		<module>common-security</module>
-		<module>common-order</module>
-		<module>common-trans</module>
-		<module>common-kafka</module>
-		<module>common-ws</module>
+		<module>../workflow-api</module>
+		<module>../es-query-api</module>
+		<module>../order-api</module>
+		<module>../transaction-api</module>
+		<module>../common-security</module>
+		<module>../common-db</module>
+		<module>../common-redis</module>
+		<module>../common-kafka</module>
+		<module>../common-ws</module>
+		<module>../eureka-service</module>
+		<module>../config-service</module>
+		<module>../gateway-service</module>
+		<module>../auth-service</module>
+		<module>../m-service-1</module>
+		<module>../m-service-2</module>
+		<module>../openfeign-service</module>
+		<module>../mq-procedure-service</module>
+		<module>../mq-consumer-service</module>
+		<module>../employee-service</module>
+		<module>../es-query-service</module>
+		<module>../workflow-service</module>
 	</modules>
 </project>

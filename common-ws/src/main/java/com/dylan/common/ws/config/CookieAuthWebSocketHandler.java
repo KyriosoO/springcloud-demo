@@ -17,26 +17,35 @@ public class CookieAuthWebSocketHandler implements WebSocketHandler {
 
 	@Override
 	public Mono<Void> handle(WebSocketSession session) {
-
-		// 从原始请求头获取 Cookie
-		String cookieHeader = session.getHandshakeInfo().getHeaders().getFirst(HttpHeaders.COOKIE);
-
-		String token = null;
-		if (cookieHeader != null) {
-			token = Arrays.stream(cookieHeader.split(";")).map(String::trim).filter(c -> c.startsWith("AUTH_TOKEN="))
-					.map(c -> c.split("=", 2)[1]).findFirst().orElse(null);
-		}
-
+		String token = tokenFromAuthorization(session);
 		if (token == null) {
-			// token 不存在，关闭连接
+			token = tokenFromCookie(session);
+		}
+		if (token == null) {
 			return session.close();
 		}
-
-		// 保存 token 到 session attributes
 		session.getAttributes().put("token", token);
-
-		// 交给原来的 Handler 处理
 		return delegate.handle(session);
 	}
 
+	private String tokenFromAuthorization(WebSocketSession session) {
+		String authorization = session.getHandshakeInfo().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+		if (authorization != null && authorization.startsWith("Bearer ")) {
+			return authorization.substring(7);
+		}
+		return null;
+	}
+
+	private String tokenFromCookie(WebSocketSession session) {
+		String cookieHeader = session.getHandshakeInfo().getHeaders().getFirst(HttpHeaders.COOKIE);
+		if (cookieHeader == null) {
+			return null;
+		}
+		return Arrays.stream(cookieHeader.split(";"))
+				.map(String::trim)
+				.filter(cookie -> cookie.startsWith("AUTH_TOKEN="))
+				.map(cookie -> cookie.split("=", 2)[1])
+				.findFirst()
+				.orElse(null);
+	}
 }

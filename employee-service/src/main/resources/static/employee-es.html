@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Employee ES</title>
+<style>
+body {
+	font-family: Arial, sans-serif;
+	margin: 24px;
+	color: #1f2933;
+}
+
+h2 {
+	margin-bottom: 8px;
+}
+
+.toolbar, .row {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: end;
+}
+
+.toolbar {
+	margin: 12px 0 20px;
+}
+
+.section {
+	border: 1px solid #d7dde5;
+	border-radius: 6px;
+	padding: 16px;
+	margin-bottom: 16px;
+	max-width: 980px;
+}
+
+label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 13px;
+}
+
+input {
+	min-width: 180px;
+	padding: 7px 8px;
+	border: 1px solid #c7d0dc;
+	border-radius: 4px;
+}
+
+button {
+	padding: 8px 12px;
+	border: 1px solid #aeb9c7;
+	border-radius: 4px;
+	background: #f7f9fb;
+	cursor: pointer;
+}
+
+button:hover {
+	background: #edf2f7;
+}
+
+pre {
+	max-width: 980px;
+	min-height: 220px;
+	white-space: pre-wrap;
+	word-break: break-word;
+	background: #111827;
+	color: #e5e7eb;
+	padding: 14px;
+	border-radius: 6px;
+}
+</style>
+</head>
+<body>
+	<h2>Employee ES Console</h2>
+	<div class="toolbar">
+		<button onclick="goHome()">Home</button>
+		<button onclick="clearResult()">Clear</button>
+	</div>
+
+	<div class="section">
+		<h3>Search</h3>
+		<div class="row">
+			<label>keyword <input id="keyword" value="zhang"></label>
+			<label>from <input id="from" type="number" value="0"></label>
+			<label>size <input id="size" type="number" value="20"></label>
+			<button onclick="searchEmployees()">Search</button>
+		</div>
+	</div>
+
+	<div class="section">
+		<h3>Vector Search</h3>
+		<div class="row">
+			<label>queryText <input id="vectorQueryText" value="software engineer zibo"></label>
+			<label>embeddingField <input id="vectorEmbeddingField" value="embedding"></label>
+			<label>embeddingDims <input id="vectorEmbeddingDims" type="number" value="1024"></label>
+			<label>k <input id="vectorK" type="number" value="10"></label>
+			<label>numCandidates <input id="vectorNumCandidates" type="number" value="100"></label>
+			<button onclick="vectorSearchEmployees()">Vector Search</button>
+		</div>
+	</div>
+
+	<div class="section">
+		<h3>Index One Document</h3>
+		<div class="row">
+			<label>ID_CARD_NO <input id="indexIdCardNo" placeholder="ID_CARD_NO"></label>
+			<label>embeddingField <input id="indexEmbeddingField" placeholder="optional, e.g. embedding"></label>
+			<label>embeddingDims <input id="indexEmbeddingDims" type="number" value="1024"></label>
+			<button onclick="indexOne()">Index One</button>
+		</div>
+	</div>
+
+	<div class="section">
+		<h3>Bulk Index</h3>
+		<div class="row">
+			<label>page <input id="bulkPage" type="number" value="1"></label>
+			<label>size <input id="bulkSize" type="number" value="500"></label>
+			<label>embeddingField <input id="bulkEmbeddingField" placeholder="optional, e.g. embedding"></label>
+			<label>embeddingDims <input id="bulkEmbeddingDims" type="number" value="1024"></label>
+			<button onclick="bulkIndex()">Bulk Index</button>
+		</div>
+	</div>
+
+	<div class="section">
+		<h3>Rebuild Index</h3>
+		<div class="row">
+			<label>since <input id="since" placeholder="optional, e.g. 2026-01-01"></label>
+			<label>targetIndex <input id="targetIndex" placeholder="optional, default employee"></label>
+			<label>batchSize <input id="rebuildBatchSize" type="number" value="500"></label>
+			<label>embeddingField <input id="rebuildEmbeddingField" placeholder="optional, e.g. embedding"></label>
+			<label>embeddingDims <input id="rebuildEmbeddingDims" type="number" value="1024"></label>
+			<button onclick="fullRebuild()">Full Rebuild</button>
+			<button onclick="incrementalRebuild()">Incremental Rebuild</button>
+		</div>
+	</div>
+
+	<div class="section">
+		<h3>Rebuild Tasks</h3>
+		<div class="row">
+			<label>taskId <input id="taskId" placeholder="taskId"></label>
+			<button onclick="getTask()">Get Task</button>
+			<button onclick="listTasks()">List Tasks</button>
+		</div>
+	</div>
+
+	<pre id="result"></pre>
+
+	<script>
+	const serviceBase = location.pathname.startsWith("/employee-service/")
+		? "/employee-service"
+		: "";
+
+	function goHome() {
+		location.href = "/home.html";
+	}
+
+	function clearResult() {
+		document.getElementById("result").textContent = "";
+	}
+
+	function appendResult(title, text) {
+		const result = document.getElementById("result");
+		result.textContent = `${title}\n${text}\n\n${result.textContent}`;
+	}
+
+	async function request(path, options) {
+		const response = await fetch(serviceBase + path, {
+			credentials: "include",
+			...options
+		});
+		const text = await response.text();
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}\n${text}`);
+		}
+		return pretty(text);
+	}
+
+	function pretty(text) {
+		try {
+			return JSON.stringify(JSON.parse(text), null, 2);
+		} catch (e) {
+			return text;
+		}
+	}
+
+	function rebuildBody() {
+		const body = {};
+		const since = document.getElementById("since").value.trim();
+		const targetIndex = document.getElementById("targetIndex").value.trim();
+		const batchSize = Number(document.getElementById("rebuildBatchSize").value);
+		const embeddingField = document.getElementById("rebuildEmbeddingField").value.trim();
+		const embeddingDims = Number(document.getElementById("rebuildEmbeddingDims").value);
+		if (since) body.since = since;
+		if (targetIndex) body.targetIndex = targetIndex;
+		if (batchSize > 0) body.batchSize = batchSize;
+		if (embeddingField) body.embeddingField = embeddingField;
+		if (embeddingDims > 0) body.embeddingDims = embeddingDims;
+		return body;
+	}
+
+	async function searchEmployees() {
+		try {
+			const body = {
+				keyword: document.getElementById("keyword").value,
+				from: Number(document.getElementById("from").value),
+				size: Number(document.getElementById("size").value)
+			};
+			const text = await request("/employees/es/search", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body)
+			});
+			appendResult("Search Result", text);
+		} catch (e) {
+			appendResult("Search Failed", e.message);
+		}
+	}
+
+	async function vectorSearchEmployees() {
+		try {
+			const body = {
+				queryText: document.getElementById("vectorQueryText").value,
+				embeddingField: document.getElementById("vectorEmbeddingField").value,
+				embeddingDims: Number(document.getElementById("vectorEmbeddingDims").value),
+				k: Number(document.getElementById("vectorK").value),
+				numCandidates: Number(document.getElementById("vectorNumCandidates").value)
+			};
+			const text = await request("/employees/es/vector-search", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body)
+			});
+			appendResult("Vector Search Result", text);
+		} catch (e) {
+			appendResult("Vector Search Failed", e.message);
+		}
+	}
+
+	async function indexOne() {
+		try {
+			const idCardNo = encodeURIComponent(document.getElementById("indexIdCardNo").value.trim());
+			const params = new URLSearchParams();
+			const embeddingField = document.getElementById("indexEmbeddingField").value.trim();
+			const embeddingDims = Number(document.getElementById("indexEmbeddingDims").value);
+			if (embeddingField) params.set("embeddingField", embeddingField);
+			if (embeddingDims > 0) params.set("embeddingDims", embeddingDims);
+			const text = await request(`/employees/es/documents/${idCardNo}?${params.toString()}`, { method: "POST" });
+			appendResult("Index One Result", text);
+		} catch (e) {
+			appendResult("Index One Failed", e.message);
+		}
+	}
+
+	async function bulkIndex() {
+		try {
+			const page = Number(document.getElementById("bulkPage").value);
+			const size = Number(document.getElementById("bulkSize").value);
+			const params = new URLSearchParams({ page, size });
+			const embeddingField = document.getElementById("bulkEmbeddingField").value.trim();
+			const embeddingDims = Number(document.getElementById("bulkEmbeddingDims").value);
+			if (embeddingField) params.set("embeddingField", embeddingField);
+			if (embeddingDims > 0) params.set("embeddingDims", embeddingDims);
+			const text = await request(`/employees/es/bulk?${params.toString()}`, { method: "POST" });
+			appendResult("Bulk Index Result", text);
+		} catch (e) {
+			appendResult("Bulk Index Failed", e.message);
+		}
+	}
+
+	async function fullRebuild() {
+		try {
+			const text = await request("/employees/es/rebuild/full", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(rebuildBody())
+			});
+			appendResult("Full Rebuild Task", text);
+		} catch (e) {
+			appendResult("Full Rebuild Failed", e.message);
+		}
+	}
+
+	async function incrementalRebuild() {
+		try {
+			const text = await request("/employees/es/rebuild/incremental", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(rebuildBody())
+			});
+			appendResult("Incremental Rebuild Task", text);
+		} catch (e) {
+			appendResult("Incremental Rebuild Failed", e.message);
+		}
+	}
+
+	async function getTask() {
+		try {
+			const taskId = encodeURIComponent(document.getElementById("taskId").value.trim());
+			const text = await request(`/employees/es/rebuild/tasks/${taskId}`, { method: "GET" });
+			appendResult("Task Detail", text);
+		} catch (e) {
+			appendResult("Get Task Failed", e.message);
+		}
+	}
+
+	async function listTasks() {
+		try {
+			const text = await request("/employees/es/rebuild/tasks", { method: "GET" });
+			appendResult("Task List", text);
+		} catch (e) {
+			appendResult("List Tasks Failed", e.message);
+		}
+	}
+	</script>
+</body>
+</html>

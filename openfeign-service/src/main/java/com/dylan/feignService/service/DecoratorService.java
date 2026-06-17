@@ -1,0 +1,114 @@
+package com.dylan.feignservice.service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import com.dylan.feignservice.client.AsFeignClient;
+import com.dylan.feignservice.client.IndexFeignClient;
+import com.dylan.feignservice.client.MQProducerClient;
+import com.dylan.feignservice.decorator.ResilienceCommand;
+import com.dylan.feignservice.decorator.ResilienceExecutor;
+
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+
+@Service
+public class DecoratorService {
+	Logger log = LoggerFactory.getLogger(DecoratorService.class);
+	@Autowired
+	IndexFeignClient indexFeignClient;
+	@Autowired
+	AsFeignClient asFeignClient;
+	@Autowired
+	MQProducerClient mqProducerClient;
+	@Autowired
+	ResilienceExecutor resilienceExecutor;
+
+	public String indexService(String user) {
+		return resilienceExecutor.execute(
+				ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL").retry("feignServiceRetry")
+						.circuitBreaker("feignServiceCB").run(() -> indexFeignClient.index(user)).fallback(ex -> {
+							if (ex instanceof CallNotPermittedException) {
+								return "系统繁忙（熔断中），请稍后再试";
+							}
+							if (ex instanceof feign.RetryableException) {
+								return "网络异常，请检查网络";
+							}
+							if (ex instanceof RequestNotPermitted) {
+								return "系统繁忙（限流），请稍后再试";
+							}
+							return "服务暂不可用";
+						}).build());
+	}
+
+	public String myService() {
+		return resilienceExecutor.execute(
+				ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL").retry("feignServiceRetry")
+						.circuitBreaker("feignServiceCB").run(() -> asFeignClient.my()).fallback(ex -> {
+							if (ex instanceof CallNotPermittedException) {
+								return "系统繁忙（熔断中），请稍后再试";
+							}
+							if (ex instanceof feign.RetryableException) {
+								return "网络异常，请检查网络";
+							}
+							if (ex instanceof RequestNotPermitted) {
+								return "系统繁忙（限流），请稍后再试";
+							}
+							return ex.toString();
+						}).build());
+	}
+
+	public String getUsrIdService() {
+		return resilienceExecutor.execute(
+				ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL").retry("feignServiceRetry")
+						.circuitBreaker("feignServiceCB").run(() -> asFeignClient.getUserId()).fallback(ex -> {
+							if (ex instanceof CallNotPermittedException) {
+								return "系统繁忙（熔断中），请稍后再试";
+							}
+							if (ex instanceof feign.RetryableException) {
+								return "网络异常，请检查网络";
+							}
+							if (ex instanceof RequestNotPermitted) {
+								return "系统繁忙（限流），请稍后再试";
+							}
+							return ex.toString();
+						}).build());
+	}
+
+	public String mqCreateOrderService(String userId, String productId, Integer quantity) {
+		return resilienceExecutor.execute(ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL")
+				.retry("feignServiceRetry").circuitBreaker("feignServiceCB")
+				.run(() -> mqProducerClient.createOrders(userId, productId, quantity)).fallback(ex -> {
+					if (ex instanceof CallNotPermittedException) {
+						return "系统繁忙（熔断中），请稍后再试";
+					}
+					if (ex instanceof feign.RetryableException) {
+						return "网络异常，请检查网络";
+					}
+					if (ex instanceof RequestNotPermitted) {
+						return "系统繁忙（限流），请稍后再试";
+					}
+					return ex.toString();
+				}).build());
+	}
+
+	public String mqMyTestService(String orderId, Integer quantity) {
+		return resilienceExecutor.execute(ResilienceCommand.<String>builder().rateLimiterName("feignServiceRL")
+				.retry("feignServiceRetry").circuitBreaker("feignServiceCB")
+				.run(() -> mqProducerClient.mqTest(orderId, quantity)).fallback(ex -> {
+					if (ex instanceof CallNotPermittedException) {
+						return "系统繁忙（熔断中），请稍后再试";
+					}
+					if (ex instanceof feign.RetryableException) {
+						return "网络异常，请检查网络";
+					}
+					if (ex instanceof RequestNotPermitted) {
+						return "系统繁忙（限流），请稍后再试";
+					}
+					return ex.toString();
+				}).build());
+	}
+}

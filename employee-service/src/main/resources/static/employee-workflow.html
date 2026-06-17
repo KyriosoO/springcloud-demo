@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Employee Workflow Review</title>
+<style>
+body {
+	font-family: Arial, sans-serif;
+	margin: 24px;
+	color: #1f2933;
+}
+
+.toolbar, .actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+input {
+	padding: 7px 8px;
+	border: 1px solid #c7d0dc;
+	border-radius: 4px;
+}
+
+button {
+	padding: 8px 12px;
+	border: 1px solid #aeb9c7;
+	border-radius: 4px;
+	background: #f7f9fb;
+	cursor: pointer;
+}
+
+button:hover {
+	background: #edf2f7;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 16px;
+}
+
+th, td {
+	border-bottom: 1px solid #d7dde5;
+	padding: 10px;
+	text-align: left;
+	vertical-align: top;
+}
+
+pre {
+	max-width: 520px;
+	white-space: pre-wrap;
+	word-break: break-word;
+	margin: 0;
+}
+
+#message {
+	margin-top: 12px;
+	color: #334155;
+}
+</style>
+</head>
+<body>
+	<h2>Employee Workflow Review</h2>
+	<div class="toolbar">
+		<label>operator <input id="operator" value="dylan"></label>
+		<button onclick="loadTodos()">Load Todos</button>
+		<button onclick="goHome()">Home</button>
+	</div>
+	<div id="message"></div>
+	<table>
+		<thead>
+			<tr>
+				<th>Process</th>
+				<th>Node</th>
+				<th>Change Request</th>
+				<th>Employee</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody id="todoBody"></tbody>
+	</table>
+
+	<script>
+	const employeeBase = location.pathname.startsWith("/employee-service/") ? "/employee-service" : "";
+	const workflowBase = "";
+
+	function goHome() {
+		location.href = "/home.html";
+	}
+
+	function message(text) {
+		document.getElementById("message").textContent = text;
+	}
+
+	async function requestJson(path, options) {
+		const response = await fetch(path, { credentials: "include", ...options });
+		const text = await response.text();
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}\n${text}`);
+		}
+		return text ? JSON.parse(text) : null;
+	}
+
+	async function loadTodos() {
+		const operator = document.getElementById("operator").value.trim();
+		if (!operator) {
+			message("operator is required");
+			return;
+		}
+		try {
+			const todos = await requestJson(`${workflowBase}/workflows/todos?operator=${encodeURIComponent(operator)}`);
+			const rows = await Promise.all(todos.map(async todo => {
+				const changeRequestId = todo.payload && todo.payload.changeRequestId;
+				const changeRequest = changeRequestId
+					? await requestJson(`${employeeBase}/employees/change-requests/${encodeURIComponent(changeRequestId)}`)
+					: null;
+				return { todo, changeRequest };
+			}));
+			render(rows);
+			message(`Loaded ${rows.length} todo(s).`);
+		} catch (e) {
+			message(e.message);
+		}
+	}
+
+	function render(rows) {
+		const body = document.getElementById("todoBody");
+		body.innerHTML = "";
+		for (const row of rows) {
+			const tr = document.createElement("tr");
+			const employee = row.changeRequest ? row.changeRequest.employee : null;
+			const processIdArg = JSON.stringify(row.todo.processId || "");
+			const todoIdArg = JSON.stringify(row.todo.todoId || "");
+			tr.innerHTML = `
+				<td>${escapeHtml(row.todo.processId)}<br>${escapeHtml(row.todo.domain)}-${escapeHtml(row.todo.operationType)}</td>
+				<td>${escapeHtml(row.todo.currentNodeName || row.todo.currentNodeId)}</td>
+				<td><pre>${escapeHtml(JSON.stringify(row.changeRequest, null, 2))}</pre></td>
+				<td><pre>${escapeHtml(JSON.stringify(employee, null, 2))}</pre></td>
+				<td>
+					<div class="actions">
+						<button onclick='approve(${processIdArg}, ${todoIdArg})'>Approve</button>
+						<button onclick='reject(${processIdArg}, ${todoIdArg})'>Reject</button>
+					</div>
+				</td>`;
+			body.appendChild(tr);
+		}
+	}
+
+	async function approve(processId, todoId) {
+		await operate(processId, todoId, "approve");
+	}
+
+	async function reject(processId, todoId) {
+		await operate(processId, todoId, "reject");
+	}
+
+	async function operate(processId, todoId, action) {
+		const operator = document.getElementById("operator").value.trim();
+		const body = { operator };
+		if (todoId) {
+			body.todoId = todoId;
+		}
+		try {
+			await requestJson(`${workflowBase}/workflows/${encodeURIComponent(processId)}/${action}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body)
+			});
+			message(`${action} success: ${processId}`);
+			await loadTodos();
+		} catch (e) {
+			message(e.message);
+		}
+	}
+
+	function escapeHtml(value) {
+		return String(value == null ? "" : value)
+			.replaceAll("&", "&amp;")
+			.replaceAll("<", "&lt;")
+			.replaceAll(">", "&gt;")
+			.replaceAll('"', "&quot;")
+			.replaceAll("'", "&#39;");
+	}
+	</script>
+</body>
+</html>

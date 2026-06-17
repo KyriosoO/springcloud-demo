@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dylan.mqprocedureserver.mapper.TransactionMapper">
+	<!-- resultMap -->
+	<resultMap id="TransactionResultMap" type="com.dylan.transaction.api.model.Transaction">
+		<id property="transId" column="TRANS_ID" />
+		<result property="transType" column="TRANS_TYPE" />
+		<result property="transDate" column="TRANS_DATE" />
+		<result property="amount" column="AMOUNT" />
+	</resultMap>
+
+	<select id="fetchAll" resultMap="TransactionResultMap">
+		select * from t_transaction
+	</select>
+
+	<select id="query" resultMap="TransactionResultMap" parameterType="com.dylan.transaction.api.model.Transaction">
+		select * from t_transaction
+		<where>
+			<if test="transId != null and transId != ''">
+				and TRANS_ID = #{transId}
+			</if>
+			<if test="transType != null and transType != ''">
+				and TRANS_TYPE = #{transType}
+			</if>
+			<if test="transDate != null">
+				and TRANS_DATE = #{transDate}
+			</if>
+			<if test="amount != null">
+				and AMOUNT = #{amount}
+			</if>
+		</where>
+	</select>
+
+	<select id="aggregate" resultType="map" parameterType="com.dylan.transaction.api.model.Transaction">
+		select
+			count(*) as totalCount,
+			COALESCE(sum(AMOUNT), 0) as totalAmount,
+			COALESCE(avg(AMOUNT), 0) as avgAmount,
+			COALESCE(min(AMOUNT), 0) as minAmount,
+			COALESCE(max(AMOUNT), 0) as maxAmount
+		from t_transaction
+		<where>
+			<if test="transId != null and transId != ''">
+				and TRANS_ID = #{transId}
+			</if>
+			<if test="transType != null and transType != ''">
+				and TRANS_TYPE = #{transType}
+			</if>
+			<if test="transDate != null">
+				and TRANS_DATE = #{transDate}
+			</if>
+			<if test="amount != null">
+				and AMOUNT = #{amount}
+			</if>
+		</where>
+	</select>
+
+	<insert id="insert" parameterType="com.dylan.transaction.api.model.Transaction">
+		insert into t_transaction (TRANS_ID, TRANS_TYPE, TRANS_DATE, AMOUNT)
+		values (#{transId}, #{transType}, #{transDate}, #{amount})
+	</insert>
+
+	<update id="update" parameterType="com.dylan.transaction.api.model.Transaction">
+		update t_transaction
+		<set>
+			<if test="transType != null and transType != ''">
+				TRANS_TYPE = #{transType},
+			</if>
+			<if test="transDate != null">
+				TRANS_DATE = #{transDate},
+			</if>
+			<if test="amount != null">
+				AMOUNT = #{amount},
+			</if>
+		</set>
+		where TRANS_ID = #{transId}
+	</update>
+
+	<delete id="deleteByTransId" parameterType="string">
+		delete from t_transaction where TRANS_ID = #{transId}
+	</delete>
+
+	<select id="findByTransId" parameterType="string" resultMap="TransactionResultMap">
+		select * from t_transaction where TRANS_ID = #{transId}
+	</select>
+
+	<select id="aggregateDynamic" resultType="map">
+		select ${selectClause} from t_transaction
+		<where>
+			<if test="condition.transId != null and condition.transId != ''">
+				and TRANS_ID = #{condition.transId}
+			</if>
+			<if test="condition.transType != null and condition.transType != ''">
+				and TRANS_TYPE = #{condition.transType}
+			</if>
+			<if test="condition.transDate != null">
+				and TRANS_DATE = #{condition.transDate}
+			</if>
+			<if test="condition.amount != null">
+				and AMOUNT = #{condition.amount}
+			</if>
+		</where>
+		<if test="groupByClause != null and groupByClause != ''">
+			group by ${groupByClause}
+		</if>
+	</select>
+</mapper>

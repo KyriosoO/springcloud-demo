@@ -1,0 +1,4 @@
+com.dylan.common.security.JwtConfig
+com.dylan.common.security.ResourceServerSecurityAutoConfiguration
+com.dylan.common.security.ReactiveResourceServerSecurityAutoConfiguration
+com.dylan.common.security.FeignTokenRelayAutoConfiguration

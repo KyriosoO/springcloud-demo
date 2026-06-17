@@ -5,6 +5,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -26,6 +27,12 @@ public class RedisService {
 
 	// ======= Key 前缀处理 =======
 	private String buildKey(String key) {
+		if (keyPrefix == null || keyPrefix.isEmpty()) {
+			return key;
+		}
+		if (key.startsWith(keyPrefix)) {
+			return key; // 已包含前缀，避免重复拼接（来自 scan 等返回完整 Redis key 的调用）
+		}
 		return keyPrefix + key;
 	}
 
@@ -71,8 +78,28 @@ public class RedisService {
 		redisTemplate.opsForValue().set(buildKey(key), value, timeoutSeconds, TimeUnit.SECONDS);
 	}
 
+	public void set(String key, Object value, Duration timeout) {
+		redisTemplate.opsForValue().set(buildKey(key), value, timeout);
+	}
+
 	public Object get(String key) {
 		return redisTemplate.opsForValue().get(buildKey(key));
+	}
+
+	public <T> T get(String key, Class<T> type) {
+		Object value = get(key);
+		if (value == null) {
+			return null;
+		}
+		return type.cast(value);
+	}
+
+	public <T> T getAndRefreshTtl(String key, Class<T> type, Duration ttl) {
+		T value = get(key, type);
+		if (value != null) {
+			expire(key, ttl.toSeconds(), TimeUnit.SECONDS);
+		}
+		return value;
 	}
 
 	public Long increment(String key, long delta) {
@@ -112,6 +139,18 @@ public class RedisService {
 	// =================== List ===================
 	public void lPush(String key, Object value) {
 		redisTemplate.opsForList().leftPush(buildKey(key), value);
+	}
+
+	public void lPushAndTrim(String key, Object value, long maxSize) {
+		String realKey = buildKey(key);
+		redisTemplate.opsForList().leftPush(realKey, value);
+		if (maxSize > 0) {
+			redisTemplate.opsForList().trim(realKey, 0, maxSize - 1);
+		}
+	}
+
+	public void lTrim(String key, long start, long end) {
+		redisTemplate.opsForList().trim(buildKey(key), start, end);
 	}
 
 	public void rPush(String key, Object value) {
@@ -232,28 +271,28 @@ public class RedisService {
 
 	// =================== 增减操作 ===================
 	/**
-	 * 原子自增（整数）
+	 * 自增（整数）
 	 */
 	public Long increase(String key, long delta) {
-		return redisTemplate.opsForValue().increment(key, delta);
+		return redisTemplate.opsForValue().increment(buildKey(key), delta);
 	}
 
 	/**
-	 * 原子自减（整数）
+	 * 自减（整数）
 	 */
 	public Long decrease(String key, long delta) {
-		return redisTemplate.opsForValue().increment(key, -delta);
+		return redisTemplate.opsForValue().increment(buildKey(key), -delta);
 	}
 
 	/**
-	 * 原子自增（浮点数）
+	 * 自增（浮点数）
 	 */
 	public Double increase(String key, double delta) {
 		return redisTemplate.opsForValue().increment(key, delta);
 	}
 
 	/**
-	 * 原子自减（浮点数）
+	 * 自减（浮点数）
 	 */
 	public Double decrease(String key, double delta) {
 		return redisTemplate.opsForValue().increment(key, -delta);
@@ -262,13 +301,23 @@ public class RedisService {
 	// ---------------- 锁/库存常用方法 ----------------
 
 	/**
-	 * 原子自减库存，如果库存不足返回false
+	 * 原子自减，如果库存不足返回false
 	 */
-	public boolean decreaseStock(String key, long delta) {
-		Long result = redisTemplate.opsForValue().increment(key, -delta);
+	public boolean decreaseAtomic(String key, long delta) {
+		String script = """
+				local stock = tonumber(redis.call('GET', KEYS[1]) or '0')
+				if stock == false then
+				    return -1
+				end
+				
+				local delta = tonumber(ARGV[1])
+				if stock < delta then
+				    return -1
+				end
+				return redis.call('DEL', KEYS[1])
+				""";
+		Long result = executeLua(script, List.of(key), List.of(delta), Long.class);
 		if (result == null || result < 0) {
-			// 回退
-			redisTemplate.opsForValue().increment(key, delta);
 			return false;
 		}
 		return true;
@@ -282,7 +331,7 @@ public class RedisService {
 	 * @param falsePositiveRate  误判率
 	 */
 	public void initBloomIfAbsent(String bloomKey, long expectedInsertions, double falsePositiveRate) {
-		RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(bloomKey);
+		RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(buildKey(bloomKey));
 		try {
 			if (!bloomFilter.isExists()) {
 				bloomFilter.tryInit(expectedInsertions, falsePositiveRate);
@@ -320,13 +369,114 @@ public class RedisService {
 	 * 获取全局 seq_no 自增起点
 	 */
 	public long incrementGlobalSeq(String key, long delta) {
-		return redissonClient.getAtomicLong(key).addAndGet(delta);
+		return redissonClient.getAtomicLong(buildKey(key)).addAndGet(delta);
 	}
 
 	/**
 	 * 获取全局 seq_no 当前值（可选）
 	 */
 	public long getGlobalSeq(String key) {
-		return redissonClient.getAtomicLong(key).get();
+		return redissonClient.getAtomicLong(buildKey(key)).get();
+	}
+
+	/**
+	 * 幂等set操作
+	 * 
+	 * @param key
+	 * @param value
+	 * @param timeout
+	 * @return
+	 */
+	public boolean setIfAbsent(String key, Object value, Duration timeout) {
+		Boolean result = redisTemplate.opsForValue().setIfAbsent(buildKey(key), value, timeout);
+		return Boolean.TRUE.equals(result);
+	}
+	
+	/**
+	 * 幂等原子set操作
+	 * 
+	 * @param key
+	 * @param value
+	 * @param timeout
+	 * @return
+	 */
+	public boolean setIfAbsentAtomic(String key, Object value, Duration timeout) {
+		String script = """
+				local current = redis.call('GET', KEYS[1])
+				if current == false then
+				redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+				return 1
+				end
+				return 0
+				""";
+		Long result = executeLua(script, List.of(key),
+				List.of(value, String.valueOf(timeout.toSeconds())), Long.class);
+		return Long.valueOf(1L).equals(result);
+	}
+	
+	/**
+	 * 原子删除
+	 * @param key
+	 * @param value
+	 * @return
+	 */
+	public Long deleteIfEquals(String key, Object value) {
+		String script = """
+				local current = redis.call('GET', KEYS[1])
+	            if current == false then
+	                return -1
+	            end
+	            if current == ARGV[1] then
+	                return redis.call('DEL', KEYS[1])
+	            end
+	            return 0
+				""";
+		Long result = executeLua(script, List.of(key), List.of(value), Long.class);
+		return result;
+	}
+
+	/**
+	 * 通用原子CAS方法
+	 * 
+	 * @param key
+	 * @param expectedValue
+	 * @param newValue
+	 * @param ttl
+	 * @return
+	 */
+	public boolean compareAndSetAtomic(String key, String expectedValue, String newValue, Duration ttl) {
+		String script = """
+				local current = redis.call('GET', KEYS[1])
+				if current == ARGV[1] then
+				redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+				return 1
+				end
+				return 0
+				""";
+
+		Long result = executeLua(script, List.of(key),
+				List.of(expectedValue, newValue, String.valueOf(ttl.toSeconds())), Long.class);
+
+		return Long.valueOf(1L).equals(result);
+	}
+
+	/**
+	 * 通用LUA执行器
+	 * 
+	 * @param <T>
+	 * @param script
+	 * @param keys
+	 * @param args
+	 * @param resultType
+	 * @return
+	 */
+	public <T> T executeLua(String script, List<String> keys, List<Object> args, Class<T> resultType) {
+		DefaultRedisScript<T> redisScript = new DefaultRedisScript<>();
+		redisScript.setScriptText(script);
+		redisScript.setResultType(resultType);
+
+		List<String> realKeys = keys.stream().map(this::buildKey).toList();
+
+		return redisTemplate.execute(redisScript, realKeys, args.toArray());
 	}
 }
