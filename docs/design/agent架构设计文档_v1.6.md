@@ -458,6 +458,7 @@ public enum ExecutionMode {
     AGGREGATE,
     EXPORT_SYNC,
     EXPORT_ASYNC,
+    SUMMARY,
     CLARIFY,
     BLOCKED
 }
