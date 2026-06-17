@@ -9,7 +9,7 @@
 > v1.3 修订说明：Prompt 按意图拆分，补充 Java/Python 功能分界核查结论，并校正 Python 端 P0 Slim 文件结构，确保 Python 不越界承担权限、风控、确认、记忆、导出、审计或业务执行职责。  
 > v1.4 修订说明：统一 Runtime 单一接口 `/runtime/v1/plans/generate`，统一 Java/Python Plan DSL，Python contracts 采用 B-lite 拆分，补齐 TargetType、FieldUsage、关键 DTO/Result/Context、配置属性类、workflow 域配置、MemorySearchStrategy 预留接口，并明确 LLM Provider 配置由 Python 管理。  
 > v1.5 整理说明：删除“已确认设计决策”章节，统一标题层级与编号结构，清理决策编号引用，检查接口、文件结构、调用链和示例引用的一致性。
-> v1.6 修订说明：收敛 P0 schema 到业务实际能力，明确上一轮结构化结果继承、执行结果状态模型、operator 注入边界、确认职责归属 Java，明确 Agent 模块为待新增平级模块，拆分 Adapter 能力接口，采用 Java/Python 契约文件与 schemaHash 启动校验保证一致性，并补充 workflow 二层 action 权限模型。文件名保留历史版本号，正文目标版本以本行声明为准。
+> v1.6 修订说明：收敛 P0 schema 到业务实际能力，明确上一轮结构化结果继承、执行结果状态模型、operator 注入边界、确认职责归属 Java，明确 Agent 模块为待新增平级模块，拆分 Adapter 能力接口，采用 Java/Python 契约文件与 schemaHash 启动校验保证一致性，并补充 workflow 二层 action 权限模型。文件名、正文目标版本和修订说明必须保持一致。
 
 ---
 
@@ -67,6 +67,8 @@ agent-service(:9220)
   ├── es-query-service(:9201)               // 如需统一 ES 检索能力，可由业务 adapter 间接调用
   └── MySQL / Redis                         // Agent 会话、记忆、确认、导出任务
 ```
+
+说明：gateway-service 对 `/agent/**` 的转发以 Java 配置类 `GatewayRouter` 为准；若 `application.yml` 中未出现显式 routes，不代表 `/agent/**` 未配置。`GatewayRouter` 应将 `/agent/**` 转发至 `lb://agent-service` 或等价目标，并保留 JWT/Cookie 认证信息透传。
 
 ### 2.3 服务边界
 
@@ -164,7 +166,7 @@ public enum ExecutionMode {
 
 | ExecutionMode | 含义 |
 |---|---|
-| `DIRECT_UPDATE` | 调业务服务暴露的同步 update 接口，确认后直接写入并可返回影响结果。异步提交、审批申请或仅返回“已提交”的接口不得归类为 DIRECT_UPDATE。 |
+| `DIRECT_UPDATE` | 调用业务域 Adapter 暴露的同步 update 能力。Agent 不关心业务域内部实现方式，但 Adapter 必须保证该入口对 Agent 呈现的是同步 update 语义；如业务域仅返回受理号、申请号或流程号，应返回对应 `ExecutionStatus`，不得误报为 `SUCCEEDED`。 |
 | `CHANGE_REQUEST` | 创建业务变更申请，由业务域自行处理是否审批。 |
 | `WORKFLOW_SUBMIT` | 向 workflow-service 发起流程。 |
 | `BUSINESS_COMMAND` | 调用业务命令接口，例如提交交易、创建订单等。 |
@@ -189,6 +191,9 @@ public enum ExecutionStatus {
 ```
 
 用途：描述执行结果状态。`ExecutionMode` 表示“采用哪种执行方式”，`ExecutionStatus` 表示“执行后的业务状态”。例如异步交易更新可以是 `executionMode=BUSINESS_COMMAND` 且 `status=SUBMITTED`；员工变更申请可以是 `executionMode=CHANGE_REQUEST` 且 `status=PENDING_APPROVAL`。
+
+DIRECT_UPDATE 边界说明：Agent 只定义执行模式与 Adapter 能力契约，不管理业务域内部如何实现 update。某个业务域是否在 update 内部创建变更申请、走本地审批、调用 workflow 或同步落库，属于业务域自治范围。但从 Agent 视角，只有 Adapter 确认其调用的目标入口具备“同步 update 语义”时，才可声明为 `DIRECT_UPDATE`。如果目标入口只是受理请求、返回申请号、返回流程号或异步提交号，Adapter 必须通过 `AgentExecutionResult.status` 明确返回 `SUBMITTED / PENDING_APPROVAL`，不得向用户表达为已完成修改。
+
 
 ### 3.3 Intent 与 ExecutionMode 的关系
 
@@ -1296,7 +1301,7 @@ public class AgentDomainProperties {
     private String displayName;
     private Map<String, AgentFieldProperties> fields;
     private AgentRiskProperties risk;
-    private AgentRoleProperties roles;
+    private Map<String, RolePolicyProperties> roles;
     private Map<AgentWorkflowAction, WorkflowActionProperties> workflowActions;
 }
 ```
@@ -1391,16 +1396,6 @@ public class MemoryProperties {
 
 用途：配置记忆能力开关、会话记忆有效期、长期记忆默认有效期。
 
-#### `AgentRoleProperties`
-
-```java
-public class AgentRoleProperties {
-    private Map<String, RolePolicyProperties> policies;
-}
-```
-
-用途：承载不同角色在当前 domain 下的 intent 权限和影响数量限制。
-
 #### `RolePolicyProperties`
 
 ```java
@@ -1411,7 +1406,7 @@ public class RolePolicyProperties {
 }
 ```
 
-用途：描述单个角色的允许意图、禁止意图和最大修改影响数量。
+用途：描述单个角色的允许意图、禁止意图和最大修改影响数量。`AgentDomainProperties.roles` 直接使用 `Map<String, RolePolicyProperties>` 绑定 YAML 中的 `roles.agent:viewer / roles.agent:admin` 结构，不再增加 `AgentRoleProperties.policies` 包装层。
 
 #### `OperationRiskProperties`
 
@@ -1930,7 +1925,7 @@ public class MemoryService {
   "sourcePlanId": "plan-001",
   "rowCount": 1,
   "summary": "上一轮查到 1 名员工",
-  "displayFields": ["name", "position"],
+  "displayFields": ["chineseName", "position"],
   "createdAt": "2026-06-16T10:00:00"
 }
 ```
@@ -2314,7 +2309,7 @@ public class EmployeeAgentAdapter implements QueryableAdapter,
 | `domain()` | 返回 `employee`。 |
 | `capabilities()` | 声明 employee 支持 query、directUpdate、changeRequest、workflowSubmit、export；其中 export 表示可由通用 `ExportService` 基于查询结果导出。 |
 | `estimateAffected()` | 调 employee count/search 接口预估影响数量。 |
-| `query()` | 调 employee 查询或 ES 查询接口。 |
+| `query()` | 调 employee 查询或 ES 查询接口。如果 employee-service 返回 ES 原始 JSON 字符串，`EmployeeAgentAdapter` 在 `adapter.employee` 内部完成最小归一化，提取 `rows`、`total`、`offset`、`size`、`hasMore`，并返回 `AgentQueryResult`；该转换属于 Adapter 边界适配，不属于 Agent 核心业务侵入。 |
 | `directUpdate()` | 调 employee 暴露的 update 服务，不直接操作 DB；请求体按 `AgentPlan.actions` 转换为只包含变更键值的 Map，由 employee-service 依据 `map.containsKey` 判断实际更新字段。Agent 侧字段名使用 schema 中的 Java/camelCase 名称，适配到 employee-service 请求前必须完成字段名映射。 |
 | `createChangeRequest()` | 创建 employee 变更申请。 |
 | `submitWorkflow()` | 按 employee 变更申请结果提交工作流；流程定义键由 `domain + "-" + operationType` 组合得到。 |
@@ -2332,6 +2327,8 @@ public class EmployeePlanMapper {
 ```
 
 用途：将 AgentPlan 转换为 employee-service 请求 DTO。更新场景只输出变更字段 Map，不构造完整员工对象。`toUpdatePatchMap()` 的输出字段以 Java/camelCase 属性名为主；若 employee-service 某接口仍要求数据库列名，由 mapper 在这一层做显式转换，不允许 Python 或通用 Agent 核心感知数据库列名。
+
+Agent 字段名必须与业务域模型或业务域对 Agent 暴露的契约字段对齐；如果业务域需要字段别名、ES 字段名、数据库列名映射，应由 `EmployeePlanMapper`、Adapter 或业务服务内部处理，Python 不维护字段映射。
 
 ---
 
@@ -2442,10 +2439,13 @@ public interface EmployeeAgentFeignClient {
     Long count();
 
     @PutMapping("/employees/{idCardNo}")
-    Object update(@PathVariable String idCardNo, @RequestBody Object request);
+    Object update(@PathVariable String idCardNo,
+                  @RequestBody Object request,
+                  @RequestParam("operator") String operator);
 
     @PostMapping("/employees")
-    Object create(@RequestBody Object request);
+    Object create(@RequestBody Object request,
+                  @RequestParam("operator") String operator);
 
     @GetMapping("/employees/change-requests/{id}")
     Object getChangeRequest(@PathVariable String id);
@@ -2453,6 +2453,8 @@ public interface EmployeeAgentFeignClient {
 ```
 
 用途：Agent 调 employee-service。实际 DTO 可在 coding 时对齐 employee-service 现有 DTO。
+
+说明：`operator` 必须由 `AgentUserContext.userId` 注入，Python 不输出 operator，用户文本中的操作者描述不得覆盖当前登录用户。
 
 #### `TransactionAgentFeignClient`
 
@@ -2728,7 +2730,7 @@ Java 与 Python 对外 JSON 统一使用 `camelCase`。Python 内部如使用 sn
       "sourcePlanId": "plan-001",
       "rowCount": 1,
       "summary": "上一轮查到 1 名员工",
-      "displayFields": ["name", "position"],
+      "displayFields": ["chineseName", "position"],
       "createdAt": "2026-06-16T10:00:00"
     },
     "aliases": {"岗位": "position"},
@@ -2741,13 +2743,21 @@ Java 与 Python 对外 JSON 统一使用 `camelCase`。Python 内部如使用 sn
       "supportedIntents": ["QUERY", "UPDATE", "EXPORT", "BUSINESS_SUBMIT", "SUMMARY"],
       "fields": [
         {
+          "name": "chineseName",
+          "displayName": "中文姓名",
+          "queryable": true,
+          "writable": false,
+          "exportable": true,
+          "operators": ["EQ", "CONTAINS"]
+        },
+        {
           "name": "position",
           "displayName": "岗位",
           "queryable": true,
           "writable": true,
           "exportable": true,
-          "operators": ["EQ"],
-          "actions": ["SET"]
+          "operators": ["EQ", "CONTAINS", "IN"],
+          "actions": ["SET", "CLEAR"]
         }
       ]
     },
@@ -3438,6 +3448,18 @@ Python 侧校验只保证“结构可读”，Java 侧校验才保证“可执�
 }
 ```
 
+
+### 9.5 分页与查询执行选项边界
+
+`AgentPlan` 是自然语言目标计划，不直接等同于下游查询请求 DTO，因此不在顶层新增 `page/from/size/sort` 字段。分页、默认 size、最大 size、下一页 offset、排序等属于查询执行选项，由 Java 编排层、`MemoryContext`、领域 Adapter 或 `PlanMapper` 在转成业务查询请求时处理。
+
+P0 中：
+
+1. `AgentQueryResult` 保留 `offset`、`size`、`hasMore`。
+2. `MemoryService` 保存上一轮查询 `offset`、`size`、`hasMore` 与原始查询条件。
+3. 用户表达“下一页”“后 10 条”时，Python 可生成 `useLastResult=true` 或 `targetType=LAST_RESULT` 的计划；Java 根据上一轮结构化查询上下文计算下一次查询参数。
+4. 不建议实现显示页码，如确需承载用户显式页码，可暂放入 `AgentPlan.context.queryOptions`，不提升为 `AgentPlan` 顶层强类型字段。
+
 ---
 
 ## 10. 字段权限与风控配置
@@ -3514,18 +3536,18 @@ agent:
             decision: BLOCKED
 
       fields:
-        name:
+        chineseName:
           show: true
-          queryable: false
+          queryable: true
           writable: false
           exportable: true
           masked: false
           risk-level: LOW
-          allowed-operators: []
+          allowed-operators: [EQ, CONTAINS]
 
         position:
           show: true
-          queryable: false
+          queryable: true
           writable: true
           exportable: true
           masked: false
@@ -3534,7 +3556,7 @@ agent:
           risk-level: MEDIUM
           max-affected: 20
           allowed-actions: [SET, CLEAR]
-          allowed-operators: []
+          allowed-operators: [EQ, CONTAINS, IN]
 
         idCardNo:
           show: false
@@ -3581,15 +3603,23 @@ agent:
           allowed-actions: [SET]
           allowed-operators: [EQ, IN]
 
+        transDate:
+          show: true
+          queryable: true
+          writable: false
+          exportable: true
+          risk-level: LOW
+          allowed-operators: [EQ, GTE, LTE, BETWEEN]
+
         amount:
           show: true
-          queryable: false
+          queryable: true
           writable: false
           exportable: true
           masked: true
           mask-type: AMOUNT
           risk-level: HIGH
-          allowed-operators: []
+          allowed-operators: [EQ, GTE, LTE, BETWEEN]
 
     workflow:
       enabled: true
@@ -3671,6 +3701,8 @@ agent:
 
 ```
 
+字段契约原则：Agent 字段名必须与业务域模型或业务域对 Agent 暴露的契约字段对齐。文档不引入通用字段映射层，不在 Python 侧维护字段映射。如果业务域需要字段别名、ES 字段名、数据库列名映射，应由业务域 Adapter 或业务服务内部自行处理。
+
 ### 10.2 默认拒绝原则
 
 ```text
@@ -3688,6 +3720,16 @@ workflow action required-roles 不匹配 → 拒绝
 workflow action required-context 缺失 → 反问或拒绝
 workflow action required-any-of 任一组都不满足 → 反问或拒绝
 ```
+
+
+### 10.3 聚合权限规则
+
+P0 阶段不新增 `FieldUsage.AGGREGATE_GROUP / AGGREGATE_METRIC`，聚合权限与查询权限复用：
+
+1. 聚合 `filters` 使用 `QUERY` 权限校验。
+2. `groupBy` 字段会作为聚合 bucket key 返回给用户，因此必须 `queryable=true` 且 `show=true`。
+3. `metric` 字段会以聚合值形式返回；P0 可复用 `queryable=true` 作为是否允许参与聚合指标计算的准入条件。
+4. 如后续需要区分“可查询条件”和“可聚合指标”，再引入 `aggregatable` 或 `FieldUsage.AGGREGATE`。
 
 ---
 
@@ -4034,6 +4076,22 @@ public class AgentAggregate {
 4. P0 schema 只提供当前 `Transaction condition` 能准确承载的 operator。复杂范围条件、模糊条件或组合条件不在 Agent schema 中暴露；后续如业务接口升级 Criteria DTO，再同步扩展 schema。
 
 该策略保证 Agent DSL 强类型、Java/Python 契约稳定，同时不要求 P0 重构 transaction 现有接口。
+
+
+`TransactionPlanMapper.toAggregateRequest()` 中的 metrics 清洗规则：
+
+```java
+private String toMetricString(AgentMetric metric) {
+    String function = metric.getFunction().toUpperCase(Locale.ROOT);
+    if ("COUNT".equals(function)) {
+        return "COUNT";
+    }
+    return function + ":" + metric.getField();
+}
+```
+
+校验边界：`PlanValidationService / FieldPolicyEvaluator` 负责校验 `metric.function` 是否属于允许集合、`metric.field` 是否是当前 domain 已配置字段以及字段是否满足聚合权限规则。`TransactionPlanMapper` 只做格式清洗和适配；如遇到非法 function 或缺失 field，应抛出 `AdapterRequestMappingException` 或等价异常。
+
 
 ---
 
