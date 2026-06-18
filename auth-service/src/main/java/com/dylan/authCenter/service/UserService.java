@@ -1,5 +1,9 @@
 package com.dylan.authcenter.service;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
@@ -11,13 +15,21 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class UserService implements UserDetailsService {
+	String[] users = new String[] { "admin", "dylan", "viewer_t" };
+	private static Map<String, String[]> userMap = new ConcurrentHashMap<String, String[]>();
+	static {
+		userMap.put("admin", new String[] {"ADMIN","agent:admin"});
+		userMap.put("dylan", new String[] {"agent:admin"});
+		userMap.put("viewer_t", new String[] {"agent:viewer"});
+	}
 
 	@Override
 	public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
-		if (!userId.equals("admin")) {
+		if (userMap.containsKey(userId)) {
+			return User.builder().username(userId).password("{noop}123456").roles(userMap.get(userId)).build();
+		}else {
 			throw new UsernameNotFoundException("User not found");
 		}
-		return User.builder().username("admin").password("{noop}123456").roles("ADMIN").build();
 	}
 
 	public String getCurrentUserId() {

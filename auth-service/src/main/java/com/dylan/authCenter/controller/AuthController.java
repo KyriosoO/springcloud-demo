@@ -33,8 +33,8 @@ public class AuthController {
 
 	@PostMapping("/login")
 	public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
-//		authenticationManager.authenticate(
-//				new UsernamePasswordAuthenticationToken(request.getUserId(), request.getPassword()));
+		authenticationManager.authenticate(
+				new UsernamePasswordAuthenticationToken(request.getUserId(), request.getPassword()));
 		String token = jwtService.generateToken(request.getUserId());
 		ResponseCookie cookie = ResponseCookie.from("AUTH_TOKEN", token).httpOnly(true).secure(false) // 本地开发
 				.path("/").maxAge(Duration.ofHours(1)).sameSite("Lax").build();
