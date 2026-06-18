@@ -27,7 +27,8 @@ public class GatewayRouter {
 				.route("mq_route", r -> r.path("/txn/**").filters(f -> f.filter(retry)).uri("lb://mq-procedure-service"))
 				.route("emp", r -> r.path("/employees/**", "/employee-workflow.html", "/employee-es.html").filters(f -> f.filter(retry)).uri("lb://employee-service"))
 				.route("workflow", r -> r.path("/workflows/**").filters(f -> f.filter(retry)).uri("lb://workflow-service"))
-				.route("agent", r -> r.path("/agent/**", "/agent.html").filters(f -> f.filter(retry)).uri("lb://agent-service"))
+				.route("agent_page", r -> r.path("/agent.html").filters(f -> f.filter(retry)).uri("lb://agent-service"))
+				.route("agent_api", r -> r.path("/agent/**").uri("lb://agent-service"))
 				.build();
 	}
 }
