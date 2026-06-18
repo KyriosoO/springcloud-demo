@@ -22,6 +22,18 @@ public class SearchRequest {
 	 * 结构化过滤条件列表。
 	 */
 	private List<SearchFilter> filters;
+	/**
+	 * 排序条件列表。
+	 */
+	private List<SearchSort> sorts;
+	/**
+	 * 聚合条件。
+	 */
+	private SearchAggregate aggregate;
+	/**
+	 * 是否精确统计命中总数。
+	 */
+	private Boolean trackTotalHits;
 
 	public String getKeyword() {
 		return keyword;
@@ -53,5 +65,29 @@ public class SearchRequest {
 
 	public void setFilters(List<SearchFilter> filters) {
 		this.filters = filters;
+	}
+
+	public List<SearchSort> getSorts() {
+		return sorts;
+	}
+
+	public void setSorts(List<SearchSort> sorts) {
+		this.sorts = sorts;
+	}
+
+	public SearchAggregate getAggregate() {
+		return aggregate;
+	}
+
+	public void setAggregate(SearchAggregate aggregate) {
+		this.aggregate = aggregate;
+	}
+
+	public Boolean getTrackTotalHits() {
+		return trackTotalHits;
+	}
+
+	public void setTrackTotalHits(Boolean trackTotalHits) {
+		this.trackTotalHits = trackTotalHits;
 	}
 }

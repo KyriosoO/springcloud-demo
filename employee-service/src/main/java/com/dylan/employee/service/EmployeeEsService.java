@@ -2,15 +2,23 @@ package com.dylan.employee.service;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.dylan.esquery.api.model.SearchAggregate;
 import com.dylan.esquery.api.model.SearchFilter;
+import com.dylan.esquery.api.model.SearchMetric;
+import com.dylan.esquery.api.model.SearchMetricFunction;
 import com.dylan.esquery.api.model.SearchRequest;
+import com.dylan.esquery.api.model.SearchSort;
+import com.dylan.esquery.api.model.SearchSortDirection;
 import com.dylan.esquery.api.model.SemanticSearchRequest;
 import com.dylan.employee.es.EmployeeRebuildRequest;
 import com.dylan.esquery.api.model.BulkIndexRequest;
@@ -29,6 +37,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class EmployeeEsService {
 	private static final String ID_FIELD = "idCardNo";
+	private static final int DEFAULT_SEARCH_SIZE = 20;
+	private static final int MAX_SEARCH_SIZE = 1000;
+	private static final int DEFAULT_BUCKET_SIZE = 100;
+	private static final int MAX_BUCKET_SIZE = 1000;
+	private static final int MAX_GROUP_BY_FIELDS = 3;
+	private static final Pattern AGGREGATION_ALIAS = Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,63}");
+	private static final Set<String> SEARCHABLE_FIELDS = Set.of(
+			"contactAddress", "chineseName", "idCardNo", "memberNo", "phoneNo", "email", "position");
 
 	private final EmployeeService employeeService;
 	private final EmployeeEmbeddingService embeddingService;
@@ -167,16 +183,44 @@ public class EmployeeEsService {
 	 * 构建请求或领域对象。
 	 */
 	private String buildSearchDsl(SearchRequest request) throws JsonProcessingException {
-		String keyword = request == null ? null : request.getKeyword();
-		int from = request == null || request.getFrom() == null ? 0 : request.getFrom();
-		int size = request == null || request.getSize() == null ? 20 : request.getSize();
-		List<SearchFilter> filters = request == null ? null : request.getFilters();
-		Map<String, Object> query = buildQuery(keyword, filters);
-		Map<String, Object> dsl = Map.of("_source", Map.of("excludes", List.of("embedding")),
-		        "from", from,
-		        "size", size,
-		        "query", query);
+		SearchRequest safeRequest = request == null ? new SearchRequest() : request;
+		boolean aggregateRequest = safeRequest.getAggregate() != null;
+
+		Map<String, Object> dsl = new LinkedHashMap<>();
+		dsl.put("_source", Map.of("excludes", List.of("embedding")));
+		dsl.put("from", normalizeFrom(safeRequest.getFrom()));
+		dsl.put("size", normalizeSize(safeRequest.getSize(), aggregateRequest));
+		dsl.put("track_total_hits", safeRequest.getTrackTotalHits() == null || safeRequest.getTrackTotalHits());
+		dsl.put("query", buildQuery(safeRequest.getKeyword(), safeRequest.getFilters()));
+
+		List<Map<String, Object>> sorts = buildSorts(safeRequest.getSorts());
+		if (!sorts.isEmpty()) {
+			dsl.put("sort", sorts);
+		}
+		if (aggregateRequest) {
+			dsl.put("aggs", buildAggregations(safeRequest.getAggregate()));
+		}
 		return objectMapper.writeValueAsString(dsl);
+	}
+
+	private int normalizeFrom(Integer from) {
+		if (from == null) {
+			return 0;
+		}
+		if (from < 0) {
+			throw new IllegalArgumentException("search from must be greater than or equal to 0");
+		}
+		return from;
+	}
+
+	private int normalizeSize(Integer size, boolean aggregateRequest) {
+		if (size == null) {
+			return aggregateRequest ? 0 : DEFAULT_SEARCH_SIZE;
+		}
+		if (size < 0 || size > MAX_SEARCH_SIZE) {
+			throw new IllegalArgumentException("search size must be between 0 and " + MAX_SEARCH_SIZE);
+		}
+		return size;
 	}
 
 	/**
@@ -192,10 +236,7 @@ public class EmployeeEsService {
 		}
 		if (filters != null) {
 			for (SearchFilter filter : filters) {
-				Map<String, Object> clause = filterClause(filter);
-				if (clause != null) {
-					must.add(clause);
-				}
+				must.add(filterClause(filter));
 			}
 		}
 		if (must.isEmpty()) {
@@ -211,13 +252,16 @@ public class EmployeeEsService {
 	 * 处理 filterClause 相关逻辑。
 	 */
 	private Map<String, Object> filterClause(SearchFilter filter) {
-		if (filter == null || !hasText(filter.getField()) || (!hasText(filter.getValue()) && !hasValues(filter))) {
-			return null;
+		if (filter == null) {
+			throw new IllegalArgumentException("search filter must not be null");
 		}
-		String field = normalizeFilterField(filter.getField());
-		if (field == null) {
-			return null;
+		if (!hasText(filter.getField())) {
+			throw new IllegalArgumentException("search filter field must not be blank");
 		}
+		if (!hasText(filter.getValue()) && !hasValues(filter)) {
+			throw new IllegalArgumentException("search filter value must not be empty");
+		}
+		String field = requireSearchableField(filter.getField(), "filter");
 		String operator = filter.getOperator() == null ? "contains" : filter.getOperator().toLowerCase();
 		if (operator.endsWith("any") || hasValues(filter)) {
 			return anyFilterClause(field, operator, filterValues(filter));
@@ -229,6 +273,118 @@ public class EmployeeEsService {
 		if ("equals".equals(operator) || "eq".equals(operator) || "term".equals(operator)) {
 			return Map.of("term", Map.of(exactField(field), value));
 		}
+		if (!"contains".equals(operator)) {
+			throw new IllegalArgumentException("unsupported employee search operator: " + filter.getOperator());
+		}
+		return containsClause(field, value);
+	}
+
+	private List<Map<String, Object>> buildSorts(List<SearchSort> sorts) {
+		if (sorts == null || sorts.isEmpty()) {
+			return List.of();
+		}
+		List<Map<String, Object>> result = new ArrayList<>();
+		for (SearchSort sort : sorts) {
+			if (sort == null || !hasText(sort.getField())) {
+				throw new IllegalArgumentException("search sort field must not be blank");
+			}
+			String field = requireSearchableField(sort.getField(), "sort");
+			SearchSortDirection direction = sort.getDirection() == null ? SearchSortDirection.ASC : sort.getDirection();
+			result.add(Map.of(exactField(field), Map.of("order", direction.name().toLowerCase())));
+		}
+		return result;
+	}
+
+	private Map<String, Object> buildAggregations(SearchAggregate aggregate) {
+		List<String> groupBy = aggregate.getGroupBy() == null ? List.of() : aggregate.getGroupBy();
+		List<SearchMetric> metrics = aggregate.getMetrics() == null ? List.of() : aggregate.getMetrics();
+		if (groupBy.isEmpty() && metrics.isEmpty()) {
+			throw new IllegalArgumentException("search aggregate must define groupBy or metrics");
+		}
+		if (groupBy.size() > MAX_GROUP_BY_FIELDS) {
+			throw new IllegalArgumentException(
+					"search aggregate supports at most " + MAX_GROUP_BY_FIELDS + " groupBy fields");
+		}
+
+		Map<String, Object> metricAggregations = buildMetricAggregations(metrics);
+		if (groupBy.isEmpty()) {
+			return metricAggregations;
+		}
+
+		int bucketSize = normalizeBucketSize(aggregate.getBucketSize());
+		Map<String, Object> nested = metricAggregations;
+		Set<String> groupedFields = new HashSet<>();
+		for (int i = groupBy.size() - 1; i >= 0; i--) {
+			String field = requireSearchableField(groupBy.get(i), "groupBy");
+			if (!groupedFields.add(field)) {
+				throw new IllegalArgumentException("duplicate search aggregate groupBy field: " + field);
+			}
+			Map<String, Object> termsAggregation = new LinkedHashMap<>();
+			termsAggregation.put("terms", Map.of("field", exactField(field), "size", bucketSize));
+			if (!nested.isEmpty()) {
+				termsAggregation.put("aggs", nested);
+			}
+			nested = Map.of("group_by_" + i + "_" + field, termsAggregation);
+		}
+		return nested;
+	}
+
+	private Map<String, Object> buildMetricAggregations(List<SearchMetric> metrics) {
+		Map<String, Object> result = new LinkedHashMap<>();
+		Set<String> aliases = new HashSet<>();
+		for (SearchMetric metric : metrics) {
+			if (metric == null || metric.getFunction() == null) {
+				throw new IllegalArgumentException("search aggregate metric function must not be null");
+			}
+			String alias = metricAlias(metric);
+			if (!aliases.add(alias)) {
+				throw new IllegalArgumentException("duplicate search aggregate metric alias: " + alias);
+			}
+			result.put(alias, metricDsl(metric));
+		}
+		return result;
+	}
+
+	private Map<String, Object> metricDsl(SearchMetric metric) {
+		if (metric.getFunction() == SearchMetricFunction.COUNT) {
+			String field = hasText(metric.getField())
+					? requireSearchableField(metric.getField(), "metric")
+					: ID_FIELD;
+			return Map.of("value_count", Map.of("field", exactField(field)));
+		}
+		throw new IllegalArgumentException(
+				"employee index has no numeric fields for metric function " + metric.getFunction());
+	}
+
+	private String metricAlias(SearchMetric metric) {
+		String alias = hasText(metric.getAlias())
+				? metric.getAlias()
+				: metric.getFunction().name().toLowerCase();
+		if (!AGGREGATION_ALIAS.matcher(alias).matches()) {
+			throw new IllegalArgumentException("invalid search aggregate metric alias: " + alias);
+		}
+		return alias;
+	}
+
+	private int normalizeBucketSize(Integer bucketSize) {
+		if (bucketSize == null) {
+			return DEFAULT_BUCKET_SIZE;
+		}
+		if (bucketSize <= 0 || bucketSize > MAX_BUCKET_SIZE) {
+			throw new IllegalArgumentException(
+					"search aggregate bucketSize must be between 1 and " + MAX_BUCKET_SIZE);
+		}
+		return bucketSize;
+	}
+
+	private String requireSearchableField(String field, String usage) {
+		if (!hasText(field) || !SEARCHABLE_FIELDS.contains(field)) {
+			throw new IllegalArgumentException("unsupported employee search " + usage + " field: " + field);
+		}
+		return field;
+	}
+
+	private Map<String, Object> containsClause(String field, String value) {
 		if (isKeywordField(field)) {
 			return Map.of("wildcard", Map.of(field, "*" + value + "*"));
 		}
@@ -247,7 +403,7 @@ public class EmployeeEsService {
 			should.add(singleFilterClause(field, normalizeAnyOperator(operator), value));
 		}
 		if (should.isEmpty()) {
-			return null;
+			throw new IllegalArgumentException("search filter values must contain at least one non-blank value");
 		}
 		if (should.size() == 1) {
 			return should.get(0);
@@ -265,10 +421,10 @@ public class EmployeeEsService {
 		if ("equals".equals(operator) || "eq".equals(operator) || "term".equals(operator)) {
 			return Map.of("term", Map.of(exactField(field), value));
 		}
-		if (isKeywordField(field)) {
-			return Map.of("wildcard", Map.of(field, "*" + value + "*"));
+		if ("contains".equals(operator)) {
+			return containsClause(field, value);
 		}
-		return Map.of("match_phrase", Map.of(field, value));
+		throw new IllegalArgumentException("unsupported employee search operator: " + operator);
 	}
 
 	/**
@@ -277,8 +433,9 @@ public class EmployeeEsService {
 	private String normalizeAnyOperator(String operator) {
 		return switch (operator) {
 		case "startswithany", "starts_with_any", "prefixany" -> "startswith";
-		case "equalsany", "eqany", "termany", "in" -> "equals";
-		default -> "contains";
+		case "equals", "eq", "term", "equalsany", "eqany", "termany", "in" -> "equals";
+		case "contains", "containsany", "contains_any" -> "contains";
+		default -> throw new IllegalArgumentException("unsupported employee search operator: " + operator);
 		};
 	}
 
@@ -304,16 +461,6 @@ public class EmployeeEsService {
 
 	/**
 	 * 规范化输入值。
-	 */
-	private String normalizeFilterField(String field) {
-		return switch (field) {
-		case "contactAddress", "chineseName", "idCardNo", "memberNo", "phoneNo", "email", "position" -> field;
-		default -> null;
-		};
-	}
-
-	/**
-	 * 处理 exactField 相关逻辑。
 	 */
 	private String exactField(String field) {
 		if (isKeywordField(field)) {
