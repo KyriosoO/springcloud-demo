@@ -98,7 +98,7 @@ serviceCenter (pom) ─── 统一管理版本号与依赖
         │             │       │           │          │          │
         ↓             ↓       ↓           ↓          ↓          ↓
   auth-service  openfeign  employee  workflow  mq-procedure  [agent]
-    (8090)      (9000)    (9210)     (9100)     (8182)      (规划中)
+    (8090)      (9000)    (9210)     (9100)     (8182)      (设计中)
         │          │          │          │          │
         │          │          │ Feign    │ Kafka    │ RMQ/Kafka
         │          │          ├──────────┤          │
@@ -159,7 +159,7 @@ Native 模式从 `classpath:/config` 加载配置文件，向 Eureka 注册自�
 | mq_route | /txn/** | mq-procedure-service | 交易/订单 |
 | emp | /employees/**, /employee-workflow.html, /employee-es.html | employee-service | 员工 |
 | workflow | /workflows/** | workflow-service | 工作流 |
-| agent | /agent/** | agent-service | Agent (路由已配，服务待实现) |
+| agent | /agent/**, /agent.html | agent-service | Agent（正式设计中，服务待实现） |
 
 **安全过滤器链**（GatewaySecurityConfig）：
 
@@ -235,12 +235,15 @@ JwtConfig → ResourceServerSecurityAutoConfiguration → ReactiveResourceServer
 
 四个纯 POJO 模块，不含业务逻辑和 Feign 接口定义。Feign 接口驻留在消费方模块中。
 
-### 5.1 es-query-api（9 个类）
+### 5.1 es-query-api（14 个类）
 
 | 类 | 说明 |
 |----|------|
 | SearchFilter | 搜索过滤（field, operator, value, values[]） |
-| SearchRequest | 关键词搜索（keyword, from, size, filters[]） |
+| SearchRequest | 搜索请求（keyword, from, size, filters[], sorts[], aggregate, trackTotalHits） |
+| SearchSort / SearchSortDirection | 搜索排序字段与方向 |
+| SearchAggregate | 聚合请求（groupBy[], metrics[], bucketSize） |
+| SearchMetric / SearchMetricFunction | 聚合指标与 COUNT/SUM/AVG/MIN/MAX 函数 |
 | SemanticSearchRequest | 语义搜索（embeddingField, queryText, queryVector, dims, k, numCandidates） |
 | VectorSearchRequest | 向量检索（embeddingField, queryVector, k, numCandidates） |
 | IndexDocumentRequest | 单文档索引（id, document Map） |
@@ -331,7 +334,7 @@ JwtConfig → ResourceServerSecurityAutoConfiguration → ReactiveResourceServer
 | | GET/PUT/DELETE | /employees/{idCardNo} | 详情 / 更新（需审批） / 删除 |
 | | GET | /employees/change-requests/{id} | 变更申请详情 |
 | | GET | /employees/count | 总数统计 |
-| ES 搜索 | POST | /employees/es/search | 关键词全文搜索（multi_match+filter） |
+| ES 搜索 | POST | /employees/es/search | 受控 DSL 搜索（关键词、过滤、排序、精确总数、COUNT/terms 聚合） |
 | | POST | /employees/es/vector-search | 语义向量搜索 |
 | ES 管理 | POST/DELETE | /employees/es/documents/{id} | 单条索引/删除 |
 | | POST | /employees/es/bulk | 批量索引 |
@@ -346,7 +349,7 @@ JwtConfig → ResourceServerSecurityAutoConfiguration → ReactiveResourceServer
 | 类 | 职责 |
 |---|------|
 | EmployeeService | CRUD 编排、ChangeRequest 管理、审批提交/回调处理、ES 文档转换、源数据分页 |
-| EmployeeEsService | ES 操作编排（Feign 调用 es-query-service）、DSL 构建、索引 mapping 定义 |
+| EmployeeEsService | ES 操作编排（Feign 调用 es-query-service）、受控 DSL 构建、字段/操作符校验、COUNT/terms 聚合、索引 mapping 定义 |
 | EmployeeEmbeddingService | 向量嵌入：BGE (bge-m3/1024d) 和 OpenAI 兼容双模式 |
 
 **Feign 客户端**：
@@ -607,8 +610,8 @@ mq-consumer-service(:8183) OrderCreateConsumer
 ### 7.3 ES 全文搜索链
 
 ```
-浏览器 → Gateway → employee-service(:9210) POST /employees/es/search
-  ├── EmployeeEsService → 构建 DSL (multi_match + filter + prefix + wildcard)
+浏览器 / Agent Adapter → Gateway → employee-service(:9210) POST /employees/es/search
+  ├── EmployeeEsService → 按字段白名单构建 DSL（查询、过滤、排序、track_total_hits、COUNT/terms 聚合）
   ├── EmployeeEmbeddingService (BGE bge-m3) → 可选向量查询
   └── Feign → es-query-service(:9201) POST /es/indexes/employee/search
         └── EsDocumentService.search() → Low Level RestClient → ES _search API
@@ -722,14 +725,24 @@ mq-consumer-service(:8183) OrderCreateConsumer
 
 ## 12. Agent 能力现状
 
-agent-api、agent-service 和 agent-runtime（Python LangGraph）模块当前未纳入代码树，也未加入 `serviceCenter/pom.xml` 的 Maven reactor。当前只有以下基础设施预留：
+Agent 是当前正式设计中的新增能力，尚未进入代码树：
 
-| 预埋点 | 位置 | 说明 |
+- 长期服务边界和演进原则见 `docs/design/agent架构设计文档_v1.6.md`。
+- 当前编码基线见 `docs/design/agent查询功能实施设计_v1.0.md`。
+
+首期范围已经收敛为 Employee `QUERY + CLARIFY`：Runtime 生成计划，Java 完成校验、字段/operator 权限、Employee Adapter 查询、字段过滤和脱敏，并保存基础 Turn。transaction、聚合、ResultRef、摘要、修改、风控、确认、业务提交和工作流动作均不属于首期。
+
+截至当前仓库状态，`agent-api`、`agent-service` 和 `agent-runtime`（Python LangGraph）模块尚未纳入代码树，`serviceCenter/pom.xml` 也尚未加入对应 Maven 模块。已经完成的前置能力如下：
+
+| 前置能力 | 位置 | 说明 |
 |--------|------|------|
-| 网关路由 | GatewayRouter.java | `/agent/**` → `lb://agent-service` |
+| 网关路由 | GatewayRouter.java | `/agent/**`、`/agent.html` → `lb://agent-service` |
 | JWT 角色 | JwtService.java | agent:admin / agent:viewer |
-| 前端入口 | home.html | "Agent Query" 按钮 |
+| 前端入口 | home.html | "Agent Query" 按钮跳转 `/agent.html` |
+| Employee ES 查询 | EmployeeEsService | 首期复用受控 filters 查询和精确总数；不通过 Agent 开放 keyword、排序或聚合 |
 | 向量嵌入 | EmployeeEmbeddingService | BGE (bge-m3/1024d) + OpenAI 兼容双模式 |
+
+目标实现中，`agent-service/src/main/resources/static/agent.html` 提供 Agent 页面；在服务落地前，访问 `/agent.html` 不会得到可用页面。
 
 ---
 
