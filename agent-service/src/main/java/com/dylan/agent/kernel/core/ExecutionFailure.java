@@ -1,7 +1,7 @@
 package com.dylan.agent.kernel.core;
 
-import com.dylan.agent.lifecycle.model.ExecutionStage;
-import com.dylan.agent.lifecycle.model.KernelErrorCode;
+import com.dylan.agent.invocation.model.ExecutionStage;
+import com.dylan.agent.invocation.model.KernelErrorCode;
 
 import java.util.Objects;
 

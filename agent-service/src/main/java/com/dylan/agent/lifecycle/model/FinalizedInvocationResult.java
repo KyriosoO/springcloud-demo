@@ -1,6 +1,8 @@
 package com.dylan.agent.lifecycle.model;
 
 import com.dylan.agent.invocation.model.InvocationOrigin;
+import com.dylan.agent.invocation.model.InvocationState;
+import com.dylan.agent.invocation.model.KernelErrorCode;
 
 import java.util.Optional;
 

@@ -27,7 +27,22 @@ public final class InvocationHandle {
     private final AgentProfileRef agentProfileRef;
     private final Instant absoluteDeadline;
 
-    public InvocationHandle(
+    public static InvocationHandle create(
+            String invocationId,
+            InvocationType invocationType,
+            InvocationOrigin origin,
+            String requestCorrelationId,
+            ExecutionSubjectRef subject,
+            ContextOwnerRef owner,
+            InvocationScope scope,
+            AgentProfileRef agentProfileRef,
+            Instant absoluteDeadline) {
+        return new InvocationHandle(invocationId, invocationType, origin,
+                requestCorrelationId, subject, owner, scope, agentProfileRef,
+                absoluteDeadline);
+    }
+
+    private InvocationHandle(
             String invocationId,
             InvocationType invocationType,
             InvocationOrigin origin,
@@ -46,6 +61,13 @@ public final class InvocationHandle {
         this.scope = Objects.requireNonNull(scope);
         this.agentProfileRef = Objects.requireNonNull(agentProfileRef);
         this.absoluteDeadline = Objects.requireNonNull(absoluteDeadline);
+
+        if (invocationId.isBlank()) {
+            throw new IllegalArgumentException("invocationId must not be blank");
+        }
+        if (requestCorrelationId.isBlank()) {
+            throw new IllegalArgumentException("requestCorrelationId must not be blank");
+        }
 
         // 构造器强制 type/origin/scope 闭合
         if (!origin.isCompatibleWith(invocationType)) {

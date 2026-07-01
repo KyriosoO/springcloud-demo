@@ -1,7 +1,7 @@
 package com.dylan.agent.planning.model;
 
 import com.dylan.agent.api.contract.runtime.common.RuntimeOperationType;
-import com.dylan.agent.lifecycle.model.KernelErrorCode;
+import com.dylan.agent.invocation.model.KernelErrorCode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

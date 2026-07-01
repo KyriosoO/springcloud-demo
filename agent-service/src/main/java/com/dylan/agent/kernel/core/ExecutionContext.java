@@ -1,6 +1,7 @@
 package com.dylan.agent.kernel.core;
 
 import com.dylan.agent.adapter.api.AgentAdapterPort;
+import com.dylan.agent.invocation.model.CancellationToken;
 import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
@@ -21,7 +22,7 @@ public final class ExecutionContext {
     private final InvocationScope scope;
     private final AdapterExecutionBinding adapterBinding;
     private final Instant absoluteDeadline;
-    private final Object cancellation; // CancellationToken
+    private final CancellationToken cancellation;
 
     ExecutionContext(
             String invocationId,
@@ -30,14 +31,14 @@ public final class ExecutionContext {
             InvocationScope scope,
             AdapterExecutionBinding adapterBinding,
             Instant absoluteDeadline,
-            Object cancellation) {
+            CancellationToken cancellation) {
         this.invocationId = Objects.requireNonNull(invocationId);
         this.subject = Objects.requireNonNull(subject);
         this.owner = Objects.requireNonNull(owner);
         this.scope = Objects.requireNonNull(scope);
         this.adapterBinding = adapterBinding;
         this.absoluteDeadline = Objects.requireNonNull(absoluteDeadline);
-        this.cancellation = cancellation;
+        this.cancellation = Objects.requireNonNull(cancellation);
     }
 
     public String invocationId() { return invocationId; }
@@ -46,7 +47,7 @@ public final class ExecutionContext {
     public InvocationScope scope() { return scope; }
     public Optional<AdapterExecutionBinding> adapterBinding() { return Optional.ofNullable(adapterBinding); }
     public Instant absoluteDeadline() { return absoluteDeadline; }
-    public Object cancellation() { return cancellation; }
+    public CancellationToken cancellation() { return cancellation; }
 
     /** 只验证已绑定 port 类型，不查询 Registry、不按 domain 路由。 */
     public <P extends AgentAdapterPort> P requireAdapter(Class<P> portType) {

@@ -13,6 +13,12 @@ public non-sealed class ChatInvocationOrigin implements InvocationOrigin {
     public ChatInvocationOrigin(String conversationId, String turnId) {
         this.conversationId = Objects.requireNonNull(conversationId);
         this.turnId = Objects.requireNonNull(turnId);
+        if (conversationId.isBlank()) {
+            throw new IllegalArgumentException("conversationId must not be blank");
+        }
+        if (turnId.isBlank()) {
+            throw new IllegalArgumentException("turnId must not be blank");
+        }
     }
 
     @Override

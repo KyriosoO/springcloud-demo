@@ -1,6 +1,7 @@
 package com.dylan.agent.kernel.core;
 
 import com.dylan.agent.invocation.model.InvocationHandle;
+import com.dylan.agent.invocation.model.CancellationToken;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
 
 import java.util.Objects;
@@ -14,14 +15,14 @@ public final class ExecutionCommand {
 
     private final InvocationHandle handle;
     private final ExecutablePlanningResult planningResult;
-    private final Object cancellation; // CancellationToken after D02_02
+    private final CancellationToken cancellation;
 
     public ExecutionCommand(InvocationHandle handle,
                             ExecutablePlanningResult planningResult,
-                            Object cancellation) {
+                            CancellationToken cancellation) {
         this.handle = Objects.requireNonNull(handle);
         this.planningResult = Objects.requireNonNull(planningResult);
-        this.cancellation = cancellation;
+        this.cancellation = Objects.requireNonNull(cancellation);
 
         // 构造器校验：Handle 与 PlanningResult 的 correlation、subject/owner/scope、deadline 一致
         if (!handle.requestCorrelationId().equals(planningResult.requestCorrelationId())) {
@@ -36,5 +37,5 @@ public final class ExecutionCommand {
 
     public InvocationHandle handle() { return handle; }
     public ExecutablePlanningResult planningResult() { return planningResult; }
-    public Object cancellation() { return cancellation; }
+    public CancellationToken cancellation() { return cancellation; }
 }

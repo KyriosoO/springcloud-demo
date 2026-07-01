@@ -1,10 +1,20 @@
 package com.dylan.agent.lifecycle.model;
 
+import com.dylan.agent.api.contract.common.ContractRef;
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.invocation.model.InvocationHandle;
+import com.dylan.agent.metadata.context.model.ContextSnapshot;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
 import com.dylan.agent.planning.model.PlanningOperationAudit;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Core 进入前的不可变 Planning 事实固化，由 D02_02 唯一负责。
@@ -20,7 +30,7 @@ public final class PlanningCheckpoint {
     private final PlanningOperationAudit routeAudit;
     private final PlanningOperationAudit planAudit;
     private final String authorizationSnapshotRef;
-    private final String contextSnapshotRefs; // JSON-serialized safe ref list
+    private final List<ContextSnapshotRef> contextSnapshotRefs;
     private final String checkpointHash;
 
     private PlanningCheckpoint(Builder builder) {
@@ -33,7 +43,7 @@ public final class PlanningCheckpoint {
         this.routeAudit = Objects.requireNonNull(builder.routeAudit);
         this.planAudit = Objects.requireNonNull(builder.planAudit);
         this.authorizationSnapshotRef = Objects.requireNonNull(builder.authorizationSnapshotRef);
-        this.contextSnapshotRefs = builder.contextSnapshotRefs != null ? builder.contextSnapshotRefs : "[]";
+        this.contextSnapshotRefs = normalizeContextSnapshotRefs(builder.contextSnapshotRefs);
         this.checkpointHash = computeHash();
     }
 
@@ -45,18 +55,84 @@ public final class PlanningCheckpoint {
                 .capabilityId(result.capabilityId())
                 .domain(result.domain().orElse(null))
                 .planKind(result.planKind().name())
-                .registrationIdentity("reg-" + result.capabilityId())
+                .registrationIdentity(result.resolvedRegistration().registrationIdentity())
                 .routeAudit(result.routeAudit())
                 .planAudit(result.planAudit())
-                .authorizationSnapshotRef("auth-" + handle.invocationId())
+                .authorizationSnapshotRef(result.authorizationSnapshot().snapshotId())
+                .contextSnapshotRefs(contextSnapshotRefs(result.contextSnapshots()))
                 .build();
+    }
+
+    private static List<ContextSnapshotRef> contextSnapshotRefs(List<ContextSnapshot> snapshots) {
+        return snapshots.stream()
+                .map(PlanningCheckpoint::contextSnapshotRef)
+                .toList();
+    }
+
+    private static ContextSnapshotRef contextSnapshotRef(ContextSnapshot snapshot) {
+        return new ContextSnapshotRef(
+                snapshot.contextId(),
+                snapshot.contextType(),
+                snapshot.sourceDomain(),
+                snapshot.storedContractRef(),
+                snapshot.effectiveContractRef(),
+                snapshot.recordVersion());
+    }
+
+    private static List<ContextSnapshotRef> normalizeContextSnapshotRefs(List<ContextSnapshotRef> refs) {
+        List<ContextSnapshotRef> normalized = refs == null ? List.of() : refs.stream()
+                .sorted(Comparator.comparing(ref -> ref.contextType().name()))
+                .toList();
+        HashSet<RuntimeContextType> seen = new HashSet<>();
+        for (ContextSnapshotRef ref : normalized) {
+            if (!seen.add(ref.contextType())) {
+                throw new IllegalArgumentException(
+                        "contextSnapshotRefs must not contain duplicate contextType: " + ref.contextType());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static String contractRef(ContractRef ref) {
+        return ref.schema() + ":" + ref.version();
     }
 
     private String computeHash() {
         String content = invocationId + "|" + requestCorrelationId + "|" + capabilityId
-                + "|" + domain + "|" + planKind + "|" + registrationIdentity;
-        // canonical SHA-256 placeholder; D03 replaces with real digest
-        return Integer.toHexString(content.hashCode());
+                + "|" + domain + "|" + planKind + "|" + registrationIdentity
+                + "|" + authorizationSnapshotRef + "|" + canonicalContextRefs();
+        return sha256Hex(content);
+    }
+
+    private String canonicalContextRefs() {
+        StringBuilder builder = new StringBuilder("[");
+        for (int i = 0; i < contextSnapshotRefs.size(); i++) {
+            ContextSnapshotRef ref = contextSnapshotRefs.get(i);
+            if (i > 0) {
+                builder.append(',');
+            }
+            builder.append(ref.contextId()).append('|')
+                    .append(ref.contextType().name()).append('|')
+                    .append(ref.sourceDomain().orElse("")).append('|')
+                    .append(contractRef(ref.storedContractRef())).append('|')
+                    .append(contractRef(ref.effectiveContractRef())).append('|')
+                    .append(ref.recordVersion());
+        }
+        return builder.append(']').toString();
+    }
+
+    private static String sha256Hex(String content) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
     }
 
     // ── 只读访问器 ──
@@ -69,8 +145,38 @@ public final class PlanningCheckpoint {
     public PlanningOperationAudit routeAudit() { return routeAudit; }
     public PlanningOperationAudit planAudit() { return planAudit; }
     public String authorizationSnapshotRef() { return authorizationSnapshotRef; }
-    public String contextSnapshotRefs() { return contextSnapshotRefs; }
+    public List<ContextSnapshotRef> contextSnapshotRefs() { return contextSnapshotRefs; }
     public String checkpointHash() { return checkpointHash; }
+
+    /**
+     * Context snapshot 的安全审计引用；只记录身份、类型、schema 与版本，不包含 payload。
+     */
+    public record ContextSnapshotRef(
+            String contextId,
+            RuntimeContextType contextType,
+            Optional<String> sourceDomain,
+            ContractRef storedContractRef,
+            ContractRef effectiveContractRef,
+            long recordVersion) {
+        public ContextSnapshotRef {
+            Objects.requireNonNull(contextId);
+            Objects.requireNonNull(contextType);
+            sourceDomain = Objects.requireNonNull(sourceDomain);
+            Objects.requireNonNull(storedContractRef);
+            Objects.requireNonNull(effectiveContractRef);
+            if (contextId.isBlank()) {
+                throw new IllegalArgumentException("contextId must not be blank");
+            }
+            sourceDomain.ifPresent(domain -> {
+                if (domain.isBlank()) {
+                    throw new IllegalArgumentException("sourceDomain must not be blank when present");
+                }
+            });
+            if (recordVersion < 0) {
+                throw new IllegalArgumentException("recordVersion must be non-negative");
+            }
+        }
+    }
 
     public static final class Builder {
         private String invocationId;
@@ -82,7 +188,7 @@ public final class PlanningCheckpoint {
         private PlanningOperationAudit routeAudit;
         private PlanningOperationAudit planAudit;
         private String authorizationSnapshotRef;
-        private String contextSnapshotRefs;
+        private List<ContextSnapshotRef> contextSnapshotRefs;
 
         public Builder invocationId(String v) { this.invocationId = v; return this; }
         public Builder requestCorrelationId(String v) { this.requestCorrelationId = v; return this; }
@@ -93,7 +199,7 @@ public final class PlanningCheckpoint {
         public Builder routeAudit(PlanningOperationAudit v) { this.routeAudit = v; return this; }
         public Builder planAudit(PlanningOperationAudit v) { this.planAudit = v; return this; }
         public Builder authorizationSnapshotRef(String v) { this.authorizationSnapshotRef = v; return this; }
-        public Builder contextSnapshotRefs(String v) { this.contextSnapshotRefs = v; return this; }
+        public Builder contextSnapshotRefs(List<ContextSnapshotRef> v) { this.contextSnapshotRefs = v; return this; }
 
         public PlanningCheckpoint build() { return new PlanningCheckpoint(this); }
     }

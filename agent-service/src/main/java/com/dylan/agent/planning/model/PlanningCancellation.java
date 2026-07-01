@@ -1,6 +1,6 @@
 package com.dylan.agent.planning.model;
 
-import com.dylan.agent.lifecycle.model.KernelErrorCode;
+import com.dylan.agent.invocation.model.KernelErrorCode;
 
 import java.util.List;
 import java.util.Optional;

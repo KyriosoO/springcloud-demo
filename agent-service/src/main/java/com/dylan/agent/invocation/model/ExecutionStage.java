@@ -1,4 +1,4 @@
-package com.dylan.agent.lifecycle.model;
+package com.dylan.agent.invocation.model;
 
 /**
  * Execution 阶段枚举，用于失败诊断和审计。

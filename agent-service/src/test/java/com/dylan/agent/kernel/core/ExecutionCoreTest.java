@@ -11,6 +11,7 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeTerminationReason;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.invocation.model.ChatInvocationOrigin;
+import com.dylan.agent.invocation.model.CancellationSource;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.invocation.model.ConversationScope;
@@ -31,8 +32,8 @@ import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.CapabilityRegistrationValidator;
 import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
-import com.dylan.agent.lifecycle.model.ExecutionStage;
-import com.dylan.agent.lifecycle.model.KernelErrorCode;
+import com.dylan.agent.invocation.model.ExecutionStage;
+import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
@@ -308,11 +309,11 @@ class ExecutionCoreTest {
     }
 
     private ExecutionCommand command(com.dylan.agent.kernel.registration.ResolvedRegistration resolved) {
-        return new ExecutionCommand(handle(), planningResult(resolved), null);
+        return new ExecutionCommand(handle(), planningResult(resolved), new CancellationSource().token());
     }
 
     private InvocationHandle handle() {
-        return new InvocationHandle(
+        return InvocationHandle.create(
                 "inv-1",
                 InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),

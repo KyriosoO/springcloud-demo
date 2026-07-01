@@ -2,6 +2,7 @@ package com.dylan.agent.kernel.core;
 
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
+import com.dylan.agent.invocation.model.CancellationToken;
 import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
 import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
@@ -26,7 +27,7 @@ public final class ExecutionValidationContext {
     private final AdapterExecutionBinding adapterBinding;
     private final List<ContextSnapshot> contextSnapshots;
     private final Instant absoluteDeadline;
-    private final Object cancellation; // CancellationToken
+    private final CancellationToken cancellation;
 
     ExecutionValidationContext(
             String capabilityId,
@@ -37,7 +38,7 @@ public final class ExecutionValidationContext {
             AdapterExecutionBinding adapterBinding,
             List<ContextSnapshot> contextSnapshots,
             Instant absoluteDeadline,
-            Object cancellation) {
+            CancellationToken cancellation) {
         this.capabilityId = Objects.requireNonNull(capabilityId);
         this.planKind = Objects.requireNonNull(planKind);
         this.domainMode = Objects.requireNonNull(domainMode);
@@ -46,7 +47,7 @@ public final class ExecutionValidationContext {
         this.adapterBinding = adapterBinding; // nullable
         this.contextSnapshots = List.copyOf(contextSnapshots != null ? contextSnapshots : List.of());
         this.absoluteDeadline = Objects.requireNonNull(absoluteDeadline);
-        this.cancellation = cancellation;
+        this.cancellation = Objects.requireNonNull(cancellation);
     }
 
     public String capabilityId() { return capabilityId; }
@@ -57,5 +58,5 @@ public final class ExecutionValidationContext {
     public Optional<AdapterExecutionBinding> adapterBinding() { return Optional.ofNullable(adapterBinding); }
     public List<ContextSnapshot> contextSnapshots() { return contextSnapshots; }
     public Instant absoluteDeadline() { return absoluteDeadline; }
-    public Object cancellation() { return cancellation; }
+    public CancellationToken cancellation() { return cancellation; }
 }

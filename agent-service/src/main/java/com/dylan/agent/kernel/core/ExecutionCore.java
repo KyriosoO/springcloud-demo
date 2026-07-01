@@ -16,8 +16,8 @@ import com.dylan.agent.kernel.port.model.DomainBindingRequest;
 import com.dylan.agent.kernel.port.model.DomainExecutionResolution;
 import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
 import com.dylan.agent.kernel.port.model.SecuredResult;
-import com.dylan.agent.lifecycle.model.ExecutionStage;
-import com.dylan.agent.lifecycle.model.KernelErrorCode;
+import com.dylan.agent.invocation.model.ExecutionStage;
+import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
 import java.time.Clock;

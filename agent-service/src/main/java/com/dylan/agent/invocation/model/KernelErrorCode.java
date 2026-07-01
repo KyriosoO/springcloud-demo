@@ -1,4 +1,4 @@
-package com.dylan.agent.lifecycle.model;
+package com.dylan.agent.invocation.model;
 
 /**
  * 内部安全错误码枚举，由 D02_02 唯一负责。

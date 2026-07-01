@@ -3,13 +3,14 @@ package com.dylan.agent.invocation.model;
 import java.util.Objects;
 
 /**
- * Conversation Scope（CHAT 模式）。
+ * RunScope: D06 TASK 使用的 InvocationScope 实现。
+ * D03 不创建此实例。D06 Coordinator 负责构建。
  */
-public non-sealed class ConversationScope implements InvocationScope {
+public final class RunScope implements InvocationScope {
 
     private final String scopeId;
 
-    public ConversationScope(String scopeId) {
+    public RunScope(String scopeId) {
         this.scopeId = Objects.requireNonNull(scopeId);
         if (scopeId.isBlank()) {
             throw new IllegalArgumentException("scopeId must not be blank");
@@ -21,6 +22,6 @@ public non-sealed class ConversationScope implements InvocationScope {
 
     @Override
     public boolean isCompatibleWith(InvocationOrigin origin) {
-        return origin instanceof ChatInvocationOrigin;
+        return origin instanceof TaskInvocationOrigin;
     }
 }
