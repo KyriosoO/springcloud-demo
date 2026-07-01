@@ -2,7 +2,7 @@ package com.dylan.agent.capability.aggregate;
 
 import org.springframework.stereotype.Component;
 
-import com.dylan.agent.adapter.AggregatableAdapterRegistry;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.AdapterAggregateResult;
 import com.dylan.agent.adapter.api.AggregatableAdapter;
 import com.dylan.agent.adapter.api.AgentAdapterException;
@@ -27,6 +27,7 @@ import com.dylan.agent.exception.AgentQueryException;
 import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.HandlerResult;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
+import com.dylan.agent.metadata.domain.internal.AdapterPortResolver;
 import com.dylan.agent.result.AggregateResultProcessor;
 import com.dylan.agent.security.AgentPermissionService;
 
@@ -42,17 +43,17 @@ public class AggregateCapabilityHandler
 
     private final AggregatePlanValidator aggregatePlanValidator;
     private final AgentPermissionService permissionService;
-    private final AggregatableAdapterRegistry adapterRegistry;
+    private final AdapterPortResolver adapterPortResolver;
     private final AggregateResultProcessor resultProcessor;
 
     public AggregateCapabilityHandler(
             AggregatePlanValidator aggregatePlanValidator,
             AgentPermissionService permissionService,
-            AggregatableAdapterRegistry adapterRegistry,
+            AdapterPortResolver adapterPortResolver,
             AggregateResultProcessor resultProcessor) {
         this.aggregatePlanValidator = aggregatePlanValidator;
         this.permissionService = permissionService;
-        this.adapterRegistry = adapterRegistry;
+        this.adapterPortResolver = adapterPortResolver;
         this.resultProcessor = resultProcessor;
     }
 
@@ -82,7 +83,7 @@ public class AggregateCapabilityHandler
                 plan.aggregate());
 
         AggregatableAdapter adapter =
-                adapterRegistry.getRequired(plan.domain());
+                adapterPortResolver.require(AdapterRole.AGGREGATABLE, plan.domain(), AggregatableAdapter.class);
 
         AdapterAggregateResult rawResult;
         try {

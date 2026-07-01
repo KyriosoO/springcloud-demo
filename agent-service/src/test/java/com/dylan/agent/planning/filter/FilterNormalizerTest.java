@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -13,42 +12,30 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
-import com.dylan.agent.api.enums.AgentFieldType;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
-import com.dylan.agent.config.AgentProperties.FieldProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
-import com.dylan.agent.model.MaskType;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 @DisplayName("FilterNormalizer")
 class FilterNormalizerTest {
 
     private FilterNormalizer normalizer;
-    private DomainProperties dp;
+    private DomainView dp;
 
     @BeforeEach
     void setUp() {
-        AgentProperties props = new AgentProperties();
+        AgentProperties props = DomainMetadataTestSupport.agentProperties();
         AgentProperties.QueryProperties q = new AgentProperties.QueryProperties();
         q.setMaxFilterValueLength(256);
         q.setMaxInValues(20);
         props.setQuery(q);
 
         normalizer = new FilterNormalizer(props);
-
-        Map<String, FieldProperties> fields = new java.util.HashMap<>();
-        fields.put("chineseName", makeStringField(Set.of(
-                AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.CONTAINS_ANY,
-                AgentOperator.STARTS_WITH, AgentOperator.STARTS_WITH_ANY, AgentOperator.IN)));
-        fields.put("memberNo", makeStringField(Set.of(
-                AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN)));
-        fields.put("amount", makeDecimalField(Set.of(AgentOperator.EQ, AgentOperator.IN, AgentOperator.GT, AgentOperator.LT)));
-        fields.put("transDate", makeInstantField(Set.of(AgentOperator.GT, AgentOperator.LT)));
-
-        dp = new DomainProperties();
-        dp.setFields(fields);
+        dp = DomainMetadataTestSupport.catalogView().requireDomain("employee", AdapterRole.QUERYABLE);
     }
 
     @Nested
@@ -240,7 +227,7 @@ class FilterNormalizerTest {
         void shouldRejectOperatorNotInAllowlist() {
             AgentFilter filter = new AgentFilter();
             filter.setField("transDate");
-            filter.setOperator(AgentOperator.EQ);
+            filter.setOperator(AgentOperator.STARTS_WITH);
             filter.setValue("2026-06-22T10:30:00+08:00");
 
             assertThatThrownBy(() -> normalizer.normalize(filter, dp))
@@ -251,62 +238,40 @@ class FilterNormalizerTest {
         @Test
         @DisplayName("STRING + GT 类型不兼容拒绝")
         void shouldRejectStringWithGt() {
-            // 需要 operator 先通过 allowlist 才能到达类型兼容校验
-            var field = dp.getFields().get("chineseName");
-            Set<AgentOperator> original = field.getOperators();
-            field.setOperators(Set.of(AgentOperator.EQ, AgentOperator.GT));
-            try {
-                AgentFilter filter = new AgentFilter();
-                filter.setField("chineseName");
-                filter.setOperator(AgentOperator.GT);
-                filter.setValue("test");
+            AgentFilter filter = new AgentFilter();
+            filter.setField("chineseName");
+            filter.setOperator(AgentOperator.GT);
+            filter.setValue("test");
 
-                assertThatThrownBy(() -> normalizer.normalize(filter, dp))
-                        .isInstanceOf(AgentPlanValidationException.class)
-                        .hasMessageContaining("不兼容");
-            } finally {
-                field.setOperators(original);
-            }
+            assertThatThrownBy(() -> normalizer.normalize(filter, dp))
+                    .isInstanceOf(AgentPlanValidationException.class)
+                    .hasMessageContaining("不支持 operator");
         }
 
         @Test
         @DisplayName("DECIMAL + CONTAINS 类型不兼容拒绝")
         void shouldRejectDecimalWithContains() {
-            var field = dp.getFields().get("amount");
-            Set<AgentOperator> original = field.getOperators();
-            field.setOperators(Set.of(AgentOperator.EQ, AgentOperator.CONTAINS));
-            try {
-                AgentFilter filter = new AgentFilter();
-                filter.setField("amount");
-                filter.setOperator(AgentOperator.CONTAINS);
-                filter.setValue("test");
+            AgentFilter filter = new AgentFilter();
+            filter.setField("amount");
+            filter.setOperator(AgentOperator.CONTAINS);
+            filter.setValue("test");
 
-                assertThatThrownBy(() -> normalizer.normalize(filter, dp))
-                        .isInstanceOf(AgentPlanValidationException.class)
-                        .hasMessageContaining("不兼容");
-            } finally {
-                field.setOperators(original);
-            }
+            assertThatThrownBy(() -> normalizer.normalize(filter, dp))
+                    .isInstanceOf(AgentPlanValidationException.class)
+                    .hasMessageContaining("不支持 operator");
         }
 
         @Test
         @DisplayName("INSTANT + STARTS_WITH 类型不兼容拒绝")
         void shouldRejectInstantWithStartsWith() {
-            var field = dp.getFields().get("transDate");
-            Set<AgentOperator> original = field.getOperators();
-            field.setOperators(Set.of(AgentOperator.GT, AgentOperator.STARTS_WITH));
-            try {
-                AgentFilter filter = new AgentFilter();
-                filter.setField("transDate");
-                filter.setOperator(AgentOperator.STARTS_WITH);
-                filter.setValue("2026");
+            AgentFilter filter = new AgentFilter();
+            filter.setField("transDate");
+            filter.setOperator(AgentOperator.STARTS_WITH);
+            filter.setValue("2026");
 
-                assertThatThrownBy(() -> normalizer.normalize(filter, dp))
-                        .isInstanceOf(AgentPlanValidationException.class)
-                        .hasMessageContaining("不兼容");
-            } finally {
-                field.setOperators(original);
-            }
+            assertThatThrownBy(() -> normalizer.normalize(filter, dp))
+                    .isInstanceOf(AgentPlanValidationException.class)
+                    .hasMessageContaining("不支持 operator");
         }
 
         @Test
@@ -467,36 +432,4 @@ class FilterNormalizerTest {
         }
     }
 
-    private FieldProperties makeStringField(Set<AgentOperator> ops) {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(AgentFieldType.STRING);
-        fp.setOperators(ops);
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        return fp;
-    }
-
-    private FieldProperties makeDecimalField(Set<AgentOperator> ops) {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(AgentFieldType.DECIMAL);
-        fp.setOperators(ops);
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        fp.setDecimalPrecision(50);
-        fp.setDecimalScale(2);
-        return fp;
-    }
-
-    private FieldProperties makeInstantField(Set<AgentOperator> ops) {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(AgentFieldType.INSTANT);
-        fp.setOperators(ops);
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        fp.setFormatHint("ISO-8601 datetime with timezone");
-        return fp;
-    }
 }

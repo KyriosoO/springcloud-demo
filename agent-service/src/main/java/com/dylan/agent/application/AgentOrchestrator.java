@@ -27,7 +27,7 @@ import com.dylan.agent.conversation.TurnHandle;
 import com.dylan.agent.exception.AgentException;
 import com.dylan.agent.exception.AgentInternalException;
 import com.dylan.agent.model.AgentUserContext;
-import com.dylan.agent.planning.RuntimeDomainSchemaFactory;
+import com.dylan.agent.planning.RuntimeDomainSchemaProjection;
 import com.dylan.agent.security.AgentPermissionService;
 
 /**
@@ -46,7 +46,7 @@ public class AgentOrchestrator {
     private static final Logger log = LoggerFactory.getLogger(AgentOrchestrator.class);
 
     private final ConversationService conversationService;
-    private final RuntimeDomainSchemaFactory schemaFactory;
+    private final RuntimeDomainSchemaProjection schemaProjection;
     private final AgentRuntimeClient runtimeClient;
     private final AgentPermissionService permissionService;
     private final AgentProperties properties;
@@ -55,7 +55,7 @@ public class AgentOrchestrator {
     private final CapabilityDescriptorFactory capabilityDescriptorFactory;
 
     public AgentOrchestrator(ConversationService conversationService,
-                             RuntimeDomainSchemaFactory schemaFactory,
+                             RuntimeDomainSchemaProjection schemaProjection,
                              AgentRuntimeClient runtimeClient,
                              AgentPermissionService permissionService,
                              AgentProperties properties,
@@ -63,7 +63,7 @@ public class AgentOrchestrator {
                              CapabilityRouter capabilityRouter,
                              CapabilityDescriptorFactory capabilityDescriptorFactory) {
         this.conversationService = conversationService;
-        this.schemaFactory = schemaFactory;
+        this.schemaProjection = schemaProjection;
         this.runtimeClient = runtimeClient;
         this.permissionService = permissionService;
         this.properties = properties;
@@ -95,7 +95,7 @@ public class AgentOrchestrator {
             pgReq.setMessage(normalized);
             pgReq.setRecentTurns(recentTurns);
             pgReq.setPreviousQuery(previousQuery);
-            pgReq.setDomainSchemas(schemaFactory.createAll());
+            pgReq.setDomainSchemas(schemaProjection.createAll());
             pgReq.setCapabilities(capabilityDescriptorFactory.createForRuntimeRequest(userContext));
 
             PlanGenerateResponse pgResp = runtimeClient.generate(pgReq);

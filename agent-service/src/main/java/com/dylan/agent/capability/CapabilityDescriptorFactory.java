@@ -7,8 +7,7 @@ import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
-import com.dylan.agent.adapter.AggregatableAdapterRegistry;
-import com.dylan.agent.adapter.QueryableAdapterRegistry;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.capability.AgentCapabilityDescriptor;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
@@ -16,7 +15,8 @@ import com.dylan.agent.api.capability.CapabilityContextSpec;
 import com.dylan.agent.api.capability.CapabilityContractRef;
 import com.dylan.agent.api.capability.CapabilityDomainScope;
 import com.dylan.agent.api.enums.AgentIntent;
-import com.dylan.agent.config.AgentProperties;
+import com.dylan.agent.metadata.domain.internal.AdapterPortResolver;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
 import com.dylan.agent.model.AgentUserContext;
 
 /**
@@ -33,19 +33,16 @@ import com.dylan.agent.model.AgentUserContext;
 public class CapabilityDescriptorFactory {
 
     private final AgentCapabilityHandlerRegistry handlerRegistry;
-    private final QueryableAdapterRegistry queryableAdapterRegistry;
-    private final AggregatableAdapterRegistry aggregatableAdapterRegistry;
-    private final AgentProperties properties;
+    private final AdapterPortResolver adapterPortResolver;
+    private final DomainCatalogView domainCatalogView;
 
     public CapabilityDescriptorFactory(
             AgentCapabilityHandlerRegistry handlerRegistry,
-            QueryableAdapterRegistry queryableAdapterRegistry,
-            AggregatableAdapterRegistry aggregatableAdapterRegistry,
-            AgentProperties properties) {
+            AdapterPortResolver adapterPortResolver,
+            DomainCatalogView domainCatalogView) {
         this.handlerRegistry = handlerRegistry;
-        this.queryableAdapterRegistry = queryableAdapterRegistry;
-        this.aggregatableAdapterRegistry = aggregatableAdapterRegistry;
-        this.properties = properties;
+        this.adapterPortResolver = adapterPortResolver;
+        this.domainCatalogView = domainCatalogView;
     }
 
     /** 生成系统级 capability catalog，不依赖用户上下文，用于启动校验和审计。 */
@@ -57,9 +54,7 @@ public class CapabilityDescriptorFactory {
 
         // 仅当 registry 非空 且 registry×config 交集非空时才输出 aggregate.compute，
         // 避免向 Runtime 发送一个 enabled scopes 为空的 capability，导致 Python 侧校验拒绝整个请求。
-        if (aggregatableAdapterRegistry != null
-                && !aggregatableAdapterRegistry.domains().isEmpty()
-                && !aggregateDomainIntersection().isEmpty()) {
+        if (!aggregateDomainIntersection().isEmpty()) {
             list.add(buildAggregateCompute());
         }
 
@@ -142,19 +137,19 @@ public class CapabilityDescriptorFactory {
 
     // ── domain scope 计算 ────────────────────────────────────────────────────
 
-    /** query.search 可用 domain：QueryableAdapterRegistry.domains() 与 AgentProperties.getDomains().keySet() 交集。 */
+    /** query.search 可用 domain：D04 AdapterRegistration 与 Canonical Catalog 的交集。 */
     private Set<String> queryDomainIntersection() {
-        Set<String> adapterDomains = queryableAdapterRegistry.domains();
-        Set<String> configDomains = properties.getDomains().keySet();
+        Set<String> adapterDomains = adapterPortResolver.domains(AdapterRole.QUERYABLE);
+        Set<String> configDomains = Set.copyOf(domainCatalogView.domains());
         Set<String> intersection = new java.util.HashSet<>(adapterDomains);
         intersection.retainAll(configDomains);
         return intersection;
     }
 
-    /** aggregate.compute 可用 domain：AggregatableAdapterRegistry.domains() 与 AgentProperties.getDomains().keySet() 交集。 */
+    /** aggregate.compute 可用 domain：D04 AdapterRegistration 与 Canonical Catalog 的交集。 */
     private Set<String> aggregateDomainIntersection() {
-        Set<String> adapterDomains = aggregatableAdapterRegistry.domains();
-        Set<String> configDomains = properties.getDomains().keySet();
+        Set<String> adapterDomains = adapterPortResolver.domains(AdapterRole.AGGREGATABLE);
+        Set<String> configDomains = Set.copyOf(domainCatalogView.domains());
         Set<String> intersection = new java.util.HashSet<>(adapterDomains);
         intersection.retainAll(configDomains);
         return intersection;

@@ -1,20 +1,17 @@
 package com.dylan.agent.config;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentIntent;
-import com.dylan.agent.api.enums.AgentOperator;
-import com.dylan.agent.model.MaskType;
 
 /**
  * Agent 所有配置，以 agent 为前缀。
- * 字段策略是查询权限、输出过滤和脱敏的统一事实来源。
+ * D04 后本类不再承载 domain metadata；domain 字段事实由
+ * agent.domain-metadata 绑定到 DomainMetadataProperties。
  */
 @ConfigurationProperties(prefix = "agent")
 public class AgentProperties {
@@ -24,7 +21,6 @@ public class AgentProperties {
     private ConversationProperties conversation;
     private QueryProperties query;
     private AggregateProperties aggregate;
-    private Map<String, DomainProperties> domains;
 
     public Map<AgentIntent, Set<String>> getIntentRoles() {
         return intentRoles;
@@ -64,14 +60,6 @@ public class AgentProperties {
 
     public void setAggregate(AggregateProperties aggregate) {
         this.aggregate = aggregate;
-    }
-
-    public Map<String, DomainProperties> getDomains() {
-        return domains;
-    }
-
-    public void setDomains(Map<String, DomainProperties> domains) {
-        this.domains = domains;
     }
 
     /** Runtime 连接配置 */
@@ -132,55 +120,6 @@ public class AgentProperties {
         public void setMaxFilterValueLength(int maxFilterValueLength) { this.maxFilterValueLength = maxFilterValueLength; }
         public int getMaxDownstreamResponseBytes() { return maxDownstreamResponseBytes; }
         public void setMaxDownstreamResponseBytes(int maxDownstreamResponseBytes) { this.maxDownstreamResponseBytes = maxDownstreamResponseBytes; }
-    }
-
-    /** Domain 级配置 */
-    public static class DomainProperties {
-        private Set<String> accessRoles;
-        private List<String> aliases;
-        private List<String> defaultSelectFields;
-        private Map<String, FieldProperties> fields;
-
-        public Set<String> getAccessRoles() { return accessRoles; }
-        public void setAccessRoles(Set<String> accessRoles) { this.accessRoles = accessRoles; }
-        public List<String> getAliases() { return aliases; }
-        public void setAliases(List<String> aliases) { this.aliases = aliases; }
-        public List<String> getDefaultSelectFields() { return defaultSelectFields; }
-        public void setDefaultSelectFields(List<String> defaultSelectFields) { this.defaultSelectFields = defaultSelectFields; }
-        public Map<String, FieldProperties> getFields() { return fields; }
-        public void setFields(Map<String, FieldProperties> fields) { this.fields = fields; }
-    }
-
-    /** 字段级配置 */
-    public static class FieldProperties {
-        private List<String> aliases;
-        private AgentFieldType type;
-        private String formatHint;
-        private Integer decimalPrecision;
-        private Integer decimalScale;
-        private Set<AgentOperator> operators;
-        private Set<String> filterRoles;
-        private Set<String> displayRoles;
-        private MaskType mask;
-
-        public List<String> getAliases() { return aliases; }
-        public void setAliases(List<String> aliases) { this.aliases = aliases; }
-        public AgentFieldType getType() { return type; }
-        public void setType(AgentFieldType type) { this.type = type; }
-        public String getFormatHint() { return formatHint; }
-        public void setFormatHint(String formatHint) { this.formatHint = formatHint; }
-        public Integer getDecimalPrecision() { return decimalPrecision; }
-        public void setDecimalPrecision(Integer decimalPrecision) { this.decimalPrecision = decimalPrecision; }
-        public Integer getDecimalScale() { return decimalScale; }
-        public void setDecimalScale(Integer decimalScale) { this.decimalScale = decimalScale; }
-        public Set<AgentOperator> getOperators() { return operators; }
-        public void setOperators(Set<AgentOperator> operators) { this.operators = operators; }
-        public Set<String> getFilterRoles() { return filterRoles; }
-        public void setFilterRoles(Set<String> filterRoles) { this.filterRoles = filterRoles; }
-        public Set<String> getDisplayRoles() { return displayRoles; }
-        public void setDisplayRoles(Set<String> displayRoles) { this.displayRoles = displayRoles; }
-        public MaskType getMask() { return mask; }
-        public void setMask(MaskType mask) { this.mask = mask; }
     }
 
     /** 聚合配置 */

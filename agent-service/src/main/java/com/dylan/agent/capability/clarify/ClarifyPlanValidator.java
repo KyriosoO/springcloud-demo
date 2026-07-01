@@ -7,17 +7,17 @@ import com.dylan.agent.api.plan.AgentPlan;
 import com.dylan.agent.api.plan.ClarifySpec;
 import com.dylan.agent.capability.CapabilityValidationContext;
 import com.dylan.agent.capability.model.ValidatedClarifyPlan;
-import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
 
 /** CLARIFY plan 校验器。校验 intent 为 CLARIFY、question 1~500 字符、query 为空、domain 非空时存在于配置。 */
 @Component
 public class ClarifyPlanValidator {
 
-    private final AgentProperties properties;
+    private final DomainCatalogView domainCatalogView;
 
-    public ClarifyPlanValidator(AgentProperties properties) {
-        this.properties = properties;
+    public ClarifyPlanValidator(DomainCatalogView domainCatalogView) {
+        this.domainCatalogView = domainCatalogView;
     }
 
     /** 将 Runtime 原始 CLARIFY plan 校验为 ValidatedClarifyPlan。 */
@@ -46,7 +46,7 @@ public class ClarifyPlanValidator {
 
         String domain = plan.getDomain();
         if (domain != null && !domain.isBlank()) {
-            if (properties.getDomains().get(domain) == null) {
+            if (!domainCatalogView.containsDomain(domain)) {
                 throw new AgentPlanValidationException("不支持的 domain: " + domain);
             }
         }

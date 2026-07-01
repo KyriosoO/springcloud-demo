@@ -10,10 +10,9 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
-import com.dylan.agent.api.enums.AgentFieldType;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
-import com.dylan.agent.config.AgentProperties.FieldProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.FieldView;
 
 /**
  * 对已校验 filter 的字段级约束校验。
@@ -41,7 +40,7 @@ public class FieldConstraintValidator {
     /** 校验最终 filter 集合的范围一致性（DECIMAL/INSTANT 的 GT < LT）和操作符族重叠规则。 */
     public void validateFinalQuery(
             List<ValidatedFilter> filters,
-            DomainProperties dp) {
+            DomainView domain) {
         if (filters.isEmpty()) {
             throw new AgentPlanValidationException("MERGE 后查询条件不能为空。");
         }
@@ -50,7 +49,7 @@ public class FieldConstraintValidator {
             String field = entry.getKey();
             FieldFilterSet set = entry.getValue();
             if (set.lowerBound() != null && set.upperBound() != null) {
-                FieldProperties fp = dp.getFields().get(field);
+                FieldView fp = domain.requireField(field);
                 validateRange(field, set, fp);
             }
         }
@@ -103,11 +102,11 @@ public class FieldConstraintValidator {
         return result;
     }
 
-    private void validateRange(String field, FieldFilterSet set, FieldProperties fp) {
+    private void validateRange(String field, FieldFilterSet set, FieldView fp) {
         String lowerValue = set.lowerBound().getValue();
         String upperValue = set.upperBound().getValue();
 
-        int comparison = switch (fp.getType()) {
+        int comparison = switch (fp.type()) {
             case DECIMAL -> new BigDecimal(lowerValue).compareTo(new BigDecimal(upperValue));
             case INSTANT -> Instant.parse(lowerValue).compareTo(Instant.parse(upperValue));
             case STRING -> throw new AgentPlanValidationException(

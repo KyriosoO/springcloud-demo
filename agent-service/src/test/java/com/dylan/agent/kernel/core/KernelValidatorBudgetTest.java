@@ -25,6 +25,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.planning.filter.QueryMergeEngine;
+import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -71,21 +72,24 @@ class KernelValidatorBudgetTest {
 
     private QueryPlanValidator queryValidator() {
         AgentProperties properties = properties();
+        var catalogView = DomainMetadataTestSupport.catalogView();
         FieldConstraintValidator constraints = new FieldConstraintValidator();
         return new QueryPlanValidator(
                 properties,
                 new FilterNormalizer(properties),
                 constraints,
-                new QueryMergeEngine(constraints));
+                new QueryMergeEngine(constraints),
+                catalogView);
     }
 
     private AggregatePlanValidator aggregateValidator() {
         AgentProperties properties = properties();
+        var catalogView = DomainMetadataTestSupport.catalogView();
         return new AggregatePlanValidator(
                 properties,
                 new FilterNormalizer(properties),
                 new FieldConstraintValidator(),
-                null);
+                catalogView);
     }
 
     private AgentProperties properties() {

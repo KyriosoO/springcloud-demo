@@ -19,14 +19,16 @@ import com.dylan.agent.api.response.PlanGenerateResponse;
 import com.dylan.agent.api.runtime.RuntimeQueryContext;
 import com.dylan.agent.capability.CapabilityValidationContext;
 import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.planning.filter.QueryMergeEngine;
+import com.dylan.agent.adapter.api.AdapterRole;
 
 /** QUERY plan 校验器。将 Runtime 原始 AgentPlan 校验为 ValidatedQueryPlan，复用 FilterNormalizer、FieldConstraintValidator、QueryMergeEngine 等底层组件，保持现有 filter/MERGE/pagination 语义。 */
 @Component
@@ -39,16 +41,19 @@ public class QueryPlanValidator
     private final FilterNormalizer filterNormalizer;
     private final FieldConstraintValidator fieldConstraintValidator;
     private final QueryMergeEngine queryMergeEngine;
+    private final DomainCatalogView domainCatalogView;
 
     public QueryPlanValidator(
             AgentProperties properties,
             FilterNormalizer filterNormalizer,
             FieldConstraintValidator fieldConstraintValidator,
-            QueryMergeEngine queryMergeEngine) {
+            QueryMergeEngine queryMergeEngine,
+            DomainCatalogView domainCatalogView) {
         this.properties = properties;
         this.filterNormalizer = filterNormalizer;
         this.fieldConstraintValidator = fieldConstraintValidator;
         this.queryMergeEngine = queryMergeEngine;
+        this.domainCatalogView = domainCatalogView;
     }
 
     @Override
@@ -91,11 +96,11 @@ public class QueryPlanValidator
         }
 
         AgentQuerySpec query = requireQuery(plan);
-        DomainProperties dp = requireDomain(plan.getDomain());
+        DomainView domain = requireDomain(plan.getDomain());
 
         QueryContextMode mode = query.getContextMode() != null
                 ? query.getContextMode() : QueryContextMode.REPLACE;
-        Set<String> removeFields = normalizeRemoveFields(query.getRemoveFields(), dp);
+        Set<String> removeFields = normalizeRemoveFields(query.getRemoveFields(), domain);
 
         List<ValidatedFilter> finalFilters;
         List<String> selectFields;
@@ -106,17 +111,17 @@ public class QueryPlanValidator
             requireMergeContext(plan, previousQuery);
 
             List<ValidatedFilter> previousFilters =
-                    normalizePreviousFilters(previousQuery, dp);
-            fieldConstraintValidator.validateFinalQuery(previousFilters, dp);
+                    normalizePreviousFilters(previousQuery, domain);
+            fieldConstraintValidator.validateFinalQuery(previousFilters, domain);
 
             List<ValidatedFilter> changes =
-                    filterNormalizer.normalizeAll(query.getFilters(), dp);
+                    filterNormalizer.normalizeAll(query.getFilters(), domain);
             fieldConstraintValidator.validateChanges(changes, removeFields);
 
             finalFilters = queryMergeEngine.merge(
                     previousFilters, changes, removeFields);
 
-            selectFields = resolveMergedSelectFields(query, previousQuery, dp);
+            selectFields = resolveMergedSelectFields(query, previousQuery, domain);
 
             boolean criteriaChanged = !changes.isEmpty() || !removeFields.isEmpty();
             page = resolveMergedPage(query, previousQuery, criteriaChanged);
@@ -127,7 +132,7 @@ public class QueryPlanValidator
             }
 
             List<ValidatedFilter> changes =
-                    filterNormalizer.normalizeAll(query.getFilters(), dp);
+                    filterNormalizer.normalizeAll(query.getFilters(), domain);
             fieldConstraintValidator.validateChanges(changes, removeFields);
 
             if (changes.isEmpty()) {
@@ -135,13 +140,13 @@ public class QueryPlanValidator
             }
 
             finalFilters = changes;
-            selectFields = normalizeSelectFields(query.getSelectFields(), dp);
+            selectFields = normalizeSelectFields(query.getSelectFields(), domain);
             page = query.getPage() != null ? query.getPage() : 1;
             size = query.getSize() != null
                     ? query.getSize() : properties.getQuery().getDefaultSize();
         }
 
-        fieldConstraintValidator.validateFinalQuery(finalFilters, dp);
+        fieldConstraintValidator.validateFinalQuery(finalFilters, domain);
 
         if (finalFilters.size() > properties.getQuery().getMaxFilters()) {
             throw new AgentPlanValidationException(
@@ -153,15 +158,15 @@ public class QueryPlanValidator
                 new ValidatedQuery(finalFilters, selectFields, page, size));
     }
 
-    private DomainProperties requireDomain(String domain) {
+    private DomainView requireDomain(String domain) {
         if (domain == null || domain.isBlank()) {
             throw new AgentPlanValidationException("domain 不能为空。");
         }
-        DomainProperties dp = properties.getDomains().get(domain);
-        if (dp == null) {
+        try {
+            return domainCatalogView.requireDomain(domain, AdapterRole.QUERYABLE);
+        } catch (IllegalArgumentException ex) {
             throw new AgentPlanValidationException("不支持的 domain: " + domain);
         }
-        return dp;
     }
 
     private AgentQuerySpec requireQuery(AgentPlan plan) {
@@ -185,9 +190,9 @@ public class QueryPlanValidator
     }
 
     private List<ValidatedFilter> normalizePreviousFilters(
-            RuntimeQueryContext previousQuery, DomainProperties dp) {
+            RuntimeQueryContext previousQuery, DomainView domain) {
         try {
-            return filterNormalizer.normalizeAll(previousQuery.getFilters(), dp);
+            return filterNormalizer.normalizeAll(previousQuery.getFilters(), domain);
         } catch (AgentPlanValidationException e) {
             throw new AgentPlanValidationException(
                     "上一轮查询上下文不合法：" + e.getMessage());
@@ -195,11 +200,11 @@ public class QueryPlanValidator
     }
 
     private List<String> resolveMergedSelectFields(
-            AgentQuerySpec query, RuntimeQueryContext previousQuery, DomainProperties dp) {
+            AgentQuerySpec query, RuntimeQueryContext previousQuery, DomainView domain) {
         if (query.getSelectFields() == null || query.getSelectFields().isEmpty()) {
-            return normalizeSelectFields(previousQuery.getSelectFields(), dp);
+            return normalizeSelectFields(previousQuery.getSelectFields(), domain);
         }
-        return normalizeSelectFields(query.getSelectFields(), dp);
+        return normalizeSelectFields(query.getSelectFields(), domain);
     }
 
     private int resolveMergedPage(
@@ -214,11 +219,11 @@ public class QueryPlanValidator
         return query.getSize() != null ? query.getSize() : previousQuery.getSize();
     }
 
-    private Set<String> normalizeRemoveFields(List<String> fields, DomainProperties dp) {
+    private Set<String> normalizeRemoveFields(List<String> fields, DomainView domain) {
         if (fields == null || fields.isEmpty()) {
             return Set.of();
         }
-        Set<String> allowed = dp.getFields().keySet();
+        Set<String> allowed = domain.capabilityFields();
         Set<String> result = new LinkedHashSet<>();
         for (String field : fields) {
             if (field == null || field.isBlank()) {
@@ -233,14 +238,14 @@ public class QueryPlanValidator
         return result;
     }
 
-    private List<String> normalizeSelectFields(List<String> fields, DomainProperties dp) {
+    private List<String> normalizeSelectFields(List<String> fields, DomainView domain) {
         if (fields == null || fields.isEmpty()) {
-            return dp.getDefaultSelectFields();
+            return domain.defaultSelectFields();
         }
         if (fields.size() > 10) {
             throw new AgentPlanValidationException("selectFields 最多 10 个。");
         }
-        Set<String> allowed = dp.getFields().keySet();
+        Set<String> allowed = domain.capabilityFields();
         Set<String> result = new LinkedHashSet<>();
         for (String field : fields) {
             if (field != null && !field.isBlank()) {
@@ -252,7 +257,7 @@ public class QueryPlanValidator
             }
         }
         return result.isEmpty()
-                ? dp.getDefaultSelectFields()
+                ? domain.defaultSelectFields()
                 : List.copyOf(result);
     }
 

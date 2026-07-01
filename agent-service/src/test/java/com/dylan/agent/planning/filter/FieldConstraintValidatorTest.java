@@ -4,39 +4,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
-import com.dylan.agent.api.enums.AgentFieldType;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.enums.AgentOperator;
-import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
-import com.dylan.agent.config.AgentProperties.FieldProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
-import com.dylan.agent.model.MaskType;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 class FieldConstraintValidatorTest {
 
     private FieldConstraintValidator validator;
-    private DomainProperties dp;
+    private DomainView dp;
 
     @BeforeEach
     void setUp() {
         validator = new FieldConstraintValidator();
-        Map<String, FieldProperties> fields = new java.util.LinkedHashMap<>();
-        fields.put("chineseName", makeField(AgentFieldType.STRING));
-        fields.put("amount", makeDecimalField());
-        fields.put("transDate", makeInstantField());
-        dp = new DomainProperties();
-        dp.setFields(fields);
+        dp = DomainMetadataTestSupport.catalogView().requireDomain("employee", AdapterRole.QUERYABLE);
     }
 
     // --- groupByField success ---
@@ -216,36 +205,4 @@ class FieldConstraintValidatorTest {
         return new ValidatedFilter(field, op, value, values);
     }
 
-    private FieldProperties makeField(AgentFieldType type) {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(type);
-        fp.setOperators(Set.of(AgentOperator.values()));
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        return fp;
-    }
-
-    private FieldProperties makeDecimalField() {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(AgentFieldType.DECIMAL);
-        fp.setDecimalPrecision(50);
-        fp.setDecimalScale(2);
-        fp.setOperators(Set.of(AgentOperator.EQ, AgentOperator.IN, AgentOperator.GT, AgentOperator.LT));
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        return fp;
-    }
-
-    private FieldProperties makeInstantField() {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(AgentFieldType.INSTANT);
-        fp.setFormatHint("ISO-8601 datetime with timezone");
-        fp.setOperators(Set.of(AgentOperator.GT, AgentOperator.LT));
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        return fp;
-    }
 }

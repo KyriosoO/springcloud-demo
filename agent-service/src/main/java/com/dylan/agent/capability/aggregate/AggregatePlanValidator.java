@@ -8,7 +8,7 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.dylan.agent.adapter.AggregatableAdapterRegistry;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateMetric;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
@@ -24,12 +24,13 @@ import com.dylan.agent.api.plan.AggregateOrderSpec;
 import com.dylan.agent.capability.CapabilityValidationContext;
 import com.dylan.agent.capability.query.QueryPlanValidator;
 import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
-import com.dylan.agent.config.AgentProperties.FieldProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.FieldView;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 
@@ -43,18 +44,18 @@ public class AggregatePlanValidator
     private final AgentProperties properties;
     private final FilterNormalizer filterNormalizer;
     private final FieldConstraintValidator fieldConstraintValidator;
-    private final AggregatableAdapterRegistry aggregateAdapterRegistry;
+    private final DomainCatalogView domainCatalogView;
 
     @Autowired
     public AggregatePlanValidator(
             AgentProperties properties,
             FilterNormalizer filterNormalizer,
             FieldConstraintValidator fieldConstraintValidator,
-            AggregatableAdapterRegistry aggregateAdapterRegistry) {
+            DomainCatalogView domainCatalogView) {
         this.properties = properties;
         this.filterNormalizer = filterNormalizer;
         this.fieldConstraintValidator = fieldConstraintValidator;
-        this.aggregateAdapterRegistry = aggregateAdapterRegistry;
+        this.domainCatalogView = domainCatalogView;
     }
 
     @Override
@@ -104,13 +105,13 @@ public class AggregatePlanValidator
         if (domain == null || domain.isBlank()) {
             throw new AgentPlanValidationException("AGGREGATE Plan 缺少 domain。");
         }
-        DomainProperties dp = properties.getDomains().get(domain);
-        if (dp == null) {
+        DomainView domainView;
+        try {
+            domainView = domainCatalogView.requireDomain(domain, AdapterRole.AGGREGATABLE);
+        } catch (IllegalArgumentException ex) {
             throw new AgentPlanValidationException("不支持的 domain: " + domain);
         }
-        Set<String> adapterAggregateFields = aggregateAdapterRegistry != null
-                ? aggregateAdapterRegistry.supportedAggregateFields(domain)
-                : dp.getFields().keySet();
+        Set<String> adapterAggregateFields = domainView.capabilityFields();
 
         AgentAggregateSpec aggregate = plan.getAggregate();
         if (aggregate == null) {
@@ -158,25 +159,26 @@ public class AggregatePlanValidator
                 if (field == null || field.isBlank()) {
                     throw new AgentPlanValidationException(func + " 必须指定 field。");
                 }
-                FieldProperties fp = dp.getFields().get(field);
-                if (fp == null) {
+                FieldView fp;
+                try {
+                    fp = domainView.requireField(field);
+                } catch (IllegalArgumentException ex) {
                     throw new AgentPlanValidationException("不支持的 metric field: " + field);
                 }
                 if (func == AggregateFunction.SUM || func == AggregateFunction.AVG) {
-                    if (fp.getType() != AgentFieldType.DECIMAL) {
-                        throw new AgentPlanValidationException(func + " 只能用于 DECIMAL 字段，当前字段类型: " + fp.getType());
+                    if (fp.type() != AgentFieldType.DECIMAL) {
+                        throw new AgentPlanValidationException(func + " 只能用于 DECIMAL 字段，当前字段类型: " + fp.type());
                     }
                 }
                 if (func == AggregateFunction.MIN || func == AggregateFunction.MAX) {
-                    if (fp.getType() != AgentFieldType.DECIMAL && fp.getType() != AgentFieldType.INSTANT) {
+                    if (fp.type() != AgentFieldType.DECIMAL && fp.type() != AgentFieldType.INSTANT) {
                         throw new AgentPlanValidationException(func + " 只能用于 DECIMAL 或 INSTANT 字段");
                     }
                 }
                 if (!adapterAggregateFields.contains(field)) {
                     throw new AgentPlanValidationException("Adapter 不支持 metric field: " + field);
                 }
-                if (aggregateAdapterRegistry != null
-                        && !aggregateAdapterRegistry.getRequired(domain).supportedFunctions(field).contains(func)) {
+                if (!fp.functions().contains(func)) {
                     throw new AgentPlanValidationException(
                             "Adapter 不支持 metric function " + func + " on field: " + field);
                 }
@@ -184,9 +186,9 @@ public class AggregatePlanValidator
         }
 
         List<AgentFilter> rawFilters = aggregate.getFilters() != null ? aggregate.getFilters() : List.of();
-        List<ValidatedFilter> normalizedFilters = filterNormalizer.normalizeAll(rawFilters, dp);
+        List<ValidatedFilter> normalizedFilters = filterNormalizer.normalizeAll(rawFilters, domainView);
         if (!normalizedFilters.isEmpty()) {
-            fieldConstraintValidator.validateFinalQuery(normalizedFilters, dp);
+            fieldConstraintValidator.validateFinalQuery(normalizedFilters, domainView);
         }
 
         List<String> groupByFields = aggregate.getGroupByFields();
@@ -195,7 +197,7 @@ public class AggregatePlanValidator
                 throw new AgentPlanValidationException("groupByFields 数量超过上限 " + aggConfig.getMaxGroupFields());
             }
             for (String gf : groupByFields) {
-                if (gf == null || gf.isBlank() || !dp.getFields().containsKey(gf)) {
+                if (gf == null || gf.isBlank() || !domainView.capabilityFields().contains(gf)) {
                     throw new AgentPlanValidationException("不支持的 groupBy field: " + gf);
                 }
                 if (!adapterAggregateFields.contains(gf)) {

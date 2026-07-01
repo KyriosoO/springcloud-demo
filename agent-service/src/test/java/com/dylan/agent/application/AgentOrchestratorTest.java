@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import com.dylan.agent.adapter.QueryableAdapterRegistry;
+import com.dylan.agent.adapter.api.AdapterQueryResult;
+import com.dylan.agent.adapter.api.QueryableAdapter;
+import com.dylan.agent.adapter.api.query.ValidatedQuery;
 import com.dylan.agent.api.enums.AgentErrorCode;
 import com.dylan.agent.api.enums.AgentIntent;
 import com.dylan.agent.api.enums.AgentOperator;
@@ -20,8 +21,8 @@ import com.dylan.agent.api.enums.AgentResponseType;
 import com.dylan.agent.api.request.AgentChatRequest;
 import com.dylan.agent.api.request.PlanGenerateRequest;
 import com.dylan.agent.api.response.AgentChatResponse;
-import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.api.response.PlanGenerateResponse;
+import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.api.runtime.RuntimeQueryContext;
 import com.dylan.agent.capability.AgentCapabilityHandlerRegistry;
 import com.dylan.agent.capability.CapabilityDescriptorFactory;
@@ -43,17 +44,14 @@ import com.dylan.agent.mask.FieldMaskerRegistry;
 import com.dylan.agent.mask.IdCardFieldMasker;
 import com.dylan.agent.mask.MobileFieldMasker;
 import com.dylan.agent.mask.NoneFieldMasker;
-import com.dylan.agent.adapter.api.AdapterQueryResult;
-import com.dylan.agent.adapter.api.QueryableAdapter;
-import com.dylan.agent.adapter.api.query.ValidatedQuery;
 import com.dylan.agent.model.AgentUserContext;
-import com.dylan.agent.model.MaskType;
-import com.dylan.agent.planning.RuntimeDomainSchemaFactory;
+import com.dylan.agent.planning.RuntimeDomainSchemaProjection;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.planning.filter.QueryMergeEngine;
 import com.dylan.agent.result.AgentResultProcessor;
 import com.dylan.agent.security.AgentPermissionService;
+import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 @DisplayName("AgentOrchestrator")
 class AgentOrchestratorTest {
@@ -70,43 +68,41 @@ class AgentOrchestratorTest {
         conversationService = new TestConversationService();
         runtimeThrows = false;
 
-        AgentProperties p = testProperties();
-        var schemaFactory = new RuntimeDomainSchemaFactory(p, null);
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        var catalogView = DomainMetadataTestSupport.catalogView();
+        var schemaProjection = new RuntimeDomainSchemaProjection(properties, catalogView);
         var runtimeClient = new TestRuntimeClient();
-        var permissionService = new AgentPermissionService(p);
+        var permissionService = new AgentPermissionService(properties, catalogView);
 
-        var routeResolver = new CapabilityRouteResolver();
-        var normalizer = new FilterNormalizer(p);
+        var normalizer = new FilterNormalizer(properties);
         var constraints = new FieldConstraintValidator();
         var mergeEngine = new QueryMergeEngine(constraints);
-        var queryValidator = new QueryPlanValidator(p, normalizer, constraints, mergeEngine);
+        var queryValidator = new QueryPlanValidator(properties, normalizer, constraints, mergeEngine, catalogView);
 
         var maskerRegistry = new FieldMaskerRegistry(List.of(new NoneFieldMasker(),
                 new IdCardFieldMasker(), new MobileFieldMasker(),
                 new EmailFieldMasker(), new AddressFieldMasker()));
         var resultProcessor = new AgentResultProcessor(permissionService, maskerRegistry);
 
-        var adapter = new TestEmployeeAdapter();
-        var adapterRegistry = new QueryableAdapterRegistry(List.of(adapter));
-
+        var adapterPortResolver =
+                DomainMetadataTestSupport.adapterPortResolver(new TestEmployeeAdapter(), null);
         var queryHandler = new QueryCapabilityHandler(
-                queryValidator, permissionService, adapterRegistry, resultProcessor);
-        var clarifyValidator = new ClarifyPlanValidator(p);
-        var clarifyHandler = new ClarifyCapabilityHandler(clarifyValidator);
+                queryValidator, permissionService, adapterPortResolver, resultProcessor);
+        var clarifyHandler = new ClarifyCapabilityHandler(new ClarifyPlanValidator(catalogView));
 
         var registry = new AgentCapabilityHandlerRegistry(List.of(queryHandler, clarifyHandler));
         var router = new CapabilityRouter(registry);
-        var descriptorFactory = new CapabilityDescriptorFactory(registry, adapterRegistry, null, p);
+        var descriptorFactory = new CapabilityDescriptorFactory(registry, adapterPortResolver, catalogView);
 
-        orchestrator = new AgentOrchestrator(conversationService, schemaFactory, runtimeClient,
-                permissionService, p, routeResolver, router, descriptorFactory);
+        orchestrator = new AgentOrchestrator(conversationService, schemaProjection, runtimeClient,
+                permissionService, properties, new CapabilityRouteResolver(), router, descriptorFactory);
 
         admin = new AgentUserContext("admin", Set.of("agent:admin", "agent:viewer"));
         viewer = new AgentUserContext("viewer", Set.of("agent:viewer"));
     }
 
     @Nested
-    @DisplayName("QUERY 链")
+    @DisplayName("QUERY 链路")
     class QueryFlow {
 
         @Test
@@ -114,8 +110,10 @@ class AgentOrchestratorTest {
         void shouldReturnQueryResult() {
             runtimeResponse = makeQueryResponse("position", AgentOperator.EQ, "HRM",
                     List.of("chineseName", "memberNo", "position"));
-            AgentChatRequest req = chatRequest(null, "查询岗位是HRM的员工");
+            AgentChatRequest req = chatRequest(null, "查询岗位是 HRM 的员工");
+
             AgentChatResponse resp = orchestrator.chat(admin, req);
+
             assertThat(resp.getType()).isEqualTo(AgentResponseType.RESULT);
             assertThat(resp.getConversationId()).isNotBlank();
             assertThat(resp.getTurnId()).isNotBlank();
@@ -140,7 +138,9 @@ class AgentOrchestratorTest {
         void shouldReturnClarifyWithoutCallingAdapter() {
             runtimeResponse = makeClarifyResponse("请提供更多查询条件。");
             AgentChatRequest req = chatRequest(null, "帮我查员工");
+
             AgentChatResponse resp = orchestrator.chat(admin, req);
+
             assertThat(resp.getType()).isEqualTo(AgentResponseType.CLARIFY);
             assertThat(resp.getMessage()).isEqualTo("请提供更多查询条件。");
             assertThat(resp.getSummary()).isEqualTo(resp.getMessage());
@@ -153,11 +153,12 @@ class AgentOrchestratorTest {
     class PermissionDenied {
 
         @Test
-        @DisplayName("viewer 查询 idCardNo 返回 ERROR")
-        void shouldRejectViewerQueryingIdCard() {
-            runtimeResponse = makeQueryResponse("idCardNo", AgentOperator.EQ, "110101199001010011",
-                    List.of("chineseName", "idCardNo"));
-            AgentChatRequest req = chatRequest(null, "查询身份证号为110101199001010011的员工");
+        @DisplayName("不支持字段返回 ERROR")
+        void shouldRejectUnsupportedField() {
+            runtimeResponse = makeQueryResponse("salary", AgentOperator.EQ, "1000",
+                    List.of("chineseName", "salary"));
+            AgentChatRequest req = chatRequest(null, "查询不存在字段");
+
             assertThatThrownBy(() -> orchestrator.chat(viewer, req))
                     .isInstanceOf(AgentException.class);
             assertThat(conversationService.failed).isTrue();
@@ -173,6 +174,7 @@ class AgentOrchestratorTest {
         void shouldMarkTurnFailedOnRuntimeError() {
             runtimeThrows = true;
             AgentChatRequest req = chatRequest(null, "测试");
+
             assertThatThrownBy(() -> orchestrator.chat(admin, req))
                     .isInstanceOf(AgentException.class)
                     .extracting(e -> ((AgentException) e).getErrorCode())
@@ -181,8 +183,6 @@ class AgentOrchestratorTest {
         }
     }
 
-    // helpers
-
     private AgentChatRequest chatRequest(String conversationId, String message) {
         AgentChatRequest req = new AgentChatRequest();
         req.setConversationId(conversationId);
@@ -190,7 +190,8 @@ class AgentOrchestratorTest {
         return req;
     }
 
-    private PlanGenerateResponse makeQueryResponse(String field, AgentOperator op, String value, List<String> selectFields) {
+    private PlanGenerateResponse makeQueryResponse(
+            String field, AgentOperator op, String value, List<String> selectFields) {
         var resp = new PlanGenerateResponse();
         resp.setRequestId(conversationService.turnId);
         var plan = new com.dylan.agent.api.plan.AgentPlan();
@@ -199,10 +200,13 @@ class AgentOrchestratorTest {
         plan.setDomain("employee");
         var spec = new com.dylan.agent.api.plan.AgentQuerySpec();
         var filter = new com.dylan.agent.api.plan.AgentFilter();
-        filter.setField(field); filter.setOperator(op); filter.setValue(value);
+        filter.setField(field);
+        filter.setOperator(op);
+        filter.setValue(value);
         spec.setFilters(List.of(filter));
         spec.setSelectFields(selectFields);
-        spec.setPage(1); spec.setSize(20);
+        spec.setPage(1);
+        spec.setSize(20);
         plan.setQuery(spec);
         resp.setPlan(plan);
         return resp;
@@ -222,62 +226,12 @@ class AgentOrchestratorTest {
         return resp;
     }
 
-    private AgentProperties testProperties() {
-        AgentProperties p = new AgentProperties();
-        p.setIntentRoles(Map.of(
-                AgentIntent.QUERY, Set.of("agent:viewer", "agent:admin"),
-                AgentIntent.CLARIFY, Set.of("agent:viewer", "agent:admin")));
-
-        AgentProperties.RuntimeProperties rt = new AgentProperties.RuntimeProperties();
-        rt.setBaseUrl("http://localhost:9230"); rt.setSharedKey("test-key-at-least-16");
-        rt.setConnectTimeout(java.time.Duration.ofSeconds(2)); rt.setReadTimeout(java.time.Duration.ofSeconds(15));
-        rt.setMaxResponseBytes(65536);
-        p.setRuntime(rt);
-
-        AgentProperties.ConversationProperties c = new AgentProperties.ConversationProperties();
-        c.setRecentTurnLimit(6); c.setRetentionDays(7); c.setCleanupDelay(java.time.Duration.ofHours(1));
-        p.setConversation(c);
-
-        AgentProperties.QueryProperties q = new AgentProperties.QueryProperties();
-        q.setDefaultSize(20); q.setMaxSize(100); q.setMaxResultWindow(10000);
-        q.setMaxFilters(5); q.setMaxInValues(20); q.setMaxFilterValueLength(256);
-        q.setMaxDownstreamResponseBytes(2097152);
-        p.setQuery(q);
-
-        AgentProperties.DomainProperties emp = new AgentProperties.DomainProperties();
-        emp.setAliases(List.of("员工", "employee"));
-        emp.setAccessRoles(Set.of("agent:viewer", "agent:admin"));
-        emp.setDefaultSelectFields(List.of("chineseName", "memberNo", "position"));
-        Map<String, AgentProperties.FieldProperties> fields = new java.util.HashMap<>();
-        fields.put("chineseName", makeFp(Set.of("agent:viewer", "agent:admin"), Set.of("agent:viewer", "agent:admin")));
-        fields.put("memberNo", makeFp(Set.of("agent:viewer", "agent:admin"), Set.of("agent:viewer", "agent:admin")));
-        fields.put("position", makeFp(Set.of("agent:viewer", "agent:admin"), Set.of("agent:viewer", "agent:admin")));
-        fields.put("contactAddress", makeFp(Set.of("agent:admin"), Set.of("agent:admin")));
-        fields.put("idCardNo", makeFp(Set.of("agent:admin"), Set.of("agent:admin")));
-        fields.put("phoneNo", makeFp(Set.of("agent:admin"), Set.of("agent:admin")));
-        fields.put("email", makeFp(Set.of("agent:admin"), Set.of("agent:admin")));
-        emp.setFields(fields);
-        p.setDomains(Map.of("employee", emp));
-        return p;
-    }
-
-    private AgentProperties.FieldProperties makeFp(Set<String> filterRoles, Set<String> displayRoles) {
-        var fp = new AgentProperties.FieldProperties();
-        fp.setAliases(List.of());
-        fp.setType(com.dylan.agent.api.enums.AgentFieldType.STRING);
-        fp.setOperators(Set.of(AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN));
-        fp.setFilterRoles(filterRoles); fp.setDisplayRoles(displayRoles); fp.setMask(MaskType.NONE);
-        return fp;
-    }
-
-    // Test doubles
-
     class TestConversationService extends ConversationService {
         String completedTurnId = null;
         boolean failed = false;
         String turnId = "test-turn-001";
 
-        public TestConversationService() {
+        TestConversationService() {
             super(null, null, java.time.Clock.systemUTC(), new com.fasterxml.jackson.databind.ObjectMapper());
         }
 
@@ -292,7 +246,8 @@ class AgentOrchestratorTest {
         }
 
         @Override
-        public List<com.dylan.agent.api.runtime.RuntimeTurn> loadRecentTurns(String conversationId, String userId, int limit) {
+        public List<com.dylan.agent.api.runtime.RuntimeTurn> loadRecentTurns(
+                String conversationId, String userId, int limit) {
             return List.of();
         }
 
@@ -303,7 +258,7 @@ class AgentOrchestratorTest {
 
         @Override
         public void completeSuccess(String turnId, AgentIntent intent, AgentResponseType responseType,
-                                     String assistantMessage, Object contextToPersist) {
+                                    String assistantMessage, Object contextToPersist) {
             this.completedTurnId = turnId;
         }
 
@@ -314,7 +269,7 @@ class AgentOrchestratorTest {
     }
 
     class TestRuntimeClient extends AgentRuntimeClient {
-        public TestRuntimeClient() {
+        TestRuntimeClient() {
             super(null, null, null);
         }
 
@@ -331,9 +286,8 @@ class AgentOrchestratorTest {
     }
 
     static class TestEmployeeAdapter implements QueryableAdapter {
-        @Override public String domain() { return "employee"; }
-        @Override public java.util.Set<String> supportedFields() { return java.util.Set.of("chineseName"); }
-        @Override public AdapterQueryResult query(ValidatedQuery query) {
+        @Override
+        public AdapterQueryResult query(ValidatedQuery query) {
             return new AdapterQueryResult(List.of(), 0, 1, 20);
         }
     }

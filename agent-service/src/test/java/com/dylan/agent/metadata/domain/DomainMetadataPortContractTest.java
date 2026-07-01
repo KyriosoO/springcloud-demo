@@ -160,7 +160,7 @@ class DomainMetadataPortContractTest {
                 java.util.List.of(),
                 20,
                 100,
-                "catalog-v1");
+                "catalog-v1:adapter-v1");
 
         assertThat(new DomainExecutionResolution(binding, projection, expected).expectedEvidence())
                 .isEqualTo(expected);
@@ -170,7 +170,7 @@ class DomainMetadataPortContractTest {
                 projection,
                 evidence("catalog-v2", "adapter-v1")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("catalog version");
+                .hasMessageContaining("projection version");
     }
 
     @Test

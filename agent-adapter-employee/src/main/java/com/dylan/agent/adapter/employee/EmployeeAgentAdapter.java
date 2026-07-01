@@ -10,7 +10,6 @@ import com.dylan.agent.adapter.api.AgentAdapterException;
 import com.dylan.agent.adapter.api.AggregatableAdapter;
 import com.dylan.agent.adapter.api.QueryableAdapter;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
-import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
 import com.dylan.esquery.api.model.SearchRequest;
 
@@ -38,29 +37,6 @@ public class EmployeeAgentAdapter implements QueryableAdapter, AggregatableAdapt
         this.employeeClient = employeeClient;
         this.parser = parser;
         this.adapterProperties = adapterProperties;
-    }
-
-    @Override
-    public String domain() {
-        return "employee";
-    }
-
-    @Override
-    public java.util.Set<String> supportedFields() {
-        return EmployeeFieldCatalog.supportedFields();
-    }
-
-    @Override
-    public java.util.Set<String> supportedAggregateFields() {
-        return EmployeeFieldCatalog.supportedFields();
-    }
-
-    @Override
-    public java.util.Set<AggregateFunction> supportedFunctions(String field) {
-        if (field == null || field.isBlank()) {
-            return java.util.Set.of(AggregateFunction.COUNT);
-        }
-        return java.util.Set.of();
     }
 
     @Override

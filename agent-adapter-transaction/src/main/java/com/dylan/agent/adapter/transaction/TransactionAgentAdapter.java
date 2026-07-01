@@ -1,7 +1,5 @@
 package com.dylan.agent.adapter.transaction;
 
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -13,7 +11,6 @@ import com.dylan.agent.adapter.api.AggregatableAdapter;
 import com.dylan.agent.adapter.api.QueryableAdapter;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
-import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.transaction.api.model.AggregateRequest;
 import com.dylan.transaction.api.query.TransactionSearchRequest;
 import com.dylan.transaction.api.query.TransactionSearchResponse;
@@ -44,33 +41,6 @@ public class TransactionAgentAdapter implements QueryableAdapter, AggregatableAd
         this.client = client;
         this.responseMapper = responseMapper;
         this.aggregateResponseMapper = aggregateResponseMapper;
-    }
-
-    @Override
-    public String domain() {
-        return "transaction";
-    }
-
-    @Override
-    public Set<String> supportedFields() {
-        return TransactionFieldCatalog.supportedFields();
-    }
-
-    @Override
-    public Set<String> supportedAggregateFields() {
-        return TransactionFieldCatalog.supportedFields();
-    }
-
-    @Override
-    public Set<AggregateFunction> supportedFunctions(String field) {
-        if (field == null || field.isBlank()) {
-            return Set.of(AggregateFunction.COUNT);
-        }
-        if ("amount".equals(field)) {
-            return Set.of(AggregateFunction.SUM, AggregateFunction.AVG,
-                    AggregateFunction.MIN, AggregateFunction.MAX);
-        }
-        return Set.of();
     }
 
     @Override

@@ -2,7 +2,6 @@ package com.dylan.agent.planning.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -10,11 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
-import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
-import com.dylan.agent.config.AgentProperties.FieldProperties;
-import com.dylan.agent.model.MaskType;
 
 class QueryMergeEngineTest {
 
@@ -28,21 +23,6 @@ class QueryMergeEngineTest {
     // Helper: create ValidatedFilter
     private ValidatedFilter vf(String field, AgentOperator op, String value, List<String> values) {
         return new ValidatedFilter(field, op, value, values);
-    }
-
-    // Helper: create DomainProperties for final query validation (range checks)
-    private DomainProperties dpWith(String field, AgentFieldType type) {
-        FieldProperties fp = new FieldProperties();
-        fp.setType(type);
-        if (type == AgentFieldType.DECIMAL) { fp.setDecimalPrecision(50); fp.setDecimalScale(2); }
-        if (type == AgentFieldType.INSTANT) { fp.setFormatHint("ISO-8601"); }
-        fp.setOperators(Set.of(AgentOperator.values()));
-        fp.setFilterRoles(Set.of("agent:viewer"));
-        fp.setDisplayRoles(Set.of("agent:viewer"));
-        fp.setMask(MaskType.NONE);
-        DomainProperties d = new DomainProperties();
-        d.setFields(new java.util.LinkedHashMap<>(java.util.Map.of(field, fp)));
-        return d;
     }
 
     // --- 状态转换表 (18 cases) ---

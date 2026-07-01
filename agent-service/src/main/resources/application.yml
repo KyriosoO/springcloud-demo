@@ -82,102 +82,141 @@ agent:
     max-group-fields: 2
     default-max-rows: 20
     max-max-rows: 100
-  domains:
-    employee:
-      aliases: [员工, employee]
-      access-roles: [agent:viewer, agent:admin]
-      default-select-fields:
-        - chineseName
-        - memberNo
-        - position
-      fields:
-        chineseName:
-          aliases: [姓名, 中文名, 员工姓名]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        memberNo:
-          aliases: [工号, 员工号]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        position:
-          aliases: [岗位, 职位]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        contactAddress:
-          aliases: [联系地址, 地址]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: ADDRESS
-        idCardNo:
-          aliases: [身份证号, 身份证]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: ID_CARD
-        phoneNo:
-          aliases: [手机号, 电话]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: MOBILE
-        email:
-          aliases: [邮箱, 电子邮箱]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: EMAIL
-    transaction:
-      aliases: [交易, 交易记录, 交易流水, transaction]
-      access-roles: [agent:viewer, agent:admin]
-      default-select-fields:
-        - transId
-        - transType
-        - transDate
-        - amount
-      fields:
-        transId:
-          aliases: [交易号, 交易ID, 流水号]
-          type: STRING
-          operators: [EQ]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        transType:
-          aliases: [交易类型, 类型]
-          type: STRING
-          operators: [EQ, CONTAINS]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        transDate:
-          aliases: [交易时间, 交易日期, 时间]
-          type: INSTANT
-          format-hint: ISO-8601 datetime with timezone, second precision only, no fractional seconds
-          operators: [GT, LT]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        amount:
-          aliases: [金额, 交易金额]
-          type: DECIMAL
-          format-hint: plain decimal only, precision 50, scale 2, no exponent
-          decimal-precision: 50
-          decimal-scale: 2
-          operators: [EQ, GT, LT]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
+  domain-metadata:
+    catalog-version: catalog-2026-07-02
+    adapter-registration-version: adapter-reg-2026-07-02
+    domains:
+      employee:
+        aliases: [员工, employee]
+        description: Employee records exposed to Agent planning.
+        default-select-fields-by-role:
+          QUERYABLE: [chineseName, memberNo, position]
+          AGGREGATABLE: [chineseName, memberNo, position]
+        fields:
+          chineseName:
+            aliases: [姓名, 中文名, 员工姓名]
+            description: Employee Chinese name.
+            type: STRING
+          memberNo:
+            aliases: [工号, 员工号]
+            description: Employee member number.
+            type: STRING
+          position:
+            aliases: [岗位, 职位]
+            description: Employee position.
+            type: STRING
+          contactAddress:
+            aliases: [联系地址, 地址]
+            description: Employee contact address.
+            type: STRING
+          idCardNo:
+            aliases: [身份证号, 身份证]
+            description: Employee identity card number.
+            type: STRING
+          phoneNo:
+            aliases: [手机号, 电话]
+            description: Employee phone number.
+            type: STRING
+          email:
+            aliases: [邮箱, 电子邮箱]
+            description: Employee email address.
+            type: STRING
+        role-capabilities:
+          QUERYABLE:
+            fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+            operators-by-field:
+              chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              contactAddress: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              idCardNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              phoneNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              email: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+            max-page-size: 100
+          AGGREGATABLE:
+            fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+            operators-by-field:
+              chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              contactAddress: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              idCardNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              phoneNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              email: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+            functions-by-field: {}
+            max-result-rows: 100
+      transaction:
+        aliases: [交易, 交易记录, 交易流水, transaction]
+        description: Transaction records exposed to Agent planning.
+        default-select-fields-by-role:
+          QUERYABLE: [transId, transType, transDate, amount]
+          AGGREGATABLE: [transId, transType, transDate, amount]
+        fields:
+          transId:
+            aliases: [交易号, 交易ID, 流水号]
+            description: Transaction identifier.
+            type: STRING
+          transType:
+            aliases: [交易类型, 类型]
+            description: Transaction type.
+            type: STRING
+          transDate:
+            aliases: [交易时间, 交易日期, 时间]
+            description: Transaction timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone, second precision only, no fractional seconds
+          amount:
+            aliases: [金额, 交易金额]
+            description: Transaction amount.
+            type: DECIMAL
+            value-format: plain decimal only, precision 50, scale 2, no exponent
+            precision: 50
+            scale: 2
+        role-capabilities:
+          QUERYABLE:
+            fields: [transId, transType, transDate, amount]
+            operators-by-field:
+              transId: [EQ]
+              transType: [EQ, CONTAINS]
+              transDate: [GT, LT]
+              amount: [EQ, GT, LT]
+            max-page-size: 100
+          AGGREGATABLE:
+            fields: [transId, transType, transDate, amount]
+            operators-by-field:
+              transId: [EQ]
+              transType: [EQ, CONTAINS]
+              transDate: [GT, LT]
+              amount: [EQ, GT, LT]
+            functions-by-field:
+              amount: [SUM, AVG, MIN, MAX]
+            max-result-rows: 100
+    registrations:
+      - registration-id: employee-queryable
+        role: QUERYABLE
+        domain: employee
+        port-type: com.dylan.agent.adapter.api.QueryableAdapter
+        port-bean-name: employeeAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: employee-aggregatable
+        role: AGGREGATABLE
+        domain: employee
+        port-type: com.dylan.agent.adapter.api.AggregatableAdapter
+        port-bean-name: employeeAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: transaction-queryable
+        role: QUERYABLE
+        domain: transaction
+        port-type: com.dylan.agent.adapter.api.QueryableAdapter
+        port-bean-name: transactionAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: transaction-aggregatable
+        role: AGGREGATABLE
+        domain: transaction
+        port-type: com.dylan.agent.adapter.api.AggregatableAdapter
+        port-bean-name: transactionAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02

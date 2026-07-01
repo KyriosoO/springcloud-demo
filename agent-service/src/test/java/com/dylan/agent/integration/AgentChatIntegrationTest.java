@@ -258,17 +258,18 @@ class AgentChatIntegrationTest {
         }
 
         @Test
-        @DisplayName("viewer 查询敏感字段返回 403 ERROR")
-        void shouldReturn403ForViewerQueryingSensitiveField() throws Exception {
+        @DisplayName("D04 阶段 viewer 查询 Catalog 已登记字段返回 RESULT")
+        void shouldAllowViewerQueryingCatalogFieldBeforeD03PermissionAdapter() throws Exception {
             mockMvc.perform(post("/agent/chat")
                             .with(viewerJwt())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {"message":"PERM_DENY 查询手机号"}
                                     """))
-                    .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.type").value("ERROR"))
-                    .andExpect(jsonPath("$.errorCode").value("AGENT_FIELD_FORBIDDEN"));
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.type").value("RESULT"))
+                    .andExpect(jsonPath("$.result.queryParameters.domain").value("employee"))
+                    .andExpect(jsonPath("$.result.queryParameters.filters[0].field").value("phoneNo"));
         }
 
         @Test

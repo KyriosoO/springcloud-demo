@@ -2,7 +2,7 @@ package com.dylan.agent.capability.query;
 
 import org.springframework.stereotype.Component;
 
-import com.dylan.agent.adapter.QueryableAdapterRegistry;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.AdapterQueryResult;
 import com.dylan.agent.adapter.api.AgentAdapterException;
 import com.dylan.agent.adapter.api.QueryableAdapter;
@@ -23,6 +23,7 @@ import com.dylan.agent.exception.AgentQueryException;
 import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.HandlerResult;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
+import com.dylan.agent.metadata.domain.internal.AdapterPortResolver;
 import com.dylan.agent.result.AgentResultProcessor;
 import com.dylan.agent.security.AgentPermissionService;
 
@@ -36,17 +37,17 @@ public class QueryCapabilityHandler
 
     private final QueryPlanValidator queryPlanValidator;
     private final AgentPermissionService permissionService;
-    private final QueryableAdapterRegistry adapterRegistry;
+    private final AdapterPortResolver adapterPortResolver;
     private final AgentResultProcessor resultProcessor;
 
     public QueryCapabilityHandler(
             QueryPlanValidator queryPlanValidator,
             AgentPermissionService permissionService,
-            QueryableAdapterRegistry adapterRegistry,
+            AdapterPortResolver adapterPortResolver,
             AgentResultProcessor resultProcessor) {
         this.queryPlanValidator = queryPlanValidator;
         this.permissionService = permissionService;
-        this.adapterRegistry = adapterRegistry;
+        this.adapterPortResolver = adapterPortResolver;
         this.resultProcessor = resultProcessor;
     }
 
@@ -76,7 +77,7 @@ public class QueryCapabilityHandler
                 plan.query());
 
         QueryableAdapter adapter =
-                adapterRegistry.getRequired(plan.domain());
+                adapterPortResolver.require(AdapterRole.QUERYABLE, plan.domain(), QueryableAdapter.class);
 
         AdapterQueryResult rawResult;
         try {

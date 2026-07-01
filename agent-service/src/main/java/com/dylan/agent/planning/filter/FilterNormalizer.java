@@ -17,9 +17,9 @@ import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.config.AgentProperties.DomainProperties;
-import com.dylan.agent.config.AgentProperties.FieldProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView.FieldView;
 
 /**
  * 将 Runtime 原始 AgentFilter 规范化为验证通过的 ValidatedFilter。
@@ -43,19 +43,19 @@ public class FilterNormalizer {
     /** 批量规范化所有 AgentFilter，调用 normalize() 逐个处理。 */
     public List<ValidatedFilter> normalizeAll(
             List<AgentFilter> filters,
-            DomainProperties dp) {
+            DomainView domain) {
         if (filters == null || filters.isEmpty()) {
             return List.of();
         }
         List<ValidatedFilter> result = new ArrayList<>(filters.size());
         for (AgentFilter filter : filters) {
-            result.add(normalize(filter, dp));
+            result.add(normalize(filter, domain));
         }
         return List.copyOf(result);
     }
 
     /** 规范化单个 AgentFilter：校验 value/values 形态、按字段类型校验值格式、去除控制字符、规范化 decimal/instant 表示。 */
-    public ValidatedFilter normalize(AgentFilter filter, DomainProperties dp) {
+    public ValidatedFilter normalize(AgentFilter filter, DomainView domain) {
         if (filter == null || filter.getField() == null || filter.getField().isBlank()) {
             throw new AgentPlanValidationException("filter field 为空。");
         }
@@ -64,18 +64,20 @@ public class FilterNormalizer {
         }
 
         String field = filter.getField().trim();
-        FieldProperties fp = dp.getFields().get(field);
-        if (fp == null) {
+        FieldView fp;
+        try {
+            fp = domain.requireField(field);
+        } catch (IllegalArgumentException ex) {
             throw new AgentPlanValidationException("未知 filter field: " + field);
         }
-        if (!fp.getOperators().contains(filter.getOperator())) {
+        if (!fp.operators().contains(filter.getOperator())) {
             throw new AgentPlanValidationException(
                     "字段 " + field + " 不支持 operator: " + filter.getOperator());
         }
-        if (!OperatorSemantics.supports(filter.getOperator(), fp.getType())) {
+        if (!OperatorSemantics.supports(filter.getOperator(), fp.type())) {
             throw new AgentPlanValidationException(
                     "字段 " + field + " 的 operator " + filter.getOperator()
-                    + " 与字段类型 " + fp.getType() + " 不兼容。");
+                    + " 与字段类型 " + fp.type() + " 不兼容。");
         }
 
         OperatorSemantics.Profile profile = OperatorSemantics.profileOf(filter.getOperator());
@@ -85,7 +87,7 @@ public class FilterNormalizer {
         };
     }
 
-    private ValidatedFilter validateSingleValue(String field, AgentFilter filter, FieldProperties fp) {
+    private ValidatedFilter validateSingleValue(String field, AgentFilter filter, FieldView fp) {
         if (filter.getValues() != null && !filter.getValues().isEmpty()) {
             throw new AgentPlanValidationException(filter.getOperator() + " 不允许 values。");
         }
@@ -97,7 +99,7 @@ public class FilterNormalizer {
         return new ValidatedFilter(field, filter.getOperator(), value, List.of());
     }
 
-    private ValidatedFilter validateMultiValue(String field, AgentFilter filter, FieldProperties fp) {
+    private ValidatedFilter validateMultiValue(String field, AgentFilter filter, FieldView fp) {
         if (filter.getValue() != null && !filter.getValue().isBlank()) {
             throw new AgentPlanValidationException(filter.getOperator() + " 不允许 value。");
         }
@@ -128,7 +130,7 @@ public class FilterNormalizer {
         return new ValidatedFilter(field, filter.getOperator(), null, new ArrayList<>(values));
     }
 
-    String normalizeValue(String value, FieldProperties fp) {
+    String normalizeValue(String value, FieldView fp) {
         if (value == null || value.isBlank()) {
             throw new AgentPlanValidationException("filter value 不能为空。");
         }
@@ -139,14 +141,14 @@ public class FilterNormalizer {
         if (CONTROL_CHARS.matcher(normalized).find()) {
             throw new AgentPlanValidationException("filter value 不允许控制字符。");
         }
-        return switch (fp.getType()) {
+        return switch (fp.type()) {
             case STRING -> normalized;
             case DECIMAL -> normalizeDecimal(normalized, fp);
             case INSTANT -> normalizeInstant(normalized);
         };
     }
 
-    private String normalizeDecimal(String value, FieldProperties fp) {
+    private String normalizeDecimal(String value, FieldView fp) {
         if (!PLAIN_DECIMAL.matcher(value).matches()) {
             throw new AgentPlanValidationException(
                     "无效的 DECIMAL 值: " + value + "，仅允许普通十进制格式。");
@@ -158,8 +160,8 @@ public class FilterNormalizer {
             throw new AgentPlanValidationException("无效的 DECIMAL 值: " + value);
         }
 
-        Integer precisionLimit = fp.getDecimalPrecision();
-        Integer scaleLimit = fp.getDecimalScale();
+        Integer precisionLimit = fp.precision();
+        Integer scaleLimit = fp.scale();
         if (precisionLimit == null || scaleLimit == null) {
             throw new AgentPlanValidationException("DECIMAL 字段缺少精度配置。");
         }

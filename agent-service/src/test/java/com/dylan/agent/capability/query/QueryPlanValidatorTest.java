@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentIntent;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.enums.QueryContextMode;
@@ -26,10 +24,10 @@ import com.dylan.agent.capability.model.ValidatedQueryPlan;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
 import com.dylan.agent.model.AgentUserContext;
-import com.dylan.agent.model.MaskType;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.planning.filter.QueryMergeEngine;
+import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 @DisplayName("QueryPlanValidator")
 class QueryPlanValidatorTest {
@@ -39,11 +37,13 @@ class QueryPlanValidatorTest {
 
     @BeforeEach
     void setUp() {
-        properties = testProperties();
+        properties = DomainMetadataTestSupport.agentProperties();
         var normalizer = new FilterNormalizer(properties);
         var constraints = new FieldConstraintValidator();
         var mergeEngine = new QueryMergeEngine(constraints);
-        validator = new QueryPlanValidator(properties, normalizer, constraints, mergeEngine);
+        validator = new QueryPlanValidator(
+                properties, normalizer, constraints, mergeEngine,
+                DomainMetadataTestSupport.catalogView());
     }
 
     @Nested
@@ -320,56 +320,4 @@ class QueryPlanValidatorTest {
         return ctx;
     }
 
-    private AgentProperties testProperties() {
-        AgentProperties p = new AgentProperties();
-        p.setIntentRoles(Map.of(
-                AgentIntent.QUERY, Set.of("agent:viewer", "agent:admin"),
-                AgentIntent.CLARIFY, Set.of("agent:viewer", "agent:admin")));
-
-        AgentProperties.RuntimeProperties rt = new AgentProperties.RuntimeProperties();
-        rt.setBaseUrl("http://localhost:9230");
-        rt.setSharedKey("test-key-at-least-16");
-        rt.setConnectTimeout(java.time.Duration.ofSeconds(2));
-        rt.setReadTimeout(java.time.Duration.ofSeconds(15));
-        p.setRuntime(rt);
-
-        AgentProperties.ConversationProperties c = new AgentProperties.ConversationProperties();
-        c.setRecentTurnLimit(6); c.setRetentionDays(7); c.setCleanupDelay(java.time.Duration.ofHours(1));
-        p.setConversation(c);
-
-        AgentProperties.QueryProperties q = new AgentProperties.QueryProperties();
-        q.setDefaultSize(20); q.setMaxSize(100); q.setMaxResultWindow(10000);
-        q.setMaxFilters(5); q.setMaxInValues(20); q.setMaxFilterValueLength(256); q.setMaxDownstreamResponseBytes(2097152);
-        p.setQuery(q);
-
-        AgentProperties.DomainProperties emp = new AgentProperties.DomainProperties();
-        emp.setAliases(List.of("员工", "employee"));
-        emp.setAccessRoles(Set.of("agent:viewer", "agent:admin"));
-        emp.setDefaultSelectFields(List.of("chineseName", "memberNo", "position"));
-        java.util.Map<String, AgentProperties.FieldProperties> fields = new java.util.HashMap<>();
-        fields.put("chineseName", makeFp(Set.of(AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN)));
-        fields.put("memberNo", makeFp(Set.of(AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN)));
-        fields.put("position", makeFp(Set.of(AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN)));
-        fields.put("amount", makeFp(AgentFieldType.DECIMAL, Set.of(AgentOperator.EQ, AgentOperator.GT, AgentOperator.LT)));
-        fields.get("amount").setDecimalPrecision(50);
-        fields.get("amount").setDecimalScale(2);
-        emp.setFields(fields);
-        p.setDomains(Map.of("employee", emp));
-        return p;
-    }
-
-    private AgentProperties.FieldProperties makeFp(Set<AgentOperator> ops) {
-        return makeFp(AgentFieldType.STRING, ops);
-    }
-
-    private AgentProperties.FieldProperties makeFp(AgentFieldType type, Set<AgentOperator> ops) {
-        AgentProperties.FieldProperties fp = new AgentProperties.FieldProperties();
-        fp.setAliases(List.of());
-        fp.setType(type);
-        fp.setOperators(ops);
-        fp.setFilterRoles(Set.of("agent:viewer", "agent:admin"));
-        fp.setDisplayRoles(Set.of("agent:viewer", "agent:admin"));
-        fp.setMask(MaskType.NONE);
-        return fp;
-    }
 }

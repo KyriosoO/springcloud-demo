@@ -23,6 +23,7 @@ spring:
   sql:
     init:
       mode: never
+
 eureka:
   client:
     enabled: false
@@ -62,98 +63,3 @@ agent:
     max-group-fields: 2
     default-max-rows: 20
     max-max-rows: 100
-  domains:
-    employee:
-      aliases: [员工, employee]
-      access-roles: [agent:viewer, agent:admin]
-      default-select-fields:
-        - chineseName
-        - memberNo
-        - position
-      fields:
-        chineseName:
-          aliases: [姓名, 中文名, 员工姓名]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        memberNo:
-          aliases: [工号, 员工号]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        position:
-          aliases: [岗位, 职位]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        contactAddress:
-          aliases: [联系地址, 地址]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: ADDRESS
-        idCardNo:
-          aliases: [身份证号, 身份证]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: ID_CARD
-        phoneNo:
-          aliases: [手机号, 电话]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: MOBILE
-        email:
-          aliases: [邮箱, 电子邮箱]
-          type: STRING
-          operators: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
-          filter-roles: [agent:admin]
-          display-roles: [agent:admin]
-          mask: EMAIL
-    transaction:
-      aliases: [交易, 交易记录, 交易流水, transaction]
-      access-roles: [agent:viewer, agent:admin]
-      default-select-fields: [transId, transType, transDate, amount]
-      fields:
-        transId:
-          aliases: [交易号, 交易ID, 流水号]
-          type: STRING
-          operators: [EQ]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        transType:
-          aliases: [交易类型, 类型]
-          type: STRING
-          operators: [EQ, CONTAINS]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        transDate:
-          aliases: [交易时间, 交易日期, 时间]
-          type: INSTANT
-          format-hint: ISO-8601 datetime with timezone, second precision only, no fractional seconds
-          operators: [GT, LT]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE
-        amount:
-          aliases: [金额, 交易金额]
-          type: DECIMAL
-          format-hint: plain decimal only, precision 50, scale 2, no exponent
-          decimal-precision: 50
-          decimal-scale: 2
-          operators: [EQ, GT, LT]
-          filter-roles: [agent:viewer, agent:admin]
-          display-roles: [agent:viewer, agent:admin]
-          mask: NONE

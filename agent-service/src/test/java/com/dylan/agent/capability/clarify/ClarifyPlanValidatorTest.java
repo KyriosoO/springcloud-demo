@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -12,30 +11,25 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentIntent;
-import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.plan.AgentPlan;
 import com.dylan.agent.api.plan.AgentQuerySpec;
 import com.dylan.agent.api.plan.ClarifySpec;
 import com.dylan.agent.api.response.PlanGenerateResponse;
 import com.dylan.agent.capability.CapabilityValidationContext;
 import com.dylan.agent.capability.model.ValidatedClarifyPlan;
-import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
 import com.dylan.agent.model.AgentUserContext;
-import com.dylan.agent.model.MaskType;
+import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 @DisplayName("ClarifyPlanValidator")
 class ClarifyPlanValidatorTest {
 
     private ClarifyPlanValidator validator;
-    private AgentProperties properties;
 
     @BeforeEach
     void setUp() {
-        properties = testProperties();
-        validator = new ClarifyPlanValidator(properties);
+        validator = new ClarifyPlanValidator(DomainMetadataTestSupport.catalogView());
     }
 
     @Nested
@@ -217,47 +211,4 @@ class ClarifyPlanValidatorTest {
         return resp;
     }
 
-    private AgentProperties testProperties() {
-        AgentProperties p = new AgentProperties();
-        p.setIntentRoles(Map.of(
-                AgentIntent.QUERY, Set.of("agent:viewer", "agent:admin"),
-                AgentIntent.CLARIFY, Set.of("agent:viewer", "agent:admin")));
-
-        AgentProperties.RuntimeProperties rt = new AgentProperties.RuntimeProperties();
-        rt.setBaseUrl("http://localhost:9230");
-        rt.setSharedKey("test-key-at-least-16");
-        rt.setConnectTimeout(java.time.Duration.ofSeconds(2));
-        rt.setReadTimeout(java.time.Duration.ofSeconds(15));
-        p.setRuntime(rt);
-
-        AgentProperties.ConversationProperties c = new AgentProperties.ConversationProperties();
-        c.setRecentTurnLimit(6); c.setRetentionDays(7); c.setCleanupDelay(java.time.Duration.ofHours(1));
-        p.setConversation(c);
-
-        AgentProperties.QueryProperties q = new AgentProperties.QueryProperties();
-        q.setDefaultSize(20); q.setMaxSize(100); q.setMaxResultWindow(10000);
-        q.setMaxFilters(5); q.setMaxInValues(20); q.setMaxFilterValueLength(256); q.setMaxDownstreamResponseBytes(2097152);
-        p.setQuery(q);
-
-        AgentProperties.DomainProperties emp = new AgentProperties.DomainProperties();
-        emp.setAliases(List.of("员工", "employee"));
-        emp.setAccessRoles(Set.of("agent:viewer", "agent:admin"));
-        emp.setDefaultSelectFields(List.of("chineseName", "memberNo", "position"));
-        java.util.Map<String, AgentProperties.FieldProperties> fields = new java.util.HashMap<>();
-        fields.put("chineseName", makeFp(Set.of(AgentOperator.EQ)));
-        emp.setFields(fields);
-        p.setDomains(Map.of("employee", emp));
-        return p;
-    }
-
-    private AgentProperties.FieldProperties makeFp(Set<AgentOperator> ops) {
-        AgentProperties.FieldProperties fp = new AgentProperties.FieldProperties();
-        fp.setAliases(List.of());
-        fp.setType(AgentFieldType.STRING);
-        fp.setOperators(ops);
-        fp.setFilterRoles(Set.of("agent:viewer", "agent:admin"));
-        fp.setDisplayRoles(Set.of("agent:viewer", "agent:admin"));
-        fp.setMask(MaskType.NONE);
-        return fp;
-    }
 }
