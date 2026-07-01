@@ -2,30 +2,38 @@ package com.dylan.agent.capability.query;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
+import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.api.enums.AgentIntent;
 import com.dylan.agent.api.enums.QueryContextMode;
+import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AgentPlan;
 import com.dylan.agent.api.plan.AgentQuerySpec;
 import com.dylan.agent.api.response.PlanGenerateResponse;
 import com.dylan.agent.api.runtime.RuntimeQueryContext;
 import com.dylan.agent.capability.CapabilityValidationContext;
-import com.dylan.agent.capability.model.ValidatedQueryPlan;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.config.AgentProperties.DomainProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
+import com.dylan.agent.kernel.core.ExecutionValidationContext;
+import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
+import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.planning.filter.QueryMergeEngine;
 
 /** QUERY plan 校验器。将 Runtime 原始 AgentPlan 校验为 ValidatedQueryPlan，复用 FilterNormalizer、FieldConstraintValidator、QueryMergeEngine 等底层组件，保持现有 filter/MERGE/pagination 语义。 */
 @Component
-public class QueryPlanValidator {
+public class QueryPlanValidator
+        implements CapabilityPlanValidator<QueryAgentPlan, ValidatedQueryPlan> {
+
+    static final String KERNEL_CAPABILITY_ID = "query.search";
 
     private final AgentProperties properties;
     private final FilterNormalizer filterNormalizer;
@@ -43,8 +51,37 @@ public class QueryPlanValidator {
         this.queryMergeEngine = queryMergeEngine;
     }
 
+    @Override
+    public ValidatedQueryPlan validate(QueryAgentPlan rawPlan, ExecutionValidationContext context) {
+        Objects.requireNonNull(rawPlan, "rawPlan must not be null");
+        Objects.requireNonNull(context, "context must not be null");
+        if (!KERNEL_CAPABILITY_ID.equals(context.capabilityId())) {
+            throw new IllegalArgumentException("capabilityId mismatch");
+        }
+        String domain = context.domainProjection().domain()
+                .orElseThrow(() -> new IllegalArgumentException("QUERY requires domain projection"));
+        AgentQuerySpec query = Objects.requireNonNull(rawPlan.getQuery(), "query must not be null");
+        List<ValidatedFilter> filters = toValidatedFilters(query.getFilters());
+        if (filters.isEmpty()) {
+            throw new IllegalArgumentException("query filters must not be empty");
+        }
+        validateKernelFilters(filters, context);
+        List<String> selectFields = normalizeKernelSelectFields(query.getSelectFields(), context);
+        validateKernelSelectFields(selectFields, context);
+        int page = query.getPage() == null ? 1 : query.getPage();
+        int size = query.getSize() == null ? defaultKernelPageSize(context) : query.getSize();
+        int maxPageSize = context.domainProjection().maxPageSize();
+        if (page <= 0 || size <= 0 || (maxPageSize > 0 && size > maxPageSize)) {
+            throw new IllegalArgumentException("invalid query pagination");
+        }
+        return new ValidatedQueryPlan(
+                KERNEL_CAPABILITY_ID,
+                domain,
+                new ValidatedQuery(filters, selectFields, page, size));
+    }
+
     /** 将 Runtime 原始 QUERY plan 校验为 ValidatedQueryPlan，执行 filter 规范化、MERGE 合并、selectFields/pagination 校验。 */
-    public ValidatedQueryPlan validate(CapabilityValidationContext context) {
+    public com.dylan.agent.capability.model.ValidatedQueryPlan validate(CapabilityValidationContext context) {
         PlanGenerateResponse response = context.planResponse();
         AgentPlan plan = response.getPlan();
         RuntimeQueryContext previousQuery = context.previousQuery();
@@ -112,7 +149,7 @@ public class QueryPlanValidator {
         }
         validatePagination(page, size);
 
-        return new ValidatedQueryPlan(plan.getDomain(),
+        return new com.dylan.agent.capability.model.ValidatedQueryPlan(plan.getDomain(),
                 new ValidatedQuery(finalFilters, selectFields, page, size));
     }
 
@@ -237,5 +274,77 @@ public class QueryPlanValidator {
             throw new AgentPlanValidationException(
                     "分页范围超出上限 " + properties.getQuery().getMaxResultWindow());
         }
+    }
+
+    public static List<ValidatedFilter> toValidatedFilters(List<AgentFilter> filters) {
+        if (filters == null) {
+            return List.of();
+        }
+        return filters.stream()
+                .map(filter -> {
+                    if (filter == null
+                            || filter.getField() == null || filter.getField().isBlank()
+                            || filter.getOperator() == null) {
+                        throw new IllegalArgumentException("invalid query filter");
+                    }
+                    return new ValidatedFilter(
+                            filter.getField().trim(),
+                            filter.getOperator(),
+                            filter.getValue(),
+                            filter.getValues());
+                })
+                .toList();
+    }
+
+    public static void validateKernelFilters(
+            List<ValidatedFilter> filters,
+            ExecutionValidationContext context) {
+        for (ValidatedFilter filter : filters) {
+            ExecutionFieldRule rule = requireFieldRule(filter.getField(), context);
+            if (!rule.allowedOperators().contains(filter.getOperator())) {
+                throw new IllegalArgumentException(
+                        "operator not allowed for field " + filter.getField() + ": " + filter.getOperator());
+            }
+        }
+    }
+
+    private static ExecutionFieldRule requireFieldRule(
+            String field,
+            ExecutionValidationContext context) {
+        ExecutionFieldRule rule = context.domainProjection().fieldRules().get(field);
+        if (rule == null) {
+            throw new IllegalArgumentException("unknown field in execution projection: " + field);
+        }
+        return rule;
+    }
+
+    private static List<String> normalizeKernelSelectFields(
+            List<String> fields,
+            ExecutionValidationContext context) {
+        if (fields == null || fields.isEmpty()) {
+            return context.domainProjection().defaultSelectFields();
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String field : fields) {
+            if (field == null || field.isBlank()) {
+                throw new IllegalArgumentException("selectFields must not contain blank values");
+            }
+            normalized.add(field.trim());
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static void validateKernelSelectFields(
+            List<String> selectFields,
+            ExecutionValidationContext context) {
+        for (String field : selectFields) {
+            requireFieldRule(field, context);
+        }
+    }
+
+    private static int defaultKernelPageSize(ExecutionValidationContext context) {
+        return context.domainProjection().maxPageSize() > 0
+                ? Math.min(20, context.domainProjection().maxPageSize())
+                : 20;
     }
 }

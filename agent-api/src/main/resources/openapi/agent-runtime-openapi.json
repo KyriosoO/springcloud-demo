@@ -288,7 +288,7 @@
       "AgentResponseType" : {
         "type" : "string",
         "description" : "Agent 聊天响应类型",
-        "enum" : [ "RESULT", "CLARIFY", "AGGREGATE_RESULT", "ERROR" ]
+        "enum" : [ "RESULT", "CLARIFY", "ERROR" ]
       },
       "AggregateFunction" : {
         "type" : "string",

@@ -1,5 +1,9 @@
 package com.dylan.agent.kernel.binding;
 
+import com.dylan.agent.adapter.api.AdapterRole;
+import com.dylan.agent.adapter.api.AgentAdapterPort;
+
+import java.time.Instant;
 import java.util.Objects;
 
 /**
@@ -8,21 +12,34 @@ import java.util.Objects;
  */
 public final class AdapterExecutionBinding {
 
-    private final String adapterRole;
+    private final AdapterRole adapterRole;
     private final String domain;
-    private final Object domainMode; // AgentDomainMode after D01 activation
-    private final Object adapterPort;
+    private final Class<? extends AgentAdapterPort> portType;
+    private final AgentAdapterPort port;
+    private final String adapterRegistrationVersion;
+    private final Instant resolvedAt;
 
-    public AdapterExecutionBinding(String adapterRole, String domain,
-                                    Object domainMode, Object adapterPort) {
+    public AdapterExecutionBinding(AdapterRole adapterRole,
+                                   String domain,
+                                   Class<? extends AgentAdapterPort> portType,
+                                   AgentAdapterPort port,
+                                   String adapterRegistrationVersion,
+                                   Instant resolvedAt) {
         this.adapterRole = Objects.requireNonNull(adapterRole);
         this.domain = Objects.requireNonNull(domain);
-        this.domainMode = Objects.requireNonNull(domainMode);
-        this.adapterPort = Objects.requireNonNull(adapterPort);
+        this.portType = Objects.requireNonNull(portType);
+        this.port = Objects.requireNonNull(port);
+        this.adapterRegistrationVersion = Objects.requireNonNull(adapterRegistrationVersion);
+        this.resolvedAt = Objects.requireNonNull(resolvedAt);
+        if (!portType.isInstance(port)) {
+            throw new IllegalArgumentException("port does not implement declared portType");
+        }
     }
 
-    public String adapterRole() { return adapterRole; }
+    public AdapterRole adapterRole() { return adapterRole; }
     public String domain() { return domain; }
-    public Object domainMode() { return domainMode; }
-    public Object adapterPort() { return adapterPort; }
+    public Class<? extends AgentAdapterPort> portType() { return portType; }
+    public AgentAdapterPort port() { return port; }
+    public String adapterRegistrationVersion() { return adapterRegistrationVersion; }
+    public Instant resolvedAt() { return resolvedAt; }
 }

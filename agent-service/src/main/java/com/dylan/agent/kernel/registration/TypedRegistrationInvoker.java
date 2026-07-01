@@ -2,9 +2,9 @@ package com.dylan.agent.kernel.registration;
 
 import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
-import com.dylan.agent.kernel.handler.CapabilityHandler;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.core.ExecutionContext;
+import com.dylan.agent.kernel.handler.HandlerResult;
 import com.dylan.agent.api.contract.runtime.plan.AgentPlan;
 
 import java.util.Objects;
@@ -47,8 +47,8 @@ final class TypedRegistrationInvoker<
         }
         @SuppressWarnings("unchecked")
         V validated = (V) handle.value();
-        O output = registration.handler().execute(validated, ctx);
-        return new HandlerCandidate(output);
+        HandlerResult<O> result = registration.handler().execute(validated, ctx);
+        return new HandlerCandidate(result.output(), result.contextWrites());
     }
 
     void validateOutput(Object output) {

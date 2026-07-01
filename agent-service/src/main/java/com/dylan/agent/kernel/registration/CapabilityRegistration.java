@@ -56,9 +56,12 @@ public final class CapabilityRegistration<
                 "capabilityId=" + definition.capabilityId() +
                 ", planKind=" + definition.planKind() +
                 ", domainMode=" + definition.domainMode() +
+                ", inputContract=" + definition.inputContract() +
+                ", outputContract=" + definition.outputContract() +
                 ", rawPlan=" + rawPlanType.getSimpleName() +
+                ", validator=" + validator.getClass().getName() +
                 ", validatedPlan=" + validatedPlanType.getSimpleName() +
-                ", handler=" + handler.getClass().getSimpleName() +
+                ", handler=" + handler.getClass().getName() +
                 ", output=" + outputType.getSimpleName() +
                 '}';
     }

@@ -2,10 +2,12 @@ package com.dylan.agent.capability;
 
 import com.dylan.agent.api.enums.AgentIntent;
 import com.dylan.agent.api.enums.AgentResponseType;
+import com.dylan.agent.api.response.AggregateAgentResultPayload;
 import com.dylan.agent.api.response.AgentAggregateResult;
 import com.dylan.agent.api.response.AgentChatResponse;
 import com.dylan.agent.api.response.AgentQueryParameters;
 import com.dylan.agent.api.response.AgentQueryResult;
+import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.api.runtime.RuntimeQueryContext;
 
 /**
@@ -17,7 +19,7 @@ import com.dylan.agent.api.runtime.RuntimeQueryContext;
  * <p>工厂方法封装了正确的 intent / responseType 组合：
  * {@link #queryResult} → QUERY + RESULT，
  * {@link #clarify} → CLARIFY + CLARIFY，
- * {@link #aggregateResult} → AGGREGATE + AGGREGATE_RESULT。
+     * {@link #aggregateResult} → AGGREGATE + RESULT。
  */
 public final class CapabilityExecutionResult {
 
@@ -78,7 +80,7 @@ public final class CapabilityExecutionResult {
             Object contextToPersist) {
         return new CapabilityExecutionResult(
                 AgentIntent.AGGREGATE,
-                AgentResponseType.AGGREGATE_RESULT,
+                AgentResponseType.RESULT,
                 assistantMessage,
                 null,
                 null,
@@ -122,9 +124,13 @@ public final class CapabilityExecutionResult {
         response.setType(responseType);
         response.setMessage(assistantMessage);
         response.setSummary(assistantMessage);
-        response.setQueryParameters(queryParameters);
-        response.setQueryResult(queryResult);
-        response.setAggregateResult(aggregateResult);
+        if (queryParameters != null || queryResult != null) {
+            response.setResult(new QueryAgentResultPayload(queryParameters, queryResult));
+        } else if (aggregateResult != null) {
+            response.setResult(new AggregateAgentResultPayload(aggregateResult));
+        } else {
+            response.setResult(null);
+        }
         response.setErrorCode(null);
     }
 }

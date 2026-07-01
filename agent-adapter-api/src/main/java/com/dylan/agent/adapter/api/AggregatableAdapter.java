@@ -6,7 +6,7 @@ import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.api.enums.AggregateFunction;
 
 /** 聚合统计防腐层 SPI。与 QueryableAdapter 独立，首版使用 REPLACE，不做 MERGE。 */
-public interface AggregatableAdapter {
+public interface AggregatableAdapter extends AgentAdapterPort {
 
     /** 返回稳定、小写、非空的 domain。 */
     String domain();

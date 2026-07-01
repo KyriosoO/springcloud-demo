@@ -3,7 +3,7 @@ package com.dylan.agent.adapter.api;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
 
 /** Agent 与业务域之间的防腐层 SPI。Adapter 接收 Java 已验证的 ValidatedQuery，不接收原始 LLM JSON。 */
-public interface QueryableAdapter {
+public interface QueryableAdapter extends AgentAdapterPort {
 
     /** 返回稳定、小写、非空的 domain，例如 "employee"、"transaction"。 */
     String domain();

@@ -181,11 +181,11 @@ class AgentContractJsonTest {
         }
 
         @Test
-        @DisplayName("AgentResponseType 包含四个值")
-        void shouldHaveFourResponseTypes() {
+        @DisplayName("AgentResponseType 收敛为三个值")
+        void shouldHaveThreeResponseTypes() {
             assertThat(AgentResponseType.values())
                     .containsExactly(AgentResponseType.RESULT, AgentResponseType.CLARIFY,
-                            AgentResponseType.AGGREGATE_RESULT, AgentResponseType.ERROR);
+                            AgentResponseType.ERROR);
         }
 
         @Test

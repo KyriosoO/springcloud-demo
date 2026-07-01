@@ -1,5 +1,6 @@
 package com.dylan.agent.kernel.registration;
 
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 
 import java.util.*;
@@ -15,11 +16,16 @@ public final class CapabilityRegistry {
     private final Map<String, CapabilityRegistration<?, ?, ?>> registrations;
     private final Map<String, ResolvedRegistration> resolved;
 
-    public CapabilityRegistry(Collection<CapabilityRegistration<?, ?, ?>> registrations) {
+    public CapabilityRegistry(Collection<CapabilityRegistration<?, ?, ?>> registrations,
+                              CapabilityRegistrationValidator validator,
+                              com.dylan.agent.kernel.definition.ContractRegistry contracts,
+                              Set<AdapterRole> knownRoles) {
         Objects.requireNonNull(registrations);
+        Objects.requireNonNull(validator);
         if (registrations.isEmpty()) {
             throw new IllegalStateException("at least one CapabilityRegistration required");
         }
+        validator.validateAll(registrations, contracts, knownRoles);
         Map<String, CapabilityRegistration<?, ?, ?>> map = new LinkedHashMap<>();
         Map<String, ResolvedRegistration> resMap = new LinkedHashMap<>();
         for (CapabilityRegistration<?, ?, ?> reg : registrations) {
@@ -61,6 +67,7 @@ public final class CapabilityRegistry {
             result.computeIfAbsent(reg.definition().planKind(), k -> new ArrayList<>())
                     .add(reg.definition().capabilityId());
         }
+        result.replaceAll((kind, ids) -> List.copyOf(ids));
         return Collections.unmodifiableMap(result);
     }
 }

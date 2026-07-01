@@ -20,6 +20,7 @@ import com.dylan.agent.api.enums.AgentResponseType;
 import com.dylan.agent.api.request.AgentChatRequest;
 import com.dylan.agent.api.request.PlanGenerateRequest;
 import com.dylan.agent.api.response.AgentChatResponse;
+import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.api.response.PlanGenerateResponse;
 import com.dylan.agent.api.runtime.RuntimeQueryContext;
 import com.dylan.agent.capability.AgentCapabilityHandlerRegistry;
@@ -119,16 +120,18 @@ class AgentOrchestratorTest {
             assertThat(resp.getConversationId()).isNotBlank();
             assertThat(resp.getTurnId()).isNotBlank();
             assertThat(resp.getSummary()).isEqualTo(resp.getMessage()).isNotBlank();
-            assertThat(resp.getQueryParameters()).isNotNull();
-            assertThat(resp.getQueryParameters().getDomain()).isEqualTo("employee");
-            assertThat(resp.getQueryParameters().getFilters()).hasSize(1);
-            assertThat(resp.getQueryParameters().getFilters().get(0).getField()).isEqualTo("position");
-            assertThat(resp.getQueryParameters().getFilters().get(0).getOperator()).isEqualTo(AgentOperator.EQ);
-            assertThat(resp.getQueryParameters().getFilters().get(0).getValue()).isEqualTo("HRM");
-            assertThat(resp.getQueryParameters().getSelectFields())
+            assertThat(resp.getResult()).isInstanceOf(QueryAgentResultPayload.class);
+            QueryAgentResultPayload result = (QueryAgentResultPayload) resp.getResult();
+            assertThat(result.getQueryParameters()).isNotNull();
+            assertThat(result.getQueryParameters().getDomain()).isEqualTo("employee");
+            assertThat(result.getQueryParameters().getFilters()).hasSize(1);
+            assertThat(result.getQueryParameters().getFilters().get(0).getField()).isEqualTo("position");
+            assertThat(result.getQueryParameters().getFilters().get(0).getOperator()).isEqualTo(AgentOperator.EQ);
+            assertThat(result.getQueryParameters().getFilters().get(0).getValue()).isEqualTo("HRM");
+            assertThat(result.getQueryParameters().getSelectFields())
                     .containsExactly("chineseName", "memberNo", "position");
-            assertThat(resp.getQueryParameters().getPage()).isEqualTo(1);
-            assertThat(resp.getQueryParameters().getSize()).isEqualTo(20);
+            assertThat(result.getQueryParameters().getPage()).isEqualTo(1);
+            assertThat(result.getQueryParameters().getSize()).isEqualTo(20);
             assertThat(conversationService.completedTurnId).isNotNull();
         }
 
@@ -141,8 +144,7 @@ class AgentOrchestratorTest {
             assertThat(resp.getType()).isEqualTo(AgentResponseType.CLARIFY);
             assertThat(resp.getMessage()).isEqualTo("请提供更多查询条件。");
             assertThat(resp.getSummary()).isEqualTo(resp.getMessage());
-            assertThat(resp.getQueryParameters()).isNull();
-            assertThat(resp.getQueryResult()).isNull();
+            assertThat(resp.getResult()).isNull();
         }
     }
 

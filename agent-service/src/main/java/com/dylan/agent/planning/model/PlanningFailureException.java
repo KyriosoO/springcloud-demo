@@ -11,7 +11,7 @@ public final class PlanningFailureException extends RuntimeException {
     private final PlanningFailure failure;
 
     public PlanningFailureException(PlanningFailure failure) {
-        super(failure.safeMessage());
+        super(java.util.Objects.requireNonNull(failure, "failure must not be null").errorCode().name());
         this.failure = java.util.Objects.requireNonNull(failure);
     }
 

@@ -189,12 +189,13 @@ class AgentChatIntegrationTest {
                     .andExpect(jsonPath("$.conversationId").value("conv-001"))
                     .andExpect(jsonPath("$.turnId").value("turn-001"))
                     .andExpect(jsonPath("$.summary").isString())
-                    .andExpect(jsonPath("$.queryParameters.domain").value("employee"))
-                    .andExpect(jsonPath("$.queryParameters.filters[0].field").value("position"))
-                    .andExpect(jsonPath("$.queryParameters.filters[0].operator").value("EQ"))
-                    .andExpect(jsonPath("$.queryParameters.selectFields").isArray())
-                    .andExpect(jsonPath("$.queryParameters.page").value(1))
-                    .andExpect(jsonPath("$.queryParameters.size").value(20))
+                    .andExpect(jsonPath("$.result.resultKind").value("QUERY"))
+                    .andExpect(jsonPath("$.result.queryParameters.domain").value("employee"))
+                    .andExpect(jsonPath("$.result.queryParameters.filters[0].field").value("position"))
+                    .andExpect(jsonPath("$.result.queryParameters.filters[0].operator").value("EQ"))
+                    .andExpect(jsonPath("$.result.queryParameters.selectFields").isArray())
+                    .andExpect(jsonPath("$.result.queryParameters.page").value(1))
+                    .andExpect(jsonPath("$.result.queryParameters.size").value(20))
                     .andExpect(jsonPath("$.errorCode").value(nullValue()));
         }
 
@@ -210,18 +211,19 @@ class AgentChatIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.type").value("RESULT"))
                     .andExpect(jsonPath("$.message").value("找到至少 10000 条记录。"))
-                    .andExpect(jsonPath("$.queryParameters.domain").value("transaction"))
-                    .andExpect(jsonPath("$.queryParameters.filters[0].field").value("transType"))
-                    .andExpect(jsonPath("$.queryResult.columns[0]").value("transId"))
-                    .andExpect(jsonPath("$.queryResult.rows[0].transId").value("T10001"))
-                    .andExpect(jsonPath("$.queryResult.rows[0].transType").value("PAYMENT"))
-                    .andExpect(jsonPath("$.queryResult.rows[0].transDate")
+                    .andExpect(jsonPath("$.result.resultKind").value("QUERY"))
+                    .andExpect(jsonPath("$.result.queryParameters.domain").value("transaction"))
+                    .andExpect(jsonPath("$.result.queryParameters.filters[0].field").value("transType"))
+                    .andExpect(jsonPath("$.result.queryResult.columns[0]").value("transId"))
+                    .andExpect(jsonPath("$.result.queryResult.rows[0].transId").value("T10001"))
+                    .andExpect(jsonPath("$.result.queryResult.rows[0].transType").value("PAYMENT"))
+                    .andExpect(jsonPath("$.result.queryResult.rows[0].transDate")
                             .value("2026-06-22T00:00:00Z"))
-                    .andExpect(jsonPath("$.queryResult.rows[0].amount").value(128.50))
-                    .andExpect(jsonPath("$.queryResult.total").value(10000))
-                    .andExpect(jsonPath("$.queryResult.totalExact").value(false))
-                    .andExpect(jsonPath("$.queryResult.page").value(1))
-                    .andExpect(jsonPath("$.queryResult.size").value(20));
+                    .andExpect(jsonPath("$.result.queryResult.rows[0].amount").value(128.50))
+                    .andExpect(jsonPath("$.result.queryResult.total").value(10000))
+                    .andExpect(jsonPath("$.result.queryResult.totalExact").value(false))
+                    .andExpect(jsonPath("$.result.queryResult.page").value(1))
+                    .andExpect(jsonPath("$.result.queryResult.size").value(20));
         }
 
         @Test
@@ -252,8 +254,7 @@ class AgentChatIntegrationTest {
                     .andExpect(jsonPath("$.type").value("CLARIFY"))
                     .andExpect(jsonPath("$.message").isString())
                     .andExpect(jsonPath("$.summary").isString())
-                    .andExpect(jsonPath("$.queryParameters").value(nullValue()))
-                    .andExpect(jsonPath("$.queryResult").value(nullValue()));
+                    .andExpect(jsonPath("$.result").value(nullValue()));
         }
 
         @Test

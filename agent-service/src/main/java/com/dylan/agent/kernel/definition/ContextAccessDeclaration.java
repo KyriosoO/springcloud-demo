@@ -1,9 +1,7 @@
 package com.dylan.agent.kernel.definition;
 
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
-import com.dylan.agent.api.contract.runtime.common.RuntimeContextView;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -23,19 +21,18 @@ public final class ContextAccessDeclaration {
                                      List<ContextWriteDeclaration> writes) {
         Objects.requireNonNull(reads);
         Objects.requireNonNull(writes);
-        validateNoDuplicateType(reads, writes);
         this.reads = List.copyOf(reads);
         this.writes = List.copyOf(writes);
+        validateNoDuplicateType();
     }
 
-    private static void validateNoDuplicateType(List<ContextReadDeclaration> r,
-                                                 List<ContextWriteDeclaration> w) {
-        var readTypes = r.stream().map(ContextReadDeclaration::contextType).toList();
+    public void validateNoDuplicateType() {
+        var readTypes = reads.stream().map(ContextReadDeclaration::contextType).toList();
         var distinctRead = Set.copyOf(readTypes);
         if (distinctRead.size() != readTypes.size()) {
             throw new IllegalArgumentException("duplicate contextType in reads");
         }
-        var writeTypes = w.stream().map(ContextWriteDeclaration::contextType).toList();
+        var writeTypes = writes.stream().map(ContextWriteDeclaration::contextType).toList();
         var distinctWrite = Set.copyOf(writeTypes);
         if (distinctWrite.size() != writeTypes.size()) {
             throw new IllegalArgumentException("duplicate contextType in writes");
@@ -53,34 +50,4 @@ public final class ContextAccessDeclaration {
         return writes.stream().filter(w -> w.contextType() == type).findFirst().orElse(null);
     }
 
-    // ── nested declarations ──
-
-    public record ContextReadDeclaration(
-            RuntimeContextType contextType,
-            ContractRef contractRef,
-            Class<? extends RuntimeContextView> payloadType,
-            boolean required,
-            Set<String> readableFields) {
-        public ContextReadDeclaration {
-            Objects.requireNonNull(contextType);
-            Objects.requireNonNull(contractRef);
-            Objects.requireNonNull(payloadType);
-            Objects.requireNonNull(readableFields);
-        }
-    }
-
-    public record ContextWriteDeclaration(
-            RuntimeContextType contextType,
-            ContractRef contractRef,
-            Class<? extends RuntimeContextView> payloadType,
-            Duration maxTtl,
-            Set<String> writableFields) {
-        public ContextWriteDeclaration {
-            Objects.requireNonNull(contextType);
-            Objects.requireNonNull(contractRef);
-            Objects.requireNonNull(payloadType);
-            Objects.requireNonNull(maxTtl);
-            Objects.requireNonNull(writableFields);
-        }
-    }
 }

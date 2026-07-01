@@ -80,7 +80,16 @@ class AgentRuntimeContractArchitectureTest {
         // this is the expected design contract. Exclusion paths ensure
         // the gate only catches unintended legacy references.
         for (String result : scanText(repo.resolve("agent-service/src/main"), candidate,
-            "java/com/dylan/agent/kernel/", "java/com/dylan/agent/planning/",
+            "java/com/dylan/agent/kernel/",
+            "java/com/dylan/agent/capability/query/QueryCapabilityConfiguration.java",
+            "java/com/dylan/agent/capability/query/QueryPlanValidator.java",
+            "java/com/dylan/agent/capability/query/QueryCapabilityHandler.java",
+            "java/com/dylan/agent/capability/query/ValidatedQueryPlan.java",
+            "java/com/dylan/agent/capability/aggregate/AggregateCapabilityConfiguration.java",
+            "java/com/dylan/agent/capability/aggregate/AggregatePlanValidator.java",
+            "java/com/dylan/agent/capability/aggregate/AggregateCapabilityHandler.java",
+            "java/com/dylan/agent/capability/aggregate/ValidatedAggregatePlan.java",
+            "java/com/dylan/agent/planning/",
             "java/com/dylan/agent/invocation/", "java/com/dylan/agent/lifecycle/",
             "java/com/dylan/agent/metadata/", "java/com/dylan/agent/shared/")) {
             violations.add(result);

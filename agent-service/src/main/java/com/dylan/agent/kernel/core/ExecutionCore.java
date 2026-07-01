@@ -4,9 +4,26 @@ import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.HandlerCandidate;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
+import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
+import com.dylan.agent.kernel.port.AuthorizationExecutionPort;
+import com.dylan.agent.kernel.port.ContextApprovalPort;
+import com.dylan.agent.kernel.port.ContextExecutionPort;
+import com.dylan.agent.kernel.port.DomainExecutionPort;
+import com.dylan.agent.kernel.port.ResultSecurityPort;
+import com.dylan.agent.kernel.port.model.ApprovedContextWrite;
+import com.dylan.agent.kernel.port.model.ContextApprovalRequest;
+import com.dylan.agent.kernel.port.model.DomainBindingRequest;
+import com.dylan.agent.kernel.port.model.DomainExecutionResolution;
+import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
+import com.dylan.agent.kernel.port.model.SecuredResult;
+import com.dylan.agent.lifecycle.model.ExecutionStage;
+import com.dylan.agent.lifecycle.model.KernelErrorCode;
+import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * 所有 capability 共享的可信执行算法，由 D02_01 唯一负责。
@@ -15,19 +32,25 @@ import java.util.Objects;
  */
 public final class ExecutionCore {
 
-    private final Object authPort; // AuthorizationExecutionPort after D02_03
-    private final Object contextPort; // ContextExecutionPort after D02_03
-    private final Object domainPort; // DomainExecutionPort after D02_03
-    private final Object contextApprovalPort; // ContextApprovalPort after D02_03
-    private final Object resultSecurityPort; // ResultSecurityPort after D02_03
+    private final AuthorizationExecutionPort authPort;
+    private final ContextExecutionPort contextPort;
+    private final DomainExecutionPort domainPort;
+    private final ContextApprovalPort contextApprovalPort;
+    private final ResultSecurityPort resultSecurityPort;
+    private final Clock clock;
 
-    public ExecutionCore(Object authPort, Object contextPort, Object domainPort,
-                         Object contextApprovalPort, Object resultSecurityPort) {
+    public ExecutionCore(AuthorizationExecutionPort authPort,
+                         ContextExecutionPort contextPort,
+                         DomainExecutionPort domainPort,
+                         ContextApprovalPort contextApprovalPort,
+                         ResultSecurityPort resultSecurityPort,
+                         Clock clock) {
         this.authPort = Objects.requireNonNull(authPort);
         this.contextPort = Objects.requireNonNull(contextPort);
         this.domainPort = Objects.requireNonNull(domainPort);
         this.contextApprovalPort = Objects.requireNonNull(contextApprovalPort);
         this.resultSecurityPort = Objects.requireNonNull(resultSecurityPort);
+        this.clock = Objects.requireNonNull(clock);
     }
 
     /**
@@ -38,107 +61,186 @@ public final class ExecutionCore {
     public ExecutionOutcome execute(ExecutionCommand command) {
         Objects.requireNonNull(command);
 
-        // Step 1: Validate invocation/deadline/cancellation
-        if (command.handle().isExpired(java.time.Clock.systemUTC())) {
-            return new ExecutionFailure.Impl("EXECUTION_PREFLIGHT", "DEADLINE_EXCEEDED",
-                    diagnostics(), false);
+        if (command.handle().isExpired(clock)) {
+            return failure(ExecutionStage.EXECUTION_PREFLIGHT, KernelErrorCode.DEADLINE_EXCEEDED, true);
         }
 
-        // Step 2: Validate ResolvedRegistration identity and immutability
-        ResolvedRegistration resolved = validateRegistrationIdentity(command);
+        ResolvedRegistration resolved;
+        try {
+            resolved = validateRegistrationIdentity(command);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.EXECUTION_PREFLIGHT, KernelErrorCode.REGISTRATION_MISMATCH, false);
+        }
 
-        // Step 3: Validate capabilityId/planKind/raw subtype binding
         CapabilityRegistration<?, ?, ?> reg = resolved.registration();
-        validateBinding(command, reg);
+        try {
+            validateBinding(command, reg);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.EXECUTION_PREFLIGHT, KernelErrorCode.REGISTRATION_MISMATCH, false);
+        }
 
-        // Step 4: Authorization recheck — D02_03 port
-        Object execScope = executeAuthRecheck(command);
+        ExecutionScope execScope;
+        try {
+            execScope = authPort.recheck(command.planningResult().authorizationSnapshot(), command.handle());
+            if (!execScope.allowedCapabilityIds().contains(reg.definition().capabilityId())) {
+                return failure(ExecutionStage.AUTHORIZATION, KernelErrorCode.AUTHORIZATION_REVOKED, false);
+            }
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.AUTHORIZATION, KernelErrorCode.AUTHORIZATION_REVOKED, false);
+        }
 
-        // Step 5: Context currentness — D02_03 port
-        executeContextRevalidation(command);
+        try {
+            contextPort.revalidateAll(command.planningResult().contextSnapshots(),
+                    command.handle(), resolved, execScope);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.CONTEXT_VALIDATION, KernelErrorCode.CONTEXT_STALE, false);
+        }
 
-        // Step 6: Domain Mode + Adapter Execution Binding — D02_03 port
-        AgentDomainMode domainMode = reg.definition().domainMode();
-        Object adapterBinding = resolveBinding(reg, domainMode, execScope);
+        DomainResolution domainResolution;
+        try {
+            domainResolution = resolveBinding(command, resolved, reg, execScope);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.BINDING, KernelErrorCode.DOMAIN_BINDING_UNAVAILABLE, false);
+        }
 
-        // Step 7: Build ExecutionValidationContext
         ExecutionValidationContext valCtx = buildValidationContext(
-                command, reg, domainMode, execScope, adapterBinding);
+                command, reg, domainResolution.projection(), execScope, domainResolution.binding());
 
-        // Step 8: Invoke Validator
-        var handle = reg.validateRaw(
-                command.planningResult().rawPlan(), valCtx);
+        if (command.handle().isExpired(clock)) {
+            return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        }
 
-        // Step 9: Build ExecutionContext
-        ExecutionContext execCtx = buildExecutionContext(command, adapterBinding);
+        var handle = validatePlan(command, reg, valCtx);
+        if (handle == null) {
+            return failure(ExecutionStage.PLAN_VALIDATION, KernelErrorCode.PLAN_VALIDATION_FAILED, false);
+        }
 
-        // Step 10: Invoke Handler
-        var candidate = reg.executeValidated(handle, execCtx);
+        ExecutionContext execCtx = buildExecutionContext(command, domainResolution.binding());
 
-        // Step 11: Validate output type
-        reg.validateOutput(candidate.output());
+        if (command.handle().isExpired(clock)) {
+            return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        }
 
-        // Step 12: Result security + Context write approval — D02_03 ports
-        Object secured = executeResultSecurity(
-                candidate.output(), reg.definition().outputContract(), execScope);
-        List<Object> approvedWrites = executeContextApproval(candidate, reg, execScope);
+        HandlerCandidate candidate;
+        try {
+            candidate = reg.executeValidated(handle, execCtx);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.HANDLER, KernelErrorCode.HANDLER_FAILED, false);
+        }
 
-        // Step 13: Return success
-        return new ExecutionSuccess.Impl(secured, approvedWrites,
+        if (command.handle().isExpired(clock)) {
+            return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        }
+
+        try {
+            reg.validateOutput(candidate.output());
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.OUTPUT_VALIDATION, KernelErrorCode.OUTPUT_INVALID, false);
+        }
+
+        SecuredResult secured;
+        try {
+            secured = resultSecurityPort.secure(
+                    candidate.output(), reg.definition().outputContract(), execScope);
+            validateSecuredResult(secured, reg);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.RESULT_SECURITY, KernelErrorCode.RESULT_SECURITY_FAILED, false);
+        }
+
+        List<ApprovedContextWrite> approvedWrites;
+        try {
+            approvedWrites = contextApprovalPort.approve(candidate.contextWrites(),
+                    new ContextApprovalRequest(command.handle(), resolved, execScope,
+                            command.planningResult().contextSnapshots(), clock.instant()));
+            Objects.requireNonNull(approvedWrites, "approved context writes must not be null");
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.CONTEXT_APPROVAL, KernelErrorCode.CONTEXT_WRITE_CONFLICT, false);
+        }
+
+        return new ExecutionSuccess(secured, approvedWrites,
                 reg.definition().capabilityId(), reg.definition().planKind());
     }
 
     private ResolvedRegistration validateRegistrationIdentity(ExecutionCommand cmd) {
         var r = cmd.planningResult().resolvedRegistration();
-        if (!(r instanceof ResolvedRegistration)) {
-            return failBinding("registration identity check failed");
-        }
-        ResolvedRegistration reg = (ResolvedRegistration) r;
-        reg.validateIdentity();
-        return reg;
+        r.validateIdentity();
+        return r;
     }
 
     private void validateBinding(ExecutionCommand cmd, CapabilityRegistration<?, ?, ?> reg) {
         var raw = cmd.planningResult().rawPlan();
         if (!reg.rawPlanType().isInstance(raw)) {
-            failBinding("raw plan subtype mismatch");
+            throw new IllegalStateException("raw plan subtype mismatch");
+        }
+        if (!cmd.planningResult().capabilityId().equals(reg.definition().capabilityId())
+                || cmd.planningResult().planKind() != reg.definition().planKind()) {
+            throw new IllegalStateException("planning result/registration binding mismatch");
         }
     }
 
-    private Object executeAuthRecheck(ExecutionCommand cmd) {
-        // D02_03: return ((AuthorizationExecutionPort) authPort).recheck(
-        //     cmd.planningResult().authorizationSnapshot(), cmd.handle());
-        return new Object(); // placeholder
-    }
-
-    private void executeContextRevalidation(ExecutionCommand cmd) {
-        // D02_03: for each ContextSnapshot, revalidate owner/scope/schema/version/TTL
-    }
-
-    private Object resolveBinding(CapabilityRegistration<?, ?, ?> reg,
-                                   AgentDomainMode mode, Object scope) {
-        if (mode == AgentDomainMode.NONE) return null;
-        // D02_03: return ((DomainExecutionPort) domainPort).resolve(...);
-        return new Object(); // placeholder
+    private DomainResolution resolveBinding(ExecutionCommand cmd,
+                                            ResolvedRegistration resolved,
+                                            CapabilityRegistration<?, ?, ?> reg,
+                                            ExecutionScope scope) {
+        AgentDomainMode mode = reg.definition().domainMode();
+        var selectedDomain = cmd.planningResult().domain();
+        if (mode == AgentDomainMode.NONE) {
+            if (selectedDomain.isPresent()) {
+                throw new IllegalStateException("NONE domainMode must not have selected domain");
+            }
+            return new DomainResolution(null, ExecutionValidationProjection.none());
+        }
+        if (selectedDomain.isEmpty()) {
+            if (mode == AgentDomainMode.REQUIRED) {
+                throw new IllegalStateException("REQUIRED domainMode requires selected domain");
+            }
+            return new DomainResolution(null, ExecutionValidationProjection.none());
+        }
+        DomainExecutionResolution resolution = domainPort.resolve(
+                new DomainBindingRequest(resolved, selectedDomain.orElseThrow(),
+                        scope, cmd.handle().absoluteDeadline()));
+        return new DomainResolution(resolution.binding(), resolution.projection());
     }
 
     private ExecutionValidationContext buildValidationContext(
             ExecutionCommand cmd, CapabilityRegistration<?, ?, ?> reg,
-            AgentDomainMode mode, Object scope, Object binding) {
+            ExecutionValidationProjection projection, ExecutionScope scope, AdapterExecutionBinding binding) {
         return new ExecutionValidationContext(
                 reg.definition().capabilityId(),
                 reg.definition().planKind(),
-                mode,
+                reg.definition().domainMode(),
                 scope,
-                new Object(), // D02_03 projection placeholder
+                projection,
                 binding,
-                List.of(),    // D02_03 context snapshots
+                cmd.planningResult().contextSnapshots(),
                 cmd.handle().absoluteDeadline(),
                 cmd.cancellation());
     }
 
+    private com.dylan.agent.kernel.registration.ValidatedPlanHandle validatePlan(
+            ExecutionCommand cmd,
+            CapabilityRegistration<?, ?, ?> reg,
+            ExecutionValidationContext valCtx) {
+        try {
+            return reg.validateRaw(cmd.planningResult().rawPlan(), valCtx);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private void validateSecuredResult(SecuredResult secured,
+                                       CapabilityRegistration<?, ?, ?> reg) {
+        Objects.requireNonNull(secured, "secured result must not be null");
+        if (!secured.capabilityId().equals(reg.definition().capabilityId())
+                || secured.planKind() != reg.definition().planKind()
+                || !secured.outputContract().equals(reg.definition().outputContract())) {
+            throw new IllegalStateException("secured result binding mismatch");
+        }
+        reg.validateOutput(secured.candidateResult());
+    }
+
     private ExecutionContext buildExecutionContext(
-            ExecutionCommand cmd, Object binding) {
+            ExecutionCommand cmd, AdapterExecutionBinding binding) {
         return new ExecutionContext(
                 cmd.handle().invocationId(),
                 cmd.handle().subject(),
@@ -149,24 +251,15 @@ public final class ExecutionCore {
                 cmd.cancellation());
     }
 
-    private Object executeResultSecurity(
-            Object output, Object outputContract, Object scope) {
-        // D02_03: return ((ResultSecurityPort) resultSecurityPort).secure(...);
-        return output; // pass-through placeholder
-    }
-
-    private List<Object> executeContextApproval(
-            HandlerCandidate candidate, CapabilityRegistration<?, ?, ?> reg, Object scope) {
-        // D02_03: return ((ContextApprovalPort) contextApprovalPort).approve(...);
-        return List.of();
-    }
-
-    private ResolvedRegistration failBinding(String msg) {
-        // Return a failure outcome directly
-        throw new IllegalStateException("BINDING failure: " + msg);
+    private ExecutionFailure failure(ExecutionStage stage, KernelErrorCode errorCode, boolean cancelled) {
+        return new ExecutionFailure(stage, errorCode, diagnostics(), cancelled);
     }
 
     private String diagnostics() {
-        return "diag-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        return "diag-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private record DomainResolution(AdapterExecutionBinding binding,
+                                    ExecutionValidationProjection projection) {
     }
 }

@@ -1,5 +1,6 @@
 package com.dylan.agent.planning.model;
 
+import com.dylan.agent.api.contract.runtime.common.RuntimeTurnProjection;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 import com.dylan.agent.invocation.model.InvocationHandle;
 
@@ -19,14 +20,14 @@ public final class PlanningCommand {
 
     private final InvocationHandle handle;
     private final String userMessage;
-    private final List<Object> history; // List<RuntimeTurnProjection> after D03 D01 activation
+    private final List<RuntimeTurnProjection> history;
     private final AgentProfileRef agentProfileRef;
     private final Object delegationConstraintRef; // DelegationConstraintRef — CHAT uses none()
 
     public PlanningCommand(
             InvocationHandle handle,
             String userMessage,
-            List<Object> history,
+            List<RuntimeTurnProjection> history,
             AgentProfileRef agentProfileRef,
             Object delegationConstraintRef) {
         this.handle = Objects.requireNonNull(handle, "handle must not be null");
@@ -54,7 +55,7 @@ public final class PlanningCommand {
         return userMessage;
     }
 
-    public List<Object> history() {
+    public List<RuntimeTurnProjection> history() {
         return history;
     }
 

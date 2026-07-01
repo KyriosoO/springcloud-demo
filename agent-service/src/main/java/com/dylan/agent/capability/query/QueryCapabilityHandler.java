@@ -6,22 +6,33 @@ import com.dylan.agent.adapter.QueryableAdapterRegistry;
 import com.dylan.agent.adapter.api.AdapterQueryResult;
 import com.dylan.agent.adapter.api.AgentAdapterException;
 import com.dylan.agent.adapter.api.QueryableAdapter;
+import com.dylan.agent.adapter.api.query.ValidatedFilter;
+import com.dylan.agent.api.context.QueryCapabilityContextPayload;
+import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.enums.AgentIntent;
+import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.response.AgentQueryResult;
+import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.capability.AgentCapabilityHandler;
 import com.dylan.agent.capability.CapabilityExecutionContext;
 import com.dylan.agent.capability.CapabilityExecutionResult;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.capability.CapabilityValidationContext;
-import com.dylan.agent.capability.model.ValidatedQueryPlan;
 import com.dylan.agent.exception.AgentQueryException;
+import com.dylan.agent.kernel.core.ExecutionContext;
+import com.dylan.agent.kernel.handler.HandlerResult;
+import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
 import com.dylan.agent.result.AgentResultProcessor;
 import com.dylan.agent.security.AgentPermissionService;
+
+import java.util.List;
 
 /** QUERY 意图的能力处理器。validate() 委托 QueryPlanValidator，execute() 依次执行：权限校验 → Adapter 查找 → 查询执行 → 结果处理 → 消息构建 → 上下文持久化。Adapter 异常包装为 AgentQueryException。 */
 @Component
 public class QueryCapabilityHandler
-        implements AgentCapabilityHandler<ValidatedQueryPlan> {
+        implements AgentCapabilityHandler<com.dylan.agent.capability.model.ValidatedQueryPlan>,
+        com.dylan.agent.kernel.handler.CapabilityHandler<ValidatedQueryPlan, QueryAgentResultPayload> {
 
     private final QueryPlanValidator queryPlanValidator;
     private final AgentPermissionService permissionService;
@@ -50,14 +61,14 @@ public class QueryCapabilityHandler
     }
 
     @Override
-    public ValidatedQueryPlan validate(CapabilityValidationContext context) {
+    public com.dylan.agent.capability.model.ValidatedQueryPlan validate(CapabilityValidationContext context) {
         return queryPlanValidator.validate(context);
     }
 
     @Override
     public CapabilityExecutionResult execute(
             CapabilityExecutionContext context,
-            ValidatedQueryPlan plan) {
+            com.dylan.agent.capability.model.ValidatedQueryPlan plan) {
 
         permissionService.checkQuery(
                 context.userContext(),
@@ -89,5 +100,52 @@ public class QueryCapabilityHandler
                 QueryRuntimeContextFactory.toRuntimeQueryContext(
                         context.turnId(),
                         plan));
+    }
+
+    @Override
+    public HandlerResult<QueryAgentResultPayload> execute(
+            ValidatedQueryPlan plan,
+            ExecutionContext context) {
+        QueryableAdapter adapter = context.requireAdapter(QueryableAdapter.class);
+        AdapterQueryResult adapterResult = adapter.query(plan.query());
+        QueryAgentResultPayload payload = new QueryAgentResultPayload(
+                QueryParameterMapper.toQueryParameters(plan),
+                toKernelQueryResult(plan, adapterResult));
+        return HandlerResult.of(payload, List.of(toKernelContextWrite(plan)));
+    }
+
+    private static AgentQueryResult toKernelQueryResult(
+            ValidatedQueryPlan plan,
+            AdapterQueryResult adapterResult) {
+        AgentQueryResult result = new AgentQueryResult();
+        result.setColumns(plan.query().getSelectFields());
+        result.setRows(adapterResult.getRows());
+        result.setTotal(adapterResult.getTotal());
+        result.setTotalExact(adapterResult.isTotalExact());
+        result.setPage(adapterResult.getPage());
+        result.setSize(adapterResult.getSize());
+        return result;
+    }
+
+    private static ContextWriteCandidate toKernelContextWrite(ValidatedQueryPlan plan) {
+        return new ContextWriteCandidate(
+                RuntimeContextType.QUERY,
+                AgentExecutionContracts.QUERY_CONTEXT,
+                new QueryCapabilityContextPayload(
+                        plan.query().getFilters().stream()
+                                .map(QueryCapabilityHandler::toKernelAgentFilter)
+                                .toList(),
+                        plan.query().getSelectFields(),
+                        plan.query().getPage(),
+                        plan.query().getSize()));
+    }
+
+    private static AgentFilter toKernelAgentFilter(ValidatedFilter filter) {
+        AgentFilter agentFilter = new AgentFilter();
+        agentFilter.setField(filter.getField());
+        agentFilter.setOperator(filter.getOperator());
+        agentFilter.setValue(filter.getValue());
+        agentFilter.setValues(filter.getValues());
+        return agentFilter;
     }
 }

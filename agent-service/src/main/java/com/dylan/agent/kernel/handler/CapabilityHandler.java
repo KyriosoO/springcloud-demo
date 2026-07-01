@@ -10,5 +10,5 @@ import com.dylan.agent.kernel.core.ExecutionContext;
  * 作授权决定、二次选择 Adapter 或返回新 capabilityId/planKind。
  */
 public interface CapabilityHandler<V extends ValidatedPlan, O> {
-    O execute(V plan, ExecutionContext context);
+    HandlerResult<O> execute(V plan, ExecutionContext context);
 }

@@ -1,5 +1,7 @@
 package com.dylan.agent.kernel.core;
 
+import com.dylan.agent.adapter.api.AgentAdapterPort;
+import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.InvocationScope;
@@ -17,7 +19,7 @@ public final class ExecutionContext {
     private final ExecutionSubjectRef subject;
     private final ContextOwnerRef owner;
     private final InvocationScope scope;
-    private final Object adapterBinding; // AdapterExecutionBinding, nullable
+    private final AdapterExecutionBinding adapterBinding;
     private final Instant absoluteDeadline;
     private final Object cancellation; // CancellationToken
 
@@ -26,7 +28,7 @@ public final class ExecutionContext {
             ExecutionSubjectRef subject,
             ContextOwnerRef owner,
             InvocationScope scope,
-            Object adapterBinding,
+            AdapterExecutionBinding adapterBinding,
             Instant absoluteDeadline,
             Object cancellation) {
         this.invocationId = Objects.requireNonNull(invocationId);
@@ -42,22 +44,21 @@ public final class ExecutionContext {
     public ExecutionSubjectRef subject() { return subject; }
     public ContextOwnerRef owner() { return owner; }
     public InvocationScope scope() { return scope; }
-    public Optional<Object> adapterBinding() { return Optional.ofNullable(adapterBinding); }
+    public Optional<AdapterExecutionBinding> adapterBinding() { return Optional.ofNullable(adapterBinding); }
     public Instant absoluteDeadline() { return absoluteDeadline; }
     public Object cancellation() { return cancellation; }
 
     /** 只验证已绑定 port 类型，不查询 Registry、不按 domain 路由。 */
-    @SuppressWarnings("unchecked")
-    public <P> P requireAdapter(Class<P> portType) {
+    public <P extends AgentAdapterPort> P requireAdapter(Class<P> portType) {
         Objects.requireNonNull(portType);
         if (adapterBinding == null) {
             throw new IllegalStateException("no adapter binding available");
         }
-        if (!portType.isInstance(adapterBinding)) {
+        if (!portType.equals(adapterBinding.portType()) || !portType.isInstance(adapterBinding.port())) {
             throw new ClassCastException(
                     "adapter port type mismatch: expected " + portType.getSimpleName()
-                            + ", got " + adapterBinding.getClass().getSimpleName());
+                            + ", got " + adapterBinding.portType().getSimpleName());
         }
-        return (P) adapterBinding;
+        return portType.cast(adapterBinding.port());
     }
 }

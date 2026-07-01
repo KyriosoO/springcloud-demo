@@ -1,7 +1,11 @@
 package com.dylan.agent.planning.model;
 
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
+import com.dylan.agent.api.contract.runtime.common.RuntimeOperationType;
 import com.dylan.agent.api.contract.runtime.plan.AgentPlan;
+import com.dylan.agent.kernel.registration.ResolvedRegistration;
+import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
+import com.dylan.agent.metadata.context.model.ContextSnapshot;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,10 +27,10 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
     private final String capabilityId;
     private final Optional<String> domain;
     private final AgentPlanKind planKind;
-    private final Object resolvedRegistration; // ResolvedRegistration after D02_01
+    private final ResolvedRegistration resolvedRegistration;
     private final AgentPlan rawPlan;
-    private final Object authorizationSnapshot; // AuthorizationSnapshot after D02_03
-    private final List<Object> contextSnapshots; // List<ContextSnapshot> after D02_03
+    private final AuthorizationSnapshot authorizationSnapshot;
+    private final List<ContextSnapshot> contextSnapshots;
     private final PlanningOperationAudit routeAudit;
     private final PlanningOperationAudit planAudit;
     private final Instant absoluteDeadline;
@@ -34,7 +38,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
     private ExecutablePlanningResult(Builder builder) {
         this.requestCorrelationId = Objects.requireNonNull(builder.requestCorrelationId);
         this.capabilityId = Objects.requireNonNull(builder.capabilityId);
-        this.domain = Optional.ofNullable(builder.domain);
+        this.domain = Optional.ofNullable(normalizeDomain(builder.domain));
         this.planKind = Objects.requireNonNull(builder.planKind);
         this.resolvedRegistration = Objects.requireNonNull(builder.resolvedRegistration);
         this.rawPlan = Objects.requireNonNull(builder.rawPlan);
@@ -44,6 +48,39 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         this.routeAudit = Objects.requireNonNull(builder.routeAudit);
         this.planAudit = Objects.requireNonNull(builder.planAudit);
         this.absoluteDeadline = Objects.requireNonNull(builder.absoluteDeadline);
+        validateInvariants();
+    }
+
+    private void validateInvariants() {
+        resolvedRegistration.validateIdentity();
+        if (!capabilityId.equals(resolvedRegistration.capabilityId())) {
+            throw new IllegalArgumentException("capabilityId must match resolvedRegistration");
+        }
+        if (planKind != resolvedRegistration.planKind()) {
+            throw new IllegalArgumentException("planKind must match resolvedRegistration");
+        }
+        if (rawPlan.getPlanKind() != planKind) {
+            throw new IllegalArgumentException("rawPlan planKind must match planning result");
+        }
+        if (!resolvedRegistration.registration().rawPlanType().isInstance(rawPlan)) {
+            throw new IllegalArgumentException("rawPlan type must match resolvedRegistration");
+        }
+        if (routeAudit.operation() != RuntimeOperationType.ROUTE) {
+            throw new IllegalArgumentException("routeAudit must be ROUTE");
+        }
+        if (planAudit.operation() != RuntimeOperationType.PLAN) {
+            throw new IllegalArgumentException("planAudit must be PLAN");
+        }
+    }
+
+    private static String normalizeDomain(String domain) {
+        if (domain == null) {
+            return null;
+        }
+        if (domain.isBlank()) {
+            throw new IllegalArgumentException("domain must not be blank");
+        }
+        return domain.trim();
     }
 
     // ── PlanningResult ──
@@ -72,7 +109,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         return planKind;
     }
 
-    public Object resolvedRegistration() {
+    public ResolvedRegistration resolvedRegistration() {
         return resolvedRegistration;
     }
 
@@ -80,11 +117,11 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         return rawPlan;
     }
 
-    public Object authorizationSnapshot() {
+    public AuthorizationSnapshot authorizationSnapshot() {
         return authorizationSnapshot;
     }
 
-    public List<Object> contextSnapshots() {
+    public List<ContextSnapshot> contextSnapshots() {
         return contextSnapshots;
     }
 
@@ -107,10 +144,10 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         private String capabilityId;
         private String domain;
         private AgentPlanKind planKind;
-        private Object resolvedRegistration;
+        private ResolvedRegistration resolvedRegistration;
         private AgentPlan rawPlan;
-        private Object authorizationSnapshot;
-        private List<Object> contextSnapshots;
+        private AuthorizationSnapshot authorizationSnapshot;
+        private List<ContextSnapshot> contextSnapshots;
         private PlanningOperationAudit routeAudit;
         private PlanningOperationAudit planAudit;
         private Instant absoluteDeadline;
@@ -119,10 +156,10 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         public Builder capabilityId(String v) { this.capabilityId = v; return this; }
         public Builder domain(String v) { this.domain = v; return this; }
         public Builder planKind(AgentPlanKind v) { this.planKind = v; return this; }
-        public Builder resolvedRegistration(Object v) { this.resolvedRegistration = v; return this; }
+        public Builder resolvedRegistration(ResolvedRegistration v) { this.resolvedRegistration = v; return this; }
         public Builder rawPlan(AgentPlan v) { this.rawPlan = v; return this; }
-        public Builder authorizationSnapshot(Object v) { this.authorizationSnapshot = v; return this; }
-        public Builder contextSnapshots(List<Object> v) { this.contextSnapshots = v; return this; }
+        public Builder authorizationSnapshot(AuthorizationSnapshot v) { this.authorizationSnapshot = v; return this; }
+        public Builder contextSnapshots(List<ContextSnapshot> v) { this.contextSnapshots = v; return this; }
         public Builder routeAudit(PlanningOperationAudit v) { this.routeAudit = v; return this; }
         public Builder planAudit(PlanningOperationAudit v) { this.planAudit = v; return this; }
         public Builder absoluteDeadline(Instant v) { this.absoluteDeadline = v; return this; }

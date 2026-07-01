@@ -1,5 +1,8 @@
 package com.dylan.agent.kernel.port.model;
 
+import com.dylan.agent.api.contract.common.ContractRef;
+import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
+
 import java.util.Objects;
 
 /**
@@ -12,20 +15,20 @@ import java.util.Objects;
 public final class SecuredResult {
 
     private final String capabilityId;
-    private final Object planKind; // AgentPlanKind after D01 activation
-    private final String outputContractRef; // JSON Pointer from Registration
+    private final AgentPlanKind planKind;
+    private final ContractRef outputContract;
     private final Object candidateResult; // typed handler output
 
-    public SecuredResult(String capabilityId, Object planKind,
-                         String outputContractRef, Object candidateResult) {
+    public SecuredResult(String capabilityId, AgentPlanKind planKind,
+                         ContractRef outputContract, Object candidateResult) {
         this.capabilityId = Objects.requireNonNull(capabilityId);
         this.planKind = Objects.requireNonNull(planKind);
-        this.outputContractRef = Objects.requireNonNull(outputContractRef);
+        this.outputContract = Objects.requireNonNull(outputContract);
         this.candidateResult = Objects.requireNonNull(candidateResult);
     }
 
     public String capabilityId() { return capabilityId; }
-    public Object planKind() { return planKind; }
-    public String outputContractRef() { return outputContractRef; }
+    public AgentPlanKind planKind() { return planKind; }
+    public ContractRef outputContract() { return outputContract; }
     public Object candidateResult() { return candidateResult; }
 }

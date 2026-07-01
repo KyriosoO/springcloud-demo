@@ -1,5 +1,7 @@
 package com.dylan.agent.kernel.definition;
 
+import com.dylan.agent.adapter.api.AdapterRole;
+import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
@@ -22,7 +24,7 @@ public final class CapabilityDefinition {
     private final AgentPlanKind planKind;
     private final CapabilityRoutingDescriptor routingDescriptor;
     private final AgentDomainMode domainMode;
-    private final Optional<Object> adapterRole; // AdapterRole after D04
+    private final Optional<AdapterRole> adapterRole;
     private final AgentCapabilityRiskLevel riskLevel;
     private final AgentCapabilityExecutionMode executionMode;
     private final ContractRef inputContract;
@@ -69,7 +71,7 @@ public final class CapabilityDefinition {
     public AgentPlanKind planKind() { return planKind; }
     public CapabilityRoutingDescriptor routingDescriptor() { return routingDescriptor; }
     public AgentDomainMode domainMode() { return domainMode; }
-    public Optional<Object> adapterRole() { return adapterRole; }
+    public Optional<AdapterRole> adapterRole() { return adapterRole; }
     public AgentCapabilityRiskLevel riskLevel() { return riskLevel; }
     public AgentCapabilityExecutionMode executionMode() { return executionMode; }
     public ContractRef inputContract() { return inputContract; }
@@ -85,7 +87,7 @@ public final class CapabilityDefinition {
         private AgentPlanKind planKind;
         private CapabilityRoutingDescriptor routingDescriptor;
         private AgentDomainMode domainMode;
-        private Object adapterRole;
+        private AdapterRole adapterRole;
         private AgentCapabilityRiskLevel riskLevel;
         private AgentCapabilityExecutionMode executionMode;
         private ContractRef inputContract;
@@ -96,7 +98,7 @@ public final class CapabilityDefinition {
         public Builder planKind(AgentPlanKind v) { this.planKind = v; return this; }
         public Builder routingDescriptor(CapabilityRoutingDescriptor v) { this.routingDescriptor = v; return this; }
         public Builder domainMode(AgentDomainMode v) { this.domainMode = v; return this; }
-        public Builder adapterRole(Object v) { this.adapterRole = v; return this; }
+        public Builder adapterRole(AdapterRole v) { this.adapterRole = v; return this; }
         public Builder riskLevel(AgentCapabilityRiskLevel v) { this.riskLevel = v; return this; }
         public Builder executionMode(AgentCapabilityExecutionMode v) { this.executionMode = v; return this; }
         public Builder inputContract(ContractRef v) { this.inputContract = v; return this; }
