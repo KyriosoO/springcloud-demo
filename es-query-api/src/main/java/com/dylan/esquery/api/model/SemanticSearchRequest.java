@@ -30,6 +30,7 @@ public class SemanticSearchRequest {
 	 * 向量检索召回候选数量。
 	 */
 	private Integer numCandidates;
+	private Integer trackTotalHits;
 
 	public String getEmbeddingField() {
 		return embeddingField;
@@ -77,5 +78,13 @@ public class SemanticSearchRequest {
 
 	public void setNumCandidates(Integer numCandidates) {
 		this.numCandidates = numCandidates;
+	}
+
+	public Integer getTrackTotalHits() {
+		return trackTotalHits;
+	}
+
+	public void setTrackTotalHits(Integer trackTotalHits) {
+		this.trackTotalHits = trackTotalHits;
 	}
 }

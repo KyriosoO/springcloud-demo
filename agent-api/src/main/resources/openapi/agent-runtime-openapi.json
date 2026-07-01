@@ -1,0 +1,732 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Agent Runtime API",
+    "description" : "Agent Runtime plan generation API contract. Auto-generated from agent-api DTO annotations. DO NOT EDIT.",
+    "version" : "1.0"
+  },
+  "components" : {
+    "schemas" : {
+      "AgentAggregateSpec" : {
+        "required" : [ "metrics" ],
+        "type" : "object",
+        "properties" : {
+          "filters" : {
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "预聚合过滤条件列表",
+            "nullable" : true,
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            }
+          },
+          "groupByFields" : {
+            "maxItems" : 2,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "分组字段列表",
+            "nullable" : true,
+            "items" : {
+              "minLength" : 1,
+              "type" : "string",
+              "description" : "分组字段列表",
+              "nullable" : true
+            }
+          },
+          "maxRows" : {
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "全局最多返回行数上限",
+            "format" : "int32"
+          },
+          "metrics" : {
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "聚合指标列表，至少 1 个",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateMetricSpec"
+            }
+          },
+          "orderBy" : {
+            "type" : "array",
+            "description" : "结果排序列表，field 必须来自 groupByFields 或 metric alias",
+            "nullable" : true,
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateOrderSpec"
+            }
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "AGGREGATE 计划的聚合规格"
+      },
+      "AgentCapabilityDescriptor" : {
+        "required" : [ "capabilityId", "context", "description", "displayName", "domainScopes", "enabled", "executionMode", "inputContract", "intent", "outputContract", "riskLevel" ],
+        "type" : "object",
+        "properties" : {
+          "capabilityId" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "稳定能力 ID，例如 query.search"
+          },
+          "context" : {
+            "$ref" : "#/components/schemas/CapabilityContextSpec"
+          },
+          "description" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "能力说明"
+          },
+          "displayName" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "给 Runtime/prompt 使用的短名称"
+          },
+          "domainScopes" : {
+            "type" : "array",
+            "description" : "支持的 domain scope。不绑定 domain 的能力使用空列表，例如 clarify.ask",
+            "items" : {
+              "$ref" : "#/components/schemas/CapabilityDomainScope"
+            }
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "description" : "是否当前可用"
+          },
+          "executionMode" : {
+            "type" : "string",
+            "description" : "Capability 执行模式",
+            "enum" : [ "IMMEDIATE" ]
+          },
+          "inputContract" : {
+            "$ref" : "#/components/schemas/CapabilityContractRef"
+          },
+          "intent" : {
+            "type" : "string",
+            "description" : "Agent 顶层意图：QUERY（查询）、CLARIFY（反问澄清）、AGGREGATE（聚合分析）",
+            "enum" : [ "QUERY", "CLARIFY", "AGGREGATE" ]
+          },
+          "outputContract" : {
+            "$ref" : "#/components/schemas/CapabilityContractRef"
+          },
+          "permissions" : {
+            "type" : "array",
+            "description" : "权限说明，不下发具体角色",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "权限说明，不下发具体角色",
+              "nullable" : true
+            }
+          },
+          "riskLevel" : {
+            "type" : "string",
+            "description" : "Capability 风险等级",
+            "enum" : [ "READ_ONLY" ]
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Agent capability descriptor"
+      },
+      "AgentCapabilityExecutionMode" : {
+        "type" : "string",
+        "description" : "Capability 执行模式",
+        "enum" : [ "IMMEDIATE" ]
+      },
+      "AgentCapabilityRiskLevel" : {
+        "type" : "string",
+        "description" : "Capability 风险等级",
+        "enum" : [ "READ_ONLY" ]
+      },
+      "AgentErrorCode" : {
+        "type" : "string",
+        "description" : "Agent 统一错误码",
+        "enum" : [ "AGENT_INVALID_REQUEST", "AGENT_CONVERSATION_NOT_FOUND", "AGENT_INTENT_FORBIDDEN", "AGENT_FIELD_FORBIDDEN", "AGENT_OPERATOR_FORBIDDEN", "AGENT_PLAN_INVALID", "AGENT_RUNTIME_UNAVAILABLE", "AGENT_QUERY_FAILED", "AGENT_INTERNAL_ERROR" ]
+      },
+      "AgentFieldType" : {
+        "type" : "string",
+        "description" : "字段数据类型：STRING（字符串）、DECIMAL（数值）、INSTANT（时间戳）",
+        "enum" : [ "STRING", "DECIMAL", "INSTANT" ]
+      },
+      "AgentFilter" : {
+        "required" : [ "field", "operator" ],
+        "type" : "object",
+        "properties" : {
+          "field" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "字段名"
+          },
+          "operator" : {
+            "type" : "string",
+            "description" : "查询操作符：EQ/CONTAINS/STARTS_WITH（单值）、IN/CONTAINS_ANY/STARTS_WITH_ANY（多值）、GT/LT（范围）",
+            "enum" : [ "EQ", "CONTAINS", "CONTAINS_ANY", "STARTS_WITH", "STARTS_WITH_ANY", "IN", "GT", "LT" ]
+          },
+          "value" : {
+            "type" : "string",
+            "description" : "单值/范围操作符的值",
+            "nullable" : true
+          },
+          "values" : {
+            "type" : "array",
+            "description" : "多值操作符的值列表",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "多值操作符的值列表",
+              "nullable" : true
+            }
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "查询过滤条件。多值操作符使用 values，单值/范围操作符使用 value"
+      },
+      "AgentIntent" : {
+        "type" : "string",
+        "description" : "Agent 顶层意图：QUERY（查询）、CLARIFY（反问澄清）、AGGREGATE（聚合分析）",
+        "enum" : [ "QUERY", "CLARIFY", "AGGREGATE" ]
+      },
+      "AgentOperator" : {
+        "type" : "string",
+        "description" : "查询操作符：EQ/CONTAINS/STARTS_WITH（单值）、IN/CONTAINS_ANY/STARTS_WITH_ANY（多值）、GT/LT（范围）",
+        "enum" : [ "EQ", "CONTAINS", "CONTAINS_ANY", "STARTS_WITH", "STARTS_WITH_ANY", "IN", "GT", "LT" ]
+      },
+      "AgentPlan" : {
+        "required" : [ "intent", "planVersion" ],
+        "type" : "object",
+        "properties" : {
+          "aggregate" : {
+            "$ref" : "#/components/schemas/AgentAggregateSpec"
+          },
+          "clarify" : {
+            "$ref" : "#/components/schemas/ClarifySpec"
+          },
+          "domain" : {
+            "type" : "string",
+            "description" : "目标业务域",
+            "nullable" : true
+          },
+          "intent" : {
+            "type" : "string",
+            "description" : "Agent 顶层意图：QUERY（查询）、CLARIFY（反问澄清）、AGGREGATE（聚合分析）",
+            "enum" : [ "QUERY", "CLARIFY", "AGGREGATE" ]
+          },
+          "planVersion" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "契约版本号",
+            "enum" : [ "1.0" ]
+          },
+          "query" : {
+            "$ref" : "#/components/schemas/AgentQuerySpec"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Runtime 输出的候选结构化计划"
+      },
+      "AgentQuerySpec" : {
+        "type" : "object",
+        "properties" : {
+          "contextMode" : {
+            "type" : "string",
+            "description" : "查询上下文模式：REPLACE（独立新查询）或 MERGE（在上轮结果上增量修改）",
+            "nullable" : true,
+            "enum" : [ "REPLACE", "MERGE" ]
+          },
+          "filters" : {
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "过滤条件列表",
+            "nullable" : true,
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            }
+          },
+          "page" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "分页页码，从 1 开始",
+            "format" : "int32"
+          },
+          "removeFields" : {
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "待移除的字段列表（MERGE 模式使用）",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "待移除的字段列表（MERGE 模式使用）",
+              "nullable" : true
+            }
+          },
+          "selectFields" : {
+            "maxItems" : 10,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "指定返回字段列表，最多 10 个",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "指定返回字段列表，最多 10 个",
+              "nullable" : true
+            }
+          },
+          "size" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "每页大小，1~100",
+            "format" : "int32"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "QUERY 计划的查询规格，描述过滤条件、返回字段和分页参数"
+      },
+      "AgentResponseType" : {
+        "type" : "string",
+        "description" : "Agent 聊天响应类型",
+        "enum" : [ "RESULT", "CLARIFY", "AGGREGATE_RESULT", "ERROR" ]
+      },
+      "AggregateFunction" : {
+        "type" : "string",
+        "description" : "聚合函数：COUNT（计数）、SUM（求和）、AVG（平均值）、MIN（最小值）、MAX（最大值）",
+        "enum" : [ "COUNT", "SUM", "AVG", "MIN", "MAX" ]
+      },
+      "AggregateMetricSpec" : {
+        "required" : [ "alias", "function" ],
+        "type" : "object",
+        "properties" : {
+          "alias" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string",
+            "description" : "指标别名，结果集中使用，必须唯一"
+          },
+          "field" : {
+            "type" : "string",
+            "description" : "目标字段名，COUNT 时为 null",
+            "nullable" : true
+          },
+          "function" : {
+            "type" : "string",
+            "description" : "聚合函数：COUNT（计数）、SUM（求和）、AVG（平均值）、MIN（最小值）、MAX（最大值）",
+            "enum" : [ "COUNT", "SUM", "AVG", "MIN", "MAX" ]
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "聚合指标规格"
+      },
+      "AggregateOrderSpec" : {
+        "required" : [ "direction", "field" ],
+        "type" : "object",
+        "properties" : {
+          "direction" : {
+            "minLength" : 1,
+            "pattern" : "^(ASC|DESC)$",
+            "type" : "string",
+            "description" : "排序方向",
+            "enum" : [ "ASC", "DESC" ]
+          },
+          "field" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "排序字段名，来自 groupByFields 或 metric alias"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "聚合结果排序规格"
+      },
+      "CapabilityContextSpec" : {
+        "type" : "object",
+        "properties" : {
+          "reads" : {
+            "type" : "array",
+            "description" : "读取的上下文键，例如 previousQuery",
+            "items" : {
+              "type" : "string",
+              "description" : "读取的上下文键，例如 previousQuery"
+            }
+          },
+          "writes" : {
+            "type" : "array",
+            "description" : "写入的上下文键，例如 RuntimeQueryContext、RuntimeAggregateContext",
+            "items" : {
+              "type" : "string",
+              "description" : "写入的上下文键，例如 RuntimeQueryContext、RuntimeAggregateContext"
+            }
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Capability 上下文读写声明"
+      },
+      "CapabilityContractRef" : {
+        "required" : [ "schema", "version" ],
+        "type" : "object",
+        "properties" : {
+          "schema" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "契约逻辑名，例如 AgentPlan.query、AgentPlan.aggregate、ClarifySpec、AgentQueryResult、AgentAggregateResult"
+          },
+          "version" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "契约版本号"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Capability 输入/输出契约引用"
+      },
+      "CapabilityDomainScope" : {
+        "required" : [ "domain", "enabled" ],
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "业务域，例如 employee、transaction"
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "description" : "当前 capability 在该 domain 是否可用"
+          },
+          "reasonCode" : {
+            "type" : "string",
+            "description" : "不可用原因或状态原因，当前仅用于后续扩展",
+            "nullable" : true
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Capability 在单个 domain 上的可用范围"
+      },
+      "ClarifySpec" : {
+        "required" : [ "question" ],
+        "type" : "object",
+        "properties" : {
+          "question" : {
+            "maxLength" : 500,
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "反问问题文本，1~500 字符"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "CLARIFY 计划的追问规格"
+      },
+      "PlanGenerateRequest" : {
+        "required" : [ "capabilities", "domainSchemas", "message", "requestId" ],
+        "type" : "object",
+        "properties" : {
+          "capabilities" : {
+            "type" : "array",
+            "description" : "当前请求可用的 Agent capability 列表",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentCapabilityDescriptor"
+            }
+          },
+          "domainSchemas" : {
+            "maxItems" : 2147483647,
+            "minItems" : 1,
+            "type" : "array",
+            "description" : "领域 schema 列表",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeDomainSchema"
+            }
+          },
+          "message" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "用户消息文本"
+          },
+          "previousQuery" : {
+            "$ref" : "#/components/schemas/RuntimeQueryContext"
+          },
+          "recentTurns" : {
+            "maxItems" : 6,
+            "minItems" : 0,
+            "type" : "array",
+            "description" : "最近对话轮次（最多 6 轮）",
+            "nullable" : true,
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeTurn"
+            }
+          },
+          "requestId" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "请求 ID"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "发送给 Runtime 的 plan 生成请求"
+      },
+      "PlanGenerateResponse" : {
+        "required" : [ "requestId" ],
+        "type" : "object",
+        "properties" : {
+          "plan" : {
+            "$ref" : "#/components/schemas/AgentPlan"
+          },
+          "requestId" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "请求 ID"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Runtime plan 生成响应"
+      },
+      "QueryContextMode" : {
+        "type" : "string",
+        "description" : "查询上下文模式：REPLACE（独立新查询）或 MERGE（在上轮结果上增量修改）",
+        "enum" : [ "REPLACE", "MERGE" ]
+      },
+      "RuntimeAggregateContext" : {
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "type" : "string"
+          },
+          "filters" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            }
+          },
+          "groupByFields" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "maxRows" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "metrics" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateMetricSpec"
+            }
+          },
+          "sourceTurnId" : {
+            "type" : "string"
+          }
+        },
+        "additionalProperties" : false
+      },
+      "RuntimeDomainSchema" : {
+        "required" : [ "domain", "fields" ],
+        "type" : "object",
+        "properties" : {
+          "aliases" : {
+            "type" : "array",
+            "description" : "域别名列表",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "域别名列表",
+              "nullable" : true
+            }
+          },
+          "defaultSelectFields" : {
+            "type" : "array",
+            "description" : "默认展示字段",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "默认展示字段",
+              "nullable" : true
+            }
+          },
+          "defaultSize" : {
+            "type" : "integer",
+            "description" : "默认分页大小",
+            "format" : "int32"
+          },
+          "domain" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "域标识"
+          },
+          "fields" : {
+            "minItems" : 1,
+            "type" : "array",
+            "description" : "字段 schema 列表",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeFieldSchema"
+            }
+          },
+          "maxFilters" : {
+            "type" : "integer",
+            "description" : "最大过滤条件数",
+            "format" : "int32"
+          },
+          "maxResultWindow" : {
+            "type" : "integer",
+            "description" : "最大结果窗口",
+            "format" : "int32"
+          },
+          "maxSize" : {
+            "type" : "integer",
+            "description" : "最大分页大小",
+            "format" : "int32"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "域 schema 定义，包含字段列表、默认展示字段和分页/过滤上限"
+      },
+      "RuntimeErrorResponse" : {
+        "required" : [ "code", "message" ],
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "错误码"
+          },
+          "message" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "错误消息"
+          },
+          "requestId" : {
+            "type" : "string",
+            "description" : "关联的请求 ID",
+            "nullable" : true
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "Runtime 错误响应"
+      },
+      "RuntimeFieldSchema" : {
+        "required" : [ "name", "operators", "type" ],
+        "type" : "object",
+        "properties" : {
+          "aliases" : {
+            "type" : "array",
+            "description" : "字段别名",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "字段别名",
+              "nullable" : true
+            }
+          },
+          "formatHint" : {
+            "type" : "string",
+            "description" : "格式提示（如 ISO-8601 datetime with timezone）",
+            "nullable" : true
+          },
+          "name" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "字段名"
+          },
+          "operators" : {
+            "type" : "array",
+            "description" : "允许的操作符列表",
+            "items" : {
+              "type" : "string",
+              "description" : "查询操作符：EQ/CONTAINS/STARTS_WITH（单值）、IN/CONTAINS_ANY/STARTS_WITH_ANY（多值）、GT/LT（范围）",
+              "enum" : [ "EQ", "CONTAINS", "CONTAINS_ANY", "STARTS_WITH", "STARTS_WITH_ANY", "IN", "GT", "LT" ]
+            }
+          },
+          "supportedAggregateFunctions" : {
+            "type" : "array",
+            "description" : "支持的聚合函数列表。null 表示无 adapter（不应推断为完全允许），[] 表示仅允许 COUNT",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "聚合函数：COUNT（计数）、SUM（求和）、AVG（平均值）、MIN（最小值）、MAX（最大值）",
+              "nullable" : true,
+              "enum" : [ "COUNT", "SUM", "AVG", "MIN", "MAX" ]
+            }
+          },
+          "type" : {
+            "type" : "string",
+            "description" : "字段数据类型：STRING（字符串）、DECIMAL（数值）、INSTANT（时间戳）",
+            "enum" : [ "STRING", "DECIMAL", "INSTANT" ]
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "字段 schema，包含别名、允许操作符、数据类型和聚合函数白名单"
+      },
+      "RuntimeQueryContext" : {
+        "required" : [ "domain", "sourceTurnId" ],
+        "type" : "object",
+        "properties" : {
+          "domain" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "查询域"
+          },
+          "filters" : {
+            "type" : "array",
+            "description" : "上轮过滤条件",
+            "nullable" : true,
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            }
+          },
+          "page" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "上轮页码",
+            "format" : "int32"
+          },
+          "selectFields" : {
+            "type" : "array",
+            "description" : "上轮返回字段",
+            "nullable" : true,
+            "items" : {
+              "type" : "string",
+              "description" : "上轮返回字段",
+              "nullable" : true
+            }
+          },
+          "size" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "上轮分页大小",
+            "format" : "int32"
+          },
+          "sourceTurnId" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "来源 turn ID"
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "上轮成功查询的上下文，传递回 Runtime 用于 MERGE 判断"
+      },
+      "RuntimeRole" : {
+        "type" : "string",
+        "description" : "对话角色：USER 或 ASSISTANT",
+        "enum" : [ "USER", "ASSISTANT" ]
+      },
+      "RuntimeTurn" : {
+        "required" : [ "content", "role" ],
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "minLength" : 1,
+            "type" : "string",
+            "description" : "内容文本"
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "对话角色：USER 或 ASSISTANT",
+            "enum" : [ "USER", "ASSISTANT" ]
+          }
+        },
+        "additionalProperties" : false,
+        "description" : "对话轮次摘要"
+      }
+    }
+  }
+}

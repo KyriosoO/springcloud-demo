@@ -1,0 +1,202 @@
+package com.dylan.agent.config;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import com.dylan.agent.api.enums.AgentFieldType;
+import com.dylan.agent.api.enums.AgentIntent;
+import com.dylan.agent.api.enums.AgentOperator;
+import com.dylan.agent.model.MaskType;
+
+/**
+ * Agent 所有配置，以 agent 为前缀。
+ * 字段策略是查询权限、输出过滤和脱敏的统一事实来源。
+ */
+@ConfigurationProperties(prefix = "agent")
+public class AgentProperties {
+
+    private Map<AgentIntent, Set<String>> intentRoles;
+    private RuntimeProperties runtime;
+    private ConversationProperties conversation;
+    private QueryProperties query;
+    private AggregateProperties aggregate;
+    private Map<String, DomainProperties> domains;
+
+    public Map<AgentIntent, Set<String>> getIntentRoles() {
+        return intentRoles;
+    }
+
+    public void setIntentRoles(Map<AgentIntent, Set<String>> intentRoles) {
+        this.intentRoles = intentRoles;
+    }
+
+    public RuntimeProperties getRuntime() {
+        return runtime;
+    }
+
+    public void setRuntime(RuntimeProperties runtime) {
+        this.runtime = runtime;
+    }
+
+    public ConversationProperties getConversation() {
+        return conversation;
+    }
+
+    public void setConversation(ConversationProperties conversation) {
+        this.conversation = conversation;
+    }
+
+    public QueryProperties getQuery() {
+        return query;
+    }
+
+    public void setQuery(QueryProperties query) {
+        this.query = query;
+    }
+
+    public AggregateProperties getAggregate() {
+        return aggregate;
+    }
+
+    public void setAggregate(AggregateProperties aggregate) {
+        this.aggregate = aggregate;
+    }
+
+    public Map<String, DomainProperties> getDomains() {
+        return domains;
+    }
+
+    public void setDomains(Map<String, DomainProperties> domains) {
+        this.domains = domains;
+    }
+
+    /** Runtime 连接配置 */
+    public static class RuntimeProperties {
+        private String baseUrl;
+        private Duration connectTimeout;
+        private Duration readTimeout;
+        private int maxResponseBytes;
+        private String sharedKey;
+
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public Duration getConnectTimeout() { return connectTimeout; }
+        public void setConnectTimeout(Duration connectTimeout) { this.connectTimeout = connectTimeout; }
+        public Duration getReadTimeout() { return readTimeout; }
+        public void setReadTimeout(Duration readTimeout) { this.readTimeout = readTimeout; }
+        public int getMaxResponseBytes() { return maxResponseBytes; }
+        public void setMaxResponseBytes(int maxResponseBytes) { this.maxResponseBytes = maxResponseBytes; }
+        public String getSharedKey() { return sharedKey; }
+        public void setSharedKey(String sharedKey) { this.sharedKey = sharedKey; }
+    }
+
+    /** Conversation 配置 */
+    public static class ConversationProperties {
+        private int recentTurnLimit;
+        private int retentionDays;
+        private Duration cleanupDelay;
+
+        public int getRecentTurnLimit() { return recentTurnLimit; }
+        public void setRecentTurnLimit(int recentTurnLimit) { this.recentTurnLimit = recentTurnLimit; }
+        public int getRetentionDays() { return retentionDays; }
+        public void setRetentionDays(int retentionDays) { this.retentionDays = retentionDays; }
+        public Duration getCleanupDelay() { return cleanupDelay; }
+        public void setCleanupDelay(Duration cleanupDelay) { this.cleanupDelay = cleanupDelay; }
+    }
+
+    /** Query 约束配置 */
+    public static class QueryProperties {
+        private int defaultSize;
+        private int maxSize;
+        private int maxResultWindow;
+        private int maxFilters;
+        private int maxInValues;
+        private int maxFilterValueLength;
+        private int maxDownstreamResponseBytes;
+
+        public int getDefaultSize() { return defaultSize; }
+        public void setDefaultSize(int defaultSize) { this.defaultSize = defaultSize; }
+        public int getMaxSize() { return maxSize; }
+        public void setMaxSize(int maxSize) { this.maxSize = maxSize; }
+        public int getMaxResultWindow() { return maxResultWindow; }
+        public void setMaxResultWindow(int maxResultWindow) { this.maxResultWindow = maxResultWindow; }
+        public int getMaxFilters() { return maxFilters; }
+        public void setMaxFilters(int maxFilters) { this.maxFilters = maxFilters; }
+        public int getMaxInValues() { return maxInValues; }
+        public void setMaxInValues(int maxInValues) { this.maxInValues = maxInValues; }
+        public int getMaxFilterValueLength() { return maxFilterValueLength; }
+        public void setMaxFilterValueLength(int maxFilterValueLength) { this.maxFilterValueLength = maxFilterValueLength; }
+        public int getMaxDownstreamResponseBytes() { return maxDownstreamResponseBytes; }
+        public void setMaxDownstreamResponseBytes(int maxDownstreamResponseBytes) { this.maxDownstreamResponseBytes = maxDownstreamResponseBytes; }
+    }
+
+    /** Domain 级配置 */
+    public static class DomainProperties {
+        private Set<String> accessRoles;
+        private List<String> aliases;
+        private List<String> defaultSelectFields;
+        private Map<String, FieldProperties> fields;
+
+        public Set<String> getAccessRoles() { return accessRoles; }
+        public void setAccessRoles(Set<String> accessRoles) { this.accessRoles = accessRoles; }
+        public List<String> getAliases() { return aliases; }
+        public void setAliases(List<String> aliases) { this.aliases = aliases; }
+        public List<String> getDefaultSelectFields() { return defaultSelectFields; }
+        public void setDefaultSelectFields(List<String> defaultSelectFields) { this.defaultSelectFields = defaultSelectFields; }
+        public Map<String, FieldProperties> getFields() { return fields; }
+        public void setFields(Map<String, FieldProperties> fields) { this.fields = fields; }
+    }
+
+    /** 字段级配置 */
+    public static class FieldProperties {
+        private List<String> aliases;
+        private AgentFieldType type;
+        private String formatHint;
+        private Integer decimalPrecision;
+        private Integer decimalScale;
+        private Set<AgentOperator> operators;
+        private Set<String> filterRoles;
+        private Set<String> displayRoles;
+        private MaskType mask;
+
+        public List<String> getAliases() { return aliases; }
+        public void setAliases(List<String> aliases) { this.aliases = aliases; }
+        public AgentFieldType getType() { return type; }
+        public void setType(AgentFieldType type) { this.type = type; }
+        public String getFormatHint() { return formatHint; }
+        public void setFormatHint(String formatHint) { this.formatHint = formatHint; }
+        public Integer getDecimalPrecision() { return decimalPrecision; }
+        public void setDecimalPrecision(Integer decimalPrecision) { this.decimalPrecision = decimalPrecision; }
+        public Integer getDecimalScale() { return decimalScale; }
+        public void setDecimalScale(Integer decimalScale) { this.decimalScale = decimalScale; }
+        public Set<AgentOperator> getOperators() { return operators; }
+        public void setOperators(Set<AgentOperator> operators) { this.operators = operators; }
+        public Set<String> getFilterRoles() { return filterRoles; }
+        public void setFilterRoles(Set<String> filterRoles) { this.filterRoles = filterRoles; }
+        public Set<String> getDisplayRoles() { return displayRoles; }
+        public void setDisplayRoles(Set<String> displayRoles) { this.displayRoles = displayRoles; }
+        public MaskType getMask() { return mask; }
+        public void setMask(MaskType mask) { this.mask = mask; }
+    }
+
+    /** 聚合配置 */
+    public static class AggregateProperties {
+        private int maxMetrics = 5;
+        private int maxGroupFields = 2;
+        private int defaultMaxRows = 20;
+        private int maxMaxRows = 100;
+
+        public int getMaxMetrics() { return maxMetrics; }
+        public void setMaxMetrics(int maxMetrics) { this.maxMetrics = maxMetrics; }
+        public int getMaxGroupFields() { return maxGroupFields; }
+        public void setMaxGroupFields(int maxGroupFields) { this.maxGroupFields = maxGroupFields; }
+        public int getDefaultMaxRows() { return defaultMaxRows; }
+        public void setDefaultMaxRows(int defaultMaxRows) { this.defaultMaxRows = defaultMaxRows; }
+        public int getMaxMaxRows() { return maxMaxRows; }
+        public void setMaxMaxRows(int maxMaxRows) { this.maxMaxRows = maxMaxRows; }
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "outcomeType": "EXECUTABLE",
+  "requestId": "plan-002",
+  "plan": {
+    "planKind": "AGGREGATE",
+    "aggregate": {
+      "filters": [],
+      "metrics": [{"alias": "count", "function": "COUNT", "field": null}],
+      "groupByFields": ["department"],
+      "orderBy": [],
+      "maxRows": 100
+    }
+  },
+  "metadata": {
+    "operation": "PLAN", "providerAttempts": 1, "repairAttempts": 0,
+    "repairDurationMs": 0, "totalDurationMs": 230,
+    "terminationReason": "COMPLETED",
+    "deadlineReached": false, "repairLimitReached": false
+  }
+}

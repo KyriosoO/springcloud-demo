@@ -1,0 +1,12 @@
+{
+  "requestId": "turn-amb-001",
+  "plan": {
+    "planVersion": "1.0",
+    "intent": "CLARIFY",
+    "domain": null,
+    "query": null,
+    "clarify": {
+      "question": "无法判断你要查询员工还是交易，请说明查询的业务域以及具体条件。"
+    }
+  }
+}

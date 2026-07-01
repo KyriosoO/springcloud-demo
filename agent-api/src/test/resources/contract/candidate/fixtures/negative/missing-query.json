@@ -1,0 +1,8 @@
+{
+  "outcomeType": "EXECUTABLE",
+  "requestId": "neg-004",
+  "plan": {"planKind": "QUERY", "query": null},
+  "metadata": {"operation": "PLAN", "providerAttempts": 1, "repairAttempts": 0,
+    "repairDurationMs": 0, "totalDurationMs": 10, "terminationReason": "COMPLETED",
+    "deadlineReached": false, "repairLimitReached": false}
+}

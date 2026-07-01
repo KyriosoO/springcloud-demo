@@ -1,0 +1,27 @@
+{
+  "requestId": "flow-001",
+  "contractVersion": "1.0.0",
+  "message": "查询姓名包含张的员工",
+  "history": [{"role": "USER", "content": "查询员工"}],
+  "profileBehavior": {"instructions": ["信息不足时请求澄清"], "locale": "zh-CN"},
+  "capabilities": [{
+    "capabilityId": "query.search",
+    "planKind": "QUERY",
+    "description": "查询结构化业务记录",
+    "applicability": ["用户要求检索记录"],
+    "exclusions": ["不执行写操作"],
+    "domainMode": "REQUIRED",
+    "allowedDomains": ["employee", "transaction"]
+  }],
+  "domains": [{
+    "domain": "employee",
+    "aliases": ["员工"],
+    "description": "员工主数据"
+  }, {
+    "domain": "transaction",
+    "aliases": ["交易"],
+    "description": "交易记录"
+  }],
+  "absoluteDeadline": "2099-01-01T00:00:00Z",
+  "repairLimit": 1
+}

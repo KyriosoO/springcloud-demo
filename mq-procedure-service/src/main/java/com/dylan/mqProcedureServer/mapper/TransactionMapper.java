@@ -12,7 +12,17 @@ import com.dylan.transaction.api.model.Transaction;
 public interface TransactionMapper {
 	public List<Transaction> fetchAll();
 
-	public List<Transaction> query(Transaction condition);
+	public Transaction findByCondition(Transaction condition);
+
+
+	public List<Transaction> query(
+			@Param("condition") Transaction condition,
+			@Param("offset") Integer offset,
+			@Param("size") Integer size);
+
+	public long countUpTo(
+			@Param("condition") Transaction condition,
+			@Param("limit") int limit);
 
 	public Map<String, Object> aggregate(Transaction condition);
 
@@ -33,5 +43,4 @@ public interface TransactionMapper {
 
 	public int deleteByTransId(String transId);
 
-	public Transaction findByTransId(String transId);
 }

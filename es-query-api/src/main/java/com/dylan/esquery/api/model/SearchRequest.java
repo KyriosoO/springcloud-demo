@@ -30,10 +30,6 @@ public class SearchRequest {
 	 * 聚合条件。
 	 */
 	private SearchAggregate aggregate;
-	/**
-	 * 是否精确统计命中总数。
-	 */
-	private Boolean trackTotalHits;
 
 	public String getKeyword() {
 		return keyword;
@@ -83,11 +79,4 @@ public class SearchRequest {
 		this.aggregate = aggregate;
 	}
 
-	public Boolean getTrackTotalHits() {
-		return trackTotalHits;
-	}
-
-	public void setTrackTotalHits(Boolean trackTotalHits) {
-		this.trackTotalHits = trackTotalHits;
-	}
 }

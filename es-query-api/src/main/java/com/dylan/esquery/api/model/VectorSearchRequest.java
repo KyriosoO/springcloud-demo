@@ -10,6 +10,7 @@ public class VectorSearchRequest {
 	private List<Double> queryVector;
 	private Integer k;
 	private Integer numCandidates;
+	private Integer trackTotalHits;
 
 	public String getEmbeddingField() {
 		return embeddingField;
@@ -41,5 +42,13 @@ public class VectorSearchRequest {
 
 	public void setNumCandidates(Integer numCandidates) {
 		this.numCandidates = numCandidates;
+	}
+
+	public Integer getTrackTotalHits() {
+		return trackTotalHits;
+	}
+
+	public void setTrackTotalHits(Integer trackTotalHits) {
+		this.trackTotalHits = trackTotalHits;
 	}
 }

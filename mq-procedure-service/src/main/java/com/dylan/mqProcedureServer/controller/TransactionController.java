@@ -3,7 +3,6 @@ package com.dylan.mqprocedureserver.controller;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,16 +18,23 @@ import com.dylan.mqprocedureserver.service.TransactionOperMQProducer;
 import com.dylan.mqprocedureserver.service.TransactionService;
 import com.dylan.transaction.api.model.AggregateRequest;
 import com.dylan.transaction.api.model.Transaction;
+import com.dylan.transaction.api.query.TransactionSearchRequest;
+import com.dylan.transaction.api.query.TransactionSearchResponse;
 
 @RestController
 @RequestMapping("/txn")
 public class TransactionController {
-	@Autowired
-	TransactionOperKafkaProducer transactionOperKafkaProducer;
-	@Autowired
-	TransactionOperMQProducer transactionOperMQProducer;
-	@Autowired
-	TransactionService transactionService;
+	private final TransactionOperKafkaProducer transactionOperKafkaProducer;
+	private final TransactionOperMQProducer transactionOperMQProducer;
+	private final TransactionService transactionService;
+
+	public TransactionController(TransactionOperKafkaProducer transactionOperKafkaProducer,
+								 TransactionOperMQProducer transactionOperMQProducer,
+								 TransactionService transactionService) {
+		this.transactionOperKafkaProducer = transactionOperKafkaProducer;
+		this.transactionOperMQProducer = transactionOperMQProducer;
+		this.transactionService = transactionService;
+	}
 
 	@PostMapping("/txnmq")
 	public String txnmq() {
@@ -54,9 +60,19 @@ public class TransactionController {
 		return transactionService.getByTransId(transId);
 	}
 
+	@PostMapping("/condition")
+	public Transaction findByCondition(@RequestBody Transaction condition) {
+		return transactionService.findByCondition(condition);
+	}
+
 	@PostMapping("/query")
 	public List<Transaction> query(@RequestBody Transaction condition) {
 		return transactionService.query(condition);
+	}
+
+	@PostMapping("/search")
+	public TransactionSearchResponse search(@RequestBody TransactionSearchRequest request) {
+		return transactionService.search(request);
 	}
 
 	/**

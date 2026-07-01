@@ -1,762 +1,488 @@
-# serviceCenter 微服务架构文档
+# Codex Agent 系统架构文档
 
-> 项目：serviceCenter (com.dylan) **|** 版本：0.0.1-SNAPSHOT
-> 技术栈：Spring Boot 3.5.10 + Spring Cloud 2025.0.1 + Java 25
-> 更新日期：2026-06-17 **|** 基于当前源码
+> 生成日期：2026-06-25 | 分支：codex
 
 ---
 
 ## 1. 项目总览
 
-### 1.1 技术栈
+项目根目录 `D:\codex` 是一个多模块 Maven 项目，父 POM 位于 `serviceCenter`（`com.dylan`，版本 `0.0.1-SNAPSHOT`）。技术栈：Spring Boot 3.5.10、Spring Cloud 2025.0.1、Java 25、MyBatis 3.0.3、MySQL。
 
-| 类别 | 选型 | 版本 |
-|------|------|------|
-| 运行时 | Java | 25 |
-| 框架 | Spring Boot / Spring Cloud | 3.5.10 / 2025.0.1 |
-| 注册发现 | Netflix Eureka | - |
-| 配置中心 | Spring Cloud Config (native) | - |
-| API 网关 | Spring Cloud Gateway (WebFlux) | - |
-| 声明式调用 | Spring Cloud OpenFeign | - |
-| 容错降级 | Resilience4j + Sentinel | 1.8.9 |
-| 安全 | Spring Security OAuth2 Resource Server + JWT | - |
-| ORM | MyBatis | 3.0.3 |
-| 缓存/锁 | Redis + Redisson | 3.52.0 |
-| 搜索引擎 | Elasticsearch (Low Level RestClient) | - |
-| 消息队列 | Apache Kafka + Apache RocketMQ | - |
-| 高性能队列 | LMAX Disruptor | 4.0.0 |
-| 序列化 | Jackson JSON + Kryo | 5.6.2 |
-| WebSocket | Spring WebFlux Reactive | - |
-| AI 嵌入 | BGE / OpenAI 兼容 API | bge-m3 / 1024d |
+### Maven 模块及其用途
 
-### 1.2 父 POM 管理的子模块（21 个）
-
-```
-serviceCenter (pom) ─── 统一管理版本号与依赖
- ├── workflow-api          # 工作流 DTO 契约
- ├── es-query-api          # ES 查询 DTO 契约
- ├── order-api             # 订单 DTO 契约
- ├── transaction-api       # 交易 DTO 契约
- ├── common-security       # 公共安全模块
- ├── common-db             # 公共数据库批量操作
- ├── common-redis          # 公共 Redis + Redisson
- ├── common-kafka          # 公共 Kafka 封装
- ├── common-ws             # 公共 WebSocket 模块
- ├── eureka-service        # 服务注册中心
- ├── config-service        # 配置中心
- ├── gateway-service       # API 网关
- ├── auth-service          # 认证授权服务
- ├── m-service-1           # 最小化微服务实例1
- ├── m-service-2           # 最小化微服务实例2
- ├── openfeign-service     # Feign 聚合调用服务
- ├── mq-procedure-service  # 消息生产者服务
- ├── mq-consumer-service   # 消息消费者服务
- ├── employee-service      # 员工主数据服务
- ├── es-query-service      # ES 查询服务
- └── workflow-service      # 工作流引擎服务
-```
-
-> serviceProvider 目录存在，但仅有 Eclipse 骨架（无 pom.xml、无 Java 源码），未被纳入 Maven 构建。
-
----
-
-## 2. 分层架构
-
-### 2.1 五层逻辑架构
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       1. 基础设施层                                   │
-│   eureka-service (8761)    config-service (9888)    gateway-service (8888) │
-├─────────────────────────────────────────────────────────────────────┤
-│                       2. 公共服务层                                   │
-│   common-security   common-redis   common-kafka   common-db   common-ws │
-├─────────────────────────────────────────────────────────────────────┤
-│                       3. API 契约层                                   │
-│   es-query-api     workflow-api     order-api     transaction-api    │
-├─────────────────────────────────────────────────────────────────────┤
-│                       4. 业务服务层                                   │
-│   auth-service (8090)           openfeign-service (9000)             │
-│   employee-service (9210)        workflow-service (9100)             │
-│   es-query-service (9201)       mq-procedure-service (8182)          │
-│   mq-consumer-service (8183)                                         │
-├─────────────────────────────────────────────────────────────────────┤
-│                       5. Demo / 辅助                                  │
-│   m-service-1 (8180)     m-service-2 (8081)     serviceProvider (空)  │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 调用依赖关系图
-
-```
-                        eureka-service (注册中心)
-                              ↑ (所有服务注册)
-                              │
-                       gateway-service (统一入口 :8888)
-                              │
-        ┌─────────────┬───────┼───────────┬──────────┬──────────┐
-        │             │       │           │          │          │
-        ↓             ↓       ↓           ↓          ↓          ↓
-  auth-service  openfeign  employee  workflow  mq-procedure  [agent]
-    (8090)      (9000)    (9210)     (9100)     (8182)      (设计中)
-        │          │          │          │          │
-        │          │          │ Feign    │ Kafka    │ RMQ/Kafka
-        │          │          ├──────────┤          │
-        │          │          ↓          ↓          ↓
-        │          │    es-query(9201)          mq-consumer(8183)
-        │          │       (ES)                   (库存+交易)
-        │          │
-        └──────────┼─────── Feign 调用 ──────────┘
-                   │
-            m-service-1/2 (负载均衡验证)
-```
-
----
-
-## 3. 基础设施层
-
-### 3.1 eureka-service — 服务注册中心
-
-**端口** 8761 | **启动类** @EnableEurekaServer
-
-单节点 Eureka Server，所有微服务向其注册。不注册自身、不拉取注册表。开启自我保护。
-
-| Bean/配置 | 说明 |
-|-----------|------|
-| `register-with-eureka: false` | 不向自身注册 |
-| `fetch-registry: false` | 不拉取 peer |
-| `enable-self-preservation: true` | 自我保护开启 |
-
-### 3.2 config-service — 配置中心
-
-**端口** 9888 | **启动类** @EnableConfigServer + @EnableDiscoveryClient
-
-Native 模式从 `classpath:/config` 加载配置文件，向 Eureka 注册自身供其他服务发现。
-
-**管理的配置文件**（`src/main/resources/config/`）：
-
-| 文件 | Profile | 内容要点 |
-|------|---------|----------|
-| `application-datasource.yml` | datasource | MySQL localhost:3306/springboot_db, 用户 root |
-| `application-redis.yml` | redis | Redis 127.0.0.1:6379, 密码 123456, 库 0 |
-| `application-es.yml` | es | Elasticsearch 127.0.0.1:9200, 连接/套接字超时 |
-| `application-emp.yml` | emp | Kafka localhost:9092, ES 索引 employee, Embedding bge-m3/1024d |
-
-### 3.3 gateway-service — API 网关
-
-**端口** 8888 | **启动类** @EnableDiscoveryClient
-
-基于 Spring Cloud Gateway (WebFlux) 的统一入口，负责路由转发、JWT 鉴权、Token 透传、Sentinel 限流。
-
-**路由表（GatewayRouter 定义）**：
-
-| 路由 ID | 匹配路径 | 目标 (lb://) | 说明 |
-|----------|---------|-------------|------|
-| hello_route | /test, /api/**, /orders/** | openfeign-service | 聚合调用 |
-| ws_route | /ws/** | mq-procedure-service | WebSocket |
-| auth_route | /login, /login.html, /home.html, /as/** | auth-service | 认证 |
-| direct_route | /index | m-service | 多实例验证 |
-| mq_route | /txn/** | mq-procedure-service | 交易/订单 |
-| emp | /employees/**, /employee-workflow.html, /employee-es.html | employee-service | 员工 |
-| workflow | /workflows/** | workflow-service | 工作流 |
-| agent | /agent/**, /agent.html | agent-service | Agent（正式设计中，服务待实现） |
-
-**安全过滤器链**（GatewaySecurityConfig）：
-
-- 白名单放行：/login, /login.html, /home.html, /css/**, /js/**
-- `authTokenFilter`（@Order MIN_VALUE）：优先从 Cookie `AUTH_TOKEN` 提取 JWT，缺失时回退读取 `Authorization: Bearer <token>` → 校验 → 转写 Authorization Header + X-USER-ID Header 透传到下游
-- `authTokenFilter` 对缺失或非法 token 沿用浏览器登录重定向到 `/login.html`；Security 异常处理器对 401/403 返回 JSON，500 由全局异常处理器返回 JSON
-- CSRF 禁用
-
-**Sentinel 限流规则**：hello_route / auth_route / direct_route，10s 窗口内 5 QPS，突发 5。
-
----
-
-## 4. 公共服务层
-
-### 4.1 common-security — 安全模块
-
-为所有微服务提供统一的 JWT 认证授权能力。使用 HS256 对称密钥，同时支持 Servlet 和 Reactive 两种 Web 栈。
-
-| 类 | 职责 |
-|---|------|
-| `JwtConfig` | 注册 SecretKey、JwtEncoder、JwtDecoder，均为 @AutoConfiguration |
-| `ResourceServerSecurityAutoConfiguration` | Servlet 环境：禁用 CSRF，所有请求需认证 |
-| `ReactiveResourceServerSecurityAutoConfiguration` | Reactive 环境：放行 /ws/**，其余需认证 |
-| `FeignTokenRelayAutoConfiguration` | Feign 调用时自动从 SecurityContext 提取用户 JWT 写入 Authorization；无用户上下文时签发短时效 Service Token |
-| `ServiceTokenProvider` | 签发 300s 短时效服务间调用 Token，含 `token_type: service` claim，提前 30s 刷新 |
-| `SecurityTokenUtils` | 工具类，判断 token 类型（user/service） |
-
-**自动配置导入**（`META-INF/spring/...AutoConfiguration.imports`）：
-JwtConfig → ResourceServerSecurityAutoConfiguration → ReactiveResourceServerSecurityAutoConfiguration → FeignTokenRelayAutoConfiguration
-
-### 4.2 common-redis — Redis 模块
-
-封装 Spring Data Redis + Redisson，提供通用 Redis 操作、分布式锁、序列号生成。
-
-| 类 | 职责 |
-|---|------|
-| `RedisConfig` | 注册 RedisTemplate（String 序列化 key，JSON 序列化 value）和 RedissonClient（单机模式） |
-| `RedisService` | 全能 Redis 操作：Key/Value/Hash/List/Set/SortedSet、批量、Scan、Lua 原子脚本、Bloom Filter、全局自增 |
-| `@DistributedLock` + `DistributedLockAspect` | AOP 声明式分布式锁，支持 SpEL 动态 key，底层 Redisson RLock.tryLock() |
-| `RedisLockService` | 手动编程式锁（setIfAbsent + Lua 解锁） |
-| `SeqNoGenerator` | 批量序列号分配 + Bloom Filter 去重全局序列 |
-
-### 4.3 common-kafka — Kafka 模块
-
-提供两套独立的 Kafka 基础设施：
-
-| 模式 | 序列化 | Bean 名称 | 适用场景 |
-|------|--------|-----------|----------|
-| Object 模式 | JSON | objectKafkaTemplate | 通用开发 |
-| Bytes 模式 | Kryo → byte[] | byteKafkaTemplate | 高性能/大数据量 |
-
-两套模式均包含：手动 ACK、批量消费、DLT 死信重试（失败写入 `-DLT` topic，间隔 2s 重试 3 次）。
-
-`KryoUtils`：ThreadLocal Kryo 实例，线程安全的高性能序列化工具。
-
-### 4.4 common-db — 数据库模块
-
-`DBBatchExecutor`：MyBatis BATCH 模式批量执行器，泛型支持任意 Mapper，默认每 100 条 flush。
-
-### 4.5 common-ws — WebSocket 模块
-
-基于 WebFlux Reactive WebSocket，提供统一实时通信。
-
-| 类 | 职责 |
-|---|------|
-| `CommonWebSocketHandler` | 连接认证（JWT 从 Header/Cookie 提取）→ 提取 userId → ConcurrentHashMap 存储 → 异步消息处理 |
-| `WsSender` | 按 userId 推送泛型 WsMessage<T> JSON |
-| `CookieAuthWebSocketHandler` | 装饰器，在真实 handler 前完成 Token 提取 |
-
----
-
-## 5. API 契约层
-
-四个纯 POJO 模块，不含业务逻辑和 Feign 接口定义。Feign 接口驻留在消费方模块中。
-
-### 5.1 es-query-api（14 个类）
-
-| 类 | 说明 |
-|----|------|
-| SearchFilter | 搜索过滤（field, operator, value, values[]） |
-| SearchRequest | 搜索请求（keyword, from, size, filters[], sorts[], aggregate, trackTotalHits） |
-| SearchSort / SearchSortDirection | 搜索排序字段与方向 |
-| SearchAggregate | 聚合请求（groupBy[], metrics[], bucketSize） |
-| SearchMetric / SearchMetricFunction | 聚合指标与 COUNT/SUM/AVG/MIN/MAX 函数 |
-| SemanticSearchRequest | 语义搜索（embeddingField, queryText, queryVector, dims, k, numCandidates） |
-| VectorSearchRequest | 向量检索（embeddingField, queryVector, k, numCandidates） |
-| IndexDocumentRequest | 单文档索引（id, document Map） |
-| BulkIndexRequest | 批量索引（idField, documents List） |
-| RebuildRequest | 重建请求（sourceUrl, targetIndex, idField, cursor, since, batchSize, indexDefinition, sourceParams） |
-| RebuildTask | 重建任务状态（taskId, status, totalIndexed, lastCursor, errorMessage, 时间戳） |
-| SourcePageResponse | 源数据分页（documents[], hasMore, nextCursor） |
-
-### 5.2 workflow-api（12 个类 — 4 枚举 + 8 DTO）
-
-**枚举**：
-
-| 枚举 | 值 |
-|------|-----|
-| WorkflowActionType | SUBMIT, APPROVE, REJECT |
-| WorkflowApprovalType | SINGLE（普通）, COUNTERSIGN（会签）, OR_SIGN（或签） |
-| WorkflowNodeStatus | PENDING, APPROVED, REJECTED |
-| WorkflowStatus | SUBMITTED, APPROVED, REJECTED |
-
-**DTO**：
-
-| DTO | 主要字段 / 职责 |
-|-----|----------------|
-| WorkflowRequest | 创建流程实例请求：domain、operationType、businessId、payload、submitAction、operator。domain 表示业务域，operationType 表示业务域内的操作类型，当前流程定义键由 `domain + "-" + operationType` 组合得到 |
-| WorkflowSubmitResponse | 创建流程实例响应：processId |
-| WorkflowDetailResponse | 流程实例详情：processId、domain、businessId、status、operator、payload、currentNodeIndex、currentNodeId、nodes[]。详情接口表达流程实例视图，不应作为当前用户待办定位的唯一来源 |
-| WorkflowTodoResponse | 当前用户待办列表项：todoId、processId、domain、operationType、businessId、status、payload、currentNodeIndex、currentNodeId、currentNodeName。todoId 由 workflow-service 生成，是面向 operator 的待办引用 |
-| WorkflowActionMessage | 工作流动作事件体：eventId、actionName、processId、domain、businessId、actionType、payload、operator |
-| WorkflowNodeDefinition | 提交流程时的节点配置：nodeId、nodeName、approvalType、approvers、approveAction、rejectAction |
-| WorkflowOperationRequest | 审批/驳回操作请求：operator、todoId（可选）。携带 todoId 时用于校验待办仍匹配当前 operator 和当前节点 |
-| WorkflowNodeDetailResponse | 流程节点详情：nodeId、nodeName、approvalType、status、approvers、approvedOperators、rejectedOperators |
-
-### 5.3 order-api（4 个类 — 1 枚举 + 3 DTO）
-
-| 类 | 说明 |
-|----|------|
-| OrderMessage | 订单消息（orderId, userId, productId, quantity, orderStatus, amount, createdAt），含 copyForAsync() 深拷贝方法支持 Disruptor 跨线程传递 |
-| OrderResult | 订单结果（orderId, status, reason） |
-| OrderStatus | PEDDING / UNPAID / PAID / CLOSED / REFUND / FAIL |
-| Stock | 库存（key, value） |
-
-### 5.4 transaction-api（5 个类 — 无枚举）
-
-| 类 | 说明 |
-|----|------|
-| Transaction | 交易实体（transId, transType, transDate, amount） |
-| TransactionLog | 交易日志（transId, seqNo, payload, createdAt），重写 equals/hashCode |
-| TransactionLogArchive | 归档日志（transId, seqNo, payload, processedAt） |
-| AggregateRequest | 聚合请求（condition, groupBy[], metrics[] — 支持 MAX/MIN/SUM/AVG/COUNT） |
-| TransactionEvent | Disruptor RingBuffer 事件包装器（含 set/get） |
-
-**跨模块引用**：四个 API 模块彼此独立，无交叉依赖，均仅继承父 POM。
-
----
-
-## 6. 业务服务层
-
-### 6.1 auth-service — 认证授权服务
-
-端口 8090 | 无数据库 | 内存硬编码用户
-
-**端点**：
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /login | 接收 userId+password → 签发 JWT → HttpOnly Cookie 返回 |
-| GET | /public/test | 白名单测试 |
-| GET | /as/getUserId | 从 SecurityContext 获取当前用户 ID |
-| GET | /as/my | 返回 "Hello" + 当前用户 ID |
-
-**JWT Claims**：sub=userId, iat, exp(1h), role。admin/dylan 拥有 agent:admin+agent:viewer，viewer_t 拥有 agent:viewer。
-
-**Service**：`JwtService`（JWT 生成/校验/提取）、`UserService`（实现 UserDetailsService，仅支持 admin/123456）。
-
-**安全配置**：/login、/login.html、/css/**、/js/**、/public/** 放行；其余需认证。使用 common-security 的 `JwtResourceServerHttpSecurity.applyDefaults()`。
-
-### 6.2 employee-service — 员工主数据服务
-
-端口 9210 | Profile: datasource,emp | MyBatis + MySQL + Feign + Kafka
-
-**核心功能**：员工 CRUD、变更请求审批模型、ES 全文/向量搜索、索引同步。所有 CUD 操作通过 ChangeRequest 模型经审批后生效。
-
-**端点**：
-
-| 分类 | 方法 | 路径 | 说明 |
-|------|------|------|------|
-| CRUD | GET/POST | /employees | 分页查询 / 创建（需审批） |
-| | GET/PUT/DELETE | /employees/{idCardNo} | 详情 / 更新（需审批） / 删除 |
-| | GET | /employees/change-requests/{id} | 变更申请详情 |
-| | GET | /employees/count | 总数统计 |
-| ES 搜索 | POST | /employees/es/search | 受控 DSL 搜索（关键词、过滤、排序、精确总数、COUNT/terms 聚合） |
-| | POST | /employees/es/vector-search | 语义向量搜索 |
-| ES 管理 | POST/DELETE | /employees/es/documents/{id} | 单条索引/删除 |
-| | POST | /employees/es/bulk | 批量索引 |
-| | POST | /employees/es/rebuild/full | 全量索引重建 |
-| | POST | /employees/es/rebuild/incremental | 增量索引重建 |
-| | GET | /employees/es/rebuild/tasks/{id} | 重建任务查询 |
-| | GET | /employees/es/rebuild/tasks | 所有重建任务 |
-| 数据源 | GET | /internal/es/employees | 为 es-query-service 提供分页源数据 |
-
-**Service 层**：
-
-| 类 | 职责 |
-|---|------|
-| EmployeeService | CRUD 编排、ChangeRequest 管理、审批提交/回调处理、ES 文档转换、源数据分页 |
-| EmployeeEsService | ES 操作编排（Feign 调用 es-query-service）、受控 DSL 构建、字段/操作符校验、COUNT/terms 聚合、索引 mapping 定义 |
-| EmployeeEmbeddingService | 向量嵌入：BGE (bge-m3/1024d) 和 OpenAI 兼容双模式 |
-
-**Feign 客户端**：
-
-| 接口 | 目标服务 | 路径 |
-|------|---------|------|
-| EsQueryClient | es-query-service | /es |
-| WorkflowClient | workflow-service | /workflows |
-
-**消息消费者**：
-
-| 消费者 | Topic | 用途 |
-|--------|-------|------|
-| EmployeeChangeEventConsumer | employee-change-topic | 监听变更事件同步 ES |
-| WorkflowActionEventConsumer | workflow-action-topic | 接收审批结果写入 Inbox |
-| WorkflowInboxProcessor (@Scheduled) | - | 定时重放 Inbox 失败事件 |
-
-**Mapper**：EmployeeMapper（MyBatis 注解式，58 字段，selectPage/selectByIdCardNo/selectSourcePage/countAll/countSource/insert/update/delete）
-
-**员工审批持久化**：
-
-| 对象 | 存储 | 说明 |
-|---|---|---|
-| employee_change_request | MySQL | 员工创建/更新变更申请，保存 action/status/idCardNo/employee_json/applicant/approvalProcessId |
-| employee_workflow_inbox_message | MySQL | 工作流审批动作 Inbox，按 eventId 幂等接收并通过状态机重放处理 |
-
-### 6.3 workflow-service — 工作流引擎
-
-端口 9100 | Profile: datasource | MyBatis + MySQL
-
-**核心功能**：轻量级工作流引擎，支持按 `domain + operationType` 选择流程定义、实例创建、会签/或签、当前用户待办查询、动作分发（Outbox + Kafka）。
-
-**端点**：
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /workflows | 提交流程实例，入参使用 domain + operationType 定位流程定义 |
-| POST | /workflows/{processId}/approve | 审批通过当前节点；请求体包含 operator，可选携带 todoId 做当前待办校验 |
-| POST | /workflows/{processId}/reject | 审批拒绝（终止流程）；请求体包含 operator，可选携带 todoId 做当前待办校验 |
-| GET | /workflows/{processId} | 流程详情（含节点状态），按 processId 查询流程实例 |
-| GET | /workflows/todos?operator= | 当前 operator 的待审批列表，返回 operator 视角的 todoId |
-| GET | /workflows/todos/{todoId}?operator= | 按 todoId 回查当前 operator 的待办；待办已流转、已处理或 operator 不匹配时返回 409 TODO_CHANGED |
-
-**引擎组件**：
-
-| 类 | 职责 |
-|---|------|
-| WorkflowEngine | 核心：submit→approve→推进→终态，支持 SINGLE/COUNTERSIGN/OR_SIGN 三种审批策略 |
-| WorkflowTodoIdCodec | 生成/解析 `td1_` 前缀的 URL-safe 待办引用，token 仅由 workflow-service 使用 |
-| WorkflowActionService | Outbox 异步分发：先写 Outbox → Kafka 投递 → @Scheduled 每 5s 重试失败 |
-| WorkflowActionDispatchChain | 责任链分发（log + kafka） |
-| KafkaWorkflowActionDispatcher | 通过 Kafka（Kryo 序列化）发送审批结果事件 |
-
-**预定义流程**：TWO_LEVEL_COUNTERSIGN（提交→审核1会签→审核2会签）、ONE_LEVEL_OR_SIGN、EMPLOYEE_CREATE、EMPLOYEE_UPDATE。员工场景当前使用 `employee-create` / `employee-update` 作为流程定义键，对应请求中的 `domain=employee`、`operationType=create/update`。
-
-**Repository / Mapper**：
-
-| 组件 | 存储 | 说明 |
-|---|---|---|
-| WorkflowDefinitionRepository | 内存 Map | 当前仍以内置流程定义维护流程定义键与节点配置，定义键由 `domain + "-" + operationType` 组合得到 |
-| WorkflowInstanceRepository + WorkflowInstanceMapper | MySQL `workflow_instance` | 持久化流程实例、节点状态、payload、当前节点 |
-| WorkflowOutboxRepository + WorkflowOutboxEventMapper | MySQL `workflow_outbox_event` | 持久化待投递/失败/已投递的工作流动作事件 |
-
-**待办标识**：`todoId` 由 workflow-service 在 `/workflows/todos?operator=` 响应中生成，用于前端或 Agent 在多轮交互中引用待办。它是 workflow-service 私有的非持久化、不透明 URL-safe token，当前实现编码 `processId/currentNodeIndex/currentNodeId/operator`，外部系统不得自行解析。只有 `todoId` 时应调用 `GET /workflows/todos/{todoId}?operator=` 回查当前待办；审批/驳回时可在 `WorkflowOperationRequest.todoId` 中原样传回，由 workflow-service 在同一写入事务前校验流程、节点和 operator 是否仍匹配。待办已流转、已处理或 operator 不匹配时返回 `409 TODO_CHANGED`。
-
-
-### 6.4 es-query-service — Elasticsearch 查询服务
-
-端口 9201 | Profile: es | Low Level RestClient
-
-**核心功能**：ES 索引/查询统一抽象层，封装文档 CRUD、全文搜索、向量检索、异步索引重建。
-
-**端点**：
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /es/indexes/{index}/search | 执行 DSL 查询 |
-| PUT | /es/indexes/{index}/documents | 索引单文档 |
-| DELETE | /es/indexes/{index}/documents/{id} | 删除单文档 |
-| POST | /es/indexes/{index}/bulk | 批量索引（NDJSON） |
-| POST | /es/indexes/{index}/rebuild/full | 全量异步重建 |
-| POST | /es/indexes/{index}/rebuild/incremental | 增量异步重建 |
-| GET | /es/rebuild/tasks/{taskId} | 任务状态 |
-| GET | /es/rebuild/tasks | 全部任务 |
-| POST | /es/indexes/{index}/vector-search | KNN 向量检索 |
-
-**Service**：`EsDocumentService`（RestClient 封装）、`IndexRebuildService`（异步分页拉取→重建索引→批量写入）、`RebuildTaskRepository`（任务状态管理）。
-
-重建时序：收到重建请求 → recreateIndex（DELETE+PUT with mapping）→ 循环 RestTemplate 拉取 sourceUrl 分页数据 → 逐批 bulkIndex → 状态 SUBMITTED→RUNNING→SUCCESS/FAILED
-
-### 6.5 openfeign-service — Feign 聚合调用服务
-
-端口 9000 | Resilience4j 容错
-
-**核心功能**：聚合调用下游服务，集成 Resilience4j 限流/重试/熔断，透传认证信息。
-
-**端点**：
-
-| 方法 | 路径 | 代理目标 | 说明 |
-|------|------|----------|------|
-| GET | /test?user= | m-service:/index | 负载均衡验证 |
-| GET | /api/my | auth-service:/as/my | 认证测试 |
-| GET | /api/getUserId | auth-service:/as/getUserId | 认证测试 |
-| POST | /orders/create | mq-procedure-service:/orders/create | 下单 |
-| POST | /orders/mqTest | mq-procedure-service:/orders/mqTest | 消息测试 |
-
-**Feign 客户端**：AsFeignClient → auth-service、IndexFeignClient → m-service、MQProducerClient → mq-procedure-service
-
-**容错配置**（FeignConfig）：
-
-| 机制 | 参数 |
+| 模块 | 用途 |
 |------|------|
-| 限流 | 5s 窗口内 50 次 |
-| 重试 | 3 次，间隔 500ms |
-| 熔断 | 滑动窗口 100，失败率 >20% 开启，半开等待 5s |
-| 超时 | 连接 2s，读取 5s |
+| **serviceCenter** | 父 POM，依赖管理，packaging=pom |
+| **agent-api** | 纯 DTO 模块——请求/响应类、枚举、plan spec、runtime schema。不参与 Spring Boot repackage |
+| **agent-adapter-api** | 业务适配器 SPI 接口（QueryableAdapter、AggregatableAdapter）、校验后的查询对象、适配器异常 |
+| **agent-adapter-employee** | 员工域的 QueryableAdapter + AggregatableAdapter 实现 |
+| **agent-adapter-transaction** | 交易域的 QueryableAdapter + AggregatableAdapter 实现 |
+| **agent-service** | 核心 Agent 编排引擎——控制器、能力路由、规划、持久化 |
+| **agent-runtime** | LLM-based 规划服务（通过 REST 调用，可能独立部署） |
+| **common-security** | 共享安全工具（JWT/Feign token 中继） |
+| **common-db** | 共享数据库工具 |
+| **common-kafka** | 共享 Kafka 基础设施 |
+| **common-redis** | 共享 Redis/缓存基础设施 |
+| **common-ws** | 共享 WebSocket 基础设施 |
+| **config-service** | Spring Cloud Config 配置中心 |
+| **eureka-service** | Netflix Eureka 服务注册中心 |
+| **gateway-service** | Spring Cloud Gateway，处理 JWT 认证并路由至 agent-service |
+| **auth-service** | 认证服务 |
+| **employee-service** | 员工业务微服务（被适配器查询） |
+| **transaction-api** | 交易域 API DTO |
+| **workflow-api** | 工作流 API DTO |
+| **workflow-service** | 工作流执行服务 |
+| **docs** | 设计文档 |
 
-装饰链顺序：RateLimiter → Retry → CircuitBreaker。`DecoratorService` 统一编排所有 Feign 调用并提供 fallback。
-
-**认证透传**：`FeignAuthInterceptor` 从 RequestContextHolder 提取 Authorization Header 注入 Feign 请求。
-
-### 6.6 mq-procedure-service — 消息生产者服务
-
-端口 8182 | WebFlux Reactive | Profile: redis,datasource
-
-**核心功能**：订单/交易的生产者，支持 RocketMQ + Kafka 双通道 + Disruptor 秒杀优化 + WebSocket 实时推送。
-
-**订单端点**：
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /orders/create | 创建订单（userId/productId/quantity/amount） |
-| POST | /orders/mqTest | 测试 RocketMQ 事务消息 |
-
-**交易端点**：
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | /txn | 直接创建交易 |
-| GET/PUT/DELETE | /txn/{transId} | 查询/更新/删除交易 |
-| POST | /txn/query | 条件查询 |
-| POST | /txn/aggregate | 动态聚合统计（groupBy + MAX/MIN/SUM/AVG/COUNT） |
-| POST | /txn/txnmq | 通过 RocketMQ 批量测试 |
-| POST | /txn/txnkafka | 通过 Kafka 批量测试 |
-
-**订单处理双路径**：
+### Agent 模块依赖关系
 
 ```
-下单请求
-  ├── Disruptor 可用 → RingBuffer 零 GC 异步 → Redis 暂存 → RocketMQ 事务消息
-  └── Disruptor 不可用 → 直接创建 → Redis 暂存 → RocketMQ 事务消息
+agent-adapter-api (SPI 接口)
+       ├── agent-adapter-employee (实现 QueryableAdapter + AggregatableAdapter)
+       ├── agent-adapter-transaction (实现 QueryableAdapter + AggregatableAdapter)
+       └── agent-service (通过 Registry 消费适配器)
 
-反馈 → OrderStockFeedbackConsumer (RocketMQ)
-  ├── UNPAID → Redis TTL → RocketMQ 延迟消息 → order-topic:timeout
-  └── 其他状态 → 直接完结
+agent-api (DTO) ──→ agent-service (主要消费者)
 
-超时 → OrderTimeoutMQListener → CLOSED → order-topic:rollback
-```
-
-**分布式锁**：@DistributedLock 保护 userId:productId（防超卖）和 orderId 操作。
-
-**消息消费者**（在本模块）：
-
-| 消费者 | Topic/Tag | 用途 |
-|--------|-----------|------|
-| OrderStockFeedbackConsumer | order-topic:feedback | 接收库存扣减反馈 |
-| OrderTimeoutMQListener | order-topic:timeout | 超时关闭 |
-| OrderTransactionListener | @RocketMQTransactionListener | 本地事务执行+回查 |
-
-**Service**：OrderService（订单生命周期）、TransactionService（交易 CRUD + 动态聚合）、TransactionOperMQProducer/KafkaProducer（双通道投递）
-
-**WebSocket**：MqProcedureWsSender + OrderWebSocketHandler + TransWebSocketHandler 实时推送
-
-### 6.7 mq-consumer-service — 消息消费者服务
-
-端口 8183 | Spring MVC | Profile: redis,datasource | 纯消费者（无 Controller）
-
-**核心功能**：消费 RocketMQ/Kafka 消息，执行库存操作（Redis Lua 原子脚本）和交易日志批量落库。
-
-**消息消费者**：
-
-| 消费者 | Topic/Tag | 序列化 | 用途 |
-|--------|-----------|--------|------|
-| OrderCreateConsumer | order-topic:create (RocketMQ) | Kryo→OrderMessage | 扣减库存，反馈结果 |
-| OrderRollbackConsumer | order-topic:rollback (RocketMQ) | Kryo→OrderMessage | 恢复库存 |
-| TransactionOperMQConsumer | transaction-topic (RocketMQ, 顺序消费) | - | 批量落库 TransactionLog |
-| TransactionOperKafkaConsumer | transaction-topic (Kafka, byte[]) | Kryo | 批量落库 TransactionLog |
-| TxConsumer | order-topic:txTest | - | 测试消费 |
-
-**库存操作**（StockOperService — Redis Lua 原子脚本）：
-
-```
-deductStock Lua 五步：幂等检查 → 存在性检查 → 库存充足 → DECRBY → 标记已处理(TTL 3600s)
-increaseStock Lua 同理反向操作
-```
-
-**批量落库**（TransBatchService）：
-
-```
-flushBatch 事务流程：
-  SeqNoGenerator 分配 seq_no → 排序 → 批量 insert TransactionLog
-  → 区分新增/编辑 → insert/update Transaction → 归档 TransactionLogArchive
-  → 清理日志表 → 删除 Redis 脏标记
-异常时：TransExceptionLogService 独立事务(REQUIRES_NEW)保存异常日志
-```
-
-**Mapper**：TransactionMapper（insert/update Transaction）、TransactionLogMapper（save/fetchNew/clear/saveException）、TransactionLogArchiveMapper（save 归档）
-
----
-
-## 7. 核心调用链路
-
-### 7.1 员工创建审批链
-
-```
-浏览器 → Gateway(:8888) → employee-service(:9210) POST /employees
-  ├── EmployeeController.create() → EmployeeService
-  │     ├── 创建 EmployeeChangeRequest (PENDING_APPROVAL)
-  │     ├── Feign → workflow-service(:9100) POST /workflows
-  │     │     ├── WorkflowRequest(domain=employee, operationType=create/update, businessId=changeRequestId)
-  │     │     ├── WorkflowEngine.submit() → 创建实例
-  │     │     └── WorkflowActionService (Outbox → Kafka workflow-action-topic)
-  │     └── 返回 EmployeeChangeSubmitResponse (含 processId)
-  │
-  └── 审批 POST /workflows/{id}/approve → workflow-service
-        ├── WorkflowEngine.approve() → 节点推进 / 流程结束
-        └── Kafka → workflow-action-topic
-              └── employee-service WorkflowActionEventConsumer
-                    ├── 幂等检查 (eventId)
-                    └── EmployeeService.processWorkflowInboxMessage()
-                          ├── 应用变更 → EmployeeMapper.insert/update
-                          └── Kafka → employee-change-topic → ES 同步
-```
-
-### 7.2 订单 Saga 分布式事务链
-
-```
-浏览器 → Gateway(:8888) → mq-procedure-service(:8182) POST /orders/create
-  ├── @DistributedLock(userId:productId)
-  ├── Disruptor RingBuffer / 直接路径 → Redis 暂存
-  └── RocketMQ 事务消息 → order-topic:create
-
-mq-consumer-service(:8183) OrderCreateConsumer
-  ├── Kryo 反序列化 OrderMessage
-  ├── StockOperService.deductStock() (Lua 原子扣减)
-  └── RocketMQ → order-topic:feedback
-        └── mq-procedure-service OrderStockFeedbackConsumer
-              ├── SUCCESS → 订单 PAID
-              ├── OUT_OF_STOCK → 订单 FAIL
-              └── UNPAID → Redis TTL → RocketMQ 延迟消息 → order-topic:timeout
-
-超时：mq-procedure-service OrderTimeoutMQListener
-  └── 订单 → CLOSED → RocketMQ → order-topic:rollback
-        └── mq-consumer-service OrderRollbackConsumer
-              └── StockOperService.increaseStock() (Lua 原子恢复)
-```
-
-### 7.3 ES 全文搜索链
-
-```
-浏览器 / Agent Adapter → Gateway → employee-service(:9210) POST /employees/es/search
-  ├── EmployeeEsService → 按字段白名单构建 DSL（查询、过滤、排序、track_total_hits、COUNT/terms 聚合）
-  ├── EmployeeEmbeddingService (BGE bge-m3) → 可选向量查询
-  └── Feign → es-query-service(:9201) POST /es/indexes/employee/search
-        └── EsDocumentService.search() → Low Level RestClient → ES _search API
-```
-
-### 7.4 索引重建链
-
-```
-浏览器 → Gateway → employee-service(:9210) POST /employees/es/rebuild/full
-  └── Feign → es-query-service(:9201) POST /es/indexes/employee/rebuild/full
-        ├── RebuildTask (ACCEPTED)
-        └── @Async IndexRebuildService
-              ├── recreateIndex (DELETE + PUT with mapping)
-              └── 循环 RestTemplate → GET localhost:9210/internal/es/employees?cursor=&batchSize=
-                    └── 逐批 bulkIndex (NDJSON)
-              └── 状态：SUBMITTED → RUNNING → SUCCESS/FAILED
-```
-
-### 7.5 服务间 Token 透传链
-
-```
-浏览器 Cookie AUTH_TOKEN 或 Authorization Bearer Header
-  → GatewaySecurityConfig 提取 token
-  → JwtDecoder 校验 → Authorization: Bearer <token> + X-USER-ID 透传给下游
-
-下游服务：
-  ├── 直接 HTTP：SecurityContextHolder 获取 JWT
-  └── Feign 调用：FeignTokenRelayAutoConfiguration 拦截器
-        ├── 有用户上下文 → 透传用户 Bearer Token
-        └── 无用户上下文 → ServiceTokenProvider 签发短时 Service Token (HS256, token_type=service, 300s TTL)
+agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter-transaction, common-security
 ```
 
 ---
 
-## 8. 消息拓扑
+## 2. agent-api 模块文件清单
 
-### 8.1 Kafka Topics
+**路径：** `agent-api/src/main/java/com/dylan/agent/api/`
 
-| Topic | 生产者 | 消费者 | 序列化 | 用途 |
-|-------|--------|--------|--------|------|
-| workflow-action-topic | workflow-service | employee-service | Kryo byte[] | 审批动作分发 |
-| employee-change-topic | employee-service | employee-service (自身) | JSON | ES 索引同步 |
-| transaction-topic | mq-procedure-service | mq-consumer-service | Kryo byte[] | 交易日志批量落库 |
+### 枚举 (8)
 
-### 8.2 RocketMQ Topics
+| 文件 | 用途 |
+|------|------|
+| `enums/AgentIntent.java` | 顶层意图枚举：`QUERY`、`CLARIFY`、`AGGREGATE` |
+| `enums/AgentResponseType.java` | 响应类型：`RESULT`、`CLARIFY`、`AGGREGATE_RESULT`、`ERROR` |
+| `enums/AgentErrorCode.java` | 统一错误码：`AGENT_INVALID_REQUEST`、`AGENT_CONVERSATION_NOT_FOUND`、`AGENT_INTENT_FORBIDDEN`、`AGENT_FIELD_FORBIDDEN`、`AGENT_OPERATOR_FORBIDDEN`、`AGENT_PLAN_INVALID`、`AGENT_RUNTIME_UNAVAILABLE`、`AGENT_QUERY_FAILED`、`AGENT_INTERNAL_ERROR` |
+| `enums/AgentOperator.java` | 查询操作符：`EQ`、`CONTAINS`、`CONTAINS_ANY`、`STARTS_WITH`、`STARTS_WITH_ANY`、`IN`、`GT`、`LT` |
+| `enums/AgentFieldType.java` | 字段数据类型：`STRING`、`DECIMAL`、`INSTANT` |
+| `enums/AggregateFunction.java` | 聚合函数：`COUNT`、`SUM`、`AVG`、`MIN`、`MAX` |
+| `enums/QueryContextMode.java` | 查询上下文模式：`REPLACE`、`MERGE` |
+| `enums/RuntimeRole.java` | 对话角色：`USER`、`ASSISTANT` |
 
-| Topic | Tag | 生产者 | 消费者 | 消费模式 | 用途 |
-|-------|-----|--------|--------|---------|------|
-| order-topic | :create | mq-procedure-service | mq-consumer-service | 集群 | 订单创建→扣库存 |
-| order-topic | :feedback | mq-consumer-service | mq-procedure-service | 集群 | 库存扣减结果 |
-| order-topic | :rollback | mq-procedure-service | mq-consumer-service | 集群 | 退库回滚 |
-| order-topic | :timeout | mq-procedure-service | mq-procedure-service | 集群 | 延迟超时关闭 |
-| order-topic | :txTest | mq-procedure-service | mq-consumer-service | 集群 | 事务消息测试 |
-| transaction-topic | (无 Tag) | mq-procedure-service | mq-consumer-service | 顺序(ORDERLY) | 交易日志批量 |
+### Plan Spec (7)
+
+| 文件 | 用途 |
+|------|------|
+| `plan/AgentPlan.java` | Runtime 返回的根 Plan：含 `intent`、`planVersion`、`domain`，以及 `query`/`clarify`/`aggregate` 之一 |
+| `plan/AgentQuerySpec.java` | QUERY plan：`filters`（最多 5），`selectFields`（最多 10），`contextMode`，`removeFields`，`page`，`size` |
+| `plan/AgentAggregateSpec.java` | AGGREGATE plan：`filters`、`metrics`（1-5）、`groupByFields`（最多 2）、`orderBy`、`maxRows`（1-100） |
+| `plan/ClarifySpec.java` | CLARIFY plan：`question`（1-500 字符） |
+| `plan/AgentFilter.java` | 查询过滤条件：`field`、`operator`、`value`（单值）、`values`（多值） |
+| `plan/AggregateMetricSpec.java` | 指标规格：`alias`（唯一）、`function`、`field`（COUNT 时为 null） |
+| `plan/AggregateOrderSpec.java` | 排序规格：`field`、`direction`（ASC/DESC） |
+
+### 请求/响应 DTO (10)
+
+| 文件 | 用途 |
+|------|------|
+| `request/AgentChatRequest.java` | POST /agent/chat 请求：`conversationId`（可选）、`message`（必填，最长 2000） |
+| `request/PlanGenerateRequest.java` | 发往 Runtime 的请求：`requestId`、`message`、`recentTurns`（最多 6）、`previousQuery`、`domainSchemas` |
+| `response/AgentChatResponse.java` | 统一响应：`conversationId`、`turnId`、`type`、`message`、`summary`、`queryParameters`、`queryResult`、`aggregateResult`、`errorCode` |
+| `response/AgentQueryResult.java` | 查询结果：`columns`、`rows`、`total`、`totalExact`、`page`、`size` |
+| `response/AgentQueryParameters.java` | 前端展示的查询参数：`domain`、`filters`、`selectFields`、`page`、`size` |
+| `response/AgentQueryFilterParameter.java` | 单个过滤参数：`field`、`operator`、`value`、`values` |
+| `response/AgentAggregateResult.java` | 聚合结果：`domain`、`groupByFields`、`metricAliases`、`rows`、`partial` |
+| `response/AgentAggregateRow.java` | 单行聚合结果：`groups` Map、`metrics` Map |
+| `response/PlanGenerateResponse.java` | Runtime 响应：`requestId`、`plan`（可为 null 的 AgentPlan） |
+| `response/RuntimeErrorResponse.java` | Runtime 错误：`code`、`message`、`requestId` |
+
+### Runtime Schema DTO (5)
+
+| 文件 | 用途 |
+|------|------|
+| `runtime/RuntimeTurn.java` | 供 Runtime 上下文的单轮对话：`role`、`content` |
+| `runtime/RuntimeDomainSchema.java` | 发往 Runtime 的域 Schema：`domain`、`aliases`、`fields`、`defaultSelectFields`、`maxFilters`、分页限制 |
+| `runtime/RuntimeFieldSchema.java` | 字段 Schema：`name`、`aliases`、`operators`、`type`、`formatHint`、`supportedAggregateFunctions` |
+| `runtime/RuntimeQueryContext.java` | 上一轮查询上下文（供 MERGE 使用）：`sourceTurnId`、`domain`、`filters`、`selectFields`、`page`、`size` |
+| `runtime/RuntimeAggregateContext.java` | 聚合查询上下文（供持久化/审计）：`sourceTurnId`、`domain`、`filters`、`metrics`、`groupByFields`、`maxRows` |
 
 ---
 
-## 9. 弹性与容错设计
+## 3. agent-service 模块结构
 
-| 层级 | 机制 | 实现 | 参数 |
-|------|------|------|------|
-| 网关 | Sentinel 限流 | SentinelGatewayFilter | 10s 窗口 / 5 QPS / 突发 5 |
-| 网关路由 | 重试 | Retry GatewayFilter | 最多 3 次，仅 502 触发，退避 500ms |
-| Feign 调用 | Resilience4j | DecoratorService 装饰链 | 限流→重试→熔断，各自独立配置 |
-| 消息消费 | DLT 死信 | DefaultErrorHandler | FixedBackOff 2s×3，失败写入 {topic}-DLT |
-| 并发控制 | 分布式锁 | @DistributedLock + RLock | Redisson tryLock，支持 SpEL 动态 key |
-| 原子操作 | Redis Lua | StockOperService | 库存扣减/回退/幂等一体化原子执行 |
-| 消息一致性 | Outbox | WorkflowActionService | 工作流动作写入 Outbox → Kafka 投递 → 定时重试失败事件 |
-| Saga 事务 | 补偿操作 | OrderService 全链路 | 每步有对等回退（扣库存↔恢复、创建↔关闭） |
+**路径：** `agent-service/src/main/java/com/dylan/agent/`
+
+| 包 | 关键类 | 用途 |
+|----|--------|------|
+| `application/` | `AgentOrchestrator` | 主对话流程编排器 |
+| `controller/` | `AgentChatController` | REST 端点 `/agent/chat` |
+| `capability/` | `AgentCapabilityHandler`（接口）、`AgentCapabilityHandlerRegistry`、`CapabilityRouter`、`CapabilityRouteResolver`、`CapabilityExecutionContext`、`CapabilityValidationContext`、`CapabilityExecutionResult`、`CapabilityRiskLevel` | 意图路由与能力抽象 |
+| `capability/query/` | `QueryCapabilityHandler`、`QueryPlanValidator`、`QueryMessages`、`QueryParameterMapper`、`QueryRuntimeContextFactory` | QUERY 意图处理器 |
+| `capability/clarify/` | `ClarifyCapabilityHandler`、`ClarifyPlanValidator` | CLARIFY 意图处理器 |
+| `capability/aggregate/` | `AggregateCapabilityHandler`、`AggregatePlanValidator`、`AggregateMessages` | AGGREGATE 意图处理器 |
+| `capability/model/` | `ValidatedCapabilityPlan`、`ValidatedQueryPlan`、`ValidatedClarifyPlan`、`ValidatedAggregatePlan` | 校验后的 Plan 类型 |
+| `client/` | `AgentRuntimeClient` | 发往 LLM Runtime 的 HTTP 客户端 |
+| `config/` | `AgentConfiguration`、`AgentProperties`、`AgentPropertiesValidator` | Spring 配置 |
+| `conversation/` | `ConversationService`、`ConversationHandle`、`TurnHandle`、`ConversationCleanupJob` | 对话/Turn 生命周期管理 |
+| `exception/` | 8 个异常类 | 统一异常层次结构 |
+| `mask/` | `FieldMasker`、`FieldMaskerRegistry`、`MobileFieldMasker`、`EmailFieldMasker`、`IdCardFieldMasker`、`AddressFieldMasker`、`NoneFieldMasker` | 数据脱敏 SPI + 实现 |
+| `model/` | `AgentUserContext`、`ConversationStatus`、`TurnStatus`、`FieldPolicy`、`MaskType` | 内部领域模型 |
+| `persistence/entity/` | `AgentConversationEntity`、`AgentTurnEntity` | 持久化实体 |
+| `persistence/mapper/` | `AgentConversationMapper`、`AgentTurnMapper` | MyBatis Mapper |
+| `planning/` | `RuntimeDomainSchemaFactory` | 从配置构建 Runtime 域 Schema |
+| `planning/filter/` | `FilterNormalizer`、`FieldConstraintValidator`、`OperatorSemantics`、`FieldFilterSet`、`QueryMergeEngine` | 过滤条件校验与 MERGE 逻辑 |
+| `result/` | `AgentResultProcessor`、`AggregateResultProcessor` | 结果处理（权限、脱敏） |
+| `security/` | `AgentPermissionService`、`AgentUserContextResolver` | 授权 |
+| `adapter/` | `QueryableAdapterRegistry`、`AggregatableAdapterRegistry` | 适配器 SPI 注册表 |
 
 ---
 
-## 10. 外部系统依赖
+## 4. 完整请求流程：`/agent/chat`
 
-| 系统 | 地址 | 使用方 | 用途 |
-|------|------|--------|------|
-| MySQL | localhost:3306/springboot_db | employee-service, workflow-service, mq-procedure-service, mq-consumer-service | 持久化 |
-| Redis | localhost:6379 (密码 123456) | common-redis, mq-procedure-service, mq-consumer-service | 缓存/锁/库存 |
-| Elasticsearch | localhost:9200 | es-query-service, employee-service | 全文/向量搜索 |
-| Kafka | localhost:9092 | workflow-service, employee-service, mq-procedure-service, mq-consumer-service | 异步消息 |
-| RocketMQ | localhost:9876 | mq-procedure-service, mq-consumer-service | 事务消息+顺序消息 |
-| BGE Embedding | localhost:8908 | employee-service | 文本向量嵌入 (bge-m3/1024d) |
+### 步骤详解
+
+**1. Controller**（`AgentChatController.java`）
+- 接收 POST `/agent/chat`，请求体为 `AgentChatRequest`（conversationId + message）
+- `@AuthenticationPrincipal Jwt` 从安全上下文中提取 JWT
+- `AgentUserContextResolver.resolve(jwt)` 从 JWT claims 提取 userId 和 roles
+- 委托给 `AgentOrchestrator.chat(userContext, request)`
+
+**2. Orchestrator**（`AgentOrchestrator.java`）
+- `permissionService.requireAgentAccess(userContext)` — 用户至少需要一个匹配任意 intent 角色的 role
+- `normalizeMessage(message)` — 去空白，截断至 2000 字符
+- `conversationService.openConversation(...)` — 加载已有或新建对话，返回 `ConversationHandle`
+- `conversationService.startTurn(...)` — 创建状态为 `PROCESSING` 的新 turn，返回 `TurnHandle`
+- `conversationService.loadRecentTurns(...)` — 加载最近 N 条成功 turn（USER + ASSISTANT 消息）作为 Runtime 上下文
+- `conversationService.loadLatestQueryContext(...)` — 加载上一次成功 QUERY 的上下文，用于 MERGE 支持
+- `schemaFactory.createAll()` — 从配置构建域 Schema 发给 Runtime
+- 构建 `PlanGenerateRequest`
+- `runtimeClient.generate(pgReq)` — 发送至 Runtime，返回 `PlanGenerateResponse`
+
+**3. Runtime Client**（`AgentRuntimeClient.java`）
+- 使用独立 `RestClient`（不转发用户 JWT）
+- POST 至 `/runtime/v1/plans/generate`，Header 含 `X-Agent-Runtime-Key` 共享密钥
+- 读取响应体（受 `maxResponseBytes` 限制）
+- JSON 解析为 `PlanGenerateResponse`
+- HTTP 状态码 + 错误码映射为类型化异常
+
+**4. 意图解析**（`CapabilityRouteResolver.java`）
+- 校验：response 非 null，plan 非 null，requestId 匹配，planVersion="1.0"，intent 非 null
+- 返回 `AgentIntent`（QUERY、CLARIFY 或 AGGREGATE）
+
+**5. 权限检查**（`AgentPermissionService.checkIntent()`）
+- 验证用户角色包含 `intentRoles[intent]` 中至少一个角色
+
+**6. 能力路由**（`CapabilityRouter.java`）
+- `registry.getRequired(intent)` — 从 `EnumMap<AgentIntent, AgentCapabilityHandler<?>>` 中 O(1) 查找
+
+**7. 校验阶段**（多态，每个 handler 独立实现）
+- 创建 `CapabilityValidationContext(planResponse, turnId, previousQuery, userContext)`
+- 调用 `handler.validate(validationContext)` — 返回 `ValidatedCapabilityPlan` 子类
+- 每个 handler 委托给自己的 PlanValidator
+
+**8. 执行阶段**（多态，每个 handler 独立实现）
+- 创建 `CapabilityExecutionContext(conversationId, turnId, normalizedMessage, userContext, previousQuery)`
+- 调用 `handler.execute(executionContext, plan)` — 返回 `CapabilityExecutionResult`
+
+**9. Turn 完成**（`AgentOrchestrator.completeTurn()`）
+- `conversationService.completeSuccess(turnId, intent, responseType, assistantMessage, contextToPersist)`
+- CAS 更新：`SET status='SUCCEEDED' WHERE id=? AND status='PROCESSING'`
+- 将 `contextToPersist` 序列化为 JSON 写入 `query_context_json` 列
+
+**10. 响应构建**（`AgentOrchestrator.buildResponse()`）
+- `result.applyTo(response)` — 将所有字段从 CapabilityExecutionResult 复制到 AgentChatResponse
+
+**错误路径：**
+- try 块中的任何 `AgentException` 或未检查异常：
+  - `conversationService.completeFailure(turnId, errorCode, safeMessage)` — CAS 至 FAILED
+  - 携带上下文（conversationId + turnId）重新抛出
+- `AgentExceptionHandler`（@RestControllerAdvice）捕获所有异常，返回统一的 AgentChatResponse(type=ERROR)
 
 ---
 
-## 11. 安全架构
+## 5. 意图路由架构
+
+### AgentIntent 枚举
+三个值：`QUERY`、`CLARIFY`、`AGGREGATE`。定义在 `agent-api` 中。代表 LLM Runtime 确定的用户高层目标。
+
+### CapabilityRouteResolver
+**文件：** `agent-service/.../capability/CapabilityRouteResolver.java`
+
+对 Runtime 响应进行信封校验：
+- 响应和 plan 必须非 null
+- `requestId` 必须匹配 turnId
+- `planVersion` 必须为 `"1.0"`
+- `intent` 必须非 null
+
+不校验 domain、filter 形状或意图特有细节——这些交给 handler.validate()。
+
+### CapabilityRouter
+**文件：** `agent-service/.../capability/CapabilityRouter.java`
+
+`AgentCapabilityHandlerRegistry` 上的薄门面。通过 O(1) EnumMap 查找将 `AgentIntent` 路由到正确的 handler。
+
+### AgentCapabilityHandlerRegistry
+**文件：** `agent-service/.../capability/AgentCapabilityHandlerRegistry.java`
+
+构造时自动发现所有 `AgentCapabilityHandler` Spring Bean：
+- 拒绝 null intent、重复 intent、空列表
+- 构造后使用 `Map.copyOf` 冻结
+- 提供 `getRequired(intent)` — intent 未找到时抛异常
+
+### AgentCapabilityHandler 接口
+**文件：** `agent-service/.../capability/AgentCapabilityHandler.java`
+
+泛型接口 `AgentCapabilityHandler<P extends ValidatedCapabilityPlan>`：
+- `intent()` — 返回此 handler 服务的 AgentIntent
+- `riskLevel()` — READ_ONLY、CONFIRM_REQUIRED 或 HIGH_RISK_CONFIRM_REQUIRED
+- `validate(CapabilityValidationContext) -> P` — 将原始 Runtime plan 转换为校验后的 plan
+- `execute(CapabilityExecutionContext, P) -> CapabilityExecutionResult` — 执行校验后的 plan
+
+### 三个实现
+
+| Handler | Intent | validate() 委托 | execute() 步骤 |
+|---------|--------|-----------------|----------------|
+| `QueryCapabilityHandler` | QUERY | `QueryPlanValidator` | 权限检查 → 适配器查找 → query() → 结果处理+脱敏 → 构建响应+查询上下文 |
+| `ClarifyCapabilityHandler` | CLARIFY | `ClarifyPlanValidator` | 直接返回 `CapabilityExecutionResult.clarify(question)` |
+| `AggregateCapabilityHandler` | AGGREGATE | `AggregatePlanValidator` | 权限检查 → 适配器查找 → aggregate() → 结果处理+脱敏 → 构建响应+聚合上下文 |
+
+---
+
+## 6. 能力处理器详解
+
+### 6.1 QueryCapabilityHandler
+**文件：** `agent-service/.../capability/query/QueryCapabilityHandler.java`
+
+**依赖：** QueryPlanValidator、AgentPermissionService、QueryableAdapterRegistry、AgentResultProcessor
+
+**validate() 流程**（通过 `QueryPlanValidator`）：
+1. 断言 intent=QUERY，domain 非 null 且已配置，query spec 非 null
+2. 断言 clarify/aggregate 为 null（不允许混合）
+3. 确定 `QueryContextMode`（默认 REPLACE）
+4. 若 MERGE：要求 previousQuery 存在且 domain 相同，规范化历史过滤条件，校验变更，通过 `QueryMergeEngine` 合并
+5. 若 REPLACE：规范化过滤条件，要求至少一个过滤条件，解析 selectFields，设置 page/size
+6. 校验最终过滤条件数量、分页限制
+
+**execute() 流程：**
+1. `permissionService.checkQuery()` — 域访问权限、字段过滤角色、操作符白名单、字段展示角色
+2. `adapterRegistry.getRequired(domain)` — 查找 QueryableAdapter
+3. `adapter.query(plan.query())` — 执行后端查询，返回 `AdapterQueryResult`
+4. `resultProcessor.process()` — 按列应用展示权限，脱敏敏感数据
+5. `QueryMessages.buildSuccessMessage()` — 构建人类可读的结果消息
+6. `CapabilityExecutionResult.queryResult(...)` — 返回带 `RuntimeQueryContext` 的统一结果
+
+### 6.2 ClarifyCapabilityHandler
+**文件：** `agent-service/.../capability/clarify/ClarifyCapabilityHandler.java`
+
+**依赖：** ClarifyPlanValidator
+
+**validate() 流程**（通过 `ClarifyPlanValidator`）：
+1. 断言 intent=CLARIFY，clarify spec 非 null
+2. 断言 query/aggregate 为 null
+3. 校验问题长度（1-500 字符）
+4. 若提供了 domain，校验其存在于配置中
+
+**execute() 流程：**
+1. 返回 `CapabilityExecutionResult.clarify(question)` — 无适配器调用，无持久化上下文
+
+### 6.3 AggregateCapabilityHandler
+**文件：** `agent-service/.../capability/aggregate/AggregateCapabilityHandler.java`
+
+**依赖：** AggregatePlanValidator、AgentPermissionService、AggregatableAdapterRegistry、AggregateResultProcessor
+
+**validate() 流程**（通过 `AggregatePlanValidator`）：
+1. 断言 intent=AGGREGATE，domain 非 null 且已配置
+2. 断言 query/clarify 为 null
+3. 校验 metrics：至少 1 个，最多 `aggregate.maxMetrics`，唯一别名，函数-字段兼容性（COUNT 无字段，SUM/AVG 需 DECIMAL，MIN/MAX 需 DECIMAL 或 INSTANT），适配器函数支持
+4. 规范化并校验过滤条件（若存在）
+5. 校验 groupByFields：最多 `aggregate.maxGroupFields`，必须已配置且适配器支持
+6. 校验 maxRows 边界
+7. 校验 orderBy：字段必须来自 groupByFields 或指标别名
+
+**execute() 流程：**
+1. `permissionService.checkAggregate()` — 域访问权限、过滤字段权限和操作符、groupBy 字段展示权限、指标字段展示权限
+2. `adapterRegistry.getRequired(domain)` — 查找 AggregatableAdapter
+3. `adapter.aggregate(plan.aggregate())` — 执行，返回 `AdapterAggregateResult`
+4. `resultProcessor.process()` — groupBy 值的展示权限，指标值脱敏
+5. `AggregateMessages.success()` — 概要消息
+6. 从校验后的 plan 构建 `RuntimeAggregateContext`
+7. `CapabilityExecutionResult.aggregateResult(...)` — 返回带聚合上下文的统一结果
+
+---
+
+## 7. 持久化层
+
+### 数据库 Schema（3 个迁移文件）
+
+**agent-p0.sql**（初始 Schema）：
+```sql
+agent_conversation: id, user_id, status, created_at, updated_at
+agent_turn: id, turn_seq (AUTO_INCREMENT), conversation_id (FK), user_id,
+            user_message (TEXT), intent, response_type, assistant_message (TEXT),
+            query_context_json (JSON), status, error_code, created_at, completed_at
+```
+
+**agent-p0-v1.1.sql**：新增 `turn_seq` AUTO_INCREMENT 列及排序索引。
+
+**agent-p0-v1.2.sql**：新增 `query_context_json JSON` 列，用于持久化查询/聚合上下文以支持 MERGE。
+
+### 实体
+
+**`AgentConversationEntity`**：id、userId、status、createdAt、updatedAt
+
+**`AgentTurnEntity`**：id、conversationId、userId、userMessage、intent、responseType、assistantMessage、queryContextJson、status、errorCode、createdAt、completedAt
+
+### MyBatis Mapper
+
+**`AgentConversationMapper`**：
+- `insert` — INSERT
+- `selectOwned` — 通过 id + userId 查询
+- `touchOwned` — 更新 updated_at（用于所有权验证）
+- `deleteExpiredWithoutTurns` — 清理无关联 turn 的对话
+
+**`AgentTurnMapper`**：
+- `insert` — INSERT，状态为 PROCESSING
+- `selectRecentSucceeded` — 按对话查询成功的 turn，按 turn_seq DESC 排序
+- `selectLatestSucceededQuery` — 查询最近一条成功的 QUERY turn（query_context_json 非 null）
+- `completeSuccess` — CAS 更新：SET status=SUCCEEDED WHERE id=? AND status=PROCESSING
+- `completeFailure` — CAS 更新：SET status=FAILED WHERE id=? AND status=PROCESSING
+- `deleteBefore` — 删除 cutoff 之前的 turn
+
+### ConversationService
+**文件：** `agent-service/.../conversation/ConversationService.java`
+
+关键方法（各自 `@Transactional`）：
+
+- `openConversation(requestedId, userId)` — 加载已有（验证所有权）或创建新对话
+- `startTurn(conversationId, userId, message)` — 验证对话所有权，创建 PROCESSING 状态的 turn
+- `loadRecentTurns(conversationId, userId, limit)` — 加载成功的 turn，按时间顺序构建 USER/ASSISTANT RuntimeTurn 列表
+- `loadLatestQueryContext(conversationId, userId)` — 加载最近 QUERY turn 的 query_context_json，反序列化为 `RuntimeQueryContext`
+- `completeSuccess(turnId, intent, responseType, assistantMessage, contextToPersist)` — CAS 更新至 SUCCEEDED；若 contextToPersist 非 null，序列化为 JSON 并写入 query_context_json
+- `completeFailure(turnId, errorCode, assistantMessage)` — CAS 更新至 FAILED
+- `cleanupExpired(cutoff)` — 删除过期 turn 和对话
+
+### TurnStatus
+PROCESSING → SUCCEEDED（通过 `completeSuccess` CAS）或 FAILED（通过 `completeFailure` CAS）
+
+### ConversationCleanupJob
+使用可配置的 `cleanup-delay`（默认 1h）的定时任务。删除超过 `retentionDays` 的 turn 以及无关联 turn 的对话。
+
+---
+
+## 8. CapabilityExecutionResult
+
+**文件：** `agent-service/.../capability/CapabilityExecutionResult.java`
+
+这是能力处理器与编排器持久化/完成流程之间的**桥梁**。通过工厂方法创建的不可变值对象：
+
+### 工厂方法
+
+| 方法 | Intent | ResponseType | contextToPersist |
+|------|--------|-------------|-----------------|
+| `queryResult(message, queryParams, queryResult, queryContext)` | QUERY | RESULT | `RuntimeQueryContext` |
+| `clarify(question)` | CLARIFY | CLARIFY | `null` |
+| `aggregateResult(message, aggregateResult, context)` | AGGREGATE | AGGREGATE_RESULT | `RuntimeAggregateContext` |
+
+### 关键字段
+- `intent` / `responseType` — 用于持久化
+- `assistantMessage` — 展示给用户
+- `queryParameters` — 序列化至前端用于过滤条件展示
+- `queryResult` / `aggregateResult` — 实际数据
+- `contextToPersist` — 泛型 `Object`，由 ConversationService 序列化为 `query_context_json`
+
+### applyTo(AgentChatResponse)
+填充所有响应字段并显式设置 `errorCode = null`（错误走异常路径）。
+
+---
+
+## 9. 前端 (agent.html)
+
+**文件：** `agent-service/src/main/resources/static/agent.html`
+
+单页 HTML 应用，访问路径 `/agent.html`，包含四个展示区：
+
+### 结构
+
+1. **输入区**：文本输入框（最多 2000 字符）+ 发送按钮，支持 Enter 键
+2. **Section 1 - "Summarizer Text"**：响应的 `summary` 字段（LLM 自然语言摘要）
+3. **Section 2 - "LLM Parsed Query Parameters"**：`queryParameters` 的预格式化 JSON（domain、filters、selectFields、分页）
+4. **Section 3 - "AgentQueryResult"**：HTML 表格渲染，含列头、数据行、元数据（总数、页码）。处理 `totalExact=false` 时显示 "至少 N 条"
+5. **Section 4 - "AgentAggregateResult"**：HTML 表格渲染，先展示 groupBy 列，再展示指标列。显示 domain、行数、部分结果标识
+
+### JS 函数
+
+- `sendMessage()` — POST 至 `/agent/chat`，credentials=include，处理登录重定向
+- `renderSummary(text, isError)` — 展示摘要文本，错误时红色
+- `renderQueryParameters(parameters)` — JSON.stringify 展示
+- `renderQueryResult(result)` — 表格渲染，正确处理 null/value
+- `renderAggregateResult(result)` — 表格渲染，groups+metrics 结构
+- `setBusy(busy)` — 请求期间禁用输入
+- `isLoginRedirect(response)` — 检测登录页重定向
+
+### 认证
+使用 `credentials: "include"` 通过 Gateway 进行 session/JWT cookie 认证。
+
+---
+
+## 10. 近期重构：统一持久化链路
+
+### 重构前（按意图分叉）
 
 ```
-[网关层] GatewaySecurityConfig
-  ├── Cookie AUTH_TOKEN 或 Authorization Bearer Header → JWT 校验 (HS256)
-  ├── 白名单：/login, *.html, /css/**, /js/**
-  ├── Sentinel 限流 (10s/5 QPS)
-  ├── authTokenFilter 未取到/无法解析 token → /login.html
-  └── Security 401/403 → JSON 响应
+CapabilityExecutionResult
+  ├─ queryContextToPersist: RuntimeQueryContext    ← QUERY 专用，强类型
+  └─ aggregateResult() factory 硬编码 null
 
-[服务层] common-security (Servlet / Reactive 自适应)
-  ├── OAuth2 Resource Server JWT
-  ├── 禁用 CSRF
-  ├── Reactive 模式放行 /ws/**
-  └── JwtResourceServerHttpSecurity.applyDefaults()
+AgentOrchestrator.completeTurn()
+  ├─ if queryContextToPersist != null → completeQuerySuccess    ← 硬编码 QUERY
+  └─ else                              → completeSuccess        ← 不写 context
 
-[Feign 调用链] FeignTokenRelayAutoConfiguration
-  ├── 用户 Token：SecurityContext → Authorization Header
-  └── 服务 Token：ServiceTokenProvider (HS256, 300s TTL, token_type=service)
-
-[角色 RBAC]
-  └── agent:admin / agent:viewer（JWT role claim，为 Agent 功能预埋）
+ConversationService / AgentTurnMapper
+  ├─ completeSuccess()       → SQL 无 query_context_json
+  └─ completeQuerySuccess()  → SQL 硬编码 intent='QUERY'
 ```
 
----
+### 重构后（通用路径）
 
-## 12. Agent 能力现状
+核心改动：`CapabilityExecutionResult.contextToPersist` 类型泛化为 `Object`。
 
-Agent 是当前正式设计中的新增能力，尚未进入代码树：
+**1. Handler 返回**：`CapabilityExecutionResult`，携带不透明的 `contextToPersist`（QUERY → `RuntimeQueryContext`，AGGREGATE → `RuntimeAggregateContext`，CLARIFY → `null`）
 
-- 长期服务边界和演进原则见 `docs/design/agent架构设计文档_v1.6.md`。
-- 当前编码基线见 `docs/design/agent查询功能实施设计_v1.0.md`。
+**2. Orchestrator 调用**（零分支）：
+```java
+private void completeTurn(String turnId, CapabilityExecutionResult result) {
+    conversationService.completeSuccess(
+        turnId,
+        result.intent(),
+        result.responseType(),
+        result.assistantMessage(),
+        result.contextToPersist());
+}
+```
 
-首期范围已经收敛为 Employee `QUERY + CLARIFY`：Runtime 生成计划，Java 完成校验、字段/operator 权限、Employee Adapter 查询、字段过滤和脱敏，并保存基础 Turn。transaction、聚合、ResultRef、摘要、修改、风控、确认、业务提交和工作流动作均不属于首期。
+**3. ConversationService.completeSuccess()**（统一序列化）：
+```java
+String contextJson = null;
+if (contextToPersist != null) {
+    contextJson = objectMapper.writeValueAsString(contextToPersist);
+}
+turnMapper.completeSuccess(turnId, intent, responseType, assistantMessage, contextJson, now);
+```
 
-截至当前仓库状态，`agent-api`、`agent-service` 和 `agent-runtime`（Python LangGraph）模块尚未纳入代码树，`serviceCenter/pom.xml` 也尚未加入对应 Maven 模块。已经完成的前置能力如下：
+**4. AgentTurnMapper.completeSuccess()** SQL 无条件写入 `query_context_json`：
+```sql
+UPDATE agent_turn SET query_context_json = #{contextJson}
+WHERE id = #{id} AND status = 'PROCESSING'
+```
 
-| 前置能力 | 位置 | 说明 |
-|--------|------|------|
-| 网关路由 | GatewayRouter.java | `/agent/**`、`/agent.html` → `lb://agent-service` |
-| JWT 角色 | JwtService.java | agent:admin / agent:viewer |
-| 前端入口 | home.html | "Agent Query" 按钮跳转 `/agent.html` |
-| Employee ES 查询 | EmployeeEsService | 首期复用受控 filters 查询和精确总数；不通过 Agent 开放 keyword、排序或聚合 |
-| 向量嵌入 | EmployeeEmbeddingService | BGE (bge-m3/1024d) + OpenAI 兼容双模式 |
+### 扩展性
 
-目标实现中，`agent-service/src/main/resources/static/agent.html` 提供 Agent 页面；在服务落地前，访问 `/agent.html` 不会得到可用页面。
+新意图（UPDATE / WORKFLOW / COMMAND）接入时仅需：
+1. Handler 构建对应 DTO
+2. 传入 `CapabilityExecutionResult` 工厂方法
+3. 零 plumbing 改动，由统一链路完成持久化
 
----
+### 各意图 query_context_json 存储内容
 
-## 13. Demo 辅助模块
-
-### 13.1 m-service-1 / m-service-2
-
-两个共享 Eureka 服务名 `m-service` 的最小化实例，用于验证 Eureka 多实例负载均衡。
-
-| 项目 | 端口 | 源码 |
-|------|------|------|
-| m-service-1 | 8180 | GET /index?user= → "user!! Hello World! from 8180" |
-| m-service-2 | 8081 | GET /index?user= → "user!! Hello World! from 8081" |
-
-### 13.2 serviceProvider
-
-Eclipse 工程骨架（.project / .gitignore / .gitattributes / maven-wrapper.properties），无 pom.xml，无 Java 源码，未纳入 Maven 构建。
+| Intent | 存储类型 | 用途 |
+|--------|---------|------|
+| QUERY | `RuntimeQueryContext`（sourceTurnId, domain, filters, selectFields, page, size） | 下一轮 MERGE 时加载使用 |
+| AGGREGATE | `RuntimeAggregateContext`（sourceTurnId, domain, filters, metrics, groupByFields, maxRows） | 审计追溯，当前不做 MERGE |
+| CLARIFY | `null` | 无上下文需要持久化 |

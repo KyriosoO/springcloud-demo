@@ -1,0 +1,43 @@
+{
+  "requestId": "flow-001",
+  "contractVersion": "1.0.0",
+  "message": "查询姓名包含张的员工",
+  "history": [{"role": "USER", "content": "查询员工"}],
+  "capabilityId": "query.search",
+  "planKind": "QUERY",
+  "capability": {
+    "capabilityId": "query.search",
+    "planKind": "QUERY",
+    "description": "查询结构化业务记录",
+    "applicability": ["用户要求检索记录"],
+    "exclusions": ["不执行写操作"],
+    "domainMode": "REQUIRED",
+    "allowedDomains": ["employee", "transaction"]
+  },
+  "inputSchemaRef": "#/components/schemas/QueryAgentPlan",
+  "domain": "employee",
+  "domainSchema": {
+    "domain": "employee",
+    "fields": [{
+      "field": "name",
+      "aliases": ["姓名"],
+      "type": "STRING",
+      "operators": ["EQ", "CONTAINS"],
+      "aggregateFunctions": [],
+      "formatHint": null
+    }],
+    "defaultSelectFields": ["employeeId", "name"],
+    "defaultSize": 20,
+    "maxSize": 100
+  },
+  "contextViews": [{
+    "contextType": "QUERY",
+    "sourceInvocationId": "inv-prev-001",
+    "filters": [],
+    "selectFields": ["employeeId", "name"],
+    "page": 1,
+    "size": 20
+  }],
+  "absoluteDeadline": "2099-01-01T00:00:00Z",
+  "repairLimit": 1
+}

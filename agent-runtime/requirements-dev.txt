@@ -1,0 +1,2 @@
+-r requirements.txt
+datamodel-code-generator==0.33.0

@@ -1,0 +1,12 @@
+{
+  "outcomeType": "EXECUTABLE",
+  "requestId": "neg-001",
+  "plan": {
+    "planKind": "UPDATE",
+    "query": {"filters": [], "selectFields": [], "page": 1, "size": 20,
+      "contextMode": "REPLACE", "removeFields": []}
+  },
+  "metadata": {"operation": "PLAN", "providerAttempts": 1, "repairAttempts": 0,
+    "repairDurationMs": 0, "totalDurationMs": 10, "terminationReason": "COMPLETED",
+    "deadlineReached": false, "repairLimitReached": false}
+}

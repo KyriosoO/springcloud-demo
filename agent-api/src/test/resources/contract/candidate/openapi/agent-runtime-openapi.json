@@ -1,0 +1,1247 @@
+{
+  "components" : {
+    "schemas" : {
+      "AgentAggregateSpec" : {
+        "additionalProperties" : false,
+        "description" : "AGGREGATE 计划的聚合规格",
+        "properties" : {
+          "filters" : {
+            "description" : "预聚合过滤条件列表",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            },
+            "maxItems" : 5,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "groupByFields" : {
+            "description" : "分组字段列表",
+            "items" : {
+              "description" : "分组字段列表",
+              "minLength" : 1,
+              "nullable" : true,
+              "type" : "string"
+            },
+            "maxItems" : 2,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "maxRows" : {
+            "description" : "全局最多返回行数上限",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "description" : "聚合指标列表，至少 1 个",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateMetricSpec"
+            },
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "orderBy" : {
+            "description" : "结果排序列表，field 必须来自 groupByFields 或 metric alias",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateOrderSpec"
+            },
+            "nullable" : true,
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
+        "type" : "object"
+      },
+      "AgentDomainMode" : {
+        "enum" : [ "NONE", "OPTIONAL", "REQUIRED" ],
+        "type" : "string"
+      },
+      "AgentFieldType" : {
+        "enum" : [ "STRING", "DECIMAL", "INSTANT" ],
+        "type" : "string"
+      },
+      "AgentFilter" : {
+        "additionalProperties" : false,
+        "description" : "查询过滤条件。多值操作符使用 values，单值/范围操作符使用 value",
+        "properties" : {
+          "field" : {
+            "description" : "字段名",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "operator" : {
+            "$ref" : "#/components/schemas/AgentOperator"
+          },
+          "value" : {
+            "description" : "单值/范围操作符的值",
+            "nullable" : true,
+            "type" : "string"
+          },
+          "values" : {
+            "description" : "多值操作符的值列表",
+            "items" : {
+              "description" : "多值操作符的值列表",
+              "nullable" : true,
+              "type" : "string"
+            },
+            "nullable" : true,
+            "type" : "array"
+          }
+        },
+        "required" : [ "field", "operator" ],
+        "type" : "object"
+      },
+      "AgentOperator" : {
+        "enum" : [ "EQ", "CONTAINS", "CONTAINS_ANY", "STARTS_WITH", "STARTS_WITH_ANY", "IN", "GT", "LT" ],
+        "type" : "string"
+      },
+      "AgentPlan" : {
+        "description" : "Agent Plan 联合类型",
+        "discriminator" : {
+          "mapping" : {
+            "AGGREGATE" : "#/components/schemas/AggregateAgentPlan",
+            "QUERY" : "#/components/schemas/QueryAgentPlan"
+          },
+          "propertyName" : "planKind"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/QueryAgentPlan"
+        }, {
+          "$ref" : "#/components/schemas/AggregateAgentPlan"
+        } ]
+      },
+      "AgentPlanKind" : {
+        "enum" : [ "QUERY", "AGGREGATE" ],
+        "type" : "string"
+      },
+      "AgentQuerySpec" : {
+        "additionalProperties" : false,
+        "description" : "QUERY 计划的查询规格，描述过滤条件、返回字段和分页参数",
+        "properties" : {
+          "contextMode" : {
+            "$ref" : "#/components/schemas/QueryContextMode"
+          },
+          "filters" : {
+            "description" : "过滤条件列表",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            },
+            "maxItems" : 5,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "page" : {
+            "description" : "分页页码，从 1 开始",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "removeFields" : {
+            "description" : "待移除的字段列表（MERGE 模式使用）",
+            "items" : {
+              "description" : "待移除的字段列表（MERGE 模式使用）",
+              "nullable" : true,
+              "type" : "string"
+            },
+            "maxItems" : 5,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "selectFields" : {
+            "description" : "指定返回字段列表，最多 10 个",
+            "items" : {
+              "description" : "指定返回字段列表，最多 10 个",
+              "nullable" : true,
+              "type" : "string"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "size" : {
+            "description" : "每页大小，1~100",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AggregateAgentPlan" : {
+        "additionalProperties" : false,
+        "description" : "AGGREGATE Plan 子类型",
+        "properties" : {
+          "aggregate" : {
+            "$ref" : "#/components/schemas/AgentAggregateSpec"
+          },
+          "planKind" : {
+            "description" : "Agent Plan 结构类型",
+            "enum" : [ "AGGREGATE" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "aggregate", "planKind" ],
+        "type" : "object"
+      },
+      "AggregateFunction" : {
+        "enum" : [ "COUNT", "SUM", "AVG", "MIN", "MAX" ],
+        "type" : "string"
+      },
+      "AggregateMetricSpec" : {
+        "additionalProperties" : false,
+        "description" : "聚合指标规格",
+        "properties" : {
+          "alias" : {
+            "description" : "指标别名，结果集中使用，必须唯一",
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "field" : {
+            "description" : "目标字段名，COUNT 时为 null",
+            "nullable" : true,
+            "type" : "string"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/AggregateFunction"
+          }
+        },
+        "required" : [ "alias", "function" ],
+        "type" : "object"
+      },
+      "AggregateOrderSpec" : {
+        "additionalProperties" : false,
+        "description" : "聚合结果排序规格",
+        "nullable" : true,
+        "properties" : {
+          "direction" : {
+            "description" : "排序方向",
+            "enum" : [ "ASC", "DESC" ],
+            "minLength" : 1,
+            "pattern" : "^(ASC|DESC)$",
+            "type" : "string"
+          },
+          "field" : {
+            "description" : "排序字段名，来自 groupByFields 或 metric alias",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "direction", "field" ],
+        "type" : "object"
+      },
+      "CapabilityChoiceArgs" : {
+        "additionalProperties" : false,
+        "description" : "capability 候选列表",
+        "properties" : {
+          "argType" : {
+            "description" : "ClarificationArgs 子类型",
+            "enum" : [ "CAPABILITY_CHOICES" ],
+            "type" : "string"
+          },
+          "capabilityIds" : {
+            "description" : "候选 capabilityId 列表（2～20，去重）",
+            "items" : {
+              "description" : "候选 capabilityId 列表（2～20，去重）",
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 2,
+            "type" : "array"
+          }
+        },
+        "required" : [ "argType", "capabilityIds" ],
+        "type" : "object"
+      },
+      "ClarificationArgType" : {
+        "enum" : [ "CAPABILITY_CHOICES", "DOMAIN_CHOICES", "FIELD_CHOICES", "VALUE_CHOICES" ],
+        "type" : "string"
+      },
+      "ClarificationArgs" : {
+        "description" : "ClarificationArgs 联合类型",
+        "discriminator" : {
+          "mapping" : {
+            "CAPABILITY_CHOICES" : "#/components/schemas/CapabilityChoiceArgs",
+            "DOMAIN_CHOICES" : "#/components/schemas/DomainChoiceArgs",
+            "FIELD_CHOICES" : "#/components/schemas/FieldChoiceArgs",
+            "VALUE_CHOICES" : "#/components/schemas/ValueChoiceArgs"
+          },
+          "propertyName" : "argType"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/CapabilityChoiceArgs"
+        }, {
+          "$ref" : "#/components/schemas/DomainChoiceArgs"
+        }, {
+          "$ref" : "#/components/schemas/FieldChoiceArgs"
+        }, {
+          "$ref" : "#/components/schemas/ValueChoiceArgs"
+        } ]
+      },
+      "ClarificationReasonCode" : {
+        "enum" : [ "CAPABILITY_AMBIGUOUS", "DOMAIN_REQUIRED", "DOMAIN_AMBIGUOUS", "FIELD_REQUIRED", "VALUE_REQUIRED", "VALUE_AMBIGUOUS" ],
+        "type" : "string"
+      },
+      "ClarificationRequired" : {
+        "additionalProperties" : false,
+        "description" : "澄清请求",
+        "properties" : {
+          "args" : {
+            "$ref" : "#/components/schemas/ClarificationArgs"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/RuntimeOperationMetadata"
+          },
+          "outcomeType" : {
+            "description" : "Runtime Outcome 类型 discriminator",
+            "enum" : [ "CLARIFICATION" ],
+            "type" : "string"
+          },
+          "reasonCode" : {
+            "$ref" : "#/components/schemas/ClarificationReasonCode"
+          },
+          "requestId" : {
+            "description" : "请求关联标识",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "args", "metadata", "outcomeType", "reasonCode", "requestId" ],
+        "type" : "object"
+      },
+      "DomainChoiceArgs" : {
+        "additionalProperties" : false,
+        "description" : "domain 候选列表",
+        "properties" : {
+          "argType" : {
+            "description" : "ClarificationArgs 子类型",
+            "enum" : [ "DOMAIN_CHOICES" ],
+            "type" : "string"
+          },
+          "domains" : {
+            "description" : "候选 domain 列表（1～20，去重）",
+            "items" : {
+              "description" : "候选 domain 列表（1～20，去重）",
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 1,
+            "type" : "array"
+          }
+        },
+        "required" : [ "argType", "domains" ],
+        "type" : "object"
+      },
+      "ExecutablePlan" : {
+        "additionalProperties" : false,
+        "description" : "可执行 plan outcome",
+        "properties" : {
+          "metadata" : {
+            "$ref" : "#/components/schemas/RuntimeOperationMetadata"
+          },
+          "outcomeType" : {
+            "description" : "Runtime Outcome 类型 discriminator",
+            "enum" : [ "EXECUTABLE" ],
+            "type" : "string"
+          },
+          "plan" : {
+            "$ref" : "#/components/schemas/AgentPlan"
+          },
+          "requestId" : {
+            "description" : "请求关联标识",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "metadata", "outcomeType", "plan", "requestId" ],
+        "type" : "object"
+      },
+      "FieldChoiceArgs" : {
+        "additionalProperties" : false,
+        "description" : "字段候选列表",
+        "properties" : {
+          "argType" : {
+            "description" : "ClarificationArgs 子类型",
+            "enum" : [ "FIELD_CHOICES" ],
+            "type" : "string"
+          },
+          "fields" : {
+            "description" : "候选字段列表（1～50，去重）",
+            "items" : {
+              "description" : "候选字段列表（1～50，去重）",
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 1,
+            "type" : "array"
+          }
+        },
+        "required" : [ "argType", "fields" ],
+        "type" : "object"
+      },
+      "PlanOutcome" : {
+        "description" : "Plan Outcome 联合类型",
+        "discriminator" : {
+          "mapping" : {
+            "CLARIFICATION" : "#/components/schemas/ClarificationRequired",
+            "EXECUTABLE" : "#/components/schemas/ExecutablePlan"
+          },
+          "propertyName" : "outcomeType"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/ExecutablePlan"
+        }, {
+          "$ref" : "#/components/schemas/ClarificationRequired"
+        } ]
+      },
+      "PlanRequest" : {
+        "additionalProperties" : false,
+        "description" : "Plan 请求",
+        "properties" : {
+          "absoluteDeadline" : {
+            "description" : "绝对 deadline（与 Route 相同且不可延长）",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "capability" : {
+            "$ref" : "#/components/schemas/RuntimeCapabilityRoutingDescriptor"
+          },
+          "capabilityId" : {
+            "description" : "Java 已校验的 capabilityId",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "contextViews" : {
+            "description" : "Context View 列表，contextType 唯一",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeContextView"
+            },
+            "type" : "array"
+          },
+          "contractVersion" : {
+            "description" : "唯一 contract generation 版本",
+            "enum" : [ "1.0.0" ],
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "domain" : {
+            "description" : "已选 domain，NONE 时必为空",
+            "type" : "string"
+          },
+          "domainSchema" : {
+            "$ref" : "#/components/schemas/RuntimeDomainSchema"
+          },
+          "history" : {
+            "description" : "历史 turn 投影，最多 20 条",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeTurnProjection"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "inputSchemaRef" : {
+            "description" : "输入 schema 引用（JSON Pointer）",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "message" : {
+            "description" : "用户消息",
+            "maxLength" : 8000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "planKind" : {
+            "$ref" : "#/components/schemas/AgentPlanKind"
+          },
+          "repairLimit" : {
+            "description" : "repair 上限 [0,3]",
+            "format" : "int32",
+            "maximum" : 3,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "requestId" : {
+            "description" : "请求关联标识（与 Route 同一次 invocation）",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "absoluteDeadline", "capability", "capabilityId", "contextViews", "contractVersion", "history", "inputSchemaRef", "message", "planKind", "repairLimit", "requestId" ],
+        "type" : "object"
+      },
+      "QueryAgentPlan" : {
+        "additionalProperties" : false,
+        "description" : "QUERY Plan 子类型",
+        "properties" : {
+          "planKind" : {
+            "description" : "Agent Plan 结构类型",
+            "enum" : [ "QUERY" ],
+            "type" : "string"
+          },
+          "query" : {
+            "$ref" : "#/components/schemas/AgentQuerySpec"
+          }
+        },
+        "required" : [ "planKind", "query" ],
+        "type" : "object"
+      },
+      "QueryContextMode" : {
+        "enum" : [ "REPLACE", "MERGE" ],
+        "type" : "string"
+      },
+      "RouteDecision" : {
+        "additionalProperties" : false,
+        "description" : "Route 决策",
+        "properties" : {
+          "capabilityId" : {
+            "description" : "选定的 capabilityId",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "domain" : {
+            "description" : "候选 domain，NONE/OPTIONAL 时可空",
+            "type" : "string"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/RuntimeOperationMetadata"
+          },
+          "outcomeType" : {
+            "description" : "Runtime Outcome 类型 discriminator",
+            "enum" : [ "DECISION" ],
+            "type" : "string"
+          },
+          "requestId" : {
+            "description" : "请求关联标识",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "capabilityId", "metadata", "outcomeType", "requestId" ],
+        "type" : "object"
+      },
+      "RouteOutcome" : {
+        "description" : "Route Outcome 联合类型",
+        "discriminator" : {
+          "mapping" : {
+            "CLARIFICATION" : "#/components/schemas/ClarificationRequired",
+            "DECISION" : "#/components/schemas/RouteDecision"
+          },
+          "propertyName" : "outcomeType"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/RouteDecision"
+        }, {
+          "$ref" : "#/components/schemas/ClarificationRequired"
+        } ]
+      },
+      "RouteRequest" : {
+        "additionalProperties" : false,
+        "description" : "Route 请求",
+        "properties" : {
+          "absoluteDeadline" : {
+            "description" : "绝对 deadline（ISO-8601）",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "capabilities" : {
+            "description" : "当前可用 capability 投影，非空，capabilityId 唯一",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeCapabilityRoutingDescriptor"
+            },
+            "maxItems" : 2147483647,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "contractVersion" : {
+            "description" : "唯一 contract generation 版本",
+            "enum" : [ "1.0.0" ],
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "domains" : {
+            "description" : "Route 阶段 domain 投影，domain 唯一",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeDomainRoutingProjection"
+            },
+            "type" : "array"
+          },
+          "history" : {
+            "description" : "历史 turn 投影，最多 20 条",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeTurnProjection"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "message" : {
+            "description" : "用户消息",
+            "maxLength" : 8000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "profileBehavior" : {
+            "$ref" : "#/components/schemas/RuntimeProfileBehaviorProjection"
+          },
+          "repairLimit" : {
+            "description" : "repair 上限 [0,3]，部署策略可进一步收紧",
+            "format" : "int32",
+            "maximum" : 3,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "requestId" : {
+            "description" : "不透明请求标识",
+            "maxLength" : 128,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "absoluteDeadline", "capabilities", "contractVersion", "domains", "history", "message", "profileBehavior", "repairLimit", "requestId" ],
+        "type" : "object"
+      },
+      "RuntimeAggregateContextView" : {
+        "additionalProperties" : false,
+        "description" : "AGGREGATE context 投影",
+        "properties" : {
+          "contextType" : {
+            "description" : "上下文类型",
+            "enum" : [ "AGGREGATE" ],
+            "type" : "string"
+          },
+          "filters" : {
+            "description" : "上轮聚合过滤条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            },
+            "type" : "array"
+          },
+          "groupByFields" : {
+            "description" : "上轮分组字段",
+            "items" : {
+              "description" : "上轮分组字段",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "maxRows" : {
+            "description" : "上轮 maxRows",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "metrics" : {
+            "description" : "上轮聚合指标",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateMetricSpec"
+            },
+            "maxItems" : 2147483647,
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "sourceInvocationId" : {
+            "description" : "来源 Invocation 标识",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "contextType", "filters", "groupByFields", "maxRows", "metrics", "sourceInvocationId" ],
+        "type" : "object"
+      },
+      "RuntimeCapabilityRoutingDescriptor" : {
+        "additionalProperties" : false,
+        "description" : "Capability Routing Descriptor 请求投影",
+        "properties" : {
+          "allowedDomains" : {
+            "description" : "当前请求允许的 domain 标识，去重。NONE 时为空，REQUIRED 时非空",
+            "items" : {
+              "description" : "当前请求允许的 domain 标识，去重。NONE 时为空，REQUIRED 时非空",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "applicability" : {
+            "description" : "适用条件，最多 20 项",
+            "items" : {
+              "description" : "适用条件，最多 20 项",
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "capabilityId" : {
+            "description" : "capability 稳定标识",
+            "maxLength" : 128,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "description" : {
+            "description" : "面向模型的能力描述",
+            "maxLength" : 1000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "domainMode" : {
+            "$ref" : "#/components/schemas/AgentDomainMode"
+          },
+          "exclusions" : {
+            "description" : "排除条件，最多 20 项",
+            "items" : {
+              "description" : "排除条件，最多 20 项",
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "planKind" : {
+            "$ref" : "#/components/schemas/AgentPlanKind"
+          }
+        },
+        "required" : [ "allowedDomains", "applicability", "capabilityId", "description", "domainMode", "exclusions", "planKind" ],
+        "type" : "object"
+      },
+      "RuntimeContextType" : {
+        "enum" : [ "QUERY", "AGGREGATE" ],
+        "type" : "string"
+      },
+      "RuntimeContextView" : {
+        "description" : "Runtime Context View 联合类型",
+        "discriminator" : {
+          "mapping" : {
+            "AGGREGATE" : "#/components/schemas/RuntimeAggregateContextView",
+            "QUERY" : "#/components/schemas/RuntimeQueryContextView"
+          },
+          "propertyName" : "contextType"
+        },
+        "oneOf" : [ {
+          "$ref" : "#/components/schemas/RuntimeQueryContextView"
+        }, {
+          "$ref" : "#/components/schemas/RuntimeAggregateContextView"
+        } ]
+      },
+      "RuntimeDomainFieldSchema" : {
+        "additionalProperties" : false,
+        "description" : "Domain 字段投影",
+        "properties" : {
+          "aggregateFunctions" : {
+            "description" : "支持的聚合函数，空列表表示仅 COUNT",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateFunction"
+            },
+            "type" : "array"
+          },
+          "aliases" : {
+            "description" : "字段别名",
+            "items" : {
+              "description" : "字段别名",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "field" : {
+            "description" : "字段名",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "formatHint" : {
+            "description" : "安全格式说明（仅格式，不含凭据或转义语义）",
+            "nullable" : true,
+            "type" : "string"
+          },
+          "operators" : {
+            "description" : "允许的 operator",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentOperator"
+            },
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/AgentFieldType"
+          }
+        },
+        "required" : [ "aggregateFunctions", "aliases", "field", "operators", "type" ],
+        "type" : "object"
+      },
+      "RuntimeDomainRoutingProjection" : {
+        "additionalProperties" : false,
+        "description" : "Route 阶段 domain 投影",
+        "properties" : {
+          "aliases" : {
+            "description" : "domain 别名",
+            "items" : {
+              "description" : "domain 别名",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "description" : {
+            "description" : "domain 描述",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "domain" : {
+            "description" : "domain 标识",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "aliases", "description", "domain" ],
+        "type" : "object"
+      },
+      "RuntimeDomainSchema" : {
+        "additionalProperties" : false,
+        "description" : "Domain Schema 投影",
+        "properties" : {
+          "defaultSelectFields" : {
+            "description" : "默认展示字段",
+            "items" : {
+              "description" : "默认展示字段",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "defaultSize" : {
+            "description" : "默认 page size",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "domain" : {
+            "description" : "domain 标识",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "fields" : {
+            "description" : "字段列表，field 唯一",
+            "items" : {
+              "$ref" : "#/components/schemas/RuntimeDomainFieldSchema"
+            },
+            "type" : "array"
+          },
+          "maxSize" : {
+            "description" : "最大 page size",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "defaultSelectFields", "domain", "fields" ],
+        "type" : "object"
+      },
+      "RuntimeErrorCode" : {
+        "enum" : [ "CONTRACT_INVALID", "AUTHENTICATION_FAILED", "PROVIDER_UNAVAILABLE", "DEADLINE_EXCEEDED", "OUTPUT_REPAIR_EXHAUSTED", "INTERNAL_ERROR" ],
+        "type" : "string"
+      },
+      "RuntimeErrorResponse" : {
+        "additionalProperties" : false,
+        "description" : "Runtime 错误响应",
+        "properties" : {
+          "code" : {
+            "$ref" : "#/components/schemas/RuntimeErrorCode"
+          },
+          "diagnosticId" : {
+            "description" : "不透明诊断标识",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "message" : {
+            "description" : "安全固定摘要",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "metadata" : {
+            "$ref" : "#/components/schemas/RuntimeOperationMetadata"
+          },
+          "requestId" : {
+            "description" : "请求标识（可空：仅请求解析后可得）",
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "diagnosticId", "message", "metadata" ],
+        "type" : "object"
+      },
+      "RuntimeOperationMetadata" : {
+        "additionalProperties" : false,
+        "description" : "Runtime 操作元数据",
+        "properties" : {
+          "deadlineReached" : {
+            "description" : "deadline 是否已到期",
+            "type" : "boolean"
+          },
+          "operation" : {
+            "$ref" : "#/components/schemas/RuntimeOperationType"
+          },
+          "providerAttempts" : {
+            "description" : "provider 调用总数",
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "repairAttempts" : {
+            "description" : "repair 调用次数",
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "repairDurationMs" : {
+            "description" : "repair 累计耗时 (ms)",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "repairLimitReached" : {
+            "description" : "是否达到 repair 上限",
+            "type" : "boolean"
+          },
+          "terminationReason" : {
+            "$ref" : "#/components/schemas/RuntimeTerminationReason"
+          },
+          "totalDurationMs" : {
+            "description" : "操作总耗时 (ms)",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "deadlineReached", "operation", "providerAttempts", "repairAttempts", "repairDurationMs", "repairLimitReached", "terminationReason", "totalDurationMs" ],
+        "type" : "object"
+      },
+      "RuntimeOperationType" : {
+        "enum" : [ "ROUTE", "PLAN" ],
+        "type" : "string"
+      },
+      "RuntimeOutcomeType" : {
+        "enum" : [ "DECISION", "EXECUTABLE", "CLARIFICATION" ],
+        "type" : "string"
+      },
+      "RuntimeProfileBehaviorProjection" : {
+        "additionalProperties" : false,
+        "description" : "Profile 行为投影",
+        "properties" : {
+          "instructions" : {
+            "description" : "行为指令列表，最多 20 项",
+            "items" : {
+              "description" : "行为指令列表，最多 20 项",
+              "maxLength" : 500,
+              "minLength" : 1,
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "locale" : {
+            "description" : "locale（BCP-47），可为 null",
+            "nullable" : true,
+            "type" : "string"
+          }
+        },
+        "required" : [ "instructions" ],
+        "type" : "object"
+      },
+      "RuntimeQueryContextView" : {
+        "additionalProperties" : false,
+        "description" : "QUERY context 投影",
+        "properties" : {
+          "contextType" : {
+            "description" : "上下文类型",
+            "enum" : [ "QUERY" ],
+            "type" : "string"
+          },
+          "filters" : {
+            "description" : "上轮查询过滤条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "description" : "上轮 page",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "selectFields" : {
+            "description" : "上轮查询展示字段",
+            "items" : {
+              "description" : "上轮查询展示字段",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "size" : {
+            "description" : "上轮 size",
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "sourceInvocationId" : {
+            "description" : "来源 Invocation 标识",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "contextType", "filters", "page", "selectFields", "size", "sourceInvocationId" ],
+        "type" : "object"
+      },
+      "RuntimeTerminationReason" : {
+        "enum" : [ "COMPLETED", "CLARIFICATION", "VALIDATION_REJECTED", "REPAIR_EXHAUSTED", "DEADLINE_EXCEEDED", "CANCELLED", "PROVIDER_UNAVAILABLE", "AUTHENTICATION_REJECTED", "INTERNAL_ERROR" ],
+        "type" : "string"
+      },
+      "RuntimeTurnProjection" : {
+        "additionalProperties" : false,
+        "description" : "Runtime turn 投影",
+        "properties" : {
+          "content" : {
+            "description" : "过滤后的会话文本",
+            "maxLength" : 4000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/RuntimeTurnRole"
+          }
+        },
+        "required" : [ "content", "role" ],
+        "type" : "object"
+      },
+      "RuntimeTurnRole" : {
+        "enum" : [ "USER", "ASSISTANT" ],
+        "type" : "string"
+      },
+      "ValueChoiceArgs" : {
+        "additionalProperties" : false,
+        "description" : "值候选列表",
+        "properties" : {
+          "argType" : {
+            "description" : "ClarificationArgs 子类型",
+            "enum" : [ "VALUE_CHOICES" ],
+            "type" : "string"
+          },
+          "field" : {
+            "description" : "目标字段名",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "values" : {
+            "description" : "候选值列表（0～50，VALUE_REQUIRED 允许空列表）",
+            "items" : {
+              "description" : "候选值列表（0～50，VALUE_REQUIRED 允许空列表）",
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "argType", "field", "values" ],
+        "type" : "object"
+      }
+    },
+    "securitySchemes" : {
+      "InternalServiceAuth" : {
+        "in" : "header",
+        "name" : "X-Agent-Runtime-Key",
+        "type" : "apiKey"
+      }
+    }
+  },
+  "info" : {
+    "title" : "Agent Runtime API",
+    "version" : "1.0.0"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/runtime/plan" : {
+      "post" : {
+        "operationId" : "generatePlan",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PlanRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanOutcome"
+                }
+              }
+            },
+            "description" : "Success"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Invalid request"
+          },
+          "401" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Authentication failed"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Semantic or output validation failed"
+          },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Internal error"
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Provider unavailable"
+          },
+          "504" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Deadline exceeded"
+          }
+        },
+        "security" : [ {
+          "InternalServiceAuth" : [ ]
+        } ]
+      }
+    },
+    "/runtime/route" : {
+      "post" : {
+        "operationId" : "generateRoute",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RouteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RouteOutcome"
+                }
+              }
+            },
+            "description" : "Success"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Invalid request"
+          },
+          "401" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Authentication failed"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Semantic or output validation failed"
+          },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Internal error"
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Provider unavailable"
+          },
+          "504" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuntimeErrorResponse"
+                }
+              }
+            },
+            "description" : "Deadline exceeded"
+          }
+        },
+        "security" : [ {
+          "InternalServiceAuth" : [ ]
+        } ]
+      }
+    }
+  }
+}

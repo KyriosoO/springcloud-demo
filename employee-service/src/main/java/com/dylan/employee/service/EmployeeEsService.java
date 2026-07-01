@@ -96,6 +96,7 @@ public class EmployeeEsService {
 		}
 		esRequest.setK(safeRequest.getK());
 		esRequest.setNumCandidates(safeRequest.getNumCandidates());
+		esRequest.setTrackTotalHits(safeRequest.getTrackTotalHits());
 		return esQueryClient.vectorSearch(index, esRequest);
 	}
 
@@ -190,7 +191,6 @@ public class EmployeeEsService {
 		dsl.put("_source", Map.of("excludes", List.of("embedding")));
 		dsl.put("from", normalizeFrom(safeRequest.getFrom()));
 		dsl.put("size", normalizeSize(safeRequest.getSize(), aggregateRequest));
-		dsl.put("track_total_hits", safeRequest.getTrackTotalHits() == null || safeRequest.getTrackTotalHits());
 		dsl.put("query", buildQuery(safeRequest.getKeyword(), safeRequest.getFilters()));
 
 		List<Map<String, Object>> sorts = buildSorts(safeRequest.getSorts());

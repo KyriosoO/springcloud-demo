@@ -14,7 +14,14 @@ spring:
     active: es
 ```
 
-The Elasticsearch connection is expected from `configServer/src/main/resources/config/application-es.yml`.
+The Elasticsearch connection and default exact total-hits threshold are configured in
+`config-service/src/main/resources/config/application-es.yml`:
+
+```yaml
+es:
+  query:
+    total-hits-threshold: 10000
+```
 
 ## Query
 
@@ -23,7 +30,14 @@ POST /es/indexes/{index}/search
 Content-Type: application/json
 ```
 
-The request body is raw Elasticsearch query DSL.
+The request body is raw Elasticsearch query DSL. When `track_total_hits` is absent or
+`null`, the service injects the configured threshold. A caller-provided Elasticsearch
+value takes precedence.
+
+Both normal and vector searches return Elasticsearch's native total relation:
+
+- `relation: "eq"` means the total is exact.
+- `relation: "gte"` means the value is a lower bound.
 
 ## Index Documents
 

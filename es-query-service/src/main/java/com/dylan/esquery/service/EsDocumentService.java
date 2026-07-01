@@ -1,6 +1,7 @@
 package com.dylan.esquery.service;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,8 +15,10 @@ import org.elasticsearch.client.RestClient;
 import org.springframework.stereotype.Service;
 
 import com.dylan.esquery.api.model.VectorSearchRequest;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.dylan.esquery.config.EsQueryProperties;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * ES 文档服务，封装 Elasticsearch 文档写入、删除和查询逻辑。
@@ -24,13 +27,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class EsDocumentService {
 	private final RestClient restClient;
 	private final ObjectMapper objectMapper;
+	private final EsQueryProperties properties;
 
 	/**
 	 * 创建 EsDocumentService 实例并注入所需依赖。
 	 */
-	public EsDocumentService(RestClient restClient, ObjectMapper objectMapper) {
+	public EsDocumentService(RestClient restClient, ObjectMapper objectMapper, EsQueryProperties properties) {
 		this.restClient = restClient;
 		this.objectMapper = objectMapper;
+		this.properties = properties;
 	}
 
 	/**
@@ -38,7 +43,7 @@ public class EsDocumentService {
 	 */
 	public String search(String index, String queryDsl) throws IOException {
 		Request request = new Request("POST", "/" + index + "/_search");
-		request.setEntity(jsonEntity(queryDsl));
+		request.setEntity(jsonEntity(applyDefaultTrackTotalHits(queryDsl)));
 		Response response = restClient.performRequest(request);
 		return responseBody(response);
 	}
@@ -111,14 +116,44 @@ public class EsDocumentService {
 
 		int k = request.getK() == null ? 10 : request.getK();
 		int numCandidates = request.getNumCandidates() == null ? 100 : request.getNumCandidates();
-		Map<String, Object> body = Map.of(
-				"_source", Map.of("excludes", List.of(embeddingField)),
-				"knn", Map.of("field", embeddingField, "query_vector",
-						request.getQueryVector(), "k", k, "num_candidates", numCandidates));
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("_source", Map.of("excludes", List.of(embeddingField)));
+		body.put("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
+		body.put("knn", Map.of("field", embeddingField, "query_vector",
+				request.getQueryVector(), "k", k, "num_candidates", numCandidates));
 		Request esRequest = new Request("POST", "/" + index + "/_search");
 		esRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(body)));
 		Response response = restClient.performRequest(esRequest);
 		return responseBody(response);
+	}
+
+	String applyDefaultTrackTotalHits(String queryDsl) {
+		if (queryDsl == null || queryDsl.isBlank()) {
+			throw new IllegalArgumentException("query DSL must not be blank");
+		}
+		JsonNode root;
+		try {
+			root = objectMapper.readTree(queryDsl);
+		} catch (IOException e) {
+			throw new IllegalArgumentException("query DSL must be a valid JSON object", e);
+		}
+		if (!(root instanceof ObjectNode queryBody)) {
+			throw new IllegalArgumentException("query DSL must be a JSON object");
+		}
+		if (!queryBody.hasNonNull("track_total_hits")) {
+			queryBody.put("track_total_hits", properties.getTotalHitsThreshold());
+		}
+		return queryBody.toString();
+	}
+
+	int resolveTrackTotalHits(Integer requestedThreshold) {
+		if (requestedThreshold == null) {
+			return properties.getTotalHitsThreshold();
+		}
+		if (requestedThreshold < 1) {
+			throw new IllegalArgumentException("trackTotalHits must be greater than 0");
+		}
+		return requestedThreshold;
 	}
 
 	/**

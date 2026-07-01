@@ -49,3 +49,7 @@ rocketmq:
 
 # 可选：消费模式，默认是集群模式
 # message-model: BROADCASTING
+
+transaction:
+  search:
+    max-exact-total: 10000

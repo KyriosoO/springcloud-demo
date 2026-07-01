@@ -1,0 +1,22 @@
+{
+  "requestId": "turn-001",
+  "plan": {
+    "planVersion": "1.0",
+    "intent": "QUERY",
+    "domain": "employee",
+    "query": {
+      "filters": [
+        {
+          "field": "position",
+          "operator": "EQ",
+          "value": "HRM",
+          "values": null
+        }
+      ],
+      "selectFields": ["chineseName", "memberNo", "position"],
+      "page": 1,
+      "size": 20
+    },
+    "clarify": null
+  }
+}

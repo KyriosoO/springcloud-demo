@@ -5,3 +5,7 @@ spring:
 #    password: your_password
     connection-timeout: 3s
     socket-timeout: 10s
+
+es:
+  query:
+    total-hits-threshold: 10000

@@ -8,12 +8,14 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.dylan.mqprocedureserver.config.TransactionSearchProperties;
 import com.dylan.mqprocedureserver.mapper.TransactionMapper;
 import com.dylan.transaction.api.model.AggregateRequest;
 import com.dylan.transaction.api.model.Transaction;
+import com.dylan.transaction.api.query.TransactionSearchRequest;
+import com.dylan.transaction.api.query.TransactionSearchResponse;
 
 @Service
 public class TransactionService {
@@ -29,11 +31,93 @@ public class TransactionService {
 	/** 聚合运算白名单 */
 	private static final Set<String> METRICS_OPS = Set.of("MAX", "MIN", "SUM", "AVG", "COUNT");
 
-	@Autowired
-	private TransactionMapper transactionMapper;
+	private final TransactionMapper transactionMapper;
+	private final TransactionSearchProperties searchProperties;
+
+	public TransactionService(TransactionMapper transactionMapper,
+							  TransactionSearchProperties searchProperties) {
+		this.transactionMapper = transactionMapper;
+		this.searchProperties = searchProperties;
+	}
 
 	public List<Transaction> query(Transaction condition) {
-		return transactionMapper.query(condition);
+		return transactionMapper.query(condition, null, null);
+	}
+
+	public TransactionSearchResponse search(TransactionSearchRequest request) {
+		validateSearchRequest(request);
+
+		Transaction condition = request.getCondition();
+		int page = request.getPage();
+		int size = request.getSize();
+		int offset = calculateOffset(page, size);
+		int maxExactTotal = searchProperties.getMaxExactTotal();
+		int countLimit = Math.addExact(maxExactTotal, 1);
+
+		long observed = transactionMapper.countUpTo(condition, countLimit);
+		if (observed == 0) {
+			TransactionSearchResponse resp = new TransactionSearchResponse();
+			resp.setRows(List.of());
+			resp.setTotal(0);
+			resp.setTotalExact(true);
+			resp.setPage(page);
+			resp.setSize(size);
+			return resp;
+		}
+
+		List<Transaction> rows = transactionMapper.query(condition, offset, size);
+
+		long total = Math.min(observed, maxExactTotal);
+		boolean totalExact = observed <= maxExactTotal;
+
+		TransactionSearchResponse resp = new TransactionSearchResponse();
+		resp.setRows(rows);
+		resp.setTotal(total);
+		resp.setTotalExact(totalExact);
+		resp.setPage(page);
+		resp.setSize(size);
+		return resp;
+	}
+
+	private void validateSearchRequest(TransactionSearchRequest request) {
+		if (request == null) {
+			throw new IllegalArgumentException("搜索请求不能为空。");
+		}
+		if (request.getCondition() == null) {
+			throw new IllegalArgumentException("搜索条件不能为空。");
+		}
+		if (!hasCondition(request.getCondition())) {
+			throw new IllegalArgumentException("至少需要一个查询条件。");
+		}
+		if (request.getPage() < 1) {
+			throw new IllegalArgumentException("page 必须 >= 1。");
+		}
+		if (request.getSize() < 1 || request.getSize() > 100) {
+			throw new IllegalArgumentException("size 必须在 1～100 之间。");
+		}
+		if (searchProperties.getMaxExactTotal() <= 0) {
+			throw new IllegalStateException("transaction.search.max-exact-total 必须为正数。");
+		}
+	}
+
+	private boolean hasCondition(Transaction condition) {
+		return (condition.getTransId() != null && !condition.getTransId().isBlank())
+				|| (condition.getTransType() != null && !condition.getTransType().isBlank())
+				|| (condition.getTransTypeContains() != null && !condition.getTransTypeContains().isBlank())
+				|| condition.getTransDate() != null
+				|| condition.getTransDateGt() != null
+				|| condition.getTransDateLt() != null
+				|| condition.getAmount() != null
+				|| condition.getAmountGt() != null
+				|| condition.getAmountLt() != null;
+	}
+
+	private int calculateOffset(int page, int size) {
+		try {
+			return Math.multiplyExact(page - 1, size);
+		} catch (ArithmeticException e) {
+			throw new IllegalArgumentException("分页偏移计算溢出。");
+		}
 	}
 
 	/**
@@ -92,22 +176,18 @@ public class TransactionService {
 
 		// 3. 构建 SELECT 子句
 		StringBuilder selectClause = new StringBuilder();
-		// 分组列
 		for (String field : validGroupBy) {
 			if (!selectClause.isEmpty()) selectClause.append(", ");
 			selectClause.append(FIELD_MAP.get(field)).append(" as ").append(field);
 		}
-		// 始终包含 count(*)
 		if (!selectClause.isEmpty()) selectClause.append(", ");
 		selectClause.append("count(*) as count");
-		// 聚合指标
 		for (MetricSpec ms : validMetrics) {
 			selectClause.append(", ").append(ms.op).append("(")
 					.append(FIELD_MAP.get(ms.field)).append(") as ")
 					.append(ms.alias());
 		}
 
-		// 4. 构建 GROUP BY 子句
 		String groupByClause = null;
 		if (hasValidGroupBy) {
 			groupByClause = validGroupBy.stream()
@@ -116,7 +196,6 @@ public class TransactionService {
 					.orElse(null);
 		}
 
-		// 5. 构建结果
 		Map<String, Object> result = new LinkedHashMap<>();
 
 		if (hasValidGroupBy) {
@@ -124,7 +203,6 @@ public class TransactionService {
 					condition, selectClause.toString(), groupByClause);
 			result.put("groups", groups);
 		} else {
-			// 无分组 → 全局聚合
 			Map<String, Object> global = transactionMapper.aggregate(condition);
 			List<Map<String, Object>> globalGroup = new ArrayList<>();
 			Map<String, Object> row = new LinkedHashMap<>();
@@ -143,7 +221,6 @@ public class TransactionService {
 			result.put("groups", globalGroup);
 		}
 
-		// 附加全局统计
 		Map<String, Object> globalStats = transactionMapper.aggregate(
 				condition != null ? condition : new Transaction());
 		result.put("totalCount", globalStats.get("totalCount"));
@@ -152,7 +229,6 @@ public class TransactionService {
 		result.put("minAmount", globalStats.get("minAmount"));
 		result.put("maxAmount", globalStats.get("maxAmount"));
 
-		// 错误反馈
 		if (!invalidGroupBy.isEmpty()) {
 			result.put("invalidGroupBy", invalidGroupBy);
 			result.put("message", "Invalid groupBy fields: " + invalidGroupBy
@@ -169,7 +245,6 @@ public class TransactionService {
 		return result;
 	}
 
-	/** Internal holder for parsed+validated metric spec. */
 	private record MetricSpec(String op, String field) {
 		String alias() {
 			return op.toLowerCase() + field.substring(0, 1).toUpperCase() + field.substring(1);
@@ -182,10 +257,20 @@ public class TransactionService {
 	}
 
 	public Transaction getByTransId(String transId) {
-		return transactionMapper.findByTransId(transId);
+		Transaction condition = new Transaction();
+		condition.setTransId(transId);
+		return transactionMapper.findByCondition(condition);
+	}
+
+	public Transaction findByCondition(Transaction condition) {
+		return transactionMapper.findByCondition(condition);
 	}
 
 	public int delete(String transId) {
 		return transactionMapper.deleteByTransId(transId);
+	}
+
+	public int update(Transaction transaction) {
+		return transactionMapper.update(transaction);
 	}
 }

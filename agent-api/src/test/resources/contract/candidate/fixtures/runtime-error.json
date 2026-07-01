@@ -1,0 +1,12 @@
+{
+  "requestId": "plan-error-001",
+  "code": "PROVIDER_UNAVAILABLE",
+  "message": "Runtime provider is unavailable",
+  "metadata": {
+    "operation": "PLAN", "providerAttempts": 1, "repairAttempts": 0,
+    "repairDurationMs": 0, "totalDurationMs": 80,
+    "terminationReason": "PROVIDER_UNAVAILABLE",
+    "deadlineReached": false, "repairLimitReached": false
+  },
+  "diagnosticId": "diag-001"
+}

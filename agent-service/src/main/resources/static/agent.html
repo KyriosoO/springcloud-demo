@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 查询解析</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+    color: #1f2937;
+    background: #f3f4f6;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  h1 { margin: 0 0 20px; font-size: 26px; }
+  .input-row { display: flex; gap: 10px; }
+  #message-input {
+    flex: 1;
+    padding: 11px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 15px;
+  }
+  #send-button {
+    padding: 11px 22px;
+    border: 0;
+    border-radius: 7px;
+    color: white;
+    background: #2563eb;
+    cursor: pointer;
+  }
+  #message-input:disabled, #send-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  #status { min-height: 22px; margin: 8px 0; color: #64748b; }
+  .output {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: white;
+  }
+  .output h2 { margin: 0 0 12px; font-size: 17px; }
+  #summary-text { margin: 0; line-height: 1.65; white-space: pre-wrap; }
+  #query-parameters {
+    margin: 0;
+    padding: 14px;
+    overflow-x: auto;
+    border-radius: 7px;
+    color: #e2e8f0;
+    background: #0f172a;
+    font: 14px/1.55 Consolas, Monaco, monospace;
+    white-space: pre-wrap;
+  }
+  #query-result { overflow-x: auto; }
+  #query-result table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  #query-result th, #query-result td {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+    white-space: nowrap;
+  }
+  #query-result th { background: #f8fafc; }
+  #query-result .meta {
+    margin-bottom: 8px;
+    color: #64748b;
+    font-size: 12px;
+  }
+  #aggregate-result { overflow-x: auto; }
+  #aggregate-result table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  #aggregate-result th, #aggregate-result td {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+    white-space: nowrap;
+  }
+  #aggregate-result th { background: #f8fafc; }
+  #aggregate-result .meta {
+    margin-bottom: 8px;
+    color: #64748b;
+    font-size: 12px;
+  }
+  .error { color: #b91c1c; }
+</style>
+</head>
+<body>
+
+<h1>Agent 查询解析</h1>
+
+<div class="input-row">
+  <input id="message-input" type="text"
+         placeholder="输入查询，例如：查询岗位是 HRM 的员工"
+         maxlength="2000" autofocus>
+  <button id="send-button" type="button">发送</button>
+</div>
+<div id="status"></div>
+
+<section class="output">
+  <h2>1. Summarizer 文本</h2>
+  <p id="summary-text">等待查询。</p>
+</section>
+
+<section class="output">
+  <h2>2. LLM 解析后的查询参数</h2>
+  <pre id="query-parameters">等待查询。</pre>
+</section>
+
+<section class="output">
+  <h2>3. AgentQueryResult</h2>
+  <div id="query-result">等待查询。</div>
+</section>
+
+<section class="output">
+  <h2>4. AgentAggregateResult</h2>
+  <div id="aggregate-result">等待查询。</div>
+</section>
+
+<script>
+let conversationId = null;
+
+async function sendMessage() {
+  const input = document.getElementById("message-input");
+  const message = input.value.trim();
+  if (!message) return;
+
+  setBusy(true);
+  renderSummary("处理中...", false);
+  renderQueryParameters(null);
+  renderQueryResult(null);
+  renderAggregateResult(null);
+
+  try {
+    const response = await fetch("/agent/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ conversationId, message })
+    });
+
+    if (isLoginRedirect(response)) {
+      window.location.href = "/login.html";
+      return;
+    }
+
+    const data = await response.json();
+    conversationId = data.conversationId || conversationId;
+
+    renderSummary(data.summary || data.message || "无返回文本", data.type === "ERROR");
+    renderQueryParameters(data.queryParameters);
+    renderQueryResult(data.queryResult);
+    renderAggregateResult(data.aggregateResult);
+  } catch (error) {
+    renderSummary("网络错误，请稍后重试。", true);
+    renderQueryParameters(null);
+    renderQueryResult(null);
+    renderAggregateResult(null);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderSummary(text, isError) {
+  const element = document.getElementById("summary-text");
+  element.textContent = text;
+  element.className = isError ? "error" : "";
+}
+
+function renderQueryParameters(parameters) {
+  document.getElementById("query-parameters").textContent = parameters
+    ? JSON.stringify(parameters, null, 2)
+    : "本次响应没有可执行的查询参数。";
+}
+
+function renderQueryResult(result) {
+  const container = document.getElementById("query-result");
+  container.replaceChildren();
+
+  if (!result || !Array.isArray(result.columns) || !Array.isArray(result.rows)) {
+    container.textContent = "本次响应没有查询结果。";
+    return;
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const totalText = result.totalExact === false ? `至少 ${result.total}` : `${result.total}`;
+  meta.textContent = `共 ${totalText} 条 · 第 ${result.page} 页 · 每页 ${result.size} 条`;
+  container.appendChild(meta);
+
+  const table = document.createElement("table");
+  const header = document.createElement("tr");
+  result.columns.forEach(column => {
+    const cell = document.createElement("th");
+    cell.textContent = column;
+    header.appendChild(cell);
+  });
+  const thead = document.createElement("thead");
+  thead.appendChild(header);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  result.rows.forEach(row => {
+    const tr = document.createElement("tr");
+    result.columns.forEach(column => {
+      const td = document.createElement("td");
+      const value = row[column];
+      td.textContent = value === null || value === undefined ? "" : String(value);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+function renderAggregateResult(result) {
+  const container = document.getElementById("aggregate-result");
+  container.replaceChildren();
+
+  if (!result || !result.groupByFields || !result.metricAliases || !result.rows) {
+    container.textContent = "本次响应没有聚合结果。";
+    return;
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const domainText = result.domain ? `域: ${result.domain} · ` : "";
+  const partialText = result.partial ? " (部分结果)" : "";
+  meta.textContent = `${domainText}${result.rows.length} 行${partialText}`;
+  container.appendChild(meta);
+
+  const columns = [...result.groupByFields, ...result.metricAliases];
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  columns.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  result.rows.forEach(row => {
+    const tr = document.createElement("tr");
+    result.groupByFields.forEach(field => {
+      const td = document.createElement("td");
+      const value = row.groups ? row.groups[field] : null;
+      td.textContent = value === null || value === undefined ? "" : String(value);
+      tr.appendChild(td);
+    });
+    result.metricAliases.forEach(alias => {
+      const td = document.createElement("td");
+      const value = row.metrics ? row.metrics[alias] : null;
+      td.textContent = value === null || value === undefined ? "" : String(value);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+function setBusy(busy) {
+  document.getElementById("message-input").disabled = busy;
+  document.getElementById("send-button").disabled = busy;
+  document.getElementById("status").textContent = busy ? "处理中..." : "";
+}
+
+function isLoginRedirect(response) {
+  if (response.redirected) {
+    try {
+      return new URL(response.url).pathname === "/login.html";
+    } catch (error) {
+      return true;
+    }
+  }
+  if (response.status === 401) return true;
+  const contentType = response.headers.get("Content-Type") || "";
+  return response.status === 200 && !contentType.includes("application/json");
+}
+
+document.getElementById("send-button").addEventListener("click", sendMessage);
+document.getElementById("message-input").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendMessage();
+  }
+});
+</script>
+
+</body>
+</html>

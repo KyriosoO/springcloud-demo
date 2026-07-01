@@ -40,6 +40,7 @@
 		<kryo.version>5.6.2</kryo.version>
 		<disruptor.version>4.0.0</disruptor.version>
 		<sentinel.version>1.8.9</sentinel.version>
+		<swagger-core.version>2.2.31</swagger-core.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -106,6 +107,17 @@
 				<artifactId>sentinel-transport-simple-http</artifactId>
 				<version>${sentinel.version}</version>
 			</dependency>
+			<!-- Swagger/OpenAPI 契约生成 -->
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-core-jakarta</artifactId>
+				<version>${swagger-core.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-annotations-jakarta</artifactId>
+				<version>${swagger-core.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -118,6 +130,10 @@
 		</plugins>
 	</build>
 	<modules>
+		<module>../agent-api</module>
+		<module>../agent-adapter-api</module>
+		<module>../agent-adapter-employee</module>
+		<module>../agent-adapter-transaction</module>
 		<module>../workflow-api</module>
 		<module>../es-query-api</module>
 		<module>../order-api</module>
@@ -139,5 +155,6 @@
 		<module>../employee-service</module>
 		<module>../es-query-service</module>
 		<module>../workflow-service</module>
+		<module>../agent-service</module>
 	</modules>
 </project>
