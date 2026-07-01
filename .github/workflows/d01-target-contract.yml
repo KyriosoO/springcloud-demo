@@ -1,0 +1,75 @@
+name: D01 Target Contract Governance
+
+on:
+  push:
+    branches: [master, codex]
+    paths:
+      - 'agent-api/pom.xml'
+      - 'agent-api/src/main/java/com/dylan/agent/api/contract/runtime/**'
+      - 'agent-api/src/test/java/com/dylan/agent/api/contract/**'
+      - 'agent-api/src/test/resources/contract/candidate/**'
+      - 'agent-runtime/requirements-dev.txt'
+      - 'agent-runtime/scripts/target_contract/**'
+      - 'agent-runtime/tests/target_contract/**'
+      - 'scripts/verify-d01-contract.ps1'
+      - 'serviceCenter/mvnw'
+      - '.github/workflows/d01-target-contract.yml'
+      - 'docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
+  pull_request:
+    branches: [master, codex]
+    paths:
+      - 'agent-api/pom.xml'
+      - 'agent-api/src/main/java/com/dylan/agent/api/contract/runtime/**'
+      - 'agent-api/src/test/java/com/dylan/agent/api/contract/**'
+      - 'agent-api/src/test/resources/contract/candidate/**'
+      - 'agent-runtime/requirements-dev.txt'
+      - 'agent-runtime/scripts/target_contract/**'
+      - 'agent-runtime/tests/target_contract/**'
+      - 'scripts/verify-d01-contract.ps1'
+      - 'serviceCenter/mvnw'
+      - '.github/workflows/d01-target-contract.yml'
+      - 'docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
+
+jobs:
+  d01-target-contract:
+    name: D01 Target Contract Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+          cache: maven
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: agent-runtime/requirements-dev.txt
+
+      - name: Install Python contract dependencies
+        run: python -m pip install -r agent-runtime/requirements-dev.txt
+
+      - name: Run D01 unified gate
+        shell: pwsh
+        env:
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |-
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            & git fetch origin $env:GITHUB_BASE_REF --no-tags
+            if ($LASTEXITCODE -ne 0) { throw 'cannot fetch PR base ref' }
+            $baseRef = "origin/$env:GITHUB_BASE_REF"
+          } else {
+            $baseRef = $env:EVENT_BEFORE
+            if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -match '^0+$') {
+              $baseRef = 'HEAD^'
+            }
+          }
+          & ./scripts/verify-d01-contract.ps1 -BaseRef $baseRef
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

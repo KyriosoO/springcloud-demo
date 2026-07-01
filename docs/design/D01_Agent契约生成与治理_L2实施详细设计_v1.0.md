@@ -1,7 +1,7 @@
 # D01 Agent 契约生成与治理 — L2 实施详细设计 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已评审（实施中，待 CNB CI 统一门禁）
+> 文档状态：已评审（实施中，待 GitHub Actions 统一门禁）
 > 上位文档：`Agent目标架构总览_v1.0.md`（L0）、`Agent契约与规划架构设计_v1.0.md`（L1）  
 > 交付阶段：D01 契约生成与治理  
 > 代码基线：`b56906c` 及其同源后续提交  
@@ -21,7 +21,9 @@
 | 2026-07-01 | 明确 `buildComponents` 在 Java 侧生成具名 enum component，并把 swagger-core 的 interface `allOf` 展开为独立 subtype object 后构造纯 `oneOf` union | `additionalProperties=false` 的 union base 与 subtype `allOf` 组合会拒绝 subtype 自有字段，并迫使 Python 生成后补丁；具名 enum component 还保证 Python 类型名稳定 | 生成逻辑仍只读取 Java enum、字段 schema 与 discriminator mapping；不增加第二契约源或 Python 语义处理 |
 | 2026-07-01 | 文档状态由“待实施”调整为“实施中，待 CNB CI 统一门禁” | D01 代码、artifact、本地分项门禁及 PowerShell 7 统一入口已经通过，但尚无权威远端 `d01-target-contract` Pipeline 成功证据 | 不提前宣告 D01 退出；第 16.6 节第 16 项仍须由 CI success 关闭 |
 | 2026-07-01 | 将 D01 CI 门禁从 GitHub Actions 迁移到 CNB Pipeline：新增根 `.cnb.yml` 与 `.cnb/d01-contract.Dockerfile`，恢复既有 `.github/workflows/agent-contract.yml`，并把两项 CNB 文件纳入 changed-path allowlist | 当前唯一 fetch/push 远端为 `cnb.cool`；CNB 只读取根 `.cnb.yml`，不会执行 `.github/workflows`。继续以 GitHub job 作为退出证据会形成不可执行门禁 | 不改变统一验证入口或 16 项门禁语义；仅把真实 Linux 执行平台改为当前权威托管平台，并固定 amd64、Java 25、Python 3.12、PowerShell 7.6.3 环境 |
-| 2026-07-01 | 将既有 `serviceCenter/mvnw` 的 Git mode 从 `100644` 修正为 `100755`，内容 byte-for-byte 不变，并纳入 D01 changed-path allowlist | Linux CNB 统一入口必须直接执行 Maven Wrapper；无可执行位时真实 Linux checkout 无法启动该脚本 | 仅修复跨平台执行元数据；不修改 Maven Wrapper 内容、版本、构建逻辑或生产代码 |
+| 2026-07-01 | 将既有 `serviceCenter/mvnw` 的 Git mode 从 `100644` 修正为 `100755`，内容 byte-for-byte 不变，并纳入 D01 changed-path allowlist | Linux CI 统一入口必须直接执行 Maven Wrapper；无可执行位时真实 Linux checkout 无法启动该脚本 | 仅修复跨平台执行元数据；不修改 Maven Wrapper 内容、版本、构建逻辑或生产代码 |
+| 2026-07-01 | 权威远端切换为 GitHub 后，将 D01 CI 从 CNB Pipeline 切回 GitHub Actions：不保留 `.cnb.yml`/CNB Dockerfile，恢复 active `.github/workflows/agent-contract.yml`，并新增窄 paths 的 `.github/workflows/d01-target-contract.yml` | 当前 fetch/push 远端为 `github.com/KyriosoO/springcloud-demo.git`，迁移后的 GitHub 分支未包含任何 workflow；若把 D01 job 放入 broad active workflow，后续合法的 `agent-service`/adapter 变更会错误触发 D01 changed-path failure | GitHub push 仅覆盖与实际代码同源的 `master`/`codex`；target workflow 仍只调用唯一统一入口，不形成第二契约源，也不把不相关历史的默认 `main` 当作 D01 base |
+| 2026-07-01 | changed-path 的 `git diff --name-only` 固定使用 `-c core.quotepath=false` | Linux Git 默认把中文文档路径输出为带引号的八进制转义文本，导致真实允许路径被误判为越界 | 只规范路径输出编码；不改变 merge-base、允许路径集合或隔离语义 |
 
 ---
 
@@ -201,9 +203,9 @@ agent-runtime/
 scripts/
 └─ verify-d01-contract.ps1
 
-.cnb.yml                                    # CNB push/PR D01 target Pipeline
-.cnb/
-└─ d01-contract.Dockerfile                  # Java 25 + Python 3.12 + PowerShell 7.6.3
+.github/workflows/
+├─ agent-contract.yml                       # 恢复的 active Java/Python checks
+└─ d01-target-contract.yml                  # 窄 paths + D01 target job
 
 serviceCenter/
 └─ mvnw                                     # 现有文件：仅 Git mode 100644→100755
@@ -234,7 +236,7 @@ agent-api/src/main/java/com/dylan/agent/api/
 
 ### 3.3 配置文件
 
-D01 修改现有 `agent-api/pom.xml`，新增根 `.cnb.yml` 与 `.cnb/d01-contract.Dockerfile`，并只修正既有 `serviceCenter/mvnw` 的 Git executable mode：POM 增加 test-scope Jakarta Validation provider；CNB Pipeline 在 `codex`/`master` push 和 PR 的 D01 路径变更时调用跨平台统一入口。既有 `.github/workflows/agent-contract.yml` 保持 D01 实施前内容，不承载 D01 target gate；YAML 不复制 target 命令清单。
+D01 修改现有 `agent-api/pom.xml`，恢复 `.github/workflows/agent-contract.yml`，新增 `.github/workflows/d01-target-contract.yml`，并只修正既有 `serviceCenter/mvnw` 的 Git executable mode：POM 增加 test-scope Jakarta Validation provider；active workflow 保持 broad checks，target workflow 仅在 `master`/`codex` push 和 PR 的 D01 路径变更时运行。D01 job 只调用跨平台统一入口，不在 YAML 内复制 target 命令清单。
 
 其余现有配置文件不修改：
 
@@ -242,8 +244,9 @@ D01 修改现有 `agent-api/pom.xml`，新增根 `.cnb.yml` 与 `.cnb/d01-contra
 - 父 POM 当前固定 Java 25、swagger-core/annotations 2.2.31；D01 不另建版本来源。
 - `agent-runtime/requirements.txt` 当前固定 Pydantic 2.13.4，`requirements-dev.txt` 固定 datamodel-code-generator 0.33.0；D01 使用现有版本，不修改依赖文件。
 - 根 `.gitignore` 已包含全局 `target/`，自动覆盖 `agent-runtime/target/contract-models/`。
-- `.cnb/d01-contract.Dockerfile` 基于官方 Temurin Java 25 Ubuntu 24.04 镜像，使用 Ubuntu 自带 Python 3.12，并按固定 SHA-256 安装 PowerShell 7.6.3；Pipeline runner 显式固定 `cnb:arch:amd64`，与 Linux x64 archive 一致；不安装项目生产依赖或生成契约产物。
-- `.cnb.yml` 只安装现有 `requirements-dev.txt` 并调用 `scripts/verify-d01-contract.ps1`；push 使用 `CNB_BEFORE_SHA`，PR 使用 `CNB_PULL_REQUEST_TARGET_SHA`，全零新分支 SHA 才回退 `HEAD^`。
+- `agent-contract.yml` 恢复 active Java/Python checks；`d01-target-contract.yml` 使用 GitHub 托管的 `ubuntu-latest`，通过 `actions/setup-java` 固定 Java 25、`actions/setup-python` 固定 Python 3.12，安装现有 `requirements-dev.txt` 后只调用 `scripts/verify-d01-contract.ps1`。
+- target workflow 的 paths 只含 D01 allowlist、本文和自身；不得放入 broad active workflow，避免后续 D02/adapter 合法变更被 D01 isolation gate 误拒绝。
+- push 使用 `github.event.before`；PR fetch `GITHUB_BASE_REF` 后使用真实 `origin/<base>`；全零新分支 SHA 才回退 `HEAD^`。`fetch-depth: 0` 保证 merge-base 可证明。
 - `serviceCenter/mvnw` 只把 Git mode 修正为 `100755`；blob hash 和文本内容必须保持不变，使同一 wrapper 可在 Linux checkout 直接执行。
 
 ### 3.4 D01 禁止修改清单
@@ -744,11 +747,11 @@ private helper：`locateRepoRoot()`（向上查找同时包含 `agent-api`、`ag
 
 ### 10.4 D01 changed-path isolation gate
 
-CI 使用 merge-base 后的 changed-path allowlist，而不是维护易漂移的文件 hash 清单。允许路径仅为第 3.1 节交付树；迁移提交允许把 `.github/workflows/agent-contract.yml` 恢复到 D01 前内容。第 3.2 节复用类不得出现在 diff 中。以下命令出现输出即失败：
+CI 使用 merge-base 后的 changed-path allowlist，而不是维护易漂移的文件 hash 清单。允许路径仅为第 3.1 节交付树；第 3.2 节复用类不得出现在 diff 中。以下命令出现输出即失败：
 
 ```powershell
 $base = git merge-base HEAD origin/master
-$changed = git diff --name-only $base HEAD
+$changed = git -c core.quotepath=false diff --name-only $base HEAD
 $changed | Where-Object {
   $_ -notmatch '^agent-api/src/main/java/com/dylan/agent/api/contract/runtime/' -and
   $_ -notmatch '^agent-api/src/test/java/com/dylan/agent/api/contract/' -and
@@ -758,8 +761,7 @@ $changed | Where-Object {
     'agent-api/pom.xml',
     'scripts/verify-d01-contract.ps1',
     '.github/workflows/agent-contract.yml',
-    '.cnb.yml',
-    '.cnb/d01-contract.Dockerfile',
+    '.github/workflows/d01-target-contract.yml',
     'serviceCenter/mvnw',
     'docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
   )
@@ -1865,7 +1867,7 @@ D03 Planning Service
 
 1. 创建第 3.1 节目录。
 2. 确认根 `.gitignore` 的既有 `target/` 规则覆盖临时输出，不修改配置。
-3. 将跨平台统一验证入口接入根 `.cnb.yml`，以固定工具链 Dockerfile 建立 CNB Pipeline，并建立 changed-path allowlist。
+3. 恢复 active `agent-contract.yml`，将跨平台统一验证入口接入窄 paths 的 `d01-target-contract.yml`，并建立 changed-path allowlist。
 4. 运行当前 `agent-api`、`agent-runtime`、`agent-service` 基线验证并保存结果。
 
 门禁：production path 无 D01 变更；基线测试通过。
@@ -2091,12 +2093,11 @@ function Assert-AllowedPaths {
       'agent-api/pom.xml',
       'scripts/verify-d01-contract.ps1',
       '.github/workflows/agent-contract.yml',
-      '.cnb.yml',
-      '.cnb/d01-contract.Dockerfile',
+      '.github/workflows/d01-target-contract.yml',
       'serviceCenter/mvnw',
       'docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
     )
-    $violations = & git diff --name-only $base HEAD | Where-Object {
+    $violations = & git -c core.quotepath=false diff --name-only $base HEAD | Where-Object {
       $_ -notmatch '^agent-api/src/main/java/com/dylan/agent/api/contract/runtime/' -and
       $_ -notmatch '^agent-api/src/test/java/com/dylan/agent/api/contract/' -and
       $_ -notmatch '^agent-api/src/test/resources/contract/candidate/' -and
@@ -2148,140 +2149,50 @@ Assert-AllowedPaths $BaseRef
 Write-Host 'D01 contract governance verification passed.'
 ```
 
-**CNB 固定工具链镜像**：`.cnb/d01-contract.Dockerfile` 的完整内容如下。PowerShell archive 必须通过固定 SHA-256 校验；镜像不复制仓库源码，不形成契约源。
-
-```dockerfile
-FROM eclipse-temurin:25-jdk-noble
-
-ARG POWERSHELL_VERSION=7.6.3
-ARG POWERSHELL_SHA256=856d0765d2332377f9d7a4aea76efdfde4de51446e7738dde2dfda41dba9e2a7
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        git \
-        libicu74 \
-        libssl3 \
-        libunwind8 \
-        python3 \
-        python3-pip \
-        python3-venv \
-        zlib1g \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl --fail --location --silent --show-error \
-        --output /tmp/powershell.tar.gz \
-        "https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz" \
-    && echo "${POWERSHELL_SHA256}  /tmp/powershell.tar.gz" | sha256sum --check --strict \
-    && mkdir -p /opt/microsoft/powershell/7 \
-    && tar --extract --gzip --file /tmp/powershell.tar.gz --directory /opt/microsoft/powershell/7 \
-    && chmod +x /opt/microsoft/powershell/7/pwsh \
-    && ln -s /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh \
-    && rm /tmp/powershell.tar.gz
-
-RUN python3 -m venv /opt/d01-venv \
-    && /opt/d01-venv/bin/python -m pip install --no-cache-dir --upgrade pip
-
-ENV PATH="/opt/d01-venv/bin:${PATH}" \
-    POWERSHELL_TELEMETRY_OPTOUT=1 \
-    POWERSHELL_UPDATECHECK=Off
-```
-
-**CNB Pipeline**：根 `.cnb.yml` 对 `codex`/`master` 的 push 与 PR 使用同一个 `d01-target-contract` 定义。`ifModify` 只覆盖 D01 契约、治理入口、工具链和本文；Pipeline 只安装现有 Python dev 依赖并调用统一入口。
+**GitHub Actions 修改**：`.github/workflows/agent-contract.yml` 只恢复 broad active Java/Python jobs；`.github/workflows/d01-target-contract.yml` 在 `master`、`codex` 的 push/pull_request 上使用窄 D01 paths。下列是 target job 的完整定义；不得在 job 内复制统一脚本的 Java/Python 命令。
 
 ```yaml
-"(master|codex)":
-  push:
-    - name: d01-target-contract
-      runner:
-        tags:
-          - cnb:arch:amd64
-      ifModify:
-        - ".cnb.yml"
-        - ".cnb/d01-contract.Dockerfile"
-        - "agent-api/pom.xml"
-        - "agent-api/src/main/java/com/dylan/agent/api/contract/runtime/**"
-        - "agent-api/src/test/java/com/dylan/agent/api/contract/**"
-        - "agent-api/src/test/resources/contract/candidate/**"
-        - "agent-runtime/requirements-dev.txt"
-        - "agent-runtime/scripts/target_contract/**"
-        - "agent-runtime/tests/target_contract/**"
-        - "docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md"
-        - "scripts/verify-d01-contract.ps1"
-        - "serviceCenter/mvnw"
-      docker:
-        build:
-          dockerfile: .cnb/d01-contract.Dockerfile
-          by:
-            - .cnb/d01-contract.Dockerfile
-        volumes:
-          - /root/.m2:copy-on-write
-          - /root/.cache/pip:copy-on-write
-      stages:
-        - name: Install Python contract dependencies
-          script: python -m pip install -r agent-runtime/requirements-dev.txt
-        - name: Run D01 unified gate
-          script: |
-            set -eu
-            git config --global --add safe.directory "$PWD"
-            base_ref="${CNB_BEFORE_SHA:-}"
-            if [ "${CNB_PULL_REQUEST:-false}" = "true" ]; then
-              base_ref="${CNB_PULL_REQUEST_TARGET_SHA:-}"
-            fi
-            if [ -z "$base_ref" ] || printf '%s' "$base_ref" | grep -Eq '^0+$'; then
-              base_ref='HEAD^'
-            fi
-            if ! git cat-file -e "${base_ref}^{commit}" 2>/dev/null; then
-              git fetch origin "$base_ref" --no-tags
-            fi
-            pwsh -NoLogo -NoProfile -File ./scripts/verify-d01-contract.ps1 -BaseRef "$base_ref"
-
-  pull_request:
-    - name: d01-target-contract
-      runner:
-        tags:
-          - cnb:arch:amd64
-      ifModify:
-        - ".cnb.yml"
-        - ".cnb/d01-contract.Dockerfile"
-        - "agent-api/pom.xml"
-        - "agent-api/src/main/java/com/dylan/agent/api/contract/runtime/**"
-        - "agent-api/src/test/java/com/dylan/agent/api/contract/**"
-        - "agent-api/src/test/resources/contract/candidate/**"
-        - "agent-runtime/requirements-dev.txt"
-        - "agent-runtime/scripts/target_contract/**"
-        - "agent-runtime/tests/target_contract/**"
-        - "docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md"
-        - "scripts/verify-d01-contract.ps1"
-        - "serviceCenter/mvnw"
-      docker:
-        build:
-          dockerfile: .cnb/d01-contract.Dockerfile
-          by:
-            - .cnb/d01-contract.Dockerfile
-        volumes:
-          - /root/.m2:copy-on-write
-          - /root/.cache/pip:copy-on-write
-      stages:
-        - name: Install Python contract dependencies
-          script: python -m pip install -r agent-runtime/requirements-dev.txt
-        - name: Run D01 unified gate
-          script: |
-            set -eu
-            git config --global --add safe.directory "$PWD"
-            base_ref="${CNB_PULL_REQUEST_TARGET_SHA:-}"
-            if [ -z "$base_ref" ]; then
-              echo 'CNB_PULL_REQUEST_TARGET_SHA is required for pull_request' >&2
-              exit 1
-            fi
-            if ! git cat-file -e "${base_ref}^{commit}" 2>/dev/null; then
-              git fetch origin "$base_ref" --no-tags
-            fi
-            pwsh -NoLogo -NoProfile -File ./scripts/verify-d01-contract.ps1 -BaseRef "$base_ref"
+d01-target-contract:
+  name: D01 Target Contract Governance
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Set up JDK 25
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: temurin
+        cache: maven
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: pip
+        cache-dependency-path: agent-runtime/requirements-dev.txt
+    - name: Install Python contract dependencies
+      run: python -m pip install -r agent-runtime/requirements-dev.txt
+    - name: Run D01 unified gate
+      shell: pwsh
+      env:
+        EVENT_BEFORE: ${{ github.event.before }}
+      run: |-
+        if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+          & git fetch origin $env:GITHUB_BASE_REF --no-tags
+          if ($LASTEXITCODE -ne 0) { throw 'cannot fetch PR base ref' }
+          $baseRef = "origin/$env:GITHUB_BASE_REF"
+        } else {
+          $baseRef = $env:EVENT_BEFORE
+          if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -match '^0+$') {
+            $baseRef = 'HEAD^'
+          }
+        }
+        & ./scripts/verify-d01-contract.ps1 -BaseRef $baseRef
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 ```
 
-push 使用 `CNB_BEFORE_SHA`；仅新分支全零 SHA 回退 `HEAD^`。PR 使用预合并工作区对应的 `CNB_PULL_REQUEST_TARGET_SHA`。若提交对象不在本地对象库，Pipeline 显式 fetch 该 SHA 后再由统一脚本计算 merge-base。
+`actions/checkout` 必须使用 `fetch-depth: 0`。push 使用 `github.event.before`；仅新分支全零 SHA 回退 `HEAD^`。PR 显式 fetch `GITHUB_BASE_REF` 并使用真实 `origin/<base>`，使统一脚本自行计算 merge-base。
 
 脚本必须先在 PowerShell 7 解析通过（Windows 本地和 Linux CI 使用同一文件）：
 
@@ -2321,7 +2232,7 @@ pwsh -File .\scripts\verify-d01-contract.ps1 -BaseRef origin/master
 | 13 | 无 planKind→Handler/权限/审计临时桥 | production path 无修改 + target architecture test |
 | 14 | 无 Clarify Plan、planVersion、身份回显 | static + reflection tests |
 | 15 | Route/Plan 使用同一 Java contract generation 版本 | Java constant + OpenAPI + chain fixture |
-| 16 | CNB Linux Pipeline 真实执行同一 D01 统一入口 | CNB `d01-target-contract` Pipeline success |
+| 16 | GitHub Actions Linux job 真实执行同一 D01 统一入口 | `d01-target-contract` job success |
 
 任一条件缺失都不得把 D01 标记完成，也不得以“D03 会补”为理由豁免 D01 自身门禁。
 
@@ -2345,7 +2256,7 @@ D03 原子提交必须：
 4. 同步切换 Lifecycle、Execution、Persistence、API/UI。
 5. 删除旧 `/plans/generate`、AgentIntent/Clarify Handler/legacy generated model/facade。
 6. 删除 `src/test/resources/contract/candidate`、`scripts/target_contract`、`tests/target_contract` 的阶段性隔离层，或在同一提交中无语义地提升为 final 路径。
-7. 将 CNB `d01-target-contract` Pipeline 无缝提升为 active Route/Plan contract gate，不保留 candidate/active 两份 CI 真相。
+7. 将 GitHub Actions `d01-target-contract` job 无缝提升为 active Route/Plan contract gate，不保留 candidate/active 两份 CI 真相。
 
 禁止在 D01 与 D03 之间建立 converter、双 endpoint、feature flag 双协议或 planKind 临时业务路由。
 
@@ -2373,7 +2284,7 @@ D03 原子提交必须：
 | 新 capability 不侵入 | descriptor 数据驱动 | no capability ID enum | static search |
 | 新 Domain 不侵入 | route/domain schema projection | no domain ID enum | fixture/schema tests |
 | Multi-Agent 可复用 | request 无 Chat/Task 专用类型 | same generated roots | architecture review |
-| D01 可独立建立 CI gate | 跨平台统一入口 | Linux temp model | CNB target Pipeline |
+| D01 可独立建立 CI gate | 跨平台统一入口 | Linux temp model | GitHub Actions target job |
 | D03 原子切换 | candidate 隔离、不激活 | temp model only | changed-path + active regression |
 
 ---
@@ -2385,7 +2296,7 @@ D03 原子提交必须：
 | ClarificationRequired 同时实现两个 union 导致 codegen 歧义 | OpenAPI + Python import test | 修正 Java oneOf/discriminator；禁止 Python patch |
 | datamodel-codegen 产生重复 enum/root wrapper | 两次生成/import test | 修正 OpenAPI schema name/ref；不得增加 post-process |
 | candidate 被 production 代码误引用 | changed-path/import search | 立即回退引用，留待 D03 |
-| 实际 CNB 远端未配置 D01 Pipeline | 根 `.cnb.yml` 检查 + 真实 push | 新增调用同一跨平台验证入口的 target Pipeline；固定工具链，不复制命令 |
+| GitHub 迁移后 workflow 缺失或只运行 active legacy gate | 两个 workflow 的职责/paths 检查 + 真实 push | 恢复 active workflow，并以窄 paths target workflow 调用同一跨平台入口；不复制命令、不误阻塞 D02 |
 | 复用 AgentQuerySpec/AgentAggregateSpec 不能满足目标语义 | target fixture/schema review | 停止实施并先修订本 L2 的 Java 类清单；不得临时修改复用类或增加 Python facade |
 | positive round-trip 因默认字段漂移 | exact JSON tree assertion | 统一 Java required/default/nullable，不放宽测试 |
 | negative fixture 因无关错误通过 | error token/path assertion | 修正 fixture，仅保留单一错误 |
@@ -2406,7 +2317,7 @@ D03 原子提交必须：
 4. 第 14 节覆盖成功、生成失败、drift、解析失败和越界引用闭环。
 5. 第 15～17 节给出可执行顺序、命令、退出条件和 D03 交接。
 6. 第 18 节逐项覆盖 L0/L1 核心约束。
-7. 根 `.cnb.yml`、固定工具链 Dockerfile、跨平台入口和 base-ref 算法已给出，不依赖仓库外手工 CI 配置。
+7. active/target 两个 GitHub workflow 的职责边界、跨平台入口和 base-ref 算法已给出，不依赖仓库外手工 CI 配置。
 
 ### 20.2 实现验收
 
