@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,8 +40,7 @@ class CapabilityKernelConfigurationTest {
         var registry = configuration.capabilityRegistry(
                 List.of(registration),
                 contracts,
-                new CapabilityRegistrationValidator(),
-                () -> Set.of());
+                new CapabilityRegistrationValidator());
 
         assertThat(contracts.require(AgentExecutionContracts.QUERY_PLAN).javaType())
                 .isEqualTo(QueryAgentPlan.class);
