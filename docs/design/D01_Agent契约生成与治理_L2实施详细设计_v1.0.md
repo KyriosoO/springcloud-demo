@@ -1,7 +1,7 @@
 # D01 Agent 契约生成与治理 — L2 实施详细设计 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已评审（实施中，待 GitHub Actions 统一门禁）
+> 文档状态：已实施（D01 退出门禁通过）
 > 上位文档：`Agent目标架构总览_v1.0.md`（L0）、`Agent契约与规划架构设计_v1.0.md`（L1）  
 > 交付阶段：D01 契约生成与治理  
 > 代码基线：`b56906c` 及其同源后续提交  
@@ -24,6 +24,7 @@
 | 2026-07-01 | 将既有 `serviceCenter/mvnw` 的 Git mode 从 `100644` 修正为 `100755`，内容 byte-for-byte 不变，并纳入 D01 changed-path allowlist | Linux CI 统一入口必须直接执行 Maven Wrapper；无可执行位时真实 Linux checkout 无法启动该脚本 | 仅修复跨平台执行元数据；不修改 Maven Wrapper 内容、版本、构建逻辑或生产代码 |
 | 2026-07-01 | 权威远端切换为 GitHub 后，将 D01 CI 从 CNB Pipeline 切回 GitHub Actions：不保留 `.cnb.yml`/CNB Dockerfile，恢复 active `.github/workflows/agent-contract.yml`，并新增窄 paths 的 `.github/workflows/d01-target-contract.yml` | 当前 fetch/push 远端为 `github.com/KyriosoO/springcloud-demo.git`，迁移后的 GitHub 分支未包含任何 workflow；若把 D01 job 放入 broad active workflow，后续合法的 `agent-service`/adapter 变更会错误触发 D01 changed-path failure | GitHub push 仅覆盖与实际代码同源的 `master`/`codex`；target workflow 仍只调用唯一统一入口，不形成第二契约源，也不把不相关历史的默认 `main` 当作 D01 base |
 | 2026-07-01 | changed-path 的 `git diff --name-only` 固定使用 `-c core.quotepath=false` | Linux Git 默认把中文文档路径输出为带引号的八进制转义文本，导致真实允许路径被误判为越界 | 只规范路径输出编码；不改变 merge-base、允许路径集合或隔离语义 |
+| 2026-07-01 | 文档状态更新为“已实施（D01 退出门禁通过）”，记录 GitHub commit `22457a9` 的 Actions 证据：`Agent Contract CI` run `28499118055` 与 `D01 Target Contract Governance` run `28499118064` 全部 success | 16.6 的 16 项退出条件已有当前代码、artifact、本地 Linux 统一门禁及 GitHub Actions 成功证据；不再保留“待 CI”状态 | D01 可退出；后续仅允许按第 17 节进入 D02 实际产物基线复核，不代表 D03 协议已激活 |
 
 ---
 
