@@ -1,0 +1,23 @@
+package com.dylan.agent.lifecycle.model;
+
+/**
+ * Execution 阶段枚举，用于失败诊断和审计。
+ */
+public enum ExecutionStage {
+    LIFECYCLE_START,
+    PLANNING,
+    PLANNING_CHECKPOINT,
+    EXECUTION_PREFLIGHT,
+    AUTHORIZATION,
+    CONTEXT_VALIDATION,
+    BINDING,
+    PLAN_VALIDATION,
+    HANDLER,
+    ADAPTER_DOWNSTREAM,
+    OUTPUT_VALIDATION,
+    RESULT_SECURITY,
+    CONTEXT_APPROVAL,
+    FINALIZATION,
+    CANCELLATION_DEADLINE,
+    RECOVERY
+}

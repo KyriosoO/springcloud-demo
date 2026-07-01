@@ -46,4 +46,4 @@ app/__pycache__/
 .idea/
 
 # Claude Code 本地工具配置
-.claude/settings.local.json
+.claude/

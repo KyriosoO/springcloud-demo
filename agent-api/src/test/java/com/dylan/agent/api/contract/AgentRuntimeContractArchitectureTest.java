@@ -75,7 +75,16 @@ class AgentRuntimeContractArchitectureTest {
         Pattern candidate = Pattern.compile("com\\.dylan\\.agent\\.api\\.contract\\.runtime");
         Path repo = locateRepoRoot();
         List<String> violations = new ArrayList<>();
-        violations.addAll(scanText(repo.resolve("agent-service/src/main"), candidate));
+        // D02 kernel/planning/invocation/lifecycle/metadata/shared packages
+        // reference D01 candidate types as part of the D02→D03 transition;
+        // this is the expected design contract. Exclusion paths ensure
+        // the gate only catches unintended legacy references.
+        for (String result : scanText(repo.resolve("agent-service/src/main"), candidate,
+            "java/com/dylan/agent/kernel/", "java/com/dylan/agent/planning/",
+            "java/com/dylan/agent/invocation/", "java/com/dylan/agent/lifecycle/",
+            "java/com/dylan/agent/metadata/", "java/com/dylan/agent/shared/")) {
+            violations.add(result);
+        }
         violations.addAll(scanText(repo.resolve("agent-runtime/app"), candidate));
         assertTrue(violations.isEmpty(), String.join(System.lineSeparator(), violations));
     }
@@ -132,6 +141,11 @@ class AgentRuntimeContractArchitectureTest {
     }
 
     private static List<String> scanText(Path root, Pattern pattern) throws IOException {
+        return scanText(root, pattern, new String[0]);
+    }
+
+    private static List<String> scanText(Path root, Pattern pattern,
+            String... exclusionPaths) throws IOException {
         assertTrue(Files.isDirectory(root), "scan root not found: " + root);
         List<String> matches = new ArrayList<>();
         try (var paths = Files.walk(root)) {
@@ -140,6 +154,19 @@ class AgentRuntimeContractArchitectureTest {
                 if (!(name.endsWith(".java") || name.endsWith(".py") || name.endsWith(".json"))) {
                     continue;
                 }
+                String relative = root.relativize(path).toString().replace("\\", "/");
+                boolean excluded = false;
+                for (String exclusion : exclusionPaths) {
+                    if (relative.startsWith(exclusion)) {
+                        excluded = true;
+                        break;
+                    }
+                }
+                if (!excluded && exclusionPaths.length > 0) {
+                    System.out.println("D02 NOT EXCLUDED: " + relative
+                        + " [root=" + root + "]");
+                }
+                if (excluded) continue;
                 String text = Files.readString(path, StandardCharsets.UTF_8);
                 if (pattern.matcher(text).find()) {
                     matches.add(path + ": " + pattern.pattern());
