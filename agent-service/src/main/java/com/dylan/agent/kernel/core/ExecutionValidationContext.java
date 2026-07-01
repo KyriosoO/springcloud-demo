@@ -3,7 +3,7 @@ package com.dylan.agent.kernel.core;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.invocation.model.CancellationToken;
-import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
+import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;

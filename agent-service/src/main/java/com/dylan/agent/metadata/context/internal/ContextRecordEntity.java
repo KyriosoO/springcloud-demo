@@ -25,6 +25,9 @@ public record ContextRecordEntity(
         Objects.requireNonNull(protectedPayload, "protectedPayload must not be null");
         sourceCapabilityId = requireNonBlank(sourceCapabilityId, "sourceCapabilityId");
         sourceInvocationId = requireNonBlank(sourceInvocationId, "sourceInvocationId");
+        if (sourceDomain != null) {
+            sourceDomain = requireNonBlank(sourceDomain, "sourceDomain");
+        }
         Objects.requireNonNull(expiresAt, "expiresAt must not be null");
     }
 

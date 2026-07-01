@@ -4,7 +4,7 @@ import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.HandlerCandidate;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
-import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
+import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 import com.dylan.agent.kernel.port.AuthorizationExecutionPort;
 import com.dylan.agent.kernel.port.ContextApprovalPort;
 import com.dylan.agent.kernel.port.ContextExecutionPort;
@@ -198,7 +198,7 @@ public final class ExecutionCore {
         }
         DomainExecutionResolution resolution = domainPort.resolve(
                 new DomainBindingRequest(resolved, selectedDomain.orElseThrow(),
-                        scope, cmd.handle().absoluteDeadline()));
+                        scope, scope.domainMetadataEvidence(), cmd.handle().absoluteDeadline()));
         return new DomainResolution(resolution.binding(), resolution.projection());
     }
 

@@ -36,6 +36,7 @@ import com.dylan.agent.invocation.model.ExecutionStage;
 import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
 import com.dylan.agent.planning.model.PlanningOperationAudit;
 import com.dylan.agent.planning.model.PlanningOperationTermination;
@@ -43,6 +44,7 @@ import com.dylan.agent.shared.ref.AgentProfileRef;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -356,10 +358,27 @@ class ExecutionCoreTest {
     private AuthorizationExecutionPort authorizationPort() {
         return (snapshot, handle) -> new ExecutionScope(
                 "user:u-1",
+                domainEvidence(),
+                NOW,
+                "perm-evidence-1",
+                "perm-v1",
+                "policy-v1",
                 Set.of("query.search"),
                 Set.of(),
                 Map.of(),
-                Map.of());
+                Map.of(),
+                Duration.ofSeconds(30),
+                1,
+                100,
+                10_000);
+    }
+
+    private DomainMetadataEvidence domainEvidence() {
+        return new DomainMetadataEvidence(
+                "catalog-v1",
+                "adapter-v1",
+                "availability-v1",
+                NOW);
     }
 
     private DomainExecutionPort failingDomainPort() {

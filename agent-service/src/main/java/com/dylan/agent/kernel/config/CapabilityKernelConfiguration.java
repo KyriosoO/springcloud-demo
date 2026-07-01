@@ -4,12 +4,12 @@ import com.dylan.agent.kernel.definition.ContractRegistry;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.CapabilityRegistrationValidator;
 import com.dylan.agent.kernel.registration.CapabilityRegistry;
+import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Capability Kernel composition root.
@@ -31,7 +31,8 @@ public class CapabilityKernelConfiguration {
     @Bean
     public CapabilityRegistry capabilityRegistry(List<CapabilityRegistration<?, ?, ?>> registrations,
                                                  ContractRegistry contracts,
-                                                 CapabilityRegistrationValidator validator) {
-        return new CapabilityRegistry(registrations, validator, contracts, Set.of());
+                                                 CapabilityRegistrationValidator validator,
+                                                 DomainMetadataPort domainMetadataPort) {
+        return new CapabilityRegistry(registrations, validator, contracts, domainMetadataPort.knownRoles());
     }
 }

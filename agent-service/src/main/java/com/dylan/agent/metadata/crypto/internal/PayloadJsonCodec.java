@@ -32,6 +32,7 @@ public final class PayloadJsonCodec {
     public PayloadJsonCodec(ObjectMapper mapper) {
         this.mapper = Objects.requireNonNull(mapper).copy()
                 .registerModule(new JavaTimeModule());
+        this.mapper.deactivateDefaultTyping();
         this.mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
         this.mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true);
         this.mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, true);

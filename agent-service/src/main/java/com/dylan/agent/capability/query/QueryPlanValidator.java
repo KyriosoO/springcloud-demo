@@ -70,8 +70,8 @@ public class QueryPlanValidator
         validateKernelSelectFields(selectFields, context);
         int page = query.getPage() == null ? 1 : query.getPage();
         int size = query.getSize() == null ? defaultKernelPageSize(context) : query.getSize();
-        int maxPageSize = context.domainProjection().maxPageSize();
-        if (page <= 0 || size <= 0 || (maxPageSize > 0 && size > maxPageSize)) {
+        int maxPageSize = maxKernelPageSize(context);
+        if (page <= 0 || size <= 0 || size > maxPageSize) {
             throw new IllegalArgumentException("invalid query pagination");
         }
         return new ValidatedQueryPlan(
@@ -342,9 +342,20 @@ public class QueryPlanValidator
         }
     }
 
-    private static int defaultKernelPageSize(ExecutionValidationContext context) {
-        return context.domainProjection().maxPageSize() > 0
-                ? Math.min(20, context.domainProjection().maxPageSize())
-                : 20;
+    private int defaultKernelPageSize(ExecutionValidationContext context) {
+        int configuredDefault = properties.getQuery().getDefaultSize();
+        int maxPageSize = maxKernelPageSize(context);
+        return maxPageSize > 0 ? Math.min(configuredDefault, maxPageSize) : 0;
+    }
+
+    private int maxKernelPageSize(ExecutionValidationContext context) {
+        int configuredMax = properties.getQuery().getMaxSize();
+        int projectionMax = context.domainProjection().maxPageSize();
+        int scopeMaxRows = context.executionScope().maxResultRows();
+
+        int max = configuredMax;
+        max = Math.min(max, projectionMax);
+        max = Math.min(max, scopeMaxRows);
+        return max;
     }
 }

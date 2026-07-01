@@ -1,38 +1,30 @@
 package com.dylan.agent.metadata.crypto.model;
 
 import com.dylan.agent.api.contract.common.ContractRef;
-import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Authenticated additional data used for payload protection.
  */
 public record PayloadProtectionContext(
         PayloadPurpose purpose,
-        String ownerType,
-        String ownerId,
-        Optional<RuntimeContextType> contextType,
+        String recordId,
         ContractRef contractRef,
-        String sourceInvocationId) {
+        String bindingDigest) {
 
     public PayloadProtectionContext {
         Objects.requireNonNull(purpose, "purpose must not be null");
-        ownerType = requireNonBlank(ownerType, "ownerType");
-        ownerId = requireNonBlank(ownerId, "ownerId");
-        contextType = Objects.requireNonNull(contextType, "contextType must not be null");
+        recordId = requireNonBlank(recordId, "recordId");
         Objects.requireNonNull(contractRef, "contractRef must not be null");
-        sourceInvocationId = requireNonBlank(sourceInvocationId, "sourceInvocationId");
+        bindingDigest = requireSha256Hex(bindingDigest);
     }
 
     public byte[] aadBytes() {
         String canonical = purpose.name() + "|"
-                + ownerType + "|"
-                + ownerId + "|"
-                + contextType.map(Enum::name).orElse("") + "|"
+                + recordId + "|"
                 + contractRef.schema() + ":" + contractRef.version() + "|"
-                + sourceInvocationId;
+                + bindingDigest;
         return canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
@@ -41,6 +33,14 @@ public record PayloadProtectionContext(
         String normalized = value.trim();
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException(name + " must not be blank");
+        }
+        return normalized;
+    }
+
+    private static String requireSha256Hex(String value) {
+        String normalized = requireNonBlank(value, "bindingDigest");
+        if (!normalized.matches("[a-f0-9]{64}")) {
+            throw new IllegalArgumentException("bindingDigest must be lowercase SHA-256 hex");
         }
         return normalized;
     }

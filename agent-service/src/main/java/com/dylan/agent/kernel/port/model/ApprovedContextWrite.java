@@ -28,23 +28,15 @@ public final class ApprovedContextWrite {
                                 String sourceDomain,
                                 Instant expiresAt,
                                 ExpectedContextVersion expectedVersion) {
-        this.contextId = Objects.requireNonNull(contextId);
+        this.contextId = requireNonBlank(contextId, "contextId");
         this.recordKey = Objects.requireNonNull(recordKey);
         this.candidate = Objects.requireNonNull(candidate);
-        this.sourceCapabilityId = Objects.requireNonNull(sourceCapabilityId);
-        this.sourceInvocationId = Objects.requireNonNull(sourceInvocationId);
-        this.sourceDomain = Optional.ofNullable(sourceDomain);
+        this.sourceCapabilityId = requireNonBlank(sourceCapabilityId, "sourceCapabilityId");
+        this.sourceInvocationId = requireNonBlank(sourceInvocationId, "sourceInvocationId");
+        this.sourceDomain = Optional.ofNullable(sourceDomain)
+                .map(value -> requireNonBlank(value, "sourceDomain"));
         this.expiresAt = Objects.requireNonNull(expiresAt);
         this.expectedVersion = Objects.requireNonNull(expectedVersion);
-        if (contextId.isBlank()) {
-            throw new IllegalArgumentException("contextId must not be blank");
-        }
-        if (sourceCapabilityId.isBlank()) {
-            throw new IllegalArgumentException("sourceCapabilityId must not be blank");
-        }
-        if (sourceInvocationId.isBlank()) {
-            throw new IllegalArgumentException("sourceInvocationId must not be blank");
-        }
     }
 
     public String contextId() { return contextId; }
@@ -56,4 +48,13 @@ public final class ApprovedContextWrite {
     public Optional<String> sourceDomain() { return sourceDomain; }
     public Instant expiresAt() { return expiresAt; }
     public ExpectedContextVersion expectedVersion() { return expectedVersion; }
+
+    private static String requireNonBlank(String value, String name) {
+        Objects.requireNonNull(value, name + " must not be null");
+        String normalized = value.trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(name + " must not be blank");
+        }
+        return normalized;
+    }
 }

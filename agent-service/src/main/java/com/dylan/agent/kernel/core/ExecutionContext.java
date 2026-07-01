@@ -2,7 +2,7 @@ package com.dylan.agent.kernel.core;
 
 import com.dylan.agent.adapter.api.AgentAdapterPort;
 import com.dylan.agent.invocation.model.CancellationToken;
-import com.dylan.agent.kernel.binding.AdapterExecutionBinding;
+import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.InvocationScope;

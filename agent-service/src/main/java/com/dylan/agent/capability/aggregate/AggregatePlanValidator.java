@@ -78,8 +78,8 @@ public class AggregatePlanValidator
         validateKernelGroupByFields(groupByFields, context);
         validateKernelOrderBy(aggregate.getOrderBy(), groupByFields, metrics);
         int maxRows = aggregate.getMaxRows() == null ? defaultKernelMaxRows(context) : aggregate.getMaxRows();
-        int maxAllowedRows = context.domainProjection().maxResultRows();
-        if (maxRows <= 0 || (maxAllowedRows > 0 && maxRows > maxAllowedRows)) {
+        int maxAllowedRows = maxKernelRows(context);
+        if (maxRows <= 0 || maxRows > maxAllowedRows) {
             throw new IllegalArgumentException("invalid aggregate maxRows");
         }
         return new ValidatedAggregatePlan(
@@ -317,9 +317,20 @@ public class AggregatePlanValidator
         }
     }
 
-    private static int defaultKernelMaxRows(ExecutionValidationContext context) {
-        return context.domainProjection().maxResultRows() > 0
-                ? Math.min(100, context.domainProjection().maxResultRows())
-                : 100;
+    private int defaultKernelMaxRows(ExecutionValidationContext context) {
+        int configuredDefault = properties.getAggregate().getDefaultMaxRows();
+        int maxRows = maxKernelRows(context);
+        return maxRows > 0 ? Math.min(configuredDefault, maxRows) : 0;
+    }
+
+    private int maxKernelRows(ExecutionValidationContext context) {
+        int configuredMax = properties.getAggregate().getMaxMaxRows();
+        int projectionMax = context.domainProjection().maxResultRows();
+        int scopeMaxRows = context.executionScope().maxResultRows();
+
+        int max = configuredMax;
+        max = Math.min(max, projectionMax);
+        max = Math.min(max, scopeMaxRows);
+        return max;
     }
 }

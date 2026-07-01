@@ -11,17 +11,17 @@ import java.util.Set;
  */
 public record DomainAvailabilitySnapshot(
         DomainMetadataEvidence evidence,
-        Map<String, Set<AdapterRole>> availableRolesByDomain) {
+        Map<AdapterRole, Set<String>> availableDomains) {
 
     public DomainAvailabilitySnapshot {
         Objects.requireNonNull(evidence, "evidence must not be null");
-        if (availableRolesByDomain == null || availableRolesByDomain.isEmpty()) {
-            availableRolesByDomain = Map.of();
+        if (availableDomains == null || availableDomains.isEmpty()) {
+            availableDomains = Map.of();
         } else {
-            availableRolesByDomain = availableRolesByDomain.entrySet().stream()
+            availableDomains = availableDomains.entrySet().stream()
                     .collect(java.util.stream.Collectors.toUnmodifiableMap(
-                            Map.Entry::getKey,
-                            entry -> Set.copyOf(entry.getValue())));
+                            entry -> Objects.requireNonNull(entry.getKey(), "adapterRole must not be null"),
+                            entry -> Set.copyOf(Objects.requireNonNull(entry.getValue(), "domains must not be null"))));
         }
     }
 }

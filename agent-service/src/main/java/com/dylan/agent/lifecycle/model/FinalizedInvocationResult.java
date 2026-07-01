@@ -15,7 +15,7 @@ public final class FinalizedInvocationResult {
     private final InvocationOrigin origin;
     private final InvocationState state;
     private final InvocationResponseType responseType;
-    private final Optional<Object> storedResult; // StoredInvocationResult after D02_03
+    private final Optional<StoredInvocationResult> storedResult;
     private final String safeMessage;
     private final Optional<KernelErrorCode> errorCode;
     private final Optional<String> diagnosticId;
@@ -35,7 +35,7 @@ public final class FinalizedInvocationResult {
     public InvocationOrigin origin() { return origin; }
     public InvocationState state() { return state; }
     public InvocationResponseType responseType() { return responseType; }
-    public Optional<Object> storedResult() { return storedResult; }
+    public Optional<StoredInvocationResult> storedResult() { return storedResult; }
     public String safeMessage() { return safeMessage; }
     public Optional<KernelErrorCode> errorCode() { return errorCode; }
     public Optional<String> diagnosticId() { return diagnosticId; }
@@ -47,7 +47,7 @@ public final class FinalizedInvocationResult {
         private InvocationOrigin origin;
         private InvocationState state;
         private InvocationResponseType responseType;
-        private Object storedResult;
+        private StoredInvocationResult storedResult;
         private String safeMessage;
         private KernelErrorCode errorCode;
         private String diagnosticId;
@@ -56,7 +56,7 @@ public final class FinalizedInvocationResult {
         public Builder origin(InvocationOrigin v) { this.origin = v; return this; }
         public Builder state(InvocationState v) { this.state = v; return this; }
         public Builder responseType(InvocationResponseType v) { this.responseType = v; return this; }
-        public Builder storedResult(Object v) { this.storedResult = v; return this; }
+        public Builder storedResult(StoredInvocationResult v) { this.storedResult = v; return this; }
         public Builder safeMessage(String v) { this.safeMessage = v; return this; }
         public Builder errorCode(KernelErrorCode v) { this.errorCode = v; return this; }
         public Builder diagnosticId(String v) { this.diagnosticId = v; return this; }

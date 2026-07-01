@@ -18,6 +18,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PlanningCheckpointTest {
 
     @Test
+    void checkpointResultExposesCommittedCheckpointAsOptional() {
+        CheckpointResult.CommittedCheckpoint committed =
+                new CheckpointResult.CommittedCheckpoint("inv-1", "corr-1", "hash-1");
+
+        assertThat(CheckpointResult.committed(CheckpointResult.Status.COMMITTED, committed).committed())
+                .contains(committed);
+        assertThat(CheckpointResult.withoutCheckpoint(CheckpointResult.Status.COMMIT_UNKNOWN).committed())
+                .isEmpty();
+        assertThatThrownBy(() -> CheckpointResult.withoutCheckpoint(CheckpointResult.Status.COMMITTED))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void contextSnapshotRefsAreSortedAndImmutable() {
         PlanningCheckpoint checkpoint = baseBuilder()
                 .contextSnapshotRefs(List.of(
@@ -66,6 +79,29 @@ class PlanningCheckpointTest {
         assertThat(v1.checkpointHash()).isNotEqualTo(v2.checkpointHash());
     }
 
+    @Test
+    void checkpointHashIncludesOperationAudits() {
+        PlanningCheckpoint v1 = baseBuilder()
+                .routeAudit(audit(RuntimeOperationType.ROUTE, 1L))
+                .build();
+        PlanningCheckpoint v2 = baseBuilder()
+                .routeAudit(audit(RuntimeOperationType.ROUTE, 2L))
+                .build();
+
+        assertThat(v1.checkpointHash()).isNotEqualTo(v2.checkpointHash());
+    }
+
+    @Test
+    void checkpointRequiresStableIdentityFields() {
+        assertThatThrownBy(() -> baseBuilder().capabilityId(" ").build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("capabilityId");
+
+        assertThatThrownBy(() -> baseBuilder().registrationIdentity(null).build())
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("registrationIdentity");
+    }
+
     private PlanningCheckpoint.Builder baseBuilder() {
         return new PlanningCheckpoint.Builder()
                 .invocationId("inv-1")
@@ -97,6 +133,10 @@ class PlanningCheckpointTest {
     }
 
     private PlanningOperationAudit audit(RuntimeOperationType operation) {
+        return audit(operation, 1L);
+    }
+
+    private PlanningOperationAudit audit(RuntimeOperationType operation, long localDurationMs) {
         RuntimeOperationMetadata metadata = new RuntimeOperationMetadata();
         metadata.setOperation(operation);
         metadata.setProviderAttempts(1);
@@ -106,6 +146,6 @@ class PlanningCheckpointTest {
         metadata.setTerminationReason(RuntimeTerminationReason.COMPLETED);
         metadata.setDeadlineReached(false);
         metadata.setRepairLimitReached(false);
-        return PlanningOperationAudit.reported(metadata, 1L, PlanningOperationTermination.OUTCOME_RECEIVED);
+        return PlanningOperationAudit.reported(metadata, localDurationMs, PlanningOperationTermination.OUTCOME_RECEIVED);
     }
 }

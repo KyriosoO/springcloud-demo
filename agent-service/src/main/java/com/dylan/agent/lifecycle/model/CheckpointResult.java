@@ -1,5 +1,7 @@
 package com.dylan.agent.lifecycle.model;
 
+import java.util.Optional;
+
 /**
  * Planning checkpoint CAS 结果。
  *
@@ -34,7 +36,7 @@ public final class CheckpointResult {
     }
 
     public Status status() { return status; }
-    public CommittedCheckpoint committed() { return committed; }
+    public Optional<CommittedCheckpoint> committed() { return Optional.ofNullable(committed); }
 
     public CommittedCheckpoint requireCommittedCheckpoint() {
         java.util.Objects.requireNonNull(committed, "no checkpoint for status " + status);

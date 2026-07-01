@@ -1,4 +1,4 @@
-package com.dylan.agent.kernel.binding;
+package com.dylan.agent.kernel.port.model;
 
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.AgentAdapterPort;

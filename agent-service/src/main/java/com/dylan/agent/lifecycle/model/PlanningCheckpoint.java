@@ -2,6 +2,7 @@ package com.dylan.agent.lifecycle.model;
 
 import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
+import com.dylan.agent.api.contract.runtime.common.RuntimeOperationMetadata;
 import com.dylan.agent.invocation.model.InvocationHandle;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
@@ -34,15 +35,15 @@ public final class PlanningCheckpoint {
     private final String checkpointHash;
 
     private PlanningCheckpoint(Builder builder) {
-        this.invocationId = Objects.requireNonNull(builder.invocationId);
-        this.requestCorrelationId = Objects.requireNonNull(builder.requestCorrelationId);
-        this.capabilityId = builder.capabilityId;
-        this.domain = builder.domain;
-        this.planKind = builder.planKind != null ? builder.planKind : "";
-        this.registrationIdentity = builder.registrationIdentity;
+        this.invocationId = requireNonBlank(builder.invocationId, "invocationId");
+        this.requestCorrelationId = requireNonBlank(builder.requestCorrelationId, "requestCorrelationId");
+        this.capabilityId = requireNonBlank(builder.capabilityId, "capabilityId");
+        this.domain = normalizeOptional(builder.domain, "domain");
+        this.planKind = requireNonBlank(builder.planKind, "planKind");
+        this.registrationIdentity = requireNonBlank(builder.registrationIdentity, "registrationIdentity");
         this.routeAudit = Objects.requireNonNull(builder.routeAudit);
         this.planAudit = Objects.requireNonNull(builder.planAudit);
-        this.authorizationSnapshotRef = Objects.requireNonNull(builder.authorizationSnapshotRef);
+        this.authorizationSnapshotRef = requireNonBlank(builder.authorizationSnapshotRef, "authorizationSnapshotRef");
         this.contextSnapshotRefs = normalizeContextSnapshotRefs(builder.contextSnapshotRefs);
         this.checkpointHash = computeHash();
     }
@@ -100,8 +101,30 @@ public final class PlanningCheckpoint {
     private String computeHash() {
         String content = invocationId + "|" + requestCorrelationId + "|" + capabilityId
                 + "|" + domain + "|" + planKind + "|" + registrationIdentity
+                + "|" + canonicalAudit(routeAudit) + "|" + canonicalAudit(planAudit)
                 + "|" + authorizationSnapshotRef + "|" + canonicalContextRefs();
         return sha256Hex(content);
+    }
+
+    private static String canonicalAudit(PlanningOperationAudit audit) {
+        StringBuilder builder = new StringBuilder()
+                .append(audit.operation().name()).append('|')
+                .append(audit.metadataStatus().name()).append('|')
+                .append(audit.localDurationMs()).append('|')
+                .append(audit.termination().name());
+        audit.runtimeMetadata().ifPresent(metadata -> builder.append('|').append(canonicalRuntimeMetadata(metadata)));
+        return builder.toString();
+    }
+
+    private static String canonicalRuntimeMetadata(RuntimeOperationMetadata metadata) {
+        return metadata.getOperation().name()
+                + "|" + metadata.getProviderAttempts()
+                + "|" + metadata.getRepairAttempts()
+                + "|" + metadata.getRepairDurationMs()
+                + "|" + metadata.getTotalDurationMs()
+                + "|" + metadata.getTerminationReason().name()
+                + "|" + metadata.getDeadlineReached()
+                + "|" + metadata.getRepairLimitReached();
     }
 
     private String canonicalContextRefs() {
@@ -133,6 +156,22 @@ public final class PlanningCheckpoint {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 unavailable", ex);
         }
+    }
+
+    private static String normalizeOptional(String value, String name) {
+        if (value == null) {
+            return null;
+        }
+        return requireNonBlank(value, name);
+    }
+
+    private static String requireNonBlank(String value, String name) {
+        Objects.requireNonNull(value, name + " must not be null");
+        String normalized = value.trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(name + " must not be blank");
+        }
+        return normalized;
     }
 
     // ── 只读访问器 ──

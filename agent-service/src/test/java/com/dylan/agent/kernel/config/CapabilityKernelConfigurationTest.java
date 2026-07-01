@@ -1,10 +1,13 @@
 package com.dylan.agent.kernel.config;
 
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
+import com.dylan.agent.api.contract.runtime.common.RuntimeDomainRoutingProjection;
+import com.dylan.agent.api.contract.runtime.common.RuntimeDomainSchema;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.kernel.definition.CapabilityDefinition;
@@ -14,8 +17,16 @@ import com.dylan.agent.kernel.handler.HandlerResult;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.CapabilityRegistrationValidator;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
+import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.metadata.domain.port.DomainAvailabilitySnapshot;
+import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
+import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
+import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
+import com.dylan.agent.metadata.domain.port.DomainMetadataReferenceSet;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.util.Set;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,7 +51,8 @@ class CapabilityKernelConfigurationTest {
         var registry = configuration.capabilityRegistry(
                 List.of(registration),
                 contracts,
-                new CapabilityRegistrationValidator());
+                new CapabilityRegistrationValidator(),
+                new FakeDomainMetadataPort(Set.of()));
 
         assertThat(contracts.require(AgentExecutionContracts.QUERY_PLAN).javaType())
                 .isEqualTo(QueryAgentPlan.class);
@@ -82,6 +94,68 @@ class CapabilityKernelConfigurationTest {
         @Override
         public Optional<String> domain() {
             return Optional.empty();
+        }
+    }
+
+    private record FakeDomainMetadataPort(Set<AdapterRole> knownRoles) implements DomainMetadataPort {
+        @Override
+        public DomainMetadataEvidence validateReferences(
+                DomainMetadataReferenceSet refs,
+                Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public DomainAvailabilitySnapshot availability(
+                Set<AdapterRole> roles,
+                PlanningEffectiveScope scope,
+                Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void assertCurrent(DomainMetadataEvidence expected, Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<RuntimeDomainRoutingProjection> routeProjection(
+                Set<String> domains,
+                PlanningEffectiveScope scope,
+                DomainMetadataEvidence expected,
+                String authorizationEvidenceDigest,
+                Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public RuntimeDomainSchema planSchema(
+                AdapterRole role,
+                String domain,
+                PlanningEffectiveScope scope,
+                DomainMetadataEvidence expected,
+                Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public com.dylan.agent.kernel.port.model.ExecutionValidationProjection executionProjection(
+                AdapterRole role,
+                String domain,
+                ExecutionScope scope,
+                DomainMetadataEvidence expected,
+                Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public com.dylan.agent.kernel.port.model.AdapterExecutionBinding bind(
+                AdapterRole role,
+                String domain,
+                ExecutionScope scope,
+                DomainMetadataEvidence expected,
+                Instant absoluteDeadline) {
+            throw new UnsupportedOperationException();
         }
     }
 }

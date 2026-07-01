@@ -10,13 +10,17 @@ import com.dylan.agent.metadata.crypto.internal.EnvironmentPayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 import com.dylan.agent.metadata.crypto.model.PayloadProtectionContext;
 import com.dylan.agent.metadata.crypto.model.PayloadPurpose;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,6 +41,27 @@ class PayloadCryptoTest {
         assertThatThrownBy(() -> codec.serialize("raw", String.class))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("payload root");
+    }
+
+    @Test
+    void jsonCodecDeactivatesDefaultTypingFromInjectedMapper() {
+        ObjectMapper unsafeMapper = JsonMapper.builder()
+                .activateDefaultTyping(
+                        BasicPolymorphicTypeValidator.builder()
+                                .allowIfBaseType(Object.class)
+                                .build(),
+                        ObjectMapper.DefaultTyping.EVERYTHING,
+                        JsonTypeInfo.As.PROPERTY)
+                .build();
+        PayloadJsonCodec codec = new PayloadJsonCodec(unsafeMapper);
+        QueryCapabilityContextPayload payload =
+                new QueryCapabilityContextPayload(null, java.util.List.of("name"), 1, 20);
+
+        String json = new String(
+                codec.serialize(payload, QueryCapabilityContextPayload.class),
+                StandardCharsets.UTF_8);
+
+        assertThat(json).doesNotContain("@class");
     }
 
     @Test
@@ -66,10 +91,8 @@ class PayloadCryptoTest {
     private PayloadProtectionContext context(String ownerId) {
         return new PayloadProtectionContext(
                 PayloadPurpose.CONTEXT_PAYLOAD,
-                "conversation",
                 ownerId,
-                Optional.of(RuntimeContextType.QUERY),
                 new ContractRef("query_context", "v1"),
-                "inv-1");
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     }
 }
