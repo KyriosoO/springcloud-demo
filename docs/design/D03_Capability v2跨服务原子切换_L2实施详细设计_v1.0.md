@@ -1,6 +1,6 @@
 # D03 Capability v2 跨服务原子切换 — L2 实施详细设计 v1.0
 
-> 文档状态：D03 代码评审通过；发布前环境级成功链路待验证
+> 文档状态：D03 代码评审通过；本地 API/UI E2E 已验证；发布前环境回归待执行
 > 编写日期：2026-07-02
 > 输入基线：`76400d6 Update legacy runtime contract model`
 > 前置交付：D01 已完成；D02_00/D02_01/D02_02/D02_03 已完成设计与编码基线；D04 已实施并通过退出门禁
@@ -16,6 +16,8 @@
 |---|---|---|
 | 2026-07-02 | 新增 D03 L2 实施详细设计，接收 D01/D02/D04 输出，定义 Capability v2 跨服务原子切换的调用链、文件级变更、删除台账、测试门禁和评审矩阵 | D03 编码前必须有独立 L2 文档，避免直接编码造成范围扩大、半链发布或旧新双运行态 |
 | 2026-07-02 | 同步 D03 代码评审通过状态，明确权限权威源门禁已关闭，发布前仍需环境级成功链路验证 | auth-service 权限投影 API、agent-service 权限 Adapter、D03 静态门禁和相关测试已通过；三服务真实成功链路、浏览器成功结果渲染和下游真实调用属于发布前环境验证 |
+| 2026-07-02 | 修订 D03 边界：AuthorizationSnapshot 必须冻结 ExecutionBudget，Execution recheck 只复核当前权限覆盖，checkpoint JSON 使用专用审计 DTO，本地完整联调需要 Eureka | 三系统联动暴露 `maxResultRows=0` 与 checkpoint 序列化隐患；本次修订将设计边界显式化，避免代码靠临时补丁跑通 |
+| 2026-07-02 | 恢复 D03 代码评审通过状态，补充本地 API/UI E2E 验证结论 | D03 单测、静态删除门禁、auth-service 权限投影门禁、employee/transaction API smoke 和浏览器 UI smoke 已通过；发布前仍需执行目标环境迁移与回归 |
 
 ---
 
@@ -298,6 +300,16 @@ AgentChatController.chat
 10. 构造 `PlanRequest`，调用 `AgentRuntimeClient.plan`。
 11. Java 校验 `PlanOutcome`，产生 `ExecutablePlanningResult` 或 `ResolvedClarification`。
 
+`AuthorizationSnapshot` 最小冻结字段：
+
+- `snapshotId`、`subjectRef`、`profileVersion`、`policyVersion`。
+- capability-scoped 的 `allowedCapabilityIds`、`allowedDomains`、`allowedFields`。
+- 与本次 Route/Plan/freeze 同源的 `DomainMetadataEvidence`。
+- `ExecutionBudget`：`maxRepairAttempts`、`maxResultRows`、`maxResultBytes`。
+- `snapshotTime`。
+
+Execution recheck 只确认当前 UserPermission 仍覆盖 Snapshot 必要项，并将 Snapshot 的 `ExecutionBudget` 原样带入 `ExecutionScope`。Execution 阶段不得重新读取 Profile/Policy/D04 active 版本来重算预算，也不得因当前权限声明而扩大 Snapshot。
+
 ### 5.4 `agent-service` Lifecycle 与 Persistence
 
 | 路径 | 动作 | 目标方法 |
@@ -307,7 +319,7 @@ AgentChatController.chat
 | `lifecycle/CheckpointTxService.java` | NEW | `CheckpointResult write(InvocationHandle handle, ExecutablePlanningResult result)` |
 | `lifecycle/FinalizationTxService.java` | NEW | `FinalizedInvocationResult commitSuccess(InvocationHandle handle, CheckpointResult checkpoint, ExecutionSuccess success)`；`FinalizedInvocationResult commitClarification(InvocationHandle handle, ResolvedClarification clarification)`；`FinalizedInvocationResult commitPlanningFailure(InvocationHandle handle, PlanningFailure failure)`；`FinalizedInvocationResult commitPlanningCancellation(InvocationHandle handle, PlanningCancellation cancellation)`；`FinalizedInvocationResult commitExecutionFailure(InvocationHandle handle, CheckpointResult checkpoint, ExecutionFailure failure)`；`FinalizedInvocationResult commitExecutionCancelled(InvocationHandle handle, CheckpointResult checkpoint, ExecutionFailure failure)` |
 | `lifecycle/InvocationRecoveryService.java` | NEW | `int recoverExpiredProcessing(Instant now, int batchSize)` |
-| `lifecycle/InvocationAuditJsonCodec.java` | NEW | 只序列化 PlanningOperationAudit、PlanningCheckpoint.ContextSnapshotRef、ContextWriteCommitRef |
+| `lifecycle/InvocationAuditJsonCodec.java` | NEW | 通过专用审计 DTO 序列化 PlanningOperationAudit、PlanningCheckpoint.ContextSnapshotRef、ContextWriteCommitRef；不得依赖领域模型私有字段可见性 |
 | `persistence/entity/AgentInvocationRecordEntity.java` | NEW | 映射 `agent_invocation_record` |
 | `persistence/entity/AgentInvocationResultEntity.java` | NEW | 映射 `agent_invocation_result` |
 | `persistence/mapper/AgentInvocationRecordMapper.java` | NEW | insert/checkpoint/finalize/select/recovery CAS |
@@ -322,6 +334,7 @@ AgentChatController.chat
 - `ExecutionLifecycleService` 类和 public 方法不标注 `@Transactional`。
 - `StartTxService`、`CheckpointTxService`、`FinalizationTxService` 是三个独立 Spring Bean。
 - Start、checkpoint、finalization 均使用短事务；commit unknown 通过权威重读处理。
+- Checkpoint JSON 是审计契约，只允许写 invocation/correlation/capability/domain/planKind/registrationIdentity、Route/Plan audit、安全 snapshot/context 引用和 checkpoint hash；不得写 raw plan、权限正文、用户 token 或 Context/result payload。
 - SUCCESS finalization 在同一事务内写 Invocation terminal、Turn terminal、filtered result、approved Context writes。
 - CLARIFY/FAILED/CANCELLED 不写业务 Context。
 
@@ -860,6 +873,17 @@ rg -n "AgentIntent|ClarifyCapabilityHandler|CapabilityRouter|CapabilityRouteReso
 rg -n '@SuppressWarnings\(\{\"unchecked\"|@SuppressWarnings\(\"unchecked\"' agent-service/src/main/java
 ```
 
+### 11.5 本地联调门禁
+
+D03 三系统联动的最小门禁是 `agent-service -> auth-service -> agent-runtime` 完成权限投影、Route、Plan 和 Java 计划校验。若继续验证真实 Query/Aggregate handler，下游 `employee-service`、`mq-procedure-service` 必须可通过 Eureka 发现或按联调 profile 明确配置固定 URL。
+
+本地完整联调选择 Eureka 方案：
+
+1. 启动 `config-service`、`eureka-server`、`auth-service`、`agent-runtime`、`agent-service`。
+2. 确认 `auth-service`、`agent-service`、`employee-service`、`mq-procedure-service` 均注册到 Eureka；不得忽略心跳失败日志继续判断完整 E2E 成功。
+3. 先验证 `agent-service -> auth-service -> agent-runtime` 的 Route/Plan 200 和 Java 计划校验通过。
+4. 再验证真实 handler 调用 employee/mq 下游；下游失败只能判定为 E2E 未通过，不得回退 D03 Planning 契约或绕过 ExecutionCore。
+
 以下搜索必须为空，用于禁止按具体 capabilityId 或 domain 字面量编写主流程分支：
 
 ```powershell
@@ -993,4 +1017,22 @@ D05 只能在此基础上新增代表性 capability 验证扩展不变量，不�
 9. 未把 JWT role 或本地 role 配置作为生产权限替代。
 10. 已给出 D03 完成后的退出门禁和 D05 交付接口。
 
-本轮评审未发现剩余代码问题；auth-service 权限投影 API 和 agent-service 生产 Adapter 已关闭外部权限权威源门禁。D03 代码评审通过，发布或合并前仍需按第 11.5 节完成环境级成功链路验证。
+本轮评审结论已完成 2026-07-02 三系统联动后边界复审，可恢复 D03 代码评审通过状态。
+
+### 16.4 三系统联动后边界复审
+
+发现问题：
+
+1. `AuthorizationSnapshot` 未显式冻结 `ExecutionBudget`，导致 Execution recheck 构造的 `ExecutionScope` 预算为 0。
+2. `AuthorizationExecutionPortImpl.recheck` 只检查 capability/domain，未检查 Snapshot 冻结字段是否仍被当前权限覆盖。
+3. `InvocationAuditJsonCodec` 若直接序列化领域模型，容易依赖私有字段可见性，checkpoint JSON 审计契约不稳定。
+4. 本地完整 E2E 联调缺少 Eureka 前置说明，容易把下游服务发现失败误判为 D03 Planning 问题。
+
+处理要求：
+
+- `AuthorizationSnapshot` 增加 `ExecutionBudget` 值对象，freeze 时写入，Execution recheck 原样带入或只收窄。
+- Execution recheck 只做当前权限覆盖复核，不读取新的 Profile/Policy/D04 active 版本来重算预算。
+- checkpoint JSON 通过专用审计 DTO 输出，不写 raw plan、权限正文、token 或 payload。
+- 完整 E2E 联调使用 Eureka 方案；三系统最小门禁与真实下游 handler 验证分层判定。
+
+上述修订已完成并通过专项测试、API smoke 和浏览器 UI smoke，可恢复 D03 代码边界评审通过结论；发布前仍需在目标环境执行 MySQL 迁移和完整回归。

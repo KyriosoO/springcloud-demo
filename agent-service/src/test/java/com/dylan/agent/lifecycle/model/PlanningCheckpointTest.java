@@ -5,8 +5,11 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.contract.runtime.common.RuntimeOperationMetadata;
 import com.dylan.agent.api.contract.runtime.common.RuntimeOperationType;
 import com.dylan.agent.api.contract.runtime.common.RuntimeTerminationReason;
+import com.dylan.agent.lifecycle.InvocationAuditJsonCodec;
 import com.dylan.agent.planning.model.PlanningOperationAudit;
 import com.dylan.agent.planning.model.PlanningOperationTermination;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -100,6 +103,20 @@ class PlanningCheckpointTest {
         assertThatThrownBy(() -> baseBuilder().registrationIdentity(null).build())
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("registrationIdentity");
+    }
+
+    @Test
+    void auditJsonCodecSerializesCheckpointFields() {
+        InvocationAuditJsonCodec codec = new InvocationAuditJsonCodec(
+                new ObjectMapper().registerModule(new Jdk8Module()));
+
+        String json = codec.writeCheckpoint(baseBuilder().build());
+
+        assertThat(json)
+                .contains("\"invocationId\":\"inv-1\"")
+                .contains("\"requestCorrelationId\":\"corr-1\"")
+                .contains("\"capabilityId\":\"query.search\"")
+                .contains("\"checkpointHash\":");
     }
 
     private PlanningCheckpoint.Builder baseBuilder() {

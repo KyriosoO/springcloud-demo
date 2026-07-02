@@ -1,8 +1,9 @@
 package com.dylan.agent.api.response;
 
 import com.dylan.agent.api.enums.AgentResultKind;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** AGGREGATE success payload. */
+/** AGGREGATE 成功结果 payload。 */
 public final class AggregateAgentResultPayload implements AgentResultPayload {
 
     private AgentAggregateResult aggregateResult;
@@ -15,6 +16,7 @@ public final class AggregateAgentResultPayload implements AgentResultPayload {
     }
 
     @Override
+    @JsonProperty(value = "resultKind", access = JsonProperty.Access.READ_ONLY)
     public AgentResultKind getResultKind() {
         return AgentResultKind.AGGREGATE;
     }

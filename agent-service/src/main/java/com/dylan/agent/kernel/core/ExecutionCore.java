@@ -25,12 +25,17 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * 所有 capability 共享的可信执行算法，由 D02_01 唯一负责。
  *
  * <p>不按 capabilityId/domain/planKind 分支。不持久化、不调用 Runtime、不重新查询 Registry。
  */
 public final class ExecutionCore {
+
+    private static final Logger log = LoggerFactory.getLogger(ExecutionCore.class);
 
     private final AuthorizationExecutionPort authPort;
     private final ContextExecutionPort contextPort;
@@ -224,6 +229,11 @@ public final class ExecutionCore {
         try {
             return reg.validateRaw(cmd.planningResult().rawPlan(), valCtx);
         } catch (RuntimeException ex) {
+            log.warn("计划校验失败: capabilityId={}, planKind={}, rawPlanType={}, reason={}",
+                    reg.definition().capabilityId(),
+                    reg.definition().planKind(),
+                    cmd.planningResult().rawPlan().getClass().getSimpleName(),
+                    ex.getMessage());
             return null;
         }
     }

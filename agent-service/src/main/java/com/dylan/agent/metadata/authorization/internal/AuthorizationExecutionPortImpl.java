@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Execution recheck boundary. It never expands a frozen AuthorizationSnapshot. */
+/** 执行阶段授权复检边界，绝不扩大已冻结的 AuthorizationSnapshot。 */
 public final class AuthorizationExecutionPortImpl implements AuthorizationExecutionPort {
 
     private final UserPermissionBoundary userPermissionBoundary;
@@ -41,7 +41,8 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
         domainMetadataPort.assertCurrent(evidence, handle.absoluteDeadline());
         UserPermission current = userPermissionBoundary.resolve(handle.subject(), handle.absoluteDeadline());
         if (!current.allowedCapabilityIds().containsAll(snapshot.allowedCapabilityIds())
-                || !current.allowedDomains().containsAll(snapshot.allowedDomains())) {
+                || !current.allowedDomains().containsAll(snapshot.allowedDomains())
+                || !coversFrozenFields(snapshot, current)) {
             throw new IllegalStateException("permission recheck would shrink required scope");
         }
         return new ExecutionScope(
@@ -56,8 +57,22 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
                 snapshot.allowedFields(),
                 Map.of(),
                 handle.remaining(clock),
-                0,
-                0,
-                0);
+                snapshot.executionBudget().maxRepairAttempts(),
+                snapshot.executionBudget().maxResultRows(),
+                snapshot.executionBudget().maxResultBytes());
+    }
+
+    private static boolean coversFrozenFields(AuthorizationSnapshot snapshot, UserPermission current) {
+        for (Map.Entry<String, Set<String>> entry : snapshot.allowedFields().entrySet()) {
+            String domain = entry.getKey();
+            Set<String> filterable = current.filterableFields().getOrDefault(domain, Set.of());
+            Set<String> displayable = current.displayableFields().getOrDefault(domain, Set.of());
+            for (String field : entry.getValue()) {
+                if (!filterable.contains(field) && !displayable.contains(field)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

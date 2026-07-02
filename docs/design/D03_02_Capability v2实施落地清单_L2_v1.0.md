@@ -1,6 +1,6 @@
 # D03_02 Capability v2实施落地清单 - L2 v1.0
 
-> 状态：D03 代码评审通过；发布前环境级成功链路待验证  
+> 状态：D03 代码评审通过；本地 API/UI E2E 已验证；发布前环境回归待执行
 > 适用阶段：D03 提交前状态归档  
 > 上位依据：`D03_Capability v2跨服务原子切换_L2实施详细设计_v1.0.md`、`D03_01_UserPermissionAuthority权限权威源契约说明_L2_v1.0.md`、`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`、`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`、`D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md`  
 > 本文输出：D03 继续编码所需的类/方法/Bean/事务/删除/测试落地清单
@@ -12,6 +12,8 @@
 | 2026-07-02 | 新增 D03_02 落地清单 | D03 主文档已定义目标、门禁和删除台账，但不足以直接指导当前多模块编码；本文件把已发生的 D03 diff、上位约束和剩余缺口收敛为可执行清单 |
 | 2026-07-02 | 同步 D03 批次 A-H 实现后状态 | Entry、Planning、Lifecycle、Kernel、Runtime、Auth、Conversation、UI 已完成原子切换；本文状态表、阻塞项和验证命令需与当前代码一致 |
 | 2026-07-02 | 同步 D03 代码评审通过状态 | D03 文档约束、架构边界、静态删除门禁、Python 注释门禁和相关测试已复审通过；真实 LLM/下游成功链路仍作为发布前环境级验证 |
+| 2026-07-02 | 启动 D03 边界修订 | 三系统联动暴露 Snapshot 执行预算缺失、checkpoint 序列化依赖私有字段、本地完整联调缺少 Eureka 前置；需按本清单修复并重新评审 |
+| 2026-07-02 | 恢复 D03 代码评审通过状态 | 已完成最终门禁测试、静态检查、employee/transaction API smoke 和浏览器 UI smoke；发布前仍需目标环境迁移与回归 |
 
 ## 1. 文档定位
 
@@ -44,17 +46,17 @@ D03 主文档仍是目标和退出门禁来源。本文不改变 D03 范围，�
 | Java Runtime Client | `AgentRuntimeClient.route/plan` 为唯一 Runtime 调用；旧 `generate(PlanGenerateRequest)` 与 `/runtime/v1/plans/generate` 已删除 | 已完成 |
 | PlanningService | `PlanningService.plan(PlanningCommand, CancellationToken)` 已对齐 D02_00；取消和 deadline 检查覆盖 Route、Context、Plan、freeze 关键点 | 已完成 |
 | Orchestrator | `AgentOrchestrator` 为薄 Entry；history limit 来自 `AgentProperties.conversation.recentTurnLimit`，deadline 来自 `AgentProperties.runtime.readTimeout`，同一 token 传递到 Planning/Execution | 已完成 |
-| Lifecycle | `ExecutionLifecycleService`、`StartTxService`、`CheckpointTxService`、`FinalizationTxService`、`InvocationRecoveryService` 已形成分层；coordinator 非事务，Tx service 持有事务 | 已验证，覆盖 start/finalization/recovery/schema 单测 |
+| Lifecycle | `ExecutionLifecycleService`、`StartTxService`、`CheckpointTxService`、`FinalizationTxService`、`InvocationRecoveryService` 已形成分层；checkpoint JSON 必须通过专用审计 DTO 序列化，不依赖领域模型私有字段 | 已修订并通过专项测试 |
 | Invocation persistence | `agent_invocation_record`、`agent_invocation_result`、`agent_turn.invocation_id` 已写入 SQL 和 Mapper；旧 Turn finalization 方法已移除 | 已验证，schema/mapper/finalization 测试通过 |
 | Context persistence | `MyBatisContextRepository`、`ContextRecordMapper`、`agent_context_record` 已实现；Context 只通过 Planning/Execution/Finalization Port 进入主链 | 已完成，真实数据库集成仍作为后续环境验证 |
 | Metadata Store | `DefaultAgentMetadataBootstrap` 已提供生产 bootstrap，metadata/security 配置已有装配测试 | 已验证 |
-| UserPermission authority | `auth-service` 内部权限投影 API、服务 token 安全门禁、`AuthServiceUserPermissionAuthorityAdapter` 已实现 | 已验证，fail closed 门禁通过 |
+| UserPermission authority | `auth-service` 内部权限投影 API、服务 token 安全门禁、`AuthServiceUserPermissionAuthorityAdapter` 已实现；`AuthorizationSnapshot` 必须冻结 `ExecutionBudget` 并由 Execution recheck 原样带入 `ExecutionScope` | 已修订并通过专项测试 |
 | Execution Core wiring | `CapabilityKernelConfiguration` 装配 `ExecutionCore`、Registry、Query/Aggregate registration；旧 handler registry/router 不再参与生产 | 已验证 |
 | Agent API typed response | CHAT response 已消费 D02 typed result；旧 `PlanGenerateRequest/Response`、旧 `AgentIntent`、旧 `agent-api/plan/AgentPlan` 已删除 | 已完成 |
 | 旧 capability 链 | `AgentCapabilityHandlerRegistry`、`CapabilityRouter`、`CapabilityRouteResolver`、Clarify handler、descriptor factory 已删除；Query/Aggregate 迁入 Kernel handler | 已完成 |
 | Conversation history | `ConversationService.loadRecentTurns(InvocationHandle,int)` 为唯一历史读取入口；旧 `query_context_json` 生产读写路径已删除 | 已完成 |
 | UI | `agent.html` 已按 typed `result.resultKind` 渲染 RESULT/CLARIFY/ERROR，不再依赖旧并列字段 | 已完成 |
-| Tests | Contract、Runtime、Planning、Lifecycle、Kernel、Metadata/Auth、Auth-service、静态删除门禁、Python 注释门禁已执行 | 代码评审门禁已通过；三服务真实成功链路、浏览器成功结果渲染和真实下游业务服务调用仍需发布前环境级回归 |
+| Tests | Contract、Runtime、Planning、Lifecycle、Kernel、Metadata/Auth、Auth-service、静态删除门禁、Python 注释门禁、API smoke、浏览器 UI smoke 已执行 | 代码评审门禁已通过；本地真实下游成功链路已验证；目标环境仍需发布前回归 |
 
 ## 3. D03 目标调用链
 
@@ -146,7 +148,7 @@ Planning 必修正项：
 | `agent-service/src/main/java/com/dylan/agent/lifecycle/CheckpointTxService.java` | KEEP/MODIFY | `CheckpointResult write(InvocationHandle handle, ExecutablePlanningResult result)`；独立事务；写 planning checkpoint |
 | `agent-service/src/main/java/com/dylan/agent/lifecycle/FinalizationTxService.java` | KEEP/MODIFY | commit success/clarification/planning failure/planning cancellation/execution failure/execution cancellation |
 | `agent-service/src/main/java/com/dylan/agent/lifecycle/InvocationRecoveryService.java` | KEEP/MODIFY | 恢复遗留 PROCESSING；不得恢复业务执行 |
-| `agent-service/src/main/java/com/dylan/agent/lifecycle/InvocationAuditJsonCodec.java` | KEEP | checkpoint/result audit JSON；不得写权限正文或敏感 payload |
+| `agent-service/src/main/java/com/dylan/agent/lifecycle/InvocationAuditJsonCodec.java` | KEEP/MODIFY | checkpoint/result audit JSON；使用专用审计 DTO，不得写权限正文、raw plan、用户 token 或敏感 payload |
 | `agent-service/src/main/java/com/dylan/agent/persistence/mapper/AgentInvocationRecordMapper.java` | KEEP/MODIFY | Invocation 状态 CAS、按 correlation/owner/scope 权威重读 |
 | `agent-service/src/main/java/com/dylan/agent/persistence/mapper/AgentInvocationResultMapper.java` | KEEP/MODIFY | 存储 filtered result、clarification 或 error envelope |
 | `agent-service/src/main/java/com/dylan/agent/persistence/mapper/AgentTurnMapper.java` | MODIFY | 新主链只通过 Lifecycle finalization 更新终态；旧 completeSuccess/completeFailure 需删除或转为 package-private 旧测试不可见前再删除 |
@@ -323,6 +325,8 @@ D03 是原子交付，但编码顺序必须先接通目标链，再删除旧链�
 | `AuthServiceUserPermissionAuthorityAdapterTest` | Adapter 超时、非法响应、subject mismatch、version/evidence 缺失 fail closed | 已实现 |
 | `AgentPermissionServiceTokenSecurityTest` | auth-service 内部权限接口只接受 agent-service 服务 token 和必需 scope | 已实现 |
 | `ExecutionLifecycleServiceTest` | 非事务 coordinator、checkpoint 后 execute、failure/cancel mapping | 已实现 |
+| `PlanningCheckpointTest` | checkpoint 专用审计 DTO 可序列化核心字段，不依赖领域模型私有字段 | 已通过 |
+| `AuthorizationExecutionPortTest` | Execution recheck 不扩大 Snapshot，并保留 Snapshot 冻结的执行预算 | 已通过 |
 | `StartTxServiceTest` | Turn + Invocation 原子创建、幂等 correlation、冲突拒绝 | 已实现 |
 | `FinalizationTxServiceTest` | success/clarify/failure/cancel 原子终结 | 已实现 |
 | `InvocationRecoveryServiceTest` | 不恢复业务执行，只终结遗留 PROCESSING | 已实现 |
@@ -429,11 +433,11 @@ git status --short --branch
 7. Lifecycle/Persistence 已有 start、finalization、recovery、schema 级测试证明。
 8. UI 已切换 typed response。
 
-剩余风险不是 D03 阻塞项，但发布前仍需执行环境级验证：
+剩余风险不是 D03 阻塞项，但发布前仍需执行目标环境验证：
 
 1. 真实 MySQL schema 初始化和迁移验证：本地 smoke 已补 `agent-p0-v1.3.sql` 并验证旧库补列，发布环境仍需按变更流程执行。
-2. agent-service、auth-service、agent-runtime 三服务联调：本地已执行到 `agent-runtime /runtime/v1/route`，因本地 LLM endpoint 不可用返回 `AGENT_RUNTIME_UNAVAILABLE`。
-3. 浏览器 UI smoke：已验证 `agent.html` 授权加载、关键控件可见、点击发送后展示错误摘要；真实成功结果渲染仍需可用 LLM/下游服务环境回归。
+2. 目标环境完整 E2E 回归：本地已通过 Eureka 链路验证 `agent-service`、`auth-service`、`agent-runtime`、`employee-service`、`mq-procedure-service` 可协作执行；发布环境仍需按同等拓扑复验注册、Route/Plan 和真实 handler。
+3. 浏览器 UI 回归：本地已通过 gateway 登录态、`agent.html` 成功结果渲染、查询参数和 20 行查询结果展示；发布环境仍需复验真实域名、Cookie 策略和网关转发配置。
 
 ## 11. 编码恢复规则
 
@@ -467,6 +471,6 @@ git status --short --branch
 
 ## 13. 自评结论
 
-本文已达到“D03 代码评审通过”和“对齐当前实现状态”的要求：后续发布前只剩环境级成功链路验证，不再以 D03 代码设计问题阻塞提交。
+本文已完成 Snapshot 执行预算、checkpoint 审计 DTO 和本地联调门禁修订，并通过最终门禁测试、静态检查、API smoke 与浏览器 UI smoke。D03 代码评审通过；发布前仍需按第 10 节完成目标环境迁移和回归。
 
 任何后续修改都必须回到第 12 节执行评审；若发现实现与本文冲突，优先修正文档或代码，不允许绕过门禁继续推进。

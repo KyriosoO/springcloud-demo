@@ -36,6 +36,7 @@ import com.dylan.agent.kernel.validator.ValidatedPlan;
 import com.dylan.agent.invocation.model.ExecutionStage;
 import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
+import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
@@ -353,7 +354,9 @@ class ExecutionCoreTest {
                 Set.of("query.search"),
                 Set.of(),
                 Map.of(),
-                NOW);
+                NOW,
+                null,
+                ExecutionBudget.zero());
     }
 
     private AuthorizationExecutionPort authorizationPort() {

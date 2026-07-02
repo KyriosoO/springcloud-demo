@@ -38,6 +38,7 @@ import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.metadata.MetadataTestSupport;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
+import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.port.AuthorizationPlanningPort;
@@ -348,6 +349,7 @@ class PlanningServiceTest {
                 Set.of(),
                 Map.of(),
                 MetadataTestSupport.NOW,
-                domainEvidence());
+                domainEvidence(),
+                new ExecutionBudget(1, 100, 10_000));
     }
 }

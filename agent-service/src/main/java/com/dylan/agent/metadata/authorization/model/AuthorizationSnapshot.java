@@ -20,22 +20,15 @@ public final class AuthorizationSnapshot {
     private final Map<String, Set<String>> allowedFields;
     private final Instant snapshotTime;
     private final DomainMetadataEvidence domainMetadataEvidence;
-
-    public AuthorizationSnapshot(
-            String snapshotId, String subjectRef,
-            String profileVersion, String policyVersion,
-            Set<String> allowedCapabilityIds, Set<String> allowedDomains,
-            Map<String, Set<String>> allowedFields, Instant snapshotTime) {
-        this(snapshotId, subjectRef, profileVersion, policyVersion,
-                allowedCapabilityIds, allowedDomains, allowedFields, snapshotTime, null);
-    }
+    private final ExecutionBudget executionBudget;
 
     public AuthorizationSnapshot(
             String snapshotId, String subjectRef,
             String profileVersion, String policyVersion,
             Set<String> allowedCapabilityIds, Set<String> allowedDomains,
             Map<String, Set<String>> allowedFields, Instant snapshotTime,
-            DomainMetadataEvidence domainMetadataEvidence) {
+            DomainMetadataEvidence domainMetadataEvidence,
+            ExecutionBudget executionBudget) {
         this.snapshotId = Objects.requireNonNull(snapshotId);
         this.subjectRef = Objects.requireNonNull(subjectRef);
         this.profileVersion = Objects.requireNonNull(profileVersion);
@@ -45,6 +38,7 @@ public final class AuthorizationSnapshot {
         this.allowedFields = Map.copyOf(allowedFields);
         this.snapshotTime = Objects.requireNonNull(snapshotTime);
         this.domainMetadataEvidence = domainMetadataEvidence;
+        this.executionBudget = Objects.requireNonNull(executionBudget, "executionBudget must not be null");
     }
 
     public String snapshotId() { return snapshotId; }
@@ -58,4 +52,5 @@ public final class AuthorizationSnapshot {
     public Optional<DomainMetadataEvidence> domainMetadataEvidence() {
         return Optional.ofNullable(domainMetadataEvidence);
     }
+    public ExecutionBudget executionBudget() { return executionBudget; }
 }

@@ -3,6 +3,7 @@ package com.dylan.agent.metadata.authorization.internal;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
+import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
@@ -25,7 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Default D02_03 planning authorization boundary. */
+/** D02_03 默认规划授权边界。 */
 public final class AuthorizationPlanningPortImpl implements AuthorizationPlanningPort {
 
     private final AgentMetadataStore metadataStore;
@@ -125,7 +126,11 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 selection.selectedDomain().map(Set::of).orElseGet(Set::of),
                 fieldsByDomain(evidence.planningScope()),
                 clock.instant(),
-                evidence.domainMetadataEvidence());
+                evidence.domainMetadataEvidence(),
+                new ExecutionBudget(
+                        evidence.planningScope().maxRepairAttempts(),
+                        evidence.planningScope().maxResultRows(),
+                        evidence.planningScope().maxResultBytes()));
     }
 
     private PlanningEffectiveScope intersect(

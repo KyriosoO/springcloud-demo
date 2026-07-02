@@ -204,11 +204,12 @@ public interface UserPermissionAuthorityPort {
 - snapshotId、requestCorrelationId、subject、owner、scope；
 - profile/policy/permission/delegation 精确引用和 evidenceDigest；
 - registrationIdentity、capabilityId、planKind、optional domain；
-- capability 范围内 fields/operators/functions/context read/write/mask/budget；
+- capability 范围内 fields/operators/functions/context read/write/mask；
+- `ExecutionBudget`：`maxRepairAttempts`、`maxResultRows`、`maxResultBytes`，来源为 freeze 时刻 `PlanningEffectiveScope` 的已收敛预算；
 - 与本次 `AvailableCapabilitySnapshot` 完全相同的 `DomainMetadataEvidence`；
 - frozenAt。
 
-`ExecutionScope` 字段与 capability-scoped范围一致，原样保留 Snapshot 绑定的 `DomainMetadataEvidence`，并记录 recheckedAt/current permission evidence/current policy version。它只能等于或小于 Snapshot；执行复检不得替换为新的 Domain metadata 版本。
+`ExecutionScope` 字段与 capability-scoped范围一致，原样保留 Snapshot 绑定的 `DomainMetadataEvidence` 和 `ExecutionBudget`，并记录 recheckedAt/current permission evidence/current policy version。它只能等于或小于 Snapshot；执行复检不得替换为新的 Domain metadata 版本，也不得引入新的 Profile/Policy/D04 版本来扩大或重算预算。
 
 ### 5.2 `AuthorizationPlanningPort`
 
@@ -227,13 +228,13 @@ public interface UserPermissionAuthorityPort {
 实现 D02_01 `AuthorizationExecutionPort.recheck(snapshot, handle)`：
 
 1. 校验 correlation、subject、owner、scope 与 Handle 相同。
-2. 从同一current bundle的retained索引解析绑定Profile/Policy精确版本，确认未被当前active Policy紧急撤销，并以Handle absolute deadline调用`DomainMetadataPort.assertCurrent(snapshot.domainMetadataEvidence(), deadline)`；不得把绑定版本替换为active版本。Registration identity只由Core对Planning携带的同一不可变引用校验，本端口不得重查Registry。
-3. 重新解析当前 UserPermission 和 Delegation。
-4. `ExecutionScope = Snapshot ∩ Current Permission ∩ Current bound Profile limits ∩ Current Policy ∩ Delegation`。
+2. 以 Handle absolute deadline 调用 `DomainMetadataPort.assertCurrent(snapshot.domainMetadataEvidence(), deadline)`；不得把绑定版本替换为 active 版本。Registration identity 只由 Core 对 Planning 携带的同一不可变引用校验，本端口不得重查 Registry。
+3. 重新解析当前 UserPermission，只用于确认当前权限仍覆盖 Snapshot 冻结的 capability、domain 和 field 集合；不得用当前权限、Profile、Policy 或 Delegation 扩大 Snapshot。
+4. `ExecutionScope = Snapshot ∩ Current Permission`，其中 `ExecutionBudget` 从 Snapshot 原样带入；若未来允许预算收窄，也只能在不引入新 Profile/Policy/D04 版本的前提下取更小值。
 5. 若选定 capability/domain、Raw Plan 使用的 field/operator/function、必要 Context 权限被移除，fail closed。
 6. 仅无关字段范围缩小时返回更窄 ExecutionScope，供 Validator/Result Security 执行；不因“发生缩小”本身自动失败，也绝不扩大。
 
-`AuthorizationExecutionPortImpl`构造器只注入`AgentMetadataStore`只读边界、`UserPermissionBoundary`、`DelegationBoundary`、`DomainMetadataPort`和UTC Clock；不注入CapabilityRegistry、Runtime client、Context Repository或Handler。
+`AuthorizationExecutionPortImpl`构造器只注入`UserPermissionBoundary`、`DomainMetadataPort`和UTC Clock；不注入`AgentMetadataStore`、`DelegationBoundary`、CapabilityRegistry、Runtime client、Context Repository或Handler，避免执行阶段混入新的 Profile/Policy/Delegation 事实。
 
 ### 5.4 禁止事项
 

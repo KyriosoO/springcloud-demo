@@ -1,15 +1,17 @@
 package com.dylan.agent.api.response;
 
 import com.dylan.agent.api.enums.AgentResultKind;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Single extension point for successful Agent result payloads.
+ * Agent 成功结果 payload 的唯一扩展点。
  *
- * <p>New result shapes extend this Java sealed hierarchy instead of adding
- * parallel fields to {@link AgentChatResponse}.
+ * <p>新增结果形状必须扩展该 sealed 层级，不能在 {@link AgentChatResponse}
+ * 上增加并列字段。
  */
 public sealed interface AgentResultPayload
         permits QueryAgentResultPayload, AggregateAgentResultPayload {
 
+    @JsonProperty(value = "resultKind", access = JsonProperty.Access.READ_ONLY)
     AgentResultKind getResultKind();
 }

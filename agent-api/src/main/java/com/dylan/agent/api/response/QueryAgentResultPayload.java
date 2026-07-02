@@ -1,8 +1,9 @@
 package com.dylan.agent.api.response;
 
 import com.dylan.agent.api.enums.AgentResultKind;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** QUERY success payload. */
+/** QUERY 成功结果 payload。 */
 public final class QueryAgentResultPayload implements AgentResultPayload {
 
     private AgentQueryParameters queryParameters;
@@ -18,6 +19,7 @@ public final class QueryAgentResultPayload implements AgentResultPayload {
     }
 
     @Override
+    @JsonProperty(value = "resultKind", access = JsonProperty.Access.READ_ONLY)
     public AgentResultKind getResultKind() {
         return AgentResultKind.QUERY;
     }

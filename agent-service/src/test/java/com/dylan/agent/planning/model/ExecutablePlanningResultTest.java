@@ -22,6 +22,7 @@ import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
+import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -147,7 +148,9 @@ class ExecutablePlanningResultTest {
                 Set.of("query.search"),
                 Set.of(),
                 Map.of(),
-                NOW);
+                NOW,
+                null,
+                ExecutionBudget.zero());
     }
 
     private PlanningOperationAudit reported(RuntimeOperationType operation) {
