@@ -16,9 +16,9 @@ import java.util.Objects;
  * <p>聚合 Definition、Raw Plan type、Validator、Validated Plan type、
  * Handler、Output type 和唯一类型桥。构造后所有组件只读。
  *
- * @param <R> Raw Plan subtype (e.g. QueryAgentPlan)
- * @param <V> Validated Plan type
- * @param <O> Handler output type
+ * @param <R> Raw Plan 子类型，例如 QueryAgentPlan
+ * @param <V> Validated Plan 类型
+ * @param <O> Handler 输出类型
  */
 public final class CapabilityRegistration<
         R extends AgentPlan,

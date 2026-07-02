@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Domain metadata projection available to validators. */
+/** Validator 可使用的 domain metadata projection。 */
 public final class ExecutionValidationProjection {
 
     private static final ExecutionValidationProjection NONE =

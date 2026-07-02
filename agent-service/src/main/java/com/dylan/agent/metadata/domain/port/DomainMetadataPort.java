@@ -13,18 +13,18 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * D02/D04 seam for canonical domain metadata and adapter availability.
+ * canonical domain metadata 与 adapter availability 的 D02/D04 seam。
  *
- * <p>D02 only consumes this port. Canonical Catalog, AdapterRegistration and
- * concrete domain facts remain owned by D04.</p>
+ * <p>D02 只消费该 port。Canonical Catalog、AdapterRegistration 和
+ * 具体 domain facts 仍归 D04 拥有。</p>
  */
 public interface DomainMetadataPort {
 
     /**
-     * Returns the adapter roles known by the current D04 adapter-registration view.
+     * 返回当前 D04 adapter-registration view 已知的 adapter roles。
      *
-     * <p>This is consumed only during D02 capability registration validation; it
-     * does not expose domain facts or adapter instances.</p>
+     * <p>该方法只在 D02 capability registration validation 中消费；
+     * 不暴露 domain facts 或 adapter instances。</p>
      */
     Set<AdapterRole> knownRoles();
 

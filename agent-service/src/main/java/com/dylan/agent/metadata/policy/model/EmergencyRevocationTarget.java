@@ -1,6 +1,6 @@
 package com.dylan.agent.metadata.policy.model;
 
-/** Versioned target type for emergency fail-closed revocation. */
+/** emergency fail-closed revocation 使用的 versioned target type。 */
 public enum EmergencyRevocationTarget {
     PROFILE,
     POLICY,

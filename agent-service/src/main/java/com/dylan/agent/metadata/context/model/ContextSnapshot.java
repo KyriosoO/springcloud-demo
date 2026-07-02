@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Request-local typed context snapshot consumed by Planning/Core. */
+/** Planning/Core 消费的请求本地 typed context snapshot。 */
 public final class ContextSnapshot {
 
     private final String contextId;

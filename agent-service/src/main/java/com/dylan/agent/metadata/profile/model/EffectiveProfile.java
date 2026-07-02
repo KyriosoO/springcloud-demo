@@ -8,7 +8,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 
-/** Deterministic Profile ∩ Policy result; UserPermission is applied later. */
+/** 确定性的 Profile ∩ Policy 结果；UserPermission 后续再应用。 */
 public record EffectiveProfile(
         AgentProfileVersionKey profileKey,
         String policyVersion,

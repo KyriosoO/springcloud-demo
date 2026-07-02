@@ -14,12 +14,11 @@ import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * D04 canonical domain metadata binding.
+ * D04 canonical domain metadata 绑定。
  *
- * <p>This class is intentionally mutable and used only at the Spring
- * composition boundary. All runtime consumers use the immutable
- * {@link CanonicalDomainCatalog}/{@link AdapterRegistrationSet} built by the
- * D04 validator.</p>
+ * <p>该类刻意保持可变，只用于 Spring composition boundary。
+ * 所有运行时消费者都使用 D04 validator 构建的不可变实例：
+ * {@link CanonicalDomainCatalog}/{@link AdapterRegistrationSet}。</p>
  */
 @ConfigurationProperties(prefix = "agent.domain-metadata")
 public class DomainMetadataProperties {

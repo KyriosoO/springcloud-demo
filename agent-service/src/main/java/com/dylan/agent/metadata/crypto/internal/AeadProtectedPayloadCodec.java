@@ -12,7 +12,7 @@ import java.security.SecureRandom;
 import java.util.Objects;
 
 /**
- * AES-256-GCM payload codec. The active key id is read at each encryption.
+ * AES-256-GCM payload codec。每次加密时读取 active key id。
  */
 public final class AeadProtectedPayloadCodec implements ProtectedPayloadCodec {
 

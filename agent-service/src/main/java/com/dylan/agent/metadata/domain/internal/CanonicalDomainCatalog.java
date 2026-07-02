@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/** Immutable D04 canonical catalog snapshot. */
+/** 不可变 D04 canonical catalog snapshot。 */
 public record CanonicalDomainCatalog(
         String catalogVersion,
         Map<String, CanonicalDomainDefinition> domains) {

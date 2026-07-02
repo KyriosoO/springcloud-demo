@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Immutable behavior asset projected to Runtime as reviewed instructions only. */
+/** 不可变 behavior asset；只作为已评审 instructions 投影给 Runtime。 */
 public record ProfileBehaviorAsset(
         ProfileBehaviorAssetRef ref,
         List<String> instructions,

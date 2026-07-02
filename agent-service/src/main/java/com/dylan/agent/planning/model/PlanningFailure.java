@@ -8,10 +8,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Internal immutable Planning failure value owned by D02_00.
+ * D02_00 拥有的内部不可变 Planning 失败值。
  *
- * <p>It is not a Runtime response and does not carry raw provider messages, payloads,
- * permission facts, stack traces, or API response text.</p>
+ * <p>该类型不是 Runtime 响应，也不携带 provider 原始消息、payload、
+ * 权限事实、堆栈或 API 响应正文。</p>
  */
 public final class PlanningFailure {
 

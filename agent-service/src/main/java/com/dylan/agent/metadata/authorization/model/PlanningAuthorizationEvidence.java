@@ -7,7 +7,7 @@ import com.dylan.agent.metadata.profile.model.EffectiveProfile;
 import java.time.Instant;
 import java.util.Objects;
 
-/** One request-scoped evidence chain captured before Route. */
+/** Route 前捕获的单请求 evidence chain。 */
 public record PlanningAuthorizationEvidence(
         String requestCorrelationId,
         String subjectRef,

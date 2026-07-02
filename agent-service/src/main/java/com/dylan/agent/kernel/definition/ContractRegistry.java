@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Java-only contract resolution table for capability execution contracts. */
+/** capability execution contracts 的 Java-only contract resolution table。 */
 public final class ContractRegistry {
 
     private final Map<ContractRef, ContractDescriptor> descriptors;

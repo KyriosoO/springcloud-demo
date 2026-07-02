@@ -33,17 +33,6 @@ def test_parse_target_route_decision():
     assert outcome.domain == "employee"
 
 
-def test_parse_legacy_route_output_to_target_decision():
-    request = RouteRequest.model_validate(_route_request())
-    outcome = _parse_route(
-        '{"intent":"QUERY","domain":"employee","confidence":0.91,"reason":"query"}',
-        request,
-    )
-
-    assert outcome.capability_id == "query.search"
-    assert outcome.metadata.operation.value == "ROUTE"
-
-
 def test_parse_target_plan_executable():
     request = PlanRequest.model_validate(_plan_request())
     outcome = _parse_plan(
@@ -72,16 +61,3 @@ def test_parse_target_plan_executable():
 
     assert outcome.plan.plan_kind == "QUERY"
     assert outcome.metadata.operation.value == "PLAN"
-
-
-def test_parse_legacy_query_plan_to_target_executable():
-    request = PlanRequest.model_validate(_plan_request())
-    outcome = _parse_plan(
-        '{"planVersion":"1.0","intent":"QUERY","domain":"employee",'
-        '"query":{"filters":[],"selectFields":["name"],"page":1,"size":20},'
-        '"clarify":null}',
-        request,
-    )
-
-    assert outcome.plan.plan_kind == "QUERY"
-    assert outcome.request_id == "flow-001"

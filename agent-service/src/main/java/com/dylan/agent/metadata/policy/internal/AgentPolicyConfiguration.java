@@ -5,7 +5,7 @@ import com.dylan.agent.metadata.policy.model.AgentPolicySnapshot;
 
 import java.util.Objects;
 
-/** Read-only policy boundary backed by the same atomic metadata bundle. */
+/** 基于同一个 atomic metadata bundle 的只读 policy boundary。 */
 public final class AgentPolicyConfiguration {
 
     private final AgentMetadataStore store;

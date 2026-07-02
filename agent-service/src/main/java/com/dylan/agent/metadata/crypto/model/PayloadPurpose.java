@@ -1,6 +1,6 @@
 package com.dylan.agent.metadata.crypto.model;
 
-/** Purpose included in encryption AAD. */
+/** encryption AAD 中携带的 purpose。 */
 public enum PayloadPurpose {
     CONTEXT_PAYLOAD,
     RESULT_PAYLOAD

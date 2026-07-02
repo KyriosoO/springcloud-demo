@@ -2,7 +2,7 @@ package com.dylan.agent.metadata.domain.port;
 
 import java.util.Objects;
 
-/** Stable canonical domain field reference. */
+/** 稳定 canonical domain field 引用。 */
 public record CanonicalFieldRef(String domain, String field) {
     public CanonicalFieldRef {
         domain = requireNonBlank(domain, "domain");

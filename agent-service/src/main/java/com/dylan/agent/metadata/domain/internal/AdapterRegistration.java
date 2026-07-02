@@ -5,7 +5,7 @@ import com.dylan.agent.adapter.api.AgentAdapterPort;
 
 import java.util.Objects;
 
-/** Static D04 binding between one adapter role/domain and one typed port bean. */
+/** 一个 adapter role/domain 与一个 typed port bean 之间的静态 D04 binding。 */
 public record AdapterRegistration(
         String registrationId,
         AdapterRole role,

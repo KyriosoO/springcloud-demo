@@ -2,7 +2,7 @@ package com.dylan.agent.metadata.authorization.model;
 
 import java.util.Objects;
 
-/** Exact delegation constraint reference; CHAT may use the built-in all scope. */
+/** 精确 delegation constraint 引用；CHAT 可使用内置 all scope。 */
 public record DelegationConstraintRef(String constraintId, String version) {
     public static final DelegationConstraintRef CHAT_ALL =
             new DelegationConstraintRef("chat-all", "1.0.0");

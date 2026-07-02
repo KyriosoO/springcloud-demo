@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Context cleanup trigger using reloadable security settings per tick.
+ * 每次 tick 使用可 reload security settings 的 Context cleanup trigger。
  */
 public final class ContextCleanupJob {
 

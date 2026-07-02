@@ -6,10 +6,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Independent Planning cancellation value.
+ * 独立的 Planning 取消值。
  *
- * <p>Cancellation/deadline is not modeled as a PlanningResult variant and is not
- * disguised as a PlanningFailure.</p>
+ * <p>cancel/deadline 不建模为 PlanningResult 分支，也不伪装成 PlanningFailure。</p>
  */
 public final class PlanningCancellation {
 

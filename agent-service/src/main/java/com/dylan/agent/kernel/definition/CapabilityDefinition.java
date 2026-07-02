@@ -78,7 +78,7 @@ public final class CapabilityDefinition {
     public ContractRef outputContract() { return outputContract; }
     public ContextAccessDeclaration contextAccess() { return contextAccess; }
 
-    // ── Builder ──
+    // ── 构建器 ──
 
     public static Builder builder() { return new Builder(); }
 

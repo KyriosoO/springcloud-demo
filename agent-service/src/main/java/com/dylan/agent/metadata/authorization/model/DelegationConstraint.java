@@ -3,7 +3,7 @@ package com.dylan.agent.metadata.authorization.model;
 import java.util.Objects;
 import java.util.Set;
 
-/** Static delegation constraint; single-agent CHAT normally uses the all-scope instance. */
+/** 静态 delegation 约束；单 Agent CHAT 通常使用 all-scope 实例。 */
 public record DelegationConstraint(
         DelegationConstraintRef ref,
         Set<String> allowedCapabilityIds,

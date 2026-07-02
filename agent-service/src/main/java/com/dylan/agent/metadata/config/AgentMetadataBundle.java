@@ -9,7 +9,7 @@ import com.dylan.agent.metadata.profile.model.ProfileBehaviorAssetRef;
 import java.util.Map;
 import java.util.Objects;
 
-/** One atomically published metadata bundle for Profile/Policy/Context/Security. */
+/** 面向 Profile/Policy/Context/Security 的一次原子发布 metadata bundle。 */
 public record AgentMetadataBundle(
         String bundleVersion,
         String bundleDigest,

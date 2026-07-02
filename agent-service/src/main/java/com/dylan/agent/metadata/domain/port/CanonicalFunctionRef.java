@@ -2,7 +2,7 @@ package com.dylan.agent.metadata.domain.port;
 
 import java.util.Objects;
 
-/** Canonical aggregate/function reference scoped to a canonical field. */
+/** 作用于 canonical field 的 canonical aggregate/function 引用。 */
 public record CanonicalFunctionRef(CanonicalFieldRef fieldRef, String functionId) {
     public CanonicalFunctionRef {
         Objects.requireNonNull(fieldRef, "fieldRef must not be null");

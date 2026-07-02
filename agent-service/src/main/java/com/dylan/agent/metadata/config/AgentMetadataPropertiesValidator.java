@@ -3,7 +3,7 @@ package com.dylan.agent.metadata.config;
 import java.time.Duration;
 import java.util.Objects;
 
-/** Startup/reload validation for metadata instance config. */
+/** metadata instance config 的启动和 reload 校验。 */
 public final class AgentMetadataPropertiesValidator {
 
     private AgentMetadataPropertiesValidator() {

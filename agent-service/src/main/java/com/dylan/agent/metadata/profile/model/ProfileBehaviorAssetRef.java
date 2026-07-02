@@ -2,7 +2,7 @@ package com.dylan.agent.metadata.profile.model;
 
 import java.util.Objects;
 
-/** Exact version reference for reviewed profile behavior instructions. */
+/** 已评审 profile behavior instructions 的精确 version reference。 */
 public record ProfileBehaviorAssetRef(String assetId, String version) {
     public ProfileBehaviorAssetRef {
         assetId = requireNonBlank(assetId, "assetId");

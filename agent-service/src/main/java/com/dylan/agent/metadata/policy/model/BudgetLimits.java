@@ -3,7 +3,7 @@ package com.dylan.agent.metadata.policy.model;
 import java.time.Duration;
 import java.util.Objects;
 
-/** Explicit upper bounds; D02 does not treat missing limits as infinity. */
+/** 显式上限；D02 不把缺失 limit 视为 infinity。 */
 public record BudgetLimits(
         Duration maxTotalDuration,
         int maxRepairAttempts,

@@ -7,11 +7,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Filtered and safe result materialized from the authoritative invocation result row.
+ * 从权威 invocation result 行物化出的已过滤安全结果。
  *
- * <p>This is only used to rebuild the current Agent API response after
- * finalization, CAS loser or commit-unknown reread. It is not a Multi-Agent
- * ResultRef and must not be propagated as a task dependency.</p>
+ * <p>该类型只用于 finalization、CAS loser 或 commit-unknown 重读后重建当前 Agent API 响应。
+ * 它不是 Multi-Agent ResultRef，也不得作为 task dependency 传播。</p>
  */
 public final class StoredInvocationResult {
 

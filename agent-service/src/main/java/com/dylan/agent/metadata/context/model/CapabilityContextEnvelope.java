@@ -6,7 +6,7 @@ import com.dylan.agent.api.contract.common.ContractRef;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Typed in-memory context envelope; never sent to Runtime directly. */
+/** typed 内存 context envelope；绝不直接发送给 Runtime。 */
 public record CapabilityContextEnvelope(
         ContextRecordKey recordKey,
         ContractRef contractRef,

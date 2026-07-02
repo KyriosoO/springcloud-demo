@@ -83,7 +83,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         return domain.trim();
     }
 
-    // ── PlanningResult ──
+    // ── PlanningResult 接口方法 ──
 
     @Override
     public String requestCorrelationId() {
@@ -95,7 +95,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         return absoluteDeadline;
     }
 
-    // ── getters ──
+    // ── 只读访问方法 ──
 
     public String capabilityId() {
         return capabilityId;
@@ -133,7 +133,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         return planAudit;
     }
 
-    // ── Builder ──
+    // ── 构建器 ──
 
     public static Builder builder() {
         return new Builder();

@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Stateless deterministic Profile ∩ Policy calculator. */
+/** 无状态确定性的 Profile ∩ Policy calculator。 */
 public final class EffectiveProfileCalculator {
 
     public EffectiveProfile compute(AgentProfileDefinition profile, AgentPolicySnapshot policy) {

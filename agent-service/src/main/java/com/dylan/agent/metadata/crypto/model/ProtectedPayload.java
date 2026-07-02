@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Encrypted payload envelope. Byte arrays are copied on input and output.
+ * encrypted payload envelope。输入和输出 byte array 均复制。
  */
 public final class ProtectedPayload {
 

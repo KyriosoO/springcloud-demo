@@ -7,7 +7,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 
 import java.util.Objects;
 
-/** D02_03 execution boundary backed by the D04 DomainMetadataPort. */
+/** 由 D04 DomainMetadataPort 支撑的 D02_03 execution boundary。 */
 public final class DomainSecurityBoundary implements DomainExecutionPort {
 
     private final DomainMetadataPort domainMetadataPort;

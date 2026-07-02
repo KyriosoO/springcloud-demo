@@ -5,7 +5,7 @@ import com.dylan.agent.api.contract.common.ContractRef;
 import java.util.Objects;
 
 /**
- * Authenticated additional data used for payload protection.
+ * payload protection 使用的 authenticated additional data。
  */
 public record PayloadProtectionContext(
         PayloadPurpose purpose,

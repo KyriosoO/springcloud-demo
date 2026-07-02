@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Request-time D04 availability projection. It carries no field catalog facts.
+ * 请求期 D04 availability projection；不携带 field catalog facts。
  */
 public record DomainAvailabilitySnapshot(
         DomainMetadataEvidence evidence,

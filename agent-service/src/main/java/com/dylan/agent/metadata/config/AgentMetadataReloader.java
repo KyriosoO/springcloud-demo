@@ -5,7 +5,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import java.time.Clock;
 import java.util.Objects;
 
-/** Atomic reload seam. Full candidate conversion is D03; this class owns publish semantics. */
+/** 原子 reload seam。完整 candidate 转换归 D03，本类只负责发布语义。 */
 public final class AgentMetadataReloader {
 
     private final AgentMetadataStore store;

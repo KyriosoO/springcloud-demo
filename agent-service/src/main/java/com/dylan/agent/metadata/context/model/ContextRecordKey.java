@@ -7,7 +7,7 @@ import com.dylan.agent.invocation.model.InvocationScope;
 import java.util.Objects;
 
 /**
- * Stable logical key for one persisted capability context record.
+ * 单条持久化 capability context record 的稳定逻辑 key。
  */
 public record ContextRecordKey(
         ContextOwnerRef owner,

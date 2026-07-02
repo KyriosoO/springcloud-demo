@@ -6,7 +6,7 @@ import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import java.util.Map;
 import java.util.Objects;
 
-/** Read-only delegation boundary; unknown references fail closed. */
+/** 只读 delegation 边界；未知引用必须 fail closed。 */
 public final class DelegationBoundary {
 
     private final Map<DelegationConstraintRef, DelegationConstraint> constraints;

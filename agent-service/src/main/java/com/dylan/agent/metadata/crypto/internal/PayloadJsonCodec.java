@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Strict JSON codec for encrypted context/result payloads.
+ * encrypted context/result payload 使用的严格 JSON codec。
  */
 public final class PayloadJsonCodec {
 

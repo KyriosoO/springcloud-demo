@@ -48,7 +48,7 @@ public class UserService implements UserDetailsService {
 			return null;
 		// OAuth2 用户
 		if (authentication.getPrincipal() instanceof Jwt jwt) {
-			// JWT claims
+			// JWT 声明
 			return jwt.getClaimAsString("sub"); // 或 "userId" 根据你 token 定义
 		}
 		return null;

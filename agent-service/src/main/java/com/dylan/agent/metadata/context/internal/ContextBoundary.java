@@ -37,7 +37,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/** D02_03 Context boundary for planning load, execution currentness and write approval. */
+/** D02_03 Context 边界，负责 planning load、execution currentness 和 write approval。 */
 public final class ContextBoundary implements ContextPlanningPort, ContextExecutionPort, ContextApprovalPort {
 
     private final ContextRepository repository;

@@ -8,7 +8,7 @@ import java.util.HexFormat;
 import java.util.Objects;
 
 /**
- * Version evidence captured from one D04 metadata/availability view.
+ * 从一个 D04 metadata/availability view 捕获的 version evidence。
  */
 public record DomainMetadataEvidence(
         String catalogVersion,

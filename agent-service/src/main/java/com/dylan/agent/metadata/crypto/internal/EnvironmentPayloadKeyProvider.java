@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * Loads AES-256 payload keys from environment-style secret lookup.
+ * 从 environment-style secret lookup 加载 AES-256 payload key。
  */
 public final class EnvironmentPayloadKeyProvider implements PayloadKeyProvider {
 

@@ -10,18 +10,14 @@ from typing import Any
 from pydantic import TypeAdapter, ValidationError
 
 from app.contracts.models import (
-    AggregateAgentPlan,
     ClarificationRequired,
-    DomainChoiceArgs,
     ExecutablePlan,
     PlanOutcome,
     PlanRequest,
-    QueryAgentPlan,
     RouteDecision,
     RouteOutcome,
     RouteRequest,
     RuntimeOperationMetadata,
-    RuntimeOperationType,
     RuntimeTerminationReason,
     validate_plan_outcome,
     validate_route_outcome,
@@ -77,74 +73,16 @@ class RuntimePlanPlanner:
 
 def _parse_route(raw: str, request: RouteRequest) -> RouteDecision | ClarificationRequired:
     payload = _json_object(raw)
-    if "outcomeType" in payload:
-        outcome = validate_route_outcome(payload)
-    else:
-        outcome = _legacy_route_to_outcome(payload, request)
+    outcome = validate_route_outcome(payload)
     _assert_request_id(outcome.request_id, request.request_id)
     return outcome
 
 
 def _parse_plan(raw: str, request: PlanRequest) -> ExecutablePlan | ClarificationRequired:
     payload = _json_object(raw)
-    if "outcomeType" in payload:
-        outcome = validate_plan_outcome(payload)
-    else:
-        outcome = _legacy_plan_to_outcome(payload, request)
+    outcome = validate_plan_outcome(payload)
     _assert_request_id(outcome.request_id, request.request_id)
     return outcome
-
-
-def _legacy_route_to_outcome(payload: dict[str, Any], request: RouteRequest) -> RouteDecision | ClarificationRequired:
-    intent = str(payload.get("intent", "")).upper()
-    if intent == "CLARIFY":
-        domains = [item.domain for item in request.domains]
-        args = DomainChoiceArgs(argType="DOMAIN_CHOICES", domains=domains[:20] or ["unknown"])
-        return ClarificationRequired(
-            outcomeType="CLARIFICATION",
-            requestId=request.request_id,
-            reasonCode="DOMAIN_AMBIGUOUS" if len(domains) > 1 else "DOMAIN_REQUIRED",
-            args=args,
-            metadata=_metadata("ROUTE", "CLARIFICATION"),
-        )
-    plan_kind = "AGGREGATE" if intent == "AGGREGATE" else "QUERY"
-    capability = next(
-        (item for item in request.capabilities if item.plan_kind.value == plan_kind),
-        None,
-    )
-    if capability is None:
-        raise ValueError(f"no capability for plan kind: {plan_kind}")
-    domain = payload.get("domain")
-    return RouteDecision(
-        outcomeType="DECISION",
-        requestId=request.request_id,
-        capabilityId=capability.capability_id,
-        domain=domain,
-        metadata=_metadata("ROUTE", "COMPLETED"),
-    )
-
-
-def _legacy_plan_to_outcome(payload: dict[str, Any], request: PlanRequest) -> ExecutablePlan | ClarificationRequired:
-    if str(payload.get("intent", "")).upper() == "CLARIFY":
-        domain = request.domain or (request.domain_schema.domain if request.domain_schema else "unknown")
-        args = DomainChoiceArgs(argType="DOMAIN_CHOICES", domains=[domain])
-        return ClarificationRequired(
-            outcomeType="CLARIFICATION",
-            requestId=request.request_id,
-            reasonCode="DOMAIN_REQUIRED",
-            args=args,
-            metadata=_metadata("PLAN", "CLARIFICATION"),
-        )
-    if request.plan_kind.value == "AGGREGATE":
-        plan = AggregateAgentPlan(planKind="AGGREGATE", aggregate=payload["aggregate"])
-    else:
-        plan = QueryAgentPlan(planKind="QUERY", query=payload["query"])
-    return ExecutablePlan(
-        outcomeType="EXECUTABLE",
-        requestId=request.request_id,
-        plan=plan,
-        metadata=_metadata("PLAN", "COMPLETED"),
-    )
 
 
 def _json_object(raw: str) -> dict[str, Any]:

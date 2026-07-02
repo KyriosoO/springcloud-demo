@@ -6,7 +6,7 @@ import com.dylan.agent.metadata.config.AgentMetadataStore;
 
 import java.util.Objects;
 
-/** Projects reviewed behavior instructions only; no capability/policy/permission facts leak to Runtime. */
+/** 只投影已评审 behavior instructions；capability/policy/permission facts 不泄露给 Runtime。 */
 public final class ProfileBehaviorProjectionBoundary {
 
     private final AgentMetadataStore store;

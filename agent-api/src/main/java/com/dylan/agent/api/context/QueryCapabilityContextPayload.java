@@ -5,7 +5,7 @@ import com.dylan.agent.api.plan.AgentFilter;
 
 import java.util.List;
 
-/** QUERY context payload. */
+/** QUERY 类型的 context payload。 */
 public record QueryCapabilityContextPayload(
         List<AgentFilter> filters,
         List<String> selectFields,

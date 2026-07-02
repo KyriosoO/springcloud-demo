@@ -8,7 +8,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 
-/** Profile-owned static definition; it never stores user permission or policy facts. */
+/** Profile 拥有的静态 definition；绝不存储 user permission 或 policy facts。 */
 public record AgentProfileDefinition(
         AgentProfileVersionKey key,
         ProfileBehaviorAssetRef promptProfileRef,

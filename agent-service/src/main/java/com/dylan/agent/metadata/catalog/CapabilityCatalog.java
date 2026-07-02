@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Computes available capabilities from frozen authorization evidence and one D04 availability snapshot. */
+/** 基于冻结授权 evidence 和一个 D04 availability snapshot 计算 available capabilities。 */
 public final class CapabilityCatalog {
 
     private final CapabilityRegistry capabilityRegistry;

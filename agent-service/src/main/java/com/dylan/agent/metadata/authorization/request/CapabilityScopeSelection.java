@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Selected capability/domain/context tuple frozen after Plan succeeds. */
+/** Plan 成功后冻结的 capability/domain/context 选择元组。 */
 public record CapabilityScopeSelection(
         ResolvedRegistration registration,
         Optional<String> selectedDomain,

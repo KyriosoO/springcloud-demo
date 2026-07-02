@@ -7,7 +7,7 @@ import com.dylan.agent.api.plan.AggregateOrderSpec;
 
 import java.util.List;
 
-/** AGGREGATE context payload. */
+/** AGGREGATE 类型的 context payload。 */
 public record AggregateCapabilityContextPayload(
         List<AgentFilter> filters,
         List<AggregateMetricSpec> metrics,

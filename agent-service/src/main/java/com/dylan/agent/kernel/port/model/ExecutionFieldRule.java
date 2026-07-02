@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/** Safe execution projection for one canonical field. */
+/** 单个 canonical field 的安全执行 projection。 */
 public final class ExecutionFieldRule {
 
     private final String field;

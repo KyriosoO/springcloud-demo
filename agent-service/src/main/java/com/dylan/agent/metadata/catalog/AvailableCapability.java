@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 
-/** Request-scoped available capability projection for Route. */
+/** Route 使用的请求级 available capability 投影。 */
 public record AvailableCapability(
         String capabilityId,
         AgentPlanKind planKind,

@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/** Deployment policy constraints that can only tighten a Profile. */
+/** 只能收紧 Profile 的 deployment policy constraints。 */
 public record ProfileConstraints(
         boolean enabled,
         Set<String> allowedCapabilityIds,

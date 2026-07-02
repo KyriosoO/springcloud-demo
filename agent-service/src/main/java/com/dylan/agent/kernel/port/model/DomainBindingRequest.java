@@ -7,7 +7,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Request for resolving a selected domain into one binding/projection pair. */
+/** 将已选 domain 解析为一个 binding/projection 对的请求。 */
 public final class DomainBindingRequest {
 
     private final ResolvedRegistration registration;

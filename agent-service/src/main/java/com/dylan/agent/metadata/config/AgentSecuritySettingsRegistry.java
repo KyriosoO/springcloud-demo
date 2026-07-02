@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Read-only boundary for active security settings.
+ * active security settings 的只读边界。
  */
 public final class AgentSecuritySettingsRegistry {
 

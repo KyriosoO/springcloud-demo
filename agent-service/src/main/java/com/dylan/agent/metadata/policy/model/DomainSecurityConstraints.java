@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Policy-owned static field security constraints; D04 owns field/operator/function facts. */
+/** Policy 拥有的静态 field security constraints；field/operator/function facts 归 D04 拥有。 */
 public record DomainSecurityConstraints(
         Map<CanonicalFieldRef, FieldSecurityConstraint> fields) {
     public DomainSecurityConstraints {

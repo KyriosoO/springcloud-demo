@@ -6,7 +6,7 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 
 import java.util.Objects;
 
-/** Handler-created context write candidate. Handler never supplies owner/scope/expiry. */
+/** Handler 创建的 context write candidate；Handler 不提供 owner/scope/expiry。 */
 public final class ContextWriteCandidate {
 
     private final RuntimeContextType contextType;

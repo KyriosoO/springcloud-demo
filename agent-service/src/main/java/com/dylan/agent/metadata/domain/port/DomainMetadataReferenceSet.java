@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Typed references that must be validated against one immutable D04 catalog view.
+ * 必须基于一个不可变 D04 catalog view 校验的 typed references。
  */
 public record DomainMetadataReferenceSet(
         Set<CanonicalFieldRef> fields,

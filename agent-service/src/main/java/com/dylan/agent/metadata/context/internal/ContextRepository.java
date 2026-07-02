@@ -6,7 +6,7 @@ import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
 import java.time.Instant;
 import java.util.Optional;
 
-/** Repository seam for D02_03 context persistence. */
+/** D02_03 context persistence 的 repository seam。 */
 public interface ContextRepository {
 
     default Optional<ContextRecordEntity> findCurrent(

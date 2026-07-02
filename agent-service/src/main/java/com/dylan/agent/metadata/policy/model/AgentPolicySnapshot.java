@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Immutable active policy version. Policy can only tighten profile and permission scope. */
+/** 不可变 active policy version；Policy 只能收紧 profile 与 permission scope。 */
 public record AgentPolicySnapshot(
         String policyVersion,
         Map<String, ProfileConstraints> profileConstraints,

@@ -1,6 +1,6 @@
 package com.dylan.agent.planning.model;
 
-/** Safe termination categories for Route/Plan runtime operations. */
+/** Route/Plan runtime operation 的安全终止类别。 */
 public enum PlanningOperationTermination {
     OUTCOME_RECEIVED,
     RUNTIME_ERROR_RECEIVED,

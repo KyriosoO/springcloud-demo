@@ -4,7 +4,7 @@ import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** D02_03 metadata instance configuration placeholder; not a runtime fact source. */
+/** D02_03 metadata instance 配置占位；不是运行时事实来源。 */
 @ConfigurationProperties(prefix = "agent.metadata")
 public class AgentMetadataProperties {
 

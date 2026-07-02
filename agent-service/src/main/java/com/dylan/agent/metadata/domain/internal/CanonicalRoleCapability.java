@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Field/operator/function capability declared for one adapter role. */
+/** 单个 adapter role 声明的 field/operator/function capability。 */
 public record CanonicalRoleCapability(
         AdapterRole role,
         Set<String> fields,

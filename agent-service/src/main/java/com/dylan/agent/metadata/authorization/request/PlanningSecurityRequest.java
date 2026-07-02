@@ -6,7 +6,7 @@ import com.dylan.agent.shared.ref.AgentProfileRef;
 
 import java.util.Objects;
 
-/** Planning security capture request bound to the InvocationHandle. */
+/** 绑定 InvocationHandle 的 Planning 安全捕获请求。 */
 public record PlanningSecurityRequest(
         InvocationHandle handle,
         AgentProfileRef agentProfileRef,

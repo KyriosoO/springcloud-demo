@@ -2,7 +2,7 @@ package com.dylan.agent.metadata.profile.model;
 
 import java.util.Objects;
 
-/** Exact immutable profile version key. */
+/** 精确不可变 profile version key。 */
 public record AgentProfileVersionKey(String agentId, String version) {
     public AgentProfileVersionKey {
         agentId = requireNonBlank(agentId, "agentId");

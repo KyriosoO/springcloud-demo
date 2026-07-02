@@ -6,10 +6,10 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Immutable secured result returned by ResultSecurityPort.
+ * ResultSecurityPort 返回的不可变安全结果。
  *
- * <p>It carries canonical bytes instead of a mutable typed candidate object, so
- * Core/Lifecycle cannot bypass filtering or masking after result security.</p>
+ * <p>该类型只携带 canonical bytes，不携带可变 typed candidate object，
+ * 防止 Core/Lifecycle 在 ResultSecurity 之后绕过过滤或脱敏。</p>
  */
 public final class SecuredResult {
 

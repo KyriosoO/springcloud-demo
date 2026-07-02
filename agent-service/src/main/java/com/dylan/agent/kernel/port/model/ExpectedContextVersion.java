@@ -1,11 +1,10 @@
 package com.dylan.agent.kernel.port.model;
 
 /**
- * Closed CAS expectation for approved context persistence.
+ * 已批准 Context 持久化使用的封闭 CAS 预期。
  *
- * <p>D02_03 requires an explicit absent-or-existing union instead of nullable
- * fields. {@link #targetVersion()} is the version that will be written when
- * the CAS succeeds, and is also part of the context payload AAD.</p>
+ * <p>D02_03 要求使用显式 absent-or-existing union，而不是 nullable 字段。
+ * {@link #targetVersion()} 是 CAS 成功后写入的版本，也是 context payload AAD 的一部分。</p>
  */
 public sealed interface ExpectedContextVersion
         permits ExpectedContextVersion.ExpectedAbsent, ExpectedContextVersion.ExpectedVersion {

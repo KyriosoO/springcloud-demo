@@ -7,7 +7,7 @@ import com.dylan.agent.metadata.crypto.model.ProtectedPayload;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Persistence-facing context record value. */
+/** 面向持久化的 context record value。 */
 public record ContextRecordEntity(
         String contextId,
         ContextRecordKey recordKey,

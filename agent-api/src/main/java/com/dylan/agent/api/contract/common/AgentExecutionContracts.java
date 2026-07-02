@@ -3,7 +3,7 @@ package com.dylan.agent.api.contract.common;
 import com.dylan.agent.api.contract.runtime.common.AgentRuntimeContract;
 
 /**
- * Shared Java contract references consumed by capability registrations.
+ * capability registration 共享消费的 Java 契约引用。
  */
 public final class AgentExecutionContracts {
 

@@ -7,7 +7,7 @@ import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidenc
 
 import java.util.Objects;
 
-/** Request to load one declared Context for Planning. */
+/** Planning 加载一个已声明 Context 的请求。 */
 public record ContextReadRequest(
         String requestCorrelationId,
         ContextOwnerRef owner,

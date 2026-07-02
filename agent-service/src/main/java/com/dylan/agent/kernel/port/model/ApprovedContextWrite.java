@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Boundary-approved context write. Handler cannot construct or replace this value. */
+/** 边界批准后的 context write；Handler 不能构造或替换该值。 */
 public final class ApprovedContextWrite {
 
     private final String contextId;

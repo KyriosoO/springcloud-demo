@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Exact source/target migration registry; no latest or path search. */
+/** 精确 source/target migration registry；不支持 latest 或路径搜索。 */
 public final class ContextMigrationRegistry {
 
     private final List<ContextPayloadMigrator<?, ?>> migrators;

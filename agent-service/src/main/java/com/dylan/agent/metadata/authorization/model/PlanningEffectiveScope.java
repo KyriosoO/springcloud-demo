@@ -15,12 +15,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Request-scoped effective authorization envelope for Planning.
+ * Planning 使用的请求级 effective authorization envelope。
  *
- * <p>This is the already-intersected Profile/Policy/Permission/Delegation
- * result consumed by D02_03 Catalog/D04 seam. It is not a permission cache and
- * does not contain JWT, role facts, policy expressions, domain catalog facts or
- * adapter metadata.</p>
+ * <p>该类型是 Profile/Policy/Permission/Delegation 求交后的结果，
+ * 供 D02_03 Catalog/D04 seam 消费。它不是权限缓存，不包含 JWT、role 事实、
+ * policy 表达式、domain catalog 事实或 adapter metadata。</p>
  */
 public final class PlanningEffectiveScope {
 
@@ -160,7 +159,7 @@ public final class PlanningEffectiveScope {
     }
 
     /**
-     * Effective field-level limits for a canonical field.
+     * canonical field 的 effective 字段级限制。
      */
     public record FieldAccess(
             boolean filterAllowed,

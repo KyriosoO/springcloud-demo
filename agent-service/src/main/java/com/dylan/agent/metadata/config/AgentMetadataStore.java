@@ -3,7 +3,7 @@ package com.dylan.agent.metadata.config;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Package-level atomic holder; consumers read one immutable bundle snapshot. */
+/** 包级原子 holder；消费者读取一个不可变 bundle snapshot。 */
 public final class AgentMetadataStore {
 
     private final AtomicReference<AgentMetadataBundle> current;

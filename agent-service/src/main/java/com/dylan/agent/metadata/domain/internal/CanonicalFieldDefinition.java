@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Immutable canonical field facts owned by D04. */
+/** D04 拥有的不可变 canonical field facts。 */
 public record CanonicalFieldDefinition(
         String field,
         List<String> aliases,

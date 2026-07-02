@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Immutable lookup index for adapter registrations. */
+/** adapter registrations 的不可变 lookup index。 */
 public record AdapterRegistrationSet(
         String adapterRegistrationVersion,
         Map<Key, AdapterRegistration> byRoleAndDomain) {

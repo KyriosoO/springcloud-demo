@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Immutable canonical domain facts. No permission or adapter endpoint data is stored here. */
+/** 不可变 canonical domain facts；不存储 permission 或 adapter endpoint 数据。 */
 public record CanonicalDomainDefinition(
         String domain,
         List<String> aliases,

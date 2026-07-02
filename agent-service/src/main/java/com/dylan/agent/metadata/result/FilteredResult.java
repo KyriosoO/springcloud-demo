@@ -4,7 +4,7 @@ import com.dylan.agent.api.response.AgentResultPayload;
 
 import java.util.Objects;
 
-/** Projector-internal immutable filtered candidate. */
+/** Projector 内部不可变 filtered candidate。 */
 public record FilteredResult<O extends AgentResultPayload>(
         O payload,
         String safeMessage,

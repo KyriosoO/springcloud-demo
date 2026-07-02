@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Fixed D04 mapping from stable AdapterRole values to typed adapter ports. */
+/** 从稳定 AdapterRole 值到 typed adapter port 的固定 D04 映射。 */
 public final class AdapterRolePortTypes {
 
     private static final Map<AdapterRole, Class<? extends AgentAdapterPort>> TYPES = Map.of(

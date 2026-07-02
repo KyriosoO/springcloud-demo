@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Immutable request-level capability catalog result. */
+/** 不可变的请求级 capability catalog 结果。 */
 public record AvailableCapabilitySnapshot(
         String requestCorrelationId,
         String authorizationEvidenceDigest,

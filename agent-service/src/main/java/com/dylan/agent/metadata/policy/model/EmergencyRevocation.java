@@ -3,7 +3,7 @@ package com.dylan.agent.metadata.policy.model;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Typed emergency revocation entry. */
+/** typed emergency revocation 条目。 */
 public record EmergencyRevocation(
         EmergencyRevocationTarget target,
         String targetId,

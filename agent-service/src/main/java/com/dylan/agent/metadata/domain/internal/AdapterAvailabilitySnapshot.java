@@ -5,7 +5,7 @@ import com.dylan.agent.adapter.api.AdapterRole;
 import java.util.Map;
 import java.util.Objects;
 
-/** D04 startup-time adapter availability view. */
+/** D04 启动期 adapter availability view。 */
 public record AdapterAvailabilitySnapshot(Map<AdapterRegistrationSet.Key, Boolean> available) {
     public AdapterAvailabilitySnapshot {
         available = Map.copyOf(Objects.requireNonNull(available, "available must not be null"));

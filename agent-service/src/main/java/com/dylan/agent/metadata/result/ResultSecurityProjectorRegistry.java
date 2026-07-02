@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Resolves one projector by output ContractRef; no capability/domain routing. */
+/** 按 output ContractRef 解析一个 projector；不做 capability/domain routing。 */
 public final class ResultSecurityProjectorRegistry {
 
     private final Map<ContractRef, ResultSecurityProjector<?>> projectors;

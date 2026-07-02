@@ -3,11 +3,10 @@ package com.dylan.agent.api.contract.common;
 import java.util.Objects;
 
 /**
- * Java internal schema/version reference.
+ * Java 内部 schema/version 引用。
  *
- * <p>This is the only Java value object used by kernel registration, context
- * declarations and result payload contracts. It is not a URL, Java class name
- * or implicit latest selector.
+ * <p>这是 kernel registration、context 声明和 result payload 契约共同使用的唯一
+ * Java 值对象。它不是 URL、Java 类名或隐式 latest 选择器。
  */
 public record ContractRef(String schema, String version) {
 

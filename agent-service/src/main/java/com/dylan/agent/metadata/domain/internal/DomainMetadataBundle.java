@@ -4,7 +4,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 
 import java.util.Objects;
 
-/** One immutable D04 catalog/registration/availability snapshot. */
+/** 一个不可变 D04 catalog/registration/availability snapshot。 */
 public record DomainMetadataBundle(
         CanonicalDomainCatalog catalog,
         AdapterRegistrationSet registrations,

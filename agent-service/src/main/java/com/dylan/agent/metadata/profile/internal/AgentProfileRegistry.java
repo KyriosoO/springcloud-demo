@@ -9,7 +9,7 @@ import com.dylan.agent.shared.ref.AgentProfileRef;
 import java.util.Collection;
 import java.util.Objects;
 
-/** Read-only profile definition boundary backed by one atomic metadata bundle. */
+/** 基于一个 atomic metadata bundle 的只读 profile definition boundary。 */
 public final class AgentProfileRegistry {
 
     private final AgentMetadataStore store;

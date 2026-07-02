@@ -4,7 +4,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 
 import java.util.Objects;
 
-/** Atomic domain execution resolution: binding and validation projection from one evidence view. */
+/** 原子 domain execution resolution：来自同一 evidence view 的 binding 与 validation projection。 */
 public final class DomainExecutionResolution {
 
     private final AdapterExecutionBinding binding;

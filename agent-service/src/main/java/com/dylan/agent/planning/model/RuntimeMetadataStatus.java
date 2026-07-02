@@ -1,6 +1,6 @@
 package com.dylan.agent.planning.model;
 
-/** Whether RuntimeOperationMetadata was reported by the D01 runtime boundary. */
+/** D01 runtime 边界是否返回了 RuntimeOperationMetadata。 */
 public enum RuntimeMetadataStatus {
     REPORTED,
     NOT_REPORTED
