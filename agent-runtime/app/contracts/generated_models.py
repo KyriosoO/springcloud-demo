@@ -163,8 +163,6 @@ class AgentResponseType(str, Enum):
     RESULT = result  # noqa: E221
     clarify = 'CLARIFY'
     CLARIFY = clarify  # noqa: E221
-    aggregate_result = 'AGGREGATE_RESULT'
-    AGGREGATE_RESULT = aggregate_result  # noqa: E221
     error = 'ERROR'
     ERROR = error  # noqa: E221
 
