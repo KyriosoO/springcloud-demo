@@ -13,6 +13,7 @@ import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.domain.internal.AdapterPortResolver;
 import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
+import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataStore;
@@ -79,6 +80,16 @@ public final class DomainMetadataTestSupport {
 
     public static DomainCatalogView catalogView() {
         return new DomainCatalogView(store());
+    }
+
+    public static DomainMetadataPortImpl domainMetadataPort() {
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean("employeeAgentAdapter", QueryableAggregatableAdapter.class,
+                QueryableAggregatableAdapter::new);
+        context.registerBean("transactionAgentAdapter", QueryableAggregatableAdapter.class,
+                QueryableAggregatableAdapter::new);
+        context.refresh();
+        return new DomainMetadataPortImpl(store(), context, TEST_CLOCK);
     }
 
     public static AdapterPortResolver adapterPortResolver(

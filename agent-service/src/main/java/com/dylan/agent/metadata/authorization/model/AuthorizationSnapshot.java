@@ -3,6 +3,8 @@ package com.dylan.agent.metadata.authorization.model;
 import java.time.Instant;
 import java.util.*;
 
+import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
+
 /**
  * Planning 时刻的版本化请求级授权证据。
  * 不包含 JWT 或完整权限表达式。
@@ -17,12 +19,23 @@ public final class AuthorizationSnapshot {
     private final Set<String> allowedDomains;
     private final Map<String, Set<String>> allowedFields;
     private final Instant snapshotTime;
+    private final DomainMetadataEvidence domainMetadataEvidence;
 
     public AuthorizationSnapshot(
             String snapshotId, String subjectRef,
             String profileVersion, String policyVersion,
             Set<String> allowedCapabilityIds, Set<String> allowedDomains,
             Map<String, Set<String>> allowedFields, Instant snapshotTime) {
+        this(snapshotId, subjectRef, profileVersion, policyVersion,
+                allowedCapabilityIds, allowedDomains, allowedFields, snapshotTime, null);
+    }
+
+    public AuthorizationSnapshot(
+            String snapshotId, String subjectRef,
+            String profileVersion, String policyVersion,
+            Set<String> allowedCapabilityIds, Set<String> allowedDomains,
+            Map<String, Set<String>> allowedFields, Instant snapshotTime,
+            DomainMetadataEvidence domainMetadataEvidence) {
         this.snapshotId = Objects.requireNonNull(snapshotId);
         this.subjectRef = Objects.requireNonNull(subjectRef);
         this.profileVersion = Objects.requireNonNull(profileVersion);
@@ -31,6 +44,7 @@ public final class AuthorizationSnapshot {
         this.allowedDomains = Set.copyOf(allowedDomains);
         this.allowedFields = Map.copyOf(allowedFields);
         this.snapshotTime = Objects.requireNonNull(snapshotTime);
+        this.domainMetadataEvidence = domainMetadataEvidence;
     }
 
     public String snapshotId() { return snapshotId; }
@@ -41,4 +55,7 @@ public final class AuthorizationSnapshot {
     public Set<String> allowedDomains() { return allowedDomains; }
     public Map<String, Set<String>> allowedFields() { return allowedFields; }
     public Instant snapshotTime() { return snapshotTime; }
+    public Optional<DomainMetadataEvidence> domainMetadataEvidence() {
+        return Optional.ofNullable(domainMetadataEvidence);
+    }
 }

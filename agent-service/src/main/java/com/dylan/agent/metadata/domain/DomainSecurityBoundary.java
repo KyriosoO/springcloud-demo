@@ -1,4 +1,4 @@
-package com.dylan.agent.metadata.domain.internal;
+package com.dylan.agent.metadata.domain;
 
 import com.dylan.agent.kernel.port.DomainExecutionPort;
 import com.dylan.agent.kernel.port.model.DomainBindingRequest;

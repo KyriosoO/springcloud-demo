@@ -3,6 +3,7 @@ package com.dylan.agent.kernel.core;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.RuntimeOperationMetadata;
@@ -236,10 +237,10 @@ class ExecutionCoreTest {
                     return List.of();
                 },
                 (candidate, outputContract, scope) -> new SecuredResult(
-                        "query.other",
-                        AgentPlanKind.QUERY,
-                        outputContract,
-                        candidate),
+                        new ContractRef("OtherResult", "1.0.0"),
+                        "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "safe",
+                        "safe"),
                 CLOCK);
 
         ExecutionOutcome outcome = core.execute(command(registry.resolve("query.search")));
@@ -264,10 +265,10 @@ class ExecutionCoreTest {
                 failingDomainPort(),
                 (candidates, request) -> null,
                 (candidate, outputContract, scope) -> new SecuredResult(
-                        "query.search",
-                        AgentPlanKind.QUERY,
                         outputContract,
-                        candidate),
+                        "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "safe",
+                        "safe"),
                 CLOCK);
 
         ExecutionOutcome outcome = core.execute(command(registry.resolve("query.search")));

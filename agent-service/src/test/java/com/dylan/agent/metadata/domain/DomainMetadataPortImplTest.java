@@ -6,12 +6,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericApplicationContext;
 
 import com.dylan.agent.adapter.api.AdapterRole;
+import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
+import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
+import com.dylan.agent.api.enums.AggregateFunction;
+import com.dylan.agent.api.enums.AgentOperator;
+import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
@@ -88,6 +94,44 @@ class DomainMetadataPortImplTest {
         assertThatThrownBy(() -> port.validateReferences(refs, DEADLINE))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("unknown function reference");
+    }
+
+    @Test
+    void planSchemaMapsCanonicalFunctionIdsToD01AggregateFunctionEnum() {
+        var port = port();
+        var evidence = store().current().evidence();
+        CanonicalFieldRef amount = new CanonicalFieldRef("transaction", "amount");
+        PlanningEffectiveScope scope = new PlanningEffectiveScope(
+                Set.of("aggregate.compute"),
+                Set.of("transaction"),
+                Map.of(amount, new PlanningEffectiveScope.FieldAccess(
+                        true,
+                        true,
+                        Set.of(AgentOperator.EQ, AgentOperator.GT, AgentOperator.LT),
+                        Set.of("sum", "avg", "min", "max"),
+                        Optional.of(MaskType.NONE))),
+                Set.of(),
+                Set.of(),
+                AgentCapabilityRiskLevel.READ_ONLY,
+                AgentCapabilityExecutionMode.IMMEDIATE,
+                Duration.ofSeconds(30),
+                1,
+                100,
+                100,
+                10_000);
+
+        var schema = port.planSchema(
+                AdapterRole.AGGREGATABLE,
+                "transaction",
+                scope,
+                evidence,
+                DEADLINE);
+
+        assertThat(schema.getFields())
+                .singleElement()
+                .satisfies(field -> assertThat(field.getAggregateFunctions())
+                        .containsExactly(AggregateFunction.AVG, AggregateFunction.MAX,
+                                AggregateFunction.MIN, AggregateFunction.SUM));
     }
 
     private DomainMetadataPortImpl port() {

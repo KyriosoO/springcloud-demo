@@ -12,6 +12,7 @@ public record ContextRecordEntity(
         String contextId,
         ContextRecordKey recordKey,
         ContractRef contractRef,
+        long recordVersion,
         ProtectedPayload protectedPayload,
         String sourceCapabilityId,
         String sourceInvocationId,
@@ -22,6 +23,9 @@ public record ContextRecordEntity(
         contextId = requireNonBlank(contextId, "contextId");
         Objects.requireNonNull(recordKey, "recordKey must not be null");
         Objects.requireNonNull(contractRef, "contractRef must not be null");
+        if (recordVersion < 0) {
+            throw new IllegalArgumentException("recordVersion must be non-negative");
+        }
         Objects.requireNonNull(protectedPayload, "protectedPayload must not be null");
         sourceCapabilityId = requireNonBlank(sourceCapabilityId, "sourceCapabilityId");
         sourceInvocationId = requireNonBlank(sourceInvocationId, "sourceInvocationId");

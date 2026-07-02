@@ -63,6 +63,7 @@ public final class ContextFinalizationParticipantImpl implements ContextFinaliza
                             write.contextId(),
                             write.recordKey(),
                             write.contractRef(),
+                            write.expectedVersion().targetVersion(),
                             protectedPayload,
                             write.sourceCapabilityId(),
                             write.sourceInvocationId(),

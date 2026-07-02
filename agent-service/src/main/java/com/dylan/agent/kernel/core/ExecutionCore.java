@@ -231,12 +231,9 @@ public final class ExecutionCore {
     private void validateSecuredResult(SecuredResult secured,
                                        CapabilityRegistration<?, ?, ?> reg) {
         Objects.requireNonNull(secured, "secured result must not be null");
-        if (!secured.capabilityId().equals(reg.definition().capabilityId())
-                || secured.planKind() != reg.definition().planKind()
-                || !secured.outputContract().equals(reg.definition().outputContract())) {
+        if (!secured.outputContract().equals(reg.definition().outputContract())) {
             throw new IllegalStateException("secured result binding mismatch");
         }
-        reg.validateOutput(secured.candidateResult());
     }
 
     private ExecutionContext buildExecutionContext(

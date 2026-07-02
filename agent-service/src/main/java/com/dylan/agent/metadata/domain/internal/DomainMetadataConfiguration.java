@@ -2,6 +2,7 @@ package com.dylan.agent.metadata.domain.internal;
 
 import com.dylan.agent.adapter.api.AgentAdapterPort;
 import com.dylan.agent.kernel.port.DomainExecutionPort;
+import com.dylan.agent.metadata.domain.DomainSecurityBoundary;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 
 import java.time.Clock;

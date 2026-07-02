@@ -255,7 +255,7 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
                 .sorted(Comparator.comparing(Enum::name))
                 .toList());
         schema.setAggregateFunctions(capability.functionsByField().getOrDefault(field, Set.of()).stream()
-                .filter(access.allowedFunctions().stream().collect(Collectors.toUnmodifiableSet())::contains)
+                .filter(function -> access.allowedFunctions().contains(functionId(function)))
                 .sorted(Comparator.comparing(Enum::name))
                 .toList());
         schema.setFormatHint(fd.valueFormat().orElse(null));
@@ -294,11 +294,18 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
     }
 
     private static AggregateFunction parseFunction(CanonicalFunctionRef function) {
+        if (!function.functionId().matches("[a-z][a-z0-9_]{0,63}")) {
+            throw new IllegalStateException("unknown function reference: " + function);
+        }
         try {
             return AggregateFunction.valueOf(function.functionId().toUpperCase());
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException("unknown function reference: " + function, ex);
         }
+    }
+
+    private static String functionId(AggregateFunction function) {
+        return function.name().toLowerCase(java.util.Locale.ROOT);
     }
 
     private static int positiveMin(int left, int right) {
