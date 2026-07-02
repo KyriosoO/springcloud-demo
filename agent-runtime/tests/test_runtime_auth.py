@@ -1,6 +1,4 @@
-"""
-Tests for runtime shared-key authentication.
-"""
+"""运行时共享密钥认证测试。"""
 import secrets
 
 import pytest
@@ -9,7 +7,7 @@ from app.core.errors import RuntimeAuthError
 
 
 class TestRuntimeKeyAuth:
-    """Constant-time key comparison behavior."""
+    """常量时间密钥比较行为。"""
 
     def test_compare_digest_match(self):
         key = "super-secret-key-at-least-16"

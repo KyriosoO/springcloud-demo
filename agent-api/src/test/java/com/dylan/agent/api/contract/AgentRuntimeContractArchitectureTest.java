@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("D01 architecture invariants")
+@DisplayName("Active Runtime contract architecture invariants")
 class AgentRuntimeContractArchitectureTest {
 
     @Test
@@ -71,15 +71,15 @@ class AgentRuntimeContractArchitectureTest {
     }
 
     @Test
-    void candidatePackageMustNotBeReferencedByProductionCodeOutsideAgentApi() throws Exception {
-        Pattern candidate = Pattern.compile("com\\.dylan\\.agent\\.api\\.contract\\.runtime");
+    void runtimeContractMustNotBeReferencedByUnexpectedProductionCode() throws Exception {
+        Pattern runtimeContract = Pattern.compile("com\\.dylan\\.agent\\.api\\.contract\\.runtime");
         Path repo = locateRepoRoot();
         List<String> violations = new ArrayList<>();
         // D02 kernel/planning/invocation/lifecycle/metadata/shared packages
-        // reference D01 candidate types as part of the D02→D03 transition;
+        // reference active Runtime contract types as part of the D03 target chain;
         // this is the expected design contract. Exclusion paths ensure
         // the gate only catches unintended legacy references.
-        for (String result : scanText(repo.resolve("agent-service/src/main"), candidate,
+        for (String result : scanText(repo.resolve("agent-service/src/main"), runtimeContract,
             "java/com/dylan/agent/kernel/",
             "java/com/dylan/agent/capability/query/QueryCapabilityConfiguration.java",
             "java/com/dylan/agent/capability/query/QueryPlanValidator.java",
@@ -89,12 +89,17 @@ class AgentRuntimeContractArchitectureTest {
             "java/com/dylan/agent/capability/aggregate/AggregatePlanValidator.java",
             "java/com/dylan/agent/capability/aggregate/AggregateCapabilityHandler.java",
             "java/com/dylan/agent/capability/aggregate/ValidatedAggregatePlan.java",
+            "java/com/dylan/agent/application/PlanningCommandFactory.java",
+            "java/com/dylan/agent/client/AgentRuntimeClient.java",
+            "java/com/dylan/agent/client/AgentRuntimeErrorMapper.java",
+            "java/com/dylan/agent/client/RuntimeOperationException.java",
             "java/com/dylan/agent/planning/",
+            "java/com/dylan/agent/conversation/ConversationService.java",
             "java/com/dylan/agent/invocation/", "java/com/dylan/agent/lifecycle/",
             "java/com/dylan/agent/metadata/", "java/com/dylan/agent/shared/")) {
             violations.add(result);
         }
-        violations.addAll(scanText(repo.resolve("agent-runtime/app"), candidate));
+        violations.addAll(scanText(repo.resolve("agent-runtime/app"), runtimeContract));
         assertTrue(violations.isEmpty(), String.join(System.lineSeparator(), violations));
     }
 
@@ -170,10 +175,6 @@ class AgentRuntimeContractArchitectureTest {
                         excluded = true;
                         break;
                     }
-                }
-                if (!excluded && exclusionPaths.length > 0) {
-                    System.out.println("D02 NOT EXCLUDED: " + relative
-                        + " [root=" + root + "]");
                 }
                 if (excluded) continue;
                 String text = Files.readString(path, StandardCharsets.UTF_8);

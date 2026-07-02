@@ -51,4 +51,27 @@ class UserPermissionAuthorityProductionWiringTest {
             assertThat(context).hasSingleBean(UserPermissionBoundary.class);
         });
     }
+
+    @Test
+    void missingServiceTokenProviderFailsStartup() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(
+                        AuthServiceUserPermissionAuthorityConfiguration.class,
+                        AuthorizationSecurityConfiguration.class)
+                .withBean(RestClient.Builder.class, RestClient::builder)
+                .withBean(ObjectMapper.class, () -> JsonMapper.builder().findAndAddModules().build())
+                .withBean(Clock.class, () -> Clock.fixed(
+                        Instant.parse("2026-07-02T10:00:00Z"),
+                        ZoneOffset.UTC))
+                .withPropertyValues(
+                        "agent.auth-service.base-url=http://auth-service",
+                        "agent.auth-service.resolve-path=/internal/agent/permissions/resolve",
+                        "agent.auth-service.connect-timeout=500ms",
+                        "agent.auth-service.read-timeout=2s",
+                        "agent.auth-service.agent-id=agent-default",
+                        "agent.auth-service.profile-id=profile-v1",
+                        "agent.auth-service.scope-type=CONVERSATION",
+                        "agent.auth-service.scope-id=agent-permission-authority")
+                .run(context -> assertThat(context).hasFailed());
+    }
 }

@@ -1,35 +1,22 @@
 package com.dylan.agent.config;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import com.dylan.agent.api.enums.AgentIntent;
-
 /**
- * Agent 所有配置，以 agent 为前缀。
- * D04 后本类不再承载 domain metadata；domain 字段事实由
- * agent.domain-metadata 绑定到 DomainMetadataProperties。
+ * Agent 所有配置，统一使用 agent 前缀。
+ * D04 后本类不再承载领域元数据；领域字段事实由
+ * 通过 agent.domain-metadata 绑定到 DomainMetadataProperties。
  */
 @ConfigurationProperties(prefix = "agent")
 public class AgentProperties {
 
-    private Map<AgentIntent, Set<String>> intentRoles;
     private RuntimeProperties runtime;
     private AuthServiceProperties authService = new AuthServiceProperties();
     private ConversationProperties conversation;
     private QueryProperties query;
     private AggregateProperties aggregate;
-
-    public Map<AgentIntent, Set<String>> getIntentRoles() {
-        return intentRoles;
-    }
-
-    public void setIntentRoles(Map<AgentIntent, Set<String>> intentRoles) {
-        this.intentRoles = intentRoles;
-    }
 
     public RuntimeProperties getRuntime() {
         return runtime;
@@ -71,13 +58,16 @@ public class AgentProperties {
         this.aggregate = aggregate;
     }
 
-    /** Runtime 连接配置 */
+    /** Runtime 连接配置。 */
     public static class RuntimeProperties {
         private String baseUrl;
         private Duration connectTimeout;
         private Duration readTimeout;
         private int maxResponseBytes;
         private String sharedKey;
+        private String routePath = "/runtime/v1/route";
+        private String planPath = "/runtime/v1/plan";
+        private int maxRepairAttempts = 1;
 
         public String getBaseUrl() { return baseUrl; }
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
@@ -89,9 +79,15 @@ public class AgentProperties {
         public void setMaxResponseBytes(int maxResponseBytes) { this.maxResponseBytes = maxResponseBytes; }
         public String getSharedKey() { return sharedKey; }
         public void setSharedKey(String sharedKey) { this.sharedKey = sharedKey; }
+        public String getRoutePath() { return routePath; }
+        public void setRoutePath(String routePath) { this.routePath = routePath; }
+        public String getPlanPath() { return planPath; }
+        public void setPlanPath(String planPath) { this.planPath = planPath; }
+        public int getMaxRepairAttempts() { return maxRepairAttempts; }
+        public void setMaxRepairAttempts(int maxRepairAttempts) { this.maxRepairAttempts = maxRepairAttempts; }
     }
 
-    /** auth-service 内部权限投影接口配置 */
+    /** auth-service 内部权限投影接口配置。 */
     public static class AuthServiceProperties {
         private String baseUrl = "http://auth-service";
         private String resolvePath = "/internal/agent/permissions/resolve";
@@ -120,7 +116,7 @@ public class AgentProperties {
         public void setScopeId(String scopeId) { this.scopeId = scopeId; }
     }
 
-    /** Conversation 配置 */
+    /** 会话配置。 */
     public static class ConversationProperties {
         private int recentTurnLimit;
         private int retentionDays;
@@ -134,7 +130,7 @@ public class AgentProperties {
         public void setCleanupDelay(Duration cleanupDelay) { this.cleanupDelay = cleanupDelay; }
     }
 
-    /** Query 约束配置 */
+    /** 查询约束配置。 */
     public static class QueryProperties {
         private int defaultSize;
         private int maxSize;

@@ -8,4 +8,8 @@ public interface ResultSecurityProjector<O extends AgentResultPayload> {
     ContractRef supports();
     Class<O> payloadType();
     FilteredResult<O> filter(O candidate, ExecutionScope scope);
+
+    default FilteredResult<O> filterUntyped(AgentResultPayload candidate, ExecutionScope scope) {
+        return filter(payloadType().cast(candidate), scope);
+    }
 }

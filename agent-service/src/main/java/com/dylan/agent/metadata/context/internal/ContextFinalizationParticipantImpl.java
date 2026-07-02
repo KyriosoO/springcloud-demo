@@ -21,9 +21,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Persists approved context writes inside Lifecycle SUCCESS transaction.
+ * 在生命周期成功事务内持久化已审批的 Context 写入。
  */
-public final class ContextFinalizationParticipantImpl implements ContextFinalizationParticipant {
+public class ContextFinalizationParticipantImpl implements ContextFinalizationParticipant {
 
     private final ContextRepository repository;
     private final PayloadJsonCodec jsonCodec;

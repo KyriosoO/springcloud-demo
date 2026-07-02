@@ -5,7 +5,7 @@ import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
-/** Query result projector. Field masking is tightened in D03 production policy integration. */
+/** 查询结果投影器；字段脱敏由 D03 生产策略集成进一步收紧。 */
 public final class QueryResultSecurityProjector implements ResultSecurityProjector<QueryAgentResultPayload> {
     @Override
     public ContractRef supports() { return AgentExecutionContracts.QUERY_RESULT; }

@@ -1,15 +1,18 @@
-"""FastAPI 路由，/runtime/v1 端点。"""
+"""当前运行时路由与计划端点。"""
 
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header
-from langgraph.graph.state import CompiledStateGraph
+from fastapi import APIRouter, Depends, Header, Request
 
-from app.contracts.models import PlanGenerateRequest, PlanGenerateResponse
-from app.contracts.semantic_validators import validate_plan_generate_request_semantics
-from app.core.errors import RuntimeAuthError, RuntimePlanError, RuntimeProviderError, RuntimeTimeoutError
-from app.core.graph import PlanGraphState, get_plan_graph
+from app.contracts.models import PlanOutcome, PlanRequest, RouteOutcome, RouteRequest
+from app.core.errors import RuntimeAuthError
+from app.core.runtime_planning import (
+    RuntimePlanPlanner,
+    RuntimeRoutePlanner,
+    get_plan_planner,
+    get_route_planner,
+)
 from app.core.settings import Settings, get_settings
 
 router = APIRouter()
@@ -19,7 +22,7 @@ async def verify_runtime_key(
     x_agent_runtime_key: Annotated[str | None, Header()] = None,
     settings: Settings = Depends(get_settings),
 ) -> None:
-    """常量时间比较 X-Agent-Runtime-Key 与配置的共享密钥。"""
+    """以常量时间比较内部调用密钥和配置的共享密钥。"""
     if not x_agent_runtime_key:
         raise RuntimeAuthError("Missing X-Agent-Runtime-Key header")
     expected = settings.runtime_shared_key.get_secret_value()
@@ -28,64 +31,34 @@ async def verify_runtime_key(
 
 
 @router.post(
-    "/plans/generate",
-    response_model=PlanGenerateResponse,
+    "/route",
+    response_model=RouteOutcome,
     dependencies=[Depends(verify_runtime_key)],
 )
-async def generate_plan(
-    request: PlanGenerateRequest,
-    graph: CompiledStateGraph = Depends(get_plan_graph),
-) -> PlanGenerateResponse:
-    """从用户自然语言输入生成 QUERY, CLARIFY 或 AGGREGATE plan。"""
-    # 入口语义校验：model_validate() 不触发 monkey-patch，此处显式检查
-    try:
-        validate_plan_generate_request_semantics(request)
-    except ValueError as e:
-        raise RuntimePlanError(
-            "RUNTIME_PLAN_INVALID",
-            str(e),
-            request_id=request.request_id,
-        )
+async def route(
+    request: RouteRequest,
+    http_request: Request,
+):
+    """将请求解析为能力/领域决策或强类型澄清。"""
+    planner = _resolve_planner(http_request, get_route_planner)
+    return await planner.route(request)
 
-    state: PlanGraphState = {
-        "request": request,
-        "route_repair_attempted": False,
-        "query_repair_attempted": False,
-    }
 
-    try:
-        final_state = await graph.ainvoke(state)
-    except (RuntimeProviderError, RuntimeTimeoutError) as exc:
-        exc.request_id = request.request_id
-        raise
-    except Exception as e:
-        # 兜底捕获意外异常（网络、序列化等），包装为 RuntimeProviderError
-        raise RuntimeProviderError(
-            f"Graph execution failed: {type(e).__name__}",
-            request_id=request.request_id,
-        )
+@router.post(
+    "/plan",
+    response_model=PlanOutcome,
+    dependencies=[Depends(verify_runtime_key)],
+)
+async def plan(
+    request: PlanRequest,
+    http_request: Request,
+):
+    """为已选择的能力生成可执行计划或强类型澄清。"""
+    planner = _resolve_planner(http_request, get_plan_planner)
+    return await planner.plan(request)
 
-    # route/query/aggregate 阶段的校验错误在 repair 耗尽后仍可能存在
-    if (
-        final_state.get("route_validation_errors")
-        or final_state.get("query_validation_errors")
-        or final_state.get("aggregate_validation_errors")
-    ):
-        raise RuntimePlanError(
-            "RUNTIME_PLAN_INVALID",
-            "Plan validation failed after repair",
-            request_id=request.request_id,
-        )
 
-    plan = final_state.get("plan")
-    if plan is None:
-        raise RuntimePlanError(
-            "RUNTIME_PLAN_INVALID",
-            "No plan produced",
-            request_id=request.request_id,
-        )
-
-    return PlanGenerateResponse(
-        request_id=request.request_id,
-        plan=plan,
-    )
+def _resolve_planner(request: Request, dependency):
+    # 请求体验证必须先于大模型配置加载；测试覆盖仍使用原始依赖键。
+    override = request.app.dependency_overrides.get(dependency)
+    return override() if override else dependency()

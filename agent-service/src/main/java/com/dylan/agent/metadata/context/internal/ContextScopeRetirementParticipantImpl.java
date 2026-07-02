@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Marks ConversationScope contexts unreadable before physical cleanup. */
-public final class ContextScopeRetirementParticipantImpl implements ContextScopeRetirementParticipant {
+/** 在物理清理前将会话范围 Context 标记为不可读。 */
+public class ContextScopeRetirementParticipantImpl implements ContextScopeRetirementParticipant {
 
     private final ContextRepository repository;
 

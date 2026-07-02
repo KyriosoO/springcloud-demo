@@ -156,10 +156,7 @@ async function sendMessage() {
     const data = await response.json();
     conversationId = data.conversationId || conversationId;
 
-    renderSummary(data.summary || data.message || "无返回文本", data.type === "ERROR");
-    renderQueryParameters(data.queryParameters);
-    renderQueryResult(data.queryResult);
-    renderAggregateResult(data.aggregateResult);
+    renderResponse(data);
   } catch (error) {
     renderSummary("网络错误，请稍后重试。", true);
     renderQueryParameters(null);
@@ -168,6 +165,55 @@ async function sendMessage() {
   } finally {
     setBusy(false);
   }
+}
+
+function renderResponse(data) {
+  if (data.type === "ERROR") {
+    const suffix = data.errorCode ? ` (${data.errorCode})` : "";
+    renderSummary(`${data.message || "请求失败。"}${suffix}`, true);
+    renderQueryParameters(null);
+    renderQueryResult(null);
+    renderAggregateResult(null);
+    return;
+  }
+
+  if (data.type === "CLARIFY") {
+    renderSummary(data.summary || data.message || "请补充信息。", false);
+    renderQueryParameters(null);
+    renderQueryResult(null);
+    renderAggregateResult(null);
+    return;
+  }
+
+  renderSummary(data.summary || data.message || "无返回文本", false);
+  renderTypedResult(data.result);
+}
+
+function renderTypedResult(result) {
+  if (!result) {
+    renderQueryParameters(null);
+    renderQueryResult(null);
+    renderAggregateResult(null);
+    return;
+  }
+
+  if (result.resultKind === "QUERY") {
+    renderQueryParameters(result.queryParameters);
+    renderQueryResult(result.queryResult);
+    renderAggregateResult(null);
+    return;
+  }
+
+  if (result.resultKind === "AGGREGATE") {
+    renderQueryParameters(null);
+    renderQueryResult(null);
+    renderAggregateResult(result.aggregateResult);
+    return;
+  }
+
+  renderQueryParameters(null);
+  renderQueryResult(null);
+  renderAggregateResult(null);
 }
 
 function renderSummary(text, isError) {

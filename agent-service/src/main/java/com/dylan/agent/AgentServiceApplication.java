@@ -14,7 +14,12 @@ import com.dylan.agent.config.AgentProperties;
 @EnableFeignClients(basePackages = "com.dylan.agent.adapter")
 @EnableScheduling
 @EnableConfigurationProperties(AgentProperties.class)
-@org.mybatis.spring.annotation.MapperScan("com.dylan.agent.persistence.mapper")
+@org.mybatis.spring.annotation.MapperScan(
+        basePackages = {
+                "com.dylan.agent.persistence.mapper",
+                "com.dylan.agent.metadata.context.internal"
+        },
+        annotationClass = org.apache.ibatis.annotations.Mapper.class)
 public class AgentServiceApplication {
 
     public static void main(String[] args) {

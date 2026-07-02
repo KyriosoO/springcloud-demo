@@ -20,10 +20,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Builds one immutable D04 snapshot and enforces startup gates.
+ * 构建一个不可变 D04 快照，并执行启动门禁。
  *
- * <p>The validator does not read Profile/Policy/UserPermission. Those are
- * request-level intersections consumed later by the port.</p>
+ * <p>该校验器不读取 Profile/Policy/UserPermission；这些请求级交集
+ * 由后续 port 消费。</p>
  */
 public final class DomainMetadataPropertiesValidator {
 
@@ -156,9 +156,9 @@ public final class DomainMetadataPropertiesValidator {
                 throw new IllegalStateException("registration references missing catalog role capability: "
                         + role + "/" + domain);
             }
-            @SuppressWarnings("unchecked")
-            Class<? extends AgentAdapterPort> configuredType =
-                    (Class<? extends AgentAdapterPort>) source.getPortType();
+            Class<? extends AgentAdapterPort> configuredType = source.getPortType() == null
+                    ? null
+                    : source.getPortType().asSubclass(AgentAdapterPort.class);
             Class<? extends AgentAdapterPort> expectedType = AdapterRolePortTypes.requirePortType(role);
             if (configuredType == null || !expectedType.equals(configuredType)) {
                 throw new IllegalStateException("registration portType must be " + expectedType.getName()

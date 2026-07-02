@@ -1,275 +1,104 @@
 #!/usr/bin/env python3
-"""(1) Run datamodel-codegen, then (2) post-process to canonical model names and camelCase aliases."""
-
+"""生成当前运行时模型，不做语义后处理。"""
 from __future__ import annotations
 
-import re
+import argparse
+import hashlib
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-OPENAPI_SPEC = ROOT.parent / "agent-api" / "src" / "main" / "resources" / "openapi" / "agent-runtime-openapi.json"
-OUTPUT = ROOT / "app" / "contracts" / "generated_models.py"
+RUNTIME_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = RUNTIME_ROOT.parent
+OPENAPI_SPEC = (
+    REPO_ROOT / "agent-api" / "src" / "main" / "resources"
+    / "openapi" / "agent-runtime-openapi.json"
+)
+DEFAULT_OUTPUT = RUNTIME_ROOT / "app" / "contracts" / "generated_models.py"
 PYTHON = sys.executable
 
-# Support --output PATH override (used by drift check for temp-file generation).
-_args = sys.argv[1:]
-for i, a in enumerate(_args):
-    if a == "--output" and i + 1 < len(_args):
-        OUTPUT = Path(_args[i + 1])
-    elif a.startswith("--output="):
-        OUTPUT = Path(a.split("=", 1)[1])
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="生成 active Runtime 契约")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    return parser.parse_args(argv)
 
 
-def run_codegen() -> int:
-    cmd = [
+def run_codegen(output: Path) -> int:
+    """调用 datamodel-code-generator，并返回原始进程退出码。"""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    command = [
         PYTHON, "-m", "datamodel_code_generator",
         "--input", str(OPENAPI_SPEC),
         "--input-file-type", "openapi",
-        "--output", str(OUTPUT),
-        "--use-schema-description",
-        "--strict-nullable",
+        "--output", str(output),
+        "--output-model-type", "pydantic_v2.BaseModel",
         "--target-python-version", "3.12",
         "--snake-case-field",
         "--allow-population-by-field-name",
-        "--output-model-type", "pydantic_v2.BaseModel",
+        "--use-schema-description",
+        "--strict-nullable",
         "--use-subclass-enum",
+        "--collapse-root-models",
+        "--field-constraints",
     ]
-    return subprocess.run(cmd).returncode
+    return subprocess.run(command, cwd=RUNTIME_ROOT, check=False).returncode
 
 
-# ── mapping keys ──────────────────────────────────────────────
-# Canonical class name  -> set of duplicates that should be deleted (and all refs rewritten).
-
-MERGE_ENUMS: dict[str, set[str]] = {
-    "AgentIntent": {"Intent"},
-    "AgentOperator": {"Operator"},
-    "AgentFieldType": {"Type"},
-    "AggregateFunction": {"Function", "SupportedAggregateFunction"},
-    "AgentResponseType": set(),
-    "AgentErrorCode": set(),
-    "QueryContextMode": {"ContextMode"},
-    "RuntimeRole": {"Role"},
-    "RuntimeErrorResponse": set(),
-    "AgentCapabilityExecutionMode": {"ExecutionMode"},
-    "AgentCapabilityRiskLevel": {"RiskLevel"},
-}
-
-# Canonical class name -> camelCase alias map for property names (snake→camel).
-# Only needed for fields where the alias differs from the camelCase derived from the property name.
-
-CAMEL_OVERRIDES: dict[str, dict[str, str]] = {
-    "AggregateMetricSpec": {},
-    "AggregateOrderSpec": {},
-    "AgentAggregateSpec": {
-        "group_by_fields": "groupByFields",
-        "order_by": "orderBy",
-        "max_rows": "maxRows",
-    },
-    "AgentPlan": {
-        "plan_version": "planVersion",
-    },
-    "AgentQuerySpec": {
-        "context_mode": "contextMode",
-        "remove_fields": "removeFields",
-        "select_fields": "selectFields",
-    },
-    "PlanGenerateRequest": {
-        "request_id": "requestId",
-        "domain_schemas": "domainSchemas",
-        "recent_turns": "recentTurns",
-        "previous_query": "previousQuery",
-    },
-    "PlanGenerateResponse": {
-        "request_id": "requestId",
-    },
-    "RuntimeDomainSchema": {
-        "default_select_fields": "defaultSelectFields",
-        "default_size": "defaultSize",
-        "max_filters": "maxFilters",
-        "max_result_window": "maxResultWindow",
-        "max_size": "maxSize",
-    },
-    "RuntimeFieldSchema": {
-        "format_hint": "formatHint",
-        "supported_aggregate_functions": "supportedAggregateFunctions",
-    },
-    "RuntimeQueryContext": {
-        "source_turn_id": "sourceTurnId",
-        "select_fields": "selectFields",
-    },
-    "RuntimeErrorResponse": {
-        "request_id": "requestId",
-    },
-}
+def compute_source_hash(spec: Path = OPENAPI_SPEC) -> str:
+    """返回当前 OpenAPI 原始字节的完整 SHA-256。"""
+    return hashlib.sha256(spec.read_bytes()).hexdigest()
 
 
-def aliasify_model_block(text: str, class_name: str) -> str:
-    """Patch a Pydantic model block: fix alias names for camelCase."""
-    overrides = CAMEL_OVERRIDES.get(class_name, {})
-    for snake, camel in overrides.items():
-        text = re.sub(
-            rf'alias="{snake}"',
-            f'alias="{camel}"',
-            text,
-        )
-    return text
+def strip_codegen_preamble(text: str) -> str:
+    """仅移除 datamodel-codegen 生成的易变头部注释和空行。
+
+    本函数绝不能改写类、字段、别名、枚举值、联合类型、校验器或导入。
+    """
+    lines = text.lstrip("\ufeff").splitlines(keepends=True)
+    while lines and (not lines[0].strip() or lines[0].startswith("#")):
+        lines.pop(0)
+    return "".join(lines).lstrip("\n")
 
 
-def merge_duplicate_enums(text: str) -> str:
-    """Remove duplicate enum classes and fix references to use canonical names."""
-    # 1. Collect all canonical names that have duplicates to process
-    for canonical, duplicates in MERGE_ENUMS.items():
-        if not duplicates:
-            continue
-        # 2. Search for "class DuplicateName(Enum):" blocks and remove them
-        for dup in duplicates:
-            # Remove the entire enum definition block
-            pattern = rf'\n\nclass {dup}\(Enum\):.*?(?=\n\nclass |\n\n[#]|\Z)'
-            text = re.sub(pattern, '', text, flags=re.DOTALL)
-
-    # 3. Fix references to use canonical names
-    name_map: dict[str, str] = {}
-    for canonical, duplicates in MERGE_ENUMS.items():
-        for dup in duplicates:
-            name_map[dup] = canonical
-
-    for dup, canonical in name_map.items():
-        # Fix type hints: "field: Dup" -> "field: Canonical"
-        text = re.sub(rf'\b{dup}\b', canonical, text)
-
-    return text
-
-
-def fix_alias_patterns(text: str) -> str:
-    """Apply alias fixes to each model block."""
-    for class_name in CAMEL_OVERRIDES:
-        # Find the class block and patch it
-        pattern = rf'(class {class_name}\(BaseModel\):.*?(?=\n\nclass |\n\n[#]|\Z))'
-        def _patcher(m: re.Match, cn: str = class_name) -> str:
-            return aliasify_model_block(m.group(1), cn)
-        text = re.sub(pattern, _patcher, text, flags=re.DOTALL)
-    return text
-
-
-def remove_root_model_wrappers(text: str) -> str:
-    """Remove GroupByField(RootModel) wrapper. Flatten into simple Optional[str]."""
-    text = re.sub(
-        r'\n\nclass GroupByField\(RootModel\[.*?\]\):.*?(?=\n\nclass )',
-        '',
-        text,
-        flags=re.DOTALL,
-    )
-    text = re.sub(r'Optional\[GroupByField\]', 'Optional[str]', text)
-    return text
-
-
-def deduplicate_aliased_enums(text: str) -> str:
-    """AgentIntent, et al. each appear twice (once standalone, once from a $ref alias).
-    deduplicate_aliased_enums keeps only the first occurrence and removes the second."""
-    seen: set[str] = set()
-    lines = text.split('\n')
-    result: list[str] = []
-    skip_until_next_class = False
-    for i, line in enumerate(lines):
-        m = re.match(r'^class (\w+)\(.*Enum.*\):', line)
-        if m:
-            name = m.group(1)
-            if name in seen:
-                skip_until_next_class = True
-                continue
-            seen.add(name)
-        if skip_until_next_class:
-            if line.strip() == '' and i + 1 < len(lines) and lines[i + 1].startswith('class '):
-                skip_until_next_class = False
-                result.append(line)
-            continue
-        result.append(line)
-    return '\n'.join(result)
-
-
-def add_header(text: str) -> str:
+def add_header(text: str, source_hash: str) -> str:
     header = (
-        '# Auto-generated from agent-api OpenAPI spec. DO NOT EDIT.\n'
-        '# Source: agent-api/src/main/resources/openapi/agent-runtime-openapi.json\n'
-        '# Regenerate: cd agent-runtime && python scripts/generate_contract_models.py\n'
+        "# 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。\n"
+        "# 来源：agent-api/src/main/resources/openapi/"
+        "agent-runtime-openapi.json\n"
+        f"# source_sha256: {source_hash}\n"
+        "# 生成器：scripts/generate_contract_models.py\n\n"
     )
-    # Remove the file-level docstring the codegen adds
-    if text.startswith('"""'):
-        text = re.sub(r'^""".*?"""\n', '', text, flags=re.DOTALL)
-    if text.startswith('#'):
-        # Remove the codegen timestamp comment
-        while text.startswith('#'):
-            nl = text.index('\n')
-            text = text[nl + 1:]
-    return header + '\n' + text
+    return header + strip_codegen_preamble(text).rstrip() + "\n"
 
 
-def add_upper_enum_aliases(text: str) -> str:
-    """Add .UPPER aliases for str-subclass Enums for backwards compat."""
-    upper_map: dict[str, dict[str, str]] = {
-        "AgentIntent": {"QUERY": "query", "CLARIFY": "clarify", "AGGREGATE": "aggregate"},
-        "AgentOperator": {"EQ": "eq", "CONTAINS": "contains", "CONTAINS_ANY": "contains_any",
-                          "STARTS_WITH": "starts_with", "STARTS_WITH_ANY": "starts_with_any",
-                          "IN": "in_", "GT": "gt", "LT": "lt"},
-        "AgentFieldType": {"STRING": "string", "DECIMAL": "decimal", "INSTANT": "instant"},
-        "AggregateFunction": {"COUNT": "count", "SUM": "sum", "AVG": "avg", "MIN": "min", "MAX": "max"},
-        "AgentResponseType": {"RESULT": "result", "CLARIFY": "clarify",
-                              "AGGREGATE_RESULT": "aggregate_result", "ERROR": "error"},
-        "QueryContextMode": {"REPLACE": "replace", "MERGE": "merge"},
-        "RuntimeRole": {"USER": "user", "ASSISTANT": "assistant"},
-    }
-
-    for class_name, aliases in upper_map.items():
-        # Find the class body and inject UPPER aliases after each member line
-        pattern = rf'(class {class_name}\(str, Enum\):\n.*?)(?=\nclass |\n\n[#]|\Z)'
-        def _inject(m: re.Match, cn: str = class_name, al: dict[str, str] = aliases) -> str:
-            block = m.group(1)
-            lines = block.split('\n')
-            new_lines: list[str] = []
-            for line in lines:
-                new_lines.append(line)
-                m2 = re.match(r'^\s*(\w+)\s*=\s*[\'\"]([A-Z_]+)[\'\"]', line)
-                if m2:
-                    member_lower = m2.group(1)
-                    val = m2.group(2)
-                    # If this member has an UPPER alias, inject after it
-                    for upper, lower in al.items():
-                        if lower == member_lower:
-                            new_lines.append(f'    {upper} = {lower}  # noqa: E221')
-                            break
-            return '\n'.join(new_lines)
-        text = re.sub(pattern, _inject, text, flags=re.DOTALL)
-    return text
-
-
-def post_process(text: str) -> str:
-    text = merge_duplicate_enums(text)
-    text = deduplicate_aliased_enums(text)
-    text = remove_root_model_wrappers(text)
-    text = fix_alias_patterns(text)
-    text = add_upper_enum_aliases(text)
-    text = add_header(text)
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    return text.strip() + '\n'
-
-
-def main() -> int:
-    if not OPENAPI_SPEC.exists():
-        print(f"OpenAPI spec not found: {OPENAPI_SPEC}")
-        print("Run 'mvn -pl ../agent-api -am -Dagent.contract.update=true test' first.")
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    target = args.output.resolve()
+    if not OPENAPI_SPEC.is_file():
+        print(f"ERROR: active OpenAPI not found: {OPENAPI_SPEC}", file=sys.stderr)
         return 1
 
-    rc = run_codegen()
-    if rc != 0:
-        print("datamodel-codegen failed")
-        return rc
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".active-contract-codegen-", dir=target.parent
+    ) as temp_dir:
+        raw_output = Path(temp_dir) / "generated_models.py"
+        result = run_codegen(raw_output)
+        if result != 0:
+            print("ERROR: datamodel-code-generator failed", file=sys.stderr)
+            return result
+        try:
+            generated = raw_output.read_text(encoding="utf-8")
+            final_text = add_header(generated, compute_source_hash())
+            raw_output.write_text(final_text, encoding="utf-8", newline="\n")
+            raw_output.replace(target)
+        except OSError as exc:
+            print(f"ERROR: cannot finalize generated model: {exc}", file=sys.stderr)
+            return 1
 
-    raw = OUTPUT.read_text(encoding="utf-8")
-    processed = post_process(raw)
-    OUTPUT.write_text(processed, encoding="utf-8")
-    print(f"Generated and post-processed: {OUTPUT}")
+    print(f"已生成 active 契约模型：{target}")
     return 0
 
 

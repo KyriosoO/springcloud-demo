@@ -1,88 +1,456 @@
-# Auto-generated from agent-api OpenAPI spec. DO NOT EDIT.
-# Source: agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# Regenerate: cd agent-runtime && python scripts/generate_contract_models.py
+# 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
+# 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
+# source_sha256: 429982f10abbe6c035e40ece04fce175bf6f6783d7395d2b08aaabe2aa9e64b3
+# 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional
+from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, conint, constr
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
-class AgentCapabilityExecutionMode(str, Enum):
+
+class GroupByField(RootModel[Optional[str]]):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    root: Optional[str] = Field(None, description='分组字段列表', min_length=1)
+
+
+class AgentDomainMode(str, Enum):
+    none = 'NONE'
+    optional = 'OPTIONAL'
+    required = 'REQUIRED'
+
+
+class AgentFieldType(str, Enum):
+    string = 'STRING'
+    decimal = 'DECIMAL'
+    instant = 'INSTANT'
+
+
+class AgentOperator(str, Enum):
+    eq = 'EQ'
+    contains = 'CONTAINS'
+    contains_any = 'CONTAINS_ANY'
+    starts_with = 'STARTS_WITH'
+    starts_with_any = 'STARTS_WITH_ANY'
+    in_ = 'IN'
+    gt = 'GT'
+    lt = 'LT'
+
+
+class AgentPlanKind(str, Enum):
+    query = 'QUERY'
+    aggregate = 'AGGREGATE'
+
+
+class PlanKind(str, Enum):
     """
-    Capability 执行模式
+    Agent Plan 结构类型
     """
 
-    immediate = 'IMMEDIATE'
+    aggregate = 'AGGREGATE'
 
-class AgentIntent(str, Enum):
+
+class AggregateFunction(str, Enum):
+    count = 'COUNT'
+    sum = 'SUM'
+    avg = 'AVG'
+    min = 'MIN'
+    max = 'MAX'
+
+
+class AggregateMetricSpec(BaseModel):
     """
-    Agent 顶层意图：QUERY（查询）、CLARIFY（反问澄清）、AGGREGATE（聚合分析）
+    聚合指标规格
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    alias: str = Field(
+        ..., description='指标别名，结果集中使用，必须唯一', max_length=50, min_length=0
+    )
+    field: Optional[str] = Field(None, description='目标字段名，COUNT 时为 null')
+    function: AggregateFunction
+
+
+class Direction(str, Enum):
+    """
+    排序方向
+    """
+
+    asc = 'ASC'
+    desc = 'DESC'
+
+
+class AggregateOrderSpec(BaseModel):
+    """
+    聚合结果排序规格
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    direction: Direction = Field(..., description='排序方向')
+    field: str = Field(
+        ..., description='排序字段名，来自 groupByFields 或 metric alias', min_length=1
+    )
+
+
+class ArgType(str, Enum):
+    """
+    ClarificationArgs 子类型
+    """
+
+    capability_choices = 'CAPABILITY_CHOICES'
+
+
+class CapabilityChoiceArgs(BaseModel):
+    """
+    capability 候选列表
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    arg_type: Literal['CAPABILITY_CHOICES'] = Field(
+        ..., alias='argType', description='ClarificationArgs 子类型'
+    )
+    capability_ids: List[str] = Field(
+        ...,
+        alias='capabilityIds',
+        description='候选 capabilityId 列表（2～20，去重）',
+        max_length=20,
+        min_length=2,
+    )
+
+
+class ClarificationArgType(str, Enum):
+    capability_choices = 'CAPABILITY_CHOICES'
+    domain_choices = 'DOMAIN_CHOICES'
+    field_choices = 'FIELD_CHOICES'
+    value_choices = 'VALUE_CHOICES'
+
+
+class ClarificationReasonCode(str, Enum):
+    capability_ambiguous = 'CAPABILITY_AMBIGUOUS'
+    domain_required = 'DOMAIN_REQUIRED'
+    domain_ambiguous = 'DOMAIN_AMBIGUOUS'
+    field_required = 'FIELD_REQUIRED'
+    value_required = 'VALUE_REQUIRED'
+    value_ambiguous = 'VALUE_AMBIGUOUS'
+
+
+class OutcomeType(str, Enum):
+    """
+    Runtime Outcome 类型 discriminator
+    """
+
+    clarification = 'CLARIFICATION'
+
+
+class ArgType1(str, Enum):
+    """
+    ClarificationArgs 子类型
+    """
+
+    domain_choices = 'DOMAIN_CHOICES'
+
+
+class DomainChoiceArgs(BaseModel):
+    """
+    domain 候选列表
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    arg_type: Literal['DOMAIN_CHOICES'] = Field(
+        ..., alias='argType', description='ClarificationArgs 子类型'
+    )
+    domains: List[str] = Field(
+        ..., description='候选 domain 列表（1～20，去重）', max_length=20, min_length=1
+    )
+
+
+class OutcomeType1(str, Enum):
+    """
+    Runtime Outcome 类型 discriminator
+    """
+
+    executable = 'EXECUTABLE'
+
+
+class ArgType2(str, Enum):
+    """
+    ClarificationArgs 子类型
+    """
+
+    field_choices = 'FIELD_CHOICES'
+
+
+class FieldChoiceArgs(BaseModel):
+    """
+    字段候选列表
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    arg_type: Literal['FIELD_CHOICES'] = Field(
+        ..., alias='argType', description='ClarificationArgs 子类型'
+    )
+    fields: List[str] = Field(
+        ..., description='候选字段列表（1～50，去重）', max_length=50, min_length=1
+    )
+
+
+class ContractVersion(str, Enum):
+    """
+    唯一 contract generation 版本
+    """
+
+    field_1_0_0 = '1.0.0'
+
+
+class PlanKind1(str, Enum):
+    """
+    Agent Plan 结构类型
     """
 
     query = 'QUERY'
-    QUERY = query  # noqa: E221
-    clarify = 'CLARIFY'
-    CLARIFY = clarify  # noqa: E221
+
+
+class QueryContextMode(str, Enum):
+    replace = 'REPLACE'
+    merge = 'MERGE'
+
+
+class OutcomeType2(str, Enum):
+    """
+    Runtime Outcome 类型 discriminator
+    """
+
+    decision = 'DECISION'
+
+
+class ContextType(str, Enum):
+    """
+    上下文类型
+    """
+
     aggregate = 'AGGREGATE'
-    AGGREGATE = aggregate  # noqa: E221
 
-class AgentCapabilityRiskLevel(str, Enum):
-    """
-    Capability 风险等级
-    """
 
-    read_only = 'READ_ONLY'
-
-class AgentErrorCode(str, Enum):
+class RuntimeCapabilityRoutingDescriptor(BaseModel):
     """
-    Agent 统一错误码
+    Capability Routing Descriptor 请求投影
     """
 
-    agent_invalid_request = 'AGENT_INVALID_REQUEST'
-    agent_conversation_not_found = 'AGENT_CONVERSATION_NOT_FOUND'
-    agent_intent_forbidden = 'AGENT_INTENT_FORBIDDEN'
-    agent_field_forbidden = 'AGENT_FIELD_FORBIDDEN'
-    agent_operator_forbidden = 'AGENT_OPERATOR_FORBIDDEN'
-    agent_plan_invalid = 'AGENT_PLAN_INVALID'
-    agent_runtime_unavailable = 'AGENT_RUNTIME_UNAVAILABLE'
-    agent_query_failed = 'AGENT_QUERY_FAILED'
-    agent_internal_error = 'AGENT_INTERNAL_ERROR'
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    allowed_domains: List[str] = Field(
+        ...,
+        alias='allowedDomains',
+        description='当前请求允许的 domain 标识，去重。NONE 时为空，REQUIRED 时非空',
+    )
+    applicability: List[str] = Field(
+        ..., description='适用条件，最多 20 项', max_length=20, min_length=0
+    )
+    capability_id: str = Field(
+        ...,
+        alias='capabilityId',
+        description='capability 稳定标识',
+        max_length=128,
+        min_length=1,
+    )
+    description: str = Field(
+        ..., description='面向模型的能力描述', max_length=1000, min_length=1
+    )
+    domain_mode: AgentDomainMode = Field(..., alias='domainMode')
+    exclusions: List[str] = Field(
+        ..., description='排除条件，最多 20 项', max_length=20, min_length=0
+    )
+    plan_kind: AgentPlanKind = Field(..., alias='planKind')
 
-class AgentFieldType(str, Enum):
+
+class RuntimeContextType(str, Enum):
+    query = 'QUERY'
+    aggregate = 'AGGREGATE'
+
+
+class RuntimeDomainFieldSchema(BaseModel):
     """
-    字段数据类型：STRING（字符串）、DECIMAL（数值）、INSTANT（时间戳）
+    Domain 字段投影
     """
 
-    string = 'STRING'
-    STRING = string  # noqa: E221
-    decimal = 'DECIMAL'
-    DECIMAL = decimal  # noqa: E221
-    instant = 'INSTANT'
-    INSTANT = instant  # noqa: E221
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    aggregate_functions: List[AggregateFunction] = Field(
+        ...,
+        alias='aggregateFunctions',
+        description='支持的聚合函数，空列表表示仅 COUNT',
+    )
+    aliases: List[str] = Field(..., description='字段别名')
+    field: str = Field(..., description='字段名', min_length=1)
+    format_hint: Optional[str] = Field(
+        None,
+        alias='formatHint',
+        description='安全格式说明（仅格式，不含凭据或转义语义）',
+    )
+    operators: List[AgentOperator] = Field(
+        ..., description='允许的 operator', min_length=1
+    )
+    type: AgentFieldType
 
-class AgentOperator(str, Enum):
+
+class RuntimeDomainRoutingProjection(BaseModel):
     """
-    查询操作符：EQ/CONTAINS/STARTS_WITH（单值）、IN/CONTAINS_ANY/STARTS_WITH_ANY（多值）、GT/LT（范围）
+    Route 阶段 domain 投影
     """
 
-    eq = 'EQ'
-    EQ = eq  # noqa: E221
-    contains = 'CONTAINS'
-    CONTAINS = contains  # noqa: E221
-    contains_any = 'CONTAINS_ANY'
-    CONTAINS_ANY = contains_any  # noqa: E221
-    starts_with = 'STARTS_WITH'
-    STARTS_WITH = starts_with  # noqa: E221
-    starts_with_any = 'STARTS_WITH_ANY'
-    STARTS_WITH_ANY = starts_with_any  # noqa: E221
-    in_ = 'IN'
-    IN = in_  # noqa: E221
-    gt = 'GT'
-    GT = gt  # noqa: E221
-    lt = 'LT'
-    LT = lt  # noqa: E221
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    aliases: List[str] = Field(..., description='domain 别名')
+    description: str = Field(..., description='domain 描述', min_length=1)
+    domain: str = Field(..., description='domain 标识', min_length=1)
+
+
+class RuntimeDomainSchema(BaseModel):
+    """
+    Domain Schema 投影
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    default_select_fields: List[str] = Field(
+        ..., alias='defaultSelectFields', description='默认展示字段'
+    )
+    default_size: Optional[int] = Field(
+        None, alias='defaultSize', description='默认 page size', ge=1
+    )
+    domain: str = Field(..., description='domain 标识', min_length=1)
+    fields: List[RuntimeDomainFieldSchema] = Field(
+        ..., description='字段列表，field 唯一'
+    )
+    max_size: Optional[int] = Field(
+        None, alias='maxSize', description='最大 page size', ge=1
+    )
+
+
+class RuntimeErrorCode(str, Enum):
+    contract_invalid = 'CONTRACT_INVALID'
+    authentication_failed = 'AUTHENTICATION_FAILED'
+    provider_unavailable = 'PROVIDER_UNAVAILABLE'
+    deadline_exceeded = 'DEADLINE_EXCEEDED'
+    output_repair_exhausted = 'OUTPUT_REPAIR_EXHAUSTED'
+    internal_error = 'INTERNAL_ERROR'
+
+
+class RuntimeOperationType(str, Enum):
+    route = 'ROUTE'
+    plan = 'PLAN'
+
+
+class RuntimeOutcomeType(str, Enum):
+    decision = 'DECISION'
+    executable = 'EXECUTABLE'
+    clarification = 'CLARIFICATION'
+
+
+class Instruction(RootModel[str]):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    root: str = Field(
+        ..., description='行为指令列表，最多 20 项', max_length=500, min_length=1
+    )
+
+
+class RuntimeProfileBehaviorProjection(BaseModel):
+    """
+    Profile 行为投影
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    instructions: List[Instruction] = Field(
+        ..., description='行为指令列表，最多 20 项', max_length=20, min_length=0
+    )
+    locale: Optional[str] = Field(None, description='locale（BCP-47），可为 null')
+
+
+class ContextType1(str, Enum):
+    """
+    上下文类型
+    """
+
+    query = 'QUERY'
+
+
+class RuntimeTerminationReason(str, Enum):
+    completed = 'COMPLETED'
+    clarification = 'CLARIFICATION'
+    validation_rejected = 'VALIDATION_REJECTED'
+    repair_exhausted = 'REPAIR_EXHAUSTED'
+    deadline_exceeded = 'DEADLINE_EXCEEDED'
+    cancelled = 'CANCELLED'
+    provider_unavailable = 'PROVIDER_UNAVAILABLE'
+    authentication_rejected = 'AUTHENTICATION_REJECTED'
+    internal_error = 'INTERNAL_ERROR'
+
+
+class RuntimeTurnRole(str, Enum):
+    user = 'USER'
+    assistant = 'ASSISTANT'
+
+
+class ArgType3(str, Enum):
+    """
+    ClarificationArgs 子类型
+    """
+
+    value_choices = 'VALUE_CHOICES'
+
+
+class ValueChoiceArgs(BaseModel):
+    """
+    值候选列表
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    arg_type: Literal['VALUE_CHOICES'] = Field(
+        ..., alias='argType', description='ClarificationArgs 子类型'
+    )
+    field: str = Field(..., description='目标字段名', min_length=1)
+    values: List[str] = Field(
+        ...,
+        description='候选值列表（0～50，VALUE_REQUIRED 允许空列表）',
+        max_length=50,
+        min_length=0,
+    )
+
 
 class AgentFilter(BaseModel):
     """
@@ -93,32 +461,13 @@ class AgentFilter(BaseModel):
         extra='forbid',
         populate_by_name=True,
     )
-    field: constr(min_length=1) = Field(..., description='字段名')
-    operator: AgentOperator = Field(
-        ...,
-        description='查询操作符：EQ/CONTAINS/STARTS_WITH（单值）、IN/CONTAINS_ANY/STARTS_WITH_ANY（多值）、GT/LT（范围）',
-    )
+    field: str = Field(..., description='字段名', min_length=1)
+    operator: AgentOperator
     value: Optional[str] = Field(None, description='单值/范围操作符的值')
     values: Optional[List[Optional[str]]] = Field(
         None, description='多值操作符的值列表'
     )
 
-class PlanVersion(str, Enum):
-    """
-    契约版本号
-    """
-
-    field_1_0 = '1.0'
-
-class QueryContextMode(str, Enum):
-    """
-    查询上下文模式：REPLACE（独立新查询）或 MERGE（在上轮结果上增量修改）
-    """
-
-    replace = 'REPLACE'
-    REPLACE = replace  # noqa: E221
-    merge = 'MERGE'
-    MERGE = merge  # noqa: E221
 
 class AgentQuerySpec(BaseModel):
     """
@@ -129,15 +478,11 @@ class AgentQuerySpec(BaseModel):
         extra='forbid',
         populate_by_name=True,
     )
-    context_mode: Optional[QueryContextMode] = Field(
-        None,
-        alias='contextMode',
-        description='查询上下文模式：REPLACE（独立新查询）或 MERGE（在上轮结果上增量修改）',
-    )
+    context_mode: Optional[QueryContextMode] = Field(None, alias='contextMode')
     filters: Optional[List[AgentFilter]] = Field(
         None, description='过滤条件列表', max_length=5, min_length=0
     )
-    page: Optional[conint(ge=1)] = Field(None, description='分页页码，从 1 开始')
+    page: Optional[int] = Field(None, description='分页页码，从 1 开始', ge=1)
     remove_fields: Optional[List[Optional[str]]] = Field(
         None,
         alias='removeFields',
@@ -152,234 +497,123 @@ class AgentQuerySpec(BaseModel):
         max_length=10,
         min_length=0,
     )
-    size: Optional[conint(ge=1)] = Field(None, description='每页大小，1~100')
+    size: Optional[int] = Field(None, description='每页大小，1~100', ge=1)
 
-class AgentResponseType(str, Enum):
-    """
-    Agent 聊天响应类型
-    """
 
-    result = 'RESULT'
-    RESULT = result  # noqa: E221
-    clarify = 'CLARIFY'
-    CLARIFY = clarify  # noqa: E221
-    error = 'ERROR'
-    ERROR = error  # noqa: E221
-
-class AggregateFunction(str, Enum):
+class QueryAgentPlan(BaseModel):
     """
-    聚合函数：COUNT（计数）、SUM（求和）、AVG（平均值）、MIN（最小值）、MAX（最大值）
-    """
-
-    count = 'COUNT'
-    COUNT = count  # noqa: E221
-    sum = 'SUM'
-    SUM = sum  # noqa: E221
-    avg = 'AVG'
-    AVG = avg  # noqa: E221
-    min = 'MIN'
-    MIN = min  # noqa: E221
-    max = 'MAX'
-    MAX = max  # noqa: E221
-
-class AggregateMetricSpec(BaseModel):
-    """
-    聚合指标规格
+    QUERY Plan 子类型
     """
 
     model_config = ConfigDict(
         extra='forbid',
         populate_by_name=True,
     )
-    alias: constr(min_length=0, max_length=50) = Field(
-        ..., description='指标别名，结果集中使用，必须唯一'
+    plan_kind: Literal['QUERY'] = Field(
+        ..., alias='planKind', description='Agent Plan 结构类型'
     )
-    field: Optional[str] = Field(None, description='目标字段名，COUNT 时为 null')
-    function: AggregateFunction = Field(
+    query: AgentQuerySpec
+
+
+class RuntimeAggregateContextView(BaseModel):
+    """
+    AGGREGATE context 投影
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    context_type: Literal['AGGREGATE'] = Field(
+        ..., alias='contextType', description='上下文类型'
+    )
+    filters: List[AgentFilter] = Field(..., description='上轮聚合过滤条件')
+    group_by_fields: List[str] = Field(
+        ..., alias='groupByFields', description='上轮分组字段'
+    )
+    max_rows: int = Field(..., alias='maxRows', description='上轮 maxRows', ge=1)
+    metrics: List[AggregateMetricSpec] = Field(
+        ..., description='上轮聚合指标', max_length=2147483647, min_length=1
+    )
+    source_invocation_id: str = Field(
         ...,
-        description='聚合函数：COUNT（计数）、SUM（求和）、AVG（平均值）、MIN（最小值）、MAX（最大值）',
+        alias='sourceInvocationId',
+        description='来源 Invocation 标识',
+        min_length=1,
     )
 
-class Direction(str, Enum):
-    """
-    排序方向
-    """
 
-    asc = 'ASC'
-    desc = 'DESC'
-
-class AggregateOrderSpec(BaseModel):
+class RuntimeOperationMetadata(BaseModel):
     """
-    聚合结果排序规格
+    Runtime 操作元数据
     """
 
     model_config = ConfigDict(
         extra='forbid',
         populate_by_name=True,
     )
-    direction: Direction = Field(..., description='排序方向')
-    field: constr(min_length=1) = Field(
-        ..., description='排序字段名，来自 groupByFields 或 metric alias'
+    deadline_reached: bool = Field(
+        ..., alias='deadlineReached', description='deadline 是否已到期'
+    )
+    operation: RuntimeOperationType
+    provider_attempts: int = Field(
+        ..., alias='providerAttempts', description='provider 调用总数', ge=0
+    )
+    repair_attempts: int = Field(
+        ..., alias='repairAttempts', description='repair 调用次数', ge=0
+    )
+    repair_duration_ms: int = Field(
+        ..., alias='repairDurationMs', description='repair 累计耗时 (ms)', ge=0
+    )
+    repair_limit_reached: bool = Field(
+        ..., alias='repairLimitReached', description='是否达到 repair 上限'
+    )
+    termination_reason: RuntimeTerminationReason = Field(..., alias='terminationReason')
+    total_duration_ms: int = Field(
+        ..., alias='totalDurationMs', description='操作总耗时 (ms)', ge=0
     )
 
-class CapabilityContextSpec(BaseModel):
+
+class RuntimeQueryContextView(BaseModel):
     """
-    Capability 上下文读写声明
+    QUERY context 投影
     """
 
     model_config = ConfigDict(
         extra='forbid',
         populate_by_name=True,
     )
-    reads: Optional[List[str]] = Field(
-        None, description='读取的上下文键，例如 previousQuery'
+    context_type: Literal['QUERY'] = Field(
+        ..., alias='contextType', description='上下文类型'
     )
-    writes: Optional[List[str]] = Field(
-        None,
-        description='写入的上下文键，例如 RuntimeQueryContext、RuntimeAggregateContext',
+    filters: List[AgentFilter] = Field(..., description='上轮查询过滤条件')
+    page: int = Field(..., description='上轮 page', ge=1)
+    select_fields: List[str] = Field(
+        ..., alias='selectFields', description='上轮查询展示字段'
     )
-
-class CapabilityContractRef(BaseModel):
-    """
-    Capability 输入/输出契约引用
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    schema_: constr(min_length=1) = Field(
+    size: int = Field(..., description='上轮 size', ge=1)
+    source_invocation_id: str = Field(
         ...,
-        alias='schema',
-        description='契约逻辑名，例如 AgentPlan.query、AgentPlan.aggregate、ClarifySpec、AgentQueryResult、AgentAggregateResult',
-    )
-    version: constr(min_length=1) = Field(..., description='契约版本号')
-
-class CapabilityDomainScope(BaseModel):
-    """
-    Capability 在单个 domain 上的可用范围
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    domain: constr(min_length=1) = Field(
-        ..., description='业务域，例如 employee、transaction'
-    )
-    enabled: bool = Field(..., description='当前 capability 在该 domain 是否可用')
-    reason_code: Optional[str] = Field(
-        None, alias='reasonCode', description='不可用原因或状态原因，当前仅用于后续扩展'
+        alias='sourceInvocationId',
+        description='来源 Invocation 标识',
+        min_length=1,
     )
 
-class ClarifySpec(BaseModel):
+
+class RuntimeTurnProjection(BaseModel):
     """
-    CLARIFY 计划的追问规格
+    Runtime turn 投影
     """
 
     model_config = ConfigDict(
         extra='forbid',
         populate_by_name=True,
     )
-    question: constr(min_length=1, max_length=500) = Field(
-        ..., description='反问问题文本，1~500 字符'
+    content: str = Field(
+        ..., description='过滤后的会话文本', max_length=4000, min_length=1
     )
+    role: RuntimeTurnRole
 
-class RuntimeAggregateContext(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    domain: Optional[str] = None
-    filters: Optional[List[AgentFilter]] = None
-    group_by_fields: Optional[List[str]] = Field(None, alias='groupByFields')
-    max_rows: Optional[conint(ge=1)] = Field(None, alias='maxRows')
-    metrics: Optional[List[AggregateMetricSpec]] = None
-    source_turn_id: Optional[str] = Field(None, alias='sourceTurnId')
-
-class RuntimeErrorResponse(BaseModel):
-    """
-    Runtime 错误响应
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    code: constr(min_length=1) = Field(..., description='错误码')
-    message: constr(min_length=1) = Field(..., description='错误消息')
-    request_id: Optional[str] = Field(
-        None, alias='requestId', description='关联的请求 ID'
-    )
-
-class RuntimeFieldSchema(BaseModel):
-    """
-    字段 schema，包含别名、允许操作符、数据类型和聚合函数白名单
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    aliases: Optional[List[Optional[str]]] = Field(None, description='字段别名')
-    format_hint: Optional[str] = Field(
-        None,
-        alias='formatHint',
-        description='格式提示（如 ISO-8601 datetime with timezone）',
-    )
-    name: constr(min_length=1) = Field(..., description='字段名')
-    operators: List[AgentOperator] = Field(..., description='允许的操作符列表')
-    supported_aggregate_functions: Optional[List[AggregateFunction]] = Field(
-        None,
-        alias='supportedAggregateFunctions',
-        description='支持的聚合函数列表。null 表示无 adapter（不应推断为完全允许），[] 表示仅允许 COUNT',
-    )
-    type: AgentFieldType = Field(
-        ...,
-        description='字段数据类型：STRING（字符串）、DECIMAL（数值）、INSTANT（时间戳）',
-    )
-
-class RuntimeQueryContext(BaseModel):
-    """
-    上轮成功查询的上下文，传递回 Runtime 用于 MERGE 判断
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    domain: constr(min_length=1) = Field(..., description='查询域')
-    filters: Optional[List[AgentFilter]] = Field(None, description='上轮过滤条件')
-    page: Optional[conint(ge=1)] = Field(None, description='上轮页码')
-    select_fields: Optional[List[Optional[str]]] = Field(
-        None, alias='selectFields', description='上轮返回字段'
-    )
-    size: Optional[conint(ge=1)] = Field(None, description='上轮分页大小')
-    source_turn_id: constr(min_length=1) = Field(
-        ..., alias='sourceTurnId', description='来源 turn ID'
-    )
-
-class RuntimeRole(str, Enum):
-    """
-    对话角色：USER 或 ASSISTANT
-    """
-
-    user = 'USER'
-    USER = user  # noqa: E221
-    assistant = 'ASSISTANT'
-    ASSISTANT = assistant  # noqa: E221
-
-class RuntimeTurn(BaseModel):
-    """
-    对话轮次摘要
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    content: constr(min_length=1) = Field(..., description='内容文本')
-    role: RuntimeRole = Field(..., description='对话角色：USER 或 ASSISTANT')
 
 class AgentAggregateSpec(BaseModel):
     """
@@ -393,15 +627,15 @@ class AgentAggregateSpec(BaseModel):
     filters: Optional[List[AgentFilter]] = Field(
         None, description='预聚合过滤条件列表', max_length=5, min_length=0
     )
-    group_by_fields: Optional[List[Optional[str]]] = Field(
+    group_by_fields: Optional[List[Optional[GroupByField]]] = Field(
         None,
         alias='groupByFields',
         description='分组字段列表',
         max_length=2,
         min_length=0,
     )
-    max_rows: Optional[conint(ge=1, le=100)] = Field(
-        None, alias='maxRows', description='全局最多返回行数上限'
+    max_rows: Optional[int] = Field(
+        None, alias='maxRows', description='全局最多返回行数上限', ge=1, le=100
     )
     metrics: List[AggregateMetricSpec] = Field(
         ..., description='聚合指标列表，至少 1 个', max_length=5, min_length=0
@@ -412,136 +646,220 @@ class AgentAggregateSpec(BaseModel):
         description='结果排序列表，field 必须来自 groupByFields 或 metric alias',
     )
 
-class AgentCapabilityDescriptor(BaseModel):
+
+class AggregateAgentPlan(BaseModel):
     """
-    Agent capability descriptor
+    AGGREGATE Plan 子类型
     """
 
     model_config = ConfigDict(
         extra='forbid',
         populate_by_name=True,
     )
-    capability_id: constr(min_length=1) = Field(
-        ..., alias='capabilityId', description='稳定能力 ID，例如 query.search'
+    aggregate: AgentAggregateSpec
+    plan_kind: Literal['AGGREGATE'] = Field(
+        ..., alias='planKind', description='Agent Plan 结构类型'
     )
-    context: CapabilityContextSpec
-    description: constr(min_length=1) = Field(..., description='能力说明')
-    display_name: constr(min_length=1) = Field(
-        ..., alias='displayName', description='给 Runtime/prompt 使用的短名称'
+
+
+class ClarificationRequired(BaseModel):
+    """
+    澄清请求
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
     )
-    domain_scopes: List[CapabilityDomainScope] = Field(
+    args: Union[
+        CapabilityChoiceArgs, DomainChoiceArgs, FieldChoiceArgs, ValueChoiceArgs
+    ] = Field(..., description='ClarificationArgs 联合类型', discriminator='arg_type')
+    metadata: RuntimeOperationMetadata
+    outcome_type: Literal['CLARIFICATION'] = Field(
+        ..., alias='outcomeType', description='Runtime Outcome 类型 discriminator'
+    )
+    reason_code: ClarificationReasonCode = Field(..., alias='reasonCode')
+    request_id: str = Field(
+        ..., alias='requestId', description='请求关联标识', min_length=1
+    )
+
+
+class RouteDecision(BaseModel):
+    """
+    Route 决策
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    capability_id: str = Field(
+        ..., alias='capabilityId', description='选定的 capabilityId', min_length=1
+    )
+    domain: Optional[str] = Field(None, description='候选 domain，NONE/OPTIONAL 时可空')
+    metadata: RuntimeOperationMetadata
+    outcome_type: Literal['DECISION'] = Field(
+        ..., alias='outcomeType', description='Runtime Outcome 类型 discriminator'
+    )
+    request_id: str = Field(
+        ..., alias='requestId', description='请求关联标识', min_length=1
+    )
+
+
+class RouteOutcome(RootModel[Union[RouteDecision, ClarificationRequired]]):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    root: Union[RouteDecision, ClarificationRequired] = Field(
+        ..., description='Route Outcome 联合类型', discriminator='outcome_type'
+    )
+
+
+class RouteRequest(BaseModel):
+    """
+    Route 请求
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    absolute_deadline: AwareDatetime = Field(
+        ..., alias='absoluteDeadline', description='绝对 deadline（ISO-8601）'
+    )
+    capabilities: List[RuntimeCapabilityRoutingDescriptor] = Field(
         ...,
-        alias='domainScopes',
-        description='支持的 domain scope。不绑定 domain 的能力使用空列表，例如 clarify.ask',
-    )
-    enabled: bool = Field(..., description='是否当前可用')
-    execution_mode: AgentCapabilityExecutionMode = Field(
-        ..., alias='executionMode', description='Capability 执行模式'
-    )
-    input_contract: CapabilityContractRef = Field(..., alias='inputContract')
-    intent: AgentIntent = Field(
-        ...,
-        description='Agent 顶层意图：QUERY（查询）、CLARIFY（反问澄清）、AGGREGATE（聚合分析）',
-    )
-    output_contract: CapabilityContractRef = Field(..., alias='outputContract')
-    permissions: Optional[List[Optional[str]]] = Field(
-        None, description='权限说明，不下发具体角色'
-    )
-    risk_level: AgentCapabilityRiskLevel = Field(
-        ..., alias='riskLevel', description='Capability 风险等级'
-    )
-
-class AgentPlan(BaseModel):
-    """
-    Runtime 输出的候选结构化计划
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    aggregate: Optional[AgentAggregateSpec] = None
-    clarify: Optional[ClarifySpec] = None
-    domain: Optional[str] = Field(None, description='目标业务域')
-    intent: AgentIntent = Field(
-        ...,
-        description='Agent 顶层意图：QUERY（查询）、CLARIFY（反问澄清）、AGGREGATE（聚合分析）',
-    )
-    plan_version: PlanVersion = Field(
-        ..., alias='planVersion', description='契约版本号'
-    )
-    query: Optional[AgentQuerySpec] = None
-
-class PlanGenerateResponse(BaseModel):
-    """
-    Runtime plan 生成响应
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    plan: Optional[AgentPlan] = None
-    request_id: constr(min_length=1) = Field(
-        ..., alias='requestId', description='请求 ID'
-    )
-
-class RuntimeDomainSchema(BaseModel):
-    """
-    域 schema 定义，包含字段列表、默认展示字段和分页/过滤上限
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    aliases: Optional[List[Optional[str]]] = Field(None, description='域别名列表')
-    default_select_fields: Optional[List[Optional[str]]] = Field(
-        None, alias='defaultSelectFields', description='默认展示字段'
-    )
-    default_size: Optional[int] = Field(
-        None, alias='defaultSize', description='默认分页大小'
-    )
-    domain: constr(min_length=1) = Field(..., description='域标识')
-    fields: List[RuntimeFieldSchema] = Field(
-        ..., description='字段 schema 列表', min_length=1
-    )
-    max_filters: Optional[int] = Field(
-        None, alias='maxFilters', description='最大过滤条件数'
-    )
-    max_result_window: Optional[int] = Field(
-        None, alias='maxResultWindow', description='最大结果窗口'
-    )
-    max_size: Optional[int] = Field(None, alias='maxSize', description='最大分页大小')
-
-class PlanGenerateRequest(BaseModel):
-    """
-    发送给 Runtime 的 plan 生成请求
-    """
-
-    model_config = ConfigDict(
-        extra='forbid',
-        populate_by_name=True,
-    )
-    capabilities: List[AgentCapabilityDescriptor] = Field(
-        ..., description='当前请求可用的 Agent capability 列表'
-    )
-    domain_schemas: List[RuntimeDomainSchema] = Field(
-        ...,
-        alias='domainSchemas',
-        description='领域 schema 列表',
+        description='当前可用 capability 投影，非空，capabilityId 唯一',
         max_length=2147483647,
         min_length=1,
     )
-    message: constr(min_length=1) = Field(..., description='用户消息文本')
-    previous_query: Optional[RuntimeQueryContext] = Field(None, alias='previousQuery')
-    recent_turns: Optional[List[RuntimeTurn]] = Field(
-        None,
-        alias='recentTurns',
-        description='最近对话轮次（最多 6 轮）',
-        max_length=6,
-        min_length=0,
+    contract_version: ContractVersion = Field(
+        ..., alias='contractVersion', description='唯一 contract generation 版本'
     )
-    request_id: constr(min_length=1) = Field(
-        ..., alias='requestId', description='请求 ID'
+    domains: List[RuntimeDomainRoutingProjection] = Field(
+        ..., description='Route 阶段 domain 投影，domain 唯一'
+    )
+    history: List[RuntimeTurnProjection] = Field(
+        ..., description='历史 turn 投影，最多 20 条', max_length=20, min_length=0
+    )
+    message: str = Field(..., description='用户消息', max_length=8000, min_length=1)
+    profile_behavior: RuntimeProfileBehaviorProjection = Field(
+        ..., alias='profileBehavior'
+    )
+    repair_limit: int = Field(
+        ...,
+        alias='repairLimit',
+        description='repair 上限 [0,3]，部署策略可进一步收紧',
+        ge=0,
+        le=3,
+    )
+    request_id: str = Field(
+        ...,
+        alias='requestId',
+        description='不透明请求标识',
+        max_length=128,
+        min_length=1,
+    )
+
+
+class RuntimeErrorResponse(BaseModel):
+    """
+    Runtime 错误响应
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    code: RuntimeErrorCode
+    diagnostic_id: str = Field(
+        ..., alias='diagnosticId', description='不透明诊断标识', min_length=1
+    )
+    message: str = Field(..., description='安全固定摘要', min_length=1)
+    metadata: RuntimeOperationMetadata
+    request_id: Optional[str] = Field(
+        None, alias='requestId', description='请求标识（可空：仅请求解析后可得）'
+    )
+
+
+class ExecutablePlan(BaseModel):
+    """
+    可执行 plan outcome
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    metadata: RuntimeOperationMetadata
+    outcome_type: Literal['EXECUTABLE'] = Field(
+        ..., alias='outcomeType', description='Runtime Outcome 类型 discriminator'
+    )
+    plan: Union[QueryAgentPlan, AggregateAgentPlan] = Field(
+        ..., description='Agent Plan 联合类型', discriminator='plan_kind'
+    )
+    request_id: str = Field(
+        ..., alias='requestId', description='请求关联标识', min_length=1
+    )
+
+
+class PlanOutcome(RootModel[Union[ExecutablePlan, ClarificationRequired]]):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    root: Union[ExecutablePlan, ClarificationRequired] = Field(
+        ..., description='Plan Outcome 联合类型', discriminator='outcome_type'
+    )
+
+
+class PlanRequest(BaseModel):
+    """
+    Plan 请求
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    absolute_deadline: AwareDatetime = Field(
+        ...,
+        alias='absoluteDeadline',
+        description='绝对 deadline（与 Route 相同且不可延长）',
+    )
+    capability: RuntimeCapabilityRoutingDescriptor
+    capability_id: str = Field(
+        ...,
+        alias='capabilityId',
+        description='Java 已校验的 capabilityId',
+        min_length=1,
+    )
+    context_views: List[Union[RuntimeQueryContextView, RuntimeAggregateContextView]] = (
+        Field(
+            ..., alias='contextViews', description='Context View 列表，contextType 唯一'
+        )
+    )
+    contract_version: ContractVersion = Field(
+        ..., alias='contractVersion', description='唯一 contract generation 版本'
+    )
+    domain: Optional[str] = Field(None, description='已选 domain，NONE 时必为空')
+    domain_schema: Optional[RuntimeDomainSchema] = Field(None, alias='domainSchema')
+    history: List[RuntimeTurnProjection] = Field(
+        ..., description='历史 turn 投影，最多 20 条', max_length=20, min_length=0
+    )
+    input_schema_ref: str = Field(
+        ...,
+        alias='inputSchemaRef',
+        description='输入 schema 引用（JSON Pointer）',
+        min_length=1,
+    )
+    message: str = Field(..., description='用户消息', max_length=8000, min_length=1)
+    plan_kind: AgentPlanKind = Field(..., alias='planKind')
+    repair_limit: int = Field(
+        ..., alias='repairLimit', description='repair 上限 [0,3]', ge=0, le=3
+    )
+    request_id: str = Field(
+        ...,
+        alias='requestId',
+        description='请求关联标识（与 Route 同一次 invocation）',
+        min_length=1,
     )

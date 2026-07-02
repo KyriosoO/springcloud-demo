@@ -11,7 +11,7 @@ public class CapabilityContextSpec {
     @Schema(description = "读取的上下文键，例如 previousQuery")
     private List<String> reads;
 
-    @Schema(description = "写入的上下文键，例如 RuntimeQueryContext、RuntimeAggregateContext")
+    @Schema(description = "写入的上下文键，例如 QUERY_CONTEXT、AGGREGATE_CONTEXT")
     private List<String> writes;
 
     public CapabilityContextSpec() {

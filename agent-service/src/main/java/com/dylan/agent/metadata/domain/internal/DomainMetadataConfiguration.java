@@ -13,7 +13,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Spring composition root for D04 domain metadata. */
+/** D04 domain metadata 的 Spring 装配根。 */
 @Configuration
 @EnableConfigurationProperties(DomainMetadataProperties.class)
 public class DomainMetadataConfiguration {
@@ -38,13 +38,6 @@ public class DomainMetadataConfiguration {
     @Bean
     DomainCatalogView domainCatalogView(DomainMetadataStore store) {
         return new DomainCatalogView(store);
-    }
-
-    @Bean
-    AdapterPortResolver adapterPortResolver(
-            DomainMetadataStore store,
-            ApplicationContext applicationContext) {
-        return new AdapterPortResolver(store, applicationContext);
     }
 
     @Bean

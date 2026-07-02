@@ -25,6 +25,9 @@ class DomainMetadataArchitectureTest {
                 "agent-service/src/main/java/com/dylan/agent/adapter/AggregatableAdapterRegistry.java"))).isFalse();
         assertThat(Files.exists(repoRoot.resolve(
                 "agent-service/src/main/java/com/dylan/agent/planning/RuntimeDomainSchemaFactory.java"))).isFalse();
+        assertThat(Files.exists(repoRoot.resolve(
+                "agent-service/src/main/java/com/dylan/agent/metadata/domain/internal/AdapterPortResolver.java")))
+                .isFalse();
     }
 
     private static Path repoRoot() {

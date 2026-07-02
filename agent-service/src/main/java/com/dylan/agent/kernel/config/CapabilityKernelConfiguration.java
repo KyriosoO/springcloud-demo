@@ -1,23 +1,28 @@
 package com.dylan.agent.kernel.config;
 
 import com.dylan.agent.kernel.definition.ContractRegistry;
+import com.dylan.agent.kernel.core.ExecutionCore;
+import com.dylan.agent.kernel.port.AuthorizationExecutionPort;
+import com.dylan.agent.kernel.port.ContextApprovalPort;
+import com.dylan.agent.kernel.port.ContextExecutionPort;
+import com.dylan.agent.kernel.port.DomainExecutionPort;
+import com.dylan.agent.kernel.port.ResultSecurityPort;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.CapabilityRegistrationValidator;
 import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
 import java.util.List;
 
 /**
- * Capability Kernel composition root.
+ * 能力内核装配根。
  *
- * <p>No domain facts or adapter instances are owned here.</p>
+ * <p>这里不持有领域事实或适配器实例。</p>
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnBean(CapabilityRegistration.class)
 public class CapabilityKernelConfiguration {
 
     @Bean
@@ -34,5 +39,21 @@ public class CapabilityKernelConfiguration {
                                                  CapabilityRegistrationValidator validator,
                                                  DomainMetadataPort domainMetadataPort) {
         return new CapabilityRegistry(registrations, validator, contracts, domainMetadataPort.knownRoles());
+    }
+
+    @Bean
+    public ExecutionCore executionCore(AuthorizationExecutionPort authorizationExecutionPort,
+                                       ContextExecutionPort contextExecutionPort,
+                                       DomainExecutionPort domainExecutionPort,
+                                       ContextApprovalPort contextApprovalPort,
+                                       ResultSecurityPort resultSecurityPort,
+                                       Clock clock) {
+        return new ExecutionCore(
+                authorizationExecutionPort,
+                contextExecutionPort,
+                domainExecutionPort,
+                contextApprovalPort,
+                resultSecurityPort,
+                clock);
     }
 }

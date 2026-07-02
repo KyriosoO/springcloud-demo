@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.net.http.HttpClient;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -39,13 +38,13 @@ public class AuthServiceUserPermissionAuthorityConfiguration {
             @Qualifier("authServicePermissionRestClient") RestClient restClient,
             AgentProperties properties,
             ObjectMapper objectMapper,
-            ObjectProvider<ServiceTokenProvider> serviceTokenProvider,
+            ServiceTokenProvider serviceTokenProvider,
             java.time.Clock clock) {
         return new AuthServiceUserPermissionAuthorityAdapter(
                 restClient,
                 properties.getAuthService(),
                 objectMapper,
-                serviceTokenProvider.getIfAvailable(),
+                serviceTokenProvider,
                 clock);
     }
 }

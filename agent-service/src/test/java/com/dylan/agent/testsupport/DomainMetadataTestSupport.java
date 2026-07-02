@@ -8,10 +8,8 @@ import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
 import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.enums.AgentFieldType;
-import com.dylan.agent.api.enums.AgentIntent;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.metadata.domain.internal.AdapterPortResolver;
 import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
@@ -29,7 +27,7 @@ import java.util.Set;
 
 import org.springframework.context.support.GenericApplicationContext;
 
-/** Shared D04 metadata fixtures for tests. */
+/** 测试共享的 D04 元数据夹具。 */
 public final class DomainMetadataTestSupport {
 
     public static final Clock TEST_CLOCK =
@@ -40,11 +38,6 @@ public final class DomainMetadataTestSupport {
 
     public static AgentProperties agentProperties() {
         AgentProperties p = new AgentProperties();
-        p.setIntentRoles(Map.of(
-                AgentIntent.QUERY, Set.of("agent:viewer", "agent:admin"),
-                AgentIntent.CLARIFY, Set.of("agent:viewer", "agent:admin"),
-                AgentIntent.AGGREGATE, Set.of("agent:viewer", "agent:admin")));
-
         AgentProperties.RuntimeProperties rt = new AgentProperties.RuntimeProperties();
         rt.setBaseUrl("http://localhost:9230");
         rt.setSharedKey("test-key-at-least-16-characters");
@@ -90,18 +83,6 @@ public final class DomainMetadataTestSupport {
                 QueryableAggregatableAdapter::new);
         context.refresh();
         return new DomainMetadataPortImpl(store(), context, TEST_CLOCK);
-    }
-
-    public static AdapterPortResolver adapterPortResolver(
-            QueryableAdapter queryable,
-            AggregatableAdapter aggregatable) {
-        GenericApplicationContext context = new GenericApplicationContext();
-        context.registerBean("employeeAgentAdapter", QueryableAggregatableAdapter.class,
-                () -> new QueryableAggregatableAdapter(queryable, aggregatable));
-        context.registerBean("transactionAgentAdapter", QueryableAggregatableAdapter.class,
-                () -> new QueryableAggregatableAdapter(queryable, aggregatable));
-        context.refresh();
-        return new AdapterPortResolver(store(), context);
     }
 
     public static DomainMetadataStore store() {

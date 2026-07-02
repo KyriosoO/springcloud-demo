@@ -1,83 +1,29 @@
 package com.dylan.agent.config;
 
-import java.util.Set;
-
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Component;
 
-import com.dylan.agent.api.enums.AgentIntent;
-import com.dylan.agent.capability.AgentCapabilityHandlerRegistry;
-
 /**
- * 启动时校验 AgentProperties 的完整性与 Adapter 一致性。
+ * 启动时校验 AgentProperties 中仍由本地配置承载的运行参数。
+ *
+ * <p>Capability 覆盖、权限权威源和领域事实已分别由 Kernel/Metadata/Auth 门禁校验，
+ * 这里不再读取旧 intent role 或旧处理器注册表，避免生产上下文保留双运行态。
  */
 @Component
 public class AgentPropertiesValidator implements InitializingBean {
 
     private final AgentProperties properties;
-    private final AgentCapabilityHandlerRegistry capabilityHandlerRegistry;
 
-    public AgentPropertiesValidator(AgentProperties properties,
-                                     AgentCapabilityHandlerRegistry capabilityHandlerRegistry) {
+    public AgentPropertiesValidator(AgentProperties properties) {
         this.properties = properties;
-        this.capabilityHandlerRegistry = capabilityHandlerRegistry;
     }
 
     @Override
     public void afterPropertiesSet() {
-        validateIntentRoles();
-        validateCapabilityHandlers();
         validateRuntime();
         validateQuery();
         validateAggregateConfig();
         validateConversation();
-    }
-
-    private void validateIntentRoles() {
-        var intentRoles = properties.getIntentRoles();
-        if (intentRoles == null) {
-            throw new IllegalStateException("agent.intent-roles 必须配置。");
-        }
-        for (AgentIntent intent : AgentIntent.values()) {
-            Set<String> roles = intentRoles.get(intent);
-            if (roles == null || roles.isEmpty()) {
-                throw new IllegalStateException("agent.intent-roles." + intent + " 必须配置非空角色。");
-            }
-        }
-    }
-
-    private void validateCapabilityHandlers() {
-        Set<AgentIntent> configuredIntents =
-                properties.getIntentRoles().keySet();
-        Set<AgentIntent> handlerIntents =
-                capabilityHandlerRegistry.supportedIntents();
-
-        for (AgentIntent intent : configuredIntents) {
-            if (!handlerIntents.contains(intent)) {
-                throw new IllegalStateException(
-                        "agent.intent-roles 配置了未注册 handler 的 intent: "
-                        + intent);
-            }
-        }
-
-        for (AgentIntent intent : handlerIntents) {
-            if (!configuredIntents.contains(intent)) {
-                throw new IllegalStateException(
-                        "已注册 AgentCapabilityHandler 但缺少 intent-roles 配置: "
-                        + intent);
-            }
-        }
-
-        if (!handlerIntents.contains(AgentIntent.QUERY)) {
-            throw new IllegalStateException("缺少 QUERY capability handler。");
-        }
-
-        if (!handlerIntents.contains(AgentIntent.CLARIFY)) {
-            throw new IllegalStateException("缺少 CLARIFY capability handler。");
-        }
-        if (!handlerIntents.contains(AgentIntent.AGGREGATE)) {
-            throw new IllegalStateException("缺少 AGGREGATE capability handler。");
-        }
     }
 
     private void validateRuntime() {
@@ -97,6 +43,13 @@ public class AgentPropertiesValidator implements InitializingBean {
         }
         if (rt.getMaxResponseBytes() <= 0) {
             throw new IllegalStateException("agent.runtime.max-response-bytes 必须为正数。");
+        }
+        if (rt.getRoutePath() == null || rt.getRoutePath().isBlank()
+                || rt.getPlanPath() == null || rt.getPlanPath().isBlank()) {
+            throw new IllegalStateException("agent.runtime route-path/plan-path 必须配置。");
+        }
+        if (rt.getMaxRepairAttempts() < 0 || rt.getMaxRepairAttempts() > 3) {
+            throw new IllegalStateException("agent.runtime.max-repair-attempts 必须在 0..3。");
         }
     }
 

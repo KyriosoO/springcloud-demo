@@ -19,6 +19,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
@@ -49,6 +50,7 @@ public class AgentPermissionProjectionService {
     private final UserService userService;
     private final Clock clock;
 
+    @Autowired
     public AgentPermissionProjectionService(UserService userService) {
         this(userService, Clock.systemUTC());
     }

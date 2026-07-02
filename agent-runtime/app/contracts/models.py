@@ -1,64 +1,66 @@
-"""
-Pydantic contract models — re-export layer.
-Generated models are the canonical structural contract.
-This file re-exports them under the original class names and
-semantic validators that cannot be expressed in OpenAPI/JSON Schema.
+"""当前运行时契约模型再导出层。
 
-Explicit semantic checks must be called at the appropriate entry points:
-  - validate_agent_plan_semantics() → parse_plan() in planning.py
-  - validate_plan_generate_request_semantics() → generate_plan() in runtime_api.py
-
-model_validate() does NOT trigger __init__, so monkey-patching __init__ is
-intentionally absent from this file. Do NOT re-add monkey-patches.
+生成模型是规范结构契约。本模块只暴露运行时代码消费的当前路由/计划传输对象。
 """
 
-# ── Generated structural contract (canonical) ──────────────────
-from app.contracts.generated_models import (      # noqa: F401
+from pydantic import BaseModel as StrictModel
+from pydantic import TypeAdapter, ValidationError
+
+from app.contracts.generated_models import (  # noqa: F401
     AgentAggregateSpec as AgentAggregateSpec,
-    AgentCapabilityDescriptor as AgentCapabilityDescriptor,
-    AgentCapabilityExecutionMode as AgentCapabilityExecutionMode,
-    AgentCapabilityRiskLevel as AgentCapabilityRiskLevel,
-    AgentErrorCode as AgentErrorCode,
+    AgentDomainMode as AgentDomainMode,
     AgentFieldType as AgentFieldType,
     AgentFilter as AgentFilter,
-    AgentIntent as AgentIntent,
     AgentOperator as AgentOperator,
-    AgentPlan as AgentPlan,
+    AgentPlanKind as AgentPlanKind,
     AgentQuerySpec as AgentQuerySpec,
-    AgentResponseType as AgentResponseType,
+    AggregateAgentPlan as AggregateAgentPlan,
     AggregateFunction as AggregateFunction,
     AggregateMetricSpec as AggregateMetricSpec,
     AggregateOrderSpec as AggregateOrderSpec,
-    CapabilityContextSpec as CapabilityContextSpec,
-    CapabilityContractRef as CapabilityContractRef,
-    CapabilityDomainScope as CapabilityDomainScope,
-    ClarifySpec as ClarifySpec,
-    PlanGenerateRequest as PlanGenerateRequest,
-    PlanGenerateResponse as PlanGenerateResponse,
-    RuntimeAggregateContext as RuntimeAggregateContext,
-    RuntimeDomainSchema as RuntimeDomainSchema,
-    RuntimeErrorResponse as RuntimeErrorResponse,
-    RuntimeFieldSchema as RuntimeFieldSchema,
-    RuntimeQueryContext as RuntimeQueryContext,
-    RuntimeRole as RuntimeRole,
-    RuntimeTurn as RuntimeTurn,
+    CapabilityChoiceArgs as CapabilityChoiceArgs,
+    ClarificationArgType as ClarificationArgType,
+    ClarificationReasonCode as ClarificationReasonCode,
+    ClarificationRequired as ClarificationRequired,
+    Direction as Direction,
+    DomainChoiceArgs as DomainChoiceArgs,
+    ExecutablePlan as ExecutablePlan,
+    FieldChoiceArgs as FieldChoiceArgs,
+    PlanOutcome as PlanOutcome,
+    PlanRequest as PlanRequest,
+    QueryAgentPlan as QueryAgentPlan,
     QueryContextMode as QueryContextMode,
+    RouteDecision as RouteDecision,
+    RouteOutcome as RouteOutcome,
+    RouteRequest as RouteRequest,
+    RuntimeAggregateContextView as RuntimeAggregateContextView,
+    RuntimeCapabilityRoutingDescriptor as RuntimeCapabilityRoutingDescriptor,
+    RuntimeContextType as RuntimeContextType,
+    RuntimeDomainFieldSchema as RuntimeDomainFieldSchema,
+    RuntimeDomainRoutingProjection as RuntimeDomainRoutingProjection,
+    RuntimeDomainSchema as RuntimeDomainSchema,
+    RuntimeErrorCode as RuntimeErrorCode,
+    RuntimeErrorResponse as RuntimeErrorResponse,
+    RuntimeOperationMetadata as RuntimeOperationMetadata,
+    RuntimeOperationType as RuntimeOperationType,
+    RuntimeOutcomeType as RuntimeOutcomeType,
+    RuntimeProfileBehaviorProjection as RuntimeProfileBehaviorProjection,
+    RuntimeQueryContextView as RuntimeQueryContextView,
+    RuntimeTerminationReason as RuntimeTerminationReason,
+    RuntimeTurnProjection as RuntimeTurnProjection,
+    RuntimeTurnRole as RuntimeTurnRole,
+    ValueChoiceArgs as ValueChoiceArgs,
 )
 
-# ── Compatibility aliases for legacy import names ─────────────
-AggregateSpec = AgentAggregateSpec
-from pydantic import BaseModel as StrictModel  # noqa: E402
 
-# ── Re-export Pydantic's ValidationError for test backward compat ──
-from pydantic import ValidationError as ValidationError  # noqa: E402
+def unwrap_root(value):
+    """返回生成根模型包装结构中的具体联合成员。"""
+    return getattr(value, "root", value)
 
-# ── Runtime semantic validators (hand-written) ─────────────────
-from app.contracts.semantic_validators import (  # noqa: E402
-    validate_agent_plan_intent_shape,
-    validate_agent_filter_shape,
-    validate_aggregate_metric_function_field,
-    validate_metric_aliases_unique,
-    validate_agent_plan_semantics,
-    validate_plan_generate_request_semantics,
-    validate_capability_descriptors,
-)
+
+def validate_route_outcome(payload: object):
+    return unwrap_root(TypeAdapter(RouteOutcome).validate_python(payload))
+
+
+def validate_plan_outcome(payload: object):
+    return unwrap_root(TypeAdapter(PlanOutcome).validate_python(payload))

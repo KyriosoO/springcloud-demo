@@ -71,7 +71,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AgentRuntimeContractFixtureTest {
 
     private static final Path FIXTURE_DIR = Path.of(
-        "src/test/resources/contract/candidate/fixtures");
+        "src/test/resources/contract/fixtures");
     private static final ObjectMapper MAPPER = strictMapper();
     private static final Validator VALIDATOR = Validation.byDefaultProvider().configure()
         .messageInterpolator(new ParameterMessageInterpolator())

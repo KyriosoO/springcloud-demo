@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("D01 candidate OpenAPI")
+@DisplayName("Active Runtime OpenAPI")
 @SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
 class AgentRuntimeContractOpenApiGenerationTest {
 
@@ -144,14 +144,14 @@ class AgentRuntimeContractOpenApiGenerationTest {
     }
 
     @Test
-    void shouldMatchCommittedCandidateArtifact() throws Exception {
+    void shouldMatchCommittedActiveArtifact() throws Exception {
         String fresh = AgentRuntimeContractOpenApiFactory.canonicalJson(OPEN_API);
         if (isUpdateEnabled()) {
             updateArtifactAtomically(fresh);
             return;
         }
         assertEquals(readArtifact(), fresh,
-            "candidate OpenAPI drifted; regenerate explicitly with -Dagent.contract.update=true");
+            "active OpenAPI drifted; regenerate explicitly with -Dagent.contract.update=true");
     }
 
     @Test

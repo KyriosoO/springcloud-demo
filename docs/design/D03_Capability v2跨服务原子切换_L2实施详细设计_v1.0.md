@@ -1,6 +1,6 @@
 # D03 Capability v2 跨服务原子切换 — L2 实施详细设计 v1.0
 
-> 文档状态：已完成本轮评审
+> 文档状态：D03 代码评审通过；发布前环境级成功链路待验证
 > 编写日期：2026-07-02
 > 输入基线：`76400d6 Update legacy runtime contract model`
 > 前置交付：D01 已完成；D02_00/D02_01/D02_02/D02_03 已完成设计与编码基线；D04 已实施并通过退出门禁
@@ -15,6 +15,7 @@
 | 日期 | 内容 | 原因 |
 |---|---|---|
 | 2026-07-02 | 新增 D03 L2 实施详细设计，接收 D01/D02/D04 输出，定义 Capability v2 跨服务原子切换的调用链、文件级变更、删除台账、测试门禁和评审矩阵 | D03 编码前必须有独立 L2 文档，避免直接编码造成范围扩大、半链发布或旧新双运行态 |
+| 2026-07-02 | 同步 D03 代码评审通过状态，明确权限权威源门禁已关闭，发布前仍需环境级成功链路验证 | auth-service 权限投影 API、agent-service 权限 Adapter、D03 静态门禁和相关测试已通过；三服务真实成功链路、浏览器成功结果渲染和下游真实调用属于发布前环境验证 |
 
 ---
 
@@ -859,11 +860,13 @@ rg -n "AgentIntent|ClarifyCapabilityHandler|CapabilityRouter|CapabilityRouteReso
 rg -n '@SuppressWarnings\(\{\"unchecked\"|@SuppressWarnings\(\"unchecked\"' agent-service/src/main/java
 ```
 
-以下搜索必须为空：
+以下搜索必须为空，用于禁止按具体 capabilityId 或 domain 字面量编写主流程分支：
 
 ```powershell
-rg -n "switch.*capabilityId|switch.*domain|if.*capabilityId|if.*domain" agent-service/src/main/java/com/dylan/agent/kernel agent-service/src/main/java/com/dylan/agent/metadata
+rg -n 'switch\s*\([^)]*(capabilityId|domain)|if\s*\([^)]*(capabilityId|domain)[^)]*(equals|==)\s*\(\s*"|if\s*\([^)]*"(query\.search|aggregate\.compute|employee|transaction)"' agent-service/src/main/java/com/dylan/agent/kernel agent-service/src/main/java/com/dylan/agent/metadata
 ```
+
+该门禁不禁止通用契约校验、授权集合校验、metadata 完整性校验、evidence 一致性校验或 value object 构造约束中的 `capabilityId`/`domain` 使用；这些校验是 fail closed 边界的一部分。禁止项是根据具体 capabilityId/domain 字面量决定 handler、adapter、planner、runtime schema 或执行路径。
 
 ### 11.5 退出条件
 
@@ -990,4 +993,4 @@ D05 只能在此基础上新增代表性 capability 验证扩展不变量，不�
 9. 未把 JWT role 或本地 role 配置作为生产权限替代。
 10. 已给出 D03 完成后的退出门禁和 D05 交付接口。
 
-本轮评审未发现剩余问题；D03 编码仍受第 6.5 和第 12 节的外部权限权威源门禁约束。
+本轮评审未发现剩余代码问题；auth-service 权限投影 API 和 agent-service 生产 Adapter 已关闭外部权限权威源门禁。D03 代码评审通过，发布或合并前仍需按第 11.5 节完成环境级成功链路验证。

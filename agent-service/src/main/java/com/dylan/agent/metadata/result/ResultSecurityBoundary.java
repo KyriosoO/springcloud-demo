@@ -10,7 +10,7 @@ import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 
 import java.util.Objects;
 
-/** Result security boundary: validate contract, filter once, serialize canonical bytes. */
+/** 结果安全边界：校验契约、执行一次过滤并序列化规范字节。 */
 public final class ResultSecurityBoundary implements ResultSecurityPort {
 
     private final ContractRegistry contractRegistry;
@@ -36,7 +36,7 @@ public final class ResultSecurityBoundary implements ResultSecurityPort {
             throw new IllegalStateException("candidate result does not match output contract");
         }
         ResultSecurityProjector<?> projector = projectorRegistry.require(outputContract);
-        FilteredResult<?> filtered = filter(projector, (AgentResultPayload) candidate, scope);
+        FilteredResult<?> filtered = projector.filterUntyped((AgentResultPayload) candidate, scope);
         if (!expectedType.isInstance(filtered.payload())) {
             throw new IllegalStateException("filtered result does not match output contract");
         }
@@ -45,16 +45,5 @@ public final class ResultSecurityBoundary implements ResultSecurityPort {
                 jsonCodec.serialize(filtered.payload(), expectedType),
                 filtered.safeMessage(),
                 filtered.safeSummary());
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static FilteredResult<?> filter(
-            ResultSecurityProjector projector,
-            AgentResultPayload candidate,
-            ExecutionScope scope) {
-        if (!projector.payloadType().isInstance(candidate)) {
-            throw new IllegalStateException("projector payload type mismatch");
-        }
-        return projector.filter(candidate, scope);
     }
 }

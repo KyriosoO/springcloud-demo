@@ -53,7 +53,7 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
         this.restClient = Objects.requireNonNull(restClient, "restClient must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
-        this.serviceTokenProvider = serviceTokenProvider;
+        this.serviceTokenProvider = Objects.requireNonNull(serviceTokenProvider, "serviceTokenProvider must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -179,9 +179,6 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
     }
 
     private String serviceToken() throws UserPermissionAuthorityException {
-        if (serviceTokenProvider == null) {
-            throw authorityException(UserPermissionAuthorityFailure.UNAVAILABLE, "auth-permission-token");
-        }
         try {
             String token = serviceTokenProvider.token();
             if (token == null || token.isBlank()) {

@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationContext;
 
-/** D04 production implementation of the D02_03 DomainMetadataPort seam. */
+/** D02_03 DomainMetadataPort 边界的 D04 生产实现。 */
 public final class DomainMetadataPortImpl implements DomainMetadataPort {
 
     private final DomainMetadataStore store;

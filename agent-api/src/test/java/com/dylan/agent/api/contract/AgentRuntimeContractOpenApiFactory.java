@@ -46,15 +46,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Builds the isolated D01 candidate OpenAPI document directly from Java contracts. */
+/** Builds the active Runtime OpenAPI document directly from Java contracts. */
 @SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
 final class AgentRuntimeContractOpenApiFactory {
 
-    static final String ROUTE_PATH = "/runtime/route";
-    static final String PLAN_PATH = "/runtime/plan";
+    static final String ROUTE_PATH = "/runtime/v1/route";
+    static final String PLAN_PATH = "/runtime/v1/plan";
     static final String INTERNAL_AUTH = "InternalServiceAuth";
     static final Path ARTIFACT = Path.of(
-        "src/test/resources/contract/candidate/openapi/agent-runtime-openapi.json");
+        "src/test/resources/contract/openapi/agent-runtime-openapi.json");
 
     private AgentRuntimeContractOpenApiFactory() {
     }

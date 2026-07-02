@@ -3,7 +3,6 @@ package com.dylan.agent.security;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -31,7 +30,6 @@ public class AgentUserContextResolver {
         return new AgentUserContext(userId, roles);
     }
 
-    @SuppressWarnings("unchecked")
     private Set<String> extractRoles(Jwt jwt) {
         Object roleClaim = jwt.getClaims().get("role");
         if (roleClaim == null) {

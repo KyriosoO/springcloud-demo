@@ -1,364 +1,255 @@
-"""
-Tests for Pydantic contract models (multi-domain).
-"""
+"""当前运行时路由/计划契约测试。"""
+
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
-from app.contracts.models import (
-    AgentCapabilityDescriptor,
-    AgentCapabilityExecutionMode,
-    AgentCapabilityRiskLevel,
-    AgentFieldType,
-    AgentIntent,
-    AgentOperator,
-    AgentPlan,
-    AgentQuerySpec,
-    AgentAggregateSpec,
-    AggregateFunction,
-    CapabilityContextSpec,
-    CapabilityContractRef,
-    CapabilityDomainScope,
-    ClarifySpec,
-    PlanGenerateRequest,
-    PlanGenerateResponse,
-    RuntimeDomainSchema,
-    RuntimeFieldSchema,
-    RuntimeTurn,
+from app.contracts import generated_models as g
+from app.contracts import models
+
+FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "agent-api" / "src" / "test" / "resources"
+    / "contract" / "fixtures"
 )
 
 
-def _employee_schema() -> RuntimeDomainSchema:
-    fields = [
-        RuntimeFieldSchema(name="chineseName", aliases=["姓名", "中文名"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="memberNo", aliases=["工号"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="position", aliases=["岗位"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="contactAddress", aliases=["地址"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="idCardNo", aliases=["身份证号"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="phoneNo", aliases=["手机号"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="email", aliases=["邮箱"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS, AgentOperator.STARTS_WITH, AgentOperator.IN], type=AgentFieldType.STRING),
-    ]
-    return RuntimeDomainSchema(
-        domain="employee",
-        aliases=["员工", "employee"],
-        fields=fields,
-        default_select_fields=["chineseName", "memberNo", "position"],
-        max_filters=5,
-        default_size=20,
-        max_size=100,
-        max_result_window=10000,
+def _load(name: str) -> dict:
+    return json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
+
+
+CLARIFICATION_BINDINGS = {
+    "CAPABILITY_AMBIGUOUS": ("CAPABILITY_CHOICES", "ROUTE"),
+    "DOMAIN_REQUIRED": ("DOMAIN_CHOICES", "ROUTE"),
+    "DOMAIN_AMBIGUOUS": ("DOMAIN_CHOICES", "ROUTE"),
+    "FIELD_REQUIRED": ("FIELD_CHOICES", "PLAN"),
+    "VALUE_REQUIRED": ("VALUE_CHOICES", "PLAN"),
+    "VALUE_AMBIGUOUS": ("VALUE_CHOICES", "PLAN"),
+}
+
+CHOICE_FIELDS = {
+    "CAPABILITY_CHOICES": "capability_ids",
+    "DOMAIN_CHOICES": "domains",
+    "FIELD_CHOICES": "fields",
+    "VALUE_CHOICES": "values",
+}
+
+MIN_CHOICES = {
+    "CAPABILITY_AMBIGUOUS": 2,
+    "DOMAIN_REQUIRED": 1,
+    "DOMAIN_AMBIGUOUS": 2,
+    "FIELD_REQUIRED": 1,
+    "VALUE_REQUIRED": 0,
+    "VALUE_AMBIGUOUS": 2,
+}
+
+ERROR_BINDINGS = {
+    "CONTRACT_INVALID": "VALIDATION_REJECTED",
+    "AUTHENTICATION_FAILED": "AUTHENTICATION_REJECTED",
+    "PROVIDER_UNAVAILABLE": "PROVIDER_UNAVAILABLE",
+    "DEADLINE_EXCEEDED": "DEADLINE_EXCEEDED",
+    "OUTPUT_REPAIR_EXHAUSTED": "REPAIR_EXHAUSTED",
+    "INTERNAL_ERROR": "INTERNAL_ERROR",
+}
+
+
+def _assert_clarification_binding(clarification: object) -> None:
+    reason = clarification.reason_code.value
+    arg_type = clarification.args.arg_type
+    arg_type_value = arg_type if isinstance(arg_type, str) else arg_type.value
+    actual = (arg_type_value, clarification.metadata.operation.value)
+    assert actual == CLARIFICATION_BINDINGS[reason]
+    choices = getattr(clarification.args, CHOICE_FIELDS[arg_type_value])
+    assert len(set(choices)) == len(choices)
+    assert len(set(choices)) >= MIN_CHOICES[reason]
+
+
+def _assert_runtime_error_binding(error: object) -> None:
+    assert error.metadata.termination_reason.value == ERROR_BINDINGS[error.code.value]
+
+
+@pytest.mark.parametrize(
+    ("fixture", "root_model"),
+    [
+        ("route-request.json", models.RouteRequest),
+        ("route-decision.json", models.RouteOutcome),
+        ("route-clarification.json", models.RouteOutcome),
+        ("plan-request.json", models.PlanRequest),
+        ("query-plan.json", models.PlanOutcome),
+        ("aggregate-plan.json", models.PlanOutcome),
+        ("plan-clarification.json", models.PlanOutcome),
+        ("runtime-error.json", models.RuntimeErrorResponse),
+    ],
+)
+def test_positive_fixture_round_trip(fixture, root_model):
+    payload = _load(fixture)
+    adapter = TypeAdapter(root_model)
+    parsed = adapter.validate_python(payload)
+    dumped = adapter.dump_python(
+        parsed, by_alias=True, mode="json", exclude_none=False, exclude_unset=True
+    )
+    assert dumped == payload
+
+
+def test_route_to_plan_fixture_chain():
+    route_request = models.RouteRequest.model_validate(_load("route-request.json"))
+    route_decision = models.unwrap_root(
+        TypeAdapter(models.RouteOutcome).validate_python(_load("route-decision.json"))
+    )
+    plan_request = models.PlanRequest.model_validate(_load("plan-request.json"))
+    executable = models.unwrap_root(
+        TypeAdapter(models.PlanOutcome).validate_python(_load("query-plan.json"))
     )
 
-
-def _transaction_schema() -> RuntimeDomainSchema:
-    fields = [
-        RuntimeFieldSchema(name="transId", aliases=["交易号", "交易ID"], operators=[AgentOperator.EQ], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="transType", aliases=["交易类型", "类型"], operators=[AgentOperator.EQ, AgentOperator.CONTAINS], type=AgentFieldType.STRING),
-        RuntimeFieldSchema(name="transDate", aliases=["交易时间", "交易日期"], operators=[AgentOperator.GT, AgentOperator.LT], type=AgentFieldType.INSTANT, format_hint="ISO-8601 datetime with timezone",
-                           supported_aggregate_functions=[]),
-        RuntimeFieldSchema(name="amount", aliases=["金额", "交易金额"], operators=[AgentOperator.EQ, AgentOperator.GT, AgentOperator.LT], type=AgentFieldType.DECIMAL,
-                           supported_aggregate_functions=[AggregateFunction.SUM, AggregateFunction.AVG, AggregateFunction.MIN, AggregateFunction.MAX]),
-    ]
-    return RuntimeDomainSchema(
-        domain="transaction",
-        aliases=["交易", "交易记录", "交易流水", "transaction"],
-        fields=fields,
-        default_select_fields=["transId", "transType", "transDate", "amount"],
-        max_filters=5,
-        default_size=20,
-        max_size=100,
-        max_result_window=10000,
-    )
+    assert {
+        route_request.request_id,
+        route_decision.request_id,
+        plan_request.request_id,
+        executable.request_id,
+    } == {"flow-001"}
+    assert route_request.contract_version == plan_request.contract_version
+    assert route_decision.capability_id == plan_request.capability_id
+    assert plan_request.plan_kind.value == executable.plan.plan_kind == "QUERY"
+    assert route_decision.domain == plan_request.domain == plan_request.domain_schema.domain
 
 
-def _fixture_path(filename: str) -> Path:
-    """Resolve the golden fixture from the agent-api contracts directory."""
-    root = Path(__file__).parent.parent.parent
-    return root / "agent-api" / "src" / "main" / "resources" / "contracts" / filename
+@pytest.mark.parametrize(
+    ("fixture", "message"),
+    [
+        ("unknown-plan-kind.json", "planKind"),
+        ("unknown-operator.json", "operator"),
+        ("extra-field.json", "extraField"),
+        ("missing-query.json", "query"),
+        ("discriminator-mismatch.json", "aggregate"),
+    ],
+)
+def test_negative_fixtures_rejected(fixture, message):
+    payload = _load("negative/" + fixture)
+    with pytest.raises(ValidationError, match=message):
+        TypeAdapter(models.PlanOutcome).validate_python(payload)
 
 
-def _query_search_capability() -> AgentCapabilityDescriptor:
-    """query.search capability descriptor，employee domain。"""
-    scope = CapabilityDomainScope(domain="employee", enabled=True)
-    return AgentCapabilityDescriptor(
-        capability_id="query.search",
-        intent=AgentIntent.QUERY,
-        display_name="Search records",
-        description="Search records in a supported domain.",
-        domain_scopes=[scope],
-        risk_level=AgentCapabilityRiskLevel.read_only,
-        execution_mode=AgentCapabilityExecutionMode.immediate,
-        input_contract=CapabilityContractRef(schema="AgentPlan.query", version="1.0"),
-        output_contract=CapabilityContractRef(schema="AgentQueryResult", version="1.0"),
-        context=CapabilityContextSpec(reads=["previousQuery"], writes=["RuntimeQueryContext"]),
-        permissions=["domain", "field.filter", "field.display"],
-        enabled=True,
-    )
+def test_legacy_plan_generate_models_are_not_exported():
+    assert not hasattr(models, "PlanGenerateRequest")
+    assert not hasattr(models, "PlanGenerateResponse")
+    assert not hasattr(models, "AgentIntent")
 
 
-def _clarify_capability() -> AgentCapabilityDescriptor:
-    """clarify.ask capability descriptor。"""
-    return AgentCapabilityDescriptor(
-        capability_id="clarify.ask",
-        intent=AgentIntent.CLARIFY,
-        display_name="Ask for clarification",
-        description="Ask the user for missing search criteria.",
-        domain_scopes=[],
-        risk_level=AgentCapabilityRiskLevel.read_only,
-        execution_mode=AgentCapabilityExecutionMode.immediate,
-        input_contract=CapabilityContractRef(schema="ClarifySpec", version="1.0"),
-        output_contract=CapabilityContractRef(schema="AgentChatResponse.CLARIFY", version="1.0"),
-        context=CapabilityContextSpec(reads=[], writes=[]),
-        permissions=["agent.access"],
-        enabled=True,
-    )
+def test_plan_kind_has_no_clarify():
+    assert {item.value for item in g.AgentPlanKind} == {"QUERY", "AGGREGATE"}
 
 
-class TestQueryPlanFixture:
-    """QUERY plan fixture tests."""
-
-    def test_query_plan_from_fixture(self):
-        path = _fixture_path("query-plan-v1.json")
-        assert path.exists(), f"Fixture not found: {path}"
-        data = json.loads(path.read_text(encoding="utf-8"))
-        resp = PlanGenerateResponse.model_validate(data)
-        assert resp.request_id == "turn-001"
-        plan = resp.plan
-        assert plan.plan_version == "1.0"
-        assert plan.intent == AgentIntent.QUERY
-        assert plan.domain == "employee"
-        assert plan.query is not None
-        assert plan.clarify is None
-        assert len(plan.query.filters) == 1
-        f = plan.query.filters[0]
-        assert f.field == "position"
-        assert f.operator == AgentOperator.EQ
-        assert f.value == "HRM"
-        assert plan.query.select_fields == ["chineseName", "memberNo", "position"]
-        assert plan.query.page == 1
-        assert plan.query.size == 20
-
-    def test_serialize_to_java_compatible(self):
-        path = _fixture_path("query-plan-v1.json")
-        data = json.loads(path.read_text(encoding="utf-8"))
-        resp = PlanGenerateResponse.model_validate(data)
-        dumped = json.loads(resp.model_dump_json(by_alias=True))
-        assert dumped["requestId"] == "turn-001"
-        assert dumped["plan"]["intent"] == "QUERY"
-        assert dumped["plan"]["query"]["filters"][0]["field"] == "position"
+def test_clarification_has_no_question():
+    assert "question" not in g.ClarificationRequired.model_fields
 
 
-class TestClarifyPlanFixture:
-    """CLARIFY plan fixture tests."""
-
-    def test_clarify_plan_from_fixture(self):
-        path = _fixture_path("clarify-plan-v1.json")
-        assert path.exists(), f"Fixture not found: {path}"
-        data = json.loads(path.read_text(encoding="utf-8"))
-        resp = PlanGenerateResponse.model_validate(data)
-        assert resp.request_id == "turn-001"
-        plan = resp.plan
-        assert plan.intent == AgentIntent.CLARIFY
-        assert plan.query is None
-        assert plan.clarify is not None
-        assert plan.clarify.question == "请提供姓名、工号或岗位等查询条件。"
+def test_executable_plan_has_no_identity_echo():
+    fields = set(g.ExecutablePlan.model_fields)
+    assert fields.isdisjoint({"capability_id", "capabilityId", "plan_kind", "domain"})
 
 
-class TestAggregatePlanFixture:
-    """AGGREGATE plan fixture tests."""
-
-    def test_aggregate_plan_from_fixture(self):
-        path = _fixture_path("aggregate-plan-v1.json")
-        assert path.exists(), f"Fixture not found: {path}"
-        data = json.loads(path.read_text(encoding="utf-8"))
-        resp = PlanGenerateResponse.model_validate(data)
-        assert resp.request_id == "turn-001"
-        plan = resp.plan
-        assert plan.plan_version == "1.0"
-        assert plan.intent == AgentIntent.AGGREGATE
-        assert plan.domain == "transaction"
-        assert plan.query is None
-        assert plan.clarify is None
-        assert plan.aggregate is not None
-        assert plan.aggregate.metrics[0].function == AggregateFunction.SUM
-        assert plan.aggregate.metrics[0].field == "amount"
-        assert plan.aggregate.metrics[1].function == AggregateFunction.COUNT
-        assert plan.aggregate.metrics[1].field is None
-        assert plan.aggregate.group_by_fields == ["transType"]
-        assert plan.aggregate.order_by[0].field == "totalAmount"
-        assert plan.aggregate.max_rows == 20
+def test_no_parallel_version_axis():
+    assert not hasattr(g, "PlanVersion")
+    for name in dir(g):
+        model = getattr(g, name)
+        fields = getattr(model, "model_fields", {})
+        assert "plan_version" not in fields
+        assert "strategy_version" not in fields
 
 
-class TestUnknownFieldRejection:
-    """Verify extra=forbid behavior."""
-
-    def test_unknown_intent_rejected(self):
-        with pytest.raises(ValidationError):
-            AgentPlan.model_validate({
-                "planVersion": "1.0",
-                "intent": "UPDATE",
-                "domain": "employee",
-            })
-
-    def test_unknown_operator_rejected(self):
-        with pytest.raises(ValidationError):
-            AgentPlan.model_validate({
-                "planVersion": "1.0",
-                "intent": "QUERY",
-                "domain": "employee",
-                "query": {
-                    "filters": [{"field": "chineseName", "operator": "REGEX", "value": "test"}],
-                    "size": 20,
-                }
-            })
-
-    def test_unknown_json_field_rejected(self):
-        with pytest.raises(ValidationError):
-            PlanGenerateResponse.model_validate({
-                "requestId": "1",
-                "plan": {
-                    "planVersion": "1.0",
-                    "intent": "QUERY",
-                    "domain": "employee",
-                    "query": {"filters": [], "size": 20},
-                    "extraField": "unexpected",
-                }
-            })
-
-    def test_aggregate_duplicate_metric_alias_rejected(self):
-        """OLD: monkey-patched __init__ raised. NOW: use AgentPlan.model_validate() via parse_plan semantics.
-        Test the semantic validator directly."""
-        from app.contracts.semantic_validators import validate_metric_aliases_unique
-        agg = AgentAggregateSpec(metrics=[
-            {"alias": "same", "function": "COUNT", "field": None},
-            {"alias": "same", "function": "SUM", "field": "amount"},
-        ])
-        with pytest.raises(ValueError, match="alias"):
-            validate_metric_aliases_unique(agg)
-
-    def test_aggregate_max_rows_above_java_max_rejected(self):
-        with pytest.raises(ValidationError, match="max"):
-            AgentPlan.model_validate({
-                "planVersion": "1.0",
-                "intent": "AGGREGATE",
-                "domain": "transaction",
-                "aggregate": {
-                    "metrics": [{"alias": "cnt", "function": "COUNT", "field": None}],
-                    "maxRows": 101,
-                },
-            })
+def test_route_request_has_no_context():
+    fields = set(g.RouteRequest.model_fields)
+    assert fields.isdisjoint({"context", "context_view", "context_views", "domain_schema"})
 
 
-class TestEnumValues:
-    def test_intent_only_query_clarify(self):
-        assert set(AgentIntent) == {AgentIntent.QUERY, AgentIntent.CLARIFY, AgentIntent.AGGREGATE}
+def test_requests_share_single_contract_generation():
+    route = g.RouteRequest.model_validate(_load("route-request.json"))
+    plan_payload = _load("plan-request.json")
+    plan = g.PlanRequest.model_validate(plan_payload)
 
-    def test_operator_eight_standard(self):
-        assert set(AgentOperator) == {
-            AgentOperator.EQ, AgentOperator.CONTAINS,
-            AgentOperator.CONTAINS_ANY, AgentOperator.STARTS_WITH,
-            AgentOperator.STARTS_WITH_ANY, AgentOperator.IN,
-            AgentOperator.GT, AgentOperator.LT,
-        }
+    assert route.contract_version == plan.contract_version
+    assert route.contract_version
 
-    def test_field_type_three_values(self):
-        assert set(AgentFieldType) == {
-            AgentFieldType.STRING, AgentFieldType.DECIMAL, AgentFieldType.INSTANT,
-        }
+    plan_payload["contractVersion"] = "9.9.9"
+    with pytest.raises(ValueError):
+        g.PlanRequest.model_validate(plan_payload)
 
 
-class TestMultiDomainRequest:
-    """Multi-domain PlanGenerateRequest."""
-
-    def test_domain_schemas_list_accepted(self):
-        req = PlanGenerateRequest(
-            request_id="test-001",
-            message="查询岗位是HRM的员工",
-            domain_schemas=[_employee_schema(), _transaction_schema()],
-            capabilities=[_query_search_capability(), _clarify_capability()],
-        )
-        assert len(req.domain_schemas) == 2
-
-    def test_single_domain_schema_accepted(self):
-        req = PlanGenerateRequest(
-            request_id="test-001",
-            message="查询岗位是HRM的员工",
-            domain_schemas=[_employee_schema()],
-            capabilities=[_query_search_capability(), _clarify_capability()],
-        )
-        assert req.domain_schemas[0].domain == "employee"
-
-    def test_empty_domain_schemas_rejected(self):
-        with pytest.raises(ValidationError, match="domain_schemas"):
-            PlanGenerateRequest(
-                request_id="test-001",
-                message="test",
-                domain_schemas=[],
-                capabilities=[_query_search_capability(), _clarify_capability()],
-            )
-
-    def test_duplicate_domains_rejected(self):
-        """OLD: monkey-patched __init__ raised. NOW: use the explicit semantic validator."""
-        from app.contracts.semantic_validators import validate_plan_generate_request_semantics
-        req = PlanGenerateRequest(
-            request_id="test-001",
-            message="test",
-            domain_schemas=[_employee_schema(), _employee_schema()],
-            capabilities=[_query_search_capability(), _clarify_capability()],
-        )
-        with pytest.raises(ValueError, match="Duplicate"):
-            validate_plan_generate_request_semantics(req)
-
-
-class TestAgentPlanDomainNullable:
-    """CLARIFY domain can be null."""
-
-    def test_clarify_null_domain_accepted(self):
-        plan = AgentPlan(
-            plan_version="1.0",
-            intent=AgentIntent.CLARIFY,
-            domain=None,
-            clarify=ClarifySpec(question="无法判断你要查询哪个领域，请说明是员工还是交易？"),
-            query=None,
-        )
-        assert plan.domain is None
-
-    def test_query_null_domain_rejected(self):
-        """OLD: Pydantic model_validator raised. NOW: use AgentPlan.model_validate() + semantic validator.
-        AgentPlan(...) alone no longer raises. Test the semantic validator directly."""
-        plan = AgentPlan(
-            plan_version="1.0",
-            intent=AgentIntent.QUERY,
-            domain=None,
-            query=AgentQuerySpec(
-                filters=[{"field": "amount", "operator": "GT", "value": "100"}],
-                size=20,
-            ),
-        )
-        from app.contracts.semantic_validators import validate_agent_plan_intent_shape
-        with pytest.raises(ValueError, match="QUERY requires a non-null domain"):
-            validate_agent_plan_intent_shape(plan)
+@pytest.mark.parametrize(
+    ("reason", "args_payload", "operation", "root_model"),
+    [
+        (
+            "CAPABILITY_AMBIGUOUS",
+            {"argType": "CAPABILITY_CHOICES", "capabilityIds": ["query", "aggregate"]},
+            "ROUTE",
+            g.RouteOutcome,
+        ),
+        (
+            "DOMAIN_REQUIRED",
+            {"argType": "DOMAIN_CHOICES", "domains": ["employee"]},
+            "ROUTE",
+            g.RouteOutcome,
+        ),
+        (
+            "DOMAIN_AMBIGUOUS",
+            {"argType": "DOMAIN_CHOICES", "domains": ["employee", "transaction"]},
+            "ROUTE",
+            g.RouteOutcome,
+        ),
+        (
+            "FIELD_REQUIRED",
+            {"argType": "FIELD_CHOICES", "fields": ["name"]},
+            "PLAN",
+            g.PlanOutcome,
+        ),
+        (
+            "VALUE_REQUIRED",
+            {"argType": "VALUE_CHOICES", "field": "name", "values": []},
+            "PLAN",
+            g.PlanOutcome,
+        ),
+        (
+            "VALUE_AMBIGUOUS",
+            {"argType": "VALUE_CHOICES", "field": "name", "values": ["张", "章"]},
+            "PLAN",
+            g.PlanOutcome,
+        ),
+    ],
+)
+def test_clarification_reason_arg_operation_binding(
+    reason,
+    args_payload,
+    operation,
+    root_model,
+):
+    payload = {
+        "outcomeType": "CLARIFICATION",
+        "requestId": f"binding-{reason.lower()}",
+        "reasonCode": reason,
+        "args": args_payload,
+        "metadata": {
+            "operation": operation,
+            "providerAttempts": 1,
+            "repairAttempts": 0,
+            "repairDurationMs": 0,
+            "totalDurationMs": 1,
+            "terminationReason": "CLARIFICATION",
+            "deadlineReached": False,
+            "repairLimitReached": False,
+        },
+    }
+    parsed = TypeAdapter(root_model).validate_python(payload)
+    _assert_clarification_binding(models.unwrap_root(parsed))
 
 
-class TestRuntimeFieldSchemaExtraFields:
-    """type and formatHint are now part of RuntimeFieldSchema."""
-
-    def test_field_schema_includes_type(self):
-        schema = _employee_schema()
-        for f in schema.fields:
-            assert f.type == AgentFieldType.STRING
-
-    def test_transaction_field_has_format_hint(self):
-        schema = _transaction_schema()
-        date_fields = [f for f in schema.fields if f.name == "transDate"]
-        assert len(date_fields) == 1
-        assert date_fields[0].type == AgentFieldType.INSTANT
-        assert date_fields[0].format_hint is not None
-
-    def test_domain_schema_includes_aliases(self):
-        emp = _employee_schema()
-        assert "员工" in emp.aliases
-        txn = _transaction_schema()
-        assert "交易" in txn.aliases
+def test_runtime_error_code_termination_binding():
+    payload = _load("runtime-error.json")
+    for code, termination in ERROR_BINDINGS.items():
+        candidate = json.loads(json.dumps(payload, ensure_ascii=False))
+        candidate["code"] = code
+        candidate["metadata"]["terminationReason"] = termination
+        _assert_runtime_error_binding(g.RuntimeErrorResponse.model_validate(candidate))

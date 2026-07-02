@@ -1,6 +1,4 @@
-"""
-OpenAI 兼容的 LLM 客户端。
-"""
+"""兼容 OpenAI 的大模型客户端。"""
 
 import json
 from functools import lru_cache
@@ -13,7 +11,7 @@ from app.core.settings import Settings, get_settings
 
 
 class LlmClient:
-    """使用固定配置包装 AsyncOpenAI。"""
+    """使用固定配置包装大模型客户端。"""
 
     def __init__(self, settings: Settings):
         self._client = AsyncOpenAI(
@@ -29,7 +27,7 @@ class LlmClient:
         system_prompt: str,
         user_payload: dict[str, Any],
     ) -> str:
-        """发送 plan 生成请求，返回 LLM 原始 JSON 文本。"""
+        """发送计划生成请求，返回大模型原始 JSON 文本。"""
         return await self._call_llm(system_prompt, user_payload)
 
     async def repair_json(
@@ -39,7 +37,7 @@ class LlmClient:
         validation_errors: list[str],
         user_payload: dict[str, Any],
     ) -> str:
-        """发送通用 JSON 修复请求，不假设特定 intent 或 plan 结构。"""
+        """发送通用 JSON 修复请求，不假设特定意图或计划结构。"""
         repair_payload = {
             "invalidOutput": invalid_output,
             "validationErrors": validation_errors,
@@ -48,9 +46,9 @@ class LlmClient:
         return await self._call_llm(repair_system_prompt, repair_payload)
 
     async def _call_llm(self, system_prompt: str, user_payload: dict[str, Any]) -> str:
-        """发送 system+user 消息到 LLM，返回原始文本响应。
+        """发送系统消息和用户消息到大模型，返回原始文本响应。
 
-        超时异常映射为 RuntimeTimeoutError，其他 provider 错误映射为 RuntimeProviderError。
+        超时异常映射为运行时超时，其他提供方错误映射为运行时提供方异常。
         """
         user_content = json.dumps(user_payload, ensure_ascii=False)
 
@@ -81,5 +79,5 @@ class LlmClient:
 
 @lru_cache
 def get_llm_client() -> LlmClient:
-    """缓存的 LlmClient 单例工厂函数。"""
+    """缓存的大模型客户端单例工厂函数。"""
     return LlmClient(get_settings())

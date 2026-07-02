@@ -1,10 +1,8 @@
-"""
-Runtime 异常类型。
-"""
+"""运行时异常类型。"""
 
 
 class RuntimePlanError(Exception):
-    """LLM 输出无法修复为合法 plan。"""
+    """模型输出无法修复为合法计划。"""
     def __init__(self, code: str, safe_message: str, request_id: str | None = None):
         self.code = code
         self.safe_message = safe_message
@@ -17,14 +15,14 @@ class RuntimeAuthError(Exception):
 
 
 class RuntimeProviderError(Exception):
-    """LLM provider 返回异常。"""
+    """模型提供方返回异常。"""
     def __init__(self, message: str, request_id: str | None = None):
         self.request_id = request_id
         super().__init__(message)
 
 
 class RuntimeTimeoutError(Exception):
-    """LLM provider 超时。"""
+    """模型提供方超时。"""
     def __init__(self, message: str, request_id: str | None = None):
         self.request_id = request_id
         super().__init__(message)
