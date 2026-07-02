@@ -46,6 +46,15 @@ agent:
     read-timeout: 15s
     max-response-bytes: 65536
     shared-key: test-test-test-test-1234-shared-key
+  auth-service:
+    base-url: http://auth-service
+    resolve-path: /internal/agent/permissions/resolve
+    connect-timeout: 500ms
+    read-timeout: 2s
+    agent-id: agent-default
+    profile-id: profile-v1
+    scope-type: CONVERSATION
+    scope-id: agent-permission-authority
   conversation:
     recent-turn-limit: 6
     retention-days: 7
@@ -63,3 +72,8 @@ agent:
     max-group-fields: 2
     default-max-rows: 20
     max-max-rows: 100
+
+common:
+  security:
+    service-token:
+      scopes: [agent.permission.resolve]

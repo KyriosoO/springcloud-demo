@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import com.dylan.agent.api.request.PlanGenerateRequest;
 import com.dylan.agent.api.response.PlanGenerateResponse;
@@ -30,7 +31,10 @@ public class AgentRuntimeClient {
     private final ObjectMapper objectMapper;
     private final AgentProperties properties;
 
-    public AgentRuntimeClient(RestClient agentRuntimeRestClient, ObjectMapper objectMapper, AgentProperties properties) {
+    public AgentRuntimeClient(
+            @Qualifier("agentRuntimeRestClient") RestClient agentRuntimeRestClient,
+            ObjectMapper objectMapper,
+            AgentProperties properties) {
         this.restClient = agentRuntimeRestClient;
         this.objectMapper = objectMapper;
         this.properties = properties;

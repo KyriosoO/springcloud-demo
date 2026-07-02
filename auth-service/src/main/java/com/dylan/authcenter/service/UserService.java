@@ -1,8 +1,10 @@
 package com.dylan.authcenter.service;
 
 import java.util.Arrays;
+import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,6 +32,14 @@ public class UserService implements UserDetailsService {
 		}else {
 			throw new UsernameNotFoundException("User not found");
 		}
+	}
+
+	public Set<String> rolesOf(String userId) {
+		String[] roles = userMap.get(userId);
+		if (roles == null) {
+			throw new UsernameNotFoundException("User not found");
+		}
+		return Arrays.stream(roles).collect(Collectors.toUnmodifiableSet());
 	}
 
 	public String getCurrentUserId() {

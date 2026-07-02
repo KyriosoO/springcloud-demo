@@ -65,6 +65,15 @@ agent:
     read-timeout: 45s
     max-response-bytes: 65536
     shared-key: replace-with-at-least-16-characters
+  auth-service:
+    base-url: http://auth-service
+    resolve-path: /internal/agent/permissions/resolve
+    connect-timeout: 2s
+    read-timeout: 2s
+    agent-id: agent-default
+    profile-id: profile-v1
+    scope-type: CONVERSATION
+    scope-id: agent-permission-authority
   conversation:
     recent-turn-limit: 6
     retention-days: 7
@@ -220,3 +229,8 @@ agent:
         port-bean-name: transactionAgentAdapter
         catalog-version: catalog-2026-07-02
         registration-version: adapter-reg-2026-07-02
+
+common:
+  security:
+    service-token:
+      scopes: [agent.permission.resolve]

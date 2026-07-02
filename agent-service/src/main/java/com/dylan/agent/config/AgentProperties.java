@@ -18,6 +18,7 @@ public class AgentProperties {
 
     private Map<AgentIntent, Set<String>> intentRoles;
     private RuntimeProperties runtime;
+    private AuthServiceProperties authService = new AuthServiceProperties();
     private ConversationProperties conversation;
     private QueryProperties query;
     private AggregateProperties aggregate;
@@ -36,6 +37,14 @@ public class AgentProperties {
 
     public void setRuntime(RuntimeProperties runtime) {
         this.runtime = runtime;
+    }
+
+    public AuthServiceProperties getAuthService() {
+        return authService;
+    }
+
+    public void setAuthService(AuthServiceProperties authService) {
+        this.authService = authService == null ? new AuthServiceProperties() : authService;
     }
 
     public ConversationProperties getConversation() {
@@ -80,6 +89,35 @@ public class AgentProperties {
         public void setMaxResponseBytes(int maxResponseBytes) { this.maxResponseBytes = maxResponseBytes; }
         public String getSharedKey() { return sharedKey; }
         public void setSharedKey(String sharedKey) { this.sharedKey = sharedKey; }
+    }
+
+    /** auth-service 内部权限投影接口配置 */
+    public static class AuthServiceProperties {
+        private String baseUrl = "http://auth-service";
+        private String resolvePath = "/internal/agent/permissions/resolve";
+        private Duration connectTimeout = Duration.ofSeconds(2);
+        private Duration readTimeout = Duration.ofSeconds(2);
+        private String agentId = "agent-default";
+        private String profileId = "profile-v1";
+        private String scopeType = "CONVERSATION";
+        private String scopeId = "agent-permission-authority";
+
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public String getResolvePath() { return resolvePath; }
+        public void setResolvePath(String resolvePath) { this.resolvePath = resolvePath; }
+        public Duration getConnectTimeout() { return connectTimeout; }
+        public void setConnectTimeout(Duration connectTimeout) { this.connectTimeout = connectTimeout; }
+        public Duration getReadTimeout() { return readTimeout; }
+        public void setReadTimeout(Duration readTimeout) { this.readTimeout = readTimeout; }
+        public String getAgentId() { return agentId; }
+        public void setAgentId(String agentId) { this.agentId = agentId; }
+        public String getProfileId() { return profileId; }
+        public void setProfileId(String profileId) { this.profileId = profileId; }
+        public String getScopeType() { return scopeType; }
+        public void setScopeType(String scopeType) { this.scopeType = scopeType; }
+        public String getScopeId() { return scopeId; }
+        public void setScopeId(String scopeId) { this.scopeId = scopeId; }
     }
 
     /** Conversation 配置 */

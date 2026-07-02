@@ -6,14 +6,19 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 /**
  * 用户权限边界装配门禁。
  *
  * <p>该类先作为可测试工厂存在；生产 Adapter 接入时由 D03/D04 组合根激活为
  * Spring bean，仍必须复用这里的“恰好一个 SPI”规则。</p>
  */
-public final class AuthorizationSecurityConfiguration {
+@Configuration(proxyBeanMethods = false)
+public class AuthorizationSecurityConfiguration {
 
+    @Bean
     public UserPermissionBoundary userPermissionBoundary(
             List<UserPermissionAuthorityPort> ports,
             Clock clock) {
