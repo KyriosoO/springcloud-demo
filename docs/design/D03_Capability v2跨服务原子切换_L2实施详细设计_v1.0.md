@@ -4,8 +4,9 @@
 > 编写日期：2026-07-02
 > 输入基线：`76400d6 Update legacy runtime contract model`
 > 前置交付：D01 已完成；D02_00/D02_01/D02_02/D02_03 已完成设计与编码基线；D04 已实施并通过退出门禁
-> 上位依据：`Agent目标架构总览_v1.0.md`、`Agent目标架构与演进设计_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`
-> 关联 L2：`D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`、`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`、`D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md`
+> 上位依据：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`
+> 参考材料：`Agent目标架构与演进设计_v1.0.md`（拆分源材料，非权威，仅作审计素材）
+> 关联 L2：`D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`、`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`、`D03_01_UserPermissionAuthority权限权威源契约说明_L2_v1.0.md`、`D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md`
 > 后置交付：D05 Capability 扩展验证与遗留清理；D06 Multi-Agent 详细设计必须等待 D05 完成
 
 ---
@@ -18,6 +19,7 @@
 | 2026-07-02 | 同步 D03 代码评审通过状态，明确权限权威源门禁已关闭，发布前仍需环境级成功链路验证 | auth-service 权限投影 API、agent-service 权限 Adapter、D03 静态门禁和相关测试已通过；三服务真实成功链路、浏览器成功结果渲染和下游真实调用属于发布前环境验证 |
 | 2026-07-02 | 修订 D03 边界：AuthorizationSnapshot 必须冻结 ExecutionBudget，Execution recheck 只复核当前权限覆盖，checkpoint JSON 使用专用审计 DTO，本地完整联调需要 Eureka | 三系统联动暴露 `maxResultRows=0` 与 checkpoint 序列化隐患；本次修订将设计边界显式化，避免代码靠临时补丁跑通 |
 | 2026-07-02 | 恢复 D03 代码评审通过状态，补充本地 API/UI E2E 验证结论 | D03 单测、静态删除门禁、auth-service 权限投影门禁、employee/transaction API smoke 和浏览器 UI smoke 已通过；发布前仍需执行目标环境迁移与回归 |
+| 2026-07-02 | 冻结前最终评审对齐权威文档层级、D03_01 权限契约关联、权限源状态和章节编号 | `Agent目标架构与演进设计` 仅为非权威审计素材，D03 权限协议以 D03_01 为唯一关联契约，避免主文档继续保留过期前置描述 |
 
 ---
 
@@ -117,7 +119,7 @@ D03 不做以下事情：
 - 不新增 v1/v2 兼容层、feature flag、converter、facade、双 endpoint、双 Python model 或双 CI 真相。
 - 不让 Runtime 执行权限判断、业务调用、Context 持久化、Result 过滤或最终问题渲染。
 - 不让 Handler 做授权决策、Invocation/Context 持久化、adapter 二次路由或返回新 capabilityId/planKind。
-- 不在 D03 内设计外部权限系统协议；D03 只消费已评审的 `UserPermissionAuthorityPort` 生产实现。若外部协议缺失，D03 编码不得开始。
+- 不在 D03 主文档内重新设计外部权限系统协议；`auth-service` 内部权限投影接口和 `agent-service` Adapter 消费契约以 D03_01 为准。D03 只消费已评审的 `UserPermissionAuthorityPort` 生产实现，协议缺失或门禁失败时不得编码、冻结或发布。
 
 ---
 
@@ -136,6 +138,7 @@ D03 不做以下事情：
 | D02_01 | 接入 Capability Registration、ExecutionCore、Validator、Handler | 第 5、7、8 节 |
 | D02_02 | 接入 Lifecycle、Invocation Record、Turn/Result finalization、recovery | 第 5、6、7、8 节 |
 | D02_03 | 接入 Authorization、Context、Result Security、UserPermission SPI | 第 5、6、7、12 节 |
+| D03_01 | `auth-service` 内部权限投影 API 与 `agent-service` Adapter 消费契约，fail closed、无 JWT role 兜底 | 第 6.5、10、12 节 |
 | D04 | 使用唯一 Domain metadata 和 AdapterRegistration，不恢复旧 metadata 来源 | 第 5、6、9、11 节 |
 
 ---
@@ -520,11 +523,11 @@ UserPermission resolveCurrent(
         Instant absoluteDeadline) throws UserPermissionAuthorityException;
 ```
 
-当前 `auth-service` 只提供登录和 JWT role，不提供字段级、domain 级、capability 级的权限权威 API。因此：
+D03_01 已评审 `auth-service` 内部权限投影 API 和 `agent-service` Adapter 消费契约。D03 主文档不重复定义协议字段，避免形成第二契约源。因此：
 
 - D03 文档不把 JWT role、本地 `agent.intent-roles` 或测试替身定义为生产权限源。
-- D03 编码前必须由权限权威系统提供已评审的外部协议或本仓库内已评审的生产实现。
-- 若需要新增 `auth-service` API，必须由对应服务所有者确认契约后再实施；D03 只在 Agent 侧实现 Adapter 和 contract tests。
+- `auth-service` API、服务 token 门禁、`AuthServiceUserPermissionAuthorityAdapter` 和 Adapter contract tests 缺失或失败时，D03 不得冻结或发布。
+- 任何新增权限字段、鉴权方式或版本语义必须先修订 D03_01 或其上位 D02_03；若需要修改上位或关联文档，必须先暂停并取得授权。
 - 权威源失败、超时、主体不匹配、版本缺失或字段闭合失败一律 fail closed。
 
 ---
@@ -892,7 +895,7 @@ rg -n 'switch\s*\([^)]*(capabilityId|domain)|if\s*\([^)]*(capabilityId|domain)[^
 
 该门禁不禁止通用契约校验、授权集合校验、metadata 完整性校验、evidence 一致性校验或 value object 构造约束中的 `capabilityId`/`domain` 使用；这些校验是 fail closed 边界的一部分。禁止项是根据具体 capabilityId/domain 字面量决定 handler、adapter、planner、runtime schema 或执行路径。
 
-### 11.5 退出条件
+### 11.6 退出条件
 
 1. Java、Python、contract、integration、static gates 全部通过。
 2. GitHub Actions active Agent Contract CI 只保留目标 Route/Plan contract gate。
