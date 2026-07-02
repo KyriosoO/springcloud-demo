@@ -1,7 +1,10 @@
 # D04 Agent Adapter 与 Domain Metadata 收敛 — L2 v1.0
 
-> 文档状态：已起草并完成本轮自审
+> 文档状态：已实施并通过退出门禁
 > 编写日期：2026-07-02
+> 状态更新：2026-07-02
+> 实施提交：`f594ad7 Implement D04 domain metadata convergence`
+> 当前基线：`76400d6 Update legacy runtime contract model`
 > 上位依据：`Agent目标架构总览_v1.0.md`、`Agent目标架构与演进设计_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`
 > 关联 L2：`D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`、`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`
 > 后置交付：D03 Capability v2 纵向原子切换
@@ -12,7 +15,8 @@
 
 | 日期 | 内容 | 原因 |
 |---|---|---|
-| 2026-07-02 | 新增 D04 L2 草案，冻结 Canonical Domain Field Catalog、Adapter Role/Registration、`DomainMetadataPort` 实现、旧 metadata 双来源删除台账与门禁 | D03 前必须先提供唯一 Domain 执行事实来源；当前仓库尚无独立 D04 L2 |
+| 2026-07-02 | 起草 D04 L2，冻结 Canonical Domain Field Catalog、Adapter Role/Registration、`DomainMetadataPort` 实现、旧 metadata 双来源删除台账与门禁 | D03 前必须先提供唯一 Domain 执行事实来源 |
+| 2026-07-02 | 更新 D04 实施状态、替换台账、门禁结果与实施后复核结论 | D04 已完成编码、审计、提交和推送；文档需与当前实现基线对齐 |
 
 ---
 
@@ -58,9 +62,9 @@ D04 不做以下事情：
 
 ---
 
-## 3. 当前问题与收敛原则
+## 3. 实施前问题与收敛原则
 
-当前代码中 Domain 执行事实分散在多个来源：
+D04 实施前，代码中 Domain 执行事实分散在多个来源：
 
 - `agent-service/src/main/resources/application.yml` 的 `agent.domains.*` 保存字段、类型、operator、alias、角色和 mask。
 - `EmployeeFieldCatalog`、`TransactionFieldCatalog` 保存 Adapter 自报字段清单。
@@ -124,7 +128,7 @@ agent:
     registrations: []
 ```
 
-禁止复用或扩展旧 `agent.domains`。D03/D04 删除旧 `agent.domains` 中的 canonical 字段、类型、operator、alias 事实；访问、mask 等安全限制迁入 D02_03 的 `agent.metadata.domain-security`。
+禁止复用或扩展旧 `agent.domains`。D04 已删除旧 `agent.domains` 中的 canonical 字段、类型、operator、alias 事实；访问、mask 等安全限制迁入 D02_03 的 `agent.metadata.domain-security`。D03 不得重新引入第二 metadata 事实源。
 
 ### 5.2 Domain 定义
 
@@ -380,24 +384,24 @@ D04 首版使用启动期不可变 bundle，不实现动态 reload。未来若�
 
 ---
 
-## 10. 当前代码替换台账
+## 10. D04 替换台账与实施结果
 
-| 当前路径 | D04 目标动作 | 原因 |
-|---|---|---|
-| `agent-adapter-api/.../AgentAdapterPort.java` | KEEP，由 D04 拥有 | 稳定 marker |
-| `agent-adapter-api/.../AdapterRole.java` | KEEP，由 D04 拥有 | 稳定 role 值对象 |
-| `agent-adapter-api/.../QueryableAdapter.java` | MODIFY，删除 domain/supportedFields | Adapter 不再自报 metadata |
-| `agent-adapter-api/.../AggregatableAdapter.java` | MODIFY，删除 domain/supportedAggregateFields/supportedFunctions | Adapter 不再自报 metadata |
-| `agent-service/.../adapter/QueryableAdapterRegistry.java` | DELETE | AdapterRegistrationSet 替代 |
-| `agent-service/.../adapter/AggregatableAdapterRegistry.java` | DELETE | AdapterRegistrationSet 替代 |
-| `agent-service/.../planning/RuntimeDomainSchemaFactory.java` | DELETE | `DomainMetadataPort.planSchema` 替代 |
-| `agent-service/.../config/AgentProperties.java` | MODIFY，删除 `domains` 中 canonical metadata；运行参数保留 | 防止 YAML 第二事实源 |
-| `agent-service/.../config/AgentPropertiesValidator.java` | MODIFY，不再校验 domain metadata；只校验旧运行参数 | metadata 校验交给 D04 validator |
-| `agent-service/src/main/resources/application.yml` | MODIFY，删除 `agent.domains`，新增 `agent.domain-metadata` | 唯一配置来源 |
-| `agent-adapter-employee/.../EmployeeFieldCatalog.java` | DELETE 或降级为 mapper 私有测试 fixture，不能被生产 metadata 读取 | 删除 field 常量事实副本 |
-| `agent-adapter-transaction/.../TransactionFieldCatalog.java` | DELETE 或降级为 mapper 私有测试 fixture，不能被生产 metadata 读取 | 删除 field 常量事实副本 |
-| `EmployeeAgentAdapter`、`TransactionAgentAdapter` | MODIFY，移除自报方法，只保留 typed execution | Adapter 执行职责收敛 |
-| `CapabilityDescriptorFactory` 当前旧链消费者 | D04 不改变其路由/编排职责；若删除旧 Registry 或旧 schema factory 导致该 D03-owned 旧链无法编译，必须暂停并确认是否把对应重连移入 D03 原子切换 | D02_00 将旧 capability 切换归 D03，D04 不扩大到 Planning/旧编排 |
+| 当前路径 | D04 目标动作 | 实施结果 | 原因 |
+|---|---|---|---|
+| `agent-adapter-api/.../AgentAdapterPort.java` | KEEP，由 D04 拥有 | 已保留 | 稳定 marker |
+| `agent-adapter-api/.../AdapterRole.java` | KEEP，由 D04 拥有 | 已保留 | 稳定 role 值对象 |
+| `agent-adapter-api/.../QueryableAdapter.java` | MODIFY，删除 domain/supportedFields | 已完成 | Adapter 不再自报 metadata |
+| `agent-adapter-api/.../AggregatableAdapter.java` | MODIFY，删除 domain/supportedAggregateFields/supportedFunctions | 已完成 | Adapter 不再自报 metadata |
+| `agent-service/.../adapter/QueryableAdapterRegistry.java` | DELETE | 已删除 | AdapterRegistrationSet 替代 |
+| `agent-service/.../adapter/AggregatableAdapterRegistry.java` | DELETE | 已删除 | AdapterRegistrationSet 替代 |
+| `agent-service/.../planning/RuntimeDomainSchemaFactory.java` | DELETE | 已删除 | `DomainMetadataPort.planSchema` 替代 |
+| `agent-service/.../config/AgentProperties.java` | MODIFY，删除 `domains` 中 canonical metadata；运行参数保留 | 已完成 | 防止 YAML 第二事实源 |
+| `agent-service/.../config/AgentPropertiesValidator.java` | MODIFY，不再校验 domain metadata；只校验旧运行参数 | 已完成 | metadata 校验交给 D04 validator |
+| `agent-service/src/main/resources/application.yml` | MODIFY，删除 `agent.domains`，新增 `agent.domain-metadata` | 已完成 | 唯一配置来源 |
+| `agent-adapter-employee/.../EmployeeFieldCatalog.java` | DELETE 或降级为 mapper 私有测试 fixture，不能被生产 metadata 读取 | 已退出生产 metadata 路径，并由 coverage test 校验 | 删除 field 常量事实副本 |
+| `agent-adapter-transaction/.../TransactionFieldCatalog.java` | DELETE 或降级为 mapper 私有测试 fixture，不能被生产 metadata 读取 | 已退出生产 metadata 路径，并由 coverage test 校验 | 删除 field 常量事实副本 |
+| `EmployeeAgentAdapter`、`TransactionAgentAdapter` | MODIFY，移除自报方法，只保留 typed execution | 已完成 | Adapter 执行职责收敛 |
+| `CapabilityDescriptorFactory` 当前旧链消费者 | D04 不改变其路由/编排职责；若删除旧 Registry 或旧 schema factory 导致该 D03-owned 旧链无法编译，必须暂停并确认是否把对应重连移入 D03 原子切换 | 未纳入 D04 扩大范围；D03 仍负责 Capability v2 原子切换 | D02_00 将旧 capability 切换归 D03，D04 不扩大到 Planning/旧编排 |
 
 过渡期说明：D04 只提供 `DomainMetadataPort` 与 Adapter Registration 基线，不新增旧链适配层。旧链消费者不得继续读取旧配置形成第二事实源；如果当前代码无法在不修改 D03-owned 旧链的情况下删除旧 Registry/`RuntimeDomainSchemaFactory`，D04 实施必须暂停，并由用户确认是否调整 D04/D03 切分。D04 不得新增 Runtime endpoint、Python model 或协议转换层。
 
@@ -592,11 +596,65 @@ D04 完成必须同时满足：
 9. D01 drift/Python contract 测试无变化或通过。
 10. D03 未开始 Runtime/API/UI/旧 intent 原子切换。
 
+### 15.6 实际门禁执行结果
+
+截至当前基线 `76400d6`，D04 已完成实现并通过退出门禁。
+
+Java 验证：
+
+```powershell
+cd D:\codex\serviceCenter
+.\mvnw.cmd -pl ../agent-service -am test --batch-mode
+```
+
+结果：
+
+- 344 tests passed。
+- 无失败。
+- 存在 Mockito / ByteBuddy 动态 agent 未来 JDK warning，不影响当前结果。
+
+Python Runtime 验证：
+
+```powershell
+cd D:\codex\agent-runtime
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+结果：
+
+- 142 passed。
+- 2 warnings：
+  - LangChainPendingDeprecationWarning。
+  - StarletteDeprecationWarning。
+
+D01/D04 contract gate：
+
+- legacy contract drift：通过。
+- target contract drift：通过。
+- `tests/test_contracts.py`：21 passed。
+- `tests/test_planning.py`：48 passed。
+- `tests/test_prompt_contract.py`：14 passed。
+- `tests/target_contract`：27 passed。
+- GitHub Actions `Agent Contract CI` 已通过：
+  - Java Contract Checks：success。
+  - Python Contract Checks：success。
+
+D04 专项测试已纳入 `agent-service` 测试集：
+
+- `DomainMetadataArchitectureTest`
+- `DomainMetadataPropertiesValidatorTest`
+- `DomainMetadataPortImplTest`
+- `AdapterRegistrationSetTest`
+- `DomainAvailabilitySnapshotTest`
+- `DomainMetadataProjectionTest`
+- `EmployeeAdapterMetadataCoverageTest`
+- `TransactionAdapterMetadataCoverageTest`
+
 ---
 
 ## 16. 自审结论
 
-本轮按 L0、三份 L1、D01、D02_00、D02_01、D02_03 逐项复核：
+设计阶段按 L0、三份 L1、D01、D02_00、D02_01、D02_03 逐项复核：
 
 - D04 只定义 Canonical Domain Field Catalog、Adapter Role/Registration、`DomainMetadataPort` 实现和旧 metadata 双来源删除。
 - 未定义 Runtime DTO、Python model、Planning/Core/Lifecycle/Context 状态机。
@@ -604,4 +662,15 @@ D04 完成必须同时满足：
 - 未把 UserPermission 生产 Adapter 纳入 D04 范围。
 - 已明确 D03 前置、D04 退出门禁和需要暂停确认的 D01/L1 变更条件。
 
-当前未发现与上位或关联文档冲突的设计项。
+实施后复核结论：
+
+- D04 已建立 `agent.domain-metadata` 作为 Domain metadata 唯一生产配置源。
+- `DomainMetadataPortImpl` 已成为 `DomainMetadataPort` 的生产实现，并输出 Route、Plan、Execution、Binding 所需请求级投影。
+- Adapter SPI 已移除 domain/field/operator/function 自报职责，Adapter 只保留 typed execution。
+- 旧 `QueryableAdapterRegistry`、`AggregatableAdapterRegistry`、`RuntimeDomainSchemaFactory` 已退出生产事实来源。
+- Adapter coverage tests 已覆盖 employee 与 transaction 两个现有 domain 的 mapper 支持面。
+- D04 未修改 D01 Runtime HTTP DTO、OpenAPI、Python generated model、Prompt、Runtime graph 或 endpoint。
+- D04 未开始 D03 Capability v2 纵向原子切换；D03 仍需先补充独立 L2 详细设计，再进行一次原子切换。
+- 外部 `UserPermissionAuthorityPort` 生产 Adapter 仍未实现，继续作为 D03 投产 / 原子切换完成前置。
+
+当前未发现与上位或关联文档冲突的实施项。
