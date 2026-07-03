@@ -1,6 +1,7 @@
 package com.dylan.agent.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.time.Clock;
 import java.time.ZoneOffset;
@@ -18,6 +19,12 @@ import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
+import com.dylan.agent.capability.query.QueryCapabilityConfiguration;
+import com.dylan.agent.capability.query.QueryCapabilityHandler;
+import com.dylan.agent.capability.query.QueryPlanValidator;
+import com.dylan.agent.capability.querypreview.QueryPreviewCapabilityConfiguration;
+import com.dylan.agent.capability.querypreview.QueryPreviewCapabilityHandler;
+import com.dylan.agent.capability.querypreview.QueryPreviewPlanValidator;
 import com.dylan.agent.kernel.definition.CapabilityDefinition;
 import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
 import com.dylan.agent.kernel.definition.ContextAccessDeclaration;
@@ -50,13 +57,42 @@ class CapabilityCatalogTest {
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
-        var snapshot = catalog.available(evidence());
+        var snapshot = catalog.available(evidence(Set.of("query.search"), Set.of("employee")));
 
         assertThat(snapshot.capabilityIds()).containsExactly("query.search");
         assertThat(snapshot.getRequired("query.search").allowedDomains()).containsExactly("employee");
     }
 
-    private PlanningAuthorizationEvidence evidence() {
+    @Test
+    void queryPreviewBecomesAvailableThroughProfilePolicyPermissionAndQueryableDomain() {
+        CapabilityCatalog catalog = new CapabilityCatalog(
+                registry(actualRegistrations()),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var snapshot = catalog.available(evidence(Set.of("query.preview"), Set.of("employee")));
+
+        assertThat(snapshot.capabilityIds()).containsExactly("query.preview");
+        assertThat(snapshot.getRequired("query.preview").planKind()).isEqualTo(AgentPlanKind.QUERY);
+        assertThat(snapshot.getRequired("query.preview").allowedDomains()).containsExactly("employee");
+    }
+
+    @Test
+    void queryPreviewExposesAllAuthorizedQueryableDomains() {
+        CapabilityCatalog catalog = new CapabilityCatalog(
+                registry(actualRegistrations()),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var snapshot = catalog.available(evidence(
+                Set.of("query.preview"),
+                Set.of("employee", "transaction")));
+
+        assertThat(snapshot.getRequired("query.preview").allowedDomains())
+                .containsExactlyInAnyOrder("employee", "transaction");
+    }
+
+    private PlanningAuthorizationEvidence evidence(Set<String> allowedCapabilityIds, Set<String> allowedDomains) {
         var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
         var profile = bundle.requireProfile(new AgentProfileVersionKey("agent-default", "profile-v1"));
         return new PlanningAuthorizationEvidence(
@@ -64,13 +100,33 @@ class CapabilityCatalogTest {
                 "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
                 new EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
                 new PlanningEffectiveScope(
-                        Set.of("query.search"), Set.of("employee"), Map.of(),
+                        allowedCapabilityIds, allowedDomains, Map.of(),
                         Set.of(), Set.of(), AgentCapabilityRiskLevel.READ_ONLY,
                         AgentCapabilityExecutionMode.IMMEDIATE,
                         java.time.Duration.ofSeconds(30), 1, 100, 100, 10_000),
                 new DomainMetadataEvidence("catalog-test", "adapter-reg-test", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW,
                 MetadataTestSupport.NOW.plusSeconds(60));
+    }
+
+    private CapabilityRegistry registry(List<CapabilityRegistration<?, ?, ?>> registrations) {
+        return new CapabilityRegistry(
+                registrations,
+                new CapabilityRegistrationValidator(),
+                ContractRegistry.from(registrations),
+                Set.of(AdapterRole.QUERYABLE));
+    }
+
+    private List<CapabilityRegistration<?, ?, ?>> actualRegistrations() {
+        QueryCapabilityConfiguration queryConfig = new QueryCapabilityConfiguration();
+        QueryPreviewCapabilityConfiguration previewConfig = new QueryPreviewCapabilityConfiguration();
+        return List.of(
+                queryConfig.querySearchRegistration(
+                        mock(QueryPlanValidator.class),
+                        mock(QueryCapabilityHandler.class)),
+                previewConfig.queryPreviewRegistration(
+                        mock(QueryPreviewPlanValidator.class),
+                        mock(QueryPreviewCapabilityHandler.class)));
     }
 
     private CapabilityRegistration<QueryAgentPlan, DummyValidatedPlan, QueryAgentResultPayload> registration() {

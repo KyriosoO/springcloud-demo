@@ -22,6 +22,7 @@ import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
 import com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator;
 import com.dylan.agent.metadata.result.AggregateResultSecurityProjector;
+import com.dylan.agent.metadata.result.QueryPreviewResultSecurityProjector;
 import com.dylan.agent.metadata.result.QueryResultSecurityProjector;
 import com.dylan.agent.metadata.result.ResultSecurityBoundary;
 import com.dylan.agent.metadata.result.ResultSecurityProjector;
@@ -88,6 +89,11 @@ public class AgentMetadataSecurityConfiguration {
     @Bean
     QueryResultSecurityProjector queryResultSecurityProjector() {
         return new QueryResultSecurityProjector();
+    }
+
+    @Bean
+    QueryPreviewResultSecurityProjector queryPreviewResultSecurityProjector() {
+        return new QueryPreviewResultSecurityProjector();
     }
 
     @Bean

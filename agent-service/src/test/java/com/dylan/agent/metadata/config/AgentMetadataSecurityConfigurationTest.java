@@ -14,6 +14,9 @@ import com.dylan.agent.lifecycle.CheckpointTxService;
 import com.dylan.agent.lifecycle.StartTxService;
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
+import com.dylan.agent.capability.querypreview.QueryPreviewCapabilityConfiguration;
+import com.dylan.agent.capability.querypreview.QueryPreviewCapabilityHandler;
+import com.dylan.agent.capability.querypreview.QueryPreviewPlanValidator;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationSecurityConfiguration;
 import com.dylan.agent.metadata.authorization.port.AuthorizationPlanningPort;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
@@ -26,6 +29,7 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
 import com.dylan.agent.metadata.result.ResultSecurityProjectorRegistry;
+import com.dylan.agent.metadata.result.QueryPreviewResultSecurityProjector;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import com.dylan.agent.testsupport.KernelTestSupport;
 import org.junit.jupiter.api.Test;
@@ -62,8 +66,14 @@ class AgentMetadataSecurityConfigurationTest {
                     () -> (subject, deadline) -> com.dylan.agent.metadata.MetadataTestSupport.permission(subject))
             .withBean(ContextRepository.class, NoopContextRepository::new)
             .withBean(CapabilityRegistrationValidator.class, CapabilityRegistrationValidator::new)
-            .withBean(com.dylan.agent.kernel.registration.CapabilityRegistration.class,
+            .withBean("querySearchRegistration",
+                    com.dylan.agent.kernel.registration.CapabilityRegistration.class,
                     () -> KernelTestSupport.resolvedQueryRegistration().registration())
+            .withBean("queryPreviewRegistration",
+                    com.dylan.agent.kernel.registration.CapabilityRegistration.class,
+                    () -> new QueryPreviewCapabilityConfiguration().queryPreviewRegistration(
+                            org.mockito.Mockito.mock(QueryPreviewPlanValidator.class),
+                            org.mockito.Mockito.mock(QueryPreviewCapabilityHandler.class)))
             .withBean(StartTxService.class, () -> org.mockito.Mockito.mock(StartTxService.class))
             .withBean(CheckpointTxService.class, () -> org.mockito.Mockito.mock(CheckpointTxService.class))
             .withBean(FinalizationTxService.class, () -> org.mockito.Mockito.mock(FinalizationTxService.class));
@@ -78,6 +88,7 @@ class AgentMetadataSecurityConfigurationTest {
             assertThat(context).hasSingleBean(AgentPolicyConfiguration.class);
             assertThat(context).hasSingleBean(PayloadJsonCodec.class);
             assertThat(context).hasSingleBean(ResultSecurityProjectorRegistry.class);
+            assertThat(context).hasSingleBean(QueryPreviewResultSecurityProjector.class);
             assertThat(context).hasSingleBean(ResultSecurityPort.class);
             assertThat(context).hasSingleBean(DomainMetadataPort.class);
             assertThat(context).hasSingleBean(DomainExecutionPort.class);

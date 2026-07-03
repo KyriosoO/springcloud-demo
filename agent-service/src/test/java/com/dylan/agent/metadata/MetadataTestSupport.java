@@ -32,14 +32,32 @@ public final class MetadataTestSupport {
     }
 
     public static AgentMetadataBundle bundle(String version, String digest) {
+        return bundle(version, digest, Set.of("query.search"), Set.of("employee"), Set.of(RuntimeContextType.QUERY));
+    }
+
+    public static AgentMetadataBundle bundleWithQueryPreview(String version, String digest) {
+        return bundle(
+                version,
+                digest,
+                Set.of("query.search", "query.preview", "aggregate.compute"),
+                Set.of("employee", "transaction"),
+                Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE));
+    }
+
+    private static AgentMetadataBundle bundle(
+            String version,
+            String digest,
+            Set<String> allowedCapabilityIds,
+            Set<String> allowedDomains,
+            Set<RuntimeContextType> contextTypes) {
         AgentProfileVersionKey profileKey = new AgentProfileVersionKey("agent-default", "profile-v1");
         ProfileBehaviorAssetRef assetRef = new ProfileBehaviorAssetRef("asset-default", "asset-v1");
         AgentProfileDefinition profile = new AgentProfileDefinition(
                 profileKey,
                 assetRef,
-                Set.of("query.search"),
-                Set.of(RuntimeContextType.QUERY),
-                Set.of(RuntimeContextType.QUERY),
+                allowedCapabilityIds,
+                contextTypes,
+                contextTypes,
                 AgentCapabilityRiskLevel.READ_ONLY,
                 AgentCapabilityExecutionMode.IMMEDIATE,
                 Duration.ofSeconds(30),
@@ -51,7 +69,7 @@ public final class MetadataTestSupport {
                 assetRef,
                 java.util.List.of("只回答授权范围内的问题"),
                 Optional.of(Locale.SIMPLIFIED_CHINESE));
-        AgentPolicySnapshot policy = policy();
+        AgentPolicySnapshot policy = policy(allowedCapabilityIds, allowedDomains, contextTypes);
         return new AgentMetadataBundle(
                 version,
                 digest,
@@ -65,19 +83,32 @@ public final class MetadataTestSupport {
     }
 
     public static AgentPolicySnapshot policy() {
+        return policy(Set.of("query.search"), Set.of("employee"), Set.of(RuntimeContextType.QUERY));
+    }
+
+    private static AgentPolicySnapshot policy(
+            Set<String> allowedCapabilityIds,
+            Set<String> allowedDomains,
+            Set<RuntimeContextType> contextTypes) {
         return new AgentPolicySnapshot(
                 "policy-v1",
                 Map.of("agent-default", new ProfileConstraints(
                         true,
-                        Set.of("query.search"),
-                        Set.of(RuntimeContextType.QUERY),
-                        Set.of(RuntimeContextType.QUERY),
+                        allowedCapabilityIds,
+                        contextTypes,
+                        contextTypes,
                         Optional.of(AgentCapabilityRiskLevel.READ_ONLY),
                         Optional.of(AgentCapabilityExecutionMode.IMMEDIATE),
                         Optional.of(new BudgetLimits(Duration.ofSeconds(30), 1, 100, 100, 10_000)),
                         Optional.empty())),
-                Map.of("query.search", new CapabilityConstraints(true, Optional.empty())),
-                Map.of("employee", new DomainSecurityConstraints(Map.of())),
+                allowedCapabilityIds.stream()
+                        .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                                capabilityId -> capabilityId,
+                                capabilityId -> new CapabilityConstraints(true, Optional.empty()))),
+                allowedDomains.stream()
+                        .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                                domain -> domain,
+                                domain -> new DomainSecurityConstraints(Map.of()))),
                 new BudgetLimits(Duration.ofSeconds(30), 1, 100, 100, 10_000),
                 Duration.ofHours(1),
                 Set.of());
@@ -96,6 +127,34 @@ public final class MetadataTestSupport {
                 Map.of(),
                 Set.of("QUERY"),
                 Set.of("QUERY"),
+                Map.of(),
+                NOW);
+    }
+
+    public static UserPermission permissionWithQueryPreview(ExecutionSubjectRef subject) {
+        return new UserPermission(
+                subject,
+                "perm-evidence-preview",
+                "perm-v1",
+                Set.of("query.search", "query.preview", "aggregate.compute"),
+                Set.of("employee", "transaction"),
+                Map.of(
+                        "employee", Set.of("chineseName", "memberNo"),
+                        "transaction", Set.of("transId", "amount")),
+                Map.of(
+                        "employee", Set.of("chineseName", "memberNo"),
+                        "transaction", Set.of("transId", "amount")),
+                Map.of(
+                        "employee.chineseName", Set.of(com.dylan.agent.api.enums.AgentOperator.EQ),
+                        "employee.memberNo", Set.of(com.dylan.agent.api.enums.AgentOperator.EQ),
+                        "transaction.transId", Set.of(com.dylan.agent.api.enums.AgentOperator.EQ),
+                        "transaction.amount", Set.of(
+                                com.dylan.agent.api.enums.AgentOperator.EQ,
+                                com.dylan.agent.api.enums.AgentOperator.GT,
+                                com.dylan.agent.api.enums.AgentOperator.LT)),
+                Map.of("transaction.amount", Set.of("sum")),
+                Set.of("QUERY", "AGGREGATE"),
+                Set.of("QUERY", "AGGREGATE"),
                 Map.of(),
                 NOW);
     }

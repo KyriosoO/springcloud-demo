@@ -13,6 +13,8 @@ public final class AgentExecutionContracts {
             new ContractRef("AggregateAgentPlan", AgentRuntimeContract.VERSION);
     public static final ContractRef QUERY_RESULT =
             new ContractRef("QueryAgentResultPayload", "1.0.0");
+    public static final ContractRef QUERY_PREVIEW_RESULT =
+            new ContractRef("QueryPreviewResultPayload", "1.0.0");
     public static final ContractRef AGGREGATE_RESULT =
             new ContractRef("AggregateAgentResultPayload", "1.0.0");
     public static final ContractRef QUERY_CONTEXT =

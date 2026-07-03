@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * 上增加并列字段。
  */
 public sealed interface AgentResultPayload
-        permits QueryAgentResultPayload, AggregateAgentResultPayload {
+        permits QueryAgentResultPayload, QueryPreviewResultPayload, AggregateAgentResultPayload {
 
     @JsonProperty(value = "resultKind", access = JsonProperty.Access.READ_ONLY)
     AgentResultKind getResultKind();

@@ -29,7 +29,11 @@ class AgentMetadataProductionBootstrapTest {
         assertThat(policyConfiguration.current().domainSecurityConstraints().keySet())
                 .containsExactlyInAnyOrder("employee", "transaction");
         assertThat(policyConfiguration.current().profileConstraints().get("agent-default").allowedCapabilityIds())
-                .isEqualTo(Set.of("query.search", "aggregate.compute"));
+                .isEqualTo(Set.of("query.search", "query.preview", "aggregate.compute"));
+        assertThat(profileRegistry.getRequired(profileRegistry.defaultRef()).allowedCapabilityIds())
+                .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute");
+        assertThat(policyConfiguration.current().capabilityConstraints())
+                .containsKeys("query.search", "query.preview", "aggregate.compute");
         assertThat(securitySettingsRegistry.current()).isSameAs(store.current().securitySettings());
         assertThat(securitySettingsRegistry.current().globalMaxContextTtl()).isEqualTo(Duration.ofDays(7));
         assertThat(store.current().bundleDigest()).isNotBlank();

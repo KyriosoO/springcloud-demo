@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,50 @@ class AuthorizationPlanningPortTest {
                 new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
                         new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
                                 java.util.Set.of("query.search"), java.util.Set.of("employee")))),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var evidence = port.capture(new PlanningSecurityRequest(handle(), handle().agentProfileRef(),
+                DelegationConstraintRef.CHAT_ALL));
+
+        assertThat(evidence.planningScope().allowedCapabilityIds()).containsExactly("query.search");
+        assertThat(evidence.planningScope().allowedDomains()).containsExactly("employee");
+    }
+
+    @Test
+    void planningScopeIncludesQueryPreviewOnlyWhenPermissionAllows() {
+        var port = new AuthorizationPlanningPortImpl(
+                new AgentMetadataStore(MetadataTestSupport.bundleWithQueryPreview("bundle-v1", "digest-v1")),
+                new EffectiveProfileCalculator(),
+                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permissionWithQueryPreview(subject),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
+                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
+                                Set.of("query.search", "query.preview", "aggregate.compute"),
+                                Set.of("employee", "transaction")))),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var evidence = port.capture(new PlanningSecurityRequest(handle(), handle().agentProfileRef(),
+                DelegationConstraintRef.CHAT_ALL));
+
+        assertThat(evidence.planningScope().allowedCapabilityIds())
+                .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute");
+        assertThat(evidence.planningScope().allowedDomains())
+                .containsExactlyInAnyOrder("employee", "transaction");
+    }
+
+    @Test
+    void planningScopeExcludesQueryPreviewWhenPermissionDoesNotAllowIt() {
+        var port = new AuthorizationPlanningPortImpl(
+                new AgentMetadataStore(MetadataTestSupport.bundleWithQueryPreview("bundle-v1", "digest-v1")),
+                new EffectiveProfileCalculator(),
+                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
+                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
+                                Set.of("query.search", "query.preview", "aggregate.compute"),
+                                Set.of("employee", "transaction")))),
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 

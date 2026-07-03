@@ -39,7 +39,7 @@ class AgentPermissionProjectionServiceTest {
         assertThat(response.evidenceId()).startsWith("perm-user-");
         assertThat(response.version()).isEqualTo(AgentPermissionProjectionService.RULE_VERSION);
         assertThat(response.allowedCapabilityIds())
-                .containsExactlyInAnyOrder("query.search", "aggregate.compute");
+                .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute");
         assertThat(response.allowedDomains()).containsExactlyInAnyOrder("employee", "transaction");
         assertThat(response.filterableFields().get("employee"))
                 .containsExactlyInAnyOrder("chineseName", "memberNo", "position",
@@ -78,12 +78,19 @@ class AgentPermissionProjectionServiceTest {
     void resolvesViewerToQueryOnlyProjection() {
         AgentPermissionResolveResponse response = service.resolve(request("viewer_t", Set.of(), Set.of()));
 
-        assertThat(response.allowedCapabilityIds()).containsExactly("query.search");
+        assertThat(response.allowedCapabilityIds()).containsExactlyInAnyOrder("query.search", "query.preview");
         assertThat(response.allowedDomains()).containsExactly("employee");
         assertThat(response.filterableFields().get("employee"))
                 .containsExactlyInAnyOrder("chineseName", "memberNo", "position");
         assertThat(response.allowedFunctions()).isEmpty();
         assertThat(response.attributes()).containsEntry("policyTier", "viewer");
+    }
+
+    @Test
+    void adminProjectionIncludesQueryPreview() {
+        AgentPermissionResolveResponse response = service.resolve(request("dylan", Set.of(), Set.of()));
+
+        assertThat(response.allowedCapabilityIds()).contains("query.preview");
     }
 
     @Test

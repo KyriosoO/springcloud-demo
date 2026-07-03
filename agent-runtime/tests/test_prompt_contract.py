@@ -120,3 +120,7 @@ class TestNoLegacyPromptContract:
             assert "requestId" in block
             assert "metadata" in block
             assert block["outcomeType"] in {"DECISION", "EXECUTABLE", "CLARIFICATION"}
+
+    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md"])
+    def test_prompt_does_not_pin_query_preview_as_static_route(self, filename: str):
+        assert "query.preview" not in _load_prompt(filename)

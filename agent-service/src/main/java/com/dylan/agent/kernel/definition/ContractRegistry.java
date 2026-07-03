@@ -8,6 +8,7 @@ import com.dylan.agent.api.contract.runtime.plan.AggregateAgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.api.response.AggregateAgentResultPayload;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
+import com.dylan.agent.api.response.QueryPreviewResultPayload;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 
 import java.util.Collection;
@@ -31,6 +32,7 @@ public final class ContractRegistry {
         register(map, AgentExecutionContracts.QUERY_PLAN, QueryAgentPlan.class);
         register(map, AgentExecutionContracts.AGGREGATE_PLAN, AggregateAgentPlan.class);
         register(map, AgentExecutionContracts.QUERY_RESULT, QueryAgentResultPayload.class);
+        register(map, AgentExecutionContracts.QUERY_PREVIEW_RESULT, QueryPreviewResultPayload.class);
         register(map, AgentExecutionContracts.AGGREGATE_RESULT, AggregateAgentResultPayload.class);
         register(map, AgentExecutionContracts.QUERY_CONTEXT, QueryCapabilityContextPayload.class);
         register(map, AgentExecutionContracts.AGGREGATE_CONTEXT, AggregateCapabilityContextPayload.class);

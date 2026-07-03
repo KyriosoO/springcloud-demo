@@ -36,7 +36,7 @@ public class AgentPermissionProjectionService {
     /**
      * 静态首版规则版本。任何权限规则或授权数据语义变化，都需要同步推进该版本。
      */
-    static final String RULE_VERSION = "authz-20260702000000-1";
+    static final String RULE_VERSION = "authz-20260703000000-1";
 
     private static final Set<String> STRING_OPERATORS = Set.of(
             "EQ", "CONTAINS", "CONTAINS_ANY", "STARTS_WITH", "STARTS_WITH_ANY", "IN");
@@ -136,7 +136,7 @@ public class AgentPermissionProjectionService {
         operators.put("transaction.amount", RANGE_OPERATORS);
 
         return new Projection(
-                Set.of("query.search", "aggregate.compute"),
+                Set.of("query.search", "query.preview", "aggregate.compute"),
                 Set.of("employee", "transaction"),
                 fields,
                 fields,
@@ -152,7 +152,7 @@ public class AgentPermissionProjectionService {
         Map<String, Set<String>> operators = new LinkedHashMap<>();
         addOperators(operators, "employee", VIEWER_EMPLOYEE_FIELDS, STRING_OPERATORS);
         return new Projection(
-                Set.of("query.search"),
+                Set.of("query.search", "query.preview"),
                 Set.of("employee"),
                 fields,
                 fields,

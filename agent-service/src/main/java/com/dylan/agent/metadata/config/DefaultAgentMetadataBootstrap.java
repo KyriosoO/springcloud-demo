@@ -40,7 +40,8 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
     private static final String POLICY_VERSION = "policy-v1";
     private static final String BEHAVIOR_ASSET_ID = "default-chat-behavior";
     private static final String BEHAVIOR_ASSET_VERSION = "asset-v1";
-    private static final Set<String> DEFAULT_CAPABILITY_IDS = Set.of("query.search", "aggregate.compute");
+    private static final Set<String> DEFAULT_CAPABILITY_IDS =
+            Set.of("query.search", "query.preview", "aggregate.compute");
 
     private final AgentProperties properties;
     private final DomainMetadataProperties domainMetadataProperties;
@@ -86,7 +87,7 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
                 "ACTIVE");
         return new AgentMetadataBundle(
                 BUNDLE_VERSION,
-                digest(agentId, profileId, policy.policyVersion(), domainNames()),
+                digest(agentId, profileId, policy.policyVersion(), DEFAULT_CAPABILITY_IDS, domainNames()),
                 agentId,
                 Map.of(agentId, profileId),
                 policy.policyVersion(),
@@ -140,8 +141,14 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
         return domains;
     }
 
-    private static String digest(String agentId, String profileId, String policyVersion, Set<String> domains) {
+    private static String digest(
+            String agentId,
+            String profileId,
+            String policyVersion,
+            Set<String> capabilityIds,
+            Set<String> domains) {
         String canonical = agentId + "|" + profileId + "|" + policyVersion + "|"
+                + capabilityIds.stream().sorted().collect(Collectors.joining(",")) + "|"
                 + domains.stream().sorted().collect(Collectors.joining(","));
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
