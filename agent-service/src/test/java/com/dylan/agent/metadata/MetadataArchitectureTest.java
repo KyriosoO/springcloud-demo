@@ -98,6 +98,7 @@ class MetadataArchitectureTest {
                 "metadata/result/ResultSecurityProjectorRegistry.java",
                 "metadata/result/ResultSecurityBoundary.java",
                 "metadata/result/QueryResultSecurityProjector.java",
+                "metadata/result/ResultValueMaskingSupport.java",
                 "metadata/result/AggregateResultSecurityProjector.java",
                 "metadata/config/AgentMetadataProperties.java",
                 "metadata/config/AgentMetadataPropertiesValidator.java");
@@ -113,5 +114,31 @@ class MetadataArchitectureTest {
         assertThat(List.of(SecuredResult.class.getDeclaredMethods()).stream()
                         .map(Method::getName))
                 .doesNotContain("candidateResult");
+    }
+
+    @Test
+    void maskingIsOnlyExecutedInResultSecurityPackage() throws Exception {
+        Path root = Path.of("src/main/java/com/dylan/agent");
+        try (var files = Files.walk(root)) {
+            List<String> directMaskingReferences = files
+                    .filter(path -> path.toString().endsWith(".java"))
+                    .filter(path -> {
+                        try {
+                            String source = Files.readString(path);
+                            return source.contains("FieldMaskerRegistry") || source.contains(".mask(");
+                        } catch (Exception ex) {
+                            throw new IllegalStateException(ex);
+                        }
+                    })
+                    .map(root::relativize)
+                    .map(Path::toString)
+                    .map(path -> path.replace('\\', '/'))
+                    .toList();
+
+            assertThat(directMaskingReferences)
+                    .allMatch(path -> path.startsWith("mask/")
+                            || path.equals("metadata/result/ResultValueMaskingSupport.java")
+                            || path.equals("metadata/config/AgentMetadataSecurityConfiguration.java"));
+        }
     }
 }

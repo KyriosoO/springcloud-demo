@@ -7,6 +7,7 @@ import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.config.AgentMetadataBundle;
 import com.dylan.agent.metadata.config.AgentSecuritySettings;
+import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.policy.model.AgentPolicySnapshot;
 import com.dylan.agent.metadata.policy.model.BudgetLimits;
 import com.dylan.agent.metadata.policy.model.CapabilityConstraints;
@@ -44,12 +45,44 @@ public final class MetadataTestSupport {
                 Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE));
     }
 
+    public static AgentMetadataBundle bundleWithEmployeeFieldSecurity(
+            String version,
+            String digest,
+            Map<CanonicalFieldRef, DomainSecurityConstraints.FieldSecurityConstraint> fields) {
+        return bundle(
+                version,
+                digest,
+                Set.of("query.search"),
+                Set.of("employee"),
+                Set.of(RuntimeContextType.QUERY),
+                Map.of("employee", new DomainSecurityConstraints(fields)));
+    }
+
     private static AgentMetadataBundle bundle(
             String version,
             String digest,
             Set<String> allowedCapabilityIds,
             Set<String> allowedDomains,
             Set<RuntimeContextType> contextTypes) {
+        return bundle(
+                version,
+                digest,
+                allowedCapabilityIds,
+                allowedDomains,
+                contextTypes,
+                allowedDomains.stream()
+                        .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                                domain -> domain,
+                                domain -> new DomainSecurityConstraints(Map.of()))));
+    }
+
+    private static AgentMetadataBundle bundle(
+            String version,
+            String digest,
+            Set<String> allowedCapabilityIds,
+            Set<String> allowedDomains,
+            Set<RuntimeContextType> contextTypes,
+            Map<String, DomainSecurityConstraints> domainSecurityConstraints) {
         AgentProfileVersionKey profileKey = new AgentProfileVersionKey("agent-default", "profile-v1");
         ProfileBehaviorAssetRef assetRef = new ProfileBehaviorAssetRef("asset-default", "asset-v1");
         AgentProfileDefinition profile = new AgentProfileDefinition(
@@ -69,7 +102,10 @@ public final class MetadataTestSupport {
                 assetRef,
                 java.util.List.of("只回答授权范围内的问题"),
                 Optional.of(Locale.SIMPLIFIED_CHINESE));
-        AgentPolicySnapshot policy = policy(allowedCapabilityIds, allowedDomains, contextTypes);
+        AgentPolicySnapshot policy = policy(
+                allowedCapabilityIds,
+                domainSecurityConstraints,
+                contextTypes);
         return new AgentMetadataBundle(
                 version,
                 digest,
@@ -83,12 +119,15 @@ public final class MetadataTestSupport {
     }
 
     public static AgentPolicySnapshot policy() {
-        return policy(Set.of("query.search"), Set.of("employee"), Set.of(RuntimeContextType.QUERY));
+        return policy(
+                Set.of("query.search"),
+                Map.of("employee", new DomainSecurityConstraints(Map.of())),
+                Set.of(RuntimeContextType.QUERY));
     }
 
     private static AgentPolicySnapshot policy(
             Set<String> allowedCapabilityIds,
-            Set<String> allowedDomains,
+            Map<String, DomainSecurityConstraints> domainSecurityConstraints,
             Set<RuntimeContextType> contextTypes) {
         return new AgentPolicySnapshot(
                 "policy-v1",
@@ -105,10 +144,7 @@ public final class MetadataTestSupport {
                         .collect(java.util.stream.Collectors.toUnmodifiableMap(
                                 capabilityId -> capabilityId,
                                 capabilityId -> new CapabilityConstraints(true, Optional.empty()))),
-                allowedDomains.stream()
-                        .collect(java.util.stream.Collectors.toUnmodifiableMap(
-                                domain -> domain,
-                                domain -> new DomainSecurityConstraints(Map.of()))),
+                domainSecurityConstraints,
                 new BudgetLimits(Duration.ofSeconds(30), 1, 100, 100, 10_000),
                 Duration.ofHours(1),
                 Set.of());

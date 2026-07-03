@@ -28,8 +28,17 @@ import com.dylan.agent.metadata.domain.internal.DomainMetadataConfiguration;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
+import com.dylan.agent.metadata.result.AggregateResultSecurityProjector;
+import com.dylan.agent.metadata.result.QueryResultSecurityProjector;
 import com.dylan.agent.metadata.result.ResultSecurityProjectorRegistry;
 import com.dylan.agent.metadata.result.QueryPreviewResultSecurityProjector;
+import com.dylan.agent.metadata.result.ResultValueMaskingSupport;
+import com.dylan.agent.mask.AddressFieldMasker;
+import com.dylan.agent.mask.EmailFieldMasker;
+import com.dylan.agent.mask.FieldMaskerRegistry;
+import com.dylan.agent.mask.IdCardFieldMasker;
+import com.dylan.agent.mask.MobileFieldMasker;
+import com.dylan.agent.mask.NoneFieldMasker;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import com.dylan.agent.testsupport.KernelTestSupport;
 import org.junit.jupiter.api.Test;
@@ -62,6 +71,12 @@ class AgentMetadataSecurityConfigurationTest {
                     DomainMetadataTestSupport.QueryableAggregatableAdapter::new)
             .withBean("transactionAgentAdapter", DomainMetadataTestSupport.QueryableAggregatableAdapter.class,
                     DomainMetadataTestSupport.QueryableAggregatableAdapter::new)
+            .withBean(FieldMaskerRegistry.class, () -> new FieldMaskerRegistry(List.of(
+                    new NoneFieldMasker(),
+                    new IdCardFieldMasker(),
+                    new MobileFieldMasker(),
+                    new EmailFieldMasker(),
+                    new AddressFieldMasker())))
             .withBean(UserPermissionAuthorityPort.class,
                     () -> (subject, deadline) -> com.dylan.agent.metadata.MetadataTestSupport.permission(subject))
             .withBean(ContextRepository.class, NoopContextRepository::new)
@@ -88,7 +103,10 @@ class AgentMetadataSecurityConfigurationTest {
             assertThat(context).hasSingleBean(AgentPolicyConfiguration.class);
             assertThat(context).hasSingleBean(PayloadJsonCodec.class);
             assertThat(context).hasSingleBean(ResultSecurityProjectorRegistry.class);
+            assertThat(context).hasSingleBean(ResultValueMaskingSupport.class);
+            assertThat(context).hasSingleBean(QueryResultSecurityProjector.class);
             assertThat(context).hasSingleBean(QueryPreviewResultSecurityProjector.class);
+            assertThat(context).hasSingleBean(AggregateResultSecurityProjector.class);
             assertThat(context).hasSingleBean(ResultSecurityPort.class);
             assertThat(context).hasSingleBean(DomainMetadataPort.class);
             assertThat(context).hasSingleBean(DomainExecutionPort.class);

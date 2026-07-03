@@ -8,14 +8,19 @@ import com.dylan.agent.api.response.QueryPreviewResult;
 import com.dylan.agent.api.response.QueryPreviewResultPayload;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 
-/** query.preview 结果投影器，按执行范围保留允许展示的预览字段。 */
+/** query.preview 结果投影器，复用统一 helper 执行字段裁剪和值级脱敏。 */
 public final class QueryPreviewResultSecurityProjector
         implements ResultSecurityProjector<QueryPreviewResultPayload> {
+
+    private final ResultValueMaskingSupport maskingSupport;
+
+    public QueryPreviewResultSecurityProjector(ResultValueMaskingSupport maskingSupport) {
+        this.maskingSupport = Objects.requireNonNull(maskingSupport, "maskingSupport must not be null");
+    }
 
     @Override
     public ContractRef supports() {
@@ -30,50 +35,43 @@ public final class QueryPreviewResultSecurityProjector
     @Override
     public FilteredResult<QueryPreviewResultPayload> filter(QueryPreviewResultPayload candidate, ExecutionScope scope) {
         String domain = candidate.getQueryParameters() == null ? null : candidate.getQueryParameters().getDomain();
-        Set<String> allowedFields = domain == null ? Set.of() : scope.allowedFields().getOrDefault(domain, Set.of());
+        requireDomainWhenData(domain, hasFieldBearingData(candidate));
         QueryPreviewResultPayload filtered = new QueryPreviewResultPayload(
-                filterParameters(candidate.getQueryParameters(), allowedFields),
-                filterPreview(candidate.getPreviewResult(), allowedFields));
-        return new FilteredResult<>(filtered, "查询预览完成", "查询预览结果已按当前执行范围过滤");
+                filterParameters(domain, candidate.getQueryParameters(), scope),
+                filterPreview(domain, candidate.getPreviewResult(), scope));
+        return new FilteredResult<>(filtered, "查询预览完成", "查询预览结果已按当前执行范围过滤和脱敏");
     }
 
-    private static AgentQueryParameters filterParameters(
+    private AgentQueryParameters filterParameters(
+            String domain,
             AgentQueryParameters source,
-            Set<String> allowedFields) {
+            ExecutionScope scope) {
         if (source == null) {
             return null;
         }
         AgentQueryParameters target = new AgentQueryParameters();
         target.setDomain(source.getDomain());
         target.setFilters(source.getFilters() == null ? null : source.getFilters().stream()
-                .filter(filter -> allowedFields.contains(filter.getField()))
-                .map(QueryPreviewResultSecurityProjector::copyFilter)
+                .map(filter -> maskingSupport.filterAndMaskFilter(domain, filter, scope))
+                .filter(Objects::nonNull)
                 .toList());
-        target.setSelectFields(filterFields(source.getSelectFields(), allowedFields));
+        target.setSelectFields(maskingSupport.filterFields(domain, source.getSelectFields(), scope));
         target.setPage(source.getPage());
         target.setSize(source.getSize());
         return target;
     }
 
-    private static AgentQueryFilterParameter copyFilter(AgentQueryFilterParameter source) {
-        AgentQueryFilterParameter target = new AgentQueryFilterParameter();
-        target.setField(source.getField());
-        target.setOperator(source.getOperator());
-        target.setValue(source.getValue());
-        target.setValues(source.getValues());
-        return target;
-    }
-
-    private static QueryPreviewResult filterPreview(
+    private QueryPreviewResult filterPreview(
+            String domain,
             QueryPreviewResult source,
-            Set<String> allowedFields) {
+            ExecutionScope scope) {
         if (source == null) {
             return null;
         }
         QueryPreviewResult target = new QueryPreviewResult();
-        target.setColumns(filterFields(source.getColumns(), allowedFields));
+        target.setColumns(maskingSupport.filterFields(domain, source.getColumns(), scope));
         target.setSampleRows(source.getSampleRows() == null ? null : source.getSampleRows().stream()
-                .map(row -> filterRow(row, allowedFields))
+                .map(row -> maskingSupport.filterAndMaskRow(domain, row, scope))
                 .toList());
         target.setTotalEstimate(source.getTotalEstimate());
         target.setTotalExact(source.isTotalExact());
@@ -81,22 +79,26 @@ public final class QueryPreviewResultSecurityProjector
         return target;
     }
 
-    private static List<String> filterFields(List<String> fields, Set<String> allowedFields) {
-        if (fields == null) {
-            return null;
-        }
-        return fields.stream()
-                .filter(allowedFields::contains)
-                .toList();
+    private static boolean hasFieldBearingData(QueryPreviewResultPayload candidate) {
+        AgentQueryParameters parameters = candidate.getQueryParameters();
+        QueryPreviewResult result = candidate.getPreviewResult();
+        return parameters != null
+                && (hasItems(parameters.getSelectFields()) || hasItems(parameters.getFilters()))
+                || result != null
+                && (hasItems(result.getColumns()) || hasRows(result.getSampleRows()));
     }
 
-    private static Map<String, Object> filterRow(Map<String, Object> row, Set<String> allowedFields) {
-        Map<String, Object> filtered = new LinkedHashMap<>();
-        row.forEach((field, value) -> {
-            if (allowedFields.contains(field)) {
-                filtered.put(field, value);
-            }
-        });
-        return filtered;
+    private static boolean hasRows(List<Map<String, Object>> rows) {
+        return rows != null && rows.stream().anyMatch(row -> row != null && !row.isEmpty());
+    }
+
+    private static boolean hasItems(List<?> values) {
+        return values != null && !values.isEmpty();
+    }
+
+    private static void requireDomainWhenData(String domain, boolean hasFieldBearingData) {
+        if (hasFieldBearingData && (domain == null || domain.trim().isEmpty())) {
+            throw new IllegalStateException("query preview result payload missing domain");
+        }
     }
 }

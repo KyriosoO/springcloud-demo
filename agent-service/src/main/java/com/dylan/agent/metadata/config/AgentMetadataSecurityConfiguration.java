@@ -27,6 +27,8 @@ import com.dylan.agent.metadata.result.QueryResultSecurityProjector;
 import com.dylan.agent.metadata.result.ResultSecurityBoundary;
 import com.dylan.agent.metadata.result.ResultSecurityProjector;
 import com.dylan.agent.metadata.result.ResultSecurityProjectorRegistry;
+import com.dylan.agent.metadata.result.ResultValueMaskingSupport;
+import com.dylan.agent.mask.FieldMaskerRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -87,18 +89,23 @@ public class AgentMetadataSecurityConfiguration {
     }
 
     @Bean
-    QueryResultSecurityProjector queryResultSecurityProjector() {
-        return new QueryResultSecurityProjector();
+    ResultValueMaskingSupport resultValueMaskingSupport(FieldMaskerRegistry fieldMaskerRegistry) {
+        return new ResultValueMaskingSupport(fieldMaskerRegistry);
     }
 
     @Bean
-    QueryPreviewResultSecurityProjector queryPreviewResultSecurityProjector() {
-        return new QueryPreviewResultSecurityProjector();
+    QueryResultSecurityProjector queryResultSecurityProjector(ResultValueMaskingSupport maskingSupport) {
+        return new QueryResultSecurityProjector(maskingSupport);
     }
 
     @Bean
-    AggregateResultSecurityProjector aggregateResultSecurityProjector() {
-        return new AggregateResultSecurityProjector();
+    QueryPreviewResultSecurityProjector queryPreviewResultSecurityProjector(ResultValueMaskingSupport maskingSupport) {
+        return new QueryPreviewResultSecurityProjector(maskingSupport);
+    }
+
+    @Bean
+    AggregateResultSecurityProjector aggregateResultSecurityProjector(ResultValueMaskingSupport maskingSupport) {
+        return new AggregateResultSecurityProjector(maskingSupport);
     }
 
     @Bean

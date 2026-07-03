@@ -4,15 +4,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericApplicationContext;
 
+import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.metadata.config.AgentMetadataReloader;
 import com.dylan.agent.metadata.config.AgentMetadataStore;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataStore;
+import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
+import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
+import com.dylan.agent.model.MaskType;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 class AgentMetadataReloadTest {
@@ -28,6 +35,30 @@ class AgentMetadataReloadTest {
                 MetadataTestSupport.bundle("bundle-v1", "digest-v2")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("same metadata bundleVersion");
+    }
+
+    @Test
+    void validatesPolicyRequiredMaskFieldReferences() {
+        var current = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
+        AgentMetadataReloader reloader = new AgentMetadataReloader(
+                new AgentMetadataStore(current),
+                domainPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var unknownField = new CanonicalFieldRef("employee", "unknownField");
+        var candidate = MetadataTestSupport.bundleWithEmployeeFieldSecurity(
+                "bundle-v2",
+                "digest-v2",
+                Map.of(unknownField, new DomainSecurityConstraints.FieldSecurityConstraint(
+                        true,
+                        true,
+                        Set.of(AgentOperator.EQ),
+                        Set.of(),
+                        Optional.of(MaskType.ID_CARD))));
+
+        assertThatThrownBy(() -> reloader.publishValidated(candidate))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("unknown field reference");
     }
 
     private DomainMetadataPortImpl domainPort() {

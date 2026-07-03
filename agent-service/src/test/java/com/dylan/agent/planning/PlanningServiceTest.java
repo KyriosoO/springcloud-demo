@@ -348,6 +348,7 @@ class PlanningServiceTest {
                 Set.of("query.search"),
                 Set.of(),
                 Map.of(),
+                Map.of(),
                 MetadataTestSupport.NOW,
                 domainEvidence(),
                 new ExecutionBudget(1, 100, 10_000));

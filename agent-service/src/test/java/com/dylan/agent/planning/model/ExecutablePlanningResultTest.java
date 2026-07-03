@@ -148,6 +148,7 @@ class ExecutablePlanningResultTest {
                 Set.of("query.search"),
                 Set.of(),
                 Map.of(),
+                Map.of(),
                 NOW,
                 null,
                 ExecutionBudget.zero());

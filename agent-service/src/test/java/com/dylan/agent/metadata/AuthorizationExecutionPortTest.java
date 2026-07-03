@@ -22,6 +22,7 @@ import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
 import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
+import com.dylan.agent.model.MaskType;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
@@ -43,6 +44,20 @@ class AuthorizationExecutionPortTest {
     }
 
     @Test
+    void passesSnapshotFieldMasksToExecutionScope() {
+        AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
+                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var scope = port.recheck(snapshot(Map.of("employee.chineseName", MaskType.MOBILE)), handle());
+
+        assertThat(scope.fieldMasks())
+                .containsEntry("employee.chineseName", MaskType.MOBILE);
+    }
+
+    @Test
     void recheckRejectsCurrentPermissionThatNoLongerCoversSnapshotFields() {
         AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
                 new UserPermissionBoundary((subject, deadline) -> permissionWithoutFields(subject),
@@ -55,12 +70,30 @@ class AuthorizationExecutionPortTest {
                 .hasMessageContaining("permission recheck would shrink required scope");
     }
 
+    @Test
+    void recheckRejectsCurrentPermissionThatLostDisplayFieldEvenWhenFilterRemains() {
+        AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
+                new UserPermissionBoundary((subject, deadline) -> permissionWithoutDisplayField(subject),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> port.recheck(snapshot(), handle()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("permission recheck would shrink required scope");
+    }
+
     private AuthorizationSnapshot snapshot() {
+        return snapshot(Map.of());
+    }
+
+    private AuthorizationSnapshot snapshot(Map<String, MaskType> fieldMasks) {
         DomainMetadataEvidence evidence = DomainMetadataTestSupport.store().current().evidence();
         return new AuthorizationSnapshot(
                 "auth-1", "user:u-1", "profile-v1", "policy-v1",
                 Set.of("query.search"), Set.of("employee"),
                 Map.of("employee", Set.of("chineseName")),
+                fieldMasks,
                 MetadataTestSupport.NOW, evidence, new ExecutionBudget(1, 100, 10_000));
     }
 
@@ -74,6 +107,24 @@ class AuthorizationExecutionPortTest {
                 permission.allowedDomains(),
                 Map.of("employee", Set.of()),
                 Map.of("employee", Set.of()),
+                permission.allowedOperators(),
+                permission.allowedFunctions(),
+                permission.readableContextTypes(),
+                permission.writableContextTypes(),
+                permission.attributes(),
+                permission.resolvedAt());
+    }
+
+    private UserPermission permissionWithoutDisplayField(ExecutionSubjectRef subject) {
+        UserPermission permission = MetadataTestSupport.permission(subject);
+        return new UserPermission(
+                subject,
+                permission.evidenceId(),
+                permission.version(),
+                permission.allowedCapabilityIds(),
+                permission.allowedDomains(),
+                Map.of("employee", Set.of()),
+                Map.of("employee", Set.of("chineseName")),
                 permission.allowedOperators(),
                 permission.allowedFunctions(),
                 permission.readableContextTypes(),

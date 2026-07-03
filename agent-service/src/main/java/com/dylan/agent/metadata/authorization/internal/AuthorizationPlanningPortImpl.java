@@ -14,6 +14,7 @@ import com.dylan.agent.metadata.config.AgentMetadataStore;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.metadata.domain.port.DomainMetadataReferenceSet;
+import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
 import com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator;
 import com.dylan.agent.metadata.profile.model.AgentProfileVersionKey;
 import com.dylan.agent.model.MaskType;
@@ -67,7 +68,7 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
         var permission = userPermissionBoundary.resolve(
                 request.handle().subject(), request.handle().absoluteDeadline());
         var delegation = delegationBoundary.require(request.delegationConstraintRef());
-        var scope = intersect(effective, permission, delegation);
+        var scope = intersect(effective, permission, delegation, policy.domainSecurityConstraints());
         var domainEvidence = domainMetadataPort.validateReferences(
                 DomainMetadataReferenceSet.empty(),
                 request.handle().absoluteDeadline());
@@ -124,7 +125,8 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 evidence.policyVersion(),
                 Set.of(selection.registration().capabilityId()),
                 selection.selectedDomain().map(Set::of).orElseGet(Set::of),
-                fieldsByDomain(evidence.planningScope()),
+                fieldsByDomain(evidence.planningScope(), selection.selectedDomain().map(Set::of).orElseGet(Set::of)),
+                fieldMasks(evidence.planningScope(), selection.selectedDomain().map(Set::of).orElseGet(Set::of)),
                 clock.instant(),
                 evidence.domainMetadataEvidence(),
                 new ExecutionBudget(
@@ -136,7 +138,8 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
     private PlanningEffectiveScope intersect(
             com.dylan.agent.metadata.profile.model.EffectiveProfile effective,
             UserPermission permission,
-            com.dylan.agent.metadata.authorization.model.DelegationConstraint delegation) {
+            com.dylan.agent.metadata.authorization.model.DelegationConstraint delegation,
+            Map<String, DomainSecurityConstraints> domainSecurityConstraints) {
         Set<String> capabilityIds = intersect(
                 intersect(effective.allowedCapabilityIds(), permission.allowedCapabilityIds()),
                 delegation.allowedCapabilityIds().isEmpty()
@@ -150,7 +153,7 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
         return new PlanningEffectiveScope(
                 capabilityIds,
                 domains,
-                fieldAccess(permission),
+                fieldAccess(permission, domains, domainSecurityConstraints),
                 intersect(effective.readableContextTypes(), parseContextTypes(permission.readableContextTypes())),
                 intersect(effective.writableContextTypes(), parseContextTypes(permission.writableContextTypes())),
                 effective.maxRiskLevel(),
@@ -162,23 +165,46 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 effective.maxResultBytes());
     }
 
-    private Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> fieldAccess(UserPermission permission) {
+    private Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> fieldAccess(
+            UserPermission permission,
+            Set<String> allowedDomains,
+            Map<String, DomainSecurityConstraints> domainSecurityConstraints) {
         Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> result = new LinkedHashMap<>();
-        Set<String> domains = Set.copyOf(permission.allowedDomains());
-        for (String domain : domains) {
+        for (String domain : allowedDomains) {
             Set<String> displayable = permission.displayableFields().getOrDefault(domain, Set.of());
             Set<String> filterable = permission.filterableFields().getOrDefault(domain, Set.of());
             Set<String> allFields = java.util.stream.Stream.concat(displayable.stream(), filterable.stream())
                     .collect(Collectors.toUnmodifiableSet());
             for (String field : allFields) {
                 String key = domain + "." + field;
-                result.put(new CanonicalFieldRef(domain, field),
-                        new PlanningEffectiveScope.FieldAccess(
-                                filterable.contains(field),
-                                displayable.contains(field),
-                                permission.allowedOperators().getOrDefault(key, Set.of()),
-                                permission.allowedFunctions().getOrDefault(key, Set.of()),
-                                Optional.of(MaskType.NONE)));
+                CanonicalFieldRef fieldRef = new CanonicalFieldRef(domain, field);
+                DomainSecurityConstraints.FieldSecurityConstraint policyConstraint =
+                        Optional.ofNullable(domainSecurityConstraints.get(domain))
+                                .map(DomainSecurityConstraints::fields)
+                                .map(fields -> fields.get(fieldRef))
+                                .orElse(null);
+                boolean filterAllowed = filterable.contains(field);
+                boolean displayAllowed = displayable.contains(field);
+                Set<AgentOperator> allowedOperators = permission.allowedOperators().getOrDefault(key, Set.of());
+                Set<String> allowedFunctions = permission.allowedFunctions().getOrDefault(key, Set.of());
+                Optional<MaskType> requiredMask = Optional.of(MaskType.NONE);
+                if (policyConstraint != null) {
+                    filterAllowed = filterAllowed && policyConstraint.filterAllowed();
+                    displayAllowed = displayAllowed && policyConstraint.displayAllowed();
+                    allowedOperators = intersect(allowedOperators, policyConstraint.allowedOperators());
+                    allowedFunctions = intersect(allowedFunctions, policyConstraint.allowedFunctions());
+                    requiredMask = Optional.of(policyConstraint.requiredMask().orElse(MaskType.NONE));
+                }
+                // ExecutionScope 只有单一 allowedFields 集合，任一维度被收紧时按 fail closed 删除字段。
+                if (filterAllowed && displayAllowed) {
+                    result.put(fieldRef,
+                            new PlanningEffectiveScope.FieldAccess(
+                                    true,
+                                    true,
+                                    allowedOperators,
+                                    allowedFunctions,
+                                    requiredMask));
+                }
             }
         }
         return Map.copyOf(result);
@@ -196,15 +222,38 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    private static Map<String, Set<String>> fieldsByDomain(PlanningEffectiveScope scope) {
+    private static Map<String, Set<String>> fieldsByDomain(PlanningEffectiveScope scope, Set<String> frozenDomains) {
         Map<String, Set<String>> mutable = new LinkedHashMap<>();
         for (CanonicalFieldRef fieldRef : scope.fieldAccess().keySet()) {
+            if (!frozenDomains.contains(fieldRef.domain())) {
+                continue;
+            }
             mutable.computeIfAbsent(fieldRef.domain(), ignored -> new java.util.LinkedHashSet<>())
                     .add(fieldRef.field());
         }
         return mutable.entrySet().stream().collect(Collectors.toUnmodifiableMap(
                 Map.Entry::getKey,
                 entry -> Set.copyOf(entry.getValue())));
+    }
+
+    private static Map<String, MaskType> fieldMasks(PlanningEffectiveScope scope, Set<String> frozenDomains) {
+        Map<String, MaskType> masks = new LinkedHashMap<>();
+        for (Map.Entry<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> entry
+                : scope.fieldAccess().entrySet()) {
+            CanonicalFieldRef fieldRef = entry.getKey();
+            if (!frozenDomains.contains(fieldRef.domain())) {
+                continue;
+            }
+            MaskType maskType = entry.getValue().requiredMask().orElse(MaskType.NONE);
+            if (maskType != MaskType.NONE) {
+                masks.put(maskKey(fieldRef.domain(), fieldRef.field()), maskType);
+            }
+        }
+        return Map.copyOf(masks);
+    }
+
+    private static String maskKey(String domain, String field) {
+        return domain + "." + field;
     }
 
     private static String subjectKey(ExecutionSubjectRef subject) {

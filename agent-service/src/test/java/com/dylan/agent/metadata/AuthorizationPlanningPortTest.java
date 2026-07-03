@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Clock;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.invocation.model.ChatInvocationOrigin;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
@@ -20,11 +23,16 @@ import com.dylan.agent.metadata.authorization.internal.DelegationBoundary;
 import com.dylan.agent.metadata.authorization.internal.UserPermissionBoundary;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraint;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
+import com.dylan.agent.metadata.authorization.request.CapabilityScopeSelection;
 import com.dylan.agent.metadata.authorization.request.PlanningSecurityRequest;
 import com.dylan.agent.metadata.config.AgentMetadataStore;
+import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
+import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
 import com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator;
+import com.dylan.agent.model.MaskType;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
+import com.dylan.agent.testsupport.KernelTestSupport;
 
 class AuthorizationPlanningPortTest {
     @Test
@@ -89,6 +97,78 @@ class AuthorizationPlanningPortTest {
 
         assertThat(evidence.planningScope().allowedCapabilityIds()).containsExactly("query.search");
         assertThat(evidence.planningScope().allowedDomains()).containsExactly("employee");
+    }
+
+    @Test
+    void capturesPolicyRequiredMaskInPlanningScope() {
+        var field = new CanonicalFieldRef("employee", "chineseName");
+        var port = planningPortWithFieldSecurity(Map.of(field, fieldConstraint(MaskType.MOBILE)));
+
+        var evidence = port.capture(new PlanningSecurityRequest(handle(), handle().agentProfileRef(),
+                DelegationConstraintRef.CHAT_ALL));
+
+        assertThat(evidence.planningScope().fieldAccess().get(field).requiredMask())
+                .contains(MaskType.MOBILE);
+    }
+
+    @Test
+    void freezesNonNoneFieldMasksInAuthorizationSnapshot() {
+        var field = new CanonicalFieldRef("employee", "chineseName");
+        var port = planningPortWithFieldSecurity(Map.of(field, fieldConstraint(MaskType.MOBILE)));
+        var evidence = port.capture(new PlanningSecurityRequest(handle(), handle().agentProfileRef(),
+                DelegationConstraintRef.CHAT_ALL));
+
+        var snapshot = port.freezeCapabilityScope(evidence, new CapabilityScopeSelection(
+                KernelTestSupport.resolvedQueryRegistration(),
+                Optional.of("employee"),
+                List.of(),
+                evidence.domainMetadataEvidence()));
+
+        assertThat(snapshot.fieldMasks())
+                .containsEntry("employee.chineseName", MaskType.MOBILE);
+    }
+
+    @Test
+    void doesNotCreateMaskForUnauthorizedField() {
+        var field = new CanonicalFieldRef("employee", "idCardNo");
+        var port = planningPortWithFieldSecurity(Map.of(field, fieldConstraint(MaskType.ID_CARD)));
+        var evidence = port.capture(new PlanningSecurityRequest(handle(), handle().agentProfileRef(),
+                DelegationConstraintRef.CHAT_ALL));
+
+        var snapshot = port.freezeCapabilityScope(evidence, new CapabilityScopeSelection(
+                KernelTestSupport.resolvedQueryRegistration(),
+                Optional.of("employee"),
+                List.of(),
+                evidence.domainMetadataEvidence()));
+
+        assertThat(evidence.planningScope().fieldAccess())
+                .doesNotContainKey(field);
+        assertThat(snapshot.fieldMasks())
+                .doesNotContainKey("employee.idCardNo");
+    }
+
+    private AuthorizationPlanningPortImpl planningPortWithFieldSecurity(
+            Map<CanonicalFieldRef, DomainSecurityConstraints.FieldSecurityConstraint> fields) {
+        return new AuthorizationPlanningPortImpl(
+                new AgentMetadataStore(MetadataTestSupport.bundleWithEmployeeFieldSecurity(
+                        "bundle-v1", "digest-v1", fields)),
+                new EffectiveProfileCalculator(),
+                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
+                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
+                                java.util.Set.of("query.search"), java.util.Set.of("employee")))),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+    }
+
+    private static DomainSecurityConstraints.FieldSecurityConstraint fieldConstraint(MaskType maskType) {
+        return new DomainSecurityConstraints.FieldSecurityConstraint(
+                true,
+                true,
+                Set.of(AgentOperator.EQ),
+                Set.of(),
+                Optional.of(maskType));
     }
 
     private InvocationHandle handle() {

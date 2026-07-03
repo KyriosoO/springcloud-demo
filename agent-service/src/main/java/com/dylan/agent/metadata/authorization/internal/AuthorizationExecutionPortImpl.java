@@ -6,7 +6,6 @@ import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
-import com.dylan.agent.model.MaskType;
 
 import java.time.Clock;
 import java.util.Map;
@@ -55,7 +54,7 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
                 snapshot.allowedCapabilityIds(),
                 snapshot.allowedDomains(),
                 snapshot.allowedFields(),
-                Map.of(),
+                snapshot.fieldMasks(),
                 handle.remaining(clock),
                 snapshot.executionBudget().maxRepairAttempts(),
                 snapshot.executionBudget().maxResultRows(),
@@ -68,7 +67,7 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
             Set<String> filterable = current.filterableFields().getOrDefault(domain, Set.of());
             Set<String> displayable = current.displayableFields().getOrDefault(domain, Set.of());
             for (String field : entry.getValue()) {
-                if (!filterable.contains(field) && !displayable.contains(field)) {
+                if (!filterable.contains(field) || !displayable.contains(field)) {
                     return false;
                 }
             }

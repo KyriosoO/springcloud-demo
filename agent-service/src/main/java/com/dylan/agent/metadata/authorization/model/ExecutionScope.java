@@ -22,7 +22,7 @@ public final class ExecutionScope {
     private final Set<String> allowedCapabilityIds;
     private final Set<String> allowedDomains;
     private final Map<String, Set<String>> allowedFields;
-    private final Map<String, MaskType> fieldMasks; // field -> mask type
+    private final Map<String, MaskType> fieldMasks; // domain.field -> mask type
     private final Duration maxTotalDuration;
     private final int maxRepairAttempts;
     private final int maxResultRows;
