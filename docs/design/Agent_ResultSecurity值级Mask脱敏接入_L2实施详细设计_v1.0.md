@@ -18,6 +18,7 @@
 | 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-03 | 全文 | 新建详细设计 | 按方案 A 设计 Agent Policy 驱动的值级 Mask 脱敏接入方案，并补齐 Java 实施落点、测试设计、静态门禁和实施对齐检查。 |
+| 2 | 2026-07-03 | 10.1、10.2、12.1、12.4、13、16、23 | 品审修订 | 明确 `DomainSecurityConstraints` 非 mask 约束不得被忽略、`fieldMasks` 仅写入非 `NONE`、filter 字符串值脱敏返回类型、配置落点与缺失 domain 的 fail closed 策略。 |
 
 ## 3. 任务背景与问题结论
 
@@ -170,15 +171,16 @@ Planning 阶段对每个候选字段执行以下逻辑：
 
 1. 从 `UserPermission.displayableFields` 与 `UserPermission.filterableFields` 得到当前主体允许的字段集合。
 2. 与 EffectiveProfile/Delegation 得出的 capability/domain/context/budget 范围相交。
-3. 对已允许字段查询 active Policy 的 `DomainSecurityConstraints.fields().get(new CanonicalFieldRef(domain, field)).requiredMask()`。
-4. 若 Policy 未配置该字段或 `requiredMask` 为空，则写入 `MaskType.NONE`。
-5. 若字段未被 UserPermission 授权，则不生成 `FieldAccess`，也不生成 mask fact。
+3. 与 active Policy 的 `DomainSecurityConstraints.fields()` 做字段级安全交集：`filterAllowed=false` 时不得生成 filter 权限，`displayAllowed=false` 时不得生成 display 权限，`allowedOperators` 与 `allowedFunctions` 必须继续取 UserPermission 与 Policy 的交集。
+4. 对仍被允许的字段查询 `DomainSecurityConstraints.fields().get(new CanonicalFieldRef(domain, field)).requiredMask()`。
+5. 若 Policy 未配置该字段或 `requiredMask` 为空，则按 `MaskType.NONE` 处理。
+6. 若字段未被 UserPermission/Profile/Delegation/Policy 任一边界授权，则不生成 `FieldAccess`，也不生成 mask fact。
 
 字段保留与 mask 的优先级：
 
 | 场景 | 处理 |
 | --- | --- |
-| 字段未授权 | 删除字段，忽略 mask 配置。 |
+| 字段未授权，或被 Policy `filterAllowed/displayAllowed` 收紧后不可访问 | 删除字段，忽略 mask 配置。 |
 | 字段授权且 `requiredMask` 为空 | 保留原值。 |
 | 字段授权且 `requiredMask = NONE` | 保留原值。 |
 | 字段授权且 `requiredMask != NONE` | 保留字段名，值通过 `FieldMaskerRegistry.mask(maskType, value)` 脱敏。 |
@@ -192,7 +194,7 @@ Planning 阶段对每个候选字段执行以下逻辑：
 1. 只冻结本次 capability scope 内的 allowed field mask。
 2. 键为 canonical `domain.field`。
 3. value 为 `MaskType`，不保存原始敏感值。
-4. 若字段 mask 为 `NONE`，可以选择不写入 map 或写入 `NONE`；实施时应采用“只写入非 NONE mask”的稀疏 map，以降低审计噪声。
+4. `fieldMasks` 只写入非 `NONE` mask；`NONE` 和未配置 mask 都不写入 map，以降低审计噪声并避免双重语义。
 5. ResultSecurity 查询不到 mask 时按 `NONE` 处理。
 
 ### 10.3 ExecutionScope 传递
@@ -275,7 +277,7 @@ Planning 阶段对每个候选字段执行以下逻辑：
 | --- | --- | --- | --- | --- | --- |
 | `agent-service/src/main/java/com/dylan/agent/metadata/authorization/internal/AuthorizationPlanningPortImpl.java` | `AuthorizationPlanningPortImpl` | `capture(PlanningSecurityRequest request)` | `PlanningSecurityRequest request` | `PlanningAuthorizationEvidence` | 在读取 active policy 后，将 `policy.domainSecurityConstraints()` 传入 scope 交集计算。 |
 | 同上 | `AuthorizationPlanningPortImpl` | `intersect(EffectiveProfile effective, UserPermission permission, DelegationConstraint delegation, DomainSecurityConstraints domainSecurityConstraints)` | `EffectiveProfile`、`UserPermission`、`DelegationConstraint`、`DomainSecurityConstraints` | `PlanningEffectiveScope` | 方法签名增加 Policy security constraints。 |
-| 同上 | `AuthorizationPlanningPortImpl` | `fieldAccess(UserPermission permission, DomainSecurityConstraints domainSecurityConstraints)` | `UserPermission permission`、`DomainSecurityConstraints domainSecurityConstraints` | `Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess>` | 将原固定 `MaskType.NONE` 替换为 Policy `requiredMask`。 |
+| 同上 | `AuthorizationPlanningPortImpl` | `fieldAccess(UserPermission permission, DomainSecurityConstraints domainSecurityConstraints)` | `UserPermission permission`、`DomainSecurityConstraints domainSecurityConstraints` | `Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess>` | 保持 D02_03 约束：按 Policy `filterAllowed/displayAllowed/allowedOperators/allowedFunctions` 收紧字段权限，并将原固定 `MaskType.NONE` 替换为 Policy `requiredMask`。 |
 | 同上 | `AuthorizationPlanningPortImpl` | `freezeCapabilityScope(PlanningAuthorizationEvidence evidence, CapabilityScopeSelection selection)` | `PlanningAuthorizationEvidence evidence`、`CapabilityScopeSelection selection` | `AuthorizationSnapshot` | 构造 Snapshot 时写入 `fieldMasks(evidence.planningScope(), selectedDomain)`。 |
 | 同上 | `AuthorizationPlanningPortImpl` | `private static Map<String, MaskType> fieldMasks(PlanningEffectiveScope scope, Set<String> frozenDomains)` | `PlanningEffectiveScope scope`、`Set<String> frozenDomains` | `Map<String, MaskType>` | 新增 helper，仅输出 selected domain 内非 `NONE` mask。 |
 | 同上 | `AuthorizationPlanningPortImpl` | `private static String maskKey(String domain, String field)` | `String domain`、`String field` | `String` | 新增 canonical key helper，格式为 `domain + "." + field`。 |
@@ -305,13 +307,15 @@ Planning 阶段对每个候选字段执行以下逻辑：
 | 同上 | `ResultValueMaskingSupport` | `List<String> filterFields(String domain, List<String> fields, ExecutionScope scope)` | `String domain`、`List<String> fields`、`ExecutionScope scope` | `List<String>` | 过滤 select/columns/groupBy 字段。 |
 | 同上 | `ResultValueMaskingSupport` | `AgentQueryFilterParameter filterAndMaskFilter(String domain, AgentQueryFilterParameter filter, ExecutionScope scope)` | `String domain`、`AgentQueryFilterParameter filter`、`ExecutionScope scope` | `AgentQueryFilterParameter` 或 `null` | 未授权 filter 返回 `null`；已授权 filter 的 `value`/`values` 执行 mask。 |
 | 同上 | `ResultValueMaskingSupport` | `Object maskValue(String domain, String field, Object value, ExecutionScope scope)` | `String domain`、`String field`、`Object value`、`ExecutionScope scope` | `Object` | 查找 `domain.field` mask，`NONE` 或缺省时返回原值。 |
+| 同上 | `ResultValueMaskingSupport` | `String maskStringValue(String domain, String field, String value, ExecutionScope scope)` | `String domain`、`String field`、`String value`、`ExecutionScope scope` | `String` | 专用于 `AgentQueryFilterParameter.value/values`；内部调用 `maskValue` 后用 `Objects.toString(masked, null)` 归一为 `String`，避免 `Object` 返回值直接写入 String DTO。 |
 | 同上 | `ResultValueMaskingSupport` | `static String maskKey(String domain, String field)` | `String domain`、`String field` | `String` | 统一 canonical key 格式。 |
 
 异常策略：
 
 1. `FieldMaskerRegistry.mask(...)` 抛异常时不吞掉异常，由 `ResultSecurityBoundary` 所在线路 fail closed。
-2. `row == null` 时返回空 map 或按现有 payload 语义保留 null；实施应与当前 projector 测试保持一致。
+2. `row == null` 时按调用方 payload 语义保留 null；单行字段 map 非 null 时才执行字段裁剪和值级 mask。
 3. `value == null` 时直接返回 null，不调用 masker。
+4. query/preview/aggregate payload 只要包含 columns、rows、filters、selectFields、groupByFields 或 groups 任一字段承载数据，就必须能解析到非空 domain；无法解析 domain 时 fail closed，不返回未裁剪 payload。完全空 payload 可按空安全结果处理。
 
 ### 12.5 Query projector
 
@@ -368,7 +372,7 @@ Planning 阶段对每个候选字段执行以下逻辑：
 
 ### 13.1 新增配置
 
-本设计不新增配置 key。
+本设计不新增外部 YAML/properties 配置 key。
 
 ### 13.2 既有配置使用
 
@@ -378,7 +382,15 @@ mask 规则继续使用 Agent Policy 的既有结构：
 AgentPolicySnapshot.domainSecurityConstraints().fields()[CanonicalFieldRef].requiredMask
 ```
 
-如果工程已有 YAML/properties 绑定到 `DomainSecurityConstraints.FieldSecurityConstraint.requiredMask`，实施只需补充测试样例；如果当前默认 bootstrap 中未配置任何 mask，则默认行为保持不变。
+如果工程已有 metadata bundle 或 reload 输入绑定到 `DomainSecurityConstraints.FieldSecurityConstraint.requiredMask`，实施只需补充测试样例；如果当前默认 bootstrap 中未配置任何 mask，则默认行为保持不变。
+
+配置与策略事实落点如下：
+
+| 类型 | 路径/键 | 说明 |
+| --- | --- | --- |
+| 默认策略种子 | `agent-service/src/main/java/com/dylan/agent/metadata/config/DefaultAgentMetadataBootstrap.java` | 默认 `AgentPolicySnapshot` 的 `domainSecurityConstraints` 可继续为空；若要在本地 bootstrap 验收 mask，需在该策略种子中为测试 domain 显式配置 `requiredMask`。 |
+| 运行态策略事实 | `AgentPolicySnapshot.domainSecurityConstraints()[domain].fields()[CanonicalFieldRef].requiredMask` | 这是本设计的唯一 mask 策略事实路径，不新增 `auth-service` DTO 字段，也不新增 D04 metadata 字段。 |
+| reload 校验输入 | `AgentMetadataReloader.validateAndReload(AgentMetadataProperties candidate)` 的候选 metadata 结构 | 若后续已有 reload 输入承载 Policy，应从该候选结构提取 `DomainSecurityConstraints` 并沿用 D04 reference validation；本设计不新增数据库或外部接口。 |
 
 ### 13.3 配置校验
 
@@ -449,7 +461,7 @@ sequenceDiagram
 | `fieldMasks` 中出现空 key 或空 value | Snapshot/ExecutionScope 构造器拒绝 | 启动或测试阶段暴露。 |
 | `MaskType` 无对应 `FieldMasker` | `FieldMaskerRegistry` 启动失败 | 服务启动失败，避免运行时漏脱敏。 |
 | `FieldMasker.mask(...)` 执行异常 | 不吞异常，ResultSecurity 失败 | 不返回未脱敏结果。 |
-| payload 缺少 domain | 结果安全无法定位字段规则时仅允许返回空字段集合或保持当前 fail closed 语义 | 具体由 projector 测试固定。 |
+| payload 缺少 domain | query/preview/aggregate payload 只要包含任一字段承载数据，就 fail closed；完全空 payload 可返回空安全结果 | 避免因无法定位 `domain.field` 而绕过字段裁剪或 mask。 |
 
 ## 17. 权限、审计与风控
 
@@ -569,6 +581,7 @@ rg -n "fieldMasks\(\)|new ExecutionScope|new AuthorizationSnapshot" agent-servic
 | 1 | aggregate 规则 | metric 是否默认脱敏存在歧义 | 已在 10.5 明确 metric 默认不脱敏，仅 group value mask。 |
 | 1 | 实施落点完整性 | 需要列出方法参数和返回值 | 已在第 12 节补齐。 |
 | 2 | 授权、ResultSecurity、测试设计 | 未发现阻断问题 | 文档保持 Draft，等待实施评审。 |
+| 3 | 可编码性与父文档一致性 | `DomainSecurityConstraints` 非 mask 字段约束、filter 字符串值脱敏返回类型、缺失 domain 策略和配置落点不够明确 | 已在 10.1、10.2、12.1、12.4、13、16 中补齐，复审未发现 S0/S1。 |
 
 ## 24. 完成摘要
 
