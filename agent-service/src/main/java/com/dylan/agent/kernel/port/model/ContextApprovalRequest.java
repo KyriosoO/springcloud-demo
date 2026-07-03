@@ -20,18 +20,30 @@ public final class ContextApprovalRequest {
     private final ExecutionScope executionScope;
     private final List<ContextSnapshot> consumedSnapshots;
     private final Map<RuntimeContextType, ContextSnapshot> consumedSnapshotsByType;
+    private final Optional<String> selectedDomain;
     private final Instant now;
 
     public ContextApprovalRequest(InvocationHandle handle,
-                                  ResolvedRegistration registration,
-                                  ExecutionScope executionScope,
-                                  List<ContextSnapshot> consumedSnapshots,
-                                  Instant now) {
+                                   ResolvedRegistration registration,
+                                   ExecutionScope executionScope,
+                                   List<ContextSnapshot> consumedSnapshots,
+                                   Instant now) {
+        this(handle, registration, executionScope, consumedSnapshots, null, now);
+    }
+
+    public ContextApprovalRequest(InvocationHandle handle,
+                                   ResolvedRegistration registration,
+                                   ExecutionScope executionScope,
+                                   List<ContextSnapshot> consumedSnapshots,
+                                   String selectedDomain,
+                                   Instant now) {
         this.handle = Objects.requireNonNull(handle);
         this.registration = Objects.requireNonNull(registration);
         this.executionScope = Objects.requireNonNull(executionScope);
         this.consumedSnapshots = List.copyOf(consumedSnapshots == null ? List.of() : consumedSnapshots);
         this.consumedSnapshotsByType = indexByContextType(this.consumedSnapshots);
+        this.selectedDomain = Optional.ofNullable(selectedDomain)
+                .map(value -> requireNonBlank(value, "selectedDomain"));
         this.now = Objects.requireNonNull(now);
     }
 
@@ -40,6 +52,7 @@ public final class ContextApprovalRequest {
     public ExecutionScope executionScope() { return executionScope; }
     public List<ContextSnapshot> consumedSnapshots() { return consumedSnapshots; }
     public Map<RuntimeContextType, ContextSnapshot> consumedSnapshotsByType() { return consumedSnapshotsByType; }
+    public Optional<String> selectedDomain() { return selectedDomain; }
     public Optional<ContextSnapshot> consumedSnapshot(RuntimeContextType contextType) {
         return Optional.ofNullable(consumedSnapshotsByType.get(Objects.requireNonNull(contextType)));
     }
@@ -55,5 +68,13 @@ public final class ContextApprovalRequest {
             }
         }
         return Map.copyOf(indexed);
+    }
+
+    private static String requireNonBlank(String value, String name) {
+        String normalized = Objects.requireNonNull(value, name + " must not be null").trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(name + " must not be blank");
+        }
+        return normalized;
     }
 }

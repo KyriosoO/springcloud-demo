@@ -20,10 +20,11 @@ public class ContextSecurityConfiguration {
 
     @Bean
     ContextBoundary contextBoundary(ContextRepository repository,
-                                    PayloadJsonCodec payloadJsonCodec,
-                                    ProtectedPayloadCodec protectedPayloadCodec,
-                                    Clock clock) {
-        return new ContextBoundary(repository, payloadJsonCodec, protectedPayloadCodec, clock);
+                                     PayloadJsonCodec payloadJsonCodec,
+                                     ProtectedPayloadCodec protectedPayloadCodec,
+                                     AgentSecuritySettingsRegistry settingsRegistry,
+                                     Clock clock) {
+        return new ContextBoundary(repository, payloadJsonCodec, protectedPayloadCodec, settingsRegistry, clock);
     }
 
     @Bean

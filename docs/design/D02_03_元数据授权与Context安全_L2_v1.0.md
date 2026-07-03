@@ -814,6 +814,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `kernel/port/model/ApprovedContextWrite.java`
 - `metadata/context/port/ContextPlanningPort.java`
 - `metadata/context/internal/ContextBoundary.java`
+- `metadata/context/internal/ContextBindingSupport.java`
 - `metadata/context/internal/ContextRepository.java`
 - `metadata/context/internal/ContextRecordEntity.java`
 - `metadata/context/internal/ContextRecordMapper.java`
@@ -904,6 +905,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 | `ContextPlanningPort` | `load(ContextReadRequest)`、`toRuntimeView(ContextSnapshot,ContextReadDeclaration,PlanningAuthorizationEvidence)` |
 | `ExpectedContextVersion` | `targetVersion()`及sealed subtype只读访问器 |
 | `ContextBoundary` | `load(ContextReadRequest)`、`revalidateAll(List<ContextSnapshot>,InvocationHandle,ResolvedRegistration,ExecutionScope)`、`approve(List<ContextWriteCandidate>,ContextApprovalRequest)` |
+| `ContextBindingSupport` | package-private AAD binding digest与scope编解码辅助；不作为公共扩展点 |
 | `ContextFinalizationParticipantImpl` | `persist(List<ApprovedContextWrite>)` |
 | `ContextRepository` | `findCurrent`、`insertExpectedAbsent`、`updateExpectedVersion`、`findExact`、`markUnreadableByConversationScope`、`deleteExpired`（签名见§10.1） |
 | `ContextRecordMapper` | 与Repository六个操作一一对应的MyBatis方法；参数使用typed parameter record |

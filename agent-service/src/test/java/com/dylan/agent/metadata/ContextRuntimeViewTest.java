@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
@@ -20,6 +21,8 @@ import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
+import com.dylan.agent.metadata.config.AgentSecuritySettings;
+import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.internal.ContextBoundary;
 import com.dylan.agent.metadata.context.model.ContextRecordKey;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
@@ -30,13 +33,27 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewProjectsMinimalQueryContext() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = boundary.toRuntimeView(snapshot(), declaration(), evidence());
 
         assertThat(view).isInstanceOf(RuntimeQueryContextView.class);
         assertThat(((RuntimeQueryContextView) view).getSelectFields()).containsExactly("name");
+    }
+
+    @Test
+    void toRuntimeViewOnlyProjectsReadableFields() {
+        ContextBoundary boundary = new ContextBoundary(
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
+
+        var view = (RuntimeQueryContextView) boundary.toRuntimeView(snapshot(), declaration(), evidence());
+
+        assertThat(view.getSelectFields()).containsExactly("name");
+        assertThat(view.getFilters()).isEmpty();
+        assertThat(view.getPage()).isNull();
+        assertThat(view.getSize()).isNull();
     }
 
     static ContextSnapshot snapshot() {
@@ -57,7 +74,7 @@ class ContextRuntimeViewTest {
 
     static ContextReadDeclaration declaration() {
         return new ContextReadDeclaration(
-                com.dylan.agent.api.contract.runtime.common.RuntimeContextType.QUERY,
+                RuntimeContextType.QUERY,
                 AgentExecutionContracts.QUERY_CONTEXT,
                 QueryCapabilityContextPayload.class,
                 false,
@@ -72,11 +89,17 @@ class ContextRuntimeViewTest {
                 "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
                 new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
                 new PlanningEffectiveScope(Set.of("query.search"), Set.of("employee"), Map.of(),
-                        Set.of(), Set.of(), com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
+                        Set.of(RuntimeContextType.QUERY), Set.of(RuntimeContextType.QUERY),
+                        com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
                         com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
                         Duration.ofSeconds(30), 1, 100, 100, 10_000),
                 new DomainMetadataEvidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW,
                 MetadataTestSupport.NOW.plusSeconds(60));
+    }
+
+    private static AgentSecuritySettingsRegistry settings() {
+        return new AgentSecuritySettingsRegistry(
+                new AgentSecuritySettings(Duration.ofHours(1), Duration.ZERO, 10, "ACTIVE"));
     }
 }

@@ -28,6 +28,17 @@ public interface ContextRecordMapper {
                                  @Param("contextType") String contextType,
                                  @Param("now") LocalDateTime now);
 
+    @Select("SELECT context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
+            "contract_schema, contract_version, record_version, protected_payload_json, " +
+            "source_capability_id, source_invocation_id, source_domain, readable, expires_at, updated_at " +
+            "FROM agent_context_record WHERE owner_type = #{ownerType} AND owner_id = #{ownerId} " +
+            "AND scope_type = #{scopeType} AND scope_id = #{scopeId} AND context_type = #{contextType}")
+    ContextRecordRow findByKey(@Param("ownerType") String ownerType,
+                               @Param("ownerId") String ownerId,
+                               @Param("scopeType") String scopeType,
+                               @Param("scopeId") String scopeId,
+                               @Param("contextType") String contextType);
+
     @Insert("INSERT INTO agent_context_record (" +
             "context_id, owner_type, owner_id, scope_type, scope_id, context_type, contract_schema, contract_version, " +
             "record_version, protected_payload_json, source_capability_id, source_invocation_id, source_domain, " +

@@ -127,6 +127,8 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 selection.selectedDomain().map(Set::of).orElseGet(Set::of),
                 fieldsByDomain(evidence.planningScope(), selection.selectedDomain().map(Set::of).orElseGet(Set::of)),
                 fieldMasks(evidence.planningScope(), selection.selectedDomain().map(Set::of).orElseGet(Set::of)),
+                evidence.planningScope().readableContextTypes(),
+                evidence.planningScope().writableContextTypes(),
                 clock.instant(),
                 evidence.domainMetadataEvidence(),
                 new ExecutionBudget(

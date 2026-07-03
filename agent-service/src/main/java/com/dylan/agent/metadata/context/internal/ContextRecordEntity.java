@@ -17,6 +17,7 @@ public record ContextRecordEntity(
         String sourceCapabilityId,
         String sourceInvocationId,
         String sourceDomain,
+        boolean readable,
         Instant expiresAt) {
 
     public ContextRecordEntity {

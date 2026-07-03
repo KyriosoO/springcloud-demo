@@ -1,5 +1,6 @@
 package com.dylan.agent.metadata.authorization.internal;
 
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.invocation.model.InvocationHandle;
 import com.dylan.agent.kernel.port.AuthorizationExecutionPort;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
@@ -41,7 +42,9 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
         UserPermission current = userPermissionBoundary.resolve(handle.subject(), handle.absoluteDeadline());
         if (!current.allowedCapabilityIds().containsAll(snapshot.allowedCapabilityIds())
                 || !current.allowedDomains().containsAll(snapshot.allowedDomains())
-                || !coversFrozenFields(snapshot, current)) {
+                || !coversFrozenFields(snapshot, current)
+                || !currentContextTypes(current.readableContextTypes()).containsAll(snapshot.readableContextTypes())
+                || !currentContextTypes(current.writableContextTypes()).containsAll(snapshot.writableContextTypes())) {
             throw new IllegalStateException("permission recheck would shrink required scope");
         }
         return new ExecutionScope(
@@ -55,6 +58,8 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
                 snapshot.allowedDomains(),
                 snapshot.allowedFields(),
                 snapshot.fieldMasks(),
+                snapshot.readableContextTypes(),
+                snapshot.writableContextTypes(),
                 handle.remaining(clock),
                 snapshot.executionBudget().maxRepairAttempts(),
                 snapshot.executionBudget().maxResultRows(),
@@ -73,5 +78,11 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
             }
         }
         return true;
+    }
+
+    private static Set<RuntimeContextType> currentContextTypes(Set<String> values) {
+        return values.stream()
+                .map(RuntimeContextType::valueOf)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 }

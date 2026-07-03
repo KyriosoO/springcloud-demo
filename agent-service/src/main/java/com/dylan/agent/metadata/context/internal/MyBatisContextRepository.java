@@ -4,8 +4,6 @@ import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
-import com.dylan.agent.invocation.model.InvocationScope;
-import com.dylan.agent.invocation.model.RunScope;
 import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
 import com.dylan.agent.metadata.context.model.ContextRecordKey;
 import com.dylan.agent.metadata.crypto.model.ProtectedPayload;
@@ -42,7 +40,7 @@ public class MyBatisContextRepository implements ContextRepository {
         ContextRecordRow row = mapper.findCurrent(
                 key.owner().type(),
                 key.owner().id(),
-                scopeType(key.scope()),
+                ContextBindingSupport.scopeType(key.scope()),
                 key.scope().scopeId(),
                 key.contextType().name(),
                 LocalDateTime.ofInstant(now, clock.getZone()));
@@ -50,10 +48,21 @@ public class MyBatisContextRepository implements ContextRepository {
     }
 
     @Override
+    public Optional<ContextRecordEntity> findByKey(ContextRecordKey key) {
+        ContextRecordRow row = mapper.findByKey(
+                key.owner().type(),
+                key.owner().id(),
+                ContextBindingSupport.scopeType(key.scope()),
+                key.scope().scopeId(),
+                key.contextType().name());
+        return Optional.ofNullable(row).map(this::toEntity);
+    }
+
+    @Override
     public void upsertApproved(ContextRecordEntity record, ExpectedContextVersion expectedVersion) {
         Objects.requireNonNull(record, "record must not be null");
         Objects.requireNonNull(expectedVersion, "expectedVersion must not be null");
-        Optional<ContextRecordEntity> current = findCurrent(record.recordKey(), clock.instant());
+        Optional<ContextRecordEntity> current = findByKey(record.recordKey());
         if (expectedVersion.expectsAbsent()) {
             if (current.isPresent()) {
                 throw new IllegalStateException("context record already exists: " + record.recordKey().contextType());
@@ -92,7 +101,7 @@ public class MyBatisContextRepository implements ContextRepository {
                 row.getContextId(),
                 new ContextRecordKey(
                         new ContextOwnerRef(row.getOwnerType(), row.getOwnerId()),
-                        scope(row.getScopeType(), row.getScopeId()),
+                        ContextBindingSupport.scope(row.getScopeType(), row.getScopeId()),
                         RuntimeContextType.valueOf(row.getContextType())),
                 new ContractRef(row.getContractSchema(), row.getContractVersion()),
                 row.getRecordVersion(),
@@ -100,6 +109,7 @@ public class MyBatisContextRepository implements ContextRepository {
                 row.getSourceCapabilityId(),
                 row.getSourceInvocationId(),
                 row.getSourceDomain(),
+                row.isReadable(),
                 row.getExpiresAt().atZone(clock.getZone()).toInstant());
     }
 
@@ -108,7 +118,7 @@ public class MyBatisContextRepository implements ContextRepository {
         row.setContextId(entity.contextId());
         row.setOwnerType(entity.recordKey().owner().type());
         row.setOwnerId(entity.recordKey().owner().id());
-        row.setScopeType(scopeType(entity.recordKey().scope()));
+        row.setScopeType(ContextBindingSupport.scopeType(entity.recordKey().scope()));
         row.setScopeId(entity.recordKey().scope().scopeId());
         row.setContextType(entity.recordKey().contextType().name());
         row.setContractSchema(entity.contractRef().schema());
@@ -122,24 +132,6 @@ public class MyBatisContextRepository implements ContextRepository {
         row.setExpiresAt(LocalDateTime.ofInstant(entity.expiresAt(), clock.getZone()));
         row.setUpdatedAt(LocalDateTime.now(clock));
         return row;
-    }
-
-    private static String scopeType(InvocationScope scope) {
-        if (scope instanceof ConversationScope) {
-            return "CONVERSATION";
-        }
-        if (scope instanceof RunScope) {
-            return "RUN";
-        }
-        throw new IllegalArgumentException("unsupported scope: " + scope.getClass().getName());
-    }
-
-    private static InvocationScope scope(String scopeType, String scopeId) {
-        return switch (scopeType) {
-            case "CONVERSATION" -> new ConversationScope(scopeId);
-            case "RUN" -> new RunScope(scopeId);
-            default -> throw new IllegalArgumentException("unsupported scopeType: " + scopeType);
-        };
     }
 
     private String writeProtectedPayload(ProtectedPayload payload) {

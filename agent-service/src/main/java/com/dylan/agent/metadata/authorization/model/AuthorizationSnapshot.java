@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.model.MaskType;
 
@@ -21,6 +22,8 @@ public final class AuthorizationSnapshot {
     private final Set<String> allowedDomains;
     private final Map<String, Set<String>> allowedFields;
     private final Map<String, MaskType> fieldMasks;
+    private final Set<RuntimeContextType> readableContextTypes;
+    private final Set<RuntimeContextType> writableContextTypes;
     private final Instant snapshotTime;
     private final DomainMetadataEvidence domainMetadataEvidence;
     private final ExecutionBudget executionBudget;
@@ -33,6 +36,21 @@ public final class AuthorizationSnapshot {
             Instant snapshotTime,
             DomainMetadataEvidence domainMetadataEvidence,
             ExecutionBudget executionBudget) {
+        this(snapshotId, subjectRef, profileVersion, policyVersion, allowedCapabilityIds, allowedDomains,
+                allowedFields, fieldMasks, Set.of(), Set.of(), snapshotTime,
+                domainMetadataEvidence, executionBudget);
+    }
+
+    public AuthorizationSnapshot(
+            String snapshotId, String subjectRef,
+            String profileVersion, String policyVersion,
+            Set<String> allowedCapabilityIds, Set<String> allowedDomains,
+            Map<String, Set<String>> allowedFields, Map<String, MaskType> fieldMasks,
+            Set<RuntimeContextType> readableContextTypes,
+            Set<RuntimeContextType> writableContextTypes,
+            Instant snapshotTime,
+            DomainMetadataEvidence domainMetadataEvidence,
+            ExecutionBudget executionBudget) {
         this.snapshotId = Objects.requireNonNull(snapshotId);
         this.subjectRef = Objects.requireNonNull(subjectRef);
         this.profileVersion = Objects.requireNonNull(profileVersion);
@@ -41,6 +59,10 @@ public final class AuthorizationSnapshot {
         this.allowedDomains = Set.copyOf(allowedDomains);
         this.allowedFields = Map.copyOf(allowedFields);
         this.fieldMasks = copyFieldMasks(fieldMasks);
+        this.readableContextTypes = Set.copyOf(
+                Objects.requireNonNull(readableContextTypes, "readableContextTypes must not be null"));
+        this.writableContextTypes = Set.copyOf(
+                Objects.requireNonNull(writableContextTypes, "writableContextTypes must not be null"));
         this.snapshotTime = Objects.requireNonNull(snapshotTime);
         this.domainMetadataEvidence = domainMetadataEvidence;
         this.executionBudget = Objects.requireNonNull(executionBudget, "executionBudget must not be null");
@@ -54,6 +76,8 @@ public final class AuthorizationSnapshot {
     public Set<String> allowedDomains() { return allowedDomains; }
     public Map<String, Set<String>> allowedFields() { return allowedFields; }
     public Map<String, MaskType> fieldMasks() { return fieldMasks; }
+    public Set<RuntimeContextType> readableContextTypes() { return readableContextTypes; }
+    public Set<RuntimeContextType> writableContextTypes() { return writableContextTypes; }
     public Instant snapshotTime() { return snapshotTime; }
     public Optional<DomainMetadataEvidence> domainMetadataEvidence() {
         return Optional.ofNullable(domainMetadataEvidence);

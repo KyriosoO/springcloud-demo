@@ -1,5 +1,6 @@
 package com.dylan.agent.metadata.authorization.model;
 
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.model.MaskType;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 
@@ -23,6 +24,8 @@ public final class ExecutionScope {
     private final Set<String> allowedDomains;
     private final Map<String, Set<String>> allowedFields;
     private final Map<String, MaskType> fieldMasks; // domain.field -> mask type
+    private final Set<RuntimeContextType> readableContextTypes;
+    private final Set<RuntimeContextType> writableContextTypes;
     private final Duration maxTotalDuration;
     private final int maxRepairAttempts;
     private final int maxResultRows;
@@ -41,6 +44,27 @@ public final class ExecutionScope {
             int maxRepairAttempts,
             int maxResultRows,
             long maxResultBytes) {
+        this(subjectRef, domainMetadataEvidence, recheckedAt, currentPermissionEvidenceId,
+                currentPermissionVersion, currentPolicyVersion, allowedCapabilityIds, allowedDomains,
+                allowedFields, fieldMasks, Set.of(), Set.of(), maxTotalDuration, maxRepairAttempts,
+                maxResultRows, maxResultBytes);
+    }
+
+    public ExecutionScope(
+            String subjectRef,
+            DomainMetadataEvidence domainMetadataEvidence,
+            Instant recheckedAt,
+            String currentPermissionEvidenceId,
+            String currentPermissionVersion,
+            String currentPolicyVersion,
+            Set<String> allowedCapabilityIds, Set<String> allowedDomains,
+            Map<String, Set<String>> allowedFields, Map<String, MaskType> fieldMasks,
+            Set<RuntimeContextType> readableContextTypes,
+            Set<RuntimeContextType> writableContextTypes,
+            Duration maxTotalDuration,
+            int maxRepairAttempts,
+            int maxResultRows,
+            long maxResultBytes) {
         this.subjectRef = requireNonBlank(subjectRef, "subjectRef");
         this.domainMetadataEvidence = Objects.requireNonNull(domainMetadataEvidence);
         this.recheckedAt = Objects.requireNonNull(recheckedAt);
@@ -53,6 +77,10 @@ public final class ExecutionScope {
         this.allowedDomains = copyNonBlankSet(allowedDomains, "allowedDomains");
         this.allowedFields = copyAllowedFields(allowedFields);
         this.fieldMasks = copyFieldMasks(fieldMasks);
+        this.readableContextTypes = Set.copyOf(
+                Objects.requireNonNull(readableContextTypes, "readableContextTypes must not be null"));
+        this.writableContextTypes = Set.copyOf(
+                Objects.requireNonNull(writableContextTypes, "writableContextTypes must not be null"));
         this.maxTotalDuration = requirePositive(maxTotalDuration, "maxTotalDuration");
         if (maxRepairAttempts < 0) {
             throw new IllegalArgumentException("maxRepairAttempts must be non-negative");
@@ -78,6 +106,8 @@ public final class ExecutionScope {
     public Set<String> allowedDomains() { return allowedDomains; }
     public Map<String, Set<String>> allowedFields() { return allowedFields; }
     public Map<String, MaskType> fieldMasks() { return fieldMasks; }
+    public Set<RuntimeContextType> readableContextTypes() { return readableContextTypes; }
+    public Set<RuntimeContextType> writableContextTypes() { return writableContextTypes; }
     public Duration maxTotalDuration() { return maxTotalDuration; }
     public int maxRepairAttempts() { return maxRepairAttempts; }
     public int maxResultRows() { return maxResultRows; }

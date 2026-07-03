@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 面向 D03 完成前旧校验器的只读 D04 Catalog 视图。
+ * 面向 Capability Validator 的只读 D04 Catalog 视图。
  */
 public final class DomainCatalogView {
 

@@ -156,7 +156,9 @@ public final class ExecutionCore {
         try {
             approvedWrites = contextApprovalPort.approve(candidate.contextWrites(),
                     new ContextApprovalRequest(command.handle(), resolved, execScope,
-                            command.planningResult().contextSnapshots(), clock.instant()));
+                            command.planningResult().contextSnapshots(),
+                            command.planningResult().domain().orElse(null),
+                            clock.instant()));
             Objects.requireNonNull(approvedWrites, "approved context writes must not be null");
         } catch (RuntimeException ex) {
             return failure(ExecutionStage.CONTEXT_APPROVAL, KernelErrorCode.CONTEXT_WRITE_CONFLICT, false);
