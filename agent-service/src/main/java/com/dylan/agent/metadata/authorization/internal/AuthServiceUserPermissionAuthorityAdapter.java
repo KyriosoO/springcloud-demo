@@ -73,7 +73,14 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
         AuthPermissionResolveRequest request = request(subject, absoluteDeadline);
         AuthPermissionResolveResponse response = execute(request, token, absoluteDeadline);
         validateResponse(subject, response);
-        return toUserPermission(subject, response);
+        try {
+            return toUserPermission(subject, response);
+        } catch (UserPermissionAuthorityException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                    "auth-permission-invalid-projection", ex);
+        }
     }
 
     private AuthPermissionResolveResponse execute(

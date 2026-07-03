@@ -86,6 +86,13 @@ class QueryPreviewPlanValidatorTest {
     }
 
     @Test
+    void rejectsPreviewSizeAboveConfiguredDefaultEvenWhenOtherBudgetsAreHigher() {
+        assertThatThrownBy(() -> validator().validate(queryPlan(List.of("name"), 21), contextWithMaxRows(100)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid query preview size");
+    }
+
+    @Test
     void rejectsNonFirstPagePreview() {
         QueryAgentPlan plan = queryPlan(List.of("name"), 1);
         plan.getQuery().setPage(2);
@@ -144,11 +151,19 @@ class QueryPreviewPlanValidatorTest {
     }
 
     private ExecutionValidationContext context(String capabilityId) {
+        return context(capabilityId, 5);
+    }
+
+    private ExecutionValidationContext contextWithMaxRows(int maxResultRows) {
+        return context("query.preview", maxResultRows);
+    }
+
+    private ExecutionValidationContext context(String capabilityId, int maxResultRows) {
         return new ExecutionValidationContext(
                 capabilityId,
                 AgentPlanKind.QUERY,
                 AgentDomainMode.REQUIRED,
-                executionScope(),
+                executionScope(maxResultRows),
                 projection(),
                 null,
                 List.of(),
@@ -157,6 +172,10 @@ class QueryPreviewPlanValidatorTest {
     }
 
     private ExecutionScope executionScope() {
+        return executionScope(5);
+    }
+
+    private ExecutionScope executionScope(int maxResultRows) {
         return new ExecutionScope(
                 "user:u-1",
                 new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", NOW),
@@ -170,7 +189,7 @@ class QueryPreviewPlanValidatorTest {
                 Map.of(),
                 Duration.ofSeconds(30),
                 1,
-                5,
+                maxResultRows,
                 10_000);
     }
 

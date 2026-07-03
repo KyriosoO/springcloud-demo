@@ -204,6 +204,13 @@ function renderTypedResult(result) {
     return;
   }
 
+  if (result.resultKind === "QUERY_PREVIEW") {
+    renderQueryParameters(result.queryParameters);
+    renderQueryPreviewResult(result.previewResult);
+    renderAggregateResult(null);
+    return;
+  }
+
   if (result.resultKind === "AGGREGATE") {
     renderQueryParameters(null);
     renderQueryResult(null);
@@ -256,6 +263,51 @@ function renderQueryResult(result) {
 
   const tbody = document.createElement("tbody");
   result.rows.forEach(row => {
+    const tr = document.createElement("tr");
+    result.columns.forEach(column => {
+      const td = document.createElement("td");
+      const value = row[column];
+      td.textContent = value === null || value === undefined ? "" : String(value);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+function renderQueryPreviewResult(result) {
+  const container = document.getElementById("query-result");
+  container.replaceChildren();
+
+  if (!result || !Array.isArray(result.columns) || !Array.isArray(result.sampleRows)) {
+    container.textContent = "本次响应没有查询预览结果。";
+    return;
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const total = result.totalEstimate === null || result.totalEstimate === undefined ? "未知" : result.totalEstimate;
+  const totalText = result.totalExact === false ? `至少 ${total}` : `${total}`;
+  const previewSize = result.previewSize === null || result.previewSize === undefined
+    ? result.sampleRows.length
+    : result.previewSize;
+  meta.textContent = `预览 ${result.sampleRows.length} 行 · 估计总数 ${totalText} · 预览上限 ${previewSize}`;
+  container.appendChild(meta);
+
+  const table = document.createElement("table");
+  const header = document.createElement("tr");
+  result.columns.forEach(column => {
+    const cell = document.createElement("th");
+    cell.textContent = column;
+    header.appendChild(cell);
+  });
+  const thead = document.createElement("thead");
+  thead.appendChild(header);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  result.sampleRows.forEach(row => {
     const tr = document.createElement("tr");
     result.columns.forEach(column => {
       const td = document.createElement("td");

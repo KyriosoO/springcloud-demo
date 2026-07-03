@@ -18,7 +18,7 @@ final class ContextBindingSupport {
     }
 
     static String bindingDigest(ContextRecordEntity entity) {
-        return sha256Hex(String.join("|",
+        return sha256Hex(canonical(
                 entity.recordKey().owner().type(),
                 entity.recordKey().owner().id(),
                 scopeType(entity.recordKey().scope()),
@@ -31,7 +31,7 @@ final class ContextBindingSupport {
     }
 
     static String bindingDigest(ApprovedContextWrite write) {
-        return sha256Hex(String.join("|",
+        return sha256Hex(canonical(
                 write.recordKey().owner().type(),
                 write.recordKey().owner().id(),
                 scopeType(write.recordKey().scope()),
@@ -78,5 +78,14 @@ final class ContextBindingSupport {
         } catch (Exception ex) {
             throw new IllegalStateException("failed to compute context binding digest", ex);
         }
+    }
+
+    private static String canonical(String... fields) {
+        StringBuilder builder = new StringBuilder();
+        for (String field : fields) {
+            String value = Objects.toString(field, "");
+            builder.append(value.length()).append(':').append(value).append('|');
+        }
+        return builder.toString();
     }
 }

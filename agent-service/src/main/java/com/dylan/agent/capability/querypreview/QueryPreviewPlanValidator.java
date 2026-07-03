@@ -81,7 +81,7 @@ public class QueryPreviewPlanValidator
             throw new IllegalArgumentException("query preview only supports first page");
         }
         int max = maxPreviewSize(context);
-        int size = query.getSize() == null ? Math.min(properties.getQuery().getDefaultSize(), max) : query.getSize();
+        int size = query.getSize() == null ? max : query.getSize();
         if (size <= 0 || size > max) {
             throw new IllegalArgumentException("invalid query preview size");
         }
@@ -89,7 +89,7 @@ public class QueryPreviewPlanValidator
     }
 
     private int maxPreviewSize(ExecutionValidationContext context) {
-        int max = properties.getQuery().getMaxSize();
+        int max = properties.getQuery().getDefaultSize();
         max = Math.min(max, context.domainProjection().maxPageSize());
         max = Math.min(max, context.executionScope().maxResultRows());
         return max;

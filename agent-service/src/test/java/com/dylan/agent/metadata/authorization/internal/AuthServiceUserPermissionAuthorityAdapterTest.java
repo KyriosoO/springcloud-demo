@@ -104,6 +104,16 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
     }
 
     @Test
+    void mapsMalformedProjectionToInvalidResponse() {
+        server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withSuccess(malformedProjectionBody(), MediaType.APPLICATION_JSON));
+
+        assertFailure(UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
+                "auth-permission-invalid-projection");
+    }
+
+    @Test
     void mapsSubjectNotFound() {
         server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
                 .andRespond(withResourceNotFound()
@@ -194,6 +204,26 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
                   "diagnosticId": "%s"
                 }
                 """.formatted(code, diagnosticId);
+    }
+
+    private static String malformedProjectionBody() {
+        return """
+                {
+                  "subject": {"type": "USER", "id": "dylan"},
+                  "evidenceId": "perm-1",
+                  "version": "authz-v1",
+                  "allowedCapabilityIds": ["query.search", null],
+                  "allowedDomains": ["employee"],
+                  "filterableFields": {"employee": ["chineseName"]},
+                  "displayableFields": {"employee": ["chineseName"]},
+                  "allowedOperators": {"employee.chineseName": ["EQ"]},
+                  "allowedFunctions": {},
+                  "readableContextTypes": ["QUERY"],
+                  "writableContextTypes": ["QUERY"],
+                  "attributes": {"source": "auth-service-agent-permission"},
+                  "resolvedAt": "2026-07-02T10:00:00Z"
+                }
+                """;
     }
 
     private static void assertFailure(
