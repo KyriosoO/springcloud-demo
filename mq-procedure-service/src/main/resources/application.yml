@@ -53,3 +53,6 @@ rocketmq:
 transaction:
   search:
     max-exact-total: 10000
+
+mybatis:
+  mapper-locations: classpath*:com/dylan/mqprocedureserver/mapper/*.xml

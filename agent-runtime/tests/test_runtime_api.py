@@ -1,8 +1,11 @@
 """当前路由/计划运行时接口的集成测试。"""
 
+import logging
+
 from fastapi.testclient import TestClient
 
 from app.contracts.models import ExecutablePlan, QueryAgentPlan, RouteDecision
+from app.core.errors import RuntimeProviderError
 from app.core.runtime_planning import get_plan_planner, get_route_planner
 from app.core.settings import Settings, get_settings
 from app.main import create_app
@@ -163,3 +166,19 @@ class TestRoutePlanApi:
         assert body["code"] == "CONTRACT_INVALID"
         assert body["metadata"]["operation"] == "PLAN"
         assert body["metadata"]["terminationReason"] == "VALIDATION_REJECTED"
+
+    def test_error_response_logs_internal_detail(self, caplog):
+        class FailingPlanPlanner:
+            async def plan(self, request):
+                raise RuntimeProviderError("LLM provider error: APIConnectionError", request.request_id)
+
+        client = _client()
+        client.app.dependency_overrides[get_plan_planner] = lambda: FailingPlanPlanner()
+
+        with caplog.at_level(logging.ERROR, logger="agent_runtime.errors"):
+            response = client.post("/runtime/v1/plan", json=_plan_request(), headers=_auth_headers())
+
+        assert response.status_code == 503
+        assert response.json()["message"] == "LLM provider error"
+        assert "LLM provider error: APIConnectionError" in caplog.text
+        assert "diagnosticId=runtime-" in caplog.text

@@ -109,7 +109,7 @@
 				<directory>src/main/resources</directory>
 			</resource>
 			<resource>
-				<directory>src/main/java/com/dylan/mqProcedureServer/mapper</directory>
+				<directory>src/main/java/com/dylan/mqprocedureserver/mapper</directory>
 				<targetPath>com/dylan/mqprocedureserver/mapper</targetPath>
 				<includes>
 					<include>**/*.xml</include>
