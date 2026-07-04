@@ -74,4 +74,18 @@
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
+			<resource>
+				<directory>src/main/java/com/dylan/mqconsumerserver/trans/mapper</directory>
+				<targetPath>com/dylan/mqconsumerserver/trans/mapper</targetPath>
+				<includes>
+					<include>**/*.xml</include>
+				</includes>
+			</resource>
+		</resources>
+	</build>
 </project>

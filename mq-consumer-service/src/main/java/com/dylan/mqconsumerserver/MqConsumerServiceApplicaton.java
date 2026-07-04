@@ -1,5 +1,7 @@
 package com.dylan.mqconsumerserver;
 
+import org.mybatis.spring.annotation.MapperScan;
+import org.mybatis.spring.annotation.MapperScans;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
@@ -7,6 +9,9 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @EnableDiscoveryClient
+@MapperScans({
+		@MapperScan("com.dylan.mqconsumerserver.trans.mapper")
+})
 @ComponentScan(basePackages = { "com.dylan.mqconsumerserver", // 本项目
 		"com.dylan.common.redis","com.dylan.common.db","com.dylan.common.kafka" // 公共模块
 })
