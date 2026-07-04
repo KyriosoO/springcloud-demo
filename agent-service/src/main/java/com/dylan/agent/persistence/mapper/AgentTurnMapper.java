@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.dylan.agent.persistence.entity.AgentTurnEntity;
+import com.dylan.agent.persistence.projection.AgentTurnHistoryRow;
 
 /** 轮次持久化映射器，D03 后终态只允许由生命周期终结方法写入。 */
 @Mapper
@@ -19,13 +20,12 @@ public interface AgentTurnMapper {
             "VALUES (#{id}, #{conversationId}, #{invocationId}, #{userId}, #{userMessage}, #{status}, #{createdAt})")
     int insert(AgentTurnEntity entity);
 
-    @Select("SELECT id, conversation_id, invocation_id, user_id, user_message, response_type, " +
-            "assistant_message, status, error_code, created_at, completed_at " +
+    @Select("SELECT user_message, assistant_message " +
             "FROM agent_turn " +
             "WHERE conversation_id = #{conversationId} AND user_id = #{userId} AND status = 'SUCCEEDED' " +
             "AND (invocation_id IS NULL OR invocation_id <> #{currentInvocationId}) " +
             "ORDER BY turn_seq DESC LIMIT #{limit}")
-    List<AgentTurnEntity> selectRecentSucceededBeforeInvocation(
+    List<AgentTurnHistoryRow> selectRecentSucceededBeforeInvocation(
             @Param("conversationId") String conversationId,
             @Param("userId") String userId,
             @Param("currentInvocationId") String currentInvocationId,

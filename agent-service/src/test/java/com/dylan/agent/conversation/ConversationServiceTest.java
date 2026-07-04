@@ -10,9 +10,9 @@ import com.dylan.agent.invocation.model.InvocationHandle;
 import com.dylan.agent.invocation.model.InvocationType;
 import com.dylan.agent.model.ConversationStatus;
 import com.dylan.agent.persistence.entity.AgentConversationEntity;
-import com.dylan.agent.persistence.entity.AgentTurnEntity;
 import com.dylan.agent.persistence.mapper.AgentConversationMapper;
 import com.dylan.agent.persistence.mapper.AgentTurnMapper;
+import com.dylan.agent.persistence.projection.AgentTurnHistoryRow;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -84,7 +84,7 @@ class ConversationServiceTest {
     @Test
     @DisplayName("D03 history 只通过 invocation 绑定查询")
     void shouldLoadRecentTurnsByInvocationHandle() {
-        AgentTurnEntity turn = new AgentTurnEntity();
+        AgentTurnHistoryRow turn = new AgentTurnHistoryRow();
         turn.setUserMessage("问题");
         turn.setAssistantMessage("回答");
         when(turnMapper.selectRecentSucceededBeforeInvocation("conv-1", "user-1", "inv-1", 4))

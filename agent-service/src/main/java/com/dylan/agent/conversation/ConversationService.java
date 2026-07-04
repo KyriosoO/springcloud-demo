@@ -18,11 +18,10 @@ import com.dylan.agent.invocation.model.InvocationHandle;
 import com.dylan.agent.exception.AgentConversationNotFoundException;
 import com.dylan.agent.exception.AgentInternalException;
 import com.dylan.agent.model.ConversationStatus;
-import com.dylan.agent.model.TurnStatus;
 import com.dylan.agent.persistence.entity.AgentConversationEntity;
-import com.dylan.agent.persistence.entity.AgentTurnEntity;
 import com.dylan.agent.persistence.mapper.AgentConversationMapper;
 import com.dylan.agent.persistence.mapper.AgentTurnMapper;
+import com.dylan.agent.persistence.projection.AgentTurnHistoryRow;
 
 /**
  * 会话与轮次持久化服务。
@@ -83,14 +82,14 @@ public class ConversationService {
         if (!(handle.origin() instanceof ChatInvocationOrigin origin)) {
             throw new IllegalArgumentException("CHAT history requires ChatInvocationOrigin");
         }
-        List<AgentTurnEntity> turns = turnMapper.selectRecentSucceededBeforeInvocation(
+        List<AgentTurnHistoryRow> turns = turnMapper.selectRecentSucceededBeforeInvocation(
                 origin.conversationId(),
                 handle.subject().id(),
                 handle.invocationId(),
                 limit);
         List<RuntimeTurnProjection> result = new ArrayList<>();
         for (int i = turns.size() - 1; i >= 0; i--) {
-            AgentTurnEntity turn = turns.get(i);
+            AgentTurnHistoryRow turn = turns.get(i);
             result.add(turnProjection(RuntimeTurnRole.USER, turn.getUserMessage()));
             if (turn.getAssistantMessage() != null && !turn.getAssistantMessage().isBlank()) {
                 result.add(turnProjection(RuntimeTurnRole.ASSISTANT, turn.getAssistantMessage()));
