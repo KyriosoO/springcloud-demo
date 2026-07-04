@@ -7,4 +7,4 @@ common:
         keys:
           ACTIVE:
             env: AGENT_PAYLOAD_KEY_ACTIVE
-            value: ""
+            value: "gINjdgXjaccClSOQCmH2d5pM5ruHqML9PY31uHNSLJw="

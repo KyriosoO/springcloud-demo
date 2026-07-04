@@ -8,8 +8,8 @@ management:
 common:
   security:
     secrets:
-      source-order: [environment, config]
-      allow-config-values: false
+      source-order: [config, environment]
+      allow-config-values: true
       fail-fast: true
       jwt:
         active-key-id: ACTIVE
@@ -17,4 +17,4 @@ common:
         keys:
           ACTIVE:
             env: COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE
-            value: ""
+            value: "2muGRGWD4+2iCicGq3d02FEYojKGi9k9GwJDcMQkbds="
