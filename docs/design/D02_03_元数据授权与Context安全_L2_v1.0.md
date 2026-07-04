@@ -4,7 +4,7 @@
 > 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交）  
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
-> 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`  
+> 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`统一密钥管理与多注入源支持_L2实施详细设计_v1.0.md`（专项联动，不改变 D02_03 已实施基线）
 > 交付阶段：D02 详细设计评审门禁；本文不实施代码/配置/SQL  
 > 适用代码基线：`4ce5ac3` 及其同源后续提交
 
@@ -481,7 +481,9 @@ D02_02 `FinalizationTxService`从传给本方法的同一不可变ApprovedContex
 
 `ProtectedPayload` 字段：ciphertext、keyId、nonce、algorithmVersion。`AeadProtectedPayloadCodec`是唯一codec实现，构造器注入`AgentSecuritySettingsRegistry`和`PayloadKeyProvider`，使用AES-256-GCM、每次加密唯一96-bit随机nonce和完整`PayloadProtectionContext` AAD；禁止nonce复用。加密keyId只取当前不可变settings，密钥不得写入YAML/日志。解密/tag校验失败fail closed；key rotation不改变ContractRef/schema。
 
-`PayloadKeyProvider`方法为`SecretKey currentEncryptionKey(String keyId)`、`SecretKey decryptionKey(String keyId)`。D03提供唯一初始实现`EnvironmentPayloadKeyProvider`：keyId必须匹配`[A-Za-z0-9_]{1,64}`，按其大写值读取`AGENT_PAYLOAD_KEY_<KEY_ID>`环境变量中的Base64 32-byte密钥；不做可能碰撞的字符替换，不枚举、不打印、不写入Spring Properties。active key在启动时必须可解析，历史key按密文keyId解析以支持轮换；缺失、长度错误或算法错误拒绝启动/解密。未来接Vault/KMS只替换此port实现，不修改codec、Context、Result或配置结构。
+`PayloadKeyProvider`方法为`SecretKey requireKey(String keyId)`。密钥来源由`统一密钥管理与多注入源支持_L2实施详细设计_v1.0.md`定义的统一密钥入口负责，`EnvironmentPayloadKeyProvider`仅作为环境变量来源的初始/兼容实现之一。keyId必须匹配`[A-Za-z0-9_]{1,64}`；生产环境密钥值不得写入YAML、日志、Spring Properties或配置导出，必须通过环境变量或外部Secret来源注入；开发/演示环境如需配置文件注入，必须受统一密钥入口的profile策略和启动期校验控制。active key在启动时必须可解析，历史key按密文keyId解析以支持轮换；缺失、长度错误、算法错误或生产明文配置违规均拒绝启动/解密。未来接Vault/KMS只替换统一密钥入口实现，不修改codec、Context、Result或配置结构。
+
+统一密钥管理专项可在后续实施中新增`SecretMaterialPayloadKeyProvider`适配统一入口；该类不属于本 D02_03 已实施基线。本文冻结的是`PayloadKeyProvider`端口、`AeadProtectedPayloadCodec`算法/AAD语义和密钥来源边界。
 
 Invocation filtered result 和 Context 共用此保护基础设施，但使用不同purpose和记录级AAD，不能互相或跨记录解密。
 
@@ -618,7 +620,7 @@ agent:
     recovery-batch-size: 100
 ```
 
-密钥值不进入配置；部署环境必须另外提供与active/历史keyId大写值对应的`AGENT_PAYLOAD_KEY_<KEY_ID>` secret变量。D03删除 `agent.intent-roles`；D04/D03删除旧 `agent.domains` 中的Canonical字段事实，并将纯访问/mask限制迁入 `domain-security`。
+密钥值不进入生产配置；部署环境必须通过统一密钥入口提供与active/历史keyId对应的Secret，环境变量来源默认使用`AGENT_PAYLOAD_KEY_<KEY_ID>`命名。开发/演示环境允许的配置文件注入、source-order和生产禁用明文策略由`统一密钥管理与多注入源支持_L2实施详细设计_v1.0.md`约束。D03删除 `agent.intent-roles`；D04/D03删除旧 `agent.domains` 中的Canonical字段事实，并将纯访问/mask限制迁入 `domain-security`。
 
 ### 12.2 现有配置文件修改
 
@@ -629,7 +631,7 @@ agent:
 
 ### 12.3 Validator
 
-`AgentMetadataPropertiesValidator.validate(AgentMetadataProperties,CapabilityRegistry,PayloadKeyProvider)` 必须校验：bundleVersion非空、defaultProfileId精确指向一个Profile、Profile/行为资产/Policy version和精确引用、每个promptProfileRef存在且行为资产符合D01大小/locale约束、Profile及Policy全局Budget/Context TTL上限显式存在、maxTotalDuration/rows/bytes为正、repairAttempts/delegation depth/tasks非负、只收紧运算、reloadValidationTimeout在100ms～30s、Context TTL、canonical field/operator/function引用格式与内部闭合、mask类型、配置无明文key、active keyId可解析为AES-256 key、无重复事实。缺失限制不得解释为无限；显式空集合只表示deny-none或不允许委派等对应受控语义。引用在D04中是否存在只由Reloader随后调用`DomainMetadataPort.validateReferences`验证，禁止Validator另走投影接口。失败拒绝整体启动/reload。
+`AgentMetadataPropertiesValidator.validate(AgentMetadataProperties,CapabilityRegistry,PayloadKeyProvider)` 必须校验：bundleVersion非空、defaultProfileId精确指向一个Profile、Profile/行为资产/Policy version和精确引用、每个promptProfileRef存在且行为资产符合D01大小/locale约束、Profile及Policy全局Budget/Context TTL上限显式存在、maxTotalDuration/rows/bytes为正、repairAttempts/delegation depth/tasks非负、只收紧运算、reloadValidationTimeout在100ms～30s、Context TTL、canonical field/operator/function引用格式与内部闭合、mask类型、生产配置无明文key、active keyId可通过统一密钥入口解析为AES-256 key、无重复事实。缺失限制不得解释为无限；显式空集合只表示deny-none或不允许委派等对应受控语义。引用在D04中是否存在只由Reloader随后调用`DomainMetadataPort.validateReferences`验证，禁止Validator另走投影接口。失败拒绝整体启动/reload。
 
 ---
 
@@ -829,7 +831,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `metadata/crypto/model/PayloadPurpose.java`
 - `metadata/crypto/port/PayloadKeyProvider.java`
 - `metadata/crypto/internal/AeadProtectedPayloadCodec.java`
-- `metadata/crypto/internal/EnvironmentPayloadKeyProvider.java`
+- `metadata/crypto/internal/EnvironmentPayloadKeyProvider.java`（环境变量来源兼容实现）
 - `metadata/crypto/internal/PayloadJsonCodec.java`
 
 ### 15.5 Result/Config
@@ -914,9 +916,9 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 | `ContextPayloadMigrator` | `source()`、`sourceType()`、`target()`、`targetType()`、`migrate(S)` |
 | `ContextMigrationRegistry` | `resolve(ContractRef,ContractRef)`、`validateNoAmbiguousPathOrCycle()` |
 | `ProtectedPayloadCodec` | `encrypt(byte[],PayloadProtectionContext)`、`decrypt(ProtectedPayload,PayloadProtectionContext)` |
-| `PayloadKeyProvider` | `currentEncryptionKey(String)`、`decryptionKey(String)` |
+| `PayloadKeyProvider` | `requireKey(String)` |
 | `AeadProtectedPayloadCodec` | 实现`encrypt`、`decrypt`；无额外公开方法 |
-| `EnvironmentPayloadKeyProvider` | 实现`currentEncryptionKey`、`decryptionKey`；无额外公开方法 |
+| `EnvironmentPayloadKeyProvider` | 实现`requireKey`；仅作为环境变量来源兼容实现 |
 | `PayloadJsonCodec` | `serialize(Object,Class<?>)`、`deserialize(byte[],Class<T>)` |
 | `SecuredResult` | `canonicalPayloadCopy()`及其余只读访问器 |
 | `ResultSecurityProjector` | `supports()`、`filter(O,ExecutionScope)` |
