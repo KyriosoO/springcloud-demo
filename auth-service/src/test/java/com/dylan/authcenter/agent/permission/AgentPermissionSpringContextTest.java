@@ -11,7 +11,11 @@ import org.springframework.boot.test.context.SpringBootTest;
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
                 "eureka.client.enabled=false",
-                "spring.cloud.config.enabled=false"
+                "spring.cloud.config.enabled=false",
+                "common.security.secrets.allow-config-values=true",
+                "common.security.secrets.source-order[0]=config",
+                "common.security.secrets.jwt.active-key-id=ACTIVE",
+                "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         })
 @DisplayName("AgentPermission Spring context")
 class AgentPermissionSpringContextTest {

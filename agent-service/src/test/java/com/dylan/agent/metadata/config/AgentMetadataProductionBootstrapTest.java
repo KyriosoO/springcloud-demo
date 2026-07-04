@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
+import com.dylan.common.security.SecretProperties;
 
 import java.time.Duration;
 import java.util.Set;
@@ -17,7 +18,8 @@ class AgentMetadataProductionBootstrapTest {
     void bootstrapsStoreProfilePolicyAndSecurityFromOneBundle() {
         DefaultAgentMetadataBootstrap bootstrap = new DefaultAgentMetadataBootstrap(
                 DomainMetadataTestSupport.agentProperties(),
-                DomainMetadataTestSupport.properties());
+                DomainMetadataTestSupport.properties(),
+                secretProperties("ACTIVE"));
         AgentMetadataStore store = new AgentMetadataStore(bootstrap.bootstrap());
         AgentProfileRegistry profileRegistry = new AgentProfileRegistry(store);
         AgentPolicyConfiguration policyConfiguration = new AgentPolicyConfiguration(store);
@@ -37,5 +39,25 @@ class AgentMetadataProductionBootstrapTest {
         assertThat(securitySettingsRegistry.current()).isSameAs(store.current().securitySettings());
         assertThat(securitySettingsRegistry.current().globalMaxContextTtl()).isEqualTo(Duration.ofDays(7));
         assertThat(store.current().bundleDigest()).isNotBlank();
+    }
+
+    @Test
+    void digestChangesWhenActivePayloadKeyIdChanges() {
+        AgentMetadataBundle active = new DefaultAgentMetadataBootstrap(
+                DomainMetadataTestSupport.agentProperties(),
+                DomainMetadataTestSupport.properties(),
+                secretProperties("ACTIVE")).bootstrap();
+        AgentMetadataBundle next = new DefaultAgentMetadataBootstrap(
+                DomainMetadataTestSupport.agentProperties(),
+                DomainMetadataTestSupport.properties(),
+                secretProperties("NEXT")).bootstrap();
+
+        assertThat(active.bundleDigest()).isNotEqualTo(next.bundleDigest());
+    }
+
+    private static SecretProperties secretProperties(String activePayloadKeyId) {
+        SecretProperties properties = new SecretProperties();
+        properties.getAgentPayload().setActiveKeyId(activePayloadKeyId);
+        return properties;
     }
 }

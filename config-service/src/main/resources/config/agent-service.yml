@@ -1,0 +1,10 @@
+common:
+  security:
+    secrets:
+      agent-payload:
+        active-key-id: ACTIVE
+        previous-key-ids: []
+        keys:
+          ACTIVE:
+            env: AGENT_PAYLOAD_KEY_ACTIVE
+            value: ""

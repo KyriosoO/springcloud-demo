@@ -1,5 +1,6 @@
 package com.dylan.agent.metadata;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
@@ -13,7 +14,9 @@ import org.springframework.context.support.GenericApplicationContext;
 
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.metadata.config.AgentMetadataReloader;
+import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.config.AgentMetadataStore;
+import com.dylan.agent.metadata.crypto.port.PayloadKeyProvider;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataStore;
@@ -22,6 +25,8 @@ import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
 import com.dylan.agent.model.MaskType;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
+import javax.crypto.spec.SecretKeySpec;
+
 class AgentMetadataReloadTest {
     @Test
     void rejectsSameBundleVersionWithDifferentDigest() {
@@ -29,6 +34,7 @@ class AgentMetadataReloadTest {
         AgentMetadataReloader reloader = new AgentMetadataReloader(
                 new AgentMetadataStore(current),
                 domainPort(),
+                payloadKeyProvider(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> reloader.publishValidated(
@@ -43,6 +49,7 @@ class AgentMetadataReloadTest {
         AgentMetadataReloader reloader = new AgentMetadataReloader(
                 new AgentMetadataStore(current),
                 domainPort(),
+                payloadKeyProvider(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         var unknownField = new CanonicalFieldRef("employee", "unknownField");
@@ -59,6 +66,52 @@ class AgentMetadataReloadTest {
         assertThatThrownBy(() -> reloader.publishValidated(candidate))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("unknown field reference");
+    }
+
+    @Test
+    void rejectsReloadWhenActivePayloadKeyCannotBeResolved() {
+        var current = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
+        AgentMetadataReloader reloader = new AgentMetadataReloader(
+                new AgentMetadataStore(current),
+                domainPort(),
+                payloadKeyProvider(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var candidate = MetadataTestSupport.bundleWithActivePayloadKeyId("bundle-v2", "digest-v2", "MISSING");
+
+        assertThatThrownBy(() -> reloader.publishValidated(candidate))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("missing payload key");
+    }
+
+    @Test
+    void securitySettingsRegistryReadsPublishedBundle() {
+        var current = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
+        AgentMetadataStore store = new AgentMetadataStore(current);
+        AgentSecuritySettingsRegistry registry = new AgentSecuritySettingsRegistry(store);
+        AgentMetadataReloader reloader = new AgentMetadataReloader(
+                store,
+                domainPort(),
+                payloadKeyProvider(Set.of("ACTIVE", "NEXT")),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var candidate = MetadataTestSupport.bundleWithActivePayloadKeyId("bundle-v2", "digest-v2", "NEXT");
+        reloader.publishValidated(candidate);
+
+        assertThat(registry.current().activePayloadKeyId()).isEqualTo("NEXT");
+    }
+
+    private PayloadKeyProvider payloadKeyProvider() {
+        return payloadKeyProvider(Set.of("ACTIVE"));
+    }
+
+    private PayloadKeyProvider payloadKeyProvider(Set<String> keyIds) {
+        return keyId -> {
+            if (keyIds.contains(keyId)) {
+                return new SecretKeySpec(new byte[32], "AES");
+            }
+            throw new IllegalStateException("missing payload key: " + keyId);
+        };
     }
 
     private DomainMetadataPortImpl domainPort() {

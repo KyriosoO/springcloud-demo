@@ -13,7 +13,7 @@ import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import com.dylan.agent.metadata.authorization.port.AuthorizationPlanningPort;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 import com.dylan.agent.metadata.crypto.internal.AeadProtectedPayloadCodec;
-import com.dylan.agent.metadata.crypto.internal.EnvironmentPayloadKeyProvider;
+import com.dylan.agent.metadata.crypto.internal.SecretMaterialPayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.port.PayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.port.ProtectedPayloadCodec;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
@@ -29,7 +29,11 @@ import com.dylan.agent.metadata.result.ResultSecurityProjector;
 import com.dylan.agent.metadata.result.ResultSecurityProjectorRegistry;
 import com.dylan.agent.metadata.result.ResultValueMaskingSupport;
 import com.dylan.agent.mask.FieldMaskerRegistry;
+import com.dylan.common.security.SecretMaterialProvider;
+import com.dylan.common.security.SecretProperties;
+import com.dylan.common.security.SecretPropertiesValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -47,8 +51,9 @@ public class AgentMetadataSecurityConfiguration {
     @Bean
     AgentMetadataBootstrap agentMetadataBootstrap(
             AgentProperties properties,
-            DomainMetadataProperties domainMetadataProperties) {
-        return new DefaultAgentMetadataBootstrap(properties, domainMetadataProperties);
+            DomainMetadataProperties domainMetadataProperties,
+            SecretProperties secretProperties) {
+        return new DefaultAgentMetadataBootstrap(properties, domainMetadataProperties, secretProperties);
     }
 
     @Bean
@@ -63,7 +68,7 @@ public class AgentMetadataSecurityConfiguration {
 
     @Bean
     AgentSecuritySettingsRegistry agentSecuritySettingsRegistry(AgentMetadataStore metadataStore) {
-        return new AgentSecuritySettingsRegistry(metadataStore.current().securitySettings());
+        return new AgentSecuritySettingsRegistry(metadataStore);
     }
 
     @Bean
@@ -77,14 +82,19 @@ public class AgentMetadataSecurityConfiguration {
     }
 
     @Bean
-    PayloadKeyProvider payloadKeyProvider() {
-        return new EnvironmentPayloadKeyProvider();
+    PayloadKeyProvider payloadKeyProvider(
+            SecretProperties secretProperties,
+            SecretMaterialProvider secretMaterialProvider,
+            Environment environment) {
+        SecretPropertiesValidator.validateAgentPayload(secretProperties, environment);
+        return new SecretMaterialPayloadKeyProvider(secretProperties, secretMaterialProvider);
     }
 
     @Bean
     ProtectedPayloadCodec protectedPayloadCodec(
             AgentSecuritySettingsRegistry settingsRegistry,
             PayloadKeyProvider keyProvider) {
+        AgentMetadataPropertiesValidator.validate(settingsRegistry.current(), keyProvider);
         return new AeadProtectedPayloadCodec(settingsRegistry, keyProvider);
     }
 

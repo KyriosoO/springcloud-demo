@@ -29,12 +29,12 @@ public class FeignTokenRelayAutoConfiguration {
 	 * 创建服务 token 提供器。
 	 */
 	@Bean
-	@ConditionalOnBean(JwtEncoder.class)
+	@ConditionalOnBean({ JwtEncoder.class, JwtKeyProvider.class })
 	@ConditionalOnMissingBean
 	@ConditionalOnProperty(prefix = "common.security.service-token", name = "enabled", havingValue = "true", matchIfMissing = true)
 	ServiceTokenProvider serviceTokenProvider(JwtEncoder jwtEncoder, ServiceTokenProperties properties,
-			Environment environment) {
-		return new ServiceTokenProvider(jwtEncoder, properties, environment);
+			Environment environment, JwtKeyProvider jwtKeyProvider) {
+		return new ServiceTokenProvider(jwtEncoder, properties, environment, jwtKeyProvider);
 	}
 
 	/**

@@ -13,8 +13,12 @@ import com.dylan.agent.metadata.config.AgentSecuritySettings;
 import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.crypto.internal.AeadProtectedPayloadCodec;
 import com.dylan.agent.metadata.crypto.internal.EnvironmentPayloadKeyProvider;
+import com.dylan.agent.metadata.crypto.internal.SecretMaterialPayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.model.PayloadProtectionContext;
 import com.dylan.agent.metadata.crypto.model.PayloadPurpose;
+import com.dylan.common.security.CompositeSecretMaterialProvider;
+import com.dylan.common.security.SecretProperties;
+import com.dylan.common.security.SecretSourceType;
 
 class ProtectedPayloadCodecTest {
     @Test
@@ -33,5 +37,33 @@ class ProtectedPayloadCodecTest {
 
         assertThat(new String(codec.decrypt(encrypted, context), java.nio.charset.StandardCharsets.UTF_8)).isEqualTo("x");
         assertThat(encrypted.nonce()).hasSize(12);
+    }
+
+    @Test
+    void encryptDecryptWithSecretMaterialProvider() {
+        String encoded = Base64.getEncoder().encodeToString(new byte[32]);
+        SecretProperties properties = new SecretProperties();
+        properties.setAllowConfigValues(true);
+        properties.setSourceOrder(java.util.List.of(SecretSourceType.CONFIG));
+        properties.getAgentPayload().setKeys(Map.of("ACTIVE", key(encoded)));
+        AeadProtectedPayloadCodec codec = new AeadProtectedPayloadCodec(
+                new AgentSecuritySettingsRegistry(new AgentSecuritySettings(Duration.ofHours(1), Duration.ZERO, 10, "ACTIVE")),
+                new SecretMaterialPayloadKeyProvider(properties, new CompositeSecretMaterialProvider(properties)));
+        PayloadProtectionContext context = new PayloadProtectionContext(
+                PayloadPurpose.CONTEXT_PAYLOAD,
+                "ctx-2",
+                AgentExecutionContracts.QUERY_CONTEXT,
+                "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+
+        var encrypted = codec.encrypt("y".getBytes(java.nio.charset.StandardCharsets.UTF_8), context);
+
+        assertThat(new String(codec.decrypt(encrypted, context), java.nio.charset.StandardCharsets.UTF_8)).isEqualTo("y");
+        assertThat(encrypted.keyId()).isEqualTo("ACTIVE");
+    }
+
+    private static SecretProperties.KeyProperties key(String value) {
+        SecretProperties.KeyProperties key = new SecretProperties.KeyProperties();
+        key.setValue(value);
+        return key;
     }
 }

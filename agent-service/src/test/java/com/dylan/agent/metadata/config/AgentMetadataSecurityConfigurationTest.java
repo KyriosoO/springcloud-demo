@@ -41,6 +41,7 @@ import com.dylan.agent.mask.MobileFieldMasker;
 import com.dylan.agent.mask.NoneFieldMasker;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import com.dylan.agent.testsupport.KernelTestSupport;
+import com.dylan.common.security.JwtConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -57,6 +58,7 @@ class AgentMetadataSecurityConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(
                     JacksonAutoConfiguration.class,
+                    JwtConfig.class,
                     AuthorizationSecurityConfiguration.class,
                     DomainMetadataConfiguration.class,
                     AgentMetadataSecurityConfiguration.class,
@@ -66,6 +68,13 @@ class AgentMetadataSecurityConfigurationTest {
             .withBean("agent.domain-metadata-com.dylan.agent.metadata.domain.internal.DomainMetadataProperties",
                     com.dylan.agent.metadata.domain.internal.DomainMetadataProperties.class,
                     DomainMetadataTestSupport::properties)
+            .withPropertyValues(
+                    "common.security.secrets.allow-config-values=true",
+                    "common.security.secrets.source-order[0]=config",
+                    "common.security.secrets.jwt.active-key-id=ACTIVE",
+                    "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "common.security.secrets.agent-payload.active-key-id=ACTIVE",
+                    "common.security.secrets.agent-payload.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
             .withBean(Clock.class, () -> Clock.fixed(DomainMetadataTestSupport.TEST_CLOCK.instant(), ZoneOffset.UTC))
             .withBean("employeeAgentAdapter", DomainMetadataTestSupport.QueryableAggregatableAdapter.class,
                     DomainMetadataTestSupport.QueryableAggregatableAdapter::new)
