@@ -76,7 +76,7 @@ public class MyBatisContextRepository implements ContextRepository {
         if (record.recordVersion() != expectedVersion.targetVersion()) {
             throw new IllegalStateException("record version does not match expected target");
         }
-        if (mapper.upsert(toRow(record)) != 1) {
+        if (mapper.upsert(toRow(record)) < 1) {
             throw new IllegalStateException("upsert context record failed");
         }
     }
