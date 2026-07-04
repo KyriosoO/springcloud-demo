@@ -67,7 +67,7 @@ agent:
     plan-path: /runtime/v1/plan
     max-repair-attempts: 1
   auth-service:
-    base-url: http://auth-service
+    base-url: http://localhost:8090
     resolve-path: /internal/agent/permissions/resolve
     connect-timeout: 2s
     read-timeout: 2s

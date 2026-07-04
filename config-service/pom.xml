@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>config-service</groupId>
 	<artifactId>config-service</artifactId>
-	<name>configServer</name>
+	<name>config-service</name>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
