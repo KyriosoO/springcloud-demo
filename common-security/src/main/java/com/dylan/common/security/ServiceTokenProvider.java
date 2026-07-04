@@ -19,15 +19,21 @@ public class ServiceTokenProvider {
 	private final JwtEncoder jwtEncoder;
 	private final ServiceTokenProperties properties;
 	private final Environment environment;
+	private final JwtKeyProvider jwtKeyProvider;
 	private volatile CachedToken cachedToken;
 
 	/**
 	 * 创建服务 token 提供器。
 	 */
-	public ServiceTokenProvider(JwtEncoder jwtEncoder, ServiceTokenProperties properties, Environment environment) {
+	public ServiceTokenProvider(
+			JwtEncoder jwtEncoder,
+			ServiceTokenProperties properties,
+			Environment environment,
+			JwtKeyProvider jwtKeyProvider) {
 		this.jwtEncoder = jwtEncoder;
 		this.properties = properties;
 		this.environment = environment;
+		this.jwtKeyProvider = jwtKeyProvider;
 	}
 
 	/**
@@ -64,7 +70,9 @@ public class ServiceTokenProvider {
 		if (!scope.isBlank()) {
 			claimsBuilder.claim("scope", scope);
 		}
-		JwsHeader header = JwsHeader.with(() -> "HS256").build();
+		JwsHeader header = JwsHeader.with(() -> "HS256")
+				.keyId(jwtKeyProvider.current().activeKeyId())
+				.build();
 		String value = jwtEncoder.encode(JwtEncoderParameters.from(header, claimsBuilder.build())).getTokenValue();
 		return new CachedToken(value, expiresAt);
 	}

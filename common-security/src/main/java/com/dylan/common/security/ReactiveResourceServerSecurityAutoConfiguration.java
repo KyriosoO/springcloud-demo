@@ -7,11 +7,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-
-import javax.crypto.SecretKey;
 
 @AutoConfiguration(after = JwtConfig.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
@@ -20,8 +17,8 @@ public class ReactiveResourceServerSecurityAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	ReactiveJwtDecoder reactiveJwtDecoder(SecretKey secretKey) {
-		return NimbusReactiveJwtDecoder.withSecretKey(secretKey).build();
+	ReactiveJwtDecoder reactiveJwtDecoder(JwtKeyProvider jwtKeyProvider) {
+		return new KidAwareReactiveJwtDecoder(jwtKeyProvider);
 	}
 
 	@Bean

@@ -17,6 +17,7 @@ import com.dylan.agent.metadata.config.AgentMetadataStore;
 import com.dylan.agent.metadata.context.port.ContextPlanningPort;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
+import com.dylan.common.security.SecretProperties;
 
 class PlanningConfigurationTest {
 
@@ -28,7 +29,8 @@ class PlanningConfigurationTest {
             .withBean(AgentMetadataStore.class, () -> new AgentMetadataStore(
                     new com.dylan.agent.metadata.config.DefaultAgentMetadataBootstrap(
                             DomainMetadataTestSupport.agentProperties(),
-                            DomainMetadataTestSupport.properties()).bootstrap()))
+                            DomainMetadataTestSupport.properties(),
+                            new SecretProperties()).bootstrap()))
             .withBean(AgentRuntimeClient.class, () -> mock(AgentRuntimeClient.class))
             .withBean(ContextPlanningPort.class, () -> mock(ContextPlanningPort.class))
             .withBean(Clock.class, () -> Clock.fixed(

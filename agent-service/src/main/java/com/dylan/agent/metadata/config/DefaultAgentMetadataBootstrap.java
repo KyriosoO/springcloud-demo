@@ -14,6 +14,7 @@ import com.dylan.agent.metadata.profile.model.AgentProfileDefinition;
 import com.dylan.agent.metadata.profile.model.AgentProfileVersionKey;
 import com.dylan.agent.metadata.profile.model.ProfileBehaviorAsset;
 import com.dylan.agent.metadata.profile.model.ProfileBehaviorAssetRef;
+import com.dylan.common.security.SecretProperties;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -45,14 +46,17 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
 
     private final AgentProperties properties;
     private final DomainMetadataProperties domainMetadataProperties;
+    private final SecretProperties secretProperties;
 
     public DefaultAgentMetadataBootstrap(
             AgentProperties properties,
-            DomainMetadataProperties domainMetadataProperties) {
+            DomainMetadataProperties domainMetadataProperties,
+            SecretProperties secretProperties) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.domainMetadataProperties = Objects.requireNonNull(
                 domainMetadataProperties,
                 "domainMetadataProperties must not be null");
+        this.secretProperties = Objects.requireNonNull(secretProperties, "secretProperties must not be null");
     }
 
     @Override
@@ -84,10 +88,12 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
                 policy.globalContextTtlUpperBound(),
                 properties.getConversation().getCleanupDelay(),
                 100,
-                "ACTIVE");
+                requireNonBlank(secretProperties.getAgentPayload().getActiveKeyId(),
+                        "common.security.secrets.agent-payload.active-key-id"));
         return new AgentMetadataBundle(
                 BUNDLE_VERSION,
-                digest(agentId, profileId, policy.policyVersion(), DEFAULT_CAPABILITY_IDS, domainNames()),
+                digest(agentId, profileId, policy.policyVersion(), DEFAULT_CAPABILITY_IDS, domainNames(),
+                        securitySettings),
                 agentId,
                 Map.of(agentId, profileId),
                 policy.policyVersion(),
@@ -146,10 +152,15 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
             String profileId,
             String policyVersion,
             Set<String> capabilityIds,
-            Set<String> domains) {
+            Set<String> domains,
+            AgentSecuritySettings securitySettings) {
         String canonical = agentId + "|" + profileId + "|" + policyVersion + "|"
                 + capabilityIds.stream().sorted().collect(Collectors.joining(",")) + "|"
-                + domains.stream().sorted().collect(Collectors.joining(","));
+                + domains.stream().sorted().collect(Collectors.joining(",")) + "|"
+                + securitySettings.activePayloadKeyId() + "|"
+                + securitySettings.globalMaxContextTtl() + "|"
+                + securitySettings.contextCleanupDelay() + "|"
+                + securitySettings.contextCleanupBatchSize();
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(canonical.getBytes(StandardCharsets.UTF_8));

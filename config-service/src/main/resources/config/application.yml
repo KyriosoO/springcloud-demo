@@ -1,0 +1,20 @@
+management:
+  endpoint:
+    env:
+      keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,AGENT_PAYLOAD_KEY_*,*.secret*,*.password*,*.token*,*.key*
+    configprops:
+      keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,AGENT_PAYLOAD_KEY_*,*.secret*,*.password*,*.token*,*.key*
+
+common:
+  security:
+    secrets:
+      source-order: [environment, config]
+      allow-config-values: false
+      fail-fast: true
+      jwt:
+        active-key-id: ACTIVE
+        previous-key-ids: []
+        keys:
+          ACTIVE:
+            env: COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE
+            value: ""

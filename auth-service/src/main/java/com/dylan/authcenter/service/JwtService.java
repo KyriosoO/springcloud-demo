@@ -2,6 +2,7 @@ package com.dylan.authcenter.service;
 
 import java.time.Instant;
 
+import com.dylan.common.security.JwtKeyProvider;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -16,13 +17,15 @@ public class JwtService {
 
 	private final JwtEncoder jwtEncoder;
 	private final JwtDecoder jwtDecoder;
+	private final JwtKeyProvider jwtKeyProvider;
 
 	// JWT 有效期，单位秒（1小时）
 	private final long expiration = 3600;
 
-	public JwtService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder) {
+	public JwtService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, JwtKeyProvider jwtKeyProvider) {
 		this.jwtEncoder = jwtEncoder;
 		this.jwtDecoder = jwtDecoder;
+		this.jwtKeyProvider = jwtKeyProvider;
 	}
 
 	/**
@@ -33,7 +36,9 @@ public class JwtService {
 		Instant exp = now.plusSeconds(expiration);
 
 		// 使用 Spring Security 的 JwtEncoder
-		JwsHeader jwsHeader = JwsHeader.with(() -> "HS256").build();
+		JwsHeader jwsHeader = JwsHeader.with(() -> "HS256")
+				.keyId(jwtKeyProvider.current().activeKeyId())
+				.build();
 		JwtClaimsSet claimsSet = JwtClaimsSet.builder().claims(claims -> {
 			claims.put("sub", userId);
 			claims.put("iat", now.getEpochSecond());

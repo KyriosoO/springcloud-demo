@@ -1,17 +1,16 @@
 package com.dylan.springgateway.config;
 
-import javax.crypto.SecretKey;
-
+import com.dylan.common.security.KidAwareReactiveJwtDecoder;
+import com.dylan.common.security.JwtKeyProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 
 @Configuration("gatewayJwtConfig")
 public class JwtConfig {
 
 	@Bean
-	ReactiveJwtDecoder reactiveJwtDecoder(SecretKey secretKey) {
-		return NimbusReactiveJwtDecoder.withSecretKey(secretKey).build();
+	ReactiveJwtDecoder reactiveJwtDecoder(JwtKeyProvider jwtKeyProvider) {
+		return new KidAwareReactiveJwtDecoder(jwtKeyProvider);
 	}
 }

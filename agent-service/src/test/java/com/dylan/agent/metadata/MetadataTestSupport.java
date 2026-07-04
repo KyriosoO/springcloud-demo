@@ -36,6 +36,16 @@ public final class MetadataTestSupport {
         return bundle(version, digest, Set.of("query.search"), Set.of("employee"), Set.of(RuntimeContextType.QUERY));
     }
 
+    public static AgentMetadataBundle bundleWithActivePayloadKeyId(String version, String digest, String keyId) {
+        return bundle(
+                version,
+                digest,
+                Set.of("query.search"),
+                Set.of("employee"),
+                Set.of(RuntimeContextType.QUERY),
+                keyId);
+    }
+
     public static AgentMetadataBundle bundleWithQueryPreview(String version, String digest) {
         return bundle(
                 version,
@@ -64,6 +74,16 @@ public final class MetadataTestSupport {
             Set<String> allowedCapabilityIds,
             Set<String> allowedDomains,
             Set<RuntimeContextType> contextTypes) {
+        return bundle(version, digest, allowedCapabilityIds, allowedDomains, contextTypes, "ACTIVE");
+    }
+
+    private static AgentMetadataBundle bundle(
+            String version,
+            String digest,
+            Set<String> allowedCapabilityIds,
+            Set<String> allowedDomains,
+            Set<RuntimeContextType> contextTypes,
+            String activePayloadKeyId) {
         return bundle(
                 version,
                 digest,
@@ -73,7 +93,8 @@ public final class MetadataTestSupport {
                 allowedDomains.stream()
                         .collect(java.util.stream.Collectors.toUnmodifiableMap(
                                 domain -> domain,
-                                domain -> new DomainSecurityConstraints(Map.of()))));
+                                domain -> new DomainSecurityConstraints(Map.of()))),
+                activePayloadKeyId);
     }
 
     private static AgentMetadataBundle bundle(
@@ -83,6 +104,18 @@ public final class MetadataTestSupport {
             Set<String> allowedDomains,
             Set<RuntimeContextType> contextTypes,
             Map<String, DomainSecurityConstraints> domainSecurityConstraints) {
+        return bundle(version, digest, allowedCapabilityIds, allowedDomains, contextTypes,
+                domainSecurityConstraints, "ACTIVE");
+    }
+
+    private static AgentMetadataBundle bundle(
+            String version,
+            String digest,
+            Set<String> allowedCapabilityIds,
+            Set<String> allowedDomains,
+            Set<RuntimeContextType> contextTypes,
+            Map<String, DomainSecurityConstraints> domainSecurityConstraints,
+            String activePayloadKeyId) {
         AgentProfileVersionKey profileKey = new AgentProfileVersionKey("agent-default", "profile-v1");
         ProfileBehaviorAssetRef assetRef = new ProfileBehaviorAssetRef("asset-default", "asset-v1");
         AgentProfileDefinition profile = new AgentProfileDefinition(
@@ -112,7 +145,7 @@ public final class MetadataTestSupport {
                 "agent-default",
                 Map.of("agent-default", "profile-v1"),
                 policy.policyVersion(),
-                new AgentSecuritySettings(Duration.ofHours(1), Duration.ofMinutes(5), 10, "ACTIVE"),
+                new AgentSecuritySettings(Duration.ofHours(1), Duration.ofMinutes(5), 10, activePayloadKeyId),
                 Map.of(profileKey, profile),
                 Map.of(assetRef, asset),
                 Map.of(policy.policyVersion(), policy));
