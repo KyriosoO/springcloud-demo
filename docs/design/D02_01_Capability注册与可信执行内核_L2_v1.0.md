@@ -1,7 +1,7 @@
 # D02_01 Capability 注册与可信执行内核 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示约束；2026-07-05 已补充 Runtime Plan 输出修复边界）
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示约束；2026-07-05 已补充 Runtime Plan 输出修复边界和 QUERY 白名单排序增量约束）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`  
@@ -16,6 +16,7 @@
 |---:|---|---|---|---|
 | 1 | 2026-07-04 | 授权恢复 / 第 3、5、7、8、10～12 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `QUERY_CONTEXT` 1.1.0、多轮分页MERGE、末页校验、`FIELD_FORBIDDEN`、`ExecutionFailure.safeMessage` 与对应测试门禁。 |
 | 2 | 2026-07-05 | 授权恢复 / 第 8、10～12 节 | UAT 修复后同步设计 | 补充 Runtime PlanOutcome 入 Core 前的 `requestId` 绑定和 bounded repair 边界，明确 Core/Registration 不承担 Runtime 输出修复职责。 |
+| 3 | 2026-07-05 | 授权恢复 / 第 3、4、5、10～12 节 | 用户授权同步 `Agent与业务域白名单排序能力` 关联文档 | 补充 `AgentExecutionContracts` 排序相关版本、QUERY Context `sorts` 字段、`QueryPlanValidator` 排序白名单校验、`query.preview` 共享输出契约和测试门禁。 |
 
 ---
 
@@ -128,7 +129,7 @@ public record ContractRef(String schema, String version) {
 
 `ContractRegistry` 是final Java契约解析表，静态工厂`from(Collection<CapabilityRegistration<?,?,?>>)`只从Registration的input/output Java class及Context declaration payloadType收集绑定；同一ContractRef映射不同Class/结构摘要立即失败。公开方法：`ContractDescriptor require(ContractRef ref)`、`boolean isCompatible(ContractRef stored, ContractRef requested)`、`Set<ContractRef> all()`、`String runtimeSchemaRef(ContractRef ref)`。`ContractDescriptor`是其nested immutable record，只含ref、Java type和结构摘要。`runtimeSchemaRef`仅对D01 Runtime OpenAPI中已注册的Java root返回规范`#/components/schemas/<name>`，其他ContractRef拒绝；禁止调用方手工拼ref。Registry只从agent-api Java类型/生成artifact装配，不从Python、Prompt或YAML反向生成。
 
-`AgentExecutionContracts`是不可实例化final类，只定义六个`public static final ContractRef`：`QUERY_PLAN`、`AGGREGATE_PLAN`（schema分别为D01 root，version直接引用`AgentRuntimeContract.VERSION`）、`QUERY_RESULT`（QueryAgentResultPayload）、`AGGREGATE_RESULT`（AggregateAgentResultPayload）、`QUERY_CONTEXT`、`AGGREGATE_CONTEXT`。`QUERY_CONTEXT`在多轮分页修订后版本为`1.1.0`，包含`total`、`totalExact`、`totalPages`三个可空分页元数据字段；`AGGREGATE_CONTEXT`仍为`1.0.0`。后四项version只表达对应Java payload/result schema版本，不是Runtime contract、plan或strategy的平行版本轴；Registration、Context declaration、Result projector和迁移器只能引用这些常量，不重复字符串。
+`AgentExecutionContracts`是不可实例化final类，只定义七个`public static final ContractRef`：`QUERY_PLAN`、`AGGREGATE_PLAN`（schema分别为D01 root，version直接引用`AgentRuntimeContract.VERSION`）、`QUERY_RESULT`（QueryAgentResultPayload）、`QUERY_PREVIEW_RESULT`（QueryPreviewResultPayload）、`AGGREGATE_RESULT`（AggregateAgentResultPayload）、`QUERY_CONTEXT`、`AGGREGATE_CONTEXT`。`QUERY_RESULT`和`QUERY_PREVIEW_RESULT`在 QUERY 排序回显修订后建议为`1.1.0`，因为`AgentQueryParameters`新增`sorts`；`QUERY_CONTEXT`在多轮分页和排序修订后版本为`1.2.0`，包含`sorts`、`total`、`totalExact`、`totalPages`；`AGGREGATE_CONTEXT`仍为`1.0.0`。后五项version只表达对应Java payload/result schema版本，不是Runtime contract、plan或strategy的平行版本轴；Registration、Context declaration、Result projector和迁移器只能引用这些常量，不重复字符串。
 
 ### 3.2 Agent API Result 单一扩展点
 
@@ -139,7 +140,7 @@ public sealed interface AgentResultPayload
 }
 ```
 
-`AgentResultKind`初始值为QUERY、AGGREGATE。`QueryAgentResultPayload`固定kind=QUERY，字段为required `AgentQueryParameters queryParameters`和required `AgentQueryResult queryResult`；`AggregateAgentResultPayload`固定kind=AGGREGATE，字段为required `AgentAggregateResult aggregateResult`。两者提供无参构造器、只读discriminator及其余字段getter/setter，供Jackson/OpenAPI；现有三个叶子DTO继续复用，不复制字段。
+`AgentResultKind`初始值为QUERY、AGGREGATE；D05 代表性 capability 扩展后增加 QUERY_PREVIEW。`QueryAgentResultPayload`固定kind=QUERY，字段为required `AgentQueryParameters queryParameters`和required `AgentQueryResult queryResult`；`QueryPreviewResultPayload`固定kind=QUERY_PREVIEW，字段为required `AgentQueryParameters queryParameters`和required `QueryPreviewResult previewResult`；`AggregateAgentResultPayload`固定kind=AGGREGATE，字段为required `AgentAggregateResult aggregateResult`。三者提供无参构造器、只读discriminator及其余字段getter/setter，供Jackson/OpenAPI；现有叶子DTO继续复用，不复制字段。`AgentQueryParameters.sorts` 同时服务 `query.search` 与 `query.preview` 的安全回显。
 
 该union使用与D01相同的Jackson/OpenAPI `resultKind` discriminator、`oneOf`、`additionalProperties=false`和`@Valid`规则；`AgentResultPayloadContractTest`覆盖两种round-trip、unknown kind、discriminator mismatch、并列旧字段不存在及ChatResponse条件形状。
 
@@ -279,12 +280,12 @@ Registry 构造器调用 `CapabilityRegistrationValidator` 后冻结。它不计
 | domainMode/adapterRole | REQUIRED/QUERYABLE | REQUIRED/AGGREGATABLE |
 | riskLevel/executionMode | READ_ONLY/IMMEDIATE | READ_ONLY/IMMEDIATE |
 | input/output | `QUERY_PLAN`/`QUERY_RESULT` | `AGGREGATE_PLAN`/`AGGREGATE_RESULT` |
-| Context read | optional `QUERY_CONTEXT`，字段filters/selectFields/page/size/total/totalExact/totalPages | optional `AGGREGATE_CONTEXT`，字段filters/metrics/groupByFields/orderBy/maxRows |
+| Context read | optional `QUERY_CONTEXT`，字段filters/selectFields/sorts/page/size/total/totalExact/totalPages | optional `AGGREGATE_CONTEXT`，字段filters/metrics/groupByFields/orderBy/maxRows |
 | Context write | `QUERY_CONTEXT`，相同字段，maxTtl=7d | `AGGREGATE_CONTEXT`，相同字段，maxTtl=7d |
 
 Context最终expiry仍取Definition 7d与Profile/Policy/global/current ExecutionScope上限的最小值。Routing descriptor只保存上述通用语义，不写domain名称、字段、角色或权限；具体文案作为各Configuration中的不可变Java值并由snapshot test固定。
 
-`query.search`的`total`、`totalExact`、`totalPages`只作为多轮分页规划状态使用：Runtime Context View可读取这些标量以把“最后一页”转换为确定页码；Adapter执行请求不得携带这些字段；Handler只在成功查询并获得下游total信息后写入。旧`QUERY_CONTEXT` 1.0.0 payload缺少这三个字段时，必须通过D02_03迁移器或兼容反序列化补为null，不能导致历史会话第二轮分页直接失败。
+`query.search`的`total`、`totalExact`、`totalPages`只作为多轮分页规划状态使用：Runtime Context View可读取这些标量以把“最后一页”转换为确定页码；Adapter执行请求不得携带这些字段；Handler只在成功查询并获得下游total信息后写入。`sorts`作为上一轮明细排序状态进入QUERY Context：MERGE 时`sorts == null`继承上一轮排序，`sorts == []`清空用户排序并回到业务域默认排序，非空列表替换上一轮排序。旧`QUERY_CONTEXT` 1.0.0/1.1.0 payload缺少`sorts`时，必须通过D02_03迁移器补为`List.of()`，不能导致历史会话第二轮分页直接失败。
 
 ---
 
@@ -320,7 +321,7 @@ Handler 只能编排一个 capability；不得接收 Raw Plan、修改 Invocatio
 
 ### 5.4 首批具体 Validator、ValidatedPlan 与 Handler
 
-- `QueryPlanValidator implements CapabilityPlanValidator<QueryAgentPlan,ValidatedQueryPlan>`；构造器只注入`FilterNormalizer`、`FieldConstraintValidator`和纯Query全局分页上限配置。`validate`只接收D02_00 `QueryPlanBindingStrategy`/`QueryMergeEngine`已形成的merged query，并以`ExecutionValidationProjection`规范化、校验field/operator/removeFields/selectFields/page/size；当merged query来自`contextMode=MERGE`时，Validator可读取`ExecutionValidationContext.contextSnapshots`中的上一轮QUERY Context，仅用于确认Context仍有效及使用`totalExact/totalPages`校验“最后一页”和页码上界，不再二次执行filters合并；size上限取global配置、projection和ExecutionScope budget的最小值，再创建package-private构造的`ValidatedQueryPlan`。
+- `QueryPlanValidator implements CapabilityPlanValidator<QueryAgentPlan,ValidatedQueryPlan>`；构造器只注入`FilterNormalizer`、`FieldConstraintValidator`和纯Query全局分页/排序上限配置。`validate`只接收D02_00 `QueryPlanBindingStrategy`/`QueryMergeEngine`已形成的merged query，并以`ExecutionValidationProjection`规范化、校验field/operator/removeFields/selectFields/sorts/page/size；排序校验必须在 Java 可信边界完成：`sorts`最多2个、字段不得重复、direction规范化为`ASC`/`DESC`、字段必须同时存在于最终执行投影的`fieldRules`和`sortFields`，未授权排序字段按字段越权 fail closed。当merged query来自`contextMode=MERGE`时，Validator可读取`ExecutionValidationContext.contextSnapshots`中的上一轮QUERY Context，仅用于确认Context仍有效、继承/清空`sorts`、使用`totalExact/totalPages`校验“最后一页”和页码上界，不再二次执行filters合并；size上限取global配置、projection和ExecutionScope budget的最小值，再创建package-private构造的`ValidatedQueryPlan`。
 - `ValidatedQueryPlan`字段为固定capabilityId=`query.search`、planKind=QUERY、domain、`ValidatedQuery`；只读且只由QueryPlanValidator创建。
 - `QueryCapabilityHandler implements CapabilityHandler<ValidatedQueryPlan,QueryAgentResultPayload>`；`execute`只通过`ExecutionContext.requireAdapter(QueryableAdapter.class)`调用一次typed port，以`QueryParameterMapper.toQueryParameters(ValidatedQueryPlan)`构造参数，返回包含parameters+result的`HandlerResult<QueryAgentResultPayload>`及可选QUERY Context candidate。
 - `AggregatePlanValidator implements CapabilityPlanValidator<AggregateAgentPlan,ValidatedAggregatePlan>`；构造器只注入`FilterNormalizer`、`FieldConstraintValidator`和纯Aggregate全局数量上限配置。`validate`使用同一Execution projection校验filters/metric/function/group/order/maxRows；maxRows等上限取global配置、projection和ExecutionScope budget的最小值，再创建`ValidatedAggregatePlan`。
@@ -438,8 +439,9 @@ D04必须先在`agent-adapter-api`增加稳定marker `AgentAdapterPort`，并使
 | `rejectsValidatorHandlerGenericMismatch` | 唯一类型桥拒绝 |
 | `rejectsUnresolvableContractRef` | 启动失败 |
 | `rejectsNonRuntimeContractForRuntimeSchemaRef` | 不能手工或错误投影PlanRequest inputSchemaRef |
-| `pinsExecutionContractRefsAndStructuralDigests` | 六个Java ContractRef唯一；Runtime输入版本绑定D01；output/context结构变化必须显式升版 |
-| `bumpsQueryContextContractForPaginationTotals` | `QUERY_CONTEXT`为1.1.0且包含total/totalExact/totalPages；旧1.0.0必须有兼容读取或迁移路径 |
+| `pinsExecutionContractRefsAndStructuralDigests` | 七个Java ContractRef唯一；Runtime输入版本绑定D01；output/context结构变化必须显式升版 |
+| `bumpsQueryContextContractForPaginationTotalsAndSorts` | `QUERY_CONTEXT`为1.2.0且包含sorts/total/totalExact/totalPages；旧1.0.0和1.1.0必须有兼容读取或精确迁移路径 |
+| `bumpsQueryResultContractsForSortEcho` | `QUERY_RESULT`和`QUERY_PREVIEW_RESULT`为1.1.0，`AgentQueryParameters.sorts`可序列化且由ResultSecurity按scope过滤 |
 | `keepsRuntimeOutputRepairOutsideCore` | Runtime `requestId`归一化、repairAttempts和`OUTPUT_REPAIR_EXHAUSTED`不进入Core修复分支；Core只消费已绑定Plan或Planning failure |
 | `rejectsInvalidDomainModeRole` | NONE/REQUIRED 规则成立 |
 | `resolvesOnlyByCapabilityId` | 不存在 planKind→Handler API |
@@ -506,7 +508,7 @@ D04必须先在`agent-adapter-api`增加稳定marker `AgentAdapterPort`，并使
 | 类/接口 | 方法 |
 |---|---|
 | `ContractRegistry` | `from(Collection<CapabilityRegistration<?,?,?>>)`、`require(ContractRef)`、`isCompatible(ContractRef,ContractRef)`、`all()`、`runtimeSchemaRef(ContractRef)` |
-| `AgentExecutionContracts` | private构造器；仅六个public static final ContractRef常量，无public方法 |
+| `AgentExecutionContracts` | private构造器；仅七个public static final ContractRef常量，无public方法 |
 | `AgentResultPayload` | `getResultKind()` |
 | `AgentResultKind`、`AgentResponseType` | 仅enum隐式`values()`、`valueOf(String)` |
 | `QueryAgentResultPayload` | 构造器、只读`getResultKind()`、`get/setQueryParameters`、`get/setQueryResult` |
@@ -553,8 +555,10 @@ D04必须先在`agent-adapter-api`增加稳定marker `AgentAdapterPort`，并使
 8. ResultSecurity 与 ContextApproval 在 Lifecycle 持久化前完成。
 9. Core 无持久化、Runtime、API response、capability/domain 专用分支。
 10. 所有类、方法、端口、测试和计划文件有唯一所有者。
-11. `QUERY_CONTEXT` 1.1.0 的分页总数字段只用于多轮规划状态，不进入Adapter执行请求。
+11. `QUERY_CONTEXT` 1.2.0 的分页总数字段只用于多轮规划状态，不进入Adapter执行请求；`sorts`只作为上一轮排序状态，进入Adapter前必须重新形成`ValidatedQuery.sorts`并通过`ExecutionValidationProjection.sortFields`校验。
 12. `FIELD_FORBIDDEN` 与`ExecutionFailure.safeMessage`链路可证明字段越权不会被误报为`AGENT_PLAN_INVALID`。
 13. Runtime output repair 不改变Core职责：`requestId`绑定和结构修复发生在Planning Runtime边界，Core不得引入原始LLM输出修复分支。
 
 最终评审结论（2026-06-30）：本文已与D02_00、D02_02、D02_03及三份L1交叉复审；类型桥、执行顺序、Context当前性、Adapter Binding、输出/Context安全和扩展不变量完整闭合，当前文档基线下无未决问题。实际D01类名/包名/字段以D01退出门禁产物复核为生效条件。
+
+2026-07-05 授权同步结论：QUERY 白名单排序属于已批准的增量契约变更，未改变 Core 13 步顺序、Handler 不做授权决策、Adapter 只执行已验证命令等 D02 不变量。实现前必须以本节新增版本和校验规则为准，补齐 D01/D02_03/D04/D05 的关联同步和契约测试。

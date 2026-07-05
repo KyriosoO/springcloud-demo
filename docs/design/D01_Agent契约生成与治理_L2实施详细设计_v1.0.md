@@ -1,7 +1,7 @@
 # D01 Agent 契约生成与治理 — L2 实施详细设计 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过）
+> 文档状态：已实施（D01 退出门禁通过；2026-07-05 已按授权补充 QUERY 白名单排序增量契约约束，排序能力仍需按专项详细设计实现）
 > 上位文档：`Agent目标架构总览_v1.0.md`（L0）、`Agent契约与规划架构设计_v1.0.md`（L1）  
 > 交付阶段：D01 契约生成与治理  
 > 代码基线：`b56906c` 及其同源后续提交  
@@ -23,6 +23,7 @@
 | 2026-07-01 | 确认 D01 CI 门禁由 GitHub Actions 实现：恢复 active `.github/workflows/agent-contract.yml`，并新增窄 paths 的 `.github/workflows/d01-target-contract.yml` | GitHub 仓库内必须直接承载 D01 退出门禁；若把 D01 job 放入 broad active workflow，后续合法的 `agent-service`/adapter 变更会错误触发 D01 changed-path failure | GitHub push 仅覆盖与实际代码同源的 `master`/`codex`；target workflow 仍只调用唯一统一入口，不形成第二契约源，也不把不相关历史的默认 `main` 当作 D01 base |
 | 2026-07-01 | changed-path 的 `git diff --name-only` 固定使用 `-c core.quotepath=false` | Linux Git 默认把中文文档路径输出为带引号的八进制转义文本，导致真实允许路径被误判为越界 | 只规范路径输出编码；不改变 merge-base、允许路径集合或隔离语义 |
 | 2026-07-01 | 文档状态更新为“已实施（D01 退出门禁通过）”，记录 GitHub commit `22457a9` 的 Actions 证据：`Agent Contract CI` run `28499118055` 与 `D01 Target Contract Governance` run `28499118064` 全部 success | 16.6 的 16 项退出条件已有当前代码、artifact、本地 Linux 统一门禁及 GitHub Actions 成功证据；不再保留“待 CI”状态 | D01 可退出；后续仅允许按第 17 节进入 D02 实际产物基线复核，不代表 D03 协议已激活 |
+| 2026-07-05 | 授权同步 QUERY 白名单排序契约增量：新增 `AgentSortSpec`、`AgentQuerySpec.sorts`、`RuntimeDomainSchema.sortFields`、`RuntimeQueryContextView.sorts`，并同步 Query Context 分页总数字段的 Runtime View 规格 | `Agent与业务域白名单排序能力_L2实施详细设计` 需要修改 Route/Plan/OpenAPI/Python generated model 的公共契约；若 D01 不同步，后续实现会与契约生成治理约束冲突 | 只补充 D01 契约源、OpenAPI 生成和 fixture 门禁约束；不手改 `agent-runtime-openapi.json` 或 Python generated model |
 
 ---
 
@@ -393,8 +394,8 @@ D01 修改现有 `agent-api/pom.xml`，恢复 `.github/workflows/agent-contract.
 
 #### `RuntimeDomainSchema`
 
-字段：`String domain`、`List<RuntimeDomainFieldSchema> fields`（required、field 唯一）、`List<String> defaultSelectFields`（required）、`Integer defaultSize`（nullable、`@Min(1)`）、`Integer maxSize`（nullable、`@Min(1)`）。  
-方法：无参构造器和 5 组 getter/setter。  
+字段：`String domain`、`List<RuntimeDomainFieldSchema> fields`（required、field 唯一）、`List<String> defaultSelectFields`（required）、`List<String> sortFields`（required，可为空列表，必须是当前 Runtime 可见 fields 子集）、`Integer defaultSize`（nullable、`@Min(1)`）、`Integer maxSize`（nullable、`@Min(1)`）。
+方法：无参构造器和 6 组 getter/setter。
 禁止字段：mask、数据库列名、Adapter 实现、未授权字段、完整 Catalog。
 
 ### 5.7 Context View union
@@ -405,8 +406,8 @@ sealed interface，方法：`RuntimeContextType getContextType()`、`String getS
 
 #### `RuntimeQueryContextView`
 
-字段：固定 `contextType=QUERY`、`String sourceInvocationId`、`List<AgentFilter> filters`、`List<String> selectFields`、`Integer page`、`Integer size`。sourceInvocationId required；List 非 null；page/size `@NotNull @Min(1)`。不包含 domain，domain 由 PlanRequest 唯一提供。  
-方法：无参构造器、只读 `getContextType()`、其余 5 个字段 getter/setter。
+字段：固定 `contextType=QUERY`、`String sourceInvocationId`、`List<AgentFilter> filters`、`List<String> selectFields`、`List<AgentSortSpec> sorts`、`Integer page`、`Integer size`、nullable `Long total`、nullable `Boolean totalExact`、nullable `Integer totalPages`。sourceInvocationId required；List 非 null；page/size `@NotNull @Min(1)`；`sorts` 缺省为空列表。不包含 domain，domain 由 PlanRequest 唯一提供。
+方法：无参构造器、只读 `getContextType()`、其余 9 个字段 getter/setter。
 
 #### `RuntimeAggregateContextView`
 
@@ -422,7 +423,8 @@ Context View 是 PlanRequest 的只读最小投影，不包含持久化 Envelope
 | 类/枚举 | 字段或枚举值 | public 方法 |
 |---|---|---|
 | `AgentFilter` | `String field`, `AgentOperator operator`, nullable `String value`, nullable `List<String> values` | 无参构造器；`getField/setField`、`getOperator/setOperator`、`getValue/setValue`、`getValues/setValues` |
-| `AgentQuerySpec` | nullable `List<AgentFilter> filters`, `QueryContextMode contextMode`, `List<String> removeFields`, `List<String> selectFields`, `Integer page`, `Integer size` | 无参构造器；`getFilters/setFilters`、`getContextMode/setContextMode`、`getRemoveFields/setRemoveFields`、`getSelectFields/setSelectFields`、`getPage/setPage`、`getSize/setSize` |
+| `AgentSortSpec` | required `String field`, required `String direction`（`ASC`/`DESC`） | 无参构造器；`getField/setField`、`getDirection/setDirection` |
+| `AgentQuerySpec` | nullable `List<AgentFilter> filters`, `QueryContextMode contextMode`, `List<String> removeFields`, `List<String> selectFields`, `List<AgentSortSpec> sorts`, `Integer page`, `Integer size` | 无参构造器；`getFilters/setFilters`、`getContextMode/setContextMode`、`getRemoveFields/setRemoveFields`、`getSelectFields/setSelectFields`、`getSorts/setSorts`、`getPage/setPage`、`getSize/setSize` |
 | `AgentAggregateSpec` | nullable `List<AgentFilter> filters`, required `List<AggregateMetricSpec> metrics`, nullable `List<String> groupByFields`, `List<AggregateOrderSpec> orderBy`, `Integer maxRows` | 无参构造器；`getFilters/setFilters`、`getMetrics/setMetrics`、`getGroupByFields/setGroupByFields`、`getOrderBy/setOrderBy`、`getMaxRows/setMaxRows` |
 | `AggregateMetricSpec` | required `String alias`, required `AggregateFunction function`, nullable `String field` | 无参构造器；`getAlias/setAlias`、`getFunction/setFunction`、`getField/setField` |
 | `AggregateOrderSpec` | required `String field`, required `String direction`（`ASC`/`DESC`） | 无参构造器；`getField/setField`、`getDirection/setDirection` |
@@ -431,7 +433,7 @@ Context View 是 PlanRequest 的只读最小投影，不包含持久化 Envelope
 | `AggregateFunction` | `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` | 仅枚举隐式方法 |
 | `QueryContextMode` | `REPLACE`, `MERGE` | 仅枚举隐式方法 |
 
-Java FixtureTest 必须补足 Bean Validation 之外的绑定语义：filter 的 field/operator/value(s) 必须在 Runtime Domain Schema 授权范围内；`MERGE` 才允许 `removeFields`；aggregate metric/function/field、groupBy 与 orderBy 必须来自同一请求投影。OpenAPI factory 对这些传递 object schema 一并强制 `additionalProperties=false`；不通过 Python 后处理补齐。
+Java FixtureTest 必须补足 Bean Validation 之外的绑定语义：filter 的 field/operator/value(s) 必须在 Runtime Domain Schema 授权范围内；`MERGE` 才允许 `removeFields`；query sort 的 field 必须来自 `RuntimeDomainSchema.sortFields` 且 direction 只能为 `ASC`/`DESC`；aggregate metric/function/field、groupBy 与 orderBy 必须来自同一请求投影。OpenAPI factory 对这些传递 object schema 一并强制 `additionalProperties=false`；不通过 Python 后处理补齐。
 
 ---
 
@@ -644,9 +646,9 @@ HTTP status 绑定：400=`CONTRACT_INVALID`（请求解析），401=`AUTHENTICAT
 | `RuntimeCapabilityRoutingDescriptor` | 构造器；`getCapabilityId/setCapabilityId`、`getPlanKind/setPlanKind`、`getDescription/setDescription`、`getApplicability/setApplicability`、`getExclusions/setExclusions`、`getDomainMode/setDomainMode`、`getAllowedDomains/setAllowedDomains` |
 | `RuntimeDomainRoutingProjection` | 构造器；`getDomain/setDomain`、`getAliases/setAliases`、`getDescription/setDescription` |
 | `RuntimeDomainFieldSchema` | 构造器；`getField/setField`、`getAliases/setAliases`、`getType/setType`、`getOperators/setOperators`、`getAggregateFunctions/setAggregateFunctions`、`getFormatHint/setFormatHint` |
-| `RuntimeDomainSchema` | 构造器；`getDomain/setDomain`、`getFields/setFields`、`getDefaultSelectFields/setDefaultSelectFields`、`getDefaultSize/setDefaultSize`、`getMaxSize/setMaxSize` |
+| `RuntimeDomainSchema` | 构造器；`getDomain/setDomain`、`getFields/setFields`、`getDefaultSelectFields/setDefaultSelectFields`、`getSortFields/setSortFields`、`getDefaultSize/setDefaultSize`、`getMaxSize/setMaxSize` |
 | `RuntimeContextView` | `getContextType`、`getSourceInvocationId` |
-| `RuntimeQueryContextView` | 构造器；只读 `getContextType`；`getSourceInvocationId/setSourceInvocationId`、`getFilters/setFilters`、`getSelectFields/setSelectFields`、`getPage/setPage`、`getSize/setSize` |
+| `RuntimeQueryContextView` | 构造器；只读 `getContextType`；`getSourceInvocationId/setSourceInvocationId`、`getFilters/setFilters`、`getSelectFields/setSelectFields`、`getSorts/setSorts`、`getPage/setPage`、`getSize/setSize`、`getTotal/setTotal`、`getTotalExact/setTotalExact`、`getTotalPages/setTotalPages` |
 | `RuntimeAggregateContextView` | 构造器；只读 `getContextType`；`getSourceInvocationId/setSourceInvocationId`、`getFilters/setFilters`、`getMetrics/setMetrics`、`getGroupByFields/setGroupByFields`、`getMaxRows/setMaxRows` |
 | `ClarificationArgs` | `getArgType` |
 | `CapabilityChoiceArgs` | 构造器；只读 `getArgType`；`getCapabilityIds/setCapabilityIds` |
@@ -723,6 +725,7 @@ D01 不生成 JSON Schema Bundle：当前 Python codegen 和双端测试都直�
 | `shouldRequireInternalServiceAuthentication()` | 两个 operation 都要求 `X-Agent-Runtime-Key`，且不存在 bearer/JWT security scheme |
 | `shouldExposeTypedRuntimeErrorsForAllFailureStatuses()` | 400/401/422/500/503/504 都引用 RuntimeErrorResponse，成功响应不混入 error |
 | `shouldMatchCommittedCandidateArtifact()` | fresh canonical JSON 与 candidate artifact byte-equivalent；仅 `-Dagent.contract.update=true` 可写入 |
+| `shouldExposeQuerySortContract()` | `AgentSortSpec`、`AgentQuerySpec.sorts`、`RuntimeDomainSchema.sortFields`、`RuntimeQueryContextView.sorts` 存在，且所有 object schema `additionalProperties=false` |
 | `shouldBeDeterministicAcrossTwoBuilds()` | 同进程两次 build 输出完全一致 |
 
 private helper：`isUpdateEnabled()`（`Boolean.getBoolean("agent.contract.update")`）、`readArtifact()`、`updateArtifactAtomically(String)`、`assertDiscriminator(String, String, Set<String>)`、`objectSchemas(OpenAPI)`。update helper 使用同目录临时文件和 `Files.move(temp, ARTIFACT, ATOMIC_MOVE, REPLACE_EXISTING)`；不支持原子移动时直接失败，不降级为非原子覆盖。

@@ -1,6 +1,7 @@
 # Codex Agent 系统架构文档
 
 > 生成日期：2026-06-25 | 分支：codex
+> 2026-07-05 更新：按授权补充 Agent QUERY 白名单排序架构边界；QUERY `sorts` 与 AGGREGATE `orderBy` 保持独立语义。
 
 ---
 
@@ -71,12 +72,13 @@ agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter
 | 文件 | 用途 |
 |------|------|
 | `plan/AgentPlan.java` | Runtime 返回的根 Plan：含 `intent`、`planVersion`、`domain`，以及 `query`/`clarify`/`aggregate` 之一 |
-| `plan/AgentQuerySpec.java` | QUERY plan：`filters`（最多 5），`selectFields`（最多 10），`contextMode`，`removeFields`，`page`，`size` |
+| `plan/AgentQuerySpec.java` | QUERY plan：`filters`（最多 5），`selectFields`（最多 10），`sorts`（最多 2，字段必须来自白名单），`contextMode`，`removeFields`，`page`，`size` |
 | `plan/AgentAggregateSpec.java` | AGGREGATE plan：`filters`、`metrics`（1-5）、`groupByFields`（最多 2）、`orderBy`、`maxRows`（1-100） |
 | `plan/ClarifySpec.java` | CLARIFY plan：`question`（1-500 字符） |
 | `plan/AgentFilter.java` | 查询过滤条件：`field`、`operator`、`value`（单值）、`values`（多值） |
+| `plan/AgentSortSpec.java` | QUERY 明细排序条件：`field`、`direction`（ASC/DESC），只允许白名单字段 |
 | `plan/AggregateMetricSpec.java` | 指标规格：`alias`（唯一）、`function`、`field`（COUNT 时为 null） |
-| `plan/AggregateOrderSpec.java` | 排序规格：`field`、`direction`（ASC/DESC） |
+| `plan/AggregateOrderSpec.java` | AGGREGATE 聚合结果排序规格：`field`、`direction`（ASC/DESC），字段来自 groupBy 或 metric alias |
 
 ### 请求/响应 DTO (10)
 
@@ -86,7 +88,7 @@ agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter
 | `request/PlanGenerateRequest.java` | 发往 Runtime 的请求：`requestId`、`message`、`recentTurns`（最多 6）、`previousQuery`、`domainSchemas` |
 | `response/AgentChatResponse.java` | 统一响应：`conversationId`、`turnId`、`type`、`message`、`summary`、`queryParameters`、`queryResult`、`aggregateResult`、`errorCode` |
 | `response/AgentQueryResult.java` | 查询结果：`columns`、`rows`、`total`、`totalExact`、`page`、`size` |
-| `response/AgentQueryParameters.java` | 前端展示的查询参数：`domain`、`filters`、`selectFields`、`page`、`size` |
+| `response/AgentQueryParameters.java` | 前端展示的查询参数：`domain`、`filters`、`selectFields`、`sorts`、`page`、`size` |
 | `response/AgentQueryFilterParameter.java` | 单个过滤参数：`field`、`operator`、`value`、`values` |
 | `response/AgentAggregateResult.java` | 聚合结果：`domain`、`groupByFields`、`metricAliases`、`rows`、`partial` |
 | `response/AgentAggregateRow.java` | 单行聚合结果：`groups` Map、`metrics` Map |
@@ -98,9 +100,9 @@ agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter
 | 文件 | 用途 |
 |------|------|
 | `runtime/RuntimeTurn.java` | 供 Runtime 上下文的单轮对话：`role`、`content` |
-| `runtime/RuntimeDomainSchema.java` | 发往 Runtime 的域 Schema：`domain`、`aliases`、`fields`、`defaultSelectFields`、`maxFilters`、分页限制 |
+| `runtime/RuntimeDomainSchema.java` | 发往 Runtime 的域 Schema：`domain`、`aliases`、`fields`、`defaultSelectFields`、`sortFields`、`maxFilters`、分页限制 |
 | `runtime/RuntimeFieldSchema.java` | 字段 Schema：`name`、`aliases`、`operators`、`type`、`formatHint`、`supportedAggregateFunctions` |
-| `runtime/RuntimeQueryContext.java` | 上一轮查询上下文（供 MERGE 使用）：`sourceTurnId`、`domain`、`filters`、`selectFields`、`page`、`size` |
+| `runtime/RuntimeQueryContext.java` | 上一轮查询上下文（供 MERGE 使用）：`sourceTurnId`、`domain`、`filters`、`selectFields`、`sorts`、`page`、`size`、分页总数元数据 |
 | `runtime/RuntimeAggregateContext.java` | 聚合查询上下文（供持久化/审计）：`sourceTurnId`、`domain`、`filters`、`metrics`、`groupByFields`、`maxRows` |
 
 ---
@@ -257,16 +259,22 @@ agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter
 2. 断言 clarify/aggregate 为 null（不允许混合）
 3. 确定 `QueryContextMode`（默认 REPLACE）
 4. 若 MERGE：要求 previousQuery 存在且 domain 相同，规范化历史过滤条件，校验变更，通过 `QueryMergeEngine` 合并
-5. 若 REPLACE：规范化过滤条件，要求至少一个过滤条件，解析 selectFields，设置 page/size
-6. 校验最终过滤条件数量、分页限制
+5. 若 REPLACE：规范化过滤条件，要求至少一个过滤条件，解析 selectFields、sorts，设置 page/size
+6. 校验最终过滤条件数量、分页限制和排序规则：`sorts.field` 必须来自 Domain Metadata 投影的 `sortFields` 且仍在当前执行字段权限内；`sorts.direction` 只能为 ASC/DESC；不允许重复排序字段
 
 **execute() 流程：**
-1. `permissionService.checkQuery()` — 域访问权限、字段过滤角色、操作符白名单、字段展示角色
+1. `permissionService.checkQuery()` — 域访问权限、字段过滤角色、操作符白名单、字段展示角色和排序字段可见性
 2. `adapterRegistry.getRequired(domain)` — 查找 QueryableAdapter
 3. `adapter.query(plan.query())` — 执行后端查询，返回 `AdapterQueryResult`
 4. `resultProcessor.process()` — 按列应用展示权限，脱敏敏感数据
 5. `QueryMessages.buildSuccessMessage()` — 构建人类可读的结果消息
 6. `CapabilityExecutionResult.queryResult(...)` — 返回带 `RuntimeQueryContext` 的统一结果
+
+**QUERY 排序边界：**
+- Runtime 只能根据 `RuntimeDomainSchema.sortFields` 生成 QUERY `sorts`，不得凭字段别名或完整 Catalog 自由选择排序字段。
+- Java `QueryPlanValidator` 是可信校验边界；Adapter 只接收 `ValidatedQuery.sorts`，不自报也不自行扩大排序能力。
+- 业务域服务负责把已校验 canonical field 映射到 ES/SQL 字段；transaction 动态 `ORDER BY` 只能由服务层白名单映射生成。
+- QUERY `sorts` 是明细行排序；AGGREGATE `orderBy` 是聚合结果排序，字段来源和校验规则互不复用。
 
 ### 6.2 ClarifyCapabilityHandler
 **文件：** `agent-service/.../capability/clarify/ClarifyCapabilityHandler.java`

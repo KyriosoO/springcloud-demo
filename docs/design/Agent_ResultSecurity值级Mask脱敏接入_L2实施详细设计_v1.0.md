@@ -5,10 +5,10 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档名称 | Agent ResultSecurity 值级 Mask 脱敏接入 L2 实施详细设计 |
-| 文档状态 | Draft |
+| 文档状态 | 已实施（代码状态已核实；专项验证待按目标环境回归） |
 | 文档版本 | v1.0 |
 | 创建日期 | 2026-07-03 |
-| 更新日期 | 2026-07-03 |
+| 更新日期 | 2026-07-05 |
 | 输出语言 | 简体中文 |
 | 输出格式 | Markdown |
 | 目标文档 | `docs/design/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` |
@@ -19,6 +19,8 @@
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-03 | 全文 | 新建详细设计 | 按方案 A 设计 Agent Policy 驱动的值级 Mask 脱敏接入方案，并补齐 Java 实施落点、测试设计、静态门禁和实施对齐检查。 |
 | 2 | 2026-07-03 | 10.1、10.2、12.1、12.4、13、16、23 | 品审修订 | 明确 `DomainSecurityConstraints` 非 mask 约束不得被忽略、`fieldMasks` 仅写入非 `NONE`、filter 字符串值脱敏返回类型、配置落点与缺失 domain 的 fail closed 策略。 |
+| 3 | 2026-07-05 | 文档状态、实施对齐结论 | 同步当前代码实际状态 | 标记 ResultSecurity 值级 Mask 链路已实施；保留目标环境专项回归边界。 |
+| 4 | 2026-07-05 | 第 10、12、19、23 节 | 用户授权同步 `Agent与业务域白名单排序能力` 关联文档 | 补充 `queryParameters.sorts` 的字段授权过滤规则，覆盖 `query.search` 与 `query.preview`，防止未授权字段通过排序参数回显泄露。 |
 
 ## 3. 任务背景与问题结论
 
@@ -218,8 +220,8 @@ Planning 阶段对每个候选字段执行以下逻辑：
 
 | 能力 | 字段裁剪 | 值级 mask | 特殊规则 |
 | --- | --- | --- | --- |
-| `query.search` | 裁剪 `queryParameters.selectFields`、`filters`、`queryResult.columns`、`rows` | 对保留字段的 row 值和 filter value/values 执行 mask | safeMessage/safeSummary 基于脱敏后结果生成。 |
-| `query.preview` | 复用现有 preview 字段裁剪逻辑 | 对 `previewResult.sampleRows` 和过滤条件值执行 mask | 不新增独立脱敏路径。 |
+| `query.search` | 裁剪 `queryParameters.selectFields`、`filters`、`sorts`、`queryResult.columns`、`rows` | 对保留字段的 row 值和 filter value/values 执行 mask；`sorts`只保留字段名和方向，不做值级mask | safeMessage/safeSummary 基于脱敏后结果生成；未授权排序字段不得回显。 |
+| `query.preview` | 复用现有 preview 字段裁剪逻辑，裁剪 `queryParameters.sorts` | 对 `previewResult.sampleRows` 和过滤条件值执行 mask；`sorts`只保留字段名和方向，不做值级mask | 不新增独立脱敏路径；未授权排序字段不得回显。 |
 | `aggregate.compute` | 裁剪 `groupByFields` 与 `rows.groups` | 对 group value 执行 mask | `metrics` 默认保留，不根据 metric alias 推断原字段脱敏。 |
 
 ### 10.5 aggregate metric 规则
@@ -305,6 +307,7 @@ Planning 阶段对每个候选字段执行以下逻辑：
 | 同上 | `ResultValueMaskingSupport` | `Set<String> allowedFields(String domain, ExecutionScope scope)` | `String domain`、`ExecutionScope scope` | `Set<String>` | 返回 domain 下允许展示的字段集合。 |
 | 同上 | `ResultValueMaskingSupport` | `Map<String, Object> filterAndMaskRow(String domain, Map<String, Object> row, ExecutionScope scope)` | `String domain`、`Map<String,Object> row`、`ExecutionScope scope` | `Map<String,Object>` | 删除未授权字段，对保留字段按 mask 规则脱敏。 |
 | 同上 | `ResultValueMaskingSupport` | `List<String> filterFields(String domain, List<String> fields, ExecutionScope scope)` | `String domain`、`List<String> fields`、`ExecutionScope scope` | `List<String>` | 过滤 select/columns/groupBy 字段。 |
+| 同上 | `ResultValueMaskingSupport` | `List<AgentSortSpec> filterSorts(String domain, List<AgentSortSpec> sorts, ExecutionScope scope)` | `String domain`、`List<AgentSortSpec> sorts`、`ExecutionScope scope` | `List<AgentSortSpec>` | 过滤 query/search 与 query/preview 响应参数中的排序字段；仅保留当前scope允许展示或查询的canonical字段。 |
 | 同上 | `ResultValueMaskingSupport` | `AgentQueryFilterParameter filterAndMaskFilter(String domain, AgentQueryFilterParameter filter, ExecutionScope scope)` | `String domain`、`AgentQueryFilterParameter filter`、`ExecutionScope scope` | `AgentQueryFilterParameter` 或 `null` | 未授权 filter 返回 `null`；已授权 filter 的 `value`/`values` 执行 mask。 |
 | 同上 | `ResultValueMaskingSupport` | `Object maskValue(String domain, String field, Object value, ExecutionScope scope)` | `String domain`、`String field`、`Object value`、`ExecutionScope scope` | `Object` | 查找 `domain.field` mask，`NONE` 或缺省时返回原值。 |
 | 同上 | `ResultValueMaskingSupport` | `String maskStringValue(String domain, String field, String value, ExecutionScope scope)` | `String domain`、`String field`、`String value`、`ExecutionScope scope` | `String` | 专用于 `AgentQueryFilterParameter.value/values`；内部调用 `maskValue` 后用 `Objects.toString(masked, null)` 归一为 `String`，避免 `Object` 返回值直接写入 String DTO。 |
@@ -322,7 +325,7 @@ Planning 阶段对每个候选字段执行以下逻辑：
 | 路径 | 类 | 方法 | 参数 | 返回值 | 变更 |
 | --- | --- | --- | --- | --- | --- |
 | `agent-service/src/main/java/com/dylan/agent/metadata/result/QueryResultSecurityProjector.java` | `QueryResultSecurityProjector` | 构造器 | `ResultValueMaskingSupport maskingSupport` | `QueryResultSecurityProjector` | 从无参构造改为注入 helper。 |
-| 同上 | `QueryResultSecurityProjector` | `filter(QueryAgentResultPayload candidate, ExecutionScope scope)` | `QueryAgentResultPayload candidate`、`ExecutionScope scope` | `FilteredResult<QueryAgentResultPayload>` | 过滤 query parameters、columns、rows，并对保留字段值执行 mask。 |
+| 同上 | `QueryResultSecurityProjector` | `filter(QueryAgentResultPayload candidate, ExecutionScope scope)` | `QueryAgentResultPayload candidate`、`ExecutionScope scope` | `FilteredResult<QueryAgentResultPayload>` | 过滤 query parameters、sorts、columns、rows，并对保留字段值执行 mask。 |
 
 处理对象：
 
@@ -336,7 +339,7 @@ Planning 阶段对每个候选字段执行以下逻辑：
 | 路径 | 类 | 方法 | 参数 | 返回值 | 变更 |
 | --- | --- | --- | --- | --- | --- |
 | `agent-service/src/main/java/com/dylan/agent/metadata/result/QueryPreviewResultSecurityProjector.java` | `QueryPreviewResultSecurityProjector` | 构造器 | `ResultValueMaskingSupport maskingSupport` | `QueryPreviewResultSecurityProjector` | 从内部静态复制过滤改为复用 helper。 |
-| 同上 | `QueryPreviewResultSecurityProjector` | `filter(QueryPreviewResultPayload candidate, ExecutionScope scope)` | `QueryPreviewResultPayload candidate`、`ExecutionScope scope` | `FilteredResult<QueryPreviewResultPayload>` | 保留现有字段裁剪语义，并对 sample rows 与 filter value/values 执行 mask。 |
+| 同上 | `QueryPreviewResultSecurityProjector` | `filter(QueryPreviewResultPayload candidate, ExecutionScope scope)` | `QueryPreviewResultPayload candidate`、`ExecutionScope scope` | `FilteredResult<QueryPreviewResultPayload>` | 保留现有字段裁剪语义，过滤 `queryParameters.sorts`，并对 sample rows 与 filter value/values 执行 mask。 |
 
 处理对象：
 
@@ -504,7 +507,9 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | `agent-service/src/test/java/com/dylan/agent/metadata/result/QueryResultSecurityProjectorTest.java` | `QueryResultSecurityProjectorTest` | `filtersAndMasksQueryRows()` | query result rows 字段裁剪和值级 mask。 |
 | 同上 | `QueryResultSecurityProjectorTest` | `masksQueryFilterValues()` | query parameters filter value/values 脱敏。 |
+| 同上 | `QueryResultSecurityProjectorTest` | `filtersUnauthorizedSortParameters()` | query parameters sorts 中未授权字段被删除。 |
 | `agent-service/src/test/java/com/dylan/agent/metadata/result/QueryPreviewResultSecurityProjectorTest.java` | `QueryPreviewResultSecurityProjectorTest` | `filtersAndMasksPreviewSampleRows()` | preview sampleRows 字段裁剪和值级 mask。 |
+| 同上 | `QueryPreviewResultSecurityProjectorTest` | `filtersUnauthorizedSortParameters()` | preview query parameters sorts 中未授权字段被删除。 |
 | 同上 | `QueryPreviewResultSecurityProjectorTest` | `reusesUnifiedMaskingSupport()` | preview 不维护第二套脱敏逻辑。 |
 | `agent-service/src/test/java/com/dylan/agent/metadata/result/AggregateResultSecurityProjectorTest.java` | `AggregateResultSecurityProjectorTest` | `masksAggregateGroupValuesOnly()` | aggregate group value 脱敏，metric 默认不脱敏。 |
 | 同上 | `AggregateResultSecurityProjectorTest` | `filtersUnauthorizedGroupFields()` | 未授权 group 字段删除。 |
@@ -557,10 +562,13 @@ rg -n "fieldMasks\(\)|new ExecutionScope|new AuthorizationSnapshot" agent-servic
 | Snapshot 冻结 mask | `AuthorizationSnapshot.fieldMasks()` 包含非 NONE `domain.field` | `freezesNonNoneFieldMasksInAuthorizationSnapshot()` |
 | Execution 不重算 Policy | recheck 不读取 active policy，只传递 snapshot mask | 代码审查 + `doesNotRecomputePolicyMaskDuringRecheck()` |
 | Query 最终返回已脱敏 | rows/filter values 中敏感值被 mask | `filtersAndMasksQueryRows()` |
+| Query 排序回显不泄露字段 | `queryParameters.sorts` 不包含当前scope不可见字段 | `filtersUnauthorizedSortParameters()` |
 | Preview 不走第二路径 | preview 使用同一 helper | `reusesUnifiedMaskingSupport()` |
 | Aggregate metric 默认不脱敏 | metrics 保持计算值，groups 按需 mask | `masksAggregateGroupValuesOnly()` |
 | FieldMaskerRegistry 生产调用点集中 | 只在 ResultSecurity helper 调用 | `MetadataArchitectureTest` + `rg` |
 | final result 安全 | Lifecycle 只接收 `SecuredResult` | `ResultSecurityBoundaryTest` |
+
+当前代码状态（2026-07-05）：上述 mask 实施对齐项已在生产类和测试类中落地，关键证据包括 `AuthorizationSnapshot.fieldMasks()`、`AuthorizationExecutionPortImpl` 传递 snapshot mask、`ResultValueMaskingSupport` 统一裁剪/脱敏、query/preview/aggregate 三类 projector 注入统一 helper，以及 `MetadataArchitectureTest` 对脱敏调用边界的静态约束。`queryParameters.sorts` 过滤属于 QUERY 白名单排序增量的待实现项，需在排序能力编码时与 `filtersUnauthorizedSortParameters()` 测试一并落地。目标环境仍需按第 19.4 节执行专项回归后再作为发布证明。
 
 ## 22. 剩余风险与后续边界
 
@@ -580,7 +588,7 @@ rg -n "fieldMasks\(\)|new ExecutionScope|new AuthorizationSnapshot" agent-servic
 | 1 | 关联文档边界 | 需要明确不修改 auth-service/D03_01/D04/前端/数据库 | 已在第 5、6、11 节明确。 |
 | 1 | aggregate 规则 | metric 是否默认脱敏存在歧义 | 已在 10.5 明确 metric 默认不脱敏，仅 group value mask。 |
 | 1 | 实施落点完整性 | 需要列出方法参数和返回值 | 已在第 12 节补齐。 |
-| 2 | 授权、ResultSecurity、测试设计 | 未发现阻断问题 | 文档保持 Draft，等待实施评审。 |
+| 2 | 授权、ResultSecurity、测试设计 | 未发现阻断问题 | 原设计阶段未进入实施态，当前已按代码状态同步为已实施。 |
 | 3 | 可编码性与父文档一致性 | `DomainSecurityConstraints` 非 mask 字段约束、filter 字符串值脱敏返回类型、缺失 domain 策略和配置落点不够明确 | 已在 10.1、10.2、12.1、12.4、13、16 中补齐，复审未发现 S0/S1。 |
 
 ## 24. 完成摘要
@@ -590,7 +598,7 @@ rg -n "fieldMasks\(\)|new ExecutionScope|new AuthorizationSnapshot" agent-servic
 | 是否创建目标文档 | 是 |
 | 是否修改上级文档 | 否 |
 | 是否修改关联文档 | 否 |
-| 是否修改代码/测试/配置 | 否 |
+| 是否修改代码/测试/配置 | 是，当前代码已落地授权 mask 证据传递、统一 ResultSecurity helper、三类 projector 与专项测试；目标环境专项回归待执行。 |
 | 是否满足方案 A | 是，Policy 决策、Snapshot/ExecutionScope 传递、ResultSecurity 统一执行。 |
 | 是否包含 Java 实施落点 | 是，包含路径、类、方法、参数、返回值。 |
 | 是否包含测试设计 | 是，包含授权、projector、装配、架构门禁测试。 |

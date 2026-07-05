@@ -1,6 +1,6 @@
 # D05 Capability 扩展验证与遗留清理 — L2 实施详细设计 v1.0
 
-> 文档状态：草案，待评审
+> 文档状态：已实施（代码状态已核实；目标环境回归待执行；2026-07-05 已按授权补充 QUERY 白名单排序共享契约影响）
 > 编写日期：2026-07-02
 > 前置交付：D03 Capability v2 原子切换已完成代码评审；本地 API/UI E2E 已验证；发布前环境回归仍按 D03 第 10 节执行
 > 上位依据：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`
@@ -16,6 +16,8 @@
 | 2026-07-02 | 新增 D05 L2 实施详细设计，定义代表性 capability 扩展验证、遗留清理、文件级落点、门禁和评审矩阵 | D03 已交付 capability-first 主链路；进入 D06 前必须用真实新增 capability 证明扩展不变量 |
 | 2026-07-03 | 根据品审修订 D04 metadata、Profile/Policy、Runtime Prompt 和 Preview 执行边界 | 原稿将 capability 可用性误落到 D04 metadata，且遗漏默认 Profile/Policy 可用性落点；需保证 D05 可直接指导编码且不越过上位扩展不变量 |
 | 2026-07-03 | 根据用户确认放宽 domain 策略：employee 作为首版代表性验证样例，`query.preview` 支持所有已授权 `QUERYABLE` domain | 当前 D04/Catalog 模型按 AdapterRole 投影可用 domain，不新增 capabilityId 级 domain allowlist，避免修改上位或关联文档 |
+| 2026-07-05 | 同步 D05 当前实现状态 | `query.preview` Java API payload、Capability registration、validator、handler、ResultSecurity projector、Profile/Policy/Catalog 接入与 Runtime prompt/plan 回归用例均已落地；目标环境回归仍按退出条件执行 |
+| 2026-07-05 | 授权同步 QUERY 白名单排序共享契约影响 | `query.preview` 复用 `QueryAgentPlan`、`AgentQuerySpec`、`ValidatedQuery`、`AgentQueryParameters`，因此显式 `query.sorts` 必须参与白名单校验、Adapter 入参、响应回显和 ResultSecurity 过滤；仍不写 QUERY Context，不新增 prompt 固定分支 |
 
 ---
 
@@ -198,7 +200,7 @@ D05 选择 `query.preview` 作为代表性 capability。
 | `com.dylan.agent.api.response` | `QueryPreviewResult` | NEW | 字段：`List<String> columns`、`List<Map<String, Object>> sampleRows`、`Long totalEstimate`、`Boolean totalExact`、`Integer previewSize`；方法：无参构造器、全参构造器、对应 getter/setter |
 | `com.dylan.agent.api.response` | `AgentResultPayload` | MODIFY | sealed `permits` 增加 `QueryPreviewResultPayload`；不新增并列 response 字段 |
 | `com.dylan.agent.api.enums` | `AgentResultKind` | MODIFY | enum 增加 `QUERY_PREVIEW`；Swagger description 增加“查询预览结果 payload” |
-| `com.dylan.agent.api.contract.common` | `AgentExecutionContracts` | MODIFY | 增加 `public static final ContractRef QUERY_PREVIEW_RESULT = new ContractRef("QueryPreviewResultPayload", "1.0.0")` |
+| `com.dylan.agent.api.contract.common` | `AgentExecutionContracts` | MODIFY | 增加 `public static final ContractRef QUERY_PREVIEW_RESULT = new ContractRef("QueryPreviewResultPayload", "1.1.0")`；排序增量后该版本需与 `AgentQueryParameters.sorts` 回显契约一致 |
 
 禁止在 `agent-api` 新增或恢复以下类：`AgentIntent`、`PlanGenerateRequest`、`PlanGenerateResponse`、旧 `AgentPlan`、`AgentCapabilityDescriptor`。
 
@@ -207,20 +209,20 @@ D05 选择 `query.preview` 作为代表性 capability。
 | 包路径 | 类 | 动作 | 字段 / 方法 |
 |---|---|---|---|
 | `com.dylan.agent.capability.querypreview` | `ValidatedQueryPreviewPlan` | NEW | 字段：`String capabilityId`、`String domain`、`ValidatedQuery query`、`List<String> previewFields`、`int previewSize`；构造器必须断言 `query.getSelectFields()` 等于 `previewFields`、`query.getSize()` 等于 `previewSize`、`query.getPage()` 为 `1`；方法：`capabilityId()`、`domain()`、`query()`、`previewFields()`、`previewSize()` |
-| `com.dylan.agent.capability.querypreview` | `QueryPreviewPlanValidator` | NEW | 实现 `CapabilityPlanValidator<QueryAgentPlan, ValidatedQueryPreviewPlan>`；常量：`KERNEL_CAPABILITY_ID = "query.preview"`；方法：`ValidatedQueryPreviewPlan validate(QueryAgentPlan rawPlan, ExecutionValidationContext context)`、`private List<ValidatedFilter> toValidatedFilters(List<AgentFilter>)`、`private List<String> normalizePreviewFields(List<String>, ExecutionValidationContext)`、`private int previewSize(AgentQuerySpec, ExecutionValidationContext)`、`private ValidatedQuery toPreviewQuery(List<ValidatedFilter>, List<String>, int)`、`private static ExecutionFieldRule requireFieldRule(String, ExecutionValidationContext)` |
-| `com.dylan.agent.capability.querypreview` | `QueryPreviewCapabilityHandler` | NEW | 实现 `CapabilityHandler<ValidatedQueryPreviewPlan, QueryPreviewResultPayload>`；方法：`HandlerResult<QueryPreviewResultPayload> execute(ValidatedQueryPreviewPlan plan, ExecutionContext context)`、`private static QueryPreviewResult toPreviewResult(ValidatedQueryPreviewPlan, AdapterQueryResult)`、`private static QueryPreviewResultPayload toPayload(ValidatedQueryPreviewPlan, QueryPreviewResult)` |
+| `com.dylan.agent.capability.querypreview` | `QueryPreviewPlanValidator` | NEW | 实现 `CapabilityPlanValidator<QueryAgentPlan, ValidatedQueryPreviewPlan>`；常量：`KERNEL_CAPABILITY_ID = "query.preview"`；方法：`ValidatedQueryPreviewPlan validate(QueryAgentPlan rawPlan, ExecutionValidationContext context)`、`private List<ValidatedFilter> toValidatedFilters(List<AgentFilter>)`、`private List<ValidatedSort> toValidatedSorts(List<AgentSortSpec>, ExecutionValidationContext)`、`private List<String> normalizePreviewFields(List<String>, ExecutionValidationContext)`、`private int previewSize(AgentQuerySpec, ExecutionValidationContext)`、`private ValidatedQuery toPreviewQuery(List<ValidatedFilter>, List<String>, List<ValidatedSort>, int)`、`private static ExecutionFieldRule requireFieldRule(String, ExecutionValidationContext)` |
+| `com.dylan.agent.capability.querypreview` | `QueryPreviewCapabilityHandler` | NEW | 实现 `CapabilityHandler<ValidatedQueryPreviewPlan, QueryPreviewResultPayload>`；方法：`HandlerResult<QueryPreviewResultPayload> execute(ValidatedQueryPreviewPlan plan, ExecutionContext context)`、`private static QueryPreviewResult toPreviewResult(ValidatedQueryPreviewPlan, AdapterQueryResult)`、`private static AgentQueryParameters toQueryParameters(ValidatedQueryPreviewPlan plan)`、`private static List<AgentSortSpec> toSortParameters(List<ValidatedSort> sorts)`、`private static QueryPreviewResultPayload toPayload(ValidatedQueryPreviewPlan, QueryPreviewResult)` |
 | `com.dylan.agent.capability.querypreview` | `QueryPreviewCapabilityConfiguration` | NEW | Spring configuration；方法：`CapabilityRegistration<QueryAgentPlan, ValidatedQueryPreviewPlan, QueryPreviewResultPayload> queryPreviewRegistration(QueryPreviewPlanValidator validator, QueryPreviewCapabilityHandler handler)` |
-| `com.dylan.agent.metadata.result` | `QueryPreviewResultSecurityProjector` | NEW | 实现 `ResultSecurityProjector<QueryPreviewResultPayload>`；方法：`ContractRef supports()`、`Class<QueryPreviewResultPayload> payloadType()`、`FilteredResult<QueryPreviewResultPayload> filter(QueryPreviewResultPayload candidate, ExecutionScope scope)` |
+| `com.dylan.agent.metadata.result` | `QueryPreviewResultSecurityProjector` | NEW | 实现 `ResultSecurityProjector<QueryPreviewResultPayload>`；方法：`ContractRef supports()`、`Class<QueryPreviewResultPayload> payloadType()`、`FilteredResult<QueryPreviewResultPayload> filter(QueryPreviewResultPayload candidate, ExecutionScope scope)`；必须过滤 `queryParameters.sorts` 中当前 `ExecutionScope` 不可见的字段 |
 | `com.dylan.agent.metadata.result` | `ResultSecurityProjectorRegistry` | KEEP | 不新增 capability/domain 分支；只通过 Spring bean 集合接收 `QueryPreviewResultSecurityProjector` |
 | `com.dylan.agent.metadata.config` | `DefaultAgentMetadataBootstrap` | MODIFY | `DEFAULT_CAPABILITY_IDS` 增加 `query.preview`，使默认 Profile 与 active Policy 均包含该 capability；bundle digest 必须随 capability 集合变化而稳定变化 |
 | `com.dylan.agent.kernel.registration` | `CapabilityRegistry` | KEEP | 不修改；由 `QueryPreviewCapabilityConfiguration` 新增 registration 即可被索引 |
 | `com.dylan.agent.kernel.core` | `ExecutionCore` | KEEP | 不修改；仍按 `ResolvedRegistration` 调用 Validator/Handler |
 
-`QueryPreviewCapabilityConfiguration` 必须构造完整 `CapabilityDefinition`：`capabilityId=query.preview`、`planKind=QUERY`、`domainMode=REQUIRED`、`adapterRole=QUERYABLE`、`riskLevel=READ_ONLY`、`executionMode=IMMEDIATE`、`inputContract=AgentExecutionContracts.QUERY_PLAN`、`outputContract=AgentExecutionContracts.QUERY_PREVIEW_RESULT`、`contextAccess` 只声明读取 `RuntimeContextType.QUERY` + `AgentExecutionContracts.QUERY_CONTEXT` + `QueryCapabilityContextPayload.class`，`ContextWriteDeclaration` 为空。
+`QueryPreviewCapabilityConfiguration` 必须构造完整 `CapabilityDefinition`：`capabilityId=query.preview`、`planKind=QUERY`、`domainMode=REQUIRED`、`adapterRole=QUERYABLE`、`riskLevel=READ_ONLY`、`executionMode=IMMEDIATE`、`inputContract=AgentExecutionContracts.QUERY_PLAN`、`outputContract=AgentExecutionContracts.QUERY_PREVIEW_RESULT`、`contextAccess` 只声明读取 `RuntimeContextType.QUERY` + `AgentExecutionContracts.QUERY_CONTEXT` + `QueryCapabilityContextPayload.class`，`ContextWriteDeclaration` 为空。QUERY Context `sorts` 可作为只读字段随声明投影，但首版 preview 不写 Context，也不承诺 MERGE 继承上一轮排序；显式当前 plan `query.sorts` 才参与预览执行。
 
-`agent-service/src/main/resources/application.yml` 不为 `query.preview` 新增 D04 capabilityId 配置。D04 `agent.domain-metadata` 的 `role-capabilities.QUERYABLE` 已表达各 domain 可查询字段/operator 和 `max-page-size`；D05 只能复用该事实。若编码时发现现有 D04 字段/operator 无法支撑预览需求，应暂停并按 D04 文档问题处理，不得在 D05 中扩展关联文档或新增第二 metadata 源。
+`agent-service/src/main/resources/application.yml` 不为 `query.preview` 新增 D04 capabilityId 配置。D04 `agent.domain-metadata` 的 `role-capabilities.QUERYABLE` 已表达各 domain 可查询字段/operator/`sort-fields` 和 `max-page-size`；D05 只能复用该事实。若编码时发现现有 D04 字段/operator/`sort-fields` 无法支撑预览需求，应暂停并按 D04 文档问题处理，不得在 D05 中扩展关联文档或新增第二 metadata 源。
 
-`QueryPreviewPlanValidator` 的分页语义必须固定：preview 查询只允许 `page` 为空或 `1`，对 Adapter 发起的 `ValidatedQuery` 固定 `page=1`；`previewSize` 取 raw plan size、`agent.query.default-size`、`ExecutionValidationContext.domainProjection().maxPageSize()`、`ExecutionValidationContext.executionScope().maxResultRows()` 中的最小正数，超过任一上限必须 fail closed。
+`QueryPreviewPlanValidator` 的分页语义必须固定：preview 查询只允许 `page` 为空或 `1`，对 Adapter 发起的 `ValidatedQuery` 固定 `page=1`；`previewSize` 取 raw plan size、`agent.query.default-size`、`ExecutionValidationContext.domainProjection().maxPageSize()`、`ExecutionValidationContext.executionScope().maxResultRows()` 中的最小正数，超过任一上限必须 fail closed。排序语义必须与 `query.search` 共用字段白名单和方向校验：显式 `query.sorts` 可传入 `ValidatedQuery.sorts`；`sorts == null` 或 `sorts == []` 均表示使用业务域默认排序，不继承上一轮 Context 排序。
 
 #### 6.6.3 `auth-service` 生产代码
 
@@ -236,11 +238,11 @@ D05 选择 `query.preview` 作为代表性 capability。
 | 包路径 | 类 | 动作 | 覆盖方法 / 场景 |
 |---|---|---|---|
 | `com.dylan.agent.api` | `AgentResultPayloadContractTest` | MODIFY | 新增 `queryPreviewPayloadSerializesWithDiscriminator()`、`queryPreviewPayloadRejectsUnknownFields()`；覆盖 `QUERY_PREVIEW` discriminator 和 JSON 形状 |
-| `com.dylan.agent.api` | `AgentExecutionContractsTest` | MODIFY | 新增 `queryPreviewResultContractIsRegistered()`；覆盖 `QUERY_PREVIEW_RESULT` ContractRef 名称、版本和唯一性 |
-| `com.dylan.agent.capability.querypreview` | `QueryPreviewPlanValidatorTest` | NEW | `validatesPreviewPlan()`、`rejectsCapabilityIdMismatch()`、`rejectsUnauthorizedField()`、`rejectsUnauthorizedOperator()`、`rejectsPreviewSizeAboveExecutionBudget()` |
-| `com.dylan.agent.capability.querypreview` | `QueryPreviewCapabilityHandlerTest` | NEW | `executesPreviewAgainstQueryableAdapter()`、`returnsOnlyPreviewFields()`、`doesNotCreateContextWrite()` |
+| `com.dylan.agent.api` | `AgentExecutionContractsTest` | MODIFY | 新增 `queryPreviewResultContractIsRegistered()`；覆盖 `QUERY_PREVIEW_RESULT` ContractRef 名称、`1.1.0` 版本和唯一性 |
+| `com.dylan.agent.capability.querypreview` | `QueryPreviewPlanValidatorTest` | NEW | `validatesPreviewPlan()`、`acceptsExplicitWhitelistedSorts()`、`rejectsUnsupportedSortField()`、`rejectsCapabilityIdMismatch()`、`rejectsUnauthorizedField()`、`rejectsUnauthorizedOperator()`、`rejectsPreviewSizeAboveExecutionBudget()` |
+| `com.dylan.agent.capability.querypreview` | `QueryPreviewCapabilityHandlerTest` | NEW | `executesPreviewAgainstQueryableAdapter()`、`passesSortsToQueryableAdapter()`、`queryParametersEchoSorts()`、`returnsOnlyPreviewFields()`、`doesNotCreateContextWrite()` |
 | `com.dylan.agent.capability.querypreview` | `QueryPreviewCapabilityRegistrationTest` | NEW | `registersQueryPreviewWithQueryPlanKind()`、`coexistsWithQuerySearchRegistration()`、`closesRegistrationGenericTypes()` |
-| `com.dylan.agent.metadata.result` | `QueryPreviewResultSecurityProjectorTest` | NEW | `supportsQueryPreviewResultContract()`、`filtersUnauthorizedFields()`、`createsSafeMessageAndSummary()` |
+| `com.dylan.agent.metadata.result` | `QueryPreviewResultSecurityProjectorTest` | NEW | `supportsQueryPreviewResultContract()`、`filtersUnauthorizedFields()`、`filtersUnauthorizedSortParameters()`、`createsSafeMessageAndSummary()` |
 | `com.dylan.agent.metadata.config` | `AgentMetadataProductionBootstrapTest` | MODIFY | 新增 `defaultProfileAndPolicyIncludeQueryPreview()`；覆盖 Profile、Policy 与 capability constraints 同时包含 `query.preview` |
 | `com.dylan.agent.metadata` | `CapabilityCatalogTest` | MODIFY | 新增 `queryPreviewBecomesAvailableThroughProfilePolicyPermissionAndQueryableDomain()`、`queryPreviewExposesAllAuthorizedQueryableDomains()`；证明 capability 可用性来自 Profile/Policy/UserPermission/D04 role 交集，且不新增 capability-domain 专用过滤 |
 | `com.dylan.agent.metadata` | `AuthorizationPlanningPortTest` | MODIFY | 新增 `planningScopeIncludesQueryPreviewOnlyWhenPermissionAllows()`；覆盖权限未授予时不进入 Available Capability |
@@ -256,7 +258,7 @@ D05 选择 `query.preview` 作为代表性 capability。
 | 文件 | 动作 | 函数 / 脚本 | 要求 |
 |---|---|---|---|
 | `agent-runtime/app/prompts/route_system.md` | KEEP/MODIFY | 非 Python 函数；Route prompt 文本 | 不因 `query.preview` 新增能力专用文本；如清理旧术语，只保留通用 descriptor-driven 规则 |
-| `agent-runtime/app/prompts/query_system.md` | KEEP/MODIFY | 非 Python 函数；Query prompt 文本 | 不出现 `query.preview` 字面量；同 `QUERY` planKind capability 仍由请求 descriptor/schema 决定 |
+| `agent-runtime/app/prompts/query_system.md` | KEEP/MODIFY | 非 Python 函数；Query prompt 文本 | 可描述通用 QUERY 排序规则并要求只使用 `domainSchema.sortFields`；不得出现 `query.preview` 字面量，同 `QUERY` planKind capability 仍由请求 descriptor/schema 决定 |
 | `agent-runtime/tests/test_prompt_contract.py` | MODIFY | `test_no_legacy_terms`、新增 `test_prompt_does_not_pin_query_preview_as_static_route` | 确认 prompt 不出现旧术语，不把 `query.preview` 写成 Runtime 固定分支 |
 | `agent-runtime/tests/test_planning.py` | MODIFY | 新增 `test_route_can_return_query_preview_decision`、`test_plan_for_query_preview_still_returns_query_agent_plan` | 覆盖 Runtime 返回 target `RouteDecision(capabilityId="query.preview")` 和 target `ExecutablePlan(QueryAgentPlan)` |
 | `agent-runtime/scripts/check_contract_drift.py` | KEEP/RUN | 脚本入口 | 只运行，不修改；用于验证 Java OpenAPI → Python generated model 无 drift |
@@ -416,13 +418,14 @@ D05 禁止清理：
 | 是否修改 Runtime 主契约 | 不手写 generated model，不新增 endpoint | drift + git diff |
 | 是否固定 Runtime Prompt 分支 | Prompt 文件不得出现 `query.preview` 字面量；Runtime 只能通过请求 descriptor/catalog 选择 | prompt contract + 8.6 Prompt 搜索 |
 | 是否证明同 planKind 扩展 | `query.search` 与 `query.preview` 同时注册并通过 Planning/Core tests | capability tests |
+| 是否安全处理 QUERY 排序共享契约 | `query.preview` 仅消费显式当前 plan `sorts`，使用 D04 `sort-fields` 白名单校验，响应回显经 ResultSecurity 过滤，且不写 QUERY Context | QueryPreviewPlanValidatorTest + QueryPreviewCapabilityHandlerTest + QueryPreviewResultSecurityProjectorTest |
 | 是否保留 fail closed | 手工伪造 capabilityId/domain/field/operator 被 Java 拒绝 | Validator/Core tests |
 
 ---
 
 ## 11. 退出条件
 
-D05 只有同时满足以下条件才可视为完成：
+D05 只有同时满足以下条件才可视为完成。当前代码状态已满足实现落点和专项测试类存在性核实；目标环境回归与 UI/API smoke 仍需作为发布前证据补齐：
 
 1. D05 文档评审通过。
 2. `query.preview` 端到端通过：Route、Plan、Java validation、ExecutionCore、Handler、ResultSecurity、API response。
@@ -432,6 +435,7 @@ D05 只有同时满足以下条件才可视为完成：
 6. Runtime contract drift 通过，Python tests 通过。
 7. auth-service 权限投影 tests 通过。
 8. D05 新增 capability tests、Registration tests、Validator tests、Handler tests、ResultSecurity tests、Profile/Policy/Catalog tests 全部通过。
+9. QUERY 排序增量实施后，`query.preview` 显式排序、Adapter 入参、响应回显和 ResultSecurity 过滤测试全部通过，且 Prompt 仍不出现 `query.preview` 固定分支。
 9. UI/API smoke 证明新增 result payload 可展示或安全降级。
 10. `git diff --check` 通过。
 11. `git status --short --branch` 只包含 D05 预期改动，且未 commit/push/PR，除非用户明确授权。

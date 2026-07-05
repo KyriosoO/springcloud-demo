@@ -1,6 +1,6 @@
 # D04 Agent Adapter 与 Domain Metadata 收敛 — L2 v1.0
 
-> 文档状态：已实施并通过退出门禁
+> 文档状态：已实施并通过退出门禁；2026-07-05 已按授权补充 QUERY 白名单排序增量约束
 > 编写日期：2026-07-02
 > 状态更新：2026-07-02
 > 实施提交：`f594ad7 Implement D04 domain metadata convergence`
@@ -17,6 +17,7 @@
 |---|---|---|
 | 2026-07-02 | 起草 D04 L2，冻结 Canonical Domain Field Catalog、Adapter Role/Registration、`DomainMetadataPort` 实现、旧 metadata 双来源删除台账与门禁 | D03 前必须先提供唯一 Domain 执行事实来源 |
 | 2026-07-02 | 更新 D04 实施状态、替换台账、门禁结果与实施后复核结论 | D04 已完成编码、审计、提交和推送；文档需与当前实现基线对齐 |
+| 2026-07-05 | 授权同步 QUERY 白名单排序增量约束，补充 `role-capabilities.QUERYABLE.sort-fields`、`CanonicalRoleCapability.sortFields`、`RuntimeDomainSchema.sortFields` 与 `ExecutionValidationProjection.sortFields` 投影 | `Agent与业务域白名单排序能力` 要求 Runtime 只能从授权排序字段中生成计划，Java Validator 只消费 D04 可信投影；若 D04 不承载白名单会形成第二事实源 |
 
 ---
 
@@ -175,6 +176,7 @@ Catalog 不保存：
 |---|---|
 | `role` | `AdapterRole` |
 | `fields` | 该 role 可映射的 canonical field 集合 |
+| `sortFields` | 该 role 允许用于 QUERY 明细排序的 canonical field 集合；仅对 `QUERYABLE` 有业务含义，其他 role 默认为空 |
 | `operatorsByField` | `Map<field,Set<AgentOperator>>` |
 | `functionsByField` | `Map<field,Set<String>>`，用于 aggregate 或 future function |
 | `maxPageSize` | Query role 上限 |
@@ -183,6 +185,7 @@ Catalog 不保存：
 约束：
 
 - `operatorsByField` 和 `functionsByField` 的 key 必须包含在 `fields`。
+- `sortFields` 必须是同一 role `fields` 的子集；未配置或为空表示该 role 不允许用户指定排序。
 - 所有 operator 必须是 D01 `AgentOperator`。
 - functionId 只允许 `[a-z][a-z0-9_]{0,63}`，含义由 Adapter Role 语义和 contract test 证明；不得使用用户可见自由文本。
 - capability/domain 的可用性不由 Catalog 授权，仍要与 Profile、Policy、UserPermission 和 availability 求交。
@@ -313,6 +316,7 @@ Registration 不保存 field/operator/function 清单，不保存权限结论，
 - fields 来自 Catalog role capability 与 `PlanningEffectiveScope` 的交集；
 - 每个 field 输出 D01 `RuntimeDomainFieldSchema`，字段类型和 operator 直接使用 D01 Java enum；
 - `defaultSelectFields` 必须是 allowed fields 子集；
+- `sortFields` 必须来自 Catalog role capability `sortFields` 与 Planning scope 可见字段的交集，并且是输出 fields 子集；Runtime 只能据此生成 QUERY `sorts`；
 - `maxSize` 使用 Catalog role 上限与 Planning scope 上限的最小值；
 - 不输出 mask、数据库列名、Adapter 实现、未授权字段或完整 Catalog。
 
@@ -323,6 +327,7 @@ Registration 不保存 field/operator/function 清单，不保存权限结论，
 - `adapterRole/domain` 必须同时存在；
 - `fieldRules` 来自 Catalog role capability 与 `ExecutionScope` allowed field/operator/function 的交集；
 - `defaultSelectFields` 必须是 fieldRules 子集；
+- `sortFields` 来自 Catalog role capability `sortFields` 与 `ExecutionScope` allowed field 的交集，必须是 `fieldRules.keySet()` 子集，供 `QueryPlanValidator` fail-closed 校验；
 - `maxPageSize/maxResultRows` 使用 Catalog、ExecutionScope 和全局运行参数的最小值；
 - projectionVersion 使用 `catalogVersion + ":" + adapterRegistrationVersion` 的稳定形式；
 - 不读取 `AgentProperties.domains` 或 Adapter 自报清单。
@@ -351,14 +356,14 @@ D04 首版使用启动期不可变 bundle，不实现动态 reload。未来若�
 1. `catalogVersion`、`adapterRegistrationVersion` 非空。
 2. domainId 小写唯一；aliases 非空且同 domain 内去重。
 3. fieldId 在 domain 内唯一；field type 必须是 D01 `AgentFieldType`。
-4. role capability 引用的 field/operator/function 闭合。
+4. role capability 引用的 field/operator/function 闭合，`sortFields` 是同 role `fields` 子集。
 5. `(role,domain)` registration 唯一。
 6. registration role 必须存在于 role/port type 映射。
 7. registration domain 必须存在于 Catalog。
 8. port bean 必须存在且类型兼容。
 9. 每个 registration 必须引用 Catalog 中对应 role capability。
 10. Catalog 中未部署的 role capability 可以保留为静态事实，但不得进入 availability。若部署策略显式要求某 role/domain 必须启用而缺失 registration，则启动失败。
-11. Adapter coverage contract tests 必须证明 mapper 支持 Catalog 对已注册 role/domain 声明的全部 field/operator/function。
+11. Adapter coverage contract tests 必须证明 mapper 支持 Catalog 对已注册 role/domain 声明的全部 field/operator/function；若 `QUERYABLE.sortFields` 非空，还必须证明排序字段可被对应 mapper 或下游请求安全映射。
 12. 旧 `agent.domains` 若仍包含 canonical 字段事实，启动失败。
 
 任一失败必须拒绝启动，不允许回退到 Adapter 自报或旧 YAML。
@@ -566,7 +571,7 @@ rg -n "agent\\.domains|supportedFields\\(|supportedAggregateFields\\(|supportedF
 1. `DomainMetadataPortImpl` 是 `DomainMetadataPort` 唯一生产实现。
 2. `metadata.domain.internal` 不依赖 Planning/Core/Lifecycle/Context 内部实现。
 3. Adapter module 不依赖 `agent-service`。
-4. `QueryableAdapter`/`AggregatableAdapter` 不包含 metadata 自报方法。
+4. `QueryableAdapter`/`AggregatableAdapter` 不包含 metadata 自报方法，排序能力也不得由 Adapter 自报。
 5. 生产代码不引用旧 `FieldCatalog` 常量作为 metadata。
 
 ### 15.4 功能测试
@@ -658,7 +663,7 @@ D04 专项测试已纳入 `agent-service` 测试集：
 
 - D04 只定义 Canonical Domain Field Catalog、Adapter Role/Registration、`DomainMetadataPort` 实现和旧 metadata 双来源删除。
 - 未定义 Runtime DTO、Python model、Planning/Core/Lifecycle/Context 状态机。
-- 未改变 D02_03 `DomainMetadataPort`、`DomainMetadataEvidence`、`ExecutionValidationProjection`、`AdapterExecutionBinding` 等消费契约。
+- 已按授权增量补充 D02_03 `ExecutionValidationProjection.sortFields` 和 D01 `RuntimeDomainSchema.sortFields` 的投影约束；未改变 `DomainMetadataEvidence`、`AdapterExecutionBinding` 等消费契约。
 - 未把 UserPermission 生产 Adapter 纳入 D04 范围。
 - 已明确 D03 前置、D04 退出门禁和需要暂停确认的 D01/L1 变更条件。
 
@@ -666,7 +671,7 @@ D04 专项测试已纳入 `agent-service` 测试集：
 
 - D04 已建立 `agent.domain-metadata` 作为 Domain metadata 唯一生产配置源。
 - `DomainMetadataPortImpl` 已成为 `DomainMetadataPort` 的生产实现，并输出 Route、Plan、Execution、Binding 所需请求级投影。
-- Adapter SPI 已移除 domain/field/operator/function 自报职责，Adapter 只保留 typed execution。
+- Adapter SPI 已移除 domain/field/operator/function 自报职责，Adapter 只保留 typed execution；QUERY 排序字段白名单也只来自 Canonical Catalog 的 role capability，不从 Adapter 自报。
 - 旧 `QueryableAdapterRegistry`、`AggregatableAdapterRegistry`、`RuntimeDomainSchemaFactory` 已退出生产事实来源。
 - Adapter coverage tests 已覆盖 employee 与 transaction 两个现有 domain 的 mapper 支持面。
 - D04 未修改 D01 Runtime HTTP DTO、OpenAPI、Python generated model、Prompt、Runtime graph 或 endpoint。

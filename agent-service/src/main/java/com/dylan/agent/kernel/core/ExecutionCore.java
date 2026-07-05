@@ -61,7 +61,7 @@ public final class ExecutionCore {
     /**
      * 13 步可信执行算法。步骤不可跳过。任何失败都不调用后续阶段。
      *
-     * <p>D02_01 阶段 port 实现尚未就绪，Core 算法骨架就绪后由 D03 完成集成。
+     * <p>Core 只编排稳定端口，不依赖 metadata、context、authorization 或 result security 的具体实现。
      */
     public ExecutionOutcome execute(ExecutionCommand command) {
         Objects.requireNonNull(command);

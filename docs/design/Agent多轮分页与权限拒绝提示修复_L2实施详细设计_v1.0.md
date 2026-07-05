@@ -5,9 +5,10 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档名称 | Agent 多轮分页与权限拒绝提示修复 L2 实施详细设计 |
-| 文档状态 | Draft |
+| 文档状态 | 已实施（代码状态已核实；目标环境 E2E 回归待执行） |
 | 文档版本 | v1.0 |
 | 创建日期 | 2026-07-04 |
+| 更新日期 | 2026-07-05 |
 | 输出语言 | 简体中文 |
 | 输出格式 | Markdown |
 | 目标文档 | `docs/design/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md` |
@@ -18,6 +19,8 @@
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-04 | 全文 | 新建详细设计 | 针对多轮分页、末页计算、权限不足友好拒绝提示三个优先问题，给出 Java/Python/Context/测试实施方案，并核实关联设计文档是否需要同步修订。 |
 | 2 | 2026-07-05 | 第 3、6、7、11～23 节 | UAT 修复后同步设计 | 补充 Runtime Plan `requestId` 防御性归一化、bounded output repair、`OUTPUT_REPAIR_EXHAUSTED` 失败映射、测试门禁与关联文档同步结论。 |
+| 3 | 2026-07-05 | 文档状态、完成摘要 | 同步当前代码实际状态 | 标记多轮分页、字段越权安全提示与 Runtime 输出修复已实施；保留目标环境 E2E 回归边界。 |
+| 4 | 2026-07-05 | 第 8、10、12、18、23 节 | 用户授权同步 `Agent与业务域白名单排序能力` 关联文档 | 补充多轮分页保持上一轮 `sorts` 的 MERGE 规则、QUERY Context 1.2.0 排序字段和排序分页测试项。 |
 
 ## 3. 任务背景与问题结论
 
@@ -145,7 +148,7 @@ else:
 
 ### 8.2 Runtime Context View
 
-`RuntimeQueryContextView` 增加同名只读字段：`total`、`totalExact`、`totalPages`。
+`RuntimeQueryContextView` 增加同名只读字段：`total`、`totalExact`、`totalPages`；在 QUERY 白名单排序增量中同步增加 `sorts`，用于下一页、上一页、最后一页保持上一轮排序。
 
 Runtime 行为规则：
 
@@ -166,6 +169,7 @@ Runtime 行为规则：
 | --- | --- | --- |
 | `filters` | 必须来自当前 plan，不能为空。 | 读取上一轮 filters，用 `QueryMergeEngine` 合并当前 filters；当前 filters 为空时继承上一轮 filters。 |
 | `selectFields` | 当前 plan 显式字段或默认字段。 | 当前 plan 有值则覆盖；无值则继承上一轮 selectFields。 |
+| `sorts` | 当前 plan 显式排序或业务域默认排序。 | 当前 plan `sorts == null` 时继承上一轮排序；`sorts == []` 时清空上一轮用户排序并恢复业务域默认排序；非空时替换上一轮排序。 |
 | `page` | 当前 plan 页码或默认 1。 | 当前 plan 有值则覆盖；无值则继承上一轮 page。 |
 | `size` | 当前 plan size 或默认 size。 | 当前 plan 有值则覆盖；无值则继承上一轮 size。 |
 | `total/totalPages` | 不进入执行请求。 | 只用于页码边界校验，不传给 Adapter。 |
@@ -175,6 +179,7 @@ Runtime 行为规则：
 1. MERGE 时缺少上一轮 query context，应返回安全失败或澄清，不允许以空 filters 执行。
 2. MERGE 后最终 filters 仍为空，按查询能力约束拒绝。
 3. 当 `totalExact=true` 且 `totalPages` 非空时，`page` 不得小于 1；如果 `page > totalPages`，返回友好失败“请求页码超过当前结果总页数，请调整页码后重试。”。
+4. MERGE 后最终 `sorts` 必须重新走排序白名单、方向、重复字段和字段授权校验；不可见排序字段按字段越权或计划校验失败处理，不得静默删除后继续执行。
 4. Adapter 执行仍只接收标准 query request：filters、selectFields、page、size。
 
 ### 8.4 Context 写入规则
@@ -241,11 +246,12 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | 模块 | 文件/类 | 修改点 |
 | --- | --- | --- |
 | `agent-api` | `com.dylan.agent.api.context.QueryCapabilityContextPayload` | 新增 `total`、`totalExact`、`totalPages`；保持旧 JSON 兼容。 |
-| `agent-api` | `com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView` | 新增同名只读字段，并更新 OpenAPI/generated contract 流程。 |
-| `agent-api` | `AgentExecutionContracts.QUERY_CONTEXT` | 将 query context contract 版本从 `1.0.0` 提升到 `1.1.0`，或明确兼容字段扩展策略。 |
+| `agent-api` | `com.dylan.agent.api.context.QueryCapabilityContextPayload` | QUERY 排序增量新增 `sorts`，历史缺省为空列表。 |
+| `agent-api` | `com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView` | 新增分页总数字段和 `sorts` 只读字段，并更新 OpenAPI/generated contract 流程。 |
+| `agent-api` | `AgentExecutionContracts.QUERY_CONTEXT` | 多轮分页修复将 query context contract 版本从 `1.0.0` 提升到 `1.1.0`；QUERY 排序增量继续提升到 `1.2.0` 并补 `sorts` 兼容迁移。 |
 | `agent-service` | `ContextBoundary` | `toRuntimeView` 与 `payloadFields` 增加分页总数字段。 |
 | `agent-service` | `QueryCapabilityConfiguration` | context read/write field declaration 增加分页总数字段。 |
-| `agent-service` | `QueryPlanValidator` | 执行 MERGE 合并、分页边界校验、字段越权错误区分。 |
+| `agent-service` | `QueryPlanValidator` | 执行 MERGE 合并、排序继承/清空/替换、分页边界校验、字段越权错误区分。 |
 | `agent-service` | `QueryMergeEngine` | 继续负责 filters 合并；如需统一，可新增 select/page 合并 helper，但不引入泛化抽象。 |
 | `agent-service` | `QueryCapabilityHandler` | Context write 从 adapter result 带出 total/totalExact/totalPages。 |
 | `agent-service` | `KernelErrorCode` | 新增 `FIELD_FORBIDDEN`。 |
@@ -272,6 +278,7 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | --- | --- |
 | 旧 Context JSON | 新字段使用 nullable boxed 类型；旧 JSON 缺失字段时反序列化为 null。 |
 | Contract 版本 | 推荐将 `QueryCapabilityContextPayload` 合约提升到 `1.1.0`。 |
+| QUERY 排序增量 | `sorts` 缺失时按空列表处理；排序增量后推荐将 `QUERY_CONTEXT` 从 `1.1.0` 提升到 `1.2.0`，并提供 `1.0.0 -> 1.2.0` 与 `1.1.0 -> 1.2.0` 精确迁移。 |
 | Context migration | 如果当前 Context 存储严格校验 contract version，新增 `QueryContextV1ToV1_1Migrator`，将旧 payload 补齐 null 字段。 |
 | 无历史上下文 | 第二轮分页缺上下文时不执行查询，返回友好澄清或安全失败。 |
 | `totalExact=false` | 不支持“最后一页”自动计算，提示用户指定页码或重新查询。 |
@@ -319,6 +326,7 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | `QueryPlanValidatorTest` | `mergeInheritsFiltersWhenSecondTurnOnlySpecifiesPage()` | 第二轮只给 page 时继承上一轮 filters。 |
 | `QueryPlanValidatorTest` | `mergeUsesRequestedPageAndInheritedSize()` | page 覆盖、size 继承。 |
 | `QueryPlanValidatorTest` | `mergeRejectsWhenPreviousContextMissing()` | MERGE 缺上下文不得空 filters 执行。 |
+| `QueryPlanValidatorTest` | `mergeInheritsSortsForNextPage()`、`mergeClearsSortsWhenEmptyList()` | 下一页/上一页/最后一页保持上一轮排序；用户显式清空时恢复默认排序。 |
 | `QueryPlanValidatorTest` | `rejectsPageGreaterThanTotalPagesWhenTotalExact()` | 页码超过总页数时友好失败。 |
 | `QueryCapabilityHandlerTest` | `writesTotalAndTotalPagesIntoQueryContext()` | 成功查询写入分页总数上下文。 |
 | `ContextBoundaryTest` | `projectsQueryTotalFieldsToRuntimeView()` | Runtime Context View 包含 total 字段。 |
@@ -344,6 +352,7 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | --- | --- | --- |
 | admin | “查询上海地区员工” -> “查看第 2 页” | 第二轮继承上海过滤条件，返回第 2 页。 |
 | admin | “查询上海地区员工” -> “查看最后一页” | 若上一轮 totalExact=true，返回最后一页。 |
+| admin | “按交易金额倒序查询交易” -> “下一页” | 第二轮继承上一轮 `amount DESC` 排序并只变更页码。 |
 | viewer | “查询上海地区员工，返回姓名、身份证、电话、邮箱、联系地址” | 返回 `AGENT_FIELD_FORBIDDEN` 和友好提示，不执行下游查询。 |
 | viewer | “查询上海地区员工” | 返回 viewer 已授权字段，不泄露地址、电话等未授权字段。 |
 
@@ -373,7 +382,7 @@ rg -n "OUTPUT_REPAIR_EXHAUSTED|requestId|repairAttempts|repairLimit" agent-runti
 
 | 顺序 | 步骤 | 产物 | 验证 |
 | --- | --- | --- | --- |
-| 1 | 扩展 Java query context contract | `QueryCapabilityContextPayload`、`RuntimeQueryContextView` 新字段 | contract/codec 测试。 |
+| 1 | 扩展 Java query context contract | `QueryCapabilityContextPayload`、`RuntimeQueryContextView` 新字段，包括分页总数字段和排序增量中的 `sorts` | contract/codec 测试。 |
 | 2 | 更新 ContextBoundary 与 capability declaration | Runtime View 和 read/write 字段包含总数元数据 | ContextBoundary 测试。 |
 | 3 | 实现 Query MERGE 合并与页码校验 | 第二轮分页可继承 filters 并使用 page | QueryPlanValidator 测试。 |
 | 4 | Query handler 写入 total/totalPages | 成功查询后具备末页上下文 | QueryCapabilityHandler 测试。 |
@@ -387,6 +396,7 @@ rg -n "OUTPUT_REPAIR_EXHAUSTED|requestId|repairAttempts|repairLimit" agent-runti
 | 检查项 | 期望 |
 | --- | --- |
 | Java 合并最终查询 | `contextMode=MERGE` 不再因当前 filters 为空直接失败。 |
+| 排序分页一致性 | `contextMode=MERGE` 的下一页/上一页/最后一页继承上一轮排序，除非用户显式清空或替换。 |
 | 末页计算 | 只有 `totalExact=true` 且 `totalPages` 存在时自动跳末页。 |
 | Context 最小化 | 不把业务行数据、权限正文或 mask 规则写入 Runtime Context View。 |
 | 权限拒绝语义 | 存在但未授权字段返回 `AGENT_FIELD_FORBIDDEN`。 |
@@ -395,6 +405,8 @@ rg -n "OUTPUT_REPAIR_EXHAUSTED|requestId|repairAttempts|repairLimit" agent-runti
 | Runtime Plan 绑定 | Plan 输出中的 `requestId` 与当前请求绑定；归一化只限该 envelope 字段。 |
 | Runtime repair 门禁 | `repairAttempts`、`repairLimitReached`、`OUTPUT_REPAIR_EXHAUSTED` 行为可测试。 |
 | 关联文档 | D02_00/D02_01/D02_02/D02_03 的分页、权限拒绝内容已同步；Runtime repair 增量仅同步到 D02_00/D02_01/D02_02，D02_03 不受影响。 |
+
+当前代码状态（2026-07-05）：`QueryCapabilityContextPayload`、`RuntimeQueryContextView`、`ContextBoundary`、`QueryPlanValidator`、`QueryCapabilityHandler`、`ExecutionFailure`、`FinalizationTxService`、`AgentChatResponseAssembler` 与 Runtime planning repair 路径均已出现对应实现；相关 Java/Python 测试类和用例已存在。目标环境仍需覆盖 admin 多轮末页与 viewer 字段越权 E2E。
 
 ## 20. 剩余风险与处理建议
 
@@ -436,7 +448,7 @@ rg -n "OUTPUT_REPAIR_EXHAUSTED|requestId|repairAttempts|repairLimit" agent-runti
 | --- | --- |
 | 是否新建目标详细设计文档 | 是 |
 | 是否修改关联文档 | 是，已同步 D02_00/D02_01/D02_02；D02_03 经核实无需新增修改。 |
-| 是否修改代码/测试/配置 | 否 |
+| 是否修改代码/测试/配置 | 是，当前代码已落地 Java、Python Runtime 与关联 D02 文档同步；目标环境 E2E 回归待执行。 |
 | 是否覆盖分页问题 | 是，包含指定页、上一页、下一页、第一页、最后一页。 |
 | 是否覆盖权限拒绝提示 | 是，定义 `FIELD_FORBIDDEN`、safeMessage、API 映射。 |
 | 是否覆盖 UAT Runtime 输出问题 | 是，补充 `requestId` 归一化、bounded repair 与 `OUTPUT_REPAIR_EXHAUSTED` 门禁。 |

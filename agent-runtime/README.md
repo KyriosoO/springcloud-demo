@@ -1,6 +1,8 @@
-# Agent Runtime (P0)
+# Agent Runtime
 
-Python 3.12 + FastAPI + LangGraph service that generates QUERY/CLARIFY plans.
+Python 3.12 + FastAPI + LangGraph runtime service for Agent route and plan
+operations. Java remains the source of truth for runtime contracts; Python
+models are generated from `agent-api/src/main/resources/openapi/agent-runtime-openapi.json`.
 
 ## Setup
 
@@ -32,5 +34,6 @@ Copy `example.env` to `.env` and fill in real values:
 
 ## API
 
-- `POST /runtime/v1/plans/generate` — Generate QUERY/CLARIFY plan (requires `X-Agent-Runtime-Key`)
+- `POST /runtime/v1/route` — Select a capability/domain or return a typed clarification (requires `X-Agent-Runtime-Key`)
+- `POST /runtime/v1/plan` — Generate a typed executable plan or return a typed clarification for the selected capability (requires `X-Agent-Runtime-Key`)
 - `GET /health` — Health check

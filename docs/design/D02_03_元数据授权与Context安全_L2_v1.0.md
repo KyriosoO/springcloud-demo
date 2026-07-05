@@ -1,7 +1,7 @@
 # D02_03 元数据授权与 Context 安全 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充Query分页Context与字段越权错误码）
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充Query分页Context与字段越权错误码；2026-07-05 已按授权补充 QUERY 白名单排序 Context 与迁移约束）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`统一密钥管理与多注入源支持_L2实施详细设计_v1.0.md`（专项联动，不改变 D02_03 已实施基线）
@@ -15,6 +15,7 @@
 | 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
 |---:|---|---|---|---|
 | 1 | 2026-07-04 | 授权恢复 / 第 8、9、13～15 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `QueryCapabilityContextPayload` 分页总数字段、Runtime最小Context View、`QUERY_CONTEXT` 1.0.0→1.1.0兼容迁移、`FIELD_FORBIDDEN` 安全错误码和测试门禁。 |
+| 2 | 2026-07-05 | 授权恢复 / 第 7～9、13～15 节 | 用户授权同步 `Agent与业务域白名单排序能力` 关联文档 | 补充 `ExecutionValidationProjection.sortFields`、`QueryCapabilityContextPayload.sorts`、`RuntimeQueryContextView.sorts`、`QUERY_CONTEXT` 1.0.0/1.1.0→1.2.0 精确迁移和 ResultSecurity 排序回显过滤门禁。 |
 
 ---
 
@@ -330,7 +331,7 @@ public interface DomainMetadataPort {
 
 `ExecutionFieldRule`是D04 canonical metadata的安全执行投影，字段为canonical field、`AgentFieldType`、allowed operators/functions、optional maxLength/precision/scale/valueFormat；所有集合不可变，约束只能比Catalog更严。它不含数据库列、Adapter实现、mask、角色或权限表达式。
 
-`ExecutionValidationProjection`字段为optional AdapterRole、optional domain、按canonical field唯一的`Map<String,ExecutionFieldRule>`、defaultSelectFields、maxPageSize、maxResultRows、projectionVersion；role/domain必须同时存在或同时为空。静态`none()`只允许domainless的NONE/OPTIONAL路径，返回空role/domain/map/list、最严零业务上限和固定内部`NO_DOMAIN`版本，不查询D04；有domain时禁止使用none。Validator只能消费该投影，不读取旧`AgentProperties.domains`或Adapter自报字段清单。
+`ExecutionValidationProjection`字段为optional AdapterRole、optional domain、按canonical field唯一的`Map<String,ExecutionFieldRule>`、defaultSelectFields、`Set<String> sortFields`、maxPageSize、maxResultRows、projectionVersion；role/domain必须同时存在或同时为空。`sortFields`只能来自D04 role capability与当前ExecutionScope的交集，且必须是`fieldRules.keySet()`子集；静态`none()`只允许domainless的NONE/OPTIONAL路径，返回空role/domain/map/list/set、最严零业务上限和固定内部`NO_DOMAIN`版本，不查询D04；有domain时禁止使用none。Validator只能消费该投影，不读取旧`AgentProperties.domains`或Adapter自报字段清单。
 
 `AdapterExecutionBinding`：AdapterRole、domain、portType、`AgentAdapterPort port`、adapterRegistrationVersion、resolvedAt。port 必须与 role 预期 Java SPI 类型一致。
 
@@ -359,7 +360,7 @@ public sealed interface CapabilityContextPayload
 }
 ```
 
-`QueryCapabilityContextPayload` 是不可变 record，字段为 `List<AgentFilter> filters`、`List<String> selectFields`、`int page`、`int size`、nullable `Long total`、nullable `Boolean totalExact`、nullable `Integer totalPages`；构造器 defensive copy 并验证page/size正数、`total`非负、`totalPages`为正数或null。`totalPages`仅在`totalExact=true`且`total`、`size`可用时由query handler计算，规则为`max(1, ceil(total / size))`。
+`QueryCapabilityContextPayload` 是不可变 record，字段为 `List<AgentFilter> filters`、`List<String> selectFields`、`List<AgentSortSpec> sorts`、`int page`、`int size`、nullable `Long total`、nullable `Boolean totalExact`、nullable `Integer totalPages`；构造器 defensive copy 并验证page/size正数、`sorts`非null且字段/方向非空、`total`非负、`totalPages`为正数或null。`sorts`只保存canonical字段名与`ASC`/`DESC`方向，不保存字段值、数据库列名或权限正文。`totalPages`仅在`totalExact=true`且`total`、`size`可用时由query handler计算，规则为`max(1, ceil(total / size))`。
 
 `AggregateCapabilityContextPayload` 是不可变 record，字段为 `List<AgentFilter> filters`、`List<AggregateMetricSpec> metrics`、`List<String> groupByFields`、`List<AggregateOrderSpec> orderBy`、`int maxRows`；构造器 defensive copy 并验证非空 metrics/正数 maxRows。
 
@@ -367,7 +368,7 @@ public sealed interface CapabilityContextPayload
 
 D01 `RuntimeContextView` 是由 payload 形成的最小 Runtime 投影，不是 Envelope/Snapshot。`RuntimeContextType` 作为唯一结构 discriminator复用，不新增 `AgentContextType` 平行 enum。
 
-Query对应的`RuntimeQueryContextView`只投影`sourceInvocationId`、filters、selectFields、page、size、total、totalExact、totalPages。Runtime可据此把“下一页/上一页/第一页/最后一页”输出为具体page；当`totalExact`不为true或`totalPages`为空时，Runtime不得猜测最后一页，必须返回澄清或让Java安全拒绝。
+Query对应的`RuntimeQueryContextView`只投影`sourceInvocationId`、filters、selectFields、sorts、page、size、total、totalExact、totalPages。Runtime可据此把“下一页/上一页/第一页/最后一页”输出为具体page并保持上一轮排序；当`totalExact`不为true或`totalPages`为空时，Runtime不得猜测最后一页，必须返回澄清或让Java安全拒绝。`sorts`投影仍受readableFields控制，未声明可读时不得输出。
 
 ### 8.2 Owner、Key 与 Envelope
 
@@ -412,7 +413,7 @@ Snapshot 不跨 Invocation 缓存、不发送 Runtime、不允许调用方修改
 
 v1首个D03实现只注册恒等兼容或明确列出的单跳迁移；无迁移器的必需Context fail closed，可选Context按缺失处理。读取时迁移只产生当前Invocation内的Snapshot/View，不回写记录、不延长TTL；新成功write按目标ContractRef和expected record version完成升级。
 
-`QUERY_CONTEXT` 1.0.0 到 1.1.0 必须提供单跳兼容迁移或等价兼容反序列化：旧payload的filters/selectFields/page/size原样保留，total、totalExact、totalPages补为null。迁移只用于当前Invocation读取和Runtime View投影；只有后续成功query write才以1.1.0 ContractRef写回。禁止通过Prompt、脚本或“latest”猜测补齐分页总数。
+`QUERY_CONTEXT` 1.0.0 到 1.2.0 必须提供精确直接迁移：旧payload的filters/selectFields/page/size原样保留，`sorts`补为`List.of()`，total、totalExact、totalPages补为null。`QUERY_CONTEXT` 1.1.0 到 1.2.0 也必须提供精确迁移：保留filters/selectFields/page/size/total/totalExact/totalPages，`sorts`补为`List.of()`。由于`ContextMigrationRegistry`不做路径搜索，不能只依赖`1.0.0 -> 1.1.0 -> 1.2.0`链式组合。迁移只用于当前Invocation读取和Runtime View投影；只有后续成功query write才以1.2.0 ContractRef写回。禁止通过Prompt、脚本或“latest”猜测补齐分页总数或排序字段。
 
 ---
 
@@ -438,7 +439,7 @@ Registration read declaration
 
 `ContextPlanningPort.toRuntimeView(ContextSnapshot snapshot, ContextReadDeclaration declaration, PlanningAuthorizationEvidence evidence)`返回D01 `RuntimeContextView`封闭union中的最小typed投影。它复检snapshot correlation/Owner/Scope、declaration与effectiveContractRef、stored迁移证据及当前Planning scope，只投影`readableFields`交集；PlanningService不得按contextType自行组装View。新增Context type只扩展agent-api payload/View subtype及本边界投影，不修改Planning主流程。
 
-当Context type为QUERY时，`toRuntimeView`必须按readableFields投影filters/selectFields/page/size/total/totalExact/totalPages；如果readableFields未包含分页总数字段，则不得输出这些字段。默认`query.search` declaration应包含这些字段，以支持末页计算；其他capability不得通过自由Map读取query payload内部字段。
+当Context type为QUERY时，`toRuntimeView`必须按readableFields投影filters/selectFields/sorts/page/size/total/totalExact/totalPages；如果readableFields未包含`sorts`或分页总数字段，则不得输出这些字段。默认`query.search` declaration应包含这些字段，以支持排序分页继承和末页计算；`query.preview`首版只读Context且不写Context，是否使用上一轮`sorts`必须由D05明确约束，其他capability不得通过自由Map读取query payload内部字段。
 
 ### 9.2 Execution Currentness
 
@@ -764,7 +765,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `context/QueryCapabilityContextPayload.java`
 - `context/AggregateCapabilityContextPayload.java`
 
-`QueryCapabilityContextPayload.java`在`QUERY_CONTEXT` 1.1.0中新增`total`、`totalExact`、`totalPages`三个nullable字段；对应的D01 Runtime View generated model必须由Java契约单向生成，不允许Python手写长期漂移。
+`QueryCapabilityContextPayload.java`在`QUERY_CONTEXT` 1.1.0中新增`total`、`totalExact`、`totalPages`三个nullable字段；在`QUERY_CONTEXT` 1.2.0中新增`sorts`字段，缺省为空列表。对应的D01 Runtime View generated model必须由Java契约单向生成，不允许Python手写长期漂移。
 
 ### 15.2 Profile/Policy/Authorization
 
