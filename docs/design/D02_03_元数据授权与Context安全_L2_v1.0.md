@@ -1,12 +1,20 @@
 # D02_03 元数据授权与 Context 安全 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交）  
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充Query分页Context与字段越权错误码）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`统一密钥管理与多注入源支持_L2实施详细设计_v1.0.md`（专项联动，不改变 D02_03 已实施基线）
 > 交付阶段：D02 详细设计评审门禁；本文不实施代码/配置/SQL  
 > 适用代码基线：`4ce5ac3` 及其同源后续提交
+
+---
+
+## 0. 修改历史
+
+| 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
+|---:|---|---|---|---|
+| 1 | 2026-07-04 | 授权恢复 / 第 8、9、13～15 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `QueryCapabilityContextPayload` 分页总数字段、Runtime最小Context View、`QUERY_CONTEXT` 1.0.0→1.1.0兼容迁移、`FIELD_FORBIDDEN` 安全错误码和测试门禁。 |
 
 ---
 
@@ -351,13 +359,15 @@ public sealed interface CapabilityContextPayload
 }
 ```
 
-`QueryCapabilityContextPayload` 是不可变 record，字段为 `List<AgentFilter> filters`、`List<String> selectFields`、`int page`、`int size`；构造器 defensive copy 并验证正数。
+`QueryCapabilityContextPayload` 是不可变 record，字段为 `List<AgentFilter> filters`、`List<String> selectFields`、`int page`、`int size`、nullable `Long total`、nullable `Boolean totalExact`、nullable `Integer totalPages`；构造器 defensive copy 并验证page/size正数、`total`非负、`totalPages`为正数或null。`totalPages`仅在`totalExact=true`且`total`、`size`可用时由query handler计算，规则为`max(1, ceil(total / size))`。
 
 `AggregateCapabilityContextPayload` 是不可变 record，字段为 `List<AgentFilter> filters`、`List<AggregateMetricSpec> metrics`、`List<String> groupByFields`、`List<AggregateOrderSpec> orderBy`、`int maxRows`；构造器 defensive copy 并验证非空 metrics/正数 maxRows。
 
-两者字段类型复用 agent-api Java Plan 类型，不保存完整业务结果、summary、权限或凭据；公开方法只有 record 访问器和固定 `contextType()`。
+两者字段类型复用 agent-api Java Plan 类型，不保存完整业务结果、summary、权限或凭据；公开方法只有 record 访问器和固定 `contextType()`。Query的`total`、`totalExact`、`totalPages`是分页规划元数据，不是业务明细结果；它们不得包含员工姓名、证件、电话、地址等业务字段值，也不得携带权限正文或mask规则。
 
 D01 `RuntimeContextView` 是由 payload 形成的最小 Runtime 投影，不是 Envelope/Snapshot。`RuntimeContextType` 作为唯一结构 discriminator复用，不新增 `AgentContextType` 平行 enum。
+
+Query对应的`RuntimeQueryContextView`只投影`sourceInvocationId`、filters、selectFields、page、size、total、totalExact、totalPages。Runtime可据此把“下一页/上一页/第一页/最后一页”输出为具体page；当`totalExact`不为true或`totalPages`为空时，Runtime不得猜测最后一页，必须返回澄清或让Java安全拒绝。
 
 ### 8.2 Owner、Key 与 Envelope
 
@@ -402,6 +412,8 @@ Snapshot 不跨 Invocation 缓存、不发送 Runtime、不允许调用方修改
 
 v1首个D03实现只注册恒等兼容或明确列出的单跳迁移；无迁移器的必需Context fail closed，可选Context按缺失处理。读取时迁移只产生当前Invocation内的Snapshot/View，不回写记录、不延长TTL；新成功write按目标ContractRef和expected record version完成升级。
 
+`QUERY_CONTEXT` 1.0.0 到 1.1.0 必须提供单跳兼容迁移或等价兼容反序列化：旧payload的filters/selectFields/page/size原样保留，total、totalExact、totalPages补为null。迁移只用于当前Invocation读取和Runtime View投影；只有后续成功query write才以1.1.0 ContractRef写回。禁止通过Prompt、脚本或“latest”猜测补齐分页总数。
+
 ---
 
 ## 9. Context 端口与算法
@@ -425,6 +437,8 @@ Registration read declaration
 必需 Context 缺失、sourceDomain不匹配、解密失败、schema不兼容、候选不唯一或存储不可用时 fail closed；可选缺失或domain不匹配返回empty。不得按同用户或其他domain的“最近 Context”回退。
 
 `ContextPlanningPort.toRuntimeView(ContextSnapshot snapshot, ContextReadDeclaration declaration, PlanningAuthorizationEvidence evidence)`返回D01 `RuntimeContextView`封闭union中的最小typed投影。它复检snapshot correlation/Owner/Scope、declaration与effectiveContractRef、stored迁移证据及当前Planning scope，只投影`readableFields`交集；PlanningService不得按contextType自行组装View。新增Context type只扩展agent-api payload/View subtype及本边界投影，不修改Planning主流程。
+
+当Context type为QUERY时，`toRuntimeView`必须按readableFields投影filters/selectFields/page/size/total/totalExact/totalPages；如果readableFields未包含分页总数字段，则不得输出这些字段。默认`query.search` declaration应包含这些字段，以支持末页计算；其他capability不得通过自由Map读取query payload内部字段。
 
 ### 9.2 Execution Currentness
 
@@ -643,7 +657,9 @@ agent:
 
 ### 13.2 安全错误码
 
-Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本域使用：`PROFILE_INVALID`、`POLICY_INVALID`、`PERMISSION_UNAVAILABLE`、`AUTH_EVIDENCE_CHANGED`、`AUTHORIZATION_REVOKED`、`CATALOG_INCONSISTENT`、`DOMAIN_BINDING_UNAVAILABLE`、`CONTEXT_REQUIRED_MISSING`、`CONTEXT_DECRYPT_FAILED`、`CONTEXT_STALE`、`CONTEXT_WRITE_CONFLICT`、`RESULT_SECURITY_FAILED`。外部响应只暴露穷尽映射后的安全Agent error。
+Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本域使用：`PROFILE_INVALID`、`POLICY_INVALID`、`PERMISSION_UNAVAILABLE`、`AUTH_EVIDENCE_CHANGED`、`AUTHORIZATION_REVOKED`、`CATALOG_INCONSISTENT`、`DOMAIN_BINDING_UNAVAILABLE`、`CONTEXT_REQUIRED_MISSING`、`CONTEXT_DECRYPT_FAILED`、`CONTEXT_STALE`、`CONTEXT_WRITE_CONFLICT`、`FIELD_FORBIDDEN`、`RESULT_SECURITY_FAILED`。外部响应只暴露穷尽映射后的安全Agent error。
+
+`FIELD_FORBIDDEN`只表示字段存在但当前ExecutionScope无权用于filter、display、group、metric或function。字段不存在、字段类型不匹配、operator/function不支持仍属于计划校验失败，不得混用该错误码。安全提示只允许列出用户请求的字段标识或安全显示名，不输出权限正文、Policy正文、UserPermission原文或未脱敏字段值。
 
 ### 13.3 指标与日志
 
@@ -728,6 +744,14 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - projector/mask失败不返回结果/不写Context；
 - 持久化输入只可能是SecuredResult。
 
+### 14.5 Query Context 分页与字段越权
+
+- `readsOldQueryContextV1AsV1_1WithNullTotals`：旧QUERY Context缺少total字段时可迁移或兼容读取；
+- `projectsQueryPaginationTotalsToRuntimeView`：Runtime Query Context View包含total/totalExact/totalPages且不包含业务行数据；
+- `doesNotProjectQueryTotalsWhenReadableFieldsExcludeThem`：readableFields收紧时不输出分页总数字段；
+- `writesQueryContextTotalsOnlyAfterSuccessfulQuery`：只有成功query write才持久化total/totalPages；
+- `usesFieldForbiddenOnlyForExistingUnauthorizedFields`：存在但未授权字段使用`FIELD_FORBIDDEN`，未知字段不使用该错误码。
+
 ---
 
 ## 15. 计划文件清单
@@ -739,6 +763,8 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `context/CapabilityContextPayload.java`
 - `context/QueryCapabilityContextPayload.java`
 - `context/AggregateCapabilityContextPayload.java`
+
+`QueryCapabilityContextPayload.java`在`QUERY_CONTEXT` 1.1.0中新增`total`、`totalExact`、`totalPages`三个nullable字段；对应的D01 Runtime View generated model必须由Java契约单向生成，不允许Python手写长期漂移。
 
 ### 15.2 Profile/Policy/Authorization
 
@@ -825,6 +851,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `metadata/context/internal/ContextCleanupJob.java`
 - `metadata/context/migration/ContextPayloadMigrator.java`
 - `metadata/context/migration/ContextMigrationRegistry.java`
+- `metadata/context/migration/QueryContextV1ToV1_1Migrator.java`（如ContractRegistry严格按版本校验，则新增；若采用兼容反序列化，则必须以测试证明旧payload可读）
 - `metadata/crypto/model/ProtectedPayload.java`
 - `metadata/crypto/model/PayloadProtectionContext.java`
 - `metadata/crypto/port/ProtectedPayloadCodec.java`
@@ -867,6 +894,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `ContextFinalizationIT`
 - `ContextCleanupIT`
 - `ContextMigrationRegistryTest`
+- `QueryCapabilityContextPayloadCompatibilityTest`
 - `ProtectedPayloadCodecTest`
 - `PayloadKeyProviderTest`
 - `PayloadJsonCodecTest`
@@ -915,6 +943,7 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 | `ContextScopeRetirementParticipantImpl` | `retire(ConversationScope,Instant)`；`REQUIRES_NEW` |
 | `ContextPayloadMigrator` | `source()`、`sourceType()`、`target()`、`targetType()`、`migrate(S)` |
 | `ContextMigrationRegistry` | `resolve(ContractRef,ContractRef)`、`validateNoAmbiguousPathOrCycle()` |
+| `QueryContextV1ToV1_1Migrator` | `source()`、`sourceType()`、`target()`、`targetType()`、`migrate(QueryCapabilityContextPayload)`；仅在严格版本迁移方案下新增 |
 | `ProtectedPayloadCodec` | `encrypt(byte[],PayloadProtectionContext)`、`decrypt(ProtectedPayload,PayloadProtectionContext)` |
 | `PayloadKeyProvider` | `requireKey(String)` |
 | `AeadProtectedPayloadCodec` | 实现`encrypt`、`decrypt`；无额外公开方法 |

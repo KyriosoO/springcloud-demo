@@ -1,13 +1,21 @@
 # D02 Capability Kernel 实施总览与集成门禁 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交）  
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示门禁）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 关联 L2：`D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`  
 > 交付阶段：D02 详细设计评审门禁  
 > 前置依赖：三份单 Agent L1 均已评审；D01 文档已评审但实施退出门禁尚未完成  
 > 后置交付：D04 Adapter Metadata 收敛；D03 Capability v2 纵向原子切换  
 > 适用代码基线：`4ce5ac3` 及其同源后续提交
+
+---
+
+## 0. 修改历史
+
+| 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
+|---:|---|---|---|---|
+| 1 | 2026-07-04 | 授权恢复 / 第 8～10 节 | 用户授权修订关联设计文档 | 在授权范围内补充 Agent 多轮分页、末页计算、`FIELD_FORBIDDEN`、`ExecutionFailure.safeMessage` 的集成门禁和验证命令。 |
 
 ---
 
@@ -516,7 +524,7 @@ D02 不创建 `CanonicalDomainFieldCatalog`、`DomainFieldCatalog` 或具体 `Ad
 | `capability/query/QueryPlanValidator.java`、`QueryCapabilityHandler.java`、`capability/aggregate/AggregatePlanValidator.java`、`AggregateCapabilityHandler.java` | MODIFY实现新Validator/Handler | D03；业务逻辑保留，不复制共享路由/授权 |
 | `capability/query/QueryMessages.java`、`capability/aggregate/AggregateMessages.java` | DELETE或迁入对应ResultSecurityProjector后删除旧类 | D03；message/summary只能从过滤后结果生成 |
 | `capability/query/QueryParameterMapper.java`、`OperatorSemantics.java`、`FilterNormalizer.java`、`FieldFilterSet.java`、`FieldConstraintValidator.java` | MODIFY为Registration绑定Validator/Handler内部工具 | D03；只消费ExecutionValidationProjection，不保存权限/Catalog事实或形成共享capability分支 |
-| `planning/filter/QueryMergeEngine.java` | MODIFY并仅由`QueryPlanBindingStrategy`调用 | D03；在Planning形成merged Raw Plan，Validator只对merged结果执行最终复检 |
+| `planning/filter/QueryMergeEngine.java` | MODIFY并仅由`QueryPlanBindingStrategy`调用 | D03；在Planning形成merged Raw Plan，Validator只对merged结果执行最终复检；QUERY MERGE必须继承上一轮filters/selectFields/page/size，并使用上一轮totalExact/totalPages完成末页和页码边界校验 |
 | `capability/model/ValidatedQueryPlan.java`、`ValidatedAggregatePlan.java` | MODIFY为不可伪造不可变ValidatedPlan | D03 |
 | `capability/model/ValidatedCapabilityPlan.java` | DELETE | D03；D02_01 `ValidatedPlan`唯一marker替代 |
 | `capability/query/QueryRuntimeContextFactory.java` | DELETE | D03；ContextBoundary+Planning Context View替代 |
@@ -569,6 +577,9 @@ D02 不创建 `CanonicalDomainFieldCatalog`、`DomainFieldCatalog` 或具体 `Ad
 | 12 | D02 仅为设计门禁，无代码/配置/数据库运行态修改 | Git diff 仅包含四份 D02 文档 |
 | 13 | D01实施退出后对实际Java/OpenAPI/Python产物完成基线复核，无包名/字段/生成物漂移 | D01第16.6节证据+D02契约引用复核记录 |
 | 14 | 外部User Permission有且仅有一个生产SPI实现；稳定主体可在CHAT/TASK解析，权威源失败不回退JWT/本地角色配置 | D02_03第4.3、14.1、15节及D03启动/契约测试 |
+| 15 | QUERY Context 支持多轮分页与末页计算；Runtime只接收最小Context View，Java负责MERGE后复检 | D02_01 `QueryPlanValidator`/`QueryMergeEngine`、D02_03 `QueryCapabilityContextPayload`/`RuntimeQueryContextView` |
+| 16 | 存在但未授权字段必须映射为`FIELD_FORBIDDEN`，外部响应为`AGENT_FIELD_FORBIDDEN`，不得降级为`AGENT_PLAN_INVALID` | D02_01异常归一化、D02_02 `KernelErrorCode`/Lifecycle映射、D02_03安全错误码 |
+| 17 | 执行失败的安全提示由`ExecutionFailure.safeMessage`进入Lifecycle终结；为空时才使用通用兜底提示 | D02_01 `ExecutionFailure`、D02_02 `FinalizationTxService.commitExecutionFailure` |
 
 ### 9.1 D03 预定验证命令
 
@@ -578,16 +589,16 @@ D02 不创建 `CanonicalDomainFieldCatalog`、`DomainFieldCatalog` 或具体 `Ad
 Push-Location serviceCenter
 .\mvnw.cmd -pl ../agent-api,../agent-adapter-api,../agent-service -am test
 .\mvnw.cmd -pl ../agent-service -am `
-  '-Dtest=PlanningServiceTest,PlanningOperationAuditTest,DeterministicPlanBinderTest,AgentRuntimeClientContractTest,ClarificationQuestionRendererTest,AgentChatResponseAssemblerTest,QueryMergeEngineTest' `
+  '-Dtest=PlanningServiceTest,PlanningOperationAuditTest,DeterministicPlanBinderTest,AgentRuntimeClientContractTest,ClarificationQuestionRendererTest,AgentChatResponseAssemblerTest,QueryMergeEngineTest,QueryPlanValidatorTest' `
   test
 .\mvnw.cmd -pl ../agent-service -am `
-  '-Dtest=AgentResultPayloadContractTest,AgentExecutionContractsTest,CapabilityRegistryTest,ExecutionCoreTest,KernelArchitectureTest,CapabilityExtensionTest' `
+  '-Dtest=AgentResultPayloadContractTest,AgentExecutionContractsTest,CapabilityRegistryTest,ExecutionCoreTest,KernelArchitectureTest,CapabilityExtensionTest,AgentChatResponseAssemblerTest' `
   test
 .\mvnw.cmd -pl ../agent-service -am `
-  '-Dtest=ExecutionLifecycleServiceTest,FinalizationTxServiceIT,InvocationRecoveryServiceIT,AgentStateCleanupServiceIT,InvocationSchemaIT,InvocationAuditJsonCodecTest,DeadlineCancellationTest,LifecycleArchitectureTest' `
+  '-Dtest=ExecutionLifecycleServiceTest,FinalizationTxServiceIT,FinalizationTxServiceTest,InvocationRecoveryServiceIT,AgentStateCleanupServiceIT,InvocationSchemaIT,InvocationAuditJsonCodecTest,DeadlineCancellationTest,LifecycleArchitectureTest' `
   test
 .\mvnw.cmd -pl ../agent-service -am `
-  '-Dtest=AgentProfileRegistryTest,ProfileBehaviorProjectionBoundaryTest,AgentPolicyConfigurationTest,AgentSecuritySettingsRegistryTest,AgentMetadataReloadTest,AuthorizationPlanningPortTest,AuthorizationExecutionPortTest,UserPermissionBoundaryTest,UserPermissionAuthorityWiringTest,UserPermissionAuthorityContractTest,CapabilityCatalogTest,DomainMetadataPortContractTest,ContextBoundaryTest,ContextRuntimeViewTest,ContextRepositoryIT,ContextFinalizationIT,ContextCleanupIT,ContextMigrationRegistryTest,ProtectedPayloadCodecTest,PayloadKeyProviderTest,PayloadJsonCodecTest,ResultSecurityBoundaryTest,MetadataArchitectureTest,MetadataExtensionTest' `
+  '-Dtest=AgentProfileRegistryTest,ProfileBehaviorProjectionBoundaryTest,AgentPolicyConfigurationTest,AgentSecuritySettingsRegistryTest,AgentMetadataReloadTest,AuthorizationPlanningPortTest,AuthorizationExecutionPortTest,UserPermissionBoundaryTest,UserPermissionAuthorityWiringTest,UserPermissionAuthorityContractTest,CapabilityCatalogTest,DomainMetadataPortContractTest,ContextBoundaryTest,ContextRuntimeViewTest,ContextRepositoryIT,ContextFinalizationIT,ContextCleanupIT,ContextMigrationRegistryTest,ProtectedPayloadCodecTest,PayloadKeyProviderTest,PayloadJsonCodecTest,QueryCapabilityContextPayloadCompatibilityTest,ResultSecurityBoundaryTest,MetadataArchitectureTest,MetadataExtensionTest' `
   test
 Pop-Location
 

@@ -1,12 +1,20 @@
 # D02_02 Invocation 生命周期与持久化 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交）  
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充字段越权安全提示终结规则）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`  
 > 交付阶段：D02 详细设计评审门禁；本文不实施代码/SQL  
 > 适用代码基线：`4ce5ac3` 及其同源后续提交
+
+---
+
+## 0. 修改历史
+
+| 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
+|---:|---|---|---|---|
+| 1 | 2026-07-04 | 授权恢复 / 第 2、3、4、11～13 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `FIELD_FORBIDDEN` 错误码、`ExecutionFailure.safeMessage` 终结规则、`commitExecutionFailure` 安全提示来源和测试门禁。 |
 
 ---
 
@@ -81,7 +89,7 @@ public record RunScope(String scopeId) implements InvocationScope {}
 
 `InvocationState`：`PROCESSING`、`COMPLETED`、`FAILED`、`CANCELLED`。
 
-`KernelErrorCode`是内部唯一安全错误enum，至少包含：`PROFILE_INVALID`、`POLICY_INVALID`、`PERMISSION_UNAVAILABLE`、`AUTH_EVIDENCE_CHANGED`、`AUTHORIZATION_REVOKED`、`CATALOG_INCONSISTENT`、`RUNTIME_CONTRACT_INVALID`、`RUNTIME_AUTHENTICATION_FAILED`、`RUNTIME_OUTPUT_INVALID`、`RUNTIME_UNAVAILABLE`、`REGISTRATION_MISMATCH`、`CONTEXT_REQUIRED_MISSING`、`CONTEXT_DECRYPT_FAILED`、`CONTEXT_STALE`、`CONTEXT_WRITE_CONFLICT`、`DOMAIN_BINDING_UNAVAILABLE`、`PLAN_VALIDATION_FAILED`、`HANDLER_FAILED`、`DOWNSTREAM_FAILED`、`OUTPUT_INVALID`、`RESULT_SECURITY_FAILED`、`PERSISTENCE_FAILED`、`DEADLINE_EXCEEDED`、`CANCELLED`、`INTERNAL_ERROR`。D03 Entry层以穷尽switch映射到现有Agent API `AgentErrorCode`，不得透传未知字符串。
+`KernelErrorCode`是内部唯一安全错误enum，至少包含：`PROFILE_INVALID`、`POLICY_INVALID`、`PERMISSION_UNAVAILABLE`、`AUTH_EVIDENCE_CHANGED`、`AUTHORIZATION_REVOKED`、`CATALOG_INCONSISTENT`、`RUNTIME_CONTRACT_INVALID`、`RUNTIME_AUTHENTICATION_FAILED`、`RUNTIME_OUTPUT_INVALID`、`RUNTIME_UNAVAILABLE`、`REGISTRATION_MISMATCH`、`CONTEXT_REQUIRED_MISSING`、`CONTEXT_DECRYPT_FAILED`、`CONTEXT_STALE`、`CONTEXT_WRITE_CONFLICT`、`DOMAIN_BINDING_UNAVAILABLE`、`PLAN_VALIDATION_FAILED`、`FIELD_FORBIDDEN`、`HANDLER_FAILED`、`DOWNSTREAM_FAILED`、`OUTPUT_INVALID`、`RESULT_SECURITY_FAILED`、`PERSISTENCE_FAILED`、`DEADLINE_EXCEEDED`、`CANCELLED`、`INTERNAL_ERROR`。D03 Entry层以穷尽switch映射到现有Agent API `AgentErrorCode`，不得透传未知字符串；`FIELD_FORBIDDEN`必须映射到`AGENT_FIELD_FORBIDDEN`，不得落入`AGENT_PLAN_INVALID`。
 
 `ExecutionStage`：
 
@@ -158,6 +166,8 @@ FINALIZATION, CANCELLATION_DEADLINE, RECOVERY
 
 `StoredInvocationResult` 字段：resultId、output ContractRef（成功时）、解密后的filtered/masked `AgentResultPayload`（成功时）、safe message、safe summary。它只用于当前API响应重建，不是Multi-Agent ResultRef，不可跨Task传播。
 
+`FinalizedInvocationResult.safeMessage`来源规则：SUCCESS使用`SecuredResult.safeMessage`；CLARIFY使用`ResolvedClarification`渲染后的安全问题；Planning failure使用`PlanningFailure.safeMessage`或规划失败兜底；Execution failure优先使用D02_01 `ExecutionFailure.safeMessage`，为空时使用“执行失败，请稍后重试。”；CANCELLED使用取消/超时安全提示。Lifecycle不得把异常message、SQL、下游原文、权限正文、JWT或未脱敏业务值写入safeMessage。
+
 `ContextWriteCommitRef`是不可变安全审计值，字段为contextId、RuntimeContextType、target ContractRef、targetRecordVersion和由上述规范值计算的SHA-256 digest；不含payload、Owner/Scope重复副本或密钥。SUCCESS即使没有Context write也必须持久化非null空列表`[]`，从而区分“明确零写入”和“终结数据不完整”。
 
 ---
@@ -229,6 +239,8 @@ normal Tx return → reread authoritative FinalizedInvocationResult; commit exce
 ```
 
 Lifecycle 不修改 Core outcome，不重新执行 Handler/Adapter，不自行过滤结果或审批 Context。
+
+`commitExecutionFailure`必须把`outcome.safeMessage()`作为失败响应的首选安全提示；当该值为空、blank或不符合安全文本约束时，使用固定兜底“执行失败，请稍后重试。”。`FIELD_FORBIDDEN`场景由Core提供字段越权安全提示，Lifecycle只负责持久化和重读，不重新判断字段权限。
 
 ---
 
@@ -561,6 +573,9 @@ D03修改现有`ConversationCleanupJob`和`ConversationService.cleanupExpired`�
 - `finalizesClarificationWithoutCoreOrContext`
 - `persistsReportedAndNotReportedPlanningAudits`
 - `mapsDeadlineAndCallerCancelToCancelled`
+- `commitExecutionFailureUsesExecutionFailureSafeMessage`
+- `commitExecutionFailureFallsBackWhenSafeMessageBlank`
+- `mapsFieldForbiddenToAgentFieldForbiddenAfterReread`
 
 ### 11.2 Recovery
 
@@ -605,7 +620,7 @@ D03修改现有`ConversationCleanupJob`和`ConversationService.cleanupExpired`�
 | `CheckpointResult` | `committed(Status,CommittedCheckpoint)`、`withoutCheckpoint(Status)`、`requireCommittedCheckpoint()`及只读访问器；nested类型见§4.4 |
 | `StartTxService` | `StartWriteResult createOrVerify(StartChatCommand)`；`REQUIRES_NEW`；`StartWriteResult`为package-private nested record |
 | `CheckpointTxService` | `CheckpointResult write(InvocationHandle,ExecutablePlanningResult)` |
-| `FinalizationTxService` | 六个`void`方法：`commitSuccess(InvocationHandle,CommittedCheckpoint,ExecutionSuccess)`、`commitClarification(InvocationHandle,ResolvedClarification)`、`commitPlanningFailure(InvocationHandle,PlanningFailure)`、`commitPlanningCancellation(InvocationHandle,PlanningCancellation)`、`commitExecutionFailure(InvocationHandle,CommittedCheckpoint,ExecutionFailure)`、`commitExecutionCancelled(InvocationHandle,CommittedCheckpoint,ExecutionFailure)`；各方法`REQUIRES_NEW`，三个Execution方法校验token与Handle/correlation及持久化checkpoint相等，SUCCESS还校验outcome capabilityId/planKind，后两者分别要求`cancelled=false/true`并保留checkpoint audit |
+| `FinalizationTxService` | 六个`void`方法：`commitSuccess(InvocationHandle,CommittedCheckpoint,ExecutionSuccess)`、`commitClarification(InvocationHandle,ResolvedClarification)`、`commitPlanningFailure(InvocationHandle,PlanningFailure)`、`commitPlanningCancellation(InvocationHandle,PlanningCancellation)`、`commitExecutionFailure(InvocationHandle,CommittedCheckpoint,ExecutionFailure)`、`commitExecutionCancelled(InvocationHandle,CommittedCheckpoint,ExecutionFailure)`；各方法`REQUIRES_NEW`，三个Execution方法校验token与Handle/correlation及持久化checkpoint相等，SUCCESS还校验outcome capabilityId/planKind，后两者分别要求`cancelled=false/true`并保留checkpoint audit；`commitExecutionFailure`优先持久化`ExecutionFailure.safeMessage`，为空时使用固定执行失败兜底提示 |
 | `ContextFinalizationParticipant` | `persist(List<ApprovedContextWrite>)` |
 | `ContextScopeRetirementParticipant` | `retire(ConversationScope,Instant)` |
 | `InvocationRecordMapper` | `insert(AgentInvocationRecordEntity)`、`checkpointCas(CheckpointUpdate)`、`finalizeSuccessCas(SuccessUpdate)`、`finalizeClarifyCas(ClarifyUpdate)`、`finalizePlanningFailureCas(PlanningFailureUpdate)`、`finalizePlanningCancelledCas(PlanningCancelUpdate)`、`finalizeExecutionFailureCas(ExecutionFailureUpdate)`、`finalizeExecutionCancelledCas(ExecutionCancelUpdate)`、`selectByInvocationId(String)`、`selectByCorrelationId(String)`、`selectExpiredProcessing(Instant,int)` |
@@ -640,5 +655,7 @@ D03修改现有`ConversationCleanupJob`和`ConversationService.cleanupExpired`�
 7. Turn 不复制完整 Plan/Snapshot/result payload，Invocation Result 不是 Multi-Agent ResultRef。
 8. Invocation Record预留typed TASK origin安全引用但D02/D03不创建Task表、外键或状态机。
 9. 所有类、方法、SQL、配置、事务和测试已明确列出。
+10. `FIELD_FORBIDDEN`可以通过Invocation终结、权威重读和API映射稳定返回为字段权限不足提示。
+11. `commitExecutionFailure`不会把内部异常message作为用户提示，且不会覆盖Core给出的安全字段越权提示。
 
 最终评审结论（2026-06-30）：本文已与D02_00、D02_01、D02_03及上级L1交叉复审；Start、checkpoint、原子finalization、commit unknown、CAS loser、recovery、deadline/cancel和结果重建闭环完整，当前文档基线下无未决问题。D01退出后必须复核PlanningResult所引用的实际生成类型。
