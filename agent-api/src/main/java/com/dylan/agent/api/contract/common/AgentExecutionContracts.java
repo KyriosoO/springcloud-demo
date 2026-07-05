@@ -18,7 +18,7 @@ public final class AgentExecutionContracts {
     public static final ContractRef AGGREGATE_RESULT =
             new ContractRef("AggregateAgentResultPayload", "1.0.0");
     public static final ContractRef QUERY_CONTEXT =
-            new ContractRef("QueryCapabilityContextPayload", "1.0.0");
+            new ContractRef("QueryCapabilityContextPayload", "1.1.0");
     public static final ContractRef AGGREGATE_CONTEXT =
             new ContractRef("AggregateCapabilityContextPayload", "1.0.0");
 

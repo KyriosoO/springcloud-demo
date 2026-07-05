@@ -48,6 +48,17 @@ public final class RuntimeQueryContextView implements RuntimeContextView {
     @Min(1)
     private Integer size;
 
+    @Schema(description = "上轮查询总数；仅 totalExact=true 时可用于精确分页", nullable = true)
+    @Min(0)
+    private Long total;
+
+    @Schema(description = "上轮查询总数是否精确", nullable = true)
+    private Boolean totalExact;
+
+    @Schema(description = "上轮查询总页数；仅 totalExact=true 时可用于末页计算", nullable = true)
+    @Min(1)
+    private Integer totalPages;
+
     public RuntimeQueryContextView() {
     }
 
@@ -65,4 +76,10 @@ public final class RuntimeQueryContextView implements RuntimeContextView {
     public void setPage(Integer page) { this.page = page; }
     public Integer getSize() { return size; }
     public void setSize(Integer size) { this.size = size; }
+    public Long getTotal() { return total; }
+    public void setTotal(Long total) { this.total = total; }
+    public Boolean getTotalExact() { return totalExact; }
+    public void setTotalExact(Boolean totalExact) { this.totalExact = totalExact; }
+    public Integer getTotalPages() { return totalPages; }
+    public void setTotalPages(Integer totalPages) { this.totalPages = totalPages; }
 }

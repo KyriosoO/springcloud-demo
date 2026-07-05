@@ -115,9 +115,14 @@ public final class ExecutionCore {
             return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
         }
 
-        var handle = validatePlan(command, reg, valCtx);
-        if (handle == null) {
-            return failure(ExecutionStage.PLAN_VALIDATION, KernelErrorCode.PLAN_VALIDATION_FAILED, false);
+        com.dylan.agent.kernel.registration.ValidatedPlanHandle handle;
+        try {
+            handle = validatePlan(command, reg, valCtx);
+            if (handle == null) {
+                return failure(ExecutionStage.PLAN_VALIDATION, KernelErrorCode.PLAN_VALIDATION_FAILED, false);
+            }
+        } catch (KernelExecutionException ex) {
+            return failure(ExecutionStage.PLAN_VALIDATION, ex.errorCode(), false, ex.safeMessage());
         }
 
         ExecutionContext execCtx = buildExecutionContext(command, domainResolution.binding());
@@ -231,6 +236,9 @@ public final class ExecutionCore {
         try {
             return reg.validateRaw(cmd.planningResult().rawPlan(), valCtx);
         } catch (RuntimeException ex) {
+            if (ex instanceof KernelExecutionException kernelEx) {
+                throw kernelEx;
+            }
             log.warn("计划校验失败: capabilityId={}, planKind={}, rawPlanType={}, reason={}",
                     reg.definition().capabilityId(),
                     reg.definition().planKind(),
@@ -261,7 +269,15 @@ public final class ExecutionCore {
     }
 
     private ExecutionFailure failure(ExecutionStage stage, KernelErrorCode errorCode, boolean cancelled) {
-        return new ExecutionFailure(stage, errorCode, diagnostics(), cancelled);
+        return failure(stage, errorCode, cancelled, null);
+    }
+
+    private ExecutionFailure failure(
+            ExecutionStage stage,
+            KernelErrorCode errorCode,
+            boolean cancelled,
+            String safeMessage) {
+        return new ExecutionFailure(stage, errorCode, diagnostics(), cancelled, safeMessage);
     }
 
     private String diagnostics() {

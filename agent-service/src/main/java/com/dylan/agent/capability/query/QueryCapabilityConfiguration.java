@@ -51,13 +51,15 @@ public class QueryCapabilityConfiguration {
                                         AgentExecutionContracts.QUERY_CONTEXT,
                                         QueryCapabilityContextPayload.class,
                                         false,
-                                        Set.of("filters", "selectFields", "page", "size"))),
+                                        Set.of("filters", "selectFields", "page", "size",
+                                                "total", "totalExact", "totalPages"))),
                                 List.of(new ContextWriteDeclaration(
                                         RuntimeContextType.QUERY,
                                         AgentExecutionContracts.QUERY_CONTEXT,
                                         QueryCapabilityContextPayload.class,
                                         Duration.ofDays(7),
-                                        Set.of("filters", "selectFields", "page", "size")))))
+                                        Set.of("filters", "selectFields", "page", "size",
+                                                "total", "totalExact", "totalPages")))))
                         .build(),
                 QueryAgentPlan.class,
                 validator,

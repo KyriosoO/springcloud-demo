@@ -36,7 +36,10 @@
     "filters": [],
     "selectFields": ["employeeId", "name"],
     "page": 1,
-    "size": 20
+    "size": 20,
+    "total": null,
+    "totalExact": null,
+    "totalPages": null
   }],
   "absoluteDeadline": "2099-01-01T00:00:00Z",
   "repairLimit": 1

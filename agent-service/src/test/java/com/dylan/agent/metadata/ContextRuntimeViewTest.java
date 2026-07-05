@@ -56,6 +56,27 @@ class ContextRuntimeViewTest {
         assertThat(view.getSize()).isNull();
     }
 
+    @Test
+    void toRuntimeViewProjectsPaginationTotalsWhenReadable() {
+        ContextBoundary boundary = new ContextBoundary(
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
+
+        var view = (RuntimeQueryContextView) boundary.toRuntimeView(
+                snapshotWithTotals(),
+                new ContextReadDeclaration(
+                        RuntimeContextType.QUERY,
+                        AgentExecutionContracts.QUERY_CONTEXT,
+                        QueryCapabilityContextPayload.class,
+                        false,
+                        Set.of("selectFields", "page", "size", "total", "totalExact", "totalPages")),
+                evidence());
+
+        assertThat(view.getTotal()).isEqualTo(45L);
+        assertThat(view.getTotalExact()).isTrue();
+        assertThat(view.getTotalPages()).isEqualTo(3);
+    }
+
     static ContextSnapshot snapshot() {
         return new ContextSnapshot(
                 "ctx-1", "corr",
@@ -70,6 +91,22 @@ class ContextRuntimeViewTest {
                 "bundle-v1", "policy-v1", "perm", null,
                 ExpectedContextVersion.version(1),
                 new QueryCapabilityContextPayload(List.of(), List.of("name"), 1, 10));
+    }
+
+    static ContextSnapshot snapshotWithTotals() {
+        return new ContextSnapshot(
+                "ctx-1", "corr",
+                new ContextRecordKey(new ContextOwnerRef("conversation", "conv-1"),
+                        new ConversationScope("conv-1"),
+                        com.dylan.agent.api.contract.runtime.common.RuntimeContextType.QUERY),
+                "query.search", "inv-1", "employee",
+                AgentExecutionContracts.QUERY_CONTEXT,
+                AgentExecutionContracts.QUERY_CONTEXT,
+                1,
+                MetadataTestSupport.NOW.plusSeconds(60),
+                "bundle-v1", "policy-v1", "perm", null,
+                ExpectedContextVersion.version(1),
+                new QueryCapabilityContextPayload(List.of(), List.of("name"), 1, 10, 45L, true, 3));
     }
 
     static ContextReadDeclaration declaration() {

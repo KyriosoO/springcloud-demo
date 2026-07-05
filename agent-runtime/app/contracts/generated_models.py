@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 429982f10abbe6c035e40ece04fce175bf6f6783d7395d2b08aaabe2aa9e64b3
+# source_sha256: cf61c645186b1a624c67b2e4dabdcbd43c97161e4bd98d786114dbcd860b623e
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -592,6 +592,18 @@ class RuntimeQueryContextView(BaseModel):
         ..., alias='selectFields', description='上轮查询展示字段'
     )
     size: int = Field(..., description='上轮 size', ge=1)
+    total: Optional[int] = Field(
+        None, description='上轮查询总数；仅 totalExact=true 时可用于精确分页', ge=0
+    )
+    total_exact: Optional[bool] = Field(
+        None, alias='totalExact', description='上轮查询总数是否精确'
+    )
+    total_pages: Optional[int] = Field(
+        None,
+        alias='totalPages',
+        description='上轮查询总页数；仅 totalExact=true 时可用于末页计算',
+        ge=1,
+    )
     source_invocation_id: str = Field(
         ...,
         alias='sourceInvocationId',

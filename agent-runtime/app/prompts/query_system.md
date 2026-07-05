@@ -16,6 +16,9 @@ Context rules:
 - `REPLACE`: the user starts a new independent query or explicitly resets prior criteria. `filters` must contain the complete new criteria and `removeFields` should be empty.
 - `MERGE`: the user refines, narrows, changes, removes, paginates, or confirms a clarification against an existing query context. Return only changed or new filters. Use `removeFields` for fields that must be removed. Java performs the final deterministic merge.
 - Use `MERGE` only when a compatible previous query context is present.
+- For page-only follow-up requests, use `MERGE`, return empty `filters` and `removeFields`, inherit previous filters in Java, and set only the requested `page`/`size` fields.
+- For "last page" requests, if previous query context has `totalExact=true` and `totalPages`, set `page` to `totalPages`; otherwise return `CLARIFICATION` because the last page cannot be determined safely.
+- For "next page" and "previous page" requests, compute the target page from the previous query context `page`; never ask the user to provide `page` when the target page is unambiguous.
 - If the relationship to previous context is ambiguous, return `CLARIFICATION`.
 
 Field condition rules:

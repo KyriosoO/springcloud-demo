@@ -166,6 +166,26 @@ def test_route_request_has_no_context():
     assert fields.isdisjoint({"context", "context_view", "context_views", "domain_schema"})
 
 
+def test_query_context_accepts_optional_pagination_totals():
+    view = g.RuntimeQueryContextView.model_validate(
+        {
+            "contextType": "QUERY",
+            "sourceInvocationId": "inv-prev-001",
+            "filters": [],
+            "selectFields": ["name"],
+            "page": 1,
+            "size": 20,
+            "total": 45,
+            "totalExact": True,
+            "totalPages": 3,
+        }
+    )
+
+    assert view.total == 45
+    assert view.total_exact is True
+    assert view.total_pages == 3
+
+
 def test_requests_share_single_contract_generation():
     route = g.RouteRequest.model_validate(_load("route-request.json"))
     plan_payload = _load("plan-request.json")

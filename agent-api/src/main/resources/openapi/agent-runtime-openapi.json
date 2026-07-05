@@ -986,6 +986,25 @@
             "minimum" : 1,
             "type" : "integer"
           },
+          "total" : {
+            "description" : "上轮查询总数；仅 totalExact=true 时可用于精确分页",
+            "format" : "int64",
+            "minimum" : 0,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "totalExact" : {
+            "description" : "上轮查询总数是否精确",
+            "nullable" : true,
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "description" : "上轮查询总页数；仅 totalExact=true 时可用于末页计算",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
           "sourceInvocationId" : {
             "description" : "来源 Invocation 标识",
             "minLength" : 1,

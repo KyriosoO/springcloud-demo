@@ -16,6 +16,8 @@ import com.dylan.agent.invocation.model.InvocationState;
 import com.dylan.agent.invocation.model.InvocationType;
 import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.kernel.definition.ContractRegistry;
+import com.dylan.agent.kernel.core.ExecutionFailure;
+import com.dylan.agent.lifecycle.model.CheckpointResult;
 import com.dylan.agent.lifecycle.model.InvocationResponseType;
 import com.dylan.agent.lifecycle.port.ContextFinalizationParticipant;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
@@ -83,6 +85,49 @@ class FinalizationTxServiceTest {
                 eq("DEADLINE_EXCEEDED"),
                 eq("请求已取消或超时。"),
                 any());
+    }
+
+    @Test
+    void executionFailureUsesFailureSafeMessageWhenPresent() {
+        AgentInvocationRecordMapper invocationMapper = mock(AgentInvocationRecordMapper.class);
+        AgentTurnMapper turnMapper = mock(AgentTurnMapper.class);
+        FinalizationTxService service = new FinalizationTxService(
+                invocationMapper,
+                mock(AgentInvocationResultMapper.class),
+                turnMapper,
+                mock(ContextFinalizationParticipant.class),
+                new PayloadJsonCodec(new ObjectMapper()),
+                mock(ContractRegistry.class),
+                CLOCK);
+        when(invocationMapper.finalizeTerminal(
+                eq("inv-1"),
+                eq("FAILED"),
+                eq("FAILURE"),
+                eq("FIELD_FORBIDDEN"),
+                eq("没有权限访问请求的字段，请调整字段后重试。"),
+                eq("diag-1"),
+                any())).thenReturn(1);
+        when(turnMapper.finalizeFailure(
+                eq("turn-1"),
+                eq("inv-1"),
+                eq("FIELD_FORBIDDEN"),
+                eq("没有权限访问请求的字段，请调整字段后重试。"),
+                any())).thenReturn(1);
+
+        var result = service.commitExecutionFailure(
+                handle(),
+                CheckpointResult.committed(
+                        CheckpointResult.Status.COMMITTED,
+                        new CheckpointResult.CommittedCheckpoint("inv-1", "req-1", "hash")),
+                new ExecutionFailure(
+                        com.dylan.agent.invocation.model.ExecutionStage.PLAN_VALIDATION,
+                        KernelErrorCode.FIELD_FORBIDDEN,
+                        "diag-1",
+                        false,
+                        "没有权限访问请求的字段，请调整字段后重试。"));
+
+        assertThat(result.responseType()).isEqualTo(InvocationResponseType.FAILURE);
+        assertThat(result.safeMessage()).isEqualTo("没有权限访问请求的字段，请调整字段后重试。");
     }
 
     private static InvocationHandle handle() {

@@ -113,6 +113,15 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             if (readableFields.contains("size")) {
                 view.setSize(query.size());
             }
+            if (readableFields.contains("total")) {
+                view.setTotal(query.total());
+            }
+            if (readableFields.contains("totalExact")) {
+                view.setTotalExact(query.totalExact());
+            }
+            if (readableFields.contains("totalPages")) {
+                view.setTotalPages(query.totalPages());
+            }
             return view;
         }
         if (payload instanceof AggregateCapabilityContextPayload aggregate) {
@@ -285,6 +294,15 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             }
             fields.add("page");
             fields.add("size");
+            if (query.total() != null) {
+                fields.add("total");
+            }
+            if (query.totalExact() != null) {
+                fields.add("totalExact");
+            }
+            if (query.totalPages() != null) {
+                fields.add("totalPages");
+            }
             return fields;
         }
         if (payload instanceof AggregateCapabilityContextPayload aggregate) {

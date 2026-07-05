@@ -31,7 +31,7 @@ public class QueryCapabilityHandler implements CapabilityHandler<ValidatedQueryP
         QueryAgentResultPayload payload = new QueryAgentResultPayload(
                 QueryParameterMapper.toQueryParameters(plan),
                 toKernelQueryResult(plan, adapterResult));
-        return HandlerResult.of(payload, List.of(toKernelContextWrite(plan)));
+        return HandlerResult.of(payload, List.of(toKernelContextWrite(plan, adapterResult)));
     }
 
     private static AgentQueryResult toKernelQueryResult(
@@ -47,7 +47,9 @@ public class QueryCapabilityHandler implements CapabilityHandler<ValidatedQueryP
         return result;
     }
 
-    private static ContextWriteCandidate toKernelContextWrite(ValidatedQueryPlan plan) {
+    private static ContextWriteCandidate toKernelContextWrite(
+            ValidatedQueryPlan plan,
+            AdapterQueryResult adapterResult) {
         return new ContextWriteCandidate(
                 RuntimeContextType.QUERY,
                 AgentExecutionContracts.QUERY_CONTEXT,
@@ -57,7 +59,21 @@ public class QueryCapabilityHandler implements CapabilityHandler<ValidatedQueryP
                                 .toList(),
                         plan.query().getSelectFields(),
                         plan.query().getPage(),
-                        plan.query().getSize()));
+                        plan.query().getSize(),
+                        adapterResult.getTotal(),
+                        adapterResult.isTotalExact(),
+                        totalPages(adapterResult)));
+    }
+
+    private static Integer totalPages(AdapterQueryResult adapterResult) {
+        if (!adapterResult.isTotalExact()) {
+            return null;
+        }
+        int size = adapterResult.getSize();
+        if (size <= 0) {
+            return null;
+        }
+        return Math.max(1, (int) Math.ceil((double) adapterResult.getTotal() / (double) size));
     }
 
     private static AgentFilter toKernelAgentFilter(ValidatedFilter filter) {

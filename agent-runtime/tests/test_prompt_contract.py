@@ -124,3 +124,9 @@ class TestNoLegacyPromptContract:
     @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md"])
     def test_prompt_does_not_pin_query_preview_as_static_route(self, filename: str):
         assert "query.preview" not in _load_prompt(filename)
+
+    def test_query_prompt_preserves_pagination_context_rules(self):
+        text = _load_prompt("query_system.md")
+        assert "totalPages" in text
+        assert "totalExact=true" in text
+        assert "page-only follow-up" in text

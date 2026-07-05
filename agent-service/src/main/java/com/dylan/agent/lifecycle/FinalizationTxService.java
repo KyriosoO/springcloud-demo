@@ -121,7 +121,9 @@ public class FinalizationTxService {
         if (failure.cancelled()) {
             return commitExecutionCancelled(handle, checkpoint, failure);
         }
-        String safeMessage = "执行失败，请稍后重试。";
+        String safeMessage = failure.safeMessage() == null
+                ? "执行失败，请稍后重试。"
+                : failure.safeMessage();
         finalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
                 failure.errorCode(), safeMessage, failure.diagnosticId());
         finalizeTurnFailure(handle, failure.errorCode(), safeMessage);

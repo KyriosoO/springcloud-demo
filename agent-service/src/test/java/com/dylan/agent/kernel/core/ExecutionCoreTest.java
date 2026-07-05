@@ -107,6 +107,34 @@ class ExecutionCoreTest {
     }
 
     @Test
+    void validatorKernelFailurePreservesErrorCodeAndSafeMessage() {
+        var registration = queryRegistration(
+                (raw, ctx) -> {
+                    throw new KernelExecutionException(
+                            KernelErrorCode.FIELD_FORBIDDEN,
+                            "没有权限访问请求的字段，请调整字段后重试。");
+                },
+                (plan, ctx) -> HandlerResult.of(new QueryAgentResultPayload()));
+        var registry = registry(registration);
+
+        ExecutionCore core = new ExecutionCore(
+                authorizationPort(),
+                (snapshots, handle, resolved, scope) -> { },
+                failingDomainPort(),
+                (candidates, request) -> List.of(),
+                (candidate, outputContract, scope) -> null,
+                CLOCK);
+
+        ExecutionOutcome outcome = core.execute(command(registry.resolve("query.search")));
+
+        assertThat(outcome).isInstanceOf(ExecutionFailure.class);
+        ExecutionFailure failure = (ExecutionFailure) outcome;
+        assertThat(failure.stage()).isEqualTo(ExecutionStage.PLAN_VALIDATION);
+        assertThat(failure.errorCode()).isEqualTo(KernelErrorCode.FIELD_FORBIDDEN);
+        assertThat(failure.safeMessage()).isEqualTo("没有权限访问请求的字段，请调整字段后重试。");
+    }
+
+    @Test
     void deadlineBeforeValidatorReturnsCancellationFailureAndDoesNotInvokeLaterStages() {
         AtomicBoolean validatorCalled = new AtomicBoolean(false);
         AtomicBoolean handlerCalled = new AtomicBoolean(false);

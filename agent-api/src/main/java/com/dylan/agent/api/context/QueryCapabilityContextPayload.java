@@ -10,7 +10,18 @@ public record QueryCapabilityContextPayload(
         List<AgentFilter> filters,
         List<String> selectFields,
         int page,
-        int size) implements CapabilityContextPayload {
+        int size,
+        Long total,
+        Boolean totalExact,
+        Integer totalPages) implements CapabilityContextPayload {
+
+    public QueryCapabilityContextPayload(
+            List<AgentFilter> filters,
+            List<String> selectFields,
+            int page,
+            int size) {
+        this(filters, selectFields, page, size, null, null, null);
+    }
 
     public QueryCapabilityContextPayload {
         filters = List.copyOf(filters == null ? List.of() : filters);
@@ -20,6 +31,12 @@ public record QueryCapabilityContextPayload(
         }
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive");
+        }
+        if (total != null && total < 0) {
+            throw new IllegalArgumentException("total must not be negative");
+        }
+        if (totalPages != null && totalPages <= 0) {
+            throw new IllegalArgumentException("totalPages must be positive");
         }
     }
 
