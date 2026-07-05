@@ -132,8 +132,11 @@ public final class DomainMetadataTestSupport {
         domain.setDefaultSelectFieldsByRole(Map.of(
                 "QUERYABLE", List.of("chineseName", "memberNo", "position"),
                 "AGGREGATABLE", List.of("chineseName", "memberNo", "position")));
+        DomainMetadataProperties.RoleCapabilityProperties queryable =
+                roleCapability(domain.getFields().keySet(), defaultOperators(), Map.of());
+        queryable.setSortFields(Set.of("chineseName", "memberNo", "position", "contactAddress", "idCardNo", "phoneNo", "email"));
         domain.setRoleCapabilities(Map.of(
-                "QUERYABLE", roleCapability(domain.getFields().keySet(), defaultOperators(), Map.of()),
+                "QUERYABLE", queryable,
                 "AGGREGATABLE", roleCapability(domain.getFields().keySet(), defaultOperators(),
                         Map.of("amount", Set.of(AggregateFunction.SUM, AggregateFunction.AVG,
                                 AggregateFunction.MIN, AggregateFunction.MAX)))));
@@ -152,8 +155,11 @@ public final class DomainMetadataTestSupport {
         domain.setDefaultSelectFieldsByRole(Map.of(
                 "QUERYABLE", List.of("transId", "transType", "transDate", "amount"),
                 "AGGREGATABLE", List.of("transId", "transType", "transDate", "amount")));
+        DomainMetadataProperties.RoleCapabilityProperties queryable =
+                roleCapability(domain.getFields().keySet(), transactionOperators(), Map.of());
+        queryable.setSortFields(Set.of("transId", "transType", "transDate", "amount"));
         domain.setRoleCapabilities(Map.of(
-                "QUERYABLE", roleCapability(domain.getFields().keySet(), transactionOperators(), Map.of()),
+                "QUERYABLE", queryable,
                 "AGGREGATABLE", roleCapability(domain.getFields().keySet(), transactionOperators(),
                         Map.of("amount", Set.of(AggregateFunction.SUM, AggregateFunction.AVG,
                                 AggregateFunction.MIN, AggregateFunction.MAX)))));

@@ -6,6 +6,7 @@
     "query": {
       "filters": [{"field": "name", "operator": "CONTAINS", "value": "张", "values": null}],
       "selectFields": ["employeeId", "name"],
+      "sorts": null,
       "page": 1,
       "size": 20,
       "contextMode": "REPLACE",

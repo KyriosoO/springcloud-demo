@@ -10,6 +10,7 @@ import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateMetric;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
+import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.esquery.api.model.SearchAggregate;
 import com.dylan.esquery.api.model.SearchFilter;
 import com.dylan.esquery.api.model.SearchMetric;
@@ -20,7 +21,7 @@ import com.dylan.esquery.api.model.SearchSortDirection;
 
 /**
  * 将 ValidatedFilter 映射为下游 EmployeeSearch API 所需的 filter 参数结构。
- * 负责 operator 枚举转换（如 EQ 到 "equals"）以及固定排序规则的注入。
+ * 负责 operator 枚举转换（如 EQ 到 "equals"）以及已校验排序规则的映射。
  */
 @Component
 public class EmployeePlanMapper {
@@ -33,16 +34,7 @@ public class EmployeePlanMapper {
         req.setFilters(toFilters(query.getFilters()));
         req.setKeyword(null);
         req.setAggregate(null);
-        List<SearchSort> fixedSorts = new ArrayList<>();
-        SearchSort sort1 = new SearchSort();
-        sort1.setField("memberNo");
-        sort1.setDirection(SearchSortDirection.ASC);
-        fixedSorts.add(sort1);
-        SearchSort sort2 = new SearchSort();
-        sort2.setField("idCardNo");
-        sort2.setDirection(SearchSortDirection.ASC);
-        fixedSorts.add(sort2);
-        req.setSorts(fixedSorts);
+        req.setSorts(toSorts(query.getSorts()));
         return req;
     }
 
@@ -76,6 +68,31 @@ public class EmployeePlanMapper {
             result.add(sf);
         }
         return result;
+    }
+
+    List<SearchSort> toSorts(List<ValidatedSort> validated) {
+        if (validated == null || validated.isEmpty()) {
+            return List.of(searchSort("memberNo", SearchSortDirection.ASC), searchSort("idCardNo", SearchSortDirection.ASC));
+        }
+        List<SearchSort> result = new ArrayList<>();
+        boolean containsIdCardNo = false;
+        for (ValidatedSort sort : validated) {
+            result.add(searchSort(sort.getField(), SearchSortDirection.valueOf(sort.getDirection())));
+            if ("idCardNo".equals(sort.getField())) {
+                containsIdCardNo = true;
+            }
+        }
+        if (!containsIdCardNo) {
+            result.add(searchSort("idCardNo", SearchSortDirection.ASC));
+        }
+        return result;
+    }
+
+    private SearchSort searchSort(String field, SearchSortDirection direction) {
+        SearchSort sort = new SearchSort();
+        sort.setField(field);
+        sort.setDirection(direction);
+        return sort;
     }
 
     private SearchMetric toMetric(ValidatedAggregateMetric metric) {

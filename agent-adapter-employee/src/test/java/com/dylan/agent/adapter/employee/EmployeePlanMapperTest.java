@@ -14,6 +14,7 @@ import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
+import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.esquery.api.model.SearchRequest;
 import com.dylan.esquery.api.model.SearchSortDirection;
 
@@ -114,6 +115,25 @@ class EmployeePlanMapperTest {
             assertThat(req.getSorts()).hasSize(2);
             assertThat(req.getSorts().get(0).getField()).isEqualTo("memberNo");
             assertThat(req.getSorts().get(0).getDirection()).isEqualTo(SearchSortDirection.ASC);
+            assertThat(req.getSorts().get(1).getField()).isEqualTo("idCardNo");
+            assertThat(req.getSorts().get(1).getDirection()).isEqualTo(SearchSortDirection.ASC);
+        }
+
+        @Test
+        @DisplayName("映射用户排序并追加 idCardNo 稳定排序")
+        void shouldMapValidatedSortsAndAppendTieBreaker() {
+            var q = new ValidatedQuery(
+                    List.of(new ValidatedFilter("position", AgentOperator.EQ, "HRM", List.of())),
+                    List.of("chineseName"),
+                    List.of(new ValidatedSort("chineseName", "DESC")),
+                    1,
+                    20);
+
+            SearchRequest req = mapper.toSearchRequest(q);
+
+            assertThat(req.getSorts()).hasSize(2);
+            assertThat(req.getSorts().get(0).getField()).isEqualTo("chineseName");
+            assertThat(req.getSorts().get(0).getDirection()).isEqualTo(SearchSortDirection.DESC);
             assertThat(req.getSorts().get(1).getField()).isEqualTo("idCardNo");
             assertThat(req.getSorts().get(1).getDirection()).isEqualTo(SearchSortDirection.ASC);
         }

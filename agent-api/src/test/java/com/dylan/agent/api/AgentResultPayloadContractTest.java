@@ -5,6 +5,7 @@ import com.dylan.agent.api.enums.AgentResultKind;
 import com.dylan.agent.api.response.AgentChatResponse;
 import com.dylan.agent.api.response.AggregateAgentResultPayload;
 import com.dylan.agent.api.response.AgentQueryParameters;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.api.response.QueryPreviewResult;
 import com.dylan.agent.api.response.QueryPreviewResultPayload;
@@ -54,6 +55,26 @@ class AgentResultPayloadContractTest {
         assertThat(json).contains("\"resultKind\":\"QUERY_PREVIEW\"");
         assertThat(json).contains("\"previewResult\"");
         assertThat(json).contains("\"sampleRows\"");
+    }
+
+    @Test
+    void queryParametersCanSerializeSorts() throws Exception {
+        AgentQuerySortParameter sort = new AgentQuerySortParameter();
+        sort.setField("amount");
+        sort.setDirection("DESC");
+
+        AgentQueryParameters parameters = new AgentQueryParameters();
+        parameters.setDomain("transaction");
+        parameters.setSelectFields(List.of("transId", "amount"));
+        parameters.setSorts(List.of(sort));
+        parameters.setPage(1);
+        parameters.setSize(20);
+
+        String json = new ObjectMapper().writeValueAsString(parameters);
+
+        assertThat(json).contains("\"sorts\"");
+        assertThat(json).contains("\"field\":\"amount\"");
+        assertThat(json).contains("\"direction\":\"DESC\"");
     }
 
     @Test

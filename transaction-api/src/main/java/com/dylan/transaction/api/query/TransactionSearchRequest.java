@@ -1,6 +1,7 @@
 package com.dylan.transaction.api.query;
 
 import com.dylan.transaction.api.model.Transaction;
+import java.util.List;
 
 /**
  * Transaction 分页查询请求，供 Agent Adapter 调用。
@@ -9,6 +10,7 @@ import com.dylan.transaction.api.model.Transaction;
 public class TransactionSearchRequest {
 
     private Transaction condition;
+    private List<TransactionSearchSort> sorts;
     private int page;
     private int size;
 
@@ -21,6 +23,14 @@ public class TransactionSearchRequest {
 
     public void setCondition(Transaction condition) {
         this.condition = condition;
+    }
+
+    public List<TransactionSearchSort> getSorts() {
+        return sorts;
+    }
+
+    public void setSorts(List<TransactionSearchSort> sorts) {
+        this.sorts = sorts;
     }
 
     public int getPage() {

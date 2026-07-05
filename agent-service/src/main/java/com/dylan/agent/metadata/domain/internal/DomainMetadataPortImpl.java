@@ -170,6 +170,10 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
                 .getOrDefault(role, List.of()).stream()
                 .filter(allowedFields::contains)
                 .toList());
+        schema.setSortFields(capability.sortFields().stream()
+                .filter(allowedFields::contains)
+                .sorted()
+                .toList());
         int roleMax = role.equals(AdapterRole.QUERYABLE) ? capability.maxPageSize() : capability.maxResultRows();
         int scopeMax = role.equals(AdapterRole.QUERYABLE) ? scope.maxPageSize() : scope.maxResultRows();
         schema.setMaxSize(positiveMin(roleMax, scopeMax));
@@ -202,11 +206,15 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
         List<String> defaultSelect = definition.defaultSelectFieldsByRole().getOrDefault(role, List.of()).stream()
                 .filter(fieldRules::containsKey)
                 .toList();
+        Set<String> sortFields = capability.sortFields().stream()
+                .filter(fieldRules::containsKey)
+                .collect(Collectors.toUnmodifiableSet());
         return new ExecutionValidationProjection(
                 role,
                 domain,
                 fieldRules,
                 defaultSelect,
+                sortFields,
                 positiveMin(capability.maxPageSize(), scope.maxResultRows()),
                 positiveMin(capability.maxResultRows(), scope.maxResultRows()),
                 expected.catalogVersion() + ":" + expected.adapterRegistrationVersion());

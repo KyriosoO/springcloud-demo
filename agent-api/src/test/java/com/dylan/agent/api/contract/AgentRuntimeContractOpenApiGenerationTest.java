@@ -67,6 +67,35 @@ class AgentRuntimeContractOpenApiGenerationTest {
     }
 
     @Test
+    void shouldExposeQuerySortContract() {
+        Map<String, Schema> schemas = OPEN_API.getComponents().getSchemas();
+
+        Schema querySpec = schemas.get("AgentQuerySpec");
+        assertNotNull(querySpec);
+        Schema querySorts = (Schema) querySpec.getProperties().get("sorts");
+        assertNotNull(querySorts);
+        assertEquals(2, querySorts.getMaxItems());
+        assertEquals("#/components/schemas/AgentSortSpec", querySorts.getItems().get$ref());
+
+        Schema sortSpec = schemas.get("AgentSortSpec");
+        assertNotNull(sortSpec);
+        assertEquals(Boolean.FALSE, sortSpec.getAdditionalProperties());
+        assertTrue(sortSpec.getRequired().containsAll(Set.of("field", "direction")));
+        assertNotNull(sortSpec.getProperties().get("field"));
+        assertNotNull(sortSpec.getProperties().get("direction"));
+
+        Schema domainSchema = schemas.get("RuntimeDomainSchema");
+        assertNotNull(domainSchema);
+        assertTrue(domainSchema.getRequired().contains("sortFields"));
+        assertNotNull(domainSchema.getProperties().get("sortFields"));
+
+        Schema queryContext = schemas.get("RuntimeQueryContextView");
+        assertNotNull(queryContext);
+        assertTrue(queryContext.getRequired().contains("sorts"));
+        assertNotNull(queryContext.getProperties().get("sorts"));
+    }
+
+    @Test
     void shouldMarkRequiredFieldsNonNullable() {
         Map<String, Set<String>> required = new LinkedHashMap<>();
         required.put("RouteRequest", Set.of("requestId", "contractVersion", "message", "history",

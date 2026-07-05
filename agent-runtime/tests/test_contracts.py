@@ -178,6 +178,7 @@ def test_query_context_accepts_optional_pagination_totals():
             "sourceInvocationId": "inv-prev-001",
             "filters": [],
             "selectFields": ["name"],
+            "sorts": [],
             "page": 1,
             "size": 20,
             "total": 45,

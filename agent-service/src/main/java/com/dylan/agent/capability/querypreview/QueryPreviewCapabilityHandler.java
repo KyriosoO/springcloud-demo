@@ -5,6 +5,7 @@ import com.dylan.agent.adapter.api.QueryableAdapter;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQueryParameters;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryPreviewResult;
 import com.dylan.agent.api.response.QueryPreviewResultPayload;
 import com.dylan.agent.kernel.core.ExecutionContext;
@@ -39,6 +40,14 @@ public class QueryPreviewCapabilityHandler
                 .map(QueryPreviewCapabilityHandler::toFilterParameter)
                 .toList());
         parameters.setSelectFields(plan.previewFields());
+        parameters.setSorts(plan.query().getSorts().stream()
+                .map(sort -> {
+                    AgentQuerySortParameter parameter = new AgentQuerySortParameter();
+                    parameter.setField(sort.getField());
+                    parameter.setDirection(sort.getDirection());
+                    return parameter;
+                })
+                .toList());
         parameters.setPage(1);
         parameters.setSize(plan.previewSize());
         return parameters;

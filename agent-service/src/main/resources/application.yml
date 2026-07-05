@@ -134,6 +134,7 @@ agent:
         role-capabilities:
           QUERYABLE:
             fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+            sort-fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
             operators-by-field:
               chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
               memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
@@ -185,6 +186,7 @@ agent:
         role-capabilities:
           QUERYABLE:
             fields: [transId, transType, transDate, amount]
+            sort-fields: [transId, transType, transDate, amount]
             operators-by-field:
               transId: [EQ]
               transType: [EQ, CONTAINS]

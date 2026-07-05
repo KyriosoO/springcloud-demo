@@ -15,10 +15,15 @@ public interface TransactionMapper {
 	public Transaction findByCondition(Transaction condition);
 
 
+	default List<Transaction> query(Transaction condition, Integer offset, Integer size) {
+		return query(condition, offset, size, null);
+	}
+
 	public List<Transaction> query(
 			@Param("condition") Transaction condition,
 			@Param("offset") Integer offset,
-			@Param("size") Integer size);
+			@Param("size") Integer size,
+			@Param("orderByClause") String orderByClause);
 
 	public long countUpTo(
 			@Param("condition") Transaction condition,

@@ -2,6 +2,7 @@ package com.dylan.agent.capability.query;
 
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQueryParameters;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 
 /** 包级私有映射器，将 Kernel 已校验查询计划转换为 AgentQueryParameters（响应 DTO）。 */
 final class QueryParameterMapper {
@@ -25,6 +26,14 @@ final class QueryParameterMapper {
                 })
                 .toList());
         parameters.setSelectFields(plan.query().getSelectFields());
+        parameters.setSorts(plan.query().getSorts().stream()
+                .map(sort -> {
+                    AgentQuerySortParameter parameter = new AgentQuerySortParameter();
+                    parameter.setField(sort.getField());
+                    parameter.setDirection(sort.getDirection());
+                    return parameter;
+                })
+                .toList());
         parameters.setPage(plan.query().getPage());
         parameters.setSize(plan.query().getSize());
         return parameters;

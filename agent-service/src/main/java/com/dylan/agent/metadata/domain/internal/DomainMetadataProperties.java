@@ -92,6 +92,7 @@ public class DomainMetadataProperties {
 
     public static class RoleCapabilityProperties {
         private Set<String> fields = new LinkedHashSet<>();
+        private Set<String> sortFields = new LinkedHashSet<>();
         private Map<String, Set<AgentOperator>> operatorsByField = new LinkedHashMap<>();
         private Map<String, Set<AggregateFunction>> functionsByField = new LinkedHashMap<>();
         private Integer maxPageSize;
@@ -99,6 +100,8 @@ public class DomainMetadataProperties {
 
         public Set<String> getFields() { return fields; }
         public void setFields(Set<String> fields) { this.fields = fields; }
+        public Set<String> getSortFields() { return sortFields; }
+        public void setSortFields(Set<String> sortFields) { this.sortFields = sortFields; }
         public Map<String, Set<AgentOperator>> getOperatorsByField() { return operatorsByField; }
         public void setOperatorsByField(Map<String, Set<AgentOperator>> operatorsByField) {
             this.operatorsByField = operatorsByField;

@@ -23,6 +23,8 @@ import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.model.ContextRecordKey;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
+import com.dylan.agent.metadata.context.migration.ContextMigrationRegistry;
+import com.dylan.agent.metadata.context.migration.ContextPayloadMigrator;
 import com.dylan.agent.metadata.context.port.ContextPlanningPort;
 import com.dylan.agent.metadata.context.request.ContextReadRequest;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
@@ -45,6 +47,7 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
     private final PayloadJsonCodec jsonCodec;
     private final ProtectedPayloadCodec protectedPayloadCodec;
     private final AgentSecuritySettingsRegistry settingsRegistry;
+    private final ContextMigrationRegistry migrationRegistry;
     private final Clock clock;
 
     public ContextBoundary(
@@ -53,10 +56,21 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             ProtectedPayloadCodec protectedPayloadCodec,
             AgentSecuritySettingsRegistry settingsRegistry,
             Clock clock) {
+        this(repository, jsonCodec, protectedPayloadCodec, settingsRegistry, new ContextMigrationRegistry(List.of()), clock);
+    }
+
+    public ContextBoundary(
+            ContextRepository repository,
+            PayloadJsonCodec jsonCodec,
+            ProtectedPayloadCodec protectedPayloadCodec,
+            AgentSecuritySettingsRegistry settingsRegistry,
+            ContextMigrationRegistry migrationRegistry,
+            Clock clock) {
         this.repository = Objects.requireNonNull(repository);
         this.jsonCodec = Objects.requireNonNull(jsonCodec);
         this.protectedPayloadCodec = Objects.requireNonNull(protectedPayloadCodec);
         this.settingsRegistry = Objects.requireNonNull(settingsRegistry);
+        this.migrationRegistry = Objects.requireNonNull(migrationRegistry);
         this.clock = Objects.requireNonNull(clock);
     }
 
@@ -73,12 +87,7 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
                 request.declaration().contextType());
         return repository.findCurrent(key, clock.instant())
                 .filter(entity -> entity.expiresAt().isAfter(clock.instant()))
-                .map(entity -> {
-                    if (!entity.contractRef().equals(request.declaration().contractRef())) {
-                        throw new IllegalStateException("context contract is incompatible");
-                    }
-                    return toSnapshot(entity, request);
-                });
+                .map(entity -> toSnapshot(entity, request));
     }
 
     @Override
@@ -106,6 +115,9 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             }
             if (readableFields.contains("selectFields")) {
                 view.setSelectFields(query.selectFields());
+            }
+            if (readableFields.contains("sorts")) {
+                view.setSorts(query.sorts());
             }
             if (readableFields.contains("page")) {
                 view.setPage(query.page());
@@ -292,6 +304,9 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             if (!query.selectFields().isEmpty()) {
                 fields.add("selectFields");
             }
+            if (!query.sorts().isEmpty()) {
+                fields.add("sorts");
+            }
             fields.add("page");
             fields.add("size");
             if (query.total() != null) {
@@ -330,9 +345,10 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
                         entity.contextId(),
                         entity.contractRef(),
                         ContextBindingSupport.bindingDigest(entity)));
-        CapabilityContextPayload payload = (CapabilityContextPayload) jsonCodec.deserialize(
+        CapabilityContextPayload payload = deserializeAndMigrate(
                 plaintext,
-                request.declaration().payloadType());
+                entity,
+                request);
         return new ContextSnapshot(
                 entity.contextId(),
                 request.requestCorrelationId(),
@@ -352,4 +368,29 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
                 payload);
     }
 
+    private CapabilityContextPayload deserializeAndMigrate(
+            byte[] plaintext,
+            ContextRecordEntity entity,
+            ContextReadRequest request) {
+        if (entity.contractRef().equals(request.declaration().contractRef())) {
+            return (CapabilityContextPayload) jsonCodec.deserialize(
+                    plaintext,
+                    request.declaration().payloadType());
+        }
+        ContextPayloadMigrator<?, ?> migrator = migrationRegistry.resolve(
+                        entity.contractRef(),
+                        request.declaration().contractRef())
+                .orElseThrow(() -> new IllegalStateException("context contract is incompatible"));
+        CapabilityContextPayload source = (CapabilityContextPayload) jsonCodec.deserialize(
+                plaintext,
+                migrator.sourceType());
+        return migrate(migrator, source);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static CapabilityContextPayload migrate(
+            ContextPayloadMigrator migrator,
+            CapabilityContextPayload source) {
+        return (CapabilityContextPayload) migrator.migrate(source);
+    }
 }

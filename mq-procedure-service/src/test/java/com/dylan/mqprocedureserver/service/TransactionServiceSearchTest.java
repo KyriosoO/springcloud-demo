@@ -17,6 +17,7 @@ import com.dylan.mqprocedureserver.mapper.TransactionMapper;
 import com.dylan.transaction.api.model.Transaction;
 import com.dylan.transaction.api.query.TransactionSearchRequest;
 import com.dylan.transaction.api.query.TransactionSearchResponse;
+import com.dylan.transaction.api.query.TransactionSearchSort;
 
 @DisplayName("TransactionService.search()")
 class TransactionServiceSearchTest {
@@ -108,6 +109,28 @@ class TransactionServiceSearchTest {
             assertThat(resp.isTotalExact()).isFalse();
             assertThat(resp.getTotal()).isEqualTo(50);
         }
+
+        @Test
+        @DisplayName("未传排序时使用 Mapper 默认排序")
+        void shouldUseDefaultSortWhenSortsMissing() {
+            mapper.countUpToResult = 1;
+
+            service.search(makeRequest("PAY", null, null, 1, 20));
+
+            assertThat(mapper.lastOrderByClause).isNull();
+        }
+
+        @Test
+        @DisplayName("白名单排序生成安全 ORDER BY")
+        void shouldBuildWhitelistedSortClause() {
+            mapper.countUpToResult = 1;
+            TransactionSearchRequest request = makeRequest("PAY", null, null, 1, 20);
+            request.setSorts(List.of(new TransactionSearchSort("amount", "DESC")));
+
+            service.search(request);
+
+            assertThat(mapper.lastOrderByClause).isEqualTo("AMOUNT DESC, TRANS_ID ASC");
+        }
     }
 
     @Nested
@@ -149,6 +172,17 @@ class TransactionServiceSearchTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("溢出");
         }
+
+        @Test
+        @DisplayName("非法排序字段拒绝")
+        void shouldRejectUnsupportedSortField() {
+            TransactionSearchRequest request = makeRequest("PAY", null, null, 1, 20);
+            request.setSorts(List.of(new TransactionSearchSort("unsafeField", "ASC")));
+
+            assertThatThrownBy(() -> service.search(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("排序字段");
+        }
     }
 
     private TransactionSearchRequest makeRequest(String transId, BigDecimal amountGt, BigDecimal amountLt, int page, int size) {
@@ -175,6 +209,7 @@ class TransactionServiceSearchTest {
     static class StubTransactionMapper implements TransactionMapper {
         long countUpToResult;
         List<Transaction> queryResults = List.of();
+        String lastOrderByClause;
 
         @Override
         public long countUpTo(Transaction condition, int limit) {
@@ -182,7 +217,8 @@ class TransactionServiceSearchTest {
         }
 
         @Override
-        public List<Transaction> query(Transaction condition, Integer offset, Integer size) {
+        public List<Transaction> query(Transaction condition, Integer offset, Integer size, String orderByClause) {
+            this.lastOrderByClause = orderByClause;
             return queryResults;
         }
 

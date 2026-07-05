@@ -16,6 +16,7 @@ import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateMetric;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
+import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.transaction.api.query.TransactionSearchRequest;
@@ -121,6 +122,22 @@ class TransactionPlanMapperTest {
             assertThat(req.getCondition().getAmountGt()).isEqualTo(new BigDecimal("100"));
             assertThat(req.getGroupBy()).containsExactly("transType");
             assertThat(req.getMetrics()).containsExactly("SUM:amount", "COUNT");
+        }
+
+        @Test
+        @DisplayName("排序映射到 transaction 请求")
+        void shouldMapValidatedSorts() {
+            TransactionSearchRequest req = mapper.toSearchRequest(new ValidatedQuery(
+                    singleFilter("amount", AgentOperator.GT, "100", null),
+                    List.of("transId", "amount"),
+                    List.of(new ValidatedSort("amount", "DESC")),
+                    1,
+                    20));
+
+            assertThat(req.getSorts()).singleElement().satisfies(sort -> {
+                assertThat(sort.getField()).isEqualTo("amount");
+                assertThat(sort.getDirection()).isEqualTo("DESC");
+            });
         }
     }
 

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
@@ -46,9 +47,13 @@ import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.internal.ContextBoundary;
 import com.dylan.agent.metadata.context.internal.ContextRecordEntity;
 import com.dylan.agent.metadata.context.internal.ContextRepository;
+import com.dylan.agent.metadata.context.migration.ContextMigrationRegistry;
+import com.dylan.agent.metadata.context.migration.QueryContextPayloadV10ToV12Migrator;
+import com.dylan.agent.metadata.context.migration.QueryContextPayloadV11ToV12Migrator;
 import com.dylan.agent.metadata.context.model.ContextRecordKey;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
+import com.dylan.agent.metadata.context.request.ContextReadRequest;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 import com.dylan.agent.metadata.crypto.model.ProtectedPayload;
 import com.dylan.agent.shared.ref.AgentProfileRef;
@@ -117,6 +122,50 @@ class ContextBoundaryTest {
                 List.of(snapshot), handle(), nullRegistration(), executionScope()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("context snapshot is stale");
+    }
+
+    @Test
+    void loadMigratesQueryContextV10ToV12() {
+        assertMigratesLegacyQueryContext(new ContractRef("QueryCapabilityContextPayload", "1.0.0"));
+    }
+
+    @Test
+    void loadMigratesQueryContextV11ToV12() {
+        assertMigratesLegacyQueryContext(new ContractRef("QueryCapabilityContextPayload", "1.1.0"));
+    }
+
+    private void assertMigratesLegacyQueryContext(ContractRef sourceContract) {
+        byte[] legacyJson = """
+                {"filters":[],"page":1,"selectFields":["name"],"size":10}
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ContextBoundary boundary = new ContextBoundary(
+                new MigratingRepository(entity(1, true, MetadataTestSupport.NOW.plusSeconds(60), sourceContract, legacyJson)),
+                new PayloadJsonCodec(),
+                new PlainCodec(),
+                settings(),
+                new ContextMigrationRegistry(List.of(
+                        new QueryContextPayloadV10ToV12Migrator(),
+                        new QueryContextPayloadV11ToV12Migrator())),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        Optional<ContextSnapshot> loaded = boundary.load(new ContextReadRequest(
+                "corr",
+                new ContextOwnerRef("conversation", "conv-1"),
+                new ConversationScope("conv-1"),
+                new ContextReadDeclaration(
+                        RuntimeContextType.QUERY,
+                        AgentExecutionContracts.QUERY_CONTEXT,
+                        com.dylan.agent.api.context.QueryCapabilityContextPayload.class,
+                        false,
+                        java.util.Set.of("filters", "selectFields", "sorts", "page", "size")),
+                ContextRuntimeViewTest.evidence()));
+
+        assertThat(loaded).isPresent();
+        assertThat(loaded.orElseThrow().storedContractRef()).isEqualTo(sourceContract);
+        assertThat(loaded.orElseThrow().effectiveContractRef()).isEqualTo(AgentExecutionContracts.QUERY_CONTEXT);
+        var payload = (com.dylan.agent.api.context.QueryCapabilityContextPayload) loaded.orElseThrow().payload();
+        assertThat(payload.selectFields()).containsExactly("name");
+        assertThat(payload.sorts()).isEmpty();
     }
 
     private InvocationHandle handle() {
@@ -204,12 +253,21 @@ class ContextBoundaryTest {
     }
 
     private ContextRecordEntity entity(long recordVersion, boolean readable, Instant expiresAt) {
+        return entity(recordVersion, readable, expiresAt, AgentExecutionContracts.QUERY_CONTEXT, new byte[] {1});
+    }
+
+    private ContextRecordEntity entity(
+            long recordVersion,
+            boolean readable,
+            Instant expiresAt,
+            ContractRef contractRef,
+            byte[] payload) {
         return new ContextRecordEntity(
                 "ctx-existing",
                 key(),
-                AgentExecutionContracts.QUERY_CONTEXT,
+                contractRef,
                 recordVersion,
-                new ProtectedPayload(new byte[] {1}, "ACTIVE", new byte[] {1}, "stub"),
+                new ProtectedPayload(payload, "ACTIVE", new byte[] {1}, "stub"),
                 "query.search",
                 "inv-previous",
                 "employee",
@@ -238,6 +296,32 @@ class ContextBoundaryTest {
 
         @Override
         public Optional<ContextRecordEntity> findByKey(ContextRecordKey key) {
+            return Optional.of(entity);
+        }
+
+        @Override
+        public void upsertApproved(ContextRecordEntity record, ExpectedContextVersion expectedVersion) {
+        }
+
+        @Override
+        public void markConversationUnreadable(ConversationScope scope, Instant now) {
+        }
+
+        @Override
+        public int deleteExpired(Instant cutoff, int limit) {
+            return 0;
+        }
+    }
+
+    private static final class MigratingRepository implements ContextRepository {
+        private final ContextRecordEntity entity;
+
+        private MigratingRepository(ContextRecordEntity entity) {
+            this.entity = entity;
+        }
+
+        @Override
+        public Optional<ContextRecordEntity> findCurrent(ContextRecordKey key, Instant now) {
             return Optional.of(entity);
         }
 

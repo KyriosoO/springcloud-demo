@@ -2,6 +2,7 @@ package com.dylan.agent.api.context;
 
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.plan.AgentFilter;
+import com.dylan.agent.api.plan.AgentSortSpec;
 
 import java.util.List;
 
@@ -9,6 +10,7 @@ import java.util.List;
 public record QueryCapabilityContextPayload(
         List<AgentFilter> filters,
         List<String> selectFields,
+        List<AgentSortSpec> sorts,
         int page,
         int size,
         Long total,
@@ -20,12 +22,24 @@ public record QueryCapabilityContextPayload(
             List<String> selectFields,
             int page,
             int size) {
-        this(filters, selectFields, page, size, null, null, null);
+        this(filters, selectFields, List.of(), page, size, null, null, null);
+    }
+
+    public QueryCapabilityContextPayload(
+            List<AgentFilter> filters,
+            List<String> selectFields,
+            int page,
+            int size,
+            Long total,
+            Boolean totalExact,
+            Integer totalPages) {
+        this(filters, selectFields, List.of(), page, size, total, totalExact, totalPages);
     }
 
     public QueryCapabilityContextPayload {
         filters = List.copyOf(filters == null ? List.of() : filters);
         selectFields = List.copyOf(selectFields == null ? List.of() : selectFields);
+        sorts = List.copyOf(sorts == null ? List.of() : sorts);
         if (page <= 0) {
             throw new IllegalArgumentException("page must be positive");
         }

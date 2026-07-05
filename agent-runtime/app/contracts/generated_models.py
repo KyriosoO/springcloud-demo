@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 140868c742286d305e41046e95337a3091427607b24d86440989f6f178854865
+# source_sha256: 02e93f9f1715c5842fa0793b3635de47a20ce9958debd9a225df45ac63b1e9e2
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -46,6 +46,28 @@ class AgentPlanKind(str, Enum):
     aggregate = 'AGGREGATE'
 
 
+class Direction(str, Enum):
+    """
+    排序方向：ASC 或 DESC
+    """
+
+    asc = 'ASC'
+    desc = 'DESC'
+
+
+class AgentSortSpec(BaseModel):
+    """
+    QUERY 明细结果排序规格
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    direction: Direction = Field(..., description='排序方向：ASC 或 DESC')
+    field: str = Field(..., description='canonical 字段名', min_length=1)
+
+
 class PlanKind(str, Enum):
     """
     Agent Plan 结构类型
@@ -78,7 +100,7 @@ class AggregateMetricSpec(BaseModel):
     function: AggregateFunction
 
 
-class Direction(str, Enum):
+class Direction1(str, Enum):
     """
     排序方向
     """
@@ -96,7 +118,7 @@ class AggregateOrderSpec(BaseModel):
         extra='forbid',
         populate_by_name=True,
     )
-    direction: Direction = Field(..., description='排序方向')
+    direction: Direction1 = Field(..., description='排序方向')
     field: str = Field(
         ..., description='排序字段名，来自 groupByFields 或 metric alias', min_length=1
     )
@@ -379,6 +401,9 @@ class RuntimeDomainSchema(BaseModel):
     max_size: Optional[int] = Field(
         None, alias='maxSize', description='最大 page size', ge=1
     )
+    sort_fields: List[str] = Field(
+        ..., alias='sortFields', description='当前授权可用于 QUERY 排序的字段'
+    )
 
 
 class RuntimeErrorCode(str, Enum):
@@ -525,6 +550,9 @@ class AgentQuerySpec(BaseModel):
         min_length=0,
     )
     size: Optional[int] = Field(None, description='每页大小，1~100', ge=1)
+    sorts: Optional[List[AgentSortSpec]] = Field(
+        None, description='明细查询排序列表，最多 2 个', max_length=2, min_length=0
+    )
 
 
 class QueryAgentPlan(BaseModel):
@@ -619,6 +647,7 @@ class RuntimeQueryContextView(BaseModel):
         ..., alias='selectFields', description='上轮查询展示字段'
     )
     size: int = Field(..., description='上轮 size', ge=1)
+    sorts: List[AgentSortSpec] = Field(..., description='上轮查询排序条件')
     source_invocation_id: str = Field(
         ...,
         alias='sourceInvocationId',

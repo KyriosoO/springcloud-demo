@@ -58,6 +58,7 @@ public class QueryCapabilityHandler implements CapabilityHandler<ValidatedQueryP
                                 .map(QueryCapabilityHandler::toKernelAgentFilter)
                                 .toList(),
                         plan.query().getSelectFields(),
+                        QueryPlanValidator.toAgentSortSpecs(plan.query().getSorts()),
                         plan.query().getPage(),
                         plan.query().getSize(),
                         adapterResult.getTotal(),

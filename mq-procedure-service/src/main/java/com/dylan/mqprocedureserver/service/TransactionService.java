@@ -16,6 +16,7 @@ import com.dylan.transaction.api.model.AggregateRequest;
 import com.dylan.transaction.api.model.Transaction;
 import com.dylan.transaction.api.query.TransactionSearchRequest;
 import com.dylan.transaction.api.query.TransactionSearchResponse;
+import com.dylan.transaction.api.query.TransactionSearchSort;
 
 @Service
 public class TransactionService {
@@ -41,7 +42,7 @@ public class TransactionService {
 	}
 
 	public List<Transaction> query(Transaction condition) {
-		return transactionMapper.query(condition, null, null);
+		return transactionMapper.query(condition, null, null, null);
 	}
 
 	public TransactionSearchResponse search(TransactionSearchRequest request) {
@@ -53,6 +54,7 @@ public class TransactionService {
 		int offset = calculateOffset(page, size);
 		int maxExactTotal = searchProperties.getMaxExactTotal();
 		int countLimit = Math.addExact(maxExactTotal, 1);
+		String orderByClause = buildOrderByClause(request.getSorts());
 
 		long observed = transactionMapper.countUpTo(condition, countLimit);
 		if (observed == 0) {
@@ -65,7 +67,7 @@ public class TransactionService {
 			return resp;
 		}
 
-		List<Transaction> rows = transactionMapper.query(condition, offset, size);
+		List<Transaction> rows = transactionMapper.query(condition, offset, size, orderByClause);
 
 		long total = Math.min(observed, maxExactTotal);
 		boolean totalExact = observed <= maxExactTotal;
@@ -77,6 +79,51 @@ public class TransactionService {
 		resp.setPage(page);
 		resp.setSize(size);
 		return resp;
+	}
+
+	String buildOrderByClause(List<TransactionSearchSort> sorts) {
+		if (sorts == null || sorts.isEmpty()) {
+			return null;
+		}
+		if (sorts.size() > 2) {
+			throw new IllegalArgumentException("排序字段最多支持 2 个。");
+		}
+		List<String> clauses = new ArrayList<>();
+		Set<String> seen = new java.util.LinkedHashSet<>();
+		boolean containsTransId = false;
+		for (TransactionSearchSort sort : sorts) {
+			if (sort == null || sort.getField() == null || sort.getField().isBlank()) {
+				throw new IllegalArgumentException("排序字段不能为空。");
+			}
+			String field = sort.getField().trim();
+			String column = FIELD_MAP.get(field);
+			if (column == null) {
+				throw new IllegalArgumentException("不支持的排序字段：" + field);
+			}
+			if (!seen.add(field)) {
+				throw new IllegalArgumentException("排序字段不能重复：" + field);
+			}
+			String direction = normalizeSortDirection(sort.getDirection());
+			clauses.add(column + " " + direction);
+			if ("transId".equals(field)) {
+				containsTransId = true;
+			}
+		}
+		if (!containsTransId) {
+			clauses.add("TRANS_ID ASC");
+		}
+		return String.join(", ", clauses);
+	}
+
+	private String normalizeSortDirection(String direction) {
+		if (direction == null || direction.isBlank()) {
+			throw new IllegalArgumentException("排序方向不能为空。");
+		}
+		String normalized = direction.trim().toUpperCase(java.util.Locale.ROOT);
+		if (!"ASC".equals(normalized) && !"DESC".equals(normalized)) {
+			throw new IllegalArgumentException("排序方向只支持 ASC 或 DESC。");
+		}
+		return normalized;
 	}
 
 	private void validateSearchRequest(TransactionSearchRequest request) {

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQueryParameters;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryPreviewResult;
 import com.dylan.agent.api.response.QueryPreviewResultPayload;
 import com.dylan.agent.mask.AddressFieldMasker;
@@ -48,6 +49,9 @@ class QueryPreviewResultSecurityProjectorTest {
                 .containsExactly("chineseName");
         assertThat(filtered.payload().getPreviewResult().getSampleRows())
                 .containsExactly(Map.of("chineseName", "张三"));
+        assertThat(filtered.payload().getQueryParameters().getSorts())
+                .extracting(AgentQuerySortParameter::getField)
+                .containsExactly("chineseName");
     }
 
     @Test
@@ -102,6 +106,13 @@ class QueryPreviewResultSecurityProjectorTest {
         parameters.setDomain("employee");
         parameters.setFilters(List.of(filter));
         parameters.setSelectFields(List.of("chineseName", "idCardNo"));
+        AgentQuerySortParameter nameSort = new AgentQuerySortParameter();
+        nameSort.setField("chineseName");
+        nameSort.setDirection("ASC");
+        AgentQuerySortParameter idCardSort = new AgentQuerySortParameter();
+        idCardSort.setField("idCardNo");
+        idCardSort.setDirection("DESC");
+        parameters.setSorts(List.of(nameSort, idCardSort));
         parameters.setPage(1);
         parameters.setSize(2);
 

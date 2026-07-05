@@ -28,10 +28,10 @@ class AgentExecutionContractsTest {
                 .isEqualTo(AgentRuntimeContract.VERSION);
         assertThat(AgentExecutionContracts.AGGREGATE_PLAN.version())
                 .isEqualTo(AgentRuntimeContract.VERSION);
-        assertThat(AgentExecutionContracts.QUERY_RESULT.version()).isEqualTo("1.0.0");
-        assertThat(AgentExecutionContracts.QUERY_PREVIEW_RESULT.version()).isEqualTo("1.0.0");
+        assertThat(AgentExecutionContracts.QUERY_RESULT.version()).isEqualTo("1.1.0");
+        assertThat(AgentExecutionContracts.QUERY_PREVIEW_RESULT.version()).isEqualTo("1.1.0");
         assertThat(AgentExecutionContracts.AGGREGATE_RESULT.version()).isEqualTo("1.0.0");
-        assertThat(AgentExecutionContracts.QUERY_CONTEXT.version()).isEqualTo("1.1.0");
+        assertThat(AgentExecutionContracts.QUERY_CONTEXT.version()).isEqualTo("1.2.0");
         assertThat(AgentExecutionContracts.AGGREGATE_CONTEXT.version()).isEqualTo("1.0.0");
     }
 

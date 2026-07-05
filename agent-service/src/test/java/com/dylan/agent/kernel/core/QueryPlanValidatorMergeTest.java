@@ -12,6 +12,7 @@ import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.enums.QueryContextMode;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AgentQuerySpec;
+import com.dylan.agent.api.plan.AgentSortSpec;
 import com.dylan.agent.capability.query.QueryPlanValidator;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.invocation.model.CancellationSource;
@@ -59,6 +60,44 @@ class QueryPlanValidatorMergeTest {
         assertThat(result.query().getSelectFields()).containsExactly("chineseName");
         assertThat(result.query().getPage()).isEqualTo(3);
         assertThat(result.query().getSize()).isEqualTo(20);
+    }
+
+    @Test
+    void mergeInheritsPreviousSortsWhenSortsIsNull() {
+        QueryPlanValidator validator = validator();
+
+        var plan = queryPlan(QueryContextMode.MERGE, List.of(), null, 2, null, List.of());
+        var result = validator.validate(plan, context(List.of(snapshot(previousPayloadWithSort()))));
+
+        assertThat(result.query().getSorts()).singleElement().satisfies(sort -> {
+            assertThat(sort.getField()).isEqualTo("chineseName");
+            assertThat(sort.getDirection()).isEqualTo("DESC");
+        });
+    }
+
+    @Test
+    void mergeClearsSortsWhenEmptyListProvided() {
+        QueryPlanValidator validator = validator();
+
+        var plan = queryPlan(QueryContextMode.MERGE, List.of(), null, 2, null, List.of());
+        plan.getQuery().setSorts(List.of());
+        var result = validator.validate(plan, context(List.of(snapshot(previousPayloadWithSort()))));
+
+        assertThat(result.query().getSorts()).isEmpty();
+    }
+
+    @Test
+    void mergeReplacesPreviousSortsWhenProvided() {
+        QueryPlanValidator validator = validator();
+
+        var plan = queryPlan(QueryContextMode.MERGE, List.of(), null, 2, null, List.of());
+        plan.getQuery().setSorts(List.of(sort("chineseName", "ASC")));
+        var result = validator.validate(plan, context(List.of(snapshot(previousPayloadWithSort()))));
+
+        assertThat(result.query().getSorts()).singleElement().satisfies(sort -> {
+            assertThat(sort.getField()).isEqualTo("chineseName");
+            assertThat(sort.getDirection()).isEqualTo("ASC");
+        });
     }
 
     @Test
@@ -147,6 +186,7 @@ class QueryPlanValidatorMergeTest {
                         null,
                         null)),
                 List.of("chineseName"),
+                Set.of("chineseName"),
                 100,
                 100,
                 "catalog-v1");
@@ -189,6 +229,18 @@ class QueryPlanValidatorMergeTest {
                 totalPages);
     }
 
+    private QueryCapabilityContextPayload previousPayloadWithSort() {
+        return new QueryCapabilityContextPayload(
+                List.of(filter("chineseName", "张")),
+                List.of("chineseName"),
+                List.of(sort("chineseName", "DESC")),
+                1,
+                20,
+                45L,
+                true,
+                3);
+    }
+
     private QueryAgentPlan queryPlan(
             QueryContextMode contextMode,
             List<AgentFilter> filters,
@@ -215,5 +267,12 @@ class QueryPlanValidatorMergeTest {
         filter.setOperator(AgentOperator.CONTAINS);
         filter.setValue(value);
         return filter;
+    }
+
+    private AgentSortSpec sort(String field, String direction) {
+        AgentSortSpec sort = new AgentSortSpec();
+        sort.setField(field);
+        sort.setDirection(direction);
+        return sort;
     }
 }

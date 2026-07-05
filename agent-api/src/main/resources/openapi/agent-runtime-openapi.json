@@ -170,8 +170,37 @@
             "format" : "int32",
             "minimum" : 1,
             "type" : "integer"
+          },
+          "sorts" : {
+            "description" : "明细查询排序列表，最多 2 个",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentSortSpec"
+            },
+            "maxItems" : 2,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
           }
         },
+        "type" : "object"
+      },
+      "AgentSortSpec" : {
+        "additionalProperties" : false,
+        "description" : "QUERY 明细结果排序规格",
+        "properties" : {
+          "direction" : {
+            "description" : "排序方向：ASC 或 DESC",
+            "enum" : [ "ASC", "DESC" ],
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "field" : {
+            "description" : "canonical 字段名",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "direction", "field" ],
         "type" : "object"
       },
       "AggregateAgentPlan" : {
@@ -855,9 +884,17 @@
             "format" : "int32",
             "minimum" : 1,
             "type" : "integer"
+          },
+          "sortFields" : {
+            "description" : "当前授权可用于 QUERY 排序的字段",
+            "items" : {
+              "description" : "当前授权可用于 QUERY 排序的字段",
+              "type" : "string"
+            },
+            "type" : "array"
           }
         },
-        "required" : [ "defaultSelectFields", "domain", "fields" ],
+        "required" : [ "defaultSelectFields", "domain", "fields", "sortFields" ],
         "type" : "object"
       },
       "RuntimeErrorCode" : {
@@ -1007,6 +1044,13 @@
             "minimum" : 1,
             "type" : "integer"
           },
+          "sorts" : {
+            "description" : "上轮查询排序条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentSortSpec"
+            },
+            "type" : "array"
+          },
           "sourceInvocationId" : {
             "description" : "来源 Invocation 标识",
             "minLength" : 1,
@@ -1032,7 +1076,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "contextType", "filters", "page", "selectFields", "size", "sourceInvocationId" ],
+        "required" : [ "contextType", "filters", "page", "selectFields", "size", "sorts", "sourceInvocationId" ],
         "type" : "object"
       },
       "RuntimeTerminationReason" : {

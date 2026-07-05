@@ -8,6 +8,7 @@ import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQueryParameters;
 import com.dylan.agent.api.response.AgentQueryResult;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.mask.AddressFieldMasker;
 import com.dylan.agent.mask.EmailFieldMasker;
@@ -63,6 +64,17 @@ class QueryResultSecurityProjectorTest {
     }
 
     @Test
+    void filtersUnauthorizedSortParameters() {
+        QueryResultSecurityProjector projector = new QueryResultSecurityProjector(maskingSupport());
+
+        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope());
+
+        assertThat(filtered.payload().getQueryParameters().getSorts())
+                .extracting(AgentQuerySortParameter::getField)
+                .containsExactly("phoneNo");
+    }
+
+    @Test
     void failsClosedWhenFieldBearingPayloadHasNoDomain() {
         QueryResultSecurityProjector projector = new QueryResultSecurityProjector(maskingSupport());
         QueryAgentResultPayload payload = payload();
@@ -87,6 +99,13 @@ class QueryResultSecurityProjectorTest {
         parameters.setDomain("employee");
         parameters.setFilters(List.of(phoneFilter, idCardFilter));
         parameters.setSelectFields(List.of("chineseName", "phoneNo", "idCardNo"));
+        AgentQuerySortParameter phoneSort = new AgentQuerySortParameter();
+        phoneSort.setField("phoneNo");
+        phoneSort.setDirection("ASC");
+        AgentQuerySortParameter idCardSort = new AgentQuerySortParameter();
+        idCardSort.setField("idCardNo");
+        idCardSort.setDirection("DESC");
+        parameters.setSorts(List.of(phoneSort, idCardSort));
         parameters.setPage(1);
         parameters.setSize(2);
 

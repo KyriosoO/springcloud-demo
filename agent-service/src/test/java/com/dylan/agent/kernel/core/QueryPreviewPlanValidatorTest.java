@@ -11,6 +11,7 @@ import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AgentQuerySpec;
+import com.dylan.agent.api.plan.AgentSortSpec;
 import com.dylan.agent.capability.querypreview.QueryPreviewPlanValidator;
 import com.dylan.agent.capability.querypreview.ValidatedQueryPreviewPlan;
 import com.dylan.agent.config.AgentProperties;
@@ -103,6 +104,29 @@ class QueryPreviewPlanValidatorTest {
     }
 
     @Test
+    void acceptsExplicitWhitelistedSorts() {
+        QueryAgentPlan plan = queryPlan(List.of("name"), 1);
+        plan.getQuery().setSorts(List.of(sort("memberNo", "desc")));
+
+        var result = validator().validate(plan, contextWithSortFields(Set.of("memberNo")));
+
+        assertThat(result.query().getSorts()).singleElement().satisfies(sort -> {
+            assertThat(sort.getField()).isEqualTo("memberNo");
+            assertThat(sort.getDirection()).isEqualTo("DESC");
+        });
+    }
+
+    @Test
+    void rejectsExplicitSortOutsideWhitelist() {
+        QueryAgentPlan plan = queryPlan(List.of("name"), 1);
+        plan.getQuery().setSorts(List.of(sort("memberNo", "ASC")));
+
+        assertThatThrownBy(() -> validator().validate(plan, contextWithSortFields(Set.of())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sort field is not allowed");
+    }
+
+    @Test
     void rejectsInconsistentValidatedPreviewPlan() {
         ValidatedQuery query = new ValidatedQuery(
                 List.of(new ValidatedFilter("name", AgentOperator.EQ, "Alice", List.of())),
@@ -158,13 +182,26 @@ class QueryPreviewPlanValidatorTest {
         return context("query.preview", maxResultRows);
     }
 
+    private ExecutionValidationContext contextWithSortFields(Set<String> sortFields) {
+        return new ExecutionValidationContext(
+                "query.preview",
+                AgentPlanKind.QUERY,
+                AgentDomainMode.REQUIRED,
+                executionScope(5),
+                projection(sortFields),
+                null,
+                List.of(),
+                NOW.plusSeconds(30),
+                new CancellationSource().token());
+    }
+
     private ExecutionValidationContext context(String capabilityId, int maxResultRows) {
         return new ExecutionValidationContext(
                 capabilityId,
                 AgentPlanKind.QUERY,
                 AgentDomainMode.REQUIRED,
                 executionScope(maxResultRows),
-                projection(),
+                projection(Set.of()),
                 null,
                 List.of(),
                 NOW.plusSeconds(30),
@@ -193,7 +230,7 @@ class QueryPreviewPlanValidatorTest {
                 10_000);
     }
 
-    private ExecutionValidationProjection projection() {
+    private ExecutionValidationProjection projection(Set<String> sortFields) {
         return new ExecutionValidationProjection(
                 AdapterRole.QUERYABLE,
                 "employee",
@@ -217,8 +254,16 @@ class QueryPreviewPlanValidatorTest {
                                 null,
                                 null)),
                 List.of("name"),
+                sortFields,
                 10,
                 10,
                 "catalog-v1");
+    }
+
+    private AgentSortSpec sort(String field, String direction) {
+        AgentSortSpec sort = new AgentSortSpec();
+        sort.setField(field);
+        sort.setDirection(direction);
+        return sort;
     }
 }

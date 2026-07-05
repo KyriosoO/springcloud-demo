@@ -8,6 +8,7 @@ public class AgentQueryParameters {
     private String domain;
     private List<AgentQueryFilterParameter> filters;
     private List<String> selectFields;
+    private List<AgentQuerySortParameter> sorts;
     private int page;
     private int size;
 
@@ -36,6 +37,14 @@ public class AgentQueryParameters {
 
     public void setSelectFields(List<String> selectFields) {
         this.selectFields = selectFields;
+    }
+
+    public List<AgentQuerySortParameter> getSorts() {
+        return sorts;
+    }
+
+    public void setSorts(List<AgentQuerySortParameter> sorts) {
+        this.sorts = sorts;
     }
 
     public int getPage() {

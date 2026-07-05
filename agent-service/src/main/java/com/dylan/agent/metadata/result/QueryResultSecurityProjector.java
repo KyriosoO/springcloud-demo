@@ -5,6 +5,7 @@ import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQueryParameters;
 import com.dylan.agent.api.response.AgentQueryResult;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
@@ -51,9 +52,29 @@ public final class QueryResultSecurityProjector implements ResultSecurityProject
                 .filter(Objects::nonNull)
                 .toList());
         target.setSelectFields(maskingSupport.filterFields(domain, source.getSelectFields(), scope));
+        target.setSorts(filterSorts(domain, source.getSorts(), scope));
         target.setPage(source.getPage());
         target.setSize(source.getSize());
         return target;
+    }
+
+    private List<AgentQuerySortParameter> filterSorts(
+            String domain,
+            List<AgentQuerySortParameter> sorts,
+            ExecutionScope scope) {
+        if (sorts == null) {
+            return null;
+        }
+        return sorts.stream()
+                .filter(sort -> sort != null
+                        && maskingSupport.filterFields(domain, List.of(sort.getField()), scope).contains(sort.getField()))
+                .map(sort -> {
+                    AgentQuerySortParameter target = new AgentQuerySortParameter();
+                    target.setField(sort.getField());
+                    target.setDirection(sort.getDirection());
+                    return target;
+                })
+                .toList();
     }
 
     private AgentQueryResult filterResult(
@@ -79,7 +100,7 @@ public final class QueryResultSecurityProjector implements ResultSecurityProject
         AgentQueryParameters parameters = candidate.getQueryParameters();
         AgentQueryResult result = candidate.getQueryResult();
         return parameters != null
-                && (hasItems(parameters.getSelectFields()) || hasItems(parameters.getFilters()))
+                && (hasItems(parameters.getSelectFields()) || hasItems(parameters.getFilters()) || hasItems(parameters.getSorts()))
                 || result != null
                 && (hasItems(result.getColumns()) || hasRows(result.getRows()));
     }

@@ -2,6 +2,7 @@ package com.dylan.agent.api.contract.runtime.common;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.dylan.agent.api.plan.AgentFilter;
+import com.dylan.agent.api.plan.AgentSortSpec;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -38,6 +39,11 @@ public final class RuntimeQueryContextView implements RuntimeContextView {
     @NotNull
     private List<String> selectFields = Collections.emptyList();
 
+    @Schema(description = "上轮查询排序条件", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull
+    @Valid
+    private List<@Valid AgentSortSpec> sorts = Collections.emptyList();
+
     @Schema(description = "上轮 page", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull
     @Min(1)
@@ -72,6 +78,8 @@ public final class RuntimeQueryContextView implements RuntimeContextView {
     public void setFilters(List<AgentFilter> filters) { this.filters = filters == null ? null : new ArrayList<>(filters); }
     public List<String> getSelectFields() { return selectFields == null ? Collections.emptyList() : Collections.unmodifiableList(selectFields); }
     public void setSelectFields(List<String> selectFields) { this.selectFields = selectFields == null ? null : new ArrayList<>(selectFields); }
+    public List<AgentSortSpec> getSorts() { return sorts == null ? Collections.emptyList() : Collections.unmodifiableList(sorts); }
+    public void setSorts(List<AgentSortSpec> sorts) { this.sorts = sorts == null ? null : new ArrayList<>(sorts); }
     public Integer getPage() { return page; }
     public void setPage(Integer page) { this.page = page; }
     public Integer getSize() { return size; }

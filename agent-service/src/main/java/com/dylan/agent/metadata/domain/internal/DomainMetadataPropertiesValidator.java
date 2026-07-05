@@ -102,9 +102,21 @@ public final class DomainMetadataPropertiesValidator {
                 throw new IllegalStateException("role capability fields must not be empty: " + domainId + "/" + role);
             }
             validateCapabilityMaps(domainId, role, fields, capabilityFields, cp);
+            Set<String> sortFields = cp.getSortFields() == null
+                    ? Set.of()
+                    : cp.getSortFields().stream()
+                    .map(value -> requireKnownField(fields, value))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            if (!capabilityFields.containsAll(sortFields)) {
+                throw new IllegalStateException("sortFields must be role capability fields subset: " + domainId + "/" + role);
+            }
+            if (role != AdapterRole.QUERYABLE && !sortFields.isEmpty()) {
+                throw new IllegalStateException("sortFields only allowed for QUERYABLE role: " + domainId + "/" + role);
+            }
             capabilities.put(role, new CanonicalRoleCapability(
                     role,
                     capabilityFields,
+                    sortFields,
                     cp.getOperatorsByField(),
                     cp.getFunctionsByField(),
                     nonNegative(cp.getMaxPageSize()),

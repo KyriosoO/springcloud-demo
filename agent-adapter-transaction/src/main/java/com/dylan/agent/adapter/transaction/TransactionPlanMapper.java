@@ -18,6 +18,7 @@ import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.transaction.api.model.AggregateRequest;
 import com.dylan.transaction.api.model.Transaction;
 import com.dylan.transaction.api.query.TransactionSearchRequest;
+import com.dylan.transaction.api.query.TransactionSearchSort;
 
 /**
  * 将 ValidatedFilter 映射为下游 TransactionSearch API 所需的 filter 参数结构。
@@ -39,6 +40,9 @@ public class TransactionPlanMapper {
         req.setCondition(condition);
         req.setPage(query.getPage());
         req.setSize(query.getSize());
+        req.setSorts(query.getSorts().stream()
+                .map(sort -> new TransactionSearchSort(sort.getField(), sort.getDirection()))
+                .toList());
         return req;
     }
 

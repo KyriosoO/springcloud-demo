@@ -2,6 +2,7 @@ package com.dylan.agent.capability.query;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -11,12 +12,14 @@ import org.springframework.stereotype.Component;
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
+import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.api.enums.QueryContextMode;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AgentQuerySpec;
+import com.dylan.agent.api.plan.AgentSortSpec;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
@@ -72,6 +75,8 @@ public class QueryPlanValidator
         validateKernelFilters(filters, context, domain);
         List<String> selectFields = boundQuery.selectFields();
         validateKernelSelectFields(selectFields, context, domain);
+        List<ValidatedSort> sorts = boundQuery.sorts();
+        validateKernelSorts(sorts, context, domain);
         int page = boundQuery.page();
         int size = boundQuery.size();
         int maxPageSize = maxKernelPageSize(context);
@@ -85,7 +90,7 @@ public class QueryPlanValidator
         return new ValidatedQueryPlan(
                 KERNEL_CAPABILITY_ID,
                 domain,
-                new ValidatedQuery(filters, selectFields, page, size));
+                new ValidatedQuery(filters, selectFields, sorts, page, size));
     }
 
     private BoundQuery bindQuery(
@@ -101,6 +106,7 @@ public class QueryPlanValidator
             return new BoundQuery(
                     filters,
                     normalizeKernelSelectFields(query.getSelectFields(), context),
+                    toValidatedSorts(query.getSorts()),
                     query.getPage() == null ? 1 : query.getPage(),
                     query.getSize() == null ? defaultKernelPageSize(context) : query.getSize(),
                     null);
@@ -122,9 +128,12 @@ public class QueryPlanValidator
         List<String> selectFields = query.getSelectFields() == null || query.getSelectFields().isEmpty()
                 ? previous.selectFields()
                 : normalizeKernelSelectFields(query.getSelectFields(), context);
+        List<ValidatedSort> sorts = query.getSorts() == null
+                ? toValidatedSorts(previous.sorts())
+                : toValidatedSorts(query.getSorts());
         int page = query.getPage() == null ? previous.page() : query.getPage();
         int size = query.getSize() == null ? previous.size() : query.getSize();
-        return new BoundQuery(merged, selectFields, page, size, previous);
+        return new BoundQuery(merged, selectFields, sorts, page, size, previous);
     }
 
     private QueryCapabilityContextPayload previousQueryContext(ExecutionValidationContext context) {
@@ -184,6 +193,49 @@ public class QueryPlanValidator
                             filter.getOperator(),
                             filter.getValue(),
                             filter.getValues());
+                })
+                .toList();
+    }
+
+    public static List<ValidatedSort> toValidatedSorts(List<AgentSortSpec> sorts) {
+        if (sorts == null) {
+            return List.of();
+        }
+        if (sorts.size() > 2) {
+            throw new IllegalArgumentException("invalid query sorts");
+        }
+        LinkedHashSet<String> fields = new LinkedHashSet<>();
+        List<ValidatedSort> normalized = sorts.stream()
+                .map(sort -> {
+                    if (sort == null
+                            || sort.getField() == null || sort.getField().isBlank()
+                            || sort.getDirection() == null || sort.getDirection().isBlank()) {
+                        throw new IllegalArgumentException("invalid query sorts");
+                    }
+                    String field = sort.getField().trim();
+                    if (!fields.add(field)) {
+                        throw new IllegalArgumentException("invalid query sorts");
+                    }
+                    String direction = sort.getDirection().trim().toUpperCase(Locale.ROOT);
+                    if (!"ASC".equals(direction) && !"DESC".equals(direction)) {
+                        throw new IllegalArgumentException("invalid query sorts");
+                    }
+                    return new ValidatedSort(field, direction);
+                })
+                .toList();
+        return List.copyOf(normalized);
+    }
+
+    public static List<AgentSortSpec> toAgentSortSpecs(List<ValidatedSort> sorts) {
+        if (sorts == null || sorts.isEmpty()) {
+            return List.of();
+        }
+        return sorts.stream()
+                .map(sort -> {
+                    AgentSortSpec spec = new AgentSortSpec();
+                    spec.setField(sort.getField());
+                    spec.setDirection(sort.getDirection());
+                    return spec;
                 })
                 .toList();
     }
@@ -287,6 +339,31 @@ public class QueryPlanValidator
         }
     }
 
+    public static void validateKernelSorts(
+            List<ValidatedSort> sorts,
+            ExecutionValidationContext context) {
+        for (ValidatedSort sort : sorts) {
+            requireFieldRule(sort.getField(), context);
+            if (!context.domainProjection().sortFields().contains(sort.getField())) {
+                throw new IllegalArgumentException("sort field is not allowed: " + sort.getField());
+            }
+        }
+    }
+
+    private void validateKernelSorts(
+            List<ValidatedSort> sorts,
+            ExecutionValidationContext context,
+            String domain) {
+        for (ValidatedSort sort : sorts) {
+            requireFieldRule(sort.getField(), context, domain);
+            if (!context.domainProjection().sortFields().contains(sort.getField())) {
+                throw new KernelExecutionException(
+                        KernelErrorCode.PLAN_VALIDATION_FAILED,
+                        "请求排序字段不支持，请调整排序条件后重试。");
+            }
+        }
+    }
+
     private int defaultKernelPageSize(ExecutionValidationContext context) {
         int configuredDefault = properties.getQuery().getDefaultSize();
         int maxPageSize = maxKernelPageSize(context);
@@ -307,6 +384,7 @@ public class QueryPlanValidator
     private record BoundQuery(
             List<ValidatedFilter> filters,
             List<String> selectFields,
+            List<ValidatedSort> sorts,
             int page,
             int size,
             QueryCapabilityContextPayload previous) {

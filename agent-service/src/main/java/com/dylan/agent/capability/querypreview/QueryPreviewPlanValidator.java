@@ -39,13 +39,15 @@ public class QueryPreviewPlanValidator
                 .orElseThrow(() -> new IllegalArgumentException("QUERY_PREVIEW requires domain projection"));
         AgentQuerySpec query = Objects.requireNonNull(rawPlan.getQuery(), "query must not be null");
         List<ValidatedFilter> filters = QueryPlanValidator.toValidatedFilters(query.getFilters());
+        var sorts = QueryPlanValidator.toValidatedSorts(query.getSorts());
         if (filters.isEmpty()) {
             throw new IllegalArgumentException("query preview filters must not be empty");
         }
         QueryPlanValidator.validateKernelFilters(filters, context);
+        QueryPlanValidator.validateKernelSorts(sorts, context);
         List<String> previewFields = normalizePreviewFields(query.getSelectFields(), context);
         int previewSize = previewSize(query, context);
-        ValidatedQuery previewQuery = toPreviewQuery(filters, previewFields, previewSize);
+        ValidatedQuery previewQuery = toPreviewQuery(filters, previewFields, sorts, previewSize);
         return new ValidatedQueryPreviewPlan(
                 KERNEL_CAPABILITY_ID,
                 domain,
@@ -98,8 +100,9 @@ public class QueryPreviewPlanValidator
     private static ValidatedQuery toPreviewQuery(
             List<ValidatedFilter> filters,
             List<String> previewFields,
+            List<com.dylan.agent.adapter.api.query.ValidatedSort> sorts,
             int previewSize) {
-        return new ValidatedQuery(filters, previewFields, 1, previewSize);
+        return new ValidatedQuery(filters, previewFields, sorts, 1, previewSize);
     }
 
     private static ExecutionFieldRule requireFieldRule(

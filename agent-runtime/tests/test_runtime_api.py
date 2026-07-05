@@ -82,6 +82,7 @@ def _plan_request() -> dict:
                 "formatHint": None,
             }],
             "defaultSelectFields": ["name"],
+            "sortFields": [],
             "defaultSize": 20,
             "maxSize": 100,
         },
@@ -140,7 +141,7 @@ class TestRoutePlanApi:
                     requestId=request.request_id,
                     plan=QueryAgentPlan(
                         planKind="QUERY",
-                        query={"filters": [], "selectFields": ["name"], "page": 1, "size": 20},
+                        query={"filters": [], "selectFields": ["name"], "sorts": None, "page": 1, "size": 20},
                     ),
                     metadata=_metadata("PLAN"),
                 )

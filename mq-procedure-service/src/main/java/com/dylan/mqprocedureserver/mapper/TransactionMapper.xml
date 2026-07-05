@@ -54,7 +54,14 @@
 		from t_transaction
 		<include refid="TransactionSearchConditions"/>
 		<if test="offset != null and size != null">
-			order by TRANS_DATE desc, TRANS_ID asc
+			<choose>
+				<when test="orderByClause != null and orderByClause != ''">
+					order by ${orderByClause}
+				</when>
+				<otherwise>
+					order by TRANS_DATE desc, TRANS_ID asc
+				</otherwise>
+			</choose>
 			limit #{offset}, #{size}
 		</if>
 	</select>

@@ -7,18 +7,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Validator 可使用的 domain metadata projection。 */
 public final class ExecutionValidationProjection {
 
     private static final ExecutionValidationProjection NONE =
-            new ExecutionValidationProjection(null, null, Map.of(), List.of(), 0, 0, "NO_DOMAIN");
+            new ExecutionValidationProjection(null, null, Map.of(), List.of(), Set.of(), 0, 0, "NO_DOMAIN");
 
     private final Optional<AdapterRole> adapterRole;
     private final Optional<String> domain;
     private final Map<String, ExecutionFieldRule> fieldRules;
     private final List<String> defaultSelectFields;
+    private final Set<String> sortFields;
     private final int maxPageSize;
     private final int maxResultRows;
     private final String projectionVersion;
@@ -27,6 +29,7 @@ public final class ExecutionValidationProjection {
                                          String domain,
                                          Map<String, ExecutionFieldRule> fieldRules,
                                          List<String> defaultSelectFields,
+                                         Set<String> sortFields,
                                          int maxPageSize,
                                          int maxResultRows,
                                          String projectionVersion) {
@@ -37,6 +40,7 @@ public final class ExecutionValidationProjection {
         this.domain = Optional.ofNullable(domain).map(value -> requireNonBlank(value, "domain"));
         this.fieldRules = copyFieldRules(fieldRules);
         this.defaultSelectFields = copyDefaultSelectFields(defaultSelectFields);
+        this.sortFields = copySortFields(sortFields, this.fieldRules);
         if (maxPageSize < 0) {
             throw new IllegalArgumentException("maxPageSize must be non-negative");
         }
@@ -48,6 +52,17 @@ public final class ExecutionValidationProjection {
         this.projectionVersion = requireNonBlank(projectionVersion, "projectionVersion");
     }
 
+    public ExecutionValidationProjection(AdapterRole adapterRole,
+                                         String domain,
+                                         Map<String, ExecutionFieldRule> fieldRules,
+                                         List<String> defaultSelectFields,
+                                         int maxPageSize,
+                                         int maxResultRows,
+                                         String projectionVersion) {
+        this(adapterRole, domain, fieldRules, defaultSelectFields, Set.of(),
+                maxPageSize, maxResultRows, projectionVersion);
+    }
+
     public static ExecutionValidationProjection none() {
         return NONE;
     }
@@ -56,6 +71,7 @@ public final class ExecutionValidationProjection {
     public Optional<String> domain() { return domain; }
     public Map<String, ExecutionFieldRule> fieldRules() { return fieldRules; }
     public List<String> defaultSelectFields() { return defaultSelectFields; }
+    public Set<String> sortFields() { return sortFields; }
     public int maxPageSize() { return maxPageSize; }
     public int maxResultRows() { return maxResultRows; }
     public String projectionVersion() { return projectionVersion; }
@@ -83,6 +99,19 @@ public final class ExecutionValidationProjection {
         return source.stream()
                 .map(value -> requireNonBlank(value, "defaultSelectFields element"))
                 .collect(Collectors.toUnmodifiableList());
+    }
+
+    private static Set<String> copySortFields(Set<String> source, Map<String, ExecutionFieldRule> fieldRules) {
+        if (source == null || source.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> normalized = source.stream()
+                .map(value -> requireNonBlank(value, "sortFields element"))
+                .collect(Collectors.toUnmodifiableSet());
+        if (!fieldRules.keySet().containsAll(normalized)) {
+            throw new IllegalArgumentException("sortFields must be fieldRules subset");
+        }
+        return normalized;
     }
 
     private static String requireNonBlank(String value, String name) {

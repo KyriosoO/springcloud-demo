@@ -41,6 +41,7 @@ class DomainMetadataProjectionTest {
         assertThat(schema.getDomain()).isEqualTo("employee");
         assertThat(schema.getFields()).extracting("field").containsExactly("chineseName");
         assertThat(schema.getDefaultSelectFields()).containsExactly("chineseName");
+        assertThat(schema.getSortFields()).containsExactly("chineseName");
     }
 
     private PlanningEffectiveScope scope() {

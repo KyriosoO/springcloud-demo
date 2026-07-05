@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 public record CanonicalRoleCapability(
         AdapterRole role,
         Set<String> fields,
+        Set<String> sortFields,
         Map<String, Set<AgentOperator>> operatorsByField,
         Map<String, Set<AggregateFunction>> functionsByField,
         int maxPageSize,
@@ -23,6 +24,12 @@ public record CanonicalRoleCapability(
         fields = fields == null ? Set.of() : fields.stream()
                 .map(value -> CanonicalFieldDefinition.requireNonBlank(value, "field"))
                 .collect(Collectors.toUnmodifiableSet());
+        sortFields = sortFields == null ? Set.of() : sortFields.stream()
+                .map(value -> CanonicalFieldDefinition.requireNonBlank(value, "sortField"))
+                .collect(Collectors.toUnmodifiableSet());
+        if (!fields.containsAll(sortFields)) {
+            throw new IllegalArgumentException("sortFields must be capability fields subset");
+        }
         operatorsByField = copyMap(operatorsByField);
         functionsByField = copyMap(functionsByField);
         if (maxPageSize < 0 || maxResultRows < 0) {

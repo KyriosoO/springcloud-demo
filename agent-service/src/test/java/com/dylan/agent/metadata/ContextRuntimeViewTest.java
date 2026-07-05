@@ -14,6 +14,7 @@ import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView;
+import com.dylan.agent.api.plan.AgentSortSpec;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.kernel.definition.ContextReadDeclaration;
@@ -77,6 +78,28 @@ class ContextRuntimeViewTest {
         assertThat(view.getTotalPages()).isEqualTo(3);
     }
 
+    @Test
+    void toRuntimeViewIncludesSortsWhenReadable() {
+        ContextBoundary boundary = new ContextBoundary(
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
+
+        var view = (RuntimeQueryContextView) boundary.toRuntimeView(
+                snapshotWithSorts(),
+                new ContextReadDeclaration(
+                        RuntimeContextType.QUERY,
+                        AgentExecutionContracts.QUERY_CONTEXT,
+                        QueryCapabilityContextPayload.class,
+                        false,
+                        Set.of("selectFields", "sorts")),
+                evidence());
+
+        assertThat(view.getSorts()).singleElement().satisfies(sort -> {
+            assertThat(sort.getField()).isEqualTo("name");
+            assertThat(sort.getDirection()).isEqualTo("DESC");
+        });
+    }
+
     static ContextSnapshot snapshot() {
         return new ContextSnapshot(
                 "ctx-1", "corr",
@@ -107,6 +130,25 @@ class ContextRuntimeViewTest {
                 "bundle-v1", "policy-v1", "perm", null,
                 ExpectedContextVersion.version(1),
                 new QueryCapabilityContextPayload(List.of(), List.of("name"), 1, 10, 45L, true, 3));
+    }
+
+    static ContextSnapshot snapshotWithSorts() {
+        AgentSortSpec sort = new AgentSortSpec();
+        sort.setField("name");
+        sort.setDirection("DESC");
+        return new ContextSnapshot(
+                "ctx-1", "corr",
+                new ContextRecordKey(new ContextOwnerRef("conversation", "conv-1"),
+                        new ConversationScope("conv-1"),
+                        com.dylan.agent.api.contract.runtime.common.RuntimeContextType.QUERY),
+                "query.search", "inv-1", "employee",
+                AgentExecutionContracts.QUERY_CONTEXT,
+                AgentExecutionContracts.QUERY_CONTEXT,
+                1,
+                MetadataTestSupport.NOW.plusSeconds(60),
+                "bundle-v1", "policy-v1", "perm", null,
+                ExpectedContextVersion.version(1),
+                new QueryCapabilityContextPayload(List.of(), List.of("name"), List.of(sort), 1, 10, null, null, null));
     }
 
     static ContextReadDeclaration declaration() {

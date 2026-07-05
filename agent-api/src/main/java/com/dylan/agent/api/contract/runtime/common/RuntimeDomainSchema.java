@@ -31,6 +31,10 @@ public class RuntimeDomainSchema {
     @NotNull
     private List<String> defaultSelectFields = Collections.emptyList();
 
+    @Schema(description = "当前授权可用于 QUERY 排序的字段", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull
+    private List<String> sortFields = Collections.emptyList();
+
     @Schema(description = "默认 page size")
     @Min(1)
     private Integer defaultSize;
@@ -48,6 +52,8 @@ public class RuntimeDomainSchema {
     public void setFields(List<RuntimeDomainFieldSchema> fields) { this.fields = fields == null ? null : new ArrayList<>(fields); }
     public List<String> getDefaultSelectFields() { return defaultSelectFields == null ? Collections.emptyList() : Collections.unmodifiableList(defaultSelectFields); }
     public void setDefaultSelectFields(List<String> defaultSelectFields) { this.defaultSelectFields = defaultSelectFields == null ? null : new ArrayList<>(defaultSelectFields); }
+    public List<String> getSortFields() { return sortFields == null ? Collections.emptyList() : Collections.unmodifiableList(sortFields); }
+    public void setSortFields(List<String> sortFields) { this.sortFields = sortFields == null ? null : new ArrayList<>(sortFields); }
     public Integer getDefaultSize() { return defaultSize; }
     public void setDefaultSize(Integer defaultSize) { this.defaultSize = defaultSize; }
     public Integer getMaxSize() { return maxSize; }

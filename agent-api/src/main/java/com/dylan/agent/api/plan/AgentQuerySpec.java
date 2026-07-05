@@ -5,6 +5,7 @@ import java.util.List;
 import com.dylan.agent.api.enums.QueryContextMode;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
@@ -27,6 +28,11 @@ public class AgentQuerySpec {
     @Size(max = 10)
     private List<String> selectFields;
 
+    @Schema(description = "明细查询排序列表，最多 2 个", nullable = true)
+    @Size(max = 2)
+    @Valid
+    private List<@Valid AgentSortSpec> sorts;
+
     @Schema(description = "分页页码，从 1 开始")
     @Min(1)
     private Integer page;
@@ -46,6 +52,8 @@ public class AgentQuerySpec {
     public void setRemoveFields(List<String> removeFields) { this.removeFields = removeFields; }
     public List<String> getSelectFields() { return selectFields; }
     public void setSelectFields(List<String> selectFields) { this.selectFields = selectFields; }
+    public List<AgentSortSpec> getSorts() { return sorts; }
+    public void setSorts(List<AgentSortSpec> sorts) { this.sorts = sorts; }
     public Integer getPage() { return page; }
     public void setPage(Integer page) { this.page = page; }
     public Integer getSize() { return size; }
