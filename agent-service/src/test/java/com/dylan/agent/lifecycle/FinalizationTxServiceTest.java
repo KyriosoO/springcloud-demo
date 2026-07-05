@@ -25,12 +25,15 @@ import com.dylan.agent.persistence.mapper.AgentInvocationRecordMapper;
 import com.dylan.agent.persistence.mapper.AgentInvocationResultMapper;
 import com.dylan.agent.persistence.mapper.AgentTurnMapper;
 import com.dylan.agent.planning.model.PlanningCancellation;
+import com.dylan.agent.planning.model.PlanningFailure;
+import com.dylan.agent.planning.model.PlanningStage;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -125,6 +128,49 @@ class FinalizationTxServiceTest {
                         "diag-1",
                         false,
                         "没有权限访问请求的字段，请调整字段后重试。"));
+
+        assertThat(result.responseType()).isEqualTo(InvocationResponseType.FAILURE);
+        assertThat(result.safeMessage()).isEqualTo("没有权限访问请求的字段，请调整字段后重试。");
+    }
+
+    @Test
+    void planningFailureUsesFailureSafeMessageWhenPresent() {
+        AgentInvocationRecordMapper invocationMapper = mock(AgentInvocationRecordMapper.class);
+        AgentTurnMapper turnMapper = mock(AgentTurnMapper.class);
+        FinalizationTxService service = new FinalizationTxService(
+                invocationMapper,
+                mock(AgentInvocationResultMapper.class),
+                turnMapper,
+                mock(ContextFinalizationParticipant.class),
+                new PayloadJsonCodec(new ObjectMapper()),
+                mock(ContractRegistry.class),
+                CLOCK);
+        when(invocationMapper.finalizeTerminal(
+                eq("inv-1"),
+                eq("FAILED"),
+                eq("FAILURE"),
+                eq("FIELD_FORBIDDEN"),
+                eq("没有权限访问请求的字段，请调整字段后重试。"),
+                eq("diag-1"),
+                any())).thenReturn(1);
+        when(turnMapper.finalizeFailure(
+                eq("turn-1"),
+                eq("inv-1"),
+                eq("FIELD_FORBIDDEN"),
+                eq("没有权限访问请求的字段，请调整字段后重试。"),
+                any())).thenReturn(1);
+
+        var result = service.commitPlanningFailure(
+                handle(),
+                new PlanningFailure(
+                        "req-1",
+                        PlanningStage.PLAN,
+                        KernelErrorCode.FIELD_FORBIDDEN,
+                        "diag-1",
+                        "没有权限访问请求的字段，请调整字段后重试。",
+                        "auth-evidence",
+                        "domain-evidence",
+                        List.of()));
 
         assertThat(result.responseType()).isEqualTo(InvocationResponseType.FAILURE);
         assertThat(result.safeMessage()).isEqualTo("没有权限访问请求的字段，请调整字段后重试。");

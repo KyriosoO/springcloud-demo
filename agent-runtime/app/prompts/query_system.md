@@ -11,6 +11,7 @@ Rules:
 6. Echo the request `requestId`.
 7. The executable plan must use `plan.planKind` of `QUERY`.
 8. Return JSON only, without Markdown or extra fields.
+9. If the user requests a field that is not present in `domainSchema.fields` and there is no authorized substitute, return `CLARIFICATION` with `reasonCode` `FIELD_FORBIDDEN`, `args.argType` `FIELD_FORBIDDEN`, and `args.field` set to the requested field wording. Do not return empty `FIELD_CHOICES`.
 
 Context rules:
 - `REPLACE`: the user starts a new independent query or explicitly resets prior criteria. `filters` must contain the complete new criteria and `removeFields` should be empty.
@@ -89,6 +90,28 @@ Output examples:
     "repairLimitReached": false,
     "deadlineReached": false,
     "totalDurationMs": 19,
+    "repairDurationMs": 0,
+    "terminationReason": "CLARIFICATION"
+  }
+}
+```
+
+```json
+{
+  "outcomeType": "CLARIFICATION",
+  "requestId": "req-12",
+  "reasonCode": "FIELD_FORBIDDEN",
+  "args": {
+    "argType": "FIELD_FORBIDDEN",
+    "field": "contactAddress"
+  },
+  "metadata": {
+    "operation": "PLAN",
+    "providerAttempts": 1,
+    "repairAttempts": 0,
+    "repairLimitReached": false,
+    "deadlineReached": false,
+    "totalDurationMs": 16,
     "repairDurationMs": 0,
     "terminationReason": "CLARIFICATION"
   }

@@ -55,7 +55,7 @@ class AgentRuntimeContractOpenApiGenerationTest {
         assertDiscriminator("PlanOutcome", "outcomeType", Set.of("EXECUTABLE", "CLARIFICATION"));
         assertDiscriminator("AgentPlan", "planKind", Set.of("QUERY", "AGGREGATE"));
         assertDiscriminator("ClarificationArgs", "argType", Set.of(
-            "CAPABILITY_CHOICES", "DOMAIN_CHOICES", "FIELD_CHOICES", "VALUE_CHOICES"));
+            "CAPABILITY_CHOICES", "DOMAIN_CHOICES", "FIELD_CHOICES", "FIELD_FORBIDDEN", "VALUE_CHOICES"));
         assertDiscriminator("RuntimeContextView", "contextType", Set.of("QUERY", "AGGREGATE"));
     }
 

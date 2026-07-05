@@ -22,6 +22,9 @@ public enum ClarificationReasonCode {
     @Schema(description = "缺少必要字段")
     FIELD_REQUIRED,
 
+    @Schema(description = "字段禁止访问")
+    FIELD_FORBIDDEN,
+
     @Schema(description = "缺少必要值")
     VALUE_REQUIRED,
 

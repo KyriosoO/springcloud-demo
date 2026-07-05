@@ -15,6 +15,9 @@ public enum ClarificationArgType {
     @Schema(description = "字段候选列表")
     FIELD_CHOICES,
 
+    @Schema(description = "字段禁止访问")
+    FIELD_FORBIDDEN,
+
     @Schema(description = "值候选列表")
     VALUE_CHOICES
 }

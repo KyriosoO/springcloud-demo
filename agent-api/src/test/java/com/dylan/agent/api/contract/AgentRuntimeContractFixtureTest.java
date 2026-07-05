@@ -5,6 +5,7 @@ import com.dylan.agent.api.contract.runtime.clarification.ClarificationArgs;
 import com.dylan.agent.api.contract.runtime.clarification.ClarificationReasonCode;
 import com.dylan.agent.api.contract.runtime.clarification.ClarificationRequired;
 import com.dylan.agent.api.contract.runtime.clarification.DomainChoiceArgs;
+import com.dylan.agent.api.contract.runtime.clarification.FieldForbiddenArgs;
 import com.dylan.agent.api.contract.runtime.clarification.FieldChoiceArgs;
 import com.dylan.agent.api.contract.runtime.clarification.ValueChoiceArgs;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
@@ -186,6 +187,8 @@ class AgentRuntimeContractFixtureTest {
         domainAmbiguous.setDomains(List.of("employee", "transaction"));
         FieldChoiceArgs fields = new FieldChoiceArgs();
         fields.setFields(List.of("name"));
+        FieldForbiddenArgs forbiddenField = new FieldForbiddenArgs();
+        forbiddenField.setField("contactAddress");
         ValueChoiceArgs valueRequired = new ValueChoiceArgs();
         valueRequired.setField("name");
         valueRequired.setValues(List.of());
@@ -198,13 +201,15 @@ class AgentRuntimeContractFixtureTest {
             ClarificationReasonCode.DOMAIN_REQUIRED,
             ClarificationReasonCode.DOMAIN_AMBIGUOUS,
             ClarificationReasonCode.FIELD_REQUIRED,
+            ClarificationReasonCode.FIELD_FORBIDDEN,
             ClarificationReasonCode.VALUE_REQUIRED,
             ClarificationReasonCode.VALUE_AMBIGUOUS);
         List<ClarificationArgs> arguments = List.of(
-            capabilities, domainRequired, domainAmbiguous, fields, valueRequired, valueAmbiguous);
+            capabilities, domainRequired, domainAmbiguous, fields, forbiddenField, valueRequired, valueAmbiguous);
         List<RuntimeOperationType> operations = List.of(
             RuntimeOperationType.ROUTE, RuntimeOperationType.ROUTE, RuntimeOperationType.ROUTE,
-            RuntimeOperationType.PLAN, RuntimeOperationType.PLAN, RuntimeOperationType.PLAN);
+            RuntimeOperationType.PLAN, RuntimeOperationType.PLAN, RuntimeOperationType.PLAN,
+            RuntimeOperationType.PLAN);
         for (int index = 0; index < reasons.size(); index++) {
             RuntimeOperationMetadata metadata = new RuntimeOperationMetadata();
             metadata.setOperation(operations.get(index));
@@ -466,25 +471,27 @@ class AgentRuntimeContractFixtureTest {
         argsTypes.put(ClarificationReasonCode.DOMAIN_REQUIRED, DomainChoiceArgs.class);
         argsTypes.put(ClarificationReasonCode.DOMAIN_AMBIGUOUS, DomainChoiceArgs.class);
         argsTypes.put(ClarificationReasonCode.FIELD_REQUIRED, FieldChoiceArgs.class);
+        argsTypes.put(ClarificationReasonCode.FIELD_FORBIDDEN, FieldForbiddenArgs.class);
         argsTypes.put(ClarificationReasonCode.VALUE_REQUIRED, ValueChoiceArgs.class);
         argsTypes.put(ClarificationReasonCode.VALUE_AMBIGUOUS, ValueChoiceArgs.class);
         assertInstanceOf(argsTypes.get(clarification.getReasonCode()), clarification.getArgs());
         RuntimeOperationType requiredOperation = switch (clarification.getReasonCode()) {
             case CAPABILITY_AMBIGUOUS, DOMAIN_REQUIRED, DOMAIN_AMBIGUOUS -> RuntimeOperationType.ROUTE;
-            case FIELD_REQUIRED, VALUE_REQUIRED, VALUE_AMBIGUOUS -> RuntimeOperationType.PLAN;
+            case FIELD_REQUIRED, FIELD_FORBIDDEN, VALUE_REQUIRED, VALUE_AMBIGUOUS -> RuntimeOperationType.PLAN;
         };
         assertEquals(requiredOperation, expected);
         List<String> choices = switch (clarification.getArgs()) {
             case CapabilityChoiceArgs value -> value.getCapabilityIds();
             case DomainChoiceArgs value -> value.getDomains();
             case FieldChoiceArgs value -> value.getFields();
+            case FieldForbiddenArgs value -> List.of(value.getField());
             case ValueChoiceArgs value -> value.getValues();
         };
         int count = new HashSet<>(choices).size();
         assertEquals(choices.size(), count);
         int minimum = switch (clarification.getReasonCode()) {
             case CAPABILITY_AMBIGUOUS, DOMAIN_AMBIGUOUS, VALUE_AMBIGUOUS -> 2;
-            case DOMAIN_REQUIRED, FIELD_REQUIRED -> 1;
+            case DOMAIN_REQUIRED, FIELD_REQUIRED, FIELD_FORBIDDEN -> 1;
             case VALUE_REQUIRED -> 0;
         };
         assertTrue(count >= minimum);
@@ -499,6 +506,9 @@ class AgentRuntimeContractFixtureTest {
                 .map(RuntimeDomainFieldSchema::getField).collect(Collectors.toSet());
         if (clarification.getArgs() instanceof FieldChoiceArgs choices) {
             assertTrue(fields.containsAll(choices.getFields()));
+        }
+        if (clarification.getArgs() instanceof FieldForbiddenArgs) {
+            assertEquals(ClarificationReasonCode.FIELD_FORBIDDEN, clarification.getReasonCode());
         }
         if (clarification.getArgs() instanceof ValueChoiceArgs choices) {
             assertTrue(fields.contains(choices.getField()));

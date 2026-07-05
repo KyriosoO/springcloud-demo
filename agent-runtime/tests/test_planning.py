@@ -9,11 +9,17 @@ from tests.test_runtime_api import _plan_request, _route_request
 
 
 class StubLlmClient:
-    def __init__(self, raw: str):
+    def __init__(self, raw: str, repaired: str | None = None):
         self.raw = raw
+        self.repaired = repaired
 
     async def generate_plan_json(self, system_prompt, user_payload):
         return self.raw
+
+    async def repair_json(self, repair_system_prompt, invalid_output, validation_errors, user_payload):
+        if self.repaired is None:
+            raise AssertionError("repair_json was not expected")
+        return self.repaired
 
 
 @pytest.mark.asyncio
@@ -29,13 +35,49 @@ async def test_route_planner_maps_invalid_llm_output_to_contract_error():
 
 @pytest.mark.asyncio
 async def test_plan_planner_maps_invalid_llm_output_to_contract_error():
+    request_payload = _plan_request()
+    request_payload["repairLimit"] = 0
     planner = RuntimePlanPlanner(StubLlmClient('{"outcomeType":"EXECUTABLE"}'))
 
     with pytest.raises(RuntimePlanError) as error:
-        await planner.plan(PlanRequest.model_validate(_plan_request()))
+        await planner.plan(PlanRequest.model_validate(request_payload))
 
     assert error.value.code == "CONTRACT_INVALID"
     assert error.value.request_id == "flow-001"
+
+
+@pytest.mark.asyncio
+async def test_plan_planner_repairs_invalid_llm_output_once():
+    planner = RuntimePlanPlanner(
+        StubLlmClient(
+            '{"outcomeType":"EXECUTABLE","requestId":"flow-001","plan":',
+            """
+            {
+              "outcomeType": "CLARIFICATION",
+              "requestId": "other-request-id",
+              "reasonCode": "FIELD_FORBIDDEN",
+              "args": {"argType": "FIELD_FORBIDDEN", "field": "contactAddress"},
+              "metadata": {
+                "operation": "PLAN",
+                "providerAttempts": 1,
+                "repairAttempts": 0,
+                "repairDurationMs": 0,
+                "totalDurationMs": 1,
+                "terminationReason": "CLARIFICATION",
+                "deadlineReached": false,
+                "repairLimitReached": false
+              }
+            }
+            """,
+        )
+    )
+
+    outcome = await planner.plan(PlanRequest.model_validate(_plan_request()))
+
+    assert outcome.request_id == "flow-001"
+    assert outcome.reason_code.value == "FIELD_FORBIDDEN"
+    assert outcome.metadata.provider_attempts == 2
+    assert outcome.metadata.repair_attempts == 1
 
 
 def test_route_request_id_mismatch_rejected():
@@ -49,6 +91,42 @@ def test_route_request_id_mismatch_rejected():
             '"terminationReason":"COMPLETED","deadlineReached":false,"repairLimitReached":false}}',
             request,
         )
+
+
+def test_plan_request_id_mismatch_is_normalized():
+    request = PlanRequest.model_validate(_plan_request())
+
+    outcome = _parse_plan(
+        """
+        {
+          "outcomeType": "EXECUTABLE",
+          "requestId": "previous-request-id",
+          "plan": {
+            "planKind": "QUERY",
+            "query": {
+              "filters": [{"field": "name", "operator": "CONTAINS", "value": "张"}],
+              "selectFields": ["name"],
+              "page": 2,
+              "size": 20
+            }
+          },
+          "metadata": {
+            "operation": "PLAN",
+            "providerAttempts": 1,
+            "repairAttempts": 0,
+            "repairDurationMs": 0,
+            "totalDurationMs": 1,
+            "terminationReason": "COMPLETED",
+            "deadlineReached": false,
+            "repairLimitReached": false
+          }
+        }
+        """,
+        request,
+    )
+
+    assert outcome.request_id == "flow-001"
+    assert outcome.plan.query.page == 2
 
 
 def test_route_can_return_query_preview_decision():
@@ -141,3 +219,31 @@ def test_plan_clarification_is_typed_and_has_no_question():
 
     assert outcome.reason_code.value == "VALUE_REQUIRED"
     assert not hasattr(outcome, "question")
+
+
+def test_plan_field_forbidden_clarification_is_contract_valid():
+    request = PlanRequest.model_validate(_plan_request())
+    outcome = _parse_plan(
+        """
+        {
+          "outcomeType": "CLARIFICATION",
+          "requestId": "flow-001",
+          "reasonCode": "FIELD_FORBIDDEN",
+          "args": {"argType": "FIELD_FORBIDDEN", "field": "contactAddress"},
+          "metadata": {
+            "operation": "PLAN",
+            "providerAttempts": 1,
+            "repairAttempts": 0,
+            "repairDurationMs": 0,
+            "totalDurationMs": 1,
+            "terminationReason": "CLARIFICATION",
+            "deadlineReached": false,
+            "repairLimitReached": false
+          }
+        }
+        """,
+        request,
+    )
+
+    assert outcome.reason_code.value == "FIELD_FORBIDDEN"
+    assert outcome.args.field == "contactAddress"

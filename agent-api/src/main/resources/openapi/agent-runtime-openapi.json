@@ -261,7 +261,7 @@
         "type" : "object"
       },
       "ClarificationArgType" : {
-        "enum" : [ "CAPABILITY_CHOICES", "DOMAIN_CHOICES", "FIELD_CHOICES", "VALUE_CHOICES" ],
+        "enum" : [ "CAPABILITY_CHOICES", "DOMAIN_CHOICES", "FIELD_CHOICES", "FIELD_FORBIDDEN", "VALUE_CHOICES" ],
         "type" : "string"
       },
       "ClarificationArgs" : {
@@ -271,6 +271,7 @@
             "CAPABILITY_CHOICES" : "#/components/schemas/CapabilityChoiceArgs",
             "DOMAIN_CHOICES" : "#/components/schemas/DomainChoiceArgs",
             "FIELD_CHOICES" : "#/components/schemas/FieldChoiceArgs",
+            "FIELD_FORBIDDEN" : "#/components/schemas/FieldForbiddenArgs",
             "VALUE_CHOICES" : "#/components/schemas/ValueChoiceArgs"
           },
           "propertyName" : "argType"
@@ -282,11 +283,13 @@
         }, {
           "$ref" : "#/components/schemas/FieldChoiceArgs"
         }, {
+          "$ref" : "#/components/schemas/FieldForbiddenArgs"
+        }, {
           "$ref" : "#/components/schemas/ValueChoiceArgs"
         } ]
       },
       "ClarificationReasonCode" : {
-        "enum" : [ "CAPABILITY_AMBIGUOUS", "DOMAIN_REQUIRED", "DOMAIN_AMBIGUOUS", "FIELD_REQUIRED", "VALUE_REQUIRED", "VALUE_AMBIGUOUS" ],
+        "enum" : [ "CAPABILITY_AMBIGUOUS", "DOMAIN_REQUIRED", "DOMAIN_AMBIGUOUS", "FIELD_REQUIRED", "FIELD_FORBIDDEN", "VALUE_REQUIRED", "VALUE_AMBIGUOUS" ],
         "type" : "string"
       },
       "ClarificationRequired" : {
@@ -384,6 +387,24 @@
           }
         },
         "required" : [ "argType", "fields" ],
+        "type" : "object"
+      },
+      "FieldForbiddenArgs" : {
+        "additionalProperties" : false,
+        "description" : "字段禁止访问",
+        "properties" : {
+          "argType" : {
+            "description" : "ClarificationArgs 子类型",
+            "enum" : [ "FIELD_FORBIDDEN" ],
+            "type" : "string"
+          },
+          "field" : {
+            "description" : "用户请求但当前不可访问的字段或字段描述",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "argType", "field" ],
         "type" : "object"
       },
       "PlanOutcome" : {
@@ -986,6 +1007,11 @@
             "minimum" : 1,
             "type" : "integer"
           },
+          "sourceInvocationId" : {
+            "description" : "来源 Invocation 标识",
+            "minLength" : 1,
+            "type" : "string"
+          },
           "total" : {
             "description" : "上轮查询总数；仅 totalExact=true 时可用于精确分页",
             "format" : "int64",
@@ -1004,11 +1030,6 @@
             "minimum" : 1,
             "nullable" : true,
             "type" : "integer"
-          },
-          "sourceInvocationId" : {
-            "description" : "来源 Invocation 标识",
-            "minLength" : 1,
-            "type" : "string"
           }
         },
         "required" : [ "contextType", "filters", "page", "selectFields", "size", "sourceInvocationId" ],

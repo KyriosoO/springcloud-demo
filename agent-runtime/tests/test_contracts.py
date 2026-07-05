@@ -27,6 +27,7 @@ CLARIFICATION_BINDINGS = {
     "DOMAIN_REQUIRED": ("DOMAIN_CHOICES", "ROUTE"),
     "DOMAIN_AMBIGUOUS": ("DOMAIN_CHOICES", "ROUTE"),
     "FIELD_REQUIRED": ("FIELD_CHOICES", "PLAN"),
+    "FIELD_FORBIDDEN": ("FIELD_FORBIDDEN", "PLAN"),
     "VALUE_REQUIRED": ("VALUE_CHOICES", "PLAN"),
     "VALUE_AMBIGUOUS": ("VALUE_CHOICES", "PLAN"),
 }
@@ -35,6 +36,7 @@ CHOICE_FIELDS = {
     "CAPABILITY_CHOICES": "capability_ids",
     "DOMAIN_CHOICES": "domains",
     "FIELD_CHOICES": "fields",
+    "FIELD_FORBIDDEN": "field",
     "VALUE_CHOICES": "values",
 }
 
@@ -43,6 +45,7 @@ MIN_CHOICES = {
     "DOMAIN_REQUIRED": 1,
     "DOMAIN_AMBIGUOUS": 2,
     "FIELD_REQUIRED": 1,
+    "FIELD_FORBIDDEN": 1,
     "VALUE_REQUIRED": 0,
     "VALUE_AMBIGUOUS": 2,
 }
@@ -64,6 +67,8 @@ def _assert_clarification_binding(clarification: object) -> None:
     actual = (arg_type_value, clarification.metadata.operation.value)
     assert actual == CLARIFICATION_BINDINGS[reason]
     choices = getattr(clarification.args, CHOICE_FIELDS[arg_type_value])
+    if isinstance(choices, str):
+        choices = [choices]
     assert len(set(choices)) == len(choices)
     assert len(set(choices)) >= MIN_CHOICES[reason]
 
@@ -223,6 +228,12 @@ def test_requests_share_single_contract_generation():
         (
             "FIELD_REQUIRED",
             {"argType": "FIELD_CHOICES", "fields": ["name"]},
+            "PLAN",
+            g.PlanOutcome,
+        ),
+        (
+            "FIELD_FORBIDDEN",
+            {"argType": "FIELD_FORBIDDEN", "field": "contactAddress"},
             "PLAN",
             g.PlanOutcome,
         ),

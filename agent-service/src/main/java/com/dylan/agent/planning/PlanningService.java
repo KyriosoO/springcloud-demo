@@ -145,6 +145,7 @@ public final class PlanningService {
             try {
                 executable = planOutcomeValidator.validate(planned.outcome(), command, registration);
             } catch (PlanOutcomeValidator.PlanClarificationException ex) {
+                throwIfPlanFieldForbidden(command, ex, evidence, available, routeAudit, planAudit);
                 return clarificationResolver.planClarification(
                         ex.clarification(),
                         routeDecision,
@@ -159,6 +160,8 @@ public final class PlanningService {
                         "planning-plan-invalid", evidence, available, List.of(routeAudit, planAudit));
             }
         } catch (PlanOutcomeValidator.PlanClarificationException ex) {
+            throwIfPlanFieldForbidden(command, ex, evidence, available, routeAudit,
+                    reported(ex.clarification().getMetadata(), 0L));
             return clarificationResolver.planClarification(
                     ex.clarification(),
                     routeDecision,
@@ -207,6 +210,23 @@ public final class PlanningService {
             throw failure(command, PlanningStage.PROFILE_POLICY, KernelErrorCode.PERMISSION_UNAVAILABLE,
                     "planning-auth-capture", null, null, List.of());
         }
+    }
+
+    private void throwIfPlanFieldForbidden(
+            PlanningCommand command,
+            PlanOutcomeValidator.PlanClarificationException exception,
+            PlanningAuthorizationEvidence evidence,
+            AvailableCapabilitySnapshot available,
+            PlanningOperationAudit routeAudit,
+            PlanningOperationAudit planAudit) {
+        if (exception.clarification().getReasonCode()
+                != com.dylan.agent.api.contract.runtime.clarification.ClarificationReasonCode.FIELD_FORBIDDEN) {
+            return;
+        }
+        throw failure(command, PlanningStage.PLAN, KernelErrorCode.FIELD_FORBIDDEN,
+                "planning-field-forbidden",
+                "没有权限访问请求的字段，请调整字段后重试。",
+                evidence, available, List.of(routeAudit, planAudit));
     }
 
     private AvailableCapabilitySnapshot availableCapabilities(
@@ -375,11 +395,24 @@ public final class PlanningService {
             PlanningAuthorizationEvidence evidence,
             AvailableCapabilitySnapshot available,
             List<PlanningOperationAudit> audits) {
+        return failure(command, stage, errorCode, diagnosticId, null, evidence, available, audits);
+    }
+
+    private PlanningFailureException failure(
+            PlanningCommand command,
+            PlanningStage stage,
+            KernelErrorCode errorCode,
+            String diagnosticId,
+            String safeMessage,
+            PlanningAuthorizationEvidence evidence,
+            AvailableCapabilitySnapshot available,
+            List<PlanningOperationAudit> audits) {
         return new PlanningFailureException(new PlanningFailure(
                 command.handle().requestCorrelationId(),
                 stage,
                 errorCode,
                 diagnosticId,
+                safeMessage,
                 evidence == null ? null : evidence.evidenceDigest(),
                 available == null ? null : available.domainMetadataEvidence().safeRef(),
                 audits));

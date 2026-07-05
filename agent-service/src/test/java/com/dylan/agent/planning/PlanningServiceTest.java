@@ -13,6 +13,7 @@ import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.runtime.clarification.ClarificationReasonCode;
 import com.dylan.agent.api.contract.runtime.clarification.ClarificationRequired;
 import com.dylan.agent.api.contract.runtime.clarification.DomainChoiceArgs;
+import com.dylan.agent.api.contract.runtime.clarification.FieldForbiddenArgs;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.RuntimeOperationType;
@@ -184,6 +185,30 @@ class PlanningServiceTest {
     }
 
     @Test
+    void planFieldForbiddenClarificationBecomesPlanningFailure() {
+        ResolvedRegistration registration = KernelTestSupport.resolvedQueryRegistration();
+        PlanningAuthorizationEvidence evidence = evidence();
+        AvailableCapabilitySnapshot available = available(registration);
+        when(authorizationPlanningPort.capture(any())).thenReturn(evidence);
+        when(capabilityCatalog.available(evidence)).thenReturn(available);
+        when(requestFactory.routeRequest(any(), any(), any())).thenReturn(new RouteRequest());
+        when(runtimeClient.route(any())).thenReturn(routeDecision());
+        when(selectionResolver.resolve(any(), any())).thenReturn(registration);
+        when(requestFactory.planRequest(any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
+        when(runtimeClient.plan(any())).thenReturn(fieldForbiddenClarification());
+
+        assertThatThrownBy(() -> service.plan(command(), token()))
+                .isInstanceOf(PlanningFailureException.class)
+                .satisfies(error -> {
+                    PlanningFailureException ex = (PlanningFailureException) error;
+                    assertThat(ex.failure().errorCode()).isEqualTo(KernelErrorCode.FIELD_FORBIDDEN);
+                    assertThat(ex.failure().safeMessage())
+                            .contains("没有权限访问请求的字段，请调整字段后重试。");
+                    assertThat(ex.failure().operationAudits()).hasSize(2);
+                });
+    }
+
+    @Test
     void cancelledTokenStopsBeforeAuthorizationCapture() {
         CancellationSource source = new CancellationSource();
         source.cancel(KernelErrorCode.CANCELLED);
@@ -323,6 +348,17 @@ class PlanningServiceTest {
         clarification.setReasonCode(ClarificationReasonCode.DOMAIN_REQUIRED);
         clarification.setArgs(args);
         clarification.setMetadata(RuntimeContractTestSupport.metadata(RuntimeOperationType.ROUTE));
+        return clarification;
+    }
+
+    private static ClarificationRequired fieldForbiddenClarification() {
+        FieldForbiddenArgs args = new FieldForbiddenArgs();
+        args.setField("contactAddress");
+        ClarificationRequired clarification = new ClarificationRequired();
+        clarification.setRequestId("req-1");
+        clarification.setReasonCode(ClarificationReasonCode.FIELD_FORBIDDEN);
+        clarification.setArgs(args);
+        clarification.setMetadata(RuntimeContractTestSupport.metadata(RuntimeOperationType.PLAN));
         return clarification;
     }
 

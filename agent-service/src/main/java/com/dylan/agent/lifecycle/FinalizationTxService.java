@@ -95,7 +95,7 @@ public class FinalizationTxService {
             InvocationHandle handle,
             PlanningFailure failure) {
         Objects.requireNonNull(failure, "failure must not be null");
-        String safeMessage = "规划失败，请稍后重试。";
+        String safeMessage = failure.safeMessage().orElse("规划失败，请稍后重试。");
         finalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
                 failure.errorCode(), safeMessage, failure.diagnosticId());
         finalizeTurnFailure(handle, failure.errorCode(), safeMessage);

@@ -11,6 +11,7 @@ Rules:
 6. Echo the request `requestId`.
 7. The executable plan must use `plan.planKind` of `AGGREGATE`.
 8. Return JSON only, without Markdown or extra fields.
+9. If the user requests a field that is not present in `domainSchema.fields` and there is no authorized substitute, return `CLARIFICATION` with `reasonCode` `FIELD_FORBIDDEN`, `args.argType` `FIELD_FORBIDDEN`, and `args.field` set to the requested field wording. Do not return empty `FIELD_CHOICES`.
 
 Aggregate rules:
 - `filters`: pre-aggregation filter conditions using the same structure as QUERY. Use only allowed fields and operators. Can be empty.

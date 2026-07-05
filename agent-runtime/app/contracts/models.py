@@ -25,6 +25,7 @@ from app.contracts.generated_models import (  # noqa: F401
     Direction as Direction,
     DomainChoiceArgs as DomainChoiceArgs,
     ExecutablePlan as ExecutablePlan,
+    FieldForbiddenArgs as FieldForbiddenArgs,
     FieldChoiceArgs as FieldChoiceArgs,
     PlanOutcome as PlanOutcome,
     PlanRequest as PlanRequest,

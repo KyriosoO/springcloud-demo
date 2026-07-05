@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: cf61c645186b1a624c67b2e4dabdcbd43c97161e4bd98d786114dbcd860b623e
+# source_sha256: 140868c742286d305e41046e95337a3091427607b24d86440989f6f178854865
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -135,6 +135,7 @@ class ClarificationArgType(str, Enum):
     capability_choices = 'CAPABILITY_CHOICES'
     domain_choices = 'DOMAIN_CHOICES'
     field_choices = 'FIELD_CHOICES'
+    field_forbidden = 'FIELD_FORBIDDEN'
     value_choices = 'VALUE_CHOICES'
 
 
@@ -143,6 +144,7 @@ class ClarificationReasonCode(str, Enum):
     domain_required = 'DOMAIN_REQUIRED'
     domain_ambiguous = 'DOMAIN_AMBIGUOUS'
     field_required = 'FIELD_REQUIRED'
+    field_forbidden = 'FIELD_FORBIDDEN'
     value_required = 'VALUE_REQUIRED'
     value_ambiguous = 'VALUE_AMBIGUOUS'
 
@@ -210,6 +212,31 @@ class FieldChoiceArgs(BaseModel):
     )
     fields: List[str] = Field(
         ..., description='候选字段列表（1～50，去重）', max_length=50, min_length=1
+    )
+
+
+class ArgType3(str, Enum):
+    """
+    ClarificationArgs 子类型
+    """
+
+    field_forbidden = 'FIELD_FORBIDDEN'
+
+
+class FieldForbiddenArgs(BaseModel):
+    """
+    字段禁止访问
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    arg_type: Literal['FIELD_FORBIDDEN'] = Field(
+        ..., alias='argType', description='ClarificationArgs 子类型'
+    )
+    field: str = Field(
+        ..., description='用户请求但当前不可访问的字段或字段描述', min_length=1
     )
 
 
@@ -423,7 +450,7 @@ class RuntimeTurnRole(str, Enum):
     assistant = 'ASSISTANT'
 
 
-class ArgType3(str, Enum):
+class ArgType4(str, Enum):
     """
     ClarificationArgs 子类型
     """
@@ -592,6 +619,12 @@ class RuntimeQueryContextView(BaseModel):
         ..., alias='selectFields', description='上轮查询展示字段'
     )
     size: int = Field(..., description='上轮 size', ge=1)
+    source_invocation_id: str = Field(
+        ...,
+        alias='sourceInvocationId',
+        description='来源 Invocation 标识',
+        min_length=1,
+    )
     total: Optional[int] = Field(
         None, description='上轮查询总数；仅 totalExact=true 时可用于精确分页', ge=0
     )
@@ -603,12 +636,6 @@ class RuntimeQueryContextView(BaseModel):
         alias='totalPages',
         description='上轮查询总页数；仅 totalExact=true 时可用于末页计算',
         ge=1,
-    )
-    source_invocation_id: str = Field(
-        ...,
-        alias='sourceInvocationId',
-        description='来源 Invocation 标识',
-        min_length=1,
     )
 
 
@@ -684,7 +711,11 @@ class ClarificationRequired(BaseModel):
         populate_by_name=True,
     )
     args: Union[
-        CapabilityChoiceArgs, DomainChoiceArgs, FieldChoiceArgs, ValueChoiceArgs
+        CapabilityChoiceArgs,
+        DomainChoiceArgs,
+        FieldChoiceArgs,
+        FieldForbiddenArgs,
+        ValueChoiceArgs,
     ] = Field(..., description='ClarificationArgs 联合类型', discriminator='arg_type')
     metadata: RuntimeOperationMetadata
     outcome_type: Literal['CLARIFICATION'] = Field(

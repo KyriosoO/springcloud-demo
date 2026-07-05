@@ -73,6 +73,7 @@ public final class PlanningClarificationResolver {
             case DOMAIN_REQUIRED -> "请确认要查询的领域：" + joinDomains(clarification);
             case DOMAIN_AMBIGUOUS -> "请确认具体领域：" + joinDomains(clarification);
             case FIELD_REQUIRED -> "请补充需要使用的字段：" + joinFields(clarification);
+            case FIELD_FORBIDDEN -> "没有权限访问请求的字段，请调整字段后重试。";
             case VALUE_REQUIRED -> "请补充字段 `" + valueField(clarification) + "` 的取值。";
             case VALUE_AMBIGUOUS -> "请确认字段 `" + valueField(clarification) + "` 的取值：" + joinValues(clarification);
         };
