@@ -1,7 +1,7 @@
 # D02_02 Invocation 生命周期与持久化 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充字段越权安全提示终结规则）
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充字段越权安全提示终结规则；2026-07-05 已补充 Runtime 输出修复失败的安全终结规则）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`  
@@ -15,6 +15,7 @@
 | 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
 |---:|---|---|---|---|
 | 1 | 2026-07-04 | 授权恢复 / 第 2、3、4、11～13 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `FIELD_FORBIDDEN` 错误码、`ExecutionFailure.safeMessage` 终结规则、`commitExecutionFailure` 安全提示来源和测试门禁。 |
+| 2 | 2026-07-05 | 授权恢复 / 第 3～4、13 节 | UAT 修复后同步设计 | 明确 `OUTPUT_REPAIR_EXHAUSTED`/`RUNTIME_OUTPUT_INVALID` 仍走 Planning failure 安全提示，Lifecycle 不暴露 Runtime 原始输出或 repair 内容。 |
 
 ---
 
@@ -166,7 +167,7 @@ FINALIZATION, CANCELLATION_DEADLINE, RECOVERY
 
 `StoredInvocationResult` 字段：resultId、output ContractRef（成功时）、解密后的filtered/masked `AgentResultPayload`（成功时）、safe message、safe summary。它只用于当前API响应重建，不是Multi-Agent ResultRef，不可跨Task传播。
 
-`FinalizedInvocationResult.safeMessage`来源规则：SUCCESS使用`SecuredResult.safeMessage`；CLARIFY使用`ResolvedClarification`渲染后的安全问题；Planning failure使用`PlanningFailure.safeMessage`或规划失败兜底；Execution failure优先使用D02_01 `ExecutionFailure.safeMessage`，为空时使用“执行失败，请稍后重试。”；CANCELLED使用取消/超时安全提示。Lifecycle不得把异常message、SQL、下游原文、权限正文、JWT或未脱敏业务值写入safeMessage。
+`FinalizedInvocationResult.safeMessage`来源规则：SUCCESS使用`SecuredResult.safeMessage`；CLARIFY使用`ResolvedClarification`渲染后的安全问题；Planning failure使用`PlanningFailure.safeMessage`或规划失败兜底；Execution failure优先使用D02_01 `ExecutionFailure.safeMessage`，为空时使用“执行失败，请稍后重试。”；CANCELLED使用取消/超时安全提示。Lifecycle不得把异常message、SQL、下游原文、权限正文、JWT、Runtime原始输出、repair前后payload或未脱敏业务值写入safeMessage。
 
 `ContextWriteCommitRef`是不可变安全审计值，字段为contextId、RuntimeContextType、target ContractRef、targetRecordVersion和由上述规范值计算的SHA-256 digest；不含payload、Owner/Scope重复副本或密钥。SUCCESS即使没有Context write也必须持久化非null空列表`[]`，从而区分“明确零写入”和“终结数据不完整”。
 
@@ -239,6 +240,8 @@ normal Tx return → reread authoritative FinalizedInvocationResult; commit exce
 ```
 
 Lifecycle 不修改 Core outcome，不重新执行 Handler/Adapter，不自行过滤结果或审批 Context。
+
+`commitPlanningFailure`必须把`PlanningFailure.safeMessage`作为规划失败响应的首选安全提示；当该值为空、blank或不符合安全文本约束时，使用固定兜底“规划失败，请稍后重试。”。Runtime `OUTPUT_REPAIR_EXHAUSTED` 经 Planning 映射为 `RUNTIME_OUTPUT_INVALID` 时仍按 Planning failure 终结，不得把 Runtime 原始输出、repair prompt、repair payload 或 provider message 写入用户提示。
 
 `commitExecutionFailure`必须把`outcome.safeMessage()`作为失败响应的首选安全提示；当该值为空、blank或不符合安全文本约束时，使用固定兜底“执行失败，请稍后重试。”。`FIELD_FORBIDDEN`场景由Core提供字段越权安全提示，Lifecycle只负责持久化和重读，不重新判断字段权限。
 
@@ -657,5 +660,6 @@ D03修改现有`ConversationCleanupJob`和`ConversationService.cleanupExpired`�
 9. 所有类、方法、SQL、配置、事务和测试已明确列出。
 10. `FIELD_FORBIDDEN`可以通过Invocation终结、权威重读和API映射稳定返回为字段权限不足提示。
 11. `commitExecutionFailure`不会把内部异常message作为用户提示，且不会覆盖Core给出的安全字段越权提示。
+12. `commitPlanningFailure`不会把 Runtime 原始输出、repair prompt、repair payload 或 provider message 作为用户提示；`OUTPUT_REPAIR_EXHAUSTED` 只表现为安全规划失败提示和内部诊断ID。
 
 最终评审结论（2026-06-30）：本文已与D02_00、D02_01、D02_03及上级L1交叉复审；Start、checkpoint、原子finalization、commit unknown、CAS loser、recovery、deadline/cancel和结果重建闭环完整，当前文档基线下无未决问题。D01退出后必须复核PlanningResult所引用的实际生成类型。

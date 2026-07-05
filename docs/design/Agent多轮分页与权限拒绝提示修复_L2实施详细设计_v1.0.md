@@ -17,6 +17,7 @@
 | 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-04 | 全文 | 新建详细设计 | 针对多轮分页、末页计算、权限不足友好拒绝提示三个优先问题，给出 Java/Python/Context/测试实施方案，并核实关联设计文档是否需要同步修订。 |
+| 2 | 2026-07-05 | 第 3、6、7、11～23 节 | UAT 修复后同步设计 | 补充 Runtime Plan `requestId` 防御性归一化、bounded output repair、`OUTPUT_REPAIR_EXHAUSTED` 失败映射、测试门禁与关联文档同步结论。 |
 
 ## 3. 任务背景与问题结论
 
@@ -26,6 +27,7 @@
 
 1. 第一轮输入“查询上海地区员工”后，第二轮输入“查看最后一页”或明确页码时，Runtime 可以表达 `MERGE` 语义，但 Java 校验侧未实际合并上一轮 `QueryCapabilityContextPayload`，导致 `filters` 为空或 `page` 无法绑定，最终进入失败路径。
 2. viewer 角色请求 employee 域的地址、电话、邮箱、身份证等未授权字段时，后端 fail closed 是正确的，但对前端返回 `AGENT_PLAN_INVALID`，用户看到的是“规划失败/执行失败”一类泛化提示，不能表达“当前角色无权限访问这些字段”。
+3. UAT 中发现 Runtime Plan 输出可能携带旧 `requestId` 或非严格 JSON，导致 Java/Python 契约校验前即返回 `AGENT_PLAN_INVALID`。该问题不属于业务权限或分页合并问题，而是 Runtime 输出防御性处理不足。
 
 ### 3.2 根因结论
 
@@ -34,6 +36,8 @@
 | 第二轮分页失败 | `QueryPlanValidator` 只校验当前 plan，不按 `contextMode=MERGE` 合并上一轮 filters/selectFields/page/size。 | 多轮查询上下文失效，用户无法翻页、查看末页或继承过滤条件。 |
 | 末页无法计算 | `QueryCapabilityContextPayload` 与 `RuntimeQueryContextView` 不携带 `total/totalExact/totalPages`。 | Runtime 没有足够上下文把“最后一页”转换成确定页码；Java 也无法做页码边界校验。 |
 | 权限拒绝提示不友好 | 字段校验异常被归为 `PLAN_VALIDATION_FAILED`，再映射成 `AGENT_PLAN_INVALID`；执行失败持久化没有明确 safeMessage 来源。 | 安全拒绝语义被误报为规划失败，影响用户判断，也不利于审计和问题定位。 |
+| Plan `requestId` 回显漂移 | 模型在第二轮 Plan 输出中回显历史 `requestId`，Runtime 未在本地契约输出前归一化当前请求标识。 | 合法用户意图被误判为 Runtime contract invalid，分页链路中断。 |
+| Plan 输出结构不稳定 | LLM 偶发返回截断或非严格 JSON；Runtime 未按 D01 `repairLimit` 执行受限修复。 | 可修复的结构错误直接升级为规划失败，viewer 权限拒绝等场景无法进入后端语义化拒绝链路。 |
 
 ## 4. 上级文档约束
 
@@ -41,6 +45,7 @@
 | --- | --- | --- |
 | `docs/design/Agent目标架构总览_v1.0.md` | Java 是契约与最终授权执行边界；Runtime 不可信；Context 是最小化类型化规划状态。 | 分页上下文只增加必要分页元数据；权限判断仍在 Java 校验与执行边界完成。 |
 | `docs/design/Agent契约与规划架构设计_v1.0.md` | Runtime 只接收最小 Context View；Runtime 的合并建议必须由 Java 确定性处理并再次校验。 | Runtime 可根据 Context View 给出页码建议；Java 对 MERGE 后最终查询做确定性合并和校验。 |
+| `docs/design/Agent契约与规划架构设计_v1.0.md` | PlanOutcome 必须与 PlanRequest 绑定；Runtime repair 不得突破 `repairLimit`、deadline 或 metadata 约束。 | Runtime 仅在返回前对可定位的 Plan `requestId` 做当前请求归一化；结构修复最多按请求 `repairLimit` 执行一次，修复耗尽返回 `OUTPUT_REPAIR_EXHAUSTED`。 |
 | `docs/design/Agent能力执行内核架构设计_v1.0.md` | Execution Core 统一执行授权复检、能力校验、Handler、ResultSecurity、Context 审批、Lifecycle finalization。 | 不把权限拒绝或分页逻辑下沉到 Adapter；Core 保持统一错误码和 safeMessage 出口。 |
 | `docs/design/Agent元数据与上下文安全架构设计_v1.0.md` | Runtime 不接收 JWT、完整权限、mask 规则或未授权 metadata；结果安全必须在后端统一收口。 | 新增的 `total/totalExact/totalPages` 不是业务明细结果，不包含敏感字段值；未授权字段不进入 Runtime schema，越权仍 fail closed。 |
 
@@ -71,6 +76,7 @@
 | 字段权限不足拒绝 | 对存在但未授权的字段返回权限拒绝错误码和安全提示。 |
 | Lifecycle 友好提示 | 执行失败 safeMessage 进入持久化和最终 API 响应。 |
 | Runtime prompt/model | 让 Runtime 能基于分页上下文输出确定页码，无法确定时发起澄清。 |
+| Runtime Plan 防御性修复 | 对 Plan 输出中的当前请求绑定和可修复 JSON 结构做受限修复，避免可恢复输出直接变成泛化规划失败。 |
 | 测试设计 | 覆盖 Java 单元、Context 序列化、Python contract/prompt 行为、端到端手工验证。 |
 
 ### 6.2 范围外
@@ -82,6 +88,7 @@
 | 在 Adapter 内计算权限或错误码 | Adapter 只负责下游执行映射，不承担主体权限判断。 |
 | 前端本地推断权限不足 | 权限拒绝必须来自后端权威错误码和 safeMessage。 |
 | 引入新的数据库列 | Context payload 走现有加密 JSON 存储，新增字段不需要表结构变更。 |
+| Runtime/Java 传输级重试 | 本设计只允许 Runtime 内部 bounded output repair；不引入 Route/Plan 传输级重试、跨请求幂等重放或新的 attempt budget。 |
 
 ## 7. 总体方案
 
@@ -108,6 +115,8 @@ flowchart LR
 | `total` 是否属于敏感业务结果 | 不属于业务明细，但属于规划状态。 | 仅暴露总条数、是否精确、总页数，不暴露员工字段值或权限规则。 |
 | 权限不足是否仍返回 `AGENT_PLAN_INVALID` | 不应继续返回。 | 用户请求存在但未授权字段时，行为是安全拒绝，不是规划结构无效。 |
 | 未授权字段是否可以在 Runtime 阶段完全避免 | 不能完全依赖 Runtime。 | Runtime schema 已过滤未授权字段，但用户明示敏感字段或模型幻觉时，Java 必须二次 fail closed。 |
+| Runtime 是否可以改写任意 `requestId` | 不可以。 | 仅允许在 Plan 输出已解析且存在 `requestId` 字段时，将该字段归一化为当前 PlanRequest 的 `requestId`；不得改写 capability、domain、planKind 或用户查询语义。 |
+| Runtime repair 是否等同重试 | 不等同。 | repair 只针对同一次 provider 输出做结构化修复，必须受 `repairLimit`、deadline 和 metadata 约束；失败时返回 typed `OUTPUT_REPAIR_EXHAUSTED`，不得静默降级或伪造成功。 |
 
 ## 8. 多轮分页详细设计
 
@@ -252,7 +261,9 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | --- | --- |
 | `agent-runtime/app/prompts/query_system.md` | 增加多轮分页规则：第 N 页、上一页、下一页、第一页、最后一页；最后一页必须依赖 `totalExact=true` 和 `totalPages`。 |
 | Python generated models | 通过 Java OpenAPI/contract 生成流程更新 `RuntimeQueryContextView` 字段，禁止手工维护生成代码长期漂移。 |
+| `agent-runtime/app/core/runtime_planning.py` | Plan 输出解析后执行当前请求 `requestId` 归一化；当 JSON/契约校验失败且 `repairLimit>0` 时调用现有 repair 能力修复一次，修复成功后更新 metadata，修复失败返回 `OUTPUT_REPAIR_EXHAUSTED`。 |
 | Runtime plan tests/fixtures | 增加 “查看最后一页” 有精确总页数时输出 `page=totalPages`、无总页数时输出 clarification 的用例。 |
+| Runtime repair tests | 增加 Plan `requestId` 漂移归一化、非法 Plan 输出被修复一次、repair 耗尽返回 typed error 的用例。 |
 | Runtime console 日志 | 若前序已要求 `_error` 打印具体失败信息，应保留安全日志边界：console 可输出 Runtime 内部错误摘要，不能输出 JWT、权限正文或敏感业务值。 |
 
 ## 12. 兼容性与迁移
@@ -264,6 +275,8 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | Context migration | 如果当前 Context 存储严格校验 contract version，新增 `QueryContextV1ToV1_1Migrator`，将旧 payload 补齐 null 字段。 |
 | 无历史上下文 | 第二轮分页缺上下文时不执行查询，返回友好澄清或安全失败。 |
 | `totalExact=false` | 不支持“最后一页”自动计算，提示用户指定页码或重新查询。 |
+| Plan `requestId` 归一化 | 只影响 Runtime 返回前的 envelope 绑定字段，不改变 Plan 内业务语义；Java 仍按 D01 绑定校验消费 Runtime 输出。 |
+| `OUTPUT_REPAIR_EXHAUSTED` | 保持现有 Runtime error contract；Java 映射为 `RUNTIME_OUTPUT_INVALID`，最终 safeMessage 使用规划失败安全提示，不暴露原始 LLM 输出。 |
 
 ## 13. 授权、安全与审计
 
@@ -274,12 +287,14 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | 日志 | 可记录 `diagnosticId`、domain、capabilityId、errorCode、字段数量；不得记录敏感字段值、完整权限正文或 token。 |
 | 审计 | invocation final result 保留错误码和 diagnosticId；safeMessage 只保存可展示文本。 |
 | ResultSecurity | 成功结果仍必须经过 ResultSecurity 后再持久化与返回；本设计不绕过脱敏链路。 |
+| Runtime repair 日志 | 可记录 repair 是否发生、attempt 数、diagnosticId 和耗时；不得记录原始敏感查询结果、token、权限正文或未脱敏字段值。 |
 
 ## 14. 幂等性、事务与一致性
 
 | 场景 | 设计 |
 | --- | --- |
 | 重试同一 invocation | 仍通过 invocation/correlation 幂等与 CAS finalization 保证终态唯一。 |
+| Runtime output repair | 属于同一次 Plan operation 内部结构修复，不创建新 invocation、不重新进入 Java PlanningService、不产生第二套业务幂等语义。 |
 | Context 写入冲突 | 沿用 `MyBatisContextRepository.upsertApproved` 与 ContextApproval 的 CAS/版本策略；本设计不改变写入幂等模型。 |
 | 执行失败 | 不写入 query context；只 finalization 失败结果。 |
 | 成功查询 | result、context write refs 与 invocation finalization 保持同一 finalization 事务语义。 |
@@ -293,6 +308,7 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | MERGE 合并 | 只处理上一轮 filters/selectFields/page/size，复杂度与字段数量线性相关。 |
 | 权限校验 | 字段存在性和授权判断使用现有 catalog/projection map，O(1) 查询。 |
 | 下游查询 | 不新增额外下游请求；末页使用上一轮 totalPages，不单独 count。 |
+| Plan repair | 最多一次结构修复，成本受 Runtime `repairLimit` 和 absolute deadline 约束；不得为了修复无限重问模型。 |
 
 ## 16. 测试设计
 
@@ -318,6 +334,9 @@ Query、Aggregate、Preview 等能力的字段校验应复用同一判断语义�
 | contract drift test | Java `RuntimeQueryContextView` 与 Python generated model 一致。 |
 | prompt fixture: last page with totalPages | “查看最后一页” 输出 `page=totalPages`。 |
 | prompt fixture: last page without totalPages | 返回 clarification，不输出未确定页码。 |
+| plan parser: requestId mismatch | Plan 输出携带旧 `requestId` 时归一化为当前请求。 |
+| plan parser: invalid output repair | 非严格 JSON/契约不匹配时在 `repairLimit>0` 下只修复一次。 |
+| plan parser: repair exhausted | 修复仍失败时返回 typed `OUTPUT_REPAIR_EXHAUSTED`，不伪造成功 Plan。 |
 
 ### 16.3 集成与手工验证
 
@@ -346,6 +365,10 @@ pytest agent-runtime/tests -q
 rg -n "QueryCapabilityContextPayload|RuntimeQueryContextView|FIELD_FORBIDDEN|AGENT_FIELD_FORBIDDEN|totalPages" agent-api agent-service agent-runtime docs/design
 ```
 
+```powershell
+rg -n "OUTPUT_REPAIR_EXHAUSTED|requestId|repairAttempts|repairLimit" agent-runtime agent-api agent-service docs/design
+```
+
 ## 18. 实施顺序
 
 | 顺序 | 步骤 | 产物 | 验证 |
@@ -356,7 +379,8 @@ rg -n "QueryCapabilityContextPayload|RuntimeQueryContextView|FIELD_FORBIDDEN|AGE
 | 4 | Query handler 写入 total/totalPages | 成功查询后具备末页上下文 | QueryCapabilityHandler 测试。 |
 | 5 | 增加 `FIELD_FORBIDDEN` 与 safeMessage 链路 | 权限不足返回友好拒绝 | Core/finalization/assembler 测试。 |
 | 6 | 更新 Runtime prompt/generated model | Runtime 能理解最后一页与页码继承 | Python contract/prompt fixture 测试。 |
-| 7 | 执行端到端链路验证 | admin 分页、viewer 拒绝均符合预期 | 手工请求链路。 |
+| 7 | 补充 Runtime Plan 防御性修复 | 当前请求 `requestId` 绑定稳定，可修复输出不直接变成规划失败 | Python parser/repair 测试。 |
+| 8 | 执行端到端链路验证 | admin 分页、viewer 拒绝均符合预期 | 手工请求链路。 |
 
 ## 19. 实施对齐检查清单
 
@@ -368,7 +392,9 @@ rg -n "QueryCapabilityContextPayload|RuntimeQueryContextView|FIELD_FORBIDDEN|AGE
 | 权限拒绝语义 | 存在但未授权字段返回 `AGENT_FIELD_FORBIDDEN`。 |
 | ResultSecurity 边界 | 成功结果仍经过统一 ResultSecurity。 |
 | 旧 Context 兼容 | 旧 payload 缺少总数字段不导致反序列化失败。 |
-| 关联文档 | D02_00/D02_01/D02_02/D02_03 若要同步修订，先取得用户授权。 |
+| Runtime Plan 绑定 | Plan 输出中的 `requestId` 与当前请求绑定；归一化只限该 envelope 字段。 |
+| Runtime repair 门禁 | `repairAttempts`、`repairLimitReached`、`OUTPUT_REPAIR_EXHAUSTED` 行为可测试。 |
+| 关联文档 | D02_00/D02_01/D02_02/D02_03 的分页、权限拒绝内容已同步；Runtime repair 增量仅同步到 D02_00/D02_01/D02_02，D02_03 不受影响。 |
 
 ## 20. 剩余风险与处理建议
 
@@ -378,29 +404,20 @@ rg -n "QueryCapabilityContextPayload|RuntimeQueryContextView|FIELD_FORBIDDEN|AGE
 | `totalExact=false` 下用户要求末页 | 下游 ES/Adapter 无精确 total。 | 无法可靠计算末页。 | 返回澄清，不猜测页码。 |
 | Contract 版本校验严格 | 旧 context version 为 `1.0.0`，新代码要求 `1.1.0`。 | 旧会话第二轮无法继承。 | 增加 migrator 或版本兼容读取。 |
 | 字段越权异常未覆盖全部 capability | aggregate/preview 仍抛普通 validation 异常。 | 部分链路仍返回 `AGENT_PLAN_INVALID`。 | 字段校验 helper 统一存在性和授权判断。 |
-| 关联文档未同步 | 实施后 D02 文档与代码不一致。 | 后续开发按旧文档实现会回归。 | 在用户授权后同步修订 D02_00/D02_01/D02_02/D02_03。 |
+| 关联文档后续漂移 | 后续继续修改 Runtime repair、分页或权限拒绝代码但未同步 D02 文档。 | 后续开发按过期文档实现会回归。 | 将 D02_00/D02_01/D02_02 的门禁项纳入评审检查；D02_03 仅在 Context/Auth 边界变化时再修改。 |
+| requestId 归一化被误用 | 后续实现把归一化扩大到 capability/domain/planKind 或用户查询字段。 | 可能掩盖 Runtime 绑定错误或越权输出。 | 测试限定只允许改写当前 envelope `requestId`，其他绑定仍由 Java 校验失败。 |
+| repair 行为被当作重试扩展 | 后续把 output repair 扩大为传输级重试。 | 可能突破 deadline、attempt budget 和幂等边界。 | 文档和测试明确 repair 不是 Route/Plan retry，只消费 D01 repair budget。 |
 
-## 21. 需用户授权的关联文档修订项
+## 21. 关联文档修订结果
 
-如要保持 `docs/design` 体系完全一致，建议用户授权后另行修改以下文档：
+用户已授权同步修订关联设计文档。本次同步按最小必要范围处理，不修改 D01/L1 文档，不修改代码、测试或配置。
 
-| 文档 | 建议修订点 |
+| 文档 | 同步结论 |
 | --- | --- |
-| `D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md` | 增加本次 query context version、MERGE 分页、FIELD_FORBIDDEN、safeMessage 的集成门禁。 |
-| `D02_01_Capability注册与可信执行内核_L2_v1.0.md` | 更新 `query.search` context read/write 字段；更新 `ExecutionFailure` 模型；补充 `FIELD_FORBIDDEN` 校验语义。 |
-| `D02_02_Invocation生命周期与持久化_L2_v1.0.md` | 明确 `commitExecutionFailure` 的 safeMessage 来源和兜底规则。 |
-| `D02_03_元数据授权与Context安全_L2_v1.0.md` | 更新 `QueryCapabilityContextPayload` schema、安全错误码清单、Runtime Context View 最小化说明。 |
-
-恢复执行指令模板：
-
-```text
-请继续修订关联设计文档，授权范围为：
-1. docs/design/D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md
-2. docs/design/D02_01_Capability注册与可信执行内核_L2_v1.0.md
-3. docs/design/D02_02_Invocation生命周期与持久化_L2_v1.0.md
-4. docs/design/D02_03_元数据授权与Context安全_L2_v1.0.md
-修订内容仅限 Agent 多轮分页、末页计算、FIELD_FORBIDDEN、ExecutionFailure.safeMessage 与相关验证门禁。
-```
+| `D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md` | 已补充 Runtime output repair、`requestId` 绑定与 `OUTPUT_REPAIR_EXHAUSTED` 集成门禁。 |
+| `D02_01_Capability注册与可信执行内核_L2_v1.0.md` | 已补充 PlanOutcome 入 Core 前的 Runtime 输出绑定、repair metadata 和禁止把 repair 当作 Core 责任的约束。 |
+| `D02_02_Invocation生命周期与持久化_L2_v1.0.md` | 已补充 Planning failure 安全提示来源，确保 repair 耗尽或 Runtime 输出无效不暴露原始 LLM 输出。 |
+| `D02_03_元数据授权与Context安全_L2_v1.0.md` | 不新增修改；本次 Runtime repair 不改变 Context payload、metadata 授权、字段投影或密钥边界。 |
 
 ## 22. 内部评审记录
 
@@ -410,14 +427,17 @@ rg -n "QueryCapabilityContextPayload|RuntimeQueryContextView|FIELD_FORBIDDEN|AGE
 | 1 | 是否扩大 Context 安全暴露 | 仅增加分页标量元数据，不暴露业务明细和权限正文。 |
 | 1 | 是否需要修改 D04/ResultSecurity 文档 | 不建议修改；D04 是 metadata 边界，ResultSecurity 是成功结果安全边界。 |
 | 1 | 是否需要修改 D02 系列关联文档 | 需要，但需用户明确授权后另行修订。 |
+| 2 | UAT 增量是否扩大到 D01/L1 | 不扩大；D01 已有 requestId/repairLimit/OUTPUT_REPAIR_EXHAUSTED 契约，本次只补 D02 和目标详细设计的实施约束。 |
+| 2 | D02_03 是否需要继续修改 | 不需要；Runtime repair 不改变 Context/Metadata/Auth 边界。 |
 
 ## 23. 完成摘要
 
 | 项目 | 结果 |
 | --- | --- |
 | 是否新建目标详细设计文档 | 是 |
-| 是否修改关联文档 | 否，已列出需授权修订项。 |
+| 是否修改关联文档 | 是，已同步 D02_00/D02_01/D02_02；D02_03 经核实无需新增修改。 |
 | 是否修改代码/测试/配置 | 否 |
 | 是否覆盖分页问题 | 是，包含指定页、上一页、下一页、第一页、最后一页。 |
 | 是否覆盖权限拒绝提示 | 是，定义 `FIELD_FORBIDDEN`、safeMessage、API 映射。 |
+| 是否覆盖 UAT Runtime 输出问题 | 是，补充 `requestId` 归一化、bounded repair 与 `OUTPUT_REPAIR_EXHAUSTED` 门禁。 |
 | 是否包含实施落点 | 是，包含 Java、Python、Context、Lifecycle、测试与验证命令。 |

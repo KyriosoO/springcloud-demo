@@ -1,7 +1,7 @@
 # D02_01 Capability 注册与可信执行内核 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示约束）
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示约束；2026-07-05 已补充 Runtime Plan 输出修复边界）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`  
@@ -15,6 +15,7 @@
 | 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
 |---:|---|---|---|---|
 | 1 | 2026-07-04 | 授权恢复 / 第 3、5、7、8、10～12 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `QUERY_CONTEXT` 1.1.0、多轮分页MERGE、末页校验、`FIELD_FORBIDDEN`、`ExecutionFailure.safeMessage` 与对应测试门禁。 |
+| 2 | 2026-07-05 | 授权恢复 / 第 8、10～12 节 | UAT 修复后同步设计 | 补充 Runtime PlanOutcome 入 Core 前的 `requestId` 绑定和 bounded repair 边界，明确 Core/Registration 不承担 Runtime 输出修复职责。 |
 
 ---
 
@@ -412,6 +413,8 @@ Core 在阶段边界捕获已知安全异常并映射为 `ExecutionFailure`。�
 
 存在但未授权字段的受控异常必须在`PLAN_VALIDATION`阶段映射为`KernelErrorCode.FIELD_FORBIDDEN`，并保留安全`safeMessage`。它不同于Runtime输出结构错误、未知字段、operator不支持等计划无效问题；后者仍映射为`PLAN_VALIDATION_FAILED`。Entry/API层必须穷尽映射`FIELD_FORBIDDEN`到`AGENT_FIELD_FORBIDDEN`，不得落入`AGENT_PLAN_INVALID`默认分支。
 
+Runtime PlanOutcome 进入 Core 前必须已经完成 D01 绑定校验或在 Runtime 本地完成受限输出修复：仅允许把已解析 envelope 的 `requestId` 归一化为当前 PlanRequest 标识，并按 `repairLimit` 修复结构化输出。Core、Registration、Validator 不二次修复 Runtime 原始输出，也不把 `OUTPUT_REPAIR_EXHAUSTED` 当作字段权限或业务校验错误；该错误仍属于 Planning failure 的 `RUNTIME_OUTPUT_INVALID` 路径。
+
 ---
 
 ## 9. Adapter Binding
@@ -437,6 +440,7 @@ D04必须先在`agent-adapter-api`增加稳定marker `AgentAdapterPort`，并使
 | `rejectsNonRuntimeContractForRuntimeSchemaRef` | 不能手工或错误投影PlanRequest inputSchemaRef |
 | `pinsExecutionContractRefsAndStructuralDigests` | 六个Java ContractRef唯一；Runtime输入版本绑定D01；output/context结构变化必须显式升版 |
 | `bumpsQueryContextContractForPaginationTotals` | `QUERY_CONTEXT`为1.1.0且包含total/totalExact/totalPages；旧1.0.0必须有兼容读取或迁移路径 |
+| `keepsRuntimeOutputRepairOutsideCore` | Runtime `requestId`归一化、repairAttempts和`OUTPUT_REPAIR_EXHAUSTED`不进入Core修复分支；Core只消费已绑定Plan或Planning failure |
 | `rejectsInvalidDomainModeRole` | NONE/REQUIRED 规则成立 |
 | `resolvesOnlyByCapabilityId` | 不存在 planKind→Handler API |
 | `doesNotExposeMutableRegistration` | 集合/字段不可变 |
@@ -551,5 +555,6 @@ D04必须先在`agent-adapter-api`增加稳定marker `AgentAdapterPort`，并使
 10. 所有类、方法、端口、测试和计划文件有唯一所有者。
 11. `QUERY_CONTEXT` 1.1.0 的分页总数字段只用于多轮规划状态，不进入Adapter执行请求。
 12. `FIELD_FORBIDDEN` 与`ExecutionFailure.safeMessage`链路可证明字段越权不会被误报为`AGENT_PLAN_INVALID`。
+13. Runtime output repair 不改变Core职责：`requestId`绑定和结构修复发生在Planning Runtime边界，Core不得引入原始LLM输出修复分支。
 
 最终评审结论（2026-06-30）：本文已与D02_00、D02_02、D02_03及三份L1交叉复审；类型桥、执行顺序、Context当前性、Adapter Binding、输出/Context安全和扩展不变量完整闭合，当前文档基线下无未决问题。实际D01类名/包名/字段以D01退出门禁产物复核为生效条件。

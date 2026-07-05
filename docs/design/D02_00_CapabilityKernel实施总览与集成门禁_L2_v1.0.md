@@ -1,7 +1,7 @@
 # D02 Capability Kernel 实施总览与集成门禁 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示门禁）
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充多轮分页与权限拒绝提示门禁；2026-07-05 已补充 Runtime Plan 输出修复门禁）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 关联 L2：`D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`D02_03_元数据授权与Context安全_L2_v1.0.md`  
 > 交付阶段：D02 详细设计评审门禁  
@@ -16,6 +16,7 @@
 | 序号 | 日期 | 位置 | 修改原因 | 修改内容 |
 |---:|---|---|---|---|
 | 1 | 2026-07-04 | 授权恢复 / 第 8～10 节 | 用户授权修订关联设计文档 | 在授权范围内补充 Agent 多轮分页、末页计算、`FIELD_FORBIDDEN`、`ExecutionFailure.safeMessage` 的集成门禁和验证命令。 |
+| 2 | 2026-07-05 | 授权恢复 / 第 1、3、9～10 节 | UAT 修复后同步设计 | 补充 Runtime Plan `requestId` 绑定、bounded output repair、`OUTPUT_REPAIR_EXHAUSTED` 映射和集成验证门禁；明确该行为不是传输级重试。 |
 
 ---
 
@@ -76,7 +77,7 @@ D02 只产出经过评审的 L2 文档，不修改 Java、Python、SQL、配置�
 | CP-11 | candidate不激活；D03不保留双协议 |
 | CP-12 | PlanningResult携带ResolvedRegistration，Planning不持有执行类型桥 |
 | CP-13 | CHAT/TASK复用同一PlanningCommand/PlanningResult |
-| CP-14 | Planning不自动重试Route/Plan；providerAttempts/repairAttempts只采用D01上报值 |
+| CP-14 | Planning不自动重试Route/Plan；Runtime output repair只能在D01 `repairLimit` 内发生，providerAttempts/repairAttempts只采用D01上报值 |
 | CP-15 | ExecutablePlanningResult绑定同一次Route→Plan及同一授权和Domain metadata证据链 |
 | CP-16 | 内部权威capabilityId/planKind来自RouteDecision+Registration，不接受PlanOutcome回显 |
 
@@ -233,6 +234,8 @@ Planning 异常和取消不作为第三个 variant，通过 `PlanningFailure`/ca
 若收到合法D01 `RuntimeErrorResponse`且code/metadata绑定为DEADLINE_EXCEEDED，Planning生成REPORTED `RUNTIME_ERROR_RECEIVED` audit后走`PlanningCancellation`；caller cancellation只由本地token产生。其他typed Runtime error映射PlanningFailure。禁止仅凭HTTP 504或异常消息猜测取消原因。
 
 Runtime→Kernel映射固定为：`CONTRACT_INVALID→RUNTIME_CONTRACT_INVALID`、`AUTHENTICATION_FAILED→RUNTIME_AUTHENTICATION_FAILED`、`PROVIDER_UNAVAILABLE/INTERNAL_ERROR→RUNTIME_UNAVAILABLE`、`OUTPUT_REPAIR_EXHAUSTED→RUNTIME_OUTPUT_INVALID`、`DEADLINE_EXCEEDED→PlanningCancellation(DEADLINE_EXCEEDED)`；transport failure→`RUNTIME_UNAVAILABLE`，protocol failure→`RUNTIME_CONTRACT_INVALID`。映射使用穷尽switch，未知enum组合编译/测试失败，不从HTTP message推断。
+
+Runtime Plan output repair 是同一次 Plan operation 内的结构修复，不是 PlanningService 的 Route/Plan 重试。Runtime 可以在返回前对已解析 PlanOutcome 的 envelope `requestId` 归一化为当前 PlanRequest 标识，但不得改写 capabilityId、domain、planKind、filters、selectFields、groupBy、metrics 等业务语义字段。修复耗尽时必须返回 typed `OUTPUT_REPAIR_EXHAUSTED`，Java 只能按上表映射为 `RUNTIME_OUTPUT_INVALID`，不得从原始LLM输出或HTTP文本推断新的错误语义。
 
 ### 3.6 Operation Audit 与确定性绑定
 
@@ -580,6 +583,7 @@ D02 不创建 `CanonicalDomainFieldCatalog`、`DomainFieldCatalog` 或具体 `Ad
 | 15 | QUERY Context 支持多轮分页与末页计算；Runtime只接收最小Context View，Java负责MERGE后复检 | D02_01 `QueryPlanValidator`/`QueryMergeEngine`、D02_03 `QueryCapabilityContextPayload`/`RuntimeQueryContextView` |
 | 16 | 存在但未授权字段必须映射为`FIELD_FORBIDDEN`，外部响应为`AGENT_FIELD_FORBIDDEN`，不得降级为`AGENT_PLAN_INVALID` | D02_01异常归一化、D02_02 `KernelErrorCode`/Lifecycle映射、D02_03安全错误码 |
 | 17 | 执行失败的安全提示由`ExecutionFailure.safeMessage`进入Lifecycle终结；为空时才使用通用兜底提示 | D02_01 `ExecutionFailure`、D02_02 `FinalizationTxService.commitExecutionFailure` |
+| 18 | Runtime Plan 输出修复受D01 `repairLimit`、deadline和metadata约束；`requestId`只允许归一化当前envelope绑定字段；`OUTPUT_REPAIR_EXHAUSTED`稳定映射为`RUNTIME_OUTPUT_INVALID` | D01 Runtime contract、D02_00 Runtime→Kernel映射、agent-runtime Plan parser/repair tests、agent-service PlanningService error mapping |
 
 ### 9.1 D03 预定验证命令
 
@@ -605,6 +609,7 @@ Pop-Location
 rg -n "AgentIntent|ClarifyCapabilityHandler|query_context_json|CapabilityRouter" agent-service\src\main agent-runtime\app
 rg -n "switch.*capabilityId|switch.*domain|if.*capabilityId" agent-service\src\main\java\com\dylan\agent\kernel agent-service\src\main\java\com\dylan\agent\metadata
 rg -n '@SuppressWarnings\("unchecked"\)' agent-service\src\main\java
+rg -n "OUTPUT_REPAIR_EXHAUSTED|repairAttempts|repairLimit|requestId" agent-runtime agent-api agent-service docs/design
 git diff --check
 ```
 
@@ -618,5 +623,6 @@ git diff --check
 - 修改专项内部类型只改其所有者文档，并更新本文接口登记和验收矩阵。
 - 若实施证明上级决策不可行，先暂停并通过 ADR 修订 L0/L1，不得在 D03 形成旁路。
 - 四份 D02 的状态必须一致；任一专项待评审时，D02 总体不得标记完成。
+- Runtime output repair 或 `requestId` 归一化规则如需突破D01契约、增加传输级重试或修改attempt预算，必须先修订D01/ADR；D02不得单独放宽。
 
 最终评审结论（2026-06-30）：本文已对照L0、三份单Agent L1、D01和三个D02专项完成所有权、契约、调用链、失败闭环、D04/D03边界及可落地性复审；当前文档基线下无未决冲突、侵入、缺漏或重复权威定义。D01实施退出后的产物复核、D04实现和唯一外部User Permission生产Adapter均是已显式定义的后续生效/投产门禁，不代表D02当前已进入实施或阶段完成，也不构成隐藏设计缺口。
