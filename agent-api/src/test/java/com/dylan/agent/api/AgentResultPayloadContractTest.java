@@ -2,6 +2,10 @@ package com.dylan.agent.api;
 
 import com.dylan.agent.api.enums.AgentResponseType;
 import com.dylan.agent.api.enums.AgentResultKind;
+import com.dylan.agent.api.enums.AggregateFunction;
+import com.dylan.agent.api.response.AgentAggregateMetricParameter;
+import com.dylan.agent.api.response.AgentAggregateOrderParameter;
+import com.dylan.agent.api.response.AgentAggregateParameters;
 import com.dylan.agent.api.response.AgentChatResponse;
 import com.dylan.agent.api.response.AggregateAgentResultPayload;
 import com.dylan.agent.api.response.AgentQueryParameters;
@@ -75,6 +79,33 @@ class AgentResultPayloadContractTest {
         assertThat(json).contains("\"sorts\"");
         assertThat(json).contains("\"field\":\"amount\"");
         assertThat(json).contains("\"direction\":\"DESC\"");
+    }
+
+    @Test
+    void aggregatePayloadSerializesParsedParameters() throws Exception {
+        AgentAggregateMetricParameter metric = new AgentAggregateMetricParameter();
+        metric.setAlias("totalAmount");
+        metric.setFunction(AggregateFunction.SUM);
+        metric.setField("amount");
+
+        AgentAggregateOrderParameter order = new AgentAggregateOrderParameter();
+        order.setField("totalAmount");
+        order.setDirection("DESC");
+
+        AgentAggregateParameters parameters = new AgentAggregateParameters();
+        parameters.setDomain("transaction");
+        parameters.setMetrics(List.of(metric));
+        parameters.setGroupByFields(List.of("status"));
+        parameters.setOrderBy(List.of(order));
+        parameters.setMaxRows(20);
+
+        String json = new ObjectMapper().writeValueAsString(
+                new AggregateAgentResultPayload(parameters, null));
+
+        assertThat(json).contains("\"resultKind\":\"AGGREGATE\"");
+        assertThat(json).contains("\"aggregateParameters\"");
+        assertThat(json).contains("\"function\":\"SUM\"");
+        assertThat(json).contains("\"maxRows\":20");
     }
 
     @Test

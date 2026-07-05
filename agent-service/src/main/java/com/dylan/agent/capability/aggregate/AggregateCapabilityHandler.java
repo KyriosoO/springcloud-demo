@@ -11,8 +11,12 @@ import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AggregateMetricSpec;
+import com.dylan.agent.api.response.AgentAggregateMetricParameter;
+import com.dylan.agent.api.response.AgentAggregateOrderParameter;
+import com.dylan.agent.api.response.AgentAggregateParameters;
 import com.dylan.agent.api.response.AgentAggregateResult;
 import com.dylan.agent.api.response.AgentAggregateRow;
+import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AggregateAgentResultPayload;
 import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.CapabilityHandler;
@@ -34,9 +38,27 @@ public class AggregateCapabilityHandler
             ExecutionContext context) {
         AggregatableAdapter adapter = context.requireAdapter(AggregatableAdapter.class);
         AdapterAggregateResult adapterResult = adapter.aggregate(plan.aggregate());
-        AggregateAgentResultPayload payload =
-                new AggregateAgentResultPayload(toKernelAggregateResult(plan, adapterResult));
+        AggregateAgentResultPayload payload = new AggregateAgentResultPayload(
+                toAggregateParameters(plan),
+                toKernelAggregateResult(plan, adapterResult));
         return HandlerResult.of(payload, List.of(toKernelContextWrite(plan)));
+    }
+
+    private static AgentAggregateParameters toAggregateParameters(ValidatedAggregatePlan plan) {
+        AgentAggregateParameters parameters = new AgentAggregateParameters();
+        parameters.setDomain(plan.domain().orElseThrow());
+        parameters.setFilters(plan.aggregate().getFilters().stream()
+                .map(AggregateCapabilityHandler::toFilterParameter)
+                .toList());
+        parameters.setMetrics(plan.aggregate().getMetrics().stream()
+                .map(AggregateCapabilityHandler::toMetricParameter)
+                .toList());
+        parameters.setGroupByFields(plan.aggregate().getGroupByFields());
+        parameters.setOrderBy(plan.aggregate().getOrderBy().stream()
+                .map(AggregateCapabilityHandler::toOrderParameter)
+                .toList());
+        parameters.setMaxRows(plan.aggregate().getMaxRows());
+        return parameters;
     }
 
     private static AgentAggregateResult toKernelAggregateResult(
@@ -101,11 +123,35 @@ public class AggregateCapabilityHandler
         return agentFilter;
     }
 
+    private static AgentQueryFilterParameter toFilterParameter(ValidatedFilter filter) {
+        AgentQueryFilterParameter parameter = new AgentQueryFilterParameter();
+        parameter.setField(filter.getField());
+        parameter.setOperator(filter.getOperator());
+        parameter.setValue(filter.getValue());
+        parameter.setValues(filter.getValues().isEmpty() ? null : filter.getValues());
+        return parameter;
+    }
+
     private static AggregateMetricSpec toKernelMetricSpec(ValidatedAggregateMetric metric) {
         AggregateMetricSpec spec = new AggregateMetricSpec();
         spec.setAlias(metric.getAlias());
         spec.setFunction(metric.getFunction());
         spec.setField(metric.getField());
         return spec;
+    }
+
+    private static AgentAggregateMetricParameter toMetricParameter(ValidatedAggregateMetric metric) {
+        AgentAggregateMetricParameter parameter = new AgentAggregateMetricParameter();
+        parameter.setAlias(metric.getAlias());
+        parameter.setFunction(metric.getFunction());
+        parameter.setField(metric.getField());
+        return parameter;
+    }
+
+    private static AgentAggregateOrderParameter toOrderParameter(com.dylan.agent.api.plan.AggregateOrderSpec order) {
+        AgentAggregateOrderParameter parameter = new AgentAggregateOrderParameter();
+        parameter.setField(order.getField());
+        parameter.setDirection(order.getDirection());
+        return parameter;
     }
 }

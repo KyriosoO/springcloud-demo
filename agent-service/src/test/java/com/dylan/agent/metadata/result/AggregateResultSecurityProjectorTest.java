@@ -4,9 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.agent.api.enums.AggregateFunction;
+import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.response.AggregateAgentResultPayload;
+import com.dylan.agent.api.response.AgentAggregateMetricParameter;
+import com.dylan.agent.api.response.AgentAggregateOrderParameter;
+import com.dylan.agent.api.response.AgentAggregateParameters;
 import com.dylan.agent.api.response.AgentAggregateResult;
 import com.dylan.agent.api.response.AgentAggregateRow;
+import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.mask.AddressFieldMasker;
 import com.dylan.agent.mask.EmailFieldMasker;
 import com.dylan.agent.mask.FieldMaskerRegistry;
@@ -42,6 +48,20 @@ class AggregateResultSecurityProjectorTest {
         FilteredResult<AggregateAgentResultPayload> filtered = projector.filter(payload(), scope());
 
         AgentAggregateResult result = filtered.payload().getAggregateResult();
+        AgentAggregateParameters parameters = filtered.payload().getAggregateParameters();
+        assertThat(parameters.getGroupByFields()).containsExactly("phoneNo");
+        assertThat(parameters.getFilters())
+                .singleElement()
+                .satisfies(filter -> {
+                    assertThat(filter.getField()).isEqualTo("phoneNo");
+                    assertThat(filter.getValue()).isEqualTo("138****5678");
+                });
+        assertThat(parameters.getMetrics())
+                .extracting(AgentAggregateMetricParameter::getAlias)
+                .containsExactly("rowCount");
+        assertThat(parameters.getOrderBy())
+                .extracting(AgentAggregateOrderParameter::getField)
+                .containsExactly("rowCount");
         assertThat(result.getGroupByFields()).containsExactly("phoneNo");
         assertThat(result.getRows().get(0).getGroups())
                 .containsExactly(Map.entry("phoneNo", "138****5678"));
@@ -64,6 +84,7 @@ class AggregateResultSecurityProjectorTest {
     void failsClosedWhenFieldBearingPayloadHasNoDomain() {
         AggregateResultSecurityProjector projector = new AggregateResultSecurityProjector(maskingSupport());
         AggregateAgentResultPayload payload = payload();
+        payload.getAggregateParameters().setDomain(null);
         payload.getAggregateResult().setDomain(null);
 
         assertThatThrownBy(() -> projector.filter(payload, scope()))
@@ -84,7 +105,45 @@ class AggregateResultSecurityProjectorTest {
         result.setMetricAliases(List.of("totalAmount"));
         result.setRows(List.of(row));
         result.setPartial(false);
-        return new AggregateAgentResultPayload(result);
+        return new AggregateAgentResultPayload(parameters(), result);
+    }
+
+    private AgentAggregateParameters parameters() {
+        AgentQueryFilterParameter allowedFilter = new AgentQueryFilterParameter();
+        allowedFilter.setField("phoneNo");
+        allowedFilter.setOperator(AgentOperator.EQ);
+        allowedFilter.setValue("13812345678");
+
+        AgentQueryFilterParameter deniedFilter = new AgentQueryFilterParameter();
+        deniedFilter.setField("idCardNo");
+        deniedFilter.setOperator(AgentOperator.EQ);
+        deniedFilter.setValue("110101199001010011");
+
+        AgentAggregateMetricParameter rowCount = new AgentAggregateMetricParameter();
+        rowCount.setAlias("rowCount");
+        rowCount.setFunction(AggregateFunction.COUNT);
+
+        AgentAggregateMetricParameter deniedMetric = new AgentAggregateMetricParameter();
+        deniedMetric.setAlias("idCardMax");
+        deniedMetric.setFunction(AggregateFunction.MAX);
+        deniedMetric.setField("idCardNo");
+
+        AgentAggregateOrderParameter rowCountOrder = new AgentAggregateOrderParameter();
+        rowCountOrder.setField("rowCount");
+        rowCountOrder.setDirection("DESC");
+
+        AgentAggregateOrderParameter deniedOrder = new AgentAggregateOrderParameter();
+        deniedOrder.setField("idCardMax");
+        deniedOrder.setDirection("DESC");
+
+        AgentAggregateParameters parameters = new AgentAggregateParameters();
+        parameters.setDomain("employee");
+        parameters.setFilters(List.of(allowedFilter, deniedFilter));
+        parameters.setMetrics(List.of(rowCount, deniedMetric));
+        parameters.setGroupByFields(List.of("phoneNo", "idCardNo"));
+        parameters.setOrderBy(List.of(rowCountOrder, deniedOrder));
+        parameters.setMaxRows(20);
+        return parameters;
     }
 
     private ExecutionScope scope() {

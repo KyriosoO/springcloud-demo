@@ -45,7 +45,7 @@
   }
   .output h2 { margin: 0 0 12px; font-size: 17px; }
   #summary-text { margin: 0; line-height: 1.65; white-space: pre-wrap; }
-  #query-parameters {
+  #parsed-parameters {
     margin: 0;
     padding: 14px;
     overflow-x: auto;
@@ -112,8 +112,8 @@
 </section>
 
 <section class="output">
-  <h2>2. LLM 解析后的查询参数</h2>
-  <pre id="query-parameters">等待查询。</pre>
+  <h2>2. LLM 解析后的执行参数</h2>
+  <pre id="parsed-parameters">等待查询。</pre>
 </section>
 
 <section class="output">
@@ -136,7 +136,7 @@ async function sendMessage() {
 
   setBusy(true);
   renderSummary("处理中...", false);
-  renderQueryParameters(null);
+  renderParsedParameters(null);
   renderQueryResult(null);
   renderAggregateResult(null);
 
@@ -159,7 +159,7 @@ async function sendMessage() {
     renderResponse(data);
   } catch (error) {
     renderSummary("网络错误，请稍后重试。", true);
-    renderQueryParameters(null);
+    renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
   } finally {
@@ -171,7 +171,7 @@ function renderResponse(data) {
   if (data.type === "ERROR") {
     const suffix = data.errorCode ? ` (${data.errorCode})` : "";
     renderSummary(`${data.message || "请求失败。"}${suffix}`, true);
-    renderQueryParameters(null);
+    renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
     return;
@@ -179,7 +179,7 @@ function renderResponse(data) {
 
   if (data.type === "CLARIFY") {
     renderSummary(data.summary || data.message || "请补充信息。", false);
-    renderQueryParameters(null);
+    renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
     return;
@@ -191,34 +191,34 @@ function renderResponse(data) {
 
 function renderTypedResult(result) {
   if (!result) {
-    renderQueryParameters(null);
+    renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
     return;
   }
 
   if (result.resultKind === "QUERY") {
-    renderQueryParameters(result.queryParameters);
+    renderParsedParameters(result.queryParameters);
     renderQueryResult(result.queryResult);
     renderAggregateResult(null);
     return;
   }
 
   if (result.resultKind === "QUERY_PREVIEW") {
-    renderQueryParameters(result.queryParameters);
+    renderParsedParameters(result.queryParameters);
     renderQueryPreviewResult(result.previewResult);
     renderAggregateResult(null);
     return;
   }
 
   if (result.resultKind === "AGGREGATE") {
-    renderQueryParameters(null);
+    renderParsedParameters(result.aggregateParameters);
     renderQueryResult(null);
     renderAggregateResult(result.aggregateResult);
     return;
   }
 
-  renderQueryParameters(null);
+  renderParsedParameters(null);
   renderQueryResult(null);
   renderAggregateResult(null);
 }
@@ -229,10 +229,10 @@ function renderSummary(text, isError) {
   element.className = isError ? "error" : "";
 }
 
-function renderQueryParameters(parameters) {
-  document.getElementById("query-parameters").textContent = parameters
+function renderParsedParameters(parameters) {
+  document.getElementById("parsed-parameters").textContent = parameters
     ? JSON.stringify(parameters, null, 2)
-    : "本次响应没有可执行的查询参数。";
+    : "本次响应没有可执行参数。";
 }
 
 function renderQueryResult(result) {

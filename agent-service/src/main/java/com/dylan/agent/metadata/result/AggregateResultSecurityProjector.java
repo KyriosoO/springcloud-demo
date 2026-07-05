@@ -3,14 +3,20 @@ package com.dylan.agent.metadata.result;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.response.AggregateAgentResultPayload;
+import com.dylan.agent.api.response.AgentAggregateMetricParameter;
+import com.dylan.agent.api.response.AgentAggregateOrderParameter;
+import com.dylan.agent.api.response.AgentAggregateParameters;
 import com.dylan.agent.api.response.AgentAggregateResult;
 import com.dylan.agent.api.response.AgentAggregateRow;
+import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** 聚合结果投影器，对 group 字段执行过滤和可选脱敏，metric 默认保留。 */
 public final class AggregateResultSecurityProjector implements ResultSecurityProjector<AggregateAgentResultPayload> {
@@ -29,11 +35,32 @@ public final class AggregateResultSecurityProjector implements ResultSecurityPro
 
     @Override
     public FilteredResult<AggregateAgentResultPayload> filter(AggregateAgentResultPayload candidate, ExecutionScope scope) {
-        String domain = candidate.getAggregateResult() == null ? null : candidate.getAggregateResult().getDomain();
+        String domain = resolveDomain(candidate);
         requireDomainWhenData(domain, hasFieldBearingData(candidate));
         AggregateAgentResultPayload filtered = new AggregateAgentResultPayload(
+                filterParameters(domain, candidate.getAggregateParameters(), scope),
                 filterAggregate(domain, candidate.getAggregateResult(), scope));
         return new FilteredResult<>(filtered, "聚合完成", "聚合结果已按当前执行范围过滤和脱敏");
+    }
+
+    private AgentAggregateParameters filterParameters(
+            String domain,
+            AgentAggregateParameters source,
+            ExecutionScope scope) {
+        if (source == null) {
+            return null;
+        }
+        AgentAggregateParameters target = new AgentAggregateParameters();
+        target.setDomain(source.getDomain() == null || source.getDomain().isBlank() ? domain : source.getDomain());
+        target.setFilters(source.getFilters() == null ? null : source.getFilters().stream()
+                .map(filter -> maskingSupport.filterAndMaskFilter(domain, filter, scope))
+                .filter(Objects::nonNull)
+                .toList());
+        target.setGroupByFields(maskingSupport.filterFields(domain, source.getGroupByFields(), scope));
+        target.setMetrics(filterMetrics(domain, source.getMetrics(), scope));
+        target.setOrderBy(filterOrderBy(source.getOrderBy(), target.getGroupByFields(), target.getMetrics()));
+        target.setMaxRows(source.getMaxRows());
+        return target;
     }
 
     private AgentAggregateResult filterAggregate(
@@ -67,10 +94,75 @@ public final class AggregateResultSecurityProjector implements ResultSecurityPro
         return target;
     }
 
+    private List<AgentAggregateMetricParameter> filterMetrics(
+            String domain,
+            List<AgentAggregateMetricParameter> metrics,
+            ExecutionScope scope) {
+        if (metrics == null) {
+            return null;
+        }
+        Set<String> allowedFields = null;
+        if (metrics.stream().anyMatch(metric -> metric != null && metric.getFunction() != AggregateFunction.COUNT)) {
+            allowedFields = maskingSupport.allowedFields(domain, scope);
+        }
+        Set<String> resolvedAllowedFields = allowedFields;
+        return metrics.stream()
+                .filter(metric -> metric != null
+                        && (metric.getFunction() == AggregateFunction.COUNT
+                        || metric.getField() != null && resolvedAllowedFields != null
+                        && resolvedAllowedFields.contains(metric.getField())))
+                .map(metric -> {
+                    AgentAggregateMetricParameter target = new AgentAggregateMetricParameter();
+                    target.setAlias(metric.getAlias());
+                    target.setFunction(metric.getFunction());
+                    target.setField(metric.getField());
+                    return target;
+                })
+                .toList();
+    }
+
+    private static List<AgentAggregateOrderParameter> filterOrderBy(
+            List<AgentAggregateOrderParameter> orderBy,
+            List<String> groupByFields,
+            List<AgentAggregateMetricParameter> metrics) {
+        if (orderBy == null) {
+            return null;
+        }
+        Set<String> allowed = new LinkedHashSet<>();
+        if (groupByFields != null) {
+            allowed.addAll(groupByFields);
+        }
+        if (metrics != null) {
+            metrics.stream()
+                    .map(AgentAggregateMetricParameter::getAlias)
+                    .filter(Objects::nonNull)
+                    .forEach(allowed::add);
+        }
+        return orderBy.stream()
+                .filter(order -> order != null && allowed.contains(order.getField()))
+                .map(order -> {
+                    AgentAggregateOrderParameter target = new AgentAggregateOrderParameter();
+                    target.setField(order.getField());
+                    target.setDirection(order.getDirection());
+                    return target;
+                })
+                .toList();
+    }
+
     private static boolean hasFieldBearingData(AggregateAgentResultPayload candidate) {
+        AgentAggregateParameters parameters = candidate.getAggregateParameters();
         AgentAggregateResult result = candidate.getAggregateResult();
-        return result != null
+        return parameters != null
+                && (hasItems(parameters.getFilters())
+                || hasItems(parameters.getGroupByFields())
+                || hasFieldMetrics(parameters.getMetrics()))
+                || result != null
                 && (hasItems(result.getGroupByFields()) || hasGroups(result.getRows()));
+    }
+
+    private static boolean hasFieldMetrics(List<AgentAggregateMetricParameter> metrics) {
+        return metrics != null && metrics.stream()
+                .anyMatch(metric -> metric != null && metric.getField() != null && !metric.getField().isBlank());
     }
 
     private static boolean hasGroups(List<AgentAggregateRow> rows) {
@@ -95,5 +187,14 @@ public final class AggregateResultSecurityProjector implements ResultSecurityPro
         if (hasFieldBearingData && (domain == null || domain.trim().isEmpty())) {
             throw new IllegalStateException("aggregate result payload missing domain");
         }
+    }
+
+    private static String resolveDomain(AggregateAgentResultPayload candidate) {
+        if (candidate.getAggregateParameters() != null
+                && candidate.getAggregateParameters().getDomain() != null
+                && !candidate.getAggregateParameters().getDomain().isBlank()) {
+            return candidate.getAggregateParameters().getDomain();
+        }
+        return candidate.getAggregateResult() == null ? null : candidate.getAggregateResult().getDomain();
     }
 }
