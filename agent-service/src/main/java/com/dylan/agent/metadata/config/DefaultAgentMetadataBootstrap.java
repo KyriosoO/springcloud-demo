@@ -3,6 +3,8 @@ package com.dylan.agent.metadata.config;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
+import com.dylan.agent.adapter.api.AdapterRole;
+import com.dylan.agent.capability.document.DocumentCapabilityIds;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
 import com.dylan.agent.metadata.policy.model.AgentPolicySnapshot;
@@ -41,7 +43,7 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
     private static final String POLICY_VERSION = "policy-v1";
     private static final String BEHAVIOR_ASSET_ID = "default-chat-behavior";
     private static final String BEHAVIOR_ASSET_VERSION = "asset-v1";
-    private static final Set<String> DEFAULT_CAPABILITY_IDS =
+    private static final Set<String> BASE_CAPABILITY_IDS =
             Set.of("query.search", "query.preview", "aggregate.compute");
 
     private final AgentProperties properties;
@@ -61,18 +63,21 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
 
     @Override
     public AgentMetadataBundle bootstrap() {
+        validateDocumentEnablement();
         String agentId = requireNonBlank(properties.getAuthService().getAgentId(), "agent.auth-service.agent-id");
         String profileId = requireNonBlank(properties.getAuthService().getProfileId(), "agent.auth-service.profile-id");
         AgentProfileVersionKey profileKey = new AgentProfileVersionKey(agentId, profileId);
         ProfileBehaviorAssetRef assetRef = new ProfileBehaviorAssetRef(BEHAVIOR_ASSET_ID, BEHAVIOR_ASSET_VERSION);
         BudgetLimits budget = budgetLimits();
+        Set<String> capabilityIds = defaultCapabilityIds();
+        Set<RuntimeContextType> contextTypes = defaultContextTypes();
         AgentPolicySnapshot policy = policy(agentId, budget);
         AgentProfileDefinition profile = new AgentProfileDefinition(
                 profileKey,
                 assetRef,
-                DEFAULT_CAPABILITY_IDS,
-                Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE),
-                Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE),
+                capabilityIds,
+                contextTypes,
+                contextTypes,
                 AgentCapabilityRiskLevel.READ_ONLY,
                 AgentCapabilityExecutionMode.IMMEDIATE,
                 budget.maxTotalDuration(),
@@ -92,7 +97,7 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
                         "common.security.secrets.agent-payload.active-key-id"));
         return new AgentMetadataBundle(
                 BUNDLE_VERSION,
-                digest(agentId, profileId, policy.policyVersion(), DEFAULT_CAPABILITY_IDS, domainNames(),
+                digest(agentId, profileId, policy.policyVersion(), capabilityIds, domainNames(),
                         securitySettings),
                 agentId,
                 Map.of(agentId, profileId),
@@ -103,19 +108,36 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
                 Map.of(policy.policyVersion(), policy));
     }
 
+    private void validateDocumentEnablement() {
+        if (!properties.getDocument().isEnabled()) {
+            return;
+        }
+        boolean hasDocumentDomain = domainMetadataProperties.getDomains() != null
+                && domainMetadataProperties.getDomains().values().stream()
+                .anyMatch(domain -> domain.getRoleCapabilities() != null
+                        && domain.getRoleCapabilities().containsKey(AdapterRole.DOCUMENT_RETRIEVABLE.value()));
+        boolean hasDocumentRegistration = domainMetadataProperties.getRegistrations() != null
+                && domainMetadataProperties.getRegistrations().stream()
+                .anyMatch(registration -> AdapterRole.DOCUMENT_RETRIEVABLE.value().equals(registration.getRole()));
+        if (!hasDocumentDomain || !hasDocumentRegistration) {
+            throw new IllegalStateException(
+                    "agent.document.enabled=true requires DOCUMENT_RETRIEVABLE domain metadata and adapter registration");
+        }
+    }
+
     private AgentPolicySnapshot policy(String agentId, BudgetLimits budget) {
         return new AgentPolicySnapshot(
                 POLICY_VERSION,
                 Map.of(agentId, new ProfileConstraints(
                         true,
-                        DEFAULT_CAPABILITY_IDS,
-                        Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE),
-                        Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE),
+                        defaultCapabilityIds(),
+                        defaultContextTypes(),
+                        defaultContextTypes(),
                         Optional.of(AgentCapabilityRiskLevel.READ_ONLY),
                         Optional.of(AgentCapabilityExecutionMode.IMMEDIATE),
                         Optional.of(budget),
                         Optional.empty())),
-                DEFAULT_CAPABILITY_IDS.stream()
+                defaultCapabilityIds().stream()
                         .collect(Collectors.toUnmodifiableMap(
                                 capabilityId -> capabilityId,
                                 capabilityId -> new CapabilityConstraints(true, Optional.empty()))),
@@ -135,6 +157,26 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
                 properties.getQuery().getMaxSize(),
                 properties.getAggregate().getMaxMaxRows(),
                 properties.getQuery().getMaxDownstreamResponseBytes());
+    }
+
+    private Set<String> defaultCapabilityIds() {
+        if (!properties.getDocument().isEnabled()) {
+            return BASE_CAPABILITY_IDS;
+        }
+        return java.util.stream.Stream.concat(
+                        BASE_CAPABILITY_IDS.stream(),
+                        java.util.stream.Stream.of(
+                                DocumentCapabilityIds.SEARCH,
+                                DocumentCapabilityIds.ANSWER,
+                                DocumentCapabilityIds.SUMMARIZE))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private Set<RuntimeContextType> defaultContextTypes() {
+        if (!properties.getDocument().isEnabled()) {
+            return Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE);
+        }
+        return Set.of(RuntimeContextType.QUERY, RuntimeContextType.AGGREGATE, RuntimeContextType.DOCUMENT);
     }
 
     private Set<String> domainNames() {

@@ -12,6 +12,7 @@ public final class AdapterRole {
 
     public static final AdapterRole QUERYABLE = new AdapterRole("QUERYABLE");
     public static final AdapterRole AGGREGATABLE = new AdapterRole("AGGREGATABLE");
+    public static final AdapterRole DOCUMENT_RETRIEVABLE = new AdapterRole("DOCUMENT_RETRIEVABLE");
 
     private final String value;
 
@@ -25,6 +26,9 @@ public final class AdapterRole {
         }
         if (AGGREGATABLE.value.equals(value)) {
             return AGGREGATABLE;
+        }
+        if (DOCUMENT_RETRIEVABLE.value.equals(value)) {
+            return DOCUMENT_RETRIEVABLE;
         }
         return new AdapterRole(value);
     }

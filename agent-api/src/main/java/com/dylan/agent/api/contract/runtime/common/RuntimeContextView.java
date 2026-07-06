@@ -12,20 +12,22 @@ import io.swagger.v3.oas.annotations.media.Schema;
  */
 @Schema(
     description = "Runtime Context View 联合类型",
-    oneOf = {RuntimeQueryContextView.class, RuntimeAggregateContextView.class},
+    oneOf = {RuntimeQueryContextView.class, RuntimeAggregateContextView.class, RuntimeDocumentContextView.class},
     discriminatorProperty = "contextType",
     discriminatorMapping = {
         @DiscriminatorMapping(value = "QUERY", schema = RuntimeQueryContextView.class),
-        @DiscriminatorMapping(value = "AGGREGATE", schema = RuntimeAggregateContextView.class)
+        @DiscriminatorMapping(value = "AGGREGATE", schema = RuntimeAggregateContextView.class),
+        @DiscriminatorMapping(value = "DOCUMENT", schema = RuntimeDocumentContextView.class)
     }
 )
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "contextType", visible = true)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = RuntimeQueryContextView.class, name = "QUERY"),
-    @JsonSubTypes.Type(value = RuntimeAggregateContextView.class, name = "AGGREGATE")
+    @JsonSubTypes.Type(value = RuntimeAggregateContextView.class, name = "AGGREGATE"),
+    @JsonSubTypes.Type(value = RuntimeDocumentContextView.class, name = "DOCUMENT")
 })
 public sealed interface RuntimeContextView
-    permits RuntimeQueryContextView, RuntimeAggregateContextView {
+    permits RuntimeQueryContextView, RuntimeAggregateContextView, RuntimeDocumentContextView {
 
     /** Context discriminator。 */
     RuntimeContextType getContextType();

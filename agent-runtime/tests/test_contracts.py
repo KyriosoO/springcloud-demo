@@ -145,7 +145,7 @@ def test_legacy_plan_generate_models_are_not_exported():
 
 
 def test_plan_kind_has_no_clarify():
-    assert {item.value for item in g.AgentPlanKind} == {"QUERY", "AGGREGATE"}
+    assert {item.value for item in g.AgentPlanKind} == {"QUERY", "AGGREGATE", "DOCUMENT"}
 
 
 def test_clarification_has_no_question():

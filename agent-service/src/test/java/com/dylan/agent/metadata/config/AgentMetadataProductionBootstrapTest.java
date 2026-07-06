@@ -1,7 +1,9 @@
 package com.dylan.agent.metadata.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
@@ -53,6 +55,19 @@ class AgentMetadataProductionBootstrapTest {
                 secretProperties("NEXT")).bootstrap();
 
         assertThat(active.bundleDigest()).isNotEqualTo(next.bundleDigest());
+    }
+
+    @Test
+    void documentEnablementRequiresDocumentDomainMetadataAndRegistration() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().setEnabled(true);
+
+        assertThatThrownBy(() -> new DefaultAgentMetadataBootstrap(
+                properties,
+                DomainMetadataTestSupport.properties(),
+                secretProperties("ACTIVE")).bootstrap())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("DOCUMENT_RETRIEVABLE");
     }
 
     private static SecretProperties secretProperties(String activePayloadKeyId) {

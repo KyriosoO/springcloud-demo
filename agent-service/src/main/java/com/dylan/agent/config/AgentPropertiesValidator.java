@@ -23,6 +23,7 @@ public class AgentPropertiesValidator implements InitializingBean {
         validateRuntime();
         validateQuery();
         validateAggregateConfig();
+        validateDocumentConfig();
         validateConversation();
     }
 
@@ -100,6 +101,25 @@ public class AgentPropertiesValidator implements InitializingBean {
         }
         if (a.getDefaultMaxRows() > a.getMaxMaxRows()) {
             throw new IllegalStateException("agent.aggregate.default-max-rows 不能超过 max-max-rows。");
+        }
+    }
+
+    private void validateDocumentConfig() {
+        var d = properties.getDocument();
+        if (d.getDefaultSize() <= 0) {
+            throw new IllegalStateException("agent.document.default-size 必须为正数。");
+        }
+        if (d.getMaxSize() <= 0) {
+            throw new IllegalStateException("agent.document.max-size 必须为正数。");
+        }
+        if (d.getDefaultSize() > d.getMaxSize()) {
+            throw new IllegalStateException("agent.document.default-size 不能超过 max-size。");
+        }
+        if (d.getMaxEvidenceCount() <= 0 || d.getMaxEvidenceCount() > d.getMaxSize()) {
+            throw new IllegalStateException("agent.document.max-evidence-count 必须为正数且不能超过 max-size。");
+        }
+        if (d.getMaxQueryTextLength() <= 0 || d.getMaxSnippetChars() <= 0 || d.getMaxSummaryChars() <= 0) {
+            throw new IllegalStateException("agent.document 文本长度配置必须为正数。");
         }
     }
 

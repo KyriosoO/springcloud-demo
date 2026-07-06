@@ -132,6 +132,7 @@
 	<modules>
 		<module>../agent-api</module>
 		<module>../agent-adapter-api</module>
+		<module>../agent-adapter-document</module>
 		<module>../agent-adapter-employee</module>
 		<module>../agent-adapter-transaction</module>
 		<module>../workflow-api</module>

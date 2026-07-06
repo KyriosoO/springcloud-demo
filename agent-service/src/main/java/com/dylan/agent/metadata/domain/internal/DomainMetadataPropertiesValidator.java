@@ -110,8 +110,9 @@ public final class DomainMetadataPropertiesValidator {
             if (!capabilityFields.containsAll(sortFields)) {
                 throw new IllegalStateException("sortFields must be role capability fields subset: " + domainId + "/" + role);
             }
-            if (role != AdapterRole.QUERYABLE && !sortFields.isEmpty()) {
-                throw new IllegalStateException("sortFields only allowed for QUERYABLE role: " + domainId + "/" + role);
+            if (role != AdapterRole.QUERYABLE && role != AdapterRole.DOCUMENT_RETRIEVABLE && !sortFields.isEmpty()) {
+                throw new IllegalStateException("sortFields only allowed for QUERYABLE/DOCUMENT_RETRIEVABLE role: "
+                        + domainId + "/" + role);
             }
             capabilities.put(role, new CanonicalRoleCapability(
                     role,

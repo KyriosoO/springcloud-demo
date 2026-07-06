@@ -92,6 +92,7 @@ final class AgentRuntimeContractOpenApiFactory {
             }
         }
         components.setSchemas(schemas);
+        fixDocumentOperationSchema(schemas);
 
         List<String> unions = List.of(
             "RouteOutcome", "PlanOutcome", "AgentPlan", "ClarificationArgs", "RuntimeContextView");
@@ -257,6 +258,17 @@ final class AgentRuntimeContractOpenApiFactory {
             }
         }
         return components;
+    }
+
+    private static void fixDocumentOperationSchema(Map<String, Schema> schemas) {
+        schemas.put("DocumentPlanOperation", new StringSchema()
+            .description("文档能力操作类型")
+            ._enum(List.of("SEARCH", "ANSWER", "SUMMARIZE")));
+        Schema documentSpec = schemas.get("AgentDocumentSpec");
+        if (documentSpec != null && documentSpec.getProperties() != null) {
+            documentSpec.getProperties().put("operation",
+                new Schema<>().$ref("#/components/schemas/DocumentPlanOperation"));
+        }
     }
 
     static SecurityScheme buildInternalServiceSecurity() {

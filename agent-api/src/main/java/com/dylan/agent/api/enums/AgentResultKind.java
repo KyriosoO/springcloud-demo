@@ -10,5 +10,7 @@ public enum AgentResultKind {
     @Schema(description = "查询预览结果 payload")
     QUERY_PREVIEW,
     @Schema(description = "聚合结果 payload")
-    AGGREGATE
+    AGGREGATE,
+    @Schema(description = "文档结果 payload")
+    DOCUMENT
 }

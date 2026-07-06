@@ -53,10 +53,10 @@ class AgentRuntimeContractOpenApiGenerationTest {
     void shouldExposeClosedDiscriminatedUnions() {
         assertDiscriminator("RouteOutcome", "outcomeType", Set.of("DECISION", "CLARIFICATION"));
         assertDiscriminator("PlanOutcome", "outcomeType", Set.of("EXECUTABLE", "CLARIFICATION"));
-        assertDiscriminator("AgentPlan", "planKind", Set.of("QUERY", "AGGREGATE"));
+        assertDiscriminator("AgentPlan", "planKind", Set.of("QUERY", "AGGREGATE", "DOCUMENT"));
         assertDiscriminator("ClarificationArgs", "argType", Set.of(
             "CAPABILITY_CHOICES", "DOMAIN_CHOICES", "FIELD_CHOICES", "FIELD_FORBIDDEN", "VALUE_CHOICES"));
-        assertDiscriminator("RuntimeContextView", "contextType", Set.of("QUERY", "AGGREGATE"));
+        assertDiscriminator("RuntimeContextView", "contextType", Set.of("QUERY", "AGGREGATE", "DOCUMENT"));
     }
 
     @Test

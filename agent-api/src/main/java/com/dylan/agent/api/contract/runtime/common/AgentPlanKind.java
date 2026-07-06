@@ -16,5 +16,8 @@ public enum AgentPlanKind {
     QUERY,
 
     @Schema(description = "聚合分析 plan")
-    AGGREGATE
+    AGGREGATE,
+
+    @Schema(description = "文档检索、问答和总结 plan")
+    DOCUMENT
 }

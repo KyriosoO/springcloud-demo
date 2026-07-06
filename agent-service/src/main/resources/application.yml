@@ -28,6 +28,10 @@ spring:
             connect-timeout: 2000
             read-timeout: 10000
             logger-level: none
+          es-query-service:
+            connect-timeout: 2000
+            read-timeout: 10000
+            logger-level: none
 
 eureka:
   client:
@@ -92,6 +96,14 @@ agent:
     max-group-fields: 2
     default-max-rows: 20
     max-max-rows: 100
+  document:
+    enabled: false
+    default-size: 5
+    max-size: 20
+    max-evidence-count: 8
+    max-query-text-length: 500
+    max-snippet-chars: 500
+    max-summary-chars: 2000
   domain-metadata:
     catalog-version: catalog-2026-07-02
     adapter-registration-version: adapter-reg-2026-07-02

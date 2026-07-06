@@ -174,8 +174,8 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
                 .filter(allowedFields::contains)
                 .sorted()
                 .toList());
-        int roleMax = role.equals(AdapterRole.QUERYABLE) ? capability.maxPageSize() : capability.maxResultRows();
-        int scopeMax = role.equals(AdapterRole.QUERYABLE) ? scope.maxPageSize() : scope.maxResultRows();
+        int roleMax = isPageRole(role) ? capability.maxPageSize() : capability.maxResultRows();
+        int scopeMax = isPageRole(role) ? scope.maxPageSize() : scope.maxResultRows();
         schema.setMaxSize(positiveMin(roleMax, scopeMax));
         schema.setDefaultSize(schema.getMaxSize());
         return schema;
@@ -324,5 +324,9 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
             return left;
         }
         return Math.min(left, right);
+    }
+
+    private static boolean isPageRole(AdapterRole role) {
+        return role == AdapterRole.QUERYABLE || role == AdapterRole.DOCUMENT_RETRIEVABLE;
     }
 }

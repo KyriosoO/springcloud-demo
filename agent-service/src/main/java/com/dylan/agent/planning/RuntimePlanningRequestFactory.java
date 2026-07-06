@@ -146,6 +146,9 @@ public final class RuntimePlanningRequestFactory {
         if (AgentExecutionContracts.AGGREGATE_PLAN.equals(contractRef)) {
             return "#/components/schemas/AggregateAgentPlan";
         }
+        if (AgentExecutionContracts.DOCUMENT_PLAN.equals(contractRef)) {
+            return "#/components/schemas/DocumentAgentPlan";
+        }
         return "#/components/schemas/" + contractRef.schema();
     }
 }

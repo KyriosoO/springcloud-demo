@@ -10,5 +10,8 @@ public enum RuntimeContextType {
     QUERY,
 
     @Schema(description = "聚合上下文")
-    AGGREGATE
+    AGGREGATE,
+
+    @Schema(description = "文档上下文")
+    DOCUMENT
 }

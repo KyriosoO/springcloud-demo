@@ -64,7 +64,7 @@ class RuntimePlanPlanner:
         self._llm_client = llm_client
 
     async def plan(self, request: PlanRequest) -> ExecutablePlan | ClarificationRequired:
-        prompt = "aggregate_system.md" if request.plan_kind.value == "AGGREGATE" else "query_system.md"
+        prompt = _plan_prompt(request.plan_kind.value)
         request_payload = request.model_dump(by_alias=True, mode="json", exclude_none=False)
         raw = await self._llm_client.generate_plan_json(
             _prompt(prompt),
@@ -121,6 +121,14 @@ def _parse_plan(raw: str, request: PlanRequest) -> ExecutablePlan | Clarificatio
     outcome = validate_plan_outcome(payload)
     _assert_request_id(outcome.request_id, request.request_id)
     return outcome
+
+
+def _plan_prompt(plan_kind: str) -> str:
+    return {
+        "QUERY": "query_system.md",
+        "AGGREGATE": "aggregate_system.md",
+        "DOCUMENT": "document_system.md",
+    }.get(plan_kind, "query_system.md")
 
 
 def _json_object(raw: str) -> dict[str, Any]:

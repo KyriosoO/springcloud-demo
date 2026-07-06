@@ -3,6 +3,7 @@ package com.dylan.agent.metadata.domain.internal;
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.AgentAdapterPort;
 import com.dylan.agent.adapter.api.AggregatableAdapter;
+import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.QueryableAdapter;
 
 import java.util.Map;
@@ -14,7 +15,8 @@ public final class AdapterRolePortTypes {
 
     private static final Map<AdapterRole, Class<? extends AgentAdapterPort>> TYPES = Map.of(
             AdapterRole.QUERYABLE, QueryableAdapter.class,
-            AdapterRole.AGGREGATABLE, AggregatableAdapter.class);
+            AdapterRole.AGGREGATABLE, AggregatableAdapter.class,
+            AdapterRole.DOCUMENT_RETRIEVABLE, DocumentRetrievableAdapter.class);
 
     private AdapterRolePortTypes() {
     }

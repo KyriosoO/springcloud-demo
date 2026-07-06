@@ -15,6 +15,10 @@ spring:
             connect-timeout: 500
             read-timeout: 2000
             logger-level: none
+          es-query-service:
+            connect-timeout: 500
+            read-timeout: 2000
+            logger-level: none
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -72,6 +76,14 @@ agent:
     max-group-fields: 2
     default-max-rows: 20
     max-max-rows: 100
+  document:
+    enabled: false
+    default-size: 5
+    max-size: 20
+    max-evidence-count: 8
+    max-query-text-length: 500
+    max-snippet-chars: 500
+    max-summary-chars: 2000
 
 common:
   security:

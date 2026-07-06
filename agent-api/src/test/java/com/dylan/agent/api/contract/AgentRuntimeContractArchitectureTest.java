@@ -41,8 +41,8 @@ class AgentRuntimeContractArchitectureTest {
     }
 
     @Test
-    void planKindMustContainOnlyQueryAndAggregate() {
-        assertEquals(Set.of("QUERY", "AGGREGATE"), Arrays.stream(AgentPlanKind.values())
+    void planKindMustContainCurrentClosedSet() {
+        assertEquals(Set.of("QUERY", "AGGREGATE", "DOCUMENT"), Arrays.stream(AgentPlanKind.values())
             .map(Enum::name).collect(Collectors.toSet()));
     }
 
@@ -92,6 +92,10 @@ class AgentRuntimeContractArchitectureTest {
             "java/com/dylan/agent/capability/aggregate/AggregatePlanValidator.java",
             "java/com/dylan/agent/capability/aggregate/AggregateCapabilityHandler.java",
             "java/com/dylan/agent/capability/aggregate/ValidatedAggregatePlan.java",
+            "java/com/dylan/agent/capability/document/DocumentCapabilityConfiguration.java",
+            "java/com/dylan/agent/capability/document/DocumentPlanValidator.java",
+            "java/com/dylan/agent/capability/document/DocumentCapabilityHandler.java",
+            "java/com/dylan/agent/capability/document/ValidatedDocumentPlan.java",
             "java/com/dylan/agent/application/PlanningCommandFactory.java",
             "java/com/dylan/agent/client/AgentRuntimeClient.java",
             "java/com/dylan/agent/client/AgentRuntimeErrorMapper.java",

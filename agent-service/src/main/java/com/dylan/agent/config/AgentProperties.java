@@ -17,6 +17,7 @@ public class AgentProperties {
     private ConversationProperties conversation;
     private QueryProperties query;
     private AggregateProperties aggregate;
+    private DocumentProperties document = new DocumentProperties();
 
     public RuntimeProperties getRuntime() {
         return runtime;
@@ -56,6 +57,14 @@ public class AgentProperties {
 
     public void setAggregate(AggregateProperties aggregate) {
         this.aggregate = aggregate;
+    }
+
+    public DocumentProperties getDocument() {
+        return document;
+    }
+
+    public void setDocument(DocumentProperties document) {
+        this.document = document == null ? new DocumentProperties() : document;
     }
 
     /** Runtime 连接配置。 */
@@ -171,5 +180,31 @@ public class AgentProperties {
         public void setDefaultMaxRows(int defaultMaxRows) { this.defaultMaxRows = defaultMaxRows; }
         public int getMaxMaxRows() { return maxMaxRows; }
         public void setMaxMaxRows(int maxMaxRows) { this.maxMaxRows = maxMaxRows; }
+    }
+
+    /** 文档型检索与总结能力配置，默认不启用生产路由。 */
+    public static class DocumentProperties {
+        private boolean enabled = false;
+        private int defaultSize = 5;
+        private int maxSize = 20;
+        private int maxEvidenceCount = 8;
+        private int maxQueryTextLength = 500;
+        private int maxSnippetChars = 500;
+        private int maxSummaryChars = 2000;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getDefaultSize() { return defaultSize; }
+        public void setDefaultSize(int defaultSize) { this.defaultSize = defaultSize; }
+        public int getMaxSize() { return maxSize; }
+        public void setMaxSize(int maxSize) { this.maxSize = maxSize; }
+        public int getMaxEvidenceCount() { return maxEvidenceCount; }
+        public void setMaxEvidenceCount(int maxEvidenceCount) { this.maxEvidenceCount = maxEvidenceCount; }
+        public int getMaxQueryTextLength() { return maxQueryTextLength; }
+        public void setMaxQueryTextLength(int maxQueryTextLength) { this.maxQueryTextLength = maxQueryTextLength; }
+        public int getMaxSnippetChars() { return maxSnippetChars; }
+        public void setMaxSnippetChars(int maxSnippetChars) { this.maxSnippetChars = maxSnippetChars; }
+        public int getMaxSummaryChars() { return maxSummaryChars; }
+        public void setMaxSummaryChars(int maxSummaryChars) { this.maxSummaryChars = maxSummaryChars; }
     }
 }

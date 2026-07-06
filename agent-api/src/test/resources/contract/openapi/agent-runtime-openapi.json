@@ -56,6 +56,54 @@
         "required" : [ "metrics" ],
         "type" : "object"
       },
+      "AgentDocumentSpec" : {
+        "additionalProperties" : false,
+        "description" : "DOCUMENT 计划的文档检索、问答和总结规格",
+        "properties" : {
+          "citationRequired" : {
+            "description" : "是否要求引用；ANSWER/SUMMARIZE 固定为 true",
+            "nullable" : true,
+            "type" : "boolean"
+          },
+          "filters" : {
+            "description" : "文档过滤条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "operation" : {
+            "$ref" : "#/components/schemas/DocumentPlanOperation"
+          },
+          "queryText" : {
+            "description" : "用户查询或总结目标",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "retrievalOptions" : {
+            "$ref" : "#/components/schemas/DocumentRetrievalOptions"
+          },
+          "sorts" : {
+            "description" : "文档排序条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentSortSpec"
+            },
+            "maxItems" : 3,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "summaryScope" : {
+            "$ref" : "#/components/schemas/DocumentSummaryScope"
+          }
+        },
+        "required" : [ "operation", "queryText" ],
+        "type" : "object"
+      },
       "AgentDomainMode" : {
         "enum" : [ "NONE", "OPTIONAL", "REQUIRED" ],
         "type" : "string"
@@ -104,6 +152,7 @@
         "discriminator" : {
           "mapping" : {
             "AGGREGATE" : "#/components/schemas/AggregateAgentPlan",
+            "DOCUMENT" : "#/components/schemas/DocumentAgentPlan",
             "QUERY" : "#/components/schemas/QueryAgentPlan"
           },
           "propertyName" : "planKind"
@@ -112,10 +161,12 @@
           "$ref" : "#/components/schemas/QueryAgentPlan"
         }, {
           "$ref" : "#/components/schemas/AggregateAgentPlan"
+        }, {
+          "$ref" : "#/components/schemas/DocumentAgentPlan"
         } ]
       },
       "AgentPlanKind" : {
-        "enum" : [ "QUERY", "AGGREGATE" ],
+        "enum" : [ "QUERY", "AGGREGATE", "DOCUMENT" ],
         "type" : "string"
       },
       "AgentQuerySpec" : {
@@ -345,6 +396,123 @@
           }
         },
         "required" : [ "args", "metadata", "outcomeType", "reasonCode", "requestId" ],
+        "type" : "object"
+      },
+      "DocumentAgentPlan" : {
+        "additionalProperties" : false,
+        "description" : "DOCUMENT Plan 子类型",
+        "properties" : {
+          "document" : {
+            "$ref" : "#/components/schemas/AgentDocumentSpec"
+          },
+          "planKind" : {
+            "description" : "Agent Plan 结构类型",
+            "enum" : [ "DOCUMENT" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "document", "planKind" ],
+        "type" : "object"
+      },
+      "DocumentPlanOperation" : {
+        "description" : "文档能力操作类型",
+        "enum" : [ "SEARCH", "ANSWER", "SUMMARIZE" ],
+        "type" : "string"
+      },
+      "DocumentRetrievalOptions" : {
+        "additionalProperties" : false,
+        "description" : "文档检索选项",
+        "nullable" : true,
+        "properties" : {
+          "keywordWeight" : {
+            "description" : "关键词召回权重，0 到 1",
+            "exclusiveMaximum" : false,
+            "exclusiveMinimum" : false,
+            "maximum" : 1.0,
+            "minimum" : 0.0,
+            "nullable" : true,
+            "type" : "number"
+          },
+          "minScore" : {
+            "description" : "最小相关度分数",
+            "nullable" : true,
+            "type" : "number"
+          },
+          "page" : {
+            "description" : "页码，从 1 开始",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "size" : {
+            "description" : "每页大小",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "topK" : {
+            "description" : "证据条数上限",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "vectorWeight" : {
+            "description" : "向量召回权重，0 到 1",
+            "exclusiveMaximum" : false,
+            "exclusiveMinimum" : false,
+            "maximum" : 1.0,
+            "minimum" : 0.0,
+            "nullable" : true,
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "DocumentSummaryScope" : {
+        "additionalProperties" : false,
+        "description" : "文档总结范围",
+        "nullable" : true,
+        "properties" : {
+          "documentIds" : {
+            "description" : "限定文档 ID 列表",
+            "items" : {
+              "description" : "限定文档 ID 列表",
+              "nullable" : true,
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "maxSummaryChars" : {
+            "description" : "最大摘要字符数",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "sectionHints" : {
+            "description" : "章节提示",
+            "items" : {
+              "description" : "章节提示",
+              "nullable" : true,
+              "type" : "string"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "nullable" : true,
+            "type" : "array"
+          },
+          "timeRange" : {
+            "description" : "时间范围表达式",
+            "nullable" : true,
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "DomainChoiceArgs" : {
@@ -767,7 +935,7 @@
         "type" : "object"
       },
       "RuntimeContextType" : {
-        "enum" : [ "QUERY", "AGGREGATE" ],
+        "enum" : [ "QUERY", "AGGREGATE", "DOCUMENT" ],
         "type" : "string"
       },
       "RuntimeContextView" : {
@@ -775,6 +943,7 @@
         "discriminator" : {
           "mapping" : {
             "AGGREGATE" : "#/components/schemas/RuntimeAggregateContextView",
+            "DOCUMENT" : "#/components/schemas/RuntimeDocumentContextView",
             "QUERY" : "#/components/schemas/RuntimeQueryContextView"
           },
           "propertyName" : "contextType"
@@ -783,7 +952,64 @@
           "$ref" : "#/components/schemas/RuntimeQueryContextView"
         }, {
           "$ref" : "#/components/schemas/RuntimeAggregateContextView"
+        }, {
+          "$ref" : "#/components/schemas/RuntimeDocumentContextView"
         } ]
+      },
+      "RuntimeDocumentContextView" : {
+        "additionalProperties" : false,
+        "description" : "DOCUMENT context 投影",
+        "properties" : {
+          "citationIds" : {
+            "description" : "上轮引用 ID",
+            "items" : {
+              "description" : "上轮引用 ID",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "contextType" : {
+            "description" : "上下文类型",
+            "enum" : [ "DOCUMENT" ],
+            "type" : "string"
+          },
+          "domain" : {
+            "description" : "上轮文档 domain",
+            "nullable" : true,
+            "type" : "string"
+          },
+          "filters" : {
+            "description" : "上轮文档过滤条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AgentFilter"
+            },
+            "type" : "array"
+          },
+          "operation" : {
+            "description" : "上轮文档操作",
+            "nullable" : true,
+            "type" : "string"
+          },
+          "queryText" : {
+            "description" : "上轮文档查询文本",
+            "nullable" : true,
+            "type" : "string"
+          },
+          "sourceInvocationId" : {
+            "description" : "来源 Invocation 标识",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "topK" : {
+            "description" : "上轮 topK",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "citationIds", "contextType", "filters", "sourceInvocationId" ],
+        "type" : "object"
       },
       "RuntimeDomainFieldSchema" : {
         "additionalProperties" : false,

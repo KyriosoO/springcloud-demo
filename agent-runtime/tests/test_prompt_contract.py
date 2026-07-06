@@ -90,9 +90,21 @@ class TestPromptExamples:
         assert any(isinstance(outcome, ClarificationRequired) for outcome in outcomes)
         assert {_metadata_operation(block) for block in blocks} == {RuntimeOperationType.plan.value}
 
+    def test_document_examples_parse_as_plan_outcomes(self):
+        blocks = _extract_json_blocks(_load_prompt("document_system.md"))
+        assert len(blocks) >= 2
+
+        outcomes = [unwrap_root(TypeAdapter(PlanOutcome).validate_python(block)) for block in blocks]
+        assert any(
+            isinstance(outcome, ExecutablePlan) and outcome.plan.plan_kind == "DOCUMENT"
+            for outcome in outcomes
+        )
+        assert any(isinstance(outcome, ClarificationRequired) for outcome in outcomes)
+        assert {_metadata_operation(block) for block in blocks} == {RuntimeOperationType.plan.value}
+
 
 class TestPromptEnums:
-    @pytest.mark.parametrize("filename", ["query_system.md", "aggregate_system.md"])
+    @pytest.mark.parametrize("filename", ["query_system.md", "aggregate_system.md", "document_system.md"])
     def test_operator_examples_use_generated_values(self, filename: str):
         text = _load_prompt(filename)
         for operator in re.findall(r'"operator":\s*"([A-Z_]+)"', text):
@@ -105,13 +117,13 @@ class TestPromptEnums:
 
 
 class TestNoLegacyPromptContract:
-    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md"])
+    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md", "document_system.md"])
     def test_no_legacy_terms(self, filename: str):
         text = _load_prompt(filename)
         for term in FORBIDDEN_TERMS:
             assert term not in text, f"{filename} contains forbidden term {term!r}"
 
-    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md"])
+    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md", "document_system.md"])
     def test_examples_use_target_discriminators(self, filename: str):
         blocks = _extract_json_blocks(_load_prompt(filename))
         assert blocks
@@ -121,7 +133,7 @@ class TestNoLegacyPromptContract:
             assert "metadata" in block
             assert block["outcomeType"] in {"DECISION", "EXECUTABLE", "CLARIFICATION"}
 
-    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md"])
+    @pytest.mark.parametrize("filename", ["route_system.md", "query_system.md", "aggregate_system.md", "document_system.md"])
     def test_prompt_does_not_pin_query_preview_as_static_route(self, filename: str):
         assert "query.preview" not in _load_prompt(filename)
 

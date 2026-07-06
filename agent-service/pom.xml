@@ -24,6 +24,11 @@
         </dependency>
         <dependency>
             <groupId>com.dylan</groupId>
+            <artifactId>agent-adapter-document</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.dylan</groupId>
             <artifactId>agent-adapter-employee</artifactId>
             <version>${project.version}</version>
         </dependency>

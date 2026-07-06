@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: a6dc6a98c3a3199bfbf912e8d2a50a21af8509511890c825ee88e72f9e3e6e16
+# source_sha256: 524eccc66825d49e4c393f3122b2242141431ada5c987a9906269395e803732c
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ class AgentOperator(str, Enum):
 class AgentPlanKind(str, Enum):
     query = 'QUERY'
     aggregate = 'AGGREGATE'
+    document = 'DOCUMENT'
 
 
 class Direction(str, Enum):
@@ -179,6 +180,78 @@ class OutcomeType(str, Enum):
     clarification = 'CLARIFICATION'
 
 
+class PlanKind1(str, Enum):
+    """
+    Agent Plan 结构类型
+    """
+
+    document = 'DOCUMENT'
+
+
+class DocumentPlanOperation(str, Enum):
+    """
+    文档能力操作类型
+    """
+
+    search = 'SEARCH'
+    answer = 'ANSWER'
+    summarize = 'SUMMARIZE'
+
+
+class DocumentRetrievalOptions(BaseModel):
+    """
+    文档检索选项
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    keyword_weight: Optional[float] = Field(
+        None,
+        alias='keywordWeight',
+        description='关键词召回权重，0 到 1',
+        ge=0.0,
+        le=1.0,
+    )
+    min_score: Optional[float] = Field(
+        None, alias='minScore', description='最小相关度分数'
+    )
+    page: Optional[int] = Field(None, description='页码，从 1 开始', ge=1)
+    size: Optional[int] = Field(None, description='每页大小', ge=1)
+    top_k: Optional[int] = Field(None, alias='topK', description='证据条数上限', ge=1)
+    vector_weight: Optional[float] = Field(
+        None, alias='vectorWeight', description='向量召回权重，0 到 1', ge=0.0, le=1.0
+    )
+
+
+class DocumentSummaryScope(BaseModel):
+    """
+    文档总结范围
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    document_ids: Optional[List[Optional[str]]] = Field(
+        None,
+        alias='documentIds',
+        description='限定文档 ID 列表',
+        max_length=20,
+        min_length=0,
+    )
+    max_summary_chars: Optional[int] = Field(
+        None, alias='maxSummaryChars', description='最大摘要字符数', ge=1
+    )
+    section_hints: Optional[List[Optional[str]]] = Field(
+        None, alias='sectionHints', description='章节提示', max_length=10, min_length=0
+    )
+    time_range: Optional[str] = Field(
+        None, alias='timeRange', description='时间范围表达式'
+    )
+
+
 class ArgType1(str, Enum):
     """
     ClarificationArgs 子类型
@@ -270,7 +343,7 @@ class ContractVersion(str, Enum):
     field_1_0_0 = '1.0.0'
 
 
-class PlanKind1(str, Enum):
+class PlanKind2(str, Enum):
     """
     Agent Plan 结构类型
     """
@@ -336,6 +409,15 @@ class RuntimeCapabilityRoutingDescriptor(BaseModel):
 class RuntimeContextType(str, Enum):
     query = 'QUERY'
     aggregate = 'AGGREGATE'
+    document = 'DOCUMENT'
+
+
+class ContextType1(str, Enum):
+    """
+    上下文类型
+    """
+
+    document = 'DOCUMENT'
 
 
 class RuntimeDomainFieldSchema(BaseModel):
@@ -450,7 +532,7 @@ class RuntimeProfileBehaviorProjection(BaseModel):
     locale: Optional[str] = Field(None, description='locale（BCP-47），可为 null')
 
 
-class ContextType1(str, Enum):
+class ContextType2(str, Enum):
     """
     上下文类型
     """
@@ -601,6 +683,34 @@ class RuntimeAggregateContextView(BaseModel):
     )
 
 
+class RuntimeDocumentContextView(BaseModel):
+    """
+    DOCUMENT context 投影
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    citation_ids: List[str] = Field(..., alias='citationIds', description='上轮引用 ID')
+    context_type: Literal['DOCUMENT'] = Field(
+        ..., alias='contextType', description='上下文类型'
+    )
+    domain: Optional[str] = Field(None, description='上轮文档 domain')
+    filters: List[AgentFilter] = Field(..., description='上轮文档过滤条件')
+    operation: Optional[str] = Field(None, description='上轮文档操作')
+    query_text: Optional[str] = Field(
+        None, alias='queryText', description='上轮文档查询文本'
+    )
+    source_invocation_id: str = Field(
+        ...,
+        alias='sourceInvocationId',
+        description='来源 Invocation 标识',
+        min_length=1,
+    )
+    top_k: Optional[int] = Field(None, alias='topK', description='上轮 topK', ge=1)
+
+
 class RuntimeOperationMetadata(BaseModel):
     """
     Runtime 操作元数据
@@ -718,6 +828,40 @@ class AgentAggregateSpec(BaseModel):
     )
 
 
+class AgentDocumentSpec(BaseModel):
+    """
+    DOCUMENT 计划的文档检索、问答和总结规格
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    citation_required: Optional[bool] = Field(
+        None,
+        alias='citationRequired',
+        description='是否要求引用；ANSWER/SUMMARIZE 固定为 true',
+    )
+    filters: Optional[List[AgentFilter]] = Field(
+        None, description='文档过滤条件', max_length=10, min_length=0
+    )
+    operation: DocumentPlanOperation
+    query_text: str = Field(
+        ...,
+        alias='queryText',
+        description='用户查询或总结目标',
+        max_length=500,
+        min_length=0,
+    )
+    retrieval_options: Optional[DocumentRetrievalOptions] = Field(
+        None, alias='retrievalOptions'
+    )
+    sorts: Optional[List[AgentSortSpec]] = Field(
+        None, description='文档排序条件', max_length=3, min_length=0
+    )
+    summary_scope: Optional[DocumentSummaryScope] = Field(None, alias='summaryScope')
+
+
 class AggregateAgentPlan(BaseModel):
     """
     AGGREGATE Plan 子类型
@@ -756,6 +900,21 @@ class ClarificationRequired(BaseModel):
     reason_code: ClarificationReasonCode = Field(..., alias='reasonCode')
     request_id: str = Field(
         ..., alias='requestId', description='请求关联标识', min_length=1
+    )
+
+
+class DocumentAgentPlan(BaseModel):
+    """
+    DOCUMENT Plan 子类型
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    document: AgentDocumentSpec
+    plan_kind: Literal['DOCUMENT'] = Field(
+        ..., alias='planKind', description='Agent Plan 结构类型'
     )
 
 
@@ -870,7 +1029,7 @@ class ExecutablePlan(BaseModel):
     outcome_type: Literal['EXECUTABLE'] = Field(
         ..., alias='outcomeType', description='Runtime Outcome 类型 discriminator'
     )
-    plan: Union[QueryAgentPlan, AggregateAgentPlan] = Field(
+    plan: Union[QueryAgentPlan, AggregateAgentPlan, DocumentAgentPlan] = Field(
         ..., description='Agent Plan 联合类型', discriminator='plan_kind'
     )
     request_id: str = Field(
@@ -908,10 +1067,14 @@ class PlanRequest(BaseModel):
         description='Java 已校验的 capabilityId',
         min_length=1,
     )
-    context_views: List[Union[RuntimeQueryContextView, RuntimeAggregateContextView]] = (
-        Field(
-            ..., alias='contextViews', description='Context View 列表，contextType 唯一'
-        )
+    context_views: List[
+        Union[
+            RuntimeQueryContextView,
+            RuntimeAggregateContextView,
+            RuntimeDocumentContextView,
+        ]
+    ] = Field(
+        ..., alias='contextViews', description='Context View 列表，contextType 唯一'
     )
     contract_version: ContractVersion = Field(
         ..., alias='contractVersion', description='唯一 contract generation 版本'

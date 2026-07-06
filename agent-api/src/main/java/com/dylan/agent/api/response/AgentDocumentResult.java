@@ -1,0 +1,30 @@
+package com.dylan.agent.api.response;
+
+import java.util.List;
+
+/** 文档能力最终安全结果。 */
+public class AgentDocumentResult {
+
+    private String answerText;
+    private String summaryText;
+    private List<String> summaryBullets;
+    private List<AgentDocumentHit> hits;
+    private List<AgentDocumentCitation> citations;
+    private boolean partial;
+    private AgentDocumentCoverage coverage;
+
+    public String getAnswerText() { return answerText; }
+    public void setAnswerText(String answerText) { this.answerText = answerText; }
+    public String getSummaryText() { return summaryText; }
+    public void setSummaryText(String summaryText) { this.summaryText = summaryText; }
+    public List<String> getSummaryBullets() { return summaryBullets; }
+    public void setSummaryBullets(List<String> summaryBullets) { this.summaryBullets = summaryBullets; }
+    public List<AgentDocumentHit> getHits() { return hits; }
+    public void setHits(List<AgentDocumentHit> hits) { this.hits = hits; }
+    public List<AgentDocumentCitation> getCitations() { return citations; }
+    public void setCitations(List<AgentDocumentCitation> citations) { this.citations = citations; }
+    public boolean isPartial() { return partial; }
+    public void setPartial(boolean partial) { this.partial = partial; }
+    public AgentDocumentCoverage getCoverage() { return coverage; }
+    public void setCoverage(AgentDocumentCoverage coverage) { this.coverage = coverage; }
+}

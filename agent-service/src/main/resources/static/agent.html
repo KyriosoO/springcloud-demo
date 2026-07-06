@@ -91,6 +91,24 @@
     color: #64748b;
     font-size: 12px;
   }
+  #document-result { overflow-x: auto; }
+  #document-result .meta {
+    margin-bottom: 8px;
+    color: #64748b;
+    font-size: 12px;
+  }
+  #document-result .citation {
+    margin: 8px 0;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    background: #f8fafc;
+    line-height: 1.55;
+  }
+  #document-result .citation-title {
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
   .error { color: #b91c1c; }
 </style>
 </head>
@@ -126,6 +144,11 @@
   <div id="aggregate-result">等待查询。</div>
 </section>
 
+<section class="output">
+  <h2>5. AgentDocumentResult</h2>
+  <div id="document-result">等待查询。</div>
+</section>
+
 <script>
 let conversationId = null;
 
@@ -139,6 +162,7 @@ async function sendMessage() {
   renderParsedParameters(null);
   renderQueryResult(null);
   renderAggregateResult(null);
+  renderDocumentResult(null);
 
   try {
     const response = await fetch("/agent/chat", {
@@ -162,6 +186,7 @@ async function sendMessage() {
     renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
+    renderDocumentResult(null);
   } finally {
     setBusy(false);
   }
@@ -174,6 +199,7 @@ function renderResponse(data) {
     renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
+    renderDocumentResult(null);
     return;
   }
 
@@ -182,6 +208,7 @@ function renderResponse(data) {
     renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
+    renderDocumentResult(null);
     return;
   }
 
@@ -194,6 +221,7 @@ function renderTypedResult(result) {
     renderParsedParameters(null);
     renderQueryResult(null);
     renderAggregateResult(null);
+    renderDocumentResult(null);
     return;
   }
 
@@ -201,6 +229,7 @@ function renderTypedResult(result) {
     renderParsedParameters(result.queryParameters);
     renderQueryResult(result.queryResult);
     renderAggregateResult(null);
+    renderDocumentResult(null);
     return;
   }
 
@@ -208,6 +237,7 @@ function renderTypedResult(result) {
     renderParsedParameters(result.queryParameters);
     renderQueryPreviewResult(result.previewResult);
     renderAggregateResult(null);
+    renderDocumentResult(null);
     return;
   }
 
@@ -215,12 +245,22 @@ function renderTypedResult(result) {
     renderParsedParameters(result.aggregateParameters);
     renderQueryResult(null);
     renderAggregateResult(result.aggregateResult);
+    renderDocumentResult(null);
+    return;
+  }
+
+  if (result.resultKind === "DOCUMENT") {
+    renderParsedParameters(result.documentParameters);
+    renderQueryResult(null);
+    renderAggregateResult(null);
+    renderDocumentResult(result.documentResult);
     return;
   }
 
   renderParsedParameters(null);
   renderQueryResult(null);
   renderAggregateResult(null);
+  renderDocumentResult(null);
 }
 
 function renderSummary(text, isError) {
@@ -369,6 +409,52 @@ function renderAggregateResult(result) {
   });
   table.appendChild(tbody);
   container.appendChild(table);
+}
+
+function renderDocumentResult(result) {
+  const container = document.getElementById("document-result");
+  container.replaceChildren();
+
+  if (!result || (!Array.isArray(result.hits) && !Array.isArray(result.citations))) {
+    container.textContent = "本次响应没有文档结果。";
+    return;
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const coverage = result.coverage || {};
+  const evidenceCount = coverage.evidenceCount ?? 0;
+  const coveredCount = coverage.coveredDocumentCount ?? 0;
+  const partialText = result.partial ? " · 部分结果" : "";
+  meta.textContent = `证据 ${evidenceCount} 条 · 覆盖文档 ${coveredCount} 个${partialText}`;
+  container.appendChild(meta);
+
+  if (result.answerText) {
+    const answer = document.createElement("p");
+    answer.textContent = result.answerText;
+    container.appendChild(answer);
+  }
+
+  if (result.summaryText) {
+    const summary = document.createElement("p");
+    summary.textContent = result.summaryText;
+    container.appendChild(summary);
+  }
+
+  const citations = Array.isArray(result.citations) ? result.citations : [];
+  citations.forEach(citation => {
+    const item = document.createElement("div");
+    item.className = "citation";
+    const title = document.createElement("div");
+    title.className = "citation-title";
+    const page = citation.page === null || citation.page === undefined ? "" : ` · p.${citation.page}`;
+    title.textContent = `[${citation.citationId || "-"}] ${citation.title || citation.documentId || "未命名文档"}${page}`;
+    const snippet = document.createElement("div");
+    snippet.textContent = citation.snippet || "";
+    item.appendChild(title);
+    item.appendChild(snippet);
+    container.appendChild(item);
+  });
 }
 
 function setBusy(busy) {
