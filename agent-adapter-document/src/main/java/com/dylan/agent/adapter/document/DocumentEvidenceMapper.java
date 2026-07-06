@@ -2,6 +2,10 @@ package com.dylan.agent.adapter.document;
 
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
+import com.dylan.esquery.api.model.HybridRetrievalDiagnostics;
+import com.dylan.esquery.api.model.HybridSearchHit;
+import com.dylan.esquery.api.model.HybridSearchResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -42,6 +46,25 @@ public class DocumentEvidenceMapper {
         }
     }
 
+    public AdapterDocumentResult toAdapterResult(HybridSearchResponse response, int requestedCount) {
+        HybridSearchResponse safe = response == null ? new HybridSearchResponse() : response;
+        List<AdapterDocumentEvidence> evidence = safe.getHits() == null ? List.of() : safe.getHits().stream()
+                .map(this::toEvidence)
+                .toList();
+        AdapterDocumentResult result = new AdapterDocumentResult();
+        result.setHits(evidence);
+        result.setCitations(evidence);
+        result.setRequestedDocumentCount(requestedCount);
+        result.setCoveredDocumentCount((int) evidence.stream()
+                .map(AdapterDocumentEvidence::getDocumentId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count());
+        result.setPartial(safe.isPartial());
+        result.setRetrievalDiagnostics(toDiagnostics(safe.getDiagnostics(), "HYBRID"));
+        return result;
+    }
+
     private List<AdapterDocumentEvidence> hits(JsonNode root) {
         JsonNode hitsNode = root.path("hits").path("hits");
         if (!hitsNode.isArray()) {
@@ -66,6 +89,10 @@ public class DocumentEvidenceMapper {
         evidence.setPage(integer(source, properties.getPageField()));
         evidence.setSourceUri(text(source, properties.getSourceUriField(), null));
         evidence.setSnippet(text(source, "snippet", text(source, properties.getDefaultSnippetField(), null)));
+        evidence.setContent(text(source, "content", null));
+        evidence.setChunkIndex(integer(source, "chunkIndex"));
+        evidence.setCharStart(integer(source, "charStart"));
+        evidence.setCharEnd(integer(source, "charEnd"));
         evidence.setScore(score(hit));
         if (source.isObject()) {
             @SuppressWarnings("unchecked")
@@ -73,6 +100,44 @@ public class DocumentEvidenceMapper {
             evidence.setMetadata(metadata);
         }
         return evidence;
+    }
+
+    private AdapterDocumentEvidence toEvidence(HybridSearchHit hit) {
+        AdapterDocumentEvidence evidence = new AdapterDocumentEvidence();
+        evidence.setDocumentId(hit.getDocumentId());
+        evidence.setChunkId(hit.getChunkId());
+        evidence.setTitle(hit.getTitle());
+        evidence.setSourceType(hit.getSourceType());
+        evidence.setSection(hit.getSection());
+        evidence.setPage(hit.getPage());
+        evidence.setSourceUri(hit.getSourceUri());
+        evidence.setSnippet(hit.getSnippet());
+        evidence.setContent(hit.getContent());
+        evidence.setContextBefore(hit.getContextBefore());
+        evidence.setContextAfter(hit.getContextAfter());
+        evidence.setChunkIndex(hit.getChunkIndex());
+        evidence.setCharStart(hit.getCharStart());
+        evidence.setCharEnd(hit.getCharEnd());
+        evidence.setKeywordRank(hit.getKeywordRank());
+        evidence.setVectorRank(hit.getVectorRank());
+        evidence.setRrfScore(hit.getRrfScore());
+        evidence.setRetrievalChannels(hit.getRetrievalChannels());
+        evidence.setScore(hit.getScore());
+        evidence.setMetadata(hit.getMetadata());
+        return evidence;
+    }
+
+    private AdapterDocumentRetrievalDiagnostics toDiagnostics(HybridRetrievalDiagnostics source, String mode) {
+        AdapterDocumentRetrievalDiagnostics target = new AdapterDocumentRetrievalDiagnostics();
+        target.setRetrievalMode(mode);
+        if (source != null) {
+            target.setKeywordHitCount(source.getKeywordHitCount());
+            target.setVectorHitCount(source.getVectorHitCount());
+            target.setFusionStrategy(source.getFusionStrategy());
+            target.setDegraded(Boolean.TRUE.equals(source.getDegraded()));
+            target.setDegradationReason(source.getDegradationReason());
+        }
+        return target;
     }
 
     private static BigDecimal score(JsonNode hit) {

@@ -35,6 +35,10 @@ public class AgentDocumentSpec {
     @Valid
     private DocumentRetrievalOptions retrievalOptions;
 
+    @Schema(description = "生成式回答和总结选项", nullable = true)
+    @Valid
+    private DocumentGenerationOptions generationOptions;
+
     @Schema(description = "总结范围；SUMMARIZE 操作必填", nullable = true)
     @Valid
     private DocumentSummaryScope summaryScope;
@@ -52,6 +56,8 @@ public class AgentDocumentSpec {
     public void setSorts(List<AgentSortSpec> sorts) { this.sorts = sorts; }
     public DocumentRetrievalOptions getRetrievalOptions() { return retrievalOptions; }
     public void setRetrievalOptions(DocumentRetrievalOptions retrievalOptions) { this.retrievalOptions = retrievalOptions; }
+    public DocumentGenerationOptions getGenerationOptions() { return generationOptions; }
+    public void setGenerationOptions(DocumentGenerationOptions generationOptions) { this.generationOptions = generationOptions; }
     public DocumentSummaryScope getSummaryScope() { return summaryScope; }
     public void setSummaryScope(DocumentSummaryScope summaryScope) { this.summaryScope = summaryScope; }
     public Boolean getCitationRequired() { return citationRequired; }

@@ -9,7 +9,9 @@ import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AgentDocumentSpec;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
+import com.dylan.agent.api.plan.DocumentGenerationOptions;
 import com.dylan.agent.api.plan.DocumentRetrievalOptions;
+import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import com.dylan.agent.api.plan.DocumentSummaryScope;
 import com.dylan.agent.invocation.model.CancellationSource;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
@@ -112,6 +114,49 @@ class DocumentPlanValidatorTest {
         assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SUMMARIZE)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("summaryScope");
+    }
+
+    @Test
+    void rejectsHybridOptionsOutOfBounds() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setRetrievalMode(DocumentRetrievalMode.HYBRID);
+        options.setKeywordK(10_001);
+        plan.getDocument().setRetrievalOptions(options);
+
+        assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.ANSWER)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bounds");
+    }
+
+    @Test
+    void acceptsHybridCandidatePoolLargerThanFinalPageSize() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setRetrievalMode(DocumentRetrievalMode.HYBRID);
+        options.setKeywordK(100);
+        options.setVectorK(100);
+        plan.getDocument().setRetrievalOptions(options);
+
+        var validated = validator().validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getTopK()).isLessThan(100);
+        assertThat(validated.request().getHybridOptions().keywordK()).isEqualTo(100);
+        assertThat(validated.request().getHybridOptions().vectorK()).isEqualTo(100);
+    }
+
+    @Test
+    void acceptsGenerationOptionsWithinBudget() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        options.setMaxOutputChars(1200);
+        plan.getDocument().setGenerationOptions(options);
+
+        var validated = validator().validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.generationOptions()).isPresent();
+        assertThat(validated.generationOptions().orElseThrow().getMaxOutputChars()).isEqualTo(1200);
     }
 
     private DocumentPlanValidator validator() {

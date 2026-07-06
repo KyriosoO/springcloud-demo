@@ -20,4 +20,16 @@ class AgentHtmlContractTest {
         assertThat(html).doesNotContain("data.intent");
         assertThat(html).doesNotContain("data.plan");
     }
+
+    @Test
+    void rendersDocumentGenerationStatusAndCitations() throws Exception {
+        String html = Files.readString(Path.of("src/main/resources/static/agent.html"));
+
+        assertThat(html).contains("renderDocumentResult(result.documentResult)");
+        assertThat(html).contains("generationStatus");
+        assertThat(html).contains("groundingStatus");
+        assertThat(html).contains("citationVerification");
+        assertThat(html).contains("invalidCitationIds");
+        assertThat(html).contains("citation.citationId");
+    }
 }

@@ -8,6 +8,8 @@ import com.dylan.agent.api.response.AgentDocumentCoverage;
 import com.dylan.agent.api.response.AgentDocumentHit;
 import com.dylan.agent.api.response.AgentDocumentParameters;
 import com.dylan.agent.api.response.AgentDocumentResult;
+import com.dylan.agent.api.response.DocumentGenerationStatus;
+import com.dylan.agent.api.response.GroundingStatus;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
@@ -16,8 +18,13 @@ import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public final class DocumentResultSecurityProjector implements ResultSecurityProjector<DocumentAgentResultPayload> {
+
+    private static final Pattern CITATION_PATTERN = Pattern.compile("\\[([^\\]]+)]");
 
     private final ResultValueMaskingSupport maskingSupport;
     private final AgentProperties properties;
@@ -42,7 +49,10 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         }
         AgentDocumentResult result = filterResult(domain, candidate.getDocumentResult(), scope);
         DocumentPlanOperation operation = parseOperation(parameters.getOperation());
-        DocumentSafeTextComposer.compose(operation, result, properties.getDocument().getMaxSummaryChars());
+        if (!applyVerifiedCandidate(operation, result)) {
+            DocumentSafeTextComposer.compose(operation, result, properties.getDocument().getMaxSummaryChars());
+        }
+        clearCandidateText(result);
         DocumentAgentResultPayload filtered = new DocumentAgentResultPayload(
                 filterParameters(domain, parameters, scope),
                 result);
@@ -91,6 +101,12 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
                 .toList());
         target.setPartial(source.isPartial());
         target.setCoverage(filterCoverage(source.getCoverage(), target.getCitations().size()));
+        target.setGenerationStatus(source.getGenerationStatus());
+        target.setGroundingStatus(source.getGroundingStatus());
+        target.setCitationVerification(source.getCitationVerification());
+        target.setCandidateAnswerText(source.getCandidateAnswerText());
+        target.setCandidateSummaryText(source.getCandidateSummaryText());
+        target.setCandidateSummaryBullets(source.getCandidateSummaryBullets());
         return target;
     }
 
@@ -120,6 +136,9 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         target.setPage(source.getPage());
         target.setSourceUri(source.getSourceUri());
         target.setSnippet(truncate(source.getSnippet()));
+        target.setChunkIndex(source.getChunkIndex());
+        target.setCharStart(source.getCharStart());
+        target.setCharEnd(source.getCharEnd());
         return target;
     }
 
@@ -144,6 +163,86 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         }
         int limit = properties.getDocument().getMaxSnippetChars();
         return value.length() <= limit ? value : value.substring(0, limit);
+    }
+
+    private boolean applyVerifiedCandidate(DocumentPlanOperation operation, AgentDocumentResult result) {
+        if (result.getGenerationStatus() != DocumentGenerationStatus.SUCCEEDED
+                || result.getGroundingStatus() != GroundingStatus.VERIFIED
+                || result.getCitations() == null
+                || result.getCitations().isEmpty()) {
+            return false;
+        }
+        if (operation == DocumentPlanOperation.ANSWER
+                && result.getCandidateAnswerText() != null
+                && !result.getCandidateAnswerText().isBlank()) {
+            if (!candidateCitationsValid(result, List.of(result.getCandidateAnswerText()))) {
+                markGeneratedCandidateFallback(result);
+                return false;
+            }
+            result.setAnswerText(truncateGeneratedText(result.getCandidateAnswerText()));
+            return true;
+        }
+        if (operation == DocumentPlanOperation.SUMMARIZE
+                && result.getCandidateSummaryText() != null
+                && !result.getCandidateSummaryText().isBlank()) {
+            List<String> summaryTexts = new java.util.ArrayList<>();
+            summaryTexts.add(result.getCandidateSummaryText());
+            if (result.getCandidateSummaryBullets() != null) {
+                summaryTexts.addAll(result.getCandidateSummaryBullets());
+            }
+            if (!candidateCitationsValid(result, summaryTexts)) {
+                markGeneratedCandidateFallback(result);
+                return false;
+            }
+            result.setSummaryText(truncateGeneratedText(result.getCandidateSummaryText()));
+            result.setSummaryBullets(result.getCandidateSummaryBullets() == null ? null : result.getCandidateSummaryBullets().stream()
+                    .map(this::truncateGeneratedText)
+                    .toList());
+            return true;
+        }
+        return false;
+    }
+
+    private String truncateGeneratedText(String value) {
+        if (value == null) {
+            return null;
+        }
+        int limit = properties.getDocument().getGeneration().getMaxOutputChars();
+        return value.length() <= limit ? value : value.substring(0, limit);
+    }
+
+    private boolean candidateCitationsValid(AgentDocumentResult result, List<String> texts) {
+        Set<String> allowedCitationIds = result.getCitations().stream()
+                .map(AgentDocumentCitation::getCitationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableSet());
+        List<String> checkedTexts = texts.stream()
+                .filter(text -> text != null && !text.isBlank())
+                .toList();
+        return !checkedTexts.isEmpty() && checkedTexts.stream()
+                .allMatch(text -> {
+                    Set<String> referencedCitationIds = citationIds(text);
+                    return !referencedCitationIds.isEmpty()
+                            && allowedCitationIds.containsAll(referencedCitationIds);
+                });
+    }
+
+    private static Set<String> citationIds(String text) {
+        return CITATION_PATTERN.matcher(text).results()
+                .map(match -> match.group(1).trim())
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static void markGeneratedCandidateFallback(AgentDocumentResult result) {
+        result.setGenerationStatus(DocumentGenerationStatus.FALLBACK);
+        result.setGroundingStatus(GroundingStatus.UNVERIFIED);
+    }
+
+    private static void clearCandidateText(AgentDocumentResult result) {
+        result.setCandidateAnswerText(null);
+        result.setCandidateSummaryText(null);
+        result.setCandidateSummaryBullets(null);
     }
 
     private static AgentQuerySortParameter copySort(AgentQuerySortParameter source) {

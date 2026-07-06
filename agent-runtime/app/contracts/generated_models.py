@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 524eccc66825d49e4c393f3122b2242141431ada5c987a9906269395e803732c
+# source_sha256: 0df585d6fe751a24b57338988e69fb51ef60060c562cb32c1b10f7d555b4b993
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -188,6 +188,33 @@ class PlanKind1(str, Enum):
     document = 'DOCUMENT'
 
 
+class FailurePolicy(str, Enum):
+    """
+    文档生成失败后的处理策略
+    """
+
+    fallback_extractive = 'FALLBACK_EXTRACTIVE'
+    refuse = 'REFUSE'
+
+
+class DocumentGenerationOptions(BaseModel):
+    """
+    文档生成式回答和总结选项
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+    )
+    enabled: Optional[bool] = Field(None, description='是否请求生成式回答或总结')
+    failure_policy: Optional[FailurePolicy] = Field(
+        None, alias='failurePolicy', description='文档生成失败后的处理策略'
+    )
+    max_output_chars: Optional[int] = Field(
+        None, alias='maxOutputChars', description='最大输出字符数', ge=1
+    )
+
+
 class DocumentPlanOperation(str, Enum):
     """
     文档能力操作类型
@@ -196,6 +223,16 @@ class DocumentPlanOperation(str, Enum):
     search = 'SEARCH'
     answer = 'ANSWER'
     summarize = 'SUMMARIZE'
+
+
+class RetrievalMode(str, Enum):
+    """
+    文档检索模式
+    """
+
+    keyword = 'KEYWORD'
+    vector = 'VECTOR'
+    hybrid = 'HYBRID'
 
 
 class DocumentRetrievalOptions(BaseModel):
@@ -207,6 +244,9 @@ class DocumentRetrievalOptions(BaseModel):
         extra='forbid',
         populate_by_name=True,
     )
+    keyword_k: Optional[int] = Field(
+        None, alias='keywordK', description='关键词召回候选数', ge=1
+    )
     keyword_weight: Optional[float] = Field(
         None,
         alias='keywordWeight',
@@ -217,9 +257,19 @@ class DocumentRetrievalOptions(BaseModel):
     min_score: Optional[float] = Field(
         None, alias='minScore', description='最小相关度分数'
     )
+    num_candidates: Optional[int] = Field(
+        None, alias='numCandidates', description='向量召回候选池大小', ge=1
+    )
     page: Optional[int] = Field(None, description='页码，从 1 开始', ge=1)
+    retrieval_mode: Optional[RetrievalMode] = Field(
+        None, alias='retrievalMode', description='文档检索模式'
+    )
+    rrf_k: Optional[int] = Field(None, alias='rrfK', description='RRF 平滑常量', ge=1)
     size: Optional[int] = Field(None, description='每页大小', ge=1)
     top_k: Optional[int] = Field(None, alias='topK', description='证据条数上限', ge=1)
+    vector_k: Optional[int] = Field(
+        None, alias='vectorK', description='向量召回候选数', ge=1
+    )
     vector_weight: Optional[float] = Field(
         None, alias='vectorWeight', description='向量召回权重，0 到 1', ge=0.0, le=1.0
     )
@@ -844,6 +894,9 @@ class AgentDocumentSpec(BaseModel):
     )
     filters: Optional[List[AgentFilter]] = Field(
         None, description='文档过滤条件', max_length=10, min_length=0
+    )
+    generation_options: Optional[DocumentGenerationOptions] = Field(
+        None, alias='generationOptions'
     )
     operation: DocumentPlanOperation
     query_text: str = Field(

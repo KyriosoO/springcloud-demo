@@ -13,6 +13,7 @@ public class AdapterDocumentResult {
     private boolean partial;
     private int requestedDocumentCount;
     private int coveredDocumentCount;
+    private AdapterDocumentRetrievalDiagnostics retrievalDiagnostics;
 
     public List<AdapterDocumentEvidence> getHits() { return hits; }
     public void setHits(List<AdapterDocumentEvidence> hits) { this.hits = hits; }
@@ -30,4 +31,6 @@ public class AdapterDocumentResult {
     public void setRequestedDocumentCount(int requestedDocumentCount) { this.requestedDocumentCount = requestedDocumentCount; }
     public int getCoveredDocumentCount() { return coveredDocumentCount; }
     public void setCoveredDocumentCount(int coveredDocumentCount) { this.coveredDocumentCount = coveredDocumentCount; }
+    public AdapterDocumentRetrievalDiagnostics getRetrievalDiagnostics() { return retrievalDiagnostics; }
+    public void setRetrievalDiagnostics(AdapterDocumentRetrievalDiagnostics retrievalDiagnostics) { this.retrievalDiagnostics = retrievalDiagnostics; }
 }

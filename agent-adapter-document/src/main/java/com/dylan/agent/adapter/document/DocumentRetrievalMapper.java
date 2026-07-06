@@ -1,9 +1,15 @@
 package com.dylan.agent.adapter.document;
 
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.DocumentContextOptions;
+import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedSort;
+import com.dylan.esquery.api.model.HybridContextWindow;
+import com.dylan.esquery.api.model.HybridSearchRequest;
+import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -37,6 +43,55 @@ public class DocumentRetrievalMapper {
         }
     }
 
+    public HybridSearchRequest toHybridRequest(DocumentRetrievalRequest request) {
+        HybridSearchRequest hybrid = new HybridSearchRequest();
+        hybrid.setQueryText(request.getQueryText());
+        hybrid.setKeywordDsl(toKeywordDslMap(request));
+        hybrid.setFilters(filterDsl(request));
+        hybrid.setQueryVector(request.getQueryVector());
+        hybrid.setTopK(request.getTopK());
+        DocumentHybridOptions options = request.getHybridOptions();
+        if (options != null) {
+            hybrid.setKeywordK(options.keywordK());
+            hybrid.setVectorK(options.vectorK());
+            hybrid.setRrfK(options.rrfK());
+            hybrid.setNumCandidates(options.numCandidates());
+        }
+        hybrid.setContextWindow(toContextWindow(request.getContextOptions()));
+        return hybrid;
+    }
+
+    public VectorSearchRequest toVectorRequest(DocumentRetrievalRequest request) {
+        VectorSearchRequest vector = new VectorSearchRequest();
+        vector.setQueryVector(request.getQueryVector());
+        vector.setFilterDsl(filterDsl(request));
+        vector.setK(request.getTopK());
+        DocumentHybridOptions options = request.getHybridOptions();
+        if (options != null) {
+            vector.setNumCandidates(options.numCandidates());
+        }
+        return vector;
+    }
+
+    private Map<String, Object> toKeywordDslMap(DocumentRetrievalRequest request) {
+        try {
+            return objectMapper.readValue(toSearchDsl(request), new TypeReference<>() {});
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to build document keyword DSL", ex);
+        }
+    }
+
+    private HybridContextWindow toContextWindow(DocumentContextOptions options) {
+        if (options == null) {
+            return null;
+        }
+        HybridContextWindow window = new HybridContextWindow();
+        window.setBeforeChunks(options.beforeChunks());
+        window.setAfterChunks(options.afterChunks());
+        window.setMaxContextChars(options.maxContextChars());
+        return window;
+    }
+
     private Map<String, Object> query(DocumentRetrievalRequest request) {
         List<Object> must = new ArrayList<>();
         if (request.getQueryText() != null && !request.getQueryText().isBlank()) {
@@ -48,6 +103,17 @@ public class DocumentRetrievalMapper {
             must.add(filter(filter));
         }
         return Map.of("bool", Map.of("must", must.isEmpty() ? List.of(Map.of("match_all", Map.of())) : must));
+    }
+
+    private Map<String, Object> filterDsl(DocumentRetrievalRequest request) {
+        if (request.getFilters().isEmpty()) {
+            return null;
+        }
+        List<Object> filters = request.getFilters().stream()
+                .map(this::filter)
+                .map(item -> (Object) item)
+                .toList();
+        return Map.of("bool", Map.of("filter", filters));
     }
 
     private Map<String, Object> filter(ValidatedFilter filter) {

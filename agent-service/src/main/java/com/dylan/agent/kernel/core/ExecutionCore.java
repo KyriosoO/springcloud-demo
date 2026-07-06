@@ -125,7 +125,7 @@ public final class ExecutionCore {
             return failure(ExecutionStage.PLAN_VALIDATION, ex.errorCode(), false, ex.safeMessage());
         }
 
-        ExecutionContext execCtx = buildExecutionContext(command, domainResolution.binding());
+        ExecutionContext execCtx = buildExecutionContext(command, domainResolution.binding(), execScope);
 
         if (command.handle().isExpired(clock)) {
             return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
@@ -257,12 +257,13 @@ public final class ExecutionCore {
     }
 
     private ExecutionContext buildExecutionContext(
-            ExecutionCommand cmd, AdapterExecutionBinding binding) {
+            ExecutionCommand cmd, AdapterExecutionBinding binding, ExecutionScope executionScope) {
         return new ExecutionContext(
                 cmd.handle().invocationId(),
                 cmd.handle().subject(),
                 cmd.handle().owner(),
                 cmd.handle().scope(),
+                executionScope,
                 binding,
                 cmd.handle().absoluteDeadline(),
                 cmd.cancellation());

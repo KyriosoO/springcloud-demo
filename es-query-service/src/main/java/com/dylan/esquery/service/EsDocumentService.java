@@ -1,6 +1,7 @@
 package com.dylan.esquery.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,10 @@ import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.springframework.stereotype.Service;
 
+import com.dylan.esquery.api.model.HybridRetrievalDiagnostics;
+import com.dylan.esquery.api.model.HybridSearchHit;
+import com.dylan.esquery.api.model.HybridSearchRequest;
+import com.dylan.esquery.api.model.HybridSearchResponse;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.dylan.esquery.config.EsQueryProperties;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,14 +33,27 @@ public class EsDocumentService {
 	private final RestClient restClient;
 	private final ObjectMapper objectMapper;
 	private final EsQueryProperties properties;
+	private final HybridSearchMerger hybridSearchMerger;
 
 	/**
 	 * 创建 EsDocumentService 实例并注入所需依赖。
 	 */
 	public EsDocumentService(RestClient restClient, ObjectMapper objectMapper, EsQueryProperties properties) {
+		this(restClient, objectMapper, properties, new HybridSearchMerger(objectMapper));
+	}
+
+	/**
+	 * 创建 EsDocumentService 实例并注入所需依赖。
+	 */
+	public EsDocumentService(
+			RestClient restClient,
+			ObjectMapper objectMapper,
+			EsQueryProperties properties,
+			HybridSearchMerger hybridSearchMerger) {
 		this.restClient = restClient;
 		this.objectMapper = objectMapper;
 		this.properties = properties;
+		this.hybridSearchMerger = hybridSearchMerger;
 	}
 
 	/**
@@ -109,22 +127,103 @@ public class EsDocumentService {
 	 * @throws IOException
 	 */
 	public String vectorSearch(String index, VectorSearchRequest request) throws IOException {
-		String embeddingField = request.getEmbeddingField();
-		if (embeddingField == null || embeddingField.isBlank()) {
-			embeddingField = "embedding";
-		}
-
-		int k = request.getK() == null ? 10 : request.getK();
-		int numCandidates = request.getNumCandidates() == null ? 100 : request.getNumCandidates();
-		Map<String, Object> body = new LinkedHashMap<>();
-		body.put("_source", Map.of("excludes", List.of(embeddingField)));
-		body.put("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
-		body.put("knn", Map.of("field", embeddingField, "query_vector",
-				request.getQueryVector(), "k", k, "num_candidates", numCandidates));
+		Map<String, Object> body = vectorSearchBody(request);
 		Request esRequest = new Request("POST", "/" + index + "/_search");
 		esRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(body)));
 		Response response = restClient.performRequest(esRequest);
 		return responseBody(response);
+	}
+
+	/**
+	 * 执行关键词和向量双路召回后使用 RRF 融合。
+	 */
+	public HybridSearchResponse hybridSearch(String index, HybridSearchRequest request) throws IOException {
+		validateHybridRequest(request);
+		Request keywordRequest = new Request("POST", "/" + index + "/_search");
+		keywordRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(keywordSearchBody(request))));
+		Response keywordResponse = restClient.performRequest(keywordRequest);
+
+		VectorSearchRequest vectorRequest = new VectorSearchRequest();
+		vectorRequest.setEmbeddingField(request.getEmbeddingField());
+		vectorRequest.setQueryVector(request.getQueryVector());
+		vectorRequest.setFilterDsl(request.getFilters());
+		vectorRequest.setK(HybridSearchMerger.positiveOrDefault(request.getVectorK(), 20, "vectorK"));
+		vectorRequest.setNumCandidates(request.getNumCandidates());
+		vectorRequest.setTrackTotalHits(request.getTrackTotalHits());
+		Request vectorEsRequest = new Request("POST", "/" + index + "/_search");
+		vectorEsRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(vectorSearchBody(vectorRequest))));
+		Response vectorResponse = restClient.performRequest(vectorEsRequest);
+
+		List<JsonNode> keywordHits = extractHits(objectMapper.readTree(responseBody(keywordResponse)));
+		List<JsonNode> vectorHits = extractHits(objectMapper.readTree(responseBody(vectorResponse)));
+		List<HybridSearchHit> hits = hybridSearchMerger.merge(keywordHits, vectorHits, request);
+		HybridRetrievalDiagnostics diagnostics = new HybridRetrievalDiagnostics();
+		diagnostics.setKeywordHitCount(keywordHits.size());
+		diagnostics.setVectorHitCount(vectorHits.size());
+		diagnostics.setReturnedHitCount(hits.size());
+		diagnostics.setFusionStrategy("RRF");
+		diagnostics.setDegraded(false);
+		HybridSearchResponse response = new HybridSearchResponse();
+		response.setHits(hits);
+		response.setDiagnostics(diagnostics);
+		response.setPartial(false);
+		return response;
+	}
+
+	Map<String, Object> vectorSearchBody(VectorSearchRequest request) {
+		if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
+			throw new IllegalArgumentException("queryVector must not be empty");
+		}
+		String embeddingField = request.getEmbeddingField();
+		if (embeddingField == null || embeddingField.isBlank()) {
+			embeddingField = "embedding";
+		}
+		int k = HybridSearchMerger.positiveOrDefault(request.getK(), 10, "k");
+		int numCandidates = HybridSearchMerger.positiveOrDefault(request.getNumCandidates(), 100, "numCandidates");
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("_source", Map.of("excludes", List.of(embeddingField)));
+		body.put("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
+		Map<String, Object> knn = new LinkedHashMap<>();
+		knn.put("field", embeddingField);
+		knn.put("query_vector", request.getQueryVector());
+		knn.put("k", k);
+		knn.put("num_candidates", numCandidates);
+		if (request.getFilterDsl() != null && !request.getFilterDsl().isEmpty()) {
+			knn.put("filter", request.getFilterDsl());
+		}
+		body.put("knn", knn);
+		return body;
+	}
+
+	Map<String, Object> keywordSearchBody(HybridSearchRequest request) {
+		if (request.getKeywordDsl() == null || request.getKeywordDsl().isEmpty()) {
+			throw new IllegalArgumentException("keywordDsl must not be empty");
+		}
+		Map<String, Object> body = new LinkedHashMap<>(request.getKeywordDsl());
+		body.put("size", HybridSearchMerger.positiveOrDefault(request.getKeywordK(), 20, "keywordK"));
+		body.putIfAbsent("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
+		return body;
+	}
+
+	void validateHybridRequest(HybridSearchRequest request) {
+		if (request == null) {
+			throw new IllegalArgumentException("hybrid request must not be null");
+		}
+		if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
+			throw new IllegalArgumentException("queryVector must not be empty");
+		}
+		keywordSearchBody(request);
+		HybridSearchMerger.positiveOrDefault(request.getTopK(), 8, "topK");
+	}
+
+	private static List<JsonNode> extractHits(JsonNode root) {
+		JsonNode hitsNode = root.path("hits").path("hits");
+		if (!hitsNode.isArray()) {
+			return List.of();
+		}
+		List<JsonNode> hits = new ArrayList<>();
+		hitsNode.forEach(hits::add);
+		return hits;
 	}
 
 	String applyDefaultTrackTotalHits(String queryDsl) {

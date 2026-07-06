@@ -75,6 +75,9 @@
             "nullable" : true,
             "type" : "array"
           },
+          "generationOptions" : {
+            "$ref" : "#/components/schemas/DocumentGenerationOptions"
+          },
           "operation" : {
             "$ref" : "#/components/schemas/DocumentPlanOperation"
           },
@@ -414,6 +417,32 @@
         "required" : [ "document", "planKind" ],
         "type" : "object"
       },
+      "DocumentGenerationOptions" : {
+        "additionalProperties" : false,
+        "description" : "文档生成式回答和总结选项",
+        "nullable" : true,
+        "properties" : {
+          "enabled" : {
+            "description" : "是否请求生成式回答或总结",
+            "nullable" : true,
+            "type" : "boolean"
+          },
+          "failurePolicy" : {
+            "description" : "文档生成失败后的处理策略",
+            "enum" : [ "FALLBACK_EXTRACTIVE", "REFUSE" ],
+            "nullable" : true,
+            "type" : "string"
+          },
+          "maxOutputChars" : {
+            "description" : "最大输出字符数",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "DocumentPlanOperation" : {
         "description" : "文档能力操作类型",
         "enum" : [ "SEARCH", "ANSWER", "SUMMARIZE" ],
@@ -424,6 +453,13 @@
         "description" : "文档检索选项",
         "nullable" : true,
         "properties" : {
+          "keywordK" : {
+            "description" : "关键词召回候选数",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
           "keywordWeight" : {
             "description" : "关键词召回权重，0 到 1",
             "exclusiveMaximum" : false,
@@ -438,8 +474,28 @@
             "nullable" : true,
             "type" : "number"
           },
+          "numCandidates" : {
+            "description" : "向量召回候选池大小",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
           "page" : {
             "description" : "页码，从 1 开始",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "retrievalMode" : {
+            "description" : "文档检索模式",
+            "enum" : [ "KEYWORD", "VECTOR", "HYBRID" ],
+            "nullable" : true,
+            "type" : "string"
+          },
+          "rrfK" : {
+            "description" : "RRF 平滑常量",
             "format" : "int32",
             "minimum" : 1,
             "nullable" : true,
@@ -454,6 +510,13 @@
           },
           "topK" : {
             "description" : "证据条数上限",
+            "format" : "int32",
+            "minimum" : 1,
+            "nullable" : true,
+            "type" : "integer"
+          },
+          "vectorK" : {
+            "description" : "向量召回候选数",
             "format" : "int32",
             "minimum" : 1,
             "nullable" : true,

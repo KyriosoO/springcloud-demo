@@ -102,6 +102,34 @@ class TestPromptExamples:
         assert any(isinstance(outcome, ClarificationRequired) for outcome in outcomes)
         assert {_metadata_operation(block) for block in blocks} == {RuntimeOperationType.plan.value}
 
+    def test_document_prompt_does_not_generate_answer(self):
+        text = _load_prompt("document_system.md")
+        for term in ("agent-service", "retrieval", "generation", "citation verification"):
+            assert term in text
+
+        forbidden_output_fields = {
+            "answerText",
+            "summaryText",
+            "summaryBullets",
+            "citations",
+            "hits",
+            "coverage",
+        }
+        for block in _extract_json_blocks(text):
+            serialized = json.dumps(block, ensure_ascii=False)
+            for field in forbidden_output_fields:
+                assert f'"{field}"' not in serialized
+
+        executable_blocks = [
+            unwrap_root(TypeAdapter(PlanOutcome).validate_python(block))
+            for block in _extract_json_blocks(text)
+            if block["outcomeType"] == "EXECUTABLE"
+        ]
+        assert executable_blocks
+        document = executable_blocks[0].plan.document
+        assert document.retrieval_options.retrieval_mode.value == "HYBRID"
+        assert document.generation_options.enabled is True
+
 
 class TestPromptEnums:
     @pytest.mark.parametrize("filename", ["query_system.md", "aggregate_system.md", "document_system.md"])

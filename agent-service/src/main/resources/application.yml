@@ -104,6 +104,26 @@ agent:
     max-query-text-length: 500
     max-snippet-chars: 500
     max-summary-chars: 2000
+    embedding:
+      enabled: false
+      base-url:
+      model:
+      dimension: 0
+      timeout: 5s
+    generation:
+      enabled: false
+      base-url:
+      model:
+      max-context-chars: 8000
+      max-evidence-chars: 1200
+      max-output-chars: 2000
+      timeout: 15s
+      failure-policy: FALLBACK_EXTRACTIVE
+    hybrid:
+      keyword-k: 20
+      vector-k: 20
+      rrf-k: 60
+      num-candidates: 100
   domain-metadata:
     catalog-version: catalog-2026-07-02
     adapter-registration-version: adapter-reg-2026-07-02

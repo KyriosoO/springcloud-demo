@@ -10,6 +10,9 @@ public class AgentDocumentCitation {
     private Integer page;
     private String sourceUri;
     private String snippet;
+    private Integer chunkIndex;
+    private Integer charStart;
+    private Integer charEnd;
 
     public String getCitationId() { return citationId; }
     public void setCitationId(String citationId) { this.citationId = citationId; }
@@ -25,4 +28,10 @@ public class AgentDocumentCitation {
     public void setSourceUri(String sourceUri) { this.sourceUri = sourceUri; }
     public String getSnippet() { return snippet; }
     public void setSnippet(String snippet) { this.snippet = snippet; }
+    public Integer getChunkIndex() { return chunkIndex; }
+    public void setChunkIndex(Integer chunkIndex) { this.chunkIndex = chunkIndex; }
+    public Integer getCharStart() { return charStart; }
+    public void setCharStart(Integer charStart) { this.charStart = charStart; }
+    public Integer getCharEnd() { return charEnd; }
+    public void setCharEnd(Integer charEnd) { this.charEnd = charEnd; }
 }

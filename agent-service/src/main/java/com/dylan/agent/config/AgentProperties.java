@@ -191,6 +191,9 @@ public class AgentProperties {
         private int maxQueryTextLength = 500;
         private int maxSnippetChars = 500;
         private int maxSummaryChars = 2000;
+        private EmbeddingProperties embedding = new EmbeddingProperties();
+        private GenerationProperties generation = new GenerationProperties();
+        private HybridProperties hybrid = new HybridProperties();
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -206,5 +209,77 @@ public class AgentProperties {
         public void setMaxSnippetChars(int maxSnippetChars) { this.maxSnippetChars = maxSnippetChars; }
         public int getMaxSummaryChars() { return maxSummaryChars; }
         public void setMaxSummaryChars(int maxSummaryChars) { this.maxSummaryChars = maxSummaryChars; }
+        public EmbeddingProperties getEmbedding() { return embedding; }
+        public void setEmbedding(EmbeddingProperties embedding) { this.embedding = embedding == null ? new EmbeddingProperties() : embedding; }
+        public GenerationProperties getGeneration() { return generation; }
+        public void setGeneration(GenerationProperties generation) { this.generation = generation == null ? new GenerationProperties() : generation; }
+        public HybridProperties getHybrid() { return hybrid; }
+        public void setHybrid(HybridProperties hybrid) { this.hybrid = hybrid == null ? new HybridProperties() : hybrid; }
+    }
+
+    /** 文档 queryVector 生成配置，默认关闭。 */
+    public static class EmbeddingProperties {
+        private boolean enabled = false;
+        private String baseUrl;
+        private String model;
+        private int dimension = 0;
+        private Duration timeout = Duration.ofSeconds(5);
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+        public int getDimension() { return dimension; }
+        public void setDimension(int dimension) { this.dimension = dimension; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
+    }
+
+    /** 文档执行后 LLM 生成配置，默认关闭。 */
+    public static class GenerationProperties {
+        private boolean enabled = false;
+        private String baseUrl;
+        private String model;
+        private int maxContextChars = 8000;
+        private int maxEvidenceChars = 1200;
+        private int maxOutputChars = 2000;
+        private Duration timeout = Duration.ofSeconds(15);
+        private String failurePolicy = "FALLBACK_EXTRACTIVE";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+        public int getMaxContextChars() { return maxContextChars; }
+        public void setMaxContextChars(int maxContextChars) { this.maxContextChars = maxContextChars; }
+        public int getMaxEvidenceChars() { return maxEvidenceChars; }
+        public void setMaxEvidenceChars(int maxEvidenceChars) { this.maxEvidenceChars = maxEvidenceChars; }
+        public int getMaxOutputChars() { return maxOutputChars; }
+        public void setMaxOutputChars(int maxOutputChars) { this.maxOutputChars = maxOutputChars; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
+        public String getFailurePolicy() { return failurePolicy; }
+        public void setFailurePolicy(String failurePolicy) { this.failurePolicy = failurePolicy; }
+    }
+
+    /** 文档混合检索默认参数。 */
+    public static class HybridProperties {
+        private int keywordK = 20;
+        private int vectorK = 20;
+        private int rrfK = 60;
+        private int numCandidates = 100;
+
+        public int getKeywordK() { return keywordK; }
+        public void setKeywordK(int keywordK) { this.keywordK = keywordK; }
+        public int getVectorK() { return vectorK; }
+        public void setVectorK(int vectorK) { this.vectorK = vectorK; }
+        public int getRrfK() { return rrfK; }
+        public void setRrfK(int rrfK) { this.rrfK = rrfK; }
+        public int getNumCandidates() { return numCandidates; }
+        public void setNumCandidates(int numCandidates) { this.numCandidates = numCandidates; }
     }
 }

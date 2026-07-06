@@ -121,6 +121,50 @@ public class AgentPropertiesValidator implements InitializingBean {
         if (d.getMaxQueryTextLength() <= 0 || d.getMaxSnippetChars() <= 0 || d.getMaxSummaryChars() <= 0) {
             throw new IllegalStateException("agent.document 文本长度配置必须为正数。");
         }
+        validateDocumentEmbeddingConfig(d);
+        validateDocumentGenerationConfig(d);
+        validateDocumentHybridConfig(d);
+    }
+
+    private void validateDocumentEmbeddingConfig(AgentProperties.DocumentProperties d) {
+        var e = d.getEmbedding();
+        if (e.getTimeout() == null || e.getTimeout().isZero() || e.getTimeout().isNegative()) {
+            throw new IllegalStateException("agent.document.embedding.timeout 必须为正数。");
+        }
+        if (e.isEnabled()) {
+            if (e.getBaseUrl() == null || e.getBaseUrl().isBlank()) {
+                throw new IllegalStateException("agent.document.embedding.base-url 必须配置。");
+            }
+            if (e.getDimension() <= 0) {
+                throw new IllegalStateException("agent.document.embedding.dimension 必须为正数。");
+            }
+        }
+    }
+
+    private void validateDocumentGenerationConfig(AgentProperties.DocumentProperties d) {
+        var g = d.getGeneration();
+        if (g.getTimeout() == null || g.getTimeout().isZero() || g.getTimeout().isNegative()) {
+            throw new IllegalStateException("agent.document.generation.timeout 必须为正数。");
+        }
+        if (g.getMaxContextChars() <= 0 || g.getMaxEvidenceChars() <= 0 || g.getMaxOutputChars() <= 0) {
+            throw new IllegalStateException("agent.document.generation 文本预算必须为正数。");
+        }
+        if (g.getMaxEvidenceChars() > g.getMaxContextChars()) {
+            throw new IllegalStateException("agent.document.generation.max-evidence-chars 不能超过 max-context-chars。");
+        }
+        if (g.isEnabled() && (g.getBaseUrl() == null || g.getBaseUrl().isBlank())) {
+            throw new IllegalStateException("agent.document.generation.base-url 必须配置。");
+        }
+        if (!"FALLBACK_EXTRACTIVE".equals(g.getFailurePolicy()) && !"REFUSE".equals(g.getFailurePolicy())) {
+            throw new IllegalStateException("agent.document.generation.failure-policy 必须为 FALLBACK_EXTRACTIVE 或 REFUSE。");
+        }
+    }
+
+    private void validateDocumentHybridConfig(AgentProperties.DocumentProperties d) {
+        var h = d.getHybrid();
+        if (h.getKeywordK() <= 0 || h.getVectorK() <= 0 || h.getRrfK() <= 0 || h.getNumCandidates() <= 0) {
+            throw new IllegalStateException("agent.document.hybrid 参数必须为正数。");
+        }
     }
 
     private void validateConversation() {

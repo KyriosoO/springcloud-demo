@@ -10,6 +10,15 @@ import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
+import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
+import com.dylan.agent.capability.document.embedding.DocumentEmbeddingPort;
+import com.dylan.agent.capability.document.embedding.HttpDocumentEmbeddingClient;
+import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
+import com.dylan.agent.capability.document.generation.DocumentCitationVerifier;
+import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPacker;
+import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurityFilter;
+import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
+import com.dylan.agent.capability.document.generation.HttpDocumentGenerationClient;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.definition.CapabilityDefinition;
 import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
@@ -21,7 +30,10 @@ import com.dylan.agent.planning.filter.FilterNormalizer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -41,8 +53,53 @@ public class DocumentCapabilityConfiguration {
     }
 
     @Bean
-    DocumentCapabilityHandler documentCapabilityHandler() {
-        return new DocumentCapabilityHandler();
+    DocumentCapabilityHandler documentCapabilityHandler(
+            AgentProperties properties,
+            DocumentEmbeddingPort embeddingPort,
+            DocumentEvidencePreSecurityFilter preSecurityFilter,
+            DocumentEvidenceContextPacker contextPacker,
+            DocumentGenerationPort generationPort,
+            DocumentCitationVerifier citationVerifier) {
+        return new DocumentCapabilityHandler(
+                properties,
+                embeddingPort,
+                preSecurityFilter,
+                contextPacker,
+                generationPort,
+                citationVerifier);
+    }
+
+    @Bean
+    DocumentEmbeddingPort documentEmbeddingPort(AgentProperties properties) {
+        var embedding = properties.getDocument().getEmbedding();
+        if (!embedding.isEnabled()) {
+            return new DisabledDocumentEmbeddingPort();
+        }
+        return new HttpDocumentEmbeddingClient(restClient(embedding.getBaseUrl(), embedding.getTimeout()));
+    }
+
+    @Bean
+    DocumentEvidencePreSecurityFilter documentEvidencePreSecurityFilter() {
+        return new DocumentEvidencePreSecurityFilter();
+    }
+
+    @Bean
+    DocumentEvidenceContextPacker documentEvidenceContextPacker() {
+        return new DocumentEvidenceContextPacker();
+    }
+
+    @Bean
+    DocumentGenerationPort documentGenerationPort(AgentProperties properties) {
+        var generation = properties.getDocument().getGeneration();
+        if (!generation.isEnabled()) {
+            return new DisabledDocumentGenerationPort();
+        }
+        return new HttpDocumentGenerationClient(restClient(generation.getBaseUrl(), generation.getTimeout()));
+    }
+
+    @Bean
+    DocumentCitationVerifier documentCitationVerifier() {
+        return new DocumentCitationVerifier();
     }
 
     @Bean
@@ -118,5 +175,19 @@ public class DocumentCapabilityConfiguration {
                 ValidatedDocumentPlan.class,
                 handler,
                 DocumentAgentResultPayload.class);
+    }
+
+    private RestClient restClient(String baseUrl, Duration timeout) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(timeout)
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(timeout);
+        return RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(requestFactory)
+                .defaultHeader("Content-Type", "application/json")
+                .build();
     }
 }

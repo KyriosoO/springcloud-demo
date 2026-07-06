@@ -15,10 +15,14 @@ import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
+import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -68,6 +72,7 @@ class QueryPreviewCapabilityHandlerTest {
                 new ExecutionSubjectRef("user", "u-1"),
                 new ContextOwnerRef("conversation", "conv-1"),
                 new ConversationScope("conv-1"),
+                executionScope(),
                 new AdapterExecutionBinding(
                         AdapterRole.QUERYABLE,
                         "employee",
@@ -77,5 +82,24 @@ class QueryPreviewCapabilityHandlerTest {
                         Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:01:00Z"),
                 new CancellationSource().token());
+    }
+
+    private ExecutionScope executionScope() {
+        Instant now = Instant.parse("2026-07-02T00:00:00Z");
+        return new ExecutionScope(
+                "user:u-1",
+                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", now),
+                now,
+                "perm-evidence",
+                "perm-v1",
+                "policy-v1",
+                Set.of("query.preview"),
+                Set.of("employee"),
+                Map.of("employee", Set.of("name", "email")),
+                Map.of(),
+                Duration.ofSeconds(30),
+                1,
+                20,
+                1024 * 1024);
     }
 }

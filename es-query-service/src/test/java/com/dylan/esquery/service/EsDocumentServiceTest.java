@@ -6,9 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.dylan.esquery.api.model.HybridSearchRequest;
+import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.dylan.esquery.config.EsQueryProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.List;
+import java.util.Map;
 
 class EsDocumentServiceTest {
 
@@ -77,5 +82,41 @@ class EsDocumentServiceTest {
 		assertThatThrownBy(() -> service.resolveTrackTotalHits(0))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("greater than 0");
+	}
+
+	@Test
+	void vectorSearchBodyIncludesCallerFilterDsl() {
+		VectorSearchRequest request = new VectorSearchRequest();
+		request.setQueryVector(List.of(0.1, 0.2));
+		request.setFilterDsl(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("sourceType", "policy"))))));
+
+		Map<String, Object> body = service.vectorSearchBody(request);
+
+		@SuppressWarnings("unchecked")
+		Map<String, Object> knn = (Map<String, Object>) body.get("knn");
+		assertThat(knn.get("filter").toString()).contains("sourceType", "policy");
+	}
+
+	@Test
+	void hybridSearchRejectsMissingVector() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+
+		assertThatThrownBy(() -> service.validateHybridRequest(request))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("queryVector");
+	}
+
+	@Test
+	void hybridKeywordBodyOverridesKeywordCandidateSize() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of()), "size", 99));
+		request.setKeywordK(12);
+		request.setQueryVector(List.of(0.1, 0.2));
+
+		Map<String, Object> body = service.keywordSearchBody(request);
+
+		assertThat(body.get("size")).isEqualTo(12);
+		assertThat(body.get("track_total_hits")).isEqualTo(10000);
 	}
 }

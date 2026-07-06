@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dylan.esquery.api.model.BulkIndexRequest;
+import com.dylan.esquery.api.model.HybridSearchRequest;
+import com.dylan.esquery.api.model.HybridSearchResponse;
 import com.dylan.esquery.api.model.IndexDocumentRequest;
 import com.dylan.esquery.api.model.RebuildRequest;
 import com.dylan.esquery.api.model.RebuildTask;
@@ -125,6 +127,16 @@ public class EsQueryController {
 	public ResponseEntity<String> vectorSearch(@PathVariable String index, @RequestBody VectorSearchRequest request)
 			throws IOException {
 		return ResponseEntity.ok(esDocumentService.vectorSearch(index, request));
+	}
+
+	/**
+	 * 混合检索。请求中的 queryVector 必须由上游生成，本服务只做召回和 RRF 融合。
+	 */
+	@PostMapping(value = "/indexes/{index}/hybrid-search", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<HybridSearchResponse> hybridSearch(
+			@PathVariable String index,
+			@RequestBody HybridSearchRequest request) throws IOException {
+		return ResponseEntity.ok(esDocumentService.hybridSearch(index, request));
 	}
 
 }

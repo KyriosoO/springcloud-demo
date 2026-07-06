@@ -209,6 +209,53 @@ def test_aggregate_context_accepts_order_by():
     assert view.order_by[0].direction.value == "DESC"
 
 
+def test_document_generation_options_contract():
+    outcome = g.PlanOutcome.model_validate(
+        {
+            "outcomeType": "EXECUTABLE",
+            "requestId": "doc-generation-001",
+            "plan": {
+                "planKind": "DOCUMENT",
+                "document": {
+                    "operation": "ANSWER",
+                    "queryText": "What is the leave approval policy?",
+                    "filters": [],
+                    "retrievalOptions": {
+                        "retrievalMode": "HYBRID",
+                        "topK": 5,
+                        "keywordK": 20,
+                        "vectorK": 20,
+                        "rrfK": 60,
+                        "numCandidates": 100,
+                    },
+                    "generationOptions": {
+                        "enabled": True,
+                        "maxOutputChars": 1200,
+                        "failurePolicy": "FALLBACK_EXTRACTIVE",
+                    },
+                    "citationRequired": True,
+                },
+            },
+            "metadata": {
+                "operation": "PLAN",
+                "providerAttempts": 1,
+                "repairAttempts": 0,
+                "repairDurationMs": 0,
+                "totalDurationMs": 1,
+                "terminationReason": "COMPLETED",
+                "deadlineReached": False,
+                "repairLimitReached": False,
+            },
+        }
+    )
+
+    executable = models.unwrap_root(outcome)
+    assert executable.plan.document.retrieval_options.retrieval_mode.value == "HYBRID"
+    assert executable.plan.document.retrieval_options.keyword_k == 20
+    assert executable.plan.document.generation_options.enabled is True
+    assert executable.plan.document.generation_options.failure_policy.value == "FALLBACK_EXTRACTIVE"
+
+
 def test_requests_share_single_contract_generation():
     route = g.RouteRequest.model_validate(_load("route-request.json"))
     plan_payload = _load("plan-request.json")

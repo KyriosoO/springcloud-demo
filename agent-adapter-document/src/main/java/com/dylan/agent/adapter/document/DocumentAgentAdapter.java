@@ -4,6 +4,7 @@ import com.dylan.agent.adapter.api.AgentAdapterException;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +34,20 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
     @Override
     public AdapterDocumentResult retrieve(DocumentRetrievalRequest request) {
         String index = properties.getIndexPrefix() + request.getDomain();
-        String queryDsl = retrievalMapper.toSearchDsl(request);
         try {
-            return evidenceMapper.toAdapterResult(client.search(index, queryDsl), request.getTopK());
+            if (request.getRetrievalMode() == DocumentRetrievalMode.HYBRID) {
+                return evidenceMapper.toAdapterResult(
+                        client.hybridSearch(index, retrievalMapper.toHybridRequest(request)),
+                        request.getTopK());
+            }
+            if (request.getRetrievalMode() == DocumentRetrievalMode.VECTOR) {
+                return evidenceMapper.toAdapterResult(
+                        client.vectorSearch(index, retrievalMapper.toVectorRequest(request)),
+                        request.getTopK());
+            }
+            return evidenceMapper.toAdapterResult(
+                    client.search(index, retrievalMapper.toSearchDsl(request)),
+                    request.getTopK());
         } catch (FeignException ex) {
             log.error("Document search Feign error: status={}", ex.status());
             throw new AgentAdapterException("文档检索服务查询失败。", ex);

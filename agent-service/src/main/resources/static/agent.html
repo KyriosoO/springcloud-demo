@@ -426,7 +426,21 @@ function renderDocumentResult(result) {
   const evidenceCount = coverage.evidenceCount ?? 0;
   const coveredCount = coverage.coveredDocumentCount ?? 0;
   const partialText = result.partial ? " · 部分结果" : "";
-  meta.textContent = `证据 ${evidenceCount} 条 · 覆盖文档 ${coveredCount} 个${partialText}`;
+  const statusParts = [];
+  if (result.generationStatus) {
+    statusParts.push(`生成 ${result.generationStatus}`);
+  }
+  if (result.groundingStatus) {
+    statusParts.push(`引用 ${result.groundingStatus}`);
+  }
+  if (result.citationVerification) {
+    const verification = result.citationVerification;
+    const invalidCount = Array.isArray(verification.invalidCitationIds) ? verification.invalidCitationIds.length : 0;
+    const fallback = verification.fallbackReason ? ` · ${verification.fallbackReason}` : "";
+    statusParts.push(`校验异常 ${invalidCount}${fallback}`);
+  }
+  const statusText = statusParts.length > 0 ? ` · ${statusParts.join(" · ")}` : "";
+  meta.textContent = `证据 ${evidenceCount} 条 · 覆盖文档 ${coveredCount} 个${partialText}${statusText}`;
   container.appendChild(meta);
 
   if (result.answerText) {

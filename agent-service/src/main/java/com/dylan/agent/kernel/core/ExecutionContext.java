@@ -6,6 +6,7 @@ import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.InvocationScope;
+import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -20,6 +21,7 @@ public final class ExecutionContext {
     private final ExecutionSubjectRef subject;
     private final ContextOwnerRef owner;
     private final InvocationScope scope;
+    private final ExecutionScope executionScope;
     private final AdapterExecutionBinding adapterBinding;
     private final Instant absoluteDeadline;
     private final CancellationToken cancellation;
@@ -29,6 +31,7 @@ public final class ExecutionContext {
             ExecutionSubjectRef subject,
             ContextOwnerRef owner,
             InvocationScope scope,
+            ExecutionScope executionScope,
             AdapterExecutionBinding adapterBinding,
             Instant absoluteDeadline,
             CancellationToken cancellation) {
@@ -36,6 +39,7 @@ public final class ExecutionContext {
         this.subject = Objects.requireNonNull(subject);
         this.owner = Objects.requireNonNull(owner);
         this.scope = Objects.requireNonNull(scope);
+        this.executionScope = Objects.requireNonNull(executionScope);
         this.adapterBinding = adapterBinding;
         this.absoluteDeadline = Objects.requireNonNull(absoluteDeadline);
         this.cancellation = Objects.requireNonNull(cancellation);
@@ -45,6 +49,7 @@ public final class ExecutionContext {
     public ExecutionSubjectRef subject() { return subject; }
     public ContextOwnerRef owner() { return owner; }
     public InvocationScope scope() { return scope; }
+    public ExecutionScope executionScope() { return executionScope; }
     public Optional<AdapterExecutionBinding> adapterBinding() { return Optional.ofNullable(adapterBinding); }
     public Instant absoluteDeadline() { return absoluteDeadline; }
     public CancellationToken cancellation() { return cancellation; }

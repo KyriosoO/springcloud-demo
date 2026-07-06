@@ -1,6 +1,7 @@
 package com.dylan.esquery.api.model;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 向量检索请求，描述查询文本、向量字段和召回参数。
@@ -8,6 +9,7 @@ import java.util.List;
 public class VectorSearchRequest {
 	private String embeddingField;
 	private List<Double> queryVector;
+	private Map<String, Object> filterDsl;
 	private Integer k;
 	private Integer numCandidates;
 	private Integer trackTotalHits;
@@ -26,6 +28,14 @@ public class VectorSearchRequest {
 
 	public void setQueryVector(List<Double> queryVector) {
 		this.queryVector = queryVector;
+	}
+
+	public Map<String, Object> getFilterDsl() {
+		return filterDsl;
+	}
+
+	public void setFilterDsl(Map<String, Object> filterDsl) {
+		this.filterDsl = filterDsl;
 	}
 
 	public Integer getK() {

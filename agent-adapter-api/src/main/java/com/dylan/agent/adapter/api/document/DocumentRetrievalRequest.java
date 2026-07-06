@@ -5,6 +5,7 @@ import java.util.List;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
+import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import com.dylan.agent.api.plan.DocumentSummaryScope;
 
 /** Java 校验后的文档检索请求。 */
@@ -20,6 +21,10 @@ public final class DocumentRetrievalRequest {
     private final int size;
     private final DocumentSummaryScope summaryScope;
     private final boolean citationRequired;
+    private final DocumentRetrievalMode retrievalMode;
+    private final List<Double> queryVector;
+    private final DocumentHybridOptions hybridOptions;
+    private final DocumentContextOptions contextOptions;
 
     public DocumentRetrievalRequest(
             DocumentPlanOperation operation,
@@ -32,6 +37,25 @@ public final class DocumentRetrievalRequest {
             int size,
             DocumentSummaryScope summaryScope,
             boolean citationRequired) {
+        this(operation, domain, queryText, filters, sorts, topK, page, size, summaryScope, citationRequired,
+                DocumentRetrievalMode.KEYWORD, List.of(), null, null);
+    }
+
+    public DocumentRetrievalRequest(
+            DocumentPlanOperation operation,
+            String domain,
+            String queryText,
+            List<ValidatedFilter> filters,
+            List<ValidatedSort> sorts,
+            int topK,
+            int page,
+            int size,
+            DocumentSummaryScope summaryScope,
+            boolean citationRequired,
+            DocumentRetrievalMode retrievalMode,
+            List<Double> queryVector,
+            DocumentHybridOptions hybridOptions,
+            DocumentContextOptions contextOptions) {
         this.operation = operation;
         this.domain = domain;
         this.queryText = queryText;
@@ -42,6 +66,10 @@ public final class DocumentRetrievalRequest {
         this.size = size;
         this.summaryScope = summaryScope;
         this.citationRequired = citationRequired;
+        this.retrievalMode = retrievalMode == null ? DocumentRetrievalMode.KEYWORD : retrievalMode;
+        this.queryVector = List.copyOf(queryVector == null ? List.of() : queryVector);
+        this.hybridOptions = hybridOptions;
+        this.contextOptions = contextOptions;
     }
 
     public DocumentPlanOperation getOperation() { return operation; }
@@ -54,4 +82,8 @@ public final class DocumentRetrievalRequest {
     public int getSize() { return size; }
     public DocumentSummaryScope getSummaryScope() { return summaryScope; }
     public boolean isCitationRequired() { return citationRequired; }
+    public DocumentRetrievalMode getRetrievalMode() { return retrievalMode; }
+    public List<Double> getQueryVector() { return queryVector; }
+    public DocumentHybridOptions getHybridOptions() { return hybridOptions; }
+    public DocumentContextOptions getContextOptions() { return contextOptions; }
 }

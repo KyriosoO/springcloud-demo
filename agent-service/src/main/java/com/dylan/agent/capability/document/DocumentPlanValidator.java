@@ -6,8 +6,11 @@ import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.plan.AgentDocumentSpec;
+import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
+import com.dylan.agent.api.plan.DocumentGenerationOptions;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.dylan.agent.api.plan.DocumentRetrievalOptions;
+import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import com.dylan.agent.api.plan.DocumentSummaryScope;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.capability.query.QueryPlanValidator;
@@ -17,6 +20,7 @@ import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
 import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
+import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 
 import java.util.List;
 import java.util.Objects;
@@ -80,6 +84,11 @@ public class DocumentPlanValidator
         }
         boolean citationRequired = operation != DocumentPlanOperation.SEARCH
                 || Boolean.TRUE.equals(document.getCitationRequired());
+        DocumentRetrievalMode retrievalMode = options == null || options.getRetrievalMode() == null
+                ? DocumentRetrievalMode.KEYWORD
+                : options.getRetrievalMode();
+        DocumentHybridOptions hybridOptions = hybridOptions(options);
+        DocumentGenerationOptions generationOptions = validateGenerationOptions(document.getGenerationOptions());
         DocumentRetrievalRequest request = new DocumentRetrievalRequest(
                 operation,
                 domain,
@@ -90,8 +99,43 @@ public class DocumentPlanValidator
                 page,
                 size,
                 document.getSummaryScope(),
-                citationRequired);
-        return new ValidatedDocumentPlan(context.capabilityId(), domain, request);
+                citationRequired,
+                retrievalMode,
+                List.of(),
+                hybridOptions,
+                null);
+        return new ValidatedDocumentPlan(context.capabilityId(), domain, request, generationOptions);
+    }
+
+    private DocumentHybridOptions hybridOptions(DocumentRetrievalOptions options) {
+        var hybrid = properties.getDocument().getHybrid();
+        int keywordK = bounded(options == null || options.getKeywordK() == null ? hybrid.getKeywordK() : options.getKeywordK(),
+                1, 10_000);
+        int vectorK = bounded(options == null || options.getVectorK() == null ? hybrid.getVectorK() : options.getVectorK(),
+                1, 10_000);
+        int rrfK = bounded(options == null || options.getRrfK() == null ? hybrid.getRrfK() : options.getRrfK(),
+                1, 1000);
+        int numCandidates = bounded(
+                options == null || options.getNumCandidates() == null ? hybrid.getNumCandidates() : options.getNumCandidates(),
+                1,
+                10_000);
+        return new DocumentHybridOptions(keywordK, vectorK, rrfK, numCandidates);
+    }
+
+    private DocumentGenerationOptions validateGenerationOptions(DocumentGenerationOptions options) {
+        if (options == null) {
+            return null;
+        }
+        int maxOutputChars = options.getMaxOutputChars() == null
+                ? properties.getDocument().getGeneration().getMaxOutputChars()
+                : options.getMaxOutputChars();
+        if (maxOutputChars <= 0 || maxOutputChars > properties.getDocument().getGeneration().getMaxOutputChars()) {
+            throw new IllegalArgumentException("document generation maxOutputChars out of bounds");
+        }
+        if (options.getFailurePolicy() == null) {
+            options.setFailurePolicy(DocumentGenerationFailurePolicy.FALLBACK_EXTRACTIVE);
+        }
+        return options;
     }
 
     private void validateSummaryScope(DocumentPlanOperation operation, DocumentSummaryScope summaryScope) {
