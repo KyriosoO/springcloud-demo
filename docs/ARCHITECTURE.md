@@ -2,6 +2,7 @@
 
 > 生成日期：2026-06-25 | 分支：codex
 > 2026-07-05 更新：按授权补充 Agent QUERY 白名单排序架构边界；QUERY `sorts` 与 AGGREGATE `orderBy` 保持独立语义。
+> 2026-07-06 更新：按授权补齐 AGGREGATE Runtime Context View 的 `orderBy` 投影说明；不改变 `AGGREGATE_CONTEXT` 版本或下游聚合接口。
 
 ---
 
@@ -103,7 +104,7 @@ agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter
 | `runtime/RuntimeDomainSchema.java` | 发往 Runtime 的域 Schema：`domain`、`aliases`、`fields`、`defaultSelectFields`、`sortFields`、`maxFilters`、分页限制 |
 | `runtime/RuntimeFieldSchema.java` | 字段 Schema：`name`、`aliases`、`operators`、`type`、`formatHint`、`supportedAggregateFunctions` |
 | `runtime/RuntimeQueryContext.java` | 上一轮查询上下文（供 MERGE 使用）：`sourceTurnId`、`domain`、`filters`、`selectFields`、`sorts`、`page`、`size`、分页总数元数据 |
-| `runtime/RuntimeAggregateContext.java` | 聚合查询上下文（供持久化/审计）：`sourceTurnId`、`domain`、`filters`、`metrics`、`groupByFields`、`maxRows` |
+| `runtime/RuntimeAggregateContext.java` | 聚合查询上下文（供 Runtime 多轮聚合规划、持久化和审计）：`sourceTurnId`、`domain`、`filters`、`metrics`、`groupByFields`、`orderBy`、`maxRows` |
 
 ---
 
@@ -275,6 +276,7 @@ agent-service ──→ agent-adapter-api, agent-adapter-employee, agent-adapter
 - Java `QueryPlanValidator` 是可信校验边界；Adapter 只接收 `ValidatedQuery.sorts`，不自报也不自行扩大排序能力。
 - 业务域服务负责把已校验 canonical field 映射到 ES/SQL 字段；transaction 动态 `ORDER BY` 只能由服务层白名单映射生成。
 - QUERY `sorts` 是明细行排序；AGGREGATE `orderBy` 是聚合结果排序，字段来源和校验规则互不复用。
+- AGGREGATE `orderBy` 已进入 Runtime Aggregate Context View，用于多轮聚合规划继承或显式重排；该投影不代表 `AGGREGATE_CONTEXT` payload 版本升级，也不要求下游聚合接口新增排序入参。
 
 ### 6.2 ClarifyCapabilityHandler
 **文件：** `agent-service/.../capability/clarify/ClarifyCapabilityHandler.java`
@@ -491,6 +493,6 @@ WHERE id = #{id} AND status = 'PROCESSING'
 
 | Intent | 存储类型 | 用途 |
 |--------|---------|------|
-| QUERY | `RuntimeQueryContext`（sourceTurnId, domain, filters, selectFields, page, size） | 下一轮 MERGE 时加载使用 |
-| AGGREGATE | `RuntimeAggregateContext`（sourceTurnId, domain, filters, metrics, groupByFields, maxRows） | 审计追溯，当前不做 MERGE |
+| QUERY | `RuntimeQueryContext`（sourceTurnId, domain, filters, selectFields, sorts, page, size, total/totalExact/totalPages） | 下一轮 MERGE、分页和排序继承时加载使用 |
+| AGGREGATE | `RuntimeAggregateContext`（sourceTurnId, domain, filters, metrics, groupByFields, orderBy, maxRows） | 审计追溯，并为兼容上一轮聚合的多轮规划提供最小上下文 |
 | CLARIFY | `null` | 无上下文需要持久化 |

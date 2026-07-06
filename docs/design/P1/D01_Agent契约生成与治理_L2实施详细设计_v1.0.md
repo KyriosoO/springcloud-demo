@@ -1,7 +1,7 @@
 # D01 Agent 契约生成与治理 — L2 实施详细设计 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过；2026-07-05 已按授权补充 QUERY 白名单排序增量契约约束，排序能力仍需按专项详细设计实现）
+> 文档状态：已实施（D01 退出门禁通过；2026-07-05 已按授权补充 QUERY 白名单排序增量契约约束；2026-07-06 已按授权补齐 AGGREGATE Runtime Context View `orderBy` 投影）
 > 上位文档：`Agent目标架构总览_v1.0.md`（L0）、`Agent契约与规划架构设计_v1.0.md`（L1）  
 > 交付阶段：D01 契约生成与治理  
 > 代码基线：`b56906c` 及其同源后续提交  
@@ -24,6 +24,7 @@
 | 2026-07-01 | changed-path 的 `git diff --name-only` 固定使用 `-c core.quotepath=false` | Linux Git 默认把中文文档路径输出为带引号的八进制转义文本，导致真实允许路径被误判为越界 | 只规范路径输出编码；不改变 merge-base、允许路径集合或隔离语义 |
 | 2026-07-01 | 文档状态更新为“已实施（D01 退出门禁通过）”，记录 GitHub commit `22457a9` 的 Actions 证据：`Agent Contract CI` run `28499118055` 与 `D01 Target Contract Governance` run `28499118064` 全部 success | 16.6 的 16 项退出条件已有当前代码、artifact、本地 Linux 统一门禁及 GitHub Actions 成功证据；不再保留“待 CI”状态 | D01 可退出；后续仅允许按第 17 节进入 D02 实际产物基线复核，不代表 D03 协议已激活 |
 | 2026-07-05 | 授权同步 QUERY 白名单排序契约增量：新增 `AgentSortSpec`、`AgentQuerySpec.sorts`、`RuntimeDomainSchema.sortFields`、`RuntimeQueryContextView.sorts`，并同步 Query Context 分页总数字段的 Runtime View 规格 | `Agent与业务域白名单排序能力_L2实施详细设计` 需要修改 Route/Plan/OpenAPI/Python generated model 的公共契约；若 D01 不同步，后续实现会与契约生成治理约束冲突 | 只补充 D01 契约源、OpenAPI 生成和 fixture 门禁约束；不手改 `agent-runtime-openapi.json` 或 Python generated model |
+| 2026-07-06 | 授权同步 AGGREGATE Runtime Context View 排序投影：`RuntimeAggregateContextView` 新增 `orderBy` 字段并纳入 OpenAPI/Python generated model 门禁 | 聚合 payload 与 Capability registration 已包含 `orderBy`，但 Runtime View 未投影会导致多轮聚合规划无法继承上一轮排序 | 只补充 Runtime Context View 契约、生成物和测试门禁；不升级 `AGGREGATE_CONTEXT` 版本，不新增 Context 迁移器，不改变下游聚合接口 |
 
 ---
 
@@ -411,8 +412,8 @@ sealed interface，方法：`RuntimeContextType getContextType()`、`String getS
 
 #### `RuntimeAggregateContextView`
 
-字段：固定 `contextType=AGGREGATE`、`String sourceInvocationId`、`List<AgentFilter> filters`、`List<AggregateMetricSpec> metrics`、`List<String> groupByFields`、`Integer maxRows`。约束同上，metrics 非空，maxRows `@NotNull @Min(1)`。  
-方法：无参构造器、只读 `getContextType()`、其余 5 个字段 getter/setter。
+字段：固定 `contextType=AGGREGATE`、`String sourceInvocationId`、`List<AgentFilter> filters`、`List<AggregateMetricSpec> metrics`、`List<String> groupByFields`、`List<AggregateOrderSpec> orderBy`、`Integer maxRows`。约束同上，metrics 非空，`orderBy` 缺省为空列表，maxRows `@NotNull @Min(1)`。  
+方法：无参构造器、只读 `getContextType()`、其余 6 个字段 getter/setter。
 
 Context View 是 PlanRequest 的只读最小投影，不包含持久化 Envelope、Owner、write 权限、TTL 或完整结果。
 
@@ -649,7 +650,7 @@ HTTP status 绑定：400=`CONTRACT_INVALID`（请求解析），401=`AUTHENTICAT
 | `RuntimeDomainSchema` | 构造器；`getDomain/setDomain`、`getFields/setFields`、`getDefaultSelectFields/setDefaultSelectFields`、`getSortFields/setSortFields`、`getDefaultSize/setDefaultSize`、`getMaxSize/setMaxSize` |
 | `RuntimeContextView` | `getContextType`、`getSourceInvocationId` |
 | `RuntimeQueryContextView` | 构造器；只读 `getContextType`；`getSourceInvocationId/setSourceInvocationId`、`getFilters/setFilters`、`getSelectFields/setSelectFields`、`getSorts/setSorts`、`getPage/setPage`、`getSize/setSize`、`getTotal/setTotal`、`getTotalExact/setTotalExact`、`getTotalPages/setTotalPages` |
-| `RuntimeAggregateContextView` | 构造器；只读 `getContextType`；`getSourceInvocationId/setSourceInvocationId`、`getFilters/setFilters`、`getMetrics/setMetrics`、`getGroupByFields/setGroupByFields`、`getMaxRows/setMaxRows` |
+| `RuntimeAggregateContextView` | 构造器；只读 `getContextType`；`getSourceInvocationId/setSourceInvocationId`、`getFilters/setFilters`、`getMetrics/setMetrics`、`getGroupByFields/setGroupByFields`、`getOrderBy/setOrderBy`、`getMaxRows/setMaxRows` |
 | `ClarificationArgs` | `getArgType` |
 | `CapabilityChoiceArgs` | 构造器；只读 `getArgType`；`getCapabilityIds/setCapabilityIds` |
 | `DomainChoiceArgs` | 构造器；只读 `getArgType`；`getDomains/setDomains` |
@@ -726,6 +727,7 @@ D01 不生成 JSON Schema Bundle：当前 Python codegen 和双端测试都直�
 | `shouldExposeTypedRuntimeErrorsForAllFailureStatuses()` | 400/401/422/500/503/504 都引用 RuntimeErrorResponse，成功响应不混入 error |
 | `shouldMatchCommittedCandidateArtifact()` | fresh canonical JSON 与 candidate artifact byte-equivalent；仅 `-Dagent.contract.update=true` 可写入 |
 | `shouldExposeQuerySortContract()` | `AgentSortSpec`、`AgentQuerySpec.sorts`、`RuntimeDomainSchema.sortFields`、`RuntimeQueryContextView.sorts` 存在，且所有 object schema `additionalProperties=false` |
+| `shouldExposeAggregateContextOrderBy()` | `RuntimeAggregateContextView.orderBy` 存在、required，且 items 引用 `AggregateOrderSpec` |
 | `shouldBeDeterministicAcrossTwoBuilds()` | 同进程两次 build 输出完全一致 |
 
 private helper：`isUpdateEnabled()`（`Boolean.getBoolean("agent.contract.update")`）、`readArtifact()`、`updateArtifactAtomically(String)`、`assertDiscriminator(String, String, Set<String>)`、`objectSchemas(OpenAPI)`。update helper 使用同目录临时文件和 `Files.move(temp, ARTIFACT, ATOMIC_MOVE, REPLACE_EXISTING)`；不支持原子移动时直接失败，不降级为非原子覆盖。

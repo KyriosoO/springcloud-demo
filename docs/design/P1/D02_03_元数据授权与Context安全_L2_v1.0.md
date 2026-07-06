@@ -1,7 +1,7 @@
 # D02_03 元数据授权与 Context 安全 — L2 v1.0
 
 > 文档层级：L2 实施详细设计  
-> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充Query分页Context与字段越权错误码；2026-07-05 已按授权补充 QUERY 白名单排序 Context 与迁移约束）
+> 文档状态：已实施（D01 退出门禁通过，D02 基线复核完成，代码已提交；2026-07-04 已按授权补充Query分页Context与字段越权错误码；2026-07-05 已按授权补充 QUERY 白名单排序 Context 与迁移约束；2026-07-06 已按授权补齐 AGGREGATE Runtime Context View `orderBy` 投影）
 > 上位文档：`Agent目标架构总览_v1.0.md`、`Agent契约与规划架构设计_v1.0.md`、`Agent能力执行内核架构设计_v1.0.md`、`Agent元数据与上下文安全架构设计_v1.0.md`  
 > 集成权威：`D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md`  
 > 关联 L2：`D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`D02_02_Invocation生命周期与持久化_L2_v1.0.md`、`统一密钥管理与多注入源支持_L2实施详细设计_v1.0.md`（专项联动，不改变 D02_03 已实施基线）
@@ -16,6 +16,7 @@
 |---:|---|---|---|---|
 | 1 | 2026-07-04 | 授权恢复 / 第 8、9、13～15 节 | 用户授权修订关联设计文档 | 在授权范围内补充 `QueryCapabilityContextPayload` 分页总数字段、Runtime最小Context View、`QUERY_CONTEXT` 1.0.0→1.1.0兼容迁移、`FIELD_FORBIDDEN` 安全错误码和测试门禁。 |
 | 2 | 2026-07-05 | 授权恢复 / 第 7～9、13～15 节 | 用户授权同步 `Agent与业务域白名单排序能力` 关联文档 | 补充 `ExecutionValidationProjection.sortFields`、`QueryCapabilityContextPayload.sorts`、`RuntimeQueryContextView.sorts`、`QUERY_CONTEXT` 1.0.0/1.1.0→1.2.0 精确迁移和 ResultSecurity 排序回显过滤门禁。 |
+| 3 | 2026-07-06 | 授权恢复 / 第 8、9、14 节 | 用户授权同步聚合多轮排序 Context 投影 | 补充 `RuntimeAggregateContextView.orderBy` 的 readableFields 投影规则和测试门禁；明确不升级 `AGGREGATE_CONTEXT`、不新增迁移器。 |
 
 ---
 
@@ -370,6 +371,8 @@ D01 `RuntimeContextView` 是由 payload 形成的最小 Runtime 投影，不是 
 
 Query对应的`RuntimeQueryContextView`只投影`sourceInvocationId`、filters、selectFields、sorts、page、size、total、totalExact、totalPages。Runtime可据此把“下一页/上一页/第一页/最后一页”输出为具体page并保持上一轮排序；当`totalExact`不为true或`totalPages`为空时，Runtime不得猜测最后一页，必须返回澄清或让Java安全拒绝。`sorts`投影仍受readableFields控制，未声明可读时不得输出。
 
+Aggregate对应的`RuntimeAggregateContextView`只投影`sourceInvocationId`、filters、metrics、groupByFields、orderBy、maxRows。Runtime可据此在兼容上一轮AGGREGATE Context的多轮聚合规划中继承、替换或清空上一轮聚合结果排序。`orderBy`字段来源仍受`AggregatePlanValidator`约束，只允许来自`groupByFields`或metric alias；投影仍受readableFields控制，未声明可读时不得输出。该投影补齐不改变`AggregateCapabilityContextPayload`结构和`AGGREGATE_CONTEXT` 1.0.0版本，也不需要新增Context迁移器。
+
 ### 8.2 Owner、Key 与 Envelope
 
 `ContextRecordKey` 字段：ContextOwnerRef、InvocationScope、RuntimeContextType；唯一标识当前逻辑记录。
@@ -440,6 +443,8 @@ Registration read declaration
 `ContextPlanningPort.toRuntimeView(ContextSnapshot snapshot, ContextReadDeclaration declaration, PlanningAuthorizationEvidence evidence)`返回D01 `RuntimeContextView`封闭union中的最小typed投影。它复检snapshot correlation/Owner/Scope、declaration与effectiveContractRef、stored迁移证据及当前Planning scope，只投影`readableFields`交集；PlanningService不得按contextType自行组装View。新增Context type只扩展agent-api payload/View subtype及本边界投影，不修改Planning主流程。
 
 当Context type为QUERY时，`toRuntimeView`必须按readableFields投影filters/selectFields/sorts/page/size/total/totalExact/totalPages；如果readableFields未包含`sorts`或分页总数字段，则不得输出这些字段。默认`query.search` declaration应包含这些字段，以支持排序分页继承和末页计算；`query.preview`首版只读Context且不写Context，是否使用上一轮`sorts`必须由D05明确约束，其他capability不得通过自由Map读取query payload内部字段。
+
+当Context type为AGGREGATE时，`toRuntimeView`必须按readableFields投影filters/metrics/groupByFields/orderBy/maxRows；如果readableFields未包含`orderBy`，不得输出聚合排序条件。默认`aggregate.compute` declaration应包含`orderBy`，以支持聚合多轮规划继承上一轮排序；其他capability不得通过自由Map读取aggregate payload内部字段。
 
 ### 9.2 Execution Currentness
 
@@ -751,7 +756,8 @@ Metadata/Context只能使用D02_02定义的`KernelErrorCode`枚举，其中本�
 - `projectsQueryPaginationTotalsToRuntimeView`：Runtime Query Context View包含total/totalExact/totalPages且不包含业务行数据；
 - `doesNotProjectQueryTotalsWhenReadableFieldsExcludeThem`：readableFields收紧时不输出分页总数字段；
 - `writesQueryContextTotalsOnlyAfterSuccessfulQuery`：只有成功query write才持久化total/totalPages；
-- `usesFieldForbiddenOnlyForExistingUnauthorizedFields`：存在但未授权字段使用`FIELD_FORBIDDEN`，未知字段不使用该错误码。
+- `usesFieldForbiddenOnlyForExistingUnauthorizedFields`：存在但未授权字段使用`FIELD_FORBIDDEN`，未知字段不使用该错误码；
+- `toRuntimeViewIncludesAggregateOrderByWhenReadable`：Runtime Aggregate Context View在readableFields包含`orderBy`时投影上一轮聚合排序条件。
 
 ---
 
