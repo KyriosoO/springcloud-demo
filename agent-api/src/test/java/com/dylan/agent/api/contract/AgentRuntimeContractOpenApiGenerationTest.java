@@ -96,6 +96,16 @@ class AgentRuntimeContractOpenApiGenerationTest {
     }
 
     @Test
+    void shouldExposeAggregateContextOrderBy() {
+        Schema aggregateContext = OPEN_API.getComponents().getSchemas().get("RuntimeAggregateContextView");
+        assertNotNull(aggregateContext);
+        assertTrue(aggregateContext.getRequired().contains("orderBy"));
+        Schema orderBy = (Schema) aggregateContext.getProperties().get("orderBy");
+        assertNotNull(orderBy);
+        assertEquals("#/components/schemas/AggregateOrderSpec", orderBy.getItems().get$ref());
+    }
+
+    @Test
     void shouldMarkRequiredFieldsNonNullable() {
         Map<String, Set<String>> required = new LinkedHashMap<>();
         required.put("RouteRequest", Set.of("requestId", "contractVersion", "message", "history",

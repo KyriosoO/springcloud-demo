@@ -248,7 +248,6 @@
       "AggregateOrderSpec" : {
         "additionalProperties" : false,
         "description" : "聚合结果排序规格",
-        "nullable" : true,
         "properties" : {
           "direction" : {
             "description" : "排序方向",
@@ -697,13 +696,20 @@
             "minItems" : 1,
             "type" : "array"
           },
+          "orderBy" : {
+            "description" : "上轮聚合结果排序条件",
+            "items" : {
+              "$ref" : "#/components/schemas/AggregateOrderSpec"
+            },
+            "type" : "array"
+          },
           "sourceInvocationId" : {
             "description" : "来源 Invocation 标识",
             "minLength" : 1,
             "type" : "string"
           }
         },
-        "required" : [ "contextType", "filters", "groupByFields", "maxRows", "metrics", "sourceInvocationId" ],
+        "required" : [ "contextType", "filters", "groupByFields", "maxRows", "metrics", "orderBy", "sourceInvocationId" ],
         "type" : "object"
       },
       "RuntimeCapabilityRoutingDescriptor" : {

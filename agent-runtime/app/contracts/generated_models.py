@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 02e93f9f1715c5842fa0793b3635de47a20ce9958debd9a225df45ac63b1e9e2
+# source_sha256: a6dc6a98c3a3199bfbf912e8d2a50a21af8509511890c825ee88e72f9e3e6e16
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -589,6 +589,9 @@ class RuntimeAggregateContextView(BaseModel):
     max_rows: int = Field(..., alias='maxRows', description='上轮 maxRows', ge=1)
     metrics: List[AggregateMetricSpec] = Field(
         ..., description='上轮聚合指标', max_length=2147483647, min_length=1
+    )
+    order_by: List[AggregateOrderSpec] = Field(
+        ..., alias='orderBy', description='上轮聚合结果排序条件'
     )
     source_invocation_id: str = Field(
         ...,

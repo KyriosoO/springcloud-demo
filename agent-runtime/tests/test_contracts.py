@@ -192,6 +192,23 @@ def test_query_context_accepts_optional_pagination_totals():
     assert view.total_pages == 3
 
 
+def test_aggregate_context_accepts_order_by():
+    view = g.RuntimeAggregateContextView.model_validate(
+        {
+            "contextType": "AGGREGATE",
+            "sourceInvocationId": "inv-prev-aggregate",
+            "filters": [],
+            "metrics": [{"alias": "totalAmount", "function": "SUM", "field": "amount"}],
+            "groupByFields": ["transType"],
+            "orderBy": [{"field": "totalAmount", "direction": "DESC"}],
+            "maxRows": 20,
+        }
+    )
+
+    assert view.order_by[0].field == "totalAmount"
+    assert view.order_by[0].direction.value == "DESC"
+
+
 def test_requests_share_single_contract_generation():
     route = g.RouteRequest.model_validate(_load("route-request.json"))
     plan_payload = _load("plan-request.json")

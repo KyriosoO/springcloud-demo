@@ -10,11 +10,16 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.dylan.agent.api.context.AggregateCapabilityContextPayload;
 import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.agent.api.contract.runtime.common.RuntimeAggregateContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView;
+import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.plan.AgentSortSpec;
+import com.dylan.agent.api.plan.AggregateMetricSpec;
+import com.dylan.agent.api.plan.AggregateOrderSpec;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.kernel.definition.ContextReadDeclaration;
@@ -100,6 +105,28 @@ class ContextRuntimeViewTest {
         });
     }
 
+    @Test
+    void toRuntimeViewIncludesAggregateOrderByWhenReadable() {
+        ContextBoundary boundary = new ContextBoundary(
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
+
+        var view = (RuntimeAggregateContextView) boundary.toRuntimeView(
+                aggregateSnapshotWithOrderBy(),
+                new ContextReadDeclaration(
+                        RuntimeContextType.AGGREGATE,
+                        AgentExecutionContracts.AGGREGATE_CONTEXT,
+                        AggregateCapabilityContextPayload.class,
+                        false,
+                        Set.of("metrics", "groupByFields", "orderBy", "maxRows")),
+                aggregateEvidence());
+
+        assertThat(view.getOrderBy()).singleElement().satisfies(order -> {
+            assertThat(order.getField()).isEqualTo("totalAmount");
+            assertThat(order.getDirection()).isEqualTo("DESC");
+        });
+    }
+
     static ContextSnapshot snapshot() {
         return new ContextSnapshot(
                 "ctx-1", "corr",
@@ -151,6 +178,30 @@ class ContextRuntimeViewTest {
                 new QueryCapabilityContextPayload(List.of(), List.of("name"), List.of(sort), 1, 10, null, null, null));
     }
 
+    static ContextSnapshot aggregateSnapshotWithOrderBy() {
+        AggregateMetricSpec metric = new AggregateMetricSpec();
+        metric.setAlias("totalAmount");
+        metric.setFunction(AggregateFunction.SUM);
+        metric.setField("amount");
+        AggregateOrderSpec order = new AggregateOrderSpec();
+        order.setField("totalAmount");
+        order.setDirection("DESC");
+        return new ContextSnapshot(
+                "ctx-aggregate", "corr",
+                new ContextRecordKey(new ContextOwnerRef("conversation", "conv-1"),
+                        new ConversationScope("conv-1"),
+                        RuntimeContextType.AGGREGATE),
+                "aggregate.compute", "inv-aggregate", "transaction",
+                AgentExecutionContracts.AGGREGATE_CONTEXT,
+                AgentExecutionContracts.AGGREGATE_CONTEXT,
+                1,
+                MetadataTestSupport.NOW.plusSeconds(60),
+                "bundle-v1", "policy-v1", "perm", null,
+                ExpectedContextVersion.version(1),
+                new AggregateCapabilityContextPayload(
+                        List.of(), List.of(metric), List.of("transType"), List.of(order), 20));
+    }
+
     static ContextReadDeclaration declaration() {
         return new ContextReadDeclaration(
                 RuntimeContextType.QUERY,
@@ -169,6 +220,23 @@ class ContextRuntimeViewTest {
                 new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
                 new PlanningEffectiveScope(Set.of("query.search"), Set.of("employee"), Map.of(),
                         Set.of(RuntimeContextType.QUERY), Set.of(RuntimeContextType.QUERY),
+                        com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
+                        com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
+                        Duration.ofSeconds(30), 1, 100, 100, 10_000),
+                new DomainMetadataEvidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
+                MetadataTestSupport.NOW,
+                MetadataTestSupport.NOW.plusSeconds(60));
+    }
+
+    static PlanningAuthorizationEvidence aggregateEvidence() {
+        var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
+        var profile = bundle.profileVersionIndex().values().iterator().next();
+        return new PlanningAuthorizationEvidence(
+                "corr", "user:u-1", profile.key(), bundle.bundleVersion(), bundle.bundleDigest(),
+                "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
+                new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
+                new PlanningEffectiveScope(Set.of("aggregate.compute"), Set.of("transaction"), Map.of(),
+                        Set.of(RuntimeContextType.AGGREGATE), Set.of(RuntimeContextType.AGGREGATE),
                         com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
                         com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
                         Duration.ofSeconds(30), 1, 100, 100, 10_000),

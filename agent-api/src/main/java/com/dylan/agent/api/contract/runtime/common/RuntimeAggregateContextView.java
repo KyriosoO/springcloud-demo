@@ -3,6 +3,7 @@ package com.dylan.agent.api.contract.runtime.common;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.api.plan.AggregateMetricSpec;
+import com.dylan.agent.api.plan.AggregateOrderSpec;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -44,6 +45,11 @@ public final class RuntimeAggregateContextView implements RuntimeContextView {
     @NotNull
     private List<String> groupByFields = Collections.emptyList();
 
+    @Schema(description = "上轮聚合结果排序条件", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull
+    @Valid
+    private List<@Valid AggregateOrderSpec> orderBy = Collections.emptyList();
+
     @Schema(description = "上轮 maxRows", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull
     @Min(1)
@@ -64,6 +70,8 @@ public final class RuntimeAggregateContextView implements RuntimeContextView {
     public void setMetrics(List<AggregateMetricSpec> metrics) { this.metrics = metrics == null ? null : new ArrayList<>(metrics); }
     public List<String> getGroupByFields() { return groupByFields == null ? Collections.emptyList() : Collections.unmodifiableList(groupByFields); }
     public void setGroupByFields(List<String> groupByFields) { this.groupByFields = groupByFields == null ? null : new ArrayList<>(groupByFields); }
+    public List<AggregateOrderSpec> getOrderBy() { return orderBy == null ? Collections.emptyList() : Collections.unmodifiableList(orderBy); }
+    public void setOrderBy(List<AggregateOrderSpec> orderBy) { this.orderBy = orderBy == null ? null : new ArrayList<>(orderBy); }
     public Integer getMaxRows() { return maxRows; }
     public void setMaxRows(Integer maxRows) { this.maxRows = maxRows; }
 }

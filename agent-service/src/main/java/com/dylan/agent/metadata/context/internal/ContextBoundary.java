@@ -148,6 +148,9 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             if (readableFields.contains("groupByFields")) {
                 view.setGroupByFields(aggregate.groupByFields());
             }
+            if (readableFields.contains("orderBy")) {
+                view.setOrderBy(aggregate.orderBy());
+            }
             if (readableFields.contains("maxRows")) {
                 view.setMaxRows(aggregate.maxRows());
             }
