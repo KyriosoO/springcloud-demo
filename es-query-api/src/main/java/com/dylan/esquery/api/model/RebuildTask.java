@@ -14,6 +14,10 @@ public class RebuildTask {
 	private long totalIndexed;
 	private String lastCursor;
 	private String errorMessage;
+	private String validationStatus;
+	private String validationDigest;
+	private Instant validatedAt;
+	private String validationMessage;
 	private Instant createdAt;
 	private Instant updatedAt;
 
@@ -33,6 +37,14 @@ public class RebuildTask {
 	public void setLastCursor(String lastCursor) { this.lastCursor = lastCursor; }
 	public String getErrorMessage() { return errorMessage; }
 	public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+	public String getValidationStatus() { return validationStatus; }
+	public void setValidationStatus(String validationStatus) { this.validationStatus = validationStatus; }
+	public String getValidationDigest() { return validationDigest; }
+	public void setValidationDigest(String validationDigest) { this.validationDigest = validationDigest; }
+	public Instant getValidatedAt() { return validatedAt; }
+	public void setValidatedAt(Instant validatedAt) { this.validatedAt = validatedAt; }
+	public String getValidationMessage() { return validationMessage; }
+	public void setValidationMessage(String validationMessage) { this.validationMessage = validationMessage; }
 	public Instant getCreatedAt() { return createdAt; }
 	public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 	public Instant getUpdatedAt() { return updatedAt; }

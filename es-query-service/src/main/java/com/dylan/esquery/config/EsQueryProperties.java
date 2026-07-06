@@ -1,5 +1,8 @@
 package com.dylan.esquery.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -10,6 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class EsQueryProperties implements InitializingBean {
 
 	private Integer totalHitsThreshold;
+	private List<String> documentIndexPrefixes = new ArrayList<>(List.of("agent-doc-"));
 
 	public Integer getTotalHitsThreshold() {
 		return totalHitsThreshold;
@@ -17,6 +21,19 @@ public class EsQueryProperties implements InitializingBean {
 
 	public void setTotalHitsThreshold(Integer totalHitsThreshold) {
 		this.totalHitsThreshold = totalHitsThreshold;
+	}
+
+	public List<String> getDocumentIndexPrefixes() {
+		return documentIndexPrefixes;
+	}
+
+	public void setDocumentIndexPrefixes(List<String> documentIndexPrefixes) {
+		List<String> filtered = documentIndexPrefixes == null ? List.of() : documentIndexPrefixes.stream()
+				.filter(prefix -> prefix != null && !prefix.isBlank())
+				.toList();
+		this.documentIndexPrefixes = filtered.isEmpty()
+				? new ArrayList<>(List.of("agent-doc-"))
+				: new ArrayList<>(filtered);
 	}
 
 	@Override

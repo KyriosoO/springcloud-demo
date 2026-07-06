@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dylan.esquery.api.model.BulkIndexRequest;
+import com.dylan.esquery.api.model.AliasSwitchRequest;
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.HybridSearchResponse;
 import com.dylan.esquery.api.model.IndexDocumentRequest;
@@ -24,6 +25,7 @@ import com.dylan.esquery.api.model.RebuildRequest;
 import com.dylan.esquery.api.model.RebuildTask;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.dylan.esquery.service.EsDocumentService;
+import com.dylan.esquery.service.EsIndexAliasService;
 import com.dylan.esquery.service.IndexRebuildService;
 import com.dylan.esquery.service.RebuildTaskRepository;
 
@@ -36,15 +38,18 @@ public class EsQueryController {
 	private final EsDocumentService esDocumentService;
 	private final IndexRebuildService indexRebuildService;
 	private final RebuildTaskRepository taskRepository;
+	private final EsIndexAliasService aliasService;
 
 	/**
 	 * 创建 EsQueryController 实例并注入所需依赖。
 	 */
 	public EsQueryController(EsDocumentService esDocumentService, IndexRebuildService indexRebuildService,
-			RebuildTaskRepository taskRepository) {
+			RebuildTaskRepository taskRepository,
+			EsIndexAliasService aliasService) {
 		this.esDocumentService = esDocumentService;
 		this.indexRebuildService = indexRebuildService;
 		this.taskRepository = taskRepository;
+		this.aliasService = aliasService;
 	}
 
 	/**
@@ -137,6 +142,20 @@ public class EsQueryController {
 			@PathVariable String index,
 			@RequestBody HybridSearchRequest request) throws IOException {
 		return ResponseEntity.ok(esDocumentService.hybridSearch(index, request));
+	}
+
+	@PostMapping(value = "/indexes/{index}/aliases/read/switch", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void switchReadAlias(@PathVariable String index, @RequestBody AliasSwitchRequest request)
+			throws IOException {
+		aliasService.switchReadAlias(index, request);
+	}
+
+	@PostMapping(value = "/indexes/{index}/aliases/read/rollback", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void rollbackReadAlias(@PathVariable String index, @RequestBody AliasSwitchRequest request)
+			throws IOException {
+		aliasService.rollbackReadAlias(index, request);
 	}
 
 }

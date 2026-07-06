@@ -104,6 +104,10 @@ agent:
     max-query-text-length: 500
     max-snippet-chars: 500
     max-summary-chars: 2000
+    acl:
+      enabled: true
+      scope-url:
+      timeout: 2s
     embedding:
       enabled: false
       base-url:

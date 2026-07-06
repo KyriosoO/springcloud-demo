@@ -13,6 +13,7 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dylan.esquery.api.model.HybridRetrievalDiagnostics;
@@ -34,12 +35,17 @@ public class EsDocumentService {
 	private final ObjectMapper objectMapper;
 	private final EsQueryProperties properties;
 	private final HybridSearchMerger hybridSearchMerger;
+	private final DocumentIndexPolicy documentIndexPolicy;
+	private final DocumentChunkSchemaValidator chunkSchemaValidator;
+	private final DocumentIndexDefinitionValidator indexDefinitionValidator;
 
 	/**
 	 * 创建 EsDocumentService 实例并注入所需依赖。
 	 */
 	public EsDocumentService(RestClient restClient, ObjectMapper objectMapper, EsQueryProperties properties) {
-		this(restClient, objectMapper, properties, new HybridSearchMerger(objectMapper));
+		this(restClient, objectMapper, properties, new HybridSearchMerger(objectMapper),
+				new DocumentIndexPolicy(properties), new DocumentChunkSchemaValidator(),
+				new DocumentIndexDefinitionValidator());
 	}
 
 	/**
@@ -50,10 +56,38 @@ public class EsDocumentService {
 			ObjectMapper objectMapper,
 			EsQueryProperties properties,
 			HybridSearchMerger hybridSearchMerger) {
+		this(restClient, objectMapper, properties, hybridSearchMerger,
+				new DocumentIndexPolicy(properties), new DocumentChunkSchemaValidator(),
+				new DocumentIndexDefinitionValidator());
+	}
+
+	public EsDocumentService(
+			RestClient restClient,
+			ObjectMapper objectMapper,
+			EsQueryProperties properties,
+			HybridSearchMerger hybridSearchMerger,
+			DocumentIndexPolicy documentIndexPolicy,
+			DocumentChunkSchemaValidator chunkSchemaValidator,
+			DocumentIndexDefinitionValidator indexDefinitionValidator) {
 		this.restClient = restClient;
 		this.objectMapper = objectMapper;
 		this.properties = properties;
 		this.hybridSearchMerger = hybridSearchMerger;
+		this.documentIndexPolicy = documentIndexPolicy;
+		this.chunkSchemaValidator = chunkSchemaValidator;
+		this.indexDefinitionValidator = indexDefinitionValidator;
+	}
+
+	@Autowired
+	public EsDocumentService(
+			RestClient restClient,
+			ObjectMapper objectMapper,
+			EsQueryProperties properties,
+			DocumentIndexPolicy documentIndexPolicy,
+			DocumentChunkSchemaValidator chunkSchemaValidator,
+			DocumentIndexDefinitionValidator indexDefinitionValidator) {
+		this(restClient, objectMapper, properties, new HybridSearchMerger(objectMapper),
+				documentIndexPolicy, chunkSchemaValidator, indexDefinitionValidator);
 	}
 
 	/**
@@ -70,6 +104,7 @@ public class EsDocumentService {
 	 * 处理 indexDocument 相关逻辑。
 	 */
 	public String indexDocument(String index, String id, Map<String, Object> document) throws IOException {
+		validateDocumentChunkIfNeeded(index, document);
 		String endpoint = id == null || id.isBlank() ? "/" + index + "/_doc" : "/" + index + "/_doc/" + id;
 		Request request = new Request(id == null || id.isBlank() ? "POST" : "PUT", endpoint);
 		request.setEntity(jsonEntity(objectMapper.writeValueAsString(document)));
@@ -93,6 +128,12 @@ public class EsDocumentService {
 	 * 批量处理索引文档。
 	 */
 	public String bulkIndex(String index, String idField, List<Map<String, Object>> documents) throws IOException {
+		if (documentIndexPolicy.isDocumentIndex(index) && (idField == null || idField.isBlank())) {
+			throw new IllegalArgumentException("document index bulk idField must not be blank");
+		}
+		if (documents != null) {
+			documents.forEach(document -> validateDocumentChunkIfNeeded(index, document));
+		}
 		String bulkBody = buildBulkBody(index, idField, documents);
 		Request request = new Request("POST", "/_bulk");
 		request.setEntity(new NStringEntity(bulkBody, ContentType.create("application/x-ndjson", "UTF-8")));
@@ -111,6 +152,9 @@ public class EsDocumentService {
 	 * 处理 recreateIndex 相关逻辑。
 	 */
 	public void recreateIndex(String index, Map<String, Object> indexDefinition) throws IOException {
+		if (documentIndexPolicy.isDocumentIndex(index)) {
+			indexDefinitionValidator.validate(index, indexDefinition);
+		}
 		deleteIndexIfExists(index);
 		Request createRequest = new Request("PUT", "/" + index);
 		if (indexDefinition != null && !indexDefinition.isEmpty()) {
@@ -127,7 +171,7 @@ public class EsDocumentService {
 	 * @throws IOException
 	 */
 	public String vectorSearch(String index, VectorSearchRequest request) throws IOException {
-		Map<String, Object> body = vectorSearchBody(request);
+		Map<String, Object> body = vectorSearchBody(index, request);
 		Request esRequest = new Request("POST", "/" + index + "/_search");
 		esRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(body)));
 		Response response = restClient.performRequest(esRequest);
@@ -138,7 +182,7 @@ public class EsDocumentService {
 	 * 执行关键词和向量双路召回后使用 RRF 融合。
 	 */
 	public HybridSearchResponse hybridSearch(String index, HybridSearchRequest request) throws IOException {
-		validateHybridRequest(request);
+		validateHybridRequest(index, request);
 		Request keywordRequest = new Request("POST", "/" + index + "/_search");
 		keywordRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(keywordSearchBody(request))));
 		Response keywordResponse = restClient.performRequest(keywordRequest);
@@ -151,7 +195,7 @@ public class EsDocumentService {
 		vectorRequest.setNumCandidates(request.getNumCandidates());
 		vectorRequest.setTrackTotalHits(request.getTrackTotalHits());
 		Request vectorEsRequest = new Request("POST", "/" + index + "/_search");
-		vectorEsRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(vectorSearchBody(vectorRequest))));
+		vectorEsRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(vectorSearchBody(index, vectorRequest))));
 		Response vectorResponse = restClient.performRequest(vectorEsRequest);
 
 		List<JsonNode> keywordHits = extractHits(objectMapper.readTree(responseBody(keywordResponse)));
@@ -171,6 +215,10 @@ public class EsDocumentService {
 	}
 
 	Map<String, Object> vectorSearchBody(VectorSearchRequest request) {
+		return vectorSearchBody(null, request);
+	}
+
+	Map<String, Object> vectorSearchBody(String index, VectorSearchRequest request) {
 		if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
 			throw new IllegalArgumentException("queryVector must not be empty");
 		}
@@ -190,6 +238,8 @@ public class EsDocumentService {
 		knn.put("num_candidates", numCandidates);
 		if (request.getFilterDsl() != null && !request.getFilterDsl().isEmpty()) {
 			knn.put("filter", request.getFilterDsl());
+		} else if (documentIndexPolicy.isDocumentIndex(index)) {
+			throw new IllegalArgumentException("document vector search requires ACL filterDsl");
 		}
 		body.put("knn", knn);
 		return body;
@@ -200,20 +250,69 @@ public class EsDocumentService {
 			throw new IllegalArgumentException("keywordDsl must not be empty");
 		}
 		Map<String, Object> body = new LinkedHashMap<>(request.getKeywordDsl());
+		mergeHybridFilters(body, request.getFilters());
 		body.put("size", HybridSearchMerger.positiveOrDefault(request.getKeywordK(), 20, "keywordK"));
 		body.putIfAbsent("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
 		return body;
 	}
 
 	void validateHybridRequest(HybridSearchRequest request) {
+		validateHybridRequest(null, request);
+	}
+
+	void validateHybridRequest(String index, HybridSearchRequest request) {
 		if (request == null) {
 			throw new IllegalArgumentException("hybrid request must not be null");
 		}
 		if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
 			throw new IllegalArgumentException("queryVector must not be empty");
 		}
+		if (documentIndexPolicy.isDocumentIndex(index)
+				&& (request.getFilters() == null || request.getFilters().isEmpty())) {
+			throw new IllegalArgumentException("document hybrid search requires ACL filters");
+		}
 		keywordSearchBody(request);
 		HybridSearchMerger.positiveOrDefault(request.getTopK(), 8, "topK");
+	}
+
+	@SuppressWarnings("unchecked")
+	private void mergeHybridFilters(Map<String, Object> body, Map<String, Object> filters) {
+		if (filters == null || filters.isEmpty()) {
+			return;
+		}
+		Object query = body.get("query");
+		Map<String, Object> bool;
+		if (query instanceof Map<?, ?> queryMap && queryMap.get("bool") instanceof Map<?, ?> boolMap) {
+			bool = new LinkedHashMap<>((Map<String, Object>) boolMap);
+		} else {
+			bool = new LinkedHashMap<>();
+			bool.put("must", query == null ? List.of(Map.of("match_all", Map.of())) : List.of(query));
+		}
+		List<Object> merged = new ArrayList<>();
+		Object existingFilter = bool.get("filter");
+		if (existingFilter instanceof List<?> list) {
+			merged.addAll(list);
+		} else if (existingFilter != null) {
+			merged.add(existingFilter);
+		}
+		merged.addAll(filterItems(filters));
+		bool.put("filter", merged);
+		body.put("query", Map.of("bool", bool));
+	}
+
+	@SuppressWarnings("unchecked")
+	private List<Object> filterItems(Map<String, Object> filter) {
+		Object bool = filter.get("bool");
+		if (bool instanceof Map<?, ?> boolMap) {
+			Object items = boolMap.get("filter");
+			if (items instanceof List<?> list) {
+				return list.stream().map(item -> (Object) item).toList();
+			}
+			if (items != null) {
+				return List.of(items);
+			}
+		}
+		return List.of(filter);
 	}
 
 	private static List<JsonNode> extractHits(JsonNode root) {
@@ -293,6 +392,12 @@ public class EsDocumentService {
 			body.append(objectMapper.writeValueAsString(document)).append("\n");
 		}
 		return body.toString();
+	}
+
+	private void validateDocumentChunkIfNeeded(String index, Map<String, Object> document) {
+		if (documentIndexPolicy.isDocumentIndex(index)) {
+			chunkSchemaValidator.validate(index, document);
+		}
 	}
 
 	/**

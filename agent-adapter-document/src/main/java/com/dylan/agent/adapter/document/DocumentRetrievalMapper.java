@@ -9,7 +9,6 @@ import com.dylan.esquery.api.model.HybridContextWindow;
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -21,26 +20,37 @@ import java.util.Objects;
 public class DocumentRetrievalMapper {
 
     private final ObjectMapper objectMapper;
+    private final DocumentAclFilterFactory aclFilterFactory;
 
     public DocumentRetrievalMapper(ObjectMapper objectMapper) {
+        this(objectMapper, new DocumentAclFilterFactory());
+    }
+
+    public DocumentRetrievalMapper(ObjectMapper objectMapper, DocumentAclFilterFactory aclFilterFactory) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.aclFilterFactory = Objects.requireNonNull(aclFilterFactory, "aclFilterFactory must not be null");
     }
 
     public String toSearchDsl(DocumentRetrievalRequest request) {
-        Map<String, Object> root = new LinkedHashMap<>();
-        root.put("from", Math.max(0, (request.getPage() - 1) * request.getSize()));
-        root.put("size", request.getSize());
-        root.put("query", query(request));
-        if (!request.getSorts().isEmpty()) {
-            root.put("sort", request.getSorts().stream()
-                    .map(this::sort)
-                    .toList());
-        }
+        Map<String, Object> root = searchDsl(request, true);
         try {
             return objectMapper.writeValueAsString(root);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to build document search DSL", ex);
         }
+    }
+
+    private Map<String, Object> searchDsl(DocumentRetrievalRequest request, boolean includeFilters) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("from", Math.max(0, (request.getPage() - 1) * request.getSize()));
+        root.put("size", request.getSize());
+        root.put("query", query(request, includeFilters));
+        if (!request.getSorts().isEmpty()) {
+            root.put("sort", request.getSorts().stream()
+                    .map(this::sort)
+                    .toList());
+        }
+        return root;
     }
 
     public HybridSearchRequest toHybridRequest(DocumentRetrievalRequest request) {
@@ -74,11 +84,7 @@ public class DocumentRetrievalMapper {
     }
 
     private Map<String, Object> toKeywordDslMap(DocumentRetrievalRequest request) {
-        try {
-            return objectMapper.readValue(toSearchDsl(request), new TypeReference<>() {});
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to build document keyword DSL", ex);
-        }
+        return searchDsl(request, false);
     }
 
     private HybridContextWindow toContextWindow(DocumentContextOptions options) {
@@ -92,28 +98,32 @@ public class DocumentRetrievalMapper {
         return window;
     }
 
-    private Map<String, Object> query(DocumentRetrievalRequest request) {
+    private Map<String, Object> query(DocumentRetrievalRequest request, boolean includeFilters) {
         List<Object> must = new ArrayList<>();
         if (request.getQueryText() != null && !request.getQueryText().isBlank()) {
             must.add(Map.of("multi_match", Map.of(
                     "query", request.getQueryText(),
                     "fields", List.of("title^2", "content", "snippet", "section"))));
         }
-        for (ValidatedFilter filter : request.getFilters()) {
-            must.add(filter(filter));
+        Map<String, Object> bool = new LinkedHashMap<>();
+        bool.put("must", must.isEmpty() ? List.of(Map.of("match_all", Map.of())) : must);
+        if (includeFilters) {
+            Map<String, Object> filterDsl = filterDsl(request);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> filterBool = (Map<String, Object>) filterDsl.get("bool");
+            bool.put("filter", filterBool.get("filter"));
         }
-        return Map.of("bool", Map.of("must", must.isEmpty() ? List.of(Map.of("match_all", Map.of())) : must));
+        return Map.of("bool", bool);
     }
 
     private Map<String, Object> filterDsl(DocumentRetrievalRequest request) {
-        if (request.getFilters().isEmpty()) {
-            return null;
-        }
         List<Object> filters = request.getFilters().stream()
                 .map(this::filter)
                 .map(item -> (Object) item)
                 .toList();
-        return Map.of("bool", Map.of("filter", filters));
+        Map<String, Object> businessFilter = filters.isEmpty() ? null : Map.of("bool", Map.of("filter", filters));
+        Map<String, Object> aclFilter = aclFilterFactory.build(request.getDomain(), request.getAclScope());
+        return aclFilterFactory.merge(businessFilter, aclFilter);
     }
 
     private Map<String, Object> filter(ValidatedFilter filter) {

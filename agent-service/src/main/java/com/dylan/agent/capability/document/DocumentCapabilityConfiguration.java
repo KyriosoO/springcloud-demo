@@ -13,6 +13,9 @@ import com.dylan.agent.api.response.DocumentAgentResultPayload;
 import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingPort;
 import com.dylan.agent.capability.document.embedding.HttpDocumentEmbeddingClient;
+import com.dylan.agent.capability.document.acl.DisabledDocumentAclScopePort;
+import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
+import com.dylan.agent.capability.document.acl.HttpDocumentAclScopeClient;
 import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.DocumentCitationVerifier;
 import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPacker;
@@ -56,6 +59,7 @@ public class DocumentCapabilityConfiguration {
     DocumentCapabilityHandler documentCapabilityHandler(
             AgentProperties properties,
             DocumentEmbeddingPort embeddingPort,
+            DocumentAclScopePort aclScopePort,
             DocumentEvidencePreSecurityFilter preSecurityFilter,
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
@@ -63,10 +67,20 @@ public class DocumentCapabilityConfiguration {
         return new DocumentCapabilityHandler(
                 properties,
                 embeddingPort,
+                aclScopePort,
                 preSecurityFilter,
                 contextPacker,
                 generationPort,
                 citationVerifier);
+    }
+
+    @Bean
+    DocumentAclScopePort documentAclScopePort(AgentProperties properties) {
+        var acl = properties.getDocument().getAcl();
+        if (!acl.isEnabled() || acl.getScopeUrl() == null || acl.getScopeUrl().isBlank()) {
+            return new DisabledDocumentAclScopePort();
+        }
+        return new HttpDocumentAclScopeClient(restClient(acl.getScopeUrl(), acl.getTimeout()));
     }
 
     @Bean

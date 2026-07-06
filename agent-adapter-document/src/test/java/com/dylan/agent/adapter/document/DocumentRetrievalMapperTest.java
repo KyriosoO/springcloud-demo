@@ -1,6 +1,7 @@
 package com.dylan.agent.adapter.document;
 
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.DocumentAclScope;
 import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.api.enums.AgentOperator;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,7 +26,7 @@ class DocumentRetrievalMapperTest {
         JsonNode root = objectMapper.readTree(mapper.toSearchDsl(request(
                 new ValidatedFilter("sourceType", AgentOperator.CONTAINS_ANY, null, List.of("policy", "guide")))));
 
-        JsonNode filter = root.path("query").path("bool").path("must").get(1);
+        JsonNode filter = root.path("query").path("bool").path("filter").get(0);
         assertThat(filter.path("bool").path("minimum_should_match").asInt()).isEqualTo(1);
         assertThat(filter.path("bool").path("should").get(0).path("match").path("sourceType").asText())
                 .isEqualTo("policy");
@@ -37,7 +39,7 @@ class DocumentRetrievalMapperTest {
         JsonNode root = objectMapper.readTree(mapper.toSearchDsl(request(
                 new ValidatedFilter("title", AgentOperator.STARTS_WITH_ANY, null, List.of("制度", "规范")))));
 
-        JsonNode filter = root.path("query").path("bool").path("must").get(1);
+        JsonNode filter = root.path("query").path("bool").path("filter").get(0);
         assertThat(filter.path("bool").path("minimum_should_match").asInt()).isEqualTo(1);
         assertThat(filter.path("bool").path("should").get(0).path("prefix").path("title").asText())
                 .isEqualTo("制度");
@@ -61,7 +63,7 @@ class DocumentRetrievalMapperTest {
                 DocumentRetrievalMode.HYBRID,
                 List.of(0.1, 0.2),
                 new DocumentHybridOptions(10, 12, 60, 100),
-                null);
+                null).withAclScope(scope());
 
         var hybrid = mapper.toHybridRequest(request);
 
@@ -70,8 +72,10 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getKeywordK()).isEqualTo(10);
         assertThat(hybrid.getVectorK()).isEqualTo(12);
         assertThat(hybrid.getKeywordDsl()).containsKey("query");
+        assertThat(hybrid.getKeywordDsl().toString()).doesNotContain("tenantId", "sourceType");
         assertThat(hybrid.getFilters()).isNotNull();
         assertThat(hybrid.getFilters().toString()).contains("sourceType", "policy");
+        assertThat(hybrid.getFilters().toString()).contains("tenantId", "tenant-1");
     }
 
     @Test
@@ -90,13 +94,14 @@ class DocumentRetrievalMapperTest {
                 DocumentRetrievalMode.VECTOR,
                 List.of(0.1, 0.2),
                 new DocumentHybridOptions(10, 12, 60, 100),
-                null);
+                null).withAclScope(scope());
 
         var vector = mapper.toVectorRequest(request);
 
         assertThat(vector.getQueryVector()).containsExactly(0.1, 0.2);
         assertThat(vector.getFilterDsl()).isNotNull();
         assertThat(vector.getFilterDsl().toString()).contains("sourceType", "policy");
+        assertThat(vector.getFilterDsl().toString()).contains("tenantId", "tenant-1");
     }
 
     private DocumentRetrievalRequest request(ValidatedFilter filter) {
@@ -110,6 +115,17 @@ class DocumentRetrievalMapperTest {
                 1,
                 5,
                 null,
-                false);
+                false).withAclScope(scope());
+    }
+
+    private DocumentAclScope scope() {
+        return new DocumentAclScope(
+                "tenant-1",
+                "user-1",
+                List.of("dept-1"),
+                List.of("role-1"),
+                List.of("region:CN"),
+                "acl-v1",
+                Instant.now().plusSeconds(60));
     }
 }

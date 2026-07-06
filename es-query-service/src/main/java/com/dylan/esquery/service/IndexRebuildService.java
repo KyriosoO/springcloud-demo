@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -23,24 +24,44 @@ public class IndexRebuildService {
 
 	private final EsDocumentService esDocumentService;
 	private final RebuildTaskRepository taskRepository;
+	private final DocumentIndexPolicy documentIndexPolicy;
+	private final DocumentIndexValidationService validationService;
 	private final RestTemplate restTemplate;
 	private final Executor rebuildExecutor;
 
 	/**
 	 * 创建 IndexRebuildService 实例并注入所需依赖。
 	 */
+	@Autowired
 	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
+			DocumentIndexPolicy documentIndexPolicy,
+			DocumentIndexValidationService validationService,
 			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
 		this.esDocumentService = esDocumentService;
 		this.taskRepository = taskRepository;
+		this.documentIndexPolicy = documentIndexPolicy;
+		this.validationService = validationService;
 		this.restTemplate = new RestTemplate();
 		this.rebuildExecutor = rebuildExecutor;
+	}
+
+	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
+			DocumentIndexPolicy documentIndexPolicy,
+			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
+		this(esDocumentService, taskRepository, documentIndexPolicy,
+				new DocumentIndexValidationService(documentIndexPolicy, taskRepository), rebuildExecutor);
+	}
+
+	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
+			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
+		this(esDocumentService, taskRepository, defaultDocumentIndexPolicy(), rebuildExecutor);
 	}
 
 	/**
 	 * 处理 submitFullRebuild 相关逻辑。
 	 */
 	public RebuildTask submitFullRebuild(String index, RebuildRequest request) {
+		validateRequest(index, request, true);
 		String targetIndex = targetIndex(index, request);
 		String taskId = UUID.randomUUID().toString();
 		RebuildTask task = taskRepository.create(taskId, index, targetIndex, "FULL");
@@ -52,6 +73,7 @@ public class IndexRebuildService {
 	 * 处理 submitIncrementalRebuild 相关逻辑。
 	 */
 	public RebuildTask submitIncrementalRebuild(String index, RebuildRequest request) {
+		validateRequest(index, request, false);
 		String targetIndex = targetIndex(index, request);
 		String taskId = UUID.randomUUID().toString();
 		RebuildTask task = taskRepository.create(taskId, index, targetIndex, "INCREMENTAL");
@@ -69,6 +91,7 @@ public class IndexRebuildService {
 			esDocumentService.recreateIndex(task.getTargetIndex(), request.getIndexDefinition());
 			pullAndIndex(taskId, request);
 			taskRepository.markSuccess(taskId);
+			validationService.validateSuccessfulTask(taskId);
 		} catch (Exception e) {
 			taskRepository.markFailed(taskId, e);
 		}
@@ -82,6 +105,7 @@ public class IndexRebuildService {
 			taskRepository.markRunning(taskId);
 			pullAndIndex(taskId, request);
 			taskRepository.markSuccess(taskId);
+			validationService.validateSuccessfulTask(taskId);
 		} catch (Exception e) {
 			taskRepository.markFailed(taskId, e);
 		}
@@ -91,7 +115,6 @@ public class IndexRebuildService {
 	 * 处理 pullAndIndex 相关逻辑。
 	 */
 	private void pullAndIndex(String taskId, RebuildRequest request) throws Exception {
-		validateRequest(request);
 		RebuildTask task = taskRepository.findById(taskId);
 		String cursor = request.getCursor();
 		long total = 0;
@@ -134,9 +157,22 @@ public class IndexRebuildService {
 	/**
 	 * 校验相关业务规则。
 	 */
-	private void validateRequest(RebuildRequest request) {
+	private void validateRequest(String index, RebuildRequest request, boolean fullRebuild) {
 		if (request == null || request.getSourceUrl() == null || request.getSourceUrl().isBlank()) {
 			throw new IllegalArgumentException("sourceUrl must not be blank");
+		}
+		if (request.getBatchSize() != null && request.getBatchSize() <= 0) {
+			throw new IllegalArgumentException("batchSize must be greater than 0");
+		}
+		String targetIndex = targetIndex(index, request);
+		if (!documentIndexPolicy.isDocumentIndex(index) && !documentIndexPolicy.isDocumentIndex(targetIndex)) {
+			return;
+		}
+		if (request.getIdField() == null || request.getIdField().isBlank()) {
+			throw new IllegalArgumentException("document rebuild idField must not be blank");
+		}
+		if (fullRebuild && (request.getIndexDefinition() == null || request.getIndexDefinition().isEmpty())) {
+			throw new IllegalArgumentException("document full rebuild indexDefinition must not be empty");
 		}
 	}
 
@@ -158,5 +194,9 @@ public class IndexRebuildService {
 			return request.getTargetIndex();
 		}
 		return index;
+	}
+
+	private static DocumentIndexPolicy defaultDocumentIndexPolicy() {
+		return new DocumentIndexPolicy(new com.dylan.esquery.config.EsQueryProperties());
 	}
 }

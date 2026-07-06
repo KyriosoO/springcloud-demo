@@ -25,6 +25,7 @@ public final class DocumentRetrievalRequest {
     private final List<Double> queryVector;
     private final DocumentHybridOptions hybridOptions;
     private final DocumentContextOptions contextOptions;
+    private final DocumentAclScope aclScope;
 
     public DocumentRetrievalRequest(
             DocumentPlanOperation operation,
@@ -56,6 +57,26 @@ public final class DocumentRetrievalRequest {
             List<Double> queryVector,
             DocumentHybridOptions hybridOptions,
             DocumentContextOptions contextOptions) {
+        this(operation, domain, queryText, filters, sorts, topK, page, size, summaryScope, citationRequired,
+                retrievalMode, queryVector, hybridOptions, contextOptions, null);
+    }
+
+    public DocumentRetrievalRequest(
+            DocumentPlanOperation operation,
+            String domain,
+            String queryText,
+            List<ValidatedFilter> filters,
+            List<ValidatedSort> sorts,
+            int topK,
+            int page,
+            int size,
+            DocumentSummaryScope summaryScope,
+            boolean citationRequired,
+            DocumentRetrievalMode retrievalMode,
+            List<Double> queryVector,
+            DocumentHybridOptions hybridOptions,
+            DocumentContextOptions contextOptions,
+            DocumentAclScope aclScope) {
         this.operation = operation;
         this.domain = domain;
         this.queryText = queryText;
@@ -70,6 +91,7 @@ public final class DocumentRetrievalRequest {
         this.queryVector = List.copyOf(queryVector == null ? List.of() : queryVector);
         this.hybridOptions = hybridOptions;
         this.contextOptions = contextOptions;
+        this.aclScope = aclScope;
     }
 
     public DocumentPlanOperation getOperation() { return operation; }
@@ -86,4 +108,24 @@ public final class DocumentRetrievalRequest {
     public List<Double> getQueryVector() { return queryVector; }
     public DocumentHybridOptions getHybridOptions() { return hybridOptions; }
     public DocumentContextOptions getContextOptions() { return contextOptions; }
+    public DocumentAclScope getAclScope() { return aclScope; }
+
+    public DocumentRetrievalRequest withAclScope(DocumentAclScope aclScope) {
+        return new DocumentRetrievalRequest(
+                operation,
+                domain,
+                queryText,
+                filters,
+                sorts,
+                topK,
+                page,
+                size,
+                summaryScope,
+                citationRequired,
+                retrievalMode,
+                queryVector,
+                hybridOptions,
+                contextOptions,
+                aclScope);
+    }
 }

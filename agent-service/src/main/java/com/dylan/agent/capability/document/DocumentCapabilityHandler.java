@@ -26,6 +26,9 @@ import com.dylan.agent.capability.document.embedding.DocumentEmbeddingPort;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingRequest;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
 import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
+import com.dylan.agent.capability.document.acl.DisabledDocumentAclScopePort;
+import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
+import com.dylan.agent.capability.document.acl.DocumentAclScopeRequest;
 import com.dylan.agent.capability.document.generation.CitationVerificationResult;
 import com.dylan.agent.capability.document.generation.DocumentCitationVerifier;
 import com.dylan.agent.capability.document.generation.DocumentContextBudget;
@@ -51,6 +54,7 @@ public class DocumentCapabilityHandler
 
     private final AgentProperties properties;
     private final DocumentEmbeddingPort embeddingPort;
+    private final DocumentAclScopePort aclScopePort;
     private final DocumentEvidencePreSecurityFilter preSecurityFilter;
     private final DocumentEvidenceContextPacker contextPacker;
     private final DocumentGenerationPort generationPort;
@@ -59,6 +63,7 @@ public class DocumentCapabilityHandler
     public DocumentCapabilityHandler() {
         this(new AgentProperties(),
                 new DisabledDocumentEmbeddingPort(),
+                new DisabledDocumentAclScopePort(),
                 new DocumentEvidencePreSecurityFilter(),
                 new DocumentEvidenceContextPacker(),
                 new DisabledDocumentGenerationPort(),
@@ -72,8 +77,26 @@ public class DocumentCapabilityHandler
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier) {
+        this(properties,
+                embeddingPort,
+                new DisabledDocumentAclScopePort(),
+                preSecurityFilter,
+                contextPacker,
+                generationPort,
+                citationVerifier);
+    }
+
+    public DocumentCapabilityHandler(
+            AgentProperties properties,
+            DocumentEmbeddingPort embeddingPort,
+            DocumentAclScopePort aclScopePort,
+            DocumentEvidencePreSecurityFilter preSecurityFilter,
+            DocumentEvidenceContextPacker contextPacker,
+            DocumentGenerationPort generationPort,
+            DocumentCitationVerifier citationVerifier) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.embeddingPort = Objects.requireNonNull(embeddingPort, "embeddingPort must not be null");
+        this.aclScopePort = Objects.requireNonNull(aclScopePort, "aclScopePort must not be null");
         this.preSecurityFilter = Objects.requireNonNull(preSecurityFilter, "preSecurityFilter must not be null");
         this.contextPacker = Objects.requireNonNull(contextPacker, "contextPacker must not be null");
         this.generationPort = Objects.requireNonNull(generationPort, "generationPort must not be null");
@@ -85,13 +108,27 @@ public class DocumentCapabilityHandler
             ValidatedDocumentPlan plan,
             ExecutionContext context) {
         DocumentRetrievableAdapter adapter = context.requireAdapter(DocumentRetrievableAdapter.class);
-        DocumentRetrievalRequest retrievalRequest = withQueryVectorIfNeeded(plan, context);
+        DocumentRetrievalRequest retrievalRequest = withAclScope(withQueryVectorIfNeeded(plan, context), context);
         AdapterDocumentResult adapterResult = adapter.retrieve(retrievalRequest);
         DocumentAgentResultPayload payload = new DocumentAgentResultPayload(
                 toParameters(plan),
                 toResult(plan, adapterResult));
         applyGenerationIfEnabled(plan, retrievalRequest, adapterResult, payload.getDocumentResult(), context);
         return HandlerResult.of(payload, List.of(toContextWrite(plan, adapterResult)));
+    }
+
+    private DocumentRetrievalRequest withAclScope(DocumentRetrievalRequest request, ExecutionContext context) {
+        var scope = aclScopePort.resolve(new DocumentAclScopeRequest(
+                context.invocationId(),
+                context.executionScope().subjectRef(),
+                request.getDomain(),
+                context.executionScope().currentPermissionEvidenceId(),
+                context.executionScope().currentPermissionVersion(),
+                context.absoluteDeadline()));
+        if (scope.isExpiredAt(java.time.Instant.now())) {
+            throw new IllegalStateException("document ACL scope is expired");
+        }
+        return request.withAclScope(scope);
     }
 
     private DocumentRetrievalRequest withQueryVectorIfNeeded(ValidatedDocumentPlan plan, ExecutionContext context) {
@@ -161,7 +198,8 @@ public class DocumentCapabilityHandler
                 mode,
                 queryVector,
                 source.getHybridOptions(),
-                source.getContextOptions());
+                source.getContextOptions(),
+                source.getAclScope());
     }
 
     private static AgentDocumentParameters toParameters(ValidatedDocumentPlan plan) {

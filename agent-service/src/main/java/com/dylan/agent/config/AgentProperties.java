@@ -194,6 +194,7 @@ public class AgentProperties {
         private EmbeddingProperties embedding = new EmbeddingProperties();
         private GenerationProperties generation = new GenerationProperties();
         private HybridProperties hybrid = new HybridProperties();
+        private AclProperties acl = new AclProperties();
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -215,6 +216,22 @@ public class AgentProperties {
         public void setGeneration(GenerationProperties generation) { this.generation = generation == null ? new GenerationProperties() : generation; }
         public HybridProperties getHybrid() { return hybrid; }
         public void setHybrid(HybridProperties hybrid) { this.hybrid = hybrid == null ? new HybridProperties() : hybrid; }
+        public AclProperties getAcl() { return acl; }
+        public void setAcl(AclProperties acl) { this.acl = acl == null ? new AclProperties() : acl; }
+    }
+
+    /** 文档 ACL 安全投影配置，文档能力启用时默认 fail closed。 */
+    public static class AclProperties {
+        private boolean enabled = true;
+        private String scopeUrl;
+        private Duration timeout = Duration.ofSeconds(2);
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getScopeUrl() { return scopeUrl; }
+        public void setScopeUrl(String scopeUrl) { this.scopeUrl = scopeUrl; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
     }
 
     /** 文档 queryVector 生成配置，默认关闭。 */

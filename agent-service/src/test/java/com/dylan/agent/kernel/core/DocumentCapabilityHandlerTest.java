@@ -4,6 +4,7 @@ import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.DocumentAclScope;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.api.plan.DocumentGenerationOptions;
 import com.dylan.agent.api.context.DocumentCapabilityContextPayload;
@@ -14,6 +15,7 @@ import com.dylan.agent.capability.document.DocumentCapabilityHandler;
 import com.dylan.agent.capability.document.DocumentCapabilityIds;
 import com.dylan.agent.capability.document.ValidatedDocumentPlan;
 import com.dylan.agent.capability.document.ValidatedDocumentPlanTestSupport;
+import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
 import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
 import com.dylan.agent.capability.document.generation.CitationBinding;
@@ -45,7 +47,7 @@ class DocumentCapabilityHandlerTest {
 
     @Test
     void writesCitationIdsFromHitsWhenCitationsAreNotExplicit() {
-        var result = new DocumentCapabilityHandler().execute(plan(), context());
+        var result = handler().execute(plan(), context());
 
         assertThat(result.output().getDocumentResult().getCitations()).singleElement()
                 .extracting(citation -> citation.getCitationId())
@@ -78,6 +80,7 @@ class DocumentCapabilityHandlerTest {
         var result = new DocumentCapabilityHandler(
                 properties,
                 new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
                 new DocumentEvidencePreSecurityFilter(),
                 new DocumentEvidenceContextPacker(),
                 generation,
@@ -108,6 +111,7 @@ class DocumentCapabilityHandlerTest {
         new DocumentCapabilityHandler(
                 properties,
                 request -> { throw new IllegalStateException("embedding timeout"); },
+                aclScopePort(),
                 new DocumentEvidencePreSecurityFilter(),
                 new DocumentEvidenceContextPacker(),
                 new DisabledDocumentGenerationPort(),
@@ -132,6 +136,7 @@ class DocumentCapabilityHandlerTest {
         var handler = new DocumentCapabilityHandler(
                 properties,
                 request -> new DocumentEmbeddingResult(List.of(0.1), "test-embedding", 1, "digest"),
+                aclScopePort(),
                 new DocumentEvidencePreSecurityFilter(),
                 new DocumentEvidenceContextPacker(),
                 new DisabledDocumentGenerationPort(),
@@ -147,6 +152,28 @@ class DocumentCapabilityHandlerTest {
                 DocumentCapabilityIds.SEARCH,
                 "policy_document",
                 request(DocumentPlanOperation.SEARCH));
+    }
+
+    private DocumentCapabilityHandler handler() {
+        return new DocumentCapabilityHandler(
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier());
+    }
+
+    private DocumentAclScopePort aclScopePort() {
+        return request -> new DocumentAclScope(
+                "tenant-1",
+                "u-1",
+                List.of("dept-1"),
+                List.of("role-1"),
+                List.of("region:CN"),
+                "acl-v1",
+                Instant.now().plusSeconds(300));
     }
 
     private DocumentRetrievalRequest request(DocumentPlanOperation operation) {

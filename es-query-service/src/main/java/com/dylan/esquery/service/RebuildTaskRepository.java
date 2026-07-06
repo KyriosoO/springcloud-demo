@@ -78,6 +78,36 @@ public class RebuildTaskRepository {
 		task.setUpdatedAt(Instant.now());
 	}
 
+	public void markValidationPassed(String taskId, String digest, String message) {
+		RebuildTask task = findById(taskId);
+		Instant now = Instant.now();
+		task.setValidationStatus("PASSED");
+		task.setValidationDigest(digest);
+		task.setValidatedAt(now);
+		task.setValidationMessage(message);
+		task.setUpdatedAt(now);
+	}
+
+	public void markValidationSkipped(String taskId, String message) {
+		RebuildTask task = findById(taskId);
+		Instant now = Instant.now();
+		task.setValidationStatus("SKIPPED");
+		task.setValidationDigest(null);
+		task.setValidatedAt(now);
+		task.setValidationMessage(message);
+		task.setUpdatedAt(now);
+	}
+
+	public void markValidationFailed(String taskId, String message) {
+		RebuildTask task = findById(taskId);
+		Instant now = Instant.now();
+		task.setValidationStatus("FAILED");
+		task.setValidationDigest(null);
+		task.setValidatedAt(now);
+		task.setValidationMessage(message);
+		task.setUpdatedAt(now);
+	}
+
 	/**
 	 * 处理 markFailed 相关逻辑。
 	 */
@@ -85,6 +115,10 @@ public class RebuildTaskRepository {
 		RebuildTask task = findById(taskId);
 		task.setStatus("FAILED");
 		task.setErrorMessage(e.getMessage());
+		task.setValidationStatus("FAILED");
+		task.setValidationDigest(null);
+		task.setValidatedAt(Instant.now());
+		task.setValidationMessage(e.getMessage());
 		task.setUpdatedAt(Instant.now());
 	}
 }

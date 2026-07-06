@@ -33,6 +33,9 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
 
     @Override
     public AdapterDocumentResult retrieve(DocumentRetrievalRequest request) {
+        if (request.getAclScope() == null) {
+            throw new AgentAdapterException("文档 ACL 安全投影缺失，已拒绝检索。");
+        }
         String index = properties.getIndexPrefix() + request.getDomain();
         try {
             if (request.getRetrievalMode() == DocumentRetrievalMode.HYBRID) {

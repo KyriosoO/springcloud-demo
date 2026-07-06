@@ -9,7 +9,12 @@ public class DocumentAdapterBeans {
 
     @Bean
     DocumentRetrievalMapper documentRetrievalMapper(ObjectMapper objectMapper) {
-        return new DocumentRetrievalMapper(objectMapper);
+        return new DocumentRetrievalMapper(objectMapper, new DocumentAclFilterFactory());
+    }
+
+    @Bean
+    DocumentAclFilterFactory documentAclFilterFactory() {
+        return new DocumentAclFilterFactory();
     }
 
     @Bean

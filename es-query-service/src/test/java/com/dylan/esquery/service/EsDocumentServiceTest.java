@@ -98,6 +98,16 @@ class EsDocumentServiceTest {
 	}
 
 	@Test
+	void vectorSearchRejectsMissingFilterForDocumentIndex() {
+		VectorSearchRequest request = new VectorSearchRequest();
+		request.setQueryVector(List.of(0.1, 0.2));
+
+		assertThatThrownBy(() -> service.vectorSearchBody("agent-doc-policy", request))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("ACL filterDsl");
+	}
+
+	@Test
 	void hybridSearchRejectsMissingVector() {
 		HybridSearchRequest request = new HybridSearchRequest();
 		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
@@ -118,5 +128,19 @@ class EsDocumentServiceTest {
 
 		assertThat(body.get("size")).isEqualTo(12);
 		assertThat(body.get("track_total_hits")).isEqualTo(10000);
+	}
+
+	@Test
+	void hybridKeywordBodyMergesRequestFilters() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+		request.setFilters(Map.of("bool", Map.of("filter", List.of(
+				Map.of("term", Map.of("tenantId", "tenant-1")),
+				Map.of("term", Map.of("corpusId", "policy_document"))))));
+		request.setQueryVector(List.of(0.1, 0.2));
+
+		Map<String, Object> body = service.keywordSearchBody(request);
+
+		assertThat(body.get("query").toString()).contains("tenantId", "tenant-1", "corpusId");
 	}
 }
