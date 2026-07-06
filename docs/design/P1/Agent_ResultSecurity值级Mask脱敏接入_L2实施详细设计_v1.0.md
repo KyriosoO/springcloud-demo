@@ -11,7 +11,7 @@
 | 更新日期 | 2026-07-05 |
 | 输出语言 | 简体中文 |
 | 输出格式 | Markdown |
-| 目标文档 | `docs/design/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` |
+| 目标文档 | `docs/design/P1/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` |
 
 ## 2. 修改历史
 
@@ -45,8 +45,8 @@ D05 已完成 `query.preview` 能力扩展验证与字段级结果裁剪，并�
 
 | 上级文档 | 必须遵守的约束 | 本设计响应 |
 | --- | --- | --- |
-| `docs/design/D02_03_元数据授权与Context安全_L2_v1.0.md` | `DomainSecurityConstraints` 可表达 optional `requiredMask`；`AuthorizationSnapshot` 是 capability-scoped 冻结证据；`ExecutionScope` 只能等于或小于 Snapshot；ResultSecurity 负责字段过滤、mask、安全消息与摘要。 | mask 规则只来自 Policy，先进入 Planning scope，再冻结到 Snapshot，Execution 只传递并收窄字段，不重新扩大或绕过 ResultSecurity。 |
-| `docs/design/D03_Capability v2跨服务原子切换_L2实施详细设计_v1.0.md` | 主链为 Planning → ExecutionCore → Authorization recheck → Handler → `ResultSecurityPort.secure` → ContextApproval → Finalization；Handler/Adapter 不得做权限决策；ResultSecurity 是持久化和 API 返回前置条件。 | 所有值级 mask 在 `metadata/result` 下执行，Handler/Adapter/Runtime/前端不承担脱敏责任。 |
+| `docs/design/P1/D02_03_元数据授权与Context安全_L2_v1.0.md` | `DomainSecurityConstraints` 可表达 optional `requiredMask`；`AuthorizationSnapshot` 是 capability-scoped 冻结证据；`ExecutionScope` 只能等于或小于 Snapshot；ResultSecurity 负责字段过滤、mask、安全消息与摘要。 | mask 规则只来自 Policy，先进入 Planning scope，再冻结到 Snapshot，Execution 只传递并收窄字段，不重新扩大或绕过 ResultSecurity。 |
+| `docs/design/P1/D03_Capability v2跨服务原子切换_L2实施详细设计_v1.0.md` | 主链为 Planning → ExecutionCore → Authorization recheck → Handler → `ResultSecurityPort.secure` → ContextApproval → Finalization；Handler/Adapter 不得做权限决策；ResultSecurity 是持久化和 API 返回前置条件。 | 所有值级 mask 在 `metadata/result` 下执行，Handler/Adapter/Runtime/前端不承担脱敏责任。 |
 | `docs/design/Agent元数据与上下文安全架构设计_v1.0.md` | Profile、Policy、UserPermission、Context、ResultSecurity 分层职责清晰，结果安全必须在后端统一收口。 | 保持 Policy 为部署级安全上限，UserPermission 为主体授权来源，ResultSecurity 为唯一结果安全出口。 |
 | `docs/design/Agent能力执行内核架构设计_v1.0.md` | ExecutionCore 只按端口调用授权复检、能力执行、结果安全、Context 审批和生命周期收口，不为具体 capability 增加分支。 | 不修改 Core 编排，不增加 capability 特判，仅扩展授权证据模型和 projector 实现。 |
 
@@ -54,10 +54,10 @@ D05 已完成 `query.preview` 能力扩展验证与字段级结果裁剪，并�
 
 | 关联文档 | 边界要求 | 本设计处理 |
 | --- | --- | --- |
-| `docs/design/D03_01_UserPermissionAuthority权限权威源契约说明_L2_v1.0.md` | `auth-service` 是外部用户权限权威源；当前接口契约不包含 mask 决策。 | 不修改 UserPermission 请求/响应 DTO，不把 mask 下沉到 auth-service。 |
-| `docs/design/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md` | D04 收敛 Domain metadata、Adapter binding、字段引用校验和执行绑定；不拥有主体差异化权限决策。 | D04 只继续参与 `CanonicalFieldRef` 校验和字段存在性约束，不作为 mask 决策源。 |
-| `docs/design/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | D05 不新增第二权限源、第二 Domain metadata 源、第二 ResultSecurity 路径。 | `query.preview` 与 query/aggregate 共用同一 ResultSecurity mask helper。 |
-| `docs/design/D05_Capability扩展验证与遗留清理_设计文档品审报告.md` | S0 已确认首版以 employee 为主验证，但支持所有已授权 `QUERYABLE` domain；剩余问题要求避免 preview 单独脱敏路径。 | mask 键采用 `domain.field`，支持所有已授权 QUERYABLE domain，不绑定 employee。 |
+| `docs/design/P1/D03_01_UserPermissionAuthority权限权威源契约说明_L2_v1.0.md` | `auth-service` 是外部用户权限权威源；当前接口契约不包含 mask 决策。 | 不修改 UserPermission 请求/响应 DTO，不把 mask 下沉到 auth-service。 |
+| `docs/design/P1/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md` | D04 收敛 Domain metadata、Adapter binding、字段引用校验和执行绑定；不拥有主体差异化权限决策。 | D04 只继续参与 `CanonicalFieldRef` 校验和字段存在性约束，不作为 mask 决策源。 |
+| `docs/design/P1/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | D05 不新增第二权限源、第二 Domain metadata 源、第二 ResultSecurity 路径。 | `query.preview` 与 query/aggregate 共用同一 ResultSecurity mask helper。 |
+| `docs/design/P1/D05_Capability扩展验证与遗留清理_设计文档品审报告.md` | S0 已确认首版以 employee 为主验证，但支持所有已授权 `QUERYABLE` domain；剩余问题要求避免 preview 单独脱敏路径。 | mask 键采用 `domain.field`，支持所有已授权 QUERYABLE domain，不绑定 employee。 |
 | 用户提供的 AGENTS 约束 | 默认只允许修改目标文档；不修改上级文档、关联文档、代码、测试、配置。 | 本次仅生成本目标文档；实施落点以设计形式列出，不直接修改代码。 |
 
 ## 6. 范围

@@ -183,7 +183,7 @@ D05 选择 `query.preview` 作为代表性 capability。
 
 | 路径 | 动作 | 要求 |
 |---|---|---|
-| `docs/design/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | KEEP/MODIFY | D05 唯一实施基线 |
+| `docs/design/P1/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | KEEP/MODIFY | D05 唯一实施基线 |
 | D03 文档 | KEEP | 除非发现 D03 状态错误，否则不修改；需要修改时必须先暂停并取得授权 |
 | D04 文档 | KEEP | 除非 D05 需要新增 Domain metadata 设计规则，否则不修改；需要修改时必须先暂停并取得授权 |
 | 旧测试命名或注释 | MODIFY/DELETE | 只清理误导性的 legacy/compat 命名；不得删除证明旧路径不存在的测试 |

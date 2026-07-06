@@ -11,7 +11,7 @@
 | 更新日期 | 2026-07-05 |
 | 输出语言 | 简体中文 |
 | 输出格式 | Markdown |
-| 目标文档 | `docs/design/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md` |
+| 目标文档 | `docs/design/P1/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md` |
 
 ## 2. 修改历史
 
@@ -58,12 +58,12 @@
 
 | 关联文档 | 核实结论 | 是否建议同步修改 | 原因与授权边界 |
 | --- | --- | --- | --- |
-| `docs/design/D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md` | 已定义 Query MERGE 应由 Java 确定性合并，但未覆盖末页分页元数据和权限拒绝提示。 | 建议修改 | 若实施本设计，应补充 D02 集成门禁对 query context 版本、FIELD_FORBIDDEN、safeMessage 的验证项。需用户单独授权。 |
-| `docs/design/D02_01_Capability注册与可信执行内核_L2_v1.0.md` | `query.search` 的 Context read/write 字段仍为 `filters/selectFields/page/size`；`ExecutionFailure` 未定义 safeMessage。 | 必须修改 | 末页能力需要 Context 字段扩展；友好拒绝提示需要 ExecutionFailure 携带安全消息或同等结构。需用户单独授权。 |
-| `docs/design/D02_02_Invocation生命周期与持久化_L2_v1.0.md` | `FinalizedInvocationResult` 已有 `safeMessage`，但 `commitExecutionFailure` 的消息来源和权限拒绝场景未明确。 | 建议修改 | 需明确执行失败 finalization 优先使用 `ExecutionFailure.safeMessage`，否则退回通用安全提示。需用户单独授权。 |
-| `docs/design/D02_03_元数据授权与Context安全_L2_v1.0.md` | Context payload 与安全错误码列表未覆盖 `total/totalExact/totalPages` 和字段越权错误码。 | 必须修改 | Query Context schema 与安全错误码属于该文档边界。需用户单独授权。 |
-| `docs/design/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md` | D04 定义 canonical field catalog、RuntimeDomainSchema、ExecutionValidationProjection；不拥有 Context 状态机和用户权限拒绝消息。 | 不建议修改 | 本设计只消费 D04 输出的字段存在性与授权投影，不改变 D04 的 catalog、adapter registration 或 projection 边界。 |
-| `docs/design/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` | 文档聚焦成功结果的字段裁剪和值级脱敏；未授权请求字段应在 plan validation/execution validation 前置拒绝。 | 不建议修改 | 权限不足拒绝提示不是 ResultSecurity 成功结果投影问题；除非后续要统一错误消息章节，否则无需修改。 |
+| `docs/design/P1/D02_00_CapabilityKernel实施总览与集成门禁_L2_v1.0.md` | 已定义 Query MERGE 应由 Java 确定性合并，但未覆盖末页分页元数据和权限拒绝提示。 | 建议修改 | 若实施本设计，应补充 D02 集成门禁对 query context 版本、FIELD_FORBIDDEN、safeMessage 的验证项。需用户单独授权。 |
+| `docs/design/P1/D02_01_Capability注册与可信执行内核_L2_v1.0.md` | `query.search` 的 Context read/write 字段仍为 `filters/selectFields/page/size`；`ExecutionFailure` 未定义 safeMessage。 | 必须修改 | 末页能力需要 Context 字段扩展；友好拒绝提示需要 ExecutionFailure 携带安全消息或同等结构。需用户单独授权。 |
+| `docs/design/P1/D02_02_Invocation生命周期与持久化_L2_v1.0.md` | `FinalizedInvocationResult` 已有 `safeMessage`，但 `commitExecutionFailure` 的消息来源和权限拒绝场景未明确。 | 建议修改 | 需明确执行失败 finalization 优先使用 `ExecutionFailure.safeMessage`，否则退回通用安全提示。需用户单独授权。 |
+| `docs/design/P1/D02_03_元数据授权与Context安全_L2_v1.0.md` | Context payload 与安全错误码列表未覆盖 `total/totalExact/totalPages` 和字段越权错误码。 | 必须修改 | Query Context schema 与安全错误码属于该文档边界。需用户单独授权。 |
+| `docs/design/P1/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md` | D04 定义 canonical field catalog、RuntimeDomainSchema、ExecutionValidationProjection；不拥有 Context 状态机和用户权限拒绝消息。 | 不建议修改 | 本设计只消费 D04 输出的字段存在性与授权投影，不改变 D04 的 catalog、adapter registration 或 projection 边界。 |
+| `docs/design/P1/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` | 文档聚焦成功结果的字段裁剪和值级脱敏；未授权请求字段应在 plan validation/execution validation 前置拒绝。 | 不建议修改 | 权限不足拒绝提示不是 ResultSecurity 成功结果投影问题；除非后续要统一错误消息章节，否则无需修改。 |
 | L1 架构文档 | 原则层已支持 Java 确定性合并、Context 最小化、权限 fail closed。 | 不建议修改 | 本次是 L2 实施细化，不需要变更 L1 架构边界。 |
 
 ## 6. 设计范围

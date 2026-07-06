@@ -5,15 +5,15 @@
 | 项目 | 内容 |
 |---|---|
 | 文档名称 | Agent与业务域白名单排序能力_L2实施详细设计 |
-| 文档路径 | `docs/design/Agent与业务域白名单排序能力_L2实施详细设计_v1.0.md` |
+| 文档路径 | `docs/design/P1/Agent与业务域白名单排序能力_L2实施详细设计_v1.0.md` |
 | 文档状态 | Approved |
 | 当前版本 | v1.0 |
 | 作者 | Codex |
 | 创建日期 | 2026-07-05 |
 | 最后更新日期 | 2026-07-05 |
 | 适用范围 | `agent-api`、`agent-runtime`、`agent-service`、`agent-adapter-api`、`agent-adapter-employee`、`agent-adapter-transaction`、`employee-service`、`transaction-api`、`mq-procedure-service` |
-| 上级文档 | `docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`docs/design/D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`docs/design/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md`、`docs/ARCHITECTURE.md` |
-| 关联文档 | `docs/design/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md`、`docs/design/D02_03_元数据授权与Context安全_L2_v1.0.md`、`docs/design/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md`、`docs/design/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md`、`agent-api/src/main/resources/openapi/agent-runtime-openapi.json` |
+| 上级文档 | `docs/design/P1/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md`、`docs/design/P1/D02_01_Capability注册与可信执行内核_L2_v1.0.md`、`docs/design/P1/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md`、`docs/ARCHITECTURE.md` |
+| 关联文档 | `docs/design/P1/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md`、`docs/design/P1/D02_03_元数据授权与Context安全_L2_v1.0.md`、`docs/design/P1/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md`、`docs/design/P1/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md`、`agent-api/src/main/resources/openapi/agent-runtime-openapi.json` |
 | 是否可作为实现依据 | 是；关联设计文档已按授权同步，OpenAPI 仍需在实现阶段由 Java 契约源重新生成 |
 
 ## 2. 修改历史
@@ -111,8 +111,8 @@
 |---|---|---|---|---|
 | `Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md` | 多轮分页、`totalPages`、权限拒绝提示 | 定义排序与分页上下文的继承关系 | 保留既有分页与权限错误处理约束 | 排序不得破坏“下一页/上一页/最后一页”语义 |
 | `D02_03_元数据授权与Context安全_L2_v1.0.md` | Context 安全、加密、权限投影 | 定义新增 `sorts` 的 Context 字段含义 | 维护 Context 存储、加密、可见字段投影 | 本文不改变 Context 存储模型，只改变 payload schema |
-| `docs/design/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | `query.preview` 共享 QUERY planKind 与共享 DTO | 定义排序字段对 preview 的共享影响 | 维护 preview 不写 Context、不固定 Prompt 分支、ResultSecurity 过滤的边界 | 只消费显式当前 plan `sorts`，不承诺 preview MERGE 继承 |
-| `docs/design/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` | ResultSecurity 统一过滤与脱敏 | 定义排序回显需要安全过滤 | 维护 `queryParameters.sorts` 不泄露未授权字段 | 排序只含字段名/方向，不做值级 mask |
+| `docs/design/P1/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | `query.preview` 共享 QUERY planKind 与共享 DTO | 定义排序字段对 preview 的共享影响 | 维护 preview 不写 Context、不固定 Prompt 分支、ResultSecurity 过滤的边界 | 只消费显式当前 plan `sorts`，不承诺 preview MERGE 继承 |
+| `docs/design/P1/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` | ResultSecurity 统一过滤与脱敏 | 定义排序回显需要安全过滤 | 维护 `queryParameters.sorts` 不泄露未授权字段 | 排序只含字段名/方向，不做值级 mask |
 | `agent-api/src/main/resources/openapi/agent-runtime-openapi.json` | Runtime OpenAPI 产物 | 说明需要重新生成 | 作为 D01 contract 产物受测试门禁保护 | 不允许手改生成产物后绕过 Java contract |
 | `employee-service` ES 查询实现 | `SearchRequest.sorts`、字段白名单 | 说明 Agent 如何复用现有能力 | 维护 ES DSL 与字段白名单 | employee-service 生产代码原则上不必改，只补测试 |
 | `mq-procedure-service` 查询实现 | `/txn/search`、MyBatis SQL | 设计 transaction 排序请求与安全 `ORDER BY` | 维护 transaction 业务数据查询 | 动态 SQL 必须由 Service 白名单生成，不允许 Controller/Mapper 接收原始列名 |

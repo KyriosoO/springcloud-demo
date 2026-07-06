@@ -765,7 +765,7 @@ $changed | Where-Object {
     '.github/workflows/agent-contract.yml',
     '.github/workflows/d01-target-contract.yml',
     'serviceCenter/mvnw',
-    'docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
+    'docs/design/P1/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
   )
 }
 ```
@@ -2097,7 +2097,7 @@ function Assert-AllowedPaths {
       '.github/workflows/agent-contract.yml',
       '.github/workflows/d01-target-contract.yml',
       'serviceCenter/mvnw',
-      'docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
+      'docs/design/P1/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md'
     )
     $violations = & git -c core.quotepath=false diff --name-only $base HEAD | Where-Object {
       $_ -notmatch '^agent-api/src/main/java/com/dylan/agent/api/contract/runtime/' -and

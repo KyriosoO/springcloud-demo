@@ -5,7 +5,7 @@
 - 结论：通过
 - 是否阻断后续编码：否
 - 审查类型：cross_layer
-- 目标文档：`docs/design/Agent与业务域白名单排序能力_L2实施详细设计_v1.0.md`
+- 目标文档：`docs/design/P1/Agent与业务域白名单排序能力_L2实施详细设计_v1.0.md`
 - 关联文档：D01、D02_01、D02_03、D04、D05、多轮分页、ResultSecurity、`docs/ARCHITECTURE.md`
 - 实际审查轮次：4
 - 主要风险摘要：生产索引评估、OpenAPI/生成模型更新、契约与迁移测试属于实现阶段门禁，不再构成设计评审阻塞。
@@ -23,14 +23,14 @@
 
 | 序号 | 文档 | 类型 | 是否已读取 | 作用 |
 |---:|---|---|---|---|
-| 1 | `docs/design/Agent与业务域白名单排序能力_L2实施详细设计_v1.0.md` | 目标文档 | 是 | 排序能力详细设计 |
-| 2 | `docs/design/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md` | 上级文档 | 是 | Runtime契约与生成治理 |
-| 3 | `docs/design/D02_01_Capability注册与可信执行内核_L2_v1.0.md` | 上级文档 | 是 | Capability注册、Validator、ContractRef |
-| 4 | `docs/design/D02_03_元数据授权与Context安全_L2_v1.0.md` | 关联文档 | 是 | Context安全、投影与迁移 |
-| 5 | `docs/design/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md` | 上级文档 | 是 | Domain Metadata与Adapter边界 |
-| 6 | `docs/design/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | 关联文档 | 是 | `query.preview`共享QUERY契约边界 |
-| 7 | `docs/design/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md` | 关联文档 | 是 | MERGE分页与Context继承 |
-| 8 | `docs/design/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` | 关联文档 | 是 | 响应参数安全过滤 |
+| 1 | `docs/design/P1/Agent与业务域白名单排序能力_L2实施详细设计_v1.0.md` | 目标文档 | 是 | 排序能力详细设计 |
+| 2 | `docs/design/P1/D01_Agent契约生成与治理_L2实施详细设计_v1.0.md` | 上级文档 | 是 | Runtime契约与生成治理 |
+| 3 | `docs/design/P1/D02_01_Capability注册与可信执行内核_L2_v1.0.md` | 上级文档 | 是 | Capability注册、Validator、ContractRef |
+| 4 | `docs/design/P1/D02_03_元数据授权与Context安全_L2_v1.0.md` | 关联文档 | 是 | Context安全、投影与迁移 |
+| 5 | `docs/design/P1/D04_Agent Adapter与Domain Metadata收敛_L2实施详细设计_v1.0.md` | 上级文档 | 是 | Domain Metadata与Adapter边界 |
+| 6 | `docs/design/P1/D05_Capability扩展验证与遗留清理_L2实施详细设计_v1.0.md` | 关联文档 | 是 | `query.preview`共享QUERY契约边界 |
+| 7 | `docs/design/P1/Agent多轮分页与权限拒绝提示修复_L2实施详细设计_v1.0.md` | 关联文档 | 是 | MERGE分页与Context继承 |
+| 8 | `docs/design/P1/Agent_ResultSecurity值级Mask脱敏接入_L2实施详细设计_v1.0.md` | 关联文档 | 是 | 响应参数安全过滤 |
 | 9 | `docs/ARCHITECTURE.md` | 架构文档 | 是 | QUERY与AGGREGATE排序边界 |
 
 ## 4. S0 阻断问题
