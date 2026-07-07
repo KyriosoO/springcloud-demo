@@ -15,6 +15,22 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   h1 { margin: 0 0 20px; font-size: 26px; }
+  .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .quick-action {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    color: #1f2937;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .quick-action:hover { background: #f8fafc; }
   .input-row { display: flex; gap: 10px; }
   #message-input {
     flex: 1;
@@ -116,9 +132,20 @@
 
 <h1>Agent 查询解析</h1>
 
+<div class="quick-actions" aria-label="快捷入口">
+  <button class="quick-action" type="button"
+          data-prompt="查询税务政策：小规模纳税人免征增值税">
+    税务政策查询
+  </button>
+  <button class="quick-action" type="button"
+          data-prompt="总结税务政策：小规模纳税人免征增值税相关政策">
+    税务政策总结
+  </button>
+</div>
+
 <div class="input-row">
   <input id="message-input" type="text"
-         placeholder="输入查询，例如：查询岗位是 HRM 的员工"
+         placeholder="输入查询，例如：查询税务政策：小规模纳税人免征增值税"
          maxlength="2000" autofocus>
   <button id="send-button" type="button">发送</button>
 </div>
@@ -474,6 +501,9 @@ function renderDocumentResult(result) {
 function setBusy(busy) {
   document.getElementById("message-input").disabled = busy;
   document.getElementById("send-button").disabled = busy;
+  document.querySelectorAll(".quick-action").forEach(button => {
+    button.disabled = busy;
+  });
   document.getElementById("status").textContent = busy ? "处理中..." : "";
 }
 
@@ -491,6 +521,13 @@ function isLoginRedirect(response) {
 }
 
 document.getElementById("send-button").addEventListener("click", sendMessage);
+document.querySelectorAll(".quick-action").forEach(button => {
+  button.addEventListener("click", () => {
+    const input = document.getElementById("message-input");
+    input.value = button.dataset.prompt || "";
+    input.focus();
+  });
+});
 document.getElementById("message-input").addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
