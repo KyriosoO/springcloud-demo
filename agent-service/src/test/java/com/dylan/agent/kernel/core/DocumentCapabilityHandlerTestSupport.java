@@ -17,7 +17,7 @@ import java.util.Set;
 
 public final class DocumentCapabilityHandlerTestSupport {
 
-    private static final Instant NOW = Instant.parse("2026-07-01T00:00:00Z");
+    private static final Instant NOW = Instant.now().plusSeconds(300);
 
     private DocumentCapabilityHandlerTestSupport() {
     }

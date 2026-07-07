@@ -30,6 +30,7 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
         if (response == null || response.isEmpty()) {
             throw new IllegalStateException("document ACL scope resolver returned empty response");
         }
+        validateResponseBinding(request, response);
         return new DocumentAclScope(
                 stringValue(response.get("tenantId")),
                 stringValue(response.get("userId")),
@@ -38,6 +39,17 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
                 stringList(response.get("attributeKeys")),
                 stringValue(response.get("aclSnapshotVersion")),
                 Instant.parse(stringValue(response.get("expiresAt"))));
+    }
+
+    private static void validateResponseBinding(DocumentAclScopeRequest request, Map<String, Object> response) {
+        if (response.containsKey("subjectRef")
+                && !request.subjectRef().equals(requireNonBlank(stringValue(response.get("subjectRef")), "subjectRef"))) {
+            throw new IllegalStateException("document ACL scope response subjectRef mismatch");
+        }
+        if (response.containsKey("domain")
+                && !request.domain().equals(requireNonBlank(stringValue(response.get("domain")), "domain"))) {
+            throw new IllegalStateException("document ACL scope response domain mismatch");
+        }
     }
 
     private static Map<String, Object> requestBody(DocumentAclScopeRequest request) {

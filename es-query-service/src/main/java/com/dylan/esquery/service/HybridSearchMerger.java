@@ -21,6 +21,7 @@ import java.util.Map;
 public class HybridSearchMerger {
 
 	private static final MathContext SCORE_CONTEXT = MathContext.DECIMAL64;
+	private static final String EMBEDDING_FIELD = "embedding";
 
 	private final ObjectMapper objectMapper;
 
@@ -83,6 +84,7 @@ public class HybridSearchMerger {
 		if (source.isObject()) {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> metadata = objectMapper.convertValue(source, Map.class);
+			metadata.remove(EMBEDDING_FIELD);
 			target.setMetadata(metadata);
 		}
 		return target;

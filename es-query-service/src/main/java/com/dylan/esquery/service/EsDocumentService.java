@@ -31,6 +31,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 @Service
 public class EsDocumentService {
+	private static final String DEFAULT_EMBEDDING_FIELD = "embedding";
+
 	private final RestClient restClient;
 	private final ObjectMapper objectMapper;
 	private final EsQueryProperties properties;
@@ -195,7 +197,9 @@ public class EsDocumentService {
 		vectorRequest.setNumCandidates(request.getNumCandidates());
 		vectorRequest.setTrackTotalHits(request.getTrackTotalHits());
 		Request vectorEsRequest = new Request("POST", "/" + index + "/_search");
-		vectorEsRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(vectorSearchBody(index, vectorRequest))));
+		Map<String, Object> vectorBody = vectorSearchBody(index, vectorRequest);
+		applySourceExcludes(vectorBody, request.getSourceExcludes(), vectorRequest.getEmbeddingField());
+		vectorEsRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(vectorBody)));
 		Response vectorResponse = restClient.performRequest(vectorEsRequest);
 
 		List<JsonNode> keywordHits = extractHits(objectMapper.readTree(responseBody(keywordResponse)));
@@ -224,7 +228,7 @@ public class EsDocumentService {
 		}
 		String embeddingField = request.getEmbeddingField();
 		if (embeddingField == null || embeddingField.isBlank()) {
-			embeddingField = "embedding";
+			embeddingField = DEFAULT_EMBEDDING_FIELD;
 		}
 		int k = HybridSearchMerger.positiveOrDefault(request.getK(), 10, "k");
 		int numCandidates = HybridSearchMerger.positiveOrDefault(request.getNumCandidates(), 100, "numCandidates");
@@ -253,6 +257,7 @@ public class EsDocumentService {
 		mergeHybridFilters(body, request.getFilters());
 		body.put("size", HybridSearchMerger.positiveOrDefault(request.getKeywordK(), 20, "keywordK"));
 		body.putIfAbsent("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
+		applySourceExcludes(body, request.getSourceExcludes(), request.getEmbeddingField());
 		return body;
 	}
 
@@ -273,6 +278,22 @@ public class EsDocumentService {
 		}
 		keywordSearchBody(request);
 		HybridSearchMerger.positiveOrDefault(request.getTopK(), 8, "topK");
+	}
+
+	private static void applySourceExcludes(Map<String, Object> body, List<String> requestedExcludes, String embeddingField) {
+		List<String> excludes = new ArrayList<>();
+		if (requestedExcludes != null) {
+			requestedExcludes.stream()
+					.filter(value -> value != null && !value.isBlank())
+					.forEach(excludes::add);
+		}
+		String resolvedEmbeddingField = embeddingField == null || embeddingField.isBlank()
+				? DEFAULT_EMBEDDING_FIELD
+				: embeddingField;
+		if (!excludes.contains(resolvedEmbeddingField)) {
+			excludes.add(resolvedEmbeddingField);
+		}
+		body.put("_source", Map.of("excludes", excludes));
 	}
 
 	@SuppressWarnings("unchecked")

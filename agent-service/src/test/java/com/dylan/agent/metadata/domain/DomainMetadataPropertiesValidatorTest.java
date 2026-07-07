@@ -1,11 +1,27 @@
 package com.dylan.agent.metadata.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.dylan.agent.adapter.api.AdapterRole;
+import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
+import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.api.enums.AgentFieldType;
+import com.dylan.agent.api.enums.AgentOperator;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.GenericApplicationContext;
 
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
+import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 class DomainMetadataPropertiesValidatorTest {
@@ -25,6 +41,27 @@ class DomainMetadataPropertiesValidatorTest {
                 .hasMessageContaining("negative");
     }
 
+    @Test
+    void acceptsDocumentRetrievableDomain() {
+        var properties = documentProperties();
+
+        var bundle = DomainMetadataPropertiesValidator.build(
+                properties,
+                documentContext().getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK);
+
+        assertThat(bundle.catalog().supportsRole("company_policy", AdapterRole.DOCUMENT_RETRIEVABLE)).isTrue();
+        assertThat(bundle.registrations().find(AdapterRole.DOCUMENT_RETRIEVABLE, "company_policy")).isPresent();
+    }
+
+    @Test
+    void documentDomainFixtureDoesNotUseUnsupportedFieldTypesOrLegacySnippetName() throws Exception {
+        String yaml = Files.readString(Path.of("src/main/resources/application.yml"), StandardCharsets.UTF_8);
+
+        assertThat(yaml).doesNotContain("type: DATE", "type: INTEGER", "contentSnippet");
+        assertThat(yaml).contains("company_policy:", "knowledge_base:", "literature:", "snippet:");
+    }
+
     private GenericApplicationContext context() {
         GenericApplicationContext context = new GenericApplicationContext();
         context.registerBean("employeeAgentAdapter",
@@ -35,5 +72,79 @@ class DomainMetadataPropertiesValidatorTest {
                 DomainMetadataTestSupport.QueryableAggregatableAdapter::new);
         context.refresh();
         return context;
+    }
+
+    private GenericApplicationContext documentContext() {
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean("documentAgentAdapter", TestDocumentAdapter.class, TestDocumentAdapter::new);
+        context.refresh();
+        return context;
+    }
+
+    private DomainMetadataProperties documentProperties() {
+        DomainMetadataProperties properties = new DomainMetadataProperties();
+        properties.setCatalogVersion("catalog-test");
+        properties.setAdapterRegistrationVersion("adapter-reg-test");
+        properties.setDomains(Map.of("company_policy", documentDomain()));
+        DomainMetadataProperties.RegistrationProperties registration =
+                new DomainMetadataProperties.RegistrationProperties();
+        registration.setRegistrationId("company-policy-document");
+        registration.setRole(AdapterRole.DOCUMENT_RETRIEVABLE.value());
+        registration.setDomain("company_policy");
+        registration.setPortType(DocumentRetrievableAdapter.class);
+        registration.setPortBeanName("documentAgentAdapter");
+        registration.setCatalogVersion("catalog-test");
+        registration.setRegistrationVersion("adapter-reg-test");
+        properties.setRegistrations(List.of(registration));
+        return properties;
+    }
+
+    private DomainMetadataProperties.DomainProperties documentDomain() {
+        DomainMetadataProperties.DomainProperties domain = new DomainMetadataProperties.DomainProperties();
+        domain.setAliases(List.of("公司政策", "company_policy"));
+        domain.setDescription("Company policy document corpus for tests.");
+        Map<String, DomainMetadataProperties.FieldProperties> fields = new LinkedHashMap<>();
+        fields.put("title", field("title", AgentFieldType.STRING));
+        fields.put("effectiveDate", field("effectiveDate", AgentFieldType.INSTANT));
+        fields.put("page", field("page", AgentFieldType.DECIMAL));
+        fields.put("snippet", field("snippet", AgentFieldType.STRING));
+        domain.setFields(fields);
+        domain.setDefaultSelectFieldsByRole(Map.of(
+                AdapterRole.DOCUMENT_RETRIEVABLE.value(), List.of("title", "effectiveDate", "page", "snippet")));
+        DomainMetadataProperties.RoleCapabilityProperties capability =
+                new DomainMetadataProperties.RoleCapabilityProperties();
+        capability.setFields(fields.keySet());
+        capability.setSortFields(Set.of("effectiveDate", "title"));
+        capability.setOperatorsByField(Map.of(
+                "title", Set.of(AgentOperator.CONTAINS, AgentOperator.CONTAINS_ANY),
+                "effectiveDate", Set.of(AgentOperator.GT, AgentOperator.LT, AgentOperator.EQ),
+                "page", Set.of(AgentOperator.EQ, AgentOperator.GT, AgentOperator.LT),
+                "snippet", Set.of(AgentOperator.CONTAINS, AgentOperator.CONTAINS_ANY)));
+        capability.setMaxPageSize(20);
+        domain.setRoleCapabilities(Map.of(AdapterRole.DOCUMENT_RETRIEVABLE.value(), capability));
+        return domain;
+    }
+
+    private DomainMetadataProperties.FieldProperties field(String field, AgentFieldType type) {
+        DomainMetadataProperties.FieldProperties properties = new DomainMetadataProperties.FieldProperties();
+        properties.setAliases(List.of(field));
+        properties.setDescription(field + " field");
+        properties.setType(type);
+        if (type == AgentFieldType.INSTANT) {
+            properties.setValueFormat("ISO-8601 datetime with timezone");
+        }
+        if (type == AgentFieldType.DECIMAL) {
+            properties.setValueFormat("plain decimal only, precision 10, scale 0, no exponent");
+            properties.setPrecision(10);
+            properties.setScale(0);
+        }
+        return properties;
+    }
+
+    private static class TestDocumentAdapter implements DocumentRetrievableAdapter {
+        @Override
+        public AdapterDocumentResult retrieve(DocumentRetrievalRequest request) {
+            return new AdapterDocumentResult();
+        }
     }
 }

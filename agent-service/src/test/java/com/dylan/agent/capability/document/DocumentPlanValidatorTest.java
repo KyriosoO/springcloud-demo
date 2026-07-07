@@ -105,6 +105,20 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
+    void rejectsAclProtectedFieldsInBusinessFilters() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SEARCH, null);
+        AgentFilter filter = new AgentFilter();
+        filter.setField("tenantId");
+        filter.setOperator(AgentOperator.EQ);
+        filter.setValue("tenant-1");
+        plan.getDocument().setFilters(List.of(filter));
+
+        assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SEARCH)))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("tenantId");
+    }
+
+    @Test
     void rejectsSummaryScopeAboveConfiguredLimit() {
         DocumentAgentPlan plan = plan(DocumentPlanOperation.SUMMARIZE, true);
         DocumentSummaryScope scope = new DocumentSummaryScope();
@@ -114,6 +128,42 @@ class DocumentPlanValidatorTest {
         assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SUMMARIZE)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("summaryScope");
+    }
+
+    @Test
+    void rejectsSummarizeWithoutSummaryScope() {
+        assertThatThrownBy(() -> validator().validate(plan(DocumentPlanOperation.SUMMARIZE, true),
+                context(DocumentCapabilityIds.SUMMARIZE)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("summaryScope");
+    }
+
+    @Test
+    void mergesSummaryDocumentIdsIntoProtectedFilter() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SUMMARIZE, true);
+        DocumentSummaryScope scope = new DocumentSummaryScope();
+        scope.setDocumentIds(List.of(" doc-1 ", "doc-2", "doc-1"));
+        plan.getDocument().setSummaryScope(scope);
+
+        var validated = validator().validate(plan, context(DocumentCapabilityIds.SUMMARIZE));
+
+        assertThat(validated.request().getFilters()).anySatisfy(filter -> {
+            assertThat(filter.getField()).isEqualTo("documentId");
+            assertThat(filter.getOperator()).isEqualTo(AgentOperator.IN);
+            assertThat(filter.getValues()).containsExactly("doc-1", "doc-2");
+        });
+    }
+
+    @Test
+    void rejectsBlankSummaryDocumentIds() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SUMMARIZE, true);
+        DocumentSummaryScope scope = new DocumentSummaryScope();
+        scope.setDocumentIds(List.of("  "));
+        plan.getDocument().setSummaryScope(scope);
+
+        assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SUMMARIZE)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("documentIds");
     }
 
     @Test
@@ -255,7 +305,8 @@ class DocumentPlanValidatorTest {
         domain.setDescription("Policy document records for tests.");
         DomainMetadataProperties.FieldProperties sourceType = field("sourceType");
         DomainMetadataProperties.FieldProperties title = field("title");
-        domain.setFields(Map.of("sourceType", sourceType, "title", title));
+        DomainMetadataProperties.FieldProperties documentId = field("documentId");
+        domain.setFields(Map.of("sourceType", sourceType, "title", title, "documentId", documentId));
         domain.setDefaultSelectFieldsByRole(Map.of(
                 AdapterRole.DOCUMENT_RETRIEVABLE.value(), List.of("sourceType")));
         DomainMetadataProperties.RoleCapabilityProperties capability =

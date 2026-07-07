@@ -22,6 +22,8 @@ import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPac
 import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurityFilter;
 import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.HttpDocumentGenerationClient;
+import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
+import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.definition.CapabilityDefinition;
 import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
@@ -30,7 +32,10 @@ import com.dylan.agent.kernel.definition.ContextReadDeclaration;
 import com.dylan.agent.kernel.definition.ContextWriteDeclaration;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.planning.filter.FilterNormalizer;
+import com.dylan.common.security.ServiceTokenProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -60,6 +65,7 @@ public class DocumentCapabilityConfiguration {
             AgentProperties properties,
             DocumentEmbeddingPort embeddingPort,
             DocumentAclScopePort aclScopePort,
+            DocumentRevocationGuard revocationGuard,
             DocumentEvidencePreSecurityFilter preSecurityFilter,
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
@@ -68,10 +74,16 @@ public class DocumentCapabilityConfiguration {
                 properties,
                 embeddingPort,
                 aclScopePort,
+                revocationGuard,
                 preSecurityFilter,
                 contextPacker,
                 generationPort,
                 citationVerifier);
+    }
+
+    @Bean
+    DocumentRevocationGuard documentRevocationGuard(AgentProperties properties) {
+        return new DocumentRevocationGuard(properties);
     }
 
     @Bean
@@ -84,12 +96,22 @@ public class DocumentCapabilityConfiguration {
     }
 
     @Bean
-    DocumentEmbeddingPort documentEmbeddingPort(AgentProperties properties) {
+    DocumentEmbeddingPort documentEmbeddingPort(
+            AgentProperties properties,
+            ObjectProvider<DocumentProviderAuthHeaderProvider> authHeaderProvider) {
         var embedding = properties.getDocument().getEmbedding();
         if (!embedding.isEnabled()) {
             return new DisabledDocumentEmbeddingPort();
         }
-        return new HttpDocumentEmbeddingClient(restClient(embedding.getBaseUrl(), embedding.getTimeout()));
+        return new HttpDocumentEmbeddingClient(
+                restClient(embedding.getBaseUrl(), embedding.getTimeout()),
+                authHeaderProvider.getObject());
+    }
+
+    @Bean
+    @ConditionalOnBean(ServiceTokenProvider.class)
+    DocumentProviderAuthHeaderProvider documentProviderAuthHeaderProvider(ServiceTokenProvider serviceTokenProvider) {
+        return new DocumentProviderAuthHeaderProvider(serviceTokenProvider);
     }
 
     @Bean
@@ -103,12 +125,16 @@ public class DocumentCapabilityConfiguration {
     }
 
     @Bean
-    DocumentGenerationPort documentGenerationPort(AgentProperties properties) {
+    DocumentGenerationPort documentGenerationPort(
+            AgentProperties properties,
+            ObjectProvider<DocumentProviderAuthHeaderProvider> authHeaderProvider) {
         var generation = properties.getDocument().getGeneration();
         if (!generation.isEnabled()) {
             return new DisabledDocumentGenerationPort();
         }
-        return new HttpDocumentGenerationClient(restClient(generation.getBaseUrl(), generation.getTimeout()));
+        return new HttpDocumentGenerationClient(
+                restClient(generation.getBaseUrl(), generation.getTimeout()),
+                authHeaderProvider.getObject());
     }
 
     @Bean

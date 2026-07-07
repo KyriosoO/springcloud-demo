@@ -128,6 +128,11 @@ agent:
       vector-k: 20
       rrf-k: 60
       num-candidates: 100
+  document-adapter:
+    index-by-domain:
+      company_policy: agent-doc-company-policy
+      knowledge_base: agent-doc-knowledge-base
+      literature: agent-doc-literature
   domain-metadata:
     catalog-version: catalog-2026-07-02
     adapter-registration-version: adapter-reg-2026-07-02
@@ -239,6 +244,171 @@ agent:
             functions-by-field:
               amount: [SUM, AVG, MIN, MAX]
             max-result-rows: 100
+      company_policy:
+        aliases: [公司政策, 政策文档, company_policy]
+        description: Company policy document corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 政策标题]
+            description: Document title.
+            type: STRING
+          sourceType:
+            aliases: [来源类型, 文档类型]
+            description: Policy source type.
+            type: STRING
+          effectiveDate:
+            aliases: [生效日期, 生效时间]
+            description: Policy effective timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          tags:
+            aliases: [标签, 主题]
+            description: Policy tags.
+            type: STRING
+          section:
+            aliases: [章节, 条款]
+            description: Document section.
+            type: STRING
+          page:
+            aliases: [页码, 页面]
+            description: Source page number.
+            type: DECIMAL
+            value-format: plain decimal only, precision 10, scale 0, no exponent
+            precision: 10
+            scale: 0
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+            sort-fields: [effectiveDate, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              sourceType: [EQ, IN]
+              effectiveDate: [GT, LT, EQ]
+              tags: [EQ, IN, CONTAINS_ANY]
+              section: [EQ, CONTAINS]
+              page: [EQ, GT, LT]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
+      knowledge_base:
+        aliases: [知识库, 知识文档, knowledge_base]
+        description: Knowledge base document corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 知识标题]
+            description: Document title.
+            type: STRING
+          sourceType:
+            aliases: [来源类型, 文档类型]
+            description: Knowledge source type.
+            type: STRING
+          category:
+            aliases: [分类, 类目]
+            description: Knowledge category.
+            type: STRING
+          tags:
+            aliases: [标签, 主题]
+            description: Knowledge tags.
+            type: STRING
+          section:
+            aliases: [章节, 小节]
+            description: Document section.
+            type: STRING
+          updatedAt:
+            aliases: [更新时间, 更新日期]
+            description: Knowledge document update timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
+            sort-fields: [updatedAt, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              sourceType: [EQ, IN]
+              category: [EQ, IN, CONTAINS_ANY]
+              tags: [EQ, IN, CONTAINS_ANY]
+              section: [EQ, CONTAINS]
+              updatedAt: [GT, LT, EQ]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
+      literature:
+        aliases: [文献, 文学资料, literature]
+        description: Literature document corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 作品名]
+            description: Literature title.
+            type: STRING
+          author:
+            aliases: [作者, 作家]
+            description: Author name.
+            type: STRING
+          publishedAt:
+            aliases: [发表时间, 出版时间]
+            description: Publication timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          publication:
+            aliases: [刊物, 出版物]
+            description: Publication name.
+            type: STRING
+          section:
+            aliases: [章节, 片段]
+            description: Literature section.
+            type: STRING
+          page:
+            aliases: [页码, 页面]
+            description: Source page number.
+            type: DECIMAL
+            value-format: plain decimal only, precision 10, scale 0, no exponent
+            precision: 10
+            scale: 0
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
+            sort-fields: [publishedAt, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              author: [EQ, CONTAINS, CONTAINS_ANY]
+              publishedAt: [GT, LT, EQ]
+              publication: [EQ, CONTAINS]
+              section: [EQ, CONTAINS]
+              page: [EQ, GT, LT]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
     registrations:
       - registration-id: employee-queryable
         role: QUERYABLE
@@ -268,8 +438,29 @@ agent:
         port-bean-name: transactionAgentAdapter
         catalog-version: catalog-2026-07-02
         registration-version: adapter-reg-2026-07-02
+      - registration-id: company-policy-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: company_policy
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: knowledge-base-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: knowledge_base
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: literature-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: literature
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
 
 common:
   security:
     service-token:
-      scopes: [agent.permission.resolve]
+      scopes: [agent.permission.resolve, agent.document.provider.invoke]

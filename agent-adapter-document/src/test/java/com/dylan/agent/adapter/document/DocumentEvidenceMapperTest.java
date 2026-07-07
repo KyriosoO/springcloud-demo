@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,6 +31,7 @@ class DocumentEvidenceMapperTest {
                         "section": "年假",
                         "page": 3,
                         "sourceUri": "kb://leave",
+                        "embedding": [0.1, 0.2],
                         "content": "员工年假需要直属主管审批。"
                       }
                     }]
@@ -43,6 +45,7 @@ class DocumentEvidenceMapperTest {
             assertThat(evidence.getTitle()).isEqualTo("休假政策");
             assertThat(evidence.getSnippet()).isEqualTo("员工年假需要直属主管审批。");
             assertThat(evidence.getPage()).isEqualTo(3);
+            assertThat(evidence.getMetadata()).doesNotContainKey("embedding");
         });
         assertThat(result.getCoveredDocumentCount()).isEqualTo(1);
     }
@@ -58,6 +61,7 @@ class DocumentEvidenceMapperTest {
         hit.setContent("员工年假需要直属主管审批。");
         hit.setRrfScore(new BigDecimal("0.03"));
         hit.setRetrievalChannels(List.of("KEYWORD", "VECTOR"));
+        hit.setMetadata(Map.of("embedding", List.of(0.1, 0.2), "sourceType", "policy"));
         HybridRetrievalDiagnostics diagnostics = new HybridRetrievalDiagnostics();
         diagnostics.setFusionStrategy("RRF");
         diagnostics.setKeywordHitCount(1);
@@ -75,6 +79,8 @@ class DocumentEvidenceMapperTest {
             assertThat(evidence.getCharEnd()).isEqualTo(32);
             assertThat(evidence.getRrfScore()).isEqualByComparingTo("0.03");
             assertThat(evidence.getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
+            assertThat(evidence.getMetadata()).containsEntry("sourceType", "policy");
+            assertThat(evidence.getMetadata()).doesNotContainKey("embedding");
         });
         assertThat(result.getRetrievalDiagnostics().getFusionStrategy()).isEqualTo("RRF");
     }

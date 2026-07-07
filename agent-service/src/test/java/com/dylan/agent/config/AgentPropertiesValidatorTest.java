@@ -59,4 +59,31 @@ class AgentPropertiesValidatorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("route-path/plan-path");
     }
+
+    @Test
+    @DisplayName("embedding 启用但缺少 model 时启动失败")
+    void shouldFailWhenEmbeddingModelMissing() {
+        properties.getDocument().getEmbedding().setEnabled(true);
+        properties.getDocument().getEmbedding().setBaseUrl("http://embedding-provider");
+        properties.getDocument().getEmbedding().setDimension(1536);
+        properties.getDocument().getEmbedding().setModel("");
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agent.document.embedding.model");
+    }
+
+    @Test
+    @DisplayName("generation 启用但缺少 model 时启动失败")
+    void shouldFailWhenGenerationModelMissing() {
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setBaseUrl("http://generation-provider");
+        properties.getDocument().getGeneration().setModel("");
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agent.document.generation.model");
+    }
 }

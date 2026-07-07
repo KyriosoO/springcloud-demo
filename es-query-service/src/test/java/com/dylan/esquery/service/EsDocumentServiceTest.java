@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
@@ -12,8 +13,19 @@ import com.dylan.esquery.config.EsQueryProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.http.HttpEntity;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
+
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class EsDocumentServiceTest {
 
@@ -24,6 +36,7 @@ class EsDocumentServiceTest {
 	void setUp() {
 		EsQueryProperties properties = new EsQueryProperties();
 		properties.setTotalHitsThreshold(10000);
+		properties.setDocumentSourceAllowedHosts(List.of("document-platform"));
 		properties.afterPropertiesSet();
 		service = new EsDocumentService(null, objectMapper, properties);
 	}
@@ -95,6 +108,7 @@ class EsDocumentServiceTest {
 		@SuppressWarnings("unchecked")
 		Map<String, Object> knn = (Map<String, Object>) body.get("knn");
 		assertThat(knn.get("filter").toString()).contains("sourceType", "policy");
+		assertThat(body.get("_source").toString()).contains("embedding");
 	}
 
 	@Test
@@ -142,5 +156,76 @@ class EsDocumentServiceTest {
 		Map<String, Object> body = service.keywordSearchBody(request);
 
 		assertThat(body.get("query").toString()).contains("tenantId", "tenant-1", "corpusId");
+	}
+
+	@Test
+	void hybridKeywordBodyAppliesSourceExcludes() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+		request.setSourceExcludes(List.of("embedding", "rawContent"));
+		request.setQueryVector(List.of(0.1, 0.2));
+
+		Map<String, Object> body = service.keywordSearchBody(request);
+
+		assertThat(body.get("_source").toString()).contains("embedding", "rawContent");
+	}
+
+	@Test
+	void hybridSearchRejectsMissingFiltersForDocumentIndex() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+		request.setQueryVector(List.of(0.1, 0.2));
+
+		assertThatThrownBy(() -> service.validateHybridRequest("agent-doc-policy", request))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("ACL filters");
+	}
+
+	@Test
+	void hybridSearchAppliesSourceExcludesToKeywordAndVectorRequests() throws Exception {
+		RestClient restClient = mock(RestClient.class);
+		Response keywordResponse = response("""
+				{"hits":{"hits":[{"_id":"doc-1","_score":1.0,"_source":{"documentId":"doc-1","chunkId":"chunk-1"}}]}}
+				""");
+		Response vectorResponse = response("""
+				{"hits":{"hits":[{"_id":"doc-1","_score":0.9,"_source":{"documentId":"doc-1","chunkId":"chunk-1"}}]}}
+				""");
+		when(restClient.performRequest(any())).thenReturn(keywordResponse, vectorResponse);
+		EsDocumentService searchService = new EsDocumentService(restClient, objectMapper, properties());
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
+		request.setQueryVector(List.of(0.1, 0.2));
+		request.setSourceExcludes(List.of("embedding"));
+
+		searchService.hybridSearch("agent-doc-policy", request);
+
+		ArgumentCaptor<org.elasticsearch.client.Request> captor =
+				ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
+		verify(restClient, times(2)).performRequest(captor.capture());
+		String keywordBody = body(captor.getAllValues().get(0));
+		String vectorBody = body(captor.getAllValues().get(1));
+		assertThat(keywordBody).contains("\"_source\":{\"excludes\":[\"embedding\"]}");
+		assertThat(vectorBody).contains("\"_source\":{\"excludes\":[\"embedding\"]}");
+	}
+
+	private EsQueryProperties properties() {
+		EsQueryProperties properties = new EsQueryProperties();
+		properties.setTotalHitsThreshold(10000);
+		properties.setDocumentSourceAllowedHosts(List.of("document-platform"));
+		properties.afterPropertiesSet();
+		return properties;
+	}
+
+	private Response response(String body) throws Exception {
+		Response response = mock(Response.class);
+		HttpEntity entity = mock(HttpEntity.class);
+		when(entity.getContent()).thenReturn(new java.io.ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+		when(response.getEntity()).thenReturn(entity);
+		return response;
+	}
+
+	private String body(org.elasticsearch.client.Request request) throws Exception {
+		return new String(request.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
 	}
 }

@@ -2,6 +2,7 @@ package com.dylan.agent.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -11,6 +12,9 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
+import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.invocation.model.ChatInvocationOrigin;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
@@ -23,12 +27,18 @@ import com.dylan.agent.metadata.authorization.internal.DelegationBoundary;
 import com.dylan.agent.metadata.authorization.internal.UserPermissionBoundary;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraint;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
+import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
+import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
 import com.dylan.agent.metadata.authorization.request.CapabilityScopeSelection;
 import com.dylan.agent.metadata.authorization.request.PlanningSecurityRequest;
 import com.dylan.agent.metadata.config.AgentMetadataStore;
+import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
+import com.dylan.agent.metadata.domain.port.DomainMetadataReferenceSet;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
 import com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator;
+import com.dylan.agent.metadata.profile.model.AgentProfileVersionKey;
+import com.dylan.agent.metadata.profile.model.EffectiveProfile;
 import com.dylan.agent.model.MaskType;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
@@ -147,6 +157,21 @@ class AuthorizationPlanningPortTest {
                 .doesNotContainKey("employee.idCardNo");
     }
 
+    @Test
+    void freezesDocumentRetrievableBudgetWithPageSizeLimit() {
+        DomainMetadataPort domainMetadataPort = DomainMetadataTestSupport.domainMetadataPort();
+        var port = planningPort(domainMetadataPort);
+        var evidence = documentPlanningEvidence(domainMetadataPort);
+
+        var snapshot = port.freezeCapabilityScope(evidence, new CapabilityScopeSelection(
+                KernelTestSupport.resolvedDocumentSearchRegistration(),
+                Optional.of("company_policy"),
+                List.of(),
+                evidence.domainMetadataEvidence()));
+
+        assertThat(snapshot.executionBudget().maxResultRows()).isEqualTo(7);
+    }
+
     private AuthorizationPlanningPortImpl planningPortWithFieldSecurity(
             Map<CanonicalFieldRef, DomainSecurityConstraints.FieldSecurityConstraint> fields) {
         return new AuthorizationPlanningPortImpl(
@@ -160,6 +185,66 @@ class AuthorizationPlanningPortTest {
                                 java.util.Set.of("query.search"), java.util.Set.of("employee")))),
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+    }
+
+    private AuthorizationPlanningPortImpl planningPort(DomainMetadataPort domainMetadataPort) {
+        return new AuthorizationPlanningPortImpl(
+                new AgentMetadataStore(MetadataTestSupport.bundle("bundle-v1", "digest-v1")),
+                new EffectiveProfileCalculator(),
+                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
+                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
+                                Set.of("document.search"), Set.of("company_policy")))),
+                domainMetadataPort,
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+    }
+
+    private PlanningAuthorizationEvidence documentPlanningEvidence(DomainMetadataPort domainMetadataPort) {
+        AgentProfileVersionKey profileKey = new AgentProfileVersionKey("agent-default", "profile-v1");
+        PlanningEffectiveScope planningScope = new PlanningEffectiveScope(
+                Set.of("document.search"),
+                Set.of("company_policy"),
+                Map.of(),
+                Set.of(RuntimeContextType.DOCUMENT),
+                Set.of(RuntimeContextType.DOCUMENT),
+                AgentCapabilityRiskLevel.READ_ONLY,
+                AgentCapabilityExecutionMode.IMMEDIATE,
+                Duration.ofSeconds(30),
+                1,
+                7,
+                100,
+                10_000);
+        EffectiveProfile effectiveProfile = new EffectiveProfile(
+                profileKey,
+                "policy-v1",
+                planningScope.allowedCapabilityIds(),
+                planningScope.allowedDomains(),
+                planningScope.readableContextTypes(),
+                planningScope.writableContextTypes(),
+                planningScope.maxRiskLevel(),
+                planningScope.maxExecutionMode(),
+                planningScope.maxTotalDuration(),
+                planningScope.maxRepairAttempts(),
+                planningScope.maxPageSize(),
+                planningScope.maxResultRows(),
+                planningScope.maxResultBytes());
+        return new PlanningAuthorizationEvidence(
+                "corr-1",
+                "user:u-1",
+                profileKey,
+                "bundle-v1",
+                "digest-v1",
+                "policy-v1",
+                "perm-evidence",
+                "perm-v1",
+                DelegationConstraintRef.CHAT_ALL,
+                effectiveProfile,
+                planningScope,
+                domainMetadataPort.validateReferences(DomainMetadataReferenceSet.empty(),
+                        MetadataTestSupport.NOW.plusSeconds(60)),
+                MetadataTestSupport.NOW,
+                MetadataTestSupport.NOW.plusSeconds(60));
     }
 
     private static DomainSecurityConstraints.FieldSecurityConstraint fieldConstraint(MaskType maskType) {

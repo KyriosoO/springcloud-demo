@@ -22,6 +22,7 @@ import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
 import com.dylan.agent.api.response.DocumentGenerationStatus;
+import com.dylan.agent.api.response.GroundingStatus;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingPort;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingRequest;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
@@ -39,6 +40,7 @@ import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.DocumentGenerationRequest;
 import com.dylan.agent.capability.document.generation.DocumentGenerationResult;
 import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
+import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.CapabilityHandler;
@@ -46,6 +48,7 @@ import com.dylan.agent.kernel.handler.HandlerResult;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
 
 import java.util.ArrayList;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
@@ -55,6 +58,7 @@ public class DocumentCapabilityHandler
     private final AgentProperties properties;
     private final DocumentEmbeddingPort embeddingPort;
     private final DocumentAclScopePort aclScopePort;
+    private final DocumentRevocationGuard revocationGuard;
     private final DocumentEvidencePreSecurityFilter preSecurityFilter;
     private final DocumentEvidenceContextPacker contextPacker;
     private final DocumentGenerationPort generationPort;
@@ -94,9 +98,29 @@ public class DocumentCapabilityHandler
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier) {
+        this(properties,
+                embeddingPort,
+                aclScopePort,
+                new DocumentRevocationGuard(properties),
+                preSecurityFilter,
+                contextPacker,
+                generationPort,
+                citationVerifier);
+    }
+
+    public DocumentCapabilityHandler(
+            AgentProperties properties,
+            DocumentEmbeddingPort embeddingPort,
+            DocumentAclScopePort aclScopePort,
+            DocumentRevocationGuard revocationGuard,
+            DocumentEvidencePreSecurityFilter preSecurityFilter,
+            DocumentEvidenceContextPacker contextPacker,
+            DocumentGenerationPort generationPort,
+            DocumentCitationVerifier citationVerifier) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.embeddingPort = Objects.requireNonNull(embeddingPort, "embeddingPort must not be null");
         this.aclScopePort = Objects.requireNonNull(aclScopePort, "aclScopePort must not be null");
+        this.revocationGuard = Objects.requireNonNull(revocationGuard, "revocationGuard must not be null");
         this.preSecurityFilter = Objects.requireNonNull(preSecurityFilter, "preSecurityFilter must not be null");
         this.contextPacker = Objects.requireNonNull(contextPacker, "contextPacker must not be null");
         this.generationPort = Objects.requireNonNull(generationPort, "generationPort must not be null");
@@ -118,6 +142,7 @@ public class DocumentCapabilityHandler
     }
 
     private DocumentRetrievalRequest withAclScope(DocumentRetrievalRequest request, ExecutionContext context) {
+        revocationGuard.assertAllowed(request.getDomain(), null);
         var scope = aclScopePort.resolve(new DocumentAclScopeRequest(
                 context.invocationId(),
                 context.executionScope().subjectRef(),
@@ -154,8 +179,19 @@ public class DocumentCapabilityHandler
             throw new IllegalStateException("document embedding returned empty queryVector");
         }
         int configuredDimension = properties.getDocument().getEmbedding().getDimension();
-        if (configuredDimension > 0 && embedding.dimension() != configuredDimension) {
+        if (configuredDimension > 0
+                && (embedding.dimension() != configuredDimension
+                || embedding.queryVector().size() != configuredDimension)) {
             throw new IllegalStateException("document embedding dimension mismatch");
+        }
+        String configuredModel = properties.getDocument().getEmbedding().getModel();
+        if (configuredModel != null
+                && !configuredModel.isBlank()
+                && !configuredModel.equals(embedding.embeddingModel())) {
+            throw new IllegalStateException("document embedding model mismatch");
+        }
+        if (embedding.queryVector().stream().anyMatch(value -> value == null || !Double.isFinite(value))) {
+            throw new IllegalStateException("document embedding returned invalid queryVector");
         }
         return copyRequest(request, mode, embedding.queryVector());
     }
@@ -166,6 +202,9 @@ public class DocumentCapabilityHandler
             DocumentRetrievalMode mode) {
         DocumentRetrievalRequest request = plan.request();
         try {
+            if (deadlineExpired(context.absoluteDeadline())) {
+                throw new IllegalStateException("document embedding deadline expired");
+            }
             return embeddingPort.embed(new DocumentEmbeddingRequest(
                     context.invocationId(),
                     request.getQueryText(),
@@ -236,13 +275,27 @@ public class DocumentCapabilityHandler
         result.setCandidateSummaryBullets(safeResult.getCandidateSummaryBullets());
         result.setGenerationStatus(DocumentGenerationStatus.DISABLED);
         AgentDocumentCoverage coverage = new AgentDocumentCoverage();
-        coverage.setRequestedDocumentCount(
-                safeResult.getRequestedDocumentCount() > 0 ? safeResult.getRequestedDocumentCount() : plan.request().getTopK());
+        coverage.setRequestedDocumentCount(requestedDocumentCount(plan, safeResult));
         coverage.setCoveredDocumentCount(safeResult.getCoveredDocumentCount());
         coverage.setEvidenceCount(citations.size());
-        coverage.setTruncated(citations.size() > plan.request().getTopK());
+        coverage.setTruncated(safeResult.isPartial()
+                || citations.size() > plan.request().getTopK()
+                || hits.size() > citations.size());
         result.setCoverage(coverage);
         return result;
+    }
+
+    private static int requestedDocumentCount(ValidatedDocumentPlan plan, AdapterDocumentResult safeResult) {
+        var summaryScope = plan.request().getSummaryScope();
+        if (summaryScope != null && summaryScope.getDocumentIds() != null && !summaryScope.getDocumentIds().isEmpty()) {
+            return (int) summaryScope.getDocumentIds().stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .count();
+        }
+        return safeResult.getRequestedDocumentCount() > 0 ? safeResult.getRequestedDocumentCount() : plan.request().getTopK();
     }
 
     private void applyGenerationIfEnabled(
@@ -276,16 +329,24 @@ public class DocumentCapabilityHandler
                 resolveMaxOutputChars(options));
         var evidencePackage = contextPacker.pack(new DocumentContextPackRequest(plan, filteredEvidence, context, budget));
         try {
+            if (deadlineExpired(context.absoluteDeadline())) {
+                throw new IllegalStateException("document generation deadline expired");
+            }
             DocumentGenerationResult generated = generationPort.generate(new DocumentGenerationRequest(
+                    context.invocationId(),
                     retrievalRequest.getOperation(),
                     retrievalRequest.getQueryText(),
+                    properties.getDocument().getGeneration().getModel(),
                     evidencePackage,
                     budget.maxOutputChars(),
                     context.absoluteDeadline()));
+            if (deadlineExpired(context.absoluteDeadline())) {
+                throw new IllegalStateException("document generation deadline expired");
+            }
             CitationVerificationResult verification = citationVerifier.verify(generated, evidencePackage);
             result.setCitationVerification(toApiVerification(verification));
             result.setGroundingStatus(verification.status());
-            if (verification.invalidCitationIds().isEmpty()) {
+            if (verification.status() == GroundingStatus.VERIFIED) {
                 result.setCandidateAnswerText(generated.answerText());
                 result.setCandidateSummaryText(generated.summaryText());
                 result.setCandidateSummaryBullets(generated.summaryBullets());
@@ -296,6 +357,10 @@ public class DocumentCapabilityHandler
         } catch (RuntimeException ex) {
             fallbackOrFail(result, options, ex.getClass().getSimpleName());
         }
+    }
+
+    private static boolean deadlineExpired(Instant deadline) {
+        return deadline == null || !deadline.isAfter(Instant.now());
     }
 
     private int resolveMaxOutputChars(DocumentGenerationOptions options) {

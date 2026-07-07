@@ -33,4 +33,28 @@ class DocumentCitationVerifierTest {
         assertThat(verified.status()).isEqualTo(GroundingStatus.UNVERIFIED);
         assertThat(verified.invalidCitationIds()).containsExactly("missing-citation");
     }
+
+    @Test
+    void treatsEmptyCitationBindingsAsPartial() {
+        EvidenceContextPackage context = new EvidenceContextPackage(
+                "inv-1",
+                DocumentPlanOperation.ANSWER,
+                "年假审批",
+                List.of(new DocumentEvidenceContextItem("c-1", "员工年假需要直属主管审批。", java.util.Map.of())),
+                Set.of("c-1"),
+                new DocumentContextBudget(100, 50, 5, 100),
+                "digest");
+        DocumentGenerationResult result = new DocumentGenerationResult(
+                "回答",
+                null,
+                null,
+                List.of(),
+                "stop");
+
+        var verified = new DocumentCitationVerifier().verify(result, context);
+
+        assertThat(verified.status()).isEqualTo(GroundingStatus.PARTIAL);
+        assertThat(verified.fallbackReason()).isEqualTo("NO_BINDINGS");
+        assertThat(verified.invalidCitationIds()).isEmpty();
+    }
 }

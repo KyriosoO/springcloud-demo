@@ -3,11 +3,6 @@ package com.dylan.esquery.service;
 import com.dylan.esquery.api.model.RebuildTask;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
-
 /** 生成本地文档索引验证结果，供 alias 切换门禁比对。 */
 @Service
 public class DocumentIndexValidationService {
@@ -34,8 +29,8 @@ public class DocumentIndexValidationService {
 			taskRepository.markValidationFailed(taskId, "rebuild task is not SUCCESS");
 			throw new IllegalStateException("rebuild task must be SUCCESS before validation");
 		}
-		String digest = digest(task);
-		taskRepository.markValidationPassed(taskId, digest, VALIDATION_VERSION);
+		DocumentIndexValidationReport report = DocumentIndexValidationReport.localPassed(task, VALIDATION_VERSION);
+		taskRepository.markValidationPassed(taskId, report.validationDigest(), report.validatorVersion());
 	}
 
 	private boolean isDocumentTask(RebuildTask task) {
@@ -43,25 +38,4 @@ public class DocumentIndexValidationService {
 				|| documentIndexPolicy.isDocumentIndex(task.getTargetIndex());
 	}
 
-	private static String digest(RebuildTask task) {
-		String content = String.join("|",
-				VALIDATION_VERSION,
-				value(task.getTaskId()),
-				value(task.getIndex()),
-				value(task.getTargetIndex()),
-				value(task.getType()),
-				value(task.getStatus()),
-				String.valueOf(task.getTotalIndexed()),
-				value(task.getLastCursor()));
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			return HexFormat.of().formatHex(digest.digest(content.getBytes(StandardCharsets.UTF_8)));
-		} catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException("SHA-256 not available", ex);
-		}
-	}
-
-	private static String value(String value) {
-		return value == null ? "" : value;
-	}
 }

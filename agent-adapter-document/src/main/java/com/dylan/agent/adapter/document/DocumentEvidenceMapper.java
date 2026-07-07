@@ -12,12 +12,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public class DocumentEvidenceMapper {
+
+    private static final String EMBEDDING_FIELD = "embedding";
 
     private final ObjectMapper objectMapper;
     private final DocumentAdapterProperties properties;
@@ -97,7 +100,7 @@ public class DocumentEvidenceMapper {
         if (source.isObject()) {
             @SuppressWarnings("unchecked")
             Map<String, Object> metadata = objectMapper.convertValue(source, Map.class);
-            evidence.setMetadata(metadata);
+            evidence.setMetadata(sanitizeMetadata(metadata));
         }
         return evidence;
     }
@@ -123,8 +126,17 @@ public class DocumentEvidenceMapper {
         evidence.setRrfScore(hit.getRrfScore());
         evidence.setRetrievalChannels(hit.getRetrievalChannels());
         evidence.setScore(hit.getScore());
-        evidence.setMetadata(hit.getMetadata());
+        evidence.setMetadata(sanitizeMetadata(hit.getMetadata()));
         return evidence;
+    }
+
+    private static Map<String, Object> sanitizeMetadata(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return metadata;
+        }
+        Map<String, Object> sanitized = new LinkedHashMap<>(metadata);
+        sanitized.remove(EMBEDDING_FIELD);
+        return sanitized;
     }
 
     private AdapterDocumentRetrievalDiagnostics toDiagnostics(HybridRetrievalDiagnostics source, String mode) {

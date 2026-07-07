@@ -36,7 +36,7 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
         if (request.getAclScope() == null) {
             throw new AgentAdapterException("文档 ACL 安全投影缺失，已拒绝检索。");
         }
-        String index = properties.getIndexPrefix() + request.getDomain();
+        String index = resolveIndex(request.getDomain());
         try {
             if (request.getRetrievalMode() == DocumentRetrievalMode.HYBRID) {
                 return evidenceMapper.toAdapterResult(
@@ -55,5 +55,13 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
             log.error("Document search Feign error: status={}", ex.status());
             throw new AgentAdapterException("文档检索服务查询失败。", ex);
         }
+    }
+
+    private String resolveIndex(String domain) {
+        String index = properties.getIndexByDomain().get(domain);
+        if (index == null || index.isBlank()) {
+            throw new AgentAdapterException("文档 domain 缺少显式 read alias 映射，已拒绝检索。");
+        }
+        return index;
     }
 }

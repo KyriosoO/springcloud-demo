@@ -14,6 +14,9 @@ public class EsQueryProperties implements InitializingBean {
 
 	private Integer totalHitsThreshold;
 	private List<String> documentIndexPrefixes = new ArrayList<>(List.of("agent-doc-"));
+	private List<String> documentSourceAllowedHosts = new ArrayList<>();
+	private Integer rebuildMaxBatchSize = 500;
+	private String managementServiceToken;
 
 	public Integer getTotalHitsThreshold() {
 		return totalHitsThreshold;
@@ -36,10 +39,44 @@ public class EsQueryProperties implements InitializingBean {
 				: new ArrayList<>(filtered);
 	}
 
+	public List<String> getDocumentSourceAllowedHosts() {
+		return documentSourceAllowedHosts;
+	}
+
+	public void setDocumentSourceAllowedHosts(List<String> documentSourceAllowedHosts) {
+		List<String> filtered = documentSourceAllowedHosts == null ? List.of() : documentSourceAllowedHosts.stream()
+				.filter(host -> host != null && !host.isBlank())
+				.map(host -> host.trim().toLowerCase())
+				.toList();
+		this.documentSourceAllowedHosts = new ArrayList<>(filtered);
+	}
+
+	public Integer getRebuildMaxBatchSize() {
+		return rebuildMaxBatchSize;
+	}
+
+	public void setRebuildMaxBatchSize(Integer rebuildMaxBatchSize) {
+		this.rebuildMaxBatchSize = rebuildMaxBatchSize;
+	}
+
+	public String getManagementServiceToken() {
+		return managementServiceToken;
+	}
+
+	public void setManagementServiceToken(String managementServiceToken) {
+		this.managementServiceToken = managementServiceToken;
+	}
+
 	@Override
 	public void afterPropertiesSet() {
 		if (totalHitsThreshold == null || totalHitsThreshold < 1) {
 			throw new IllegalStateException("es.query.total-hits-threshold must be greater than 0");
+		}
+		if (rebuildMaxBatchSize == null || rebuildMaxBatchSize < 1) {
+			throw new IllegalStateException("es.query.rebuild-max-batch-size must be greater than 0");
+		}
+		if (documentSourceAllowedHosts == null || documentSourceAllowedHosts.isEmpty()) {
+			throw new IllegalStateException("es.query.document-source-allowed-hosts must not be empty");
 		}
 	}
 }

@@ -32,6 +32,44 @@ class HybridSearchMergerTest {
 		assertThat(hits.get(0).getVectorRank()).isEqualTo(1);
 		assertThat(hits.get(0).getCharStart()).isEqualTo(10);
 		assertThat(hits.get(0).getCharEnd()).isEqualTo(32);
+		assertThat(hits.get(0).getMetadata()).doesNotContainKey("embedding");
+	}
+
+	@Test
+	void fallsBackToDocumentIdWhenChunkIdIsMissing() throws Exception {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(2);
+		request.setRrfK(60);
+
+		JsonNode keywordHit = objectMapper.readTree("""
+				{
+				  "_id": "hit-1",
+				  "_score": 1.0,
+				  "_source": {
+				    "documentId": "doc-1",
+				    "chunkIndex": 1,
+				    "title": "休假政策"
+				  }
+				}
+				""");
+		JsonNode vectorHit = objectMapper.readTree("""
+				{
+				  "_id": "hit-2",
+				  "_score": 0.8,
+				  "_source": {
+				    "documentId": "doc-1",
+				    "chunkIndex": 1,
+				    "title": "休假政策"
+				  }
+				}
+				""");
+
+		var hits = merger.merge(List.of(keywordHit), List.of(vectorHit), request);
+
+		assertThat(hits).hasSize(1);
+		assertThat(hits.get(0).getDocumentId()).isEqualTo("doc-1");
+		assertThat(hits.get(0).getChunkId()).isEqualTo("doc-1");
+		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
 	}
 
 	private JsonNode hit(String documentId, String chunkId, double score) throws Exception {
@@ -46,6 +84,7 @@ class HybridSearchMergerTest {
 				    "charStart": 10,
 				    "charEnd": 32,
 				    "title": "休假政策",
+				    "embedding": [0.1, 0.2],
 				    "content": "员工年假需要直属主管审批。"
 				  }
 				}

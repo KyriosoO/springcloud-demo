@@ -135,6 +135,9 @@ public class AgentPropertiesValidator implements InitializingBean {
             if (e.getBaseUrl() == null || e.getBaseUrl().isBlank()) {
                 throw new IllegalStateException("agent.document.embedding.base-url 必须配置。");
             }
+            if (e.getModel() == null || e.getModel().isBlank()) {
+                throw new IllegalStateException("agent.document.embedding.model 必须配置。");
+            }
             if (e.getDimension() <= 0) {
                 throw new IllegalStateException("agent.document.embedding.dimension 必须为正数。");
             }
@@ -152,8 +155,13 @@ public class AgentPropertiesValidator implements InitializingBean {
         if (g.getMaxEvidenceChars() > g.getMaxContextChars()) {
             throw new IllegalStateException("agent.document.generation.max-evidence-chars 不能超过 max-context-chars。");
         }
-        if (g.isEnabled() && (g.getBaseUrl() == null || g.getBaseUrl().isBlank())) {
-            throw new IllegalStateException("agent.document.generation.base-url 必须配置。");
+        if (g.isEnabled()) {
+            if (g.getBaseUrl() == null || g.getBaseUrl().isBlank()) {
+                throw new IllegalStateException("agent.document.generation.base-url 必须配置。");
+            }
+            if (g.getModel() == null || g.getModel().isBlank()) {
+                throw new IllegalStateException("agent.document.generation.model 必须配置。");
+            }
         }
         if (!"FALLBACK_EXTRACTIVE".equals(g.getFailurePolicy()) && !"REFUSE".equals(g.getFailurePolicy())) {
             throw new IllegalStateException("agent.document.generation.failure-policy 必须为 FALLBACK_EXTRACTIVE 或 REFUSE。");

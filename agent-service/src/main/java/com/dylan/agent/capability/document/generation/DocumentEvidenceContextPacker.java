@@ -81,9 +81,25 @@ public class DocumentEvidenceContextPacker {
         metadata.put("title", evidence.getTitle());
         metadata.put("section", evidence.getSection());
         metadata.put("page", evidence.getPage());
-        metadata.put("sourceUri", evidence.getSourceUri());
+        metadata.put("sourceUri", safeSourceUri(evidence.getSourceUri()));
         metadata.put("chunkIndex", evidence.getChunkIndex());
         return metadata;
+    }
+
+    private static String safeSourceUri(String sourceUri) {
+        if (sourceUri == null || sourceUri.isBlank()) {
+            return sourceUri;
+        }
+        int queryIndex = sourceUri.indexOf('?');
+        int fragmentIndex = sourceUri.indexOf('#');
+        int end = sourceUri.length();
+        if (queryIndex >= 0) {
+            end = Math.min(end, queryIndex);
+        }
+        if (fragmentIndex >= 0) {
+            end = Math.min(end, fragmentIndex);
+        }
+        return sourceUri.substring(0, end);
     }
 
     private static String truncate(String value, int limit) {

@@ -2,10 +2,14 @@ package com.dylan.agent.adapter.document;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @ConfigurationProperties(prefix = "agent.document-adapter")
 public class DocumentAdapterProperties {
 
     private String indexPrefix = "agent-doc-";
+    private Map<String, String> indexByDomain = new LinkedHashMap<>();
     private String defaultTitleField = "title";
     private String defaultSnippetField = "content";
     private String sourceTypeField = "sourceType";
@@ -15,6 +19,17 @@ public class DocumentAdapterProperties {
 
     public String getIndexPrefix() { return indexPrefix; }
     public void setIndexPrefix(String indexPrefix) { this.indexPrefix = indexPrefix; }
+    public Map<String, String> getIndexByDomain() { return indexByDomain; }
+    public void setIndexByDomain(Map<String, String> indexByDomain) {
+        this.indexByDomain = new LinkedHashMap<>();
+        if (indexByDomain != null) {
+            indexByDomain.forEach((domain, index) -> {
+                if (domain != null && !domain.isBlank() && index != null && !index.isBlank()) {
+                    this.indexByDomain.put(domain.trim(), index.trim());
+                }
+            });
+        }
+    }
     public String getDefaultTitleField() { return defaultTitleField; }
     public void setDefaultTitleField(String defaultTitleField) { this.defaultTitleField = defaultTitleField; }
     public String getDefaultSnippetField() { return defaultSnippetField; }

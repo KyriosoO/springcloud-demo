@@ -4,6 +4,7 @@ import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.plan.AggregateAgentPlan;
+import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.kernel.definition.ContractRegistry;
 
@@ -68,7 +69,8 @@ public final class CapabilityRegistrationValidator {
         AgentPlanKind planKind = reg.definition().planKind();
         Class<?> rawType = reg.rawPlanType();
         boolean valid = (planKind == AgentPlanKind.QUERY && rawType == QueryAgentPlan.class)
-                || (planKind == AgentPlanKind.AGGREGATE && rawType == AggregateAgentPlan.class);
+                || (planKind == AgentPlanKind.AGGREGATE && rawType == AggregateAgentPlan.class)
+                || (planKind == AgentPlanKind.DOCUMENT && rawType == DocumentAgentPlan.class);
         if (!valid) {
             throw new IllegalStateException("planKind/raw subtype mismatch: "
                     + reg.definition().capabilityId());

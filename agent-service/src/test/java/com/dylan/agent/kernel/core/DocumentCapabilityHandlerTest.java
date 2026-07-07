@@ -8,8 +8,10 @@ import com.dylan.agent.adapter.api.document.DocumentAclScope;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.api.plan.DocumentGenerationOptions;
 import com.dylan.agent.api.context.DocumentCapabilityContextPayload;
+import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.dylan.agent.api.plan.DocumentRetrievalMode;
+import com.dylan.agent.api.plan.DocumentSummaryScope;
 import com.dylan.agent.api.response.DocumentGenerationStatus;
 import com.dylan.agent.capability.document.DocumentCapabilityHandler;
 import com.dylan.agent.capability.document.DocumentCapabilityIds;
@@ -37,13 +39,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DocumentCapabilityHandlerTest {
 
-    private static final Instant NOW = Instant.parse("2026-07-01T00:00:00Z");
+    private static final Instant NOW = Instant.now().plusSeconds(300);
 
     @Test
     void writesCitationIdsFromHitsWhenCitationsAreNotExplicit() {
@@ -63,6 +66,7 @@ class DocumentCapabilityHandlerTest {
     void generatesAnswerAfterHybridRetrievalWhenEnabled() {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
         properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
         DocumentGenerationOptions options = new DocumentGenerationOptions();
         options.setEnabled(true);
         ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
@@ -97,6 +101,7 @@ class DocumentCapabilityHandlerTest {
     void degradesHybridRetrievalToKeywordWhenEmbeddingProviderFails() {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
         properties.getDocument().getEmbedding().setEnabled(true);
+        properties.getDocument().getEmbedding().setModel("test-embedding");
         properties.getDocument().getEmbedding().setDimension(2);
         AtomicReference<DocumentRetrievalRequest> capturedRequest = new AtomicReference<>();
         DocumentRetrievableAdapter adapter = request -> {
@@ -127,6 +132,7 @@ class DocumentCapabilityHandlerTest {
     void failsClosedWhenHybridEmbeddingDimensionMismatches() {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
         properties.getDocument().getEmbedding().setEnabled(true);
+        properties.getDocument().getEmbedding().setModel("test-embedding");
         properties.getDocument().getEmbedding().setDimension(2);
         ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
                 DocumentCapabilityIds.SEARCH,
@@ -145,6 +151,280 @@ class DocumentCapabilityHandlerTest {
         assertThatThrownBy(() -> handler.execute(plan, context()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("dimension mismatch");
+    }
+
+    @Test
+    void fallsBackWhenGenerationReturnsNoCitationBindings() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        options.setFailurePolicy(DocumentGenerationFailurePolicy.FALLBACK_EXTRACTIVE);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request(DocumentPlanOperation.ANSWER),
+                options);
+        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
+                "没有引用绑定的回答。",
+                null,
+                null,
+                List.of(),
+                "stop");
+
+        var result = new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                generation,
+                new DocumentCitationVerifier())
+                .execute(plan, context());
+
+        assertThat(result.output().getDocumentResult().getGenerationStatus())
+                .isEqualTo(DocumentGenerationStatus.FALLBACK);
+        assertThat(result.output().getDocumentResult().getCandidateAnswerText()).isNull();
+        assertThat(result.output().getDocumentResult().getCitationVerification().getFallbackReason())
+                .isEqualTo("NO_BINDINGS");
+    }
+
+    @Test
+    void refusesWhenGenerationBindingsAreInvalidAndPolicyIsRefuse() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        options.setFailurePolicy(DocumentGenerationFailurePolicy.REFUSE);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request(DocumentPlanOperation.ANSWER),
+                options);
+        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
+                "引用不存在的回答。[missing]",
+                null,
+                null,
+                List.of(new CitationBinding("引用不存在的回答。", List.of("missing"))),
+                "stop");
+
+        var result = new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                generation,
+                new DocumentCitationVerifier())
+                .execute(plan, context());
+
+        assertThat(result.output().getDocumentResult().getGenerationStatus())
+                .isEqualTo(DocumentGenerationStatus.FAILED);
+        assertThat(result.output().getDocumentResult().getCandidateAnswerText()).isNull();
+        assertThat(result.output().getDocumentResult().getCitationVerification().getInvalidCitationIds())
+                .containsExactly("missing");
+    }
+
+    @Test
+    void generatesSummaryWithVerifiedCitationsAndSummaryScopeCoverage() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        DocumentSummaryScope summaryScope = new DocumentSummaryScope();
+        summaryScope.setDocumentIds(List.of("doc-1", "doc-1", "doc-2"));
+        DocumentRetrievalRequest request = request(DocumentPlanOperation.SUMMARIZE);
+        request = new DocumentRetrievalRequest(
+                request.getOperation(),
+                request.getDomain(),
+                request.getQueryText(),
+                request.getFilters(),
+                request.getSorts(),
+                request.getTopK(),
+                request.getPage(),
+                request.getSize(),
+                summaryScope,
+                true,
+                request.getRetrievalMode(),
+                request.getQueryVector(),
+                request.getHybridOptions(),
+                request.getContextOptions(),
+                request.getAclScope());
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SUMMARIZE,
+                "policy_document",
+                request,
+                options);
+        DocumentGenerationPort generation = generationRequest -> new DocumentGenerationResult(
+                null,
+                "生成式摘要。[chunk-1]",
+                List.of("摘要要点。[chunk-1]"),
+                List.of(new CitationBinding("生成式摘要。", List.of("chunk-1"))),
+                "stop");
+
+        var result = new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                generation,
+                new DocumentCitationVerifier())
+                .execute(plan, context());
+
+        assertThat(result.output().getDocumentResult().getGenerationStatus())
+                .isEqualTo(DocumentGenerationStatus.SUCCEEDED);
+        assertThat(result.output().getDocumentResult().getCandidateSummaryText())
+                .isEqualTo("生成式摘要。[chunk-1]");
+        assertThat(result.output().getDocumentResult().getCoverage().getRequestedDocumentCount()).isEqualTo(2);
+    }
+
+    @Test
+    void passesRequestIdModelAndDeadlineToGenerationProvider() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request(DocumentPlanOperation.ANSWER),
+                options);
+        AtomicReference<DocumentGenerationRequest> captured = new AtomicReference<>();
+        DocumentGenerationPort generation = generationRequest -> {
+            captured.set(generationRequest);
+            return new DocumentGenerationResult(
+                    "员工年假需要直属主管审批。[chunk-1]",
+                    null,
+                    null,
+                    List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
+                    "stop");
+        };
+
+        new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                generation,
+                new DocumentCitationVerifier())
+                .execute(plan, context());
+
+        assertThat(captured.get()).isNotNull();
+        assertThat(captured.get().requestId()).isEqualTo("inv-1");
+        assertThat(captured.get().model()).isEqualTo("test-generation");
+        assertThat(captured.get().deadline()).isEqualTo(context().absoluteDeadline());
+    }
+
+    @Test
+    void failsClosedWhenHybridEmbeddingModelMismatches() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getEmbedding().setEnabled(true);
+        properties.getDocument().getEmbedding().setModel("expected-embedding");
+        properties.getDocument().getEmbedding().setDimension(2);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SEARCH,
+                "policy_document",
+                request(DocumentPlanOperation.SEARCH, DocumentRetrievalMode.HYBRID));
+
+        var handler = new DocumentCapabilityHandler(
+                properties,
+                request -> new DocumentEmbeddingResult(List.of(0.1, 0.2), "other-embedding", 2, "digest"),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier());
+
+        assertThatThrownBy(() -> handler.execute(plan, context()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("model mismatch");
+    }
+
+    @Test
+    void failsClosedWhenHybridEmbeddingModelIsMissing() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getEmbedding().setEnabled(true);
+        properties.getDocument().getEmbedding().setModel("expected-embedding");
+        properties.getDocument().getEmbedding().setDimension(2);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SEARCH,
+                "policy_document",
+                request(DocumentPlanOperation.SEARCH, DocumentRetrievalMode.HYBRID));
+
+        var handler = new DocumentCapabilityHandler(
+                properties,
+                request -> new DocumentEmbeddingResult(List.of(0.1, 0.2), null, 2, "digest"),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier());
+
+        assertThatThrownBy(() -> handler.execute(plan, context()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("model mismatch");
+    }
+
+    @Test
+    void rejectsExpiredAclScopeBeforeCallingAdapter() {
+        AtomicBoolean adapterCalled = new AtomicBoolean(false);
+        DocumentRetrievableAdapter adapter = request -> {
+            adapterCalled.set(true);
+            return adapterResult();
+        };
+        DocumentAclScopePort expiredAcl = request -> new DocumentAclScope(
+                "tenant-1",
+                "u-1",
+                List.of(),
+                List.of(),
+                List.of(),
+                "acl-expired",
+                Instant.now().minusSeconds(1));
+
+        var handler = new DocumentCapabilityHandler(
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
+                new DisabledDocumentEmbeddingPort(),
+                expiredAcl,
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier());
+
+        assertThatThrownBy(() -> handler.execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ACL scope is expired");
+        assertThat(adapterCalled).isFalse();
+    }
+
+    @Test
+    void rejectsBlocklistedDocumentDomainBeforeCallingAdapter() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getBlocklist().setDomains(List.of("policy_document"));
+        AtomicBoolean adapterCalled = new AtomicBoolean(false);
+        DocumentRetrievableAdapter adapter = request -> {
+            adapterCalled.set(true);
+            return adapterResult();
+        };
+
+        var handler = new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier());
+
+        assertThatThrownBy(() -> handler.execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("document access revoked");
+        assertThat(adapterCalled).isFalse();
     }
 
     private ValidatedDocumentPlan plan() {

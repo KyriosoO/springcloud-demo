@@ -19,6 +19,8 @@ import java.util.Objects;
 
 public class DocumentRetrievalMapper {
 
+    private static final List<String> DEFAULT_SOURCE_EXCLUDES = List.of("embedding");
+
     private final ObjectMapper objectMapper;
     private final DocumentAclFilterFactory aclFilterFactory;
 
@@ -44,6 +46,7 @@ public class DocumentRetrievalMapper {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("from", Math.max(0, (request.getPage() - 1) * request.getSize()));
         root.put("size", request.getSize());
+        root.put("_source", Map.of("excludes", DEFAULT_SOURCE_EXCLUDES));
         root.put("query", query(request, includeFilters));
         if (!request.getSorts().isEmpty()) {
             root.put("sort", request.getSorts().stream()
@@ -67,6 +70,7 @@ public class DocumentRetrievalMapper {
             hybrid.setRrfK(options.rrfK());
             hybrid.setNumCandidates(options.numCandidates());
         }
+        hybrid.setSourceExcludes(DEFAULT_SOURCE_EXCLUDES);
         hybrid.setContextWindow(toContextWindow(request.getContextOptions()));
         return hybrid;
     }

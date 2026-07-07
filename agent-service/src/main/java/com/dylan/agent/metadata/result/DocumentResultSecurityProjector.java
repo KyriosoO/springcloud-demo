@@ -13,6 +13,7 @@ import com.dylan.agent.api.response.GroundingStatus;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
+import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
@@ -25,13 +26,28 @@ import java.util.stream.Collectors;
 public final class DocumentResultSecurityProjector implements ResultSecurityProjector<DocumentAgentResultPayload> {
 
     private static final Pattern CITATION_PATTERN = Pattern.compile("\\[([^\\]]+)]");
+    private static final String TITLE_FIELD = "title";
+    private static final String SOURCE_TYPE_FIELD = "sourceType";
+    private static final String SECTION_FIELD = "section";
+    private static final String PAGE_FIELD = "page";
+    private static final String SOURCE_URI_FIELD = "sourceUri";
+    private static final String SNIPPET_FIELD = "snippet";
 
     private final ResultValueMaskingSupport maskingSupport;
     private final AgentProperties properties;
+    private final DocumentRevocationGuard revocationGuard;
 
     public DocumentResultSecurityProjector(ResultValueMaskingSupport maskingSupport, AgentProperties properties) {
+        this(maskingSupport, properties, new DocumentRevocationGuard(properties));
+    }
+
+    public DocumentResultSecurityProjector(
+            ResultValueMaskingSupport maskingSupport,
+            AgentProperties properties,
+            DocumentRevocationGuard revocationGuard) {
         this.maskingSupport = Objects.requireNonNull(maskingSupport, "maskingSupport must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
+        this.revocationGuard = Objects.requireNonNull(revocationGuard, "revocationGuard must not be null");
     }
 
     @Override
@@ -47,6 +63,10 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         if (domain == null || domain.isBlank()) {
             throw new IllegalStateException("document result payload missing domain");
         }
+        if (!scope.allowedDomains().contains(domain)) {
+            throw new IllegalStateException("document result domain outside execution scope");
+        }
+        revocationGuard.assertAllowed(domain, null);
         AgentDocumentResult result = filterResult(domain, candidate.getDocumentResult(), scope);
         DocumentPlanOperation operation = parseOperation(parameters.getOperation());
         if (!applyVerifiedCandidate(operation, result)) {
@@ -111,31 +131,41 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
     }
 
     private AgentDocumentHit filterHit(String domain, AgentDocumentHit source, ExecutionScope scope) {
-        if (source == null || !isAllowedDocumentEvidence(domain, scope)) {
+        if (source == null) {
             return null;
         }
         AgentDocumentHit target = new AgentDocumentHit();
+        String title = filterString(domain, TITLE_FIELD, source.getTitle(), scope);
+        String sourceType = filterString(domain, SOURCE_TYPE_FIELD, source.getSourceType(), scope);
+        String snippet = filterString(domain, SNIPPET_FIELD, source.getSnippet(), scope);
+        if (title == null && sourceType == null && snippet == null) {
+            return null;
+        }
         target.setDocumentId(source.getDocumentId());
-        target.setTitle(source.getTitle());
-        target.setSourceType(source.getSourceType());
-        target.setSnippet(truncate(source.getSnippet()));
+        target.setTitle(title);
+        target.setSourceType(sourceType);
+        target.setSnippet(truncate(snippet));
         target.setScore(source.getScore());
         target.setCitationIds(source.getCitationIds() == null ? List.of() : source.getCitationIds());
         return target;
     }
 
     private AgentDocumentCitation filterCitation(String domain, AgentDocumentCitation source, ExecutionScope scope) {
-        if (source == null || !isAllowedDocumentEvidence(domain, scope)) {
+        if (source == null) {
+            return null;
+        }
+        String snippet = filterString(domain, SNIPPET_FIELD, source.getSnippet(), scope);
+        if (snippet == null) {
             return null;
         }
         AgentDocumentCitation target = new AgentDocumentCitation();
         target.setCitationId(source.getCitationId());
         target.setDocumentId(source.getDocumentId());
-        target.setTitle(source.getTitle());
-        target.setSection(source.getSection());
-        target.setPage(source.getPage());
-        target.setSourceUri(source.getSourceUri());
-        target.setSnippet(truncate(source.getSnippet()));
+        target.setTitle(filterString(domain, TITLE_FIELD, source.getTitle(), scope));
+        target.setSection(filterString(domain, SECTION_FIELD, source.getSection(), scope));
+        target.setPage(filterInteger(domain, PAGE_FIELD, source.getPage(), scope));
+        target.setSourceUri(filterString(domain, SOURCE_URI_FIELD, source.getSourceUri(), scope));
+        target.setSnippet(truncate(snippet));
         target.setChunkIndex(source.getChunkIndex());
         target.setCharStart(source.getCharStart());
         target.setCharEnd(source.getCharEnd());
@@ -153,16 +183,26 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         return target;
     }
 
-    private boolean isAllowedDocumentEvidence(String domain, ExecutionScope scope) {
-        return !maskingSupport.allowedFields(domain, scope).isEmpty();
-    }
-
     private String truncate(String value) {
         if (value == null) {
             return null;
         }
         int limit = properties.getDocument().getMaxSnippetChars();
         return value.length() <= limit ? value : value.substring(0, limit);
+    }
+
+    private String filterString(String domain, String field, String value, ExecutionScope scope) {
+        if (value == null || !maskingSupport.allowedFields(domain, scope).contains(field)) {
+            return null;
+        }
+        return maskingSupport.maskStringValue(domain, field, value, scope);
+    }
+
+    private Integer filterInteger(String domain, String field, Integer value, ExecutionScope scope) {
+        if (value == null || !maskingSupport.allowedFields(domain, scope).contains(field)) {
+            return null;
+        }
+        return value;
     }
 
     private boolean applyVerifiedCandidate(DocumentPlanOperation operation, AgentDocumentResult result) {
@@ -213,6 +253,7 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
 
     private boolean candidateCitationsValid(AgentDocumentResult result, List<String> texts) {
         Set<String> allowedCitationIds = result.getCitations().stream()
+                .filter(citation -> citation.getSnippet() != null && !citation.getSnippet().isBlank())
                 .map(AgentDocumentCitation::getCitationId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toUnmodifiableSet());

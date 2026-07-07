@@ -1,0 +1,28 @@
+{
+  "mappings": {
+    "properties": {
+      "tenantId": { "type": "keyword" },
+      "corpusId": { "type": "keyword" },
+      "documentId": { "type": "keyword" },
+      "documentVersion": { "type": "keyword" },
+      "chunkId": { "type": "keyword" },
+      "chunkIndex": { "type": "integer" },
+      "charStart": { "type": "integer" },
+      "charEnd": { "type": "integer" },
+      "title": { "type": "text" },
+      "content": { "type": "text" },
+      "snippet": { "type": "text" },
+      "aclRef": { "type": "keyword" },
+      "aclVersion": { "type": "keyword" },
+      "visibility": { "type": "keyword" },
+      "departmentIds": { "type": "keyword" },
+      "roleIds": { "type": "keyword" },
+      "userIds": { "type": "keyword" },
+      "attributeKeys": { "type": "keyword" },
+      "status": { "type": "keyword" },
+      "indexVersion": { "type": "keyword" },
+      "contentHash": { "type": "keyword" },
+      "embedding": { "type": "dense_vector", "dims": 1024 }
+    }
+  }
+}

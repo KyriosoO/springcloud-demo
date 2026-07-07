@@ -1,0 +1,21 @@
+{
+  "tenantId": "tenant-1",
+  "corpusId": "company_policy",
+  "documentId": "doc-1",
+  "documentVersion": "v1",
+  "chunkId": "chunk-1",
+  "chunkIndex": 1,
+  "charStart": 0,
+  "charEnd": 10,
+  "title": "休假政策",
+  "content": "员工年假需要直属主管审批。",
+  "snippet": "年假需要直属主管审批。",
+  "sourceUri": "https://kb.example/policies/leave",
+  "aclRef": "acl-1",
+  "aclVersion": "acl-v1",
+  "visibility": "USER",
+  "userIds": ["u-1"],
+  "status": "ACTIVE",
+  "indexVersion": "idx-v1",
+  "contentHash": "sha256:abc"
+}

@@ -1,18 +1,28 @@
 package com.dylan.esquery.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
+import java.io.IOException;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DocumentIndexDefinitionValidatorTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final DocumentIndexDefinitionValidator validator = new DocumentIndexDefinitionValidator();
 
     @Test
-    void rejectsMappingMissingAclFields() {
+    void acceptsValidDocumentIndexDefinitionFixture() throws Exception {
+        assertThatCode(() -> validator.validate("agent-doc-policy", validMapping()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsMappingMissingAclFields() throws Exception {
         Map<String, Object> mapping = validMapping();
         properties(mapping).remove("aclVersion");
 
@@ -29,7 +39,7 @@ class DocumentIndexDefinitionValidatorTest {
     }
 
     @Test
-    void rejectsDenseVectorDimensionMismatch() {
+    void rejectsDenseVectorDimensionMismatch() throws Exception {
         Map<String, Object> mapping = validMapping();
         properties(mapping).put("embedding", Map.of("type", "dense_vector", "dims", 0));
 
@@ -38,16 +48,38 @@ class DocumentIndexDefinitionValidatorTest {
                 .hasMessageContaining("dims");
     }
 
-    private Map<String, Object> validMapping() {
-        Map<String, Object> fields = new LinkedHashMap<>();
-        for (String field : java.util.List.of(
-                "tenantId", "corpusId", "documentId", "documentVersion", "chunkId",
-                "chunkIndex", "charStart", "charEnd", "title", "content", "snippet",
-                "aclRef", "aclVersion", "visibility", "departmentIds", "roleIds", "userIds",
-                "attributeKeys", "status", "indexVersion", "contentHash")) {
-            fields.put(field, Map.of("type", "keyword"));
-        }
-        return Map.of("mappings", Map.of("properties", fields));
+    @Test
+    void rejectsInvalidEmbeddingMapping() throws Exception {
+        Map<String, Object> wrongType = validMapping();
+        properties(wrongType).put("embedding", Map.of("type", "float", "dims", 1024));
+
+        assertThatThrownBy(() -> validator.validate("agent-doc-policy", wrongType))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dense_vector");
+
+        Map<String, Object> missingDims = validMapping();
+        properties(missingDims).put("embedding", Map.of("type", "dense_vector"));
+
+        assertThatThrownBy(() -> validator.validate("agent-doc-policy", missingDims))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("dims");
+    }
+
+    @Test
+    void rejectsTextOnlyFilterField() throws Exception {
+        Map<String, Object> mapping = validMapping();
+        properties(mapping).put("tenantId", Map.of("type", "text"));
+
+        assertThatThrownBy(() -> validator.validate("agent-doc-policy", mapping))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("tenantId");
+    }
+
+    private Map<String, Object> validMapping() throws IOException {
+        return objectMapper.readValue(
+                getClass().getResourceAsStream("/fixtures/document/valid-document-index-definition.json"),
+                new TypeReference<>() {
+                });
     }
 
     @SuppressWarnings("unchecked")

@@ -7,7 +7,7 @@ spring:
   config:
     import: optional:configserver:http://localhost:9888
   profiles:
-    active: es
+    active: datasource,es
 
 eureka:
   client:
@@ -31,3 +31,7 @@ es:
     total-hits-threshold: 10000
     document-index-prefixes:
       - agent-doc-
+    document-source-allowed-hosts:
+      - document-platform
+    rebuild-max-batch-size: 500
+    management-service-token: ${ES_QUERY_MANAGEMENT_SERVICE_TOKEN:}

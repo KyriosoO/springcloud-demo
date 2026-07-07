@@ -1,6 +1,8 @@
 package com.dylan.agent.config;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -195,6 +197,7 @@ public class AgentProperties {
         private GenerationProperties generation = new GenerationProperties();
         private HybridProperties hybrid = new HybridProperties();
         private AclProperties acl = new AclProperties();
+        private BlocklistProperties blocklist = new BlocklistProperties();
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -218,6 +221,8 @@ public class AgentProperties {
         public void setHybrid(HybridProperties hybrid) { this.hybrid = hybrid == null ? new HybridProperties() : hybrid; }
         public AclProperties getAcl() { return acl; }
         public void setAcl(AclProperties acl) { this.acl = acl == null ? new AclProperties() : acl; }
+        public BlocklistProperties getBlocklist() { return blocklist; }
+        public void setBlocklist(BlocklistProperties blocklist) { this.blocklist = blocklist == null ? new BlocklistProperties() : blocklist; }
     }
 
     /** 文档 ACL 安全投影配置，文档能力启用时默认 fail closed。 */
@@ -298,5 +303,16 @@ public class AgentProperties {
         public void setRrfK(int rrfK) { this.rrfK = rrfK; }
         public int getNumCandidates() { return numCandidates; }
         public void setNumCandidates(int numCandidates) { this.numCandidates = numCandidates; }
+    }
+
+    /** 文档本地应急禁用清单，首版不扩展统一 policy target 枚举。 */
+    public static class BlocklistProperties {
+        private List<String> domains = new ArrayList<>();
+        private List<String> indexVersions = new ArrayList<>();
+
+        public List<String> getDomains() { return domains; }
+        public void setDomains(List<String> domains) { this.domains = domains == null ? new ArrayList<>() : domains; }
+        public List<String> getIndexVersions() { return indexVersions; }
+        public void setIndexVersions(List<String> indexVersions) { this.indexVersions = indexVersions == null ? new ArrayList<>() : indexVersions; }
     }
 }

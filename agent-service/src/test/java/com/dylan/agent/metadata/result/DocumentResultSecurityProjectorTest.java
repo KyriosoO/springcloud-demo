@@ -17,6 +17,7 @@ import com.dylan.agent.mask.NoneFieldMasker;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DocumentResultSecurityProjectorTest {
 
@@ -51,6 +53,32 @@ class DocumentResultSecurityProjectorTest {
                     assertThat(citation.getCharEnd()).isEqualTo(32);
                 });
         assertThat(result.getCoverage().getEvidenceCount()).isEqualTo(1);
+    }
+
+    @Test
+    void filtersUnauthorizedDocumentEvidenceFields() {
+        DocumentAgentResultPayload payload = payload("SEARCH");
+        com.dylan.agent.api.response.AgentDocumentHit hit =
+                new com.dylan.agent.api.response.AgentDocumentHit();
+        hit.setDocumentId("doc-1");
+        hit.setTitle("休假政策");
+        hit.setSourceType("policy");
+        hit.setSnippet("员工年假需要直属主管审批。");
+        hit.setCitationIds(List.of("c-1"));
+        payload.getDocumentResult().setHits(List.of(hit));
+
+        FilteredResult<DocumentAgentResultPayload> filtered =
+                projector().filter(payload, scope(Set.of("sourceType")));
+
+        AgentDocumentResult result = filtered.payload().getDocumentResult();
+        assertThat(result.getHits()).singleElement().satisfies(value -> {
+            assertThat(value.getDocumentId()).isEqualTo("doc-1");
+            assertThat(value.getSourceType()).isEqualTo("policy");
+            assertThat(value.getTitle()).isNull();
+            assertThat(value.getSnippet()).isNull();
+        });
+        assertThat(result.getCitations()).isEmpty();
+        assertThat(result.getAnswerText()).isNull();
     }
 
     @Test
@@ -106,6 +134,31 @@ class DocumentResultSecurityProjectorTest {
     }
 
     @Test
+    void fallsBackWhenSummaryReferencesFilteredCitation() {
+        DocumentAgentResultPayload payload = payload("SUMMARIZE");
+        AgentDocumentCitation hidden = new AgentDocumentCitation();
+        hidden.setCitationId("c-2");
+        hidden.setDocumentId("doc-2");
+        hidden.setTitle("隐藏政策");
+        hidden.setSnippet("这条证据会被结果数量限制过滤。");
+        payload.getDocumentResult().setCitations(List.of(payload.getDocumentResult().getCitations().get(0), hidden));
+        payload.getDocumentResult().setGenerationStatus(DocumentGenerationStatus.SUCCEEDED);
+        payload.getDocumentResult().setGroundingStatus(GroundingStatus.VERIFIED);
+        payload.getDocumentResult().setCandidateSummaryText("生成式摘要只引用被过滤证据。[c-2]");
+        payload.getDocumentResult().setCandidateSummaryBullets(List.of("生成式摘要要点。[c-2]"));
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().setMaxEvidenceCount(1);
+
+        FilteredResult<DocumentAgentResultPayload> filtered = projector(properties).filter(payload, scope());
+
+        AgentDocumentResult result = filtered.payload().getDocumentResult();
+        assertThat(result.getGenerationStatus()).isEqualTo(DocumentGenerationStatus.FALLBACK);
+        assertThat(result.getSummaryText()).contains("[c-1]");
+        assertThat(result.getSummaryText()).doesNotContain("[c-2]");
+        assertThat(result.getCandidateSummaryText()).isNull();
+    }
+
+    @Test
     void fallsBackWhenGeneratedCandidateReferencesMissingCitation() {
         DocumentAgentResultPayload payload = payload();
         payload.getDocumentResult().setGenerationStatus(DocumentGenerationStatus.SUCCEEDED);
@@ -120,6 +173,40 @@ class DocumentResultSecurityProjectorTest {
         assertThat(result.getAnswerText()).contains("[c-1] 员工年假需要直属主管审批。");
         assertThat(result.getAnswerText()).doesNotContain("[c-2]");
         assertThat(result.getCandidateAnswerText()).isNull();
+    }
+
+    @Test
+    void candidateFieldsAreNotSerializedAsPublicResult() throws Exception {
+        AgentDocumentResult result = new AgentDocumentResult();
+        result.setAnswerText("可见回答。[c-1]");
+        result.setCandidateAnswerText("候选回答不应外露。");
+        result.setCandidateSummaryText("候选摘要不应外露。");
+        result.setCandidateSummaryBullets(List.of("候选要点不应外露。"));
+
+        String json = new ObjectMapper().writeValueAsString(result);
+
+        assertThat(json).contains("answerText");
+        assertThat(json).doesNotContain("candidateAnswerText", "candidateSummaryText", "candidateSummaryBullets");
+    }
+
+    @Test
+    void rejectsDomainOutsideExecutionScope() {
+        DocumentAgentResultPayload payload = payload();
+        payload.getDocumentParameters().setDomain("knowledge_base");
+
+        assertThatThrownBy(() -> projector().filter(payload, scope()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("outside execution scope");
+    }
+
+    @Test
+    void rejectsBlocklistedDomainBeforeProjectingResult() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getBlocklist().setDomains(List.of("policy_document"));
+
+        assertThatThrownBy(() -> projector(properties).filter(payload(), scope()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("document access revoked");
     }
 
     private DocumentResultSecurityProjector projector() {
@@ -155,6 +242,10 @@ class DocumentResultSecurityProjectorTest {
     }
 
     private ExecutionScope scope() {
+        return scope(Set.of("title", "sourceType", "section", "page", "sourceUri", "snippet"));
+    }
+
+    private ExecutionScope scope(Set<String> allowedFields) {
         return new ExecutionScope(
                 "user:u-1",
                 new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
@@ -164,7 +255,7 @@ class DocumentResultSecurityProjectorTest {
                 "policy-v1",
                 Set.of("document.answer"),
                 Set.of("policy_document"),
-                Map.of("policy_document", Set.of("sourceType")),
+                Map.of("policy_document", allowedFields),
                 Map.of(),
                 Duration.ofSeconds(30),
                 0,

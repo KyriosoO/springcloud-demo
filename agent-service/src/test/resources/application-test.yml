@@ -107,4 +107,4 @@ agent:
 common:
   security:
     service-token:
-      scopes: [agent.permission.resolve]
+      scopes: [agent.permission.resolve, agent.document.provider.invoke]

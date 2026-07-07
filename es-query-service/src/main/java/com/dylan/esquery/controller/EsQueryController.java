@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -26,6 +27,7 @@ import com.dylan.esquery.api.model.RebuildTask;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.dylan.esquery.service.EsDocumentService;
 import com.dylan.esquery.service.EsIndexAliasService;
+import com.dylan.esquery.service.EsManagementAccessGuard;
 import com.dylan.esquery.service.IndexRebuildService;
 import com.dylan.esquery.service.RebuildTaskRepository;
 
@@ -39,17 +41,20 @@ public class EsQueryController {
 	private final IndexRebuildService indexRebuildService;
 	private final RebuildTaskRepository taskRepository;
 	private final EsIndexAliasService aliasService;
+	private final EsManagementAccessGuard managementAccessGuard;
 
 	/**
 	 * 创建 EsQueryController 实例并注入所需依赖。
 	 */
 	public EsQueryController(EsDocumentService esDocumentService, IndexRebuildService indexRebuildService,
 			RebuildTaskRepository taskRepository,
-			EsIndexAliasService aliasService) {
+			EsIndexAliasService aliasService,
+			EsManagementAccessGuard managementAccessGuard) {
 		this.esDocumentService = esDocumentService;
 		this.indexRebuildService = indexRebuildService;
 		this.taskRepository = taskRepository;
 		this.aliasService = aliasService;
+		this.managementAccessGuard = managementAccessGuard;
 	}
 
 	/**
@@ -92,7 +97,11 @@ public class EsQueryController {
 	 */
 	@PostMapping("/indexes/{index}/rebuild/full")
 	@ResponseStatus(HttpStatus.ACCEPTED)
-	public RebuildTask fullRebuild(@PathVariable String index, @RequestBody RebuildRequest request) {
+	public RebuildTask fullRebuild(
+			@PathVariable String index,
+			@RequestBody RebuildRequest request,
+			@RequestHeader(value = EsManagementAccessGuard.TOKEN_HEADER, required = false) String serviceToken) {
+		managementAccessGuard.requireServiceToken(serviceToken);
 		return indexRebuildService.submitFullRebuild(index, request);
 	}
 
@@ -101,7 +110,11 @@ public class EsQueryController {
 	 */
 	@PostMapping("/indexes/{index}/rebuild/incremental")
 	@ResponseStatus(HttpStatus.ACCEPTED)
-	public RebuildTask incrementalRebuild(@PathVariable String index, @RequestBody RebuildRequest request) {
+	public RebuildTask incrementalRebuild(
+			@PathVariable String index,
+			@RequestBody RebuildRequest request,
+			@RequestHeader(value = EsManagementAccessGuard.TOKEN_HEADER, required = false) String serviceToken) {
+		managementAccessGuard.requireServiceToken(serviceToken);
 		return indexRebuildService.submitIncrementalRebuild(index, request);
 	}
 
@@ -109,7 +122,10 @@ public class EsQueryController {
 	 * 处理 task 相关逻辑。
 	 */
 	@GetMapping("/rebuild/tasks/{taskId}")
-	public RebuildTask task(@PathVariable String taskId) {
+	public RebuildTask task(
+			@PathVariable String taskId,
+			@RequestHeader(value = EsManagementAccessGuard.TOKEN_HEADER, required = false) String serviceToken) {
+		managementAccessGuard.requireServiceToken(serviceToken);
 		return taskRepository.findById(taskId);
 	}
 
@@ -117,7 +133,9 @@ public class EsQueryController {
 	 * 处理 tasks 相关逻辑。
 	 */
 	@GetMapping("/rebuild/tasks")
-	public Collection<RebuildTask> tasks() {
+	public Collection<RebuildTask> tasks(
+			@RequestHeader(value = EsManagementAccessGuard.TOKEN_HEADER, required = false) String serviceToken) {
+		managementAccessGuard.requireServiceToken(serviceToken);
 		return taskRepository.findAll();
 	}
 
@@ -146,15 +164,23 @@ public class EsQueryController {
 
 	@PostMapping(value = "/indexes/{index}/aliases/read/switch", consumes = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void switchReadAlias(@PathVariable String index, @RequestBody AliasSwitchRequest request)
+	public void switchReadAlias(
+			@PathVariable String index,
+			@RequestBody AliasSwitchRequest request,
+			@RequestHeader(value = EsManagementAccessGuard.TOKEN_HEADER, required = false) String serviceToken)
 			throws IOException {
+		managementAccessGuard.requireServiceToken(serviceToken);
 		aliasService.switchReadAlias(index, request);
 	}
 
 	@PostMapping(value = "/indexes/{index}/aliases/read/rollback", consumes = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void rollbackReadAlias(@PathVariable String index, @RequestBody AliasSwitchRequest request)
+	public void rollbackReadAlias(
+			@PathVariable String index,
+			@RequestBody AliasSwitchRequest request,
+			@RequestHeader(value = EsManagementAccessGuard.TOKEN_HEADER, required = false) String serviceToken)
 			throws IOException {
+		managementAccessGuard.requireServiceToken(serviceToken);
 		aliasService.rollbackReadAlias(index, request);
 	}
 

@@ -22,4 +22,19 @@ class SecretSanitizingConfigurationTest {
 
 		assertThat(function.apply(data).getValue()).isEqualTo(SanitizableData.SANITIZED_VALUE);
 	}
+
+	@Test
+	void masksProviderTokenAndKeyLikeConfigNames() {
+		SanitizingFunction function = new SecretSanitizingConfiguration().secretSanitizingFunction();
+		MapPropertySource source = new MapPropertySource("test", Map.of());
+
+		assertThat(function.apply(new SanitizableData(
+				source,
+				"agent.document.provider.token",
+				"token-value")).getValue()).isEqualTo(SanitizableData.SANITIZED_VALUE);
+		assertThat(function.apply(new SanitizableData(
+				source,
+				"agent.document.provider.api-key",
+				"key-value")).getValue()).isEqualTo(SanitizableData.SANITIZED_VALUE);
+	}
 }

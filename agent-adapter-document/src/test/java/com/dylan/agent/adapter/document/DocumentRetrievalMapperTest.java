@@ -26,6 +26,7 @@ class DocumentRetrievalMapperTest {
         JsonNode root = objectMapper.readTree(mapper.toSearchDsl(request(
                 new ValidatedFilter("sourceType", AgentOperator.CONTAINS_ANY, null, List.of("policy", "guide")))));
 
+        assertThat(root.path("_source").path("excludes").get(0).asText()).isEqualTo("embedding");
         JsonNode filter = root.path("query").path("bool").path("filter").get(0);
         assertThat(filter.path("bool").path("minimum_should_match").asInt()).isEqualTo(1);
         assertThat(filter.path("bool").path("should").get(0).path("match").path("sourceType").asText())
@@ -72,10 +73,12 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getKeywordK()).isEqualTo(10);
         assertThat(hybrid.getVectorK()).isEqualTo(12);
         assertThat(hybrid.getKeywordDsl()).containsKey("query");
+        assertThat(hybrid.getKeywordDsl().toString()).contains("embedding");
         assertThat(hybrid.getKeywordDsl().toString()).doesNotContain("tenantId", "sourceType");
         assertThat(hybrid.getFilters()).isNotNull();
         assertThat(hybrid.getFilters().toString()).contains("sourceType", "policy");
         assertThat(hybrid.getFilters().toString()).contains("tenantId", "tenant-1");
+        assertThat(hybrid.getSourceExcludes()).containsExactly("embedding");
     }
 
     @Test

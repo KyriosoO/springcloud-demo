@@ -12,6 +12,7 @@ import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.dylan.agent.api.plan.DocumentRetrievalOptions;
 import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import com.dylan.agent.api.plan.DocumentSummaryScope;
+import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.capability.query.QueryPlanValidator;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
@@ -23,6 +24,8 @@ import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 
 public class DocumentPlanValidator
@@ -78,6 +81,7 @@ public class DocumentPlanValidator
             throw new IllegalArgumentException("document page must be positive");
         }
         validateSummaryScope(operation, document.getSummaryScope());
+        List<ValidatedFilter> effectiveFilters = mergeSummaryScopeFilters(operation, document.getSummaryScope(), filters);
         if (operation != DocumentPlanOperation.SEARCH
                 && Boolean.FALSE.equals(document.getCitationRequired())) {
             throw new IllegalArgumentException("document citations are required for ANSWER/SUMMARIZE");
@@ -93,7 +97,7 @@ public class DocumentPlanValidator
                 operation,
                 domain,
                 queryText,
-                filters,
+                effectiveFilters,
                 sorts,
                 topK,
                 page,
@@ -145,14 +149,49 @@ public class DocumentPlanValidator
         if (summaryScope == null) {
             throw new IllegalArgumentException("document summaryScope is required for SUMMARIZE");
         }
+        List<String> documentIds = normalizedSummaryDocumentIds(summaryScope);
+        if (summaryScope.getDocumentIds() != null && documentIds.isEmpty()) {
+            throw new IllegalArgumentException("document summaryScope documentIds must not be blank");
+        }
         if (summaryScope.getMaxSummaryChars() != null
                 && summaryScope.getMaxSummaryChars() > properties.getDocument().getMaxSummaryChars()) {
             throw new IllegalArgumentException("document summaryScope maxSummaryChars out of bounds");
         }
-        if (summaryScope.getDocumentIds() != null
-                && summaryScope.getDocumentIds().size() > properties.getDocument().getMaxEvidenceCount()) {
+        if (documentIds.size() > properties.getDocument().getMaxEvidenceCount()) {
             throw new IllegalArgumentException("document summaryScope documentIds out of bounds");
         }
+    }
+
+    private List<ValidatedFilter> mergeSummaryScopeFilters(
+            DocumentPlanOperation operation,
+            DocumentSummaryScope summaryScope,
+            List<ValidatedFilter> filters) {
+        if (operation != DocumentPlanOperation.SUMMARIZE || summaryScope == null) {
+            return filters;
+        }
+        List<String> documentIds = normalizedSummaryDocumentIds(summaryScope);
+        if (documentIds.isEmpty()) {
+            return filters;
+        }
+        if (filters.stream().anyMatch(filter -> "documentId".equals(filter.getField()))) {
+            throw new IllegalArgumentException("document summaryScope documentIds cannot be combined with documentId filters");
+        }
+        List<ValidatedFilter> effective = new ArrayList<>(filters);
+        effective.add(new ValidatedFilter("documentId", AgentOperator.IN, null, documentIds));
+        return List.copyOf(effective);
+    }
+
+    private static List<String> normalizedSummaryDocumentIds(DocumentSummaryScope summaryScope) {
+        if (summaryScope == null || summaryScope.getDocumentIds() == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        summaryScope.getDocumentIds().stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .forEach(ids::add);
+        return List.copyOf(ids);
     }
 
     private void validateCapability(DocumentPlanOperation operation, String capabilityId) {

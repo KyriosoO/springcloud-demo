@@ -14,6 +14,8 @@ public class DocumentIndexDefinitionValidator {
 			"chunkIndex", "charStart", "charEnd", "title", "content", "snippet",
 			"aclRef", "aclVersion", "visibility", "departmentIds", "roleIds", "userIds",
 			"attributeKeys", "status", "indexVersion", "contentHash");
+	private static final List<String> FILTER_FIELDS = List.of(
+			"tenantId", "corpusId", "documentId", "chunkId", "aclRef", "aclVersion", "status");
 
 	public void validate(String index, Map<String, Object> indexDefinition) {
 		if (indexDefinition == null || indexDefinition.isEmpty()) {
@@ -25,12 +27,39 @@ public class DocumentIndexDefinitionValidator {
 				throw new IllegalArgumentException("document index mapping missing required field: " + field);
 			}
 		}
-		Object embedding = properties.get("embedding");
-		if (embedding instanceof Map<?, ?> embeddingMap && embeddingMap.containsKey("dims")) {
-			Object dims = embeddingMap.get("dims");
-			if (!(dims instanceof Number number) || number.intValue() <= 0) {
-				throw new IllegalArgumentException("document embedding dims must be positive");
+		for (String field : FILTER_FIELDS) {
+			if (!isFilterableKeyword(properties.get(field))) {
+				throw new IllegalArgumentException("document index mapping field must be keyword-filterable: " + field);
 			}
+		}
+		Object embedding = properties.get("embedding");
+		if (embedding != null) {
+			validateEmbedding(embedding);
+		}
+	}
+
+	private boolean isFilterableKeyword(Object mapping) {
+		if (!(mapping instanceof Map<?, ?> mappingMap)) {
+			return false;
+		}
+		Object type = mappingMap.get("type");
+		if ("keyword".equals(type)) {
+			return true;
+		}
+		Object fields = mappingMap.get("fields");
+		return fields instanceof Map<?, ?> fieldsMap && fieldsMap.containsKey("keyword");
+	}
+
+	private void validateEmbedding(Object embedding) {
+		if (!(embedding instanceof Map<?, ?> embeddingMap)) {
+			throw new IllegalArgumentException("document embedding mapping must be an object");
+		}
+		if (!"dense_vector".equals(embeddingMap.get("type"))) {
+			throw new IllegalArgumentException("document embedding type must be dense_vector");
+		}
+		Object dims = embeddingMap.get("dims");
+		if (!(dims instanceof Number number) || number.intValue() <= 0) {
+			throw new IllegalArgumentException("document embedding dims must be positive");
 		}
 	}
 

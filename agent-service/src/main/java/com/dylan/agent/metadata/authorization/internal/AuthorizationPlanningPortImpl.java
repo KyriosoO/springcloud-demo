@@ -1,6 +1,7 @@
 package com.dylan.agent.metadata.authorization.internal;
 
 import com.dylan.agent.api.enums.AgentOperator;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
 import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
@@ -133,8 +134,19 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 evidence.domainMetadataEvidence(),
                 new ExecutionBudget(
                         evidence.planningScope().maxRepairAttempts(),
-                        evidence.planningScope().maxResultRows(),
+                        executionMaxResultRows(selection, evidence.planningScope()),
                         evidence.planningScope().maxResultBytes()));
+    }
+
+    private static int executionMaxResultRows(
+            CapabilityScopeSelection selection,
+            com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope scope) {
+        if (selection.registration().registration().definition().adapterRole()
+                .filter(AdapterRole.DOCUMENT_RETRIEVABLE::equals)
+                .isPresent()) {
+            return Math.min(scope.maxPageSize(), scope.maxResultRows());
+        }
+        return scope.maxResultRows();
     }
 
     private PlanningEffectiveScope intersect(
