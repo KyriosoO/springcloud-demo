@@ -482,6 +482,19 @@ function renderDocumentResult(result) {
     container.appendChild(summary);
   }
 
+  const summaryBullets = Array.isArray(result.summaryBullets)
+    ? result.summaryBullets.filter(item => item && item.trim())
+    : [];
+  if (summaryBullets.length > 0) {
+    const list = document.createElement("ul");
+    summaryBullets.forEach(item => {
+      const bullet = document.createElement("li");
+      bullet.textContent = item;
+      list.appendChild(bullet);
+    });
+    container.appendChild(list);
+  }
+
   const citations = Array.isArray(result.citations) ? result.citations : [];
   citations.forEach(citation => {
     const item = document.createElement("div");

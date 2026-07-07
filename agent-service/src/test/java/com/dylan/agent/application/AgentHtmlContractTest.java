@@ -31,5 +31,6 @@ class AgentHtmlContractTest {
         assertThat(html).contains("citationVerification");
         assertThat(html).contains("invalidCitationIds");
         assertThat(html).contains("citation.citationId");
+        assertThat(html).contains("summaryBullets");
     }
 }
