@@ -14,10 +14,6 @@ agent:
   document-adapter:
     index-by-domain:
       company_policy: agent-doc-company-policy
+      tax_policy: agent-doc-tax-policy
       knowledge_base: agent-doc-knowledge-base
       literature: agent-doc-literature
-    default-title-field: title
-    default-snippet-field: content
-    source-type-field: sourceType
-    section-field: section
-    source-uri-field: sourceUri

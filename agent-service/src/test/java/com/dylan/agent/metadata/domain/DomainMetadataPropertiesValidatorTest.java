@@ -59,7 +59,7 @@ class DomainMetadataPropertiesValidatorTest {
         String yaml = Files.readString(Path.of("src/main/resources/application.yml"), StandardCharsets.UTF_8);
 
         assertThat(yaml).doesNotContain("type: DATE", "type: INTEGER", "contentSnippet");
-        assertThat(yaml).contains("company_policy:", "knowledge_base:", "literature:", "snippet:");
+        assertThat(yaml).contains("company_policy:", "tax_policy:", "knowledge_base:", "literature:", "snippet:");
     }
 
     private GenericApplicationContext context() {

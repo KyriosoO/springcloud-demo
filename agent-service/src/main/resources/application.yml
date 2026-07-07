@@ -131,6 +131,7 @@ agent:
   document-adapter:
     index-by-domain:
       company_policy: agent-doc-company-policy
+      tax_policy: agent-doc-tax-policy
       knowledge_base: agent-doc-knowledge-base
       literature: agent-doc-literature
   domain-metadata:
@@ -300,6 +301,62 @@ agent:
               sourceUri: [EQ, CONTAINS]
               snippet: [CONTAINS, CONTAINS_ANY]
             max-page-size: 20
+      tax_policy:
+        aliases: [税务政策, 税收政策, 税务法规, 税法, tax_policy]
+        description: Tax policy and regulation corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 政策标题, 法规标题]
+            description: Tax policy title.
+            type: STRING
+          sourceType:
+            aliases: [来源类型, 文档类型, 效力层级]
+            description: Tax policy source type.
+            type: STRING
+          effectiveDate:
+            aliases: [发布日期, 成文日期, 生效日期]
+            description: Tax policy publication or effective date.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          tags:
+            aliases: [标签, 税种, 主题]
+            description: Tax policy tags.
+            type: STRING
+          section:
+            aliases: [分类, 税收分类, 条款]
+            description: Tax policy section or tax category.
+            type: STRING
+          page:
+            aliases: [页码, 分片序号]
+            description: Source chunk page number.
+            type: DECIMAL
+            value-format: plain decimal only, precision 10, scale 0, no exponent
+            precision: 10
+            scale: 0
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+            sort-fields: [effectiveDate, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              sourceType: [EQ, IN]
+              effectiveDate: [GT, LT, EQ]
+              tags: [EQ, IN, CONTAINS_ANY]
+              section: [EQ, CONTAINS]
+              page: [EQ, GT, LT]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
       knowledge_base:
         aliases: [知识库, 知识文档, knowledge_base]
         description: Knowledge base document corpus exposed to Agent planning.
@@ -441,6 +498,13 @@ agent:
       - registration-id: company-policy-document
         role: DOCUMENT_RETRIEVABLE
         domain: company_policy
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: tax-policy-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: tax_policy
         port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
         port-bean-name: documentAgentAdapter
         catalog-version: catalog-2026-07-02
