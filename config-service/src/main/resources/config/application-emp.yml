@@ -12,7 +12,7 @@ employee:
     es-sync-group: employee-es-sync-group
   embedding:
     provider: bge
-    base-url: http://127.0.0.1:8908
-    api-key:
-    model: bge-m3
-    dims: 1024
+    base-url: ${ai.provider.embedding.bge.base-url}
+    api-key: ${ai.provider.embedding.bge.api-key}
+    model: ${ai.provider.embedding.bge.model}
+    dims: ${ai.provider.embedding.bge.dimension}

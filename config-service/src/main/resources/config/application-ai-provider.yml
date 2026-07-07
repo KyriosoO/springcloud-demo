@@ -1,0 +1,8 @@
+ai:
+  provider:
+    embedding:
+      bge:
+        base-url: http://127.0.0.1:8908
+        api-key:
+        model: bge-m3
+        dimension: 1024
