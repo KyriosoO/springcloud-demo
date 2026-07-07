@@ -28,7 +28,7 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
     public DocumentAclScope resolve(DocumentAclScopeRequest request) {
         Objects.requireNonNull(request, "document ACL scope request must not be null");
         Map<String, Object> body = requestBody(request);
-        String requestId = (String) body.get("requestId");
+        String requestId = (String) body.get("invocationId");
         String deadline = (String) body.get("deadline");
         @SuppressWarnings("unchecked")
         Map<String, Object> response = restClient.post()
@@ -66,7 +66,7 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
 
     private static Map<String, Object> requestBody(DocumentAclScopeRequest request) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("requestId", requireNonBlank(request.invocationId(), "requestId"));
+        body.put("invocationId", requireNonBlank(request.invocationId(), "invocationId"));
         body.put("subjectRef", requireNonBlank(request.subjectRef(), "subjectRef"));
         body.put("domain", requireNonBlank(request.domain(), "domain"));
         body.put("permissionEvidenceId", requireNonBlank(request.permissionEvidenceId(), "permissionEvidenceId"));

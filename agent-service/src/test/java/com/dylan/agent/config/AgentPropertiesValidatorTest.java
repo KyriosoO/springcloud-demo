@@ -86,4 +86,27 @@ class AgentPropertiesValidatorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("agent.document.generation.model");
     }
+
+    @Test
+    @DisplayName("answer candidate size 超过 max-size 时启动失败")
+    void shouldFailWhenAnswerCandidateSizeAboveMax() {
+        properties.getDocument().setAnswerCandidateSize(21);
+        properties.getDocument().setMaxSize(20);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("answer-candidate-size");
+    }
+
+    @Test
+    @DisplayName("evidence selection 分组配置非法时启动失败")
+    void shouldFailWhenEvidenceSelectionGroupsInvalid() {
+        properties.getDocument().getEvidenceSelection().setScoreGroups(0);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("evidence-selection");
+    }
 }

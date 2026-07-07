@@ -64,6 +64,8 @@ class DocumentAclScopePortTest {
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer svc-token"))
                 .andExpect(header("X-Agent-Request-Id", "inv-1"))
                 .andExpect(header("X-Agent-Deadline", "2026-07-07T12:05:00Z"))
+                .andExpect(jsonPath("$.invocationId").value("inv-1"))
+                .andExpect(jsonPath("$.requestId").doesNotExist())
                 .andExpect(jsonPath("$.subjectRef").value("user:u-1"))
                 .andExpect(jsonPath("$.domain").value("company_policy"))
                 .andRespond(withSuccess("""

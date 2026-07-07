@@ -1,6 +1,19 @@
 agent:
   document:
     enabled: true
+    default-retrieval-mode: HYBRID
+    retrieval-mode-by-domain:
+      company_policy: HYBRID
+      tax_policy: HYBRID
+      knowledge_base: HYBRID
+      literature: HYBRID
+    answer-candidate-size: 20
+    summarize-candidate-size: 20
+    max-evidence-count: 8
+    evidence-selection:
+      strategy: SCORE_GROUP_TOP
+      score-groups: 3
+      min-top-group-size: 1
     acl:
       enabled: true
       scope-url: http://localhost:9220

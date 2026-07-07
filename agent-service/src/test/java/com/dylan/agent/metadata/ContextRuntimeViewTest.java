@@ -11,10 +11,12 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.dylan.agent.api.context.AggregateCapabilityContextPayload;
+import com.dylan.agent.api.context.DocumentCapabilityContextPayload;
 import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.runtime.common.RuntimeAggregateContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
+import com.dylan.agent.api.contract.runtime.common.RuntimeDocumentContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView;
 import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.plan.AgentSortSpec;
@@ -127,6 +129,30 @@ class ContextRuntimeViewTest {
         });
     }
 
+    @Test
+    void toRuntimeViewProjectsDocumentContext() {
+        ContextBoundary boundary = new ContextBoundary(
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
+
+        var view = (RuntimeDocumentContextView) boundary.toRuntimeView(
+                documentSnapshot(),
+                new ContextReadDeclaration(
+                        RuntimeContextType.DOCUMENT,
+                        AgentExecutionContracts.DOCUMENT_CONTEXT,
+                        DocumentCapabilityContextPayload.class,
+                        false,
+                        Set.of("operation", "domain", "queryText", "citationIds", "topK")),
+                documentEvidence());
+
+        assertThat(view.getOperation()).isEqualTo("ANSWER");
+        assertThat(view.getDomain()).isEqualTo("tax_policy");
+        assertThat(view.getQueryText()).isEqualTo("当前增值税率有哪些？");
+        assertThat(view.getCitationIds()).containsExactly("chunk-1");
+        assertThat(view.getTopK()).isEqualTo(5);
+        assertThat(view.getFilters()).isEmpty();
+    }
+
     static ContextSnapshot snapshot() {
         return new ContextSnapshot(
                 "ctx-1", "corr",
@@ -202,6 +228,24 @@ class ContextRuntimeViewTest {
                         List.of(), List.of(metric), List.of("transType"), List.of(order), 20));
     }
 
+    static ContextSnapshot documentSnapshot() {
+        return new ContextSnapshot(
+                "ctx-document", "corr",
+                new ContextRecordKey(new ContextOwnerRef("conversation", "conv-1"),
+                        new ConversationScope("conv-1"),
+                        RuntimeContextType.DOCUMENT),
+                "document.answer", "inv-document", "tax_policy",
+                AgentExecutionContracts.DOCUMENT_CONTEXT,
+                AgentExecutionContracts.DOCUMENT_CONTEXT,
+                1,
+                MetadataTestSupport.NOW.plusSeconds(60),
+                "bundle-v1", "policy-v1", "perm", null,
+                ExpectedContextVersion.version(1),
+                new DocumentCapabilityContextPayload(
+                        "ANSWER", "tax_policy", "当前增值税率有哪些？",
+                        List.of(), List.of("chunk-1"), 5));
+    }
+
     static ContextReadDeclaration declaration() {
         return new ContextReadDeclaration(
                 RuntimeContextType.QUERY,
@@ -237,6 +281,23 @@ class ContextRuntimeViewTest {
                 new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
                 new PlanningEffectiveScope(Set.of("aggregate.compute"), Set.of("transaction"), Map.of(),
                         Set.of(RuntimeContextType.AGGREGATE), Set.of(RuntimeContextType.AGGREGATE),
+                        com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
+                        com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
+                        Duration.ofSeconds(30), 1, 100, 100, 10_000),
+                new DomainMetadataEvidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
+                MetadataTestSupport.NOW,
+                MetadataTestSupport.NOW.plusSeconds(60));
+    }
+
+    static PlanningAuthorizationEvidence documentEvidence() {
+        var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
+        var profile = bundle.profileVersionIndex().values().iterator().next();
+        return new PlanningAuthorizationEvidence(
+                "corr", "user:u-1", profile.key(), bundle.bundleVersion(), bundle.bundleDigest(),
+                "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
+                new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
+                new PlanningEffectiveScope(Set.of("document.answer"), Set.of("tax_policy"), Map.of(),
+                        Set.of(RuntimeContextType.DOCUMENT), Set.of(RuntimeContextType.DOCUMENT),
                         com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
                         com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
                         Duration.ofSeconds(30), 1, 100, 100, 10_000),

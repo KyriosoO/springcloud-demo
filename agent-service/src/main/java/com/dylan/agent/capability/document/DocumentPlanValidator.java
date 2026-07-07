@@ -69,7 +69,7 @@ public class DocumentPlanValidator
 
         DocumentRetrievalOptions options = document.getRetrievalOptions();
         int topK = bounded(
-                options == null || options.getTopK() == null ? properties.getDocument().getDefaultSize() : options.getTopK(),
+                options == null || options.getTopK() == null ? defaultCandidateSize(operation) : options.getTopK(),
                 1,
                 maxDocumentSize(context));
         int page = options == null || options.getPage() == null ? 1 : options.getPage();
@@ -90,7 +90,7 @@ public class DocumentPlanValidator
         boolean citationRequired = operation != DocumentPlanOperation.SEARCH
                 || Boolean.TRUE.equals(document.getCitationRequired());
         DocumentRetrievalMode retrievalMode = options == null || options.getRetrievalMode() == null
-                ? DocumentRetrievalMode.KEYWORD
+                ? defaultRetrievalMode(domain)
                 : options.getRetrievalMode();
         DocumentHybridOptions hybridOptions = hybridOptions(options);
         DocumentGenerationOptions generationOptions = validateGenerationOptions(document.getGenerationOptions());
@@ -125,6 +125,23 @@ public class DocumentPlanValidator
                 1,
                 10_000);
         return new DocumentHybridOptions(keywordK, vectorK, rrfK, numCandidates);
+    }
+
+    private int defaultCandidateSize(DocumentPlanOperation operation) {
+        return switch (operation) {
+            case ANSWER -> properties.getDocument().getAnswerCandidateSize();
+            case SUMMARIZE -> properties.getDocument().getSummarizeCandidateSize();
+            case SEARCH -> properties.getDocument().getDefaultSize();
+        };
+    }
+
+    private DocumentRetrievalMode defaultRetrievalMode(String domain) {
+        DocumentRetrievalMode mode = properties.getDocument().getRetrievalModeByDomain().get(domain);
+        if (mode != null) {
+            return mode;
+        }
+        DocumentRetrievalMode defaultMode = properties.getDocument().getDefaultRetrievalMode();
+        return defaultMode == null ? DocumentRetrievalMode.KEYWORD : defaultMode;
     }
 
     private DocumentGenerationOptions validateGenerationOptions(DocumentGenerationOptions options) {
@@ -235,8 +252,7 @@ public class DocumentPlanValidator
     }
 
     private int maxDocumentSize(ExecutionValidationContext context) {
-        int max = properties.getDocument().getMaxEvidenceCount();
-        max = Math.min(max, properties.getDocument().getMaxSize());
+        int max = properties.getDocument().getMaxSize();
         max = Math.min(max, context.domainProjection().maxPageSize());
         max = Math.min(max, context.executionScope().maxResultRows());
         return max;

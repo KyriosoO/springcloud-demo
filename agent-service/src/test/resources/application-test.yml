@@ -79,11 +79,23 @@ agent:
   document:
     enabled: false
     default-size: 5
+    answer-candidate-size: 20
+    summarize-candidate-size: 20
     max-size: 20
     max-evidence-count: 8
     max-query-text-length: 500
     max-snippet-chars: 500
     max-summary-chars: 2000
+    default-retrieval-mode: HYBRID
+    retrieval-mode-by-domain:
+      company_policy: HYBRID
+      tax_policy: HYBRID
+      knowledge_base: HYBRID
+      literature: HYBRID
+    evidence-selection:
+      strategy: SCORE_GROUP_TOP
+      score-groups: 3
+      min-top-group-size: 1
     acl:
       enabled: true
       timeout: 2s

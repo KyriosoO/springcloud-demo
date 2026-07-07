@@ -12,14 +12,18 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
+import com.dylan.agent.api.context.DocumentCapabilityContextPayload;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
+import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
+import com.dylan.agent.api.response.DocumentAgentResultPayload;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.invocation.model.ChatInvocationOrigin;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
@@ -111,6 +115,25 @@ class ContextBoundaryTest {
     }
 
     @Test
+    void approveAcceptsDocumentContextWrite() {
+        ContextBoundary boundary = new ContextBoundary(
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        var approved = boundary.approve(
+                List.of(documentCandidate()),
+                new ContextApprovalRequest(handle(), documentRegistration(), documentExecutionScope(), List.of(),
+                        "tax_policy", MetadataTestSupport.NOW));
+
+        assertThat(approved).singleElement().satisfies(write -> {
+            assertThat(write.recordKey().contextType()).isEqualTo(RuntimeContextType.DOCUMENT);
+            assertThat(write.sourceCapabilityId()).isEqualTo("document.answer");
+            assertThat(write.sourceDomain()).contains("tax_policy");
+            assertThat(write.candidate().payload()).isInstanceOf(DocumentCapabilityContextPayload.class);
+        });
+    }
+
+    @Test
     void revalidateRejectsCurrentRecordVersionDrift() {
         ContextSnapshot snapshot = snapshot(3, MetadataTestSupport.NOW.plusSeconds(60));
         RecordingRepository repository = new RecordingRepository(entity(4, true, MetadataTestSupport.NOW.plusSeconds(60)));
@@ -187,6 +210,17 @@ class ContextBoundaryTest {
                 java.time.Duration.ofSeconds(30), 1, 100, 10_000);
     }
 
+    private ExecutionScope documentExecutionScope() {
+        return new ExecutionScope("user:u-1",
+                new com.dylan.agent.metadata.domain.port.DomainMetadataEvidence(
+                        "catalog", "adapter", "availability", MetadataTestSupport.NOW),
+                MetadataTestSupport.NOW, "perm", "perm-v1", "policy-v1",
+                java.util.Set.of("document.answer"), java.util.Set.of("tax_policy"),
+                java.util.Map.of(), java.util.Map.of(),
+                java.util.Set.of(RuntimeContextType.DOCUMENT), java.util.Set.of(RuntimeContextType.DOCUMENT),
+                java.time.Duration.ofSeconds(30), 1, 100, 10_000);
+    }
+
     private com.dylan.agent.kernel.registration.ResolvedRegistration nullRegistration() {
         CapabilityRegistration<QueryAgentPlan, DummyValidatedPlan, QueryAgentResultPayload> registration =
                 new CapabilityRegistration<>(
@@ -226,10 +260,60 @@ class ContextBoundaryTest {
         return registry.resolve("query.search");
     }
 
+    private ResolvedRegistration documentRegistration() {
+        CapabilityRegistration<DocumentAgentPlan, DummyDocumentValidatedPlan, DocumentAgentResultPayload> registration =
+                new CapabilityRegistration<>(
+                        CapabilityDefinition.builder()
+                                .capabilityId("document.answer")
+                                .planKind(AgentPlanKind.DOCUMENT)
+                                .routingDescriptor(new CapabilityRoutingDescriptor("document", List.of("document"), List.of()))
+                                .domainMode(AgentDomainMode.REQUIRED)
+                                .adapterRole(AdapterRole.DOCUMENT_RETRIEVABLE)
+                                .riskLevel(AgentCapabilityRiskLevel.READ_ONLY)
+                                .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
+                                .inputContract(AgentExecutionContracts.DOCUMENT_PLAN)
+                                .outputContract(AgentExecutionContracts.DOCUMENT_RESULT)
+                                .contextAccess(new ContextAccessDeclaration(
+                                        List.of(new ContextReadDeclaration(
+                                                RuntimeContextType.DOCUMENT,
+                                                AgentExecutionContracts.DOCUMENT_CONTEXT,
+                                                DocumentCapabilityContextPayload.class,
+                                                false,
+                                                java.util.Set.of("operation", "domain", "queryText", "filters",
+                                                        "citationIds", "topK"))),
+                                        List.of(new ContextWriteDeclaration(
+                                                RuntimeContextType.DOCUMENT,
+                                                AgentExecutionContracts.DOCUMENT_CONTEXT,
+                                                DocumentCapabilityContextPayload.class,
+                                                Duration.ofDays(1),
+                                                java.util.Set.of("operation", "domain", "queryText", "filters",
+                                                        "citationIds", "topK")))))
+                                .build(),
+                        DocumentAgentPlan.class,
+                        (raw, ctx) -> new DummyDocumentValidatedPlan(),
+                        DummyDocumentValidatedPlan.class,
+                        (plan, ctx) -> HandlerResult.of(new DocumentAgentResultPayload()),
+                        DocumentAgentResultPayload.class);
+        CapabilityRegistry registry = new CapabilityRegistry(
+                List.of(registration),
+                new CapabilityRegistrationValidator(),
+                ContractRegistry.from(List.of(registration)),
+                java.util.Set.of(AdapterRole.DOCUMENT_RETRIEVABLE));
+        return registry.resolve("document.answer");
+    }
+
     private ContextWriteCandidate queryCandidate() {
         return new ContextWriteCandidate(RuntimeContextType.QUERY,
                 AgentExecutionContracts.QUERY_CONTEXT,
                 new com.dylan.agent.api.context.QueryCapabilityContextPayload(List.of(), List.of("name"), 1, 10));
+    }
+
+    private ContextWriteCandidate documentCandidate() {
+        return new ContextWriteCandidate(RuntimeContextType.DOCUMENT,
+                AgentExecutionContracts.DOCUMENT_CONTEXT,
+                new DocumentCapabilityContextPayload(
+                        "ANSWER", "tax_policy", "当前增值税率有哪些？",
+                        List.of(), List.of("chunk-1"), 5));
     }
 
     private ContextSnapshot snapshot(long recordVersion, Instant expiresAt) {
@@ -348,5 +432,16 @@ class ContextBoundaryTest {
 
         @Override
         public Optional<String> domain() { return Optional.empty(); }
+    }
+
+    private record DummyDocumentValidatedPlan() implements ValidatedPlan {
+        @Override
+        public String capabilityId() { return "document.answer"; }
+
+        @Override
+        public AgentPlanKind planKind() { return AgentPlanKind.DOCUMENT; }
+
+        @Override
+        public Optional<String> domain() { return Optional.of("tax_policy"); }
     }
 }

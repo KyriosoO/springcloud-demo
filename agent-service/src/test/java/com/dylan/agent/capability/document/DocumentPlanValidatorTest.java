@@ -52,7 +52,8 @@ class DocumentPlanValidatorTest {
         assertThat(validated.request().getOperation()).isEqualTo(DocumentPlanOperation.ANSWER);
         assertThat(validated.request().getQueryText()).isEqualTo("查询休假政策");
         assertThat(validated.request().isCitationRequired()).isTrue();
-        assertThat(validated.request().getTopK()).isEqualTo(5);
+        assertThat(validated.request().getTopK()).isEqualTo(20);
+        assertThat(validated.request().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
     }
 
     @Test
@@ -72,15 +73,43 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
-    void rejectsTopKAboveEvidenceLimit() {
+    void rejectsTopKAboveDocumentCandidateLimit() {
         DocumentAgentPlan plan = plan(DocumentPlanOperation.SEARCH, null);
         DocumentRetrievalOptions options = new DocumentRetrievalOptions();
-        options.setTopK(9);
+        options.setTopK(21);
         plan.getDocument().setRetrievalOptions(options);
 
         assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SEARCH)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("bounds");
+    }
+
+    @Test
+    void acceptsTopKAboveFinalEvidenceLimitForAnswerCandidates() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setTopK(20);
+        plan.getDocument().setRetrievalOptions(options);
+
+        var validated = validator().validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getTopK()).isEqualTo(20);
+    }
+
+    @Test
+    void appliesDomainDefaultRetrievalModeWhenPlanOmitsMode() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getRetrievalModeByDomain().put("policy_document", DocumentRetrievalMode.VECTOR);
+        var validator = new DocumentPlanValidator(
+                properties,
+                new FilterNormalizer(properties),
+                new FieldConstraintValidator(),
+                documentCatalogView());
+
+        var validated = validator.validate(plan(DocumentPlanOperation.ANSWER, true),
+                context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.VECTOR);
     }
 
     @Test

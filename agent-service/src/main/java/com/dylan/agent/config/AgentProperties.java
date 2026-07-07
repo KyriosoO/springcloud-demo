@@ -2,8 +2,11 @@ package com.dylan.agent.config;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -188,11 +191,16 @@ public class AgentProperties {
     public static class DocumentProperties {
         private boolean enabled = false;
         private int defaultSize = 5;
+        private int answerCandidateSize = 20;
+        private int summarizeCandidateSize = 20;
         private int maxSize = 20;
         private int maxEvidenceCount = 8;
         private int maxQueryTextLength = 500;
         private int maxSnippetChars = 500;
         private int maxSummaryChars = 2000;
+        private DocumentRetrievalMode defaultRetrievalMode = DocumentRetrievalMode.HYBRID;
+        private Map<String, DocumentRetrievalMode> retrievalModeByDomain = new LinkedHashMap<>();
+        private EvidenceSelectionProperties evidenceSelection = new EvidenceSelectionProperties();
         private EmbeddingProperties embedding = new EmbeddingProperties();
         private GenerationProperties generation = new GenerationProperties();
         private HybridProperties hybrid = new HybridProperties();
@@ -203,6 +211,10 @@ public class AgentProperties {
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public int getDefaultSize() { return defaultSize; }
         public void setDefaultSize(int defaultSize) { this.defaultSize = defaultSize; }
+        public int getAnswerCandidateSize() { return answerCandidateSize; }
+        public void setAnswerCandidateSize(int answerCandidateSize) { this.answerCandidateSize = answerCandidateSize; }
+        public int getSummarizeCandidateSize() { return summarizeCandidateSize; }
+        public void setSummarizeCandidateSize(int summarizeCandidateSize) { this.summarizeCandidateSize = summarizeCandidateSize; }
         public int getMaxSize() { return maxSize; }
         public void setMaxSize(int maxSize) { this.maxSize = maxSize; }
         public int getMaxEvidenceCount() { return maxEvidenceCount; }
@@ -213,6 +225,18 @@ public class AgentProperties {
         public void setMaxSnippetChars(int maxSnippetChars) { this.maxSnippetChars = maxSnippetChars; }
         public int getMaxSummaryChars() { return maxSummaryChars; }
         public void setMaxSummaryChars(int maxSummaryChars) { this.maxSummaryChars = maxSummaryChars; }
+        public DocumentRetrievalMode getDefaultRetrievalMode() { return defaultRetrievalMode; }
+        public void setDefaultRetrievalMode(DocumentRetrievalMode defaultRetrievalMode) {
+            this.defaultRetrievalMode = defaultRetrievalMode == null ? DocumentRetrievalMode.HYBRID : defaultRetrievalMode;
+        }
+        public Map<String, DocumentRetrievalMode> getRetrievalModeByDomain() { return retrievalModeByDomain; }
+        public void setRetrievalModeByDomain(Map<String, DocumentRetrievalMode> retrievalModeByDomain) {
+            this.retrievalModeByDomain = retrievalModeByDomain == null ? new LinkedHashMap<>() : new LinkedHashMap<>(retrievalModeByDomain);
+        }
+        public EvidenceSelectionProperties getEvidenceSelection() { return evidenceSelection; }
+        public void setEvidenceSelection(EvidenceSelectionProperties evidenceSelection) {
+            this.evidenceSelection = evidenceSelection == null ? new EvidenceSelectionProperties() : evidenceSelection;
+        }
         public EmbeddingProperties getEmbedding() { return embedding; }
         public void setEmbedding(EmbeddingProperties embedding) { this.embedding = embedding == null ? new EmbeddingProperties() : embedding; }
         public GenerationProperties getGeneration() { return generation; }
@@ -223,6 +247,27 @@ public class AgentProperties {
         public void setAcl(AclProperties acl) { this.acl = acl == null ? new AclProperties() : acl; }
         public BlocklistProperties getBlocklist() { return blocklist; }
         public void setBlocklist(BlocklistProperties blocklist) { this.blocklist = blocklist == null ? new BlocklistProperties() : blocklist; }
+    }
+
+    /** 文档 evidence 进入生成阶段前的选择策略。 */
+    public static class EvidenceSelectionProperties {
+        private EvidenceSelectionStrategy strategy = EvidenceSelectionStrategy.TOP_K_FIXED;
+        private int scoreGroups = 3;
+        private int minTopGroupSize = 1;
+
+        public EvidenceSelectionStrategy getStrategy() { return strategy; }
+        public void setStrategy(EvidenceSelectionStrategy strategy) {
+            this.strategy = strategy == null ? EvidenceSelectionStrategy.TOP_K_FIXED : strategy;
+        }
+        public int getScoreGroups() { return scoreGroups; }
+        public void setScoreGroups(int scoreGroups) { this.scoreGroups = scoreGroups; }
+        public int getMinTopGroupSize() { return minTopGroupSize; }
+        public void setMinTopGroupSize(int minTopGroupSize) { this.minTopGroupSize = minTopGroupSize; }
+    }
+
+    public enum EvidenceSelectionStrategy {
+        TOP_K_FIXED,
+        SCORE_GROUP_TOP
     }
 
     /** 文档 ACL 安全投影配置，文档能力启用时默认 fail closed。 */

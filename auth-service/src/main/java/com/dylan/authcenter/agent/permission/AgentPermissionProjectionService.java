@@ -46,6 +46,22 @@ public class AgentPermissionProjectionService {
             "chineseName", "memberNo", "position", "contactAddress", "idCardNo", "phoneNo", "email");
     private static final Set<String> VIEWER_EMPLOYEE_FIELDS = Set.of("chineseName", "memberNo", "position");
     private static final Set<String> TRANSACTION_FIELDS = Set.of("transId", "transType", "transDate", "amount");
+    private static final Set<String> DOCUMENT_CAPABILITIES = Set.of(
+            "document.search", "document.answer", "document.summarize");
+    private static final Set<String> DOCUMENT_DOMAINS = Set.of(
+            "company_policy", "tax_policy", "knowledge_base", "literature");
+    private static final Set<String> POLICY_DOCUMENT_FIELDS = Set.of(
+            "title", "sourceType", "effectiveDate", "tags", "section", "page", "sourceUri", "snippet");
+    private static final Set<String> KNOWLEDGE_DOCUMENT_FIELDS = Set.of(
+            "title", "sourceType", "category", "tags", "section", "updatedAt", "sourceUri", "snippet");
+    private static final Set<String> LITERATURE_DOCUMENT_FIELDS = Set.of(
+            "title", "author", "publishedAt", "publication", "section", "page", "sourceUri", "snippet");
+    private static final Set<String> CONTAINS_OPERATORS = Set.of("CONTAINS", "CONTAINS_ANY");
+    private static final Set<String> TITLE_OPERATORS = Set.of("EQ", "CONTAINS", "CONTAINS_ANY");
+    private static final Set<String> EQ_IN_OPERATORS = Set.of("EQ", "IN");
+    private static final Set<String> EQ_CONTAINS_OPERATORS = Set.of("EQ", "CONTAINS");
+    private static final Set<String> EQ_IN_CONTAINS_ANY_OPERATORS = Set.of("EQ", "IN", "CONTAINS_ANY");
+    private static final Set<String> AUTHOR_OPERATORS = Set.of("EQ", "CONTAINS", "CONTAINS_ANY");
 
     private final UserService userService;
     private final Clock clock;
@@ -127,6 +143,7 @@ public class AgentPermissionProjectionService {
         Map<String, Set<String>> fields = new LinkedHashMap<>();
         fields.put("employee", EMPLOYEE_FIELDS);
         fields.put("transaction", TRANSACTION_FIELDS);
+        addDocumentFields(fields);
 
         Map<String, Set<String>> operators = new LinkedHashMap<>();
         addOperators(operators, "employee", EMPLOYEE_FIELDS, STRING_OPERATORS);
@@ -134,16 +151,17 @@ public class AgentPermissionProjectionService {
         operators.put("transaction.transType", Set.of("EQ", "CONTAINS"));
         operators.put("transaction.transDate", Set.of("GT", "LT"));
         operators.put("transaction.amount", RANGE_OPERATORS);
+        addDocumentOperators(operators);
 
         return new Projection(
-                Set.of("query.search", "query.preview", "aggregate.compute"),
-                Set.of("employee", "transaction"),
+                adminCapabilities(),
+                adminDomains(),
                 fields,
                 fields,
                 operators,
                 Map.of("transaction.amount", AMOUNT_FUNCTIONS),
-                Set.of("QUERY", "AGGREGATE"),
-                Set.of("QUERY", "AGGREGATE"),
+                Set.of("QUERY", "AGGREGATE", "DOCUMENT"),
+                Set.of("QUERY", "AGGREGATE", "DOCUMENT"),
                 Map.of("source", "auth-service-agent-permission", "policyTier", "admin"));
     }
 
@@ -163,12 +181,63 @@ public class AgentPermissionProjectionService {
                 Map.of("source", "auth-service-agent-permission", "policyTier", "viewer"));
     }
 
+    private static Set<String> adminCapabilities() {
+        Set<String> capabilities = new LinkedHashSet<>(Set.of("query.search", "query.preview", "aggregate.compute"));
+        capabilities.addAll(DOCUMENT_CAPABILITIES);
+        return capabilities;
+    }
+
+    private static Set<String> adminDomains() {
+        Set<String> domains = new LinkedHashSet<>(Set.of("employee", "transaction"));
+        domains.addAll(DOCUMENT_DOMAINS);
+        return domains;
+    }
+
     private static void addOperators(
             Map<String, Set<String>> operators,
             String domain,
             Set<String> fields,
             Set<String> allowedOperators) {
         fields.forEach(field -> operators.put(domain + "." + field, allowedOperators));
+    }
+
+    private static void addDocumentFields(Map<String, Set<String>> fields) {
+        fields.put("company_policy", POLICY_DOCUMENT_FIELDS);
+        fields.put("tax_policy", POLICY_DOCUMENT_FIELDS);
+        fields.put("knowledge_base", KNOWLEDGE_DOCUMENT_FIELDS);
+        fields.put("literature", LITERATURE_DOCUMENT_FIELDS);
+    }
+
+    private static void addDocumentOperators(Map<String, Set<String>> operators) {
+        addPolicyDocumentOperators(operators, "company_policy");
+        addPolicyDocumentOperators(operators, "tax_policy");
+        operators.put("knowledge_base.title", CONTAINS_OPERATORS);
+        operators.put("knowledge_base.sourceType", EQ_IN_OPERATORS);
+        operators.put("knowledge_base.category", EQ_IN_CONTAINS_ANY_OPERATORS);
+        operators.put("knowledge_base.tags", EQ_IN_CONTAINS_ANY_OPERATORS);
+        operators.put("knowledge_base.section", EQ_CONTAINS_OPERATORS);
+        operators.put("knowledge_base.updatedAt", RANGE_OPERATORS);
+        operators.put("knowledge_base.sourceUri", EQ_CONTAINS_OPERATORS);
+        operators.put("knowledge_base.snippet", CONTAINS_OPERATORS);
+        operators.put("literature.title", CONTAINS_OPERATORS);
+        operators.put("literature.author", AUTHOR_OPERATORS);
+        operators.put("literature.publishedAt", RANGE_OPERATORS);
+        operators.put("literature.publication", EQ_CONTAINS_OPERATORS);
+        operators.put("literature.section", EQ_CONTAINS_OPERATORS);
+        operators.put("literature.page", RANGE_OPERATORS);
+        operators.put("literature.sourceUri", EQ_CONTAINS_OPERATORS);
+        operators.put("literature.snippet", CONTAINS_OPERATORS);
+    }
+
+    private static void addPolicyDocumentOperators(Map<String, Set<String>> operators, String domain) {
+        operators.put(domain + ".title", TITLE_OPERATORS);
+        operators.put(domain + ".sourceType", EQ_IN_OPERATORS);
+        operators.put(domain + ".effectiveDate", RANGE_OPERATORS);
+        operators.put(domain + ".tags", EQ_IN_CONTAINS_ANY_OPERATORS);
+        operators.put(domain + ".section", EQ_CONTAINS_OPERATORS);
+        operators.put(domain + ".page", RANGE_OPERATORS);
+        operators.put(domain + ".sourceUri", EQ_CONTAINS_OPERATORS);
+        operators.put(domain + ".snippet", CONTAINS_OPERATORS);
     }
 
     private String evidenceId(SubjectRefDto subject, Projection projection) {

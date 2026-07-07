@@ -115,8 +115,18 @@ public class AgentPropertiesValidator implements InitializingBean {
         if (d.getDefaultSize() > d.getMaxSize()) {
             throw new IllegalStateException("agent.document.default-size 不能超过 max-size。");
         }
+        if (d.getAnswerCandidateSize() <= 0 || d.getAnswerCandidateSize() > d.getMaxSize()) {
+            throw new IllegalStateException("agent.document.answer-candidate-size 必须为正数且不能超过 max-size。");
+        }
+        if (d.getSummarizeCandidateSize() <= 0 || d.getSummarizeCandidateSize() > d.getMaxSize()) {
+            throw new IllegalStateException("agent.document.summarize-candidate-size 必须为正数且不能超过 max-size。");
+        }
         if (d.getMaxEvidenceCount() <= 0 || d.getMaxEvidenceCount() > d.getMaxSize()) {
             throw new IllegalStateException("agent.document.max-evidence-count 必须为正数且不能超过 max-size。");
+        }
+        if (d.getEvidenceSelection().getScoreGroups() <= 0
+                || d.getEvidenceSelection().getMinTopGroupSize() <= 0) {
+            throw new IllegalStateException("agent.document.evidence-selection 分组配置必须为正数。");
         }
         if (d.getMaxQueryTextLength() <= 0 || d.getMaxSnippetChars() <= 0 || d.getMaxSummaryChars() <= 0) {
             throw new IllegalStateException("agent.document 文本长度配置必须为正数。");

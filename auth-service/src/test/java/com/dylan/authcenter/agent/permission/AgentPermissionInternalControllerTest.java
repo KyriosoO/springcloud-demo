@@ -48,7 +48,8 @@ class AgentPermissionInternalControllerTest {
         assertThat(entity.getBody()).isInstanceOfSatisfying(AgentPermissionResolveResponse.class, body -> {
             assertThat(body.subject()).isEqualTo(new SubjectRefDto("USER", "dylan"));
             assertThat(body.allowedCapabilityIds())
-                    .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute");
+                    .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute",
+                            "document.search", "document.answer", "document.summarize");
             assertThat(body.version()).isEqualTo(AgentPermissionProjectionService.RULE_VERSION);
         });
     }

@@ -127,7 +127,7 @@ class TestPromptExamples:
         ]
         assert executable_blocks
         document = executable_blocks[0].plan.document
-        assert document.retrieval_options.retrieval_mode.value == "HYBRID"
+        assert document.retrieval_options is None
         assert document.generation_options.enabled is True
 
 

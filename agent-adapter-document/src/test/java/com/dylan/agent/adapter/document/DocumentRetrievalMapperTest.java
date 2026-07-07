@@ -49,6 +49,26 @@ class DocumentRetrievalMapperTest {
     }
 
     @Test
+    void mapsTextKeywordFieldEqToKeywordSubField() throws Exception {
+        JsonNode root = objectMapper.readTree(mapper.toSearchDsl(request(
+                new ValidatedFilter("section", AgentOperator.EQ, "税收政策-增值税", List.of()))));
+
+        JsonNode filter = root.path("query").path("bool").path("filter").get(0);
+        assertThat(filter.path("term").path("section.keyword").asText())
+                .isEqualTo("税收政策-增值税");
+    }
+
+    @Test
+    void mapsLiteratureAuthorEqToKeywordSubField() throws Exception {
+        JsonNode root = objectMapper.readTree(mapper.toSearchDsl(request(
+                new ValidatedFilter("author", AgentOperator.EQ, "鲁迅", List.of()))));
+
+        JsonNode filter = root.path("query").path("bool").path("filter").get(0);
+        assertThat(filter.path("term").path("author.keyword").asText())
+                .isEqualTo("鲁迅");
+    }
+
+    @Test
     void mapsHybridRequestWithKeywordDslAndVector() {
         DocumentRetrievalRequest request = new DocumentRetrievalRequest(
                 DocumentPlanOperation.ANSWER,

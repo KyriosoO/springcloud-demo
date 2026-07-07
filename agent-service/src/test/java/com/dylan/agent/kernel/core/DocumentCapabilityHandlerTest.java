@@ -105,6 +105,60 @@ class DocumentCapabilityHandlerTest {
     }
 
     @Test
+    void selectsTopScoreGroupBeforeGenerationAndKeepsEvidenceBudget() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
+        properties.getDocument().getEvidenceSelection().setStrategy(
+                com.dylan.agent.config.AgentProperties.EvidenceSelectionStrategy.SCORE_GROUP_TOP);
+        properties.getDocument().setMaxEvidenceCount(8);
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request(DocumentPlanOperation.ANSWER),
+                options);
+        AtomicReference<DocumentGenerationRequest> captured = new AtomicReference<>();
+        DocumentGenerationPort generation = generationRequest -> {
+            captured.set(generationRequest);
+            return new DocumentGenerationResult(
+                    "员工年假需要直属主管审批。[chunk-1]",
+                    null,
+                    null,
+                    List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
+                    "stop");
+        };
+        DocumentRetrievableAdapter adapter = request -> adapterResult(List.of(
+                evidence("chunk-1", "0.99"),
+                evidence("chunk-2", "0.97"),
+                evidence("chunk-3", "0.96"),
+                evidence("chunk-4", "0.65"),
+                evidence("chunk-5", "0.63"),
+                evidence("chunk-6", "0.60"),
+                evidence("chunk-7", "0.58"),
+                evidence("chunk-8", "0.56"),
+                evidence("chunk-9", "0.54"),
+                evidence("chunk-10", "0.50")));
+
+        new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                generation,
+                new DocumentCitationVerifier())
+                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
+
+        assertThat(captured.get()).isNotNull();
+        assertThat(captured.get().contextPackage().evidenceItems())
+                .extracting(item -> item.citationId())
+                .containsExactly("chunk-1", "chunk-2", "chunk-3");
+        assertThat(captured.get().contextPackage().evidenceItems()).hasSizeLessThanOrEqualTo(8);
+    }
+
+    @Test
     void degradesHybridRetrievalToKeywordWhenEmbeddingProviderFails(CapturedOutput output) {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
         properties.getDocument().getEmbedding().setEnabled(true);
@@ -593,16 +647,27 @@ class DocumentCapabilityHandlerTest {
     }
 
     private AdapterDocumentResult adapterResult() {
+        return adapterResult(List.of(evidence("chunk-1", "0.92")));
+    }
+
+    private AdapterDocumentResult adapterResult(List<AdapterDocumentEvidence> evidence) {
+        AdapterDocumentResult result = new AdapterDocumentResult();
+        result.setHits(evidence);
+        result.setRequestedDocumentCount(evidence.size());
+        result.setCoveredDocumentCount((int) evidence.stream()
+                .map(AdapterDocumentEvidence::getDocumentId)
+                .distinct()
+                .count());
+        return result;
+    }
+
+    private AdapterDocumentEvidence evidence(String chunkId, String score) {
         AdapterDocumentEvidence evidence = new AdapterDocumentEvidence();
-        evidence.setDocumentId("doc-1");
-        evidence.setChunkId("chunk-1");
+        evidence.setDocumentId("doc-" + chunkId);
+        evidence.setChunkId(chunkId);
         evidence.setTitle("休假政策");
         evidence.setSnippet("员工年假需要直属主管审批。");
-        evidence.setScore(new BigDecimal("0.92"));
-        AdapterDocumentResult result = new AdapterDocumentResult();
-        result.setHits(List.of(evidence));
-        result.setRequestedDocumentCount(1);
-        result.setCoveredDocumentCount(1);
-        return result;
+        evidence.setScore(new BigDecimal(score));
+        return evidence;
     }
 }

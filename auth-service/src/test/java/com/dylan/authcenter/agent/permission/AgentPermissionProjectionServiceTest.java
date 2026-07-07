@@ -39,21 +39,30 @@ class AgentPermissionProjectionServiceTest {
         assertThat(response.evidenceId()).startsWith("perm-user-");
         assertThat(response.version()).isEqualTo(AgentPermissionProjectionService.RULE_VERSION);
         assertThat(response.allowedCapabilityIds())
-                .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute");
-        assertThat(response.allowedDomains()).containsExactlyInAnyOrder("employee", "transaction");
+                .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute",
+                        "document.search", "document.answer", "document.summarize");
+        assertThat(response.allowedDomains()).containsExactlyInAnyOrder(
+                "employee", "transaction", "company_policy", "tax_policy", "knowledge_base", "literature");
         assertThat(response.filterableFields().get("employee"))
                 .containsExactlyInAnyOrder("chineseName", "memberNo", "position",
                         "contactAddress", "idCardNo", "phoneNo", "email");
+        assertThat(response.filterableFields().get("tax_policy"))
+                .containsExactlyInAnyOrder("title", "sourceType", "effectiveDate", "tags",
+                        "section", "page", "sourceUri", "snippet");
         assertThat(response.displayableFields()).isEqualTo(response.filterableFields());
         assertThat(response.allowedOperators().get("employee.chineseName"))
                 .containsExactlyInAnyOrder("EQ", "CONTAINS", "CONTAINS_ANY",
                         "STARTS_WITH", "STARTS_WITH_ANY", "IN");
         assertThat(response.allowedOperators().get("transaction.amount"))
                 .containsExactlyInAnyOrder("EQ", "GT", "LT");
+        assertThat(response.allowedOperators().get("tax_policy.title"))
+                .containsExactlyInAnyOrder("EQ", "CONTAINS", "CONTAINS_ANY");
+        assertThat(response.allowedOperators().get("tax_policy.tags"))
+                .containsExactlyInAnyOrder("EQ", "IN", "CONTAINS_ANY");
         assertThat(response.allowedFunctions().get("transaction.amount"))
                 .containsExactlyInAnyOrder("sum", "avg", "min", "max");
-        assertThat(response.readableContextTypes()).containsExactlyInAnyOrder("QUERY", "AGGREGATE");
-        assertThat(response.writableContextTypes()).containsExactlyInAnyOrder("QUERY", "AGGREGATE");
+        assertThat(response.readableContextTypes()).containsExactlyInAnyOrder("QUERY", "AGGREGATE", "DOCUMENT");
+        assertThat(response.writableContextTypes()).containsExactlyInAnyOrder("QUERY", "AGGREGATE", "DOCUMENT");
         assertThat(response.attributes())
                 .containsEntry("source", "auth-service-agent-permission")
                 .containsEntry("policyTier", "admin");
@@ -71,6 +80,20 @@ class AgentPermissionProjectionServiceTest {
         assertThat(response.allowedDomains()).containsExactly("employee");
         assertThat(response.filterableFields()).containsOnlyKeys("employee");
         assertThat(response.allowedOperators().keySet()).allMatch(key -> key.startsWith("employee."));
+        assertThat(response.allowedFunctions()).isEmpty();
+    }
+
+    @Test
+    void narrowsAdminProjectionToDocumentCapabilityAndDomain() {
+        AgentPermissionResolveResponse response = service.resolve(request(
+                "dylan",
+                Set.of("document.answer", "not.granted"),
+                Set.of("tax_policy", "not-granted-domain")));
+
+        assertThat(response.allowedCapabilityIds()).containsExactly("document.answer");
+        assertThat(response.allowedDomains()).containsExactly("tax_policy");
+        assertThat(response.filterableFields()).containsOnlyKeys("tax_policy");
+        assertThat(response.allowedOperators().keySet()).allMatch(key -> key.startsWith("tax_policy."));
         assertThat(response.allowedFunctions()).isEmpty();
     }
 

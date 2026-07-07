@@ -52,8 +52,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -385,6 +387,7 @@ public class DocumentCapabilityHandler
                 resolvedCitations(adapterResult),
                 context.executionScope(),
                 retrievalRequest.getDomain());
+        filteredEvidence = selectGenerationEvidence(filteredEvidence);
         if (filteredEvidence.isEmpty()) {
             result.setGenerationStatus(DocumentGenerationStatus.SKIPPED);
             return;
@@ -463,6 +466,64 @@ public class DocumentCapabilityHandler
         if (observabilitySupport != null) {
             observabilitySupport.recordRevocationHit(target, source);
         }
+    }
+
+    private List<AdapterDocumentEvidence> selectGenerationEvidence(List<AdapterDocumentEvidence> evidence) {
+        List<AdapterDocumentEvidence> sorted = nonNullEvidence(evidence).stream()
+                .sorted(evidenceRanking())
+                .toList();
+        int maxEvidenceCount = Math.max(1, properties.getDocument().getMaxEvidenceCount());
+        if (sorted.size() <= maxEvidenceCount) {
+            return sorted;
+        }
+        var selection = properties.getDocument().getEvidenceSelection();
+        if (selection.getStrategy() == AgentProperties.EvidenceSelectionStrategy.SCORE_GROUP_TOP) {
+            List<AdapterDocumentEvidence> grouped = scoreGroupTop(sorted, selection.getScoreGroups(), selection.getMinTopGroupSize());
+            if (!grouped.isEmpty()) {
+                return grouped.stream().limit(maxEvidenceCount).toList();
+            }
+        }
+        return sorted.stream().limit(maxEvidenceCount).toList();
+    }
+
+    private static List<AdapterDocumentEvidence> scoreGroupTop(
+            List<AdapterDocumentEvidence> sorted,
+            int configuredGroups,
+            int configuredMinTopGroupSize) {
+        List<AdapterDocumentEvidence> scored = sorted.stream()
+                .filter(evidence -> effectiveScore(evidence) != null)
+                .toList();
+        if (scored.size() < 2) {
+            return List.of();
+        }
+        BigDecimal max = effectiveScore(scored.get(0));
+        BigDecimal min = effectiveScore(scored.get(scored.size() - 1));
+        if (max == null || min == null || max.compareTo(min) <= 0) {
+            return List.of();
+        }
+        int groups = Math.max(1, configuredGroups);
+        BigDecimal threshold = max.subtract(max.subtract(min).divide(BigDecimal.valueOf(groups), java.math.RoundingMode.HALF_UP));
+        List<AdapterDocumentEvidence> topGroup = scored.stream()
+                .filter(evidence -> effectiveScore(evidence).compareTo(threshold) >= 0)
+                .toList();
+        int minTopGroupSize = Math.max(1, configuredMinTopGroupSize);
+        if (topGroup.size() < minTopGroupSize) {
+            return sorted.stream().limit(minTopGroupSize).toList();
+        }
+        return topGroup;
+    }
+
+    private static Comparator<AdapterDocumentEvidence> evidenceRanking() {
+        return Comparator
+                .comparing(DocumentCapabilityHandler::effectiveScore, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AdapterDocumentEvidence::getChunkIndex, Comparator.nullsLast(Integer::compareTo));
+    }
+
+    private static BigDecimal effectiveScore(AdapterDocumentEvidence evidence) {
+        if (evidence == null) {
+            return null;
+        }
+        return evidence.getRrfScore() == null ? evidence.getScore() : evidence.getRrfScore();
     }
 
     private int resolveMaxOutputChars(DocumentGenerationOptions options, ValidatedDocumentPlan plan) {

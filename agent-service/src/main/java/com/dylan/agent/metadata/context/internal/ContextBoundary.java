@@ -2,11 +2,13 @@ package com.dylan.agent.metadata.context.internal;
 
 import com.dylan.agent.api.context.AggregateCapabilityContextPayload;
 import com.dylan.agent.api.context.CapabilityContextPayload;
+import com.dylan.agent.api.context.DocumentCapabilityContextPayload;
 import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.RuntimeAggregateContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
+import com.dylan.agent.api.contract.runtime.common.RuntimeDocumentContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeQueryContextView;
 import com.dylan.agent.invocation.model.InvocationHandle;
 import com.dylan.agent.kernel.definition.ContextReadDeclaration;
@@ -153,6 +155,29 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             }
             if (readableFields.contains("maxRows")) {
                 view.setMaxRows(aggregate.maxRows());
+            }
+            return view;
+        }
+        if (payload instanceof DocumentCapabilityContextPayload document) {
+            RuntimeDocumentContextView view = new RuntimeDocumentContextView();
+            view.setSourceInvocationId(snapshot.sourceInvocationId());
+            if (readableFields.contains("operation")) {
+                view.setOperation(document.operation());
+            }
+            if (readableFields.contains("domain")) {
+                view.setDomain(document.domain());
+            }
+            if (readableFields.contains("queryText")) {
+                view.setQueryText(document.queryText());
+            }
+            if (readableFields.contains("filters")) {
+                view.setFilters(document.filters());
+            }
+            if (readableFields.contains("citationIds")) {
+                view.setCitationIds(document.citationIds());
+            }
+            if (readableFields.contains("topK")) {
+                view.setTopK(document.topK());
             }
             return view;
         }
@@ -335,6 +360,19 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
                 fields.add("orderBy");
             }
             fields.add("maxRows");
+            return fields;
+        }
+        if (payload instanceof DocumentCapabilityContextPayload document) {
+            fields.add("operation");
+            fields.add("domain");
+            fields.add("queryText");
+            if (!document.filters().isEmpty()) {
+                fields.add("filters");
+            }
+            if (!document.citationIds().isEmpty()) {
+                fields.add("citationIds");
+            }
+            fields.add("topK");
             return fields;
         }
         throw new IllegalStateException("unsupported context payload type: " + payload.getClass().getName());

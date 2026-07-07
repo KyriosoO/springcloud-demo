@@ -132,14 +132,21 @@ public class DocumentRetrievalMapper {
 
     private Map<String, Object> filter(ValidatedFilter filter) {
         return switch (filter.getOperator()) {
-            case EQ -> Map.of("term", Map.of(filter.getField(), filter.getValue()));
-            case IN -> Map.of("terms", Map.of(filter.getField(), filter.getValues()));
+            case EQ -> Map.of("term", Map.of(exactMatchField(filter.getField()), filter.getValue()));
+            case IN -> Map.of("terms", Map.of(exactMatchField(filter.getField()), filter.getValues()));
             case CONTAINS_ANY -> anyOf("match", filter.getField(), filter.getValues());
             case CONTAINS -> Map.of("match", Map.of(filter.getField(), filter.getValue()));
             case STARTS_WITH_ANY -> anyOf("prefix", filter.getField(), filter.getValues());
             case STARTS_WITH -> Map.of("prefix", Map.of(filter.getField(), filter.getValue()));
             case GT -> Map.of("range", Map.of(filter.getField(), Map.of("gt", filter.getValue())));
             case LT -> Map.of("range", Map.of(filter.getField(), Map.of("lt", filter.getValue())));
+        };
+    }
+
+    private String exactMatchField(String field) {
+        return switch (field) {
+            case "title", "section", "snippet", "author", "publication" -> field + ".keyword";
+            default -> field;
         };
     }
 
