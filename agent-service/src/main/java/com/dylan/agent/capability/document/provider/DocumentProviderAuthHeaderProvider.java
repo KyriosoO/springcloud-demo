@@ -4,7 +4,10 @@ import com.dylan.common.security.ServiceTokenProvider;
 
 import java.util.Objects;
 
+import org.springframework.stereotype.Component;
+
 /** 文档 provider 内部调用的服务 token 认证头生成器。 */
+@Component
 public final class DocumentProviderAuthHeaderProvider {
 
     private final ServiceTokenProvider serviceTokenProvider;
