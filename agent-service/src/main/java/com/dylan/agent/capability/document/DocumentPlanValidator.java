@@ -4,6 +4,7 @@ import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.DocumentContextOptions;
 import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.plan.AgentDocumentSpec;
 import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
@@ -108,7 +109,7 @@ public class DocumentPlanValidator
                 retrievalMode,
                 List.of(),
                 hybridOptions,
-                null);
+                contextOptions(operation));
         return new ValidatedDocumentPlan(context.capabilityId(), domain, request, generationOptions);
     }
 
@@ -142,6 +143,20 @@ public class DocumentPlanValidator
         }
         DocumentRetrievalMode defaultMode = properties.getDocument().getDefaultRetrievalMode();
         return defaultMode == null ? DocumentRetrievalMode.KEYWORD : defaultMode;
+    }
+
+    private DocumentContextOptions contextOptions(DocumentPlanOperation operation) {
+        if (operation == DocumentPlanOperation.SEARCH) {
+            return null;
+        }
+        var window = properties.getDocument().getContextWindow();
+        if (!window.isEnabled() || (window.getBeforeChunks() == 0 && window.getAfterChunks() == 0)) {
+            return null;
+        }
+        return new DocumentContextOptions(
+                window.getBeforeChunks(),
+                window.getAfterChunks(),
+                properties.getDocument().getGeneration().getMaxContextChars());
     }
 
     private DocumentGenerationOptions validateGenerationOptions(DocumentGenerationOptions options) {

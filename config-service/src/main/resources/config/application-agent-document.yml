@@ -14,6 +14,10 @@ agent:
       strategy: SCORE_GROUP_TOP
       score-groups: 3
       min-top-group-size: 1
+    context-window:
+      enabled: true
+      before-chunks: 1
+      after-chunks: 1
     acl:
       enabled: true
       scope-url: http://localhost:9220
@@ -24,6 +28,15 @@ agent:
       base-url: ${ai.provider.embedding.bge.base-url}
       model: ${ai.provider.embedding.bge.model}
       dimension: ${ai.provider.embedding.bge.dimension}
+    generation:
+      enabled: true
+      base-url: http://localhost:9240
+      model: ${ai.provider.generation.deepseek.model}
+      max-context-chars: 8000
+      max-evidence-chars: 1200
+      max-output-chars: 2000
+      timeout: 60s
+      failure-policy: FALLBACK_EXTRACTIVE
   document-adapter:
     index-by-domain:
       company_policy: agent-doc-company-policy

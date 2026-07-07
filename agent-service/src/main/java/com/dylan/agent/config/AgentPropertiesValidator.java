@@ -128,6 +128,9 @@ public class AgentPropertiesValidator implements InitializingBean {
                 || d.getEvidenceSelection().getMinTopGroupSize() <= 0) {
             throw new IllegalStateException("agent.document.evidence-selection 分组配置必须为正数。");
         }
+        if (d.getContextWindow().getBeforeChunks() < 0 || d.getContextWindow().getAfterChunks() < 0) {
+            throw new IllegalStateException("agent.document.context-window before/after chunks 不能为负数。");
+        }
         if (d.getMaxQueryTextLength() <= 0 || d.getMaxSnippetChars() <= 0 || d.getMaxSummaryChars() <= 0) {
             throw new IllegalStateException("agent.document 文本长度配置必须为正数。");
         }

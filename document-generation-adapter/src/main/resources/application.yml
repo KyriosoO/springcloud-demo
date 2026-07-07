@@ -1,0 +1,35 @@
+server:
+  port: 9240
+
+spring:
+  application:
+    name: document-generation-adapter
+  config:
+    import: optional:configserver:http://localhost:9888
+  profiles:
+    active: ai-provider
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+document:
+  generation:
+    deepseek:
+      base-url: ${ai.provider.generation.deepseek.base-url:https://api.deepseek.com}
+      api-key: ${ai.provider.generation.deepseek.api-key:}
+      model: ${ai.provider.generation.deepseek.model:deepseek-chat}
+      timeout: 60s

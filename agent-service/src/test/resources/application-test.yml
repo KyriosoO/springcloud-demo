@@ -96,6 +96,10 @@ agent:
       strategy: SCORE_GROUP_TOP
       score-groups: 3
       min-top-group-size: 1
+    context-window:
+      enabled: true
+      before-chunks: 1
+      after-chunks: 1
     acl:
       enabled: true
       timeout: 2s

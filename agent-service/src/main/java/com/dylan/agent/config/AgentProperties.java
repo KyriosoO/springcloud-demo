@@ -201,6 +201,7 @@ public class AgentProperties {
         private DocumentRetrievalMode defaultRetrievalMode = DocumentRetrievalMode.HYBRID;
         private Map<String, DocumentRetrievalMode> retrievalModeByDomain = new LinkedHashMap<>();
         private EvidenceSelectionProperties evidenceSelection = new EvidenceSelectionProperties();
+        private ContextWindowProperties contextWindow = new ContextWindowProperties();
         private EmbeddingProperties embedding = new EmbeddingProperties();
         private GenerationProperties generation = new GenerationProperties();
         private HybridProperties hybrid = new HybridProperties();
@@ -237,6 +238,10 @@ public class AgentProperties {
         public void setEvidenceSelection(EvidenceSelectionProperties evidenceSelection) {
             this.evidenceSelection = evidenceSelection == null ? new EvidenceSelectionProperties() : evidenceSelection;
         }
+        public ContextWindowProperties getContextWindow() { return contextWindow; }
+        public void setContextWindow(ContextWindowProperties contextWindow) {
+            this.contextWindow = contextWindow == null ? new ContextWindowProperties() : contextWindow;
+        }
         public EmbeddingProperties getEmbedding() { return embedding; }
         public void setEmbedding(EmbeddingProperties embedding) { this.embedding = embedding == null ? new EmbeddingProperties() : embedding; }
         public GenerationProperties getGeneration() { return generation; }
@@ -268,6 +273,20 @@ public class AgentProperties {
     public enum EvidenceSelectionStrategy {
         TOP_K_FIXED,
         SCORE_GROUP_TOP
+    }
+
+    /** 文档命中片段进入生成前的相邻 chunk 上下文窗口。 */
+    public static class ContextWindowProperties {
+        private boolean enabled = true;
+        private int beforeChunks = 1;
+        private int afterChunks = 1;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getBeforeChunks() { return beforeChunks; }
+        public void setBeforeChunks(int beforeChunks) { this.beforeChunks = beforeChunks; }
+        public int getAfterChunks() { return afterChunks; }
+        public void setAfterChunks(int afterChunks) { this.afterChunks = afterChunks; }
     }
 
     /** 文档 ACL 安全投影配置，文档能力启用时默认 fail closed。 */

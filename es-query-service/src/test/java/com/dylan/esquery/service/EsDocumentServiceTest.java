@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import com.dylan.esquery.api.model.HybridContextWindow;
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.dylan.esquery.config.EsQueryProperties;
@@ -207,6 +208,60 @@ class EsDocumentServiceTest {
 		String vectorBody = body(captor.getAllValues().get(1));
 		assertThat(keywordBody).contains("\"_source\":{\"excludes\":[\"embedding\"]}");
 		assertThat(vectorBody).contains("\"_source\":{\"excludes\":[\"embedding\"]}");
+	}
+
+	@Test
+	void hybridSearchEnrichesContextWindowWithSameDocumentAdjacentChunks() throws Exception {
+		RestClient restClient = mock(RestClient.class);
+		Response keywordResponse = response("""
+				{"hits":{"hits":[{"_id":"chunk-1","_score":1.0,"_source":{"documentId":"doc-1","chunkId":"chunk-1","chunkIndex":1,"content":"命中文本"}}]}}
+				""");
+		Response vectorResponse = response("""
+				{"hits":{"hits":[{"_id":"chunk-1","_score":0.9,"_source":{"documentId":"doc-1","chunkId":"chunk-1","chunkIndex":1,"content":"命中文本"}}]}}
+				""");
+		Response contextResponse = response("""
+				{"hits":{"hits":[
+				  {"_id":"chunk-0","_source":{"documentId":"doc-1","chunkId":"chunk-0","chunkIndex":0,"content":"上一段"}},
+				  {"_id":"chunk-2","_source":{"documentId":"doc-1","chunkId":"chunk-2","chunkIndex":2,"content":"下一段"}}
+				]}}
+				""");
+		when(restClient.performRequest(any())).thenReturn(keywordResponse, vectorResponse, contextResponse);
+		EsDocumentService searchService = new EsDocumentService(restClient, objectMapper, properties());
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
+		request.setQueryVector(List.of(0.1, 0.2));
+		request.setSourceExcludes(List.of("embedding"));
+		HybridContextWindow contextWindow = new HybridContextWindow();
+		contextWindow.setBeforeChunks(1);
+		contextWindow.setAfterChunks(1);
+		contextWindow.setMaxContextChars(100);
+		request.setContextWindow(contextWindow);
+
+		var response = searchService.hybridSearch("agent-doc-policy", request);
+
+		assertThat(response.getHits()).hasSize(1);
+		assertThat(response.getHits().get(0).getContextBefore()).containsExactly("上一段");
+		assertThat(response.getHits().get(0).getContextAfter()).containsExactly("下一段");
+		ArgumentCaptor<org.elasticsearch.client.Request> captor =
+				ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
+		verify(restClient, times(3)).performRequest(captor.capture());
+		String contextBody = body(captor.getAllValues().get(2));
+		assertThat(contextBody).contains("tenantId", "tenant-1", "documentId", "doc-1", "chunkIndex", "0", "2");
+	}
+
+	@Test
+	void hybridSearchRejectsNegativeContextWindow() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+		request.setQueryVector(List.of(0.1, 0.2));
+		HybridContextWindow contextWindow = new HybridContextWindow();
+		contextWindow.setBeforeChunks(-1);
+		request.setContextWindow(contextWindow);
+
+		assertThatThrownBy(() -> service.validateHybridRequest(request))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("beforeChunks");
 	}
 
 	private EsQueryProperties properties() {

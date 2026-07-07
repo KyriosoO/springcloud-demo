@@ -2,9 +2,12 @@ package com.dylan.esquery.service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -16,6 +19,7 @@ import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.dylan.esquery.api.model.HybridContextWindow;
 import com.dylan.esquery.api.model.HybridRetrievalDiagnostics;
 import com.dylan.esquery.api.model.HybridSearchHit;
 import com.dylan.esquery.api.model.HybridSearchRequest;
@@ -205,6 +209,7 @@ public class EsDocumentService {
 		List<JsonNode> keywordHits = extractHits(objectMapper.readTree(responseBody(keywordResponse)));
 		List<JsonNode> vectorHits = extractHits(objectMapper.readTree(responseBody(vectorResponse)));
 		List<HybridSearchHit> hits = hybridSearchMerger.merge(keywordHits, vectorHits, request);
+		enrichContextWindow(index, request, hits);
 		HybridRetrievalDiagnostics diagnostics = new HybridRetrievalDiagnostics();
 		diagnostics.setKeywordHitCount(keywordHits.size());
 		diagnostics.setVectorHitCount(vectorHits.size());
@@ -278,6 +283,145 @@ public class EsDocumentService {
 		}
 		keywordSearchBody(request);
 		HybridSearchMerger.positiveOrDefault(request.getTopK(), 8, "topK");
+		HybridContextWindow contextWindow = request.getContextWindow();
+		if (contextWindow != null) {
+			nonNegativeOrDefault(contextWindow.getBeforeChunks(), 0, "contextWindow.beforeChunks");
+			nonNegativeOrDefault(contextWindow.getAfterChunks(), 0, "contextWindow.afterChunks");
+			nonNegativeOrDefault(contextWindow.getMaxContextChars(), 0, "contextWindow.maxContextChars");
+		}
+	}
+
+	private void enrichContextWindow(String index, HybridSearchRequest request, List<HybridSearchHit> hits)
+			throws IOException {
+		HybridContextWindow contextWindow = request.getContextWindow();
+		if (contextWindow == null || hits == null || hits.isEmpty()) {
+			return;
+		}
+		int beforeChunks = nonNegativeOrDefault(contextWindow.getBeforeChunks(), 0, "contextWindow.beforeChunks");
+		int afterChunks = nonNegativeOrDefault(contextWindow.getAfterChunks(), 0, "contextWindow.afterChunks");
+		if (beforeChunks == 0 && afterChunks == 0) {
+			return;
+		}
+		Map<String, Set<Integer>> wanted = wantedContextChunkIndexes(hits, beforeChunks, afterChunks);
+		if (wanted.isEmpty()) {
+			return;
+		}
+		Map<String, Map<Integer, String>> contextByDocument = new HashMap<>();
+		for (Map.Entry<String, Set<Integer>> entry : wanted.entrySet()) {
+			Request contextRequest = new Request("POST", "/" + index + "/_search");
+			Map<String, Object> body = contextWindowSearchBody(request, entry.getKey(), entry.getValue());
+			contextRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(body)));
+			Response contextResponse = restClient.performRequest(contextRequest);
+			contextByDocument.put(entry.getKey(), contextChunks(objectMapper.readTree(responseBody(contextResponse))));
+		}
+		int[] remainingContextChars = { contextWindow.getMaxContextChars() == null ? 0 : contextWindow.getMaxContextChars() };
+		boolean unlimited = remainingContextChars[0] <= 0;
+		for (HybridSearchHit hit : hits) {
+			Map<Integer, String> chunks = contextByDocument.get(hit.getDocumentId());
+			if (chunks == null || hit.getChunkIndex() == null) {
+				continue;
+			}
+			hit.setContextBefore(contextValues(chunks, hit.getChunkIndex() - beforeChunks,
+					hit.getChunkIndex() - 1, unlimited, remainingContextChars));
+			hit.setContextAfter(contextValues(chunks, hit.getChunkIndex() + 1,
+					hit.getChunkIndex() + afterChunks, unlimited, remainingContextChars));
+		}
+	}
+
+	private Map<String, Set<Integer>> wantedContextChunkIndexes(
+			List<HybridSearchHit> hits,
+			int beforeChunks,
+			int afterChunks) {
+		Map<String, Set<Integer>> wanted = new LinkedHashMap<>();
+		for (HybridSearchHit hit : hits) {
+			if (hit.getDocumentId() == null || hit.getDocumentId().isBlank() || hit.getChunkIndex() == null) {
+				continue;
+			}
+			Set<Integer> indexes = wanted.computeIfAbsent(hit.getDocumentId(), ignored -> new LinkedHashSet<>());
+			for (int offset = beforeChunks; offset > 0; offset--) {
+				int index = hit.getChunkIndex() - offset;
+				if (index >= 0) {
+					indexes.add(index);
+				}
+			}
+			for (int offset = 1; offset <= afterChunks; offset++) {
+				indexes.add(hit.getChunkIndex() + offset);
+			}
+		}
+		return wanted;
+	}
+
+	private Map<String, Object> contextWindowSearchBody(
+			HybridSearchRequest request,
+			String documentId,
+			Set<Integer> chunkIndexes) {
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("size", chunkIndexes.size());
+		body.put("track_total_hits", false);
+		List<Object> filters = new ArrayList<>();
+		filters.addAll(filterItems(request.getFilters()));
+		filters.add(Map.of("term", Map.of("documentId", documentId)));
+		filters.add(Map.of("terms", Map.of("chunkIndex", chunkIndexes)));
+		body.put("query", Map.of("bool", Map.of("filter", filters)));
+		body.put("sort", List.of(Map.of("chunkIndex", Map.of("order", "asc"))));
+		applySourceExcludes(body, request.getSourceExcludes(), request.getEmbeddingField());
+		return body;
+	}
+
+	private Map<Integer, String> contextChunks(JsonNode root) {
+		Map<Integer, String> chunks = new HashMap<>();
+		for (JsonNode hit : extractHits(root)) {
+			JsonNode source = hit.path("_source");
+			JsonNode chunkIndex = source.path("chunkIndex");
+			if (!chunkIndex.isInt()) {
+				continue;
+			}
+			String text = firstText(source, "content", firstText(source, "snippet", null));
+			if (text != null && !text.isBlank()) {
+				chunks.put(chunkIndex.asInt(), text);
+			}
+		}
+		return chunks;
+	}
+
+	private List<String> contextValues(
+			Map<Integer, String> chunks,
+			int from,
+			int to,
+			boolean unlimited,
+			int[] remainingContextChars) {
+		if (from > to) {
+			return List.of();
+		}
+		List<String> values = new ArrayList<>();
+		for (int index = from; index <= to; index++) {
+			String value = chunks.get(index);
+			if (value == null || value.isBlank()) {
+				continue;
+			}
+			String limited = takeContext(value, unlimited, remainingContextChars);
+			if (limited == null || limited.isBlank()) {
+				break;
+			}
+			values.add(limited);
+		}
+		return values;
+	}
+
+	private String takeContext(String value, boolean unlimited, int[] remainingContextChars) {
+		if (unlimited) {
+			return value;
+		}
+		if (remainingContextChars[0] <= 0) {
+			return "";
+		}
+		if (value.length() <= remainingContextChars[0]) {
+			remainingContextChars[0] -= value.length();
+			return value;
+		}
+		String truncated = value.substring(0, remainingContextChars[0]);
+		remainingContextChars[0] = 0;
+		return truncated;
 	}
 
 	private static void applySourceExcludes(Map<String, Object> body, List<String> requestedExcludes, String embeddingField) {
@@ -323,6 +467,9 @@ public class EsDocumentService {
 
 	@SuppressWarnings("unchecked")
 	private List<Object> filterItems(Map<String, Object> filter) {
+		if (filter == null || filter.isEmpty()) {
+			return List.of();
+		}
 		Object bool = filter.get("bool");
 		if (bool instanceof Map<?, ?> boolMap) {
 			Object items = boolMap.get("filter");
@@ -344,6 +491,23 @@ public class EsDocumentService {
 		List<JsonNode> hits = new ArrayList<>();
 		hitsNode.forEach(hits::add);
 		return hits;
+	}
+
+	private static int nonNegativeOrDefault(Integer value, int defaultValue, String name) {
+		int resolved = value == null ? defaultValue : value;
+		if (resolved < 0) {
+			throw new IllegalArgumentException(name + " must not be negative");
+		}
+		return resolved;
+	}
+
+	private static String firstText(JsonNode source, String field, String fallback) {
+		JsonNode value = source.path(field);
+		if (value.isMissingNode() || value.isNull()) {
+			return fallback;
+		}
+		String text = value.asText();
+		return text == null || text.isBlank() ? fallback : text;
 	}
 
 	String applyDefaultTrackTotalHits(String queryDsl) {

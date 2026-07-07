@@ -54,6 +54,10 @@ class DocumentPlanValidatorTest {
         assertThat(validated.request().isCitationRequired()).isTrue();
         assertThat(validated.request().getTopK()).isEqualTo(20);
         assertThat(validated.request().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
+        assertThat(validated.request().getContextOptions()).isNotNull();
+        assertThat(validated.request().getContextOptions().beforeChunks()).isEqualTo(1);
+        assertThat(validated.request().getContextOptions().afterChunks()).isEqualTo(1);
+        assertThat(validated.request().getContextOptions().maxContextChars()).isEqualTo(8000);
     }
 
     @Test
@@ -110,6 +114,14 @@ class DocumentPlanValidatorTest {
                 context(DocumentCapabilityIds.ANSWER));
 
         assertThat(validated.request().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.VECTOR);
+    }
+
+    @Test
+    void omitsContextWindowForSearchPlans() {
+        var validated = validator().validate(plan(DocumentPlanOperation.SEARCH, null),
+                context(DocumentCapabilityIds.SEARCH));
+
+        assertThat(validated.request().getContextOptions()).isNull();
     }
 
     @Test
