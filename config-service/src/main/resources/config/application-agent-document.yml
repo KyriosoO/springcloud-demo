@@ -1,7 +1,23 @@
 agent:
   document:
+    enabled: true
+    acl:
+      enabled: true
+      scope-url: http://localhost:9220
+      mock:
+        enabled: true
     embedding:
       enabled: true
       base-url: ${ai.provider.embedding.bge.base-url}
       model: ${ai.provider.embedding.bge.model}
       dimension: ${ai.provider.embedding.bge.dimension}
+  document-adapter:
+    index-by-domain:
+      company_policy: agent-doc-company-policy
+      knowledge_base: agent-doc-knowledge-base
+      literature: agent-doc-literature
+    default-title-field: title
+    default-snippet-field: content
+    source-type-field: sourceType
+    section-field: section
+    source-uri-field: sourceUri
