@@ -12,6 +12,7 @@ import java.util.Map;
 public class DocumentAclFilterFactory {
 
     private static final int MAX_VISIBILITY_TERMS = 128;
+    private static final int BASE_VISIBILITY_TERMS = 3;
 
     public Map<String, Object> build(String domain, DocumentAclScope scope) {
         if (domain == null || domain.isBlank()) {
@@ -42,7 +43,7 @@ public class DocumentAclFilterFactory {
     }
 
     private Map<String, Object> visibilityFilter(DocumentAclScope scope) {
-        int termCount = 1
+        int termCount = BASE_VISIBILITY_TERMS
                 + scope.getDepartmentIds().size()
                 + scope.getRoleIds().size()
                 + scope.getAttributeKeys().size();

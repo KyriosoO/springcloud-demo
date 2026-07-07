@@ -1,6 +1,8 @@
 package com.dylan.agent.capability.document.acl;
 
 import com.dylan.agent.adapter.api.document.DocumentAclScope;
+import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
@@ -13,18 +15,28 @@ import java.util.Objects;
 public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
 
     private final RestClient restClient;
+    private final DocumentProviderAuthHeaderProvider authHeaderProvider;
 
-    public HttpDocumentAclScopeClient(RestClient restClient) {
-        this.restClient = restClient;
+    public HttpDocumentAclScopeClient(
+            RestClient restClient,
+            DocumentProviderAuthHeaderProvider authHeaderProvider) {
+        this.restClient = Objects.requireNonNull(restClient, "restClient must not be null");
+        this.authHeaderProvider = Objects.requireNonNull(authHeaderProvider, "authHeaderProvider must not be null");
     }
 
     @Override
     public DocumentAclScope resolve(DocumentAclScopeRequest request) {
         Objects.requireNonNull(request, "document ACL scope request must not be null");
+        Map<String, Object> body = requestBody(request);
+        String requestId = (String) body.get("requestId");
+        String deadline = (String) body.get("deadline");
         @SuppressWarnings("unchecked")
         Map<String, Object> response = restClient.post()
                 .uri("/internal/document-acl/scope/resolve")
-                .body(requestBody(request))
+                .header(HttpHeaders.AUTHORIZATION, authHeaderProvider.authorizationHeader())
+                .header("X-Agent-Request-Id", requestId)
+                .header("X-Agent-Deadline", deadline)
+                .body(body)
                 .retrieve()
                 .body(Map.class);
         if (response == null || response.isEmpty()) {

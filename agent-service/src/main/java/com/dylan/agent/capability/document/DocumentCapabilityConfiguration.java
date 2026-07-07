@@ -87,12 +87,16 @@ public class DocumentCapabilityConfiguration {
     }
 
     @Bean
-    DocumentAclScopePort documentAclScopePort(AgentProperties properties) {
+    DocumentAclScopePort documentAclScopePort(
+            AgentProperties properties,
+            ObjectProvider<DocumentProviderAuthHeaderProvider> authHeaderProvider) {
         var acl = properties.getDocument().getAcl();
         if (!acl.isEnabled() || acl.getScopeUrl() == null || acl.getScopeUrl().isBlank()) {
             return new DisabledDocumentAclScopePort();
         }
-        return new HttpDocumentAclScopeClient(restClient(acl.getScopeUrl(), acl.getTimeout()));
+        return new HttpDocumentAclScopeClient(
+                restClient(acl.getScopeUrl(), acl.getTimeout()),
+                authHeaderProvider.getObject());
     }
 
     @Bean

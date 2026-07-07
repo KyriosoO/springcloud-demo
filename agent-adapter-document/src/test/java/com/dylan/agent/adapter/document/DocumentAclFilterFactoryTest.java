@@ -91,6 +91,38 @@ class DocumentAclFilterFactoryTest {
                 .hasMessageContaining("max terms");
     }
 
+    @Test
+    void rejectsAclScopeWhenBaseVisibilityTermsPushTotalOverLimit() {
+        DocumentAclScope oversized = new DocumentAclScope(
+                "tenant-1",
+                "user-1",
+                IntStream.range(0, 126).mapToObj(index -> "dept-" + index).toList(),
+                List.of(),
+                List.of(),
+                "acl-v1",
+                Instant.now().plusSeconds(60));
+
+        assertThatThrownBy(() -> factory.build("policy_document", oversized))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("max terms");
+    }
+
+    @Test
+    void allowsAclScopeAtVisibilityTermLimit() {
+        DocumentAclScope boundary = new DocumentAclScope(
+                "tenant-1",
+                "user-1",
+                IntStream.range(0, 125).mapToObj(index -> "dept-" + index).toList(),
+                List.of(),
+                List.of(),
+                "acl-v1",
+                Instant.now().plusSeconds(60));
+
+        Map<String, Object> filter = factory.build("policy_document", boundary);
+
+        assertThat(filter.toString()).contains("dept-124");
+    }
+
     private DocumentAclScope scope() {
         return new DocumentAclScope(
                 "tenant-1",
