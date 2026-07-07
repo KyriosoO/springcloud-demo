@@ -33,6 +33,7 @@ import com.dylan.agent.kernel.definition.ContextWriteDeclaration;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.common.security.ServiceTokenProvider;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.beans.factory.ObjectProvider;
@@ -69,7 +70,8 @@ public class DocumentCapabilityConfiguration {
             DocumentEvidencePreSecurityFilter preSecurityFilter,
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
-            DocumentCitationVerifier citationVerifier) {
+            DocumentCitationVerifier citationVerifier,
+            ObjectProvider<DocumentObservabilitySupport> observabilitySupport) {
         return new DocumentCapabilityHandler(
                 properties,
                 embeddingPort,
@@ -78,12 +80,19 @@ public class DocumentCapabilityConfiguration {
                 preSecurityFilter,
                 contextPacker,
                 generationPort,
-                citationVerifier);
+                citationVerifier,
+                observabilitySupport.getIfAvailable());
     }
 
     @Bean
     DocumentRevocationGuard documentRevocationGuard(AgentProperties properties) {
         return new DocumentRevocationGuard(properties);
+    }
+
+    @Bean
+    @ConditionalOnBean(MeterRegistry.class)
+    DocumentObservabilitySupport documentObservabilitySupport(MeterRegistry meterRegistry) {
+        return new DocumentObservabilitySupport(meterRegistry);
     }
 
     @Bean

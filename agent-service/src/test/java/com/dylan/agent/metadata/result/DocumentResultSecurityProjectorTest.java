@@ -8,6 +8,8 @@ import com.dylan.agent.api.response.AgentDocumentResult;
 import com.dylan.agent.api.response.DocumentGenerationStatus;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
 import com.dylan.agent.api.response.GroundingStatus;
+import com.dylan.agent.capability.document.DocumentObservabilitySupport;
+import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.mask.AddressFieldMasker;
 import com.dylan.agent.mask.EmailFieldMasker;
@@ -19,6 +21,7 @@ import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -219,12 +222,58 @@ class DocumentResultSecurityProjectorTest {
                 .hasMessageContaining("document access revoked");
     }
 
+    @Test
+    void recordsResultSecurityDecisionMetric() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        DocumentResultSecurityProjector projector = projector(
+                DomainMetadataTestSupport.agentProperties(),
+                new DocumentObservabilitySupport(registry));
+
+        projector.filter(payload(), scope());
+
+        assertThat(registry.counter(
+                "agent_document_result_security_total",
+                "decision", "FILTERED").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void recordsRevocationAndFailedResultSecurityMetric() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getBlocklist().setDomains(List.of("policy_document"));
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        DocumentResultSecurityProjector projector = projector(
+                properties,
+                new DocumentObservabilitySupport(registry));
+
+        assertThatThrownBy(() -> projector.filter(payload(), scope()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("document access revoked");
+
+        assertThat(registry.counter(
+                "agent_document_revocation_hit_total",
+                "target", "DOMAIN",
+                "source", "LOCAL_BLOCKLIST").count()).isEqualTo(1.0);
+        assertThat(registry.counter(
+                "agent_document_result_security_total",
+                "decision", "FAILED").count()).isEqualTo(1.0);
+    }
+
     private DocumentResultSecurityProjector projector() {
         return projector(DomainMetadataTestSupport.agentProperties());
     }
 
     private DocumentResultSecurityProjector projector(AgentProperties properties) {
         return new DocumentResultSecurityProjector(maskingSupport(), properties);
+    }
+
+    private DocumentResultSecurityProjector projector(
+            AgentProperties properties,
+            DocumentObservabilitySupport observabilitySupport) {
+        return new DocumentResultSecurityProjector(
+                maskingSupport(),
+                properties,
+                new DocumentRevocationGuard(properties),
+                observabilitySupport);
     }
 
     private DocumentAgentResultPayload payload() {

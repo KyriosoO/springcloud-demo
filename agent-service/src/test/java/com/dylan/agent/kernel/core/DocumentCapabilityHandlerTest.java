@@ -15,11 +15,13 @@ import com.dylan.agent.api.plan.DocumentSummaryScope;
 import com.dylan.agent.api.response.DocumentGenerationStatus;
 import com.dylan.agent.capability.document.DocumentCapabilityHandler;
 import com.dylan.agent.capability.document.DocumentCapabilityIds;
+import com.dylan.agent.capability.document.DocumentObservabilitySupport;
 import com.dylan.agent.capability.document.ValidatedDocumentPlan;
 import com.dylan.agent.capability.document.ValidatedDocumentPlanTestSupport;
 import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
 import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
+import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.capability.document.generation.CitationBinding;
 import com.dylan.agent.capability.document.generation.DocumentCitationVerifier;
 import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPacker;
@@ -33,6 +35,7 @@ import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -441,6 +444,82 @@ class DocumentCapabilityHandlerTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("document access revoked");
         assertThat(adapterCalled).isFalse();
+    }
+
+    @Test
+    void recordsRetrievalAndGenerationProviderMetrics() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getGeneration().setEnabled(true);
+        properties.getDocument().getGeneration().setModel("test-generation");
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        DocumentGenerationOptions options = new DocumentGenerationOptions();
+        options.setEnabled(true);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request(DocumentPlanOperation.ANSWER),
+                options);
+        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
+                "员工年假需要直属主管审批。[chunk-1]",
+                null,
+                null,
+                List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
+                "stop");
+
+        new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentRevocationGuard(properties),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                generation,
+                new DocumentCitationVerifier(),
+                new DocumentObservabilitySupport(registry))
+                .execute(plan, context());
+
+        assertThat(registry.counter(
+                "agent_document_retrieval_total",
+                "domain", "policy_document",
+                "mode", "KEYWORD",
+                "result", "SUCCESS").count()).isEqualTo(1.0);
+        assertThat(registry.counter(
+                "agent_document_provider_total",
+                "providerType", "generation",
+                "operation", "ANSWER",
+                "result", "SUCCESS").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void recordsRevocationMetricBeforeRejectingBlocklistedDomain() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getBlocklist().setDomains(List.of("policy_document"));
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        AtomicBoolean adapterCalled = new AtomicBoolean(false);
+        DocumentRetrievableAdapter adapter = request -> {
+            adapterCalled.set(true);
+            return adapterResult();
+        };
+
+        var handler = new DocumentCapabilityHandler(
+                properties,
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentRevocationGuard(properties),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier(),
+                new DocumentObservabilitySupport(registry));
+
+        assertThatThrownBy(() -> handler.execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("document access revoked");
+        assertThat(adapterCalled).isFalse();
+        assertThat(registry.counter(
+                "agent_document_revocation_hit_total",
+                "target", "DOMAIN",
+                "source", "LOCAL_BLOCKLIST").count()).isEqualTo(1.0);
     }
 
     private ValidatedDocumentPlan plan() {

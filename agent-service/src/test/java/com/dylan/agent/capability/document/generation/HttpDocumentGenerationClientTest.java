@@ -88,6 +88,7 @@ class HttpDocumentGenerationClientTest {
                 deadline)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("document generation provider call failed")
+                .hasNoCause()
                 .hasMessageNotContaining("service-token")
                 .hasMessageNotContaining("敏感查询文本")
                 .hasMessageNotContaining("raw-answer");
@@ -110,7 +111,8 @@ class HttpDocumentGenerationClientTest {
                 2000,
                 deadline)))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("document generation provider call failed");
+                .hasMessage("document generation provider call failed")
+                .hasNoCause();
         server.verify();
     }
 

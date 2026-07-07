@@ -43,8 +43,12 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
             requireActiveDeadline(request.deadline());
             return toResult(response, request.model());
         } catch (RestClientException | ClassCastException | IllegalArgumentException ex) {
-            throw new IllegalStateException("document embedding provider call failed", ex);
+            throw providerCallFailed();
         }
+    }
+
+    private static IllegalStateException providerCallFailed() {
+        return new IllegalStateException("document embedding provider call failed");
     }
 
     private DocumentEmbeddingResult toResult(Map<String, Object> response, String requestedModel) {

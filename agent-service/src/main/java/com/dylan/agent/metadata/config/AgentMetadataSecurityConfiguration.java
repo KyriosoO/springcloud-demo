@@ -3,6 +3,8 @@ package com.dylan.agent.metadata.config;
 import com.dylan.agent.kernel.definition.ContractRegistry;
 import com.dylan.agent.kernel.port.AuthorizationExecutionPort;
 import com.dylan.agent.kernel.port.ResultSecurityPort;
+import com.dylan.agent.capability.document.DocumentObservabilitySupport;
+import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationExecutionPortImpl;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationPlanningPortImpl;
@@ -34,6 +36,7 @@ import com.dylan.common.security.SecretMaterialProvider;
 import com.dylan.common.security.SecretProperties;
 import com.dylan.common.security.SecretPropertiesValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -122,8 +125,13 @@ public class AgentMetadataSecurityConfiguration {
     @Bean
     DocumentResultSecurityProjector documentResultSecurityProjector(
             ResultValueMaskingSupport maskingSupport,
-            AgentProperties properties) {
-        return new DocumentResultSecurityProjector(maskingSupport, properties);
+            AgentProperties properties,
+            ObjectProvider<DocumentObservabilitySupport> observabilitySupport) {
+        return new DocumentResultSecurityProjector(
+                maskingSupport,
+                properties,
+                new DocumentRevocationGuard(properties),
+                observabilitySupport.getIfAvailable());
     }
 
     @Bean

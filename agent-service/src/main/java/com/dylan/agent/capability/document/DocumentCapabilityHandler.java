@@ -42,6 +42,7 @@ import com.dylan.agent.capability.document.generation.DocumentGenerationRequest;
 import com.dylan.agent.capability.document.generation.DocumentGenerationResult;
 import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
+import com.dylan.agent.capability.document.security.DocumentRevocationDecision;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.CapabilityHandler;
@@ -51,6 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -68,6 +70,7 @@ public class DocumentCapabilityHandler
     private final DocumentEvidenceContextPacker contextPacker;
     private final DocumentGenerationPort generationPort;
     private final DocumentCitationVerifier citationVerifier;
+    private final DocumentObservabilitySupport observabilitySupport;
 
     public DocumentCapabilityHandler() {
         this(new AgentProperties(),
@@ -122,6 +125,27 @@ public class DocumentCapabilityHandler
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier) {
+        this(properties,
+                embeddingPort,
+                aclScopePort,
+                revocationGuard,
+                preSecurityFilter,
+                contextPacker,
+                generationPort,
+                citationVerifier,
+                null);
+    }
+
+    public DocumentCapabilityHandler(
+            AgentProperties properties,
+            DocumentEmbeddingPort embeddingPort,
+            DocumentAclScopePort aclScopePort,
+            DocumentRevocationGuard revocationGuard,
+            DocumentEvidencePreSecurityFilter preSecurityFilter,
+            DocumentEvidenceContextPacker contextPacker,
+            DocumentGenerationPort generationPort,
+            DocumentCitationVerifier citationVerifier,
+            DocumentObservabilitySupport observabilitySupport) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.embeddingPort = Objects.requireNonNull(embeddingPort, "embeddingPort must not be null");
         this.aclScopePort = Objects.requireNonNull(aclScopePort, "aclScopePort must not be null");
@@ -130,6 +154,7 @@ public class DocumentCapabilityHandler
         this.contextPacker = Objects.requireNonNull(contextPacker, "contextPacker must not be null");
         this.generationPort = Objects.requireNonNull(generationPort, "generationPort must not be null");
         this.citationVerifier = Objects.requireNonNull(citationVerifier, "citationVerifier must not be null");
+        this.observabilitySupport = observabilitySupport;
     }
 
     @Override
@@ -138,7 +163,15 @@ public class DocumentCapabilityHandler
             ExecutionContext context) {
         DocumentRetrievableAdapter adapter = context.requireAdapter(DocumentRetrievableAdapter.class);
         DocumentRetrievalRequest retrievalRequest = withAclScope(withQueryVectorIfNeeded(plan, context), context);
-        AdapterDocumentResult adapterResult = adapter.retrieve(retrievalRequest);
+        long retrievalStarted = System.nanoTime();
+        AdapterDocumentResult adapterResult;
+        try {
+            adapterResult = adapter.retrieve(retrievalRequest);
+            recordRetrieval(retrievalRequest, "SUCCESS", retrievalStarted);
+        } catch (RuntimeException ex) {
+            recordRetrieval(retrievalRequest, "FAILED", retrievalStarted);
+            throw ex;
+        }
         DocumentAgentResultPayload payload = new DocumentAgentResultPayload(
                 toParameters(plan),
                 toResult(plan, adapterResult));
@@ -147,7 +180,12 @@ public class DocumentCapabilityHandler
     }
 
     private DocumentRetrievalRequest withAclScope(DocumentRetrievalRequest request, ExecutionContext context) {
-        revocationGuard.assertAllowed(request.getDomain(), null);
+        DocumentRevocationDecision decision = revocationGuard.evaluate(request.getDomain(), null);
+        if (decision.revoked()) {
+            recordRevocation(decision);
+            throw new IllegalStateException("document access revoked by "
+                    + decision.source() + ":" + decision.target());
+        }
         var scope = aclScopePort.resolve(new DocumentAclScopeRequest(
                 context.invocationId(),
                 context.executionScope().subjectRef(),
@@ -156,6 +194,7 @@ public class DocumentCapabilityHandler
                 context.executionScope().currentPermissionVersion(),
                 context.absoluteDeadline()));
         if (scope.isExpiredAt(java.time.Instant.now())) {
+            recordRevocation("ACL_SCOPE", "AUTHORITY");
             throw new IllegalStateException("document ACL scope is expired");
         }
         return request.withAclScope(scope);
@@ -230,13 +269,16 @@ public class DocumentCapabilityHandler
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document embedding deadline expired");
             }
-            return embeddingPort.embed(new DocumentEmbeddingRequest(
+            DocumentEmbeddingResult result = embeddingPort.embed(new DocumentEmbeddingRequest(
                     context.invocationId(),
                     request.getQueryText(),
                     request.getDomain(),
                     properties.getDocument().getEmbedding().getModel(),
                     context.absoluteDeadline()));
+            recordProvider("embedding", mode.name(), "SUCCESS");
+            return result;
         } catch (RuntimeException ex) {
+            recordProvider("embedding", mode.name(), "FAILED");
             if (mode == DocumentRetrievalMode.HYBRID) {
                 return null;
             }
@@ -358,14 +400,21 @@ public class DocumentCapabilityHandler
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document generation deadline expired");
             }
-            DocumentGenerationResult generated = generationPort.generate(new DocumentGenerationRequest(
-                    context.invocationId(),
-                    retrievalRequest.getOperation(),
-                    retrievalRequest.getQueryText(),
-                    properties.getDocument().getGeneration().getModel(),
-                    evidencePackage,
-                    budget.maxOutputChars(),
-                    context.absoluteDeadline()));
+            DocumentGenerationResult generated;
+            try {
+                generated = generationPort.generate(new DocumentGenerationRequest(
+                        context.invocationId(),
+                        retrievalRequest.getOperation(),
+                        retrievalRequest.getQueryText(),
+                        properties.getDocument().getGeneration().getModel(),
+                        evidencePackage,
+                        budget.maxOutputChars(),
+                        context.absoluteDeadline()));
+                recordProvider("generation", retrievalRequest.getOperation().name(), "SUCCESS");
+            } catch (RuntimeException ex) {
+                recordProvider("generation", retrievalRequest.getOperation().name(), "FAILED");
+                throw ex;
+            }
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document generation deadline expired");
             }
@@ -387,6 +436,33 @@ public class DocumentCapabilityHandler
 
     private static boolean deadlineExpired(Instant deadline) {
         return deadline == null || !deadline.isAfter(Instant.now());
+    }
+
+    private void recordRetrieval(DocumentRetrievalRequest request, String result, long startedNanos) {
+        if (observabilitySupport == null) {
+            return;
+        }
+        observabilitySupport.recordRetrieval(
+                request.getDomain(),
+                request.getRetrievalMode().name(),
+                result,
+                Duration.ofNanos(System.nanoTime() - startedNanos));
+    }
+
+    private void recordProvider(String providerType, String operation, String result) {
+        if (observabilitySupport != null) {
+            observabilitySupport.recordProvider(providerType, operation, result);
+        }
+    }
+
+    private void recordRevocation(DocumentRevocationDecision decision) {
+        recordRevocation(decision.target(), decision.source());
+    }
+
+    private void recordRevocation(String target, String source) {
+        if (observabilitySupport != null) {
+            observabilitySupport.recordRevocationHit(target, source);
+        }
     }
 
     private int resolveMaxOutputChars(DocumentGenerationOptions options, ValidatedDocumentPlan plan) {

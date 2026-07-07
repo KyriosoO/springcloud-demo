@@ -46,8 +46,12 @@ public final class HttpDocumentGenerationClient implements DocumentGenerationPor
             }
             return result;
         } catch (RestClientException | IllegalArgumentException ex) {
-            throw new IllegalStateException("document generation provider call failed", ex);
+            throw providerCallFailed();
         }
+    }
+
+    private static IllegalStateException providerCallFailed() {
+        return new IllegalStateException("document generation provider call failed");
     }
 
     private static void requireActiveDeadline(Instant deadline) {

@@ -71,6 +71,7 @@ class HttpDocumentEmbeddingClientTest {
                 Instant.now().plusSeconds(60))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("document embedding provider call failed")
+                .hasNoCause()
                 .hasMessageNotContaining("service-token")
                 .hasMessageNotContaining("敏感查询文本")
                 .hasMessageNotContaining("raw-body");
@@ -94,7 +95,8 @@ class HttpDocumentEmbeddingClientTest {
                 "embedding-v1",
                 Instant.now().plusSeconds(60))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("document embedding provider call failed");
+                .hasMessage("document embedding provider call failed")
+                .hasNoCause();
         server.verify();
     }
 

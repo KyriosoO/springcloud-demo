@@ -13,7 +13,9 @@ import com.dylan.agent.api.response.GroundingStatus;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
 import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
+import com.dylan.agent.capability.document.DocumentObservabilitySupport;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
+import com.dylan.agent.capability.document.security.DocumentRevocationDecision;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 
@@ -36,6 +38,7 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
     private final ResultValueMaskingSupport maskingSupport;
     private final AgentProperties properties;
     private final DocumentRevocationGuard revocationGuard;
+    private final DocumentObservabilitySupport observabilitySupport;
 
     public DocumentResultSecurityProjector(ResultValueMaskingSupport maskingSupport, AgentProperties properties) {
         this(maskingSupport, properties, new DocumentRevocationGuard(properties));
@@ -45,9 +48,18 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
             ResultValueMaskingSupport maskingSupport,
             AgentProperties properties,
             DocumentRevocationGuard revocationGuard) {
+        this(maskingSupport, properties, revocationGuard, null);
+    }
+
+    public DocumentResultSecurityProjector(
+            ResultValueMaskingSupport maskingSupport,
+            AgentProperties properties,
+            DocumentRevocationGuard revocationGuard,
+            DocumentObservabilitySupport observabilitySupport) {
         this.maskingSupport = Objects.requireNonNull(maskingSupport, "maskingSupport must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.revocationGuard = Objects.requireNonNull(revocationGuard, "revocationGuard must not be null");
+        this.observabilitySupport = observabilitySupport;
     }
 
     @Override
@@ -58,25 +70,48 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
 
     @Override
     public FilteredResult<DocumentAgentResultPayload> filter(DocumentAgentResultPayload candidate, ExecutionScope scope) {
-        AgentDocumentParameters parameters = candidate.getDocumentParameters();
-        String domain = parameters == null ? null : parameters.getDomain();
-        if (domain == null || domain.isBlank()) {
-            throw new IllegalStateException("document result payload missing domain");
+        try {
+            AgentDocumentParameters parameters = candidate.getDocumentParameters();
+            String domain = parameters == null ? null : parameters.getDomain();
+            if (domain == null || domain.isBlank()) {
+                throw new IllegalStateException("document result payload missing domain");
+            }
+            if (!scope.allowedDomains().contains(domain)) {
+                throw new IllegalStateException("document result domain outside execution scope");
+            }
+            DocumentRevocationDecision decision = revocationGuard.evaluate(domain, null);
+            if (decision.revoked()) {
+                recordRevocation(decision);
+                throw new IllegalStateException("document access revoked by "
+                        + decision.source() + ":" + decision.target());
+            }
+            AgentDocumentResult result = filterResult(domain, candidate.getDocumentResult(), scope);
+            DocumentPlanOperation operation = parseOperation(parameters.getOperation());
+            if (!applyVerifiedCandidate(operation, result)) {
+                DocumentSafeTextComposer.compose(operation, result, properties.getDocument().getMaxSummaryChars());
+            }
+            clearCandidateText(result);
+            DocumentAgentResultPayload filtered = new DocumentAgentResultPayload(
+                    filterParameters(domain, parameters, scope),
+                    result);
+            recordResultSecurity("FILTERED");
+            return new FilteredResult<>(filtered, "文档处理完成", "文档结果已按当前执行范围过滤和脱敏");
+        } catch (RuntimeException ex) {
+            recordResultSecurity("FAILED");
+            throw ex;
         }
-        if (!scope.allowedDomains().contains(domain)) {
-            throw new IllegalStateException("document result domain outside execution scope");
+    }
+
+    private void recordResultSecurity(String decision) {
+        if (observabilitySupport != null) {
+            observabilitySupport.recordResultSecurity(decision);
         }
-        revocationGuard.assertAllowed(domain, null);
-        AgentDocumentResult result = filterResult(domain, candidate.getDocumentResult(), scope);
-        DocumentPlanOperation operation = parseOperation(parameters.getOperation());
-        if (!applyVerifiedCandidate(operation, result)) {
-            DocumentSafeTextComposer.compose(operation, result, properties.getDocument().getMaxSummaryChars());
+    }
+
+    private void recordRevocation(DocumentRevocationDecision decision) {
+        if (observabilitySupport != null) {
+            observabilitySupport.recordRevocationHit(decision.target(), decision.source());
         }
-        clearCandidateText(result);
-        DocumentAgentResultPayload filtered = new DocumentAgentResultPayload(
-                filterParameters(domain, parameters, scope),
-                result);
-        return new FilteredResult<>(filtered, "文档处理完成", "文档结果已按当前执行范围过滤和脱敏");
     }
 
     private AgentDocumentParameters filterParameters(
