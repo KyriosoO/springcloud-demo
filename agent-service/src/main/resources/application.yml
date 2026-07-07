@@ -127,13 +127,13 @@ agent:
       dimension: 0
       timeout: 5s
     generation:
-      enabled: false
-      base-url:
-      model:
+      enabled: true
+      base-url: https://api.deepseek.com
+      model: deepseek-v4-flash
       max-context-chars: 8000
       max-evidence-chars: 1200
       max-output-chars: 2000
-      timeout: 15s
+      timeout: 60s
       failure-policy: FALLBACK_EXTRACTIVE
     hybrid:
       keyword-k: 20
