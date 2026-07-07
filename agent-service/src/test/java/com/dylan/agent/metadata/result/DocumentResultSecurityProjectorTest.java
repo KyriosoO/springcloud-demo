@@ -2,6 +2,7 @@ package com.dylan.agent.metadata.result;
 
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.response.AgentDocumentCitation;
+import com.dylan.agent.api.response.AgentDocumentCoverage;
 import com.dylan.agent.api.response.AgentDocumentParameters;
 import com.dylan.agent.api.response.AgentDocumentResult;
 import com.dylan.agent.api.response.DocumentGenerationStatus;
@@ -146,6 +147,11 @@ class DocumentResultSecurityProjectorTest {
         payload.getDocumentResult().setGroundingStatus(GroundingStatus.VERIFIED);
         payload.getDocumentResult().setCandidateSummaryText("生成式摘要只引用被过滤证据。[c-2]");
         payload.getDocumentResult().setCandidateSummaryBullets(List.of("生成式摘要要点。[c-2]"));
+        AgentDocumentCoverage coverage = new AgentDocumentCoverage();
+        coverage.setRequestedDocumentCount(2);
+        coverage.setCoveredDocumentCount(2);
+        coverage.setEvidenceCount(2);
+        payload.getDocumentResult().setCoverage(coverage);
         AgentProperties properties = DomainMetadataTestSupport.agentProperties();
         properties.getDocument().setMaxEvidenceCount(1);
 
@@ -155,6 +161,10 @@ class DocumentResultSecurityProjectorTest {
         assertThat(result.getGenerationStatus()).isEqualTo(DocumentGenerationStatus.FALLBACK);
         assertThat(result.getSummaryText()).contains("[c-1]");
         assertThat(result.getSummaryText()).doesNotContain("[c-2]");
+        assertThat(result.getCoverage().getRequestedDocumentCount()).isEqualTo(2);
+        assertThat(result.getCoverage().getCoveredDocumentCount()).isEqualTo(1);
+        assertThat(result.getCoverage().getEvidenceCount()).isEqualTo(1);
+        assertThat(result.getCoverage().isTruncated()).isTrue();
         assertThat(result.getCandidateSummaryText()).isNull();
     }
 

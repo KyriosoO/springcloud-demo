@@ -34,6 +34,9 @@ import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -44,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@ExtendWith(OutputCaptureExtension.class)
 class DocumentCapabilityHandlerTest {
 
     private static final Instant NOW = Instant.now().plusSeconds(300);
@@ -98,7 +102,7 @@ class DocumentCapabilityHandlerTest {
     }
 
     @Test
-    void degradesHybridRetrievalToKeywordWhenEmbeddingProviderFails() {
+    void degradesHybridRetrievalToKeywordWhenEmbeddingProviderFails(CapturedOutput output) {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
         properties.getDocument().getEmbedding().setEnabled(true);
         properties.getDocument().getEmbedding().setModel("test-embedding");
@@ -126,6 +130,14 @@ class DocumentCapabilityHandlerTest {
         assertThat(capturedRequest.get()).isNotNull();
         assertThat(capturedRequest.get().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.KEYWORD);
         assertThat(capturedRequest.get().getQueryVector()).isEmpty();
+        assertThat(output).contains("document hybrid retrieval degraded")
+                .contains("invocationId=inv-1")
+                .contains("domain=policy_document")
+                .contains("requestedMode=HYBRID")
+                .contains("effectiveMode=KEYWORD")
+                .contains("reason=EMBEDDING_PROVIDER_FAILURE")
+                .doesNotContain("查询休假政策")
+                .doesNotContain("queryVector");
     }
 
     @Test
@@ -236,6 +248,7 @@ class DocumentCapabilityHandlerTest {
         options.setEnabled(true);
         DocumentSummaryScope summaryScope = new DocumentSummaryScope();
         summaryScope.setDocumentIds(List.of("doc-1", "doc-1", "doc-2"));
+        summaryScope.setMaxSummaryChars(120);
         DocumentRetrievalRequest request = request(DocumentPlanOperation.SUMMARIZE);
         request = new DocumentRetrievalRequest(
                 request.getOperation(),
@@ -258,12 +271,15 @@ class DocumentCapabilityHandlerTest {
                 "policy_document",
                 request,
                 options);
-        DocumentGenerationPort generation = generationRequest -> new DocumentGenerationResult(
-                null,
-                "生成式摘要。[chunk-1]",
-                List.of("摘要要点。[chunk-1]"),
-                List.of(new CitationBinding("生成式摘要。", List.of("chunk-1"))),
-                "stop");
+        DocumentGenerationPort generation = generationRequest -> {
+            assertThat(generationRequest.maxOutputChars()).isEqualTo(120);
+            return new DocumentGenerationResult(
+                    null,
+                    "生成式摘要。[chunk-1]",
+                    List.of("摘要要点。[chunk-1]"),
+                    List.of(new CitationBinding("生成式摘要。", List.of("chunk-1"))),
+                    "stop");
+        };
 
         var result = new DocumentCapabilityHandler(
                 properties,

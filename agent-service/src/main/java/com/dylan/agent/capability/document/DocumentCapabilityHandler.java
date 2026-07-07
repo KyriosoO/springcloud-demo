@@ -3,6 +3,7 @@ package com.dylan.agent.capability.document;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
@@ -46,6 +47,8 @@ import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.CapabilityHandler;
 import com.dylan.agent.kernel.handler.HandlerResult;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.time.Instant;
@@ -54,6 +57,8 @@ import java.util.Objects;
 
 public class DocumentCapabilityHandler
         implements CapabilityHandler<ValidatedDocumentPlan, DocumentAgentResultPayload> {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentCapabilityHandler.class);
 
     private final AgentProperties properties;
     private final DocumentEmbeddingPort embeddingPort;
@@ -164,17 +169,17 @@ public class DocumentCapabilityHandler
         }
         if (!properties.getDocument().getEmbedding().isEnabled()) {
             if (mode == DocumentRetrievalMode.HYBRID) {
-                return copyRequest(request, DocumentRetrievalMode.KEYWORD, List.of());
+                return downgradeHybridToKeyword(request, context, "EMBEDDING_DISABLED");
             }
             throw new IllegalStateException("document vector retrieval requires enabled embedding");
         }
         var embedding = embedOrFallback(plan, context, mode);
         if (embedding == null) {
-            return copyRequest(request, DocumentRetrievalMode.KEYWORD, List.of());
+            return downgradeHybridToKeyword(request, context, "EMBEDDING_PROVIDER_FAILURE");
         }
         if (embedding.queryVector() == null || embedding.queryVector().isEmpty()) {
             if (mode == DocumentRetrievalMode.HYBRID) {
-                return copyRequest(request, DocumentRetrievalMode.KEYWORD, List.of());
+                return downgradeHybridToKeyword(request, context, "EMPTY_QUERY_VECTOR");
             }
             throw new IllegalStateException("document embedding returned empty queryVector");
         }
@@ -194,6 +199,26 @@ public class DocumentCapabilityHandler
             throw new IllegalStateException("document embedding returned invalid queryVector");
         }
         return copyRequest(request, mode, embedding.queryVector());
+    }
+
+    private DocumentRetrievalRequest downgradeHybridToKeyword(
+            DocumentRetrievalRequest request,
+            ExecutionContext context,
+            String reason) {
+        DocumentHybridOptions options = request.getHybridOptions();
+        log.warn("document hybrid retrieval degraded: invocationId={}, domain={}, requestedMode={}, "
+                        + "effectiveMode={}, reason={}, topK={}, keywordK={}, vectorK={}, rrfK={}, numCandidates={}",
+                context.invocationId(),
+                request.getDomain(),
+                DocumentRetrievalMode.HYBRID,
+                DocumentRetrievalMode.KEYWORD,
+                reason,
+                request.getTopK(),
+                options == null ? null : options.keywordK(),
+                options == null ? null : options.vectorK(),
+                options == null ? null : options.rrfK(),
+                options == null ? null : options.numCandidates());
+        return copyRequest(request, DocumentRetrievalMode.KEYWORD, List.of());
     }
 
     private DocumentEmbeddingResult embedOrFallback(
@@ -322,11 +347,12 @@ public class DocumentCapabilityHandler
             result.setGenerationStatus(DocumentGenerationStatus.SKIPPED);
             return;
         }
+        int maxOutputChars = resolveMaxOutputChars(options, plan);
         DocumentContextBudget budget = new DocumentContextBudget(
                 properties.getDocument().getGeneration().getMaxContextChars(),
                 properties.getDocument().getGeneration().getMaxEvidenceChars(),
                 properties.getDocument().getMaxEvidenceCount(),
-                resolveMaxOutputChars(options));
+                maxOutputChars);
         var evidencePackage = contextPacker.pack(new DocumentContextPackRequest(plan, filteredEvidence, context, budget));
         try {
             if (deadlineExpired(context.absoluteDeadline())) {
@@ -363,10 +389,17 @@ public class DocumentCapabilityHandler
         return deadline == null || !deadline.isAfter(Instant.now());
     }
 
-    private int resolveMaxOutputChars(DocumentGenerationOptions options) {
-        return options.getMaxOutputChars() == null
+    private int resolveMaxOutputChars(DocumentGenerationOptions options, ValidatedDocumentPlan plan) {
+        int outputLimit = options.getMaxOutputChars() == null
                 ? properties.getDocument().getGeneration().getMaxOutputChars()
                 : options.getMaxOutputChars();
+        var summaryScope = plan.request().getSummaryScope();
+        if (plan.request().getOperation() == com.dylan.agent.api.plan.DocumentPlanOperation.SUMMARIZE
+                && summaryScope != null
+                && summaryScope.getMaxSummaryChars() != null) {
+            return Math.min(outputLimit, summaryScope.getMaxSummaryChars());
+        }
+        return outputLimit;
     }
 
     private void fallbackOrFail(AgentDocumentResult result, DocumentGenerationOptions options, String reason) {

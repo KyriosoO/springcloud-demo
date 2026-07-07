@@ -81,7 +81,8 @@ public class DocumentPlanValidator
             throw new IllegalArgumentException("document page must be positive");
         }
         validateSummaryScope(operation, document.getSummaryScope());
-        List<ValidatedFilter> effectiveFilters = mergeSummaryScopeFilters(operation, document.getSummaryScope(), filters);
+        DocumentSummaryScope summaryScope = normalizedSummaryScope(operation, document.getSummaryScope());
+        List<ValidatedFilter> effectiveFilters = mergeSummaryScopeFilters(operation, summaryScope, filters);
         if (operation != DocumentPlanOperation.SEARCH
                 && Boolean.FALSE.equals(document.getCitationRequired())) {
             throw new IllegalArgumentException("document citations are required for ANSWER/SUMMARIZE");
@@ -102,7 +103,7 @@ public class DocumentPlanValidator
                 topK,
                 page,
                 size,
-                document.getSummaryScope(),
+                summaryScope,
                 citationRequired,
                 retrievalMode,
                 List.of(),
@@ -150,11 +151,14 @@ public class DocumentPlanValidator
             throw new IllegalArgumentException("document summaryScope is required for SUMMARIZE");
         }
         List<String> documentIds = normalizedSummaryDocumentIds(summaryScope);
-        if (summaryScope.getDocumentIds() != null && documentIds.isEmpty()) {
+        if (summaryScope.getDocumentIds() != null
+                && !summaryScope.getDocumentIds().isEmpty()
+                && documentIds.isEmpty()) {
             throw new IllegalArgumentException("document summaryScope documentIds must not be blank");
         }
         if (summaryScope.getMaxSummaryChars() != null
-                && summaryScope.getMaxSummaryChars() > properties.getDocument().getMaxSummaryChars()) {
+                && (summaryScope.getMaxSummaryChars() <= 0
+                || summaryScope.getMaxSummaryChars() > properties.getDocument().getMaxSummaryChars())) {
             throw new IllegalArgumentException("document summaryScope maxSummaryChars out of bounds");
         }
         if (documentIds.size() > properties.getDocument().getMaxEvidenceCount()) {
@@ -192,6 +196,20 @@ public class DocumentPlanValidator
                 .filter(value -> !value.isBlank())
                 .forEach(ids::add);
         return List.copyOf(ids);
+    }
+
+    private static DocumentSummaryScope normalizedSummaryScope(
+            DocumentPlanOperation operation,
+            DocumentSummaryScope source) {
+        if (operation != DocumentPlanOperation.SUMMARIZE || source == null) {
+            return source;
+        }
+        DocumentSummaryScope target = new DocumentSummaryScope();
+        target.setDocumentIds(source.getDocumentIds() == null ? null : normalizedSummaryDocumentIds(source));
+        target.setTimeRange(source.getTimeRange());
+        target.setSectionHints(source.getSectionHints() == null ? null : List.copyOf(source.getSectionHints()));
+        target.setMaxSummaryChars(source.getMaxSummaryChars());
+        return target;
     }
 
     private void validateCapability(DocumentPlanOperation operation, String capabilityId) {

@@ -50,7 +50,7 @@ public final class DocumentCapabilityHandlerTestSupport {
                 "policy-v1",
                 Set.of("document.answer", "document.search", "document.summarize"),
                 Set.of("policy_document"),
-                Map.of("policy_document", Set.of("sourceType")),
+                Map.of("policy_document", Set.of("title", "sourceType", "section", "page", "sourceUri", "snippet")),
                 Map.of(),
                 Duration.ofSeconds(30),
                 1,

@@ -120,7 +120,7 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
                 .limit(properties.getDocument().getMaxEvidenceCount())
                 .toList());
         target.setPartial(source.isPartial());
-        target.setCoverage(filterCoverage(source.getCoverage(), target.getCitations().size()));
+        target.setCoverage(filterCoverage(source.getCoverage(), target.getCitations()));
         target.setGenerationStatus(source.getGenerationStatus());
         target.setGroundingStatus(source.getGroundingStatus());
         target.setCitationVerification(source.getCitationVerification());
@@ -172,13 +172,21 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         return target;
     }
 
-    private AgentDocumentCoverage filterCoverage(AgentDocumentCoverage source, int evidenceCount) {
+    private AgentDocumentCoverage filterCoverage(AgentDocumentCoverage source, List<AgentDocumentCitation> citations) {
         AgentDocumentCoverage target = new AgentDocumentCoverage();
+        int evidenceCount = citations.size();
+        int coveredDocumentCount = (int) citations.stream()
+                .map(AgentDocumentCitation::getDocumentId)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .count();
         if (source != null) {
             target.setRequestedDocumentCount(source.getRequestedDocumentCount());
-            target.setCoveredDocumentCount(source.getCoveredDocumentCount());
-            target.setTruncated(source.isTruncated());
+            boolean securityFiltered = source.getEvidenceCount() > evidenceCount
+                    || source.getCoveredDocumentCount() > coveredDocumentCount;
+            target.setTruncated(source.isTruncated() || securityFiltered);
         }
+        target.setCoveredDocumentCount(coveredDocumentCount);
         target.setEvidenceCount(evidenceCount);
         return target;
     }

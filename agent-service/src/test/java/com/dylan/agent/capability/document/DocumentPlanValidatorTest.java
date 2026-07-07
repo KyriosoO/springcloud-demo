@@ -131,6 +131,18 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
+    void rejectsNonPositiveSummaryMaxChars() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SUMMARIZE, true);
+        DocumentSummaryScope scope = new DocumentSummaryScope();
+        scope.setMaxSummaryChars(0);
+        plan.getDocument().setSummaryScope(scope);
+
+        assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SUMMARIZE)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("summaryScope");
+    }
+
+    @Test
     void rejectsSummarizeWithoutSummaryScope() {
         assertThatThrownBy(() -> validator().validate(plan(DocumentPlanOperation.SUMMARIZE, true),
                 context(DocumentCapabilityIds.SUMMARIZE)))
@@ -152,6 +164,21 @@ class DocumentPlanValidatorTest {
             assertThat(filter.getOperator()).isEqualTo(AgentOperator.IN);
             assertThat(filter.getValues()).containsExactly("doc-1", "doc-2");
         });
+        assertThat(validated.request().getSummaryScope().getDocumentIds())
+                .containsExactly("doc-1", "doc-2");
+    }
+
+    @Test
+    void acceptsEmptySummaryDocumentIdsForTopicSummary() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SUMMARIZE, true);
+        DocumentSummaryScope scope = new DocumentSummaryScope();
+        scope.setDocumentIds(List.of());
+        plan.getDocument().setSummaryScope(scope);
+
+        var validated = validator().validate(plan, context(DocumentCapabilityIds.SUMMARIZE));
+
+        assertThat(validated.request().getFilters()).noneMatch(filter -> "documentId".equals(filter.getField()));
+        assertThat(validated.request().getSummaryScope().getDocumentIds()).isEmpty();
     }
 
     @Test

@@ -15,17 +15,20 @@ public class DocumentCitationVerifier {
             return new CitationVerificationResult(GroundingStatus.NO_EVIDENCE, 0, List.of(), "NO_EVIDENCE");
         }
         List<CitationBinding> bindings = result.citationBindings() == null ? List.of() : result.citationBindings();
-        Set<String> allowed = context.citationIds();
-        List<String> invalid = bindings.stream()
+        List<String> referencedCitationIds = bindings.stream()
                 .flatMap(binding -> (binding.citationIds() == null ? List.<String>of() : binding.citationIds()).stream())
-                .filter(citationId -> !allowed.contains(citationId))
+                .map(citationId -> citationId == null ? "" : citationId.trim())
+                .toList();
+        if (referencedCitationIds.isEmpty()) {
+            return new CitationVerificationResult(GroundingStatus.PARTIAL, 0, List.of(), "NO_BINDINGS");
+        }
+        Set<String> allowed = context.citationIds();
+        List<String> invalid = referencedCitationIds.stream()
+                .filter(citationId -> citationId.isBlank() || !allowed.contains(citationId))
                 .distinct()
                 .toList();
         if (!invalid.isEmpty()) {
             return new CitationVerificationResult(GroundingStatus.UNVERIFIED, invalid.size(), invalid, "INVALID_CITATION");
-        }
-        if (bindings.isEmpty()) {
-            return new CitationVerificationResult(GroundingStatus.PARTIAL, 0, List.of(), "NO_BINDINGS");
         }
         return new CitationVerificationResult(GroundingStatus.VERIFIED, 0, List.of(), null);
     }
