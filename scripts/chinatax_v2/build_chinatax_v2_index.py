@@ -8,13 +8,12 @@ import datetime as dt
 import hashlib
 import json
 import math
-import os
 import re
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 try:
     import pyarrow.parquet as pq
@@ -639,7 +638,7 @@ def index_exists(session: requests.Session, es_url: str, index: str, timeout: in
 
 
 def es_get(session: requests.Session, es_url: str, path: str, timeout: int) -> dict[str, Any]:
-    response = session.get(es_url.rstrip() + path, timeout=timeout)
+    response = session.get(es_url.rstrip("/") + path, timeout=timeout)
     response.raise_for_status()
     return response.json()
 
