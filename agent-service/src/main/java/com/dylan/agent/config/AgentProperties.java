@@ -200,6 +200,7 @@ public class AgentProperties {
         private int maxSummaryChars = 2000;
         private DocumentRetrievalMode defaultRetrievalMode = DocumentRetrievalMode.HYBRID;
         private Map<String, DocumentRetrievalMode> retrievalModeByDomain = new LinkedHashMap<>();
+        private Map<String, RetrievalProfileProperties> retrievalProfiles = new LinkedHashMap<>();
         private EvidenceSelectionProperties evidenceSelection = new EvidenceSelectionProperties();
         private ContextWindowProperties contextWindow = new ContextWindowProperties();
         private EmbeddingProperties embedding = new EmbeddingProperties();
@@ -233,6 +234,10 @@ public class AgentProperties {
         public Map<String, DocumentRetrievalMode> getRetrievalModeByDomain() { return retrievalModeByDomain; }
         public void setRetrievalModeByDomain(Map<String, DocumentRetrievalMode> retrievalModeByDomain) {
             this.retrievalModeByDomain = retrievalModeByDomain == null ? new LinkedHashMap<>() : new LinkedHashMap<>(retrievalModeByDomain);
+        }
+        public Map<String, RetrievalProfileProperties> getRetrievalProfiles() { return retrievalProfiles; }
+        public void setRetrievalProfiles(Map<String, RetrievalProfileProperties> retrievalProfiles) {
+            this.retrievalProfiles = retrievalProfiles == null ? new LinkedHashMap<>() : new LinkedHashMap<>(retrievalProfiles);
         }
         public EvidenceSelectionProperties getEvidenceSelection() { return evidenceSelection; }
         public void setEvidenceSelection(EvidenceSelectionProperties evidenceSelection) {
@@ -367,6 +372,79 @@ public class AgentProperties {
         public void setRrfK(int rrfK) { this.rrfK = rrfK; }
         public int getNumCandidates() { return numCandidates; }
         public void setNumCandidates(int numCandidates) { this.numCandidates = numCandidates; }
+    }
+
+    /** 文档资料域/资料类型检索 profile。 */
+    public static class RetrievalProfileProperties {
+        private boolean enabled = true;
+        private String domain;
+        private String materialType;
+        private String retrievalProfile;
+        private String profileVersion = "v1";
+        private String indexAlias;
+        private List<String> channels = new ArrayList<>(List.of("BM25", "EXACT", "PHRASE", "DENSE_VECTOR"));
+        private Map<String, Double> channelWeights = new LinkedHashMap<>();
+        private String embeddingField = "embedding";
+        private int keywordK = 20;
+        private int exactK = 20;
+        private int phraseK = 20;
+        private int vectorK = 20;
+        private int rrfK = 60;
+        private int numCandidates = 100;
+        private int maxChunksPerDocument = 1;
+        private RerankProperties rerank = new RerankProperties();
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getDomain() { return domain; }
+        public void setDomain(String domain) { this.domain = domain; }
+        public String getMaterialType() { return materialType; }
+        public void setMaterialType(String materialType) { this.materialType = materialType; }
+        public String getRetrievalProfile() { return retrievalProfile; }
+        public void setRetrievalProfile(String retrievalProfile) { this.retrievalProfile = retrievalProfile; }
+        public String getProfileVersion() { return profileVersion; }
+        public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
+        public String getIndexAlias() { return indexAlias; }
+        public void setIndexAlias(String indexAlias) { this.indexAlias = indexAlias; }
+        public List<String> getChannels() { return channels; }
+        public void setChannels(List<String> channels) {
+            this.channels = channels == null ? new ArrayList<>() : new ArrayList<>(channels);
+        }
+        public Map<String, Double> getChannelWeights() { return channelWeights; }
+        public void setChannelWeights(Map<String, Double> channelWeights) {
+            this.channelWeights = channelWeights == null ? new LinkedHashMap<>() : new LinkedHashMap<>(channelWeights);
+        }
+        public String getEmbeddingField() { return embeddingField; }
+        public void setEmbeddingField(String embeddingField) { this.embeddingField = embeddingField; }
+        public int getKeywordK() { return keywordK; }
+        public void setKeywordK(int keywordK) { this.keywordK = keywordK; }
+        public int getExactK() { return exactK; }
+        public void setExactK(int exactK) { this.exactK = exactK; }
+        public int getPhraseK() { return phraseK; }
+        public void setPhraseK(int phraseK) { this.phraseK = phraseK; }
+        public int getVectorK() { return vectorK; }
+        public void setVectorK(int vectorK) { this.vectorK = vectorK; }
+        public int getRrfK() { return rrfK; }
+        public void setRrfK(int rrfK) { this.rrfK = rrfK; }
+        public int getNumCandidates() { return numCandidates; }
+        public void setNumCandidates(int numCandidates) { this.numCandidates = numCandidates; }
+        public int getMaxChunksPerDocument() { return maxChunksPerDocument; }
+        public void setMaxChunksPerDocument(int maxChunksPerDocument) { this.maxChunksPerDocument = maxChunksPerDocument; }
+        public RerankProperties getRerank() { return rerank; }
+        public void setRerank(RerankProperties rerank) {
+            this.rerank = rerank == null ? new RerankProperties() : rerank;
+        }
+    }
+
+    /** 文档 rerank 开关，默认关闭。 */
+    public static class RerankProperties {
+        private boolean enabled = false;
+        private int topN = 20;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getTopN() { return topN; }
+        public void setTopN(int topN) { this.topN = topN; }
     }
 
     /** 文档本地应急禁用清单，首版不扩展统一 policy target 枚举。 */

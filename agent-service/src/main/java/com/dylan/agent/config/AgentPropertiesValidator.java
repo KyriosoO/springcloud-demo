@@ -137,6 +137,7 @@ public class AgentPropertiesValidator implements InitializingBean {
         validateDocumentEmbeddingConfig(d);
         validateDocumentGenerationConfig(d);
         validateDocumentHybridConfig(d);
+        validateDocumentRetrievalProfiles(d);
     }
 
     private void validateDocumentEmbeddingConfig(AgentProperties.DocumentProperties d) {
@@ -186,6 +187,67 @@ public class AgentPropertiesValidator implements InitializingBean {
         if (h.getKeywordK() <= 0 || h.getVectorK() <= 0 || h.getRrfK() <= 0 || h.getNumCandidates() <= 0) {
             throw new IllegalStateException("agent.document.hybrid 参数必须为正数。");
         }
+    }
+
+    private void validateDocumentRetrievalProfiles(AgentProperties.DocumentProperties d) {
+        boolean hasEnabledProfile = d.getRetrievalProfiles().values().stream()
+                .anyMatch(profile -> profile != null && profile.isEnabled());
+        if (d.isEnabled() && !hasEnabledProfile) {
+            throw new IllegalStateException("agent.document.retrieval-profiles 至少需要一个启用的 profile。");
+        }
+        for (var entry : d.getRetrievalProfiles().entrySet()) {
+            var profile = entry.getValue();
+            if (profile == null || !profile.isEnabled()) {
+                continue;
+            }
+            String prefix = "agent.document.retrieval-profiles." + entry.getKey();
+            if (profile.getDomain() == null || profile.getDomain().isBlank()) {
+                throw new IllegalStateException(prefix + ".domain 必须配置。");
+            }
+            if (profile.getRetrievalProfile() == null || profile.getRetrievalProfile().isBlank()) {
+                throw new IllegalStateException(prefix + ".retrieval-profile 必须配置。");
+            }
+            if (profile.getIndexAlias() == null || profile.getIndexAlias().isBlank()) {
+                throw new IllegalStateException(prefix + ".index-alias 必须配置。");
+            }
+            if (profile.getChannels() == null || profile.getChannels().isEmpty()) {
+                throw new IllegalStateException(prefix + ".channels 至少配置一个通道。");
+            }
+            for (String channel : profile.getChannels()) {
+                if (!isSupportedRetrievalChannel(channel)) {
+                    throw new IllegalStateException(prefix + ".channels 包含不支持的通道。");
+                }
+            }
+            if (profile.getKeywordK() <= 0 || profile.getExactK() <= 0 || profile.getPhraseK() <= 0
+                    || profile.getVectorK() <= 0 || profile.getRrfK() <= 0
+                    || profile.getNumCandidates() <= 0 || profile.getMaxChunksPerDocument() <= 0) {
+                throw new IllegalStateException(prefix + " 检索参数必须为正数。");
+            }
+            if (profile.getChannelWeights().values().stream()
+                    .anyMatch(weight -> weight == null || !Double.isFinite(weight) || weight <= 0.0d)) {
+                throw new IllegalStateException(prefix + ".channel-weights 必须为正数。");
+            }
+            if (profile.getChannels().stream().anyMatch(channel -> "DENSE_VECTOR".equalsIgnoreCase(channel))
+                    && (profile.getEmbeddingField() == null || profile.getEmbeddingField().isBlank())) {
+                throw new IllegalStateException(prefix + ".embedding-field 必须配置。");
+            }
+            if (profile.getRerank().isEnabled() && profile.getRerank().getTopN() <= 0) {
+                throw new IllegalStateException(prefix + ".rerank.top-n 必须为正数。");
+            }
+        }
+    }
+
+    private static boolean isSupportedRetrievalChannel(String channel) {
+        if (channel == null || channel.isBlank()) {
+            return false;
+        }
+        String normalized = channel.trim().toUpperCase(java.util.Locale.ROOT);
+        return "KEYWORD".equals(normalized)
+                || "BM25".equals(normalized)
+                || "EXACT".equals(normalized)
+                || "PHRASE".equals(normalized)
+                || "VECTOR".equals(normalized)
+                || "DENSE_VECTOR".equals(normalized);
     }
 
     private void validateConversation() {

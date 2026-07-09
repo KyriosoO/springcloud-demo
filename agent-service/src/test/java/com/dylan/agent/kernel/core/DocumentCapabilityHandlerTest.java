@@ -5,6 +5,7 @@ import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
 import com.dylan.agent.adapter.api.document.DocumentAclScope;
+import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.adapter.api.document.generation.CitationBinding;
 import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
@@ -30,6 +31,7 @@ import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPac
 import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurityFilter;
 import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
+import com.dylan.agent.capability.document.rerank.DocumentRerankRequest;
 import com.dylan.agent.invocation.model.CancellationSource;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
@@ -195,6 +197,82 @@ class DocumentCapabilityHandlerTest {
                 .contains("reason=EMBEDDING_PROVIDER_FAILURE")
                 .doesNotContain("查询休假政策")
                 .doesNotContain("queryVector");
+    }
+
+    @Test
+    void hybridWithoutDenseVectorChannelDoesNotCallEmbeddingProvider() {
+        AtomicReference<DocumentRetrievalRequest> capturedRequest = new AtomicReference<>();
+        DocumentRetrievableAdapter adapter = request -> {
+            capturedRequest.set(request);
+            return adapterResult();
+        };
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SEARCH,
+                "policy_document",
+                hybridTextOnlyRequest(false));
+
+        new DocumentCapabilityHandler(
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
+                request -> { throw new IllegalStateException("embedding should not be called"); },
+                aclScopePort(),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier())
+                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
+
+        assertThat(capturedRequest.get()).isNotNull();
+        assertThat(capturedRequest.get().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
+        assertThat(capturedRequest.get().getQueryVector()).isEmpty();
+    }
+
+    @Test
+    void invokesRerankAfterAdapterWhenProfileEnablesIt() {
+        AtomicReference<DocumentRerankRequest> capturedRerank = new AtomicReference<>();
+        DocumentRetrievableAdapter adapter = request -> {
+            AdapterDocumentResult result = adapterResult();
+            AdapterDocumentEvidence evidence = result.getHits().get(0);
+            evidence.setContent("完整正文不应进入 rerank provider。");
+            evidence.setContextBefore(List.of("上一段"));
+            evidence.setContextAfter(List.of("下一段"));
+            evidence.setMetadata(java.util.Map.of(
+                    "content", "metadata 中的正文",
+                    "embedding", List.of(0.1, 0.2),
+                    "channelRanks", java.util.Map.of("BM25", 1)));
+            return result;
+        };
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SEARCH,
+                "policy_document",
+                hybridTextOnlyRequest(true));
+
+        new DocumentCapabilityHandler(
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentRevocationGuard(com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties()),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier(),
+                null,
+                request -> {
+                    capturedRerank.set(request);
+                    AdapterDocumentEvidence rerankEvidence = request.candidates().getHits().get(0);
+                    assertThat(rerankEvidence.getContent()).isNull();
+                    assertThat(rerankEvidence.getContextBefore()).isNull();
+                    assertThat(rerankEvidence.getContextAfter()).isNull();
+                    assertThat(rerankEvidence.getMetadata()).containsKey("channelRanks");
+                    assertThat(rerankEvidence.getMetadata()).doesNotContainKeys("content", "embedding");
+                    return request.candidates();
+                })
+                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
+
+        assertThat(capturedRerank.get()).isNotNull();
+        assertThat(capturedRerank.get().domain()).isEqualTo("policy_document");
+        assertThat(capturedRerank.get().materialType()).isEqualTo("tax_policy");
+        assertThat(capturedRerank.get().retrievalProfile()).isEqualTo("tax-v2");
+        assertThat(capturedRerank.get().topN()).isEqualTo(20);
     }
 
     @Test
@@ -623,6 +701,43 @@ class DocumentCapabilityHandlerTest {
                 operation != DocumentPlanOperation.SEARCH,
                 retrievalMode,
                 List.of(),
+                null,
+                null);
+    }
+
+    private DocumentRetrievalRequest hybridTextOnlyRequest(boolean rerankEnabled) {
+        return new DocumentRetrievalRequest(
+                DocumentPlanOperation.SEARCH,
+                "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
+                "查询休假政策",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                5,
+                1,
+                5,
+                null,
+                false,
+                DocumentRetrievalMode.HYBRID,
+                List.of(),
+                new DocumentHybridOptions(
+                        10,
+                        12,
+                        60,
+                        100,
+                        10,
+                        10,
+                        1,
+                        List.of("BM25", "PHRASE"),
+                        java.util.Map.of(),
+                        "embedding",
+                        rerankEnabled,
+                        20),
                 null,
                 null);
     }

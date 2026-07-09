@@ -26,7 +26,14 @@ public class HybridSearchHit {
 	private Integer vectorRank;
 	private BigDecimal score;
 	private BigDecimal rrfScore;
+	private BigDecimal rerankScore;
+	private String rerankReasonCode;
 	private List<String> retrievalChannels;
+	private Map<String, Integer> channelRanks;
+	private Map<String, BigDecimal> channelScores;
+	private List<String> hitFields;
+	private Integer dedupGroupSize;
+	private Boolean representativeChunk;
 	private Map<String, Object> metadata;
 
 	public String getDocumentId() { return documentId; }
@@ -65,8 +72,22 @@ public class HybridSearchHit {
 	public void setScore(BigDecimal score) { this.score = score; }
 	public BigDecimal getRrfScore() { return rrfScore; }
 	public void setRrfScore(BigDecimal rrfScore) { this.rrfScore = rrfScore; }
+	public BigDecimal getRerankScore() { return rerankScore; }
+	public void setRerankScore(BigDecimal rerankScore) { this.rerankScore = rerankScore; }
+	public String getRerankReasonCode() { return rerankReasonCode; }
+	public void setRerankReasonCode(String rerankReasonCode) { this.rerankReasonCode = rerankReasonCode; }
 	public List<String> getRetrievalChannels() { return retrievalChannels; }
 	public void setRetrievalChannels(List<String> retrievalChannels) { this.retrievalChannels = retrievalChannels; }
+	public Map<String, Integer> getChannelRanks() { return channelRanks; }
+	public void setChannelRanks(Map<String, Integer> channelRanks) { this.channelRanks = channelRanks; }
+	public Map<String, BigDecimal> getChannelScores() { return channelScores; }
+	public void setChannelScores(Map<String, BigDecimal> channelScores) { this.channelScores = channelScores; }
+	public List<String> getHitFields() { return hitFields; }
+	public void setHitFields(List<String> hitFields) { this.hitFields = hitFields; }
+	public Integer getDedupGroupSize() { return dedupGroupSize; }
+	public void setDedupGroupSize(Integer dedupGroupSize) { this.dedupGroupSize = dedupGroupSize; }
+	public Boolean getRepresentativeChunk() { return representativeChunk; }
+	public void setRepresentativeChunk(Boolean representativeChunk) { this.representativeChunk = representativeChunk; }
 	public Map<String, Object> getMetadata() { return metadata; }
 	public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata; }
 }

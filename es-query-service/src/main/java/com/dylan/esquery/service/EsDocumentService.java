@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import com.dylan.esquery.api.model.HybridContextWindow;
 import com.dylan.esquery.api.model.HybridRetrievalDiagnostics;
+import com.dylan.esquery.api.model.HybridSearchChannelRequest;
 import com.dylan.esquery.api.model.HybridSearchHit;
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.HybridSearchResponse;
@@ -189,38 +190,79 @@ public class EsDocumentService {
 	 */
 	public HybridSearchResponse hybridSearch(String index, HybridSearchRequest request) throws IOException {
 		validateHybridRequest(index, request);
-		Request keywordRequest = new Request("POST", "/" + index + "/_search");
-		keywordRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(keywordSearchBody(request))));
-		Response keywordResponse = restClient.performRequest(keywordRequest);
-
-		VectorSearchRequest vectorRequest = new VectorSearchRequest();
-		vectorRequest.setEmbeddingField(request.getEmbeddingField());
-		vectorRequest.setQueryVector(request.getQueryVector());
-		vectorRequest.setFilterDsl(request.getFilters());
-		vectorRequest.setK(HybridSearchMerger.positiveOrDefault(request.getVectorK(), 20, "vectorK"));
-		vectorRequest.setNumCandidates(request.getNumCandidates());
-		vectorRequest.setTrackTotalHits(request.getTrackTotalHits());
-		Request vectorEsRequest = new Request("POST", "/" + index + "/_search");
-		Map<String, Object> vectorBody = vectorSearchBody(index, vectorRequest);
-		applySourceExcludes(vectorBody, request.getSourceExcludes(), vectorRequest.getEmbeddingField());
-		vectorEsRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(vectorBody)));
-		Response vectorResponse = restClient.performRequest(vectorEsRequest);
-
-		List<JsonNode> keywordHits = extractHits(objectMapper.readTree(responseBody(keywordResponse)));
-		List<JsonNode> vectorHits = extractHits(objectMapper.readTree(responseBody(vectorResponse)));
-		List<HybridSearchHit> hits = hybridSearchMerger.merge(keywordHits, vectorHits, request);
+		List<HybridSearchChannelRequest> channels = effectiveChannels(request);
+		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
+		for (HybridSearchChannelRequest channel : channels) {
+			String channelName = normalizedChannel(channel.getChannel());
+			Request esRequest = new Request("POST", "/" + index + "/_search");
+			Map<String, Object> body = channelSearchBody(index, request, channel);
+			esRequest.setEntity(jsonEntity(objectMapper.writeValueAsString(body)));
+			Response esResponse = restClient.performRequest(esRequest);
+			hitsByChannel.put(channelName, extractHits(objectMapper.readTree(responseBody(esResponse))));
+		}
+		List<HybridSearchHit> hits = hybridSearchMerger.merge(hitsByChannel, request);
 		enrichContextWindow(index, request, hits);
 		HybridRetrievalDiagnostics diagnostics = new HybridRetrievalDiagnostics();
-		diagnostics.setKeywordHitCount(keywordHits.size());
-		diagnostics.setVectorHitCount(vectorHits.size());
+		Map<String, Integer> channelHitCounts = channelHitCounts(hitsByChannel);
+		diagnostics.setChannelHitCounts(channelHitCounts);
+		diagnostics.setKeywordHitCount(keywordCount(channelHitCounts));
+		diagnostics.setVectorHitCount(vectorCount(channelHitCounts));
 		diagnostics.setReturnedHitCount(hits.size());
+		diagnostics.setFusedCandidateCount(hitsByChannel.values().stream().mapToInt(List::size).sum());
+		diagnostics.setDedupedCandidateCount(hits.size());
+		diagnostics.setRrfK(HybridSearchMerger.positiveOrDefault(request.getRrfK(), 60, "rrfK"));
+		diagnostics.setMaxChunksPerDocument(HybridSearchMerger.positiveOrDefault(
+				request.getMaxChunksPerDocument(), 1, "maxChunksPerDocument"));
 		diagnostics.setFusionStrategy("RRF");
+		diagnostics.setChannelWeights(request.getChannelWeights());
+		diagnostics.setRerankStatus("NOT_REQUESTED");
 		diagnostics.setDegraded(false);
 		HybridSearchResponse response = new HybridSearchResponse();
 		response.setHits(hits);
 		response.setDiagnostics(diagnostics);
 		response.setPartial(false);
 		return response;
+	}
+
+	private List<HybridSearchChannelRequest> effectiveChannels(HybridSearchRequest request) {
+		if (request.getChannels() != null && !request.getChannels().isEmpty()) {
+			return request.getChannels();
+		}
+		List<HybridSearchChannelRequest> channels = new ArrayList<>();
+		HybridSearchChannelRequest keyword = new HybridSearchChannelRequest();
+		keyword.setChannel("KEYWORD");
+		keyword.setQueryDsl(request.getKeywordDsl());
+		keyword.setK(request.getKeywordK());
+		channels.add(keyword);
+		HybridSearchChannelRequest vector = new HybridSearchChannelRequest();
+		vector.setChannel("VECTOR");
+		vector.setQueryVector(request.getQueryVector());
+		vector.setEmbeddingField(request.getEmbeddingField());
+		vector.setK(request.getVectorK());
+		vector.setNumCandidates(request.getNumCandidates());
+		channels.add(vector);
+		return channels;
+	}
+
+	private Map<String, Object> channelSearchBody(
+			String index,
+			HybridSearchRequest request,
+			HybridSearchChannelRequest channel) {
+		String channelName = normalizedChannel(channel.getChannel());
+		if ("DENSE_VECTOR".equals(channelName) || "VECTOR".equals(channelName)) {
+			VectorSearchRequest vectorRequest = new VectorSearchRequest();
+			vectorRequest.setEmbeddingField(channel.getEmbeddingField() == null ? request.getEmbeddingField() : channel.getEmbeddingField());
+			vectorRequest.setQueryVector(channel.getQueryVector() == null ? request.getQueryVector() : channel.getQueryVector());
+			vectorRequest.setFilterDsl(request.getFilters());
+			vectorRequest.setK(HybridSearchMerger.positiveOrDefault(
+					channel.getK() == null ? request.getVectorK() : channel.getK(), 20, channelName + ".k"));
+			vectorRequest.setNumCandidates(channel.getNumCandidates() == null ? request.getNumCandidates() : channel.getNumCandidates());
+			vectorRequest.setTrackTotalHits(request.getTrackTotalHits());
+			Map<String, Object> vectorBody = vectorSearchBody(index, vectorRequest);
+			applySourceExcludes(vectorBody, request.getSourceExcludes(), vectorRequest.getEmbeddingField());
+			return vectorBody;
+		}
+		return keywordSearchBody(request, channel);
 	}
 
 	Map<String, Object> vectorSearchBody(VectorSearchRequest request) {
@@ -266,6 +308,18 @@ public class EsDocumentService {
 		return body;
 	}
 
+	Map<String, Object> keywordSearchBody(HybridSearchRequest request, HybridSearchChannelRequest channel) {
+		if (channel.getQueryDsl() == null || channel.getQueryDsl().isEmpty()) {
+			throw new IllegalArgumentException(channel.getChannel() + " queryDsl must not be empty");
+		}
+		Map<String, Object> body = new LinkedHashMap<>(channel.getQueryDsl());
+		mergeHybridFilters(body, request.getFilters());
+		body.put("size", HybridSearchMerger.positiveOrDefault(channel.getK(), 20, channel.getChannel() + ".k"));
+		body.putIfAbsent("track_total_hits", resolveTrackTotalHits(request.getTrackTotalHits()));
+		applySourceExcludes(body, request.getSourceExcludes(), request.getEmbeddingField());
+		return body;
+	}
+
 	void validateHybridRequest(HybridSearchRequest request) {
 		validateHybridRequest(null, request);
 	}
@@ -274,14 +328,18 @@ public class EsDocumentService {
 		if (request == null) {
 			throw new IllegalArgumentException("hybrid request must not be null");
 		}
-		if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
-			throw new IllegalArgumentException("queryVector must not be empty");
-		}
 		if (documentIndexPolicy.isDocumentIndex(index)
 				&& (request.getFilters() == null || request.getFilters().isEmpty())) {
 			throw new IllegalArgumentException("document hybrid search requires ACL filters");
 		}
-		keywordSearchBody(request);
+		if (request.getChannels() == null || request.getChannels().isEmpty()) {
+			if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
+				throw new IllegalArgumentException("queryVector must not be empty");
+			}
+			keywordSearchBody(request);
+		} else {
+			validateChannels(index, request);
+		}
 		HybridSearchMerger.positiveOrDefault(request.getTopK(), 8, "topK");
 		HybridContextWindow contextWindow = request.getContextWindow();
 		if (contextWindow != null) {
@@ -289,6 +347,63 @@ public class EsDocumentService {
 			nonNegativeOrDefault(contextWindow.getAfterChunks(), 0, "contextWindow.afterChunks");
 			nonNegativeOrDefault(contextWindow.getMaxContextChars(), 0, "contextWindow.maxContextChars");
 		}
+	}
+
+	private void validateChannels(String index, HybridSearchRequest request) {
+		for (HybridSearchChannelRequest channel : request.getChannels()) {
+			String channelName = normalizedChannel(channel.getChannel());
+			if (!supportedChannel(channelName)) {
+				throw new IllegalArgumentException("unsupported hybrid search channel: " + channel.getChannel());
+			}
+			if ("DENSE_VECTOR".equals(channelName) || "VECTOR".equals(channelName)) {
+				List<Double> vector = channel.getQueryVector() == null ? request.getQueryVector() : channel.getQueryVector();
+				if (vector == null || vector.isEmpty()) {
+					throw new IllegalArgumentException(channelName + " queryVector must not be empty");
+				}
+			} else if (channel.getQueryDsl() == null || channel.getQueryDsl().isEmpty()) {
+				throw new IllegalArgumentException(channelName + " queryDsl must not be empty");
+			}
+		}
+	}
+
+	private static boolean supportedChannel(String channelName) {
+		return "KEYWORD".equals(channelName)
+				|| "BM25".equals(channelName)
+				|| "EXACT".equals(channelName)
+				|| "PHRASE".equals(channelName)
+				|| "VECTOR".equals(channelName)
+				|| "DENSE_VECTOR".equals(channelName);
+	}
+
+	private static Map<String, Integer> channelHitCounts(Map<String, List<JsonNode>> hitsByChannel) {
+		Map<String, Integer> counts = new LinkedHashMap<>();
+		if (hitsByChannel != null) {
+			hitsByChannel.forEach((channel, hits) -> counts.put(channel, hits == null ? 0 : hits.size()));
+		}
+		return counts;
+	}
+
+	private static int keywordCount(Map<String, Integer> counts) {
+		return counts.entrySet().stream()
+				.filter(entry -> "KEYWORD".equals(entry.getKey())
+						|| "BM25".equals(entry.getKey())
+						|| "EXACT".equals(entry.getKey())
+						|| "PHRASE".equals(entry.getKey()))
+				.mapToInt(Map.Entry::getValue)
+				.sum();
+	}
+
+	private static int vectorCount(Map<String, Integer> counts) {
+		return counts.entrySet().stream()
+				.filter(entry -> "VECTOR".equals(entry.getKey()) || "DENSE_VECTOR".equals(entry.getKey()))
+				.mapToInt(Map.Entry::getValue)
+				.sum();
+	}
+
+	private static String normalizedChannel(String channel) {
+		return channel == null || channel.isBlank()
+				? "UNKNOWN"
+				: channel.trim().toUpperCase(java.util.Locale.ROOT);
 	}
 
 	private void enrichContextWindow(String index, HybridSearchRequest request, List<HybridSearchHit> hits)

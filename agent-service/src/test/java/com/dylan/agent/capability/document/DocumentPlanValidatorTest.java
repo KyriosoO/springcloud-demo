@@ -13,6 +13,7 @@ import com.dylan.agent.api.plan.DocumentGenerationOptions;
 import com.dylan.agent.api.plan.DocumentRetrievalOptions;
 import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import com.dylan.agent.api.plan.DocumentSummaryScope;
+import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.invocation.model.CancellationSource;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.core.ExecutionValidationContextTestSupport;
@@ -264,6 +265,91 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
+    void appliesMaterialTypeRetrievalProfileAndFreezesIndexAlias() {
+        var properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getRetrievalProfiles().put("policy-default",
+                retrievalProfile("policy_document", null, "policy-default", "agent-doc-policy-read"));
+        AgentProperties.RetrievalProfileProperties tax = retrievalProfile(
+                "policy_document", "tax_policy", "tax-v2", "agent-doc-tax-policy-read");
+        tax.setProfileVersion("v2");
+        tax.setKeywordK(31);
+        tax.setExactK(32);
+        tax.setPhraseK(33);
+        tax.setVectorK(34);
+        tax.setRrfK(35);
+        tax.setNumCandidates(36);
+        tax.setMaxChunksPerDocument(2);
+        tax.setChannels(List.of("bm25", "exact", "phrase", "dense_vector"));
+        tax.setChannelWeights(Map.of("BM25", 2.0d));
+        tax.getRerank().setEnabled(true);
+        tax.getRerank().setTopN(12);
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", tax);
+        var validator = new DocumentPlanValidator(
+                properties,
+                new FilterNormalizer(properties),
+                new FieldConstraintValidator(),
+                documentCatalogView());
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setMaterialType("tax_policy");
+        plan.getDocument().setRetrievalOptions(options);
+
+        var validated = validator.validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getMaterialType()).isEqualTo("tax_policy");
+        assertThat(validated.request().getRetrievalProfile()).isEqualTo("tax-v2");
+        assertThat(validated.request().getProfileVersion()).isEqualTo("v2");
+        assertThat(validated.request().getIndexAlias()).isEqualTo("agent-doc-tax-policy-read");
+        assertThat(validated.request().getHybridOptions().keywordK()).isEqualTo(31);
+        assertThat(validated.request().getHybridOptions().exactK()).isEqualTo(32);
+        assertThat(validated.request().getHybridOptions().phraseK()).isEqualTo(33);
+        assertThat(validated.request().getHybridOptions().vectorK()).isEqualTo(34);
+        assertThat(validated.request().getHybridOptions().rrfK()).isEqualTo(35);
+        assertThat(validated.request().getHybridOptions().numCandidates()).isEqualTo(36);
+        assertThat(validated.request().getHybridOptions().maxChunksPerDocument()).isEqualTo(2);
+        assertThat(validated.request().getHybridOptions().channels())
+                .containsExactly("BM25", "EXACT", "PHRASE", "DENSE_VECTOR");
+        assertThat(validated.request().getHybridOptions().channelWeights()).containsEntry("BM25", 2.0d);
+        assertThat(validated.request().getHybridOptions().rerankEnabled()).isTrue();
+        assertThat(validated.request().getHybridOptions().rerankTopN()).isEqualTo(12);
+    }
+
+    @Test
+    void rejectsUnknownRequestedRetrievalProfile() {
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SEARCH, null);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setRetrievalProfile("missing-profile");
+        plan.getDocument().setRetrievalOptions(options);
+
+        assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.SEARCH)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retrievalProfile");
+    }
+
+    @Test
+    void requestLevelRerankCanOnlyDisableProfileRerank() {
+        var properties = DomainMetadataTestSupport.agentProperties();
+        AgentProperties.RetrievalProfileProperties profile = retrievalProfile(
+                "policy_document", "tax_policy", "tax-v2", "agent-doc-tax-policy-read");
+        profile.getRerank().setEnabled(true);
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new DocumentPlanValidator(
+                properties,
+                new FilterNormalizer(properties),
+                new FieldConstraintValidator(),
+                documentCatalogView());
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setMaterialType("tax_policy");
+        options.setRerankEnabled(false);
+        plan.getDocument().setRetrievalOptions(options);
+
+        var validated = validator.validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getHybridOptions().rerankEnabled()).isFalse();
+    }
+
+    @Test
     void acceptsGenerationOptionsWithinBudget() {
         DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
         DocumentGenerationOptions options = new DocumentGenerationOptions();
@@ -411,6 +497,20 @@ class DocumentPlanValidatorTest {
         registration.setCatalogVersion("catalog-test");
         registration.setRegistrationVersion("adapter-reg-test");
         return registration;
+    }
+
+    private AgentProperties.RetrievalProfileProperties retrievalProfile(
+            String domain,
+            String materialType,
+            String profile,
+            String indexAlias) {
+        AgentProperties.RetrievalProfileProperties properties =
+                new AgentProperties.RetrievalProfileProperties();
+        properties.setDomain(domain);
+        properties.setMaterialType(materialType);
+        properties.setRetrievalProfile(profile);
+        properties.setIndexAlias(indexAlias);
+        return properties;
     }
 
 }

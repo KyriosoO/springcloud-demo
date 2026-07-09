@@ -109,4 +109,52 @@ class AgentPropertiesValidatorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("evidence-selection");
     }
+
+    @Test
+    @DisplayName("dense_vector profile 缺少 embedding-field 时启动失败")
+    void shouldFailWhenDenseVectorProfileEmbeddingFieldMissing() {
+        AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
+        profile.setDomain("policy_document");
+        profile.setRetrievalProfile("tax-v2");
+        profile.setIndexAlias("agent-doc-tax-policy-read");
+        profile.setEmbeddingField("");
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("embedding-field");
+    }
+
+    @Test
+    @DisplayName("启用 rerank 但 top-n 非法时启动失败")
+    void shouldFailWhenRerankTopNInvalid() {
+        AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
+        profile.setDomain("policy_document");
+        profile.setRetrievalProfile("tax-v2");
+        profile.setIndexAlias("agent-doc-tax-policy-read");
+        profile.getRerank().setEnabled(true);
+        profile.getRerank().setTopN(0);
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("rerank.top-n");
+    }
+
+    @Test
+    @DisplayName("启用 profile 但缺少 index-alias 时启动失败")
+    void shouldFailWhenRetrievalProfileIndexAliasMissing() {
+        AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
+        profile.setDomain("policy_document");
+        profile.setRetrievalProfile("tax-v2");
+        profile.setIndexAlias("");
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("index-alias");
+    }
 }

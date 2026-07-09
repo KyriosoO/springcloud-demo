@@ -36,7 +36,7 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
         if (request.getAclScope() == null) {
             throw new AgentAdapterException("文档 ACL 安全投影缺失，已拒绝检索。");
         }
-        String index = resolveIndex(request.getDomain());
+        String index = resolveIndex(request.getDomain(), request.getIndexAlias());
         try {
             if (request.getRetrievalMode() == DocumentRetrievalMode.HYBRID) {
                 return evidenceMapper.toAdapterResult(
@@ -57,7 +57,10 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
         }
     }
 
-    private String resolveIndex(String domain) {
+    private String resolveIndex(String domain, String requestIndexAlias) {
+        if (requestIndexAlias != null && !requestIndexAlias.isBlank()) {
+            return requestIndexAlias;
+        }
         String index = properties.getIndexByDomain().get(domain);
         if (index == null || index.isBlank()) {
             throw new AgentAdapterException("文档 domain 缺少显式 read alias 映射，已拒绝检索。");

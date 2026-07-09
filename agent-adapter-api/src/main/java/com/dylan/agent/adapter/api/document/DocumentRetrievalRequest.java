@@ -13,7 +13,13 @@ public final class DocumentRetrievalRequest {
 
     private final DocumentPlanOperation operation;
     private final String domain;
+    private final String materialType;
+    private final String retrievalProfile;
+    private final String profileVersion;
+    private final String indexAlias;
     private final String queryText;
+    private final List<String> ruleKeywords;
+    private final List<String> rewriteCandidates;
     private final List<ValidatedFilter> filters;
     private final List<ValidatedSort> sorts;
     private final int topK;
@@ -77,9 +83,42 @@ public final class DocumentRetrievalRequest {
             DocumentHybridOptions hybridOptions,
             DocumentContextOptions contextOptions,
             DocumentAclScope aclScope) {
+        this(operation, domain, null, null, null, null, queryText, List.of(), List.of(),
+                filters, sorts, topK, page, size, summaryScope, citationRequired, retrievalMode,
+                queryVector, hybridOptions, contextOptions, aclScope);
+    }
+
+    public DocumentRetrievalRequest(
+            DocumentPlanOperation operation,
+            String domain,
+            String materialType,
+            String retrievalProfile,
+            String profileVersion,
+            String indexAlias,
+            String queryText,
+            List<String> ruleKeywords,
+            List<String> rewriteCandidates,
+            List<ValidatedFilter> filters,
+            List<ValidatedSort> sorts,
+            int topK,
+            int page,
+            int size,
+            DocumentSummaryScope summaryScope,
+            boolean citationRequired,
+            DocumentRetrievalMode retrievalMode,
+            List<Double> queryVector,
+            DocumentHybridOptions hybridOptions,
+            DocumentContextOptions contextOptions,
+            DocumentAclScope aclScope) {
         this.operation = operation;
         this.domain = domain;
+        this.materialType = materialType;
+        this.retrievalProfile = retrievalProfile;
+        this.profileVersion = profileVersion;
+        this.indexAlias = indexAlias;
         this.queryText = queryText;
+        this.ruleKeywords = List.copyOf(ruleKeywords == null ? List.of() : ruleKeywords);
+        this.rewriteCandidates = List.copyOf(rewriteCandidates == null ? List.of() : rewriteCandidates);
         this.filters = List.copyOf(filters == null ? List.of() : filters);
         this.sorts = List.copyOf(sorts == null ? List.of() : sorts);
         this.topK = topK;
@@ -96,7 +135,13 @@ public final class DocumentRetrievalRequest {
 
     public DocumentPlanOperation getOperation() { return operation; }
     public String getDomain() { return domain; }
+    public String getMaterialType() { return materialType; }
+    public String getRetrievalProfile() { return retrievalProfile; }
+    public String getProfileVersion() { return profileVersion; }
+    public String getIndexAlias() { return indexAlias; }
     public String getQueryText() { return queryText; }
+    public List<String> getRuleKeywords() { return ruleKeywords; }
+    public List<String> getRewriteCandidates() { return rewriteCandidates; }
     public List<ValidatedFilter> getFilters() { return filters; }
     public List<ValidatedSort> getSorts() { return sorts; }
     public int getTopK() { return topK; }
@@ -114,7 +159,13 @@ public final class DocumentRetrievalRequest {
         return new DocumentRetrievalRequest(
                 operation,
                 domain,
+                materialType,
+                retrievalProfile,
+                profileVersion,
+                indexAlias,
                 queryText,
+                ruleKeywords,
+                rewriteCandidates,
                 filters,
                 sorts,
                 topK,

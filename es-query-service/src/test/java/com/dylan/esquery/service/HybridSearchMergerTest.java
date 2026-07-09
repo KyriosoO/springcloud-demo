@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,7 +74,45 @@ class HybridSearchMergerTest {
 		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
 	}
 
+	@Test
+	void fusesMultipleChannelsAndLimitsChunksPerDocument() throws Exception {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(3);
+		request.setRrfK(60);
+		request.setMaxChunksPerDocument(1);
+		request.setChannelWeights(Map.of("BM25", 2.0d));
+		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
+		hitsByChannel.put("BM25", List.of(
+				hit("doc-1", "doc-1-c1", 1, 1.2),
+				hit("doc-2", "doc-2-c1", 1, 1.0)));
+		hitsByChannel.put("EXACT", List.of(
+				hit("doc-1", "doc-1-c1", 1, 1.1),
+				hit("doc-3", "doc-3-c1", 1, 0.9)));
+		hitsByChannel.put("PHRASE", List.of(
+				hit("doc-1", "doc-1-c2", 2, 1.0)));
+		hitsByChannel.put("DENSE_VECTOR", List.of(
+				hit("doc-2", "doc-2-c1", 1, 0.8)));
+
+		var hits = merger.merge(hitsByChannel, request);
+
+		assertThat(hits).hasSize(3);
+		assertThat(hits).extracting(hit -> hit.getDocumentId())
+				.containsExactlyInAnyOrder("doc-1", "doc-2", "doc-3");
+		assertThat(hits).filteredOn(hit -> "doc-1".equals(hit.getDocumentId()))
+				.singleElement()
+				.satisfies(hit -> {
+					assertThat(hit.getRetrievalChannels()).contains("BM25", "EXACT");
+					assertThat(hit.getChannelRanks()).containsEntry("BM25", 1);
+					assertThat(hit.getDedupGroupSize()).isEqualTo(2);
+					assertThat(hit.getRepresentativeChunk()).isTrue();
+				});
+	}
+
 	private JsonNode hit(String documentId, String chunkId, double score) throws Exception {
+		return hit(documentId, chunkId, 1, score);
+	}
+
+	private JsonNode hit(String documentId, String chunkId, int chunkIndex, double score) throws Exception {
 		return objectMapper.readTree("""
 				{
 				  "_id": "%s",
@@ -80,7 +120,7 @@ class HybridSearchMergerTest {
 				  "_source": {
 				    "documentId": "%s",
 				    "chunkId": "%s",
-				    "chunkIndex": 1,
+				    "chunkIndex": %s,
 				    "charStart": 10,
 				    "charEnd": 32,
 				    "title": "休假政策",
@@ -88,6 +128,6 @@ class HybridSearchMergerTest {
 				    "content": "员工年假需要直属主管审批。"
 				  }
 				}
-				""".formatted(documentId, score, documentId, chunkId));
+				""".formatted(documentId, score, documentId, chunkId, chunkIndex));
 	}
 }

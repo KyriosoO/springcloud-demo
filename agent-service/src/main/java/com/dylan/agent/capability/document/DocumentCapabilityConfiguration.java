@@ -23,6 +23,8 @@ import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurit
 import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.HttpDocumentGenerationClient;
 import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
+import com.dylan.agent.capability.document.rerank.DisabledDocumentRerankPort;
+import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.definition.CapabilityDefinition;
@@ -71,6 +73,7 @@ public class DocumentCapabilityConfiguration {
             DocumentEvidenceContextPacker contextPacker,
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier,
+            DocumentRerankPort rerankPort,
             ObjectProvider<DocumentObservabilitySupport> observabilitySupport) {
         return new DocumentCapabilityHandler(
                 properties,
@@ -81,7 +84,13 @@ public class DocumentCapabilityConfiguration {
                 contextPacker,
                 generationPort,
                 citationVerifier,
-                observabilitySupport.getIfAvailable());
+                observabilitySupport.getIfAvailable(),
+                rerankPort);
+    }
+
+    @Bean
+    DocumentRerankPort documentRerankPort() {
+        return new DisabledDocumentRerankPort();
     }
 
     @Bean

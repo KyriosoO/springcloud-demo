@@ -1,6 +1,7 @@
 package com.dylan.agent.api.plan;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -17,6 +18,18 @@ public class DocumentRetrievalOptions {
 
     @Schema(description = "检索模式，默认 KEYWORD", nullable = true)
     private DocumentRetrievalMode retrievalMode;
+
+    @Schema(description = "资料类型，例如 policy、notice、faq", nullable = true)
+    private String materialType;
+
+    @Schema(description = "检索 profile 标识，由 Java 侧校验并冻结", nullable = true)
+    private String retrievalProfile;
+
+    @Schema(description = "召回通道列表，例如 BM25、EXACT、PHRASE、DENSE_VECTOR", nullable = true)
+    private List<String> retrievalChannels;
+
+    @Schema(description = "请求级 rerank 启用建议，最终由 Java profile 配置裁剪", nullable = true)
+    private Boolean rerankEnabled;
 
     @Schema(description = "关键词召回权重，0 到 1", nullable = true)
     @DecimalMin("0.0")
@@ -59,6 +72,14 @@ public class DocumentRetrievalOptions {
     public void setTopK(Integer topK) { this.topK = topK; }
     public DocumentRetrievalMode getRetrievalMode() { return retrievalMode; }
     public void setRetrievalMode(DocumentRetrievalMode retrievalMode) { this.retrievalMode = retrievalMode; }
+    public String getMaterialType() { return materialType; }
+    public void setMaterialType(String materialType) { this.materialType = materialType; }
+    public String getRetrievalProfile() { return retrievalProfile; }
+    public void setRetrievalProfile(String retrievalProfile) { this.retrievalProfile = retrievalProfile; }
+    public List<String> getRetrievalChannels() { return retrievalChannels; }
+    public void setRetrievalChannels(List<String> retrievalChannels) { this.retrievalChannels = retrievalChannels; }
+    public Boolean getRerankEnabled() { return rerankEnabled; }
+    public void setRerankEnabled(Boolean rerankEnabled) { this.rerankEnabled = rerankEnabled; }
     public BigDecimal getKeywordWeight() { return keywordWeight; }
     public void setKeywordWeight(BigDecimal keywordWeight) { this.keywordWeight = keywordWeight; }
     public BigDecimal getVectorWeight() { return vectorWeight; }

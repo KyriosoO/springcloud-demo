@@ -4,6 +4,7 @@ import com.dylan.agent.adapter.api.AgentAdapterException;
 import com.dylan.agent.adapter.api.document.DocumentAclScope;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
+import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -47,6 +48,20 @@ class DocumentAgentAdapterTest {
     }
 
     @Test
+    void requestIndexAliasOverridesDomainDefaultIndex() {
+        DocumentSearchClient client = mock(DocumentSearchClient.class);
+        when(client.search(eq("agent-doc-tax-policy-read"), anyString()))
+                .thenReturn("{\"hits\":{\"hits\":[]}}");
+        DocumentAgentAdapter adapter = adapter(client, properties(Map.of(
+                "company_policy", "agent-doc-company-policy")));
+
+        var result = adapter.retrieve(aliasRequest("company_policy", "agent-doc-tax-policy-read", aclScope()));
+
+        assertThat(result.getHits()).isEmpty();
+        verify(client).search(eq("agent-doc-tax-policy-read"), anyString());
+    }
+
+    @Test
     void rejectsMissingIndexByDomainWhenAclScopeExists() {
         DocumentSearchClient client = mock(DocumentSearchClient.class);
         DocumentAgentAdapter adapter = adapter(client, properties(Map.of(
@@ -86,6 +101,31 @@ class DocumentAgentAdapterTest {
                 false).withAclScope(aclScope);
     }
 
+    private DocumentRetrievalRequest aliasRequest(String domain, String indexAlias, DocumentAclScope aclScope) {
+        return new DocumentRetrievalRequest(
+                DocumentPlanOperation.SEARCH,
+                domain,
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                indexAlias,
+                "休假政策",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                5,
+                1,
+                5,
+                null,
+                false,
+                DocumentRetrievalMode.KEYWORD,
+                List.of(),
+                null,
+                null,
+                aclScope);
+    }
+
     private DocumentAclScope aclScope() {
         return new DocumentAclScope(
                 "tenant-1",
@@ -94,6 +134,6 @@ class DocumentAgentAdapterTest {
                 List.of("role-1"),
                 List.of(),
                 "acl-v1",
-                Instant.parse("2026-07-08T00:10:00Z"));
+                Instant.now().plusSeconds(300));
     }
 }

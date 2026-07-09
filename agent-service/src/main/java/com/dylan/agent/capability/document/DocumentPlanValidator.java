@@ -93,12 +93,22 @@ public class DocumentPlanValidator
         DocumentRetrievalMode retrievalMode = options == null || options.getRetrievalMode() == null
                 ? defaultRetrievalMode(domain)
                 : options.getRetrievalMode();
-        DocumentHybridOptions hybridOptions = hybridOptions(options);
+        DocumentRetrievalProfile profile = new DocumentRetrievalProfileResolver(properties).resolve(
+                domain,
+                options == null ? null : options.getMaterialType(),
+                options == null ? null : options.getRetrievalProfile());
+        DocumentHybridOptions hybridOptions = hybridOptions(options, profile);
         DocumentGenerationOptions generationOptions = validateGenerationOptions(document.getGenerationOptions());
         DocumentRetrievalRequest request = new DocumentRetrievalRequest(
                 operation,
                 domain,
+                profile.materialType(),
+                profile.retrievalProfile(),
+                profile.profileVersion(),
+                profile.indexAlias(),
                 queryText,
+                List.of(),
+                List.of(),
                 effectiveFilters,
                 sorts,
                 topK,
@@ -109,23 +119,41 @@ public class DocumentPlanValidator
                 retrievalMode,
                 List.of(),
                 hybridOptions,
-                contextOptions(operation));
+                contextOptions(operation),
+                null);
         return new ValidatedDocumentPlan(context.capabilityId(), domain, request, generationOptions);
     }
 
-    private DocumentHybridOptions hybridOptions(DocumentRetrievalOptions options) {
-        var hybrid = properties.getDocument().getHybrid();
-        int keywordK = bounded(options == null || options.getKeywordK() == null ? hybrid.getKeywordK() : options.getKeywordK(),
+    private DocumentHybridOptions hybridOptions(DocumentRetrievalOptions options, DocumentRetrievalProfile profile) {
+        DocumentHybridOptions defaults = profile.hybridOptions();
+        int keywordK = bounded(options == null || options.getKeywordK() == null ? defaults.keywordK() : options.getKeywordK(),
                 1, 10_000);
-        int vectorK = bounded(options == null || options.getVectorK() == null ? hybrid.getVectorK() : options.getVectorK(),
+        int vectorK = bounded(options == null || options.getVectorK() == null ? defaults.vectorK() : options.getVectorK(),
                 1, 10_000);
-        int rrfK = bounded(options == null || options.getRrfK() == null ? hybrid.getRrfK() : options.getRrfK(),
+        int rrfK = bounded(options == null || options.getRrfK() == null ? defaults.rrfK() : options.getRrfK(),
                 1, 1000);
         int numCandidates = bounded(
-                options == null || options.getNumCandidates() == null ? hybrid.getNumCandidates() : options.getNumCandidates(),
+                options == null || options.getNumCandidates() == null ? defaults.numCandidates() : options.getNumCandidates(),
                 1,
                 10_000);
-        return new DocumentHybridOptions(keywordK, vectorK, rrfK, numCandidates);
+        List<String> channels = options == null || options.getRetrievalChannels() == null || options.getRetrievalChannels().isEmpty()
+                ? defaults.channels()
+                : options.getRetrievalChannels();
+        boolean rerankEnabled = defaults.rerankEnabled()
+                && (options == null || options.getRerankEnabled() == null || options.getRerankEnabled());
+        return new DocumentHybridOptions(
+                keywordK,
+                vectorK,
+                rrfK,
+                numCandidates,
+                defaults.exactK(),
+                defaults.phraseK(),
+                defaults.maxChunksPerDocument(),
+                channels,
+                defaults.channelWeights(),
+                defaults.embeddingField(),
+                rerankEnabled,
+                defaults.rerankTopN());
     }
 
     private int defaultCandidateSize(DocumentPlanOperation operation) {

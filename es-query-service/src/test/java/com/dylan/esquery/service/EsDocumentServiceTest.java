@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.dylan.esquery.api.model.HybridContextWindow;
+import com.dylan.esquery.api.model.HybridSearchChannelRequest;
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.dylan.esquery.config.EsQueryProperties;
@@ -183,6 +184,18 @@ class EsDocumentServiceTest {
 	}
 
 	@Test
+	void hybridSearchRejectsUnsupportedConfiguredChannel() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
+		request.setChannels(List.of(
+				channel("SCRIPT_SCORE", Map.of("query", Map.of("match_all", Map.of())), null)));
+
+		assertThatThrownBy(() -> service.validateHybridRequest("agent-doc-policy", request))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("unsupported hybrid search channel");
+	}
+
+	@Test
 	void hybridSearchAppliesSourceExcludesToKeywordAndVectorRequests() throws Exception {
 		RestClient restClient = mock(RestClient.class);
 		Response keywordResponse = response("""
@@ -208,6 +221,59 @@ class EsDocumentServiceTest {
 		String vectorBody = body(captor.getAllValues().get(1));
 		assertThat(keywordBody).contains("\"_source\":{\"excludes\":[\"embedding\"]}");
 		assertThat(vectorBody).contains("\"_source\":{\"excludes\":[\"embedding\"]}");
+	}
+
+	@Test
+	void hybridSearchExecutesConfiguredChannelsAndReportsDiagnostics() throws Exception {
+		RestClient restClient = mock(RestClient.class);
+		Response bm25Response = response("""
+				{"hits":{"hits":[{"_id":"chunk-1","_score":1.0,"_source":{"documentId":"doc-1","chunkId":"chunk-1"}}]}}
+				""");
+		Response exactResponse = response("""
+				{"hits":{"hits":[{"_id":"chunk-1","_score":0.9,"_source":{"documentId":"doc-1","chunkId":"chunk-1"}}]}}
+				""");
+		Response phraseResponse = response("""
+				{"hits":{"hits":[{"_id":"chunk-2","_score":0.8,"_source":{"documentId":"doc-2","chunkId":"chunk-2"}}]}}
+				""");
+		Response vectorResponse = response("""
+				{"hits":{"hits":[{"_id":"chunk-3","_score":0.7,"_source":{"documentId":"doc-3","chunkId":"chunk-3"}}]}}
+				""");
+		when(restClient.performRequest(any())).thenReturn(
+				bm25Response, exactResponse, phraseResponse, vectorResponse);
+		EsDocumentService searchService = new EsDocumentService(restClient, objectMapper, properties());
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(3);
+		request.setRrfK(60);
+		request.setMaxChunksPerDocument(1);
+		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
+		request.setQueryVector(List.of(0.1, 0.2));
+		request.setEmbeddingField("embedding_v2");
+		request.setChannelWeights(Map.of("BM25", 2.0d));
+		request.setChannels(List.of(
+				channel("BM25", Map.of("query", Map.of("match_all", Map.of())), null),
+				channel("EXACT", Map.of("query", Map.of("term", Map.of("documentNumber", "财税〔2026〕1号"))), null),
+				channel("PHRASE", Map.of("query", Map.of("match_phrase", Map.of("content", "增值税优惠"))), null),
+				channel("DENSE_VECTOR", null, List.of(0.1, 0.2))));
+
+		var response = searchService.hybridSearch("agent-doc-policy", request);
+
+		assertThat(response.getHits()).hasSize(3);
+		assertThat(response.getDiagnostics().getChannelHitCounts())
+				.containsEntry("BM25", 1)
+				.containsEntry("EXACT", 1)
+				.containsEntry("PHRASE", 1)
+				.containsEntry("DENSE_VECTOR", 1);
+		assertThat(response.getDiagnostics().getKeywordHitCount()).isEqualTo(3);
+		assertThat(response.getDiagnostics().getVectorHitCount()).isEqualTo(1);
+		assertThat(response.getDiagnostics().getFusedCandidateCount()).isEqualTo(4);
+		assertThat(response.getDiagnostics().getDedupedCandidateCount()).isEqualTo(3);
+		ArgumentCaptor<org.elasticsearch.client.Request> captor =
+				ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
+		verify(restClient, times(4)).performRequest(captor.capture());
+		assertThat(body(captor.getAllValues().get(0))).contains("match_all", "tenantId");
+		assertThat(body(captor.getAllValues().get(1))).contains("documentNumber", "tenantId");
+		assertThat(body(captor.getAllValues().get(2))).contains("match_phrase", "tenantId");
+		assertThat(body(captor.getAllValues().get(3))).contains("knn", "embedding_v2", "tenantId");
 	}
 
 	@Test
@@ -278,6 +344,19 @@ class EsDocumentServiceTest {
 		when(entity.getContent()).thenReturn(new java.io.ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
 		when(response.getEntity()).thenReturn(entity);
 		return response;
+	}
+
+	private HybridSearchChannelRequest channel(
+			String name,
+			Map<String, Object> queryDsl,
+			List<Double> queryVector) {
+		HybridSearchChannelRequest channel = new HybridSearchChannelRequest();
+		channel.setChannel(name);
+		channel.setQueryDsl(queryDsl);
+		channel.setQueryVector(queryVector);
+		channel.setK(10);
+		channel.setNumCandidates(100);
+		return channel;
 	}
 
 	private String body(org.elasticsearch.client.Request request) throws Exception {

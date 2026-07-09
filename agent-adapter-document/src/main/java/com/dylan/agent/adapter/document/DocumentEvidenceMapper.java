@@ -126,8 +126,35 @@ public class DocumentEvidenceMapper {
         evidence.setRrfScore(hit.getRrfScore());
         evidence.setRetrievalChannels(hit.getRetrievalChannels());
         evidence.setScore(hit.getScore());
-        evidence.setMetadata(sanitizeMetadata(hit.getMetadata()));
+        evidence.setMetadata(enrichMetadata(hit));
         return evidence;
+    }
+
+    private Map<String, Object> enrichMetadata(HybridSearchHit hit) {
+        Map<String, Object> metadata = sanitizeMetadata(hit.getMetadata());
+        Map<String, Object> enriched = metadata == null ? new LinkedHashMap<>() : new LinkedHashMap<>(metadata);
+        if (hit.getChannelRanks() != null && !hit.getChannelRanks().isEmpty()) {
+            enriched.put("channelRanks", hit.getChannelRanks());
+        }
+        if (hit.getChannelScores() != null && !hit.getChannelScores().isEmpty()) {
+            enriched.put("channelScores", hit.getChannelScores());
+        }
+        if (hit.getHitFields() != null && !hit.getHitFields().isEmpty()) {
+            enriched.put("hitFields", hit.getHitFields());
+        }
+        if (hit.getDedupGroupSize() != null) {
+            enriched.put("dedupGroupSize", hit.getDedupGroupSize());
+        }
+        if (hit.getRepresentativeChunk() != null) {
+            enriched.put("representativeChunk", hit.getRepresentativeChunk());
+        }
+        if (hit.getRerankScore() != null) {
+            enriched.put("rerankScore", hit.getRerankScore());
+        }
+        if (hit.getRerankReasonCode() != null) {
+            enriched.put("rerankReasonCode", hit.getRerankReasonCode());
+        }
+        return enriched.isEmpty() ? metadata : enriched;
     }
 
     private static Map<String, Object> sanitizeMetadata(Map<String, Object> metadata) {
@@ -145,7 +172,16 @@ public class DocumentEvidenceMapper {
         if (source != null) {
             target.setKeywordHitCount(source.getKeywordHitCount());
             target.setVectorHitCount(source.getVectorHitCount());
+            target.setReturnedHitCount(source.getReturnedHitCount());
+            target.setFusedCandidateCount(source.getFusedCandidateCount());
+            target.setDedupedCandidateCount(source.getDedupedCandidateCount());
+            target.setRrfK(source.getRrfK());
+            target.setMaxChunksPerDocument(source.getMaxChunksPerDocument());
+            target.setChannelHitCounts(source.getChannelHitCounts());
+            target.setChannelWeights(source.getChannelWeights());
             target.setFusionStrategy(source.getFusionStrategy());
+            target.setRerankStatus(source.getRerankStatus());
+            target.setRerankSkippedReason(source.getRerankSkippedReason());
             target.setDegraded(Boolean.TRUE.equals(source.getDegraded()));
             target.setDegradationReason(source.getDegradationReason());
         }

@@ -41,6 +41,9 @@ import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPac
 import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurityFilter;
 import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
+import com.dylan.agent.capability.document.rerank.DisabledDocumentRerankPort;
+import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
+import com.dylan.agent.capability.document.rerank.DocumentRerankRequest;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.capability.document.security.DocumentRevocationDecision;
 import com.dylan.agent.config.AgentProperties;
@@ -56,13 +59,35 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public class DocumentCapabilityHandler
         implements CapabilityHandler<ValidatedDocumentPlan, DocumentAgentResultPayload> {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentCapabilityHandler.class);
+    private static final Set<String> RERANK_METADATA_ALLOWLIST = Set.of(
+            "sourceType",
+            "materialType",
+            "retrievalProfile",
+            "documentNumber",
+            "documentNo",
+            "issuingAuthority",
+            "issuer",
+            "taxType",
+            "validityStatus",
+            "effectiveDate",
+            "channelRanks",
+            "channelScores",
+            "hitFields",
+            "dedupGroupSize",
+            "representativeChunk",
+            "rerankScore",
+            "rerankReasonCode");
 
     private final AgentProperties properties;
     private final DocumentEmbeddingPort embeddingPort;
@@ -73,6 +98,7 @@ public class DocumentCapabilityHandler
     private final DocumentGenerationPort generationPort;
     private final DocumentCitationVerifier citationVerifier;
     private final DocumentObservabilitySupport observabilitySupport;
+    private final DocumentRerankPort rerankPort;
 
     public DocumentCapabilityHandler() {
         this(new AgentProperties(),
@@ -135,7 +161,8 @@ public class DocumentCapabilityHandler
                 contextPacker,
                 generationPort,
                 citationVerifier,
-                null);
+                null,
+                new DisabledDocumentRerankPort());
     }
 
     public DocumentCapabilityHandler(
@@ -148,6 +175,29 @@ public class DocumentCapabilityHandler
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier,
             DocumentObservabilitySupport observabilitySupport) {
+        this(properties,
+                embeddingPort,
+                aclScopePort,
+                revocationGuard,
+                preSecurityFilter,
+                contextPacker,
+                generationPort,
+                citationVerifier,
+                observabilitySupport,
+                new DisabledDocumentRerankPort());
+    }
+
+    public DocumentCapabilityHandler(
+            AgentProperties properties,
+            DocumentEmbeddingPort embeddingPort,
+            DocumentAclScopePort aclScopePort,
+            DocumentRevocationGuard revocationGuard,
+            DocumentEvidencePreSecurityFilter preSecurityFilter,
+            DocumentEvidenceContextPacker contextPacker,
+            DocumentGenerationPort generationPort,
+            DocumentCitationVerifier citationVerifier,
+            DocumentObservabilitySupport observabilitySupport,
+            DocumentRerankPort rerankPort) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.embeddingPort = Objects.requireNonNull(embeddingPort, "embeddingPort must not be null");
         this.aclScopePort = Objects.requireNonNull(aclScopePort, "aclScopePort must not be null");
@@ -157,6 +207,7 @@ public class DocumentCapabilityHandler
         this.generationPort = Objects.requireNonNull(generationPort, "generationPort must not be null");
         this.citationVerifier = Objects.requireNonNull(citationVerifier, "citationVerifier must not be null");
         this.observabilitySupport = observabilitySupport;
+        this.rerankPort = Objects.requireNonNull(rerankPort, "rerankPort must not be null");
     }
 
     @Override
@@ -169,6 +220,7 @@ public class DocumentCapabilityHandler
         AdapterDocumentResult adapterResult;
         try {
             adapterResult = adapter.retrieve(retrievalRequest);
+            adapterResult = applyRerankIfEnabled(retrievalRequest, adapterResult, context);
             recordRetrieval(retrievalRequest, "SUCCESS", retrievalStarted);
         } catch (RuntimeException ex) {
             recordRetrieval(retrievalRequest, "FAILED", retrievalStarted);
@@ -205,7 +257,11 @@ public class DocumentCapabilityHandler
     private DocumentRetrievalRequest withQueryVectorIfNeeded(ValidatedDocumentPlan plan, ExecutionContext context) {
         DocumentRetrievalRequest request = plan.request();
         DocumentRetrievalMode mode = request.getRetrievalMode();
-        if (mode == DocumentRetrievalMode.KEYWORD) {
+        DocumentHybridOptions options = request.getHybridOptions();
+        boolean denseVectorRequired = mode == DocumentRetrievalMode.VECTOR
+                || (mode == DocumentRetrievalMode.HYBRID
+                && (options == null || options.requiresDenseVector()));
+        if (!denseVectorRequired) {
             return request;
         }
         if (!properties.getDocument().getEmbedding().isEnabled()) {
@@ -295,7 +351,13 @@ public class DocumentCapabilityHandler
         return new DocumentRetrievalRequest(
                 source.getOperation(),
                 source.getDomain(),
+                source.getMaterialType(),
+                source.getRetrievalProfile(),
+                source.getProfileVersion(),
+                source.getIndexAlias(),
                 source.getQueryText(),
+                source.getRuleKeywords(),
+                source.getRewriteCandidates(),
                 source.getFilters(),
                 source.getSorts(),
                 source.getTopK(),
@@ -308,6 +370,186 @@ public class DocumentCapabilityHandler
                 source.getHybridOptions(),
                 source.getContextOptions(),
                 source.getAclScope());
+    }
+
+    private AdapterDocumentResult applyRerankIfEnabled(
+            DocumentRetrievalRequest request,
+            AdapterDocumentResult adapterResult,
+            ExecutionContext context) {
+        DocumentHybridOptions options = request.getHybridOptions();
+        if (options == null || !options.rerankEnabled()) {
+            return adapterResult;
+        }
+        try {
+            AdapterDocumentResult reranked = rerankPort.rerank(new DocumentRerankRequest(
+                    context.invocationId(),
+                    request.getDomain(),
+                    request.getMaterialType(),
+                    request.getRetrievalProfile(),
+                    request.getQueryText(),
+                    options.rerankTopN(),
+                    safeRerankInput(adapterResult),
+                    context.absoluteDeadline()));
+            return mergeRerankResult(adapterResult, reranked);
+        } catch (RuntimeException ex) {
+            log.warn("document rerank skipped: invocationId={}, domain={}, profile={}, reason={}",
+                    context.invocationId(),
+                    request.getDomain(),
+                    request.getRetrievalProfile(),
+                    ex.getClass().getSimpleName());
+            return adapterResult;
+        }
+    }
+
+    private static AdapterDocumentResult safeRerankInput(AdapterDocumentResult source) {
+        AdapterDocumentResult safe = copyResultShell(source);
+        List<AdapterDocumentEvidence> hits = nonNullEvidence(source == null ? null : source.getHits()).stream()
+                .map(DocumentCapabilityHandler::safeRerankEvidence)
+                .toList();
+        safe.setHits(hits);
+        safe.setCitations(hits);
+        return safe;
+    }
+
+    private static AdapterDocumentEvidence safeRerankEvidence(AdapterDocumentEvidence source) {
+        AdapterDocumentEvidence target = new AdapterDocumentEvidence();
+        target.setDocumentId(source.getDocumentId());
+        target.setChunkId(source.getChunkId());
+        target.setTitle(source.getTitle());
+        target.setSourceType(source.getSourceType());
+        target.setSection(source.getSection());
+        target.setPage(source.getPage());
+        target.setSourceUri(source.getSourceUri());
+        target.setSnippet(source.getSnippet());
+        target.setChunkIndex(source.getChunkIndex());
+        target.setCharStart(source.getCharStart());
+        target.setCharEnd(source.getCharEnd());
+        target.setKeywordRank(source.getKeywordRank());
+        target.setVectorRank(source.getVectorRank());
+        target.setRrfScore(source.getRrfScore());
+        target.setRetrievalChannels(source.getRetrievalChannels());
+        target.setScore(source.getScore());
+        target.setMetadata(safeRerankMetadata(source.getMetadata()));
+        return target;
+    }
+
+    private static Map<String, Object> safeRerankMetadata(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> safe = new LinkedHashMap<>();
+        metadata.forEach((key, value) -> {
+            if (key != null && RERANK_METADATA_ALLOWLIST.contains(key)) {
+                safe.put(key, value);
+            }
+        });
+        return safe;
+    }
+
+    private static AdapterDocumentResult mergeRerankResult(
+            AdapterDocumentResult original,
+            AdapterDocumentResult reranked) {
+        if (reranked == null) {
+            return original;
+        }
+        List<AdapterDocumentEvidence> originalHits = nonNullEvidence(original == null ? null : original.getHits());
+        List<AdapterDocumentEvidence> rerankedHits = nonNullEvidence(reranked.getHits());
+        if (originalHits.isEmpty() || rerankedHits.isEmpty()) {
+            return original;
+        }
+        Map<String, AdapterDocumentEvidence> originalById = new LinkedHashMap<>();
+        for (AdapterDocumentEvidence hit : originalHits) {
+            String id = citationId(hit);
+            if (id != null) {
+                originalById.putIfAbsent(id, hit);
+            }
+        }
+        List<AdapterDocumentEvidence> ordered = new ArrayList<>();
+        Set<String> selected = new LinkedHashSet<>();
+        for (AdapterDocumentEvidence rerankedHit : rerankedHits) {
+            String id = citationId(rerankedHit);
+            AdapterDocumentEvidence originalHit = id == null ? null : originalById.get(id);
+            if (originalHit == null || selected.contains(id)) {
+                continue;
+            }
+            applyRerankFields(originalHit, rerankedHit);
+            ordered.add(originalHit);
+            selected.add(id);
+        }
+        for (AdapterDocumentEvidence hit : originalHits) {
+            String id = citationId(hit);
+            if (id == null || selected.add(id)) {
+                ordered.add(hit);
+            }
+        }
+        AdapterDocumentResult result = copyResultShell(original);
+        result.setHits(ordered);
+        result.setCitations(original == null || original.getCitations() == null
+                ? null
+                : reorderEvidence(original.getCitations(), rerankedHits));
+        return result;
+    }
+
+    private static List<AdapterDocumentEvidence> reorderEvidence(
+            List<AdapterDocumentEvidence> source,
+            List<AdapterDocumentEvidence> order) {
+        List<AdapterDocumentEvidence> safeSource = nonNullEvidence(source);
+        if (safeSource.isEmpty() || order == null || order.isEmpty()) {
+            return safeSource;
+        }
+        Map<String, AdapterDocumentEvidence> sourceById = new LinkedHashMap<>();
+        for (AdapterDocumentEvidence evidence : safeSource) {
+            String id = citationId(evidence);
+            if (id != null) {
+                sourceById.putIfAbsent(id, evidence);
+            }
+        }
+        List<AdapterDocumentEvidence> reordered = new ArrayList<>();
+        Set<String> selected = new LinkedHashSet<>();
+        for (AdapterDocumentEvidence evidence : order) {
+            String id = citationId(evidence);
+            AdapterDocumentEvidence match = id == null ? null : sourceById.get(id);
+            if (match != null && selected.add(id)) {
+                reordered.add(match);
+            }
+        }
+        for (AdapterDocumentEvidence evidence : safeSource) {
+            String id = citationId(evidence);
+            if (id == null || selected.add(id)) {
+                reordered.add(evidence);
+            }
+        }
+        return reordered;
+    }
+
+    private static void applyRerankFields(
+            AdapterDocumentEvidence original,
+            AdapterDocumentEvidence reranked) {
+        if (reranked.getScore() != null) {
+            original.setScore(reranked.getScore());
+        }
+        Map<String, Object> rerankMetadata = safeRerankMetadata(reranked.getMetadata());
+        if (!rerankMetadata.isEmpty()) {
+            Map<String, Object> merged = new LinkedHashMap<>(
+                    original.getMetadata() == null ? Map.of() : original.getMetadata());
+            merged.putAll(rerankMetadata);
+            original.setMetadata(merged);
+        }
+    }
+
+    private static AdapterDocumentResult copyResultShell(AdapterDocumentResult source) {
+        AdapterDocumentResult target = new AdapterDocumentResult();
+        if (source == null) {
+            return target;
+        }
+        target.setCandidateAnswerText(source.getCandidateAnswerText());
+        target.setCandidateSummaryText(source.getCandidateSummaryText());
+        target.setCandidateSummaryBullets(source.getCandidateSummaryBullets());
+        target.setPartial(source.isPartial());
+        target.setRequestedDocumentCount(source.getRequestedDocumentCount());
+        target.setCoveredDocumentCount(source.getCoveredDocumentCount());
+        target.setRetrievalDiagnostics(source.getRetrievalDiagnostics());
+        return target;
     }
 
     private static AgentDocumentParameters toParameters(ValidatedDocumentPlan plan) {

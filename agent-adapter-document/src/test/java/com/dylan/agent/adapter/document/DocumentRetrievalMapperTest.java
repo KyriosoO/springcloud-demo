@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.time.Instant;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -99,6 +100,63 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getFilters().toString()).contains("sourceType", "policy");
         assertThat(hybrid.getFilters().toString()).contains("tenantId", "tenant-1");
         assertThat(hybrid.getSourceExcludes()).containsExactly("embedding");
+    }
+
+    @Test
+    void mapsProfileAndMultiChannelHybridRequest() {
+        DocumentHybridOptions hybridOptions = new DocumentHybridOptions(
+                10,
+                12,
+                60,
+                100,
+                3,
+                4,
+                2,
+                List.of("BM25", "EXACT", "PHRASE", "DENSE_VECTOR"),
+                Map.of("BM25", 2.0d),
+                "embedding_v2",
+                true,
+                20);
+        DocumentRetrievalRequest request = new DocumentRetrievalRequest(
+                DocumentPlanOperation.ANSWER,
+                "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
+                "财税〔2026〕1号",
+                List.of("增值税"),
+                List.of("小规模纳税人增值税优惠"),
+                List.of(new ValidatedFilter("sourceType", AgentOperator.EQ, "policy", List.of())),
+                List.of(),
+                5,
+                1,
+                5,
+                null,
+                true,
+                DocumentRetrievalMode.HYBRID,
+                List.of(0.1, 0.2),
+                hybridOptions,
+                null,
+                null).withAclScope(scope());
+
+        var hybrid = mapper.toHybridRequest(request);
+
+        assertThat(hybrid.getMaterialType()).isEqualTo("tax_policy");
+        assertThat(hybrid.getRetrievalProfile()).isEqualTo("tax-v2");
+        assertThat(hybrid.getProfileVersion()).isEqualTo("v2");
+        assertThat(hybrid.getIndexAlias()).isEqualTo("agent-doc-tax-policy-read");
+        assertThat(hybrid.getMaxChunksPerDocument()).isEqualTo(2);
+        assertThat(hybrid.getChannelWeights()).containsEntry("BM25", 2.0d);
+        assertThat(hybrid.getChannels()).hasSize(4);
+        assertThat(hybrid.getChannels()).extracting(channel -> channel.getChannel())
+                .containsExactly("BM25", "EXACT", "PHRASE", "DENSE_VECTOR");
+        assertThat(hybrid.getChannels().get(1).getQueryDsl().toString())
+                .contains("title.keyword", "documentNumber", "增值税");
+        assertThat(hybrid.getChannels().get(2).getQueryDsl().toString())
+                .contains("match_phrase", "小规模纳税人增值税优惠");
+        assertThat(hybrid.getChannels().get(3).getEmbeddingField()).isEqualTo("embedding_v2");
+        assertThat(hybrid.getChannels().get(3).getQueryVector()).containsExactly(0.1, 0.2);
     }
 
     @Test

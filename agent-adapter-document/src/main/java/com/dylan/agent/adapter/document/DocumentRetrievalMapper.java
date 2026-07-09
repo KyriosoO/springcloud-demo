@@ -6,6 +6,7 @@ import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedSort;
 import com.dylan.esquery.api.model.HybridContextWindow;
+import com.dylan.esquery.api.model.HybridSearchChannelRequest;
 import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -59,6 +60,11 @@ public class DocumentRetrievalMapper {
     public HybridSearchRequest toHybridRequest(DocumentRetrievalRequest request) {
         HybridSearchRequest hybrid = new HybridSearchRequest();
         hybrid.setQueryText(request.getQueryText());
+        hybrid.setDomain(request.getDomain());
+        hybrid.setMaterialType(request.getMaterialType());
+        hybrid.setRetrievalProfile(request.getRetrievalProfile());
+        hybrid.setProfileVersion(request.getProfileVersion());
+        hybrid.setIndexAlias(request.getIndexAlias());
         hybrid.setKeywordDsl(toKeywordDslMap(request));
         hybrid.setFilters(filterDsl(request));
         hybrid.setQueryVector(request.getQueryVector());
@@ -67,8 +73,14 @@ public class DocumentRetrievalMapper {
         if (options != null) {
             hybrid.setKeywordK(options.keywordK());
             hybrid.setVectorK(options.vectorK());
+            hybrid.setExactK(options.exactK());
+            hybrid.setPhraseK(options.phraseK());
             hybrid.setRrfK(options.rrfK());
             hybrid.setNumCandidates(options.numCandidates());
+            hybrid.setMaxChunksPerDocument(options.maxChunksPerDocument());
+            hybrid.setChannelWeights(options.channelWeights());
+            hybrid.setEmbeddingField(options.embeddingField());
+            hybrid.setChannels(channelRequests(request, options));
         }
         hybrid.setSourceExcludes(DEFAULT_SOURCE_EXCLUDES);
         hybrid.setContextWindow(toContextWindow(request.getContextOptions()));
@@ -83,12 +95,99 @@ public class DocumentRetrievalMapper {
         DocumentHybridOptions options = request.getHybridOptions();
         if (options != null) {
             vector.setNumCandidates(options.numCandidates());
+            vector.setEmbeddingField(options.embeddingField());
         }
         return vector;
     }
 
     private Map<String, Object> toKeywordDslMap(DocumentRetrievalRequest request) {
         return searchDsl(request, false);
+    }
+
+    private List<HybridSearchChannelRequest> channelRequests(
+            DocumentRetrievalRequest request,
+            DocumentHybridOptions options) {
+        List<HybridSearchChannelRequest> channels = new ArrayList<>();
+        for (String channel : options.channels()) {
+            String normalized = channel == null ? "" : channel.trim().toUpperCase(java.util.Locale.ROOT);
+            if (normalized.isBlank()) {
+                continue;
+            }
+            HybridSearchChannelRequest item = new HybridSearchChannelRequest();
+            item.setChannel(normalized);
+            item.setWeight(options.channelWeights().get(normalized));
+            switch (normalized) {
+                case "BM25", "KEYWORD" -> {
+                    item.setQueryDsl(toKeywordDslMap(request));
+                    item.setK(options.keywordK());
+                }
+                case "EXACT" -> {
+                    item.setQueryDsl(exactDsl(request));
+                    item.setK(options.exactK());
+                }
+                case "PHRASE" -> {
+                    item.setQueryDsl(phraseDsl(request));
+                    item.setK(options.phraseK());
+                }
+                case "DENSE_VECTOR", "VECTOR" -> {
+                    item.setQueryVector(request.getQueryVector());
+                    item.setEmbeddingField(options.embeddingField());
+                    item.setK(options.vectorK());
+                    item.setNumCandidates(options.numCandidates());
+                }
+                default -> throw new IllegalArgumentException("unsupported document retrieval channel: " + channel);
+            }
+            channels.add(item);
+        }
+        return List.copyOf(channels);
+    }
+
+    private Map<String, Object> exactDsl(DocumentRetrievalRequest request) {
+        String queryText = request.getQueryText();
+        List<Object> should = new ArrayList<>();
+        if (queryText != null && !queryText.isBlank()) {
+            should.add(Map.of("term", Map.of("title.keyword", queryText)));
+            should.add(Map.of("term", Map.of("documentNumber", queryText)));
+            should.add(Map.of("term", Map.of("issuingAuthority.keyword", queryText)));
+            should.add(Map.of("term", Map.of("section.keyword", queryText)));
+        }
+        for (String keyword : request.getRuleKeywords()) {
+            if (keyword != null && !keyword.isBlank()) {
+                should.add(Map.of("term", Map.of("title.keyword", keyword)));
+                should.add(Map.of("term", Map.of("documentNumber", keyword)));
+            }
+        }
+        return channelDsl(should);
+    }
+
+    private Map<String, Object> phraseDsl(DocumentRetrievalRequest request) {
+        String queryText = request.getQueryText();
+        List<Object> should = new ArrayList<>();
+        if (queryText != null && !queryText.isBlank()) {
+            for (String field : List.of("title", "content", "snippet", "section")) {
+                should.add(Map.of("match_phrase", Map.of(field, Map.of("query", queryText, "slop", 2))));
+            }
+        }
+        for (String candidate : request.getRewriteCandidates()) {
+            if (candidate != null && !candidate.isBlank()) {
+                should.add(Map.of("match_phrase", Map.of("content", Map.of("query", candidate, "slop", 2))));
+            }
+        }
+        return channelDsl(should);
+    }
+
+    private Map<String, Object> channelDsl(List<Object> should) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("from", 0);
+        root.put("_source", Map.of("excludes", DEFAULT_SOURCE_EXCLUDES));
+        if (should == null || should.isEmpty()) {
+            root.put("query", Map.of("match_all", Map.of()));
+        } else {
+            root.put("query", Map.of("bool", Map.of(
+                    "should", should,
+                    "minimum_should_match", 1)));
+        }
+        return root;
     }
 
     private HybridContextWindow toContextWindow(DocumentContextOptions options) {
