@@ -83,6 +83,7 @@ class DocumentIndexValidationServiceTest {
                 List.of("doc-1"),
                 List.of(),
                 List.of(),
+                List.of(),
                 5,
                 "DOCUMENT_NUMBER");
         DocumentRetrievalValidationRequest mismatchedRequest = new DocumentRetrievalValidationRequest(
@@ -181,6 +182,7 @@ class DocumentIndexValidationServiceTest {
                         List.of("doc-1"),
                         List.of("doc-deny"),
                         List.of("doc-revoked"),
+                        List.of(),
                         5,
                         "DOCUMENT_NUMBER")),
                 metrics);

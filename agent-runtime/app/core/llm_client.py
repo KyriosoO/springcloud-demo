@@ -22,6 +22,11 @@ class LlmClient:
         self._model = settings.llm_model
         self._timeout = settings.llm_timeout_seconds
 
+    @property
+    def model_name(self) -> str:
+        """返回当前配置的模型名，仅用于诊断响应。"""
+        return self._model
+
     async def generate_plan_json(
         self,
         system_prompt: str,

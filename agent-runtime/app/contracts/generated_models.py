@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 0df585d6fe751a24b57338988e69fb51ef60060c562cb32c1b10f7d555b4b993
+# source_sha256: 7d9191b21721ab4866df43593ac3530f0e6e279af41aa549e3240c4b34057e8a
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -257,12 +257,30 @@ class DocumentRetrievalOptions(BaseModel):
     min_score: Optional[float] = Field(
         None, alias='minScore', description='最小相关度分数'
     )
+    material_type: Optional[str] = Field(
+        None, alias='materialType', description='资料类型，例如 policy、notice、faq'
+    )
     num_candidates: Optional[int] = Field(
         None, alias='numCandidates', description='向量召回候选池大小', ge=1
     )
     page: Optional[int] = Field(None, description='页码，从 1 开始', ge=1)
+    rerank_enabled: Optional[bool] = Field(
+        None,
+        alias='rerankEnabled',
+        description='请求级 rerank 启用建议，最终由 Java profile 配置裁剪',
+    )
+    retrieval_channels: Optional[List[Optional[str]]] = Field(
+        None,
+        alias='retrievalChannels',
+        description='召回通道列表，例如 BM25、EXACT、PHRASE、DENSE_VECTOR',
+    )
     retrieval_mode: Optional[RetrievalMode] = Field(
         None, alias='retrievalMode', description='文档检索模式'
+    )
+    retrieval_profile: Optional[str] = Field(
+        None,
+        alias='retrievalProfile',
+        description='检索 profile 标识，由 Java 侧校验并冻结',
     )
     rrf_k: Optional[int] = Field(None, alias='rrfK', description='RRF 平滑常量', ge=1)
     size: Optional[int] = Field(None, description='每页大小', ge=1)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import subprocess
 import sys
@@ -18,6 +19,29 @@ OPENAPI_SPEC = (
 )
 PYTHON = sys.executable
 HASH_PATTERN = re.compile(r"(?m)^# source_sha256: ([a-f0-9]{64})$")
+REEXEC_ENV = "AGENT_RUNTIME_CODEGEN_REEXEC"
+
+
+def ensure_codegen_python() -> None:
+    """优先使用模块内虚拟环境执行契约生成检查。"""
+    if os.environ.get(REEXEC_ENV) == "1":
+        return
+    venv_python = RUNTIME_ROOT / ".venv" / "Scripts" / "python.exe"
+    if not venv_python.is_file() or Path(sys.executable).resolve() == venv_python.resolve():
+        return
+    probe = subprocess.run(
+        [str(venv_python), "-c", "import datamodel_code_generator, inflect"],
+        cwd=RUNTIME_ROOT,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if probe.returncode != 0:
+        return
+    env = os.environ.copy()
+    env[REEXEC_ENV] = "1"
+    completed = subprocess.run([str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]], env=env)
+    raise SystemExit(completed.returncode)
 
 
 def verify_source_hash(generated_text: str, spec_path: Path) -> list[str]:
@@ -47,6 +71,7 @@ def generate_once(output: Path) -> int:
 
 
 def main() -> int:
+    ensure_codegen_python()
     for required in (GENERATOR, OPENAPI_SPEC):
         if not required.is_file():
             print(f"ERROR: required file not found: {required}", file=sys.stderr)

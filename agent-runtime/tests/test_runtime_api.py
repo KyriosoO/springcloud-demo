@@ -5,6 +5,7 @@ import logging
 from fastapi.testclient import TestClient
 
 from app.contracts.models import ExecutablePlan, QueryAgentPlan, RouteDecision
+from app.core.document_rewrite import DocumentRewriteResponse, get_document_rewrite_planner
 from app.core.errors import RuntimeProviderError
 from app.core.runtime_planning import get_plan_planner, get_route_planner
 from app.core.settings import Settings, get_settings
@@ -167,6 +168,60 @@ class TestRoutePlanApi:
         assert body["code"] == "CONTRACT_INVALID"
         assert body["metadata"]["operation"] == "PLAN"
         assert body["metadata"]["terminationReason"] == "VALIDATION_REJECTED"
+
+    def test_document_rewrite_returns_candidates(self):
+        class StubRewritePlanner:
+            async def rewrite(self, request):
+                return DocumentRewriteResponse(
+                    candidates=[{
+                        "text": "小规模纳税人增值税优惠",
+                        "intentLabel": "tax",
+                        "confidence": 0.9,
+                    }],
+                    diagnosticId="runtime-rewrite-test",
+                    model="stub-model",
+                )
+
+        client = _client()
+        client.app.dependency_overrides[get_document_rewrite_planner] = lambda: StubRewritePlanner()
+
+        response = client.post(
+            "/runtime/v1/document/rewrite",
+            json={
+                "requestId": "inv-1",
+                "query": "查询增值税优惠",
+                "domain": "policy_document",
+                "materialType": "tax_policy",
+                "language": "zh-CN",
+                "maxCandidates": 2,
+                "timeoutMs": 1000,
+            },
+            headers=_auth_headers(),
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["candidates"][0]["text"] == "小规模纳税人增值税优惠"
+        assert body["diagnosticId"] == "runtime-rewrite-test"
+        assert body["model"] == "stub-model"
+
+    def test_invalid_document_rewrite_request_returns_plan_error_body(self):
+        response = _client().post(
+            "/runtime/v1/document/rewrite",
+            json={
+                "requestId": "inv-1",
+                "query": "查询增值税优惠",
+                "domain": "policy_document",
+                "maxCandidates": 2,
+                "indexAlias": "agent-doc-tax-policy-read",
+            },
+            headers=_auth_headers(),
+        )
+
+        assert response.status_code == 400
+        body = response.json()
+        assert body["code"] == "CONTRACT_INVALID"
+        assert body["metadata"]["operation"] == "PLAN"
 
     def test_error_response_logs_internal_detail(self, caplog):
         class FailingPlanPlanner:

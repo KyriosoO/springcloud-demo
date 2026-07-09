@@ -14,6 +14,7 @@ public record DocumentGoldQueryCase(
 		List<String> expectedDocumentIds,
 		List<String> deniedDocumentIds,
 		List<String> revokedDocumentIds,
+		List<Double> queryVector,
 		int topK,
 		String caseType) {
 }

@@ -63,6 +63,29 @@ public class EsIndexAliasService {
 		executeAliasOperation(alias, request, "ROLLBACK", true);
 	}
 
+	public AliasRollbackDryRunResult rollbackReadAliasDryRun(String alias, AliasSwitchRequest request) throws IOException {
+		long startedAt = System.nanoTime();
+		List<String> currentIndexes = List.of();
+		try {
+			validateRequest(alias, request);
+			assertValidatedTask(request);
+			assertTrustedRollbackTarget(alias, request.getTargetIndex());
+			currentIndexes = currentIndexes(alias);
+			assertAliasTargetReady(request.getTargetIndex(), request.getExpectedPreviousIndex(), currentIndexes);
+			recordAliasOperation(alias, "ROLLBACK_DRY_RUN", currentIndexes, request, "READY", null, startedAt);
+			return new AliasRollbackDryRunResult(
+					alias,
+					List.copyOf(currentIndexes),
+					request.getTargetIndex(),
+					request.getExpectedPreviousIndex(),
+					true);
+		} catch (RuntimeException | IOException ex) {
+			recordAliasOperation(alias, "ROLLBACK_DRY_RUN", currentIndexes, request,
+					"FAILED", ex.getClass().getSimpleName(), startedAt);
+			throw ex;
+		}
+	}
+
 	List<AliasOperationAudit> aliasAudits() {
 		return auditRepository.findAll();
 	}
@@ -203,20 +226,33 @@ public class EsIndexAliasService {
 	}
 
 	private List<String> switchAlias(String alias, String targetIndex, String expectedPreviousIndex) throws IOException {
-		if (!targetIndex.equals(alias) && targetIndex.equals(expectedPreviousIndex)) {
-			throw new IllegalArgumentException("targetIndex must differ from expectedPreviousIndex");
-		}
 		List<String> currentIndexes = currentIndexes(alias);
+		assertAliasTargetReady(targetIndex, expectedPreviousIndex, currentIndexes);
 		if (currentIndexes.size() == 1 && currentIndexes.contains(targetIndex)) {
 			return currentIndexes;
-		}
-		if (currentIndexes.isEmpty() || !currentIndexes.contains(expectedPreviousIndex)) {
-			throw new IllegalArgumentException("current alias target does not match expectedPreviousIndex");
 		}
 		Request request = new Request("POST", "/_aliases");
 		request.setEntity(jsonEntity(objectMapper.writeValueAsString(aliasActions(alias, targetIndex, currentIndexes))));
 		restClient.performRequest(request);
 		return currentIndexes;
+	}
+
+	private void assertAliasTargetReady(
+			String targetIndex,
+			String expectedPreviousIndex,
+			List<String> currentIndexes) {
+		if (!targetIndex.equals(expectedPreviousIndex) && currentIndexes.size() == 1 && currentIndexes.contains(targetIndex)) {
+			return;
+		}
+		if (targetIndex.equals(expectedPreviousIndex)) {
+			throw new IllegalArgumentException("targetIndex must differ from expectedPreviousIndex");
+		}
+		if (currentIndexes.size() == 1 && currentIndexes.contains(targetIndex)) {
+			return;
+		}
+		if (currentIndexes.isEmpty() || !currentIndexes.contains(expectedPreviousIndex)) {
+			throw new IllegalArgumentException("current alias target does not match expectedPreviousIndex");
+		}
 	}
 
 	private Map<String, Object> aliasActions(String alias, String targetIndex, List<String> currentIndexes) {

@@ -81,7 +81,7 @@ def _error(
     """构造标准错误响应的辅助函数。"""
     from app.contracts.models import RuntimeErrorResponse, RuntimeOperationMetadata
 
-    operation = "PLAN" if request.url.path.endswith("/plan") else "ROUTE"
+    operation = "ROUTE" if request.url.path.endswith("/route") else "PLAN"
     diagnostic_id = "runtime-" + uuid.uuid4().hex
     termination = {
         "CONTRACT_INVALID": "VALIDATION_REJECTED",

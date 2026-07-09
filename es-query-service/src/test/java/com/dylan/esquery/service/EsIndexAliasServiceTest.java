@@ -264,6 +264,40 @@ class EsIndexAliasServiceTest {
         verify(rollbackRestClient, org.mockito.Mockito.times(2)).performRequest(any());
     }
 
+    @Test
+    void rollbackDryRunValidatesTargetWithoutSwitchingAlias() throws Exception {
+        RestClient restClient = mock(RestClient.class);
+        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
+        repository.create("task-rollback", "agent-doc-policy", "agent-doc-policy-v1", "FULL");
+        repository.markSuccess("task-rollback");
+        repository.markValidationPassed("task-rollback", "digest-rollback", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
+        Response switchAliasResponse = aliasResponse("agent-doc-policy-v1");
+        Response switchUpdateResponse = mock(Response.class);
+        Response rollbackAliasResponse = aliasResponse("agent-doc-policy-v2");
+        when(restClient.performRequest(any())).thenReturn(switchAliasResponse, switchUpdateResponse, rollbackAliasResponse);
+        EsIndexAliasService service = service(restClient, repository);
+        service.switchReadAlias("agent-doc-policy", request());
+        AliasSwitchRequest request = request();
+        request.setTaskId("task-rollback");
+        request.setTargetIndex("agent-doc-policy-v1");
+        request.setExpectedPreviousIndex("agent-doc-policy-v2");
+        request.setValidationDigest("digest-rollback");
+
+        AliasRollbackDryRunResult result = service.rollbackReadAliasDryRun("agent-doc-policy", request);
+
+        assertThat(result.ready()).isTrue();
+        assertThat(result.currentIndexes()).containsExactly("agent-doc-policy-v2");
+        ArgumentCaptor<org.elasticsearch.client.Request> captor =
+                ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
+        verify(restClient, org.mockito.Mockito.times(3)).performRequest(captor.capture());
+        assertThat(captor.getAllValues().get(2).getEndpoint()).isEqualTo("/_alias/agent-doc-policy");
+        assertThat(captor.getAllValues()).filteredOn(esRequest -> "/_aliases".equals(esRequest.getEndpoint()))
+                .hasSize(1);
+        assertThat(service.aliasAudits()).extracting(AliasOperationAudit::operation)
+                .containsExactly("SWITCH", "ROLLBACK_DRY_RUN");
+        assertThat(service.aliasAudits().get(1).result()).isEqualTo("READY");
+    }
+
     private EsIndexAliasService service() {
         return service(null, new InMemoryRebuildTaskRepository());
     }

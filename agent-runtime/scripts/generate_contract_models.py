@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,7 @@ OPENAPI_SPEC = (
 )
 DEFAULT_OUTPUT = RUNTIME_ROOT / "app" / "contracts" / "generated_models.py"
 PYTHON = sys.executable
+REEXEC_ENV = "AGENT_RUNTIME_CODEGEN_REEXEC"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -44,6 +46,28 @@ def run_codegen(output: Path) -> int:
         "--field-constraints",
     ]
     return subprocess.run(command, cwd=RUNTIME_ROOT, check=False).returncode
+
+
+def ensure_codegen_python() -> None:
+    """优先使用模块内虚拟环境运行生成器，避免全局 Python 缺少生成依赖。"""
+    if os.environ.get(REEXEC_ENV) == "1":
+        return
+    venv_python = RUNTIME_ROOT / ".venv" / "Scripts" / "python.exe"
+    if not venv_python.is_file() or Path(sys.executable).resolve() == venv_python.resolve():
+        return
+    probe = subprocess.run(
+        [str(venv_python), "-c", "import datamodel_code_generator, inflect"],
+        cwd=RUNTIME_ROOT,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if probe.returncode != 0:
+        return
+    env = os.environ.copy()
+    env[REEXEC_ENV] = "1"
+    completed = subprocess.run([str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]], env=env)
+    raise SystemExit(completed.returncode)
 
 
 def compute_source_hash(spec: Path = OPENAPI_SPEC) -> str:
@@ -74,6 +98,7 @@ def add_header(text: str, source_hash: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    ensure_codegen_python()
     args = parse_args(argv)
     target = args.output.resolve()
     if not OPENAPI_SPEC.is_file():
