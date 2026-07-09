@@ -155,6 +155,7 @@ public class AgentPropertiesValidator implements InitializingBean {
         validateDocumentGenerationConfig(d);
         validateDocumentHybridConfig(d);
         validateDocumentRetrievalProfiles(d);
+        validateDocumentRerankProviderConfig(d);
     }
 
     private void validateDocumentRewriteConfig(AgentProperties.DocumentProperties d) {
@@ -227,6 +228,35 @@ public class AgentPropertiesValidator implements InitializingBean {
         var h = d.getHybrid();
         if (h.getKeywordK() <= 0 || h.getVectorK() <= 0 || h.getRrfK() <= 0 || h.getNumCandidates() <= 0) {
             throw new IllegalStateException("agent.document.hybrid 参数必须为正数。");
+        }
+    }
+
+    private void validateDocumentRerankProviderConfig(AgentProperties.DocumentProperties d) {
+        var r = d.getRerank();
+        if (r.getTimeout() == null || r.getTimeout().isZero() || r.getTimeout().isNegative()) {
+            throw new IllegalStateException("agent.document.rerank.timeout 必须为正数。");
+        }
+        if (r.getMaxDocumentChars() <= 0) {
+            throw new IllegalStateException("agent.document.rerank.max-document-chars 必须为正数。");
+        }
+        if (r.isEnabled()) {
+            if (r.getBaseUrl() == null || r.getBaseUrl().isBlank()) {
+                throw new IllegalStateException("agent.document.rerank.base-url 必须配置。");
+            }
+            if (r.getPath() == null || r.getPath().isBlank()) {
+                throw new IllegalStateException("agent.document.rerank.path 必须配置。");
+            }
+            if (r.getModel() == null || r.getModel().isBlank()) {
+                throw new IllegalStateException("agent.document.rerank.model 必须配置。");
+            }
+        }
+        boolean profileRerankEnabled = d.getRetrievalProfiles().values().stream()
+                .anyMatch(profile -> profile != null
+                        && profile.isEnabled()
+                        && profile.getRerank() != null
+                        && profile.getRerank().isEnabled());
+        if (profileRerankEnabled && !r.isEnabled()) {
+            throw new IllegalStateException("agent.document.rerank 启用后才能打开 profile rerank。");
         }
     }
 

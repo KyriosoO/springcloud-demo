@@ -22,6 +22,7 @@
 |---:|---|---|---|---|
 | 1 | 2026-07-09 | 全文 | P2_V2 同步更新 | 在旧 P2 02 基础上补充 `domain + materialType + retrievalProfile + indexAlias` 配置模型 |
 | 2 | 2026-07-09 | 第 10、12、19、20、22、24 章 | design-doc-review 评审修复 | 补充 `profileVersion` 派生和冻结规则，修正 profile 启动校验落点为 `AgentPropertiesValidator` |
+| 3 | 2026-07-09 | 第 10、11、12 章 | rerank 接入实现同步 | 补充 `agent.document.rerank` provider 配置与 profile rerank 启用前置校验 |
 
 ## 3. 文档状态说明
 
@@ -180,6 +181,7 @@ agent:
 2. 每个 profile 的 domain 必须存在于 Domain Metadata。
 3. `indexAlias` 必须非空，并与 adapter 可访问 alias 配置一致。
 4. profile 字段不存在时启动 fail closed。
+5. profile 级 `rerank.enabled=true` 时，`agent.document.rerank.enabled` 必须同时为 true，且 provider `base-url/path/model/timeout/max-document-chars` 校验通过。
 
 ## 11. 接口设计
 
@@ -194,12 +196,19 @@ agent:
 | `agent.document.retrieval-profiles.<name>.rrf.k` | int | RRF 参数 |
 | `agent.document.retrieval-profiles.<name>.dedup.document-level` | boolean | 是否文档级去重 |
 | `agent.document.retrieval-profiles.<name>.rerank.enabled` | boolean | 是否启用 rerank |
+| `agent.document.rerank.enabled` | boolean | 是否启用 Java 侧 rerank provider 调用 |
+| `agent.document.rerank.base-url` | String | rerank provider 地址，当前本地服务为 `http://127.0.0.1:8909` |
+| `agent.document.rerank.path` | String | rerank provider 路径，当前为 `/rerank` |
+| `agent.document.rerank.model` | String | rerank 模型标识，例如 `BAAI/bge-reranker-v2-m3` |
+| `agent.document.rerank.timeout` | Duration | rerank HTTP 调用超时 |
+| `agent.document.rerank.max-document-chars` | int | 单个候选传给 rerank provider 的最大字符数 |
 
 ## 12. 数据设计
 
 | 类 | 字段 | 说明 |
 |---|---|---|
 | `RetrievalProfileProperties` | `domain/materialType/retrievalProfile/profileVersion/indexAlias/channels/channelWeights/keywordK/exactK/phraseK/vectorK/rrfK/maxChunksPerDocument/rerank` | 配置对象 |
+| `RerankProviderProperties` | `enabled/baseUrl/path/model/normalize/maxDocumentChars/timeout` | Java 侧 rerank provider 连接配置 |
 | `DocumentRetrievalProfile` | `domain/materialType/retrievalProfile/profileVersion/indexAlias/hybridOptions` | 冻结快照 |
 | `DocumentHybridOptions` | `channels/channelWeights/keywordK/exactK/phraseK/vectorK/rrfK/maxChunksPerDocument/embeddingField/rerankEnabled/rerankTopN` | 单次请求使用的通道、融合、去重和 rerank 配置 |
 

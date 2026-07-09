@@ -183,6 +183,20 @@ class AgentPropertiesValidatorTest {
     }
 
     @Test
+    @DisplayName("profile 启用 rerank 但 provider 未启用时启动失败")
+    void shouldFailWhenProfileRerankEnabledButProviderDisabled() {
+        AgentProperties.RetrievalProfileProperties profile = validProfile("tax-rerank", "tax_policy");
+        profile.getRerank().setEnabled(true);
+        profile.getRerank().setTopN(10);
+        properties.getDocument().getRetrievalProfiles().put("tax-rerank", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agent.document.rerank");
+    }
+
+    @Test
     @DisplayName("启用 profile 但缺少 index-alias 时启动失败")
     void shouldFailWhenRetrievalProfileIndexAliasMissing() {
         AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();

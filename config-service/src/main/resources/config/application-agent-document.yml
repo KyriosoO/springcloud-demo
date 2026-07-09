@@ -44,14 +44,49 @@ agent:
       max-output-chars: 2000
       timeout: 60s
       failure-policy: FALLBACK_EXTRACTIVE
+    rerank:
+      enabled: true
+      base-url: http://127.0.0.1:8909
+      path: /rerank
+      model: BAAI/bge-reranker-v2-m3
+      normalize: true
+      max-document-chars: 1200
+      timeout: 5s
     hybrid:
       keyword-k: 20
       vector-k: 20
       rrf-k: 60
       num-candidates: 100
+    retrieval-profiles:
+      tax-policy-v2:
+        enabled: true
+        domain: tax_policy
+        material-types: [tax_policy]
+        retrieval-profile: tax_policy_v2_default
+        index-alias: agent-doc-tax-policy-v2-read
+        channels: [BM25, EXACT, PHRASE, DENSE_VECTOR]
+        channel-weights:
+          BM25: 1.0
+          EXACT: 1.8
+          PHRASE: 1.4
+          DENSE_VECTOR: 1.0
+        embedding-field: embedding
+        embedding-provider: bge
+        embedding-model: ${ai.provider.embedding.bge.model}
+        embedding-dimension: ${ai.provider.embedding.bge.dimension}
+        keyword-k: 40
+        exact-k: 20
+        phrase-k: 30
+        vector-k: 40
+        rrf-k: 60
+        num-candidates: 200
+        max-chunks-per-document: 2
+        rerank:
+          enabled: true
+          top-n: 20
   document-adapter:
     index-by-domain:
       company_policy: agent-doc-company-policy
-      tax_policy: agent-doc-tax-policy
+      tax_policy: agent-doc-tax-policy-v2-read
       knowledge_base: agent-doc-knowledge-base
       literature: agent-doc-literature

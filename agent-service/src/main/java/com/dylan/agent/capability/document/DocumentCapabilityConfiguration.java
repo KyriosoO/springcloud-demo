@@ -25,6 +25,7 @@ import com.dylan.agent.capability.document.generation.HttpDocumentGenerationClie
 import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
 import com.dylan.agent.capability.document.rerank.DisabledDocumentRerankPort;
 import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
+import com.dylan.agent.capability.document.rerank.HttpDocumentRerankClient;
 import com.dylan.agent.capability.document.rewrite.DisabledDocumentQueryRewritePort;
 import com.dylan.agent.capability.document.rewrite.DocumentQueryRewritePort;
 import com.dylan.agent.capability.document.rewrite.RewriteCandidateNormalizer;
@@ -122,8 +123,20 @@ public class DocumentCapabilityConfiguration {
     }
 
     @Bean
-    DocumentRerankPort documentRerankPort() {
-        return new DisabledDocumentRerankPort();
+    DocumentRerankPort documentRerankPort(
+            AgentProperties properties,
+            ObjectProvider<DocumentProviderAuthHeaderProvider> authHeaderProvider) {
+        var rerank = properties.getDocument().getRerank();
+        if (!rerank.isEnabled()) {
+            return new DisabledDocumentRerankPort();
+        }
+        return new HttpDocumentRerankClient(
+                restClient(rerank.getBaseUrl(), rerank.getTimeout()),
+                authHeaderProvider.getObject(),
+                rerank.getPath(),
+                rerank.getModel(),
+                rerank.isNormalize(),
+                rerank.getMaxDocumentChars());
     }
 
     @Bean

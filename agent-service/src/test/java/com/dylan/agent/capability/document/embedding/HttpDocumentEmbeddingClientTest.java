@@ -4,6 +4,7 @@ import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderPr
 import com.dylan.common.security.ServiceTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class HttpDocumentEmbeddingClientTest {
@@ -87,6 +89,39 @@ class HttpDocumentEmbeddingClientTest {
                 .hasMessageNotContaining("service-token")
                 .hasMessageNotContaining("敏感查询文本")
                 .hasMessageNotContaining("raw-body");
+        server.verify();
+    }
+
+    @Test
+    void fallsBackToLocalEmbedEndpointWhenEmbeddingsPathIsMissing() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://embedding-provider");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        Instant deadline = Instant.now().plusSeconds(60);
+        server.expect(requestTo("http://embedding-provider/embeddings"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+        server.expect(requestTo("http://embedding-provider/embed"))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer service-token"))
+                .andExpect(jsonPath("$.texts[0]").value("查询休假政策"))
+                .andExpect(jsonPath("$.texts[1]").value("休假审批政策"))
+                .andRespond(withSuccess("""
+                        {"dim":2,"vectors":[[1.0,0.0],[0.0,1.0]]}
+                        """, MediaType.APPLICATION_JSON));
+        var client = new HttpDocumentEmbeddingClient(builder.build(), authHeaderProvider("service-token"));
+
+        DocumentEmbeddingResult result = client.embed(new DocumentEmbeddingRequest(
+                "inv-1",
+                "查询休假政策",
+                List.of("查询休假政策", "休假审批政策"),
+                "policy_document",
+                "bge",
+                "embedding-v1",
+                "embedding-v1",
+                2,
+                deadline));
+
+        assertThat(result.queryVector()).containsExactly(0.5, 0.5);
+        assertThat(result.embeddingModel()).isEqualTo("embedding-v1");
+        assertThat(result.dimension()).isEqualTo(2);
         server.verify();
     }
 

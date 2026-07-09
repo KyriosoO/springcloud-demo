@@ -22,6 +22,7 @@
 |---:|---|---|---|---|
 | 1 | 2026-07-09 | 全文 | P2_V2 同步更新 | 将旧 keyword + vector 双路 hybrid 升级为 BM25、exact/phrase、dense_vector 多路召回、RRF、文档级去重和 Java 侧 rerank |
 | 2 | 2026-07-09 | 第 9、19、22、24 章 | design-doc-review 评审修复 | 将总体设计中的 `QueryRewriteNormalizer` 统一为 `DocumentQueryPreparationService`，明确文档级去重由 `HybridSearchMerger` 承担 |
+| 3 | 2026-07-09 | 第 10、19 章 | rerank 接入实现同步 | 明确 Java 侧 `HttpDocumentRerankClient` 调用 `/rerank`，profile 开关依赖 provider 配置 |
 
 ## 3. 文档状态说明
 
@@ -173,6 +174,8 @@ dedupKey = indexAlias + profileVersion + permissionEvidenceId + documentId
 |---|---|
 | 位置 | `DocumentCapabilityHandler.applyRerankIfEnabled`，RRF 去重后、最终投影前 |
 | 开关 | profile 级 `rerank.enabled`，默认关闭 |
+| Provider 开关 | `agent.document.rerank.enabled`，未开启时禁止 profile 打开 rerank |
+| Provider 契约 | `POST /rerank`，请求 `query/documents/top_n/normalize`，响应 `results[index,score]` |
 | 输入 | RRF TopN 的安全候选 |
 | 输出 | rerankScore、rerankReasonCode、最终 rank |
 | 失败策略 | 超时/异常按 RRF 排序返回，记录 `rerankSkippedReason` |
@@ -294,6 +297,7 @@ dedupKey = indexAlias + profileVersion + permissionEvidenceId + documentId
 | 6 | Service | `es-query-service/src/main/java/com/dylan/esquery/service/HybridSearchMerger.java` | `HybridSearchMerger` | `merge` | channel hits/request | response | 修改 | N 路 RRF 与 document dedup |
 | 7 | Handler | `agent-service/src/main/java/com/dylan/agent/capability/document/DocumentCapabilityHandler.java` | `DocumentCapabilityHandler` | `applyRerankIfEnabled` | `AdapterDocumentResult, profile` | `AdapterDocumentResult` | 新增 | Java 侧可选 rerank |
 | 8 | Port | `agent-service/src/main/java/com/dylan/agent/capability/document/rerank/DocumentRerankPort.java` | `DocumentRerankPort` | `rerank` | safe candidates | rerank result | 新增 | 可禁用 provider port |
+| 9 | Provider Client | `agent-service/src/main/java/com/dylan/agent/capability/document/rerank/HttpDocumentRerankClient.java` | `HttpDocumentRerankClient` | `rerank` | safe candidates | rerank result | 新增 | 调用 `BAAI/bge-reranker-v2-m3` 服务 `/rerank` |
 
 ### 19.2 Python 实现落点
 
@@ -306,6 +310,7 @@ Runtime 不实现召回、RRF、rerank 或 ES DSL。仅因契约生成可能更�
 | 1 | YAML | `agent-service/src/main/resources/application.yml` | `application.yml` | `agent.document.retrieval-profiles.*.channels` | 启用 BM25/exact/phrase/vector |
 | 2 | YAML | 同上 | `application.yml` | `*.rrf.*` | RRF 参数 |
 | 3 | YAML | 同上 | `application.yml` | `*.rerank.*` | rerank 开关和 TopN |
+| 4 | YAML | 同上 | `application.yml` | `agent.document.rerank.*` | rerank provider 地址、路径、模型、超时和候选文本长度上限 |
 
 ### 19.4 测试落点
 

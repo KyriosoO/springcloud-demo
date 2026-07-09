@@ -206,6 +206,7 @@ public class AgentProperties {
         private RewriteProperties rewrite = new RewriteProperties();
         private EmbeddingProperties embedding = new EmbeddingProperties();
         private GenerationProperties generation = new GenerationProperties();
+        private RerankProviderProperties rerank = new RerankProviderProperties();
         private HybridProperties hybrid = new HybridProperties();
         private AclProperties acl = new AclProperties();
         private BlocklistProperties blocklist = new BlocklistProperties();
@@ -256,6 +257,10 @@ public class AgentProperties {
         public void setEmbedding(EmbeddingProperties embedding) { this.embedding = embedding == null ? new EmbeddingProperties() : embedding; }
         public GenerationProperties getGeneration() { return generation; }
         public void setGeneration(GenerationProperties generation) { this.generation = generation == null ? new GenerationProperties() : generation; }
+        public RerankProviderProperties getRerank() { return rerank; }
+        public void setRerank(RerankProviderProperties rerank) {
+            this.rerank = rerank == null ? new RerankProviderProperties() : rerank;
+        }
         public HybridProperties getHybrid() { return hybrid; }
         public void setHybrid(HybridProperties hybrid) { this.hybrid = hybrid == null ? new HybridProperties() : hybrid; }
         public AclProperties getAcl() { return acl; }
@@ -386,6 +391,32 @@ public class AgentProperties {
         public void setTimeout(Duration timeout) { this.timeout = timeout; }
         public String getFailurePolicy() { return failurePolicy; }
         public void setFailurePolicy(String failurePolicy) { this.failurePolicy = failurePolicy; }
+    }
+
+    /** 文档 rerank provider 配置，默认关闭。 */
+    public static class RerankProviderProperties {
+        private boolean enabled = false;
+        private String baseUrl;
+        private String path = "/rerank";
+        private String model;
+        private boolean normalize = true;
+        private int maxDocumentChars = 1200;
+        private Duration timeout = Duration.ofSeconds(5);
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getBaseUrl() { return baseUrl; }
+        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+        public String getPath() { return path; }
+        public void setPath(String path) { this.path = path; }
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+        public boolean isNormalize() { return normalize; }
+        public void setNormalize(boolean normalize) { this.normalize = normalize; }
+        public int getMaxDocumentChars() { return maxDocumentChars; }
+        public void setMaxDocumentChars(int maxDocumentChars) { this.maxDocumentChars = maxDocumentChars; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
     }
 
     /** 文档混合检索默认参数。 */

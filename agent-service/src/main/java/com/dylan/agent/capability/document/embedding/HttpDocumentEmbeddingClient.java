@@ -4,8 +4,10 @@ import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderPr
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,9 +48,38 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
                     .body(Map.class);
             requireActiveDeadline(request.deadline());
             return toResult(response, request);
+        } catch (RestClientResponseException ex) {
+            if (supportsEmbedFallback(ex)) {
+                return embedViaTextEndpoint(request);
+            }
+            throw providerCallFailed();
         } catch (RestClientException | ClassCastException | IllegalArgumentException ex) {
             throw providerCallFailed();
         }
+    }
+
+    private DocumentEmbeddingResult embedViaTextEndpoint(DocumentEmbeddingRequest request) {
+        try {
+            requireActiveDeadline(request.deadline());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restClient.post()
+                    .uri("/embed")
+                    .header(HttpHeaders.AUTHORIZATION, authHeaderProvider.authorizationHeader())
+                    .header("X-Agent-Request-Id", safeHeader(request.requestId()))
+                    .header("X-Agent-Deadline", request.deadline().toString())
+                    .body(Map.of("texts", safeVariants(request)))
+                    .retrieve()
+                    .body(Map.class);
+            requireActiveDeadline(request.deadline());
+            return toEmbedEndpointResult(response, request);
+        } catch (RestClientException | ClassCastException | IllegalArgumentException ex) {
+            throw providerCallFailed();
+        }
+    }
+
+    private static boolean supportsEmbedFallback(RestClientResponseException ex) {
+        int status = ex.getStatusCode().value();
+        return status == 404 || status == 405;
     }
 
     private static IllegalStateException providerCallFailed() {
@@ -83,6 +114,57 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
                 model,
                 dimension.intValue(),
                 String.valueOf(response.getOrDefault("digest", "")));
+    }
+
+    private DocumentEmbeddingResult toEmbedEndpointResult(Map<String, Object> response, DocumentEmbeddingRequest request) {
+        if (response == null || !(response.get("vectors") instanceof List<?> vectors) || vectors.isEmpty()) {
+            throw new IllegalArgumentException("embedding provider returned invalid vectors");
+        }
+        if (!(response.get("dim") instanceof Number dimension)) {
+            throw new IllegalArgumentException("embedding provider returned invalid dimension");
+        }
+        int dim = dimension.intValue();
+        List<List<Double>> values = new ArrayList<>();
+        for (Object item : vectors) {
+            if (!(item instanceof List<?> vector)) {
+                throw new IllegalArgumentException("embedding provider returned invalid vector");
+            }
+            List<Double> numbers = vector.stream()
+                    .map(HttpDocumentEmbeddingClient::finiteDouble)
+                    .toList();
+            if (numbers.size() != dim) {
+                throw new IllegalArgumentException("embedding provider returned dimension mismatch");
+            }
+            values.add(numbers);
+        }
+        if (request.expectedDimension() > 0 && dim != request.expectedDimension()) {
+            throw new IllegalArgumentException("embedding provider returned dimension mismatch");
+        }
+        String model = request.model();
+        if (request.expectedModel() != null
+                && !request.expectedModel().isBlank()
+                && !request.expectedModel().equals(model)) {
+            throw new IllegalArgumentException("embedding provider returned model mismatch");
+        }
+        return new DocumentEmbeddingResult(
+                average(values, dim),
+                model,
+                dim,
+                String.valueOf(response.getOrDefault("digest", "")));
+    }
+
+    private static List<Double> average(List<List<Double>> vectors, int dimension) {
+        double[] sum = new double[dimension];
+        for (List<Double> vector : vectors) {
+            for (int i = 0; i < dimension; i++) {
+                sum[i] += vector.get(i);
+            }
+        }
+        List<Double> result = new ArrayList<>(dimension);
+        for (double value : sum) {
+            result.add(value / vectors.size());
+        }
+        return result;
     }
 
     private static double finiteDouble(Object value) {
