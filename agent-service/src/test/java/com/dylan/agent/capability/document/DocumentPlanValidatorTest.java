@@ -104,6 +104,7 @@ class DocumentPlanValidatorTest {
     @Test
     void appliesDomainDefaultRetrievalModeWhenPlanOmitsMode() {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        addDefaultProfile(properties);
         properties.getDocument().getRetrievalModeByDomain().put("policy_document", DocumentRetrievalMode.VECTOR);
         var validator = new DocumentPlanValidator(
                 properties,
@@ -271,7 +272,6 @@ class DocumentPlanValidatorTest {
                 retrievalProfile("policy_document", null, "policy-default", "agent-doc-policy-read"));
         AgentProperties.RetrievalProfileProperties tax = retrievalProfile(
                 "policy_document", "tax_policy", "tax-v2", "agent-doc-tax-policy-read");
-        tax.setProfileVersion("v2");
         tax.setKeywordK(31);
         tax.setExactK(32);
         tax.setPhraseK(33);
@@ -298,7 +298,7 @@ class DocumentPlanValidatorTest {
 
         assertThat(validated.request().getMaterialType()).isEqualTo("tax_policy");
         assertThat(validated.request().getRetrievalProfile()).isEqualTo("tax-v2");
-        assertThat(validated.request().getProfileVersion()).isEqualTo("v2");
+        assertThat(validated.request().getProfileVersion()).startsWith("pv-");
         assertThat(validated.request().getIndexAlias()).isEqualTo("agent-doc-tax-policy-read");
         assertThat(validated.request().getHybridOptions().keywordK()).isEqualTo(31);
         assertThat(validated.request().getHybridOptions().exactK()).isEqualTo(32);
@@ -365,6 +365,7 @@ class DocumentPlanValidatorTest {
 
     private DocumentPlanValidator validator() {
         var properties = DomainMetadataTestSupport.agentProperties();
+        addDefaultProfile(properties);
         return new DocumentPlanValidator(
                 properties,
                 new FilterNormalizer(properties),
@@ -507,10 +508,15 @@ class DocumentPlanValidatorTest {
         AgentProperties.RetrievalProfileProperties properties =
                 new AgentProperties.RetrievalProfileProperties();
         properties.setDomain(domain);
-        properties.setMaterialType(materialType);
+        properties.setMaterialTypes(List.of(materialType == null ? "policy" : materialType));
         properties.setRetrievalProfile(profile);
         properties.setIndexAlias(indexAlias);
         return properties;
+    }
+
+    private void addDefaultProfile(AgentProperties properties) {
+        properties.getDocument().getRetrievalProfiles().put("policy-default",
+                retrievalProfile("policy_document", "policy", "policy-default", "agent-doc-policy-read"));
     }
 
 }

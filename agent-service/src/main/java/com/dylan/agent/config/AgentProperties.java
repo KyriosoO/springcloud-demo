@@ -378,9 +378,8 @@ public class AgentProperties {
     public static class RetrievalProfileProperties {
         private boolean enabled = true;
         private String domain;
-        private String materialType;
+        private List<String> materialTypes = new ArrayList<>();
         private String retrievalProfile;
-        private String profileVersion = "v1";
         private String indexAlias;
         private List<String> channels = new ArrayList<>(List.of("BM25", "EXACT", "PHRASE", "DENSE_VECTOR"));
         private Map<String, Double> channelWeights = new LinkedHashMap<>();
@@ -398,12 +397,12 @@ public class AgentProperties {
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public String getDomain() { return domain; }
         public void setDomain(String domain) { this.domain = domain; }
-        public String getMaterialType() { return materialType; }
-        public void setMaterialType(String materialType) { this.materialType = materialType; }
+        public List<String> getMaterialTypes() { return materialTypes; }
+        public void setMaterialTypes(List<String> materialTypes) {
+            this.materialTypes = materialTypes == null ? new ArrayList<>() : new ArrayList<>(materialTypes);
+        }
         public String getRetrievalProfile() { return retrievalProfile; }
         public void setRetrievalProfile(String retrievalProfile) { this.retrievalProfile = retrievalProfile; }
-        public String getProfileVersion() { return profileVersion; }
-        public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
         public String getIndexAlias() { return indexAlias; }
         public void setIndexAlias(String indexAlias) { this.indexAlias = indexAlias; }
         public List<String> getChannels() { return channels; }

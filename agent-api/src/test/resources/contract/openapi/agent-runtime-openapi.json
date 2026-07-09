@@ -469,6 +469,11 @@
             "nullable" : true,
             "type" : "number"
           },
+          "materialType" : {
+            "description" : "资料类型，例如 policy、notice、faq",
+            "nullable" : true,
+            "type" : "string"
+          },
           "minScore" : {
             "description" : "最小相关度分数",
             "nullable" : true,
@@ -488,9 +493,29 @@
             "nullable" : true,
             "type" : "integer"
           },
+          "rerankEnabled" : {
+            "description" : "请求级 rerank 启用建议，最终由 Java profile 配置裁剪",
+            "nullable" : true,
+            "type" : "boolean"
+          },
+          "retrievalChannels" : {
+            "description" : "召回通道列表，例如 BM25、EXACT、PHRASE、DENSE_VECTOR",
+            "items" : {
+              "description" : "召回通道列表，例如 BM25、EXACT、PHRASE、DENSE_VECTOR",
+              "nullable" : true,
+              "type" : "string"
+            },
+            "nullable" : true,
+            "type" : "array"
+          },
           "retrievalMode" : {
             "description" : "文档检索模式",
             "enum" : [ "KEYWORD", "VECTOR", "HYBRID" ],
+            "nullable" : true,
+            "type" : "string"
+          },
+          "retrievalProfile" : {
+            "description" : "检索 profile 标识，由 Java 侧校验并冻结",
             "nullable" : true,
             "type" : "string"
           },

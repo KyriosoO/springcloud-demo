@@ -1,7 +1,16 @@
 package com.dylan.agent.config;
 
+import com.dylan.agent.adapter.api.AdapterRole;
+import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
+
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * 启动时校验 AgentProperties 中仍由本地配置承载的运行参数。
@@ -13,9 +22,16 @@ import org.springframework.stereotype.Component;
 public class AgentPropertiesValidator implements InitializingBean {
 
     private final AgentProperties properties;
+    private final DomainCatalogView domainCatalogView;
 
     public AgentPropertiesValidator(AgentProperties properties) {
+        this(properties, null);
+    }
+
+    @Autowired
+    public AgentPropertiesValidator(AgentProperties properties, DomainCatalogView domainCatalogView) {
         this.properties = properties;
+        this.domainCatalogView = domainCatalogView;
     }
 
     @Override
@@ -195,6 +211,8 @@ public class AgentPropertiesValidator implements InitializingBean {
         if (d.isEnabled() && !hasEnabledProfile) {
             throw new IllegalStateException("agent.document.retrieval-profiles 至少需要一个启用的 profile。");
         }
+        Map<String, String> profileByDomainMaterialType = new LinkedHashMap<>();
+        Map<String, String> profileByDomainName = new LinkedHashMap<>();
         for (var entry : d.getRetrievalProfiles().entrySet()) {
             var profile = entry.getValue();
             if (profile == null || !profile.isEnabled()) {
@@ -204,8 +222,26 @@ public class AgentPropertiesValidator implements InitializingBean {
             if (profile.getDomain() == null || profile.getDomain().isBlank()) {
                 throw new IllegalStateException(prefix + ".domain 必须配置。");
             }
+            validateDocumentDomain(prefix, profile.getDomain());
             if (profile.getRetrievalProfile() == null || profile.getRetrievalProfile().isBlank()) {
                 throw new IllegalStateException(prefix + ".retrieval-profile 必须配置。");
+            }
+            String domainProfileKey = normalizeKey(profile.getDomain()) + "/"
+                    + normalizeKey(profile.getRetrievalProfile());
+            String previousProfile = profileByDomainName.putIfAbsent(domainProfileKey, entry.getKey());
+            if (previousProfile != null) {
+                throw new IllegalStateException(prefix + ".retrieval-profile 在同一 domain 下重复。");
+            }
+            var materialTypes = normalizedMaterialTypes(profile);
+            if (materialTypes.isEmpty()) {
+                throw new IllegalStateException(prefix + ".material-types 至少配置一个资料类型。");
+            }
+            for (String materialType : materialTypes) {
+                String routeKey = normalizeKey(profile.getDomain()) + "/" + normalizeKey(materialType);
+                String previous = profileByDomainMaterialType.putIfAbsent(routeKey, entry.getKey());
+                if (previous != null) {
+                    throw new IllegalStateException(prefix + ".material-types 与其他 profile 重复。");
+                }
             }
             if (profile.getIndexAlias() == null || profile.getIndexAlias().isBlank()) {
                 throw new IllegalStateException(prefix + ".index-alias 必须配置。");
@@ -223,9 +259,23 @@ public class AgentPropertiesValidator implements InitializingBean {
                     || profile.getNumCandidates() <= 0 || profile.getMaxChunksPerDocument() <= 0) {
                 throw new IllegalStateException(prefix + " 检索参数必须为正数。");
             }
+            if (profile.getKeywordK() > 10_000 || profile.getExactK() > 10_000
+                    || profile.getPhraseK() > 10_000 || profile.getVectorK() > 10_000
+                    || profile.getNumCandidates() > 10_000) {
+                throw new IllegalStateException(prefix + " 召回候选参数超过系统上限。");
+            }
+            if (profile.getRrfK() > 1000) {
+                throw new IllegalStateException(prefix + ".rrf-k 超过系统上限。");
+            }
+            if (profile.getMaxChunksPerDocument() > d.getMaxSize()) {
+                throw new IllegalStateException(prefix + ".max-chunks-per-document 不能超过 max-size。");
+            }
             if (profile.getChannelWeights().values().stream()
                     .anyMatch(weight -> weight == null || !Double.isFinite(weight) || weight <= 0.0d)) {
                 throw new IllegalStateException(prefix + ".channel-weights 必须为正数。");
+            }
+            if (profile.getChannelWeights().keySet().stream().anyMatch(channel -> !isSupportedRetrievalChannel(channel))) {
+                throw new IllegalStateException(prefix + ".channel-weights 包含不支持的通道。");
             }
             if (profile.getChannels().stream().anyMatch(channel -> "DENSE_VECTOR".equalsIgnoreCase(channel))
                     && (profile.getEmbeddingField() == null || profile.getEmbeddingField().isBlank())) {
@@ -234,7 +284,36 @@ public class AgentPropertiesValidator implements InitializingBean {
             if (profile.getRerank().isEnabled() && profile.getRerank().getTopN() <= 0) {
                 throw new IllegalStateException(prefix + ".rerank.top-n 必须为正数。");
             }
+            if (profile.getRerank().isEnabled() && profile.getRerank().getTopN() > d.getMaxSize()) {
+                throw new IllegalStateException(prefix + ".rerank.top-n 不能超过 max-size。");
+            }
         }
+    }
+
+    private void validateDocumentDomain(String prefix, String domain) {
+        if (domainCatalogView == null) {
+            return;
+        }
+        try {
+            domainCatalogView.requireDomain(domain.trim(), AdapterRole.DOCUMENT_RETRIEVABLE);
+        } catch (RuntimeException ex) {
+            throw new IllegalStateException(prefix + ".domain 必须存在且支持 DOCUMENT_RETRIEVABLE。", ex);
+        }
+    }
+
+    private static LinkedHashSet<String> normalizedMaterialTypes(AgentProperties.RetrievalProfileProperties profile) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        if (profile.getMaterialTypes() != null) {
+            profile.getMaterialTypes().stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(String::trim)
+                    .forEach(values::add);
+        }
+        return values;
+    }
+
+    private static String normalizeKey(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private static boolean isSupportedRetrievalChannel(String channel) {

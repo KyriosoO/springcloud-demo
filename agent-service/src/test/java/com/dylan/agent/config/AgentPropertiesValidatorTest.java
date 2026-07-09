@@ -115,6 +115,7 @@ class AgentPropertiesValidatorTest {
     void shouldFailWhenDenseVectorProfileEmbeddingFieldMissing() {
         AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
         profile.setDomain("policy_document");
+        profile.setMaterialTypes(java.util.List.of("tax_policy"));
         profile.setRetrievalProfile("tax-v2");
         profile.setIndexAlias("agent-doc-tax-policy-read");
         profile.setEmbeddingField("");
@@ -131,6 +132,7 @@ class AgentPropertiesValidatorTest {
     void shouldFailWhenRerankTopNInvalid() {
         AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
         profile.setDomain("policy_document");
+        profile.setMaterialTypes(java.util.List.of("tax_policy"));
         profile.setRetrievalProfile("tax-v2");
         profile.setIndexAlias("agent-doc-tax-policy-read");
         profile.getRerank().setEnabled(true);
@@ -148,6 +150,7 @@ class AgentPropertiesValidatorTest {
     void shouldFailWhenRetrievalProfileIndexAliasMissing() {
         AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
         profile.setDomain("policy_document");
+        profile.setMaterialTypes(java.util.List.of("tax_policy"));
         profile.setRetrievalProfile("tax-v2");
         profile.setIndexAlias("");
         properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
@@ -156,5 +159,65 @@ class AgentPropertiesValidatorTest {
         assertThatThrownBy(validator::afterPropertiesSet)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("index-alias");
+    }
+
+    @Test
+    @DisplayName("启用 profile 但缺少 material-types 时启动失败")
+    void shouldFailWhenRetrievalProfileMaterialTypesMissing() {
+        AgentProperties.RetrievalProfileProperties profile = validProfile("tax-v2", "tax_policy");
+        profile.setMaterialTypes(java.util.List.of(" "));
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("material-types");
+    }
+
+    @Test
+    @DisplayName("同一 domain/materialType 被多个 profile 绑定时启动失败")
+    void shouldFailWhenMaterialTypeMappedByMultipleProfiles() {
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", validProfile("tax-v2", "tax_policy"));
+        properties.getDocument().getRetrievalProfiles().put("tax-strict", validProfile("tax-strict", "tax_policy"));
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("material-types");
+    }
+
+    @Test
+    @DisplayName("profile 召回候选数超过系统上限时启动失败")
+    void shouldFailWhenProfileCandidateAboveSystemCap() {
+        AgentProperties.RetrievalProfileProperties profile = validProfile("tax-v2", "tax_policy");
+        profile.setKeywordK(10_001);
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("系统上限");
+    }
+
+    @Test
+    @DisplayName("profile domain 不支持 DOCUMENT_RETRIEVABLE 时启动失败")
+    void shouldFailWhenProfileDomainDoesNotSupportDocumentRole() {
+        AgentProperties.RetrievalProfileProperties profile = validProfile("employee-profile", "policy");
+        profile.setDomain("employee");
+        properties.getDocument().getRetrievalProfiles().put("employee-profile", profile);
+        var validator = new AgentPropertiesValidator(properties, DomainMetadataTestSupport.catalogView());
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("DOCUMENT_RETRIEVABLE");
+    }
+
+    private AgentProperties.RetrievalProfileProperties validProfile(String retrievalProfile, String materialType) {
+        AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
+        profile.setDomain("policy_document");
+        profile.setMaterialTypes(java.util.List.of(materialType));
+        profile.setRetrievalProfile(retrievalProfile);
+        profile.setIndexAlias("agent-doc-tax-policy-read");
+        return profile;
     }
 }

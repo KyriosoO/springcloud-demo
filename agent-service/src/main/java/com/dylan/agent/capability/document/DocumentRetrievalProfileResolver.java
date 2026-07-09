@@ -3,8 +3,15 @@ package com.dylan.agent.capability.document;
 import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.config.AgentProperties;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /** 解析并冻结资料域/资料类型检索 profile。 */
@@ -17,28 +24,50 @@ public class DocumentRetrievalProfileResolver {
     }
 
     public DocumentRetrievalProfile resolve(String domain, String materialType, String requestedProfile) {
-        var profile = properties.getDocument().getRetrievalProfiles().values().stream()
+        String normalizedDomain = blankToNull(domain);
+        String normalizedMaterialType = blankToNull(materialType);
+        String normalizedRequestedProfile = blankToNull(requestedProfile);
+        List<AgentProperties.RetrievalProfileProperties> domainProfiles =
+                properties.getDocument().getRetrievalProfiles().values().stream()
                 .filter(Objects::nonNull)
                 .filter(AgentProperties.RetrievalProfileProperties::isEnabled)
-                .filter(candidate -> equalsTrimmed(candidate.getDomain(), domain))
-                .filter(candidate -> requestedProfile == null || requestedProfile.isBlank()
-                        || equalsTrimmed(candidate.getRetrievalProfile(), requestedProfile))
-                .filter(candidate -> materialType == null || materialType.isBlank()
-                        || candidate.getMaterialType() == null || candidate.getMaterialType().isBlank()
-                        || equalsTrimmed(candidate.getMaterialType(), materialType))
-                .max((left, right) -> Integer.compare(matchScore(left, materialType), matchScore(right, materialType)))
-                .orElse(null);
-        if (profile == null) {
-            if (requestedProfile != null && !requestedProfile.isBlank()) {
-                throw new IllegalArgumentException("document retrievalProfile is not configured for domain");
-            }
-            return defaultProfile(domain, materialType);
+                .filter(candidate -> equalsTrimmed(candidate.getDomain(), normalizedDomain))
+                .toList();
+        if (domainProfiles.isEmpty()) {
+            throw new IllegalArgumentException("document retrievalProfile is not configured for domain");
         }
+
+        AgentProperties.RetrievalProfileProperties profile;
+        if (normalizedRequestedProfile != null) {
+            profile = domainProfiles.stream()
+                    .filter(candidate -> equalsTrimmed(candidate.getRetrievalProfile(), normalizedRequestedProfile))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "document retrievalProfile is not configured for domain"));
+            if (normalizedMaterialType != null && !supportsMaterialType(profile, normalizedMaterialType)) {
+                throw new IllegalArgumentException("document retrievalProfile is not configured for materialType");
+            }
+        } else if (normalizedMaterialType != null) {
+            profile = domainProfiles.stream()
+                    .filter(candidate -> supportsMaterialType(candidate, normalizedMaterialType))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "document retrievalProfile is not configured for materialType"));
+        } else {
+            profile = domainProfiles.stream()
+                    .filter(candidate -> materialTypes(candidate).isEmpty())
+                    .findFirst()
+                    .orElseGet(() -> domainProfiles.getFirst());
+        }
+
+        String resolvedMaterialType = normalizedMaterialType != null
+                ? normalizedMaterialType
+                : defaultMaterialType(profile);
         return new DocumentRetrievalProfile(
-                domain,
-                blankToNull(profile.getMaterialType()) == null ? blankToNull(materialType) : profile.getMaterialType(),
+                normalizedDomain,
+                resolvedMaterialType,
                 profile.getRetrievalProfile(),
-                blankToDefault(profile.getProfileVersion(), "v1"),
+                derivedProfileVersion(profile),
                 blankToNull(profile.getIndexAlias()),
                 new DocumentHybridOptions(
                         profile.getKeywordK(),
@@ -49,25 +78,34 @@ public class DocumentRetrievalProfileResolver {
                         profile.getPhraseK(),
                         profile.getMaxChunksPerDocument(),
                         normalizedChannels(profile.getChannels()),
-                        profile.getChannelWeights(),
+                        normalizedChannelWeights(profile.getChannelWeights()),
                         blankToDefault(profile.getEmbeddingField(), "embedding"),
                         profile.getRerank().isEnabled(),
                         profile.getRerank().getTopN()));
     }
 
-    private DocumentRetrievalProfile defaultProfile(String domain, String materialType) {
-        var hybrid = properties.getDocument().getHybrid();
-        return new DocumentRetrievalProfile(
-                domain,
-                blankToNull(materialType),
-                "default",
-                "legacy",
-                null,
-                new DocumentHybridOptions(
-                        hybrid.getKeywordK(),
-                        hybrid.getVectorK(),
-                        hybrid.getRrfK(),
-                        hybrid.getNumCandidates()));
+    private static boolean supportsMaterialType(
+            AgentProperties.RetrievalProfileProperties profile,
+            String materialType) {
+        List<String> materialTypes = materialTypes(profile);
+        return materialTypes.stream().anyMatch(value -> equalsTrimmed(value, materialType));
+    }
+
+    private static List<String> materialTypes(AgentProperties.RetrievalProfileProperties profile) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        if (profile.getMaterialTypes() != null) {
+            profile.getMaterialTypes().stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .forEach(values::add);
+        }
+        return List.copyOf(values);
+    }
+
+    private static String defaultMaterialType(AgentProperties.RetrievalProfileProperties profile) {
+        List<String> materialTypes = materialTypes(profile);
+        return materialTypes.isEmpty() ? null : materialTypes.getFirst();
     }
 
     private static List<String> normalizedChannels(List<String> channels) {
@@ -83,24 +121,56 @@ public class DocumentRetrievalProfileResolver {
                 .toList();
     }
 
+    private static Map<String, Double> normalizedChannelWeights(Map<String, Double> channelWeights) {
+        if (channelWeights == null || channelWeights.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Double> normalized = new LinkedHashMap<>();
+        channelWeights.forEach((channel, weight) -> {
+            String key = blankToNull(channel);
+            if (key != null && weight != null) {
+                normalized.put(key.toUpperCase(Locale.ROOT), weight);
+            }
+        });
+        return normalized;
+    }
+
+    private static String derivedProfileVersion(AgentProperties.RetrievalProfileProperties profile) {
+        List<String> tokens = new ArrayList<>();
+        tokens.add("domain=" + nullToEmpty(profile.getDomain()));
+        tokens.add("materialTypes=" + String.join(",", materialTypes(profile)));
+        tokens.add("retrievalProfile=" + nullToEmpty(profile.getRetrievalProfile()));
+        tokens.add("indexAlias=" + nullToEmpty(profile.getIndexAlias()));
+        tokens.add("channels=" + String.join(",", normalizedChannels(profile.getChannels())));
+        tokens.add("channelWeights=" + normalizedChannelWeights(profile.getChannelWeights()));
+        tokens.add("keywordK=" + profile.getKeywordK());
+        tokens.add("exactK=" + profile.getExactK());
+        tokens.add("phraseK=" + profile.getPhraseK());
+        tokens.add("vectorK=" + profile.getVectorK());
+        tokens.add("rrfK=" + profile.getRrfK());
+        tokens.add("numCandidates=" + profile.getNumCandidates());
+        tokens.add("maxChunksPerDocument=" + profile.getMaxChunksPerDocument());
+        tokens.add("embeddingField=" + nullToEmpty(profile.getEmbeddingField()));
+        tokens.add("rerankEnabled=" + profile.getRerank().isEnabled());
+        tokens.add("rerankTopN=" + profile.getRerank().getTopN());
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(String.join("|", tokens).getBytes(StandardCharsets.UTF_8));
+            return "pv-" + java.util.HexFormat.of().formatHex(hash, 0, 8);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is not available", ex);
+        }
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
     private static boolean equalsTrimmed(String left, String right) {
         if (left == null || right == null) {
             return false;
         }
         return left.trim().equals(right.trim());
-    }
-
-    private static int matchScore(AgentProperties.RetrievalProfileProperties candidate, String materialType) {
-        if (materialType == null || materialType.isBlank()) {
-            return 0;
-        }
-        if (equalsTrimmed(candidate.getMaterialType(), materialType)) {
-            return 2;
-        }
-        if (candidate.getMaterialType() == null || candidate.getMaterialType().isBlank()) {
-            return 1;
-        }
-        return 0;
     }
 
     private static String blankToDefault(String value, String defaultValue) {
