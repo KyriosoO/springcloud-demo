@@ -21,9 +21,11 @@ import com.dylan.agent.api.response.DocumentGenerationStatus;
 import com.dylan.agent.capability.document.DocumentCapabilityHandler;
 import com.dylan.agent.capability.document.DocumentCapabilityIds;
 import com.dylan.agent.capability.document.DocumentObservabilitySupport;
+import com.dylan.agent.capability.document.DocumentRuleExtractor;
 import com.dylan.agent.capability.document.ValidatedDocumentPlan;
 import com.dylan.agent.capability.document.ValidatedDocumentPlanTestSupport;
 import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
+import com.dylan.agent.capability.document.embedding.DocumentEmbeddingRequest;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
 import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
@@ -33,6 +35,10 @@ import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurit
 import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
 import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
 import com.dylan.agent.capability.document.rerank.DocumentRerankRequest;
+import com.dylan.agent.capability.document.rewrite.DocumentRewriteCandidate;
+import com.dylan.agent.capability.document.rewrite.DocumentRewriteRequest;
+import com.dylan.agent.capability.document.rewrite.DocumentRewriteResponse;
+import com.dylan.agent.capability.document.rewrite.RewriteCandidateNormalizer;
 import com.dylan.agent.invocation.model.CancellationSource;
 import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
@@ -225,6 +231,93 @@ class DocumentCapabilityHandlerTest {
         assertThat(capturedRequest.get()).isNotNull();
         assertThat(capturedRequest.get().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
         assertThat(capturedRequest.get().getQueryVector()).isEmpty();
+    }
+
+    @Test
+    void buildsRuleKeywordsAndRewriteCandidatesBeforeEmbeddingAndAdapter() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getRewrite().setEnabled(true);
+        properties.getDocument().getRewrite().setMaxCandidates(3);
+        properties.getDocument().getRewrite().setMaxCandidateLength(64);
+        properties.getDocument().getEmbedding().setEnabled(true);
+        properties.getDocument().getEmbedding().setProvider("bge");
+        properties.getDocument().getEmbedding().setModel("test-embedding");
+        properties.getDocument().getEmbedding().setDimension(2);
+        AtomicReference<DocumentRewriteRequest> capturedRewrite = new AtomicReference<>();
+        AtomicReference<DocumentEmbeddingRequest> capturedEmbedding = new AtomicReference<>();
+        AtomicReference<DocumentRetrievalRequest> capturedAdapterRequest = new AtomicReference<>();
+        DocumentRetrievableAdapter adapter = request -> {
+            capturedAdapterRequest.set(request);
+            return adapterResult();
+        };
+        DocumentRetrievalRequest request = new DocumentRetrievalRequest(
+                DocumentPlanOperation.SEARCH,
+                "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
+                "国家税务总局公告〔2023〕1号 增值税优惠",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                5,
+                1,
+                5,
+                null,
+                false,
+                DocumentRetrievalMode.HYBRID,
+                List.of(),
+                null,
+                null,
+                null);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SEARCH,
+                "policy_document",
+                request);
+
+        new DocumentCapabilityHandler(
+                properties,
+                embeddingRequest -> {
+                    capturedEmbedding.set(embeddingRequest);
+                    return new DocumentEmbeddingResult(List.of(0.1, 0.2), "test-embedding", 2, "digest");
+                },
+                aclScopePort(),
+                new DocumentRevocationGuard(properties),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier(),
+                null,
+                request1 -> adapterResult(),
+                rewriteRequest -> {
+                    capturedRewrite.set(rewriteRequest);
+                    return new DocumentRewriteResponse(
+                            List.of(
+                                    new DocumentRewriteCandidate("小规模纳税人增值税优惠", "tax", 0.9d),
+                                    new DocumentRewriteCandidate("{\"filter\":{\"tenantId\":\"t1\"}}", "dsl", 0.8d)),
+                            "rw-1",
+                            "rewrite-model");
+                },
+                new RewriteCandidateNormalizer(),
+                new DocumentRuleExtractor())
+                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
+
+        assertThat(capturedRewrite.get()).isNotNull();
+        assertThat(capturedRewrite.get().query()).isEqualTo("国家税务总局公告〔2023〕1号 增值税优惠");
+        assertThat(capturedRewrite.get().domain()).isEqualTo("policy_document");
+        assertThat(capturedRewrite.get().materialType()).isEqualTo("tax_policy");
+        assertThat(capturedAdapterRequest.get().getRuleKeywords())
+                .contains("国家税务总局公告〔2023〕1号", "增值税", "国家税务总局");
+        assertThat(capturedAdapterRequest.get().getRewriteCandidates())
+                .containsExactly("小规模纳税人增值税优惠");
+        assertThat(capturedEmbedding.get()).isNotNull();
+        assertThat(capturedEmbedding.get().queryVariants())
+                .containsExactly("国家税务总局公告〔2023〕1号 增值税优惠", "小规模纳税人增值税优惠");
+        assertThat(capturedEmbedding.get().provider()).isEqualTo("bge");
+        assertThat(capturedEmbedding.get().expectedModel()).isEqualTo("test-embedding");
+        assertThat(capturedEmbedding.get().expectedDimension()).isEqualTo(2);
     }
 
     @Test

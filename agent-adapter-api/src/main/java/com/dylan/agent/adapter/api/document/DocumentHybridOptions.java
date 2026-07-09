@@ -16,6 +16,9 @@ public final class DocumentHybridOptions {
     private final List<String> channels;
     private final Map<String, Double> channelWeights;
     private final String embeddingField;
+    private final String embeddingProvider;
+    private final String embeddingModel;
+    private final int embeddingDimension;
     private final boolean rerankEnabled;
     private final int rerankTopN;
 
@@ -37,6 +40,26 @@ public final class DocumentHybridOptions {
             String embeddingField,
             boolean rerankEnabled,
             int rerankTopN) {
+        this(keywordK, vectorK, rrfK, numCandidates, exactK, phraseK, maxChunksPerDocument,
+                channels, channelWeights, embeddingField, null, null, 0, rerankEnabled, rerankTopN);
+    }
+
+    public DocumentHybridOptions(
+            int keywordK,
+            int vectorK,
+            int rrfK,
+            int numCandidates,
+            int exactK,
+            int phraseK,
+            int maxChunksPerDocument,
+            List<String> channels,
+            Map<String, Double> channelWeights,
+            String embeddingField,
+            String embeddingProvider,
+            String embeddingModel,
+            int embeddingDimension,
+            boolean rerankEnabled,
+            int rerankTopN) {
         this.keywordK = keywordK;
         this.vectorK = vectorK;
         this.rrfK = rrfK;
@@ -47,6 +70,9 @@ public final class DocumentHybridOptions {
         this.channels = List.copyOf(channels == null ? List.of() : channels);
         this.channelWeights = Map.copyOf(channelWeights == null ? new LinkedHashMap<>() : channelWeights);
         this.embeddingField = embeddingField;
+        this.embeddingProvider = embeddingProvider;
+        this.embeddingModel = embeddingModel;
+        this.embeddingDimension = embeddingDimension;
         this.rerankEnabled = rerankEnabled;
         this.rerankTopN = rerankTopN;
     }
@@ -61,6 +87,9 @@ public final class DocumentHybridOptions {
     public List<String> channels() { return channels; }
     public Map<String, Double> channelWeights() { return channelWeights; }
     public String embeddingField() { return embeddingField; }
+    public String embeddingProvider() { return embeddingProvider; }
+    public String embeddingModel() { return embeddingModel; }
+    public int embeddingDimension() { return embeddingDimension; }
     public boolean rerankEnabled() { return rerankEnabled; }
     public int rerankTopN() { return rerankTopN; }
 

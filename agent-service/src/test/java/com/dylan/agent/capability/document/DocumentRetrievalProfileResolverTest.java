@@ -23,6 +23,9 @@ class DocumentRetrievalProfileResolverTest {
         profile.setChannels(List.of("bm25", "exact", "dense_vector"));
         profile.setChannelWeights(Map.of("bm25", 1.5d));
         profile.setEmbeddingField("embedding_v2");
+        profile.setEmbeddingProvider("bge");
+        profile.setEmbeddingModel("bge-large-zh-v2");
+        profile.setEmbeddingDimension(1024);
         properties.getDocument().getRetrievalProfiles().put("tax-policy-default", profile);
 
         DocumentRetrievalProfile resolved = new DocumentRetrievalProfileResolver(properties)
@@ -36,6 +39,9 @@ class DocumentRetrievalProfileResolverTest {
         assertThat(resolved.hybridOptions().channels()).containsExactly("BM25", "EXACT", "DENSE_VECTOR");
         assertThat(resolved.hybridOptions().channelWeights()).containsEntry("BM25", 1.5d);
         assertThat(resolved.hybridOptions().embeddingField()).isEqualTo("embedding_v2");
+        assertThat(resolved.hybridOptions().embeddingProvider()).isEqualTo("bge");
+        assertThat(resolved.hybridOptions().embeddingModel()).isEqualTo("bge-large-zh-v2");
+        assertThat(resolved.hybridOptions().embeddingDimension()).isEqualTo(1024);
     }
 
     @Test

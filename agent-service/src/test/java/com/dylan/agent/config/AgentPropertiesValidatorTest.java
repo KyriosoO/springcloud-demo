@@ -75,6 +75,30 @@ class AgentPropertiesValidatorTest {
     }
 
     @Test
+    @DisplayName("rewrite 启用但 path 缺失时启动失败")
+    void shouldFailWhenRewritePathMissing() {
+        properties.getDocument().getRewrite().setEnabled(true);
+        properties.getDocument().getRewrite().setPath("");
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agent.document.rewrite.path");
+    }
+
+    @Test
+    @DisplayName("rewrite 启用但候选数非法时启动失败")
+    void shouldFailWhenRewriteMaxCandidatesInvalid() {
+        properties.getDocument().getRewrite().setEnabled(true);
+        properties.getDocument().getRewrite().setMaxCandidates(0);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agent.document.rewrite.max-candidates");
+    }
+
+    @Test
     @DisplayName("generation 启用但缺少 model 时启动失败")
     void shouldFailWhenGenerationModelMissing() {
         properties.getDocument().getGeneration().setEnabled(true);
@@ -125,6 +149,19 @@ class AgentPropertiesValidatorTest {
         assertThatThrownBy(validator::afterPropertiesSet)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("embedding-field");
+    }
+
+    @Test
+    @DisplayName("dense_vector profile 的 embedding dimension 为负数时启动失败")
+    void shouldFailWhenProfileEmbeddingDimensionNegative() {
+        AgentProperties.RetrievalProfileProperties profile = validProfile("tax-v2", "tax_policy");
+        profile.setEmbeddingDimension(-1);
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new AgentPropertiesValidator(properties);
+
+        assertThatThrownBy(validator::afterPropertiesSet)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("embedding-dimension");
     }
 
     @Test

@@ -25,6 +25,10 @@ import com.dylan.agent.capability.document.generation.HttpDocumentGenerationClie
 import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
 import com.dylan.agent.capability.document.rerank.DisabledDocumentRerankPort;
 import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
+import com.dylan.agent.capability.document.rewrite.DisabledDocumentQueryRewritePort;
+import com.dylan.agent.capability.document.rewrite.DocumentQueryRewritePort;
+import com.dylan.agent.capability.document.rewrite.RewriteCandidateNormalizer;
+import com.dylan.agent.capability.document.rewrite.RuntimeDocumentQueryRewriteClient;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.definition.CapabilityDefinition;
@@ -35,7 +39,9 @@ import com.dylan.agent.kernel.definition.ContextWriteDeclaration;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.common.security.ServiceTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.beans.factory.ObjectProvider;
@@ -74,6 +80,9 @@ public class DocumentCapabilityConfiguration {
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier,
             DocumentRerankPort rerankPort,
+            DocumentQueryRewritePort rewritePort,
+            RewriteCandidateNormalizer rewriteCandidateNormalizer,
+            DocumentRuleExtractor ruleExtractor,
             ObjectProvider<DocumentObservabilitySupport> observabilitySupport) {
         return new DocumentCapabilityHandler(
                 properties,
@@ -85,7 +94,31 @@ public class DocumentCapabilityConfiguration {
                 generationPort,
                 citationVerifier,
                 observabilitySupport.getIfAvailable(),
-                rerankPort);
+                rerankPort,
+                rewritePort,
+                rewriteCandidateNormalizer,
+                ruleExtractor);
+    }
+
+    @Bean
+    DocumentRuleExtractor documentRuleExtractor() {
+        return new DocumentRuleExtractor();
+    }
+
+    @Bean
+    RewriteCandidateNormalizer rewriteCandidateNormalizer() {
+        return new RewriteCandidateNormalizer();
+    }
+
+    @Bean
+    DocumentQueryRewritePort documentQueryRewritePort(
+            AgentProperties properties,
+            @Qualifier("agentRuntimeRestClient") RestClient runtimeRestClient,
+            ObjectMapper objectMapper) {
+        if (!properties.getDocument().getRewrite().isEnabled()) {
+            return new DisabledDocumentQueryRewritePort();
+        }
+        return new RuntimeDocumentQueryRewriteClient(runtimeRestClient, objectMapper, properties);
     }
 
     @Bean

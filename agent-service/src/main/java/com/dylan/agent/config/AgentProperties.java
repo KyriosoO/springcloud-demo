@@ -203,6 +203,7 @@ public class AgentProperties {
         private Map<String, RetrievalProfileProperties> retrievalProfiles = new LinkedHashMap<>();
         private EvidenceSelectionProperties evidenceSelection = new EvidenceSelectionProperties();
         private ContextWindowProperties contextWindow = new ContextWindowProperties();
+        private RewriteProperties rewrite = new RewriteProperties();
         private EmbeddingProperties embedding = new EmbeddingProperties();
         private GenerationProperties generation = new GenerationProperties();
         private HybridProperties hybrid = new HybridProperties();
@@ -246,6 +247,10 @@ public class AgentProperties {
         public ContextWindowProperties getContextWindow() { return contextWindow; }
         public void setContextWindow(ContextWindowProperties contextWindow) {
             this.contextWindow = contextWindow == null ? new ContextWindowProperties() : contextWindow;
+        }
+        public RewriteProperties getRewrite() { return rewrite; }
+        public void setRewrite(RewriteProperties rewrite) {
+            this.rewrite = rewrite == null ? new RewriteProperties() : rewrite;
         }
         public EmbeddingProperties getEmbedding() { return embedding; }
         public void setEmbedding(EmbeddingProperties embedding) { this.embedding = embedding == null ? new EmbeddingProperties() : embedding; }
@@ -294,6 +299,29 @@ public class AgentProperties {
         public void setAfterChunks(int afterChunks) { this.afterChunks = afterChunks; }
     }
 
+    /** Runtime LLM 改写候选配置，默认关闭。 */
+    public static class RewriteProperties {
+        private boolean enabled = false;
+        private String path = "/runtime/v1/document/rewrite";
+        private String language = "zh-CN";
+        private int maxCandidates = 3;
+        private int maxCandidateLength = 128;
+        private Duration timeout = Duration.ofSeconds(2);
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getPath() { return path; }
+        public void setPath(String path) { this.path = path; }
+        public String getLanguage() { return language; }
+        public void setLanguage(String language) { this.language = language; }
+        public int getMaxCandidates() { return maxCandidates; }
+        public void setMaxCandidates(int maxCandidates) { this.maxCandidates = maxCandidates; }
+        public int getMaxCandidateLength() { return maxCandidateLength; }
+        public void setMaxCandidateLength(int maxCandidateLength) { this.maxCandidateLength = maxCandidateLength; }
+        public Duration getTimeout() { return timeout; }
+        public void setTimeout(Duration timeout) { this.timeout = timeout; }
+    }
+
     /** 文档 ACL 安全投影配置，文档能力启用时默认 fail closed。 */
     public static class AclProperties {
         private boolean enabled = true;
@@ -311,6 +339,7 @@ public class AgentProperties {
     /** 文档 queryVector 生成配置，默认关闭。 */
     public static class EmbeddingProperties {
         private boolean enabled = false;
+        private String provider = "default";
         private String baseUrl;
         private String model;
         private int dimension = 0;
@@ -318,6 +347,8 @@ public class AgentProperties {
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getProvider() { return provider; }
+        public void setProvider(String provider) { this.provider = provider; }
         public String getBaseUrl() { return baseUrl; }
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
         public String getModel() { return model; }
@@ -384,6 +415,9 @@ public class AgentProperties {
         private List<String> channels = new ArrayList<>(List.of("BM25", "EXACT", "PHRASE", "DENSE_VECTOR"));
         private Map<String, Double> channelWeights = new LinkedHashMap<>();
         private String embeddingField = "embedding";
+        private String embeddingProvider;
+        private String embeddingModel;
+        private int embeddingDimension = 0;
         private int keywordK = 20;
         private int exactK = 20;
         private int phraseK = 20;
@@ -415,6 +449,12 @@ public class AgentProperties {
         }
         public String getEmbeddingField() { return embeddingField; }
         public void setEmbeddingField(String embeddingField) { this.embeddingField = embeddingField; }
+        public String getEmbeddingProvider() { return embeddingProvider; }
+        public void setEmbeddingProvider(String embeddingProvider) { this.embeddingProvider = embeddingProvider; }
+        public String getEmbeddingModel() { return embeddingModel; }
+        public void setEmbeddingModel(String embeddingModel) { this.embeddingModel = embeddingModel; }
+        public int getEmbeddingDimension() { return embeddingDimension; }
+        public void setEmbeddingDimension(int embeddingDimension) { this.embeddingDimension = embeddingDimension; }
         public int getKeywordK() { return keywordK; }
         public void setKeywordK(int keywordK) { this.keywordK = keywordK; }
         public int getExactK() { return exactK; }

@@ -80,6 +80,9 @@ public class DocumentRetrievalProfileResolver {
                         normalizedChannels(profile.getChannels()),
                         normalizedChannelWeights(profile.getChannelWeights()),
                         blankToDefault(profile.getEmbeddingField(), "embedding"),
+                        blankToDefault(profile.getEmbeddingProvider(), properties.getDocument().getEmbedding().getProvider()),
+                        blankToDefault(profile.getEmbeddingModel(), properties.getDocument().getEmbedding().getModel()),
+                        effectiveEmbeddingDimension(profile),
                         profile.getRerank().isEnabled(),
                         profile.getRerank().getTopN()));
     }
@@ -151,6 +154,9 @@ public class DocumentRetrievalProfileResolver {
         tokens.add("numCandidates=" + profile.getNumCandidates());
         tokens.add("maxChunksPerDocument=" + profile.getMaxChunksPerDocument());
         tokens.add("embeddingField=" + nullToEmpty(profile.getEmbeddingField()));
+        tokens.add("embeddingProvider=" + nullToEmpty(profile.getEmbeddingProvider()));
+        tokens.add("embeddingModel=" + nullToEmpty(profile.getEmbeddingModel()));
+        tokens.add("embeddingDimension=" + profile.getEmbeddingDimension());
         tokens.add("rerankEnabled=" + profile.getRerank().isEnabled());
         tokens.add("rerankTopN=" + profile.getRerank().getTopN());
         try {
@@ -176,6 +182,10 @@ public class DocumentRetrievalProfileResolver {
     private static String blankToDefault(String value, String defaultValue) {
         String normalized = blankToNull(value);
         return normalized == null ? defaultValue : normalized;
+    }
+
+    private static int effectiveEmbeddingDimension(AgentProperties.RetrievalProfileProperties profile) {
+        return Math.max(0, profile.getEmbeddingDimension());
     }
 
     private static String blankToNull(String value) {

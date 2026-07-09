@@ -150,10 +150,32 @@ public class AgentPropertiesValidator implements InitializingBean {
         if (d.getMaxQueryTextLength() <= 0 || d.getMaxSnippetChars() <= 0 || d.getMaxSummaryChars() <= 0) {
             throw new IllegalStateException("agent.document 文本长度配置必须为正数。");
         }
+        validateDocumentRewriteConfig(d);
         validateDocumentEmbeddingConfig(d);
         validateDocumentGenerationConfig(d);
         validateDocumentHybridConfig(d);
         validateDocumentRetrievalProfiles(d);
+    }
+
+    private void validateDocumentRewriteConfig(AgentProperties.DocumentProperties d) {
+        var rewrite = d.getRewrite();
+        if (rewrite.getTimeout() == null || rewrite.getTimeout().isZero() || rewrite.getTimeout().isNegative()) {
+            throw new IllegalStateException("agent.document.rewrite.timeout 必须为正数。");
+        }
+        if (rewrite.getMaxCandidates() < 0) {
+            throw new IllegalStateException("agent.document.rewrite.max-candidates 不能为负数。");
+        }
+        if (rewrite.getMaxCandidateLength() <= 0) {
+            throw new IllegalStateException("agent.document.rewrite.max-candidate-length 必须为正数。");
+        }
+        if (rewrite.isEnabled()) {
+            if (rewrite.getPath() == null || rewrite.getPath().isBlank()) {
+                throw new IllegalStateException("agent.document.rewrite.path 必须配置。");
+            }
+            if (rewrite.getMaxCandidates() <= 0) {
+                throw new IllegalStateException("agent.document.rewrite.max-candidates 必须为正数。");
+            }
+        }
     }
 
     private void validateDocumentEmbeddingConfig(AgentProperties.DocumentProperties d) {
@@ -162,6 +184,9 @@ public class AgentPropertiesValidator implements InitializingBean {
             throw new IllegalStateException("agent.document.embedding.timeout 必须为正数。");
         }
         if (e.isEnabled()) {
+            if (e.getProvider() == null || e.getProvider().isBlank()) {
+                throw new IllegalStateException("agent.document.embedding.provider 必须配置。");
+            }
             if (e.getBaseUrl() == null || e.getBaseUrl().isBlank()) {
                 throw new IllegalStateException("agent.document.embedding.base-url 必须配置。");
             }
@@ -280,6 +305,15 @@ public class AgentPropertiesValidator implements InitializingBean {
             if (profile.getChannels().stream().anyMatch(channel -> "DENSE_VECTOR".equalsIgnoreCase(channel))
                     && (profile.getEmbeddingField() == null || profile.getEmbeddingField().isBlank())) {
                 throw new IllegalStateException(prefix + ".embedding-field 必须配置。");
+            }
+            if (profile.getEmbeddingDimension() < 0) {
+                throw new IllegalStateException(prefix + ".embedding-dimension 不能为负数。");
+            }
+            if (profile.getEmbeddingProvider() != null && profile.getEmbeddingProvider().isBlank()) {
+                throw new IllegalStateException(prefix + ".embedding-provider 不能配置为空白。");
+            }
+            if (profile.getEmbeddingModel() != null && profile.getEmbeddingModel().isBlank()) {
+                throw new IllegalStateException(prefix + ".embedding-model 不能配置为空白。");
             }
             if (profile.getRerank().isEnabled() && profile.getRerank().getTopN() <= 0) {
                 throw new IllegalStateException(prefix + ".rerank.top-n 必须为正数。");

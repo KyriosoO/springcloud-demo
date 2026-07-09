@@ -9,6 +9,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,8 +34,15 @@ class HttpDocumentEmbeddingClientTest {
                 .andExpect(header("X-Agent-Deadline", deadline.toString()))
                 .andExpect(jsonPath("$.requestId").value("inv-1"))
                 .andExpect(jsonPath("$.input").value("查询休假政策"))
+                .andExpect(jsonPath("$.queryVariants[0]").value("查询休假政策"))
+                .andExpect(jsonPath("$.queryVariants[1]").value("休假审批政策"))
                 .andExpect(jsonPath("$.domain").value("policy_document"))
+                .andExpect(jsonPath("$.provider").value("bge"))
                 .andExpect(jsonPath("$.model").value("embedding-v1"))
+                .andExpect(jsonPath("$.expectedModel").value("embedding-v1"))
+                .andExpect(jsonPath("$.expectedDimension").value(2))
+                .andExpect(jsonPath("$.aclScope").doesNotExist())
+                .andExpect(jsonPath("$.indexAlias").doesNotExist())
                 .andExpect(jsonPath("$.deadline").value(deadline.toString()))
                 .andRespond(withSuccess("""
                         {"queryVector":[0.1,0.2],"embeddingModel":"embedding-v1","dimension":2,"digest":"vec-digest"}
@@ -44,8 +52,12 @@ class HttpDocumentEmbeddingClientTest {
         DocumentEmbeddingResult result = client.embed(new DocumentEmbeddingRequest(
                 "inv-1",
                 "查询休假政策",
+                List.of("查询休假政策", "休假审批政策"),
                 "policy_document",
+                "bge",
                 "embedding-v1",
+                "embedding-v1",
+                2,
                 deadline));
 
         assertThat(result.queryVector()).containsExactly(0.1, 0.2);
@@ -93,6 +105,32 @@ class HttpDocumentEmbeddingClientTest {
                 "查询休假政策",
                 "policy_document",
                 "embedding-v1",
+                Instant.now().plusSeconds(60))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("document embedding provider call failed")
+                .hasNoCause();
+        server.verify();
+    }
+
+    @Test
+    void rejectsDimsMismatch() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://embedding-provider");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("http://embedding-provider/embeddings"))
+                .andRespond(withSuccess("""
+                        {"queryVector":[0.1],"embeddingModel":"embedding-v1","dimension":1}
+                        """, MediaType.APPLICATION_JSON));
+        var client = new HttpDocumentEmbeddingClient(builder.build(), authHeaderProvider("service-token"));
+
+        assertThatThrownBy(() -> client.embed(new DocumentEmbeddingRequest(
+                "inv-1",
+                "查询休假政策",
+                List.of("查询休假政策"),
+                "policy_document",
+                "bge",
+                "embedding-v1",
+                "embedding-v1",
+                2,
                 Instant.now().plusSeconds(60))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("document embedding provider call failed")

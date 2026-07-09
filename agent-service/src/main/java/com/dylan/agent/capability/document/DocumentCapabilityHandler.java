@@ -45,6 +45,12 @@ import com.dylan.agent.capability.document.generation.DisabledDocumentGeneration
 import com.dylan.agent.capability.document.rerank.DisabledDocumentRerankPort;
 import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
 import com.dylan.agent.capability.document.rerank.DocumentRerankRequest;
+import com.dylan.agent.capability.document.rewrite.DisabledDocumentQueryRewritePort;
+import com.dylan.agent.capability.document.rewrite.DocumentQueryRewritePort;
+import com.dylan.agent.capability.document.rewrite.DocumentRewriteRequest;
+import com.dylan.agent.capability.document.rewrite.DocumentRewriteResponse;
+import com.dylan.agent.capability.document.rewrite.QueryVariants;
+import com.dylan.agent.capability.document.rewrite.RewriteCandidateNormalizer;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.capability.document.security.DocumentRevocationDecision;
 import com.dylan.agent.config.AgentProperties;
@@ -100,6 +106,9 @@ public class DocumentCapabilityHandler
     private final DocumentCitationVerifier citationVerifier;
     private final DocumentObservabilitySupport observabilitySupport;
     private final DocumentRerankPort rerankPort;
+    private final DocumentQueryRewritePort rewritePort;
+    private final RewriteCandidateNormalizer rewriteCandidateNormalizer;
+    private final DocumentRuleExtractor ruleExtractor;
 
     public DocumentCapabilityHandler() {
         this(new AgentProperties(),
@@ -199,6 +208,35 @@ public class DocumentCapabilityHandler
             DocumentCitationVerifier citationVerifier,
             DocumentObservabilitySupport observabilitySupport,
             DocumentRerankPort rerankPort) {
+        this(properties,
+                embeddingPort,
+                aclScopePort,
+                revocationGuard,
+                preSecurityFilter,
+                contextPacker,
+                generationPort,
+                citationVerifier,
+                observabilitySupport,
+                rerankPort,
+                new DisabledDocumentQueryRewritePort(),
+                new RewriteCandidateNormalizer(),
+                new DocumentRuleExtractor());
+    }
+
+    public DocumentCapabilityHandler(
+            AgentProperties properties,
+            DocumentEmbeddingPort embeddingPort,
+            DocumentAclScopePort aclScopePort,
+            DocumentRevocationGuard revocationGuard,
+            DocumentEvidencePreSecurityFilter preSecurityFilter,
+            DocumentEvidenceContextPacker contextPacker,
+            DocumentGenerationPort generationPort,
+            DocumentCitationVerifier citationVerifier,
+            DocumentObservabilitySupport observabilitySupport,
+            DocumentRerankPort rerankPort,
+            DocumentQueryRewritePort rewritePort,
+            RewriteCandidateNormalizer rewriteCandidateNormalizer,
+            DocumentRuleExtractor ruleExtractor) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.embeddingPort = Objects.requireNonNull(embeddingPort, "embeddingPort must not be null");
         this.aclScopePort = Objects.requireNonNull(aclScopePort, "aclScopePort must not be null");
@@ -209,6 +247,10 @@ public class DocumentCapabilityHandler
         this.citationVerifier = Objects.requireNonNull(citationVerifier, "citationVerifier must not be null");
         this.observabilitySupport = observabilitySupport;
         this.rerankPort = Objects.requireNonNull(rerankPort, "rerankPort must not be null");
+        this.rewritePort = Objects.requireNonNull(rewritePort, "rewritePort must not be null");
+        this.rewriteCandidateNormalizer = Objects.requireNonNull(
+                rewriteCandidateNormalizer, "rewriteCandidateNormalizer must not be null");
+        this.ruleExtractor = Objects.requireNonNull(ruleExtractor, "ruleExtractor must not be null");
     }
 
     @Override
@@ -216,7 +258,8 @@ public class DocumentCapabilityHandler
             ValidatedDocumentPlan plan,
             ExecutionContext context) {
         DocumentRetrievableAdapter adapter = context.requireAdapter(DocumentRetrievableAdapter.class);
-        DocumentRetrievalRequest retrievalRequest = withAclScope(withQueryVectorIfNeeded(plan, context), context);
+        DocumentRetrievalRequest preparedRequest = buildQueryVariants(plan.request(), context);
+        DocumentRetrievalRequest retrievalRequest = withAclScope(withQueryVectorIfNeeded(preparedRequest, context), context);
         long retrievalStarted = System.nanoTime();
         AdapterDocumentResult adapterResult;
         try {
@@ -232,6 +275,57 @@ public class DocumentCapabilityHandler
                 toResult(plan, adapterResult));
         applyGenerationIfEnabled(plan, retrievalRequest, adapterResult, payload.getDocumentResult(), context);
         return HandlerResult.of(payload, List.of(toContextWrite(plan, adapterResult)));
+    }
+
+    private DocumentRetrievalRequest buildQueryVariants(DocumentRetrievalRequest request, ExecutionContext context) {
+        List<String> ruleKeywords = ruleExtractor.extract(
+                request.getQueryText(),
+                request.getDomain(),
+                request.getMaterialType());
+        DocumentRewriteResponse rewriteResponse = new DocumentRewriteResponse(List.of(), null, null);
+        var rewrite = properties.getDocument().getRewrite();
+        if (rewrite.isEnabled()) {
+            try {
+                rewriteResponse = rewritePort.rewrite(new DocumentRewriteRequest(
+                        context.invocationId(),
+                        request.getQueryText(),
+                        request.getDomain(),
+                        request.getMaterialType(),
+                        rewrite.getLanguage(),
+                        rewrite.getMaxCandidates(),
+                        rewrite.getTimeout().toMillis(),
+                        context.absoluteDeadline()));
+                if (rewriteResponse == null) {
+                    rewriteResponse = new DocumentRewriteResponse(List.of(), null, null);
+                }
+                recordProvider("rewrite", request.getOperation().name(), "SUCCESS");
+            } catch (RuntimeException ex) {
+                recordProvider("rewrite", request.getOperation().name(), "FAILED");
+                log.warn("document rewrite degraded: invocationId={}, domain={}, reason={}",
+                        context.invocationId(),
+                        request.getDomain(),
+                        ex.getClass().getSimpleName());
+            }
+        }
+        QueryVariants variants = rewriteCandidateNormalizer.normalize(
+                request.getQueryText(),
+                ruleKeywords,
+                rewriteResponse.candidates(),
+                rewrite.getMaxCandidates(),
+                rewrite.getMaxCandidateLength());
+        if (variants.rejectedCount() > 0) {
+            log.warn("document rewrite candidates rejected: invocationId={}, domain={}, rejectedCount={}, digest={}",
+                    context.invocationId(),
+                    request.getDomain(),
+                    variants.rejectedCount(),
+                    variants.rewriteCandidateDigest());
+        }
+        return copyRequest(
+                request,
+                request.getRetrievalMode(),
+                request.getQueryVector(),
+                variants.ruleKeywords(),
+                variants.rewriteCandidates());
     }
 
     private DocumentRetrievalRequest withAclScope(DocumentRetrievalRequest request, ExecutionContext context) {
@@ -267,8 +361,7 @@ public class DocumentCapabilityHandler
                 context.executionScope().currentPermissionVersion());
     }
 
-    private DocumentRetrievalRequest withQueryVectorIfNeeded(ValidatedDocumentPlan plan, ExecutionContext context) {
-        DocumentRetrievalRequest request = plan.request();
+    private DocumentRetrievalRequest withQueryVectorIfNeeded(DocumentRetrievalRequest request, ExecutionContext context) {
         DocumentRetrievalMode mode = request.getRetrievalMode();
         DocumentHybridOptions options = request.getHybridOptions();
         boolean denseVectorRequired = mode == DocumentRetrievalMode.VECTOR
@@ -283,7 +376,7 @@ public class DocumentCapabilityHandler
             }
             throw new IllegalStateException("document vector retrieval requires enabled embedding");
         }
-        var embedding = embedOrFallback(plan, context, mode);
+        var embedding = embedOrFallback(request, context, mode);
         if (embedding == null) {
             return downgradeHybridToKeyword(request, context, "EMBEDDING_PROVIDER_FAILURE");
         }
@@ -293,13 +386,13 @@ public class DocumentCapabilityHandler
             }
             throw new IllegalStateException("document embedding returned empty queryVector");
         }
-        int configuredDimension = properties.getDocument().getEmbedding().getDimension();
+        int configuredDimension = expectedEmbeddingDimension(request);
         if (configuredDimension > 0
                 && (embedding.dimension() != configuredDimension
                 || embedding.queryVector().size() != configuredDimension)) {
             throw new IllegalStateException("document embedding dimension mismatch");
         }
-        String configuredModel = properties.getDocument().getEmbedding().getModel();
+        String configuredModel = expectedEmbeddingModel(request);
         if (configuredModel != null
                 && !configuredModel.isBlank()
                 && !configuredModel.equals(embedding.embeddingModel())) {
@@ -332,10 +425,9 @@ public class DocumentCapabilityHandler
     }
 
     private DocumentEmbeddingResult embedOrFallback(
-            ValidatedDocumentPlan plan,
+            DocumentRetrievalRequest request,
             ExecutionContext context,
             DocumentRetrievalMode mode) {
-        DocumentRetrievalRequest request = plan.request();
         try {
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document embedding deadline expired");
@@ -343,8 +435,12 @@ public class DocumentCapabilityHandler
             DocumentEmbeddingResult result = embeddingPort.embed(new DocumentEmbeddingRequest(
                     context.invocationId(),
                     request.getQueryText(),
+                    queryVariants(request),
                     request.getDomain(),
-                    properties.getDocument().getEmbedding().getModel(),
+                    expectedEmbeddingProvider(request),
+                    expectedEmbeddingModel(request),
+                    expectedEmbeddingModel(request),
+                    expectedEmbeddingDimension(request),
                     context.absoluteDeadline()));
             recordProvider("embedding", mode.name(), "SUCCESS");
             return result;
@@ -361,6 +457,15 @@ public class DocumentCapabilityHandler
             DocumentRetrievalRequest source,
             DocumentRetrievalMode mode,
             List<Double> queryVector) {
+        return copyRequest(source, mode, queryVector, source.getRuleKeywords(), source.getRewriteCandidates());
+    }
+
+    private DocumentRetrievalRequest copyRequest(
+            DocumentRetrievalRequest source,
+            DocumentRetrievalMode mode,
+            List<Double> queryVector,
+            List<String> ruleKeywords,
+            List<String> rewriteCandidates) {
         return new DocumentRetrievalRequest(
                 source.getOperation(),
                 source.getDomain(),
@@ -369,8 +474,8 @@ public class DocumentCapabilityHandler
                 source.getProfileVersion(),
                 source.getIndexAlias(),
                 source.getQueryText(),
-                source.getRuleKeywords(),
-                source.getRewriteCandidates(),
+                ruleKeywords,
+                rewriteCandidates,
                 source.getFilters(),
                 source.getSorts(),
                 source.getTopK(),
@@ -385,6 +490,45 @@ public class DocumentCapabilityHandler
                 source.getAclScope(),
                 source.getPermissionEvidenceId(),
                 source.getPermissionVersion());
+    }
+
+    private static List<String> queryVariants(DocumentRetrievalRequest request) {
+        LinkedHashSet<String> variants = new LinkedHashSet<>();
+        if (request.getQueryText() != null && !request.getQueryText().isBlank()) {
+            variants.add(request.getQueryText().trim());
+        }
+        request.getRewriteCandidates().stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .forEach(variants::add);
+        return List.copyOf(variants);
+    }
+
+    private static String blankToDefault(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value.trim();
+    }
+
+    private String expectedEmbeddingProvider(DocumentRetrievalRequest request) {
+        DocumentHybridOptions options = request.getHybridOptions();
+        return blankToDefault(
+                options == null ? null : options.embeddingProvider(),
+                properties.getDocument().getEmbedding().getProvider());
+    }
+
+    private String expectedEmbeddingModel(DocumentRetrievalRequest request) {
+        DocumentHybridOptions options = request.getHybridOptions();
+        return blankToDefault(
+                options == null ? null : options.embeddingModel(),
+                properties.getDocument().getEmbedding().getModel());
+    }
+
+    private int expectedEmbeddingDimension(DocumentRetrievalRequest request) {
+        DocumentHybridOptions options = request.getHybridOptions();
+        if (options != null && options.embeddingDimension() > 0) {
+            return options.embeddingDimension();
+        }
+        return properties.getDocument().getEmbedding().getDimension();
     }
 
     private AdapterDocumentResult applyRerankIfEnabled(

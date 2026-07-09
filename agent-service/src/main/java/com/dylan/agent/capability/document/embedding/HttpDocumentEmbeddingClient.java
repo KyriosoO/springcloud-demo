@@ -35,13 +35,17 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
                     .body(Map.of(
                             "requestId", safeValue(request.requestId()),
                             "input", safeValue(request.queryText()),
+                            "queryVariants", safeVariants(request),
                             "domain", safeValue(request.domain()),
+                            "provider", safeValue(request.provider()),
                             "model", safeValue(request.model()),
+                            "expectedModel", safeValue(request.expectedModel()),
+                            "expectedDimension", request.expectedDimension(),
                             "deadline", request.deadline().toString()))
                     .retrieve()
                     .body(Map.class);
             requireActiveDeadline(request.deadline());
-            return toResult(response, request.model());
+            return toResult(response, request);
         } catch (RestClientException | ClassCastException | IllegalArgumentException ex) {
             throw providerCallFailed();
         }
@@ -51,7 +55,7 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
         return new IllegalStateException("document embedding provider call failed");
     }
 
-    private DocumentEmbeddingResult toResult(Map<String, Object> response, String requestedModel) {
+    private DocumentEmbeddingResult toResult(Map<String, Object> response, DocumentEmbeddingRequest request) {
         if (response == null || !(response.get("queryVector") instanceof List<?> vector) || vector.isEmpty()) {
             throw new IllegalArgumentException("embedding provider returned invalid vector");
         }
@@ -61,7 +65,19 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
         List<Double> values = vector.stream()
                 .map(HttpDocumentEmbeddingClient::finiteDouble)
                 .toList();
-        String model = String.valueOf(response.getOrDefault("embeddingModel", requestedModel));
+        String model = String.valueOf(response.getOrDefault(
+                "embeddingModel",
+                response.getOrDefault("modelVersion", request.model())));
+        if (request.expectedDimension() > 0
+                && (dimension.intValue() != request.expectedDimension()
+                || values.size() != request.expectedDimension())) {
+            throw new IllegalArgumentException("embedding provider returned dimension mismatch");
+        }
+        if (request.expectedModel() != null
+                && !request.expectedModel().isBlank()
+                && !request.expectedModel().equals(model)) {
+            throw new IllegalArgumentException("embedding provider returned model mismatch");
+        }
         return new DocumentEmbeddingResult(
                 values,
                 model,
@@ -92,5 +108,17 @@ public final class HttpDocumentEmbeddingClient implements DocumentEmbeddingPort 
 
     private static String safeHeader(String value) {
         return value == null || value.isBlank() ? "unknown" : value;
+    }
+
+    private static List<String> safeVariants(DocumentEmbeddingRequest request) {
+        List<String> variants = request.queryVariants();
+        if (variants == null || variants.isEmpty()) {
+            return request.queryText() == null ? List.of() : List.of(request.queryText());
+        }
+        return variants.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 }
