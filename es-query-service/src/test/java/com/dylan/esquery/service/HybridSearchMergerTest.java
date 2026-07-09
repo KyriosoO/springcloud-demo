@@ -1,6 +1,7 @@
 package com.dylan.esquery.service;
 
 import com.dylan.esquery.api.model.HybridSearchRequest;
+import com.dylan.esquery.api.model.HybridSearchHit;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,9 @@ class HybridSearchMergerTest {
 		HybridSearchRequest request = new HybridSearchRequest();
 		request.setTopK(3);
 		request.setRrfK(60);
+		request.setIndexAlias("agent-doc-tax-policy-read");
+		request.setProfileVersion("v2");
+		request.setPermissionEvidenceId("perm-evidence");
 
 		List<JsonNode> keywordHits = List.of(hit("doc-1", "chunk-1", 1.2), hit("doc-2", "chunk-2", 1.0));
 		List<JsonNode> vectorHits = List.of(hit("doc-2", "chunk-2", 0.9), hit("doc-3", "chunk-3", 0.8));
@@ -32,9 +36,53 @@ class HybridSearchMergerTest {
 		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
 		assertThat(hits.get(0).getKeywordRank()).isEqualTo(2);
 		assertThat(hits.get(0).getVectorRank()).isEqualTo(1);
+		assertThat(hits.get(0).getIndexAlias()).isEqualTo("agent-doc-tax-policy-read");
+		assertThat(hits.get(0).getProfileVersion()).isEqualTo("v2");
+		assertThat(hits.get(0).getPermissionEvidenceId()).isEqualTo("perm-evidence");
 		assertThat(hits.get(0).getCharStart()).isEqualTo(10);
 		assertThat(hits.get(0).getCharEnd()).isEqualTo(32);
 		assertThat(hits.get(0).getMetadata()).doesNotContainKey("embedding");
+	}
+
+	@Test
+	void usesStableTieBreakerInsteadOfSourceScoreAcrossChannels() throws Exception {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(2);
+		request.setRrfK(60);
+		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
+		hitsByChannel.put("BM25", List.of(hit("doc-b", "doc-b-c1", 100.0)));
+		hitsByChannel.put("EXACT", List.of(hit("doc-a", "doc-a-c1", 0.1)));
+
+		var hits = merger.merge(hitsByChannel, request);
+
+		assertThat(hits).hasSize(2);
+		assertThat(hits).extracting(HybridSearchHit::getDocumentId)
+				.containsExactly("doc-a", "doc-b");
+	}
+
+	@Test
+	void mapsMatchedQueriesToHitFieldsDiagnostics() throws Exception {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(1);
+		request.setRrfK(60);
+		JsonNode exactHit = objectMapper.readTree("""
+				{
+				  "_id": "chunk-1",
+				  "_score": 1.0,
+				  "matched_queries": ["EXACT:documentNumber"],
+				  "_source": {
+				    "documentId": "doc-1",
+				    "chunkId": "chunk-1",
+				    "chunkIndex": 1,
+				    "title": "休假政策"
+				  }
+				}
+				""");
+
+		var hits = merger.merge(Map.of("EXACT", List.of(exactHit)), request);
+
+		assertThat(hits).singleElement()
+				.satisfies(hit -> assertThat(hit.getHitFields()).containsExactly("EXACT:documentNumber"));
 	}
 
 	@Test

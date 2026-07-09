@@ -4,6 +4,7 @@ import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
 import com.dylan.agent.adapter.api.document.DocumentAclScope;
 import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
@@ -229,8 +230,13 @@ class DocumentCapabilityHandlerTest {
     @Test
     void invokesRerankAfterAdapterWhenProfileEnablesIt() {
         AtomicReference<DocumentRerankRequest> capturedRerank = new AtomicReference<>();
+        AtomicReference<AdapterDocumentResult> capturedAdapterResult = new AtomicReference<>();
         DocumentRetrievableAdapter adapter = request -> {
             AdapterDocumentResult result = adapterResult();
+            AdapterDocumentRetrievalDiagnostics diagnostics = new AdapterDocumentRetrievalDiagnostics();
+            diagnostics.setRerankStatus("NOT_REQUESTED");
+            result.setRetrievalDiagnostics(diagnostics);
+            capturedAdapterResult.set(result);
             AdapterDocumentEvidence evidence = result.getHits().get(0);
             evidence.setContent("完整正文不应进入 rerank provider。");
             evidence.setContextBefore(List.of("上一段"));
@@ -273,6 +279,42 @@ class DocumentCapabilityHandlerTest {
         assertThat(capturedRerank.get().materialType()).isEqualTo("tax_policy");
         assertThat(capturedRerank.get().retrievalProfile()).isEqualTo("tax-v2");
         assertThat(capturedRerank.get().topN()).isEqualTo(20);
+        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankStatus()).isEqualTo("SUCCEEDED");
+        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankSkippedReason()).isNull();
+    }
+
+    @Test
+    void recordsSkippedRerankDiagnosticsWhenProviderFails() {
+        AtomicReference<AdapterDocumentResult> capturedAdapterResult = new AtomicReference<>();
+        DocumentRetrievableAdapter adapter = request -> {
+            AdapterDocumentResult result = adapterResult();
+            AdapterDocumentRetrievalDiagnostics diagnostics = new AdapterDocumentRetrievalDiagnostics();
+            diagnostics.setRerankStatus("NOT_REQUESTED");
+            result.setRetrievalDiagnostics(diagnostics);
+            capturedAdapterResult.set(result);
+            return result;
+        };
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.SEARCH,
+                "policy_document",
+                hybridTextOnlyRequest(true));
+
+        new DocumentCapabilityHandler(
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
+                new DisabledDocumentEmbeddingPort(),
+                aclScopePort(),
+                new DocumentRevocationGuard(com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties()),
+                new DocumentEvidencePreSecurityFilter(),
+                new DocumentEvidenceContextPacker(),
+                new DisabledDocumentGenerationPort(),
+                new DocumentCitationVerifier(),
+                null,
+                request -> { throw new IllegalStateException("rerank timeout"); })
+                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
+
+        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankStatus()).isEqualTo("SKIPPED");
+        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankSkippedReason())
+                .isEqualTo("IllegalStateException");
     }
 
     @Test

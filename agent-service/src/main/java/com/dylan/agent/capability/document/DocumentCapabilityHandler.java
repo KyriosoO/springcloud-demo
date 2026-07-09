@@ -3,6 +3,7 @@ package com.dylan.agent.capability.document;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
 import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
 import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
@@ -392,9 +393,15 @@ public class DocumentCapabilityHandler
             ExecutionContext context) {
         DocumentHybridOptions options = request.getHybridOptions();
         if (options == null || !options.rerankEnabled()) {
+            markRerankDiagnostics(adapterResult, "SKIPPED", "DISABLED");
             return adapterResult;
         }
         try {
+            AdapterDocumentResult safeInput = safeRerankInput(adapterResult);
+            if (nonNullEvidence(safeInput.getHits()).isEmpty()) {
+                markRerankDiagnostics(adapterResult, "SKIPPED", "EMPTY_CANDIDATES");
+                return adapterResult;
+            }
             AdapterDocumentResult reranked = rerankPort.rerank(new DocumentRerankRequest(
                     context.invocationId(),
                     request.getDomain(),
@@ -402,17 +409,40 @@ public class DocumentCapabilityHandler
                     request.getRetrievalProfile(),
                     request.getQueryText(),
                     options.rerankTopN(),
-                    safeRerankInput(adapterResult),
+                    safeInput,
                     context.absoluteDeadline()));
-            return mergeRerankResult(adapterResult, reranked);
+            if (reranked == null || nonNullEvidence(reranked.getHits()).isEmpty()) {
+                markRerankDiagnostics(adapterResult, "SKIPPED", "EMPTY_RERANK_RESULT");
+                return adapterResult;
+            }
+            AdapterDocumentResult result = mergeRerankResult(adapterResult, reranked);
+            markRerankDiagnostics(result, "SUCCEEDED", null);
+            return result;
         } catch (RuntimeException ex) {
             log.warn("document rerank skipped: invocationId={}, domain={}, profile={}, reason={}",
                     context.invocationId(),
                     request.getDomain(),
                     request.getRetrievalProfile(),
                     ex.getClass().getSimpleName());
+            markRerankDiagnostics(adapterResult, "SKIPPED", ex.getClass().getSimpleName());
             return adapterResult;
         }
+    }
+
+    private static void markRerankDiagnostics(
+            AdapterDocumentResult result,
+            String status,
+            String skippedReason) {
+        if (result == null) {
+            return;
+        }
+        AdapterDocumentRetrievalDiagnostics diagnostics = result.getRetrievalDiagnostics();
+        if (diagnostics == null) {
+            diagnostics = new AdapterDocumentRetrievalDiagnostics();
+            result.setRetrievalDiagnostics(diagnostics);
+        }
+        diagnostics.setRerankStatus(status);
+        diagnostics.setRerankSkippedReason(skippedReason);
     }
 
     private static AdapterDocumentResult safeRerankInput(AdapterDocumentResult source) {

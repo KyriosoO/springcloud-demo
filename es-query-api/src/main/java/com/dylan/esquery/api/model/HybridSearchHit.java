@@ -10,6 +10,9 @@ import java.util.Map;
 public class HybridSearchHit {
 	private String documentId;
 	private String chunkId;
+	private String indexAlias;
+	private String profileVersion;
+	private String permissionEvidenceId;
 	private Integer chunkIndex;
 	private String title;
 	private String sourceType;
@@ -40,6 +43,12 @@ public class HybridSearchHit {
 	public void setDocumentId(String documentId) { this.documentId = documentId; }
 	public String getChunkId() { return chunkId; }
 	public void setChunkId(String chunkId) { this.chunkId = chunkId; }
+	public String getIndexAlias() { return indexAlias; }
+	public void setIndexAlias(String indexAlias) { this.indexAlias = indexAlias; }
+	public String getProfileVersion() { return profileVersion; }
+	public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
+	public String getPermissionEvidenceId() { return permissionEvidenceId; }
+	public void setPermissionEvidenceId(String permissionEvidenceId) { this.permissionEvidenceId = permissionEvidenceId; }
 	public Integer getChunkIndex() { return chunkIndex; }
 	public void setChunkIndex(Integer chunkIndex) { this.chunkIndex = chunkIndex; }
 	public String getTitle() { return title; }

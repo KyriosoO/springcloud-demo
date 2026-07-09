@@ -154,15 +154,15 @@ public class DocumentRetrievalMapper {
         String queryText = request.getQueryText();
         List<Object> should = new ArrayList<>();
         if (queryText != null && !queryText.isBlank()) {
-            should.add(Map.of("term", Map.of("title.keyword", queryText)));
-            should.add(Map.of("term", Map.of("documentNumber", queryText)));
-            should.add(Map.of("term", Map.of("issuingAuthority.keyword", queryText)));
-            should.add(Map.of("term", Map.of("section.keyword", queryText)));
+            should.add(namedTerm("title.keyword", queryText, "EXACT:title.keyword"));
+            should.add(namedTerm("documentNumber", queryText, "EXACT:documentNumber"));
+            should.add(namedTerm("issuingAuthority.keyword", queryText, "EXACT:issuingAuthority.keyword"));
+            should.add(namedTerm("section.keyword", queryText, "EXACT:section.keyword"));
         }
         for (String keyword : request.getRuleKeywords()) {
             if (keyword != null && !keyword.isBlank()) {
-                should.add(Map.of("term", Map.of("title.keyword", keyword)));
-                should.add(Map.of("term", Map.of("documentNumber", keyword)));
+                should.add(namedTerm("title.keyword", keyword, "EXACT:title.keyword"));
+                should.add(namedTerm("documentNumber", keyword, "EXACT:documentNumber"));
             }
         }
         return channelDsl(should);
@@ -173,12 +173,12 @@ public class DocumentRetrievalMapper {
         List<Object> should = new ArrayList<>();
         if (queryText != null && !queryText.isBlank()) {
             for (String field : List.of("title", "content", "snippet", "section")) {
-                should.add(Map.of("match_phrase", Map.of(field, Map.of("query", queryText, "slop", 2))));
+                should.add(namedMatchPhrase(field, queryText, 2, "PHRASE:" + field));
             }
         }
         for (String candidate : request.getRewriteCandidates()) {
             if (candidate != null && !candidate.isBlank()) {
-                should.add(Map.of("match_phrase", Map.of("content", Map.of("query", candidate, "slop", 2))));
+                should.add(namedMatchPhrase("content", candidate, 2, "PHRASE:content"));
             }
         }
         return channelDsl(should);
@@ -212,9 +212,11 @@ public class DocumentRetrievalMapper {
     private Map<String, Object> query(DocumentRetrievalRequest request, boolean includeFilters) {
         List<Object> must = new ArrayList<>();
         if (request.getQueryText() != null && !request.getQueryText().isBlank()) {
-            must.add(Map.of("multi_match", Map.of(
-                    "query", request.getQueryText(),
-                    "fields", List.of("title^2", "content", "snippet", "section"))));
+            Map<String, Object> multiMatch = new LinkedHashMap<>();
+            multiMatch.put("query", request.getQueryText());
+            multiMatch.put("fields", List.of("title^2", "content", "snippet", "section"));
+            multiMatch.put("_name", "BM25:multi_match");
+            must.add(Map.of("multi_match", multiMatch));
         }
         Map<String, Object> bool = new LinkedHashMap<>();
         bool.put("must", must.isEmpty() ? List.of(Map.of("match_all", Map.of())) : must);
@@ -264,6 +266,17 @@ public class DocumentRetrievalMapper {
             case GT -> Map.of("range", Map.of(filter.getField(), Map.of("gt", filter.getValue())));
             case LT -> Map.of("range", Map.of(filter.getField(), Map.of("lt", filter.getValue())));
         };
+    }
+
+    private static Map<String, Object> namedTerm(String field, String value, String name) {
+        return Map.of("term", Map.of(field, Map.of("value", value, "_name", name)));
+    }
+
+    private static Map<String, Object> namedMatchPhrase(String field, String query, int slop, String name) {
+        return Map.of("match_phrase", Map.of(field, Map.of(
+                "query", query,
+                "slop", slop,
+                "_name", name)));
     }
 
     private String exactMatchField(String field) {

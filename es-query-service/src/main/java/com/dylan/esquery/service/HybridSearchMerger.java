@@ -48,23 +48,30 @@ public class HybridSearchMerger {
 		int maxChunksPerDocument = positiveOrDefault(request.getMaxChunksPerDocument(), 1, "maxChunksPerDocument");
 		Map<String, MergeCandidate> candidates = new LinkedHashMap<>();
 		if (hitsByChannel != null) {
-			hitsByChannel.forEach((channel, hits) -> addHits(candidates, hits, channel, rrfK, channelWeight(request, channel)));
+			hitsByChannel.forEach((channel, hits) -> addHits(
+					candidates,
+					hits,
+					channel,
+					rrfK,
+					channelWeight(request, channel),
+					request));
 		}
 		List<MergeCandidate> sorted = candidates.values().stream()
 				.sorted(Comparator
 						.comparing(MergeCandidate::rrfScore, Comparator.nullsLast(Comparator.reverseOrder()))
-						.thenComparing(MergeCandidate::maxScore, Comparator.nullsLast(Comparator.reverseOrder()))
+						.thenComparing(MergeCandidate::bestRank, Comparator.nullsLast(Integer::compareTo))
+						.thenComparing(MergeCandidate::channelCount, Comparator.reverseOrder())
 						.thenComparing(candidate -> candidate.hit.getDocumentId(), Comparator.nullsLast(String::compareTo))
-						.thenComparing(candidate -> candidate.hit.getChunkIndex(), Comparator.nullsLast(Integer::compareTo)))
+						.thenComparing(candidate -> candidate.hit.getChunkId(), Comparator.nullsLast(String::compareTo)))
 				.toList();
 		Map<String, Long> groupSizes = new HashMap<>();
 		for (MergeCandidate candidate : sorted) {
-			groupSizes.merge(dedupKey(candidate.hit), 1L, Long::sum);
+			groupSizes.merge(dedupKey(candidate.hit, request), 1L, Long::sum);
 		}
 		Map<String, Integer> selectedByDocument = new HashMap<>();
 		List<HybridSearchHit> result = new ArrayList<>();
 		for (MergeCandidate candidate : sorted) {
-			String dedupKey = dedupKey(candidate.hit);
+			String dedupKey = dedupKey(candidate.hit, request);
 			int selected = selectedByDocument.getOrDefault(dedupKey, 0);
 			if (selected >= maxChunksPerDocument) {
 				continue;
@@ -86,7 +93,8 @@ public class HybridSearchMerger {
 			List<JsonNode> hits,
 			String channel,
 			int rrfK,
-			double weight) {
+			double weight,
+			HybridSearchRequest request) {
 		if (hits == null || hits.isEmpty()) {
 			return;
 		}
@@ -95,17 +103,21 @@ public class HybridSearchMerger {
 			JsonNode hit = hits.get(i);
 			JsonNode source = hit.path("_source");
 			String key = firstText(source, "chunkId", firstText(source, "documentId", text(hit, "_id", "hit-" + i)));
-			MergeCandidate candidate = candidates.computeIfAbsent(key, ignored -> new MergeCandidate(toBaseHit(hit)));
+			String candidateKey = candidateKey(request, key);
+			MergeCandidate candidate = candidates.computeIfAbsent(candidateKey, ignored -> new MergeCandidate(toBaseHit(hit, request)));
 			int rank = i + 1;
 			candidate.add(normalizedChannel, rank, hitScore(hit), rrfContribution(rrfK, rank, weight));
 		}
 	}
 
-	private HybridSearchHit toBaseHit(JsonNode hit) {
+	private HybridSearchHit toBaseHit(JsonNode hit, HybridSearchRequest request) {
 		JsonNode source = hit.path("_source");
 		HybridSearchHit target = new HybridSearchHit();
 		target.setDocumentId(firstText(source, "documentId", text(hit, "_id", null)));
 		target.setChunkId(firstText(source, "chunkId", target.getDocumentId()));
+		target.setIndexAlias(request.getIndexAlias());
+		target.setProfileVersion(request.getProfileVersion());
+		target.setPermissionEvidenceId(request.getPermissionEvidenceId());
 		target.setChunkIndex(integer(source, "chunkIndex"));
 		target.setTitle(text(source, "title", null));
 		target.setSourceType(text(source, "sourceType", null));
@@ -116,6 +128,11 @@ public class HybridSearchMerger {
 		target.setContent(text(source, "content", null));
 		target.setContextBefore(stringList(source.path("contextBefore")));
 		target.setContextAfter(stringList(source.path("contextAfter")));
+		List<String> hitFields = stringList(source.path("hitFields"));
+		if (hitFields.isEmpty()) {
+			hitFields = stringList(hit.path("matched_queries"));
+		}
+		target.setHitFields(hitFields.isEmpty() ? null : hitFields);
 		target.setCharStart(integer(source, "charStart"));
 		target.setCharEnd(integer(source, "charEnd"));
 		if (source.isObject()) {
@@ -189,11 +206,25 @@ public class HybridSearchMerger {
 		return weight == null || !Double.isFinite(weight) || weight <= 0.0d ? 1.0d : weight;
 	}
 
-	private static String dedupKey(HybridSearchHit hit) {
-		if (hit.getDocumentId() != null && !hit.getDocumentId().isBlank()) {
-			return hit.getDocumentId();
-		}
-		return hit.getChunkId() == null ? "" : hit.getChunkId();
+	private static String candidateKey(HybridSearchRequest request, String chunkKey) {
+		return nullToEmpty(request.getIndexAlias())
+				+ "|" + nullToEmpty(request.getProfileVersion())
+				+ "|" + nullToEmpty(request.getPermissionEvidenceId())
+				+ "|" + nullToEmpty(chunkKey);
+	}
+
+	private static String dedupKey(HybridSearchHit hit, HybridSearchRequest request) {
+		String documentKey = hit.getDocumentId() != null && !hit.getDocumentId().isBlank()
+				? hit.getDocumentId()
+				: hit.getChunkId();
+		return nullToEmpty(request.getIndexAlias())
+				+ "|" + nullToEmpty(request.getProfileVersion())
+				+ "|" + nullToEmpty(request.getPermissionEvidenceId())
+				+ "|" + nullToEmpty(documentKey);
+	}
+
+	private static String nullToEmpty(String value) {
+		return value == null ? "" : value;
 	}
 
 	private static final class MergeCandidate {
@@ -203,14 +234,19 @@ public class HybridSearchMerger {
 		private final List<String> channels = new ArrayList<>();
 		private final Map<String, Integer> channelRanks = new LinkedHashMap<>();
 		private final Map<String, BigDecimal> channelScores = new LinkedHashMap<>();
+		private Integer bestRank;
 
 		private MergeCandidate(HybridSearchHit hit) {
 			this.hit = hit;
 		}
 
 		private void add(String channel, int rank, BigDecimal sourceScore, BigDecimal rrfContribution) {
+			if (channelRanks.containsKey(channel)) {
+				return;
+			}
 			channels.add(channel);
 			channelRanks.put(channel, rank);
+			bestRank = bestRank == null ? rank : Math.min(bestRank, rank);
 			rrfScore = rrfScore.add(rrfContribution, SCORE_CONTEXT);
 			if (sourceScore != null && (maxScore == null || sourceScore.compareTo(maxScore) > 0)) {
 				maxScore = sourceScore;
@@ -239,8 +275,12 @@ public class HybridSearchMerger {
 			return rrfScore;
 		}
 
-		private BigDecimal maxScore() {
-			return maxScore;
+		private Integer bestRank() {
+			return bestRank;
+		}
+
+		private Integer channelCount() {
+			return channelRanks.size();
 		}
 	}
 }
