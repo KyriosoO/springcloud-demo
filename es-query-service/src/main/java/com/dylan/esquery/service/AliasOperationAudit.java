@@ -13,6 +13,8 @@ public record AliasOperationAudit(
         String materialType,
         String profileVersion,
         String indexVersion,
+        String goldSetVersion,
+        String validationReportIdPrefix,
         String taskIdPrefix,
         String digestPrefix,
         String operatorRefHash,

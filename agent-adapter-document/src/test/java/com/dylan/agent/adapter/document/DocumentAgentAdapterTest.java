@@ -48,17 +48,30 @@ class DocumentAgentAdapterTest {
     }
 
     @Test
-    void requestIndexAliasOverridesDomainDefaultIndex() {
+    void usesRequestIndexAliasWhenItMatchesDomainMapping() {
         DocumentSearchClient client = mock(DocumentSearchClient.class);
         when(client.search(eq("agent-doc-tax-policy-read"), anyString()))
                 .thenReturn("{\"hits\":{\"hits\":[]}}");
         DocumentAgentAdapter adapter = adapter(client, properties(Map.of(
-                "company_policy", "agent-doc-company-policy")));
+                "company_policy", "agent-doc-tax-policy-read")));
 
         var result = adapter.retrieve(aliasRequest("company_policy", "agent-doc-tax-policy-read", aclScope()));
 
         assertThat(result.getHits()).isEmpty();
         verify(client).search(eq("agent-doc-tax-policy-read"), anyString());
+    }
+
+    @Test
+    void rejectsRequestIndexAliasWhenItDiffersFromDomainMapping() {
+        DocumentSearchClient client = mock(DocumentSearchClient.class);
+        DocumentAgentAdapter adapter = adapter(client, properties(Map.of(
+                "company_policy", "agent-doc-company-policy")));
+
+        assertThatThrownBy(() -> adapter.retrieve(aliasRequest(
+                "company_policy", "agent-doc-tax-policy-read", aclScope())))
+                .isInstanceOf(AgentAdapterException.class)
+                .hasMessageContaining("read alias");
+        verifyNoInteractions(client);
     }
 
     @Test

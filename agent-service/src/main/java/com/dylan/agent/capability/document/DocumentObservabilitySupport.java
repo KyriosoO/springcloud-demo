@@ -1,5 +1,6 @@
 package com.dylan.agent.capability.document;
 
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
 import io.micrometer.core.instrument.MeterRegistry;
 
 import java.time.Duration;
@@ -57,6 +58,41 @@ public final class DocumentObservabilitySupport {
         meterRegistry.counter("agent_document_revocation_hit_total",
                 "target", safe(target),
                 "source", safe(source)).increment();
+    }
+
+    public void recordRetrievalDiagnostics(
+            String domain,
+            String mode,
+            AdapterDocumentRetrievalDiagnostics diagnostics) {
+        if (diagnostics == null) {
+            return;
+        }
+        if (diagnostics.getChannelHitCounts() != null) {
+            diagnostics.getChannelHitCounts().forEach((channel, count) -> {
+                requireLowCardinality(Map.of("domain", domain, "mode", mode, "channel", channel));
+                meterRegistry.counter("agent_document_channel_hit_total",
+                        "domain", safe(domain),
+                        "mode", safe(mode),
+                        "channel", safe(channel)).increment(Math.max(0, count == null ? 0 : count));
+            });
+        }
+        if (diagnostics.getFusedCandidateCount() != null
+                && diagnostics.getDedupedCandidateCount() != null
+                && diagnostics.getFusedCandidateCount() > 0) {
+            double ratio = 1.0d - Math.min(
+                    diagnostics.getFusedCandidateCount(),
+                    Math.max(0, diagnostics.getDedupedCandidateCount()))
+                    / (double) diagnostics.getFusedCandidateCount();
+            meterRegistry.summary("agent_document_dedup_reduction_ratio",
+                    "domain", safe(domain),
+                    "mode", safe(mode)).record(ratio);
+        }
+        if (diagnostics.getRerankStatus() != null && !diagnostics.getRerankStatus().isBlank()) {
+            requireLowCardinality(Map.of("domain", domain, "status", diagnostics.getRerankStatus()));
+            meterRegistry.counter("agent_document_rerank_total",
+                    "domain", safe(domain),
+                    "status", safe(diagnostics.getRerankStatus())).increment();
+        }
     }
 
     public static void requireLowCardinality(Map<String, String> tags) {

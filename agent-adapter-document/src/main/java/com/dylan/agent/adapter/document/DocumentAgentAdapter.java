@@ -58,13 +58,17 @@ public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
     }
 
     private String resolveIndex(String domain, String requestIndexAlias) {
-        if (requestIndexAlias != null && !requestIndexAlias.isBlank()) {
-            return requestIndexAlias;
-        }
         String index = properties.getIndexByDomain().get(domain);
+        if (requestIndexAlias != null && !requestIndexAlias.isBlank()) {
+            String alias = requestIndexAlias.trim();
+            if (index != null && !index.isBlank() && !alias.equals(index.trim())) {
+                throw new AgentAdapterException("文档 profile read alias 与 domain 映射不一致，已拒绝检索。");
+            }
+            return alias;
+        }
         if (index == null || index.isBlank()) {
             throw new AgentAdapterException("文档 domain 缺少显式 read alias 映射，已拒绝检索。");
         }
-        return index;
+        return index.trim();
     }
 }

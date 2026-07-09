@@ -152,6 +152,8 @@ class EsIndexAliasServiceTest {
                     assertThat(audit.materialType()).isEqualTo("policy");
                     assertThat(audit.profileVersion()).isEqualTo("profile-v1");
                     assertThat(audit.indexVersion()).isEqualTo("idx-v2");
+                    assertThat(audit.goldSetVersion()).isEqualTo("gold-tax-v1");
+                    assertThat(audit.validationReportIdPrefix()).isEqualTo("report-v2");
                     assertThat(audit.digestPrefix()).isEqualTo("digest-1");
                     assertThat(audit.operatorRefHash()).isNotBlank();
                     assertThat(audit.operatorRefHash()).isNotEqualTo("operator-1");
@@ -186,6 +188,17 @@ class EsIndexAliasServiceTest {
         assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("profileVersion");
+    }
+
+    @Test
+    void switchesV2AliasOnlyAfterValidationReportFieldsArePresent() {
+        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
+        AliasSwitchRequest request = request();
+        request.setGoldSetVersion(null);
+
+        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("goldSetVersion");
     }
 
     @Test
@@ -301,6 +314,8 @@ class EsIndexAliasServiceTest {
         request.setMaterialType("policy");
         request.setProfileVersion("profile-v1");
         request.setIndexVersion("idx-v2");
+        request.setGoldSetVersion("gold-tax-v1");
+        request.setValidationReportId("report-v2");
         return request;
     }
 }

@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +63,7 @@ public class HybridSearchMerger {
 						.thenComparing(MergeCandidate::bestRank, Comparator.nullsLast(Integer::compareTo))
 						.thenComparing(MergeCandidate::channelCount, Comparator.reverseOrder())
 						.thenComparing(candidate -> candidate.hit.getDocumentId(), Comparator.nullsLast(String::compareTo))
+						.thenComparing(candidate -> candidate.hit.getChunkIndex(), Comparator.nullsLast(Integer::compareTo))
 						.thenComparing(candidate -> candidate.hit.getChunkId(), Comparator.nullsLast(String::compareTo)))
 				.toList();
 		Map<String, Long> groupSizes = new HashMap<>();
@@ -104,9 +106,10 @@ public class HybridSearchMerger {
 			JsonNode source = hit.path("_source");
 			String key = firstText(source, "chunkId", firstText(source, "documentId", text(hit, "_id", "hit-" + i)));
 			String candidateKey = candidateKey(request, key);
-			MergeCandidate candidate = candidates.computeIfAbsent(candidateKey, ignored -> new MergeCandidate(toBaseHit(hit, request)));
+			HybridSearchHit baseHit = toBaseHit(hit, request);
+			MergeCandidate candidate = candidates.computeIfAbsent(candidateKey, ignored -> new MergeCandidate(baseHit));
 			int rank = i + 1;
-			candidate.add(normalizedChannel, rank, hitScore(hit), rrfContribution(rrfK, rank, weight));
+			candidate.add(normalizedChannel, rank, hitScore(hit), rrfContribution(rrfK, rank, weight), baseHit.getHitFields());
 		}
 	}
 
@@ -234,13 +237,22 @@ public class HybridSearchMerger {
 		private final List<String> channels = new ArrayList<>();
 		private final Map<String, Integer> channelRanks = new LinkedHashMap<>();
 		private final Map<String, BigDecimal> channelScores = new LinkedHashMap<>();
+		private final LinkedHashSet<String> hitFields = new LinkedHashSet<>();
 		private Integer bestRank;
 
 		private MergeCandidate(HybridSearchHit hit) {
 			this.hit = hit;
+			if (hit.getHitFields() != null) {
+				hitFields.addAll(hit.getHitFields());
+			}
 		}
 
-		private void add(String channel, int rank, BigDecimal sourceScore, BigDecimal rrfContribution) {
+		private void add(
+				String channel,
+				int rank,
+				BigDecimal sourceScore,
+				BigDecimal rrfContribution,
+				List<String> sourceHitFields) {
 			if (channelRanks.containsKey(channel)) {
 				return;
 			}
@@ -253,6 +265,11 @@ public class HybridSearchMerger {
 			}
 			if (sourceScore != null) {
 				channelScores.put(channel, sourceScore);
+			}
+			if (sourceHitFields != null) {
+				sourceHitFields.stream()
+						.filter(value -> value != null && !value.isBlank())
+						.forEach(hitFields::add);
 			}
 			if ("KEYWORD".equals(channel) || "BM25".equals(channel) || "EXACT".equals(channel) || "PHRASE".equals(channel)) {
 				hit.setKeywordRank(rank);
@@ -268,6 +285,9 @@ public class HybridSearchMerger {
 			hit.setRetrievalChannels(List.copyOf(channels));
 			hit.setChannelRanks(Map.copyOf(channelRanks));
 			hit.setChannelScores(Map.copyOf(channelScores));
+			if (!hitFields.isEmpty()) {
+				hit.setHitFields(List.copyOf(hitFields));
+			}
 			return hit;
 		}
 

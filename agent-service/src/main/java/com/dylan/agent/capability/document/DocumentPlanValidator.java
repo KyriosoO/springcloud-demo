@@ -27,6 +27,7 @@ import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Objects;
 
 public class DocumentPlanValidator
@@ -138,7 +139,7 @@ public class DocumentPlanValidator
                 10_000);
         List<String> channels = options == null || options.getRetrievalChannels() == null || options.getRetrievalChannels().isEmpty()
                 ? defaults.channels()
-                : options.getRetrievalChannels();
+                : requestedChannels(defaults.channels(), options.getRetrievalChannels());
         boolean rerankEnabled = defaults.rerankEnabled()
                 && (options == null || options.getRerankEnabled() == null || options.getRerankEnabled());
         return new DocumentHybridOptions(
@@ -152,8 +153,35 @@ public class DocumentPlanValidator
                 channels,
                 defaults.channelWeights(),
                 defaults.embeddingField(),
+                defaults.embeddingProvider(),
+                defaults.embeddingModel(),
+                defaults.embeddingDimension(),
                 rerankEnabled,
                 defaults.rerankTopN());
+    }
+
+    private static List<String> requestedChannels(List<String> allowedChannels, List<String> requestedChannels) {
+        LinkedHashSet<String> allowed = allowedChannels.stream()
+                .filter(Objects::nonNull)
+                .map(DocumentPlanValidator::normalizeChannel)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        LinkedHashSet<String> requested = requestedChannels.stream()
+                .filter(Objects::nonNull)
+                .map(DocumentPlanValidator::normalizeChannel)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (requested.isEmpty()) {
+            throw new IllegalArgumentException("document retrievalChannels must not be empty");
+        }
+        if (!allowed.containsAll(requested)) {
+            throw new IllegalArgumentException("document retrievalChannels must be allowed by retrievalProfile");
+        }
+        return List.copyOf(requested);
+    }
+
+    private static String normalizeChannel(String channel) {
+        return channel == null ? "" : channel.trim().toUpperCase(Locale.ROOT);
     }
 
     private int defaultCandidateSize(DocumentPlanOperation operation) {

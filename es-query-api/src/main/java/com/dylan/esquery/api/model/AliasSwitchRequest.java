@@ -11,6 +11,8 @@ public class AliasSwitchRequest {
 	private String materialType;
 	private String profileVersion;
 	private String indexVersion;
+	private String goldSetVersion;
+	private String validationReportId;
 
 	public String getTaskId() { return taskId; }
 	public void setTaskId(String taskId) { this.taskId = taskId; }
@@ -30,4 +32,8 @@ public class AliasSwitchRequest {
 	public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
 	public String getIndexVersion() { return indexVersion; }
 	public void setIndexVersion(String indexVersion) { this.indexVersion = indexVersion; }
+	public String getGoldSetVersion() { return goldSetVersion; }
+	public void setGoldSetVersion(String goldSetVersion) { this.goldSetVersion = goldSetVersion; }
+	public String getValidationReportId() { return validationReportId; }
+	public void setValidationReportId(String validationReportId) { this.validationReportId = validationReportId; }
 }

@@ -37,6 +37,8 @@ class PersistentAliasOperationAuditRepositoryTest {
 		verify(statement1).setString(6, "policy");
 		verify(statement1).setString(7, "profile-v1");
 		verify(statement1).setString(8, "idx-v2");
+		verify(statement1).setString(9, "gold-tax-v1");
+		verify(statement1).setString(10, "report-v2");
 		verify(statement1).executeUpdate();
 		verify(statement2).executeUpdate();
 	}
@@ -71,6 +73,8 @@ class PersistentAliasOperationAuditRepositoryTest {
 				"policy",
 				"profile-v1",
 				"idx-v2",
+				"gold-tax-v1",
+				"report-v2",
 				"task-1",
 				"digest-1",
 				"operator-hash",

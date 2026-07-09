@@ -113,6 +113,18 @@ class PersistentRebuildTaskRepositoryTest {
         }
     }
 
+    @Test
+    void v3MigrationAddsAliasGoldValidationAuditFields() throws Exception {
+        try (var input = getClass().getResourceAsStream(
+                "/db/migration/V3__add_document_alias_gold_validation_fields.sql")) {
+            String sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql).contains("gold_set_version");
+            assertThat(sql).contains("validation_report_id_prefix");
+            assertThat(sql).contains("idx_document_alias_operation_gold");
+        }
+    }
+
     private ResultSet taskResultSet(boolean hasRow) throws Exception {
         ResultSet resultSet = mock(ResultSet.class);
         when(resultSet.next()).thenReturn(hasRow, false);

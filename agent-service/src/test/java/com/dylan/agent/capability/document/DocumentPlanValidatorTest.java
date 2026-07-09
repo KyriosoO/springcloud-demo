@@ -279,6 +279,9 @@ class DocumentPlanValidatorTest {
         tax.setRrfK(35);
         tax.setNumCandidates(36);
         tax.setMaxChunksPerDocument(2);
+        tax.setEmbeddingProvider("bge");
+        tax.setEmbeddingModel("bge-large-zh-v2");
+        tax.setEmbeddingDimension(1024);
         tax.setChannels(List.of("bm25", "exact", "phrase", "dense_vector"));
         tax.setChannelWeights(Map.of("BM25", 2.0d));
         tax.getRerank().setEnabled(true);
@@ -310,8 +313,34 @@ class DocumentPlanValidatorTest {
         assertThat(validated.request().getHybridOptions().channels())
                 .containsExactly("BM25", "EXACT", "PHRASE", "DENSE_VECTOR");
         assertThat(validated.request().getHybridOptions().channelWeights()).containsEntry("BM25", 2.0d);
+        assertThat(validated.request().getHybridOptions().embeddingProvider()).isEqualTo("bge");
+        assertThat(validated.request().getHybridOptions().embeddingModel()).isEqualTo("bge-large-zh-v2");
+        assertThat(validated.request().getHybridOptions().embeddingDimension()).isEqualTo(1024);
         assertThat(validated.request().getHybridOptions().rerankEnabled()).isTrue();
         assertThat(validated.request().getHybridOptions().rerankTopN()).isEqualTo(12);
+    }
+
+    @Test
+    void rejectsRetrievalChannelsOutsideResolvedProfile() {
+        var properties = DomainMetadataTestSupport.agentProperties();
+        AgentProperties.RetrievalProfileProperties profile = retrievalProfile(
+                "policy_document", "tax_policy", "tax-v2", "agent-doc-tax-policy-read");
+        profile.setChannels(List.of("BM25", "EXACT"));
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile);
+        var validator = new DocumentPlanValidator(
+                properties,
+                new FilterNormalizer(properties),
+                new FieldConstraintValidator(),
+                documentCatalogView());
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.SEARCH, null);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setMaterialType("tax_policy");
+        options.setRetrievalChannels(List.of("BM25", "DENSE_VECTOR"));
+        plan.getDocument().setRetrievalOptions(options);
+
+        assertThatThrownBy(() -> validator.validate(plan, context(DocumentCapabilityIds.SEARCH)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retrievalChannels");
     }
 
     @Test

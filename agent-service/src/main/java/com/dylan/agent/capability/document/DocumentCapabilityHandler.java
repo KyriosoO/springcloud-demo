@@ -266,6 +266,7 @@ public class DocumentCapabilityHandler
             adapterResult = adapter.retrieve(retrievalRequest);
             adapterResult = applyRerankIfEnabled(retrievalRequest, adapterResult, context);
             recordRetrieval(retrievalRequest, "SUCCESS", retrievalStarted);
+            recordRetrievalDiagnostics(retrievalRequest, adapterResult);
         } catch (RuntimeException ex) {
             recordRetrieval(retrievalRequest, "FAILED", retrievalStarted);
             throw ex;
@@ -900,6 +901,18 @@ public class DocumentCapabilityHandler
         if (observabilitySupport != null) {
             observabilitySupport.recordRevocationHit(target, source);
         }
+    }
+
+    private void recordRetrievalDiagnostics(
+            DocumentRetrievalRequest request,
+            AdapterDocumentResult adapterResult) {
+        if (observabilitySupport == null || adapterResult == null) {
+            return;
+        }
+        observabilitySupport.recordRetrievalDiagnostics(
+                request.getDomain(),
+                request.getRetrievalMode().name(),
+                adapterResult.getRetrievalDiagnostics());
     }
 
     private List<AdapterDocumentEvidence> selectGenerationEvidence(List<AdapterDocumentEvidence> evidence) {

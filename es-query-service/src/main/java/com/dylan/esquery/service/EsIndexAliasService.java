@@ -120,6 +120,8 @@ public class EsIndexAliasService {
 				normalize(request == null ? null : request.getMaterialType()),
 				normalize(request == null ? null : request.getProfileVersion()),
 				normalize(request == null ? null : request.getIndexVersion()),
+				normalize(request == null ? null : request.getGoldSetVersion()),
+				prefix(request == null ? null : request.getValidationReportId()),
 				prefix(request == null ? null : request.getTaskId()),
 				prefix(request == null ? null : request.getValidationDigest()),
 				hashPrefix(request == null ? null : request.getOperatorRef()),
@@ -174,6 +176,8 @@ public class EsIndexAliasService {
 		requireNonBlank(request.getMaterialType(), "materialType");
 		requireNonBlank(request.getProfileVersion(), "profileVersion");
 		requireNonBlank(request.getIndexVersion(), "indexVersion");
+		requireNonBlank(request.getGoldSetVersion(), "goldSetVersion");
+		requireNonBlank(request.getValidationReportId(), "validationReportId");
 		if (!documentIndexPolicy.isDocumentIndex(request.getTargetIndex())) {
 			throw new IllegalArgumentException("targetIndex must be a document index");
 		}

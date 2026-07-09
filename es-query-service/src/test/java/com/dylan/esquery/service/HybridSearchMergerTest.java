@@ -86,6 +86,40 @@ class HybridSearchMergerTest {
 	}
 
 	@Test
+	void mergesHitFieldsFromMultipleChannelsForSameChunk() throws Exception {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(1);
+		request.setRrfK(60);
+		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
+		hitsByChannel.put("BM25", List.of(hitWithMatchedQueries(
+				"doc-1", "chunk-1", 1, 1.0, List.of("BM25:title"))));
+		hitsByChannel.put("EXACT", List.of(hitWithMatchedQueries(
+				"doc-1", "chunk-1", 1, 0.9, List.of("EXACT:documentNo"))));
+
+		var hits = merger.merge(hitsByChannel, request);
+
+		assertThat(hits).singleElement()
+				.satisfies(hit -> assertThat(hit.getHitFields())
+						.containsExactly("BM25:title", "EXACT:documentNo"));
+	}
+
+	@Test
+	void usesChunkIndexAsFinalTieBreakerBeforeChunkId() throws Exception {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setTopK(2);
+		request.setRrfK(60);
+		request.setMaxChunksPerDocument(2);
+		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
+		hitsByChannel.put("BM25", List.of(hit("doc-1", "chunk-a", 2, 1.0)));
+		hitsByChannel.put("EXACT", List.of(hit("doc-1", "chunk-z", 1, 1.0)));
+
+		var hits = merger.merge(hitsByChannel, request);
+
+		assertThat(hits).extracting(HybridSearchHit::getChunkId)
+				.containsExactly("chunk-z", "chunk-a");
+	}
+
+	@Test
 	void fallsBackToDocumentIdWhenChunkIdIsMissing() throws Exception {
 		HybridSearchRequest request = new HybridSearchRequest();
 		request.setTopK(2);
@@ -177,5 +211,27 @@ class HybridSearchMergerTest {
 				  }
 				}
 				""".formatted(documentId, score, documentId, chunkId, chunkIndex));
+	}
+
+	private JsonNode hitWithMatchedQueries(
+			String documentId,
+			String chunkId,
+			int chunkIndex,
+			double score,
+			List<String> matchedQueries) throws Exception {
+		return objectMapper.readTree("""
+				{
+				  "_id": "%s",
+				  "_score": %s,
+				  "matched_queries": %s,
+				  "_source": {
+				    "documentId": "%s",
+				    "chunkId": "%s",
+				    "chunkIndex": %s,
+				    "title": "休假政策"
+				  }
+				}
+				""".formatted(chunkId, score, objectMapper.writeValueAsString(matchedQueries),
+				documentId, chunkId, chunkIndex));
 	}
 }

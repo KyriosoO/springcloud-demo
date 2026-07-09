@@ -155,13 +155,16 @@ public class DocumentRetrievalMapper {
         List<Object> should = new ArrayList<>();
         if (queryText != null && !queryText.isBlank()) {
             should.add(namedTerm("title.keyword", queryText, "EXACT:title.keyword"));
+            should.add(namedTerm("documentNo", queryText, "EXACT:documentNo"));
             should.add(namedTerm("documentNumber", queryText, "EXACT:documentNumber"));
+            should.add(namedTerm("issuer", queryText, "EXACT:issuer"));
             should.add(namedTerm("issuingAuthority.keyword", queryText, "EXACT:issuingAuthority.keyword"));
             should.add(namedTerm("section.keyword", queryText, "EXACT:section.keyword"));
         }
         for (String keyword : request.getRuleKeywords()) {
             if (keyword != null && !keyword.isBlank()) {
                 should.add(namedTerm("title.keyword", keyword, "EXACT:title.keyword"));
+                should.add(namedTerm("documentNo", keyword, "EXACT:documentNo"));
                 should.add(namedTerm("documentNumber", keyword, "EXACT:documentNumber"));
             }
         }
