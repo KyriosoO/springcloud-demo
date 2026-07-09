@@ -1,5 +1,7 @@
 package com.dylan.agent.capability.document.generation;
 
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
 import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;

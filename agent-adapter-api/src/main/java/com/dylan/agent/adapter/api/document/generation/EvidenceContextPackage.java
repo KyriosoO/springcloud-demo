@@ -1,8 +1,11 @@
-package com.dylan.documentgeneration.model;
+package com.dylan.agent.adapter.api.document.generation;
+
+import com.dylan.agent.api.plan.DocumentPlanOperation;
 
 import java.util.List;
 import java.util.Set;
 
+/** LLM 生成输入证据包。 */
 public record EvidenceContextPackage(
         String requestId,
         DocumentPlanOperation operation,

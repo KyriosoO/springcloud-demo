@@ -1,4 +1,4 @@
-package com.dylan.agent.capability.document.generation;
+package com.dylan.agent.adapter.api.document.generation;
 
 import java.util.List;
 

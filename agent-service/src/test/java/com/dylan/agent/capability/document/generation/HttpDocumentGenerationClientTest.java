@@ -1,5 +1,11 @@
 package com.dylan.agent.capability.document.generation;
 
+import com.dylan.agent.adapter.api.document.generation.CitationBinding;
+import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
+import com.dylan.agent.adapter.api.document.generation.DocumentEvidenceContextItem;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
+import com.dylan.agent.adapter.api.document.generation.EvidenceContextPackage;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.dylan.agent.capability.document.provider.DocumentProviderAuthHeaderProvider;
 import com.dylan.common.security.ServiceTokenProvider;

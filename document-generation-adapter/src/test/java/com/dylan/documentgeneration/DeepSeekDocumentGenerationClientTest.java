@@ -1,10 +1,10 @@
 package com.dylan.documentgeneration;
 
-import com.dylan.documentgeneration.model.DocumentContextBudget;
-import com.dylan.documentgeneration.model.DocumentEvidenceContextItem;
-import com.dylan.documentgeneration.model.DocumentGenerationRequest;
-import com.dylan.documentgeneration.model.DocumentPlanOperation;
-import com.dylan.documentgeneration.model.EvidenceContextPackage;
+import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
+import com.dylan.agent.adapter.api.document.generation.DocumentEvidenceContextItem;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
+import com.dylan.agent.adapter.api.document.generation.EvidenceContextPackage;
+import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;

@@ -1,7 +1,7 @@
 package com.dylan.documentgeneration;
 
-import com.dylan.documentgeneration.model.DocumentGenerationRequest;
-import com.dylan.documentgeneration.model.DocumentGenerationResult;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

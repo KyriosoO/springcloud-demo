@@ -1,10 +1,10 @@
 package com.dylan.documentgeneration;
 
-import com.dylan.documentgeneration.model.CitationBinding;
-import com.dylan.documentgeneration.model.DocumentEvidenceContextItem;
-import com.dylan.documentgeneration.model.DocumentGenerationRequest;
-import com.dylan.documentgeneration.model.DocumentGenerationResult;
-import com.dylan.documentgeneration.model.DocumentPlanOperation;
+import com.dylan.agent.adapter.api.document.generation.CitationBinding;
+import com.dylan.agent.adapter.api.document.generation.DocumentEvidenceContextItem;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
+import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
+import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

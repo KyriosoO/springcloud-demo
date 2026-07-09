@@ -2,6 +2,8 @@ package com.dylan.agent.capability.document.generation;
 
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
 import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
+import com.dylan.agent.adapter.api.document.generation.DocumentEvidenceContextItem;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.dylan.agent.capability.document.DocumentCapabilityIds;
 import com.dylan.agent.capability.document.ValidatedDocumentPlanTestSupport;

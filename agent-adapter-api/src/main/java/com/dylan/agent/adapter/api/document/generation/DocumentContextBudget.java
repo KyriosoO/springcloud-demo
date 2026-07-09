@@ -1,4 +1,4 @@
-package com.dylan.agent.capability.document.generation;
+package com.dylan.agent.adapter.api.document.generation;
 
 /** LLM 证据上下文和输出预算。 */
 public record DocumentContextBudget(

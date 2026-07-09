@@ -1,6 +1,7 @@
 package com.dylan.agent.capability.document.generation;
 
 import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
+import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
 import com.dylan.agent.capability.document.ValidatedDocumentPlan;
 import com.dylan.agent.kernel.core.ExecutionContext;
 
