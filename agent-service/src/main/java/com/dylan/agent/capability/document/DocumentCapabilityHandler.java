@@ -234,7 +234,12 @@ public class DocumentCapabilityHandler
     }
 
     private DocumentRetrievalRequest withAclScope(DocumentRetrievalRequest request, ExecutionContext context) {
-        DocumentRevocationDecision decision = revocationGuard.evaluate(request.getDomain(), null);
+        DocumentRevocationDecision decision = revocationGuard.evaluate(
+                request.getDomain(),
+                null,
+                request.getRetrievalProfile(),
+                request.getProfileVersion(),
+                request.getIndexAlias());
         if (decision.revoked()) {
             recordRevocation(decision);
             throw new IllegalStateException("document access revoked by "
@@ -244,6 +249,10 @@ public class DocumentCapabilityHandler
                 context.invocationId(),
                 context.executionScope().subjectRef(),
                 request.getDomain(),
+                request.getMaterialType(),
+                request.getRetrievalProfile(),
+                request.getProfileVersion(),
+                request.getIndexAlias(),
                 context.executionScope().currentPermissionEvidenceId(),
                 context.executionScope().currentPermissionVersion(),
                 context.absoluteDeadline()));
@@ -251,7 +260,10 @@ public class DocumentCapabilityHandler
             recordRevocation("ACL_SCOPE", "AUTHORITY");
             throw new IllegalStateException("document ACL scope is expired");
         }
-        return request.withAclScope(scope);
+        return request.withAclScope(
+                scope,
+                context.executionScope().currentPermissionEvidenceId(),
+                context.executionScope().currentPermissionVersion());
     }
 
     private DocumentRetrievalRequest withQueryVectorIfNeeded(ValidatedDocumentPlan plan, ExecutionContext context) {
@@ -369,7 +381,9 @@ public class DocumentCapabilityHandler
                 queryVector,
                 source.getHybridOptions(),
                 source.getContextOptions(),
-                source.getAclScope());
+                source.getAclScope(),
+                source.getPermissionEvidenceId(),
+                source.getPermissionVersion());
     }
 
     private AdapterDocumentResult applyRerankIfEnabled(
@@ -555,6 +569,10 @@ public class DocumentCapabilityHandler
     private static AgentDocumentParameters toParameters(ValidatedDocumentPlan plan) {
         AgentDocumentParameters parameters = new AgentDocumentParameters();
         parameters.setDomain(plan.domain().orElseThrow());
+        parameters.setMaterialType(plan.request().getMaterialType());
+        parameters.setRetrievalProfile(plan.request().getRetrievalProfile());
+        parameters.setProfileVersion(plan.request().getProfileVersion());
+        parameters.setIndexAlias(plan.request().getIndexAlias());
         parameters.setOperation(plan.request().getOperation().name());
         parameters.setQueryText(plan.request().getQueryText());
         parameters.setFilters(plan.request().getFilters().stream()

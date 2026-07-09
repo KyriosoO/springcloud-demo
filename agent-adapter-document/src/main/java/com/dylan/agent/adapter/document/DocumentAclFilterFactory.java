@@ -14,9 +14,19 @@ public class DocumentAclFilterFactory {
     private static final int MAX_VISIBILITY_TERMS = 128;
     private static final int BASE_VISIBILITY_TERMS = 3;
 
-    public Map<String, Object> build(String domain, DocumentAclScope scope) {
+    public Map<String, Object> build(
+            String domain,
+            String materialType,
+            String retrievalProfile,
+            DocumentAclScope scope) {
         if (domain == null || domain.isBlank()) {
             throw new IllegalArgumentException("document domain must not be blank");
+        }
+        if (materialType == null || materialType.isBlank()) {
+            throw new IllegalArgumentException("document materialType must not be blank");
+        }
+        if (retrievalProfile == null || retrievalProfile.isBlank()) {
+            throw new IllegalArgumentException("document retrievalProfile must not be blank");
         }
         if (scope == null) {
             throw new IllegalArgumentException("document ACL scope must not be null");
@@ -27,6 +37,8 @@ public class DocumentAclFilterFactory {
         List<Object> filters = new ArrayList<>();
         filters.add(Map.of("term", Map.of("tenantId", scope.getTenantId())));
         filters.add(Map.of("term", Map.of("corpusId", domain)));
+        filters.add(Map.of("term", Map.of("materialType", materialType)));
+        filters.add(Map.of("term", Map.of("retrievalProfile", retrievalProfile)));
         filters.add(Map.of("term", Map.of("status", "ACTIVE")));
         filters.add(visibilityFilter(scope));
         return Map.of("bool", Map.of("filter", filters));

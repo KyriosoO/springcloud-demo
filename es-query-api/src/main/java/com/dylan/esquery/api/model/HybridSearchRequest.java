@@ -13,6 +13,9 @@ public class HybridSearchRequest {
 	private String retrievalProfile;
 	private String profileVersion;
 	private String indexAlias;
+	private String permissionEvidenceId;
+	private String permissionVersion;
+	private String filterDigest;
 	private Map<String, Object> keywordDsl;
 	private Map<String, Object> filters;
 	private List<Double> queryVector;
@@ -43,6 +46,12 @@ public class HybridSearchRequest {
 	public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
 	public String getIndexAlias() { return indexAlias; }
 	public void setIndexAlias(String indexAlias) { this.indexAlias = indexAlias; }
+	public String getPermissionEvidenceId() { return permissionEvidenceId; }
+	public void setPermissionEvidenceId(String permissionEvidenceId) { this.permissionEvidenceId = permissionEvidenceId; }
+	public String getPermissionVersion() { return permissionVersion; }
+	public void setPermissionVersion(String permissionVersion) { this.permissionVersion = permissionVersion; }
+	public String getFilterDigest() { return filterDigest; }
+	public void setFilterDigest(String filterDigest) { this.filterDigest = filterDigest; }
 	public Map<String, Object> getKeywordDsl() { return keywordDsl; }
 	public void setKeywordDsl(Map<String, Object> keywordDsl) { this.keywordDsl = keywordDsl; }
 	public Map<String, Object> getFilters() { return filters; }

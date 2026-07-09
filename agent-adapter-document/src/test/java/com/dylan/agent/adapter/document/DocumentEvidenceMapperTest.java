@@ -79,6 +79,9 @@ class DocumentEvidenceMapperTest {
         diagnostics.setMaxChunksPerDocument(1);
         diagnostics.setChannelHitCounts(Map.of("KEYWORD", 1, "VECTOR", 1));
         diagnostics.setChannelWeights(Map.of("KEYWORD", 1.0d));
+        diagnostics.setPermissionEvidenceId("perm-evidence");
+        diagnostics.setPermissionVersion("perm-v1");
+        diagnostics.setFilterDigest("sha256:abc123");
         diagnostics.setRerankStatus("SKIPPED");
         diagnostics.setRerankSkippedReason("DISABLED");
         HybridSearchResponse response = new HybridSearchResponse();
@@ -105,6 +108,9 @@ class DocumentEvidenceMapperTest {
         assertThat(result.getRetrievalDiagnostics().getFusedCandidateCount()).isEqualTo(4);
         assertThat(result.getRetrievalDiagnostics().getDedupedCandidateCount()).isEqualTo(1);
         assertThat(result.getRetrievalDiagnostics().getChannelHitCounts()).containsEntry("KEYWORD", 1);
+        assertThat(result.getRetrievalDiagnostics().getPermissionEvidenceId()).isEqualTo("perm-evidence");
+        assertThat(result.getRetrievalDiagnostics().getPermissionVersion()).isEqualTo("perm-v1");
+        assertThat(result.getRetrievalDiagnostics().getFilterDigest()).isEqualTo("sha256:abc123");
         assertThat(result.getRetrievalDiagnostics().getRerankStatus()).isEqualTo("SKIPPED");
     }
 }

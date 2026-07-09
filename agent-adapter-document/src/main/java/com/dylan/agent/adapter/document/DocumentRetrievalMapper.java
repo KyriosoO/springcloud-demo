@@ -11,8 +11,12 @@ import com.dylan.esquery.api.model.HybridSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +70,11 @@ public class DocumentRetrievalMapper {
         hybrid.setProfileVersion(request.getProfileVersion());
         hybrid.setIndexAlias(request.getIndexAlias());
         hybrid.setKeywordDsl(toKeywordDslMap(request));
-        hybrid.setFilters(filterDsl(request));
+        Map<String, Object> filters = filterDsl(request);
+        hybrid.setFilters(filters);
+        hybrid.setPermissionEvidenceId(request.getPermissionEvidenceId());
+        hybrid.setPermissionVersion(request.getPermissionVersion());
+        hybrid.setFilterDigest(filterDigest(filters));
         hybrid.setQueryVector(request.getQueryVector());
         hybrid.setTopK(request.getTopK());
         DocumentHybridOptions options = request.getHybridOptions();
@@ -225,8 +233,24 @@ public class DocumentRetrievalMapper {
                 .map(item -> (Object) item)
                 .toList();
         Map<String, Object> businessFilter = filters.isEmpty() ? null : Map.of("bool", Map.of("filter", filters));
-        Map<String, Object> aclFilter = aclFilterFactory.build(request.getDomain(), request.getAclScope());
+        Map<String, Object> aclFilter = aclFilterFactory.build(
+                request.getDomain(),
+                request.getMaterialType(),
+                request.getRetrievalProfile(),
+                request.getAclScope());
         return aclFilterFactory.merge(businessFilter, aclFilter);
+    }
+
+    private String filterDigest(Map<String, Object> filters) {
+        try {
+            byte[] payload = objectMapper.copy()
+                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                    .writeValueAsBytes(filters);
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(payload);
+            return "sha256:" + HexFormat.of().formatHex(digest);
+        } catch (JsonProcessingException | NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Failed to calculate document filter digest", ex);
+        }
     }
 
     private Map<String, Object> filter(ValidatedFilter filter) {

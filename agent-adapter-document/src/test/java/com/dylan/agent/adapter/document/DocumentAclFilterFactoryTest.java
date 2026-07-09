@@ -17,11 +17,13 @@ class DocumentAclFilterFactoryTest {
 
     @Test
     void buildsFailClosedAclFilterWithTenantCorpusAndVisibility() {
-        Map<String, Object> filter = factory.build("policy_document", scope());
+        Map<String, Object> filter = factory.build("policy_document", "tax_policy", "tax-v2", scope());
 
         assertThat(filter.toString())
                 .contains("tenantId", "tenant-1")
                 .contains("corpusId", "policy_document")
+                .contains("materialType", "tax_policy")
+                .contains("retrievalProfile", "tax-v2")
                 .contains("status", "ACTIVE")
                 .contains("visibility")
                 .contains("departmentIds");
@@ -29,9 +31,20 @@ class DocumentAclFilterFactoryTest {
 
     @Test
     void rejectsMissingAclScope() {
-        assertThatThrownBy(() -> factory.build("policy_document", null))
+        assertThatThrownBy(() -> factory.build("policy_document", "tax_policy", "tax-v2", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("ACL scope");
+    }
+
+    @Test
+    void rejectsMissingMaterialTypeOrRetrievalProfile() {
+        assertThatThrownBy(() -> factory.build("policy_document", " ", "tax-v2", scope()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("materialType");
+
+        assertThatThrownBy(() -> factory.build("policy_document", "tax_policy", " ", scope()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retrievalProfile");
     }
 
     @Test
@@ -45,7 +58,7 @@ class DocumentAclFilterFactoryTest {
                 "acl-v1",
                 Instant.now().minusSeconds(1));
 
-        assertThatThrownBy(() -> factory.build("policy_document", expired))
+        assertThatThrownBy(() -> factory.build("policy_document", "tax_policy", "tax-v2", expired))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("expired");
     }
@@ -86,7 +99,7 @@ class DocumentAclFilterFactoryTest {
                 "acl-v1",
                 Instant.now().plusSeconds(60));
 
-        assertThatThrownBy(() -> factory.build("policy_document", oversized))
+        assertThatThrownBy(() -> factory.build("policy_document", "tax_policy", "tax-v2", oversized))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("max terms");
     }
@@ -102,7 +115,7 @@ class DocumentAclFilterFactoryTest {
                 "acl-v1",
                 Instant.now().plusSeconds(60));
 
-        assertThatThrownBy(() -> factory.build("policy_document", oversized))
+        assertThatThrownBy(() -> factory.build("policy_document", "tax_policy", "tax-v2", oversized))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("max terms");
     }
@@ -118,7 +131,7 @@ class DocumentAclFilterFactoryTest {
                 "acl-v1",
                 Instant.now().plusSeconds(60));
 
-        Map<String, Object> filter = factory.build("policy_document", boundary);
+        Map<String, Object> filter = factory.build("policy_document", "tax_policy", "tax-v2", boundary);
 
         assertThat(filter.toString()).contains("dept-124");
     }

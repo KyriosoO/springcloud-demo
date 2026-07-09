@@ -79,7 +79,12 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
             if (!scope.allowedDomains().contains(domain)) {
                 throw new IllegalStateException("document result domain outside execution scope");
             }
-            DocumentRevocationDecision decision = revocationGuard.evaluate(domain, null);
+            DocumentRevocationDecision decision = revocationGuard.evaluate(
+                    domain,
+                    null,
+                    parameters.getRetrievalProfile(),
+                    parameters.getProfileVersion(),
+                    parameters.getIndexAlias());
             if (decision.revoked()) {
                 recordRevocation(decision);
                 throw new IllegalStateException("document access revoked by "
@@ -120,6 +125,10 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
             ExecutionScope scope) {
         AgentDocumentParameters target = new AgentDocumentParameters();
         target.setDomain(source.getDomain());
+        target.setMaterialType(source.getMaterialType());
+        target.setRetrievalProfile(source.getRetrievalProfile());
+        target.setProfileVersion(source.getProfileVersion());
+        target.setIndexAlias(source.getIndexAlias());
         target.setOperation(source.getOperation());
         target.setQueryText(source.getQueryText());
         target.setTopK(source.getTopK());

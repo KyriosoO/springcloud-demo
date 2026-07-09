@@ -17,6 +17,8 @@ public final class DocumentRetrievalRequest {
     private final String retrievalProfile;
     private final String profileVersion;
     private final String indexAlias;
+    private final String permissionEvidenceId;
+    private final String permissionVersion;
     private final String queryText;
     private final List<String> ruleKeywords;
     private final List<String> rewriteCandidates;
@@ -85,7 +87,7 @@ public final class DocumentRetrievalRequest {
             DocumentAclScope aclScope) {
         this(operation, domain, null, null, null, null, queryText, List.of(), List.of(),
                 filters, sorts, topK, page, size, summaryScope, citationRequired, retrievalMode,
-                queryVector, hybridOptions, contextOptions, aclScope);
+                queryVector, hybridOptions, contextOptions, aclScope, null, null);
     }
 
     public DocumentRetrievalRequest(
@@ -110,12 +112,44 @@ public final class DocumentRetrievalRequest {
             DocumentHybridOptions hybridOptions,
             DocumentContextOptions contextOptions,
             DocumentAclScope aclScope) {
+        this(operation, domain, materialType, retrievalProfile, profileVersion, indexAlias, queryText,
+                ruleKeywords, rewriteCandidates, filters, sorts, topK, page, size, summaryScope,
+                citationRequired, retrievalMode, queryVector, hybridOptions, contextOptions,
+                aclScope, null, null);
+    }
+
+    public DocumentRetrievalRequest(
+            DocumentPlanOperation operation,
+            String domain,
+            String materialType,
+            String retrievalProfile,
+            String profileVersion,
+            String indexAlias,
+            String queryText,
+            List<String> ruleKeywords,
+            List<String> rewriteCandidates,
+            List<ValidatedFilter> filters,
+            List<ValidatedSort> sorts,
+            int topK,
+            int page,
+            int size,
+            DocumentSummaryScope summaryScope,
+            boolean citationRequired,
+            DocumentRetrievalMode retrievalMode,
+            List<Double> queryVector,
+            DocumentHybridOptions hybridOptions,
+            DocumentContextOptions contextOptions,
+            DocumentAclScope aclScope,
+            String permissionEvidenceId,
+            String permissionVersion) {
         this.operation = operation;
         this.domain = domain;
         this.materialType = materialType;
         this.retrievalProfile = retrievalProfile;
         this.profileVersion = profileVersion;
         this.indexAlias = indexAlias;
+        this.permissionEvidenceId = permissionEvidenceId;
+        this.permissionVersion = permissionVersion;
         this.queryText = queryText;
         this.ruleKeywords = List.copyOf(ruleKeywords == null ? List.of() : ruleKeywords);
         this.rewriteCandidates = List.copyOf(rewriteCandidates == null ? List.of() : rewriteCandidates);
@@ -139,6 +173,8 @@ public final class DocumentRetrievalRequest {
     public String getRetrievalProfile() { return retrievalProfile; }
     public String getProfileVersion() { return profileVersion; }
     public String getIndexAlias() { return indexAlias; }
+    public String getPermissionEvidenceId() { return permissionEvidenceId; }
+    public String getPermissionVersion() { return permissionVersion; }
     public String getQueryText() { return queryText; }
     public List<String> getRuleKeywords() { return ruleKeywords; }
     public List<String> getRewriteCandidates() { return rewriteCandidates; }
@@ -156,6 +192,13 @@ public final class DocumentRetrievalRequest {
     public DocumentAclScope getAclScope() { return aclScope; }
 
     public DocumentRetrievalRequest withAclScope(DocumentAclScope aclScope) {
+        return withAclScope(aclScope, permissionEvidenceId, permissionVersion);
+    }
+
+    public DocumentRetrievalRequest withAclScope(
+            DocumentAclScope aclScope,
+            String permissionEvidenceId,
+            String permissionVersion) {
         return new DocumentRetrievalRequest(
                 operation,
                 domain,
@@ -177,6 +220,8 @@ public final class DocumentRetrievalRequest {
                 queryVector,
                 hybridOptions,
                 contextOptions,
-                aclScope);
+                aclScope,
+                permissionEvidenceId,
+                permissionVersion);
     }
 }

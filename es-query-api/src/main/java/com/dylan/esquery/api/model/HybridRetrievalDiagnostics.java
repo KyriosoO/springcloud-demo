@@ -16,6 +16,9 @@ public class HybridRetrievalDiagnostics {
 	private String fusionStrategy;
 	private Map<String, Integer> channelHitCounts;
 	private Map<String, Double> channelWeights;
+	private String permissionEvidenceId;
+	private String permissionVersion;
+	private String filterDigest;
 	private String rerankStatus;
 	private String rerankSkippedReason;
 	private Boolean degraded;
@@ -99,6 +102,30 @@ public class HybridRetrievalDiagnostics {
 
 	public void setChannelWeights(Map<String, Double> channelWeights) {
 		this.channelWeights = channelWeights;
+	}
+
+	public String getPermissionEvidenceId() {
+		return permissionEvidenceId;
+	}
+
+	public void setPermissionEvidenceId(String permissionEvidenceId) {
+		this.permissionEvidenceId = permissionEvidenceId;
+	}
+
+	public String getPermissionVersion() {
+		return permissionVersion;
+	}
+
+	public void setPermissionVersion(String permissionVersion) {
+		this.permissionVersion = permissionVersion;
+	}
+
+	public String getFilterDigest() {
+		return filterDigest;
+	}
+
+	public void setFilterDigest(String filterDigest) {
+		this.filterDigest = filterDigest;
 	}
 
 	public String getRerankStatus() {

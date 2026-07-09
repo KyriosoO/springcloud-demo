@@ -215,6 +215,9 @@ public class EsDocumentService {
 				request.getMaxChunksPerDocument(), 1, "maxChunksPerDocument"));
 		diagnostics.setFusionStrategy("RRF");
 		diagnostics.setChannelWeights(request.getChannelWeights());
+		diagnostics.setPermissionEvidenceId(request.getPermissionEvidenceId());
+		diagnostics.setPermissionVersion(request.getPermissionVersion());
+		diagnostics.setFilterDigest(request.getFilterDigest());
 		diagnostics.setRerankStatus("NOT_REQUESTED");
 		diagnostics.setDegraded(false);
 		HybridSearchResponse response = new HybridSearchResponse();

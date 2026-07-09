@@ -245,7 +245,13 @@ class EsDocumentServiceTest {
 		request.setTopK(3);
 		request.setRrfK(60);
 		request.setMaxChunksPerDocument(1);
-		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
+		request.setPermissionEvidenceId("perm-evidence");
+		request.setPermissionVersion("perm-v1");
+		request.setFilterDigest("sha256:abc123");
+		request.setFilters(Map.of("bool", Map.of("filter", List.of(
+				Map.of("term", Map.of("tenantId", "tenant-1")),
+				Map.of("term", Map.of("materialType", "tax_policy")),
+				Map.of("term", Map.of("retrievalProfile", "tax-v2"))))));
 		request.setQueryVector(List.of(0.1, 0.2));
 		request.setEmbeddingField("embedding_v2");
 		request.setChannelWeights(Map.of("BM25", 2.0d));
@@ -267,13 +273,16 @@ class EsDocumentServiceTest {
 		assertThat(response.getDiagnostics().getVectorHitCount()).isEqualTo(1);
 		assertThat(response.getDiagnostics().getFusedCandidateCount()).isEqualTo(4);
 		assertThat(response.getDiagnostics().getDedupedCandidateCount()).isEqualTo(3);
+		assertThat(response.getDiagnostics().getPermissionEvidenceId()).isEqualTo("perm-evidence");
+		assertThat(response.getDiagnostics().getPermissionVersion()).isEqualTo("perm-v1");
+		assertThat(response.getDiagnostics().getFilterDigest()).isEqualTo("sha256:abc123");
 		ArgumentCaptor<org.elasticsearch.client.Request> captor =
 				ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
 		verify(restClient, times(4)).performRequest(captor.capture());
-		assertThat(body(captor.getAllValues().get(0))).contains("match_all", "tenantId");
-		assertThat(body(captor.getAllValues().get(1))).contains("documentNumber", "tenantId");
-		assertThat(body(captor.getAllValues().get(2))).contains("match_phrase", "tenantId");
-		assertThat(body(captor.getAllValues().get(3))).contains("knn", "embedding_v2", "tenantId");
+		assertThat(body(captor.getAllValues().get(0))).contains("match_all", "tenantId", "materialType", "retrievalProfile");
+		assertThat(body(captor.getAllValues().get(1))).contains("documentNumber", "tenantId", "materialType", "retrievalProfile");
+		assertThat(body(captor.getAllValues().get(2))).contains("match_phrase", "tenantId", "materialType", "retrievalProfile");
+		assertThat(body(captor.getAllValues().get(3))).contains("knn", "embedding_v2", "tenantId", "materialType", "retrievalProfile");
 	}
 
 	@Test

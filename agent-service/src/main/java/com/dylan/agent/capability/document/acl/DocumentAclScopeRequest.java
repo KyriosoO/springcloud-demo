@@ -7,6 +7,10 @@ public record DocumentAclScopeRequest(
         String invocationId,
         String subjectRef,
         String domain,
+        String materialType,
+        String retrievalProfile,
+        String profileVersion,
+        String indexAlias,
         String permissionEvidenceId,
         String permissionVersion,
         Instant deadline) {

@@ -258,6 +258,17 @@ class DocumentResultSecurityProjectorTest {
                 "decision", "FAILED").count()).isEqualTo(1.0);
     }
 
+    @Test
+    void rejectsRevokedRetrievalProfileDuringFinalProjection() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getBlocklist().setRetrievalProfiles(List.of("tax-v2"));
+        DocumentResultSecurityProjector projector = projector(properties);
+
+        assertThatThrownBy(() -> projector.filter(payload(), scope()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("document access revoked");
+    }
+
     private DocumentResultSecurityProjector projector() {
         return projector(DomainMetadataTestSupport.agentProperties());
     }
@@ -283,6 +294,10 @@ class DocumentResultSecurityProjectorTest {
     private DocumentAgentResultPayload payload(String operation) {
         AgentDocumentParameters parameters = new AgentDocumentParameters();
         parameters.setDomain("policy_document");
+        parameters.setMaterialType("tax_policy");
+        parameters.setRetrievalProfile("tax-v2");
+        parameters.setProfileVersion("v2");
+        parameters.setIndexAlias("agent-doc-tax-policy-read");
         parameters.setOperation(operation);
         parameters.setQueryText("年假审批要求");
         parameters.setTopK(5);

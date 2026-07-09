@@ -34,12 +34,14 @@ class DocumentRetrievalRequestTest {
                 "acl-v1",
                 Instant.now().plusSeconds(60));
 
-        DocumentRetrievalRequest copied = request.withAclScope(scope);
+        DocumentRetrievalRequest copied = request.withAclScope(scope, "perm-evidence", "perm-v1");
 
         assertThat(request.getAclScope()).isNull();
         assertThat(copied.getAclScope()).isSameAs(scope);
         assertThat(copied.getDomain()).isEqualTo(request.getDomain());
         assertThat(copied.getQueryVector()).isEmpty();
+        assertThat(copied.getPermissionEvidenceId()).isEqualTo("perm-evidence");
+        assertThat(copied.getPermissionVersion()).isEqualTo("perm-v1");
     }
 
     @Test
@@ -88,7 +90,7 @@ class DocumentRetrievalRequestTest {
                 "acl-v1",
                 Instant.now().plusSeconds(60));
 
-        DocumentRetrievalRequest copied = request.withAclScope(scope);
+        DocumentRetrievalRequest copied = request.withAclScope(scope, "perm-evidence", "perm-v1");
 
         assertThat(copied.getMaterialType()).isEqualTo("tax_policy");
         assertThat(copied.getRetrievalProfile()).isEqualTo("tax-v2");
@@ -98,5 +100,7 @@ class DocumentRetrievalRequestTest {
         assertThat(copied.getRewriteCandidates()).containsExactly("增值税小规模纳税人优惠");
         assertThat(copied.getHybridOptions()).isSameAs(hybridOptions);
         assertThat(copied.getAclScope()).isSameAs(scope);
+        assertThat(copied.getPermissionEvidenceId()).isEqualTo("perm-evidence");
+        assertThat(copied.getPermissionVersion()).isEqualTo("perm-v1");
     }
 }

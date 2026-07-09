@@ -14,7 +14,12 @@ class DocumentRevocationGuardTest {
     void allowsDocumentWhenNoLocalBlocklistMatches() {
         var guard = new DocumentRevocationGuard(DomainMetadataTestSupport.agentProperties());
 
-        DocumentRevocationDecision decision = guard.evaluate("policy_document", "idx-v1");
+        DocumentRevocationDecision decision = guard.evaluate(
+                "policy_document",
+                "idx-v1",
+                "tax-v2",
+                "profile-v1",
+                "agent-doc-tax-policy-read");
 
         assertThat(decision.revoked()).isFalse();
     }
@@ -41,5 +46,40 @@ class DocumentRevocationGuardTest {
         assertThatThrownBy(() -> guard.assertAllowed("policy_document", "idx-v1"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("document access revoked");
+    }
+
+    @Test
+    void revokesProfileAndIndexAliasFromLocalBlocklist() {
+        var properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getBlocklist().setRetrievalProfiles(List.of("tax-v2"));
+        properties.getDocument().getBlocklist().setProfileVersions(List.of("profile-v1"));
+        properties.getDocument().getBlocklist().setIndexAliases(List.of("agent-doc-tax-policy-read"));
+        var guard = new DocumentRevocationGuard(properties);
+
+        DocumentRevocationDecision profileDecision = guard.evaluate(
+                "policy_document",
+                "idx-v1",
+                "tax-v2",
+                null,
+                null);
+        DocumentRevocationDecision profileVersionDecision = guard.evaluate(
+                "policy_document",
+                "idx-v1",
+                "other-profile",
+                "profile-v1",
+                null);
+        DocumentRevocationDecision indexAliasDecision = guard.evaluate(
+                "policy_document",
+                "idx-v1",
+                "other-profile",
+                "other-version",
+                "agent-doc-tax-policy-read");
+
+        assertThat(profileDecision.revoked()).isTrue();
+        assertThat(profileDecision.target()).isEqualTo("RETRIEVAL_PROFILE");
+        assertThat(profileVersionDecision.revoked()).isTrue();
+        assertThat(profileVersionDecision.target()).isEqualTo("PROFILE_VERSION");
+        assertThat(indexAliasDecision.revoked()).isTrue();
+        assertThat(indexAliasDecision.target()).isEqualTo("INDEX_ALIAS");
     }
 }

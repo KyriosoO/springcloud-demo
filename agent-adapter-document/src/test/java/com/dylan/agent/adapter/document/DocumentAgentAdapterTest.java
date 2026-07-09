@@ -91,14 +91,25 @@ class DocumentAgentAdapterTest {
         return new DocumentRetrievalRequest(
                 DocumentPlanOperation.SEARCH,
                 domain,
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                null,
                 "休假政策",
+                List.of(),
+                List.of(),
                 List.of(),
                 List.of(),
                 5,
                 1,
                 5,
                 null,
-                false).withAclScope(aclScope);
+                false,
+                DocumentRetrievalMode.KEYWORD,
+                List.of(),
+                null,
+                null,
+                null).withAclScope(aclScope, "perm-evidence", "perm-v1");
     }
 
     private DocumentRetrievalRequest aliasRequest(String domain, String indexAlias, DocumentAclScope aclScope) {

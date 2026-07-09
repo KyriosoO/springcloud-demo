@@ -179,6 +179,9 @@ public class DocumentEvidenceMapper {
             target.setMaxChunksPerDocument(source.getMaxChunksPerDocument());
             target.setChannelHitCounts(source.getChannelHitCounts());
             target.setChannelWeights(source.getChannelWeights());
+            target.setPermissionEvidenceId(source.getPermissionEvidenceId());
+            target.setPermissionVersion(source.getPermissionVersion());
+            target.setFilterDigest(source.getFilterDigest());
             target.setFusionStrategy(source.getFusionStrategy());
             target.setRerankStatus(source.getRerankStatus());
             target.setRerankSkippedReason(source.getRerankSkippedReason());

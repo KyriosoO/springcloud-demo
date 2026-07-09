@@ -62,6 +62,22 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
                 && !request.domain().equals(requireNonBlank(stringValue(response.get("domain")), "domain"))) {
             throw new IllegalStateException("document ACL scope response domain mismatch");
         }
+        if (response.containsKey("materialType")
+                && !safeEquals(request.materialType(), requireNonBlank(stringValue(response.get("materialType")), "materialType"))) {
+            throw new IllegalStateException("document ACL scope response materialType mismatch");
+        }
+        if (response.containsKey("retrievalProfile")
+                && !safeEquals(request.retrievalProfile(), requireNonBlank(stringValue(response.get("retrievalProfile")), "retrievalProfile"))) {
+            throw new IllegalStateException("document ACL scope response retrievalProfile mismatch");
+        }
+        if (response.containsKey("profileVersion")
+                && !safeEquals(request.profileVersion(), requireNonBlank(stringValue(response.get("profileVersion")), "profileVersion"))) {
+            throw new IllegalStateException("document ACL scope response profileVersion mismatch");
+        }
+        if (response.containsKey("indexAlias")
+                && !safeEquals(request.indexAlias(), requireNonBlank(stringValue(response.get("indexAlias")), "indexAlias"))) {
+            throw new IllegalStateException("document ACL scope response indexAlias mismatch");
+        }
     }
 
     private static Map<String, Object> requestBody(DocumentAclScopeRequest request) {
@@ -69,6 +85,10 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
         body.put("invocationId", requireNonBlank(request.invocationId(), "invocationId"));
         body.put("subjectRef", requireNonBlank(request.subjectRef(), "subjectRef"));
         body.put("domain", requireNonBlank(request.domain(), "domain"));
+        body.put("materialType", requireNonBlank(request.materialType(), "materialType"));
+        body.put("retrievalProfile", requireNonBlank(request.retrievalProfile(), "retrievalProfile"));
+        body.put("profileVersion", requireNonBlank(request.profileVersion(), "profileVersion"));
+        body.put("indexAlias", requireNonBlank(request.indexAlias(), "indexAlias"));
         body.put("permissionEvidenceId", requireNonBlank(request.permissionEvidenceId(), "permissionEvidenceId"));
         body.put("permissionVersion", requireNonBlank(request.permissionVersion(), "permissionVersion"));
         body.put("deadline", Objects.requireNonNull(request.deadline(), "deadline must not be null").toString());
@@ -84,6 +104,10 @@ public final class HttpDocumentAclScopeClient implements DocumentAclScopePort {
 
     private static String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private static boolean safeEquals(String left, String right) {
+        return Objects.equals(left, right);
     }
 
     private static List<String> stringList(Object value) {

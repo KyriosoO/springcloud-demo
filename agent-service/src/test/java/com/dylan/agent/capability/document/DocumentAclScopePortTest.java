@@ -31,6 +31,10 @@ class DocumentAclScopePortTest {
                 "inv-1",
                 "user:u-1",
                 "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 "perm-evidence",
                 "perm-v1",
                 Instant.now().plusSeconds(30))))
@@ -48,6 +52,10 @@ class DocumentAclScopePortTest {
                 "inv-1",
                 "user:u-1",
                 "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 null,
                 "perm-v1",
                 Instant.now().plusSeconds(30))))
@@ -68,6 +76,12 @@ class DocumentAclScopePortTest {
                 .andExpect(jsonPath("$.requestId").doesNotExist())
                 .andExpect(jsonPath("$.subjectRef").value("user:u-1"))
                 .andExpect(jsonPath("$.domain").value("company_policy"))
+                .andExpect(jsonPath("$.materialType").value("tax_policy"))
+                .andExpect(jsonPath("$.retrievalProfile").value("tax-v2"))
+                .andExpect(jsonPath("$.profileVersion").value("v2"))
+                .andExpect(jsonPath("$.indexAlias").value("agent-doc-tax-policy-read"))
+                .andExpect(jsonPath("$.permissionEvidenceId").value("perm-evidence"))
+                .andExpect(jsonPath("$.permissionVersion").value("perm-v1"))
                 .andRespond(withSuccess("""
                         {
                           "tenantId": "tenant-1",
@@ -78,7 +92,11 @@ class DocumentAclScopePortTest {
                           "aclSnapshotVersion": "acl-v1",
                           "expiresAt": "2026-07-07T12:30:00Z",
                           "subjectRef": "user:other",
-                          "domain": "company_policy"
+                          "domain": "company_policy",
+                          "materialType": "tax_policy",
+                          "retrievalProfile": "tax-v2",
+                          "profileVersion": "v2",
+                          "indexAlias": "agent-doc-tax-policy-read"
                         }
                         """, MediaType.APPLICATION_JSON));
 
@@ -86,6 +104,10 @@ class DocumentAclScopePortTest {
                 "inv-1",
                 "user:u-1",
                 "company_policy",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 "perm-evidence",
                 "perm-v1",
                 Instant.parse("2026-07-07T12:05:00Z"))))

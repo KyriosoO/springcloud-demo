@@ -450,10 +450,19 @@ public class AgentProperties {
     public static class BlocklistProperties {
         private List<String> domains = new ArrayList<>();
         private List<String> indexVersions = new ArrayList<>();
+        private List<String> retrievalProfiles = new ArrayList<>();
+        private List<String> profileVersions = new ArrayList<>();
+        private List<String> indexAliases = new ArrayList<>();
 
         public List<String> getDomains() { return domains; }
         public void setDomains(List<String> domains) { this.domains = domains == null ? new ArrayList<>() : domains; }
         public List<String> getIndexVersions() { return indexVersions; }
         public void setIndexVersions(List<String> indexVersions) { this.indexVersions = indexVersions == null ? new ArrayList<>() : indexVersions; }
+        public List<String> getRetrievalProfiles() { return retrievalProfiles; }
+        public void setRetrievalProfiles(List<String> retrievalProfiles) { this.retrievalProfiles = retrievalProfiles == null ? new ArrayList<>() : retrievalProfiles; }
+        public List<String> getProfileVersions() { return profileVersions; }
+        public void setProfileVersions(List<String> profileVersions) { this.profileVersions = profileVersions == null ? new ArrayList<>() : profileVersions; }
+        public List<String> getIndexAliases() { return indexAliases; }
+        public void setIndexAliases(List<String> indexAliases) { this.indexAliases = indexAliases == null ? new ArrayList<>() : indexAliases; }
     }
 }

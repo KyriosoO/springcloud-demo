@@ -74,7 +74,13 @@ class DocumentRetrievalMapperTest {
         DocumentRetrievalRequest request = new DocumentRetrievalRequest(
                 DocumentPlanOperation.ANSWER,
                 "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 "休假政策",
+                List.of(),
+                List.of(),
                 List.of(new ValidatedFilter("sourceType", AgentOperator.EQ, "policy", List.of())),
                 List.of(),
                 5,
@@ -85,7 +91,8 @@ class DocumentRetrievalMapperTest {
                 DocumentRetrievalMode.HYBRID,
                 List.of(0.1, 0.2),
                 new DocumentHybridOptions(10, 12, 60, 100),
-                null).withAclScope(scope());
+                null,
+                null).withAclScope(scope(), "perm-evidence", "perm-v1");
 
         var hybrid = mapper.toHybridRequest(request);
 
@@ -98,7 +105,10 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getKeywordDsl().toString()).doesNotContain("tenantId", "sourceType");
         assertThat(hybrid.getFilters()).isNotNull();
         assertThat(hybrid.getFilters().toString()).contains("sourceType", "policy");
-        assertThat(hybrid.getFilters().toString()).contains("tenantId", "tenant-1");
+        assertThat(hybrid.getFilters().toString()).contains("tenantId", "tenant-1", "materialType", "tax_policy", "retrievalProfile", "tax-v2");
+        assertThat(hybrid.getPermissionEvidenceId()).isEqualTo("perm-evidence");
+        assertThat(hybrid.getPermissionVersion()).isEqualTo("perm-v1");
+        assertThat(hybrid.getFilterDigest()).startsWith("sha256:");
         assertThat(hybrid.getSourceExcludes()).containsExactly("embedding");
     }
 
@@ -138,7 +148,7 @@ class DocumentRetrievalMapperTest {
                 List.of(0.1, 0.2),
                 hybridOptions,
                 null,
-                null).withAclScope(scope());
+                null).withAclScope(scope(), "perm-evidence", "perm-v1");
 
         var hybrid = mapper.toHybridRequest(request);
 
@@ -146,6 +156,9 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getRetrievalProfile()).isEqualTo("tax-v2");
         assertThat(hybrid.getProfileVersion()).isEqualTo("v2");
         assertThat(hybrid.getIndexAlias()).isEqualTo("agent-doc-tax-policy-read");
+        assertThat(hybrid.getPermissionEvidenceId()).isEqualTo("perm-evidence");
+        assertThat(hybrid.getPermissionVersion()).isEqualTo("perm-v1");
+        assertThat(hybrid.getFilterDigest()).startsWith("sha256:");
         assertThat(hybrid.getMaxChunksPerDocument()).isEqualTo(2);
         assertThat(hybrid.getChannelWeights()).containsEntry("BM25", 2.0d);
         assertThat(hybrid.getChannels()).hasSize(4);
@@ -164,7 +177,13 @@ class DocumentRetrievalMapperTest {
         DocumentRetrievalRequest request = new DocumentRetrievalRequest(
                 DocumentPlanOperation.ANSWER,
                 "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 "休假政策",
+                List.of(),
+                List.of(),
                 List.of(new ValidatedFilter("sourceType", AgentOperator.EQ, "policy", List.of())),
                 List.of(),
                 5,
@@ -175,28 +194,40 @@ class DocumentRetrievalMapperTest {
                 DocumentRetrievalMode.VECTOR,
                 List.of(0.1, 0.2),
                 new DocumentHybridOptions(10, 12, 60, 100),
-                null).withAclScope(scope());
+                null,
+                null).withAclScope(scope(), "perm-evidence", "perm-v1");
 
         var vector = mapper.toVectorRequest(request);
 
         assertThat(vector.getQueryVector()).containsExactly(0.1, 0.2);
         assertThat(vector.getFilterDsl()).isNotNull();
         assertThat(vector.getFilterDsl().toString()).contains("sourceType", "policy");
-        assertThat(vector.getFilterDsl().toString()).contains("tenantId", "tenant-1");
+        assertThat(vector.getFilterDsl().toString()).contains("tenantId", "tenant-1", "materialType", "tax_policy", "retrievalProfile", "tax-v2");
     }
 
     private DocumentRetrievalRequest request(ValidatedFilter filter) {
         return new DocumentRetrievalRequest(
                 DocumentPlanOperation.SEARCH,
                 "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 "休假政策",
+                List.of(),
+                List.of(),
                 List.of(filter),
                 List.of(),
                 5,
                 1,
                 5,
                 null,
-                false).withAclScope(scope());
+                false,
+                DocumentRetrievalMode.KEYWORD,
+                List.of(),
+                null,
+                null,
+                null).withAclScope(scope(), "perm-evidence", "perm-v1");
     }
 
     private DocumentAclScope scope() {

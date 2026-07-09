@@ -388,7 +388,13 @@ class DocumentCapabilityHandlerTest {
         request = new DocumentRetrievalRequest(
                 request.getOperation(),
                 request.getDomain(),
+                request.getMaterialType(),
+                request.getRetrievalProfile(),
+                request.getProfileVersion(),
+                request.getIndexAlias(),
                 request.getQueryText(),
+                request.getRuleKeywords(),
+                request.getRewriteCandidates(),
                 request.getFilters(),
                 request.getSorts(),
                 request.getTopK(),
@@ -400,7 +406,9 @@ class DocumentCapabilityHandlerTest {
                 request.getQueryVector(),
                 request.getHybridOptions(),
                 request.getContextOptions(),
-                request.getAclScope());
+                request.getAclScope(),
+                request.getPermissionEvidenceId(),
+                request.getPermissionVersion());
         ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
                 DocumentCapabilityIds.SUMMARIZE,
                 "policy_document",
@@ -673,14 +681,22 @@ class DocumentCapabilityHandlerTest {
     }
 
     private DocumentAclScopePort aclScopePort() {
-        return request -> new DocumentAclScope(
-                "tenant-1",
-                "u-1",
-                List.of("dept-1"),
-                List.of("role-1"),
-                List.of("region:CN"),
-                "acl-v1",
-                Instant.now().plusSeconds(300));
+        return request -> {
+            assertThat(request.materialType()).isEqualTo("tax_policy");
+            assertThat(request.retrievalProfile()).isEqualTo("tax-v2");
+            assertThat(request.profileVersion()).isEqualTo("v2");
+            assertThat(request.indexAlias()).isEqualTo("agent-doc-tax-policy-read");
+            assertThat(request.permissionEvidenceId()).isEqualTo("perm-evidence");
+            assertThat(request.permissionVersion()).isEqualTo("perm-v1");
+            return new DocumentAclScope(
+                    "tenant-1",
+                    "u-1",
+                    List.of("dept-1"),
+                    List.of("role-1"),
+                    List.of("region:CN"),
+                    "acl-v1",
+                    Instant.now().plusSeconds(300));
+        };
     }
 
     private DocumentRetrievalRequest request(DocumentPlanOperation operation) {
@@ -691,7 +707,13 @@ class DocumentCapabilityHandlerTest {
         return new DocumentRetrievalRequest(
                 operation,
                 "policy_document",
+                "tax_policy",
+                "tax-v2",
+                "v2",
+                "agent-doc-tax-policy-read",
                 "查询休假政策",
+                List.of(),
+                List.of(),
                 List.of(),
                 List.of(),
                 5,
@@ -701,6 +723,7 @@ class DocumentCapabilityHandlerTest {
                 operation != DocumentPlanOperation.SEARCH,
                 retrievalMode,
                 List.of(),
+                null,
                 null,
                 null);
     }
