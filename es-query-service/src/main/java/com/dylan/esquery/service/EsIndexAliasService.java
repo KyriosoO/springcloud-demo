@@ -116,6 +116,10 @@ public class EsIndexAliasService {
 				operation,
 				fromIndexes == null ? List.of() : List.copyOf(fromIndexes),
 				request == null ? null : request.getTargetIndex(),
+				normalize(request == null ? null : request.getDomain()),
+				normalize(request == null ? null : request.getMaterialType()),
+				normalize(request == null ? null : request.getProfileVersion()),
+				normalize(request == null ? null : request.getIndexVersion()),
 				prefix(request == null ? null : request.getTaskId()),
 				prefix(request == null ? null : request.getValidationDigest()),
 				hashPrefix(request == null ? null : request.getOperatorRef()),
@@ -124,6 +128,13 @@ public class EsIndexAliasService {
 				(System.nanoTime() - startedAt) / 1_000_000,
 				Instant.now());
 		auditRepository.record(audit);
+	}
+
+	private static String normalize(String value) {
+		if (value == null || value.isBlank()) {
+			return "";
+		}
+		return value.trim();
 	}
 
 	private static String prefix(String value) {
@@ -159,6 +170,10 @@ public class EsIndexAliasService {
 		requireNonBlank(request.getExpectedPreviousIndex(), "expectedPreviousIndex");
 		requireNonBlank(request.getValidationDigest(), "validationDigest");
 		requireNonBlank(request.getOperatorRef(), "operatorRef");
+		requireNonBlank(request.getDomain(), "domain");
+		requireNonBlank(request.getMaterialType(), "materialType");
+		requireNonBlank(request.getProfileVersion(), "profileVersion");
+		requireNonBlank(request.getIndexVersion(), "indexVersion");
 		if (!documentIndexPolicy.isDocumentIndex(request.getTargetIndex())) {
 			throw new IllegalArgumentException("targetIndex must be a document index");
 		}

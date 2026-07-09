@@ -13,6 +13,8 @@ public class DocumentChunkSchemaValidator {
 			"tenantId", "corpusId", "documentId", "documentVersion", "chunkId",
 			"chunkIndex", "charStart", "charEnd", "title", "content", "snippet",
 			"aclRef", "aclVersion", "visibility", "status", "indexVersion", "contentHash");
+	private static final List<String> V2_REQUIRED_FIELDS = List.of(
+			"domain", "materialType", "retrievalProfile", "section", "chunkStrategy", "chunkVersion");
 	private static final List<String> STATUSES = List.of("ACTIVE", "REVOKED", "DELETED", "EXPIRED", "BLOCKED");
 	private static final List<String> VISIBILITIES = List.of("TENANT", "USER", "DEPARTMENT", "ROLE", "ATTRIBUTE", "PUBLIC");
 
@@ -23,6 +25,13 @@ public class DocumentChunkSchemaValidator {
 		for (String field : REQUIRED_FIELDS) {
 			if (isBlankValue(document.get(field))) {
 				throw new IllegalArgumentException("document chunk missing required field: " + field);
+			}
+		}
+		if (isV2Chunk(index, document)) {
+			for (String field : V2_REQUIRED_FIELDS) {
+				if (isBlankValue(document.get(field))) {
+					throw new IllegalArgumentException("document v2 chunk missing required field: " + field);
+				}
 			}
 		}
 		String status = String.valueOf(document.get("status"));
@@ -37,6 +46,13 @@ public class DocumentChunkSchemaValidator {
 		if (Boolean.TRUE.equals(document.get("chunkAclOverride"))) {
 			validateOverrideProjection(document);
 		}
+	}
+
+	private boolean isV2Chunk(String index, Map<String, Object> document) {
+		if (index != null && index.toLowerCase().contains("-v2")) {
+			return true;
+		}
+		return V2_REQUIRED_FIELDS.stream().anyMatch(document::containsKey);
 	}
 
 	private void validateVisibilityProjection(String visibility, Map<String, Object> document) {

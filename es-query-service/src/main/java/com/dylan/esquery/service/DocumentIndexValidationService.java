@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class DocumentIndexValidationService {
 
-	private static final String VALIDATION_VERSION = "LOCAL_DOCUMENT_INDEX_VALIDATION_V1";
+	private static final String VALIDATION_VERSION = "LOCAL_DOCUMENT_INDEX_VALIDATION_V2";
 
 	private final DocumentIndexPolicy documentIndexPolicy;
 	private final RebuildTaskRepository taskRepository;

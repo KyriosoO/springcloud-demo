@@ -39,8 +39,9 @@ public class PersistentAliasOperationAuditRepository implements AliasOperationAu
 		try (Connection connection = dataSource.getConnection();
 				PreparedStatement ps = connection.prepareStatement("""
 						select alias_name, operation, from_index, to_index, task_id_prefix,
-						       validation_digest_prefix, operator_ref_hash, result, failure_reason,
-						       duration_ms, created_at
+						       domain, material_type, profile_version, index_version,
+						       validation_digest_prefix, operator_ref_hash, result,
+						       failure_reason, duration_ms, created_at
 						from document_alias_operation_audit
 						order by id
 						""");
@@ -80,22 +81,26 @@ public class PersistentAliasOperationAuditRepository implements AliasOperationAu
 		try (Connection connection = dataSource.getConnection();
 				PreparedStatement ps = connection.prepareStatement("""
 						insert into document_alias_operation_audit
-						(alias_name, operation, from_index, to_index, task_id_prefix,
-						 validation_digest_prefix, operator_ref_hash, result, failure_reason,
-						 duration_ms, created_at)
-						values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						(alias_name, operation, from_index, to_index, domain, material_type,
+						 profile_version, index_version, task_id_prefix, validation_digest_prefix,
+						 operator_ref_hash, result, failure_reason, duration_ms, created_at)
+						values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 						""")) {
 			ps.setString(1, audit.alias());
 			ps.setString(2, audit.operation());
 			ps.setString(3, fromIndex);
 			ps.setString(4, audit.toIndex());
-			ps.setString(5, audit.taskIdPrefix());
-			ps.setString(6, audit.digestPrefix());
-			ps.setString(7, audit.operatorRefHash());
-			ps.setString(8, audit.result());
-			ps.setString(9, audit.failureReason());
-			ps.setLong(10, audit.durationMs());
-			ps.setTimestamp(11, timestamp(audit.createdAt()));
+			ps.setString(5, audit.domain());
+			ps.setString(6, audit.materialType());
+			ps.setString(7, audit.profileVersion());
+			ps.setString(8, audit.indexVersion());
+			ps.setString(9, audit.taskIdPrefix());
+			ps.setString(10, audit.digestPrefix());
+			ps.setString(11, audit.operatorRefHash());
+			ps.setString(12, audit.result());
+			ps.setString(13, audit.failureReason());
+			ps.setLong(14, audit.durationMs());
+			ps.setTimestamp(15, timestamp(audit.createdAt()));
 			ps.executeUpdate();
 		} catch (SQLException ex) {
 			throw new IllegalStateException("Failed to persist alias operation audit", ex);
@@ -109,6 +114,10 @@ public class PersistentAliasOperationAuditRepository implements AliasOperationAu
 				rs.getString("operation"),
 				fromIndex == null ? List.of() : List.of(fromIndex),
 				rs.getString("to_index"),
+				rs.getString("domain"),
+				rs.getString("material_type"),
+				rs.getString("profile_version"),
+				rs.getString("index_version"),
 				rs.getString("task_id_prefix"),
 				rs.getString("validation_digest_prefix"),
 				rs.getString("operator_ref_hash"),

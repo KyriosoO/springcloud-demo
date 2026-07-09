@@ -7,6 +7,10 @@ public class AliasSwitchRequest {
 	private String expectedPreviousIndex;
 	private String validationDigest;
 	private String operatorRef;
+	private String domain;
+	private String materialType;
+	private String profileVersion;
+	private String indexVersion;
 
 	public String getTaskId() { return taskId; }
 	public void setTaskId(String taskId) { this.taskId = taskId; }
@@ -18,4 +22,12 @@ public class AliasSwitchRequest {
 	public void setValidationDigest(String validationDigest) { this.validationDigest = validationDigest; }
 	public String getOperatorRef() { return operatorRef; }
 	public void setOperatorRef(String operatorRef) { this.operatorRef = operatorRef; }
+	public String getDomain() { return domain; }
+	public void setDomain(String domain) { this.domain = domain; }
+	public String getMaterialType() { return materialType; }
+	public void setMaterialType(String materialType) { this.materialType = materialType; }
+	public String getProfileVersion() { return profileVersion; }
+	public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
+	public String getIndexVersion() { return indexVersion; }
+	public void setIndexVersion(String indexVersion) { this.indexVersion = indexVersion; }
 }

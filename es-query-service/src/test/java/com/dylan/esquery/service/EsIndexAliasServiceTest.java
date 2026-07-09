@@ -148,6 +148,10 @@ class EsIndexAliasServiceTest {
                 .satisfies(audit -> {
                     assertThat(audit.operation()).isEqualTo("SWITCH");
                     assertThat(audit.result()).isEqualTo("IDEMPOTENT");
+                    assertThat(audit.domain()).isEqualTo("tax_policy");
+                    assertThat(audit.materialType()).isEqualTo("policy");
+                    assertThat(audit.profileVersion()).isEqualTo("profile-v1");
+                    assertThat(audit.indexVersion()).isEqualTo("idx-v2");
                     assertThat(audit.digestPrefix()).isEqualTo("digest-1");
                     assertThat(audit.operatorRefHash()).isNotBlank();
                     assertThat(audit.operatorRefHash()).isNotEqualTo("operator-1");
@@ -171,6 +175,17 @@ class EsIndexAliasServiceTest {
         assertThat(service.aliasAudits()).singleElement()
                 .extracting(AliasOperationAudit::result)
                 .isEqualTo("FAILED");
+    }
+
+    @Test
+    void rejectsAliasSwitchWithoutProfileAuditFields() {
+        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
+        AliasSwitchRequest request = request();
+        request.setProfileVersion(null);
+
+        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("profileVersion");
     }
 
     @Test
@@ -282,6 +297,10 @@ class EsIndexAliasServiceTest {
         request.setExpectedPreviousIndex("agent-doc-policy-v1");
         request.setValidationDigest("digest-1");
         request.setOperatorRef("operator-1");
+        request.setDomain("tax_policy");
+        request.setMaterialType("policy");
+        request.setProfileVersion("profile-v1");
+        request.setIndexVersion("idx-v2");
         return request;
     }
 }

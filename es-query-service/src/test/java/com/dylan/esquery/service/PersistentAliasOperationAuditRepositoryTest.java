@@ -33,6 +33,10 @@ class PersistentAliasOperationAuditRepositoryTest {
 
 		verify(statement1).setString(3, "agent-doc-policy-v1");
 		verify(statement2).setString(3, "agent-doc-policy-v0");
+		verify(statement1).setString(5, "tax_policy");
+		verify(statement1).setString(6, "policy");
+		verify(statement1).setString(7, "profile-v1");
+		verify(statement1).setString(8, "idx-v2");
 		verify(statement1).executeUpdate();
 		verify(statement2).executeUpdate();
 	}
@@ -63,6 +67,10 @@ class PersistentAliasOperationAuditRepositoryTest {
 				"SWITCH",
 				fromIndexes,
 				toIndex,
+				"tax_policy",
+				"policy",
+				"profile-v1",
+				"idx-v2",
 				"task-1",
 				"digest-1",
 				"operator-hash",

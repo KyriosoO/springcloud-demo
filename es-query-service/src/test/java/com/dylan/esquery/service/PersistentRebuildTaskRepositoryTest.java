@@ -99,6 +99,20 @@ class PersistentRebuildTaskRepositoryTest {
         }
     }
 
+    @Test
+    void v2MigrationAddsAliasProfileAuditFields() throws Exception {
+        try (var input = getClass().getResourceAsStream("/db/migration/V2__add_document_alias_profile_audit_fields.sql")) {
+            String sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql).contains("alter table document_alias_operation_audit");
+            assertThat(sql).contains("domain");
+            assertThat(sql).contains("material_type");
+            assertThat(sql).contains("profile_version");
+            assertThat(sql).contains("index_version");
+            assertThat(sql).contains("idx_document_alias_operation_profile");
+        }
+    }
+
     private ResultSet taskResultSet(boolean hasRow) throws Exception {
         ResultSet resultSet = mock(ResultSet.class);
         when(resultSet.next()).thenReturn(hasRow, false);

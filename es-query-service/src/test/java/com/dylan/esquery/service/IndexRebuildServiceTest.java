@@ -120,6 +120,7 @@ class IndexRebuildServiceTest {
         var task = repository.findById("task-1");
         assertThat(task.getValidationStatus()).isEqualTo("PASSED");
         assertThat(task.getValidationDigest()).isNotBlank();
+        assertThat(task.getValidationMessage()).isEqualTo("LOCAL_DOCUMENT_INDEX_VALIDATION_V2");
         assertThat(task.getValidatedAt()).isNotNull();
     }
 
