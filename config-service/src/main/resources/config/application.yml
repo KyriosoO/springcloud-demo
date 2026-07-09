@@ -1,9 +1,24 @@
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
   endpoint:
     env:
       keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,AGENT_PAYLOAD_KEY_*,*.secret*,*.password*,*.token*,*.key*
     configprops:
       keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,AGENT_PAYLOAD_KEY_*,*.secret*,*.password*,*.token*,*.key*
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
 
 common:
   security:

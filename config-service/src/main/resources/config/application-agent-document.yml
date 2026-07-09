@@ -1,6 +1,7 @@
 agent:
   document:
     enabled: true
+    default-size: 5
     default-retrieval-mode: HYBRID
     retrieval-mode-by-domain:
       company_policy: HYBRID
@@ -9,7 +10,11 @@ agent:
       literature: HYBRID
     answer-candidate-size: 20
     summarize-candidate-size: 20
+    max-size: 20
     max-evidence-count: 8
+    max-query-text-length: 500
+    max-snippet-chars: 500
+    max-summary-chars: 2000
     evidence-selection:
       strategy: SCORE_GROUP_TOP
       score-groups: 3
@@ -21,6 +26,7 @@ agent:
     acl:
       enabled: true
       scope-url: http://localhost:9220
+      timeout: 2s
       mock:
         enabled: true
     embedding:
@@ -28,6 +34,7 @@ agent:
       base-url: ${ai.provider.embedding.bge.base-url}
       model: ${ai.provider.embedding.bge.model}
       dimension: ${ai.provider.embedding.bge.dimension}
+      timeout: 5s
     generation:
       enabled: true
       base-url: http://localhost:9240
@@ -37,6 +44,11 @@ agent:
       max-output-chars: 2000
       timeout: 60s
       failure-policy: FALLBACK_EXTRACTIVE
+    hybrid:
+      keyword-k: 20
+      vector-k: 20
+      rrf-k: 60
+      num-candidates: 100
   document-adapter:
     index-by-domain:
       company_policy: agent-doc-company-policy

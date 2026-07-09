@@ -8,3 +8,394 @@ common:
           ACTIVE:
             env: AGENT_PAYLOAD_KEY_ACTIVE
             value: "gINjdgXjaccClSOQCmH2d5pM5ruHqML9PY31uHNSLJw="
+
+agent:
+  domain-metadata:
+    catalog-version: catalog-2026-07-02
+    adapter-registration-version: adapter-reg-2026-07-02
+    domains:
+      employee:
+        aliases: [员工, employee]
+        description: Employee records exposed to Agent planning.
+        default-select-fields-by-role:
+          QUERYABLE: [chineseName, memberNo, position]
+          AGGREGATABLE: [chineseName, memberNo, position]
+        fields:
+          chineseName:
+            aliases: [姓名, 中文名, 员工姓名]
+            description: Employee Chinese name.
+            type: STRING
+          memberNo:
+            aliases: [工号, 员工号]
+            description: Employee member number.
+            type: STRING
+          position:
+            aliases: [岗位, 职位]
+            description: Employee position.
+            type: STRING
+          contactAddress:
+            aliases: [联系地址, 地址]
+            description: Employee contact address.
+            type: STRING
+          idCardNo:
+            aliases: [身份证号, 身份证]
+            description: Employee identity card number.
+            type: STRING
+          phoneNo:
+            aliases: [手机号, 电话]
+            description: Employee phone number.
+            type: STRING
+          email:
+            aliases: [邮箱, 电子邮箱]
+            description: Employee email address.
+            type: STRING
+        role-capabilities:
+          QUERYABLE:
+            fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+            sort-fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+            operators-by-field:
+              chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              contactAddress: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              idCardNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              phoneNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              email: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+            max-page-size: 100
+          AGGREGATABLE:
+            fields: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+            operators-by-field:
+              chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              contactAddress: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              idCardNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              phoneNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+              email: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+            functions-by-field: {}
+            max-result-rows: 100
+      transaction:
+        aliases: [交易, 交易记录, 交易流水, transaction]
+        description: Transaction records exposed to Agent planning.
+        default-select-fields-by-role:
+          QUERYABLE: [transId, transType, transDate, amount]
+          AGGREGATABLE: [transId, transType, transDate, amount]
+        fields:
+          transId:
+            aliases: [交易号, 交易ID, 流水号]
+            description: Transaction identifier.
+            type: STRING
+          transType:
+            aliases: [交易类型, 类型]
+            description: Transaction type.
+            type: STRING
+          transDate:
+            aliases: [交易时间, 交易日期, 时间]
+            description: Transaction timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone, second precision only, no fractional seconds
+          amount:
+            aliases: [金额, 交易金额]
+            description: Transaction amount.
+            type: DECIMAL
+            value-format: plain decimal only, precision 50, scale 2, no exponent
+            precision: 50
+            scale: 2
+        role-capabilities:
+          QUERYABLE:
+            fields: [transId, transType, transDate, amount]
+            sort-fields: [transId, transType, transDate, amount]
+            operators-by-field:
+              transId: [EQ]
+              transType: [EQ, CONTAINS]
+              transDate: [GT, LT]
+              amount: [EQ, GT, LT]
+            max-page-size: 100
+          AGGREGATABLE:
+            fields: [transId, transType, transDate, amount]
+            operators-by-field:
+              transId: [EQ]
+              transType: [EQ, CONTAINS]
+              transDate: [GT, LT]
+              amount: [EQ, GT, LT]
+            functions-by-field:
+              amount: [SUM, AVG, MIN, MAX]
+            max-result-rows: 100
+      company_policy:
+        aliases: [公司政策, 政策文档, company_policy]
+        description: Company policy document corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 政策标题]
+            description: Document title.
+            type: STRING
+          sourceType:
+            aliases: [来源类型, 文档类型]
+            description: Policy source type.
+            type: STRING
+          effectiveDate:
+            aliases: [生效日期, 生效时间]
+            description: Policy effective timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          tags:
+            aliases: [标签, 主题]
+            description: Policy tags.
+            type: STRING
+          section:
+            aliases: [章节, 条款]
+            description: Document section.
+            type: STRING
+          page:
+            aliases: [页码, 页面]
+            description: Source page number.
+            type: DECIMAL
+            value-format: plain decimal only, precision 10, scale 0, no exponent
+            precision: 10
+            scale: 0
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+            sort-fields: [effectiveDate, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              sourceType: [EQ, IN]
+              effectiveDate: [GT, LT, EQ]
+              tags: [EQ, IN, CONTAINS_ANY]
+              section: [EQ, CONTAINS]
+              page: [EQ, GT, LT]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
+      tax_policy:
+        aliases: [税务政策, 税收政策, 税务法规, 税法, tax_policy]
+        description: Tax policy and regulation corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 政策标题, 法规标题]
+            description: Tax policy title.
+            type: STRING
+          sourceType:
+            aliases: [来源类型, 文档类型, 效力层级]
+            description: Tax policy source type.
+            type: STRING
+          effectiveDate:
+            aliases: [发布日期, 成文日期, 生效日期]
+            description: Tax policy publication or effective date.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          tags:
+            aliases: [标签, 税种, 主题]
+            description: Tax policy tags.
+            type: STRING
+          section:
+            aliases: [分类, 税收分类, 条款]
+            description: Tax policy section or tax category.
+            type: STRING
+          page:
+            aliases: [页码, 分片序号]
+            description: Source chunk page number.
+            type: DECIMAL
+            value-format: plain decimal only, precision 10, scale 0, no exponent
+            precision: 10
+            scale: 0
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+            sort-fields: [effectiveDate, title]
+            operators-by-field:
+              title: [EQ, CONTAINS, CONTAINS_ANY]
+              sourceType: [EQ, IN]
+              effectiveDate: [GT, LT, EQ]
+              tags: [EQ, IN, CONTAINS_ANY]
+              section: [EQ, CONTAINS]
+              page: [EQ, GT, LT]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
+      knowledge_base:
+        aliases: [知识库, 知识文档, knowledge_base]
+        description: Knowledge base document corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 知识标题]
+            description: Document title.
+            type: STRING
+          sourceType:
+            aliases: [来源类型, 文档类型]
+            description: Knowledge source type.
+            type: STRING
+          category:
+            aliases: [分类, 类目]
+            description: Knowledge category.
+            type: STRING
+          tags:
+            aliases: [标签, 主题]
+            description: Knowledge tags.
+            type: STRING
+          section:
+            aliases: [章节, 小节]
+            description: Document section.
+            type: STRING
+          updatedAt:
+            aliases: [更新时间, 更新日期]
+            description: Knowledge document update timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
+            sort-fields: [updatedAt, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              sourceType: [EQ, IN]
+              category: [EQ, IN, CONTAINS_ANY]
+              tags: [EQ, IN, CONTAINS_ANY]
+              section: [EQ, CONTAINS]
+              updatedAt: [GT, LT, EQ]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
+      literature:
+        aliases: [文献, 文学资料, literature]
+        description: Literature document corpus exposed to Agent planning.
+        default-select-fields-by-role:
+          DOCUMENT_RETRIEVABLE: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
+        fields:
+          title:
+            aliases: [标题, 作品名]
+            description: Literature title.
+            type: STRING
+          author:
+            aliases: [作者, 作家]
+            description: Author name.
+            type: STRING
+          publishedAt:
+            aliases: [发表时间, 出版时间]
+            description: Publication timestamp.
+            type: INSTANT
+            value-format: ISO-8601 datetime with timezone
+          publication:
+            aliases: [刊物, 出版物]
+            description: Publication name.
+            type: STRING
+          section:
+            aliases: [章节, 片段]
+            description: Literature section.
+            type: STRING
+          page:
+            aliases: [页码, 页面]
+            description: Source page number.
+            type: DECIMAL
+            value-format: plain decimal only, precision 10, scale 0, no exponent
+            precision: 10
+            scale: 0
+          sourceUri:
+            aliases: [来源链接, 原文链接]
+            description: Source URI.
+            type: STRING
+          snippet:
+            aliases: [摘要片段, 片段]
+            description: Evidence snippet.
+            type: STRING
+        role-capabilities:
+          DOCUMENT_RETRIEVABLE:
+            fields: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
+            sort-fields: [publishedAt, title]
+            operators-by-field:
+              title: [CONTAINS, CONTAINS_ANY]
+              author: [EQ, CONTAINS, CONTAINS_ANY]
+              publishedAt: [GT, LT, EQ]
+              publication: [EQ, CONTAINS]
+              section: [EQ, CONTAINS]
+              page: [EQ, GT, LT]
+              sourceUri: [EQ, CONTAINS]
+              snippet: [CONTAINS, CONTAINS_ANY]
+            max-page-size: 20
+    registrations:
+      - registration-id: employee-queryable
+        role: QUERYABLE
+        domain: employee
+        port-type: com.dylan.agent.adapter.api.QueryableAdapter
+        port-bean-name: employeeAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: employee-aggregatable
+        role: AGGREGATABLE
+        domain: employee
+        port-type: com.dylan.agent.adapter.api.AggregatableAdapter
+        port-bean-name: employeeAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: transaction-queryable
+        role: QUERYABLE
+        domain: transaction
+        port-type: com.dylan.agent.adapter.api.QueryableAdapter
+        port-bean-name: transactionAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: transaction-aggregatable
+        role: AGGREGATABLE
+        domain: transaction
+        port-type: com.dylan.agent.adapter.api.AggregatableAdapter
+        port-bean-name: transactionAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: company-policy-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: company_policy
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: tax-policy-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: tax_policy
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: knowledge-base-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: knowledge_base
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
+      - registration-id: literature-document
+        role: DOCUMENT_RETRIEVABLE
+        domain: literature
+        port-type: com.dylan.agent.adapter.api.DocumentRetrievableAdapter
+        port-bean-name: documentAgentAdapter
+        catalog-version: catalog-2026-07-02
+        registration-version: adapter-reg-2026-07-02
