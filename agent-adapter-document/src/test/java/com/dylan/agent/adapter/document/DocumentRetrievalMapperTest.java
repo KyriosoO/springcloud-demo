@@ -165,7 +165,8 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getChannels()).extracting(channel -> channel.getChannel())
                 .containsExactly("BM25", "EXACT", "PHRASE", "DENSE_VECTOR");
         assertThat(hybrid.getChannels().get(1).getQueryDsl().toString())
-                .contains("title.keyword", "documentNo", "documentNumber", "issuer", "增值税");
+                .contains("title.keyword", "documentNo", "issuer", "增值税")
+                .doesNotContain("documentNumber", "issuingAuthority");
         assertThat(hybrid.getChannels().get(2).getQueryDsl().toString())
                 .contains("match_phrase", "小规模纳税人增值税优惠");
         assertThat(hybrid.getChannels().get(3).getEmbeddingField()).isEqualTo("embedding_v2");

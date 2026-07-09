@@ -27,7 +27,6 @@ import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.Locale;
 import java.util.Objects;
 
 public class DocumentPlanValidator
@@ -91,14 +90,12 @@ public class DocumentPlanValidator
         }
         boolean citationRequired = operation != DocumentPlanOperation.SEARCH
                 || Boolean.TRUE.equals(document.getCitationRequired());
-        DocumentRetrievalMode retrievalMode = options == null || options.getRetrievalMode() == null
-                ? defaultRetrievalMode(domain)
-                : options.getRetrievalMode();
+        DocumentRetrievalMode retrievalMode = defaultRetrievalMode(domain);
         DocumentRetrievalProfile profile = new DocumentRetrievalProfileResolver(properties).resolve(
                 domain,
                 options == null ? null : options.getMaterialType(),
                 options == null ? null : options.getRetrievalProfile());
-        DocumentHybridOptions hybridOptions = hybridOptions(options, profile);
+        DocumentHybridOptions hybridOptions = hybridOptions(profile);
         DocumentGenerationOptions generationOptions = validateGenerationOptions(document.getGenerationOptions());
         DocumentRetrievalRequest request = new DocumentRetrievalRequest(
                 operation,
@@ -125,63 +122,24 @@ public class DocumentPlanValidator
         return new ValidatedDocumentPlan(context.capabilityId(), domain, request, generationOptions);
     }
 
-    private DocumentHybridOptions hybridOptions(DocumentRetrievalOptions options, DocumentRetrievalProfile profile) {
+    private DocumentHybridOptions hybridOptions(DocumentRetrievalProfile profile) {
         DocumentHybridOptions defaults = profile.hybridOptions();
-        int keywordK = bounded(options == null || options.getKeywordK() == null ? defaults.keywordK() : options.getKeywordK(),
-                1, 10_000);
-        int vectorK = bounded(options == null || options.getVectorK() == null ? defaults.vectorK() : options.getVectorK(),
-                1, 10_000);
-        int rrfK = bounded(options == null || options.getRrfK() == null ? defaults.rrfK() : options.getRrfK(),
-                1, 1000);
-        int numCandidates = bounded(
-                options == null || options.getNumCandidates() == null ? defaults.numCandidates() : options.getNumCandidates(),
-                1,
-                10_000);
-        List<String> channels = options == null || options.getRetrievalChannels() == null || options.getRetrievalChannels().isEmpty()
-                ? defaults.channels()
-                : requestedChannels(defaults.channels(), options.getRetrievalChannels());
-        boolean rerankEnabled = defaults.rerankEnabled()
-                && (options == null || options.getRerankEnabled() == null || options.getRerankEnabled());
         return new DocumentHybridOptions(
-                keywordK,
-                vectorK,
-                rrfK,
-                numCandidates,
+                defaults.keywordK(),
+                defaults.vectorK(),
+                defaults.rrfK(),
+                defaults.numCandidates(),
                 defaults.exactK(),
                 defaults.phraseK(),
                 defaults.maxChunksPerDocument(),
-                channels,
+                defaults.channels(),
                 defaults.channelWeights(),
                 defaults.embeddingField(),
                 defaults.embeddingProvider(),
                 defaults.embeddingModel(),
                 defaults.embeddingDimension(),
-                rerankEnabled,
+                defaults.rerankEnabled(),
                 defaults.rerankTopN());
-    }
-
-    private static List<String> requestedChannels(List<String> allowedChannels, List<String> requestedChannels) {
-        LinkedHashSet<String> allowed = allowedChannels.stream()
-                .filter(Objects::nonNull)
-                .map(DocumentPlanValidator::normalizeChannel)
-                .filter(value -> !value.isBlank())
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        LinkedHashSet<String> requested = requestedChannels.stream()
-                .filter(Objects::nonNull)
-                .map(DocumentPlanValidator::normalizeChannel)
-                .filter(value -> !value.isBlank())
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        if (requested.isEmpty()) {
-            throw new IllegalArgumentException("document retrievalChannels must not be empty");
-        }
-        if (!allowed.containsAll(requested)) {
-            throw new IllegalArgumentException("document retrievalChannels must be allowed by retrievalProfile");
-        }
-        return List.copyOf(requested);
-    }
-
-    private static String normalizeChannel(String channel) {
-        return channel == null ? "" : channel.trim().toUpperCase(Locale.ROOT);
     }
 
     private int defaultCandidateSize(DocumentPlanOperation operation) {

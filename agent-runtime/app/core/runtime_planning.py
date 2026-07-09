@@ -13,6 +13,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from app.contracts.models import (
     ClarificationRequired,
+    DocumentRetrievalOptions,
     ExecutablePlan,
     PlanOutcome,
     PlanRequest,
@@ -92,7 +93,7 @@ class RuntimePlanPlanner:
         try:
             outcome = _parse_plan(raw, request)
             fallback = _document_plan_safety_fallback(outcome, request)
-            return fallback if fallback is not None else outcome
+            return fallback if fallback is not None else _sanitize_document_plan_outcome(outcome, request)
         except (ValueError, ValidationError) as exc:
             return await self._repair_plan(raw, exc, request, request_payload)
 
@@ -121,7 +122,7 @@ class RuntimePlanPlanner:
             outcome = _parse_plan(repaired, request)
             _mark_repaired(outcome, "PLAN", repair_ms)
             fallback = _document_plan_safety_fallback(outcome, request)
-            return fallback if fallback is not None else outcome
+            return fallback if fallback is not None else _sanitize_document_plan_outcome(outcome, request)
         except (ValueError, ValidationError) as exc:
             fallback = _document_plan_fallback(request)
             if fallback is not None:
@@ -262,12 +263,6 @@ def _document_plan_fallback(request: PlanRequest) -> ExecutablePlan | Clarificat
         "operation": operation,
         "queryText": query_text,
         "filters": filters,
-        "retrievalOptions": {
-            "retrievalMode": "HYBRID",
-            "topK": top_k,
-            "page": 1,
-            "size": top_k,
-        },
     }
     if operation in {"ANSWER", "SUMMARIZE"}:
         document["citationRequired"] = True
@@ -314,21 +309,37 @@ def _document_plan_safety_fallback(
     return None
 
 
+def _sanitize_document_plan_outcome(
+        outcome: ExecutablePlan | ClarificationRequired,
+        request: PlanRequest) -> ExecutablePlan | ClarificationRequired:
+    if request.plan_kind.value != "DOCUMENT" or not isinstance(outcome, ExecutablePlan):
+        return outcome
+    document_plan = getattr(outcome.plan, "document", None)
+    if document_plan is None or document_plan.retrieval_options is None:
+        return outcome
+    options = document_plan.retrieval_options
+    if options.top_k is None and options.page is None and options.size is None:
+        document_plan.retrieval_options = None
+        return outcome
+    document_plan.retrieval_options = DocumentRetrievalOptions(
+        top_k=options.top_k,
+        page=options.page,
+        size=options.size,
+    )
+    return outcome
+
+
 def _infer_document_domain(message: str, request: RouteRequest) -> str | None:
-    available = {domain.domain for domain in request.domains}
-    if any(term in message for term in ("文学", "小说", "鲁迅", "故乡", "作品", "作者")):
-        return "literature" if "literature" in available else None
-    if any(term in message for term in ("公司", "休假", "报销", "制度", "员工手册")):
-        return "company_policy" if "company_policy" in available else None
-    if any(term in message for term in (
-            "知识库", "手册", "部署", "运维", "知识文档", "启动顺序",
-            "404", "alias", "health", "故障", "排查", "document 查询")):
-        return "knowledge_base" if "knowledge_base" in available else None
-    if any(term in message for term in ("税", "增值税", "税法", "税率", "征收率", "发票")):
-        return "tax_policy" if "tax_policy" in available else None
-    if any(term in message for term in ("文档", "资料", "政策", "手册", "合同", "规程", "查阅")):
-        return None
-    return None
+    normalized_message = message.casefold()
+    matches: list[str] = []
+    for domain in request.domains:
+        terms = [domain.domain]
+        terms.extend(domain.aliases or [])
+        terms.extend(_domain_description_terms(domain.description))
+        if any(term.casefold() in normalized_message for term in terms if term):
+            matches.append(domain.domain)
+    unique_matches = sorted(set(matches))
+    return unique_matches[0] if len(unique_matches) == 1 else None
 
 
 def _is_document_ambiguous_message(message: str) -> bool:
@@ -371,6 +382,16 @@ def _document_filters(message: str, schema: Any) -> list[dict[str, Any]]:
 
 def _document_query_and_top_k(operation: str, message: str, schema: Any) -> tuple[str, int]:
     return message[:500], _default_document_top_k(operation, schema)
+
+
+def _domain_description_terms(description: str | None) -> list[str]:
+    if not description:
+        return []
+    return [
+        token.strip()
+        for token in re.split(r"[\s,，;；/、|]+", description)
+        if len(token.strip()) >= 2
+    ][:20]
 
 
 def _summary_section_hints(message: str) -> list[str]:

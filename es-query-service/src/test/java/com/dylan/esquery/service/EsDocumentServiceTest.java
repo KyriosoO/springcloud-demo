@@ -124,9 +124,19 @@ class EsDocumentServiceTest {
 	}
 
 	@Test
-	void hybridSearchRejectsMissingVector() {
+	void hybridSearchRejectsMissingChannels() {
 		HybridSearchRequest request = new HybridSearchRequest();
 		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
+
+		assertThatThrownBy(() -> service.validateHybridRequest(request))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("channels");
+	}
+
+	@Test
+	void hybridSearchRejectsMissingVectorForDenseVectorChannel() {
+		HybridSearchRequest request = new HybridSearchRequest();
+		request.setChannels(List.of(channel("DENSE_VECTOR", null, null)));
 
 		assertThatThrownBy(() -> service.validateHybridRequest(request))
 				.isInstanceOf(IllegalArgumentException.class)
@@ -211,6 +221,9 @@ class EsDocumentServiceTest {
 		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
 		request.setQueryVector(List.of(0.1, 0.2));
 		request.setSourceExcludes(List.of("embedding"));
+		request.setChannels(List.of(
+				channel("BM25", Map.of("query", Map.of("match_all", Map.of())), null),
+				channel("DENSE_VECTOR", null, List.of(0.1, 0.2))));
 
 		searchService.hybridSearch("agent-doc-policy", request);
 
@@ -257,7 +270,7 @@ class EsDocumentServiceTest {
 		request.setChannelWeights(Map.of("BM25", 2.0d));
 		request.setChannels(List.of(
 				channel("BM25", Map.of("query", Map.of("match_all", Map.of())), null),
-				channel("EXACT", Map.of("query", Map.of("term", Map.of("documentNumber", "财税〔2026〕1号"))), null),
+				channel("EXACT", Map.of("query", Map.of("term", Map.of("documentNo", "财税〔2026〕1号"))), null),
 				channel("PHRASE", Map.of("query", Map.of("match_phrase", Map.of("content", "增值税优惠"))), null),
 				channel("DENSE_VECTOR", null, List.of(0.1, 0.2))));
 
@@ -280,7 +293,7 @@ class EsDocumentServiceTest {
 				ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
 		verify(restClient, times(4)).performRequest(captor.capture());
 		assertThat(body(captor.getAllValues().get(0))).contains("match_all", "tenantId", "materialType", "retrievalProfile");
-		assertThat(body(captor.getAllValues().get(1))).contains("documentNumber", "tenantId", "materialType", "retrievalProfile");
+		assertThat(body(captor.getAllValues().get(1))).contains("documentNo", "tenantId", "materialType", "retrievalProfile");
 		assertThat(body(captor.getAllValues().get(2))).contains("match_phrase", "tenantId", "materialType", "retrievalProfile");
 		assertThat(body(captor.getAllValues().get(3))).contains("knn", "embedding_v2", "tenantId", "materialType", "retrievalProfile");
 	}
@@ -307,6 +320,9 @@ class EsDocumentServiceTest {
 		request.setFilters(Map.of("bool", Map.of("filter", List.of(Map.of("term", Map.of("tenantId", "tenant-1"))))));
 		request.setQueryVector(List.of(0.1, 0.2));
 		request.setSourceExcludes(List.of("embedding"));
+		request.setChannels(List.of(
+				channel("BM25", Map.of("query", Map.of("match_all", Map.of())), null),
+				channel("DENSE_VECTOR", null, List.of(0.1, 0.2))));
 		HybridContextWindow contextWindow = new HybridContextWindow();
 		contextWindow.setBeforeChunks(1);
 		contextWindow.setAfterChunks(1);
@@ -330,6 +346,7 @@ class EsDocumentServiceTest {
 		HybridSearchRequest request = new HybridSearchRequest();
 		request.setKeywordDsl(Map.of("query", Map.of("match_all", Map.of())));
 		request.setQueryVector(List.of(0.1, 0.2));
+		request.setChannels(List.of(channel("BM25", Map.of("query", Map.of("match_all", Map.of())), null)));
 		HybridContextWindow contextWindow = new HybridContextWindow();
 		contextWindow.setBeforeChunks(-1);
 		request.setContextWindow(contextWindow);

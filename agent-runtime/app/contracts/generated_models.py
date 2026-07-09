@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 7d9191b21721ab4866df43593ac3530f0e6e279af41aa549e3240c4b34057e8a
+# source_sha256: 8847a95fff529ed23f576612556d2954fbb88da011241ba42597cc9daa395dc5
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -247,16 +247,6 @@ class DocumentRetrievalOptions(BaseModel):
     keyword_k: Optional[int] = Field(
         None, alias='keywordK', description='关键词召回候选数', ge=1
     )
-    keyword_weight: Optional[float] = Field(
-        None,
-        alias='keywordWeight',
-        description='关键词召回权重，0 到 1',
-        ge=0.0,
-        le=1.0,
-    )
-    min_score: Optional[float] = Field(
-        None, alias='minScore', description='最小相关度分数'
-    )
     material_type: Optional[str] = Field(
         None, alias='materialType', description='资料类型，例如 policy、notice、faq'
     )
@@ -287,9 +277,6 @@ class DocumentRetrievalOptions(BaseModel):
     top_k: Optional[int] = Field(None, alias='topK', description='证据条数上限', ge=1)
     vector_k: Optional[int] = Field(
         None, alias='vectorK', description='向量召回候选数', ge=1
-    )
-    vector_weight: Optional[float] = Field(
-        None, alias='vectorWeight', description='向量召回权重，0 到 1', ge=0.0, le=1.0
     )
 
 

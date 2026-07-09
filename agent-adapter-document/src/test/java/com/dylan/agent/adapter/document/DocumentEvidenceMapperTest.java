@@ -60,9 +60,9 @@ class DocumentEvidenceMapperTest {
         hit.setCharEnd(32);
         hit.setContent("员工年假需要直属主管审批。");
         hit.setRrfScore(new BigDecimal("0.03"));
-        hit.setRetrievalChannels(List.of("KEYWORD", "VECTOR"));
-        hit.setChannelRanks(Map.of("KEYWORD", 1, "VECTOR", 2));
-        hit.setChannelScores(Map.of("KEYWORD", new BigDecimal("1.2")));
+        hit.setRetrievalChannels(List.of("BM25", "DENSE_VECTOR"));
+        hit.setChannelRanks(Map.of("BM25", 1, "DENSE_VECTOR", 2));
+        hit.setChannelScores(Map.of("BM25", new BigDecimal("1.2")));
         hit.setDedupGroupSize(2);
         hit.setRepresentativeChunk(true);
         hit.setRerankScore(new BigDecimal("0.88"));
@@ -77,8 +77,8 @@ class DocumentEvidenceMapperTest {
         diagnostics.setDedupedCandidateCount(1);
         diagnostics.setRrfK(60);
         diagnostics.setMaxChunksPerDocument(1);
-        diagnostics.setChannelHitCounts(Map.of("KEYWORD", 1, "VECTOR", 1));
-        diagnostics.setChannelWeights(Map.of("KEYWORD", 1.0d));
+        diagnostics.setChannelHitCounts(Map.of("BM25", 1, "DENSE_VECTOR", 1));
+        diagnostics.setChannelWeights(Map.of("BM25", 1.0d));
         diagnostics.setPermissionEvidenceId("perm-evidence");
         diagnostics.setPermissionVersion("perm-v1");
         diagnostics.setFilterDigest("sha256:abc123");
@@ -96,7 +96,7 @@ class DocumentEvidenceMapperTest {
             assertThat(evidence.getCharStart()).isEqualTo(10);
             assertThat(evidence.getCharEnd()).isEqualTo(32);
             assertThat(evidence.getRrfScore()).isEqualByComparingTo("0.03");
-            assertThat(evidence.getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
+            assertThat(evidence.getRetrievalChannels()).containsExactly("BM25", "DENSE_VECTOR");
             assertThat(evidence.getMetadata()).containsEntry("sourceType", "policy");
             assertThat(evidence.getMetadata()).containsEntry("dedupGroupSize", 2);
             assertThat(evidence.getMetadata()).containsEntry("representativeChunk", true);
@@ -107,7 +107,7 @@ class DocumentEvidenceMapperTest {
         assertThat(result.getRetrievalDiagnostics().getFusionStrategy()).isEqualTo("RRF");
         assertThat(result.getRetrievalDiagnostics().getFusedCandidateCount()).isEqualTo(4);
         assertThat(result.getRetrievalDiagnostics().getDedupedCandidateCount()).isEqualTo(1);
-        assertThat(result.getRetrievalDiagnostics().getChannelHitCounts()).containsEntry("KEYWORD", 1);
+        assertThat(result.getRetrievalDiagnostics().getChannelHitCounts()).containsEntry("BM25", 1);
         assertThat(result.getRetrievalDiagnostics().getPermissionEvidenceId()).isEqualTo("perm-evidence");
         assertThat(result.getRetrievalDiagnostics().getPermissionVersion()).isEqualTo("perm-v1");
         assertThat(result.getRetrievalDiagnostics().getFilterDigest()).isEqualTo("sha256:abc123");

@@ -355,11 +355,9 @@ public class AgentPropertiesValidator implements InitializingBean {
             return false;
         }
         String normalized = channel.trim().toUpperCase(java.util.Locale.ROOT);
-        return "KEYWORD".equals(normalized)
-                || "BM25".equals(normalized)
+        return "BM25".equals(normalized)
                 || "EXACT".equals(normalized)
                 || "PHRASE".equals(normalized)
-                || "VECTOR".equals(normalized)
                 || "DENSE_VECTOR".equals(normalized);
     }
 

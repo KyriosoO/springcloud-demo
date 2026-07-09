@@ -1,11 +1,8 @@
 package com.dylan.agent.api.plan;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 
 /** 文档检索选项。 */
@@ -16,7 +13,7 @@ public class DocumentRetrievalOptions {
     @Min(1)
     private Integer topK;
 
-    @Schema(description = "检索模式，默认 KEYWORD", nullable = true)
+    @Schema(description = "检索模式；未显式指定时由 Java 文档配置和 retrievalProfile 决定", nullable = true)
     private DocumentRetrievalMode retrievalMode;
 
     @Schema(description = "资料类型，例如 policy、notice、faq", nullable = true)
@@ -30,19 +27,6 @@ public class DocumentRetrievalOptions {
 
     @Schema(description = "请求级 rerank 启用建议，最终由 Java profile 配置裁剪", nullable = true)
     private Boolean rerankEnabled;
-
-    @Schema(description = "关键词召回权重，0 到 1", nullable = true)
-    @DecimalMin("0.0")
-    @DecimalMax("1.0")
-    private BigDecimal keywordWeight;
-
-    @Schema(description = "向量召回权重，0 到 1", nullable = true)
-    @DecimalMin("0.0")
-    @DecimalMax("1.0")
-    private BigDecimal vectorWeight;
-
-    @Schema(description = "最小相关度分数", nullable = true)
-    private BigDecimal minScore;
 
     @Schema(description = "页码，从 1 开始", nullable = true)
     @Min(1)
@@ -80,12 +64,6 @@ public class DocumentRetrievalOptions {
     public void setRetrievalChannels(List<String> retrievalChannels) { this.retrievalChannels = retrievalChannels; }
     public Boolean getRerankEnabled() { return rerankEnabled; }
     public void setRerankEnabled(Boolean rerankEnabled) { this.rerankEnabled = rerankEnabled; }
-    public BigDecimal getKeywordWeight() { return keywordWeight; }
-    public void setKeywordWeight(BigDecimal keywordWeight) { this.keywordWeight = keywordWeight; }
-    public BigDecimal getVectorWeight() { return vectorWeight; }
-    public void setVectorWeight(BigDecimal vectorWeight) { this.vectorWeight = vectorWeight; }
-    public BigDecimal getMinScore() { return minScore; }
-    public void setMinScore(BigDecimal minScore) { this.minScore = minScore; }
     public Integer getPage() { return page; }
     public void setPage(Integer page) { this.page = page; }
     public Integer getSize() { return size; }

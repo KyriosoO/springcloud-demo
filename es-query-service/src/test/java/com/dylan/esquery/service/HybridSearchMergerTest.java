@@ -33,7 +33,7 @@ class HybridSearchMergerTest {
 
 		assertThat(hits).hasSize(3);
 		assertThat(hits.get(0).getChunkId()).isEqualTo("chunk-2");
-		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
+		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("BM25", "DENSE_VECTOR");
 		assertThat(hits.get(0).getKeywordRank()).isEqualTo(2);
 		assertThat(hits.get(0).getVectorRank()).isEqualTo(1);
 		assertThat(hits.get(0).getIndexAlias()).isEqualTo("agent-doc-tax-policy-read");
@@ -69,7 +69,7 @@ class HybridSearchMergerTest {
 				{
 				  "_id": "chunk-1",
 				  "_score": 1.0,
-				  "matched_queries": ["EXACT:documentNumber"],
+				  "matched_queries": ["EXACT:documentNo"],
 				  "_source": {
 				    "documentId": "doc-1",
 				    "chunkId": "chunk-1",
@@ -82,7 +82,7 @@ class HybridSearchMergerTest {
 		var hits = merger.merge(Map.of("EXACT", List.of(exactHit)), request);
 
 		assertThat(hits).singleElement()
-				.satisfies(hit -> assertThat(hit.getHitFields()).containsExactly("EXACT:documentNumber"));
+				.satisfies(hit -> assertThat(hit.getHitFields()).containsExactly("EXACT:documentNo"));
 	}
 
 	@Test
@@ -153,7 +153,7 @@ class HybridSearchMergerTest {
 		assertThat(hits).hasSize(1);
 		assertThat(hits.get(0).getDocumentId()).isEqualTo("doc-1");
 		assertThat(hits.get(0).getChunkId()).isEqualTo("doc-1");
-		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("KEYWORD", "VECTOR");
+		assertThat(hits.get(0).getRetrievalChannels()).containsExactly("BM25", "DENSE_VECTOR");
 	}
 
 	@Test

@@ -94,7 +94,6 @@ public final class DocumentHybridOptions {
     public int rerankTopN() { return rerankTopN; }
 
     public boolean requiresDenseVector() {
-        return channels.stream().anyMatch(channel ->
-                "DENSE_VECTOR".equalsIgnoreCase(channel) || "VECTOR".equalsIgnoreCase(channel));
+        return channels.stream().anyMatch(channel -> "DENSE_VECTOR".equalsIgnoreCase(channel));
     }
 }

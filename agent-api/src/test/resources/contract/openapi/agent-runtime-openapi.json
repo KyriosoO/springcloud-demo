@@ -460,24 +460,10 @@
             "nullable" : true,
             "type" : "integer"
           },
-          "keywordWeight" : {
-            "description" : "关键词召回权重，0 到 1",
-            "exclusiveMaximum" : false,
-            "exclusiveMinimum" : false,
-            "maximum" : 1.0,
-            "minimum" : 0.0,
-            "nullable" : true,
-            "type" : "number"
-          },
           "materialType" : {
             "description" : "资料类型，例如 policy、notice、faq",
             "nullable" : true,
             "type" : "string"
-          },
-          "minScore" : {
-            "description" : "最小相关度分数",
-            "nullable" : true,
-            "type" : "number"
           },
           "numCandidates" : {
             "description" : "向量召回候选池大小",
@@ -546,15 +532,6 @@
             "minimum" : 1,
             "nullable" : true,
             "type" : "integer"
-          },
-          "vectorWeight" : {
-            "description" : "向量召回权重，0 到 1",
-            "exclusiveMaximum" : false,
-            "exclusiveMinimum" : false,
-            "maximum" : 1.0,
-            "minimum" : 0.0,
-            "nullable" : true,
-            "type" : "number"
           }
         },
         "type" : "object"

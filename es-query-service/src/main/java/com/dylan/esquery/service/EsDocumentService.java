@@ -190,9 +190,8 @@ public class EsDocumentService {
 	 */
 	public HybridSearchResponse hybridSearch(String index, HybridSearchRequest request) throws IOException {
 		validateHybridRequest(index, request);
-		List<HybridSearchChannelRequest> channels = effectiveChannels(request);
 		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
-		for (HybridSearchChannelRequest channel : channels) {
+		for (HybridSearchChannelRequest channel : request.getChannels()) {
 			String channelName = normalizedChannel(channel.getChannel());
 			Request esRequest = new Request("POST", "/" + index + "/_search");
 			Map<String, Object> body = channelSearchBody(index, request, channel);
@@ -227,32 +226,12 @@ public class EsDocumentService {
 		return response;
 	}
 
-	private List<HybridSearchChannelRequest> effectiveChannels(HybridSearchRequest request) {
-		if (request.getChannels() != null && !request.getChannels().isEmpty()) {
-			return request.getChannels();
-		}
-		List<HybridSearchChannelRequest> channels = new ArrayList<>();
-		HybridSearchChannelRequest keyword = new HybridSearchChannelRequest();
-		keyword.setChannel("KEYWORD");
-		keyword.setQueryDsl(request.getKeywordDsl());
-		keyword.setK(request.getKeywordK());
-		channels.add(keyword);
-		HybridSearchChannelRequest vector = new HybridSearchChannelRequest();
-		vector.setChannel("VECTOR");
-		vector.setQueryVector(request.getQueryVector());
-		vector.setEmbeddingField(request.getEmbeddingField());
-		vector.setK(request.getVectorK());
-		vector.setNumCandidates(request.getNumCandidates());
-		channels.add(vector);
-		return channels;
-	}
-
 	private Map<String, Object> channelSearchBody(
 			String index,
 			HybridSearchRequest request,
 			HybridSearchChannelRequest channel) {
 		String channelName = normalizedChannel(channel.getChannel());
-		if ("DENSE_VECTOR".equals(channelName) || "VECTOR".equals(channelName)) {
+		if ("DENSE_VECTOR".equals(channelName)) {
 			VectorSearchRequest vectorRequest = new VectorSearchRequest();
 			vectorRequest.setEmbeddingField(channel.getEmbeddingField() == null ? request.getEmbeddingField() : channel.getEmbeddingField());
 			vectorRequest.setQueryVector(channel.getQueryVector() == null ? request.getQueryVector() : channel.getQueryVector());
@@ -336,10 +315,7 @@ public class EsDocumentService {
 			throw new IllegalArgumentException("document hybrid search requires ACL filters");
 		}
 		if (request.getChannels() == null || request.getChannels().isEmpty()) {
-			if (request.getQueryVector() == null || request.getQueryVector().isEmpty()) {
-				throw new IllegalArgumentException("queryVector must not be empty");
-			}
-			keywordSearchBody(request);
+			throw new IllegalArgumentException("channels must not be empty");
 		} else {
 			validateChannels(index, request);
 		}
@@ -358,7 +334,7 @@ public class EsDocumentService {
 			if (!supportedChannel(channelName)) {
 				throw new IllegalArgumentException("unsupported hybrid search channel: " + channel.getChannel());
 			}
-			if ("DENSE_VECTOR".equals(channelName) || "VECTOR".equals(channelName)) {
+			if ("DENSE_VECTOR".equals(channelName)) {
 				List<Double> vector = channel.getQueryVector() == null ? request.getQueryVector() : channel.getQueryVector();
 				if (vector == null || vector.isEmpty()) {
 					throw new IllegalArgumentException(channelName + " queryVector must not be empty");
@@ -370,11 +346,9 @@ public class EsDocumentService {
 	}
 
 	private static boolean supportedChannel(String channelName) {
-		return "KEYWORD".equals(channelName)
-				|| "BM25".equals(channelName)
+		return "BM25".equals(channelName)
 				|| "EXACT".equals(channelName)
 				|| "PHRASE".equals(channelName)
-				|| "VECTOR".equals(channelName)
 				|| "DENSE_VECTOR".equals(channelName);
 	}
 
@@ -388,8 +362,7 @@ public class EsDocumentService {
 
 	private static int keywordCount(Map<String, Integer> counts) {
 		return counts.entrySet().stream()
-				.filter(entry -> "KEYWORD".equals(entry.getKey())
-						|| "BM25".equals(entry.getKey())
+				.filter(entry -> "BM25".equals(entry.getKey())
 						|| "EXACT".equals(entry.getKey())
 						|| "PHRASE".equals(entry.getKey()))
 				.mapToInt(Map.Entry::getValue)
@@ -398,7 +371,7 @@ public class EsDocumentService {
 
 	private static int vectorCount(Map<String, Integer> counts) {
 		return counts.entrySet().stream()
-				.filter(entry -> "VECTOR".equals(entry.getKey()) || "DENSE_VECTOR".equals(entry.getKey()))
+				.filter(entry -> "DENSE_VECTOR".equals(entry.getKey()))
 				.mapToInt(Map.Entry::getValue)
 				.sum();
 	}

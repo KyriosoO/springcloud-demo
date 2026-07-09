@@ -119,6 +119,26 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
+    void ignoresRuntimeRequestedRetrievalMode() {
+        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
+        addDefaultProfile(properties);
+        properties.getDocument().setDefaultRetrievalMode(DocumentRetrievalMode.HYBRID);
+        var validator = new DocumentPlanValidator(
+                properties,
+                new FilterNormalizer(properties),
+                new FieldConstraintValidator(),
+                documentCatalogView());
+        DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
+        DocumentRetrievalOptions options = new DocumentRetrievalOptions();
+        options.setRetrievalMode(DocumentRetrievalMode.VECTOR);
+        plan.getDocument().setRetrievalOptions(options);
+
+        var validated = validator.validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
+    }
+
+    @Test
     void omitsContextWindowForSearchPlans() {
         var validated = validator().validate(plan(DocumentPlanOperation.SEARCH, null),
                 context(DocumentCapabilityIds.SEARCH));
@@ -237,20 +257,21 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
-    void rejectsHybridOptionsOutOfBounds() {
+    void ignoresRuntimeHybridCandidateOverrides() {
         DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
         DocumentRetrievalOptions options = new DocumentRetrievalOptions();
         options.setRetrievalMode(DocumentRetrievalMode.HYBRID);
         options.setKeywordK(10_001);
         plan.getDocument().setRetrievalOptions(options);
 
-        assertThatThrownBy(() -> validator().validate(plan, context(DocumentCapabilityIds.ANSWER)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("bounds");
+        var validated = validator().validate(plan, context(DocumentCapabilityIds.ANSWER));
+
+        assertThat(validated.request().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
+        assertThat(validated.request().getHybridOptions().keywordK()).isEqualTo(20);
     }
 
     @Test
-    void acceptsHybridCandidatePoolLargerThanFinalPageSize() {
+    void usesProfileHybridCandidatePoolInsteadOfRuntimeOverrides() {
         DocumentAgentPlan plan = plan(DocumentPlanOperation.ANSWER, true);
         DocumentRetrievalOptions options = new DocumentRetrievalOptions();
         options.setRetrievalMode(DocumentRetrievalMode.HYBRID);
@@ -261,8 +282,8 @@ class DocumentPlanValidatorTest {
         var validated = validator().validate(plan, context(DocumentCapabilityIds.ANSWER));
 
         assertThat(validated.request().getTopK()).isLessThan(100);
-        assertThat(validated.request().getHybridOptions().keywordK()).isEqualTo(100);
-        assertThat(validated.request().getHybridOptions().vectorK()).isEqualTo(100);
+        assertThat(validated.request().getHybridOptions().keywordK()).isEqualTo(20);
+        assertThat(validated.request().getHybridOptions().vectorK()).isEqualTo(20);
     }
 
     @Test
@@ -321,7 +342,7 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
-    void rejectsRetrievalChannelsOutsideResolvedProfile() {
+    void ignoresRuntimeRetrievalChannelsOutsideResolvedProfile() {
         var properties = DomainMetadataTestSupport.agentProperties();
         AgentProperties.RetrievalProfileProperties profile = retrievalProfile(
                 "policy_document", "tax_policy", "tax-v2", "agent-doc-tax-policy-read");
@@ -338,9 +359,9 @@ class DocumentPlanValidatorTest {
         options.setRetrievalChannels(List.of("BM25", "DENSE_VECTOR"));
         plan.getDocument().setRetrievalOptions(options);
 
-        assertThatThrownBy(() -> validator.validate(plan, context(DocumentCapabilityIds.SEARCH)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("retrievalChannels");
+        var validated = validator.validate(plan, context(DocumentCapabilityIds.SEARCH));
+
+        assertThat(validated.request().getHybridOptions().channels()).containsExactly("BM25", "EXACT");
     }
 
     @Test
@@ -356,7 +377,7 @@ class DocumentPlanValidatorTest {
     }
 
     @Test
-    void requestLevelRerankCanOnlyDisableProfileRerank() {
+    void requestLevelRerankCannotDisableProfileRerank() {
         var properties = DomainMetadataTestSupport.agentProperties();
         AgentProperties.RetrievalProfileProperties profile = retrievalProfile(
                 "policy_document", "tax_policy", "tax-v2", "agent-doc-tax-policy-read");
@@ -375,7 +396,7 @@ class DocumentPlanValidatorTest {
 
         var validated = validator.validate(plan, context(DocumentCapabilityIds.ANSWER));
 
-        assertThat(validated.request().getHybridOptions().rerankEnabled()).isFalse();
+        assertThat(validated.request().getHybridOptions().rerankEnabled()).isTrue();
     }
 
     @Test

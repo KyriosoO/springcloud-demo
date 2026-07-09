@@ -103,6 +103,59 @@ class DocumentRetrievalProfileResolverTest {
                 .hasMessageContaining("retrievalProfile");
     }
 
+    @Test
+    void rejectsAmbiguousDomainProfilesWhenMaterialTypeIsMissing() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getRetrievalProfiles().put("policy-default", profile(
+                "policy_document",
+                List.of("policy"),
+                "policy-default",
+                "agent-doc-policy-read"));
+        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile(
+                "policy_document",
+                List.of("tax_policy"),
+                "tax-v2",
+                "agent-doc-tax-policy-read"));
+
+        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
+                .resolve("policy_document", null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("materialType or retrievalProfile");
+    }
+
+    @Test
+    void resolvesSingleDomainProfileWhenMaterialTypeIsMissing() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        properties.getDocument().getRetrievalProfiles().put("policy-default", profile(
+                "policy_document",
+                List.of("policy"),
+                "policy-default",
+                "agent-doc-policy-read"));
+
+        DocumentRetrievalProfile resolved = new DocumentRetrievalProfileResolver(properties)
+                .resolve("policy_document", null, null);
+
+        assertThat(resolved.materialType()).isEqualTo("policy");
+        assertThat(resolved.retrievalProfile()).isEqualTo("policy-default");
+    }
+
+    @Test
+    void rejectsProfileWithoutExplicitChannels() {
+        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
+        AgentProperties.RetrievalProfileProperties profile = profile(
+                "policy_document",
+                List.of("policy"),
+                "policy-default",
+                "agent-doc-policy-read");
+        profile.setChannels(List.of());
+        properties.getDocument().getRetrievalProfiles().put("policy-default", profile);
+
+        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
+                .resolve("policy_document", "policy", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("channels");
+    }
+
     private AgentProperties.RetrievalProfileProperties profile(
             String domain,
             List<String> materialTypes,

@@ -125,7 +125,7 @@ public class DocumentRetrievalMapper {
             item.setChannel(normalized);
             item.setWeight(options.channelWeights().get(normalized));
             switch (normalized) {
-                case "BM25", "KEYWORD" -> {
+                case "BM25" -> {
                     item.setQueryDsl(toKeywordDslMap(request));
                     item.setK(options.keywordK());
                 }
@@ -137,7 +137,7 @@ public class DocumentRetrievalMapper {
                     item.setQueryDsl(phraseDsl(request));
                     item.setK(options.phraseK());
                 }
-                case "DENSE_VECTOR", "VECTOR" -> {
+                case "DENSE_VECTOR" -> {
                     item.setQueryVector(request.getQueryVector());
                     item.setEmbeddingField(options.embeddingField());
                     item.setK(options.vectorK());
@@ -156,16 +156,13 @@ public class DocumentRetrievalMapper {
         if (queryText != null && !queryText.isBlank()) {
             should.add(namedTerm("title.keyword", queryText, "EXACT:title.keyword"));
             should.add(namedTerm("documentNo", queryText, "EXACT:documentNo"));
-            should.add(namedTerm("documentNumber", queryText, "EXACT:documentNumber"));
             should.add(namedTerm("issuer", queryText, "EXACT:issuer"));
-            should.add(namedTerm("issuingAuthority.keyword", queryText, "EXACT:issuingAuthority.keyword"));
             should.add(namedTerm("section.keyword", queryText, "EXACT:section.keyword"));
         }
         for (String keyword : request.getRuleKeywords()) {
             if (keyword != null && !keyword.isBlank()) {
                 should.add(namedTerm("title.keyword", keyword, "EXACT:title.keyword"));
                 should.add(namedTerm("documentNo", keyword, "EXACT:documentNo"));
-                should.add(namedTerm("documentNumber", keyword, "EXACT:documentNumber"));
             }
         }
         return channelDsl(should);

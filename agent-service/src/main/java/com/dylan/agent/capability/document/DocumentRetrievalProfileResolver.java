@@ -54,10 +54,10 @@ public class DocumentRetrievalProfileResolver {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "document retrievalProfile is not configured for materialType"));
         } else {
-            profile = domainProfiles.stream()
-                    .filter(candidate -> materialTypes(candidate).isEmpty())
-                    .findFirst()
-                    .orElseGet(() -> domainProfiles.getFirst());
+            if (domainProfiles.size() != 1) {
+                throw new IllegalArgumentException("document materialType or retrievalProfile is required");
+            }
+            profile = domainProfiles.getFirst();
         }
 
         String resolvedMaterialType = normalizedMaterialType != null
@@ -108,20 +108,27 @@ public class DocumentRetrievalProfileResolver {
 
     private static String defaultMaterialType(AgentProperties.RetrievalProfileProperties profile) {
         List<String> materialTypes = materialTypes(profile);
-        return materialTypes.isEmpty() ? null : materialTypes.getFirst();
+        if (materialTypes.isEmpty()) {
+            throw new IllegalArgumentException("document retrievalProfile materialTypes must not be empty");
+        }
+        return materialTypes.getFirst();
     }
 
     private static List<String> normalizedChannels(List<String> channels) {
         if (channels == null || channels.isEmpty()) {
-            return List.of("BM25", "EXACT", "PHRASE", "DENSE_VECTOR");
+            throw new IllegalArgumentException("document retrievalProfile channels must not be empty");
         }
-        return channels.stream()
+        List<String> normalized = channels.stream()
                 .filter(Objects::nonNull)
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .map(value -> value.toUpperCase(Locale.ROOT))
                 .distinct()
                 .toList();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("document retrievalProfile channels must not be empty");
+        }
+        return normalized;
     }
 
     private static Map<String, Double> normalizedChannelWeights(Map<String, Double> channelWeights) {

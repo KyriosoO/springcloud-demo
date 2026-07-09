@@ -36,8 +36,8 @@ public class HybridSearchMerger {
 			List<JsonNode> vectorHits,
 			HybridSearchRequest request) {
 		Map<String, List<JsonNode>> hitsByChannel = new LinkedHashMap<>();
-		hitsByChannel.put("KEYWORD", keywordHits);
-		hitsByChannel.put("VECTOR", vectorHits);
+		hitsByChannel.put("BM25", keywordHits);
+		hitsByChannel.put("DENSE_VECTOR", vectorHits);
 		return merge(hitsByChannel, request);
 	}
 
@@ -271,10 +271,10 @@ public class HybridSearchMerger {
 						.filter(value -> value != null && !value.isBlank())
 						.forEach(hitFields::add);
 			}
-			if ("KEYWORD".equals(channel) || "BM25".equals(channel) || "EXACT".equals(channel) || "PHRASE".equals(channel)) {
+			if ("BM25".equals(channel) || "EXACT".equals(channel) || "PHRASE".equals(channel)) {
 				hit.setKeywordRank(rank);
 			}
-			if ("VECTOR".equals(channel) || "DENSE_VECTOR".equals(channel)) {
+			if ("DENSE_VECTOR".equals(channel)) {
 				hit.setVectorRank(rank);
 			}
 		}
