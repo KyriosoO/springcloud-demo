@@ -9,5 +9,5 @@ ai:
     generation:
       deepseek:
         base-url: https://api.deepseek.com
-        api-key: ${DEEPSEEK_API_KEY:}
+        api-key: sk-16a90624002d41efbb795b1c9700c169
         model: deepseek-v4-flash

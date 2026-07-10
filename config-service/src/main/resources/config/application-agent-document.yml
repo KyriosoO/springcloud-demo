@@ -1,5 +1,12 @@
 agent:
   document:
+    rewrite:
+      enabled: true
+      path: /runtime/v1/document/rewrite
+      language: zh-CN
+      max-candidates: 3
+      max-candidate-length: 128
+      timeout: 2s	
     enabled: true
     default-size: 5
     default-retrieval-mode: HYBRID
@@ -21,8 +28,8 @@ agent:
       min-top-group-size: 1
     context-window:
       enabled: true
-      before-chunks: 1
-      after-chunks: 1
+      before-chunks: 5
+      after-chunks: 5
     acl:
       enabled: true
       scope-url: http://localhost:9220
