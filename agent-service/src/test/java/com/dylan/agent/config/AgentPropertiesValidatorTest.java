@@ -4,7 +4,11 @@ import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -24,6 +28,33 @@ class AgentPropertiesValidatorTest {
         var validator = new AgentPropertiesValidator(properties);
 
         assertThatCode(validator::afterPropertiesSet).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("document 新分层配置可绑定到兼容访问器")
+    void shouldBindDocumentHierarchicalConfig() {
+        MapConfigurationPropertySource source = new MapConfigurationPropertySource();
+        source.put("agent.document.enabled", "true");
+        source.put("agent.document.retrieval.default-size", "5");
+        source.put("agent.document.retrieval.answer-candidate-size", "30");
+        source.put("agent.document.retrieval.summarize-candidate-size", "30");
+        source.put("agent.document.retrieval.max-size", "30");
+        source.put("agent.document.retrieval.default-mode", "HYBRID");
+        source.put("agent.document.retrieval.hybrid.keyword-k", "60");
+        source.put("agent.document.retrieval.hybrid.vector-k", "60");
+        source.put("agent.document.retrieval.hybrid.num-candidates", "300");
+        source.put("agent.document.evidence-selection.max-evidence-count", "12");
+        source.put("agent.document.text-limits.max-query-text-length", "500");
+
+        AgentProperties bound = new Binder(source)
+                .bind("agent", Bindable.of(AgentProperties.class))
+                .orElseThrow(IllegalStateException::new);
+
+        assertThat(bound.getDocument().getMaxSize()).isEqualTo(30);
+        assertThat(bound.getDocument().getRetrieval().getAnswerCandidateSize()).isEqualTo(30);
+        assertThat(bound.getDocument().getHybrid().getNumCandidates()).isEqualTo(300);
+        assertThat(bound.getDocument().getMaxEvidenceCount()).isEqualTo(12);
+        assertThat(bound.getDocument().getMaxQueryTextLength()).isEqualTo(500);
     }
 
     @Test

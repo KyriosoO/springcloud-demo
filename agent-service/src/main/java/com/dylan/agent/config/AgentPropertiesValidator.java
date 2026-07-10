@@ -122,23 +122,26 @@ public class AgentPropertiesValidator implements InitializingBean {
 
     private void validateDocumentConfig() {
         var d = properties.getDocument();
-        if (d.getDefaultSize() <= 0) {
-            throw new IllegalStateException("agent.document.default-size 必须为正数。");
+        var retrieval = d.getRetrieval();
+        if (retrieval.getDefaultSize() <= 0) {
+            throw new IllegalStateException("agent.document.retrieval.default-size 必须为正数。");
         }
-        if (d.getMaxSize() <= 0) {
-            throw new IllegalStateException("agent.document.max-size 必须为正数。");
+        if (retrieval.getMaxSize() <= 0) {
+            throw new IllegalStateException("agent.document.retrieval.max-size 必须为正数。");
         }
-        if (d.getDefaultSize() > d.getMaxSize()) {
-            throw new IllegalStateException("agent.document.default-size 不能超过 max-size。");
+        if (retrieval.getDefaultSize() > retrieval.getMaxSize()) {
+            throw new IllegalStateException("agent.document.retrieval.default-size 不能超过 max-size。");
         }
-        if (d.getAnswerCandidateSize() <= 0 || d.getAnswerCandidateSize() > d.getMaxSize()) {
-            throw new IllegalStateException("agent.document.answer-candidate-size 必须为正数且不能超过 max-size。");
+        if (retrieval.getAnswerCandidateSize() <= 0
+                || retrieval.getAnswerCandidateSize() > retrieval.getMaxSize()) {
+            throw new IllegalStateException("agent.document.retrieval.answer-candidate-size 必须为正数且不能超过 max-size。");
         }
-        if (d.getSummarizeCandidateSize() <= 0 || d.getSummarizeCandidateSize() > d.getMaxSize()) {
-            throw new IllegalStateException("agent.document.summarize-candidate-size 必须为正数且不能超过 max-size。");
+        if (retrieval.getSummarizeCandidateSize() <= 0
+                || retrieval.getSummarizeCandidateSize() > retrieval.getMaxSize()) {
+            throw new IllegalStateException("agent.document.retrieval.summarize-candidate-size 必须为正数且不能超过 max-size。");
         }
-        if (d.getMaxEvidenceCount() <= 0 || d.getMaxEvidenceCount() > d.getMaxSize()) {
-            throw new IllegalStateException("agent.document.max-evidence-count 必须为正数且不能超过 max-size。");
+        if (d.getMaxEvidenceCount() <= 0 || d.getMaxEvidenceCount() > maxAnswerOrSummaryCandidateSize(d)) {
+            throw new IllegalStateException("agent.document.evidence-selection.max-evidence-count 必须为正数且不能超过回答/总结候选数。");
         }
         if (d.getEvidenceSelection().getScoreGroups() <= 0
                 || d.getEvidenceSelection().getMinTopGroupSize() <= 0) {
@@ -148,7 +151,7 @@ public class AgentPropertiesValidator implements InitializingBean {
             throw new IllegalStateException("agent.document.context-window before/after chunks 不能为负数。");
         }
         if (d.getMaxQueryTextLength() <= 0 || d.getMaxSnippetChars() <= 0 || d.getMaxSummaryChars() <= 0) {
-            throw new IllegalStateException("agent.document 文本长度配置必须为正数。");
+            throw new IllegalStateException("agent.document.text-limits 文本长度配置必须为正数。");
         }
         validateDocumentRewriteConfig(d);
         validateDocumentEmbeddingConfig(d);
@@ -225,9 +228,16 @@ public class AgentPropertiesValidator implements InitializingBean {
     }
 
     private void validateDocumentHybridConfig(AgentProperties.DocumentProperties d) {
-        var h = d.getHybrid();
+        var h = d.getRetrieval().getHybrid();
         if (h.getKeywordK() <= 0 || h.getVectorK() <= 0 || h.getRrfK() <= 0 || h.getNumCandidates() <= 0) {
-            throw new IllegalStateException("agent.document.hybrid 参数必须为正数。");
+            throw new IllegalStateException("agent.document.retrieval.hybrid 参数必须为正数。");
+        }
+        int maxCandidateSize = maxAnswerOrSummaryCandidateSize(d);
+        if (h.getKeywordK() < maxCandidateSize || h.getVectorK() < maxCandidateSize) {
+            throw new IllegalStateException("agent.document.retrieval.hybrid keyword-k/vector-k 不能小于回答/总结候选数。");
+        }
+        if (h.getNumCandidates() < Math.max(h.getKeywordK(), h.getVectorK())) {
+            throw new IllegalStateException("agent.document.retrieval.hybrid.num-candidates 不能小于 keyword-k/vector-k。");
         }
     }
 
@@ -264,7 +274,7 @@ public class AgentPropertiesValidator implements InitializingBean {
         boolean hasEnabledProfile = d.getRetrievalProfiles().values().stream()
                 .anyMatch(profile -> profile != null && profile.isEnabled());
         if (d.isEnabled() && !hasEnabledProfile) {
-            throw new IllegalStateException("agent.document.retrieval-profiles 至少需要一个启用的 profile。");
+            throw new IllegalStateException("agent.document.retrieval.profiles 至少需要一个启用的 profile。");
         }
         Map<String, String> profileByDomainMaterialType = new LinkedHashMap<>();
         Map<String, String> profileByDomainName = new LinkedHashMap<>();
@@ -273,7 +283,7 @@ public class AgentPropertiesValidator implements InitializingBean {
             if (profile == null || !profile.isEnabled()) {
                 continue;
             }
-            String prefix = "agent.document.retrieval-profiles." + entry.getKey();
+            String prefix = "agent.document.retrieval.profiles." + entry.getKey();
             if (profile.getDomain() == null || profile.getDomain().isBlank()) {
                 throw new IllegalStateException(prefix + ".domain 必须配置。");
             }
@@ -349,8 +359,17 @@ public class AgentPropertiesValidator implements InitializingBean {
                 throw new IllegalStateException(prefix + ".rerank.top-n 必须为正数。");
             }
             if (profile.getRerank().isEnabled() && profile.getRerank().getTopN() > d.getMaxSize()) {
-                throw new IllegalStateException(prefix + ".rerank.top-n 不能超过 max-size。");
+                throw new IllegalStateException(prefix + ".rerank.top-n 不能超过 retrieval.max-size。");
             }
+            if (profile.getRerank().isEnabled()
+                    && profile.getRerank().getTopN() > maxAnswerOrSummaryCandidateSize(d)) {
+                throw new IllegalStateException(prefix + ".rerank.top-n 不能超过回答/总结候选数。");
+            }
+            if (profile.getRerank().isEnabled()
+                    && d.getMaxEvidenceCount() > profile.getRerank().getTopN()) {
+                throw new IllegalStateException(prefix + ".rerank.top-n 不能小于 evidence-selection.max-evidence-count。");
+            }
+            validateDocumentDomainBudget(prefix, profile, d);
         }
     }
 
@@ -363,6 +382,27 @@ public class AgentPropertiesValidator implements InitializingBean {
         } catch (RuntimeException ex) {
             throw new IllegalStateException(prefix + ".domain 必须存在且支持 DOCUMENT_RETRIEVABLE。", ex);
         }
+    }
+
+    private void validateDocumentDomainBudget(
+            String prefix,
+            AgentProperties.RetrievalProfileProperties profile,
+            AgentProperties.DocumentProperties d) {
+        if (domainCatalogView == null) {
+            return;
+        }
+        int domainMaxPageSize = domainCatalogView
+                .requireDomain(profile.getDomain().trim(), AdapterRole.DOCUMENT_RETRIEVABLE)
+                .capability()
+                .maxPageSize();
+        if (domainMaxPageSize < d.getMaxSize()) {
+            throw new IllegalStateException(prefix
+                    + ".domain 的 DOCUMENT_RETRIEVABLE.max-page-size 不能小于 agent.document.retrieval.max-size。");
+        }
+    }
+
+    private static int maxAnswerOrSummaryCandidateSize(AgentProperties.DocumentProperties d) {
+        return Math.max(d.getAnswerCandidateSize(), d.getSummarizeCandidateSize());
     }
 
     private static LinkedHashSet<String> normalizedMaterialTypes(AgentProperties.RetrievalProfileProperties profile) {

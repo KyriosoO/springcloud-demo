@@ -190,56 +190,62 @@ public class AgentProperties {
     /** 文档型检索与总结能力配置，默认不启用生产路由。 */
     public static class DocumentProperties {
         private boolean enabled = false;
-        private int defaultSize = 5;
-        private int answerCandidateSize = 20;
-        private int summarizeCandidateSize = 20;
-        private int maxSize = 20;
-        private int maxEvidenceCount = 8;
-        private int maxQueryTextLength = 500;
-        private int maxSnippetChars = 500;
-        private int maxSummaryChars = 2000;
-        private DocumentRetrievalMode defaultRetrievalMode = DocumentRetrievalMode.HYBRID;
-        private Map<String, DocumentRetrievalMode> retrievalModeByDomain = new LinkedHashMap<>();
-        private Map<String, RetrievalProfileProperties> retrievalProfiles = new LinkedHashMap<>();
+        private RetrievalProperties retrieval = new RetrievalProperties();
+        private TextLimitsProperties textLimits = new TextLimitsProperties();
         private EvidenceSelectionProperties evidenceSelection = new EvidenceSelectionProperties();
         private ContextWindowProperties contextWindow = new ContextWindowProperties();
         private RewriteProperties rewrite = new RewriteProperties();
         private EmbeddingProperties embedding = new EmbeddingProperties();
         private GenerationProperties generation = new GenerationProperties();
         private RerankProviderProperties rerank = new RerankProviderProperties();
-        private HybridProperties hybrid = new HybridProperties();
         private AclProperties acl = new AclProperties();
         private BlocklistProperties blocklist = new BlocklistProperties();
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public int getDefaultSize() { return defaultSize; }
-        public void setDefaultSize(int defaultSize) { this.defaultSize = defaultSize; }
-        public int getAnswerCandidateSize() { return answerCandidateSize; }
-        public void setAnswerCandidateSize(int answerCandidateSize) { this.answerCandidateSize = answerCandidateSize; }
-        public int getSummarizeCandidateSize() { return summarizeCandidateSize; }
-        public void setSummarizeCandidateSize(int summarizeCandidateSize) { this.summarizeCandidateSize = summarizeCandidateSize; }
-        public int getMaxSize() { return maxSize; }
-        public void setMaxSize(int maxSize) { this.maxSize = maxSize; }
-        public int getMaxEvidenceCount() { return maxEvidenceCount; }
-        public void setMaxEvidenceCount(int maxEvidenceCount) { this.maxEvidenceCount = maxEvidenceCount; }
-        public int getMaxQueryTextLength() { return maxQueryTextLength; }
-        public void setMaxQueryTextLength(int maxQueryTextLength) { this.maxQueryTextLength = maxQueryTextLength; }
-        public int getMaxSnippetChars() { return maxSnippetChars; }
-        public void setMaxSnippetChars(int maxSnippetChars) { this.maxSnippetChars = maxSnippetChars; }
-        public int getMaxSummaryChars() { return maxSummaryChars; }
-        public void setMaxSummaryChars(int maxSummaryChars) { this.maxSummaryChars = maxSummaryChars; }
-        public DocumentRetrievalMode getDefaultRetrievalMode() { return defaultRetrievalMode; }
+        public RetrievalProperties getRetrieval() { return retrieval; }
+        public void setRetrieval(RetrievalProperties retrieval) {
+            this.retrieval = retrieval == null ? new RetrievalProperties() : retrieval;
+        }
+        public TextLimitsProperties getTextLimits() { return textLimits; }
+        public void setTextLimits(TextLimitsProperties textLimits) {
+            this.textLimits = textLimits == null ? new TextLimitsProperties() : textLimits;
+        }
+        public int getDefaultSize() { return retrieval.getDefaultSize(); }
+        public void setDefaultSize(int defaultSize) { retrieval.setDefaultSize(defaultSize); }
+        public int getAnswerCandidateSize() { return retrieval.getAnswerCandidateSize(); }
+        public void setAnswerCandidateSize(int answerCandidateSize) {
+            retrieval.setAnswerCandidateSize(answerCandidateSize);
+        }
+        public int getSummarizeCandidateSize() { return retrieval.getSummarizeCandidateSize(); }
+        public void setSummarizeCandidateSize(int summarizeCandidateSize) {
+            retrieval.setSummarizeCandidateSize(summarizeCandidateSize);
+        }
+        public int getMaxSize() { return retrieval.getMaxSize(); }
+        public void setMaxSize(int maxSize) { retrieval.setMaxSize(maxSize); }
+        public int getMaxEvidenceCount() { return evidenceSelection.getMaxEvidenceCount(); }
+        public void setMaxEvidenceCount(int maxEvidenceCount) {
+            evidenceSelection.setMaxEvidenceCount(maxEvidenceCount);
+        }
+        public int getMaxQueryTextLength() { return textLimits.getMaxQueryTextLength(); }
+        public void setMaxQueryTextLength(int maxQueryTextLength) {
+            textLimits.setMaxQueryTextLength(maxQueryTextLength);
+        }
+        public int getMaxSnippetChars() { return textLimits.getMaxSnippetChars(); }
+        public void setMaxSnippetChars(int maxSnippetChars) { textLimits.setMaxSnippetChars(maxSnippetChars); }
+        public int getMaxSummaryChars() { return textLimits.getMaxSummaryChars(); }
+        public void setMaxSummaryChars(int maxSummaryChars) { textLimits.setMaxSummaryChars(maxSummaryChars); }
+        public DocumentRetrievalMode getDefaultRetrievalMode() { return retrieval.getDefaultMode(); }
         public void setDefaultRetrievalMode(DocumentRetrievalMode defaultRetrievalMode) {
-            this.defaultRetrievalMode = defaultRetrievalMode == null ? DocumentRetrievalMode.HYBRID : defaultRetrievalMode;
+            retrieval.setDefaultMode(defaultRetrievalMode);
         }
-        public Map<String, DocumentRetrievalMode> getRetrievalModeByDomain() { return retrievalModeByDomain; }
+        public Map<String, DocumentRetrievalMode> getRetrievalModeByDomain() { return retrieval.getModeByDomain(); }
         public void setRetrievalModeByDomain(Map<String, DocumentRetrievalMode> retrievalModeByDomain) {
-            this.retrievalModeByDomain = retrievalModeByDomain == null ? new LinkedHashMap<>() : new LinkedHashMap<>(retrievalModeByDomain);
+            retrieval.setModeByDomain(retrievalModeByDomain);
         }
-        public Map<String, RetrievalProfileProperties> getRetrievalProfiles() { return retrievalProfiles; }
+        public Map<String, RetrievalProfileProperties> getRetrievalProfiles() { return retrieval.getProfiles(); }
         public void setRetrievalProfiles(Map<String, RetrievalProfileProperties> retrievalProfiles) {
-            this.retrievalProfiles = retrievalProfiles == null ? new LinkedHashMap<>() : new LinkedHashMap<>(retrievalProfiles);
+            retrieval.setProfiles(retrievalProfiles);
         }
         public EvidenceSelectionProperties getEvidenceSelection() { return evidenceSelection; }
         public void setEvidenceSelection(EvidenceSelectionProperties evidenceSelection) {
@@ -261,20 +267,78 @@ public class AgentProperties {
         public void setRerank(RerankProviderProperties rerank) {
             this.rerank = rerank == null ? new RerankProviderProperties() : rerank;
         }
-        public HybridProperties getHybrid() { return hybrid; }
-        public void setHybrid(HybridProperties hybrid) { this.hybrid = hybrid == null ? new HybridProperties() : hybrid; }
+        public HybridProperties getHybrid() { return retrieval.getHybrid(); }
+        public void setHybrid(HybridProperties hybrid) { retrieval.setHybrid(hybrid); }
         public AclProperties getAcl() { return acl; }
         public void setAcl(AclProperties acl) { this.acl = acl == null ? new AclProperties() : acl; }
         public BlocklistProperties getBlocklist() { return blocklist; }
         public void setBlocklist(BlocklistProperties blocklist) { this.blocklist = blocklist == null ? new BlocklistProperties() : blocklist; }
     }
 
+    /** 文档检索阶段预算与 profile 路由配置。 */
+    public static class RetrievalProperties {
+        private int defaultSize = 5;
+        private int answerCandidateSize = 20;
+        private int summarizeCandidateSize = 20;
+        private int maxSize = 20;
+        private DocumentRetrievalMode defaultMode = DocumentRetrievalMode.HYBRID;
+        private Map<String, DocumentRetrievalMode> modeByDomain = new LinkedHashMap<>();
+        private HybridProperties hybrid = new HybridProperties();
+        private Map<String, RetrievalProfileProperties> profiles = new LinkedHashMap<>();
+
+        public int getDefaultSize() { return defaultSize; }
+        public void setDefaultSize(int defaultSize) { this.defaultSize = defaultSize; }
+        public int getAnswerCandidateSize() { return answerCandidateSize; }
+        public void setAnswerCandidateSize(int answerCandidateSize) { this.answerCandidateSize = answerCandidateSize; }
+        public int getSummarizeCandidateSize() { return summarizeCandidateSize; }
+        public void setSummarizeCandidateSize(int summarizeCandidateSize) {
+            this.summarizeCandidateSize = summarizeCandidateSize;
+        }
+        public int getMaxSize() { return maxSize; }
+        public void setMaxSize(int maxSize) { this.maxSize = maxSize; }
+        public DocumentRetrievalMode getDefaultMode() { return defaultMode; }
+        public void setDefaultMode(DocumentRetrievalMode defaultMode) {
+            this.defaultMode = defaultMode == null ? DocumentRetrievalMode.HYBRID : defaultMode;
+        }
+        public Map<String, DocumentRetrievalMode> getModeByDomain() { return modeByDomain; }
+        public void setModeByDomain(Map<String, DocumentRetrievalMode> modeByDomain) {
+            this.modeByDomain = modeByDomain == null ? new LinkedHashMap<>() : new LinkedHashMap<>(modeByDomain);
+        }
+        public HybridProperties getHybrid() { return hybrid; }
+        public void setHybrid(HybridProperties hybrid) {
+            this.hybrid = hybrid == null ? new HybridProperties() : hybrid;
+        }
+        public Map<String, RetrievalProfileProperties> getProfiles() { return profiles; }
+        public void setProfiles(Map<String, RetrievalProfileProperties> profiles) {
+            this.profiles = profiles == null ? new LinkedHashMap<>() : new LinkedHashMap<>(profiles);
+        }
+    }
+
+    /** 文档查询、片段和摘要文本长度预算。 */
+    public static class TextLimitsProperties {
+        private int maxQueryTextLength = 500;
+        private int maxSnippetChars = 500;
+        private int maxSummaryChars = 2000;
+
+        public int getMaxQueryTextLength() { return maxQueryTextLength; }
+        public void setMaxQueryTextLength(int maxQueryTextLength) {
+            this.maxQueryTextLength = maxQueryTextLength;
+        }
+        public int getMaxSnippetChars() { return maxSnippetChars; }
+        public void setMaxSnippetChars(int maxSnippetChars) { this.maxSnippetChars = maxSnippetChars; }
+        public int getMaxSummaryChars() { return maxSummaryChars; }
+        public void setMaxSummaryChars(int maxSummaryChars) { this.maxSummaryChars = maxSummaryChars; }
+    }
+
     /** 文档 evidence 进入生成阶段前的选择策略。 */
     public static class EvidenceSelectionProperties {
+        private int maxEvidenceCount = 8;
         private EvidenceSelectionStrategy strategy = EvidenceSelectionStrategy.TOP_K_FIXED;
         private int scoreGroups = 3;
         private int minTopGroupSize = 1;
 
+        public int getMaxEvidenceCount() { return maxEvidenceCount; }
+        public void setMaxEvidenceCount(int maxEvidenceCount) { this.maxEvidenceCount = maxEvidenceCount; }
         public EvidenceSelectionStrategy getStrategy() { return strategy; }
         public void setStrategy(EvidenceSelectionStrategy strategy) {
             this.strategy = strategy == null ? EvidenceSelectionStrategy.TOP_K_FIXED : strategy;

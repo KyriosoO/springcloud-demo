@@ -8,21 +8,55 @@ agent:
       max-candidate-length: 128
       timeout: 2s	
     enabled: true
-    default-size: 5
-    default-retrieval-mode: HYBRID
-    retrieval-mode-by-domain:
-      company_policy: HYBRID
-      tax_policy: HYBRID
-      knowledge_base: HYBRID
-      literature: HYBRID
-    answer-candidate-size: 20
-    summarize-candidate-size: 20
-    max-size: 20
-    max-evidence-count: 8
-    max-query-text-length: 500
-    max-snippet-chars: 500
-    max-summary-chars: 2000
+    retrieval:
+      default-size: 5
+      answer-candidate-size: 30
+      summarize-candidate-size: 30
+      max-size: 30
+      default-mode: HYBRID
+      mode-by-domain:
+        company_policy: HYBRID
+        tax_policy: HYBRID
+        knowledge_base: HYBRID
+        literature: HYBRID
+      hybrid:
+        keyword-k: 60
+        vector-k: 60
+        rrf-k: 60
+        num-candidates: 300
+      profiles:
+        tax-policy-v2:
+          enabled: true
+          domain: tax_policy
+          material-types: [tax_policy]
+          retrieval-profile: tax_policy_v2_default
+          index-alias: agent-doc-tax-policy-v2-read
+          channels: [BM25, EXACT, PHRASE, DENSE_VECTOR]
+          channel-weights:
+            BM25: 1.0
+            EXACT: 1.8
+            PHRASE: 1.4
+            DENSE_VECTOR: 1.0
+          embedding-field: embedding
+          embedding-provider: bge
+          embedding-model: ${ai.provider.embedding.bge.model}
+          embedding-dimension: ${ai.provider.embedding.bge.dimension}
+          keyword-k: 60
+          exact-k: 20
+          phrase-k: 40
+          vector-k: 60
+          rrf-k: 60
+          num-candidates: 300
+          max-chunks-per-document: 2
+          rerank:
+            enabled: true
+            top-n: 30
+    text-limits:
+      max-query-text-length: 500
+      max-snippet-chars: 500
+      max-summary-chars: 2000
     evidence-selection:
+      max-evidence-count: 12
       strategy: SCORE_GROUP_TOP
       score-groups: 3
       min-top-group-size: 1
@@ -46,8 +80,8 @@ agent:
       enabled: true
       base-url: http://localhost:9240
       model: ${ai.provider.generation.deepseek.model}
-      max-context-chars: 8000
-      max-evidence-chars: 1200
+      max-context-chars: 12000
+      max-evidence-chars: 1600
       max-output-chars: 2000
       timeout: 60s
       failure-policy: FALLBACK_EXTRACTIVE
@@ -59,38 +93,6 @@ agent:
       normalize: true
       max-document-chars: 1200
       timeout: 5s
-    hybrid:
-      keyword-k: 20
-      vector-k: 20
-      rrf-k: 60
-      num-candidates: 100
-    retrieval-profiles:
-      tax-policy-v2:
-        enabled: true
-        domain: tax_policy
-        material-types: [tax_policy]
-        retrieval-profile: tax_policy_v2_default
-        index-alias: agent-doc-tax-policy-v2-read
-        channels: [BM25, EXACT, PHRASE, DENSE_VECTOR]
-        channel-weights:
-          BM25: 1.0
-          EXACT: 1.8
-          PHRASE: 1.4
-          DENSE_VECTOR: 1.0
-        embedding-field: embedding
-        embedding-provider: bge
-        embedding-model: ${ai.provider.embedding.bge.model}
-        embedding-dimension: ${ai.provider.embedding.bge.dimension}
-        keyword-k: 40
-        exact-k: 20
-        phrase-k: 30
-        vector-k: 40
-        rrf-k: 60
-        num-candidates: 200
-        max-chunks-per-document: 2
-        rerank:
-          enabled: true
-          top-n: 20
   document-adapter:
     index-by-domain:
       company_policy: agent-doc-company-policy

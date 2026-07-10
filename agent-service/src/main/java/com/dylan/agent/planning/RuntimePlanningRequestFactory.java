@@ -3,6 +3,7 @@ package com.dylan.agent.planning;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.AgentRuntimeContract;
+import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.contract.runtime.common.RuntimeCapabilityRoutingDescriptor;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextView;
 import com.dylan.agent.api.contract.runtime.common.RuntimeDomainRoutingProjection;
@@ -119,7 +120,24 @@ public final class RuntimePlanningRequestFactory {
                         domain,
                         evidence.planningScope(),
                         evidence.domainMetadataEvidence(),
-                        evidence.absoluteDeadline())));
+                        evidence.absoluteDeadline()))
+                .map(schema -> clampDocumentPlanSchema(registration, schema)));
+    }
+
+    private RuntimeDomainSchema clampDocumentPlanSchema(
+            ResolvedRegistration registration,
+            RuntimeDomainSchema schema) {
+        if (registration.planKind() != AgentPlanKind.DOCUMENT || schema == null) {
+            return schema;
+        }
+        int configuredMaxSize = properties.getDocument().getMaxSize();
+        Integer schemaMaxSize = schema.getMaxSize();
+        int effectiveMaxSize = schemaMaxSize == null
+                ? configuredMaxSize
+                : Math.min(configuredMaxSize, schemaMaxSize);
+        schema.setMaxSize(effectiveMaxSize);
+        schema.setDefaultSize(Math.min(properties.getDocument().getDefaultSize(), effectiveMaxSize));
+        return schema;
     }
 
     private int repairLimit(int scopeLimit) {

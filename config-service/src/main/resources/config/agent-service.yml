@@ -176,7 +176,7 @@ agent:
               page: [EQ, GT, LT]
               sourceUri: [EQ, CONTAINS]
               snippet: [CONTAINS, CONTAINS_ANY]
-            max-page-size: 20
+            max-page-size: 30
       tax_policy:
         aliases: [税务政策, 税收政策, 税务法规, 税法, tax_policy]
         description: Tax policy and regulation corpus exposed to Agent planning.
@@ -232,7 +232,7 @@ agent:
               page: [EQ, GT, LT]
               sourceUri: [EQ, CONTAINS]
               snippet: [CONTAINS, CONTAINS_ANY]
-            max-page-size: 20
+            max-page-size: 30
       knowledge_base:
         aliases: [知识库, 知识文档, knowledge_base]
         description: Knowledge base document corpus exposed to Agent planning.
@@ -285,7 +285,7 @@ agent:
               updatedAt: [GT, LT, EQ]
               sourceUri: [EQ, CONTAINS]
               snippet: [CONTAINS, CONTAINS_ANY]
-            max-page-size: 20
+            max-page-size: 30
       literature:
         aliases: [文献, 文学资料, literature]
         description: Literature document corpus exposed to Agent planning.
@@ -341,7 +341,7 @@ agent:
               page: [EQ, GT, LT]
               sourceUri: [EQ, CONTAINS]
               snippet: [CONTAINS, CONTAINS_ANY]
-            max-page-size: 20
+            max-page-size: 30
     registrations:
       - registration-id: employee-queryable
         role: QUERYABLE
