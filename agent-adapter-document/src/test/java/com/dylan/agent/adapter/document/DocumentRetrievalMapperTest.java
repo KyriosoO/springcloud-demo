@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.time.Instant;
 import java.util.Map;
@@ -57,6 +58,19 @@ class DocumentRetrievalMapperTest {
         JsonNode filter = root.path("query").path("bool").path("filter").get(0);
         assertThat(filter.path("term").path("section.keyword").asText())
                 .isEqualTo("税收政策-增值税");
+    }
+
+    @Test
+    void keywordDslIncludesDerivedEvidenceTextFields() throws Exception {
+        JsonNode root = objectMapper.readTree(mapper.toSearchDsl(request(
+                new ValidatedFilter("sourceType", AgentOperator.EQ, "policy", List.of()))));
+
+        JsonNode fields = root.path("query").path("bool").path("must").get(0)
+                .path("multi_match").path("fields");
+        List<String> fieldNames = new ArrayList<>();
+        fields.forEach(field -> fieldNames.add(field.asText()));
+        assertThat(fieldNames)
+                .contains("generationText", "citationText^1.2");
     }
 
     @Test
@@ -109,7 +123,7 @@ class DocumentRetrievalMapperTest {
         assertThat(hybrid.getPermissionEvidenceId()).isEqualTo("perm-evidence");
         assertThat(hybrid.getPermissionVersion()).isEqualTo("perm-v1");
         assertThat(hybrid.getFilterDigest()).startsWith("sha256:");
-        assertThat(hybrid.getSourceExcludes()).containsExactly("embedding");
+        assertThat(hybrid.getSourceExcludes()).containsExactly("embedding", "embeddingText");
     }
 
     @Test

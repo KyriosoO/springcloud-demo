@@ -24,6 +24,7 @@ public class HybridSearchMerger {
 
 	private static final MathContext SCORE_CONTEXT = MathContext.DECIMAL64;
 	private static final String EMBEDDING_FIELD = "embedding";
+	private static final String EMBEDDING_TEXT_FIELD = "embeddingText";
 
 	private final ObjectMapper objectMapper;
 
@@ -129,6 +130,8 @@ public class HybridSearchMerger {
 		target.setSourceUri(text(source, "sourceUri", null));
 		target.setSnippet(firstText(source, "snippet", text(source, "content", null)));
 		target.setContent(text(source, "content", null));
+		target.setCitationText(text(source, "citationText", null));
+		target.setGenerationText(text(source, "generationText", null));
 		target.setContextBefore(stringList(source.path("contextBefore")));
 		target.setContextAfter(stringList(source.path("contextAfter")));
 		List<String> hitFields = stringList(source.path("hitFields"));
@@ -142,6 +145,7 @@ public class HybridSearchMerger {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> metadata = objectMapper.convertValue(source, Map.class);
 			metadata.remove(EMBEDDING_FIELD);
+			metadata.remove(EMBEDDING_TEXT_FIELD);
 			target.setMetadata(metadata);
 		}
 		return target;

@@ -56,7 +56,9 @@ agent:
       max-snippet-chars: 500
       max-summary-chars: 2000
     evidence-selection:
-      max-evidence-count: 12
+      max-generation-evidence-count: 5
+      max-display-citation-count: 12
+      max-summary-document-count: 12
       strategy: SCORE_GROUP_TOP
       score-groups: 3
       min-top-group-size: 1

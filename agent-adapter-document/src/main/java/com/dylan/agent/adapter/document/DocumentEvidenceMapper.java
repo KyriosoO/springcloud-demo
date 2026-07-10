@@ -21,6 +21,7 @@ import java.util.Objects;
 public class DocumentEvidenceMapper {
 
     private static final String EMBEDDING_FIELD = "embedding";
+    private static final String EMBEDDING_TEXT_FIELD = "embeddingText";
 
     private final ObjectMapper objectMapper;
     private final DocumentAdapterProperties properties;
@@ -93,6 +94,8 @@ public class DocumentEvidenceMapper {
         evidence.setSourceUri(text(source, properties.getSourceUriField(), null));
         evidence.setSnippet(text(source, "snippet", text(source, properties.getDefaultSnippetField(), null)));
         evidence.setContent(text(source, "content", null));
+        evidence.setCitationText(text(source, "citationText", null));
+        evidence.setGenerationText(text(source, "generationText", null));
         evidence.setChunkIndex(integer(source, "chunkIndex"));
         evidence.setCharStart(integer(source, "charStart"));
         evidence.setCharEnd(integer(source, "charEnd"));
@@ -116,6 +119,8 @@ public class DocumentEvidenceMapper {
         evidence.setSourceUri(hit.getSourceUri());
         evidence.setSnippet(hit.getSnippet());
         evidence.setContent(hit.getContent());
+        evidence.setCitationText(hit.getCitationText());
+        evidence.setGenerationText(hit.getGenerationText());
         evidence.setContextBefore(hit.getContextBefore());
         evidence.setContextAfter(hit.getContextAfter());
         evidence.setChunkIndex(hit.getChunkIndex());
@@ -163,6 +168,7 @@ public class DocumentEvidenceMapper {
         }
         Map<String, Object> sanitized = new LinkedHashMap<>(metadata);
         sanitized.remove(EMBEDDING_FIELD);
+        sanitized.remove(EMBEDDING_TEXT_FIELD);
         return sanitized;
     }
 

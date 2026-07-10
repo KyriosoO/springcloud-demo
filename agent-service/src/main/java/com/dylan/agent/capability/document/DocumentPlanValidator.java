@@ -207,7 +207,7 @@ public class DocumentPlanValidator
                 || summaryScope.getMaxSummaryChars() > properties.getDocument().getMaxSummaryChars())) {
             throw new IllegalArgumentException("document summaryScope maxSummaryChars out of bounds");
         }
-        if (documentIds.size() > properties.getDocument().getMaxEvidenceCount()) {
+        if (documentIds.size() > properties.getDocument().getMaxSummaryDocumentCount()) {
             throw new IllegalArgumentException("document summaryScope documentIds out of bounds");
         }
     }

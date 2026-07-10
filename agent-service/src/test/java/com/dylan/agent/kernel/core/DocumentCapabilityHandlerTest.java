@@ -79,6 +79,23 @@ class DocumentCapabilityHandlerTest {
     }
 
     @Test
+    void mapsCitationTextToPublicSnippetWhenAvailable() {
+        AdapterDocumentEvidence evidence = evidence("chunk-1", "0.92");
+        evidence.setSnippet("旧片段。");
+        evidence.setCitationText("完整引用展示句子。");
+        DocumentRetrievableAdapter adapter = request -> adapterResult(List.of(evidence));
+
+        var result = handler().execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter));
+
+        assertThat(result.output().getDocumentResult().getHits()).singleElement()
+                .extracting(hit -> hit.getSnippet())
+                .isEqualTo("完整引用展示句子。");
+        assertThat(result.output().getDocumentResult().getCitations()).singleElement()
+                .extracting(citation -> citation.getSnippet())
+                .isEqualTo("完整引用展示句子。");
+    }
+
+    @Test
     void generatesAnswerAfterHybridRetrievalWhenEnabled() {
         var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
         properties.getDocument().getGeneration().setEnabled(true);

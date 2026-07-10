@@ -57,8 +57,10 @@ public class DocumentEvidencePreSecurityFilter {
         target.setPage(allowedFields.contains(PAGE_FIELD) ? source.getPage() : null);
         target.setSourceUri(allowedFields.contains(SOURCE_URI_FIELD) ? safeSourceUri(source.getSourceUri()) : null);
         target.setSnippet(allowedFields.contains(SNIPPET_FIELD) ? source.getSnippet() : null);
+        target.setCitationText(allowedFields.contains(SNIPPET_FIELD) ? source.getCitationText() : null);
         if (allowedFields.contains(CONTENT_FIELD)) {
             target.setContent(source.getContent());
+            target.setGenerationText(source.getGenerationText());
             target.setContextBefore(source.getContextBefore());
             target.setContextAfter(source.getContextAfter());
         }
@@ -97,8 +99,14 @@ public class DocumentEvidencePreSecurityFilter {
     }
 
     private static String text(AdapterDocumentEvidence evidence) {
+        if (evidence.getGenerationText() != null && !evidence.getGenerationText().isBlank()) {
+            return evidence.getGenerationText();
+        }
         if (evidence.getContent() != null && !evidence.getContent().isBlank()) {
             return evidence.getContent();
+        }
+        if (evidence.getCitationText() != null && !evidence.getCitationText().isBlank()) {
+            return evidence.getCitationText();
         }
         return evidence.getSnippet();
     }

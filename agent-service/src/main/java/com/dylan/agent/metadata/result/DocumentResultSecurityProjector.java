@@ -156,12 +156,12 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         target.setHits(source.getHits() == null ? List.of() : source.getHits().stream()
                 .map(hit -> filterHit(domain, hit, scope))
                 .filter(Objects::nonNull)
-                .limit(properties.getDocument().getMaxEvidenceCount())
+                .limit(properties.getDocument().getMaxDisplayCitationCount())
                 .toList());
         target.setCitations(source.getCitations() == null ? List.of() : source.getCitations().stream()
                 .map(citation -> filterCitation(domain, citation, scope))
                 .filter(Objects::nonNull)
-                .limit(properties.getDocument().getMaxEvidenceCount())
+                .limit(properties.getDocument().getMaxDisplayCitationCount())
                 .toList());
         target.setPartial(source.isPartial());
         target.setCoverage(filterCoverage(source.getCoverage(), target.getCitations()));

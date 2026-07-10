@@ -43,7 +43,9 @@ class AgentPropertiesValidatorTest {
         source.put("agent.document.retrieval.hybrid.keyword-k", "60");
         source.put("agent.document.retrieval.hybrid.vector-k", "60");
         source.put("agent.document.retrieval.hybrid.num-candidates", "300");
-        source.put("agent.document.evidence-selection.max-evidence-count", "12");
+        source.put("agent.document.evidence-selection.max-generation-evidence-count", "5");
+        source.put("agent.document.evidence-selection.max-display-citation-count", "12");
+        source.put("agent.document.evidence-selection.max-summary-document-count", "12");
         source.put("agent.document.text-limits.max-query-text-length", "500");
 
         AgentProperties bound = new Binder(source)
@@ -53,8 +55,26 @@ class AgentPropertiesValidatorTest {
         assertThat(bound.getDocument().getMaxSize()).isEqualTo(30);
         assertThat(bound.getDocument().getRetrieval().getAnswerCandidateSize()).isEqualTo(30);
         assertThat(bound.getDocument().getHybrid().getNumCandidates()).isEqualTo(300);
+        assertThat(bound.getDocument().getMaxGenerationEvidenceCount()).isEqualTo(5);
+        assertThat(bound.getDocument().getMaxDisplayCitationCount()).isEqualTo(12);
+        assertThat(bound.getDocument().getMaxSummaryDocumentCount()).isEqualTo(12);
         assertThat(bound.getDocument().getMaxEvidenceCount()).isEqualTo(12);
         assertThat(bound.getDocument().getMaxQueryTextLength()).isEqualTo(500);
+    }
+
+    @Test
+    @DisplayName("旧 max-evidence-count 配置仍可兼容绑定到三个证据预算")
+    void shouldBindLegacyMaxEvidenceCountToSplitBudgets() {
+        MapConfigurationPropertySource source = new MapConfigurationPropertySource();
+        source.put("agent.document.evidence-selection.max-evidence-count", "7");
+
+        AgentProperties bound = new Binder(source)
+                .bind("agent", Bindable.of(AgentProperties.class))
+                .orElseThrow(IllegalStateException::new);
+
+        assertThat(bound.getDocument().getMaxGenerationEvidenceCount()).isEqualTo(7);
+        assertThat(bound.getDocument().getMaxDisplayCitationCount()).isEqualTo(7);
+        assertThat(bound.getDocument().getMaxSummaryDocumentCount()).isEqualTo(7);
     }
 
     @Test

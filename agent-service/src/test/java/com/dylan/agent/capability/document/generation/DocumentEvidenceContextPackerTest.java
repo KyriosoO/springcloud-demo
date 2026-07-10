@@ -101,4 +101,73 @@ class DocumentEvidenceContextPackerTest {
                     assertThat(item.metadata().get("sourceUri").toString()).doesNotContain("token", "#");
                 });
     }
+
+    @Test
+    void usesGenerationTextBeforeLegacyContextWindow() {
+        AdapterDocumentEvidence evidence = new AdapterDocumentEvidence();
+        evidence.setDocumentId("doc-1");
+        evidence.setChunkId("c-1");
+        evidence.setContent("旧 chunk 正文。");
+        evidence.setGenerationText("完整生成证据句子。");
+        evidence.setContextBefore(List.of("上一句。"));
+        evidence.setContextAfter(List.of("下一句。"));
+        var request = new DocumentRetrievalRequest(
+                DocumentPlanOperation.ANSWER,
+                "policy_document",
+                "年假审批",
+                List.of(),
+                List.of(),
+                5,
+                1,
+                5,
+                null,
+                true);
+        var plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request);
+
+        var packed = new DocumentEvidenceContextPacker().pack(new DocumentContextPackRequest(
+                plan,
+                List.of(evidence),
+                DocumentCapabilityHandlerTestSupport.context(adapterRequest -> null),
+                new DocumentContextBudget(100, 50, 5, 100)));
+
+        assertThat(packed.evidenceItems()).singleElement()
+                .extracting(DocumentEvidenceContextItem::text)
+                .isEqualTo("完整生成证据句子。");
+    }
+
+    @Test
+    void truncatesAtSentenceBoundaryWhenEvidenceTextExceedsBudget() {
+        AdapterDocumentEvidence evidence = new AdapterDocumentEvidence();
+        evidence.setDocumentId("doc-1");
+        evidence.setChunkId("c-1");
+        evidence.setGenerationText("第一句内容足够长用于通过边界阈值并保持完整表达不被截断同时说明税率适用范围并覆盖不同税种场景。第二句内容不应残缺进入上下文。第三句内容。");
+        var request = new DocumentRetrievalRequest(
+                DocumentPlanOperation.ANSWER,
+                "policy_document",
+                "年假审批",
+                List.of(),
+                List.of(),
+                5,
+                1,
+                5,
+                null,
+                true);
+        var plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER,
+                "policy_document",
+                request);
+
+        var packed = new DocumentEvidenceContextPacker().pack(new DocumentContextPackRequest(
+                plan,
+                List.of(evidence),
+                DocumentCapabilityHandlerTestSupport.context(adapterRequest -> null),
+                new DocumentContextBudget(100, 55, 5, 100)));
+
+        assertThat(packed.evidenceItems()).singleElement()
+                .extracting(DocumentEvidenceContextItem::text)
+                .isEqualTo("第一句内容足够长用于通过边界阈值并保持完整表达不被截断同时说明税率适用范围并覆盖不同税种场景。");
+    }
 }

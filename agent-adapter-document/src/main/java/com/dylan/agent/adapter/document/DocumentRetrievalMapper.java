@@ -24,7 +24,7 @@ import java.util.Objects;
 
 public class DocumentRetrievalMapper {
 
-    private static final List<String> DEFAULT_SOURCE_EXCLUDES = List.of("embedding");
+    private static final List<String> DEFAULT_SOURCE_EXCLUDES = List.of("embedding", "embeddingText");
 
     private final ObjectMapper objectMapper;
     private final DocumentAclFilterFactory aclFilterFactory;
@@ -172,13 +172,14 @@ public class DocumentRetrievalMapper {
         String queryText = request.getQueryText();
         List<Object> should = new ArrayList<>();
         if (queryText != null && !queryText.isBlank()) {
-            for (String field : List.of("title", "content", "snippet", "section")) {
+            for (String field : List.of("title", "content", "generationText", "citationText", "snippet", "section")) {
                 should.add(namedMatchPhrase(field, queryText, 2, "PHRASE:" + field));
             }
         }
         for (String candidate : request.getRewriteCandidates()) {
             if (candidate != null && !candidate.isBlank()) {
                 should.add(namedMatchPhrase("content", candidate, 2, "PHRASE:content"));
+                should.add(namedMatchPhrase("generationText", candidate, 2, "PHRASE:generationText"));
             }
         }
         return channelDsl(should);
@@ -214,7 +215,13 @@ public class DocumentRetrievalMapper {
         if (request.getQueryText() != null && !request.getQueryText().isBlank()) {
             Map<String, Object> multiMatch = new LinkedHashMap<>();
             multiMatch.put("query", request.getQueryText());
-            multiMatch.put("fields", List.of("title^2", "content", "snippet", "section"));
+            multiMatch.put("fields", List.of(
+                    "title^2",
+                    "content",
+                    "generationText",
+                    "citationText^1.2",
+                    "snippet",
+                    "section"));
             multiMatch.put("_name", "BM25:multi_match");
             must.add(Map.of("multi_match", multiMatch));
         }

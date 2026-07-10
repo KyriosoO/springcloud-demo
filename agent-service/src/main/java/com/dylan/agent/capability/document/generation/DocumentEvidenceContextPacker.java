@@ -37,7 +37,7 @@ public class DocumentEvidenceContextPacker {
                     if (items.containsKey(citationId)) {
                         return;
                     }
-                    String text = truncate(text(evidence), budget.maxEvidenceChars());
+                    String text = truncateAtSentenceBoundary(text(evidence), budget.maxEvidenceChars());
                     if (usedChars[0] + text.length() > budget.maxContextChars()) {
                         return;
                     }
@@ -66,8 +66,11 @@ public class DocumentEvidenceContextPacker {
     }
 
     private static String text(AdapterDocumentEvidence evidence) {
+        if (evidence.getGenerationText() != null && !evidence.getGenerationText().isBlank()) {
+            return evidence.getGenerationText();
+        }
         String base = evidence.getContent() == null || evidence.getContent().isBlank()
-                ? evidence.getSnippet()
+                ? displayText(evidence)
                 : evidence.getContent();
         List<String> before = evidence.getContextBefore() == null ? List.of() : evidence.getContextBefore();
         List<String> after = evidence.getContextAfter() == null ? List.of() : evidence.getContextAfter();
@@ -76,6 +79,13 @@ public class DocumentEvidenceContextPacker {
                         after.stream())
                 .filter(value -> value != null && !value.isBlank())
                 .collect(Collectors.joining("\n"));
+    }
+
+    private static String displayText(AdapterDocumentEvidence evidence) {
+        if (evidence.getCitationText() != null && !evidence.getCitationText().isBlank()) {
+            return evidence.getCitationText();
+        }
+        return evidence.getSnippet();
     }
 
     private static Map<String, Object> safeMetadata(AdapterDocumentEvidence evidence) {
@@ -105,11 +115,27 @@ public class DocumentEvidenceContextPacker {
         return sourceUri.substring(0, end);
     }
 
-    private static String truncate(String value, int limit) {
+    private static String truncateAtSentenceBoundary(String value, int limit) {
         if (value == null) {
             return "";
         }
-        return value.length() <= limit ? value : value.substring(0, limit);
+        if (value.length() <= limit) {
+            return value;
+        }
+        String clipped = value.substring(0, limit);
+        int boundary = lastSentenceBoundary(clipped);
+        if (boundary >= Math.max(40, limit / 2)) {
+            return clipped.substring(0, boundary).strip();
+        }
+        return clipped.strip();
+    }
+
+    private static int lastSentenceBoundary(String value) {
+        int boundary = -1;
+        for (String marker : List.of("。", "！", "？", ";", "；", "\n")) {
+            boundary = Math.max(boundary, value.lastIndexOf(marker));
+        }
+        return boundary < 0 ? -1 : boundary + 1;
     }
 
     private static String digest(List<DocumentEvidenceContextItem> items) {

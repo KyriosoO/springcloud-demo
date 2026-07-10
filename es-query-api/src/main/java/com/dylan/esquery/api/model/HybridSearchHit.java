@@ -21,6 +21,8 @@ public class HybridSearchHit {
 	private String sourceUri;
 	private String snippet;
 	private String content;
+	private String citationText;
+	private String generationText;
 	private List<String> contextBefore;
 	private List<String> contextAfter;
 	private Integer charStart;
@@ -65,6 +67,10 @@ public class HybridSearchHit {
 	public void setSnippet(String snippet) { this.snippet = snippet; }
 	public String getContent() { return content; }
 	public void setContent(String content) { this.content = content; }
+	public String getCitationText() { return citationText; }
+	public void setCitationText(String citationText) { this.citationText = citationText; }
+	public String getGenerationText() { return generationText; }
+	public void setGenerationText(String generationText) { this.generationText = generationText; }
 	public List<String> getContextBefore() { return contextBefore; }
 	public void setContextBefore(List<String> contextBefore) { this.contextBefore = contextBefore; }
 	public List<String> getContextAfter() { return contextAfter; }

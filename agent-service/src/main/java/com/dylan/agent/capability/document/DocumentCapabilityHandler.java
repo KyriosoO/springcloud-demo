@@ -829,7 +829,7 @@ public class DocumentCapabilityHandler
         DocumentContextBudget budget = new DocumentContextBudget(
                 properties.getDocument().getGeneration().getMaxContextChars(),
                 properties.getDocument().getGeneration().getMaxEvidenceChars(),
-                properties.getDocument().getMaxEvidenceCount(),
+                properties.getDocument().getMaxGenerationEvidenceCount(),
                 maxOutputChars);
         var evidencePackage = contextPacker.pack(new DocumentContextPackRequest(plan, filteredEvidence, context, budget));
         try {
@@ -917,7 +917,7 @@ public class DocumentCapabilityHandler
         List<AdapterDocumentEvidence> sorted = nonNullEvidence(evidence).stream()
                 .sorted(evidenceRanking())
                 .toList();
-        int maxEvidenceCount = Math.max(1, properties.getDocument().getMaxEvidenceCount());
+        int maxEvidenceCount = Math.max(1, properties.getDocument().getMaxGenerationEvidenceCount());
         if (sorted.size() <= maxEvidenceCount) {
             return sorted;
         }
@@ -1033,7 +1033,7 @@ public class DocumentCapabilityHandler
         hit.setDocumentId(evidence.getDocumentId());
         hit.setTitle(evidence.getTitle());
         hit.setSourceType(evidence.getSourceType());
-        hit.setSnippet(evidence.getSnippet());
+        hit.setSnippet(displaySnippet(evidence));
         hit.setScore(evidence.getScore());
         String citationId = citationId(evidence);
         hit.setCitationIds(citationId == null ? List.of() : List.of(citationId));
@@ -1048,11 +1048,21 @@ public class DocumentCapabilityHandler
         citation.setSection(evidence.getSection());
         citation.setPage(evidence.getPage());
         citation.setSourceUri(evidence.getSourceUri());
-        citation.setSnippet(evidence.getSnippet());
+        citation.setSnippet(displaySnippet(evidence));
         citation.setChunkIndex(evidence.getChunkIndex());
         citation.setCharStart(evidence.getCharStart());
         citation.setCharEnd(evidence.getCharEnd());
         return citation;
+    }
+
+    private static String displaySnippet(AdapterDocumentEvidence evidence) {
+        if (evidence == null) {
+            return null;
+        }
+        if (evidence.getCitationText() != null && !evidence.getCitationText().isBlank()) {
+            return evidence.getCitationText();
+        }
+        return evidence.getSnippet();
     }
 
     private static String citationId(AdapterDocumentEvidence evidence) {

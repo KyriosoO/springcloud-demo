@@ -140,8 +140,20 @@ public class AgentPropertiesValidator implements InitializingBean {
                 || retrieval.getSummarizeCandidateSize() > retrieval.getMaxSize()) {
             throw new IllegalStateException("agent.document.retrieval.summarize-candidate-size 必须为正数且不能超过 max-size。");
         }
-        if (d.getMaxEvidenceCount() <= 0 || d.getMaxEvidenceCount() > maxAnswerOrSummaryCandidateSize(d)) {
-            throw new IllegalStateException("agent.document.evidence-selection.max-evidence-count 必须为正数且不能超过回答/总结候选数。");
+        if (d.getMaxGenerationEvidenceCount() <= 0
+                || d.getMaxGenerationEvidenceCount() > maxAnswerOrSummaryCandidateSize(d)) {
+            throw new IllegalStateException("agent.document.evidence-selection.max-generation-evidence-count 必须为正数且不能超过回答/总结候选数。");
+        }
+        if (d.getMaxDisplayCitationCount() <= 0
+                || d.getMaxDisplayCitationCount() > maxAnswerOrSummaryCandidateSize(d)) {
+            throw new IllegalStateException("agent.document.evidence-selection.max-display-citation-count 必须为正数且不能超过回答/总结候选数。");
+        }
+        if (d.getMaxSummaryDocumentCount() <= 0
+                || d.getMaxSummaryDocumentCount() > maxAnswerOrSummaryCandidateSize(d)) {
+            throw new IllegalStateException("agent.document.evidence-selection.max-summary-document-count 必须为正数且不能超过回答/总结候选数。");
+        }
+        if (d.getMaxGenerationEvidenceCount() > d.getMaxDisplayCitationCount()) {
+            throw new IllegalStateException("agent.document.evidence-selection.max-generation-evidence-count 不能超过 max-display-citation-count。");
         }
         if (d.getEvidenceSelection().getScoreGroups() <= 0
                 || d.getEvidenceSelection().getMinTopGroupSize() <= 0) {
@@ -366,8 +378,8 @@ public class AgentPropertiesValidator implements InitializingBean {
                 throw new IllegalStateException(prefix + ".rerank.top-n 不能超过回答/总结候选数。");
             }
             if (profile.getRerank().isEnabled()
-                    && d.getMaxEvidenceCount() > profile.getRerank().getTopN()) {
-                throw new IllegalStateException(prefix + ".rerank.top-n 不能小于 evidence-selection.max-evidence-count。");
+                    && maxRerankDependentEvidenceCount(d) > profile.getRerank().getTopN()) {
+                throw new IllegalStateException(prefix + ".rerank.top-n 不能小于 evidence-selection 证据数量上限。");
             }
             validateDocumentDomainBudget(prefix, profile, d);
         }
@@ -403,6 +415,10 @@ public class AgentPropertiesValidator implements InitializingBean {
 
     private static int maxAnswerOrSummaryCandidateSize(AgentProperties.DocumentProperties d) {
         return Math.max(d.getAnswerCandidateSize(), d.getSummarizeCandidateSize());
+    }
+
+    private static int maxRerankDependentEvidenceCount(AgentProperties.DocumentProperties d) {
+        return Math.max(d.getMaxGenerationEvidenceCount(), d.getMaxDisplayCitationCount());
     }
 
     private static LinkedHashSet<String> normalizedMaterialTypes(AgentProperties.RetrievalProfileProperties profile) {

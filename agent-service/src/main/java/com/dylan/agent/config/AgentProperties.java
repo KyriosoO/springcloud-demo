@@ -227,6 +227,9 @@ public class AgentProperties {
         public void setMaxEvidenceCount(int maxEvidenceCount) {
             evidenceSelection.setMaxEvidenceCount(maxEvidenceCount);
         }
+        public int getMaxGenerationEvidenceCount() { return evidenceSelection.getMaxGenerationEvidenceCount(); }
+        public int getMaxDisplayCitationCount() { return evidenceSelection.getMaxDisplayCitationCount(); }
+        public int getMaxSummaryDocumentCount() { return evidenceSelection.getMaxSummaryDocumentCount(); }
         public int getMaxQueryTextLength() { return textLimits.getMaxQueryTextLength(); }
         public void setMaxQueryTextLength(int maxQueryTextLength) {
             textLimits.setMaxQueryTextLength(maxQueryTextLength);
@@ -330,15 +333,33 @@ public class AgentProperties {
         public void setMaxSummaryChars(int maxSummaryChars) { this.maxSummaryChars = maxSummaryChars; }
     }
 
-    /** 文档 evidence 进入生成阶段前的选择策略。 */
+    /** 文档 evidence 在生成、展示和总结阶段的数量预算。 */
     public static class EvidenceSelectionProperties {
-        private int maxEvidenceCount = 8;
+        private int maxGenerationEvidenceCount = 5;
+        private int maxDisplayCitationCount = 8;
+        private int maxSummaryDocumentCount = 8;
         private EvidenceSelectionStrategy strategy = EvidenceSelectionStrategy.TOP_K_FIXED;
         private int scoreGroups = 3;
         private int minTopGroupSize = 1;
 
-        public int getMaxEvidenceCount() { return maxEvidenceCount; }
-        public void setMaxEvidenceCount(int maxEvidenceCount) { this.maxEvidenceCount = maxEvidenceCount; }
+        public int getMaxEvidenceCount() { return maxDisplayCitationCount; }
+        public void setMaxEvidenceCount(int maxEvidenceCount) {
+            this.maxGenerationEvidenceCount = maxEvidenceCount;
+            this.maxDisplayCitationCount = maxEvidenceCount;
+            this.maxSummaryDocumentCount = maxEvidenceCount;
+        }
+        public int getMaxGenerationEvidenceCount() { return maxGenerationEvidenceCount; }
+        public void setMaxGenerationEvidenceCount(int maxGenerationEvidenceCount) {
+            this.maxGenerationEvidenceCount = maxGenerationEvidenceCount;
+        }
+        public int getMaxDisplayCitationCount() { return maxDisplayCitationCount; }
+        public void setMaxDisplayCitationCount(int maxDisplayCitationCount) {
+            this.maxDisplayCitationCount = maxDisplayCitationCount;
+        }
+        public int getMaxSummaryDocumentCount() { return maxSummaryDocumentCount; }
+        public void setMaxSummaryDocumentCount(int maxSummaryDocumentCount) {
+            this.maxSummaryDocumentCount = maxSummaryDocumentCount;
+        }
         public EvidenceSelectionStrategy getStrategy() { return strategy; }
         public void setStrategy(EvidenceSelectionStrategy strategy) {
             this.strategy = strategy == null ? EvidenceSelectionStrategy.TOP_K_FIXED : strategy;

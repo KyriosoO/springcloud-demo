@@ -467,7 +467,8 @@ public class EsDocumentService {
 			if (!chunkIndex.isInt()) {
 				continue;
 			}
-			String text = firstText(source, "content", firstText(source, "snippet", null));
+			String text = firstText(source, "generationText",
+					firstText(source, "content", firstText(source, "snippet", null)));
 			if (text != null && !text.isBlank()) {
 				chunks.put(chunkIndex.asInt(), text);
 			}

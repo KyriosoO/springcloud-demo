@@ -37,6 +37,9 @@ SOURCE_DATASET = "salpt/chinatax-policy-corpus"
 SUMMARY_DATASET = "curated/tax-policy-current-summaries"
 RATE_PATTERN = re.compile(r"(?:百分之[一二三四五六七八九十零〇百]+|\d+(?:\.\d+)?\s*%)")
 SENTENCE_SPLIT = re.compile(r"(?<=[。；;！？])")
+CITATION_TEXT_LIMIT = 500
+GENERATION_TEXT_LIMIT = 1600
+EMBEDDING_TEXT_LIMIT = 2200
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bulk-batch-size", type=int, default=128)
     parser.add_argument("--max-chunk-size", type=int, default=1100)
     parser.add_argument("--min-standalone-chunk-size", type=int, default=80)
+    parser.add_argument("--reshape-chunks", action="store_true")
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--limit-documents", type=int, default=0)
     parser.add_argument("--recreate", action="store_true")
@@ -86,6 +90,7 @@ def main() -> int:
                 "plannedDocuments": len(docs_by_id),
                 "plannedChunks": len(optimized_docs),
                 "switchAlias": args.switch_alias,
+                "reshapeChunks": args.reshape_chunks,
             },
             ensure_ascii=False,
         ),
@@ -196,6 +201,9 @@ def mapping_definition(dimension: int) -> dict[str, Any]:
                 "title": {**text_field, "fields": {"keyword": {"type": "keyword"}}},
                 "content": text_field,
                 "snippet": text_field,
+                "citationText": text_field,
+                "generationText": text_field,
+                "embeddingText": text_field,
                 "section": {**text_field, "fields": {"keyword": {"type": "keyword"}}},
                 "documentNo": {"type": "keyword"},
                 "issuer": {"type": "keyword"},
@@ -294,29 +302,87 @@ def transform_document(document_id: str, chunks: list[dict[str, Any]], args: arg
     ordered = sorted(chunks, key=lambda item: int(item.get("chunkIndex") or 0))
     base = ordered[0]
     texts = [single_line(item.get("content", "")) for item in ordered if single_line(item.get("content", ""))]
-    reshaped = reshape_chunks(texts, args)
-    if not reshaped:
-        reshaped = [single_line(base.get("title", ""))]
+    chunk_specs = chunk_specs_for(document_id, ordered, texts, args)
+    if not chunk_specs:
+        chunk_specs = [{
+            "base": base,
+            "text": single_line(base.get("title", "")),
+            "chunkId": f"{document_id}#c0000",
+            "chunkIndex": 0,
+            "charStart": 0,
+            "charEnd": len(single_line(base.get("title", ""))),
+        }]
     enriched = metadata_enrichment(base, " ".join(texts))
     result = []
-    for index, text in enumerate(reshaped):
-        doc = copy_base_document(base, args)
+    for index, spec in enumerate(chunk_specs):
+        text = spec["text"]
+        source_chunk = spec["base"]
+        doc = copy_base_document(source_chunk, args)
         doc.update(enriched)
         doc["documentId"] = document_id
         doc["documentVersion"] = base.get("documentVersion") or sha256_text(document_id)
-        doc["chunkId"] = f"{document_id}#d{index:04d}"
-        doc["chunkIndex"] = index
-        doc["charStart"] = 0
-        doc["charEnd"] = len(text)
+        doc["chunkId"] = spec["chunkId"]
+        doc["chunkIndex"] = spec["chunkIndex"]
+        doc["charStart"] = spec["charStart"]
+        doc["charEnd"] = spec["charEnd"]
         doc["content"] = text
         doc["snippet"] = enriched_snippet(doc, text)
-        doc["section"] = section_for(text, base)
-        doc["chunkCount"] = len(reshaped)
+        doc["citationText"] = citation_text(doc, text)
+        doc["generationText"] = generation_text(doc, text)
+        doc["section"] = section_for(text, source_chunk)
+        doc["chunkCount"] = len(chunk_specs)
         doc["parentSectionId"] = "sec-" + sha256_text(f"{document_id}|{doc['section']}")[:16]
-        doc["contentHash"] = sha256_text(f"{document_id}|{index}|{text}")
-        doc["_embeddingInput"] = embedding_input(doc)
+        doc["contentHash"] = sha256_text(f"{doc['chunkId']}|{text}")
+        doc["embeddingText"] = embedding_input(doc)
+        doc["_embeddingInput"] = doc["embeddingText"]
         result.append(doc)
     return result
+
+
+def chunk_specs_for(
+    document_id: str,
+    ordered: list[dict[str, Any]],
+    texts: list[str],
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    if args.reshape_chunks:
+        return reshaped_chunk_specs(document_id, ordered[0], texts, args)
+    specs = []
+    for fallback_index, item in enumerate(ordered):
+        text = single_line(item.get("content", ""))
+        if not text:
+            continue
+        chunk_id = item.get("chunkId") or f"{document_id}#c{fallback_index:04d}"
+        specs.append({
+            "base": item,
+            "text": text,
+            "chunkId": chunk_id,
+            "chunkIndex": int_value(item.get("chunkIndex"), fallback_index),
+            "charStart": int_value(item.get("charStart"), 0),
+            "charEnd": int_value(item.get("charEnd"), len(text)),
+        })
+    return specs
+
+
+def reshaped_chunk_specs(
+    document_id: str,
+    base: dict[str, Any],
+    texts: list[str],
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    reshaped = reshape_chunks(texts, args)
+    return [
+        {
+            "base": base,
+            "text": text,
+            "chunkId": f"{document_id}#d{index:04d}",
+            "chunkIndex": index,
+            "charStart": 0,
+            "charEnd": len(text),
+        }
+        for index, text in enumerate(reshaped)
+        if text
+    ]
 
 
 def reshape_chunks(texts: list[str], args: argparse.Namespace) -> list[str]:
@@ -534,6 +600,8 @@ def curated_summary_documents(args: argparse.Namespace) -> list[dict[str, Any]]:
             "title": summary["title"],
             "content": summary["content"],
             "snippet": "当前口径汇总 " + summary["content"][:260],
+            "citationText": complete_boundary_text(summary["content"], CITATION_TEXT_LIMIT),
+            "generationText": complete_boundary_text(summary["content"], GENERATION_TEXT_LIMIT),
             "section": "当前口径汇总",
             "documentNo": "",
             "issuer": "system-curated",
@@ -577,7 +645,8 @@ def curated_summary_documents(args: argparse.Namespace) -> list[dict[str, Any]]:
             "indexedAt": now_iso(),
             "chunkCount": 1,
         }
-        doc["_embeddingInput"] = embedding_input(doc)
+        doc["embeddingText"] = embedding_input(doc)
+        doc["_embeddingInput"] = doc["embeddingText"]
         docs.append(doc)
     return docs
 
@@ -593,7 +662,32 @@ def enriched_snippet(doc: dict[str, Any], text: str) -> str:
     return f"[{' | '.join(tag for tag in tags if not tag.endswith(':'))}] {single_line(text)[:260]}"
 
 
+def complete_boundary_text(text: Any, limit: int) -> str:
+    value = single_line(text)
+    if len(value) <= limit:
+        return value
+    clipped = value[:limit]
+    boundary = last_sentence_boundary(clipped)
+    if boundary >= max(40, limit // 2):
+        return clipped[:boundary].strip()
+    return clipped.strip()
+
+
+def last_sentence_boundary(text: str) -> int:
+    boundary = max(text.rfind(marker) for marker in ("。", "；", ";", "！", "？"))
+    return boundary + 1 if boundary >= 0 else -1
+
+
+def citation_text(doc: dict[str, Any], text: str) -> str:
+    return complete_boundary_text(text, CITATION_TEXT_LIMIT)
+
+
+def generation_text(doc: dict[str, Any], text: str) -> str:
+    return complete_boundary_text(text, GENERATION_TEXT_LIMIT)
+
+
 def embedding_input(doc: dict[str, Any]) -> str:
+    body = doc.get("generationText") or doc.get("content") or ""
     parts = [
         f"标题：{doc.get('title', '')}",
         f"文号：{doc.get('documentNo', '')}",
@@ -607,9 +701,12 @@ def embedding_input(doc: dict[str, Any]) -> str:
         f"检索标签：{'、'.join(string_list(doc.get('retrievalBoostTags')))}",
         f"来源文档：{'、'.join(string_list(doc.get('sourceTitles')))}",
         f"章节：{doc.get('section', '')}",
-        f"正文：{doc.get('content', '')}",
+        f"正文：{body}",
     ]
-    return "\n".join(part for part in parts if not part.endswith("："))[:2200]
+    return complete_boundary_text(
+        "\n".join(part for part in parts if not part.endswith("：")),
+        EMBEDDING_TEXT_LIMIT,
+    )
 
 
 def infer_policy_topic(text: str) -> str:
@@ -857,6 +954,13 @@ def join_text(left: str, right: str) -> str:
 
 def single_line(value: Any) -> str:
     return re.sub(r"\s+", " ", "" if value is None else str(value)).strip()
+
+
+def int_value(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def parse_year(value: str) -> int | None:

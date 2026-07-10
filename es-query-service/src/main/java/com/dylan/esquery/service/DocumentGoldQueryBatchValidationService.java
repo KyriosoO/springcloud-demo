@@ -116,7 +116,7 @@ public class DocumentGoldQueryBatchValidationService {
 		searchRequest.setTopK(topK);
 		searchRequest.setRrfK(DEFAULT_RRF_K);
 		searchRequest.setMaxChunksPerDocument(1);
-		searchRequest.setSourceExcludes(List.of("embedding"));
+		searchRequest.setSourceExcludes(List.of("embedding", "embeddingText"));
 		searchRequest.setChannels(channels(goldCase, topK, request.embeddingField()));
 		return searchRequest;
 	}
@@ -154,7 +154,7 @@ public class DocumentGoldQueryBatchValidationService {
 	private Map<String, Object> bm25Dsl(String query) {
 		return Map.of("query", Map.of("multi_match", Map.of(
 				"query", query,
-				"fields", List.of("title^3", "content", "snippet", "section^1.5",
+				"fields", List.of("title^3", "content", "generationText", "citationText^1.2", "snippet", "section^1.5",
 						"documentNo^5", "issuer^2", "taxType^2"))));
 	}
 
@@ -176,7 +176,7 @@ public class DocumentGoldQueryBatchValidationService {
 		return Map.of("query", Map.of("multi_match", Map.of(
 				"query", query,
 				"type", "phrase",
-				"fields", List.of("title^3", "content", "snippet", "section^1.5"))));
+				"fields", List.of("title^3", "content", "generationText", "citationText^1.2", "snippet", "section^1.5"))));
 	}
 
 	private Map<String, Object> term(String field, String query, String name) {
