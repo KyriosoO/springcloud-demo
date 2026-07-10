@@ -1,0 +1,78 @@
+{
+  "goldSetVersion": "tax-policy-core-v1",
+  "domain": "tax_policy",
+  "materialType": "tax_policy",
+  "retrievalProfile": "tax_policy_v2_default",
+  "profileVersion": "chinatax-policy-v2-dataopt-20260710-bge-m3",
+  "cases": [
+    {
+      "caseId": "tax-vat-current-rates",
+      "query": "增值税有哪些税率？",
+      "caseType": "qa_current_law",
+      "topK": 10,
+      "expectedDocumentIds": [
+        "tax-curated-vat-rates-current",
+        "tax-ed86dea9630deb65973c6bb2",
+        "tax-31d17b20b37475140af18a93"
+      ],
+      "notes": "应优先命中现行增值税法税率条款或当前口径汇总，避免只命中历史调整通知。"
+    },
+    {
+      "caseId": "tax-vat-general-taxpayer-current-rates",
+      "query": "目前增值税一般纳税人适用的税率有哪些？",
+      "caseType": "qa_current_law",
+      "topK": 10,
+      "expectedDocumentIds": [
+        "tax-curated-vat-rates-current",
+        "tax-ed86dea9630deb65973c6bb2",
+        "tax-31d17b20b37475140af18a93"
+      ],
+      "notes": "应命中 13%、9%、6%、零税率等当前税率依据。"
+    },
+    {
+      "caseId": "tax-vat-small-scale-rate",
+      "query": "小规模纳税人增值税征收率是多少？",
+      "caseType": "qa_current_policy",
+      "topK": 10,
+      "expectedDocumentIds": [
+        "tax-curated-vat-small-scale-current",
+        "tax-986604ed425418fdaff65f6e",
+        "tax-fbd2a31b07bc3ce308d0dd47"
+      ],
+      "notes": "应同时覆盖法定 3% 征收率和阶段性减按 1% 政策。"
+    },
+    {
+      "caseId": "tax-eit-basic-rate",
+      "query": "企业所得税税率是多少？",
+      "caseType": "qa_current_law",
+      "topK": 10,
+      "expectedDocumentIds": [
+        "tax-curated-eit-rates-current",
+        "tax-0d5b04990b508ca61326d670"
+      ],
+      "notes": "应优先命中企业所得税法基本税率条款，避免旧国营企业所得税条例和专项优惠主导。"
+    },
+    {
+      "caseId": "tax-eit-small-low-profit",
+      "query": "小型微利企业企业所得税优惠税率是多少？",
+      "caseType": "qa_current_policy",
+      "topK": 10,
+      "expectedDocumentIds": [
+        "tax-curated-eit-rates-current",
+        "tax-f186c1cf633380d4a6b6cd49",
+        "tax-7b4a5fb175298a9545704b1d",
+        "tax-f4ede0cfeb676756c93a4866",
+        "tax-2ddc0de47ec202ec1296f075"
+      ],
+      "notes": "首批以汇总型当前口径 chunk 兜底，后续补充原始优惠政策 expectedDocumentIds。"
+    },
+    {
+      "caseId": "tax-vat-invoice-lost",
+      "query": "增值税专用发票丢失怎么处理？",
+      "caseType": "procedure",
+      "topK": 10,
+      "expectedDocumentIds": [],
+      "notes": "暂作为探索样本，后续人工标注 expectedDocumentIds 后纳入强门禁。"
+    }
+  ]
+}
