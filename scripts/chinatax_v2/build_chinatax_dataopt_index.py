@@ -272,7 +272,10 @@ def load_source_documents(session: requests.Session, args: argparse.Namespace) -
                     {"term": {"retrievalProfile": args.retrieval_profile}},
                     {"term": {"status": "ACTIVE"}},
                     {"term": {"visibility": "PUBLIC"}},
-                ]
+                ],
+                "must_not": [
+                    {"term": {"curated": True}},
+                ],
             }
         },
     }
