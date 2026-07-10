@@ -140,10 +140,11 @@ public class DeepSeekDocumentGenerationClient {
         Set<String> allowed = request.contextPackage().citationIds() == null
                 ? Set.of()
                 : request.contextPackage().citationIds();
-        String answerText = limit(source.answerText(), request.maxOutputChars());
-        String summaryText = limit(source.summaryText(), request.maxOutputChars());
+        String answerText = limit(normalizeCitationMarkers(source.answerText(), allowed), request.maxOutputChars());
+        String summaryText = limit(normalizeCitationMarkers(source.summaryText(), allowed), request.maxOutputChars());
         List<String> summaryBullets = source.summaryBullets() == null ? null : source.summaryBullets().stream()
                 .filter(value -> value != null && !value.isBlank())
+                .map(value -> normalizeCitationMarkers(value, allowed))
                 .map(value -> limit(value, request.maxOutputChars()))
                 .toList();
         List<CitationBinding> bindings = sanitizeBindings(source.citationBindings(), allowed);
@@ -165,7 +166,8 @@ public class DeepSeekDocumentGenerationClient {
         List<CitationBinding> sanitized = new ArrayList<>();
         for (CitationBinding binding : source) {
             List<String> ids = binding.citationIds() == null ? List.of() : binding.citationIds().stream()
-                    .filter(allowed::contains)
+                    .map(citationId -> canonicalCitationId(citationId, allowed))
+                    .filter(Objects::nonNull)
                     .distinct()
                     .toList();
             if (!ids.isEmpty()) {
@@ -202,11 +204,44 @@ public class DeepSeekDocumentGenerationClient {
         }
         Matcher matcher = CITATION_PATTERN.matcher(text);
         while (matcher.find()) {
-            String id = matcher.group(1);
-            if (allowed.contains(id)) {
+            String id = canonicalCitationId(matcher.group(1), allowed);
+            if (id != null) {
                 target.add(id);
             }
         }
+    }
+
+    private static String normalizeCitationMarkers(String text, Set<String> allowed) {
+        if (text == null || allowed.isEmpty()) {
+            return text;
+        }
+        Matcher matcher = CITATION_PATTERN.matcher(text);
+        StringBuilder normalized = new StringBuilder();
+        while (matcher.find()) {
+            String id = canonicalCitationId(matcher.group(1), allowed);
+            if (id != null) {
+                matcher.appendReplacement(normalized, Matcher.quoteReplacement("[" + id + "]"));
+            }
+        }
+        matcher.appendTail(normalized);
+        return normalized.toString();
+    }
+
+    private static String canonicalCitationId(String value, Set<String> allowed) {
+        if (value == null || allowed.isEmpty()) {
+            return null;
+        }
+        String id = value.trim();
+        if (allowed.contains(id)) {
+            return id;
+        }
+        if (id.startsWith("citation:")) {
+            String withoutScheme = id.substring("citation:".length()).trim();
+            if (allowed.contains(withoutScheme)) {
+                return withoutScheme;
+            }
+        }
+        return null;
     }
 
     private static String stripCodeFence(String content) {

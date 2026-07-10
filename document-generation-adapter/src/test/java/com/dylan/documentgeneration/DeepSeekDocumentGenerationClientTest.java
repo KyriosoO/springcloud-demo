@@ -78,6 +78,32 @@ class DeepSeekDocumentGenerationClientTest {
         server.verify();
     }
 
+    @Test
+    void normalizesCitationSchemeMarkersToCanonicalEvidenceIds() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.deepseek.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        String citationId = "tax-8624be5fa74f5d9fc1c6c3d2#c0000";
+        server.expect(requestTo("https://api.deepseek.test/v1/chat/completions"))
+                .andRespond(withSuccess("""
+                        {
+                          "choices": [{
+                            "message": {
+                              "content": "{\\"answerText\\":\\"增值税适用多档税率。[citation:tax-8624be5fa74f5d9fc1c6c3d2#c0000]\\",\\"summaryText\\":null,\\"summaryBullets\\":null,\\"citationBindings\\":[{\\"text\\":\\"增值税适用多档税率。\\",\\"citationIds\\":[\\"citation:tax-8624be5fa74f5d9fc1c6c3d2#c0000\\"]}],\\"finishReason\\":\\"stop\\"}"
+                            }
+                          }]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        var client = new DeepSeekDocumentGenerationClient(builder.build(), properties(), new ObjectMapper());
+
+        var result = client.generate(request(citationId));
+
+        assertThat(result.answerText()).isEqualTo("增值税适用多档税率。[" + citationId + "]");
+        assertThat(result.citationBindings()).singleElement()
+                .extracting(binding -> binding.citationIds())
+                .isEqualTo(List.of(citationId));
+        server.verify();
+    }
+
     private DeepSeekGenerationProperties properties() {
         DeepSeekGenerationProperties properties = new DeepSeekGenerationProperties();
         properties.setBaseUrl("https://api.deepseek.test");
@@ -87,6 +113,10 @@ class DeepSeekDocumentGenerationClientTest {
     }
 
     private DocumentGenerationRequest request() {
+        return request("chunk-1");
+    }
+
+    private DocumentGenerationRequest request(String citationId) {
         Instant deadline = Instant.now().plusSeconds(60);
         return new DocumentGenerationRequest(
                 "inv-1",
@@ -98,10 +128,10 @@ class DeepSeekDocumentGenerationClientTest {
                         DocumentPlanOperation.ANSWER,
                         "当前增值税税率有哪几档？",
                         List.of(new DocumentEvidenceContextItem(
-                                "chunk-1",
+                                citationId,
                                 "增值税税率包括13%、9%、6%。",
                                 Map.of("title", "中华人民共和国增值税法"))),
-                        Set.of("chunk-1"),
+                        Set.of(citationId),
                         new DocumentContextBudget(8000, 1200, 8, 2000),
                         "digest"),
                 2000,
