@@ -85,7 +85,9 @@ public class DeepSeekDocumentGenerationClient {
                   "citationBindings": [{"text": string, "citationIds": string[]}],
                   "finishReason": "stop"
                 }
-                Every factual sentence or bullet must include citation markers like [citationId].
+                Every factual sentence or bullet must include exact citation markers copied from supplied evidence headers.
+                For example, if an evidence header is [tax-doc#c0000], cite exactly [tax-doc#c0000].
+                Do not add labels or prefixes such as [citationId:tax-doc#c0000] or [citation:tax-doc#c0000].
                 citationIds must come only from the supplied evidence ids.
                 If evidence is insufficient, say so briefly and cite the closest available evidence.
                 """;
@@ -235,13 +237,20 @@ public class DeepSeekDocumentGenerationClient {
         if (allowed.contains(id)) {
             return id;
         }
-        if (id.startsWith("citation:")) {
-            String withoutScheme = id.substring("citation:".length()).trim();
-            if (allowed.contains(withoutScheme)) {
-                return withoutScheme;
-            }
+        String withoutLabel = stripCitationLabel(id);
+        if (!withoutLabel.equals(id) && allowed.contains(withoutLabel)) {
+            return withoutLabel;
         }
         return null;
+    }
+
+    private static String stripCitationLabel(String id) {
+        for (String prefix : List.of("citation:", "citationId:")) {
+            if (id.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                return id.substring(prefix.length()).trim();
+            }
+        }
+        return id;
     }
 
     private static String stripCodeFence(String content) {

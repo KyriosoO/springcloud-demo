@@ -100,6 +100,20 @@ class DocumentResultSecurityProjectorTest {
     }
 
     @Test
+    void normalizesCitationIdLabelBeforeValidatingGeneratedCandidate() {
+        DocumentAgentResultPayload payload = payload();
+        payload.getDocumentResult().setGenerationStatus(DocumentGenerationStatus.SUCCEEDED);
+        payload.getDocumentResult().setGroundingStatus(GroundingStatus.VERIFIED);
+        payload.getDocumentResult().setCandidateAnswerText("生成式回答。[citationId:c-1]");
+
+        FilteredResult<DocumentAgentResultPayload> filtered = projector().filter(payload, scope());
+
+        AgentDocumentResult result = filtered.payload().getDocumentResult();
+        assertThat(result.getAnswerText()).isEqualTo("生成式回答。[c-1]");
+        assertThat(result.getGenerationStatus()).isEqualTo(DocumentGenerationStatus.SUCCEEDED);
+    }
+
+    @Test
     void generatedTextUsesGenerationOutputBudgetNotSnippetBudget() {
         AgentProperties properties = DomainMetadataTestSupport.agentProperties();
         properties.getDocument().setMaxSnippetChars(6);

@@ -104,6 +104,32 @@ class DeepSeekDocumentGenerationClientTest {
         server.verify();
     }
 
+    @Test
+    void normalizesCitationIdLabelMarkersToCanonicalEvidenceIds() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.deepseek.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        String citationId = "tax-curated-vat-rates-current#c0000";
+        server.expect(requestTo("https://api.deepseek.test/v1/chat/completions"))
+                .andRespond(withSuccess("""
+                        {
+                          "choices": [{
+                            "message": {
+                              "content": "{\\"answerText\\":\\"现行增值税税率包括13%、9%、6%等档次。[citationId:tax-curated-vat-rates-current#c0000]\\",\\"summaryText\\":null,\\"summaryBullets\\":null,\\"citationBindings\\":[{\\"text\\":\\"现行增值税税率包括13%、9%、6%等档次。\\",\\"citationIds\\":[\\"citationId:tax-curated-vat-rates-current#c0000\\"]}],\\"finishReason\\":\\"stop\\"}"
+                            }
+                          }]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        var client = new DeepSeekDocumentGenerationClient(builder.build(), properties(), new ObjectMapper());
+
+        var result = client.generate(request(citationId));
+
+        assertThat(result.answerText()).isEqualTo("现行增值税税率包括13%、9%、6%等档次。[" + citationId + "]");
+        assertThat(result.citationBindings()).singleElement()
+                .extracting(binding -> binding.citationIds())
+                .isEqualTo(List.of(citationId));
+        server.verify();
+    }
+
     private DeepSeekGenerationProperties properties() {
         DeepSeekGenerationProperties properties = new DeepSeekGenerationProperties();
         properties.setBaseUrl("https://api.deepseek.test");

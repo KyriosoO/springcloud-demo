@@ -267,27 +267,34 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
         if (operation == DocumentPlanOperation.ANSWER
                 && result.getCandidateAnswerText() != null
                 && !result.getCandidateAnswerText().isBlank()) {
-            if (!candidateCitationsValid(result, List.of(result.getCandidateAnswerText()))) {
+            Set<String> allowedCitationIds = allowedCitationIds(result);
+            String answerText = normalizeCitationMarkers(result.getCandidateAnswerText(), allowedCitationIds);
+            if (!candidateCitationsValid(result, List.of(answerText))) {
                 markGeneratedCandidateFallback(result);
                 return false;
             }
-            result.setAnswerText(truncateGeneratedText(result.getCandidateAnswerText()));
+            result.setAnswerText(truncateGeneratedText(answerText));
             return true;
         }
         if (operation == DocumentPlanOperation.SUMMARIZE
                 && result.getCandidateSummaryText() != null
                 && !result.getCandidateSummaryText().isBlank()) {
+            Set<String> allowedCitationIds = allowedCitationIds(result);
             List<String> summaryTexts = new java.util.ArrayList<>();
-            summaryTexts.add(result.getCandidateSummaryText());
+            String summaryText = normalizeCitationMarkers(result.getCandidateSummaryText(), allowedCitationIds);
+            summaryTexts.add(summaryText);
+            List<String> summaryBullets = result.getCandidateSummaryBullets() == null ? null : result.getCandidateSummaryBullets().stream()
+                    .map(value -> normalizeCitationMarkers(value, allowedCitationIds))
+                    .toList();
             if (result.getCandidateSummaryBullets() != null) {
-                summaryTexts.addAll(result.getCandidateSummaryBullets());
+                summaryTexts.addAll(summaryBullets);
             }
             if (!candidateCitationsValid(result, summaryTexts)) {
                 markGeneratedCandidateFallback(result);
                 return false;
             }
-            result.setSummaryText(truncateGeneratedText(result.getCandidateSummaryText()));
-            result.setSummaryBullets(result.getCandidateSummaryBullets() == null ? null : result.getCandidateSummaryBullets().stream()
+            result.setSummaryText(truncateGeneratedText(summaryText));
+            result.setSummaryBullets(summaryBullets == null ? null : summaryBullets.stream()
                     .map(this::truncateGeneratedText)
                     .toList());
             return true;
@@ -304,27 +311,71 @@ public final class DocumentResultSecurityProjector implements ResultSecurityProj
     }
 
     private boolean candidateCitationsValid(AgentDocumentResult result, List<String> texts) {
-        Set<String> allowedCitationIds = result.getCitations().stream()
-                .filter(citation -> citation.getSnippet() != null && !citation.getSnippet().isBlank())
-                .map(AgentDocumentCitation::getCitationId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toUnmodifiableSet());
+        Set<String> allowedCitationIds = allowedCitationIds(result);
         List<String> checkedTexts = texts.stream()
                 .filter(text -> text != null && !text.isBlank())
                 .toList();
         return !checkedTexts.isEmpty() && checkedTexts.stream()
                 .allMatch(text -> {
-                    Set<String> referencedCitationIds = citationIds(text);
+                    Set<String> referencedCitationIds = citationIds(text, allowedCitationIds);
                     return !referencedCitationIds.isEmpty()
                             && allowedCitationIds.containsAll(referencedCitationIds);
                 });
     }
 
-    private static Set<String> citationIds(String text) {
+    private static Set<String> allowedCitationIds(AgentDocumentResult result) {
+        return result.getCitations().stream()
+                .filter(citation -> citation.getSnippet() != null && !citation.getSnippet().isBlank())
+                .map(AgentDocumentCitation::getCitationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static Set<String> citationIds(String text, Set<String> allowedCitationIds) {
         return CITATION_PATTERN.matcher(text).results()
-                .map(match -> match.group(1).trim())
+                .map(match -> canonicalCitationId(match.group(1), allowedCitationIds))
                 .filter(value -> !value.isBlank())
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static String normalizeCitationMarkers(String text, Set<String> allowedCitationIds) {
+        if (text == null || allowedCitationIds.isEmpty()) {
+            return text;
+        }
+        var matcher = CITATION_PATTERN.matcher(text);
+        StringBuilder normalized = new StringBuilder();
+        while (matcher.find()) {
+            String id = canonicalCitationId(matcher.group(1), allowedCitationIds);
+            if (allowedCitationIds.contains(id)) {
+                matcher.appendReplacement(normalized, java.util.regex.Matcher.quoteReplacement("[" + id + "]"));
+            }
+        }
+        matcher.appendTail(normalized);
+        return normalized.toString();
+    }
+
+    private static String canonicalCitationId(String value, Set<String> allowedCitationIds) {
+        if (value == null || allowedCitationIds.isEmpty()) {
+            return "";
+        }
+        String id = value.trim();
+        if (allowedCitationIds.contains(id)) {
+            return id;
+        }
+        String withoutLabel = stripCitationLabel(id);
+        if (!withoutLabel.equals(id) && allowedCitationIds.contains(withoutLabel)) {
+            return withoutLabel;
+        }
+        return id;
+    }
+
+    private static String stripCitationLabel(String id) {
+        for (String prefix : List.of("citation:", "citationId:")) {
+            if (id.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                return id.substring(prefix.length()).trim();
+            }
+        }
+        return id;
     }
 
     private static void markGeneratedCandidateFallback(AgentDocumentResult result) {
