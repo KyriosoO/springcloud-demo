@@ -4,12 +4,18 @@
 > 文档状态：架构基线（已评审）
 > 上位文档：`Agent目标架构总览_v1.0.md`
 > 关联 L1：`Agent契约与规划架构设计_v1.0.md`（已评审）、`Agent能力执行内核架构设计_v1.0.md`（已评审）
-> 适用代码基线：`472373e` 及其后续同源提交<br>
+> 适用代码基线：`389b72b6162edfdb4385c8a77bebf56bfb3e2608`<br>
 > 适用范围：`agent-service` 元数据、安全投影与 Context 边界，`agent-api` 结构引用，`agent-adapter-api` Adapter Role/执行端口边界
 > 前提：系统尚未投产，不承担旧 AgentIntent、旧 query context、分散 Domain metadata 或旧权限配置的兼容责任
 > 下位交付：D02 Capability Kernel 实施详细设计、D04 Adapter Metadata 收敛、D03 Capability v2 原子切换；D03 前置依赖 D01 契约治理、D02 详细设计和 D04 Adapter Metadata 收敛全部通过评审
 
 ---
+
+## 修订历史
+
+| 序号 | 日期 | 文档位置 | 修改内容 | 修改原因 |
+|---:|---|---|---|---|
+| 1 | 2026-07-13 | `docs/design/Agent元数据与上下文安全架构设计_v1.0.md` | 明确当前只启用 ConversationScope、冻结后台主体与 RunScope seam；补充 capability 资源预算最严交集和 Generated Text Candidate 安全规则；限定 Multi-Agent 当前不实现；更新可追溯代码基线 | 保证单 Agent 当前安全闭环并避免未来 TASK 授权、预算和结果归并发生大改 |
 
 ## 1. 文档定位
 
@@ -98,6 +104,7 @@ L0 Agent 目标架构总览
 | AD-08 Multi-Agent 复用单 Agent 内核 | TASK 使用同一 Profile/Authorization/Catalog/Context/Binding 规则，不建立任务专用权限体系 | 第 20 节 |
 | AD-09 两阶段 Context 隔离 | Route 前不加载 capability Context；Registration 解析后才按 Effective Scope 读取 | 第 13、15 节 |
 | AD-10 全链 absolute deadline | metadata、permission、Context、availability 和 filtering 边界只消费剩余预算 | 第 15、17 节 |
+| AD-11 capability-local infrastructure port | 端口只接收已授权最小数据，生成候选继续通过 Result Security Boundary | 第 8.5、18 节 |
 | Capability Catalog 无专用分支 | 通用交集算法按 Registration、Profile、Policy、Permission、Delegation 和 Domain 能力计算 | 第 9 节 |
 | 新 Domain 不侵入 Agent 主流程 | 只增加 Canonical Catalog 数据、Adapter Registration、Policy 和 composition root 装配 | 第 10、19 节 |
 | Context 安全持久化 | 最小化、加密、TTL、Owner/Scope 隔离、版本 CAS、随 Conversation/Run 清理 | 第 12～14 节 |
@@ -373,6 +380,20 @@ Planning Effective Scope
 
 任一适用层明确拒绝、版本不可解析或必要交集为空均 fail closed。缺失 Policy 不得被解释为无限权限；是否允许显式“无附加部署限制”的默认项必须由受控配置明确声明。
 
+Capability 运行资源和结果暴露预算同样遵循单调收紧，不允许 capability 配置形成平行授权事实：
+
+```text
+Effective Capability Resource Limit
+  = Definition intrinsic/contract limit
+  ∩ Effective Profile limit
+  ∩ Current User Permission / data scope limit when applicable
+  ∩ Delegation Constraint (TASK only)
+  ∩ Request-declared narrowing limit
+  ∩ Run/Task remaining budget (D06 only)
+```
+
+例如 evidence 数量、summary document 数量、display citation 数量、生成输入/输出大小等：Definition/ContractRef 保存不可突破的结构或能力固有限制，Profile 保存 Agent 组合上限，Policy 保存部署级与安全上限，请求只能收紧。最终有效值必须绑定 Authorization Snapshot/Execution Context 并由 Validator、Handler 和 Result Security Boundary 使用同一值；不得让三个组件分别读取配置后独立计算。
+
 ### 7.3 Policy/Profile 分工
 
 | 内容 | Profile | Policy |
@@ -409,6 +430,8 @@ Planning Effective Scope
 - Runtime identity：Agent Service 调用 Runtime 的内部服务身份，不是用户主体。
 
 JWT、session、临时认证对象和调用方进程上下文不得成为后台 TASK 的长期授权来源，也不得发送给 Runtime。
+
+当前 D01～D05 只启用认证 Owner 的 ConversationScope。Execution Subject、Owner Reference 和 Invocation Scope 必须使用入口中立的稳定引用，但不得因此提前创建 Run Owner 存储、RunScope Context、Delegation Repository、Task 权限服务或 TASK 配置。上述运行实体只在 D06 的 Multi-Agent L1 完成后实现。
 
 ### 8.2 Authorization Snapshot
 
@@ -452,8 +475,9 @@ Canonical Domain capability 和 Adapter availability 不授予权限，不进入
 
 - 先校验类型和 ContractRef；
 - 再按当前 User Permission 与 applicable Policy 提供的 field 权限、mask、安全分类引用和结果大小上限过滤；这些规则不由 Profile、Handler 或 Canonical Catalog 自行补充；
-- summary/message 只能从过滤后的结构化结果和安全模板生成；
-- Handler/Adapter 自由文本不得绕过过滤；
+- summary/message 默认从过滤后的结构化结果和安全模板生成；需要生成式回答或摘要时，只接受 output ContractRef 声明的类型化 Generated Text Candidate；
+- Generated Text Candidate 必须绑定已授权 evidence/citation reference、生成 operation metadata 和有效输出预算；Result Security Boundary 必须校验证据归属、citation 完整性、当前字段权限、mask 和大小限制后才能形成最终文本；
+- Handler/Adapter/Capability Infrastructure Port 未绑定证据或未经类型化校验的自由文本不得绕过过滤；
 - 只有 output ContractRef 明确允许省略或类型化 redaction 时才可省略/mask；required 字段无法安全暴露或过滤后不再满足 ContractRef 时整体 fail closed，不返回未过滤候选。
 
 ---
@@ -887,7 +911,7 @@ sequenceDiagram
 
     alt ExecutablePlanningResult
         E->>L: Execute and finalize
-        L->>EC: Execution Command with exact PlanningResult
+        L->>EC: Execution Command with same immutable Planning Artifact
         EC->>AU: Recheck current permission and versions
         AU-->>EC: Effective Execution Scope or deny
         EC->>X: Recheck consumed Context owner/scope/version/TTL if present
@@ -1141,9 +1165,11 @@ Runtime 不接收：
 
 ## 20. Multi-Agent 复用边界
 
+本节只冻结当前单 Agent 需要保留的 metadata/security/context seam，不要求 D01～D05 实现 Multi-Agent 运行组件。当前验收只检查共享类型和边界不依赖 Conversation/Turn 具体实体、ConversationScope 可独立工作且不存在未使用的 Run/Task/ResultRef 存储或权限空壳。
+
 ### 20.1 TASK 输入
 
-未来 TaskRunner 使用同一 PlanningCommand 边界提供：
+D06 在 Multi-Agent L1 完成后，TaskRunner 才使用同一 PlanningCommand 边界提供：
 
 - Execution Subject/Run Owner Reference；
 - 目标 Agent Profile reference；
@@ -1193,6 +1219,9 @@ Coordinator、CoordinationPlanner、Run/Task Graph、claim/lease/retry、Task St
 | MS-17 | CHAT/TASK 复用同一 metadata/security/context 边界 | AD-08 |
 | MS-18 | 所有逻辑边界默认进程内，跨进程拆分必须 ADR | L0 第 4.1、15 节 |
 | MS-19 | Core 在 Validator 前复检已消费 Context Snapshot 的 Owner/Scope/schema/record version/TTL，变化时不替换 Context 继续执行 | AD-06、AD-09、能力执行内核 L1 EK-19 |
+| MS-20 | capability 资源与结果预算按 Definition、Profile、Policy、Permission/Delegation、Request 和 D06 Run/Task remaining budget 单调求交，Validator/Handler/Result Security 使用同一有效值 | AD-03、AD-06 |
+| MS-21 | 当前只启用 ConversationScope；RunScope、Delegation 和后台主体只冻结稳定引用 seam，不提前创建运行状态或存储 | AD-04、AD-08 |
+| MS-22 | 生成式文本必须以绑定已授权 evidence/citation 的类型化候选进入统一 Result Security Boundary | AD-06、AD-11、L0 第 9.3 节 |
 
 这些决策只能通过本文或 L0 的 ADR 修改。
 
@@ -1276,6 +1305,9 @@ D03 必须与契约、Planning、Capability Kernel、Persistence、Adapter metad
 31. 所有逻辑边界默认进程内，不因名称为 Registry/Catalog/Boundary 自动拆分微服务。
 32. D02/D04 输出范围、D03 原子切换和旧双来源删除均有明确下位门禁。
 33. Core 在 Validator 前复检已消费 Context Snapshot 的 request correlation、Owner、Scope、schema、record version 和 TTL；变化时 fail closed，不重载另一份 Context 或重做 Planning。
+34. Validator、Handler 和 Result Security 使用同一 Effective Capability Resource Limit，不分别从 capability 配置推导互相冲突的 evidence、summary、citation 或生成预算。
+35. Generated Text Candidate 只有在 evidence/citation、字段授权、mask、ContractRef 和输出预算全部校验后才能形成最终回答或摘要。
+36. 当前只实现 ConversationScope，且不存在未使用的 RunScope Context、Task 权限、Delegation 存储或 ResultRef 空壳。
 
 ### 22.2 结构与一致性维护
 
@@ -1300,6 +1332,6 @@ D03 必须与契约、Planning、Capability Kernel、Persistence、Adapter metad
 
 评审完成前保持“待评审”；若发现本文自身问题，订正后重新执行完整评审。若发现上级或关联 L1 问题，停止修改上级文档并先请求确认。
 
-最终跨文档评审结论（2026-06-30）：已对照 L0、契约与规划 L1 和能力执行内核 L1 复审事实源、授权公式、两阶段 Context、执行时当前性复检、Adapter Binding、结果过滤、原子写入、失败恢复、交付门禁及扩展不变量；当前适用基线下无未决冲突、侵入、缺漏或重复权威定义。
+内部跨文档复审记录（2026-07-13）：当前单 Agent Profile、Authorization、Catalog、Context 和 Result Security 主链保持闭合；已统一资源预算与生成式候选安全 seam。RunScope、Delegation、ResultRef 和后台 Task 授权仍等待 D06 L1，不在当前阶段实现。
 
 本文确认 Profile、Policy、Authorization / Result Security、Capability Catalog、Domain Metadata 和 Context 的稳定所有权与闭环；具体编码以完成评审的 D02/D04/D03 详细设计为准。
