@@ -7,7 +7,7 @@
 > 适用代码基线：`389b72b6162edfdb4385c8a77bebf56bfb3e2608`
 > 适用范围：`agent-service` Capability Kernel、`agent-api` 执行引用、`agent-adapter-api` 执行端口边界  
 > 前提：系统尚未投产，不承担旧 AgentIntent 路由、旧 Handler 接口、旧 Turn/Context 结构的兼容责任  
-> 下位交付：D02 Capability Kernel 实施详细设计、D03 Capability v2 原子切换；D03 前置依赖 D01 契约治理、D02 详细设计和 D04 Adapter Metadata 收敛全部通过评审
+> 下位交付：`P1_V2/02` 可信执行内核与 Invocation 生命周期、`P1_V2/03` 元数据授权 Context 与 Result Security、`P1_V2/04` Adapter 与 Domain Metadata、`P1_V2/05` 有效资源预算、`P1_V2/06` 原子迁移与清理门禁
 
 ---
 
@@ -16,6 +16,7 @@
 | 序号 | 日期 | 文档位置 | 修改内容 | 修改原因 |
 |---:|---|---|---|---|
 | 1 | 2026-07-13 | `docs/design/Agent能力执行内核架构设计_v1.0.md` | 以 Invocation 级不可变 Planning Artifact 替代 JVM 实例身份；补充入口中立、capability-local infrastructure port 和类型化生成候选安全边界；明确 Multi-Agent 当前仅预留 seam | 保证当前单 Agent 可落地且未来接入 TASK 时不重写共享执行内核 |
+| 2 | 2026-07-13 | `docs/design/Agent能力执行内核架构设计_v1.0.md` | 统一下位交付为 P1_V2；收紧当前 CHAT 与 future TASK 边界；补充类型化有效资源限额的冻结、同源传递和结果安全约束 | 消除旧 D01～D06 入口和提前固化 Multi-Agent 类型的冲突，闭合 L0 AD-11 与 P1_V2/05 的架构前置 |
 
 ## 1. 文档定位
 
@@ -41,19 +42,21 @@ L0 Agent 目标架构总览
   ├→ 本文：能力执行内核 L1
   └→ 元数据与上下文安全 L1（已评审）
 契约与规划 L1 已评审，且能力执行内核 L1 + 元数据与上下文安全 L1 均已评审
-  → D02 Capability Kernel 实施详细设计
-      → D04 Adapter Metadata 收敛
-          → D03 Capability v2 原子切换
+  → P1_V2/02 可信执行内核与 Invocation 生命周期
+      → P1_V2/03 元数据授权 Context 与 Result Security
+      → P1_V2/04 Adapter 与 Domain Metadata
+      → P1_V2/05 有效资源预算与 Capability-local Port
+          → P1_V2/06 原子迁移、扩展验证与清理门禁
 ```
 
 约束顺序：
 
 - L0 高于本文。
 - 契约与规划 L1 定义 PlanningResult 和 Raw Plan 的输入边界；本文不得重新定义 Route/Plan 协议。
-- 本文高于 D02/D03 对应 L2 和代码。
+- 本文高于 P1_V2 中对应 L2 和代码。
 - 实施不可行时必须先通过 ADR 修订本文或 L0，禁止在 Handler、Registry 或 Lifecycle 中形成未记录旁路。
 
-元数据与上下文安全 L1 已完成评审；本文仍不得代替它定义 Profile/Policy/Authorization/Context/Catalog 公式、存储和 metadata 事实。两份 L1 已共同闭合 D02 的架构前置，但 D02 仍须遵守 L0 第 13.2 节的交付顺序。
+元数据与上下文安全 L1 已完成评审；本文仍不得代替它定义 Profile/Policy/Authorization/Context/Catalog 公式、存储和 metadata 事实。两份 L1 已共同闭合 P1_V2 执行与安全详细设计的架构前置；具体交付仍须遵守 L0 第 13.2 节和 `P1_V2/00` 的顺序。
 
 ### 1.3 本文唯一负责的内容
 
@@ -77,7 +80,7 @@ L0 Agent 目标架构总览
 |---|---|---|
 | Route/Plan/Clarification Runtime 契约、PlanningCommand、PlanningResult、Prompt、repair | `Agent契约与规划架构设计_v1.0.md` | 接收 ExecutablePlanningResult/ResolvedClarification，不重新定义 Runtime 协议 |
 | Profile、Policy、Authorization Snapshot、Context 授权、Capability Catalog、Canonical Domain Field Catalog | `Agent元数据与上下文安全架构设计_v1.0.md` | 调用授权复检、结果过滤和 Context 持久化边界，不复制权限公式或 metadata |
-| Coordinator、CoordinationPlanner、TaskRunner、ResultRef、Task State Boundary、Run/Task/Attempt | `Multi-Agent协调与任务架构设计_v1.0.md` | 只定义 CHAT/TASK 共用 Invocation/Execution 语义，不定义 Task Graph 和调度状态机 |
+| Coordinator、CoordinationPlanner、TaskRunner、ResultRef、Task State Boundary、Run/Task/Attempt | future `Multi-Agent协调与任务架构设计_v1.0.md` | 当前只冻结入口中立的 Invocation/Execution seam；TASK、RunScope 和调度状态机须由 future Multi-Agent L1 定义后才可落地 |
 
 本文也不定义：
 
@@ -103,11 +106,12 @@ L0 Agent 目标架构总览
 | AD-04 Planning/Lifecycle/Core 分离 | Planning 产出结果；Lifecycle 协调；Core 执行 | 第 4、8～10 节 |
 | AD-05 类型桥只在 Registration | Core 不接触裸 wildcard Handler 或 unchecked cast | 第 6、7、10 节 |
 | AD-06 Runtime 不可信 | Raw Plan 必须经过授权复检和 Plan Validator | 第 9～11 节 |
-| AD-07 纵向原子切换 | D02 只冻结设计，D03 一次替换旧执行链 | 第 20 节 |
-| AD-08 Multi-Agent 复用内核 | CHAT/TASK 共用 Lifecycle、Core、Registration、Handler | 第 18 节 |
+| AD-07 纵向原子切换 | `P1_V2/02～05` 冻结设计和实现边界，`P1_V2/06` 一次替换旧执行链 | 第 20 节 |
+| AD-08 Multi-Agent 复用内核 | 当前 CHAT 链保持入口中立；future TASK 复用 Lifecycle、Core、Registration、Handler，不预建 TASK 类型 | 第 18 节 |
 | AD-09 两阶段 Context 隔离 | Core 只接收 capability 确定后按声明加载的 Context Snapshot，不接收预路由广域 Context | 第 10、13 节 |
 | AD-10 全链 absolute deadline | Lifecycle/Core/Handler/Adapter 只消耗剩余预算 | 第 15 节 |
 | AD-11 capability-local infrastructure port | Handler 可调用最小类型化 generation/embedding/rerank port；其候选输出仍经 output/result security | 第 12.4、13、17 节 |
+| AD-11 有效资源限额同源 | Planning 的授权/metadata 边界冻结类型化 Effective Capability Resource Limits；Core 复检后向 Validator、Handler、Provider 和 Result Security 传递同一不可扩大引用 | 第 6、10～13、17 节 |
 | PlanningResult 封闭联合 | ResolvedClarification 直接终结；ExecutablePlanningResult 才进入 Core | 第 8、9 节 |
 | Context/权限外部权威 | Core 使用 Snapshot 和当前授权交集，Lifecycle 调用 Context 边界 | 第 9、13 节 |
 | 新 Domain 不侵入内核 | Core 消费 metadata 边界解析的 Adapter Execution Binding，Handler 只调用已绑定 port | 第 12、18 节 |
@@ -278,17 +282,18 @@ ExecutablePlanningResult
 | Capability Handler | 对单一 capability 执行已验证业务编排 | Raw Plan 解析、通用路由 |
 | Execution Core | 所有 capability 共享的可信执行算法 | 持久化和 capability 特判 |
 | Execution Lifecycle Service | Invocation 开始、checkpoint、终结和一致性协调者 | Planning、业务规则 |
-| Agent Invocation Record | CHAT/TASK 从 Planning 开始到终结的唯一执行审计事实 | Conversation/Task 业务语义 |
-| Invocation Handle | Start 事务提交后由 Lifecycle 返回的不可变调用引用，唯一绑定 invocationId、invocation type、subject/scope 引用和 absolute deadline | Invocation Record 副本、可替换状态或权限事实 |
+| Agent Invocation Record | 当前 CHAT 从 Planning 开始到终结的唯一执行审计事实；future TASK 复用该语义但由 Multi-Agent L1 定义扩展字段 | Conversation/Task 业务语义 |
+| Invocation Handle | Start 事务提交后由 Lifecycle 返回的不可变调用引用，当前唯一绑定 invocationId、CHAT 入口类型、subject/ConversationScope 引用和 absolute deadline | Invocation Record 副本、可替换状态或权限事实、预建 TASK/RunScope discriminator |
 | Execution Command | Lifecycle 交给 Core 的不可变内部命令，只聚合 Invocation Handle、原始 ExecutablePlanningResult 和 cancellation signal | 拆出后可被调用方替换的 Registration/Raw Plan/Snapshot 副本 |
-| Planning Artifact | 同一 Invocation 内由 Planning 形成、不可变绑定 correlation、Registration identity、Raw Plan、Snapshot 和 deadline 的规划产物；当前实现可保持进程内，D06 决定是否持久化 | JVM object identity、可被字段复制重组的 DTO、跨 Attempt 自动复用 |
-| Execution Validation Context | Core 从同一 Execution Command、当前授权复检和 metadata 安全投影构建的 Validator 最小只读视图 | Authorization/Catalog/Context 新事实源 |
-| Execution Context | Core 交给 Handler 的最小只读执行视图，只包含已验证主体/范围引用、deadline/cancellation 和可选 Adapter Execution Binding | JWT、完整 Policy/Context、Invocation 变更权 |
+| Planning Artifact | 同一 Invocation 内由 Planning 形成、不可变绑定 correlation、Registration identity、Raw Plan、Snapshot 和 deadline 的规划产物；当前实现保持进程内，future TASK 若需恢复再由 Multi-Agent L1 定义持久化语义 | JVM object identity、可被字段复制重组的 DTO、跨 Attempt 自动复用 |
+| Effective Capability Resource Limits | Planning 的授权/metadata 边界基于 Definition/Profile/Policy/Permission/Request 单调求交并冻结在 Authorization Snapshot 中的类型化、不可变、只可收紧的本次 Invocation 限额 | Core/Handler/Provider 自行读取配置、重算或扩大限额 |
+| Execution Validation Context | Core 从同一 Execution Command、当前授权复检、metadata 安全投影和同一 Effective Capability Resource Limits 引用构建的 Validator 最小只读视图 | Authorization/Catalog/Context 新事实源、限额重算 |
+| Execution Context | Core 交给 Handler 的最小只读执行视图，只包含已验证主体/范围引用、deadline/cancellation、同一 Effective Capability Resource Limits 引用和可选 Adapter Execution Binding | JWT、完整 Policy/Context、Invocation 变更权、限额重算 |
 | Adapter Execution Binding | metadata 边界按 Adapter Role、authorized domain 和当前可用性一次解析的请求级不可变 Adapter port 绑定 | 全局 Registry 副本、Handler 二次路由或权限结论 |
 | Execution Outcome | Core 返回的成功候选或安全失败 | 持久化终态、API 直接响应 |
 | Finalized Invocation Result | Lifecycle 在终结事务提交后返回给 Entry Adapter 的不可变内部结果 | API DTO、未提交候选结果 |
 
-Invocation Handle、Execution Command、Execution Validation Context、Execution Context 和 Adapter Execution Binding 都是不可变内部值对象或最小投影，不新增应用层级、独立服务或事实源。D02 可以在保持所有权与依赖方向的前提下将其实现为同一内核包内的类型，不得为每个概念建立转发组件。
+Invocation Handle、Execution Command、Effective Capability Resource Limits、Execution Validation Context、Execution Context 和 Adapter Execution Binding 都是不可变内部值对象或最小投影，不新增应用层级、独立服务或事实源。`P1_V2/02` 与 `P1_V2/05` 可以在保持所有权与依赖方向的前提下将其实现为同一内核包内的类型，不得为每个概念建立转发组件。
 
 ---
 
@@ -303,21 +308,34 @@ Capability Definition 至少声明以下语义类别：
 - Capability Routing Descriptor；
 - input/output ContractRef；
 - Context read/write ContractRef 和声明；
+- capability resource limit ContractRef 及适用的限额维度声明；
 - risk level 和 execution mode；
 - Domain Mode；
 - Domain Mode 非 NONE 时所需 Adapter Role。
 
-具体字段和 Java 类型由 D02 定义。
+具体字段和 Java 类型由 `P1_V2/02`、`P1_V2/05` 定义。
 
 ### 6.2 事实源规则
 
 - Definition 由 Capability Registration 提供，注册后运行期间不可变。
 - input/output/context 只保存指向 `agent-api` Java schema 的 ContractRef，不复制字段、enum、required/nullable 或约束正文。
+- resource limit 只保存指向 Java 权威类型的 ContractRef 和静态上限声明，不复制 Provider 配置，也不在 Definition 中保存请求级有效值。
 - Capability Routing Descriptor 是 Definition 内的能力路由事实；Runtime 请求只接收其安全投影。
 - Definition 不保存 Policy、Profile、用户角色、mask、当前 domain availability 和 feature flag。
 - Definition 不引用具体 Adapter 实现类，只声明稳定 Adapter Role。
 
-### 6.3 Domain Mode
+### 6.3 有效资源限额契约
+
+Capability Definition 声明本能力可消费的资源限额类型和静态上限。Planning 的授权/metadata 边界对 Definition、Agent Profile、Policy、User Permission 和 Request narrowing 做单调收紧，并在 Authorization Snapshot 中冻结本次 Invocation 唯一的 Effective Capability Resource Limits；Core 在执行前只复检该冻结值及当前授权，不能自行重新求交：
+
+- 任一来源缺失、类型不匹配、维度未知或无法证明不扩大时 fail closed；
+- Request 只能收紧；任何实现配置不得成为独立授权来源或扩大冻结值；
+- Validator、Handler、capability-local Provider Operation Context 和 Result Security 必须消费同一不可变值或可校验引用；
+- Core、Handler、Provider、Adapter 不得读取原始 Profile/Policy/Permission 或实现配置重新计算限额；执行复检发现撤权时，只能由授权/metadata 边界产生可证明相同或更严格的新引用，否则 fail closed；
+- output/context/result security 校验使用该同一限额判断候选大小、证据数量、生成长度等适用维度；
+- build/startup gate 必须验证 resource limit ContractRef、Definition 声明与 Provider 支持维度一致，失败则拒绝启动。
+
+### 6.4 Domain Mode
 
 | Domain Mode | 执行语义 | Core/Validator 不变量 |
 |---|---|---|
@@ -327,11 +345,11 @@ Capability Definition 至少声明以下语义类别：
 
 禁止用 boolean 替代三态语义。
 
-### 6.4 Definition 不变式
+### 6.5 Definition 不变式
 
 - capabilityId 全局唯一且不可变。
 - planKind 只决定 Raw Plan 结构，不决定权限、Handler 或审计归属。
-- output/context ContractRef 必须在 build/startup gate 中解析。
+- output/context/resource limit ContractRef 必须在 build/startup gate 中解析。
 - risk/execution mode 只能被 Policy/Profile 收紧，不能被覆盖扩大。
 - 新 Domain 不得修改既有 Definition；只有 capability 结构语义改变时才新增/修改 capability。
 
@@ -433,7 +451,7 @@ CHAT 阶段在同一 Agent 数据库本地事务中：
 6. 任一步失败整体回滚，不调用 Planning/Runtime。
 7. 仅在事务提交后返回不可变 Invocation Handle；不向 Entry Adapter 暴露可变 Entity/Repository。
 
-D03 不提前创建 Task Attempt、ResultRef 或 Task State Boundary。D06 引入 TASK 后，Task Attempt 与 Invocation Record 遵循相同原子关联原则，具体状态机由 Multi-Agent L1 定义。
+当前 P1_V2 不创建 Task Attempt、ResultRef、Task State Boundary、TASK discriminator 或 RunScope 空壳。future Multi-Agent L1 引入 TASK 后，Task Attempt 与 Invocation Record 遵循相同原子关联原则，具体字段和状态机由该 L1 定义。
 
 ### 8.3 Planning checkpoint
 
@@ -484,7 +502,7 @@ Lifecycle 不解释 capability 业务字段，不调用 Adapter。
 
 ### 8.6 本地事务与响应边界
 
-单 Agent D03 使用同一 Agent 数据库和本地事务，不预设 outbox、PENDING response 或异步终结：
+当前单 Agent P1_V2 使用同一 Agent 数据库和本地事务，不预设 outbox、PENDING response 或异步终结：
 
 - Turn、Invocation Record、Context write 必须在同一 finalization unit 中一致提交。
 - 终结提交失败时不能返回 SUCCESS/CLARIFY。
@@ -499,14 +517,14 @@ Lifecycle 不解释 capability 业务字段，不调用 Adapter。
 PROCESSING Invocation 不得永久悬挂。恢复机制必须：
 
 - 识别超过 deadline/恢复阈值的无主 Invocation；
-- 在同一本地 recovery 事务中通过 CAS 将 Invocation 与其关联 Turn 一致推进到 FAILED 或 CANCELLED；D06 引入 TASK 后，Task Attempt、Invocation 和相关状态仍位于同一 Agent DB，并经 Task State Boundary 将对应 Task Attempt 纳入该本地事务/CAS；
+- 在同一本地 recovery 事务中通过 CAS 将 Invocation 与其关联 Turn 一致推进到 FAILED 或 CANCELLED；future Multi-Agent L1 引入 TASK 后，必须另行定义 Task Attempt、Invocation 与 Task State Boundary 的原子终结规则，不得从当前 CHAT 字段或事务结构直接推导；
 - 不补写 SUCCESS、Context 或业务结果；
 - 记录恢复原因和诊断标识；
 - 不重新执行 Handler/Adapter。
 
 Recovery 事务未提交时仍保持原权威状态，不允许 Invocation 与 Turn/Attempt 出现一边终结、一边 PROCESSING 的半提交。
 
-精确扫描、锁和阈值属于 D02/L2。
+精确扫描、锁和阈值属于 `P1_V2/02`。
 
 ---
 
@@ -514,7 +532,7 @@ Recovery 事务未提交时仍保持原权威状态，不允许 Invocation 与 T
 
 ### 9.1 权威语义
 
-Agent Invocation Record 是 CHAT/TASK 从 Planning 开始到终结的唯一执行审计事实。Turn/Task Attempt 只表达 Conversation/Run 下的交互或调度语义，并通过 invocationId 引用它。
+当前 Agent Invocation Record 是 CHAT 从 Planning 开始到终结的唯一执行审计事实；Turn 只表达 Conversation 下的交互语义，并通过 invocationId 引用它。future TASK 仍须复用 Invocation 审计语义，但 Task Attempt、Run 关联和扩展字段只能由 Multi-Agent L1 定义。
 
 ### 9.2 标识
 
@@ -527,21 +545,21 @@ invocationId 必须是不可预测、不透明且可安全用于 API/Runtime/log
 
 ### 9.3 稳定字段类别
 
-Invocation Record 稳定表达以下类别，具体字段由 D02 定义：
+当前 Invocation Record 稳定表达以下类别，具体字段由 `P1_V2/02` 定义：
 
-- invocation type：CHAT/TASK；
+- invocation type：CHAT；
 - Execution Subject/Agent Profile 引用；
-- conversation/turn 或 run/task/attempt 引用；
+- conversation/turn 引用；
 - capabilityId/planKind（Route 尚未选定或 Route clarification 时可空）；
 - Planning outcome 和 Route/Plan operation metadata；
 - Resolved Registration identity；
 - Authorization/Context snapshot version/reference；
 - state、response type 和 terminal stage；
-- output/context references 的安全标识，以及 D06 后可选 ResultRef 标识；
+- output/context references 的安全标识；
 - error code、diagnostic id；
 - absolute deadline、created/completed timestamps。
 
-Invocation Record 不保存完整 Prompt、Raw/Validated Plan、Context payload、ResultRef payload、权限表达式或下游原始结果。
+Invocation Record 不保存完整 Prompt、Raw/Validated Plan、Context payload、权限表达式或下游原始结果。future TASK 所需的 run/task/attempt、ResultRef、lease 等字段不属于当前结构，不得以 nullable/保留列提前固化。
 
 ### 9.4 状态模型
 
@@ -563,7 +581,7 @@ Planning checkpoint 不增加新的持久化状态，只补充 PROCESSING Invoca
 - COMPLETED + SUCCESS：业务 capability 成功执行并完成终结事务。
 - COMPLETED + CLARIFY：合法 ResolvedClarification 完成，不执行 capability。
 - FAILED：Planning、授权、验证、Handler、Adapter 或输出失败，且 FAILED 终结 CAS 已提交；持久化故障本身不等于 FAILED，只能在后续 recovery CAS 成功后形成 FAILED/CANCELLED。
-- CANCELLED：调用取消、deadline 或 D06 后的 lease/cancel 生效。
+- CANCELLED：当前由调用取消或 deadline 生效；future TASK 的 lease/cancel 语义由 Multi-Agent L1 定义。
 
 response type 不得替代 state；state 也不得编码 capability 类型。
 
@@ -595,7 +613,7 @@ Execution Command
 
 Resolved Registration、Raw Plan、Authorization Snapshot、Context Snapshot、capabilityId/planKind 和 absolute deadline 都只能从该 Planning Artifact 及其已绑定引用中读取，Lifecycle/Entry Adapter 不得以并列参数、setter 或新 DTO 副本覆盖。Execution Subject/Invocation Scope 只从 Invocation Handle 的已提交引用获取，并必须与 Authorization Snapshot 绑定主体一致。
 
-Planning Artifact 的“同一性”是 Invocation/Attempt 级逻辑身份，不是 JVM object identity。D03 允许只在当前进程和 Invocation 生命周期内保存；若进程崩溃，仍按本文 recovery 规则终结失败而不恢复执行。D06 若需要 worker 重启后恢复已规划 Attempt，必须由 Multi-Agent L1 另行定义 artifact identity/canonical digest、持久化和防重放规则；不得通过 Java 对象序列化或字段复制隐式获得恢复能力。
+Planning Artifact 的“同一性”当前是 Invocation 级逻辑身份，不是 JVM object identity。P1_V2 允许只在当前进程和 Invocation 生命周期内保存；若进程崩溃，仍按本文 recovery 规则终结失败而不恢复执行。future TASK 若需要 worker 重启后恢复已规划 Attempt，必须由 Multi-Agent L1 另行定义 artifact identity/canonical digest、持久化和防重放规则；不得通过 Java 对象序列化或字段复制隐式获得恢复能力。
 
 Core 不接受 capabilityId-only command，不接收 Runtime HTTP DTO、未解析 JSON 或被拆分后可独立替换的 Planning 事实。
 
@@ -610,13 +628,14 @@ Context Snapshot 必须由 Planning Service 在 capability 确定后，按 Resol
 4. Recheck current authorization against Authorization Snapshot
 5. Recheck consumed Context Snapshot owner/scope/schema/record version/TTL when present
 6. Recheck Domain Mode / domain and resolve one authorized Adapter Execution Binding when required
-7. Build minimal Execution Validation Context and invoke Registration-bound Plan Validator
-8. Receive immutable Validated Plan
-9. Invoke Registration-bound Handler
-10. Optionally call Domain Adapter through Handler
-11. Validate output ContractRef and declared Context writes
-12. Apply result filtering/masking through security boundary
-13. Return Execution Outcome to Lifecycle
+7. Validate the Authorization Snapshot-bound Effective Capability Resource Limits; accept only the same value or a security-boundary result proven stricter
+8. Build minimal Execution Validation Context carrying the same limits and invoke Registration-bound Plan Validator
+9. Receive immutable Validated Plan
+10. Invoke Registration-bound Handler with Execution Context carrying the same limits
+11. Optionally call Domain Adapter or capability-local Provider through Handler without recalculating limits
+12. Validate output ContractRef, declared Context writes and output/resource limits
+13. Apply result filtering/masking through security boundary using the same limits
+14. Return Execution Outcome to Lifecycle
 ```
 
 步骤顺序不可跳过。任何阶段失败都不调用后续阶段。
@@ -633,6 +652,7 @@ Core 必须确认：
 - Definition/Registration identity 与 Planning checkpoint 一致；
 - Domain Mode 和 Adapter Role 声明完整；Domain Mode 非 NONE 时，当前请求只能从 metadata 边界获得一个与 role/domain/授权交集一致的 Adapter Execution Binding；
 - output/context ContractRef 可解析。
+- Definition 声明的 resource limit ContractRef 可解析，且 Authorization Snapshot 冻结的 Effective Capability Resource Limits 与当前 Invocation、Registration identity 和授权版本一致。
 
 执行阶段不重新查询 Registry，也不按 planKind/capabilityId 再路由 Handler。
 
@@ -640,10 +660,11 @@ Core 必须确认：
 
 授权公式和数据源由元数据与上下文安全 L1 定义。Core 只强制以下不变量：
 
-- Snapshot 的 Profile/Policy/Delegation version 必须仍有效；
+- Snapshot 的 Profile/Policy 和可选 Delegation version 必须仍有效；当前 CHAT 的 Delegation 使用中性全集；
 - 当前 User Permission 与 Snapshot Scope 求交；
 - capability、domain、field、operator、Context read/write 均不得超出交集；
 - Definition risk/execution mode 只能被进一步收紧；
+- Definition/Profile/Policy/Permission/optional Delegation/Request 形成的 Effective Capability Resource Limits 只能逐层收紧，并在 Authorization Snapshot 中对本次 Invocation 冻结；当前 CHAT 的 Delegation 使用中性全集；
 - 任何撤权、版本不匹配或无法确认都 fail closed。
 
 Runtime、Raw Plan、Handler 和 Adapter 都不能扩大授权。
@@ -663,7 +684,7 @@ Execution Core 禁止：
 ### 10.6 Core 不负责
 
 - 调用 Runtime 或重新 Planning；
-- 持久化 Invocation/Turn/Context/ResultRef；
+- 持久化 Invocation/Turn/Context；
 - 直接构建 API response；
 - 管理 Conversation/Run/Task；
 - 重试 Handler/Adapter；
@@ -694,6 +715,7 @@ Validator 使用 Core 提供的受控上下文，语义上包含：
 - Domain Mode 非 NONE 时与 Handler 将要使用的同一 Adapter Execution Binding 及其安全能力投影（不再解析）；
 - Context Snapshot；
 - Definition/ContractRef；
+- 与本次 Invocation 绑定的同一 Effective Capability Resource Limits；
 - deadline/cancellation。
 
 它不接收 JWT、完整 Policy 配置、持久化 Context Envelope 或 Runtime Prompt。
@@ -733,7 +755,7 @@ Validated Plan：
 - 不允许 Handler 再解释 operator/field 白名单；
 - 在当前 Invocation 内不可变，不跨 Invocation 复用。
 
-Validated Plan 不是跨边界 DTO：不接受 HTTP/JSON 反序列化，不允许 Entry Adapter/Core/Handler 通过 public constructor/factory/builder 伪造。D02 必须使其创建路径只对当前 Registration 绑定的 Validator/type bridge 可见，并用测试证明 Handler 无法接收调用方自建的伪 Validated Plan。
+Validated Plan 不是跨边界 DTO：不接受 HTTP/JSON 反序列化，不允许 Entry Adapter/Core/Handler 通过 public constructor/factory/builder 伪造。`P1_V2/02` 必须使其创建路径只对当前 Registration 绑定的 Validator/type bridge 可见，并用测试证明 Handler 无法接收调用方自建的伪 Validated Plan。
 
 Planning 阶段的确定性 merge/replace 不能替代本 Validator；Validator 必须对 merge 后 Raw Plan 重新执行最终校验。
 
@@ -746,7 +768,7 @@ Planning 阶段的确定性 merge/replace 不能替代本 Validator；Validator 
 每个 Registration 绑定一个 Capability Handler。Handler 只接收：
 
 - Validated Plan；
-- 最小 Execution Context（内含已验证主体/范围引用、deadline/cancellation 和 Core 已解析的可选 Adapter Execution Binding）。
+- 最小 Execution Context（内含已验证主体/范围引用、deadline/cancellation、同一 Effective Capability Resource Limits 和 Core 已解析的可选 Adapter Execution Binding）。
 
 Handler 不暴露 validate(rawPlan)；验证是独立 Plan Validator 的职责。
 
@@ -768,7 +790,7 @@ Handler 不得：
 - 修改 Invocation 状态；
 - 持久化 Context/ResultRef；
 - 调用 Runtime；
-- 让 capability-local infrastructure port 获得 JWT、完整权限表达式、未过滤证据或独立完整超时；
+- 让 capability-local infrastructure port 获得 JWT、完整权限表达式、未过滤证据、原始限额来源或独立完整超时；
 - 按 Adapter Role/domain 重新查询或选择 Adapter；
 - 返回新的 capabilityId/planKind；
 - 绕过 output ContractRef 和过滤边界。
@@ -795,7 +817,8 @@ Adapter Registration/Catalog 的事实来源由元数据与上下文安全 L1 �
 
 - 由 capability 模块声明稳定接口并在 composition root 装配，不进入 Capability Registry、Adapter Registration 或 Runtime Planning 协议；
 - 只能接收 Handler 从 Validated Plan、已授权数据和 Execution Context 构造的最小请求；
-- 必须传播同一 absolute deadline、cancellation、correlation 和安全 operation metadata，不得开启不可见自动重试；
+- 必须传播同一 absolute deadline、cancellation、correlation、安全 operation metadata 和 Effective Capability Resource Limits 的不可扩大投影，不得开启不可见自动重试；
+- Provider Operation Context 只能从 Execution Context 派生，Provider 不得读取实现配置、Profile、Policy、Permission 或 request 参数重算/扩大限额；
 - 不持有用户 JWT、完整 Authorization Snapshot、mask 规则或未过滤业务结果；
 - 返回的文本、向量、排序或其他候选仍是不可信候选，必须经过 Registration output ContractRef 和 Result Security Boundary；
 - 不得成为跨 capability 通用业务编排层。若该 port 实际承担 Domain 业务数据访问，应归入 Adapter Role/Domain Adapter，而不是以 infrastructure 名义绕过 Domain 边界。
@@ -840,7 +863,7 @@ Handler output 可以携带 output ContractRef 声明的 Generated Text Candidat
 - 仅基于过滤后的结构化结果或通过 Result Security 校验的 Generated Text Candidate 形成 summary/message 所需的安全输入；
 - capabilityId/planKind/diagnostic correlation。
 
-具体 Java 类型由 D02 定义。
+具体 Java 类型由 `P1_V2/02`、`P1_V2/03`、`P1_V2/05` 定义。
 
 ### 13.2 输出验证
 
@@ -850,8 +873,9 @@ Core 在返回 Lifecycle 前必须：
 2. 校验 output ContractRef。
 3. 执行字段级授权过滤和 mask。
 4. summary/message 默认基于过滤后的结构化结果和安全模板生成；需要生成式文本时，只接受 output ContractRef 声明的 Generated Text Candidate，并校验证据归属、citation 绑定、字段授权、输出预算和生成 metadata。未绑定证据或未经校验的 Handler/Infrastructure Port 自由文本一律拒绝、降级或省略。
-5. 删除内部 metadata、凭据和下游原始错误。
-6. 形成可持久化/响应的安全候选。
+5. 使用与 Validator、Handler、Provider 相同的 Effective Capability Resource Limits 校验结果条数、证据数量、生成长度及契约声明的其他维度；不得另行读取配置或采用更宽松默认值。
+6. 删除内部 metadata、凭据和下游原始错误。
+7. 形成可持久化/响应的安全候选。
 
 Handler/Adapter 不能声明“已经授权”而绕过此边界。
 
@@ -862,7 +886,7 @@ Context write candidate 必须同时满足：
 - context type/schema/version 来自 Definition ContractRef；
 - capabilityId 与当前 Resolved Registration 一致；
 - 来源 invocationId 唯一；
-- owner 与 ConversationScope/RunScope 只从 Invocation Handle/Authorization Snapshot 派生，不接受 Handler/Runtime 自报；
+- 当前 owner 与 ConversationScope 只从 Invocation Handle/Authorization Snapshot 派生，不接受 Handler/Runtime 自报；future RunScope 由 Multi-Agent L1 定义后再扩展；
 - write 授权和 TTL/expiry 必须通过元数据与上下文安全 L1 唯一定义的 Effective Context Write Scope；Core 传入当前 Effective Execution Scope，不在本文或 Handler 中重算 Profile/Policy/Permission 交集；
 - payload 最小化且不包含完整业务结果/凭据；
 - 只在业务执行成功后提交。
@@ -880,7 +904,7 @@ Lifecycle 只把已批准 candidate 交给 Context 持久化边界；该边界�
 
 ### 13.5 ResultRef 阶段边界
 
-D03 单 Agent 阶段不实现 ResultRef。D06 引入 TASK 后：
+当前 P1_V2 单 Agent 阶段不实现 ResultRef。future Multi-Agent L1 引入 TASK 后：
 
 - Core 仍只返回经过过滤的类型化候选结果；
 - Lifecycle 与 Task State Boundary 协调 ResultRef/Attempt/Invocation 终结；
@@ -1000,7 +1024,7 @@ sequenceDiagram
 
 ### 14.3 Future TASK 复用
 
-本节只冻结当前单 Agent 必须保留的复用 seam，不要求 D01～D05 创建 TaskRunner、Task Attempt、Task State Boundary、ResultRef 或相关空接口。从共享 Invocation/Execution 管道视角看，D06 的 TaskRunner 只替换 Entry Adapter 和 Start/Finalize 所关联的 Task Attempt/Task State Boundary：
+本节只冻结当前单 Agent 必须保留的复用 seam，不要求 P1_V2/P2_V3 创建 TaskRunner、Task Attempt、Task State Boundary、ResultRef、TASK discriminator、RunScope 或相关空接口。future Multi-Agent L1 可在不复制共享内核的前提下，让 TaskRunner 替换 Entry Adapter，并把 Start/Finalize 接入其定义的 Task Attempt/Task State Boundary：
 
 ```text
 TaskRunner
@@ -1012,9 +1036,9 @@ TaskRunner
 
 Coordinator 不直接调用 Core/Handler/Adapter；TASK 不创建第二套 Execution Outcome 或 Invocation Record。
 
-TASK 入口必须把稳定 Execution Subject/Run Owner Reference、目标 Agent Profile、Delegation Constraint 和 absolute deadline 交给同一 Planning/Lifecycle 链；Planning 依元数据 L1 生成 Authorization Snapshot，Start 事务将主体/范围引用绑定到 Invocation Handle。后台 Task 不保存或复用调用方 JWT/实时认证会话，Core 仍执行当前权限复检。
+future TASK 入口必须把稳定 Execution Subject、由 Multi-Agent L1 定义的中立 Owner/Scope Reference、目标 Agent Profile、Delegation Constraint 和 absolute deadline 交给同一 Planning/Lifecycle 链；Planning 依元数据 L1 生成 Authorization Snapshot，Start 事务将主体/范围引用绑定到 Invocation Handle。后台 Task 不保存或复用调用方 JWT/实时认证会话，Core 仍执行当前权限复检。本文不提前命名或固化 Run Owner/RunScope 的具体类型和字段。
 
-这不是 D06 的完整组件清单。Coordinator、CoordinationPlanner、Run/Task Graph、scheduler、claim/lease/retry、ResultRef 和 typed Multi-Agent Response 仍由 Multi-Agent L1 完整定义；本文只冻结它们不得复制或绕过的执行内核 seam。
+这不是 future Multi-Agent 的完整组件清单。Coordinator、CoordinationPlanner、Run/Task Graph、scheduler、claim/lease/retry、ResultRef 和 typed Multi-Agent Response 仍由 Multi-Agent L1 完整定义；本文只冻结它们不得复制或绕过的执行内核 seam。
 
 ---
 
@@ -1104,7 +1128,7 @@ deadline 已到期时 fail closed，不调用后续阶段。
 - CANCELLATION/DEADLINE；
 - RECOVERY。
 
-精确 enum 由 D02 定义。错误响应不得泄露 Plan、权限、Prompt、凭据、下游原始错误和栈信息。
+精确 enum 由 `P1_V2/01`、`P1_V2/02` 定义。错误响应不得泄露 Plan、权限、Prompt、凭据、下游原始错误和栈信息。
 
 ### 16.3 不确定结果
 
@@ -1195,7 +1219,7 @@ Profile 只改变 capability 组合、授权、Context 和预算投影，不复�
 
 ### 18.5 Multi-Agent
 
-当前阶段只验证 Entry Adapter、Planning Artifact、Invocation Handle、Execution Command、Execution Outcome 和 Finalized Invocation Result 不依赖 Conversation/Turn 具体实体；不实现 TASK 运行组件。相对于本文的执行内核，D06 才允许新增以下集成 seam：
+当前阶段只验证 Entry Adapter、Planning Artifact、Invocation Handle、Execution Command、Execution Outcome 和 Finalized Invocation Result 的共享算法不依赖 Conversation/Turn 具体实体；当前持久化和入口仍只实现 CHAT，不实现 TASK 运行组件或空类型。future Multi-Agent L1 完成后才允许新增以下集成 seam：
 
 - Task Attempt 与 Invocation 原子关联；
 - Task State Boundary；
@@ -1226,21 +1250,22 @@ Multi-Agent L1 还必须定义 CoordinationPlanner、Run/Task Graph、调度/依
 | EK-04 | Raw Plan 必须经 Validator 转换为 Validated Plan | AD-05、AD-06 |
 | EK-05 | Handler 只接收 Validated Plan | AD-05 |
 | EK-06 | Lifecycle 是 Invocation 状态迁移和终结的唯一协调者 | AD-04 |
-| EK-07 | D03 使用同一 Agent DB 本地事务，不预设 outbox | L0 第 7.3 节 |
+| EK-07 | 当前 P1_V2 使用同一 Agent DB 本地事务，不预设 outbox | L0 第 7.3 节 |
 | EK-08 | Core 不持久化、不调用 Runtime、不重新查询 Registry | AD-04、AD-06 |
 | EK-09 | Output/Context write 通过校验后才由 Lifecycle 提交 | AD-03、AD-06 |
 | EK-10 | Retry 创建新 Invocation，不覆盖终态历史 | L0 Multi-Agent/审计不变量 |
 | EK-11 | Domain 扩展通过 Adapter Role/Registration，不修改 Handler/Core | L0 扩展不变量 |
-| EK-12 | CHAT/TASK 复用同一 Lifecycle/Core/Handler 框架 | AD-08 |
+| EK-12 | 当前只实现 CHAT；future TASK 必须复用同一 Lifecycle/Core/Handler 框架，且由 Multi-Agent L1 定义具体入口和状态类型 | AD-08 |
 | EK-13 | 当前只读能力不预设写操作 outbox/补偿 | L0 非目标 |
 | EK-14 | 执行边界结构契约和枚举只消费 Java 权威定义，不维护平行手写来源 | AD-02 |
 | EK-15 | Core 只接收 Invocation Handle + 原始 ExecutablePlanningResult + cancellation 组成的单一事实源 Execution Command | AD-03、AD-04、AD-06 |
 | EK-16 | Domain-bound 执行由 metadata 边界一次解析请求级 Adapter Execution Binding，Handler 不二次路由 | AD-03、L0 第 5.3/9.1 节 |
 | EK-17 | Checkpoint/finalization 确认未提交时权威状态仍为 PROCESSING，不得伪称 FAILED；commit 结果未知必须重读，checkpoint 不确定后本次不再进入 Core，CAS 输家服从已提交终态 | AD-04、L0 第 7.3/8.2 节 |
-| EK-18 | Recovery 在同一 Agent DB 本地事务/CAS 中原子终结 Invocation 和关联 Turn；D06 后经 Task State Boundary 将 Attempt 纳入同一事务/CAS，不允许半终结 | AD-04、AD-08、L0 第 7.3 节 |
+| EK-18 | 当前 Recovery 在同一 Agent DB 本地事务/CAS 中原子终结 Invocation 和关联 Turn；future TASK 的 Attempt 原子终结由 Multi-Agent L1 定义，不允许从当前字段推导 | AD-04、AD-08、L0 第 7.3 节 |
 | EK-19 | Core 在 Validator 前复检已消费 Context Snapshot 的 Owner/Scope/schema/record version/TTL，不以新 Context 替换后继续执行 | AD-06、AD-09、元数据与上下文安全 L1 |
-| EK-20 | Planning Artifact 以 Invocation/Attempt 级逻辑身份绑定规划事实，不以 JVM object identity 作为架构契约 | AD-03、AD-04、AD-08 |
+| EK-20 | 当前 Planning Artifact 以 Invocation 级逻辑身份绑定规划事实，不以 JVM object identity 作为架构契约；future Attempt 扩展由 Multi-Agent L1 定义 | AD-03、AD-04、AD-08 |
 | EK-21 | capability-local infrastructure port 不属于 Planning Runtime 或 Domain metadata 事实源，其候选输出继续通过统一 output/result security 边界 | AD-06、AD-11 |
+| EK-22 | Planning 的授权/metadata 边界冻结类型化 Effective Capability Resource Limits；Core 只复检并传递同一或可证明更严格的值，Validator、Handler、Provider 和 Result Security 不得重算或扩大 | AD-06、AD-11、元数据与上下文安全 L1 |
 
 这些决策只能通过本文或 L0 的 ADR 修改。
 
@@ -1253,46 +1278,50 @@ Multi-Agent L1 还必须定义 CoordinationPlanner、Run/Task Graph、调度/依
 本文不改变 L0 的阶段顺序：
 
 ```text
-D01 契约生成与治理
-  → D02 Capability Kernel 实施详细设计
-      → D04 Adapter Metadata 收敛
-          → D03 Capability v2 原子切换
+P1_V2/01 契约生成与治理
+  → P1_V2/02 可信执行内核与 Invocation 生命周期
+      → P1_V2/03 元数据授权 Context 与 Result Security
+      → P1_V2/04 Adapter 与 Domain Metadata
+      → P1_V2/05 有效资源预算与 Capability-local Port
+          → P1_V2/06 原子迁移、扩展验证与清理门禁
 ```
 
-该图表示交付先后，不取代 L0 第 13.2 节的 L1 前置表：开始 D02 前，本文和元数据与上下文安全 L1 必须均已评审；D01 已评审不能替代该前置。
+该图表示执行内核相关的依赖方向；完整顺序和并行门禁以 L0 第 13.2 节与 `P1_V2/00` 为准。开始 P1_V2 详细设计实施前，本文和元数据与上下文安全 L1 必须均已评审。
 
-### 20.2 D02 必须输出
+### 20.2 P1_V2/02 必须输出
 
-D02 必须列出并冻结：
+`P1_V2/02` 必须列出并冻结：
 
 - Definition/Registration/Registry 的具体 Java 类型、泛型和启动校验；
 - PlanningResult→Lifecycle→Core 的接口；
 - Invocation Handle、Planning Artifact 与单一事实源 Execution Command 的不可变 Java 类型，以及禁止拆分覆盖 Planning 绑定、禁止依赖 JVM object identity 的测试；
 - Raw/Validated Plan/Validator/Handler 的类型桥；
-- Execution Validation Context、Execution Context 和请求级 Adapter Execution Binding 的最小投影与一次解析接口；
+- Execution Validation Context、Execution Context、请求级 Adapter Execution Binding 和 Effective Capability Resource Limits 引用的最小投影与一次解析接口；
 - Context Snapshot currentness 复检接口，以及 Owner/Scope/schema/record version/TTL 变化时不进入 Validator、不重载 Context 的测试；
-- Invocation/Turn/Context persistence schema、Repository 和事务，以及 Context 静态加密、TTL/expiry 和随 Conversation/Run 清理的边界接入；
+- Invocation/Turn/Context persistence schema、Repository 和事务，以及 Context 静态加密、TTL/expiry 和随 Conversation 清理的边界接入；
 - state/error/response enum；
 - authorization/output/context boundaries；
 - deadline/cancel/recovery 实现；
 - 具体测试、迁移和验收命令。
 
-D02 是设计评审门禁，不形成可运行的半成品双内核。
+`P1_V2/02` 不形成可运行的半成品双内核；最终切换受 `P1_V2/06` 原子迁移门禁约束。
 
-### 20.3 D04 前置依赖
+### 20.3 P1_V2/03～05 协作边界
 
-D04 必须在 D03 前提供：
+`P1_V2/03～05` 必须在原子切换前提供：
 
+- Authorization/Context/Result Security 的唯一边界；
 - Canonical Domain Field Catalog；
 - Adapter Role/Adapter Registration；
 - Runtime/Execution 所需安全投影；
-- 新 Domain 不修改 Handler/Validator/Core 的验证基线。
+- 新 Domain 不修改 Handler/Validator/Core 的验证基线；
+- Effective Capability Resource Limits 的权威类型、单调求交、同源传递及 Provider Operation Context 接口。
 
-本文不重新定义 D04 内容，只把它作为执行内核接入 Adapter/metadata 的前置条件。
+本文不复制这些详细设计，只冻结执行内核必须消费的接口和不变量。
 
-### 20.4 D03 原子切换
+### 20.4 P1_V2/06 原子切换
 
-D03 必须在一个纵向交付单元完成：
+`P1_V2/06` 必须在一个纵向交付单元验证并完成：
 
 - capabilityId-based Definition/Registration/Registry；
 - Registration 内唯一类型桥；
@@ -1300,8 +1329,8 @@ D03 必须在一个纵向交付单元完成：
 - 只接收 Validated Plan 的 Handler；
 - Execution Lifecycle、Execution Core、Invocation Record；
 - Turn/Context 本地事务和恢复；
-- D01 Route/Plan/Clarification 契约与 Planning 接入；
-- D04 Adapter metadata/role 接入；
+- `P1_V2/01` Route/Plan/Clarification 契约与 Planning 接入；
+- `P1_V2/03～05` metadata、authorization、context、result security、Adapter role 和有效资源限额接入；
 - Agent API/UI typed response 同步切换；
 - 删除 AgentIntent Registry/Router、Orchestrator unchecked bridge、Clarify Handler 和旧 Turn 完成路径。
 
@@ -1323,12 +1352,12 @@ D03 必须在一个纵向交付单元完成：
 8. Handler 只接收当前 Invocation 产生的 Validated Plan。
 9. Validator/Handler/Core 不按 capabilityId/domain 写共享专用分支。
 10. Lifecycle 是 Invocation 开始、Planning checkpoint、执行协调和终结的唯一协调者。
-11. D03 原子创建 Turn+Invocation，成功终结原子提交结果、Context、Invocation 和 Turn CAS。
+11. P1_V2 原子创建 Turn+Invocation，成功终结原子提交结果、Context、Invocation 和 Turn CAS。
 12. CLARIFY 直接由 Lifecycle 终结，不进入 Core/Handler/Adapter。
 13. Core 不调用 Runtime、不持久化、不构建 API response。
 14. Handler 不做授权决策、不持久化 Context/Invocation、不返回新 capabilityId/planKind。
 15. Adapter 只接收 validated command，通过公开业务 API 访问下游，不直连业务数据库。
-16. Output/Context write 在持久化前经过 type、ContractRef、授权、过滤和 mask 校验；Context 持久化边界执行静态加密、TTL/expiry 和随 Conversation/Run 清理。
+16. Output/Context write 在持久化前经过 type、ContractRef、授权、过滤和 mask 校验；Context 持久化边界执行静态加密、TTL/expiry 和随当前 Conversation 清理；future Run 清理由 Multi-Agent L1 定义。
 17. Validation/Handler/Adapter/output 失败、澄清和取消都不产生可继承业务 Context。
 18. Lifecycle 终结事务提交前不返回 SUCCESS/CLARIFY。
 19. PROCESSING Invocation 可恢复到 FAILED/CANCELLED，不自动重执行业务或补写成功。
@@ -1336,17 +1365,18 @@ D03 必须在一个纵向交付单元完成：
 21. 新增同 planKind capability 不修改 Core/Lifecycle/Registry 算法和既有 Handler/Validator。
 22. 新增 Domain 不修改已有 Handler/Validator/Core/Lifecycle。
 23. CHAT 和 future TASK 复用同一 Lifecycle/Core/Registration/Handler 框架。
-24. D03 不实现 ResultRef/Task State Boundary，不预设写操作 outbox/补偿。
-25. D03 删除 AgentIntent 路由、Orchestrator 类型桥、Clarify Handler 和旧完成路径，不保留双内核。
+24. 当前 P1_V2 不实现 ResultRef/Task State Boundary/TASK/RunScope 空壳，不预设写操作 outbox/补偿。
+25. `P1_V2/06` 删除 AgentIntent 路由、Orchestrator 类型桥、Clarify Handler 和旧完成路径，不保留双内核。
 26. Core、Registration、Handler 和 Adapter 执行端口使用 Java 权威结构契约与枚举，不维护平行手写 DTO、schema 或 enum 来源。
 27. Core 只接收不可变 Execution Command，Registration/Raw Plan/Authorization Snapshot/Context Snapshot 不作为可独立替换的并列输入。
 28. Domain-bound 执行每个 Invocation 只解析一次 Adapter Execution Binding，Handler 不持有全局 Adapter Registry 或二次选择 Adapter。
 29. Checkpoint/finalization 确认回滚时 Invocation 仍为 PROCESSING；commit 结果未知时必须重读权威原子单元，checkpoint 结果未知后本次不再进入 Core；只有持久化 CAS 成功才能宣称 FAILED/CANCELLED/成功终态。
-30. Recovery 必须在同一 Agent DB 本地事务/CAS 中终结 Invocation 和关联 Turn；D06 后经 Task State Boundary 将 Attempt 纳入同一事务/CAS，不产生半终结状态。
+30. 当前 Recovery 必须在同一 Agent DB 本地事务/CAS 中终结 Invocation 和关联 Turn；future TASK 的 Attempt 原子终结由 Multi-Agent L1 定义，不产生半终结状态。
 31. Core 在 Validator 前复检已消费 Context Snapshot 的 request correlation、Owner、Scope、schema、record version 和 TTL；变化时 fail closed，不重载另一份 Context 或重做 Planning。
-32. Planning Artifact 通过 Invocation/correlation、Registration identity 和绑定版本证明同一性，不依赖 JVM object identity；D03 崩溃后不恢复执行。
+32. Planning Artifact 通过 Invocation/correlation、Registration identity 和绑定版本证明同一性，不依赖 JVM object identity；当前 P1_V2 崩溃后不恢复执行。
 33. capability-local generation/embedding/rerank port 传播同一 deadline/cancellation，不调用 Planning Runtime、不获得未过滤数据，其候选输出仍经过统一 output/result security 校验。
 34. 当前实现不存在未使用的 TaskRunner、Task State Boundary、ResultRef 或 TASK 状态空壳，且共享内核类型不依赖 Conversation/Turn 具体实体。
+35. Definition 声明 resource limit ContractRef；Planning 的授权/metadata 边界在 Authorization Snapshot 中冻结本次 Invocation 唯一的 Effective Capability Resource Limits，Core 只复检并传递，Validator、Handler、Provider 和 Result Security 消费同一或可证明更严格的值，任何缺失、类型错配或重算扩大都 fail closed。
 
 ---
 
@@ -1358,8 +1388,8 @@ D03 必须在一个纵向交付单元完成：
 - Run/Task/ResultRef/Task State Boundary 必须引用 Multi-Agent L1，不得提前实现。
 - Capability Definition、Registration、Registry、Resolved Registration、Validated Plan、Execution Core、Execution Lifecycle Service、Agent Invocation Record 等名称必须保持一致。
 - 任何绕过 Registration/Validator、在 Core 中新增 capability/domain 分支、或让 Handler 持久化状态的实现均违反本文。
-- 本文与元数据及上下文安全 L1 均已评审，D02 的两项 L1 架构前置已闭合；D02 仍须遵守 L0 交付顺序，D03 还必须等待 D01/D02/D04 门禁。
+- 本文与元数据及上下文安全 L1 均已评审，P1_V2 执行、安全、Adapter 和资源限额详细设计的 L1 架构前置已闭合；具体实施仍须遵守 L0 与 `P1_V2/00` 的交付门禁。
 
-内部跨文档复审记录（2026-07-13）：当前单 Agent Registration/Execution 主链保持闭合；已消除 JVM 实例身份约束并补充生成式候选安全 seam。Multi-Agent 内容仅为 D06 演进约束，不表示 Task 状态、调度和恢复架构已完成。
+内部跨文档复审记录（2026-07-13）：当前单 Agent Registration/Execution 主链保持闭合；已消除 JVM 实例身份约束并补充生成式候选安全 seam。Multi-Agent 内容仅为 future 演进约束，不表示 Task 状态、调度和恢复架构已完成。
 
-本文确认能力执行、生命周期和审计边界；具体编码以完成评审的 D02/D03 详细设计为准。
+本文确认能力执行、生命周期和审计边界；具体编码以完成评审的 P1_V2 详细设计为准。
