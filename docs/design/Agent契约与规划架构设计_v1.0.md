@@ -3,12 +3,18 @@
 > 文档层级：L1 分域架构设计  
 > 文档状态：架构基线（已评审）  
 > 上位文档：`Agent目标架构总览_v1.0.md`  
-> 适用代码基线：`472373e` 及其后续同源提交  
+> 适用代码基线：`389b72b6162edfdb4385c8a77bebf56bfb3e2608`
 > 适用范围：`agent-api`、`agent-service` 的 Planning 边界、`agent-runtime`  
 > 前提：系统尚未投产，不承担旧 Runtime 协议、旧 Python model 和旧 Prompt 的兼容责任  
 > 下位交付：D01 契约生成与治理、D02 Capability Kernel 实施详细设计的规划接口部分、D03 Capability v2 原子切换；D03 前置依赖 D01 契约治理、D02 详细设计和 D04 Adapter Metadata 收敛全部通过评审
 
 ---
+
+## 修订历史
+
+| 序号 | 日期 | 文档位置 | 修改内容 | 修改原因 |
+|---:|---|---|---|---|
+| 1 | 2026-07-13 | `docs/design/Agent契约与规划架构设计_v1.0.md` | 明确 PlanningCommand 入口中立、当前只启用 CHAT；区分 Planning Runtime 与 capability-local generation port；将 Multi-Agent 内容限定为 D06 演进 seam；更新可追溯代码基线 | 防止当前单 Agent 契约固化为 CHAT 专用或提前建设 TASK 双协议 |
 
 ## 1. 文档定位
 
@@ -65,6 +71,7 @@ L0 Agent 目标架构总览
 | Capability Definition、Registration、Registry、Validator、Handler、Execution Core、Invocation 核心语义 | `Agent能力执行内核架构设计_v1.0.md` | 使用 Registration/Registry 解析结果和执行入口，不定义注册结构和执行逻辑 |
 | Profile、Policy、Authorization Snapshot、Context 授权、Capability Catalog、Canonical Domain Field Catalog | `Agent元数据与上下文安全架构设计_v1.0.md` | 使用请求级安全投影，不定义权限公式、存储结构和 Catalog 内容 |
 | Coordinator、CoordinationPlanner、TaskRunner、ResultRef、Task State Boundary、Run/Task/Attempt | `Multi-Agent协调与任务架构设计_v1.0.md` | 只保证 TaskRunner 可复用 Planning Service，不定义 Task Graph 和调度状态机 |
+| Handler 执行期的 generation、embedding、rerank 等 capability-local infrastructure port | `Agent能力执行内核架构设计_v1.0.md` | 本文只定义 Planning Runtime；不得把执行期生成调用并入 Route/Plan operation 或共享 Planning Prompt |
 
 本文也不定义：
 
@@ -94,6 +101,7 @@ L0 Agent 目标架构总览
 | AD-08 Multi-Agent 复用单 Agent 内核 | Future TaskRunner 复用同一 PlanningCommand/PlanningResult，不建立 Task 专用规划协议 | 第 4、7、16 节 |
 | AD-09 Java 可见两阶段规划 | Route 确定 capability 后才加载 Context 并进入 Plan | 第 7～9 节 |
 | AD-10 全链共享 absolute deadline | Route、Plan、repair 只消耗剩余预算，不重置计时 | 第 13 节 |
+| AD-11 capability-local infrastructure port | 本文只治理 Planning Runtime；执行期 generation/embedding/rerank port 不进入 Route/Plan 协议 | 第 1.4、16.5 节 |
 | 新 capability 不侵入主流程 | Route 读取动态 Descriptor；相同 planKind 复用既有 Planning Strategy | 第 11、16 节 |
 | 新 Domain 不侵入主流程 | Domain Routing Projection/Runtime Domain Schema 由安全投影动态提供，Prompt 不维护 Domain 清单 | 第 8、9、12、16 节 |
 
@@ -473,7 +481,9 @@ PlanningCommand 必须提供或能够解析：
 - Invocation Scope；
 - absolute deadline。
 
-CHAT 中不适用的 Task/Delegation 输入使用 L0 规定的中性语义，不创建并行 ChatPlanningCommand。未来 TaskRunner 使用同一 PlanningCommand 边界。
+PlanningCommand 是入口中立的 Invocation 规划命令，不引用 Conversation、Turn、Task 或 Task Attempt 具体实体。当前 D01～D05 只由 CHAT Entry Adapter 构造，并使用 ConversationScope 与不适用 Delegation 的中性语义；不得创建平行 `ChatPlanningCommand`。D06 的 TaskRunner 仍使用同一 PlanningCommand 边界，通过稳定引用提供 RunScope/Delegation/ResultRef 最小投影，不新增 `TaskPlanningCommand`。
+
+入口中立不等于当前提前实现 TASK 字段、Task DTO 或空服务。D01/D02 只需冻结稳定的 subject、owner、profile reference、Invocation Scope、deadline 和可扩展输入投影边界；Run/Task/ResultRef 的具体结构必须等待 Multi-Agent L1。
 
 PlanningCommand 不携带：
 
@@ -1087,7 +1097,9 @@ Profile 只改变请求级 capability、Prompt 行为、Context 和预算投影�
 
 ### 16.5 演进 Multi-Agent
 
-未来 TaskRunner 使用同一 PlanningCommand/PlanningResult 和 Route/Plan operations，并额外提供 L0 已定义的 Execution Subject/Run Owner Reference、Delegation Constraint、ResultRef reference 和 effective deadline。PlanningCommand 不直接携带完整 ResultRef payload；如 Planning 需要其内容，只能消费 Multi-Agent L1 定义并授权过滤后的最小结构化投影。
+本节是 D01～D05 必须保持的协议 seam，不是当前实现清单。当前只实现 CHAT Entry Adapter，并通过架构测试证明 PlanningCommand/PlanningResult、Route/Plan operation 和 Planning Service 不依赖 Conversation/Turn 具体实体；不创建 TaskRunner、Task DTO、ResultRef DTO 或 TASK endpoint。
+
+D06 的 TaskRunner 使用同一 PlanningCommand/PlanningResult 和 Route/Plan operations，并额外提供 L0 已定义的 Execution Subject/Run Owner Reference、Delegation Constraint、ResultRef reference 和 effective deadline。PlanningCommand 不直接携带完整 ResultRef payload；如 Planning 需要其内容，只能消费 Multi-Agent L1 定义并授权过滤后的最小结构化投影。
 
 不得新增：
 
@@ -1118,6 +1130,8 @@ Profile 只改变请求级 capability、Prompt 行为、Context 和预算投影�
 | CP-14 | Route/Plan 不允许 Planning Client、Runtime Client 或 provider SDK 隐式重试 | AD-10、可观测性边界 |
 | CP-15 | PlanningResult 是不可变 Java 内部联合；Executable 结果绑定同一次 Route→Plan 的 Registration、Raw Plan，以及从同一捕获证据链冻结的 Snapshot | AD-03、AD-04、AD-06 |
 | CP-16 | PlanOutcome 不回显顶层 capabilityId/独立 planKind；Java 用 RouteDecision、Resolved Registration 和 subtype 建立唯一身份绑定 | AD-01、AD-03、AD-06 |
+| CP-17 | PlanningCommand/PlanningResult 是入口中立 seam；当前只启用 CHAT，不提前创建 TASK 双协议或空 DTO | AD-04、AD-08 |
+| CP-18 | Planning Runtime 只负责 Route/Plan；Handler 执行期 generation/embedding/rerank port 由执行内核治理，不复用或旁路 Runtime Planning 协议 | AD-04、AD-11 |
 
 这些决策只能通过本文或 L0 的 ADR 修改。
 
@@ -1211,6 +1225,8 @@ Execution Lifecycle、Persistence、Agent API 和 UI 的具体设计属于其他
 28. Runtime 协议不维护独立 planVersion、strategyVersion 或 Python schema version；跨 Runtime 版本事实只来自 Java contract generation 和 Java ContractRef。
 29. PlanOutcome 不把顶层 capabilityId/独立 planKind 作为 Runtime 回显身份源；Java subtype discriminator 只表达结构，ExecutablePlanningResult 中的权威值由 RouteDecision 和 Resolved Registration 附着。
 30. Planning 在 Route 前捕获不可变授权证据/version chain；ExecutablePlanningResult 的 capability-scoped Authorization Snapshot 只从该证据链冻结，证据变化时 fail closed，不混入新版本继续当前 Planning。
+31. PlanningCommand/PlanningResult 和 Planning Service 不依赖 Conversation/Turn 具体实体；当前代码不创建 Chat/Task 两套 Planning 协议或未使用的 TASK DTO。
+32. capability-local generation/embedding/rerank 调用不进入 Agent Runtime Route/Plan operation，不共享 Planning Prompt 或 repair 状态。
 
 ---
 
@@ -1224,6 +1240,6 @@ Execution Lifecycle、Persistence、Agent API 和 UI 的具体设计属于其他
 - 任何 Python 手写结构契约或双 Runtime 协议，均视为违反 Java 单一契约源。
 - 本文评审通过后，D01/D02/D03 才能以其为直接设计依据。
 
-最终跨文档评审结论（2026-06-30）：已对照 L0、能力执行内核 L1 和元数据与上下文安全 L1 复审契约所有权、两阶段规划、授权证据链、Context 时序、执行交接、失败终结、交付门禁及扩展不变量；当前适用基线下无未决冲突、侵入、缺漏或重复权威定义。
+内部跨文档复审记录（2026-07-13）：当前单 Agent Route/Plan 与 PlanningResult 主链保持闭合；Planning 契约已明确为入口中立且当前只启用 CHAT。Multi-Agent 状态、ResultRef 和调度协议仍等待 D06 L1，不在当前阶段实现。
 
 本文确认契约、Planning 和 Runtime 行为边界；具体编码以完成评审的 L2 详细设计为准。

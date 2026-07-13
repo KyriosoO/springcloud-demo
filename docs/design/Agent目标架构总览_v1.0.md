@@ -2,12 +2,18 @@
 
 > 文档层级：L0 目标架构总览  
 > 文档状态：权威架构基线  
-> 适用代码基线：`472373e` 及其后续同源提交  
+> 适用代码基线：`389b72b6162edfdb4385c8a77bebf56bfb3e2608`
 > 适用范围：`agent-api`、`agent-service`、`agent-runtime`、`agent-adapter-api`、`agent-adapter-*`  
 > 前提：系统尚未投产，不承担旧契约、旧配置和旧数据库结构的兼容责任  
 > 下位文档：L1 分域架构设计、L2 实施详细设计
 
 ---
+
+## 修订历史
+
+| 序号 | 日期 | 文档位置 | 修改内容 | 修改原因 |
+|---:|---|---|---|---|
+| 1 | 2026-07-13 | `docs/design/Agent目标架构总览_v1.0.md` | 明确当前只实施单 Agent、冻结 Multi-Agent 演进接缝；拆分当前与 D06 验收口径；更新可追溯代码基线 | 避免当前阶段提前建设 Multi-Agent 空壳，同时降低后续演进重构风险 |
 
 ## 1. 文档定位
 
@@ -105,6 +111,7 @@ L0 目标架构总览
 - Context、Profile、Policy、Domain metadata 和审计事实各有唯一来源。
 - Multi-Agent 只新增协调、任务和调度能力，不创建第二套 Handler/Adapter 体系。
 - Multi-Agent 的 Task 授权、结果、失败和取消能够归并到明确 Run 终态及类型化响应。
+- 当前单 Agent 阶段只冻结入口中立的 Planning、Lifecycle、Execution、Authorization、Invocation Scope 和 typed result 接缝，不实现 Multi-Agent 组件与状态。
 - 每个实施阶段具有明确输入、输出、验证和删除边界。
 
 ### 3.2 非目标
@@ -115,18 +122,19 @@ L0 目标架构总览
 - 不在 L0 选择具体 LLM、调度算法和数据库索引方案。
 - 不为未投产系统保留 v1/v2 双协议、转换层或兼容 facade。
 - 不因逻辑职责命名为 Service 就预设独立部署、远程调用或额外持久化层。
+- D01～D05 不创建 Coordinator、CoordinationPlanner、TaskRunner、Run/Task/Attempt 表、ResultRef、claim/lease/retry 或调度空壳；这些内容只在 D06 前完成对应 L1 并实施。
 
 ---
 
 ## 4. 总体分层
 
-### 4.1 四层、两横切、一未来层
+### 4.1 四层、两横切、一演进预留层
 
 ```mermaid
 flowchart TB
     CLIENT["Client / Agent API"]
 
-    subgraph FUTURE["Multi-Agent Coordination（未来层）"]
+    subgraph FUTURE["Multi-Agent Coordination（D06 演进预留，当前不实现）"]
         CO["Coordinator"]
         CP["CoordinationPlanner"]
         TS["Run / Task / TaskRunner"]
@@ -152,6 +160,8 @@ flowchart TB
         BIZ["Business Service API"]
     end
 
+    INFRA["Capability-local Infrastructure Provider（optional）"]
+
     CONTRACT["Contract Governance"]
     STATE["Authorization / State / Observability"]
 
@@ -171,6 +181,7 @@ flowchart TB
     EXEC --> VAL
     VAL --> HANDLER
     HANDLER -->|"optional by Adapter Role"| ADAPTER
+    HANDLER -->|"optional typed port"| INFRA
     ADAPTER --> BIZ
 
     CONTRACT -.-> PLAN
@@ -195,6 +206,7 @@ flowchart TB
 | Application Orchestration | 共享 CHAT/TASK Capability Invocation 管道、Planning 调用和 Invocation 状态迁移协调 | 复制 capability 业务逻辑、直接实现状态存储、拥有 Run/Task Graph 或调度职责 |
 | Agent Capability Kernel | 注册、验证、授权复检和能力执行 | 固定 Domain 分支、下游业务规则 |
 | Domain Integration | Domain metadata、模型映射、下游 API 调用 | 接收未验证 LLM JSON、直连业务数据库 |
+| Capability-local Infrastructure Port | 为单一 capability 提供 generation、embedding、rerank 等执行期基础设施能力，并传播统一 deadline/cancellation | 充当 Planning Runtime、业务数据权威、权限判断或跨 capability 编排层 |
 | Multi-Agent Coordination | 目标分解、Task Graph、调度和汇总 | 直接执行 Handler 或 Adapter |
 | Contract Governance | Java 契约、生成物和 drift gate | Python 手写平行 DTO/enum |
 | Authorization/State/Observability | Profile/Policy 计算、Context/Invocation 持久化、CAS、deadline/cancel 信号和审计设施 | 向 Runtime 暴露凭据和权限表达式、直接编排用例或执行业务能力 |
@@ -230,6 +242,7 @@ agent-runtime contract models ─generated from→ agent-api contract artifacts
 | Capability Definition | 能力的静态结构、Capability Routing Descriptor、风险、Domain Mode、Adapter Role 和 Context 声明 | 不保存部署策略 |
 | Capability Routing Descriptor | Definition 内供规划选择 capability 的机器可读语义、适用/排除条件和 planKind 引用 | 不成为独立配置或第二事实来源 |
 | Capability Registration | Definition、Raw Plan、Validator、Validated Plan 和 Handler 的不可变绑定 | 不作为 Runtime DTO |
+| Capability-local Infrastructure Port | Handler 在执行期使用的最小类型化外部能力端口；由 composition root 装配 | Planning Runtime、Domain Adapter 替代品、权限或 metadata 事实源 |
 | Capability Registry | 保存并按 capabilityId 唯一解析静态 Registration；可以按 planKind 分组查询 | 不按 planKind 选择唯一 Registration，不计算用户请求级可用范围 |
 | Capability Catalog | 根据 Registry、Profile、Policy、用户权限和 Domain 能力计算 Available Capability | 不重新声明 Registration metadata |
 | Available Capability | 注册、策略、用户、Profile 和 Domain 可用性的请求级交集 | 不成为静态事实来源 |
@@ -237,6 +250,7 @@ agent-runtime contract models ─generated from→ agent-api contract artifacts
 | Agent Policy Configuration | 部署级启停、权限和只能收紧的限制 | 不覆盖 Definition/Profile/Catalog |
 | Authorization Snapshot | Planning 时刻的版本化请求级授权证据 | 不能替代 Execution 复检 |
 | Capability Context | 成功能力执行产生的小型、类型化、版本化规划状态 | 不保存完整业务结果 |
+| Generated Text Candidate | capability-local infrastructure port 产生并绑定授权 evidence/citation、operation metadata 和 output ContractRef 的类型化候选 | 最终响应、授权结论、可绕过 Result Security 的自由文本 |
 | ResultRef | Task 间传递安全结构化结果的引用 | 不以内嵌自然语言替代 |
 | Agent Invocation Record | CHAT/TASK 从 Planning 到终结的唯一审计事实 | 不替代 Turn 或 Task 的业务语义 |
 | Turn / Task Attempt | Conversation/Run 下的用户交互或调度尝试记录 | 不复制完整规划、授权和执行审计字段 |
@@ -447,7 +461,7 @@ Runtime 不接收 JWT、凭据、完整权限表达式、mask 规则、数据库
 
 ### 8.3 预算边界
 
-Caller、Route、Plan、repair、Execution、Adapter 和下游 Client 共享同一个 absolute deadline；后续阶段只能使用剩余预算，不能重新计时。Repair 只允许在单次 Runtime 操作内部有界执行，并通过 Java 定义的 operation metadata 返回次数、耗时和终止原因。
+Caller、Route、Plan、repair、Execution、Capability-local Infrastructure Port、Adapter 和下游 Client 共享同一个 absolute deadline；后续阶段只能使用剩余预算，不能重新计时。Repair 只允许在单次 Runtime operation 内部有界执行；执行期 infrastructure port 不得复用 Planning repair 或开启不可见自动重试，并通过 Java 定义的 operation metadata 返回次数、耗时和终止原因。
 
 ---
 
@@ -480,6 +494,10 @@ CHAT 中不适用的 Delegation Constraint 按全集处理；任何适用层拒�
 ---
 
 ## 10. Multi-Agent 目标边界
+
+本节是当前单 Agent 架构必须遵守的**演进约束**，不是 D01～D05 的实现清单。当前阶段只要求共享内核保持入口中立、主体与 Scope 可扩展、结果类型化且可安全归并；图中的 Coordinator、CoordinationPlanner、TaskRunner、Run/Task/Attempt、ResultRef 和 Task State Boundary 均不在当前阶段创建接口空壳、数据表、配置或运行组件。
+
+D06 前必须另行完成并评审 `Multi-Agent协调与任务架构设计_v1.0.md`，再定义状态机、调度、claim/lease/retry、ResultRef、部分成功和 Run 终态。该文档不得反向改变本节冻结的 Planning、Lifecycle、Execution Core、Authorization、Handler/Adapter 和 Invocation 审计接缝。
 
 ### 10.1 组件关系
 
@@ -546,7 +564,8 @@ flowchart LR
 | AD-07 | 破坏性跨服务契约使用纵向原子切换，不保留双协议 |
 | AD-08 | Multi-Agent 由 Coordinator 负责协调、汇总和 Run 终结，并复用同一 Planning 和 Execution 内核 |
 | AD-09 | Capability Context 使用 Java 可见的 Route/Plan 两阶段隔离 |
-| AD-10 | Caller、Route、Plan、repair、Execution、Adapter 和下游 Client 共享绝对 deadline |
+| AD-10 | Caller、Route、Plan、repair、Execution、Capability-local Infrastructure Port、Adapter 和下游 Client 共享绝对 deadline |
+| AD-11 | capability-local generation、embedding、rerank 等基础设施通过 Handler 的最小类型化 port 接入；不复用 Planning Runtime、不替代 Domain Adapter，候选输出继续经过统一安全边界 |
 
 L1 文档可以细化这些决策，但不得改变其含义。
 
@@ -562,6 +581,7 @@ L1 文档可以细化这些决策，但不得改变其含义。
 - Plan Validator 和 Handler；
 - Profile/Policy 授权引用和测试；
 - 已有或新增 Adapter Role 引用。
+- capability 私有且受统一 deadline/output security 约束的 infrastructure port。
 
 不得修改 Orchestrator、Planning Service 主流程、Execution Core、Capability Catalog 算法、共享 Runtime Prompt 和 Runtime 核心 graph。Runtime 必须通过请求级 Capability Routing Descriptor 和既有 Planning Strategy 识别该 capability。
 
@@ -590,7 +610,7 @@ L1 文档可以细化这些决策，但不得改变其含义。
 | `Agent契约与规划架构设计_v1.0.md` | 跨 Java/Runtime DTO、Capability Routing Descriptor 请求投影、Route/Plan、Clarification、Runtime、Prompt、repair | 已评审（架构基线） |
 | `Agent能力执行内核架构设计_v1.0.md` | Capability Definition、Registration、Registry、Validator、Lifecycle、Core、Handler、Invocation 核心语义 | 已评审（架构基线） |
 | `Agent元数据与上下文安全架构设计_v1.0.md` | Profile、Policy、Authorization、Context、Capability Catalog、Canonical Domain Field Catalog | 已评审（架构基线） |
-| `Multi-Agent协调与任务架构设计_v1.0.md` | Coordinator、CoordinationPlanner、TaskRunner、ResultRef、Task State Boundary、Run/Task/Attempt、可靠性 | D01～D05 后编写 |
+| `Multi-Agent协调与任务架构设计_v1.0.md` | Coordinator、CoordinationPlanner、TaskRunner、ResultRef、Task State Boundary、Run/Task/Attempt、可靠性 | D06 前编写并评审；不是 D01～D05 前置，不在当前阶段创建空壳 |
 
 每个概念、公式、状态机和协议只能在一个 L1 文档中完整定义；其他文档必须引用，不复制正文。
 
@@ -633,7 +653,9 @@ D01 契约生成与治理
 
 ## 14. 全局验收标准
 
-目标架构只有同时满足以下条件才算收敛：
+### 14.1 当前单 Agent 收敛标准
+
+D01～D05 只有同时满足以下条件才算收敛：
 
 1. Java→OpenAPI→Python model 可重复生成且无生成后结构契约补丁；JSON Schema Bundle 仅在存在明确消费者时生成，每个提交产物都有明确用途。
 2. capabilityId、planKind、agentId、contextType 和 invocationId 含义互不重叠。
@@ -641,16 +663,24 @@ D01 契约生成与治理
 4. Prompt、配置、Adapter 和 Python 不再维护结构契约或 Domain 执行事实副本。
 5. 新增同 Plan Kind capability 只增加 Registration、Capability Routing Descriptor 投影及能力实现，不修改 Orchestrator、Planning 主流程、Execution Core、共享 Prompt 和 Runtime 核心 graph。
 6. 已有 capability/Plan Kind 接入新 Domain 不修改 Agent 主流程、已有 Handler/Validator 和共享 Prompt。
-7. CHAT 和 TASK 复用同一 Planning Service、Execution Lifecycle 和 Execution Core。
+7. 当前 CHAT 使用的 Planning Service、Execution Lifecycle 和 Execution Core 保持入口中立，D06 接入 TASK 时复用这些接口而不复制内核。
 8. Runtime 不接收无权 metadata、凭据和权限表达式，不作最终执行结论。
 9. Context 只在 capability 确定后按 Effective Scope 加载，并安全持久化和清理。
 10. 单 Agent 阶段原子闭环 Turn、Invocation Record 和 Context；D06 引入 TASK 后，Task Attempt 与 Invocation Record 原子关联，成功、澄清、失败和取消均有终态。
-11. Route、Plan、repair、Execution、Adapter 和下游调用遵守同一绝对 deadline。
-12. Multi-Agent 不建立第二套 Handler、Adapter、权限和审计框架，Task 授权约束完整传入统一 Planning/Execution 链。
-13. Multi-Agent 的成功、澄清、失败和取消都能由 Task Attempt 归并到明确 Run 终态并返回类型化响应。
-14. Task Graph 的控制依赖和数据依赖语义分离，数据依赖必须验证声明的 ResultRef 已提交。
-15. Turn/Task Attempt 与 Invocation Record、Profile 与 Policy 不重复保存同一权威事实。
-16. 代表性新增 capability 验证通过后，才允许进入 Multi-Agent 实施设计。
+11. Route、Plan、repair、Execution、Capability-local Infrastructure Port、Adapter 和下游调用遵守同一绝对 deadline；所有候选输出经过统一 output/result security 校验。
+12. Conversation Orchestrator 只是 CHAT 入口适配者；Planning、Lifecycle、Execution Core、Handler、Authorization 和 typed result 不依赖 Conversation/Turn 具体实体。
+13. Invocation Scope 当前只启用 ConversationScope，但封闭类型和 Context key 不阻止 D06 新增 RunScope 实现。
+14. 当前代码和配置不存在未使用的 Coordinator、TaskRunner、ResultRef、Task State Boundary 或 Task 状态空壳。
+15. 代表性新增 capability 验证通过后，才允许进入 Multi-Agent 架构设计。
+
+### 14.2 D06 Multi-Agent 收敛标准
+
+以下条目只在完成并评审 Multi-Agent L1 后作为 D06 验收条件，不前置到当前单 Agent 实施：
+
+1. Multi-Agent 不建立第二套 Handler、Adapter、权限和审计框架，Task 授权约束完整传入统一 Planning/Execution 链。
+2. Multi-Agent 的成功、澄清、失败和取消都能由 Task Attempt 归并到明确 Run 终态并返回类型化响应。
+3. Task Graph 的控制依赖和数据依赖语义分离，数据依赖必须验证声明的 ResultRef 已提交。
+4. Turn/Task Attempt 与 Invocation Record、Profile 与 Policy 不重复保存同一权威事实。
 
 ---
 
@@ -664,6 +694,6 @@ D01 契约生成与治理
 - 架构调整先修改本文或对应 L1，再修改实施设计和代码。
 - 追踪矩阵应独立维护或由各 L1/L2 汇总，不再写入本文正文。
 
-最终跨文档评审结论（2026-06-30）：已对本文及三份现有单 Agent L1 执行所有权、分层、术语、不变量、正常/澄清/失败调用链、交付门禁、扩展性、冗余性和机械格式复审；当前适用基线下未发现未决冲突、侵入、缺漏或重复权威定义。
+内部跨文档复审记录（2026-07-13）：当前单 Agent 主链可作为 D01～D05 架构基线；Multi-Agent 内容仅作为演进约束，不表示 D06 架构已完成，也不授权提前创建相关组件。正式 D06 评审以未来 `Multi-Agent协调与任务架构设计_v1.0.md` 为准。
 
 本文确认目标方向、分层、边界和不变量；具体实现以完成评审的 L1/L2 文档为直接编码依据。
