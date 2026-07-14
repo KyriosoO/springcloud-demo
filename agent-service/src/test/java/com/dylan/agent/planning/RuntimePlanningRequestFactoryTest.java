@@ -51,9 +51,6 @@ class RuntimePlanningRequestFactoryTest {
 
     @Test
     void clampsDocumentPlanSchemaToDocumentRetrievalBudget() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getRetrieval().setDefaultSize(5);
-        properties.getDocument().getRetrieval().setMaxSize(30);
         DomainMetadataPort domainMetadataPort = mock(DomainMetadataPort.class);
         RuntimeDomainSchema schema = new RuntimeDomainSchema();
         schema.setDomain("policy_document");
@@ -68,24 +65,23 @@ class RuntimePlanningRequestFactoryTest {
                 .thenReturn(schema);
         RuntimePlanningRequestFactory factory = new RuntimePlanningRequestFactory(
                 domainMetadataPort,
-                mock(ProfileBehaviorProjectionBoundary.class),
-                properties);
+                mock(ProfileBehaviorProjectionBoundary.class));
 
         var request = factory.planRequest(
                 command(),
                 evidence(),
+                authorizationSnapshot(),
                 routeDecision(),
                 KernelTestSupport.resolvedDocumentSearchRegistration(),
                 List.of());
 
         assertThat(request.getDomainSchema().getMaxSize()).isEqualTo(30);
-        assertThat(request.getDomainSchema().getDefaultSize()).isEqualTo(5);
+        assertThat(request.getDomainSchema().getDefaultSize()).isEqualTo(30);
     }
 
     private static PlanningCommand command() {
-        InvocationHandle handle = InvocationHandle.create(
+        InvocationHandle handle = InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("user", "u-1"),
@@ -112,12 +108,9 @@ class RuntimePlanningRequestFactoryTest {
                 Set.of(RuntimeContextType.DOCUMENT),
                 AgentCapabilityRiskLevel.READ_ONLY,
                 AgentCapabilityExecutionMode.IMMEDIATE,
-                Duration.ofSeconds(30),
-                1,
-                100,
-                100,
-                10_000);
-        return new PlanningAuthorizationEvidence(
+                new com.dylan.agent.metadata.profile.model.PlanningBudgetLimits(Duration.ofSeconds(30), 1),
+                com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContributions.empty());
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "req-1",
                 "user:u-1",
                 profileKey,
@@ -128,7 +121,7 @@ class RuntimePlanningRequestFactoryTest {
                 "perm-v1",
                 DelegationConstraintRef.CHAT_ALL,
                 profile,
-                new PlanningEffectiveScope(
+                com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                         Set.of("document.search"),
                         Set.of("policy_document"),
                         Map.of(),
@@ -160,20 +153,31 @@ class RuntimePlanningRequestFactoryTest {
                 Set.of("policy_document"),
                 AgentCapabilityRiskLevel.READ_ONLY,
                 AgentCapabilityExecutionMode.IMMEDIATE,
-                Duration.ofSeconds(30),
-                1,
-                100,
-                100,
-                10_000,
                 "document-search");
         return new ValidatedRouteDecision(decision, capability, Optional.of("policy_document"));
     }
 
     private static DomainMetadataEvidence domainEvidence() {
-        return new DomainMetadataEvidence(
+        return com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 "catalog-v1",
                 "adapter-v1",
                 "availability-v1",
                 MetadataTestSupport.NOW);
+    }
+
+    private static com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot authorizationSnapshot() {
+        var value = com.dylan.agent.kernel.resource.DocumentResourceLimits.defaults();
+        var contract = new com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract();
+        var effective = new com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits(
+                com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,
+                com.dylan.agent.adapter.api.document.DocumentResourceLimit.class,
+                value,
+                contract.canonicalDigest(value),
+                new com.dylan.agent.kernel.resource.ResourceLimitBindingIdentity(
+                        "inv-1", "req-1", "document-search", "a".repeat(64), MetadataTestSupport.NOW));
+        return com.dylan.agent.testsupport.AuthorizationSnapshotTestFactory.create(
+                "auth-1", "user:u-1", "profile-v1", "policy-v1",
+                Set.of("document.search"), Set.of("policy_document"), Map.of(), Map.of(),
+                MetadataTestSupport.NOW, domainEvidence(), effective);
     }
 }

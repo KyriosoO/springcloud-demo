@@ -23,7 +23,6 @@ $JavaServices = @(
   @{ Name = 'workflow-service'; Port = 9100 },
   @{ Name = 'mq-procedure-service'; Port = 8182 },
   @{ Name = 'mq-consumer-service'; Port = 8183 },
-  @{ Name = 'document-generation-adapter'; Port = 9240 },
   @{ Name = 'agent-service'; Port = 9220 },
   @{ Name = 'm-service-1'; Port = 8180 },
   @{ Name = 'm-service-2'; Port = 8081 },

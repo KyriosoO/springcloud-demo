@@ -10,7 +10,7 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeDomainRoutingProjectio
 import com.dylan.agent.api.contract.runtime.common.RuntimeDomainSchema;
 import com.dylan.agent.api.contract.runtime.plan.PlanRequest;
 import com.dylan.agent.api.contract.runtime.route.RouteRequest;
-import com.dylan.agent.config.AgentProperties;
+import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.catalog.AvailableCapability;
@@ -33,15 +33,12 @@ public final class RuntimePlanningRequestFactory {
 
     private final DomainMetadataPort domainMetadataPort;
     private final ProfileBehaviorProjectionBoundary profileBehaviorProjectionBoundary;
-    private final AgentProperties properties;
 
     public RuntimePlanningRequestFactory(
             DomainMetadataPort domainMetadataPort,
-            ProfileBehaviorProjectionBoundary profileBehaviorProjectionBoundary,
-            AgentProperties properties) {
+            ProfileBehaviorProjectionBoundary profileBehaviorProjectionBoundary) {
         this.domainMetadataPort = Objects.requireNonNull(domainMetadataPort);
         this.profileBehaviorProjectionBoundary = Objects.requireNonNull(profileBehaviorProjectionBoundary);
-        this.properties = Objects.requireNonNull(properties);
     }
 
     public RouteRequest routeRequest(
@@ -64,13 +61,14 @@ public final class RuntimePlanningRequestFactory {
                 .toList());
         request.setDomains(routeDomains(evidence, available));
         request.setAbsoluteDeadline(command.handle().absoluteDeadline());
-        request.setRepairLimit(repairLimit(evidence.planningScope().maxRepairAttempts()));
+        request.setRepairLimit(evidence.planningScope().planningBudgetLimits().maxRepairAttempts());
         return request;
     }
 
     public PlanRequest planRequest(
             PlanningCommand command,
             PlanningAuthorizationEvidence evidence,
+            AuthorizationSnapshot authorizationSnapshot,
             ValidatedRouteDecision routeDecision,
             ResolvedRegistration registration,
             List<RuntimeContextView> contextViews) {
@@ -89,10 +87,11 @@ public final class RuntimePlanningRequestFactory {
         request.setCapability(capabilityProjection(routeDecision.capability()));
         request.setInputSchemaRef(inputSchemaRef(registration.registration().definition().inputContract()));
         routeDecision.domain().ifPresent(request::setDomain);
-        planSchema(evidence, registration, routeDecision.domain()).ifPresent(request::setDomainSchema);
+        planSchema(evidence, authorizationSnapshot, registration, routeDecision.domain())
+                .ifPresent(request::setDomainSchema);
         request.setContextViews(List.copyOf(contextViews == null ? List.of() : contextViews));
         request.setAbsoluteDeadline(command.handle().absoluteDeadline());
-        request.setRepairLimit(repairLimit(routeDecision.capability().maxRepairAttempts()));
+        request.setRepairLimit(evidence.planningScope().planningBudgetLimits().maxRepairAttempts());
         return request;
     }
 
@@ -106,12 +105,12 @@ public final class RuntimePlanningRequestFactory {
                 domains,
                 evidence.planningScope(),
                 available.domainMetadataEvidence(),
-                evidence.evidenceDigest(),
                 evidence.absoluteDeadline());
     }
 
     private Optional<RuntimeDomainSchema> planSchema(
             PlanningAuthorizationEvidence evidence,
+            AuthorizationSnapshot authorizationSnapshot,
             ResolvedRegistration registration,
             Optional<String> selectedDomain) {
         return selectedDomain.flatMap(domain -> registration.registration().definition().adapterRole()
@@ -121,28 +120,32 @@ public final class RuntimePlanningRequestFactory {
                         evidence.planningScope(),
                         evidence.domainMetadataEvidence(),
                         evidence.absoluteDeadline()))
-                .map(schema -> clampDocumentPlanSchema(registration, schema)));
+                .map(schema -> applyResourceLimit(registration, authorizationSnapshot, schema)));
     }
 
-    private RuntimeDomainSchema clampDocumentPlanSchema(
+    private RuntimeDomainSchema applyResourceLimit(
             ResolvedRegistration registration,
+            AuthorizationSnapshot authorizationSnapshot,
             RuntimeDomainSchema schema) {
-        if (registration.planKind() != AgentPlanKind.DOCUMENT || schema == null) {
+        if (schema == null) {
             return schema;
         }
-        int configuredMaxSize = properties.getDocument().getMaxSize();
-        Integer schemaMaxSize = schema.getMaxSize();
-        int effectiveMaxSize = schemaMaxSize == null
-                ? configuredMaxSize
-                : Math.min(configuredMaxSize, schemaMaxSize);
+        int effectiveMaxSize;
+        if (registration.planKind() == AgentPlanKind.DOCUMENT) {
+            var limits = authorizationSnapshot.resourceLimits().require(
+                    AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,
+                    com.dylan.agent.adapter.api.document.DocumentResourceLimit.class);
+            effectiveMaxSize = limits.retrieval().maxReturnedDocuments();
+        } else {
+            var limits = authorizationSnapshot.resourceLimits().require(
+                    AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                    com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit.class);
+            effectiveMaxSize = registration.planKind() == AgentPlanKind.AGGREGATE
+                    ? limits.maxResultRows() : limits.maxPageSize();
+        }
         schema.setMaxSize(effectiveMaxSize);
-        schema.setDefaultSize(Math.min(properties.getDocument().getDefaultSize(), effectiveMaxSize));
+        schema.setDefaultSize(effectiveMaxSize);
         return schema;
-    }
-
-    private int repairLimit(int scopeLimit) {
-        int configured = properties.getRuntime() == null ? 1 : properties.getRuntime().getMaxRepairAttempts();
-        return Math.min(configured, scopeLimit);
     }
 
     private static RuntimeCapabilityRoutingDescriptor capabilityProjection(AvailableCapability capability) {
@@ -167,6 +170,6 @@ public final class RuntimePlanningRequestFactory {
         if (AgentExecutionContracts.DOCUMENT_PLAN.equals(contractRef)) {
             return "#/components/schemas/DocumentAgentPlan";
         }
-        return "#/components/schemas/" + contractRef.schema();
+        return "#/components/schemas/" + contractRef.name();
     }
 }

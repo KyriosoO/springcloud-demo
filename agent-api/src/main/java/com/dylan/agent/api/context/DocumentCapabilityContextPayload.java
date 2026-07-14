@@ -9,14 +9,14 @@ import com.dylan.agent.api.plan.AgentFilter;
 public record DocumentCapabilityContextPayload(
         String operation,
         String domain,
+        String materialType,
         String queryText,
         List<AgentFilter> filters,
-        List<String> citationIds,
-        int topK) implements CapabilityContextPayload {
+        int topK,
+        String summaryScope) implements CapabilityContextPayload {
 
     public DocumentCapabilityContextPayload {
         filters = List.copyOf(filters == null ? List.of() : filters);
-        citationIds = List.copyOf(citationIds == null ? List.of() : citationIds);
         if (topK <= 0) {
             throw new IllegalArgumentException("topK must be positive");
         }

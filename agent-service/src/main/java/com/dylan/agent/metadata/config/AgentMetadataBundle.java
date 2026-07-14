@@ -16,7 +16,6 @@ public record AgentMetadataBundle(
         String defaultProfileId,
         Map<String, String> activeProfileVersions,
         String activePolicyVersion,
-        AgentSecuritySettings securitySettings,
         Map<AgentProfileVersionKey, AgentProfileDefinition> profileVersionIndex,
         Map<ProfileBehaviorAssetRef, ProfileBehaviorAsset> behaviorAssetVersionIndex,
         Map<String, AgentPolicySnapshot> policyVersionIndex) {
@@ -27,7 +26,6 @@ public record AgentMetadataBundle(
         defaultProfileId = requireNonBlank(defaultProfileId, "defaultProfileId");
         activeProfileVersions = Map.copyOf(Objects.requireNonNull(activeProfileVersions, "activeProfileVersions must not be null"));
         activePolicyVersion = requireNonBlank(activePolicyVersion, "activePolicyVersion");
-        Objects.requireNonNull(securitySettings, "securitySettings must not be null");
         profileVersionIndex = Map.copyOf(Objects.requireNonNull(profileVersionIndex, "profileVersionIndex must not be null"));
         behaviorAssetVersionIndex = Map.copyOf(Objects.requireNonNull(behaviorAssetVersionIndex, "behaviorAssetVersionIndex must not be null"));
         policyVersionIndex = Map.copyOf(Objects.requireNonNull(policyVersionIndex, "policyVersionIndex must not be null"));

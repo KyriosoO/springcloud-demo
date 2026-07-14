@@ -127,6 +127,7 @@ class PlanningCheckpointTest {
                 .domain("employee")
                 .planKind("QUERY")
                 .registrationIdentity("registration-v1")
+                .planningArtifactBindingDigest("a".repeat(64))
                 .routeAudit(audit(RuntimeOperationType.ROUTE))
                 .planAudit(audit(RuntimeOperationType.PLAN))
                 .authorizationSnapshotRef("auth-snapshot-1");
@@ -146,7 +147,7 @@ class PlanningCheckpointTest {
     }
 
     private ContractRef contract() {
-        return new ContractRef("agent_context", "v1");
+        return new ContractRef("agent.test", "agent_context", "v1");
     }
 
     private PlanningOperationAudit audit(RuntimeOperationType operation) {

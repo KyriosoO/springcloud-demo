@@ -50,8 +50,9 @@ class QueryPlanValidatorTest {
     @Test
     void rejectsUnknownSortField() {
         assertThatThrownBy(() -> validator().validate(plan(List.of(sort("unknown", "ASC"))), context(Set.of("chineseName"))))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("unknown field");
+                .isInstanceOf(KernelExecutionException.class)
+                .satisfies(error -> assertThat(((KernelExecutionException) error).errorCode())
+                        .isEqualTo(KernelErrorCode.FIELD_FORBIDDEN));
     }
 
     @Test
@@ -93,8 +94,7 @@ class QueryPlanValidatorTest {
                 properties,
                 new FilterNormalizer(properties),
                 constraints,
-                new QueryMergeEngine(constraints),
-                DomainMetadataTestSupport.catalogView());
+                new QueryMergeEngine(constraints));
     }
 
     private ExecutionValidationContext context(Set<String> sortFields) {
@@ -109,8 +109,6 @@ class QueryPlanValidatorTest {
                         Map.of("chineseName", rule("chineseName")),
                         List.of("chineseName"),
                         sortFields,
-                        100,
-                        100,
                         "catalog-v1"),
                 null,
                 List.of(),
@@ -119,9 +117,9 @@ class QueryPlanValidatorTest {
     }
 
     private ExecutionScope executionScope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability", NOW),
                 NOW,
                 "perm-evidence-1",
                 "perm-v1",
@@ -130,10 +128,8 @@ class QueryPlanValidatorTest {
                 Set.of("employee"),
                 Map.of(),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
     }
 
     private QueryAgentPlan plan(List<AgentSortSpec> sorts) {

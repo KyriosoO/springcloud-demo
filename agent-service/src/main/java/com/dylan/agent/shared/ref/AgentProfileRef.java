@@ -14,7 +14,7 @@ import java.util.Optional;
  * </ul>
  *
  * <p>Profile Registry、InvocationHandle 和 PlanningCommand 共同消费此唯一类型。
- * D06 TASK 由 Coordinator 显式传递目标 Profile 的精确 ref。
+ * 当前由 CHAT Invocation 显式绑定目标 Profile 的精确 ref。
  */
 public final class AgentProfileRef {
 

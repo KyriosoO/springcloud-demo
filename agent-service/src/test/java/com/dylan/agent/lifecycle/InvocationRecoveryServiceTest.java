@@ -2,6 +2,7 @@ package com.dylan.agent.lifecycle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -40,7 +41,8 @@ class InvocationRecoveryServiceTest {
                 eq("DEADLINE_EXCEEDED"),
                 eq("请求已超时。"),
                 eq("recovery-deadline"),
-                any())).thenReturn(1);
+                any(),
+                anyLong())).thenReturn(1);
         when(turnMapper.finalizeFailure(
                 eq("turn-1"),
                 eq("inv-1"),
@@ -58,7 +60,8 @@ class InvocationRecoveryServiceTest {
                 eq("DEADLINE_EXCEEDED"),
                 eq("请求已超时。"),
                 eq("recovery-deadline"),
-                any());
+                any(),
+                anyLong());
         verify(turnMapper).finalizeFailure(
                 eq("turn-1"),
                 eq("inv-1"),

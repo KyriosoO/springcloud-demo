@@ -19,7 +19,6 @@ import com.dylan.agent.invocation.model.InvocationType;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationExecutionPortImpl;
 import com.dylan.agent.metadata.authorization.internal.UserPermissionBoundary;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
-import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.model.MaskType;
@@ -29,27 +28,20 @@ import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 class AuthorizationExecutionPortTest {
     @Test
     void recheckNeverExpandsSnapshot() {
-        AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
-                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
-                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                DomainMetadataTestSupport.domainMetadataPort(),
-                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+        AuthorizationExecutionPortImpl port = port(MetadataTestSupport::permission);
         var scope = port.recheck(snapshot(), handle());
 
         assertThat(scope.allowedCapabilityIds()).containsExactly("query.search");
         assertThat(scope.allowedDomains()).containsExactly("employee");
-        assertThat(scope.maxRepairAttempts()).isEqualTo(1);
-        assertThat(scope.maxResultRows()).isEqualTo(100);
-        assertThat(scope.maxResultBytes()).isEqualTo(10_000);
+        var limits = com.dylan.agent.kernel.resource.StandardResourceLimits.require(scope);
+        assertThat(limits.maxPageSize()).isEqualTo(100);
+        assertThat(limits.maxResultRows()).isEqualTo(100);
+        assertThat(limits.maxResultBytes()).isEqualTo(10_000);
     }
 
     @Test
     void passesSnapshotFieldMasksToExecutionScope() {
-        AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
-                new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
-                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                DomainMetadataTestSupport.domainMetadataPort(),
-                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+        AuthorizationExecutionPortImpl port = port(MetadataTestSupport::permission);
 
         var scope = port.recheck(snapshot(Map.of("employee.chineseName", MaskType.MOBILE)), handle());
 
@@ -58,12 +50,19 @@ class AuthorizationExecutionPortTest {
     }
 
     @Test
+    void acceptsNewPermissionEvidenceWhenItStillCoversFrozenScope() {
+        AuthorizationExecutionPortImpl port = port(subject -> permissionWithNewEvidence(subject));
+
+        var scope = port.recheck(snapshot(), handle());
+
+        assertThat(scope.currentPermissionEvidenceId()).isEqualTo("permission-current");
+        assertThat(scope.currentPermissionVersion()).isEqualTo("permission-v2");
+        assertThat(scope.allowedCapabilityIds()).containsExactly("query.search");
+    }
+
+    @Test
     void recheckRejectsCurrentPermissionThatNoLongerCoversSnapshotFields() {
-        AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
-                new UserPermissionBoundary((subject, deadline) -> permissionWithoutFields(subject),
-                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                DomainMetadataTestSupport.domainMetadataPort(),
-                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+        AuthorizationExecutionPortImpl port = port(this::permissionWithoutFields);
 
         assertThatThrownBy(() -> port.recheck(snapshot(), handle()))
                 .isInstanceOf(IllegalStateException.class)
@@ -72,11 +71,7 @@ class AuthorizationExecutionPortTest {
 
     @Test
     void recheckRejectsCurrentPermissionThatLostDisplayFieldEvenWhenFilterRemains() {
-        AuthorizationExecutionPortImpl port = new AuthorizationExecutionPortImpl(
-                new UserPermissionBoundary((subject, deadline) -> permissionWithoutDisplayField(subject),
-                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                DomainMetadataTestSupport.domainMetadataPort(),
-                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+        AuthorizationExecutionPortImpl port = port(this::permissionWithoutDisplayField);
 
         assertThatThrownBy(() -> port.recheck(snapshot(), handle()))
                 .isInstanceOf(IllegalStateException.class)
@@ -87,14 +82,26 @@ class AuthorizationExecutionPortTest {
         return snapshot(Map.of());
     }
 
+    private AuthorizationExecutionPortImpl port(
+            java.util.function.Function<ExecutionSubjectRef, UserPermission> permissionResolver) {
+        Clock clock = Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC);
+        return new AuthorizationExecutionPortImpl(
+                new UserPermissionBoundary((subject, deadline) -> permissionResolver.apply(subject), clock),
+                new com.dylan.agent.metadata.config.AgentMetadataStore(
+                        MetadataTestSupport.bundle("bundle-v1", "digest-v1")),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                clock);
+    }
+
     private AuthorizationSnapshot snapshot(Map<String, MaskType> fieldMasks) {
-        DomainMetadataEvidence evidence = DomainMetadataTestSupport.store().current().evidence();
-        return new AuthorizationSnapshot(
+        DomainMetadataEvidence evidence = DomainMetadataTestSupport.currentEvidence();
+        return com.dylan.agent.testsupport.AuthorizationSnapshotTestFactory.create(
                 "auth-1", "user:u-1", "profile-v1", "policy-v1",
                 Set.of("query.search"), Set.of("employee"),
                 Map.of("employee", Set.of("chineseName")),
                 fieldMasks,
-                MetadataTestSupport.NOW, evidence, new ExecutionBudget(1, 100, 10_000));
+                MetadataTestSupport.NOW, evidence,
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private UserPermission permissionWithoutFields(ExecutionSubjectRef subject) {
@@ -107,6 +114,24 @@ class AuthorizationExecutionPortTest {
                 permission.allowedDomains(),
                 Map.of("employee", Set.of()),
                 Map.of("employee", Set.of()),
+                permission.allowedOperators(),
+                permission.allowedFunctions(),
+                permission.readableContextTypes(),
+                permission.writableContextTypes(),
+                permission.attributes(),
+                permission.resolvedAt());
+    }
+
+    private UserPermission permissionWithNewEvidence(ExecutionSubjectRef subject) {
+        UserPermission permission = MetadataTestSupport.permission(subject);
+        return new UserPermission(
+                subject,
+                "permission-current",
+                "permission-v2",
+                permission.allowedCapabilityIds(),
+                permission.allowedDomains(),
+                permission.filterableFields(),
+                permission.displayableFields(),
                 permission.allowedOperators(),
                 permission.allowedFunctions(),
                 permission.readableContextTypes(),
@@ -134,9 +159,8 @@ class AuthorizationExecutionPortTest {
     }
 
     private InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "corr-1",
                 new ExecutionSubjectRef("user", "u-1"),

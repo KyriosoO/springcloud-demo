@@ -6,12 +6,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, Request
 
 from app.contracts.models import PlanOutcome, PlanRequest, RouteOutcome, RouteRequest
-from app.core.document_rewrite import (
-    DocumentRewriteRequest,
-    DocumentRewriteResponse,
-    RuntimeDocumentRewritePlanner,
-    get_document_rewrite_planner,
-)
 from app.core.errors import RuntimeAuthError
 from app.core.runtime_planning import (
     RuntimePlanPlanner,
@@ -62,23 +56,6 @@ async def plan(
     """为已选择的能力生成可执行计划或强类型澄清。"""
     planner = _resolve_planner(http_request, get_plan_planner)
     return await planner.plan(request)
-
-
-@router.post(
-    "/document/rewrite",
-    response_model=DocumentRewriteResponse,
-    dependencies=[Depends(verify_runtime_key)],
-)
-async def document_rewrite(
-    request: DocumentRewriteRequest,
-    http_request: Request,
-):
-    """生成文档查询改写候选；候选不具备执行权威。"""
-    planner: RuntimeDocumentRewritePlanner = _resolve_planner(
-        http_request,
-        get_document_rewrite_planner,
-    )
-    return await planner.rewrite(request)
 
 
 def _resolve_planner(request: Request, dependency):

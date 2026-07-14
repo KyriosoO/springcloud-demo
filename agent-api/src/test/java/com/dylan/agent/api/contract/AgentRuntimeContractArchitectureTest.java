@@ -71,6 +71,12 @@ class AgentRuntimeContractArchitectureTest {
     }
 
     @Test
+    void runtimeErrorResponseHasNoParallelLegacyDto() {
+        assertFalse(Files.exists(locateRepoRoot().resolve(
+                "agent-api/src/main/java/com/dylan/agent/api/response/RuntimeErrorResponse.java")));
+    }
+
+    @Test
     void runtimeContractMustNotBeReferencedByUnexpectedProductionCode() throws Exception {
         Pattern runtimeContract = Pattern.compile("com\\.dylan\\.agent\\.api\\.contract\\.runtime");
         Path repo = locateRepoRoot();
@@ -93,6 +99,8 @@ class AgentRuntimeContractArchitectureTest {
             "java/com/dylan/agent/capability/aggregate/AggregateCapabilityHandler.java",
             "java/com/dylan/agent/capability/aggregate/ValidatedAggregatePlan.java",
             "java/com/dylan/agent/capability/document/DocumentCapabilityConfiguration.java",
+            "java/com/dylan/agent/capability/document/DocumentPlanningArtifactAssembler.java",
+            "java/com/dylan/agent/capability/document/DocumentRawPlan.java",
             "java/com/dylan/agent/capability/document/DocumentPlanValidator.java",
             "java/com/dylan/agent/capability/document/DocumentCapabilityHandler.java",
             "java/com/dylan/agent/capability/document/ValidatedDocumentPlan.java",

@@ -6,16 +6,16 @@
 |---|---|
 | 文档名称 | 文档 Capability-local Provider 端口 L2 实施详细设计 |
 | 文档路径 | `docs/design/P2_V3/06_文档CapabilityLocalProvider端口_L2实施详细设计_v3.0.md` |
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v3.0 |
-| 创建/最后更新日期 | 2026-07-13 |
+| 创建/最后更新日期 | 2026-07-14 |
 | 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
 | 设计层级 | L2 Document capability-local Provider policy、port、wire、client、adapter 与 operational gate |
 | 上级文档 | 四份当前 L0/L1；只读权威基线 |
 | 直接前置 | P1_V2/02～06、P2_V3/00～05 |
 | 关联文档 | P2_V3/01～05、07 |
 | 合并来源 | P2/07、P2_V2/07、旧 rewrite/embedding/rerank/generation Provider 规则 |
-| 是否可作为实现依据 | 否；P2_V3 全集评审已完成且 S0/S1=0，但仍为 In Review；模块重命名、内部 HTTP contract、服务身份、配置与旧路径删除经 M0 原子授权后方可实施 |
+| 是否可作为实现依据 | 是；用户已授权按 P1_V2/P2_V3 详细设计修改代码、测试、配置、运行时契约、依赖与数据库迁移；仍禁止生产访问、提交、推送、分支和 PR |
 
 ## 2. 修改历史
 
@@ -29,10 +29,13 @@
 | 6 | 2026-07-13 | 第10～24节 | 第三轮发现DPW-1未携带absolute deadline与activation digest，adapter算法无法履约；失败wire未冻结；P1 Provider identity不应被内部adapter服务身份替代 | 请求补deadline/activation binding，success回显observed activation，新增closed error wire及本地映射；metadata provider恢复为逻辑vendor/model safe identity，adapter身份独立绑定，终审S0=0、S1=0 |
 | 7 | 2026-07-13 | 1、21、23～24 | P1_V2/P2_V3 全集终检同步 07 闭合状态 | 标记 activation authority/feed/readiness/rollback 设计已由 07 承接，保留代码未实现与 M0 边界；不新增评审轮次 |
 | 8 | 2026-07-13 | 2、22 | 评审报告移动到目标文档同目录 | 将最终结论引用改为同目录同名评审报告；不新增评审轮次，不改变设计结论 |
+| 9 | 2026-07-14 | 1～3、10.6、11、19～24 | 用户授权后恢复执行时发现 `DocumentRerankReasonCode` 只有类型名、没有封闭值与 wire 语义，无法可靠实现 strict payload validator | 冻结 `MODEL_RELEVANCE` 单值 enum、必填/序列化/拒绝规则，补实现落点、测试、风险、评审和实施授权状态 |
+| 10 | 2026-07-14 | 第1～3、7、10.2～10.3、11、15、18～24节 | 用户授权修订；实施发现 shared outbound decision 依赖的 `SecurityClassificationRef`、purpose evidence、typed DENY 和 Binder 输入契约未完整定义 | 对齐 P1_V2/03 `ExternalProcessingAuthorizationEvidence`，冻结 intended field view、allowed/denied result、closed denial code、DPO-1 canonical、Binder/Verifier 精确签名、审计、实现与测试落点 |
+| 11 | 2026-07-14 | 第1～3、10.3、10.10、19、22～24节 | 实现期篡改与结构复核发现：单靠公开 reference 字段无法证明 decision digest 确由本地 Binder 铸造；P2_V3/05 trusted candidate 需要完整 Provider binding，但 P1_V2/05 已冻结 metadata 只有 `ProviderSafeIdentity` | 增加 process-local、短效、按 operationId 一次消费的 reference mint ledger 与 operation binding handoff registry；两者都不缓存正文/授权对象；保持 P1 metadata 原结构不变，补伪 digest、重放、binding 缺失/错配门禁并将状态更新为 Implemented |
 
 ## 3. 文档状态说明
 
-本文处于 In Review，不授权直接重命名模块、修改 Maven 聚合、替换内部 endpoint、移动凭据、删除 Runtime rewrite、发布 07 状态或启用真实 Provider。本文只冻结四类 Document capability-local Provider operation 的目标实现。
+本文处于 **Implemented**，已由用户授权作为本地实现依据，并在本次阻断恢复中明确授权修订本文与 P1_V2/03。shared outbound decision、四类 Handler 接入、non-wire reference、client 前 exact verifier 与 trusted generation candidate 链已完成本地实现和验证。该授权不包含生产环境访问、真实 Provider 上线、生产 secret 配置、commit、push、分支或 PR。
 
 本文是 rewrite、embedding、rerank、generation Provider policy/port/wire/client/adapter 的唯一专题规范。旧 P2/P2_V2 仅保留 provenance；其中 Runtime rewrite、业务 request 携带 provider/model/dimension、`Map<String,Object>` wire、HTTP 404/405 切第二 endpoint、client 截断/归一化 Provider 答案、各 Provider 自读 `AgentProperties` 和混合部署路径不再用于补充实现。
 
@@ -95,7 +98,7 @@
 
 | 文档 | 输入给06 | 06输出/服务 | 禁止侵入 |
 |---|---|---|---|
-| P1_V2/02～03 | ExecutionContext/current ExecutionScope、Result Security总边界 | outbound policy decision使用current refs | 不解析权限正文、不写Context/Result |
+| P1_V2/02～03 | ExecutionContext/current ExecutionScope、`ExternalProcessingAuthorizationEvidence`、Result Security总边界 | outbound policy decision只使用current refs | 不解析权限正文、不写Context/Result，不把Profile feature或07 state当授权 |
 | P1_V2/05 | operation context/outcome/metadata、typed limit view/reference | 四类typed operation | 不自建attempt/deadline/failure enum |
 | P1_V2/06 | M0/M2～M6原子迁移门禁 | contract/config/旧路径清理项 | 不自行授权模块重命名/删除 |
 | P2_V3/01 | embedding manifest/model binding消费方 | safe embedding binding reference | 不解析alias/physical target |
@@ -177,7 +180,41 @@ feature为DISABLED、对应typed limit为0、无输入或Handler已选择本地�
 
 ### 10.2 Shared outbound policy decision
 
-`DocumentProviderOutboundPolicyDecisionFactory`位于agent-service `capability/document/provider/security`，是四类operation唯一purpose/policy解释器。输入为operation type、current ExecutionScope、单一`DocumentCorpusKey`、02 feature policy、operation-specific intended field/data view和当前absolute deadline；输出内部immutable decision：
+`DocumentProviderOutboundPolicyDecisionFactory`位于agent-service `capability/document/provider/security`，是四类operation唯一purpose/policy解释器。输入为operation type、current ExecutionScope、单一`DocumentCorpusKey`、02 feature policy、operation-specific intended field view和当前absolute deadline；输出 closed allowed/denied result。`DocumentProviderIntendedFieldView` 只保存按 `CanonicalFieldRef` natural order 去重后的不可变字段列表；rewrite/embedding 为 query-only 空列表，rerank/generation 必须列出实际准备外发的 title/snippet/text 等 canonical field，不能传值正文、URI、identity 或安全 binding。
+
+~~~java
+record DocumentProviderIntendedFieldView(
+    List<CanonicalFieldRef> orderedFields) {}
+
+sealed interface DocumentProviderOutboundPolicyDecisionResult
+    permits DocumentProviderOutboundPolicyAllowed,
+            DocumentProviderOutboundPolicyDenied {}
+
+record DocumentProviderOutboundPolicyAllowed(
+    DocumentProviderOutboundPolicyDecision decision)
+    implements DocumentProviderOutboundPolicyDecisionResult {}
+
+record DocumentProviderOutboundPolicyDenied(
+    DocumentProviderOutboundPolicyDenialCode reasonCode)
+    implements DocumentProviderOutboundPolicyDecisionResult {}
+
+enum DocumentProviderOutboundPolicyDenialCode {
+    INVALID_OPERATION,
+    SCOPE_MISSING,
+    SCOPE_EXPIRED,
+    INVOCATION_BINDING_MISMATCH,
+    FEATURE_DISABLED,
+    CORPUS_NOT_ALLOWED,
+    PURPOSE_NOT_ALLOWED,
+    FIELD_NOT_ALLOWED,
+    CLASSIFICATION_MISSING,
+    CLASSIFICATION_PURPOSE_NOT_ALLOWED,
+    MASK_UNKNOWN,
+    EVIDENCE_BINDING_MISMATCH
+}
+~~~
+
+Denied 只携带 closed low-cardinality reason code，不携带 domain/field/classification/subject 事实；Handler 将其按 04/05 feature policy 映射为 typed `NOT_PROVIDER_ELIGIBLE` 或本地 fallback，06 不抛含敏感正文的自由异常，也不创建 operation request。Allowed 内部 decision 固定为：
 
 ~~~java
 record DocumentProviderOutboundPolicyDecision(
@@ -198,13 +235,22 @@ record DocumentProviderFieldRuleDecision(
     MaskType maskType) {}
 ~~~
 
-factory只使用ExecutionScope已解析的field permission、P1 `MaskType/ResultValueMaskingSupport`、security-classification refs和same-or-narrower evidence；不读取Provider/07/config/credential，也不执行I/O。query-only operation的field rules可为空，但effective feature、Policy/Permission、Corpus和operation purpose仍必须显式允许；已有security-classification refs若不能表达外部处理许可，结果只能DENY并由07保持非ACTIVE，不得由06新增默认allow或要求修改L1才能启动disabled实现。unknown classification/Mask、scope/evidence缺失、purpose未声明、feature mismatch、过期或无法证明只收紧均DENY。
+factory只使用 `ExecutionScope.externalProcessingAuthorizationEvidence()`、P1 `MaskType/ResultValueMaskingSupport` 和同一 scope/limit/deadline binding；不读取Provider/07/config/credential，也不执行I/O。唯一算法顺序为：
 
-decision canonical使用`DPO-1`：固定版本、operation、DCK-1 Corpus、authorization/policy/permission/profile evidence digest、resource limit reference、按canonical field排序的classification/Mask rule、validUntil，UTF-8 length-prefixed，SHA-256 lowercase。`ResultValueMaskingSupport`只执行decision已经允许字段的值变换，不自行决定外发许可。decision不是Authorization Snapshot替代物，不跨Invocation缓存。
+1. operation 必须精确命中四个 closed `CapabilityOperationType`，scope/absolute deadline/invocation binding 必须非空、current 且一致；
+2. feature 为 `DISABLED` 直接 `FEATURE_DISABLED`；selected Corpus domain 必须同时命中 `ExecutionScope.allowedDomains` 与 evidence domain purpose；
+3. query-only 空 field view 仍必须命中 domain purpose；非空 field view 中每个字段必须属于同 domain、命中 scope allowedFields 和 P1 `ExternalProcessingFieldRule`，且 rule allowedPurposes 包含当前 operation；
+4. classification ref 必须完整且 `SCR-1` canonical 可复算，Mask 必须是 P1 Java 权威枚举；任一失败整体 Denied，不允许删除单个字段后继续；
+5. decision 的 `validUntil` 取 current scope absolute deadline 与调用方 absolute deadline 的相等绑定；两者不相等不是取较宽/较窄，而是 `INVOCATION_BINDING_MISMATCH`；
+6. `authorizationBindingDigest` 直接使用 P1 evidence `canonicalDigest`，`policyEvidenceDigest/permissionEvidenceDigest` 直接使用同一 evidence 的两个 digest，不重新解析或复制 Policy/Permission 算法；profileProjectionDigest 和 ResourceLimitReference 必须来自当前 validated plan/response binding 且与 scope limits exact。
+
+query-only operation的field rules可为空，但 effective feature、Policy/Permission、Corpus 和 operation purpose 仍必须显式允许；unknown classification/Mask、scope/evidence缺失、purpose未声明、feature mismatch、过期或无法证明只收紧均返回 Denied。`ResultValueMaskingSupport`只执行 allowed decision 已冻结 Mask 的值变换，不自行决定外发许可。
+
+decision canonical使用`DPO-1`：固定版本、operation、DCK-1 Corpus、authorization/policy/permission/profile evidence digest、resource limit reference canonical digest、按canonical field排序的 field domain/name、`SCR-1` classification digest、Mask enum name、validUntil epoch millis，全部 UTF-8 length-prefixed，SHA-256 lowercase。`canonicalDigest`由 `DocumentProviderOutboundPolicyCanonicalizer` 本地计算且 record constructor 复核，不接受 caller-supplied 不一致值。decision不是Authorization Snapshot替代物，不跨Invocation缓存，不进入 wire/vendor body。
 
 ### 10.3 Policy reference 与 operation request
 
-04/05应用decision形成最终provider-safe input后，`DocumentProviderOperationRequestBinder`计算operation-specific canonical input digest并构造non-wire reference：
+04/05仅在 `DocumentProviderOutboundPolicyAllowed` 后应用 decision 形成最终 provider-safe input；`DocumentProviderOperationRequestBinder.bind(decision,input,context)` 使用 operation-specific `DocumentProviderCanonicalizer.inputDigest(input)` 并构造 non-wire reference：
 
 ~~~java
 public record DocumentProviderOutboundPolicyReference(
@@ -229,7 +275,7 @@ public record DocumentRewriteOperationRequest(
 // Embedding/Rerank/Generation保持相同三段结构，业务input类型不同。
 ~~~
 
-port入口重算input digest，验证reference的Invocation/operation/type/limit/validUntil与context完全一致。reference不进入DPW body/header/vendor；missing/mismatch/expired以attempts=0返回`SECURITY_REJECTED`或`BINDING_MISMATCH`。request/input可以是Spring-free adapter-api类型，但不能有Jackson creator把wire body直接反序列化成operation request。
+Binder 必须验证 decision operation/type、validUntil、ResourceLimitReference 与 context exact，reference 的 `decisionDigest` 只能取 allowed decision canonical digest，不能再调用 `outboundDecisionDigest(context,inputDigest)` 自行生成伪 decision。Binder 同时把完整 non-wire reference 注册到 process-local 短效 mint ledger：key 为唯一 operationId，value 只含 reference 值对象，deadline 到期清理，Verifier exact 成功后原子消费一次；不得保存正文、ExecutionScope、Policy/Permission 对象或 decision 对象，不得跨进程/重启复用，也不得作为授权缓存。port入口由 `DocumentProviderOutboundPolicyReferenceVerifier.verify(reference,input,context)` 重算 input digest，并验证 reference 的 Invocation/operation/type/limit/validUntil 与 context 完全一致且 reference 命中一次性 mint；missing/mismatch/expired/伪 decision digest/重复消费以 attempts=0 返回 `SECURITY_REJECTED` 或 `BINDING_MISMATCH`。reference不进入DPW body/header/vendor；request/input可以是Spring-free adapter-api类型，但不能有Jackson creator把wire body直接反序列化成operation request。
 
 ### 10.4 Rewrite contract
 
@@ -298,9 +344,15 @@ public record DocumentRerankScoreItem(
     String candidateId,
     double score,
     DocumentRerankReasonCode reasonCode) {}
+
+public enum DocumentRerankReasonCode {
+    MODEL_RELEVANCE
+}
 ~~~
 
-input由04 all-or-none projector形成，不接受`AdapterDocumentResult`、retrievalProfile、domain/materialType、URI、ACL、document/chunk identity、context全文、citation或free metadata。fields是closed canonical field+typed scalar，不是Map。06验证input IDs唯一、response为input子集、无重复、score finite、reason closed、count有界，且Provider未返回文本/fields/citation/order/topN。06不排序；04按已冻结规则排序并追加遗漏/tail。
+`reasonCode`是必填 DPW/vendor 响应字段，JSON wire 只接受大小写精确的`"MODEL_RELEVANCE"`；它只表示该数值是模型对 query-item 相关性的无解释打分，不表示授权、ACL 已检查、事实正确、citation可信、排序已获批准或候选可公开。当前没有第二种可信且可产生不同04行为的原因，因此不预留`OTHER/UNKNOWN/FREE_TEXT`；null、空值、未知值、大小写别名或数字序列化均使整个rerank payload成为`INVALID_RESPONSE`。后续新增值必须同时升级DPW contract version、strict parser、04 validator/排序测试和07 Provider report，旧consumer不得把未知值降级为`MODEL_RELEVANCE`。
+
+input由04 all-or-none projector形成，不接受`AdapterDocumentResult`、retrievalProfile、domain/materialType、URI、ACL、document/chunk identity、context全文、citation或free metadata。fields是closed canonical field+typed scalar，不是Map。06验证input IDs唯一、response为input子集、无重复、score finite、reason为上述必填closed enum、count有界，且Provider未返回文本/fields/citation/order/topN。06不排序；04按已冻结规则排序并追加遗漏/tail。
 
 ### 10.7 Generation contract
 
@@ -419,6 +471,8 @@ public enum DocumentProviderAdapterFailureCode {
 
 ACTIVE snapshot必须有`expectedProvider`；`CapabilityOperationMetadata.provider`由agent-service根据该trusted value的`provider`本地构造，不从DPW response/vendor自报值构造，response binding只能被校验。`providerAttempts`统计client boundary发起的逻辑Provider operation次数，只能0或1；agent→adapter真实write次数与其同步记录，adapter→vendor真实attempt由adapter本地强制0/1并进入受限06/07审计。内部adapter身份使用binding的`adapterServiceIdentityRef`做service-auth校验，不能写入P1 provider字段；两跳任一隐藏retry均阻塞生产readiness。
 
+P1_V2/05 `CapabilityOperationMetadata` 字段保持原样，不增加 Document 专用 provider binding。06 client 在 strict success 成立后，把已由 current activation 与 response exact 复核的完整 `DocumentProviderBindingReference` 发布到 process-local `DocumentProviderOperationBindingRegistry`：key 为 operationId，value 为 binding 与 absolute deadline，P2_V3/05 trusted candidate factory 仅通过构造注入的 registry 按同一 metadata operationId/type/provider 原子消费一次。registry 不进入 port/outcome/public contract，不保存 payload、ExecutionScope、Policy/Permission、ECP 或 candidate，不跨进程/重启复用；缺失、过期、错配或重复消费都拒绝 candidate。不得为满足 candidate binding 而扩展 P1 metadata、把完整 binding 塞进 untrusted payload，或回读可能已变化的 activation snapshot。
+
 ### 10.11 Adapter-side algorithm
 
 每个internal controller/use case固定执行：
@@ -502,11 +556,15 @@ agent-service只保留内部adapter operational config：service discovery/base 
 
 | 接口/类型 | 方法/字段 | 所有者 | 责任 |
 |---|---|---|---|
-| `DocumentProviderOutboundPolicyDecisionFactory` | `create(type,scope,corpus,feature,fieldView)` | agent-service/06 | 唯一current-scope purpose decision，无I/O |
-| `DocumentProviderOperationRequestBinder` | `bind(decision,inputDigest,context)` | agent-service/06 | non-wire policy reference |
+| `DocumentProviderOutboundPolicyDecisionFactory` | `create(CapabilityOperationType type, ExecutionScope scope, DocumentCorpusKey corpus, DocumentFeaturePolicy feature, DocumentProviderIntendedFieldView fieldView, String profileProjectionDigest, Instant absoluteDeadline)` | agent-service/06 | 返回 closed allowed/denied；唯一 current-scope purpose decision，无I/O |
+| `DocumentProviderOutboundPolicyCanonicalizer` | `canonicalDigest(DocumentProviderOutboundPolicyDecision decisionWithoutDigest)` | agent-service/06 | `DPO-1` UTF-8 length-prefixed SHA-256 lowercase |
+| `DocumentProviderOperationRequestBinder` | `bind(DocumentProviderOutboundPolicyDecision decision, Object input, CapabilityOperationContext context)` | agent-service/06 | 从 allowed decision + canonical input 构造 non-wire policy reference，并注册短效一次性 mint |
+| `DocumentProviderOutboundPolicyReferenceVerifier` | `verify(DocumentProviderOutboundPolicyReference reference, Object input, CapabilityOperationContext context)` | agent-service/06 | port 前 exact decision/input/Invocation/operation/limit/deadline + 一次性 mint binding；失败0attempt |
+| `DocumentProviderOperationBindingRegistry` | `publish/consume` | agent-service/06 | strict success 后把完整 trusted Provider binding 一次性交给05 candidate factory；不扩展P1 metadata |
 | `DocumentQueryRewritePort` | `rewrite(DocumentRewriteOperationRequest)` | agent-service/06 | outcome of untrusted candidate list |
 | `DocumentEmbeddingPort` | `embed(DocumentEmbeddingOperationRequest)` | agent-service/06 | outcome of validated embedding value |
 | `DocumentRerankPort` | `rerank(DocumentRerankOperationRequest)` | agent-service/06 | outcome of untrusted score list |
+| `DocumentRerankReasonCode` | `MODEL_RELEVANCE` | adapter-api/06 | rerank wire 唯一closed原因；无授权、事实或citation语义 |
 | `DocumentGenerationPort` | `generate(DocumentGenerationOperationRequest)` | agent-service/05+06 | outcome of 05 untrusted generation payload |
 | `DocumentProviderActivationReadView` | `requireCurrent(operationType)` | 07 owner、06 consumer | immutable current activation |
 | `DocumentProviderEndpointRegistry` | `require(operationType)` | 06 composition | operation→唯一固定internal client；07不选择endpoint |
@@ -648,14 +706,14 @@ structured log仅记录requestCorrelation safe ref、operation/stage/termination
 | 2 | 同包/wire | `DocumentProviderWireRequest/Response`、DPW canonicalizer | 新增strict generic envelope；无Object/Map |
 | 3 | 同包/rewrite | input/operation request/untrusted payload/language | 新增/替换旧rewrite DTO |
 | 4 | 同包/embedding | input/operation request/untrusted payload/binding/value | 新增/替换旧embedding DTO |
-| 5 | 同包/rerank | input item/field/operation request/score payload/reason | 新增/替换旧rerank DTO |
+| 5 | 同包/rerank | input item/field/operation request/score payload/`DocumentRerankReasonCode` | 新增/替换旧rerank DTO；reason必填且当前仅`MODEL_RELEVANCE` |
 | 6 | `.../document/generation` | 05 input/request/untrusted payload | 增加policy reference并按05冻结字段 |
 
 ### 19.2 agent-service
 
 | 序号 | 路径 | 类/动作 | 变更 |
 |---:|---|---|---|
-| 1 | `.../capability/document/provider/security` | outbound decision factory/canonicalizer/request binder/verifier | 新增；四operation唯一policy seam |
+| 1 | `.../capability/document/provider/security` | `DocumentProviderIntendedFieldView`、`DocumentProviderOutboundPolicyDecisionResult`、allowed/denied records、`DocumentProviderOutboundPolicyDenialCode`、decision/field rule、factory/canonicalizer/request binder/reference verifier | 新增；四operation唯一policy seam，消费 P1 `ExternalProcessingAuthorizationEvidence` |
 | 2 | `.../capability/document/provider/activation` | 07 read view consumer、pre-write/post-check/in-flight cancel | 新增；不建第二current state |
 | 3 | `.../capability/document/provider/wire` | endpoint registry、DPW client/canonical/validator、metadata factory | 新增共享transport safety |
 | 4 | `.../document/rewrite` | typed port、HTTP/disabled实现 | 重写；删除Runtime client/request/response |
@@ -700,9 +758,10 @@ Map零命中按provider adapter vendor mapper的受控第三方request构造例�
 
 ### 20.1 Policy/request单元测试
 
-- 四operation current scope allow/deny、feature mismatch、Policy/Permission/version/classification/Mask unknown、validUntil；
-- DPO-1顺序/length-prefix/digest；不同operation/Corpus/field/mask/evidence变化digest变化；
-- input canonical/reference Invocation/operation/type/limit/input/expiry mismatch为0attempt；
+- `DocumentProviderOutboundPolicyDecisionFactoryTest`：四个 closed operation、query-only空field、domain/field purpose交集、classification/Mask、feature disabled、scope/deadline/binding mismatch、unknown operation、all-or-none field view；Denied 只返回closed reason；
+- `DocumentProviderOutboundPolicyCanonicalizerTest`：DPO-1固定顺序、field排序、UTF-8多字节；classification/Mask/policy/permission/profile/limit/deadline任一变化导致digest变化，Map/set输入顺序不影响结果；
+- `DocumentProviderOperationRequestBinderTest`、`DocumentProviderOutboundPolicyReferenceVerifierTest`：decision/input/Invocation/operation/resource limit/validUntil exact，一次性 mint 原子消费；伪decision digest、旧input digest、expired reference、重复消费全部0attempt拒绝；
+- `DocumentProviderOperationBindingRegistryTest`：strict success binding publish/consume、operation/type/provider/deadline exact、缺失/过期/错配/重复消费拒绝，且P1 metadata结构不变；
 - 04 rewrite/embedding/rerank和05 generation均只引用同一decision factory/binder，无第二evaluator。
 
 ### 20.2 Port/client contract测试
@@ -713,7 +772,7 @@ Map零命中按provider adapter vendor mapper的受控第三方request构造例�
 - 2xx success与authenticated non-2xx closed error互斥；unknown/error digest错绑/原始vendor message全部拒绝；
 - unknown/prohibited field、content-type、status、bytes/depth/list/string/number限制；
 - local metadata的attempt/duration/termination/diagnostic/limit/deadline/cancel touched不信任response；
-- rewrite超量/DSL对象、embedding多余vector/nonfinite/dimension、rerank unknown/duplicate/text、generation code fence/alias/超cap；
+- rewrite超量/DSL对象、embedding多余vector/nonfinite/dimension、rerank unknown/duplicate/text/null或未知reason、generation code fence/alias/超cap；
 - client不截断/补零/平均/别名化/推导candidate，不切endpoint/provider/model。
 
 ### 20.3 Deadline/cancel/attempt测试
@@ -762,16 +821,18 @@ git status --short
 
 | 风险/待确认 | 触发场景 | 影响 | 处理/门禁 | 是否阻塞本文 |
 |---|---|---|---|---|
-| 模块重命名/统一endpoint未授权 | 替换generation adapter和embedding/rerank direct client | Maven/config/service discovery调用中断 | M0 caller/config/deploy/runbook清单+原子Release Unit | 不阻塞设计，阻塞实施 |
+| 模块重命名/统一endpoint已获本地实施授权但未生产验证 | 替换generation adapter和embedding/rerank direct client | Maven/config/service discovery调用中断 | 本地完成caller/config/contract/零残留与全模块测试；不执行生产切换 | 不阻塞本地实施，阻塞生产发布 |
 | 真实embedding/rerank vendor未选 | feature启用 | 无法形成binding/quality/capacity证据 | disabled port + 07 gate；不配置默认vendor | 不阻塞结构，阻塞对应生产feature |
 | 07 activation snapshot设计已闭合但尚未实现 | HTTP Provider可能发送 | disable/rollback不能pre-write生效 | 按 07 唯一发布源、read view、传播 SLA 与 readiness 设计实施并验证 | 阻塞真实Provider调用 |
 | 两跳cancellation无法证明 | synchronous adapter断连不终止vendor | 取消后仍计费/处理敏感数据 | 使用可abort transport并做integration gate；否则生产禁用 | 阻塞对应Provider生产启用 |
 | 已write后紧急disable | vendor已收到input | 数据无法撤回 | pre-write双检、in-flight abort、post-reject、07传播SLA/审计；不宣称零时窗 | 不阻塞设计 |
 | Provider data-sharing purpose未在Policy闭合 | query/evidence分类未知 | 外发越权 | shared decision DENY、0attempt；高敏Corpus feature禁用 | 阻塞对应operation |
+| P1 external-processing evidence缺失或旧Snapshot无该字段 | 原子迁移未完成、metadata policy未声明purpose/classification | Provider operation不可安全外发 | 新构造器字段必填、旧兼容分支零保留；Factory返回closed Denied，07保持INACTIVE | 阻塞对应operation，不阻塞本地结构实施 |
 | adapter集中导致容量热点 | 多operation/未来多child并发 | queue/latency放大 | operation/provider独立bulkhead、容量gate、水平扩展；不在port聚合 | 不阻塞设计 |
 | 两跳attempt审计混淆 | P1逻辑operation attempts=1、内部两跳事实另计 | 隐藏retry未发现或Provider identity错写为adapter | P1 metadata记录逻辑Provider与0/1 operation；agent/adapter受限审计分别记录两跳真实write；07同时gate | 不阻塞设计 |
 | strict vendor contract未定 | Provider响应漂移 | invalid response率高 | disabled/fake完成结构；真实contract+Gold gate后ACTIVE | 不阻塞文档 |
 | 当前配置含默认公网URL/散业务预算 | 环境变量缺失或旧profile仍active | 误连外部/预算多源 | 新config validator+static zero residual+secret scan | 阻塞实施 |
+| rerank reason扩展 | vendor新增解释类型或自由文本 | unknown值被误当成可信业务语义 | 当前只接受`MODEL_RELEVANCE`；新增值必须升级contract、04/06 validator和07 report | 不阻塞当前实现 |
 
 ## 22. 评审记录
 
@@ -780,13 +841,18 @@ git status --short
 | 1 | 2026-07-13 | 不通过 | request/context/outcome不符合P1；generation返回trusted candidate；rewrite侵入Runtime；embedding隐藏第二endpoint/平均；rerank传完整Adapter result；generation修复citation/截断；三种部署与凭据/availability/attempt/cancel/wire边界分裂 | 全文重写为shared outbound decision、typed request/outcome、统一DPW-1、单Document Provider Adapter、07 activation、strict untrusted payload和原子迁移 |
 | 2 | 2026-07-13 | 不通过 | 07 snapshot携带endpoint会侵入06 composition；DPO-1漏authorization/limit binding；两跳attempt与Provider identity未区分 | endpoint归06固定映射；decision补授权/limit/field rule；provider binding拆分逻辑Provider与adapter部署身份，继续复核wire可执行性 |
 | 3 | 2026-07-13 | 通过 | DPW-1缺absolute deadline/activation digest和closed failure wire；P1 Provider identity一度被内部adapter身份替代 | request绑定deadline/activation/provider，success回显observed activation，新增closed error contract；P1 metadata使用逻辑vendor/model safe identity，adapter身份单列；终审S0=0、S1=0 |
+| 4 | 2026-07-14 | 通过 | 用户授权后实施复核发现rerank reason类型未定义值，strict parser无法区分合法、未知与自由文本 | 冻结必填单值`MODEL_RELEVANCE`及精确wire语义；同步实现落点、测试和扩展门禁，S0=0、S1=0 |
+| 5 | 2026-07-14 | 需修正 | 实施发现 `SecurityClassificationRef` 与 purpose evidence 只被引用、未定义权威来源；Factory 没有 typed DENY，Binder 可自行生成伪 decision digest | 用户授权同步修订 P1_V2/03；本文补 intended field view、P1 evidence 消费、closed allowed/denied、DPO-1 与 Binder/Verifier exact 契约 |
+| 6 | 2026-07-14 | 通过 | 复核 P1_V2/03、P2_V3/04/05/07、L0/L1 与当前代码落点 | 授权源保持 P1 Policy∩Permission，06 不读取正文/Provider配置/07状态授权；query-only与field operation均fail closed；无S0/S1遗留 |
 
-第3轮已完成wire generic、deadline/activation、两跳attempt/cancel、P1 metadata、04/05 contract和模块迁移复审，当前S0=0、S1=0；最终结论以本文档同目录下的同名评审报告为准。
+第6轮已完成 classification/purpose、typed DENY、DPO-1、Binder/Verifier 以及 wire generic、deadline/activation、两跳attempt/cancel、P1 metadata、04/05 contract和模块迁移复审，当前S0=0、S1=0；最终结论以本文档及其同目录评审报告中日期较新的授权后记录为准。
 
 ## 23. 实施对齐检查
 
 - [x] 四类Provider operation type/input/request/outcome与P1 context/metadata已冻结。
 - [x] shared current-scope outbound decision/reference是四operation唯一policy seam。
+- [x] P1 `ExternalProcessingAuthorizationEvidence`、`SCR-1/EPP-1/EPM-1/EPA-1` 与 P2 `DPO-1` 的所有权、输入和canonical已冻结。
+- [x] Factory 使用 closed allowed/denied，query-only和field view均要求显式purpose；Binder不能自行生成decision digest。
 - [x] request内嵌context；Domain Adapter双参数SPI未被改写。
 - [x] Plan/input不携带provider/model/endpoint/credential/timeout/retry。
 - [x] agent-service只调用统一Document Provider Adapter，不直连Runtime/vendor。
@@ -795,12 +861,13 @@ git status --short
 - [x] 07 current activation在HTTP write前后fail closed，不能被配置放宽。
 - [x] agent/vendor两跳各0/1 attempt，无retry/endpoint/model fallback。
 - [x] rewrite/embedding/rerank/generation各自payload validator和“不修复”边界已冻结。
+- [x] rerank reason已冻结为必填单值`MODEL_RELEVANCE`，unknown/null/别名整体拒绝且不承载授权语义。
 - [x] deadline/cancel/late/activation race和in-flight abort语义已冻结。
 - [x] credential/config/log/audit/metrics和启动/readiness门禁已冻结。
 - [x] 当前单Agent leaf可由未来独立child Invocation复用，不预建聚合层。
 - [x] 07评审已承接activation发布、readiness、rollback、SLA与两跳attempt证据。
-- [ ] 模块重命名、内部contract/config/secret/旧路径删除尚未获得M0实施授权。
+- [x] 用户已授权本地实施模块重命名、内部contract/config/依赖/数据库迁移与旧路径删除；生产secret与上线仍不在范围内。
 
 ## 24. 任务完成摘要
 
-本文已把Document Provider从四套散乱client/DTO/配置收敛为一条capability-local基础设施链：04/05先通过06共享factory取得current ExecutionScope purpose-specific outbound decision并形成最小input；operation request内嵌non-wire policy reference和P1 context；agent-service绑定07 ACTIVE snapshot后，以包含absolute deadline与activation/provider binding的DPW-1发起一次逻辑Provider operation；目标`document-provider-adapter`再执行最多一次vendor调用并返回strict untrusted payload或closed error，P1 metadata仍由agent按可信逻辑vendor/model binding本地构造。业务候选、fallback、citation和最终Result Security仍归04/05/03/P1。目标实现原子重命名既有generation模块而不新增通用Provider平台，统一四类凭据、attempt、availability和审计边界；未来Multi Agent只复用独立child Invocation，不在06增加coordinator或共享内容状态。本次完成3轮评审，最终S0/S1为0；07设计已闭合activation与治理链，P2_V3全集评审已完成；文档保持In Review，等待用户Approved与M0实施授权。
+本文已把Document Provider从四套散乱client/DTO/配置收敛为一条capability-local基础设施链：P1 Policy∩current Permission先冻结 capability-neutral `ExternalProcessingAuthorizationEvidence`，04/05再通过06共享factory取得 closed allowed/denied purpose-specific decision并形成最小input；DPO-1精确绑定classification、Mask、Policy/Permission、Profile、limits和deadline，Binder只能消费allowed decision及canonical input，不能自行生成decision，并以短效一次性 mint 阻断伪 decision digest 和 reference 重放。operation request内嵌non-wire policy reference和P1 context；agent-service绑定07 ACTIVE snapshot后，以包含absolute deadline与activation/provider binding的DPW-1发起一次逻辑Provider operation；目标`document-provider-adapter`再执行最多一次vendor调用并返回strict untrusted payload或closed error，P1 metadata仍由agent按可信逻辑vendor/model binding本地构造。rerank只接受必填`MODEL_RELEVANCE`原因且不赋予授权/事实/citation语义。业务候选、fallback、citation和最终Result Security仍归04/05/03/P1。目标实现原子重命名既有generation模块而不新增通用Provider平台，统一四类凭据、attempt、availability和审计边界；未来Multi Agent只复用独立child Invocation，不在06增加coordinator或共享内容状态。本次累计完成6轮设计评审（本次授权恢复新增2轮），最终S0/S1为0；文档状态为Implemented，生产Provider启用与发布仍需独立授权。

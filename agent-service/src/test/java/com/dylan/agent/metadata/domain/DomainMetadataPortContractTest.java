@@ -41,6 +41,7 @@ class DomainMetadataPortContractTest {
         CanonicalFieldRef field = new CanonicalFieldRef("employee", "name");
 
         DomainMetadataReferenceSet refs = new DomainMetadataReferenceSet(
+                Set.of("employee"),
                 Set.of(field),
                 Set.of(new CanonicalOperatorRef(field, AgentOperator.EQ)),
                 Set.of(new CanonicalFunctionRef(field, "COUNT")));
@@ -49,6 +50,7 @@ class DomainMetadataPortContractTest {
 
         CanonicalFieldRef undeclared = new CanonicalFieldRef("employee", "salary");
         assertThatThrownBy(() -> new DomainMetadataReferenceSet(
+                Set.of("employee"),
                 Set.of(field),
                 Set.of(new CanonicalOperatorRef(undeclared, AgentOperator.GT)),
                 Set.of()))
@@ -58,11 +60,11 @@ class DomainMetadataPortContractTest {
 
     @Test
     void evidenceSafeRefIsStableAndDoesNotExposeCatalogBody() {
-        DomainMetadataEvidence left = new DomainMetadataEvidence(
+        DomainMetadataEvidence left = com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 "catalog-v1", "adapter-v1", "availability-digest", Instant.parse("2026-07-01T00:00:00Z"));
-        DomainMetadataEvidence same = new DomainMetadataEvidence(
+        DomainMetadataEvidence same = com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 "catalog-v1", "adapter-v1", "availability-digest", Instant.parse("2026-07-01T00:00:00Z"));
-        DomainMetadataEvidence different = new DomainMetadataEvidence(
+        DomainMetadataEvidence different = com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 "catalog-v2", "adapter-v1", "availability-digest", Instant.parse("2026-07-01T00:00:00Z"));
 
         assertThat(left.safeRef()).isEqualTo(same.safeRef());
@@ -72,7 +74,7 @@ class DomainMetadataPortContractTest {
 
     @Test
     void availabilitySnapshotIsIndexedByRequestedRole() {
-        DomainMetadataEvidence evidence = new DomainMetadataEvidence(
+        DomainMetadataEvidence evidence = com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 "catalog-v1", "adapter-v1", "availability-digest", Instant.parse("2026-07-01T00:00:00Z"));
 
         DomainAvailabilitySnapshot snapshot = new DomainAvailabilitySnapshot(
@@ -89,7 +91,7 @@ class DomainMetadataPortContractTest {
     @Test
     void planningEffectiveScopeIsImmutableRequestLevelProjection() {
         CanonicalFieldRef field = new CanonicalFieldRef("employee", "name");
-        PlanningEffectiveScope scope = new PlanningEffectiveScope(
+        PlanningEffectiveScope scope = com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                 Set.of("query.search"),
                 Set.of("employee"),
                 Map.of(field, new PlanningEffectiveScope.FieldAccess(
@@ -109,7 +111,7 @@ class DomainMetadataPortContractTest {
                 10_000);
 
         assertThat(scope.allowedCapabilityIds()).containsExactly("query.search");
-        assertThat(scope.maxResultBytes()).isEqualTo(10_000);
+        assertThat(scope.planningBudgetLimits().maxTotalDuration()).isEqualTo(Duration.ofSeconds(30));
         assertThat(scope.fieldAccess().get(field).allowedOperators()).containsExactly(AgentOperator.EQ);
         assertThatThrownBy(() -> scope.allowedDomains().add("finance"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -146,21 +148,20 @@ class DomainMetadataPortContractTest {
     @Test
     void domainExecutionResolutionRequiresEvidenceClosedVersions() {
         DomainMetadataEvidence expected = evidence("catalog-v1", "adapter-v1");
-        AdapterExecutionBinding binding = new AdapterExecutionBinding(
+        AdapterExecutionBinding binding = com.dylan.agent.testsupport.DomainMetadataTestSupport.binding(
                 AdapterRole.QUERYABLE,
                 "employee",
                 AgentAdapterPort.class,
                 new TestAdapterPort(),
                 "adapter-v1",
+                expected,
                 Instant.parse("2026-07-01T00:00:00Z"));
         ExecutionValidationProjection projection = new ExecutionValidationProjection(
                 AdapterRole.QUERYABLE,
                 "employee",
                 Map.of(),
                 java.util.List.of(),
-                20,
-                100,
-                "catalog-v1:adapter-v1");
+                expected.staticEvidence().safeRef());
 
         assertThat(new DomainExecutionResolution(binding, projection, expected).expectedEvidence())
                 .isEqualTo(expected);
@@ -170,7 +171,7 @@ class DomainMetadataPortContractTest {
                 projection,
                 evidence("catalog-v2", "adapter-v1")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("projection version");
+                .hasMessageContaining("metadata evidence");
     }
 
     @Test
@@ -190,8 +191,6 @@ class DomainMetadataPortContractTest {
                 "employee",
                 Map.of("other", fieldRule),
                 java.util.List.of("name"),
-                20,
-                100,
                 "catalog-v1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("rule.field");
@@ -201,8 +200,6 @@ class DomainMetadataPortContractTest {
                 "employee",
                 Map.of("name", fieldRule),
                 java.util.List.of(" "),
-                20,
-                100,
                 "catalog-v1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("defaultSelectFields");
@@ -212,26 +209,23 @@ class DomainMetadataPortContractTest {
                 "employee",
                 Map.of("name", fieldRule),
                 java.util.List.of("name"),
-                -1,
-                100,
+                Set.of("missing"),
                 "catalog-v1"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("maxPageSize");
+                .hasMessageContaining("sortFields");
 
         assertThatThrownBy(() -> new ExecutionValidationProjection(
                 AdapterRole.QUERYABLE,
                 "employee",
                 Map.of("name", fieldRule),
                 java.util.List.of("name"),
-                20,
-                100,
                 " "))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("projectionVersion");
     }
 
     private ExecutionScope executionScope(DomainMetadataEvidence evidence) {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
                 evidence,
                 Instant.parse("2026-07-01T00:00:30Z"),
@@ -242,14 +236,12 @@ class DomainMetadataPortContractTest {
                 Set.of("employee"),
                 Map.of(),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
     }
 
     private DomainMetadataEvidence evidence(String catalogVersion, String adapterVersion) {
-        return new DomainMetadataEvidence(
+        return com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 catalogVersion,
                 adapterVersion,
                 "availability-digest",

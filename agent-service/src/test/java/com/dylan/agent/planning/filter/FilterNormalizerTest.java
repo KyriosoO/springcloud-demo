@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -17,14 +18,14 @@ import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.plan.AgentFilter;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.exception.AgentPlanValidationException;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 @DisplayName("FilterNormalizer")
 class FilterNormalizerTest {
 
     private FilterNormalizer normalizer;
-    private DomainView dp;
+    private Map<String, ExecutionFieldRule> dp;
 
     @BeforeEach
     void setUp() {
@@ -35,7 +36,7 @@ class FilterNormalizerTest {
         props.setQuery(q);
 
         normalizer = new FilterNormalizer(props);
-        dp = DomainMetadataTestSupport.catalogView().requireDomain("employee", AdapterRole.QUERYABLE);
+        dp = DomainMetadataTestSupport.executionFieldRules("employee", AdapterRole.QUERYABLE);
     }
 
     @Nested

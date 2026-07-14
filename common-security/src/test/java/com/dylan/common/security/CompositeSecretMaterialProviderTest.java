@@ -20,14 +20,12 @@ class CompositeSecretMaterialProviderTest {
 
 		CompositeSecretMaterialProvider provider = new CompositeSecretMaterialProvider(
 				properties,
-				new ConfigSecretMaterialProvider(),
+				new ConfigSecretMaterialProvider(ref -> key.getValue()),
 				environmentProvider);
 
 		SecretMaterial material = provider.requireSecret(new SecretKeyRef(
 				SecretPurpose.JWT_HMAC,
-				SecretTestSupport.ACTIVE,
-				key.getEnv(),
-				key.getValue()));
+				SecretTestSupport.ACTIVE));
 
 		assertThat(material.source()).isEqualTo(SecretSourceType.CONFIG);
 		assertThat(material.secretValue().copyBytes()).containsOnly((byte) 1);

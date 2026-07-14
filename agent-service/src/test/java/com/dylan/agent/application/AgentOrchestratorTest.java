@@ -54,7 +54,7 @@ class AgentOrchestratorTest {
 
     private static final Instant NOW = Instant.parse("2026-07-02T04:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
-    private static final AgentUserContext USER = new AgentUserContext("u-1", Set.of("agent:viewer"));
+    private static final AgentUserContext USER = new AgentUserContext("u-1");
 
     private StartChatCommandFactory startChatCommandFactory;
     private ExecutionLifecycleService lifecycleService;
@@ -92,6 +92,8 @@ class AgentOrchestratorTest {
                 USER,
                 "conv-1",
                 "查员工",
+                null,
+                null,
                 handle.agentProfileRef(),
                 NOW.plusSeconds(12));
         planningCommand = new PlanningCommand(
@@ -114,7 +116,7 @@ class AgentOrchestratorTest {
         when(startChatCommandFactory.create(eq(USER), eq(request), deadline.capture())).thenReturn(startCommand);
         when(lifecycleService.startChat(startCommand)).thenReturn(handle);
         when(conversationService.loadRecentTurns(handle, 7)).thenReturn(List.of());
-        when(planningCommandFactory.create(handle, "查员工", List.of())).thenReturn(planningCommand);
+        when(planningCommandFactory.create(handle, "查员工", List.of(), null, null)).thenReturn(planningCommand);
         when(planningService.plan(eq(planningCommand), planningToken.capture())).thenReturn(executable);
         when(lifecycleService.executeAndFinalize(eq(handle), eq(executable), executionToken.capture()))
                 .thenReturn(finalized);
@@ -139,7 +141,7 @@ class AgentOrchestratorTest {
         when(startChatCommandFactory.create(eq(USER), eq(request), any())).thenReturn(startCommand);
         when(lifecycleService.startChat(startCommand)).thenReturn(handle);
         when(conversationService.loadRecentTurns(handle, 7)).thenReturn(List.of());
-        when(planningCommandFactory.create(handle, "查员工", List.of())).thenReturn(planningCommand);
+        when(planningCommandFactory.create(handle, "查员工", List.of(), null, null)).thenReturn(planningCommand);
         when(planningService.plan(eq(planningCommand), any())).thenReturn(clarification);
         when(lifecycleService.finalizeClarification(handle, clarification)).thenReturn(finalized);
         when(responseAssembler.fromFinalizedResult(finalized)).thenReturn(expected);
@@ -168,7 +170,7 @@ class AgentOrchestratorTest {
         when(startChatCommandFactory.create(eq(USER), eq(request), any())).thenReturn(startCommand);
         when(lifecycleService.startChat(startCommand)).thenReturn(handle);
         when(conversationService.loadRecentTurns(handle, 7)).thenReturn(List.of());
-        when(planningCommandFactory.create(handle, "查员工", List.of())).thenReturn(planningCommand);
+        when(planningCommandFactory.create(handle, "查员工", List.of(), null, null)).thenReturn(planningCommand);
         when(planningService.plan(eq(planningCommand), any())).thenThrow(new PlanningFailureException(failure));
         when(lifecycleService.finalizePlanningFailure(handle, failure)).thenReturn(finalized);
         when(responseAssembler.fromFinalizedResult(finalized)).thenReturn(expected);
@@ -191,7 +193,7 @@ class AgentOrchestratorTest {
         when(startChatCommandFactory.create(eq(USER), eq(request), any())).thenReturn(startCommand);
         when(lifecycleService.startChat(startCommand)).thenReturn(handle);
         when(conversationService.loadRecentTurns(handle, 7)).thenReturn(List.of());
-        when(planningCommandFactory.create(handle, "查员工", List.of())).thenReturn(planningCommand);
+        when(planningCommandFactory.create(handle, "查员工", List.of(), null, null)).thenReturn(planningCommand);
         when(planningService.plan(eq(planningCommand), any())).thenThrow(new PlanningCancellationException(cancellation));
         when(lifecycleService.finalizeCancelled(handle, cancellation)).thenReturn(finalized);
         when(responseAssembler.fromFinalizedResult(finalized)).thenReturn(expected);
@@ -223,9 +225,8 @@ class AgentOrchestratorTest {
     }
 
     private static InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("user", "u-1"),

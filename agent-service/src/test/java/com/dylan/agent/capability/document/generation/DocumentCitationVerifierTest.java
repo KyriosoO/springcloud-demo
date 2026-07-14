@@ -1,89 +1,50 @@
 package com.dylan.agent.capability.document.generation;
 
-import com.dylan.agent.adapter.api.document.generation.CitationBinding;
-import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
-import com.dylan.agent.adapter.api.document.generation.DocumentEvidenceContextItem;
-import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
-import com.dylan.agent.adapter.api.document.generation.EvidenceContextPackage;
+import com.dylan.agent.adapter.api.document.provider.*;
+import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
 import com.dylan.agent.api.response.GroundingStatus;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Set;
-
+import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DocumentCitationVerifierTest {
+    private final DocumentCitationVerifier verifier = new DocumentCitationVerifier();
 
     @Test
-    void removesUnsupportedClaimsWithoutValidCitation() {
-        EvidenceContextPackage context = new EvidenceContextPackage(
-                "inv-1",
-                DocumentPlanOperation.ANSWER,
-                "年假审批",
-                List.of(new DocumentEvidenceContextItem("c-1", "员工年假需要直属主管审批。", java.util.Map.of())),
-                Set.of("c-1"),
-                new DocumentContextBudget(100, 50, 5, 100),
-                "digest");
-        DocumentGenerationResult result = new DocumentGenerationResult(
-                "回答",
-                null,
-                null,
-                List.of(new CitationBinding("回答", List.of("missing-citation"))),
-                "stop");
-
-        var verified = new DocumentCitationVerifier().verify(result, context);
-
-        assertThat(verified.status()).isEqualTo(GroundingStatus.UNVERIFIED);
-        assertThat(verified.invalidCitationIds()).containsExactly("missing-citation");
+    void acceptsOnlyCitationIdsFromTheExactEvidencePackage() {
+        var result = payload(List.of("C1"));
+        assertThat(verifier.verify(result, context()).status()).isEqualTo(GroundingStatus.VERIFIED);
+        assertThat(verifier.verify(payload(List.of("C9")), context()).status()).isEqualTo(GroundingStatus.UNVERIFIED);
+        assertThat(verifier.verify(payload(List.of()), context()).status()).isEqualTo(GroundingStatus.UNVERIFIED);
+        assertThat(verifier.verify(new DocumentUntrustedGenerationPayload(DocumentPlanOperation.ANSWER,
+                "无引用正文", null, List.of(), List.of("C1"), DocumentProviderFinishReason.COMPLETED), context()).status())
+                .isEqualTo(GroundingStatus.UNVERIFIED);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new DocumentUntrustedGenerationPayload(
+                DocumentPlanOperation.ANSWER, "回答 [C01]", null, List.of(), List.of("C01"),
+                DocumentProviderFinishReason.COMPLETED)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void treatsEmptyCitationBindingsAsPartial() {
-        EvidenceContextPackage context = new EvidenceContextPackage(
-                "inv-1",
-                DocumentPlanOperation.ANSWER,
-                "年假审批",
-                List.of(new DocumentEvidenceContextItem("c-1", "员工年假需要直属主管审批。", java.util.Map.of())),
-                Set.of("c-1"),
-                new DocumentContextBudget(100, 50, 5, 100),
-                "digest");
-        DocumentGenerationResult result = new DocumentGenerationResult(
-                "回答",
-                null,
-                null,
-                List.of(),
-                "stop");
-
-        var verified = new DocumentCitationVerifier().verify(result, context);
-
-        assertThat(verified.status()).isEqualTo(GroundingStatus.PARTIAL);
-        assertThat(verified.fallbackReason()).isEqualTo("NO_BINDINGS");
-        assertThat(verified.invalidCitationIds()).isEmpty();
+    private static DocumentUntrustedGenerationPayload payload(List<String> ids) {
+        return new DocumentUntrustedGenerationPayload(DocumentPlanOperation.ANSWER, "回答 [C1]", null,
+                List.of(), ids, DocumentProviderFinishReason.COMPLETED);
     }
 
-    @Test
-    void treatsBindingsWithoutCitationIdsAsPartial() {
-        EvidenceContextPackage context = new EvidenceContextPackage(
-                "inv-1",
-                DocumentPlanOperation.ANSWER,
-                "年假审批",
-                List.of(new DocumentEvidenceContextItem("c-1", "员工年假需要直属主管审批。", java.util.Map.of())),
-                Set.of("c-1"),
-                new DocumentContextBudget(100, 50, 5, 100),
-                "digest");
-        DocumentGenerationResult result = new DocumentGenerationResult(
-                "回答",
-                null,
-                null,
-                List.of(new CitationBinding("回答", List.of())),
-                "stop");
-
-        var verified = new DocumentCitationVerifier().verify(result, context);
-
-        assertThat(verified.status()).isEqualTo(GroundingStatus.PARTIAL);
-        assertThat(verified.fallbackReason()).isEqualTo("NO_BINDINGS");
-        assertThat(verified.invalidCitationIds()).isEmpty();
+    private static EvidenceContextPackage context() {
+        var hit = DocumentEvidenceTestFixtures.evidence(
+                "政策", null, null, null, "证据", null, null, List.of(), List.of(), 0, null);
+        var security = hit.securityBinding();
+        var binding = new com.dylan.agent.adapter.api.document.DocumentRetrievalResponseBinding(
+                security.requestCorrelationId(), "op-1", security.corpusKey(), security.targetBinding(),
+                security.profileProjectionDigest(), security.resourceLimitReference(), "9".repeat(64),
+                security.protectedFilterDigest(), security.aclEvidenceDigest());
+        var item = new GenerationEvidencePackageItem(
+                "C1", hit.candidateId(), hit.identity(), hit.title(), null, null, "证据", hit.securityBinding());
+        return new EvidenceContextPackage("ECP-" + "a".repeat(24), "inv-1", "corr-1", "document.answer",
+                DocumentPlanOperation.ANSWER, binding.corpusKey(), binding.profileProjectionDigest(),
+                binding.resourceLimitReference(), AgentExecutionContracts.DOCUMENT_RESULT,
+                binding.authorizationBindingDigest(), binding.aclEvidenceDigest(), "b".repeat(64),
+                binding.protectedFilterDigest(), "c".repeat(64), List.of(item),
+                new DocumentEvidenceUsage(1, 2, 4, false), "d".repeat(64));
     }
 }

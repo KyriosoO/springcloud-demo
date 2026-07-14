@@ -1,7 +1,5 @@
 package com.dylan.agent.metadata.context.internal;
 
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
@@ -12,16 +10,17 @@ import java.util.Objects;
 public final class ContextCleanupJob {
 
     private final ContextRepository repository;
-    private final AgentSecuritySettingsRegistry settingsRegistry;
+    private final ContextStorageProperties properties;
     private final Clock clock;
     private Instant nextEligibleAt;
 
     public ContextCleanupJob(
             ContextRepository repository,
-            AgentSecuritySettingsRegistry settingsRegistry,
+            ContextStorageProperties properties,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository);
-        this.settingsRegistry = Objects.requireNonNull(settingsRegistry);
+        this.properties = Objects.requireNonNull(properties);
+        this.properties.validate();
         this.clock = Objects.requireNonNull(clock);
         this.nextEligibleAt = clock.instant();
     }
@@ -31,9 +30,8 @@ public final class ContextCleanupJob {
         if (now.isBefore(nextEligibleAt)) {
             return 0;
         }
-        var settings = settingsRegistry.current();
-        int deleted = repository.deleteExpired(now, settings.contextCleanupBatchSize());
-        nextEligibleAt = now.plus(settings.contextCleanupDelay());
+        int deleted = repository.deleteExpired(now, properties.getCleanupBatchSize());
+        nextEligibleAt = now.plus(properties.getCleanupDelay());
         return deleted;
     }
 }

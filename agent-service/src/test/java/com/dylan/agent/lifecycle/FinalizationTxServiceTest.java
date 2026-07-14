@@ -2,6 +2,7 @@ package com.dylan.agent.lifecycle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -60,7 +61,8 @@ class FinalizationTxServiceTest {
                 eq("DEADLINE_EXCEEDED"),
                 eq("请求已取消或超时。"),
                 eq(null),
-                any())).thenReturn(1);
+                any(),
+                anyLong())).thenReturn(1);
         when(turnMapper.finalizeFailure(
                 eq("turn-1"),
                 eq("inv-1"),
@@ -81,7 +83,8 @@ class FinalizationTxServiceTest {
                 eq("DEADLINE_EXCEEDED"),
                 eq("请求已取消或超时。"),
                 eq(null),
-                any());
+                any(),
+                anyLong());
         verify(turnMapper).finalizeFailure(
                 eq("turn-1"),
                 eq("inv-1"),
@@ -109,7 +112,8 @@ class FinalizationTxServiceTest {
                 eq("FIELD_FORBIDDEN"),
                 eq("没有权限访问请求的字段，请调整字段后重试。"),
                 eq("diag-1"),
-                any())).thenReturn(1);
+                any(),
+                anyLong())).thenReturn(1);
         when(turnMapper.finalizeFailure(
                 eq("turn-1"),
                 eq("inv-1"),
@@ -152,7 +156,8 @@ class FinalizationTxServiceTest {
                 eq("FIELD_FORBIDDEN"),
                 eq("没有权限访问请求的字段，请调整字段后重试。"),
                 eq("diag-1"),
-                any())).thenReturn(1);
+                any(),
+                anyLong())).thenReturn(1);
         when(turnMapper.finalizeFailure(
                 eq("turn-1"),
                 eq("inv-1"),
@@ -177,9 +182,8 @@ class FinalizationTxServiceTest {
     }
 
     private static InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("USER", "user-1"),

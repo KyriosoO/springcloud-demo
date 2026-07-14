@@ -4,7 +4,8 @@ import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.AgentAdapterPort;
 import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
-import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
+import com.dylan.agent.metadata.domain.port.DomainMetadataStaticEvidence;
+import com.dylan.agent.metadata.domain.port.CanonicalRoleCapabilityRef;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,7 +31,7 @@ public final class DomainMetadataPropertiesValidator {
     private DomainMetadataPropertiesValidator() {
     }
 
-    public static DomainMetadataBundle build(
+    public static DomainMetadataStaticBundle build(
             DomainMetadataProperties properties,
             Map<String, AgentAdapterPort> adapterPorts,
             Clock clock) {
@@ -40,13 +41,13 @@ public final class DomainMetadataPropertiesValidator {
 
         CanonicalDomainCatalog catalog = buildCatalog(properties);
         AdapterRegistrationSet registrations = buildRegistrations(properties, catalog, adapterPorts);
-        AdapterAvailabilitySnapshot availability = startupAvailability(registrations);
-        DomainMetadataEvidence evidence = new DomainMetadataEvidence(
+        DomainMetadataStaticEvidence evidence = new DomainMetadataStaticEvidence(
                 catalog.catalogVersion(),
+                catalog.canonicalDigest(),
                 registrations.adapterRegistrationVersion(),
-                availabilityDigest(registrations, availability),
+                registrations.canonicalDigest(),
                 clock.instant());
-        return new DomainMetadataBundle(catalog, registrations, availability, evidence);
+        return new DomainMetadataStaticBundle(catalog, registrations, evidence);
     }
 
     private static CanonicalDomainCatalog buildCatalog(DomainMetadataProperties properties) {
@@ -64,7 +65,8 @@ public final class DomainMetadataPropertiesValidator {
             }
             domains.put(domainId, buildDomain(domainId, entry.getValue()));
         }
-        return new CanonicalDomainCatalog(catalogVersion, domains);
+        String digest = DomainMetadataCanonicalizer.catalogDigest(catalogVersion, domains);
+        return new CanonicalDomainCatalog(catalogVersion, domains, digest);
     }
 
     private static CanonicalDomainDefinition buildDomain(
@@ -78,9 +80,9 @@ public final class DomainMetadataPropertiesValidator {
         for (var entry : nonEmpty(source.getFields(), "fields").entrySet()) {
             String fieldId = requireNonBlank(entry.getKey(), "field");
             DomainMetadataProperties.FieldProperties fp = Objects.requireNonNull(entry.getValue(), "field properties");
-            fields.put(fieldId, new CanonicalFieldDefinition(
+            CanonicalFieldDefinition previous = fields.putIfAbsent(fieldId, new CanonicalFieldDefinition(
                     fieldId,
-                    fp.getAliases(),
+                    uniqueOrdered(fp.getAliases(), "field alias"),
                     requireNonBlank(fp.getDescription(), "field description"),
                     Objects.requireNonNull(fp.getType(), "field type must not be null"),
                     Optional.ofNullable(trimToNull(fp.getUnit())),
@@ -88,6 +90,9 @@ public final class DomainMetadataPropertiesValidator {
                     Optional.ofNullable(fp.getMaxLength()),
                     Optional.ofNullable(fp.getPrecision()),
                     Optional.ofNullable(fp.getScale())));
+            if (previous != null) {
+                throw new IllegalStateException("duplicate canonical field: " + fieldId);
+            }
         }
 
         Map<AdapterRole, CanonicalRoleCapability> capabilities = new LinkedHashMap<>();
@@ -114,35 +119,37 @@ public final class DomainMetadataPropertiesValidator {
                 throw new IllegalStateException("sortFields only allowed for QUERYABLE/DOCUMENT_RETRIEVABLE role: "
                         + domainId + "/" + role);
             }
-            capabilities.put(role, new CanonicalRoleCapability(
+            CanonicalRoleCapability previous = capabilities.putIfAbsent(role, new CanonicalRoleCapability(
                     role,
                     capabilityFields,
                     sortFields,
                     cp.getOperatorsByField(),
-                    cp.getFunctionsByField(),
-                    nonNegative(cp.getMaxPageSize()),
-                    nonNegative(cp.getMaxResultRows())));
+                    cp.getFunctionsByField()));
+            if (previous != null) {
+                throw new IllegalStateException("duplicate role capability: " + domainId + "/" + role);
+            }
         }
 
         Map<AdapterRole, java.util.List<String>> defaultSelect = new LinkedHashMap<>();
         if (source.getDefaultSelectFieldsByRole() != null) {
             for (var entry : source.getDefaultSelectFieldsByRole().entrySet()) {
                 AdapterRole role = AdapterRole.of(entry.getKey());
-                java.util.List<String> values = entry.getValue() == null ? java.util.List.of() : entry.getValue().stream()
-                        .map(value -> requireKnownField(fields, value))
-                        .toList();
+                java.util.List<String> values = uniqueOrdered(entry.getValue(), "defaultSelectField").stream()
+                        .map(value -> requireKnownField(fields, value)).toList();
                 if (!capabilities.containsKey(role)) {
                     throw new IllegalStateException("defaultSelectFieldsByRole references missing role: " + role);
                 }
                 if (!capabilities.get(role).fields().containsAll(values)) {
                     throw new IllegalStateException("defaultSelect fields must be role capability subset: " + role);
                 }
-                defaultSelect.put(role, values);
+                if (defaultSelect.putIfAbsent(role, values) != null) {
+                    throw new IllegalStateException("duplicate defaultSelect role: " + role);
+                }
             }
         }
         return new CanonicalDomainDefinition(
                 domainId,
-                source.getAliases().stream().map(value -> requireNonBlank(value, "alias")).distinct().toList(),
+                uniqueOrdered(source.getAliases(), "alias"),
                 requireNonBlank(source.getDescription(), "domain description"),
                 defaultSelect,
                 fields,
@@ -159,6 +166,7 @@ public final class DomainMetadataPropertiesValidator {
             throw new IllegalStateException("agent.domain-metadata.registrations must not be empty");
         }
         Map<AdapterRegistrationSet.Key, AdapterRegistration> registrations = new LinkedHashMap<>();
+        Set<String> registrationIds = new LinkedHashSet<>();
         for (DomainMetadataProperties.RegistrationProperties source : properties.getRegistrations()) {
             AdapterRole role = AdapterRole.of(requireNonBlank(source.getRole(), "registration role"));
             if (!AdapterRolePortTypes.isKnown(role)) {
@@ -169,29 +177,23 @@ public final class DomainMetadataPropertiesValidator {
                 throw new IllegalStateException("registration references missing catalog role capability: "
                         + role + "/" + domain);
             }
-            Class<? extends AgentAdapterPort> configuredType = source.getPortType() == null
-                    ? null
-                    : source.getPortType().asSubclass(AgentAdapterPort.class);
             Class<? extends AgentAdapterPort> expectedType = AdapterRolePortTypes.requirePortType(role);
-            if (configuredType == null || !expectedType.equals(configuredType)) {
-                throw new IllegalStateException("registration portType must be " + expectedType.getName()
-                        + " for role " + role);
-            }
             AgentAdapterPort port = adapterPorts.get(source.getPortBeanName());
-            if (port == null || !configuredType.isInstance(port)) {
+            if (port == null || !expectedType.isInstance(port)) {
                 throw new IllegalStateException("registration port bean missing or incompatible: "
                         + source.getPortBeanName());
             }
+            String registrationId = requireNonBlank(source.getRegistrationId(), "registrationId");
+            if (!registrationIds.add(registrationId)) {
+                throw new IllegalStateException("duplicate registrationId: " + registrationId);
+            }
             AdapterRegistration registration = new AdapterRegistration(
-                    source.getRegistrationId(),
+                    registrationId,
                     role,
                     domain,
-                    configuredType,
                     source.getPortBeanName(),
-                    requireNonBlank(source.getCatalogVersion(), "registration catalogVersion"),
                     requireNonBlank(source.getRegistrationVersion(), "registrationVersion"));
-            if (!registration.catalogVersion().equals(catalog.catalogVersion())
-                    || !registration.registrationVersion().equals(registrationVersion)) {
+            if (!registration.registrationVersion().equals(registrationVersion)) {
                 throw new IllegalStateException("registration version must match current D04 versions");
             }
             AdapterRegistration previous = registrations.put(
@@ -200,29 +202,20 @@ public final class DomainMetadataPropertiesValidator {
                 throw new IllegalStateException("duplicate adapter registration for " + role + "/" + domain);
             }
         }
-        return new AdapterRegistrationSet(registrationVersion, registrations);
-    }
-
-    private static AdapterAvailabilitySnapshot startupAvailability(AdapterRegistrationSet registrations) {
-        Map<AdapterRegistrationSet.Key, Boolean> map = new LinkedHashMap<>();
-        registrations.byRoleAndDomain().keySet().forEach(key -> map.put(key, Boolean.TRUE));
-        return new AdapterAvailabilitySnapshot(map);
-    }
-
-    private static String availabilityDigest(
-            AdapterRegistrationSet registrations,
-            AdapterAvailabilitySnapshot availability) {
-        String canonical = registrations.sortedRegistrations().stream()
-                .map(reg -> reg.role().value() + "|" + reg.domain() + "|" + reg.registrationId()
-                        + "|" + availability.isAvailable(reg.role(), reg.domain()))
-                .collect(Collectors.joining("\n"));
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 unavailable", ex);
+        Set<AdapterRegistrationSet.Key> requiredKeys = catalog.domains().values().stream()
+                .flatMap(domain -> domain.roleCapabilities().keySet().stream()
+                        .map(role -> new AdapterRegistrationSet.Key(role, domain.domain())))
+                .collect(Collectors.toUnmodifiableSet());
+        if (!registrations.keySet().equals(requiredKeys)) {
+            throw new IllegalStateException("adapter registration coverage must exactly match catalog capabilities");
         }
+        Map<AdapterRegistrationSet.Key, CanonicalRoleCapabilityRef> capabilityRefs = new LinkedHashMap<>();
+        registrations.keySet().stream().sorted().forEach(key -> capabilityRefs.put(key,
+                new CanonicalRoleCapabilityRef(
+                        catalog.catalogVersion(), catalog.canonicalDigest(), key.domain(), key.role())));
+        String digest = DomainMetadataCanonicalizer.registrationDigest(
+                registrationVersion, registrations, capabilityRefs);
+        return new AdapterRegistrationSet(registrationVersion, registrations, capabilityRefs, digest);
     }
 
     private static void validateCapabilityMaps(
@@ -291,6 +284,20 @@ public final class DomainMetadataPropertiesValidator {
             return null;
         }
         return value.trim();
+    }
+
+    private static java.util.List<String> uniqueOrdered(java.util.List<String> values, String name) {
+        if (values == null || values.isEmpty()) {
+            throw new IllegalStateException(name + " values must not be empty");
+        }
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String value : values) {
+            String normalized = requireNonBlank(value, name);
+            if (!unique.add(normalized)) {
+                throw new IllegalStateException("duplicate " + name + ": " + normalized);
+            }
+        }
+        return java.util.List.copyOf(unique);
     }
 
     private static int nonNegative(Integer value) {

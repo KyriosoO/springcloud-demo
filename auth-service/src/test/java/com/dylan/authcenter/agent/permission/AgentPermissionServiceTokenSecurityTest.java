@@ -13,7 +13,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -92,13 +91,7 @@ class AgentPermissionServiceTokenSecurityTest {
                 "req-1",
                 new SubjectRefDto("USER", "dylan"),
                 NOW,
-                NOW.plusSeconds(30),
-                "default-agent",
-                "default-profile",
-                "CONVERSATION",
-                "conv-1",
-                Set.of(),
-                Set.of());
+                NOW.plusSeconds(30));
     }
 
     private static Jwt serviceToken(String subject, String scope) {

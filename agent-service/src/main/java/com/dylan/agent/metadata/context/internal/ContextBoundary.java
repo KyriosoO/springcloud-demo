@@ -21,7 +21,6 @@ import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.model.ContextRecordKey;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
 import com.dylan.agent.metadata.context.model.ContextWriteCandidate;
@@ -48,7 +47,6 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
     private final ContextRepository repository;
     private final PayloadJsonCodec jsonCodec;
     private final ProtectedPayloadCodec protectedPayloadCodec;
-    private final AgentSecuritySettingsRegistry settingsRegistry;
     private final ContextMigrationRegistry migrationRegistry;
     private final Clock clock;
 
@@ -56,22 +54,19 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             ContextRepository repository,
             PayloadJsonCodec jsonCodec,
             ProtectedPayloadCodec protectedPayloadCodec,
-            AgentSecuritySettingsRegistry settingsRegistry,
             Clock clock) {
-        this(repository, jsonCodec, protectedPayloadCodec, settingsRegistry, new ContextMigrationRegistry(List.of()), clock);
+        this(repository, jsonCodec, protectedPayloadCodec, new ContextMigrationRegistry(List.of()), clock);
     }
 
     public ContextBoundary(
             ContextRepository repository,
             PayloadJsonCodec jsonCodec,
             ProtectedPayloadCodec protectedPayloadCodec,
-            AgentSecuritySettingsRegistry settingsRegistry,
             ContextMigrationRegistry migrationRegistry,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository);
         this.jsonCodec = Objects.requireNonNull(jsonCodec);
         this.protectedPayloadCodec = Objects.requireNonNull(protectedPayloadCodec);
-        this.settingsRegistry = Objects.requireNonNull(settingsRegistry);
         this.migrationRegistry = Objects.requireNonNull(migrationRegistry);
         this.clock = Objects.requireNonNull(clock);
     }
@@ -167,17 +162,20 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
             if (readableFields.contains("domain")) {
                 view.setDomain(document.domain());
             }
+            if (readableFields.contains("materialType")) {
+                view.setMaterialType(document.materialType());
+            }
             if (readableFields.contains("queryText")) {
                 view.setQueryText(document.queryText());
             }
             if (readableFields.contains("filters")) {
                 view.setFilters(document.filters());
             }
-            if (readableFields.contains("citationIds")) {
-                view.setCitationIds(document.citationIds());
-            }
             if (readableFields.contains("topK")) {
                 view.setTopK(document.topK());
+            }
+            if (readableFields.contains("summaryScope")) {
+                view.setSummaryScope(document.summaryScope());
             }
             return view;
         }
@@ -308,8 +306,7 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
     }
 
     private Duration strictestTtl(ContextWriteDeclaration declaration, ContextApprovalRequest request) {
-        Duration ttl = min(declaration.maxTtl(), request.executionScope().maxTotalDuration());
-        return min(ttl, settingsRegistry.current().globalMaxContextTtl());
+        return min(declaration.maxTtl(), request.executionScope().globalContextTtlUpperBound());
     }
 
     private static Duration min(Duration left, Duration right) {
@@ -365,14 +362,15 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
         if (payload instanceof DocumentCapabilityContextPayload document) {
             fields.add("operation");
             fields.add("domain");
+            fields.add("materialType");
             fields.add("queryText");
             if (!document.filters().isEmpty()) {
                 fields.add("filters");
             }
-            if (!document.citationIds().isEmpty()) {
-                fields.add("citationIds");
-            }
             fields.add("topK");
+            if (document.summaryScope() != null && !document.summaryScope().isBlank()) {
+                fields.add("summaryScope");
+            }
             return fields;
         }
         throw new IllegalStateException("unsupported context payload type: " + payload.getClass().getName());

@@ -3,6 +3,7 @@ package com.dylan.agent.testsupport;
 import com.dylan.agent.adapter.api.AdapterAggregateResult;
 import com.dylan.agent.adapter.api.AdapterQueryResult;
 import com.dylan.agent.adapter.api.AggregatableAdapter;
+import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.QueryableAdapter;
 import com.dylan.agent.adapter.api.aggregate.ValidatedAggregateQuery;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
@@ -10,11 +11,17 @@ import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
+import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
+import com.dylan.agent.metadata.domain.internal.CanonicalDomainCatalog;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataStore;
+import com.dylan.agent.metadata.domain.internal.SpringBeanAdapterAvailabilityResolver;
+import com.dylan.agent.metadata.domain.port.CanonicalRoleCapabilityRef;
+import com.dylan.agent.metadata.domain.port.DomainAdapterKey;
+import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
+import com.dylan.agent.metadata.domain.port.DomainMetadataStaticEvidence;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -24,6 +31,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import com.dylan.agent.adapter.api.AgentAdapterPort;
+import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 
 import org.springframework.context.support.GenericApplicationContext;
 
@@ -45,6 +58,7 @@ public final class DomainMetadataTestSupport {
         rt.setReadTimeout(Duration.ofSeconds(15));
         rt.setMaxResponseBytes(65536);
         p.setRuntime(rt);
+        p.getProfile().setAllowedDomains(Set.of("employee", "transaction"));
 
         AgentProperties.ConversationProperties conv = new AgentProperties.ConversationProperties();
         conv.setRecentTurnLimit(6);
@@ -71,8 +85,30 @@ public final class DomainMetadataTestSupport {
         return p;
     }
 
-    public static DomainCatalogView catalogView() {
-        return new DomainCatalogView(store());
+    public static CanonicalDomainCatalog catalog() {
+        return store().current().catalog();
+    }
+
+    public static Map<String, ExecutionFieldRule> executionFieldRules(String domain, AdapterRole role) {
+        var definition = catalog().requireDomain(domain);
+        var capability = definition.roleCapabilities().get(role);
+        if (capability == null) {
+            throw new IllegalArgumentException("domain 不支持指定 adapter role: " + domain + "/" + role);
+        }
+        Map<String, ExecutionFieldRule> rules = new LinkedHashMap<>();
+        for (String field : capability.fields()) {
+            var canonical = definition.fields().get(field);
+            rules.put(field, new ExecutionFieldRule(
+                    field,
+                    canonical.type(),
+                    capability.operatorsByField().getOrDefault(field, Set.of()),
+                    capability.functionsByField().getOrDefault(field, Set.of()),
+                    canonical.maxLength().orElse(null),
+                    canonical.precision().orElse(null),
+                    canonical.scale().orElse(null),
+                    canonical.valueFormat().orElse(null)));
+        }
+        return Map.copyOf(rules);
     }
 
     public static DomainMetadataPortImpl domainMetadataPort() {
@@ -82,7 +118,13 @@ public final class DomainMetadataTestSupport {
         context.registerBean("transactionAgentAdapter", QueryableAggregatableAdapter.class,
                 QueryableAggregatableAdapter::new);
         context.refresh();
-        return new DomainMetadataPortImpl(store(), context, TEST_CLOCK);
+        DomainMetadataStore store = new DomainMetadataStore(DomainMetadataPropertiesValidator.build(
+                properties(), context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class), TEST_CLOCK));
+        return new DomainMetadataPortImpl(
+                store,
+                context,
+                new SpringBeanAdapterAvailabilityResolver(store, context, TEST_CLOCK),
+                TEST_CLOCK);
     }
 
     public static DomainMetadataStore store() {
@@ -96,6 +138,27 @@ public final class DomainMetadataTestSupport {
                 properties(), context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class), TEST_CLOCK));
     }
 
+    public static DomainMetadataEvidence currentEvidence() {
+        DomainMetadataPortImpl port = domainMetadataPort();
+        var scope = PlanningEffectiveScopeTestFactory.create(
+                Set.of("query.search", "aggregate.compute"),
+                Set.of("employee", "transaction"),
+                Map.of(),
+                Set.of(),
+                Set.of(),
+                com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
+                com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
+                Duration.ofSeconds(30),
+                1,
+                100,
+                100,
+                10_000);
+        return port.availability(
+                Set.of(AdapterRole.QUERYABLE, AdapterRole.AGGREGATABLE),
+                scope,
+                TEST_CLOCK.instant().plusSeconds(60)).evidence();
+    }
+
     public static DomainMetadataProperties properties() {
         DomainMetadataProperties properties = new DomainMetadataProperties();
         properties.setCatalogVersion("catalog-test");
@@ -104,14 +167,10 @@ public final class DomainMetadataTestSupport {
                 "employee", employeeDomain(),
                 "transaction", transactionDomain()));
         properties.setRegistrations(List.of(
-                registration("employee-queryable", "QUERYABLE", "employee",
-                        QueryableAdapter.class, "employeeAgentAdapter"),
-                registration("employee-aggregatable", "AGGREGATABLE", "employee",
-                        AggregatableAdapter.class, "employeeAgentAdapter"),
-                registration("transaction-queryable", "QUERYABLE", "transaction",
-                        QueryableAdapter.class, "transactionAgentAdapter"),
-                registration("transaction-aggregatable", "AGGREGATABLE", "transaction",
-                        AggregatableAdapter.class, "transactionAgentAdapter")));
+                registration("employee-queryable", "QUERYABLE", "employee", "employeeAgentAdapter"),
+                registration("employee-aggregatable", "AGGREGATABLE", "employee", "employeeAgentAdapter"),
+                registration("transaction-queryable", "QUERYABLE", "transaction", "transactionAgentAdapter"),
+                registration("transaction-aggregatable", "AGGREGATABLE", "transaction", "transactionAgentAdapter")));
         return properties;
     }
 
@@ -203,8 +262,6 @@ public final class DomainMetadataTestSupport {
         cp.setFields(fields);
         cp.setOperatorsByField(operators);
         cp.setFunctionsByField(functions);
-        cp.setMaxPageSize(100);
-        cp.setMaxResultRows(100);
         return cp;
     }
 
@@ -235,18 +292,70 @@ public final class DomainMetadataTestSupport {
             String id,
             String role,
             String domain,
-            Class<?> portType,
             String beanName) {
         DomainMetadataProperties.RegistrationProperties registration =
                 new DomainMetadataProperties.RegistrationProperties();
         registration.setRegistrationId(id);
         registration.setRole(role);
         registration.setDomain(domain);
-        registration.setPortType(portType);
         registration.setPortBeanName(beanName);
-        registration.setCatalogVersion("catalog-test");
         registration.setRegistrationVersion("adapter-reg-test");
         return registration;
+    }
+
+    /** 构造不参与 DomainMetadataPort currentness 的最小测试证据。 */
+    public static DomainMetadataEvidence evidence(
+            String catalogVersion,
+            String registrationVersion,
+            String availabilitySeed,
+            Instant capturedAt) {
+        DomainMetadataStaticEvidence staticEvidence = new DomainMetadataStaticEvidence(
+                catalogVersion,
+                digest("catalog:" + catalogVersion),
+                registrationVersion,
+                digest("registration:" + registrationVersion),
+                capturedAt);
+        Set<DomainAdapterKey> keys = Set.of();
+        return new DomainMetadataEvidence(
+                staticEvidence,
+                keys,
+                DomainMetadataEvidence.keysDigest(keys),
+                digest("availability:" + availabilitySeed),
+                capturedAt);
+    }
+
+    public static <P extends AgentAdapterPort> AdapterExecutionBinding binding(
+            AdapterRole role,
+            String domain,
+            Class<P> portType,
+            P port,
+            String registrationVersion,
+            DomainMetadataEvidence evidence,
+            Instant resolvedAt) {
+        CanonicalRoleCapabilityRef capabilityRef = new CanonicalRoleCapabilityRef(
+                evidence.catalogVersion(),
+                evidence.staticEvidence().catalogDigest(),
+                domain,
+                role);
+        return new AdapterExecutionBinding(
+                role,
+                domain,
+                portType,
+                port,
+                "test-" + role.value().toLowerCase(java.util.Locale.ROOT) + "-" + domain,
+                registrationVersion,
+                capabilityRef,
+                evidence,
+                resolvedAt);
+    }
+
+    private static String digest(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
     }
 
     public static class QueryableAggregatableAdapter implements QueryableAdapter, AggregatableAdapter {
@@ -263,17 +372,21 @@ public final class DomainMetadataTestSupport {
         }
 
         @Override
-        public AdapterQueryResult query(ValidatedQuery query) {
+        public AdapterQueryResult query(
+                ValidatedQuery query,
+                com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
             if (queryable != null) {
-                return queryable.query(query);
+                return queryable.query(query, operationContext);
             }
             return new AdapterQueryResult(List.of(), 0, 1, 20);
         }
 
         @Override
-        public AdapterAggregateResult aggregate(ValidatedAggregateQuery query) {
+        public AdapterAggregateResult aggregate(
+                ValidatedAggregateQuery query,
+                com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
             if (aggregatable != null) {
-                return aggregatable.aggregate(query);
+                return aggregatable.aggregate(query, operationContext);
             }
             return new AdapterAggregateResult(List.of(), false);
         }

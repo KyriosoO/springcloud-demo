@@ -151,7 +151,8 @@ public final class ExecutionCore {
         SecuredResult secured;
         try {
             secured = resultSecurityPort.secure(
-                    candidate.output(), reg.definition().outputContract(), execScope);
+                    candidate.output(), reg.definition().outputContract(), execScope,
+                    execScope.resourceLimits());
             validateSecuredResult(secured, reg);
         } catch (RuntimeException ex) {
             return failure(ExecutionStage.RESULT_SECURITY, KernelErrorCode.RESULT_SECURITY_FAILED, false);
@@ -260,6 +261,8 @@ public final class ExecutionCore {
             ExecutionCommand cmd, AdapterExecutionBinding binding, ExecutionScope executionScope) {
         return new ExecutionContext(
                 cmd.handle().invocationId(),
+                cmd.handle().requestCorrelationId(),
+                cmd.planningResult().capabilityId(),
                 cmd.handle().subject(),
                 cmd.handle().owner(),
                 cmd.handle().scope(),

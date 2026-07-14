@@ -10,7 +10,23 @@ public final class CompositeSecretMaterialProvider implements SecretMaterialProv
 	private final Map<SecretSourceType, SecretMaterialProvider> providers;
 
 	public CompositeSecretMaterialProvider(SecretProperties properties) {
-		this(properties, new ConfigSecretMaterialProvider(), new EnvironmentSecretMaterialProvider());
+		this(properties,
+				new ConfigSecretMaterialProvider(ref -> keyProperties(properties, ref).getValue()),
+				new EnvironmentSecretMaterialProvider(
+						System::getenv, ref -> keyProperties(properties, ref).getEnv()));
+	}
+
+	private static SecretProperties.KeyProperties keyProperties(
+			SecretProperties properties,
+			SecretKeyRef ref) {
+		var group = ref.purpose() == SecretPurpose.JWT_HMAC
+				? properties.getJwt() : properties.getAgentPayload();
+		SecretProperties.KeyProperties key = group.getKeys().get(ref.keyId());
+		if (key == null) {
+			throw new SecretMaterialException(
+					"Missing secret binding for " + ref.purpose() + ":" + ref.keyId(), null, true);
+		}
+		return key;
 	}
 
 	CompositeSecretMaterialProvider(

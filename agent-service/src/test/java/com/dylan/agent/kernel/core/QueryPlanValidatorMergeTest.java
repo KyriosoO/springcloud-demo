@@ -137,8 +137,7 @@ class QueryPlanValidatorMergeTest {
                 properties,
                 new FilterNormalizer(properties),
                 constraints,
-                new QueryMergeEngine(constraints),
-                DomainMetadataTestSupport.catalogView());
+                new QueryMergeEngine(constraints));
     }
 
     private ExecutionValidationContext context(List<ContextSnapshot> snapshots) {
@@ -155,9 +154,9 @@ class QueryPlanValidatorMergeTest {
     }
 
     private ExecutionScope executionScope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability", NOW),
                 NOW,
                 "perm-evidence-1",
                 "perm-v1",
@@ -166,10 +165,8 @@ class QueryPlanValidatorMergeTest {
                 Set.of("employee"),
                 Map.of(),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
     }
 
     private ExecutionValidationProjection projection() {
@@ -187,8 +184,6 @@ class QueryPlanValidatorMergeTest {
                         null)),
                 List.of("chineseName"),
                 Set.of("chineseName"),
-                100,
-                100,
                 "catalog-v1");
     }
 

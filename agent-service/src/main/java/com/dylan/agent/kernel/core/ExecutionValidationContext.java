@@ -6,6 +6,7 @@ import com.dylan.agent.invocation.model.CancellationToken;
 import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
 import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
 
 import java.time.Instant;
@@ -54,6 +55,7 @@ public final class ExecutionValidationContext {
     public AgentPlanKind planKind() { return planKind; }
     public AgentDomainMode domainMode() { return domainMode; }
     public ExecutionScope executionScope() { return executionScope; }
+    public EffectiveCapabilityResourceLimits resourceLimits() { return executionScope.resourceLimits(); }
     public ExecutionValidationProjection domainProjection() { return domainProjection; }
     public Optional<AdapterExecutionBinding> adapterBinding() { return Optional.ofNullable(adapterBinding); }
     public List<ContextSnapshot> contextSnapshots() { return contextSnapshots; }

@@ -1,355 +1,86 @@
 package com.dylan.esquery.service;
 
-import com.dylan.esquery.api.model.AliasSwitchRequest;
-import com.dylan.esquery.config.EsQueryProperties;
+import com.dylan.esquery.api.model.DocumentCorpusKeyDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.HttpEntity;
-import org.apache.http.StatusLine;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
-import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class EsIndexAliasServiceTest {
 
     @Test
-    void rejectsAliasSwitchForNonDocumentIndex() {
-        assertThatThrownBy(() -> service().switchReadAlias("orders", request()))
+    void authorizedCommandRejectsGenericAliasTargets() {
+        assertThatThrownBy(() -> new EsIndexAliasService.AuthorizedAliasChangeCommand(
+                "change-1", new DocumentCorpusKeyDto("policy", "document"), "orders-read", List.of(), "orders-v2",
+                "a".repeat(64), "report-1", "b".repeat(64), "c".repeat(64), Instant.now().plusSeconds(60)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("document indexes");
+                .hasMessageContaining("document alias");
     }
 
     @Test
-    void rejectsAliasSwitchToNonDocumentTarget() {
-        AliasSwitchRequest request = request();
-        request.setTargetIndex("orders-v2");
+    void compareAndSwitchFailsClosedWhenExpectedTargetIsStale() throws Exception {
+        RestClient client = mock(RestClient.class);
+        Response current = response("{\"agent-doc-policy-v1\":{}}");
+        when(client.performRequest(any(Request.class)))
+                .thenReturn(current);
+        EsIndexAliasService service = new EsIndexAliasService(client, new ObjectMapper());
 
-        assertThatThrownBy(() -> service().switchReadAlias("agent-doc-policy", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("targetIndex must be a document index");
+        var result = service.compareAndSwitch(command(List.of("agent-doc-policy-v0")));
+
+        assertThat(result).isEqualTo(EsIndexAliasService.AliasChangeResult.CONFLICT);
+        verify(client, times(1)).performRequest(any(Request.class));
     }
 
     @Test
-    void rejectsAliasSwitchWithNonDocumentExpectedPreviousIndex() {
-        AliasSwitchRequest request = request();
-        request.setExpectedPreviousIndex("orders-v1");
+    void compareAndSwitchVerifiesActualAliasAfterOneAtomicMutation() throws Exception {
+        RestClient client = mock(RestClient.class);
+        Response before = response("{\"agent-doc-policy-v1\":{}}");
+        Response mapping = response("{\"agent-doc-policy-v2\":{\"mappings\":{\"_meta\":{\"agent_document_manifest\":{" +
+                "\"sealed\":true,\"domain\":\"policy\",\"materialType\":\"document\"," +
+                "\"manifestDigest\":\"" + "a".repeat(64) + "\",\"validationReportRef\":\"report-1\"," +
+                "\"attestationDigest\":\"" + "b".repeat(64) + "\"}}}}}");
+        Response settings = response("{\"agent-doc-policy-v2\":{\"settings\":{\"index.blocks.write\":\"true\"}}}");
+        Response mutation = mock(Response.class);
+        Response after = response("{\"agent-doc-policy-v2\":{}}");
+        when(client.performRequest(any(Request.class))).thenReturn(
+                before, mapping, settings, mutation, after);
+        EsIndexAliasService service = new EsIndexAliasService(client, new ObjectMapper());
 
-        assertThatThrownBy(() -> service().switchReadAlias("agent-doc-policy", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("expectedPreviousIndex must be a document index");
+        var result = service.compareAndSwitch(command(List.of("agent-doc-policy-v1")));
+
+        assertThat(result).isEqualTo(EsIndexAliasService.AliasChangeResult.APPLIED);
+        ArgumentCaptor<Request> requests = ArgumentCaptor.forClass(Request.class);
+        verify(client, times(5)).performRequest(requests.capture());
+        assertThat(requests.getAllValues()).extracting(Request::getMethod)
+                .containsExactly("GET", "GET", "GET", "POST", "GET");
+        assertThat(requests.getAllValues().get(3).getEndpoint()).isEqualTo("/_aliases");
     }
 
-    @Test
-    void rejectsAliasSwitchBeforeTaskValidationPasses() {
-        RebuildTaskRepository repository = new InMemoryRebuildTaskRepository();
-        repository.create("task-1", "agent-doc-policy", "agent-doc-policy-v2", "FULL");
-        repository.markSuccess("task-1");
-
-        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("validation must be PASSED");
+    private static EsIndexAliasService.AuthorizedAliasChangeCommand command(List<String> expected) {
+        return new EsIndexAliasService.AuthorizedAliasChangeCommand("change-1",
+                new DocumentCorpusKeyDto("policy", "document"), "agent-doc-policy-read", expected,
+                "agent-doc-policy-v2", "a".repeat(64), "report-1", "b".repeat(64),
+                "c".repeat(64), Instant.now().plusSeconds(60));
     }
 
-    @Test
-    void rejectsAliasSwitchWhenValidationDigestDoesNotMatchTask() {
-        RebuildTaskRepository repository = new InMemoryRebuildTaskRepository();
-        repository.create("task-1", "agent-doc-policy", "agent-doc-policy-v2", "FULL");
-        repository.markSuccess("task-1");
-        repository.markValidationPassed("task-1", "real-digest", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-
-        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("validationDigest");
-    }
-
-    @Test
-    void rejectsAliasSwitchWithDigestFromDifferentTask() {
-        RebuildTaskRepository repository = new InMemoryRebuildTaskRepository();
-        repository.create("task-1", "agent-doc-policy", "agent-doc-policy-v2", "FULL");
-        repository.markSuccess("task-1");
-        repository.markValidationPassed("task-1", "digest-1", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-        repository.create("task-2", "agent-doc-policy", "agent-doc-policy-v3", "FULL");
-        repository.markSuccess("task-2");
-        repository.markValidationPassed("task-2", "digest-from-task-2", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-        AliasSwitchRequest request = request();
-        request.setValidationDigest("digest-from-task-2");
-
-        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("validationDigest");
-    }
-
-    @Test
-    void rejectsAliasSwitchWhenCurrentAliasIsMissing() throws Exception {
-        RestClient restClient = mock(RestClient.class);
-        ResponseException notFound = mock(ResponseException.class);
+    private static Response response(String body) {
         Response response = mock(Response.class);
-        StatusLine statusLine = mock(StatusLine.class);
-        when(statusLine.getStatusCode()).thenReturn(404);
-        when(response.getStatusLine()).thenReturn(statusLine);
-        when(notFound.getResponse()).thenReturn(response);
-        when(restClient.performRequest(any())).thenThrow(notFound);
-        RebuildTaskRepository repository = new InMemoryRebuildTaskRepository();
-        repository.create("task-1", "agent-doc-policy", "agent-doc-policy-v2", "FULL");
-        repository.markSuccess("task-1");
-        repository.markValidationPassed("task-1", "digest-1", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-
-        assertThatThrownBy(() -> service(restClient, repository).switchReadAlias("agent-doc-policy", request()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("expectedPreviousIndex");
-        verify(restClient).performRequest(any());
-    }
-
-    @Test
-    void switchesAliasWhenCurrentTargetMatchesExpectedPreviousIndex() throws Exception {
-        RestClient restClient = mock(RestClient.class);
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        Response aliasResponse = aliasResponse("agent-doc-policy-v1");
-        Response updateResponse = mock(Response.class);
-        when(restClient.performRequest(any())).thenReturn(aliasResponse, updateResponse);
-
-        service(restClient, repository).switchReadAlias("agent-doc-policy", request());
-
-        ArgumentCaptor<org.elasticsearch.client.Request> captor =
-                ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
-        verify(restClient, org.mockito.Mockito.times(2)).performRequest(captor.capture());
-        assertThat(captor.getAllValues().get(1).getEndpoint()).isEqualTo("/_aliases");
-        String body = new String(captor.getAllValues().get(1).getEntity().getContent().readAllBytes(),
-                StandardCharsets.UTF_8);
-        assertThat(body).contains("\"remove\"");
-        assertThat(body).contains("agent-doc-policy-v1");
-        assertThat(body).contains("\"add\"");
-        assertThat(body).contains("agent-doc-policy-v2");
-    }
-
-    @Test
-    void treatsAliasAlreadyOnTargetAsIdempotentSuccess() throws Exception {
-        RestClient restClient = mock(RestClient.class);
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        Response aliasResponse = aliasResponse("agent-doc-policy-v2");
-        when(restClient.performRequest(any())).thenReturn(aliasResponse);
-        EsIndexAliasService service = service(restClient, repository);
-
-        service.switchReadAlias("agent-doc-policy", request());
-
-        verify(restClient).performRequest(any());
-        assertThat(service.aliasAudits()).singleElement()
-                .satisfies(audit -> {
-                    assertThat(audit.operation()).isEqualTo("SWITCH");
-                    assertThat(audit.result()).isEqualTo("IDEMPOTENT");
-                    assertThat(audit.domain()).isEqualTo("tax_policy");
-                    assertThat(audit.materialType()).isEqualTo("policy");
-                    assertThat(audit.profileVersion()).isEqualTo("profile-v1");
-                    assertThat(audit.indexVersion()).isEqualTo("idx-v2");
-                    assertThat(audit.goldSetVersion()).isEqualTo("gold-tax-v1");
-                    assertThat(audit.validationReportIdPrefix()).isEqualTo("report-v2");
-                    assertThat(audit.digestPrefix()).isEqualTo("digest-1");
-                    assertThat(audit.operatorRefHash()).isNotBlank();
-                    assertThat(audit.operatorRefHash()).isNotEqualTo("operator-1");
-                });
-    }
-
-    @Test
-    void rejectsRollbackTargetOutsideAliasHistory() {
-        RestClient restClient = mock(RestClient.class);
-        RebuildTaskRepository repository = validatedRepository("task-rollback", "agent-doc-policy-v1", "digest-rollback");
-        AliasSwitchRequest request = request();
-        request.setTaskId("task-rollback");
-        request.setTargetIndex("agent-doc-policy-v1");
-        request.setExpectedPreviousIndex("agent-doc-policy-v2");
-        request.setValidationDigest("digest-rollback");
-        EsIndexAliasService service = service(restClient, repository);
-
-        assertThatThrownBy(() -> service.rollbackReadAlias("agent-doc-policy", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("trusted alias history");
-        assertThat(service.aliasAudits()).singleElement()
-                .extracting(AliasOperationAudit::result)
-                .isEqualTo("FAILED");
-    }
-
-    @Test
-    void rejectsAliasSwitchWithoutProfileAuditFields() {
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        AliasSwitchRequest request = request();
-        request.setProfileVersion(null);
-
-        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("profileVersion");
-    }
-
-    @Test
-    void switchesV2AliasOnlyAfterValidationReportFieldsArePresent() {
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        AliasSwitchRequest request = request();
-        request.setGoldSetVersion(null);
-
-        assertThatThrownBy(() -> service(null, repository).switchReadAlias("agent-doc-policy", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("goldSetVersion");
-    }
-
-    @Test
-    void rollsBackAliasWhenCurrentTargetMatchesExpectedPreviousIndex() throws Exception {
-        RestClient restClient = mock(RestClient.class);
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        repository.create("task-rollback", "agent-doc-policy", "agent-doc-policy-v1", "FULL");
-        repository.markSuccess("task-rollback");
-        repository.markValidationPassed("task-rollback", "digest-rollback", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-        Response updateResponse = mock(Response.class);
-        Response switchAliasResponse = aliasResponse("agent-doc-policy-v1");
-        Response rollbackAliasResponse = aliasResponse("agent-doc-policy-v2");
-        when(restClient.performRequest(any())).thenReturn(
-                switchAliasResponse,
-                updateResponse,
-                rollbackAliasResponse,
-                updateResponse);
-        EsIndexAliasService service = service(restClient, repository);
-        service.switchReadAlias("agent-doc-policy", request());
-        AliasSwitchRequest request = request();
-        request.setTaskId("task-rollback");
-        request.setTargetIndex("agent-doc-policy-v1");
-        request.setExpectedPreviousIndex("agent-doc-policy-v2");
-        request.setValidationDigest("digest-rollback");
-
-        service.rollbackReadAlias("agent-doc-policy", request);
-
-        ArgumentCaptor<org.elasticsearch.client.Request> captor =
-                ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
-        verify(restClient, org.mockito.Mockito.times(4)).performRequest(captor.capture());
-        String body = new String(captor.getAllValues().get(3).getEntity().getContent().readAllBytes(),
-                StandardCharsets.UTF_8);
-        assertThat(body).contains("agent-doc-policy-v2");
-        assertThat(body).contains("agent-doc-policy-v1");
-        assertThat(service.aliasHistory()).hasSize(2);
-    }
-
-    @Test
-    void rollsBackAliasWithPersistedHistoryAfterServiceRecreation() throws Exception {
-        AliasOperationAuditRepository auditRepository = new InMemoryAliasOperationAuditRepository();
-        RestClient switchRestClient = mock(RestClient.class);
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        repository.create("task-rollback", "agent-doc-policy", "agent-doc-policy-v1", "FULL");
-        repository.markSuccess("task-rollback");
-        repository.markValidationPassed("task-rollback", "digest-rollback", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-        Response switchAliasResponse = aliasResponse("agent-doc-policy-v1");
-        Response switchUpdateResponse = mock(Response.class);
-        when(switchRestClient.performRequest(any())).thenReturn(switchAliasResponse, switchUpdateResponse);
-        service(switchRestClient, repository, auditRepository).switchReadAlias("agent-doc-policy", request());
-
-        RestClient rollbackRestClient = mock(RestClient.class);
-        Response rollbackAliasResponse = aliasResponse("agent-doc-policy-v2");
-        Response rollbackUpdateResponse = mock(Response.class);
-        when(rollbackRestClient.performRequest(any())).thenReturn(rollbackAliasResponse, rollbackUpdateResponse);
-        AliasSwitchRequest request = request();
-        request.setTaskId("task-rollback");
-        request.setTargetIndex("agent-doc-policy-v1");
-        request.setExpectedPreviousIndex("agent-doc-policy-v2");
-        request.setValidationDigest("digest-rollback");
-
-        service(rollbackRestClient, repository, auditRepository).rollbackReadAlias("agent-doc-policy", request);
-
-        verify(rollbackRestClient, org.mockito.Mockito.times(2)).performRequest(any());
-    }
-
-    @Test
-    void rollbackDryRunValidatesTargetWithoutSwitchingAlias() throws Exception {
-        RestClient restClient = mock(RestClient.class);
-        RebuildTaskRepository repository = validatedRepository("task-1", "agent-doc-policy-v2", "digest-1");
-        repository.create("task-rollback", "agent-doc-policy", "agent-doc-policy-v1", "FULL");
-        repository.markSuccess("task-rollback");
-        repository.markValidationPassed("task-rollback", "digest-rollback", "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-        Response switchAliasResponse = aliasResponse("agent-doc-policy-v1");
-        Response switchUpdateResponse = mock(Response.class);
-        Response rollbackAliasResponse = aliasResponse("agent-doc-policy-v2");
-        when(restClient.performRequest(any())).thenReturn(switchAliasResponse, switchUpdateResponse, rollbackAliasResponse);
-        EsIndexAliasService service = service(restClient, repository);
-        service.switchReadAlias("agent-doc-policy", request());
-        AliasSwitchRequest request = request();
-        request.setTaskId("task-rollback");
-        request.setTargetIndex("agent-doc-policy-v1");
-        request.setExpectedPreviousIndex("agent-doc-policy-v2");
-        request.setValidationDigest("digest-rollback");
-
-        AliasRollbackDryRunResult result = service.rollbackReadAliasDryRun("agent-doc-policy", request);
-
-        assertThat(result.ready()).isTrue();
-        assertThat(result.currentIndexes()).containsExactly("agent-doc-policy-v2");
-        ArgumentCaptor<org.elasticsearch.client.Request> captor =
-                ArgumentCaptor.forClass(org.elasticsearch.client.Request.class);
-        verify(restClient, org.mockito.Mockito.times(3)).performRequest(captor.capture());
-        assertThat(captor.getAllValues().get(2).getEndpoint()).isEqualTo("/_alias/agent-doc-policy");
-        assertThat(captor.getAllValues()).filteredOn(esRequest -> "/_aliases".equals(esRequest.getEndpoint()))
-                .hasSize(1);
-        assertThat(service.aliasAudits()).extracting(AliasOperationAudit::operation)
-                .containsExactly("SWITCH", "ROLLBACK_DRY_RUN");
-        assertThat(service.aliasAudits().get(1).result()).isEqualTo("READY");
-    }
-
-    private EsIndexAliasService service() {
-        return service(null, new InMemoryRebuildTaskRepository());
-    }
-
-    private EsIndexAliasService service(RestClient restClient, RebuildTaskRepository repository) {
-        return service(restClient, repository, new InMemoryAliasOperationAuditRepository());
-    }
-
-    private EsIndexAliasService service(
-            RestClient restClient,
-            RebuildTaskRepository repository,
-            AliasOperationAuditRepository auditRepository) {
-        EsQueryProperties properties = new EsQueryProperties();
-        properties.setTotalHitsThreshold(10000);
-        return new EsIndexAliasService(
-                restClient,
-                new ObjectMapper(),
-                new DocumentIndexPolicy(properties),
-                repository,
-                auditRepository);
-    }
-
-    private RebuildTaskRepository validatedRepository(String taskId, String targetIndex, String digest) {
-        RebuildTaskRepository repository = new InMemoryRebuildTaskRepository();
-        repository.create(taskId, "agent-doc-policy", targetIndex, "FULL");
-        repository.markSuccess(taskId);
-        repository.markValidationPassed(taskId, digest, "LOCAL_DOCUMENT_INDEX_VALIDATION_V1");
-        return repository;
-    }
-
-    private Response aliasResponse(String currentIndex) throws Exception {
-        Response response = mock(Response.class);
-        HttpEntity entity = mock(HttpEntity.class);
-        String body = "{\"" + currentIndex + "\":{\"aliases\":{\"agent-doc-policy\":{}}}}";
-        when(entity.getContent()).thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
-        when(response.getEntity()).thenReturn(entity);
+        when(response.getEntity()).thenReturn(new NStringEntity(body, ContentType.APPLICATION_JSON));
         return response;
-    }
-
-    private AliasSwitchRequest request() {
-        AliasSwitchRequest request = new AliasSwitchRequest();
-        request.setTaskId("task-1");
-        request.setTargetIndex("agent-doc-policy-v2");
-        request.setExpectedPreviousIndex("agent-doc-policy-v1");
-        request.setValidationDigest("digest-1");
-        request.setOperatorRef("operator-1");
-        request.setDomain("tax_policy");
-        request.setMaterialType("policy");
-        request.setProfileVersion("profile-v1");
-        request.setIndexVersion("idx-v2");
-        request.setGoldSetVersion("gold-tax-v1");
-        request.setValidationReportId("report-v2");
-        return request;
     }
 }

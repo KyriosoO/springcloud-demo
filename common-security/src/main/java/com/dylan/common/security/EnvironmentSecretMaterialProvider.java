@@ -7,18 +7,26 @@ import java.util.function.Function;
 public final class EnvironmentSecretMaterialProvider implements SecretMaterialProvider {
 
 	private final Function<String, String> secretLookup;
+	private final Function<SecretKeyRef, String> envNameLocator;
 
 	public EnvironmentSecretMaterialProvider() {
-		this(System::getenv);
+		this(System::getenv, ref -> "");
 	}
 
 	public EnvironmentSecretMaterialProvider(Function<String, String> secretLookup) {
+		this(secretLookup, ref -> "");
+	}
+
+	public EnvironmentSecretMaterialProvider(
+			Function<String, String> secretLookup,
+			Function<SecretKeyRef, String> envNameLocator) {
 		this.secretLookup = Objects.requireNonNull(secretLookup, "secretLookup must not be null");
+		this.envNameLocator = Objects.requireNonNull(envNameLocator, "envNameLocator must not be null");
 	}
 
 	@Override
 	public SecretMaterial requireSecret(SecretKeyRef ref) {
-		String envName = ref.envName();
+		String envName = envNameLocator.apply(ref);
 		if (envName == null || envName.isBlank()) {
 			envName = defaultEnvName(ref);
 		}

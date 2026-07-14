@@ -72,24 +72,20 @@ class KernelValidatorBudgetTest {
 
     private QueryPlanValidator queryValidator() {
         AgentProperties properties = properties();
-        var catalogView = DomainMetadataTestSupport.catalogView();
         FieldConstraintValidator constraints = new FieldConstraintValidator();
         return new QueryPlanValidator(
                 properties,
                 new FilterNormalizer(properties),
                 constraints,
-                new QueryMergeEngine(constraints),
-                catalogView);
+                new QueryMergeEngine(constraints));
     }
 
     private AggregatePlanValidator aggregateValidator() {
         AgentProperties properties = properties();
-        var catalogView = DomainMetadataTestSupport.catalogView();
         return new AggregatePlanValidator(
                 properties,
                 new FilterNormalizer(properties),
-                new FieldConstraintValidator(),
-                catalogView);
+                new FieldConstraintValidator());
     }
 
     private AgentProperties properties() {
@@ -124,9 +120,9 @@ class KernelValidatorBudgetTest {
     }
 
     private ExecutionScope executionScope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability", NOW),
                 NOW,
                 "perm-evidence-1",
                 "perm-v1",
@@ -135,10 +131,8 @@ class KernelValidatorBudgetTest {
                 Set.of("employee"),
                 Map.of(),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                5,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(5, 5, 10_000));
     }
 
     private ExecutionValidationProjection projection() {
@@ -165,8 +159,6 @@ class KernelValidatorBudgetTest {
                                 2,
                                 null)),
                 List.of("name"),
-                10,
-                10,
                 "catalog-v1");
     }
 

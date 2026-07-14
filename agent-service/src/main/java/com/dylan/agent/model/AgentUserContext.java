@@ -1,30 +1,24 @@
 package com.dylan.agent.model;
 
-import java.util.Set;
+import java.util.Objects;
 
 /**
- * 经过认证和角色解析的用户上下文。
+ * 经过认证的用户上下文。
  * 身份只来自 Gateway 校验并透传的 JWT。
  */
 public class AgentUserContext {
 
     private final String userId;
-    private final Set<String> roles;
 
-    public AgentUserContext(String userId, Set<String> roles) {
-        this.userId = userId;
-        this.roles = Set.copyOf(roles);
+    public AgentUserContext(String userId) {
+        this.userId = Objects.requireNonNull(userId, "userId must not be null");
+        if (userId.isBlank()) {
+            throw new IllegalArgumentException("userId must not be blank");
+        }
     }
 
     public String getUserId() {
         return userId;
     }
 
-    public Set<String> getRoles() {
-        return roles;
-    }
-
-    public boolean hasRole(String role) {
-        return roles.contains(role);
-    }
 }

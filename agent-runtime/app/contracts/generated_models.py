@@ -1,6 +1,6 @@
 # 基于当前 agent-runtime OpenAPI 自动生成，请勿手工编辑。
 # 来源：agent-api/src/main/resources/openapi/agent-runtime-openapi.json
-# source_sha256: 8847a95fff529ed23f576612556d2954fbb88da011241ba42597cc9daa395dc5
+# source_sha256: 02edfcaf9a31cbd5a59f83533ec6a27f3e52443d37992d596b84067d06667d86
 # 生成器：scripts/generate_contract_models.py
 
 from __future__ import annotations
@@ -225,16 +225,6 @@ class DocumentPlanOperation(str, Enum):
     summarize = 'SUMMARIZE'
 
 
-class RetrievalMode(str, Enum):
-    """
-    文档检索模式
-    """
-
-    keyword = 'KEYWORD'
-    vector = 'VECTOR'
-    hybrid = 'HYBRID'
-
-
 class DocumentRetrievalOptions(BaseModel):
     """
     文档检索选项
@@ -244,40 +234,12 @@ class DocumentRetrievalOptions(BaseModel):
         extra='forbid',
         populate_by_name=True,
     )
-    keyword_k: Optional[int] = Field(
-        None, alias='keywordK', description='关键词召回候选数', ge=1
-    )
     material_type: Optional[str] = Field(
         None, alias='materialType', description='资料类型，例如 policy、notice、faq'
     )
-    num_candidates: Optional[int] = Field(
-        None, alias='numCandidates', description='向量召回候选池大小', ge=1
-    )
     page: Optional[int] = Field(None, description='页码，从 1 开始', ge=1)
-    rerank_enabled: Optional[bool] = Field(
-        None,
-        alias='rerankEnabled',
-        description='请求级 rerank 启用建议，最终由 Java profile 配置裁剪',
-    )
-    retrieval_channels: Optional[List[Optional[str]]] = Field(
-        None,
-        alias='retrievalChannels',
-        description='召回通道列表，例如 BM25、EXACT、PHRASE、DENSE_VECTOR',
-    )
-    retrieval_mode: Optional[RetrievalMode] = Field(
-        None, alias='retrievalMode', description='文档检索模式'
-    )
-    retrieval_profile: Optional[str] = Field(
-        None,
-        alias='retrievalProfile',
-        description='检索 profile 标识，由 Java 侧校验并冻结',
-    )
-    rrf_k: Optional[int] = Field(None, alias='rrfK', description='RRF 平滑常量', ge=1)
     size: Optional[int] = Field(None, description='每页大小', ge=1)
     top_k: Optional[int] = Field(None, alias='topK', description='证据条数上限', ge=1)
-    vector_k: Optional[int] = Field(
-        None, alias='vectorK', description='向量召回候选数', ge=1
-    )
 
 
 class DocumentSummaryScope(BaseModel):
@@ -747,12 +709,14 @@ class RuntimeDocumentContextView(BaseModel):
         extra='forbid',
         populate_by_name=True,
     )
-    citation_ids: List[str] = Field(..., alias='citationIds', description='上轮引用 ID')
     context_type: Literal['DOCUMENT'] = Field(
         ..., alias='contextType', description='上下文类型'
     )
     domain: Optional[str] = Field(None, description='上轮文档 domain')
     filters: List[AgentFilter] = Field(..., description='上轮文档过滤条件')
+    material_type: Optional[str] = Field(
+        None, alias='materialType', description='上轮文档 materialType'
+    )
     operation: Optional[str] = Field(None, description='上轮文档操作')
     query_text: Optional[str] = Field(
         None, alias='queryText', description='上轮文档查询文本'
@@ -762,6 +726,9 @@ class RuntimeDocumentContextView(BaseModel):
         alias='sourceInvocationId',
         description='来源 Invocation 标识',
         min_length=1,
+    )
+    summary_scope: Optional[str] = Field(
+        None, alias='summaryScope', description='上轮摘要范围安全视图'
     )
     top_k: Optional[int] = Field(None, alias='topK', description='上轮 topK', ge=1)
 

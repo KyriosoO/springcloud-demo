@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import com.dylan.agent.metadata.profile.model.PlanningBudgetLimits;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContributions;
 
 /** 不可变 active policy version；Policy 只能收紧 profile 与 permission scope。 */
 public record AgentPolicySnapshot(
@@ -11,7 +13,8 @@ public record AgentPolicySnapshot(
         Map<String, ProfileConstraints> profileConstraints,
         Map<String, CapabilityConstraints> capabilityConstraints,
         Map<String, DomainSecurityConstraints> domainSecurityConstraints,
-        BudgetLimits globalBudgetUpperBound,
+        PlanningBudgetLimits globalPlanningBudgetUpperBound,
+        CapabilityResourceLimitContributions resourceLimitContributions,
         Duration globalContextTtlUpperBound,
         Set<EmergencyRevocation> emergencyRevocations) {
     public AgentPolicySnapshot {
@@ -19,7 +22,8 @@ public record AgentPolicySnapshot(
         profileConstraints = Map.copyOf(Objects.requireNonNull(profileConstraints, "profileConstraints must not be null"));
         capabilityConstraints = Map.copyOf(Objects.requireNonNull(capabilityConstraints, "capabilityConstraints must not be null"));
         domainSecurityConstraints = Map.copyOf(Objects.requireNonNull(domainSecurityConstraints, "domainSecurityConstraints must not be null"));
-        Objects.requireNonNull(globalBudgetUpperBound, "globalBudgetUpperBound must not be null");
+        Objects.requireNonNull(globalPlanningBudgetUpperBound, "globalPlanningBudgetUpperBound must not be null");
+        Objects.requireNonNull(resourceLimitContributions, "resourceLimitContributions must not be null");
         Objects.requireNonNull(globalContextTtlUpperBound, "globalContextTtlUpperBound must not be null");
         if (globalContextTtlUpperBound.isZero() || globalContextTtlUpperBound.isNegative()) {
             throw new IllegalArgumentException("globalContextTtlUpperBound must be positive");

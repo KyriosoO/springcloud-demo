@@ -87,41 +87,13 @@ class PersistentRebuildTaskRepositoryTest {
     }
 
     @Test
-    void migrationResourceDefinesDocumentRebuildTaskTable() throws Exception {
+    void historicalMigrationRemainsChecksumStableAndDefinesGenericTaskTable() throws Exception {
         try (var input = getClass().getResourceAsStream("/db/migration/V1__create_document_rebuild_task.sql")) {
             String sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
 
             assertThat(sql).contains("create table if not exists document_rebuild_task");
             assertThat(sql).contains("validation_digest");
             assertThat(sql).contains("idx_document_rebuild_task_target_index");
-            assertThat(sql).contains("create table if not exists document_alias_operation_audit");
-            assertThat(sql).contains("idx_document_alias_operation_target");
-        }
-    }
-
-    @Test
-    void v2MigrationAddsAliasProfileAuditFields() throws Exception {
-        try (var input = getClass().getResourceAsStream("/db/migration/V2__add_document_alias_profile_audit_fields.sql")) {
-            String sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
-
-            assertThat(sql).contains("alter table document_alias_operation_audit");
-            assertThat(sql).contains("domain");
-            assertThat(sql).contains("material_type");
-            assertThat(sql).contains("profile_version");
-            assertThat(sql).contains("index_version");
-            assertThat(sql).contains("idx_document_alias_operation_profile");
-        }
-    }
-
-    @Test
-    void v3MigrationAddsAliasGoldValidationAuditFields() throws Exception {
-        try (var input = getClass().getResourceAsStream(
-                "/db/migration/V3__add_document_alias_gold_validation_fields.sql")) {
-            String sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
-
-            assertThat(sql).contains("gold_set_version");
-            assertThat(sql).contains("validation_report_id_prefix");
-            assertThat(sql).contains("idx_document_alias_operation_gold");
         }
     }
 

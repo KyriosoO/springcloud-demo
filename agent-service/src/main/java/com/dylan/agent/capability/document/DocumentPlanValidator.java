@@ -2,8 +2,7 @@ package com.dylan.agent.capability.document;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedSort;
-import com.dylan.agent.adapter.api.AdapterRole;
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.ValidatedDocumentCallerFilter;
 import com.dylan.agent.adapter.api.document.DocumentContextOptions;
 import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.plan.AgentDocumentSpec;
@@ -14,74 +13,103 @@ import com.dylan.agent.api.plan.DocumentRetrievalOptions;
 import com.dylan.agent.api.plan.DocumentRetrievalMode;
 import com.dylan.agent.api.plan.DocumentSummaryScope;
 import com.dylan.agent.api.enums.AgentOperator;
-import com.dylan.agent.config.AgentProperties;
+import com.dylan.agent.capability.document.profile.DocumentFeaturePolicy;
+import com.dylan.agent.capability.document.profile.DocumentPlanningProfileProjection;
+import com.dylan.agent.capability.document.profile.DocumentProfileProjectionDigest;
 import com.dylan.agent.capability.query.QueryPlanValidator;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
-import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
 
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.text.Normalizer;
 
 public class DocumentPlanValidator
         implements CapabilityPlanValidator<DocumentAgentPlan, ValidatedDocumentPlan> {
 
-    private final AgentProperties properties;
     private final FilterNormalizer filterNormalizer;
     private final FieldConstraintValidator fieldConstraintValidator;
-    private final DomainCatalogView domainCatalogView;
 
     public DocumentPlanValidator(
-            AgentProperties properties,
             FilterNormalizer filterNormalizer,
-            FieldConstraintValidator fieldConstraintValidator,
-            DomainCatalogView domainCatalogView) {
-        this.properties = Objects.requireNonNull(properties, "properties must not be null");
+            FieldConstraintValidator fieldConstraintValidator) {
         this.filterNormalizer = Objects.requireNonNull(filterNormalizer, "filterNormalizer must not be null");
         this.fieldConstraintValidator = Objects.requireNonNull(
                 fieldConstraintValidator, "fieldConstraintValidator must not be null");
-        this.domainCatalogView = Objects.requireNonNull(domainCatalogView, "domainCatalogView must not be null");
     }
 
     @Override
     public ValidatedDocumentPlan validate(DocumentAgentPlan rawPlan, ExecutionValidationContext context) {
         Objects.requireNonNull(rawPlan, "rawPlan must not be null");
         Objects.requireNonNull(context, "context must not be null");
+        if (!(rawPlan instanceof DocumentRawPlan trustedPlan)) {
+            throw new IllegalArgumentException("server-bound DocumentRawPlan required");
+        }
         String domain = context.domainProjection().domain()
                 .orElseThrow(() -> new IllegalArgumentException("DOCUMENT requires domain projection"));
+        DocumentProfileBinding profileBinding = trustedPlan.getProfileBinding();
+        DocumentPlanningProfileProjection profile = trustedPlan.getServerProfileProjection();
+        var scope = context.executionScope();
+        if (!profileBinding.invocationId().equals(scope.invocationId())
+                || !profileBinding.requestCorrelationId().equals(scope.requestCorrelationId())
+                || !profileBinding.agentProfileRef().equals(scope.agentProfileRef())
+                || !profileBinding.resourceLimitReference().equals(scope.resourceLimits().reference())
+                || !profileBinding.registrationIdentity().equals(scope.resourceLimits().reference().registrationIdentity())
+                || !profileBinding.profileProjectionDigest().equals(DocumentProfileProjectionDigest.compute(profile))
+                || !profile.domain().equals(domain)
+                || !profileBinding.documentProfileVersion().equals(profile.documentProfileVersion())) {
+            throw new IllegalArgumentException("document frozen profile binding mismatch");
+        }
         AgentDocumentSpec document = Objects.requireNonNull(rawPlan.getDocument(), "document must not be null");
         DocumentPlanOperation operation = Objects.requireNonNull(document.getOperation(), "document operation must not be null");
         validateCapability(operation, context.capabilityId());
-        String queryText = normalizeQueryText(document.getQueryText());
-        DomainView documentDomain = domainCatalogView.requireDomain(domain, AdapterRole.DOCUMENT_RETRIEVABLE);
-        List<ValidatedFilter> filters = filterNormalizer.normalizeAll(document.getFilters(), documentDomain);
+        if (!profile.allowedOperations().contains(operation)) {
+            throw new IllegalArgumentException("Runtime document operation is outside the frozen profile projection");
+        }
+        var limits = context.resourceLimits().require(
+                com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,
+                com.dylan.agent.adapter.api.document.DocumentResourceLimit.class);
+        String queryText = normalizeQueryText(document.getQueryText(), limits.input().maxQueryChars());
+        List<ValidatedFilter> filters = filterNormalizer.normalizeAll(
+                document.getFilters(), context.domainProjection().fieldRules());
+        if (filters.size() > limits.input().maxCallerFilterCount()) {
+            throw new IllegalArgumentException("document caller filter count exceeds effective limit");
+        }
         QueryPlanValidator.validateKernelFilters(filters, context);
+        if (filters.stream().map(ValidatedFilter::getField)
+                .map(field -> new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, field))
+                .anyMatch(field -> !profile.searchableFields().contains(field))) {
+            throw new IllegalArgumentException("document filter field is outside the frozen profile projection");
+        }
         if (!filters.isEmpty()) {
-            fieldConstraintValidator.validateFinalQuery(filters, documentDomain);
+            fieldConstraintValidator.validateFinalQuery(filters, context.domainProjection().fieldRules());
         }
         List<ValidatedSort> sorts = QueryPlanValidator.toValidatedSorts(document.getSorts());
         QueryPlanValidator.validateKernelSorts(sorts, context);
+        if (sorts.stream().map(ValidatedSort::getField)
+                .map(field -> new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, field))
+                .anyMatch(field -> !profile.searchableFields().contains(field))) {
+            throw new IllegalArgumentException("document sort field is outside the frozen profile projection");
+        }
 
         DocumentRetrievalOptions options = document.getRetrievalOptions();
         int topK = bounded(
-                options == null || options.getTopK() == null ? defaultCandidateSize(operation) : options.getTopK(),
+                options == null || options.getTopK() == null ? defaultCandidateSize(operation, limits) : options.getTopK(),
                 1,
-                maxDocumentSize(context));
+                limits.retrieval().maxReturnedDocuments());
         int page = options == null || options.getPage() == null ? 1 : options.getPage();
         int size = bounded(
                 options == null || options.getSize() == null ? topK : options.getSize(),
                 1,
-                maxDocumentSize(context));
+                limits.retrieval().maxReturnedDocuments());
         if (page <= 0) {
             throw new IllegalArgumentException("document page must be positive");
         }
-        validateSummaryScope(operation, document.getSummaryScope());
+        validateSummaryScope(operation, document.getSummaryScope(), limits);
         DocumentSummaryScope summaryScope = normalizedSummaryScope(operation, document.getSummaryScope());
         List<ValidatedFilter> effectiveFilters = mergeSummaryScopeFilters(operation, summaryScope, filters);
         if (operation != DocumentPlanOperation.SEARCH
@@ -90,24 +118,16 @@ public class DocumentPlanValidator
         }
         boolean citationRequired = operation != DocumentPlanOperation.SEARCH
                 || Boolean.TRUE.equals(document.getCitationRequired());
-        DocumentRetrievalMode retrievalMode = defaultRetrievalMode(domain);
-        DocumentRetrievalProfile profile = new DocumentRetrievalProfileResolver(properties).resolve(
-                domain,
-                options == null ? null : options.getMaterialType(),
-                options == null ? null : options.getRetrievalProfile());
-        DocumentHybridOptions hybridOptions = hybridOptions(profile);
-        DocumentGenerationOptions generationOptions = validateGenerationOptions(document.getGenerationOptions());
-        DocumentRetrievalRequest request = new DocumentRetrievalRequest(
+        com.dylan.agent.adapter.api.document.DocumentCorpusKey selectedCorpus = selectedCorpus(profile, options);
+        DocumentRetrievalMode retrievalMode = profile.embeddingPolicy() == DocumentFeaturePolicy.DISABLED
+                ? DocumentRetrievalMode.KEYWORD : DocumentRetrievalMode.HYBRID;
+        DocumentChannelProfileProjection channelProjection = profile.channelProjection();
+        DocumentGenerationOptions generationOptions = validateGenerationOptions(
+                operation, document.getGenerationOptions(), limits, profile);
+        ValidatedDocumentExecutionParameters parameters = new ValidatedDocumentExecutionParameters(
                 operation,
-                domain,
-                profile.materialType(),
-                profile.retrievalProfile(),
-                profile.profileVersion(),
-                profile.indexAlias(),
                 queryText,
-                List.of(),
-                List.of(),
-                effectiveFilters,
+                effectiveFilters.stream().map(this::toDocumentCallerFilter).toList(),
                 sorts,
                 topK,
                 page,
@@ -115,81 +135,99 @@ public class DocumentPlanValidator
                 summaryScope,
                 citationRequired,
                 retrievalMode,
-                List.of(),
-                hybridOptions,
-                contextOptions(operation),
-                null);
-        return new ValidatedDocumentPlan(context.capabilityId(), domain, request, generationOptions);
+                channelProjection,
+                contextOptions(operation, limits));
+        DocumentExecutionProfileProjection executionProfile = new DocumentExecutionProfileProjection(
+                profile.profileName(), profile.documentProfileVersion(),
+                profileBinding.profileProjectionDigest(), selectedCorpus, operation,
+                profile.allowedChannels(), profile.requiredChannels(), profile.channelWeights(),
+                profile.fusionPolicy(), profile.dedupPolicy(), profile.contextPolicy(),
+                profile.rewritePolicy(), profile.embeddingPolicy(), profile.rerankPolicy(),
+                profile.generationPolicy(), profile.searchableFields(), profile.returnableFields());
+        return new ValidatedDocumentPlan(
+                context.capabilityId(), domain, selectedCorpus, parameters, generationOptions, executionProfile);
     }
 
-    private DocumentHybridOptions hybridOptions(DocumentRetrievalProfile profile) {
-        DocumentHybridOptions defaults = profile.hybridOptions();
-        return new DocumentHybridOptions(
-                defaults.keywordK(),
-                defaults.vectorK(),
-                defaults.rrfK(),
-                defaults.numCandidates(),
-                defaults.exactK(),
-                defaults.phraseK(),
-                defaults.maxChunksPerDocument(),
-                defaults.channels(),
-                defaults.channelWeights(),
-                defaults.embeddingField(),
-                defaults.embeddingProvider(),
-                defaults.embeddingModel(),
-                defaults.embeddingDimension(),
-                defaults.rerankEnabled(),
-                defaults.rerankTopN());
+    private ValidatedDocumentCallerFilter toDocumentCallerFilter(ValidatedFilter filter){
+        return new ValidatedDocumentCallerFilter(filter.getField(),
+                ValidatedDocumentCallerFilter.Operator.valueOf(filter.getOperator().name()),filter.getValue(),filter.getValues());
     }
 
-    private int defaultCandidateSize(DocumentPlanOperation operation) {
+    private int defaultCandidateSize(DocumentPlanOperation operation, com.dylan.agent.adapter.api.document.DocumentResourceLimit limits) {
         return switch (operation) {
-            case ANSWER -> properties.getDocument().getAnswerCandidateSize();
-            case SUMMARIZE -> properties.getDocument().getSummarizeCandidateSize();
-            case SEARCH -> properties.getDocument().getDefaultSize();
+            case ANSWER, SUMMARIZE -> Math.min(20, limits.retrieval().maxReturnedDocuments());
+            case SEARCH -> Math.min(5, limits.retrieval().maxReturnedDocuments());
         };
     }
 
-    private DocumentRetrievalMode defaultRetrievalMode(String domain) {
-        DocumentRetrievalMode mode = properties.getDocument().getRetrievalModeByDomain().get(domain);
-        if (mode != null) {
-            return mode;
-        }
-        DocumentRetrievalMode defaultMode = properties.getDocument().getDefaultRetrievalMode();
-        return defaultMode == null ? DocumentRetrievalMode.KEYWORD : defaultMode;
-    }
-
-    private DocumentContextOptions contextOptions(DocumentPlanOperation operation) {
+    private DocumentContextOptions contextOptions(DocumentPlanOperation operation, com.dylan.agent.adapter.api.document.DocumentResourceLimit limits) {
         if (operation == DocumentPlanOperation.SEARCH) {
             return null;
         }
-        var window = properties.getDocument().getContextWindow();
-        if (!window.isEnabled() || (window.getBeforeChunks() == 0 && window.getAfterChunks() == 0)) {
-            return null;
-        }
-        return new DocumentContextOptions(
-                window.getBeforeChunks(),
-                window.getAfterChunks(),
-                properties.getDocument().getGeneration().getMaxContextChars());
+        return new DocumentContextOptions(1, 1, limits.output().maxContextChars());
     }
 
-    private DocumentGenerationOptions validateGenerationOptions(DocumentGenerationOptions options) {
-        if (options == null) {
+    private DocumentGenerationOptions validateGenerationOptions(
+            DocumentPlanOperation operation,
+            DocumentGenerationOptions options,
+            com.dylan.agent.adapter.api.document.DocumentResourceLimit limits,
+            DocumentPlanningProfileProjection profile) {
+        if (operation == DocumentPlanOperation.SEARCH) {
+            if (options != null) {
+                throw new IllegalArgumentException("SEARCH does not accept generation options");
+            }
             return null;
+        }
+        if (options == null) {
+            if (profile.generationPolicy() == DocumentFeaturePolicy.REQUIRED) {
+                throw new IllegalArgumentException("required document generation must be requested");
+            }
+            return null;
+        }
+        boolean requested = Boolean.TRUE.equals(options.getEnabled());
+        if (requested && profile.generationPolicy() == DocumentFeaturePolicy.DISABLED) {
+            throw new IllegalArgumentException("document generation is disabled by frozen profile");
+        }
+        if (!requested && profile.generationPolicy() == DocumentFeaturePolicy.REQUIRED) {
+            throw new IllegalArgumentException("required document generation must be requested");
+        }
+        if (!requested) {
+            DocumentGenerationOptions disabled = new DocumentGenerationOptions();
+            disabled.setEnabled(false);
+            return disabled;
         }
         int maxOutputChars = options.getMaxOutputChars() == null
-                ? properties.getDocument().getGeneration().getMaxOutputChars()
+                ? limits.output().maxGeneratedChars()
                 : options.getMaxOutputChars();
-        if (maxOutputChars <= 0 || maxOutputChars > properties.getDocument().getGeneration().getMaxOutputChars()) {
+        if (maxOutputChars <= 0 || maxOutputChars > limits.output().maxGeneratedChars()) {
             throw new IllegalArgumentException("document generation maxOutputChars out of bounds");
         }
-        if (options.getFailurePolicy() == null) {
-            options.setFailurePolicy(DocumentGenerationFailurePolicy.FALLBACK_EXTRACTIVE);
-        }
-        return options;
+        DocumentGenerationOptions validated = new DocumentGenerationOptions();
+        validated.setEnabled(true);
+        validated.setMaxOutputChars(maxOutputChars);
+        validated.setFailurePolicy(options.getFailurePolicy() == null
+                ? DocumentGenerationFailurePolicy.FALLBACK_EXTRACTIVE : options.getFailurePolicy());
+        return validated;
     }
 
-    private void validateSummaryScope(DocumentPlanOperation operation, DocumentSummaryScope summaryScope) {
+    private com.dylan.agent.adapter.api.document.DocumentCorpusKey selectedCorpus(
+            DocumentPlanningProfileProjection profile,
+            DocumentRetrievalOptions options) {
+        String materialType = options == null ? null : options.getMaterialType();
+        if (materialType != null && !materialType.isBlank()) {
+            return profile.allowedCorpora().stream()
+                    .filter(corpus -> corpus.materialType().equals(materialType))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Runtime document materialType is outside the frozen profile projection"));
+        }
+        if (profile.allowedCorpora().size() != 1) {
+            throw new IllegalArgumentException("Runtime document materialType is required for a multi-corpus profile");
+        }
+        return profile.allowedCorpora().get(0);
+    }
+
+    private void validateSummaryScope(DocumentPlanOperation operation, DocumentSummaryScope summaryScope, com.dylan.agent.adapter.api.document.DocumentResourceLimit limits) {
         if (operation != DocumentPlanOperation.SUMMARIZE) {
             return;
         }
@@ -204,10 +242,10 @@ public class DocumentPlanValidator
         }
         if (summaryScope.getMaxSummaryChars() != null
                 && (summaryScope.getMaxSummaryChars() <= 0
-                || summaryScope.getMaxSummaryChars() > properties.getDocument().getMaxSummaryChars())) {
+                || summaryScope.getMaxSummaryChars() > limits.output().maxSummaryChars())) {
             throw new IllegalArgumentException("document summaryScope maxSummaryChars out of bounds");
         }
-        if (documentIds.size() > properties.getDocument().getMaxSummaryDocumentCount()) {
+        if (documentIds.size() > limits.retrieval().maxReturnedDocuments()) {
             throw new IllegalArgumentException("document summaryScope documentIds out of bounds");
         }
     }
@@ -269,22 +307,38 @@ public class DocumentPlanValidator
         }
     }
 
-    private String normalizeQueryText(String queryText) {
+    private String normalizeQueryText(String queryText, int maxQueryChars) {
         if (queryText == null || queryText.isBlank()) {
             throw new IllegalArgumentException("document queryText must not be blank");
         }
-        String normalized = queryText.trim();
-        if (normalized.length() > properties.getDocument().getMaxQueryTextLength()) {
+        validateUnicodeAndControls(queryText);
+        String normalized = Normalizer.normalize(queryText, Normalizer.Form.NFKC)
+                .trim().replaceAll("\\s+", " ");
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("document queryText must not be blank");
+        }
+        if (normalized.codePointCount(0, normalized.length()) > maxQueryChars) {
             throw new IllegalArgumentException("document queryText is too long");
         }
         return normalized;
     }
 
-    private int maxDocumentSize(ExecutionValidationContext context) {
-        int max = properties.getDocument().getMaxSize();
-        max = Math.min(max, context.domainProjection().maxPageSize());
-        max = Math.min(max, context.executionScope().maxResultRows());
-        return max;
+    private static void validateUnicodeAndControls(String value) {
+        for (int index = 0; index < value.length();) {
+            char current = value.charAt(index);
+            if (Character.isHighSurrogate(current)) {
+                if (index + 1 >= value.length() || !Character.isLowSurrogate(value.charAt(index + 1))) {
+                    throw new IllegalArgumentException("document queryText contains invalid Unicode");
+                }
+            } else if (Character.isLowSurrogate(current)) {
+                throw new IllegalArgumentException("document queryText contains invalid Unicode");
+            }
+            int codePoint = value.codePointAt(index);
+            if (Character.isISOControl(codePoint) && !Character.isWhitespace(codePoint)) {
+                throw new IllegalArgumentException("document queryText contains control characters");
+            }
+            index += Character.charCount(codePoint);
+        }
     }
 
     private static int bounded(int value, int min, int max) {

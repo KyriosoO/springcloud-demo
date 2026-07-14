@@ -24,6 +24,7 @@ import java.util.Optional;
 public non-sealed class ExecutablePlanningResult implements PlanningResult {
 
     private final String requestCorrelationId;
+    private final String invocationId;
     private final String capabilityId;
     private final Optional<String> domain;
     private final AgentPlanKind planKind;
@@ -34,8 +35,10 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
     private final PlanningOperationAudit routeAudit;
     private final PlanningOperationAudit planAudit;
     private final Instant absoluteDeadline;
+    private final PlanningArtifactIdentity artifactIdentity;
 
     private ExecutablePlanningResult(Builder builder) {
+        this.invocationId = Objects.requireNonNull(builder.invocationId);
         this.requestCorrelationId = Objects.requireNonNull(builder.requestCorrelationId);
         this.capabilityId = Objects.requireNonNull(builder.capabilityId);
         this.domain = Optional.ofNullable(normalizeDomain(builder.domain));
@@ -49,6 +52,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         this.planAudit = Objects.requireNonNull(builder.planAudit);
         this.absoluteDeadline = Objects.requireNonNull(builder.absoluteDeadline);
         validateInvariants();
+        this.artifactIdentity = PlanningArtifactCanonicalizer.create(this);
     }
 
     private void validateInvariants() {
@@ -101,6 +105,14 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         return capabilityId;
     }
 
+    public String invocationId() { return invocationId; }
+
+    public PlanningArtifactIdentity artifactIdentity() { return artifactIdentity; }
+
+    public boolean hasValidArtifactIdentity() {
+        return PlanningArtifactCanonicalizer.matches(this);
+    }
+
     public Optional<String> domain() {
         return domain;
     }
@@ -141,6 +153,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
 
     public static final class Builder {
         private String requestCorrelationId;
+        private String invocationId;
         private String capabilityId;
         private String domain;
         private AgentPlanKind planKind;
@@ -153,6 +166,7 @@ public non-sealed class ExecutablePlanningResult implements PlanningResult {
         private Instant absoluteDeadline;
 
         public Builder requestCorrelationId(String v) { this.requestCorrelationId = v; return this; }
+        public Builder invocationId(String v) { this.invocationId = v; return this; }
         public Builder capabilityId(String v) { this.capabilityId = v; return this; }
         public Builder domain(String v) { this.domain = v; return this; }
         public Builder planKind(AgentPlanKind v) { this.planKind = v; return this; }

@@ -1,14 +1,17 @@
 package com.dylan.agent.capability.document;
 
+import com.dylan.agent.capability.document.profile.DocumentFeaturePolicy;
+
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
-import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
-import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
 import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
-import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
-import com.dylan.agent.adapter.api.document.generation.DocumentContextBudget;
-import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
-import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalResult;
+import com.dylan.agent.adapter.api.document.DocumentResourceLimit;
+import com.dylan.agent.adapter.api.document.provider.*;
+import com.dylan.agent.adapter.api.document.security.AclBoundDocumentHit;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationFailure;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationSuccess;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationType;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
 import com.dylan.agent.api.plan.DocumentGenerationOptions;
@@ -29,31 +32,32 @@ import com.dylan.agent.api.response.DocumentAgentResultPayload;
 import com.dylan.agent.api.response.DocumentGenerationStatus;
 import com.dylan.agent.api.response.GroundingStatus;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingPort;
-import com.dylan.agent.capability.document.embedding.DocumentEmbeddingRequest;
 import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
-import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
-import com.dylan.agent.capability.document.acl.DisabledDocumentAclScopePort;
-import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
-import com.dylan.agent.capability.document.acl.DocumentAclScopeRequest;
+import com.dylan.agent.capability.document.acl.*;
 import com.dylan.agent.capability.document.generation.CitationVerificationResult;
 import com.dylan.agent.capability.document.generation.DocumentCitationVerifier;
-import com.dylan.agent.capability.document.generation.DocumentContextPackRequest;
-import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPacker;
-import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurityFilter;
+import com.dylan.agent.capability.document.generation.DocumentEvidencePackingLimit;
+import com.dylan.agent.capability.document.generation.DocumentGenerationEvidenceProjector;
+import com.dylan.agent.capability.document.generation.DocumentGenerationInputProjector;
+import com.dylan.agent.capability.document.generation.DocumentGeneratedContent;
+import com.dylan.agent.capability.document.generation.DocumentGeneratedTextCandidate;
+import com.dylan.agent.capability.document.generation.DocumentGeneratedTextCandidateFactory;
+import com.dylan.agent.capability.document.generation.EvidenceContextPackageFactory;
+import com.dylan.agent.capability.document.generation.EvidenceContextPackageRequest;
 import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
-import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
-import com.dylan.agent.capability.document.rerank.DisabledDocumentRerankPort;
+import com.dylan.agent.capability.document.generation.DocumentExtractiveFallbackComposer;
+import com.dylan.agent.capability.document.provider.DocumentProviderOperationRequestBinder;
+import com.dylan.agent.capability.document.provider.security.*;
 import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
-import com.dylan.agent.capability.document.rerank.DocumentRerankRequest;
-import com.dylan.agent.capability.document.rewrite.DisabledDocumentQueryRewritePort;
 import com.dylan.agent.capability.document.rewrite.DocumentQueryRewritePort;
-import com.dylan.agent.capability.document.rewrite.DocumentRewriteRequest;
-import com.dylan.agent.capability.document.rewrite.DocumentRewriteResponse;
 import com.dylan.agent.capability.document.rewrite.QueryVariants;
 import com.dylan.agent.capability.document.rewrite.RewriteCandidateNormalizer;
-import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
-import com.dylan.agent.capability.document.security.DocumentRevocationDecision;
-import com.dylan.agent.config.AgentProperties;
+import com.dylan.agent.capability.document.security.*;
+import com.dylan.agent.capability.document.evidence.DocumentCoverageFactory;
+import com.dylan.agent.capability.document.evidence.DocumentEvidenceSelector;
+import com.dylan.agent.capability.document.evidence.DocumentEvidenceVisibilityProjector;
+import com.dylan.agent.capability.document.evidence.DocumentResultSizeGuard;
+import com.dylan.agent.capability.document.evidence.SelectedDocumentEvidence;
 import com.dylan.agent.kernel.core.ExecutionContext;
 import com.dylan.agent.kernel.handler.CapabilityHandler;
 import com.dylan.agent.kernel.handler.HandlerResult;
@@ -62,7 +66,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -72,34 +75,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class DocumentCapabilityHandler
         implements CapabilityHandler<ValidatedDocumentPlan, DocumentAgentResultPayload> {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentCapabilityHandler.class);
-    private static final Set<String> RERANK_METADATA_ALLOWLIST = Set.of(
-            "sourceType",
-            "materialType",
-            "retrievalProfile",
-            "documentNo",
-            "issuer",
-            "taxType",
-            "validityStatus",
-            "effectiveDate",
-            "channelRanks",
-            "channelScores",
-            "hitFields",
-            "dedupGroupSize",
-            "representativeChunk",
-            "rerankScore",
-            "rerankReasonCode");
-
-    private final AgentProperties properties;
     private final DocumentEmbeddingPort embeddingPort;
     private final DocumentAclScopePort aclScopePort;
+    private final DocumentAclCurrentnessPort aclCurrentnessPort;
     private final DocumentRevocationGuard revocationGuard;
-    private final DocumentEvidencePreSecurityFilter preSecurityFilter;
-    private final DocumentEvidenceContextPacker contextPacker;
+    private final DocumentEvidenceVisibilityProjector visibilityProjector;
+    private final DocumentGenerationEvidenceProjector generationEvidenceProjector;
+    private final EvidenceContextPackageFactory evidenceContextPackageFactory;
+    private final DocumentGeneratedTextCandidateFactory generatedTextCandidateFactory;
+    private final DocumentGenerationInputProjector generationInputProjector;
     private final DocumentGenerationPort generationPort;
     private final DocumentCitationVerifier citationVerifier;
     private final DocumentObservabilitySupport observabilitySupport;
@@ -107,140 +97,56 @@ public class DocumentCapabilityHandler
     private final DocumentQueryRewritePort rewritePort;
     private final RewriteCandidateNormalizer rewriteCandidateNormalizer;
     private final DocumentRuleExtractor ruleExtractor;
-
-    public DocumentCapabilityHandler() {
-        this(new AgentProperties(),
-                new DisabledDocumentEmbeddingPort(),
-                new DisabledDocumentAclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-    }
-
-    public DocumentCapabilityHandler(
-            AgentProperties properties,
-            DocumentEmbeddingPort embeddingPort,
-            DocumentEvidencePreSecurityFilter preSecurityFilter,
-            DocumentEvidenceContextPacker contextPacker,
-            DocumentGenerationPort generationPort,
-            DocumentCitationVerifier citationVerifier) {
-        this(properties,
-                embeddingPort,
-                new DisabledDocumentAclScopePort(),
-                preSecurityFilter,
-                contextPacker,
-                generationPort,
-                citationVerifier);
-    }
+    private final DocumentProviderOperationRequestBinder providerRequestBinder;
+    private final DocumentProviderOutboundPolicyDecisionFactory providerPolicyDecisionFactory;
+    private final DocumentProviderOutboundFieldProjector providerFieldProjector;
+    private final DocumentProtectedFilterFactory protectedFilterFactory;
+    private final DocumentAclExecutionEvidenceFactory aclEvidenceFactory = new DocumentAclExecutionEvidenceFactory();
+    private final DocumentCandidateSecurityProjector candidateSecurityProjector = new DocumentCandidateSecurityProjector();
+    private final DocumentCandidateSetCanonicalizer candidateSetCanonicalizer = new DocumentCandidateSetCanonicalizer();
+    private final DocumentResultSecurityEvidenceMapper resultSecurityEvidenceMapper = new DocumentResultSecurityEvidenceMapper();
+    private final DocumentRetrievalCommandFactory retrievalCommandFactory = new DocumentRetrievalCommandFactory();
+    private final DocumentExtractiveFallbackComposer fallbackComposer = new DocumentExtractiveFallbackComposer();
+    private final DocumentEvidenceSelector evidenceSelector = new DocumentEvidenceSelector();
+    private final DocumentCoverageFactory coverageFactory = new DocumentCoverageFactory();
+    private final DocumentResultSizeGuard resultSizeGuard;
 
     public DocumentCapabilityHandler(
-            AgentProperties properties,
             DocumentEmbeddingPort embeddingPort,
             DocumentAclScopePort aclScopePort,
-            DocumentEvidencePreSecurityFilter preSecurityFilter,
-            DocumentEvidenceContextPacker contextPacker,
-            DocumentGenerationPort generationPort,
-            DocumentCitationVerifier citationVerifier) {
-        this(properties,
-                embeddingPort,
-                aclScopePort,
-                new DocumentRevocationGuard(properties),
-                preSecurityFilter,
-                contextPacker,
-                generationPort,
-                citationVerifier);
-    }
-
-    public DocumentCapabilityHandler(
-            AgentProperties properties,
-            DocumentEmbeddingPort embeddingPort,
-            DocumentAclScopePort aclScopePort,
+            DocumentAclCurrentnessPort aclCurrentnessPort,
             DocumentRevocationGuard revocationGuard,
-            DocumentEvidencePreSecurityFilter preSecurityFilter,
-            DocumentEvidenceContextPacker contextPacker,
-            DocumentGenerationPort generationPort,
-            DocumentCitationVerifier citationVerifier) {
-        this(properties,
-                embeddingPort,
-                aclScopePort,
-                revocationGuard,
-                preSecurityFilter,
-                contextPacker,
-                generationPort,
-                citationVerifier,
-                null,
-                new DisabledDocumentRerankPort());
-    }
-
-    public DocumentCapabilityHandler(
-            AgentProperties properties,
-            DocumentEmbeddingPort embeddingPort,
-            DocumentAclScopePort aclScopePort,
-            DocumentRevocationGuard revocationGuard,
-            DocumentEvidencePreSecurityFilter preSecurityFilter,
-            DocumentEvidenceContextPacker contextPacker,
-            DocumentGenerationPort generationPort,
-            DocumentCitationVerifier citationVerifier,
-            DocumentObservabilitySupport observabilitySupport) {
-        this(properties,
-                embeddingPort,
-                aclScopePort,
-                revocationGuard,
-                preSecurityFilter,
-                contextPacker,
-                generationPort,
-                citationVerifier,
-                observabilitySupport,
-                new DisabledDocumentRerankPort());
-    }
-
-    public DocumentCapabilityHandler(
-            AgentProperties properties,
-            DocumentEmbeddingPort embeddingPort,
-            DocumentAclScopePort aclScopePort,
-            DocumentRevocationGuard revocationGuard,
-            DocumentEvidencePreSecurityFilter preSecurityFilter,
-            DocumentEvidenceContextPacker contextPacker,
-            DocumentGenerationPort generationPort,
-            DocumentCitationVerifier citationVerifier,
-            DocumentObservabilitySupport observabilitySupport,
-            DocumentRerankPort rerankPort) {
-        this(properties,
-                embeddingPort,
-                aclScopePort,
-                revocationGuard,
-                preSecurityFilter,
-                contextPacker,
-                generationPort,
-                citationVerifier,
-                observabilitySupport,
-                rerankPort,
-                new DisabledDocumentQueryRewritePort(),
-                new RewriteCandidateNormalizer(),
-                new DocumentRuleExtractor());
-    }
-
-    public DocumentCapabilityHandler(
-            AgentProperties properties,
-            DocumentEmbeddingPort embeddingPort,
-            DocumentAclScopePort aclScopePort,
-            DocumentRevocationGuard revocationGuard,
-            DocumentEvidencePreSecurityFilter preSecurityFilter,
-            DocumentEvidenceContextPacker contextPacker,
+            DocumentEvidenceVisibilityProjector visibilityProjector,
+            DocumentGenerationEvidenceProjector generationEvidenceProjector,
+            EvidenceContextPackageFactory evidenceContextPackageFactory,
+            DocumentGeneratedTextCandidateFactory generatedTextCandidateFactory,
+            DocumentGenerationInputProjector generationInputProjector,
             DocumentGenerationPort generationPort,
             DocumentCitationVerifier citationVerifier,
             DocumentObservabilitySupport observabilitySupport,
             DocumentRerankPort rerankPort,
             DocumentQueryRewritePort rewritePort,
             RewriteCandidateNormalizer rewriteCandidateNormalizer,
-            DocumentRuleExtractor ruleExtractor) {
-        this.properties = Objects.requireNonNull(properties, "properties must not be null");
+            DocumentRuleExtractor ruleExtractor,
+            DocumentProviderOperationRequestBinder providerRequestBinder,
+            DocumentProviderOutboundPolicyDecisionFactory providerPolicyDecisionFactory,
+            DocumentProviderOutboundFieldProjector providerFieldProjector,
+            DocumentProtectedFilterFactory protectedFilterFactory,
+            ObjectMapper objectMapper) {
         this.embeddingPort = Objects.requireNonNull(embeddingPort, "embeddingPort must not be null");
         this.aclScopePort = Objects.requireNonNull(aclScopePort, "aclScopePort must not be null");
+        this.aclCurrentnessPort = Objects.requireNonNull(aclCurrentnessPort, "aclCurrentnessPort must not be null");
         this.revocationGuard = Objects.requireNonNull(revocationGuard, "revocationGuard must not be null");
-        this.preSecurityFilter = Objects.requireNonNull(preSecurityFilter, "preSecurityFilter must not be null");
-        this.contextPacker = Objects.requireNonNull(contextPacker, "contextPacker must not be null");
+        this.visibilityProjector = Objects.requireNonNull(
+                visibilityProjector, "visibilityProjector must not be null");
+        this.generationEvidenceProjector = Objects.requireNonNull(
+                generationEvidenceProjector, "generationEvidenceProjector must not be null");
+        this.evidenceContextPackageFactory = Objects.requireNonNull(
+                evidenceContextPackageFactory, "evidenceContextPackageFactory must not be null");
+        this.generatedTextCandidateFactory = Objects.requireNonNull(
+                generatedTextCandidateFactory, "generatedTextCandidateFactory must not be null");
+        this.generationInputProjector = Objects.requireNonNull(
+                generationInputProjector, "generationInputProjector must not be null");
         this.generationPort = Objects.requireNonNull(generationPort, "generationPort must not be null");
         this.citationVerifier = Objects.requireNonNull(citationVerifier, "citationVerifier must not be null");
         this.observabilitySupport = observabilitySupport;
@@ -249,6 +155,13 @@ public class DocumentCapabilityHandler
         this.rewriteCandidateNormalizer = Objects.requireNonNull(
                 rewriteCandidateNormalizer, "rewriteCandidateNormalizer must not be null");
         this.ruleExtractor = Objects.requireNonNull(ruleExtractor, "ruleExtractor must not be null");
+        this.providerRequestBinder = Objects.requireNonNull(providerRequestBinder, "providerRequestBinder must not be null");
+        this.providerPolicyDecisionFactory = Objects.requireNonNull(
+                providerPolicyDecisionFactory, "providerPolicyDecisionFactory must not be null");
+        this.providerFieldProjector = Objects.requireNonNull(
+                providerFieldProjector, "providerFieldProjector must not be null");
+        this.protectedFilterFactory = Objects.requireNonNull(protectedFilterFactory, "protectedFilterFactory must not be null");
+        this.resultSizeGuard = new DocumentResultSizeGuard(Objects.requireNonNull(objectMapper, "objectMapper must not be null"));
     }
 
     @Override
@@ -256,50 +169,97 @@ public class DocumentCapabilityHandler
             ValidatedDocumentPlan plan,
             ExecutionContext context) {
         DocumentRetrievableAdapter adapter = context.requireAdapter(DocumentRetrievableAdapter.class);
-        DocumentRetrievalRequest preparedRequest = buildQueryVariants(plan.request(), context);
-        DocumentRetrievalRequest retrievalRequest = withAclScope(withQueryVectorIfNeeded(preparedRequest, context), context);
+        DocumentRetrievalExecution preparedRequest = buildQueryVariants(plan, context);
+        PreparedAclRetrieval aclPrepared = withProtectedFilter(
+                withQueryVectorIfNeeded(preparedRequest, plan.profile(), context), plan.profile(), context);
+        DocumentRetrievalExecution retrievalRequest = aclPrepared.request();
+        var scopeCurrentness = aclCurrentnessPort.verifyScope(new DocumentAclScopeCurrentnessRequest(
+                aclPrepared.evidence(), context.operationContext(CapabilityOperationType.of("DOCUMENT_ACL_SCOPE_CURRENTNESS"))));
+        if (scopeCurrentness.outcome() != DocumentCurrentnessOutcome.ALLOW
+                || !aclPrepared.evidence().aclAuthorityVersion().equals(scopeCurrentness.authorityVersion())
+                || !context.executionScope().currentPermissionVersion().equals(scopeCurrentness.permissionVersion())) {
+            recordRevocation("ACL_SCOPE_CURRENTNESS", scopeCurrentness.reasonCode());
+            throw new IllegalStateException("document ACL scope is not current");
+        }
         long retrievalStarted = System.nanoTime();
-        AdapterDocumentResult adapterResult;
+        AdapterDocumentRetrievalResult adapterResult;
         try {
-            adapterResult = adapter.retrieve(retrievalRequest);
-            adapterResult = applyRerankIfEnabled(retrievalRequest, adapterResult, context);
+            var retrievalContext=context.operationContext(com.dylan.agent.adapter.api.operation.CapabilityOperationType.of("DOCUMENT_RETRIEVAL"));
+            adapterResult=requireSuccess(adapter.retrieve(
+                    retrievalCommandFactory.create(retrievalRequest,retrievalContext),retrievalContext),"document retrieval");
+            adapterResult = applyRerankIfEnabled(retrievalRequest, adapterResult, plan.profile(), context);
             recordRetrieval(retrievalRequest, "SUCCESS", retrievalStarted);
             recordRetrievalDiagnostics(retrievalRequest, adapterResult);
         } catch (RuntimeException ex) {
             recordRetrieval(retrievalRequest, "FAILED", retrievalStarted);
             throw ex;
         }
+        DocumentResourceLimit limits = documentLimits(context);
+        List<AclBoundDocumentHit> publicVisibleHits = visibilityProjector.project(
+                adapterResult.hits(), context.executionScope(), retrievalRequest.getDomain());
+        SelectedDocumentEvidence selection = evidenceSelector.select(publicVisibleHits, limits);
+        List<AclBoundDocumentHit> visibleHits = selection.items();
+        AdapterDocumentRetrievalResult visibleResult = new AdapterDocumentRetrievalResult(
+                visibleHits, adapterResult.diagnostics(), adapterResult.binding(), adapterResult.requestedDocumentCount());
         DocumentAgentResultPayload payload = new DocumentAgentResultPayload(
                 toParameters(plan),
-                toResult(plan, adapterResult));
-        applyGenerationIfEnabled(plan, retrievalRequest, adapterResult, payload.getDocumentResult(), context);
-        return HandlerResult.of(payload, List.of(toContextWrite(plan, adapterResult)));
+                toResult(plan, visibleResult, selection.truncated()));
+        applyGenerationIfEnabled(plan, retrievalRequest, visibleResult, payload.getDocumentResult(), context);
+        int retainedEvidence = enforceResultSize(payload, plan, visibleHits, limits);
+        if (retainedEvidence < visibleHits.size()) {
+            visibleHits = List.copyOf(visibleHits.subList(0, retainedEvidence));
+            visibleResult = new AdapterDocumentRetrievalResult(
+                    visibleHits, adapterResult.diagnostics(), adapterResult.binding(), adapterResult.requestedDocumentCount());
+        }
+        var safeCandidates = candidateSecurityProjector.project(
+                visibleResult.hits(), aclPrepared.evidence(), limits);
+        var evidenceRefs = citationIds(visibleResult.hits());
+        String candidateSetDigest = candidateSetCanonicalizer.digest(
+                safeCandidates, evidenceRefs, AgentExecutionContracts.DOCUMENT_RESULT);
+        DocumentFinalCurrentnessDecision finalDecision = revocationGuard.evaluate(
+                new DocumentRevocationGuard.FinalDocumentCurrentnessRequest(
+                        aclPrepared.evidence(), safeCandidates, candidateSetDigest,
+                        context.executionScope().agentProfileRef().toString(),
+                        context.operationContext(CapabilityOperationType.of("DOCUMENT_ACL_CANDIDATE_CURRENTNESS"))));
+        if (finalDecision.outcome() != DocumentCurrentnessOutcome.ALLOW) {
+            recordRevocation("FINAL_CURRENTNESS", finalDecision.reasonCode().name());
+            throw new IllegalStateException("document final currentness denied");
+        }
+        payload.setInternalSecurityEvidence(
+                resultSecurityEvidenceMapper.map(finalDecision, safeCandidates, evidenceRefs));
+        return HandlerResult.of(payload, List.of(toContextWrite(plan, visibleResult)));
     }
 
-    private DocumentRetrievalRequest buildQueryVariants(DocumentRetrievalRequest request, ExecutionContext context) {
+    private DocumentRetrievalExecution buildQueryVariants(ValidatedDocumentPlan plan, ExecutionContext context) {
+        DocumentRetrievalExecution request = initialExecution(plan);
         List<String> ruleKeywords = ruleExtractor.extract(
                 request.getQueryText(),
                 request.getDomain(),
                 request.getMaterialType());
-        DocumentRewriteResponse rewriteResponse = new DocumentRewriteResponse(List.of(), null, null);
-        var rewrite = properties.getDocument().getRewrite();
-        if (rewrite.isEnabled()) {
+        List<com.dylan.agent.capability.document.rewrite.DocumentRewriteCandidate> rewriteCandidates = List.of();
+        DocumentResourceLimit limits = documentLimits(context);
+        int maxCandidates = limits.enhancement().maxRewriteCandidates();
+        boolean rewriteEnabled = plan.profile().rewritePolicy() != DocumentFeaturePolicy.DISABLED
+                && maxCandidates > 0;
+        if (rewriteEnabled) {
             try {
-                rewriteResponse = rewritePort.rewrite(new DocumentRewriteRequest(
-                        context.invocationId(),
-                        request.getQueryText(),
-                        request.getDomain(),
-                        request.getMaterialType(),
-                        rewrite.getLanguage(),
-                        rewrite.getMaxCandidates(),
-                        rewrite.getTimeout().toMillis(),
-                        context.absoluteDeadline()));
-                if (rewriteResponse == null) {
-                    rewriteResponse = new DocumentRewriteResponse(List.of(), null, null);
-                }
+                var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_REWRITE"));
+                var input = new DocumentRewriteInputProjection(request.getQueryText(), "zh-CN", maxCandidates);
+                var decision = requireProviderDecision(
+                        operationContext.operationType(), plan, context,
+                        plan.profile().rewritePolicy(), DocumentProviderIntendedFieldView.queryOnly());
+                var outcome = rewritePort.rewrite(new DocumentRewriteOperationRequest(
+                        input, providerRequestBinder.bind(decision, input, operationContext), operationContext));
+                DocumentUntrustedRewritePayload payload = requireSuccess(outcome, "rewrite");
+                rewriteCandidates = payload.candidates().stream()
+                        .map(value -> new com.dylan.agent.capability.document.rewrite.DocumentRewriteCandidate(value, null, null))
+                        .toList();
                 recordProvider("rewrite", request.getOperation().name(), "SUCCESS");
             } catch (RuntimeException ex) {
                 recordProvider("rewrite", request.getOperation().name(), "FAILED");
+                if (plan.profile().rewritePolicy() == DocumentFeaturePolicy.REQUIRED) {
+                    throw ex;
+                }
                 log.warn("document rewrite degraded: invocationId={}, domain={}, reason={}",
                         context.invocationId(),
                         request.getDomain(),
@@ -309,9 +269,9 @@ public class DocumentCapabilityHandler
         QueryVariants variants = rewriteCandidateNormalizer.normalize(
                 request.getQueryText(),
                 ruleKeywords,
-                rewriteResponse.candidates(),
-                rewrite.getMaxCandidates(),
-                rewrite.getMaxCandidateLength());
+                rewriteCandidates,
+                maxCandidates,
+                limits.input().maxQueryChars());
         if (variants.rejectedCount() > 0) {
             log.warn("document rewrite candidates rejected: invocationId={}, domain={}, rejectedCount={}, digest={}",
                     context.invocationId(),
@@ -327,55 +287,78 @@ public class DocumentCapabilityHandler
                 variants.rewriteCandidates());
     }
 
-    private DocumentRetrievalRequest withAclScope(DocumentRetrievalRequest request, ExecutionContext context) {
-        DocumentRevocationDecision decision = revocationGuard.evaluate(
-                request.getDomain(),
-                null,
-                request.getRetrievalProfile(),
-                request.getProfileVersion(),
-                request.getIndexAlias());
-        if (decision.revoked()) {
-            recordRevocation(decision);
-            throw new IllegalStateException("document access revoked by "
-                    + decision.source() + ":" + decision.target());
-        }
-        var scope = aclScopePort.resolve(new DocumentAclScopeRequest(
-                context.invocationId(),
-                context.executionScope().subjectRef(),
-                request.getDomain(),
-                request.getMaterialType(),
-                request.getRetrievalProfile(),
-                request.getProfileVersion(),
-                request.getIndexAlias(),
-                context.executionScope().currentPermissionEvidenceId(),
-                context.executionScope().currentPermissionVersion(),
-                context.absoluteDeadline()));
-        if (scope.isExpiredAt(java.time.Instant.now())) {
-            recordRevocation("ACL_SCOPE", "AUTHORITY");
-            throw new IllegalStateException("document ACL scope is expired");
-        }
-        return request.withAclScope(
-                scope,
-                context.executionScope().currentPermissionEvidenceId(),
-                context.executionScope().currentPermissionVersion());
+    private DocumentRetrievalExecution initialExecution(ValidatedDocumentPlan plan) {
+        ValidatedDocumentExecutionParameters parameters = plan.parameters();
+        return new DocumentRetrievalExecution(
+                parameters.operation(), plan.selectedCorpus(), plan.profile().profileName(),
+                plan.profile().documentProfileVersion(),
+                parameters.normalizedQuery(), List.of(), List.of(),
+                parameters.callerFilters().stream().map(filter -> new com.dylan.agent.adapter.api.query.ValidatedFilter(
+                        filter.field(), com.dylan.agent.api.enums.AgentOperator.valueOf(filter.operator().name()),
+                        filter.value(), filter.values())).toList(),
+                parameters.sorts(), parameters.topK(), parameters.page(), parameters.size(), parameters.summaryScope(),
+                parameters.citationRequired(), parameters.retrievalMode(), List.of(), null,
+                parameters.channelProjection(), parameters.contextOptions(), null);
     }
 
-    private DocumentRetrievalRequest withQueryVectorIfNeeded(DocumentRetrievalRequest request, ExecutionContext context) {
+    private PreparedAclRetrieval withProtectedFilter(
+            DocumentRetrievalExecution request,
+            DocumentExecutionProfileProjection profile,
+            ExecutionContext context) {
+        var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_ACL_SCOPE"));
+        var aclRequest = new DocumentAclScopeRequest(
+                operationContext,
+                context.resourceLimits().reference().registrationIdentity(),
+                context.executionScope().subject(),
+                new com.dylan.agent.adapter.api.document.DocumentCorpusKey(
+                        request.getDomain(), request.getMaterialType()),
+                request.getOperation(),
+                new PermissionEvidenceReference(
+                        context.executionScope().currentPermissionEvidenceId(),
+                        context.executionScope().currentPermissionVersion()),
+                profile.profileProjectionDigest());
+        var resolution = aclScopePort.resolve(aclRequest);
+        if (resolution instanceof DocumentAclScopeDenied denied) {
+            recordRevocation("ACL_SCOPE", denied.reason().name());
+            throw new IllegalStateException("document ACL scope denied");
+        }
+        if (resolution instanceof DocumentAclScopeFailed failed) {
+            recordRevocation("ACL_SCOPE", failed.code().name());
+            throw new IllegalStateException("document ACL scope unavailable");
+        }
+        if (!(resolution instanceof DocumentAclScopeAllowed allowed)) {
+            throw new IllegalStateException("unknown document ACL resolution");
+        }
+        DocumentAclExecutionEvidence evidence = aclEvidenceFactory.create(
+                aclRequest, allowed.scope(), allowed.metadata());
+        return new PreparedAclRetrieval(
+                request.withProtectedFilterBinding(protectedFilterFactory.build(allowed.scope(), evidence)), evidence);
+    }
+
+    private record PreparedAclRetrieval(
+            DocumentRetrievalExecution request,
+            DocumentAclExecutionEvidence evidence) {}
+
+    private DocumentRetrievalExecution withQueryVectorIfNeeded(
+            DocumentRetrievalExecution request,
+            DocumentExecutionProfileProjection profile,
+            ExecutionContext context) {
         DocumentRetrievalMode mode = request.getRetrievalMode();
-        DocumentHybridOptions options = request.getHybridOptions();
+        DocumentChannelProfileProjection options = request.getChannelProjection();
         boolean denseVectorRequired = mode == DocumentRetrievalMode.VECTOR
                 || (mode == DocumentRetrievalMode.HYBRID
-                && (options == null || options.requiresDenseVector()));
+                && (options == null || options.enablesDenseVector()));
         if (!denseVectorRequired) {
             return request;
         }
-        if (!properties.getDocument().getEmbedding().isEnabled()) {
+        if (profile.embeddingPolicy() == DocumentFeaturePolicy.DISABLED
+                || documentLimits(context).enhancement().maxEmbeddingTexts() == 0) {
             if (mode == DocumentRetrievalMode.HYBRID) {
                 return downgradeHybridToKeyword(request, context, "EMBEDDING_DISABLED");
             }
             throw new IllegalStateException("document vector retrieval requires enabled embedding");
         }
-        var embedding = embedOrFallback(request, context, mode);
+        var embedding = embedOrFallback(request, profile, context, mode);
         if (embedding == null) {
             return downgradeHybridToKeyword(request, context, "EMBEDDING_PROVIDER_FAILURE");
         }
@@ -385,29 +368,24 @@ public class DocumentCapabilityHandler
             }
             throw new IllegalStateException("document embedding returned empty queryVector");
         }
-        int configuredDimension = expectedEmbeddingDimension(request);
+        int configuredDimension = documentLimits(context).enhancement().maxEmbeddingDimensions();
         if (configuredDimension > 0
                 && (embedding.dimension() != configuredDimension
                 || embedding.queryVector().size() != configuredDimension)) {
             throw new IllegalStateException("document embedding dimension mismatch");
         }
-        String configuredModel = expectedEmbeddingModel(request);
-        if (configuredModel != null
-                && !configuredModel.isBlank()
-                && !configuredModel.equals(embedding.embeddingModel())) {
-            throw new IllegalStateException("document embedding model mismatch");
-        }
         if (embedding.queryVector().stream().anyMatch(value -> value == null || !Double.isFinite(value))) {
             throw new IllegalStateException("document embedding returned invalid queryVector");
         }
-        return copyRequest(request, mode, embedding.queryVector());
+        return request.copy(mode, embedding.queryVector(), embedding.digest(), request.getRuleKeywords(),
+                request.getRewriteCandidates(), request.getProtectedFilterBinding());
     }
 
-    private DocumentRetrievalRequest downgradeHybridToKeyword(
-            DocumentRetrievalRequest request,
+    private DocumentRetrievalExecution downgradeHybridToKeyword(
+            DocumentRetrievalExecution request,
             ExecutionContext context,
             String reason) {
-        DocumentHybridOptions options = request.getHybridOptions();
+        DocumentChannelProfileProjection options = request.getChannelProjection();
         log.warn("document hybrid retrieval degraded: invocationId={}, domain={}, requestedMode={}, "
                         + "effectiveMode={}, reason={}, topK={}, keywordK={}, vectorK={}, rrfK={}, numCandidates={}",
                 context.invocationId(),
@@ -416,82 +394,68 @@ public class DocumentCapabilityHandler
                 DocumentRetrievalMode.KEYWORD,
                 reason,
                 request.getTopK(),
-                options == null ? null : options.keywordK(),
-                options == null ? null : options.vectorK(),
+                options == null ? null : options.keywordCandidateCount(),
+                options == null ? null : options.vectorCandidateCount(),
                 options == null ? null : options.rrfK(),
                 options == null ? null : options.numCandidates());
-        return copyRequest(request, DocumentRetrievalMode.KEYWORD, List.of());
+        return request.copy(DocumentRetrievalMode.KEYWORD, List.of(), null, request.getRuleKeywords(),
+                request.getRewriteCandidates(), request.getProtectedFilterBinding());
     }
 
     private DocumentEmbeddingResult embedOrFallback(
-            DocumentRetrievalRequest request,
+            DocumentRetrievalExecution request,
+            DocumentExecutionProfileProjection profile,
             ExecutionContext context,
             DocumentRetrievalMode mode) {
         try {
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document embedding deadline expired");
             }
-            DocumentEmbeddingResult result = embeddingPort.embed(new DocumentEmbeddingRequest(
-                    context.invocationId(),
-                    request.getQueryText(),
-                    queryVariants(request),
-                    request.getDomain(),
-                    expectedEmbeddingProvider(request),
-                    expectedEmbeddingModel(request),
-                    expectedEmbeddingModel(request),
-                    expectedEmbeddingDimension(request),
-                    context.absoluteDeadline()));
+            var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_EMBEDDING"));
+            var input = new DocumentEmbeddingInputProjection(List.of(request.getQueryText()));
+            var decision = requireProviderDecision(
+                    operationContext.operationType(), null, profile,
+                    context, profile.embeddingPolicy(), DocumentProviderIntendedFieldView.queryOnly());
+            DocumentUntrustedEmbeddingPayload payload = requireSuccess(embeddingPort.embed(
+                    new DocumentEmbeddingOperationRequest(
+                            input, providerRequestBinder.bind(decision, input, operationContext), operationContext)),
+                    "embedding");
+            if (payload.vectors().size() != 1) {
+                throw new IllegalStateException("document embedding must return exactly one vector");
+            }
+            DocumentEmbeddingResult result = new DocumentEmbeddingResult(
+                    payload.vectors().getFirst().stream().map(Float::doubleValue).toList(),
+                    payload.bindingReference(), payload.dimension(), payload.bindingReference());
             recordProvider("embedding", mode.name(), "SUCCESS");
             return result;
         } catch (RuntimeException ex) {
             recordProvider("embedding", mode.name(), "FAILED");
-            if (mode == DocumentRetrievalMode.HYBRID) {
+            if (mode == DocumentRetrievalMode.HYBRID
+                    && profile.embeddingPolicy() != DocumentFeaturePolicy.REQUIRED) {
                 return null;
             }
             throw ex;
         }
     }
 
-    private DocumentRetrievalRequest copyRequest(
-            DocumentRetrievalRequest source,
+    private DocumentRetrievalExecution copyRequest(
+            DocumentRetrievalExecution source,
             DocumentRetrievalMode mode,
             List<Double> queryVector) {
         return copyRequest(source, mode, queryVector, source.getRuleKeywords(), source.getRewriteCandidates());
     }
 
-    private DocumentRetrievalRequest copyRequest(
-            DocumentRetrievalRequest source,
+    private DocumentRetrievalExecution copyRequest(
+            DocumentRetrievalExecution source,
             DocumentRetrievalMode mode,
             List<Double> queryVector,
             List<String> ruleKeywords,
             List<String> rewriteCandidates) {
-        return new DocumentRetrievalRequest(
-                source.getOperation(),
-                source.getDomain(),
-                source.getMaterialType(),
-                source.getRetrievalProfile(),
-                source.getProfileVersion(),
-                source.getIndexAlias(),
-                source.getQueryText(),
-                ruleKeywords,
-                rewriteCandidates,
-                source.getFilters(),
-                source.getSorts(),
-                source.getTopK(),
-                source.getPage(),
-                source.getSize(),
-                source.getSummaryScope(),
-                source.isCitationRequired(),
-                mode,
-                queryVector,
-                source.getHybridOptions(),
-                source.getContextOptions(),
-                source.getAclScope(),
-                source.getPermissionEvidenceId(),
-                source.getPermissionVersion());
+        return source.copy(mode, queryVector, source.getEmbeddingBindingDigest(), ruleKeywords,
+                rewriteCandidates, source.getProtectedFilterBinding());
     }
 
-    private static List<String> queryVariants(DocumentRetrievalRequest request) {
+    private static List<String> queryVariants(DocumentRetrievalExecution request) {
         LinkedHashSet<String> variants = new LinkedHashSet<>();
         if (request.getQueryText() != null && !request.getQueryText().isBlank()) {
             variants.add(request.getQueryText().trim());
@@ -504,254 +468,125 @@ public class DocumentCapabilityHandler
         return List.copyOf(variants);
     }
 
-    private static String blankToDefault(String value, String defaultValue) {
-        return value == null || value.isBlank() ? defaultValue : value.trim();
-    }
-
-    private String expectedEmbeddingProvider(DocumentRetrievalRequest request) {
-        DocumentHybridOptions options = request.getHybridOptions();
-        return blankToDefault(
-                options == null ? null : options.embeddingProvider(),
-                properties.getDocument().getEmbedding().getProvider());
-    }
-
-    private String expectedEmbeddingModel(DocumentRetrievalRequest request) {
-        DocumentHybridOptions options = request.getHybridOptions();
-        return blankToDefault(
-                options == null ? null : options.embeddingModel(),
-                properties.getDocument().getEmbedding().getModel());
-    }
-
-    private int expectedEmbeddingDimension(DocumentRetrievalRequest request) {
-        DocumentHybridOptions options = request.getHybridOptions();
-        if (options != null && options.embeddingDimension() > 0) {
-            return options.embeddingDimension();
-        }
-        return properties.getDocument().getEmbedding().getDimension();
-    }
-
-    private AdapterDocumentResult applyRerankIfEnabled(
-            DocumentRetrievalRequest request,
-            AdapterDocumentResult adapterResult,
+    private AdapterDocumentRetrievalResult applyRerankIfEnabled(
+            DocumentRetrievalExecution request,
+            AdapterDocumentRetrievalResult adapterResult,
+            DocumentExecutionProfileProjection profile,
             ExecutionContext context) {
-        DocumentHybridOptions options = request.getHybridOptions();
-        if (options == null || !options.rerankEnabled()) {
+        DocumentChannelProfileProjection options = request.getChannelProjection();
+        if (options == null || !options.rerankEnabled()
+                || profile.rerankPolicy() == DocumentFeaturePolicy.DISABLED
+                || documentLimits(context).enhancement().maxRerankCandidates() == 0) {
             markRerankDiagnostics(adapterResult, "SKIPPED", "DISABLED");
             return adapterResult;
         }
         try {
-            AdapterDocumentResult safeInput = safeRerankInput(adapterResult);
-            if (nonNullEvidence(safeInput.getHits()).isEmpty()) {
+            List<AclBoundDocumentHit> hits = adapterResult.hits();
+            if (hits.isEmpty()) {
                 markRerankDiagnostics(adapterResult, "SKIPPED", "EMPTY_CANDIDATES");
                 return adapterResult;
             }
-            AdapterDocumentResult reranked = rerankPort.rerank(new DocumentRerankRequest(
-                    context.invocationId(),
-                    request.getDomain(),
-                    request.getMaterialType(),
-                    request.getRetrievalProfile(),
-                    request.getQueryText(),
-                    options.rerankTopN(),
-                    safeInput,
-                    context.absoluteDeadline()));
-            if (reranked == null || nonNullEvidence(reranked.getHits()).isEmpty()) {
-                markRerankDiagnostics(adapterResult, "SKIPPED", "EMPTY_RERANK_RESULT");
-                return adapterResult;
+            int maxCandidates = Math.min(hits.size(), documentLimits(context).enhancement().maxRerankCandidates());
+            DocumentProviderIntendedFieldView fieldView = providerFieldView(
+                    profile.selectedCorpus().domain(), hits.subList(0, maxCandidates), false);
+            var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_RERANK"));
+            var decision = requireProviderDecision(
+                    operationContext.operationType(), null, profile,
+                    context, profile.rerankPolicy(), fieldView);
+            List<DocumentRerankInputProjection.DocumentRerankInputItem> items = new ArrayList<>();
+            for (int i = 0; i < maxCandidates; i++) {
+                AclBoundDocumentHit evidence = hits.get(i);
+                items.add(new DocumentRerankInputProjection.DocumentRerankInputItem(
+                        evidence.candidateId(),
+                        providerFieldProjector.stringValue(
+                                decision, context.executionScope(), profile.selectedCorpus().domain(), "title", evidence.title()),
+                        providerFieldProjector.stringValue(
+                                decision, context.executionScope(), profile.selectedCorpus().domain(), "snippet", evidence.snippet())));
             }
-            AdapterDocumentResult result = mergeRerankResult(adapterResult, reranked);
+            var input = new DocumentRerankInputProjection(request.getQueryText(), items);
+            DocumentUntrustedRerankPayload payload = requireSuccess(rerankPort.rerank(
+                    new DocumentRerankOperationRequest(
+                            input, providerRequestBinder.bind(decision, input, operationContext), operationContext)),
+                    "rerank");
+            AdapterDocumentRetrievalResult result = applyRerankScores(adapterResult, maxCandidates, payload);
             markRerankDiagnostics(result, "SUCCEEDED", null);
             return result;
         } catch (RuntimeException ex) {
             log.warn("document rerank skipped: invocationId={}, domain={}, profile={}, reason={}",
                     context.invocationId(),
                     request.getDomain(),
-                    request.getRetrievalProfile(),
+                    request.getProfileName(),
                     ex.getClass().getSimpleName());
+            if (profile.rerankPolicy() == DocumentFeaturePolicy.REQUIRED) {
+                throw ex;
+            }
             markRerankDiagnostics(adapterResult, "SKIPPED", ex.getClass().getSimpleName());
             return adapterResult;
         }
     }
 
+    private static AdapterDocumentRetrievalResult applyRerankScores(
+            AdapterDocumentRetrievalResult source,
+            int rerankCandidateCount,
+            DocumentUntrustedRerankPayload payload) {
+        List<AclBoundDocumentHit> hits = source.hits();
+        Map<String, AclBoundDocumentHit> eligible = new LinkedHashMap<>();
+        for (int i = 0; i < rerankCandidateCount; i++) {
+            AclBoundDocumentHit hit = hits.get(i);
+            if (eligible.putIfAbsent(hit.candidateId(), hit) != null) {
+                throw new IllegalArgumentException("duplicate rerank candidate id");
+            }
+        }
+        Set<String> scored = new LinkedHashSet<>();
+        List<AclBoundDocumentHit> ordered = payload.scores().stream()
+                .peek(score -> {
+                    if (!Double.isFinite(score.score()) || !eligible.containsKey(score.candidateId())
+                            || !scored.add(score.candidateId())) {
+                        throw new IllegalArgumentException("invalid rerank score binding");
+                    }
+                })
+                .sorted(Comparator
+                        .comparingDouble(DocumentUntrustedRerankPayload.DocumentRerankScoreItem::score).reversed()
+                        .thenComparingInt(score -> indexOfCandidate(hits, score.candidateId())))
+                .map(score -> eligible.get(score.candidateId()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (ordered.isEmpty()) {
+            throw new IllegalArgumentException("empty rerank result");
+        }
+        hits.stream().filter(hit -> !scored.contains(hit.candidateId())).forEach(ordered::add);
+        return new AdapterDocumentRetrievalResult(
+                ordered, source.diagnostics(), source.binding(), source.requestedDocumentCount());
+    }
+
+    private static int indexOfCandidate(List<AclBoundDocumentHit> hits, String candidateId) {
+        for (int i = 0; i < hits.size(); i++) {
+            if (hits.get(i).candidateId().equals(candidateId)) return i;
+        }
+        return Integer.MAX_VALUE;
+    }
+
     private static void markRerankDiagnostics(
-            AdapterDocumentResult result,
+            AdapterDocumentRetrievalResult result,
             String status,
             String skippedReason) {
         if (result == null) {
             return;
         }
-        AdapterDocumentRetrievalDiagnostics diagnostics = result.getRetrievalDiagnostics();
-        if (diagnostics == null) {
-            diagnostics = new AdapterDocumentRetrievalDiagnostics();
-            result.setRetrievalDiagnostics(diagnostics);
-        }
+        AdapterDocumentRetrievalDiagnostics diagnostics = result.diagnostics();
         diagnostics.setRerankStatus(status);
         diagnostics.setRerankSkippedReason(skippedReason);
-    }
-
-    private static AdapterDocumentResult safeRerankInput(AdapterDocumentResult source) {
-        AdapterDocumentResult safe = copyResultShell(source);
-        List<AdapterDocumentEvidence> hits = nonNullEvidence(source == null ? null : source.getHits()).stream()
-                .map(DocumentCapabilityHandler::safeRerankEvidence)
-                .toList();
-        safe.setHits(hits);
-        safe.setCitations(hits);
-        return safe;
-    }
-
-    private static AdapterDocumentEvidence safeRerankEvidence(AdapterDocumentEvidence source) {
-        AdapterDocumentEvidence target = new AdapterDocumentEvidence();
-        target.setDocumentId(source.getDocumentId());
-        target.setChunkId(source.getChunkId());
-        target.setTitle(source.getTitle());
-        target.setSourceType(source.getSourceType());
-        target.setSection(source.getSection());
-        target.setPage(source.getPage());
-        target.setSourceUri(source.getSourceUri());
-        target.setSnippet(source.getSnippet());
-        target.setChunkIndex(source.getChunkIndex());
-        target.setCharStart(source.getCharStart());
-        target.setCharEnd(source.getCharEnd());
-        target.setKeywordRank(source.getKeywordRank());
-        target.setVectorRank(source.getVectorRank());
-        target.setRrfScore(source.getRrfScore());
-        target.setRetrievalChannels(source.getRetrievalChannels());
-        target.setScore(source.getScore());
-        target.setMetadata(safeRerankMetadata(source.getMetadata()));
-        return target;
-    }
-
-    private static Map<String, Object> safeRerankMetadata(Map<String, Object> metadata) {
-        if (metadata == null || metadata.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, Object> safe = new LinkedHashMap<>();
-        metadata.forEach((key, value) -> {
-            if (key != null && RERANK_METADATA_ALLOWLIST.contains(key)) {
-                safe.put(key, value);
-            }
-        });
-        return safe;
-    }
-
-    private static AdapterDocumentResult mergeRerankResult(
-            AdapterDocumentResult original,
-            AdapterDocumentResult reranked) {
-        if (reranked == null) {
-            return original;
-        }
-        List<AdapterDocumentEvidence> originalHits = nonNullEvidence(original == null ? null : original.getHits());
-        List<AdapterDocumentEvidence> rerankedHits = nonNullEvidence(reranked.getHits());
-        if (originalHits.isEmpty() || rerankedHits.isEmpty()) {
-            return original;
-        }
-        Map<String, AdapterDocumentEvidence> originalById = new LinkedHashMap<>();
-        for (AdapterDocumentEvidence hit : originalHits) {
-            String id = citationId(hit);
-            if (id != null) {
-                originalById.putIfAbsent(id, hit);
-            }
-        }
-        List<AdapterDocumentEvidence> ordered = new ArrayList<>();
-        Set<String> selected = new LinkedHashSet<>();
-        for (AdapterDocumentEvidence rerankedHit : rerankedHits) {
-            String id = citationId(rerankedHit);
-            AdapterDocumentEvidence originalHit = id == null ? null : originalById.get(id);
-            if (originalHit == null || selected.contains(id)) {
-                continue;
-            }
-            applyRerankFields(originalHit, rerankedHit);
-            ordered.add(originalHit);
-            selected.add(id);
-        }
-        for (AdapterDocumentEvidence hit : originalHits) {
-            String id = citationId(hit);
-            if (id == null || selected.add(id)) {
-                ordered.add(hit);
-            }
-        }
-        AdapterDocumentResult result = copyResultShell(original);
-        result.setHits(ordered);
-        result.setCitations(original == null || original.getCitations() == null
-                ? null
-                : reorderEvidence(original.getCitations(), rerankedHits));
-        return result;
-    }
-
-    private static List<AdapterDocumentEvidence> reorderEvidence(
-            List<AdapterDocumentEvidence> source,
-            List<AdapterDocumentEvidence> order) {
-        List<AdapterDocumentEvidence> safeSource = nonNullEvidence(source);
-        if (safeSource.isEmpty() || order == null || order.isEmpty()) {
-            return safeSource;
-        }
-        Map<String, AdapterDocumentEvidence> sourceById = new LinkedHashMap<>();
-        for (AdapterDocumentEvidence evidence : safeSource) {
-            String id = citationId(evidence);
-            if (id != null) {
-                sourceById.putIfAbsent(id, evidence);
-            }
-        }
-        List<AdapterDocumentEvidence> reordered = new ArrayList<>();
-        Set<String> selected = new LinkedHashSet<>();
-        for (AdapterDocumentEvidence evidence : order) {
-            String id = citationId(evidence);
-            AdapterDocumentEvidence match = id == null ? null : sourceById.get(id);
-            if (match != null && selected.add(id)) {
-                reordered.add(match);
-            }
-        }
-        for (AdapterDocumentEvidence evidence : safeSource) {
-            String id = citationId(evidence);
-            if (id == null || selected.add(id)) {
-                reordered.add(evidence);
-            }
-        }
-        return reordered;
-    }
-
-    private static void applyRerankFields(
-            AdapterDocumentEvidence original,
-            AdapterDocumentEvidence reranked) {
-        if (reranked.getScore() != null) {
-            original.setScore(reranked.getScore());
-        }
-        Map<String, Object> rerankMetadata = safeRerankMetadata(reranked.getMetadata());
-        if (!rerankMetadata.isEmpty()) {
-            Map<String, Object> merged = new LinkedHashMap<>(
-                    original.getMetadata() == null ? Map.of() : original.getMetadata());
-            merged.putAll(rerankMetadata);
-            original.setMetadata(merged);
-        }
-    }
-
-    private static AdapterDocumentResult copyResultShell(AdapterDocumentResult source) {
-        AdapterDocumentResult target = new AdapterDocumentResult();
-        if (source == null) {
-            return target;
-        }
-        target.setCandidateAnswerText(source.getCandidateAnswerText());
-        target.setCandidateSummaryText(source.getCandidateSummaryText());
-        target.setCandidateSummaryBullets(source.getCandidateSummaryBullets());
-        target.setPartial(source.isPartial());
-        target.setRequestedDocumentCount(source.getRequestedDocumentCount());
-        target.setCoveredDocumentCount(source.getCoveredDocumentCount());
-        target.setRetrievalDiagnostics(source.getRetrievalDiagnostics());
-        return target;
     }
 
     private static AgentDocumentParameters toParameters(ValidatedDocumentPlan plan) {
         AgentDocumentParameters parameters = new AgentDocumentParameters();
         parameters.setDomain(plan.domain().orElseThrow());
-        parameters.setMaterialType(plan.request().getMaterialType());
-        parameters.setRetrievalProfile(plan.request().getRetrievalProfile());
-        parameters.setProfileVersion(plan.request().getProfileVersion());
-        parameters.setIndexAlias(plan.request().getIndexAlias());
-        parameters.setOperation(plan.request().getOperation().name());
-        parameters.setQueryText(plan.request().getQueryText());
-        parameters.setFilters(plan.request().getFilters().stream()
+        parameters.setMaterialType(plan.selectedCorpus().materialType());
+        parameters.setOperation(plan.parameters().operation().name());
+        parameters.setQueryText(plan.parameters().normalizedQuery());
+        parameters.setFilters(plan.parameters().callerFilters().stream()
                 .map(DocumentCapabilityHandler::toFilterParameter)
                 .toList());
-        parameters.setSorts(plan.request().getSorts().stream()
+        parameters.setSorts(plan.parameters().sorts().stream()
                 .map(sort -> {
                     AgentQuerySortParameter parameter = new AgentQuerySortParameter();
                     parameter.setField(sort.getField());
@@ -759,93 +594,100 @@ public class DocumentCapabilityHandler
                     return parameter;
                 })
                 .toList());
-        parameters.setTopK(plan.request().getTopK());
-        parameters.setSummaryScope(plan.request().getSummaryScope() == null ? null : "CUSTOM");
+        parameters.setTopK(plan.parameters().topK());
+        parameters.setSummaryScope(plan.parameters().summaryScope() == null ? null : "CUSTOM");
         return parameters;
     }
 
-    private static AgentDocumentResult toResult(ValidatedDocumentPlan plan, AdapterDocumentResult adapterResult) {
-        AdapterDocumentResult safeResult = adapterResult == null ? new AdapterDocumentResult() : adapterResult;
-        List<AdapterDocumentEvidence> hits = nonNullEvidence(safeResult.getHits());
-        List<AdapterDocumentEvidence> citations = resolvedCitations(safeResult);
+    private AgentDocumentResult toResult(ValidatedDocumentPlan plan, AdapterDocumentRetrievalResult adapterResult,
+                                         boolean selectionTruncated) {
+        List<AclBoundDocumentHit> hits = adapterResult.hits();
         AgentDocumentResult result = new AgentDocumentResult();
-        result.setHits(hits.stream().map(DocumentCapabilityHandler::toHit).toList());
-        result.setCitations(citations.stream().map(DocumentCapabilityHandler::toCitation).toList());
-        result.setPartial(safeResult.isPartial());
-        result.setCandidateAnswerText(safeResult.getCandidateAnswerText());
-        result.setCandidateSummaryText(safeResult.getCandidateSummaryText());
-        result.setCandidateSummaryBullets(safeResult.getCandidateSummaryBullets());
+        List<AgentDocumentHit> publicHits = new ArrayList<>();
+        List<AgentDocumentCitation> citations = new ArrayList<>();
+        for (int i = 0; i < hits.size(); i++) {
+            String citationId = citationId(i);
+            publicHits.add(toHit(hits.get(i), citationId));
+            citations.add(toCitation(hits.get(i), citationId));
+        }
+        result.setHits(publicHits);
+        result.setCitations(citations);
+        result.setPartial(adapterResult.diagnostics().isDegraded());
         result.setGenerationStatus(DocumentGenerationStatus.DISABLED);
+        var draft = coverageFactory.create(plan, hits, adapterResult.diagnostics().isDegraded(), selectionTruncated);
         AgentDocumentCoverage coverage = new AgentDocumentCoverage();
-        coverage.setRequestedDocumentCount(requestedDocumentCount(plan, safeResult));
-        coverage.setCoveredDocumentCount(safeResult.getCoveredDocumentCount());
-        coverage.setEvidenceCount(citations.size());
-        coverage.setTruncated(safeResult.isPartial()
-                || citations.size() > plan.request().getTopK()
-                || hits.size() > citations.size());
+        coverage.setRequestedDocumentCount(draft.requestedDocumentCount());
+        coverage.setRequestedCountKnown(draft.requestedCountKnown());
+        coverage.setCoveredDocumentCount(draft.coveredDocumentCount());
+        coverage.setEvidenceCount(draft.evidenceCount());
+        coverage.setTruncated(draft.truncated());
         result.setCoverage(coverage);
         return result;
     }
 
-    private static int requestedDocumentCount(ValidatedDocumentPlan plan, AdapterDocumentResult safeResult) {
-        var summaryScope = plan.request().getSummaryScope();
-        if (summaryScope != null && summaryScope.getDocumentIds() != null && !summaryScope.getDocumentIds().isEmpty()) {
-            return (int) summaryScope.getDocumentIds().stream()
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(value -> !value.isBlank())
-                    .distinct()
-                    .count();
-        }
-        return safeResult.getRequestedDocumentCount() > 0 ? safeResult.getRequestedDocumentCount() : plan.request().getTopK();
-    }
-
     private void applyGenerationIfEnabled(
             ValidatedDocumentPlan plan,
-            DocumentRetrievalRequest retrievalRequest,
-            AdapterDocumentResult adapterResult,
+            DocumentRetrievalExecution retrievalRequest,
+            AdapterDocumentRetrievalResult adapterResult,
             AgentDocumentResult result,
             ExecutionContext context) {
         if (retrievalRequest.getOperation() == com.dylan.agent.api.plan.DocumentPlanOperation.SEARCH) {
-            result.setGenerationStatus(DocumentGenerationStatus.SKIPPED);
+            result.setGenerationStatus(DocumentGenerationStatus.DISABLED);
+            result.setGroundingStatus(adapterResult.hits().isEmpty() ? GroundingStatus.NO_EVIDENCE : GroundingStatus.VERIFIED);
             return;
         }
         DocumentGenerationOptions options = plan.generationOptions().orElse(null);
         boolean requested = options != null && Boolean.TRUE.equals(options.getEnabled());
-        if (!properties.getDocument().getGeneration().isEnabled() || !requested) {
+        if (!requested) {
             result.setGenerationStatus(DocumentGenerationStatus.DISABLED);
             return;
         }
-        List<AdapterDocumentEvidence> filteredEvidence = preSecurityFilter.filter(
-                resolvedCitations(adapterResult),
-                context.executionScope(),
-                retrievalRequest.getDomain());
-        filteredEvidence = selectGenerationEvidence(filteredEvidence);
+        List<AclBoundDocumentHit> filteredEvidence = adapterResult.hits();
+        DocumentResourceLimit limits = documentLimits(context);
         if (filteredEvidence.isEmpty()) {
             result.setGenerationStatus(DocumentGenerationStatus.SKIPPED);
+            result.setGroundingStatus(GroundingStatus.NO_EVIDENCE);
             return;
         }
-        int maxOutputChars = resolveMaxOutputChars(options, plan);
-        DocumentContextBudget budget = new DocumentContextBudget(
-                properties.getDocument().getGeneration().getMaxContextChars(),
-                properties.getDocument().getGeneration().getMaxEvidenceChars(),
-                properties.getDocument().getMaxGenerationEvidenceCount(),
-                maxOutputChars);
-        var evidencePackage = contextPacker.pack(new DocumentContextPackRequest(plan, filteredEvidence, context, budget));
+        if (plan.profile().generationPolicy() == DocumentFeaturePolicy.DISABLED) {
+            fallbackOrFail(result, options, plan, filteredEvidence, limits, false);
+            return;
+        }
+        int maxOutputChars = resolveMaxOutputChars(options, plan, limits);
+        DocumentEvidencePackingLimit budget = new DocumentEvidencePackingLimit(
+                limits.output().maxContextChars(),
+                limits.output().maxEvidenceChars(),
+                limits.output().maxEvidenceCount());
         try {
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document generation deadline expired");
             }
-            DocumentGenerationResult generated;
+            var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_GENERATION"));
+            var decision = requireProviderDecision(
+                    operationContext.operationType(), plan, context,
+                    plan.profile().generationPolicy(),
+                    providerFieldView(plan.selectedCorpus().domain(), filteredEvidence, true));
+            var generationProjection = generationEvidenceProjector.project(
+                    filteredEvidence, budget, decision, context.executionScope());
+            var evidencePackage = evidenceContextPackageFactory.create(
+                    new EvidenceContextPackageRequest(
+                            plan, context, adapterResult.binding(), decision), generationProjection);
+            DocumentGeneratedTextCandidate generated;
             try {
-                generated = generationPort.generate(new DocumentGenerationRequest(
-                        context.invocationId(),
-                        retrievalRequest.getOperation(),
-                        retrievalRequest.getQueryText(),
-                        properties.getDocument().getGeneration().getModel(),
-                        evidencePackage,
-                        budget.maxOutputChars(),
-                        context.absoluteDeadline()));
+                DocumentGenerationInstructionCode instruction = retrievalRequest.getOperation()
+                        == com.dylan.agent.api.plan.DocumentPlanOperation.ANSWER
+                        ? DocumentGenerationInstructionCode.ANSWER_WITH_CITATIONS
+                        : DocumentGenerationInstructionCode.SUMMARIZE_WITH_CITATIONS;
+                DocumentGenerationOutputShape shape = retrievalRequest.getOperation()
+                        == com.dylan.agent.api.plan.DocumentPlanOperation.ANSWER
+                        ? DocumentGenerationOutputShape.ANSWER : DocumentGenerationOutputShape.SUMMARY;
+                var input = generationInputProjector.project(evidencePackage, instruction, shape);
+                var request = new DocumentGenerationOperationRequest(
+                        input, providerRequestBinder.bind(decision, input, operationContext), operationContext);
+                var outcome = generationPort.generate(request);
+                generated = generatedTextCandidateFactory.create(
+                        evidencePackage, request, outcome, plan,
+                        context.executionScope(), context.resourceLimits());
                 recordProvider("generation", retrievalRequest.getOperation().name(), "SUCCESS");
             } catch (RuntimeException ex) {
                 recordProvider("generation", retrievalRequest.getOperation().name(), "FAILED");
@@ -857,16 +699,19 @@ public class DocumentCapabilityHandler
             CitationVerificationResult verification = citationVerifier.verify(generated, evidencePackage);
             result.setCitationVerification(toApiVerification(verification));
             result.setGroundingStatus(verification.status());
-            if (verification.status() == GroundingStatus.VERIFIED) {
-                result.setCandidateAnswerText(generated.answerText());
-                result.setCandidateSummaryText(generated.summaryText());
-                result.setCandidateSummaryBullets(generated.summaryBullets());
+            if (verification.verified()) {
+                validateGeneratedLimits(generated.content(), generated.citedIds(), limits, maxOutputChars);
+                result.setAnswerText(generated.content().answerText());
+                result.setSummaryText(generated.content().summaryText());
+                result.setSummaryBullets(generated.content().summaryBullets());
                 result.setGenerationStatus(DocumentGenerationStatus.SUCCEEDED);
             } else {
-                fallbackOrFail(result, options, verification.fallbackReason());
+                fallbackOrFail(result, options, plan, filteredEvidence, limits,
+                        plan.profile().generationPolicy() == DocumentFeaturePolicy.REQUIRED);
             }
         } catch (RuntimeException ex) {
-            fallbackOrFail(result, options, ex.getClass().getSimpleName());
+            fallbackOrFail(result, options, plan, filteredEvidence, limits,
+                    plan.profile().generationPolicy() == DocumentFeaturePolicy.REQUIRED);
         }
     }
 
@@ -874,7 +719,22 @@ public class DocumentCapabilityHandler
         return deadline == null || !deadline.isAfter(Instant.now());
     }
 
-    private void recordRetrieval(DocumentRetrievalRequest request, String result, long startedNanos) {
+    private static DocumentResourceLimit documentLimits(ExecutionContext context) {
+        return context.resourceLimits().require(
+                AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT, DocumentResourceLimit.class);
+    }
+
+    private static <T> T requireSuccess(CapabilityOperationOutcome<T> outcome, String operation) {
+        if (outcome instanceof CapabilityOperationSuccess<T> success) {
+            return success.candidate();
+        }
+        if (outcome instanceof CapabilityOperationFailure<T> failure) {
+            throw new IllegalStateException("document " + operation + " failed: " + failure.code());
+        }
+        throw new IllegalStateException("document " + operation + " returned invalid outcome");
+    }
+
+    private void recordRetrieval(DocumentRetrievalExecution request, String result, long startedNanos) {
         if (observabilitySupport == null) {
             return;
         }
@@ -891,10 +751,6 @@ public class DocumentCapabilityHandler
         }
     }
 
-    private void recordRevocation(DocumentRevocationDecision decision) {
-        recordRevocation(decision.target(), decision.source());
-    }
-
     private void recordRevocation(String target, String source) {
         if (observabilitySupport != null) {
             observabilitySupport.recordRevocationHit(target, source);
@@ -902,81 +758,26 @@ public class DocumentCapabilityHandler
     }
 
     private void recordRetrievalDiagnostics(
-            DocumentRetrievalRequest request,
-            AdapterDocumentResult adapterResult) {
+            DocumentRetrievalExecution request,
+            AdapterDocumentRetrievalResult adapterResult) {
         if (observabilitySupport == null || adapterResult == null) {
             return;
         }
         observabilitySupport.recordRetrievalDiagnostics(
                 request.getDomain(),
                 request.getRetrievalMode().name(),
-                adapterResult.getRetrievalDiagnostics());
+                adapterResult.diagnostics());
     }
 
-    private List<AdapterDocumentEvidence> selectGenerationEvidence(List<AdapterDocumentEvidence> evidence) {
-        List<AdapterDocumentEvidence> sorted = nonNullEvidence(evidence).stream()
-                .sorted(evidenceRanking())
-                .toList();
-        int maxEvidenceCount = Math.max(1, properties.getDocument().getMaxGenerationEvidenceCount());
-        if (sorted.size() <= maxEvidenceCount) {
-            return sorted;
-        }
-        var selection = properties.getDocument().getEvidenceSelection();
-        if (selection.getStrategy() == AgentProperties.EvidenceSelectionStrategy.SCORE_GROUP_TOP) {
-            List<AdapterDocumentEvidence> grouped = scoreGroupTop(sorted, selection.getScoreGroups(), selection.getMinTopGroupSize());
-            if (!grouped.isEmpty()) {
-                return grouped.stream().limit(maxEvidenceCount).toList();
-            }
-        }
-        return sorted.stream().limit(maxEvidenceCount).toList();
-    }
-
-    private static List<AdapterDocumentEvidence> scoreGroupTop(
-            List<AdapterDocumentEvidence> sorted,
-            int configuredGroups,
-            int configuredMinTopGroupSize) {
-        List<AdapterDocumentEvidence> scored = sorted.stream()
-                .filter(evidence -> effectiveScore(evidence) != null)
-                .toList();
-        if (scored.size() < 2) {
-            return List.of();
-        }
-        BigDecimal max = effectiveScore(scored.get(0));
-        BigDecimal min = effectiveScore(scored.get(scored.size() - 1));
-        if (max == null || min == null || max.compareTo(min) <= 0) {
-            return List.of();
-        }
-        int groups = Math.max(1, configuredGroups);
-        BigDecimal threshold = max.subtract(max.subtract(min).divide(BigDecimal.valueOf(groups), java.math.RoundingMode.HALF_UP));
-        List<AdapterDocumentEvidence> topGroup = scored.stream()
-                .filter(evidence -> effectiveScore(evidence).compareTo(threshold) >= 0)
-                .toList();
-        int minTopGroupSize = Math.max(1, configuredMinTopGroupSize);
-        if (topGroup.size() < minTopGroupSize) {
-            return sorted.stream().limit(minTopGroupSize).toList();
-        }
-        return topGroup;
-    }
-
-    private static Comparator<AdapterDocumentEvidence> evidenceRanking() {
-        return Comparator
-                .comparing(DocumentCapabilityHandler::effectiveScore, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(AdapterDocumentEvidence::getChunkIndex, Comparator.nullsLast(Integer::compareTo));
-    }
-
-    private static BigDecimal effectiveScore(AdapterDocumentEvidence evidence) {
-        if (evidence == null) {
-            return null;
-        }
-        return evidence.getRrfScore() == null ? evidence.getScore() : evidence.getRrfScore();
-    }
-
-    private int resolveMaxOutputChars(DocumentGenerationOptions options, ValidatedDocumentPlan plan) {
+    private int resolveMaxOutputChars(
+            DocumentGenerationOptions options,
+            ValidatedDocumentPlan plan,
+            DocumentResourceLimit limits) {
         int outputLimit = options.getMaxOutputChars() == null
-                ? properties.getDocument().getGeneration().getMaxOutputChars()
+                ? limits.output().maxGeneratedChars()
                 : options.getMaxOutputChars();
-        var summaryScope = plan.request().getSummaryScope();
-        if (plan.request().getOperation() == com.dylan.agent.api.plan.DocumentPlanOperation.SUMMARIZE
+        var summaryScope = plan.parameters().summaryScope();
+        if (plan.parameters().operation() == com.dylan.agent.api.plan.DocumentPlanOperation.SUMMARIZE
                 && summaryScope != null
                 && summaryScope.getMaxSummaryChars() != null) {
             return Math.min(outputLimit, summaryScope.getMaxSummaryChars());
@@ -984,108 +785,198 @@ public class DocumentCapabilityHandler
         return outputLimit;
     }
 
-    private void fallbackOrFail(AgentDocumentResult result, DocumentGenerationOptions options, String reason) {
+    private void fallbackOrFail(AgentDocumentResult result, DocumentGenerationOptions options,
+                                ValidatedDocumentPlan plan, List<AclBoundDocumentHit> evidence,
+                                DocumentResourceLimit limits, boolean required) {
+        if (required) throw new IllegalStateException("required document generation failed");
         AgentDocumentCitationVerification verification = result.getCitationVerification();
         if (verification == null) {
             verification = new AgentDocumentCitationVerification();
-            verification.setInvalidCitationIds(List.of());
-            verification.setFallbackReason(reason);
+            verification.setBoundUnitCount(0);
+            verification.setVisibleCitationCount(result.getCitations() == null ? 0 : result.getCitations().size());
             result.setCitationVerification(verification);
         }
-        if (options.getFailurePolicy() == DocumentGenerationFailurePolicy.REFUSE) {
+        if (options == null || options.getFailurePolicy() != DocumentGenerationFailurePolicy.FALLBACK_EXTRACTIVE) {
+            clearGeneratedText(result);
             result.setGenerationStatus(DocumentGenerationStatus.FAILED);
+            result.setGroundingStatus(GroundingStatus.UNVERIFIED);
         } else {
-            result.setGenerationStatus(DocumentGenerationStatus.FALLBACK);
+            int maxOutput = resolveMaxOutputChars(options, plan, limits);
+            var fallback = fallbackComposer.compose(plan.parameters().operation(), evidence, maxOutput,
+                    Math.min(maxOutput, limits.output().maxSummaryChars()), limits.output().maxSummaryBullets());
+            if (fallback.refused()) {
+                clearGeneratedText(result);
+                result.setGenerationStatus(DocumentGenerationStatus.FAILED);
+                result.setGroundingStatus(GroundingStatus.UNVERIFIED);
+                return;
+            }
+            result.setAnswerText(fallback.answerText()); result.setSummaryText(fallback.summaryText());
+            result.setSummaryBullets(fallback.summaryBullets()); result.setGenerationStatus(DocumentGenerationStatus.FALLBACK);
+            result.setGroundingStatus(GroundingStatus.VERIFIED);
+            verification.setStatus(GroundingStatus.VERIFIED);
+            verification.setBoundUnitCount(plan.parameters().operation() == com.dylan.agent.api.plan.DocumentPlanOperation.ANSWER
+                    ? countVisibleUnits(fallback.answerText()) : fallback.summaryBullets().size());
+            verification.setVisibleCitationCount(fallback.citedIds().size());
         }
     }
 
     private AgentDocumentCitationVerification toApiVerification(CitationVerificationResult verification) {
         AgentDocumentCitationVerification api = new AgentDocumentCitationVerification();
         api.setStatus(verification.status());
-        api.setRemovedClaimCount(verification.removedClaimCount());
-        api.setInvalidCitationIds(verification.invalidCitationIds());
-        api.setFallbackReason(verification.fallbackReason());
+        api.setBoundUnitCount(verification.boundUnitCount());
+        api.setVisibleCitationCount(verification.visibleCitationCount());
         return api;
     }
 
-    private static ContextWriteCandidate toContextWrite(ValidatedDocumentPlan plan, AdapterDocumentResult adapterResult) {
-        AdapterDocumentResult safeResult = adapterResult == null ? new AdapterDocumentResult() : adapterResult;
-        List<String> citationIds = resolvedCitations(safeResult).stream()
-                .map(DocumentCapabilityHandler::citationId)
-                .filter(Objects::nonNull)
-                .toList();
+    private static void validateGeneratedLimits(DocumentGeneratedContent generated,
+                                                List<String> citedIds,
+                                                DocumentResourceLimit limits, int maxOutputChars) {
+        if (codePoints(generated.answerText()) > maxOutputChars
+                || codePoints(generated.summaryText()) > Math.min(maxOutputChars, limits.output().maxSummaryChars())
+                || generated.summaryBullets().size() > limits.output().maxSummaryBullets()
+                || generated.summaryBullets().stream().anyMatch(value -> codePoints(value) > limits.output().maxSummaryChars())
+                || citedIds.size() > limits.output().maxCitationCount()) {
+            throw new IllegalStateException("document generated output exceeds limits");
+        }
+    }
+
+    private DocumentProviderOutboundPolicyDecision requireProviderDecision(
+            CapabilityOperationType type,
+            ValidatedDocumentPlan plan,
+            ExecutionContext context,
+            DocumentFeaturePolicy feature,
+            DocumentProviderIntendedFieldView fieldView) {
+        return requireProviderDecision(type, plan, plan.profile(), context, feature, fieldView);
+    }
+
+    private DocumentProviderOutboundPolicyDecision requireProviderDecision(
+            CapabilityOperationType type,
+            ValidatedDocumentPlan plan,
+            DocumentExecutionProfileProjection profile,
+            ExecutionContext context,
+            DocumentFeaturePolicy feature,
+            DocumentProviderIntendedFieldView fieldView) {
+        var corpus = plan == null ? profile.selectedCorpus() : plan.selectedCorpus();
+        DocumentProviderOutboundPolicyDecisionResult decision = providerPolicyDecisionFactory.create(
+                type, context.executionScope(), corpus, feature, fieldView,
+                profile.profileProjectionDigest(), context.absoluteDeadline());
+        if (decision instanceof DocumentProviderOutboundPolicyAllowed allowed) {
+            return allowed.decision();
+        }
+        var denied = (DocumentProviderOutboundPolicyDenied) decision;
+        throw new IllegalStateException("document provider is not eligible: " + denied.reasonCode());
+    }
+
+    private static DocumentProviderIntendedFieldView providerFieldView(
+            String domain,
+            List<AclBoundDocumentHit> evidence,
+            boolean generation) {
+        List<com.dylan.agent.metadata.domain.port.CanonicalFieldRef> fields = new ArrayList<>();
+        if (evidence.stream().anyMatch(item -> item.title() != null)) {
+            fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "title"));
+        }
+        if (generation && evidence.stream().anyMatch(item -> item.section() != null)) {
+            fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "section"));
+        }
+        if (generation && evidence.stream().anyMatch(item -> item.page() != null)) {
+            fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "page"));
+        }
+        if ((generation && !evidence.isEmpty())
+                || evidence.stream().anyMatch(item -> item.snippet() != null)) {
+            fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "snippet"));
+        }
+        return new DocumentProviderIntendedFieldView(fields);
+    }
+    private static int codePoints(String value) { return value == null ? 0 : value.codePointCount(0, value.length()); }
+    private static int countVisibleUnits(String value) { if (value == null || value.isBlank()) return 0; return (int) java.util.Arrays.stream(value.split("(?:\\R\\s*){2,}|\\R")).filter(unit -> !unit.isBlank()).count(); }
+    private static void clearGeneratedText(AgentDocumentResult result) { result.setAnswerText(null); result.setSummaryText(null); result.setSummaryBullets(List.of()); }
+
+    private int enforceResultSize(DocumentAgentResultPayload payload, ValidatedDocumentPlan plan,
+                                  List<AclBoundDocumentHit> evidence, DocumentResourceLimit limits) {
+        long maxBytes = limits.output().maxResultBytes();
+        if (resultSizeGuard.fits(payload, maxBytes)) return evidence.size();
+        if (plan.parameters().operation() == com.dylan.agent.api.plan.DocumentPlanOperation.SEARCH) {
+            return resultSizeGuard.reduceEvidenceOnly(payload, maxBytes);
+        }
+        if (plan.profile().generationPolicy() == DocumentFeaturePolicy.REQUIRED) {
+            throw new IllegalStateException("required document result exceeds byte limit");
+        }
+        fallbackOrFail(payload.getDocumentResult(), plan.generationOptions().orElse(null), plan, evidence, limits, false);
+        if (resultSizeGuard.fits(payload, maxBytes)) return evidence.size();
+        clearGeneratedText(payload.getDocumentResult());
+        payload.getDocumentResult().setGenerationStatus(DocumentGenerationStatus.FAILED);
+        payload.getDocumentResult().setGroundingStatus(GroundingStatus.UNVERIFIED);
+        int retained = resultSizeGuard.reduceEvidenceOnly(payload, maxBytes);
+        if (payload.getDocumentResult().getCitationVerification() != null) {
+            payload.getDocumentResult().getCitationVerification().setVisibleCitationCount(retained);
+            payload.getDocumentResult().getCitationVerification().setBoundUnitCount(0);
+            payload.getDocumentResult().getCitationVerification().setStatus(GroundingStatus.UNVERIFIED);
+        }
+        return retained;
+    }
+
+    private static ContextWriteCandidate toContextWrite(
+            ValidatedDocumentPlan plan,
+            AdapterDocumentRetrievalResult adapterResult) {
         return new ContextWriteCandidate(
                 RuntimeContextType.DOCUMENT,
                 AgentExecutionContracts.DOCUMENT_CONTEXT,
                 new DocumentCapabilityContextPayload(
-                        plan.request().getOperation().name(),
+                        plan.parameters().operation().name(),
                         plan.domain().orElseThrow(),
-                        plan.request().getQueryText(),
-                        plan.request().getFilters().stream()
+                        plan.selectedCorpus().materialType(),
+                        plan.parameters().normalizedQuery(),
+                        plan.parameters().callerFilters().stream()
                                 .map(DocumentCapabilityHandler::toAgentFilter)
                                 .toList(),
-                        citationIds,
-                        plan.request().getTopK()));
+                        plan.parameters().topK(),
+                        plan.parameters().summaryScope() == null ? null : "CUSTOM"));
     }
 
-    private static AgentDocumentHit toHit(AdapterDocumentEvidence evidence) {
+    private static AgentDocumentHit toHit(AclBoundDocumentHit evidence, String citationId) {
         AgentDocumentHit hit = new AgentDocumentHit();
-        hit.setDocumentId(evidence.getDocumentId());
-        hit.setTitle(evidence.getTitle());
-        hit.setSourceType(evidence.getSourceType());
+        hit.setDocumentId(evidence.identity().documentId());
+        hit.setTitle(evidence.title());
+        hit.setSourceType(evidence.sourceType());
         hit.setSnippet(displaySnippet(evidence));
-        hit.setScore(evidence.getScore());
-        String citationId = citationId(evidence);
-        hit.setCitationIds(citationId == null ? List.of() : List.of(citationId));
+        hit.setScore(evidence.score());
+        hit.setCitationIds(List.of(citationId));
         return hit;
     }
 
-    private static AgentDocumentCitation toCitation(AdapterDocumentEvidence evidence) {
+    private static AgentDocumentCitation toCitation(AclBoundDocumentHit evidence, String citationId) {
         AgentDocumentCitation citation = new AgentDocumentCitation();
-        citation.setCitationId(citationId(evidence));
-        citation.setDocumentId(evidence.getDocumentId());
-        citation.setTitle(evidence.getTitle());
-        citation.setSection(evidence.getSection());
-        citation.setPage(evidence.getPage());
-        citation.setSourceUri(evidence.getSourceUri());
+        citation.setCitationId(citationId);
+        citation.setDocumentId(evidence.identity().documentId());
+        citation.setTitle(evidence.title());
+        citation.setSection(evidence.section());
+        citation.setPage(evidence.page());
+        citation.setSourceUri(evidence.sourceUri());
         citation.setSnippet(displaySnippet(evidence));
-        citation.setChunkIndex(evidence.getChunkIndex());
-        citation.setCharStart(evidence.getCharStart());
-        citation.setCharEnd(evidence.getCharEnd());
+        citation.setChunkIndex(evidence.identity().chunkIndex());
+        citation.setCharStart(evidence.charStart());
+        citation.setCharEnd(evidence.charEnd());
         return citation;
     }
 
-    private static String displaySnippet(AdapterDocumentEvidence evidence) {
+    private static String displaySnippet(AclBoundDocumentHit evidence) {
         if (evidence == null) {
             return null;
         }
-        if (evidence.getCitationText() != null && !evidence.getCitationText().isBlank()) {
-            return evidence.getCitationText();
+        if (evidence.citationText() != null && !evidence.citationText().isBlank()) {
+            return evidence.citationText();
         }
-        return evidence.getSnippet();
+        return evidence.snippet();
     }
 
-    private static String citationId(AdapterDocumentEvidence evidence) {
-        if (evidence == null) {
-            return null;
-        }
-        if (evidence.getChunkId() != null && !evidence.getChunkId().isBlank()) {
-            return evidence.getChunkId();
-        }
-        return evidence.getDocumentId();
+    private static String citationId(int index) {
+        return "C" + (index + 1);
     }
 
-    private static List<AdapterDocumentEvidence> resolvedCitations(AdapterDocumentResult result) {
-        if (result.getCitations() == null) {
-            return nonNullEvidence(result.getHits());
-        }
-        return nonNullEvidence(result.getCitations());
-    }
-
-    private static List<AdapterDocumentEvidence> nonNullEvidence(List<AdapterDocumentEvidence> values) {
-        return nullToEmpty(values).stream()
-                .filter(Objects::nonNull)
-                .toList();
+    private static List<String> citationIds(List<AclBoundDocumentHit> hits) {
+        List<String> ids = new ArrayList<>(hits.size());
+        for (int i = 0; i < hits.size(); i++) ids.add(citationId(i));
+        return List.copyOf(ids);
     }
 
     private static AgentQueryFilterParameter toFilterParameter(ValidatedFilter filter) {
@@ -1094,6 +985,16 @@ public class DocumentCapabilityHandler
         parameter.setOperator(filter.getOperator());
         parameter.setValue(filter.getValue());
         parameter.setValues(filter.getValues().isEmpty() ? null : filter.getValues());
+        return parameter;
+    }
+
+    private static AgentQueryFilterParameter toFilterParameter(
+            com.dylan.agent.adapter.api.document.ValidatedDocumentCallerFilter filter) {
+        AgentQueryFilterParameter parameter = new AgentQueryFilterParameter();
+        parameter.setField(filter.field());
+        parameter.setOperator(com.dylan.agent.api.enums.AgentOperator.valueOf(filter.operator().name()));
+        parameter.setValue(filter.value());
+        parameter.setValues(filter.values().isEmpty() ? null : filter.values());
         return parameter;
     }
 
@@ -1106,7 +1007,14 @@ public class DocumentCapabilityHandler
         return agentFilter;
     }
 
-    private static <T> List<T> nullToEmpty(List<T> values) {
-        return values == null ? List.of() : values;
+    private static AgentFilter toAgentFilter(
+            com.dylan.agent.adapter.api.document.ValidatedDocumentCallerFilter filter) {
+        AgentFilter agentFilter = new AgentFilter();
+        agentFilter.setField(filter.field());
+        agentFilter.setOperator(com.dylan.agent.api.enums.AgentOperator.valueOf(filter.operator().name()));
+        agentFilter.setValue(filter.value());
+        agentFilter.setValues(filter.values());
+        return agentFilter;
     }
+
 }

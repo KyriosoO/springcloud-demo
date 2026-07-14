@@ -39,7 +39,8 @@ class ResultSecurityBoundaryTest {
         var secured = boundary.secure(
                 new QueryAgentResultPayload(),
                 AgentExecutionContracts.QUERY_RESULT,
-                scope());
+                scope(),
+                scope().resourceLimits());
 
         assertThat(secured.outputContract()).isEqualTo(AgentExecutionContracts.QUERY_RESULT);
         assertThat(secured.canonicalPayload()).isNotEmpty();
@@ -56,7 +57,8 @@ class ResultSecurityBoundaryTest {
         assertThatThrownBy(() -> boundary.secure(
                 new QueryAgentResultPayload(),
                 AgentExecutionContracts.QUERY_RESULT,
-                scope()))
+                scope(),
+                scope().resourceLimits()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing ResultSecurityProjector");
     }
@@ -72,15 +74,16 @@ class ResultSecurityBoundaryTest {
         assertThatThrownBy(() -> boundary.secure(
                 maskedPayload(),
                 AgentExecutionContracts.QUERY_RESULT,
-                scopeWithMask()))
+                scopeWithMask(),
+                scopeWithMask().resourceLimits()))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("mask failed");
     }
 
     private ExecutionScope scope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -89,16 +92,13 @@ class ResultSecurityBoundaryTest {
                 Set.of("employee"),
                 Map.of(),
                 Map.of(),
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private ExecutionScope scopeWithMask() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -107,10 +107,7 @@ class ResultSecurityBoundaryTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("phoneNo")),
                 Map.of("employee.phoneNo", MaskType.MOBILE),
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private QueryAgentResultPayload maskedPayload() {

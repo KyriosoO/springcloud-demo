@@ -1,0 +1,17 @@
+package com.dylan.agent.capability.document.governance.management;
+
+public enum DocumentManagementErrorCode {
+    AUTHENTICATION_REQUIRED,
+    SCOPE_REQUIRED,
+    INVALID_REQUEST,
+    IDEMPOTENCY_CONFLICT,
+    EXPECTED_STATE_MISMATCH,
+    REPORT_NOT_CURRENT,
+    APPROVAL_REQUIRED,
+    APPROVAL_INVALID,
+    EMERGENCY_BLOCKED,
+    DEADLINE_EXCEEDED,
+    CHANGE_IN_PROGRESS,
+    ACTUAL_STATE_UNKNOWN,
+    INTERNAL_UNAVAILABLE
+}

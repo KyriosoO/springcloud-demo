@@ -8,13 +8,3 @@ spring:
     import: optional:configserver:http://localhost:9888
   profiles:
     active: datasource,es
-
-es:
-  query:
-    total-hits-threshold: 10000
-    document-index-prefixes:
-      - agent-doc-
-    document-source-allowed-hosts:
-      - document-platform
-    rebuild-max-batch-size: 500
-    management-service-token: ${ES_QUERY_MANAGEMENT_SERVICE_TOKEN:}

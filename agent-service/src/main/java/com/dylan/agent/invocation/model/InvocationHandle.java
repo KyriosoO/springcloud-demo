@@ -13,7 +13,7 @@ import java.util.Objects;
  * <p>唯一绑定 invocationId、invocation type、origin、subject/scope、
  * agentProfileRef 和 absolute deadline。不保存 JWT、权限、PlanningResult 或可变状态。
  *
- * <p>D03 只创建 CHAT origin + ConversationScope；TASK 由 D06 复用。
+ * <p>当前只创建 CHAT origin + ConversationScope。
  */
 public final class InvocationHandle {
 
@@ -27,17 +27,19 @@ public final class InvocationHandle {
     private final AgentProfileRef agentProfileRef;
     private final Instant absoluteDeadline;
 
-    public static InvocationHandle create(
+    public static InvocationHandle forChat(
             String invocationId,
-            InvocationType invocationType,
-            InvocationOrigin origin,
+            ChatInvocationOrigin origin,
             String requestCorrelationId,
             ExecutionSubjectRef subject,
             ContextOwnerRef owner,
-            InvocationScope scope,
+            ConversationScope scope,
             AgentProfileRef agentProfileRef,
             Instant absoluteDeadline) {
-        return new InvocationHandle(invocationId, invocationType, origin,
+        if (!origin.conversationId().equals(scope.scopeId())) {
+            throw new IllegalArgumentException("origin conversationId must match scopeId");
+        }
+        return new InvocationHandle(invocationId, InvocationType.CHAT, origin,
                 requestCorrelationId, subject, owner, scope, agentProfileRef,
                 absoluteDeadline);
     }

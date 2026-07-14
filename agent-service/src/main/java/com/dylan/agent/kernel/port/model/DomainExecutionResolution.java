@@ -29,8 +29,10 @@ public final class DomainExecutionResolution {
         if (!binding.adapterRegistrationVersion().equals(expectedEvidence.adapterRegistrationVersion())) {
             throw new IllegalArgumentException("binding adapter registration version mismatch");
         }
-        String expectedProjectionVersion =
-                expectedEvidence.catalogVersion() + ":" + expectedEvidence.adapterRegistrationVersion();
+        if (!binding.metadataEvidence().equals(expectedEvidence)) {
+            throw new IllegalArgumentException("binding metadata evidence mismatch");
+        }
+        String expectedProjectionVersion = expectedEvidence.staticEvidence().safeRef();
         if (!projection.projectionVersion().equals(expectedProjectionVersion)) {
             throw new IllegalArgumentException("projection version mismatch");
         }

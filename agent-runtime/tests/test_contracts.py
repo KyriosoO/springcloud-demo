@@ -222,15 +222,7 @@ def test_document_generation_options_contract():
                     "filters": [],
                     "retrievalOptions": {
                         "materialType": "policy",
-                        "retrievalProfile": "tax-v2",
-                        "retrievalChannels": ["BM25", "EXACT", "PHRASE"],
-                        "retrievalMode": "HYBRID",
-                        "rerankEnabled": False,
                         "topK": 5,
-                        "keywordK": 20,
-                        "vectorK": 20,
-                        "rrfK": 60,
-                        "numCandidates": 100,
                     },
                     "generationOptions": {
                         "enabled": True,
@@ -254,12 +246,9 @@ def test_document_generation_options_contract():
     )
 
     executable = models.unwrap_root(outcome)
-    assert executable.plan.document.retrieval_options.retrieval_mode.value == "HYBRID"
     assert executable.plan.document.retrieval_options.material_type == "policy"
-    assert executable.plan.document.retrieval_options.retrieval_profile == "tax-v2"
-    assert executable.plan.document.retrieval_options.retrieval_channels == ["BM25", "EXACT", "PHRASE"]
-    assert executable.plan.document.retrieval_options.rerank_enabled is False
-    assert executable.plan.document.retrieval_options.keyword_k == 20
+    assert not hasattr(executable.plan.document.retrieval_options, "retrieval_profile")
+    assert executable.plan.document.retrieval_options.top_k == 5
     assert executable.plan.document.generation_options.enabled is True
     assert executable.plan.document.generation_options.failure_policy.value == "FALLBACK_EXTRACTIVE"
 

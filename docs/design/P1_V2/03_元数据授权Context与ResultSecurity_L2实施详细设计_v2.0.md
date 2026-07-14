@@ -4,9 +4,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v2.0 |
-| 创建/最后更新日期 | 2026-07-13 |
+| 创建/最后更新日期 | 2026-07-14 |
 | 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
 | 设计层级 | L2 实施详细设计 |
 | 适用阶段 | P1_V2 单 Agent 内核收敛 |
@@ -22,10 +22,12 @@
 | 1 | 2026-07-13 | 全文 | 将四份 P1 历史设计收敛为独立基线 | 统一安全模型、接口、数据、配置和验证门禁 |
 | 2 | 2026-07-13 | 5～20、22～24 | cross-layer 评审发现 Context 时序/状态、授权复检、Mask 契约、CAS、Result Security、secret 引用和实现落点与 L0/L1 或 Java 权威类型不一致 | 重排 Planning/Execution 安全链，删除 Context 平行状态机和当前 Invocation 内重规划，冻结类型/接口/DDL/原子 CAS/密钥引用与验证清单 |
 | 3 | 2026-07-13 | 第1～2、23～24节 | P1_V2/P2_V3全集终检需统一代码基线和过程状态 | 对齐统一代码基线，标记全集评审完成并保留 Approved/M0 实施边界；不新增评审轮次，不改变已通过设计结论 |
+| 4 | 2026-07-14 | 第1～3、5～11、15、18～24节 | 用户授权修订；P2_V3/06 实施发现 `ExecutionScope` 缺少 Provider 外部处理所需的 classification/purpose 权威证据，无法安全实现 shared outbound decision | 新增 capability-neutral `SecurityClassificationRef`、`ExternalProcessingAuthorizationEvidence` 与 field rule；冻结 Policy/User Permission 求交、Snapshot/Execution 单调收紧、canonical digest、审计、实现和测试落点，并将状态更新为 Implementing |
+| 5 | 2026-07-14 | 第1～3、10、19、23～24节 | 授权后实现、测试与评审—修正循环完成 | 完成 external-processing Policy/Permission evidence、capability scope 冻结收窄、Execution recheck、canonical digest 与失败路径验证；状态更新为 Implemented |
 
 ## 3. 文档状态说明
 
-本文处于 **In Review**，可用于评审和任务拆分；公开契约版本、数据库 DDL、生产密钥注入策略须经授权后实施。未经用户确认不得标记 Approved。
+本文处于 **Implemented**。用户已授权按 P1_V2/P2_V3 实施代码、测试、配置、运行时契约和数据库迁移，并在本次阻断恢复中明确授权修订本文；本次 capability-neutral external-processing 授权证据已完成实现与验证。仍禁止生产访问、生产 Provider 启用、commit、push、分支和 PR。L0/L1 保持只读，不因本次外部处理授权证据扩展而修改。
 
 ## 4. 背景与目标
 
@@ -41,6 +43,7 @@
 - Query、Query Preview、Aggregate、Document 结果字段级和值级安全投影。
 - common-security 已有 secret material 边界与 Agent payload/JWT 用途隔离的引用、来源、轮换和脱敏；两种用途不得共享 key material。
 - Query 多轮分页/排序 Context 的确定性继承与权限拒绝安全表达。
+- capability-neutral Provider 外部处理授权证据：domain purpose、field classification、field Mask 与当前 Policy/Permission evidence 的不可变绑定。
 
 ### 5.2 范围外
 
@@ -48,6 +51,7 @@
 - 业务域自身的 RBAC 数据建模；本设计只消费 `UserPermissionAuthorityPort`。
 - KMS/Vault 厂商 SDK；通过 `SecretMaterialProvider` 预留外部实现。
 - 文档候选 ACL 的领域规则，归 P2_V3/03 管理。
+- Document Provider operation、Corpus、input projection、wire、activation 与 vendor transport，归 P2_V3/04～07 管理；本文不定义 Document 专用 policy factory。
 
 ## 6. 上级文档约束
 
@@ -59,6 +63,7 @@
 | Context 是受保护状态 | typed payload、AEAD、版本迁移、CAS、TTL、终态清理 |
 | 输出离开内核前再次裁剪 | Handler 原始结果必须经过 `ResultSecurityBoundary` |
 | Multi-agent 只预留 | 共享接口保持主体/Owner/Invocation Scope 中立；当前只构造 CHAT、认证 Owner、ConversationScope 和中性 Delegation Constraint，不创建 RunScope/Task/委派存储空壳 |
+| 外部处理必须显式授权 | Profile feature/Provider 配置/Safe candidate 均不能替代 Policy 与当前 User Permission；缺少 purpose、classification 或 current evidence 时必须在任何外发前 fail closed |
 
 ## 7. 关联文档与边界
 
@@ -69,6 +74,7 @@
 | P1_V2/04 | 提供 canonical domain/field/role metadata 与 adapter availability |
 | P1_V2/05 | 提供 effective resource limits，不由安全模块重复计算 |
 | P2_V3/03 | 细化 document candidate ACL；最终仍经过本文 Result Security 边界 |
+| P2_V3/06 | 消费本文冻结在 `ExecutionScope` 的 `ExternalProcessingAuthorizationEvidence`，形成 Document purpose-specific outbound decision；不得读取 Policy/Permission 正文或另建授权事实源 |
 
 ## 8. 设计边界与约束
 
@@ -77,6 +83,8 @@
 3. 前一轮 Context 只能缩小当前有效范围，不能恢复当前用户已失去的权限。
 4. 禁止在日志、异常、Actuator、配置导出或对象 `toString()` 中输出密钥值、Token、原始敏感字段。
 5. `FIELD_FORBIDDEN` 不得帮助调用者枚举字段是否存在；外部响应统一为安全措辞，内部审计保留 reason code。
+6. Profile 的 OPTIONAL/REQUIRED、07 activation ACTIVE、Provider endpoint/model 配置和 Safe candidate 只表达功能或运行状态，均不构成外部处理授权。
+7. 外部处理 purpose 必须由 Policy 显式允许，并与当前 User Permission 已允许的 domain/field 求交；空集合、未知 classification、未知 operation type 或证据不可 current 均为 DENY。
 
 ## 9. 总体设计
 
@@ -113,10 +121,34 @@ Lifecycle checkpoint committed → Core:
 ### 10.2 Policy、Permission 与 Delegation
 
 - `AgentPolicySnapshot` 当前包含 policyVersion、profile constraints、capability constraints、domain security constraints、PlanningBudget upper bound、按 ContractRef 类型化的 capability resource limit upper bounds、global Context TTL upper bound 和 emergency revocations；`BudgetLimits` 中的 page/result 散字段迁移到 typed contribution，且不创建 future delegation 配置或 Task budget 字段。
+- `DomainSecurityConstraints` 在既有 filter/display/operator/function/Mask 约束之外，新增 domain 级 `Set<CapabilityOperationType> externalProcessingPurposes`。`FieldSecurityConstraint` 新增非空 `SecurityClassificationRef classification` 与 field 级 `Set<CapabilityOperationType> externalProcessingPurposes`；两个 purpose 集合都是闭合集，缺失或空集合表示禁止外部处理，不能按 feature、Provider 配置或 classification 名称推导默认 allow。
 - `UserPermissionAuthorityPort.resolveCurrent(ExecutionSubjectRef subject, Instant absoluteDeadline)` 是用户权限唯一权威端口；不得把 JWT、本地角色或“上次允许”缓存作为替代事实源。若以后启用成功快照缓存，TTL 必须短于撤权目标窗口且紧急撤权仍绕过缓存；本次 P1_V2 不新增该缓存。
 - 当前 CHAT 只使用代码内中性 `DelegationConstraintRef.CHAT_ALL` 参与统一公式，不保存委派状态、Repository 或外部配置，不创建子 Agent、不转移所有权。
 
-`PlanningEffectiveScope` 是 EffectiveProfile ∩ current UserPermission ∩ `CHAT_ALL` 的不可变结果，字段固定为 allowedCapabilityIds、allowedDomains、`Map<CanonicalFieldRef,FieldAccess>`、readable/writableContextTypes、maxRiskLevel、maxExecutionMode、PlanningBudgetLimits 和按 ContractRef 类型化但尚未 capability-scoped freeze 的 resource limit contributions。它不包含 availability、Adapter binding 或最终执行许可。
+`PlanningEffectiveScope` 是 EffectiveProfile ∩ current UserPermission ∩ `CHAT_ALL` 的不可变结果，字段固定为 allowedCapabilityIds、allowedDomains、`Map<CanonicalFieldRef,FieldAccess>`、`ExternalProcessingAuthorizationEvidence`、readable/writableContextTypes、maxRiskLevel、maxExecutionMode、PlanningBudgetLimits 和按 ContractRef 类型化但尚未 capability-scoped freeze 的 resource limit contributions。它不包含 availability、Adapter binding 或最终执行许可。
+
+`SecurityClassificationRef(namespace,classificationId,version)` 是 capability-neutral、不可变、不可由调用方携带 digest 的内部引用；`canonicalDigest()` 按 `SCR-1`、三个 normalized nonblank 字段、UTF-8 length-prefixed、SHA-256 lowercase 计算。classificationId 只标识权威分类，不凭名称自动产生外发许可。
+
+`ExternalProcessingAuthorizationEvidence` 由 Planning 授权边界本地构造：
+
+~~~java
+record ExternalProcessingAuthorizationEvidence(
+    Map<String, Set<CapabilityOperationType>> domainPurposes,
+    Map<CanonicalFieldRef, ExternalProcessingFieldRule> fieldRules,
+    String policyEvidenceDigest,
+    String permissionEvidenceDigest,
+    String canonicalDigest) {}
+
+record ExternalProcessingFieldRule(
+    CanonicalFieldRef field,
+    SecurityClassificationRef classification,
+    MaskType maskType,
+    Set<CapabilityOperationType> allowedPurposes) {}
+~~~
+
+`domainPurposes` 只包含 EffectiveProfile 与 current User Permission 同时允许的 domain，value 来自该 domain 的 Policy closed purpose 集；`fieldRules` 只包含 current User Permission 同时允许 filter/display 且 Policy field constraint 完整的 canonical field，purpose 是 domain purpose 与 field purpose 的交集，Mask 使用既有 `MaskType` 权威值。Policy field constraint 缺失、classification 缺失、permission 不允许字段或 purpose 交集为空时，不生成对应 field rule。query-only operation 仍必须命中 domain purpose，不能以空 field view 绕过授权。
+
+`policyEvidenceDigest` 使用 `EPP-1` 绑定 exact policyVersion、按 domain/field/operation canonical 排序的 Policy purpose/classification/Mask 事实；`permissionEvidenceDigest` 使用 `EPM-1` 绑定 current permission evidence id/version 以及实际进入 evidence 的 domain/field 集；`canonicalDigest` 使用 `EPA-1` 绑定两个 evidence digest、ordered domain purpose 与 ordered field rules。三者都采用 UTF-8 length-prefixed、SHA-256 lowercase，不接受 caller-supplied digest，不跨 Invocation 缓存。
 
 ### 10.3 两阶段授权
 
@@ -131,9 +163,9 @@ Lifecycle checkpoint committed → Core:
 
 `CapabilityScopeSelection` 在合法 RouteDecision、Registration 解析和 Context load 后、调用 Plan Runtime 前构造，字段固定为 ResolvedRegistration、selectedDomain、ContextSnapshots、DomainMetadataEvidence 和 optional typed request narrowing。`freezeCapabilityScope` 使用该选择和同一 evidence 解析 Definition ContractRef，形成 AuthorizationSnapshot 后才组装 PlanRequest；Runtime Raw Plan 只能在冻结 limits 内进一步给出具体 page/size/evidence 等值，不能扩大 Snapshot。
 
-`AuthorizationSnapshot` 必须是不可变内部 Java 类型，并完整绑定：snapshotId、invocationId/requestCorrelationId、Execution Subject、Owner、ConversationScope、精确 AgentProfileRef、policyVersion、permission evidence id/version、`CHAT_ALL` delegation reference、capability/domain/field/operator/function/Context read-write 范围、risk/execution mode、result filter/mask 引用、DomainMetadataEvidence、Effective Capability Resource Limits 的 ContractRef/canonical digest/不可变值、capturedAt 和 absoluteDeadline。Snapshot 不保存 JWT、角色表达式、Policy/Permission 正文、mask 规则正文、Context payload、Adapter 凭据或最终执行许可。
+`AuthorizationSnapshot` 必须是不可变内部 Java 类型，并完整绑定：snapshotId、invocationId/requestCorrelationId、Execution Subject、Owner、ConversationScope、精确 AgentProfileRef、policyVersion、permission evidence id/version、`CHAT_ALL` delegation reference、capability/domain/field/operator/function/Context read-write 范围、risk/execution mode、result filter/mask 引用、`ExternalProcessingAuthorizationEvidence`、DomainMetadataEvidence、Effective Capability Resource Limits 的 ContractRef/canonical digest/不可变值、capturedAt 和 absoluteDeadline。Snapshot 不保存 JWT、角色表达式、Policy/Permission 正文、Context payload、Adapter 凭据或最终执行许可；classification/purpose 只保存求交后的安全引用和 closed rule，不保存 Policy 表达式正文。
 
-`ExecutionScope` 保存本次 recheck 后同一或更严格的范围、当前 permission/policy evidence、同一或可证明更严格的 limits、`recheckedAt` 和剩余 deadline；不得使用 `maxResultRows/maxResultBytes` 等散字段替代 P1_V2/05 的权威 limits 类型。复检必须使用 Snapshot 绑定的精确 Profile 版本，不切换到 latest 版本；权威源不可用、版本撤销、主体/Owner/Scope/correlation 不一致或无法证明单调收紧时 fail closed。
+`ExecutionScope` 保存本次 recheck 后同一或更严格的范围、当前 permission/policy evidence、同一或可证明更严格的 limits、`ExternalProcessingAuthorizationEvidence`、`recheckedAt` 和剩余 deadline；不得使用 `maxResultRows/maxResultBytes` 等散字段替代 P1_V2/05 的权威 limits 类型。复检必须使用 Snapshot 绑定的精确 Profile/Policy 版本，重新读取 current User Permission，重新构造 external-processing permission evidence，并证明 domain purpose、field rule、classification、Mask 和 purpose set 均为 Snapshot 的 same-or-narrower 子集；classification identity/version 变化不是收紧，必须 fail closed。权威源不可用、版本撤销、主体/Owner/Scope/correlation 不一致或无法证明单调收紧时 fail closed。
 
 `PlanningAuthorizationEvidence.evidenceDigest()`、Authorization Snapshot digest、limits digest 和 Context binding digest 均使用版本化 canonical form + SHA-256 lowercase hex。集合按稳定业务 key 排序，禁止 `Objects.hash/hashCode`、Java 序列化字节、Map 迭代顺序或对象地址参与安全绑定；digest 只证明完整性绑定，不替代当前授权复检。
 
@@ -244,6 +276,8 @@ Generated Text Candidate 不是最终文本。Result Security 必须同时校验
 | `AuthorizationPlanningPort` | `assertCurrent(PlanningAuthorizationEvidence evidence)` | Route/Plan/freeze 前 currentness 门禁，不混合新旧版本 |
 | `AuthorizationPlanningPort` | `freezeCapabilityScope(evidence, CapabilityScopeSelection selection)` | capability-scoped `AuthorizationSnapshot`，内部冻结 P1_V2/05 limits |
 | `AuthorizationExecutionPort` | `recheck(AuthorizationSnapshot snapshot, InvocationHandle handle)` | 同一或更严格 `ExecutionScope`；权威源/绑定不可确认则失败 |
+| `ExternalProcessingAuthorizationEvidenceFactory` | `create(policyVersion,permission,allowedDomains,fieldAccess,domainSecurityConstraints)` | Planning/Execution 共用的纯函数；返回 capability-neutral purpose/classification evidence，无 I/O |
+| `ExternalProcessingAuthorizationEvidence` | `allowsDomain(domain,purpose)` / `requireFieldRule(field,purpose)` / `canonicalDigest()` | 只读 closed evidence；missing/unknown 返回拒绝，不读取配置或 Provider 状态 |
 | `CapabilityCatalog` | `available(PlanningAuthorizationEvidence evidence)` | 通用公式生成 `AvailableCapabilitySnapshot`；entries 按 capabilityId 稳定排序 |
 | `ContextPlanningPort` | `load(ContextReadRequest request)` | `ContextSnapshot`；返回已迁移/已投影视图 |
 | `ContextPlanningPort` | `toRuntimeView(snapshot,declaration,evidence)` | 最小 `RuntimeContextView`；不发送 Snapshot/Envelope |
@@ -316,9 +350,9 @@ Profile/Policy/canonical metadata 只按 immutable version 缓存并原子发布
 | 序号 | 路径 | 类/接口 | 方法/动作 | 目标 |
 |---:|---|---|---|---|
 | 1 | `agent-service/src/main/java/com/dylan/agent/metadata/profile` | `AgentProfileDefinition`、`EffectiveProfile`、`AgentProfileRegistry`、`EffectiveProfileCalculator` | `getRequired/calculate`；散 page/result 字段迁移为 typed contributions | 精确不可变 Profile；只计算 Profile∩Policy |
-| 2 | `agent-service/src/main/java/com/dylan/agent/metadata/policy` | `AgentPolicyConfiguration`、`AgentPolicySnapshot`、`ProfileConstraints`、`CapabilityConstraints` | 拆分 PlanningBudget 与 typed resource contributions；删除 `DelegationLimits` 字段/类型 | 当前不创建 future delegation 配置或散资源预算 |
-| 3 | `agent-service/src/main/java/com/dylan/agent/metadata/authorization` | `AuthorizationPlanningPort/Impl`、`PlanningAuthorizationEvidence`、`PlanningEffectiveScope` | `capture/assertCurrent/freezeCapabilityScope`；evidence 使用 canonical SHA-256；移除散资源字段 | 同一证据链，冻结 capability scope + limits |
-| 4 | 同上 | `AuthorizationExecutionPortImpl`、`AuthorizationSnapshot`、`ExecutionScope` | `recheck(snapshot,handle)` | 补齐 Owner/Scope/correlation/limits，允许同一或收紧 |
+| 2 | `agent-service/src/main/java/com/dylan/agent/metadata/policy` | `AgentPolicyConfiguration`、`AgentPolicySnapshot`、`ProfileConstraints`、`CapabilityConstraints`、`DomainSecurityConstraints`、`SecurityClassificationRef` | 增加 domain/field external-processing purpose 与 classification；拆分 PlanningBudget 与 typed resource contributions | Policy 是 purpose/classification 唯一静态事实源；缺失即拒绝 |
+| 3 | `agent-service/src/main/java/com/dylan/agent/metadata/authorization` | `AuthorizationPlanningPort/Impl`、`PlanningAuthorizationEvidence`、`PlanningEffectiveScope`、`ExternalProcessingAuthorizationEvidenceFactory` | `capture/assertCurrent/freezeCapabilityScope`；构造 `EPP-1/EPM-1/EPA-1`；移除散资源字段 | 同一证据链，冻结 capability scope、limits 和外部处理授权证据 |
+| 4 | 同上 | `AuthorizationExecutionPortImpl`、`AuthorizationSnapshot`、`ExecutionScope`、`ExternalProcessingAuthorizationEvidence`、`ExternalProcessingFieldRule` | `recheck(snapshot,handle)`；external-processing evidence same-or-narrower compare | 补齐 Owner/Scope/correlation/limits/classification/purpose，变化不可证明则拒绝 |
 | 5 | 同上 | `DelegationConstraintRef` | 只保留 `CHAT_ALL` 中性引用；删除 `DelegationBoundary` map 与可配置 `DelegationConstraint` | 不建立委派状态/Registry |
 | 6 | 同上 | `UserPermissionAuthorityPort`、`AuthServiceUserPermissionAuthorityAdapter` | `resolveCurrent(subject,deadline)` | 唯一权限权威 SPI，typed failure/fail closed |
 | 7 | `agent-service/src/main/java/com/dylan/agent/metadata/catalog` | `CapabilityCatalog`、`AvailableCapability`、`AvailableCapabilitySnapshot` | `available(evidence)`，删除 entries 中散预算字段 | 通用公式、稳定排序、无专用分支 |
@@ -348,7 +382,7 @@ Profile/Policy/canonical metadata 只按 immutable version 缓存并原子发布
 | 路径/测试 | 关键用例 |
 |---|---|
 | `agent-service/src/test/java/com/dylan/agent/metadata` | Profile/Policy/Auth、Context、Result Security 全边界 |
-| `AuthorizationPlanningPortTest`、`AuthorizationExecutionPortTest` | 同证据链、精确版本、撤权、范围收紧、limits 同源、权威源失败；当前 Invocation 不重规划 |
+| `AuthorizationPlanningPortTest`、`AuthorizationExecutionPortTest`、`ExternalProcessingAuthorizationEvidenceTest` | 同证据链、精确版本、撤权、范围收紧、limits 同源、purpose/classification/Mask 求交与 canonical、权威源失败；当前 Invocation 不重规划 |
 | `ContextRepositoryIT`、`ContextFinalizationIT` | 并发 insert/update 原子 CAS、过期 baseline、四方事务 rollback/unknown、无平行状态机 |
 | `ResultValueMaskingSupportTest`、四类 projector test | Java MaskType 全覆盖、nested value mask、ContractRef/limits、Generated Text Candidate、未知类型拒绝 |
 | `common-security/src/test/java/com/dylan/common/security` | purpose 隔离、ref 不含 value、无未实现 source、prod 明文拒绝、kid 轮换、日志/Actuator 脱敏 |
@@ -362,6 +396,7 @@ Profile/Policy/canonical metadata 只按 immutable version 缓存并原子发布
 | Profile/Policy | 精确版本、引用缺失、紧急撤权、reload candidate 部分失败 | 不切 latest；完整 bundle 原子发布或整体拒绝 |
 | Catalog | NONE/OPTIONAL/REQUIRED、空 availability、同 planKind 多 capability、稳定排序 | 无专用分支；REQUIRED 不可用不投影；不携带散预算 |
 | Authorization | authority timeout/null/主体错配、Planning 后撤权、范围/limits 收紧与扩大、集合重排与字段篡改 | 失败封闭；当前 Invocation 不重规划；只接受同一或更严格 limits；canonical SHA-256 稳定且变化可检出 |
+| External processing authorization | domain purpose/field purpose交集、query-only空field、classification缺失/变更、Mask变化、permission撤权、集合重排、unknown operation | 仅显式Policy∩Permission形成evidence；unknown/missing/扩大拒绝；`EPP-1/EPM-1/EPA-1`稳定且变化可检出 |
 | Context read | Route 前调用、Owner/Scope 不匹配、过期/retired、wrong key/AAD/ciphertext、精确 migration | Route 前禁止；不可用不读旧缓存；Snapshot 不发送 Runtime |
 | Context CAS | 并发 expected absent、并发 expected version、过期记录 baseline、affected rows=0 | 仅一个提交者；无 `ON DUPLICATE KEY UPDATE`；不丢失更新 |
 | Finalization | 多 Context writes 中一条失败、commit rollback/unknown、CAS loser、澄清/失败/取消 | 四方原子回滚；不返回 SUCCESS；不写/补写 Context，不重执行 Handler |
@@ -383,6 +418,7 @@ Profile/Policy/canonical metadata 只按 immutable version 缓存并原子发布
 | Context CAS 伪原子 | 实现先 SELECT 再无条件 upsert | mapper 拆分 insert/conditional update，并发集成测试作为门禁 |
 | shared secret 契约切换 | `SecretKeyRef` 去掉 config value 影响 JWT/payload 消费方 | 仅 common-security 内部契约，P1_V2/06 同一发布单元编译/配置切换，不修改外部 API |
 | 当前 HTTP 无客户端幂等键 | 调用方网络重试 | 当前只读 capability 可产生新 Invocation 和重复预算消耗；写能力前独立 ADR |
+| 外部处理 Policy 未配置 | metadata bundle 未声明 domain purpose 或 field classification | 对应 Provider operation 在任何 write 前 DENY；不得用 feature/07 ACTIVE/Provider 配置替代 |
 
 ## 22. 评审记录
 
@@ -392,6 +428,8 @@ Profile/Policy/canonical metadata 只按 immutable version 缓存并原子发布
 | 2 | 2026-07-13 | 需修正 | 13 | 13 | 0 | 修正 Context 时序/状态、Catalog 缺失、授权/limits/digest、Mask、CAS、secret 与实现落点 |
 | 3 | 2026-07-13 | 需修正 | 1 | 1 | 0 | Java 契约复核发现误增 QueryContextMode.NEW 和隐式 page+1，已收敛为 REPLACE/MERGE 与显式页码建议 |
 | 4 | 2026-07-13 | 通过 | 0 | 0 | 0 | 终审 L0/L1、P1_V2/02/05 边界、Java 权威类型、数据与测试门禁，无 S0/S1 遗留 |
+| 5 | 2026-07-14 | 需修正 | 1 | 1 | 0 | 实施发现 P2_V3/06 所需 classification/purpose 未进入 P1 两阶段授权；补 `SecurityClassificationRef`、`ExternalProcessingAuthorizationEvidence`、Policy∩Permission 求交和 Snapshot/Execution 单调收紧 |
+| 6 | 2026-07-14 | 通过 | 0 | 0 | 0 | 复核 L0/L1、P1_V2/02/04/05 与 P2_V3/04～07：外部处理证据保持 capability-neutral，未把 Profile feature、Provider 配置、07 state 或 Safe candidate 变成授权源 |
 
 ## 23. 实施对齐检查
 
@@ -401,20 +439,21 @@ Profile/Policy/canonical metadata 只按 immutable version 缓存并原子发布
 - [x] Capability Catalog 通用公式、Domain Mode 和 Available Snapshot 已冻结。
 - [x] Context 只有 CAS/readable/TTL，不建立第二持久状态机。
 - [x] Result Security 消费同一 limits，Mask 与 Java 权威枚举一致。
-- [ ] 公开契约版本和 Context DDL 已获实施授权。
+- [x] external-processing purpose/classification 已进入 Policy∩Permission、Snapshot 与 Execution same-or-narrower 闭环。
+- [x] 公开契约版本和 Context DDL 已获本地实施授权；生产迁移仍未授权。
 - [x] P1_V2 全集评审已完成且 S0/S1=0。
-- [ ] 用户确认 Approved，并对公开契约、Context DDL 与原子迁移完成 M0 实施授权。
+- [x] 用户已授权 P1_V2/P2_V3 本地实现与本次阻断修订；禁止生产访问、提交、推送、分支和 PR。
 
 ## 24. 任务完成摘要
 
 | 项目 | 内容 |
 |---|---|
 | 目标文档 | 本文 |
-| 文档状态 | In Review |
-| 是否可作为实现依据 | 否；P1_V2 全集评审已完成且 S0/S1=0，但仍为 In Review；经用户确认 Approved 并完成 M0 实施授权后方可实施 |
-| 本次评审轮次 | 3 |
-| 主要修订 | Catalog、两阶段授权/limits、Planning Context、原子 CAS、Result Security/Mask、secret purpose 隔离与配置单一来源 |
+| 文档状态 | Implemented |
+| 是否可作为实现依据 | 是；用户已授权本地实现和本次 P1_V2/03 修订，L0/L1 保持只读，生产启用仍不在范围内 |
+| 本次评审轮次 | 2（累计6轮） |
+| 主要修订 | Catalog、两阶段授权/limits、Planning Context、原子 CAS、Result Security/Mask、secret purpose 隔离，以及 capability-neutral external-processing purpose/classification 授权证据 |
 | S0/S1 遗留 | 0 |
-| 是否修改关联/上级文档 | 否 |
+| 是否修改关联/上级文档 | 同步修订已授权目标 P2_V3/06；未修改 L0/L1 或其他关联文档 |
 | 是否需要回查旧 P1 文档 | 否 |
-| 下一步 | 等待用户 Approved 与 M0 实施授权；代码切换由 P1_V2/06 原子门禁统一管理 |
+| 下一步 | 保持生产启用关闭；如需为具体 domain 开放外部处理，必须另行提供并评审显式 Policy purpose/classification 事实 |

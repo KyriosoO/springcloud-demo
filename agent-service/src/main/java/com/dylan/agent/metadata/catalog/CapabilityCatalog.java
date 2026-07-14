@@ -59,11 +59,6 @@ public final class CapabilityCatalog {
                             allowedDomains,
                             definition.riskLevel(),
                             definition.executionMode(),
-                            evidence.planningScope().maxTotalDuration(),
-                            evidence.planningScope().maxRepairAttempts(),
-                            evidence.planningScope().maxPageSize(),
-                            evidence.planningScope().maxResultRows(),
-                            evidence.planningScope().maxResultBytes(),
                             registration.identity());
                 })
                 .filter(Objects::nonNull)

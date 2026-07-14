@@ -16,6 +16,7 @@ import com.dylan.agent.kernel.definition.ContextAccessDeclaration;
 import com.dylan.agent.kernel.definition.ContextReadDeclaration;
 import com.dylan.agent.kernel.definition.ContextWriteDeclaration;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
+import com.dylan.agent.kernel.resource.StandardResourceLimits;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +46,9 @@ public class QueryCapabilityConfiguration {
                         .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                         .inputContract(AgentExecutionContracts.QUERY_PLAN)
                         .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                        .resourceLimitDeclaration(StandardResourceLimits.declaration(500, 5_000, 20_000_000L))
+                        .resourceLimitConsumers(StandardResourceLimits.consumers(
+                                QueryPlanValidator.KERNEL_CAPABILITY_ID))
                         .contextAccess(new ContextAccessDeclaration(
                                 List.of(new ContextReadDeclaration(
                                         RuntimeContextType.QUERY,

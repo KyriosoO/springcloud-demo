@@ -26,7 +26,9 @@ public class QueryPreviewCapabilityHandler
             ValidatedQueryPreviewPlan plan,
             ExecutionContext context) {
         QueryableAdapter adapter = context.requireAdapter(QueryableAdapter.class);
-        AdapterQueryResult adapterResult = adapter.query(plan.query());
+        AdapterQueryResult adapterResult = adapter.query(
+                plan.query(),
+                context.operationContext(com.dylan.agent.adapter.api.operation.CapabilityOperationType.of("DOMAIN_QUERY_PREVIEW")));
         QueryPreviewResultPayload payload = new QueryPreviewResultPayload(
                 toQueryParameters(plan),
                 toPreviewResult(plan, adapterResult));

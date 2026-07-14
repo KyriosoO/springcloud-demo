@@ -135,14 +135,15 @@ class ExecutionLifecycleServiceTest {
     private static ExecutablePlanningResult planningResult(InvocationHandle handle) {
         ExecutablePlanningResult result = mock(ExecutablePlanningResult.class);
         when(result.requestCorrelationId()).thenReturn(handle.requestCorrelationId());
+        when(result.invocationId()).thenReturn(handle.invocationId());
         when(result.absoluteDeadline()).thenReturn(handle.absoluteDeadline());
+        when(result.hasValidArtifactIdentity()).thenReturn(true);
         return result;
     }
 
     private static InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "inv-1",
                 new ExecutionSubjectRef("USER", "user-1"),

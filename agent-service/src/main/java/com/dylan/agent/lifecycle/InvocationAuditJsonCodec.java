@@ -43,6 +43,7 @@ public class InvocationAuditJsonCodec {
             String domain,
             String planKind,
             String registrationIdentity,
+            String planningArtifactBindingDigest,
             PlanningOperationAuditDto routeAudit,
             PlanningOperationAuditDto planAudit,
             String authorizationSnapshotRef,
@@ -57,6 +58,7 @@ public class InvocationAuditJsonCodec {
                     checkpoint.domain(),
                     checkpoint.planKind(),
                     checkpoint.registrationIdentity(),
+                    checkpoint.planningArtifactBindingDigest(),
                     PlanningOperationAuditDto.from(checkpoint.routeAudit()),
                     PlanningOperationAuditDto.from(checkpoint.planAudit()),
                     checkpoint.authorizationSnapshotRef(),
@@ -127,9 +129,9 @@ public class InvocationAuditJsonCodec {
         }
     }
 
-    private record ContractRefDto(String schema, String version) {
+    private record ContractRefDto(String namespace, String name, String version) {
         private static ContractRefDto from(ContractRef ref) {
-            return new ContractRefDto(ref.schema(), ref.version());
+            return new ContractRefDto(ref.namespace(), ref.name(), ref.version());
         }
     }
 }

@@ -13,13 +13,15 @@ import org.apache.ibatis.annotations.Select;
 public interface AgentInvocationResultMapper {
 
     @Insert("INSERT INTO agent_invocation_result (" +
-            "id, invocation_id, output_contract_schema, output_contract_version, payload_json, " +
+            "id, invocation_id, output_contract_namespace, output_contract_name, output_contract_version, payload_json, " +
             "safe_message, safe_summary, created_at) VALUES (" +
-            "#{id}, #{invocationId}, #{outputContractSchema}, #{outputContractVersion}, #{payloadJson}, " +
+            "#{id}, #{invocationId}, #{outputContractNamespace}, #{outputContractName}, " +
+            "#{outputContractVersion}, #{payloadJson}, " +
             "#{safeMessage}, #{safeSummary}, #{createdAt})")
     int insert(AgentInvocationResultEntity entity);
 
-    @Select("SELECT id, invocation_id, output_contract_schema, output_contract_version, payload_json, " +
+    @Select("SELECT id, invocation_id, output_contract_namespace, output_contract_name, " +
+            "output_contract_version, payload_json, " +
             "safe_message, safe_summary, created_at FROM agent_invocation_result " +
             "WHERE invocation_id = #{invocationId}")
     AgentInvocationResultEntity selectByInvocationId(@Param("invocationId") String invocationId);

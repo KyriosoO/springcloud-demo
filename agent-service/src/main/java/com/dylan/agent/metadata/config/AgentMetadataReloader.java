@@ -1,6 +1,5 @@
 package com.dylan.agent.metadata.config;
 
-import com.dylan.agent.metadata.crypto.port.PayloadKeyProvider;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.domain.port.CanonicalFunctionRef;
 import com.dylan.agent.metadata.domain.port.CanonicalOperatorRef;
@@ -19,17 +18,14 @@ public final class AgentMetadataReloader {
 
     private final AgentMetadataStore store;
     private final DomainMetadataPort domainMetadataPort;
-    private final PayloadKeyProvider payloadKeyProvider;
     private final Clock clock;
 
     public AgentMetadataReloader(
             AgentMetadataStore store,
             DomainMetadataPort domainMetadataPort,
-            PayloadKeyProvider payloadKeyProvider,
             Clock clock) {
         this.store = Objects.requireNonNull(store);
         this.domainMetadataPort = Objects.requireNonNull(domainMetadataPort);
-        this.payloadKeyProvider = Objects.requireNonNull(payloadKeyProvider);
         this.clock = Objects.requireNonNull(clock);
     }
 
@@ -40,7 +36,6 @@ public final class AgentMetadataReloader {
                 && !current.bundleDigest().equals(candidate.bundleDigest())) {
             throw new IllegalStateException("same metadata bundleVersion cannot change digest");
         }
-        AgentMetadataPropertiesValidator.validate(candidate, payloadKeyProvider);
         Instant deadline = clock.instant().plusSeconds(30);
         domainMetadataPort.assertCurrent(
                 domainMetadataPort.validateReferences(
@@ -63,7 +58,11 @@ public final class AgentMetadataReloader {
         Set<CanonicalFunctionRef> functions = candidate.activePolicy().domainSecurityConstraints().values().stream()
                 .flatMap(AgentMetadataReloader::functionRefs)
                 .collect(Collectors.toUnmodifiableSet());
-        return new DomainMetadataReferenceSet(fields, operators, functions);
+        return new DomainMetadataReferenceSet(
+                candidate.activePolicy().domainSecurityConstraints().keySet(),
+                fields,
+                operators,
+                functions);
     }
 
     private static java.util.stream.Stream<CanonicalOperatorRef> operatorRefs(

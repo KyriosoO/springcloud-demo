@@ -2,9 +2,8 @@ package com.dylan.agent.metadata.context;
 
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
-import com.dylan.agent.metadata.config.AgentSecuritySettings;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.internal.ContextCleanupJob;
+import com.dylan.agent.metadata.context.internal.ContextStorageProperties;
 import com.dylan.agent.metadata.context.internal.ContextRecordEntity;
 import com.dylan.agent.metadata.context.internal.ContextRepository;
 import org.junit.jupiter.api.Test;
@@ -19,19 +18,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ContextCleanupJobTest {
 
     @Test
-    void tickUsesCurrentReloadableCleanupSettings() {
+    void tickUsesContextStorageCleanupSettings() {
         MutableClock clock = new MutableClock(Instant.parse("2026-07-01T00:00:00Z"));
         RecordingRepository repository = new RecordingRepository();
-        AgentSecuritySettingsRegistry settings = new AgentSecuritySettingsRegistry(
-                new AgentSecuritySettings(Duration.ofHours(1), Duration.ofSeconds(30), 5, "ACTIVE"));
+        ContextStorageProperties settings = new ContextStorageProperties();
+        settings.setCleanupDelay(Duration.ofSeconds(30));
+        settings.setCleanupBatchSize(5);
         ContextCleanupJob job = new ContextCleanupJob(repository, settings, clock);
 
         assertThat(job.tick()).isEqualTo(5);
         assertThat(repository.lastLimit).isEqualTo(5);
         assertThat(job.tick()).isZero();
 
-        settings.replaceForReload(new AgentSecuritySettings(
-                Duration.ofHours(1), Duration.ofSeconds(10), 9, "ACTIVE"));
+        settings.setCleanupDelay(Duration.ofSeconds(10));
+        settings.setCleanupBatchSize(9);
         clock.current = clock.current.plusSeconds(30);
 
         assertThat(job.tick()).isEqualTo(9);

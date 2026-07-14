@@ -1,171 +1,66 @@
 package com.dylan.agent.capability.document;
 
-import com.dylan.agent.config.AgentProperties;
-import com.dylan.agent.testsupport.DomainMetadataTestSupport;
+import com.dylan.agent.api.plan.DocumentPlanOperation;
+import com.dylan.agent.capability.document.profile.DocumentProfileAssets;
+import com.dylan.agent.capability.document.profile.DocumentProfileSelectionCommand;
+import com.dylan.agent.capability.document.profile.DocumentRetrievalProfileResolver;
+import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DocumentRetrievalProfileResolverTest {
-
     @Test
-    void resolvesDomainMaterialTypeProfile() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        AgentProperties.RetrievalProfileProperties profile = profile(
-                "policy_document",
-                List.of("policy", "notice"),
-                "tax-policy-default",
-                "agent-doc-tax-policy-read");
-        profile.setChannels(List.of("bm25", "exact", "dense_vector"));
-        profile.setChannelWeights(Map.of("bm25", 1.5d));
-        profile.setEmbeddingField("embedding_v2");
-        profile.setEmbeddingProvider("bge");
-        profile.setEmbeddingModel("bge-large-zh-v2");
-        profile.setEmbeddingDimension(1024);
-        properties.getDocument().getRetrievalProfiles().put("tax-policy-default", profile);
+    void selectsDefaultFromExactAssetAndPolicyEvidence() {
+        DocumentProfileAssets.BuiltAssets assets = DocumentProfileTestSupport.assets();
+        var resolver = new DocumentRetrievalProfileResolver(assets.profileRegistry(), assets.policyRegistry());
+        var selection = resolver.select(command(assets, null, "policy_document"));
 
-        DocumentRetrievalProfile resolved = new DocumentRetrievalProfileResolver(properties)
-                .resolve("policy_document", "notice", null);
-
-        assertThat(resolved.domain()).isEqualTo("policy_document");
-        assertThat(resolved.materialType()).isEqualTo("notice");
-        assertThat(resolved.retrievalProfile()).isEqualTo("tax-policy-default");
-        assertThat(resolved.profileVersion()).startsWith("pv-");
-        assertThat(resolved.indexAlias()).isEqualTo("agent-doc-tax-policy-read");
-        assertThat(resolved.hybridOptions().channels()).containsExactly("BM25", "EXACT", "DENSE_VECTOR");
-        assertThat(resolved.hybridOptions().channelWeights()).containsEntry("BM25", 1.5d);
-        assertThat(resolved.hybridOptions().embeddingField()).isEqualTo("embedding_v2");
-        assertThat(resolved.hybridOptions().embeddingProvider()).isEqualTo("bge");
-        assertThat(resolved.hybridOptions().embeddingModel()).isEqualTo("bge-large-zh-v2");
-        assertThat(resolved.hybridOptions().embeddingDimension()).isEqualTo(1024);
+        assertThat(selection.selectedProfileName()).isEqualTo("tax-policy-v3");
+        assertThat(selection.assetRef().documentProfileVersion()).matches("dp1-[0-9a-f]{64}");
+        assertThat(selection.allowedCorpora()).hasSize(1);
+        assertThat(selection.selectionDigest()).hasSize(64);
     }
 
     @Test
-    void rejectsProfileOutsideDomain() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getRetrievalProfiles().put("tax-policy-default", profile(
-                "policy_document",
-                List.of("policy"),
-                "tax-policy-default",
-                "agent-doc-tax-policy-read"));
+    void explicitUnknownProfileNeverFallsBackToDefault() {
+        DocumentProfileAssets.BuiltAssets assets = DocumentProfileTestSupport.assets();
+        var resolver = new DocumentRetrievalProfileResolver(assets.profileRegistry(), assets.policyRegistry());
 
-        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
-                .resolve("law_document", "policy", "tax-policy-default"))
+        assertThatThrownBy(() -> resolver.select(command(assets, "unknown-profile", null)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("retrievalProfile");
+                .hasMessageContaining("not allowed");
     }
 
     @Test
-    void rejectsMaterialTypeOutsideProfile() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getRetrievalProfiles().put("tax-policy-default", profile(
-                "policy_document",
-                List.of("policy"),
-                "tax-policy-default",
-                "agent-doc-tax-policy-read"));
+    void rejectsContributionThatDoesNotBindExactChildAsset() {
+        DocumentProfileAssets.BuiltAssets assets = DocumentProfileTestSupport.assets();
+        var resolver = new DocumentRetrievalProfileResolver(assets.profileRegistry(), assets.policyRegistry());
+        DocumentProfileSelectionCommand command = command(assets, null, null);
+        command = new DocumentProfileSelectionCommand(command.capabilityId(), command.domain(), command.operation(),
+                command.agentProfileRef(), command.policyVersion(), command.authorizationEvidence(),
+                "wrong-ref", command.policyContributionEvidenceRef(), null, null);
 
-        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
-                .resolve("policy_document", "faq", "tax-policy-default"))
+        DocumentProfileSelectionCommand invalid = command;
+        assertThatThrownBy(() -> resolver.select(invalid))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("materialType");
+                .hasMessageContaining("exact child asset");
     }
 
-    @Test
-    void derivesNewVersionWhenProfileContentChanges() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        AgentProperties.RetrievalProfileProperties profile = profile(
-                "policy_document",
-                List.of("policy"),
-                "tax-policy-default",
-                "agent-doc-tax-policy-read");
-        properties.getDocument().getRetrievalProfiles().put("tax-policy-default", profile);
-        DocumentRetrievalProfileResolver resolver = new DocumentRetrievalProfileResolver(properties);
-
-        String firstVersion = resolver.resolve("policy_document", "policy", null).profileVersion();
-        profile.setIndexAlias("agent-doc-tax-policy-read-v2");
-        String secondVersion = resolver.resolve("policy_document", "policy", null).profileVersion();
-
-        assertThat(secondVersion).startsWith("pv-");
-        assertThat(secondVersion).isNotEqualTo(firstVersion);
-    }
-
-    @Test
-    void rejectsMissingDomainProfileWithoutLegacyFallback() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-
-        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
-                .resolve("policy_document", null, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("retrievalProfile");
-    }
-
-    @Test
-    void rejectsAmbiguousDomainProfilesWhenMaterialTypeIsMissing() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getRetrievalProfiles().put("policy-default", profile(
-                "policy_document",
-                List.of("policy"),
-                "policy-default",
-                "agent-doc-policy-read"));
-        properties.getDocument().getRetrievalProfiles().put("tax-v2", profile(
-                "policy_document",
-                List.of("tax_policy"),
-                "tax-v2",
-                "agent-doc-tax-policy-read"));
-
-        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
-                .resolve("policy_document", null, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("materialType or retrievalProfile");
-    }
-
-    @Test
-    void resolvesSingleDomainProfileWhenMaterialTypeIsMissing() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getRetrievalProfiles().put("policy-default", profile(
-                "policy_document",
-                List.of("policy"),
-                "policy-default",
-                "agent-doc-policy-read"));
-
-        DocumentRetrievalProfile resolved = new DocumentRetrievalProfileResolver(properties)
-                .resolve("policy_document", null, null);
-
-        assertThat(resolved.materialType()).isEqualTo("policy");
-        assertThat(resolved.retrievalProfile()).isEqualTo("policy-default");
-    }
-
-    @Test
-    void rejectsProfileWithoutExplicitChannels() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        AgentProperties.RetrievalProfileProperties profile = profile(
-                "policy_document",
-                List.of("policy"),
-                "policy-default",
-                "agent-doc-policy-read");
-        profile.setChannels(List.of());
-        properties.getDocument().getRetrievalProfiles().put("policy-default", profile);
-
-        assertThatThrownBy(() -> new DocumentRetrievalProfileResolver(properties)
-                .resolve("policy_document", "policy", null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("channels");
-    }
-
-    private AgentProperties.RetrievalProfileProperties profile(
-            String domain,
-            List<String> materialTypes,
-            String retrievalProfile,
-            String indexAlias) {
-        AgentProperties.RetrievalProfileProperties profile = new AgentProperties.RetrievalProfileProperties();
-        profile.setDomain(domain);
-        profile.setMaterialTypes(materialTypes);
-        profile.setRetrievalProfile(retrievalProfile);
-        profile.setIndexAlias(indexAlias);
-        return profile;
+    private static DocumentProfileSelectionCommand command(
+            DocumentProfileAssets.BuiltAssets assets,
+            String requestedProfile,
+            String materialType) {
+        PlanningAuthorizationEvidence evidence = mock(PlanningAuthorizationEvidence.class);
+        when(evidence.agentProfileRef()).thenReturn(DocumentProfileTestSupport.owner());
+        when(evidence.policyVersion()).thenReturn("policy-v1");
+        return new DocumentProfileSelectionCommand(
+                DocumentCapabilityIds.SEARCH, "policy_document", DocumentPlanOperation.SEARCH,
+                DocumentProfileTestSupport.owner(), "policy-v1", evidence,
+                assets.assetRef().toString(), assets.policyConstraint().evidenceRef(),
+                requestedProfile, materialType);
     }
 }

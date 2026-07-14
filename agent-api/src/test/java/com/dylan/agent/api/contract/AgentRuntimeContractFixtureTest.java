@@ -20,6 +20,7 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeTerminationReason;
 import com.dylan.agent.api.contract.runtime.error.RuntimeErrorCode;
 import com.dylan.agent.api.contract.runtime.error.RuntimeErrorResponse;
 import com.dylan.agent.api.contract.runtime.plan.AggregateAgentPlan;
+import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.ExecutablePlan;
 import com.dylan.agent.api.contract.runtime.plan.PlanOutcome;
 import com.dylan.agent.api.contract.runtime.plan.PlanRequest;
@@ -133,6 +134,16 @@ class AgentRuntimeContractFixtureTest {
         PlanOutcome value = MAPPER.readValue(json, PlanOutcome.class);
         validateBean(value);
         assertInstanceOf(AggregateAgentPlan.class, ((ExecutablePlan) value).getPlan());
+        assertMetadata(value.getMetadata(), RuntimeOperationType.PLAN);
+        assertEquals(MAPPER.readTree(json), MAPPER.readTree(MAPPER.writeValueAsString(value)));
+    }
+
+    @Test
+    void shouldRoundTripDocumentPlan() throws Exception {
+        String json = readFixture("document-plan.json");
+        PlanOutcome value = MAPPER.readValue(json, PlanOutcome.class);
+        validateBean(value);
+        assertInstanceOf(DocumentAgentPlan.class, ((ExecutablePlan) value).getPlan());
         assertMetadata(value.getMetadata(), RuntimeOperationType.PLAN);
         assertEquals(MAPPER.readTree(json), MAPPER.readTree(MAPPER.writeValueAsString(value)));
     }

@@ -41,7 +41,7 @@ class QueryPreviewResultSecurityProjectorTest {
     void filtersUnauthorizedFields() {
         QueryPreviewResultSecurityProjector projector = new QueryPreviewResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         assertThat(filtered.payload().getQueryParameters().getSelectFields())
                 .containsExactly("chineseName");
@@ -58,7 +58,7 @@ class QueryPreviewResultSecurityProjectorTest {
     void createsSafeMessageAndSummary() {
         QueryPreviewResultSecurityProjector projector = new QueryPreviewResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         assertThat(filtered.safeMessage()).isEqualTo("查询预览完成");
         assertThat(filtered.safeSummary()).contains("过滤");
@@ -68,7 +68,8 @@ class QueryPreviewResultSecurityProjectorTest {
     void filtersAndMasksPreviewSampleRows() {
         QueryPreviewResultSecurityProjector projector = new QueryPreviewResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(payload(), scopeWithIdCardMask());
+        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(
+                payload(), scopeWithIdCardMask(), scopeWithIdCardMask().resourceLimits());
 
         assertThat(filtered.payload().getPreviewResult().getSampleRows())
                 .containsExactly(Map.of(
@@ -80,7 +81,8 @@ class QueryPreviewResultSecurityProjectorTest {
     void reusesUnifiedMaskingSupportForFilterValues() {
         QueryPreviewResultSecurityProjector projector = new QueryPreviewResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(payloadWithIdCardFilter(), scopeWithIdCardMask());
+        FilteredResult<QueryPreviewResultPayload> filtered = projector.filter(
+                payloadWithIdCardFilter(), scopeWithIdCardMask(), scopeWithIdCardMask().resourceLimits());
 
         assertThat(filtered.payload().getQueryParameters().getFilters())
                 .extracting(AgentQueryFilterParameter::getValue)
@@ -93,7 +95,7 @@ class QueryPreviewResultSecurityProjectorTest {
         QueryPreviewResultPayload payload = payload();
         payload.getQueryParameters().setDomain(null);
 
-        assertThatThrownBy(() -> projector.filter(payload, scope()))
+        assertThatThrownBy(() -> projector.filter(payload, scope(), scope().resourceLimits()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing domain");
     }
@@ -126,9 +128,9 @@ class QueryPreviewResultSecurityProjectorTest {
     }
 
     private ExecutionScope scope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -137,10 +139,7 @@ class QueryPreviewResultSecurityProjectorTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("chineseName")),
                 Map.of(),
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private QueryPreviewResultPayload payloadWithIdCardFilter() {
@@ -162,9 +161,9 @@ class QueryPreviewResultSecurityProjectorTest {
     }
 
     private ExecutionScope scopeWithIdCardMask() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -173,10 +172,7 @@ class QueryPreviewResultSecurityProjectorTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("chineseName", "idCardNo")),
                 Map.of("employee.idCardNo", MaskType.ID_CARD),
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private ResultValueMaskingSupport maskingSupport() {

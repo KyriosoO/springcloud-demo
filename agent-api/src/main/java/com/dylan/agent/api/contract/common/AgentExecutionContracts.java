@@ -7,26 +7,36 @@ import com.dylan.agent.api.contract.runtime.common.AgentRuntimeContract;
  */
 public final class AgentExecutionContracts {
 
+    public static final String NAMESPACE = "agent.execution";
+
     public static final ContractRef QUERY_PLAN =
-            new ContractRef("QueryAgentPlan", AgentRuntimeContract.VERSION);
+            ref("QueryAgentPlan", AgentRuntimeContract.VERSION);
     public static final ContractRef AGGREGATE_PLAN =
-            new ContractRef("AggregateAgentPlan", AgentRuntimeContract.VERSION);
+            ref("AggregateAgentPlan", AgentRuntimeContract.VERSION);
     public static final ContractRef DOCUMENT_PLAN =
-            new ContractRef("DocumentAgentPlan", AgentRuntimeContract.VERSION);
+            ref("DocumentAgentPlan", AgentRuntimeContract.VERSION);
     public static final ContractRef QUERY_RESULT =
-            new ContractRef("QueryAgentResultPayload", "1.1.0");
+            ref("QueryAgentResultPayload", "1.1.0");
     public static final ContractRef QUERY_PREVIEW_RESULT =
-            new ContractRef("QueryPreviewResultPayload", "1.1.0");
+            ref("QueryPreviewResultPayload", "1.1.0");
     public static final ContractRef AGGREGATE_RESULT =
-            new ContractRef("AggregateAgentResultPayload", "1.0.0");
+            ref("AggregateAgentResultPayload", "1.0.0");
     public static final ContractRef DOCUMENT_RESULT =
-            new ContractRef("DocumentAgentResultPayload", "1.0.0");
+            ref("DocumentAgentResultPayload", "1.0.0");
     public static final ContractRef QUERY_CONTEXT =
-            new ContractRef("QueryCapabilityContextPayload", "1.2.0");
+            ref("QueryCapabilityContextPayload", "1.2.0");
     public static final ContractRef AGGREGATE_CONTEXT =
-            new ContractRef("AggregateCapabilityContextPayload", "1.0.0");
+            ref("AggregateCapabilityContextPayload", "1.0.0");
     public static final ContractRef DOCUMENT_CONTEXT =
-            new ContractRef("DocumentCapabilityContextPayload", "1.0.0");
+            ref("DocumentCapabilityContextPayload", "1.0.0");
+    public static final ContractRef STANDARD_RESOURCE_LIMIT =
+            ref("StandardCapabilityResourceLimit", "1.0.0");
+    public static final ContractRef DOCUMENT_RESOURCE_LIMIT =
+            ref("DocumentResourceLimit", "1.0.0");
+
+    public static ContractRef ref(String name, String version) {
+        return new ContractRef(NAMESPACE, name, version);
+    }
 
     private AgentExecutionContracts() {
     }

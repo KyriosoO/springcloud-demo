@@ -11,7 +11,6 @@ import com.dylan.authcenter.service.UserService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +32,7 @@ class AgentPermissionProjectionServiceTest {
 
     @Test
     void resolvesAdminToCompleteAgentPermissionProjection() {
-        AgentPermissionResolveResponse response = service.resolve(request("dylan", Set.of(), Set.of()));
+        AgentPermissionResolveResponse response = service.resolve(request("dylan"));
 
         assertThat(response.subject()).isEqualTo(new SubjectRefDto("USER", "dylan"));
         assertThat(response.evidenceId()).startsWith("perm-user-");
@@ -70,36 +69,8 @@ class AgentPermissionProjectionServiceTest {
     }
 
     @Test
-    void narrowsProjectionByRequestedCapabilitiesAndDomainsWithoutExpandingAuthorization() {
-        AgentPermissionResolveResponse response = service.resolve(request(
-                "dylan",
-                Set.of("query.search", "not.granted"),
-                Set.of("employee", "not-granted-domain")));
-
-        assertThat(response.allowedCapabilityIds()).containsExactly("query.search");
-        assertThat(response.allowedDomains()).containsExactly("employee");
-        assertThat(response.filterableFields()).containsOnlyKeys("employee");
-        assertThat(response.allowedOperators().keySet()).allMatch(key -> key.startsWith("employee."));
-        assertThat(response.allowedFunctions()).isEmpty();
-    }
-
-    @Test
-    void narrowsAdminProjectionToDocumentCapabilityAndDomain() {
-        AgentPermissionResolveResponse response = service.resolve(request(
-                "dylan",
-                Set.of("document.answer", "not.granted"),
-                Set.of("tax_policy", "not-granted-domain")));
-
-        assertThat(response.allowedCapabilityIds()).containsExactly("document.answer");
-        assertThat(response.allowedDomains()).containsExactly("tax_policy");
-        assertThat(response.filterableFields()).containsOnlyKeys("tax_policy");
-        assertThat(response.allowedOperators().keySet()).allMatch(key -> key.startsWith("tax_policy."));
-        assertThat(response.allowedFunctions()).isEmpty();
-    }
-
-    @Test
     void resolvesViewerToQueryOnlyProjection() {
-        AgentPermissionResolveResponse response = service.resolve(request("viewer_t", Set.of(), Set.of()));
+        AgentPermissionResolveResponse response = service.resolve(request("viewer_t"));
 
         assertThat(response.allowedCapabilityIds()).containsExactlyInAnyOrder("query.search", "query.preview");
         assertThat(response.allowedDomains()).containsExactly("employee");
@@ -111,14 +82,14 @@ class AgentPermissionProjectionServiceTest {
 
     @Test
     void adminProjectionIncludesQueryPreview() {
-        AgentPermissionResolveResponse response = service.resolve(request("dylan", Set.of(), Set.of()));
+        AgentPermissionResolveResponse response = service.resolve(request("dylan"));
 
         assertThat(response.allowedCapabilityIds()).contains("query.preview");
     }
 
     @Test
     void rejectsUnknownSubject() {
-        assertThatThrownBy(() -> service.resolve(request("missing-user", Set.of(), Set.of())))
+        assertThatThrownBy(() -> service.resolve(request("missing-user")))
                 .isInstanceOfSatisfying(AgentPermissionException.class, ex ->
                         assertThat(ex.code()).isEqualTo(AgentPermissionErrorCode.AGENT_PERMISSION_SUBJECT_NOT_FOUND));
     }
@@ -129,13 +100,7 @@ class AgentPermissionProjectionServiceTest {
                 "req-1",
                 new SubjectRefDto("USER", "dylan"),
                 NOW.minusSeconds(10),
-                NOW.minusSeconds(1),
-                "default-agent",
-                "default-profile",
-                "CONVERSATION",
-                "conv-1",
-                Set.of(),
-                Set.of());
+                NOW.minusSeconds(1));
 
         assertThatThrownBy(() -> service.resolve(expired))
                 .isInstanceOfSatisfying(AgentPermissionException.class, ex ->
@@ -148,33 +113,18 @@ class AgentPermissionProjectionServiceTest {
                 "req-1",
                 new SubjectRefDto("SERVICE", "dylan"),
                 NOW,
-                NOW.plusSeconds(30),
-                "default-agent",
-                "default-profile",
-                "CONVERSATION",
-                "conv-1",
-                Set.of(),
-                Set.of());
+                NOW.plusSeconds(30));
 
         assertThatThrownBy(() -> service.resolve(invalid))
                 .isInstanceOfSatisfying(AgentPermissionException.class, ex ->
                         assertThat(ex.code()).isEqualTo(AgentPermissionErrorCode.AGENT_PERMISSION_INVALID_REQUEST));
     }
 
-    private static AgentPermissionResolveRequest request(
-            String userId,
-            Set<String> requestedCapabilityIds,
-            Set<String> requestedDomains) {
+    private static AgentPermissionResolveRequest request(String userId) {
         return new AgentPermissionResolveRequest(
                 "req-1",
                 new SubjectRefDto("USER", userId),
                 NOW,
-                NOW.plusSeconds(30),
-                "default-agent",
-                "default-profile",
-                "CONVERSATION",
-                "conv-1",
-                requestedCapabilityIds,
-                requestedDomains);
+                NOW.plusSeconds(30));
     }
 }

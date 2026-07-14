@@ -6,8 +6,9 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.model.MaskType;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
+import com.dylan.agent.metadata.profile.model.PlanningBudgetLimits;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContributions;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,55 +27,41 @@ public final class PlanningEffectiveScope {
     private final Set<String> allowedCapabilityIds;
     private final Set<String> allowedDomains;
     private final Map<CanonicalFieldRef, FieldAccess> fieldAccess;
+    private final ExternalProcessingAuthorizationEvidence externalProcessingAuthorizationEvidence;
     private final Set<RuntimeContextType> readableContextTypes;
     private final Set<RuntimeContextType> writableContextTypes;
     private final AgentCapabilityRiskLevel maxRiskLevel;
     private final AgentCapabilityExecutionMode maxExecutionMode;
-    private final Duration maxTotalDuration;
-    private final int maxRepairAttempts;
-    private final int maxPageSize;
-    private final int maxResultRows;
-    private final long maxResultBytes;
+    private final PlanningBudgetLimits planningBudgetLimits;
+    private final CapabilityResourceLimitContributions resourceLimitContributions;
 
     public PlanningEffectiveScope(
             Set<String> allowedCapabilityIds,
             Set<String> allowedDomains,
             Map<CanonicalFieldRef, FieldAccess> fieldAccess,
+            ExternalProcessingAuthorizationEvidence externalProcessingAuthorizationEvidence,
             Set<RuntimeContextType> readableContextTypes,
             Set<RuntimeContextType> writableContextTypes,
             AgentCapabilityRiskLevel maxRiskLevel,
             AgentCapabilityExecutionMode maxExecutionMode,
-            Duration maxTotalDuration,
-            int maxRepairAttempts,
-            int maxPageSize,
-            int maxResultRows,
-            long maxResultBytes) {
+            PlanningBudgetLimits planningBudgetLimits,
+            CapabilityResourceLimitContributions resourceLimitContributions) {
         this.allowedCapabilityIds = copyNonBlankSet(allowedCapabilityIds, "allowedCapabilityIds");
         this.allowedDomains = copyNonBlankSet(allowedDomains, "allowedDomains");
         this.fieldAccess = copyFieldAccess(fieldAccess);
+        this.externalProcessingAuthorizationEvidence = Objects.requireNonNull(
+                externalProcessingAuthorizationEvidence,
+                "externalProcessingAuthorizationEvidence must not be null");
         this.readableContextTypes = Set.copyOf(
                 Objects.requireNonNull(readableContextTypes, "readableContextTypes must not be null"));
         this.writableContextTypes = Set.copyOf(
                 Objects.requireNonNull(writableContextTypes, "writableContextTypes must not be null"));
         this.maxRiskLevel = Objects.requireNonNull(maxRiskLevel, "maxRiskLevel must not be null");
         this.maxExecutionMode = Objects.requireNonNull(maxExecutionMode, "maxExecutionMode must not be null");
-        this.maxTotalDuration = requirePositive(maxTotalDuration, "maxTotalDuration");
-        if (maxRepairAttempts < 0) {
-            throw new IllegalArgumentException("maxRepairAttempts must be non-negative");
-        }
-        if (maxPageSize < 0) {
-            throw new IllegalArgumentException("maxPageSize must be non-negative");
-        }
-        if (maxResultRows < 0) {
-            throw new IllegalArgumentException("maxResultRows must be non-negative");
-        }
-        if (maxResultBytes < 0) {
-            throw new IllegalArgumentException("maxResultBytes must be non-negative");
-        }
-        this.maxRepairAttempts = maxRepairAttempts;
-        this.maxPageSize = maxPageSize;
-        this.maxResultRows = maxResultRows;
-        this.maxResultBytes = maxResultBytes;
+        this.planningBudgetLimits = Objects.requireNonNull(
+                planningBudgetLimits, "planningBudgetLimits must not be null");
+        this.resourceLimitContributions = Objects.requireNonNull(
+                resourceLimitContributions, "resourceLimitContributions must not be null");
     }
 
     public Set<String> allowedCapabilityIds() {
@@ -87,6 +74,10 @@ public final class PlanningEffectiveScope {
 
     public Map<CanonicalFieldRef, FieldAccess> fieldAccess() {
         return fieldAccess;
+    }
+
+    public ExternalProcessingAuthorizationEvidence externalProcessingAuthorizationEvidence() {
+        return externalProcessingAuthorizationEvidence;
     }
 
     public Set<RuntimeContextType> readableContextTypes() {
@@ -105,32 +96,12 @@ public final class PlanningEffectiveScope {
         return maxExecutionMode;
     }
 
-    public Duration maxTotalDuration() {
-        return maxTotalDuration;
+    public PlanningBudgetLimits planningBudgetLimits() {
+        return planningBudgetLimits;
     }
 
-    public int maxRepairAttempts() {
-        return maxRepairAttempts;
-    }
-
-    public int maxPageSize() {
-        return maxPageSize;
-    }
-
-    public int maxResultRows() {
-        return maxResultRows;
-    }
-
-    public long maxResultBytes() {
-        return maxResultBytes;
-    }
-
-    private static Duration requirePositive(Duration value, String name) {
-        Objects.requireNonNull(value, name + " must not be null");
-        if (value.isZero() || value.isNegative()) {
-            throw new IllegalArgumentException(name + " must be positive");
-        }
-        return value;
+    public CapabilityResourceLimitContributions resourceLimitContributions() {
+        return resourceLimitContributions;
     }
 
     private static Map<CanonicalFieldRef, FieldAccess> copyFieldAccess(

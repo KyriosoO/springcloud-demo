@@ -62,22 +62,23 @@ public class MyBatisContextRepository implements ContextRepository {
     public void upsertApproved(ContextRecordEntity record, ExpectedContextVersion expectedVersion) {
         Objects.requireNonNull(record, "record must not be null");
         Objects.requireNonNull(expectedVersion, "expectedVersion must not be null");
-        Optional<ContextRecordEntity> current = findByKey(record.recordKey());
         if (expectedVersion.expectsAbsent()) {
-            if (current.isPresent()) {
-                throw new IllegalStateException("context record already exists: " + record.recordKey().contextType());
+            if (record.recordVersion() != expectedVersion.targetVersion()) {
+                throw new IllegalStateException("record version does not match expected target");
             }
+            if (mapper.insertIfAbsent(toRow(record)) != 1) {
+                throw new IllegalStateException("insert context record failed");
+            }
+            return;
         } else {
             long expectedCurrent = expectedVersion.targetVersion() - 1;
-            if (current.isEmpty() || current.orElseThrow().recordVersion() != expectedCurrent) {
-                throw new IllegalStateException("context record version conflict: " + record.recordKey().contextType());
+            if (record.recordVersion() != expectedVersion.targetVersion()) {
+                throw new IllegalStateException("record version does not match expected target");
             }
-        }
-        if (record.recordVersion() != expectedVersion.targetVersion()) {
-            throw new IllegalStateException("record version does not match expected target");
-        }
-        if (mapper.upsert(toRow(record)) < 1) {
-            throw new IllegalStateException("upsert context record failed");
+            if (mapper.updateIfVersion(toRow(record), expectedCurrent) != 1) {
+                throw new IllegalStateException(
+                        "context record version conflict: " + record.recordKey().contextType());
+            }
         }
     }
 
@@ -103,7 +104,10 @@ public class MyBatisContextRepository implements ContextRepository {
                         new ContextOwnerRef(row.getOwnerType(), row.getOwnerId()),
                         ContextBindingSupport.scope(row.getScopeType(), row.getScopeId()),
                         RuntimeContextType.valueOf(row.getContextType())),
-                new ContractRef(row.getContractSchema(), row.getContractVersion()),
+                new ContractRef(
+                        row.getContractNamespace(),
+                        row.getContractName(),
+                        row.getContractVersion()),
                 row.getRecordVersion(),
                 protectedPayload(row.getProtectedPayloadJson()),
                 row.getSourceCapabilityId(),
@@ -121,7 +125,8 @@ public class MyBatisContextRepository implements ContextRepository {
         row.setScopeType(ContextBindingSupport.scopeType(entity.recordKey().scope()));
         row.setScopeId(entity.recordKey().scope().scopeId());
         row.setContextType(entity.recordKey().contextType().name());
-        row.setContractSchema(entity.contractRef().schema());
+        row.setContractNamespace(entity.contractRef().namespace());
+        row.setContractName(entity.contractRef().name());
         row.setContractVersion(entity.contractRef().version());
         row.setRecordVersion(entity.recordVersion());
         row.setProtectedPayloadJson(writeProtectedPayload(entity.protectedPayload()));

@@ -1,0 +1,2 @@
+package com.dylan.agent.adapter.api.document.provider;
+public enum DocumentProviderAdapterFailureCode { REQUEST_REJECTED, ACTIVATION_REJECTED, DEADLINE_REJECTED, REQUEST_ABORTED, VENDOR_UNAVAILABLE, VENDOR_TIMEOUT, VENDOR_INVALID_RESPONSE, VENDOR_FAILED }

@@ -4,7 +4,7 @@ import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 
-import java.time.Duration;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContributions;
 import java.util.Objects;
 import java.util.Set;
 
@@ -17,11 +17,8 @@ public record AgentProfileDefinition(
         Set<RuntimeContextType> writableContextTypes,
         AgentCapabilityRiskLevel maxRiskLevel,
         AgentCapabilityExecutionMode maxExecutionMode,
-        Duration maxTotalDuration,
-        int maxRepairAttempts,
-        int maxPageSize,
-        int maxResultRows,
-        long maxResultBytes) {
+        PlanningBudgetLimits planningBudgetLimits,
+        CapabilityResourceLimitContributions resourceLimitContributions) {
 
     public AgentProfileDefinition {
         Objects.requireNonNull(key, "key must not be null");
@@ -31,18 +28,8 @@ public record AgentProfileDefinition(
         writableContextTypes = Set.copyOf(Objects.requireNonNull(writableContextTypes, "writableContextTypes must not be null"));
         Objects.requireNonNull(maxRiskLevel, "maxRiskLevel must not be null");
         Objects.requireNonNull(maxExecutionMode, "maxExecutionMode must not be null");
-        requirePositive(maxTotalDuration, "maxTotalDuration");
-        if (maxRepairAttempts < 0 || maxPageSize < 0 || maxResultRows < 0 || maxResultBytes < 0) {
-            throw new IllegalArgumentException("profile numeric limits must be non-negative");
-        }
-    }
-
-    private static Duration requirePositive(Duration value, String name) {
-        Objects.requireNonNull(value, name + " must not be null");
-        if (value.isZero() || value.isNegative()) {
-            throw new IllegalArgumentException(name + " must be positive");
-        }
-        return value;
+        Objects.requireNonNull(planningBudgetLimits, "planningBudgetLimits must not be null");
+        Objects.requireNonNull(resourceLimitContributions, "resourceLimitContributions must not be null");
     }
 
     private static Set<String> copyNonBlankSet(Set<String> source, String name) {

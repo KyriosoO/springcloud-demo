@@ -51,6 +51,7 @@ class CapabilityKernelConfigurationTest {
         var registry = configuration.capabilityRegistry(
                 List.of(registration),
                 contracts,
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 new CapabilityRegistrationValidator(),
                 new FakeDomainMetadataPort(Set.of()));
 
@@ -69,6 +70,8 @@ class CapabilityKernelConfigurationTest {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers("query.search"))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(
@@ -123,7 +126,6 @@ class CapabilityKernelConfigurationTest {
                 Set<String> domains,
                 PlanningEffectiveScope scope,
                 DomainMetadataEvidence expected,
-                String authorizationEvidenceDigest,
                 Instant absoluteDeadline) {
             throw new UnsupportedOperationException();
         }
@@ -139,17 +141,7 @@ class CapabilityKernelConfigurationTest {
         }
 
         @Override
-        public com.dylan.agent.kernel.port.model.ExecutionValidationProjection executionProjection(
-                AdapterRole role,
-                String domain,
-                ExecutionScope scope,
-                DomainMetadataEvidence expected,
-                Instant absoluteDeadline) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public com.dylan.agent.kernel.port.model.AdapterExecutionBinding bind(
+        public com.dylan.agent.kernel.port.model.DomainExecutionResolution resolveExecution(
                 AdapterRole role,
                 String domain,
                 ExecutionScope scope,

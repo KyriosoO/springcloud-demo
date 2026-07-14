@@ -110,13 +110,7 @@ class AgentPermissionInternalControllerTest {
                 "req-1",
                 new SubjectRefDto("USER", userId),
                 NOW,
-                NOW.plusSeconds(30),
-                "default-agent",
-                "default-profile",
-                "CONVERSATION",
-                "conv-1",
-                Set.of(),
-                Set.of());
+                NOW.plusSeconds(30));
     }
 
     private static Jwt serviceToken(String subject, String scope) {

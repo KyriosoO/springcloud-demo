@@ -107,7 +107,8 @@ class CapabilityRegistryTest {
 
     private CapabilityRegistry registry(Collection<CapabilityRegistration<?, ?, ?>> registrations, Set<AdapterRole> knownRoles) {
         ContractRegistry contracts = ContractRegistry.from(registrations);
-        return new CapabilityRegistry(registrations, new CapabilityRegistrationValidator(), contracts, knownRoles);
+        return new CapabilityRegistry(registrations, new CapabilityRegistrationValidator(), contracts,
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(), knownRoles);
     }
 
     private <R extends com.dylan.agent.api.contract.runtime.plan.AgentPlan>
@@ -143,6 +144,8 @@ class CapabilityRegistryTest {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(inputContract)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers(id))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(

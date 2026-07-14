@@ -14,15 +14,13 @@ import java.util.stream.Collectors;
 public final class ExecutionValidationProjection {
 
     private static final ExecutionValidationProjection NONE =
-            new ExecutionValidationProjection(null, null, Map.of(), List.of(), Set.of(), 0, 0, "NO_DOMAIN");
+            new ExecutionValidationProjection(null, null, Map.of(), List.of(), Set.of(), "NO_DOMAIN");
 
     private final Optional<AdapterRole> adapterRole;
     private final Optional<String> domain;
     private final Map<String, ExecutionFieldRule> fieldRules;
     private final List<String> defaultSelectFields;
     private final Set<String> sortFields;
-    private final int maxPageSize;
-    private final int maxResultRows;
     private final String projectionVersion;
 
     public ExecutionValidationProjection(AdapterRole adapterRole,
@@ -30,8 +28,6 @@ public final class ExecutionValidationProjection {
                                          Map<String, ExecutionFieldRule> fieldRules,
                                          List<String> defaultSelectFields,
                                          Set<String> sortFields,
-                                         int maxPageSize,
-                                         int maxResultRows,
                                          String projectionVersion) {
         if ((adapterRole == null) != (domain == null)) {
             throw new IllegalArgumentException("adapterRole and domain must appear together");
@@ -41,14 +37,6 @@ public final class ExecutionValidationProjection {
         this.fieldRules = copyFieldRules(fieldRules);
         this.defaultSelectFields = copyDefaultSelectFields(defaultSelectFields);
         this.sortFields = copySortFields(sortFields, this.fieldRules);
-        if (maxPageSize < 0) {
-            throw new IllegalArgumentException("maxPageSize must be non-negative");
-        }
-        if (maxResultRows < 0) {
-            throw new IllegalArgumentException("maxResultRows must be non-negative");
-        }
-        this.maxPageSize = maxPageSize;
-        this.maxResultRows = maxResultRows;
         this.projectionVersion = requireNonBlank(projectionVersion, "projectionVersion");
     }
 
@@ -56,11 +44,9 @@ public final class ExecutionValidationProjection {
                                          String domain,
                                          Map<String, ExecutionFieldRule> fieldRules,
                                          List<String> defaultSelectFields,
-                                         int maxPageSize,
-                                         int maxResultRows,
                                          String projectionVersion) {
         this(adapterRole, domain, fieldRules, defaultSelectFields, Set.of(),
-                maxPageSize, maxResultRows, projectionVersion);
+                projectionVersion);
     }
 
     public static ExecutionValidationProjection none() {
@@ -72,8 +58,6 @@ public final class ExecutionValidationProjection {
     public Map<String, ExecutionFieldRule> fieldRules() { return fieldRules; }
     public List<String> defaultSelectFields() { return defaultSelectFields; }
     public Set<String> sortFields() { return sortFields; }
-    public int maxPageSize() { return maxPageSize; }
-    public int maxResultRows() { return maxResultRows; }
     public String projectionVersion() { return projectionVersion; }
 
     private static Map<String, ExecutionFieldRule> copyFieldRules(Map<String, ExecutionFieldRule> source) {

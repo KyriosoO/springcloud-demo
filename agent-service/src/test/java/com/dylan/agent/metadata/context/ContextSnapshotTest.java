@@ -118,6 +118,6 @@ class ContextSnapshotTest {
     }
 
     private ContractRef contract() {
-        return new ContractRef("QueryCapabilityContextPayload", "v1");
+        return new ContractRef("agent.test", "QueryCapabilityContextPayload", "v1");
     }
 }

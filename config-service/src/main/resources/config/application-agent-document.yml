@@ -1,103 +1,103 @@
 agent:
   document:
-    rewrite:
-      enabled: true
-      path: /runtime/v1/document/rewrite
-      language: zh-CN
-      max-candidates: 3
-      max-candidate-length: 128
-      timeout: 2s	
-    enabled: true
-    retrieval:
-      default-size: 5
-      answer-candidate-size: 30
-      summarize-candidate-size: 30
-      max-size: 30
-      default-mode: HYBRID
-      mode-by-domain:
-        company_policy: HYBRID
-        tax_policy: HYBRID
-        knowledge_base: HYBRID
-        literature: HYBRID
-      hybrid:
+    acl:
+      scope-url: http://auth-service
+      timeout: 2s
+      max-authority-evidence-ttl: 30m
+      final-decision-max-age: 2s
+      max-departments: 128
+      max-roles: 128
+      max-attributes: 128
+      max-allowed-document-ids: 512
+      max-denied-document-ids: 512
+      max-ast-nodes: 64
+      max-ast-depth: 8
+      max-terms: 1024
+      max-canonical-bytes: 131072
+      max-wire-bytes: 262144
+      max-currentness-candidates: 200
+  document-provider-adapter:
+    base-url: http://document-provider-adapter
+    connect-timeout: 1s
+    read-timeout: 15s
+  document-profiles:
+    owner-agent-id: agent-default
+    owner-profile-version: profile-v1
+    policy-version: policy-v1
+    definitions:
+      - profile-name: company-policy-v3
+        domain: company_policy
+        default-profile: true
+        allowed-material-types: [company_policy]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25, EXACT_PHRASE]
+        required-channels: [BM25, EXACT_PHRASE]
+        keyword-k: 30
+        max-chunks-per-document: 2
+        rewrite-policy: DISABLED
+        embedding-policy: DISABLED
+        rerank-policy: DISABLED
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+        searchable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        returnable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      - profile-name: tax-policy-v3
+        domain: tax_policy
+        default-profile: true
+        allowed-material-types: [tax_policy]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25, EXACT_PHRASE, DENSE_VECTOR]
+        required-channels: [BM25, EXACT_PHRASE, DENSE_VECTOR]
         keyword-k: 60
         vector-k: 60
         rrf-k: 60
-        num-candidates: 300
-      profiles:
-        tax-policy-v2:
-          enabled: true
-          domain: tax_policy
-          material-types: [tax_policy]
-          retrieval-profile: tax_policy_v2_default
-          index-alias: agent-doc-tax-policy-v2-read
-          channels: [BM25, EXACT, PHRASE, DENSE_VECTOR]
-          channel-weights:
-            BM25: 1.0
-            EXACT: 1.8
-            PHRASE: 1.4
-            DENSE_VECTOR: 1.0
-          embedding-field: embedding
-          embedding-provider: bge
-          embedding-model: ${ai.provider.embedding.bge.model}
-          embedding-dimension: ${ai.provider.embedding.bge.dimension}
-          keyword-k: 60
-          exact-k: 20
-          phrase-k: 40
-          vector-k: 60
-          rrf-k: 60
-          num-candidates: 300
-          max-chunks-per-document: 2
-          rerank:
-            enabled: true
-            top-n: 30
-    text-limits:
-      max-query-text-length: 500
-      max-snippet-chars: 500
-      max-summary-chars: 2000
-    evidence-selection:
-      max-generation-evidence-count: 5
-      max-display-citation-count: 12
-      max-summary-document-count: 12
-      strategy: SCORE_GROUP_TOP
-      score-groups: 3
-      min-top-group-size: 1
-    context-window:
-      enabled: true
-      before-chunks: 5
-      after-chunks: 5
-    acl:
-      enabled: true
-      scope-url: http://localhost:9220
-      timeout: 2s
-      mock:
-        enabled: true
-    embedding:
-      enabled: true
-      base-url: ${ai.provider.embedding.bge.base-url}
-      model: ${ai.provider.embedding.bge.model}
-      dimension: ${ai.provider.embedding.bge.dimension}
-      timeout: 5s
-    generation:
-      enabled: true
-      base-url: http://localhost:9240
-      model: ${ai.provider.generation.deepseek.model}
-      max-context-chars: 12000
-      max-evidence-chars: 1600
-      max-output-chars: 2000
-      timeout: 60s
-      failure-policy: FALLBACK_EXTRACTIVE
-    rerank:
-      enabled: true
-      base-url: http://127.0.0.1:8909
-      path: /rerank
-      model: BAAI/bge-reranker-v2-m3
-      normalize: true
-      max-document-chars: 1200
-      timeout: 5s
-  document-adapter:
-    index-by-domain:
-      company_policy: agent-doc-company-policy
-      tax_policy: agent-doc-tax-policy-v2-read
-      knowledge_base: agent-doc-knowledge-base
-      literature: agent-doc-literature
+        num-candidates: 180
+        max-chunks-per-document: 2
+        rewrite-policy: OPTIONAL
+        embedding-policy: REQUIRED
+        rerank-policy: OPTIONAL
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+        searchable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        returnable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      - profile-name: knowledge-base-v3
+        domain: knowledge_base
+        default-profile: true
+        allowed-material-types: [knowledge_base]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25, EXACT_PHRASE]
+        required-channels: [BM25, EXACT_PHRASE]
+        rewrite-policy: DISABLED
+        embedding-policy: DISABLED
+        rerank-policy: DISABLED
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+        searchable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        returnable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      - profile-name: literature-v3
+        domain: literature
+        default-profile: true
+        allowed-material-types: [literature]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25, EXACT_PHRASE]
+        required-channels: [BM25, EXACT_PHRASE]
+        rewrite-policy: DISABLED
+        embedding-policy: DISABLED
+        rerank-policy: DISABLED
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+        searchable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+        returnable-fields: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+    policy:
+      - domain: company_policy
+        allowed-profile-names: [company-policy-v3]
+        allowed-channels: [BM25, EXACT_PHRASE]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: tax_policy
+        allowed-profile-names: [tax-policy-v3]
+        allowed-channels: [BM25, EXACT_PHRASE, DENSE_VECTOR]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: knowledge_base
+        allowed-profile-names: [knowledge-base-v3]
+        allowed-channels: [BM25, EXACT_PHRASE]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: literature
+        allowed-profile-names: [literature-v3]
+        allowed-channels: [BM25, EXACT_PHRASE]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]

@@ -8,7 +8,7 @@ import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 public final class QueryContextPayloadV11ToV12Migrator
         implements ContextPayloadMigrator<QueryCapabilityContextPayload, QueryCapabilityContextPayload> {
 
-    private static final ContractRef SOURCE = new ContractRef("QueryCapabilityContextPayload", "1.1.0");
+    private static final ContractRef SOURCE = AgentExecutionContracts.ref("QueryCapabilityContextPayload", "1.1.0");
 
     @Override
     public ContractRef source() { return SOURCE; }

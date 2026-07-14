@@ -2,7 +2,6 @@ package com.dylan.agent.planning;
 
 import com.dylan.agent.client.AgentRuntimeClient;
 import com.dylan.agent.client.AgentRuntimeErrorMapper;
-import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.metadata.authorization.port.AuthorizationPlanningPort;
 import com.dylan.agent.metadata.catalog.CapabilityCatalog;
@@ -63,9 +62,8 @@ public class PlanningConfiguration {
     @Bean
     RuntimePlanningRequestFactory runtimePlanningRequestFactory(
             DomainMetadataPort domainMetadataPort,
-            ProfileBehaviorProjectionBoundary profileBehaviorProjectionBoundary,
-            AgentProperties properties) {
-        return new RuntimePlanningRequestFactory(domainMetadataPort, profileBehaviorProjectionBoundary, properties);
+            ProfileBehaviorProjectionBoundary profileBehaviorProjectionBoundary) {
+        return new RuntimePlanningRequestFactory(domainMetadataPort, profileBehaviorProjectionBoundary);
     }
 
     @Bean
@@ -80,6 +78,7 @@ public class PlanningConfiguration {
             PlanOutcomeValidator planOutcomeValidator,
             PlanningClarificationResolver clarificationResolver,
             AgentRuntimeErrorMapper runtimeErrorMapper,
+            PlanningArtifactAssembler artifactAssembler,
             Clock clock) {
         return new PlanningService(
                 authorizationPlanningPort,
@@ -92,6 +91,7 @@ public class PlanningConfiguration {
                 planOutcomeValidator,
                 clarificationResolver,
                 runtimeErrorMapper,
+                artifactAssembler,
                 clock);
     }
 }

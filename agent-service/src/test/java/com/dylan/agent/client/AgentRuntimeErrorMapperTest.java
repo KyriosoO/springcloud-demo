@@ -79,9 +79,8 @@ class AgentRuntimeErrorMapperTest {
     }
 
     private static InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("user", "dylan"),

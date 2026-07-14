@@ -56,7 +56,7 @@ class TransactionAgentAdapterTest {
         response.setSize(20);
         when(client.search(any())).thenReturn(response);
 
-        var result = adapter.query(query());
+        var result = adapter.query(query(), operationContext());
 
         ArgumentCaptor<TransactionSearchRequest> request =
                 ArgumentCaptor.forClass(TransactionSearchRequest.class);
@@ -83,7 +83,7 @@ class TransactionAgentAdapterTest {
                         .build());
         when(client.search(any())).thenThrow(downstream);
 
-        assertThatThrownBy(() -> adapter.query(query()))
+        assertThatThrownBy(() -> adapter.query(query(), operationContext()))
                 .isInstanceOf(AgentAdapterException.class)
                 .hasMessage("Transaction 服务查询失败。")
                 .hasMessageNotContaining("secret downstream response");
@@ -95,7 +95,7 @@ class TransactionAgentAdapterTest {
                 Map.of("transType", "PAY", "sumAmount", new BigDecimal("12.50"), "count", 2),
                 Map.of("transType", "REFUND", "sumAmount", new BigDecimal("8.00"), "count", 1))));
 
-        var result = adapter.aggregate(aggregateQuery());
+        var result = adapter.aggregate(aggregateQuery(), operationContext());
 
         ArgumentCaptor<AggregateRequest> request = ArgumentCaptor.forClass(AggregateRequest.class);
         verify(client).aggregate(request.capture());
@@ -115,6 +115,31 @@ class TransactionAgentAdapterTest {
                         "transType", AgentOperator.CONTAINS, "PAY", List.of())),
                 List.of("transId", "transType", "transDate", "amount"),
                 1, 20);
+    }
+
+    private com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext() {
+        return new com.dylan.agent.adapter.api.operation.CapabilityOperationContext(
+                "inv-1", "corr-1", "query.search", "op-1",
+                com.dylan.agent.adapter.api.operation.CapabilityOperationType.of("DOMAIN_QUERY"),
+                Instant.now().plusSeconds(60), () -> false, resourceLimits());
+    }
+
+    private com.dylan.agent.adapter.api.operation.CapabilityResourceLimitView resourceLimits() {
+        var value = new com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit(100, 100, 1_000_000);
+        return new com.dylan.agent.adapter.api.operation.CapabilityResourceLimitView() {
+            @Override
+            public <T extends com.dylan.agent.adapter.api.operation.CapabilityResourceLimit> T require(
+                    com.dylan.agent.api.contract.common.ContractRef ref, Class<T> type) {
+                return type.cast(value);
+            }
+
+            @Override
+            public com.dylan.agent.adapter.api.operation.ResourceLimitReference reference() {
+                return new com.dylan.agent.adapter.api.operation.ResourceLimitReference(
+                        com.dylan.agent.api.contract.common.AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                        "a".repeat(64), "inv-1", "registration-v1");
+            }
+        };
     }
 
     private ValidatedAggregateQuery aggregateQuery() {

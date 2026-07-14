@@ -22,7 +22,7 @@ class ContextMigrationRegistryTest {
     private static final class TestMigrator implements com.dylan.agent.metadata.context.migration.ContextPayloadMigrator<QueryCapabilityContextPayload, QueryCapabilityContextPayload> {
         public com.dylan.agent.api.contract.common.ContractRef source() { return AgentExecutionContracts.QUERY_CONTEXT; }
         public Class<QueryCapabilityContextPayload> sourceType() { return QueryCapabilityContextPayload.class; }
-        public com.dylan.agent.api.contract.common.ContractRef target() { return new com.dylan.agent.api.contract.common.ContractRef("QueryCapabilityContextPayload", "2.0.0"); }
+        public com.dylan.agent.api.contract.common.ContractRef target() { return AgentExecutionContracts.ref("QueryCapabilityContextPayload", "2.0.0"); }
         public Class<QueryCapabilityContextPayload> targetType() { return QueryCapabilityContextPayload.class; }
         public QueryCapabilityContextPayload migrate(QueryCapabilityContextPayload sourcePayload) { return sourcePayload; }
     }

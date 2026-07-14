@@ -1,17 +1,16 @@
 {
   "mappings": {
+    "dynamic": "strict",
     "properties": {
       "tenantId": { "type": "keyword" },
-      "corpusId": { "type": "keyword" },
       "documentId": { "type": "keyword" },
       "documentVersion": { "type": "keyword" },
       "chunkId": { "type": "keyword" },
       "chunkIndex": { "type": "integer" },
       "charStart": { "type": "integer" },
       "charEnd": { "type": "integer" },
-      "title": { "type": "text" },
-      "content": { "type": "text" },
-      "snippet": { "type": "text" },
+      "title": { "type": "text", "analyzer": "standard" },
+      "content": { "type": "text", "analyzer": "standard" },
       "aclRef": { "type": "keyword" },
       "aclVersion": { "type": "keyword" },
       "visibility": { "type": "keyword" },
@@ -20,9 +19,7 @@
       "userIds": { "type": "keyword" },
       "attributeKeys": { "type": "keyword" },
       "status": { "type": "keyword" },
-      "indexVersion": { "type": "keyword" },
-      "contentHash": { "type": "keyword" },
-      "embedding": { "type": "dense_vector", "dims": 1024 }
+      "chunkContentHash": { "type": "keyword" }
     }
   }
 }

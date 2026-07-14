@@ -11,8 +11,6 @@ import com.dylan.agent.invocation.model.ContextOwnerRef;
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.kernel.port.model.ApprovedContextWrite;
 import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
-import com.dylan.agent.metadata.config.AgentSecuritySettings;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.internal.ContextFinalizationParticipantImpl;
 import com.dylan.agent.metadata.context.internal.ContextRecordEntity;
 import com.dylan.agent.metadata.context.internal.ContextRepository;
@@ -42,7 +40,7 @@ class ContextFinalizationParticipantImplTest {
     @Test
     void persistsApprovedWritesInContextTypeOrderAndPassesExpectedVersion() {
         RecordingRepository repository = new RecordingRepository();
-        ContextFinalizationParticipantImpl participant = participant(repository, Duration.ofHours(1));
+        ContextFinalizationParticipantImpl participant = participant(repository);
 
         participant.persist(List.of(
                 write("ctx-query", RuntimeContextType.QUERY, ExpectedContextVersion.version(3)),
@@ -57,9 +55,9 @@ class ContextFinalizationParticipantImplTest {
     }
 
     @Test
-    void rejectsWritesPastCurrentStrictTtl() {
+    void rejectsExpiredWrites() {
         ContextFinalizationParticipantImpl participant =
-                participant(new RecordingRepository(), Duration.ofSeconds(10));
+                participant(new RecordingRepository());
 
         ApprovedContextWrite write = new ApprovedContextWrite(
                 "ctx-query",
@@ -68,23 +66,19 @@ class ContextFinalizationParticipantImplTest {
                 "query.search",
                 "inv-1",
                 "employee",
-                CLOCK.instant().plusSeconds(11),
+                CLOCK.instant(),
                 ExpectedContextVersion.absent());
 
         assertThatThrownBy(() -> participant.persist(List.of(write)))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("globalMaxContextTtl");
+                .hasMessageContaining("expire in the future");
     }
 
-    private ContextFinalizationParticipantImpl participant(
-            RecordingRepository repository,
-            Duration maxTtl) {
+    private ContextFinalizationParticipantImpl participant(RecordingRepository repository) {
         return new ContextFinalizationParticipantImpl(
                 repository,
                 new PayloadJsonCodec(),
                 new StubProtectedPayloadCodec(),
-                new AgentSecuritySettingsRegistry(new AgentSecuritySettings(
-                        maxTtl, Duration.ofMinutes(5), 10, "ACTIVE")),
                 CLOCK);
     }
 
@@ -113,7 +107,7 @@ class ContextFinalizationParticipantImplTest {
     private ContextWriteCandidate candidate(RuntimeContextType type) {
         return new ContextWriteCandidate(
                 type,
-                new ContractRef("query_context", "v1"),
+                new ContractRef("agent.test", "query_context", "v1"),
                 payload(type));
     }
 

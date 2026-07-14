@@ -23,7 +23,7 @@ public record PayloadProtectionContext(
     public byte[] aadBytes() {
         String canonical = purpose.name() + "|"
                 + recordId + "|"
-                + contractRef.schema() + ":" + contractRef.version() + "|"
+                + contractRef.namespace() + ":" + contractRef.name() + ":" + contractRef.version() + "|"
                 + bindingDigest;
         return canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }

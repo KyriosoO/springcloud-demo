@@ -49,6 +49,6 @@ public final class SecretMaterialPayloadKeyProvider implements PayloadKeyProvide
         if (key == null) {
             throw new SecretMaterialException("Missing payload key config for keyId " + keyId, null, true);
         }
-        return new SecretKeyRef(SecretPurpose.AGENT_PAYLOAD, keyId, key.getEnv(), key.getValue());
+        return new SecretKeyRef(SecretPurpose.AGENT_PAYLOAD, keyId);
     }
 }

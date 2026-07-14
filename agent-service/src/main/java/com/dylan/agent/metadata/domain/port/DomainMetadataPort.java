@@ -3,7 +3,7 @@ package com.dylan.agent.metadata.domain.port;
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.contract.runtime.common.RuntimeDomainRoutingProjection;
 import com.dylan.agent.api.contract.runtime.common.RuntimeDomainSchema;
-import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
+import com.dylan.agent.kernel.port.model.DomainExecutionResolution;
 import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
@@ -43,7 +43,6 @@ public interface DomainMetadataPort {
             Set<String> domains,
             PlanningEffectiveScope scope,
             DomainMetadataEvidence expected,
-            String authorizationEvidenceDigest,
             Instant absoluteDeadline);
 
     RuntimeDomainSchema planSchema(
@@ -53,14 +52,7 @@ public interface DomainMetadataPort {
             DomainMetadataEvidence expected,
             Instant absoluteDeadline);
 
-    ExecutionValidationProjection executionProjection(
-            AdapterRole role,
-            String domain,
-            ExecutionScope scope,
-            DomainMetadataEvidence expected,
-            Instant absoluteDeadline);
-
-    AdapterExecutionBinding bind(
+    DomainExecutionResolution resolveExecution(
             AdapterRole role,
             String domain,
             ExecutionScope scope,

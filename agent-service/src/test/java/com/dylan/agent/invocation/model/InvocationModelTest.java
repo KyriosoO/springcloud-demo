@@ -17,27 +17,11 @@ class InvocationModelTest {
 
     @Test
     void handleRequiresCompatibleTypeOriginAndScope() {
-        InvocationHandle chat = chatHandle(
-                InvocationType.CHAT,
-                new ChatInvocationOrigin("conv-1", "turn-1"),
-                new ConversationScope("conv-1"));
+        InvocationHandle chat = chatHandle();
 
         assertThat(chat.origin()).isInstanceOf(ChatInvocationOrigin.class);
         assertThat(chat.scope()).isInstanceOf(ConversationScope.class);
 
-        assertThatThrownBy(() -> chatHandle(
-                InvocationType.TASK,
-                new ChatInvocationOrigin("conv-1", "turn-1"),
-                new ConversationScope("conv-1")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("origin");
-
-        assertThatThrownBy(() -> chatHandle(
-                InvocationType.CHAT,
-                new ChatInvocationOrigin("conv-1", "turn-1"),
-                new RunScope("run-1")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("scope");
     }
 
     @Test
@@ -50,13 +34,8 @@ class InvocationModelTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("turnId");
 
-        assertThatThrownBy(() -> new TaskInvocationOrigin("run-1", "", "attempt-1"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("taskId");
-
-        assertThatThrownBy(() -> InvocationHandle.create(
+        assertThatThrownBy(() -> InvocationHandle.forChat(
                 "",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "corr-1",
                 new ExecutionSubjectRef("user", "u-1"),
@@ -88,28 +67,21 @@ class InvocationModelTest {
 
     @Test
     void deadlineChecksUseTheHandleDeadlineOnly() {
-        InvocationHandle handle = chatHandle(
-                InvocationType.CHAT,
-                new ChatInvocationOrigin("conv-1", "turn-1"),
-                new ConversationScope("conv-1"));
+        InvocationHandle handle = chatHandle();
 
         assertThat(handle.isExpired(CLOCK)).isFalse();
         assertThat(handle.remaining(CLOCK).getSeconds()).isEqualTo(30);
         assertThat(handle.isExpired(Clock.offset(CLOCK, java.time.Duration.ofSeconds(31)))).isTrue();
     }
 
-    private InvocationHandle chatHandle(
-            InvocationType type,
-            InvocationOrigin origin,
-            InvocationScope scope) {
-        return InvocationHandle.create(
+    private InvocationHandle chatHandle() {
+        return InvocationHandle.forChat(
                 "inv-1",
-                type,
-                origin,
+                new ChatInvocationOrigin("conv-1", "turn-1"),
                 "corr-1",
                 new ExecutionSubjectRef("user", "u-1"),
                 new ContextOwnerRef("conversation", "conv-1"),
-                scope,
+                new ConversationScope("conv-1"),
                 AgentProfileRef.of("agent", "v1"),
                 CLOCK.instant().plusSeconds(30));
     }

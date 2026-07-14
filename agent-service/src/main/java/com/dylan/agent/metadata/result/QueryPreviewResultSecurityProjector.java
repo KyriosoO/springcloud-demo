@@ -8,6 +8,8 @@ import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryPreviewResult;
 import com.dylan.agent.api.response.QueryPreviewResultPayload;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
+import com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit;
 
 import java.util.List;
 import java.util.Map;
@@ -34,12 +36,18 @@ public final class QueryPreviewResultSecurityProjector
     }
 
     @Override
-    public FilteredResult<QueryPreviewResultPayload> filter(QueryPreviewResultPayload candidate, ExecutionScope scope) {
+    public FilteredResult<QueryPreviewResultPayload> filter(
+            QueryPreviewResultPayload candidate,
+            ExecutionScope scope,
+            EffectiveCapabilityResourceLimits limits) {
+        int maxRows = limits.require(
+                AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                StandardCapabilityResourceLimit.class).maxResultRows();
         String domain = candidate.getQueryParameters() == null ? null : candidate.getQueryParameters().getDomain();
         requireDomainWhenData(domain, hasFieldBearingData(candidate));
         QueryPreviewResultPayload filtered = new QueryPreviewResultPayload(
                 filterParameters(domain, candidate.getQueryParameters(), scope),
-                filterPreview(domain, candidate.getPreviewResult(), scope));
+                filterPreview(domain, candidate.getPreviewResult(), scope, maxRows));
         return new FilteredResult<>(filtered, "查询预览完成", "查询预览结果已按当前执行范围过滤和脱敏");
     }
 
@@ -85,7 +93,8 @@ public final class QueryPreviewResultSecurityProjector
     private QueryPreviewResult filterPreview(
             String domain,
             QueryPreviewResult source,
-            ExecutionScope scope) {
+            ExecutionScope scope,
+            int maxRows) {
         if (source == null) {
             return null;
         }
@@ -93,6 +102,7 @@ public final class QueryPreviewResultSecurityProjector
         target.setColumns(maskingSupport.filterFields(domain, source.getColumns(), scope));
         target.setSampleRows(source.getSampleRows() == null ? null : source.getSampleRows().stream()
                 .map(row -> maskingSupport.filterAndMaskRow(domain, row, scope))
+                .limit(maxRows)
                 .toList());
         target.setTotalEstimate(source.getTotalEstimate());
         target.setTotalExact(source.isTotalExact());

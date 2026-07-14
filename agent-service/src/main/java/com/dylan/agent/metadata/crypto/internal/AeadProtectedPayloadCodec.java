@@ -1,6 +1,5 @@
 package com.dylan.agent.metadata.crypto.internal;
 
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.crypto.model.PayloadProtectionContext;
 import com.dylan.agent.metadata.crypto.model.ProtectedPayload;
 import com.dylan.agent.metadata.crypto.port.PayloadKeyProvider;
@@ -20,21 +19,24 @@ public final class AeadProtectedPayloadCodec implements ProtectedPayloadCodec {
     private static final int NONCE_BYTES = 12;
     private static final int TAG_BITS = 128;
 
-    private final AgentSecuritySettingsRegistry settingsRegistry;
+    private final String activeKeyId;
     private final PayloadKeyProvider keyProvider;
     private final SecureRandom secureRandom;
 
     public AeadProtectedPayloadCodec(
-            AgentSecuritySettingsRegistry settingsRegistry,
+            String activeKeyId,
             PayloadKeyProvider keyProvider) {
-        this(settingsRegistry, keyProvider, new SecureRandom());
+        this(activeKeyId, keyProvider, new SecureRandom());
     }
 
     AeadProtectedPayloadCodec(
-            AgentSecuritySettingsRegistry settingsRegistry,
+            String activeKeyId,
             PayloadKeyProvider keyProvider,
             SecureRandom secureRandom) {
-        this.settingsRegistry = Objects.requireNonNull(settingsRegistry);
+        this.activeKeyId = Objects.requireNonNull(activeKeyId, "activeKeyId must not be null").trim();
+        if (this.activeKeyId.isEmpty()) {
+            throw new IllegalArgumentException("activeKeyId must not be blank");
+        }
         this.keyProvider = Objects.requireNonNull(keyProvider);
         this.secureRandom = Objects.requireNonNull(secureRandom);
     }
@@ -43,7 +45,7 @@ public final class AeadProtectedPayloadCodec implements ProtectedPayloadCodec {
     public ProtectedPayload encrypt(byte[] plaintext, PayloadProtectionContext context) {
         Objects.requireNonNull(plaintext, "plaintext must not be null");
         Objects.requireNonNull(context, "context must not be null");
-        String keyId = settingsRegistry.current().activePayloadKeyId();
+        String keyId = activeKeyId;
         byte[] nonce = new byte[NONCE_BYTES];
         secureRandom.nextBytes(nonce);
         return new ProtectedPayload(crypt(Cipher.ENCRYPT_MODE, keyId, nonce, plaintext, context),

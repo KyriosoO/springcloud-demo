@@ -7,6 +7,7 @@ import com.dylan.agent.api.contract.runtime.plan.AggregateAgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.DocumentAgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.QueryAgentPlan;
 import com.dylan.agent.kernel.definition.ContractRegistry;
+import com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -27,9 +28,11 @@ public final class CapabilityRegistrationValidator {
 
     public void validateAll(Collection<CapabilityRegistration<?, ?, ?>> registrations,
                             ContractRegistry contracts,
+                            CapabilityResourceLimitRegistry resourceContracts,
                             Set<AdapterRole> knownRoles) {
         Objects.requireNonNull(registrations);
         Objects.requireNonNull(contracts);
+        Objects.requireNonNull(resourceContracts);
         Objects.requireNonNull(knownRoles);
         if (registrations.isEmpty()) {
             throw new IllegalStateException("at least one CapabilityRegistration required");
@@ -49,6 +52,7 @@ public final class CapabilityRegistrationValidator {
             validatePlanKindBinding(reg);
 
             validateContracts(reg, contracts);
+            validateResourceContract(reg, resourceContracts);
 
             // DomainMode/AdapterRole 闭合
             validateDomainModeClosure(reg, knownRoles);
@@ -63,6 +67,47 @@ public final class CapabilityRegistrationValidator {
             // Routing Descriptor 完整
             Objects.requireNonNull(reg.definition().routingDescriptor());
         }
+    }
+
+    private void validateResourceContract(
+            CapabilityRegistration<?, ?, ?> reg,
+            CapabilityResourceLimitRegistry resourceContracts) {
+        var declaration = reg.definition().resourceLimitDeclaration();
+        var contract = requireResourceContract(resourceContracts, declaration);
+        if (!contract.supportedDimensions().containsAll(declaration.applicableDimensions())) {
+            throw new IllegalStateException("resource limit declaration dimension mismatch: "
+                    + reg.definition().capabilityId());
+        }
+        Set<String> consumerIds = new HashSet<>();
+        Set<com.dylan.agent.kernel.resource.ResourceLimitDimension> coveredDimensions = new HashSet<>();
+        for (var consumer : reg.definition().resourceLimitConsumers()) {
+            if (!consumerIds.add(consumer.consumerId())) {
+                throw new IllegalStateException("duplicate resource limit consumer: "
+                        + consumer.consumerId());
+            }
+            if (!consumer.contractRef().equals(declaration.contractRef())) {
+                throw new IllegalStateException("resource limit consumer contract mismatch: "
+                        + consumer.consumerId());
+            }
+            if (!declaration.applicableDimensions().containsAll(consumer.requiredDimensions())) {
+                throw new IllegalStateException("resource limit consumer dimension mismatch: "
+                        + consumer.consumerId());
+            }
+            coveredDimensions.addAll(consumer.requiredDimensions());
+        }
+        if (!coveredDimensions.containsAll(declaration.applicableDimensions())) {
+            throw new IllegalStateException("resource limit consumer coverage incomplete: "
+                    + reg.definition().capabilityId());
+        }
+    }
+
+    private static <T extends com.dylan.agent.adapter.api.operation.CapabilityResourceLimit>
+    com.dylan.agent.kernel.resource.CapabilityResourceLimitContract<T> requireResourceContract(
+            CapabilityResourceLimitRegistry registry,
+            com.dylan.agent.kernel.resource.CapabilityResourceLimitDeclaration<T> declaration) {
+        var contract = registry.require(declaration.contractRef(), declaration.limitType());
+        contract.validate(declaration.intrinsicUpperBound());
+        return contract;
     }
 
     private void validatePlanKindBinding(CapabilityRegistration<?, ?, ?> reg) {

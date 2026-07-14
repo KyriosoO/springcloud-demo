@@ -26,16 +26,15 @@ class MyBatisContextRepositoryTest {
             Clock.fixed(Instant.parse("2026-07-01T00:00:00Z"), ZoneOffset.UTC);
 
     @Test
-    void upsertApprovedAcceptsDuplicateKeyUpdateAffectedRows() {
+    void upsertApprovedUsesVersionCheckedCompareAndSet() {
         ContextRecordMapper mapper = mock(ContextRecordMapper.class);
         MyBatisContextRepository repository =
                 new MyBatisContextRepository(mapper, new ObjectMapper(), CLOCK);
         ContextRecordEntity current = record(0);
         ContextRecordEntity next = record(1);
 
-        when(mapper.findByKey("conversation", "conv-1", "CONVERSATION", "conv-1", "QUERY"))
-                .thenReturn(toRow(current));
-        when(mapper.upsert(any(ContextRecordRow.class))).thenReturn(2);
+        when(mapper.updateIfVersion(any(ContextRecordRow.class), org.mockito.ArgumentMatchers.eq(0L)))
+                .thenReturn(1);
 
         assertThatCode(() -> repository.upsertApproved(next, ExpectedContextVersion.version(0)))
                 .doesNotThrowAnyException();
@@ -66,7 +65,8 @@ class MyBatisContextRepositoryTest {
         row.setScopeType("CONVERSATION");
         row.setScopeId(entity.recordKey().scope().scopeId());
         row.setContextType(entity.recordKey().contextType().name());
-        row.setContractSchema(entity.contractRef().schema());
+        row.setContractNamespace(entity.contractRef().namespace());
+        row.setContractName(entity.contractRef().name());
         row.setContractVersion(entity.contractRef().version());
         row.setRecordVersion(entity.recordVersion());
         row.setProtectedPayloadJson(

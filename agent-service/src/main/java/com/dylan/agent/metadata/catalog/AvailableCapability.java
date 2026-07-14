@@ -6,7 +6,6 @@ import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
 
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 
@@ -19,11 +18,6 @@ public record AvailableCapability(
         Set<String> allowedDomains,
         AgentCapabilityRiskLevel riskLevel,
         AgentCapabilityExecutionMode executionMode,
-        Duration maxTotalDuration,
-        int maxRepairAttempts,
-        int maxPageSize,
-        int maxResultRows,
-        long maxResultBytes,
         String registrationIdentity) {
     public AvailableCapability {
         capabilityId = requireNonBlank(capabilityId, "capabilityId");
@@ -33,10 +27,6 @@ public record AvailableCapability(
         allowedDomains = Set.copyOf(Objects.requireNonNull(allowedDomains, "allowedDomains must not be null"));
         Objects.requireNonNull(riskLevel, "riskLevel must not be null");
         Objects.requireNonNull(executionMode, "executionMode must not be null");
-        Objects.requireNonNull(maxTotalDuration, "maxTotalDuration must not be null");
-        if (maxRepairAttempts < 0 || maxPageSize < 0 || maxResultRows < 0 || maxResultBytes < 0) {
-            throw new IllegalArgumentException("available capability numeric limits must be non-negative");
-        }
         registrationIdentity = requireNonBlank(registrationIdentity, "registrationIdentity");
     }
 

@@ -12,11 +12,16 @@ import java.util.Set;
 /** 不可变 D04 canonical catalog snapshot。 */
 public record CanonicalDomainCatalog(
         String catalogVersion,
-        Map<String, CanonicalDomainDefinition> domains) {
+        Map<String, CanonicalDomainDefinition> domains,
+        String canonicalDigest) {
 
     public CanonicalDomainCatalog {
         catalogVersion = CanonicalFieldDefinition.requireNonBlank(catalogVersion, "catalogVersion");
         domains = Map.copyOf(Objects.requireNonNull(domains, "domains must not be null"));
+        canonicalDigest = DomainMetadataCanonicalizer.requireDigest(canonicalDigest, "canonicalDigest");
+        if (!canonicalDigest.equals(DomainMetadataCanonicalizer.catalogDigest(catalogVersion, domains))) {
+            throw new IllegalArgumentException("canonicalDigest does not match catalog content");
+        }
     }
 
     public CanonicalDomainDefinition requireDomain(String domain) {

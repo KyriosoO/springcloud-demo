@@ -4,21 +4,21 @@ import com.dylan.agent.kernel.definition.ContractRegistry;
 import com.dylan.agent.kernel.port.AuthorizationExecutionPort;
 import com.dylan.agent.kernel.port.ResultSecurityPort;
 import com.dylan.agent.capability.document.DocumentObservabilitySupport;
+import com.dylan.agent.capability.document.profile.DocumentProfileAssetRegistry;
+import com.dylan.agent.capability.document.profile.DocumentProfileAssets;
+import com.dylan.agent.capability.document.profile.DocumentProfileProperties;
+import com.dylan.agent.capability.document.profile.DocumentPolicyConstraintRegistry;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationExecutionPortImpl;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationPlanningPortImpl;
-import com.dylan.agent.metadata.authorization.internal.DelegationBoundary;
 import com.dylan.agent.metadata.authorization.internal.UserPermissionBoundary;
-import com.dylan.agent.metadata.authorization.model.DelegationConstraint;
-import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import com.dylan.agent.metadata.authorization.port.AuthorizationPlanningPort;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 import com.dylan.agent.metadata.crypto.internal.AeadProtectedPayloadCodec;
 import com.dylan.agent.metadata.crypto.internal.SecretMaterialPayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.port.PayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.port.ProtectedPayloadCodec;
-import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
@@ -40,6 +40,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import java.time.Clock;
 import java.util.List;
@@ -50,14 +51,29 @@ import java.util.Set;
  * D03 规划和执行端口的元数据/安全装配根。
  */
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(DocumentProfileProperties.class)
 public class AgentMetadataSecurityConfiguration {
+
+    @Bean
+    DocumentProfileAssets.BuiltAssets documentProfileAssets(DocumentProfileProperties properties) {
+        return DocumentProfileAssets.build(properties);
+    }
+
+    @Bean
+    DocumentProfileAssetRegistry documentProfileAssetRegistry(DocumentProfileAssets.BuiltAssets assets) {
+        return assets.profileRegistry();
+    }
+
+    @Bean
+    DocumentPolicyConstraintRegistry documentPolicyConstraintRegistry(DocumentProfileAssets.BuiltAssets assets) {
+        return assets.policyRegistry();
+    }
 
     @Bean
     AgentMetadataBootstrap agentMetadataBootstrap(
             AgentProperties properties,
-            DomainMetadataProperties domainMetadataProperties,
-            SecretProperties secretProperties) {
-        return new DefaultAgentMetadataBootstrap(properties, domainMetadataProperties, secretProperties);
+            DocumentProfileAssets.BuiltAssets documentAssets) {
+        return new DefaultAgentMetadataBootstrap(properties, documentAssets);
     }
 
     @Bean
@@ -68,11 +84,6 @@ public class AgentMetadataSecurityConfiguration {
     @Bean
     PayloadJsonCodec payloadJsonCodec(ObjectMapper objectMapper) {
         return new PayloadJsonCodec(objectMapper);
-    }
-
-    @Bean
-    AgentSecuritySettingsRegistry agentSecuritySettingsRegistry(AgentMetadataStore metadataStore) {
-        return new AgentSecuritySettingsRegistry(metadataStore);
     }
 
     @Bean
@@ -96,10 +107,11 @@ public class AgentMetadataSecurityConfiguration {
 
     @Bean
     ProtectedPayloadCodec protectedPayloadCodec(
-            AgentSecuritySettingsRegistry settingsRegistry,
+            SecretProperties secretProperties,
             PayloadKeyProvider keyProvider) {
-        AgentMetadataPropertiesValidator.validate(settingsRegistry.current(), keyProvider);
-        return new AeadProtectedPayloadCodec(settingsRegistry, keyProvider);
+        String activeKeyId = secretProperties.getAgentPayload().getActiveKeyId();
+        AgentMetadataPropertiesValidator.validate(activeKeyId, keyProvider);
+        return new AeadProtectedPayloadCodec(activeKeyId, keyProvider);
     }
 
     @Bean
@@ -125,13 +137,9 @@ public class AgentMetadataSecurityConfiguration {
     @Bean
     DocumentResultSecurityProjector documentResultSecurityProjector(
             ResultValueMaskingSupport maskingSupport,
-            AgentProperties properties,
-            ObjectProvider<DocumentObservabilitySupport> observabilitySupport) {
-        return new DocumentResultSecurityProjector(
-                maskingSupport,
-                properties,
-                new DocumentRevocationGuard(properties),
-                observabilitySupport.getIfAvailable());
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+            Clock clock) {
+        return new DocumentResultSecurityProjector(maskingSupport, objectMapper, clock);
     }
 
     @Bean
@@ -150,9 +158,10 @@ public class AgentMetadataSecurityConfiguration {
     @Bean
     AuthorizationExecutionPort authorizationExecutionPort(
             UserPermissionBoundary userPermissionBoundary,
+            AgentMetadataStore metadataStore,
             DomainMetadataPort domainMetadataPort,
             Clock clock) {
-        return new AuthorizationExecutionPortImpl(userPermissionBoundary, domainMetadataPort, clock);
+        return new AuthorizationExecutionPortImpl(userPermissionBoundary, metadataStore, domainMetadataPort, clock);
     }
 
     @Bean
@@ -161,25 +170,19 @@ public class AgentMetadataSecurityConfiguration {
     }
 
     @Bean
-    DelegationBoundary delegationBoundary() {
-        return new DelegationBoundary(Map.of(
-                DelegationConstraintRef.CHAT_ALL,
-                new DelegationConstraint(DelegationConstraintRef.CHAT_ALL, Set.of(), Set.of())));
-    }
-
-    @Bean
     AuthorizationPlanningPort authorizationPlanningPort(
             AgentMetadataStore metadataStore,
             EffectiveProfileCalculator profileCalculator,
             UserPermissionBoundary userPermissionBoundary,
-            DelegationBoundary delegationBoundary,
+            com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry resourceLimitRegistry,
             DomainMetadataPort domainMetadataPort,
             Clock clock) {
         return new AuthorizationPlanningPortImpl(
                 metadataStore,
                 profileCalculator,
                 userPermissionBoundary,
-                delegationBoundary,
+                new com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver(
+                        resourceLimitRegistry),
                 domainMetadataPort,
                 clock);
     }

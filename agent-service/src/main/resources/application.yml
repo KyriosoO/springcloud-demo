@@ -38,6 +38,60 @@ mybatis:
     map-underscore-to-camel-case: true
 
 agent:
+  document-profiles:
+    owner-agent-id: ${AGENT_ID:agent-default}
+    owner-profile-version: ${AGENT_PROFILE_VERSION:profile-v1}
+    policy-version: policy-v1
+    definitions:
+      - profile-name: company-policy-v3
+        domain: company_policy
+        default-profile: true
+        allowed-material-types: [company_policy]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+      - profile-name: tax-policy-v3
+        domain: tax_policy
+        default-profile: true
+        allowed-material-types: [tax_policy]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+      - profile-name: knowledge-base-v3
+        domain: knowledge_base
+        default-profile: true
+        allowed-material-types: [knowledge_base]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+      - profile-name: literature-v3
+        domain: literature
+        default-profile: true
+        allowed-material-types: [literature]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+    policy:
+      - domain: company_policy
+        allowed-profile-names: [company-policy-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: tax_policy
+        allowed-profile-names: [tax-policy-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: knowledge_base
+        allowed-profile-names: [knowledge-base-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: literature
+        allowed-profile-names: [literature-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
   kernel:
     enabled: true
   adapters:
@@ -57,14 +111,16 @@ agent:
     resolve-path: /internal/agent/permissions/resolve
     connect-timeout: 2s
     read-timeout: 2s
+  profile:
     agent-id: agent-default
-    profile-id: profile-v1
-    scope-type: CONVERSATION
-    scope-id: agent-permission-authority
+    profile-version: profile-v1
+    allowed-domains: [employee, transaction, company_policy, tax_policy, knowledge_base, literature]
   conversation:
     recent-turn-limit: 6
     retention-days: 7
+  context:
     cleanup-delay: 1h
+    cleanup-batch-size: 100
   query:
     default-size: 20
     max-size: 100

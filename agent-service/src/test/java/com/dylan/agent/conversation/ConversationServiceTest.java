@@ -120,9 +120,8 @@ class ConversationServiceTest {
     }
 
     private static InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "corr-1",
                 new ExecutionSubjectRef("USER", "user-1"),

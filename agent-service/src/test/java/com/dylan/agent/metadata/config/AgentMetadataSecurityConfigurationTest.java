@@ -74,7 +74,28 @@ class AgentMetadataSecurityConfigurationTest {
                     "common.security.secrets.jwt.active-key-id=ACTIVE",
                     "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
                     "common.security.secrets.agent-payload.active-key-id=ACTIVE",
-                    "common.security.secrets.agent-payload.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+                    "common.security.secrets.agent-payload.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "agent.document-profiles.owner-agent-id=agent-default",
+                    "agent.document-profiles.owner-profile-version=profile-v1",
+                    "agent.document-profiles.policy-version=policy-v1",
+                    "agent.document-profiles.definitions[0].profile-name=employee-document-v1",
+                    "agent.document-profiles.definitions[0].domain=employee",
+                    "agent.document-profiles.definitions[0].default-profile=true",
+                    "agent.document-profiles.definitions[0].allowed-material-types[0]=employee",
+                    "agent.document-profiles.definitions[0].allowed-operations[0]=SEARCH",
+                    "agent.document-profiles.definitions[0].allowed-operations[1]=ANSWER",
+                    "agent.document-profiles.definitions[0].allowed-operations[2]=SUMMARIZE",
+                    "agent.document-profiles.definitions[0].allowed-channels[0]=BM25",
+                    "agent.document-profiles.definitions[0].required-channels[0]=BM25",
+                    "agent.document-profiles.definitions[0].generation-policy.SEARCH=DISABLED",
+                    "agent.document-profiles.definitions[0].generation-policy.ANSWER=OPTIONAL",
+                    "agent.document-profiles.definitions[0].generation-policy.SUMMARIZE=OPTIONAL",
+                    "agent.document-profiles.policy[0].domain=employee",
+                    "agent.document-profiles.policy[0].allowed-profile-names[0]=employee-document-v1",
+                    "agent.document-profiles.policy[0].allowed-channels[0]=BM25",
+                    "agent.document-profiles.policy[0].allowed-operations[0]=SEARCH",
+                    "agent.document-profiles.policy[0].allowed-operations[1]=ANSWER",
+                    "agent.document-profiles.policy[0].allowed-operations[2]=SUMMARIZE")
             .withBean(Clock.class, () -> Clock.fixed(DomainMetadataTestSupport.TEST_CLOCK.instant(), ZoneOffset.UTC))
             .withBean("employeeAgentAdapter", DomainMetadataTestSupport.QueryableAggregatableAdapter.class,
                     DomainMetadataTestSupport.QueryableAggregatableAdapter::new)
@@ -88,6 +109,8 @@ class AgentMetadataSecurityConfigurationTest {
                     new AddressFieldMasker())))
             .withBean(UserPermissionAuthorityPort.class,
                     () -> (subject, deadline) -> com.dylan.agent.metadata.MetadataTestSupport.permission(subject))
+            .withBean(com.dylan.common.security.ServiceTokenProvider.class,
+                    () -> org.mockito.Mockito.mock(com.dylan.common.security.ServiceTokenProvider.class))
             .withBean(ContextRepository.class, NoopContextRepository::new)
             .withBean(CapabilityRegistrationValidator.class, CapabilityRegistrationValidator::new)
             .withBean("querySearchRegistration",
@@ -107,7 +130,6 @@ class AgentMetadataSecurityConfigurationTest {
         contextRunner.run(context -> {
             assertThat(context).hasSingleBean(AgentMetadataBootstrap.class);
             assertThat(context).hasSingleBean(AgentMetadataStore.class);
-            assertThat(context).hasSingleBean(AgentSecuritySettingsRegistry.class);
             assertThat(context).hasSingleBean(AgentProfileRegistry.class);
             assertThat(context).hasSingleBean(AgentPolicyConfiguration.class);
             assertThat(context).hasSingleBean(PayloadJsonCodec.class);

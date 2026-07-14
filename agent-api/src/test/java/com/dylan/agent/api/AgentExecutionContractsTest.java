@@ -37,11 +37,11 @@ class AgentExecutionContractsTest {
 
     @Test
     void rejectsPointersClassNamesAndImplicitLatest() {
-        assertThatThrownBy(() -> new ContractRef("#/components/schemas/QueryAgentPlan", "1.0.0"))
+        assertThatThrownBy(() -> new ContractRef("Agent.Execution", "QueryAgentPlan", "1.0.0"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ContractRef("com.dylan.QueryAgentPlan", "1.0.0"))
+        assertThatThrownBy(() -> new ContractRef("agent.execution", "#/components/schemas/QueryAgentPlan", "1.0.0"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ContractRef("QueryAgentPlan", "latest"))
+        assertThatThrownBy(() -> new ContractRef("agent.execution", "QueryAgentPlan", "latest"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

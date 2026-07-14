@@ -8,6 +8,8 @@ import com.dylan.agent.api.response.AgentQueryResult;
 import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.QueryAgentResultPayload;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
+import com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit;
 
 import java.util.List;
 import java.util.Map;
@@ -29,12 +31,18 @@ public final class QueryResultSecurityProjector implements ResultSecurityProject
     public Class<QueryAgentResultPayload> payloadType() { return QueryAgentResultPayload.class; }
 
     @Override
-    public FilteredResult<QueryAgentResultPayload> filter(QueryAgentResultPayload candidate, ExecutionScope scope) {
+    public FilteredResult<QueryAgentResultPayload> filter(
+            QueryAgentResultPayload candidate,
+            ExecutionScope scope,
+            EffectiveCapabilityResourceLimits limits) {
+        int maxRows = limits.require(
+                AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                StandardCapabilityResourceLimit.class).maxResultRows();
         String domain = candidate.getQueryParameters() == null ? null : candidate.getQueryParameters().getDomain();
         requireDomainWhenData(domain, hasFieldBearingData(candidate));
         QueryAgentResultPayload filtered = new QueryAgentResultPayload(
                 filterParameters(domain, candidate.getQueryParameters(), scope),
-                filterResult(domain, candidate.getQueryResult(), scope));
+                filterResult(domain, candidate.getQueryResult(), scope, maxRows));
         return new FilteredResult<>(filtered, "查询完成", "查询结果已按当前执行范围过滤和脱敏");
     }
 
@@ -80,7 +88,8 @@ public final class QueryResultSecurityProjector implements ResultSecurityProject
     private AgentQueryResult filterResult(
             String domain,
             AgentQueryResult source,
-            ExecutionScope scope) {
+            ExecutionScope scope,
+            int maxRows) {
         if (source == null) {
             return null;
         }
@@ -88,6 +97,7 @@ public final class QueryResultSecurityProjector implements ResultSecurityProject
         target.setColumns(maskingSupport.filterFields(domain, source.getColumns(), scope));
         target.setRows(source.getRows() == null ? null : source.getRows().stream()
                 .map(row -> maskingSupport.filterAndMaskRow(domain, row, scope))
+                .limit(maxRows)
                 .toList());
         target.setTotal(source.getTotal());
         target.setTotalExact(source.isTotalExact());

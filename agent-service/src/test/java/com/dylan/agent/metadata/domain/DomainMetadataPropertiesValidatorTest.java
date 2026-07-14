@@ -7,14 +7,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
-import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalResult;
+import com.dylan.agent.adapter.api.document.DocumentRetrievalCommand;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
 import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
 import org.junit.jupiter.api.Test;
@@ -27,18 +30,18 @@ import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 class DomainMetadataPropertiesValidatorTest {
 
     @Test
-    void rejectsNegativeRoleLimits() {
+    void rejectsUnknownRoleCapabilityFields() {
         var properties = DomainMetadataTestSupport.properties();
         properties.getDomains().get("employee")
                 .getRoleCapabilities().get("QUERYABLE")
-                .setMaxPageSize(-1);
+                .setFields(Set.of("missingField"));
 
         assertThatThrownBy(() -> DomainMetadataPropertiesValidator.build(
                 properties,
                 context().getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
                 DomainMetadataTestSupport.TEST_CLOCK))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("negative");
+                .hasMessageContaining("unknown field");
     }
 
     @Test
@@ -60,8 +63,68 @@ class DomainMetadataPropertiesValidatorTest {
                 "..", "config-service", "src", "main", "resources", "config", "agent-service.yml"),
                 StandardCharsets.UTF_8);
 
-        assertThat(yaml).doesNotContain("type: DATE", "type: INTEGER", "contentSnippet");
+        assertThat(yaml).doesNotContain(
+                "type: DATE", "type: INTEGER", "contentSnippet",
+                "        port-type:", "        catalog-version:");
         assertThat(yaml).contains("company_policy:", "tax_policy:", "knowledge_base:", "literature:", "snippet:");
+    }
+
+    @Test
+    void canonicalDigestsIgnoreMapAndRegistrationOrderButPreserveAliasOrder() {
+        var first = DomainMetadataTestSupport.properties();
+        var reordered = DomainMetadataTestSupport.properties();
+        var reversedDomains = new LinkedHashMap<String, DomainMetadataProperties.DomainProperties>();
+        reordered.getDomains().entrySet().stream().sorted(Map.Entry.<String, DomainMetadataProperties.DomainProperties>comparingByKey().reversed())
+                .forEach(entry -> reversedDomains.put(entry.getKey(), entry.getValue()));
+        reordered.setDomains(reversedDomains);
+        var reversedRegistrations = new ArrayList<>(reordered.getRegistrations());
+        Collections.reverse(reversedRegistrations);
+        reordered.setRegistrations(reversedRegistrations);
+        GenericApplicationContext context = context();
+
+        var firstBundle = DomainMetadataPropertiesValidator.build(
+                first, context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK);
+        var reorderedBundle = DomainMetadataPropertiesValidator.build(
+                reordered, context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK);
+        reordered.getDomains().get("employee").setAliases(List.of("employee", "员工"));
+        var aliasChanged = DomainMetadataPropertiesValidator.build(
+                reordered, context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK);
+
+        assertThat(reorderedBundle.staticEvidence()).isEqualTo(firstBundle.staticEvidence());
+        assertThat(aliasChanged.catalog().canonicalDigest()).isNotEqualTo(firstBundle.catalog().canonicalDigest());
+    }
+
+    @Test
+    void rejectsDuplicateAliasesRegistrationIdsAndCoverageGaps() {
+        GenericApplicationContext context = context();
+        var duplicateAlias = DomainMetadataTestSupport.properties();
+        duplicateAlias.getDomains().get("employee").setAliases(List.of("employee", "employee"));
+        assertThatThrownBy(() -> build(duplicateAlias, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("duplicate alias");
+
+        var duplicateId = DomainMetadataTestSupport.properties();
+        duplicateId.getRegistrations().get(1)
+                .setRegistrationId(duplicateId.getRegistrations().get(0).getRegistrationId());
+        assertThatThrownBy(() -> build(duplicateId, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("duplicate registrationId");
+
+        var coverageGap = DomainMetadataTestSupport.properties();
+        coverageGap.setRegistrations(coverageGap.getRegistrations().subList(1, coverageGap.getRegistrations().size()));
+        assertThatThrownBy(() -> build(coverageGap, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("coverage");
+    }
+
+    private Object build(DomainMetadataProperties properties, GenericApplicationContext context) {
+        return DomainMetadataPropertiesValidator.build(
+                properties,
+                context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK);
     }
 
     private GenericApplicationContext context() {
@@ -93,9 +156,7 @@ class DomainMetadataPropertiesValidatorTest {
         registration.setRegistrationId("company-policy-document");
         registration.setRole(AdapterRole.DOCUMENT_RETRIEVABLE.value());
         registration.setDomain("company_policy");
-        registration.setPortType(DocumentRetrievableAdapter.class);
         registration.setPortBeanName("documentAgentAdapter");
-        registration.setCatalogVersion("catalog-test");
         registration.setRegistrationVersion("adapter-reg-test");
         properties.setRegistrations(List.of(registration));
         return properties;
@@ -122,7 +183,6 @@ class DomainMetadataPropertiesValidatorTest {
                 "effectiveDate", Set.of(AgentOperator.GT, AgentOperator.LT, AgentOperator.EQ),
                 "page", Set.of(AgentOperator.EQ, AgentOperator.GT, AgentOperator.LT),
                 "snippet", Set.of(AgentOperator.CONTAINS, AgentOperator.CONTAINS_ANY)));
-        capability.setMaxPageSize(20);
         domain.setRoleCapabilities(Map.of(AdapterRole.DOCUMENT_RETRIEVABLE.value(), capability));
         return domain;
     }
@@ -145,8 +205,10 @@ class DomainMetadataPropertiesValidatorTest {
 
     private static class TestDocumentAdapter implements DocumentRetrievableAdapter {
         @Override
-        public AdapterDocumentResult retrieve(DocumentRetrievalRequest request) {
-            return new AdapterDocumentResult();
+        public CapabilityOperationOutcome<AdapterDocumentRetrievalResult> retrieve(
+                DocumentRetrievalCommand request,
+                com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
+            throw new AssertionError("metadata test adapter must not execute");
         }
     }
 }

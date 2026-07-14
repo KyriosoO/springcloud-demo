@@ -23,10 +23,9 @@ import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.invocation.model.InvocationHandle;
 import com.dylan.agent.invocation.model.InvocationType;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationPlanningPortImpl;
-import com.dylan.agent.metadata.authorization.internal.DelegationBoundary;
 import com.dylan.agent.metadata.authorization.internal.UserPermissionBoundary;
-import com.dylan.agent.metadata.authorization.model.DelegationConstraint;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
 import com.dylan.agent.metadata.authorization.request.CapabilityScopeSelection;
@@ -52,9 +51,7 @@ class AuthorizationPlanningPortTest {
                 new EffectiveProfileCalculator(),
                 new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
                         Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
-                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
-                                java.util.Set.of("query.search"), java.util.Set.of("employee")))),
+                resourceLimitResolver(),
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
@@ -72,10 +69,7 @@ class AuthorizationPlanningPortTest {
                 new EffectiveProfileCalculator(),
                 new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permissionWithQueryPreview(subject),
                         Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
-                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
-                                Set.of("query.search", "query.preview", "aggregate.compute"),
-                                Set.of("employee", "transaction")))),
+                resourceLimitResolver(),
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
@@ -95,10 +89,7 @@ class AuthorizationPlanningPortTest {
                 new EffectiveProfileCalculator(),
                 new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
                         Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
-                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
-                                Set.of("query.search", "query.preview", "aggregate.compute"),
-                                Set.of("employee", "transaction")))),
+                resourceLimitResolver(),
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
@@ -169,7 +160,10 @@ class AuthorizationPlanningPortTest {
                 List.of(),
                 evidence.domainMetadataEvidence()));
 
-        assertThat(snapshot.executionBudget().maxResultRows()).isEqualTo(7);
+        var limits = snapshot.resourceLimits().require(
+                com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,
+                com.dylan.agent.adapter.api.document.DocumentResourceLimit.class);
+        assertThat(limits.retrieval().maxReturnedDocuments()).isEqualTo(7);
     }
 
     private AuthorizationPlanningPortImpl planningPortWithFieldSecurity(
@@ -180,9 +174,7 @@ class AuthorizationPlanningPortTest {
                 new EffectiveProfileCalculator(),
                 new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
                         Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
-                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
-                                java.util.Set.of("query.search"), java.util.Set.of("employee")))),
+                resourceLimitResolver(),
                 DomainMetadataTestSupport.domainMetadataPort(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
     }
@@ -193,16 +185,14 @@ class AuthorizationPlanningPortTest {
                 new EffectiveProfileCalculator(),
                 new UserPermissionBoundary((subject, deadline) -> MetadataTestSupport.permission(subject),
                         Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
-                new DelegationBoundary(Map.of(DelegationConstraintRef.CHAT_ALL,
-                        new DelegationConstraint(DelegationConstraintRef.CHAT_ALL,
-                                Set.of("document.search"), Set.of("company_policy")))),
+                resourceLimitResolver(),
                 domainMetadataPort,
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
     }
 
     private PlanningAuthorizationEvidence documentPlanningEvidence(DomainMetadataPort domainMetadataPort) {
         AgentProfileVersionKey profileKey = new AgentProfileVersionKey("agent-default", "profile-v1");
-        PlanningEffectiveScope planningScope = new PlanningEffectiveScope(
+        PlanningEffectiveScope planningScope = com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                 Set.of("document.search"),
                 Set.of("company_policy"),
                 Map.of(),
@@ -224,12 +214,9 @@ class AuthorizationPlanningPortTest {
                 planningScope.writableContextTypes(),
                 planningScope.maxRiskLevel(),
                 planningScope.maxExecutionMode(),
-                planningScope.maxTotalDuration(),
-                planningScope.maxRepairAttempts(),
-                planningScope.maxPageSize(),
-                planningScope.maxResultRows(),
-                planningScope.maxResultBytes());
-        return new PlanningAuthorizationEvidence(
+                planningScope.planningBudgetLimits(),
+                planningScope.resourceLimitContributions());
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "corr-1",
                 "user:u-1",
                 profileKey,
@@ -253,13 +240,22 @@ class AuthorizationPlanningPortTest {
                 true,
                 Set.of(AgentOperator.EQ),
                 Set.of(),
-                Optional.of(maskType));
+                Optional.of(maskType),
+                new com.dylan.agent.metadata.policy.model.SecurityClassificationRef(
+                        "test", "internal", "v1"),
+                Set.of());
+    }
+
+    private static CapabilityResourceLimitResolver resourceLimitResolver() {
+        return new CapabilityResourceLimitResolver(
+                new com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry(List.of(
+                        new com.dylan.agent.kernel.resource.StandardCapabilityResourceLimitContract(),
+                        new com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract())));
     }
 
     private InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "corr-1",
                 new ExecutionSubjectRef("user", "u-1"),

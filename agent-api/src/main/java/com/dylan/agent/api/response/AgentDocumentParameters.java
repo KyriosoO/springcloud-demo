@@ -7,9 +7,6 @@ public class AgentDocumentParameters {
 
     private String domain;
     private String materialType;
-    private String retrievalProfile;
-    private String profileVersion;
-    private String indexAlias;
     private String operation;
     private String queryText;
     private List<AgentQueryFilterParameter> filters;
@@ -21,12 +18,6 @@ public class AgentDocumentParameters {
     public void setDomain(String domain) { this.domain = domain; }
     public String getMaterialType() { return materialType; }
     public void setMaterialType(String materialType) { this.materialType = materialType; }
-    public String getRetrievalProfile() { return retrievalProfile; }
-    public void setRetrievalProfile(String retrievalProfile) { this.retrievalProfile = retrievalProfile; }
-    public String getProfileVersion() { return profileVersion; }
-    public void setProfileVersion(String profileVersion) { this.profileVersion = profileVersion; }
-    public String getIndexAlias() { return indexAlias; }
-    public void setIndexAlias(String indexAlias) { this.indexAlias = indexAlias; }
     public String getOperation() { return operation; }
     public void setOperation(String operation) { this.operation = operation; }
     public String getQueryText() { return queryText; }

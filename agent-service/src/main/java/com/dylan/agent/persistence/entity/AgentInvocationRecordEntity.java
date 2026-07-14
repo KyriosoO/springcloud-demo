@@ -23,8 +23,17 @@ public class AgentInvocationRecordEntity {
     private String requestCorrelationId;
     private String state;
     private String responseType;
+    private String capabilityId;
+    private String planKind;
+    private String registrationIdentity;
+    private String authorizationSnapshotRef;
+    private String contextSnapshotSetDigest;
+    private String metadataVersion;
+    private String planningArtifactBindingDigest;
     private String checkpointJson;
     private String checkpointHash;
+    private long checkpointSequence;
+    private long rowVersion;
     private String errorCode;
     private String safeMessage;
     private String diagnosticId;
@@ -65,10 +74,28 @@ public class AgentInvocationRecordEntity {
     public void setState(String state) { this.state = state; }
     public String getResponseType() { return responseType; }
     public void setResponseType(String responseType) { this.responseType = responseType; }
+    public String getCapabilityId() { return capabilityId; }
+    public void setCapabilityId(String capabilityId) { this.capabilityId = capabilityId; }
+    public String getPlanKind() { return planKind; }
+    public void setPlanKind(String planKind) { this.planKind = planKind; }
+    public String getRegistrationIdentity() { return registrationIdentity; }
+    public void setRegistrationIdentity(String registrationIdentity) { this.registrationIdentity = registrationIdentity; }
+    public String getAuthorizationSnapshotRef() { return authorizationSnapshotRef; }
+    public void setAuthorizationSnapshotRef(String authorizationSnapshotRef) { this.authorizationSnapshotRef = authorizationSnapshotRef; }
+    public String getContextSnapshotSetDigest() { return contextSnapshotSetDigest; }
+    public void setContextSnapshotSetDigest(String contextSnapshotSetDigest) { this.contextSnapshotSetDigest = contextSnapshotSetDigest; }
+    public String getMetadataVersion() { return metadataVersion; }
+    public void setMetadataVersion(String metadataVersion) { this.metadataVersion = metadataVersion; }
+    public String getPlanningArtifactBindingDigest() { return planningArtifactBindingDigest; }
+    public void setPlanningArtifactBindingDigest(String planningArtifactBindingDigest) { this.planningArtifactBindingDigest = planningArtifactBindingDigest; }
     public String getCheckpointJson() { return checkpointJson; }
     public void setCheckpointJson(String checkpointJson) { this.checkpointJson = checkpointJson; }
     public String getCheckpointHash() { return checkpointHash; }
     public void setCheckpointHash(String checkpointHash) { this.checkpointHash = checkpointHash; }
+    public long getCheckpointSequence() { return checkpointSequence; }
+    public void setCheckpointSequence(long checkpointSequence) { this.checkpointSequence = checkpointSequence; }
+    public long getRowVersion() { return rowVersion; }
+    public void setRowVersion(long rowVersion) { this.rowVersion = rowVersion; }
     public String getErrorCode() { return errorCode; }
     public void setErrorCode(String errorCode) { this.errorCode = errorCode; }
     public String getSafeMessage() { return safeMessage; }

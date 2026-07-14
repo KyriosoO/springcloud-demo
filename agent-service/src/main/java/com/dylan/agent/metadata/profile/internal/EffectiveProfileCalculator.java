@@ -3,12 +3,10 @@ package com.dylan.agent.metadata.profile.internal;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.metadata.policy.model.AgentPolicySnapshot;
-import com.dylan.agent.metadata.policy.model.BudgetLimits;
 import com.dylan.agent.metadata.policy.model.ProfileConstraints;
 import com.dylan.agent.metadata.profile.model.AgentProfileDefinition;
 import com.dylan.agent.metadata.profile.model.EffectiveProfile;
 
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,9 +24,9 @@ public final class EffectiveProfileCalculator {
         Set<String> capabilities = constraints == null || constraints.allowedCapabilityIds().isEmpty()
                 ? profile.allowedCapabilityIds()
                 : intersection(profile.allowedCapabilityIds(), constraints.allowedCapabilityIds());
-        BudgetLimits policyBudget = constraints == null
-                ? policy.globalBudgetUpperBound()
-                : constraints.budgetLimits().orElse(policy.globalBudgetUpperBound());
+        var policyBudget = constraints == null
+                ? policy.globalPlanningBudgetUpperBound()
+                : constraints.planningBudgetLimits().orElse(policy.globalPlanningBudgetUpperBound());
         return new EffectiveProfile(
                 profile.key(),
                 policy.policyVersion(),
@@ -42,19 +40,12 @@ public final class EffectiveProfileCalculator {
                         : intersection(profile.writableContextTypes(), constraints.writableContextTypes()),
                 minRisk(profile.maxRiskLevel(), constraints == null ? null : constraints.maxRiskLevel().orElse(null)),
                 minExecutionMode(profile.maxExecutionMode(), constraints == null ? null : constraints.maxExecutionMode().orElse(null)),
-                minDuration(profile.maxTotalDuration(), policyBudget.maxTotalDuration()),
-                Math.min(profile.maxRepairAttempts(), policyBudget.maxRepairAttempts()),
-                Math.min(profile.maxPageSize(), policyBudget.maxPageSize()),
-                Math.min(profile.maxResultRows(), policyBudget.maxResultRows()),
-                Math.min(profile.maxResultBytes(), policyBudget.maxResultBytes()));
+                profile.planningBudgetLimits().intersect(policyBudget),
+                profile.resourceLimitContributions().merge(policy.resourceLimitContributions()));
     }
 
     private static <T> Set<T> intersection(Set<T> left, Set<T> right) {
         return left.stream().filter(right::contains).collect(Collectors.toUnmodifiableSet());
-    }
-
-    private static Duration minDuration(Duration left, Duration right) {
-        return left.compareTo(right) <= 0 ? left : right;
     }
 
     private static AgentCapabilityRiskLevel minRisk(AgentCapabilityRiskLevel left, AgentCapabilityRiskLevel right) {

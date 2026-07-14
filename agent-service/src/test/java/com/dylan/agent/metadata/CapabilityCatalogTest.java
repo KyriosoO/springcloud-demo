@@ -51,6 +51,7 @@ class CapabilityCatalogTest {
                 List.of(registration),
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(List.of(registration)),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of(AdapterRole.QUERYABLE));
         CapabilityCatalog catalog = new CapabilityCatalog(
                 registry,
@@ -95,16 +96,16 @@ class CapabilityCatalogTest {
     private PlanningAuthorizationEvidence evidence(Set<String> allowedCapabilityIds, Set<String> allowedDomains) {
         var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
         var profile = bundle.requireProfile(new AgentProfileVersionKey("agent-default", "profile-v1"));
-        return new PlanningAuthorizationEvidence(
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "corr", "user:u-1", profile.key(), bundle.bundleVersion(), bundle.bundleDigest(),
                 "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
                 new EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
-                new PlanningEffectiveScope(
+                com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                         allowedCapabilityIds, allowedDomains, Map.of(),
                         Set.of(), Set.of(), AgentCapabilityRiskLevel.READ_ONLY,
                         AgentCapabilityExecutionMode.IMMEDIATE,
                         java.time.Duration.ofSeconds(30), 1, 100, 100, 10_000),
-                new DomainMetadataEvidence("catalog-test", "adapter-reg-test", "availability", MetadataTestSupport.NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-test", "adapter-reg-test", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW,
                 MetadataTestSupport.NOW.plusSeconds(60));
     }
@@ -114,6 +115,7 @@ class CapabilityCatalogTest {
                 registrations,
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(registrations),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of(AdapterRole.QUERYABLE));
     }
 
@@ -140,6 +142,8 @@ class CapabilityCatalogTest {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers("query.search"))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(

@@ -48,6 +48,7 @@ class KernelCapabilityRegistrationTest {
                 registrations,
                 new CapabilityRegistrationValidator(),
                 contracts,
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of(AdapterRole.QUERYABLE, AdapterRole.AGGREGATABLE));
 
         assertThat(registry.resolve("query.search").planKind()).isEqualTo(AgentPlanKind.QUERY);

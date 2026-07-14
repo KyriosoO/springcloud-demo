@@ -20,7 +20,7 @@ class FinalizedInvocationResultTest {
     void storedInvocationResultRequiresContractAndPayloadToAppearTogether() {
         assertThatThrownBy(() -> new StoredInvocationResult(
                 "result-1",
-                new ContractRef("QueryAgentResultPayload", "v1"),
+                new ContractRef("agent.test", "QueryAgentResultPayload", "v1"),
                 null,
                 "safe message",
                 "safe summary"))
@@ -32,7 +32,7 @@ class FinalizedInvocationResultTest {
     void finalizedInvocationResultExposesTypedStoredResult() {
         StoredInvocationResult stored = new StoredInvocationResult(
                 "result-1",
-                new ContractRef("QueryAgentResultPayload", "v1"),
+                new ContractRef("agent.test", "QueryAgentResultPayload", "v1"),
                 queryPayload(),
                 "safe message",
                 "safe summary");

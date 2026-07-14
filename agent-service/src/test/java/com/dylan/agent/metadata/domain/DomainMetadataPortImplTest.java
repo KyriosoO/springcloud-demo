@@ -16,8 +16,9 @@ import org.springframework.context.support.GenericApplicationContext;
 
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
-import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalResult;
+import com.dylan.agent.adapter.api.document.DocumentRetrievalCommand;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.enums.AggregateFunction;
@@ -29,11 +30,17 @@ import com.dylan.agent.metadata.domain.internal.DomainMetadataPortImpl;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataStore;
+import com.dylan.agent.metadata.domain.internal.SpringBeanAdapterAvailabilityResolver;
+import com.dylan.agent.metadata.domain.internal.AdapterAvailabilityResolver;
+import com.dylan.agent.metadata.domain.internal.AdapterDeploymentAvailability;
+import com.dylan.agent.metadata.domain.port.DomainAdapterKey;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.domain.port.CanonicalFunctionRef;
 import com.dylan.agent.metadata.domain.port.DomainMetadataReferenceSet;
 import com.dylan.agent.model.MaskType;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 class DomainMetadataPortImplTest {
 
@@ -42,15 +49,16 @@ class DomainMetadataPortImplTest {
     @Test
     void executionProjectionDoesNotDefaultMissingAllowedFieldsToAllCatalogFields() {
         var port = port();
-        var evidence = store().current().evidence();
+        var evidence = port.availability(
+                Set.of(AdapterRole.QUERYABLE), employeePlanningScope(), DEADLINE).evidence();
         ExecutionScope scope = executionScope(evidence, Map.of());
 
-        var projection = port.executionProjection(
+        var projection = port.resolveExecution(
                 AdapterRole.QUERYABLE,
                 "employee",
                 scope,
                 evidence,
-                DEADLINE);
+                DEADLINE).projection();
 
         assertThat(projection.fieldRules()).isEmpty();
         assertThat(projection.defaultSelectFields()).isEmpty();
@@ -59,17 +67,18 @@ class DomainMetadataPortImplTest {
     @Test
     void executionProjectionUsesOnlyExecutionScopeAllowedFields() {
         var port = port();
-        var evidence = store().current().evidence();
+        var evidence = port.availability(
+                Set.of(AdapterRole.QUERYABLE), employeePlanningScope(), DEADLINE).evidence();
         ExecutionScope scope = executionScope(
                 evidence,
                 Map.of("employee", Set.of("chineseName")));
 
-        var projection = port.executionProjection(
+        var projection = port.resolveExecution(
                 AdapterRole.QUERYABLE,
                 "employee",
                 scope,
                 evidence,
-                DEADLINE);
+                DEADLINE).projection();
 
         assertThat(projection.fieldRules()).containsOnlyKeys("chineseName");
         assertThat(projection.defaultSelectFields()).containsExactly("chineseName");
@@ -80,6 +89,7 @@ class DomainMetadataPortImplTest {
         var port = port();
         CanonicalFieldRef field = new CanonicalFieldRef("employee", "chineseName");
         var refs = new DomainMetadataReferenceSet(
+                Set.of("employee"),
                 Set.of(field),
                 Set.of(),
                 Set.of(new CanonicalFunctionRef(field, "COUNT")));
@@ -94,6 +104,7 @@ class DomainMetadataPortImplTest {
         var port = port();
         CanonicalFieldRef field = new CanonicalFieldRef("employee", "chineseName");
         var refs = new DomainMetadataReferenceSet(
+                Set.of("employee"),
                 Set.of(field),
                 Set.of(),
                 Set.of(new CanonicalFunctionRef(field, "UNKNOWN_FUNCTION")));
@@ -106,9 +117,8 @@ class DomainMetadataPortImplTest {
     @Test
     void planSchemaMapsCanonicalFunctionIdsToD01AggregateFunctionEnum() {
         var port = port();
-        var evidence = store().current().evidence();
         CanonicalFieldRef amount = new CanonicalFieldRef("transaction", "amount");
-        PlanningEffectiveScope scope = new PlanningEffectiveScope(
+        PlanningEffectiveScope scope = com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                 Set.of("aggregate.compute"),
                 Set.of("transaction"),
                 Map.of(amount, new PlanningEffectiveScope.FieldAccess(
@@ -126,6 +136,8 @@ class DomainMetadataPortImplTest {
                 100,
                 100,
                 10_000);
+        var evidence = port.availability(
+                Set.of(AdapterRole.AGGREGATABLE), scope, DEADLINE).evidence();
 
         var schema = port.planSchema(
                 AdapterRole.AGGREGATABLE,
@@ -142,13 +154,16 @@ class DomainMetadataPortImplTest {
     }
 
     @Test
-    void documentRetrievableUsesPageSizeLimit() {
+    void documentRetrievableSchemaContainsOnlyAuthorizedFields() {
         GenericApplicationContext context = documentContext();
         DomainMetadataStore store = documentStore(context);
-        var port = new DomainMetadataPortImpl(store, context, DomainMetadataTestSupport.TEST_CLOCK);
-        var evidence = store.current().evidence();
+        var port = new DomainMetadataPortImpl(
+                store,
+                context,
+                new SpringBeanAdapterAvailabilityResolver(store, context, DomainMetadataTestSupport.TEST_CLOCK),
+                DomainMetadataTestSupport.TEST_CLOCK);
         CanonicalFieldRef title = new CanonicalFieldRef("company_policy", "title");
-        PlanningEffectiveScope scope = new PlanningEffectiveScope(
+        PlanningEffectiveScope scope = com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                 Set.of("document.search"),
                 Set.of("company_policy"),
                 Map.of(title, new PlanningEffectiveScope.FieldAccess(
@@ -166,6 +181,8 @@ class DomainMetadataPortImplTest {
                 7,
                 100,
                 10_000);
+        var evidence = port.availability(
+                Set.of(AdapterRole.DOCUMENT_RETRIEVABLE), scope, DEADLINE).evidence();
 
         var schema = port.planSchema(
                 AdapterRole.DOCUMENT_RETRIEVABLE,
@@ -174,22 +191,54 @@ class DomainMetadataPortImplTest {
                 evidence,
                 DEADLINE);
 
-        assertThat(schema.getMaxSize()).isEqualTo(7);
-        assertThat(schema.getDefaultSize()).isEqualTo(7);
+        assertThat(schema.getFields()).extracting(com.dylan.agent.api.contract.runtime.common.RuntimeDomainFieldSchema::getField)
+                .containsExactly("title");
+        assertThat(schema.getDefaultSelectFields()).containsExactly("title");
+    }
+
+    @Test
+    void availabilityChangeInvalidatesPreviouslyCapturedEvidence() {
+        GenericApplicationContext context = context();
+        DomainMetadataStore store = new DomainMetadataStore(DomainMetadataPropertiesValidator.build(
+                DomainMetadataTestSupport.properties(),
+                context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK));
+        AtomicBoolean available = new AtomicBoolean(true);
+        AdapterAvailabilityResolver resolver = (keys, deadline) -> AdapterDeploymentAvailability.capture(
+                keys.stream().collect(Collectors.toMap(
+                        key -> key,
+                        key -> available.get()
+                                ? new AdapterDeploymentAvailability.Entry(
+                                        AdapterDeploymentAvailability.Status.AVAILABLE,
+                                        AdapterDeploymentAvailability.ReasonCode.AVAILABLE)
+                                : new AdapterDeploymentAvailability.Entry(
+                                        AdapterDeploymentAvailability.Status.UNAVAILABLE,
+                                        AdapterDeploymentAvailability.ReasonCode.UNKNOWN))),
+                DomainMetadataTestSupport.TEST_CLOCK.instant());
+        var port = new DomainMetadataPortImpl(
+                store, context, resolver, DomainMetadataTestSupport.TEST_CLOCK);
+        PlanningEffectiveScope scope = employeePlanningScope();
+        var evidence = port.availability(
+                Set.of(AdapterRole.QUERYABLE), scope, DEADLINE).evidence();
+
+        available.set(false);
+
+        assertThatThrownBy(() -> port.assertCurrent(evidence, DEADLINE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("availability evidence is stale");
     }
 
     private DomainMetadataPortImpl port() {
-        return new DomainMetadataPortImpl(
-                store(),
-                context(),
-                DomainMetadataTestSupport.TEST_CLOCK);
-    }
-
-    private DomainMetadataStore store() {
-        return new DomainMetadataStore(DomainMetadataPropertiesValidator.build(
+        GenericApplicationContext context = context();
+        DomainMetadataStore store = new DomainMetadataStore(DomainMetadataPropertiesValidator.build(
                 DomainMetadataTestSupport.properties(),
-                context().getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
                 DomainMetadataTestSupport.TEST_CLOCK));
+        return new DomainMetadataPortImpl(
+                store,
+                context,
+                new SpringBeanAdapterAvailabilityResolver(store, context, DomainMetadataTestSupport.TEST_CLOCK),
+                DomainMetadataTestSupport.TEST_CLOCK);
     }
 
     private GenericApplicationContext context() {
@@ -228,9 +277,7 @@ class DomainMetadataPortImplTest {
         registration.setRegistrationId("company-policy-document");
         registration.setRole(AdapterRole.DOCUMENT_RETRIEVABLE.value());
         registration.setDomain("company_policy");
-        registration.setPortType(DocumentRetrievableAdapter.class);
         registration.setPortBeanName("documentAgentAdapter");
-        registration.setCatalogVersion("catalog-document-test");
         registration.setRegistrationVersion("adapter-document-test");
         properties.setRegistrations(List.of(registration));
         return properties;
@@ -253,8 +300,6 @@ class DomainMetadataPortImplTest {
         capability.setOperatorsByField(Map.of(
                 "title", Set.of(AgentOperator.CONTAINS),
                 "effectiveDate", Set.of(AgentOperator.GT, AgentOperator.LT, AgentOperator.EQ)));
-        capability.setMaxPageSize(20);
-        capability.setMaxResultRows(50);
         domain.setRoleCapabilities(Map.of(AdapterRole.DOCUMENT_RETRIEVABLE.value(), capability));
         return domain;
     }
@@ -273,7 +318,7 @@ class DomainMetadataPortImplTest {
     private ExecutionScope executionScope(
             com.dylan.agent.metadata.domain.port.DomainMetadataEvidence evidence,
             Map<String, Set<String>> allowedFields) {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
                 evidence,
                 Instant.parse("2026-07-02T00:00:00Z"),
@@ -284,16 +329,30 @@ class DomainMetadataPortImplTest {
                 Set.of("employee"),
                 allowedFields,
                 Map.of("employee.chineseName", MaskType.NONE),
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
+    }
+
+    private PlanningEffectiveScope employeePlanningScope() {
+        CanonicalFieldRef field = new CanonicalFieldRef("employee", "chineseName");
+        return com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
+                Set.of("query.search"),
+                Set.of("employee"),
+                Map.of(field, new PlanningEffectiveScope.FieldAccess(
+                        true, true, Set.of(AgentOperator.EQ), Set.of(), Optional.of(MaskType.NONE))),
+                Set.of(), Set.of(),
+                AgentCapabilityRiskLevel.READ_ONLY,
+                AgentCapabilityExecutionMode.IMMEDIATE,
                 Duration.ofSeconds(30),
-                1,
-                100,
-                10_000);
+                1, 100, 100, 10_000);
     }
 
     private static final class TestDocumentAdapter implements DocumentRetrievableAdapter {
         @Override
-        public AdapterDocumentResult retrieve(DocumentRetrievalRequest request) {
-            return new AdapterDocumentResult();
+        public CapabilityOperationOutcome<AdapterDocumentRetrievalResult> retrieve(
+                DocumentRetrievalCommand request,
+                com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
+            throw new AssertionError("metadata test adapter must not execute");
         }
     }
 }

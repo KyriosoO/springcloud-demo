@@ -44,7 +44,10 @@ public class TransactionAgentAdapter implements QueryableAdapter, AggregatableAd
     }
 
     @Override
-    public AdapterQueryResult query(ValidatedQuery query) {
+    public AdapterQueryResult query(
+            ValidatedQuery query,
+            com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
+        validateOperation(operationContext);
         TransactionSearchRequest request = planMapper.toSearchRequest(query);
 
         TransactionSearchResponse response;
@@ -59,7 +62,10 @@ public class TransactionAgentAdapter implements QueryableAdapter, AggregatableAd
     }
 
     @Override
-    public AdapterAggregateResult aggregate(ValidatedAggregateQuery query) {
+    public AdapterAggregateResult aggregate(
+            ValidatedAggregateQuery query,
+            com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
+        validateOperation(operationContext);
         AggregateRequest request = planMapper.toAggregateRequest(query);
 
         java.util.Map<String, Object> response;
@@ -71,5 +77,18 @@ public class TransactionAgentAdapter implements QueryableAdapter, AggregatableAd
         }
 
         return aggregateResponseMapper.toAdapterAggregateResult(response, query);
+    }
+
+    private static void validateOperation(
+            com.dylan.agent.adapter.api.operation.CapabilityOperationContext context) {
+        if (context.cancellation().isCancelled()) {
+            throw new IllegalStateException("capability operation cancelled");
+        }
+        if (!java.time.Instant.now().isBefore(context.absoluteDeadline())) {
+            throw new IllegalStateException("capability operation deadline exceeded");
+        }
+        context.resourceLimits().require(
+                com.dylan.agent.api.contract.common.AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit.class);
     }
 }

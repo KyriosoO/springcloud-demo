@@ -3,7 +3,6 @@ package com.dylan.agent.metadata.config;
 import com.dylan.agent.metadata.crypto.port.PayloadKeyProvider;
 import com.dylan.common.security.SecretPropertiesValidator;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -15,29 +14,12 @@ public final class AgentMetadataPropertiesValidator {
     private AgentMetadataPropertiesValidator() {
     }
 
-    public static void validate(AgentMetadataProperties properties) {
-        Objects.requireNonNull(properties, "properties must not be null");
-        requireNonBlank(properties.getBundleVersion(), "agent.metadata.bundle-version");
-        requireNonBlank(properties.getDefaultProfileId(), "agent.metadata.default-profile-id");
-        Duration timeout = Objects.requireNonNull(
-                properties.getReloadValidationTimeout(),
-                "agent.metadata.reload-validation-timeout must not be null");
-        if (timeout.compareTo(Duration.ofMillis(100)) < 0 || timeout.compareTo(Duration.ofSeconds(30)) > 0) {
-            throw new IllegalStateException("agent.metadata.reload-validation-timeout must be between 100ms and 30s");
-        }
-    }
-
-    public static void validate(AgentMetadataBundle bundle, PayloadKeyProvider payloadKeyProvider) {
-        Objects.requireNonNull(bundle, "bundle must not be null");
-        validate(bundle.securitySettings(), payloadKeyProvider);
-    }
-
-    public static void validate(AgentSecuritySettings securitySettings, PayloadKeyProvider payloadKeyProvider) {
-        Objects.requireNonNull(securitySettings, "securitySettings must not be null");
+    public static void validate(String activePayloadKeyId, PayloadKeyProvider payloadKeyProvider) {
+        requireNonBlank(activePayloadKeyId, "common.security.secrets.agent-payload.active-key-id");
         Objects.requireNonNull(payloadKeyProvider, "payloadKeyProvider must not be null");
-        SecretPropertiesValidator.validateKeyId(securitySettings.activePayloadKeyId());
+        SecretPropertiesValidator.validateKeyId(activePayloadKeyId);
         SecretKey key = Objects.requireNonNull(
-                payloadKeyProvider.requireKey(securitySettings.activePayloadKeyId()),
+                payloadKeyProvider.requireKey(activePayloadKeyId),
                 "payload key must not be null");
         if (!"AES".equalsIgnoreCase(key.getAlgorithm())) {
             throw new IllegalStateException("agent payload active key must use AES algorithm");

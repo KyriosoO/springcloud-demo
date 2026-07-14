@@ -4,7 +4,7 @@ import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 
-import java.time.Duration;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContributions;
 import java.util.Objects;
 import java.util.Set;
 
@@ -18,11 +18,8 @@ public record EffectiveProfile(
         Set<RuntimeContextType> writableContextTypes,
         AgentCapabilityRiskLevel maxRiskLevel,
         AgentCapabilityExecutionMode maxExecutionMode,
-        Duration maxTotalDuration,
-        int maxRepairAttempts,
-        int maxPageSize,
-        int maxResultRows,
-        long maxResultBytes) {
+        PlanningBudgetLimits planningBudgetLimits,
+        CapabilityResourceLimitContributions resourceLimitContributions) {
 
     public EffectiveProfile {
         Objects.requireNonNull(profileKey, "profileKey must not be null");
@@ -33,10 +30,8 @@ public record EffectiveProfile(
         writableContextTypes = Set.copyOf(Objects.requireNonNull(writableContextTypes, "writableContextTypes must not be null"));
         Objects.requireNonNull(maxRiskLevel, "maxRiskLevel must not be null");
         Objects.requireNonNull(maxExecutionMode, "maxExecutionMode must not be null");
-        Objects.requireNonNull(maxTotalDuration, "maxTotalDuration must not be null");
-        if (maxRepairAttempts < 0 || maxPageSize < 0 || maxResultRows < 0 || maxResultBytes < 0) {
-            throw new IllegalArgumentException("effective profile numeric limits must be non-negative");
-        }
+        Objects.requireNonNull(planningBudgetLimits, "planningBudgetLimits must not be null");
+        Objects.requireNonNull(resourceLimitContributions, "resourceLimitContributions must not be null");
     }
 
     private static String requireNonBlank(String value, String name) {

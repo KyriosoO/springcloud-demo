@@ -80,7 +80,7 @@ class QueryPreviewPlanValidatorTest {
     }
 
     @Test
-    void rejectsPreviewSizeAboveExecutionBudget() {
+    void rejectsPreviewSizeAboveEffectiveResourceLimit() {
         assertThatThrownBy(() -> validator().validate(queryPlan(List.of("name"), 6), context()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("invalid query preview size");
@@ -213,9 +213,9 @@ class QueryPreviewPlanValidatorTest {
     }
 
     private ExecutionScope executionScope(int maxResultRows) {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability", NOW),
                 NOW,
                 "perm-evidence-1",
                 "perm-v1",
@@ -224,10 +224,8 @@ class QueryPreviewPlanValidatorTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("name", "memberNo")),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                maxResultRows,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(maxResultRows, maxResultRows, 10_000));
     }
 
     private ExecutionValidationProjection projection(Set<String> sortFields) {
@@ -255,8 +253,6 @@ class QueryPreviewPlanValidatorTest {
                                 null)),
                 List.of("name"),
                 sortFields,
-                10,
-                10,
                 "catalog-v1");
     }
 

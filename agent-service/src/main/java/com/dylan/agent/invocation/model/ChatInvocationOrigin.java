@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * CHAT Invocation 来源：conversationId + turnId。
  */
-public non-sealed class ChatInvocationOrigin implements InvocationOrigin {
+public final class ChatInvocationOrigin implements InvocationOrigin {
 
     private final String conversationId;
     private final String turnId;

@@ -81,9 +81,9 @@ class ResultValueMaskingSupportTest {
     private ExecutionScope scope(
             Map<String, Set<String>> allowedFields,
             Map<String, MaskType> fieldMasks) {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -92,10 +92,8 @@ class ResultValueMaskingSupportTest {
                 Set.of("employee"),
                 allowedFields,
                 fieldMasks,
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
     }
 
     private FieldMaskerRegistry maskerRegistry() {

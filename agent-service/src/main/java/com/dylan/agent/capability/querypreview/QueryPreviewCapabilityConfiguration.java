@@ -15,6 +15,7 @@ import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
 import com.dylan.agent.kernel.definition.ContextAccessDeclaration;
 import com.dylan.agent.kernel.definition.ContextReadDeclaration;
 import com.dylan.agent.kernel.registration.CapabilityRegistration;
+import com.dylan.agent.kernel.resource.StandardResourceLimits;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,6 +44,9 @@ public class QueryPreviewCapabilityConfiguration {
                         .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                         .inputContract(AgentExecutionContracts.QUERY_PLAN)
                         .outputContract(AgentExecutionContracts.QUERY_PREVIEW_RESULT)
+                        .resourceLimitDeclaration(StandardResourceLimits.declaration(100, 100, 2_000_000L))
+                        .resourceLimitConsumers(StandardResourceLimits.consumers(
+                                QueryPreviewPlanValidator.KERNEL_CAPABILITY_ID))
                         .contextAccess(new ContextAccessDeclaration(
                                 List.of(new ContextReadDeclaration(
                                         RuntimeContextType.QUERY,

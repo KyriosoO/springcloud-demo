@@ -4,10 +4,6 @@ package com.dylan.agent.api.response;
 public enum DocumentGenerationStatus {
     DISABLED,
     SKIPPED,
-    EMBEDDING_FAILED,
-    RETRIEVAL_PARTIAL,
-    PACKED,
-    GENERATING,
     SUCCEEDED,
     FALLBACK,
     FAILED

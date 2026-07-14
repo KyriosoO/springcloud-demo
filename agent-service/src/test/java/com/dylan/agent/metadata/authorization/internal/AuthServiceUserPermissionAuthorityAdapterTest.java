@@ -68,7 +68,12 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer service-token"))
                 .andExpect(jsonPath("$.subject.type").value("USER"))
                 .andExpect(jsonPath("$.subject.id").value("dylan"))
-                .andExpect(jsonPath("$.agentId").value("agent-default"))
+                .andExpect(jsonPath("$.agentId").doesNotExist())
+                .andExpect(jsonPath("$.profileId").doesNotExist())
+                .andExpect(jsonPath("$.scopeType").doesNotExist())
+                .andExpect(jsonPath("$.scopeId").doesNotExist())
+                .andExpect(jsonPath("$.requestedCapabilityIds").doesNotExist())
+                .andExpect(jsonPath("$.requestedDomains").doesNotExist())
                 .andRespond(withSuccess(successBody("dylan"), MediaType.APPLICATION_JSON));
 
         var permission = adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30));
@@ -160,10 +165,6 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
         AgentProperties.AuthServiceProperties properties = new AgentProperties.AuthServiceProperties();
         properties.setBaseUrl("http://auth-service");
         properties.setResolvePath("/internal/agent/permissions/resolve");
-        properties.setAgentId("agent-default");
-        properties.setProfileId("profile-v1");
-        properties.setScopeType("CONVERSATION");
-        properties.setScopeId("agent-permission-authority");
         return properties;
     }
 

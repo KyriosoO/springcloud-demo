@@ -62,7 +62,12 @@ public class AgentOrchestrator {
         CancellationSource cancellationSource = new CancellationSource();
         try {
             var history = conversationService.loadRecentTurns(handle, properties.getConversation().getRecentTurnLimit());
-            var planningCommand = planningCommandFactory.create(handle, startCommand.message(), history);
+            var planningCommand = planningCommandFactory.create(
+                    handle,
+                    startCommand.message(),
+                    history,
+                    startCommand.requestedProfile(),
+                    startCommand.materialType());
             PlanningResult planningResult = planningService.plan(planningCommand, cancellationSource.token());
             if (planningResult instanceof ResolvedClarification clarification) {
                 return responseAssembler.fromFinalizedResult(

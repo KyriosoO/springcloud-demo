@@ -42,7 +42,7 @@ class QueryResultSecurityProjectorTest {
     void filtersAndMasksQueryRows() {
         QueryResultSecurityProjector projector = new QueryResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         assertThat(filtered.payload().getQueryResult().getColumns())
                 .containsExactly("chineseName", "phoneNo");
@@ -56,7 +56,7 @@ class QueryResultSecurityProjectorTest {
     void masksQueryFilterValues() {
         QueryResultSecurityProjector projector = new QueryResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         assertThat(filtered.payload().getQueryParameters().getFilters())
                 .extracting(AgentQueryFilterParameter::getValue)
@@ -67,7 +67,7 @@ class QueryResultSecurityProjectorTest {
     void filtersUnauthorizedSortParameters() {
         QueryResultSecurityProjector projector = new QueryResultSecurityProjector(maskingSupport());
 
-        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<QueryAgentResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         assertThat(filtered.payload().getQueryParameters().getSorts())
                 .extracting(AgentQuerySortParameter::getField)
@@ -80,7 +80,7 @@ class QueryResultSecurityProjectorTest {
         QueryAgentResultPayload payload = payload();
         payload.getQueryParameters().setDomain(null);
 
-        assertThatThrownBy(() -> projector.filter(payload, scope()))
+        assertThatThrownBy(() -> projector.filter(payload, scope(), scope().resourceLimits()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing domain");
     }
@@ -123,9 +123,9 @@ class QueryResultSecurityProjectorTest {
     }
 
     private ExecutionScope scope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -134,10 +134,8 @@ class QueryResultSecurityProjectorTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("chineseName", "phoneNo")),
                 Map.of("employee.phoneNo", MaskType.MOBILE),
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
     }
 
     private ResultValueMaskingSupport maskingSupport() {

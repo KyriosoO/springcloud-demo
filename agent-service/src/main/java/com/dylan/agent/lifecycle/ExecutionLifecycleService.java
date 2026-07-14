@@ -53,6 +53,10 @@ public class ExecutionLifecycleService {
             ExecutablePlanningResult result,
             CancellationToken token) {
         CheckpointResult checkpoint = checkpoint(handle, result);
+        if (checkpoint.committed().isEmpty()) {
+            throw new IllegalStateException(
+                    "planning checkpoint not committed; core execution is forbidden: " + checkpoint.status());
+        }
         var outcome = executionCore.execute(new ExecutionCommand(handle, result, token));
         if (outcome instanceof ExecutionSuccess success) {
             return finalizationTxService.commitSuccess(handle, checkpoint, success);

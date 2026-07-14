@@ -22,7 +22,6 @@ import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
-import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -95,6 +94,7 @@ class ExecutablePlanningResultTest {
 
     private ExecutablePlanningResult.Builder baseBuilder(ResolvedRegistration resolved) {
         return ExecutablePlanningResult.builder()
+                .invocationId("inv-1")
                 .requestCorrelationId("corr-1")
                 .capabilityId("query.search")
                 .planKind(AgentPlanKind.QUERY)
@@ -115,6 +115,7 @@ class ExecutablePlanningResultTest {
                 registrations,
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(registrations),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of());
     }
 
@@ -128,6 +129,8 @@ class ExecutablePlanningResultTest {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers("query.search"))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(
@@ -140,7 +143,7 @@ class ExecutablePlanningResultTest {
     }
 
     private AuthorizationSnapshot authorizationSnapshot() {
-        return new AuthorizationSnapshot(
+        return com.dylan.agent.testsupport.AuthorizationSnapshotTestFactory.create(
                 "auth-1",
                 "user:u-1",
                 "profile-v1",
@@ -151,7 +154,7 @@ class ExecutablePlanningResultTest {
                 Map.of(),
                 NOW,
                 null,
-                ExecutionBudget.zero());
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective());
     }
 
     private PlanningOperationAudit reported(RuntimeOperationType operation) {

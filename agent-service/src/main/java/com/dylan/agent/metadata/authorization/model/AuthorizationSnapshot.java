@@ -1,95 +1,189 @@
 package com.dylan.agent.metadata.authorization.model;
 
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
-
+import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
+import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
+import com.dylan.agent.api.enums.AgentOperator;
+import com.dylan.agent.invocation.model.ContextOwnerRef;
+import com.dylan.agent.invocation.model.ConversationScope;
+import com.dylan.agent.invocation.model.ExecutionSubjectRef;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.model.MaskType;
+import com.dylan.agent.shared.ref.AgentProfileRef;
 
-/**
- * Planning 时刻的版本化请求级授权证据。
- * 不包含 JWT 或完整权限表达式。
- */
+import java.time.Instant;
+import java.time.Duration;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/** Planning 阶段冻结的 capability-scoped 不可变授权快照。 */
 public final class AuthorizationSnapshot {
 
     private final String snapshotId;
-    private final String subjectRef;
-    private final String profileVersion;
+    private final String invocationId;
+    private final String requestCorrelationId;
+    private final ExecutionSubjectRef subject;
+    private final ContextOwnerRef owner;
+    private final ConversationScope scope;
+    private final AgentProfileRef agentProfileRef;
     private final String policyVersion;
+    private final String permissionEvidenceId;
+    private final String permissionVersion;
+    private final DelegationConstraintRef delegationConstraintRef;
     private final Set<String> allowedCapabilityIds;
     private final Set<String> allowedDomains;
     private final Map<String, Set<String>> allowedFields;
+    private final Map<String, Set<AgentOperator>> allowedOperators;
+    private final Map<String, Set<String>> allowedFunctions;
     private final Map<String, MaskType> fieldMasks;
+    private final ExternalProcessingAuthorizationEvidence externalProcessingAuthorizationEvidence;
     private final Set<RuntimeContextType> readableContextTypes;
     private final Set<RuntimeContextType> writableContextTypes;
-    private final Instant snapshotTime;
+    private final AgentCapabilityRiskLevel maxRiskLevel;
+    private final AgentCapabilityExecutionMode maxExecutionMode;
+    private final Duration globalContextTtlUpperBound;
+    private final Instant capturedAt;
+    private final Instant absoluteDeadline;
     private final DomainMetadataEvidence domainMetadataEvidence;
-    private final ExecutionBudget executionBudget;
+    private final EffectiveCapabilityResourceLimits resourceLimits;
 
     public AuthorizationSnapshot(
-            String snapshotId, String subjectRef,
-            String profileVersion, String policyVersion,
-            Set<String> allowedCapabilityIds, Set<String> allowedDomains,
-            Map<String, Set<String>> allowedFields, Map<String, MaskType> fieldMasks,
-            Instant snapshotTime,
-            DomainMetadataEvidence domainMetadataEvidence,
-            ExecutionBudget executionBudget) {
-        this(snapshotId, subjectRef, profileVersion, policyVersion, allowedCapabilityIds, allowedDomains,
-                allowedFields, fieldMasks, Set.of(), Set.of(), snapshotTime,
-                domainMetadataEvidence, executionBudget);
-    }
-
-    public AuthorizationSnapshot(
-            String snapshotId, String subjectRef,
-            String profileVersion, String policyVersion,
-            Set<String> allowedCapabilityIds, Set<String> allowedDomains,
-            Map<String, Set<String>> allowedFields, Map<String, MaskType> fieldMasks,
+            String snapshotId,
+            String invocationId,
+            String requestCorrelationId,
+            ExecutionSubjectRef subject,
+            ContextOwnerRef owner,
+            ConversationScope scope,
+            AgentProfileRef agentProfileRef,
+            String policyVersion,
+            String permissionEvidenceId,
+            String permissionVersion,
+            DelegationConstraintRef delegationConstraintRef,
+            Set<String> allowedCapabilityIds,
+            Set<String> allowedDomains,
+            Map<String, Set<String>> allowedFields,
+            Map<String, Set<AgentOperator>> allowedOperators,
+            Map<String, Set<String>> allowedFunctions,
+            Map<String, MaskType> fieldMasks,
+            ExternalProcessingAuthorizationEvidence externalProcessingAuthorizationEvidence,
             Set<RuntimeContextType> readableContextTypes,
             Set<RuntimeContextType> writableContextTypes,
-            Instant snapshotTime,
+            AgentCapabilityRiskLevel maxRiskLevel,
+            AgentCapabilityExecutionMode maxExecutionMode,
+            Duration globalContextTtlUpperBound,
+            Instant capturedAt,
+            Instant absoluteDeadline,
             DomainMetadataEvidence domainMetadataEvidence,
-            ExecutionBudget executionBudget) {
-        this.snapshotId = Objects.requireNonNull(snapshotId);
-        this.subjectRef = Objects.requireNonNull(subjectRef);
-        this.profileVersion = Objects.requireNonNull(profileVersion);
-        this.policyVersion = Objects.requireNonNull(policyVersion);
-        this.allowedCapabilityIds = Set.copyOf(allowedCapabilityIds);
-        this.allowedDomains = Set.copyOf(allowedDomains);
-        this.allowedFields = Map.copyOf(allowedFields);
-        this.fieldMasks = copyFieldMasks(fieldMasks);
-        this.readableContextTypes = Set.copyOf(
-                Objects.requireNonNull(readableContextTypes, "readableContextTypes must not be null"));
-        this.writableContextTypes = Set.copyOf(
-                Objects.requireNonNull(writableContextTypes, "writableContextTypes must not be null"));
-        this.snapshotTime = Objects.requireNonNull(snapshotTime);
-        this.domainMetadataEvidence = domainMetadataEvidence;
-        this.executionBudget = Objects.requireNonNull(executionBudget, "executionBudget must not be null");
+            EffectiveCapabilityResourceLimits resourceLimits) {
+        this.snapshotId = requireNonBlank(snapshotId, "snapshotId");
+        this.invocationId = requireNonBlank(invocationId, "invocationId");
+        this.requestCorrelationId = requireNonBlank(requestCorrelationId, "requestCorrelationId");
+        this.subject = Objects.requireNonNull(subject, "subject must not be null");
+        this.owner = Objects.requireNonNull(owner, "owner must not be null");
+        this.scope = Objects.requireNonNull(scope, "scope must not be null");
+        this.agentProfileRef = Objects.requireNonNull(agentProfileRef, "agentProfileRef must not be null");
+        if (agentProfileRef.expectedVersion().isEmpty()) {
+            throw new IllegalArgumentException("agentProfileRef must bind an exact version");
+        }
+        this.policyVersion = requireNonBlank(policyVersion, "policyVersion");
+        this.permissionEvidenceId = requireNonBlank(permissionEvidenceId, "permissionEvidenceId");
+        this.permissionVersion = requireNonBlank(permissionVersion, "permissionVersion");
+        this.delegationConstraintRef = Objects.requireNonNull(
+                delegationConstraintRef, "delegationConstraintRef must not be null");
+        this.allowedCapabilityIds = copyNonBlankSet(allowedCapabilityIds, "allowedCapabilityIds");
+        this.allowedDomains = copyNonBlankSet(allowedDomains, "allowedDomains");
+        this.allowedFields = copyStringSetMap(allowedFields, "allowedFields");
+        this.allowedOperators = copySetMap(allowedOperators, "allowedOperators");
+        this.allowedFunctions = copyStringSetMap(allowedFunctions, "allowedFunctions");
+        this.fieldMasks = copyValueMap(fieldMasks, "fieldMasks");
+        this.externalProcessingAuthorizationEvidence = Objects.requireNonNull(
+                externalProcessingAuthorizationEvidence,
+                "externalProcessingAuthorizationEvidence must not be null");
+        this.readableContextTypes = Set.copyOf(Objects.requireNonNull(readableContextTypes));
+        this.writableContextTypes = Set.copyOf(Objects.requireNonNull(writableContextTypes));
+        this.maxRiskLevel = Objects.requireNonNull(maxRiskLevel, "maxRiskLevel must not be null");
+        this.maxExecutionMode = Objects.requireNonNull(maxExecutionMode, "maxExecutionMode must not be null");
+        this.globalContextTtlUpperBound = Objects.requireNonNull(
+                globalContextTtlUpperBound, "globalContextTtlUpperBound must not be null");
+        if (globalContextTtlUpperBound.isZero() || globalContextTtlUpperBound.isNegative()) {
+            throw new IllegalArgumentException("globalContextTtlUpperBound must be positive");
+        }
+        this.capturedAt = Objects.requireNonNull(capturedAt, "capturedAt must not be null");
+        this.absoluteDeadline = Objects.requireNonNull(absoluteDeadline, "absoluteDeadline must not be null");
+        if (!capturedAt.isBefore(absoluteDeadline)) {
+            throw new IllegalArgumentException("capturedAt must be before absoluteDeadline");
+        }
+        this.domainMetadataEvidence = Objects.requireNonNull(
+                domainMetadataEvidence, "domainMetadataEvidence must not be null");
+        this.resourceLimits = Objects.requireNonNull(resourceLimits, "resourceLimits must not be null");
+        var binding = resourceLimits.bindingIdentity();
+        if (!invocationId.equals(binding.invocationId())
+                || !requestCorrelationId.equals(binding.requestCorrelationId())) {
+            throw new IllegalArgumentException("resource limits binding does not match authorization snapshot");
+        }
     }
 
     public String snapshotId() { return snapshotId; }
-    public String subjectRef() { return subjectRef; }
-    public String profileVersion() { return profileVersion; }
+    public String invocationId() { return invocationId; }
+    public String requestCorrelationId() { return requestCorrelationId; }
+    public ExecutionSubjectRef subject() { return subject; }
+    public String subjectRef() { return subject.type() + ":" + subject.id(); }
+    public ContextOwnerRef owner() { return owner; }
+    public ConversationScope scope() { return scope; }
+    public AgentProfileRef agentProfileRef() { return agentProfileRef; }
+    public String profileVersion() { return agentProfileRef.expectedVersion().orElseThrow(); }
     public String policyVersion() { return policyVersion; }
+    public String permissionEvidenceId() { return permissionEvidenceId; }
+    public String permissionVersion() { return permissionVersion; }
+    public DelegationConstraintRef delegationConstraintRef() { return delegationConstraintRef; }
     public Set<String> allowedCapabilityIds() { return allowedCapabilityIds; }
     public Set<String> allowedDomains() { return allowedDomains; }
     public Map<String, Set<String>> allowedFields() { return allowedFields; }
+    public Map<String, Set<AgentOperator>> allowedOperators() { return allowedOperators; }
+    public Map<String, Set<String>> allowedFunctions() { return allowedFunctions; }
     public Map<String, MaskType> fieldMasks() { return fieldMasks; }
+    public ExternalProcessingAuthorizationEvidence externalProcessingAuthorizationEvidence() {
+        return externalProcessingAuthorizationEvidence;
+    }
     public Set<RuntimeContextType> readableContextTypes() { return readableContextTypes; }
     public Set<RuntimeContextType> writableContextTypes() { return writableContextTypes; }
-    public Instant snapshotTime() { return snapshotTime; }
-    public Optional<DomainMetadataEvidence> domainMetadataEvidence() {
-        return Optional.ofNullable(domainMetadataEvidence);
-    }
-    public ExecutionBudget executionBudget() { return executionBudget; }
+    public AgentCapabilityRiskLevel maxRiskLevel() { return maxRiskLevel; }
+    public AgentCapabilityExecutionMode maxExecutionMode() { return maxExecutionMode; }
+    public Duration globalContextTtlUpperBound() { return globalContextTtlUpperBound; }
+    public Instant capturedAt() { return capturedAt; }
+    public Instant snapshotTime() { return capturedAt; }
+    public Instant absoluteDeadline() { return absoluteDeadline; }
+    public DomainMetadataEvidence domainMetadataEvidence() { return domainMetadataEvidence; }
+    public EffectiveCapabilityResourceLimits resourceLimits() { return resourceLimits; }
 
-    private static Map<String, MaskType> copyFieldMasks(Map<String, MaskType> source) {
-        Objects.requireNonNull(source, "fieldMasks must not be null");
-        return source.entrySet().stream()
-                .collect(Collectors.toUnmodifiableMap(
-                        entry -> requireNonBlank(entry.getKey(), "field mask key"),
-                        entry -> Objects.requireNonNull(entry.getValue(), "field mask value must not be null")));
+    private static Map<String, Set<String>> copyStringSetMap(Map<String, Set<String>> source, String name) {
+        Objects.requireNonNull(source, name + " must not be null");
+        return source.entrySet().stream().collect(Collectors.toUnmodifiableMap(
+                entry -> requireNonBlank(entry.getKey(), name + " key"),
+                entry -> copyNonBlankSet(entry.getValue(), name + " values")));
+    }
+
+    private static <T> Map<String, Set<T>> copySetMap(Map<String, Set<T>> source, String name) {
+        Objects.requireNonNull(source, name + " must not be null");
+        return source.entrySet().stream().collect(Collectors.toUnmodifiableMap(
+                entry -> requireNonBlank(entry.getKey(), name + " key"),
+                entry -> Set.copyOf(Objects.requireNonNull(entry.getValue(), name + " values"))));
+    }
+
+    private static <T> Map<String, T> copyValueMap(Map<String, T> source, String name) {
+        Objects.requireNonNull(source, name + " must not be null");
+        return source.entrySet().stream().collect(Collectors.toUnmodifiableMap(
+                entry -> requireNonBlank(entry.getKey(), name + " key"),
+                entry -> Objects.requireNonNull(entry.getValue(), name + " value")));
+    }
+
+    private static Set<String> copyNonBlankSet(Set<String> source, String name) {
+        Objects.requireNonNull(source, name + " must not be null");
+        return source.stream().map(value -> requireNonBlank(value, name + " element"))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private static String requireNonBlank(String value, String name) {

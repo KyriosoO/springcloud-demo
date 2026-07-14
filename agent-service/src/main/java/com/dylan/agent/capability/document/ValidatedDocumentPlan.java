@@ -1,6 +1,6 @@
 package com.dylan.agent.capability.document;
 
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
+import com.dylan.agent.adapter.api.document.DocumentCorpusKey;
 import com.dylan.agent.api.contract.runtime.common.AgentPlanKind;
 import com.dylan.agent.api.plan.DocumentGenerationOptions;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
@@ -12,22 +12,24 @@ public final class ValidatedDocumentPlan implements ValidatedPlan {
 
     private final String capabilityId;
     private final String domain;
-    private final DocumentRetrievalRequest request;
+    private final DocumentCorpusKey selectedCorpus;
+    private final ValidatedDocumentExecutionParameters parameters;
     private final DocumentGenerationOptions generationOptions;
-
-    ValidatedDocumentPlan(String capabilityId, String domain, DocumentRetrievalRequest request) {
-        this(capabilityId, domain, request, null);
-    }
+    private final DocumentExecutionProfileProjection profile;
 
     ValidatedDocumentPlan(
             String capabilityId,
             String domain,
-            DocumentRetrievalRequest request,
-            DocumentGenerationOptions generationOptions) {
+            DocumentCorpusKey selectedCorpus,
+            ValidatedDocumentExecutionParameters parameters,
+            DocumentGenerationOptions generationOptions,
+            DocumentExecutionProfileProjection profile) {
         this.capabilityId = Objects.requireNonNull(capabilityId);
         this.domain = Objects.requireNonNull(domain);
-        this.request = Objects.requireNonNull(request);
+        this.selectedCorpus = Objects.requireNonNull(selectedCorpus);
+        this.parameters = Objects.requireNonNull(parameters);
         this.generationOptions = generationOptions;
+        this.profile = Objects.requireNonNull(profile);
     }
 
     @Override
@@ -45,11 +47,12 @@ public final class ValidatedDocumentPlan implements ValidatedPlan {
         return Optional.of(domain);
     }
 
-    public DocumentRetrievalRequest request() {
-        return request;
-    }
+    public DocumentCorpusKey selectedCorpus(){return selectedCorpus;}
+    public ValidatedDocumentExecutionParameters parameters(){return parameters;}
 
     public Optional<DocumentGenerationOptions> generationOptions() {
         return Optional.ofNullable(generationOptions);
     }
+
+    public DocumentExecutionProfileProjection profile() { return profile; }
 }

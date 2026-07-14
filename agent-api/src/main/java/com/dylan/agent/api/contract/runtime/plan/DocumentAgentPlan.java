@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 /** DOCUMENT 结构化计划。 */
 @Schema(description = "DOCUMENT Plan 子类型")
 @JsonTypeName("DOCUMENT")
-public final class DocumentAgentPlan implements AgentPlan {
+public non-sealed class DocumentAgentPlan implements AgentPlan {
 
     @Schema(description = "固定 discriminator", requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "DOCUMENT")
     @NotNull

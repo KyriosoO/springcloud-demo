@@ -74,6 +74,7 @@ public class StartTxService {
 
         InvocationHandle handle = handle(
                 invocationId,
+                UUID.randomUUID().toString(),
                 conversation.conversationId(),
                 turnId,
                 command);
@@ -85,14 +86,14 @@ public class StartTxService {
     }
 
     private InvocationHandle handle(String invocationId,
+                                    String requestCorrelationId,
                                     String conversationId,
                                     String turnId,
                                     StartChatCommand command) {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 invocationId,
-                InvocationType.CHAT,
                 new ChatInvocationOrigin(conversationId, turnId),
-                invocationId,
+                requestCorrelationId,
                 new ExecutionSubjectRef("USER", command.userContext().getUserId()),
                 new ContextOwnerRef("USER", command.userContext().getUserId()),
                 new ConversationScope(conversationId),

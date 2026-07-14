@@ -1,6 +1,9 @@
 package com.dylan.agent.capability.document.embedding;
 
-/** queryText 到 queryVector 的受控端口。 */
+import com.dylan.agent.adapter.api.document.provider.DocumentEmbeddingOperationRequest;
+import com.dylan.agent.adapter.api.document.provider.DocumentUntrustedEmbeddingPayload;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
+
 public interface DocumentEmbeddingPort {
-    DocumentEmbeddingResult embed(DocumentEmbeddingRequest request);
+    CapabilityOperationOutcome<DocumentUntrustedEmbeddingPayload> embed(DocumentEmbeddingOperationRequest request);
 }

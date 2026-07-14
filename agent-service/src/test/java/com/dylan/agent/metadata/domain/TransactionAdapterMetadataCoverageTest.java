@@ -13,15 +13,17 @@ class TransactionAdapterMetadataCoverageTest {
 
     @Test
     void transactionDomainHasQueryableAndAggregatableCatalogCoverage() {
-        var catalog = DomainMetadataTestSupport.catalogView();
+        var catalog = DomainMetadataTestSupport.catalog();
 
-        var queryable = catalog.requireDomain("transaction", AdapterRole.QUERYABLE);
-        var aggregatable = catalog.requireDomain("transaction", AdapterRole.AGGREGATABLE);
+        var domain = catalog.requireDomain("transaction");
+        var queryable = domain.roleCapabilities().get(AdapterRole.QUERYABLE);
+        var aggregatable = domain.roleCapabilities().get(AdapterRole.AGGREGATABLE);
 
-        assertThat(queryable.defaultSelectFields()).contains("transId", "transType", "transDate", "amount");
-        assertThat(queryable.requireField("amount").operators())
+        assertThat(domain.defaultSelectFieldsByRole().get(AdapterRole.QUERYABLE))
+                .contains("transId", "transType", "transDate", "amount");
+        assertThat(queryable.operatorsByField().get("amount"))
                 .contains(AgentOperator.EQ, AgentOperator.GT, AgentOperator.LT);
-        assertThat(aggregatable.requireField("amount").functions())
+        assertThat(aggregatable.functionsByField().get("amount"))
                 .contains(AggregateFunction.SUM, AggregateFunction.AVG,
                         AggregateFunction.MIN, AggregateFunction.MAX);
     }

@@ -6,8 +6,8 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeDomainFieldSchema;
 import com.dylan.agent.api.contract.runtime.common.RuntimeDomainRoutingProjection;
 import com.dylan.agent.api.contract.runtime.common.RuntimeDomainSchema;
 import com.dylan.agent.api.enums.AggregateFunction;
-import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
+import com.dylan.agent.kernel.port.model.DomainExecutionResolution;
 import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.kernel.port.model.ExecutionValidationProjection;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
@@ -15,10 +15,13 @@ import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.domain.port.CanonicalFunctionRef;
 import com.dylan.agent.metadata.domain.port.CanonicalOperatorRef;
+import com.dylan.agent.metadata.domain.port.DomainAdapterKey;
 import com.dylan.agent.metadata.domain.port.DomainAvailabilitySnapshot;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.metadata.domain.port.DomainMetadataReferenceSet;
+
+import org.springframework.context.ApplicationContext;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -30,27 +33,28 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.context.ApplicationContext;
-
 /** D02_03 DomainMetadataPort 边界的 D04 生产实现。 */
 public final class DomainMetadataPortImpl implements DomainMetadataPort {
 
     private final DomainMetadataStore store;
     private final ApplicationContext applicationContext;
+    private final AdapterAvailabilityResolver availabilityResolver;
     private final Clock clock;
 
     public DomainMetadataPortImpl(
             DomainMetadataStore store,
             ApplicationContext applicationContext,
+            AdapterAvailabilityResolver availabilityResolver,
             Clock clock) {
         this.store = Objects.requireNonNull(store);
         this.applicationContext = Objects.requireNonNull(applicationContext);
+        this.availabilityResolver = Objects.requireNonNull(availabilityResolver);
         this.clock = Objects.requireNonNull(clock);
     }
 
     @Override
     public Set<AdapterRole> knownRoles() {
-        DomainMetadataBundle bundle = store.current();
+        DomainMetadataStaticBundle bundle = store.current();
         return java.util.stream.Stream.concat(
                         AdapterRolePortTypes.knownRoles().stream(),
                         bundle.registrations().roles().stream())
@@ -61,8 +65,12 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
     public DomainMetadataEvidence validateReferences(
             DomainMetadataReferenceSet refs,
             Instant absoluteDeadline) {
+        Objects.requireNonNull(refs, "refs must not be null");
+        DomainMetadataStaticBundle bundle = store.current();
         checkDeadline(absoluteDeadline);
-        DomainMetadataBundle bundle = store.current();
+        for (String domain : refs.domains()) {
+            bundle.catalog().requireDomain(domain);
+        }
         for (CanonicalFieldRef field : refs.fields()) {
             if (!bundle.catalog().requireDomain(field.domain()).fields().containsKey(field.field())) {
                 throw new IllegalStateException("unknown field reference: " + field);
@@ -87,7 +95,7 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
                 throw new IllegalStateException("unknown function reference: " + function);
             }
         }
-        return bundle.evidence();
+        return captureEvidence(bundle, Set.of(), absoluteDeadline).evidence();
     }
 
     @Override
@@ -95,28 +103,30 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
             Set<AdapterRole> roles,
             PlanningEffectiveScope scope,
             Instant absoluteDeadline) {
-        checkDeadline(absoluteDeadline);
         Objects.requireNonNull(roles, "roles must not be null");
         Objects.requireNonNull(scope, "scope must not be null");
-        DomainMetadataBundle bundle = store.current();
+        DomainMetadataStaticBundle bundle = store.current();
+        Set<DomainAdapterKey> keys = roles.stream()
+                .flatMap(role -> bundle.registrations().domains(role).stream()
+                        .filter(domain -> bundle.catalog().supportsRole(domain, role))
+                        .map(domain -> new DomainAdapterKey(role, domain)))
+                .collect(Collectors.toUnmodifiableSet());
+        CurrentView view = captureEvidence(bundle, keys, absoluteDeadline);
         Map<AdapterRole, Set<String>> result = new LinkedHashMap<>();
         for (AdapterRole role : roles) {
             Set<String> domains = bundle.registrations().domains(role).stream()
                     .filter(domain -> bundle.catalog().supportsRole(domain, role))
-                    .filter(domain -> bundle.availability().isAvailable(role, domain))
-                    .filter(domain -> scope.allowedDomains().contains(domain))
+                    .filter(domain -> view.availability().isAvailable(new DomainAdapterKey(role, domain)))
+                    .filter(scope.allowedDomains()::contains)
                     .collect(Collectors.toCollection(java.util.TreeSet::new));
             result.put(role, domains);
         }
-        return new DomainAvailabilitySnapshot(bundle.evidence(), result);
+        return new DomainAvailabilitySnapshot(view.evidence(), result);
     }
 
     @Override
     public void assertCurrent(DomainMetadataEvidence expected, Instant absoluteDeadline) {
-        checkDeadline(absoluteDeadline);
-        if (!store.current().evidence().equals(expected)) {
-            throw new IllegalStateException("domain metadata evidence is stale");
-        }
+        requireCurrent(expected, absoluteDeadline);
     }
 
     @Override
@@ -124,14 +134,14 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
             Set<String> domains,
             PlanningEffectiveScope scope,
             DomainMetadataEvidence expected,
-            String authorizationEvidenceDigest,
             Instant absoluteDeadline) {
-        assertCurrent(expected, absoluteDeadline);
+        CurrentView view = requireCurrent(expected, absoluteDeadline);
+        Objects.requireNonNull(domains, "domains must not be null");
         Objects.requireNonNull(scope, "scope must not be null");
-        DomainMetadataBundle bundle = store.current();
         return domains.stream()
                 .filter(scope.allowedDomains()::contains)
-                .map(bundle.catalog()::requireDomain)
+                .filter(domain -> isAvailableForAnyEvaluatedRole(view, domain))
+                .map(view.bundle().catalog()::requireDomain)
                 .sorted(Comparator.comparing(CanonicalDomainDefinition::domain))
                 .map(domain -> {
                     RuntimeDomainRoutingProjection projection = new RuntimeDomainRoutingProjection();
@@ -150,10 +160,11 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
             PlanningEffectiveScope scope,
             DomainMetadataEvidence expected,
             Instant absoluteDeadline) {
-        assertCurrent(expected, absoluteDeadline);
+        CurrentView view = requireCurrent(expected, absoluteDeadline);
         Objects.requireNonNull(role, "role must not be null");
         Objects.requireNonNull(scope, "scope must not be null");
-        CanonicalDomainDefinition definition = store.current().catalog().requireDomain(domain);
+        requireAvailable(view, new DomainAdapterKey(role, domain));
+        CanonicalDomainDefinition definition = view.bundle().catalog().requireDomain(domain);
         CanonicalRoleCapability capability = requireCapability(definition, role);
         List<RuntimeDomainFieldSchema> fields = capability.fields().stream()
                 .filter(field -> scope.fieldAccess().containsKey(new CanonicalFieldRef(domain, field)))
@@ -174,25 +185,23 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
                 .filter(allowedFields::contains)
                 .sorted()
                 .toList());
-        int roleMax = isPageRole(role) ? capability.maxPageSize() : capability.maxResultRows();
-        int scopeMax = isPageRole(role) ? scope.maxPageSize() : scope.maxResultRows();
-        schema.setMaxSize(positiveMin(roleMax, scopeMax));
-        schema.setDefaultSize(schema.getMaxSize());
         return schema;
     }
 
     @Override
-    public ExecutionValidationProjection executionProjection(
+    public DomainExecutionResolution resolveExecution(
             AdapterRole role,
             String domain,
             ExecutionScope scope,
             DomainMetadataEvidence expected,
             Instant absoluteDeadline) {
-        assertCurrent(expected, absoluteDeadline);
+        CurrentView view = requireCurrent(expected, absoluteDeadline);
         if (!scope.allowedDomains().contains(domain)) {
             throw new IllegalStateException("domain not allowed by execution scope: " + domain);
         }
-        CanonicalDomainDefinition definition = store.current().catalog().requireDomain(domain);
+        DomainAdapterKey selectedKey = new DomainAdapterKey(role, domain);
+        requireAvailable(view, selectedKey);
+        CanonicalDomainDefinition definition = view.bundle().catalog().requireDomain(domain);
         CanonicalRoleCapability capability = requireCapability(definition, role);
         Set<String> allowed = scope.allowedFields().getOrDefault(domain, Set.of());
         Map<String, ExecutionFieldRule> fieldRules = capability.fields().stream()
@@ -200,7 +209,7 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
                 .sorted()
                 .collect(Collectors.toMap(
                         field -> field,
-                        field -> toExecutionFieldRule(field, definition, capability),
+                        field -> toExecutionFieldRule(domain, field, definition, capability, scope),
                         (left, right) -> left,
                         LinkedHashMap::new));
         List<String> defaultSelect = definition.defaultSelectFieldsByRole().getOrDefault(role, List.of()).stream()
@@ -209,41 +218,74 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
         Set<String> sortFields = capability.sortFields().stream()
                 .filter(fieldRules::containsKey)
                 .collect(Collectors.toUnmodifiableSet());
-        return new ExecutionValidationProjection(
+        ExecutionValidationProjection projection = new ExecutionValidationProjection(
                 role,
                 domain,
                 fieldRules,
                 defaultSelect,
                 sortFields,
-                positiveMin(capability.maxPageSize(), scope.maxResultRows()),
-                positiveMin(capability.maxResultRows(), scope.maxResultRows()),
-                expected.catalogVersion() + ":" + expected.adapterRegistrationVersion());
-    }
-
-    @Override
-    public AdapterExecutionBinding bind(
-            AdapterRole role,
-            String domain,
-            ExecutionScope scope,
-            DomainMetadataEvidence expected,
-            Instant absoluteDeadline) {
-        assertCurrent(expected, absoluteDeadline);
-        if (!scope.allowedDomains().contains(domain)) {
-            throw new IllegalStateException("domain not allowed by execution scope: " + domain);
-        }
-        AdapterRegistration registration = store.current().registrations().require(role, domain);
+                expected.staticEvidence().safeRef());
+        AdapterRegistration registration = view.bundle().registrations().require(role, domain);
         Class<? extends AgentAdapterPort> expectedType = AdapterRolePortTypes.requirePortType(role);
-        if (!expectedType.equals(registration.portType())) {
-            throw new IllegalStateException("adapter registration port type mismatch");
-        }
-        AgentAdapterPort port = applicationContext.getBean(registration.portBeanName(), registration.portType());
-        return new AdapterExecutionBinding(
+        AgentAdapterPort port = applicationContext.getBean(registration.portBeanName(), expectedType);
+        AdapterExecutionBinding binding = new AdapterExecutionBinding(
                 role,
                 domain,
-                registration.portType(),
+                expectedType,
                 port,
+                registration.registrationId(),
                 registration.registrationVersion(),
+                view.bundle().registrations().requireCapabilityRef(role, domain),
+                expected,
                 clock.instant());
+        return new DomainExecutionResolution(binding, projection, expected);
+    }
+
+    private CurrentView captureEvidence(
+            DomainMetadataStaticBundle bundle,
+            Set<DomainAdapterKey> keys,
+            Instant absoluteDeadline) {
+        checkDeadline(absoluteDeadline);
+        AdapterDeploymentAvailability availability = availabilityResolver.capture(keys, absoluteDeadline);
+        if (!availability.entries().keySet().equals(keys)) {
+            throw new IllegalStateException("availability resolver returned incomplete key set");
+        }
+        if (store.current() != bundle) {
+            throw new IllegalStateException("domain metadata static bundle changed during capture");
+        }
+        DomainMetadataEvidence evidence = new DomainMetadataEvidence(
+                bundle.staticEvidence(),
+                keys,
+                DomainMetadataEvidence.keysDigest(keys),
+                availability.canonicalDigest(),
+                availability.capturedAt());
+        return new CurrentView(bundle, availability, evidence);
+    }
+
+    private CurrentView requireCurrent(DomainMetadataEvidence expected, Instant absoluteDeadline) {
+        Objects.requireNonNull(expected, "expected evidence must not be null");
+        DomainMetadataStaticBundle bundle = store.current();
+        if (!bundle.staticEvidence().equals(expected.staticEvidence())) {
+            throw new IllegalStateException("domain metadata static evidence is stale");
+        }
+        CurrentView current = captureEvidence(bundle, expected.evaluatedKeys(), absoluteDeadline);
+        if (!current.evidence().evaluatedKeysDigest().equals(expected.evaluatedKeysDigest())
+                || !current.evidence().availabilityDigest().equals(expected.availabilityDigest())) {
+            throw new IllegalStateException("domain metadata availability evidence is stale");
+        }
+        return current;
+    }
+
+    private static void requireAvailable(CurrentView view, DomainAdapterKey key) {
+        if (!view.evidence().evaluatedKeys().contains(key) || !view.availability().isAvailable(key)) {
+            throw new IllegalStateException("selected adapter is not currently available");
+        }
+    }
+
+    private static boolean isAvailableForAnyEvaluatedRole(CurrentView view, String domain) {
+        return view.evidence().evaluatedKeys().stream()
+                .filter(key -> key.domain().equals(domain))
+                .anyMatch(view.availability()::isAvailable);
     }
 
     private RuntimeDomainFieldSchema toRuntimeFieldSchema(
@@ -271,22 +313,32 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
     }
 
     private ExecutionFieldRule toExecutionFieldRule(
+            String domain,
             String field,
             CanonicalDomainDefinition definition,
-            CanonicalRoleCapability capability) {
+            CanonicalRoleCapability capability,
+            ExecutionScope scope) {
         CanonicalFieldDefinition fd = definition.fields().get(field);
+        String fieldKey = domain + "." + field;
         return new ExecutionFieldRule(
                 field,
                 fd.type(),
-                capability.operatorsByField().getOrDefault(field, Set.of()),
-                capability.functionsByField().getOrDefault(field, Set.of()),
+                capability.operatorsByField().getOrDefault(field, Set.of()).stream()
+                        .filter(scope.allowedOperators().getOrDefault(fieldKey, Set.of())::contains)
+                        .collect(Collectors.toUnmodifiableSet()),
+                capability.functionsByField().getOrDefault(field, Set.of()).stream()
+                        .filter(function -> scope.allowedFunctions().getOrDefault(fieldKey, Set.of())
+                                .contains(functionId(function)))
+                        .collect(Collectors.toUnmodifiableSet()),
                 fd.maxLength().orElse(null),
                 fd.precision().orElse(null),
                 fd.scale().orElse(null),
                 fd.valueFormat().orElse(null));
     }
 
-    private CanonicalRoleCapability requireCapability(CanonicalDomainDefinition definition, AdapterRole role) {
+    private static CanonicalRoleCapability requireCapability(
+            CanonicalDomainDefinition definition,
+            AdapterRole role) {
         CanonicalRoleCapability capability = definition.roleCapabilities().get(role);
         if (capability == null) {
             throw new IllegalStateException("domain does not support role: " + definition.domain() + "/" + role);
@@ -306,7 +358,7 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
             throw new IllegalStateException("unknown function reference: " + function);
         }
         try {
-            return AggregateFunction.valueOf(function.functionId().toUpperCase());
+            return AggregateFunction.valueOf(function.functionId().toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException("unknown function reference: " + function, ex);
         }
@@ -316,17 +368,9 @@ public final class DomainMetadataPortImpl implements DomainMetadataPort {
         return function.name().toLowerCase(java.util.Locale.ROOT);
     }
 
-    private static int positiveMin(int left, int right) {
-        if (left <= 0) {
-            return Math.max(right, 0);
-        }
-        if (right <= 0) {
-            return left;
-        }
-        return Math.min(left, right);
-    }
-
-    private static boolean isPageRole(AdapterRole role) {
-        return role == AdapterRole.QUERYABLE || role == AdapterRole.DOCUMENT_RETRIEVABLE;
+    private record CurrentView(
+            DomainMetadataStaticBundle bundle,
+            AdapterDeploymentAvailability availability,
+            DomainMetadataEvidence evidence) {
     }
 }

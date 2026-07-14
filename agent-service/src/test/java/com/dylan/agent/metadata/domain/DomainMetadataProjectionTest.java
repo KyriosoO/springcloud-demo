@@ -26,14 +26,13 @@ class DomainMetadataProjectionTest {
     @Test
     void routeAndPlanProjectionsComeFromSameExpectedEvidenceAndEffectiveScope() {
         var port = DomainMetadataTestSupport.domainMetadataPort();
-        var evidence = DomainMetadataTestSupport.store().current().evidence();
         PlanningEffectiveScope scope = scope();
+        var evidence = port.availability(Set.of(AdapterRole.QUERYABLE), scope, DEADLINE).evidence();
 
         var routes = port.routeProjection(
                 Set.of("employee", "transaction"),
                 scope,
                 evidence,
-                "auth-evidence",
                 DEADLINE);
         var schema = port.planSchema(AdapterRole.QUERYABLE, "employee", scope, evidence, DEADLINE);
 
@@ -46,7 +45,7 @@ class DomainMetadataProjectionTest {
 
     private PlanningEffectiveScope scope() {
         CanonicalFieldRef field = new CanonicalFieldRef("employee", "chineseName");
-        return new PlanningEffectiveScope(
+        return com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                 Set.of("query.search"),
                 Set.of("employee"),
                 Map.of(field, new PlanningEffectiveScope.FieldAccess(

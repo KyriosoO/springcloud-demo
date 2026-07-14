@@ -20,12 +20,23 @@ public class PlanningCommandFactory {
             InvocationHandle handle,
             String userMessage,
             List<RuntimeTurnProjection> history) {
+        return create(handle, userMessage, history, null, null);
+    }
+
+    public PlanningCommand create(
+            InvocationHandle handle,
+            String userMessage,
+            List<RuntimeTurnProjection> history,
+            String requestedProfile,
+            String materialType) {
         Objects.requireNonNull(handle, "handle must not be null");
         return new PlanningCommand(
                 handle,
                 userMessage,
                 history,
                 handle.agentProfileRef(),
-                DelegationConstraintRef.CHAT_ALL);
+                DelegationConstraintRef.CHAT_ALL,
+                requestedProfile,
+                materialType);
     }
 }

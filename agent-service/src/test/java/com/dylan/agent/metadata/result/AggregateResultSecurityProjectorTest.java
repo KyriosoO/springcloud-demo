@@ -45,7 +45,7 @@ class AggregateResultSecurityProjectorTest {
     void masksAggregateGroupValuesOnly() {
         AggregateResultSecurityProjector projector = new AggregateResultSecurityProjector(maskingSupport());
 
-        FilteredResult<AggregateAgentResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<AggregateAgentResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         AgentAggregateResult result = filtered.payload().getAggregateResult();
         AgentAggregateParameters parameters = filtered.payload().getAggregateParameters();
@@ -74,7 +74,7 @@ class AggregateResultSecurityProjectorTest {
     void filtersUnauthorizedGroupFields() {
         AggregateResultSecurityProjector projector = new AggregateResultSecurityProjector(maskingSupport());
 
-        FilteredResult<AggregateAgentResultPayload> filtered = projector.filter(payload(), scope());
+        FilteredResult<AggregateAgentResultPayload> filtered = projector.filter(payload(), scope(), scope().resourceLimits());
 
         assertThat(filtered.payload().getAggregateResult().getRows().get(0).getGroups())
                 .doesNotContainKey("idCardNo");
@@ -87,7 +87,7 @@ class AggregateResultSecurityProjectorTest {
         payload.getAggregateParameters().setDomain(null);
         payload.getAggregateResult().setDomain(null);
 
-        assertThatThrownBy(() -> projector.filter(payload, scope()))
+        assertThatThrownBy(() -> projector.filter(payload, scope(), scope().resourceLimits()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing domain");
     }
@@ -147,9 +147,9 @@ class AggregateResultSecurityProjectorTest {
     }
 
     private ExecutionScope scope() {
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:00:00Z"),
                 "perm-evidence",
                 "perm-v1",
@@ -158,10 +158,7 @@ class AggregateResultSecurityProjectorTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("phoneNo")),
                 Map.of("employee.phoneNo", MaskType.MOBILE),
-                Duration.ofSeconds(30),
-                0,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private ResultValueMaskingSupport maskingSupport() {

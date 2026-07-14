@@ -11,8 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.exception.AgentPlanValidationException;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView.FieldView;
+import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 
 /**
  * 对已校验 filter 的字段级约束校验。
@@ -40,7 +39,7 @@ public class FieldConstraintValidator {
     /** 校验最终 filter 集合的范围一致性（DECIMAL/INSTANT 的 GT < LT）和操作符族重叠规则。 */
     public void validateFinalQuery(
             List<ValidatedFilter> filters,
-            DomainView domain) {
+            Map<String, ExecutionFieldRule> fieldRules) {
         if (filters.isEmpty()) {
             throw new AgentPlanValidationException("MERGE 后查询条件不能为空。");
         }
@@ -49,8 +48,11 @@ public class FieldConstraintValidator {
             String field = entry.getKey();
             FieldFilterSet set = entry.getValue();
             if (set.lowerBound() != null && set.upperBound() != null) {
-                FieldView fp = domain.requireField(field);
-                validateRange(field, set, fp);
+                ExecutionFieldRule rule = fieldRules.get(field);
+                if (rule == null) {
+                    throw new AgentPlanValidationException("字段不在当前执行投影中: " + field);
+                }
+                validateRange(field, set, rule);
             }
         }
     }
@@ -102,11 +104,11 @@ public class FieldConstraintValidator {
         return result;
     }
 
-    private void validateRange(String field, FieldFilterSet set, FieldView fp) {
+    private void validateRange(String field, FieldFilterSet set, ExecutionFieldRule rule) {
         String lowerValue = set.lowerBound().getValue();
         String upperValue = set.upperBound().getValue();
 
-        int comparison = switch (fp.type()) {
+        int comparison = switch (rule.fieldType()) {
             case DECIMAL -> new BigDecimal(lowerValue).compareTo(new BigDecimal(upperValue));
             case INSTANT -> Instant.parse(lowerValue).compareTo(Instant.parse(upperValue));
             case STRING -> throw new AgentPlanValidationException(

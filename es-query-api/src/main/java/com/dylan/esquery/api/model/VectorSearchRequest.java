@@ -9,7 +9,7 @@ import java.util.Map;
 public class VectorSearchRequest {
 	private String embeddingField;
 	private List<Double> queryVector;
-	private Map<String, Object> filterDsl;
+	private Map<String, Object> filter;
 	private Integer k;
 	private Integer numCandidates;
 	private Integer trackTotalHits;
@@ -30,12 +30,12 @@ public class VectorSearchRequest {
 		this.queryVector = queryVector;
 	}
 
-	public Map<String, Object> getFilterDsl() {
-		return filterDsl;
+	public Map<String, Object> getFilter() {
+		return filter;
 	}
 
-	public void setFilterDsl(Map<String, Object> filterDsl) {
-		this.filterDsl = filterDsl;
+	public void setFilter(Map<String, Object> filter) {
+		this.filter = filter;
 	}
 
 	public Integer getK() {

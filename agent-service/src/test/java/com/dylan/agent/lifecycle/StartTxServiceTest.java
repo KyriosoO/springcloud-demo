@@ -73,14 +73,17 @@ class StartTxServiceTest {
         assertThat(invocation.getId()).isEqualTo(result.handle().invocationId());
         assertThat(invocation.getTurnId()).isEqualTo(turn.getId());
         assertThat(invocation.getState()).isEqualTo("PROCESSING");
-        assertThat(result.handle().requestCorrelationId()).isEqualTo(result.handle().invocationId());
+        assertThat(result.handle().requestCorrelationId()).isNotBlank();
+        assertThat(result.handle().requestCorrelationId()).isNotEqualTo(result.handle().invocationId());
     }
 
     private static StartChatCommand command() {
         return new StartChatCommand(
-                new AgentUserContext("user-1", Set.of("ROLE_AGENT_USER")),
+                new AgentUserContext("user-1"),
                 null,
                 "查询员工",
+                null,
+                null,
                 AgentProfileRef.of("agent", "profile-v1"),
                 DEADLINE);
     }

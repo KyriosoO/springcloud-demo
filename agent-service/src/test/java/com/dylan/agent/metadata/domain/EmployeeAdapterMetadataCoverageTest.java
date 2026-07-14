@@ -12,14 +12,16 @@ class EmployeeAdapterMetadataCoverageTest {
 
     @Test
     void employeeDomainHasQueryableAndAggregatableCatalogCoverage() {
-        var catalog = DomainMetadataTestSupport.catalogView();
+        var catalog = DomainMetadataTestSupport.catalog();
 
-        var queryable = catalog.requireDomain("employee", AdapterRole.QUERYABLE);
-        var aggregatable = catalog.requireDomain("employee", AdapterRole.AGGREGATABLE);
+        var domain = catalog.requireDomain("employee");
+        var queryable = domain.roleCapabilities().get(AdapterRole.QUERYABLE);
+        var aggregatable = domain.roleCapabilities().get(AdapterRole.AGGREGATABLE);
 
-        assertThat(queryable.defaultSelectFields()).contains("chineseName", "memberNo", "position");
-        assertThat(queryable.requireField("chineseName").operators())
+        assertThat(domain.defaultSelectFieldsByRole().get(AdapterRole.QUERYABLE))
+                .contains("chineseName", "memberNo", "position");
+        assertThat(queryable.operatorsByField().get("chineseName"))
                 .contains(AgentOperator.EQ, AgentOperator.CONTAINS);
-        assertThat(aggregatable.requireField("amount").functions()).isNotEmpty();
+        assertThat(aggregatable.functionsByField().get("amount")).isNotEmpty();
     }
 }

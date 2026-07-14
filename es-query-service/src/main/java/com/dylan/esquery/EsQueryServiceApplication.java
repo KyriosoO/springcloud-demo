@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.dylan.esquery.config.EsQueryProperties;
 
@@ -12,6 +13,7 @@ import com.dylan.esquery.config.EsQueryProperties;
  * ES 查询服务启动类，负责启动索引和检索服务。
  */
 @EnableAsync
+@EnableScheduling
 @EnableDiscoveryClient
 @EnableConfigurationProperties(EsQueryProperties.class)
 @SpringBootApplication

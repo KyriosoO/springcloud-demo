@@ -19,13 +19,14 @@ public final class CapabilityRegistry {
     public CapabilityRegistry(Collection<CapabilityRegistration<?, ?, ?>> registrations,
                               CapabilityRegistrationValidator validator,
                               com.dylan.agent.kernel.definition.ContractRegistry contracts,
+                              com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry resourceContracts,
                               Set<AdapterRole> knownRoles) {
         Objects.requireNonNull(registrations);
         Objects.requireNonNull(validator);
         if (registrations.isEmpty()) {
             throw new IllegalStateException("at least one CapabilityRegistration required");
         }
-        validator.validateAll(registrations, contracts, knownRoles);
+        validator.validateAll(registrations, contracts, resourceContracts, knownRoles);
         Map<String, CapabilityRegistration<?, ?, ?>> map = new LinkedHashMap<>();
         Map<String, ResolvedRegistration> resMap = new LinkedHashMap<>();
         for (CapabilityRegistration<?, ?, ?> reg : registrations) {

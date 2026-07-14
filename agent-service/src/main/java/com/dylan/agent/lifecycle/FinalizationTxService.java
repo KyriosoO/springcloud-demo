@@ -72,7 +72,7 @@ public class FinalizationTxService {
         StoredInvocationResult stored = storeResult(handle, success.securedResult());
         contextFinalizationParticipant.persist(success.approvedContextWrites());
         finalizeInvocation(handle, InvocationState.COMPLETED, InvocationResponseType.SUCCESS,
-                null, stored.safeMessage(), null);
+                null, stored.safeMessage(), null, 1);
         finalizeTurnSuccess(handle, InvocationResponseType.SUCCESS, stored.safeMessage());
         return finalized(handle, InvocationState.COMPLETED, InvocationResponseType.SUCCESS,
                 stored, stored.safeMessage(), null, null);
@@ -84,7 +84,7 @@ public class FinalizationTxService {
             ResolvedClarification clarification) {
         Objects.requireNonNull(clarification, "clarification must not be null");
         finalizeInvocation(handle, InvocationState.COMPLETED, InvocationResponseType.CLARIFY,
-                null, clarification.safeQuestion(), null);
+                null, clarification.safeQuestion(), null, 0);
         finalizeTurnSuccess(handle, InvocationResponseType.CLARIFY, clarification.safeQuestion());
         return finalized(handle, InvocationState.COMPLETED, InvocationResponseType.CLARIFY,
                 null, clarification.safeQuestion(), null, null);
@@ -97,7 +97,7 @@ public class FinalizationTxService {
         Objects.requireNonNull(failure, "failure must not be null");
         String safeMessage = failure.safeMessage().orElse("规划失败，请稍后重试。");
         finalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
-                failure.errorCode(), safeMessage, failure.diagnosticId());
+                failure.errorCode(), safeMessage, failure.diagnosticId(), 0);
         finalizeTurnFailure(handle, failure.errorCode(), safeMessage);
         return finalized(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
                 null, safeMessage, failure.errorCode(), failure.diagnosticId());
@@ -108,7 +108,7 @@ public class FinalizationTxService {
             InvocationHandle handle,
             PlanningCancellation cancellation) {
         Objects.requireNonNull(cancellation, "cancellation must not be null");
-        return commitCancellation(handle, cancellation.errorCode(), "请求已取消或超时。", null);
+        return commitCancellation(handle, cancellation.errorCode(), "请求已取消或超时。", null, 0);
     }
 
     @Transactional
@@ -125,7 +125,7 @@ public class FinalizationTxService {
                 ? "执行失败，请稍后重试。"
                 : failure.safeMessage();
         finalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
-                failure.errorCode(), safeMessage, failure.diagnosticId());
+                failure.errorCode(), safeMessage, failure.diagnosticId(), 1);
         finalizeTurnFailure(handle, failure.errorCode(), safeMessage);
         return finalized(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
                 null, safeMessage, failure.errorCode(), failure.diagnosticId());
@@ -138,16 +138,17 @@ public class FinalizationTxService {
             ExecutionFailure failure) {
         Objects.requireNonNull(checkpoint).requireCommittedCheckpoint();
         Objects.requireNonNull(failure, "failure must not be null");
-        return commitCancellation(handle, failure.errorCode(), "请求已取消或超时。", failure.diagnosticId());
+        return commitCancellation(handle, failure.errorCode(), "请求已取消或超时。", failure.diagnosticId(), 1);
     }
 
     private FinalizedInvocationResult commitCancellation(
             InvocationHandle handle,
             KernelErrorCode errorCode,
             String safeMessage,
-            String diagnosticId) {
+            String diagnosticId,
+            long expectedRowVersion) {
         finalizeInvocation(handle, InvocationState.CANCELLED, InvocationResponseType.CANCELLED,
-                errorCode, safeMessage, diagnosticId);
+                errorCode, safeMessage, diagnosticId, expectedRowVersion);
         finalizeTurnFailure(handle, errorCode, safeMessage);
         return finalized(handle, InvocationState.CANCELLED, InvocationResponseType.CANCELLED,
                 null, safeMessage, errorCode, diagnosticId);
@@ -163,7 +164,8 @@ public class FinalizationTxService {
         AgentInvocationResultEntity entity = new AgentInvocationResultEntity();
         entity.setId(UUID.randomUUID().toString());
         entity.setInvocationId(handle.invocationId());
-        entity.setOutputContractSchema(ref.schema());
+        entity.setOutputContractNamespace(ref.namespace());
+        entity.setOutputContractName(ref.name());
         entity.setOutputContractVersion(ref.version());
         entity.setPayloadJson(new String(secured.canonicalPayload(), StandardCharsets.UTF_8));
         entity.setSafeMessage(secured.safeMessage());
@@ -185,7 +187,8 @@ public class FinalizationTxService {
                                     InvocationResponseType responseType,
                                     KernelErrorCode errorCode,
                                     String safeMessage,
-                                    String diagnosticId) {
+                                    String diagnosticId,
+                                    long expectedRowVersion) {
         int updated = invocationMapper.finalizeTerminal(
                 handle.invocationId(),
                 state.name(),
@@ -193,7 +196,8 @@ public class FinalizationTxService {
                 errorCode == null ? null : errorCode.name(),
                 safeMessage,
                 diagnosticId,
-                LocalDateTime.now(clock));
+                LocalDateTime.now(clock),
+                expectedRowVersion);
         if (updated != 1) {
             throw new IllegalStateException("finalize invocation CAS failed: " + handle.invocationId());
         }

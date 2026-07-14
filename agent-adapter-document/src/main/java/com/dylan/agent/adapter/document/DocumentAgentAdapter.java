@@ -1,74 +1,52 @@
 package com.dylan.agent.adapter.document;
 
-import com.dylan.agent.adapter.api.AgentAdapterException;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
-import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
-import com.dylan.agent.api.plan.DocumentRetrievalMode;
+import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalResult;
+import com.dylan.agent.adapter.api.document.DocumentResourceLimit;
+import com.dylan.agent.adapter.api.document.DocumentRetrievalCommand;
+import com.dylan.agent.adapter.api.operation.*;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
+import java.util.Optional;
+
+/** Document Adapter 只协调 mapper/client/validator，并形成一次 attempt typed outcome。 */
 @Component
-public class DocumentAgentAdapter implements DocumentRetrievableAdapter {
-
-    private static final Logger log = LoggerFactory.getLogger(DocumentAgentAdapter.class);
-
-    private final DocumentSearchClient client;
-    private final DocumentRetrievalMapper retrievalMapper;
-    private final DocumentEvidenceMapper evidenceMapper;
-    private final DocumentAdapterProperties properties;
-
-    public DocumentAgentAdapter(
-            DocumentSearchClient client,
-            DocumentRetrievalMapper retrievalMapper,
-            DocumentEvidenceMapper evidenceMapper,
-            DocumentAdapterProperties properties) {
-        this.client = client;
-        this.retrievalMapper = retrievalMapper;
-        this.evidenceMapper = evidenceMapper;
-        this.properties = properties;
+public final class DocumentAgentAdapter implements DocumentRetrievableAdapter {
+    private static final Logger log= LoggerFactory.getLogger(DocumentAgentAdapter.class);
+    private static final ProviderSafeIdentity PROVIDER=new ProviderSafeIdentity("es-query-service", Optional.empty());
+    private final DocumentSearchClient client;private final DocumentRetrievalMapper mapper;private final DocumentEvidenceMapper evidenceMapper;
+    private final DocumentRetrievalResponseBindingValidator validator;private final Clock clock;
+    public DocumentAgentAdapter(DocumentSearchClient client,DocumentRetrievalMapper mapper,DocumentEvidenceMapper evidenceMapper,
+                                DocumentRetrievalResponseBindingValidator validator,Clock clock){
+        this.client=client;this.mapper=mapper;this.evidenceMapper=evidenceMapper;this.validator=validator;this.clock=clock;}
+    @Override public CapabilityOperationOutcome<AdapterDocumentRetrievalResult> retrieve(DocumentRetrievalCommand command,CapabilityOperationContext context){
+        long started=System.nanoTime();
+        if(context.cancellation().isCancelled())return failure(context,0,CapabilityOperationFailureCode.CANCELLED,CapabilityOperationTermination.CANCELLED,started);
+        if(!clock.instant().isBefore(context.absoluteDeadline()))return failure(context,0,CapabilityOperationFailureCode.DEADLINE_EXCEEDED,CapabilityOperationTermination.DEADLINE_EXCEEDED,started);
+        try{
+            context.resourceLimits().require(com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,DocumentResourceLimit.class);
+            var response=client.documentHybridSearch(mapper.toDocumentHybridRequest(command,context));
+            if(context.cancellation().isCancelled())return failure(context,1,CapabilityOperationFailureCode.CANCELLED,CapabilityOperationTermination.CANCELLED,started);
+            if(!clock.instant().isBefore(context.absoluteDeadline()))return failure(context,1,CapabilityOperationFailureCode.LATE_RESULT,CapabilityOperationTermination.DEADLINE_EXCEEDED,started);
+            var bound=validator.validate(response,command,context);var candidate=evidenceMapper.toAdapterResult(response,bound,command,context);
+            return new CapabilityOperationSuccess<>(candidate,metadata(context,1,CapabilityOperationTermination.SUCCEEDED,"document-retrieval-ok",started));
+        }catch(IllegalArgumentException ex){log.warn("Document retrieval contract rejected: operationId={}",context.operationId());
+            return failure(context,0,CapabilityOperationFailureCode.INVALID_REQUEST,CapabilityOperationTermination.REJECTED,started);
+        }catch(FeignException ex){log.error("Document search Feign error: status={}",ex.status());
+            return failure(context,1,CapabilityOperationFailureCode.PROVIDER_FAILED,CapabilityOperationTermination.FAILED,started);
+        }catch(RuntimeException ex){log.error("Document search response rejected: operationId={}",context.operationId());
+            return failure(context,1,CapabilityOperationFailureCode.INVALID_RESPONSE,CapabilityOperationTermination.REJECTED,started);}
     }
-
-    @Override
-    public AdapterDocumentResult retrieve(DocumentRetrievalRequest request) {
-        if (request.getAclScope() == null) {
-            throw new AgentAdapterException("文档 ACL 安全投影缺失，已拒绝检索。");
-        }
-        String index = resolveIndex(request.getDomain(), request.getIndexAlias());
-        try {
-            if (request.getRetrievalMode() == DocumentRetrievalMode.HYBRID) {
-                return evidenceMapper.toAdapterResult(
-                        client.hybridSearch(index, retrievalMapper.toHybridRequest(request)),
-                        request.getTopK());
-            }
-            if (request.getRetrievalMode() == DocumentRetrievalMode.VECTOR) {
-                return evidenceMapper.toAdapterResult(
-                        client.vectorSearch(index, retrievalMapper.toVectorRequest(request)),
-                        request.getTopK());
-            }
-            return evidenceMapper.toAdapterResult(
-                    client.search(index, retrievalMapper.toSearchDsl(request)),
-                    request.getTopK());
-        } catch (FeignException ex) {
-            log.error("Document search Feign error: status={}", ex.status());
-            throw new AgentAdapterException("文档检索服务查询失败。", ex);
-        }
-    }
-
-    private String resolveIndex(String domain, String requestIndexAlias) {
-        String index = properties.getIndexByDomain().get(domain);
-        if (requestIndexAlias != null && !requestIndexAlias.isBlank()) {
-            String alias = requestIndexAlias.trim();
-            if (index != null && !index.isBlank() && !alias.equals(index.trim())) {
-                throw new AgentAdapterException("文档 profile read alias 与 domain 映射不一致，已拒绝检索。");
-            }
-            return alias;
-        }
-        if (index == null || index.isBlank()) {
-            throw new AgentAdapterException("文档 domain 缺少显式 read alias 映射，已拒绝检索。");
-        }
-        return index.trim();
-    }
+    private CapabilityOperationFailure<AdapterDocumentRetrievalResult> failure(CapabilityOperationContext context,int attempts,
+            CapabilityOperationFailureCode code,CapabilityOperationTermination termination,long started){String diagnostic="document-retrieval-"+context.operationId()+"-"+code.name().toLowerCase(java.util.Locale.ROOT);
+        return new CapabilityOperationFailure<>(code,diagnostic,metadata(context,attempts,termination,diagnostic,started));}
+    private CapabilityOperationMetadata metadata(CapabilityOperationContext context,int attempts,CapabilityOperationTermination termination,String diagnostic,long started){
+        return new CapabilityOperationMetadata(context.operationId(),context.operationType(),PROVIDER,attempts,
+                Math.max(0,(System.nanoTime()-started)/1_000_000L),termination,diagnostic,context.resourceLimits().reference(),false,
+                termination==CapabilityOperationTermination.DEADLINE_EXCEEDED,
+                termination==CapabilityOperationTermination.CANCELLED);}
 }

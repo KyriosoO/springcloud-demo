@@ -9,7 +9,8 @@ public class AgentInvocationResultEntity {
 
     private String id;
     private String invocationId;
-    private String outputContractSchema;
+    private String outputContractNamespace;
+    private String outputContractName;
     private String outputContractVersion;
     private String payloadJson;
     private String safeMessage;
@@ -20,8 +21,10 @@ public class AgentInvocationResultEntity {
     public void setId(String id) { this.id = id; }
     public String getInvocationId() { return invocationId; }
     public void setInvocationId(String invocationId) { this.invocationId = invocationId; }
-    public String getOutputContractSchema() { return outputContractSchema; }
-    public void setOutputContractSchema(String outputContractSchema) { this.outputContractSchema = outputContractSchema; }
+    public String getOutputContractNamespace() { return outputContractNamespace; }
+    public void setOutputContractNamespace(String outputContractNamespace) { this.outputContractNamespace = outputContractNamespace; }
+    public String getOutputContractName() { return outputContractName; }
+    public void setOutputContractName(String outputContractName) { this.outputContractName = outputContractName; }
     public String getOutputContractVersion() { return outputContractVersion; }
     public void setOutputContractVersion(String outputContractVersion) { this.outputContractVersion = outputContractVersion; }
     public String getPayloadJson() { return payloadJson; }

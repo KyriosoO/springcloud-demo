@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -14,18 +15,18 @@ import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.exception.AgentPlanValidationException;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView.DomainView;
+import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 
 class FieldConstraintValidatorTest {
 
     private FieldConstraintValidator validator;
-    private DomainView dp;
+    private Map<String, ExecutionFieldRule> dp;
 
     @BeforeEach
     void setUp() {
         validator = new FieldConstraintValidator();
-        dp = DomainMetadataTestSupport.catalogView().requireDomain("employee", AdapterRole.QUERYABLE);
+        dp = DomainMetadataTestSupport.executionFieldRules("employee", AdapterRole.QUERYABLE);
     }
 
     // --- groupByField success ---

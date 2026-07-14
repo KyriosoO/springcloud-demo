@@ -92,8 +92,8 @@ public class QueryPreviewPlanValidator
 
     private int maxPreviewSize(ExecutionValidationContext context) {
         int max = properties.getQuery().getDefaultSize();
-        max = Math.min(max, context.domainProjection().maxPageSize());
-        max = Math.min(max, context.executionScope().maxResultRows());
+        max = Math.min(max, com.dylan.agent.kernel.resource.StandardResourceLimits
+                .require(context.executionScope()).maxResultRows());
         return max;
     }
 

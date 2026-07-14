@@ -462,9 +462,10 @@ function renderDocumentResult(result) {
   }
   if (result.citationVerification) {
     const verification = result.citationVerification;
-    const invalidCount = Array.isArray(verification.invalidCitationIds) ? verification.invalidCitationIds.length : 0;
-    const fallback = verification.fallbackReason ? ` · ${verification.fallbackReason}` : "";
-    statusParts.push(`校验异常 ${invalidCount}${fallback}`);
+    const status = verification.status || "UNKNOWN";
+    const bound = verification.boundUnitCount ?? 0;
+    const visible = verification.visibleCitationCount ?? 0;
+    statusParts.push(`校验 ${status}（绑定 ${bound}/${visible}）`);
   }
   const statusText = statusParts.length > 0 ? ` · ${statusParts.join(" · ")}` : "";
   meta.textContent = `证据 ${evidenceCount} 条 · 覆盖文档 ${coveredCount} 个${partialText}${statusText}`;

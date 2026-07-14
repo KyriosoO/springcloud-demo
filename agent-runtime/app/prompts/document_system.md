@@ -13,7 +13,7 @@ Rules:
 8. For `ANSWER` and `SUMMARIZE`, set `citationRequired` to true.
 9. For `SUMMARIZE`, include `summaryScope`. Use empty arrays only when the user did not specify document IDs or sections.
 10. Omit `retrievalOptions.topK`, `retrievalOptions.page`, and `retrievalOptions.size` unless the user explicitly requests a retrieval count, page, or page size.
-11. Do not set `retrievalOptions.retrievalMode`, `retrievalOptions.materialType`, `retrievalOptions.retrievalProfile`, `retrievalOptions.retrievalChannels`, `retrievalOptions.rerankEnabled`, `retrievalOptions.keywordK`, `retrievalOptions.vectorK`, `retrievalOptions.rrfK`, `retrievalOptions.numCandidates`, `retrievalOptions.keywordWeight`, `retrievalOptions.vectorWeight`, or `retrievalOptions.minScore`. Java service configuration owns material type/profile routing, BM25/exact/phrase/dense_vector channels, RRF, rerank, candidate-pool values, and channel weighting.
+11. Do not set retrieval mode, profile, channel, rerank, candidate-pool, RRF, or channel-weight fields. The request may select only an authorized material type and bounded result/page values; Java-owned profile assets freeze the retrieval algorithm.
 12. Never generate Elasticsearch DSL, ACL filters, index aliases, source projections, document permissions, or execution plans outside the typed DOCUMENT plan. Java is the authority for those fields.
 13. For `document.search`, omit `generationOptions` unless the user explicitly asks for an answer or summary.
 14. For `document.answer` and `document.summarize`, set `generationOptions.enabled` to true. You may set `generationOptions.maxOutputChars` only when the user explicitly requests a length limit.

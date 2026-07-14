@@ -37,9 +37,18 @@ public class CheckpointTxService {
         String checkpointJson = auditJsonCodec.writeCheckpoint(checkpoint);
         int updated = invocationMapper.checkpoint(
                 handle.invocationId(),
+                checkpoint.capabilityId(),
+                checkpoint.planKind(),
+                checkpoint.registrationIdentity(),
+                checkpoint.authorizationSnapshotRef(),
+                result.artifactIdentity().contextSnapshotSetDigest(),
+                result.authorizationSnapshot().domainMetadataEvidence().catalogVersion(),
+                checkpoint.planningArtifactBindingDigest(),
                 checkpointJson,
                 checkpoint.checkpointHash(),
-                LocalDateTime.now(clock));
+                LocalDateTime.now(clock),
+                0,
+                0);
         if (updated == 1) {
             return committed(CheckpointResult.Status.COMMITTED, checkpoint);
         }
@@ -50,7 +59,10 @@ public class CheckpointTxService {
         if (!"PROCESSING".equals(existing.getState())) {
             return CheckpointResult.withoutCheckpoint(CheckpointResult.Status.TERMINAL_EXISTS);
         }
-        if (checkpoint.checkpointHash().equals(existing.getCheckpointHash())) {
+        if (existing.getCheckpointSequence() == 1
+                && checkpoint.checkpointHash().equals(existing.getCheckpointHash())
+                && checkpoint.planningArtifactBindingDigest()
+                        .equals(existing.getPlanningArtifactBindingDigest())) {
             return committed(CheckpointResult.Status.ALREADY_COMMITTED_SAME, checkpoint);
         }
         return CheckpointResult.withoutCheckpoint(CheckpointResult.Status.COMMIT_UNKNOWN);

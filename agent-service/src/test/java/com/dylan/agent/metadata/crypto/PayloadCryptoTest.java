@@ -3,8 +3,6 @@ package com.dylan.agent.metadata.crypto;
 import com.dylan.agent.api.context.QueryCapabilityContextPayload;
 import com.dylan.agent.api.contract.common.ContractRef;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
-import com.dylan.agent.metadata.config.AgentSecuritySettings;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.crypto.internal.AeadProtectedPayloadCodec;
 import com.dylan.agent.metadata.crypto.internal.EnvironmentPayloadKeyProvider;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
@@ -18,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 
@@ -71,9 +68,7 @@ class PayloadCryptoTest {
         String encoded = Base64.getEncoder().encodeToString(rawKey);
         EnvironmentPayloadKeyProvider keys =
                 new EnvironmentPayloadKeyProvider(name -> Map.of("AGENT_PAYLOAD_KEY_ACTIVE", encoded).get(name));
-        AgentSecuritySettingsRegistry settings = new AgentSecuritySettingsRegistry(
-                new AgentSecuritySettings(Duration.ofHours(1), Duration.ofMinutes(5), 10, "ACTIVE"));
-        AeadProtectedPayloadCodec codec = new AeadProtectedPayloadCodec(settings, keys);
+        AeadProtectedPayloadCodec codec = new AeadProtectedPayloadCodec("ACTIVE", keys);
 
         PayloadProtectionContext context = context("ctx-1");
         var protectedPayload = codec.encrypt("secret".getBytes(java.nio.charset.StandardCharsets.UTF_8), context);
@@ -92,7 +87,7 @@ class PayloadCryptoTest {
         return new PayloadProtectionContext(
                 PayloadPurpose.CONTEXT_PAYLOAD,
                 ownerId,
-                new ContractRef("query_context", "v1"),
+                new ContractRef("agent.test", "query_context", "v1"),
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     }
 }

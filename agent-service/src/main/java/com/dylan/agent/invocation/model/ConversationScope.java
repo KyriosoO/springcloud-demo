@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Conversation Scope（CHAT 模式）。
  */
-public non-sealed class ConversationScope implements InvocationScope {
+public final class ConversationScope implements InvocationScope {
 
     private final String scopeId;
 

@@ -2,7 +2,6 @@ package com.dylan.agent.metadata.context.internal;
 
 import com.dylan.agent.invocation.model.ConversationScope;
 import com.dylan.agent.invocation.model.InvocationScope;
-import com.dylan.agent.invocation.model.RunScope;
 import com.dylan.agent.kernel.port.model.ApprovedContextWrite;
 
 import java.nio.charset.StandardCharsets;
@@ -47,19 +46,15 @@ final class ContextBindingSupport {
         if (scope instanceof ConversationScope) {
             return "CONVERSATION";
         }
-        if (scope instanceof RunScope) {
-            return "RUN";
-        }
         throw new IllegalArgumentException("unsupported context scope type: "
                 + scope.getClass().getName());
     }
 
     static InvocationScope scope(String scopeType, String scopeId) {
-        return switch (scopeType) {
-            case "CONVERSATION" -> new ConversationScope(scopeId);
-            case "RUN" -> new RunScope(scopeId);
-            default -> throw new IllegalArgumentException("unsupported scopeType: " + scopeType);
-        };
+        if (!"CONVERSATION".equals(scopeType)) {
+            throw new IllegalArgumentException("unsupported scopeType: " + scopeType);
+        }
+        return new ConversationScope(scopeId);
     }
 
     static boolean sameScope(InvocationScope left, InvocationScope right) {

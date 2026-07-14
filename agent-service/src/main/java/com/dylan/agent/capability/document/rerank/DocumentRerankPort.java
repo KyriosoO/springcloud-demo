@@ -1,8 +1,9 @@
 package com.dylan.agent.capability.document.rerank;
 
-import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
+import com.dylan.agent.adapter.api.document.provider.DocumentRerankOperationRequest;
+import com.dylan.agent.adapter.api.document.provider.DocumentUntrustedRerankPayload;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
 
-/** 文档 rerank 端口，输入必须已经过权限过滤和安全投影。 */
 public interface DocumentRerankPort {
-    AdapterDocumentResult rerank(DocumentRerankRequest request);
+    CapabilityOperationOutcome<DocumentUntrustedRerankPayload> rerank(DocumentRerankOperationRequest request);
 }

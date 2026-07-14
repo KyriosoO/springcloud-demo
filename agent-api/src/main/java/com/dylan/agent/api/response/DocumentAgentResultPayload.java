@@ -2,12 +2,14 @@ package com.dylan.agent.api.response;
 
 import com.dylan.agent.api.enums.AgentResultKind;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /** DOCUMENT 成功结果 payload。 */
 public final class DocumentAgentResultPayload implements AgentResultPayload {
 
     private AgentDocumentParameters documentParameters;
     private AgentDocumentResult documentResult;
+    private transient DocumentResultSecurityEvidence internalSecurityEvidence;
 
     public DocumentAgentResultPayload() {
     }
@@ -28,4 +30,10 @@ public final class DocumentAgentResultPayload implements AgentResultPayload {
     public void setDocumentParameters(AgentDocumentParameters documentParameters) { this.documentParameters = documentParameters; }
     public AgentDocumentResult getDocumentResult() { return documentResult; }
     public void setDocumentResult(AgentDocumentResult documentResult) { this.documentResult = documentResult; }
+
+    @JsonIgnore
+    public DocumentResultSecurityEvidence getInternalSecurityEvidence() { return internalSecurityEvidence; }
+
+    @JsonIgnore
+    public void setInternalSecurityEvidence(DocumentResultSecurityEvidence value) { internalSecurityEvidence = value; }
 }

@@ -33,9 +33,11 @@ public class StartChatCommandFactory {
                 userContext,
                 request.getConversationId(),
                 normalizeMessage(request.getMessage()),
+                request.getRequestedProfile(),
+                request.getMaterialType(),
                 AgentProfileRef.of(
-                        properties.getAuthService().getAgentId(),
-                        properties.getAuthService().getProfileId()),
+                        properties.getProfile().getAgentId(),
+                        properties.getProfile().getProfileVersion()),
                 absoluteDeadline);
     }
 

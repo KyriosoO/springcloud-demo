@@ -45,7 +45,8 @@ public class InvocationRecoveryService {
                     "DEADLINE_EXCEEDED",
                     "请求已超时。",
                     "recovery-deadline",
-                    completedAt);
+                    completedAt,
+                    record.getRowVersion());
             if (updated == 0) {
                 continue;
             }

@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public interface ContextRecordMapper {
 
     @Select("SELECT context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
-            "contract_schema, contract_version, record_version, protected_payload_json, " +
+            "contract_namespace, contract_name, contract_version, record_version, protected_payload_json, " +
             "source_capability_id, source_invocation_id, source_domain, readable, expires_at, updated_at " +
             "FROM agent_context_record WHERE owner_type = #{ownerType} AND owner_id = #{ownerId} " +
             "AND scope_type = #{scopeType} AND scope_id = #{scopeId} AND context_type = #{contextType} " +
@@ -29,7 +29,7 @@ public interface ContextRecordMapper {
                                  @Param("now") LocalDateTime now);
 
     @Select("SELECT context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
-            "contract_schema, contract_version, record_version, protected_payload_json, " +
+            "contract_namespace, contract_name, contract_version, record_version, protected_payload_json, " +
             "source_capability_id, source_invocation_id, source_domain, readable, expires_at, updated_at " +
             "FROM agent_context_record WHERE owner_type = #{ownerType} AND owner_id = #{ownerId} " +
             "AND scope_type = #{scopeType} AND scope_id = #{scopeId} AND context_type = #{contextType}")
@@ -40,18 +40,27 @@ public interface ContextRecordMapper {
                                @Param("contextType") String contextType);
 
     @Insert("INSERT INTO agent_context_record (" +
-            "context_id, owner_type, owner_id, scope_type, scope_id, context_type, contract_schema, contract_version, " +
+            "context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
+            "contract_namespace, contract_name, contract_version, " +
             "record_version, protected_payload_json, source_capability_id, source_invocation_id, source_domain, " +
             "readable, expires_at, updated_at) VALUES (" +
             "#{contextId}, #{ownerType}, #{ownerId}, #{scopeType}, #{scopeId}, #{contextType}, " +
-            "#{contractSchema}, #{contractVersion}, #{recordVersion}, #{protectedPayloadJson}, " +
+            "#{contractNamespace}, #{contractName}, #{contractVersion}, #{recordVersion}, #{protectedPayloadJson}, " +
             "#{sourceCapabilityId}, #{sourceInvocationId}, #{sourceDomain}, #{readable}, #{expiresAt}, #{updatedAt}) " +
-            "ON DUPLICATE KEY UPDATE context_id = VALUES(context_id), contract_schema = VALUES(contract_schema), " +
-            "contract_version = VALUES(contract_version), record_version = VALUES(record_version), " +
-            "protected_payload_json = VALUES(protected_payload_json), source_capability_id = VALUES(source_capability_id), " +
-            "source_invocation_id = VALUES(source_invocation_id), source_domain = VALUES(source_domain), " +
-            "readable = VALUES(readable), expires_at = VALUES(expires_at), updated_at = VALUES(updated_at)")
-    int upsert(ContextRecordRow row);
+            "")
+    int insertIfAbsent(ContextRecordRow row);
+
+    @Update("UPDATE agent_context_record SET context_id = #{row.contextId}, " +
+            "contract_namespace = #{row.contractNamespace}, contract_name = #{row.contractName}, " +
+            "contract_version = #{row.contractVersion}, record_version = #{row.recordVersion}, " +
+            "protected_payload_json = #{row.protectedPayloadJson}, source_capability_id = #{row.sourceCapabilityId}, " +
+            "source_invocation_id = #{row.sourceInvocationId}, source_domain = #{row.sourceDomain}, " +
+            "readable = #{row.readable}, expires_at = #{row.expiresAt}, updated_at = #{row.updatedAt} " +
+            "WHERE owner_type = #{row.ownerType} AND owner_id = #{row.ownerId} " +
+            "AND scope_type = #{row.scopeType} AND scope_id = #{row.scopeId} " +
+            "AND context_type = #{row.contextType} AND record_version = #{expectedCurrentVersion}")
+    int updateIfVersion(@Param("row") ContextRecordRow row,
+                        @Param("expectedCurrentVersion") long expectedCurrentVersion);
 
     @Update("UPDATE agent_context_record SET readable = 0, updated_at = #{now} " +
             "WHERE scope_type = 'CONVERSATION' AND scope_id = #{scopeId}")

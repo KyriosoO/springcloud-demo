@@ -88,9 +88,8 @@ class RouteOutcomeValidatorTest {
 
     private static PlanningCommand command() {
         AgentProfileRef profile = AgentProfileRef.of("agent-default", "profile-v1");
-        InvocationHandle handle = InvocationHandle.create(
+        InvocationHandle handle = InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("user", "dylan"),
@@ -105,7 +104,7 @@ class RouteOutcomeValidatorTest {
         return new AvailableCapabilitySnapshot(
                 "req-1",
                 "auth-digest",
-                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability-v1", NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability-v1", NOW),
                 List.of(capability),
                 NOW);
     }
@@ -119,11 +118,6 @@ class RouteOutcomeValidatorTest {
                 Set.of("employee"),
                 AgentCapabilityRiskLevel.READ_ONLY,
                 AgentCapabilityExecutionMode.IMMEDIATE,
-                Duration.ofSeconds(30),
-                1,
-                100,
-                100,
-                1000,
                 "registration-v1");
     }
 }

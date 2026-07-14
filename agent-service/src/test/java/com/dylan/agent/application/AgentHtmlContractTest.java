@@ -29,7 +29,9 @@ class AgentHtmlContractTest {
         assertThat(html).contains("generationStatus");
         assertThat(html).contains("groundingStatus");
         assertThat(html).contains("citationVerification");
-        assertThat(html).contains("invalidCitationIds");
+        assertThat(html).contains("boundUnitCount");
+        assertThat(html).contains("visibleCitationCount");
+        assertThat(html).doesNotContain("invalidCitationIds");
         assertThat(html).contains("citation.citationId");
         assertThat(html).contains("summaryBullets");
     }

@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.adapter.api.query.ValidatedQuery;
 import com.dylan.agent.adapter.api.query.ValidatedSort;
@@ -26,7 +25,6 @@ import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.core.KernelExecutionException;
 import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 import com.dylan.agent.planning.filter.QueryMergeEngine;
@@ -42,19 +40,16 @@ public class QueryPlanValidator
     private final FilterNormalizer filterNormalizer;
     private final FieldConstraintValidator fieldConstraintValidator;
     private final QueryMergeEngine queryMergeEngine;
-    private final DomainCatalogView domainCatalogView;
 
     public QueryPlanValidator(
             AgentProperties properties,
             FilterNormalizer filterNormalizer,
             FieldConstraintValidator fieldConstraintValidator,
-            QueryMergeEngine queryMergeEngine,
-            DomainCatalogView domainCatalogView) {
+            QueryMergeEngine queryMergeEngine) {
         this.properties = properties;
         this.filterNormalizer = filterNormalizer;
         this.fieldConstraintValidator = fieldConstraintValidator;
         this.queryMergeEngine = queryMergeEngine;
-        this.domainCatalogView = domainCatalogView;
     }
 
     @Override
@@ -86,7 +81,7 @@ public class QueryPlanValidator
         validateKnownPageBounds(page, boundQuery.previous());
         fieldConstraintValidator.validateFinalQuery(
                 filters,
-                domainCatalogView.requireDomain(domain, AdapterRole.QUERYABLE));
+                context.domainProjection().fieldRules());
         return new ValidatedQueryPlan(
                 KERNEL_CAPABILITY_ID,
                 domain,
@@ -99,7 +94,8 @@ public class QueryPlanValidator
             String domain,
             QueryContextMode contextMode) {
         if (contextMode == QueryContextMode.REPLACE) {
-            List<ValidatedFilter> filters = toValidatedFilters(query.getFilters());
+            List<ValidatedFilter> filters = filterNormalizer.normalizeAll(
+                    query.getFilters(), context.domainProjection().fieldRules());
             if (filters.isEmpty()) {
                 throw new IllegalArgumentException("query filters must not be empty");
             }
@@ -114,7 +110,8 @@ public class QueryPlanValidator
 
         QueryCapabilityContextPayload previous = previousQueryContext(context);
         List<ValidatedFilter> previousFilters = toValidatedFilters(previous.filters());
-        List<ValidatedFilter> changes = toValidatedFilters(query.getFilters());
+        List<ValidatedFilter> changes = filterNormalizer.normalizeAll(
+                query.getFilters(), context.domainProjection().fieldRules());
         Set<String> removeFields = normalizeRemoveFields(query.getRemoveFields());
         validateKernelFilters(changes, context, domain);
         validateKernelRemoveFields(removeFields, context, domain);
@@ -292,18 +289,9 @@ public class QueryPlanValidator
         if (rule != null) {
             return rule;
         }
-        if (fieldExistsInCatalog(domain, field)) {
-            throw new KernelExecutionException(
-                    KernelErrorCode.FIELD_FORBIDDEN,
-                    "没有权限访问请求的字段，请调整字段后重试。");
-        }
-        throw new IllegalArgumentException("unknown field in execution projection: " + field);
-    }
-
-    private boolean fieldExistsInCatalog(String domain, String field) {
-        return domainCatalogView.findDomain(domain, AdapterRole.QUERYABLE)
-                .map(view -> view.fields().containsKey(field))
-                .orElse(false);
+        throw new KernelExecutionException(
+                KernelErrorCode.FIELD_FORBIDDEN,
+                "没有权限访问请求的字段，请调整字段后重试。");
     }
 
     private static List<String> normalizeKernelSelectFields(
@@ -371,14 +359,8 @@ public class QueryPlanValidator
     }
 
     private int maxKernelPageSize(ExecutionValidationContext context) {
-        int configuredMax = properties.getQuery().getMaxSize();
-        int projectionMax = context.domainProjection().maxPageSize();
-        int scopeMaxRows = context.executionScope().maxResultRows();
-
-        int max = configuredMax;
-        max = Math.min(max, projectionMax);
-        max = Math.min(max, scopeMaxRows);
-        return max;
+        return com.dylan.agent.kernel.resource.StandardResourceLimits
+                .require(context.executionScope()).maxPageSize();
     }
 
     private record BoundQuery(

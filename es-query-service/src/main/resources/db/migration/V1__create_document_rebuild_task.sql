@@ -21,22 +21,3 @@ create index idx_document_rebuild_task_target_index
 
 create index idx_document_rebuild_task_status_updated
     on document_rebuild_task (status, updated_at);
-
-create table if not exists document_alias_operation_audit (
-    id bigint not null auto_increment,
-    alias_name varchar(255) not null,
-    operation varchar(32) not null,
-    from_index varchar(255) null,
-    to_index varchar(255) null,
-    task_id_prefix varchar(64) null,
-    validation_digest_prefix varchar(64) null,
-    operator_ref_hash varchar(64) null,
-    result varchar(32) not null,
-    failure_reason varchar(255) null,
-    duration_ms bigint not null default 0,
-    created_at timestamp not null,
-    primary key (id)
-);
-
-create index idx_document_alias_operation_target
-    on document_alias_operation_audit (alias_name, from_index, to_index, result);

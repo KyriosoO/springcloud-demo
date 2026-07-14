@@ -36,7 +36,6 @@ import com.dylan.agent.kernel.validator.ValidatedPlan;
 import com.dylan.agent.invocation.model.ExecutionStage;
 import com.dylan.agent.invocation.model.KernelErrorCode;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
-import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
 import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.planning.model.ExecutablePlanningResult;
@@ -89,7 +88,7 @@ class ExecutionCoreTest {
                     contextApprovalCalled.set(true);
                     return List.of();
                 },
-                (candidate, outputContract, scope) -> {
+                (candidate, outputContract, scope, resourceLimits) -> {
                     resultSecurityCalled.set(true);
                     return null;
                 },
@@ -122,7 +121,7 @@ class ExecutionCoreTest {
                 (snapshots, handle, resolved, scope) -> { },
                 failingDomainPort(),
                 (candidates, request) -> List.of(),
-                (candidate, outputContract, scope) -> null,
+                (candidate, outputContract, scope, resourceLimits) -> null,
                 CLOCK);
 
         ExecutionOutcome outcome = core.execute(command(registry.resolve("query.search")));
@@ -160,7 +159,7 @@ class ExecutionCoreTest {
                     contextApprovalCalled.set(true);
                     return List.of();
                 },
-                (candidate, outputContract, scope) -> {
+                (candidate, outputContract, scope, resourceLimits) -> {
                     resultSecurityCalled.set(true);
                     return null;
                 },
@@ -196,7 +195,7 @@ class ExecutionCoreTest {
                     contextApprovalCalled.set(true);
                     return List.of();
                 },
-                (candidate, outputContract, scope) -> null,
+                (candidate, outputContract, scope, resourceLimits) -> null,
                 CLOCK);
 
         ExecutionOutcome outcome = core.execute(command(registry.resolve("query.search")));
@@ -230,7 +229,7 @@ class ExecutionCoreTest {
                     contextApprovalCalled.set(true);
                     return List.of();
                 },
-                (candidate, outputContract, scope) -> {
+                (candidate, outputContract, scope, resourceLimits) -> {
                     resultSecurityCalled.set(true);
                     return null;
                 },
@@ -265,8 +264,8 @@ class ExecutionCoreTest {
                     contextApprovalCalled.set(true);
                     return List.of();
                 },
-                (candidate, outputContract, scope) -> new SecuredResult(
-                        new ContractRef("OtherResult", "1.0.0"),
+                (candidate, outputContract, scope, resourceLimits) -> new SecuredResult(
+                        new ContractRef("agent.test", "OtherResult", "1.0.0"),
                         "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         "safe",
                         "safe"),
@@ -293,7 +292,7 @@ class ExecutionCoreTest {
                 (snapshots, handle, resolved, scope) -> { },
                 failingDomainPort(),
                 (candidates, request) -> null,
-                (candidate, outputContract, scope) -> new SecuredResult(
+                (candidate, outputContract, scope, resourceLimits) -> new SecuredResult(
                         outputContract,
                         "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         "safe",
@@ -314,6 +313,7 @@ class ExecutionCoreTest {
                 registrations,
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(registrations),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of());
     }
 
@@ -329,6 +329,8 @@ class ExecutionCoreTest {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers("query.search"))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(
@@ -345,9 +347,8 @@ class ExecutionCoreTest {
     }
 
     private InvocationHandle handle() {
-        return InvocationHandle.create(
+        return InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "corr-1",
                 new ExecutionSubjectRef("user", "u-1"),
@@ -360,6 +361,7 @@ class ExecutionCoreTest {
     private ExecutablePlanningResult planningResult(
             com.dylan.agent.kernel.registration.ResolvedRegistration resolved) {
         return ExecutablePlanningResult.builder()
+                .invocationId("inv-1")
                 .requestCorrelationId("corr-1")
                 .capabilityId("query.search")
                 .planKind(AgentPlanKind.QUERY)
@@ -374,7 +376,7 @@ class ExecutionCoreTest {
     }
 
     private AuthorizationSnapshot authorizationSnapshot() {
-        return new AuthorizationSnapshot(
+        return com.dylan.agent.testsupport.AuthorizationSnapshotTestFactory.create(
                 "auth-1",
                 "user:u-1",
                 "profile-v1",
@@ -385,11 +387,11 @@ class ExecutionCoreTest {
                 Map.of(),
                 NOW,
                 null,
-                ExecutionBudget.zero());
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective());
     }
 
     private AuthorizationExecutionPort authorizationPort() {
-        return (snapshot, handle) -> new ExecutionScope(
+        return (snapshot, handle) -> com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
                 domainEvidence(),
                 NOW,
@@ -400,14 +402,12 @@ class ExecutionCoreTest {
                 Set.of(),
                 Map.of(),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                100,
-                10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits
+                        .testEffective(100, 100, 10_000));
     }
 
     private DomainMetadataEvidence domainEvidence() {
-        return new DomainMetadataEvidence(
+        return com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                 "catalog-v1",
                 "adapter-v1",
                 "availability-v1",

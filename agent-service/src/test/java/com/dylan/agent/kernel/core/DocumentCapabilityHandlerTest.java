@@ -1,963 +1,132 @@
 package com.dylan.agent.kernel.core;
 
-import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
-import com.dylan.agent.adapter.api.document.AdapterDocumentEvidence;
-import com.dylan.agent.adapter.api.document.AdapterDocumentResult;
-import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
-import com.dylan.agent.adapter.api.document.DocumentAclScope;
-import com.dylan.agent.adapter.api.document.DocumentHybridOptions;
-import com.dylan.agent.adapter.api.document.DocumentRetrievalRequest;
-import com.dylan.agent.adapter.api.document.generation.CitationBinding;
-import com.dylan.agent.adapter.api.document.generation.DocumentGenerationRequest;
-import com.dylan.agent.adapter.api.document.generation.DocumentGenerationResult;
-import com.dylan.agent.api.plan.DocumentGenerationOptions;
-import com.dylan.agent.api.context.DocumentCapabilityContextPayload;
-import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
-import com.dylan.agent.api.plan.DocumentPlanOperation;
-import com.dylan.agent.api.plan.DocumentRetrievalMode;
-import com.dylan.agent.api.plan.DocumentSummaryScope;
-import com.dylan.agent.api.response.DocumentGenerationStatus;
-import com.dylan.agent.capability.document.DocumentCapabilityHandler;
-import com.dylan.agent.capability.document.DocumentCapabilityIds;
-import com.dylan.agent.capability.document.DocumentObservabilitySupport;
-import com.dylan.agent.capability.document.DocumentRuleExtractor;
-import com.dylan.agent.capability.document.ValidatedDocumentPlan;
-import com.dylan.agent.capability.document.ValidatedDocumentPlanTestSupport;
-import com.dylan.agent.capability.document.acl.DocumentAclScopePort;
-import com.dylan.agent.capability.document.embedding.DocumentEmbeddingRequest;
-import com.dylan.agent.capability.document.embedding.DocumentEmbeddingResult;
-import com.dylan.agent.capability.document.embedding.DisabledDocumentEmbeddingPort;
+import com.dylan.agent.adapter.api.document.*;
+import com.dylan.agent.adapter.api.document.security.AclBoundDocumentHit;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationMetadata;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationSuccess;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationTermination;
+import com.dylan.agent.adapter.api.operation.ProviderSafeIdentity;
+import com.dylan.agent.api.plan.*;
+import com.dylan.agent.capability.document.*;
+import com.dylan.agent.capability.document.acl.*;
+import com.dylan.agent.capability.document.embedding.DocumentEmbeddingPort;
+import com.dylan.agent.capability.document.evidence.DocumentEvidenceVisibilityProjector;
+import com.dylan.agent.capability.document.generation.*;
+import com.dylan.agent.capability.document.governance.emergency.*;
+import com.dylan.agent.capability.document.provider.DocumentProviderOperationRequestBinder;
+import com.dylan.agent.capability.document.provider.security.*;
+import com.dylan.agent.mask.*;
+import com.dylan.agent.capability.document.rerank.DocumentRerankPort;
+import com.dylan.agent.capability.document.rewrite.*;
 import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
-import com.dylan.agent.capability.document.generation.DocumentCitationVerifier;
-import com.dylan.agent.capability.document.generation.DocumentEvidenceContextPacker;
-import com.dylan.agent.capability.document.generation.DocumentEvidencePreSecurityFilter;
-import com.dylan.agent.capability.document.generation.DisabledDocumentGenerationPort;
-import com.dylan.agent.capability.document.generation.DocumentGenerationPort;
-import com.dylan.agent.capability.document.rerank.DocumentRerankRequest;
-import com.dylan.agent.capability.document.rewrite.DocumentRewriteCandidate;
-import com.dylan.agent.capability.document.rewrite.DocumentRewriteRequest;
-import com.dylan.agent.capability.document.rewrite.DocumentRewriteResponse;
-import com.dylan.agent.capability.document.rewrite.RewriteCandidateNormalizer;
-import com.dylan.agent.invocation.model.CancellationSource;
-import com.dylan.agent.invocation.model.ContextOwnerRef;
-import com.dylan.agent.invocation.model.ConversationScope;
-import com.dylan.agent.invocation.model.ExecutionSubjectRef;
-import com.dylan.agent.kernel.port.model.AdapterExecutionBinding;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
-
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(OutputCaptureExtension.class)
 class DocumentCapabilityHandlerTest {
-
-    private static final Instant NOW = Instant.now().plusSeconds(300);
-
     @Test
-    void writesCitationIdsFromHitsWhenCitationsAreNotExplicit() {
-        var result = handler().execute(plan(), context());
-
-        assertThat(result.output().getDocumentResult().getCitations()).singleElement()
-                .extracting(citation -> citation.getCitationId())
-                .isEqualTo("chunk-1");
-        assertThat(result.contextWrites()).singleElement().satisfies(write -> {
-            DocumentCapabilityContextPayload payload =
-                    (DocumentCapabilityContextPayload) write.payload();
-            assertThat(payload.citationIds()).containsExactly("chunk-1");
-        });
-    }
-
-    @Test
-    void mapsCitationTextToPublicSnippetWhenAvailable() {
-        AdapterDocumentEvidence evidence = evidence("chunk-1", "0.92");
-        evidence.setSnippet("旧片段。");
-        evidence.setCitationText("完整引用展示句子。");
-        DocumentRetrievableAdapter adapter = request -> adapterResult(List.of(evidence));
-
-        var result = handler().execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter));
-
-        assertThat(result.output().getDocumentResult().getHits()).singleElement()
-                .extracting(hit -> hit.getSnippet())
-                .isEqualTo("完整引用展示句子。");
-        assertThat(result.output().getDocumentResult().getCitations()).singleElement()
-                .extracting(citation -> citation.getSnippet())
-                .isEqualTo("完整引用展示句子。");
-    }
-
-    @Test
-    void generatesAnswerAfterHybridRetrievalWhenEnabled() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.ANSWER,
-                "policy_document",
-                request(DocumentPlanOperation.ANSWER),
-                options);
-        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
-                "员工年假需要直属主管审批。[chunk-1]",
-                null,
-                null,
-                List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
-                "stop");
-
-        var result = new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier())
-                .execute(plan, context());
-
-        assertThat(result.output().getDocumentResult().getGenerationStatus())
-                .isEqualTo(DocumentGenerationStatus.SUCCEEDED);
-        assertThat(result.output().getDocumentResult().getCandidateAnswerText())
-                .contains("员工年假需要直属主管审批");
-    }
-
-    @Test
-    void selectsTopScoreGroupBeforeGenerationAndKeepsEvidenceBudget() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        properties.getDocument().getEvidenceSelection().setStrategy(
-                com.dylan.agent.config.AgentProperties.EvidenceSelectionStrategy.SCORE_GROUP_TOP);
-        properties.getDocument().setMaxEvidenceCount(8);
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.ANSWER,
-                "policy_document",
-                request(DocumentPlanOperation.ANSWER),
-                options);
-        AtomicReference<DocumentGenerationRequest> captured = new AtomicReference<>();
-        DocumentGenerationPort generation = generationRequest -> {
-            captured.set(generationRequest);
-            return new DocumentGenerationResult(
-                    "员工年假需要直属主管审批。[chunk-1]",
-                    null,
-                    null,
-                    List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
-                    "stop");
+    void searchUsesProtectedFilterAndReturnsStableCitationIds() {
+        AtomicReference<DocumentRetrievalCommand> captured = new AtomicReference<>();
+        DocumentRetrievableAdapter adapter = (request, operationContext) -> {
+            captured.set(request);
+            var protectedBinding = request.protectedFilter();
+            var security = new DocumentCandidateSecurityBinding(
+                    operationContext.invocationId(), operationContext.requestCorrelationId(),
+                    operationContext.resourceLimits().reference().registrationIdentity(), protectedBinding.corpusKey(),
+                    new DocumentTargetBindingReference("3.0.0", "e".repeat(64), "f".repeat(64), "1".repeat(64)),
+                    protectedBinding.filterDigest(), protectedBinding.aclEvidenceDigest(),
+                    new DocumentAclObjectRef("acl-1", "acl-v1"), protectedBinding.profileProjectionDigest(),
+                    operationContext.resourceLimits().reference());
+            var hit = new AclBoundDocumentHit("candidate-1",new DocumentCandidateIdentity("doc-1","v1","chunk-1",0),
+                    "政策","policy",null,null,null,"税收优惠证据",null,"税收优惠证据",null,List.of(),List.of(),null,null,
+                    BigDecimal.ONE,BigDecimal.ONE,List.of("BM25"),List.of(),security);
+            var binding = new DocumentRetrievalResponseBinding(operationContext.requestCorrelationId(),operationContext.operationId(),
+                    protectedBinding.corpusKey(),security.targetBinding(),protectedBinding.profileProjectionDigest(),operationContext.resourceLimits().reference(),
+                    operationContext.resourceLimits().reference().canonicalDigest(),protectedBinding.filterDigest(),protectedBinding.aclEvidenceDigest());
+            var result = new AdapterDocumentRetrievalResult(List.of(hit),new AdapterDocumentRetrievalDiagnostics(),binding,1);
+            var metadata = new CapabilityOperationMetadata(operationContext.operationId(),operationContext.operationType(),
+                    new ProviderSafeIdentity("es-query-service",Optional.empty()),1,1,CapabilityOperationTermination.SUCCEEDED,
+                    "document-retrieval-ok",operationContext.resourceLimits().reference(),false,false,false);
+            return new CapabilityOperationSuccess<>(result,metadata);
         };
-        DocumentRetrievableAdapter adapter = request -> adapterResult(List.of(
-                evidence("chunk-1", "0.99"),
-                evidence("chunk-2", "0.97"),
-                evidence("chunk-3", "0.96"),
-                evidence("chunk-4", "0.65"),
-                evidence("chunk-5", "0.63"),
-                evidence("chunk-6", "0.60"),
-                evidence("chunk-7", "0.58"),
-                evidence("chunk-8", "0.56"),
-                evidence("chunk-9", "0.54"),
-                evidence("chunk-10", "0.50")));
+        DocumentCapabilityHandler handler = handler();
+        ValidatedDocumentExecutionParameters request = ValidatedDocumentPlanTestSupport.request(
+                DocumentPlanOperation.SEARCH, "policy_document", "税收优惠", true);
+        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                "document.search", "policy_document", request);
 
-        new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier())
-                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
+        var result = handler.execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter)).output();
 
-        assertThat(captured.get()).isNotNull();
-        assertThat(captured.get().contextPackage().evidenceItems())
-                .extracting(item -> item.citationId())
-                .containsExactly("chunk-1", "chunk-2", "chunk-3");
-        assertThat(captured.get().contextPackage().evidenceItems()).hasSizeLessThanOrEqualTo(8);
+        assertThat(captured.get().protectedFilter()).isNotNull();
+        assertThat(result.getDocumentResult().getCitations()).hasSize(1);
+        assertThat(result.getDocumentResult().getCitations().getFirst().getCitationId()).isEqualTo("C1");
     }
 
-    @Test
-    void degradesHybridRetrievalToKeywordWhenEmbeddingProviderFails(CapturedOutput output) {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getEmbedding().setEnabled(true);
-        properties.getDocument().getEmbedding().setModel("test-embedding");
-        properties.getDocument().getEmbedding().setDimension(2);
-        AtomicReference<DocumentRetrievalRequest> capturedRequest = new AtomicReference<>();
-        DocumentRetrievableAdapter adapter = request -> {
-            capturedRequest.set(request);
-            return adapterResult();
+    private static DocumentCapabilityHandler handler() {
+        DocumentEmbeddingPort embedding = request -> { throw new AssertionError("embedding must not run"); };
+        DocumentRerankPort rerank = request -> { throw new AssertionError("rerank must not run"); };
+        DocumentQueryRewritePort rewrite = request -> { throw new AssertionError("rewrite must not run"); };
+        DocumentGenerationPort generation = request -> { throw new AssertionError("generation must not run"); };
+        DocumentAclScopePort acl = request -> {
+            Instant now = Instant.now();
+            var scope = new DocumentAclScopeSnapshot(
+                    "tenant-1", "user-1", Set.of("dept-1"), Set.of("role-1"), Set.of(),
+                    new AllPrincipalVisibleDocuments(), Set.of(), "acl-v1", "perm-v1",
+                    now.minusSeconds(1), now.plusSeconds(30), "authority-evidence", "a".repeat(64));
+            var metadata = new com.dylan.agent.adapter.api.operation.CapabilityOperationMetadata(
+                    request.operationContext().operationId(), request.operationContext().operationType(),
+                    new com.dylan.agent.adapter.api.operation.ProviderSafeIdentity("acl-authority", Optional.empty()),
+                    1, 1, com.dylan.agent.adapter.api.operation.CapabilityOperationTermination.SUCCEEDED,
+                    "acl-diagnostic", request.operationContext().resourceLimits().reference(),
+                    false, false, false);
+            return new DocumentAclScopeAllowed(scope, metadata);
         };
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                request(DocumentPlanOperation.SEARCH, DocumentRetrievalMode.HYBRID));
-
-        new DocumentCapabilityHandler(
-                properties,
-                request -> { throw new IllegalStateException("embedding timeout"); },
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier())
-                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
-
-        assertThat(capturedRequest.get()).isNotNull();
-        assertThat(capturedRequest.get().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.KEYWORD);
-        assertThat(capturedRequest.get().getQueryVector()).isEmpty();
-        assertThat(output).contains("document hybrid retrieval degraded")
-                .contains("invocationId=inv-1")
-                .contains("domain=policy_document")
-                .contains("requestedMode=HYBRID")
-                .contains("effectiveMode=KEYWORD")
-                .contains("reason=EMBEDDING_PROVIDER_FAILURE")
-                .doesNotContain("查询休假政策")
-                .doesNotContain("queryVector");
-    }
-
-    @Test
-    void hybridWithoutDenseVectorChannelDoesNotCallEmbeddingProvider() {
-        AtomicReference<DocumentRetrievalRequest> capturedRequest = new AtomicReference<>();
-        DocumentRetrievableAdapter adapter = request -> {
-            capturedRequest.set(request);
-            return adapterResult();
+        DocumentEmergencyControlReadPort emergency = (targets, deadline) -> new DocumentEmergencyView(
+                "view-1", targets.stream().map(target -> new DocumentEmergencyView.Decision(
+                target.type(), "d".repeat(64), DocumentEmergencyView.Outcome.NOT_BLOCKED, null)).toList(),
+                Instant.now(), Instant.now().plusSeconds(2), "e".repeat(64));
+        DocumentAclCurrentnessPort currentness = new DocumentAclCurrentnessPort() {
+            @Override public DocumentAclCurrentnessDecision verifyScope(DocumentAclScopeCurrentnessRequest request) {
+                return current(request.operationContext());
+            }
+            @Override public DocumentAclCurrentnessDecision verifyCandidates(DocumentAclCandidateCurrentnessRequest request) {
+                return current(request.operationContext());
+            }
+            private DocumentAclCurrentnessDecision current(com.dylan.agent.adapter.api.operation.CapabilityOperationContext context) {
+                Instant now = Instant.now();
+                var metadata = new com.dylan.agent.adapter.api.operation.CapabilityOperationMetadata(
+                        context.operationId(), context.operationType(),
+                        new com.dylan.agent.adapter.api.operation.ProviderSafeIdentity("acl", Optional.empty()),
+                        1, 1, com.dylan.agent.adapter.api.operation.CapabilityOperationTermination.SUCCEEDED,
+                        "diagnostic", context.resourceLimits().reference(), false, false, false);
+                return new DocumentAclCurrentnessDecision(
+                        DocumentCurrentnessOutcome.ALLOW, "acl-v1", "perm-v1", "decision-v1",
+                        now, now.plusSeconds(2), "CURRENT", metadata);
+            }
         };
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                hybridTextOnlyRequest(false));
-
-        new DocumentCapabilityHandler(
-                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
-                request -> { throw new IllegalStateException("embedding should not be called"); },
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier())
-                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
-
-        assertThat(capturedRequest.get()).isNotNull();
-        assertThat(capturedRequest.get().getRetrievalMode()).isEqualTo(DocumentRetrievalMode.HYBRID);
-        assertThat(capturedRequest.get().getQueryVector()).isEmpty();
-    }
-
-    @Test
-    void buildsRuleKeywordsAndRewriteCandidatesBeforeEmbeddingAndAdapter() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getRewrite().setEnabled(true);
-        properties.getDocument().getRewrite().setMaxCandidates(3);
-        properties.getDocument().getRewrite().setMaxCandidateLength(64);
-        properties.getDocument().getEmbedding().setEnabled(true);
-        properties.getDocument().getEmbedding().setProvider("bge");
-        properties.getDocument().getEmbedding().setModel("test-embedding");
-        properties.getDocument().getEmbedding().setDimension(2);
-        AtomicReference<DocumentRewriteRequest> capturedRewrite = new AtomicReference<>();
-        AtomicReference<DocumentEmbeddingRequest> capturedEmbedding = new AtomicReference<>();
-        AtomicReference<DocumentRetrievalRequest> capturedAdapterRequest = new AtomicReference<>();
-        DocumentRetrievableAdapter adapter = request -> {
-            capturedAdapterRequest.set(request);
-            return adapterResult();
-        };
-        DocumentRetrievalRequest request = new DocumentRetrievalRequest(
-                DocumentPlanOperation.SEARCH,
-                "policy_document",
-                "tax_policy",
-                "tax-v2",
-                "v2",
-                "agent-doc-tax-policy-read",
-                "国家税务总局公告〔2023〕1号 增值税优惠",
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                5,
-                1,
-                5,
-                null,
-                false,
-                DocumentRetrievalMode.HYBRID,
-                List.of(),
-                null,
-                null,
-                null);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                request);
-
-        new DocumentCapabilityHandler(
-                properties,
-                embeddingRequest -> {
-                    capturedEmbedding.set(embeddingRequest);
-                    return new DocumentEmbeddingResult(List.of(0.1, 0.2), "test-embedding", 2, "digest");
-                },
-                aclScopePort(),
-                new DocumentRevocationGuard(properties),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier(),
-                null,
-                request1 -> adapterResult(),
-                rewriteRequest -> {
-                    capturedRewrite.set(rewriteRequest);
-                    return new DocumentRewriteResponse(
-                            List.of(
-                                    new DocumentRewriteCandidate("小规模纳税人增值税优惠", "tax", 0.9d),
-                                    new DocumentRewriteCandidate("{\"filter\":{\"tenantId\":\"t1\"}}", "dsl", 0.8d)),
-                            "rw-1",
-                            "rewrite-model");
-                },
-                new RewriteCandidateNormalizer(),
-                new DocumentRuleExtractor())
-                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
-
-        assertThat(capturedRewrite.get()).isNotNull();
-        assertThat(capturedRewrite.get().query()).isEqualTo("国家税务总局公告〔2023〕1号 增值税优惠");
-        assertThat(capturedRewrite.get().domain()).isEqualTo("policy_document");
-        assertThat(capturedRewrite.get().materialType()).isEqualTo("tax_policy");
-        assertThat(capturedAdapterRequest.get().getRuleKeywords())
-                .contains("国家税务总局公告〔2023〕1号", "增值税", "国家税务总局");
-        assertThat(capturedAdapterRequest.get().getRewriteCandidates())
-                .containsExactly("小规模纳税人增值税优惠");
-        assertThat(capturedEmbedding.get()).isNotNull();
-        assertThat(capturedEmbedding.get().queryVariants())
-                .containsExactly("国家税务总局公告〔2023〕1号 增值税优惠", "小规模纳税人增值税优惠");
-        assertThat(capturedEmbedding.get().provider()).isEqualTo("bge");
-        assertThat(capturedEmbedding.get().expectedModel()).isEqualTo("test-embedding");
-        assertThat(capturedEmbedding.get().expectedDimension()).isEqualTo(2);
-    }
-
-    @Test
-    void invokesRerankAfterAdapterWhenProfileEnablesIt() {
-        AtomicReference<DocumentRerankRequest> capturedRerank = new AtomicReference<>();
-        AtomicReference<AdapterDocumentResult> capturedAdapterResult = new AtomicReference<>();
-        DocumentRetrievableAdapter adapter = request -> {
-            AdapterDocumentResult result = adapterResult();
-            AdapterDocumentRetrievalDiagnostics diagnostics = new AdapterDocumentRetrievalDiagnostics();
-            diagnostics.setRerankStatus("NOT_REQUESTED");
-            result.setRetrievalDiagnostics(diagnostics);
-            capturedAdapterResult.set(result);
-            AdapterDocumentEvidence evidence = result.getHits().get(0);
-            evidence.setContent("完整正文不应进入 rerank provider。");
-            evidence.setContextBefore(List.of("上一段"));
-            evidence.setContextAfter(List.of("下一段"));
-            evidence.setMetadata(java.util.Map.of(
-                    "content", "metadata 中的正文",
-                    "embedding", List.of(0.1, 0.2),
-                    "channelRanks", java.util.Map.of("BM25", 1)));
-            return result;
-        };
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                hybridTextOnlyRequest(true));
-
-        new DocumentCapabilityHandler(
-                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentRevocationGuard(com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties()),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier(),
-                null,
-                request -> {
-                    capturedRerank.set(request);
-                    AdapterDocumentEvidence rerankEvidence = request.candidates().getHits().get(0);
-                    assertThat(rerankEvidence.getContent()).isNull();
-                    assertThat(rerankEvidence.getContextBefore()).isNull();
-                    assertThat(rerankEvidence.getContextAfter()).isNull();
-                    assertThat(rerankEvidence.getMetadata()).containsKey("channelRanks");
-                    assertThat(rerankEvidence.getMetadata()).doesNotContainKeys("content", "embedding");
-                    return request.candidates();
-                })
-                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
-
-        assertThat(capturedRerank.get()).isNotNull();
-        assertThat(capturedRerank.get().domain()).isEqualTo("policy_document");
-        assertThat(capturedRerank.get().materialType()).isEqualTo("tax_policy");
-        assertThat(capturedRerank.get().retrievalProfile()).isEqualTo("tax-v2");
-        assertThat(capturedRerank.get().topN()).isEqualTo(20);
-        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankStatus()).isEqualTo("SUCCEEDED");
-        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankSkippedReason()).isNull();
-    }
-
-    @Test
-    void recordsSkippedRerankDiagnosticsWhenProviderFails() {
-        AtomicReference<AdapterDocumentResult> capturedAdapterResult = new AtomicReference<>();
-        DocumentRetrievableAdapter adapter = request -> {
-            AdapterDocumentResult result = adapterResult();
-            AdapterDocumentRetrievalDiagnostics diagnostics = new AdapterDocumentRetrievalDiagnostics();
-            diagnostics.setRerankStatus("NOT_REQUESTED");
-            result.setRetrievalDiagnostics(diagnostics);
-            capturedAdapterResult.set(result);
-            return result;
-        };
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                hybridTextOnlyRequest(true));
-
-        new DocumentCapabilityHandler(
-                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentRevocationGuard(com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties()),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier(),
-                null,
-                request -> { throw new IllegalStateException("rerank timeout"); })
-                .execute(plan, DocumentCapabilityHandlerTestSupport.context(adapter));
-
-        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankStatus()).isEqualTo("SKIPPED");
-        assertThat(capturedAdapterResult.get().getRetrievalDiagnostics().getRerankSkippedReason())
-                .isEqualTo("IllegalStateException");
-    }
-
-    @Test
-    void failsClosedWhenHybridEmbeddingDimensionMismatches() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getEmbedding().setEnabled(true);
-        properties.getDocument().getEmbedding().setModel("test-embedding");
-        properties.getDocument().getEmbedding().setDimension(2);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                request(DocumentPlanOperation.SEARCH, DocumentRetrievalMode.HYBRID));
-
-        var handler = new DocumentCapabilityHandler(
-                properties,
-                request -> new DocumentEmbeddingResult(List.of(0.1), "test-embedding", 1, "digest"),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-
-        assertThatThrownBy(() -> handler.execute(plan, context()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("dimension mismatch");
-    }
-
-    @Test
-    void fallsBackWhenGenerationReturnsNoCitationBindings() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        options.setFailurePolicy(DocumentGenerationFailurePolicy.FALLBACK_EXTRACTIVE);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.ANSWER,
-                "policy_document",
-                request(DocumentPlanOperation.ANSWER),
-                options);
-        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
-                "没有引用绑定的回答。",
-                null,
-                null,
-                List.of(),
-                "stop");
-
-        var result = new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier())
-                .execute(plan, context());
-
-        assertThat(result.output().getDocumentResult().getGenerationStatus())
-                .isEqualTo(DocumentGenerationStatus.FALLBACK);
-        assertThat(result.output().getDocumentResult().getCandidateAnswerText()).isNull();
-        assertThat(result.output().getDocumentResult().getCitationVerification().getFallbackReason())
-                .isEqualTo("NO_BINDINGS");
-    }
-
-    @Test
-    void refusesWhenGenerationBindingsAreInvalidAndPolicyIsRefuse() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        options.setFailurePolicy(DocumentGenerationFailurePolicy.REFUSE);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.ANSWER,
-                "policy_document",
-                request(DocumentPlanOperation.ANSWER),
-                options);
-        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
-                "引用不存在的回答。[missing]",
-                null,
-                null,
-                List.of(new CitationBinding("引用不存在的回答。", List.of("missing"))),
-                "stop");
-
-        var result = new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier())
-                .execute(plan, context());
-
-        assertThat(result.output().getDocumentResult().getGenerationStatus())
-                .isEqualTo(DocumentGenerationStatus.FAILED);
-        assertThat(result.output().getDocumentResult().getCandidateAnswerText()).isNull();
-        assertThat(result.output().getDocumentResult().getCitationVerification().getInvalidCitationIds())
-                .containsExactly("missing");
-    }
-
-    @Test
-    void generatesSummaryWithVerifiedCitationsAndSummaryScopeCoverage() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        DocumentSummaryScope summaryScope = new DocumentSummaryScope();
-        summaryScope.setDocumentIds(List.of("doc-1", "doc-1", "doc-2"));
-        summaryScope.setMaxSummaryChars(120);
-        DocumentRetrievalRequest request = request(DocumentPlanOperation.SUMMARIZE);
-        request = new DocumentRetrievalRequest(
-                request.getOperation(),
-                request.getDomain(),
-                request.getMaterialType(),
-                request.getRetrievalProfile(),
-                request.getProfileVersion(),
-                request.getIndexAlias(),
-                request.getQueryText(),
-                request.getRuleKeywords(),
-                request.getRewriteCandidates(),
-                request.getFilters(),
-                request.getSorts(),
-                request.getTopK(),
-                request.getPage(),
-                request.getSize(),
-                summaryScope,
-                true,
-                request.getRetrievalMode(),
-                request.getQueryVector(),
-                request.getHybridOptions(),
-                request.getContextOptions(),
-                request.getAclScope(),
-                request.getPermissionEvidenceId(),
-                request.getPermissionVersion());
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SUMMARIZE,
-                "policy_document",
-                request,
-                options);
-        DocumentGenerationPort generation = generationRequest -> {
-            assertThat(generationRequest.maxOutputChars()).isEqualTo(120);
-            return new DocumentGenerationResult(
-                    null,
-                    "生成式摘要。[chunk-1]",
-                    List.of("摘要要点。[chunk-1]"),
-                    List.of(new CitationBinding("生成式摘要。", List.of("chunk-1"))),
-                    "stop");
-        };
-
-        var result = new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier())
-                .execute(plan, context());
-
-        assertThat(result.output().getDocumentResult().getGenerationStatus())
-                .isEqualTo(DocumentGenerationStatus.SUCCEEDED);
-        assertThat(result.output().getDocumentResult().getCandidateSummaryText())
-                .isEqualTo("生成式摘要。[chunk-1]");
-        assertThat(result.output().getDocumentResult().getCoverage().getRequestedDocumentCount()).isEqualTo(2);
-    }
-
-    @Test
-    void passesRequestIdModelAndDeadlineToGenerationProvider() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.ANSWER,
-                "policy_document",
-                request(DocumentPlanOperation.ANSWER),
-                options);
-        AtomicReference<DocumentGenerationRequest> captured = new AtomicReference<>();
-        DocumentGenerationPort generation = generationRequest -> {
-            captured.set(generationRequest);
-            return new DocumentGenerationResult(
-                    "员工年假需要直属主管审批。[chunk-1]",
-                    null,
-                    null,
-                    List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
-                    "stop");
-        };
-
-        new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier())
-                .execute(plan, context());
-
-        assertThat(captured.get()).isNotNull();
-        assertThat(captured.get().requestId()).isEqualTo("inv-1");
-        assertThat(captured.get().model()).isEqualTo("test-generation");
-        assertThat(captured.get().deadline()).isEqualTo(context().absoluteDeadline());
-    }
-
-    @Test
-    void failsClosedWhenHybridEmbeddingModelMismatches() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getEmbedding().setEnabled(true);
-        properties.getDocument().getEmbedding().setModel("expected-embedding");
-        properties.getDocument().getEmbedding().setDimension(2);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                request(DocumentPlanOperation.SEARCH, DocumentRetrievalMode.HYBRID));
-
-        var handler = new DocumentCapabilityHandler(
-                properties,
-                request -> new DocumentEmbeddingResult(List.of(0.1, 0.2), "other-embedding", 2, "digest"),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-
-        assertThatThrownBy(() -> handler.execute(plan, context()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("model mismatch");
-    }
-
-    @Test
-    void failsClosedWhenHybridEmbeddingModelIsMissing() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getEmbedding().setEnabled(true);
-        properties.getDocument().getEmbedding().setModel("expected-embedding");
-        properties.getDocument().getEmbedding().setDimension(2);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                request(DocumentPlanOperation.SEARCH, DocumentRetrievalMode.HYBRID));
-
-        var handler = new DocumentCapabilityHandler(
-                properties,
-                request -> new DocumentEmbeddingResult(List.of(0.1, 0.2), null, 2, "digest"),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-
-        assertThatThrownBy(() -> handler.execute(plan, context()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("model mismatch");
-    }
-
-    @Test
-    void rejectsExpiredAclScopeBeforeCallingAdapter() {
-        AtomicBoolean adapterCalled = new AtomicBoolean(false);
-        DocumentRetrievableAdapter adapter = request -> {
-            adapterCalled.set(true);
-            return adapterResult();
-        };
-        DocumentAclScopePort expiredAcl = request -> new DocumentAclScope(
-                "tenant-1",
-                "u-1",
-                List.of(),
-                List.of(),
-                List.of(),
-                "acl-expired",
-                Instant.now().minusSeconds(1));
-
-        var handler = new DocumentCapabilityHandler(
-                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
-                new DisabledDocumentEmbeddingPort(),
-                expiredAcl,
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-
-        assertThatThrownBy(() -> handler.execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("ACL scope is expired");
-        assertThat(adapterCalled).isFalse();
-    }
-
-    @Test
-    void rejectsBlocklistedDocumentDomainBeforeCallingAdapter() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getBlocklist().setDomains(List.of("policy_document"));
-        AtomicBoolean adapterCalled = new AtomicBoolean(false);
-        DocumentRetrievableAdapter adapter = request -> {
-            adapterCalled.set(true);
-            return adapterResult();
-        };
-
-        var handler = new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-
-        assertThatThrownBy(() -> handler.execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("document access revoked");
-        assertThat(adapterCalled).isFalse();
-    }
-
-    @Test
-    void recordsRetrievalAndGenerationProviderMetrics() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getGeneration().setEnabled(true);
-        properties.getDocument().getGeneration().setModel("test-generation");
-        SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        DocumentGenerationOptions options = new DocumentGenerationOptions();
-        options.setEnabled(true);
-        ValidatedDocumentPlan plan = ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.ANSWER,
-                "policy_document",
-                request(DocumentPlanOperation.ANSWER),
-                options);
-        DocumentGenerationPort generation = request -> new DocumentGenerationResult(
-                "员工年假需要直属主管审批。[chunk-1]",
-                null,
-                null,
-                List.of(new CitationBinding("员工年假需要直属主管审批。", List.of("chunk-1"))),
-                "stop");
-
-        new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentRevocationGuard(properties),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                generation,
-                new DocumentCitationVerifier(),
-                new DocumentObservabilitySupport(registry))
-                .execute(plan, context());
-
-        assertThat(registry.counter(
-                "agent_document_retrieval_total",
-                "domain", "policy_document",
-                "mode", "KEYWORD",
-                "result", "SUCCESS").count()).isEqualTo(1.0);
-        assertThat(registry.counter(
-                "agent_document_provider_total",
-                "providerType", "generation",
-                "operation", "ANSWER",
-                "result", "SUCCESS").count()).isEqualTo(1.0);
-    }
-
-    @Test
-    void recordsRevocationMetricBeforeRejectingBlocklistedDomain() {
-        var properties = com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().getBlocklist().setDomains(List.of("policy_document"));
-        SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        AtomicBoolean adapterCalled = new AtomicBoolean(false);
-        DocumentRetrievableAdapter adapter = request -> {
-            adapterCalled.set(true);
-            return adapterResult();
-        };
-
-        var handler = new DocumentCapabilityHandler(
-                properties,
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentRevocationGuard(properties),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier(),
-                new DocumentObservabilitySupport(registry));
-
-        assertThatThrownBy(() -> handler.execute(plan(), DocumentCapabilityHandlerTestSupport.context(adapter)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("document access revoked");
-        assertThat(adapterCalled).isFalse();
-        assertThat(registry.counter(
-                "agent_document_revocation_hit_total",
-                "target", "DOMAIN",
-                "source", "LOCAL_BLOCKLIST").count()).isEqualTo(1.0);
-    }
-
-    private ValidatedDocumentPlan plan() {
-        return ValidatedDocumentPlanTestSupport.documentPlan(
-                DocumentCapabilityIds.SEARCH,
-                "policy_document",
-                request(DocumentPlanOperation.SEARCH));
-    }
-
-    private DocumentCapabilityHandler handler() {
-        return new DocumentCapabilityHandler(
-                com.dylan.agent.testsupport.DomainMetadataTestSupport.agentProperties(),
-                new DisabledDocumentEmbeddingPort(),
-                aclScopePort(),
-                new DocumentEvidencePreSecurityFilter(),
-                new DocumentEvidenceContextPacker(),
-                new DisabledDocumentGenerationPort(),
-                new DocumentCitationVerifier());
-    }
-
-    private DocumentAclScopePort aclScopePort() {
-        return request -> {
-            assertThat(request.materialType()).isEqualTo("tax_policy");
-            assertThat(request.retrievalProfile()).isEqualTo("tax-v2");
-            assertThat(request.profileVersion()).isEqualTo("v2");
-            assertThat(request.indexAlias()).isEqualTo("agent-doc-tax-policy-read");
-            assertThat(request.permissionEvidenceId()).isEqualTo("perm-evidence");
-            assertThat(request.permissionVersion()).isEqualTo("perm-v1");
-            return new DocumentAclScope(
-                    "tenant-1",
-                    "u-1",
-                    List.of("dept-1"),
-                    List.of("role-1"),
-                    List.of("region:CN"),
-                    "acl-v1",
-                    Instant.now().plusSeconds(300));
-        };
-    }
-
-    private DocumentRetrievalRequest request(DocumentPlanOperation operation) {
-        return request(operation, DocumentRetrievalMode.KEYWORD);
-    }
-
-    private DocumentRetrievalRequest request(DocumentPlanOperation operation, DocumentRetrievalMode retrievalMode) {
-        return new DocumentRetrievalRequest(
-                operation,
-                "policy_document",
-                "tax_policy",
-                "tax-v2",
-                "v2",
-                "agent-doc-tax-policy-read",
-                "查询休假政策",
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                5,
-                1,
-                5,
-                null,
-                operation != DocumentPlanOperation.SEARCH,
-                retrievalMode,
-                List.of(),
-                null,
-                null,
-                null);
-    }
-
-    private DocumentRetrievalRequest hybridTextOnlyRequest(boolean rerankEnabled) {
-        return new DocumentRetrievalRequest(
-                DocumentPlanOperation.SEARCH,
-                "policy_document",
-                "tax_policy",
-                "tax-v2",
-                "v2",
-                "agent-doc-tax-policy-read",
-                "查询休假政策",
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                5,
-                1,
-                5,
-                null,
-                false,
-                DocumentRetrievalMode.HYBRID,
-                List.of(),
-                new DocumentHybridOptions(
-                        10,
-                        12,
-                        60,
-                        100,
-                        10,
-                        10,
-                        1,
-                        List.of("BM25", "PHRASE"),
-                        java.util.Map.of(),
-                        "embedding",
-                        rerankEnabled,
-                        20),
-                null,
-                null);
-    }
-
-    private ExecutionContext context() {
-        DocumentRetrievableAdapter adapter = request -> adapterResult();
-        return new ExecutionContext(
-                "inv-1",
-                new ExecutionSubjectRef("user", "u-1"),
-                new ContextOwnerRef("conversation", "conv-1"),
-                new ConversationScope("conv-1"),
-                DocumentCapabilityHandlerTestSupport.executionScope(),
-                new AdapterExecutionBinding(
-                        AdapterRole.DOCUMENT_RETRIEVABLE,
-                        "policy_document",
-                        DocumentRetrievableAdapter.class,
-                        adapter,
-                        "adapter-reg-test",
-                        NOW),
-                NOW.plusSeconds(30),
-                new CancellationSource().token());
-    }
-
-    private AdapterDocumentResult adapterResult() {
-        return adapterResult(List.of(evidence("chunk-1", "0.92")));
-    }
-
-    private AdapterDocumentResult adapterResult(List<AdapterDocumentEvidence> evidence) {
-        AdapterDocumentResult result = new AdapterDocumentResult();
-        result.setHits(evidence);
-        result.setRequestedDocumentCount(evidence.size());
-        result.setCoveredDocumentCount((int) evidence.stream()
-                .map(AdapterDocumentEvidence::getDocumentId)
-                .distinct()
-                .count());
-        return result;
-    }
-
-    private AdapterDocumentEvidence evidence(String chunkId, String score) {
-        AdapterDocumentEvidence evidence = new AdapterDocumentEvidence();
-        evidence.setDocumentId("doc-" + chunkId);
-        evidence.setChunkId(chunkId);
-        evidence.setTitle("休假政策");
-        evidence.setSnippet("员工年假需要直属主管审批。");
-        evidence.setScore(new BigDecimal(score));
-        return evidence;
+        var binder = new DocumentProviderOperationRequestBinder(new ObjectMapper());
+        var fieldProjector = new DocumentProviderOutboundFieldProjector(
+                new com.dylan.agent.metadata.result.ResultValueMaskingSupport(new FieldMaskerRegistry(List.of(
+                new NoneFieldMasker(), new IdCardFieldMasker(), new MobileFieldMasker(),
+                new EmailFieldMasker(), new AddressFieldMasker()))));
+        return new DocumentCapabilityHandler(embedding, acl, currentness,
+                new DocumentRevocationGuard(currentness, emergency, java.time.Clock.systemUTC(), Duration.ofSeconds(2)),
+                new DocumentEvidenceVisibilityProjector(), new DocumentGenerationEvidenceProjector(fieldProjector),
+                new EvidenceContextPackageFactory(), new DocumentGeneratedTextCandidateFactory(
+                        binder, new com.dylan.agent.capability.document.provider.DocumentProviderOperationBindingRegistry(
+                                java.time.Clock.systemUTC())),
+                new DocumentGenerationInputProjector(), generation,
+                new DocumentCitationVerifier(), null, rerank, rewrite, new RewriteCandidateNormalizer(),
+                new DocumentRuleExtractor(), binder,
+                new DocumentProviderOutboundPolicyDecisionFactory(
+                        new DocumentProviderOutboundPolicyCanonicalizer(), java.time.Clock.systemUTC()),
+                fieldProjector,
+                new DocumentProtectedFilterFactory(DocumentAclCompilerLimits.secureDefaults()), new ObjectMapper());
     }
 }

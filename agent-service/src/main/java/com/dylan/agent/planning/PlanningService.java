@@ -3,6 +3,7 @@ package com.dylan.agent.planning;
 import com.dylan.agent.api.contract.runtime.clarification.ClarificationRequired;
 import com.dylan.agent.api.contract.runtime.common.RuntimeOperationType;
 import com.dylan.agent.api.contract.runtime.plan.ExecutablePlan;
+import com.dylan.agent.api.contract.runtime.plan.AgentPlan;
 import com.dylan.agent.api.contract.runtime.plan.PlanOutcome;
 import com.dylan.agent.api.contract.runtime.route.RouteOutcome;
 import com.dylan.agent.client.AgentRuntimeClient;
@@ -59,6 +60,7 @@ public final class PlanningService {
     private final PlanOutcomeValidator planOutcomeValidator;
     private final PlanningClarificationResolver clarificationResolver;
     private final AgentRuntimeErrorMapper runtimeErrorMapper;
+    private final PlanningArtifactAssembler artifactAssembler;
     private final Clock clock;
 
     public PlanningService(
@@ -72,6 +74,7 @@ public final class PlanningService {
             PlanOutcomeValidator planOutcomeValidator,
             PlanningClarificationResolver clarificationResolver,
             AgentRuntimeErrorMapper runtimeErrorMapper,
+            PlanningArtifactAssembler artifactAssembler,
             Clock clock) {
         this.authorizationPlanningPort = Objects.requireNonNull(authorizationPlanningPort);
         this.capabilityCatalog = Objects.requireNonNull(capabilityCatalog);
@@ -83,6 +86,7 @@ public final class PlanningService {
         this.planOutcomeValidator = Objects.requireNonNull(planOutcomeValidator);
         this.clarificationResolver = Objects.requireNonNull(clarificationResolver);
         this.runtimeErrorMapper = Objects.requireNonNull(runtimeErrorMapper);
+        this.artifactAssembler = Objects.requireNonNull(artifactAssembler);
         this.clock = Objects.requireNonNull(clock);
     }
 
@@ -134,12 +138,30 @@ public final class PlanningService {
         ResolvedRegistration registration = resolveRegistration(command, routeDecision, available, routeAudit);
         ensureActive(command, cancellation, PlanningStage.CONTEXT, evidence, available, List.of(routeAudit));
         ContextBundle contexts = loadContexts(command, evidence, registration, routeAudit);
+        PlanningArtifactAssembler.PreparedBinding preparedBinding;
+        try {
+            preparedBinding = artifactAssembler.prepare(command, evidence, routeDecision, registration);
+        } catch (RuntimeException ex) {
+            throw failure(command, PlanningStage.SNAPSHOT_FREEZE, KernelErrorCode.AUTH_EVIDENCE_CHANGED,
+                    "planning-capability-profile-binding", evidence, available, List.of(routeAudit));
+        }
+        ensureActive(command, cancellation, PlanningStage.SNAPSHOT_FREEZE, evidence, available, List.of(routeAudit));
+        AuthorizationSnapshot authorizationSnapshot = freezeAuthorization(
+                command, evidence, registration, routeDecision.domain(), contexts.snapshots(), available, routeAudit);
+        PlanningArtifactAssembler.FrozenBinding frozenBinding;
+        try {
+            frozenBinding = artifactAssembler.freeze(preparedBinding, authorizationSnapshot);
+        } catch (RuntimeException ex) {
+            throw failure(command, PlanningStage.SNAPSHOT_FREEZE, KernelErrorCode.AUTH_EVIDENCE_CHANGED,
+                    "planning-capability-profile-projection", evidence, available, List.of(routeAudit));
+        }
         ensureActive(command, cancellation, PlanningStage.PLAN, evidence, available, List.of(routeAudit));
 
         PlanningOperationAudit planAudit;
         ExecutablePlan executable;
         try {
-            TimedOutcome<PlanOutcome> planned = plan(command, evidence, routeDecision, registration, contexts.views());
+            TimedOutcome<PlanOutcome> planned = plan(
+                    command, evidence, authorizationSnapshot, routeDecision, registration, contexts.views());
             planAudit = reported(planned.outcome().getMetadata(), planned.localDurationMs());
             ensureActive(command, cancellation, PlanningStage.PLAN, evidence, available, List.of(routeAudit, planAudit));
             try {
@@ -182,16 +204,22 @@ public final class PlanningService {
                     "planning-plan-invalid", evidence, available, List.of(routeAudit));
         }
 
-        ensureActive(command, cancellation, PlanningStage.SNAPSHOT_FREEZE, evidence, available, List.of(routeAudit, planAudit));
-        AuthorizationSnapshot authorizationSnapshot = freezeAuthorization(
-                command, evidence, registration, routeDecision.domain(), contexts.snapshots(), available, routeAudit, planAudit);
+        AgentPlan boundPlan;
+        try {
+            boundPlan = artifactAssembler.assemble(executable.getPlan(), frozenBinding);
+        } catch (RuntimeException ex) {
+            throw failure(command, PlanningStage.PLAN, KernelErrorCode.RUNTIME_CONTRACT_INVALID,
+                    "planning-capability-plan-binding", evidence, available, List.of(routeAudit, planAudit));
+        }
+
         return ExecutablePlanningResult.builder()
+                .invocationId(command.handle().invocationId())
                 .requestCorrelationId(command.handle().requestCorrelationId())
                 .capabilityId(registration.capabilityId())
                 .domain(routeDecision.domain().orElse(null))
                 .planKind(registration.planKind())
                 .resolvedRegistration(registration)
-                .rawPlan(executable.getPlan())
+                .rawPlan(boundPlan)
                 .authorizationSnapshot(authorizationSnapshot)
                 .contextSnapshots(contexts.snapshots())
                 .routeAudit(routeAudit)
@@ -297,6 +325,7 @@ public final class PlanningService {
     private TimedOutcome<PlanOutcome> plan(
             PlanningCommand command,
             PlanningAuthorizationEvidence evidence,
+            AuthorizationSnapshot authorizationSnapshot,
             ValidatedRouteDecision routeDecision,
             ResolvedRegistration registration,
             List<com.dylan.agent.api.contract.runtime.common.RuntimeContextView> contextViews) {
@@ -304,6 +333,7 @@ public final class PlanningService {
         PlanOutcome outcome = runtimeClient.plan(requestFactory.planRequest(
                 command,
                 evidence,
+                authorizationSnapshot,
                 routeDecision,
                 registration,
                 contextViews));
@@ -317,8 +347,7 @@ public final class PlanningService {
             Optional<String> selectedDomain,
             List<ContextSnapshot> snapshots,
             AvailableCapabilitySnapshot available,
-            PlanningOperationAudit routeAudit,
-            PlanningOperationAudit planAudit) {
+            PlanningOperationAudit routeAudit) {
         try {
             return authorizationPlanningPort.freezeCapabilityScope(
                     evidence,
@@ -329,7 +358,7 @@ public final class PlanningService {
                             available.domainMetadataEvidence()));
         } catch (RuntimeException ex) {
             throw failure(command, PlanningStage.SNAPSHOT_FREEZE, KernelErrorCode.AUTH_EVIDENCE_CHANGED,
-                    "planning-auth-freeze", evidence, available, List.of(routeAudit, planAudit));
+                    "planning-auth-freeze", evidence, available, List.of(routeAudit));
         }
     }
 

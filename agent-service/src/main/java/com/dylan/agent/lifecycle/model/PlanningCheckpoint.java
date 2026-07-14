@@ -28,6 +28,7 @@ public final class PlanningCheckpoint {
     private final String domain;
     private final String planKind;
     private final String registrationIdentity;
+    private final String planningArtifactBindingDigest;
     private final PlanningOperationAudit routeAudit;
     private final PlanningOperationAudit planAudit;
     private final String authorizationSnapshotRef;
@@ -41,6 +42,8 @@ public final class PlanningCheckpoint {
         this.domain = normalizeOptional(builder.domain, "domain");
         this.planKind = requireNonBlank(builder.planKind, "planKind");
         this.registrationIdentity = requireNonBlank(builder.registrationIdentity, "registrationIdentity");
+        this.planningArtifactBindingDigest = requireSha256(
+                builder.planningArtifactBindingDigest, "planningArtifactBindingDigest");
         this.routeAudit = Objects.requireNonNull(builder.routeAudit);
         this.planAudit = Objects.requireNonNull(builder.planAudit);
         this.authorizationSnapshotRef = requireNonBlank(builder.authorizationSnapshotRef, "authorizationSnapshotRef");
@@ -57,6 +60,7 @@ public final class PlanningCheckpoint {
                 .domain(result.domain().orElse(null))
                 .planKind(result.planKind().name())
                 .registrationIdentity(result.resolvedRegistration().registrationIdentity())
+                .planningArtifactBindingDigest(result.artifactIdentity().bindingDigest())
                 .routeAudit(result.routeAudit())
                 .planAudit(result.planAudit())
                 .authorizationSnapshotRef(result.authorizationSnapshot().snapshotId())
@@ -95,12 +99,13 @@ public final class PlanningCheckpoint {
     }
 
     private static String contractRef(ContractRef ref) {
-        return ref.schema() + ":" + ref.version();
+        return ref.namespace() + ":" + ref.name() + ":" + ref.version();
     }
 
     private String computeHash() {
         String content = invocationId + "|" + requestCorrelationId + "|" + capabilityId
                 + "|" + domain + "|" + planKind + "|" + registrationIdentity
+                + "|" + planningArtifactBindingDigest
                 + "|" + canonicalAudit(routeAudit) + "|" + canonicalAudit(planAudit)
                 + "|" + authorizationSnapshotRef + "|" + canonicalContextRefs();
         return sha256Hex(content);
@@ -174,6 +179,14 @@ public final class PlanningCheckpoint {
         return normalized;
     }
 
+    private static String requireSha256(String value, String name) {
+        String normalized = requireNonBlank(value, name);
+        if (!normalized.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(name + " must be lowercase SHA-256 hex");
+        }
+        return normalized;
+    }
+
     // ── 只读访问器 ──
     public String invocationId() { return invocationId; }
     public String requestCorrelationId() { return requestCorrelationId; }
@@ -181,6 +194,7 @@ public final class PlanningCheckpoint {
     public String domain() { return domain; }
     public String planKind() { return planKind; }
     public String registrationIdentity() { return registrationIdentity; }
+    public String planningArtifactBindingDigest() { return planningArtifactBindingDigest; }
     public PlanningOperationAudit routeAudit() { return routeAudit; }
     public PlanningOperationAudit planAudit() { return planAudit; }
     public String authorizationSnapshotRef() { return authorizationSnapshotRef; }
@@ -224,6 +238,7 @@ public final class PlanningCheckpoint {
         private String domain;
         private String planKind;
         private String registrationIdentity;
+        private String planningArtifactBindingDigest;
         private PlanningOperationAudit routeAudit;
         private PlanningOperationAudit planAudit;
         private String authorizationSnapshotRef;
@@ -235,6 +250,7 @@ public final class PlanningCheckpoint {
         public Builder domain(String v) { this.domain = v; return this; }
         public Builder planKind(String v) { this.planKind = v; return this; }
         public Builder registrationIdentity(String v) { this.registrationIdentity = v; return this; }
+        public Builder planningArtifactBindingDigest(String v) { this.planningArtifactBindingDigest = v; return this; }
         public Builder routeAudit(PlanningOperationAudit v) { this.routeAudit = v; return this; }
         public Builder planAudit(PlanningOperationAudit v) { this.planAudit = v; return this; }
         public Builder authorizationSnapshotRef(String v) { this.authorizationSnapshotRef = v; return this; }

@@ -2,7 +2,6 @@ package com.dylan.esquery.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
@@ -23,12 +22,10 @@ import com.dylan.esquery.config.EsQueryProperties;
 @Service
 public class IndexRebuildService {
 	private static final int DEFAULT_BATCH_SIZE = 500;
-	private static final List<String> ACTIVE_REBUILD_STATUSES = List.of("PENDING", "RUNNING");
 
 	private final EsDocumentService esDocumentService;
 	private final RebuildTaskRepository taskRepository;
 	private final DocumentIndexPolicy documentIndexPolicy;
-	private final DocumentIndexValidationService validationService;
 	private final DocumentSourceUrlPolicy sourceUrlPolicy;
 	private final EsQueryProperties properties;
 	private final RestTemplate restTemplate;
@@ -40,17 +37,15 @@ public class IndexRebuildService {
 	@Autowired
 	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
 			DocumentIndexPolicy documentIndexPolicy,
-			DocumentIndexValidationService validationService,
 			DocumentSourceUrlPolicy sourceUrlPolicy,
 			EsQueryProperties properties,
 			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
-		this(esDocumentService, taskRepository, documentIndexPolicy, validationService,
+		this(esDocumentService, taskRepository, documentIndexPolicy,
 				sourceUrlPolicy, properties, new RestTemplate(), rebuildExecutor);
 	}
 
 	IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
 			DocumentIndexPolicy documentIndexPolicy,
-			DocumentIndexValidationService validationService,
 			DocumentSourceUrlPolicy sourceUrlPolicy,
 			EsQueryProperties properties,
 			RestTemplate restTemplate,
@@ -58,7 +53,6 @@ public class IndexRebuildService {
 		this.esDocumentService = esDocumentService;
 		this.taskRepository = taskRepository;
 		this.documentIndexPolicy = documentIndexPolicy;
-		this.validationService = validationService;
 		this.sourceUrlPolicy = sourceUrlPolicy;
 		this.properties = properties;
 		this.restTemplate = restTemplate;
@@ -69,7 +63,6 @@ public class IndexRebuildService {
 			DocumentIndexPolicy documentIndexPolicy,
 			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
 		this(esDocumentService, taskRepository, documentIndexPolicy,
-				new DocumentIndexValidationService(documentIndexPolicy, taskRepository),
 				new DocumentSourceUrlPolicy(defaultProperties()), defaultProperties(), new RestTemplate(), rebuildExecutor);
 	}
 
@@ -84,7 +77,6 @@ public class IndexRebuildService {
 	public synchronized RebuildTask submitFullRebuild(String index, RebuildRequest request) {
 		validateRequest(index, request, true);
 		String targetIndex = targetIndex(index, request);
-		assertNoActiveDocumentRebuild(index, targetIndex);
 		String taskId = UUID.randomUUID().toString();
 		RebuildTask task = taskRepository.create(taskId, index, targetIndex, "FULL");
 		rebuildExecutor.execute(() -> runFullRebuild(taskId, request));
@@ -97,7 +89,6 @@ public class IndexRebuildService {
 	public synchronized RebuildTask submitIncrementalRebuild(String index, RebuildRequest request) {
 		validateRequest(index, request, false);
 		String targetIndex = targetIndex(index, request);
-		assertNoActiveDocumentRebuild(index, targetIndex);
 		String taskId = UUID.randomUUID().toString();
 		RebuildTask task = taskRepository.create(taskId, index, targetIndex, "INCREMENTAL");
 		rebuildExecutor.execute(() -> runIncrementalRebuild(taskId, request));
@@ -114,7 +105,6 @@ public class IndexRebuildService {
 			esDocumentService.recreateIndex(task.getTargetIndex(), request.getIndexDefinition());
 			pullAndIndex(taskId, request);
 			taskRepository.markSuccess(taskId);
-			validationService.validateSuccessfulTask(taskId);
 		} catch (Exception e) {
 			taskRepository.markFailed(taskId, e);
 		}
@@ -128,7 +118,6 @@ public class IndexRebuildService {
 			taskRepository.markRunning(taskId);
 			pullAndIndex(taskId, request);
 			taskRepository.markSuccess(taskId);
-			validationService.validateSuccessfulTask(taskId);
 		} catch (Exception e) {
 			taskRepository.markFailed(taskId, e);
 		}
@@ -194,14 +183,8 @@ public class IndexRebuildService {
 		}
 		validateSourceParams(request.getSourceParams());
 		String targetIndex = targetIndex(index, request);
-		if (!documentIndexPolicy.isDocumentIndex(index) && !documentIndexPolicy.isDocumentIndex(targetIndex)) {
-			return;
-		}
-		if (request.getIdField() == null || request.getIdField().isBlank()) {
-			throw new IllegalArgumentException("document rebuild idField must not be blank");
-		}
-		if (fullRebuild && (request.getIndexDefinition() == null || request.getIndexDefinition().isEmpty())) {
-			throw new IllegalArgumentException("document full rebuild indexDefinition must not be empty");
+		if (documentIndexPolicy.isDocumentIndex(index) || documentIndexPolicy.isDocumentIndex(targetIndex)) {
+			throw new IllegalArgumentException("DOCUMENT_SPECIALIZED_ENDPOINT_REQUIRED");
 		}
 	}
 
@@ -225,18 +208,6 @@ public class IndexRebuildService {
 			if (containsReserved) {
 				throw new IllegalArgumentException("sourceParams must not override reserved parameter: " + reserved);
 			}
-		}
-	}
-
-	private void assertNoActiveDocumentRebuild(String index, String targetIndex) {
-		if (!documentIndexPolicy.isDocumentIndex(index) && !documentIndexPolicy.isDocumentIndex(targetIndex)) {
-			return;
-		}
-		boolean active = taskRepository.findAll().stream()
-				.anyMatch(task -> ACTIVE_REBUILD_STATUSES.contains(task.getStatus())
-						&& (Objects.equals(index, task.getIndex()) || Objects.equals(targetIndex, task.getTargetIndex())));
-		if (active) {
-			throw new IllegalStateException("active document rebuild already exists for index or targetIndex");
 		}
 	}
 

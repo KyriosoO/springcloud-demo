@@ -1,0 +1,5 @@
+package com.dylan.agent.adapter.api.document.provider;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationType;
+import java.time.Instant;
+import java.util.Optional;
+public record DocumentProviderActivationSnapshot(CapabilityOperationType operationType,DocumentProviderActivationState state,Optional<DocumentProviderBindingReference> expectedProvider,String wireContractVersion,String rolloutVersion,Instant validUntil,String canonicalDigest) { public DocumentProviderActivationSnapshot { expectedProvider=expectedProvider==null?Optional.empty():expectedProvider; if(operationType==null||state==null||wireContractVersion==null||wireContractVersion.isBlank()||rolloutVersion==null||rolloutVersion.isBlank()||validUntil==null||canonicalDigest==null||!canonicalDigest.matches("[0-9a-f]{64}")||(state==DocumentProviderActivationState.ACTIVE&&expectedProvider.isEmpty())||(state!=DocumentProviderActivationState.ACTIVE&&expectedProvider.isPresent()))throw new IllegalArgumentException("document provider activation snapshot invalid"); } }

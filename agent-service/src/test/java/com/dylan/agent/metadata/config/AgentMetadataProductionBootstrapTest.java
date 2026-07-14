@@ -1,78 +1,76 @@
 package com.dylan.agent.metadata.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.metadata.policy.internal.AgentPolicyConfiguration;
 import com.dylan.agent.metadata.profile.internal.AgentProfileRegistry;
 import com.dylan.agent.testsupport.DomainMetadataTestSupport;
-import com.dylan.common.security.SecretProperties;
+import com.dylan.agent.capability.document.profile.DocumentFeaturePolicy;
+import com.dylan.agent.capability.document.profile.DocumentProfileAssets;
+import com.dylan.agent.capability.document.profile.DocumentProfileProperties;
 
-import java.time.Duration;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 class AgentMetadataProductionBootstrapTest {
 
     @Test
-    void bootstrapsStoreProfilePolicyAndSecurityFromOneBundle() {
+    void bootstrapsStoreProfileAndPolicyFromOneBundle() {
         DefaultAgentMetadataBootstrap bootstrap = new DefaultAgentMetadataBootstrap(
-                DomainMetadataTestSupport.agentProperties(),
-                DomainMetadataTestSupport.properties(),
-                secretProperties("ACTIVE"));
+                DomainMetadataTestSupport.agentProperties(), documentAssets());
         AgentMetadataStore store = new AgentMetadataStore(bootstrap.bootstrap());
         AgentProfileRegistry profileRegistry = new AgentProfileRegistry(store);
         AgentPolicyConfiguration policyConfiguration = new AgentPolicyConfiguration(store);
-        AgentSecuritySettingsRegistry securitySettingsRegistry =
-                new AgentSecuritySettingsRegistry(store.current().securitySettings());
-
         assertThat(profileRegistry.defaultRef().agentId()).isEqualTo("agent-default");
         assertThat(profileRegistry.defaultRef().expectedVersion()).contains("profile-v1");
         assertThat(policyConfiguration.current().domainSecurityConstraints().keySet())
                 .containsExactlyInAnyOrder("employee", "transaction");
         assertThat(policyConfiguration.current().profileConstraints().get("agent-default").allowedCapabilityIds())
-                .isEqualTo(Set.of("query.search", "query.preview", "aggregate.compute"));
+                .contains("query.search", "query.preview", "aggregate.compute",
+                        "document.search", "document.answer", "document.summarize");
         assertThat(profileRegistry.getRequired(profileRegistry.defaultRef()).allowedCapabilityIds())
-                .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute");
+                .contains("query.search", "query.preview", "aggregate.compute",
+                        "document.search", "document.answer", "document.summarize");
         assertThat(policyConfiguration.current().capabilityConstraints())
-                .containsKeys("query.search", "query.preview", "aggregate.compute");
-        assertThat(securitySettingsRegistry.current()).isSameAs(store.current().securitySettings());
-        assertThat(securitySettingsRegistry.current().globalMaxContextTtl()).isEqualTo(Duration.ofDays(7));
+                .containsKeys("query.search", "query.preview", "aggregate.compute",
+                        "document.search", "document.answer", "document.summarize");
         assertThat(store.current().bundleDigest()).isNotBlank();
     }
 
     @Test
-    void digestChangesWhenActivePayloadKeyIdChanges() {
-        AgentMetadataBundle active = new DefaultAgentMetadataBootstrap(
-                DomainMetadataTestSupport.agentProperties(),
-                DomainMetadataTestSupport.properties(),
-                secretProperties("ACTIVE")).bootstrap();
-        AgentMetadataBundle next = new DefaultAgentMetadataBootstrap(
-                DomainMetadataTestSupport.agentProperties(),
-                DomainMetadataTestSupport.properties(),
-                secretProperties("NEXT")).bootstrap();
+    void digestIsStableForSameReviewedBundleInputs() {
+        AgentMetadataBundle first = new DefaultAgentMetadataBootstrap(
+                DomainMetadataTestSupport.agentProperties(), documentAssets()).bootstrap();
+        AgentMetadataBundle second = new DefaultAgentMetadataBootstrap(
+                DomainMetadataTestSupport.agentProperties(), documentAssets()).bootstrap();
 
-        assertThat(active.bundleDigest()).isNotEqualTo(next.bundleDigest());
+        assertThat(first.bundleDigest()).isEqualTo(second.bundleDigest());
     }
 
-    @Test
-    void documentEnablementRequiresDocumentDomainMetadataAndRegistration() {
-        AgentProperties properties = DomainMetadataTestSupport.agentProperties();
-        properties.getDocument().setEnabled(true);
-
-        assertThatThrownBy(() -> new DefaultAgentMetadataBootstrap(
-                properties,
-                DomainMetadataTestSupport.properties(),
-                secretProperties("ACTIVE")).bootstrap())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("DOCUMENT_RETRIEVABLE");
+    private static DocumentProfileAssets.BuiltAssets documentAssets() {
+        DocumentProfileProperties properties = new DocumentProfileProperties();
+        properties.setOwnerAgentId("agent-default");
+        properties.setOwnerProfileVersion("profile-v1");
+        properties.setPolicyVersion("policy-v1");
+        DocumentProfileProperties.Entry entry = new DocumentProfileProperties.Entry();
+        entry.setProfileName("employee-document-v1");
+        entry.setDomain("employee");
+        entry.setDefaultProfile(true);
+        entry.setAllowedMaterialTypes(List.of("employee"));
+        entry.setAllowedOperations(List.of("SEARCH", "ANSWER", "SUMMARIZE"));
+        entry.setAllowedChannels(List.of("BM25"));
+        entry.setRequiredChannels(List.of("BM25"));
+        entry.setGenerationPolicy(Map.of("SEARCH", DocumentFeaturePolicy.DISABLED,
+                "ANSWER", DocumentFeaturePolicy.OPTIONAL, "SUMMARIZE", DocumentFeaturePolicy.OPTIONAL));
+        properties.setDefinitions(List.of(entry));
+        DocumentProfileProperties.PolicyEntry policy = new DocumentProfileProperties.PolicyEntry();
+        policy.setDomain("employee");
+        policy.setAllowedProfileNames(List.of("employee-document-v1"));
+        policy.setAllowedChannels(List.of("BM25"));
+        policy.setAllowedOperations(List.of("SEARCH", "ANSWER", "SUMMARIZE"));
+        properties.setPolicy(List.of(policy));
+        return DocumentProfileAssets.build(properties);
     }
 
-    private static SecretProperties secretProperties(String activePayloadKeyId) {
-        SecretProperties properties = new SecretProperties();
-        properties.getAgentPayload().setActiveKeyId(activePayloadKeyId);
-        return properties;
-    }
 }

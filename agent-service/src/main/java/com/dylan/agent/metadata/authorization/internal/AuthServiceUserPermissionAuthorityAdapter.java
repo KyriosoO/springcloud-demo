@@ -176,13 +176,7 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
                 "agent-permission-" + UUID.randomUUID(),
                 new SubjectRefDto(AUTH_SUBJECT_TYPE, subject.id()),
                 now,
-                absoluteDeadline,
-                properties.getAgentId(),
-                properties.getProfileId(),
-                properties.getScopeType(),
-                properties.getScopeId(),
-                Set.of(),
-                Set.of());
+                absoluteDeadline);
     }
 
     private String serviceToken() throws UserPermissionAuthorityException {
@@ -271,13 +265,7 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
             String requestId,
             SubjectRefDto subject,
             Instant requestedAt,
-            Instant deadline,
-            String agentId,
-            String profileId,
-            String scopeType,
-            String scopeId,
-            Set<String> requestedCapabilityIds,
-            Set<String> requestedDomains) {
+            Instant deadline) {
     }
 
     public record AuthPermissionResolveResponse(

@@ -1,406 +1,116 @@
 package com.dylan.agent.metadata.result;
 
+import com.dylan.agent.adapter.api.document.DocumentResourceLimit;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.common.ContractRef;
-import com.dylan.agent.api.plan.DocumentPlanOperation;
-import com.dylan.agent.api.response.AgentDocumentCitation;
-import com.dylan.agent.api.response.AgentDocumentCoverage;
-import com.dylan.agent.api.response.AgentDocumentHit;
-import com.dylan.agent.api.response.AgentDocumentParameters;
-import com.dylan.agent.api.response.AgentDocumentResult;
-import com.dylan.agent.api.response.DocumentGenerationStatus;
-import com.dylan.agent.api.response.GroundingStatus;
-import com.dylan.agent.api.response.AgentQueryFilterParameter;
-import com.dylan.agent.api.response.AgentQuerySortParameter;
-import com.dylan.agent.api.response.DocumentAgentResultPayload;
-import com.dylan.agent.capability.document.DocumentObservabilitySupport;
-import com.dylan.agent.capability.document.security.DocumentRevocationGuard;
-import com.dylan.agent.capability.document.security.DocumentRevocationDecision;
-import com.dylan.agent.config.AgentProperties;
+import com.dylan.agent.api.response.*;
+import com.dylan.agent.capability.document.acl.DocumentCurrentnessOutcome;
+import com.dylan.agent.capability.document.security.DocumentFinalCurrentnessDecision;
+import com.dylan.agent.capability.document.security.DocumentFinalCurrentnessDecisionVerifier;
+import com.dylan.agent.capability.document.security.DocumentResultCandidateSetCanonicalizer;
+import com.dylan.agent.capability.document.security.DocumentSecurityReasonCode;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.Clock;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
+/** Document public contract 的纯本地 Result Security projector。 */
 public final class DocumentResultSecurityProjector implements ResultSecurityProjector<DocumentAgentResultPayload> {
-
-    private static final Pattern CITATION_PATTERN = Pattern.compile("\\[([^\\]]+)]");
-    private static final String TITLE_FIELD = "title";
-    private static final String SOURCE_TYPE_FIELD = "sourceType";
-    private static final String SECTION_FIELD = "section";
-    private static final String PAGE_FIELD = "page";
-    private static final String SOURCE_URI_FIELD = "sourceUri";
-    private static final String SNIPPET_FIELD = "snippet";
-
-    private final ResultValueMaskingSupport maskingSupport;
-    private final AgentProperties properties;
-    private final DocumentRevocationGuard revocationGuard;
-    private final DocumentObservabilitySupport observabilitySupport;
-
-    public DocumentResultSecurityProjector(ResultValueMaskingSupport maskingSupport, AgentProperties properties) {
-        this(maskingSupport, properties, new DocumentRevocationGuard(properties));
-    }
+    private static final Pattern CITATION = Pattern.compile("\\[(C[1-9][0-9]*)]");
+    private final ResultValueMaskingSupport masking;
+    private final ObjectMapper objectMapper;
+    private final DocumentFinalCurrentnessDecisionVerifier currentnessVerifier;
+    private final DocumentResultCandidateSetCanonicalizer candidateSetCanonicalizer =
+            new DocumentResultCandidateSetCanonicalizer();
 
     public DocumentResultSecurityProjector(
-            ResultValueMaskingSupport maskingSupport,
-            AgentProperties properties,
-            DocumentRevocationGuard revocationGuard) {
-        this(maskingSupport, properties, revocationGuard, null);
+            ResultValueMaskingSupport masking,
+            ObjectMapper objectMapper,
+            Clock clock) {
+        this.masking = Objects.requireNonNull(masking, "masking must not be null");
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.currentnessVerifier = new DocumentFinalCurrentnessDecisionVerifier(
+                Objects.requireNonNull(clock, "clock must not be null"));
     }
-
-    public DocumentResultSecurityProjector(
-            ResultValueMaskingSupport maskingSupport,
-            AgentProperties properties,
-            DocumentRevocationGuard revocationGuard,
-            DocumentObservabilitySupport observabilitySupport) {
-        this.maskingSupport = Objects.requireNonNull(maskingSupport, "maskingSupport must not be null");
-        this.properties = Objects.requireNonNull(properties, "properties must not be null");
-        this.revocationGuard = Objects.requireNonNull(revocationGuard, "revocationGuard must not be null");
-        this.observabilitySupport = observabilitySupport;
-    }
+    @Override public ContractRef supports() { return AgentExecutionContracts.DOCUMENT_RESULT; }
+    @Override public Class<DocumentAgentResultPayload> payloadType() { return DocumentAgentResultPayload.class; }
 
     @Override
-    public ContractRef supports() { return AgentExecutionContracts.DOCUMENT_RESULT; }
-
-    @Override
-    public Class<DocumentAgentResultPayload> payloadType() { return DocumentAgentResultPayload.class; }
-
-    @Override
-    public FilteredResult<DocumentAgentResultPayload> filter(DocumentAgentResultPayload candidate, ExecutionScope scope) {
-        try {
-            AgentDocumentParameters parameters = candidate.getDocumentParameters();
-            String domain = parameters == null ? null : parameters.getDomain();
-            if (domain == null || domain.isBlank()) {
-                throw new IllegalStateException("document result payload missing domain");
-            }
-            if (!scope.allowedDomains().contains(domain)) {
-                throw new IllegalStateException("document result domain outside execution scope");
-            }
-            DocumentRevocationDecision decision = revocationGuard.evaluate(
-                    domain,
-                    null,
-                    parameters.getRetrievalProfile(),
-                    parameters.getProfileVersion(),
-                    parameters.getIndexAlias());
-            if (decision.revoked()) {
-                recordRevocation(decision);
-                throw new IllegalStateException("document access revoked by "
-                        + decision.source() + ":" + decision.target());
-            }
-            AgentDocumentResult result = filterResult(domain, candidate.getDocumentResult(), scope);
-            DocumentPlanOperation operation = parseOperation(parameters.getOperation());
-            if (!applyVerifiedCandidate(operation, result)) {
-                DocumentSafeTextComposer.compose(operation, result, properties.getDocument().getMaxSummaryChars());
-            }
-            clearCandidateText(result);
-            DocumentAgentResultPayload filtered = new DocumentAgentResultPayload(
-                    filterParameters(domain, parameters, scope),
-                    result);
-            recordResultSecurity("FILTERED");
-            return new FilteredResult<>(filtered, "文档处理完成", "文档结果已按当前执行范围过滤和脱敏");
-        } catch (RuntimeException ex) {
-            recordResultSecurity("FAILED");
-            throw ex;
-        }
+    public FilteredResult<DocumentAgentResultPayload> filter(DocumentAgentResultPayload candidate, ExecutionScope scope, EffectiveCapabilityResourceLimits effective) {
+        Objects.requireNonNull(candidate, "candidate must not be null"); Objects.requireNonNull(scope, "scope must not be null");
+        DocumentResourceLimit limits = effective.require(AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT, DocumentResourceLimit.class);
+        AgentDocumentParameters parameters = Objects.requireNonNull(candidate.getDocumentParameters(), "document parameters required");
+        AgentDocumentResult result = Objects.requireNonNull(candidate.getDocumentResult(), "document result required");
+        if (parameters.getDomain()==null || parameters.getDomain().isBlank() || parameters.getMaterialType()==null || parameters.getMaterialType().isBlank()) throw new IllegalStateException("document public corpus binding missing");
+        if (parameters.getQueryText()!=null && parameters.getQueryText().codePointCount(0, parameters.getQueryText().length()) > limits.input().maxQueryChars()) throw new IllegalStateException("document query exceeds limit");
+        parameters.setFilters(parameters.getFilters()==null?List.of():parameters.getFilters().stream().map(f->masking.filterAndMaskFilter(parameters.getDomain(),f,scope)).filter(Objects::nonNull).toList());
+        List<AgentDocumentHit> hits = result.getHits()==null?List.of():List.copyOf(result.getHits());
+        List<AgentDocumentCitation> citations = result.getCitations()==null?List.of():List.copyOf(result.getCitations());
+        if(hits.size()>limits.retrieval().maxReturnedDocuments()||citations.size()>limits.output().maxCitationCount()||citations.size()>limits.output().maxEvidenceCount()) throw new IllegalStateException("document evidence count exceeds limit");
+        Set<String> ids = validateCitations(citations, limits);
+        verifyCurrentness(candidate, hits, citations, scope, effective);
+        validateText(result.getAnswerText(), ids, limits.output().maxGeneratedChars());
+        validateText(result.getSummaryText(), ids, limits.output().maxSummaryChars());
+        List<String> bullets=result.getSummaryBullets()==null?List.of():result.getSummaryBullets();
+        if(bullets.size()>limits.output().maxSummaryBullets()) throw new IllegalStateException("document summary bullet count exceeds limit");
+        bullets.forEach(value->validateText(value,ids,limits.output().maxSummaryChars()));
+        for(AgentDocumentHit hit:hits){ if(hit.getSnippet()!=null && hit.getSnippet().codePointCount(0,hit.getSnippet().length())>limits.output().maxSnippetChars()) throw new IllegalStateException("document snippet exceeds limit"); if(hit.getCitationIds()!=null&&!ids.containsAll(hit.getCitationIds())) throw new IllegalStateException("document hit citation binding invalid"); }
+        try { if(objectMapper.writeValueAsBytes(candidate).length>limits.output().maxResultBytes()) throw new IllegalStateException("document result bytes exceed limit"); }
+        catch(java.io.IOException ex){throw new IllegalStateException("document result serialization failed",ex);}
+        return new FilteredResult<>(candidate, "文档结果已通过安全校验。", "文档结果已按权限、引用和资源上限投影。");
     }
 
-    private void recordResultSecurity(String decision) {
-        if (observabilitySupport != null) {
-            observabilitySupport.recordResultSecurity(decision);
+    private void verifyCurrentness(
+            DocumentAgentResultPayload candidate,
+            List<AgentDocumentHit> hits,
+            List<AgentDocumentCitation> citations,
+            ExecutionScope scope,
+            EffectiveCapabilityResourceLimits effective) {
+        DocumentResultSecurityEvidence evidence = Objects.requireNonNull(
+                candidate.getInternalSecurityEvidence(), "document final currentness evidence required");
+        if (evidence.candidates().size() != hits.size()) {
+            throw new IllegalStateException("document result candidate binding count mismatch");
         }
-    }
-
-    private void recordRevocation(DocumentRevocationDecision decision) {
-        if (observabilitySupport != null) {
-            observabilitySupport.recordRevocationHit(decision.target(), decision.source());
-        }
-    }
-
-    private AgentDocumentParameters filterParameters(
-            String domain,
-            AgentDocumentParameters source,
-            ExecutionScope scope) {
-        AgentDocumentParameters target = new AgentDocumentParameters();
-        target.setDomain(source.getDomain());
-        target.setMaterialType(source.getMaterialType());
-        target.setRetrievalProfile(source.getRetrievalProfile());
-        target.setProfileVersion(source.getProfileVersion());
-        target.setIndexAlias(source.getIndexAlias());
-        target.setOperation(source.getOperation());
-        target.setQueryText(source.getQueryText());
-        target.setTopK(source.getTopK());
-        target.setSummaryScope(source.getSummaryScope());
-        target.setFilters(source.getFilters() == null ? null : source.getFilters().stream()
-                .map(filter -> maskingSupport.filterAndMaskFilter(domain, filter, scope))
-                .filter(Objects::nonNull)
-                .toList());
-        target.setSorts(source.getSorts() == null ? null : source.getSorts().stream()
-                .filter(sort -> sort != null
-                        && maskingSupport.filterFields(domain, List.of(sort.getField()), scope).contains(sort.getField()))
-                .map(DocumentResultSecurityProjector::copySort)
-                .toList());
-        return target;
-    }
-
-    private AgentDocumentResult filterResult(
-            String domain,
-            AgentDocumentResult source,
-            ExecutionScope scope) {
-        AgentDocumentResult target = new AgentDocumentResult();
-        if (source == null) {
-            source = new AgentDocumentResult();
-        }
-        target.setHits(source.getHits() == null ? List.of() : source.getHits().stream()
-                .map(hit -> filterHit(domain, hit, scope))
-                .filter(Objects::nonNull)
-                .limit(properties.getDocument().getMaxDisplayCitationCount())
-                .toList());
-        target.setCitations(source.getCitations() == null ? List.of() : source.getCitations().stream()
-                .map(citation -> filterCitation(domain, citation, scope))
-                .filter(Objects::nonNull)
-                .limit(properties.getDocument().getMaxDisplayCitationCount())
-                .toList());
-        target.setPartial(source.isPartial());
-        target.setCoverage(filterCoverage(source.getCoverage(), target.getCitations()));
-        target.setGenerationStatus(source.getGenerationStatus());
-        target.setGroundingStatus(source.getGroundingStatus());
-        target.setCitationVerification(source.getCitationVerification());
-        target.setCandidateAnswerText(source.getCandidateAnswerText());
-        target.setCandidateSummaryText(source.getCandidateSummaryText());
-        target.setCandidateSummaryBullets(source.getCandidateSummaryBullets());
-        return target;
-    }
-
-    private AgentDocumentHit filterHit(String domain, AgentDocumentHit source, ExecutionScope scope) {
-        if (source == null) {
-            return null;
-        }
-        AgentDocumentHit target = new AgentDocumentHit();
-        String title = filterString(domain, TITLE_FIELD, source.getTitle(), scope);
-        String sourceType = filterString(domain, SOURCE_TYPE_FIELD, source.getSourceType(), scope);
-        String snippet = filterString(domain, SNIPPET_FIELD, source.getSnippet(), scope);
-        if (title == null && sourceType == null && snippet == null) {
-            return null;
-        }
-        target.setDocumentId(source.getDocumentId());
-        target.setTitle(title);
-        target.setSourceType(sourceType);
-        target.setSnippet(truncate(snippet));
-        target.setScore(source.getScore());
-        target.setCitationIds(source.getCitationIds() == null ? List.of() : source.getCitationIds());
-        return target;
-    }
-
-    private AgentDocumentCitation filterCitation(String domain, AgentDocumentCitation source, ExecutionScope scope) {
-        if (source == null) {
-            return null;
-        }
-        String snippet = filterString(domain, SNIPPET_FIELD, source.getSnippet(), scope);
-        if (snippet == null) {
-            return null;
-        }
-        AgentDocumentCitation target = new AgentDocumentCitation();
-        target.setCitationId(source.getCitationId());
-        target.setDocumentId(source.getDocumentId());
-        target.setTitle(filterString(domain, TITLE_FIELD, source.getTitle(), scope));
-        target.setSection(filterString(domain, SECTION_FIELD, source.getSection(), scope));
-        target.setPage(filterInteger(domain, PAGE_FIELD, source.getPage(), scope));
-        target.setSourceUri(filterString(domain, SOURCE_URI_FIELD, source.getSourceUri(), scope));
-        target.setSnippet(truncate(snippet));
-        target.setChunkIndex(source.getChunkIndex());
-        target.setCharStart(source.getCharStart());
-        target.setCharEnd(source.getCharEnd());
-        return target;
-    }
-
-    private AgentDocumentCoverage filterCoverage(AgentDocumentCoverage source, List<AgentDocumentCitation> citations) {
-        AgentDocumentCoverage target = new AgentDocumentCoverage();
-        int evidenceCount = citations.size();
-        int coveredDocumentCount = (int) citations.stream()
-                .map(AgentDocumentCitation::getDocumentId)
-                .filter(value -> value != null && !value.isBlank())
-                .distinct()
-                .count();
-        if (source != null) {
-            target.setRequestedDocumentCount(source.getRequestedDocumentCount());
-            boolean securityFiltered = source.getEvidenceCount() > evidenceCount
-                    || source.getCoveredDocumentCount() > coveredDocumentCount;
-            target.setTruncated(source.isTruncated() || securityFiltered);
-        }
-        target.setCoveredDocumentCount(coveredDocumentCount);
-        target.setEvidenceCount(evidenceCount);
-        return target;
-    }
-
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        int limit = properties.getDocument().getMaxSnippetChars();
-        return value.length() <= limit ? value : value.substring(0, limit);
-    }
-
-    private String filterString(String domain, String field, String value, ExecutionScope scope) {
-        if (value == null || !maskingSupport.allowedFields(domain, scope).contains(field)) {
-            return null;
-        }
-        return maskingSupport.maskStringValue(domain, field, value, scope);
-    }
-
-    private Integer filterInteger(String domain, String field, Integer value, ExecutionScope scope) {
-        if (value == null || !maskingSupport.allowedFields(domain, scope).contains(field)) {
-            return null;
-        }
-        return value;
-    }
-
-    private boolean applyVerifiedCandidate(DocumentPlanOperation operation, AgentDocumentResult result) {
-        if (result.getGenerationStatus() != DocumentGenerationStatus.SUCCEEDED
-                || result.getGroundingStatus() != GroundingStatus.VERIFIED
-                || result.getCitations() == null
-                || result.getCitations().isEmpty()) {
-            return false;
-        }
-        if (operation == DocumentPlanOperation.ANSWER
-                && result.getCandidateAnswerText() != null
-                && !result.getCandidateAnswerText().isBlank()) {
-            Set<String> allowedCitationIds = allowedCitationIds(result);
-            String answerText = normalizeCitationMarkers(result.getCandidateAnswerText(), allowedCitationIds);
-            if (!candidateCitationsValid(result, List.of(answerText))) {
-                markGeneratedCandidateFallback(result);
-                return false;
-            }
-            result.setAnswerText(truncateGeneratedText(answerText));
-            return true;
-        }
-        if (operation == DocumentPlanOperation.SUMMARIZE
-                && result.getCandidateSummaryText() != null
-                && !result.getCandidateSummaryText().isBlank()) {
-            Set<String> allowedCitationIds = allowedCitationIds(result);
-            List<String> summaryTexts = new java.util.ArrayList<>();
-            String summaryText = normalizeCitationMarkers(result.getCandidateSummaryText(), allowedCitationIds);
-            summaryTexts.add(summaryText);
-            List<String> summaryBullets = result.getCandidateSummaryBullets() == null ? null : result.getCandidateSummaryBullets().stream()
-                    .map(value -> normalizeCitationMarkers(value, allowedCitationIds))
-                    .toList();
-            if (result.getCandidateSummaryBullets() != null) {
-                summaryTexts.addAll(summaryBullets);
-            }
-            if (!candidateCitationsValid(result, summaryTexts)) {
-                markGeneratedCandidateFallback(result);
-                return false;
-            }
-            result.setSummaryText(truncateGeneratedText(summaryText));
-            result.setSummaryBullets(summaryBullets == null ? null : summaryBullets.stream()
-                    .map(this::truncateGeneratedText)
-                    .toList());
-            return true;
-        }
-        return false;
-    }
-
-    private String truncateGeneratedText(String value) {
-        if (value == null) {
-            return null;
-        }
-        int limit = properties.getDocument().getGeneration().getMaxOutputChars();
-        return value.length() <= limit ? value : value.substring(0, limit);
-    }
-
-    private boolean candidateCitationsValid(AgentDocumentResult result, List<String> texts) {
-        Set<String> allowedCitationIds = allowedCitationIds(result);
-        List<String> checkedTexts = texts.stream()
-                .filter(text -> text != null && !text.isBlank())
-                .toList();
-        return !checkedTexts.isEmpty() && checkedTexts.stream()
-                .allMatch(text -> {
-                    Set<String> referencedCitationIds = citationIds(text, allowedCitationIds);
-                    return !referencedCitationIds.isEmpty()
-                            && allowedCitationIds.containsAll(referencedCitationIds);
-                });
-    }
-
-    private static Set<String> allowedCitationIds(AgentDocumentResult result) {
-        return result.getCitations().stream()
-                .filter(citation -> citation.getSnippet() != null && !citation.getSnippet().isBlank())
-                .map(AgentDocumentCitation::getCitationId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toUnmodifiableSet());
-    }
-
-    private static Set<String> citationIds(String text, Set<String> allowedCitationIds) {
-        return CITATION_PATTERN.matcher(text).results()
-                .map(match -> canonicalCitationId(match.group(1), allowedCitationIds))
-                .filter(value -> !value.isBlank())
-                .collect(Collectors.toUnmodifiableSet());
-    }
-
-    private static String normalizeCitationMarkers(String text, Set<String> allowedCitationIds) {
-        if (text == null || allowedCitationIds.isEmpty()) {
-            return text;
-        }
-        var matcher = CITATION_PATTERN.matcher(text);
-        StringBuilder normalized = new StringBuilder();
-        while (matcher.find()) {
-            String id = canonicalCitationId(matcher.group(1), allowedCitationIds);
-            if (allowedCitationIds.contains(id)) {
-                matcher.appendReplacement(normalized, java.util.regex.Matcher.quoteReplacement("[" + id + "]"));
+        for (int index = 0; index < hits.size(); index++) {
+            String publicDocumentId = hits.get(index).getDocumentId();
+            String securedDocumentId = evidence.candidates().get(index).documentId();
+            if (!Objects.equals(publicDocumentId, securedDocumentId)) {
+                throw new IllegalStateException("document result candidate ordering mismatch");
             }
         }
-        matcher.appendTail(normalized);
-        return normalized.toString();
-    }
-
-    private static String canonicalCitationId(String value, Set<String> allowedCitationIds) {
-        if (value == null || allowedCitationIds.isEmpty()) {
-            return "";
+        List<String> citationIds = citations.stream().map(AgentDocumentCitation::getCitationId).toList();
+        if (!citationIds.equals(evidence.evidenceRefs())) {
+            throw new IllegalStateException("document result evidence reference mismatch");
         }
-        String id = value.trim();
-        if (allowedCitationIds.contains(id)) {
-            return id;
+        if (!effective.reference().canonicalDigest().equals(evidence.resourceLimitDigest())) {
+            throw new IllegalStateException("document result resource limit binding mismatch");
         }
-        String withoutLabel = stripCitationLabel(id);
-        if (!withoutLabel.equals(id) && allowedCitationIds.contains(withoutLabel)) {
-            return withoutLabel;
+        String candidateSetDigest = candidateSetCanonicalizer.digest(
+                evidence.candidates(), evidence.evidenceRefs(), AgentExecutionContracts.DOCUMENT_RESULT);
+        if (!candidateSetDigest.equals(evidence.candidateSetDigest())) {
+            throw new IllegalStateException("document result candidate set digest mismatch");
         }
-        return id;
+        DocumentFinalCurrentnessDecision decision = new DocumentFinalCurrentnessDecision(
+                DocumentCurrentnessOutcome.valueOf(evidence.outcome()),
+                evidence.invocationId(), evidence.operationId(), evidence.permissionVersion(),
+                evidence.candidateSetDigest(), evidence.authorizationBindingDigest(), effective.reference(),
+                evidence.aclDecisionVersion(), evidence.emergencyViewVersion(), evidence.checkedAt(),
+                evidence.validUntil(), evidence.decisionDigest(),
+                DocumentSecurityReasonCode.valueOf(evidence.reasonCode()));
+        currentnessVerifier.verify(decision, candidateSetDigest, scope);
     }
 
-    private static String stripCitationLabel(String id) {
-        for (String prefix : List.of("citation:", "citationId:")) {
-            if (id.regionMatches(true, 0, prefix, 0, prefix.length())) {
-                return id.substring(prefix.length()).trim();
-            }
-        }
-        return id;
+    private static Set<String> validateCitations(List<AgentDocumentCitation> citations, DocumentResourceLimit limits){
+        Set<String> ids=new HashSet<>();
+        for(int i=0;i<citations.size();i++){AgentDocumentCitation c=Objects.requireNonNull(citations.get(i));String expected="C"+(i+1);if(!expected.equals(c.getCitationId())||!ids.add(expected))throw new IllegalStateException("citation sequence invalid");if(c.getSnippet()!=null&&c.getSnippet().codePointCount(0,c.getSnippet().length())>limits.output().maxSnippetChars())throw new IllegalStateException("citation snippet exceeds limit");}
+        return Set.copyOf(ids);
     }
-
-    private static void markGeneratedCandidateFallback(AgentDocumentResult result) {
-        result.setGenerationStatus(DocumentGenerationStatus.FALLBACK);
-        result.setGroundingStatus(GroundingStatus.UNVERIFIED);
-    }
-
-    private static void clearCandidateText(AgentDocumentResult result) {
-        result.setCandidateAnswerText(null);
-        result.setCandidateSummaryText(null);
-        result.setCandidateSummaryBullets(null);
-    }
-
-    private static AgentQuerySortParameter copySort(AgentQuerySortParameter source) {
-        AgentQuerySortParameter target = new AgentQuerySortParameter();
-        target.setField(source.getField());
-        target.setDirection(source.getDirection());
-        return target;
-    }
-
-    private static DocumentPlanOperation parseOperation(String operation) {
-        try {
-            return DocumentPlanOperation.valueOf(operation);
-        } catch (RuntimeException ex) {
-            throw new IllegalStateException("invalid document operation", ex);
-        }
-    }
+    private static void validateText(String text,Set<String> ids,int maxChars){if(text==null||text.isBlank())return;if(text.codePointCount(0,text.length())>maxChars)throw new IllegalStateException("document text exceeds limit");for(String unit:text.split("(?:\\R\\s*){2,}|\\R")){if(unit.isBlank())continue;Matcher m=CITATION.matcher(unit);boolean found=false;while(m.find()){found=true;if(!ids.contains(m.group(1)))throw new IllegalStateException("unknown citation marker");}if(!found)throw new IllegalStateException("visible text unit is not citation bound");}}
 }

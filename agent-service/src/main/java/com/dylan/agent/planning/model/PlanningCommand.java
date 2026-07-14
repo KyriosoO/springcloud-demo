@@ -24,6 +24,8 @@ public final class PlanningCommand {
     private final List<RuntimeTurnProjection> history;
     private final AgentProfileRef agentProfileRef;
     private final DelegationConstraintRef delegationConstraintRef;
+    private final String requestedProfile;
+    private final String materialType;
 
     public PlanningCommand(
             InvocationHandle handle,
@@ -31,6 +33,17 @@ public final class PlanningCommand {
             List<RuntimeTurnProjection> history,
             AgentProfileRef agentProfileRef,
             DelegationConstraintRef delegationConstraintRef) {
+        this(handle, userMessage, history, agentProfileRef, delegationConstraintRef, null, null);
+    }
+
+    public PlanningCommand(
+            InvocationHandle handle,
+            String userMessage,
+            List<RuntimeTurnProjection> history,
+            AgentProfileRef agentProfileRef,
+            DelegationConstraintRef delegationConstraintRef,
+            String requestedProfile,
+            String materialType) {
         this.handle = Objects.requireNonNull(handle, "handle must not be null");
         this.userMessage = Objects.requireNonNull(userMessage, "userMessage must not be null");
         if (userMessage.isBlank()) {
@@ -41,6 +54,8 @@ public final class PlanningCommand {
         this.delegationConstraintRef = delegationConstraintRef == null
                 ? DelegationConstraintRef.CHAT_ALL
                 : delegationConstraintRef;
+        this.requestedProfile = normalizeOptional(requestedProfile, "requestedProfile");
+        this.materialType = normalizeOptional(materialType, "materialType");
 
 // 构造器不变量：agentProfileRef 必须等于 InvocationHandle 绑定的目标 Profile。
         if (!handle.agentProfileRef().equals(agentProfileRef)) {
@@ -68,5 +83,19 @@ public final class PlanningCommand {
 
     public DelegationConstraintRef delegationConstraintRef() {
         return delegationConstraintRef;
+    }
+
+    public String requestedProfile() { return requestedProfile; }
+
+    public String materialType() { return materialType; }
+
+    private static String normalizeOptional(String value, String name) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        if (normalized.isEmpty()) return null;
+        if (normalized.length() > 64 || !normalized.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException(name + " is invalid");
+        }
+        return normalized;
     }
 }

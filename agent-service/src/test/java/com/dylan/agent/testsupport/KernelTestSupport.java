@@ -36,6 +36,7 @@ public final class KernelTestSupport {
                 List.of(registration),
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(List.of(registration)),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of());
         return registry.resolve("query.search");
     }
@@ -47,6 +48,8 @@ public final class KernelTestSupport {
                 List.of(registration),
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(List.of(registration)),
+                new com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry(List.of(
+                        new com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract())),
                 Set.of(AdapterRole.DOCUMENT_RETRIEVABLE));
         return registry.resolve("document.search");
     }
@@ -61,6 +64,8 @@ public final class KernelTestSupport {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers("query.search"))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(
@@ -84,6 +89,9 @@ public final class KernelTestSupport {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.DOCUMENT_PLAN)
                 .outputContract(AgentExecutionContracts.DOCUMENT_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.DocumentResourceLimits.declaration(
+                        com.dylan.agent.kernel.resource.DocumentResourceLimits.defaults()))
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.DocumentResourceLimits.consumers("document.search"))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(

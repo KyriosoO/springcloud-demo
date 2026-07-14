@@ -13,7 +13,8 @@ public class ContextRecordRow {
     private String scopeType;
     private String scopeId;
     private String contextType;
-    private String contractSchema;
+    private String contractNamespace;
+    private String contractName;
     private String contractVersion;
     private long recordVersion;
     private String protectedPayloadJson;
@@ -36,8 +37,10 @@ public class ContextRecordRow {
     public void setScopeId(String scopeId) { this.scopeId = scopeId; }
     public String getContextType() { return contextType; }
     public void setContextType(String contextType) { this.contextType = contextType; }
-    public String getContractSchema() { return contractSchema; }
-    public void setContractSchema(String contractSchema) { this.contractSchema = contractSchema; }
+    public String getContractNamespace() { return contractNamespace; }
+    public void setContractNamespace(String contractNamespace) { this.contractNamespace = contractNamespace; }
+    public String getContractName() { return contractName; }
+    public void setContractName(String contractName) { this.contractName = contractName; }
     public String getContractVersion() { return contractVersion; }
     public long getRecordVersion() { return recordVersion; }
     public void setRecordVersion(long recordVersion) { this.recordVersion = recordVersion; }

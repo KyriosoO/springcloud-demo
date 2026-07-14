@@ -22,18 +22,11 @@ public final class DomainSecurityBoundary implements DomainExecutionPort {
         var registration = request.registration();
         var role = registration.registration().definition().adapterRole()
                 .orElseThrow(() -> new IllegalStateException("domain registration requires adapterRole"));
-        var projection = domainMetadataPort.executionProjection(
+        return domainMetadataPort.resolveExecution(
                 role,
                 request.selectedDomain(),
                 request.executionScope(),
                 request.expectedEvidence(),
                 request.absoluteDeadline());
-        var binding = domainMetadataPort.bind(
-                role,
-                request.selectedDomain(),
-                request.executionScope(),
-                request.expectedEvidence(),
-                request.absoluteDeadline());
-        return new DomainExecutionResolution(binding, projection, request.expectedEvidence());
     }
 }

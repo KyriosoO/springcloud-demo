@@ -28,16 +28,20 @@ public class DomainMetadataConfiguration {
     }
 
     @Bean
-    DomainMetadataPort domainMetadataPort(
+    AdapterAvailabilityResolver adapterAvailabilityResolver(
             DomainMetadataStore store,
             ApplicationContext applicationContext,
             Clock clock) {
-        return new DomainMetadataPortImpl(store, applicationContext, clock);
+        return new SpringBeanAdapterAvailabilityResolver(store, applicationContext, clock);
     }
 
     @Bean
-    DomainCatalogView domainCatalogView(DomainMetadataStore store) {
-        return new DomainCatalogView(store);
+    DomainMetadataPort domainMetadataPort(
+            DomainMetadataStore store,
+            ApplicationContext applicationContext,
+            AdapterAvailabilityResolver availabilityResolver,
+            Clock clock) {
+        return new DomainMetadataPortImpl(store, applicationContext, availabilityResolver, clock);
     }
 
     @Bean

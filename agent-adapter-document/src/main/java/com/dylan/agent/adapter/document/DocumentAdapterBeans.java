@@ -1,6 +1,5 @@
 package com.dylan.agent.adapter.document;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -8,19 +7,17 @@ import org.springframework.context.annotation.Configuration;
 public class DocumentAdapterBeans {
 
     @Bean
-    DocumentRetrievalMapper documentRetrievalMapper(ObjectMapper objectMapper) {
-        return new DocumentRetrievalMapper(objectMapper, new DocumentAclFilterFactory());
+    DocumentRetrievalMapper documentRetrievalMapper() {
+        return new DocumentRetrievalMapper();
     }
 
     @Bean
-    DocumentAclFilterFactory documentAclFilterFactory() {
-        return new DocumentAclFilterFactory();
+    DocumentEvidenceMapper documentEvidenceMapper() {
+        return new DocumentEvidenceMapper();
     }
 
     @Bean
-    DocumentEvidenceMapper documentEvidenceMapper(
-            ObjectMapper objectMapper,
-            DocumentAdapterProperties properties) {
-        return new DocumentEvidenceMapper(objectMapper, properties);
+    DocumentRetrievalResponseBindingValidator documentRetrievalResponseBindingValidator() {
+        return new DocumentRetrievalResponseBindingValidator();
     }
 }

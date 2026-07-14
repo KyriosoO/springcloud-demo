@@ -1,6 +1,9 @@
 package com.dylan.agent.capability.document.rewrite;
 
-/** Java 调用 Runtime 获取不可信改写候选的端口。 */
+import com.dylan.agent.adapter.api.document.provider.DocumentRewriteOperationRequest;
+import com.dylan.agent.adapter.api.document.provider.DocumentUntrustedRewritePayload;
+import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
+
 public interface DocumentQueryRewritePort {
-    DocumentRewriteResponse rewrite(DocumentRewriteRequest request);
+    CapabilityOperationOutcome<DocumentUntrustedRewritePayload> rewrite(DocumentRewriteOperationRequest request);
 }

@@ -12,7 +12,4 @@ public record DocumentRevocationDecision(
         return new DocumentRevocationDecision(false, "NONE", "", "", "");
     }
 
-    public static DocumentRevocationDecision localBlocklist(String target, String targetId) {
-        return new DocumentRevocationDecision(true, "LOCAL_BLOCKLIST", target, targetId, "document target is blocklisted");
-    }
 }

@@ -17,7 +17,7 @@ class DomainAvailabilitySnapshotTest {
 
     @Test
     void defensivelyCopiesAvailableDomainsWithoutCarryingFieldCatalogFacts() {
-        var evidence = DomainMetadataTestSupport.store().current().evidence();
+        var evidence = DomainMetadataTestSupport.currentEvidence();
         Set<String> domains = new LinkedHashSet<>(Set.of("employee"));
         Map<AdapterRole, Set<String>> available = new LinkedHashMap<>();
         available.put(AdapterRole.QUERYABLE, domains);

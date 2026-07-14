@@ -36,11 +36,7 @@ class UserPermissionAuthorityProductionWiringTest {
                     "agent.auth-service.base-url=http://auth-service",
                     "agent.auth-service.resolve-path=/internal/agent/permissions/resolve",
                     "agent.auth-service.connect-timeout=500ms",
-                    "agent.auth-service.read-timeout=2s",
-                    "agent.auth-service.agent-id=agent-default",
-                    "agent.auth-service.profile-id=profile-v1",
-                    "agent.auth-service.scope-type=CONVERSATION",
-                    "agent.auth-service.scope-id=agent-permission-authority");
+                    "agent.auth-service.read-timeout=2s");
 
     @Test
     void productionContextHasExactlyOneAuthorityPortBean() {
@@ -67,11 +63,7 @@ class UserPermissionAuthorityProductionWiringTest {
                         "agent.auth-service.base-url=http://auth-service",
                         "agent.auth-service.resolve-path=/internal/agent/permissions/resolve",
                         "agent.auth-service.connect-timeout=500ms",
-                        "agent.auth-service.read-timeout=2s",
-                        "agent.auth-service.agent-id=agent-default",
-                        "agent.auth-service.profile-id=profile-v1",
-                        "agent.auth-service.scope-type=CONVERSATION",
-                        "agent.auth-service.scope-id=agent-permission-authority")
+                        "agent.auth-service.read-timeout=2s")
                 .run(context -> assertThat(context).hasFailed());
     }
 }

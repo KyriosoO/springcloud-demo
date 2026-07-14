@@ -15,9 +15,7 @@ public record CanonicalRoleCapability(
         Set<String> fields,
         Set<String> sortFields,
         Map<String, Set<AgentOperator>> operatorsByField,
-        Map<String, Set<AggregateFunction>> functionsByField,
-        int maxPageSize,
-        int maxResultRows) {
+        Map<String, Set<AggregateFunction>> functionsByField) {
 
     public CanonicalRoleCapability {
         Objects.requireNonNull(role, "role must not be null");
@@ -32,9 +30,6 @@ public record CanonicalRoleCapability(
         }
         operatorsByField = copyMap(operatorsByField);
         functionsByField = copyMap(functionsByField);
-        if (maxPageSize < 0 || maxResultRows < 0) {
-            throw new IllegalArgumentException("role limits must be non-negative");
-        }
     }
 
     private static <T> Map<String, Set<T>> copyMap(Map<String, Set<T>> source) {

@@ -10,6 +10,8 @@ import com.dylan.agent.api.response.AgentAggregateResult;
 import com.dylan.agent.api.response.AgentAggregateRow;
 import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
+import com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit;
 
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
@@ -34,12 +36,18 @@ public final class AggregateResultSecurityProjector implements ResultSecurityPro
     public Class<AggregateAgentResultPayload> payloadType() { return AggregateAgentResultPayload.class; }
 
     @Override
-    public FilteredResult<AggregateAgentResultPayload> filter(AggregateAgentResultPayload candidate, ExecutionScope scope) {
+    public FilteredResult<AggregateAgentResultPayload> filter(
+            AggregateAgentResultPayload candidate,
+            ExecutionScope scope,
+            EffectiveCapabilityResourceLimits limits) {
+        int maxRows = limits.require(
+                AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                StandardCapabilityResourceLimit.class).maxResultRows();
         String domain = resolveDomain(candidate);
         requireDomainWhenData(domain, hasFieldBearingData(candidate));
         AggregateAgentResultPayload filtered = new AggregateAgentResultPayload(
                 filterParameters(domain, candidate.getAggregateParameters(), scope),
-                filterAggregate(domain, candidate.getAggregateResult(), scope));
+                filterAggregate(domain, candidate.getAggregateResult(), scope, maxRows));
         return new FilteredResult<>(filtered, "聚合完成", "聚合结果已按当前执行范围过滤和脱敏");
     }
 
@@ -66,7 +74,8 @@ public final class AggregateResultSecurityProjector implements ResultSecurityPro
     private AgentAggregateResult filterAggregate(
             String domain,
             AgentAggregateResult source,
-            ExecutionScope scope) {
+            ExecutionScope scope,
+            int maxRows) {
         if (source == null) {
             return null;
         }
@@ -76,6 +85,7 @@ public final class AggregateResultSecurityProjector implements ResultSecurityPro
         target.setMetricAliases(copyList(source.getMetricAliases()));
         target.setRows(source.getRows() == null ? null : source.getRows().stream()
                 .map(row -> filterRow(domain, row, scope))
+                .limit(maxRows)
                 .toList());
         target.setPartial(source.isPartial());
         return target;

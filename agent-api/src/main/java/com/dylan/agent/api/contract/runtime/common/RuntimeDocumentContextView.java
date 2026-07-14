@@ -31,6 +31,9 @@ public final class RuntimeDocumentContextView implements RuntimeContextView {
     @Schema(description = "上轮文档 domain", nullable = true)
     private String domain;
 
+    @Schema(description = "上轮文档 materialType", nullable = true)
+    private String materialType;
+
     @Schema(description = "上轮文档查询文本", nullable = true)
     private String queryText;
 
@@ -39,13 +42,12 @@ public final class RuntimeDocumentContextView implements RuntimeContextView {
     @Valid
     private List<@Valid AgentFilter> filters = Collections.emptyList();
 
-    @Schema(description = "上轮引用 ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull
-    private List<String> citationIds = Collections.emptyList();
-
     @Schema(description = "上轮 topK", nullable = true)
     @Min(1)
     private Integer topK;
+
+    @Schema(description = "上轮摘要范围安全视图", nullable = true)
+    private String summaryScope;
 
     public RuntimeDocumentContextView() {
     }
@@ -59,12 +61,14 @@ public final class RuntimeDocumentContextView implements RuntimeContextView {
     public void setOperation(String operation) { this.operation = operation; }
     public String getDomain() { return domain; }
     public void setDomain(String domain) { this.domain = domain; }
+    public String getMaterialType() { return materialType; }
+    public void setMaterialType(String materialType) { this.materialType = materialType; }
     public String getQueryText() { return queryText; }
     public void setQueryText(String queryText) { this.queryText = queryText; }
     public List<AgentFilter> getFilters() { return filters == null ? Collections.emptyList() : Collections.unmodifiableList(filters); }
     public void setFilters(List<AgentFilter> filters) { this.filters = filters == null ? null : new ArrayList<>(filters); }
-    public List<String> getCitationIds() { return citationIds == null ? Collections.emptyList() : Collections.unmodifiableList(citationIds); }
-    public void setCitationIds(List<String> citationIds) { this.citationIds = citationIds == null ? null : new ArrayList<>(citationIds); }
     public Integer getTopK() { return topK; }
     public void setTopK(Integer topK) { this.topK = topK; }
+    public String getSummaryScope() { return summaryScope; }
+    public void setSummaryScope(String summaryScope) { this.summaryScope = summaryScope; }
 }

@@ -25,6 +25,9 @@ public final class ExecutionCommand {
         this.cancellation = Objects.requireNonNull(cancellation);
 
         // 构造器校验：Handle 与 PlanningResult 的 correlation、subject/owner/scope、deadline 一致
+        if (!handle.invocationId().equals(planningResult.invocationId())) {
+            throw new IllegalArgumentException("invocationId mismatch");
+        }
         if (!handle.requestCorrelationId().equals(planningResult.requestCorrelationId())) {
             throw new IllegalArgumentException(
                     "correlation mismatch: handle=" + handle.requestCorrelationId()
@@ -32,6 +35,9 @@ public final class ExecutionCommand {
         }
         if (!handle.absoluteDeadline().equals(planningResult.absoluteDeadline())) {
             throw new IllegalArgumentException("absoluteDeadline mismatch");
+        }
+        if (!planningResult.hasValidArtifactIdentity()) {
+            throw new IllegalArgumentException("planning artifact binding digest mismatch");
         }
     }
 

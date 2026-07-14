@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -88,22 +87,20 @@ public class AgentPermissionProjectionService {
             throw new AgentPermissionException(AgentPermissionErrorCode.AGENT_PERMISSION_SUBJECT_NOT_FOUND);
         }
         Projection projection = projectionFor(roles);
-        // 请求参数只能缩小 auth-service 已授权范围，不能因请求方声明而扩大权限。
-        Projection narrowed = projection.narrow(request.requestedCapabilityIds(), request.requestedDomains());
         Instant resolvedAt = Instant.now(clock);
         return new AgentPermissionResolveResponse(
                 request.subject(),
-                evidenceId(request.subject(), narrowed),
+                evidenceId(request.subject(), projection),
                 RULE_VERSION,
-                narrowed.allowedCapabilityIds(),
-                narrowed.allowedDomains(),
-                narrowed.filterableFields(),
-                narrowed.displayableFields(),
-                narrowed.allowedOperators(),
-                narrowed.allowedFunctions(),
-                narrowed.readableContextTypes(),
-                narrowed.writableContextTypes(),
-                narrowed.attributes(),
+                projection.allowedCapabilityIds(),
+                projection.allowedDomains(),
+                projection.filterableFields(),
+                projection.displayableFields(),
+                projection.allowedOperators(),
+                projection.allowedFunctions(),
+                projection.readableContextTypes(),
+                projection.writableContextTypes(),
+                projection.attributes(),
                 resolvedAt);
     }
 
@@ -114,11 +111,7 @@ public class AgentPermissionProjectionService {
                 || isBlank(request.subject().type())
                 || isBlank(request.subject().id())
                 || request.requestedAt() == null
-                || request.deadline() == null
-                || isBlank(request.agentId())
-                || isBlank(request.profileId())
-                || isBlank(request.scopeType())
-                || isBlank(request.scopeId())) {
+                || request.deadline() == null) {
             throw new AgentPermissionException(AgentPermissionErrorCode.AGENT_PERMISSION_INVALID_REQUEST);
         }
         if (!REQUIRED_SUBJECT_TYPE.equals(request.subject().type())) {
@@ -288,23 +281,6 @@ public class AgentPermissionProjectionService {
             attributes = new TreeMap<>(attributes == null ? Map.of() : attributes);
         }
 
-        Projection narrow(Set<String> requestedCapabilityIds, Set<String> requestedDomains) {
-            Set<String> capabilities = intersect(allowedCapabilityIds, requestedCapabilityIds);
-            Set<String> domains = intersect(allowedDomains, requestedDomains);
-            Map<String, Set<String>> filterable = restrictDomainMap(filterableFields, domains);
-            Map<String, Set<String>> displayable = restrictDomainMap(displayableFields, domains);
-            return new Projection(
-                    capabilities,
-                    domains,
-                    filterable,
-                    displayable,
-                    restrictFieldMap(allowedOperators, domains),
-                    capabilities.contains("aggregate.compute") ? restrictFieldMap(allowedFunctions, domains) : Map.of(),
-                    readableContextTypes,
-                    writableContextTypes,
-                    attributes);
-        }
-
         String canonical() {
             return allowedCapabilityIds + "|"
                     + allowedDomains + "|"
@@ -315,44 +291,6 @@ public class AgentPermissionProjectionService {
                     + readableContextTypes + "|"
                     + writableContextTypes + "|"
                     + attributes;
-        }
-
-        private static Set<String> intersect(Set<String> source, Set<String> requested) {
-            if (requested == null || requested.isEmpty()) {
-                return source;
-            }
-            return source.stream()
-                    .filter(requested::contains)
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-        }
-
-        private static Map<String, Set<String>> restrictDomainMap(
-                Map<String, Set<String>> source,
-                Set<String> allowedDomains) {
-            return source.entrySet().stream()
-                    .filter(entry -> allowedDomains.contains(entry.getKey()))
-                    .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            Map.Entry::getValue,
-                            (left, right) -> left,
-                            LinkedHashMap::new));
-        }
-
-        private static Map<String, Set<String>> restrictFieldMap(
-                Map<String, Set<String>> source,
-                Set<String> allowedDomains) {
-            return source.entrySet().stream()
-                    .filter(entry -> allowedDomains.contains(domainOf(entry.getKey())))
-                    .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            Map.Entry::getValue,
-                            (left, right) -> left,
-                            LinkedHashMap::new));
-        }
-
-        private static String domainOf(String fieldKey) {
-            int dotIndex = fieldKey.indexOf('.');
-            return dotIndex < 0 ? fieldKey : fieldKey.substring(0, dotIndex);
         }
 
         private static Set<String> orderedSet(Set<String> values) {

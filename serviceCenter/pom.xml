@@ -156,7 +156,7 @@
 		<module>../employee-service</module>
 		<module>../es-query-service</module>
 		<module>../workflow-service</module>
-		<module>../document-generation-adapter</module>
+		<module>../document-provider-adapter</module>
 		<module>../agent-service</module>
 	</modules>
 </project>

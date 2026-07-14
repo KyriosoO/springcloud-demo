@@ -59,6 +59,6 @@ public final class SecretMaterialJwtKeyProvider implements JwtKeyProvider {
 		if (key == null) {
 			throw new SecretMaterialException("Missing JWT key config for keyId " + keyId, null, true);
 		}
-		return new SecretKeyRef(SecretPurpose.JWT_HMAC, keyId, key.getEnv(), key.getValue());
+		return new SecretKeyRef(SecretPurpose.JWT_HMAC, keyId);
 	}
 }

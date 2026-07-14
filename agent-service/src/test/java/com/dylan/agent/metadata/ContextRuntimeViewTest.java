@@ -29,8 +29,6 @@ import com.dylan.agent.kernel.port.model.ExpectedContextVersion;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
-import com.dylan.agent.metadata.config.AgentSecuritySettings;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.internal.ContextBoundary;
 import com.dylan.agent.metadata.context.model.ContextRecordKey;
 import com.dylan.agent.metadata.context.model.ContextSnapshot;
@@ -41,7 +39,7 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewProjectsMinimalQueryContext() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = boundary.toRuntimeView(snapshot(), declaration(), evidence());
@@ -53,7 +51,7 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewOnlyProjectsReadableFields() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = (RuntimeQueryContextView) boundary.toRuntimeView(snapshot(), declaration(), evidence());
@@ -67,7 +65,7 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewProjectsPaginationTotalsWhenReadable() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = (RuntimeQueryContextView) boundary.toRuntimeView(
@@ -88,7 +86,7 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewIncludesSortsWhenReadable() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = (RuntimeQueryContextView) boundary.toRuntimeView(
@@ -110,7 +108,7 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewIncludesAggregateOrderByWhenReadable() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = (RuntimeAggregateContextView) boundary.toRuntimeView(
@@ -132,7 +130,7 @@ class ContextRuntimeViewTest {
     @Test
     void toRuntimeViewProjectsDocumentContext() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 java.time.Clock.fixed(MetadataTestSupport.NOW, java.time.ZoneOffset.UTC));
 
         var view = (RuntimeDocumentContextView) boundary.toRuntimeView(
@@ -142,14 +140,15 @@ class ContextRuntimeViewTest {
                         AgentExecutionContracts.DOCUMENT_CONTEXT,
                         DocumentCapabilityContextPayload.class,
                         false,
-                        Set.of("operation", "domain", "queryText", "citationIds", "topK")),
+                        Set.of("operation", "domain", "materialType", "queryText", "topK", "summaryScope")),
                 documentEvidence());
 
         assertThat(view.getOperation()).isEqualTo("ANSWER");
         assertThat(view.getDomain()).isEqualTo("tax_policy");
+        assertThat(view.getMaterialType()).isEqualTo("policy");
         assertThat(view.getQueryText()).isEqualTo("当前增值税率有哪些？");
-        assertThat(view.getCitationIds()).containsExactly("chunk-1");
         assertThat(view.getTopK()).isEqualTo(5);
+        assertThat(view.getSummaryScope()).isEqualTo("CUSTOM");
         assertThat(view.getFilters()).isEmpty();
     }
 
@@ -242,8 +241,8 @@ class ContextRuntimeViewTest {
                 "bundle-v1", "policy-v1", "perm", null,
                 ExpectedContextVersion.version(1),
                 new DocumentCapabilityContextPayload(
-                        "ANSWER", "tax_policy", "当前增值税率有哪些？",
-                        List.of(), List.of("chunk-1"), 5));
+                        "ANSWER", "tax_policy", "policy", "当前增值税率有哪些？",
+                        List.of(), 5, "CUSTOM"));
     }
 
     static ContextReadDeclaration declaration() {
@@ -258,16 +257,16 @@ class ContextRuntimeViewTest {
     static PlanningAuthorizationEvidence evidence() {
         var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
         var profile = bundle.profileVersionIndex().values().iterator().next();
-        return new PlanningAuthorizationEvidence(
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "corr", "user:u-1", profile.key(), bundle.bundleVersion(), bundle.bundleDigest(),
                 "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
                 new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
-                new PlanningEffectiveScope(Set.of("query.search"), Set.of("employee"), Map.of(),
+                com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(Set.of("query.search"), Set.of("employee"), Map.of(),
                         Set.of(RuntimeContextType.QUERY), Set.of(RuntimeContextType.QUERY),
                         com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
                         com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
                         Duration.ofSeconds(30), 1, 100, 100, 10_000),
-                new DomainMetadataEvidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW,
                 MetadataTestSupport.NOW.plusSeconds(60));
     }
@@ -275,16 +274,16 @@ class ContextRuntimeViewTest {
     static PlanningAuthorizationEvidence aggregateEvidence() {
         var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
         var profile = bundle.profileVersionIndex().values().iterator().next();
-        return new PlanningAuthorizationEvidence(
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "corr", "user:u-1", profile.key(), bundle.bundleVersion(), bundle.bundleDigest(),
                 "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
                 new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
-                new PlanningEffectiveScope(Set.of("aggregate.compute"), Set.of("transaction"), Map.of(),
+                com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(Set.of("aggregate.compute"), Set.of("transaction"), Map.of(),
                         Set.of(RuntimeContextType.AGGREGATE), Set.of(RuntimeContextType.AGGREGATE),
                         com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
                         com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
                         Duration.ofSeconds(30), 1, 100, 100, 10_000),
-                new DomainMetadataEvidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW,
                 MetadataTestSupport.NOW.plusSeconds(60));
     }
@@ -292,22 +291,18 @@ class ContextRuntimeViewTest {
     static PlanningAuthorizationEvidence documentEvidence() {
         var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
         var profile = bundle.profileVersionIndex().values().iterator().next();
-        return new PlanningAuthorizationEvidence(
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "corr", "user:u-1", profile.key(), bundle.bundleVersion(), bundle.bundleDigest(),
                 "policy-v1", "perm", "perm-v1", DelegationConstraintRef.CHAT_ALL,
                 new com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
-                new PlanningEffectiveScope(Set.of("document.answer"), Set.of("tax_policy"), Map.of(),
+                com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(Set.of("document.answer"), Set.of("tax_policy"), Map.of(),
                         Set.of(RuntimeContextType.DOCUMENT), Set.of(RuntimeContextType.DOCUMENT),
                         com.dylan.agent.api.capability.AgentCapabilityRiskLevel.READ_ONLY,
                         com.dylan.agent.api.capability.AgentCapabilityExecutionMode.IMMEDIATE,
                         Duration.ofSeconds(30), 1, 100, 100, 10_000),
-                new DomainMetadataEvidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW,
                 MetadataTestSupport.NOW.plusSeconds(60));
     }
 
-    private static AgentSecuritySettingsRegistry settings() {
-        return new AgentSecuritySettingsRegistry(
-                new AgentSecuritySettings(Duration.ofHours(1), Duration.ZERO, 10, "ACTIVE"));
-    }
 }

@@ -37,7 +37,9 @@ public class AggregateCapabilityHandler
             ValidatedAggregatePlan plan,
             ExecutionContext context) {
         AggregatableAdapter adapter = context.requireAdapter(AggregatableAdapter.class);
-        AdapterAggregateResult adapterResult = adapter.aggregate(plan.aggregate());
+        AdapterAggregateResult adapterResult = adapter.aggregate(
+                plan.aggregate(),
+                context.operationContext(com.dylan.agent.adapter.api.operation.CapabilityOperationType.of("DOMAIN_AGGREGATE")));
         AggregateAgentResultPayload payload = new AggregateAgentResultPayload(
                 toAggregateParameters(plan),
                 toKernelAggregateResult(plan, adapterResult));

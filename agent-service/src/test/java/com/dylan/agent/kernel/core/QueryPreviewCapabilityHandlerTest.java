@@ -55,7 +55,7 @@ class QueryPreviewCapabilityHandlerTest {
     }
 
     private ExecutionContext context(ValidatedQuery expectedQuery) {
-        QueryableAdapter adapter = query -> {
+        QueryableAdapter adapter = (query, operationContext) -> {
             assertThat(query).isSameAs(expectedQuery);
             return new AdapterQueryResult(
                     List.of(
@@ -67,18 +67,22 @@ class QueryPreviewCapabilityHandlerTest {
                     1,
                     2);
         };
+        ExecutionScope scope = executionScope();
         return new ExecutionContext(
                 "inv-1",
+                "corr-1",
+                "query.preview",
                 new ExecutionSubjectRef("user", "u-1"),
                 new ContextOwnerRef("conversation", "conv-1"),
                 new ConversationScope("conv-1"),
-                executionScope(),
-                new AdapterExecutionBinding(
+                scope,
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.binding(
                         AdapterRole.QUERYABLE,
                         "employee",
                         QueryableAdapter.class,
                         adapter,
                         "adapter-v1",
+                        scope.domainMetadataEvidence(),
                         Instant.parse("2026-07-02T00:00:00Z")),
                 Instant.parse("2026-07-02T00:01:00Z"),
                 new CancellationSource().token());
@@ -86,9 +90,9 @@ class QueryPreviewCapabilityHandlerTest {
 
     private ExecutionScope executionScope() {
         Instant now = Instant.parse("2026-07-02T00:00:00Z");
-        return new ExecutionScope(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
-                new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability", now),
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability", now),
                 now,
                 "perm-evidence",
                 "perm-v1",
@@ -97,9 +101,6 @@ class QueryPreviewCapabilityHandlerTest {
                 Set.of("employee"),
                 Map.of("employee", Set.of("name", "email")),
                 Map.of(),
-                Duration.ofSeconds(30),
-                1,
-                20,
-                1024 * 1024);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(20, 20, 1024 * 1024));
     }
 }

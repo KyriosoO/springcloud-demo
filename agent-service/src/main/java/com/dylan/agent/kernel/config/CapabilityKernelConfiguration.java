@@ -11,6 +11,9 @@ import com.dylan.agent.kernel.registration.CapabilityRegistration;
 import com.dylan.agent.kernel.registration.CapabilityRegistrationValidator;
 import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
+import com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry;
+import com.dylan.agent.kernel.resource.StandardCapabilityResourceLimitContract;
+import com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -34,11 +37,20 @@ public class CapabilityKernelConfiguration {
     }
 
     @Bean
+    public CapabilityResourceLimitRegistry capabilityResourceLimitRegistry() {
+        return new CapabilityResourceLimitRegistry(List.of(
+                new StandardCapabilityResourceLimitContract(),
+                new DocumentCapabilityResourceLimitContract()));
+    }
+
+    @Bean
     public CapabilityRegistry capabilityRegistry(List<CapabilityRegistration<?, ?, ?>> registrations,
                                                  ContractRegistry contracts,
+                                                 CapabilityResourceLimitRegistry resourceContracts,
                                                  CapabilityRegistrationValidator validator,
                                                  DomainMetadataPort domainMetadataPort) {
-        return new CapabilityRegistry(registrations, validator, contracts, domainMetadataPort.knownRoles());
+        return new CapabilityRegistry(
+                registrations, validator, contracts, resourceContracts, domainMetadataPort.knownRoles());
     }
 
     @Bean

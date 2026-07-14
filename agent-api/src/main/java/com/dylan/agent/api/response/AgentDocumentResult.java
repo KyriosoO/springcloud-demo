@@ -1,6 +1,5 @@
 package com.dylan.agent.api.response;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 
 /** 文档能力最终安全结果。 */
@@ -16,9 +15,6 @@ public class AgentDocumentResult {
     private DocumentGenerationStatus generationStatus;
     private GroundingStatus groundingStatus;
     private AgentDocumentCitationVerification citationVerification;
-    private String candidateAnswerText;
-    private String candidateSummaryText;
-    private List<String> candidateSummaryBullets;
 
     public String getAnswerText() { return answerText; }
     public void setAnswerText(String answerText) { this.answerText = answerText; }
@@ -40,16 +36,4 @@ public class AgentDocumentResult {
     public void setGroundingStatus(GroundingStatus groundingStatus) { this.groundingStatus = groundingStatus; }
     public AgentDocumentCitationVerification getCitationVerification() { return citationVerification; }
     public void setCitationVerification(AgentDocumentCitationVerification citationVerification) { this.citationVerification = citationVerification; }
-    @JsonIgnore
-    public String getCandidateAnswerText() { return candidateAnswerText; }
-    @JsonIgnore
-    public void setCandidateAnswerText(String candidateAnswerText) { this.candidateAnswerText = candidateAnswerText; }
-    @JsonIgnore
-    public String getCandidateSummaryText() { return candidateSummaryText; }
-    @JsonIgnore
-    public void setCandidateSummaryText(String candidateSummaryText) { this.candidateSummaryText = candidateSummaryText; }
-    @JsonIgnore
-    public List<String> getCandidateSummaryBullets() { return candidateSummaryBullets; }
-    @JsonIgnore
-    public void setCandidateSummaryBullets(List<String> candidateSummaryBullets) { this.candidateSummaryBullets = candidateSummaryBullets; }
 }

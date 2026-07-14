@@ -39,7 +39,6 @@ import com.dylan.agent.kernel.definition.CapabilityRoutingDescriptor;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.metadata.MetadataTestSupport;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
-import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.port.AuthorizationPlanningPort;
@@ -104,6 +103,7 @@ class PlanningServiceTest {
                 new PlanOutcomeValidator(),
                 new PlanningClarificationResolver(),
                 new AgentRuntimeErrorMapper(),
+                PlanningArtifactAssembler.identity(),
                 CLOCK);
     }
 
@@ -118,7 +118,7 @@ class PlanningServiceTest {
         when(requestFactory.routeRequest(any(), any(), any())).thenReturn(new RouteRequest());
         when(runtimeClient.route(any())).thenReturn(routeDecision());
         when(selectionResolver.resolve(any(), any())).thenReturn(registration);
-        when(requestFactory.planRequest(any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
+        when(requestFactory.planRequest(any(), any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
         when(runtimeClient.plan(any())).thenReturn(executablePlan());
         when(authorizationPlanningPort.freezeCapabilityScope(any(), any())).thenReturn(authorizationSnapshot);
 
@@ -131,8 +131,8 @@ class PlanningServiceTest {
         assertThat(result.planAudit().operation()).isEqualTo(RuntimeOperationType.PLAN);
         InOrder order = inOrder(runtimeClient, authorizationPlanningPort);
         order.verify(runtimeClient).route(any());
-        order.verify(runtimeClient).plan(any());
         order.verify(authorizationPlanningPort).freezeCapabilityScope(any(), any(CapabilityScopeSelection.class));
+        order.verify(runtimeClient).plan(any());
     }
 
     @Test
@@ -163,7 +163,7 @@ class PlanningServiceTest {
         when(requestFactory.routeRequest(any(), any(), any())).thenReturn(new RouteRequest());
         when(runtimeClient.route(any())).thenReturn(routeDecision());
         when(selectionResolver.resolve(any(), any())).thenReturn(registration);
-        when(requestFactory.planRequest(any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
+        when(requestFactory.planRequest(any(), any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
         when(runtimeClient.plan(any())).thenThrow(new RuntimeOperationException(
                 RuntimeOperationType.PLAN,
                 RuntimeOperationFailure.PROVIDER,
@@ -194,7 +194,7 @@ class PlanningServiceTest {
         when(requestFactory.routeRequest(any(), any(), any())).thenReturn(new RouteRequest());
         when(runtimeClient.route(any())).thenReturn(routeDecision());
         when(selectionResolver.resolve(any(), any())).thenReturn(registration);
-        when(requestFactory.planRequest(any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
+        when(requestFactory.planRequest(any(), any(), any(), any(), any(), any())).thenReturn(new PlanRequest());
         when(runtimeClient.plan(any())).thenReturn(fieldForbiddenClarification());
 
         assertThatThrownBy(() -> service.plan(command(), token()))
@@ -252,9 +252,8 @@ class PlanningServiceTest {
     }
 
     private static PlanningCommand command() {
-        InvocationHandle handle = InvocationHandle.create(
+        InvocationHandle handle = InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("user", "u-1"),
@@ -277,7 +276,7 @@ class PlanningServiceTest {
     private static PlanningAuthorizationEvidence evidence() {
         var bundle = MetadataTestSupport.bundle("bundle-v1", "digest-v1");
         var profile = bundle.requireProfile(new AgentProfileVersionKey("agent-default", "profile-v1"));
-        return new PlanningAuthorizationEvidence(
+        return com.dylan.agent.testsupport.PlanningAuthorizationEvidenceTestFactory.create(
                 "req-1",
                 "user:u-1",
                 profile.key(),
@@ -288,7 +287,7 @@ class PlanningServiceTest {
                 "perm-v1",
                 DelegationConstraintRef.CHAT_ALL,
                 new EffectiveProfileCalculator().compute(profile, bundle.activePolicy()),
-                new com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope(
+                com.dylan.agent.testsupport.PlanningEffectiveScopeTestFactory.create(
                         Set.of("query.search"),
                         Set.of("employee"),
                         Map.of(),
@@ -319,17 +318,12 @@ class PlanningServiceTest {
                         Set.of(),
                         AgentCapabilityRiskLevel.READ_ONLY,
                         AgentCapabilityExecutionMode.IMMEDIATE,
-                        Duration.ofSeconds(30),
-                        1,
-                        100,
-                        100,
-                        10_000,
                         registration.registrationIdentity())),
                 MetadataTestSupport.NOW);
     }
 
     private static DomainMetadataEvidence domainEvidence() {
-        return new DomainMetadataEvidence("catalog-v1", "adapter-v1", "availability-v1", MetadataTestSupport.NOW);
+        return com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog-v1", "adapter-v1", "availability-v1", MetadataTestSupport.NOW);
     }
 
     private static RouteDecision routeDecision() {
@@ -376,7 +370,7 @@ class PlanningServiceTest {
     }
 
     private static AuthorizationSnapshot authorizationSnapshot() {
-        return new AuthorizationSnapshot(
+        return com.dylan.agent.testsupport.AuthorizationSnapshotTestFactory.create(
                 "auth-req-1",
                 "user:u-1",
                 "profile-v1",
@@ -387,6 +381,6 @@ class PlanningServiceTest {
                 Map.of(),
                 MetadataTestSupport.NOW,
                 domainEvidence(),
-                new ExecutionBudget(1, 100, 10_000));
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 }

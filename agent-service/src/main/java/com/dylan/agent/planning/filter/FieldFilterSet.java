@@ -38,12 +38,6 @@ final class FieldFilterSet {
         this.upperBound = null;
     }
 
-    void clearAtomic() { this.atomic = null; }
-    void clearRange() {
-        this.lowerBound = null;
-        this.upperBound = null;
-    }
-
     FieldFilterSet copy() {
         FieldFilterSet c = new FieldFilterSet();
         c.atomic = this.atomic;

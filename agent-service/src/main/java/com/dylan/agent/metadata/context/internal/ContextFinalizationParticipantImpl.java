@@ -2,7 +2,6 @@ package com.dylan.agent.metadata.context.internal;
 
 import com.dylan.agent.kernel.port.model.ApprovedContextWrite;
 import com.dylan.agent.lifecycle.port.ContextFinalizationParticipant;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 import com.dylan.agent.metadata.crypto.model.PayloadProtectionContext;
 import com.dylan.agent.metadata.crypto.model.PayloadPurpose;
@@ -24,19 +23,16 @@ public class ContextFinalizationParticipantImpl implements ContextFinalizationPa
     private final ContextRepository repository;
     private final PayloadJsonCodec jsonCodec;
     private final ProtectedPayloadCodec protectedPayloadCodec;
-    private final AgentSecuritySettingsRegistry settingsRegistry;
     private final Clock clock;
 
     public ContextFinalizationParticipantImpl(
             ContextRepository repository,
             PayloadJsonCodec jsonCodec,
             ProtectedPayloadCodec protectedPayloadCodec,
-            AgentSecuritySettingsRegistry settingsRegistry,
             Clock clock) {
         this.repository = Objects.requireNonNull(repository);
         this.jsonCodec = Objects.requireNonNull(jsonCodec);
         this.protectedPayloadCodec = Objects.requireNonNull(protectedPayloadCodec);
-        this.settingsRegistry = Objects.requireNonNull(settingsRegistry);
         this.clock = Objects.requireNonNull(clock);
     }
 
@@ -71,9 +67,8 @@ public class ContextFinalizationParticipantImpl implements ContextFinalizationPa
     }
 
     private void assertStrictExpiry(ApprovedContextWrite write) {
-        Instant maxAllowed = clock.instant().plus(settingsRegistry.current().globalMaxContextTtl());
-        if (write.expiresAt().isAfter(maxAllowed)) {
-            throw new IllegalStateException("approved context write exceeds current globalMaxContextTtl");
+        if (!write.expiresAt().isAfter(clock.instant())) {
+            throw new IllegalStateException("approved context write must expire in the future");
         }
     }
 

@@ -3,7 +3,7 @@ package com.dylan.common.security;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 /**
- * 安全 token 工具类，统一识别用户 token 和服务 token。
+ * 安全 token 工具类，统一执行服务 token 的精确识别。
  */
 public final class SecurityTokenUtils {
 	/**
@@ -26,25 +26,7 @@ public final class SecurityTokenUtils {
 	 * 判断是否为服务 token。
 	 */
 	public static boolean isServiceToken(Jwt jwt) {
-		return SERVICE_TOKEN_TYPE.equals(tokenType(jwt));
-	}
-
-	/**
-	 * 判断是否为用户 token。
-	 */
-	public static boolean isUserToken(Jwt jwt) {
-		return USER_TOKEN_TYPE.equals(tokenType(jwt));
-	}
-
-	/**
-	 * 返回 token 类型；缺少 token_type 时兼容为 user。
-	 */
-	public static String tokenType(Jwt jwt) {
-		if (jwt == null) {
-			return USER_TOKEN_TYPE;
-		}
-		String tokenType = jwt.getClaimAsString(TOKEN_TYPE_CLAIM);
-		return tokenType == null || tokenType.isBlank() ? USER_TOKEN_TYPE : tokenType;
+		return jwt != null && SERVICE_TOKEN_TYPE.equals(jwt.getClaimAsString(TOKEN_TYPE_CLAIM));
 	}
 
 	/**

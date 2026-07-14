@@ -27,7 +27,9 @@ public class QueryCapabilityHandler implements CapabilityHandler<ValidatedQueryP
             ValidatedQueryPlan plan,
             ExecutionContext context) {
         QueryableAdapter adapter = context.requireAdapter(QueryableAdapter.class);
-        AdapterQueryResult adapterResult = adapter.query(plan.query());
+        AdapterQueryResult adapterResult = adapter.query(
+                plan.query(),
+                context.operationContext(com.dylan.agent.adapter.api.operation.CapabilityOperationType.of("DOMAIN_QUERY")));
         QueryAgentResultPayload payload = new QueryAgentResultPayload(
                 QueryParameterMapper.toQueryParameters(plan),
                 toKernelQueryResult(plan, adapterResult));

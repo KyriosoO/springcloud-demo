@@ -82,9 +82,8 @@ class PlanOutcomeValidatorTest {
 
     private static PlanningCommand command() {
         AgentProfileRef profile = AgentProfileRef.of("agent-default", "profile-v1");
-        InvocationHandle handle = InvocationHandle.create(
+        InvocationHandle handle = InvocationHandle.forChat(
                 "inv-1",
-                InvocationType.CHAT,
                 new ChatInvocationOrigin("conv-1", "turn-1"),
                 "req-1",
                 new ExecutionSubjectRef("user", "dylan"),

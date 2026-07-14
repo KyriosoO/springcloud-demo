@@ -26,8 +26,6 @@ class MetadataArchitectureTest {
                 "metadata/profile/model/EffectiveProfile.java",
                 "metadata/profile/internal/EffectiveProfileCalculator.java",
                 "metadata/config/AgentMetadataBundle.java",
-                "metadata/config/AgentSecuritySettings.java",
-                "metadata/config/AgentSecuritySettingsRegistry.java",
                 "metadata/config/AgentMetadataStore.java",
                 "metadata/config/AgentMetadataReloader.java",
                 "metadata/config/AgentMetadataBootstrap.java",
@@ -36,8 +34,6 @@ class MetadataArchitectureTest {
                 "metadata/policy/model/ProfileConstraints.java",
                 "metadata/policy/model/CapabilityConstraints.java",
                 "metadata/policy/model/DomainSecurityConstraints.java",
-                "metadata/policy/model/BudgetLimits.java",
-                "metadata/policy/model/DelegationLimits.java",
                 "metadata/policy/model/EmergencyRevocation.java",
                 "metadata/policy/model/EmergencyRevocationTarget.java",
                 "metadata/policy/internal/AgentPolicyConfiguration.java",
@@ -48,8 +44,6 @@ class MetadataArchitectureTest {
                 "metadata/authorization/internal/UserPermissionBoundary.java",
                 "metadata/authorization/internal/AuthorizationSecurityConfiguration.java",
                 "metadata/authorization/model/DelegationConstraintRef.java",
-                "metadata/authorization/model/DelegationConstraint.java",
-                "metadata/authorization/internal/DelegationBoundary.java",
                 "metadata/authorization/model/PlanningAuthorizationEvidence.java",
                 "metadata/authorization/model/PlanningEffectiveScope.java",
                 "metadata/authorization/request/PlanningSecurityRequest.java",
@@ -71,7 +65,6 @@ class MetadataArchitectureTest {
                 "metadata/domain/port/DomainMetadataEvidence.java",
                 "metadata/domain/DomainSecurityBoundary.java",
                 "metadata/context/model/ContextRecordKey.java",
-                "metadata/context/model/CapabilityContextEnvelope.java",
                 "metadata/context/model/ContextSnapshot.java",
                 "metadata/context/model/ContextWriteCandidate.java",
                 "metadata/context/request/ContextReadRequest.java",
@@ -100,7 +93,6 @@ class MetadataArchitectureTest {
                 "metadata/result/QueryResultSecurityProjector.java",
                 "metadata/result/ResultValueMaskingSupport.java",
                 "metadata/result/AggregateResultSecurityProjector.java",
-                "metadata/config/AgentMetadataProperties.java",
                 "metadata/config/AgentMetadataPropertiesValidator.java");
 
         assertThat(expected)

@@ -21,7 +21,6 @@ import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.kernel.core.ExecutionValidationContext;
 import com.dylan.agent.kernel.port.model.ExecutionFieldRule;
 import com.dylan.agent.kernel.validator.CapabilityPlanValidator;
-import com.dylan.agent.metadata.domain.internal.DomainCatalogView;
 import com.dylan.agent.planning.filter.FieldConstraintValidator;
 import com.dylan.agent.planning.filter.FilterNormalizer;
 
@@ -35,18 +34,15 @@ public class AggregatePlanValidator
     private final AgentProperties properties;
     private final FilterNormalizer filterNormalizer;
     private final FieldConstraintValidator fieldConstraintValidator;
-    private final DomainCatalogView domainCatalogView;
 
     @Autowired
     public AggregatePlanValidator(
             AgentProperties properties,
             FilterNormalizer filterNormalizer,
-            FieldConstraintValidator fieldConstraintValidator,
-            DomainCatalogView domainCatalogView) {
+            FieldConstraintValidator fieldConstraintValidator) {
         this.properties = properties;
         this.filterNormalizer = filterNormalizer;
         this.fieldConstraintValidator = fieldConstraintValidator;
-        this.domainCatalogView = domainCatalogView;
     }
 
     @Override
@@ -63,8 +59,12 @@ public class AggregatePlanValidator
         if (metrics.isEmpty()) {
             throw new IllegalArgumentException("aggregate metrics must not be empty");
         }
-        List<ValidatedFilter> filters = QueryPlanValidator.toValidatedFilters(aggregate.getFilters());
+        List<ValidatedFilter> filters = filterNormalizer.normalizeAll(
+                aggregate.getFilters(), context.domainProjection().fieldRules());
         QueryPlanValidator.validateKernelFilters(filters, context);
+        if (!filters.isEmpty()) {
+            fieldConstraintValidator.validateFinalQuery(filters, context.domainProjection().fieldRules());
+        }
         List<String> groupByFields =
                 aggregate.getGroupByFields() == null ? List.of() : List.copyOf(aggregate.getGroupByFields());
         validateKernelGroupByFields(groupByFields, context);
@@ -166,13 +166,7 @@ public class AggregatePlanValidator
     }
 
     private int maxKernelRows(ExecutionValidationContext context) {
-        int configuredMax = properties.getAggregate().getMaxMaxRows();
-        int projectionMax = context.domainProjection().maxResultRows();
-        int scopeMaxRows = context.executionScope().maxResultRows();
-
-        int max = configuredMax;
-        max = Math.min(max, projectionMax);
-        max = Math.min(max, scopeMaxRows);
-        return max;
+        return com.dylan.agent.kernel.resource.StandardResourceLimits
+                .require(context.executionScope()).maxResultRows();
     }
 }

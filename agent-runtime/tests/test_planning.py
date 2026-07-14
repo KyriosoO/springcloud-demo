@@ -528,17 +528,9 @@ async def test_document_plan_strips_untrusted_retrieval_orchestration_options():
                   "filters": [],
                   "retrievalOptions": {
                     "materialType": "tax_policy",
-                    "retrievalProfile": "tax-v2",
-                    "retrievalChannels": ["BM25", "DENSE_VECTOR"],
-                    "retrievalMode": "HYBRID",
-                    "rerankEnabled": false,
                     "topK": 5,
                     "page": 1,
-                    "size": 5,
-                    "keywordK": 20,
-                    "vectorK": 20,
-                    "rrfK": 60,
-                    "numCandidates": 100
+                    "size": 5
                   },
                   "citationRequired": true,
                   "generationOptions": {"enabled": true, "failurePolicy": "FALLBACK_EXTRACTIVE"}
@@ -568,15 +560,15 @@ async def test_document_plan_strips_untrusted_retrieval_orchestration_options():
     assert options.top_k == 5
     assert options.page == 1
     assert options.size == 5
-    assert options.retrieval_mode is None
     assert options.material_type is None
-    assert options.retrieval_profile is None
-    assert options.retrieval_channels is None
-    assert options.rerank_enabled is None
-    assert options.keyword_k is None
-    assert options.vector_k is None
-    assert options.rrf_k is None
-    assert options.num_candidates is None
+    assert not hasattr(options, "retrieval_profile")
+    assert not hasattr(options, "retrieval_mode")
+    assert not hasattr(options, "retrieval_channels")
+    assert not hasattr(options, "rerank_enabled")
+    assert not hasattr(options, "keyword_k")
+    assert not hasattr(options, "vector_k")
+    assert not hasattr(options, "rrf_k")
+    assert not hasattr(options, "num_candidates")
 
 
 @pytest.mark.asyncio
@@ -615,7 +607,7 @@ async def test_document_plan_replaces_summarize_output_missing_summary_scope():
                   "operation": "SUMMARIZE",
                   "queryText": "总结《中华人民共和国增值税法》第二章税率的主要内容",
                   "filters": [],
-                  "retrievalOptions": {"retrievalMode": "HYBRID", "topK": 5, "page": 1, "size": 5},
+                  "retrievalOptions": {"topK": 5, "page": 1, "size": 5},
                   "citationRequired": true,
                   "generationOptions": {"enabled": true, "failurePolicy": "FALLBACK_EXTRACTIVE"}
                 }

@@ -1,116 +1,63 @@
 package com.dylan.agent.adapter.document;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.dylan.esquery.api.model.HybridRetrievalDiagnostics;
-import com.dylan.esquery.api.model.HybridSearchHit;
-import com.dylan.esquery.api.model.HybridSearchResponse;
+import com.dylan.agent.adapter.api.document.*;
+import com.dylan.agent.adapter.api.document.security.AclBoundDocumentHit;
+import com.dylan.agent.adapter.api.operation.*;
+import com.dylan.agent.api.contract.common.AgentExecutionContracts;
+import com.dylan.esquery.api.model.DocumentCorpusKeyDto;
+import com.dylan.esquery.api.model.DocumentSearchChannel;
+import com.dylan.esquery.api.model.DocumentTargetBindingDto;
+import com.dylan.esquery.api.model.document.*;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DocumentEvidenceMapperTest {
-
     @Test
-    void mapsElasticHitsToDocumentEvidence() {
-        DocumentEvidenceMapper mapper = new DocumentEvidenceMapper(new ObjectMapper(), new DocumentAdapterProperties());
+    void mapsOnlyAlreadyBoundTypedHit() {
+        DocumentCandidateIdentity identity = new DocumentCandidateIdentity("doc-1", "v1", "chunk-1", 0);
+        ResourceLimitReference limits = new ResourceLimitReference(
+                AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT, "d".repeat(64), "inv-1", "document-reg");
+        DocumentCandidateSecurityBinding security = new DocumentCandidateSecurityBinding(
+                "inv-1", "corr-1", "document-reg", new DocumentCorpusKey("policy", "document"),
+                new DocumentTargetBindingReference("3.0.0", "e".repeat(64), "f".repeat(64), "1".repeat(64)),
+                "a".repeat(64), "b".repeat(64), new DocumentAclObjectRef("acl-1", "v1"),
+                "c".repeat(64), limits);
+        AclBoundDocumentHit hit = new AclBoundDocumentHit(
+                "candidate-1", identity, "政策", "policy", null, null, null, "证据", null,
+                null, null, List.of(), List.of(), null, null, BigDecimal.ONE, BigDecimal.ONE,
+                List.of("BM25"), List.of("sourceType"), security);
+        var wireLimit = new ResourceLimitBindingDto("agent", "DocumentResourceLimit", "v1", "d".repeat(64), "inv-1", "document-reg");
+        HybridSearchResponse response = new HybridSearchResponse(new DocumentSearchResponseBinding("corr-1", "op-1",
+                new DocumentCorpusKeyDto("policy", "document"),new DocumentTargetBindingDto("3.0.0", "e".repeat(64), "f".repeat(64), "1".repeat(64)),
+                "c".repeat(64),wireLimit,"d".repeat(64),"a".repeat(64),"b".repeat(64)),List.of(),
+                List.of(new DocumentChannelResultSummary(DocumentSearchChannel.BM25, DocumentChannelResultSummary.Outcome.SUCCEEDED, 0, null)),
+                new HybridRetrievalDiagnostics(0,0,0,0,false,false));
 
-        var result = mapper.toAdapterResult("""
-                {
-                  "hits": {
-                    "hits": [{
-                      "_id": "doc-1",
-                      "_score": 0.92,
-                      "_source": {
-                        "chunkId": "c-1",
-                        "title": "休假政策",
-                        "sourceType": "policy",
-                        "section": "年假",
-                        "page": 3,
-                        "sourceUri": "kb://leave",
-                        "embedding": [0.1, 0.2],
-                        "content": "员工年假需要直属主管审批。"
-                      }
-                    }]
-                  }
-                }
-                """, 5);
+        var command = command(security, limits);
+        var result = new DocumentEvidenceMapper().toAdapterResult(response, List.of(hit), command, context(limits));
 
-        assertThat(result.getHits()).singleElement().satisfies(evidence -> {
-            assertThat(evidence.getDocumentId()).isEqualTo("doc-1");
-            assertThat(evidence.getChunkId()).isEqualTo("c-1");
-            assertThat(evidence.getTitle()).isEqualTo("休假政策");
-            assertThat(evidence.getSnippet()).isEqualTo("员工年假需要直属主管审批。");
-            assertThat(evidence.getPage()).isEqualTo(3);
-            assertThat(evidence.getMetadata()).doesNotContainKey("embedding");
-        });
-        assertThat(result.getCoveredDocumentCount()).isEqualTo(1);
+        assertThat(result.hits()).containsExactly(hit);
+        assertThat(result.binding().targetBinding()).isEqualTo(security.targetBinding());
     }
 
-    @Test
-    void mapsHybridHitsWithContextAndScores() {
-        DocumentEvidenceMapper mapper = new DocumentEvidenceMapper(new ObjectMapper(), new DocumentAdapterProperties());
-        HybridSearchHit hit = new HybridSearchHit();
-        hit.setDocumentId("doc-1");
-        hit.setChunkId("chunk-1");
-        hit.setCharStart(10);
-        hit.setCharEnd(32);
-        hit.setContent("员工年假需要直属主管审批。");
-        hit.setRrfScore(new BigDecimal("0.03"));
-        hit.setRetrievalChannels(List.of("BM25", "DENSE_VECTOR"));
-        hit.setChannelRanks(Map.of("BM25", 1, "DENSE_VECTOR", 2));
-        hit.setChannelScores(Map.of("BM25", new BigDecimal("1.2")));
-        hit.setDedupGroupSize(2);
-        hit.setRepresentativeChunk(true);
-        hit.setRerankScore(new BigDecimal("0.88"));
-        hit.setRerankReasonCode("MODEL_SCORE");
-        hit.setMetadata(Map.of("embedding", List.of(0.1, 0.2), "sourceType", "policy"));
-        HybridRetrievalDiagnostics diagnostics = new HybridRetrievalDiagnostics();
-        diagnostics.setFusionStrategy("RRF");
-        diagnostics.setKeywordHitCount(1);
-        diagnostics.setVectorHitCount(1);
-        diagnostics.setReturnedHitCount(1);
-        diagnostics.setFusedCandidateCount(4);
-        diagnostics.setDedupedCandidateCount(1);
-        diagnostics.setRrfK(60);
-        diagnostics.setMaxChunksPerDocument(1);
-        diagnostics.setChannelHitCounts(Map.of("BM25", 1, "DENSE_VECTOR", 1));
-        diagnostics.setChannelWeights(Map.of("BM25", 1.0d));
-        diagnostics.setPermissionEvidenceId("perm-evidence");
-        diagnostics.setPermissionVersion("perm-v1");
-        diagnostics.setFilterDigest("sha256:abc123");
-        diagnostics.setRerankStatus("SKIPPED");
-        diagnostics.setRerankSkippedReason("DISABLED");
-        HybridSearchResponse response = new HybridSearchResponse();
-        response.setHits(List.of(hit));
-        response.setDiagnostics(diagnostics);
-
-        var result = mapper.toAdapterResult(response, 5);
-
-        assertThat(result.getHits()).singleElement().satisfies(evidence -> {
-            assertThat(evidence.getChunkId()).isEqualTo("chunk-1");
-            assertThat(evidence.getContent()).isEqualTo("员工年假需要直属主管审批。");
-            assertThat(evidence.getCharStart()).isEqualTo(10);
-            assertThat(evidence.getCharEnd()).isEqualTo(32);
-            assertThat(evidence.getRrfScore()).isEqualByComparingTo("0.03");
-            assertThat(evidence.getRetrievalChannels()).containsExactly("BM25", "DENSE_VECTOR");
-            assertThat(evidence.getMetadata()).containsEntry("sourceType", "policy");
-            assertThat(evidence.getMetadata()).containsEntry("dedupGroupSize", 2);
-            assertThat(evidence.getMetadata()).containsEntry("representativeChunk", true);
-            assertThat(evidence.getMetadata()).containsEntry("rerankReasonCode", "MODEL_SCORE");
-            assertThat(evidence.getMetadata()).containsKeys("channelRanks", "channelScores", "rerankScore");
-            assertThat(evidence.getMetadata()).doesNotContainKey("embedding");
-        });
-        assertThat(result.getRetrievalDiagnostics().getFusionStrategy()).isEqualTo("RRF");
-        assertThat(result.getRetrievalDiagnostics().getFusedCandidateCount()).isEqualTo(4);
-        assertThat(result.getRetrievalDiagnostics().getDedupedCandidateCount()).isEqualTo(1);
-        assertThat(result.getRetrievalDiagnostics().getChannelHitCounts()).containsEntry("BM25", 1);
-        assertThat(result.getRetrievalDiagnostics().getPermissionEvidenceId()).isEqualTo("perm-evidence");
-        assertThat(result.getRetrievalDiagnostics().getPermissionVersion()).isEqualTo("perm-v1");
-        assertThat(result.getRetrievalDiagnostics().getFilterDigest()).isEqualTo("sha256:abc123");
-        assertThat(result.getRetrievalDiagnostics().getRerankStatus()).isEqualTo("SKIPPED");
+    private DocumentRetrievalCommand command(DocumentCandidateSecurityBinding security,ResourceLimitReference limits){
+        var filter=new DocumentProtectedFilterBinding(security.corpusKey(),new DocumentAllOf(List.of(
+                new DocumentExactTerm(DocumentAclIndexField.TENANT_ID,"tenant-1"))),security.protectedFilterDigest(),security.aclEvidenceDigest(),
+                security.profileProjectionDigest(),limits);
+        var execution=new DocumentRetrievalExecutionBinding("tax-v2","v2",security.profileProjectionDigest(),limits,limits.canonicalDigest(),security.aclEvidenceDigest());
+        return new DocumentRetrievalCommand(security.corpusKey(),execution,List.of(),filter,new DocumentPreparedQuery("tax",List.of(),List.of(),Optional.empty()),
+                new DocumentRetrievalChannels(List.of(DocumentRetrievalChannel.BM25),List.of(DocumentRetrievalChannel.BM25),Map.of(DocumentRetrievalChannel.BM25,1),10),
+                new DocumentFusionSpec(60,50),new DocumentDedupSpec(5,3),new DocumentContextSpec(0,0,0));
     }
+    private CapabilityOperationContext context(ResourceLimitReference limits){return new CapabilityOperationContext("inv-1","corr-1","document.search","op-1",
+            CapabilityOperationType.of("DOCUMENT_RETRIEVAL"),Instant.now().plusSeconds(60),()->false,new CapabilityResourceLimitView(){
+                @Override public <T extends CapabilityResourceLimit>T require(com.dylan.agent.api.contract.common.ContractRef ref,Class<T> type){throw new UnsupportedOperationException();}
+                @Override public ResourceLimitReference reference(){return limits;}});}
 }

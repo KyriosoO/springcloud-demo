@@ -1,6 +1,5 @@
 package com.dylan.agent.capability.document.provider;
 
-import com.dylan.agent.testsupport.DomainMetadataTestSupport;
 import com.dylan.common.security.ServiceTokenProperties;
 import org.junit.jupiter.api.Test;
 
@@ -12,24 +11,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class DocumentProviderSecurityValidatorTest {
 
     @Test
-    void passesWhenProviderDisabledWithoutProviderScope() {
-        var agentProperties = DomainMetadataTestSupport.agentProperties();
+    void failsWithoutProviderScopeBecauseDocumentRegistrationIsNotFeatureFlagged() {
         ServiceTokenProperties serviceTokenProperties = new ServiceTokenProperties();
         serviceTokenProperties.setScopes(List.of("agent.permission.resolve"));
 
-        var validator = new DocumentProviderSecurityValidator(agentProperties, serviceTokenProperties);
-
-        assertThatCode(validator::afterPropertiesSet).doesNotThrowAnyException();
-    }
-
-    @Test
-    void failsWhenEmbeddingEnabledWithoutProviderScope() {
-        var agentProperties = DomainMetadataTestSupport.agentProperties();
-        agentProperties.getDocument().getEmbedding().setEnabled(true);
-        ServiceTokenProperties serviceTokenProperties = new ServiceTokenProperties();
-        serviceTokenProperties.setScopes(List.of("agent.permission.resolve"));
-
-        var validator = new DocumentProviderSecurityValidator(agentProperties, serviceTokenProperties);
+        var validator = new DocumentProviderSecurityValidator(serviceTokenProperties);
 
         assertThatThrownBy(validator::afterPropertiesSet)
                 .isInstanceOf(IllegalStateException.class)
@@ -37,13 +23,11 @@ class DocumentProviderSecurityValidatorTest {
     }
 
     @Test
-    void passesWhenGenerationEnabledWithProviderScope() {
-        var agentProperties = DomainMetadataTestSupport.agentProperties();
-        agentProperties.getDocument().getGeneration().setEnabled(true);
+    void passesWithProviderScope() {
         ServiceTokenProperties serviceTokenProperties = new ServiceTokenProperties();
         serviceTokenProperties.setScopes(List.of("agent.permission.resolve", DocumentProviderSecurityValidator.PROVIDER_INVOKE_SCOPE));
 
-        var validator = new DocumentProviderSecurityValidator(agentProperties, serviceTokenProperties);
+        var validator = new DocumentProviderSecurityValidator(serviceTokenProperties);
 
         assertThatCode(validator::afterPropertiesSet).doesNotThrowAnyException();
     }

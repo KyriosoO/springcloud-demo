@@ -46,8 +46,6 @@ import com.dylan.agent.kernel.registration.CapabilityRegistry;
 import com.dylan.agent.kernel.registration.ResolvedRegistration;
 import com.dylan.agent.kernel.validator.ValidatedPlan;
 import com.dylan.agent.metadata.authorization.model.ExecutionScope;
-import com.dylan.agent.metadata.config.AgentSecuritySettings;
-import com.dylan.agent.metadata.config.AgentSecuritySettingsRegistry;
 import com.dylan.agent.metadata.context.internal.ContextBoundary;
 import com.dylan.agent.metadata.context.internal.ContextRecordEntity;
 import com.dylan.agent.metadata.context.internal.ContextRepository;
@@ -66,7 +64,7 @@ class ContextBoundaryTest {
     @Test
     void approveDerivesOwnerScopeAndExpectedAbsentInsteadOfTrustingHandler() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         var approved = boundary.approve(
@@ -85,7 +83,7 @@ class ContextBoundaryTest {
     void approveUsesExistingRecordVersionWhenSnapshotWasNotConsumed() {
         RecordingRepository repository = new RecordingRepository(entity(4, true, MetadataTestSupport.NOW.minusSeconds(1)));
         ContextBoundary boundary = new ContextBoundary(
-                repository, new PayloadJsonCodec(), new PlainCodec(), settings(),
+                repository, new PayloadJsonCodec(), new PlainCodec(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         var approved = boundary.approve(
@@ -103,7 +101,7 @@ class ContextBoundaryTest {
     @Test
     void approveRejectsDuplicateCandidateType() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> boundary.approve(
@@ -117,7 +115,7 @@ class ContextBoundaryTest {
     @Test
     void approveAcceptsDocumentContextWrite() {
         ContextBoundary boundary = new ContextBoundary(
-                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(), settings(),
+                new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         var approved = boundary.approve(
@@ -138,7 +136,7 @@ class ContextBoundaryTest {
         ContextSnapshot snapshot = snapshot(3, MetadataTestSupport.NOW.plusSeconds(60));
         RecordingRepository repository = new RecordingRepository(entity(4, true, MetadataTestSupport.NOW.plusSeconds(60)));
         ContextBoundary boundary = new ContextBoundary(
-                repository, new PayloadJsonCodec(), new PlainCodec(), settings(),
+                repository, new PayloadJsonCodec(), new PlainCodec(),
                 Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
 
         assertThatThrownBy(() -> boundary.revalidateAll(
@@ -149,12 +147,12 @@ class ContextBoundaryTest {
 
     @Test
     void loadMigratesQueryContextV10ToV12() {
-        assertMigratesLegacyQueryContext(new ContractRef("QueryCapabilityContextPayload", "1.0.0"));
+        assertMigratesLegacyQueryContext(AgentExecutionContracts.ref("QueryCapabilityContextPayload", "1.0.0"));
     }
 
     @Test
     void loadMigratesQueryContextV11ToV12() {
-        assertMigratesLegacyQueryContext(new ContractRef("QueryCapabilityContextPayload", "1.1.0"));
+        assertMigratesLegacyQueryContext(AgentExecutionContracts.ref("QueryCapabilityContextPayload", "1.1.0"));
     }
 
     private void assertMigratesLegacyQueryContext(ContractRef sourceContract) {
@@ -165,7 +163,6 @@ class ContextBoundaryTest {
                 new MigratingRepository(entity(1, true, MetadataTestSupport.NOW.plusSeconds(60), sourceContract, legacyJson)),
                 new PayloadJsonCodec(),
                 new PlainCodec(),
-                settings(),
                 new ContextMigrationRegistry(List.of(
                         new QueryContextPayloadV10ToV12Migrator(),
                         new QueryContextPayloadV11ToV12Migrator())),
@@ -192,7 +189,7 @@ class ContextBoundaryTest {
     }
 
     private InvocationHandle handle() {
-        return InvocationHandle.create("inv-1", InvocationType.CHAT,
+        return InvocationHandle.forChat("inv-1",
                 new ChatInvocationOrigin("conv-1", "turn-1"), "corr",
                 new ExecutionSubjectRef("user", "u-1"), new ContextOwnerRef("conversation", "conv-1"),
                 new ConversationScope("conv-1"), AgentProfileRef.of("agent-default", "profile-v1"),
@@ -200,25 +197,25 @@ class ContextBoundaryTest {
     }
 
     private ExecutionScope executionScope() {
-        return new ExecutionScope("user:u-1",
-                new com.dylan.agent.metadata.domain.port.DomainMetadataEvidence(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create("user:u-1",
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                         "catalog", "adapter", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW, "perm", "perm-v1", "policy-v1",
                 java.util.Set.of("query.search"), java.util.Set.of("employee"),
                 java.util.Map.of(), java.util.Map.of(),
                 java.util.Set.of(RuntimeContextType.QUERY), java.util.Set.of(RuntimeContextType.QUERY),
-                java.time.Duration.ofSeconds(30), 1, 100, 10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private ExecutionScope documentExecutionScope() {
-        return new ExecutionScope("user:u-1",
-                new com.dylan.agent.metadata.domain.port.DomainMetadataEvidence(
+        return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create("user:u-1",
+                com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence(
                         "catalog", "adapter", "availability", MetadataTestSupport.NOW),
                 MetadataTestSupport.NOW, "perm", "perm-v1", "policy-v1",
                 java.util.Set.of("document.answer"), java.util.Set.of("tax_policy"),
                 java.util.Map.of(), java.util.Map.of(),
                 java.util.Set.of(RuntimeContextType.DOCUMENT), java.util.Set.of(RuntimeContextType.DOCUMENT),
-                java.time.Duration.ofSeconds(30), 1, 100, 10_000);
+                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(100, 100, 10_000));
     }
 
     private com.dylan.agent.kernel.registration.ResolvedRegistration nullRegistration() {
@@ -233,6 +230,8 @@ class ContextBoundaryTest {
                                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers("query.search"))
                                 .contextAccess(new ContextAccessDeclaration(
                                         List.of(new ContextReadDeclaration(
                                                 RuntimeContextType.QUERY,
@@ -256,6 +255,7 @@ class ContextBoundaryTest {
                 List.of(registration),
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(List.of(registration)),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 java.util.Set.of());
         return registry.resolve("query.search");
     }
@@ -273,21 +273,24 @@ class ContextBoundaryTest {
                                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                                 .inputContract(AgentExecutionContracts.DOCUMENT_PLAN)
                                 .outputContract(AgentExecutionContracts.DOCUMENT_RESULT)
+                                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.DocumentResourceLimits.declaration(
+                                        com.dylan.agent.kernel.resource.DocumentResourceLimits.defaults()))
+                                .resourceLimitConsumers(com.dylan.agent.kernel.resource.DocumentResourceLimits.consumers("document.answer"))
                                 .contextAccess(new ContextAccessDeclaration(
                                         List.of(new ContextReadDeclaration(
                                                 RuntimeContextType.DOCUMENT,
                                                 AgentExecutionContracts.DOCUMENT_CONTEXT,
                                                 DocumentCapabilityContextPayload.class,
                                                 false,
-                                                java.util.Set.of("operation", "domain", "queryText", "filters",
-                                                        "citationIds", "topK"))),
+                                                java.util.Set.of("operation", "domain", "materialType", "queryText", "filters",
+                                                        "topK", "summaryScope"))),
                                         List.of(new ContextWriteDeclaration(
                                                 RuntimeContextType.DOCUMENT,
                                                 AgentExecutionContracts.DOCUMENT_CONTEXT,
                                                 DocumentCapabilityContextPayload.class,
                                                 Duration.ofDays(1),
-                                                java.util.Set.of("operation", "domain", "queryText", "filters",
-                                                        "citationIds", "topK")))))
+                                                java.util.Set.of("operation", "domain", "materialType", "queryText", "filters",
+                                                        "topK", "summaryScope")))))
                                 .build(),
                         DocumentAgentPlan.class,
                         (raw, ctx) -> new DummyDocumentValidatedPlan(),
@@ -298,6 +301,8 @@ class ContextBoundaryTest {
                 List.of(registration),
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(List.of(registration)),
+                new com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry(List.of(
+                        new com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract())),
                 java.util.Set.of(AdapterRole.DOCUMENT_RETRIEVABLE));
         return registry.resolve("document.answer");
     }
@@ -312,8 +317,8 @@ class ContextBoundaryTest {
         return new ContextWriteCandidate(RuntimeContextType.DOCUMENT,
                 AgentExecutionContracts.DOCUMENT_CONTEXT,
                 new DocumentCapabilityContextPayload(
-                        "ANSWER", "tax_policy", "当前增值税率有哪些？",
-                        List.of(), List.of("chunk-1"), 5));
+                        "ANSWER", "tax_policy", "policy", "当前增值税率有哪些？",
+                        List.of(), 5, "CUSTOM"));
     }
 
     private ContextSnapshot snapshot(long recordVersion, Instant expiresAt) {
@@ -364,11 +369,6 @@ class ContextBoundaryTest {
                 new ContextOwnerRef("conversation", "conv-1"),
                 new ConversationScope("conv-1"),
                 RuntimeContextType.QUERY);
-    }
-
-    private AgentSecuritySettingsRegistry settings() {
-        return new AgentSecuritySettingsRegistry(
-                new AgentSecuritySettings(Duration.ofHours(1), Duration.ZERO, 10, "ACTIVE"));
     }
 
     private static final class RecordingRepository implements ContextRepository {

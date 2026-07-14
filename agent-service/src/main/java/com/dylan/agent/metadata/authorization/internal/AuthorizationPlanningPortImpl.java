@@ -1,10 +1,8 @@
 package com.dylan.agent.metadata.authorization.internal;
 
 import com.dylan.agent.api.enums.AgentOperator;
-import com.dylan.agent.adapter.api.AdapterRole;
-import com.dylan.agent.invocation.model.ExecutionSubjectRef;
+import com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit;
 import com.dylan.agent.metadata.authorization.model.AuthorizationSnapshot;
-import com.dylan.agent.metadata.authorization.model.ExecutionBudget;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
@@ -19,6 +17,11 @@ import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
 import com.dylan.agent.metadata.profile.internal.EffectiveProfileCalculator;
 import com.dylan.agent.metadata.profile.model.AgentProfileVersionKey;
 import com.dylan.agent.model.MaskType;
+import com.dylan.agent.kernel.resource.CapabilityResourceLimitDeclaration;
+import com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContribution;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver;
+import com.dylan.agent.metadata.authorization.resource.ResourceLimitSource;
 
 import java.time.Clock;
 import java.util.LinkedHashMap;
@@ -34,21 +37,23 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
     private final AgentMetadataStore metadataStore;
     private final EffectiveProfileCalculator profileCalculator;
     private final UserPermissionBoundary userPermissionBoundary;
-    private final DelegationBoundary delegationBoundary;
+    private final CapabilityResourceLimitResolver resourceLimitResolver;
     private final DomainMetadataPort domainMetadataPort;
     private final Clock clock;
+    private final ExternalProcessingAuthorizationEvidenceFactory externalProcessingEvidenceFactory =
+            new ExternalProcessingAuthorizationEvidenceFactory();
 
     public AuthorizationPlanningPortImpl(
             AgentMetadataStore metadataStore,
             EffectiveProfileCalculator profileCalculator,
             UserPermissionBoundary userPermissionBoundary,
-            DelegationBoundary delegationBoundary,
+            CapabilityResourceLimitResolver resourceLimitResolver,
             DomainMetadataPort domainMetadataPort,
             Clock clock) {
         this.metadataStore = Objects.requireNonNull(metadataStore);
         this.profileCalculator = Objects.requireNonNull(profileCalculator);
         this.userPermissionBoundary = Objects.requireNonNull(userPermissionBoundary);
-        this.delegationBoundary = Objects.requireNonNull(delegationBoundary);
+        this.resourceLimitResolver = Objects.requireNonNull(resourceLimitResolver);
         this.domainMetadataPort = Objects.requireNonNull(domainMetadataPort);
         this.clock = Objects.requireNonNull(clock);
     }
@@ -68,14 +73,21 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
         var effective = profileCalculator.compute(profile, policy);
         var permission = userPermissionBoundary.resolve(
                 request.handle().subject(), request.handle().absoluteDeadline());
-        var delegation = delegationBoundary.require(request.delegationConstraintRef());
-        var scope = intersect(effective, permission, delegation, policy.domainSecurityConstraints());
+        if (!com.dylan.agent.metadata.authorization.model.DelegationConstraintRef.CHAT_ALL
+                .equals(request.delegationConstraintRef())) {
+            throw new IllegalStateException("current phase only permits CHAT_ALL delegation constraint");
+        }
+        var scope = intersect(effective, permission, policy);
         var domainEvidence = domainMetadataPort.validateReferences(
                 DomainMetadataReferenceSet.empty(),
                 request.handle().absoluteDeadline());
         return new PlanningAuthorizationEvidence(
+                request.handle().invocationId(),
                 request.handle().requestCorrelationId(),
-                subjectKey(request.handle().subject()),
+                request.handle().subject(),
+                request.handle().owner(),
+                (com.dylan.agent.invocation.model.ConversationScope) request.handle().scope(),
+                com.dylan.agent.shared.ref.AgentProfileRef.of(profileKey.agentId(), profileKey.version()),
                 profileKey,
                 bundle.bundleVersion(),
                 bundle.bundleDigest(),
@@ -86,6 +98,7 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 effective,
                 scope,
                 domainEvidence,
+                policy.globalContextTtlUpperBound(),
                 clock.instant(),
                 request.handle().absoluteDeadline());
     }
@@ -119,64 +132,93 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 throw new IllegalStateException("domain not allowed");
             }
         });
+        Set<String> frozenDomains = selection.selectedDomain().map(Set::of).orElseGet(Set::of);
+        Map<String, Set<String>> frozenFields = fieldsByDomain(evidence.planningScope(), frozenDomains);
         return new AuthorizationSnapshot(
                 "auth-" + evidence.requestCorrelationId(),
-                evidence.subjectRef(),
-                evidence.profileKey().version(),
+                evidence.invocationId(),
+                evidence.requestCorrelationId(),
+                evidence.subject(),
+                evidence.owner(),
+                evidence.scope(),
+                evidence.agentProfileRef(),
                 evidence.policyVersion(),
+                evidence.permissionEvidenceId(),
+                evidence.permissionVersion(),
+                evidence.delegationConstraintRef(),
                 Set.of(selection.registration().capabilityId()),
-                selection.selectedDomain().map(Set::of).orElseGet(Set::of),
-                fieldsByDomain(evidence.planningScope(), selection.selectedDomain().map(Set::of).orElseGet(Set::of)),
-                fieldMasks(evidence.planningScope(), selection.selectedDomain().map(Set::of).orElseGet(Set::of)),
+                frozenDomains,
+                frozenFields,
+                operatorsByField(evidence.planningScope(), frozenDomains),
+                functionsByField(evidence.planningScope(), frozenDomains),
+                fieldMasks(evidence.planningScope(), frozenDomains),
+                evidence.planningScope().externalProcessingAuthorizationEvidence()
+                        .narrowTo(frozenDomains, frozenFields),
                 evidence.planningScope().readableContextTypes(),
                 evidence.planningScope().writableContextTypes(),
+                evidence.planningScope().maxRiskLevel(),
+                evidence.planningScope().maxExecutionMode(),
+                evidence.globalContextTtlUpperBound(),
                 clock.instant(),
+                evidence.absoluteDeadline(),
                 evidence.domainMetadataEvidence(),
-                new ExecutionBudget(
-                        evidence.planningScope().maxRepairAttempts(),
-                        executionMaxResultRows(selection, evidence.planningScope()),
-                        evidence.planningScope().maxResultBytes()));
+                resolveResourceLimits(evidence, selection));
     }
 
-    private static int executionMaxResultRows(
+    private EffectiveCapabilityResourceLimits resolveResourceLimits(
+            PlanningAuthorizationEvidence evidence,
+            CapabilityScopeSelection selection) {
+        var declaration = selection.registration().registration().definition().resourceLimitDeclaration();
+        return resolveTypedResourceLimits(evidence, selection, declaration);
+    }
+
+    private <T extends com.dylan.agent.adapter.api.operation.CapabilityResourceLimit>
+    EffectiveCapabilityResourceLimits resolveTypedResourceLimits(
+            PlanningAuthorizationEvidence evidence,
             CapabilityScopeSelection selection,
-            com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope scope) {
-        if (selection.registration().registration().definition().adapterRole()
-                .filter(AdapterRole.DOCUMENT_RETRIEVABLE::equals)
-                .isPresent()) {
-            return Math.min(scope.maxPageSize(), scope.maxResultRows());
-        }
-        return scope.maxResultRows();
+            CapabilityResourceLimitDeclaration<T> typed) {
+        var profile = evidence.planningScope().resourceLimitContributions().require(
+                ResourceLimitSource.PROFILE, typed.contractRef(), typed.limitType());
+        var policy = evidence.planningScope().resourceLimitContributions().require(
+                ResourceLimitSource.POLICY, typed.contractRef(), typed.limitType());
+        var contributions = java.util.List.<CapabilityResourceLimitContribution<?>>of(
+                profile,
+                policy,
+                new CapabilityResourceLimitContribution<>(
+                        ResourceLimitSource.PERMISSION, typed.contractRef(), typed.limitType(),
+                        typed.intrinsicUpperBound(), evidence.permissionEvidenceId()));
+        return resourceLimitResolver.resolve(
+                evidence.invocationId(),
+                evidence.requestCorrelationId(),
+                selection.registration().registrationIdentity(),
+                evidence.evidenceDigest(),
+                typed,
+                contributions,
+                clock.instant());
     }
 
     private PlanningEffectiveScope intersect(
             com.dylan.agent.metadata.profile.model.EffectiveProfile effective,
             UserPermission permission,
-            com.dylan.agent.metadata.authorization.model.DelegationConstraint delegation,
-            Map<String, DomainSecurityConstraints> domainSecurityConstraints) {
+            com.dylan.agent.metadata.policy.model.AgentPolicySnapshot policy) {
         Set<String> capabilityIds = intersect(
-                intersect(effective.allowedCapabilityIds(), permission.allowedCapabilityIds()),
-                delegation.allowedCapabilityIds().isEmpty()
-                        ? effective.allowedCapabilityIds()
-                        : delegation.allowedCapabilityIds());
+                effective.allowedCapabilityIds(), permission.allowedCapabilityIds());
         Set<String> domains = intersect(
-                intersect(effective.allowedDomains(), permission.allowedDomains()),
-                delegation.allowedDomains().isEmpty()
-                        ? effective.allowedDomains()
-                        : delegation.allowedDomains());
+                effective.allowedDomains(), permission.allowedDomains());
+        Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> fields =
+                fieldAccess(permission, domains, policy.domainSecurityConstraints());
         return new PlanningEffectiveScope(
                 capabilityIds,
                 domains,
-                fieldAccess(permission, domains, domainSecurityConstraints),
+                fields,
+                externalProcessingEvidenceFactory.create(
+                        policy.policyVersion(), permission, domains, fields, policy.domainSecurityConstraints()),
                 intersect(effective.readableContextTypes(), parseContextTypes(permission.readableContextTypes())),
                 intersect(effective.writableContextTypes(), parseContextTypes(permission.writableContextTypes())),
                 effective.maxRiskLevel(),
                 effective.maxExecutionMode(),
-                effective.maxTotalDuration(),
-                effective.maxRepairAttempts(),
-                effective.maxPageSize(),
-                effective.maxResultRows(),
-                effective.maxResultBytes());
+                effective.planningBudgetLimits(),
+                effective.resourceLimitContributions());
     }
 
     private Map<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> fieldAccess(
@@ -250,6 +292,26 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
                 entry -> Set.copyOf(entry.getValue())));
     }
 
+    private static Map<String, Set<AgentOperator>> operatorsByField(
+            PlanningEffectiveScope scope,
+            Set<String> frozenDomains) {
+        return scope.fieldAccess().entrySet().stream()
+                .filter(entry -> frozenDomains.contains(entry.getKey().domain()))
+                .collect(Collectors.toUnmodifiableMap(
+                        entry -> maskKey(entry.getKey().domain(), entry.getKey().field()),
+                        entry -> entry.getValue().allowedOperators()));
+    }
+
+    private static Map<String, Set<String>> functionsByField(
+            PlanningEffectiveScope scope,
+            Set<String> frozenDomains) {
+        return scope.fieldAccess().entrySet().stream()
+                .filter(entry -> frozenDomains.contains(entry.getKey().domain()))
+                .collect(Collectors.toUnmodifiableMap(
+                        entry -> maskKey(entry.getKey().domain(), entry.getKey().field()),
+                        entry -> entry.getValue().allowedFunctions()));
+    }
+
     private static Map<String, MaskType> fieldMasks(PlanningEffectiveScope scope, Set<String> frozenDomains) {
         Map<String, MaskType> masks = new LinkedHashMap<>();
         for (Map.Entry<CanonicalFieldRef, PlanningEffectiveScope.FieldAccess> entry
@@ -270,7 +332,4 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
         return domain + "." + field;
     }
 
-    private static String subjectKey(ExecutionSubjectRef subject) {
-        return subject.type() + ":" + subject.id();
-    }
 }

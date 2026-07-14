@@ -29,10 +29,10 @@ class PlanningConfigurationTest {
             .withBean(AgentMetadataStore.class, () -> new AgentMetadataStore(
                     new com.dylan.agent.metadata.config.DefaultAgentMetadataBootstrap(
                             DomainMetadataTestSupport.agentProperties(),
-                            DomainMetadataTestSupport.properties(),
-                            new SecretProperties()).bootstrap()))
+                            com.dylan.agent.testsupport.DocumentProfileTestAssets.assets()).bootstrap()))
             .withBean(AgentRuntimeClient.class, () -> mock(AgentRuntimeClient.class))
             .withBean(ContextPlanningPort.class, () -> mock(ContextPlanningPort.class))
+            .withBean(PlanningArtifactAssembler.class, PlanningArtifactAssembler::identity)
             .withBean(Clock.class, () -> Clock.fixed(
                     DomainMetadataTestSupport.TEST_CLOCK.instant(),
                     ZoneOffset.UTC))

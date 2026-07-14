@@ -20,7 +20,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * 所有运行时消费者都使用 D04 validator 构建的不可变实例：
  * {@link CanonicalDomainCatalog}/{@link AdapterRegistrationSet}。</p>
  */
-@ConfigurationProperties(prefix = "agent.domain-metadata")
+@ConfigurationProperties(prefix = "agent.domain-metadata", ignoreUnknownFields = false)
 public class DomainMetadataProperties {
 
     private String catalogVersion;
@@ -95,8 +95,6 @@ public class DomainMetadataProperties {
         private Set<String> sortFields = new LinkedHashSet<>();
         private Map<String, Set<AgentOperator>> operatorsByField = new LinkedHashMap<>();
         private Map<String, Set<AggregateFunction>> functionsByField = new LinkedHashMap<>();
-        private Integer maxPageSize;
-        private Integer maxResultRows;
 
         public Set<String> getFields() { return fields; }
         public void setFields(Set<String> fields) { this.fields = fields; }
@@ -110,19 +108,13 @@ public class DomainMetadataProperties {
         public void setFunctionsByField(Map<String, Set<AggregateFunction>> functionsByField) {
             this.functionsByField = functionsByField;
         }
-        public Integer getMaxPageSize() { return maxPageSize; }
-        public void setMaxPageSize(Integer maxPageSize) { this.maxPageSize = maxPageSize; }
-        public Integer getMaxResultRows() { return maxResultRows; }
-        public void setMaxResultRows(Integer maxResultRows) { this.maxResultRows = maxResultRows; }
     }
 
     public static class RegistrationProperties {
         private String registrationId;
         private String role;
         private String domain;
-        private Class<?> portType;
         private String portBeanName;
-        private String catalogVersion;
         private String registrationVersion;
 
         public String getRegistrationId() { return registrationId; }
@@ -131,12 +123,8 @@ public class DomainMetadataProperties {
         public void setRole(String role) { this.role = role; }
         public String getDomain() { return domain; }
         public void setDomain(String domain) { this.domain = domain; }
-        public Class<?> getPortType() { return portType; }
-        public void setPortType(Class<?> portType) { this.portType = portType; }
         public String getPortBeanName() { return portBeanName; }
         public void setPortBeanName(String portBeanName) { this.portBeanName = portBeanName; }
-        public String getCatalogVersion() { return catalogVersion; }
-        public void setCatalogVersion(String catalogVersion) { this.catalogVersion = catalogVersion; }
         public String getRegistrationVersion() { return registrationVersion; }
         public void setRegistrationVersion(String registrationVersion) { this.registrationVersion = registrationVersion; }
     }

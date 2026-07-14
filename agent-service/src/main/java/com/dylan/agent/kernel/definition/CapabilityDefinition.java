@@ -7,7 +7,10 @@ import com.dylan.agent.api.contract.runtime.common.AgentDomainMode;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.api.capability.AgentCapabilityRiskLevel;
 import com.dylan.agent.api.capability.AgentCapabilityExecutionMode;
+import com.dylan.agent.kernel.resource.CapabilityResourceLimitDeclaration;
+import com.dylan.agent.kernel.resource.CapabilityResourceConsumerDeclaration;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -30,6 +33,8 @@ public final class CapabilityDefinition {
     private final ContractRef inputContract;
     private final ContractRef outputContract;
     private final ContextAccessDeclaration contextAccess;
+    private final CapabilityResourceLimitDeclaration<?> resourceLimitDeclaration;
+    private final List<CapabilityResourceConsumerDeclaration> resourceLimitConsumers;
 
     private CapabilityDefinition(Builder builder) {
         this.capabilityId = Objects.requireNonNull(builder.capabilityId);
@@ -42,6 +47,13 @@ public final class CapabilityDefinition {
         this.inputContract = Objects.requireNonNull(builder.inputContract);
         this.outputContract = Objects.requireNonNull(builder.outputContract);
         this.contextAccess = Objects.requireNonNull(builder.contextAccess);
+        this.resourceLimitDeclaration = Objects.requireNonNull(
+                builder.resourceLimitDeclaration, "resourceLimitDeclaration must not be null");
+        this.resourceLimitConsumers = List.copyOf(Objects.requireNonNull(
+                builder.resourceLimitConsumers, "resourceLimitConsumers must not be null"));
+        if (resourceLimitConsumers.isEmpty()) {
+            throw new IllegalArgumentException("resourceLimitConsumers must not be empty");
+        }
 
         // 构造器校验
         validateCapabilityId(capabilityId);
@@ -77,6 +89,8 @@ public final class CapabilityDefinition {
     public ContractRef inputContract() { return inputContract; }
     public ContractRef outputContract() { return outputContract; }
     public ContextAccessDeclaration contextAccess() { return contextAccess; }
+    public CapabilityResourceLimitDeclaration<?> resourceLimitDeclaration() { return resourceLimitDeclaration; }
+    public List<CapabilityResourceConsumerDeclaration> resourceLimitConsumers() { return resourceLimitConsumers; }
 
     // ── 构建器 ──
 
@@ -93,6 +107,8 @@ public final class CapabilityDefinition {
         private ContractRef inputContract;
         private ContractRef outputContract;
         private ContextAccessDeclaration contextAccess;
+        private CapabilityResourceLimitDeclaration<?> resourceLimitDeclaration;
+        private List<CapabilityResourceConsumerDeclaration> resourceLimitConsumers;
 
         public Builder capabilityId(String v) { this.capabilityId = v; return this; }
         public Builder planKind(AgentPlanKind v) { this.planKind = v; return this; }
@@ -104,6 +120,14 @@ public final class CapabilityDefinition {
         public Builder inputContract(ContractRef v) { this.inputContract = v; return this; }
         public Builder outputContract(ContractRef v) { this.outputContract = v; return this; }
         public Builder contextAccess(ContextAccessDeclaration v) { this.contextAccess = v; return this; }
+        public Builder resourceLimitDeclaration(CapabilityResourceLimitDeclaration<?> v) {
+            this.resourceLimitDeclaration = v;
+            return this;
+        }
+        public Builder resourceLimitConsumers(List<CapabilityResourceConsumerDeclaration> v) {
+            this.resourceLimitConsumers = v;
+            return this;
+        }
 
         public CapabilityDefinition build() { return new CapabilityDefinition(this); }
     }

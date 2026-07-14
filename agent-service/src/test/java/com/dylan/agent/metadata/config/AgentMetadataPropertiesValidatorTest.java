@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -17,20 +16,16 @@ class AgentMetadataPropertiesValidatorTest {
 
     @Test
     void acceptsAes256ActivePayloadKey() {
-        AgentSecuritySettings settings = settings("ACTIVE");
-
         assertThatCode(() -> AgentMetadataPropertiesValidator.validate(
-                settings,
+                "ACTIVE",
                 keyId -> new SecretKeySpec(new byte[32], "AES")))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void rejectsNonAes256ActivePayloadKey() {
-        AgentSecuritySettings settings = settings("ACTIVE");
-
         assertThatThrownBy(() -> AgentMetadataPropertiesValidator.validate(
-                settings,
+                "ACTIVE",
                 keyId -> new SecretKeySpec(new byte[16], "AES")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("AES-256");
@@ -38,10 +33,9 @@ class AgentMetadataPropertiesValidatorTest {
 
     @Test
     void rejectsInvalidActivePayloadKeyIdBeforeSecretLookup() {
-        AgentSecuritySettings settings = settings("invalid-key");
         AtomicBoolean called = new AtomicBoolean(false);
 
-        assertThatThrownBy(() -> AgentMetadataPropertiesValidator.validate(settings, keyId -> {
+        assertThatThrownBy(() -> AgentMetadataPropertiesValidator.validate("invalid-key", keyId -> {
                     called.set(true);
                     return new SecretKeySpec(new byte[32], "AES");
                 }))
@@ -50,7 +44,4 @@ class AgentMetadataPropertiesValidatorTest {
         assertThat(called).isFalse();
     }
 
-    private static AgentSecuritySettings settings(String activePayloadKeyId) {
-        return new AgentSecuritySettings(Duration.ofHours(1), Duration.ofMinutes(5), 10, activePayloadKeyId);
-    }
 }

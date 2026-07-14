@@ -6,15 +6,15 @@ import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.config.AgentMetadataBundle;
-import com.dylan.agent.metadata.config.AgentSecuritySettings;
 import com.dylan.agent.metadata.domain.port.CanonicalFieldRef;
 import com.dylan.agent.metadata.policy.model.AgentPolicySnapshot;
-import com.dylan.agent.metadata.policy.model.BudgetLimits;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContributions;
 import com.dylan.agent.metadata.policy.model.CapabilityConstraints;
 import com.dylan.agent.metadata.policy.model.DomainSecurityConstraints;
 import com.dylan.agent.metadata.policy.model.ProfileConstraints;
 import com.dylan.agent.metadata.profile.model.AgentProfileDefinition;
 import com.dylan.agent.metadata.profile.model.AgentProfileVersionKey;
+import com.dylan.agent.metadata.profile.model.PlanningBudgetLimits;
 import com.dylan.agent.metadata.profile.model.ProfileBehaviorAsset;
 import com.dylan.agent.metadata.profile.model.ProfileBehaviorAssetRef;
 
@@ -37,13 +37,7 @@ public final class MetadataTestSupport {
     }
 
     public static AgentMetadataBundle bundleWithActivePayloadKeyId(String version, String digest, String keyId) {
-        return bundle(
-                version,
-                digest,
-                Set.of("query.search"),
-                Set.of("employee"),
-                Set.of(RuntimeContextType.QUERY),
-                keyId);
+        throw new UnsupportedOperationException("payload key 已移出 metadata bundle");
     }
 
     public static AgentMetadataBundle bundleWithQueryPreview(String version, String digest) {
@@ -65,7 +59,7 @@ public final class MetadataTestSupport {
                 Set.of("query.search"),
                 Set.of("employee"),
                 Set.of(RuntimeContextType.QUERY),
-                Map.of("employee", new DomainSecurityConstraints(fields)));
+                Map.of("employee", new DomainSecurityConstraints(Set.of(), fields)));
     }
 
     private static AgentMetadataBundle bundle(
@@ -74,16 +68,6 @@ public final class MetadataTestSupport {
             Set<String> allowedCapabilityIds,
             Set<String> allowedDomains,
             Set<RuntimeContextType> contextTypes) {
-        return bundle(version, digest, allowedCapabilityIds, allowedDomains, contextTypes, "ACTIVE");
-    }
-
-    private static AgentMetadataBundle bundle(
-            String version,
-            String digest,
-            Set<String> allowedCapabilityIds,
-            Set<String> allowedDomains,
-            Set<RuntimeContextType> contextTypes,
-            String activePayloadKeyId) {
         return bundle(
                 version,
                 digest,
@@ -93,8 +77,7 @@ public final class MetadataTestSupport {
                 allowedDomains.stream()
                         .collect(java.util.stream.Collectors.toUnmodifiableMap(
                                 domain -> domain,
-                                domain -> new DomainSecurityConstraints(Map.of()))),
-                activePayloadKeyId);
+                                domain -> new DomainSecurityConstraints(Set.of(), Map.of()))));
     }
 
     private static AgentMetadataBundle bundle(
@@ -104,18 +87,6 @@ public final class MetadataTestSupport {
             Set<String> allowedDomains,
             Set<RuntimeContextType> contextTypes,
             Map<String, DomainSecurityConstraints> domainSecurityConstraints) {
-        return bundle(version, digest, allowedCapabilityIds, allowedDomains, contextTypes,
-                domainSecurityConstraints, "ACTIVE");
-    }
-
-    private static AgentMetadataBundle bundle(
-            String version,
-            String digest,
-            Set<String> allowedCapabilityIds,
-            Set<String> allowedDomains,
-            Set<RuntimeContextType> contextTypes,
-            Map<String, DomainSecurityConstraints> domainSecurityConstraints,
-            String activePayloadKeyId) {
         AgentProfileVersionKey profileKey = new AgentProfileVersionKey("agent-default", "profile-v1");
         ProfileBehaviorAssetRef assetRef = new ProfileBehaviorAssetRef("asset-default", "asset-v1");
         AgentProfileDefinition profile = new AgentProfileDefinition(
@@ -126,11 +97,10 @@ public final class MetadataTestSupport {
                 contextTypes,
                 AgentCapabilityRiskLevel.READ_ONLY,
                 AgentCapabilityExecutionMode.IMMEDIATE,
-                Duration.ofSeconds(30),
-                1,
-                100,
-                100,
-                10_000);
+                new PlanningBudgetLimits(Duration.ofSeconds(30), 1),
+                standardContribution(
+                        com.dylan.agent.metadata.authorization.resource.ResourceLimitSource.PROFILE,
+                        "test-profile"));
         ProfileBehaviorAsset asset = new ProfileBehaviorAsset(
                 assetRef,
                 java.util.List.of("只回答授权范围内的问题"),
@@ -145,7 +115,6 @@ public final class MetadataTestSupport {
                 "agent-default",
                 Map.of("agent-default", "profile-v1"),
                 policy.policyVersion(),
-                new AgentSecuritySettings(Duration.ofHours(1), Duration.ofMinutes(5), 10, activePayloadKeyId),
                 Map.of(profileKey, profile),
                 Map.of(assetRef, asset),
                 Map.of(policy.policyVersion(), policy));
@@ -154,7 +123,7 @@ public final class MetadataTestSupport {
     public static AgentPolicySnapshot policy() {
         return policy(
                 Set.of("query.search"),
-                Map.of("employee", new DomainSecurityConstraints(Map.of())),
+                Map.of("employee", new DomainSecurityConstraints(Set.of(), Map.of())),
                 Set.of(RuntimeContextType.QUERY));
     }
 
@@ -171,16 +140,32 @@ public final class MetadataTestSupport {
                         contextTypes,
                         Optional.of(AgentCapabilityRiskLevel.READ_ONLY),
                         Optional.of(AgentCapabilityExecutionMode.IMMEDIATE),
-                        Optional.of(new BudgetLimits(Duration.ofSeconds(30), 1, 100, 100, 10_000)),
-                        Optional.empty())),
+                        Optional.of(new PlanningBudgetLimits(Duration.ofSeconds(30), 1)))),
                 allowedCapabilityIds.stream()
                         .collect(java.util.stream.Collectors.toUnmodifiableMap(
                                 capabilityId -> capabilityId,
-                                capabilityId -> new CapabilityConstraints(true, Optional.empty()))),
+                                capabilityId -> new CapabilityConstraints(true))),
                 domainSecurityConstraints,
-                new BudgetLimits(Duration.ofSeconds(30), 1, 100, 100, 10_000),
+                new PlanningBudgetLimits(Duration.ofSeconds(30), 1),
+                standardContribution(
+                        com.dylan.agent.metadata.authorization.resource.ResourceLimitSource.POLICY,
+                        "test-policy"),
                 Duration.ofHours(1),
                 Set.of());
+    }
+
+    private static CapabilityResourceLimitContributions standardContribution(
+            com.dylan.agent.metadata.authorization.resource.ResourceLimitSource source,
+            String evidenceRef) {
+        var limit = new com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit(
+                100, 100, 10_000);
+        return CapabilityResourceLimitContributions.of(java.util.List.of(
+                new com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitContribution<>(
+                        source,
+                        com.dylan.agent.api.contract.common.AgentExecutionContracts.STANDARD_RESOURCE_LIMIT,
+                        com.dylan.agent.adapter.api.operation.StandardCapabilityResourceLimit.class,
+                        limit,
+                        evidenceRef)));
     }
 
     public static UserPermission permission(ExecutionSubjectRef subject) {

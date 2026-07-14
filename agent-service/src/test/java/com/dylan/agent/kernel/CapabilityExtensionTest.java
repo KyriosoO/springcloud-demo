@@ -36,6 +36,7 @@ class CapabilityExtensionTest {
                 registrations,
                 new CapabilityRegistrationValidator(),
                 ContractRegistry.from(registrations),
+                com.dylan.agent.kernel.resource.StandardResourceLimits.registry(),
                 Set.of());
 
         assertThat(registry.resolve("query.search").registration().definition().capabilityId())
@@ -57,6 +58,8 @@ class CapabilityExtensionTest {
                 .executionMode(AgentCapabilityExecutionMode.IMMEDIATE)
                 .inputContract(AgentExecutionContracts.QUERY_PLAN)
                 .outputContract(AgentExecutionContracts.QUERY_RESULT)
+                .resourceLimitDeclaration(com.dylan.agent.kernel.resource.StandardResourceLimits.testDeclaration())
+                .resourceLimitConsumers(com.dylan.agent.kernel.resource.StandardResourceLimits.consumers(capabilityId))
                 .contextAccess(new ContextAccessDeclaration(List.of(), List.of()))
                 .build();
         return new CapabilityRegistration<>(

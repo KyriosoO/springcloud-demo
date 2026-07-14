@@ -37,6 +37,60 @@ mybatis:
     map-underscore-to-camel-case: true
 
 agent:
+  document-profiles:
+    owner-agent-id: agent-default
+    owner-profile-version: profile-v1
+    policy-version: policy-v1
+    definitions:
+      - profile-name: company-policy-v3
+        domain: company_policy
+        default-profile: true
+        allowed-material-types: [company_policy]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+      - profile-name: tax-policy-v3
+        domain: tax_policy
+        default-profile: true
+        allowed-material-types: [tax_policy]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+      - profile-name: knowledge-base-v3
+        domain: knowledge_base
+        default-profile: true
+        allowed-material-types: [knowledge_base]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+      - profile-name: literature-v3
+        domain: literature
+        default-profile: true
+        allowed-material-types: [literature]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+        allowed-channels: [BM25]
+        required-channels: [BM25]
+        generation-policy: {SEARCH: DISABLED, ANSWER: OPTIONAL, SUMMARIZE: OPTIONAL}
+    policy:
+      - domain: company_policy
+        allowed-profile-names: [company-policy-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: tax_policy
+        allowed-profile-names: [tax-policy-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: knowledge_base
+        allowed-profile-names: [knowledge-base-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
+      - domain: literature
+        allowed-profile-names: [literature-v3]
+        allowed-channels: [BM25]
+        allowed-operations: [SEARCH, ANSWER, SUMMARIZE]
   adapters:
     employee:
       max-response-bytes: 2097152
@@ -55,10 +109,10 @@ agent:
     resolve-path: /internal/agent/permissions/resolve
     connect-timeout: 500ms
     read-timeout: 2s
+  profile:
     agent-id: agent-default
-    profile-id: profile-v1
-    scope-type: CONVERSATION
-    scope-id: agent-permission-authority
+    profile-version: profile-v1
+    allowed-domains: [employee, transaction, company_policy, tax_policy, knowledge_base, literature]
   conversation:
     recent-turn-limit: 6
     retention-days: 7
@@ -77,52 +131,9 @@ agent:
     default-max-rows: 20
     max-max-rows: 100
   document:
-    enabled: false
-    retrieval:
-      default-size: 5
-      answer-candidate-size: 20
-      summarize-candidate-size: 20
-      max-size: 20
-      default-mode: HYBRID
-      mode-by-domain:
-        company_policy: HYBRID
-        tax_policy: HYBRID
-        knowledge_base: HYBRID
-        literature: HYBRID
-      hybrid:
-        keyword-k: 20
-        vector-k: 20
-        rrf-k: 60
-        num-candidates: 100
-    text-limits:
-      max-query-text-length: 500
-      max-snippet-chars: 500
-      max-summary-chars: 2000
-    evidence-selection:
-      max-generation-evidence-count: 5
-      max-display-citation-count: 8
-      max-summary-document-count: 8
-      strategy: SCORE_GROUP_TOP
-      score-groups: 3
-      min-top-group-size: 1
-    context-window:
-      enabled: true
-      before-chunks: 1
-      after-chunks: 1
     acl:
-      enabled: true
+      scope-url: http://auth-service
       timeout: 2s
-    embedding:
-      enabled: false
-      dimension: 0
-      timeout: 5s
-    generation:
-      enabled: false
-      max-context-chars: 8000
-      max-evidence-chars: 1200
-      max-output-chars: 2000
-      timeout: 15s
-      failure-policy: FALLBACK_EXTRACTIVE
 
 common:
   security:
