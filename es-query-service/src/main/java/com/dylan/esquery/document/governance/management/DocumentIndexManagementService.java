@@ -57,11 +57,9 @@ public final class DocumentIndexManagementService {
         if(!List.of(DocumentGovernanceChangeStatus.UNKNOWN,DocumentGovernanceChangeStatus.FROZEN,
                 DocumentGovernanceChangeStatus.PREPARED,DocumentGovernanceChangeStatus.EXECUTING).contains(row.status()))
             throw new IllegalStateException("index change is not reconcilable");
-        String safeCorpus=jdbc.queryForObject("SELECT safe_refs FROM document_governance_event WHERE change_id=? ORDER BY occurred_at ASC LIMIT 1",String.class,changeId);
-        if(safeCorpus==null||safeCorpus.indexOf(':')<1)throw new IllegalStateException("index change corpus reference unavailable");
-        String[] parts=safeCorpus.split(":",2);DocumentCorpusKeyDto corpus=new DocumentCorpusKeyDto(parts[0],parts[1]);
+        DocumentCorpusKeyDto corpus=catalog.requireByKeyDigest(row.unitKeyDigest()).corpusKey();
         var report=reports.requireByTarget(row.unitKeyDigest(),row.targetStateDigest());
-        var result=coordinator.reconcile(changeId,catalog.require(corpus).readAlias(),report.targetIndex());
+        var result=coordinator.reconcile(changeId,catalog.require(corpus).readAlias(),report.targetIndex(),row.expectedStateDigest());
         return readChange(result.changeId());
     }
 
@@ -81,9 +79,9 @@ public final class DocumentIndexManagementService {
                 expectedCurrent,report.targetBinding().canonicalDigest(),Optional.of(report.reportId()),authorizationDigest,deadline),authorization);
         requireApproval(authorization,approval);
         Instant issued=clock.instant();Instant expires=issued.plusSeconds(60).isBefore(report.expiresAt())?issued.plusSeconds(60):report.expiresAt();
-        String gateDigest=canonical("DRG-1","INDEX_RELEASE",unit,report.targetBinding().canonicalDigest(),
+        String gateDigest=canonical("DRG-1","INDEX_TARGET",unit,expectedCurrent,report.targetBinding().canonicalDigest(),
                 report.reportDigest(),approval.evidenceRef(),issued.toString(),expires.toString());
-        var gate=new DocumentIndexRolloutCoordinator.ReleaseGateEvidence("INDEX_RELEASE",unit,
+        var gate=new DocumentIndexRolloutCoordinator.ReleaseGateEvidence("INDEX_TARGET",unit,expectedCurrent,
                 report.targetBinding().canonicalDigest(),report.reportDigest(),approval.evidenceRef(),issued,expires,gateDigest);
         String idempotencyDigest=canonical("IDEMPOTENCY-1",idempotencyKey);
         String requestDigest=canonical("DGC-REQUEST-1",authorizationDigest,approval.canonicalDigest(),emergency.canonicalDigest());

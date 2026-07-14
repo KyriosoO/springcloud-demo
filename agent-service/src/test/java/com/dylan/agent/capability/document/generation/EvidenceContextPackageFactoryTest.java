@@ -34,7 +34,7 @@ class EvidenceContextPackageFactoryTest {
         var context = DocumentCapabilityHandlerTestSupport.context((adapterRequest, operationContext) -> null);
         var decision = decision(plan, context, evidence);
         var projection = projector().project(
-                List.of(evidence), new DocumentEvidencePackingLimit(100, 50, 5), decision,
+                List.of(evidence), new DocumentEvidencePackingLimit(100, 50, 50, 5), decision,
                 context.executionScope());
         var packed = new EvidenceContextPackageFactory().create(new EvidenceContextPackageRequest(
                 plan,
@@ -63,7 +63,7 @@ class EvidenceContextPackageFactoryTest {
         var context = DocumentCapabilityHandlerTestSupport.context((adapterRequest, operationContext) -> null);
         var decision = decision(plan, context, evidence);
         var projection = projector().project(
-                List.of(evidence), new DocumentEvidencePackingLimit(100, 50, 5), decision,
+                List.of(evidence), new DocumentEvidencePackingLimit(100, 50, 50, 5), decision,
                 context.executionScope());
         var packed = new EvidenceContextPackageFactory().create(new EvidenceContextPackageRequest(
                 plan,
@@ -95,7 +95,7 @@ class EvidenceContextPackageFactoryTest {
         var context = DocumentCapabilityHandlerTestSupport.context((adapterRequest, operationContext) -> null);
         var decision = decision(plan, context, evidence);
         var projection = projector().project(
-                List.of(evidence), new DocumentEvidencePackingLimit(100, 50, 5), decision,
+                List.of(evidence), new DocumentEvidencePackingLimit(100, 50, 50, 5), decision,
                 context.executionScope());
         var packed = new EvidenceContextPackageFactory().create(new EvidenceContextPackageRequest(
                 plan,
@@ -123,7 +123,7 @@ class EvidenceContextPackageFactoryTest {
         var context = DocumentCapabilityHandlerTestSupport.context((adapterRequest, operationContext) -> null);
         var decision = decision(plan, context, evidence);
         var projection = projector().project(
-                List.of(evidence), new DocumentEvidencePackingLimit(100, 55, 5), decision,
+                List.of(evidence), new DocumentEvidencePackingLimit(100, 55, 55, 5), decision,
                 context.executionScope());
         var packed = new EvidenceContextPackageFactory().create(new EvidenceContextPackageRequest(
                 plan,
@@ -133,6 +133,30 @@ class EvidenceContextPackageFactoryTest {
         assertThat(packed.items()).singleElement()
                 .extracting(GenerationEvidencePackageItem::outboundText)
                 .isEqualTo("第一句内容足够长用于通过边界阈值并保持完整表达不被截断同时说明税率适用范围并覆盖不同税种场景。");
+    }
+
+    @Test
+    void enforcesPerItemSnippetLimitBeforeBuildingProviderPackage() {
+        AclBoundDocumentHit evidence = DocumentEvidenceTestFixtures.evidence(
+                null, null, null, null, null, null,
+                "第一句。第二句不得越过单条证据上限。",
+                List.of(), List.of(), 0, null);
+        var request = ValidatedDocumentPlanTestSupport.request(
+                DocumentPlanOperation.ANSWER, "policy_document", "年假审批", true);
+        var plan = ValidatedDocumentPlanTestSupport.documentPlan(
+                DocumentCapabilityIds.ANSWER, "policy_document", request);
+        var context = DocumentCapabilityHandlerTestSupport.context((adapterRequest, operationContext) -> null);
+        var decision = decision(plan, context, evidence);
+
+        var projection = projector().project(
+                List.of(evidence), new DocumentEvidencePackingLimit(100, 100, 5, 5), decision,
+                context.executionScope());
+
+        assertThat(projection.items()).singleElement()
+                .extracting(GenerationEvidencePackageItem::outboundText)
+                .isEqualTo("第一句。");
+        assertThat(projection.usage().evidenceChars()).isEqualTo(4);
+        assertThat(projection.usage().truncated()).isTrue();
     }
 
     private static DocumentGenerationEvidenceProjector projector() {

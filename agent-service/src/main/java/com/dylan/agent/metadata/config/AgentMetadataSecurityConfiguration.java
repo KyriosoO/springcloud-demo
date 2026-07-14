@@ -82,6 +82,13 @@ public class AgentMetadataSecurityConfiguration {
     }
 
     @Bean
+    AgentMetadataResourceLimitStartupGate agentMetadataResourceLimitStartupGate(
+            AgentMetadataStore metadataStore,
+            com.dylan.agent.kernel.registration.CapabilityRegistry capabilityRegistry) {
+        return new AgentMetadataResourceLimitStartupGate(metadataStore, capabilityRegistry);
+    }
+
+    @Bean
     PayloadJsonCodec payloadJsonCodec(ObjectMapper objectMapper) {
         return new PayloadJsonCodec(objectMapper);
     }
@@ -156,12 +163,21 @@ public class AgentMetadataSecurityConfiguration {
     }
 
     @Bean
+    com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver capabilityResourceLimitResolver(
+            com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry resourceLimitRegistry) {
+        return new com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver(
+                resourceLimitRegistry);
+    }
+
+    @Bean
     AuthorizationExecutionPort authorizationExecutionPort(
             UserPermissionBoundary userPermissionBoundary,
             AgentMetadataStore metadataStore,
             DomainMetadataPort domainMetadataPort,
+            com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver resourceLimitResolver,
             Clock clock) {
-        return new AuthorizationExecutionPortImpl(userPermissionBoundary, metadataStore, domainMetadataPort, clock);
+        return new AuthorizationExecutionPortImpl(
+                userPermissionBoundary, metadataStore, domainMetadataPort, resourceLimitResolver, clock);
     }
 
     @Bean
@@ -174,15 +190,14 @@ public class AgentMetadataSecurityConfiguration {
             AgentMetadataStore metadataStore,
             EffectiveProfileCalculator profileCalculator,
             UserPermissionBoundary userPermissionBoundary,
-            com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry resourceLimitRegistry,
+            com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver resourceLimitResolver,
             DomainMetadataPort domainMetadataPort,
             Clock clock) {
         return new AuthorizationPlanningPortImpl(
                 metadataStore,
                 profileCalculator,
                 userPermissionBoundary,
-                new com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver(
-                        resourceLimitRegistry),
+                resourceLimitResolver,
                 domainMetadataPort,
                 clock);
     }

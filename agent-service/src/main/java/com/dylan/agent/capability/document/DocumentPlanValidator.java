@@ -119,8 +119,7 @@ public class DocumentPlanValidator
         boolean citationRequired = operation != DocumentPlanOperation.SEARCH
                 || Boolean.TRUE.equals(document.getCitationRequired());
         com.dylan.agent.adapter.api.document.DocumentCorpusKey selectedCorpus = selectedCorpus(profile, options);
-        DocumentRetrievalMode retrievalMode = profile.embeddingPolicy() == DocumentFeaturePolicy.DISABLED
-                ? DocumentRetrievalMode.KEYWORD : DocumentRetrievalMode.HYBRID;
+        DocumentRetrievalMode retrievalMode = retrievalMode(profile);
         DocumentChannelProfileProjection channelProjection = profile.channelProjection();
         DocumentGenerationOptions generationOptions = validateGenerationOptions(
                 operation, document.getGenerationOptions(), limits, profile);
@@ -136,7 +135,7 @@ public class DocumentPlanValidator
                 citationRequired,
                 retrievalMode,
                 channelProjection,
-                contextOptions(operation, limits));
+                contextOptions(operation, limits, profile));
         DocumentExecutionProfileProjection executionProfile = new DocumentExecutionProfileProjection(
                 profile.profileName(), profile.documentProfileVersion(),
                 profileBinding.profileProjectionDigest(), selectedCorpus, operation,
@@ -160,11 +159,27 @@ public class DocumentPlanValidator
         };
     }
 
-    private DocumentContextOptions contextOptions(DocumentPlanOperation operation, com.dylan.agent.adapter.api.document.DocumentResourceLimit limits) {
+    private DocumentContextOptions contextOptions(
+            DocumentPlanOperation operation,
+            com.dylan.agent.adapter.api.document.DocumentResourceLimit limits,
+            DocumentPlanningProfileProjection profile) {
         if (operation == DocumentPlanOperation.SEARCH) {
             return null;
         }
-        return new DocumentContextOptions(1, 1, limits.output().maxContextChars());
+        return new DocumentContextOptions(
+                profile.contextPolicy().beforeChunks(),
+                profile.contextPolicy().afterChunks(),
+                limits.output().maxContextChars());
+    }
+
+    private DocumentRetrievalMode retrievalMode(DocumentPlanningProfileProjection profile) {
+        boolean keyword = profile.allowedChannels().contains(
+                com.dylan.agent.adapter.api.document.DocumentRetrievalChannel.BM25);
+        boolean vector = profile.allowedChannels().contains(
+                com.dylan.agent.adapter.api.document.DocumentRetrievalChannel.DENSE_VECTOR);
+        if (keyword && vector) return DocumentRetrievalMode.HYBRID;
+        if (vector) return DocumentRetrievalMode.VECTOR;
+        return DocumentRetrievalMode.KEYWORD;
     }
 
     private DocumentGenerationOptions validateGenerationOptions(
@@ -196,10 +211,13 @@ public class DocumentPlanValidator
             disabled.setEnabled(false);
             return disabled;
         }
+        int operationOutputLimit = operation == DocumentPlanOperation.SUMMARIZE
+                ? limits.output().maxSummaryChars()
+                : limits.output().maxGeneratedChars();
         int maxOutputChars = options.getMaxOutputChars() == null
-                ? limits.output().maxGeneratedChars()
+                ? operationOutputLimit
                 : options.getMaxOutputChars();
-        if (maxOutputChars <= 0 || maxOutputChars > limits.output().maxGeneratedChars()) {
+        if (maxOutputChars <= 0 || maxOutputChars > operationOutputLimit) {
             throw new IllegalArgumentException("document generation maxOutputChars out of bounds");
         }
         DocumentGenerationOptions validated = new DocumentGenerationOptions();

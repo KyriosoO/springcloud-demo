@@ -33,14 +33,22 @@ public class DocumentCorpusConfiguration {
                 entry.getAnalyzerRef(), entry.getVectorPolicyRef(), entry.getChunkStrategyRef(), entry.getSourceConnectorId(),
                 java.util.Set.copyOf(entry.getIndexedBusinessFields()))).toList());
     }
-    @Bean DocumentIndexAccessGuard documentIndexAccessGuard(DocumentCorpusCatalog catalog) { return new DocumentIndexAccessGuard(catalog); }
+    @Bean DocumentIndexAccessGuard documentIndexAccessGuard(
+            DocumentCorpusCatalog catalog,
+            EsIndexAliasService aliases) {
+        return new DocumentIndexAccessGuard(catalog, aliases);
+    }
     @Bean DocumentSearchAccessGuard documentSearchAccessGuard() { return new DocumentSearchAccessGuard(); }
     @Bean DocumentIndexTargetResolver documentIndexTargetResolver(
             DocumentCorpusCatalog catalog,
             EsIndexAliasService aliases,
             @Qualifier("documentRestClient") RestClient restClient,
-            ObjectMapper objectMapper) {
-        return new DocumentIndexTargetResolver(catalog, aliases, restClient, objectMapper);
+            ObjectMapper objectMapper,
+            DocumentPhysicalIndexManifestService manifests,
+            ReleaseAttestationTechnicalPort attestations,
+            Clock clock) {
+        return new DocumentIndexTargetResolver(
+                catalog, aliases, restClient, objectMapper, manifests, attestations, clock);
     }
     @Bean DocumentRebuildTaskRepository documentRebuildTaskRepository(JdbcTemplate jdbc) { return new PersistentDocumentRebuildTaskRepository(jdbc); }
     @Bean DocumentIndexRebuildService documentIndexRebuildService(DocumentCorpusCatalog catalog, DocumentRebuildTaskRepository repository) { return new DocumentIndexRebuildService(catalog, repository); }
@@ -57,6 +65,15 @@ public class DocumentCorpusConfiguration {
             if (previous != null && !previous.equals(candidate)) throw new IllegalArgumentException("document schema ref has conflicting definitions");
         }
         return new DocumentIndexDefinitionRegistry(definitions.values().stream().toList());
+    }
+    @Bean org.springframework.beans.factory.SmartInitializingSingleton documentCorpusClosureGate(
+            DocumentCorpusCatalog catalog,
+            DocumentSourceConnectorRegistry connectors,
+            DocumentIndexDefinitionRegistry schemas) {
+        return () -> {
+            connectors.requireCatalogClosure(catalog);
+            catalog.snapshot().definitions().values().forEach(schemas::requireCorpusClosure);
+        };
     }
     @Bean DocumentIndexDefinitionJsonFactory documentIndexDefinitionJsonFactory() { return new DocumentIndexDefinitionJsonFactory(); }
     @Bean DocumentChunkDocumentMapper documentChunkDocumentMapper() { return new DocumentChunkDocumentMapper(); }

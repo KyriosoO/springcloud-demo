@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
@@ -19,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 public final class BoundedRequestBodyFilter extends OncePerRequestFilter {
     private final String pathPrefix; private final long maxBytes;
     public BoundedRequestBodyFilter(String pathPrefix,long maxBytes){
-        if(pathPrefix==null||pathPrefix.isBlank()||maxBytes<=0)throw new IllegalArgumentException("pathPrefix/maxBytes invalid");
+        if(pathPrefix==null||pathPrefix.isBlank()||maxBytes<=0||maxBytes>=Integer.MAX_VALUE)throw new IllegalArgumentException("pathPrefix/maxBytes invalid");
         this.pathPrefix=pathPrefix;this.maxBytes=maxBytes;
     }
     @Override protected boolean shouldNotFilter(HttpServletRequest request){return !request.getRequestURI().startsWith(pathPrefix)||"GET".equalsIgnoreCase(request.getMethod());}
@@ -29,25 +30,39 @@ public final class BoundedRequestBodyFilter extends OncePerRequestFilter {
             response.getWriter().write("{\"contractVersion\":\"DMERR-1\",\"code\":\"INVALID_REQUEST\",\"diagnosticId\":\"DMERR-BODY-LIMIT\"}");
             return;
         }
-        chain.doFilter(new BoundedRequest(request,maxBytes),response);
+        byte[] body=request.getInputStream().readNBytes((int)maxBytes+1);
+        if(body.length>maxBytes){
+            reject(response);
+            return;
+        }
+        chain.doFilter(new CachedBodyRequest(request,body),response);
     }
-    private static final class BoundedRequest extends HttpServletRequestWrapper {
-        private final long maxBytes;
-        BoundedRequest(HttpServletRequest request,long maxBytes){super(request);this.maxBytes=maxBytes;}
-        @Override public ServletInputStream getInputStream()throws IOException{return new BoundedServletInputStream(super.getInputStream(),maxBytes);}
+    private static void reject(HttpServletResponse response)throws IOException{
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);response.setContentType("application/json");
+        response.getWriter().write("{\"contractVersion\":\"DMERR-1\",\"code\":\"INVALID_REQUEST\",\"diagnosticId\":\"DMERR-BODY-LIMIT\"}");
+    }
+    private static final class CachedBodyRequest extends HttpServletRequestWrapper {
+        private final byte[] body;
+        CachedBodyRequest(HttpServletRequest request,byte[] body){super(request);this.body=body.clone();}
+        @Override public int getContentLength(){return body.length;}
+        @Override public long getContentLengthLong(){return body.length;}
+        @Override public ServletInputStream getInputStream(){return new CachedServletInputStream(body);}
         @Override public BufferedReader getReader()throws IOException{
             String encoding=getCharacterEncoding();Charset charset=encoding==null?StandardCharsets.UTF_8:Charset.forName(encoding);
             return new BufferedReader(new InputStreamReader(getInputStream(),charset));
         }
     }
-    private static final class BoundedServletInputStream extends ServletInputStream {
-        private final ServletInputStream delegate;private final long maxBytes;private long read;
-        BoundedServletInputStream(ServletInputStream delegate,long maxBytes){this.delegate=delegate;this.maxBytes=maxBytes;}
-        @Override public int read()throws IOException{int value=delegate.read();if(value>=0)count(1);return value;}
-        @Override public int read(byte[] bytes,int offset,int length)throws IOException{int count=delegate.read(bytes,offset,length);if(count>0)count(count);return count;}
-        private void count(int count)throws IOException{read+=count;if(read>maxBytes)throw new IOException("request body exceeds configured limit");}
-        @Override public boolean isFinished(){return delegate.isFinished();}
-        @Override public boolean isReady(){return delegate.isReady();}
-        @Override public void setReadListener(ReadListener listener){delegate.setReadListener(listener);}
+    private static final class CachedServletInputStream extends ServletInputStream {
+        private final ByteArrayInputStream delegate;
+        CachedServletInputStream(byte[] body){delegate=new ByteArrayInputStream(body);}
+        @Override public int read(){return delegate.read();}
+        @Override public int read(byte[] bytes,int offset,int length){return delegate.read(bytes,offset,length);}
+        @Override public boolean isFinished(){return delegate.available()==0;}
+        @Override public boolean isReady(){return true;}
+        @Override public void setReadListener(ReadListener listener){
+            if(listener==null)throw new IllegalArgumentException("readListener required");
+            try{if(isFinished())listener.onAllDataRead();else listener.onDataAvailable();}
+            catch(IOException ex){listener.onError(ex);}
+        }
     }
 }

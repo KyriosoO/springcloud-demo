@@ -1,11 +1,55 @@
 """当前路由/计划契约的运行时规划行为测试。"""
 
+from pathlib import Path
+import re
+
 import pytest
 
 from app.contracts.models import PlanRequest, RouteRequest
 from app.core.errors import RuntimePlanError, RuntimeProviderError
 from app.core.runtime_planning import RuntimePlanPlanner, RuntimeRoutePlanner, _parse_plan, _parse_route
 from tests.test_runtime_api import _plan_request, _route_request
+
+
+def test_planning_prompts_do_not_embed_production_domain_facts():
+    repo_root = Path(__file__).resolve().parents[2]
+    config_lines = (repo_root / "config-service/src/main/resources/config/agent-service.yml").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    identifiers: set[str] = set()
+    in_domains = False
+    in_fields = False
+    for line in config_lines:
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        if indent == 4 and stripped == "domains:":
+            in_domains = True
+            continue
+        if in_domains and indent == 4 and stripped == "registrations:":
+            break
+        if not in_domains:
+            continue
+        if indent == 6 and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*:", stripped):
+            identifiers.add(stripped[:-1])
+            in_fields = False
+        elif indent == 8 and stripped == "fields:":
+            in_fields = True
+        elif in_fields and indent == 10 and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*:", stripped):
+            identifiers.add(stripped[:-1])
+        elif in_fields and indent <= 8 and stripped:
+            in_fields = False
+
+    prompts = [
+        repo_root / "agent-runtime/app/prompts/query_system.md",
+        repo_root / "agent-runtime/app/prompts/aggregate_system.md",
+        repo_root / "agent-runtime/app/prompts/document_system.md",
+    ]
+    for prompt_path in prompts:
+        prompt = prompt_path.read_text(encoding="utf-8")
+        leaked = sorted(identifier for identifier in identifiers if re.search(
+            rf'"{re.escape(identifier)}"(?!\s*:)', prompt
+        ))
+        assert leaked == [], f"{prompt_path.name} embeds production domain facts: {leaked}"
 
 
 class StubLlmClient:
@@ -124,7 +168,7 @@ async def test_plan_planner_repairs_invalid_llm_output_once():
             """
             {
               "outcomeType": "CLARIFICATION",
-              "requestId": "other-request-id",
+              "requestId": "flow-001",
               "reasonCode": "FIELD_FORBIDDEN",
               "args": {"argType": "FIELD_FORBIDDEN", "field": "contactAddress"},
               "metadata": {
@@ -163,40 +207,72 @@ def test_route_request_id_mismatch_rejected():
         )
 
 
-def test_plan_request_id_mismatch_is_normalized():
+def test_plan_request_id_mismatch_rejected():
     request = PlanRequest.model_validate(_plan_request())
 
-    outcome = _parse_plan(
-        """
-        {
-          "outcomeType": "EXECUTABLE",
-          "requestId": "previous-request-id",
-          "plan": {
-            "planKind": "QUERY",
-            "query": {
-              "filters": [{"field": "name", "operator": "CONTAINS", "value": "张"}],
-              "selectFields": ["name"],
-              "page": 2,
-              "size": 20
+    with pytest.raises(ValueError, match="requestId mismatch"):
+        _parse_plan(
+            """
+            {
+              "outcomeType": "EXECUTABLE",
+              "requestId": "previous-request-id",
+              "plan": {
+                "planKind": "QUERY",
+                "query": {
+                  "filters": [{"field": "name", "operator": "CONTAINS", "value": "张"}],
+                  "selectFields": ["name"],
+                  "page": 2,
+                  "size": 20
+                }
+              },
+              "metadata": {
+                "operation": "PLAN",
+                "providerAttempts": 1,
+                "repairAttempts": 0,
+                "repairDurationMs": 0,
+                "totalDurationMs": 1,
+                "terminationReason": "COMPLETED",
+                "deadlineReached": false,
+                "repairLimitReached": false
+              }
             }
-          },
-          "metadata": {
-            "operation": "PLAN",
-            "providerAttempts": 1,
-            "repairAttempts": 0,
-            "repairDurationMs": 0,
-            "totalDurationMs": 1,
-            "terminationReason": "COMPLETED",
-            "deadlineReached": false,
-            "repairLimitReached": false
-          }
-        }
-        """,
-        request,
-    )
+            """,
+            request,
+        )
 
-    assert outcome.request_id == "flow-001"
-    assert outcome.plan.query.page == 2
+
+def test_plan_rejects_impossible_repair_attempt_count():
+    request = PlanRequest.model_validate(_plan_request())
+
+    with pytest.raises(ValueError, match="repairAttempts exceeds providerAttempts"):
+        _parse_plan(
+            """
+            {
+              "outcomeType": "EXECUTABLE",
+              "requestId": "flow-001",
+              "plan": {
+                "planKind": "QUERY",
+                "query": {
+                  "filters": [],
+                  "selectFields": ["name"],
+                  "page": 1,
+                  "size": 20
+                }
+              },
+              "metadata": {
+                "operation": "PLAN",
+                "providerAttempts": 1,
+                "repairAttempts": 1,
+                "repairDurationMs": 1,
+                "totalDurationMs": 1,
+                "terminationReason": "COMPLETED",
+                "deadlineReached": false,
+                "repairLimitReached": false
+              }
+            }
+            """,
+            request,
+        )
 
 
 def test_route_can_return_query_preview_decision():

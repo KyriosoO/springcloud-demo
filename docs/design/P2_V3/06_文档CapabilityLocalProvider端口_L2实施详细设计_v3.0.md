@@ -9,7 +9,7 @@
 | 文档状态 | Implemented |
 | 当前版本 | v3.0 |
 | 创建/最后更新日期 | 2026-07-14 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 设计层级 | L2 Document capability-local Provider policy、port、wire、client、adapter 与 operational gate |
 | 上级文档 | 四份当前 L0/L1；只读权威基线 |
 | 直接前置 | P1_V2/02～06、P2_V3/00～05 |
@@ -32,6 +32,7 @@
 | 9 | 2026-07-14 | 1～3、10.6、11、19～24 | 用户授权后恢复执行时发现 `DocumentRerankReasonCode` 只有类型名、没有封闭值与 wire 语义，无法可靠实现 strict payload validator | 冻结 `MODEL_RELEVANCE` 单值 enum、必填/序列化/拒绝规则，补实现落点、测试、风险、评审和实施授权状态 |
 | 10 | 2026-07-14 | 第1～3、7、10.2～10.3、11、15、18～24节 | 用户授权修订；实施发现 shared outbound decision 依赖的 `SecurityClassificationRef`、purpose evidence、typed DENY 和 Binder 输入契约未完整定义 | 对齐 P1_V2/03 `ExternalProcessingAuthorizationEvidence`，冻结 intended field view、allowed/denied result、closed denial code、DPO-1 canonical、Binder/Verifier 精确签名、审计、实现与测试落点 |
 | 11 | 2026-07-14 | 第1～3、10.3、10.10、19、22～24节 | 实现期篡改与结构复核发现：单靠公开 reference 字段无法证明 decision digest 确由本地 Binder 铸造；P2_V3/05 trusted candidate 需要完整 Provider binding，但 P1_V2/05 已冻结 metadata 只有 `ProviderSafeIdentity` | 增加 process-local、短效、按 operationId 一次消费的 reference mint ledger 与 operation binding handoff registry；两者都不缓存正文/授权对象；保持 P1 metadata 原结构不变，补伪 digest、重放、binding 缺失/错配门禁并将状态更新为 Implemented |
+| 12 | 2026-07-14 | 第1～2节 | 全集实施完成后同步实际代码基线 | 将适用代码基线更新为 `28e662a97110f7d3d39211f3ac841a39491fc1b8`；Implemented 结论不变 |
 
 ## 3. 文档状态说明
 

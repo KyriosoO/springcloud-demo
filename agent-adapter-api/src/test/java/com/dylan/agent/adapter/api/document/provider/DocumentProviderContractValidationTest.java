@@ -15,7 +15,9 @@ class DocumentProviderContractValidationTest {
         assertThatThrownBy(() -> new DocumentRerankInputProjection("query", List.of(item, item)))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("duplicates");
         assertThatThrownBy(() -> new DocumentUntrustedEmbeddingPayload(
-                List.of(List.of(1.0f, Float.NaN)), 2, "a".repeat(64)))
+                List.of(List.of(1.0f, Float.NaN)), 2,
+                new com.dylan.agent.adapter.api.document.DocumentEmbeddingBindingReference(
+                        "a".repeat(64), 2)))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("vector");
     }
 

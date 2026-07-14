@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
@@ -81,6 +82,34 @@ class DocumentAclScopePortTest {
             assertThat(failure.code()).isEqualTo(DocumentAclFailureCode.CANCELLED);
             assertThat(failure.metadata().providerAttempts()).isZero();
         });
+    }
+
+    @Test
+    void scopeRejectsControlCharactersBeforeCanonicalization() {
+        assertThatThrownBy(() -> new DocumentAclScopeSnapshot(
+                "tenant\nother", "principal", java.util.Set.of(), java.util.Set.of(), java.util.Set.of(),
+                new AllPrincipalVisibleDocuments(), java.util.Set.of(), "acl-v1", "perm-v1",
+                NOW.minusSeconds(1), NOW.plusSeconds(30), "evidence", "a".repeat(64)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("non-canonical");
+    }
+
+    @Test
+    void evidenceFactoryRejectsMismatchedOperationMetadata() {
+        DocumentAclScopeRequest request = request(() -> false);
+        DocumentAclScopeSnapshot scope = new DocumentAclScopeSnapshot(
+                "tenant", "principal", java.util.Set.of(), java.util.Set.of(), java.util.Set.of(),
+                new AllPrincipalVisibleDocuments(), java.util.Set.of(), "acl-v1", "perm-v1",
+                NOW.minusSeconds(1), NOW.plusSeconds(30), "evidence", "a".repeat(64));
+        var metadata = new com.dylan.agent.adapter.api.operation.CapabilityOperationMetadata(
+                "wrong-operation", request.operationContext().operationType(),
+                new com.dylan.agent.adapter.api.operation.ProviderSafeIdentity("acl", java.util.Optional.empty()),
+                1, 1, com.dylan.agent.adapter.api.operation.CapabilityOperationTermination.SUCCEEDED,
+                "diagnostic", request.operationContext().resourceLimits().reference(), false, false, false);
+
+        assertThatThrownBy(() -> new DocumentAclExecutionEvidenceFactory().create(request, scope, metadata))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source binding");
     }
 
     private static HttpDocumentAclScopeClient client(RestClient restClient) {

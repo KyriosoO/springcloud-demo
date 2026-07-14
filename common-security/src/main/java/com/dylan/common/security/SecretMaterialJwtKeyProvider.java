@@ -3,6 +3,7 @@ package com.dylan.common.security;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Arrays;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -48,10 +49,15 @@ public final class SecretMaterialJwtKeyProvider implements JwtKeyProvider {
 	private SecretKey resolve(String keyId) {
 		SecretMaterial material = secretMaterialProvider.requireSecret(ref(keyId));
 		byte[] raw = material.secretValue().copyBytes();
-		if (raw.length < 32) {
-			throw new SecretMaterialException("JWT HMAC key must be at least 32 bytes for keyId " + keyId);
+		try {
+			if (raw.length < 32) {
+				throw new SecretMaterialException("JWT HMAC key must be at least 32 bytes for keyId " + keyId);
+			}
+			return new SecretKeySpec(raw, "HmacSHA256");
+		} finally {
+			Arrays.fill(raw, (byte) 0);
+			material.secretValue().destroy();
 		}
-		return new SecretKeySpec(raw, "HmacSHA256");
 	}
 
 	private SecretKeyRef ref(String keyId) {

@@ -11,7 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,7 +41,7 @@ class EsIndexAliasServiceTest {
         Response current = response("{\"agent-doc-policy-v1\":{}}");
         when(client.performRequest(any(Request.class)))
                 .thenReturn(current);
-        EsIndexAliasService service = new EsIndexAliasService(client, new ObjectMapper());
+        EsIndexAliasService service = service(client);
 
         var result = service.compareAndSwitch(command(List.of("agent-doc-policy-v0")));
 
@@ -59,7 +62,7 @@ class EsIndexAliasServiceTest {
         Response after = response("{\"agent-doc-policy-v2\":{}}");
         when(client.performRequest(any(Request.class))).thenReturn(
                 before, mapping, settings, mutation, after);
-        EsIndexAliasService service = new EsIndexAliasService(client, new ObjectMapper());
+        EsIndexAliasService service = service(client);
 
         var result = service.compareAndSwitch(command(List.of("agent-doc-policy-v1")));
 
@@ -69,6 +72,46 @@ class EsIndexAliasServiceTest {
         assertThat(requests.getAllValues()).extracting(Request::getMethod)
                 .containsExactly("GET", "GET", "GET", "POST", "GET");
         assertThat(requests.getAllValues().get(3).getEndpoint()).isEqualTo("/_aliases");
+    }
+
+    @Test
+    void alreadyAppliedStillRequiresExactTargetBinding() throws Exception {
+        RestClient client = mock(RestClient.class);
+        Response current = response("{\"agent-doc-policy-v2\":{}}");
+        Response missingBinding = response("{\"agent-doc-policy-v2\":{\"mappings\":{\"_meta\":{}}}}");
+        when(client.performRequest(any(Request.class))).thenReturn(
+                current, missingBinding);
+        EsIndexAliasService service = service(client);
+
+        assertThatThrownBy(() -> service.compareAndSwitch(command(List.of("agent-doc-policy-v1"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("target binding invalid");
+        verify(client, times(2)).performRequest(any(Request.class));
+    }
+
+    @Test
+    void mutationTransportFailureStillPerformsPostReadAndReturnsTypedUnknown() throws Exception {
+        RestClient client = mock(RestClient.class);
+        Response before = response("{\"agent-doc-policy-v1\":{}}");
+        Response mapping = response("{\"agent-doc-policy-v2\":{\"mappings\":{\"_meta\":{\"agent_document_manifest\":{" +
+                "\"sealed\":true,\"domain\":\"policy\",\"materialType\":\"document\"," +
+                "\"manifestDigest\":\"" + "a".repeat(64) + "\",\"validationReportRef\":\"report-1\"," +
+                "\"attestationDigest\":\"" + "b".repeat(64) + "\"}}}}}");
+        Response settings = response("{\"agent-doc-policy-v2\":{\"settings\":{\"index.blocks.write\":\"true\"}}}");
+        when(client.performRequest(any(Request.class)))
+                .thenReturn(before, mapping, settings)
+                .thenThrow(new IOException("timeout"))
+                .thenReturn(before);
+        EsIndexAliasService service = service(client);
+
+        assertThat(service.compareAndSwitch(command(List.of("agent-doc-policy-v1"))))
+                .isEqualTo(EsIndexAliasService.AliasChangeResult.UNKNOWN);
+        verify(client, times(5)).performRequest(any(Request.class));
+    }
+
+    private static EsIndexAliasService service(RestClient client) {
+        return new EsIndexAliasService(client, new ObjectMapper(),
+                Clock.fixed(Instant.parse("2026-07-14T00:00:00Z"), ZoneOffset.UTC));
     }
 
     private static EsIndexAliasService.AuthorizedAliasChangeCommand command(List<String> expected) {

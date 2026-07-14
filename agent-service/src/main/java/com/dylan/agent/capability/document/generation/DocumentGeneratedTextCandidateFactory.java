@@ -143,12 +143,13 @@ public final class DocumentGeneratedTextCandidateFactory {
             throw new IllegalArgumentException("generation output shape invalid");
         }
         int maxGeneratedChars = effectiveGeneratedChars(plan, limits);
+        int summaryChars = codePoints(payload.summaryText());
+        for (String bullet : payload.summaryBullets()) {
+            summaryChars = Math.addExact(summaryChars, codePoints(bullet));
+        }
         if (codePoints(payload.answerText()) > maxGeneratedChars
-                || codePoints(payload.summaryText()) > Math.min(
-                        maxGeneratedChars, limits.output().maxSummaryChars())
+                || summaryChars > Math.min(maxGeneratedChars, limits.output().maxSummaryChars())
                 || payload.summaryBullets().size() > limits.output().maxSummaryBullets()
-                || payload.summaryBullets().stream().anyMatch(
-                        value -> codePoints(value) > limits.output().maxSummaryChars())
                 || payload.citedIds().size() > limits.output().maxCitationCount()) {
             throw new IllegalArgumentException("generation payload exceeds effective limits");
         }
@@ -163,11 +164,14 @@ public final class DocumentGeneratedTextCandidateFactory {
     private static int effectiveGeneratedChars(
             ValidatedDocumentPlan plan,
             DocumentResourceLimit limits) {
+        int operationLimit = plan.parameters().operation() == DocumentPlanOperation.SUMMARIZE
+                ? limits.output().maxSummaryChars()
+                : limits.output().maxGeneratedChars();
         int result = plan.generationOptions()
                 .map(options -> options.getMaxOutputChars() == null
-                        ? limits.output().maxGeneratedChars()
-                        : Math.min(options.getMaxOutputChars(), limits.output().maxGeneratedChars()))
-                .orElse(limits.output().maxGeneratedChars());
+                        ? operationLimit
+                        : Math.min(options.getMaxOutputChars(), operationLimit))
+                .orElse(operationLimit);
         var summaryScope = plan.parameters().summaryScope();
         if (plan.parameters().operation() == DocumentPlanOperation.SUMMARIZE
                 && summaryScope != null && summaryScope.getMaxSummaryChars() != null) {

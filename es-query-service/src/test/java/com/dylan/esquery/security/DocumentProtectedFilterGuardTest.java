@@ -39,7 +39,7 @@ class DocumentProtectedFilterGuardTest {
         return new HybridSearchRequest(new DocumentCorpusKeyDto("policy", "document"),
                 new DocumentSearchExecutionBinding("tax-v2","v2","b".repeat(64),limit,"c".repeat(64),"a".repeat(64)),
                 List.of(),root,digest,new DocumentQueryPlan("tax",List.of(),List.of(),java.util.Optional.empty()),
-                List.of(new DocumentHybridChannelRequest(DocumentSearchChannel.BM25,true,1,10)),
+                List.of(new DocumentHybridChannelRequest(DocumentSearchChannel.BM25,true,1,10,10)),
                 new HybridFusionRequest(60,10),new HybridDedupRequest(5,2),new HybridContextRequest(0,0,0),
                 new DocumentSearchOperationMetadata("corr-1","op-1","DOCUMENT_RETRIEVAL",
                         java.time.Instant.now().plusSeconds(60).toEpochMilli(),"reg-1",limit));

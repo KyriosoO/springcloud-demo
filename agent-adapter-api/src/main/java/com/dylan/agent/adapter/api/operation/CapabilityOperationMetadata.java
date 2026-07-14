@@ -33,6 +33,11 @@ public record CapabilityOperationMetadata(
         if (termination == CapabilityOperationTermination.SUCCEEDED && providerAttempts != 1) {
             throw new IllegalArgumentException("successful operation must have one provider attempt");
         }
+        if (termination == CapabilityOperationTermination.SUCCEEDED
+                && (deadlineTouched || cancellationObserved)) {
+            throw new IllegalArgumentException(
+                    "successful operation must not observe deadline or cancellation");
+        }
     }
 
     private static void requireText(String value, String field) {

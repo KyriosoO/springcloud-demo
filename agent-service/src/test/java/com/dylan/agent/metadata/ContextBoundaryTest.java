@@ -99,6 +99,38 @@ class ContextBoundaryTest {
     }
 
     @Test
+    void approveRejectsLiveContextThatWasNotConsumedDuringPlanning() {
+        RecordingRepository repository = new RecordingRepository(
+                entity(4, true, MetadataTestSupport.NOW.plusSeconds(60)));
+        ContextBoundary boundary = new ContextBoundary(
+                repository, new PayloadJsonCodec(), new PlainCodec(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> boundary.approve(
+                List.of(queryCandidate()),
+                new ContextApprovalRequest(handle(), nullRegistration(), executionScope(), List.of(),
+                        "employee", MetadataTestSupport.NOW)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("appeared after planning");
+    }
+
+    @Test
+    void approveRejectsRetiredContextInsteadOfReopeningIt() {
+        RecordingRepository repository = new RecordingRepository(
+                entity(4, false, MetadataTestSupport.NOW.minusSeconds(1)));
+        ContextBoundary boundary = new ContextBoundary(
+                repository, new PayloadJsonCodec(), new PlainCodec(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> boundary.approve(
+                List.of(queryCandidate()),
+                new ContextApprovalRequest(handle(), nullRegistration(), executionScope(), List.of(),
+                        "employee", MetadataTestSupport.NOW)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("must not be reopened");
+    }
+
+    @Test
     void approveRejectsDuplicateCandidateType() {
         ContextBoundary boundary = new ContextBoundary(
                 new NoopContextRepository(), new PayloadJsonCodec(), new PlainCodec(),

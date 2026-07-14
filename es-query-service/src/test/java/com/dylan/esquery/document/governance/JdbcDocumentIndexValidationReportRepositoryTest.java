@@ -22,8 +22,10 @@ class JdbcDocumentIndexValidationReportRepositoryTest {
         var binding=JdbcDocumentIndexValidationReportRepository.targetBinding("v1",A,B,C);
         String subjectDigest=JdbcDocumentIndexValidationReportRepository.indexSubjectDigest(corpusDigest,B,binding.canonicalDigest(),D,Optional.empty());
         var subject=new JdbcDocumentIndexValidationReportRepository.IndexSubjectProjection(corpus,"index-safe","v1",A,B,C,D,Optional.empty());
-        var gates=java.util.List.of(new JdbcDocumentIndexValidationReportRepository.GateResult("INDEX_TECHNICAL",
-                JdbcDocumentIndexValidationReportRepository.GateStatus.PASSED,A,null));
+        var gates=java.util.Arrays.stream(JdbcDocumentIndexValidationReportRepository.GateCode.values())
+                .filter(code -> code != JdbcDocumentIndexValidationReportRepository.GateCode.EMBEDDING_INDEX_COMPATIBILITY)
+                .map(code -> new JdbcDocumentIndexValidationReportRepository.GateResult(code,
+                        JdbcDocumentIndexValidationReportRepository.GateStatus.PASSED,A,null)).toList();
         var completed=java.time.Instant.parse("2026-07-14T08:00:00Z");var expires=completed.plusSeconds(60);
         String canonical=JdbcDocumentIndexValidationReportRepository.reportCanonical(subjectDigest,A,B,C,
                 JdbcDocumentIndexValidationReportRepository.ReportStatus.PASSED,gates,java.util.List.of(),completed,expires,"integrity-1");
@@ -32,5 +34,26 @@ class JdbcDocumentIndexValidationReportRepositoryTest {
         assertThatThrownBy(()->new JdbcDocumentIndexValidationReportRepository.IndexValidationReport("report-1",subjectDigest,subject,A,B,C,
                 JdbcDocumentIndexValidationReportRepository.ReportStatus.PASSED,gates,java.util.List.of(),completed,expires,"integrity-1",canonical,"run-1"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test void rejectsPassedIndexReportWithIncompleteGateSet(){
+        var corpus=new DocumentCorpusKeyDto("hr","policy");
+        String corpusDigest=JdbcDocumentIndexValidationReportRepository.corpusKeyDigest(corpus);
+        var binding=JdbcDocumentIndexValidationReportRepository.targetBinding("v1",A,B,C);
+        String subjectDigest=JdbcDocumentIndexValidationReportRepository.indexSubjectDigest(
+                corpusDigest,B,binding.canonicalDigest(),D,Optional.empty());
+        var subject=new JdbcDocumentIndexValidationReportRepository.IndexSubjectProjection(
+                corpus,"index-safe","v1",A,B,C,D,Optional.empty());
+        var gates=java.util.List.of(new JdbcDocumentIndexValidationReportRepository.GateResult(
+                JdbcDocumentIndexValidationReportRepository.GateCode.INDEX_TECHNICAL,
+                JdbcDocumentIndexValidationReportRepository.GateStatus.PASSED,A,null));
+        var completed=java.time.Instant.parse("2026-07-14T08:00:00Z");var expires=completed.plusSeconds(60);
+        String canonical=JdbcDocumentIndexValidationReportRepository.reportCanonical(subjectDigest,A,B,C,
+                JdbcDocumentIndexValidationReportRepository.ReportStatus.PASSED,gates,java.util.List.of(),completed,expires,"integrity-1");
+        assertThatThrownBy(()->new JdbcDocumentIndexValidationReportRepository.IndexValidationReport(
+                canonical,subjectDigest,subject,A,B,C,
+                JdbcDocumentIndexValidationReportRepository.ReportStatus.PASSED,gates,java.util.List.of(),
+                completed,expires,"integrity-1",canonical,"run-1"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("missing required gates");
     }
 }

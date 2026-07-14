@@ -68,6 +68,27 @@ class DocumentPlanValidatorTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("SEARCH");
     }
 
+    @Test
+    void derivesRetrievalModeAndContextFromFrozenProfile() {
+        var properties = DocumentProfileTestSupport.properties();
+        var entry = properties.getDefinitions().get(0);
+        entry.setAllowedChannels(List.of("BM25"));
+        entry.setRequiredChannels(List.of("BM25"));
+        entry.setChannelWeights(java.util.Map.of("BM25", 1));
+        entry.setEmbeddingPolicy(com.dylan.agent.capability.document.profile.DocumentFeaturePolicy.DISABLED);
+        entry.setContextBeforeChunks(2);
+        entry.setContextAfterChunks(3);
+        var assets = com.dylan.agent.capability.document.profile.DocumentProfileAssets.build(properties);
+        var context = DocumentCapabilityHandlerTestSupport.validationContext("document.answer", "policy_document");
+
+        ValidatedDocumentPlan validated = validator().validate(
+                plan("policy_document", 5, DocumentPlanOperation.ANSWER, assets, context), context);
+
+        assertThat(validated.parameters().retrievalMode()).isEqualTo(DocumentRetrievalMode.KEYWORD);
+        assertThat(validated.parameters().contextOptions().beforeChunks()).isEqualTo(2);
+        assertThat(validated.parameters().contextOptions().afterChunks()).isEqualTo(3);
+    }
+
     private static DocumentPlanValidator validator() {
         AgentProperties agentProperties = new AgentProperties();
         AgentProperties.QueryProperties query = new AgentProperties.QueryProperties();
@@ -78,20 +99,33 @@ class DocumentPlanValidatorTest {
 
     private static DocumentAgentPlan plan(String materialType, int topK,
                                           com.dylan.agent.kernel.core.ExecutionValidationContext context) {
+        return plan(materialType, topK, DocumentPlanOperation.SEARCH,
+                DocumentProfileTestSupport.assets(), context);
+    }
+
+    private static DocumentAgentPlan plan(
+            String materialType,
+            int topK,
+            DocumentPlanOperation operation,
+            com.dylan.agent.capability.document.profile.DocumentProfileAssets.BuiltAssets assets,
+            com.dylan.agent.kernel.core.ExecutionValidationContext context) {
         DocumentRetrievalOptions options = new DocumentRetrievalOptions();
         options.setMaterialType(materialType); options.setTopK(topK);
         AgentDocumentSpec spec = new AgentDocumentSpec();
-        spec.setOperation(DocumentPlanOperation.SEARCH); spec.setQueryText("税收优惠"); spec.setRetrievalOptions(options);
+        spec.setOperation(operation); spec.setQueryText("税收优惠"); spec.setRetrievalOptions(options);
         DocumentAgentPlan plan = new DocumentAgentPlan(); plan.setDocument(spec);
-        var assets = DocumentProfileTestSupport.assets();
-        var selection = DocumentProfileTestSupport.selection(assets, DocumentPlanOperation.SEARCH);
+        var selection = DocumentProfileTestSupport.selection(assets, operation);
         var scope = context.executionScope();
         ResourceLimitReference reference = scope.resourceLimits().reference();
         var limits = context.resourceLimits().require(
                 com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,
                 com.dylan.agent.adapter.api.document.DocumentResourceLimit.class);
         var profile = new DocumentPlanningProfileProjector().project(
-                selection, limits, DocumentCapabilityIds.SEARCH);
+                selection, limits, switch (operation) {
+                    case SEARCH -> DocumentCapabilityIds.SEARCH;
+                    case ANSWER -> DocumentCapabilityIds.ANSWER;
+                    case SUMMARIZE -> DocumentCapabilityIds.SUMMARIZE;
+                });
         DocumentProfileBinding binding = new DocumentProfileBinding(scope.invocationId(), scope.requestCorrelationId(),
                 reference.registrationIdentity(), scope.agentProfileRef(), profile.documentProfileVersion(),
                 reference, DocumentProfileProjectionDigest.compute(profile));

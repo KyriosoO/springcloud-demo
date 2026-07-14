@@ -28,6 +28,19 @@ class DocumentPlanningArtifactAssemblerTest {
     }
 
     @Test
+    void disabledVectorChannelDoesNotConsumeCandidateBudget() {
+        var properties = DocumentProfileTestSupport.properties();
+        properties.getDefinitions().get(0).setVectorK(101);
+        properties.getDefinitions().get(0).setNumCandidates(101);
+        var assets = DocumentProfileAssets.build(properties);
+
+        var projected = projector.project(selection(assets),
+                DocumentProfileTestSupport.limits(0, 0, 0), DocumentCapabilityIds.SEARCH);
+
+        assertThat(projected.allowedChannels()).containsExactly(DocumentRetrievalChannel.BM25);
+    }
+
+    @Test
     void requiredFeatureWithZeroBudgetFailsBeforeRuntimePlanAssembly() {
         var properties = DocumentProfileTestSupport.properties();
         properties.getDefinitions().get(0).setEmbeddingPolicy(DocumentFeaturePolicy.REQUIRED);

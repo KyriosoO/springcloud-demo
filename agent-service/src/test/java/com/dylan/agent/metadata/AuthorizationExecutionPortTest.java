@@ -29,7 +29,8 @@ class AuthorizationExecutionPortTest {
     @Test
     void recheckNeverExpandsSnapshot() {
         AuthorizationExecutionPortImpl port = port(MetadataTestSupport::permission);
-        var scope = port.recheck(snapshot(), handle());
+        var snapshot = snapshot();
+        var scope = port.recheck(snapshot, handle());
 
         assertThat(scope.allowedCapabilityIds()).containsExactly("query.search");
         assertThat(scope.allowedDomains()).containsExactly("employee");
@@ -37,6 +38,9 @@ class AuthorizationExecutionPortTest {
         assertThat(limits.maxPageSize()).isEqualTo(100);
         assertThat(limits.maxResultRows()).isEqualTo(100);
         assertThat(limits.maxResultBytes()).isEqualTo(10_000);
+        assertThat(scope.resourceLimits()).isNotSameAs(snapshot.resourceLimits());
+        assertThat(scope.resourceLimits().bindingIdentity())
+                .isEqualTo(snapshot.resourceLimits().bindingIdentity());
     }
 
     @Test
@@ -90,6 +94,8 @@ class AuthorizationExecutionPortTest {
                 new com.dylan.agent.metadata.config.AgentMetadataStore(
                         MetadataTestSupport.bundle("bundle-v1", "digest-v1")),
                 DomainMetadataTestSupport.domainMetadataPort(),
+                new com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver(
+                        com.dylan.agent.kernel.resource.StandardResourceLimits.registry()),
                 clock);
     }
 

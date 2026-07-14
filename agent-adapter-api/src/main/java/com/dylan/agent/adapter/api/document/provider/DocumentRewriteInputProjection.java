@@ -1,8 +1,8 @@
 package com.dylan.agent.adapter.api.document.provider;
-public record DocumentRewriteInputProjection(String originalQuery,String language,int maxCandidates) {
+public record DocumentRewriteInputProjection(String originalQuery,DocumentLanguage language,int maxCandidates) {
     public DocumentRewriteInputProjection {
         DocumentProviderContractValidation.text(originalQuery, "originalQuery");
-        DocumentProviderContractValidation.text(language, "language");
+        java.util.Objects.requireNonNull(language, "language must not be null");
         if(maxCandidates<=0)throw new IllegalArgumentException("maxCandidates must be positive");
     }
 }

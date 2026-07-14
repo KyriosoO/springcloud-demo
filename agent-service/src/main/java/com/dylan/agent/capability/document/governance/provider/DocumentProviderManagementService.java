@@ -44,7 +44,7 @@ public final class DocumentProviderManagementService {
                 DocumentManagementOperation.PROVIDER_ACTIVATE,unit,current,report.binding().canonicalDigest(),
                 Optional.of(report.reportId()),authorizationDigest,request.deadline()),authorization);
         requireStandard(authorization,approval);
-        var gate=gates.evaluate("PROVIDER_OPERATION",unit,report.binding().canonicalDigest(),
+        var gate=gates.evaluate("PROVIDER_OPERATION",unit,current,report.binding().canonicalDigest(),
                 report.reportCanonicalDigest(),report.subjectDigest(),approval.evidenceRef());
         PreparedChange prepared=prepare(request.idempotencyKey(),authorizationDigest,"ACTIVATE",unit,current,
                 report.binding().canonicalDigest(),gate.canonicalDigest(),authorization,approval,request.deadline(),null);
@@ -68,7 +68,7 @@ public final class DocumentProviderManagementService {
         var approval=approvals.requireApproval(new DocumentApprovalVerificationRequest(DocumentManagementOperation.PROVIDER_ROLLBACK,
                 unit,current,report.binding().canonicalDigest(),Optional.of(report.reportId()),authorizationDigest,request.deadline()),authorization);
         requireStandard(authorization,approval);
-        var gate=gates.evaluate("PROVIDER_OPERATION",unit,report.binding().canonicalDigest(),report.reportCanonicalDigest(),
+        var gate=gates.evaluate("PROVIDER_OPERATION",unit,current,report.binding().canonicalDigest(),report.reportCanonicalDigest(),
                 report.subjectDigest(),approval.evidenceRef());
         PreparedChange prepared=prepare(request.idempotencyKey(),authorizationDigest,"ROLLBACK",unit,current,
                 report.binding().canonicalDigest(),gate.canonicalDigest(),authorization,approval,request.deadline(),request.relatedChangeId());

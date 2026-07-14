@@ -18,8 +18,9 @@ import java.util.UUID;
 public class DocumentEmergencyGateEvidenceExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<DocumentManagementErrorResponse> denied(AccessDeniedException ex) {
-        return response(HttpStatus.FORBIDDEN, ex.getMessage()!=null&&ex.getMessage().contains("authentication")
-                ?DocumentManagementErrorCode.AUTHENTICATION_REQUIRED:DocumentManagementErrorCode.SCOPE_REQUIRED);
+        boolean authentication = ex.getMessage()!=null&&ex.getMessage().contains("authentication");
+        return response(authentication ? HttpStatus.UNAUTHORIZED : HttpStatus.FORBIDDEN, authentication
+                ? DocumentManagementErrorCode.AUTHENTICATION_REQUIRED : DocumentManagementErrorCode.SCOPE_REQUIRED);
     }
 
     @ExceptionHandler(SecurityException.class)
@@ -40,7 +41,7 @@ public class DocumentEmergencyGateEvidenceExceptionHandler {
         if(message.contains("expected current")||message.contains("expected row")||message.contains("CAS conflict"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.EXPECTED_STATE_MISMATCH);
         if(message.contains("PASSED")||message.contains("rollback target"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.REPORT_NOT_CURRENT);
         if(message.contains("emergency"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.EMERGENCY_BLOCKED);
-        if(message.contains("deadline"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.DEADLINE_EXCEEDED);
+        if(message.contains("deadline"))return response(HttpStatus.REQUEST_TIMEOUT,DocumentManagementErrorCode.DEADLINE_EXCEEDED);
         if(message.contains("reconcilable")||message.contains("active change"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.CHANGE_IN_PROGRESS);
         if(message.contains("actual state"))return response(HttpStatus.SERVICE_UNAVAILABLE,DocumentManagementErrorCode.ACTUAL_STATE_UNKNOWN);
         return response(HttpStatus.SERVICE_UNAVAILABLE, DocumentManagementErrorCode.INTERNAL_UNAVAILABLE);

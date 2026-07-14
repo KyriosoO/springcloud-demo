@@ -15,6 +15,7 @@ import com.dylan.esquery.service.EsDocumentService;
 import com.dylan.esquery.service.EsManagementAccessGuard;
 import com.dylan.esquery.service.IndexRebuildService;
 import com.dylan.esquery.service.RebuildTaskRepository;
+import com.dylan.esquery.service.EsIndexAliasService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -77,12 +78,19 @@ class EsQueryControllerManagementAccessTest {
         EsQueryProperties properties = new EsQueryProperties();
         properties.setTotalHitsThreshold(10_000);
         properties.setManagementServiceToken(managementToken);
+        EsIndexAliasService aliases = mock(EsIndexAliasService.class);
+        try {
+            when(aliases.readCurrent(any())).thenAnswer(invocation ->
+                    new EsIndexAliasService.AliasTargetView(invocation.getArgument(0), List.of()));
+        } catch (java.io.IOException impossible) {
+            throw new AssertionError(impossible);
+        }
         return new EsQueryController(
                 mock(EsDocumentService.class),
                 rebuildService,
                 mock(RebuildTaskRepository.class),
                 new EsManagementAccessGuard(properties),
-                new DocumentIndexAccessGuard(new DocumentCorpusCatalog(List.of())),
+                new DocumentIndexAccessGuard(new DocumentCorpusCatalog(List.of()), aliases),
                 documentService,
                 mock(DocumentHybridSearchUseCase.class),
                 mock(DocumentSearchAccessGuard.class));

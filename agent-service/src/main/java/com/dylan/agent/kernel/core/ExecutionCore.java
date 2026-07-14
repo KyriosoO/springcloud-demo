@@ -66,8 +66,15 @@ public final class ExecutionCore {
     public ExecutionOutcome execute(ExecutionCommand command) {
         Objects.requireNonNull(command);
 
-        if (command.handle().isExpired(clock)) {
-            return failure(ExecutionStage.EXECUTION_PREFLIGHT, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        ExecutionFailure cancellation = cancellationFailure(command, ExecutionStage.EXECUTION_PREFLIGHT);
+        if (cancellation != null) {
+            return cancellation;
+        }
+
+        try {
+            validatePlanningArtifactIdentity(command);
+        } catch (RuntimeException ex) {
+            return failure(ExecutionStage.EXECUTION_PREFLIGHT, KernelErrorCode.RUNTIME_CONTRACT_INVALID, false);
         }
 
         ResolvedRegistration resolved;
@@ -111,8 +118,9 @@ public final class ExecutionCore {
         ExecutionValidationContext valCtx = buildValidationContext(
                 command, reg, domainResolution.projection(), execScope, domainResolution.binding());
 
-        if (command.handle().isExpired(clock)) {
-            return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        cancellation = cancellationFailure(command, ExecutionStage.CANCELLATION_DEADLINE);
+        if (cancellation != null) {
+            return cancellation;
         }
 
         com.dylan.agent.kernel.registration.ValidatedPlanHandle handle;
@@ -127,8 +135,9 @@ public final class ExecutionCore {
 
         ExecutionContext execCtx = buildExecutionContext(command, domainResolution.binding(), execScope);
 
-        if (command.handle().isExpired(clock)) {
-            return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        cancellation = cancellationFailure(command, ExecutionStage.CANCELLATION_DEADLINE);
+        if (cancellation != null) {
+            return cancellation;
         }
 
         HandlerCandidate candidate;
@@ -138,8 +147,9 @@ public final class ExecutionCore {
             return failure(ExecutionStage.HANDLER, KernelErrorCode.HANDLER_FAILED, false);
         }
 
-        if (command.handle().isExpired(clock)) {
-            return failure(ExecutionStage.CANCELLATION_DEADLINE, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        cancellation = cancellationFailure(command, ExecutionStage.CANCELLATION_DEADLINE);
+        if (cancellation != null) {
+            return cancellation;
         }
 
         try {
@@ -178,6 +188,24 @@ public final class ExecutionCore {
         var r = cmd.planningResult().resolvedRegistration();
         r.validateIdentity();
         return r;
+    }
+
+    private void validatePlanningArtifactIdentity(ExecutionCommand command) {
+        if (!command.planningResult().hasValidArtifactIdentity()) {
+            throw new IllegalStateException("planning artifact binding digest mismatch");
+        }
+    }
+
+    private ExecutionFailure cancellationFailure(ExecutionCommand command, ExecutionStage stage) {
+        if (command.cancellation().isCancelled()) {
+            KernelErrorCode reason = command.cancellation().reasonCode()
+                    .orElse(KernelErrorCode.CANCELLED);
+            return failure(stage, reason, true);
+        }
+        if (command.handle().isExpired(clock)) {
+            return failure(stage, KernelErrorCode.DEADLINE_EXCEEDED, true);
+        }
+        return null;
     }
 
     private void validateBinding(ExecutionCommand cmd, CapabilityRegistration<?, ?, ?> reg) {

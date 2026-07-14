@@ -12,6 +12,7 @@ import com.dylan.common.security.SecretKeyRef;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Objects;
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -38,10 +39,15 @@ public final class SecretMaterialPayloadKeyProvider implements PayloadKeyProvide
     private SecretKey resolve(String keyId) {
         SecretMaterial material = secretMaterialProvider.requireSecret(ref(keyId));
         byte[] raw = material.secretValue().copyBytes();
-        if (raw.length != 32) {
-            throw new SecretMaterialException("Payload key must be 32 bytes for keyId " + keyId);
+        try {
+            if (raw.length != 32) {
+                throw new SecretMaterialException("Payload key must be 32 bytes for keyId " + keyId);
+            }
+            return new SecretKeySpec(raw, "AES");
+        } finally {
+            Arrays.fill(raw, (byte) 0);
+            material.secretValue().destroy();
         }
-        return new SecretKeySpec(raw, "AES");
     }
 
     private SecretKeyRef ref(String keyId) {

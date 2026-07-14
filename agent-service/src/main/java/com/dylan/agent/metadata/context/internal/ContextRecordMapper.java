@@ -17,7 +17,7 @@ public interface ContextRecordMapper {
 
     @Select("SELECT context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
             "contract_namespace, contract_name, contract_version, record_version, protected_payload_json, " +
-            "source_capability_id, source_invocation_id, source_domain, readable, expires_at, updated_at " +
+            "source_capability_id, source_invocation_id, source_domain, readable, expires_at, created_at, updated_at " +
             "FROM agent_context_record WHERE owner_type = #{ownerType} AND owner_id = #{ownerId} " +
             "AND scope_type = #{scopeType} AND scope_id = #{scopeId} AND context_type = #{contextType} " +
             "AND readable = 1 AND expires_at > #{now}")
@@ -30,7 +30,7 @@ public interface ContextRecordMapper {
 
     @Select("SELECT context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
             "contract_namespace, contract_name, contract_version, record_version, protected_payload_json, " +
-            "source_capability_id, source_invocation_id, source_domain, readable, expires_at, updated_at " +
+            "source_capability_id, source_invocation_id, source_domain, readable, expires_at, created_at, updated_at " +
             "FROM agent_context_record WHERE owner_type = #{ownerType} AND owner_id = #{ownerId} " +
             "AND scope_type = #{scopeType} AND scope_id = #{scopeId} AND context_type = #{contextType}")
     ContextRecordRow findByKey(@Param("ownerType") String ownerType,
@@ -43,10 +43,10 @@ public interface ContextRecordMapper {
             "context_id, owner_type, owner_id, scope_type, scope_id, context_type, " +
             "contract_namespace, contract_name, contract_version, " +
             "record_version, protected_payload_json, source_capability_id, source_invocation_id, source_domain, " +
-            "readable, expires_at, updated_at) VALUES (" +
+            "readable, expires_at, created_at, updated_at) VALUES (" +
             "#{contextId}, #{ownerType}, #{ownerId}, #{scopeType}, #{scopeId}, #{contextType}, " +
             "#{contractNamespace}, #{contractName}, #{contractVersion}, #{recordVersion}, #{protectedPayloadJson}, " +
-            "#{sourceCapabilityId}, #{sourceInvocationId}, #{sourceDomain}, #{readable}, #{expiresAt}, #{updatedAt}) " +
+            "#{sourceCapabilityId}, #{sourceInvocationId}, #{sourceDomain}, #{readable}, #{expiresAt}, #{createdAt}, #{updatedAt}) " +
             "")
     int insertIfAbsent(ContextRecordRow row);
 
@@ -58,7 +58,7 @@ public interface ContextRecordMapper {
             "readable = #{row.readable}, expires_at = #{row.expiresAt}, updated_at = #{row.updatedAt} " +
             "WHERE owner_type = #{row.ownerType} AND owner_id = #{row.ownerId} " +
             "AND scope_type = #{row.scopeType} AND scope_id = #{row.scopeId} " +
-            "AND context_type = #{row.contextType} AND record_version = #{expectedCurrentVersion}")
+            "AND context_type = #{row.contextType} AND record_version = #{expectedCurrentVersion} AND readable = 1")
     int updateIfVersion(@Param("row") ContextRecordRow row,
                         @Param("expectedCurrentVersion") long expectedCurrentVersion);
 
@@ -67,7 +67,8 @@ public interface ContextRecordMapper {
     int markConversationUnreadable(@Param("scopeId") String scopeId,
                                    @Param("now") LocalDateTime now);
 
-    @Delete("DELETE FROM agent_context_record WHERE expires_at < #{cutoff} LIMIT #{limit}")
+    @Delete("DELETE FROM agent_context_record WHERE expires_at < #{cutoff} " +
+            "ORDER BY expires_at ASC, context_id ASC LIMIT #{limit}")
     int deleteExpired(@Param("cutoff") LocalDateTime cutoff,
                       @Param("limit") int limit);
 }

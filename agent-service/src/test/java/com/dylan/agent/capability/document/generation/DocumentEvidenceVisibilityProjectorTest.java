@@ -21,7 +21,7 @@ class DocumentEvidenceVisibilityProjectorTest {
 
     @Test
     void rejectsMissingExecutionScope() {
-        assertThatThrownBy(() -> new DocumentEvidenceVisibilityProjector().project(
+        assertThatThrownBy(() -> projector().project(
                 List.of(evidence()), null, "policy_document"))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("executionScope");
@@ -29,7 +29,7 @@ class DocumentEvidenceVisibilityProjectorTest {
 
     @Test
     void rejectsEvidenceWhenReadableTextFieldsAreMissing() {
-        var filtered = new DocumentEvidenceVisibilityProjector().project(
+        var filtered = projector().project(
                 List.of(evidence()),
                 scope(Set.of("title", "sourceType")),
                 "policy_document");
@@ -39,7 +39,7 @@ class DocumentEvidenceVisibilityProjectorTest {
 
     @Test
     void keepsOnlySnippetWhenContentIsNotReadable() {
-        var filtered = new DocumentEvidenceVisibilityProjector().project(
+        var filtered = projector().project(
                 List.of(evidence()),
                 scope(Set.of("title", "sourceUri", "snippet")),
                 "policy_document");
@@ -57,7 +57,7 @@ class DocumentEvidenceVisibilityProjectorTest {
 
     @Test
     void keepsContentAndContextOnlyWhenContentIsReadable() {
-        var filtered = new DocumentEvidenceVisibilityProjector().project(
+        var filtered = projector().project(
                 List.of(evidence()),
                 scope(Set.of("content", "snippet")),
                 "policy_document");
@@ -69,6 +69,22 @@ class DocumentEvidenceVisibilityProjectorTest {
             assertThat(item.title()).isNull();
             assertThat(item.safeFieldNames()).isEmpty();
         });
+    }
+
+    @Test
+    void rejectsUnsafeSourceUriScheme() {
+        AclBoundDocumentHit source = evidence();
+        AclBoundDocumentHit unsafe = new AclBoundDocumentHit(
+                source.candidateId(), source.identity(), source.title(), source.sourceType(), source.section(),
+                source.page(), "javascript:alert(1)", source.snippet(), source.content(), source.citationText(),
+                source.generationText(), source.contextBefore(), source.contextAfter(), source.charStart(),
+                source.charEnd(), source.score(), source.rrfScore(), source.retrievalChannels(),
+                source.safeFieldNames(), source.securityBinding());
+
+        assertThatThrownBy(() -> projector().project(
+                List.of(unsafe), scope(Set.of("snippet", "sourceUri")), "policy_document"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source URI");
     }
 
     private static AclBoundDocumentHit evidence() {
@@ -92,5 +108,16 @@ class DocumentEvidenceVisibilityProjectorTest {
                 Map.of(),
                 com.dylan.agent.kernel.resource.StandardResourceLimits
                         .testEffective(20, 20, 1024 * 1024));
+    }
+
+    private static DocumentEvidenceVisibilityProjector projector() {
+        return new DocumentEvidenceVisibilityProjector(
+                new com.dylan.agent.metadata.result.ResultValueMaskingSupport(
+                        new com.dylan.agent.mask.FieldMaskerRegistry(List.of(
+                                new com.dylan.agent.mask.NoneFieldMasker(),
+                                new com.dylan.agent.mask.IdCardFieldMasker(),
+                                new com.dylan.agent.mask.MobileFieldMasker(),
+                                new com.dylan.agent.mask.EmailFieldMasker(),
+                                new com.dylan.agent.mask.AddressFieldMasker()))));
     }
 }

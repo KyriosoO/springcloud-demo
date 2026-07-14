@@ -1,6 +1,7 @@
 package com.dylan.agent.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Clock;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +27,7 @@ import com.dylan.agent.invocation.model.InvocationType;
 import com.dylan.agent.metadata.authorization.internal.AuthorizationPlanningPortImpl;
 import com.dylan.agent.metadata.authorization.internal.UserPermissionBoundary;
 import com.dylan.agent.metadata.authorization.model.DelegationConstraintRef;
+import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver;
 import com.dylan.agent.metadata.authorization.model.PlanningAuthorizationEvidence;
 import com.dylan.agent.metadata.authorization.model.PlanningEffectiveScope;
@@ -113,6 +116,22 @@ class AuthorizationPlanningPortTest {
     }
 
     @Test
+    void evidenceDigestIsStableAndBindsPlanningScope() {
+        var field = new CanonicalFieldRef("employee", "chineseName");
+        var mobilePort = planningPortWithFieldSecurity(Map.of(field, fieldConstraint(MaskType.MOBILE)));
+        var emailPort = planningPortWithFieldSecurity(Map.of(field, fieldConstraint(MaskType.EMAIL)));
+        PlanningSecurityRequest request = new PlanningSecurityRequest(
+                handle(), handle().agentProfileRef(), DelegationConstraintRef.CHAT_ALL);
+
+        String first = mobilePort.capture(request).evidenceDigest();
+        String reorderedEquivalent = mobilePort.capture(request).evidenceDigest();
+        String changedScope = emailPort.capture(request).evidenceDigest();
+
+        assertThat(first).matches("[0-9a-f]{64}").isEqualTo(reorderedEquivalent);
+        assertThat(changedScope).matches("[0-9a-f]{64}").isNotEqualTo(first);
+    }
+
+    @Test
     void freezesNonNoneFieldMasksInAuthorizationSnapshot() {
         var field = new CanonicalFieldRef("employee", "chineseName");
         var port = planningPortWithFieldSecurity(Map.of(field, fieldConstraint(MaskType.MOBILE)));
@@ -164,6 +183,27 @@ class AuthorizationPlanningPortTest {
                 com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,
                 com.dylan.agent.adapter.api.document.DocumentResourceLimit.class);
         assertThat(limits.retrieval().maxReturnedDocuments()).isEqualTo(7);
+    }
+
+    @Test
+    void assertCurrentRejectsPermissionChangedAfterCapture() {
+        AtomicReference<UserPermission> current = new AtomicReference<>(
+                MetadataTestSupport.permission(handle().subject()));
+        var port = new AuthorizationPlanningPortImpl(
+                new AgentMetadataStore(MetadataTestSupport.bundle("bundle-v1", "digest-v1")),
+                new EffectiveProfileCalculator(),
+                new UserPermissionBoundary((subject, deadline) -> current.get(),
+                        Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC)),
+                resourceLimitResolver(),
+                DomainMetadataTestSupport.domainMetadataPort(),
+                Clock.fixed(MetadataTestSupport.NOW, ZoneOffset.UTC));
+        var evidence = port.capture(new PlanningSecurityRequest(
+                handle(), handle().agentProfileRef(), DelegationConstraintRef.CHAT_ALL));
+        current.set(withEvidenceVersion(current.get(), "perm-v2"));
+
+        assertThatThrownBy(() -> port.assertCurrent(evidence))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("permission evidence is stale");
     }
 
     private AuthorizationPlanningPortImpl planningPortWithFieldSecurity(
@@ -251,6 +291,23 @@ class AuthorizationPlanningPortTest {
                 new com.dylan.agent.kernel.resource.CapabilityResourceLimitRegistry(List.of(
                         new com.dylan.agent.kernel.resource.StandardCapabilityResourceLimitContract(),
                         new com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract())));
+    }
+
+    private static UserPermission withEvidenceVersion(UserPermission source, String version) {
+        return new UserPermission(
+                source.subject(),
+                source.evidenceId(),
+                version,
+                source.allowedCapabilityIds(),
+                source.allowedDomains(),
+                source.filterableFields(),
+                source.displayableFields(),
+                source.allowedOperators(),
+                source.allowedFunctions(),
+                source.readableContextTypes(),
+                source.writableContextTypes(),
+                source.attributes(),
+                source.resolvedAt());
     }
 
     private InvocationHandle handle() {

@@ -74,7 +74,7 @@ class AgentMetadataSecurityConfigurationTest {
                     "common.security.secrets.jwt.active-key-id=ACTIVE",
                     "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
                     "common.security.secrets.agent-payload.active-key-id=ACTIVE",
-                    "common.security.secrets.agent-payload.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "common.security.secrets.agent-payload.keys.ACTIVE.value=gINjdgXjaccClSOQCmH2d5pM5ruHqML9PY31uHNSLJw=",
                     "agent.document-profiles.owner-agent-id=agent-default",
                     "agent.document-profiles.owner-profile-version=profile-v1",
                     "agent.document-profiles.policy-version=policy-v1",

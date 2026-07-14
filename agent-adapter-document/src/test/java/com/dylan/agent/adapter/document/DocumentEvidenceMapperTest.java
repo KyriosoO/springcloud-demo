@@ -53,7 +53,7 @@ class DocumentEvidenceMapperTest {
                 security.profileProjectionDigest(),limits);
         var execution=new DocumentRetrievalExecutionBinding("tax-v2","v2",security.profileProjectionDigest(),limits,limits.canonicalDigest(),security.aclEvidenceDigest());
         return new DocumentRetrievalCommand(security.corpusKey(),execution,List.of(),filter,new DocumentPreparedQuery("tax",List.of(),List.of(),Optional.empty()),
-                new DocumentRetrievalChannels(List.of(DocumentRetrievalChannel.BM25),List.of(DocumentRetrievalChannel.BM25),Map.of(DocumentRetrievalChannel.BM25,1),10),
+                new DocumentRetrievalChannels(List.of(DocumentRetrievalChannel.BM25),List.of(DocumentRetrievalChannel.BM25),Map.of(DocumentRetrievalChannel.BM25,1),10,40),
                 new DocumentFusionSpec(60,50),new DocumentDedupSpec(5,3),new DocumentContextSpec(0,0,0));
     }
     private CapabilityOperationContext context(ResourceLimitReference limits){return new CapabilityOperationContext("inv-1","corr-1","document.search","op-1",

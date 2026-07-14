@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS document_validation_report (
   policy_digest CHAR(64) NOT NULL, fixture_digest CHAR(64) NOT NULL, release_digest CHAR(64) NOT NULL,
   status VARCHAR(16) NOT NULL, completed_at DATETIME(3) NOT NULL, expires_at DATETIME(3) NOT NULL,
   integrity_evidence_ref VARCHAR(255) NOT NULL, canonical_digest CHAR(64) NOT NULL, created_by_run_id VARCHAR(64) NOT NULL,
-  UNIQUE INDEX uk_document_validation_report_subject (subject_digest, policy_digest, fixture_digest, release_digest)
+  INDEX idx_document_validation_report_subject (subject_digest, policy_digest, fixture_digest, release_digest)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS document_validation_provider_subject (
@@ -56,14 +56,14 @@ CREATE TABLE IF NOT EXISTS document_validation_provider_subject (
   vendor_contract_version VARCHAR(64) NOT NULL, template_model_digest CHAR(64) NOT NULL,
   provider_binding_digest CHAR(64) NOT NULL, validated_corpus_set_digest CHAR(64) NOT NULL,
   active_profile_coverage_digest CHAR(64) NOT NULL,
-  UNIQUE INDEX uk_document_validation_provider_subject (operation_type, provider_binding_digest)
+  INDEX idx_document_validation_provider_subject (operation_type, provider_binding_digest)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS document_validation_p1_subject (
   report_id VARCHAR(64) PRIMARY KEY, activation_candidate_digest CHAR(64) NOT NULL,
   java_contract_baseline_digest CHAR(64) NOT NULL, config_candidate_digest CHAR(64) NOT NULL,
   ddl_candidate_digest CHAR(64) NOT NULL,
-  UNIQUE INDEX uk_document_validation_p1_subject (activation_candidate_digest)
+  INDEX idx_document_validation_p1_subject (activation_candidate_digest)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS document_validation_gate_result (
@@ -218,8 +218,12 @@ CREATE TABLE IF NOT EXISTS agent_context_record (
   source_domain VARCHAR(128),
   readable TINYINT(1) NOT NULL DEFAULT 1,
   expires_at DATETIME(3) NOT NULL,
+  created_at DATETIME(3) NOT NULL,
   updated_at DATETIME(3) NOT NULL,
   UNIQUE INDEX uk_agent_context_key (owner_type, owner_id, scope_type, scope_id, context_type),
-  INDEX idx_agent_context_expiry (expires_at),
-  INDEX idx_agent_context_source_invocation (source_invocation_id)
+  INDEX idx_agent_context_expiry (expires_at, readable),
+  INDEX idx_agent_context_source_invocation (source_invocation_id),
+  CHECK (scope_type = 'CONVERSATION'),
+  CHECK (record_version >= 0),
+  CHECK (readable IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

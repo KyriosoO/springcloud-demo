@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Objects;
+
 /**
  * Route/Plan 双阶段的统一操作遥测。
  *
@@ -71,4 +73,26 @@ public class RuntimeOperationMetadata {
     public void setDeadlineReached(Boolean deadlineReached) { this.deadlineReached = deadlineReached; }
     public Boolean getRepairLimitReached() { return repairLimitReached; }
     public void setRepairLimitReached(Boolean repairLimitReached) { this.repairLimitReached = repairLimitReached; }
+
+    /** 在 HTTP/Planning 信任边界校验无法由字段注解表达的组合不变量。 */
+    public void validateFor(RuntimeOperationType expectedOperation) {
+        Objects.requireNonNull(expectedOperation, "expectedOperation must not be null");
+        if (operation != expectedOperation) {
+            throw new IllegalArgumentException("runtime metadata operation mismatch");
+        }
+        if (providerAttempts == null || providerAttempts < 0) {
+            throw new IllegalArgumentException("providerAttempts must be non-negative");
+        }
+        if (repairAttempts == null || repairAttempts < 0
+                || repairAttempts > Math.max(providerAttempts - 1, 0)) {
+            throw new IllegalArgumentException("repairAttempts exceeds providerAttempts");
+        }
+        if (repairDurationMs == null || repairDurationMs < 0
+                || totalDurationMs == null || totalDurationMs < 0) {
+            throw new IllegalArgumentException("runtime durations must be non-negative");
+        }
+        Objects.requireNonNull(terminationReason, "terminationReason must not be null");
+        Objects.requireNonNull(deadlineReached, "deadlineReached must not be null");
+        Objects.requireNonNull(repairLimitReached, "repairLimitReached must not be null");
+    }
 }

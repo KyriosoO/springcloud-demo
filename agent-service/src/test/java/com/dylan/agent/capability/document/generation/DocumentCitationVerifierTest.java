@@ -25,6 +25,19 @@ class DocumentCitationVerifierTest {
                 DocumentProviderFinishReason.COMPLETED)).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void rejectsMarkersOutsideSentenceOrUnitBoundaryAndInsideCodeOrUri() {
+        assertThat(verifier.verify(new DocumentUntrustedGenerationPayload(
+                DocumentPlanOperation.ANSWER, "结论 [C1] 仍有未绑定文本", null, List.of(), List.of("C1"),
+                DocumentProviderFinishReason.COMPLETED), context()).status()).isEqualTo(GroundingStatus.UNVERIFIED);
+        assertThat(verifier.verify(new DocumentUntrustedGenerationPayload(
+                DocumentPlanOperation.ANSWER, "`example [C1]`", null, List.of(), List.of("C1"),
+                DocumentProviderFinishReason.COMPLETED), context()).status()).isEqualTo(GroundingStatus.UNVERIFIED);
+        assertThat(verifier.verify(new DocumentUntrustedGenerationPayload(
+                DocumentPlanOperation.ANSWER, "https://example.test/[C1]", null, List.of(), List.of("C1"),
+                DocumentProviderFinishReason.COMPLETED), context()).status()).isEqualTo(GroundingStatus.UNVERIFIED);
+    }
+
     private static DocumentUntrustedGenerationPayload payload(List<String> ids) {
         return new DocumentUntrustedGenerationPayload(DocumentPlanOperation.ANSWER, "回答 [C1]", null,
                 List.of(), ids, DocumentProviderFinishReason.COMPLETED);

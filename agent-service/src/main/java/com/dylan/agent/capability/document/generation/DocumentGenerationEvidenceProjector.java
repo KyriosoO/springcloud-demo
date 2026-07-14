@@ -42,8 +42,10 @@ public final class DocumentGenerationEvidenceProjector {
             int metadataChars = codePoints(outboundTitle) + codePoints(outboundSection)
                     + codePoints(outboundPage == null ? null : outboundPage.toString());
             int allowed = Math.min(
-                    budget.maxEvidenceChars() - evidenceChars,
-                    budget.maxContextChars() - contextChars - metadataChars);
+                    budget.maxSnippetChars(),
+                    Math.min(
+                            budget.maxEvidenceChars() - evidenceChars,
+                            budget.maxContextChars() - contextChars - metadataChars));
             if (allowed <= 0) {
                 throw new IllegalArgumentException("selected evidence exceeds generation character limit");
             }

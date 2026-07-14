@@ -62,6 +62,7 @@ public class AgentProperties {
         private String resolvePath = "/internal/agent/permissions/resolve";
         private Duration connectTimeout = Duration.ofSeconds(2);
         private Duration readTimeout = Duration.ofSeconds(2);
+        private int maxResponseBytes = 65_536;
         public String getBaseUrl() { return baseUrl; }
         public void setBaseUrl(String value) { baseUrl = value; }
         public String getResolvePath() { return resolvePath; }
@@ -70,6 +71,8 @@ public class AgentProperties {
         public void setConnectTimeout(Duration value) { connectTimeout = value; }
         public Duration getReadTimeout() { return readTimeout; }
         public void setReadTimeout(Duration value) { readTimeout = value; }
+        public int getMaxResponseBytes() { return maxResponseBytes; }
+        public void setMaxResponseBytes(int value) { maxResponseBytes = value; }
     }
 
     /** 新建 CHAT Invocation 使用的精确 Profile 引用；不进入权限权威请求。 */

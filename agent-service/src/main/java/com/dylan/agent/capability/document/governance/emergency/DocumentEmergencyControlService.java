@@ -68,8 +68,9 @@ public final class DocumentEmergencyControlService {
             if (updated != 1) throw new IllegalStateException("emergency disable CAS conflict");
             nextVersion = current.rowVersion() + 1;
         }
-        if ("PROVIDER_OPERATION".equals(target.type())) {
-            providerActivations.deactivateForEmergency(CapabilityOperationType.of(target.key()),
+        CapabilityOperationType providerOperation = affectedProviderOperation(target);
+        if (providerOperation != null) {
+            providerActivations.deactivateForEmergency(providerOperation,
                     "emergency-" + changeId, changeId, request.reasonCode().name(), target.type() + ":" + digest);
         }
         appendEvent(changeId, "EMERGENCY_DISABLED", "SUCCEEDED", target.type() + ":" + digest, request.reasonCode().name(),
@@ -160,9 +161,21 @@ public final class DocumentEmergencyControlService {
     private DocumentEmergencyChangeResponse response(String changeId,DocumentEmergencyGateTargetBinding binding,
                                                        long rowVersion,DocumentEmergencyControlState state,
                                                        DocumentEmergencyTargetRef target){
-        DocumentEmergencyPropagationStatus propagation="PROVIDER_OPERATION".equals(target.type())&&state==DocumentEmergencyControlState.ACTIVE
+        DocumentEmergencyPropagationStatus propagation=target.type().startsWith("PROVIDER_")&&state==DocumentEmergencyControlState.ACTIVE
                 ?DocumentEmergencyPropagationStatus.PROPAGATING:DocumentEmergencyPropagationStatus.COMMITTED;
         return new DocumentEmergencyChangeResponse(changeId,binding.targetType(),binding.targetKeyDigest(),state,rowVersion,propagation,clock.instant());
+    }
+
+    private CapabilityOperationType affectedProviderOperation(DocumentEmergencyTargetRef target) {
+        if ("PROVIDER_OPERATION".equals(target.type())) {
+            return CapabilityOperationType.of(target.key());
+        }
+        if (!"PROVIDER_BINDING".equals(target.type())) return null;
+        List<String> operations = jdbc.query(
+                "SELECT operation_type FROM document_provider_activation WHERE state='ACTIVE' AND provider_binding_digest=? FOR UPDATE",
+                (rs, row) -> rs.getString(1), target.key());
+        if (operations.size() > 1) throw new IllegalStateException("provider binding resolves to multiple active operations");
+        return operations.isEmpty() ? null : CapabilityOperationType.of(operations.getFirst());
     }
 
     private static String canonical(String... values){

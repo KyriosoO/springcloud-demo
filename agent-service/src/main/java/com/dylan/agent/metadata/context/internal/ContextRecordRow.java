@@ -23,6 +23,7 @@ public class ContextRecordRow {
     private String sourceDomain;
     private boolean readable;
     private LocalDateTime expiresAt;
+    private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public String getContextId() { return contextId; }
@@ -57,6 +58,8 @@ public class ContextRecordRow {
     public void setReadable(boolean readable) { this.readable = readable; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

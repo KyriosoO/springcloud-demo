@@ -18,7 +18,7 @@ public final class EvidenceContextPackageFactory {
             EvidenceContextPackageRequest request,
             DocumentGenerationEvidenceProjection projection) {
         DocumentRetrievalResponseBinding binding = request.responseBinding();
-        String targetDigest = targetDigest(binding.targetBinding());
+        String targetDigest = binding.targetBinding().canonicalDigest();
         String policyDigest = request.outboundPolicyDecision().canonicalDigest();
         if (!request.plan().selectedCorpus().equals(request.outboundPolicyDecision().corpusKey())
                 || !binding.profileProjectionDigest().equals(
@@ -38,16 +38,6 @@ public final class EvidenceContextPackageFactory {
                 binding.profileProjectionDigest(), binding.resourceLimitReference(), AgentExecutionContracts.DOCUMENT_RESULT,
                 binding.authorizationBindingDigest(), binding.aclEvidenceDigest(), targetDigest,
                 binding.protectedFilterDigest(), policyDigest, projection.items(), projection.usage(), digest);
-    }
-
-    private static String targetDigest(DocumentTargetBindingReference target) {
-        DigestWriter writer = new DigestWriter();
-        writer.text("DTB-1");
-        writer.text(target.schemaVersion());
-        writer.text(target.contentDigest());
-        writer.text(target.manifestDigest());
-        writer.text(target.attestationDigest());
-        return writer.hex();
     }
 
     private static String canonicalDigest(

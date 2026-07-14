@@ -9,6 +9,7 @@ import com.dylan.agent.metadata.authorization.model.UserPermission;
 import com.dylan.agent.metadata.domain.port.DomainMetadataPort;
 import com.dylan.agent.metadata.config.AgentMetadataStore;
 import com.dylan.agent.metadata.profile.model.AgentProfileVersionKey;
+import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitResolver;
 
 import java.time.Clock;
 import java.util.Map;
@@ -21,16 +22,19 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
     private final UserPermissionBoundary userPermissionBoundary;
     private final AgentMetadataStore metadataStore;
     private final DomainMetadataPort domainMetadataPort;
+    private final CapabilityResourceLimitResolver resourceLimitResolver;
     private final Clock clock;
 
     public AuthorizationExecutionPortImpl(
             UserPermissionBoundary userPermissionBoundary,
             AgentMetadataStore metadataStore,
             DomainMetadataPort domainMetadataPort,
+            CapabilityResourceLimitResolver resourceLimitResolver,
             Clock clock) {
         this.userPermissionBoundary = Objects.requireNonNull(userPermissionBoundary);
         this.metadataStore = Objects.requireNonNull(metadataStore);
         this.domainMetadataPort = Objects.requireNonNull(domainMetadataPort);
+        this.resourceLimitResolver = Objects.requireNonNull(resourceLimitResolver);
         this.clock = Objects.requireNonNull(clock);
     }
 
@@ -40,7 +44,7 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
         Objects.requireNonNull(handle, "handle must not be null");
         assertHandleBinding(snapshot, handle);
         var bundle = metadataStore.current();
-        bundle.requireProfile(new AgentProfileVersionKey(
+        var profile = bundle.requireProfile(new AgentProfileVersionKey(
                 snapshot.agentProfileRef().agentId(), snapshot.profileVersion()));
         var policy = bundle.policyVersionIndex().get(snapshot.policyVersion());
         if (policy == null) {
@@ -64,6 +68,11 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
                 snapshot.externalProcessingAuthorizationEvidence())) {
             throw new IllegalStateException("external processing authorization would expand scope");
         }
+        var resourceLimits = resourceLimitResolver.recheck(
+                snapshot.resourceLimits(),
+                profile.resourceLimitContributions(),
+                policy.resourceLimitContributions(),
+                current.evidenceId());
         return new ExecutionScope(
                 snapshot.invocationId(),
                 snapshot.requestCorrelationId(),
@@ -89,7 +98,7 @@ public final class AuthorizationExecutionPortImpl implements AuthorizationExecut
                 snapshot.maxRiskLevel(),
                 snapshot.maxExecutionMode(),
                 snapshot.globalContextTtlUpperBound(),
-                snapshot.resourceLimits());
+                resourceLimits);
     }
 
     private static void assertHandleBinding(AuthorizationSnapshot snapshot, InvocationHandle handle) {

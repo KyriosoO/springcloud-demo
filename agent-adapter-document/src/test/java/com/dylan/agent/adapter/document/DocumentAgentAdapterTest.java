@@ -50,6 +50,20 @@ class DocumentAgentAdapterTest {
         verifyNoMoreInteractions(client);
     }
 
+    @Test
+    void rejectsForgedCandidateIdentityAsInvalidResponse() {
+        DocumentSearchClient client = mock(DocumentSearchClient.class);
+        when(client.documentHybridSearch(any())).thenReturn(forgedCandidateResponse());
+
+        var outcome = adapter(client).retrieve(command(), context());
+
+        assertThat(outcome).isInstanceOfSatisfying(CapabilityOperationFailure.class,
+                failure -> {
+                    assertThat(failure.code()).isEqualTo(CapabilityOperationFailureCode.INVALID_RESPONSE);
+                    assertThat(failure.metadata().providerAttempts()).isEqualTo(1);
+                });
+    }
+
     private DocumentAgentAdapter adapter(DocumentSearchClient client) {
         return new DocumentAgentAdapter(client, new DocumentRetrievalMapper(), new DocumentEvidenceMapper(),
                 new DocumentRetrievalResponseBindingValidator(), Clock.fixed(Instant.parse("2026-07-14T12:00:00Z"), ZoneOffset.UTC));
@@ -61,7 +75,7 @@ class DocumentAgentAdapterTest {
         var channels = new DocumentRetrievalChannels(List.of(DocumentRetrievalChannel.BM25, DocumentRetrievalChannel.EXACT_PHRASE,
                 DocumentRetrievalChannel.DENSE_VECTOR), List.of(DocumentRetrievalChannel.BM25, DocumentRetrievalChannel.EXACT_PHRASE,
                 DocumentRetrievalChannel.DENSE_VECTOR), Map.of(DocumentRetrievalChannel.BM25, 1, DocumentRetrievalChannel.EXACT_PHRASE, 1,
-                DocumentRetrievalChannel.DENSE_VECTOR, 1), 10);
+                DocumentRetrievalChannel.DENSE_VECTOR, 1), 10, 40);
         return new DocumentRetrievalCommand(new DocumentCorpusKey("policy", "document"), execution, List.of(), binding(),
                 new DocumentPreparedQuery("休假政策", List.of(), List.of(), Optional.empty()), channels,
                 new DocumentFusionSpec(60, 50), new DocumentDedupSpec(5, 3), new DocumentContextSpec(0, 0, 0));
@@ -105,5 +119,20 @@ class DocumentAgentAdapterTest {
                 new DocumentChannelResultSummary(DocumentSearchChannel.EXACT_PHRASE, DocumentChannelResultSummary.Outcome.SUCCEEDED, 0, null),
                 new DocumentChannelResultSummary(DocumentSearchChannel.DENSE_VECTOR, DocumentChannelResultSummary.Outcome.SUCCEEDED, 0, null)),
                 new HybridRetrievalDiagnostics(0, 0, 0, 0, false, false));
+    }
+
+    private HybridSearchResponse forgedCandidateResponse() {
+        HybridSearchResponse empty = boundEmptyResponse();
+        var rank = new DocumentChannelRank(DocumentSearchChannel.BM25, 1, java.math.BigDecimal.ONE);
+        var score = java.math.BigDecimal.ONE.divide(java.math.BigDecimal.valueOf(61), 18,
+                java.math.RoundingMode.HALF_EVEN);
+        var hit = new HybridSearchHit("forged", "doc-1", "v1", "chunk-1", 0,
+                "acl-1", "acl-v1", "title", null, null, null, null, "snippet", null,
+                null, null, List.of(), List.of(), null, null, java.math.BigDecimal.ONE, score, List.of(rank));
+        return new HybridSearchResponse(empty.binding(), List.of(hit), List.of(
+                new DocumentChannelResultSummary(DocumentSearchChannel.BM25, DocumentChannelResultSummary.Outcome.SUCCEEDED, 1, null),
+                new DocumentChannelResultSummary(DocumentSearchChannel.EXACT_PHRASE, DocumentChannelResultSummary.Outcome.SUCCEEDED, 0, null),
+                new DocumentChannelResultSummary(DocumentSearchChannel.DENSE_VECTOR, DocumentChannelResultSummary.Outcome.SUCCEEDED, 0, null)),
+                new HybridRetrievalDiagnostics(1, 1, 1, 1, false, false));
     }
 }

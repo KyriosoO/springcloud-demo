@@ -14,13 +14,17 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.ResourceAccessException;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +43,9 @@ public final class DocumentProviderAdapterClient implements
     private final DocumentProviderOperationBindingRegistry operationBindingRegistry;
     private final Clock clock;
     private final ObjectMapper strictMapper;
+    private final long maxRequestBytes;
+    private final long maxResponseBytes;
+    private final Duration maximumExchangeDuration;
 
     public DocumentProviderAdapterClient(
             RestClient restClient,
@@ -48,7 +55,10 @@ public final class DocumentProviderAdapterClient implements
             DocumentProviderOutboundPolicyReferenceVerifier referenceVerifier,
             DocumentProviderOperationBindingRegistry operationBindingRegistry,
             Clock clock,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            long maxRequestBytes,
+            long maxResponseBytes,
+            Duration maximumExchangeDuration) {
         this.restClient = restClient;
         this.authHeaderProvider = authHeaderProvider;
         this.activationReadView = activationReadView;
@@ -56,9 +66,25 @@ public final class DocumentProviderAdapterClient implements
         this.referenceVerifier = referenceVerifier;
         this.operationBindingRegistry = operationBindingRegistry;
         this.clock = clock;
+        if (maxRequestBytes <= 0 || maxRequestBytes >= Integer.MAX_VALUE
+                || maxResponseBytes <= 0 || maxResponseBytes >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("document provider wire byte limits invalid");
+        }
+        this.maxRequestBytes = maxRequestBytes;
+        this.maxResponseBytes = maxResponseBytes;
+        if (maximumExchangeDuration == null || maximumExchangeDuration.isZero()
+                || maximumExchangeDuration.isNegative()) {
+            throw new IllegalArgumentException("document provider exchange duration invalid");
+        }
+        this.maximumExchangeDuration = maximumExchangeDuration;
         this.strictMapper = objectMapper.copy()
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+        this.strictMapper.getFactory().setStreamReadConstraints(StreamReadConstraints.builder()
+                .maxNestingDepth(64)
+                .maxStringLength((int) Math.min(maxResponseBytes, 1_000_000L))
+                .maxNumberLength(128)
+                .build());
     }
 
     @Override
@@ -97,6 +123,9 @@ public final class DocumentProviderAdapterClient implements
             var payload = success.candidate();
             if (payload.vectors().size() != request.input().texts().size()
                     || payload.dimension() > limit.enhancement().maxEmbeddingDimensions()
+                    || payload.bindingReference().dimension() != payload.dimension()
+                    || !payload.bindingReference().canonicalDigest().equals(
+                    prepared.snapshot.expectedProvider().orElseThrow().templateOrModelBindingDigest())
                     || payload.vectors().stream().anyMatch(vector -> vector.size() != payload.dimension()
                     || vector.stream().anyMatch(value -> value == null || !Float.isFinite(value)))) {
                 return failure(request.operationContext(), prepared.snapshot, 1, CapabilityOperationFailureCode.INVALID_RESPONSE, CapabilityOperationTermination.REJECTED, prepared.startedNanos);
@@ -149,11 +178,22 @@ public final class DocumentProviderAdapterClient implements
         }
         CapabilityOperationOutcome<DocumentUntrustedGenerationPayload> outcome = invoke("/internal/document-providers/generation", prepared,
                 new ParameterizedTypeReference<DocumentProviderWireResponse<DocumentUntrustedGenerationPayload>>() {});
-        if (outcome instanceof CapabilityOperationSuccess<DocumentUntrustedGenerationPayload> success
-                && !validGenerationPayload(success.candidate(), limit)) {
-            return failure(request.operationContext(), prepared.snapshot, 1,
-                    CapabilityOperationFailureCode.INVALID_RESPONSE,
-                    CapabilityOperationTermination.REJECTED, prepared.startedNanos);
+        if (outcome instanceof CapabilityOperationSuccess<DocumentUntrustedGenerationPayload> success) {
+            if (!validGenerationPayload(success.candidate(), limit)) {
+                return failure(request.operationContext(), prepared.snapshot, 1,
+                        CapabilityOperationFailureCode.INVALID_RESPONSE,
+                        CapabilityOperationTermination.REJECTED, prepared.startedNanos);
+            }
+            try {
+                operationBindingRegistry.publish(
+                        request.operationContext().operationId(),
+                        prepared.snapshot.expectedProvider().orElseThrow(),
+                        request.operationContext().absoluteDeadline());
+            } catch (RuntimeException ex) {
+                return failure(request.operationContext(), prepared.snapshot, 1,
+                        CapabilityOperationFailureCode.INVALID_RESPONSE,
+                        CapabilityOperationTermination.REJECTED, prepared.startedNanos);
+            }
         }
         return outcome;
     }
@@ -173,6 +213,12 @@ public final class DocumentProviderAdapterClient implements
         }
         if (!clock.instant().isBefore(context.absoluteDeadline())) {
             return Prepared.failed(failure(context, null, 0, CapabilityOperationFailureCode.DEADLINE_EXCEEDED,
+                    CapabilityOperationTermination.DEADLINE_EXCEEDED, started), started);
+        }
+        if (Duration.between(clock.instant(), context.absoluteDeadline())
+                .compareTo(maximumExchangeDuration) < 0) {
+            return Prepared.failed(failure(context, null, 0,
+                    CapabilityOperationFailureCode.DEADLINE_EXCEEDED,
                     CapabilityOperationTermination.DEADLINE_EXCEEDED, started), started);
         }
         if (!referenceVerifier.verify(reference, input, context)) {
@@ -225,13 +271,28 @@ public final class DocumentProviderAdapterClient implements
                 WIRE_VERSION, context.operationId(), context.operationType(), prepared.requestDigest,
                 context.absoluteDeadline().toEpochMilli(), prepared.snapshot.canonicalDigest(),
                 prepared.snapshot.expectedProvider().orElseThrow().canonicalDigest(), prepared.input);
+        byte[] wireBytes;
         try {
-            long responseLimit = limits(context).output().maxResultBytes();
+            wireBytes = strictMapper.writeValueAsBytes(wireRequest);
+        } catch (RuntimeException | java.io.IOException ex) {
+            return failure(context, prepared.snapshot, 0,
+                    CapabilityOperationFailureCode.INVALID_REQUEST,
+                    CapabilityOperationTermination.REJECTED, prepared.startedNanos);
+        }
+        if (wireBytes.length > maxRequestBytes) {
+            return failure(context, prepared.snapshot, 0,
+                    CapabilityOperationFailureCode.LIMIT_EXCEEDED,
+                    CapabilityOperationTermination.REJECTED, prepared.startedNanos);
+        }
+        try {
+            long responseLimit = Math.min(
+                    maxResponseBytes, limits(context).output().maxResultBytes());
             WireExchange<O> exchange = restClient.post()
                     .uri(endpoint)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .header(HttpHeaders.AUTHORIZATION, authHeaderProvider.authorizationHeader())
                     .header("X-Agent-Operation-Id", context.operationId())
-                    .body(wireRequest)
+                    .body(wireBytes)
                     .exchange((request, response) -> readExchange(response, responseType, responseLimit));
             CapabilityOperationFailure<O> boundaryFailure = postExchangeBoundaryFailure(prepared);
             if (boundaryFailure != null) return boundaryFailure;
@@ -256,12 +317,14 @@ public final class DocumentProviderAdapterClient implements
                 return failure(context, prepared.snapshot, 1, CapabilityOperationFailureCode.INVALID_RESPONSE,
                         CapabilityOperationTermination.REJECTED, prepared.startedNanos);
             }
-            operationBindingRegistry.publish(
-                    context.operationId(), prepared.snapshot.expectedProvider().orElseThrow(),
-                    context.absoluteDeadline());
             return new CapabilityOperationSuccess<>(response.payload(), metadata(
                     context, prepared.snapshot, 1, CapabilityOperationTermination.SUCCEEDED,
                     diagnosticId(), prepared.startedNanos));
+        } catch (ResourceAccessException ex) {
+            CapabilityOperationFailure<O> boundaryFailure = postExchangeBoundaryFailure(prepared);
+            if (boundaryFailure != null) return boundaryFailure;
+            return failure(context, prepared.snapshot, 1, transportFailureCode(ex),
+                    CapabilityOperationTermination.FAILED, prepared.startedNanos);
         } catch (RestClientException ex) {
             return failure(context, prepared.snapshot, 1, CapabilityOperationFailureCode.PROVIDER_FAILED,
                     CapabilityOperationTermination.FAILED, prepared.startedNanos);
@@ -269,6 +332,17 @@ public final class DocumentProviderAdapterClient implements
             return failure(context, prepared.snapshot, 1, CapabilityOperationFailureCode.INVALID_RESPONSE,
                     CapabilityOperationTermination.REJECTED, prepared.startedNanos);
         }
+    }
+
+    static CapabilityOperationFailureCode transportFailureCode(ResourceAccessException failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof SocketTimeoutException || current instanceof HttpTimeoutException) {
+                return CapabilityOperationFailureCode.PROVIDER_TIMEOUT;
+            }
+            current = current.getCause();
+        }
+        return CapabilityOperationFailureCode.PROVIDER_UNAVAILABLE;
     }
 
     private <O> WireExchange<O> readExchange(
@@ -383,7 +457,6 @@ public final class DocumentProviderAdapterClient implements
             int summaryChars = codePoints(payload.summaryText());
             for (String bullet : payload.summaryBullets()) summaryChars = Math.addExact(summaryChars, codePoints(bullet));
             return answerChars <= limit.output().maxGeneratedChars()
-                    && summaryChars <= limit.output().maxGeneratedChars()
                     && summaryChars <= limit.output().maxSummaryChars()
                     && payload.summaryBullets().size() <= limit.output().maxSummaryBullets()
                     && payload.citedIds().size() <= limit.output().maxCitationCount();

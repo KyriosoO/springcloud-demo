@@ -68,37 +68,33 @@ public final class DocumentIndexRolloutCoordinator {
         }
         String changeId = intent.changeId();
         transaction.executeWithoutResult(status -> startExecution(changeId));
-        EsIndexAliasService.AliasChangeResult technical = EsIndexAliasService.AliasChangeResult.UNKNOWN;
         try {
             var attestation = attestations.attach(new AuthorizedReleaseAttestationCommand(report.targetIndex(),
                     report.subjectDigest(), report.reportId(), report.reportDigest(), command.deadline()));
             if (!attestation.attestationDigest().equals(report.targetBinding().attestationDigest())) {
                 throw new IllegalArgumentException("index target attestation binding mismatch");
             }
-            technical = aliasService.compareAndSwitch(new EsIndexAliasService.AuthorizedAliasChangeCommand(
+            aliasService.compareAndSwitch(new EsIndexAliasService.AuthorizedAliasChangeCommand(
                     changeId, command.corpusKey(), corpus.readAlias(), expectedTargets, report.targetIndex(),
                     report.subjectDigest(), report.reportId(), attestation.attestationDigest(),
                     command.gateEvidence().canonicalDigest(), command.deadline()));
         } catch (IOException | RuntimeException ignored) {
             // intent 已持久化；下面必须以 actual post-read 决定成功、失败安全或 UNKNOWN。
         }
-        String finalStatus = switch (technical) {
-            case APPLIED, ALREADY_APPLIED -> "SUCCEEDED";
-            case CONFLICT, AMBIGUOUS -> "FAILED_SAFE";
-            case UNKNOWN -> "UNKNOWN";
-        };
         var actual = readActual(corpus.readAlias());
-        if (actual.equals(List.of(report.targetIndex()))) finalStatus = "SUCCEEDED";
-        else if ("SUCCEEDED".equals(finalStatus)) finalStatus = "UNKNOWN";
+        String finalStatus = actual.equals(List.of(report.targetIndex())) ? "SUCCEEDED"
+                : !actual.contains("__UNKNOWN__") && digestTargets(actual).equals(command.expectedCurrentBindingDigest())
+                ? "FAILED_SAFE" : "UNKNOWN";
         String resolved = finalStatus;
         transaction.executeWithoutResult(status -> complete(changeId, command, report, resolved, actual));
         return new ChangeResult(changeId, resolved, actual);
     }
 
-    public ChangeResult reconcile(String changeId, String alias, String targetIndex) {
+    public ChangeResult reconcile(String changeId, String alias, String targetIndex, String expectedStateDigest) {
         List<String> actual = readActual(alias);
         String status = actual.equals(List.of(targetIndex)) ? "SUCCEEDED"
-                : actual.size() > 1 ? "FROZEN" : "FAILED_SAFE";
+                : !actual.contains("__UNKNOWN__") && digestTargets(actual).equals(expectedStateDigest)
+                ? "FAILED_SAFE" : "FROZEN";
         int updated = jdbc.update("UPDATE document_governance_change SET status=?,current_state_digest=?,lease_owner=NULL,lease_expires_at=NULL,row_version=row_version+1,updated_at=? WHERE change_id=? AND (status IN ('UNKNOWN','FROZEN') OR (status IN ('PREPARED','EXECUTING') AND lease_expires_at<?))",
                 status, digestTargets(actual), Timestamp.from(clock.instant()), changeId, Timestamp.from(clock.instant()));
         if (updated != 1) throw new IllegalStateException("index change is not reconcilable");
@@ -117,15 +113,16 @@ public final class DocumentIndexRolloutCoordinator {
             throw new IllegalArgumentException("index target binding canonical digest mismatch");
         }
         ReleaseGateEvidence gate = command.gateEvidence();
-        if (gate == null || !"INDEX_RELEASE".equals(gate.unitType())
+        if (gate == null || !"INDEX_TARGET".equals(gate.unitType())
                 || !gate.unitKeyDigest().equals(unitKeyDigest(command))
+                || !gate.expectedStateDigest().equals(command.expectedCurrentBindingDigest())
                 || !gate.exactTargetStateDigest().equals(report.targetBinding().canonicalDigest())
                 || !gate.reportCanonicalDigest().equals(report.reportDigest())
                 || !gate.approvalSafeRef().equals(command.approvalSafeRef())
                 || !clock.instant().isBefore(gate.expiresAt())
                 || gate.issuedAt().isAfter(clock.instant())
                 || !gate.canonicalDigest().equals(canonical("DRG-1", gate.unitType(), gate.unitKeyDigest(),
-                gate.exactTargetStateDigest(), gate.reportCanonicalDigest(), gate.approvalSafeRef(),
+                gate.expectedStateDigest(), gate.exactTargetStateDigest(), gate.reportCanonicalDigest(), gate.approvalSafeRef(),
                 gate.issuedAt().toString(), gate.expiresAt().toString()))) {
             throw new IllegalArgumentException("current index release gate evidence required");
         }
@@ -213,8 +210,9 @@ public final class DocumentIndexRolloutCoordinator {
                              AuthorizedIndexChange command, JdbcDocumentIndexValidationReportRepository.IndexReportAuthority report, String reasonCode) {
         jdbc.update("INSERT INTO document_governance_event(event_id,change_id,event_type,status,safe_refs,reason_code,digest_prefixes,occurred_at,delivery_status,delivery_attempt,row_version) VALUES(?,?,?,?,?,?,?,?,?,?,0)",
                 UUID.randomUUID().toString(), changeId, eventType, status,
-                command.corpusKey().domain() + ":" + command.corpusKey().materialType(), reasonCode,
-                report.subjectDigest().substring(0, 12), Timestamp.from(clock.instant()), "PENDING", 0);
+                "INDEX_TARGET", reasonCode,
+                unitKeyDigest(command).substring(0, 12) + "," + report.subjectDigest().substring(0, 12),
+                Timestamp.from(clock.instant()), "PENDING", 0);
     }
 
     private List<String> readActual(String alias) {
@@ -264,11 +262,12 @@ public final class DocumentIndexRolloutCoordinator {
             requireDigest(expectedCurrentBindingDigest,"expectedCurrentBindingDigest");
         }
     }
-    public record ReleaseGateEvidence(String unitType, String unitKeyDigest, String exactTargetStateDigest,
+    public record ReleaseGateEvidence(String unitType, String unitKeyDigest, String expectedStateDigest, String exactTargetStateDigest,
                                       String reportCanonicalDigest, String approvalSafeRef,
                                       Instant issuedAt, Instant expiresAt, String canonicalDigest) {
         public ReleaseGateEvidence {
             requireText(unitType, "unitType"); requireDigest(unitKeyDigest, "unitKeyDigest");
+            requireDigest(expectedStateDigest, "expectedStateDigest");
             requireDigest(exactTargetStateDigest, "exactTargetStateDigest");
             requireDigest(reportCanonicalDigest, "reportCanonicalDigest"); requireText(approvalSafeRef, "approvalSafeRef");
             if (issuedAt == null || expiresAt == null || !issuedAt.isBefore(expiresAt)) throw new IllegalArgumentException("release gate time range invalid");

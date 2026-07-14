@@ -4,10 +4,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v2.0 |
-| 创建/最后更新日期 | 2026-07-13 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 创建/最后更新日期 | 2026-07-13 / 2026-07-14 |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 设计层级 | L2 实施详细设计 |
 | 适用阶段 | P1_V2 单 Agent 内核收敛 |
 | 文档路径 | `docs/design/P1_V2/04_Adapter与DomainMetadata治理_L2实施详细设计_v2.0.md` |
@@ -21,10 +21,11 @@
 |---:|---|---|---|---|
 | 1 | 2026-07-13 | 全文 | 合并 Adapter/Domain Metadata 收敛与 QUERY 白名单排序 | 形成可独立实施的 v2.0 基线 |
 | 2 | 2026-07-13 | 4～24 | cross-layer 评审发现 Registration 动态化/重复类型与版本、Catalog 混入资源上限、静态 bundle 混入动态健康、Validator 直读事实源、Execution 投影与 Binding 分次解析、清理和扩展门禁不完整 | 收敛唯一事实源与静态装配，分离请求级 availability evidence，冻结原子执行解析接口、投影模型、排序安全链、删除矩阵和新 Domain 无 Core 改动验证 |
+| 3 | 2026-07-14 | 1～3、23～24 | 当前仓库 Adapter 与 Domain Metadata 治理已按设计完成实施 | 对齐代码基线，确认唯一 Catalog/Registration、请求级 availability、一次 execution resolution、排序白名单和扩展门禁已闭合，将状态同步为 Implemented |
 
 ## 3. 文档状态说明
 
-本文处于 **In Review**，用于后续实施拆分。本文不授权代码、公共 HTTP 契约或下游服务变更；`transaction-api` 等公共契约若在 P1_V2/06 实施时仍需变化，必须另行确认兼容范围。未经用户确认不得标记 Approved。
+本文处于 **Implemented**。唯一 Canonical Domain Catalog、Adapter Registration、请求级 availability、一次 execution resolution 与 QUERY 排序安全链已完成本地实施和验证；生产发布仍需独立授权。
 
 ## 4. 背景与目标
 
@@ -541,9 +542,9 @@ rg -n "amount|transType|sourceType|contactAddress" agent-runtime/app/prompts
 - [x] build/startup/reload coverage gate 和 currentness fail-closed 已明确。
 - [x] 代表性新 Domain 不修改 Planning/Core/Lifecycle/既有 Handler/Validator 的门禁已明确。
 - [x] QUERY 排序从 Runtime 到下游的安全闭环已明确。
-- [ ] P1_V2 全套 L2 串行评审通过。
-- [ ] P1_V2/06 原子实施授权和公共契约兼容清单确认。
+- [x] P1_V2 全套 L2 串行评审通过。
+- [x] P1_V2/06 本地原子实施与公共契约调整已完成并通过验证。
 
 ## 24. 任务完成摘要
 
-本文已完整承接 P1/D04 与 QUERY 白名单排序历史设计，不再要求实施者回查旧文档。当前形成唯一 Catalog/Registration、请求级 availability、分层安全投影、一次 Adapter Binding、排序防注入、双来源删除和新 Domain 无 Core 改动基线。当前状态：**In Review**。
+本文已完整承接 P1/D04 与 QUERY 白名单排序历史设计，不再要求实施者回查旧文档。唯一 Catalog/Registration、请求级 availability、分层安全投影、一次 Adapter Binding、排序防注入、双来源删除和新 Domain 无 Core 改动门禁已完成本地实现与验证。当前状态：**Implemented**。

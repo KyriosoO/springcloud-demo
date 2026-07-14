@@ -3,10 +3,12 @@ package com.dylan.agent.metadata.result;
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.api.response.AgentDocumentCitation;
+import com.dylan.agent.api.response.AgentDocumentCoverage;
 import com.dylan.agent.api.response.AgentDocumentHit;
 import com.dylan.agent.api.response.AgentDocumentParameters;
 import com.dylan.agent.api.response.AgentDocumentResult;
 import com.dylan.agent.api.response.AgentQueryFilterParameter;
+import com.dylan.agent.api.response.AgentQuerySortParameter;
 import com.dylan.agent.api.response.DocumentAgentResultPayload;
 import com.dylan.agent.api.response.DocumentResultCandidateSecurityEvidence;
 import com.dylan.agent.api.response.DocumentResultSecurityEvidence;
@@ -89,10 +91,98 @@ class DocumentResultSecurityProjectorTest {
     }
 
     @Test
+    void projectsDocumentFieldsAndDoesNotMutateRawCandidate() {
+        DocumentAgentResultPayload candidate = payload("政策要求如下。[C1]");
+        AgentDocumentHit hit = candidate.getDocumentResult().getHits().getFirst();
+        hit.setTitle("公开标题");
+        hit.setSourceType("内部来源");
+        hit.setSnippet("13812345678");
+        AgentDocumentCitation citation = candidate.getDocumentResult().getCitations().getFirst();
+        citation.setTitle("公开标题");
+        citation.setSection("内部章节");
+        citation.setSourceUri("https://internal.example/doc-1");
+        citation.setSnippet("13812345678");
+        AgentQuerySortParameter allowedSort = new AgentQuerySortParameter();
+        allowedSort.setField("title");
+        allowedSort.setDirection("ASC");
+        AgentQuerySortParameter deniedSort = new AgentQuerySortParameter();
+        deniedSort.setField("sourceType");
+        deniedSort.setDirection("DESC");
+        candidate.getDocumentParameters().setSorts(List.of(allowedSort, deniedSort));
+
+        FilteredResult<DocumentAgentResultPayload> filtered = projector().filter(
+                candidate,
+                scope(Set.of("phoneNo", "title", "snippet"), Map.of(
+                        "policy_document.phoneNo", MaskType.MOBILE,
+                        "policy_document.snippet", MaskType.MOBILE)),
+                limits());
+
+        assertThat(filtered.payload()).isNotSameAs(candidate);
+        assertThat(filtered.payload().getDocumentParameters().getSorts())
+                .extracting(AgentQuerySortParameter::getField)
+                .containsExactly("title");
+        assertThat(filtered.payload().getDocumentResult().getHits().getFirst())
+                .satisfies(projected -> {
+                    assertThat(projected.getTitle()).isEqualTo("公开标题");
+                    assertThat(projected.getSourceType()).isNull();
+                    assertThat(projected.getSnippet()).isEqualTo("138****5678");
+                });
+        assertThat(filtered.payload().getDocumentResult().getCitations().getFirst())
+                .satisfies(projected -> {
+                    assertThat(projected.getTitle()).isEqualTo("公开标题");
+                    assertThat(projected.getSection()).isNull();
+                    assertThat(projected.getSourceUri()).isNull();
+                    assertThat(projected.getSnippet()).isEqualTo("138****5678");
+                });
+        assertThat(hit.getSourceType()).isEqualTo("内部来源");
+        assertThat(hit.getSnippet()).isEqualTo("13812345678");
+        assertThat(candidate.getDocumentParameters().getSorts()).hasSize(2);
+    }
+
+    @Test
     void rejectsUnknownCitationMarker() {
         assertThatThrownBy(() -> projector().filter(payload("未经绑定的结论。[C2]"), scope(), limits()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("unknown citation marker");
+    }
+
+    @Test
+    void rejectsCitationMarkerThatIsNotAtSentenceOrUnitBoundary() {
+        assertThatThrownBy(() -> projector().filter(
+                payload("结论 [C1] 仍有未绑定文本"), scope(), limits()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("invalid citation position");
+    }
+
+    @Test
+    void rejectsCitationDocumentIdentityThatDoesNotMatchCurrentnessCandidate() {
+        DocumentAgentResultPayload payload = payload("政策要求如下。[C1]");
+        payload.getDocumentResult().getCitations().getFirst().setDocumentId("doc-2");
+
+        assertThatThrownBy(() -> projector().filter(payload, scope(), limits()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("candidate ordering");
+    }
+
+    @Test
+    void rejectsCoverageThatDoesNotMatchVisibleCitations() {
+        DocumentAgentResultPayload payload = payload("政策要求如下。[C1]");
+        payload.getDocumentResult().getCoverage().setEvidenceCount(2);
+
+        assertThatThrownBy(() -> projector().filter(payload, scope(), limits()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("coverage binding");
+    }
+
+    @Test
+    void rejectsUnsafeSourceUriDuringFinalProjection() {
+        DocumentAgentResultPayload payload = payload("政策要求如下。[C1]");
+        payload.getDocumentResult().getCitations().getFirst().setSourceUri("javascript:alert(1)");
+
+        assertThatThrownBy(() -> projector().filter(
+                payload, scope(Set.of("sourceUri"), Map.of()), limits()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("source URI");
     }
 
     @Test
@@ -123,6 +213,7 @@ class DocumentResultSecurityProjectorTest {
         citation.setCitationId("C1");
         citation.setDocumentId("doc-1");
         citation.setSnippet("政策证据");
+        citation.setChunkIndex(0);
 
         AgentDocumentHit hit = new AgentDocumentHit();
         hit.setDocumentId("doc-1");
@@ -135,6 +226,12 @@ class DocumentResultSecurityProjectorTest {
         result.setHits(List.of(hit));
         result.setCitations(List.of(citation));
         result.setSummaryBullets(List.of());
+        AgentDocumentCoverage coverage = new AgentDocumentCoverage();
+        coverage.setRequestedDocumentCount(0);
+        coverage.setRequestedCountKnown(false);
+        coverage.setCoveredDocumentCount(1);
+        coverage.setEvidenceCount(1);
+        result.setCoverage(coverage);
         DocumentAgentResultPayload payload = new DocumentAgentResultPayload(parameters, result);
         payload.setInternalSecurityEvidence(securityEvidence());
         return payload;
@@ -163,6 +260,12 @@ class DocumentResultSecurityProjectorTest {
     }
 
     private static ExecutionScope scope() {
+        return scope(
+                Set.of("phoneNo"),
+                Map.of("policy_document.phoneNo", MaskType.MOBILE));
+    }
+
+    private static ExecutionScope scope(Set<String> allowedFields, Map<String, MaskType> fieldMasks) {
         return com.dylan.agent.testsupport.ExecutionScopeTestFactory.create(
                 "user:u-1",
                 com.dylan.agent.testsupport.DomainMetadataTestSupport.evidence("catalog", "adapter", "availability",
@@ -173,8 +276,8 @@ class DocumentResultSecurityProjectorTest {
                 "policy-v1",
                 Set.of("document.answer"),
                 Set.of("policy_document"),
-                Map.of("policy_document", Set.of("phoneNo")),
-                Map.of("policy_document.phoneNo", MaskType.MOBILE),
+                Map.of("policy_document", allowedFields),
+                fieldMasks,
                 limits());
     }
 

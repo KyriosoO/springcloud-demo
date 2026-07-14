@@ -16,6 +16,7 @@ import com.dylan.agent.planning.model.ResolvedClarification;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * D03 生命周期协调器。
@@ -52,20 +53,27 @@ public class ExecutionLifecycleService {
             InvocationHandle handle,
             ExecutablePlanningResult result,
             CancellationToken token) {
+        ExecutionCommand command = new ExecutionCommand(handle, result, token);
         CheckpointResult checkpoint = checkpoint(handle, result);
         if (checkpoint.committed().isEmpty()) {
             throw new IllegalStateException(
                     "planning checkpoint not committed; core execution is forbidden: " + checkpoint.status());
         }
-        var outcome = executionCore.execute(new ExecutionCommand(handle, result, token));
+        var outcome = executionCore.execute(command);
         if (outcome instanceof ExecutionSuccess success) {
-            return finalizationTxService.commitSuccess(handle, checkpoint, success);
+            return finalizeWithReconciliation(
+                    handle,
+                    () -> finalizationTxService.commitSuccess(handle, checkpoint, success));
         }
         if (outcome instanceof ExecutionFailure failure) {
             if (failure.cancelled()) {
-                return finalizationTxService.commitExecutionCancelled(handle, checkpoint, failure);
+                return finalizeWithReconciliation(
+                        handle,
+                        () -> finalizationTxService.commitExecutionCancelled(handle, checkpoint, failure));
             }
-            return finalizationTxService.commitExecutionFailure(handle, checkpoint, failure);
+            return finalizeWithReconciliation(
+                    handle,
+                    () -> finalizationTxService.commitExecutionFailure(handle, checkpoint, failure));
         }
         throw new IllegalStateException("unknown execution outcome: " + outcome.getClass().getName());
     }
@@ -73,18 +81,42 @@ public class ExecutionLifecycleService {
     public FinalizedInvocationResult finalizeClarification(
             InvocationHandle handle,
             ResolvedClarification clarification) {
-        return finalizationTxService.commitClarification(handle, clarification);
+        return finalizeWithReconciliation(
+                handle,
+                () -> finalizationTxService.commitClarification(handle, clarification));
     }
 
     public FinalizedInvocationResult finalizePlanningFailure(
             InvocationHandle handle,
             PlanningFailure failure) {
-        return finalizationTxService.commitPlanningFailure(handle, failure);
+        return finalizeWithReconciliation(
+                handle,
+                () -> finalizationTxService.commitPlanningFailure(handle, failure));
     }
 
     public FinalizedInvocationResult finalizeCancelled(
             InvocationHandle handle,
             PlanningCancellation cancellation) {
-        return finalizationTxService.commitPlanningCancellation(handle, cancellation);
+        return finalizeWithReconciliation(
+                handle,
+                () -> finalizationTxService.commitPlanningCancellation(handle, cancellation));
+    }
+
+    private FinalizedInvocationResult finalizeWithReconciliation(
+            InvocationHandle handle,
+            Supplier<FinalizedInvocationResult> finalization) {
+        try {
+            return finalization.get();
+        } catch (RuntimeException commitFailure) {
+            try {
+                return finalizationTxService.readAuthoritativeTerminal(handle)
+                        .orElseThrow(() -> commitFailure);
+            } catch (RuntimeException readFailure) {
+                if (readFailure != commitFailure) {
+                    commitFailure.addSuppressed(readFailure);
+                }
+                throw commitFailure;
+            }
+        }
     }
 }

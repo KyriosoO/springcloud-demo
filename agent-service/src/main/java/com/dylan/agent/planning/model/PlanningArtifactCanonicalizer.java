@@ -40,7 +40,7 @@ public final class PlanningArtifactCanonicalizer {
                 result.planKind().name(),
                 result.resolvedRegistration().registrationIdentity(),
                 digestJson(result.rawPlan()),
-                result.authorizationSnapshot().snapshotId(),
+                result.authorizationSnapshot().safeReference(),
                 contexts,
                 auditForm(result.routeAudit()),
                 auditForm(result.planAudit()),
@@ -49,7 +49,7 @@ public final class PlanningArtifactCanonicalizer {
                 result.invocationId(),
                 result.requestCorrelationId(),
                 result.resolvedRegistration().registrationIdentity(),
-                result.authorizationSnapshot().snapshotId(),
+                result.authorizationSnapshot().safeReference(),
                 contextDigest,
                 result.absoluteDeadline(),
                 digestJson(form));

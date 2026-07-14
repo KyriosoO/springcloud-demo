@@ -42,6 +42,55 @@ public final class CapabilityResourceLimitResolver {
                 frozenAt);
     }
 
+    /**
+     * 执行阶段以冻结值为不可放大的 baseline，重新应用当前 exact-version
+     * Profile/Policy contribution。当前权限模型尚不承载 contract-specific value，
+     * 因而权限 contribution 以已冻结值为中性上界，但仍要求 current evidence 存在。
+     */
+    public EffectiveCapabilityResourceLimits recheck(
+            EffectiveCapabilityResourceLimits baseline,
+            CapabilityResourceLimitContributions profileContributions,
+            CapabilityResourceLimitContributions policyContributions,
+            String currentPermissionEvidenceRef) {
+        Objects.requireNonNull(baseline, "baseline must not be null");
+        Objects.requireNonNull(profileContributions, "profileContributions must not be null");
+        Objects.requireNonNull(policyContributions, "policyContributions must not be null");
+        if (currentPermissionEvidenceRef == null || currentPermissionEvidenceRef.isBlank()) {
+            throw new IllegalArgumentException("currentPermissionEvidenceRef must not be blank");
+        }
+        return recheckTyped(baseline, profileContributions, policyContributions);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends CapabilityResourceLimit> EffectiveCapabilityResourceLimits recheckTyped(
+            EffectiveCapabilityResourceLimits baseline,
+            CapabilityResourceLimitContributions profileContributions,
+            CapabilityResourceLimitContributions policyContributions) {
+        Class<T> limitType = (Class<T>) baseline.limitType();
+        CapabilityResourceLimitContract<T> contract = registry.require(
+                baseline.contractRef(), limitType);
+        T frozen = baseline.require(baseline.contractRef(), limitType);
+        contract.validate(frozen);
+        T current = frozen;
+        for (CapabilityResourceLimitContribution<T> contribution : List.of(
+                profileContributions.require(
+                        ResourceLimitSource.PROFILE, baseline.contractRef(), limitType),
+                policyContributions.require(
+                        ResourceLimitSource.POLICY, baseline.contractRef(), limitType))) {
+            contract.validate(contribution.upperBound());
+            current = intersectAndProve(contract, current, contribution.upperBound());
+        }
+        if (!contract.isSameOrStricter(current, frozen)) {
+            throw new IllegalStateException("execution resource limit recheck would widen frozen limits");
+        }
+        return new EffectiveCapabilityResourceLimits(
+                baseline.contractRef(),
+                limitType,
+                current,
+                contract.canonicalDigest(current),
+                baseline.bindingIdentity());
+    }
+
     private <T extends CapabilityResourceLimit> EffectiveCapabilityResourceLimits resolveTyped(
             String invocationId,
             String requestCorrelationId,

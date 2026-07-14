@@ -13,11 +13,26 @@ public class AgentPropertiesValidator implements InitializingBean {
     @Override
     public void afterPropertiesSet() {
         validateRuntime();
+        validateAuthService();
         validateProfile();
         validateQuery();
         validateAggregate();
         validateDocument();
         validateConversation();
+    }
+
+    private void validateAuthService() {
+        var value = required(properties.getAuthService(), "agent.auth-service 必须配置。");
+        text(value.getBaseUrl(), "agent.auth-service.base-url 必须配置。");
+        text(value.getResolvePath(), "agent.auth-service.resolve-path 必须配置。");
+        if (!value.getResolvePath().startsWith("/")) {
+            throw new IllegalStateException("agent.auth-service.resolve-path 必须是绝对 HTTP path。");
+        }
+        positive(value.getConnectTimeout(), "agent.auth-service.connect-timeout 必须为正数。");
+        positive(value.getReadTimeout(), "agent.auth-service.read-timeout 必须为正数。");
+        if (value.getMaxResponseBytes() <= 0 || value.getMaxResponseBytes() > 1_048_576) {
+            throw new IllegalStateException("agent.auth-service.max-response-bytes 必须在 1..1048576。");
+        }
     }
 
     private void validateProfile() {

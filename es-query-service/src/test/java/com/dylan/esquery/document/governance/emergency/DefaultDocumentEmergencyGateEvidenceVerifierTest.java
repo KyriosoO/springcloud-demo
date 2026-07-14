@@ -55,6 +55,26 @@ class DefaultDocumentEmergencyGateEvidenceVerifierTest {
                 .isEqualTo(DocumentEmergencyGateVerificationCode.EXPIRED);
     }
 
+    @Test
+    void rejectsSignedEvidenceWhoseLifetimeExceedsProtocolMaximum() throws Exception {
+        Instant issued=Instant.parse("2026-07-14T08:00:00Z");
+        var keys=KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        var rollout=new DocumentEmergencyRolloutBinding("INDEX_TARGET",A,B,C,"report-1");
+        var targets=List.of(new DocumentEmergencyGateTargetBinding(DocumentEmergencyTargetType.CORPUS,D));
+        var placeholder=new DocumentEmergencyGateEvidence(A,rollout,targets,"DEV-test",DocumentEmergencyGateStatus.NOT_BLOCKED,
+                issued,issued.plusSeconds(61),new DocumentEvidenceSignature("Ed25519","document-governance","v1","x".repeat(86)),B);
+        byte[] canonical=DocumentEmergencyGateCanonicalizer.canonicalBytes(placeholder);
+        String digest=DocumentEmergencyGateCanonicalizer.canonicalDigest(canonical);
+        var evidence=new DocumentEmergencyGateEvidence(DocumentEmergencyGateCanonicalizer.evidenceId(digest),rollout,targets,
+                "DEV-test",DocumentEmergencyGateStatus.NOT_BLOCKED,issued,issued.plusSeconds(61),
+                new DocumentEvidenceSignature("Ed25519","document-governance","v1",
+                        Ed25519IntegritySupport.signBase64Url(canonical,keys.getPrivate())),digest);
+        var verifier=new DefaultDocumentEmergencyGateEvidenceVerifier(ref->keys.getPublic(),Duration.ZERO);
+
+        assertThat(verifier.verify(evidence,rollout,targets,issued).code())
+                .isEqualTo(DocumentEmergencyGateVerificationCode.MALFORMED);
+    }
+
     private static DocumentEmergencyGateEvidence evidence(Instant issued,DocumentEmergencyRolloutBinding rollout,
                                                             List<DocumentEmergencyGateTargetBinding> targets,
                                                             java.security.KeyPair keys){

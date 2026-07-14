@@ -65,4 +65,16 @@ class SecretPropertiesValidatorTest {
 				.isInstanceOf(SecretMaterialException.class)
 				.hasMessageContaining("agent-payload");
 	}
+
+	@Test
+	void rejectsSecretBindingSharedAcrossPurposes() {
+		SecretProperties properties = SecretTestSupport.jwtOnlyProperties();
+		properties.getAgentPayload().getKeys().get(SecretTestSupport.ACTIVE)
+				.setValue(SecretTestSupport.ACTIVE_SECRET);
+
+		assertThatThrownBy(() -> SecretPropertiesValidator.validate(
+				properties, new MockEnvironment()))
+				.isInstanceOf(SecretMaterialException.class)
+				.hasMessageContaining("purpose-isolated");
+	}
 }

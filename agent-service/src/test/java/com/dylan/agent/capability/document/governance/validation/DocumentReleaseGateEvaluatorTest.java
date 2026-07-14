@@ -28,11 +28,11 @@ class DocumentReleaseGateEvaluatorTest {
         var evaluator = new DocumentReleaseGateEvaluator(reports,
                 Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(2));
 
-        var gate = evaluator.evaluate("PROVIDER_OPERATION", "f".repeat(64), "e".repeat(64),
+        var gate = evaluator.evaluate("PROVIDER_OPERATION", "f".repeat(64), "9".repeat(64), "e".repeat(64),
                 reportDigest, subject, "approval-1");
 
         assertThat(gate.canonicalDigest()).isEqualTo(DocumentReleaseGateEvaluator.canonical(
-                "DRG-1", gate.unitType(), gate.unitKeyDigest(), gate.exactTargetStateDigest(),
+                "DRG-1", gate.unitType(), gate.unitKeyDigest(), gate.expectedStateDigest(), gate.exactTargetStateDigest(),
                 gate.reportCanonicalDigest(), gate.approvalSafeRef(),
                 gate.issuedAt().toString(), gate.expiresAt().toString()));
         assertThat(gate.expiresAt()).isEqualTo(NOW.plusSeconds(120));
@@ -43,7 +43,7 @@ class DocumentReleaseGateEvaluatorTest {
         var evaluator = new DocumentReleaseGateEvaluator(mock(JdbcDocumentValidationReportRepository.class),
                 Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(2));
         assertThatThrownBy(() -> evaluator.evaluate("INDEX_RELEASE", "a".repeat(64),
-                "b".repeat(64), "c".repeat(64), "d".repeat(64), "approval-1"))
+                "b".repeat(64), "c".repeat(64), "d".repeat(64), "e".repeat(64), "approval-1"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("unit type");
     }
 }

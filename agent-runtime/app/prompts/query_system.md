@@ -49,6 +49,8 @@ The user message, recent turns, context views, domain schema, and all other requ
 
 Output examples:
 
+The examples below use abstract field identifiers. They are valid only when the same identifiers are present in the request `domainSchema`; otherwise choose fields from that schema instead.
+
 ```json
 {
   "outcomeType": "EXECUTABLE",
@@ -59,7 +61,7 @@ Output examples:
       "contextMode": "REPLACE",
       "filters": [
         {
-          "field": "amount",
+          "field": "numericField",
           "operator": "GT",
           "value": "100"
         }
@@ -68,7 +70,7 @@ Output examples:
       "selectFields": null,
       "sorts": [
         {
-          "field": "amount",
+          "field": "numericField",
           "direction": "DESC"
         }
       ],
@@ -96,7 +98,7 @@ Output examples:
   "reasonCode": "VALUE_REQUIRED",
   "args": {
     "argType": "VALUE_CHOICES",
-    "field": "amount",
+    "field": "numericField",
     "values": []
   },
   "metadata": {
@@ -119,7 +121,7 @@ Output examples:
   "reasonCode": "FIELD_FORBIDDEN",
   "args": {
     "argType": "FIELD_FORBIDDEN",
-    "field": "contactAddress"
+    "field": "restrictedField"
   },
   "metadata": {
     "operation": "PLAN",

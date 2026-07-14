@@ -181,9 +181,11 @@ public class AgentRuntimeClient {
                     responseBytes,
                     com.dylan.agent.api.contract.runtime.error.RuntimeErrorResponse.class);
             if (error.getCode() == null || error.getMessage() == null || error.getMessage().isBlank()
-                    || error.getDiagnosticId() == null || error.getDiagnosticId().isBlank()) {
+                    || error.getDiagnosticId() == null || error.getDiagnosticId().isBlank()
+                    || error.getMetadata() == null) {
                 throw new IllegalArgumentException("invalid runtime error body");
             }
+            error.getMetadata().validateFor(operation);
             return new ParsedRuntimeError(error,
                     notReportedAudit(operation, started, PlanningOperationTermination.PROTOCOL_REJECTED));
         } catch (Exception ex) {
@@ -231,9 +233,10 @@ public class AgentRuntimeClient {
         if (!Objects.equals(expectedRequestId, actualRequestId)) {
             throw new IllegalArgumentException("requestId mismatch");
         }
-        if (metadata == null || metadata.getOperation() != operation) {
-            throw new IllegalArgumentException("runtime metadata operation mismatch");
+        if (metadata == null) {
+            throw new IllegalArgumentException("runtime metadata missing");
         }
+        metadata.validateFor(operation);
     }
 
     private static RuntimeOperationMetadata metadata(Object outcome) {

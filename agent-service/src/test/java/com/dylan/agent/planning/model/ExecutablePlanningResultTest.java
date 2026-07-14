@@ -92,6 +92,26 @@ class ExecutablePlanningResultTest {
                 .hasMessageContaining("planAudit");
     }
 
+    @Test
+    void authorizationSafeReferenceBindsSecurityScopeAndEffectiveLimits() {
+        AuthorizationSnapshot baseline = authorizationSnapshot(
+                "policy-v1", com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective());
+        AuthorizationSnapshot changedPolicy = authorizationSnapshot(
+                "policy-v2", com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective());
+        AuthorizationSnapshot changedLimits = authorizationSnapshot(
+                "policy-v1", com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective(50, 50, 500_000L));
+
+        assertThat(baseline.safeReference()).matches("ASR-1:[0-9a-f]{64}");
+        assertThat(changedPolicy.safeReference()).isNotEqualTo(baseline.safeReference());
+        assertThat(changedLimits.safeReference()).isNotEqualTo(baseline.safeReference());
+
+        ExecutablePlanningResult result = baseBuilder(registry().resolve("query.search"))
+                .authorizationSnapshot(baseline)
+                .build();
+        assertThat(result.artifactIdentity().authorizationSnapshotRef())
+                .isEqualTo(baseline.safeReference());
+    }
+
     private ExecutablePlanningResult.Builder baseBuilder(ResolvedRegistration resolved) {
         return ExecutablePlanningResult.builder()
                 .invocationId("inv-1")
@@ -143,18 +163,25 @@ class ExecutablePlanningResultTest {
     }
 
     private AuthorizationSnapshot authorizationSnapshot() {
+        return authorizationSnapshot(
+                "policy-v1", com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective());
+    }
+
+    private AuthorizationSnapshot authorizationSnapshot(
+            String policyVersion,
+            com.dylan.agent.kernel.resource.EffectiveCapabilityResourceLimits resourceLimits) {
         return com.dylan.agent.testsupport.AuthorizationSnapshotTestFactory.create(
                 "auth-1",
                 "user:u-1",
                 "profile-v1",
-                "policy-v1",
+                policyVersion,
                 Set.of("query.search"),
                 Set.of(),
                 Map.of(),
                 Map.of(),
                 NOW,
                 null,
-                com.dylan.agent.kernel.resource.StandardResourceLimits.testEffective());
+                resourceLimits);
     }
 
     private PlanningOperationAudit reported(RuntimeOperationType operation) {

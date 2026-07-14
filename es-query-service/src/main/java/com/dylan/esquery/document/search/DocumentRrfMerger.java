@@ -20,7 +20,7 @@ public final class DocumentRrfMerger {
             HybridSearchRequest request) {
         Map<DocumentSearchChannel,Integer> weights=new EnumMap<>(DocumentSearchChannel.class);
         request.channels().forEach(channel->weights.put(channel.channel(),channel.weight()));
-        Map<String,Accumulator> merged=new LinkedHashMap<>();
+        Map<ChunkKey,Accumulator> merged=new LinkedHashMap<>();
         for(DocumentSearchChannel channel:DocumentSearchChannel.values()){
             List<BoundDocumentChannelHit> input=new ArrayList<>(hitsByChannel.getOrDefault(channel,List.of()));
             input.sort(Comparator.comparing(BoundDocumentChannelHit::esScore).reversed()
@@ -30,7 +30,7 @@ public final class DocumentRrfMerger {
                     .thenComparing(BoundDocumentChannelHit::chunkId));
             for(int index=0;index<input.size();index++){
                 BoundDocumentChannelHit hit=withRank(input.get(index),index+1);
-                String key=hit.documentId()+"|"+hit.documentVersion()+"|"+hit.chunkId();
+                ChunkKey key=new ChunkKey(hit.documentId(),hit.documentVersion(),hit.chunkId());
                 Accumulator existing=merged.get(key);
                 if(existing==null){existing=new Accumulator(hit);merged.put(key,existing);}
                 else requireSameBinding(existing.representative,hit);
@@ -69,4 +69,5 @@ public final class DocumentRrfMerger {
         private void add(BoundDocumentChannelHit hit,BigDecimal contribution){score=score.add(contribution).setScale(18,RoundingMode.HALF_EVEN);ranks.add(new DocumentChannelRank(hit.channel(),hit.rank(),hit.esScore()));}
         private FusedDocumentHit fused(){int best=ranks.stream().mapToInt(DocumentChannelRank::rank).min().orElseThrow();return new FusedDocumentHit(representative,score,best,List.copyOf(ranks));}
     }
+    private record ChunkKey(String documentId,String documentVersion,String chunkId) {}
 }

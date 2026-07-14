@@ -2,6 +2,7 @@ package com.dylan.agent.metadata.domain.internal;
 
 import com.dylan.agent.adapter.api.AdapterRole;
 import com.dylan.agent.adapter.api.AgentAdapterPort;
+import com.dylan.agent.api.enums.AggregateFunction;
 import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
 import com.dylan.agent.metadata.domain.port.DomainMetadataStaticEvidence;
@@ -65,6 +66,7 @@ public final class DomainMetadataPropertiesValidator {
             }
             domains.put(domainId, buildDomain(domainId, entry.getValue()));
         }
+        validateDomainAliases(domains);
         String digest = DomainMetadataCanonicalizer.catalogDigest(catalogVersion, domains);
         return new CanonicalDomainCatalog(catalogVersion, domains, digest);
     }
@@ -80,6 +82,7 @@ public final class DomainMetadataPropertiesValidator {
         for (var entry : nonEmpty(source.getFields(), "fields").entrySet()) {
             String fieldId = requireNonBlank(entry.getKey(), "field");
             DomainMetadataProperties.FieldProperties fp = Objects.requireNonNull(entry.getValue(), "field properties");
+            validateFieldShape(fieldId, fp);
             CanonicalFieldDefinition previous = fields.putIfAbsent(fieldId, new CanonicalFieldDefinition(
                     fieldId,
                     uniqueOrdered(fp.getAliases(), "field alias"),
@@ -94,6 +97,7 @@ public final class DomainMetadataPropertiesValidator {
                 throw new IllegalStateException("duplicate canonical field: " + fieldId);
             }
         }
+        validateFieldAliases(domainId, fields);
 
         Map<AdapterRole, CanonicalRoleCapability> capabilities = new LinkedHashMap<>();
         for (var entry : nonEmpty(source.getRoleCapabilities(), "roleCapabilities").entrySet()) {
@@ -236,11 +240,86 @@ public final class DomainMetadataPropertiesValidator {
                 }
             }
         }
-        for (String field : cp.getFunctionsByField().keySet()) {
-            String known = requireKnownField(fields, field);
+        for (var entry : cp.getFunctionsByField().entrySet()) {
+            String known = requireKnownField(fields, entry.getKey());
             if (!capabilityFields.contains(known)) {
                 throw new IllegalStateException("functionsByField key must be capability field: " + known);
             }
+            for (AggregateFunction function : entry.getValue()) {
+                if (!functionSupports(function, fields.get(known).type())) {
+                    throw new IllegalStateException("aggregate function " + function + " incompatible with "
+                            + domainId + "." + known + " for role " + role);
+                }
+            }
+        }
+    }
+
+    private static boolean functionSupports(AggregateFunction function, AgentFieldType type) {
+        Objects.requireNonNull(function, "aggregate function must not be null");
+        return switch (function) {
+            case COUNT -> false;
+            case SUM, AVG -> type == AgentFieldType.DECIMAL;
+            case MIN, MAX -> type == AgentFieldType.DECIMAL || type == AgentFieldType.INSTANT;
+        };
+    }
+
+    private static void validateFieldShape(
+            String fieldId,
+            DomainMetadataProperties.FieldProperties field) {
+        Integer maxLength = field.getMaxLength();
+        Integer precision = field.getPrecision();
+        Integer scale = field.getScale();
+        if (maxLength != null && maxLength <= 0) {
+            throw new IllegalStateException("maxLength must be positive: " + fieldId);
+        }
+        if (precision != null && precision <= 0) {
+            throw new IllegalStateException("precision must be positive: " + fieldId);
+        }
+        if (scale != null && scale < 0) {
+            throw new IllegalStateException("scale must not be negative: " + fieldId);
+        }
+        if (precision != null && scale != null && scale > precision) {
+            throw new IllegalStateException("scale must not exceed precision: " + fieldId);
+        }
+        AgentFieldType type = Objects.requireNonNull(field.getType(), "field type must not be null");
+        if (type != AgentFieldType.STRING && maxLength != null) {
+            throw new IllegalStateException("maxLength is only valid for STRING field: " + fieldId);
+        }
+        if (type != AgentFieldType.DECIMAL && (precision != null || scale != null)) {
+            throw new IllegalStateException("precision/scale are only valid for DECIMAL field: " + fieldId);
+        }
+    }
+
+    private static void validateDomainAliases(Map<String, CanonicalDomainDefinition> domains) {
+        Map<String, String> owners = new LinkedHashMap<>();
+        domains.values().stream().sorted(java.util.Comparator.comparing(CanonicalDomainDefinition::domain))
+                .forEach(domain -> {
+                    claimAlias(owners, domain.domain(), domain.domain(), "domain");
+                    domain.aliases().forEach(alias -> claimAlias(owners, alias, domain.domain(), "domain"));
+                });
+    }
+
+    private static void validateFieldAliases(
+            String domain,
+            Map<String, CanonicalFieldDefinition> fields) {
+        Map<String, String> owners = new LinkedHashMap<>();
+        fields.values().stream().sorted(java.util.Comparator.comparing(CanonicalFieldDefinition::field))
+                .forEach(field -> {
+                    claimAlias(owners, field.field(), field.field(), "field in " + domain);
+                    field.aliases().forEach(alias -> claimAlias(
+                            owners, alias, field.field(), "field in " + domain));
+                });
+    }
+
+    private static void claimAlias(
+            Map<String, String> owners,
+            String alias,
+            String owner,
+            String scope) {
+        String normalized = requireNonBlank(alias, "alias");
+        String previous = owners.putIfAbsent(normalized, owner);
+        if (previous != null && !previous.equals(owner)) {
+            throw new IllegalStateException("ambiguous " + scope + " alias: " + normalized);
         }
     }
 

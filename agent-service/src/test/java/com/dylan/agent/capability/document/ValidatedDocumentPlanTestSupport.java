@@ -22,14 +22,28 @@ public final class ValidatedDocumentPlanTestSupport {
                 DocumentRetrievalMode.KEYWORD,channels(),null);}
     public static ValidatedDocumentPlan documentPlan(String capabilityId,String domain,ValidatedDocumentExecutionParameters parameters,
                                                       DocumentGenerationOptions generationOptions){
-        DocumentCorpusKey corpus=new DocumentCorpusKey(domain,domain);DocumentExecutionProfileProjection profile=profile(corpus,parameters);
+        return documentPlan(capabilityId,domain,parameters,generationOptions,
+                DocumentFeaturePolicy.DISABLED,DocumentFeaturePolicy.DISABLED,DocumentFeaturePolicy.DISABLED);
+    }
+    public static ValidatedDocumentPlan documentPlan(String capabilityId,String domain,ValidatedDocumentExecutionParameters parameters,
+                                                      DocumentGenerationOptions generationOptions,
+                                                      DocumentFeaturePolicy rewritePolicy,
+                                                      DocumentFeaturePolicy embeddingPolicy,
+                                                      DocumentFeaturePolicy rerankPolicy){
+        DocumentCorpusKey corpus=new DocumentCorpusKey(domain,domain);
+        DocumentExecutionProfileProjection profile=profile(
+                corpus,parameters,rewritePolicy,embeddingPolicy,rerankPolicy);
         return new ValidatedDocumentPlan(capabilityId,domain,corpus,parameters,generationOptions,profile);}
-    private static DocumentExecutionProfileProjection profile(DocumentCorpusKey corpus,ValidatedDocumentExecutionParameters parameters){
+    private static DocumentExecutionProfileProjection profile(DocumentCorpusKey corpus,
+                                                               ValidatedDocumentExecutionParameters parameters,
+                                                               DocumentFeaturePolicy rewritePolicy,
+                                                               DocumentFeaturePolicy embeddingPolicy,
+                                                               DocumentFeaturePolicy rerankPolicy){
         var properties=DocumentProfileTestSupport.properties();
         var entry=properties.getDefinitions().get(0);
         entry.setAllowedChannels(List.of("BM25"));entry.setRequiredChannels(List.of("BM25"));
-        entry.setChannelWeights(Map.of("BM25",1));entry.setEmbeddingPolicy(DocumentFeaturePolicy.DISABLED);
-        entry.setRewritePolicy(DocumentFeaturePolicy.DISABLED);entry.setRerankPolicy(DocumentFeaturePolicy.DISABLED);
+        entry.setChannelWeights(Map.of("BM25",1));entry.setEmbeddingPolicy(embeddingPolicy);
+        entry.setRewritePolicy(rewritePolicy);entry.setRerankPolicy(rerankPolicy);
         DocumentProfileAssets.BuiltAssets assets=DocumentProfileAssets.build(properties);
         String capabilityId=switch(parameters.operation()){
             case SEARCH->DocumentCapabilityIds.SEARCH;case ANSWER->DocumentCapabilityIds.ANSWER;case SUMMARIZE->DocumentCapabilityIds.SUMMARIZE;};

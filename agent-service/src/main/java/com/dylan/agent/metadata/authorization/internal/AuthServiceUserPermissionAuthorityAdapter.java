@@ -1,6 +1,7 @@
 package com.dylan.agent.metadata.authorization.internal;
 
 import com.dylan.agent.api.enums.AgentOperator;
+import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
 import com.dylan.agent.config.AgentProperties;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
 import com.dylan.agent.metadata.authorization.model.UserPermission;
@@ -13,20 +14,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
 /**
  * auth-service 内部 Agent Permission API 的生产 Adapter。
@@ -37,8 +39,11 @@ import org.springframework.web.client.RestClientResponseException;
 public class AuthServiceUserPermissionAuthorityAdapter implements UserPermissionAuthorityPort {
 
     static final String AUTH_SUBJECT_TYPE = "USER";
+    private static final int MAX_COLLECTION_ENTRIES = 1_024;
+    private static final int MAX_IDENTIFIER_LENGTH = 256;
+    private static final int MAX_ATTRIBUTE_VALUE_LENGTH = 1_024;
 
-    private final RestClient restClient;
+    private final AuthServicePermissionRestClientFactory restClientFactory;
     private final AgentProperties.AuthServiceProperties properties;
     private final ObjectMapper objectMapper;
     private final ServiceTokenProvider serviceTokenProvider;
@@ -50,7 +55,17 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
             ObjectMapper objectMapper,
             ServiceTokenProvider serviceTokenProvider,
             Clock clock) {
-        this.restClient = Objects.requireNonNull(restClient, "restClient must not be null");
+        this(ignored -> Objects.requireNonNull(restClient, "restClient must not be null"),
+                properties, objectMapper, serviceTokenProvider, clock);
+    }
+
+    AuthServiceUserPermissionAuthorityAdapter(
+            AuthServicePermissionRestClientFactory restClientFactory,
+            AgentProperties.AuthServiceProperties properties,
+            ObjectMapper objectMapper,
+            ServiceTokenProvider serviceTokenProvider,
+            Clock clock) {
+        this.restClientFactory = Objects.requireNonNull(restClientFactory, "restClientFactory must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
         this.serviceTokenProvider = Objects.requireNonNull(serviceTokenProvider, "serviceTokenProvider must not be null");
@@ -87,22 +102,57 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
             AuthPermissionResolveRequest request,
             String token,
             Instant absoluteDeadline) throws UserPermissionAuthorityException {
+        WireResponse wire;
         try {
-            ResponseEntity<AuthPermissionResolveResponse> entity = restClient.post()
+            Duration remaining = Duration.between(clock.instant(), absoluteDeadline);
+            if (remaining.isZero() || remaining.isNegative()) {
+                throw authorityException(
+                        UserPermissionAuthorityFailure.DEADLINE_EXCEEDED,
+                        "auth-permission-deadline");
+            }
+            Duration requestTimeout = remaining.compareTo(properties.getReadTimeout()) < 0
+                    ? remaining : properties.getReadTimeout();
+            wire = restClientFactory.create(requestTimeout).post()
                     .uri(properties.getResolvePath())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .body(request)
-                    .retrieve()
-                    .toEntity(AuthPermissionResolveResponse.class);
-            if (!clock.instant().isBefore(absoluteDeadline)) {
-                throw authorityException(UserPermissionAuthorityFailure.DEADLINE_EXCEEDED, "auth-permission-deadline");
-            }
-            return entity.getBody();
-        } catch (RestClientResponseException ex) {
-            throw mapHttpException(ex);
+                    .exchange((httpRequest, response) -> {
+                        int maxBytes = properties.getMaxResponseBytes();
+                        byte[] body = response.getBody().readNBytes(maxBytes + 1);
+                        if (body.length > maxBytes) {
+                            throw new ResponseLimitExceededException();
+                        }
+                        return new WireResponse(
+                                response.getStatusCode().value(),
+                                response.getHeaders().getContentType(),
+                                body);
+                    });
         } catch (ResourceAccessException ex) {
-            throw authorityException(timeoutFailure(ex), "auth-permission-io", ex);
+            throw authorityException(timeoutFailure(ex, absoluteDeadline), "auth-permission-io", ex);
+        } catch (ResponseLimitExceededException ex) {
+            throw authorityException(
+                    UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                    "auth-permission-response-limit",
+                    ex);
         } catch (RestClientException | IllegalArgumentException ex) {
+            throw authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, "auth-permission-response", ex);
+        }
+        if (!clock.instant().isBefore(absoluteDeadline)) {
+            throw authorityException(UserPermissionAuthorityFailure.DEADLINE_EXCEEDED, "auth-permission-deadline");
+        }
+        if (wire == null) {
+            throw authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, "auth-permission-null-wire");
+        }
+        if (wire.status() < 200 || wire.status() >= 300) {
+            throw mapHttpResponse(wire);
+        }
+        if (wire.contentType() == null
+                || !MediaType.APPLICATION_JSON.isCompatibleWith(wire.contentType())) {
+            throw authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, "auth-permission-content-type");
+        }
+        try {
+            return objectMapper.readValue(wire.body(), AuthPermissionResolveResponse.class);
+        } catch (RuntimeException | java.io.IOException ex) {
             throw authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, "auth-permission-response", ex);
         }
     }
@@ -153,7 +203,126 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
                 || !originalSubject.id().equals(response.subject().id())) {
             throw authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, "auth-permission-subject-mismatch");
         }
+        if (response.resolvedAt().isAfter(clock.instant())) {
+            throw authorityException(
+                    UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                    "auth-permission-resolved-at");
+        }
+        validateResponseShape(response);
         parseOperators(response.allowedOperators());
+    }
+
+    private void validateResponseShape(AuthPermissionResolveResponse response)
+            throws UserPermissionAuthorityException {
+        try {
+            requireBoundedText(response.evidenceId(), "evidenceId", value -> true);
+            requireBoundedText(response.version(), "version", value -> true);
+            validateSet(response.allowedCapabilityIds(), "allowedCapabilityIds", this::isCapabilityId);
+            validateSet(response.allowedDomains(), "allowedDomains", this::isDomainId);
+            validateFieldMap(response.filterableFields(), response.allowedDomains(), "filterableFields");
+            validateFieldMap(response.displayableFields(), response.allowedDomains(), "displayableFields");
+            validateRuleMap(response.allowedOperators(), response.allowedDomains(), "allowedOperators", value -> {
+                AgentOperator.valueOf(value);
+                return true;
+            });
+            validateRuleMap(response.allowedFunctions(), response.allowedDomains(), "allowedFunctions",
+                    value -> value.matches("[a-z][a-z0-9_]{0,63}"));
+            validateSet(response.readableContextTypes(), "readableContextTypes", value -> {
+                RuntimeContextType.valueOf(value);
+                return true;
+            });
+            validateSet(response.writableContextTypes(), "writableContextTypes", value -> {
+                RuntimeContextType.valueOf(value);
+                return true;
+            });
+            validateAttributes(response.attributes());
+        } catch (RuntimeException ex) {
+            throw authorityException(
+                    UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                    "auth-permission-invalid-shape",
+                    ex);
+        }
+    }
+
+    private void validateFieldMap(
+            Map<String, Set<String>> values,
+            Set<String> allowedDomains,
+            String name) {
+        requireCollectionSize(values.size(), name);
+        values.forEach((domain, fields) -> {
+            requireBoundedText(domain, name + " domain", this::isDomainId);
+            if (!allowedDomains.contains(domain)) {
+                throw new IllegalArgumentException(name + " contains a domain outside allowedDomains");
+            }
+            validateSet(fields, name + " fields", this::isFieldId);
+        });
+    }
+
+    private void validateRuleMap(
+            Map<String, Set<String>> values,
+            Set<String> allowedDomains,
+            String name,
+            Predicate<String> valueValidator) {
+        requireCollectionSize(values.size(), name);
+        values.forEach((fieldKey, rules) -> {
+            requireBoundedText(fieldKey, name + " field key", this::isFieldKey);
+            String domain = fieldKey.substring(0, fieldKey.indexOf('.'));
+            if (!allowedDomains.contains(domain)) {
+                throw new IllegalArgumentException(name + " contains a domain outside allowedDomains");
+            }
+            validateSet(rules, name + " rules", valueValidator);
+        });
+    }
+
+    private void validateAttributes(Map<String, String> attributes) {
+        requireCollectionSize(attributes.size(), "attributes");
+        attributes.forEach((key, value) -> {
+            requireBoundedText(key, "attribute key", item -> item.matches("[A-Za-z][A-Za-z0-9_.-]{0,127}"));
+            if (value == null || value.isBlank() || value.length() > MAX_ATTRIBUTE_VALUE_LENGTH) {
+                throw new IllegalArgumentException("attribute value is invalid");
+            }
+        });
+    }
+
+    private void validateSet(Set<String> values, String name, Predicate<String> validator) {
+        if (values == null) {
+            throw new IllegalArgumentException(name + " must not be null");
+        }
+        requireCollectionSize(values.size(), name);
+        values.forEach(value -> requireBoundedText(value, name + " value", validator));
+    }
+
+    private static void requireCollectionSize(int size, String name) {
+        if (size > MAX_COLLECTION_ENTRIES) {
+            throw new IllegalArgumentException(name + " exceeds entry limit");
+        }
+    }
+
+    private void requireBoundedText(String value, String name, Predicate<String> validator) {
+        if (value == null || value.isBlank() || value.length() > MAX_IDENTIFIER_LENGTH
+                || !validator.test(value)) {
+            throw new IllegalArgumentException(name + " is invalid");
+        }
+    }
+
+    private boolean isCapabilityId(String value) {
+        return value.matches("[a-z][a-z0-9]*(?:[._-][A-Za-z0-9]+)*");
+    }
+
+    private boolean isDomainId(String value) {
+        return value.matches("[a-z][a-z0-9_]*");
+    }
+
+    private boolean isFieldId(String value) {
+        return value.matches("[A-Za-z][A-Za-z0-9_]{0,127}");
+    }
+
+    private boolean isFieldKey(String value) {
+        int separator = value.indexOf('.');
+        return separator > 0
+                && separator == value.lastIndexOf('.')
+                && isDomainId(value.substring(0, separator))
+                && isFieldId(value.substring(separator + 1));
     }
 
     private Map<String, Set<AgentOperator>> parseOperators(
@@ -193,37 +362,42 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
         }
     }
 
-    private UserPermissionAuthorityException mapHttpException(RestClientResponseException ex) {
-        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
-        String diagnosticId = diagnosticId(ex);
+    private UserPermissionAuthorityException mapHttpResponse(WireResponse response) {
+        HttpStatus status = HttpStatus.resolve(response.status());
+        if (status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN) {
+            return authorityException(
+                    UserPermissionAuthorityFailure.UNAVAILABLE,
+                    "auth-permission-http-" + response.status());
+        }
+        String diagnosticId = diagnosticId(response.body(), response.status());
         if (status == HttpStatus.NOT_FOUND) {
-            return authorityException(UserPermissionAuthorityFailure.SUBJECT_NOT_FOUND, diagnosticId, ex);
+            return authorityException(UserPermissionAuthorityFailure.SUBJECT_NOT_FOUND, diagnosticId);
         }
         if (status == HttpStatus.GATEWAY_TIMEOUT) {
-            return authorityException(UserPermissionAuthorityFailure.DEADLINE_EXCEEDED, diagnosticId, ex);
+            return authorityException(UserPermissionAuthorityFailure.DEADLINE_EXCEEDED, diagnosticId);
         }
         if (status == HttpStatus.BAD_REQUEST) {
-            return authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, diagnosticId, ex);
+            return authorityException(UserPermissionAuthorityFailure.INVALID_RESPONSE, diagnosticId);
         }
-        return authorityException(UserPermissionAuthorityFailure.UNAVAILABLE, diagnosticId, ex);
+        return authorityException(UserPermissionAuthorityFailure.UNAVAILABLE, diagnosticId);
     }
 
-    private String diagnosticId(RestClientResponseException ex) {
+    private String diagnosticId(byte[] body, int status) {
         try {
             AuthPermissionErrorResponse error = objectMapper.readValue(
-                    ex.getResponseBodyAsByteArray(),
+                    body,
                     AuthPermissionErrorResponse.class);
             if (error.diagnosticId() != null && !error.diagnosticId().isBlank()) {
                 return error.diagnosticId();
             }
         } catch (Exception ignored) {
-            return "auth-permission-http-" + ex.getStatusCode().value();
+            return "auth-permission-http-" + status;
         }
-        return "auth-permission-http-" + ex.getStatusCode().value();
+        return "auth-permission-http-" + status;
     }
 
-    private static UserPermissionAuthorityFailure timeoutFailure(Throwable ex) {
-        return isTimeout(ex)
+    private UserPermissionAuthorityFailure timeoutFailure(Throwable ex, Instant absoluteDeadline) {
+        return isTimeout(ex) && !clock.instant().isBefore(absoluteDeadline)
                 ? UserPermissionAuthorityFailure.DEADLINE_EXCEEDED
                 : UserPermissionAuthorityFailure.UNAVAILABLE;
     }
@@ -289,5 +463,11 @@ public class AuthServiceUserPermissionAuthorityAdapter implements UserPermission
             String code,
             String message,
             String diagnosticId) {
+    }
+
+    private record WireResponse(int status, MediaType contentType, byte[] body) {
+    }
+
+    private static final class ResponseLimitExceededException extends RuntimeException {
     }
 }

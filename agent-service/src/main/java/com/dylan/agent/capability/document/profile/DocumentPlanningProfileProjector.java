@@ -47,9 +47,12 @@ public final class DocumentPlanningProfileProjector {
         if (channels.isEmpty()) throw new IllegalStateException("document profile has no channel after projection");
         var fusion = profile.fusionPolicy();
         if (channels.size() > limits.retrieval().maxChannelCount()
-                || fusion.keywordCandidateCount() > limits.retrieval().maxCandidatesPerChannel()
-                || fusion.vectorCandidateCount() > limits.retrieval().maxCandidatesPerChannel()
-                || fusion.numCandidates() > limits.retrieval().maxFusedCandidates()
+                || channels.contains(DocumentRetrievalChannel.BM25)
+                && fusion.keywordCandidateCount() > limits.retrieval().maxCandidatesPerChannel()
+                || channels.contains(DocumentRetrievalChannel.DENSE_VECTOR)
+                && fusion.vectorCandidateCount() > limits.retrieval().maxCandidatesPerChannel()
+                || channels.contains(DocumentRetrievalChannel.DENSE_VECTOR)
+                && fusion.numCandidates() > limits.retrieval().maxFusedCandidates()
                 || profile.dedupPolicy().maxChunksPerDocument() > limits.retrieval().maxChunksPerDocument()
                 || rerank != DocumentFeaturePolicy.DISABLED
                 && fusion.rerankTopN() > limits.enhancement().maxRerankCandidates()) {

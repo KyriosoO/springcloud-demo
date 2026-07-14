@@ -8,6 +8,11 @@ public record DocumentProtectedFilterBinding(
         String filterDigest,
         String aclEvidenceDigest,
         String profileProjectionDigest,
-        ResourceLimitReference resourceLimitReference) {
-    public DocumentProtectedFilterBinding { if(corpusKey==null||root==null||resourceLimitReference==null||filterDigest==null||aclEvidenceDigest==null||profileProjectionDigest==null) throw new IllegalArgumentException("protected filter binding must be complete"); }
+    ResourceLimitReference resourceLimitReference) {
+    public DocumentProtectedFilterBinding {
+        if(corpusKey==null||root==null||resourceLimitReference==null
+                ||!digest(filterDigest)||!digest(aclEvidenceDigest)||!digest(profileProjectionDigest))
+            throw new IllegalArgumentException("protected filter binding must be complete");
+    }
+    private static boolean digest(String value){return value!=null&&value.matches("[0-9a-f]{64}");}
 }

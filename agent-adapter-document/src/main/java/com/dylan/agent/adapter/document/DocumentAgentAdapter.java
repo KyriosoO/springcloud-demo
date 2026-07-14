@@ -27,17 +27,21 @@ public final class DocumentAgentAdapter implements DocumentRetrievableAdapter {
         long started=System.nanoTime();
         if(context.cancellation().isCancelled())return failure(context,0,CapabilityOperationFailureCode.CANCELLED,CapabilityOperationTermination.CANCELLED,started);
         if(!clock.instant().isBefore(context.absoluteDeadline()))return failure(context,0,CapabilityOperationFailureCode.DEADLINE_EXCEEDED,CapabilityOperationTermination.DEADLINE_EXCEEDED,started);
+        com.dylan.esquery.api.model.document.HybridSearchResponse response;
         try{
             context.resourceLimits().require(com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,DocumentResourceLimit.class);
-            var response=client.documentHybridSearch(mapper.toDocumentHybridRequest(command,context));
+            response=client.documentHybridSearch(mapper.toDocumentHybridRequest(command,context));
             if(context.cancellation().isCancelled())return failure(context,1,CapabilityOperationFailureCode.CANCELLED,CapabilityOperationTermination.CANCELLED,started);
             if(!clock.instant().isBefore(context.absoluteDeadline()))return failure(context,1,CapabilityOperationFailureCode.LATE_RESULT,CapabilityOperationTermination.DEADLINE_EXCEEDED,started);
-            var bound=validator.validate(response,command,context);var candidate=evidenceMapper.toAdapterResult(response,bound,command,context);
-            return new CapabilityOperationSuccess<>(candidate,metadata(context,1,CapabilityOperationTermination.SUCCEEDED,"document-retrieval-ok",started));
         }catch(IllegalArgumentException ex){log.warn("Document retrieval contract rejected: operationId={}",context.operationId());
             return failure(context,0,CapabilityOperationFailureCode.INVALID_REQUEST,CapabilityOperationTermination.REJECTED,started);
         }catch(FeignException ex){log.error("Document search Feign error: status={}",ex.status());
             return failure(context,1,CapabilityOperationFailureCode.PROVIDER_FAILED,CapabilityOperationTermination.FAILED,started);
+        }catch(RuntimeException ex){log.error("Document search call failed: operationId={}",context.operationId());
+            return failure(context,1,CapabilityOperationFailureCode.PROVIDER_FAILED,CapabilityOperationTermination.FAILED,started);}
+        try{
+            var bound=validator.validate(response,command,context);var candidate=evidenceMapper.toAdapterResult(response,bound,command,context);
+            return new CapabilityOperationSuccess<>(candidate,metadata(context,1,CapabilityOperationTermination.SUCCEEDED,"document-retrieval-ok",started));
         }catch(RuntimeException ex){log.error("Document search response rejected: operationId={}",context.operationId());
             return failure(context,1,CapabilityOperationFailureCode.INVALID_RESPONSE,CapabilityOperationTermination.REJECTED,started);}
     }

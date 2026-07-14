@@ -5,7 +5,6 @@ import com.dylan.agent.adapter.api.document.security.AclBoundDocumentHit;
 import com.dylan.agent.capability.document.acl.DocumentAclExecutionEvidence;
 
 import java.math.BigDecimal;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -44,7 +43,7 @@ public final class DocumentCandidateSecurityProjector {
         DocumentCandidateIdentity identity = hit.identity();
         String snippet = bounded(hit.snippet(), limits.output().maxSnippetChars(), "snippet");
         String context = bounded(joinContext(hit), limits.output().maxContextChars(), "context");
-        String sourceUri = safeUri(hit.sourceUri());
+        String sourceUri = DocumentSafeSourceUri.sanitize(hit.sourceUri());
         BigDecimal score = hit.rrfScore() == null ? hit.score() : hit.rrfScore();
         if (score == null || !Double.isFinite(score.doubleValue())) {
             throw new IllegalArgumentException("document candidate score is invalid");
@@ -61,16 +60,6 @@ public final class DocumentCandidateSecurityProjector {
         if (hit.content() != null && !hit.content().isBlank()) values.add(hit.content());
         values.addAll(hit.contextAfter());
         return values.isEmpty() ? null : String.join("\n", values);
-    }
-
-    private static String safeUri(String value) {
-        if (value == null || value.isBlank()) return null;
-        URI uri = URI.create(value);
-        if (!uri.isAbsolute() || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
-                || !("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))) {
-            throw new IllegalArgumentException("document source URI is unsafe");
-        }
-        return uri.toString();
     }
 
     private static String bounded(String value, int maxChars, String field) {

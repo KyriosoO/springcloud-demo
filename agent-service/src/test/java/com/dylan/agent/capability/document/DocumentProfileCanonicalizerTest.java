@@ -52,4 +52,14 @@ class DocumentProfileCanonicalizerTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("exactly one default");
     }
+
+    @Test
+    void nonCanonicalCorpusIdentifierRejectsWholeCandidate() {
+        var properties = DocumentProfileTestSupport.properties();
+        properties.getDefinitions().get(0).setAllowedMaterialTypes(List.of("Policy_Document"));
+
+        assertThatThrownBy(() -> DocumentProfileAssets.build(properties))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("canonical document materialType");
+    }
 }

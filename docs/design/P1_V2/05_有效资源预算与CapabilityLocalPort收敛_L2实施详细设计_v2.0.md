@@ -4,10 +4,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v2.0 |
-| 创建/最后更新日期 | 2026-07-13 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 创建/最后更新日期 | 2026-07-13 / 2026-07-14 |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 设计层级 | L2 实施详细设计 |
 | 适用阶段 | P1_V2 单 Agent 内核收敛 |
 | 文档路径 | `docs/design/P1_V2/05_有效资源预算与CapabilityLocalPort收敛_L2实施详细设计_v2.0.md` |
@@ -23,10 +23,11 @@
 | 2 | 2026-07-13 | 4～24 | cross-layer 评审发现多 ContractRef 容器过度、Provider 只有 limit reference 无实际限额、Planning/Execution budget 混层、收紧证明/operation outcome/candidate binding/配置清理不完整，并错误预设 P1_V2/06 增加 Run/Task budget | 收敛为单 Capability 单 Contract、强类型值和可证明收紧，冻结完整 resolver/context/outcome/candidate 接口、当前配置删除矩阵与 CHAT-only 演进边界 |
 | 3 | 2026-07-13 | 8、10.2、10.8～10.11、19 | 第二轮发现 `agent-adapter-api` 的 Adapter SPI 不能反向依赖 `agent-service` operation/limit/cancellation 类型，且 OptionalInt attempts 与“本地必须证明 0/1 次”冲突、evidence/citation 空 marker 约束不足 | 将只读 operation SPI 放入 Spring-free `agent-adapter-api`，由 `CapabilityResourceLimitView/CancellationSignal` 隔离实现；attempts 改为必知 int，并冻结具体 evidence/citation reference |
 | 4 | 2026-07-13 | 10.2、10.9、10.11～10.12、11、22 | 第三轮发现 Permission contribution 生成边界不清、通用文本候选误设单一文本字段、Provider failure code 无法区分 operational timeout/late/security rejection，且删除矩阵把 Planning Budget 重新引入 AvailableCapability | 冻结权限边界内的 typed contribution 适配，通用候选仅暴露安全 binding，补齐通用 failure code，并明确 AvailableCapability 不携带任何 Planning/resource budget |
+| 5 | 2026-07-14 | 1～3、23～24 | 当前仓库资源限额与 capability-local operation seam 已按设计完成实施 | 对齐代码基线，确认单 Contract、单调求交、Snapshot freeze/recheck、typed context/outcome/candidate 与旧散预算清理已闭合，将状态同步为 Implemented |
 
 ## 3. 文档状态说明
 
-本文处于 **In Review**，用于后续实施拆分。本文不授权代码、公共 API 或生产依赖变更；P1_V2 全套 L2 评审和后续实施授权完成前不得标记 Approved。
+本文处于 **Implemented**。单 Capability 单 Contract、source-aware 单调求交、Authorization Snapshot freeze/recheck、typed operation context/outcome/candidate 已完成本地实施和验证；生产 Provider 启用与发布仍需独立授权。
 
 ## 4. 背景与目标
 
@@ -672,9 +673,9 @@ rg -n "retry|max-attempts|maxAttempts" agent-service/src/main/java agent-service
 - [x] Generated Text Candidate 与非文本中间候选安全规则已冻结。
 - [x] Planning Budget/resource limits/operational cap 和配置删除边界已分离。
 - [x] 当前无 Run/Task/Delegation budget 空壳。
-- [ ] P1_V2 全套 L2 串行评审通过。
-- [ ] P1_V2/06 原子实施授权完成。
+- [x] P1_V2 全套 L2 串行评审通过。
+- [x] P1_V2/06 本地原子实施已完成并通过验证。
 
 ## 24. 任务完成摘要
 
-本文已形成单 Capability 单 Contract、source-aware 单调求交、Authorization Snapshot 冻结、Core 同源传递、Provider typed operation/outcome 和候选安全的独立实施基线。实施者无需回查旧 D02 或文档证据优化方案补通用资源/Provider seam；Document 具体字段和 DTO 继续由 P2_V3 承接。当前状态：**In Review**。
+本文已形成并实现单 Capability 单 Contract、source-aware 单调求交、Authorization Snapshot 冻结、Core 同源传递、Provider typed operation/outcome 和候选安全的独立基线。实施者无需回查旧 D02 或文档证据优化方案补通用资源/Provider seam；Document 具体字段和 DTO 由 P2_V3 承接且已完成本地实现。当前状态：**Implemented**。

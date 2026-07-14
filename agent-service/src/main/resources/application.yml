@@ -111,6 +111,7 @@ agent:
     resolve-path: /internal/agent/permissions/resolve
     connect-timeout: 2s
     read-timeout: 2s
+    max-response-bytes: 65536
   profile:
     agent-id: agent-default
     profile-version: profile-v1

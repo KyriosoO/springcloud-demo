@@ -1,6 +1,8 @@
 package com.dylan.agent.metadata.context.internal;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -10,6 +12,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import org.junit.jupiter.api.Test;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Update;
 
 import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.api.contract.runtime.common.RuntimeContextType;
@@ -38,6 +42,31 @@ class MyBatisContextRepositoryTest {
 
         assertThatCode(() -> repository.upsertApproved(next, ExpectedContextVersion.version(0)))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void mapperCasCannotReopenRetiredRecordAndCleanupOrderIsStable() throws Exception {
+        Update update = ContextRecordMapper.class
+                .getMethod("updateIfVersion", ContextRecordRow.class, long.class)
+                .getAnnotation(Update.class);
+        Delete delete = ContextRecordMapper.class
+                .getMethod("deleteExpired", java.time.LocalDateTime.class, int.class)
+                .getAnnotation(Delete.class);
+
+        assertThat(String.join(" ", update.value()))
+                .contains("record_version = #{expectedCurrentVersion} AND readable = 1");
+        assertThat(String.join(" ", delete.value()))
+                .contains("ORDER BY expires_at ASC, context_id ASC LIMIT #{limit}");
+    }
+
+    @Test
+    void cleanupLimitIsBounded() {
+        MyBatisContextRepository repository = new MyBatisContextRepository(
+                mock(ContextRecordMapper.class), new ObjectMapper(), CLOCK);
+
+        assertThatThrownBy(() -> repository.deleteExpired(CLOCK.instant(), 1001))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("between 1 and 1000");
     }
 
     private static ContextRecordEntity record(long version) {

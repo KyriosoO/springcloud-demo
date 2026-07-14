@@ -20,5 +20,18 @@ public record CapabilityOperationFailure<R>(
         if (!diagnosticId.equals(metadata.diagnosticId())) {
             throw new IllegalArgumentException("failure diagnosticId must match metadata");
         }
+        CapabilityOperationTermination expected = switch (code) {
+            case DISABLED -> CapabilityOperationTermination.DISABLED;
+            case INVALID_REQUEST, INVALID_RESPONSE, LIMIT_EXCEEDED,
+                    SECURITY_REJECTED, BINDING_MISMATCH -> CapabilityOperationTermination.REJECTED;
+            case PROVIDER_UNAVAILABLE, PROVIDER_TIMEOUT, PROVIDER_FAILED ->
+                    CapabilityOperationTermination.FAILED;
+            case DEADLINE_EXCEEDED, LATE_RESULT -> CapabilityOperationTermination.DEADLINE_EXCEEDED;
+            case CANCELLED -> CapabilityOperationTermination.CANCELLED;
+        };
+        if (metadata.termination() != expected) {
+            throw new IllegalArgumentException(
+                    "failure code/termination mismatch: " + code + "/" + metadata.termination());
+        }
     }
 }

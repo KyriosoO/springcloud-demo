@@ -92,10 +92,10 @@ def _plan_request() -> dict:
     }
 
 
-def _client() -> TestClient:
+def _client(*, raise_server_exceptions: bool = True) -> TestClient:
     app = create_app()
     app.dependency_overrides[get_settings] = _settings
-    return TestClient(app)
+    return TestClient(app, raise_server_exceptions=raise_server_exceptions)
 
 
 def _auth_headers() -> dict[str, str]:
@@ -183,3 +183,40 @@ class TestRoutePlanApi:
         assert response.json()["message"] == "LLM provider error"
         assert "LLM provider error: APIConnectionError" in caplog.text
         assert "diagnosticId=runtime-" in caplog.text
+
+    def test_validation_log_does_not_include_rejected_input_value(self, caplog):
+        request = _plan_request()
+        request["secretProbe"] = "must-not-appear-in-runtime-log"
+
+        with caplog.at_level(logging.ERROR, logger="agent_runtime.errors"):
+            response = _client().post(
+                "/runtime/v1/plan",
+                json=request,
+                headers=_auth_headers(),
+            )
+
+        assert response.status_code == 400
+        assert "must-not-appear-in-runtime-log" not in caplog.text
+
+    def test_unhandled_exception_returns_typed_safe_500(self, caplog):
+        class FailingPlanPlanner:
+            async def plan(self, request):
+                raise RuntimeError("must-not-leak-internal-detail")
+
+        client = _client(raise_server_exceptions=False)
+        client.app.dependency_overrides[get_plan_planner] = lambda: FailingPlanPlanner()
+
+        with caplog.at_level(logging.ERROR, logger="agent_runtime.errors"):
+            response = client.post(
+                "/runtime/v1/plan",
+                json=_plan_request(),
+                headers=_auth_headers(),
+            )
+
+        assert response.status_code == 500
+        body = response.json()
+        assert body["code"] == "INTERNAL_ERROR"
+        assert body["metadata"]["operation"] == "PLAN"
+        assert body["diagnosticId"]
+        assert "must-not-leak-internal-detail" not in response.text
+        assert "must-not-leak-internal-detail" not in caplog.text

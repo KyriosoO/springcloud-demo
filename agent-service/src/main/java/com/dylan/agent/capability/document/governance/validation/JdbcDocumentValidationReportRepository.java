@@ -69,15 +69,41 @@ public final class JdbcDocumentValidationReportRepository {
 
     public Optional<ProviderReportAuthorityView> findPassedProviderById(
             String reportId,com.dylan.agent.adapter.api.operation.CapabilityOperationType operationType,Instant now){
-        return jdbc.query("SELECT r.report_id,r.subject_digest,r.canonical_digest,r.expires_at,s.provider_safe_identity,s.provider_model_identity,s.adapter_service_identity_ref,s.adapter_deployment_ref,s.vendor_contract_version,s.template_model_digest,s.provider_binding_digest,s.validated_corpus_set_digest,s.active_profile_coverage_digest FROM document_validation_report r JOIN document_validation_provider_subject s ON s.report_id=r.report_id WHERE r.report_id=? AND r.subject_type='PROVIDER_OPERATION' AND s.operation_type=? AND r.status='PASSED' AND r.expires_at>?",
+        var rows=jdbc.query("SELECT r.report_id,r.subject_digest,r.canonical_digest,r.expires_at,s.provider_safe_identity,s.provider_model_identity,s.adapter_service_identity_ref,s.adapter_deployment_ref,s.vendor_contract_version,s.template_model_digest,s.provider_binding_digest,s.validated_corpus_set_digest,s.active_profile_coverage_digest FROM document_validation_report r JOIN document_validation_provider_subject s ON s.report_id=r.report_id WHERE r.report_id=? AND r.subject_type='PROVIDER_OPERATION' AND s.operation_type=? AND r.status='PASSED' AND r.expires_at>?",
                 (rs,row)->{
                     var provider=new com.dylan.agent.adapter.api.operation.ProviderSafeIdentity(rs.getString(5),Optional.ofNullable(rs.getString(6)));
                     var binding=new com.dylan.agent.adapter.api.document.provider.DocumentProviderBindingReference(
                             operationType,provider,rs.getString(7),rs.getString(8),rs.getString(9),rs.getString(10),rs.getString(11));
                     if(!binding.canonicalDigest().equals(providerCanonicalizer.providerBindingDigest(binding)))throw new IllegalStateException("stored provider binding canonical mismatch");
+                    var subject=new DocumentValidationModels.ProviderOperationSubjectRef(
+                            operationType,binding,rs.getString(12),rs.getString(13));
+                    if(!subject.canonicalDigest().equals(rs.getString(2)))throw new IllegalStateException("stored provider validation subject canonical mismatch");
                     return new ProviderReportAuthorityView(rs.getString(1),rs.getString(2),rs.getString(3),rs.getTimestamp(4).toInstant(),
                             binding,rs.getString(12),rs.getString(13));
-                },reportId,operationType.value(),Timestamp.from(now)).stream().findFirst();
+                },reportId,operationType.value(),Timestamp.from(now));
+        if(rows.size()!=1)return Optional.empty();
+        assertRequiredProviderGates(reportId,operationType,rows.getFirst());
+        return Optional.of(rows.getFirst());
+    }
+
+    private void assertRequiredProviderGates(
+            String reportId,
+            com.dylan.agent.adapter.api.operation.CapabilityOperationType operationType,
+            ProviderReportAuthorityView report) {
+        var subject=new DocumentValidationModels.ProviderOperationSubjectRef(
+                operationType,report.binding(),report.validatedCorpusSetDigest(),report.activeProfileCoverageDigest());
+        java.util.Map<DocumentValidationModels.GateCode,DocumentValidationModels.GateStatus> gates=
+                new java.util.EnumMap<>(DocumentValidationModels.GateCode.class);
+        jdbc.query("SELECT gate_code,status FROM document_validation_gate_result WHERE report_id=?", rs -> {
+            var code=DocumentValidationModels.GateCode.valueOf(rs.getString(1));
+            var status=DocumentValidationModels.GateStatus.valueOf(rs.getString(2));
+            if(gates.putIfAbsent(code,status)!=null)throw new IllegalStateException("duplicate stored provider validation gate");
+        },reportId);
+        if(!gates.keySet().containsAll(DocumentValidationModels.requiredGates(subject))
+                ||DocumentValidationModels.requiredGates(subject).stream()
+                .anyMatch(code->gates.get(code)!=DocumentValidationModels.GateStatus.PASSED)){
+            throw new IllegalStateException("stored provider PASSED report gate set incomplete");
+        }
     }
 
     public record ReportAuthorityView(String reportId, String subjectType, String subjectDigest,

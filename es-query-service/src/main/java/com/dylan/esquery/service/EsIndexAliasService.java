@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.time.Clock;
 import java.time.Instant;
 
 /** 01 仅拥有 alias actual read 与一次 compare-and-switch 技术原语。 */
@@ -23,10 +24,14 @@ import java.time.Instant;
 public final class EsIndexAliasService {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
-    public EsIndexAliasService(@Qualifier("documentRestClient") RestClient restClient, ObjectMapper objectMapper) {
+    public EsIndexAliasService(@Qualifier("documentRestClient") RestClient restClient,
+                               ObjectMapper objectMapper,
+                               Clock clock) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     public AliasTargetView readCurrent(String alias) throws IOException {
@@ -45,21 +50,52 @@ public final class EsIndexAliasService {
     }
 
     public AliasChangeResult compareAndSwitch(AuthorizedAliasChangeCommand command) throws IOException {
+        requireBeforeDeadline(command);
         AliasTargetView before = readCurrent(command.alias());
         if (before.targets().size() > 1) return AliasChangeResult.AMBIGUOUS;
-        if (before.targets().equals(List.of(command.targetIndex()))) return AliasChangeResult.ALREADY_APPLIED;
+        if (before.targets().equals(List.of(command.targetIndex()))) {
+            validateTargetBinding(command);
+            return AliasChangeResult.ALREADY_APPLIED;
+        }
         if (!before.targets().equals(command.expectedTargets())) return AliasChangeResult.CONFLICT;
         validateTargetBinding(command);
+        requireBeforeDeadline(command);
         List<Object> actions = new ArrayList<>();
         before.targets().forEach(index -> actions.add(Map.of("remove", Map.of("index", index, "alias", command.alias(), "must_exist", true))));
         actions.add(Map.of("add", Map.of("index", command.targetIndex(), "alias", command.alias())));
         Request request = new Request("POST", "/_aliases");
         request.setEntity(new NStringEntity(objectMapper.writeValueAsString(Map.of("actions", actions)), ContentType.APPLICATION_JSON));
-        restClient.performRequest(request);
-        AliasTargetView after = readCurrent(command.alias());
-        if (after.targets().equals(List.of(command.targetIndex()))) return AliasChangeResult.APPLIED;
-        if (after.targets().equals(before.targets())) return AliasChangeResult.CONFLICT;
-        return AliasChangeResult.UNKNOWN;
+        try {
+            restClient.performRequest(request);
+        } catch (IOException | RuntimeException uncertainMutation) {
+            return readAfterUncertainMutation(command);
+        }
+        try {
+            AliasTargetView after = readCurrent(command.alias());
+            if (after.targets().equals(List.of(command.targetIndex()))) return AliasChangeResult.APPLIED;
+            if (after.targets().size() > 1) return AliasChangeResult.AMBIGUOUS;
+            if (after.targets().equals(before.targets())) return AliasChangeResult.CONFLICT;
+            return AliasChangeResult.UNKNOWN;
+        } catch (IOException | RuntimeException postReadFailure) {
+            return AliasChangeResult.UNKNOWN;
+        }
+    }
+
+    private AliasChangeResult readAfterUncertainMutation(AuthorizedAliasChangeCommand command) {
+        try {
+            AliasTargetView actual = readCurrent(command.alias());
+            if (actual.targets().equals(List.of(command.targetIndex()))) return AliasChangeResult.APPLIED;
+            if (actual.targets().size() > 1) return AliasChangeResult.AMBIGUOUS;
+            return AliasChangeResult.UNKNOWN;
+        } catch (IOException | RuntimeException postReadFailure) {
+            return AliasChangeResult.UNKNOWN;
+        }
+    }
+
+    private void requireBeforeDeadline(AuthorizedAliasChangeCommand command) {
+        if (!clock.instant().isBefore(command.deadline())) {
+            throw new IllegalStateException("document alias change deadline reached");
+        }
     }
 
     private void validateTargetBinding(AuthorizedAliasChangeCommand command) throws IOException {

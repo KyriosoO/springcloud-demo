@@ -14,9 +14,18 @@ public record OnlyDocumentIds(Set<String> documentIds) implements DocumentIdCons
         if (source == null) throw new IllegalArgumentException(name + " must not be null");
         TreeSet<String> values = new TreeSet<>();
         for (String value : source) {
-            if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " contains blank value");
-            values.add(value.trim());
+            values.add(canonicalValue(value, name));
         }
         return Collections.unmodifiableSet(values);
+    }
+
+    static String canonicalValue(String value, String name) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " contains blank value");
+        String normalized = value.trim();
+        if (normalized.codePointCount(0, normalized.length()) > 512
+                || normalized.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException(name + " contains non-canonical value");
+        }
+        return normalized;
     }
 }

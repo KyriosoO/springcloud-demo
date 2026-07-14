@@ -41,10 +41,10 @@ public final class PlanOutcomeValidator {
         if (!command.handle().requestCorrelationId().equals(outcome.getRequestId())) {
             throw new IllegalArgumentException("PlanOutcome requestId mismatch");
         }
-        if (outcome.getMetadata() == null
-                || outcome.getMetadata().getOperation() != RuntimeOperationType.PLAN) {
-            throw new IllegalArgumentException("PlanOutcome metadata operation mismatch");
+        if (outcome.getMetadata() == null) {
+            throw new IllegalArgumentException("PlanOutcome metadata missing");
         }
+        outcome.getMetadata().validateFor(RuntimeOperationType.PLAN);
     }
 
     public static final class PlanClarificationException extends RuntimeException {

@@ -3,6 +3,7 @@ package com.dylan.agent.capability.document.provider;
 import com.dylan.agent.adapter.api.document.provider.DocumentProviderCanonicalizer;
 import com.dylan.agent.adapter.api.document.provider.DocumentProviderOutboundPolicyReference;
 import com.dylan.agent.adapter.api.document.provider.DocumentRewriteInputProjection;
+import com.dylan.agent.adapter.api.document.provider.DocumentLanguage;
 import com.dylan.agent.adapter.api.operation.CapabilityOperationType;
 import com.dylan.agent.capability.document.profile.DocumentFeaturePolicy;
 import com.dylan.agent.capability.document.provider.security.*;
@@ -33,7 +34,7 @@ class DocumentProviderOutboundPolicyReferenceVerifierTest {
         var binder = new DocumentProviderOperationRequestBinder(
                 new DocumentProviderCanonicalizer(new ObjectMapper()), clock);
         var verifier = new DocumentProviderOutboundPolicyReferenceVerifier(binder, clock);
-        var input = new DocumentRewriteInputProjection("年假", "zh-CN", 2);
+        var input = new DocumentRewriteInputProjection("年假", DocumentLanguage.ZH_CN, 2);
         var reference = binder.bind(decision, input, operationContext);
         var tampered = new DocumentProviderOutboundPolicyReference(
                 reference.invocationId(), reference.operationId(), reference.operationType(),

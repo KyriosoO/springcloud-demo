@@ -26,8 +26,10 @@ import org.mockito.InOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -124,6 +126,38 @@ class ExecutionLifecycleServiceTest {
 
         assertThat(result.responseType()).isEqualTo(InvocationResponseType.CLARIFY);
         verifyNoInteractions(checkpointTxService, executionCore);
+    }
+
+    @Test
+    void commitUnknownReturnsAuthoritativeTerminalAfterReconciliation() {
+        InvocationHandle handle = handle();
+        ResolvedClarification clarification = mock(ResolvedClarification.class);
+        FinalizedInvocationResult authoritative = finalized(handle, InvocationResponseType.CLARIFY);
+        when(finalizationTxService.commitClarification(handle, clarification))
+                .thenThrow(new IllegalStateException("commit result unknown"));
+        when(finalizationTxService.readAuthoritativeTerminal(handle))
+                .thenReturn(Optional.of(authoritative));
+
+        FinalizedInvocationResult result = service.finalizeClarification(handle, clarification);
+
+        assertThat(result).isSameAs(authoritative);
+        verifyNoInteractions(checkpointTxService, executionCore);
+    }
+
+    @Test
+    void invalidArtifactIsRejectedBeforeCheckpoint() {
+        InvocationHandle handle = handle();
+        ExecutablePlanningResult planningResult = planningResult(handle);
+        when(planningResult.hasValidArtifactIdentity()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.executeAndFinalize(
+                handle,
+                planningResult,
+                new CancellationSource().token()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("artifact");
+
+        verifyNoInteractions(checkpointTxService, executionCore, finalizationTxService);
     }
 
     private static CheckpointResult checkpoint() {

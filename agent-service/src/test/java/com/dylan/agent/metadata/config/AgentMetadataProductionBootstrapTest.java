@@ -48,6 +48,20 @@ class AgentMetadataProductionBootstrapTest {
         assertThat(first.bundleDigest()).isEqualTo(second.bundleDigest());
     }
 
+    @Test
+    void digestChangesWhenEffectiveResourceLimitsChange() {
+        var baselineProperties = DomainMetadataTestSupport.agentProperties();
+        var changedProperties = DomainMetadataTestSupport.agentProperties();
+        changedProperties.getQuery().setMaxSize(baselineProperties.getQuery().getMaxSize() - 1);
+
+        AgentMetadataBundle baseline = new DefaultAgentMetadataBootstrap(
+                baselineProperties, documentAssets()).bootstrap();
+        AgentMetadataBundle changed = new DefaultAgentMetadataBootstrap(
+                changedProperties, documentAssets()).bootstrap();
+
+        assertThat(changed.bundleDigest()).isNotEqualTo(baseline.bundleDigest());
+    }
+
     private static DocumentProfileAssets.BuiltAssets documentAssets() {
         DocumentProfileProperties properties = new DocumentProfileProperties();
         properties.setOwnerAgentId("agent-default");

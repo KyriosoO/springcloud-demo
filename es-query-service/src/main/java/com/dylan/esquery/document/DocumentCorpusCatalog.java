@@ -35,6 +35,17 @@ public final class DocumentCorpusCatalog {
         return definition;
     }
 
+    public DocumentCorpusDefinition requireByKeyDigest(String keyDigest) {
+        if (keyDigest == null || !keyDigest.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("document corpus key digest invalid");
+        }
+        return definitions.entrySet().stream()
+                .filter(entry -> keyDigest.equals(sha256(entry.getKey().canonicalBytes())))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown document corpus digest"));
+    }
+
     public boolean isDocumentTarget(String target) {
         return target != null && (target.startsWith("agent-doc-") || aliases.containsKey(target));
     }
@@ -60,6 +71,14 @@ public final class DocumentCorpusCatalog {
             return HexFormat.of().formatHex(digest.digest());
         } catch (Exception ex) {
             throw new IllegalStateException("catalog digest unavailable", ex);
+        }
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (Exception ex) {
+            throw new IllegalStateException("corpus key digest unavailable", ex);
         }
     }
 }

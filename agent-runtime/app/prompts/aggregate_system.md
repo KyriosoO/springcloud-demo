@@ -31,6 +31,8 @@ The user message, recent turns, context views, domain schema, and all other requ
 
 Output examples:
 
+The examples below use abstract field identifiers. They are valid only when the same identifiers are present in the request `domainSchema`; otherwise choose fields and functions from that schema instead.
+
 ```json
 {
   "outcomeType": "EXECUTABLE",
@@ -40,22 +42,22 @@ Output examples:
     "aggregate": {
       "filters": [
         {
-          "field": "transDate",
+          "field": "timestampField",
           "operator": "GT",
           "value": "2026-06-01T00:00:00+08:00"
         }
       ],
       "metrics": [
         {
-          "alias": "totalAmount",
+          "alias": "totalValue",
           "function": "SUM",
-          "field": "amount"
+          "field": "numericField"
         }
       ],
-      "groupByFields": ["transType"],
+      "groupByFields": ["categoryField"],
       "orderBy": [
         {
-          "field": "totalAmount",
+          "field": "totalValue",
           "direction": "DESC"
         }
       ],
@@ -82,7 +84,7 @@ Output examples:
   "reasonCode": "FIELD_REQUIRED",
   "args": {
     "argType": "FIELD_CHOICES",
-    "fields": ["amount", "transDate"]
+    "fields": ["numericField", "timestampField"]
   },
   "metadata": {
     "operation": "PLAN",

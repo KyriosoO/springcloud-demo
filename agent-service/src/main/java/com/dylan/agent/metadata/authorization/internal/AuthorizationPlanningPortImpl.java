@@ -112,6 +112,12 @@ public final class AuthorizationPlanningPortImpl implements AuthorizationPlannin
             throw new IllegalStateException("metadata evidence is stale");
         }
         domainMetadataPort.assertCurrent(evidence.domainMetadataEvidence(), evidence.absoluteDeadline());
+        UserPermission current = userPermissionBoundary.resolve(
+                evidence.subject(), evidence.absoluteDeadline());
+        if (!evidence.permissionEvidenceId().equals(current.evidenceId())
+                || !evidence.permissionVersion().equals(current.version())) {
+            throw new IllegalStateException("permission evidence is stale");
+        }
     }
 
     @Override

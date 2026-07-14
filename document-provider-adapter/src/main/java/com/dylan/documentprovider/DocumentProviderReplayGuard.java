@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Component
 final class DocumentProviderReplayGuard {
     private static final int MAX_ENTRIES = 10_000;
-    private final ConcurrentHashMap<String, Long> seen = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ReplayKey, Long> seen = new ConcurrentHashMap<>();
     private final Clock clock = Clock.systemUTC();
 
     boolean register(String serviceIdentity, String operationId, String requestDigest) {
@@ -19,7 +19,7 @@ final class DocumentProviderReplayGuard {
             seen.entrySet().removeIf(entry -> entry.getValue() <= now);
             if (seen.size() >= MAX_ENTRIES) return false;
         }
-        String key = serviceIdentity + "\u001f" + operationId + "\u001f" + requestDigest;
+        ReplayKey key = new ReplayKey(serviceIdentity, operationId, requestDigest);
         AtomicBoolean accepted = new AtomicBoolean();
         seen.compute(key, (ignored, expiresAt) -> {
             if (expiresAt == null || expiresAt <= now) {
@@ -30,4 +30,6 @@ final class DocumentProviderReplayGuard {
         });
         return accepted.get();
     }
+
+    private record ReplayKey(String serviceIdentity, String operationId, String requestDigest) {}
 }

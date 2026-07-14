@@ -6,6 +6,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withResourceNotFound;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -109,13 +111,34 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
     }
 
     @Test
+    void rejectsNonCanonicalDomainIdentifiers() {
+        server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withSuccess(successBody("dylan").replace("employee", "Employee"),
+                        MediaType.APPLICATION_JSON));
+
+        assertFailure(UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
+                "auth-permission-invalid-shape");
+    }
+
+    @Test
+    void rejectsCollectionsThatExceedContractLimit() {
+        server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withSuccess(successBodyWithCapabilityCount(1_025), MediaType.APPLICATION_JSON));
+
+        assertFailure(UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
+                "auth-permission-invalid-shape");
+    }
+
+    @Test
     void mapsMalformedProjectionToInvalidResponse() {
         server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
                 .andRespond(withSuccess(malformedProjectionBody(), MediaType.APPLICATION_JSON));
 
         assertFailure(UserPermissionAuthorityFailure.INVALID_RESPONSE,
                 () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
-                "auth-permission-invalid-projection");
+                "auth-permission-invalid-shape");
     }
 
     @Test
@@ -139,7 +162,7 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
 
         assertFailure(UserPermissionAuthorityFailure.UNAVAILABLE,
                 () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
-                "diag-403");
+                "auth-permission-http-403");
     }
 
     @Test
@@ -155,10 +178,70 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
     }
 
     @Test
+    void mapsStageTimeoutBeforeAbsoluteDeadlineToUnavailable() {
+        server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withException(new java.net.SocketTimeoutException("stage timeout")));
+
+        assertFailure(UserPermissionAuthorityFailure.UNAVAILABLE,
+                () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
+                "auth-permission-io");
+    }
+
+    @Test
+    void capsHttpReadTimeoutAtInvocationRemainingDeadline() throws Exception {
+        RestClient.Builder builder = RestClient.builder()
+                .messageConverters(converters ->
+                        converters.add(0, new MappingJackson2HttpMessageConverter(objectMapper)))
+                .baseUrl("http://auth-service");
+        MockRestServiceServer deadlineServer = MockRestServiceServer.bindTo(builder).build();
+        java.util.concurrent.atomic.AtomicReference<Duration> selectedTimeout =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        AuthServiceUserPermissionAuthorityAdapter deadlineAdapter =
+                new AuthServiceUserPermissionAuthorityAdapter(
+                        timeout -> {
+                            selectedTimeout.set(timeout);
+                            return builder.build();
+                        },
+                        properties(),
+                        objectMapper,
+                        tokenProvider("service-token"),
+                        Clock.fixed(NOW, ZoneOffset.UTC));
+        deadlineServer.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withSuccess(successBody("dylan"), MediaType.APPLICATION_JSON));
+
+        deadlineAdapter.resolveCurrent(SUBJECT, NOW.plusMillis(250));
+
+        assertThat(selectedTimeout.get()).isEqualTo(Duration.ofMillis(250));
+        deadlineServer.verify();
+    }
+
+    @Test
     void rejectsExpiredDeadlineBeforeCallingAuthService() {
         assertFailure(UserPermissionAuthorityFailure.DEADLINE_EXCEEDED,
                 () -> adapter.resolveCurrent(SUBJECT, NOW.minusSeconds(1)));
         server.verify();
+    }
+
+    @Test
+    void rejectsProjectionResolvedInTheFuture() {
+        server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withSuccess(
+                        successBody("dylan", NOW.plusSeconds(1)),
+                        MediaType.APPLICATION_JSON));
+
+        assertFailure(UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)));
+    }
+
+    @Test
+    void rejectsResponseThatExceedsConfiguredByteCap() {
+        String oversized = " ".repeat(65_537);
+        server.expect(requestTo("http://auth-service/internal/agent/permissions/resolve"))
+                .andRespond(withSuccess(oversized, MediaType.APPLICATION_JSON));
+
+        assertFailure(UserPermissionAuthorityFailure.INVALID_RESPONSE,
+                () -> adapter.resolveCurrent(SUBJECT, NOW.plusSeconds(30)),
+                "auth-permission-response-limit");
     }
 
     private static AgentProperties.AuthServiceProperties properties() {
@@ -175,6 +258,10 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
     }
 
     private String successBody(String subjectId) {
+        return successBody(subjectId, NOW);
+    }
+
+    private String successBody(String subjectId, Instant resolvedAt) {
         try {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("subject", Map.of("type", "USER", "id", subjectId));
@@ -189,7 +276,22 @@ class AuthServiceUserPermissionAuthorityAdapterTest {
             body.put("readableContextTypes", Set.of("QUERY"));
             body.put("writableContextTypes", Set.of("QUERY"));
             body.put("attributes", Map.of("source", "auth-service-agent-permission"));
-            body.put("resolvedAt", NOW);
+            body.put("resolvedAt", resolvedAt);
+            return objectMapper.writeValueAsString(body);
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private String successBodyWithCapabilityCount(int count) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = objectMapper.readValue(successBody("dylan"), Map.class);
+            java.util.LinkedHashSet<String> capabilities = new java.util.LinkedHashSet<>();
+            for (int i = 0; i < count; i++) {
+                capabilities.add("capability." + i);
+            }
+            body.put("allowedCapabilityIds", capabilities);
             return objectMapper.writeValueAsString(body);
         } catch (Exception ex) {
             throw new IllegalStateException(ex);

@@ -58,7 +58,7 @@ public final class DocumentChannelExecutorRegistry {
                 throw new IllegalArgumentException("VECTOR_INDEX_BINDING_MISMATCH");
             }
             body.put("knn",Map.of("field",target.vectorField(),"query_vector",embedding.vector(),"k",channel.candidateCount(),
-                    "num_candidates",Math.max(channel.candidateCount(),channel.candidateCount()*4),"filter",Map.of("bool",Map.of("filter",filter))));
+                    "num_candidates",channel.numCandidates(),"filter",Map.of("bool",Map.of("filter",filter))));
         }else{
             Object text=channel.channel()==DocumentSearchChannel.BM25?bm25(request):exactPhrase(request);
             body.put("query",Map.of("bool",Map.of("must",List.of(text),"filter",filter)));

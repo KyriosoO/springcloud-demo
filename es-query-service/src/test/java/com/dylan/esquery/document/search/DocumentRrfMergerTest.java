@@ -57,8 +57,8 @@ class DocumentRrfMergerTest {
 
     private static com.dylan.esquery.api.model.document.HybridSearchRequest request() {
         return DocumentSearchTestFixtures.request(new HybridContextRequest(0, 0, 0), List.of(
-                        new DocumentHybridChannelRequest(DocumentSearchChannel.BM25, true, 1, 10),
-                        new DocumentHybridChannelRequest(DocumentSearchChannel.DENSE_VECTOR, false, 2, 10)),
+                        new DocumentHybridChannelRequest(DocumentSearchChannel.BM25, true, 1, 10, 10),
+                        new DocumentHybridChannelRequest(DocumentSearchChannel.DENSE_VECTOR, false, 2, 10, 40)),
                 new HybridFusionRequest(60, 10), new HybridDedupRequest(5, 2));
     }
 

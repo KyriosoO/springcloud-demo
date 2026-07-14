@@ -27,6 +27,10 @@ public final class DefaultDocumentEmergencyGateEvidenceVerifier implements Docum
             List<DocumentEmergencyGateTargetBinding> expectedTargets, Instant now) {
         if(!wellFormed(evidence,expectedRollout,expectedTargets,now))return result(DocumentEmergencyGateVerificationCode.MALFORMED,evidence);
         if(!Ed25519IntegritySupport.ALGORITHM.equals(evidence.signature().algorithm()))return result(DocumentEmergencyGateVerificationCode.ALGORITHM_NOT_ALLOWED,evidence);
+        if(evidence.issuedAt().isAfter(now.plus(allowedClockSkew)))return result(DocumentEmergencyGateVerificationCode.NOT_YET_VALID,evidence);
+        if(!now.isBefore(evidence.validUntil()))return result(DocumentEmergencyGateVerificationCode.EXPIRED,evidence);
+        if(Duration.between(evidence.issuedAt(),evidence.validUntil()).compareTo(Duration.ofSeconds(60))>0)
+            return result(DocumentEmergencyGateVerificationCode.MALFORMED,evidence);
         byte[] canonical=DocumentEmergencyGateCanonicalizer.canonicalBytes(evidence);
         if(!evidence.canonicalDigest().equals(DocumentEmergencyGateCanonicalizer.canonicalDigest(canonical))
                 ||!evidence.evidenceId().equals(DocumentEmergencyGateCanonicalizer.evidenceId(evidence.canonicalDigest())))return result(DocumentEmergencyGateVerificationCode.MALFORMED,evidence);
@@ -34,8 +38,6 @@ public final class DefaultDocumentEmergencyGateEvidenceVerifier implements Docum
         try{key=verificationKeys.requireEd25519PublicKey(new IntegrityKeyRef(evidence.signature().keyId(),evidence.signature().keyVersion()));}
         catch(RuntimeException ex){return result(DocumentEmergencyGateVerificationCode.KEY_NOT_TRUSTED,evidence);}
         if(!Ed25519IntegritySupport.verifyBase64Url(canonical,evidence.signature().signatureBase64Url(),key))return result(DocumentEmergencyGateVerificationCode.SIGNATURE_INVALID,evidence);
-        if(evidence.issuedAt().isAfter(now.plus(allowedClockSkew)))return result(DocumentEmergencyGateVerificationCode.NOT_YET_VALID,evidence);
-        if(!now.isBefore(evidence.validUntil()))return result(DocumentEmergencyGateVerificationCode.EXPIRED,evidence);
         if(!evidence.rolloutBinding().equals(expectedRollout))return result(DocumentEmergencyGateVerificationCode.ROLLOUT_BINDING_MISMATCH,evidence);
         List<DocumentEmergencyGateTargetBinding> orderedExpected=expectedTargets.stream().sorted().toList();
         if(!evidence.orderedTargets().equals(orderedExpected))return result(DocumentEmergencyGateVerificationCode.TARGET_SET_MISMATCH,evidence);
@@ -52,7 +54,8 @@ public final class DefaultDocumentEmergencyGateEvidenceVerifier implements Docum
                 ||evidence.emergencyViewVersion()==null||!evidence.emergencyViewVersion().matches("[A-Za-z0-9._-]{1,128}")
                 ||evidence.status()==null||evidence.issuedAt()==null||evidence.validUntil()==null||evidence.signature()==null
                 ||evidence.canonicalDigest()==null||!evidence.canonicalDigest().matches("[0-9a-f]{64}")
-                ||evidence.evidenceId()==null||!evidence.evidenceId().matches("[0-9a-f]{64}"))return false;
+                ||evidence.evidenceId()==null||!evidence.evidenceId().matches("[0-9a-f]{64}")
+                ||evidence.validUntil().isBefore(evidence.issuedAt()))return false;
         return evidence.orderedTargets().equals(evidence.orderedTargets().stream().sorted().toList())
                 &&new HashSet<>(evidence.orderedTargets()).size()==evidence.orderedTargets().size();
     }

@@ -10,6 +10,13 @@ public final class DocumentAclExecutionEvidenceFactory {
             CapabilityOperationMetadata metadata) {
         var context = request.operationContext();
         var limitReference = context.resourceLimits().reference();
+        if (!scope.permissionVersion().equals(request.permissionEvidence().permissionVersion())
+                || !metadata.operationId().equals(context.operationId())
+                || !metadata.operationType().equals(context.operationType())
+                || !metadata.resourceLimitReference().equals(limitReference)
+                || metadata.termination() != com.dylan.agent.adapter.api.operation.CapabilityOperationTermination.SUCCEEDED) {
+            throw new IllegalArgumentException("ACL evidence source binding mismatch");
+        }
         String metadataDigest = DocumentAclCanonicalDigests.digest("DOM-1",
                 metadata.operationId(), metadata.operationType().value(),
                 Integer.toString(metadata.providerAttempts()), metadata.termination().name(),

@@ -6,15 +6,15 @@
 |---|---|
 | 文档名称 | 可信执行内核与 Invocation 生命周期 L2 实施详细设计 |
 | 文档路径 | `docs/design/P1_V2/02_可信执行内核与Invocation生命周期_L2实施详细设计_v2.0.md` |
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v2.0 |
 | 创建日期 | 2026-07-13 |
-| 最后更新日期 | 2026-07-13 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 最后更新日期 | 2026-07-14 |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 适用范围 | Capability 注册、Validator、可信执行 Core、Invocation model/lifecycle/persistence、Planning Artifact、checkpoint、Context scope codec |
 | 上级文档 | 四份当前 L0/L1 架构基线 |
 | 关联文档 | P1_V2/00、01、03、04、05、06；旧 D02_00～02 仅为历史来源，不再是实施前置 |
-| 是否可作为实现依据 | 否；P1_V2 全集评审已完成且 S0/S1=0，但仍为 In Review；经用户确认后方可转 Approved，代码实施仍须按 P1_V2/06 M0 授权 |
+| 是否可作为实现依据 | 是；CHAT-only Invocation、Planning Artifact、checkpoint、Core 与 Lifecycle 已完成本地实施和验证 |
 
 ## 2. 修订历史
 
@@ -26,6 +26,7 @@
 | 4 | 2026-07-13 | 4～20、22～24 | 本次 cross-layer 评审发现 Lifecycle/Core 职责倒置、资源限额冻结点错误、恢复语义越界及持久化契约不完整 | 按 L0/L1 重排 checkpoint→Core→finalization 主链，收敛 Definition/Handler/Registration 边界，补齐原子开始、Invocation 数据字典、终结事务、commit-unknown 与失败恢复规则 |
 | 5 | 2026-07-13 | 第1～2节 | P1_V2/P2_V3全集终检发现01～03仍引用旧代码快照 | 仅将适用代码基线对齐统一`816e2c855574da5326379128bfb3e230241d2fe3`；不新增评审轮次，不改变已通过设计结论 |
 | 6 | 2026-07-13 | 第1～2、24节 | P1_V2/P2_V3 全集终检同步终态 | 标记 P1_V2 全集评审已完成，修正任务摘要中的 Approved/M0 授权边界；不新增评审轮次，不改变 S0/S1 结论 |
+| 7 | 2026-07-14 | 第1～3、23～24节 | 当前仓库可信执行主链已按设计完成实施 | 对齐代码基线，确认 Run/Task concrete seam 已删除、PAI-1/checkpoint/Core/Lifecycle/Context codec 已闭合，将状态同步为 Implemented |
 
 ## 3. 文档状态说明
 
@@ -38,7 +39,7 @@
 | Implemented | 已实施并对齐 | 是 |
 | Deprecated | 已废弃 | 否 |
 
-当前状态：In Review。
+当前状态：Implemented。CHAT-only Invocation、逻辑 Planning Artifact identity、checkpoint 后进入 Core、原子开始/终结与 Context scope codec 已完成本地实施和验证。
 
 ## 4. 背景与目标
 
@@ -446,25 +447,25 @@ Planning Artifact identity 只保存安全引用/digest，不保存权限正文�
 
 | 检查项 | 设计要求 | 当前实现位置 | 是否满足 | 说明 |
 |---|---|---|---|---|
-| 当前 scope | ConversationScope only | invocation model | 否 | 存在 RunScope |
-| 当前 origin | Chat origin only | invocation model | 否 | 存在 Task origin |
-| artifact identity | 逻辑 digest | ExecutablePlanningResult/Command | 部分 | 仅 correlation/deadline/registration identity |
-| checkpoint | 绑定 artifact digest | PlanningCheckpoint | 否 | 待新增 |
-| Context codec | 只解析 CONVERSATION | ContextBindingSupport | 否 | 当前解析 RUN |
+| 当前 scope | ConversationScope only | invocation model | 是 | `RunScope` 已从 main source 删除 |
+| 当前 origin | Chat origin only | invocation model | 是 | `TaskInvocationOrigin` 已从 main source 删除 |
+| artifact identity | 逻辑 digest | Planning artifact canonicalizer / ExecutablePlanningResult | 是 | identity-free components 生成唯一逻辑 digest |
+| checkpoint | 绑定 artifact digest | PlanningCheckpoint | 是 | checkpoint 与 artifact identity 已绑定 |
+| Context codec | 只解析 CONVERSATION | ContextBindingSupport | 是 | 当前 concrete scope 仅为 CONVERSATION |
 
 ## 24. 任务完成摘要
 
 | 项目 | 内容 |
 |---|---|
 | 目标文档 | 本文 |
-| 文档状态 | In Review |
-| 是否可作为实现依据 | 否 |
+| 文档状态 | Implemented |
+| 是否可作为实现依据 | 是 |
 | 评审轮次 | 本次 3 轮；历史记录与本次记录合计见第 22 节 |
 | 主要修改内容 | CHAT-only Invocation、逻辑 Planning Artifact identity、Lifecycle→checkpoint→Core→finalization 权威主链、原子开始、完整持久化与恢复契约 |
 | 是否已追加修改历史 | 是 |
 | 是否已补充实现落点清单 | 是 |
-| 是否存在阻塞问题 | 否；当前实现偏差由 P1_V2/06 迁移门禁跟踪 |
-| 是否存在遗留风险 | 是；format version 演进和本地测试数据清理风险 |
-| 是否需要用户进一步授权 | 是；文档转为 Approved 需用户确认，代码实施需按 P1_V2/06 完成 M0 授权 |
+| 是否存在阻塞问题 | 否；当前实现已通过 P1_V2/06 迁移门禁验证 |
+| 是否存在遗留风险 | 是；生产迁移、format version 演进和真实数据清理仍需发布前验证 |
+| 是否需要用户进一步授权 | 是；仅生产迁移、生产启用和发布需要独立授权 |
 | 参数输入方式 | 自然语言授权 |
-| 建议下一步 | 本设计继续作为 P2_V3 的稳定 P1 输入；等待用户 Approved 与 M0 授权后，代码实施按 P1_V2/06 执行 |
+| 建议下一步 | 本设计继续作为 P2_V3 的稳定 P1 输入；生产迁移和发布按 P1_V2/06、P2_V3/07 独立执行 |

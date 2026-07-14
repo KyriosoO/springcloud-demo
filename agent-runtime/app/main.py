@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(RuntimeProviderError)
     async def handle_provider_error(request: Request, exc: RuntimeProviderError) -> JSONResponse:
-        """捕获提供方异常，返回 502。"""
+        """捕获提供方异常，返回 503。"""
         return _error(request, 503, "PROVIDER_UNAVAILABLE", "LLM provider error", exc.request_id, exc)
 
     @app.exception_handler(RuntimeTimeoutError)
@@ -66,6 +66,11 @@ def create_app() -> FastAPI:
     async def handle_request_validation(request: Request, exc: RequestValidationError) -> JSONResponse:
         """捕获请求校验异常，返回 400。"""
         return _error(request, 400, "CONTRACT_INVALID", "Request validation failed", error=exc)
+
+    @app.exception_handler(Exception)
+    async def handle_internal_error(request: Request, exc: Exception) -> JSONResponse:
+        """将未分类异常收敛为不泄露内部细节的统一 500 契约。"""
+        return _error(request, 500, "INTERNAL_ERROR", "Unexpected runtime error", error=exc)
 
     return app
 
@@ -142,12 +147,23 @@ def _error_detail(error: BaseException | None) -> Any:
     if error is None:
         return None
     if isinstance(error, RequestValidationError):
-        return error.errors()
-    return str(error)
+        return [
+            {
+                "type": item.get("type"),
+                "loc": list(item.get("loc", ())),
+                "msg": item.get("msg"),
+            }
+            for item in error.errors()
+        ]
+    if isinstance(error, (RuntimeAuthError, RuntimePlanError, RuntimeProviderError, RuntimeTimeoutError)):
+        return str(error)
+    return type(error).__name__
 
 
 def _exc_info(error: BaseException | None):
-    if error is None:
+    if error is None or isinstance(error, (RequestValidationError, RuntimeAuthError)):
+        return None
+    if not isinstance(error, (RuntimePlanError, RuntimeProviderError, RuntimeTimeoutError)):
         return None
     return type(error), error, error.__traceback__
 

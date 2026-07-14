@@ -112,6 +112,19 @@ class AgentRuntimeClientContractTest {
     }
 
     @Test
+    void rejectsImpossibleMetadataAttemptCounts() {
+        server.expect(requestTo("http://runtime/runtime/v1/route"))
+                .andRespond(withSuccess(
+                        routeDecision("req-1", RuntimeOperationType.ROUTE)
+                                .replace("\"repairAttempts\": 0", "\"repairAttempts\": 1"),
+                        MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.route(routeRequest("req-1")))
+                .isInstanceOfSatisfying(RuntimeOperationException.class, ex ->
+                        assertThat(ex.failure()).isEqualTo(RuntimeOperationFailure.PROTOCOL));
+    }
+
+    @Test
     void mapsRuntimeErrorResponseToTypedException() {
         server.expect(requestTo("http://runtime/runtime/v1/plan"))
                 .andRespond(withStatus(HttpStatus.GATEWAY_TIMEOUT)
@@ -125,6 +138,18 @@ class AgentRuntimeClientContractTest {
                     assertThat(ex.diagnosticId()).isEqualTo("diag-runtime");
                     assertThat(ex.audit().runtimeMetadata()).isPresent();
                 });
+    }
+
+    @Test
+    void rejectsRuntimeErrorWithoutRequiredMetadata() {
+        server.expect(requestTo("http://runtime/runtime/v1/plan"))
+                .andRespond(withStatus(HttpStatus.GATEWAY_TIMEOUT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(runtimeErrorWithoutMetadata("req-1")));
+
+        assertThatThrownBy(() -> client.plan(planRequest("req-1")))
+                .isInstanceOfSatisfying(RuntimeOperationException.class, ex ->
+                        assertThat(ex.failure()).isEqualTo(RuntimeOperationFailure.PROTOCOL));
     }
 
     private static AgentProperties properties() {
@@ -204,6 +229,17 @@ class AgentRuntimeClientContractTest {
                   "diagnosticId": "diag-runtime"
                 }
                 """.formatted(requestId, metadata(RuntimeOperationType.PLAN));
+    }
+
+    private static String runtimeErrorWithoutMetadata(String requestId) {
+        return """
+                {
+                  "requestId": "%s",
+                  "code": "DEADLINE_EXCEEDED",
+                  "message": "deadline exceeded",
+                  "diagnosticId": "diag-runtime"
+                }
+                """.formatted(requestId);
     }
 
     private static String metadata(RuntimeOperationType operation) {

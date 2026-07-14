@@ -79,6 +79,7 @@ public final class DocumentProviderActivationCoordinator {
         requireText(rolloutVersion, "rolloutVersion");
         requireText(changeId, "changeId");
         Objects.requireNonNull(gate);
+        validateRequiredConsumers(requiredConsumers);
         Instant now = clock.instant();
         if (!now.isBefore(gate.expiresAt()) || gate.issuedAt().isAfter(now)
                 || !"PROVIDER_OPERATION".equals(gate.unitType())) {
@@ -91,6 +92,11 @@ public final class DocumentProviderActivationCoordinator {
         }
         assertNotEmergencyBlocked(binding);
         Current current = lock(binding.operationType());
+        String currentDigest = current == null
+                ? digest("PROVIDER-MISSING-1", binding.operationType().value()) : current.snapshotDigest();
+        if (!gate.expectedStateDigest().equals(currentDigest)) {
+            throw new IllegalStateException("release gate does not bind current provider state");
+        }
         if (current != null && "ACTIVE".equals(current.state())
                 && !binding.canonicalDigest().equals(current.bindingDigest())) {
             throw new IllegalStateException("provider replacement requires INACTIVE barrier first");
@@ -110,9 +116,7 @@ public final class DocumentProviderActivationCoordinator {
 
     private void assertConsumerBarrier(CapabilityOperationType operationType, String inactiveDigest,
                                        Map<String, String> requiredConsumers) {
-        if (requiredConsumers == null || requiredConsumers.isEmpty()) {
-            throw new IllegalStateException("consumer instance-set coverage required after INACTIVE barrier");
-        }
+        validateRequiredConsumers(requiredConsumers);
         for (var required : requiredConsumers.entrySet()) {
             requireText(required.getKey(), "consumerId");
             requireDigest(required.getValue(), "consumerDeploymentDigest");
@@ -122,6 +126,16 @@ public final class DocumentProviderActivationCoordinator {
             if (count != 1) throw new IllegalStateException(
                     "consumer has not acknowledged INACTIVE barrier: " + required.getKey());
         }
+    }
+
+    private static void validateRequiredConsumers(Map<String, String> requiredConsumers) {
+        if (requiredConsumers == null || requiredConsumers.isEmpty()) {
+            throw new IllegalStateException("consumer deployment coverage required before provider activation");
+        }
+        requiredConsumers.forEach((consumer, deployment) -> {
+            requireText(consumer, "consumerId");
+            requireDigest(deployment, "consumerDeploymentDigest");
+        });
     }
 
     private void assertNotEmergencyBlocked(DocumentProviderBindingReference binding) {
@@ -135,7 +149,7 @@ public final class DocumentProviderActivationCoordinator {
     }
 
     private static String gateCanonical(DocumentValidationModels.ReleaseGateEvidence gate) {
-        return digest("DRG-1", gate.unitType(), gate.unitKeyDigest(), gate.exactTargetStateDigest(),
+        return digest("DRG-1", gate.unitType(), gate.unitKeyDigest(), gate.expectedStateDigest(), gate.exactTargetStateDigest(),
                 gate.reportCanonicalDigest(), gate.approvalSafeRef(), gate.issuedAt().toString(), gate.expiresAt().toString());
     }
 

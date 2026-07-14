@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @RestControllerAdvice(assignableTypes=DocumentIndexManagementController.class)
 public final class DocumentManagementExceptionHandler {
-    @ExceptionHandler(AccessDeniedException.class) ResponseEntity<DocumentManagementErrorResponse> denied(AccessDeniedException ex){return response(HttpStatus.FORBIDDEN,ex.getMessage()!=null&&ex.getMessage().contains("authentication")?DocumentManagementErrorCode.AUTHENTICATION_REQUIRED:DocumentManagementErrorCode.SCOPE_REQUIRED);}
+    @ExceptionHandler(AccessDeniedException.class) ResponseEntity<DocumentManagementErrorResponse> denied(AccessDeniedException ex){boolean authentication=ex.getMessage()!=null&&ex.getMessage().contains("authentication");return response(authentication?HttpStatus.UNAUTHORIZED:HttpStatus.FORBIDDEN,authentication?DocumentManagementErrorCode.AUTHENTICATION_REQUIRED:DocumentManagementErrorCode.SCOPE_REQUIRED);}
     @ExceptionHandler(SecurityException.class) ResponseEntity<DocumentManagementErrorResponse> approval(SecurityException ex){return response(HttpStatus.FORBIDDEN,ex.getMessage()!=null&&ex.getMessage().contains("unavailable")?DocumentManagementErrorCode.APPROVAL_REQUIRED:DocumentManagementErrorCode.APPROVAL_INVALID);}
     @ExceptionHandler({IllegalArgumentException.class,HttpMessageNotReadableException.class,MethodArgumentNotValidException.class}) ResponseEntity<DocumentManagementErrorResponse> invalid(Exception ex){return response(HttpStatus.BAD_REQUEST,DocumentManagementErrorCode.INVALID_REQUEST);}
     @ExceptionHandler(IllegalStateException.class) ResponseEntity<DocumentManagementErrorResponse> state(IllegalStateException ex){
@@ -20,7 +20,7 @@ public final class DocumentManagementExceptionHandler {
         if(message.contains("expected current"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.EXPECTED_STATE_MISMATCH);
         if(message.contains("PASSED")||message.contains("rollback target"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.REPORT_NOT_CURRENT);
         if(message.contains("emergency"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.EMERGENCY_BLOCKED);
-        if(message.contains("deadline"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.DEADLINE_EXCEEDED);
+        if(message.contains("deadline"))return response(HttpStatus.REQUEST_TIMEOUT,DocumentManagementErrorCode.DEADLINE_EXCEEDED);
         if(message.contains("actual state"))return response(HttpStatus.SERVICE_UNAVAILABLE,DocumentManagementErrorCode.ACTUAL_STATE_UNKNOWN);
         if(message.contains("active change")||message.contains("reconcilable"))return response(HttpStatus.CONFLICT,DocumentManagementErrorCode.CHANGE_IN_PROGRESS);
         return response(HttpStatus.SERVICE_UNAVAILABLE,DocumentManagementErrorCode.INTERNAL_UNAVAILABLE);

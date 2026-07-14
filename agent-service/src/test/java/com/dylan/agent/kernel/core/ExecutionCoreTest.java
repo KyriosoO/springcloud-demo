@@ -179,6 +179,48 @@ class ExecutionCoreTest {
     }
 
     @Test
+    void cancellationBeforePreflightStopsBeforeAuthorizationAndLaterStages() {
+        AtomicBoolean authorizationCalled = new AtomicBoolean(false);
+        AtomicBoolean validatorCalled = new AtomicBoolean(false);
+        AtomicBoolean handlerCalled = new AtomicBoolean(false);
+
+        var registration = queryRegistration(
+                (raw, ctx) -> {
+                    validatorCalled.set(true);
+                    return new DummyValidatedPlan("query.search", AgentPlanKind.QUERY);
+                },
+                (plan, ctx) -> {
+                    handlerCalled.set(true);
+                    return HandlerResult.of(new QueryAgentResultPayload());
+                });
+        var registry = registry(registration);
+        ExecutionCore core = new ExecutionCore(
+                (snapshot, handle) -> {
+                    authorizationCalled.set(true);
+                    return authorizationPort().recheck(snapshot, handle);
+                },
+                (snapshots, handle, resolved, scope) -> { },
+                failingDomainPort(),
+                (candidates, request) -> List.of(),
+                (candidate, outputContract, scope, resourceLimits) -> null,
+                CLOCK);
+        CancellationSource source = new CancellationSource();
+        ExecutionCommand command = command(registry.resolve("query.search"), source);
+        source.cancel(KernelErrorCode.CANCELLED);
+
+        ExecutionOutcome outcome = core.execute(command);
+
+        assertThat(outcome).isInstanceOf(ExecutionFailure.class);
+        ExecutionFailure failure = (ExecutionFailure) outcome;
+        assertThat(failure.stage()).isEqualTo(ExecutionStage.EXECUTION_PREFLIGHT);
+        assertThat(failure.errorCode()).isEqualTo(KernelErrorCode.CANCELLED);
+        assertThat(failure.cancelled()).isTrue();
+        assertThat(authorizationCalled).isFalse();
+        assertThat(validatorCalled).isFalse();
+        assertThat(handlerCalled).isFalse();
+    }
+
+    @Test
     void nullSecuredResultFailsBeforeContextApproval() {
         AtomicBoolean contextApprovalCalled = new AtomicBoolean(false);
 
@@ -343,7 +385,13 @@ class ExecutionCoreTest {
     }
 
     private ExecutionCommand command(com.dylan.agent.kernel.registration.ResolvedRegistration resolved) {
-        return new ExecutionCommand(handle(), planningResult(resolved), new CancellationSource().token());
+        return command(resolved, new CancellationSource());
+    }
+
+    private ExecutionCommand command(
+            com.dylan.agent.kernel.registration.ResolvedRegistration resolved,
+            CancellationSource source) {
+        return new ExecutionCommand(handle(), planningResult(resolved), source.token());
     }
 
     private InvocationHandle handle() {

@@ -1,6 +1,7 @@
 package com.dylan.common.security;
 
 import java.util.Base64;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -22,11 +23,17 @@ public final class ConfigSecretMaterialProvider implements SecretMaterialProvide
 	}
 
 	static SecretMaterial decode(SecretKeyRef ref, String encoded, SecretSourceType source) {
+		byte[] decoded = null;
 		try {
+			decoded = Base64.getDecoder().decode(encoded.trim());
 			return new SecretMaterial(ref.purpose(), ref.keyId(),
-					new SecretValue(Base64.getDecoder().decode(encoded.trim())), source);
+					new SecretValue(decoded), source);
 		} catch (IllegalArgumentException ex) {
 			throw new SecretMaterialException("Invalid Base64 secret for " + ref.purpose() + ":" + ref.keyId(), ex);
+		} finally {
+			if (decoded != null) {
+				Arrays.fill(decoded, (byte) 0);
+			}
 		}
 	}
 }

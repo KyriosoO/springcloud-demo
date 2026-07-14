@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,6 +31,10 @@ public final class DocumentValidationModels {
             String activeProfileCoverageDigest) implements SubjectRef {
         public ProviderOperationSubjectRef {
             Objects.requireNonNull(operationType);
+            if (!Set.of("DOCUMENT_REWRITE", "DOCUMENT_EMBEDDING", "DOCUMENT_RERANK", "DOCUMENT_GENERATION")
+                    .contains(operationType.value())) {
+                throw new IllegalArgumentException("unsupported document provider operation subject");
+            }
             Objects.requireNonNull(providerBinding);
             requireDigest(validatedCorpusSetDigest, "validatedCorpusSetDigest");
             requireDigest(activeProfileCoverageDigest, "activeProfileCoverageDigest");
@@ -140,6 +145,11 @@ public final class DocumentValidationModels {
                     || gates.stream().anyMatch(g -> g.status() != GateStatus.PASSED))) {
                 throw new IllegalArgumentException("PASSED report requires every gate PASSED");
             }
+            if (status == ReportStatus.PASSED && !gates.stream().map(GateResult::gateCode)
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet())
+                    .containsAll(requiredGates(subject))) {
+                throw new IllegalArgumentException("PASSED report is missing required gates");
+            }
             Objects.requireNonNull(completedAt);
             Objects.requireNonNull(expiresAt);
             if (!completedAt.isBefore(expiresAt)) throw new IllegalArgumentException("report expiry must be after completion");
@@ -153,10 +163,32 @@ public final class DocumentValidationModels {
         }
     }
 
+    public static Set<GateCode> requiredGates(SubjectRef subject) {
+        if (subject instanceof P1ReleaseCandidateSubjectRef) return Set.of(GateCode.values());
+        ProviderOperationSubjectRef provider = (ProviderOperationSubjectRef) subject;
+        java.util.EnumSet<GateCode> required = java.util.EnumSet.of(
+                GateCode.ACL_DENY_REVOKED,
+                GateCode.PROVIDER_CONTRACT_SECURITY,
+                GateCode.PROVIDER_ATTEMPT_DEADLINE_CANCEL,
+                GateCode.CAPACITY_BULKHEAD,
+                GateCode.OBSERVABILITY_AUDIT,
+                GateCode.ROLLBACK_DRY_RUN);
+        if ("DOCUMENT_EMBEDDING".equals(provider.operationType().value())) {
+            required.add(GateCode.EMBEDDING_INDEX_COMPATIBILITY);
+        }
+        if ("DOCUMENT_GENERATION".equals(provider.operationType().value())) {
+            required.add(GateCode.GENERATION_CITATION);
+            required.add(GateCode.GENERATION_FACTUALITY);
+            required.add(GateCode.RESULT_SECURITY_CANDIDATE_LEAK);
+        }
+        return Set.copyOf(required);
+    }
+
     public record ReleaseGateEvidence(
             String evidenceId,
             String unitType,
             String unitKeyDigest,
+            String expectedStateDigest,
             String exactTargetStateDigest,
             String reportCanonicalDigest,
             String approvalSafeRef,
@@ -167,6 +199,7 @@ public final class DocumentValidationModels {
             requireText(evidenceId, "evidenceId");
             requireText(unitType, "unitType");
             requireDigest(unitKeyDigest, "unitKeyDigest");
+            requireDigest(expectedStateDigest, "expectedStateDigest");
             requireDigest(exactTargetStateDigest, "exactTargetStateDigest");
             requireDigest(reportCanonicalDigest, "reportCanonicalDigest");
             requireText(approvalSafeRef, "approvalSafeRef");
@@ -174,6 +207,13 @@ public final class DocumentValidationModels {
             Objects.requireNonNull(expiresAt);
             if (!issuedAt.isBefore(expiresAt)) throw new IllegalArgumentException("gate evidence must expire after issue");
             requireDigest(canonicalDigest, "canonicalDigest");
+            String expectedCanonical = canonical("DRG-1", unitType, unitKeyDigest, expectedStateDigest,
+                    exactTargetStateDigest, reportCanonicalDigest, approvalSafeRef,
+                    issuedAt.toString(), expiresAt.toString());
+            if (!expectedCanonical.equals(canonicalDigest)
+                    || !evidenceId.equals("DRG-" + canonicalDigest.substring(0, 20))) {
+                throw new IllegalArgumentException("DRG-1 canonical/evidenceId mismatch");
+            }
         }
     }
 

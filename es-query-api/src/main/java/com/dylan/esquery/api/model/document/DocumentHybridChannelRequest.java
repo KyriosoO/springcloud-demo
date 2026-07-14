@@ -7,8 +7,10 @@ public record DocumentHybridChannelRequest(
         DocumentSearchChannel channel,
         boolean required,
         int weight,
-        int candidateCount) {
+        int candidateCount,
+        int numCandidates) {
     public DocumentHybridChannelRequest {
-        if(channel==null||weight<=0||candidateCount<=0)throw new IllegalArgumentException("document channel request invalid");
+        if(channel==null||weight<=0||candidateCount<=0||numCandidates<candidateCount)
+            throw new IllegalArgumentException("document channel request invalid");
     }
 }

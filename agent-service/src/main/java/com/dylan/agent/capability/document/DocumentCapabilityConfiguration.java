@@ -215,9 +215,11 @@ public class DocumentCapabilityConfiguration {
             Clock clock,
             ObjectMapper objectMapper) {
         return new DocumentProviderAdapterClient(
-                restClient(properties.getBaseUrl(), properties.getConnectTimeout(), properties.getReadTimeout()),
-                authHeaderProvider, activationReadView, binder, referenceVerifier,
-                operationBindingRegistry, clock, objectMapper);
+                 restClient(properties.getBaseUrl(), properties.getConnectTimeout(), properties.getReadTimeout()),
+                 authHeaderProvider, activationReadView, binder, referenceVerifier,
+                 operationBindingRegistry, clock, objectMapper,
+                 properties.getMaxRequestBytes(), properties.getMaxResponseBytes(),
+                 properties.getConnectTimeout().plus(properties.getReadTimeout()));
     }
 
     @Bean
@@ -225,9 +227,10 @@ public class DocumentCapabilityConfiguration {
             DocumentAclCurrentnessPort currentnessPort,
             DocumentEmergencyControlReadPort emergencyControlReadPort,
             Clock clock,
-            AgentProperties properties) {
+            AgentProperties properties,
+            DocumentAclCompilerLimits limits) {
         return new DocumentRevocationGuard(currentnessPort, emergencyControlReadPort, clock,
-                properties.getDocument().getAcl().getFinalDecisionMaxAge());
+                properties.getDocument().getAcl().getFinalDecisionMaxAge(), limits);
     }
 
     @Bean
@@ -292,8 +295,9 @@ public class DocumentCapabilityConfiguration {
     }
 
     @Bean
-    DocumentEvidenceVisibilityProjector documentEvidenceVisibilityProjector() {
-        return new DocumentEvidenceVisibilityProjector();
+    DocumentEvidenceVisibilityProjector documentEvidenceVisibilityProjector(
+            ResultValueMaskingSupport masking) {
+        return new DocumentEvidenceVisibilityProjector(masking);
     }
 
     @Bean

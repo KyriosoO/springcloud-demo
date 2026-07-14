@@ -9,8 +9,8 @@ public record DocumentFusionPolicy(
         int rerankTopN) {
     public DocumentFusionPolicy {
         if (keywordCandidateCount <= 0 || vectorCandidateCount <= 0 || rrfK <= 0
-                || numCandidates <= 0 || rerankTopN <= 0) {
-            throw new IllegalArgumentException("document fusion policy values must be positive");
+                || numCandidates < vectorCandidateCount || rerankTopN <= 0) {
+            throw new IllegalArgumentException("document fusion policy values must be positive and vector search breadth must cover k");
         }
     }
 }

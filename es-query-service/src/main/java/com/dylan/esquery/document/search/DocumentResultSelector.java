@@ -18,12 +18,12 @@ import java.util.Set;
 /** security-bound distinct-document/chunk selection。 */
 public final class DocumentResultSelector {
     public List<HybridSearchHit> select(List<FusedDocumentHit> fused,HybridSearchRequest request,DocumentTargetBindingDto target){
-        Set<String> acceptedDocuments=new HashSet<>();Map<String,Integer> chunks=new HashMap<>();
-        Map<String,String> bindingByDocumentId=new HashMap<>();
+        Set<DocumentBinding> acceptedDocuments=new HashSet<>();Map<DocumentBinding,Integer> chunks=new HashMap<>();
+        Map<String,DocumentBinding> bindingByDocumentId=new HashMap<>();
         java.util.ArrayList<HybridSearchHit> result=new java.util.ArrayList<>();
         for(FusedDocumentHit item:fused){BoundDocumentChannelHit hit=item.representative();
-            String documentKey=hit.documentId()+"|"+hit.documentVersion()+"|"+hit.aclRef()+"|"+hit.aclVersion();
-            String priorBinding=bindingByDocumentId.putIfAbsent(hit.documentId(),documentKey);
+            DocumentBinding documentKey=new DocumentBinding(hit.documentId(),hit.documentVersion(),hit.aclRef(),hit.aclVersion());
+            DocumentBinding priorBinding=bindingByDocumentId.putIfAbsent(hit.documentId(),documentKey);
             if(priorBinding!=null&&!priorBinding.equals(documentKey))throw new IllegalArgumentException("document selection security binding conflict");
             if(!acceptedDocuments.contains(documentKey)){
                 if(acceptedDocuments.size()>=request.dedup().maxReturnedDocuments())continue;
@@ -43,4 +43,5 @@ public final class DocumentResultSelector {
                 hit.documentVersion(),hit.chunkId(),hit.aclRef(),hit.aclVersion(),request.protectedFilterDigest(),request.executionBinding().aclEvidenceDigest());
     }
     private static String sha(String...values){try{MessageDigest digest=MessageDigest.getInstance("SHA-256");for(String value:values){byte[] bytes=value.getBytes(StandardCharsets.UTF_8);digest.update(new byte[]{(byte)(bytes.length>>>24),(byte)(bytes.length>>>16),(byte)(bytes.length>>>8),(byte)bytes.length});digest.update(bytes);}return HexFormat.of().formatHex(digest.digest());}catch(NoSuchAlgorithmException ex){throw new IllegalStateException(ex);}}
+    private record DocumentBinding(String documentId,String documentVersion,String aclRef,String aclVersion) {}
 }

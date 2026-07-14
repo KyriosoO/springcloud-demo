@@ -41,10 +41,10 @@ public final class RouteOutcomeValidator {
         if (!command.handle().requestCorrelationId().equals(outcome.getRequestId())) {
             throw new IllegalArgumentException("RouteOutcome requestId mismatch");
         }
-        if (outcome.getMetadata() == null
-                || outcome.getMetadata().getOperation() != RuntimeOperationType.ROUTE) {
-            throw new IllegalArgumentException("RouteOutcome metadata operation mismatch");
+        if (outcome.getMetadata() == null) {
+            throw new IllegalArgumentException("RouteOutcome metadata missing");
         }
+        outcome.getMetadata().validateFor(RuntimeOperationType.ROUTE);
     }
 
     private static void validateDomain(AvailableCapability capability, Optional<String> domain) {

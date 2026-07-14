@@ -84,7 +84,7 @@ class DocumentGeneratedTextCandidateFactoryTest {
                 new NoneFieldMasker(), new IdCardFieldMasker(), new MobileFieldMasker(),
                 new EmailFieldMasker(), new AddressFieldMasker()))));
         var projection = new DocumentGenerationEvidenceProjector(fieldProjector).project(
-                List.of(evidence), new DocumentEvidencePackingLimit(100, 100, 5), decision,
+                List.of(evidence), new DocumentEvidencePackingLimit(100, 100, 100, 5), decision,
                 context.executionScope());
         var evidencePackage = new EvidenceContextPackageFactory().create(
                 new EvidenceContextPackageRequest(

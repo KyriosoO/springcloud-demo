@@ -63,7 +63,7 @@ public final class PlanningCheckpoint {
                 .planningArtifactBindingDigest(result.artifactIdentity().bindingDigest())
                 .routeAudit(result.routeAudit())
                 .planAudit(result.planAudit())
-                .authorizationSnapshotRef(result.authorizationSnapshot().snapshotId())
+                .authorizationSnapshotRef(result.authorizationSnapshot().safeReference())
                 .contextSnapshotRefs(contextSnapshotRefs(result.contextSnapshots()))
                 .build();
     }

@@ -8,6 +8,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** exact AgentProfile child asset 中的不可变文档策略；不持有预算、索引或 Provider 事实。 */
 public record DocumentRetrievalProfile(
@@ -29,6 +30,9 @@ public record DocumentRetrievalProfile(
         Set<CanonicalFieldRef> searchableFields,
         Set<CanonicalFieldRef> returnableFields) {
 
+    private static final Pattern CANONICAL_IDENTIFIER =
+            Pattern.compile("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*");
+
     public DocumentRetrievalProfile {
         domain = text(domain, "domain");
         profileName = text(profileName, "profileName");
@@ -45,9 +49,12 @@ public record DocumentRetrievalProfile(
         if (!profileName.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) {
             throw new IllegalArgumentException("invalid document profileName");
         }
+        if (!CANONICAL_IDENTIFIER.matcher(domain).matches()) {
+            throw new IllegalArgumentException("invalid canonical document domain");
+        }
         for (String materialType : allowedMaterialTypes) {
-            if (materialType == null || !materialType.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) {
-                throw new IllegalArgumentException("invalid document materialType");
+            if (materialType == null || !CANONICAL_IDENTIFIER.matcher(materialType).matches()) {
+                throw new IllegalArgumentException("invalid canonical document materialType");
             }
         }
         if (!allowedChannels.containsAll(requiredChannels)) {

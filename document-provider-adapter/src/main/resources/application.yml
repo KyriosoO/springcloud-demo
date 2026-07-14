@@ -14,6 +14,13 @@ common:
     service-token:
       scopes: [agent.document.provider.activation]
 document-provider:
+  operation:
+    max-stage-horizon: 30s
+    max-items: 512
+    max-text-chars: 100000
+    max-total-text-chars: 1000000
+    max-embedding-dimension: 8192
+    max-request-bytes: 2000000
   activation-feed:
     base-url: http://agent-service
     consumer-id: document-provider-adapter

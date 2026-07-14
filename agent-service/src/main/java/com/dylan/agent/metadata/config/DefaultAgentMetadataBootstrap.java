@@ -24,6 +24,7 @@ import com.dylan.agent.metadata.authorization.resource.CapabilityResourceLimitCo
 import com.dylan.agent.metadata.authorization.resource.ResourceLimitSource;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -101,6 +102,7 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
         return new AgentMetadataBundle(
                 BUNDLE_VERSION,
                 digest(agentId, profileId, policy.policyVersion(), capabilityIds, domainNames(),
+                        planningBudget, profileResourceLimits, policyResourceLimits,
                         documentAssets.assetRef().assetDigest(),
                         documentAssets.policyConstraint().evidenceDigest()),
                 agentId,
@@ -224,18 +226,71 @@ public final class DefaultAgentMetadataBootstrap implements AgentMetadataBootstr
             String policyVersion,
             Set<String> capabilityIds,
             Set<String> domains,
+            PlanningBudgetLimits planningBudget,
+            CapabilityResourceLimitContributions profileResourceLimits,
+            CapabilityResourceLimitContributions policyResourceLimits,
             String documentProfileAssetDigest,
             String documentPolicyDigest) {
-        String canonical = agentId + "|" + profileId + "|" + policyVersion + "|"
-                + capabilityIds.stream().sorted().collect(Collectors.joining(",")) + "|"
-                + domains.stream().sorted().collect(Collectors.joining(",")) + "|"
-                + documentProfileAssetDigest + "|" + documentPolicyDigest;
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            MessageDigest canonical = MessageDigest.getInstance("SHA-256");
+            update(canonical, "AGENT-METADATA-BUNDLE-2", agentId, profileId, policyVersion);
+            capabilityIds.stream().sorted().forEach(value -> update(canonical, "capability", value));
+            domains.stream().sorted().forEach(value -> update(canonical, "domain", value));
+            update(canonical,
+                    "planning-budget",
+                    Long.toString(planningBudget.maxTotalDuration().getSeconds()),
+                    Integer.toString(planningBudget.maxTotalDuration().getNano()),
+                    Integer.toString(planningBudget.maxRepairAttempts()));
+            updateContributions(canonical, profileResourceLimits);
+            updateContributions(canonical, policyResourceLimits);
+            update(canonical, documentProfileAssetDigest, documentPolicyDigest);
+            byte[] digest = canonical.digest();
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
+    }
+
+    private static void updateContributions(
+            MessageDigest digest,
+            CapabilityResourceLimitContributions contributions) {
+        contributions.all().stream()
+                .sorted(java.util.Comparator
+                        .comparing((CapabilityResourceLimitContribution<?> value) -> value.source().name())
+                        .thenComparing(value -> value.contractRef().namespace())
+                        .thenComparing(value -> value.contractRef().name())
+                        .thenComparing(value -> value.contractRef().version()))
+                .forEach(value -> update(
+                        digest,
+                        "resource-limit",
+                        value.source().name(),
+                        value.contractRef().namespace(),
+                        value.contractRef().name(),
+                        value.contractRef().version(),
+                        value.evidenceRef(),
+                        resourceLimitDigest(value)));
+    }
+
+    private static String resourceLimitDigest(CapabilityResourceLimitContribution<?> contribution) {
+        if (contribution.limitType().equals(StandardCapabilityResourceLimit.class)) {
+            return new com.dylan.agent.kernel.resource.StandardCapabilityResourceLimitContract()
+                    .canonicalDigest((StandardCapabilityResourceLimit) contribution.upperBound());
+        }
+        if (contribution.limitType().equals(DocumentResourceLimit.class)) {
+            return new com.dylan.agent.kernel.resource.DocumentCapabilityResourceLimitContract()
+                    .canonicalDigest((DocumentResourceLimit) contribution.upperBound());
+        }
+        throw new IllegalStateException(
+                "unsupported resource limit type in metadata bundle digest: "
+                        + contribution.limitType().getName());
+    }
+
+    private static void update(MessageDigest digest, String... values) {
+        for (String value : values) {
+            byte[] bytes = Objects.requireNonNull(value, "canonical value must not be null")
+                    .getBytes(StandardCharsets.UTF_8);
+            digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+            digest.update(bytes);
         }
     }
 

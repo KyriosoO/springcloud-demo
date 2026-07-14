@@ -138,14 +138,15 @@ def _parse_route(raw: str, request: RouteRequest) -> RouteDecision | Clarificati
     payload = _json_object(raw)
     outcome = validate_route_outcome(payload)
     _assert_request_id(outcome.request_id, request.request_id)
+    _validate_metadata(outcome.metadata, "ROUTE")
     return outcome
 
 
 def _parse_plan(raw: str, request: PlanRequest) -> ExecutablePlan | ClarificationRequired:
     payload = _json_object(raw)
-    _normalize_present_request_id(payload, request.request_id)
     outcome = validate_plan_outcome(payload)
     _assert_request_id(outcome.request_id, request.request_id)
+    _validate_metadata(outcome.metadata, "PLAN")
     return outcome
 
 
@@ -169,10 +170,11 @@ def _assert_request_id(actual: str, expected: str) -> None:
         raise ValueError("requestId mismatch")
 
 
-def _normalize_present_request_id(payload: dict[str, Any], expected: str) -> None:
-    actual = payload.get("requestId")
-    if isinstance(actual, str) and actual != expected:
-        payload["requestId"] = expected
+def _validate_metadata(metadata: RuntimeOperationMetadata, expected_operation: str) -> None:
+    if metadata.operation.value != expected_operation:
+        raise ValueError("runtime metadata operation mismatch")
+    if metadata.repair_attempts > max(metadata.provider_attempts - 1, 0):
+        raise ValueError("repairAttempts exceeds providerAttempts")
 
 
 def _mark_repaired(outcome: ExecutablePlan | ClarificationRequired, operation: str, repair_ms: int) -> None:

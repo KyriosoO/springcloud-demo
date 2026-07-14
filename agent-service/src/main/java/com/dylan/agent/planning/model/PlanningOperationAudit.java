@@ -42,9 +42,7 @@ public final class PlanningOperationAudit {
                     && termination != PlanningOperationTermination.RUNTIME_ERROR_RECEIVED) {
                 throw new IllegalArgumentException("reported audit termination is invalid: " + termination);
             }
-            if (runtimeMetadata.getOperation() != operation) {
-                throw new IllegalArgumentException("runtimeMetadata operation mismatch");
-            }
+            runtimeMetadata.validateFor(operation);
         } else {
             if (runtimeMetadata != null) {
                 throw new IllegalArgumentException("not reported audit must not carry runtimeMetadata");

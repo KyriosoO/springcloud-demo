@@ -10,6 +10,8 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
 
 /** 每次在线请求读取 alias actual、manifest 与 release attestation，不缓存 current target。 */
 public final class DocumentIndexTargetResolver {
@@ -17,16 +19,25 @@ public final class DocumentIndexTargetResolver {
     private final EsIndexAliasService aliases;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final DocumentPhysicalIndexManifestService manifests;
+    private final ReleaseAttestationTechnicalPort attestations;
+    private final Clock clock;
 
     public DocumentIndexTargetResolver(
             DocumentCorpusCatalog catalog,
             EsIndexAliasService aliases,
             RestClient restClient,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            DocumentPhysicalIndexManifestService manifests,
+            ReleaseAttestationTechnicalPort attestations,
+            Clock clock) {
         this.catalog = catalog;
         this.aliases = aliases;
         this.restClient = restClient;
         this.objectMapper = objectMapper;
+        this.manifests = manifests;
+        this.attestations = attestations;
+        this.clock = clock;
     }
 
     public ResolvedIndexTargetRef resolve(DocumentCorpusKeyDto key) throws IOException {
@@ -45,16 +56,29 @@ public final class DocumentIndexTargetResolver {
         if (!meta.isObject() || !meta.path("sealed").asBoolean(false)) {
             throw new IllegalStateException("document target manifest is missing or unsealed");
         }
-        if (!key.domain().equals(text(meta, "domain"))
-                || !key.materialType().equals(text(meta, "materialType"))
-                || !corpus.schemaRef().version().equals(text(meta, "schemaVersion"))) {
+        DocumentPhysicalIndexManifest manifest = manifests.requireSealed(
+                new IndexBuildTargetHandle(text(meta, "taskId"), physicalIndex),
+                clock.instant().plus(Duration.ofSeconds(30)));
+        if (!key.equals(manifest.corpusKey())
+                || !corpus.schemaRef().equals(manifest.schemaRef())
+                || !corpus.analyzerRef().equals(manifest.analyzerRef())
+                || !corpus.vectorPolicyRef().equals(manifest.vectorPolicyRef())
+                || !corpus.chunkStrategyRef().equals(manifest.chunkStrategyRef())) {
             throw new IllegalStateException("document target corpus/schema binding mismatch");
         }
+        DocumentReleaseAttestation attestation = attestations.read(physicalIndex)
+                .orElseThrow(() -> new IllegalStateException("document target release attestation is missing"));
+        if (!manifest.manifestDigest().equals(attestation.manifestDigest())
+                || !manifest.manifestDigest().equals(text(meta, "manifestDigest"))
+                || !attestation.validationReportRef().equals(text(meta, "validationReportRef"))
+                || !attestation.attestationDigest().equals(text(meta, "attestationDigest"))) {
+            throw new IllegalStateException("document target attestation binding mismatch");
+        }
         DocumentTargetBindingDto binding = new DocumentTargetBindingDto(
-                text(meta, "schemaVersion"), text(meta, "indexContentDigest"),
-                text(meta, "manifestDigest"), text(meta, "attestationDigest"));
+                manifest.schemaRef().version(), manifest.indexContentDigest(),
+                manifest.manifestDigest(), attestation.attestationDigest());
         return new ResolvedIndexTargetRef(
-                key, corpus.readAlias(), physicalIndex, binding, text(meta, "validationReportRef"),
+                key, corpus.readAlias(), physicalIndex, binding, attestation.validationReportRef(),
                 optionalText(meta, "vectorField"), optionalPositiveInt(meta, "vectorDimension"),
                 optionalText(meta, "vectorBindingDigest"));
     }

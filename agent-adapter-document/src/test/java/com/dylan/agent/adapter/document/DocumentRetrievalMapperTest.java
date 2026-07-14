@@ -25,6 +25,7 @@ class DocumentRetrievalMapperTest {
         assertThat(mapped.protectedFilterDigest()).isEqualTo("a".repeat(64));
         assertThat(mapped.executionBinding().aclEvidenceDigest()).isEqualTo("b".repeat(64));
         assertThat(mapped.executionBinding().resourceLimit().canonicalDigest()).isEqualTo("d".repeat(64));
+        assertThat(mapped.channels().get(0).numCandidates()).isEqualTo(40);
     }
 
     private DocumentRetrievalCommand request() {
@@ -32,8 +33,8 @@ class DocumentRetrievalMapperTest {
                 new DocumentAllOf(List.of(new DocumentExactTerm(DocumentAclIndexField.TENANT_ID, "tenant-1"))),
                 "a".repeat(64), "b".repeat(64), "c".repeat(64), reference());
         var execution = new DocumentRetrievalExecutionBinding("tax-v2", "v2", "c".repeat(64), reference(), "d".repeat(64), "b".repeat(64));
-        var channels = new DocumentRetrievalChannels(List.of(DocumentRetrievalChannel.BM25), List.of(DocumentRetrievalChannel.BM25),
-                Map.of(DocumentRetrievalChannel.BM25, 1), 10);
+        var channels = new DocumentRetrievalChannels(List.of(DocumentRetrievalChannel.DENSE_VECTOR), List.of(),
+                Map.of(DocumentRetrievalChannel.DENSE_VECTOR, 1), 10, 40);
         return new DocumentRetrievalCommand(new DocumentCorpusKey("policy", "document"), execution, List.of(), binding,
                 new DocumentPreparedQuery("休假政策", List.of(), List.of(), Optional.empty()), channels,
                 new DocumentFusionSpec(60, 50), new DocumentDedupSpec(5, 3), new DocumentContextSpec(0, 0, 0));

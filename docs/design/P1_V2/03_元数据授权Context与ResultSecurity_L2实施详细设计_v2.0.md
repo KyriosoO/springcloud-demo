@@ -7,7 +7,7 @@
 | 文档状态 | Implemented |
 | 当前版本 | v2.0 |
 | 创建/最后更新日期 | 2026-07-14 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 设计层级 | L2 实施详细设计 |
 | 适用阶段 | P1_V2 单 Agent 内核收敛 |
 | 文档路径 | `docs/design/P1_V2/03_元数据授权Context与ResultSecurity_L2实施详细设计_v2.0.md` |
@@ -24,6 +24,7 @@
 | 3 | 2026-07-13 | 第1～2、23～24节 | P1_V2/P2_V3全集终检需统一代码基线和过程状态 | 对齐统一代码基线，标记全集评审完成并保留 Approved/M0 实施边界；不新增评审轮次，不改变已通过设计结论 |
 | 4 | 2026-07-14 | 第1～3、5～11、15、18～24节 | 用户授权修订；P2_V3/06 实施发现 `ExecutionScope` 缺少 Provider 外部处理所需的 classification/purpose 权威证据，无法安全实现 shared outbound decision | 新增 capability-neutral `SecurityClassificationRef`、`ExternalProcessingAuthorizationEvidence` 与 field rule；冻结 Policy/User Permission 求交、Snapshot/Execution 单调收紧、canonical digest、审计、实现和测试落点，并将状态更新为 Implementing |
 | 5 | 2026-07-14 | 第1～3、10、19、23～24节 | 授权后实现、测试与评审—修正循环完成 | 完成 external-processing Policy/Permission evidence、capability scope 冻结收窄、Execution recheck、canonical digest 与失败路径验证；状态更新为 Implemented |
+| 6 | 2026-07-14 | 第1～2节 | 全集实施完成后同步实际代码基线 | 将适用代码基线更新为 `28e662a97110f7d3d39211f3ac841a39491fc1b8`；Implemented 结论不变 |
 
 ## 3. 文档状态说明
 

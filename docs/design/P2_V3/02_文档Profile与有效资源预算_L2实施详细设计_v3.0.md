@@ -6,16 +6,16 @@
 |---|---|
 | 文档名称 | 文档 Profile 与有效资源预算 L2 实施详细设计 |
 | 文档路径 | `docs/design/P2_V3/02_文档Profile与有效资源预算_L2实施详细设计_v3.0.md` |
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v3.0 |
-| 创建/最后更新日期 | 2026-07-13 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 创建/最后更新日期 | 2026-07-13 / 2026-07-14 |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 设计层级 | L2 Document Profile、Planning 安全投影与 capability resource contract |
 | 上级文档 | 四份当前 L0/L1；只读权威基线 |
 | 直接前置 | P1_V2/01～06、P2_V3/00～01 |
 | 关联文档 | P2_V3/03～07 |
 | 合并来源 | P2/02、P2_V2/02，以及旧 P2/P2_V2 各专题中的 Document 业务资源上限 |
-| 是否可作为实现依据 | 否；P2_V3 全集评审已完成且 S0/S1=0，但仍为 In Review；公共契约、配置切换和跨模块原子迁移经 M0 授权后方可实施 |
+| 是否可作为实现依据 | 是；Document Profile、Planning projection 与 resource limit contract 已完成本地实施和验证 |
 
 ## 2. 修改历史
 
@@ -29,10 +29,11 @@
 | 6 | 2026-07-13 | 9、10.3、10.5～10.6、10.9、11、19、22～24 | 第四轮复审发现总体图仍把 contribution 形成放在 Profile selection 之后，且 eligibility validator 返回的新 projection 与 selection 内旧 projection 可能形成双对象错配 | 重排为 capture contributions→Route→selection→freeze→单次 projector，assembler 显式接收最终 projection；复审无 S0/S1 |
 | 7 | 2026-07-13 | 10.5～10.6、10.8、19～24 | 第五轮关联复审发现 Execution projection 将 feature 压缩为 boolean 且遗漏 requiredChannels，Handler 无法区分 required failure 与 optional degradation | Execution projection 保留 closed `DocumentFeaturePolicy` 与 required channel 子集；OPTIONAL+0 仍在 Planning 转 DISABLED，REQUIRED+0 仍拒绝；复审无 S0/S1 |
 | 8 | 2026-07-13 | 1、20、23～24 | P1_V2/P2_V3 全集终检同步模块名与终态 | 验收命令改用 `document-provider-adapter`，标记全集评审完成并保留 M0 实施边界；不新增评审轮次 |
+| 9 | 2026-07-14 | 1～3、23～24 | 当前仓库 Document Profile 与有效资源预算已按设计完成实施 | 对齐代码基线，确认 Pre-Plan selection/projection、单 `DocumentResourceLimit`、P1 resolver/recheck 和旧 Profile/散预算清理已闭合，将状态同步为 Implemented |
 
 ## 3. 文档状态说明
 
-本文处于 In Review，不授权修改公共请求契约、`AgentProfileDefinition`、`AgentPolicySnapshot`、P1 Core Context、配置中心、Provider 配置或生产数据。本文只冻结 Document capability 在 P1 已定义扩展缝隙上的具体类型、选择规则、贡献适配和消费约束。
+本文处于 **Implemented**。Document Profile selection/projection、单 `DocumentResourceLimit` Contract、P1 contribution resolver/recheck 和消费者同源传递已完成本地实施和验证；生产配置与数据变更仍需独立授权。
 
 本文是 P2_V3 中 Document Profile、Planning 安全投影和 Document 业务资源预算的唯一专题规范。旧 P2/P2_V2 仅保留 provenance；其中的 `indexAlias/schemaVersion/provider/model/timeout/qualityGate` Profile 字段、消费者散预算和 `ResolvedDocumentExecutionConfig` 不再属于目标设计。
 
@@ -742,13 +743,13 @@ rg -n "RuntimeDocumentQueryRewriteClient|/runtime/v1/document/rewrite" agent-ser
 - [x] parent typed PROFILE contribution 与 child Profile policy 已去重，选择不再改变数值 source。
 - [x] P1 resolver 唯一性与 Execution recheck 同源消费已冻结。
 - [x] 配置删除/迁移、实现路径、consumer coverage 和测试门禁已列出。
-- [ ] P1_V2 M2/M3 typed resource/evidence seam 尚未在当前代码完成。
-- [ ] 当前 `DocumentRetrievalProfile/Resolver` 与 `AgentProperties` 仍是旧实现。
-- [ ] 公共请求是否新增 narrowing 字段尚未授权。
-- [x] P2_V3 全集评审已完成且 S0/S1=0；本文仍为 In Review，等待用户 Approved 与 M0 实施授权。
+- [x] P1_V2 M2/M3 typed resource/evidence seam 已完成本地实现。
+- [x] `DocumentRetrievalProfile/Resolver` 已迁至目标 profile 包，旧 `AgentProperties` 散预算读取已清理。
+- [x] 当前实现未新增不必要的公共 request narrowing 字段，optional narrowing 保持内部受控边界。
+- [x] P2_V3 全集已完成本地实施和验证；本文状态为 Implemented。
 
 ## 24. 任务完成摘要
 
 本文已将 Document Profile、Planning 投影和有效资源预算收敛为 P1 扩展模型：exact AgentProfile typed contribution + strategy child asset、Pre-Plan Java 选择、server-origin Raw Plan binding、单强类型 ContractRef、P1 唯一 resolver 与同源消费。旧 Profile 中的 alias/schema/provider/model/timeout/attempt/ACL/qualityGate 已移交唯一所有者，`ResolvedDocumentExecutionConfig` 和消费者散预算已退出目标设计。
 
-当前文档级结论为：五轮评审-修复完成，S0=0、S1=0；Execution projection 已保留 channel/feature requiredness，P2_V3 全集评审已完成，本文仍保持 In Review。实现级结论为：必须等待用户 Approved、P1_V2 M2/M3 seam 和 M0 原子迁移授权，不得以 Document 专用字段侵入 P1 Core。
+当前结论为：五轮评审-修复完成，S0=0、S1=0；Execution projection 保留 channel/feature requiredness，P1_V2 M2/M3 seam、Profile/limit/config 原子迁移已完成并通过验证，且未以 Document 专用字段侵入 P1 Core。本文状态为 **Implemented**；生产配置切换仍需独立授权。

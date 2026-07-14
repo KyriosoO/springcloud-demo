@@ -3,6 +3,7 @@ package com.dylan.agent.capability.document.security;
 import com.dylan.agent.adapter.api.document.*;
 import com.dylan.agent.adapter.api.operation.*;
 import com.dylan.agent.api.plan.DocumentPlanOperation;
+import com.dylan.agent.api.contract.common.AgentExecutionContracts;
 import com.dylan.agent.capability.document.acl.*;
 import com.dylan.agent.capability.document.governance.emergency.*;
 import com.dylan.agent.invocation.model.ExecutionSubjectRef;
@@ -41,9 +42,13 @@ class DocumentRevocationGuardTest {
     @Test
     void deniesWholeResultWhenEmergencyStateBlocksTarget() {
         DocumentEmergencyControlReadPort emergency = (targets, deadline) -> new DocumentEmergencyView(
-                "view-1", List.of(new DocumentEmergencyView.Decision(
-                "CORPUS", "a".repeat(64), DocumentEmergencyView.Outcome.BLOCKED, "EMERGENCY_ACTIVE")),
-                NOW, NOW.plusSeconds(2), "b".repeat(64));
+                "view-1", targets.stream().map(target -> {
+                    var binding = DocumentEmergencyGateCanonicalizer.targetBinding(target);
+                    boolean blocked = target instanceof DocumentEmergencyTargetRef.CorpusTarget;
+                    return new DocumentEmergencyView.Decision(binding.targetType().name(), binding.targetKeyDigest(),
+                            blocked ? DocumentEmergencyView.Outcome.BLOCKED : DocumentEmergencyView.Outcome.NOT_BLOCKED,
+                            blocked ? "EMERGENCY_ACTIVE" : null);
+                }).toList(), NOW, NOW.plusSeconds(2), "b".repeat(64));
 
         DocumentFinalCurrentnessDecision decision = guard(allowCurrentness(), emergency).evaluate(request());
 
@@ -51,10 +56,69 @@ class DocumentRevocationGuardTest {
         assertThat(decision.reasonCode()).isEqualTo(DocumentSecurityReasonCode.EMERGENCY_BLOCKED);
     }
 
+    @Test
+    void deniesPartialNotBlockedEmergencyView() {
+        DocumentEmergencyControlReadPort emergency = (targets, deadline) -> {
+            var binding = DocumentEmergencyGateCanonicalizer.targetBinding(targets.getFirst());
+            return new DocumentEmergencyView("view-1", List.of(new DocumentEmergencyView.Decision(
+                    binding.targetType().name(), binding.targetKeyDigest(),
+                    DocumentEmergencyView.Outcome.NOT_BLOCKED, null)),
+                    NOW, NOW.plusSeconds(2), "b".repeat(64));
+        };
+
+        DocumentFinalCurrentnessDecision decision = guard(allowCurrentness(), emergency).evaluate(request());
+
+        assertThat(decision.outcome()).isEqualTo(DocumentCurrentnessOutcome.DENY);
+        assertThat(decision.reasonCode()).isEqualTo(DocumentSecurityReasonCode.EMERGENCY_UNAVAILABLE);
+    }
+
+    @Test
+    void deniesForgedCandidateSetDigestBeforeCurrentnessCall() {
+        DocumentRevocationGuard.FinalDocumentCurrentnessRequest source = request();
+        var forged = new DocumentRevocationGuard.FinalDocumentCurrentnessRequest(
+                source.evidence(), source.candidates(), source.evidenceRefs(), source.outputContract(),
+                "9".repeat(64), source.capabilityId(), source.profileSafeRef(),
+                source.generationProvider(), source.operationContext());
+
+        DocumentFinalCurrentnessDecision decision = guard(allowCurrentness(), allowingEmergency()).evaluate(forged);
+
+        assertThat(decision.outcome()).isEqualTo(DocumentCurrentnessOutcome.DENY);
+        assertThat(decision.reasonCode()).isEqualTo(DocumentSecurityReasonCode.CANDIDATE_BINDING_MISMATCH);
+    }
+
+    @Test
+    void rechecksExactCapabilityIndexAndGenerationProviderEmergencyTargets() {
+        var captured = new java.util.concurrent.atomic.AtomicReference<List<DocumentEmergencyTargetRef>>();
+        DocumentEmergencyControlReadPort emergency = (targets, deadline) -> {
+            captured.set(targets);
+            return allowingEmergency().readCurrent(targets, deadline);
+        };
+        var source = request();
+        var provider = new com.dylan.agent.adapter.api.document.provider.DocumentProviderBindingReference(
+                CapabilityOperationType.of("DOCUMENT_GENERATION"),
+                new ProviderSafeIdentity("provider-safe", Optional.of("model-safe")),
+                "document-provider-adapter", "deployment-1", "vendor-v1",
+                "8".repeat(64), "9".repeat(64));
+        var withProvider = new DocumentRevocationGuard.FinalDocumentCurrentnessRequest(
+                source.evidence(), source.candidates(), source.evidenceRefs(), source.outputContract(),
+                source.candidateSetDigest(), source.capabilityId(), source.profileSafeRef(),
+                Optional.of(provider), source.operationContext());
+
+        assertThat(guard(allowCurrentness(), emergency).evaluate(withProvider).outcome())
+                .isEqualTo(DocumentCurrentnessOutcome.ALLOW);
+        assertThat(captured.get().stream().map(DocumentEmergencyTargetRef::type).toList())
+                .containsExactly("CAPABILITY", "CORPUS", "PROFILE", "INDEX_TARGET",
+                        "PROVIDER_OPERATION", "PROVIDER_BINDING");
+        var index = (DocumentEmergencyTargetRef.IndexTarget) captured.get().get(3);
+        assertThat(index.key()).isEqualTo(source.candidates().getFirst()
+                .securityBinding().targetBinding().canonicalDigest());
+    }
+
     private static DocumentRevocationGuard guard(
             DocumentAclCurrentnessPort currentness,
             DocumentEmergencyControlReadPort emergency) {
-        return new DocumentRevocationGuard(currentness, emergency, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(2));
+        return new DocumentRevocationGuard(currentness, emergency, Clock.fixed(NOW, ZoneOffset.UTC),
+                Duration.ofSeconds(2), DocumentAclCompilerLimits.secureDefaults());
     }
 
     private static DocumentAclCurrentnessPort allowCurrentness() {
@@ -63,8 +127,12 @@ class DocumentRevocationGuardTest {
 
     private static DocumentEmergencyControlReadPort allowingEmergency() {
         return (targets, deadline) -> new DocumentEmergencyView(
-                "view-1", targets.stream().map(target -> new DocumentEmergencyView.Decision(
-                target.type(), "a".repeat(64), DocumentEmergencyView.Outcome.NOT_BLOCKED, null)).toList(),
+                "view-1", targets.stream().map(target -> {
+                    var binding = DocumentEmergencyGateCanonicalizer.targetBinding(target);
+                    return new DocumentEmergencyView.Decision(
+                            binding.targetType().name(), binding.targetKeyDigest(),
+                            DocumentEmergencyView.Outcome.NOT_BLOCKED, null);
+                }).toList(),
                 NOW, NOW.plusSeconds(2), "b".repeat(64));
     }
 
@@ -78,8 +146,13 @@ class DocumentRevocationGuardTest {
         SafeDocumentCandidate candidate = new SafeDocumentCandidate(
                 "candidate-1", new DocumentCandidateIdentity("doc-1", "v1", "chunk-1", 0),
                 "政策", null, null, "证据", null, null, List.of(), List.of("BM25"), 1.0, binding);
+        List<SafeDocumentCandidate> candidates = List.of(candidate);
+        List<String> evidenceRefs = List.of("C1");
+        String digest = new DocumentCandidateSetCanonicalizer().digest(
+                candidates, evidenceRefs, AgentExecutionContracts.DOCUMENT_RESULT);
         return new DocumentRevocationGuard.FinalDocumentCurrentnessRequest(
-                evidence, List.of(candidate), "9".repeat(64), "agent-default:profile-v1", context());
+                evidence, candidates, evidenceRefs, AgentExecutionContracts.DOCUMENT_RESULT,
+                digest, "document.search", "agent-default:profile-v1", Optional.empty(), context());
     }
 
     private static DocumentAclExecutionEvidence evidence() {

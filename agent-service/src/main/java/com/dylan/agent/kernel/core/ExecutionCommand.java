@@ -24,7 +24,8 @@ public final class ExecutionCommand {
         this.planningResult = Objects.requireNonNull(planningResult);
         this.cancellation = Objects.requireNonNull(cancellation);
 
-        // 构造器校验：Handle 与 PlanningResult 的 correlation、subject/owner/scope、deadline 一致
+        // 构造器校验 Handle 与 PlanningResult 的 invocation/correlation/deadline 及 artifact identity；
+        // subject/owner/scope 由 Authorization/Context 执行边界基于冻结快照复检。
         if (!handle.invocationId().equals(planningResult.invocationId())) {
             throw new IllegalArgumentException("invocationId mismatch");
         }

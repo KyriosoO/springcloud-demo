@@ -49,12 +49,12 @@ public final class JdbcDocumentIndexValidationReportRepository {
         }
         for (GateResult gate : report.gates().stream().sorted(Comparator.comparing(GateResult::gateCode)).toList()) {
             jdbc.update("INSERT INTO document_validation_gate_result(report_id,gate_code,status,evidence_digest,safe_reason_code) VALUES(?,?,?,?,?)",
-                    report.reportId(), gate.gateCode(), gate.status().name(), gate.evidenceDigest(), gate.safeReasonCode());
+                    report.reportId(), gate.gateCode().name(), gate.status().name(), gate.evidenceDigest(), gate.safeReasonCode());
         }
         for (Metric metric : report.metrics().stream()
                 .sorted(Comparator.comparing(Metric::metricCode).thenComparing(Metric::scopeCode)).toList()) {
             jdbc.update("INSERT INTO document_validation_metric(report_id,metric_code,scope_code,metric_value,metric_unit,evidence_digest) VALUES(?,?,?,?,?,?)",
-                    report.reportId(), metric.metricCode(), metric.scopeCode(), metric.value(), metric.unit(), metric.evidenceDigest());
+                    report.reportId(), metric.metricCode(), metric.scopeCode(), metric.value(), metric.unit().name(), metric.evidenceDigest());
         }
     }
 
@@ -67,7 +67,25 @@ public final class JdbcDocumentIndexValidationReportRepository {
                         rs.getString(12), Optional.ofNullable(rs.getString(13))),
                 reportId, corpusDigest, Timestamp.from(now));
         if (rows.size() != 1) throw new IllegalStateException("current PASSED index validation report required");
+        assertRequiredIndexGates(rows.getFirst());
         return rows.getFirst();
+    }
+
+    private void assertRequiredIndexGates(IndexReportAuthority report) {
+        java.util.EnumMap<GateCode,GateStatus> gates=new java.util.EnumMap<>(GateCode.class);
+        jdbc.query("SELECT gate_code,status FROM document_validation_gate_result WHERE report_id=?",rs->{
+            GateCode code=GateCode.valueOf(rs.getString(1));GateStatus status=GateStatus.valueOf(rs.getString(2));
+            if(gates.putIfAbsent(code,status)!=null)throw new IllegalStateException("duplicate stored index validation gate");
+        },report.reportId());
+        java.util.EnumSet<GateCode> required=java.util.EnumSet.of(
+                GateCode.INDEX_TECHNICAL,GateCode.CORPUS_PROFILE_BINDING,GateCode.ACL_ALLOW,
+                GateCode.ACL_DENY_REVOKED,GateCode.PROTECTED_FILTER_ALL_CHANNELS,
+                GateCode.RETRIEVAL_CONTRACT,GateCode.RETRIEVAL_QUALITY,
+                GateCode.RESULT_SECURITY_CANDIDATE_LEAK,GateCode.CAPACITY_BULKHEAD,
+                GateCode.OBSERVABILITY_AUDIT,GateCode.ROLLBACK_DRY_RUN);
+        if(report.embeddingBindingDigest().isPresent())required.add(GateCode.EMBEDDING_INDEX_COMPATIBILITY);
+        if(!gates.keySet().containsAll(required)||required.stream().anyMatch(code->gates.get(code)!=GateStatus.PASSED))
+            throw new IllegalStateException("stored index PASSED report gate set incomplete");
     }
 
     public IndexReportAuthority requireByTarget(String corpusKeyDigest, String targetBindingDigest) {
@@ -136,12 +154,12 @@ public final class JdbcDocumentIndexValidationReportRepository {
         java.util.ArrayList<String> values=new java.util.ArrayList<>(List.of("DVR-1",subjectDigest,policyDigest,
                 fixtureDigest,releaseDigest,status.name(),completedAt.toString(),expiresAt.toString(),integrityEvidenceRef));
         for(GateResult gate:gates.stream().sorted(Comparator.comparing(GateResult::gateCode)).toList()){
-            values.add(gate.gateCode());values.add(gate.status().name());values.add(gate.evidenceDigest());
+            values.add(gate.gateCode().name());values.add(gate.status().name());values.add(gate.evidenceDigest());
             values.add(gate.safeReasonCode()==null?"":gate.safeReasonCode());
         }
         for(Metric metric:metrics.stream().sorted(Comparator.comparing(Metric::metricCode).thenComparing(Metric::scopeCode)).toList()){
             values.add(metric.metricCode());values.add(metric.scopeCode());values.add(metric.value().toPlainString());
-            values.add(metric.unit());values.add(metric.evidenceDigest());
+            values.add(metric.unit().name());values.add(metric.evidenceDigest());
         }
         return canonical(values.toArray(String[]::new));
     }
@@ -173,6 +191,13 @@ public final class JdbcDocumentIndexValidationReportRepository {
 
     public enum ReportStatus { PASSED, BLOCKED, FAILED }
     public enum GateStatus { PASSED, FAILED, NOT_EVALUATED }
+    public enum GateCode {
+        INDEX_TECHNICAL, CORPUS_PROFILE_BINDING, ACL_ALLOW, ACL_DENY_REVOKED,
+        PROTECTED_FILTER_ALL_CHANNELS, RETRIEVAL_CONTRACT, RETRIEVAL_QUALITY,
+        EMBEDDING_INDEX_COMPATIBILITY, RESULT_SECURITY_CANDIDATE_LEAK,
+        CAPACITY_BULKHEAD, OBSERVABILITY_AUDIT, ROLLBACK_DRY_RUN
+    }
+    public enum MetricUnit { COUNT, RATIO, MILLISECONDS, BYTES, REQUESTS_PER_SECOND }
 
     public record IndexSubjectProjection(DocumentCorpusKeyDto corpusKey, String targetPhysicalIndexSafeRef,
             String schemaVersion, String contentDigest, String manifestDigest, String attestationDigest,
@@ -188,20 +213,21 @@ public final class JdbcDocumentIndexValidationReportRepository {
         }
     }
 
-    public record GateResult(String gateCode, GateStatus status, String evidenceDigest, String safeReasonCode) {
+    public record GateResult(GateCode gateCode, GateStatus status, String evidenceDigest, String safeReasonCode) {
         public GateResult {
-            requireText(gateCode, "gateCode"); if (status == null) throw new NullPointerException("status must not be null");
+            if (gateCode == null || status == null) throw new NullPointerException("gateCode/status must not be null");
             requireDigest(evidenceDigest, "evidenceDigest");
             if (status != GateStatus.PASSED) requireText(safeReasonCode, "safeReasonCode");
         }
     }
 
-    public record Metric(String metricCode, String scopeCode, BigDecimal value, String unit, String evidenceDigest) {
+    public record Metric(String metricCode, String scopeCode, BigDecimal value, MetricUnit unit, String evidenceDigest) {
         public Metric {
             requireText(metricCode, "metricCode"); requireText(scopeCode, "scopeCode");
             if (value == null) throw new NullPointerException("value must not be null");
             value = value.setScale(9, java.math.RoundingMode.UNNECESSARY);
-            requireText(unit, "unit"); requireDigest(evidenceDigest, "evidenceDigest");
+            if (unit == null) throw new NullPointerException("unit must not be null");
+            requireDigest(evidenceDigest, "evidenceDigest");
         }
     }
 
@@ -220,6 +246,17 @@ public final class JdbcDocumentIndexValidationReportRepository {
                 throw new IllegalArgumentException("validation report contains duplicate metrics");
             if (status == ReportStatus.PASSED && (gates.isEmpty() || gates.stream().anyMatch(g -> g.status() != GateStatus.PASSED)))
                 throw new IllegalArgumentException("PASSED report requires every gate PASSED");
+            java.util.EnumSet<GateCode> required = java.util.EnumSet.of(
+                    GateCode.INDEX_TECHNICAL, GateCode.CORPUS_PROFILE_BINDING, GateCode.ACL_ALLOW,
+                    GateCode.ACL_DENY_REVOKED, GateCode.PROTECTED_FILTER_ALL_CHANNELS,
+                    GateCode.RETRIEVAL_CONTRACT, GateCode.RETRIEVAL_QUALITY,
+                    GateCode.RESULT_SECURITY_CANDIDATE_LEAK, GateCode.CAPACITY_BULKHEAD,
+                    GateCode.OBSERVABILITY_AUDIT, GateCode.ROLLBACK_DRY_RUN);
+            if (subject.embeddingBindingDigest().isPresent()) required.add(GateCode.EMBEDDING_INDEX_COMPATIBILITY);
+            if (status == ReportStatus.PASSED && !gates.stream().map(GateResult::gateCode)
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet()).containsAll(required)) {
+                throw new IllegalArgumentException("PASSED index report is missing required gates");
+            }
             if (completedAt == null || expiresAt == null || !completedAt.isBefore(expiresAt))
                 throw new IllegalArgumentException("report expiry must be after completion");
             requireText(integrityEvidenceRef, "integrityEvidenceRef"); requireDigest(canonicalDigest, "canonicalDigest");

@@ -247,6 +247,15 @@ public final class ContextBoundary implements ContextPlanningPort, ContextExecut
                 candidate.contextType());
         Optional<ContextSnapshot> consumed = request.consumedSnapshot(candidate.contextType());
         Optional<ContextRecordEntity> current = consumed.isPresent() ? Optional.empty() : repository.findByKey(key);
+        current.ifPresent(entity -> {
+            if (!entity.readable()) {
+                throw new IllegalStateException("retired context record must not be reopened");
+            }
+            if (entity.expiresAt().isAfter(request.now())) {
+                throw new IllegalStateException(
+                        "unconsumed current context appeared after planning");
+            }
+        });
         ExpectedContextVersion expected = consumed
                 .map(snapshot -> ExpectedContextVersion.version(snapshot.recordVersion()))
                 .or(() -> current.map(entity -> ExpectedContextVersion.version(entity.recordVersion())))

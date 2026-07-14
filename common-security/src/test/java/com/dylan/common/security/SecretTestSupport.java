@@ -20,6 +20,7 @@ final class SecretTestSupport {
 	static final String PREVIOUS = "PREVIOUS";
 	static final String ACTIVE_SECRET = Base64.getEncoder().encodeToString(fill(1));
 	static final String PREVIOUS_SECRET = Base64.getEncoder().encodeToString(fill(2));
+	static final String PAYLOAD_SECRET = Base64.getEncoder().encodeToString(fill(3));
 
 	private SecretTestSupport() {
 	}
@@ -31,10 +32,11 @@ final class SecretTestSupport {
 		properties.getJwt().setActiveKeyId(ACTIVE);
 		properties.getJwt().setPreviousKeyIds(java.util.List.of(PREVIOUS));
 		properties.getJwt().setKeys(Map.of(
-				ACTIVE, key(ACTIVE_SECRET),
-				PREVIOUS, key(PREVIOUS_SECRET)));
+				ACTIVE, key(ACTIVE_SECRET, "IGNORED_JWT_ACTIVE"),
+				PREVIOUS, key(PREVIOUS_SECRET, "IGNORED_JWT_PREVIOUS")));
 		properties.getAgentPayload().setActiveKeyId(ACTIVE);
-		properties.getAgentPayload().setKeys(Map.of(ACTIVE, key(ACTIVE_SECRET)));
+		properties.getAgentPayload().setKeys(Map.of(
+				ACTIVE, key(PAYLOAD_SECRET, "IGNORED_PAYLOAD_ACTIVE")));
 		return properties;
 	}
 
@@ -50,9 +52,9 @@ final class SecretTestSupport {
 		return new NimbusJwtEncoder(new ImmutableJWKSet<SecurityContext>(new JWKSet(jwk)));
 	}
 
-	private static SecretProperties.KeyProperties key(String value) {
+	private static SecretProperties.KeyProperties key(String value, String env) {
 		SecretProperties.KeyProperties key = new SecretProperties.KeyProperties();
-		key.setEnv("IGNORED");
+		key.setEnv(env);
 		key.setValue(value);
 		return key;
 	}

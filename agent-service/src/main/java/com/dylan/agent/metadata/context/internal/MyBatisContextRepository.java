@@ -91,8 +91,8 @@ public class MyBatisContextRepository implements ContextRepository {
 
     @Override
     public int deleteExpired(Instant cutoff, int limit) {
-        if (limit <= 0) {
-            throw new IllegalArgumentException("limit must be positive");
+        if (limit <= 0 || limit > 1000) {
+            throw new IllegalArgumentException("limit must be between 1 and 1000");
         }
         return mapper.deleteExpired(LocalDateTime.ofInstant(cutoff, clock.getZone()), limit);
     }
@@ -135,7 +135,9 @@ public class MyBatisContextRepository implements ContextRepository {
         row.setSourceDomain(entity.sourceDomain());
         row.setReadable(true);
         row.setExpiresAt(LocalDateTime.ofInstant(entity.expiresAt(), clock.getZone()));
-        row.setUpdatedAt(LocalDateTime.now(clock));
+        LocalDateTime now = LocalDateTime.now(clock);
+        row.setCreatedAt(now);
+        row.setUpdatedAt(now);
         return row;
     }
 

@@ -6,11 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RestClient;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,9 +29,15 @@ public final class EsReleaseAttestationTechnicalPort implements ReleaseAttestati
                 throw new IllegalStateException("release attestation manifest binding mismatch");
             }
             Optional<DocumentReleaseAttestation> current = parse(manifest);
-            String expectedDigest = digest("ATTEST-1", command.validationReportRef(), command.validationReportDigest(), command.manifestDigest());
+            String expectedDigest = DocumentReleaseAttestation.canonicalDigest(
+                    command.validationReportRef(), command.validationReportDigest(), command.manifestDigest());
             if (current.isPresent()) {
-                if (!current.get().attestationDigest().equals(expectedDigest)) throw new IllegalStateException("release attestation already bound to another report");
+                if (!current.get().attestationDigest().equals(expectedDigest)
+                        || !current.get().validationReportRef().equals(command.validationReportRef())
+                        || !current.get().validationReportDigest().equals(command.validationReportDigest())
+                        || !current.get().manifestDigest().equals(command.manifestDigest())) {
+                    throw new IllegalStateException("release attestation already bound to another report");
+                }
                 return current.get();
             }
             Instant now = Instant.now();
@@ -80,8 +82,4 @@ public final class EsReleaseAttestationTechnicalPort implements ReleaseAttestati
                 Instant.parse(text(manifest, "attestedAt")), digest));
     }
     private static String text(JsonNode node, String field) { String value = node.path(field).asText(null); if (value == null || value.isBlank()) throw new IllegalStateException("attestation field missing"); return value; }
-    private static String digest(String... values) {
-        try { MessageDigest digest = MessageDigest.getInstance("SHA-256"); for (String value : values) { byte[] bytes = value.getBytes(StandardCharsets.UTF_8); digest.update(ByteBuffer.allocate(4).putInt(bytes.length).array()); digest.update(bytes); } return HexFormat.of().formatHex(digest.digest()); }
-        catch (Exception ex) { throw new IllegalStateException("SHA-256 unavailable", ex); }
-    }
 }

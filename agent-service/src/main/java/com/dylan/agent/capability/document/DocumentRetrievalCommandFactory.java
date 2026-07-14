@@ -25,8 +25,11 @@ final class DocumentRetrievalCommandFactory {
         if(source.getRetrievalMode()==com.dylan.agent.api.plan.DocumentRetrievalMode.KEYWORD)enabled.remove(DocumentRetrievalChannel.DENSE_VECTOR);
         DocumentResourceLimit limits=context.resourceLimits().require(com.dylan.agent.api.contract.common.AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT,DocumentResourceLimit.class);
         List<DocumentRetrievalChannel> required=profile.requiredChannels().stream().filter(enabled::contains).toList();
+        int candidatesPerChannel=enabled.stream().mapToInt(channel->channel==DocumentRetrievalChannel.DENSE_VECTOR
+                ?profile.vectorCandidateCount():profile.keywordCandidateCount()).max().orElseThrow();
         DocumentRetrievalChannels channels=new DocumentRetrievalChannels(enabled,required,weights,
-                Math.min(limits.retrieval().maxCandidatesPerChannel(),Math.max(profile.keywordCandidateCount(),profile.vectorCandidateCount())));
+                Math.min(limits.retrieval().maxCandidatesPerChannel(),candidatesPerChannel),
+                profile.numCandidates());
         DocumentContextOptions old=source.getContextOptions();DocumentContextSpec contextSpec=old==null?new DocumentContextSpec(0,0,0):
                 new DocumentContextSpec(old.beforeChunks(),old.afterChunks(),old.maxContextChars());
         return new DocumentRetrievalCommand(source.getCorpusKey(),binding,source.getFilters().stream().map(f->new ValidatedDocumentCallerFilter(

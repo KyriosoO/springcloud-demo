@@ -12,8 +12,14 @@ import com.dylan.agent.metadata.domain.port.DomainMetadataEvidence;
 import com.dylan.agent.model.MaskType;
 import com.dylan.agent.shared.ref.AgentProfileRef;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -49,6 +55,7 @@ public final class AuthorizationSnapshot {
     private final Instant absoluteDeadline;
     private final DomainMetadataEvidence domainMetadataEvidence;
     private final EffectiveCapabilityResourceLimits resourceLimits;
+    private final String safeReference;
 
     public AuthorizationSnapshot(
             String snapshotId,
@@ -124,6 +131,7 @@ public final class AuthorizationSnapshot {
                 || !requestCorrelationId.equals(binding.requestCorrelationId())) {
             throw new IllegalArgumentException("resource limits binding does not match authorization snapshot");
         }
+        this.safeReference = createSafeReference();
     }
 
     public String snapshotId() { return snapshotId; }
@@ -158,6 +166,111 @@ public final class AuthorizationSnapshot {
     public Instant absoluteDeadline() { return absoluteDeadline; }
     public DomainMetadataEvidence domainMetadataEvidence() { return domainMetadataEvidence; }
     public EffectiveCapabilityResourceLimits resourceLimits() { return resourceLimits; }
+
+    /**
+     * ASR-1：不暴露权限正文、但绑定本快照安全语义与同一资源限额引用的持久化引用。
+     * capturedAt 不参与计算；绝对截止时间和带可用性时点的 Domain evidence 仍属于安全绑定。
+     */
+    public String safeReference() { return safeReference; }
+
+    private String createSafeReference() {
+        DigestWriter writer = new DigestWriter("ASR-1")
+                .text(snapshotId)
+                .text(invocationId)
+                .text(requestCorrelationId)
+                .text(subject.type()).text(subject.id())
+                .text(owner.type()).text(owner.id())
+                .text(scope.scopeId())
+                .text(agentProfileRef.agentId()).text(profileVersion())
+                .text(policyVersion)
+                .text(permissionEvidenceId).text(permissionVersion)
+                .text(delegationConstraintRef.constraintId()).text(delegationConstraintRef.version());
+        writeStringSet(writer, "capabilities", allowedCapabilityIds);
+        writeStringSet(writer, "domains", allowedDomains);
+        writeStringSetMap(writer, "fields", allowedFields);
+        writeOperatorMap(writer, allowedOperators);
+        writeStringSetMap(writer, "functions", allowedFunctions);
+        writer.text("masks").integer(fieldMasks.size());
+        fieldMasks.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry ->
+                writer.text(entry.getKey()).text(entry.getValue().name()));
+        writer.text(externalProcessingAuthorizationEvidence.canonicalDigest());
+        writeEnumSet(writer, "readable-contexts", readableContextTypes);
+        writeEnumSet(writer, "writable-contexts", writableContextTypes);
+        writer.text(maxRiskLevel.name()).text(maxExecutionMode.name())
+                .longValue(globalContextTtlUpperBound.getSeconds())
+                .integer(globalContextTtlUpperBound.getNano())
+                .text(absoluteDeadline.toString())
+                .text(domainMetadataEvidence.safeRef());
+        var limitRef = resourceLimits.reference();
+        writer.text(limitRef.contractRef().namespace())
+                .text(limitRef.contractRef().name())
+                .text(limitRef.contractRef().version())
+                .text(limitRef.canonicalDigest())
+                .text(limitRef.invocationId())
+                .text(limitRef.registrationIdentity());
+        return "ASR-1:" + writer.hex();
+    }
+
+    private static void writeStringSet(DigestWriter writer, String label, Set<String> values) {
+        writer.text(label).integer(values.size());
+        values.stream().sorted().forEach(writer::text);
+    }
+
+    private static void writeStringSetMap(
+            DigestWriter writer, String label, Map<String, Set<String>> values) {
+        writer.text(label).integer(values.size());
+        values.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            writer.text(entry.getKey()).integer(entry.getValue().size());
+            entry.getValue().stream().sorted().forEach(writer::text);
+        });
+    }
+
+    private static void writeOperatorMap(
+            DigestWriter writer, Map<String, Set<AgentOperator>> values) {
+        writer.text("operators").integer(values.size());
+        values.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            writer.text(entry.getKey()).integer(entry.getValue().size());
+            entry.getValue().stream().map(Enum::name).sorted().forEach(writer::text);
+        });
+    }
+
+    private static void writeEnumSet(DigestWriter writer, String label, Set<? extends Enum<?>> values) {
+        writer.text(label).integer(values.size());
+        values.stream().map(Enum::name).sorted(Comparator.naturalOrder()).forEach(writer::text);
+    }
+
+    private static final class DigestWriter {
+        private final MessageDigest digest;
+
+        private DigestWriter(String generation) {
+            try {
+                this.digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException ex) {
+                throw new IllegalStateException("SHA-256 unavailable", ex);
+            }
+            text(generation);
+        }
+
+        private DigestWriter text(String value) {
+            byte[] bytes = Objects.requireNonNull(value, "digest value must not be null")
+                    .getBytes(StandardCharsets.UTF_8);
+            integer(bytes.length);
+            digest.update(bytes);
+            return this;
+        }
+
+        private DigestWriter integer(int value) {
+            digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(value).array());
+            return this;
+        }
+
+        private DigestWriter longValue(long value) {
+            digest.update(ByteBuffer.allocate(Long.BYTES).putLong(value).array());
+            return this;
+        }
+
+        private String hex() { return HexFormat.of().formatHex(digest.digest()); }
+    }
 
     private static Map<String, Set<String>> copyStringSetMap(Map<String, Set<String>> source, String name) {
         Objects.requireNonNull(source, name + " must not be null");

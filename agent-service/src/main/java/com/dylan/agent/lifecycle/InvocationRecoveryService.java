@@ -16,6 +16,8 @@ import java.util.Objects;
 @Service
 public class InvocationRecoveryService {
 
+    static final int MAX_BATCH_SIZE = 1000;
+
     private final AgentInvocationRecordMapper invocationMapper;
     private final AgentTurnMapper turnMapper;
     private final Clock clock;
@@ -31,8 +33,9 @@ public class InvocationRecoveryService {
     @Transactional
     public int recoverExpiredProcessing(Instant now, int batchSize) {
         Objects.requireNonNull(now, "now must not be null");
-        if (batchSize <= 0) {
-            throw new IllegalArgumentException("batchSize must be positive");
+        if (batchSize <= 0 || batchSize > MAX_BATCH_SIZE) {
+            throw new IllegalArgumentException(
+                    "batchSize must be between 1 and " + MAX_BATCH_SIZE);
         }
         LocalDateTime cutoff = LocalDateTime.ofInstant(now, clock.getZone());
         LocalDateTime completedAt = LocalDateTime.now(clock);

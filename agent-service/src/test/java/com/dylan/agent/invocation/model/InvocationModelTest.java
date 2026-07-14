@@ -50,12 +50,14 @@ class InvocationModelTest {
     @Test
     void cancellationSourceOnlyAllowsSafeReasonsAndIsOneWay() {
         CancellationSource source = new CancellationSource();
+        CancellationToken distributedToken = source.token();
 
-        assertThat(source.token().isCancelled()).isFalse();
+        assertThat(distributedToken.isCancelled()).isFalse();
         assertThat(source.cancel(KernelErrorCode.CANCELLED)).isTrue();
         assertThat(source.cancel(KernelErrorCode.DEADLINE_EXCEEDED)).isFalse();
-        assertThat(source.token().reasonCode()).contains(KernelErrorCode.CANCELLED);
-        assertThatThrownBy(source.token()::throwIfCancelled)
+        assertThat(distributedToken.isCancelled()).isTrue();
+        assertThat(distributedToken.reasonCode()).contains(KernelErrorCode.CANCELLED);
+        assertThatThrownBy(distributedToken::throwIfCancelled)
                 .isInstanceOf(CancellationSource.CancellationException.class)
                 .hasMessageContaining("CANCELLED");
 

@@ -12,8 +12,9 @@ class DocumentValidationModelsTest {
         String subjectDigest=subject.canonicalDigest();
         String policyDigest=DocumentValidationModels.policyDigest("policy-v1","suite-v1");
         var policy=new DocumentValidationModels.PolicyRef("policy-v1","suite-v1",policyDigest);
-        var gates=List.of(new DocumentValidationModels.GateResult(DocumentValidationModels.GateCode.CONTRACT_MIGRATION_CLEANUP,
-                DocumentValidationModels.GateStatus.PASSED,A,null));
+        var gates=java.util.Arrays.stream(DocumentValidationModels.GateCode.values())
+                .map(code -> new DocumentValidationModels.GateResult(
+                        code, DocumentValidationModels.GateStatus.PASSED, A, null)).toList();
         Instant completed=Instant.parse("2026-07-14T08:00:00Z"),expires=completed.plusSeconds(60);
         String canonical=DocumentValidationModels.reportCanonical(subjectDigest,policyDigest,B,C,
                 DocumentValidationModels.ReportStatus.PASSED,gates,List.of(),completed,expires,"integrity-1");
@@ -22,5 +23,20 @@ class DocumentValidationModelsTest {
         assertThatThrownBy(()->new DocumentValidationModels.Report("report-1",subject,policy,B,C,
                 DocumentValidationModels.ReportStatus.PASSED,gates,List.of(),completed,expires,"integrity-1",canonical,"run-1"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test void rejectsPassedReportWithIncompleteGateSet(){
+        var subject=new DocumentValidationModels.P1ReleaseCandidateSubjectRef(A,B,C,D);
+        var policy=new DocumentValidationModels.PolicyRef("policy-v1","suite-v1",
+                DocumentValidationModels.policyDigest("policy-v1","suite-v1"));
+        var gates=List.of(new DocumentValidationModels.GateResult(
+                DocumentValidationModels.GateCode.CONTRACT_MIGRATION_CLEANUP,
+                DocumentValidationModels.GateStatus.PASSED,A,null));
+        Instant completed=Instant.parse("2026-07-14T08:00:00Z"),expires=completed.plusSeconds(60);
+        String canonical=DocumentValidationModels.reportCanonical(subject.canonicalDigest(),policy.canonicalDigest(),B,C,
+                DocumentValidationModels.ReportStatus.PASSED,gates,List.of(),completed,expires,"integrity-1");
+        assertThatThrownBy(()->new DocumentValidationModels.Report(canonical,subject,policy,B,C,
+                DocumentValidationModels.ReportStatus.PASSED,gates,List.of(),completed,expires,"integrity-1",canonical,"run-1"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("missing required gates");
     }
 }

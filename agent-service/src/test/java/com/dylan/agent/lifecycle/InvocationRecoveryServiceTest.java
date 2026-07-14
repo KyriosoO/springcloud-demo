@@ -1,6 +1,7 @@
 package com.dylan.agent.lifecycle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -68,5 +69,18 @@ class InvocationRecoveryServiceTest {
                 eq("DEADLINE_EXCEEDED"),
                 eq("请求已超时。"),
                 any());
+    }
+
+    @Test
+    void rejectsBatchSizeAboveBoundedRecoveryLimit() {
+        InvocationRecoveryService service = new InvocationRecoveryService(
+                mock(AgentInvocationRecordMapper.class),
+                mock(AgentTurnMapper.class),
+                CLOCK);
+
+        assertThatThrownBy(() -> service.recoverExpiredProcessing(
+                CLOCK.instant(), InvocationRecoveryService.MAX_BATCH_SIZE + 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("between 1 and");
     }
 }

@@ -10,9 +10,15 @@ common:
             value: "gINjdgXjaccClSOQCmH2d5pM5ruHqML9PY31uHNSLJw="
 
 agent:
+  auth-service:
+    base-url: http://auth-service
+    resolve-path: /internal/agent/permissions/resolve
+    connect-timeout: 2s
+    read-timeout: 2s
+    max-response-bytes: 65536
   domain-metadata:
-    catalog-version: catalog-2026-07-02
-    adapter-registration-version: adapter-reg-2026-07-02
+    catalog-version: catalog-2026-07-14
+    adapter-registration-version: adapter-reg-2026-07-14
     domains:
       employee:
         aliases: [员工, employee]
@@ -303,7 +309,7 @@ agent:
             description: Publication name.
             type: STRING
           section:
-            aliases: [章节, 片段]
+            aliases: [章节, 小节]
             description: Literature section.
             type: STRING
           page:
@@ -339,39 +345,39 @@ agent:
         role: QUERYABLE
         domain: employee
         port-bean-name: employeeAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: employee-aggregatable
         role: AGGREGATABLE
         domain: employee
         port-bean-name: employeeAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: transaction-queryable
         role: QUERYABLE
         domain: transaction
         port-bean-name: transactionAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: transaction-aggregatable
         role: AGGREGATABLE
         domain: transaction
         port-bean-name: transactionAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: company-policy-document
         role: DOCUMENT_RETRIEVABLE
         domain: company_policy
         port-bean-name: documentAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: tax-policy-document
         role: DOCUMENT_RETRIEVABLE
         domain: tax_policy
         port-bean-name: documentAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: knowledge-base-document
         role: DOCUMENT_RETRIEVABLE
         domain: knowledge_base
         port-bean-name: documentAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14
       - registration-id: literature-document
         role: DOCUMENT_RETRIEVABLE
         domain: literature
         port-bean-name: documentAgentAdapter
-        registration-version: adapter-reg-2026-07-02
+        registration-version: adapter-reg-2026-07-14

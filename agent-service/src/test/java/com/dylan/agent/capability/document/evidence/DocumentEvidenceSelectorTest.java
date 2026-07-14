@@ -42,7 +42,17 @@ class DocumentEvidenceSelectorTest {
         assertThat(selected.items()).hasSize(1);
         assertThat(selected.items().getFirst().citationText()).isEqualTo("😀甲");
         assertThat(selected.evidenceChars()).isEqualTo(4);
-        assertThat(selected.truncated()).isFalse();
+        assertThat(selected.truncated()).isTrue();
+    }
+
+    @Test
+    void rejectsDuplicateCandidateIdentityBeforeSelection() {
+        AclBoundDocumentHit duplicate = hit("c1", "doc-2", 0, "乙");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> selector.select(
+                List.of(hit("c1", "doc-1", 0, "甲"), duplicate), limits(10, 100, 20, 2, 10)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("duplicate");
     }
 
     @Test

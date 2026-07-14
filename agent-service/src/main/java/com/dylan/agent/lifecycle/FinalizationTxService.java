@@ -17,6 +17,7 @@ import com.dylan.agent.lifecycle.model.StoredInvocationResult;
 import com.dylan.agent.lifecycle.port.ContextFinalizationParticipant;
 import com.dylan.agent.metadata.crypto.internal.PayloadJsonCodec;
 import com.dylan.agent.persistence.entity.AgentInvocationResultEntity;
+import com.dylan.agent.persistence.entity.AgentInvocationRecordEntity;
 import com.dylan.agent.persistence.mapper.AgentInvocationRecordMapper;
 import com.dylan.agent.persistence.mapper.AgentInvocationResultMapper;
 import com.dylan.agent.persistence.mapper.AgentTurnMapper;
@@ -24,12 +25,14 @@ import com.dylan.agent.planning.model.PlanningCancellation;
 import com.dylan.agent.planning.model.PlanningFailure;
 import com.dylan.agent.planning.model.ResolvedClarification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -69,10 +72,12 @@ public class FinalizationTxService {
             ExecutionSuccess success) {
         Objects.requireNonNull(checkpoint).requireCommittedCheckpoint();
         Objects.requireNonNull(success, "success must not be null");
+        if (!tryFinalizeInvocation(handle, InvocationState.COMPLETED, InvocationResponseType.SUCCESS,
+                null, success.securedResult().safeMessage(), null, 1)) {
+            return requireAuthoritativeTerminal(handle);
+        }
         StoredInvocationResult stored = storeResult(handle, success.securedResult());
         contextFinalizationParticipant.persist(success.approvedContextWrites());
-        finalizeInvocation(handle, InvocationState.COMPLETED, InvocationResponseType.SUCCESS,
-                null, stored.safeMessage(), null, 1);
         finalizeTurnSuccess(handle, InvocationResponseType.SUCCESS, stored.safeMessage());
         return finalized(handle, InvocationState.COMPLETED, InvocationResponseType.SUCCESS,
                 stored, stored.safeMessage(), null, null);
@@ -83,8 +88,10 @@ public class FinalizationTxService {
             InvocationHandle handle,
             ResolvedClarification clarification) {
         Objects.requireNonNull(clarification, "clarification must not be null");
-        finalizeInvocation(handle, InvocationState.COMPLETED, InvocationResponseType.CLARIFY,
-                null, clarification.safeQuestion(), null, 0);
+        if (!tryFinalizeInvocation(handle, InvocationState.COMPLETED, InvocationResponseType.CLARIFY,
+                null, clarification.safeQuestion(), null, 0)) {
+            return requireAuthoritativeTerminal(handle);
+        }
         finalizeTurnSuccess(handle, InvocationResponseType.CLARIFY, clarification.safeQuestion());
         return finalized(handle, InvocationState.COMPLETED, InvocationResponseType.CLARIFY,
                 null, clarification.safeQuestion(), null, null);
@@ -96,8 +103,10 @@ public class FinalizationTxService {
             PlanningFailure failure) {
         Objects.requireNonNull(failure, "failure must not be null");
         String safeMessage = failure.safeMessage().orElse("规划失败，请稍后重试。");
-        finalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
-                failure.errorCode(), safeMessage, failure.diagnosticId(), 0);
+        if (!tryFinalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
+                failure.errorCode(), safeMessage, failure.diagnosticId(), 0)) {
+            return requireAuthoritativeTerminal(handle);
+        }
         finalizeTurnFailure(handle, failure.errorCode(), safeMessage);
         return finalized(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
                 null, safeMessage, failure.errorCode(), failure.diagnosticId());
@@ -124,8 +133,10 @@ public class FinalizationTxService {
         String safeMessage = failure.safeMessage() == null
                 ? "执行失败，请稍后重试。"
                 : failure.safeMessage();
-        finalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
-                failure.errorCode(), safeMessage, failure.diagnosticId(), 1);
+        if (!tryFinalizeInvocation(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
+                failure.errorCode(), safeMessage, failure.diagnosticId(), 1)) {
+            return requireAuthoritativeTerminal(handle);
+        }
         finalizeTurnFailure(handle, failure.errorCode(), safeMessage);
         return finalized(handle, InvocationState.FAILED, InvocationResponseType.FAILURE,
                 null, safeMessage, failure.errorCode(), failure.diagnosticId());
@@ -147,8 +158,10 @@ public class FinalizationTxService {
             String safeMessage,
             String diagnosticId,
             long expectedRowVersion) {
-        finalizeInvocation(handle, InvocationState.CANCELLED, InvocationResponseType.CANCELLED,
-                errorCode, safeMessage, diagnosticId, expectedRowVersion);
+        if (!tryFinalizeInvocation(handle, InvocationState.CANCELLED, InvocationResponseType.CANCELLED,
+                errorCode, safeMessage, diagnosticId, expectedRowVersion)) {
+            return requireAuthoritativeTerminal(handle);
+        }
         finalizeTurnFailure(handle, errorCode, safeMessage);
         return finalized(handle, InvocationState.CANCELLED, InvocationResponseType.CANCELLED,
                 null, safeMessage, errorCode, diagnosticId);
@@ -182,13 +195,13 @@ public class FinalizationTxService {
                 secured.safeSummary());
     }
 
-    private void finalizeInvocation(InvocationHandle handle,
-                                    InvocationState state,
-                                    InvocationResponseType responseType,
-                                    KernelErrorCode errorCode,
-                                    String safeMessage,
-                                    String diagnosticId,
-                                    long expectedRowVersion) {
+    private boolean tryFinalizeInvocation(InvocationHandle handle,
+                                          InvocationState state,
+                                          InvocationResponseType responseType,
+                                          KernelErrorCode errorCode,
+                                          String safeMessage,
+                                          String diagnosticId,
+                                          long expectedRowVersion) {
         int updated = invocationMapper.finalizeTerminal(
                 handle.invocationId(),
                 state.name(),
@@ -198,9 +211,98 @@ public class FinalizationTxService {
                 diagnosticId,
                 LocalDateTime.now(clock),
                 expectedRowVersion);
-        if (updated != 1) {
-            throw new IllegalStateException("finalize invocation CAS failed: " + handle.invocationId());
+        return updated == 1;
+    }
+
+    /**
+     * 在独立事务中重读已提交的权威终态，供提交结果未知时由 Lifecycle 对账。
+     */
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    public Optional<FinalizedInvocationResult> readAuthoritativeTerminal(InvocationHandle handle) {
+        Objects.requireNonNull(handle, "handle must not be null");
+        return loadAuthoritativeTerminal(handle);
+    }
+
+    private FinalizedInvocationResult requireAuthoritativeTerminal(InvocationHandle handle) {
+        return loadAuthoritativeTerminal(handle).orElseThrow(() ->
+                new IllegalStateException(
+                        "finalize invocation CAS failed without authoritative terminal: "
+                                + handle.invocationId()));
+    }
+
+    private Optional<FinalizedInvocationResult> loadAuthoritativeTerminal(InvocationHandle handle) {
+        AgentInvocationRecordEntity record = invocationMapper.selectById(handle.invocationId());
+        if (record == null || InvocationState.PROCESSING.name().equals(record.getState())) {
+            return Optional.empty();
         }
+        validateAuthoritativeBinding(handle, record);
+        InvocationState state = enumValue(InvocationState.class, record.getState(), "state");
+        InvocationResponseType responseType = enumValue(
+                InvocationResponseType.class, record.getResponseType(), "responseType");
+        StoredInvocationResult stored = responseType == InvocationResponseType.SUCCESS
+                ? loadStoredResult(handle.invocationId())
+                : null;
+        KernelErrorCode errorCode = record.getErrorCode() == null
+                ? null
+                : enumValue(KernelErrorCode.class, record.getErrorCode(), "errorCode");
+        return Optional.of(finalized(
+                handle,
+                state,
+                responseType,
+                stored,
+                requireNonBlank(record.getSafeMessage(), "safeMessage"),
+                errorCode,
+                record.getDiagnosticId()));
+    }
+
+    private StoredInvocationResult loadStoredResult(String invocationId) {
+        AgentInvocationResultEntity entity = resultMapper.selectByInvocationId(invocationId);
+        if (entity == null) {
+            throw new IllegalStateException(
+                    "authoritative SUCCESS invocation has no stored result: " + invocationId);
+        }
+        ContractRef ref = new ContractRef(
+                entity.getOutputContractNamespace(),
+                entity.getOutputContractName(),
+                entity.getOutputContractVersion());
+        Class<?> javaType = contractRegistry.require(ref).javaType();
+        Object payload = payloadJsonCodec.deserialize(
+                entity.getPayloadJson().getBytes(StandardCharsets.UTF_8), javaType);
+        if (!(payload instanceof AgentResultPayload resultPayload)) {
+            throw new IllegalStateException("output contract is not an AgentResultPayload: " + ref);
+        }
+        return new StoredInvocationResult(
+                entity.getId(), ref, resultPayload, entity.getSafeMessage(), entity.getSafeSummary());
+    }
+
+    private static void validateAuthoritativeBinding(
+            InvocationHandle handle,
+            AgentInvocationRecordEntity record) {
+        ChatInvocationOrigin origin = chatOrigin(handle);
+        if (!handle.requestCorrelationId().equals(record.getRequestCorrelationId())
+                || !origin.conversationId().equals(record.getConversationId())
+                || !origin.turnId().equals(record.getTurnId())) {
+            throw new IllegalStateException(
+                    "authoritative invocation binding mismatch: " + handle.invocationId());
+        }
+    }
+
+    private static <E extends Enum<E>> E enumValue(
+            Class<E> type,
+            String value,
+            String field) {
+        try {
+            return Enum.valueOf(type, requireNonBlank(value, field));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("invalid authoritative " + field + ": " + value, ex);
+        }
+    }
+
+    private static String requireNonBlank(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("authoritative " + field + " must not be blank");
+        }
+        return value;
     }
 
     private void finalizeTurnSuccess(

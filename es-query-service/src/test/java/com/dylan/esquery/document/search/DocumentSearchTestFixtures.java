@@ -26,7 +26,7 @@ final class DocumentSearchTestFixtures {
 
     static HybridSearchRequest request(HybridContextRequest context) {
         return request(context,
-                List.of(new DocumentHybridChannelRequest(DocumentSearchChannel.BM25, true, 1, 10)),
+                List.of(new DocumentHybridChannelRequest(DocumentSearchChannel.BM25, true, 1, 10, 10)),
                 new HybridFusionRequest(60, 20), new HybridDedupRequest(5, 2));
     }
 

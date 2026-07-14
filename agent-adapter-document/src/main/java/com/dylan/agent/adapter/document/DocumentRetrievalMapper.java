@@ -24,7 +24,8 @@ public final class DocumentRetrievalMapper {
                 command.preparedQuery().embedding().map(value->new DocumentQueryEmbeddingDto(value.vector(),value.dimension(),value.bindingReference().canonicalDigest())));
         List<DocumentHybridChannelRequest> channels=command.channels().enabled().stream().map(channel->new DocumentHybridChannelRequest(
                 DocumentSearchChannel.valueOf(channel.name()),command.channels().required().contains(channel),command.channels().weights().get(channel),
-                command.channels().candidatesPerChannel())).toList();
+                command.channels().candidatesPerChannel(), channel == DocumentRetrievalChannel.DENSE_VECTOR
+                ? command.channels().vectorNumCandidates() : command.channels().candidatesPerChannel())).toList();
         return new HybridSearchRequest(new DocumentCorpusKeyDto(command.corpusKey().domain(),command.corpusKey().materialType()),wireExecution,
                 command.callerFilters().stream().map(filter->new DocumentCallerFilterNode(filter.field(),
                         DocumentCallerFilterNode.Operator.valueOf(filter.operator().name()),filter.value(),filter.values())).toList(),

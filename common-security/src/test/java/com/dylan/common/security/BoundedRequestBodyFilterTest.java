@@ -5,7 +5,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BoundedRequestBodyFilterTest {
     @Test void rejectsDeclaredAndChunkedBodiesAboveLimit() throws Exception {
@@ -21,8 +20,9 @@ class BoundedRequestBodyFilterTest {
             @Override public long getContentLengthLong(){return -1;}
         };
         chunked.setContent("x".repeat(17).getBytes(StandardCharsets.UTF_8));
-        assertThatThrownBy(()->filter.doFilter(chunked,new MockHttpServletResponse(),
-                (request,result)->request.getInputStream().readAllBytes()))
-                .isInstanceOf(java.io.IOException.class);
+        var chunkedResponse=new MockHttpServletResponse();
+        filter.doFilter(chunked,chunkedResponse,(request,result)->request.getInputStream().readAllBytes());
+        assertThat(chunkedResponse.getStatus()).isEqualTo(400);
+        assertThat(chunkedResponse.getContentAsString()).contains("\"code\":\"INVALID_REQUEST\"");
     }
 }

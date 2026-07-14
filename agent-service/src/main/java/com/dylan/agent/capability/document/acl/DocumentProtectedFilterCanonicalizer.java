@@ -72,7 +72,8 @@ public final class DocumentProtectedFilterCanonicalizer {
     }
 
     private static String value(String value) {
-        if (value == null || value.isBlank() || value.length() > 512 || value.indexOf('\u0000') >= 0) {
+        if (value == null || value.isBlank() || value.codePointCount(0, value.length()) > 512
+                || value.codePoints().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException("protected filter value is invalid");
         }
         return value.length() + ":" + value;

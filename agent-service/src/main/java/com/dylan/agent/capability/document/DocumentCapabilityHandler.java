@@ -6,11 +6,10 @@ import com.dylan.agent.adapter.api.DocumentRetrievableAdapter;
 import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalDiagnostics;
 import com.dylan.agent.adapter.api.document.AdapterDocumentRetrievalResult;
 import com.dylan.agent.adapter.api.document.DocumentResourceLimit;
+import com.dylan.agent.adapter.api.document.SafeDocumentCandidate;
 import com.dylan.agent.adapter.api.document.provider.*;
 import com.dylan.agent.adapter.api.document.security.AclBoundDocumentHit;
-import com.dylan.agent.adapter.api.operation.CapabilityOperationFailure;
 import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
-import com.dylan.agent.adapter.api.operation.CapabilityOperationSuccess;
 import com.dylan.agent.adapter.api.operation.CapabilityOperationType;
 import com.dylan.agent.adapter.api.query.ValidatedFilter;
 import com.dylan.agent.api.plan.DocumentGenerationFailurePolicy;
@@ -169,32 +168,30 @@ public class DocumentCapabilityHandler
             ValidatedDocumentPlan plan,
             ExecutionContext context) {
         DocumentRetrievableAdapter adapter = context.requireAdapter(DocumentRetrievableAdapter.class);
-        DocumentRetrievalExecution preparedRequest = buildQueryVariants(plan, context);
         PreparedAclRetrieval aclPrepared = withProtectedFilter(
-                withQueryVectorIfNeeded(preparedRequest, plan.profile(), context), plan.profile(), context);
-        DocumentRetrievalExecution retrievalRequest = aclPrepared.request();
-        var scopeCurrentness = aclCurrentnessPort.verifyScope(new DocumentAclScopeCurrentnessRequest(
-                aclPrepared.evidence(), context.operationContext(CapabilityOperationType.of("DOCUMENT_ACL_SCOPE_CURRENTNESS"))));
-        if (scopeCurrentness.outcome() != DocumentCurrentnessOutcome.ALLOW
-                || !aclPrepared.evidence().aclAuthorityVersion().equals(scopeCurrentness.authorityVersion())
-                || !context.executionScope().currentPermissionVersion().equals(scopeCurrentness.permissionVersion())) {
-            recordRevocation("ACL_SCOPE_CURRENTNESS", scopeCurrentness.reasonCode());
-            throw new IllegalStateException("document ACL scope is not current");
-        }
+                initialExecution(plan), plan.profile(), context);
+        assertScopeCurrent(aclPrepared.evidence(), context);
+        DocumentRetrievalExecution retrievalRequest = withQueryVectorIfNeeded(
+                buildQueryVariants(aclPrepared.request(), plan, context), plan.profile(), context);
+        DocumentAclExecutionEvidence aclEvidence = aclPrepared.evidence();
+        DocumentResourceLimit limits = documentLimits(context);
         long retrievalStarted = System.nanoTime();
         AdapterDocumentRetrievalResult adapterResult;
         try {
             var retrievalContext=context.operationContext(com.dylan.agent.adapter.api.operation.CapabilityOperationType.of("DOCUMENT_RETRIEVAL"));
             adapterResult=requireSuccess(adapter.retrieve(
-                    retrievalCommandFactory.create(retrievalRequest,retrievalContext),retrievalContext),"document retrieval");
-            adapterResult = applyRerankIfEnabled(retrievalRequest, adapterResult, plan.profile(), context);
+                    retrievalCommandFactory.create(retrievalRequest,retrievalContext),retrievalContext),
+                    "document retrieval", retrievalContext);
+            List<SafeDocumentCandidate> rerankCandidates = candidateSecurityProjector.project(
+                    adapterResult.hits(), aclEvidence, limits);
+            adapterResult = applyRerankIfEnabled(
+                    retrievalRequest, adapterResult, rerankCandidates, plan.profile(), context);
             recordRetrieval(retrievalRequest, "SUCCESS", retrievalStarted);
             recordRetrievalDiagnostics(retrievalRequest, adapterResult);
         } catch (RuntimeException ex) {
             recordRetrieval(retrievalRequest, "FAILED", retrievalStarted);
             throw ex;
         }
-        DocumentResourceLimit limits = documentLimits(context);
         List<AclBoundDocumentHit> publicVisibleHits = visibilityProjector.project(
                 adapterResult.hits(), context.executionScope(), retrievalRequest.getDomain());
         SelectedDocumentEvidence selection = evidenceSelector.select(publicVisibleHits, limits);
@@ -204,7 +201,8 @@ public class DocumentCapabilityHandler
         DocumentAgentResultPayload payload = new DocumentAgentResultPayload(
                 toParameters(plan),
                 toResult(plan, visibleResult, selection.truncated()));
-        applyGenerationIfEnabled(plan, retrievalRequest, visibleResult, payload.getDocumentResult(), context);
+        DocumentProviderBindingReference generationProvider = applyGenerationIfEnabled(
+                plan, retrievalRequest, visibleResult, payload.getDocumentResult(), context);
         int retainedEvidence = enforceResultSize(payload, plan, visibleHits, limits);
         if (retainedEvidence < visibleHits.size()) {
             visibleHits = List.copyOf(visibleHits.subList(0, retainedEvidence));
@@ -212,14 +210,17 @@ public class DocumentCapabilityHandler
                     visibleHits, adapterResult.diagnostics(), adapterResult.binding(), adapterResult.requestedDocumentCount());
         }
         var safeCandidates = candidateSecurityProjector.project(
-                visibleResult.hits(), aclPrepared.evidence(), limits);
+                visibleResult.hits(), aclEvidence, limits);
         var evidenceRefs = citationIds(visibleResult.hits());
         String candidateSetDigest = candidateSetCanonicalizer.digest(
                 safeCandidates, evidenceRefs, AgentExecutionContracts.DOCUMENT_RESULT);
         DocumentFinalCurrentnessDecision finalDecision = revocationGuard.evaluate(
                 new DocumentRevocationGuard.FinalDocumentCurrentnessRequest(
-                        aclPrepared.evidence(), safeCandidates, candidateSetDigest,
+                        aclEvidence, safeCandidates, evidenceRefs, AgentExecutionContracts.DOCUMENT_RESULT,
+                        candidateSetDigest,
+                        context.capabilityId(),
                         context.executionScope().agentProfileRef().toString(),
+                        java.util.Optional.ofNullable(generationProvider),
                         context.operationContext(CapabilityOperationType.of("DOCUMENT_ACL_CANDIDATE_CURRENTNESS"))));
         if (finalDecision.outcome() != DocumentCurrentnessOutcome.ALLOW) {
             recordRevocation("FINAL_CURRENTNESS", finalDecision.reasonCode().name());
@@ -230,8 +231,23 @@ public class DocumentCapabilityHandler
         return HandlerResult.of(payload, List.of(toContextWrite(plan, visibleResult)));
     }
 
-    private DocumentRetrievalExecution buildQueryVariants(ValidatedDocumentPlan plan, ExecutionContext context) {
-        DocumentRetrievalExecution request = initialExecution(plan);
+    private void assertScopeCurrent(
+            DocumentAclExecutionEvidence aclEvidence,
+            ExecutionContext context) {
+        var scopeCurrentness = aclCurrentnessPort.verifyScope(new DocumentAclScopeCurrentnessRequest(
+                aclEvidence, context.operationContext(CapabilityOperationType.of("DOCUMENT_ACL_SCOPE_CURRENTNESS"))));
+        if (scopeCurrentness.outcome() != DocumentCurrentnessOutcome.ALLOW
+                || !aclEvidence.aclAuthorityVersion().equals(scopeCurrentness.authorityVersion())
+                || !context.executionScope().currentPermissionVersion().equals(scopeCurrentness.permissionVersion())) {
+            recordRevocation("ACL_SCOPE_CURRENTNESS", scopeCurrentness.reasonCode());
+            throw new IllegalStateException("document ACL scope is not current");
+        }
+    }
+
+    private DocumentRetrievalExecution buildQueryVariants(
+            DocumentRetrievalExecution request,
+            ValidatedDocumentPlan plan,
+            ExecutionContext context) {
         List<String> ruleKeywords = ruleExtractor.extract(
                 request.getQueryText(),
                 request.getDomain(),
@@ -244,13 +260,15 @@ public class DocumentCapabilityHandler
         if (rewriteEnabled) {
             try {
                 var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_REWRITE"));
-                var input = new DocumentRewriteInputProjection(request.getQueryText(), "zh-CN", maxCandidates);
+                var input = new DocumentRewriteInputProjection(
+                        request.getQueryText(), DocumentLanguage.ZH_CN, maxCandidates);
                 var decision = requireProviderDecision(
                         operationContext.operationType(), plan, context,
                         plan.profile().rewritePolicy(), DocumentProviderIntendedFieldView.queryOnly());
                 var outcome = rewritePort.rewrite(new DocumentRewriteOperationRequest(
                         input, providerRequestBinder.bind(decision, input, operationContext), operationContext));
-                DocumentUntrustedRewritePayload payload = requireSuccess(outcome, "rewrite");
+                DocumentUntrustedRewritePayload payload = requireSuccess(
+                        outcome, "rewrite", operationContext);
                 rewriteCandidates = payload.candidates().stream()
                         .map(value -> new com.dylan.agent.capability.document.rewrite.DocumentRewriteCandidate(value, null, null))
                         .toList();
@@ -419,13 +437,14 @@ public class DocumentCapabilityHandler
             DocumentUntrustedEmbeddingPayload payload = requireSuccess(embeddingPort.embed(
                     new DocumentEmbeddingOperationRequest(
                             input, providerRequestBinder.bind(decision, input, operationContext), operationContext)),
-                    "embedding");
+                    "embedding", operationContext);
             if (payload.vectors().size() != 1) {
                 throw new IllegalStateException("document embedding must return exactly one vector");
             }
             DocumentEmbeddingResult result = new DocumentEmbeddingResult(
                     payload.vectors().getFirst().stream().map(Float::doubleValue).toList(),
-                    payload.bindingReference(), payload.dimension(), payload.bindingReference());
+                    payload.bindingReference().canonicalDigest(), payload.dimension(),
+                    payload.bindingReference().canonicalDigest());
             recordProvider("embedding", mode.name(), "SUCCESS");
             return result;
         } catch (RuntimeException ex) {
@@ -471,6 +490,7 @@ public class DocumentCapabilityHandler
     private AdapterDocumentRetrievalResult applyRerankIfEnabled(
             DocumentRetrievalExecution request,
             AdapterDocumentRetrievalResult adapterResult,
+            List<SafeDocumentCandidate> safeCandidates,
             DocumentExecutionProfileProjection profile,
             ExecutionContext context) {
         DocumentChannelProfileProjection options = request.getChannelProjection();
@@ -482,32 +502,36 @@ public class DocumentCapabilityHandler
         }
         try {
             List<AclBoundDocumentHit> hits = adapterResult.hits();
-            if (hits.isEmpty()) {
+            if (safeCandidates.isEmpty()) {
                 markRerankDiagnostics(adapterResult, "SKIPPED", "EMPTY_CANDIDATES");
                 return adapterResult;
             }
-            int maxCandidates = Math.min(hits.size(), documentLimits(context).enhancement().maxRerankCandidates());
-            DocumentProviderIntendedFieldView fieldView = providerFieldView(
-                    profile.selectedCorpus().domain(), hits.subList(0, maxCandidates), false);
+            if (safeCandidates.size() != hits.size()) {
+                throw new IllegalArgumentException("document rerank safe candidate count mismatch");
+            }
+            int maxCandidates = Math.min(
+                    safeCandidates.size(), documentLimits(context).enhancement().maxRerankCandidates());
+            DocumentProviderIntendedFieldView fieldView = providerFieldViewFromSafeCandidates(
+                    profile.selectedCorpus().domain(), safeCandidates.subList(0, maxCandidates));
             var operationContext = context.operationContext(CapabilityOperationType.of("DOCUMENT_RERANK"));
             var decision = requireProviderDecision(
                     operationContext.operationType(), null, profile,
                     context, profile.rerankPolicy(), fieldView);
             List<DocumentRerankInputProjection.DocumentRerankInputItem> items = new ArrayList<>();
             for (int i = 0; i < maxCandidates; i++) {
-                AclBoundDocumentHit evidence = hits.get(i);
+                SafeDocumentCandidate evidence = safeCandidates.get(i);
                 items.add(new DocumentRerankInputProjection.DocumentRerankInputItem(
                         evidence.candidateId(),
                         providerFieldProjector.stringValue(
                                 decision, context.executionScope(), profile.selectedCorpus().domain(), "title", evidence.title()),
                         providerFieldProjector.stringValue(
-                                decision, context.executionScope(), profile.selectedCorpus().domain(), "snippet", evidence.snippet())));
+                                decision, context.executionScope(), profile.selectedCorpus().domain(), "snippet", evidence.safeSnippet())));
             }
             var input = new DocumentRerankInputProjection(request.getQueryText(), items);
             DocumentUntrustedRerankPayload payload = requireSuccess(rerankPort.rerank(
                     new DocumentRerankOperationRequest(
                             input, providerRequestBinder.bind(decision, input, operationContext), operationContext)),
-                    "rerank");
+                    "rerank", operationContext);
             AdapterDocumentRetrievalResult result = applyRerankScores(adapterResult, maxCandidates, payload);
             markRerankDiagnostics(result, "SUCCEEDED", null);
             return result;
@@ -625,7 +649,7 @@ public class DocumentCapabilityHandler
         return result;
     }
 
-    private void applyGenerationIfEnabled(
+    private DocumentProviderBindingReference applyGenerationIfEnabled(
             ValidatedDocumentPlan plan,
             DocumentRetrievalExecution retrievalRequest,
             AdapterDocumentRetrievalResult adapterResult,
@@ -634,30 +658,32 @@ public class DocumentCapabilityHandler
         if (retrievalRequest.getOperation() == com.dylan.agent.api.plan.DocumentPlanOperation.SEARCH) {
             result.setGenerationStatus(DocumentGenerationStatus.DISABLED);
             result.setGroundingStatus(adapterResult.hits().isEmpty() ? GroundingStatus.NO_EVIDENCE : GroundingStatus.VERIFIED);
-            return;
+            return null;
         }
         DocumentGenerationOptions options = plan.generationOptions().orElse(null);
         boolean requested = options != null && Boolean.TRUE.equals(options.getEnabled());
         if (!requested) {
             result.setGenerationStatus(DocumentGenerationStatus.DISABLED);
-            return;
+            return null;
         }
         List<AclBoundDocumentHit> filteredEvidence = adapterResult.hits();
         DocumentResourceLimit limits = documentLimits(context);
         if (filteredEvidence.isEmpty()) {
             result.setGenerationStatus(DocumentGenerationStatus.SKIPPED);
             result.setGroundingStatus(GroundingStatus.NO_EVIDENCE);
-            return;
+            return null;
         }
         if (plan.profile().generationPolicy() == DocumentFeaturePolicy.DISABLED) {
             fallbackOrFail(result, options, plan, filteredEvidence, limits, false);
-            return;
+            return null;
         }
         int maxOutputChars = resolveMaxOutputChars(options, plan, limits);
         DocumentEvidencePackingLimit budget = new DocumentEvidencePackingLimit(
                 limits.output().maxContextChars(),
                 limits.output().maxEvidenceChars(),
+                limits.output().maxSnippetChars(),
                 limits.output().maxEvidenceCount());
+        DocumentProviderBindingReference usedProvider = null;
         try {
             if (deadlineExpired(context.absoluteDeadline())) {
                 throw new IllegalStateException("document generation deadline expired");
@@ -688,6 +714,7 @@ public class DocumentCapabilityHandler
                 generated = generatedTextCandidateFactory.create(
                         evidencePackage, request, outcome, plan,
                         context.executionScope(), context.resourceLimits());
+                usedProvider = generated.providerBinding();
                 recordProvider("generation", retrievalRequest.getOperation().name(), "SUCCESS");
             } catch (RuntimeException ex) {
                 recordProvider("generation", retrievalRequest.getOperation().name(), "FAILED");
@@ -713,6 +740,7 @@ public class DocumentCapabilityHandler
             fallbackOrFail(result, options, plan, filteredEvidence, limits,
                     plan.profile().generationPolicy() == DocumentFeaturePolicy.REQUIRED);
         }
+        return usedProvider;
     }
 
     private static boolean deadlineExpired(Instant deadline) {
@@ -724,14 +752,16 @@ public class DocumentCapabilityHandler
                 AgentExecutionContracts.DOCUMENT_RESOURCE_LIMIT, DocumentResourceLimit.class);
     }
 
-    private static <T> T requireSuccess(CapabilityOperationOutcome<T> outcome, String operation) {
-        if (outcome instanceof CapabilityOperationSuccess<T> success) {
-            return success.candidate();
+    private static <T> T requireSuccess(
+            CapabilityOperationOutcome<T> outcome,
+            String operation,
+            com.dylan.agent.adapter.api.operation.CapabilityOperationContext operationContext) {
+        try {
+            return com.dylan.agent.adapter.api.operation.CapabilityOperationOutcomes
+                    .requireBoundSuccess(outcome, operationContext);
+        } catch (RuntimeException ex) {
+            throw new IllegalStateException("document " + operation + " outcome rejected", ex);
         }
-        if (outcome instanceof CapabilityOperationFailure<T> failure) {
-            throw new IllegalStateException("document " + operation + " failed: " + failure.code());
-        }
-        throw new IllegalStateException("document " + operation + " returned invalid outcome");
     }
 
     private void recordRetrieval(DocumentRetrievalExecution request, String result, long startedNanos) {
@@ -773,8 +803,12 @@ public class DocumentCapabilityHandler
             DocumentGenerationOptions options,
             ValidatedDocumentPlan plan,
             DocumentResourceLimit limits) {
+        int operationLimit = plan.parameters().operation()
+                == com.dylan.agent.api.plan.DocumentPlanOperation.SUMMARIZE
+                ? limits.output().maxSummaryChars()
+                : limits.output().maxGeneratedChars();
         int outputLimit = options.getMaxOutputChars() == null
-                ? limits.output().maxGeneratedChars()
+                ? operationLimit
                 : options.getMaxOutputChars();
         var summaryScope = plan.parameters().summaryScope();
         if (plan.parameters().operation() == com.dylan.agent.api.plan.DocumentPlanOperation.SUMMARIZE
@@ -832,12 +866,19 @@ public class DocumentCapabilityHandler
                                                 List<String> citedIds,
                                                 DocumentResourceLimit limits, int maxOutputChars) {
         if (codePoints(generated.answerText()) > maxOutputChars
-                || codePoints(generated.summaryText()) > Math.min(maxOutputChars, limits.output().maxSummaryChars())
+                || summaryChars(generated) > Math.min(maxOutputChars, limits.output().maxSummaryChars())
                 || generated.summaryBullets().size() > limits.output().maxSummaryBullets()
-                || generated.summaryBullets().stream().anyMatch(value -> codePoints(value) > limits.output().maxSummaryChars())
                 || citedIds.size() > limits.output().maxCitationCount()) {
             throw new IllegalStateException("document generated output exceeds limits");
         }
+    }
+
+    private static int summaryChars(DocumentGeneratedContent generated) {
+        int total = codePoints(generated.summaryText());
+        for (String bullet : generated.summaryBullets()) {
+            total = Math.addExact(total, codePoints(bullet));
+        }
+        return total;
     }
 
     private DocumentProviderOutboundPolicyDecision requireProviderDecision(
@@ -883,6 +924,19 @@ public class DocumentCapabilityHandler
         }
         if ((generation && !evidence.isEmpty())
                 || evidence.stream().anyMatch(item -> item.snippet() != null)) {
+            fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "snippet"));
+        }
+        return new DocumentProviderIntendedFieldView(fields);
+    }
+
+    private static DocumentProviderIntendedFieldView providerFieldViewFromSafeCandidates(
+            String domain,
+            List<SafeDocumentCandidate> candidates) {
+        List<com.dylan.agent.metadata.domain.port.CanonicalFieldRef> fields = new ArrayList<>();
+        if (candidates.stream().anyMatch(item -> item.title() != null)) {
+            fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "title"));
+        }
+        if (candidates.stream().anyMatch(item -> item.safeSnippet() != null)) {
             fields.add(new com.dylan.agent.metadata.domain.port.CanonicalFieldRef(domain, "snippet"));
         }
         return new DocumentProviderIntendedFieldView(fields);

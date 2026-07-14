@@ -21,7 +21,12 @@ import com.dylan.agent.adapter.api.operation.CapabilityOperationOutcome;
 import com.dylan.agent.api.enums.AgentFieldType;
 import com.dylan.agent.api.enums.AgentOperator;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.FileSystemResource;
 
 import com.dylan.agent.metadata.domain.internal.DomainMetadataPropertiesValidator;
 import com.dylan.agent.metadata.domain.internal.DomainMetadataProperties;
@@ -67,6 +72,29 @@ class DomainMetadataPropertiesValidatorTest {
                 "type: DATE", "type: INTEGER", "contentSnippet",
                 "        port-type:", "        catalog-version:");
         assertThat(yaml).contains("company_policy:", "tax_policy:", "knowledge_base:", "literature:", "snippet:");
+    }
+
+    @Test
+    void productionDomainMetadataYamlPassesTheSameCandidateGate() throws Exception {
+        Path yamlPath = Path.of(
+                "..", "config-service", "src", "main", "resources", "config", "agent-service.yml");
+        StandardEnvironment environment = new StandardEnvironment();
+        new YamlPropertySourceLoader().load("agent-service", new FileSystemResource(yamlPath))
+                .forEach(source -> environment.getPropertySources().addLast(source));
+        DomainMetadataProperties properties = Binder.get(environment)
+                .bind("agent.domain-metadata", Bindable.of(DomainMetadataProperties.class))
+                .orElseThrow(() -> new IllegalStateException("production domain metadata missing"));
+        GenericApplicationContext context = context();
+        context.registerBean("documentAgentAdapter", TestDocumentAdapter.class, TestDocumentAdapter::new);
+
+        var bundle = DomainMetadataPropertiesValidator.build(
+                properties,
+                context.getBeansOfType(com.dylan.agent.adapter.api.AgentAdapterPort.class),
+                DomainMetadataTestSupport.TEST_CLOCK);
+
+        assertThat(bundle.catalog().domains()).containsKeys(
+                "employee", "transaction", "company_policy", "tax_policy", "knowledge_base", "literature");
+        assertThat(bundle.registrations().sortedRegistrations()).hasSize(8);
     }
 
     @Test
@@ -118,6 +146,53 @@ class DomainMetadataPropertiesValidatorTest {
         assertThatThrownBy(() -> build(coverageGap, context))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("coverage");
+    }
+
+    @Test
+    void rejectsIncompatibleAggregateFunctionsAndInvalidFieldShapes() {
+        GenericApplicationContext context = context();
+        var incompatibleFunction = DomainMetadataTestSupport.properties();
+        incompatibleFunction.getDomains().get("transaction")
+                .getRoleCapabilities().get("AGGREGATABLE")
+                .setFunctionsByField(Map.of("transType", Set.of(com.dylan.agent.api.enums.AggregateFunction.SUM)));
+        assertThatThrownBy(() -> build(incompatibleFunction, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("incompatible");
+
+        var fieldBoundCount = DomainMetadataTestSupport.properties();
+        fieldBoundCount.getDomains().get("transaction")
+                .getRoleCapabilities().get("AGGREGATABLE")
+                .setFunctionsByField(Map.of("amount", Set.of(com.dylan.agent.api.enums.AggregateFunction.COUNT)));
+        assertThatThrownBy(() -> build(fieldBoundCount, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("incompatible");
+
+        var invalidShape = DomainMetadataTestSupport.properties();
+        invalidShape.getDomains().get("transaction").getFields().get("amount").setPrecision(2);
+        invalidShape.getDomains().get("transaction").getFields().get("amount").setScale(3);
+        assertThatThrownBy(() -> build(invalidShape, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("scale must not exceed precision");
+    }
+
+    @Test
+    void rejectsAliasesThatResolveToDifferentCanonicalFacts() {
+        GenericApplicationContext context = context();
+        var fieldAliasCollision = DomainMetadataTestSupport.properties();
+        fieldAliasCollision.getDomains().get("employee").getFields().get("chineseName")
+                .setAliases(List.of("sharedAlias"));
+        fieldAliasCollision.getDomains().get("employee").getFields().get("memberNo")
+                .setAliases(List.of("sharedAlias"));
+        assertThatThrownBy(() -> build(fieldAliasCollision, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ambiguous field");
+
+        var domainAliasCollision = DomainMetadataTestSupport.properties();
+        domainAliasCollision.getDomains().get("employee").setAliases(List.of("sharedDomainAlias"));
+        domainAliasCollision.getDomains().get("transaction").setAliases(List.of("sharedDomainAlias"));
+        assertThatThrownBy(() -> build(domainAliasCollision, context))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ambiguous domain");
     }
 
     private Object build(DomainMetadataProperties properties, GenericApplicationContext context) {

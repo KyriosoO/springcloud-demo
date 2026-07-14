@@ -4,6 +4,7 @@ import com.dylan.agent.invocation.model.KernelErrorCode;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Request-scoped 取消信号源。
@@ -16,20 +17,20 @@ import java.util.Optional;
  */
 public final class CancellationSource {
 
-    private volatile CancellationTokenImpl current;
+    private final CancellationTokenImpl token;
 
     /**
      * 创建新取消信号源，初始为未取消状态。
      */
     public CancellationSource() {
-        this.current = new CancellationTokenImpl(false, null);
+        this.token = new CancellationTokenImpl();
     }
 
     /**
-     * 返回当前只读令牌快照。
+     * 返回稳定的只读令牌视图；后续取消会对已分发的同一视图可见。
      */
     public CancellationToken token() {
-        return current;
+        return token;
     }
 
     /**
@@ -44,34 +45,34 @@ public final class CancellationSource {
                     "cancel reason must be CANCELLED or DEADLINE_EXCEEDED, got: "
                             + safeReasonCode);
         }
-        CancellationTokenImpl currentSnap = this.current;
-        if (currentSnap.isCancelled()) {
-            return false;
-        }
-        this.current = new CancellationTokenImpl(true, safeReasonCode);
-        return true;
+        return token.cancel(safeReasonCode);
     }
 
-    // ── 内部不可变实现 ──
+    // ── 内部线程安全实现 ──
 
-    private record CancellationTokenImpl(
-            boolean cancelled,
-            KernelErrorCode reason) implements CancellationToken {
+    private static final class CancellationTokenImpl implements CancellationToken {
+
+        private final AtomicReference<KernelErrorCode> reason = new AtomicReference<>();
+
+        private boolean cancel(KernelErrorCode safeReasonCode) {
+            return reason.compareAndSet(null, safeReasonCode);
+        }
 
         @Override
-        public boolean isCancelled() { return cancelled; }
+        public boolean isCancelled() { return reason.get() != null; }
 
         @Override
         public Optional<KernelErrorCode> reasonCode() {
-            return Optional.ofNullable(reason);
+            return Optional.ofNullable(reason.get());
         }
 
         @Override
         public void throwIfCancelled() {
-            if (cancelled) {
+            KernelErrorCode safeReasonCode = reason.get();
+            if (safeReasonCode != null) {
                 throw new CancellationException(
-                        Objects.requireNonNull(reason),
-                        "Invocation cancelled: " + reason.name());
+                        safeReasonCode,
+                        "Invocation cancelled: " + safeReasonCode.name());
             }
         }
     }

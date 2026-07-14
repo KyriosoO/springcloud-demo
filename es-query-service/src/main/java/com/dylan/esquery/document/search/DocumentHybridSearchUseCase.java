@@ -59,6 +59,8 @@ public final class DocumentHybridSearchUseCase {
         if(!request.executionBinding().resourceLimit().equals(request.operationMetadata().resourceLimit())
                 ||!request.executionBinding().resourceLimit().registrationIdentity().equals(request.operationMetadata().registrationIdentity())){
             throw new IllegalArgumentException("document operation/resource binding mismatch");}
+        if(request.channels().stream().map(channel->channel.channel()).distinct().count()!=request.channels().size())
+            throw new IllegalArgumentException("duplicate document channel request");
         long total=Math.multiplyExact((long)request.channels().size(),request.channels().stream().mapToInt(c->c.candidateCount()).max().orElseThrow());
         if(total>request.fusion().maxFusedCandidates()*8L)throw new IllegalArgumentException("document channel candidate capacity invalid");requireLive(request);}
     private void requireLive(HybridSearchRequest request){if(!Instant.ofEpochMilli(request.operationMetadata().absoluteDeadlineEpochMilli()).isAfter(clock.instant()))throw new IllegalStateException("document search deadline exceeded");}

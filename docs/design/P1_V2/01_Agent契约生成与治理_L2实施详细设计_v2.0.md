@@ -6,15 +6,15 @@
 |---|---|
 | 文档名称 | Agent 契约生成与治理 L2 实施详细设计 |
 | 文档路径 | `docs/design/P1_V2/01_Agent契约生成与治理_L2实施详细设计_v2.0.md` |
-| 文档状态 | In Review |
+| 文档状态 | Implemented |
 | 当前版本 | v2.0 |
 | 创建日期 | 2026-07-13 |
-| 最后更新日期 | 2026-07-13 |
-| 适用代码基线 | `816e2c855574da5326379128bfb3e230241d2fe3` |
+| 最后更新日期 | 2026-07-14 |
+| 适用代码基线 | `28e662a97110f7d3d39211f3ac841a39491fc1b8` |
 | 适用范围 | Java Agent 公共契约、Runtime Route/Plan/Error 契约、OpenAPI、fixtures、Python 生成模型与 drift 门禁 |
 | 上级文档 | 四份当前 L0/L1 架构基线（L0 + 三份单 Agent L1） |
 | 合并来源 | P1/D01，以及 P1 中分页、排序、Document 对公共契约的有效增量 |
-| 是否可作为实现依据 | 否；P1_V2 全集评审已完成且 S0/S1=0，但仍为 In Review；经用户确认 Approved 并完成 P1_V2/06 M0 实施授权后方可实施 |
+| 是否可作为实现依据 | 是；契约生成、OpenAPI/fixtures、Python 模型与 drift 门禁已完成本地实施和验证 |
 
 ## 2. 修订历史
 
@@ -23,6 +23,7 @@
 | 1 | 2026-07-13 | 全文 | P1_V2 仍需回查 D01 和多个专项文档才能理解公共契约 | 合并 Java 权威、Route/Plan/Error、OpenAPI、fixtures、Python 零补丁生成与 drift 规则 |
 | 2 | 2026-07-13 | 第 1、10、11、19、20 节 | 对齐 L1 与当前 Java 权威契约，补齐可编码接口证据 | 修正 Route/Plan/Clarification/Error/Operation Metadata 字段；冻结 Runtime HTTP header、状态码和类型；将旧平行 RuntimeErrorResponse 纳入原子删除；补充精确测试落点 |
 | 3 | 2026-07-13 | 第1～2、24节 | P1_V2/P2_V3全集终检需统一代码基线和实施状态 | 对齐统一代码基线，标记全集评审完成并保留 In Review、Approved 与 M0 边界；不新增评审轮次，不改变已通过设计结论 |
+| 4 | 2026-07-14 | 第1～3、23～24节 | 当前仓库契约链已按 P1_V2 完成实施 | 对齐代码基线，确认 Java 唯一源、OpenAPI/fixtures、Python 生成模型和 Runtime Route/Plan 端点已闭合，将状态同步为 Implemented |
 
 ## 3. 文档状态说明
 
@@ -35,7 +36,7 @@
 | Implemented | 已实施并完成对齐 | 是 |
 | Deprecated | 已废弃 | 否 |
 
-当前状态：In Review。
+当前状态：Implemented。当前 Java/Runtime 契约、OpenAPI/fixtures、Python 生成模型与 drift 校验已完成本地实施和全量验证；生产发布仍需独立授权。
 
 ## 4. 背景与目标
 
@@ -297,16 +298,16 @@ Runtime request 的 turns/context/schema/capability/domain 数量必须受 Plann
 | 检查 | 设计目标 | 当前实现 | 状态 |
 |---|---|---|---|
 | Java 唯一源 | agent-api | 已满足 | 是 |
-| OpenAPI/fixtures | 稳定 candidate | 已存在 | 部分，需随新契约更新 |
-| Python 零补丁 | 脚本生成 | 已存在 | 需持续门禁 |
-| Runtime 端点 | 仅 Route/Plan | 当前有 document rewrite | 否，由 P2_V3/06 迁移 |
+| OpenAPI/fixtures | 稳定 candidate | 已按当前 Java 契约更新并通过测试 | 是 |
+| Python 零补丁 | 脚本生成 | generated models 已更新且 Python 契约测试通过 | 是 |
+| Runtime 端点 | 仅 Route/Plan | document rewrite 已迁出 Runtime | 是 |
 
 ## 24. 任务完成摘要
 
 | 项目 | 内容 |
 |---|---|
-| 文档状态 | In Review |
-| 是否可作为实现依据 | 否 |
+| 文档状态 | Implemented |
+| 是否可作为实现依据 | 是 |
 | 主要内容 | 自包含 Java/Runtime 公共契约、OpenAPI、fixtures、Python 生成和 drift 治理 |
 | 是否需回查旧 P1 | 否；旧 D01/专项契约内容已合并 |
-| 遗留风险 | Runtime rewrite 尚待迁移、generated 产物需随实施更新 |
+| 遗留风险 | 生产发布前仍需执行独立发布门禁；后续 Java 契约变化仍须持续执行 drift 门禁 |
