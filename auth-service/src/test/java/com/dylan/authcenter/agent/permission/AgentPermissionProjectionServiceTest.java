@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.dylan.authcenter.agent.permission.api.AgentPermissionResolveRequest;
 import com.dylan.authcenter.agent.permission.api.AgentPermissionResolveResponse;
 import com.dylan.authcenter.agent.permission.api.SubjectRefDto;
+import com.dylan.authcenter.config.AuthRbacProperties;
 import com.dylan.authcenter.service.UserService;
+import com.dylan.authcenter.testsupport.AuthRbacTestFixtures;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -22,11 +24,14 @@ class AgentPermissionProjectionServiceTest {
     private static final Instant NOW = Instant.parse("2026-07-02T10:00:00Z");
 
     private AgentPermissionProjectionService service;
+    private AuthRbacProperties rbacProperties;
 
     @BeforeEach
     void setUp() {
+        rbacProperties = AuthRbacTestFixtures.load();
         service = new AgentPermissionProjectionService(
-                new UserService(),
+                new UserService(rbacProperties),
+                rbacProperties,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -36,7 +41,7 @@ class AgentPermissionProjectionServiceTest {
 
         assertThat(response.subject()).isEqualTo(new SubjectRefDto("USER", "dylan"));
         assertThat(response.evidenceId()).startsWith("perm-user-");
-        assertThat(response.version()).isEqualTo(AgentPermissionProjectionService.RULE_VERSION);
+        assertThat(response.version()).isEqualTo(rbacProperties.getRuleVersion());
         assertThat(response.allowedCapabilityIds())
                 .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute",
                         "document.search", "document.answer", "document.summarize");

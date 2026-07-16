@@ -18,7 +18,8 @@ import com.dylan.transaction.api.query.TransactionSearchResponse;
 @FeignClient(
     name = "mq-procedure-service",
     path = "/txn",
-    contextId = "agent2transaction")
+    contextId = "agent2transaction",
+    configuration = TransactionAgentFeignSecurityConfiguration.class)
 public interface TransactionAgentClient {
 
     @PostMapping(

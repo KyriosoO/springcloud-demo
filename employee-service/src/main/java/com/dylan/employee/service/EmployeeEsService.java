@@ -78,10 +78,6 @@ public class EmployeeEsService {
 		return esQueryClient.search(index, buildSearchDsl(request));
 	}
 
-	public String search(SearchRequest request, String userId) throws JsonProcessingException {
-		return search(request);
-	}
-
 	/**
 	 * 执行向量检索逻辑。
 	 */

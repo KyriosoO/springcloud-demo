@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.Authentication;
 
 import com.dylan.employee.es.EmployeeRebuildRequest;
+import com.dylan.employee.security.CapabilityAccessGuard;
 import com.dylan.esquery.api.model.SearchRequest;
 import com.dylan.esquery.api.model.SemanticSearchRequest;
 import com.dylan.esquery.api.model.RebuildTask;
@@ -27,21 +27,24 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 @RequestMapping("/employees/es")
 public class EmployeeEsController {
 	private final EmployeeEsService employeeEsService;
+	private final CapabilityAccessGuard accessGuard;
 
 	/**
 	 * 创建 EmployeeEsController 实例并注入所需依赖。
 	 */
-	public EmployeeEsController(EmployeeEsService employeeEsService) {
+	public EmployeeEsController(EmployeeEsService employeeEsService, CapabilityAccessGuard accessGuard) {
 		this.employeeEsService = employeeEsService;
+		this.accessGuard = accessGuard;
 	}
 
 	/**
 	 * 执行领域搜索。
 	 */
 	@PostMapping("/search")
-	public String search(@AuthenticationPrincipal Jwt jwt, @RequestBody SearchRequest request) throws JsonProcessingException {
-		String userId = jwt.getSubject();
-		return employeeEsService.search(request, userId);
+	public String search(Authentication authentication, @RequestBody SearchRequest request)
+			throws JsonProcessingException {
+		accessGuard.requireUserOrAgentScope(authentication, "agent.employee.query");
+		return employeeEsService.search(request);
 	}
 
 	/**

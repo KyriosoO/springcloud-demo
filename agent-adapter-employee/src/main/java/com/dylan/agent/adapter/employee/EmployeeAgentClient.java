@@ -14,7 +14,8 @@ import com.dylan.esquery.api.model.SearchRequest;
 @FeignClient(
     name = "employee-service",
     path = "/employees/es",
-    contextId = "agent2employee")
+    contextId = "agent2employee",
+    configuration = EmployeeAgentFeignSecurityConfiguration.class)
 public interface EmployeeAgentClient {
 
     @PostMapping(

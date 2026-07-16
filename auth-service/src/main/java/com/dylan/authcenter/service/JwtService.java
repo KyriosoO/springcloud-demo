@@ -18,14 +18,17 @@ public class JwtService {
 	private final JwtEncoder jwtEncoder;
 	private final JwtDecoder jwtDecoder;
 	private final JwtKeyProvider jwtKeyProvider;
+	private final UserService userService;
 
 	// JWT 有效期，单位秒（1小时）
 	private final long expiration = 3600;
 
-	public JwtService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, JwtKeyProvider jwtKeyProvider) {
+	public JwtService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, JwtKeyProvider jwtKeyProvider,
+			UserService userService) {
 		this.jwtEncoder = jwtEncoder;
 		this.jwtDecoder = jwtDecoder;
 		this.jwtKeyProvider = jwtKeyProvider;
+		this.userService = userService;
 	}
 
 	/**
@@ -43,15 +46,8 @@ public class JwtService {
 			claims.put("sub", userId);
 			claims.put("iat", now.getEpochSecond());
 			claims.put("exp", exp.getEpochSecond());
-			if(userId.equals("admin")) {
-				claims.put("role", new String[]{"agent:admin","agent:viewer"});
-			}
-			if(userId.equals("dylan")) {
-				claims.put("role", new String[]{"agent:admin","agent:viewer"});
-			}
-			if(userId.equals("viewer_t")) {
-				claims.put("role", new String[]{"agent:viewer"});
-			}
+			claims.put("token_type", "user");
+			claims.put("role", userService.rolesOf(userId));
 		}).issuedAt(now).expiresAt(exp).build();
 		return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claimsSet)).getTokenValue();
 	}

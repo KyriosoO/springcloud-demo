@@ -1,10 +1,6 @@
 package com.dylan.authcenter.service;
 
-import java.util.Arrays;
 import java.util.Set;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,31 +11,35 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import com.dylan.authcenter.config.AuthRbacProperties;
+
 @Service
 public class UserService implements UserDetailsService {
-	String[] users = new String[] { "admin", "dylan", "viewer_t" };
-	private static Map<String, String[]> userMap = new ConcurrentHashMap<String, String[]>();
-	static {
-		userMap.put("admin", new String[] {"ADMIN","agent:admin"});
-		userMap.put("dylan", new String[] {"agent:admin"});
-		userMap.put("viewer_t", new String[] {"agent:viewer"});
+	private final AuthRbacProperties rbacProperties;
+
+	public UserService(AuthRbacProperties rbacProperties) {
+		this.rbacProperties = rbacProperties;
 	}
 
 	@Override
 	public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
-		if (userMap.containsKey(userId)) {
-			return User.builder().username(userId).password("{noop}123456").roles(userMap.get(userId)).build();
-		}else {
+		AuthRbacProperties.UserDefinition user = rbacProperties.getUsers().get(userId);
+		if (user == null) {
 			throw new UsernameNotFoundException("User not found");
 		}
+		return User.builder()
+				.username(userId)
+				.password(user.getPassword())
+				.authorities(user.getRoles().toArray(String[]::new))
+				.build();
 	}
 
 	public Set<String> rolesOf(String userId) {
-		String[] roles = userMap.get(userId);
-		if (roles == null) {
+		AuthRbacProperties.UserDefinition user = rbacProperties.getUsers().get(userId);
+		if (user == null) {
 			throw new UsernameNotFoundException("User not found");
 		}
-		return Arrays.stream(roles).collect(Collectors.toUnmodifiableSet());
+		return Set.copyOf(user.getRoles());
 	}
 
 	public String getCurrentUserId() {

@@ -6,7 +6,9 @@ import com.dylan.authcenter.agent.permission.api.AgentPermissionErrorResponse;
 import com.dylan.authcenter.agent.permission.api.AgentPermissionResolveRequest;
 import com.dylan.authcenter.agent.permission.api.AgentPermissionResolveResponse;
 import com.dylan.authcenter.agent.permission.api.SubjectRefDto;
+import com.dylan.authcenter.config.AuthRbacProperties;
 import com.dylan.authcenter.service.UserService;
+import com.dylan.authcenter.testsupport.AuthRbacTestFixtures;
 import com.dylan.common.security.SecurityTokenUtils;
 
 import java.time.Clock;
@@ -28,11 +30,14 @@ class AgentPermissionInternalControllerTest {
     private static final Instant NOW = Instant.parse("2026-07-02T10:00:00Z");
 
     private AgentPermissionInternalController controller;
+    private AuthRbacProperties rbacProperties;
 
     @BeforeEach
     void setUp() {
+        rbacProperties = AuthRbacTestFixtures.load();
         AgentPermissionProjectionService service = new AgentPermissionProjectionService(
-                new UserService(),
+                new UserService(rbacProperties),
+                rbacProperties,
                 Clock.fixed(NOW, ZoneOffset.UTC));
         controller = new AgentPermissionInternalController(service);
     }
@@ -50,7 +55,7 @@ class AgentPermissionInternalControllerTest {
             assertThat(body.allowedCapabilityIds())
                     .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute",
                             "document.search", "document.answer", "document.summarize");
-            assertThat(body.version()).isEqualTo(AgentPermissionProjectionService.RULE_VERSION);
+            assertThat(body.version()).isEqualTo(rbacProperties.getRuleVersion());
         });
     }
 

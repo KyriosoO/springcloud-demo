@@ -34,8 +34,10 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import com.dylan.authcenter.model.LoginRequest;
+import com.dylan.authcenter.config.AuthRbacProperties;
 import com.dylan.authcenter.service.JwtService;
 import com.dylan.authcenter.service.UserService;
+import com.dylan.authcenter.testsupport.AuthRbacTestFixtures;
 
 @DisplayName("AuthController")
 class AuthControllerTest {
@@ -55,8 +57,9 @@ class AuthControllerTest {
                         .build())));
         decoder = NimbusJwtDecoder.withSecretKey(key).build();
         JwtKeyProvider jwtKeyProvider = () -> new JwtKeySet("ACTIVE", key, Map.of("ACTIVE", key));
-        JwtService jwtService = new JwtService(encoder, decoder, jwtKeyProvider);
-        UserService userService = new UserService();
+        AuthRbacProperties rbacProperties = AuthRbacTestFixtures.load();
+        UserService userService = new UserService(rbacProperties);
+        JwtService jwtService = new JwtService(encoder, decoder, jwtKeyProvider, userService);
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userService);
         provider.setPasswordEncoder(PasswordEncoderFactories.createDelegatingPasswordEncoder());
         AuthenticationManager manager = new ProviderManager(provider);
@@ -79,7 +82,8 @@ class AuthControllerTest {
     void loginIssuesAdminRoles() {
         Jwt jwt = decoder.decode(login("admin", "123456"));
         assertThat(jwt.getClaimAsStringList("role"))
-                .containsExactlyInAnyOrder("agent:admin", "agent:viewer");
+                .containsExactly("ADMIN");
+        assertThat(jwt.getClaimAsString("token_type")).isEqualTo("user");
     }
 
     @Test

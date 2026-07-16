@@ -3,6 +3,7 @@ package com.dylan.mqprocedureserver.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.dylan.mqprocedureserver.service.TransactionOperKafkaProducer;
 import com.dylan.mqprocedureserver.service.TransactionOperMQProducer;
 import com.dylan.mqprocedureserver.service.TransactionService;
+import com.dylan.mqprocedureserver.security.CapabilityAccessGuard;
 import com.dylan.transaction.api.model.AggregateRequest;
 import com.dylan.transaction.api.model.Transaction;
 import com.dylan.transaction.api.query.TransactionSearchRequest;
@@ -27,13 +29,16 @@ public class TransactionController {
 	private final TransactionOperKafkaProducer transactionOperKafkaProducer;
 	private final TransactionOperMQProducer transactionOperMQProducer;
 	private final TransactionService transactionService;
+	private final CapabilityAccessGuard accessGuard;
 
 	public TransactionController(TransactionOperKafkaProducer transactionOperKafkaProducer,
 								 TransactionOperMQProducer transactionOperMQProducer,
-								 TransactionService transactionService) {
+								 TransactionService transactionService,
+								 CapabilityAccessGuard accessGuard) {
 		this.transactionOperKafkaProducer = transactionOperKafkaProducer;
 		this.transactionOperMQProducer = transactionOperMQProducer;
 		this.transactionService = transactionService;
+		this.accessGuard = accessGuard;
 	}
 
 	@PostMapping("/txnmq")
@@ -71,7 +76,9 @@ public class TransactionController {
 	}
 
 	@PostMapping("/search")
-	public TransactionSearchResponse search(@RequestBody TransactionSearchRequest request) {
+	public TransactionSearchResponse search(Authentication authentication,
+			@RequestBody TransactionSearchRequest request) {
+		accessGuard.requireUserOrAgentScope(authentication, "agent.transaction.query");
 		return transactionService.search(request);
 	}
 
@@ -81,7 +88,8 @@ public class TransactionController {
 	 * 无 groupBy 时返回全局聚合（totalCount, totalAmount, avgAmount, minAmount, maxAmount）。
 	 */
 	@PostMapping("/aggregate")
-	public Map<String, Object> aggregate(@RequestBody AggregateRequest request) {
+	public Map<String, Object> aggregate(Authentication authentication, @RequestBody AggregateRequest request) {
+		accessGuard.requireUserOrAgentScope(authentication, "agent.transaction.aggregate");
 		return transactionService.aggregate(request);
 	}
 

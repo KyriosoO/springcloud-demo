@@ -6,7 +6,9 @@ import com.dylan.authcenter.agent.permission.api.AgentPermissionErrorResponse;
 import com.dylan.authcenter.agent.permission.api.AgentPermissionResolveRequest;
 import com.dylan.authcenter.agent.permission.api.AgentPermissionResolveResponse;
 import com.dylan.authcenter.agent.permission.api.SubjectRefDto;
+import com.dylan.authcenter.config.AuthRbacProperties;
 import com.dylan.authcenter.service.UserService;
+import com.dylan.authcenter.testsupport.AuthRbacTestFixtures;
 import com.dylan.common.security.SecurityTokenUtils;
 
 import java.time.Clock;
@@ -30,8 +32,10 @@ class AgentPermissionServiceTokenSecurityTest {
 
     @BeforeEach
     void setUp() {
+        AuthRbacProperties rbacProperties = AuthRbacTestFixtures.load();
         AgentPermissionProjectionService service = new AgentPermissionProjectionService(
-                new UserService(),
+                new UserService(rbacProperties),
+                rbacProperties,
                 Clock.fixed(NOW, ZoneOffset.UTC));
         controller = new AgentPermissionInternalController(service);
     }
