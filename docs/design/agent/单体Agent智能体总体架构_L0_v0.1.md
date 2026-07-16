@@ -21,7 +21,7 @@
 | 目标文档位置 | `docs/design/agent/单体Agent智能体总体架构_L0_v0.1.md` |
 | 评审报告 | `docs/design/agent/单体Agent智能体总体架构_L0_v0.1_评审报告.md` |
 | 上位文档 | 无；本文件是本轮新 Agent 建设的总体架构根文档 |
-| 治理的 L1 文档 | 规划路径：单体Agent应用与能力架构_L1_v0.1.md；检索与索引基础设施架构_L1_v0.1.md（均尚未创建） |
+| 治理的 L1 文档 | `docs/design/agent/单体Agent应用与能力架构_L1_v0.1.md`（已创建，已评审/评审受阻）；规划路径：docs/design/agent/检索与索引基础设施架构_L1_v0.1.md（尚未创建） |
 | 外部契约 | Java 生成的 OpenAPI 契约；`auth-service` 身份与权限契约；`employee-service`、`mq-procedure-service` 业务接口；文档来源方数据契约；LLM、Embedding、Reranker 服务契约 |
 | 替代关系 | 不替代、不继承现有实验性 `agent-*`、`es-*` 项目及相关设计/评审文档；旧资产须先隔离后再使用原项目名建设新实现 |
 
@@ -34,6 +34,11 @@
 | 3 | 2026-07-16 | 第 5、7、10、12、14 节 | 收窄契约版本门禁适用范围，并补齐新增不变量的成功标准和评审门禁 | 修复第 2 轮 L0 复评发现 |
 | 4 | 2026-07-16 | 文档治理信息、第 17 节 | 同步为已评审/已通过，并关联正式评审报告 | 根据用户授权同步 3 轮评审—修复循环的最终结论 |
 | 5 | 2026-07-16 | 文档治理信息、第 4、15、18 节 | 同步 DeepSeek LLM 目标配置和实名维护人 Dylan，并收窄剩余 LLM 待决边界 | 根据用户后续确认更新架构事实，不改变 L0 已通过结论 |
+| 6 | 2026-07-16 | 第 4、11、15 节 | 确认 Java 侧基于业务域、能力、目的和目标的字段出域白名单机制 | 落实用户确认的数据处理边界顺序和新增字段默认禁止原则 |
+| 7 | 2026-07-16 | 第 4、15、18 节 | 同步 LLM Provider 连通性测试通过，并收窄剩余模型验证边界 | 根据用户测试结论记录环境事实，不把连通性等同于契约兼容或效果验收 |
+| 8 | 2026-07-16 | 第 4、11～13、15 节 | 确认固定服务密钥与 Java 不透明短期执行凭据组合的内部调用安全机制 | 关闭内部服务身份与能力凭据架构决策门禁，同时保留 L2 实现约束 |
+| 9 | 2026-07-16 | 第 4～5、15 节 | 确认 DOCUMENT 首期临时质量指标与阈值，并区分阈值基线和评价集证据 | 部分解除 DOCUMENT 评价门禁，不把阈值表等同于已冻结评价集 |
+| 10 | 2026-07-16 | 文档治理信息、第 4、13、15、18 节 | 同步 DeepSeek 公开服务条款及数据使用策略接受、API 契约测试与 L1 最小效果 PoC 证据，并更新 Agent L1 交付状态 | 关闭 Agent L1 的 `EB-L1-001`；L0 已通过结论不变 |
 
 ## 3. 文档定位
 
@@ -113,7 +118,7 @@ employee 域由 `employee-service` 提供外部接口，transaction 域由 `mq-p
 | 检索 | Elasticsearch 9.4.1，三节点 Docker 集群，测试入口 `127.0.0.1:9200` | BM25、Dense、可选 Sparse、索引与向量能力 |
 | Embedding | BGE-M3 服务，测试入口 `127.0.0.1:8908` | Dense/Sparse 表征能力，具体启用策略由检索 L1 定义 |
 | Reranker | BGE Reranker v2 M3，测试入口 `127.0.0.1:8909` | DOCUMENT 精排能力 |
-| LLM | DeepSeek；模型 `deepseek-v4-flash`；API Base URL `https://api.deepseek.com` | Python Runtime 的理解、规划和生成模型；数据处理边界、API 兼容性与效果仍需在 Agent L1 复评前验证 |
+| LLM | DeepSeek；模型 `deepseek-v4-flash`；API Base URL `https://api.deepseek.com` | Python Runtime 的理解、规划和生成模型；用户已接受公开服务条款及数据使用策略，API 契约测试与 L1 最小效果 PoC 已通过；仍以模型端口隔离供应商差异，以 Java 字段出域策略控制发送范围，并由后续门禁承接政策变化与生产容量风险 |
 | 其他中间件 | Redis、Kafka、RocketMQ、Zookeeper 运行于本机 Docker | 首期不设为 Agent 核心链路的强制依赖，确有场景后再由 L1 决策 |
 | 可观测后端 | 本轮不建设 | 仅保留日志、指标、追踪端口及上下文传播能力 |
 
@@ -148,7 +153,9 @@ employee 域由 `employee-service` 提供外部接口，transaction 域由 `mq-p
 - `employee-service` 与 `mq-procedure-service` 的外部接口可由业务方维护并支持 Agent 所需查询/聚合语义；若实际契约不足，应修改业务契约设计，不得在 Agent 中复制业务规则或直连业务库。
 - 文档来源方能够提供稳定文档标识、版本、权限关联信息和可引用定位；具体契约需在检索 L1/L2 前确认。
 - 首期请求采用同步交互，允许 Java 调用 Python 后由 Python 回调 Java Tool API；该调用模型必须满足无跨进程数据库事务、可重入、只读幂等和统一超时预算。
-- LLM 目标配置已由用户确认为 DeepSeek、模型 `deepseek-v4-flash`、API Base URL `https://api.deepseek.com`；Python 仍通过内部模型端口隔离供应商差异。发送数据范围、脱敏/留存/训练/跨境边界、API 协议兼容性与效果 PoC 尚未确认，仍阻塞 Agent L1 正式通过。
+- LLM 目标配置已由用户确认为 DeepSeek、模型 `deepseek-v4-flash`、API Base URL `https://api.deepseek.com`。用户已接受 DeepSeek 公开服务条款及数据使用策略所披露的数据收集、模型改进/训练、中国境内存储、动态保留、关联方/服务商处理和默认上下文缓存事实；应用侧不依赖供应商删除承诺，继续由 Java 按业务域、能力、目的和目标执行字段出域白名单、转换、最小化和默认拒绝。测试环境 4 项 API 契约测试以及当前模型端口 7 项 L1 最小效果 PoC 均通过，`EB-L1-001` 已关闭；供应商政策变化、生产容量和正式回归仍由 L2/生产门禁承接。
+- 首期内部服务身份与执行授权机制已确认为“固定服务密钥 + Java 生成的不透明短期执行凭据 + Java Tool Gateway 服务端校验”，仅适用于 Python Runtime 回调 Java 的只读 Tool 链路；不要求先建设 mTLS、OAuth2 或 JWT 签发体系。固定密钥只证明 Runtime 服务级身份，短期凭据才承载本次执行的最小能力；未来写能力或信任边界扩大时必须重新评估并升级机制。
+- DOCUMENT 首期临时质量阈值已确认：`Recall@50 ≥ 0.90`、`NDCG@10 ≥ 0.80`、事实支持率 `≥ 0.90`、关键要点覆盖率 `≥ 0.85`、引用精确率 `≥ 0.98`、事实声明引用覆盖率 `≥ 0.90`、应拒答样本召回率 `≥ 0.95`、错误拒答率 `≤ 0.05`、越权引用或泄漏为0。阈值确认不代表评价集已冻结；语料快照、样本、标注、参考答案、权限条件和版本证据仍须在正式复评前形成。
 - 生产 SLO、容量、网络隔离和高可用拓扑尚未给出，不阻塞 L0 草稿，但阻塞生产架构批准。
 
 ## 5. 架构目标与非目标
@@ -174,7 +181,9 @@ employee 域由 `employee-service` 提供外部接口，transaction 域由 `mq-p
 | 可运维性 | 每次执行具备统一关联标识、结构化日志和稳定 Telemetry Port | 全链路 | 日志关联与 No-op/测试适配器替换验证 |
 | 性能 | 总超时预算可分配到每个外部步骤，调用链不存在无界等待或跨调用持锁 | 全链路 | L1 延迟预算、压测和线程/连接池观测 |
 
-具体延迟、吞吐、Recall@K、NDCG、回答正确率等数值须由两份 L1 基于评测集和本机基准补齐，不在 L0 中虚构。
+DOCUMENT 临时质量阈值是逐项发布门禁，不采用加权总分抵消单项失败；越权引用或泄漏为绝对零容忍。召回/排序、回答/引用、拒答和安全指标须同时达标，并按业务域与关键场景分层报告。
+
+具体延迟、吞吐数值仍须由两份 L1 基于本机基准补齐；上述 DOCUMENT 首期临时指标与阈值已经用户确认，评价集工件、指标精确定义和正式基线仍须由 L1/L2 补齐。
 
 ### 5.3 成功标准
 
@@ -183,6 +192,7 @@ employee 域由 `employee-service` 提供外部接口，transaction 域由 `mq-p
 - Java/Python 任一契约变更都由 Java 源规范触发同步，CI 不允许未同步变更进入集成基线。
 - Java/MySQL 是唯一持久执行状态来源，Python 重启后可根据 Java 提供的执行上下文安全重试或终止。
 - 执行取消、超时或进入其他终态后，任何迟到 Python 结果或 Tool 调用均不能覆盖终态、追加引用或产生新的持久副作用。
+- Runtime→Tool 请求缺失或伪造固定服务密钥/短期能力凭据、凭据过期、执行非运行态、fence/Tool/主体范围/过滤摘要不匹配时均被拒绝并留下不含原始凭据的审计证据。
 - 本系统自主管理的 Java Agent、Python Runtime 和检索服务只有在契约版本/指纹满足已批准兼容矩阵时才能通过 readiness 并接收流量。
 - 查询面凭据和 Python Tool 无法调用索引写能力；索引管理面的重复、乱序和越权请求均被拒绝并留下审计证据。
 - 新增一个只读业务域只需新增适配器及注册，不修改已有适配器；新增一种能力只需新增能力实现及政策，不修改已有能力内部流程。
@@ -471,7 +481,13 @@ Java 侧使用 Springdoc 2.8.x 生成规范。Python 侧建议使用 Pydantic 2.
 
 - `auth-service` 负责主体身份、权限规则和最终授权决策；文档来源方负责资源访问属性；Java 负责入口认证上下文、服务身份、授权决策绑定、不可扩大过滤和最终结果安全校验。
 - Python 只接收执行所需的最小化上下文与有界能力，不持有用户原始令牌或完整权限清单。
-- Java Tool API 使用内部服务身份和与执行绑定的短期能力凭据；调用必须校验执行、能力、租户/用户范围和过期时间。
+- 业务数据进入 Python/LLM 前必须依次经过：`auth-service` 行级/资源级授权 → Java Adapter 获取已授权数据 → Java 字段出域白名单 → 脱敏、匿名化、聚合或截断 → Python Runtime → LLM。行级/资源级授权不能替代字段出域授权。
+- 字段出域策略至少按业务域、能力、使用目的和发送目标区分，并明确转换后字段白名单、硬禁止字段、转换规则、策略版本和生效范围；`deny` 优先于转换和白名单，未声明字段及业务接口新增字段默认禁止出域。
+- DeepSeek、结构化日志和最终用户属于不同发送目标，必须分别决策；允许返回给已授权用户的字段不自动等于允许发送给 Python、DeepSeek 或日志。
+- Java Tool API 首期使用固定 Runtime 服务密钥与 Java 生成的不透明短期 `capabilityId` 双重校验；固定密钥只识别 Runtime 服务，`capabilityId` 绑定执行、栅栏、允许 Tool、租户/用户范围、授权过滤摘要和过期时间，任一校验失败即拒绝。
+- `capabilityId` 必须由密码学安全随机源生成且不可猜测，服务端只保存摘要及授权映射；有效期不得超过执行截止时间，首期建议上限为5分钟。执行进入终态、栅栏变化或凭据轮换时立即失效，不得自动延长旧凭据。
+- 固定服务密钥按环境隔离、通过秘密注入、支持轮换且不得进入仓库；两个凭据均不得进入 Prompt、Graph 业务状态、LLM 输入、日志、异常或追踪属性。非本机受控网络仍需服务器身份可验证的加密传输，固定密钥不替代传输安全。
+- 该组合机制只批准首期只读 Tool；只读重放仍须绑定 `toolCallId` 并幂等审计。提交、修改、工作流等写能力不得直接复用，必须补充请求防重放、幂等、确认和更强工作负载身份设计。
 - 检索前必须把权限硬约束下推到检索请求；检索返回、Rerank 后和最终引用返回前再次校验。
 - 日志、Prompt、模型输入、异常和追踪属性不得记录令牌、完整敏感正文或超出必要范围的个人信息。
 - LLM 输出、引用 ID、文档定位和 Tool 参数均按不可信输入处理，执行 Schema、白名单、长度和访问性校验。
@@ -556,12 +572,13 @@ Python 依赖采用项目独立虚拟环境、`pyproject.toml` 与可复现锁�
 | DEC-11 | Java 以单调终态和执行栅栏拒绝迟到完成 | 仅依赖网络取消；允许最后写入获胜 | 网络取消不可靠，持久状态必须由权威方防止回写 | Java/Python/Tool | 下游计算可能短暂继续但不能产生持久副作用 | 无 |
 | DEC-12 | 系统自主管理部署单元的内部契约版本/指纹进入 readiness 与滚动升级门禁 | 仅依赖 CI；运行时报错后回滚；要求外部提供方采用内部指纹 | CI 无法消除系统内独立部署版本偏差，外部变化则应由 Adapter/Port 隔离 | Java Agent/Python Runtime/检索服务 | 需在 L1 定义兼容矩阵和发布顺序 | 无 |
 | DEC-13 | `es-query-service` 内部隔离查询面与索引管理面 | 共用一个 API/凭据；独立 `es-document-service` | 保留单一检索服务，同时隔离索引写权限 | 文档来源/检索 | 同一部署单元仍需独立路由、认证和限流 | 无 |
+| DEC-14 | 首期 Runtime→Java Tool 使用固定服务密钥 + Java 不透明短期执行凭据 + Java 服务端校验 | 立即建设 mTLS、OAuth2/JWT；仅固定密钥；仅内网信任 | 以较小开发量同时建立服务级身份与逐执行最小授权，并由 Java 保持授权权威 | Java Agent、Python Runtime、Tool API、安全审计 | 固定密钥泄漏影响整个 Runtime 服务；短期凭据被窃取后在有效窗口内可能重放 | 安全 L2 定义密钥轮换、凭据存储/撤销和测试；引入写能力或扩大信任边界时新建 ADR |
 
 ## 13. L1 下位文档治理计划
 
 | L1 文档 | 权威范围 | 必须承接的约束 | 关联 L1 | 下位 L2 | 顺序/前置 | 状态 |
 |---|---|---|---|---|---|---|
-| 规划路径：docs/design/agent/单体Agent应用与能力架构_L1_v0.1.md | Java Agent、Python Runtime、能力体系、Adapter、执行状态与 Java/Python 契约 | AD-01～AD-14、AD-16～AD-20；DEC-01～DEC-13 | 检索与索引 L1 | 契约治理、执行生命周期、QUERY/AGGREGATE、DOCUMENT 编排、Adapter、安全与可观测 L2 | L0 评审后优先编写 | 未创建 |
+| docs/design/agent/单体Agent应用与能力架构_L1_v0.1.md | Java Agent、Python Runtime、能力体系、Adapter、执行状态与 Java/Python 契约 | AD-01～AD-14、AD-16～AD-20；DEC-01～DEC-14 | 检索与索引 L1 | 契约治理、执行生命周期、QUERY/AGGREGATE、DOCUMENT 编排、Adapter、安全与可观测 L2 | 解除 `EB-L1-003` 后正式复评 | 已创建；已评审/评审受阻；当前仅剩 `EB-L1-003` |
 | 规划路径：docs/design/agent/检索与索引基础设施架构_L1_v0.1.md | 原子检索、索引/向量生命周期、ES Alias/重建、Embedding 和 ES 韧性 | AD-01、AD-06～AD-09、AD-13、AD-15～AD-20；DEC-04、DEC-05、DEC-07～DEC-08、DEC-10～DEC-13 | Agent 应用与能力 L1 | 查询/管理契约、索引生命周期、多路召回、权限过滤、Alias/回滚、性能与运维 L2 | 可与 Agent L1 并行草拟，授权/契约/取消边界联合评审 | 未创建 |
 
 DOCUMENT 不单独建立 L1。其业务编排在 Agent L1 下形成 DOCUMENT L2；原子召回、索引与向量实现由检索 L1 下的 L2 承接。
@@ -602,11 +619,11 @@ DOCUMENT 不单独建立 L1。其业务编排在 Agent L1 下形成 DOCUMENT L2�
 | 独立部署产生契约版本偏差 | Java、Python 或检索服务滚动升级时缺少兼容重叠 | readiness 误通过、请求失败或字段误解 | 中 | 制品指纹、兼容矩阵、readiness 和升级/回滚演练 | 契约/运维负责人 |
 | 权限泄漏 | 主体权限与资源属性混用、仅最终过滤、撤权延迟或引用未复核 | 敏感内容进入候选/模型/日志 | 中 | Auth 最终决策、资源属性分权、召回前不可扩大过滤、分层复核、撤权测试 | 安全/文档/Agent/检索负责人 |
 | 索引投毒或业务版本回退 | 查询凭据可写索引、管理请求越权/重复/乱序 | 错误或恶意内容进入检索与回答 | 中 | 查询/管理面隔离、服务身份、来源范围、幂等、单调版本和审计 | 文档/检索负责人 |
-| DOCUMENT 质量不可度量 | 没有固定语料、查询和标注集 | 参数调整无依据、错误上线 | 高 | L1 前建立评测集和指标门槛 | 产品/检索/AI 负责人 |
+| DOCUMENT 评价结果不可复现 | 临时指标与阈值已确认，但没有固定语料快照、问题样本、相关性/答案/权限标注和版本 | 相同参数在不同样本上得出不可比较结论，错误上线 | 高 | 正式复评前冻结评价集工件；按域/场景分层，统一指标公式、标注校准和版本 | 产品/检索/AI 负责人 |
 | ES 服务再次业务化 | 把 RRF、会话、LLM 或业务版本放入 ES 服务 | 边界膨胀、难以复用与测试 | 中 | L1 职责门禁和依赖扫描 | 检索负责人 |
 | SQL 人工执行环境漂移 | 脚本顺序、版本记录或校验缺失 | 启动失败、数据不一致 | 中 | 前进/回滚/校验脚本、版本登记、只读兼容检查 | DB 责任方 |
 | 本机镜像不可复现 | `latest` 镜像被更新或本机配置未记录 | 测试结果漂移 | 高 | 正式纳入依赖前固定镜像、配置和校验和 | 运维负责人 |
-| DeepSeek 数据边界或模型兼容性未验证 | 敏感上下文被发送、供应商留存策略不满足要求，或 `deepseek-v4-flash` 的工具调用/上下文/输出协议与模型端口不兼容 | 数据泄漏、合规风险、L1 返工或效果不稳定 | 中 | 最小化与脱敏、数据处理边界确认、Python 模型端口隔离、API 契约测试和效果 PoC | Dylan / Python AI / 安全负责人 |
+| DeepSeek 公开政策变化或应用侧数据策略失效 | 供应商调整收集、训练、存储、保留、关联方/服务商处理或缓存政策，或应用放行数据超出 DeepSeek 目标策略 | 合规偏差、数据泄露或被迫关闭能力 | 中 | 固化条款基线并在变更时复核；Java 白名单、转换、最小化和默认拒绝；不依赖供应商删除；持续执行契约与效果回归 | Dylan / Python AI / 安全负责人 |
 | 未来写能力误用读链路 | 直接复用只读 Tool 重试和权限模型 | 重复提交、事务和审计风险 | 中 | 写能力独立执行政策与 L1/L2 评审 | Agent 架构负责人 |
 
 ### 15.2 待决事项
@@ -615,11 +632,11 @@ DOCUMENT 不单独建立 L1。其业务编排在 Agent L1 下形成 DOCUMENT L2�
 
 | 问题 | 影响 | 建议决策角色 | 截止条件 | 是否阻塞当前 L0 |
 |---|---|---|---|---|
-| DeepSeek 数据处理边界、API 兼容性与效果 PoC（供应商/模型/API 已确认） | 模型端口实现、数据安全、效果和成本 | Dylan / Python AI / 安全负责人 | Agent L1 再次正式评审前 | 否；选型已完成，验证未完成 |
-| DOCUMENT 固定评测集与 Recall/NDCG/回答指标阈值 | 检索和生成验收 | 产品/检索/AI 负责人 | 两份 L1 正式评审前 | 否 |
+| DeepSeek 服务条款、数据使用策略、API 契约与 L1 最小效果 PoC | 供应商处理合规、模型端口实现、效果和成本 | Dylan / Python AI / 安全负责人 | 已完成：公开条款及数据使用策略已接受，4 项契约测试和 7 项 L1 最小效果 PoC 通过（2026-07-16） | 否；`EB-L1-001` 已关闭，政策变化与生产容量由后续门禁承接 |
+| DOCUMENT 固定评测集工件（临时指标与阈值已确认） | 检索和生成验收；阈值已有门禁，但尚无可复现样本基线 | 产品/检索/AI 负责人 | 两份 L1 正式复评前 | 否；指标与阈值已完成，评价集语料/样本/标注/版本证据未完成 |
 | 文档来源、稳定 ID、业务版本、资源访问属性和撤权事件契约 | 索引生命周期、授权组合与引用稳定性 | 文档域/安全/检索负责人 | 检索 L1 正式评审前 | 否 |
 | 生产 SLO、容量、网络与高可用拓扑 | 资源、限流、容灾和成本 | 运维/架构负责人 | 生产架构批准前 | 否 |
-| 内部服务身份与能力凭据具体机制 | Java/Python Tool API 安全 | 安全/Agent 负责人 | Agent L1 正式评审前 | 否 |
+| 内部服务身份与能力凭据具体机制 | Java/Python Tool API 安全 | Dylan / 安全 / Agent 负责人 | 已完成：固定服务密钥 + Java 不透明短期执行凭据 + Java 服务端校验（2026-07-16） | 否；已关闭，具体存储、轮换和撤销由安全 L2 承接 |
 | 各文档和模块的实名维护人 | 治理与问题归属 | 项目负责人 | 已完成：Dylan（2026-07-16） | 否；已关闭 |
 
 ## 16. 约束追踪与验证
@@ -635,7 +652,7 @@ DOCUMENT 不单独建立 L1。其业务编排在 Agent L1 下形成 DOCUMENT L2�
 | AD-18 | Agent 应用与能力；检索 L1 承接 deadline | 终态状态机、执行栅栏、取消传播、迟到回调和竞争测试 | 待 L1 |
 | AD-19 | 两份 L1 | 契约版本/指纹、兼容矩阵、readiness、升级与回滚测试 | 待 L1 |
 | AD-20 | 两份 L1 | 查询/管理面契约、服务身份、幂等、乱序和索引写入越权测试 | 待 L1 |
-| DEC-01～DEC-13 | 按第 13 节映射 | L1 决策映射表、L2 交付及测试证据 | 待 L1 |
+| DEC-01～DEC-14 | 按第 13 节映射 | L1 决策映射表、L2 交付及测试证据 | 待 L1；DEC-14 已由 Agent L1 承接，待正式复评 |
 
 L1 文档不得仅复制约束文本，必须给出本域实现方式、责任组件、失败边界和下位验证证据。
 
@@ -669,7 +686,7 @@ L1 文档不得仅复制约束文本，必须给出本域实现方式、责任�
 | Python AI | Python 3.12、LangGraph 1.x LTS、FastAPI、Pydantic 2.x、Uvicorn、httpx | 独立 venv/锁文件；不使用全局旧包；首期无持久 Checkpointer |
 | 契约 | Springdoc 2.8.x、OpenAPI、`datamodel-code-generator`、OpenAPI Generator Python Client | 生成物只读；Java 源规范与 Python 运行时契约必须一致 |
 | 检索 | Elasticsearch 9.4.1、官方 Java Client 9.4.x、BM25/Dense/可选 Sparse | 原子检索/索引；RRF 和 Reranker 不进入 ES 服务 |
-| 模型 | BGE-M3 Embedding、BGE Reranker v2 M3；DeepSeek `deepseek-v4-flash`，API Base URL `https://api.deepseek.com` | 通过稳定端口隔离；模型输出不可信并需校验；DeepSeek 数据处理边界、兼容性与效果 PoC 未完成 |
+| 模型 | BGE-M3 Embedding、BGE Reranker v2 M3；DeepSeek `deepseek-v4-flash`，API Base URL `https://api.deepseek.com` | 通过稳定端口隔离；模型输出不可信并需校验；公开服务条款及数据使用策略已接受，4 项 API 契约测试和 7 项 L1 最小效果 PoC 已通过；政策变化、生产容量及正式回归由后续门禁承接 |
 | 数据库 | MySQL、MyBatis、SQL 脚本交付 | 无 Flyway/Liquibase；DB 方执行并登记版本 |
 | 可观测 | 结构化日志、W3C 上下文、Telemetry Port + No-op | 本轮无指标/追踪后端；后续适配器式接入 |
 | 中间件 | Redis/Kafka/RocketMQ 暂不作为核心依赖 | 有明确异步、缓存或事件需求且完成 L1 决策后再引入 |
@@ -688,6 +705,7 @@ L1 文档不得仅复制约束文本，必须给出本域实现方式、责任�
 
 ### 18.3 参考依据
 
-- 2026-07-16 用户确认的需求、架构文档层级、技术选型与环境约束；用户后续确认 DeepSeek `deepseek-v4-flash`、API Base URL `https://api.deepseek.com` 及维护人 Dylan；
+- 2026-07-16 用户确认的需求、架构文档层级、技术选型与环境约束；用户后续确认 DeepSeek `deepseek-v4-flash`、API Base URL `https://api.deepseek.com`、测试环境 LLM Provider 连通性通过、公开服务条款及数据使用策略可接受，以及维护人 Dylan；
 - 本机只读核实的 Java/Python/DB/ES/BGE/Docker 测试环境；
+- DeepSeek [官方隐私政策](https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html)、[开放平台服务条款](https://cdn.deepseek.com/policies/en-US/deepseek-open-platform-terms-of-service.html)、[上下文缓存说明](https://api-docs.deepseek.com/guides/kv_cache/)、[Chat Completion API](https://api-docs.deepseek.com/api/create-chat-completion/) 与[错误码文档](https://api-docs.deepseek.com/quick_start/error_codes/)的 2026-07-16 核验快照；API 与效果实测摘要见 Agent L1 第 16.3～16.4 节；
 - LangGraph、Springdoc、OpenAPI Generator、Elasticsearch Java Client 和 OpenTelemetry 的官方文档，仅用于验证技术可行性，不构成外部架构权威。
