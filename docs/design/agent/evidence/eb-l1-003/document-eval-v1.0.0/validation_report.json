@@ -1,0 +1,26 @@
+{
+  "validation_type": "dataset_integrity",
+  "dataset_version": "1.0.0-synthetic",
+  "validated_at": "2026-07-16",
+  "result": "pass",
+  "checks": {
+    "json_and_jsonl_parse": "pass",
+    "corpus_chunk_count": 60,
+    "evaluation_case_count": 26,
+    "unique_chunk_ids": "pass",
+    "unique_case_ids": "pass",
+    "all_references_resolve": "pass",
+    "answerable_case_qrels_non_empty": "pass",
+    "answerable_references_authorized_for_subject": "pass",
+    "answerable_references_valid_at_as_of": "pass",
+    "revoked_references_excluded_from_answerable_cases": "pass",
+    "expected_refusal_cases": 6,
+    "answerable_cases": 20,
+    "required_scenario_count": 8,
+    "covered_domain_count": 3,
+    "manifest_and_report_schema_versions_match": "pass"
+  },
+  "performance_quality_gates_executed": false,
+  "performance_quality_gates_result": "not_run",
+  "notes": "本报告仅证明固定评价包结构与标注完整，不代表被测系统达到9项质量门禁。"
+}

@@ -1,0 +1,31 @@
+{
+  "validation_type": "dataset_and_report_contract_integrity",
+  "dataset_version": "2.0.0-synthetic",
+  "report_schema_version": "2.0.0",
+  "validated_at": "2026-07-16",
+  "result": "pass",
+  "checks": {
+    "json_and_jsonl_parse": "pass",
+    "corpus_chunk_count": 60,
+    "evaluation_case_count": 26,
+    "corpus_identical_to_1_0_0": "pass",
+    "evaluation_cases_identical_to_1_0_0": "pass",
+    "unique_chunk_ids": "pass",
+    "unique_case_ids": "pass",
+    "all_references_resolve": "pass",
+    "sha256_checksums": "pass",
+    "stratified_results_required_by_schema": "pass",
+    "case_metric_evidence_is_structured": "pass",
+    "validator_pack_check": "pass",
+    "validator_accepts_recomputed_valid_report": "pass",
+    "validator_rejects_duplicate_case_id": "pass",
+    "validator_rejects_tampered_aggregate": "pass",
+    "validator_rejects_missing_stratification": "pass",
+    "validator_rejects_unreported_security_event": "pass"
+  },
+  "schema_engine": "deterministic-no-third-party",
+  "jsonschema_library_available": false,
+  "performance_quality_gates_executed": false,
+  "performance_quality_gates_result": "not_run",
+  "notes": "本报告证明评价包和重算验证器完整；未运行真实被测系统，亦不声明生产质量达标。"
+}

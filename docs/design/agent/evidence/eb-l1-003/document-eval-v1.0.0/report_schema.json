@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codex:agent:document-eval-report:1.0.0",
+  "title": "DOCUMENT Evaluation Report 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["report_version", "dataset_version", "run_id", "run_at", "system_under_test", "aggregate", "case_results", "gate_result"],
+  "properties": {
+    "report_version": {"const": "1.0.0"},
+    "dataset_version": {"const": "1.0.0-synthetic"},
+    "run_id": {"type": "string", "minLength": 1},
+    "run_at": {"type": "string", "format": "date-time"},
+    "system_under_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_version", "model_version", "retrieval_config_version"],
+      "properties": {
+        "artifact_version": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "retrieval_config_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recall_at_50", "ndcg_at_10", "factual_support_rate", "key_point_coverage", "citation_precision", "factual_claim_citation_coverage", "should_refuse_recall", "false_refusal_rate", "unauthorized_citation_or_leak_count"],
+      "properties": {
+        "recall_at_50": {"type": "number", "minimum": 0, "maximum": 1},
+        "ndcg_at_10": {"type": "number", "minimum": 0, "maximum": 1},
+        "factual_support_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "key_point_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "citation_precision": {"type": "number", "minimum": 0, "maximum": 1},
+        "factual_claim_citation_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "should_refuse_recall": {"type": "number", "minimum": 0, "maximum": 1},
+        "false_refusal_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "unauthorized_citation_or_leak_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "case_results": {
+      "type": "array",
+      "minItems": 26,
+      "maxItems": 26,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["case_id", "retrieved_chunks", "model_input_chunks", "answer", "citations", "refused", "refusal_reason", "metric_evidence", "security_events"],
+        "properties": {
+          "case_id": {"type": "string", "pattern": "^DOC-EVAL-[0-9]{3}$"},
+          "retrieved_chunks": {"type": "array", "items": {"type": "string"}},
+          "model_input_chunks": {"type": "array", "items": {"type": "string"}},
+          "answer": {"type": "string"},
+          "citations": {"type": "array", "items": {"type": "string"}},
+          "refused": {"type": "boolean"},
+          "refusal_reason": {"type": ["string", "null"], "enum": ["insufficient_evidence", "unauthorized", "revoked", null]},
+          "metric_evidence": {"type": "object"},
+          "security_events": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
+    "stratified_results": {"type": "object"},
+    "gate_result": {"type": "string", "enum": ["pass", "fail"]},
+    "failed_gates": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "string"}
+  }
+}

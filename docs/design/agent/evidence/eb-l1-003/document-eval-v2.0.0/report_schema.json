@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codex:agent:document-eval-report:2.0.0",
+  "title": "DOCUMENT Evaluation Report 2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_version",
+    "dataset_version",
+    "run_id",
+    "run_at",
+    "system_under_test",
+    "aggregate",
+    "stratified_results",
+    "case_results",
+    "gate_result",
+    "failed_gates"
+  ],
+  "properties": {
+    "report_version": {"const": "2.0.0"},
+    "dataset_version": {"const": "2.0.0-synthetic"},
+    "run_id": {"type": "string", "minLength": 1},
+    "run_at": {"type": "string", "format": "date-time"},
+    "system_under_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_version", "model_version", "retrieval_config_version"],
+      "properties": {
+        "artifact_version": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "retrieval_config_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "aggregate": {"$ref": "#/$defs/aggregateMetrics"},
+    "stratified_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by_domain", "by_scenario", "by_tag"],
+      "properties": {
+        "by_domain": {"$ref": "#/$defs/stratumMap"},
+        "by_scenario": {"$ref": "#/$defs/stratumMap"},
+        "by_tag": {"$ref": "#/$defs/stratumMap"}
+      }
+    },
+    "case_results": {
+      "type": "array",
+      "minItems": 26,
+      "maxItems": 26,
+      "items": {"$ref": "#/$defs/caseResult"}
+    },
+    "gate_result": {"type": "string", "enum": ["pass", "fail"]},
+    "failed_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/gateName"}
+    },
+    "notes": {"type": "string"}
+  },
+  "$defs": {
+    "gateName": {
+      "type": "string",
+      "enum": [
+        "recall_at_50",
+        "ndcg_at_10",
+        "factual_support_rate",
+        "key_point_coverage",
+        "citation_precision",
+        "factual_claim_citation_coverage",
+        "should_refuse_recall",
+        "false_refusal_rate",
+        "unauthorized_citation_or_leak_count"
+      ]
+    },
+    "aggregateMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recall_at_50",
+        "ndcg_at_10",
+        "factual_support_rate",
+        "key_point_coverage",
+        "citation_precision",
+        "factual_claim_citation_coverage",
+        "should_refuse_recall",
+        "false_refusal_rate",
+        "unauthorized_citation_or_leak_count"
+      ],
+      "properties": {
+        "recall_at_50": {"type": "number", "minimum": 0, "maximum": 1},
+        "ndcg_at_10": {"type": "number", "minimum": 0, "maximum": 1},
+        "factual_support_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "key_point_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "citation_precision": {"type": "number", "minimum": 0, "maximum": 1},
+        "factual_claim_citation_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "should_refuse_recall": {"type": "number", "minimum": 0, "maximum": 1},
+        "false_refusal_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "unauthorized_citation_or_leak_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "stratumMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recall_at_50",
+        "ndcg_at_10",
+        "factual_support_rate",
+        "key_point_coverage",
+        "citation_precision",
+        "factual_claim_citation_coverage",
+        "should_refuse_recall",
+        "false_refusal_rate",
+        "unauthorized_citation_or_leak_count"
+      ],
+      "properties": {
+        "recall_at_50": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "ndcg_at_10": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "factual_support_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "key_point_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "citation_precision": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "factual_claim_citation_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "should_refuse_recall": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "false_refusal_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "unauthorized_citation_or_leak_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "stratumResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_ids", "case_count", "answerable_case_count", "refusal_case_count", "metrics"],
+      "properties": {
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^DOC-EVAL-[0-9]{3}$"}
+        },
+        "case_count": {"type": "integer", "minimum": 1},
+        "answerable_case_count": {"type": "integer", "minimum": 0},
+        "refusal_case_count": {"type": "integer", "minimum": 0},
+        "metrics": {"$ref": "#/$defs/stratumMetrics"}
+      }
+    },
+    "stratumMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/stratumResult"}
+    },
+    "metricEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factual_claim_count",
+        "supported_factual_claim_count",
+        "cited_factual_claim_count",
+        "valid_direct_citation_count",
+        "covered_required_point_ids"
+      ],
+      "properties": {
+        "factual_claim_count": {"type": "integer", "minimum": 0},
+        "supported_factual_claim_count": {"type": "integer", "minimum": 0},
+        "cited_factual_claim_count": {"type": "integer", "minimum": 0},
+        "valid_direct_citation_count": {"type": "integer", "minimum": 0},
+        "covered_required_point_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "evaluator_notes": {"type": "string"}
+      }
+    },
+    "securityEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_type", "chunk_id", "evidence"],
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "unauthorized_retrieval",
+            "unauthorized_model_input",
+            "revoked_retrieval",
+            "revoked_model_input",
+            "temporal_mismatch",
+            "forbidden_citation",
+            "protected_content_leak"
+          ]
+        },
+        "chunk_id": {"type": ["string", "null"]},
+        "evidence": {"type": "string", "minLength": 1}
+      }
+    },
+    "caseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "retrieved_chunks",
+        "model_input_chunks",
+        "answer",
+        "citations",
+        "refused",
+        "refusal_reason",
+        "metric_evidence",
+        "security_events"
+      ],
+      "properties": {
+        "case_id": {"type": "string", "pattern": "^DOC-EVAL-[0-9]{3}$"},
+        "retrieved_chunks": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "model_input_chunks": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "answer": {"type": "string"},
+        "citations": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "refused": {"type": "boolean"},
+        "refusal_reason": {
+          "type": ["string", "null"],
+          "enum": ["insufficient_evidence", "unauthorized", "revoked", null]
+        },
+        "metric_evidence": {"$ref": "#/$defs/metricEvidence"},
+        "security_events": {"type": "array", "items": {"$ref": "#/$defs/securityEvent"}}
+      }
+    }
+  }
+}
