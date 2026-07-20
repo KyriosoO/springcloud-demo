@@ -294,7 +294,7 @@ function Get-ReferenceClassifications {
       $classifications.must_archive_history += $relative
     } elseif ($relative -match '^docs/' -or $relative -in @('scripts/verify-agent-baseline-isolation.ps1', 'scripts/verify-agent-external-consumer-exit.ps1')) {
       $classifications.evidence_only += $relative
-    } elseif ($content -match '(?i)(agent|es|document-(?:provider|generation))[-\w]*_alpha') {
+    } elseif ($content -match '(?i)(agent-adapter-(?:api|document|employee|transaction)|agent-api|agent-runtime|agent-service|es-query-(?:api|service)|document-provider-adapter|document-generation-adapter)_alpha(?![A-Za-z0-9_])') {
       $classifications.forbidden_active_alpha_reference += $relative
     } else {
       $classifications.must_remain_target += $relative
