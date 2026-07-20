@@ -34,9 +34,9 @@ $Maven = if ($IsWindows) {
   Join-Path $RepoRoot 'serviceCenter/mvnw'
 }
 $ExpectedDesignHashes = [ordered]@{
-  overview = '21ED707E698FD4908B45C7B9CFCE90392E169012F6F0B4C05181D7FD99166499'
-  isolation = 'F58ECC9FCDB622BAE0E366E593A503B22FF3589248880E0EB61D922CB454FF90'
-  exitDesign = 'DE4C9AE0B26096E960A8FFA5058894AE5800B6FBADE1FF852C040835538E9206'
+  overview = 'B3EFEECBF534B234F4A5D2CB3EBADEBE1594636F157ECF25D4353E20CD677BE0'
+  isolation = 'F9CCDF6987884A654AC46DC336B5C7F209107093A1842D440A3F85D85551141C'
+  exitDesign = '108856C320E35234B445ECA1044959FB276464F5BEEA3882A64E30621C1FA9CD'
 }
 
 if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt 7) {
@@ -650,6 +650,7 @@ function Invoke-PostApply {
   $changed = @(Get-ChangedPaths)
   $allowed = @(
     'auth-service/src/main/resources/static/home.html',
+    'docs/design/agent/L2/00_单体Agent目标架构L2实施详细设计总览_v1.0.md',
     'docs/design/agent/L2/02_目标基线隔离与迁移门禁_L2实施详细设计_v1.0.md',
     'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0.md',
     'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0_代码评审报告.md',

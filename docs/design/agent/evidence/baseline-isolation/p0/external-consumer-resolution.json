@@ -4,11 +4,11 @@
   "chosenSolution": "SCHEME_B_ACTIVE_BASELINE_EXIT",
   "baselineCommit": "f0e32f05c7f03372bd8761171da88c723f213d3b",
   "bootstrapScriptHash": "443024606F4F3A4EAB5821156E4E8F6ABDCC92BCB2E5D171B6CE6A542BB32F02",
-  "verifierScriptHash": "03C73909136ADB8DFEC9502C5BCBD95F1C617A51B2B4CC849568678656BEB8B0",
+  "verifierScriptHash": "F5DD3A31722F789548FD502C20DAEC81A8CCD6B8D88A46D27DEFC88F5A0EFF16",
   "designHashes": {
-    "overview": "21ED707E698FD4908B45C7B9CFCE90392E169012F6F0B4C05181D7FD99166499",
-    "isolation": "F58ECC9FCDB622BAE0E366E593A503B22FF3589248880E0EB61D922CB454FF90",
-    "exitDesign": "DE4C9AE0B26096E960A8FFA5058894AE5800B6FBADE1FF852C040835538E9206"
+    "overview": "B3EFEECBF534B234F4A5D2CB3EBADEBE1594636F157ECF25D4353E20CD677BE0",
+    "isolation": "F9CCDF6987884A654AC46DC336B5C7F209107093A1842D440A3F85D85551141C",
+    "exitDesign": "108856C320E35234B445ECA1044959FB276464F5BEEA3882A64E30621C1FA9CD"
   },
   "authorizationRef": "USER-20260720-AUTH-IMPLEMENT-02A-SCHEME-B",
   "impactAcceptanceRef": "USER-20260720-AUTH-IMPLEMENT-02A-SCHEME-B",
@@ -113,29 +113,29 @@
       "command": ".\\serviceCenter\\mvnw.cmd -f .\\serviceCenter\\pom.xml --batch-mode -DskipTests install",
       "status": "PASSED",
       "result": "complete 28-module reactor passed; employee-service absent; document-provider-adapter passed",
-      "outputSha256": "4782205DDCF2A2729FE312CEE50F83A613045743FCB3E964884A0B3D8B6B1F86",
-      "startedAt": "2026-07-20T12:27:38.2215169+00:00",
-      "completedAt": "2026-07-20T12:27:46.4970242+00:00"
+      "outputSha256": "AF4AF95F7668E809AE1D58E2A0354BB469EC7F762CA4689312D43EF7E5AC28F4",
+      "startedAt": "2026-07-20T12:42:26.3308560+00:00",
+      "completedAt": "2026-07-20T12:42:34.5372089+00:00"
     },
     {
       "command": ".\\serviceCenter\\mvnw.cmd -f .\\serviceCenter\\pom.xml --batch-mode -pl ../gateway-service -am test",
       "status": "PASSED",
       "result": "common-security and gateway-service tests passed, including GatewayEmployeeRouteExitTest",
-      "outputSha256": "6C46B5FFBA9D16F21FF09B4F7F56521E8E120E6B6ADB192D3E662166A789CDCB",
-      "startedAt": "2026-07-20T12:27:46.4977059+00:00",
-      "completedAt": "2026-07-20T12:27:52.9973994+00:00"
+      "outputSha256": "419A602654B37420416B7C57E65CA4ABFF6C97A3FDEA7A9FB7E5630D969111FE",
+      "startedAt": "2026-07-20T12:42:34.5380269+00:00",
+      "completedAt": "2026-07-20T12:42:40.6524206+00:00"
     },
     {
       "command": ".\\serviceCenter\\mvnw.cmd -f .\\serviceCenter\\pom.xml --batch-mode -DskipTests -Dincludes=com.dylan:employee-service,com.dylan:employee-service_alpha dependency:tree",
       "status": "PASSED",
       "result": "active reactor dependency trees contain no employee-service or employee-service_alpha artifact",
-      "outputSha256": "9FA86B14BF18DEBECCF05CB1CA21323C3204CBCEB290B94544C90AACC42C68F3",
-      "startedAt": "2026-07-20T12:27:52.9975028+00:00",
-      "completedAt": "2026-07-20T12:27:57.6624740+00:00"
+      "outputSha256": "B8F9A2E2EBB1AFC051B295B6A1279D25C29CBD830816F4F515BD8B22B1859FE8",
+      "startedAt": "2026-07-20T12:42:40.6525201+00:00",
+      "completedAt": "2026-07-20T12:42:45.1619112+00:00"
     }
   ],
   "startedAt": "2026-07-20T17:51:20.5023049+08:00",
-  "completedAt": "2026-07-20T12:27:58.3421027+00:00",
+  "completedAt": "2026-07-20T12:42:45.7842273+00:00",
   "failureCodes": [],
   "validationAttempts": [
     {
@@ -174,7 +174,7 @@
     },
     {
       "path": "scripts/verify-agent-external-consumer-exit.ps1",
-      "sha256": "03C73909136ADB8DFEC9502C5BCBD95F1C617A51B2B4CC849568678656BEB8B0"
+      "sha256": "F5DD3A31722F789548FD502C20DAEC81A8CCD6B8D88A46D27DEFC88F5A0EFF16"
     },
     {
       "path": "gateway-service/src/test/java/com/dylan/springgateway/config/GatewayEmployeeRouteExitTest.java",
