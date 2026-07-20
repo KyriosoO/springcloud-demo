@@ -2,12 +2,13 @@
   "schemaVersion": "1.0",
   "resolutionId": "DB-02-001-SCHEME-B-20260720",
   "chosenSolution": "SCHEME_B_ACTIVE_BASELINE_EXIT",
-  "baselineCommit": "2a9939f955fe2dc000b2b2617689468fd3489474",
+  "baselineCommit": "f0e32f05c7f03372bd8761171da88c723f213d3b",
   "bootstrapScriptHash": "443024606F4F3A4EAB5821156E4E8F6ABDCC92BCB2E5D171B6CE6A542BB32F02",
+  "verifierScriptHash": "EBC030A7373E43B5E86BD915154A3C6494D2CF01FE9112CE2A5F5533FBD84B95",
   "designHashes": {
     "overview": "21ED707E698FD4908B45C7B9CFCE90392E169012F6F0B4C05181D7FD99166499",
     "isolation": "A0D587C362667AD2CFED256A444FDAF006596778A3A71E39EF3C15387006BC73",
-    "exitDesign": "8CE1DB4FEE1F7C5B4689BDA438323557A30FE7F03EE40BA12F86AC897C8C602D"
+    "exitDesign": "A477AB95F9248306264910D7D49D5B140D450A770F13D0B027BB3DA339446D7F"
   },
   "authorizationRef": "USER-20260720-AUTH-IMPLEMENT-02A-SCHEME-B",
   "impactAcceptanceRef": "USER-20260720-AUTH-IMPLEMENT-02A-SCHEME-B",
@@ -98,7 +99,7 @@
     {
       "id": "TEST-007",
       "status": "PASSED",
-      "detail": "report bound to current design hashes, baseline HEAD, authorization, and result manifest"
+      "detail": "report publication closes DB-02-001 and is bound to current design hashes, baseline HEAD, authorization, and result manifest; P0 Preflight only revalidates and gates"
     }
   ],
   "toolVersions": {
@@ -112,29 +113,29 @@
       "command": ".\\serviceCenter\\mvnw.cmd -f .\\serviceCenter\\pom.xml --batch-mode -DskipTests install",
       "status": "PASSED",
       "result": "complete 28-module reactor passed; employee-service absent; document-provider-adapter passed",
-      "outputSha256": "BECA181484C59E8C4AF1DED8286D3D7B431E25BB0987032C16724AE158B44BD3",
-      "startedAt": "2026-07-20T10:29:25.3110066+00:00",
-      "completedAt": "2026-07-20T10:29:33.7389731+00:00"
+      "outputSha256": "F11492DD45588ED6C416B662D14228FAC8B27D5A3B1C73C4372E07EB0DBD7C64",
+      "startedAt": "2026-07-20T11:30:55.7225442+00:00",
+      "completedAt": "2026-07-20T11:31:03.3868940+00:00"
     },
     {
       "command": ".\\serviceCenter\\mvnw.cmd -f .\\serviceCenter\\pom.xml --batch-mode -pl ../gateway-service -am test",
       "status": "PASSED",
       "result": "common-security and gateway-service tests passed, including GatewayEmployeeRouteExitTest",
-      "outputSha256": "BD11BA646F832E3326444302379C2C342A82E9337E548B4930C770D0992AC06E",
-      "startedAt": "2026-07-20T10:29:33.7396214+00:00",
-      "completedAt": "2026-07-20T10:29:39.6080981+00:00"
+      "outputSha256": "010B6FEC87B7998A071A123666E551ABD281C10373DAFA2F0E30E16E729C1877",
+      "startedAt": "2026-07-20T11:31:03.3875047+00:00",
+      "completedAt": "2026-07-20T11:31:09.3906955+00:00"
     },
     {
       "command": ".\\serviceCenter\\mvnw.cmd -f .\\serviceCenter\\pom.xml --batch-mode -DskipTests -Dincludes=com.dylan:employee-service,com.dylan:employee-service_alpha dependency:tree",
       "status": "PASSED",
       "result": "active reactor dependency trees contain no employee-service or employee-service_alpha artifact",
-      "outputSha256": "320FD71980F0B1783D48E92A3A6D257E5447B4A4E638905FA58EA136BDECCA42",
-      "startedAt": "2026-07-20T10:29:39.6082518+00:00",
-      "completedAt": "2026-07-20T10:29:43.7135424+00:00"
+      "outputSha256": "0627E4C467C5C749D37D2D47A06416FA6F6DBFE1136AA63CFC60E7EAB7E3123B",
+      "startedAt": "2026-07-20T11:31:09.3907958+00:00",
+      "completedAt": "2026-07-20T11:31:13.6050659+00:00"
     }
   ],
   "startedAt": "2026-07-20T17:51:20.5023049+08:00",
-  "completedAt": "2026-07-20T10:29:44.3196711+00:00",
+  "completedAt": "2026-07-20T11:31:14.2268631+00:00",
   "failureCodes": [],
   "validationAttempts": [
     {
@@ -173,7 +174,7 @@
     },
     {
       "path": "scripts/verify-agent-external-consumer-exit.ps1",
-      "sha256": "50F4F56E97CFC6C06461B6CB5652A577A7A7839B1FABD7C02BA95612D8472DDF"
+      "sha256": "EBC030A7373E43B5E86BD915154A3C6494D2CF01FE9112CE2A5F5533FBD84B95"
     },
     {
       "path": "gateway-service/src/test/java/com/dylan/springgateway/config/GatewayEmployeeRouteExitTest.java",
@@ -182,11 +183,14 @@
   ],
   "status": "CONSUMER_EXIT_VERIFIED",
   "closureSemantics": "CLOSED_FOR_P0_BY_INACTIVITY",
+  "closureEstablishedBy": "CONSUMER_EXIT_VERIFIED_REPORT_PUBLICATION",
+  "p0PreflightRole": "REVALIDATE_AND_GATE_ONLY",
   "recoveryPolicy": "P0_REPORT_GOVERNS",
   "assertions": [
     "employee-service was not deleted or renamed",
     "employee contracts were not migrated and employee functionality was not replaced",
     "no production shutdown or production readiness is asserted",
+    "02 P0 Preflight revalidates this closure evidence and does not create or change the DB-02-001 closure fact",
     "document-provider-adapter and document-generation-adapter remain governed by 02 P0"
   ]
 }

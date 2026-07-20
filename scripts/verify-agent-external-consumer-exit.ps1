@@ -36,7 +36,7 @@ $Maven = if ($IsWindows) {
 $ExpectedDesignHashes = [ordered]@{
   overview = '21ED707E698FD4908B45C7B9CFCE90392E169012F6F0B4C05181D7FD99166499'
   isolation = 'A0D587C362667AD2CFED256A444FDAF006596778A3A71E39EF3C15387006BC73'
-  exitDesign = '8CE1DB4FEE1F7C5B4689BDA438323557A30FE7F03EE40BA12F86AC897C8C602D'
+  exitDesign = 'A477AB95F9248306264910D7D49D5B140D450A770F13D0B027BB3DA339446D7F'
 }
 
 if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt 7) {
@@ -478,9 +478,14 @@ function Assert-ResolutionReportSchema {
   $consumer = @($Report.consumers)[0]
   $classificationNames = @($Report.referenceClassifications | ForEach-Object { $_.classification })
   $manifestPaths = @($Report.resultFileManifest | ForEach-Object { $_.path })
+  $verifierManifest = @($Report.resultFileManifest | Where-Object { $_.path -eq 'scripts/verify-agent-external-consumer-exit.ps1' })
   if ($Report.schemaVersion -ne '1.0' -or
       $Report.status -ne 'CONSUMER_EXIT_VERIFIED' -or
       $Report.closureSemantics -ne 'CLOSED_FOR_P0_BY_INACTIVITY' -or
+      $Report.closureEstablishedBy -ne 'CONSUMER_EXIT_VERIFIED_REPORT_PUBLICATION' -or
+      $Report.p0PreflightRole -ne 'REVALIDATE_AND_GATE_ONLY' -or
+      @($verifierManifest).Count -ne 1 -or
+      $Report.verifierScriptHash -ne $verifierManifest[0].sha256 -or
       @($Report.consumers).Count -ne 1 -or
       @($Report.referenceClassifications).Count -ne 3 -or
       @($classificationNames | Sort-Object -Unique).Count -ne 3 -or
@@ -598,6 +603,8 @@ function Invoke-PostApply {
   $changed = @(Get-ChangedPaths)
   $allowed = @(
     'auth-service/src/main/resources/static/home.html',
+    'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0.md',
+    'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0_代码评审报告.md',
     'gateway-service/src/main/java/com/dylan/springgateway/config/GatewayRouter.java',
     'gateway-service/src/test/java/com/dylan/springgateway/config/GatewayEmployeeRouteExitTest.java',
     'scripts/start-all-services.ps1',
@@ -623,6 +630,7 @@ function Invoke-PostApply {
     chosenSolution = 'SCHEME_B_ACTIVE_BASELINE_EXIT'
     baselineCommit = $head
     bootstrapScriptHash = $preflight.bootstrapScriptHash
+    verifierScriptHash = Get-Sha256 $ScriptPath
     designHashes = $designHashes
     authorizationRef = $preflight.authorizationRef
     impactAcceptanceRef = $preflight.impactAcceptanceRef
@@ -647,7 +655,7 @@ function Invoke-PostApply {
       [ordered]@{ id = 'TEST-004'; status = 'PASSED'; detail = 'Gateway tests passed; employee routes and default home entries are absent' },
       [ordered]@{ id = 'TEST-005'; status = 'PASSED'; detail = "employee-service unchanged: trackedFiles=$($sourceIntegrity.trackedFileCount), aggregateSha256=$($sourceIntegrity.aggregateSha256)" },
       [ordered]@{ id = 'TEST-006'; status = 'PASSED'; detail = 'tracked/untracked active-entry scan and dependency trees found no unclassified employee activation' },
-      [ordered]@{ id = 'TEST-007'; status = 'PASSED'; detail = 'report bound to current design hashes, baseline HEAD, authorization, and result manifest' }
+      [ordered]@{ id = 'TEST-007'; status = 'PASSED'; detail = 'report publication closes DB-02-001 and is bound to current design hashes, baseline HEAD, authorization, and result manifest; P0 Preflight only revalidates and gates' }
     )
     toolVersions = [ordered]@{
       powershell = $PSVersionTable.PSVersion.ToString()
@@ -664,11 +672,14 @@ function Invoke-PostApply {
     resultFileManifest = @(Get-ResultFileManifest)
     status = 'CONSUMER_EXIT_VERIFIED'
     closureSemantics = 'CLOSED_FOR_P0_BY_INACTIVITY'
+    closureEstablishedBy = 'CONSUMER_EXIT_VERIFIED_REPORT_PUBLICATION'
+    p0PreflightRole = 'REVALIDATE_AND_GATE_ONLY'
     recoveryPolicy = 'P0_REPORT_GOVERNS'
     assertions = @(
       'employee-service was not deleted or renamed',
       'employee contracts were not migrated and employee functionality was not replaced',
       'no production shutdown or production readiness is asserted',
+      '02 P0 Preflight revalidates this closure evidence and does not create or change the DB-02-001 closure fact',
       'document-provider-adapter and document-generation-adapter remain governed by 02 P0'
     )
   }
