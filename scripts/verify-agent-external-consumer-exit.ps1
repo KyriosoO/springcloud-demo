@@ -35,8 +35,8 @@ $Maven = if ($IsWindows) {
 }
 $ExpectedDesignHashes = [ordered]@{
   overview = '21ED707E698FD4908B45C7B9CFCE90392E169012F6F0B4C05181D7FD99166499'
-  isolation = 'A0D587C362667AD2CFED256A444FDAF006596778A3A71E39EF3C15387006BC73'
-  exitDesign = 'A477AB95F9248306264910D7D49D5B140D450A770F13D0B027BB3DA339446D7F'
+  isolation = 'F58ECC9FCDB622BAE0E366E593A503B22FF3589248880E0EB61D922CB454FF90'
+  exitDesign = 'DE4C9AE0B26096E960A8FFA5058894AE5800B6FBADE1FF852C040835538E9206'
 }
 
 if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt 7) {
@@ -55,6 +55,43 @@ function Invoke-Git {
     return @($result)
   } finally {
     Pop-Location
+  }
+}
+
+function Assert-GitAncestor {
+  param(
+    [Parameter(Mandatory)][string]$Ancestor,
+    [Parameter(Mandatory)][string]$Descendant
+  )
+
+  if ($Ancestor -notmatch '^[0-9a-fA-F]{40}$' -or $Descendant -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "DESIGN_BASELINE_CHANGED: commit identity must be a full 40-character SHA-1"
+  }
+
+  Push-Location $RepoRoot
+  try {
+    $result = @(& git -c core.quotepath=false merge-base --is-ancestor $Ancestor $Descendant 2>&1)
+    $exitCode = $LASTEXITCODE
+  } finally {
+    Pop-Location
+  }
+  if ($exitCode -eq 1) {
+    throw "DESIGN_BASELINE_CHANGED: baselineCommit=$Ancestor is not an ancestor of currentHead=$Descendant"
+  }
+  if ($exitCode -ne 0) {
+    throw "DESIGN_BASELINE_CHANGED: unable to verify baseline ancestry ($exitCode): $($result -join "`n")"
+  }
+}
+
+function Assert-EmployeeBaselineIntegrity {
+  param(
+    [Parameter(Mandatory)][string]$BaselineCommit,
+    [Parameter(Mandatory)][string]$CurrentCommit
+  )
+
+  $committedChanges = @(Invoke-Git @('diff', '--name-only', "$BaselineCommit..$CurrentCommit", '--', 'employee-service'))
+  if ($committedChanges.Count -gt 0) {
+    throw "INACTIVE_ASSET_CHANGED: employee-service changed after baselineCommit=$BaselineCommit"
   }
 }
 
@@ -250,7 +287,11 @@ function Assert-NoEmployeeChanges {
 }
 
 function Get-EmployeeSourceIntegrity {
+  param([Parameter(Mandatory)][string]$BaselineCommit)
+
   Assert-NoEmployeeChanges
+  $head = (@(Invoke-Git @('rev-parse', 'HEAD'))[0]).Trim()
+  Assert-EmployeeBaselineIntegrity -BaselineCommit $BaselineCommit -CurrentCommit $head
   $trackedFiles = @(Invoke-Git @('ls-files', '--', 'employee-service') | Sort-Object)
   if ($trackedFiles.Count -eq 0) {
     throw 'INACTIVE_ASSET_CHANGED: employee-service has no tracked files'
@@ -266,7 +307,7 @@ function Get-EmployeeSourceIntegrity {
     status = 'UNCHANGED'
     trackedFileCount = $trackedFiles.Count
     aggregateSha256 = Get-TextSha256 ($manifestLines -join "`n")
-    comparison = 'working tree versus baseline HEAD; no tracked diff or untracked file'
+    comparison = 'working tree is clean and committed employee-service tree is unchanged since baselineCommit'
   }
 }
 
@@ -438,6 +479,7 @@ function Get-PostApplyContext {
     if ($state.status -ne 'EXIT_PREFLIGHT_PASSED') {
       throw 'EXIT_PREFLIGHT_FAILED: invalid Preflight state'
     }
+    $state | Add-Member -NotePropertyName contextKind -NotePropertyValue 'PREFLIGHT_STATE' -Force
     return $state
   }
   if (-not (Test-Path -LiteralPath $OutputAbsolute -PathType Leaf)) {
@@ -462,6 +504,7 @@ function Get-PostApplyContext {
   }
   return [pscustomobject]@{
     status = 'EXIT_PREFLIGHT_PASSED'
+    contextKind = 'VERIFIED_REPORT_REFRESH'
     baselineCommit = $existing.baselineCommit
     authorizationRef = $existing.authorizationRef
     impactAcceptanceRef = $existing.impactAcceptanceRef
@@ -591,11 +634,15 @@ function Invoke-PostApply {
   $preflight = Get-PostApplyContext -StatePath $statePath -OutputAbsolute $outputAbsolute
   $designHashes = Assert-DesignBaseline
   $head = (@(Invoke-Git @('rev-parse', 'HEAD'))[0]).Trim()
-  if ($head -ne $preflight.baselineCommit) {
-    throw "DESIGN_BASELINE_CHANGED: Preflight head=$($preflight.baselineCommit) actual=$head"
+  if ($preflight.contextKind -eq 'PREFLIGHT_STATE') {
+    if ($head -ne $preflight.baselineCommit) {
+      throw "DESIGN_BASELINE_CHANGED: Preflight head=$($preflight.baselineCommit) actual=$head"
+    }
+  } else {
+    Assert-GitAncestor -Ancestor $preflight.baselineCommit -Descendant $head
   }
   Assert-StaticExitState
-  $sourceIntegrity = Get-EmployeeSourceIntegrity
+  $sourceIntegrity = Get-EmployeeSourceIntegrity -BaselineCommit $preflight.baselineCommit
   $referenceClassifications = @(Get-EmployeeReferenceClassifications)
   $allowedReferencePaths = @($referenceClassifications | ForEach-Object { $_.evidencePaths } | Sort-Object -Unique)
   Assert-NoOtherActiveEntry -AllowedReferencePaths $allowedReferencePaths
@@ -603,6 +650,7 @@ function Invoke-PostApply {
   $changed = @(Get-ChangedPaths)
   $allowed = @(
     'auth-service/src/main/resources/static/home.html',
+    'docs/design/agent/L2/02_目标基线隔离与迁移门禁_L2实施详细设计_v1.0.md',
     'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0.md',
     'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0_代码评审报告.md',
     'gateway-service/src/main/java/com/dylan/springgateway/config/GatewayRouter.java',
@@ -628,7 +676,7 @@ function Invoke-PostApply {
     schemaVersion = '1.0'
     resolutionId = $ResolutionId
     chosenSolution = 'SCHEME_B_ACTIVE_BASELINE_EXIT'
-    baselineCommit = $head
+    baselineCommit = $preflight.baselineCommit
     bootstrapScriptHash = $preflight.bootstrapScriptHash
     verifierScriptHash = Get-Sha256 $ScriptPath
     designHashes = $designHashes
@@ -719,9 +767,8 @@ function Invoke-RecoveryCheck {
   Assert-ResolutionReportSchema $report
   Assert-ResultFileManifestCurrent $report
   $head = (@(Invoke-Git @('rev-parse', 'HEAD'))[0]).Trim()
-  if ($report.baselineCommit -ne $head) {
-    throw "DESIGN_BASELINE_CHANGED: report head=$($report.baselineCommit) actual=$head"
-  }
+  Assert-GitAncestor -Ancestor $report.baselineCommit -Descendant $head
+  Assert-EmployeeBaselineIntegrity -BaselineCommit $report.baselineCommit -CurrentCommit $head
   $currentDesignHashes = Assert-DesignBaseline
   foreach ($key in $ExpectedDesignHashes.Keys) {
     if ($report.designHashes.$key -ne $currentDesignHashes[$key]) {
