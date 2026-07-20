@@ -300,7 +300,7 @@ function Get-ReferenceClassifications {
       $classifications.must_remain_target += $relative
     }
   }
-  foreach ($key in $classifications.Keys) { $classifications[$key] = @($classifications[$key] | Sort-Object -Unique) }
+  foreach ($key in @($classifications.Keys)) { $classifications[$key] = @($classifications[$key] | Sort-Object -Unique) }
   if ($classifications.forbidden_active_alpha_reference.Count -gt 0) {
     throw "ACTIVE_ALPHA_REFERENCE_FORBIDDEN: $($classifications.forbidden_active_alpha_reference -join ',')"
   }
