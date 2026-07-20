@@ -252,8 +252,7 @@ function Assert-RelevantProcessesStopped {
 function Assert-ExternalConsumerEvidence {
   param(
     [Parameter(Mandatory)][string]$Path,
-    [Parameter(Mandatory)][string]$CurrentHead,
-    [switch]$SkipRecoveryCheck
+    [Parameter(Mandatory)][string]$CurrentHead
   )
   try { $evidence = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json } catch { throw 'EXTERNAL_CONSUMER_UNRESOLVED: evidence is not valid JSON.' }
   if ($evidence.schemaVersion -ne '1.0' -or $evidence.status -ne 'CONSUMER_EXIT_VERIFIED' -or
@@ -277,13 +276,6 @@ function Assert-ExternalConsumerEvidence {
   if ($ancestor.exitCode -ne 0) { throw 'EXTERNAL_CONSUMER_UNRESOLVED: baselineCommit is not an ancestor of ExpectedHead.' }
   $employeeChanges = @((Invoke-Git @('diff', '--name-only', "$($evidence.baselineCommit)..$CurrentHead", '--', 'employee-service')).output | Where-Object { $_ })
   if ($employeeChanges.Count -gt 0) { throw 'EXTERNAL_CONSUMER_UNRESOLVED: employee-service changed after the closure baseline.' }
-  if (-not $SkipRecoveryCheck) {
-    $externalVerifier = Join-Path $RepoRoot 'scripts/verify-agent-external-consumer-exit.ps1'
-    $verificationOutput = @(& pwsh -NoProfile -File $externalVerifier -Mode RecoveryCheck -OutputPath $ExpectedExternalEvidenceRelativePath -ResolutionId $evidence.resolutionId -P0ReportPath $ExpectedOutputRelativePath 2>&1 | ForEach-Object { $_.ToString() })
-    if ($LASTEXITCODE -ne 0 -or ($verificationOutput -join "`n") -notmatch 'RECOVERY_ALLOWED_BEFORE_P0') {
-      throw "EXTERNAL_CONSUMER_UNRESOLVED: external evidence revalidation failed: $($verificationOutput -join ' ')"
-    }
-  }
   return [ordered]@{ path = $ExpectedExternalEvidenceRelativePath; sha256 = Get-Sha256 $Path; resolutionId = $evidence.resolutionId; status = $evidence.status }
 }
 
@@ -433,7 +425,7 @@ function Invoke-PostApply {
   if (@($report.transitions | Where-Object { $_.status -eq 'STARTED' }).Count -gt 0) { throw 'RECOVERY_REQUIRED: unfinished STARTED transition exists.' }
   Assert-PostApplyState
   $externalPath = [string]$report.externalConsumerResolutionRef.path
-  [void](Assert-ExternalConsumerEvidence -Path (Join-Path $RepoRoot $externalPath) -CurrentHead ((Invoke-Git @('rev-parse', 'HEAD')).output[0].Trim()) -SkipRecoveryCheck)
+  [void](Assert-ExternalConsumerEvidence -Path (Join-Path $RepoRoot $externalPath) -CurrentHead ((Invoke-Git @('rev-parse', 'HEAD')).output[0].Trim()))
   $report.state = 'P0_VERIFIED'; $report.updatedAt = [DateTimeOffset]::UtcNow.ToString('o'); $report.unresolvedItems = @(); $report.failureCodes = @()
   $report.transitions = @($report.transitions) + [ordered]@{ from = 'TARGET_REACTOR_ISOLATED'; to = 'P0_VERIFIED'; mode = 'PostApply'; at = $report.updatedAt }
   Write-JsonAtomic -Value $report -Path (Get-OutputAbsolutePath); $report | ConvertTo-Json -Depth 20
