@@ -933,7 +933,7 @@
     }
   ],
   "currentDocumentHashes": {
-    "overview": "17C72267194A47BCB5BD4A13F858F91B58DB9563A529CF259EDC9BF7817D54D4",
+    "overview": "F26849276B6106D0052275FB1D4BFA8AF9D4072B2802CF9A155616B33D92F017",
     "isolation": "2A75E29B681D646915B1AE88F05B2B0B1E1C000EC69F13B548E01BAB53CC490F",
     "exitDesign": "47210DEC764D33B704CF457AA0DCB30F46599B9173EA3C3C16DB27FB97639CE9",
     "l0": "5EECECDB784B78C7E0089AA9A16C6DD1959A58A0C61BA649270837C5C4385968",
@@ -996,6 +996,14 @@
       "verifierSha256": "0C9F394C5D17F2F31AB1355C037D5FF70D39662ECE828E893860689B5112275E",
       "p0EvidenceState": "UNCHANGED_P0_VERIFIED",
       "note": "M2-DESIGN-0 synchronized the current overview hash and verifier expected-design metadata after the overview semantic revision; historical P0 sourceCommit, preflight and external-evidence hashes, validation outputs, and original verifier provenance remain unchanged."
+    },
+    {
+      "syncedAt": "2026-07-21",
+      "gitHead": "d78edb2529ffb06a3f00f8abef17bb1b63be37a4",
+      "scope": "CURRENT_DOCUMENT_HASH_AND_VERIFIER_METADATA_ONLY",
+      "verifierSha256": "53D5362678A6F7853475D8E9545C8DDBF6D106DBD459E72E60043A4534D46953",
+      "p0EvidenceState": "UNCHANGED_P0_VERIFIED",
+      "note": "The five-round independent review of the M2-DESIGN-0 overview synchronized the current overview hash and verifier expected-design metadata; historical P0 sourceCommit, preflight and external-evidence hashes, validation outputs, and original verifier provenance remain unchanged."
     }
   ]
 }

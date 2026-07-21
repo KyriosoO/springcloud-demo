@@ -32,7 +32,7 @@ $ExternalEvidenceDesignHashes = [ordered]@{
   retrievalL1 = [ordered]@{ path = 'docs/design/agent/检索与索引基础设施架构_L1_v1.0.md'; sha256 = '83C7EA8385F44755BE2D821693ABED0B19D0A51A98893FDEC3BFD9F12938F42A' }
 }
 $ExpectedDesignHashes = [ordered]@{
-  overview = [ordered]@{ path = 'docs/design/agent/L2/00_单体Agent目标架构L2实施详细设计总览_v1.0.md'; sha256 = '17C72267194A47BCB5BD4A13F858F91B58DB9563A529CF259EDC9BF7817D54D4' }
+  overview = [ordered]@{ path = 'docs/design/agent/L2/00_单体Agent目标架构L2实施详细设计总览_v1.0.md'; sha256 = 'F26849276B6106D0052275FB1D4BFA8AF9D4072B2802CF9A155616B33D92F017' }
   isolation = [ordered]@{ path = 'docs/design/agent/L2/02_目标基线隔离与迁移门禁_L2实施详细设计_v1.0.md'; sha256 = '2A75E29B681D646915B1AE88F05B2B0B1E1C000EC69F13B548E01BAB53CC490F' }
   exitDesign = [ordered]@{ path = 'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0.md'; sha256 = '47210DEC764D33B704CF457AA0DCB30F46599B9173EA3C3C16DB27FB97639CE9' }
   l0 = [ordered]@{ path = 'docs/design/agent/单体Agent智能体总体架构_L0_v1.0.md'; sha256 = '5EECECDB784B78C7E0089AA9A16C6DD1959A58A0C61BA649270837C5C4385968' }
