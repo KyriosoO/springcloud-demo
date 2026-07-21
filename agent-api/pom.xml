@@ -13,6 +13,8 @@
     <name>agent-api</name>
     <properties>
         <spring-boot.repackage.skip>true</spring-boot.repackage.skip>
+        <openapi-generator.version>7.24.0</openapi-generator.version>
+        <agent.contract.generated.output>${project.build.directory}/generated-sources/openapi</agent.contract.generated.output>
     </properties>
     <dependencies>
         <dependency>
@@ -27,5 +29,65 @@
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi-generator.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-agent-runtime-contract-models</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/agent-runtime-openapi.json</inputSpec>
+                            <generatorName>java</generatorName>
+                            <library>restclient</library>
+                            <output>${agent.contract.generated.output}</output>
+                            <modelPackage>com.dylan.baseline.agent.api.runtime.generated</modelPackage>
+                            <generateApis>false</generateApis>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModels>true</generateModels>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <generateModelTests>false</generateModelTests>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <configOptions>
+                                <sourceFolder>java</sourceFolder>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useBeanValidation>true</useBeanValidation>
+                                <failOnUnknownProperties>true</failOnUnknownProperties>
+                                <legacyDiscriminatorBehavior>false</legacyDiscriminatorBehavior>
+                                <useOneOfInterfaces>true</useOneOfInterfaces>
+                                <useSealedOneOfInterfaces>true</useSealedOneOfInterfaces>
+                                <useOneOfDiscriminatorLookup>false</useOneOfDiscriminatorLookup>
+                                <openApiNullable>false</openApiNullable>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <serializationLibrary>jackson</serializationLibrary>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

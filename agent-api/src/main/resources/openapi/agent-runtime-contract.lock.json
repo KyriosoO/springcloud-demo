@@ -1,0 +1,24 @@
+{
+  "capabilities": [],
+  "contractFingerprint": "sha256:13a0b6563ecc03a8950e4fafdaebc9190c6da9e0ad732ef7cbb5269658198578",
+  "contractVersion": "1.0.0",
+  "fixtureManifestSha256": "ec27b06c5daafaccbd730f6cbb80671f9487898bef76049431e732b135434263",
+  "generatedArtifacts": {
+    "javaModelTreeSha256": "a00561abee50142d3faf9e20cefedba1c57590a948f008103df3f007bb025024",
+    "pythonMetadataSha256": "f01c5e17bbcca24a8aaca4289cbeb0e411741b10af9416f4d6adc741a8fc2ebe",
+    "pythonModelsSha256": "0b393781d1bee8ebed809f657b99c4ce91de628b4371685df32407ad005fcad1",
+    "pythonSchemaSha256": "fd017810f5655816239f5f517a8d47549a847cbedf1a4235cb36fb95be46d8ac"
+  },
+  "generators": {
+    "java": "org.openapitools:openapi-generator-maven-plugin:7.24.0",
+    "python": "datamodel-code-generator==0.69.0"
+  },
+  "lockFormatVersion": 1,
+  "sourceSha256": "13a0b6563ecc03a8950e4fafdaebc9190c6da9e0ad732ef7cbb5269658198578",
+  "toolchain": {
+    "javaSchemaValidator": "com.networknt:json-schema-validator:2.0.4",
+    "pythonBuildBackend": "setuptools==83.0.0",
+    "pythonModelRuntime": "pydantic==2.13.4",
+    "pythonSchemaValidator": "jsonschema==4.26.0"
+  }
+}

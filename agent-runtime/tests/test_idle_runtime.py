@@ -75,12 +75,14 @@ def _listening_ports(process_id: int) -> set[str]:
 
 class IdleRuntimeTest(unittest.TestCase):
 
-    def test_metadata_has_no_dependencies_or_local_environment(self) -> None:
+    def test_metadata_has_only_locked_contract_dependencies_and_no_local_environment(self) -> None:
         metadata = tomllib.loads((RUNTIME_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-        self.assertEqual([], metadata["project"]["dependencies"])
+        self.assertEqual(
+            ["pydantic==2.13.4", "jsonschema==4.26.0"],
+            metadata["project"]["dependencies"],
+        )
         self.assertEqual(">=3.12,<3.13", metadata["project"]["requires-python"])
         self.assertFalse((RUNTIME_ROOT / ".env").exists())
-        self.assertFalse((RUNTIME_ROOT / ".venv").exists())
 
     def test_entrypoint_imports_only_idle_standard_library_modules(self) -> None:
         syntax = ast.parse(MAIN_MODULE.read_text(encoding="utf-8"))

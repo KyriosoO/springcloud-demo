@@ -2,4 +2,22 @@
 name = "agent-runtime"
 version = "0.0.1"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "pydantic==2.13.4",
+    "jsonschema==4.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "datamodel-code-generator==0.69.0",
+]
+
+[build-system]
+requires = ["setuptools==83.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"agent_runtime.contracts" = ["contract_metadata.json", "contract_schema.json"]

@@ -59,7 +59,7 @@ jobs:
           --no-transfer-progress
 
   python-skeleton:
-    name: Python target skeleton
+    name: Python contract and target skeleton
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -70,5 +70,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Test idle runtime
+      - name: Install locked contract toolchain
+        run: python -m pip install --disable-pip-version-check -e ".[dev]"
+      - name: Check generated contract artifacts
+        working-directory: .
+        run: python scripts/agent-contract/govern_agent_runtime_contract.py --check
+      - name: Test runtime and contract
         run: python -m unittest discover -s tests -v
