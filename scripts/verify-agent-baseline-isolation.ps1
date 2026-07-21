@@ -32,9 +32,9 @@ $ExternalEvidenceDesignHashes = [ordered]@{
   retrievalL1 = [ordered]@{ path = 'docs/design/agent/检索与索引基础设施架构_L1_v1.0.md'; sha256 = '83C7EA8385F44755BE2D821693ABED0B19D0A51A98893FDEC3BFD9F12938F42A' }
 }
 $ExpectedDesignHashes = [ordered]@{
-  overview = [ordered]@{ path = 'docs/design/agent/L2/00_单体Agent目标架构L2实施详细设计总览_v1.0.md'; sha256 = 'B3EFEECBF534B234F4A5D2CB3EBADEBE1594636F157ECF25D4353E20CD677BE0' }
-  isolation = [ordered]@{ path = 'docs/design/agent/L2/02_目标基线隔离与迁移门禁_L2实施详细设计_v1.0.md'; sha256 = 'CF5FF1D91AA2AA36B998FC9D1AA70F84B81D4542ABD58F69A53D6A18425D4A73' }
-  exitDesign = [ordered]@{ path = 'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0.md'; sha256 = '6345FB855CC81602A9F651AD42345E49D41924AFCE869D7CC79E41E6FAF98D58' }
+  overview = [ordered]@{ path = 'docs/design/agent/L2/00_单体Agent目标架构L2实施详细设计总览_v1.0.md'; sha256 = 'DF4C38165B64F4E2386F7F1EE407E72AE8D0BE5A676CBA6BE2B15B916B760800' }
+  isolation = [ordered]@{ path = 'docs/design/agent/L2/02_目标基线隔离与迁移门禁_L2实施详细设计_v1.0.md'; sha256 = '2A75E29B681D646915B1AE88F05B2B0B1E1C000EC69F13B548E01BAB53CC490F' }
+  exitDesign = [ordered]@{ path = 'docs/design/agent/L2/02A_外部消费者活动基线退出与DB-02-001关闭_L2实施详细设计_v1.0.md'; sha256 = '47210DEC764D33B704CF457AA0DCB30F46599B9173EA3C3C16DB27FB97639CE9' }
   l0 = [ordered]@{ path = 'docs/design/agent/单体Agent智能体总体架构_L0_v1.0.md'; sha256 = '5EECECDB784B78C7E0089AA9A16C6DD1959A58A0C61BA649270837C5C4385968' }
   agentL1 = [ordered]@{ path = 'docs/design/agent/单体Agent应用与能力架构_L1_v1.0.md'; sha256 = '152466BABD621DA498188D4C1BD5AE19E6E07EF0D8CD8CB5B23DBF9751B6AAB4' }
   retrievalL1 = [ordered]@{ path = 'docs/design/agent/检索与索引基础设施架构_L1_v1.0.md'; sha256 = '83C7EA8385F44755BE2D821693ABED0B19D0A51A98893FDEC3BFD9F12938F42A' }
