@@ -9,6 +9,26 @@ from pathlib import Path
 
 GENERATOR_DISTRIBUTION = "datamodel-code-generator"
 GENERATOR_VERSION = "0.69.0"
+GENERATOR_ARGUMENTS = (
+    "--input-file-type",
+    "openapi",
+    "--output-model-type",
+    "pydantic_v2.BaseModel",
+    "--target-python-version",
+    "3.12",
+    "--target-pydantic-version",
+    "2.12",
+    "--extra-fields",
+    "forbid",
+    "--strict-nullable",
+    "--snake-case-field",
+    "--use-annotated",
+    "--use-standard-collections",
+    "--use-union-operator",
+    "--disable-timestamp",
+    "--formatters",
+    "builtin",
+)
 
 
 def generate_models(openapi_path: Path, output_path: Path) -> None:
@@ -27,26 +47,9 @@ def generate_models(openapi_path: Path, output_path: Path) -> None:
         "datamodel_code_generator",
         "--input",
         str(openapi_path),
-        "--input-file-type",
-        "openapi",
         "--output",
         str(output_path),
-        "--output-model-type",
-        "pydantic_v2.BaseModel",
-        "--target-python-version",
-        "3.12",
-        "--target-pydantic-version",
-        "2.12",
-        "--extra-fields",
-        "forbid",
-        "--strict-nullable",
-        "--snake-case-field",
-        "--use-annotated",
-        "--use-standard-collections",
-        "--use-union-operator",
-        "--disable-timestamp",
-        "--formatters",
-        "builtin",
+        *GENERATOR_ARGUMENTS,
     ]
     completed = subprocess.run(command, check=False, text=True, capture_output=True)
     if completed.returncode != 0:

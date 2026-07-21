@@ -35,8 +35,8 @@ jobs:
             exit 1
           fi
 
-  java-skeletons:
-    name: Java target skeletons
+  java-contract:
+    name: Java target and contract
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,8 +58,8 @@ jobs:
           --batch-mode
           --no-transfer-progress
 
-  python-skeleton:
-    name: Python contract and target skeleton
+  python-contract:
+    name: Python contract and target runtime
     runs-on: ubuntu-latest
     defaults:
       run:

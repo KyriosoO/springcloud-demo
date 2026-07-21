@@ -49,6 +49,7 @@
                 <directory>../agent-api/src/test/resources</directory>
                 <includes>
                     <include>contract/fixtures/agent-runtime/**</include>
+                    <include>contract/conformance/**</include>
                 </includes>
             </testResource>
         </testResources>

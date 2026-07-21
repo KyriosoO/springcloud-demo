@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dylan.baseline.agent.api.runtime.generated.ContractMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +30,37 @@ class RuntimeCompatibilityGateTest {
                 .isEqualTo(RuntimeCompatibilityReason.FINGERPRINT_MISMATCH);
         assertThat(gate.evaluate(expected, metadata("1.0.0", fingerprint('a')), "a").reason())
                 .isEqualTo(RuntimeCompatibilityReason.CAPABILITY_MISSING);
+    }
+
+    @Test
+    void rejectsMalformedLockMetadata() {
+        ContractLockMetadataLoader loader = new ContractLockMetadataLoader(new ObjectMapper());
+        String validPrefix = """
+                {"lockFormatVersion":1,"sourcePath":"agent-api/src/main/resources/openapi/agent-runtime-openapi.json",
+                "sourceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contractFingerprint":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contractVersion":"1.0.0","capabilities":%s}
+                """;
+        for (String capabilities : java.util.List.of("{}", "[\"b\",\"a\"]", "[\"a\",\"a\"]", "[null]")) {
+            assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> loader.load(new ByteArrayInputStream(
+                    validPrefix.formatted(capabilities).getBytes(StandardCharsets.UTF_8)))))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("CONTRACT_LOCK_INVALID");
+        }
+        String mismatchedFingerprint = validPrefix.formatted("[]").replace("sha256:aaaaaaaa", "sha256:baaaaaaa");
+        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> loader.load(new ByteArrayInputStream(
+                mismatchedFingerprint.getBytes(StandardCharsets.UTF_8)))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("CONTRACT_LOCK_INVALID");
+        for (String malformedJson : java.util.List.of(
+                validPrefix.formatted("[]").replace(
+                        "{\"lockFormatVersion\":1", "{\"lockFormatVersion\":1,\"lockFormatVersion\":1"),
+                validPrefix.formatted("[]") + "{}")) {
+            assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> loader.load(new ByteArrayInputStream(
+                    malformedJson.getBytes(StandardCharsets.UTF_8)))))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("CONTRACT_LOCK_INVALID");
+        }
     }
 
     private static ContractMetadata metadata(String version, String fingerprint, String... capabilities) {

@@ -18,11 +18,29 @@ class OpenApiSourceValidationTest {
         JsonNode source = mapper.readTree(sourceBytes);
         JsonNode lock = read("openapi/agent-runtime-contract.lock.json");
         assertThat(source.path("openapi").asText()).startsWith("3.1.");
-        assertThat(source.toString()).doesNotContain("http://", "https://");
+        assertNoRemoteOrDanglingRefs(source, source.path("components").path("schemas"));
         assertThat(lock.path("lockFormatVersion").asInt()).isEqualTo(1);
+        assertThat(lock.path("sourcePath").asText())
+                .isEqualTo("agent-api/src/main/resources/openapi/agent-runtime-openapi.json");
+        assertThat(lock.path("javaGenerator").path("configSha256").asText()).hasSize(64);
+        assertThat(lock.path("pythonGenerator").path("configSha256").asText()).hasSize(64);
+        assertThat(lock.path("generatedArtifacts").isArray()).isTrue();
         assertThat(lock.path("contractVersion").asText()).isEqualTo(source.path("info").path("version").asText());
         assertThat(lock.path("sourceSha256").asText()).isEqualTo(
                 HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(sourceBytes)));
+    }
+
+    private void assertNoRemoteOrDanglingRefs(JsonNode node, JsonNode schemas) {
+        if (node.isObject()) {
+            JsonNode ref = node.get("$ref");
+            if (ref != null) {
+                assertThat(ref.asText()).startsWith("#/components/schemas/");
+                assertThat(schemas.has(ref.asText().substring("#/components/schemas/".length()))).isTrue();
+            }
+            node.properties().forEach(field -> assertNoRemoteOrDanglingRefs(field.getValue(), schemas));
+        } else if (node.isArray()) {
+            node.forEach(child -> assertNoRemoteOrDanglingRefs(child, schemas));
+        }
     }
 
     @Test
