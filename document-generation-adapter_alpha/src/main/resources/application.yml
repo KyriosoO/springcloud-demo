@@ -1,0 +1,18 @@
+server:
+  port: 9240
+
+spring:
+  application:
+    name: document-generation-adapter
+  config:
+    import: optional:configserver:http://localhost:9888
+  profiles:
+    active: ai-provider
+
+document:
+  generation:
+    deepseek:
+      base-url: ${ai.provider.generation.deepseek.base-url:https://api.deepseek.com}
+      api-key: ${ai.provider.generation.deepseek.api-key:}
+      model: ${ai.provider.generation.deepseek.model:deepseek-chat}
+      timeout: 60s

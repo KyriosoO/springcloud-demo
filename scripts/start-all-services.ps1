@@ -9,28 +9,23 @@ param(
 $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $ServiceCenter = Join-Path $RepoRoot 'serviceCenter'
-$RuntimeRoot = Join-Path $RepoRoot 'agent-runtime'
 $LogRoot = Join-Path $RepoRoot '.tmp\service-logs'
 $Maven = Join-Path $ServiceCenter 'mvnw.cmd'
-$RuntimePython = Join-Path $RuntimeRoot '.venv\Scripts\python.exe'
 
 $JavaServices = @(
   @{ Name = 'eureka-service'; Port = 8761; WaitBeforeNext = 8 },
   @{ Name = 'config-service'; Port = 9888; WaitBeforeNext = 8 },
   @{ Name = 'auth-service'; Port = 8090 },
-  @{ Name = 'es-query-service'; Port = 9201 },
   @{ Name = 'workflow-service'; Port = 9100 },
   @{ Name = 'mq-procedure-service'; Port = 8182 },
   @{ Name = 'mq-consumer-service'; Port = 8183 },
-  @{ Name = 'agent-service'; Port = 9220 },
   @{ Name = 'm-service-1'; Port = 8180 },
   @{ Name = 'm-service-2'; Port = 8081 },
   @{ Name = 'openfeign-service'; Port = 9000 },
   @{ Name = 'gateway-service'; Port = 8888 }
 )
 
-$RuntimeService = @{ Name = 'agent-runtime'; Port = 9230 }
-$AllPorts = @($JavaServices | ForEach-Object { $_.Port }) + $RuntimeService.Port
+$AllPorts = @($JavaServices | ForEach-Object { $_.Port })
 
 function Invoke-Checked {
   param(
@@ -134,37 +129,6 @@ function Start-JavaService {
   }
 }
 
-function Start-RuntimeService {
-  param([Parameter(Mandatory)] [string]$LogDir)
-
-  if ($ReuseExisting -and (Test-PortOpen -Port $RuntimeService.Port)) {
-    Write-Host "REUSE agent-runtime port=$($RuntimeService.Port)"
-    Start-Sleep -Seconds $StartupDelaySeconds
-    return
-  }
-
-  if (-not (Test-Path -LiteralPath $RuntimePython)) {
-    throw "agent-runtime python not found: $RuntimePython"
-  }
-  if (-not (Test-Path -LiteralPath (Join-Path $RuntimeRoot '.env'))) {
-    throw "agent-runtime .env not found: $(Join-Path $RuntimeRoot '.env')"
-  }
-
-  $out = Join-Path $LogDir 'agent-runtime.out.log'
-  $err = Join-Path $LogDir 'agent-runtime.err.log'
-  $process = Start-Process -FilePath $RuntimePython `
-    -WorkingDirectory $RuntimeRoot `
-    -ArgumentList @('-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', "$($RuntimeService.Port)") `
-    -RedirectStandardOutput $out `
-    -RedirectStandardError $err `
-    -WindowStyle Hidden `
-    -PassThru
-
-  Write-Host "STARTED agent-runtime pid=$($process.Id) log=$out"
-  Wait-Port -ServiceName 'agent-runtime' -Port $RuntimeService.Port -TimeoutSeconds $PortTimeoutSeconds
-  Start-Sleep -Seconds $StartupDelaySeconds
-}
-
 function Wait-EurekaApplications {
   param([Parameter(Mandatory)] [string[]]$ExpectedNames)
 
@@ -210,18 +174,13 @@ if (-not $SkipInstall) {
 
 Start-JavaService -Service $JavaServices[0] -LogDir $LogDir
 Start-JavaService -Service $JavaServices[1] -LogDir $LogDir
-Start-RuntimeService -LogDir $LogDir
-
 foreach ($service in $JavaServices[2..($JavaServices.Count - 1)]) {
   Start-JavaService -Service $service -LogDir $LogDir
 }
 
 Wait-EurekaApplications -ExpectedNames @(
-  'AGENT-SERVICE',
   'AUTH-SERVICE',
   'CONFIG-SERVICE',
-  'DOCUMENT-GENERATION-ADAPTER',
-  'ES-QUERY-SERVICE',
   'GATEWAY-SERVICE',
   'M-SERVICE',
   'MQ-CONSUMER-SERVICE',
