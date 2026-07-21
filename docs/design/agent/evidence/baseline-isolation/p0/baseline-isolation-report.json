@@ -933,7 +933,7 @@
     }
   ],
   "currentDocumentHashes": {
-    "overview": "4F7411B98793E8B89C83A90AC36AC7833E581BBD69806B71A7F31FBE540ED402",
+    "overview": "EC07BDC8CA8556F0F5AF52E4E630180559317221C8BAF44BB26E3040C57DD45D",
     "isolation": "2A75E29B681D646915B1AE88F05B2B0B1E1C000EC69F13B548E01BAB53CC490F",
     "exitDesign": "47210DEC764D33B704CF457AA0DCB30F46599B9173EA3C3C16DB27FB97639CE9",
     "l0": "5EECECDB784B78C7E0089AA9A16C6DD1959A58A0C61BA649270837C5C4385968",
@@ -956,6 +956,14 @@
       "verifierSha256": "E14F353FBE307C7DCD388FF659CC252E7ED0A2EACF250B017EB7EA19BDAEDA0D",
       "p0EvidenceState": "UNCHANGED_P0_VERIFIED",
       "note": "IMPL-003 status, review history, checklist, review-start HEAD, current overview hash, and verifier metadata constant were synchronized after the 01 L2 review-fix cycle; historical P0 sourceCommit, preflight hashes, validation outputs, and original verifier provenance remain unchanged."
+    },
+    {
+      "syncedAt": "2026-07-21",
+      "gitHead": "9df9999b5c1f3922e7fbcc5116c41d1861af9cde",
+      "scope": "DOCUMENT_STATUS_HISTORY_CHECKLIST_HEAD_AND_HASH_ONLY",
+      "verifierSha256": "4EF2575CC4AC5B8E7ACC8E453859B824E2172FD4FD507D6D2B9D25912A89009D",
+      "p0EvidenceState": "UNCHANGED_P0_VERIFIED",
+      "note": "IMPL-003 M1 local implementation status, internal review history, checklist, current uncommitted HEAD, overview hash, and verifier metadata constant were synchronized; historical P0 evidence and original verifier provenance remain unchanged."
     }
   ]
 }
