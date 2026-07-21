@@ -933,7 +933,7 @@
     }
   ],
   "currentDocumentHashes": {
-    "overview": "B32C399E6BBFDFF0145362B4E612A9D452EECE92765196E540CD6776594C0816",
+    "overview": "00F2BFE80BDD5F50AB81E5926628ACF26CD4FAE2EB9DCDB39D710A8B50D6BFDC",
     "isolation": "2A75E29B681D646915B1AE88F05B2B0B1E1C000EC69F13B548E01BAB53CC490F",
     "exitDesign": "47210DEC764D33B704CF457AA0DCB30F46599B9173EA3C3C16DB27FB97639CE9",
     "l0": "5EECECDB784B78C7E0089AA9A16C6DD1959A58A0C61BA649270837C5C4385968",
@@ -980,6 +980,14 @@
       "verifierSha256": "39EC3817A3A9120F7D1364E8016C3FFC669E100CB6D1EBA81A7116BE5575FF95",
       "p0EvidenceState": "UNCHANGED_P0_VERIFIED",
       "note": "IMPL-003 M1 initial remote CI residual fix status, validation log, fix HEAD, current overview hash, and verifier metadata constant were synchronized; historical P0 sourceCommit, preflight hashes, validation outputs, and original verifier provenance remain unchanged."
+    },
+    {
+      "syncedAt": "2026-07-21",
+      "gitHead": "c0e77b06702fbe84e92dea872b4ea9c8b969fc6b",
+      "scope": "DOCUMENT_STATUS_HISTORY_CHECKLIST_HEAD_AND_HASH_ONLY",
+      "verifierSha256": "C94281B9146DDD735E9C09D3A9C3546F6BFB896AFBA8BA30437C521E556A9498",
+      "p0EvidenceState": "UNCHANGED_P0_VERIFIED",
+      "note": "IMPL-003 M1 successful remote CI status, run identifier, validated HEAD, current overview hash, and verifier metadata constant were synchronized; historical P0 sourceCommit, preflight hashes, validation outputs, and original verifier provenance remain unchanged."
     }
   ]
 }
