@@ -66,6 +66,12 @@ jobs:
         working-directory: agent-runtime
     steps:
       - uses: actions/checkout@v4
+      - name: Set up JDK 25 for cross-runtime drift check
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+          cache: maven
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:

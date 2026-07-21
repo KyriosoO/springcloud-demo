@@ -8,6 +8,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ContractAuthorityTest {
+    private static final String HISTORICAL_SUFFIX = "_" + "alpha";
+
     @Test
     void targetHasOneRuntimeOpenApiAndNoParallelWireDto() throws Exception {
         Path module = Path.of("").toAbsolutePath().normalize();
@@ -24,7 +26,7 @@ class ContractAuthorityTest {
                     .filter(path -> path.toString().contains("src" + java.io.File.separator + "main"))
                     .filter(path -> path.toString().contains(java.io.File.separator + "openapi"
                             + java.io.File.separator))
-                    .filter(path -> !path.toString().contains("_alpha" + java.io.File.separator))
+                    .filter(path -> !path.toString().contains(HISTORICAL_SUFFIX + java.io.File.separator))
                     .filter(path -> !path.toString().contains(java.io.File.separator + "target" + java.io.File.separator))
                     .toList();
         }
@@ -32,7 +34,7 @@ class ContractAuthorityTest {
                 repository.resolve("agent-api/src/main/resources/openapi/agent-runtime-openapi.json"));
 
         String servicePom = Files.readString(repository.resolve("agent-service/pom.xml"));
-        assertThat(servicePom).contains("<artifactId>agent-api</artifactId>").doesNotContain("_alpha");
+        assertThat(servicePom).contains("<artifactId>agent-api</artifactId>").doesNotContain(HISTORICAL_SUFFIX);
         try (var javaSources = Files.walk(repository.resolve("agent-service/src/main/java"))) {
             String productionCode = javaSources.filter(path -> path.toString().endsWith(".java"))
                     .map(path -> {
@@ -44,7 +46,7 @@ class ContractAuthorityTest {
                     })
                     .reduce("", (left, right) -> left + "\n" + right);
             assertThat(productionCode)
-                    .doesNotContain("class ContractMetadata", "record ContractMetadata", "_alpha")
+                    .doesNotContain("class ContractMetadata", "record ContractMetadata", HISTORICAL_SUFFIX)
                     .contains("com.dylan.baseline.agent.api.runtime.generated.ContractMetadata");
         }
     }

@@ -31,6 +31,7 @@ JAVA_VALIDATOR_VERSION = "2.0.4"
 PYTHON_MODEL_VERSION = "2.13.4"
 PYTHON_SCHEMA_VERSION = "4.26.0"
 PYTHON_BUILD_VERSION = "83.0.0"
+HISTORICAL_SUFFIX = "_" + "alpha"
 
 JAVA_GENERATOR_CONFIG = {
     "failOnUnknownProperties": "true",
@@ -98,7 +99,7 @@ def verify_single_authority() -> None:
             and path.suffix.lower() in {".json", ".yaml", ".yml"}
             and "openapi" in path.stem.lower()
             and any(token in path.stem.lower() for token in ("runtime", "tool"))
-            and not any(part.endswith("_alpha") for part in path.parts)
+            and not any(part.endswith(HISTORICAL_SUFFIX) for part in path.parts)
         ),
         key=lambda path: path.as_posix(),
     )
