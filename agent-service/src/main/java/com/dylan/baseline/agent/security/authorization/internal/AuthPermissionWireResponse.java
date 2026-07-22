@@ -1,16 +1,13 @@
-package com.dylan.authcenter.agent.permission.api;
+package com.dylan.baseline.agent.security.authorization.internal;
 
+import com.dylan.baseline.agent.security.authorization.SubjectRef;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * auth-service 返回给 agent-service 的完整权限投影。
- *
- * <p>响应字段必须覆盖 agent-service UserPermission；agent-service 不再根据 JWT role 推导权限。</p>
- */
-public record AgentPermissionResolveResponse(
-        SubjectRefDto subject,
+/** 当前兼容期Auth内部响应的transport模型。 */
+public record AuthPermissionWireResponse(
+        SubjectRef subject,
         String tenantRef,
         Set<String> permissionCodes,
         String evidenceId,

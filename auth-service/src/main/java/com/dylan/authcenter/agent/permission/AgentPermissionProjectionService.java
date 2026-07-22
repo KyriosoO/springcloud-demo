@@ -53,6 +53,10 @@ public class AgentPermissionProjectionService {
 
     public AgentPermissionResolveResponse resolve(AgentPermissionResolveRequest request) {
         validate(request);
+        AuthRbacProperties.UserDefinition user = rbacProperties.getUsers().get(request.subject().id());
+        if (user == null || isBlank(user.getTenantRef())) {
+            throw new AgentPermissionException(AgentPermissionErrorCode.AGENT_PERMISSION_SUBJECT_NOT_FOUND);
+        }
         Set<String> roles;
         try {
             roles = userService.rolesOf(request.subject().id());
@@ -64,9 +68,18 @@ public class AgentPermissionProjectionService {
         }
         Projection projection = projectionFor(roles);
         Instant resolvedAt = Instant.now(clock);
+        Instant validUntil = resolvedAt.plus(rbacProperties.getPermissionFactTtl());
+        if (request.deadline().isBefore(validUntil)) {
+            validUntil = request.deadline();
+        }
+        if (!validUntil.isAfter(resolvedAt)) {
+            throw new AgentPermissionException(AgentPermissionErrorCode.AGENT_PERMISSION_DEADLINE_EXCEEDED);
+        }
         return new AgentPermissionResolveResponse(
                 request.subject(),
-                evidenceId(request.subject(), projection),
+                user.getTenantRef(),
+                projection.permissionCodes(),
+                evidenceId(request.subject(), user.getTenantRef(), projection),
                 rbacProperties.getRuleVersion(),
                 projection.allowedCapabilityIds(),
                 projection.allowedDomains(),
@@ -77,7 +90,8 @@ public class AgentPermissionProjectionService {
                 projection.readableContextTypes(),
                 projection.writableContextTypes(),
                 projection.attributes(),
-                resolvedAt);
+                resolvedAt,
+                validUntil);
     }
 
     private void validate(AgentPermissionResolveRequest request) {
@@ -110,13 +124,13 @@ public class AgentPermissionProjectionService {
             if (profile == null) {
                 throw new AgentPermissionException(AgentPermissionErrorCode.AGENT_PERMISSION_INTERNAL_ERROR);
             }
-            projection = projection.merge(Projection.from(profile));
+            projection = projection.merge(Projection.from(profile, role.getPermissionCodes()));
         }
         return projection;
     }
 
-    private String evidenceId(SubjectRefDto subject, Projection projection) {
-        String canonical = subject.type() + "|" + subject.id() + "|"
+    private String evidenceId(SubjectRefDto subject, String tenantRef, Projection projection) {
+        String canonical = subject.type() + "|" + subject.id() + "|" + tenantRef + "|"
                 + rbacProperties.getRuleVersion() + "|" + projection.canonical();
         return "perm-" + subject.type().toLowerCase() + "-" + digest(canonical);
     }
@@ -136,6 +150,7 @@ public class AgentPermissionProjectionService {
     }
 
     private record Projection(
+            Set<String> permissionCodes,
             Set<String> allowedCapabilityIds,
             Set<String> allowedDomains,
             Map<String, Set<String>> filterableFields,
@@ -148,11 +163,12 @@ public class AgentPermissionProjectionService {
 
         static Projection empty() {
             return new Projection(
-                    Set.of(), Set.of(), Map.of(), Map.of(), Map.of(), Map.of(), Set.of(), Set.of(), Map.of());
+                    Set.of(), Set.of(), Set.of(), Map.of(), Map.of(), Map.of(), Map.of(), Set.of(), Set.of(), Map.of());
         }
 
-        static Projection from(AuthRbacProperties.PermissionProfile profile) {
+        static Projection from(AuthRbacProperties.PermissionProfile profile, Set<String> permissionCodes) {
             return new Projection(
+                    permissionCodes,
                     profile.getAllowedCapabilityIds(),
                     profile.getAllowedDomains(),
                     profile.getFilterableFields(),
@@ -169,6 +185,7 @@ public class AgentPermissionProjectionService {
             other.attributes.forEach((key, value) -> mergedAttributes.merge(
                     key, value, (left, right) -> left.equals(right) ? left : left + "+" + right));
             return new Projection(
+                    union(permissionCodes, other.permissionCodes),
                     union(allowedCapabilityIds, other.allowedCapabilityIds),
                     union(allowedDomains, other.allowedDomains),
                     mergeMap(filterableFields, other.filterableFields),
@@ -181,6 +198,7 @@ public class AgentPermissionProjectionService {
         }
 
         Projection {
+            permissionCodes = orderedSet(permissionCodes);
             allowedCapabilityIds = orderedSet(allowedCapabilityIds);
             allowedDomains = orderedSet(allowedDomains);
             filterableFields = orderedMap(filterableFields);
@@ -193,7 +211,8 @@ public class AgentPermissionProjectionService {
         }
 
         String canonical() {
-            return allowedCapabilityIds + "|"
+            return permissionCodes + "|"
+                    + allowedCapabilityIds + "|"
                     + allowedDomains + "|"
                     + filterableFields + "|"
                     + displayableFields + "|"

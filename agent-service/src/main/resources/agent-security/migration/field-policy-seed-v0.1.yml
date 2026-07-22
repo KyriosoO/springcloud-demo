@@ -1,0 +1,76 @@
+# 迁移期受控种子：仅用于离线差异核验，不可作为 active policy 自动加载。
+policy-version: agent-field-seed-20260722-01
+source-auth-rule-version: authz-20260716000000-1
+activation-eligible: false
+field-policies:
+  agent-admin:
+    filterable-fields:
+      employee: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+      transaction: [transId, transType, transDate, amount]
+      company_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      tax_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      knowledge_base: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
+      literature: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
+    displayable-fields:
+      employee: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+      transaction: [transId, transType, transDate, amount]
+      company_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      tax_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
+      knowledge_base: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
+      literature: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
+    allowed-operators:
+      employee.chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.contactAddress: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.idCardNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.phoneNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.email: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      transaction.transId: [EQ]
+      transaction.transType: [EQ, CONTAINS]
+      transaction.transDate: [GT, LT]
+      transaction.amount: [EQ, GT, LT]
+      company_policy.title: [EQ, CONTAINS, CONTAINS_ANY]
+      company_policy.sourceType: [EQ, IN]
+      company_policy.effectiveDate: [EQ, GT, LT]
+      company_policy.tags: [EQ, IN, CONTAINS_ANY]
+      company_policy.section: [EQ, CONTAINS]
+      company_policy.page: [EQ, GT, LT]
+      company_policy.sourceUri: [EQ, CONTAINS]
+      company_policy.snippet: [CONTAINS, CONTAINS_ANY]
+      tax_policy.title: [EQ, CONTAINS, CONTAINS_ANY]
+      tax_policy.sourceType: [EQ, IN]
+      tax_policy.effectiveDate: [EQ, GT, LT]
+      tax_policy.tags: [EQ, IN, CONTAINS_ANY]
+      tax_policy.section: [EQ, CONTAINS]
+      tax_policy.page: [EQ, GT, LT]
+      tax_policy.sourceUri: [EQ, CONTAINS]
+      tax_policy.snippet: [CONTAINS, CONTAINS_ANY]
+      knowledge_base.title: [CONTAINS, CONTAINS_ANY]
+      knowledge_base.sourceType: [EQ, IN]
+      knowledge_base.category: [EQ, IN, CONTAINS_ANY]
+      knowledge_base.tags: [EQ, IN, CONTAINS_ANY]
+      knowledge_base.section: [EQ, CONTAINS]
+      knowledge_base.updatedAt: [EQ, GT, LT]
+      knowledge_base.sourceUri: [EQ, CONTAINS]
+      knowledge_base.snippet: [CONTAINS, CONTAINS_ANY]
+      literature.title: [CONTAINS, CONTAINS_ANY]
+      literature.author: [EQ, CONTAINS, CONTAINS_ANY]
+      literature.publishedAt: [EQ, GT, LT]
+      literature.publication: [EQ, CONTAINS]
+      literature.section: [EQ, CONTAINS]
+      literature.page: [EQ, GT, LT]
+      literature.sourceUri: [EQ, CONTAINS]
+      literature.snippet: [CONTAINS, CONTAINS_ANY]
+    allowed-functions:
+      transaction.amount: [sum, avg, min, max]
+  agent-viewer:
+    filterable-fields:
+      employee: [chineseName, memberNo, position]
+    displayable-fields:
+      employee: [chineseName, memberNo, position]
+    allowed-operators:
+      employee.chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+      employee.position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+    allowed-functions: {}

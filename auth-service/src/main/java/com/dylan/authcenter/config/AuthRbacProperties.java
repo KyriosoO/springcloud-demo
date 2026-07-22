@@ -1,5 +1,6 @@
 package com.dylan.authcenter.config;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Component;
 public class AuthRbacProperties implements InitializingBean {
 
     private String ruleVersion;
+    private Duration permissionFactTtl = Duration.ofSeconds(30);
     private Map<String, UserDefinition> users = new LinkedHashMap<>();
     private Map<String, RoleDefinition> roles = new LinkedHashMap<>();
     private Map<String, PermissionProfile> permissionProfiles = new LinkedHashMap<>();
@@ -30,6 +32,14 @@ public class AuthRbacProperties implements InitializingBean {
 
     public void setRuleVersion(String ruleVersion) {
         this.ruleVersion = ruleVersion;
+    }
+
+    public Duration getPermissionFactTtl() {
+        return permissionFactTtl;
+    }
+
+    public void setPermissionFactTtl(Duration permissionFactTtl) {
+        this.permissionFactTtl = permissionFactTtl;
     }
 
     public Map<String, UserDefinition> getUsers() {
@@ -60,6 +70,9 @@ public class AuthRbacProperties implements InitializingBean {
     @Override
     public void afterPropertiesSet() {
         requireText(ruleVersion, "auth.rbac.rule-version");
+        if (permissionFactTtl == null || permissionFactTtl.isZero() || permissionFactTtl.isNegative()) {
+            throw new IllegalStateException("auth.rbac.permission-fact-ttl must be positive");
+        }
         if (users.isEmpty()) {
             throw new IllegalStateException("auth.rbac.users must not be empty");
         }
@@ -72,6 +85,7 @@ public class AuthRbacProperties implements InitializingBean {
                 throw new IllegalStateException("auth.rbac user definition must not be null: " + userId);
             }
             requireText(user.password, "auth.rbac.users." + userId + ".password");
+            requireText(user.tenantRef, "auth.rbac.users." + userId + ".tenant-ref");
             if (user.roles.isEmpty()) {
                 throw new IllegalStateException("auth.rbac user roles must not be empty: " + userId);
             }
@@ -91,6 +105,10 @@ public class AuthRbacProperties implements InitializingBean {
                 throw new IllegalStateException(
                         "unknown permission profile for role " + roleId + ": " + role.permissionProfile);
             }
+            if (role.permissionCodes.isEmpty()) {
+                throw new IllegalStateException("permission codes must not be empty for role: " + roleId);
+            }
+            role.permissionCodes.forEach(code -> requireText(code, "permission code for role " + roleId));
         });
         permissionProfiles.forEach(this::validateProfile);
     }
@@ -133,6 +151,7 @@ public class AuthRbacProperties implements InitializingBean {
 
     public static class UserDefinition {
         private String password;
+        private String tenantRef;
         private Set<String> roles = new LinkedHashSet<>();
 
         public String getPassword() {
@@ -141,6 +160,14 @@ public class AuthRbacProperties implements InitializingBean {
 
         public void setPassword(String password) {
             this.password = password;
+        }
+
+        public String getTenantRef() {
+            return tenantRef;
+        }
+
+        public void setTenantRef(String tenantRef) {
+            this.tenantRef = tenantRef;
         }
 
         public Set<String> getRoles() {
@@ -154,6 +181,7 @@ public class AuthRbacProperties implements InitializingBean {
 
     public static class RoleDefinition {
         private String permissionProfile;
+        private Set<String> permissionCodes = new LinkedHashSet<>();
 
         public String getPermissionProfile() {
             return permissionProfile;
@@ -161,6 +189,15 @@ public class AuthRbacProperties implements InitializingBean {
 
         public void setPermissionProfile(String permissionProfile) {
             this.permissionProfile = permissionProfile;
+        }
+
+        public Set<String> getPermissionCodes() {
+            return permissionCodes;
+        }
+
+        public void setPermissionCodes(Set<String> permissionCodes) {
+            this.permissionCodes = permissionCodes == null
+                    ? new LinkedHashSet<>() : new LinkedHashSet<>(permissionCodes);
         }
     }
 

@@ -52,10 +52,13 @@ class AgentPermissionInternalControllerTest {
         assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(entity.getBody()).isInstanceOfSatisfying(AgentPermissionResolveResponse.class, body -> {
             assertThat(body.subject()).isEqualTo(new SubjectRefDto("USER", "dylan"));
+            assertThat(body.tenantRef()).isEqualTo("tenant-main");
+            assertThat(body.permissionCodes()).containsExactly("agent-admin");
             assertThat(body.allowedCapabilityIds())
                     .containsExactlyInAnyOrder("query.search", "query.preview", "aggregate.compute",
                             "document.search", "document.answer", "document.summarize");
             assertThat(body.version()).isEqualTo(rbacProperties.getRuleVersion());
+            assertThat(body.validUntil()).isEqualTo(NOW.plusSeconds(30));
         });
     }
 

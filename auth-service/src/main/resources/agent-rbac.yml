@@ -1,23 +1,30 @@
 auth:
   rbac:
     rule-version: authz-20260716000000-1
+    permission-fact-ttl: 30s
     users:
       admin:
         password: "{noop}123456"
+        tenant-ref: tenant-main
         roles: [ADMIN]
       dylan:
         password: "{noop}123456"
+        tenant-ref: tenant-main
         roles: ["agent:admin"]
       viewer_t:
         password: "{noop}123456"
+        tenant-ref: tenant-main
         roles: ["agent:viewer"]
     roles:
       "[ADMIN]":
         permission-profile: agent-admin
+        permission-codes: [agent-admin]
       "[agent:admin]":
         permission-profile: agent-admin
+        permission-codes: [agent-admin]
       "[agent:viewer]":
         permission-profile: agent-viewer
+        permission-codes: [agent-viewer]
     permission-profiles:
       agent-admin:
         allowed-capability-ids:

@@ -2,6 +2,8 @@ package com.dylan.baseline.agent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dylan.baseline.agent.security.authorization.AuthPermissionAuthorityPort;
+import com.dylan.common.security.ServiceTokenProvider;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
@@ -13,7 +15,14 @@ import org.springframework.cloud.client.serviceregistry.ServiceRegistry;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+                "common.security.secrets.allow-config-values=true",
+                "common.security.secrets.source-order[0]=config",
+                "common.security.secrets.jwt.active-key-id=ACTIVE",
+                "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        })
 class AgentServiceApplicationTest {
 
     @Autowired
@@ -23,7 +32,7 @@ class AgentServiceApplicationTest {
     private Environment environment;
 
     @Test
-    void startsAsAnIsolatedEmptyService() {
+    void startsWithFailClosedSecurityWiringAndNoExternalRegistration() {
         assertThat(environment.getProperty("server.port")).isEqualTo("0");
         assertThat(environment.getProperty("spring.cloud.config.enabled")).isEqualTo("false");
         assertThat(environment.getProperty("spring.cloud.discovery.enabled")).isEqualTo("false");
@@ -32,6 +41,11 @@ class AgentServiceApplicationTest {
         assertThat(environment.getProperty("eureka.client.enabled")).isEqualTo("false");
         assertThat(environment.getProperty("eureka.client.register-with-eureka")).isEqualTo("false");
         assertThat(environment.getProperty("eureka.client.fetch-registry")).isEqualTo("false");
+        assertThat(environment.getProperty("agent.security.auth.positive-cache-enabled")).isEqualTo("false");
+        assertThat(environment.getProperty("agent.security.auth.base-url")).isEqualTo("http://localhost:8090");
+        assertThat(environment.getProperty("agent.security.policy.required")).isEqualTo("true");
+        assertThat(environment.getProperty("agent.security.policy.persistence-enabled")).isEqualTo("false");
+        assertThat(environment.getProperty("agent.security.auth-field-migration-mode")).isEqualTo("SEED_ONLY");
 
         assertThat(applicationContext.getBeansOfType(DiscoveryClient.class).values())
                 .allSatisfy(client -> {
@@ -40,12 +54,8 @@ class AgentServiceApplicationTest {
                 });
         assertThat(applicationContext.getBeansOfType(ServiceRegistry.class)).isEmpty();
 
-        var applicationTypes = Arrays.stream(applicationContext.getBeanDefinitionNames())
-                .map(applicationContext::getType)
-                .filter(Objects::nonNull)
-                .filter(type -> type.getPackageName().startsWith("com.dylan.baseline.agent"))
-                .toList();
-        assertThat(applicationTypes).containsExactly(AgentServiceApplication.class);
+        assertThat(applicationContext.getBean(AuthPermissionAuthorityPort.class)).isNotNull();
+        assertThat(applicationContext.getBean(ServiceTokenProvider.class)).isNotNull();
 
         var forbiddenInfrastructureTypes = Arrays.stream(applicationContext.getBeanDefinitionNames())
                 .map(applicationContext::getType)

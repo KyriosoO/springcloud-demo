@@ -40,6 +40,8 @@ class AgentPermissionProjectionServiceTest {
         AgentPermissionResolveResponse response = service.resolve(request("dylan"));
 
         assertThat(response.subject()).isEqualTo(new SubjectRefDto("USER", "dylan"));
+        assertThat(response.tenantRef()).isEqualTo("tenant-main");
+        assertThat(response.permissionCodes()).containsExactly("agent-admin");
         assertThat(response.evidenceId()).startsWith("perm-user-");
         assertThat(response.version()).isEqualTo(rbacProperties.getRuleVersion());
         assertThat(response.allowedCapabilityIds())
@@ -71,6 +73,7 @@ class AgentPermissionProjectionServiceTest {
                 .containsEntry("source", "auth-service-agent-permission")
                 .containsEntry("policyTier", "admin");
         assertThat(response.resolvedAt()).isEqualTo(NOW);
+        assertThat(response.validUntil()).isEqualTo(NOW.plusSeconds(30));
     }
 
     @Test
@@ -78,6 +81,7 @@ class AgentPermissionProjectionServiceTest {
         AgentPermissionResolveResponse response = service.resolve(request("viewer_t"));
 
         assertThat(response.allowedCapabilityIds()).containsExactlyInAnyOrder("query.search", "query.preview");
+        assertThat(response.permissionCodes()).containsExactly("agent-viewer");
         assertThat(response.allowedDomains()).containsExactly("employee");
         assertThat(response.filterableFields().get("employee"))
                 .containsExactlyInAnyOrder("chineseName", "memberNo", "position");
@@ -123,6 +127,16 @@ class AgentPermissionProjectionServiceTest {
         assertThatThrownBy(() -> service.resolve(invalid))
                 .isInstanceOfSatisfying(AgentPermissionException.class, ex ->
                         assertThat(ex.code()).isEqualTo(AgentPermissionErrorCode.AGENT_PERMISSION_INVALID_REQUEST));
+    }
+
+    @Test
+    void clampsPermissionValidityToRequestDeadline() {
+        AgentPermissionResolveRequest shortDeadline = new AgentPermissionResolveRequest(
+                "req-1", new SubjectRefDto("USER", "dylan"), NOW, NOW.plusSeconds(5));
+
+        AgentPermissionResolveResponse response = service.resolve(shortDeadline);
+
+        assertThat(response.validUntil()).isEqualTo(NOW.plusSeconds(5));
     }
 
     private static AgentPermissionResolveRequest request(String userId) {

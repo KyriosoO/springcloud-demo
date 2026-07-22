@@ -1,5 +1,8 @@
 common:
   security:
+    service-token:
+      service-id: agent-service
+      scopes: [agent.permission.resolve]
     secrets:
       agent-payload:
         active-key-id: ACTIVE
@@ -10,6 +13,18 @@ common:
             value: "gINjdgXjaccClSOQCmH2d5pM5ruHqML9PY31uHNSLJw="
 
 agent:
+  security:
+    auth:
+      base-url: http://auth-service
+      resolve-path: /internal/agent/permissions/resolve
+      connect-timeout: 2s
+      read-timeout: 2s
+      max-response-bytes: 65536
+      positive-cache-enabled: false
+    policy:
+      required: true
+      persistence-enabled: false
+    auth-field-migration-mode: SEED_ONLY
   auth-service:
     base-url: http://auth-service
     resolve-path: /internal/agent/permissions/resolve
