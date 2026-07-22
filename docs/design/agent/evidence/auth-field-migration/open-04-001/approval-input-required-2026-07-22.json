@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "open-04-001-approval-input-handoff-v0.2",
+  "schemaVersion": "open-04-001-approval-input-handoff-v0.3",
   "state": "EXTERNAL_INPUT_REQUIRED",
   "purpose": "DR-04-045 controlled non-production B/C migration, tightening and rollback exercise",
   "immutableBaseline": {
@@ -38,11 +38,16 @@
     "dbUser": "root",
     "databaseRefDigest": "3fb1e9fa612179b9631de90a918bc3d8110f08e06df0a61a3e9ef433c54fef4a",
     "passwordSource": "OPEN04001_DB_PASSWORD environment variable; never place the password in evidence",
-    "proposedOperatorRef": "codex-open-04-001-operator@e9db663",
-    "proposedOperatorRefDigest": "24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399"
+    "operatorRef": "codex-open-04-001-operator@e9db663",
+    "operatorRefDigest": "24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399",
+    "approverRef": "admin",
+    "approverRefDigest": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+    "rolesDistinct": true,
+    "approvalState": "IDENTITIES_ASSIGNED_SIGNATURE_PENDING"
   },
   "requiredIndependentApprovalInputs": {
-    "approverRefDigest": "REQUIRED_LOWERCASE_SHA256_DISTINCT_FROM_OPERATOR",
+    "approverRef": "admin",
+    "approverRefDigest": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
     "ed25519PublicKey": "REQUIRED_X509_DER_FILE_OUTSIDE_REPOSITORY",
     "verificationKeyId": "REQUIRED_REGISTERED_KEY_ID",
     "verificationKeyVersion": "REQUIRED_REGISTERED_KEY_VERSION",
@@ -59,7 +64,8 @@
     "systems": "REQUIRED_NON_EMPTY_COMPLETE_REPOSITORY_AND_DEPLOYMENT_INVENTORY_WITH_REAL_REVISIONS_AND_SCAN_GLOBS"
   },
   "requiredIndependentExitReviewInputs": {
-    "reviewerRefDigest": "MUST_EQUAL_CONTROL_RECORD_APPROVER_AND_DIFFER_FROM_OPERATOR",
+    "reviewerRef": "admin",
+    "reviewerRefDigest": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
     "reviewedAt": "REQUIRED_AFTER_CONTROL_VERIFICATION_MIGRATION_OBSERVATION_EXTERNAL_SCAN_AND_AUTH_CONTRACT_BUT_NOT_AFTER_VALID_UNTIL",
     "decision": "APPROVE_OPEN_04_001_EXIT",
     "findings": [],
@@ -128,7 +134,7 @@
     "runtimeToolTrafficEnabled": false,
     "businessTrafficEnabled": false,
     "operatorRefDigest": "24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399",
-    "approverRefDigest": "REQUIRED_LOWERCASE_SHA256_DISTINCT_FROM_OPERATOR",
+    "approverRefDigest": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
     "verificationKey": {
       "keyId": "REQUIRED_REGISTERED_KEY_ID",
       "keyVersion": "REQUIRED_REGISTERED_KEY_VERSION"
@@ -139,11 +145,11 @@
     "validUntil": "REQUIRED_UTC_TIMESTAMP"
   },
   "commands": {
-    "deriveBindings": "python scripts/security/prepare_open_04_001_control_record.py derive-bindings --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest <APPROVER_SHA256> --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <BINDINGS_JSON>",
+    "deriveBindings": "python scripts/security/prepare_open_04_001_control_record.py derive-bindings --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918 --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <BINDINGS_JSON>",
     "prepare": "python scripts/security/prepare_open_04_001_control_record.py prepare --root . --spec <COMPLETED_SPEC_JSON> --output <APPROVAL_REQUEST_JSON>",
     "finalize": "python scripts/security/prepare_open_04_001_control_record.py finalize --request <APPROVAL_REQUEST_JSON> --signature-file <SIGNATURE_TEXT_FILE> --output <CONTROL_RECORD_JSON>",
-    "controlVerify": "java -cp <AGENT_SERVICE_RUNTIME_CLASSPATH> com.dylan.baseline.agent.security.migration.control.Open04001ControlRecordVerificationCli --root . --record <CONTROL_RECORD_JSON> --repository-revision e9db663cd7925ff43ce3d96512ebea06f71e9423 --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest <APPROVER_SHA256> --actor-ref-digest 24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399 --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <CONTROL_VERIFICATION_JSON>",
-    "controlledMigration": "java -cp <AGENT_SERVICE_RUNTIME_CLASSPATH> com.dylan.baseline.agent.security.migration.control.Open04001ControlledMigrationCli --root . --record <CONTROL_RECORD_JSON> --repository-revision e9db663cd7925ff43ce3d96512ebea06f71e9423 --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest <APPROVER_SHA256> --actor-ref-digest 24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399 --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <MIGRATION_RESULT_JSON>",
+    "controlVerify": "java -cp <AGENT_SERVICE_RUNTIME_CLASSPATH> com.dylan.baseline.agent.security.migration.control.Open04001ControlRecordVerificationCli --root . --record <CONTROL_RECORD_JSON> --repository-revision e9db663cd7925ff43ce3d96512ebea06f71e9423 --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918 --actor-ref-digest 24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399 --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <CONTROL_VERIFICATION_JSON>",
+    "controlledMigration": "java -cp <AGENT_SERVICE_RUNTIME_CLASSPATH> com.dylan.baseline.agent.security.migration.control.Open04001ControlledMigrationCli --root . --record <CONTROL_RECORD_JSON> --repository-revision e9db663cd7925ff43ce3d96512ebea06f71e9423 --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918 --actor-ref-digest 24df9120f5a77b607852a3d38c99675764004d7e1df09d2f2f5b8cf2635ca399 --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <MIGRATION_RESULT_JSON>",
     "observation": "python scripts/security/run_open_04_001_controlled_observation.py --auth auth-service/src/main/resources/agent-rbac.yml --seed agent-service/src/main/resources/agent-security/migration/field-policy-seed-v0.1.yml --traffic docs/design/agent/evidence/auth-field-migration/open-04-001/traffic-profile-v0.1.json --thresholds docs/design/agent/evidence/auth-field-migration/open-04-001/thresholds-v0.1.json --output <OBSERVATION_JSON> --policy-output <PRIMARY_POLICY_JSON> --rollback-policy-output <DRILL_POLICY_JSON>",
     "repositoryScan": "python scripts/security/scan_auth_field_legacy_consumers.py --root . --output <REPOSITORY_SCAN_JSON>",
     "externalScan": "python scripts/security/scan_auth_field_external_consumers.py --root . --scope <COMPLETED_SCOPE_JSON> --output <EXTERNAL_SCAN_JSON>",
