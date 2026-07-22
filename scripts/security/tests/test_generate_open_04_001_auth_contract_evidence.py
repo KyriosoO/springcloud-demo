@@ -33,7 +33,10 @@ class GenerateOpen04001AuthContractEvidenceTest(unittest.TestCase):
                 self.assertEqual(
                     ["report-snapshots/report.xml"], list(evidence["reportHashes"]),
                 )
-                self.assertEqual(report.read_bytes(), (root / "report-snapshots/report.xml").read_bytes())
+                snapshot = (root / "report-snapshots/report.xml").read_text(encoding="utf-8")
+                self.assertIn('<testsuite name="" tests="3" failures="0" errors="0" skipped="0" />', snapshot)
+                self.assertNotIn("<properties>", snapshot)
+                self.assertNotIn(str(root), snapshot)
                 report.write_text("<testsuite tests='3' failures='1' errors='0' skipped='0'/>", encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "not a complete pass"):
                     MODULE.generate(root, "a" * 40, "failed-report-snapshots")

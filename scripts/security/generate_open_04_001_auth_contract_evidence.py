@@ -64,7 +64,7 @@ def generate(root: Path, repository_revision: str, report_snapshot_dir: str) -> 
         failures += int(suite.attrib.get("failures", "0"))
         errors += int(suite.attrib.get("errors", "0"))
         skipped += int(suite.attrib.get("skipped", "0"))
-        reports.append((path, Path(relative).name))
+        reports.append((suite, Path(relative).name))
     source_hashes = {}
     for relative in SOURCE_REFS:
         path = root / relative
@@ -76,10 +76,10 @@ def generate(root: Path, repository_revision: str, report_snapshot_dir: str) -> 
         raise ValueError("Auth contract test reports are not a complete pass")
     snapshot_dir.mkdir()
     report_hashes = {}
-    for source, name in reports:
+    for suite, name in reports:
         relative = (Path(report_snapshot_dir) / name).as_posix()
         target = resolved_root / relative
-        atomic_write_bytes_new(target, source.read_bytes())
+        atomic_write_bytes_new(target, _sanitized_report(suite))
         report_hashes[relative] = sha256_file(target)
     return {
         "schemaVersion": SCHEMA,
@@ -94,6 +94,19 @@ def generate(root: Path, repository_revision: str, report_snapshot_dir: str) -> 
         "reportHashes": dict(sorted(report_hashes.items())),
         "sourceHashes": dict(sorted(source_hashes.items())),
     }
+
+
+def _sanitized_report(suite: ET.Element) -> bytes:
+    safe = ET.Element("testsuite", {
+        "name": suite.attrib.get("name", ""),
+        **{key: suite.attrib.get(key, "0") for key in ("tests", "failures", "errors", "skipped")},
+    })
+    for testcase in suite.findall("testcase"):
+        ET.SubElement(safe, "testcase", {
+            key: testcase.attrib.get(key, "") for key in ("name", "classname")
+        })
+    ET.indent(safe, space="  ")
+    return ET.tostring(safe, encoding="utf-8", xml_declaration=True) + b"\n"
 
 
 def main(argv=None) -> int:
