@@ -4,9 +4,14 @@
 
 | 项目 | 内容 |
 |---|---|
+| 文档标识 | `AGENT-L2-00` |
+| 文档层级 | L2 实施总览（跨专题协调，不替代 01～05） |
 | 文档状态 | In Review |
-| 内部结论 | Ready for Implementation（内部三轮审查通过） |
-| 上位文档 | L0 v2.0、两个 L1 v2.0 |
+| 内部结论 | Ready for Implementation（逐文档五轮评审通过） |
+| 当前版本 | v2.0 |
+| 适用基线 | `AGENT-L0-001`、`AGENT-APP-L1-001`、`AGENT-RETRIEVAL-L1-001` v2.0 |
+| 维护责任角色 | L2 实施协调负责人（具体人员由项目治理指定） |
+| 上位文档 | L0 v2.0、两个 L1 v2.0；冲突时按 L0→对应 L1→专题 L2 的权威顺序处理 |
 | 目的 | 给出完整 L2 分解、实施顺序、共同约束和验收追踪 |
 
 ## 2. 修改历史
@@ -14,10 +19,11 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v2.0 | 2026-07-22 | 以官方 Python LangGraph 受限 StateGraph 和五个专题覆盖首阶段能力，删除旧双编排/迁移/持久状态专题。 |
+| v2.0-r1 | 2026-07-22 | 补齐治理身份，明确专题权威，并将首个 PoC 改为 01/02/03 最小纵切协同交付。 |
 
 ## 3. 设计目标与范围
 
-目标是给出精简且完整的 LangGraph L2 交付图。范围外包括代码实现、旧项目迁移、Java 主编排、多 Agent、模型自主 Tool 循环、动态节点、checkpointer/持久记忆、人工中断恢复和生产审批。
+目标是给出精简且完整的 LangGraph L2 交付图。本文只协调共同约束、依赖和门禁；01～05 分别拥有各自字段、流程、落点和测试语义，本文不得以总览表格覆盖专题设计。范围外包括代码实现、旧项目迁移、Java 主编排、多 Agent、模型自主 Tool 循环、动态节点、checkpointer/持久记忆、人工中断恢复和生产审批。
 
 ## 4. 当前实现基线、关联资源与责任边界
 
@@ -25,7 +31,7 @@
 
 ## 5. 模块职责、依赖方向与调用边界
 
-01 提供 API、类型化 state 和固定图，02 提供确定性安全节点，03/04 实现能力节点，05 独立提供检索/索引合同。每个专题围绕一个稳定责任内聚，避免 Graph 与上游实现耦合。依赖方向为 `api -> graph -> 02 + 03/04 -> Python clients -> Java 上游`，04 通过稳定 Search DTO 调用 05；禁止反向依赖图、Java 编排旁路或绕过 Validator。
+01 提供 API、类型化 state 和固定图，02 提供确定性安全节点，03/04 实现能力节点，05 独立提供检索/索引合同。每个专题围绕一个稳定责任内聚，避免 Graph 与上游实现耦合。依赖方向为 `api -> graph -> 02 + 03/04 -> Python clients -> Auth/Java业务/检索/模型端点`，04 通过稳定 Search DTO 调用 05；禁止反向依赖图、Java 编排旁路或绕过 Validator。
 
 ## 6. L2 责任分解
 
@@ -47,33 +53,44 @@
 - 所有上游通过窄 Client/Port 调用，不直连数据库，不透传原生 DSL。
 - 日志、指标和审计禁止正文、Prompt、响应原文、JWT、密钥和完整权限表达式。
 - 权限与审计设计统一由 02 提供：API 验证 JWT、auth_context 解析上界、result_security 收口输出；第三方 State tracing 默认关闭。
-- 图只允许固定节点/条件边；compile 不配置 checkpointer，不使用 thread 持久状态、动态节点或模型自主 Tool 循环。
+- 图只允许固定节点/条件边；顶层图及任何独立编译的嵌套图使用`checkpointer=False`，不使用或继承 thread 持久状态，不使用动态节点或模型自主 Tool 循环。
 
 ## 8. 核心流程与建议实施顺序
 
-1. **01 PoC/骨架**：先实现`AUTH -> PLAN -> QUERY/CLARIFY -> RESULT_SECURITY`，再补 API、deadline、固定图、Graph State、模型计划 Schema 与 Validator。
-2. **02 安全**：Auth Client、权限交集、规划输入投影、ModelClient、结果安全。
-3. **03 业务能力**：先接一个 QUERY 域，再补 AGGREGATE 与第二个域，形成可验证纵切。
-4. **05 检索基础设施**：确认当前 `es-query-*` 基线，补合同、关键词搜索、索引和重建。
-5. **04 DOCUMENT**：在 02/05 合同稳定后接入证据问答和总结。
-6. **端到端门禁**：三类能力真实上游集成、安全负向、效果、超时和回滚测试。
+1. **PoC 合同冻结**：先由 01 冻结图/State/错误，02 冻结服务认证与结果安全，03 冻结一个 QUERY 域的最小上游映射；三者只冻结支撑 PoC 的最小合同。
+2. **01+02+03 最小纵切 PoC**：协同实现`AUTH -> PLAN -> QUERY/CLARIFY -> SAFE_RESPONSE/RESULT_SECURITY`，验证非法计划零上游调用、deadline/迟到结果、Python→Spring 认证和错误映射。
+3. **01/02 完整骨架**：补齐 API、固定图、Graph State、计划 Schema/Validator、安全投影、ModelClient 与审计。
+4. **03 业务能力扩展**：在首个 QUERY 域通过后，再补 AGGREGATE 与第二个域。
+5. **05 检索基础设施**：确认当前 `es-query-*` 基线，补合同、关键词搜索、索引和重建。
+6. **04 DOCUMENT**：在 02/05 合同稳定后接入证据问答和总结。
+7. **端到端门禁**：三类能力真实上游集成、安全负向、效果、超时和回滚测试。
 
 每一步保持主干可编译；不得先搭建通用框架再等待能力接入。
 
+| 专题 | 发布前置 | 回滚边界 | 禁止的“降级” |
+|---|---|---|---|
+| 01/02 | PoC、认证合同、固定图和安全负向通过 | 关闭 Agent 入口路由或恢复上一部署/配置 | 启用 Java 编排旁路、跳过 Auth/Validator/result_security |
+| 03 | 单域 QUERY 合同通过后按能力/域启用 | 关闭对应能力/域，保留安全拒绝 | 模型自行拼接查询、直连数据库或扩大字段 |
+| 05 | 新索引验证与观察门禁通过 | Alias 回切 previous，保留失败任务证据 | Agent 直连 ES、切到未验证索引或跳过检索前过滤 |
+| 04 | 02/05 与供应商/效果门禁通过 | 关闭 DOCUMENT，QUERY/AGGREGATE 不受影响 | 无证据生成、无引用回答或宽检索 |
+
+所有开关默认关闭且只能收紧能力，不得改变 Auth 上界、服务身份、错误封套或数据所有权。回滚不修改上游业务事实；回滚演练和配置恢复由对应专题的测试/验证项证明。
+
 ## 9. 共同状态、数据生命周期与错误分类
 
-首阶段不配置 LangGraph checkpointer，不持久化执行状态。请求内节点用于显式控制流与指标：
+首阶段以`checkpointer=False`显式禁用 LangGraph checkpointer，不持久化执行状态。请求内节点用于显式控制流与指标：
 
 ```text
 START -> AUTH_CONTEXT -> PLAN -> VALIDATE -> QUERY|AGGREGATE|DOCUMENT
                                   ├-------> CLARIFY|REJECT
 DOCUMENT -> RETRIEVE -> EVIDENCE_GATE -> GENERATE -> CITATION_GATE
 所有成功分支 -> RESULT_SECURITY -> END
+CLARIFY|REJECT|安全失败 -> SAFE_RESPONSE -> RESULT_SECURITY -> END
 ```
 
-节点名不是外部 API，也不需要数据库表。并发终止由同一异步请求、deadline 检查和 HTTP Client 取消处理。未配置 checkpointer 时不得宣称恢复、持久记忆、time travel 或人工审批能力。
+节点名不是外部 API，也不需要数据库表。`SAFE_RESPONSE`只能写白名单原因码、模板标识和受限参数，所有 Graph 输出统一经过`RESULT_SECURITY`。并发终止由同一异步请求、deadline 检查和 HTTP Client 取消处理。禁用 checkpointer 时不得宣称恢复、持久记忆、time travel 或人工审批能力。
 
-统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`CLARIFICATION_REQUIRED`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`EVIDENCE_INSUFFICIENT`、`INTERNAL_ERROR`。外部 4xx/5xx 映射在 01 冻结；各能力只能补充安全 `reasonCode`，不能暴露上游正文。
+Agent Graph/API 统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`CLARIFICATION_REQUIRED`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`EVIDENCE_INSUFFICIENT`、`INTERNAL_ERROR`。外部 4xx/5xx 映射由 01 冻结，03/04 只能补充安全`reasonCode`，不能暴露上游正文。L2-05 的 Search/Index/Rebuild 是独立基础设施合同，可保留版本冲突、批量逐项结果和任务状态；只有 04 的 Retrieval Client 负责把其失败映射为 Agent 错误，禁止总览强行抹平基础设施语义。
 
 ## 10. 测试与验证设计
 
@@ -90,17 +107,19 @@ DOCUMENT -> RETRIEVE -> EVIDENCE_GATE -> GENERATE -> CITATION_GATE
 
 | 上位约束 | L2 | 验收证据 |
 |---|---|---|
-| AD-01/02/03/09/10 | 01 | Graph State、拓扑、计划、超时、无 checkpointer 测试 |
-| AD-04/05/11 | 02 | 权限和模型安全负向测试 |
-| AD-03/06/09 | 03 | 上游合同、映射与结果正确性测试 |
-| AD-05/07/08/12 | 04 | 检索前过滤、引用和拒答效果集 |
-| AD-07/08/12 | 05 | 索引一致性、安全和 Recall 测试 |
+| AD-01/02/03/09/10/13/14 | 01 | Graph State、拓扑、计划、超时、封闭输出、服务 Client 边界和无 checkpointer 测试 |
+| AD-04/05/11/13/14 | 02 | 权限、服务身份、出站白名单和模型安全负向测试 |
+| AD-03/06/09/10/14 | 03 | 上游合同、服务 Client、映射与结果正确性测试 |
+| AD-05/07/08/09/10/12/13/14 | 04 | 检索前过滤、引用、拒答、deadline 和泄漏效果集 |
+| AD-05/06/07/08/09/10/11/12/13/14 | 05 | 索引一致性、严格合同、安全、日志和 Recall 测试 |
 | ADR-01、ADR-02、ADR-03、ADR-05、ADR-06 | 01/02/03/04 | Python LangGraph 单运行时、受限图、确定性安全和 Java-only 备选门禁 |
 | ADR-04 | 04/05 | 独立检索边界与关键词优先的效果门禁 |
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
-| REQ-00-01 / CON-00-01 | DR-00-01 受限 StateGraph 与五专题完整覆盖 | IMPL-00-01 01～05 L2 | TEST-00-01 拓扑/状态/结构检查 | VAL-00-01 三类能力均可追踪且无旁路 |
+| REQ-00-01 / CON-00-01 | DR-00-01 受限 StateGraph 与五专题完整覆盖、责任不重叠 | IMPL-00-01 01～05 L2 | TEST-00-01 文档清单、上下位 ID 和职责覆盖检查 | VAL-00-01 三类能力均可追踪且无旁路 |
+| REQ-00-02 / CON-00-02 | DR-00-02 首个 PoC 由 01/02/03 最小合同与纵切共同交付 | IMPL-00-02 01/02/03 PoC 落点 | TEST-00-02 PoC 前置、非法计划零上游、认证/错误/deadline 集成 | VAL-00-02 PoC 证据齐全后才扩展能力 |
+| REQ-00-03 / CON-00-03 | DR-00-03 专题开关只收紧，回滚不引入旁路或宽降级 | IMPL-00-03 01～05 发布/配置/回滚落点 | TEST-00-03 回滚矩阵与禁止路径检查 | VAL-00-03 回滚后上位安全/所有权不变量不变 |
 
 ## 12. 风险、待确认事项与变更控制
 
@@ -110,8 +129,18 @@ DOCUMENT -> RETRIEVE -> EVIDENCE_GATE -> GENERATE -> CITATION_GATE
 
 ## 13. 实施落点清单
 
-IMPL-00-01 是 01～05 文档定义的建议新增代码/合同落点集合；总览不新增第六类运行模块。每个落点必须在对应 L2 的 REQ/DR/TEST/VAL 闭环后实施。
+IMPL-00-01～03 是 01～05 文档定义的建议新增代码/合同、PoC 和发布回滚落点集合；总览不新增第六类运行模块。每个落点必须在对应 L2 的 REQ/DR/TEST/VAL 闭环后实施。
 
-## 14. 内部评审记录
+## 14. 五轮逐文档评审
 
-本总览与 01～05 一并完成三轮内部审查，结果见 `../内部审查记录_v2.0.md`。审查不包含代码符合性或生产审批。
+本总览独立完成五轮评审，结果见 `../内部审查记录_v2.0.md`。结论仅表示跨专题分解、依赖、PoC 与回滚门禁可指导分阶段实现，不替代 01～05 各自的五轮结论、代码符合性评审或生产审批。
+
+### 14.1 内部自检记录
+
+| 轮次 | 日期 | S0 | S1 | S2 | 本轮处理 | 结论 |
+|---:|---|---:|---:|---:|---|---|
+| 1 | 2026-07-22 | 0 | 1 | 2 | 修正 PoC 跨专题前置并补治理身份 | 已修复 |
+| 2 | 2026-07-22 | 0 | 1 | 1 | 限定 Agent/检索错误所有权并修正依赖语义 | 已修复 |
+| 3 | 2026-07-22 | 0 | 1 | 0 | 增加专题发布与回滚矩阵 | 已修复 |
+| 4 | 2026-07-22 | 0 | 1 | 0 | 补齐跨专题需求、设计、测试和验证闭环 | 已修复 |
+| 5 | 2026-07-22 | 0 | 0 | 1 | 同步五轮治理口径并执行严格校验 | 通过 |

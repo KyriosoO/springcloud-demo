@@ -7,10 +7,16 @@
 
 | 项目 | 内容 |
 |---|---|
+| 文档标识 | `AGENT-APP-L1-001` |
 | 文档层级 | L1 |
 | 文档状态 | In Review |
-| 内部结论 | Ready for Implementation（内部三轮审查通过） |
+| 内部结论 | Ready for Implementation（逐文档五轮评审通过） |
+| 当前版本 | v2.0 |
+| 适用基线 | `AGENT-L0-001` v2.0；目标代码与外部合同仍待 PoC/实施核验 |
+| 维护责任角色 | Agent 应用架构负责人（具体人员由项目治理指定） |
 | 上位文档 | `单体Agent智能体总体架构_L0_v2.0.md` |
+| 关联 L1 | `检索与索引基础设施架构_L1_v2.0.md` |
+| 治理的 L2 | 01 入口规划与可信执行、02 权限上下文与模型安全、03 业务查询与聚合、04 DOCUMENT 检索问答 |
 | 文档范围 | 单体 `agent-service` 的入口、规划、安全编排和三类能力 |
 | 边界外 | Auth、业务服务、检索/索引内部实现、原始文档、模型供应商平台 |
 
@@ -19,6 +25,11 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v2.0 | 2026-07-22 | 以单 Python LangGraph 部署单元重建能力架构，禁止 Java/Python 双编排。 |
+| v2.0-r1 | 2026-07-22 | 补齐治理身份，并明确 L2 总览由 L0 管理、本文只治理 01～04。 |
+| v2.0-r2 | 2026-07-22 | 冻结确定性 CLARIFY、服务认证与上游凭据边界。 |
+| v2.0-r3 | 2026-07-22 | 固定 Client 为唯一重试责任方并禁止图/入口重试。 |
+| v2.0-r4 | 2026-07-22 | 补齐零容忍门禁和 AD/APP 到 01～04 的完整约束分配。 |
+| v2.0-r5 | 2026-07-22 | 完成逐文档五轮治理与严格架构回归。 |
 
 ## 3. 架构目标与非目标
 
@@ -29,7 +40,7 @@
 | L0 约束 | 本 L1 落实 |
 |---|---|
 | AD-01、AD-02 | 一个 Python LangGraph 部署单元、同步请求内类型化状态、无 checkpointer |
-| AD-03、AD-04、AD-05、AD-13 | 固定图、模型提议、确定性节点校验、权限只收紧、封闭输出与 tracing 边界 |
+| AD-03、AD-04、AD-05、AD-13、AD-14 | 固定图、模型提议、确定性节点校验、权限只收紧、封闭输出、服务身份/用户事实分离与出站白名单 |
 | AD-06、AD-07、AD-08 | 上游数据所有权、DOCUMENT/检索责任分离、检索前过滤 |
 | AD-09、AD-10、AD-11、AD-12 | 单一 deadline/retry 所有者、严格合同、状态不夸大、按证据演进 |
 | ADR-01、ADR-02、ADR-03、ADR-05、ADR-06 | Python LangGraph 单运行时、受限图、确定性准入、单项目和 Java-only 备选门禁 |
@@ -44,7 +55,7 @@ Agent 是一个 Python 模块化单体，不是 Java/Python 服务集合。官�
 |---|---|---|
 | `api` | FastAPI/Pydantic 入口 DTO、认证材料、HTTP 映射 | 图路由、权限推导 |
 | `graph.builder` | 固定节点/条件边、compile 与调用 | 动态节点、模型生成边 |
-| `AgentState` | 请求级类型化最小状态 | JWT/secret/Prompt/完整上游正文长期驻留 |
+| `AgentState` | 请求级类型化最小状态；DOCUMENT 专属字段可短暂持有经授权、限量证据片段 | JWT/secret/Prompt/完整文档、未投影响应、跨请求或持久驻留 |
 | `auth_context`/`result_security` | Auth 交集、输入/输出投影 | 身份/RBAC 所有权 |
 | `plan` | 最小上下文调用模型，产生候选计划 | 执行业务调用 |
 | `validate`/`route` | 确定性白名单校验和唯一能力分支 | 自动修补未知字段 |
@@ -84,11 +95,11 @@ START
   -> plan (model)
   -> validate (deterministic)
   -> QUERY | AGGREGATE | DOCUMENT | CLARIFY | REJECT
-  -> result_security / safe_response
+  -> result_security | safe_response -> result_security
   -> END
 ```
 
-API 边界先验证 Bearer JWT，只把`trusted_identity`写入初始 State；原始 token 不进入图。`AgentState`是显式类型化、请求级、最小化状态，只含`request_id/deadline_at/trusted_identity/effective_authorization/plan_candidate/validated_plan/selected_capability/query_result/aggregate_result/search_hits/evidence_package/model_output/secured_result/error`。能力专属字段是互斥 optional 类型，通用节点不得写入；`error`只允许安全错误码，不保存异常正文。节点只返回自己拥有的局部更新。JWT、密钥、Prompt 模板、HTTP Client 和完整原文不进入 state。首阶段 graph compile 不传 checkpointer，不创建 thread/checkpoint/execution 表，不提供跨请求记忆或恢复；进程中断或 deadline 到期即失败，任何迟到响应被丢弃。
+API 边界先验证 Bearer JWT，只把`trusted_identity`写入初始 State；原始 token 不进入图。`AgentState`是显式类型化、请求级、最小化状态，只含`request_id/deadline_at/trusted_identity/effective_authorization/plan_candidate/validated_plan/selected_capability/query_result/aggregate_result/search_hits/evidence_package/model_output/secured_result/error`。能力专属字段是互斥 optional 类型，通用节点不得写入；`error`只允许安全错误码，不保存异常正文。节点只返回自己拥有的局部更新。JWT、密钥、Prompt 模板、HTTP Client、完整文档和未投影上游响应不进入 State；仅 DOCUMENT 的`search_hits/evidence_package`可短暂持有经授权、限条数/单片/总字节的证据片段。首阶段顶层图及任何独立编译的嵌套图均使用`checkpointer=False`，不创建 thread/checkpoint/execution 表，不提供跨请求记忆或恢复；进程中断或 deadline 到期即失败，任何迟到响应被丢弃。
 
 图 compile 时使用封闭 input/output schema；output 只暴露`request_id/secured_result/safe_error`。LangSmith 或任何第三方 State/Prompt tracing 默认关闭，只有完成字段级脱敏、数据处理审批和泄漏测试后才可另行启用。
 
@@ -101,8 +112,8 @@ API 边界先验证 Bearer JWT，只把`trusted_identity`写入初始 State；�
 | `QUERY` | 受控查询 | 交给 Query Validator |
 | `AGGREGATE` | 受控聚合 | 交给 Aggregate Validator |
 | `DOCUMENT` | 检索回答/总结 | 交给 Document Validator |
-| `CLARIFY` | 信息不足 | 返回封闭澄清问题，不调用上游 |
-| `REJECT` | 不支持或风险过高 | 返回安全原因码 |
+| `CLARIFY` | 信息不足 | 模型只提议原因码、缺失槽位和选项键；`safe_response`按服务端模板形成受限澄清问题，不复制模型自由文本、不调用上游，再经`result_security`输出 |
+| `REJECT` | 不支持或风险过高 | `safe_response`返回安全原因码，再经`result_security`输出 |
 
 计划必须声明 `schemaVersion/capability/domain/intent` 及能力专属载荷。未知 capability、domain、字段、操作符、函数、排序、语料库或额外字段全部拒绝。`validate`节点不把非法计划“尽量修复”为可执行计划；仅允许正规化大小写、空白和已声明别名。
 
@@ -131,10 +142,14 @@ API 边界先验证 Bearer JWT，只把`trusted_identity`写入初始 State；�
 
 现存接口只能作为实施期勘察输入。若其字段或错误语义不能支撑 L2，不得在 Agent 内猜测；应先获得对应上游合同变更授权。
 
+每个上游 Client 必须分别拥有目标白名单、协议/证书校验、服务凭据装配、绝对 deadline 和错误翻译；禁止跟随到未获准主机的重定向。用户 subject/tenant/权限事实与服务凭据分离传递，不能用`X-USER-ID`等可伪造头代替 Auth 合同，也不能把用户 Bearer token 当作 Agent 服务身份。模型节点不接触 Client 或任何凭据。
+
 ## 11. 超时、重试与错误
 
 - 请求使用绝对 `deadline`，默认值和最大值由配置给定；下游超时不得超过剩余预算。
-- Auth、模型和只读上游仅在“请求未发送或明确幂等”时最多重试一次；写入和未知发送结果不重试。
+- HTTP 入口、整图和 Graph 节点不自动重试，也不配置全局 LangGraph retry policy；每个依赖的重试唯一归对应 Client 所有。
+- Auth、模型和只读上游 Client 仅在“请求未发送或明确允许重放”且剩余 deadline 足够时最多重试一次；写入、未知发送结果、校验失败和整个请求不重试。
+- 客户端断开或 deadline 到期后取消图和未完成远调；迟到结果不得更新 State、输出响应或触发新的调用，取消/超时以安全原因码进入统一终态。
 - 错误封套至少区分：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`CLARIFICATION_REQUIRED`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`INTERNAL_ERROR`。
 - 外部响应不暴露类名、堆栈、Prompt、上游正文或策略细节；内部审计记录安全原因码和 correlation id。
 
@@ -156,21 +171,35 @@ API 边界先验证 Bearer JWT，只把`trusted_identity`写入初始 State；�
 
 必须度量请求数、节点/分支分布、澄清/拒绝率、计划校验失败率、各上游耗时、超时率、DOCUMENT 无证据率和引用校验失败率。日志只记录摘要和数量；图拓扑快照必须纳入回归，防止新增旁路边。
 
+首阶段不可妥协门禁：非法/越权计划触发上游调用数为 0；单请求执行多个能力分支数为 0；未经过`result_security`的 Graph 输出数为 0；日志/trace 中 JWT、密钥、Prompt、上游正文和完整权限表达式泄漏数为 0。延迟、容量、澄清率和 DOCUMENT 效果阈值由 L2 夹具/配置在对应能力上线前冻结，未冻结不得进入生产门禁。
+
 实现前先完成`AUTH -> PLAN -> QUERY/CLARIFY -> RESULT_SECURITY` PoC，验证类型化状态、非法计划不触发上游、deadline/迟到结果以及 Python 到 Spring 上游的认证/错误映射。实现就绪门禁还包括 L2 字段合同、图拓扑测试和上游合同测试。生产门禁：安全负向、真实模型效果、供应商数据处理批准、容量/超时和回滚全部完成；PoC 与文档审查不能代替这些门禁。
 
 ## 14. 下位 L2 详细设计交付约束与追踪
 
+`L2/00_单体Agent目标架构L2实施详细设计总览_v2.0.md`由 L0 用于协调两个 L1 的共同实施顺序，不由本 L1 单独重定义；本 L1 的直接下位交付是 01～04，L2-05 由检索与索引基础设施 L1 治理。
+
 | L2 | 覆盖 |
 |---|---|
-| 01 入口规划与可信执行 | AD-01/02/03/09/10；APP-DEC-01/02/03/09 |
-| 02 权限上下文与模型安全 | AD-04/05/11；APP-DEC-05/07 |
-| 03 业务查询与聚合 | AD-03/06/09；APP-DEC-04 |
-| 04 DOCUMENT 检索问答 | AD-05/07/08/12；APP-DEC-06 |
+| 01 入口规划与可信执行 | AD-01/02/03/09/10/13/14；APP-DEC-01/02/03/08/09 |
+| 02 权限上下文与模型安全 | AD-04/05/11/13/14；APP-DEC-05/07 |
+| 03 业务查询与聚合 | AD-03/06/09/10/14；APP-DEC-04/08 |
+| 04 DOCUMENT 检索问答 | AD-05/07/08/09/10/12/13/14；APP-DEC-06/08 |
 
 下位 L2 必须给出严格 Graph State/DTO、固定节点/边、失败语义、实现落点和自动测试，不得引入 Java 编排旁路、第二 Agent 部署单元、动态 Tool 循环、通用插件系统或 checkpointer；公共上游合同变化必须先获得对应范围授权。
 
-官方接口依据：`StateGraph`节点读写共享 state，条件边负责有限路由，图须 compile 后执行；checkpointer 是持久化、跨交互记忆和故障恢复的前提。本设计不配置 checkpointer：<https://reference.langchain.com/python/langgraph/graph/state/StateGraph>、<https://docs.langchain.com/oss/python/langgraph/persistence>。
+官方接口依据：`StateGraph`节点读写共享 state，条件边负责有限路由，图须 compile 后执行；checkpointer 是持久化、跨交互记忆和故障恢复的前提。本设计以`checkpointer=False`禁止当前图使用或继承 checkpointer：<https://reference.langchain.com/python/langgraph/graph/state/StateGraph/compile>、<https://docs.langchain.com/oss/python/langgraph/persistence>。
 
-## 15. 三轮内部审查
+## 15. 五轮逐文档评审
 
-三轮结果及修订项记录于[内部审查记录](内部审查记录_v2.0.md)，结论不等于正式批准或实现验证。
+本文件五轮结果及修订项记录于[内部审查记录](内部审查记录_v2.0.md)。结论仅表示该 L1 足以治理 01～04 的详细设计和分阶段实现计划，不等于正式批准、代码符合性验证或生产放行。
+
+### 15.1 内部自检记录
+
+| 轮次 | 日期 | S0 | S1 | S2 | 本轮处理 | 结论 |
+|---:|---|---:|---:|---:|---|---|
+| 1 | 2026-07-22 | 0 | 1 | 2 | 补治理身份并校正 L2 总览/01～04 治理关系 | 已修复 |
+| 2 | 2026-07-22 | 0 | 2 | 0 | 冻结确定性澄清、服务认证和凭据边界 | 已修复 |
+| 3 | 2026-07-22 | 0 | 1 | 0 | 固定 Client 唯一重试责任 | 已修复 |
+| 4 | 2026-07-22 | 0 | 2 | 1 | 补零容忍门禁与下位约束/追踪 | 已修复 |
+| 5 | 2026-07-22 | 0 | 0 | 0 | 回归图边界、能力互斥和越界声明 | 通过 |

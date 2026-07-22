@@ -7,10 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
+| 文档标识 | `AGENT-L0-001` |
 | 文档层级 | L0 |
 | 文档状态 | In Review |
-| 内部结论 | Ready for Implementation（内部三轮审查通过） |
+| 内部结论 | Ready for Implementation（逐文档五轮评审通过） |
+| 当前版本 | v2.0 |
 | 日期 | 2026-07-22 |
+| 适用基线 | 本目录 v2.0 设计基线；目标代码与外部合同仍待 PoC/实施核验 |
+| 维护责任角色 | Agent 架构负责人（具体人员由项目治理指定） |
+| 治理的 L1 | `单体Agent应用与能力架构_L1_v2.0.md`、`检索与索引基础设施架构_L1_v2.0.md` |
 | 文档范围 | 新单 Agent 的系统目标、权威边界、质量属性和下位设计约束 |
 | 不代表 | 已实现、正式批准、目标系统质量通过或生产放行 |
 
@@ -19,6 +24,11 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v2.0 | 2026-07-22 | 删除旧项目基线后以官方 Python LangGraph 重建精简单 Agent，移除双编排、持久执行状态和迁移治理。 |
+| v2.0-r1 | 2026-07-22 | 补齐治理身份、全局失败闭环、显式禁用 checkpointer 和分阶段发布/回滚门禁。 |
+| v2.0-r2 | 2026-07-22 | 分离服务身份与用户授权事实，增加出站目标默认拒绝约束。 |
+| v2.0-r3 | 2026-07-22 | 收敛阶段准入、失败回退和撤回条件。 |
+| v2.0-r4 | 2026-07-22 | 补齐 AD-01～AD-14 向两个 L1 的责任分配与追踪。 |
+| v2.0-r5 | 2026-07-22 | 完成逐文档五轮治理与严格架构回归。 |
 
 ## 3. 架构目标与非目标
 
@@ -72,6 +82,8 @@
 | 能力、字段、语料库策略 | Agent | 在 Auth 上界内进一步收紧 |
 | 模型输入和输出 | Agent | 最小投影、严格校验，不作为授权事实 |
 
+`agent-service`调用 Auth、业务、检索和模型端点时使用独立服务身份；用户身份/权限事实只作为经验证、可审计的授权上下文，不得伪装成服务凭据或由任意请求头代替。出站网络目标、协议和模型用途默认拒绝，仅允许配置白名单中的已批准端点；模型节点本身不持有网络或业务凭据。
+
 ## 5. 组件关系与顶层调用链
 
 ### 5.1 Agent 应用
@@ -102,18 +114,20 @@ START -> auth_context -> plan -> validate
 
 DOCUMENT -> retrieve -> evidence_gate -> generate_or_summary -> citation_gate
 
-所有成功路径 -> result_security -> END
-CLARIFY/REJECT/安全失败 -> safe_response -> END
+所有能力成功路径 -> result_security -> END
+CLARIFY/REJECT/安全失败 -> safe_response -> result_security -> END
 ```
 
 `auth_context`、`validate`、三类上游调用、`evidence_gate`、`citation_gate`和`result_security`都是确定性节点；模型节点仅为`plan`与DOCUMENT生成/总结。一个请求只进入一个能力分支，不支持模型自主 Tool 循环、动态节点或多 Agent。
+
+任何节点的校验失败、上游失败、模型输出非法、deadline 到期或取消都只能进入`safe_response`后再由`result_security`形成封闭输出并终止；失败路径不得继续能力执行。`safe_response`是确定性节点，只能写入白名单原因码、模板标识和受限参数，禁止复制模型文本、上游正文或异常信息；`result_security`是所有 HTTP 响应的唯一 Graph 输出出口。同步请求不产生跨请求补偿状态，deadline 后返回的迟到结果必须丢弃且不得提交任何 Agent 自有状态。
 
 ## 7. 架构原则与全局不变量
 
 | 编号 | 不可违反的约束 |
 |---|---|
 | AD-01 | 官方 Python LangGraph 是唯一 Agent 编排运行时和唯一 Agent 部署单元；禁止 Java 主编排 + Python Runtime。 |
-| AD-02 | 首阶段请求同步完成，`StateGraph.compile()`不配置 checkpointer；不得宣称持久记忆、恢复或人工中断能力。 |
+| AD-02 | 首阶段请求同步完成；顶层图及任何独立编译的嵌套图都以`checkpointer=False`显式禁止使用或继承 checkpointer；不得宣称持久记忆、恢复或人工中断能力。 |
 | AD-03 | 图结构固定且受限；模型只提议结构化计划，确定性 validate 节点是执行准入唯一权威。 |
 | AD-04 | Auth 给出上界，Agent 与资源事实只做交集；事实缺失、过期或冲突时失败关闭。 |
 | AD-05 | 模型输入最小披露，模型/检索输出均不可信，最终响应必须再次校验和投影。 |
@@ -124,7 +138,8 @@ CLARIFY/REJECT/安全失败 -> safe_response -> END
 | AD-10 | 公共合同使用显式版本、封闭枚举和未知字段拒绝；L0 不冻结字段级 Schema。 |
 | AD-11 | 不以旧项目、旧报告、合成 PoC 或连通性证明推导目标实现已通过。 |
 | AD-12 | 多 Agent、异步恢复、向量/重排、细粒度 ACL 等扩展须以明确需求和度量触发。 |
-| AD-13 | 原始 JWT、服务密钥、Prompt、上游正文不得进入 Graph State 或外部 tracing；Graph 输出必须由封闭 output schema 限定。 |
+| AD-13 | 原始 JWT、服务密钥、Prompt、完整文档和未投影上游响应不得进入 Graph State 或外部 tracing；DOCUMENT 仅允许经授权、限量的证据片段进入请求级专属字段，且不得持久化/外发 tracing；Graph 输出必须由封闭 output schema 限定。 |
+| AD-14 | 服务身份与用户授权事实必须分离；出站网络与模型目标默认拒绝，只允许获准 Client 访问白名单端点，禁止信任可伪造用户头。 |
 
 ## 8. 质量属性与验证口径
 
@@ -162,14 +177,42 @@ CLARIFY/REJECT/安全失败 -> safe_response -> END
 
 ## 11. 下位 L1 治理与实施顺序
 
-两个 L1 分别细化 Agent 应用与检索基础设施；L2 按 `01 安全入口/规划 -> 02 权限/模型 -> 03 QUERY/AGGREGATE -> 05 检索基础设施 -> 04 DOCUMENT` 实现和联调。L2 可补字段、类和测试落点，但不得放宽 AD-01～AD-13。
+两个 L1 分别细化 Agent 应用与检索基础设施；L2 按 `01 安全入口/规划 -> 02 权限/模型 -> 03 QUERY/AGGREGATE -> 05 检索基础设施 -> 04 DOCUMENT` 实现和联调。L2 可补字段、类和测试落点，但不得放宽 AD-01～AD-14。
 
-两个下位 L1 必须分别治理 LangGraph Agent 应用与检索基础设施，不得相互重定义所有权；L1 只能收紧本 L0，不得自行引入 Java 主编排、第二 Agent 运行时、checkpointer、异步恢复或模型 Tool 权限。
+| 全局约束 | 主责 L1 | 下位验证 |
+|---|---|---|
+| AD-01～AD-03、AD-13 | Agent 应用与能力架构 | L2-01 固定图/状态/输出；L2-02 安全边界 |
+| AD-04～AD-06、AD-09～AD-11、AD-14 | Agent 应用与能力架构 | L2-01～03 的授权、合同、deadline、Client 与负向测试 |
+| AD-07～AD-08 | Agent 应用与能力架构 + 检索与索引基础设施架构 | L2-04/05 的责任、检索前过滤和双层结果安全 |
+| AD-09～AD-10、AD-12～AD-14（检索适用部分） | 检索与索引基础设施架构 | L2-05 的写入/重建、严格 DTO、效果触发、日志与出站安全测试 |
+
+表中共同约束不产生双重权威：Agent L1 负责请求目的、授权交集和最终输出；检索 L1 负责原子检索/索引边界内的合同、过滤与派生状态。
+
+两个下位 L1 必须分别治理 LangGraph Agent 应用与检索基础设施，不得相互重定义所有权；L1 只能收紧本 L0，不得自行引入 Java 主编排、第二 Agent 运行时、checkpointer、异步恢复或模型 Tool 权限。AD-01～AD-14 必须由至少一个适用 L1 承接；不适用时需写明原因，不能静默遗漏。
 
 实现前首个 PoC 固定为 `AUTH -> PLAN -> QUERY/CLARIFY -> RESULT_SECURITY`，验证类型化状态、非法计划不触发上游、deadline/迟到结果、Python 到 Spring 上游的服务认证与错误映射。PoC 通过仍不等于目标系统质量或生产批准。
 
-官方设计依据：LangGraph `StateGraph`以共享 state 连接节点并在 compile 后执行；持久化、跨交互记忆和故障恢复依赖 checkpointer。本首版显式不配置 checkpointer，避免把框架可选能力误写为已具备能力：<https://reference.langchain.com/python/langgraph/graph/state/StateGraph>、<https://docs.langchain.com/oss/python/langgraph/persistence>。
+| 阶段 | 进入条件 | 退出门禁 | 回滚边界 |
+|---|---|---|---|
+| PoC | L0/L1/L2 设计可追踪 | 固定图、状态、认证、错误和 deadline 夹具通过 | 删除 PoC 部署与未投产依赖，不影响现有 Java 上游 |
+| 首个 QUERY 纵切 | PoC 通过且上游合同冻结 | 非法计划零上游调用、安全负向和结果投影通过 | 关闭 Agent 路由，现有上游合同保持兼容 |
+| AGGREGATE / 检索 | 前序门禁通过 | 聚合确定性、Search/Index/Rebuild 合同与回滚测试通过 | 按能力开关隔离；索引 Alias 回切上一可用版本 |
+| DOCUMENT | 检索与供应商门禁通过 | 真实语料效果、证据/引用、安全和容量门禁通过 | 关闭 DOCUMENT 能力，不降级到无证据生成 |
 
-## 12. 三轮内部审查
+任一阶段不得以“内部评审通过”代替其进入/退出证据；失败只回滚本阶段新增路由、部署或派生索引，不修改上游业务事实。
 
-三轮结果及修订项统一记录于[内部审查记录](内部审查记录_v2.0.md)。结论仅为内部实现就绪，不替代独立正式评审。
+官方设计依据：LangGraph `StateGraph`以共享 state 连接节点并在 compile 后执行；持久化、跨交互记忆和故障恢复依赖 checkpointer。`compile(checkpointer=False)`明确禁止当前图使用或从父图继承 checkpointer；本首版采用该方式，避免把框架可选能力误写为已具备能力：<https://reference.langchain.com/python/langgraph/graph/state/StateGraph/compile>、<https://docs.langchain.com/oss/python/langgraph/persistence>。
+
+## 12. 五轮逐文档评审
+
+本文件五轮结果及修订项统一记录于[内部审查记录](内部审查记录_v2.0.md)。结论仅表示 L0 足以治理下位架构和分阶段实现计划，不替代正式批准、代码符合性评审或生产放行。
+
+### 12.1 内部自检记录
+
+| 轮次 | 日期 | S0 | S1 | S2 | 本轮处理 | 结论 |
+|---:|---|---:|---:|---:|---|---|
+| 1 | 2026-07-22 | 0 | 2 | 2 | 补治理身份、全局失败闭环、checkpointer 与阶段门禁 | 已修复 |
+| 2 | 2026-07-22 | 0 | 1 | 1 | 分离服务/用户身份事实并限制出站目标 | 已修复 |
+| 3 | 2026-07-22 | 0 | 1 | 0 | 冻结阶段准入、回滚和撤回语义 | 已修复 |
+| 4 | 2026-07-22 | 0 | 0 | 1 | 补齐 AD 到两个 L1 的责任与追踪 | 已修复 |
+| 5 | 2026-07-22 | 0 | 0 | 0 | 回归边界、质量属性、追踪和越界声明 | 通过 |
