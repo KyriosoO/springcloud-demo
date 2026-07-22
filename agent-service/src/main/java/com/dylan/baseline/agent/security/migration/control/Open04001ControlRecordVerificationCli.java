@@ -22,10 +22,12 @@ public final class Open04001ControlRecordVerificationCli {
     public static void main(String[] args) throws Exception {
         Map<String, String> values = parse(args);
         ObjectMapper mapper = new ObjectMapper();
+        byte[] publicKeyDer = Files.readAllBytes(Path.of(require(values, "public-key")));
         PublicKey publicKey = KeyFactory.getInstance("Ed25519").generatePublic(
-                new X509EncodedKeySpec(Files.readAllBytes(Path.of(require(values, "public-key")))));
+                new X509EncodedKeySpec(publicKeyDer));
         String expectedKeyId = require(values, "key-id");
         String expectedKeyVersion = require(values, "key-version");
+        String approverRefDigest = require(values, "approver-ref-digest");
         IntegrityVerificationKeyProvider keys = keyRef -> {
             if (!expectedKeyId.equals(keyRef.keyId()) || !expectedKeyVersion.equals(keyRef.keyVersion())) {
                 throw new IllegalArgumentException("verification key reference does not match CLI trust configuration");
@@ -34,8 +36,11 @@ public final class Open04001ControlRecordVerificationCli {
         };
         var adapter = new Open04001MigrationApprovalEvidenceAdapter(
                 Path.of(require(values, "root")), Path.of(require(values, "record")),
-                require(values, "repository-revision"), require(values, "configuration-digest"),
-                require(values, "database-ref-digest"), require(values, "approver-ref-digest"), keys,
+                require(values, "repository-revision"), Open04001ExecutionBinding.configurationDigest(
+                        expectedKeyId, expectedKeyVersion, approverRefDigest, publicKeyDer),
+                Open04001ExecutionBinding.databaseRefDigest(
+                        require(values, "jdbc-url"), values.getOrDefault("db-user", "root")),
+                approverRefDigest, keys,
                 new AuthFieldPolicyPayloadValidator(mapper), mapper, Clock.systemUTC());
         var evidence = adapter.verify(new ApprovalVerificationRequest(
                 require(values, "approval-ref"), require(values, "operation"), nullable(values.get("from-digest")),

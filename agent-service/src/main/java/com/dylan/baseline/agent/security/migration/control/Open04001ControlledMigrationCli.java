@@ -46,10 +46,12 @@ public final class Open04001ControlledMigrationCli {
         Path root = Path.of(require(values, "root")).toAbsolutePath().normalize();
         Path recordPath = resolveInside(root, require(values, "record"));
         JsonNode record = mapper.readTree(Files.readAllBytes(recordPath));
+        byte[] publicKeyDer = Files.readAllBytes(Path.of(require(values, "public-key")));
         PublicKey publicKey = KeyFactory.getInstance("Ed25519").generatePublic(
-                new X509EncodedKeySpec(Files.readAllBytes(Path.of(require(values, "public-key")))));
+                new X509EncodedKeySpec(publicKeyDer));
         String expectedKeyId = require(values, "key-id");
         String expectedKeyVersion = require(values, "key-version");
+        String approverRefDigest = require(values, "approver-ref-digest");
         IntegrityVerificationKeyProvider keys = keyRef -> {
             if (!expectedKeyId.equals(keyRef.keyId()) || !expectedKeyVersion.equals(keyRef.keyVersion())) {
                 throw new IllegalArgumentException("verification key reference does not match controlled trust config");
@@ -59,8 +61,11 @@ public final class Open04001ControlledMigrationCli {
         AuthFieldPolicyPayloadValidator validator = new AuthFieldPolicyPayloadValidator(mapper);
         var approval = new Open04001MigrationApprovalEvidenceAdapter(
                 root, recordPath, require(values, "repository-revision"),
-                require(values, "configuration-digest"), require(values, "database-ref-digest"),
-                require(values, "approver-ref-digest"), keys, validator, mapper, Clock.systemUTC());
+                Open04001ExecutionBinding.configurationDigest(
+                        expectedKeyId, expectedKeyVersion, approverRefDigest, publicKeyDer),
+                Open04001ExecutionBinding.databaseRefDigest(
+                        require(values, "jdbc-url"), values.getOrDefault("db-user", "root")),
+                approverRefDigest, keys, validator, mapper, Clock.systemUTC());
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");

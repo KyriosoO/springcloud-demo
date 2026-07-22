@@ -13,6 +13,31 @@ SPEC.loader.exec_module(MODULE)
 
 
 class PrepareOpen04001ControlRecordTest(unittest.TestCase):
+    def test_execution_bindings_are_derived_from_actual_non_secret_inputs(self):
+        first = MODULE.execution_bindings(
+            b"public-key", "approval-key", "v1", "a" * 64,
+            "jdbc:mysql://127.0.0.1:3306/springboot_db", "root")
+        self.assertEqual(
+            "b64692fe432ff5a2a129553340bbda8fd790051dc42e4cc9d71cf26268917d77",
+            first["configurationDigest"],
+        )
+        self.assertEqual(
+            "3fb1e9fa612179b9631de90a918bc3d8110f08e06df0a61a3e9ef433c54fef4a",
+            first["databaseRefDigest"],
+        )
+        self.assertNotEqual(
+            first["configurationDigest"],
+            MODULE.execution_bindings(
+                b"different-key", "approval-key", "v1", "a" * 64,
+                "jdbc:mysql://127.0.0.1:3306/springboot_db", "root")["configurationDigest"],
+        )
+        self.assertNotEqual(
+            first["databaseRefDigest"],
+            MODULE.execution_bindings(
+                b"public-key", "approval-key", "v1", "a" * 64,
+                "jdbc:mysql://127.0.0.1:3307/springboot_db", "root")["databaseRefDigest"],
+        )
+
     def test_prepare_binds_all_seven_refs_and_finalize_detects_drift(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

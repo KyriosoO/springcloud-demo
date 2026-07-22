@@ -15,6 +15,8 @@ from typing import Any
 
 REQUEST_SCHEMA = "open-04-001-migration-approval-request-v0.1"
 CONTROL_SCHEMA = "open-04-001-migration-control-v0.1"
+CONFIG_BINDING_SCHEMA = "open-04-001-security-config-v0.1"
+DATABASE_BINDING_SCHEMA = "open-04-001-database-ref-v0.1"
 SIGNATURE = re.compile(r"^[A-Za-z0-9_-]{86}$")
 REF_FIELDS = (
     "policyPayloadRef",
@@ -30,6 +32,22 @@ REF_FIELDS = (
 def canonical_bytes(value: Any) -> bytes:
     _reject_unsupported(value)
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def execution_bindings(
+        public_key_der: bytes, key_id: str, key_version: str, approver_ref_digest: str,
+        jdbc_url: str, db_user: str) -> dict[str, str]:
+    values = (key_id, key_version, approver_ref_digest, jdbc_url, db_user)
+    if any(not value or "\0" in value for value in values):
+        raise ValueError("execution binding values must be non-blank and contain no NUL")
+    public_key_digest = hashlib.sha256(public_key_der).hexdigest()
+    config = "\0".join((CONFIG_BINDING_SCHEMA, key_id, key_version, approver_ref_digest, public_key_digest))
+    database = "\0".join((DATABASE_BINDING_SCHEMA, jdbc_url, db_user))
+    return {
+        "configurationDigest": hashlib.sha256(config.encode("utf-8")).hexdigest(),
+        "databaseRefDigest": hashlib.sha256(database.encode("utf-8")).hexdigest(),
+        "publicKeySha256": public_key_digest,
+    }
 
 
 def prepare(spec: dict[str, Any], root: Path) -> dict[str, Any]:
@@ -147,15 +165,27 @@ def main(argv: list[str] | None = None) -> int:
     finalize_parser.add_argument("--request", type=Path, required=True)
     finalize_parser.add_argument("--signature-file", type=Path, required=True)
     finalize_parser.add_argument("--output", type=Path, required=True)
+    binding_parser = sub.add_parser("derive-bindings")
+    binding_parser.add_argument("--public-key", type=Path, required=True)
+    binding_parser.add_argument("--key-id", required=True)
+    binding_parser.add_argument("--key-version", required=True)
+    binding_parser.add_argument("--approver-ref-digest", required=True)
+    binding_parser.add_argument("--jdbc-url", required=True)
+    binding_parser.add_argument("--db-user", default="root")
+    binding_parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
             value = prepare(json.loads(args.spec.read_text(encoding="utf-8")), args.root)
-        else:
+        elif args.command == "finalize":
             value = finalize(
                 json.loads(args.request.read_text(encoding="utf-8")),
                 args.signature_file.read_text(encoding="ascii"),
             )
+        else:
+            value = execution_bindings(
+                args.public_key.read_bytes(), args.key_id, args.key_version,
+                args.approver_ref_digest, args.jdbc_url, args.db_user)
         args.output.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"OPEN-04-001 CONTROL RECORD BLOCKED: {exc}", file=sys.stderr)
