@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "open-04-001-approval-input-handoff-v0.1",
+  "state": "EXTERNAL_INPUT_REQUIRED",
+  "purpose": "DR-04-045 controlled non-production B/C migration, tightening and rollback exercise",
+  "immutableBaseline": {
+    "repositoryRevision": "3ec3f0cbfee5ea7ff87bd6157f49759ad6e53917",
+    "branch": "codex",
+    "remoteRef": "origin/codex",
+    "sourceHashes": {
+      "docs/design/agent/evidence/auth-field-migration/open-04-001/agent-field-policy-v0.1.json": "1366f5fcdb62183bffad030a26b10e4d2fdaa25608bd84b836c8a7cbef300ba5",
+      "docs/design/agent/evidence/auth-field-migration/open-04-001/rollback-exercise-policy-v0.1.json": "abd6d83b2393f3f13f6e366ab57c9456f62db5b7fb855296b7d9f4dea0b15578",
+      "docs/design/agent/evidence/auth-field-migration/open-04-001/thresholds-v0.1.json": "b0a2a9e5009bca0d1771f097f59d5cb03c11852e3794a6b4d15907c2e36e265e",
+      "docs/design/agent/evidence/auth-field-migration/open-04-001/traffic-profile-v0.1.json": "2f19c90742eecd817115b2cb2bacb8fb6361eabd82932a6c76ea28ffc9f8542b",
+      "scripts/security/run_open_04_001_controlled_observation.py": "1c003722d3d09e000eec6e47bf98f9d0bb11ab5c9fb466fdc559ae64db0a7f74",
+      "scripts/security/scan_auth_field_external_consumers.py": "676f98e42bf548ef4fbdafd7732a9ebe26b21b21ff981d201ea113008dd86b5a",
+      "scripts/security/verify_open_04_001_exit.py": "797c21e38624db3dec2861aaed5756a6830dc5eb0a2f6cba444c2b44c073e834"
+    }
+  },
+  "executionBinding": {
+    "jdbcUrl": "jdbc:mysql://127.0.0.1:3306/springboot_db",
+    "dbUser": "root",
+    "databaseRefDigest": "3fb1e9fa612179b9631de90a918bc3d8110f08e06df0a61a3e9ef433c54fef4a",
+    "passwordSource": "OPEN04001_DB_PASSWORD environment variable; never place the password in evidence",
+    "proposedOperatorRef": "codex-open-04-001-operator@3ec3f0c",
+    "proposedOperatorRefDigest": "5a058f6f7f79681b625779f3692925065742df6fab838d3b13172820806b641f"
+  },
+  "requiredIndependentApprovalInputs": {
+    "approverRefDigest": "REQUIRED_LOWERCASE_SHA256_DISTINCT_FROM_OPERATOR",
+    "ed25519PublicKey": "REQUIRED_X509_DER_FILE_OUTSIDE_REPOSITORY",
+    "verificationKeyId": "REQUIRED_REGISTERED_KEY_ID",
+    "verificationKeyVersion": "REQUIRED_REGISTERED_KEY_VERSION",
+    "issuedAt": "REQUIRED_UTC_TIMESTAMP",
+    "windowNotBefore": "REQUIRED_UTC_TIMESTAMP",
+    "windowNotAfter": "REQUIRED_UTC_TIMESTAMP",
+    "validUntil": "REQUIRED_UTC_TIMESTAMP",
+    "signature": "REQUIRED_86_CHARACTER_BASE64URL_ED25519_SIGNATURE_OVER_PREPARED_CANONICAL_PAYLOAD"
+  },
+  "requiredExternalConsumerInput": {
+    "scopeDeclarationRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/external-consumer-scope-pending.json",
+    "declaredByRefDigest": "REQUIRED_LOWERCASE_SHA256",
+    "externalScopeDeclaredComplete": true,
+    "systems": "REQUIRED_NON_EMPTY_COMPLETE_REPOSITORY_AND_DEPLOYMENT_INVENTORY_WITH_REAL_REVISIONS_AND_SCAN_GLOBS"
+  },
+  "controlRecordSpecTemplate": {
+    "schemaVersion": "open-04-001-migration-control-v0.1",
+    "recordId": "open-04-001-control-20260722-01",
+    "environmentClass": "NON_PRODUCTION_CONTROLLED",
+    "repositoryRevision": "3ec3f0cbfee5ea7ff87bd6157f49759ad6e53917",
+    "configurationDigest": "DERIVE_AFTER_PUBLIC_KEY_INPUT",
+    "databaseRefDigest": "3fb1e9fa612179b9631de90a918bc3d8110f08e06df0a61a3e9ef433c54fef4a",
+    "policyVersion": "open-04-001-primary-20260722-01",
+    "policyPayloadRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/agent-field-policy-v0.1.json",
+    "policyDigest": "1366f5fcdb62183bffad030a26b10e4d2fdaa25608bd84b836c8a7cbef300ba5",
+    "policySchemaVersion": "agent-field-policy-v0.1",
+    "rollbackExercisePolicyVersion": "open-04-001-tightening-drill-20260722-01",
+    "rollbackExercisePolicyPayloadRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/rollback-exercise-policy-v0.1.json",
+    "rollbackExercisePolicyDigest": "abd6d83b2393f3f13f6e366ab57c9456f62db5b7fb855296b7d9f4dea0b15578",
+    "rollbackExercisePolicySchemaVersion": "agent-field-policy-v0.1",
+    "trafficProfileRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/traffic-profile-v0.1.json",
+    "trafficProfileDigest": "2f19c90742eecd817115b2cb2bacb8fb6361eabd82932a6c76ea28ffc9f8542b",
+    "thresholdsRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/thresholds-v0.1.json",
+    "thresholdsDigest": "b0a2a9e5009bca0d1771f097f59d5cb03c11852e3794a6b4d15907c2e36e265e",
+    "observationRunnerRef": "scripts/security/run_open_04_001_controlled_observation.py",
+    "consumerScannerRef": "scripts/security/scan_auth_field_external_consumers.py",
+    "exitVerifierRef": "scripts/security/verify_open_04_001_exit.py",
+    "phaseSequence": [
+      "DUAL_READ_ENFORCE_INTERSECTION",
+      "AGENT_FIELD_AUTHORITY"
+    ],
+    "policyOperations": [
+      {
+        "operation": "CREATE_AND_ACTIVATE",
+        "fromPolicyDigest": null,
+        "toPolicyDigest": "1366f5fcdb62183bffad030a26b10e4d2fdaa25608bd84b836c8a7cbef300ba5",
+        "changeClass": "INITIAL",
+        "expectedStateVersion": 0
+      },
+      {
+        "operation": "CREATE_AND_ACTIVATE",
+        "fromPolicyDigest": "1366f5fcdb62183bffad030a26b10e4d2fdaa25608bd84b836c8a7cbef300ba5",
+        "toPolicyDigest": "abd6d83b2393f3f13f6e366ab57c9456f62db5b7fb855296b7d9f4dea0b15578",
+        "changeClass": "TIGHTENING",
+        "expectedStateVersion": 1
+      },
+      {
+        "operation": "ROLLBACK",
+        "fromPolicyDigest": "abd6d83b2393f3f13f6e366ab57c9456f62db5b7fb855296b7d9f4dea0b15578",
+        "toPolicyDigest": "1366f5fcdb62183bffad030a26b10e4d2fdaa25608bd84b836c8a7cbef300ba5",
+        "changeClass": "EXPANSION",
+        "expectedStateVersion": 2
+      }
+    ],
+    "enabledModelTargetIds": [],
+    "runtimeToolTrafficEnabled": false,
+    "businessTrafficEnabled": false,
+    "operatorRefDigest": "5a058f6f7f79681b625779f3692925065742df6fab838d3b13172820806b641f",
+    "approverRefDigest": "REQUIRED_LOWERCASE_SHA256_DISTINCT_FROM_OPERATOR",
+    "verificationKey": {
+      "keyId": "REQUIRED_REGISTERED_KEY_ID",
+      "keyVersion": "REQUIRED_REGISTERED_KEY_VERSION"
+    },
+    "issuedAt": "REQUIRED_UTC_TIMESTAMP",
+    "windowNotBefore": "REQUIRED_UTC_TIMESTAMP",
+    "windowNotAfter": "REQUIRED_UTC_TIMESTAMP",
+    "validUntil": "REQUIRED_UTC_TIMESTAMP"
+  },
+  "commands": {
+    "deriveBindings": "python scripts/security/prepare_open_04_001_control_record.py derive-bindings --public-key <X509_DER_PATH> --key-id <KEY_ID> --key-version <KEY_VERSION> --approver-ref-digest <APPROVER_SHA256> --jdbc-url jdbc:mysql://127.0.0.1:3306/springboot_db --db-user root --output <BINDINGS_JSON>",
+    "prepare": "python scripts/security/prepare_open_04_001_control_record.py prepare --root . --spec <COMPLETED_SPEC_JSON> --output <APPROVAL_REQUEST_JSON>",
+    "finalize": "python scripts/security/prepare_open_04_001_control_record.py finalize --request <APPROVAL_REQUEST_JSON> --signature-file <SIGNATURE_TEXT_FILE> --output <CONTROL_RECORD_JSON>",
+    "externalScan": "python scripts/security/scan_auth_field_external_consumers.py --root . --scope <COMPLETED_SCOPE_JSON> --output <EXTERNAL_SCAN_JSON>"
+  },
+  "failClosedNotes": [
+    "This handoff is not an approval, a signature or an assertion that external consumers are zero.",
+    "The operator must not create or control the independent approver private key.",
+    "Do not execute the MySQL migration until the finalized control record verifies inside its signed time window and the external scan passes.",
+    "This record cannot enable model targets, Runtime/Tool traffic, business traffic or any production policy."
+  ]
+}

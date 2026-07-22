@@ -59,6 +59,7 @@
   },
   "sourceHashes": {},
   "limitations": [
+    "The immutable approval-input handoff is available at docs/design/agent/evidence/auth-field-migration/open-04-001/approval-input-required-2026-07-22.json and binds repository revision 3ec3f0cbfee5ea7ff87bd6157f49759ad6e53917; the handoff is not an approval.",
     "The independent approver Ed25519 public key and signature are not available; no control record can be finalized or verified.",
     "The external consumer scope declaration is intentionally incomplete and cannot support externalConsumersZero=true.",
     "The signed three-step MySQL activation, tightening and rollback exercise has not run; the policy tables remain empty.",
