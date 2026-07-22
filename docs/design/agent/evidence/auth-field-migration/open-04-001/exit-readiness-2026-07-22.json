@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "open-04-001-exit-evidence-v0.1",
+  "state": "EXIT_CONTROL_PLANE_VERIFIED_12A_EVIDENCE_PENDING",
+  "generatedAt": "2026-07-22T11:30:00+08:00",
+  "authority": {
+    "topic": "12A",
+    "documentRef": null,
+    "documentStatus": "MissingPrerequisitesNotMet",
+    "exitApprovalRef": null,
+    "operatorRefDigest": null,
+    "independentReviewerRefDigest": null,
+    "exitApprovalEvidenceDigest": null
+  },
+  "observation": {
+    "windowStart": null,
+    "windowEnd": null,
+    "trafficProfileRef": null,
+    "representativeTraffic": false,
+    "requestCount": 0,
+    "thresholdsRef": null,
+    "thresholdsPassed": false,
+    "diff": {
+      "AGENT_WIDER_THAN_AUTH": 0,
+      "UNMAPPABLE": 0,
+      "AUTH_WIDER_THAN_AGENT": 0
+    },
+    "narrowingApprovalRef": null
+  },
+  "policy": {
+    "mode": "SEED_ONLY",
+    "policyVersion": null,
+    "policyDigest": null,
+    "policyEpoch": 0,
+    "rollbackExercisePassed": false
+  },
+  "consumerScan": {
+    "scopeRef": "runtime-db-verification-2026-07-22.json#consumerScan",
+    "currentRepositoryConsumersZero": false,
+    "externalConsumersZero": false
+  },
+  "validation": {
+    "authContractPassed": true,
+    "allKnownProfilesRecomputable": true,
+    "negativeTestsPassed": true,
+    "independentReviewPassed": false,
+    "independentReviewRef": null,
+    "independentReviewEvidenceDigest": null
+  },
+  "sourceHashes": {
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/offline-verification-2026-07-22.json": "a7548e9bcaeaeba76bd0ee1836dd710b096985397922077f9da2d150aefa17e3",
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/runtime-db-verification-2026-07-22.json": "faa9d03ba308789428f853b001e036f0f443149f799847156aaac8e102f6c816",
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/policy-control-plane-verification-2026-07-22.json": "58f1089d38b2e9185805983d4eb08a5f6aea25eb753b2f0fffc9ac34773ce82c"
+  },
+  "limitations": [
+    "12A cannot yet be authored because 05, 11C and 12 have not completed independent review.",
+    "No independent activation or exit approval evidence exists.",
+    "No 12A-frozen representative observation window has been executed.",
+    "No policy was activated and no production traffic was enabled.",
+    "This record is expected to fail the exit verifier and does not close OPEN-04-001."
+  ]
+}

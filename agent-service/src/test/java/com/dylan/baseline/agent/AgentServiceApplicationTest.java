@@ -3,6 +3,10 @@ package com.dylan.baseline.agent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dylan.baseline.agent.security.authorization.AuthPermissionAuthorityPort;
+import com.dylan.baseline.agent.security.policy.admin.FailClosedSecurityChangeApprovalEvidencePort;
+import com.dylan.baseline.agent.security.policy.admin.SecurityChangeApprovalEvidencePort;
+import com.dylan.baseline.agent.security.policy.admin.SecurityPolicyAdministrationRepository;
+import com.dylan.baseline.agent.security.policy.admin.SecurityPolicyAdministrationService;
 import com.dylan.common.security.ServiceTokenProvider;
 import java.util.Arrays;
 import java.util.Locale;
@@ -56,6 +60,10 @@ class AgentServiceApplicationTest {
 
         assertThat(applicationContext.getBean(AuthPermissionAuthorityPort.class)).isNotNull();
         assertThat(applicationContext.getBean(ServiceTokenProvider.class)).isNotNull();
+        assertThat(applicationContext.getBean(SecurityChangeApprovalEvidencePort.class))
+                .isInstanceOf(FailClosedSecurityChangeApprovalEvidencePort.class);
+        assertThat(applicationContext.getBeansOfType(SecurityPolicyAdministrationRepository.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(SecurityPolicyAdministrationService.class)).isEmpty();
 
         var forbiddenInfrastructureTypes = Arrays.stream(applicationContext.getBeanDefinitionNames())
                 .map(applicationContext::getType)

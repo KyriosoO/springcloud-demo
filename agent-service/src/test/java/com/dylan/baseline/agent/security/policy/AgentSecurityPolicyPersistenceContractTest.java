@@ -21,6 +21,7 @@ class AgentSecurityPolicyPersistenceContractTest {
                     .contains("CHECK (scope = 'GLOBAL')")
                     .contains("FOREIGN KEY (policy_version, policy_digest)")
                     .contains("FOREIGN KEY (to_policy_version, to_policy_digest)")
+                    .contains("UNIQUE KEY uk_agent_security_policy_activation_epoch")
                     .contains("ON DELETE RESTRICT")
                     .doesNotContain("DROP TABLE", "TRUNCATE TABLE");
         }

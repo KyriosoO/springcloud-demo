@@ -1,0 +1,73 @@
+{
+  "evidenceId": "open-04-001-policy-control-plane-20260722-01",
+  "evidenceType": "AUTH_FIELD_POLICY_CONTROL_PLANE_VERIFICATION",
+  "generatedAt": "2026-07-22T11:35:00+08:00",
+  "state": "CONTROL_PLANE_VERIFIED_NOT_ACTIVATED",
+  "scope": {
+    "implemented": [
+      "SecurityPolicyAdministrationService is the only application write path and has no ordinary-user controller",
+      "agent-field-policy-v0.1 payload is strict, canonicalized and SHA-256 bound",
+      "change class is recomputed from current and target atomic grants",
+      "approval evidence binds operation, from/to digests, change class and expected stateVersion",
+      "default approval port fails closed while 12A is unavailable",
+      "MySQL activation uses row lock, from-digest/stateVersion CAS and same-transaction activation audit",
+      "OPEN-04-001 exit evidence is checked by a read-only deterministic verifier"
+    ],
+    "notImplementedOrNotExecuted": [
+      "12A-backed real approval adapter",
+      "policy activation or migration from SEED_ONLY",
+      "representative observation window",
+      "production or business traffic",
+      "external consumer retirement",
+      "independent OPEN-04-001 closure review"
+    ]
+  },
+  "validation": [
+    {
+      "command": "mvn -f serviceCenter/pom.xml -pl :auth-service,:agent-service -am test",
+      "result": "PASS",
+      "testsRun": 75,
+      "failures": 0,
+      "errors": 0,
+      "moduleBreakdown": {
+        "agent-api": 3,
+        "common-security": 18,
+        "auth-service": 23,
+        "agent-service": 31
+      }
+    },
+    {
+      "command": "python -m unittest scripts.security.tests.test_verify_open_04_001_exit -v",
+      "result": "PASS",
+      "testsRun": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "command": "python scripts/security/verify_open_04_001_exit.py --root . --evidence docs/design/agent/evidence/auth-field-migration/open-04-001/exit-readiness-2026-07-22.json",
+      "result": "EXPECTED_BLOCKED",
+      "exitCode": 2,
+      "meaning": "The verifier rejects the current real evidence because 12A authority, representative observation, policy activation/rollback, external consumer retirement and independent closure review are absent."
+    },
+    {
+      "command": "python C:/Users/zhoud/.agents/skills/detailed-design-document/scripts/validate_detailed_design.py --file docs/design/agent/L2/04_模型准入上下文与权限安全_L2实施详细设计_v0.1.md --root . --strict",
+      "result": "PASS",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "sourceHashes": {
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/SecurityPolicyAdministrationService.java": "13d77ab6d5d24ccfdc4ce1cc4ac5e1b3aa2a2881641e289288717b7f77c71cd4",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/AuthFieldPolicyPayloadValidator.java": "a21d76113c79d9198c047094a9348d8f4baee9c6a329527a530a449719716b49",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/SecurityChangeApprovalEvidencePort.java": "df2ddd1868533acb94dcf1932674d2037e4e9aa1110c3941f12628a4e80910c0",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/FailClosedSecurityChangeApprovalEvidencePort.java": "1622dca0c5675f96f9f5f278d34c4856a05512ac1bd7eaed071009823dae4de0",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/internal/MyBatisAgentSecurityPolicyRepository.java": "7171b29a3e3473cd2a5289c73b83bb469b0d0f83a0b032bf8a85dc3c187cb883",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/internal/AgentSecurityPolicyRecordMapper.java": "9a3417b6a5b31cf7f6e8977be700edce53ffbfa92f35a70d13cde75412e917b7",
+    "scripts/security/verify_open_04_001_exit.py": "98a15534c3a86f65a05f150e53a97473a5e0c117ae4f09dac1f770ab0d197274"
+  },
+  "conclusion": "The repository now has a fail-closed, auditable policy control plane and a repeatable exit decision. This evidence advances but does not close OPEN-04-001 and is not activation, quality or production approval."
+}
