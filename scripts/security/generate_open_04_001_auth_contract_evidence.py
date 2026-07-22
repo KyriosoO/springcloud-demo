@@ -31,7 +31,7 @@ SOURCE_REFS = (
     "auth-service/src/main/java/com/dylan/authcenter/agent/permission/api/AgentPermissionResolveResponse.java",
     "auth-service/src/main/java/com/dylan/authcenter/agent/permission/AgentPermissionProjectionService.java",
     "auth-service/src/main/resources/agent-rbac.yml",
-    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/AuthPermissionAuthorityAdapter.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionAuthorityAdapter.java",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionWireResponse.java",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationComparator.java",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationResolution.java",

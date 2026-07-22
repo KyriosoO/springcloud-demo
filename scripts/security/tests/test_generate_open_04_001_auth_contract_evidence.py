@@ -12,6 +12,11 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GenerateOpen04001AuthContractEvidenceTest(unittest.TestCase):
+    def test_fixed_source_inventory_exists(self):
+        root = Path(__file__).parents[3]
+        missing = [relative for relative in MODULE.SOURCE_REFS if not (root / relative).is_file()]
+        self.assertEqual([], missing)
+
     def test_derives_counts_and_rejects_failed_or_missing_reports(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
