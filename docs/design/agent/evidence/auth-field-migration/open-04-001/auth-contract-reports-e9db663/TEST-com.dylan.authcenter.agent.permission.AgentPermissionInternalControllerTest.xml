@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="com.dylan.authcenter.agent.permission.AgentPermissionInternalControllerTest" tests="5" failures="0" errors="0" skipped="0">
+  <testcase name="rejectsWrongServiceIdentity" classname="AgentPermissionInternalController" />
+  <testcase name="rejectsServiceTokenWithoutRequiredScope" classname="AgentPermissionInternalController" />
+  <testcase name="resolvesPermissionForAuthorizedAgentServiceToken" classname="AgentPermissionInternalController" />
+  <testcase name="mapsUnknownSubjectToNotFoundErrorBody" classname="AgentPermissionInternalController" />
+  <testcase name="rejectsUserToken" classname="AgentPermissionInternalController" />
+</testsuite>

@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="com.dylan.baseline.agent.security.authorization.AuthPermissionAuthorityAdapterTest" tests="2" failures="0" errors="0" skipped="0">
+  <testcase name="rejectsSubjectTenantAndValidityMismatch" classname="com.dylan.baseline.agent.security.authorization.AuthPermissionAuthorityAdapterTest" />
+  <testcase name="separatesAuthFactsFromLegacyFieldView" classname="com.dylan.baseline.agent.security.authorization.AuthPermissionAuthorityAdapterTest" />
+</testsuite>

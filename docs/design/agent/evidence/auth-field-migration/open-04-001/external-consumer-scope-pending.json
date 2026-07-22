@@ -8,7 +8,7 @@
       "systemId": "workspace-deployment-candidates",
       "kind": "REPOSITORY_AND_DEPLOYMENT_CANDIDATES",
       "rootRef": ".",
-      "revision": "3ec3f0cbfee5ea7ff87bd6157f49759ad6e53917",
+      "revision": "e9db663cd7925ff43ce3d96512ebea06f71e9423",
       "includeGlobs": [
         "auth-service/src/main/**/*.java",
         "agent-service/src/main/**/*.java",

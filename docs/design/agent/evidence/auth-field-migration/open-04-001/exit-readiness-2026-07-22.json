@@ -41,7 +41,8 @@
     "policyVersion": null,
     "policyDigest": null,
     "policyEpoch": 0,
-    "rollbackExercisePassed": false
+    "rollbackExercisePassed": false,
+    "migrationResultRef": null
   },
   "consumerScan": {
     "scopeRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/legacy-consumer-scan-2026-07-22.json",
@@ -51,15 +52,18 @@
   },
   "validation": {
     "authContractPassed": true,
+    "authContractEvidenceRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/auth-contract-verification-2026-07-22-e9db663.json",
     "allKnownProfilesRecomputable": true,
     "negativeTestsPassed": true,
     "independentReviewPassed": false,
     "independentReviewRef": null,
+    "independentReviewVerificationRef": null,
     "independentReviewEvidenceDigest": null
   },
   "sourceHashes": {},
   "limitations": [
-    "The immutable approval-input handoff is available at docs/design/agent/evidence/auth-field-migration/open-04-001/approval-input-required-2026-07-22.json and binds repository revision 3ec3f0cbfee5ea7ff87bd6157f49759ad6e53917; the handoff is not an approval.",
+    "The immutable approval-input handoff is available at docs/design/agent/evidence/auth-field-migration/open-04-001/approval-input-required-2026-07-22.json and binds tested security revision e9db663cd7925ff43ce3d96512ebea06f71e9423; the handoff is not an approval.",
+    "The portable Auth contract evidence binds 28 passing tests and eight sanitized Surefire snapshots; it does not replace migration or independent approval.",
     "The independent approver Ed25519 public key and signature are not available; no control record can be finalized or verified.",
     "The external consumer scope declaration is intentionally incomplete and cannot support externalConsumersZero=true.",
     "The signed three-step MySQL activation, tightening and rollback exercise has not run; the policy tables remain empty.",

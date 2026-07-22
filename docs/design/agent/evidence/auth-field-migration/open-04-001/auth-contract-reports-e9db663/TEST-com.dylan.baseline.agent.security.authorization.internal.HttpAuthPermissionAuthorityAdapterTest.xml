@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="com.dylan.baseline.agent.security.authorization.internal.HttpAuthPermissionAuthorityAdapterTest" tests="4" failures="0" errors="0" skipped="0">
+  <testcase name="callsAuthOnceWithServiceTokenAndMapsStrictResponse" classname="com.dylan.baseline.agent.security.authorization.internal.HttpAuthPermissionAuthorityAdapterTest" />
+  <testcase name="mapsAuthRejectionToUnavailableWithoutRetry(int)[1]" classname="com.dylan.baseline.agent.security.authorization.internal.HttpAuthPermissionAuthorityAdapterTest" />
+  <testcase name="mapsAuthRejectionToUnavailableWithoutRetry(int)[2]" classname="com.dylan.baseline.agent.security.authorization.internal.HttpAuthPermissionAuthorityAdapterTest" />
+  <testcase name="failsClosedWithoutRetryWhenAuthIsUnavailable" classname="com.dylan.baseline.agent.security.authorization.internal.HttpAuthPermissionAuthorityAdapterTest" />
+</testsuite>

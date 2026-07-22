@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="com.dylan.authcenter.agent.permission.AgentPermissionProjectionServiceTest" tests="7" failures="0" errors="0" skipped="0">
+  <testcase name="rejectsUnknownSubject" classname="AgentPermissionProjectionService" />
+  <testcase name="resolvesViewerToQueryOnlyProjection" classname="AgentPermissionProjectionService" />
+  <testcase name="resolvesAdminToCompleteAgentPermissionProjection" classname="AgentPermissionProjectionService" />
+  <testcase name="clampsPermissionValidityToRequestDeadline" classname="AgentPermissionProjectionService" />
+  <testcase name="rejectsExpiredDeadline" classname="AgentPermissionProjectionService" />
+  <testcase name="rejectsInvalidSubjectType" classname="AgentPermissionProjectionService" />
+  <testcase name="adminProjectionIncludesQueryPreview" classname="AgentPermissionProjectionService" />
+</testsuite>
