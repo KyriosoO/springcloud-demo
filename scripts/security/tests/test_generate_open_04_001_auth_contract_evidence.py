@@ -27,14 +27,18 @@ class GenerateOpen04001AuthContractEvidenceTest(unittest.TestCase):
             original_reports, original_sources = MODULE.REPORTS, MODULE.SOURCE_REFS
             MODULE.REPORTS, MODULE.SOURCE_REFS = ("report.xml",), ("source.java",)
             try:
-                evidence = MODULE.generate(root, "a" * 40)
+                evidence = MODULE.generate(root, "a" * 40, "report-snapshots")
                 self.assertTrue(evidence["passed"])
                 self.assertEqual(3, evidence["testsRun"])
+                self.assertEqual(
+                    ["report-snapshots/report.xml"], list(evidence["reportHashes"]),
+                )
+                self.assertEqual(report.read_bytes(), (root / "report-snapshots/report.xml").read_bytes())
                 report.write_text("<testsuite tests='3' failures='1' errors='0' skipped='0'/>", encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "not a complete pass"):
-                    MODULE.generate(root, "a" * 40)
+                    MODULE.generate(root, "a" * 40, "failed-report-snapshots")
                 with self.assertRaisesRegex(ValueError, "full lowercase Git commit SHA"):
-                    MODULE.generate(root, "short-revision")
+                    MODULE.generate(root, "short-revision", "invalid-revision-snapshots")
             finally:
                 MODULE.REPORTS, MODULE.SOURCE_REFS = original_reports, original_sources
 

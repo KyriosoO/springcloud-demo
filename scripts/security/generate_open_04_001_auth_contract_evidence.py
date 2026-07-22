@@ -11,9 +11,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    from open_04_001_evidence_io import AUTH_CONTRACTS, atomic_write_json_new, sha256_file
+    from open_04_001_evidence_io import (
+        AUTH_CONTRACTS, atomic_write_bytes_new, atomic_write_json_new, sha256_file,
+    )
 except ModuleNotFoundError:  # importlib-based unit tests run from repository root
-    from scripts.security.open_04_001_evidence_io import AUTH_CONTRACTS, atomic_write_json_new, sha256_file
+    from scripts.security.open_04_001_evidence_io import (
+        AUTH_CONTRACTS, atomic_write_bytes_new, atomic_write_json_new, sha256_file,
+    )
 
 
 SCHEMA = "open-04-001-auth-contract-verification-v0.1"
@@ -36,11 +40,21 @@ SOURCE_REFS = (
     "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationComparator.java",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationResolution.java",
 )
-def generate(root: Path, repository_revision: str) -> dict:
+def generate(root: Path, repository_revision: str, report_snapshot_dir: str) -> dict:
     if re.fullmatch(r"[0-9a-f]{40}", repository_revision) is None:
         raise ValueError("repositoryRevision must be a full lowercase Git commit SHA")
+    if not report_snapshot_dir or "\\" in report_snapshot_dir or Path(report_snapshot_dir).is_absolute():
+        raise ValueError("report snapshot directory must be a canonical repository-relative path")
+    resolved_root = root.resolve()
+    snapshot_dir = (resolved_root / report_snapshot_dir).resolve()
+    try:
+        snapshot_dir.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError("report snapshot directory escapes repository root") from exc
+    if snapshot_dir.exists():
+        raise FileExistsError("report snapshot directory already exists")
     tests = failures = errors = skipped = 0
-    report_hashes = {}
+    reports = []
     for relative in REPORTS:
         path = root / relative
         if not path.is_file():
@@ -50,7 +64,7 @@ def generate(root: Path, repository_revision: str) -> dict:
         failures += int(suite.attrib.get("failures", "0"))
         errors += int(suite.attrib.get("errors", "0"))
         skipped += int(suite.attrib.get("skipped", "0"))
-        report_hashes[relative] = sha256_file(path)
+        reports.append((path, Path(relative).name))
     source_hashes = {}
     for relative in SOURCE_REFS:
         path = root / relative
@@ -60,6 +74,13 @@ def generate(root: Path, repository_revision: str) -> dict:
     passed = tests > 0 and failures == 0 and errors == 0 and skipped == 0
     if not passed:
         raise ValueError("Auth contract test reports are not a complete pass")
+    snapshot_dir.mkdir()
+    report_hashes = {}
+    for source, name in reports:
+        relative = (Path(report_snapshot_dir) / name).as_posix()
+        target = resolved_root / relative
+        atomic_write_bytes_new(target, source.read_bytes())
+        report_hashes[relative] = sha256_file(target)
     return {
         "schemaVersion": SCHEMA,
         "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -79,10 +100,12 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--repository-revision", required=True)
+    parser.add_argument("--report-snapshot-dir", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        atomic_write_json_new(args.output, generate(args.root.resolve(), args.repository_revision))
+        atomic_write_json_new(args.output, generate(
+            args.root.resolve(), args.repository_revision, args.report_snapshot_dir))
     except (OSError, ValueError, ET.ParseError) as exc:
         print(f"OPEN-04-001 AUTH CONTRACT EVIDENCE BLOCKED: {exc}", file=sys.stderr)
         return 2
