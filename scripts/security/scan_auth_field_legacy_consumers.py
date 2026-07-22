@@ -9,6 +9,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+try:
+    from open_04_001_evidence_io import atomic_write_bytes_new
+except ModuleNotFoundError:
+    from scripts.security.open_04_001_evidence_io import atomic_write_bytes_new
+
 
 TOKENS = ("LegacyAuthFieldView", "legacyFieldView", "legacyView")
 LEGACY_WIRE_FIELDS = ("filterableFields", "displayableFields", "allowedOperators", "allowedFunctions")
@@ -88,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.output is None:
         print(rendered, end="")
     else:
-        args.output.write_text(rendered, encoding="utf-8")
+        atomic_write_bytes_new(args.output, rendered.encode("utf-8"))
     return 0 if result["state"] == "PASS" else 2
 
 

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,6 +39,21 @@ class Open04001ControlledMigrationCliTest {
                 jdbc(2, 2, 2, null), PRIMARY, DRILL))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("not a recoverable");
+    }
+
+    @Test
+    void verificationRequestsUseActualActorInputRatherThanRecordOperator() throws Exception {
+        String record = """
+                {"recordId":"control-1","operatorRefDigest":"record-operator","policyOperations":[
+                  {"operation":"CREATE_AND_ACTIVATE","fromPolicyDigest":null,"toPolicyDigest":"%s",
+                   "changeClass":"INITIAL","expectedStateVersion":0}
+                ]}
+                """.formatted(PRIMARY);
+        var requests = Open04001ControlRecordOperations.verificationRequests(
+                new ObjectMapper().readTree(record), "actual-actor");
+        assertThat(requests).hasSize(1);
+        assertThat(requests.getFirst().actorRefDigest()).isEqualTo("actual-actor");
+        assertThat(requests.getFirst().actorRefDigest()).isNotEqualTo("record-operator");
     }
 
     private static JdbcTemplate jdbc(int active, int versions, int audits, Map<String, Object> state) {

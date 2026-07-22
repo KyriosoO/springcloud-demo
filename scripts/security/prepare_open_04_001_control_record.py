@@ -12,12 +12,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from open_04_001_evidence_io import atomic_write_json_new, load_json
+except ModuleNotFoundError:
+    from scripts.security.open_04_001_evidence_io import atomic_write_json_new, load_json
+
 
 REQUEST_SCHEMA = "open-04-001-migration-approval-request-v0.1"
 CONTROL_SCHEMA = "open-04-001-migration-control-v0.1"
+REVIEW_REQUEST_SCHEMA = "open-04-001-independent-exit-review-request-v0.1"
+REVIEW_SCHEMA = "open-04-001-independent-exit-review-v0.1"
 CONFIG_BINDING_SCHEMA = "open-04-001-security-config-v0.1"
 DATABASE_BINDING_SCHEMA = "open-04-001-database-ref-v0.1"
 SIGNATURE = re.compile(r"^[A-Za-z0-9_-]{86}$")
+DIGEST = re.compile(r"^[0-9a-f]{64}$")
 REF_FIELDS = (
     "policyPayloadRef",
     "rollbackExercisePolicyPayloadRef",
@@ -27,6 +35,14 @@ REF_FIELDS = (
     "consumerScannerRef",
     "exitVerifierRef",
 )
+REVIEW_REF_FIELDS = (
+    "designRef", "controlRecordRef", "controlVerificationRef", "migrationResultRef", "observationRef",
+    "repositoryConsumerScanRef", "externalConsumerScanRef", "authContractEvidenceRef",
+)
+REVIEW_FIELDS_WITHOUT_HASHES_OR_SIGNATURE = {
+    "schemaVersion", "reviewId", "reviewerRefDigest", "operatorRefDigest", "verificationKey", "reviewedAt",
+    "decision", "findings", *REVIEW_REF_FIELDS,
+}
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -128,6 +144,62 @@ def finalize(request: dict[str, Any], signature: str) -> dict[str, Any]:
     return {**record, "signature": signature}
 
 
+def prepare_review(spec: dict[str, Any], root: Path) -> dict[str, Any]:
+    review = dict(spec)
+    if set(review) != REVIEW_FIELDS_WITHOUT_HASHES_OR_SIGNATURE:
+        raise ValueError("review spec must use the closed unsigned schema")
+    if review.get("schemaVersion") != REVIEW_SCHEMA:
+        raise ValueError(f"schemaVersion must be {REVIEW_SCHEMA}")
+    reviewer = review.get("reviewerRefDigest")
+    operator = review.get("operatorRefDigest")
+    if not isinstance(reviewer, str) or DIGEST.fullmatch(reviewer) is None:
+        raise ValueError("reviewerRefDigest must be a lowercase SHA-256")
+    if not isinstance(operator, str) or DIGEST.fullmatch(operator) is None or reviewer == operator:
+        raise ValueError("operatorRefDigest must be a distinct lowercase SHA-256")
+    key = review.get("verificationKey")
+    if not isinstance(key, dict) or set(key) != {"keyId", "keyVersion"} or any(
+        not isinstance(value, str) or not value for value in key.values()
+    ):
+        raise ValueError("verificationKey must contain non-blank keyId and keyVersion")
+    if review.get("decision") != "APPROVE_OPEN_04_001_EXIT" or review.get("findings") != []:
+        raise ValueError("review approval requires APPROVE_OPEN_04_001_EXIT and empty findings")
+    refs = [review.get(field) for field in REVIEW_REF_FIELDS]
+    if any(not isinstance(ref, str) or not ref for ref in refs) or len(set(refs)) != len(refs):
+        raise ValueError("all eight review role references must be non-blank and distinct")
+    hashes = {}
+    for ref in refs:
+        source = _resolve(root, ref)
+        if not source.is_file():
+            raise ValueError(f"review source does not exist: {ref}")
+        hashes[ref] = hashlib.sha256(source.read_bytes()).hexdigest()
+    review["reviewedArtifactHashes"] = dict(sorted(hashes.items()))
+    payload = canonical_bytes(review)
+    return {
+        "schemaVersion": REVIEW_REQUEST_SCHEMA,
+        "reviewWithoutSignature": review,
+        "canonicalPayloadBase64": base64.b64encode(payload).decode("ascii"),
+        "canonicalPayloadSha256": hashlib.sha256(payload).hexdigest(),
+        "signingInstruction": "Sign the decoded canonicalPayloadBase64 bytes with the independent reviewer Ed25519 key; return only the 86-character Base64URL signature.",
+    }
+
+
+def finalize_review(request: dict[str, Any], signature: str) -> dict[str, Any]:
+    if request.get("schemaVersion") != REVIEW_REQUEST_SCHEMA:
+        raise ValueError("unsupported independent review request schema")
+    review = request.get("reviewWithoutSignature")
+    if not isinstance(review, dict) or "signature" in review:
+        raise ValueError("reviewWithoutSignature must be an unsigned object")
+    payload = canonical_bytes(review)
+    if base64.b64encode(payload).decode("ascii") != request.get("canonicalPayloadBase64"):
+        raise ValueError("independent review request canonical payload drifted")
+    if hashlib.sha256(payload).hexdigest() != request.get("canonicalPayloadSha256"):
+        raise ValueError("independent review request digest drifted")
+    signature = signature.strip()
+    if SIGNATURE.fullmatch(signature) is None:
+        raise ValueError("signature must be an 86-character Base64URL Ed25519 signature")
+    return {**review, "signature": signature}
+
+
 def _resolve(root: Path, relative: str) -> Path:
     if "\\" in relative or Path(relative).is_absolute():
         raise ValueError("source reference must use canonical repository-relative '/' paths")
@@ -173,20 +245,35 @@ def main(argv: list[str] | None = None) -> int:
     binding_parser.add_argument("--jdbc-url", required=True)
     binding_parser.add_argument("--db-user", default="root")
     binding_parser.add_argument("--output", type=Path, required=True)
+    prepare_review_parser = sub.add_parser("prepare-review")
+    prepare_review_parser.add_argument("--spec", type=Path, required=True)
+    prepare_review_parser.add_argument("--output", type=Path, required=True)
+    prepare_review_parser.add_argument("--root", type=Path, default=Path.cwd())
+    finalize_review_parser = sub.add_parser("finalize-review")
+    finalize_review_parser.add_argument("--request", type=Path, required=True)
+    finalize_review_parser.add_argument("--signature-file", type=Path, required=True)
+    finalize_review_parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "prepare":
-            value = prepare(json.loads(args.spec.read_text(encoding="utf-8")), args.root)
+            value = prepare(load_json(args.spec), args.root)
         elif args.command == "finalize":
             value = finalize(
-                json.loads(args.request.read_text(encoding="utf-8")),
+                load_json(args.request),
                 args.signature_file.read_text(encoding="ascii"),
             )
-        else:
+        elif args.command == "derive-bindings":
             value = execution_bindings(
                 args.public_key.read_bytes(), args.key_id, args.key_version,
                 args.approver_ref_digest, args.jdbc_url, args.db_user)
-        args.output.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        elif args.command == "prepare-review":
+            value = prepare_review(load_json(args.spec), args.root)
+        else:
+            value = finalize_review(
+                load_json(args.request),
+                args.signature_file.read_text(encoding="ascii"),
+            )
+        atomic_write_json_new(args.output, value)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"OPEN-04-001 CONTROL RECORD BLOCKED: {exc}", file=sys.stderr)
         return 2

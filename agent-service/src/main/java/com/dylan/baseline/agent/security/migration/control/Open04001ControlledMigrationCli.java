@@ -2,6 +2,7 @@ package com.dylan.baseline.agent.security.migration.control;
 
 import com.dylan.baseline.agent.security.policy.admin.AuthFieldPolicyPayloadValidator;
 import com.dylan.baseline.agent.security.policy.admin.SecurityChangeApprovalEvidencePort.ApprovalVerificationRequest;
+import com.dylan.baseline.agent.security.policy.admin.SecurityChangeApprovalEvidencePort.VerifiedApprovalEvidence;
 import com.dylan.baseline.agent.security.policy.admin.SecurityPolicyAdministrationService;
 import com.dylan.baseline.agent.security.policy.admin.SecurityPolicyAdministrationService.ActivationCommand;
 import com.dylan.baseline.agent.security.policy.admin.SecurityPolicyAdministrationService.AuthenticatedActor;
@@ -10,6 +11,7 @@ import com.dylan.baseline.agent.security.policy.admin.SecurityPolicyAdministrati
 import com.dylan.baseline.agent.security.policy.internal.AgentSecurityPolicyRecordMapper;
 import com.dylan.baseline.agent.security.policy.internal.MyBatisAgentSecurityPolicyRepository;
 import com.dylan.common.security.IntegrityVerificationKeyProvider;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
@@ -18,6 +20,7 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,11 +41,12 @@ public final class Open04001ControlledMigrationCli {
 
     public static void main(String[] args) throws Exception {
         Map<String, String> values = parse(args);
+        Instant startedAt = Instant.now();
         String password = System.getenv("OPEN04001_DB_PASSWORD");
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("OPEN04001_DB_PASSWORD is required");
         }
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
         Path root = Path.of(require(values, "root")).toAbsolutePath().normalize();
         Path recordPath = resolveInside(root, require(values, "record"));
         JsonNode record = mapper.readTree(Files.readAllBytes(recordPath));
@@ -52,6 +56,7 @@ public final class Open04001ControlledMigrationCli {
         String expectedKeyId = require(values, "key-id");
         String expectedKeyVersion = require(values, "key-version");
         String approverRefDigest = require(values, "approver-ref-digest");
+        String actorRefDigest = require(values, "actor-ref-digest");
         IntegrityVerificationKeyProvider keys = keyRef -> {
             if (!expectedKeyId.equals(keyRef.keyId()) || !expectedKeyVersion.equals(keyRef.keyVersion())) {
                 throw new IllegalArgumentException("verification key reference does not match controlled trust config");
@@ -59,13 +64,19 @@ public final class Open04001ControlledMigrationCli {
             return publicKey;
         };
         AuthFieldPolicyPayloadValidator validator = new AuthFieldPolicyPayloadValidator(mapper);
+        String configurationDigest = Open04001ExecutionBinding.configurationDigest(
+                expectedKeyId, expectedKeyVersion, approverRefDigest, publicKeyDer);
+        String databaseRefDigest = Open04001ExecutionBinding.databaseRefDigest(
+                require(values, "jdbc-url"), values.getOrDefault("db-user", "root"));
         var approval = new Open04001MigrationApprovalEvidenceAdapter(
                 root, recordPath, require(values, "repository-revision"),
-                Open04001ExecutionBinding.configurationDigest(
-                        expectedKeyId, expectedKeyVersion, approverRefDigest, publicKeyDer),
-                Open04001ExecutionBinding.databaseRefDigest(
-                        require(values, "jdbc-url"), values.getOrDefault("db-user", "root")),
+                configurationDigest, databaseRefDigest,
                 approverRefDigest, keys, validator, mapper, Clock.systemUTC());
+        List<VerifiedApprovalEvidence> verifiedOperations = new ArrayList<>();
+        for (ApprovalVerificationRequest request
+                : Open04001ControlRecordOperations.verificationRequests(record, actorRefDigest)) {
+            verifiedOperations.add(approval.verify(request));
+        }
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
@@ -100,17 +111,9 @@ public final class Open04001ControlledMigrationCli {
                         record.get("rollbackExercisePolicySchemaVersion").textValue(),
                         Files.readString(resolveInside(root, record.get("rollbackExercisePolicyPayloadRef").textValue()))));
         String approvalRef = record.get("recordId").textValue();
-        String actorDigest = record.get("operatorRefDigest").textValue();
         String primaryDigest = record.get("policyDigest").textValue();
         String drillDigest = record.get("rollbackExercisePolicyDigest").textValue();
         int startStep = determineStartStep(jdbc, primaryDigest, drillDigest);
-        if (startStep == 3) {
-            JsonNode rollback = record.get("policyOperations").get(2);
-            approval.verify(new ApprovalVerificationRequest(
-                    approvalRef, rollback.get("operation").textValue(), rollback.get("fromPolicyDigest").textValue(),
-                    rollback.get("toPolicyDigest").textValue(), rollback.get("changeClass").textValue(),
-                    rollback.get("expectedStateVersion").longValue(), actorDigest));
-        }
         List<Map<String, Object>> results = new ArrayList<>();
         for (int index = startStep; index < record.get("policyOperations").size(); index++) {
             JsonNode operation = record.get("policyOperations").get(index);
@@ -123,7 +126,7 @@ public final class Open04001ControlledMigrationCli {
                     create ? target.payload() : null, targetDigest,
                     ChangeClass.valueOf(operation.get("changeClass").textValue()),
                     operation.get("expectedStateVersion").longValue(), approvalRef,
-                    new AuthenticatedActor("CONTROLLED_MIGRATION", actorDigest, true),
+                    new AuthenticatedActor("CONTROLLED_MIGRATION", actorRefDigest, true),
                     "open-04-001-step-" + (index + 1)));
             results.add(Map.of(
                     "step", index + 1, "policyVersion", result.policyVersion(),
@@ -144,13 +147,32 @@ public final class Open04001ControlledMigrationCli {
         }
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("schemaVersion", "open-04-001-controlled-migration-result-v0.1");
+        output.put("startedAt", startedAt.toString());
+        output.put("completedAt", Instant.now().toString());
+        output.put("repositoryRevision", require(values, "repository-revision"));
+        output.put("configurationDigest", configurationDigest);
+        output.put("databaseRefDigest", databaseRefDigest);
+        output.put("controlRecordRef", require(values, "record"));
+        output.put("controlRecordId", approvalRef);
+        output.put("controlRecordDigest", verifiedOperations.getFirst().evidenceDigest());
+        output.put("signatureVerified", true);
+        output.put("operatorRefDigest", actorRefDigest);
+        output.put("approverRefDigest", approverRefDigest);
+        output.put("verifiedOperations", verifiedOperations.stream().map(evidence -> Map.of(
+                "operation", evidence.operation(),
+                "toPolicyDigest", evidence.toPolicyDigest(),
+                "changeClass", evidence.changeClass(),
+                "expectedStateVersion", evidence.expectedStateVersion())).toList());
         output.put("completedStepsAtStart", startStep);
         output.put("steps", results);
         output.put("finalState", finalState);
         output.put("policyVersionCount", count(jdbc, "agent_security_policy_version"));
         output.put("activationAuditCount", count(jdbc, "agent_security_policy_activation_audit"));
         output.put("rollbackExercisePassed", true);
-        System.out.println(mapper.writeValueAsString(output));
+        Path outputPath = resolveInside(root, require(values, "output"));
+        Open04001EvidenceWriter.writeNew(
+                outputPath, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(output) + "\n");
+        System.out.println("OPEN-04-001 CONTROLLED MIGRATION RESULT WRITTEN: " + require(values, "output"));
     }
 
     static int determineStartStep(JdbcTemplate jdbc, String primaryDigest, String drillDigest) {

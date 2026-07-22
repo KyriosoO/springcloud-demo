@@ -1,4 +1,6 @@
+import hashlib
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,6 +25,12 @@ class ScanAuthFieldExternalConsumersTest(unittest.TestCase):
             result, passed = MODULE.scan(scope, root)
             self.assertTrue(passed)
             self.assertTrue(result["externalConsumersZero"])
+            self.assertEqual(scope["systems"], result["declaredSystems"])
+            self.assertEqual(
+                hashlib.sha256(json.dumps(scope, ensure_ascii=False, sort_keys=True,
+                                          separators=(",", ":")).encode("utf-8")).hexdigest(),
+                result["scopeDeclarationDigest"],
+            )
 
             scope["externalScopeDeclaredComplete"] = False
             self.assertFalse(MODULE.scan(scope, root)[1])
@@ -31,6 +39,11 @@ class ScanAuthFieldExternalConsumersTest(unittest.TestCase):
             result, passed = MODULE.scan(scope, root)
             self.assertFalse(passed)
             self.assertEqual("filterableFields", result["legacyConsumers"][0]["token"])
+
+            scope = self.scope(True)
+            scope["systems"].append(dict(scope["systems"][0]))
+            with self.assertRaisesRegex(ValueError, "duplicate systemId"):
+                MODULE.scan(scope, root)
 
     @staticmethod
     def scope(complete):

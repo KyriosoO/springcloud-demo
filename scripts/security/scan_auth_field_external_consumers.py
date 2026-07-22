@@ -5,23 +5,33 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    from open_04_001_evidence_io import atomic_write_json_new, canonical_bytes, load_json
+except ModuleNotFoundError:
+    from scripts.security.open_04_001_evidence_io import atomic_write_json_new, canonical_bytes, load_json
+
 
 SCHEMA = "auth-field-external-consumer-scope-v0.1"
 OUTPUT_SCHEMA = "auth-field-external-consumer-scan-v0.1"
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 TOKENS = ("filterableFields", "displayableFields", "allowedOperators", "allowedFunctions")
+SCOPE_FIELDS = {
+    "schemaVersion", "declarationRef", "declaredByRefDigest", "externalScopeDeclaredComplete", "systems"
+}
 
 
 def scan(scope: dict[str, Any], root: Path) -> tuple[dict[str, Any], bool]:
     if scope.get("schemaVersion") != SCHEMA:
         raise ValueError("unsupported scope schema")
+    if set(scope) != SCOPE_FIELDS:
+        raise ValueError("scope must use the closed declaration schema")
+    declaration_ref = _text(scope, "declarationRef")
     complete = scope.get("externalScopeDeclaredComplete") is True
     declarer = scope.get("declaredByRefDigest")
     if not isinstance(declarer, str) or DIGEST.fullmatch(declarer) is None:
@@ -32,10 +42,14 @@ def scan(scope: dict[str, Any], root: Path) -> tuple[dict[str, Any], bool]:
     results = []
     all_hashes: dict[str, str] = {}
     consumers: list[dict[str, str]] = []
+    seen_system_ids: set[str] = set()
     for system in systems:
         if not isinstance(system, dict) or set(system) != {"systemId", "kind", "rootRef", "revision", "includeGlobs"}:
             raise ValueError("each system must use the closed inventory schema")
         system_id = _text(system, "systemId")
+        if system_id in seen_system_ids:
+            raise ValueError(f"duplicate systemId: {system_id}")
+        seen_system_ids.add(system_id)
         system_root = _resolve(root, _text(system, "rootRef"))
         globs = system.get("includeGlobs")
         if not isinstance(globs, list) or not globs or any(not isinstance(item, str) or not item for item in globs):
@@ -66,9 +80,11 @@ def scan(scope: dict[str, Any], root: Path) -> tuple[dict[str, Any], bool]:
     return ({
         "schemaVersion": OUTPUT_SCHEMA,
         "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "scopeDeclarationRef": scope.get("declarationRef"),
+        "scopeDeclarationRef": declaration_ref,
+        "scopeDeclarationDigest": hashlib.sha256(canonical_bytes(scope)).hexdigest(),
         "declaredByRefDigest": declarer,
         "externalScopeDeclaredComplete": complete,
+        "declaredSystems": systems,
         "scannedSystems": results,
         "legacyConsumers": consumers,
         "externalConsumersZero": passed,
@@ -102,9 +118,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        result, passed = scan(json.loads(args.scope.read_text(encoding="utf-8")), args.root)
-        args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        result, passed = scan(load_json(args.scope), args.root)
+        atomic_write_json_new(args.output, result)
+    except (OSError, ValueError) as exc:
         print(f"OPEN-04-001 EXTERNAL CONSUMER SCAN BLOCKED: {exc}", file=sys.stderr)
         return 2
     if not passed:

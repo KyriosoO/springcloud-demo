@@ -13,6 +13,31 @@ SPEC.loader.exec_module(MODULE)
 
 
 class PrepareOpen04001ControlRecordTest(unittest.TestCase):
+    def test_prepare_and_finalize_independent_review_binds_all_eight_roles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            review = {
+                "schemaVersion": MODULE.REVIEW_SCHEMA,
+                "reviewId": "review-1",
+                "reviewerRefDigest": "b" * 64,
+                "operatorRefDigest": "a" * 64,
+                "verificationKey": {"keyId": "key-1", "keyVersion": "v1"},
+                "reviewedAt": "2026-07-22T07:00:00Z",
+                "decision": "APPROVE_OPEN_04_001_EXIT",
+                "findings": [],
+            }
+            for index, field in enumerate(MODULE.REVIEW_REF_FIELDS):
+                path = root / f"artifact-{index}.json"
+                path.write_text(field, encoding="utf-8")
+                review[field] = path.name
+            request = MODULE.prepare_review(review, root)
+            self.assertEqual(8, len(request["reviewWithoutSignature"]["reviewedArtifactHashes"]))
+            finalized = MODULE.finalize_review(request, "A" * 86)
+            self.assertEqual("A" * 86, finalized["signature"])
+            request["reviewWithoutSignature"]["reviewId"] = "drifted"
+            with self.assertRaisesRegex(ValueError, "drifted"):
+                MODULE.finalize_review(request, "A" * 86)
+
     def test_execution_bindings_are_derived_from_actual_non_secret_inputs(self):
         first = MODULE.execution_bindings(
             b"public-key", "approval-key", "v1", "a" * 64,

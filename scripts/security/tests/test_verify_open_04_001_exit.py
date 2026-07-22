@@ -5,6 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.security.assemble_open_04_001_exit_evidence import assemble
+from scripts.security.tests.open_04_001_exit_fixture import build
+
 
 SCRIPT = Path(__file__).parents[1] / "verify_open_04_001_exit.py"
 SPEC = importlib.util.spec_from_file_location("verify_open_04_001_exit", SCRIPT)
@@ -17,9 +20,7 @@ class VerifyOpen04001ExitTest(unittest.TestCase):
     def test_complete_independent_evidence_passes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            files = self.write_bound_files(root)
-            evidence = self.complete_evidence()
-            evidence["sourceHashes"] = {name: self.sha(path) for name, path in files.items()}
+            evidence = assemble(root, build(root))
             self.assertEqual([], MODULE.verify(evidence, root))
 
     def test_pending_authority_metrics_and_external_scan_fail(self):

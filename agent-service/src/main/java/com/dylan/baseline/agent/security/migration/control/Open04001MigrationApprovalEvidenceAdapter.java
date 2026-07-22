@@ -9,8 +9,6 @@ import com.dylan.common.security.IntegrityVerificationKeyProvider;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /** DR-04-045受控非生产迁移批准适配器；不得装配到普通或生产profile。 */
@@ -175,7 +172,8 @@ public final class Open04001MigrationApprovalEvidenceAdapter
         }
 
         return new VerifiedApprovalEvidence(
-                recordId, sha256(canonical(root)), request.operation(), request.fromPolicyDigest(),
+                recordId, Open04001CanonicalJson.sha256(Open04001CanonicalJson.canonical(objectMapper, root)),
+                request.operation(), request.fromPolicyDigest(),
                 request.toPolicyDigest(), request.changeClass(), request.expectedStateVersion(), approver, validUntil);
     }
 
@@ -283,37 +281,12 @@ public final class Open04001MigrationApprovalEvidenceAdapter
     }
 
     private byte[] canonicalWithoutSignature(JsonNode root) {
-        ObjectNode copy = root.deepCopy();
-        copy.remove("signature");
-        return canonical(copy);
-    }
-
-    private byte[] canonical(JsonNode node) {
         try {
-            return objectMapper.writeValueAsBytes(canonicalNode(node));
-        } catch (IOException ex) {
+            return Open04001CanonicalJson.canonicalWithout(objectMapper, root, "signature");
+        } catch (IllegalArgumentException ex) {
             throw new PolicyAdministrationException(
                     "SECURITY_POLICY_APPROVAL_INVALID", "cannot canonicalize control record", ex);
         }
-    }
-
-    private JsonNode canonicalNode(JsonNode node) {
-        if (node.isObject()) {
-            ObjectNode result = objectMapper.createObjectNode();
-            TreeSet<String> names = new TreeSet<>();
-            node.fieldNames().forEachRemaining(names::add);
-            names.forEach(name -> result.set(name, canonicalNode(node.get(name))));
-            return result;
-        }
-        if (node.isArray()) {
-            ArrayNode result = objectMapper.createArrayNode();
-            node.forEach(value -> result.add(canonicalNode(value)));
-            return result;
-        }
-        if (!node.isTextual() && !node.isBoolean() && !node.isIntegralNumber() && !node.isNull()) {
-            throw invalid("control record contains an unsupported JSON value type");
-        }
-        return node.deepCopy();
     }
 
     private String safeRef(JsonNode root, String field) {

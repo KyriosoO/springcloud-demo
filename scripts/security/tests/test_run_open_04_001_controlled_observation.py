@@ -19,6 +19,7 @@ class RunOpen04001ControlledObservationTest(unittest.TestCase):
             auth, seed, traffic, thresholds = self.files(root)
             observation, policy = MODULE.run(auth, seed, traffic, thresholds)
             self.assertTrue(observation["thresholdsPassed"])
+            self.assertLess(observation["windowStart"], observation["windowEnd"])
             self.assertEqual(0, observation["legacyDecisionReadCount"])
             self.assertEqual(0, observation["totals"]["AGENT_WIDER_THAN_AUTH"])
             self.assertEqual(0, observation["totals"]["UNMAPPABLE"])

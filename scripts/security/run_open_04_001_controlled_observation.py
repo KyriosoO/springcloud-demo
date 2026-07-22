@@ -7,11 +7,16 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+try:
+    from open_04_001_evidence_io import atomic_write_bytes_new, atomic_write_json_new, load_json
+except ModuleNotFoundError:
+    from scripts.security.open_04_001_evidence_io import atomic_write_bytes_new, atomic_write_json_new, load_json
 
 
 SCHEMA = "open-04-001-controlled-observation-v0.1"
@@ -29,10 +34,11 @@ NEGATIVE_CASES = {
 
 
 def run(auth_path: Path, seed_path: Path, traffic_path: Path, thresholds_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    window_start = datetime.now(timezone.utc)
     auth_root = yaml.safe_load(auth_path.read_text(encoding="utf-8"))
     seed_root = yaml.safe_load(seed_path.read_text(encoding="utf-8"))
-    traffic = json.loads(traffic_path.read_text(encoding="utf-8"))
-    thresholds = json.loads(thresholds_path.read_text(encoding="utf-8"))
+    traffic = load_json(traffic_path)
+    thresholds = load_json(thresholds_path)
     if traffic.get("schemaVersion") != TRAFFIC_SCHEMA or thresholds.get("schemaVersion") != THRESHOLDS_SCHEMA:
         raise ValueError("unsupported traffic or thresholds schema")
     iterations = traffic.get("iterationsPerProfilePerPhase")
@@ -101,9 +107,14 @@ def run(auth_path: Path, seed_path: Path, traffic_path: Path, thresholds_path: P
         and all(item["phaseC"]["legacyDecisionReadCount"] == 0 for item in profiles)
         and all(item["rejectedCount"] == item["attemptCount"] for item in negative_results)
     )
+    window_end = datetime.now(timezone.utc)
+    if window_end <= window_start:
+        window_end = window_start + timedelta(microseconds=1)
     observation = {
         "schemaVersion": SCHEMA,
-        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "windowStart": window_start.isoformat().replace("+00:00", "Z"),
+        "windowEnd": window_end.isoformat().replace("+00:00", "Z"),
+        "generatedAt": window_end.isoformat().replace("+00:00", "Z"),
         "sourceDigests": {
             str(auth_path).replace("\\", "/"): _sha(auth_path),
             str(seed_path).replace("\\", "/"): _sha(seed_path),
@@ -232,13 +243,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         observation, policy = run(args.auth, args.seed, args.traffic, args.thresholds)
-        args.output.write_text(json.dumps(observation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        args.policy_output.write_text(
-            json.dumps(policy, ensure_ascii=False, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+        outputs = (args.output, args.policy_output, args.rollback_policy_output)
+        if len({path.resolve() for path in outputs}) != len(outputs) or any(path.exists() for path in outputs):
+            raise FileExistsError("observation output paths must be distinct and must not already exist")
+        atomic_write_json_new(args.output, observation)
+        atomic_write_bytes_new(
+            args.policy_output,
+            json.dumps(policy, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"),
         )
-        args.rollback_policy_output.write_text(
-            json.dumps(build_tightening_drill_policy(policy), ensure_ascii=False, sort_keys=True, separators=(",", ":")),
-            encoding="utf-8",
+        atomic_write_bytes_new(
+            args.rollback_policy_output,
+            json.dumps(build_tightening_drill_policy(policy), ensure_ascii=False,
+                       sort_keys=True, separators=(",", ":")).encode("utf-8"),
         )
     except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError, json.JSONDecodeError) as exc:
         print(f"OPEN-04-001 OBSERVATION BLOCKED: {exc}", file=sys.stderr)
