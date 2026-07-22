@@ -3,8 +3,14 @@ package com.dylan.baseline.agent.security.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dylan.baseline.agent.security.authorization.LegacyAuthFieldView;
+import com.dylan.baseline.agent.security.authorization.AuthAuthorizationFacts;
+import com.dylan.baseline.agent.security.authorization.SubjectRef;
+import com.dylan.baseline.agent.security.policy.AgentFieldPolicySnapshot;
+import com.dylan.baseline.agent.security.policy.AuthFieldMigrationMode;
+import com.dylan.baseline.agent.security.policy.AuthorizationIntersectionService;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +59,39 @@ class AuthFieldMigrationVerifierTest {
                 .isEqualTo(AuthFieldMigrationDiffClass.AGENT_WIDER_THAN_AUTH);
         assertThat(comparator.compare(auth, mixed))
                 .isEqualTo(AuthFieldMigrationDiffClass.UNMAPPABLE);
+    }
+
+    @Test
+    void controlledBAndCObservationExecutesActualResolverOneHundredTimesPerKnownProfile() throws IOException {
+        Map<String, LegacyAuthFieldView> authProfiles = loadAuthProfiles();
+        Map<String, LegacyAuthFieldView> agentSeeds = loadAgentSeeds();
+        AuthorizationIntersectionService service = new AuthorizationIntersectionService();
+        AgentFieldPolicySnapshot policy = new AgentFieldPolicySnapshot(
+                "controlled-observation-v1", "d".repeat(64), agentSeeds);
+        int phaseCLegacyDecisionReads = 0;
+
+        for (Map.Entry<String, String> mapping : APPROVED_PROFILE_BY_PERMISSION_CODE.entrySet()) {
+            AuthAuthorizationFacts facts = new AuthAuthorizationFacts(
+                    new SubjectRef("USER", "controlled-observation"), "tenant-controlled",
+                    Set.of(mapping.getKey()), Set.of(), Set.of(), Set.of(), Set.of(),
+                    "evidence-" + mapping.getKey(), "v1",
+                    Instant.parse("2026-07-22T00:00:00Z"), Instant.parse("2026-07-23T00:00:00Z"));
+            LegacyAuthFieldView legacy = authProfiles.get(mapping.getValue());
+            for (int iteration = 0; iteration < 100; iteration++) {
+                AuthFieldMigrationResolution phaseB = service.resolveFieldsWithObservation(
+                        facts, policy, legacy, AuthFieldMigrationMode.DUAL_READ_ENFORCE_INTERSECTION);
+                AuthFieldMigrationResolution phaseC = service.resolveFieldsWithObservation(
+                        facts, policy, legacy, AuthFieldMigrationMode.AGENT_FIELD_AUTHORITY);
+                assertThat(phaseB.observedDiffClass()).contains(AuthFieldMigrationDiffClass.EQUAL);
+                assertThat(phaseB.legacyUsedForDecision()).isTrue();
+                assertThat(phaseC.observedDiffClass()).contains(AuthFieldMigrationDiffClass.EQUAL);
+                assertThat(phaseC.legacyUsedForDecision()).isFalse();
+                if (phaseC.legacyUsedForDecision()) {
+                    phaseCLegacyDecisionReads++;
+                }
+            }
+        }
+        assertThat(phaseCLegacyDecisionReads).isZero();
     }
 
     private static Map<String, LegacyAuthFieldView> loadAgentSeeds() throws IOException {

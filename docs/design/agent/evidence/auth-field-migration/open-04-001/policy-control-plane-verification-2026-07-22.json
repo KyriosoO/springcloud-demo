@@ -9,14 +9,14 @@
       "agent-field-policy-v0.1 payload is strict, canonicalized and SHA-256 bound",
       "change class is recomputed from current and target atomic grants",
       "approval evidence binds operation, from/to digests, change class and expected stateVersion",
-      "default approval port fails closed while 12A is unavailable",
+      "default approval port fails closed while no controlled or production approval adapter is available",
       "MySQL activation uses row lock, from-digest/stateVersion CAS and same-transaction activation audit",
       "OPEN-04-001 exit evidence is checked by a read-only deterministic verifier",
       "repository legacy consumers are scanned against an explicit migration boundary and nested source hashes",
       "external consumer evidence must use a fixed hash-bound schema before exit can pass"
     ],
     "notImplementedOrNotExecuted": [
-      "12A-backed real approval adapter",
+      "independently signed DR-04-045 controlled approval record",
       "policy activation or migration from SEED_ONLY",
       "representative observation window",
       "production or business traffic",
@@ -49,7 +49,7 @@
       "command": "python scripts/security/verify_open_04_001_exit.py --root . --evidence docs/design/agent/evidence/auth-field-migration/open-04-001/exit-readiness-2026-07-22.json",
       "result": "EXPECTED_BLOCKED",
       "exitCode": 2,
-      "meaning": "The verifier rejects the current real evidence because 12A authority, representative observation, policy activation/rollback, external consumer retirement and independent closure review are absent."
+      "meaning": "This earlier verifier run remains blocked; the current v0.2 verifier now requires the DR-04-045 signature, three-step activation/rollback, complete external scope and independent closure review."
     },
     {
       "command": "python C:/Users/zhoud/.agents/skills/detailed-design-document/scripts/validate_detailed_design.py --file docs/design/agent/L2/04_模型准入上下文与权限安全_L2实施详细设计_v0.1.md --root . --strict",

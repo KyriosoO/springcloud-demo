@@ -2,7 +2,7 @@ package com.dylan.baseline.agent.security.policy.admin;
 
 import java.time.Instant;
 
-/** 由12A提供实现；Agent只消费并校验不可伪造的独立批准证据。 */
+/** 默认失败关闭；04仅可提供受控非生产迁移实现，12A后续提供独立生产批准实现。 */
 public interface SecurityChangeApprovalEvidencePort {
 
     VerifiedApprovalEvidence verify(ApprovalVerificationRequest request);

@@ -1,31 +1,40 @@
 {
-  "schemaVersion": "open-04-001-exit-evidence-v0.1",
-  "state": "CONTROL_PLANE_AND_REPOSITORY_BOUNDARY_VERIFIED_12A_EVIDENCE_PENDING",
-  "generatedAt": "2026-07-22T12:10:00+08:00",
+  "schemaVersion": "open-04-001-exit-evidence-v0.2",
+  "state": "CONTROLLED_TOOLCHAIN_IMPLEMENTED_APPROVAL_PENDING",
   "authority": {
-    "topic": "12A",
-    "documentRef": null,
-    "documentStatus": "MissingPrerequisitesNotMet",
+    "topic": "04_CONTROLLED_MIGRATION",
+    "documentRef": "docs/design/agent/L2/04_模型准入上下文与权限安全_L2实施详细设计_v0.1.md#DR-04-045",
+    "documentStatus": "In Review",
     "exitApprovalRef": null,
     "operatorRefDigest": null,
     "independentReviewerRefDigest": null,
     "exitApprovalEvidenceDigest": null
   },
+  "controlRecord": {
+    "ref": null,
+    "verificationRef": null,
+    "recordDigest": null,
+    "signatureVerified": false,
+    "environmentClass": "NON_PRODUCTION_CONTROLLED",
+    "enabledModelTargetIdsEmpty": true,
+    "runtimeToolTrafficEnabled": false,
+    "businessTrafficEnabled": false
+  },
   "observation": {
+    "evidenceRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/controlled-observation-2026-07-22.json",
     "windowStart": null,
     "windowEnd": null,
-    "trafficProfileRef": null,
-    "representativeTraffic": false,
-    "requestCount": 0,
-    "thresholdsRef": null,
-    "thresholdsPassed": false,
-    "legacyDecisionReadCount": null,
+    "trafficProfileRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/traffic-profile-v0.1.json",
+    "controlledProfileCoverageComplete": true,
+    "requestCount": 400,
+    "thresholdsRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/thresholds-v0.1.json",
+    "thresholdsPassed": true,
+    "legacyDecisionReadCount": 0,
     "diff": {
       "AGENT_WIDER_THAN_AUTH": 0,
       "UNMAPPABLE": 0,
       "AUTH_WIDER_THAN_AGENT": 0
-    },
-    "narrowingApprovalRef": null
+    }
   },
   "policy": {
     "mode": "SEED_ONLY",
@@ -36,7 +45,7 @@
   },
   "consumerScan": {
     "scopeRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/legacy-consumer-scan-2026-07-22.json",
-    "externalScopeRef": null,
+    "externalScopeRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/external-consumer-scope-pending.json",
     "repositoryUnexpectedConsumersZero": true,
     "externalConsumersZero": false
   },
@@ -48,20 +57,11 @@
     "independentReviewRef": null,
     "independentReviewEvidenceDigest": null
   },
-  "sourceHashes": {
-    "docs/design/agent/evidence/auth-field-migration/open-04-001/offline-verification-2026-07-22.json": "0b9d358ae3b2a804c6dbd25202a65c4a79f54cc837510b1c987c3b072dab2674",
-    "docs/design/agent/evidence/auth-field-migration/open-04-001/runtime-db-verification-2026-07-22.json": "faa9d03ba308789428f853b001e036f0f443149f799847156aaac8e102f6c816",
-    "docs/design/agent/evidence/auth-field-migration/open-04-001/policy-control-plane-verification-2026-07-22.json": "926c39f3f4c53d96edcb8a1a854470512c1e92106189e98be4559deb8faaac24",
-    "docs/design/agent/evidence/auth-field-migration/open-04-001/legacy-consumer-scan-2026-07-22.json": "26bf908113ed7624ae6ecc71ca9fb17f6d6043ebfca509faee307051c9a23e43",
-    "scripts/security/verify_open_04_001_exit.py": "c6ea422f8e23b6b794a47a057bb357bcccc825069b6355e779ec4fddb8286aff",
-    "scripts/security/tests/test_verify_open_04_001_exit.py": "819bbe0781b98c844e9124ac0e0eda9bd36b420cdc679b0810ff431b54d3ed1c"
-  },
+  "sourceHashes": {},
   "limitations": [
-    "12A cannot yet be authored because 05, 11C and 12 have not completed independent review.",
-    "No independent activation or exit approval evidence exists.",
-    "No 12A-frozen representative observation window has been executed.",
-    "The target Agent repository has no unexpected legacy consumer, but external consumers and runtime legacyDecisionReadCount=0 are not proven.",
-    "No policy was activated and no production traffic was enabled.",
-    "This record is expected to fail the exit verifier and does not close OPEN-04-001."
+    "The independent approver Ed25519 public key and signature are not available; no control record can be finalized or verified.",
+    "The external consumer scope declaration is intentionally incomplete and cannot support externalConsumersZero=true.",
+    "The signed three-step MySQL activation, tightening and rollback exercise has not run; the policy tables remain empty.",
+    "Independent exit review has not run. This evidence must remain blocked and is not production approval."
   ]
 }

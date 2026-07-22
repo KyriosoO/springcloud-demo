@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "open-04-001-controlled-observation-v0.1",
+  "generatedAt": "2026-07-22T04:59:32.504210Z",
+  "sourceDigests": {
+    "auth-service/src/main/resources/agent-rbac.yml": "1759f65445e16da254b19848018c002c0e974018c9758eea2d93ee952c6d29ae",
+    "agent-service/src/main/resources/agent-security/migration/field-policy-seed-v0.1.yml": "67e84a0448200b31888d89b84f96d3e3cc8d6f7012b29c163471447c3577b04f",
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/traffic-profile-v0.1.json": "2f19c90742eecd817115b2cb2bacb8fb6361eabd82932a6c76ea28ffc9f8542b",
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/thresholds-v0.1.json": "b0a2a9e5009bca0d1771f097f59d5cb03c11852e3794a6b4d15907c2e36e265e"
+  },
+  "profiles": [
+    {
+      "permissionCode": "agent-admin",
+      "authProfileId": "agent-admin",
+      "phaseB": {
+        "resolutionCount": 100,
+        "diff": "EQUAL",
+        "legacyDecisionReadCount": 100
+      },
+      "phaseC": {
+        "resolutionCount": 100,
+        "diff": "EQUAL",
+        "legacyDecisionReadCount": 0
+      }
+    },
+    {
+      "permissionCode": "agent-viewer",
+      "authProfileId": "agent-viewer",
+      "phaseB": {
+        "resolutionCount": 100,
+        "diff": "EQUAL",
+        "legacyDecisionReadCount": 100
+      },
+      "phaseC": {
+        "resolutionCount": 100,
+        "diff": "EQUAL",
+        "legacyDecisionReadCount": 0
+      }
+    }
+  ],
+  "totals": {
+    "EQUAL": 400,
+    "AUTH_WIDER_THAN_AGENT": 0,
+    "AGENT_WIDER_THAN_AUTH": 0,
+    "UNMAPPABLE": 0
+  },
+  "legacyDecisionReadCount": 0,
+  "negativeCases": [
+    {
+      "case": "EXPIRED_AUTH",
+      "attemptCount": 1,
+      "rejectedCount": 1
+    },
+    {
+      "case": "MISSING_LEGACY",
+      "attemptCount": 1,
+      "rejectedCount": 1
+    },
+    {
+      "case": "STATE_VERSION_CONFLICT",
+      "attemptCount": 1,
+      "rejectedCount": 1
+    },
+    {
+      "case": "UNKNOWN_PERMISSION_CODE",
+      "attemptCount": 1,
+      "rejectedCount": 1
+    },
+    {
+      "case": "UNMAPPABLE",
+      "attemptCount": 1,
+      "rejectedCount": 1
+    }
+  ],
+  "thresholdsPassed": true
+}

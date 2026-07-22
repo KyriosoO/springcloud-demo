@@ -73,7 +73,7 @@ def scan(root: Path) -> dict[str, Any]:
         "sourceHashes": hashes,
         "limitations": [
             "The scan does not inspect external repositories or deployed consumers.",
-            "Runtime zero-read evidence still requires a 12A-frozen AGENT_FIELD_AUTHORITY observation window.",
+            "Runtime zero-read evidence requires the DR-04-045 controlled resolver observation and signed database exercise.",
         ],
     }
 
@@ -81,9 +81,14 @@ def scan(root: Path) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     result = scan(args.root)
-    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    rendered = json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    if args.output is None:
+        print(rendered, end="")
+    else:
+        args.output.write_text(rendered, encoding="utf-8")
     return 0 if result["state"] == "PASS" else 2
 
 

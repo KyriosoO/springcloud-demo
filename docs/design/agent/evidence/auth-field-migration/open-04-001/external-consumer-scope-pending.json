@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "auth-field-external-consumer-scope-v0.1",
+  "declarationRef": "PENDING_INDEPENDENT_SCOPE_DECLARATION",
+  "declaredByRefDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "externalScopeDeclaredComplete": false,
+  "systems": [
+    {
+      "systemId": "workspace-deployment-candidates",
+      "kind": "REPOSITORY_AND_DEPLOYMENT_CANDIDATES",
+      "rootRef": ".",
+      "revision": "PENDING_CURRENT_COMMIT",
+      "includeGlobs": [
+        "auth-service/src/main/**/*.java",
+        "agent-service/src/main/**/*.java",
+        "config-service/src/main/**/*.yml"
+      ]
+    }
+  ]
+}

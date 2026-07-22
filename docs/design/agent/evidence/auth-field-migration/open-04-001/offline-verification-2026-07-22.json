@@ -71,9 +71,9 @@
     "config-service/src/main/resources/config/agent-service.yml": "7fe6389e815549712f9804b22b84c3d58f3773e265acc68a07bfe491c40c391b"
   },
   "limitations": [
-    "12A has not frozen an observation-window duration, traffic profile, metrics threshold, retention, or approval owner.",
+    "This earlier offline snapshot predates DR-04-045; the controlled traffic profile and thresholds are now recorded separately.",
     "No production or representative business traffic was enabled or observed.",
-    "Database runtime verification is recorded separately and does not replace a 12A-frozen observation window.",
+    "Database runtime verification is recorded separately and does not replace the signed DR-04-045 three-step exercise.",
     "The evidence does not close OPEN-04-001 and cannot be used as production approval."
   ]
 }

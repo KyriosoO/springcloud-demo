@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "open-04-001-thresholds-v0.1",
+  "minimumPerProfilePerPhase": 100,
+  "agentWiderThanAuthMaximum": 0,
+  "unmappableMaximum": 0,
+  "phaseCLegacyDecisionReadMaximum": 0,
+  "negativeCaseRejectionRate": 1.0,
+  "repositoryUnexpectedConsumersMaximum": 0,
+  "externalConsumersMaximum": 0
+}

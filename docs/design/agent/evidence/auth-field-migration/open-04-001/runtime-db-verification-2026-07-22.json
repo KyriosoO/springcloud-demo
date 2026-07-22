@@ -2,7 +2,7 @@
   "evidenceId": "open-04-001-runtime-db-20260722-01",
   "evidenceType": "AUTH_FIELD_MIGRATION_RUNTIME_AND_DATABASE_VERIFICATION",
   "generatedAt": "2026-07-22T10:54:00+08:00",
-  "state": "RUNTIME_WIRING_AND_DB_VERIFIED_12A_OBSERVATION_PENDING",
+  "state": "RUNTIME_WIRING_AND_DB_VERIFIED_DR_04_045_SIGNATURE_PENDING",
   "database": {
     "endpoint": "127.0.0.1:3306",
     "schema": "springboot_db",
@@ -22,7 +22,7 @@
       "agent_security_policy_activation_audit": 0
     },
     "policyActivated": false,
-    "reasonNotActivated": "No 12A-approved observation window or independently verified activation approval authority exists. Empty tables preserve fail-closed behavior."
+    "reasonNotActivated": "No independently signed DR-04-045 control record exists. Empty tables preserve fail-closed behavior."
   },
   "runtimeWiring": {
     "transport": "agent-service HTTP RestClient -> auth-service /internal/agent/permissions/resolve",
@@ -95,7 +95,7 @@
     "config-service/src/main/resources/config/agent-service.yml": "7fe6389e815549712f9804b22b84c3d58f3773e265acc68a07bfe491c40c391b"
   },
   "limitations": [
-    "12A has not frozen an observation-window duration, representative traffic profile, metric thresholds, retention, or approval owner.",
+    "This earlier runtime snapshot predates the DR-04-045 controlled profile; real signature and three-step database evidence remain pending.",
     "No production or representative business traffic was enabled or observed.",
     "No Agent policy version was staged or activated because independently verified approval evidence is unavailable.",
     "Repository scanning cannot prove that external consumers of the legacy Auth fields are zero.",

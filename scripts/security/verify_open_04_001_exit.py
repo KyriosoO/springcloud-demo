@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA = "open-04-001-exit-evidence-v0.1"
+SCHEMA = "open-04-001-exit-evidence-v0.2"
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -32,9 +32,14 @@ def verify(evidence: dict[str, Any], root: Path) -> list[str]:
     expected_values = {
         "schemaVersion": SCHEMA,
         "state": "OPEN_04_001_EXIT_APPROVED",
-        "authority.topic": "12A",
-        "authority.documentStatus": "Approved",
-        "observation.representativeTraffic": True,
+        "authority.topic": "04_CONTROLLED_MIGRATION",
+        "authority.documentStatus": "In Review",
+        "controlRecord.signatureVerified": True,
+        "controlRecord.environmentClass": "NON_PRODUCTION_CONTROLLED",
+        "controlRecord.enabledModelTargetIdsEmpty": True,
+        "controlRecord.runtimeToolTrafficEnabled": False,
+        "controlRecord.businessTrafficEnabled": False,
+        "observation.controlledProfileCoverageComplete": True,
         "observation.thresholdsPassed": True,
         "policy.mode": "AGENT_FIELD_AUTHORITY",
         "policy.rollbackExercisePassed": True,
@@ -53,6 +58,9 @@ def verify(evidence: dict[str, Any], root: Path) -> list[str]:
     required_text = [
         "authority.documentRef",
         "authority.exitApprovalRef",
+        "controlRecord.ref",
+        "controlRecord.verificationRef",
+        "observation.evidenceRef",
         "observation.trafficProfileRef",
         "observation.thresholdsRef",
         "consumerScan.scopeRef",
@@ -69,6 +77,7 @@ def verify(evidence: dict[str, Any], root: Path) -> list[str]:
         "authority.operatorRefDigest",
         "authority.independentReviewerRefDigest",
         "authority.exitApprovalEvidenceDigest",
+        "controlRecord.recordDigest",
         "policy.policyDigest",
         "validation.independentReviewEvidenceDigest",
     ]
@@ -116,6 +125,15 @@ def verify(evidence: dict[str, Any], root: Path) -> list[str]:
             authority_path = authority_ref.split("#", 1)[0]
             if authority_path not in source_hashes:
                 failures.append("sourceHashes: authority.documentRef must be hash-bound")
+        for ref_path in ("controlRecord.ref", "controlRecord.verificationRef", "observation.evidenceRef"):
+            value = _read_path(evidence, ref_path)
+            if isinstance(value, str):
+                relative = value.split("#", 1)[0]
+                if relative not in source_hashes:
+                    failures.append(f"sourceHashes: {ref_path} must be hash-bound")
+        observation_ref = _read_path(evidence, "observation.evidenceRef")
+        if isinstance(observation_ref, str) and observation_ref.split("#", 1)[0] in source_hashes:
+            failures.extend(_verify_observation(root, observation_ref.split("#", 1)[0]))
         consumer_ref = _read_path(evidence, "consumerScan.scopeRef")
         if isinstance(consumer_ref, str):
             consumer_path = consumer_ref.split("#", 1)[0]
@@ -205,11 +223,55 @@ def _verify_external_consumer_scan(root: Path, relative: str) -> list[str]:
         failures.append("consumerScan.externalScopeRef: unsupported scan evidence schema")
     if scan.get("externalConsumersZero") is not True:
         failures.append("consumerScan.externalScopeRef: external consumers are not zero")
+    if scan.get("externalScopeDeclaredComplete") is not True:
+        failures.append("consumerScan.externalScopeRef: external scope declaration is incomplete")
     systems = scan.get("scannedSystems")
-    if not isinstance(systems, list) or not systems or any(
-        not isinstance(system, str) or not system.strip() for system in systems
-    ):
+    if not isinstance(systems, list) or not systems or any(not isinstance(system, dict) for system in systems):
         failures.append("consumerScan.externalScopeRef: non-empty scannedSystems are required")
+    if scan.get("legacyConsumers") != []:
+        failures.append("consumerScan.externalScopeRef: legacyConsumers must be empty")
+    nested_hashes = scan.get("sourceHashes")
+    if not isinstance(nested_hashes, dict) or not nested_hashes:
+        failures.append("consumerScan.externalScopeRef: nested sourceHashes are required")
+    else:
+        failures.extend(_verify_source_hashes(nested_hashes, root, "externalConsumerScan.sourceHashes"))
+    return failures
+
+
+def _verify_observation(root: Path, relative: str) -> list[str]:
+    candidate = (root.resolve() / relative).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+        observation = json.loads(candidate.read_text(encoding="utf-8"))
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        return [f"observation.evidenceRef: cannot read bound observation: {exc}"]
+    failures: list[str] = []
+    if observation.get("schemaVersion") != "open-04-001-controlled-observation-v0.1":
+        failures.append("observation.evidenceRef: unsupported observation schema")
+    if observation.get("thresholdsPassed") is not True:
+        failures.append("observation.evidenceRef: thresholds did not pass")
+    if observation.get("legacyDecisionReadCount") != 0:
+        failures.append("observation.evidenceRef: phase C legacy reads must be zero")
+    profiles = observation.get("profiles")
+    if not isinstance(profiles, list) or not profiles:
+        failures.append("observation.evidenceRef: profiles are required")
+    else:
+        for profile in profiles:
+            if not isinstance(profile, dict):
+                failures.append("observation.evidenceRef: profile entry must be an object")
+                continue
+            for phase in ("phaseB", "phaseC"):
+                value = profile.get(phase)
+                if not isinstance(value, dict) or value.get("resolutionCount", 0) < 100:
+                    failures.append(f"observation.evidenceRef: {phase} requires at least 100 resolutions")
+    totals = observation.get("totals")
+    if not isinstance(totals, dict) or totals.get("AGENT_WIDER_THAN_AUTH") != 0 or totals.get("UNMAPPABLE") != 0:
+        failures.append("observation.evidenceRef: widening and unmappable totals must be zero")
+    negatives = observation.get("negativeCases")
+    if not isinstance(negatives, list) or len(negatives) != 5 or any(
+        not isinstance(item, dict) or item.get("attemptCount") != item.get("rejectedCount") for item in negatives
+    ):
+        failures.append("observation.evidenceRef: all five negative cases must be rejected")
     return failures
 
 
