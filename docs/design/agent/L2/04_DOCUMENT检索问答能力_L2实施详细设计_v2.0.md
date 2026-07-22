@@ -27,6 +27,7 @@
 | v2.0-r4 | 2026-07-22 | 声明 CON/DR，补齐安全测试和检索/回答/引用/拒答质量门禁。 |
 | v2.0-r5 | 2026-07-22 | 同步五轮治理口径并明确启用条件。 |
 | v2.0-r6 | 2026-07-22 | 原子同步 L2-02/05：明确 Search 请求绑定 JWS 与单页 size 映射。 |
+| v2.0-r7 | 2026-07-22 | 补齐 DOCUMENT Python 子图、Client、函数和模型签名，并明确 Java 仅由 L2-05 Search 服务承载。 |
 
 ## 3. 设计目标与范围
 
@@ -164,14 +165,45 @@ ANSWER 使用 `answer + claims`；SUMMARIZE 使用 `summaryPoints`且每项有�
 
 ## 14. 实施落点
 
-| 编号 | 建议路径/类型 |
-|---|---|
-| IMPL-04-01 | 建议新增：`agent_service/capabilities/document/models.py`、`validator.py` |
-| IMPL-04-02 | 建议新增：`agent_service/capabilities/document/profile.py`、启动校验 |
-| IMPL-04-03 | 建议新增：`agent_service/clients/retrieval.py`、`graph/nodes/retrieve.py` |
-| IMPL-04-04 | 建议新增：`agent_service/graph/nodes/evidence_gate.py` |
-| IMPL-04-05 | 建议新增：`agent_service/graph/nodes/document_generate.py` |
-| IMPL-04-06 | 建议新增：`agent_service/graph/nodes/citation_gate.py` 与结果 Projector |
+路径均相对仓库根目录 `D:/codex`。DOCUMENT 编排全部属于 Python Agent；Java 只提供被消费的 Search 原子能力。除明确标记`已存在`外，以下均是建议目标签名，不表示实现完成。
+
+### 14.1 Java 关联落点
+
+| 编号 | 状态 | 完整路径/类 | 入口与主要方法签名 | 权威边界 |
+|---|---|---|---|---|
+| IMPL-04-J01 | 建议新增 | `es-query-service/src/main/java/com/dylan/baseline/esquery/search/` 下 `SearchController.java`、`SearchService.java`；`es-query-api/src/main/java/com/dylan/esquery/api/v1/search/` 下 Search DTO | `ResponseEntity<SearchResponse> search(String logicalIndex, SearchRequest request, Authentication authentication)`；`SearchResponse search(AuthenticatedSearchCommand command)` | 由 L2-05 实施；04 只消费该 HTTP 合同。Java 类型、JWS 验证和 ES 前过滤的字段级权威在 L2-05 IMPL-05-J01～J10。 |
+
+Java DOCUMENT 编排没有代码落点：不新增 Java DOCUMENT Controller、EvidenceGate、Generator、CitationGate 或 Agent State，防止形成第二问答链。
+
+### 14.2 Python 文件、类与函数
+
+| 编号 | 状态 | 完整路径 | 类型/函数签名 | 责任 |
+|---|---|---|---|---|
+| IMPL-04-P01 | 建议新增 | `agent-service/agent_service/capabilities/document/validator.py` | `def validate_document_plan(candidate: DocumentPlanCandidate, authorization: EffectiveAuthorization, profiles: DocumentProfileRegistry) -> ValidatedDocumentPlan`；`def validate_document_filters(filters: Mapping[str, JsonValue], profile: DocumentProfile) -> tuple[DocumentFilter, ...]` | 校验 mode/corpus/question/filter/maxCitations；歧义返回 CLARIFY，越权在 Search 前拒绝。 |
+| IMPL-04-P02 | 建议新增 | `agent-service/agent_service/capabilities/document/profile.py` | `def load_document_profiles(path: Path) -> DocumentProfileRegistry`；`def validate_document_profiles(registry: DocumentProfileRegistry) -> None`；`def resolve_profile(corpus_id: str, registry: DocumentProfileRegistry) -> DocumentProfile` | 启动时冻结 Profile、预算、权限、索引和评测版本绑定；不保存物理索引。 |
+| IMPL-04-P03 | 建议新增 | `agent-service/agent_service/clients/retrieval.py` | `class DocumentSearchClient(Protocol): async def search(self, request: SearchRequest, deadline: Deadline) -> SearchResponse`；`class HttpDocumentSearchClient`同签名；`def map_search_error(status: int, error: SearchErrorResponse) -> AgentError` | 严格消费 L2-05 单页 Search，携带独立服务 token 和已签名授权投影；只在未开始的连接失败时最多重试一次。 |
+| IMPL-04-P04 | 建议新增 | `agent-service/agent_service/graph/nodes/retrieve.py` | `async def retrieve_node(state: AgentState, runtime: Runtime[GraphContext]) -> RetrievalUpdate`；内部 `def build_search_request(plan: ValidatedDocumentPlan, authorization: EffectiveAuthorization, profile: DocumentProfile, request_id: UUID, deadline: Deadline) -> SearchRequest` | 根据 Profile 构造唯一 Search 请求并由 L2-02 projector 签名；不生成 evidenceId。 |
+| IMPL-04-P05 | 建议新增 | `agent-service/agent_service/graph/nodes/evidence_gate.py` | `def evidence_gate_node(state: AgentState, runtime: Runtime[GraphContext]) -> EvidenceUpdate`；`def select_evidence(response: SearchResponse, plan: ValidatedDocumentPlan, profile: DocumentProfile, now: datetime) -> EvidenceDecision` | 绑定版本/权限，稳定排序、去重、裁剪、预算与充分性判断；仅通过时生成 E1..En。 |
+| IMPL-04-P06 | 建议新增 | `agent-service/agent_service/graph/nodes/document_generate.py` | `async def document_generate_node(state: AgentState, runtime: Runtime[GraphContext]) -> DocumentGenerationUpdate`；`def build_generation_request(plan: ValidatedDocumentPlan, evidence: EvidencePackage, target_id: str) -> ModelRequest` | 只在证据充分时调用 L2-02 ModelClient 一次；模型只接收编号证据和严格输出 Schema。 |
+| IMPL-04-P07 | 建议新增 | `agent-service/agent_service/graph/nodes/citation_gate.py` | `def citation_gate_node(state: AgentState, runtime: Runtime[GraphContext]) -> CitationUpdate`；`def validate_citations(candidate: DocumentAnswerCandidate, evidence: EvidencePackage, profile: DocumentProfile, authorization: EffectiveAuthorization, now: datetime) -> ValidatedDocumentResult` | 校验本请求 E-id、版本、时效、每项至少一个引用和答案/不足互斥；未知引用整体拒绝。 |
+| IMPL-04-P08 | 建议新增 | `agent-service/agent_service/security/document_results.py` | `def project_document_result(result: ValidatedDocumentResult, evidence: EvidencePackage, authorization: EffectiveAuthorization, profile: DocumentProfile) -> SafeDocumentResult` | 仅输出 answer/summary、受控引用与 warning；不输出 snippet、完整原文、物理索引或模型生成 URL。 |
+
+### 14.3 Python 模型与枚举
+
+| 编号 | 状态 | 完整路径 | 模型/枚举（主要字段或值） |
+|---|---|---|---|
+| IMPL-04-M01 | 建议新增 | `agent-service/agent_service/capabilities/document/models.py` | `DocumentMode(str, Enum){ANSWER,SUMMARIZE}`；`DocumentPlanCandidate(mode, corpus_id?, question, filters, max_citations)`；`DocumentFilter(field, operator, values)`；`ValidatedDocumentPlan`；全部严格/frozen。 |
+| IMPL-04-M02 | 建议新增 | `agent-service/agent_service/capabilities/document/profile_models.py` | `DocumentProfile(corpus_id, logical_index, classification, required_permission_codes, searchable_fields, filter_fields, return_fields, top_k, max_chunk_chars, max_context_chars, min_evidence_count, min_direct_evidence_score, min_summary_coverage, max_index_age, profile_version, compatible_index_versions)`；`DocumentProfileRegistry`。 |
+| IMPL-04-M03 | 建议新增 | `agent-service/agent_service/clients/retrieval_models.py` | `SearchRequest(request_id, deadline_at, query_text, corpus_id, filters, authorization_projection, page, return_fields)`；`SearchPage(size)`；`SearchHit(document_id, corpus_id, source_version, indexed_at, title, location, snippet, score, classification)`；`SearchResponse(logical_index_version, took_ms, hits)`；`SearchErrorResponse`。逐字段受 L2-05 OpenAPI 约束，`extra='forbid'`。 |
+| IMPL-04-M04 | 建议新增 | `agent-service/agent_service/capabilities/document/evidence_models.py` | `EvidenceItem(evidence_id, document_id, corpus_id, source_version, indexed_at, logical_index_version, title, location, snippet, score, classification)`；`EvidencePackage(items, total_chars, profile_version, logical_index_version)`；`EvidenceDecision(status, package?, error?)`；`EvidenceStatus{SUFFICIENT,INSUFFICIENT,INVALID}`。 |
+| IMPL-04-M05 | 建议新增 | `agent-service/agent_service/capabilities/document/generation_models.py` | `ClaimCandidate(text, citation_ids)`、`SummaryPointCandidate(text, citation_ids)`、`DocumentAnswerCandidate(answer?, claims, summary_points, insufficient_evidence)`、`ValidatedClaim`、`ValidatedDocumentResult`、`SafeCitation`、`SafeDocumentResult`；模型输出 `extra='forbid'`。 |
+
+### 14.4 测试落点
+
+| 编号 | 状态 | 完整路径 | 覆盖 |
+|---|---|---|---|
+| IMPL-04-T01 | 建议新增 | `agent-service/tests/document/test_search_authorization.py`、`agent-service/tests/document/test_evidence_gate.py`、`agent-service/tests/document/test_no_evidence_no_generation.py`、`agent-service/tests/document/test_citation_gate.py`、`agent-service/tests/document/test_document_failures.py`、`agent-service/tests/architecture/test_document_graph.py` | Search 前授权、单次检索、稳定选证、无证据模型调用为 0、注入/未知 E-id、超时/迟到、所有终态过 result_security。 |
+| IMPL-04-T02 | 建议新增 | `agent-service/tests/contract/test_retrieval_openapi.py` | Python Search DTO 与 L2-05 OpenAPI 的合法/额外字段/错误/日期/枚举固定夹具逐字段一致。 |
 
 ## 15. 测试与验证设计及质量门禁
 
@@ -196,10 +228,10 @@ ANSWER 使用 `answer + claims`；SUMMARIZE 使用 `summaryPoints`且每项有�
 
 | 需求/约束 | 设计规则 | 实现 | 测试 | 验证 |
 |---|---|---|---|---|
-| REQ-04-01/02、CON-04-01 | DR-04-01 检索前过滤和确定性选证 | IMPL-04-01/02/03/04 | TEST-04-01/02 | VAL-04-01 Recall@K |
-| REQ-04-03/04、CON-04-02 | DR-04-02 无证据不生成、引用强绑定 | IMPL-04-05/06 | TEST-04-03/04 | VAL-04-01 引用/拒答质量 |
-| REQ-04-05/06、CON-04-03 | DR-04-03 不可信内容和真实目标评测 | IMPL-04-05/06 | TEST-04-03/05/06 | VAL-04-02/03 安全/长上下文/架构集 |
-| 全量覆盖索引 | REQ-04-01、REQ-04-02、REQ-04-03、REQ-04-04、REQ-04-05、REQ-04-06；CON-04-01、CON-04-02、CON-04-03 | DR-04-01、DR-04-02、DR-04-03；IMPL-04-01、IMPL-04-02、IMPL-04-03、IMPL-04-04、IMPL-04-05、IMPL-04-06 | TEST-04-01、TEST-04-02、TEST-04-03、TEST-04-04、TEST-04-05、TEST-04-06 | VAL-04-01、VAL-04-02、VAL-04-03 |
+| REQ-04-01/02、CON-04-01 | DR-04-01 检索前过滤和确定性选证 | IMPL-04-J01、P01～P05、M01～M04、T02 | TEST-04-01/02 | VAL-04-01 Recall@K |
+| REQ-04-03/04、CON-04-02 | DR-04-02 无证据不生成、引用强绑定 | IMPL-04-P05～P08、M04/M05 | TEST-04-03/04 | VAL-04-01 引用/拒答质量 |
+| REQ-04-05/06、CON-04-03 | DR-04-03 不可信内容和真实目标评测 | IMPL-04-P06～P08、T01/T02 | TEST-04-03/05/06 | VAL-04-02/03 安全/长上下文/架构集 |
+| 全量覆盖索引 | REQ-04-01、REQ-04-02、REQ-04-03、REQ-04-04、REQ-04-05、REQ-04-06；CON-04-01、CON-04-02、CON-04-03 | DR-04-01、DR-04-02、DR-04-03；IMPL-04-J01、P01～P08、M01～M05、T01/T02 | TEST-04-01、TEST-04-02、TEST-04-03、TEST-04-04、TEST-04-05、TEST-04-06 | VAL-04-01、VAL-04-02、VAL-04-03 |
 
 ## 17. 风险与待确认事项
 
@@ -218,3 +250,11 @@ ANSWER 使用 `answer + claims`；SUMMARIZE 使用 `summaryPoints`且每项有�
 | 3 | 2026-07-22 | 0 | 2 | 0 | 冻结证据充分性、索引时效和引用版本 | 已修复 |
 | 4 | 2026-07-22 | 0 | 2 | 0 | 补齐约束/规则、可失败测试和质量门禁 | 已修复 |
 | 5 | 2026-07-22 | 0 | 0 | 2 | 同步历史、五轮口径和启用条件 | 有条件通过 |
+
+### 18.2 本次实施落点增补自检
+
+| 轮次 | 检查重点 | 发现与处置 | 结论 |
+|---:|---|---|---|
+| A | Java/Python 所有权 | Java 只引用 L2-05 Search；DOCUMENT 编排、选证、生成、引用均在 Python | 通过 |
+| B | 函数与模型完整性 | 补齐 Validator/Profile/Client/四节点/Projector 及计划、Search、证据、生成模型 | 通过 |
+| C | 合同与启用门禁 | OpenAPI 消费权威、无证据零模型调用、追踪矩阵和严格校验均一致 | 有条件通过：真实 Search/模型/效果门禁未执行 |
