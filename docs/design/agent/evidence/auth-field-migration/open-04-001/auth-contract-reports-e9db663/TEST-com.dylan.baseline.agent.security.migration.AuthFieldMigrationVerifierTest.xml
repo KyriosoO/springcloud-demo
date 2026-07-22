@@ -1,6 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<testsuite name="com.dylan.baseline.agent.security.migration.AuthFieldMigrationVerifierTest" tests="3" failures="0" errors="0" skipped="0">
-  <testcase name="detectsWideningAndUnmappableSeed" classname="com.dylan.baseline.agent.security.migration.AuthFieldMigrationVerifierTest" />
-  <testcase name="allKnownProfilesHaveApprovedEqualAgentSeeds" classname="com.dylan.baseline.agent.security.migration.AuthFieldMigrationVerifierTest" />
-  <testcase name="controlledBAndCObservationExecutesActualResolverOneHundredTimesPerKnownProfile" classname="com.dylan.baseline.agent.security.migration.AuthFieldMigrationVerifierTest" />
-</testsuite>

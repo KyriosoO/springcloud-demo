@@ -1,7 +1,0 @@
-{
-  "code": "CONTRACT_PAYLOAD_INVALID",
-  "contractFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "contractVersion": "1.0.0",
-  "diagnosticId": "diag_00000001",
-  "message": "Contract payload is invalid"
-}

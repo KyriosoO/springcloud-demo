@@ -1,8 +1,0 @@
-{
-  "code": "RUNTIME_INTERNAL_ERROR",
-  "contractFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "contractVersion": "1.0.0",
-  "diagnosticId": "diag_safe_001",
-  "message": "Runtime processing failed",
-  "stackTrace": "forbidden"
-}

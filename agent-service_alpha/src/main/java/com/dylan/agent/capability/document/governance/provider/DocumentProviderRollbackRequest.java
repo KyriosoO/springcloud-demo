@@ -1,4 +1,0 @@
-package com.dylan.agent.capability.document.governance.provider;
-import com.dylan.agent.adapter.api.operation.CapabilityOperationType;
-import java.time.Instant;
-public record DocumentProviderRollbackRequest(String idempotencyKey,CapabilityOperationType operationType,String validationReportId,String expectedCurrentSnapshotDigest,String relatedChangeId,Instant deadline){public DocumentProviderRollbackRequest{DocumentProviderActivateRequest.validate(idempotencyKey,validationReportId,expectedCurrentSnapshotDigest,operationType,deadline);if(relatedChangeId==null||!relatedChangeId.matches("[A-Za-z0-9._:-]{1,128}"))throw new IllegalArgumentException("relatedChangeId invalid");}@com.fasterxml.jackson.annotation.JsonAnySetter public void rejectUnknown(String name,Object value){throw new IllegalArgumentException("unknown management request field: "+name);}}

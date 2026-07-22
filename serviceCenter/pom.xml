@@ -130,11 +130,6 @@
 		</plugins>
 	</build>
 	<modules>
-		<module>../agent-api</module>
-		<module>../agent-adapter-api</module>
-		<module>../agent-adapter-document</module>
-		<module>../agent-adapter-employee</module>
-		<module>../agent-adapter-transaction</module>
 		<module>../workflow-api</module>
 		<module>../es-query-api</module>
 		<module>../order-api</module>
@@ -155,7 +150,5 @@
 		<module>../mq-consumer-service</module>
 		<module>../es-query-service</module>
 		<module>../workflow-service</module>
-		<module>../document-provider-adapter</module>
-		<module>../agent-service</module>
 	</modules>
 </project>

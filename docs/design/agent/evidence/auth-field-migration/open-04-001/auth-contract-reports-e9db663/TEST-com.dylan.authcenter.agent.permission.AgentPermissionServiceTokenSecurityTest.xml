@@ -1,8 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<testsuite name="com.dylan.authcenter.agent.permission.AgentPermissionServiceTokenSecurityTest" tests="5" failures="0" errors="0" skipped="0">
-  <testcase name="rejectsMissingToken" classname="AgentPermission service token security gate" />
-  <testcase name="rejectsAgentServiceTokenWithoutResolveScope" classname="AgentPermission service token security gate" />
-  <testcase name="rejectsWrongServiceSubject" classname="AgentPermission service token security gate" />
-  <testcase name="rejectsUserTokenEvenWhenItCarriesResolveScope" classname="AgentPermission service token security gate" />
-  <testcase name="acceptsOnlyAgentServiceTokenWithResolveScope" classname="AgentPermission service token security gate" />
-</testsuite>
