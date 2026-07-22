@@ -23,6 +23,14 @@
       "errors": 0,
       "skipped": 0,
       "reportSnapshotRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/auth-contract-reports-e9db663/"
+    },
+    "databasePreconditionEvidence": {
+      "ref": "docs/design/agent/evidence/auth-field-migration/open-04-001/db-precondition-audit-2026-07-22-fadb3bf.json",
+      "checkpoint": "EMPTY",
+      "policyVersionCount": 0,
+      "activePolicyCount": 0,
+      "activationAuditCount": 0,
+      "readOnly": true
     }
   },
   "executionBinding": {

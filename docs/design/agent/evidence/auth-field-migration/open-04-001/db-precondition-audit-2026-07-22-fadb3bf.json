@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "open-04-001-db-precondition-audit-v0.1",
+  "generatedAt": "2026-07-22T06:19:24.4817276Z",
+  "testedSecurityRevision": "e9db663cd7925ff43ce3d96512ebea06f71e9423",
+  "evidenceCommitAtAudit": "fadb3bf0b975402ee0b8cf9662dde293ca516544",
+  "environmentClass": "NON_PRODUCTION_CONTROLLED",
+  "jdbcUrl": "jdbc:mysql://127.0.0.1:3306/springboot_db",
+  "dbUser": "root",
+  "databaseRefDigest": "3fb1e9fa612179b9631de90a918bc3d8110f08e06df0a61a3e9ef433c54fef4a",
+  "connectionReadOnly": true,
+  "checkpoint": "EMPTY",
+  "tableCounts": {
+    "agent_security_policy_version": 0,
+    "agent_security_policy_active": 0,
+    "agent_security_policy_activation_audit": 0
+  },
+  "migrationExecuted": false,
+  "secretHandling": "Password was read only inside the audit process from the local datasource configuration and was not printed or stored in this evidence.",
+  "conclusion": "The database is at the exact empty checkpoint accepted by the signed three-step migration CLI. This does not authorize migration execution.",
+  "limitations": [
+    "The independent signed control record is not available.",
+    "This read-only audit is not an approval, migration result, rollback exercise or production evidence."
+  ]
+}
