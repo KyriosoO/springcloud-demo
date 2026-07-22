@@ -48,6 +48,8 @@ public final class Open04001ControlledMigrationCli {
         }
         ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
         Path root = Path.of(require(values, "root")).toAbsolutePath().normalize();
+        String repositoryRevision = require(values, "repository-revision");
+        Open04001RepositoryRevision.verify(root, repositoryRevision);
         Path recordPath = resolveInside(root, require(values, "record"));
         JsonNode record = mapper.readTree(Files.readAllBytes(recordPath));
         byte[] publicKeyDer = Files.readAllBytes(Path.of(require(values, "public-key")));
@@ -69,7 +71,7 @@ public final class Open04001ControlledMigrationCli {
         String databaseRefDigest = Open04001ExecutionBinding.databaseRefDigest(
                 require(values, "jdbc-url"), values.getOrDefault("db-user", "root"));
         var approval = new Open04001MigrationApprovalEvidenceAdapter(
-                root, recordPath, require(values, "repository-revision"),
+                root, recordPath, repositoryRevision,
                 configurationDigest, databaseRefDigest,
                 approverRefDigest, keys, validator, mapper, Clock.systemUTC());
         List<VerifiedApprovalEvidence> verifiedOperations = new ArrayList<>();
@@ -149,7 +151,7 @@ public final class Open04001ControlledMigrationCli {
         output.put("schemaVersion", "open-04-001-controlled-migration-result-v0.1");
         output.put("startedAt", startedAt.toString());
         output.put("completedAt", Instant.now().toString());
-        output.put("repositoryRevision", require(values, "repository-revision"));
+        output.put("repositoryRevision", repositoryRevision);
         output.put("configurationDigest", configurationDigest);
         output.put("databaseRefDigest", databaseRefDigest);
         output.put("controlRecordRef", require(values, "record"));

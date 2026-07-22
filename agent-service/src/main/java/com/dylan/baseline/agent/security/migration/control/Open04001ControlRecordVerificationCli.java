@@ -44,9 +44,11 @@ public final class Open04001ControlRecordVerificationCli {
         String databaseRefDigest = Open04001ExecutionBinding.databaseRefDigest(
                 require(values, "jdbc-url"), values.getOrDefault("db-user", "root"));
         Path root = Path.of(require(values, "root")).toAbsolutePath().normalize();
+        String repositoryRevision = require(values, "repository-revision");
+        Open04001RepositoryRevision.verify(root, repositoryRevision);
         Path recordPath = resolveInside(root, require(values, "record"));
         var adapter = new Open04001MigrationApprovalEvidenceAdapter(
-                root, recordPath, require(values, "repository-revision"), configurationDigest, databaseRefDigest,
+                root, recordPath, repositoryRevision, configurationDigest, databaseRefDigest,
                 approverRefDigest, keys,
                 new AuthFieldPolicyPayloadValidator(mapper), mapper, Clock.systemUTC());
         var record = mapper.readTree(Files.readAllBytes(recordPath));
@@ -60,7 +62,7 @@ public final class Open04001ControlRecordVerificationCli {
         output.put("schemaVersion", "open-04-001-control-verification-v0.1");
         output.put("verifiedAt", Instant.now().toString());
         output.put("signatureVerified", true);
-        output.put("repositoryRevision", require(values, "repository-revision"));
+        output.put("repositoryRevision", repositoryRevision);
         output.put("configurationDigest", configurationDigest);
         output.put("databaseRefDigest", databaseRefDigest);
         output.put("controlRecordRef", require(values, "record"));
