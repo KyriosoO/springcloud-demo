@@ -1,7 +1,7 @@
 {
   "evidenceId": "open-04-001-offline-20260722-01",
   "evidenceType": "AUTH_FIELD_MIGRATION_OFFLINE_VERIFICATION",
-  "generatedAt": "2026-07-22T10:07:00+08:00",
+  "generatedAt": "2026-07-22T12:10:00+08:00",
   "state": "OFFLINE_VERIFIED_OBSERVATION_PENDING",
   "scope": {
     "authRuleVersion": "authz-20260716000000-1",
@@ -45,18 +45,17 @@
   },
   "validation": [
     {
-      "command": "mvn -f serviceCenter/pom.xml -pl :agent-service -am -Dtest=AuthPermissionAuthorityAdapterTest,AuthorizationIntersectionServiceTest,AuthFieldMigrationVerifierTest,AgentSecurityPolicyPersistenceContractTest,AgentServiceApplicationTest -Dsurefire.failIfNoSpecifiedTests=false test",
+      "command": "mvn -f serviceCenter/pom.xml -pl :auth-service,:agent-service -am test",
       "result": "PASS",
-      "testsRun": 8,
+      "testsRun": 80,
       "failures": 0,
-      "errors": 0
-    },
-    {
-      "command": "mvn -f auth-service/pom.xml -Dtest=AgentPermissionProjectionServiceTest,AgentPermissionInternalControllerTest,AgentPermissionSpringContextTest test",
-      "result": "PASS",
-      "testsRun": 13,
-      "failures": 0,
-      "errors": 0
+      "errors": 0,
+      "moduleBreakdown": {
+        "agent-api": 3,
+        "common-security": 18,
+        "auth-service": 23,
+        "agent-service": 36
+      }
     }
   ],
   "sourceHashes": {
@@ -64,16 +63,17 @@
     "auth-service/src/main/java/com/dylan/authcenter/agent/permission/api/AgentPermissionResolveResponse.java": "03ab693fd726a306e409a6c3bfe19efba9038a638ca22ab66ff6c64a8f117b84",
     "auth-service/src/main/java/com/dylan/authcenter/agent/permission/AgentPermissionProjectionService.java": "642bb94306a4c88c90e3f689cd441e6e1ac9a1646631075cff55991734ca6280",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionAuthorityAdapter.java": "705aebd07d54c0a96137e1a0f0f04a0b68b332acca63a8ee981e48e4876aadb3",
-    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/AuthorizationIntersectionService.java": "9cccd8ea7779ed2406028e29fc0815199109033bcd55035fd8c9929f380f250b",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/AuthorizationIntersectionService.java": "a4bc8cef988e1e8ede271e4fe45aff40b6ed35f15784f9d3939ae7fa6792e093",
+    "agent-service/src/test/java/com/dylan/baseline/agent/security/policy/AuthorizationIntersectionServiceTest.java": "ba11cf1e671d1f2f8cd0da0916019af493613621bd96af6eb4cf8da07a394fa8",
     "agent-service/src/test/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationVerifierTest.java": "e3621343a4fbc20b8cdb8f8adc302bafc0b58d7025b10fddc18ecf083f56277d",
     "agent-service/src/main/resources/agent-security/migration/field-policy-seed-v0.1.yml": "67e84a0448200b31888d89b84f96d3e3cc8d6f7012b29c163471447c3577b04f",
     "agent-service/src/main/resources/db/manual/agent-security/V0_1__agent_security_policy.sql": "1855d8c8e40b1893e51e2e5bda0ac07129ac32b5a73c4854d2ce27b20dbabe14",
-    "config-service/src/main/resources/config/agent-service.yml": "a1f9573851f28d62993d349f1221802c1b71f743002d22699c7f7d46bccfdb47"
+    "config-service/src/main/resources/config/agent-service.yml": "7fe6389e815549712f9804b22b84c3d58f3773e265acc68a07bfe491c40c391b"
   },
   "limitations": [
     "12A has not frozen an observation-window duration, traffic profile, metrics threshold, retention, or approval owner.",
     "No production or representative business traffic was enabled or observed.",
-    "The controlled MySQL SQL source was not executed against a database.",
+    "Database runtime verification is recorded separately and does not replace a 12A-frozen observation window.",
     "The evidence does not close OPEN-04-001 and cannot be used as production approval."
   ]
 }

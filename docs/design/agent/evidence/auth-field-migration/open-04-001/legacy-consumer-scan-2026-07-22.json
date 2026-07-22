@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "auth-field-legacy-consumer-scan-v0.1",
+  "evidenceId": "open-04-001-legacy-consumer-scan-20260722-01",
+  "evidenceType": "AUTH_FIELD_LEGACY_CONSUMER_BOUNDARY_SCAN",
+  "generatedAt": "2026-07-22T12:10:00+08:00",
+  "state": "REPOSITORY_BOUNDARY_VERIFIED_EXTERNAL_AND_RUNTIME_PENDING",
+  "scope": "agent-service/src/main/java target sources only",
+  "repositoryUnexpectedConsumersZero": true,
+  "knownMigrationBoundaryFiles": [
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionAuthorityAdapter.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionWireResponse.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/LegacyAuthFieldView.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/ResolvedAuthPermission.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationComparator.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationResolution.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/AuthFieldPolicyPayloadValidator.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/AgentFieldPolicySnapshot.java",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/AuthorizationIntersectionService.java"
+  ],
+  "unexpectedLegacyConsumers": [],
+  "runtimeDecisionInvariants": {
+    "dualReadIsOnlyLegacyDecisionMode": true,
+    "agentAuthorityMarksLegacyDecisionUseFalse": true,
+    "removedModeCanReturnWithoutLegacyObservation": true
+  },
+  "externalConsumersProvenZero": false,
+  "validation": [
+    {
+      "command": "python scripts/security/scan_auth_field_legacy_consumers.py --root .",
+      "result": "PASS"
+    },
+    {
+      "command": "python -m unittest scripts.security.tests.test_scan_auth_field_legacy_consumers -v",
+      "result": "PASS",
+      "testsRun": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "command": "mvn -f serviceCenter/pom.xml -pl :auth-service,:agent-service -am test",
+      "result": "PASS",
+      "testsRun": 80,
+      "failures": 0,
+      "errors": 0,
+      "moduleBreakdown": {
+        "agent-api": 3,
+        "common-security": 18,
+        "auth-service": 23,
+        "agent-service": 36
+      }
+    }
+  ],
+  "sourceHashes": {
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/LegacyAuthFieldView.java": "53133e61e204452655f9c03611c2a99f1218220bcd875720d9c7034567ea15c3",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/ResolvedAuthPermission.java": "744a8f338242353d34eb3e9e1f65b0f95fbcb4105945d4c95e064586924bb6ff",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionAuthorityAdapter.java": "705aebd07d54c0a96137e1a0f0f04a0b68b332acca63a8ee981e48e4876aadb3",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/authorization/internal/AuthPermissionWireResponse.java": "9e02989527171a26b356db4a00de3a0d60c0eb0c724d878949a7a9f5b04f1260",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationComparator.java": "d2dadc6080380bc59286069ad780459048660a3fd510e34fbb2c2b7afcba277d",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationException.java": "942a1b47416cd4fe0ca8ec1e703ea330529297eec91bbf094bc20dc83f75ff22",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/migration/AuthFieldMigrationResolution.java": "17024cb46737fb58e9b932c4c281c301e403fe77703f7d7e6ef231cc304b0dde",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/AuthFieldPolicyPayloadValidator.java": "a21d76113c79d9198c047094a9348d8f4baee9c6a329527a530a449719716b49",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/AgentFieldPolicySnapshot.java": "7bb19c5245bfbd027d9078c3c2c74c56ef15e7987a8a6321de75900671b82f2e",
+    "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/AuthorizationIntersectionService.java": "a4bc8cef988e1e8ede271e4fe45aff40b6ed35f15784f9d3939ae7fa6792e093",
+    "agent-service/src/test/java/com/dylan/baseline/agent/security/policy/AuthorizationIntersectionServiceTest.java": "ba11cf1e671d1f2f8cd0da0916019af493613621bd96af6eb4cf8da07a394fa8",
+    "scripts/security/scan_auth_field_legacy_consumers.py": "8715ba92c5a4e70df9bf4f454821f697805cbfd00c95ef38a09a16a6a506b5f4",
+    "scripts/security/tests/test_scan_auth_field_legacy_consumers.py": "934963b66bd8ea1325eb3a9e9e1717f025dcbd12a5874c03534f778f7fcf6a4a"
+  },
+  "limitations": [
+    "The scan does not inspect external repositories or deployed consumers.",
+    "Runtime legacyDecisionReadCount=0 still requires a 12A-frozen AGENT_FIELD_AUTHORITY observation window.",
+    "Known migration-boundary types remain for B compatibility and C observation; their existence is not evidence that legacy fields authorize a C/D decision."
+  ],
+  "conclusion": "No unexpected legacy-field consumer exists in the current target Agent main sources. External consumer retirement and runtime zero-read observation remain unverified, so OPEN-04-001 is not closed."
+}

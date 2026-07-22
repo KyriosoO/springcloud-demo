@@ -21,10 +21,20 @@ class VerifyOpen04001ExitTest(unittest.TestCase):
             source.write_text("bound", encoding="utf-8")
             authority = root / "12A.md"
             authority.write_text("approved", encoding="utf-8")
+            consumer = root / "consumer-scan.json"
+            external_consumer = root / "external-consumer-scan.json"
+            external_consumer.write_text(json.dumps(self.external_consumer_scan()), encoding="utf-8")
+            consumer_source = root / "consumer-source.java"
+            consumer_source.write_text("safe", encoding="utf-8")
+            consumer.write_text(
+                json.dumps(self.consumer_scan(consumer_source)), encoding="utf-8"
+            )
             evidence = self.complete_evidence()
             evidence["sourceHashes"] = {
                 "source.txt": hashlib.sha256(source.read_bytes()).hexdigest(),
                 "12A.md": hashlib.sha256(authority.read_bytes()).hexdigest(),
+                "consumer-scan.json": hashlib.sha256(consumer.read_bytes()).hexdigest(),
+                "external-consumer-scan.json": hashlib.sha256(external_consumer.read_bytes()).hexdigest(),
             }
             self.assertEqual([], MODULE.verify(evidence, root))
 
@@ -35,15 +45,30 @@ class VerifyOpen04001ExitTest(unittest.TestCase):
             source.write_text("bound", encoding="utf-8")
             authority = root / "12A.md"
             authority.write_text("approved", encoding="utf-8")
+            consumer = root / "consumer-scan.json"
+            external_consumer = root / "external-consumer-scan.json"
+            external_consumer.write_text(
+                json.dumps({"externalConsumersZero": True, "scannedSystems": []}),
+                encoding="utf-8",
+            )
+            consumer_source = root / "consumer-source.java"
+            consumer_source.write_text("safe", encoding="utf-8")
+            consumer.write_text(
+                json.dumps(self.consumer_scan(consumer_source)), encoding="utf-8"
+            )
+            consumer_source.write_text("drifted", encoding="utf-8")
             evidence = self.complete_evidence()
             evidence["authority"]["documentStatus"] = "Missing"
             evidence["observation"]["diff"]["UNMAPPABLE"] = 1
             evidence["observation"]["diff"]["AGENT_WIDER_THAN_AUTH"] = False
             evidence["observation"]["diff"]["AUTH_WIDER_THAN_AGENT"] = 2
             evidence["consumerScan"]["externalConsumersZero"] = False
+            evidence["observation"]["legacyDecisionReadCount"] = 1
             evidence["sourceHashes"] = {
                 "source.txt": hashlib.sha256(b"changed").hexdigest(),
                 "12A.md": hashlib.sha256(authority.read_bytes()).hexdigest(),
+                "consumer-scan.json": hashlib.sha256(consumer.read_bytes()).hexdigest(),
+                "external-consumer-scan.json": hashlib.sha256(external_consumer.read_bytes()).hexdigest(),
             }
             failures = MODULE.verify(evidence, root)
             self.assertTrue(any("authority.documentStatus" in item for item in failures))
@@ -51,7 +76,33 @@ class VerifyOpen04001ExitTest(unittest.TestCase):
             self.assertTrue(any("AGENT_WIDER_THAN_AUTH" in item for item in failures))
             self.assertTrue(any("narrowingApprovalRef" in item for item in failures))
             self.assertTrue(any("externalConsumersZero" in item for item in failures))
+            self.assertTrue(any("unsupported scan evidence schema" in item for item in failures))
+            self.assertTrue(any("scannedSystems" in item for item in failures))
+            self.assertTrue(any("legacyDecisionReadCount" in item for item in failures))
             self.assertTrue(any("digest mismatch" in item for item in failures))
+            self.assertTrue(any("consumerScan.sourceHashes" in item for item in failures))
+
+    @staticmethod
+    def external_consumer_scan():
+        return {
+            "schemaVersion": "auth-field-external-consumer-scan-v0.1",
+            "externalConsumersZero": True,
+            "scannedSystems": ["auth-service", "consumer-a"],
+        }
+
+    @staticmethod
+    def consumer_scan(source):
+        return {
+            "schemaVersion": "auth-field-legacy-consumer-scan-v0.1",
+            "repositoryUnexpectedConsumersZero": True,
+            "unexpectedLegacyConsumers": [],
+            "runtimeDecisionInvariants": {
+                "dualReadIsOnlyLegacyDecisionMode": True,
+            },
+            "sourceHashes": {
+                "consumer-source.java": hashlib.sha256(source.read_bytes()).hexdigest(),
+            },
+        }
 
     @staticmethod
     def complete_evidence():
@@ -75,6 +126,7 @@ class VerifyOpen04001ExitTest(unittest.TestCase):
                 "requestCount": 100,
                 "thresholdsRef": "thresholds-1",
                 "thresholdsPassed": True,
+                "legacyDecisionReadCount": 0,
                 "diff": {
                     "AGENT_WIDER_THAN_AUTH": 0,
                     "UNMAPPABLE": 0,
@@ -89,8 +141,9 @@ class VerifyOpen04001ExitTest(unittest.TestCase):
                 "rollbackExercisePassed": True,
             },
             "consumerScan": {
-                "scopeRef": "consumer-scan-1",
-                "currentRepositoryConsumersZero": True,
+                "scopeRef": "consumer-scan.json",
+                "externalScopeRef": "external-consumer-scan.json",
+                "repositoryUnexpectedConsumersZero": True,
                 "externalConsumersZero": True,
             },
             "validation": {

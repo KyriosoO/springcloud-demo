@@ -1,7 +1,7 @@
 {
   "schemaVersion": "open-04-001-exit-evidence-v0.1",
-  "state": "EXIT_CONTROL_PLANE_VERIFIED_12A_EVIDENCE_PENDING",
-  "generatedAt": "2026-07-22T11:30:00+08:00",
+  "state": "CONTROL_PLANE_AND_REPOSITORY_BOUNDARY_VERIFIED_12A_EVIDENCE_PENDING",
+  "generatedAt": "2026-07-22T12:10:00+08:00",
   "authority": {
     "topic": "12A",
     "documentRef": null,
@@ -19,6 +19,7 @@
     "requestCount": 0,
     "thresholdsRef": null,
     "thresholdsPassed": false,
+    "legacyDecisionReadCount": null,
     "diff": {
       "AGENT_WIDER_THAN_AUTH": 0,
       "UNMAPPABLE": 0,
@@ -34,8 +35,9 @@
     "rollbackExercisePassed": false
   },
   "consumerScan": {
-    "scopeRef": "runtime-db-verification-2026-07-22.json#consumerScan",
-    "currentRepositoryConsumersZero": false,
+    "scopeRef": "docs/design/agent/evidence/auth-field-migration/open-04-001/legacy-consumer-scan-2026-07-22.json",
+    "externalScopeRef": null,
+    "repositoryUnexpectedConsumersZero": true,
     "externalConsumersZero": false
   },
   "validation": {
@@ -47,14 +49,18 @@
     "independentReviewEvidenceDigest": null
   },
   "sourceHashes": {
-    "docs/design/agent/evidence/auth-field-migration/open-04-001/offline-verification-2026-07-22.json": "a7548e9bcaeaeba76bd0ee1836dd710b096985397922077f9da2d150aefa17e3",
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/offline-verification-2026-07-22.json": "0b9d358ae3b2a804c6dbd25202a65c4a79f54cc837510b1c987c3b072dab2674",
     "docs/design/agent/evidence/auth-field-migration/open-04-001/runtime-db-verification-2026-07-22.json": "faa9d03ba308789428f853b001e036f0f443149f799847156aaac8e102f6c816",
-    "docs/design/agent/evidence/auth-field-migration/open-04-001/policy-control-plane-verification-2026-07-22.json": "58f1089d38b2e9185805983d4eb08a5f6aea25eb753b2f0fffc9ac34773ce82c"
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/policy-control-plane-verification-2026-07-22.json": "926c39f3f4c53d96edcb8a1a854470512c1e92106189e98be4559deb8faaac24",
+    "docs/design/agent/evidence/auth-field-migration/open-04-001/legacy-consumer-scan-2026-07-22.json": "26bf908113ed7624ae6ecc71ca9fb17f6d6043ebfca509faee307051c9a23e43",
+    "scripts/security/verify_open_04_001_exit.py": "c6ea422f8e23b6b794a47a057bb357bcccc825069b6355e779ec4fddb8286aff",
+    "scripts/security/tests/test_verify_open_04_001_exit.py": "819bbe0781b98c844e9124ac0e0eda9bd36b420cdc679b0810ff431b54d3ed1c"
   },
   "limitations": [
     "12A cannot yet be authored because 05, 11C and 12 have not completed independent review.",
     "No independent activation or exit approval evidence exists.",
     "No 12A-frozen representative observation window has been executed.",
+    "The target Agent repository has no unexpected legacy consumer, but external consumers and runtime legacyDecisionReadCount=0 are not proven.",
     "No policy was activated and no production traffic was enabled.",
     "This record is expected to fail the exit verifier and does not close OPEN-04-001."
   ]

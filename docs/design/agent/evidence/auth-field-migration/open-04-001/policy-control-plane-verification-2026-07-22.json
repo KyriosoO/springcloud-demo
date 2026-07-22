@@ -1,7 +1,7 @@
 {
   "evidenceId": "open-04-001-policy-control-plane-20260722-01",
   "evidenceType": "AUTH_FIELD_POLICY_CONTROL_PLANE_VERIFICATION",
-  "generatedAt": "2026-07-22T11:35:00+08:00",
+  "generatedAt": "2026-07-22T12:10:00+08:00",
   "state": "CONTROL_PLANE_VERIFIED_NOT_ACTIVATED",
   "scope": {
     "implemented": [
@@ -11,7 +11,9 @@
       "approval evidence binds operation, from/to digests, change class and expected stateVersion",
       "default approval port fails closed while 12A is unavailable",
       "MySQL activation uses row lock, from-digest/stateVersion CAS and same-transaction activation audit",
-      "OPEN-04-001 exit evidence is checked by a read-only deterministic verifier"
+      "OPEN-04-001 exit evidence is checked by a read-only deterministic verifier",
+      "repository legacy consumers are scanned against an explicit migration boundary and nested source hashes",
+      "external consumer evidence must use a fixed hash-bound schema before exit can pass"
     ],
     "notImplementedOrNotExecuted": [
       "12A-backed real approval adapter",
@@ -26,20 +28,20 @@
     {
       "command": "mvn -f serviceCenter/pom.xml -pl :auth-service,:agent-service -am test",
       "result": "PASS",
-      "testsRun": 75,
+      "testsRun": 80,
       "failures": 0,
       "errors": 0,
       "moduleBreakdown": {
         "agent-api": 3,
         "common-security": 18,
         "auth-service": 23,
-        "agent-service": 31
+        "agent-service": 36
       }
     },
     {
-      "command": "python -m unittest scripts.security.tests.test_verify_open_04_001_exit -v",
+      "command": "python -m unittest scripts.security.tests.test_verify_open_04_001_exit scripts.security.tests.test_scan_auth_field_legacy_consumers -v",
       "result": "PASS",
-      "testsRun": 2,
+      "testsRun": 5,
       "failures": 0,
       "errors": 0
     },
@@ -67,7 +69,10 @@
     "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/admin/FailClosedSecurityChangeApprovalEvidencePort.java": "1622dca0c5675f96f9f5f278d34c4856a05512ac1bd7eaed071009823dae4de0",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/internal/MyBatisAgentSecurityPolicyRepository.java": "7171b29a3e3473cd2a5289c73b83bb469b0d0f83a0b032bf8a85dc3c187cb883",
     "agent-service/src/main/java/com/dylan/baseline/agent/security/policy/internal/AgentSecurityPolicyRecordMapper.java": "9a3417b6a5b31cf7f6e8977be700edce53ffbfa92f35a70d13cde75412e917b7",
-    "scripts/security/verify_open_04_001_exit.py": "98a15534c3a86f65a05f150e53a97473a5e0c117ae4f09dac1f770ab0d197274"
+    "scripts/security/verify_open_04_001_exit.py": "c6ea422f8e23b6b794a47a057bb357bcccc825069b6355e779ec4fddb8286aff",
+    "scripts/security/tests/test_verify_open_04_001_exit.py": "819bbe0781b98c844e9124ac0e0eda9bd36b420cdc679b0810ff431b54d3ed1c",
+    "scripts/security/scan_auth_field_legacy_consumers.py": "8715ba92c5a4e70df9bf4f454821f697805cbfd00c95ef38a09a16a6a506b5f4",
+    "scripts/security/tests/test_scan_auth_field_legacy_consumers.py": "934963b66bd8ea1325eb3a9e9e1717f025dcbd12a5874c03534f778f7fcf6a4a"
   },
   "conclusion": "The repository now has a fail-closed, auditable policy control plane and a repeatable exit decision. This evidence advances but does not close OPEN-04-001 and is not activation, quality or production approval."
 }
