@@ -8,8 +8,8 @@
 			<version>0.0.1-SNAPSHOT</version>
 			<relativePath>../serviceCenter/pom.xml</relativePath>
 		</parent>
-		<artifactId>es-query-api_alpha</artifactId>
-		<name>es-query-api_alpha</name>
+		<artifactId>es-query-api</artifactId>
+		<name>es-query-api</name>
 
 		<!-- 纯 DTO 模块，跳过 repackage -->
 		<build>

@@ -23,21 +23,25 @@ class SentinelConfigTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    @DisplayName("agent_api 使用 5 次/10 秒且 burst=2")
-    void shouldRegisterAgentApiRateLimit() {
+    @DisplayName("只注册当前存在的 Gateway 路由限流规则")
+    void shouldRegisterActiveRouteRateLimits() {
         ObjectProvider<List<ViewResolver>> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable(any(Supplier.class))).thenReturn(List.of());
 
         SentinelConfig config = new SentinelConfig(provider, ServerCodecConfigurer.create());
         config.doInit();
 
+        assertThat(GatewayRuleManager.getRules())
+                .extracting(candidate -> candidate.getResource())
+                .containsExactlyInAnyOrder("hello_route", "auth_route", "direct_route")
+                .doesNotContain("agent_api");
         var rule = GatewayRuleManager.getRules().stream()
-                .filter(candidate -> "agent_api".equals(candidate.getResource()))
+                .filter(candidate -> "hello_route".equals(candidate.getResource()))
                 .findFirst()
                 .orElseThrow();
         assertThat(rule.getCount()).isEqualTo(5);
         assertThat(rule.getIntervalSec()).isEqualTo(10);
-        assertThat(rule.getBurst()).isEqualTo(2);
+        assertThat(rule.getBurst()).isEqualTo(5);
 
         var response = GatewayCallbackManager.getBlockHandler()
                 .handleRequest(null, null)

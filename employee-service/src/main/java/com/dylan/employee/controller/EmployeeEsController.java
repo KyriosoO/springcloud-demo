@@ -43,7 +43,7 @@ public class EmployeeEsController {
 	@PostMapping("/search")
 	public String search(Authentication authentication, @RequestBody SearchRequest request)
 			throws JsonProcessingException {
-		accessGuard.requireUserOrAgentScope(authentication, "agent.employee.query");
+		accessGuard.requireUser(authentication);
 		return employeeEsService.search(request);
 	}
 
@@ -52,7 +52,7 @@ public class EmployeeEsController {
 	 */
 	@PostMapping("/vector-search")
 	public String vectorSearch(Authentication authentication, @RequestBody SemanticSearchRequest request) {
-		accessGuard.requireUserOrAgentScope(authentication, "agent.employee.vector-search");
+		accessGuard.requireUser(authentication);
 		return employeeEsService.vectorSearch(request);
 	}
 

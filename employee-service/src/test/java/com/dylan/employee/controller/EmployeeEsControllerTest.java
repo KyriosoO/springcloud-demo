@@ -14,7 +14,7 @@ import org.springframework.security.core.Authentication;
 class EmployeeEsControllerTest {
 
     @Test
-    void shouldProtectUnifiedSearchWithEmployeeQueryScope() throws Exception {
+    void shouldProtectUnifiedSearchWithUserAuthentication() throws Exception {
         EmployeeEsService employeeEsService = mock(EmployeeEsService.class);
         CapabilityAccessGuard accessGuard = mock(CapabilityAccessGuard.class);
         Authentication authentication = mock(Authentication.class);
@@ -23,12 +23,12 @@ class EmployeeEsControllerTest {
 
         controller.search(authentication, request);
 
-        verify(accessGuard).requireUserOrAgentScope(authentication, "agent.employee.query");
+        verify(accessGuard).requireUser(authentication);
         verify(employeeEsService).search(request);
     }
 
     @Test
-    void shouldProtectVectorSearchWithEmployeeVectorScope() {
+    void shouldProtectVectorSearchWithUserAuthentication() {
         EmployeeEsService employeeEsService = mock(EmployeeEsService.class);
         CapabilityAccessGuard accessGuard = mock(CapabilityAccessGuard.class);
         Authentication authentication = mock(Authentication.class);
@@ -37,7 +37,7 @@ class EmployeeEsControllerTest {
 
         controller.vectorSearch(authentication, request);
 
-        verify(accessGuard).requireUserOrAgentScope(authentication, "agent.employee.vector-search");
+        verify(accessGuard).requireUser(authentication);
         verify(employeeEsService).vectorSearch(request);
     }
 }

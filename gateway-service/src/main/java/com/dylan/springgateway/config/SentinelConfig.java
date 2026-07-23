@@ -77,10 +77,6 @@ public class SentinelConfig {
 				.setIntervalSec(10) // 时间窗口 10 秒
 				.setBurst(5)// 桶容量（突发流量）
 		);
-		rules.add(new GatewayFlowRule("agent_api")// Agent API 路由限流
-				.setCount(5)
-				.setIntervalSec(10)
-				.setBurst(2));
 		GatewayRuleManager.loadRules(rules);
 	}
 }

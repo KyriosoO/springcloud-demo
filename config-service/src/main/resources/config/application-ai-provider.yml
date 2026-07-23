@@ -6,8 +6,3 @@ ai:
         api-key:
         model: bge-m3
         dimension: 1024
-    generation:
-      deepseek:
-        base-url: https://api.deepseek.com
-        api-key: ${LLM_API_KEY}
-        model: deepseek-v4-flash

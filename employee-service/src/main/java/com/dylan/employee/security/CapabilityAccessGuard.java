@@ -9,15 +9,13 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
-/** 统一校验 Employee 能力接口的用户身份或 Agent 服务身份。 */
+/** 统一校验 Employee 能力接口的用户身份。 */
 @Component
 public class CapabilityAccessGuard {
 
-    private static final String AGENT_EMPLOYEE_ADAPTER = "agent-employee-adapter";
-
-    public void requireUserOrAgentScope(Authentication authentication, String requiredScope) {
+    public void requireUser(Authentication authentication) {
         Jwt jwt = extractJwt(authentication);
-        if (!SecurityTokenUtils.isUserOrAuthorizedService(jwt, AGENT_EMPLOYEE_ADAPTER, requiredScope)) {
+        if (!SecurityTokenUtils.isUserToken(jwt)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Employee capability permission denied");
         }
     }

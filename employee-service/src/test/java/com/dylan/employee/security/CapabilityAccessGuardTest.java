@@ -17,23 +17,17 @@ class CapabilityAccessGuardTest {
     private final CapabilityAccessGuard guard = new CapabilityAccessGuard();
 
     @Test
-    void acceptsUserOrScopedAdapterAndRejectsOtherService() {
-        assertThatCode(() -> guard.requireUserOrAgentScope(
-                authentication("dylan", SecurityTokenUtils.USER_TOKEN_TYPE, null),
-                "agent.employee.query"))
+    void acceptsUserAndRejectsServiceTokens() {
+        assertThatCode(() -> guard.requireUser(
+                authentication("dylan", SecurityTokenUtils.USER_TOKEN_TYPE, null)))
                 .doesNotThrowAnyException();
-        assertThatCode(() -> guard.requireUserOrAgentScope(
-                authentication("agent-employee-adapter", SecurityTokenUtils.SERVICE_TOKEN_TYPE, "agent.employee.query"),
-                "agent.employee.query"))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> guard.requireUserOrAgentScope(
-                authentication("agent-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE, "agent.employee.query"),
-                "agent.employee.query"))
+        assertThatThrownBy(() -> guard.requireUser(
+                authentication("agent-employee-adapter", SecurityTokenUtils.SERVICE_TOKEN_TYPE,
+                        "agent.employee.query")))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
-        assertThatThrownBy(() -> guard.requireUserOrAgentScope(
-                authentication("other-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE, "agent.employee.query"),
-                "agent.employee.query"))
+        assertThatThrownBy(() -> guard.requireUser(
+                authentication("other-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE, null)))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
     }
