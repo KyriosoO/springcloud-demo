@@ -23,6 +23,7 @@
 | v2.0-r2 | 2026-07-22 | 补齐仓库级 Java/Python 实施目录、入口签名和专题权威映射；明确不新增 Java Agent 编排。 |
 | v2.0-r3 | 2026-07-23 | 完成本次串行五轮评审：收紧实施准入措辞、补 Gateway 无重试约束，并闭合总览实现落点与追踪。 |
 | v2.0-r4 | 2026-07-23 | 删除重复的 Java/Python 方法签名和路径合同，将总览收敛为专题所有者、阶段、依赖与门禁索引。 |
+| v2.0-r5 | 2026-07-23 | 原子同步本轮评审：统一 Auth facade 单次解析与“规划上界→能力有效授权”两阶段安全流。 |
 
 ## 3. 设计目标与范围
 
@@ -55,13 +56,13 @@
 - 所有请求带 `requestId` 和绝对 deadline；不得在超时后后台继续。
 - 所有上游通过窄 Client/Port 调用，不直连数据库，不透传原生 DSL。
 - 日志、指标和审计禁止正文、Prompt、响应原文、JWT、密钥和完整权限表达式。
-- 权限与审计设计统一由 02 提供：API 验证 JWT、auth_context 解析上界、result_security 收口输出；第三方 State tracing 默认关闭。
+- 权限与审计设计统一由 02 提供：API 以服务身份调用 Auth facade 一次，由 Auth 验证用户 JWT 并解析上界；`auth_context`形成规划授权上界，计划通过后由`authorize`结合资源事实形成能力有效授权，`result_security`收口输出；第三方 State tracing 默认关闭。
 - 图只允许固定节点/条件边；顶层图及任何独立编译的嵌套图使用`checkpointer=False`，不使用或继承 thread 持久状态，不使用动态节点或模型自主 Tool 循环。
 
 ## 8. 核心流程与建议实施顺序
 
 1. **PoC 合同冻结**：先由 01 冻结图/State/错误，02 冻结服务认证与结果安全，03 冻结一个 QUERY 域的最小上游映射；三者只冻结支撑 PoC 的最小合同。
-2. **01+02+03 最小纵切 PoC**：协同实现`AUTH -> PLAN -> QUERY/CLARIFY -> SAFE_RESPONSE/RESULT_SECURITY`，验证非法计划零上游调用、deadline/迟到结果、Python→Spring 认证和错误映射。
+2. **01+02+03 最小纵切 PoC**：协同实现`AUTH -> PLAN -> VALIDATE -> AUTHORIZE -> QUERY/CLARIFY -> SAFE_RESPONSE/RESULT_SECURITY`，验证非法计划或资源事实缺失时零上游调用、deadline/迟到结果、Python→Spring 认证和错误映射。
 3. **01/02 完整骨架**：补齐 API、固定图、Graph State、计划 Schema/Validator、安全投影、ModelClient 与脱敏审计。
 4. **03 阶段 A**：只实现`EMPLOYEE QUERY`严格合同；通过纵切后再评审阶段 B 的`TRANSACTION AGGREGATE`。`EMPLOYEE AGGREGATE`和`TRANSACTION QUERY`没有独立需求前不冻结实现合同。
 5. **05 阶段 A**：先实现 Search 只读纵切；阶段 B 在首个权威源合同批准后实现该源所需的最小版本化 Index；阶段 C 只在快照/游标/删除或静默证明合同成立后设计并实现 Rebuild/Cancel/Rollback。
@@ -84,8 +85,9 @@
 首阶段以`checkpointer=False`显式禁用 LangGraph checkpointer，不持久化执行状态。请求内节点用于显式控制流与指标：
 
 ```text
-START -> AUTH_CONTEXT -> PLAN -> VALIDATE -> QUERY|AGGREGATE|DOCUMENT
-                                  ├-------> CLARIFY|REJECT
+API -> AUTH FACADE（单次用户验签与上界解析）
+START -> AUTH_CONTEXT -> PLAN -> VALIDATE -> AUTHORIZE -> QUERY|AGGREGATE|DOCUMENT
+                                  ├--------------------> CLARIFY|REJECT
 DOCUMENT -> RETRIEVE -> EVIDENCE_GATE -> GENERATE -> CITATION_GATE
 所有成功分支 -> RESULT_SECURITY -> END
 CLARIFY|REJECT|安全失败 -> SAFE_RESPONSE -> RESULT_SECURITY -> END
@@ -93,7 +95,7 @@ CLARIFY|REJECT|安全失败 -> SAFE_RESPONSE -> RESULT_SECURITY -> END
 
 节点名不是外部 API，也不需要数据库表。`SAFE_RESPONSE`只能写白名单原因码、模板标识和受限参数，所有 Graph 输出统一经过`RESULT_SECURITY`。并发终止由同一异步请求、deadline 检查和 HTTP Client 取消处理。禁用 checkpointer 时不得宣称恢复、持久记忆、time travel 或人工审批能力。
 
-Agent Graph/API 统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`CLARIFICATION_REQUIRED`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`EVIDENCE_INSUFFICIENT`、`INTERNAL_ERROR`。外部 4xx/5xx 映射由 01 冻结，03/04 只能补充安全`reasonCode`，不能暴露上游正文。L2-05 的 Search/Index/Rebuild 是独立基础设施合同，可保留版本冲突、批量逐项结果和任务状态；只有 04 的 Retrieval Client 负责把其失败映射为 Agent 错误，禁止总览强行抹平基础设施语义。
+Agent Graph/API 统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`EVIDENCE_INSUFFICIENT`、`INTERNAL_ERROR`。CLARIFY 是 HTTP 200 的受限`CLARIFICATION`结果，不使用第二套错误语义。外部 4xx/5xx 映射由 01 冻结，03/04 只能补充安全`reasonCode`，不能暴露上游正文。L2-05 当前只冻结独立 Search 基础设施合同；Index/Rebuild 的版本冲突、批量结果和任务状态须在阶段 B/C 修订后定义。只有 04 的 Retrieval Client 负责把 Search 失败映射为 Agent 错误，禁止总览强行抹平基础设施语义。
 
 ## 10. 测试与验证设计
 
@@ -113,7 +115,7 @@ Agent Graph/API 统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDE
 | AD-01/AD-02/AD-03/AD-09/AD-10/AD-13/AD-14 | 01 | Graph State、拓扑、计划、超时、封闭输出、服务 Client 边界和无 checkpointer 测试 |
 | AD-04/AD-05/AD-11/AD-13/AD-14 | 02 | 权限、服务身份、出站白名单和模型安全负向测试 |
 | AD-03/AD-06/AD-09/AD-10/AD-14 | 03 | 上游合同、服务 Client、映射与结果正确性测试 |
-| AD-05/AD-07/AD-08/AD-09/AD-10/AD-12/AD-13/AD-14 | 04 | 检索前过滤、引用、拒答、deadline 和泄漏效果集 |
+| AD-04/AD-05/AD-07/AD-08/AD-09/AD-10/AD-12/AD-13/AD-14 | 04 | 能力资源授权、检索前过滤、引用、拒答、deadline 和泄漏效果集 |
 | AD-05/AD-06/AD-07/AD-08/AD-09/AD-10/AD-11/AD-12/AD-13/AD-14 | 05 | 索引一致性、严格合同、安全、日志和 Recall 测试 |
 | ADR-01/ADR-02/ADR-03/ADR-05/ADR-06 | 01/02/03/04 | Python LangGraph 单运行时、受限图、确定性安全和 Java-only 备选门禁 |
 | ADR-04 | 04/05 | 独立检索边界与关键词优先的效果门禁 |
@@ -137,14 +139,14 @@ Agent Graph/API 统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDE
 | 协调句柄 | 所有者 | 当前阶段结果 | 前置门禁 | 不在本文定义 |
 |---|---|---|---|---|
 | COORD-00-01 | L2-01 | Gateway 入口与 Python 固定图骨架 | 路由无重试、Graph 拓扑和错误合同评审 | Java/Python 签名与文件布局 |
-| COORD-00-02 | L2-02 | Auth 单次解析、安全投影、模型和审计边界 | Auth/服务 keyset、委托调用凭据和审计策略评审 | Auth DTO、claims、key provider 与函数签名 |
+| COORD-00-02 | L2-02 | Auth 单次解析、规划上界、能力有效授权、安全投影、模型和审计边界 | Auth/服务 keyset、资源事实、委托调用凭据和审计策略评审 | Auth DTO、claims、key provider 与函数签名 |
 | COORD-00-03 | L2-03 阶段 A | `EMPLOYEE QUERY`最小纵切 | 严格只读合同、单租户事实和安全负向 | 其他域/能力合同 |
 | COORD-00-04 | L2-03 阶段 B | `TRANSACTION AGGREGATE`候选交付 | 阶段 A 通过且 Transaction 专用合同重新评审 | `EMPLOYEE AGGREGATE`、`TRANSACTION QUERY` |
 | COORD-00-05 | L2-05 | 阶段 A Search；后续按源合同逐阶段增加 Index/Rebuild | Search 合同；首源合同；快照/游标/删除证明 | 未来阶段方法、状态机和完整模型 |
 | COORD-00-06 | L2-04 | DOCUMENT 检索问答 | L2-02 与 L2-05 Search、供应商和质量门禁 | 检索基础设施实现 |
 
 - `IMPL-00-01`：01～05 的阶段化交付集合；每个具体类型和签名只在专题 L2 定义。
-- `IMPL-00-02`：首个 PoC 仅实现 01/02 与 03 阶段 A 的最小链路`AUTH -> PLAN -> QUERY|CLARIFY -> RESULT_SECURITY`。
+- `IMPL-00-02`：首个 PoC 仅实现 01/02 与 03 阶段 A 的最小链路`AUTH -> PLAN -> VALIDATE -> AUTHORIZE -> QUERY|CLARIFY -> RESULT_SECURITY`。
 - `IMPL-00-03`：发布、配置和回滚仍由对应专题拥有；总览不新增运行模块、公共 DTO 或安全合同。
 
 Java 不新增 `AgentGraph`、Planner、LangGraph4j 或 Java 状态机。实施中如发现必须由 Java 承担 Agent 编排，或后续阶段需要改变上位所有权，应停止并回到 L0/L1 重新决策。

@@ -32,10 +32,11 @@
 | v2.0-r5 | 2026-07-22 | 完成逐文档五轮治理与严格架构回归。 |
 | v2.0-r6 | 2026-07-23 | 由六份 L2 串行复审触发原子同步：将内部就绪语义限定为进入实现评审，不表示已批准实施。 |
 | v2.0-r7 | 2026-07-23 | 按最小必要原则移除包结构和完整 State 字段清单，L1 只保留逻辑职责、状态不变量与下位门禁。 |
+| v2.0-r8 | 2026-07-23 | 原子同步本轮评审：明确 Auth facade 在图前单次解析，区分规划授权上界与能力有效授权，并校正阶段 A 实施范围。 |
 
 ## 3. 架构目标与非目标
 
-目标是以受限 `StateGraph` 和最少模块形成 QUERY、AGGREGATE、DOCUMENT 完整纵切。非目标包括 Java 主编排、第二 Agent Runtime、多 Agent、checkpointer/持久记忆、人工中断恢复、通用插件框架和模型直接 Tool 调用。
+目标是以受限 `StateGraph` 和最少模块承载 QUERY、AGGREGATE、DOCUMENT 目标能力集；当前阶段 A 只形成 `EMPLOYEE QUERY` 最小纵切，其他能力按上游合同与质量门禁逐步进入。非目标包括 Java 主编排、第二 Agent Runtime、多 Agent、checkpointer/持久记忆、人工中断恢复、通用插件框架和模型直接 Tool 调用。
 
 ## 4. 上位约束映射
 
@@ -83,12 +84,14 @@ START
   -> auth_context
   -> plan (model)
   -> validate (deterministic)
-  -> QUERY | AGGREGATE | DOCUMENT | CLARIFY | REJECT
+  -> authorize (deterministic)
+  -> QUERY | AGGREGATE | DOCUMENT
+  -> CLARIFY | REJECT
   -> result_security | safe_response -> result_security
   -> END
 ```
 
-API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer token 不进入图。请求状态只保存当前请求的控制、授权、计划、能力结果和安全终态；能力专属状态互斥，通用节点不得越权写入，错误只保存安全原因码。JWT、密钥、Prompt 模板、HTTP Client、完整文档和未投影上游响应不得进入 State；仅 DOCUMENT 可在预算内短暂持有经授权证据。具体字段、类型和 output schema 由 L2-01/02 定义。
+API 边界先以 Agent 服务身份调用 Auth facade 一次，由 Auth 验证用户 Bearer token 并返回绑定同一主体的身份与权限上界；原始 token 不进入图。`auth_context`只将该上界与 Agent 策略求交，形成供规划/计划校验使用的只收紧上界；`authorize`在计划确定后再结合请求目的和能力专属资源事实形成有效授权，缺失或冲突时不得调用业务、检索或模型上游。请求状态只保存当前请求的控制、规划授权上界、有效授权、计划、能力结果和安全终态；能力专属状态互斥，通用节点不得越权写入，错误只保存安全原因码。JWT、密钥、Prompt 模板、HTTP Client、完整文档和未投影上游响应不得进入 State；仅 DOCUMENT 可在预算内短暂持有经授权证据。具体字段、类型和 output schema 由 L2-01/02 定义。
 
 首阶段顶层图及任何独立编译的嵌套图均使用`checkpointer=False`，不创建跨请求执行状态，不提供记忆或恢复；进程中断、deadline 到期或取消即失败，迟到结果丢弃。第三方 State/Prompt tracing 默认关闭，只有完成字段级脱敏、数据处理审批和泄漏测试后才可另行启用。
 
@@ -108,16 +111,16 @@ API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer
 
 ## 8. 权限与数据流
 
-1. 身份来自已验证 JWT，不接收请求体中的 subject/tenant 作为权威。
-2. Auth 返回权限码、能力/域上界和有效期；Agent 策略映射到字段、操作符、函数、语料库。
+1. 身份来自 Auth facade 对用户 JWT 的验签结果，不接收请求体或网关注入的 subject/tenant 作为权威。
+2. Auth 返回权限码、能力/域上界和有效期；Agent 策略先形成规划授权上界，能力专属资源事实只在计划确定后参与有效授权。
 3. 规划前按最小范围投影可用能力与元数据；不发送令牌、完整权限表达式、隐藏字段或数据样本。
-4. 执行前使用同一请求内的当前快照校验；若 Auth 事实已过期则重新解析一次，否则拒绝。
+4. 执行前使用同一请求内的当前快照、已校验目的和资源事实形成有效授权；若 Auth 事实已过期则拒绝，不在图内携带原始 token 重新解析。
 5. 返回前按当前规则再投影。QUERY/AGGREGATE 原始结果不进入模型。
 6. DOCUMENT 仅把召回后仍获准的证据片段发送给模型，回答必须通过引用校验。
 
 ## 9. 关联 L1 与协作边界
 
-关联 L1“检索与索引基础设施架构”只提供 Search/Index/Rebuild 稳定契约；本 L1 负责语料库选择、证据选择、生成和引用。双方通过 L2 04/05 的 SearchRequest/SearchHit 合同协作，任何一侧不得反向依赖对方内部实现。
+关联 L1“检索与索引基础设施架构”当前只提供阶段 A Search 稳定契约；Index/Rebuild 须在来源合同具备后修订对应 L2，不能作为当前依赖。本 L1 负责语料库选择、证据选择、生成和引用。双方当前只通过 L2 04/05 的 SearchRequest/SearchHit 合同协作，任何一侧不得反向依赖对方内部实现。
 
 ## 10. 上游合同策略
 
@@ -125,7 +128,7 @@ API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer
 |---|---|---|
 | `auth-service` | 内部权限解析，短超时、无正缓存 | 加字段可兼容；缺少必需安全事实时失败关闭 |
 | `employee-service` | 查询/计数等只读 API | DTO 显式版本；不得直接依赖其数据库模型 |
-| `mq-procedure-service` | 交易查询/聚合只读 API | 写接口不属于首阶段 Agent 能力 |
+| `mq-procedure-service` | 后续交易查询/聚合只读 API | 阶段 B 合同未冻结；写接口不属于 Agent 目标能力 |
 | `es-query-service` | 受控检索请求和索引任务查询 | Agent 不传原生 ES DSL 或物理索引名 |
 | 模型端点 | 规划、DOCUMENT 回答/总结 | OpenAI-compatible 只是线协议，不代表质量/合规通过 |
 
@@ -139,7 +142,7 @@ API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer
 - HTTP 入口、整图和 Graph 节点不自动重试，也不配置全局 LangGraph retry policy；每个依赖的重试唯一归对应 Client 所有。
 - Auth、模型和只读上游 Client 仅在“请求未发送或明确允许重放”且剩余 deadline 足够时最多重试一次；写入、未知发送结果、校验失败和整个请求不重试。
 - 客户端断开或 deadline 到期后取消图和未完成远调；迟到结果不得更新 State、输出响应或触发新的调用，取消/超时以安全原因码进入统一终态。
-- 错误封套至少区分：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`CLARIFICATION_REQUIRED`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`INTERNAL_ERROR`。
+- 错误封套至少区分：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDEN`、`UNSUPPORTED`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`、`INTERNAL_ERROR`。需要补充信息时统一返回 HTTP 200 的受限`CLARIFICATION`结果，不同时定义为错误码。
 - 外部响应不暴露类名、堆栈、Prompt、上游正文或策略细节；内部审计记录安全原因码和 correlation id。
 
 ## 12. 架构决策
@@ -162,7 +165,7 @@ API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer
 
 首阶段不可妥协门禁：非法/越权计划触发上游调用数为 0；单请求执行多个能力分支数为 0；未经过`result_security`的 Graph 输出数为 0；日志/trace 中 JWT、密钥、Prompt、上游正文和完整权限表达式泄漏数为 0。延迟、容量、澄清率和 DOCUMENT 效果阈值由 L2 夹具/配置在对应能力上线前冻结，未冻结不得进入生产门禁。
 
-实现前先完成`AUTH -> PLAN -> QUERY/CLARIFY -> RESULT_SECURITY` PoC，验证类型化状态、非法计划不触发上游、deadline/迟到结果以及 Python 到 Spring 上游的认证/错误映射。实现就绪门禁还包括 L2 字段合同、图拓扑测试和上游合同测试。生产门禁：安全负向、真实模型效果、供应商数据处理批准、容量/超时和回滚全部完成；PoC 与文档审查不能代替这些门禁。
+实现前先完成`AUTH -> PLAN -> VALIDATE -> AUTHORIZE -> QUERY/CLARIFY -> RESULT_SECURITY` PoC，验证类型化状态、非法计划或资源事实缺失时不触发上游、deadline/迟到结果以及 Python 到 Spring 上游的认证/错误映射。实现就绪门禁还包括 L2 字段合同、图拓扑测试和上游合同测试。生产门禁：安全负向、真实模型效果、供应商数据处理批准、容量/超时和回滚全部完成；PoC 与文档审查不能代替这些门禁。
 
 ## 14. 下位 L2 详细设计交付约束与追踪
 
@@ -173,7 +176,7 @@ API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer
 | 01 入口规划与可信执行 | AD-01/02/03/09/10/13/14；APP-DEC-01/02/03/08/09 |
 | 02 权限上下文与模型安全 | AD-04/05/11/13/14；APP-DEC-05/07 |
 | 03 业务查询与聚合 | AD-03/06/09/10/14；APP-DEC-04/08 |
-| 04 DOCUMENT 检索问答 | AD-05/07/08/09/10/12/13/14；APP-DEC-06/08 |
+| 04 DOCUMENT 检索问答 | AD-04/05/07/08/09/10/12/13/14；APP-DEC-06/08 |
 
 下位 L2 必须给出严格 Graph State/DTO、固定节点/边、失败语义、实现落点和自动测试，不得引入 Java 编排旁路、第二 Agent 部署单元、动态 Tool 循环、通用插件系统或 checkpointer；公共上游合同变化必须先获得对应范围授权。
 

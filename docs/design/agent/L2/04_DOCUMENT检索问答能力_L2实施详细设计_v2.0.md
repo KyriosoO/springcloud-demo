@@ -12,7 +12,7 @@
 | 适用基线 | `AGENT-L0-001`、`AGENT-APP-L1-001`、`AGENT-RETRIEVAL-L1-001` v2.0；DOCUMENT/目标 Search 合同尚未实现 |
 | 维护责任角色 | DOCUMENT 检索问答实现负责人（具体人员由项目治理指定） |
 | 是否可作为实现依据 | 当前仅可进入实现评审；L2-05 Search 合同、供应商和版本化质量门禁获批后，才可实施并启用 DOCUMENT 链 |
-| 上位约束 | AD-05、AD-07、AD-08、AD-09、AD-10、AD-12、AD-13、AD-14；APP-DEC-05、APP-DEC-06、APP-DEC-07、APP-DEC-08 |
+| 上位约束 | AD-04、AD-05、AD-07、AD-08、AD-09、AD-10、AD-12、AD-13、AD-14；APP-DEC-05、APP-DEC-06、APP-DEC-07、APP-DEC-08 |
 | 范围 | DOCUMENT 固定子图、语料库授权、检索、证据选择、回答/总结和引用校验 |
 | 非目标 | 索引内部实现、原文管理、文档写作工作流、向量/重排默认启用、文档级 ACL |
 
@@ -31,6 +31,7 @@
 | v2.0-r8 | 2026-07-23 | 完成新一轮串行五轮评审：封闭生成/引用合同、禁止模型改写查询、补齐严格 Search DTO/逐项追踪和默认关闭配置。 |
 | v2.0-r9 | 2026-07-23 | 由 L2-05 评审触发原子同步：统一 Filter/score/错误封套、Search requestId 回显和 JCS 数组顺序。 |
 | v2.0-r10 | 2026-07-23 | 原子同步 L2-02/05：Search 调用收敛为单个请求绑定委托 Bearer token，不再并行携带服务 token 与授权 JWS。 |
+| v2.0-r11 | 2026-07-23 | 原子同步本轮评审：计划校验只消费规划授权上界，计划后 authorize 结合 corpus/Profile 事实形成有效授权；实施前置收敛为 Search 合同。 |
 
 ## 3. 设计目标与范围
 
@@ -42,7 +43,7 @@
 
 ## 5. 模块职责、依赖方向与调用边界
 
-`document route -> retrieve -> evidence_gate -> generate_or_summary -> citation_gate -> result_security`。这是同一顶层 StateGraph 中的固定语义子链，不要求独立编译；若实现选择独立编译，必须同样使用`checkpointer=False`。禁止 Search 反向依赖模型，禁止模型选择索引/通道，禁止生成绕过引用校验或直接结束图。该链只允许经授权、限条数/单片/总字节的证据片段进入 DOCUMENT 专属 State 字段，禁止完整文档和未投影 Search 响应进入 State。
+`validated DOCUMENT plan -> authorize -> document route -> retrieve -> evidence_gate -> generate_or_summary -> citation_gate -> result_security`。其中 authorize 是顶层公共安全节点，DOCUMENT 子链从 document route 开始，不重复授权。该子链不要求独立编译；若实现选择独立编译，必须同样使用`checkpointer=False`。禁止 Search 反向依赖模型，禁止模型选择索引/通道，禁止生成绕过引用校验或直接结束图。该链只允许经授权、限条数/单片/总字节的证据片段进入 DOCUMENT 专属 State 字段，禁止完整文档和未投影 Search 响应进入 State。
 
 内聚与耦合判断：Profile/Validator拥有 DOCUMENT 输入和预算规则，Retrieval Client只翻译 05 的稳定 Search 合同，Evidence Gate拥有确定性证据包，Generation只产生不可信结构化候选，Citation Gate拥有引用完整性；五者分别因策略、外部合同、证据规则、模型合同、引用规则而变化。它们保留在一个 Agent 部署单元内，通过封闭 DTO/State 专属字段连接，不抽成服务，也不共享 Search/模型内部类型，从而避免通用 Handler、反向依赖和重复授权规则。
 
@@ -61,7 +62,7 @@
 
 | 编号 | 来源/规则 | 责任主体 | 可观察结果 |
 |---|---|---|---|
-| CON-04-01 | AD-07/08/10/14：04 只消费严格 Search 合同，授权过滤在召回前 | plan/retrieve/Profile | 越权 corpus/filter/目标在 Search 前拒绝 |
+| CON-04-01 | AD-04/07/08/10/14：04 只消费严格 Search 合同，计划后结合 corpus/Profile 资源事实形成有效授权，授权过滤在召回前 | plan/authorize/retrieve/Profile | 越权 corpus/filter/目标或缺失资源事实在 Search 前拒绝 |
 | CON-04-02 | AD-05/09/13：证据限量、无证据不生成、引用/输出统一收口 | evidence/citation/result gates | 无证据模型调用为 0，无引用事实输出为 0 |
 | CON-04-03 | AD-11/12：效果证据不夸大，增强检索按度量触发 | evaluation/Profile | 未达目标模型/配置门禁时 DOCUMENT 保持关闭 |
 | DR-04-01 | 单次关键词 Search，确定性过滤/排序/去重/裁剪与时效校验 | retrieve/evidence_gate | EvidencePackage 与 profile/indexVersion 严格绑定 |
@@ -82,7 +83,7 @@
 | 字段 | 规则 |
 |---|---|
 | `mode` | `ANSWER|SUMMARIZE`；首阶段不支持改写、翻译或文档生成 |
-| `corpusId` | 必须属于 `effectiveAuthorization.allowedCorpora`；用户不传时仅在唯一候选时补全，否则澄清 |
+| `corpusId` | 计划阶段必须属于 `planningAuthorization.corpora`；用户不传时仅在唯一候选时补全，否则澄清；计划通过后仍须由 authorize 结合 corpus/Profile 资源事实形成有效授权 |
 | `filters` | 只允许语料库 Profile 声明的字段/枚举/日期，不接受原生 DSL |
 | `maxCitations` | 1..10，受服务硬上限收紧 |
 
@@ -99,8 +100,10 @@ Profile 属于 Agent 应用策略，物理索引、Alias 和映射属于检索�
 ## 9. 详细功能与核心处理流程
 
 ```text
-document route
- -> retrieve: resolve authorization/profile and keyword search once
+validated DOCUMENT plan
+ -> authorize: resolve corpus/Profile resource facts and effective authorization
+ -> document route
+ -> retrieve: keyword search once
  -> evidence_gate: binding validation + deterministic dedupe/truncate/select
  -> insufficient -> safe_response without generation
  -> generate_or_summary: only DOCUMENT model node
@@ -163,7 +166,7 @@ ANSWER 只允许非空`claims`；SUMMARIZE 只允许非空`summaryPoints`且每�
 
 检索和生成共享 01 的绝对 deadline。检索明确幂等时最多重试一次；生成调用未知结果不重试。首阶段生成失败只返回安全的无答案错误，不返回未经模型处理的整段证据、命中文档定位列表或部分生成内容；未来若要暴露失败态文档定位，必须另行补充 Profile、结果投影和授权合同。
 
-稳定错误：`FORBIDDEN`、`CLARIFICATION_REQUIRED`、`EVIDENCE_INSUFFICIENT`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`。权限与安全审计设计继承 02，只记录 corpus/版本摘要、命中/引用数量、节点耗时和错误码；search hit、证据正文、Prompt 和生成原文不得进入 Graph tracing/日志。
+稳定错误：`FORBIDDEN`、`EVIDENCE_INSUFFICIENT`、`UPSTREAM_UNAVAILABLE`、`TIMEOUT`、`MODEL_OUTPUT_INVALID`。语料库歧义或信息不足的可补充场景统一返回 HTTP 200 的受限`CLARIFICATION`结果。权限与安全审计设计继承 02，只记录 corpus/版本摘要、命中/引用数量、节点耗时和错误码；search hit、证据正文、Prompt 和生成原文不得进入 Graph tracing/日志。
 
 ## 14. 实施落点
 
@@ -181,7 +184,7 @@ Java DOCUMENT 编排没有代码落点：不新增 Java DOCUMENT Controller、Ev
 
 | 编号 | 状态 | 完整路径 | 类型/函数签名 | 责任 |
 |---|---|---|---|---|
-| IMPL-04-P01 | 建议新增 | `agent-service/agent_service/capabilities/document/validator.py` | `def validate_document_plan(candidate: DocumentPlanCandidate, request_input: AgentRequestInput, authorization: EffectiveAuthorization, profiles: DocumentProfileRegistry) -> ValidatedDocumentPlan`；`def validate_document_filters(filters: Mapping[str, JsonValue], profile: DocumentProfile) -> tuple[DocumentFilter, ...]` | 校验 mode/corpus/filter/maxCitations，从只读 request input 复制原始问题；候选若携带 question/queryText 即拒绝，歧义返回 CLARIFY，越权在 Search 前拒绝。 |
+| IMPL-04-P01 | 建议新增 | `agent-service/agent_service/capabilities/document/validator.py` | `def validate_document_plan(candidate: DocumentPlanCandidate, request_input: AgentRequestInput, authorization: PlanningAuthorization, profiles: DocumentProfileRegistry) -> ValidatedDocumentPlan`；`def validate_document_filters(filters: Mapping[str, JsonValue], profile: DocumentProfile) -> tuple[DocumentFilter, ...]` | 以规划上界校验 mode/corpus/filter/maxCitations，从只读 request input 复制原始问题；候选若携带 question/queryText 即拒绝，歧义返回 CLARIFY。计划通过后仍由 L2-02 authorize 结合 Profile 资源事实完成 Search 前授权。 |
 | IMPL-04-P02 | 建议新增 | `agent-service/agent_service/capabilities/document/profile.py` | `def load_document_profiles(settings: DocumentFeatureSettings) -> DocumentProfileRegistry`；`def validate_document_profiles(registry: DocumentProfileRegistry) -> None`；`def resolve_profile(corpus_id: str, registry: DocumentProfileRegistry, feature_enabled: bool) -> DocumentProfile` | 全局或 corpus 开关未启用即拒绝；启动时冻结 Profile、预算、权限、索引和评测版本绑定，不保存物理索引。 |
 | IMPL-04-P03 | 建议新增 | `agent-service/agent_service/clients/retrieval.py` | `class DocumentSearchClient(Protocol): async def search(self, request: SearchRequest, delegated_token: str, deadline: Deadline) -> SearchResponse`；`class HttpDocumentSearchClient`同签名；`def map_search_error(...) -> AgentError` | 严格消费 L2-05 单页 Search，只携带一个目标专属委托 Bearer token并校验响应 requestId；只在未开始的连接失败时最多重试一次。 |
 | IMPL-04-P04 | 建议新增 | `agent-service/agent_service/graph/nodes/retrieve.py` | `async def retrieve_node(state: AgentState, runtime: Runtime[GraphContext]) -> RetrievalUpdate`；内部 `def build_search_request(plan: ValidatedDocumentPlan, authorization: EffectiveAuthorization, profile: DocumentProfile, request_id: UUID, deadline: Deadline) -> SearchRequest` | 根据 Profile 构造唯一 Search 请求并由 L2-02 projector 签名；不生成 evidenceId。 |
@@ -249,7 +252,7 @@ Java DOCUMENT 编排没有代码落点：不新增 Java DOCUMENT Controller、Ev
 
 ## 18. 五轮逐文档评审
 
-结果见 `../内部审查记录_v2.0.md`。结论仅表示本文可在条件约束下进入实现评审；在 L2-05 Search/索引合同、供应商批准和真实目标质量阈值通过前，不得实施或启用 DOCUMENT 真实链路。本文不表示代码、语料、模型效果或生产批准完成。
+结果见 `../内部审查记录_v2.0.md`。结论仅表示本文可在条件约束下进入实现评审；在 L2-05 阶段 A Search 合同、供应商批准和真实目标质量阈值通过前，不得实施或启用 DOCUMENT 真实链路。Index/Rebuild 不是 DOCUMENT 当前阶段前置。本文不表示代码、语料、模型效果或生产批准完成。
 
 ### 18.1 内部自检记录
 
