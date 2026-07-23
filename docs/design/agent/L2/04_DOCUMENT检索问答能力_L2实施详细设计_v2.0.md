@@ -7,11 +7,11 @@
 | 文档标识 | `AGENT-L2-04` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | In Review |
-| 内部结论 | Ready for Implementation Review with Conditions（内部评审结论；不代表已批准实施） |
+| 实现评审结论 | Implementation Review Passed with Conditions（正式实现评审已完成；实施授权按`../L2实施与文档关闭计划_v2.0.md`执行，不代表条件已关闭或生产批准） |
 | 当前版本 | v2.0 |
 | 适用基线 | `AGENT-L0-001`、`AGENT-APP-L1-001`、`AGENT-RETRIEVAL-L1-001` v2.0；DOCUMENT/目标 Search 合同尚未实现 |
 | 维护责任角色 | DOCUMENT 检索问答实现负责人（具体人员由项目治理指定） |
-| 是否可作为实现依据 | 当前仅可进入实现评审；L2-05 Search 合同、供应商和版本化质量门禁获批后，才可实施并启用 DOCUMENT 链 |
+| 是否可作为实现依据 | 正式实现评审已有条件通过；只有按关闭计划先完成 P2 Search 合同与实现，并具备供应商和版本化质量事实后，才在 P3 实施并启用 DOCUMENT 链 |
 | 上位约束 | AD-04、AD-05、AD-07、AD-08、AD-09、AD-10、AD-12、AD-13、AD-14；APP-DEC-05、APP-DEC-06、APP-DEC-07、APP-DEC-08 |
 | 范围 | DOCUMENT 固定子图、语料库授权、检索、证据选择、回答/总结和引用校验 |
 | 非目标 | 索引内部实现、原文管理、文档写作工作流、向量/重排默认启用、文档级 ACL |
@@ -32,6 +32,8 @@
 | v2.0-r9 | 2026-07-23 | 由 L2-05 评审触发原子同步：统一 Filter/score/错误封套、Search requestId 回显和 JCS 数组顺序。 |
 | v2.0-r10 | 2026-07-23 | 原子同步 L2-02/05：Search 调用收敛为单个请求绑定委托 Bearer token，不再并行携带服务 token 与授权 JWS。 |
 | v2.0-r11 | 2026-07-23 | 原子同步本轮评审：计划校验只消费规划授权上界，计划后 authorize 结合 corpus/Profile 事实形成有效授权；实施前置收敛为 Search 合同。 |
+| v2.0-r12 | 2026-07-23 | 按已完成的正式实现评审事实同步结论为`Implementation Review Passed with Conditions`；保留 Search、供应商和真实质量门禁。 |
+| v2.0-r13 | 2026-07-23 | 原子同步获批关闭计划：实施授权改由 P2→P3 阶段入口治理；P0 完成不关闭 Search、供应商或质量条件。 |
 
 ## 3. 设计目标与范围
 
@@ -252,7 +254,7 @@ Java DOCUMENT 编排没有代码落点：不新增 Java DOCUMENT Controller、Ev
 
 ## 18. 五轮逐文档评审
 
-结果见 `../内部审查记录_v2.0.md`。结论仅表示本文可在条件约束下进入实现评审；在 L2-05 阶段 A Search 合同、供应商批准和真实目标质量阈值通过前，不得实施或启用 DOCUMENT 真实链路。Index/Rebuild 不是 DOCUMENT 当前阶段前置。本文不表示代码、语料、模型效果或生产批准完成。
+结果见 `../内部审查记录_v2.0.md`。正式实现评审已有条件通过；在 L2-05 阶段 A Search 合同与实现、供应商事实、真实目标质量阈值按计划具备前，不得实施或启用 DOCUMENT 真实链路。Index/Rebuild 不是 DOCUMENT 当前阶段前置。本文不表示代码、语料、模型效果或生产批准完成。
 
 ### 18.1 内部自检记录
 
@@ -276,14 +278,14 @@ Java DOCUMENT 编排没有代码落点：不新增 Java DOCUMENT Controller、Ev
 
 | 轮次 | 冻结发现（S0/S1/S2） | 原子处置 | 复审结论 |
 |---:|---|---|---|
-| 1 | 0/1/0：治理结论仍可能被解读为已经批准实现 | 将结论收敛为`Ready for Implementation Review with Conditions`并明确前置门禁 | 关闭 |
+| 1 | 0/1/0：治理结论仍可能被解读为已经批准实现 | 当时先收敛为待实现评审；随后同步为`Implementation Review Passed with Conditions`，当前继续由关闭计划和 Search/供应商/质量技术门禁限制阶段入口 | 关闭 |
 | 2 | 0/2/0：自由 answer 与逐事实引用不可证明；离线 summary coverage 被误作运行时阈值 | 模型仅产出逐项 claim/summary point，citation gate 组装结果；区分运行时证据阈值与离线质量门禁 | 关闭 |
 | 3 | 0/2/1：模型可借 question 静默改写检索；失败态定位输出无合同；Search score/过滤/错误模型不完整 | 问题只从只读请求复制；失败仅返回安全无答案；补齐过滤运算、严格错误封套和有限非负 score | 关闭 |
 | 4 | 0/1/0：区间缩写无法形成逐项机器追踪 | 展开全部 REQ/CON/DR/IMPL/TEST/VAL 映射并增加改写/分数负向测试 | 关闭 |
 | 5 | 0/1/0：DOCUMENT 缺少可执行的默认关闭与配置落点 | 增加全局与 corpus 双开关、严格 Profile 文件/模型及启动失败关闭测试 | 有条件通过 |
 
-五轮累计：S0=0、S1=7、S2=1；冻结发现均已在设计中关闭。剩余条件是目标实现、L2-05 合同、供应商批准以及版本化真实质量门禁，故本文仍为`In Review`，仅可进入实现评审。
+五轮累计：S0=0、S1=7、S2=1；冻结发现均已在设计中关闭。正式实现评审结论为`passed_with_conditions`；阶段实施授权由关闭计划治理，剩余条件是目标实现、L2-05 合同、供应商事实以及版本化真实质量门禁，故本文仍为`In Review`。
 
 ### 18.4 L2-05 触发的关联原子同步复核
 
-本节不是新增评审轮次。L2-05 第 3 轮冻结 OpenAPI 规范化后，本文同步采用字符串 Filter 值、有限非负 Decimal score、无自由 details 的错误封套、Search requestId 回显及稳定数组 wire 顺序；Python Client 继续只消费 L2-05 OpenAPI。同步后重新执行严格结构与追踪校验，五轮计数和`Ready for Implementation Review with Conditions`结论不变。
+本节不是新增评审轮次。L2-05 第 3 轮冻结 OpenAPI 规范化后，本文同步采用字符串 Filter 值、有限非负 Decimal score、无自由 details 的错误封套、Search requestId 回显及稳定数组 wire 顺序；Python Client 继续只消费 L2-05 OpenAPI。同步后重新执行严格结构与追踪校验，五轮计数不变；本次仅将既有结果同步为`Implementation Review Passed with Conditions`。
