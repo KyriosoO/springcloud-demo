@@ -31,6 +31,7 @@
 | v2.0-r4 | 2026-07-22 | 补齐零容忍门禁和 AD/APP 到 01～04 的完整约束分配。 |
 | v2.0-r5 | 2026-07-22 | 完成逐文档五轮治理与严格架构回归。 |
 | v2.0-r6 | 2026-07-23 | 由六份 L2 串行复审触发原子同步：将内部就绪语义限定为进入实现评审，不表示已批准实施。 |
+| v2.0-r7 | 2026-07-23 | 按最小必要原则移除包结构和完整 State 字段清单，L1 只保留逻辑职责、状态不变量与下位门禁。 |
 
 ## 3. 架构目标与非目标
 
@@ -54,30 +55,17 @@ Agent 是一个 Python 模块化单体，不是 Java/Python 服务集合。官�
 
 | 组件 | 责任 | 禁止承担 |
 |---|---|---|
-| `api` | FastAPI/Pydantic 入口 DTO、认证材料、HTTP 映射 | 图路由、权限推导 |
-| `graph.builder` | 固定节点/条件边、compile 与调用 | 动态节点、模型生成边 |
-| `AgentState` | 请求级类型化最小状态；DOCUMENT 专属字段可短暂持有经授权、限量证据片段 | JWT/secret/Prompt/完整文档、未投影响应、跨请求或持久驻留 |
-| `auth_context`/`result_security` | Auth 交集、输入/输出投影 | 身份/RBAC 所有权 |
-| `plan` | 最小上下文调用模型，产生候选计划 | 执行业务调用 |
-| `validate`/`route` | 确定性白名单校验和唯一能力分支 | 自动修补未知字段 |
-| `query`/`aggregate` | 受控上游调用和结果投影 | 互调、模型计算指标 |
-| `document` 子图 | retrieve/evidence/generate/citation 固定链 | 索引实现、原文所有权 |
-| `ModelClient` | 单一获准端点的超时、认证和响应解析 | 目标动态切换、业务调用 |
-| 上游 Clients | Python 到 Java Auth/业务/检索的窄 HTTP 合同 | 授权放宽、跨域聚合 |
-| `AuditRecorder` | 安全摘要、耗时、结果码 | 请求正文、Prompt、密钥 |
+| 入口边界 | 严格请求/响应合同、认证材料接收和 HTTP 映射 | 图路由、权限推导 |
+| 图编排 | 固定节点/条件边、请求内状态流转和唯一能力分支 | 动态节点、模型生成边、跨请求恢复 |
+| 请求状态 | 请求级类型化最小状态；DOCUMENT 可短暂持有经授权、限量证据片段 | JWT/secret/Prompt/完整文档、未投影响应、持久驻留 |
+| 安全边界 | Auth 上界交集、输入/输出投影和返回前重验 | 身份/RBAC 所有权 |
+| 规划与准入 | 最小上下文规划、确定性白名单校验 | 执行业务调用、自动修补未知字段 |
+| QUERY/AGGREGATE | 受控上游调用和结果投影 | 能力互调、模型计算业务指标 |
+| DOCUMENT | retrieve/evidence/generate/citation 固定链 | 索引实现、原文所有权 |
+| 外部访问 | 通过获准的模型/Auth/业务/检索窄合同访问上游 | 动态目标切换、授权放宽、跨域聚合 |
+| 可观测性 | 安全摘要、耗时、结果码和健康状态 | 请求正文、Prompt、密钥 |
 
-建议包结构：
-
-```text
-agent_service/
-├─ api/
-├─ graph/{state.py,builder.py,nodes/}
-├─ planning/
-├─ capabilities/{query,aggregate,document}/
-├─ clients/{auth,business,retrieval,model}/
-├─ security/
-└─ observability/
-```
+具体包、文件、类、方法和 DTO 由 L2-01～04 冻结；本 L1 不建立第二套实现结构权威。
 
 ### 5.2 依赖方向与禁止绕过
 
@@ -100,9 +88,9 @@ START
   -> END
 ```
 
-API 边界先验证 Bearer JWT，只把`trusted_identity`写入初始 State；原始 token 不进入图。`AgentState`是显式类型化、请求级、最小化状态，只含`request_id/deadline_at/trusted_identity/effective_authorization/plan_candidate/validated_plan/selected_capability/query_result/aggregate_result/search_hits/evidence_package/model_output/secured_result/error`。能力专属字段是互斥 optional 类型，通用节点不得写入；`error`只允许安全错误码，不保存异常正文。节点只返回自己拥有的局部更新。JWT、密钥、Prompt 模板、HTTP Client、完整文档和未投影上游响应不进入 State；仅 DOCUMENT 的`search_hits/evidence_package`可短暂持有经授权、限条数/单片/总字节的证据片段。首阶段顶层图及任何独立编译的嵌套图均使用`checkpointer=False`，不创建 thread/checkpoint/execution 表，不提供跨请求记忆或恢复；进程中断或 deadline 到期即失败，任何迟到响应被丢弃。
+API 边界必须先取得经 Auth 验证的身份与权限上界，原始 Bearer token 不进入图。请求状态只保存当前请求的控制、授权、计划、能力结果和安全终态；能力专属状态互斥，通用节点不得越权写入，错误只保存安全原因码。JWT、密钥、Prompt 模板、HTTP Client、完整文档和未投影上游响应不得进入 State；仅 DOCUMENT 可在预算内短暂持有经授权证据。具体字段、类型和 output schema 由 L2-01/02 定义。
 
-图 compile 时使用封闭 input/output schema；output 只暴露`request_id/secured_result/safe_error`。LangSmith 或任何第三方 State/Prompt tracing 默认关闭，只有完成字段级脱敏、数据处理审批和泄漏测试后才可另行启用。
+首阶段顶层图及任何独立编译的嵌套图均使用`checkpointer=False`，不创建跨请求执行状态，不提供记忆或恢复；进程中断、deadline 到期或取消即失败，迟到结果丢弃。第三方 State/Prompt tracing 默认关闭，只有完成字段级脱敏、数据处理审批和泄漏测试后才可另行启用。
 
 ## 7. 能力路由与计划边界
 

@@ -22,6 +22,7 @@
 | v2.0-r1 | 2026-07-22 | 补齐治理身份，明确专题权威，并将首个 PoC 改为 01/02/03 最小纵切协同交付。 |
 | v2.0-r2 | 2026-07-22 | 补齐仓库级 Java/Python 实施目录、入口签名和专题权威映射；明确不新增 Java Agent 编排。 |
 | v2.0-r3 | 2026-07-23 | 完成本次串行五轮评审：收紧实施准入措辞、补 Gateway 无重试约束，并闭合总览实现落点与追踪。 |
+| v2.0-r4 | 2026-07-23 | 删除重复的 Java/Python 方法签名和路径合同，将总览收敛为专题所有者、阶段、依赖与门禁索引。 |
 
 ## 3. 设计目标与范围
 
@@ -61,11 +62,11 @@
 
 1. **PoC 合同冻结**：先由 01 冻结图/State/错误，02 冻结服务认证与结果安全，03 冻结一个 QUERY 域的最小上游映射；三者只冻结支撑 PoC 的最小合同。
 2. **01+02+03 最小纵切 PoC**：协同实现`AUTH -> PLAN -> QUERY/CLARIFY -> SAFE_RESPONSE/RESULT_SECURITY`，验证非法计划零上游调用、deadline/迟到结果、Python→Spring 认证和错误映射。
-3. **01/02 完整骨架**：补齐 API、固定图、Graph State、计划 Schema/Validator、安全投影、ModelClient 与审计。
-4. **03 业务能力扩展**：在首个 QUERY 域通过后，再补 AGGREGATE 与第二个域。
-5. **05 检索基础设施**：确认当前 `es-query-*` 基线，补合同、关键词搜索、索引和重建。
-6. **04 DOCUMENT**：在 02/05 合同稳定后接入证据问答和总结。
-7. **端到端门禁**：三类能力真实上游集成、安全负向、效果、超时和回滚测试。
+3. **01/02 完整骨架**：补齐 API、固定图、Graph State、计划 Schema/Validator、安全投影、ModelClient 与脱敏审计。
+4. **03 阶段 A**：只实现`EMPLOYEE QUERY`严格合同；通过纵切后再评审阶段 B 的`TRANSACTION AGGREGATE`。`EMPLOYEE AGGREGATE`和`TRANSACTION QUERY`没有独立需求前不冻结实现合同。
+5. **05 阶段 A**：先实现 Search 只读纵切；阶段 B 在首个权威源合同批准后实现该源所需的最小版本化 Index；阶段 C 只在快照/游标/删除或静默证明合同成立后设计并实现 Rebuild/Cancel/Rollback。
+6. **04 DOCUMENT**：在 02 与 05 阶段 A 合同稳定后接入证据问答和总结。
+7. **端到端门禁**：只对当前阶段已授权的能力执行真实上游集成、安全负向、效果、超时和回滚测试；后续阶段不得借用前一阶段结论。
 
 每一步保持主干可编译；不得先搭建通用框架再等待能力接入。
 
@@ -129,44 +130,28 @@ Agent Graph/API 统一错误码：`INVALID_REQUEST`、`UNAUTHORIZED`、`FORBIDDE
 
 字段、类名、测试夹具和不改变上位边界的超时默认值可在相应 L2 内修订；公共接口或上游合同变化还需检查所有调用方和兼容性。
 
-## 13. 实施落点清单
+## 13. 交付协调索引
 
-本节只定义仓库级落点和签名权威归属，不复制 01～05 的字段级类型，避免形成第二套实现合同。路径均相对仓库根目录 `D:/codex`；状态只允许使用`已存在`、`建议修改`、`建议新增`、`待确认`。`建议新增/修改`不表示代码已经存在或已获生产批准。
+本文只提供协调句柄，不定义路径、类、方法、字段或完整 DTO；全部实现合同以对应专题 L2 为唯一权威。
 
-### 13.1 接口与契约设计：Java 落点总表
+| 协调句柄 | 所有者 | 当前阶段结果 | 前置门禁 | 不在本文定义 |
+|---|---|---|---|---|
+| COORD-00-01 | L2-01 | Gateway 入口与 Python 固定图骨架 | 路由无重试、Graph 拓扑和错误合同评审 | Java/Python 签名与文件布局 |
+| COORD-00-02 | L2-02 | Auth 单次解析、安全投影、模型和审计边界 | Auth/服务 keyset、委托调用凭据和审计策略评审 | Auth DTO、claims、key provider 与函数签名 |
+| COORD-00-03 | L2-03 阶段 A | `EMPLOYEE QUERY`最小纵切 | 严格只读合同、单租户事实和安全负向 | 其他域/能力合同 |
+| COORD-00-04 | L2-03 阶段 B | `TRANSACTION AGGREGATE`候选交付 | 阶段 A 通过且 Transaction 专用合同重新评审 | `EMPLOYEE AGGREGATE`、`TRANSACTION QUERY` |
+| COORD-00-05 | L2-05 | 阶段 A Search；后续按源合同逐阶段增加 Index/Rebuild | Search 合同；首源合同；快照/游标/删除证明 | 未来阶段方法、状态机和完整模型 |
+| COORD-00-06 | L2-04 | DOCUMENT 检索问答 | L2-02 与 L2-05 Search、供应商和质量门禁 | 检索基础设施实现 |
 
-| 编号 | 状态 | 完整路径与类型 | 入口/主要方法 | 签名权威 | 总览追踪 |
-|---|---|---|---|---|---|
-| IMPL-00-J01 | 建议修改 | `gateway-service/src/main/java/com/dylan/springgateway/config/GatewayRouter.java`；配套新增`gateway-service/src/main/java/com/dylan/springgateway/config/AgentGatewayProperties.java`并修改`gateway-service/src/main/resources/application.yml` | `RouteLocator customRouteLocator(RouteLocatorBuilder builder, RetryGatewayFilterFactory retryFactory, AgentGatewayProperties agentGatewayProperties)`；在既有`/api/**`之前增加更具体的`/api/agent/**`路由，目标为部署环境批准的固定内部 URI，不承担编排且不得复用当前三次 Gateway retry | L2-01 IMPL-01-J01/J02/C01、TEST-01-11/IMPL-01-T02 | DR-00-01/03；TEST-00-01/03；VAL-00-01/03 |
-| IMPL-00-J02 | 建议修改 | `auth-service/src/main/java/com/dylan/authcenter/agent/permission/`下现有 Controller/Service/DTO；`auth-service/src/main/java/com/dylan/authcenter/config/SecurityConfig.java` | 权限请求/响应增加已验证身份绑定；普通用户链与`/internal/agent/**`专用服务链分离 | L2-02 IMPL-02-J01～J05 | DR-00-01/02；TEST-00-01/02；VAL-00-01/02 |
-| IMPL-00-J03 | 建议新增 | `employee-service/src/main/java/com/dylan/employee/agent/query/`与`.../api/` | `EmployeeQueryResponse query(Authentication authentication, EmployeeQueryRequest request)`；`EmployeeAggregateResponse aggregate(Authentication authentication, EmployeeAggregateRequest request)`；Servlet 独立服务安全链、Business JWS、单租户配置和错误封套 | L2-03 IMPL-03-J01～J05/J11/J13/J15 | DR-00-01/02；TEST-00-01/02；VAL-00-01/02 |
-| IMPL-00-J04 | 建议新增 | 共享模型：`transaction-api/src/main/java/com/dylan/transaction/api/agent/`；域实现：`mq-procedure-service/src/main/java/com/dylan/mqprocedureserver/agent/`；现有宽合同仅作勘察 | `AgentTransactionQueryResponse query(Authentication authentication, AgentTransactionQueryRequest request)`；`AgentTransactionAggregateResponse aggregate(Authentication authentication, AgentTransactionAggregateRequest request)`；WebFlux 独立服务安全链、Business JWS、单租户/时区配置和错误封套 | L2-03 IMPL-03-J06～J10/J12/J14/J16；业务逻辑只在`mq-procedure-service`，`transaction-api`只承载分布式共享 DTO/枚举/值对象 | DR-00-01/03；TEST-00-01/03；VAL-00-01/03 |
-| IMPL-00-J05 | 建议新增 | `es-query-api/src/main/resources/openapi/es-query-v1.yaml`、`es-query-api/src/main/java/com/dylan/esquery/api/v1/`、`es-query-service/src/main/java/com/dylan/baseline/esquery/`、`es-query-service/src/main/resources/`及相关 POM/`common-security` purpose 增量 | Search、Index、Rebuild Controller/Service/Port/Repository/模型/工具类完整签名；Search/管理独立安全链和 keyset；三能力默认关闭 | L2-05 IMPL-05-J01～J26；首个具体 Source Adapter 与生产依赖仍须单独合同/依赖批准 | DR-00-01/03；TEST-00-01/03；VAL-00-01/03 |
-| IMPL-00-J06 | 建议新增 | `auth-service/src/main/java/com/dylan/authcenter/agent/identity/`、`auth-service/src/main/java/com/dylan/authcenter/config/AgentInternalSecurityConfig.java`、`AgentServiceJwtProperties.java`、`common-security/src/main/java/com/dylan/common/security/PurposeScopedJwtKeyProvider.java` | `ResponseEntity<?> verify(Jwt serviceJwt, AgentIdentityVerifyRequest request)`；独立 Agent 服务 JWT decoder/security chain；purpose-scoped key provider | L2-02 IMPL-02-J06～J11；Python 不持有用户 HMAC 签名密钥 | DR-00-01/02；TEST-00-01/02；VAL-00-01/02 |
+- `IMPL-00-01`：01～05 的阶段化交付集合；每个具体类型和签名只在专题 L2 定义。
+- `IMPL-00-02`：首个 PoC 仅实现 01/02 与 03 阶段 A 的最小链路`AUTH -> PLAN -> QUERY|CLARIFY -> RESULT_SECURITY`。
+- `IMPL-00-03`：发布、配置和回滚仍由对应专题拥有；总览不新增运行模块、公共 DTO 或安全合同。
 
-Java 不新增 `AgentGraph`、Planner、LangGraph4j 或 Java 状态机。Java 代码只拥有网关和现有上游服务边界；如实施中发现必须由 Java 承担 Agent 编排，应停止实现并回到 L0/L1 重新决策。
-
-### 13.2 Python 落点总表
-
-| 编号 | 状态 | 完整路径与模块 | 入口/主要函数 | 签名权威 | 总览追踪 |
-|---|---|---|---|---|---|
-| IMPL-00-P01 | 建议新增 | `agent-service/agent_service/main.py`、`agent-service/agent_service/api/routes.py`、`agent-service/agent_service/api/schemas.py`、`agent-service/agent_service/graph/`、`agent-service/agent_service/planning/` | `create_app(settings: Settings | None = None) -> FastAPI`；`execute_agent(request: AgentExecuteRequest, authorization: str, execution: AgentExecution) -> AgentExecuteResponse | AgentErrorResponse`；`build_agent_graph(dependencies: GraphDependencies) -> CompiledStateGraph` | L2-01 IMPL-01-P01～P11/M01～M05 | DR-00-01/02/03；TEST-00-01/02/03；VAL-00-01/02/03 |
-| IMPL-00-P02 | 建议新增 | `agent-service/agent_service/security/`、`agent-service/agent_service/clients/auth.py`、`agent-service/agent_service/clients/service_token.py`、`agent-service/agent_service/clients/model.py`、`agent-service/agent_service/observability/security_audit.py`、`agent-service/agent_service/config/` | `verify_identity(request: IdentityVerifyRequest, deadline: Deadline) -> TrustedIdentity`；`resolve_permissions(request: AuthResolveRequest, deadline: Deadline) -> AuthUpperBound`；`intersect_authorization(identity, auth, policy, resource_facts, purpose, now) -> EffectiveAuthorization`；`complete(request: ModelRequest, deadline: Deadline) -> ModelResponse` | L2-02 IMPL-02-P01～P11/M01～M08 | DR-00-01/02；TEST-00-01/02；VAL-00-01/02 |
-| IMPL-00-P03 | 建议新增 | `agent-service/agent_service/capabilities/query/`、`agent-service/agent_service/capabilities/aggregate/`、`agent-service/agent_service/clients/employee.py`、`agent-service/agent_service/clients/transaction.py` | `validate_query(candidate: QueryPlanCandidate, authorization: EffectiveAuthorization, metadata: CapabilityMetadata) -> ValidatedQuery`；`validate_aggregate(candidate: AggregatePlanCandidate, authorization: EffectiveAuthorization, metadata: CapabilityMetadata) -> ValidatedAggregate`；两个域 Client 只发送严格 DTO，并调用 L2-02`sign_business_authorization(request: BusinessAuthorizationInput, authorization: EffectiveAuthorization, signer: JwsSigner, now: datetime) -> CompactJws`绑定请求/tenant/资源范围 | L2-03 IMPL-03-P01～P08/M01～M04；完整域 Client 签名以 L2-03 为权威 | DR-00-01/02；TEST-00-01/02；VAL-00-01/02 |
-| IMPL-00-P04 | 建议新增 | `agent-service/agent_service/capabilities/document/`、`agent-service/agent_service/clients/retrieval.py`、`agent-service/agent_service/graph/nodes/retrieve.py`、`agent-service/agent_service/graph/nodes/evidence_gate.py`、`agent-service/agent_service/graph/nodes/document_generate.py`、`agent-service/agent_service/graph/nodes/citation_gate.py` | `validate_document_plan(candidate: DocumentPlanCandidate, request_input: AgentRequestInput, authorization: EffectiveAuthorization, profiles: DocumentProfileRegistry) -> ValidatedDocumentPlan`；原始问题只从只读请求输入复制、禁止模型改写；`search(request: SearchRequest, deadline: Deadline) -> SearchResponse`；各节点均为 `(state: AgentState, runtime: Runtime[GraphContext]) -> 专属Update` | L2-04 IMPL-04-P01～P08/M01～M05 | DR-00-01/03；TEST-00-01/03；VAL-00-01/03 |
-| IMPL-00-P05 | 建议新增 | `agent-service/agent_service/clients/retrieval_models.py` | L2-05 OpenAPI 的严格 Pydantic 消费类型；不得另立字段权威 | L2-05 IMPL-05-P01，同时由 L2-04 实现 | DR-00-01/03；TEST-00-01/03；VAL-00-01/03 |
-
-### 13.3 交付集合
-
-- `IMPL-00-01`：01～05 的上述 Java/Python/合同落点集合；每个类型和签名必须按专题 L2 实施。
-- `IMPL-00-02`：首个 PoC 仅实现 L2-01/02/03 标记的最小签名，链路为`AUTH -> PLAN -> QUERY|CLARIFY -> RESULT_SECURITY`。
-- `IMPL-00-03`：发布、配置和回滚落点仍由对应专题拥有；总览不新增第六类运行模块。
-
-每个落点必须在对应 L2 的 REQ/DR/TEST/VAL 闭环后实施。本文列出的 Python/Java 类型均属于目标设计，除明确标记`已存在`外，不得据此宣称仓库已经具备实现。
+Java 不新增 `AgentGraph`、Planner、LangGraph4j 或 Java 状态机。实施中如发现必须由 Java 承担 Agent 编排，或后续阶段需要改变上位所有权，应停止并回到 L0/L1 重新决策。
 
 ## 14. 五轮逐文档评审
 
-本总览独立完成五轮评审，结果见 `../内部审查记录_v2.0.md`。结论仅表示跨专题分解、依赖、PoC 与回滚门禁已具备进入实现评审的条件；只有实现评审和相应前置门禁通过后才可按阶段实施，不替代 01～05 各自的五轮结论、代码符合性评审或生产审批。
+本总览历史五轮评审结果见 `../内部审查记录_v2.0.md`。结论仅表示跨专题分解、依赖、PoC 与回滚门禁已具备进入实现评审的条件；只有实现评审和相应前置门禁通过后才可按阶段实施，不替代专题 L2、代码符合性评审或生产审批。后续变更按风险执行最多三轮自检和一次跨层回归，不再固定每文档五轮。
 
 ### 14.1 内部自检记录
 
@@ -191,7 +176,7 @@ Java 不新增 `AgentGraph`、Planner、LangGraph4j 或 Java 状态机。Java �
 | 轮次 | 评审重点 | 冻结发现 | 原子修订与复核 | 本轮结论 |
 |---:|---|---|---|---|
 | 1 | 权威、状态与准入语义 | `L2-00-R1-01`（S1）：`In Review`与`Ready for Implementation`并列，可能被误读为已批准实施 | 改为`Ready for Implementation Review`，并同步 L0、两个 L1 和内部审查汇总；状态均保持`In Review` | 已修复 |
-| 2 | 入口合同、超时与重试所有权 | `L2-00-R2-01`（S1）：总览未阻止新 Agent 路由复用`GatewayRouter`现有三次重试 | 在 IMPL-00-J01 明确`/api/agent/**`必须优先于既有`/api/**`且不得复用 Gateway retry，并绑定 L2-01 测试落点 | 已修复 |
+| 2 | 入口合同、超时与重试所有权 | `L2-00-R2-01`（S1）：总览未阻止新 Agent 路由复用`GatewayRouter`现有三次重试 | 在当前 `COORD-00-01` 对应的 L2-01 中明确`/api/agent/**`必须优先于既有`/api/**`且不得复用 Gateway retry，并绑定测试落点 | 已修复 |
 | 3 | 状态、错误、安全与回滚 | 无 S0/S1/S2；`checkpointer=False`、统一安全终态、迟到结果丢弃和能力开关回滚边界一致 | 全文复核，无需修改 | 通过 |
 | 4 | 实现落点、测试与追踪 | `L2-00-R4-01`（S1）：新增 Java/Python IMPL 项未逐项映射 DR/TEST/VAL，且压缩式 AD 编号不利于机器追踪 | 为所有 Java/Python 实现落点增加总览追踪，展开 AD/ADR 标识；追踪脚本四类缺口均为 0 | 已修复 |
 | 5 | 治理、引用与实现评审就绪度 | 无 S0/S1/S2；状态、修订历史、上位约束、专题权威和未执行门禁一致 | 严格结构校验 0 error/0 warning；结论为可进入实现评审，不代表实施或生产批准 | 通过 |
