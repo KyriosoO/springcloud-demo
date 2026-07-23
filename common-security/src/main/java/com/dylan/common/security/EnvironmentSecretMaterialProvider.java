@@ -39,12 +39,6 @@ public final class EnvironmentSecretMaterialProvider implements SecretMaterialPr
 
 	private static String defaultEnvName(SecretKeyRef ref) {
 		String normalizedKeyId = ref.keyId().trim().toUpperCase(Locale.ROOT);
-		if (ref.purpose() == SecretPurpose.JWT_HMAC) {
-			return "COMMON_SECURITY_JWT_HMAC_KEY_" + normalizedKeyId;
-		}
-		if (ref.purpose() == SecretPurpose.AGENT_SERVICE_JWT) {
-			return "AGENT_SERVICE_JWT_HMAC_KEY_" + normalizedKeyId;
-		}
-		return "AGENT_PAYLOAD_KEY_" + normalizedKeyId;
+		return "COMMON_SECURITY_JWT_HMAC_KEY_" + normalizedKeyId;
 	}
 }

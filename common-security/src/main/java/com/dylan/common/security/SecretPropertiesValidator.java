@@ -17,8 +17,6 @@ public final class SecretPropertiesValidator {
 
 	public static void validate(SecretProperties properties, Environment environment) {
 		validateJwt(properties, environment);
-		validateAgentServiceJwt(properties, environment);
-		validateAgentPayload(properties, environment);
 	}
 
 	public static void validateJwt(SecretProperties properties, Environment environment) {
@@ -27,59 +25,6 @@ public final class SecretPropertiesValidator {
 		validateProductionSourceOrder(properties, environment);
 		validatePurpose("jwt", properties.getJwt());
 		validateConfigValuePolicy(properties, properties.getJwt(), environment);
-		validatePurposeIsolation(properties);
-	}
-
-	public static void validateAgentPayload(SecretProperties properties, Environment environment) {
-		Objects.requireNonNull(properties, "properties must not be null");
-		validateSources(properties);
-		validateProductionSourceOrder(properties, environment);
-		validatePurpose("agent-payload", properties.getAgentPayload());
-		validateConfigValuePolicy(properties, properties.getAgentPayload(), environment);
-		validatePurposeIsolation(properties);
-	}
-
-	public static void validateAgentServiceJwt(SecretProperties properties, Environment environment) {
-		Objects.requireNonNull(properties, "properties must not be null");
-		validateSources(properties);
-		validateProductionSourceOrder(properties, environment);
-		validatePurpose("agent-service-jwt", properties.getAgentServiceJwt());
-		validateConfigValuePolicy(properties, properties.getAgentServiceJwt(), environment);
-		validatePurposeIsolation(properties);
-	}
-
-	private static void validatePurposeIsolation(SecretProperties properties) {
-		for (SecretProperties.KeyProperties jwt : properties.getJwt().getKeys().values()) {
-			for (SecretProperties.KeyProperties service : properties.getAgentServiceJwt().getKeys().values()) {
-				if (sameNonBlank(jwt.getEnv(), service.getEnv())
-						|| sameNonBlank(jwt.getValue(), service.getValue())) {
-					throw new SecretMaterialException(
-							"User JWT and Agent service JWT secret bindings must be purpose-isolated");
-				}
-			}
-			for (SecretProperties.KeyProperties payload : properties.getAgentPayload().getKeys().values()) {
-				if (sameNonBlank(jwt.getEnv(), payload.getEnv())
-						|| sameNonBlank(jwt.getValue(), payload.getValue())) {
-					throw new SecretMaterialException(
-							"JWT and agent payload secret bindings must be purpose-isolated");
-				}
-			}
-		}
-		for (SecretProperties.KeyProperties service : properties.getAgentServiceJwt().getKeys().values()) {
-			for (SecretProperties.KeyProperties payload : properties.getAgentPayload().getKeys().values()) {
-				if (sameNonBlank(service.getEnv(), payload.getEnv())
-						|| sameNonBlank(service.getValue(), payload.getValue())) {
-					throw new SecretMaterialException(
-							"Agent service JWT and agent payload secret bindings must be purpose-isolated");
-				}
-			}
-		}
-	}
-
-	private static boolean sameNonBlank(String left, String right) {
-		return left != null && right != null
-				&& !left.isBlank() && !right.isBlank()
-				&& left.trim().equals(right.trim());
 	}
 
 	public static void validateKeyId(String keyId) {

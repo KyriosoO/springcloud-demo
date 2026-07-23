@@ -13,8 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class EsQueryProperties implements InitializingBean {
 
 	private Integer totalHitsThreshold;
-	private List<String> documentIndexPrefixes = new ArrayList<>(List.of("agent-doc-"));
-	private List<String> documentSourceAllowedHosts = new ArrayList<>();
+	private List<String> rebuildSourceAllowedHosts = new ArrayList<>();
 	private Integer rebuildMaxBatchSize = 500;
 	private String managementServiceToken;
 
@@ -26,29 +25,16 @@ public class EsQueryProperties implements InitializingBean {
 		this.totalHitsThreshold = totalHitsThreshold;
 	}
 
-	public List<String> getDocumentIndexPrefixes() {
-		return documentIndexPrefixes;
+	public List<String> getRebuildSourceAllowedHosts() {
+		return rebuildSourceAllowedHosts;
 	}
 
-	public void setDocumentIndexPrefixes(List<String> documentIndexPrefixes) {
-		List<String> filtered = documentIndexPrefixes == null ? List.of() : documentIndexPrefixes.stream()
-				.filter(prefix -> prefix != null && !prefix.isBlank())
-				.toList();
-		this.documentIndexPrefixes = filtered.isEmpty()
-				? new ArrayList<>(List.of("agent-doc-"))
-				: new ArrayList<>(filtered);
-	}
-
-	public List<String> getDocumentSourceAllowedHosts() {
-		return documentSourceAllowedHosts;
-	}
-
-	public void setDocumentSourceAllowedHosts(List<String> documentSourceAllowedHosts) {
-		List<String> filtered = documentSourceAllowedHosts == null ? List.of() : documentSourceAllowedHosts.stream()
+	public void setRebuildSourceAllowedHosts(List<String> rebuildSourceAllowedHosts) {
+		List<String> filtered = rebuildSourceAllowedHosts == null ? List.of() : rebuildSourceAllowedHosts.stream()
 				.filter(host -> host != null && !host.isBlank())
 				.map(host -> host.trim().toLowerCase())
 				.toList();
-		this.documentSourceAllowedHosts = new ArrayList<>(filtered);
+		this.rebuildSourceAllowedHosts = new ArrayList<>(filtered);
 	}
 
 	public Integer getRebuildMaxBatchSize() {
@@ -75,8 +61,8 @@ public class EsQueryProperties implements InitializingBean {
 		if (rebuildMaxBatchSize == null || rebuildMaxBatchSize < 1) {
 			throw new IllegalStateException("es.query.rebuild-max-batch-size must be greater than 0");
 		}
-		if (documentSourceAllowedHosts == null || documentSourceAllowedHosts.isEmpty()) {
-			throw new IllegalStateException("es.query.document-source-allowed-hosts must not be empty");
+		if (rebuildSourceAllowedHosts == null || rebuildSourceAllowedHosts.isEmpty()) {
+			throw new IllegalStateException("es.query.rebuild-source-allowed-hosts must not be empty");
 		}
 	}
 }

@@ -22,8 +22,8 @@ class CapabilityAccessGuardTest {
                 authentication("dylan", SecurityTokenUtils.USER_TOKEN_TYPE, null)))
                 .doesNotThrowAnyException();
         assertThatThrownBy(() -> guard.requireUser(
-                authentication("agent-employee-adapter", SecurityTokenUtils.SERVICE_TOKEN_TYPE,
-                        "agent.employee.query")))
+                authentication("batch-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE,
+                        "employee.query")))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
         assertThatThrownBy(() -> guard.requireUser(

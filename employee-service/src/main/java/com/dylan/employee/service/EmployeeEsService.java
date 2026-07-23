@@ -53,6 +53,7 @@ public class EmployeeEsService {
 	private final ObjectMapper objectMapper;
 	private final String index;
 	private final String sourceUrl;
+	private final String managementToken;
 	private final int defaultEmbeddingDims;
 
 	/**
@@ -62,6 +63,7 @@ public class EmployeeEsService {
 			EsQueryClient esQueryClient, ObjectMapper objectMapper,
 			@Value("${employee.es.index:employee}") String index,
 			@Value("${employee.es.source-url:http://localhost:9210/internal/es/employees}") String sourceUrl,
+			@Value("${employee.es.management-service-token:}") String managementToken,
 			@Value("${employee.embedding.dims:1024}") int defaultEmbeddingDims) {
 		this.employeeService = employeeService;
 		this.embeddingService = embeddingService;
@@ -69,6 +71,7 @@ public class EmployeeEsService {
 		this.objectMapper = objectMapper;
 		this.index = index;
 		this.sourceUrl = sourceUrl;
+		this.managementToken = managementToken;
 		this.defaultEmbeddingDims = defaultEmbeddingDims;
 	}
 
@@ -133,28 +136,28 @@ public class EmployeeEsService {
 	 * 处理 fullRebuild 相关逻辑。
 	 */
 	public RebuildTask fullRebuild(EmployeeRebuildRequest request) {
-		return esQueryClient.fullRebuild(index, rebuildRequest(request));
+		return esQueryClient.fullRebuild(index, rebuildRequest(request), managementToken);
 	}
 
 	/**
 	 * 处理 incrementalRebuild 相关逻辑。
 	 */
 	public RebuildTask incrementalRebuild(EmployeeRebuildRequest request) {
-		return esQueryClient.incrementalRebuild(index, rebuildRequest(request));
+		return esQueryClient.incrementalRebuild(index, rebuildRequest(request), managementToken);
 	}
 
 	/**
 	 * 处理 task 相关逻辑。
 	 */
 	public RebuildTask task(String taskId) {
-		return esQueryClient.task(taskId);
+		return esQueryClient.task(taskId, managementToken);
 	}
 
 	/**
 	 * 处理 tasks 相关逻辑。
 	 */
 	public Collection<RebuildTask> tasks() {
-		return esQueryClient.tasks();
+		return esQueryClient.tasks(managementToken);
 	}
 
 	/**

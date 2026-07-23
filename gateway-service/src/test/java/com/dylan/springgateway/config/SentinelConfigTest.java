@@ -33,8 +33,7 @@ class SentinelConfigTest {
 
         assertThat(GatewayRuleManager.getRules())
                 .extracting(candidate -> candidate.getResource())
-                .containsExactlyInAnyOrder("hello_route", "auth_route", "direct_route")
-                .doesNotContain("agent_api");
+                .containsExactlyInAnyOrder("hello_route", "auth_route", "direct_route");
         var rule = GatewayRuleManager.getRules().stream()
                 .filter(candidate -> "hello_route".equals(candidate.getResource()))
                 .findFirst()

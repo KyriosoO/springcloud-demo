@@ -11,19 +11,19 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
-import com.dylan.authcenter.config.AuthRbacProperties;
+import com.dylan.authcenter.config.AuthUserProperties;
 
 @Service
 public class UserService implements UserDetailsService {
-	private final AuthRbacProperties rbacProperties;
+	private final AuthUserProperties userProperties;
 
-	public UserService(AuthRbacProperties rbacProperties) {
-		this.rbacProperties = rbacProperties;
+	public UserService(AuthUserProperties userProperties) {
+		this.userProperties = userProperties;
 	}
 
 	@Override
 	public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
-		AuthRbacProperties.UserDefinition user = rbacProperties.getUsers().get(userId);
+		AuthUserProperties.UserDefinition user = userProperties.getUsers().get(userId);
 		if (user == null) {
 			throw new UsernameNotFoundException("User not found");
 		}
@@ -35,7 +35,7 @@ public class UserService implements UserDetailsService {
 	}
 
 	public Set<String> rolesOf(String userId) {
-		AuthRbacProperties.UserDefinition user = rbacProperties.getUsers().get(userId);
+		AuthUserProperties.UserDefinition user = userProperties.getUsers().get(userId);
 		if (user == null) {
 			throw new UsernameNotFoundException("User not found");
 		}

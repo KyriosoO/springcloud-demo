@@ -78,7 +78,7 @@ public class TransactionController {
 	@PostMapping("/search")
 	public TransactionSearchResponse search(Authentication authentication,
 			@RequestBody TransactionSearchRequest request) {
-		accessGuard.requireUserOrAgentScope(authentication, "agent.transaction.query");
+		accessGuard.requireUser(authentication);
 		return transactionService.search(request);
 	}
 
@@ -89,7 +89,7 @@ public class TransactionController {
 	 */
 	@PostMapping("/aggregate")
 	public Map<String, Object> aggregate(Authentication authentication, @RequestBody AggregateRequest request) {
-		accessGuard.requireUserOrAgentScope(authentication, "agent.transaction.aggregate");
+		accessGuard.requireUser(authentication);
 		return transactionService.aggregate(request);
 	}
 

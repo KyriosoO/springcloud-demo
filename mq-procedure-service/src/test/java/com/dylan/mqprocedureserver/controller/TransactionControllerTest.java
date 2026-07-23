@@ -66,7 +66,7 @@ class TransactionControllerTest {
                 .jsonPath("$.page").isEqualTo(2)
                 .jsonPath("$.size").isEqualTo(20);
 
-        verify(accessGuard).requireUserOrAgentScope(null, "agent.transaction.query");
+        verify(accessGuard).requireUser(null);
     }
 
     @Test
@@ -97,6 +97,6 @@ class TransactionControllerTest {
                 .expectBody()
                 .jsonPath("$.totalCount").isEqualTo(3);
 
-        verify(accessGuard).requireUserOrAgentScope(null, "agent.transaction.aggregate");
+        verify(accessGuard).requireUser(null);
     }
 }

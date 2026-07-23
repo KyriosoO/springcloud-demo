@@ -11,28 +11,28 @@ class SecurityTokenUtilsTest {
 
     @Test
     void authorizesOnlyExpectedServiceAndScope() {
-        Jwt token = serviceToken("agent-service", "agent.employee.query other.scope");
+        Jwt token = serviceToken("batch-service", "employee.query other.scope");
 
         assertThat(SecurityTokenUtils.isServiceTokenAuthorized(
-                token, "agent-service", "agent.employee.query")).isTrue();
+                token, "batch-service", "employee.query")).isTrue();
         assertThat(SecurityTokenUtils.isServiceTokenAuthorized(
-                token, "other-service", "agent.employee.query")).isFalse();
+                token, "other-service", "employee.query")).isFalse();
         assertThat(SecurityTokenUtils.isServiceTokenAuthorized(
-                token, "agent-service", "agent.transaction.query")).isFalse();
+                token, "batch-service", "transaction.query")).isFalse();
     }
 
     @Test
     void acceptsUserOrExpectedScopedServiceForUnifiedBusinessEndpoint() {
         Jwt userToken = token("dylan", SecurityTokenUtils.USER_TOKEN_TYPE, null);
-        Jwt serviceToken = serviceToken("agent-service", "agent.employee.query");
-        Jwt otherServiceToken = serviceToken("other-service", "agent.employee.query");
+        Jwt serviceToken = serviceToken("batch-service", "employee.query");
+        Jwt otherServiceToken = serviceToken("other-service", "employee.query");
 
         assertThat(SecurityTokenUtils.isUserOrAuthorizedService(
-                userToken, "agent-service", "agent.employee.query")).isTrue();
+                userToken, "batch-service", "employee.query")).isTrue();
         assertThat(SecurityTokenUtils.isUserOrAuthorizedService(
-                serviceToken, "agent-service", "agent.employee.query")).isTrue();
+                serviceToken, "batch-service", "employee.query")).isTrue();
         assertThat(SecurityTokenUtils.isUserOrAuthorizedService(
-                otherServiceToken, "agent-service", "agent.employee.query")).isFalse();
+                otherServiceToken, "batch-service", "employee.query")).isFalse();
     }
 
     private static Jwt serviceToken(String subject, String scopes) {

@@ -98,8 +98,8 @@ public class EmployeeService {
 	/**
 	 * 执行领域数据更新（字段级合并语义）。
 	 * <p>
-	 * Agent 可能只提交 {position: "HRBP"} 这样的稀疏对象。本方法先读取完整 employee，再将变更中非 null
-	 * 字段覆盖到现有数据上，最后写入合并结果。 这确保 Agent 不会意外将其他列写成 null。
+	 * 调用方可能只提交 {position: "HRBP"} 这样的稀疏对象。本方法先读取完整 employee，再将变更中非 null
+	 * 字段覆盖到现有数据上，最后写入合并结果，避免其他列被意外写成 null。
 	 */
 	public EmployeeChangeSubmitResponse update(String idCardNo, Map<String, Object> submitted, String operator) {
 		EmployeeChangeRequest request = newChangeRequest(EmployeeChangeAction.UPDATE, idCardNo, submitted, operator);

@@ -23,7 +23,7 @@ class ServiceTokenProviderTest {
 		ServiceTokenProvider provider = new ServiceTokenProvider(
 				encoder,
 				properties,
-				new MockEnvironment().withProperty("spring.application.name", "agent-service"),
+				new MockEnvironment().withProperty("spring.application.name", "batch-service"),
 				() -> keySet);
 
 		String token = provider.token();

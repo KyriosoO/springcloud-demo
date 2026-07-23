@@ -20,7 +20,6 @@ final class SecretTestSupport {
 	static final String PREVIOUS = "PREVIOUS";
 	static final String ACTIVE_SECRET = Base64.getEncoder().encodeToString(fill(1));
 	static final String PREVIOUS_SECRET = Base64.getEncoder().encodeToString(fill(2));
-	static final String PAYLOAD_SECRET = Base64.getEncoder().encodeToString(fill(3));
 
 	private SecretTestSupport() {
 	}
@@ -34,9 +33,6 @@ final class SecretTestSupport {
 		properties.getJwt().setKeys(Map.of(
 				ACTIVE, key(ACTIVE_SECRET, "IGNORED_JWT_ACTIVE"),
 				PREVIOUS, key(PREVIOUS_SECRET, "IGNORED_JWT_PREVIOUS")));
-		properties.getAgentPayload().setActiveKeyId(ACTIVE);
-		properties.getAgentPayload().setKeys(Map.of(
-				ACTIVE, key(PAYLOAD_SECRET, "IGNORED_PAYLOAD_ACTIVE")));
 		return properties;
 	}
 

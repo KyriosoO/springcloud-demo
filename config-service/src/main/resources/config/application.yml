@@ -5,9 +5,9 @@ management:
         include: health,info
   endpoint:
     env:
-      keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,AGENT_PAYLOAD_KEY_*,*.secret*,*.password*,*.token*,*.key*
+      keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,*.secret*,*.password*,*.token*,*.key*
     configprops:
-      keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,AGENT_PAYLOAD_KEY_*,*.secret*,*.password*,*.token*,*.key*
+      keys-to-sanitize: common.security.secrets.*,COMMON_SECURITY_JWT_HMAC_KEY_*,*.secret*,*.password*,*.token*,*.key*
 
 eureka:
   client:

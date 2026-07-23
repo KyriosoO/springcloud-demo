@@ -4,7 +4,7 @@ import com.dylan.transaction.api.model.Transaction;
 import java.util.List;
 
 /**
- * Transaction 分页查询请求，供 Agent Adapter 调用。
+ * Transaction 分页查询请求。
  * condition 复用已有 Transaction 模型的 query-by-example 字段。
  */
 public class TransactionSearchRequest {

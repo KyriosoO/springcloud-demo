@@ -1,6 +1,6 @@
 package com.dylan.transaction.api.query;
 
-/** Transaction 查询排序条件，字段名为 Agent canonical field。 */
+/** Transaction 查询排序条件。 */
 public class TransactionSearchSort {
 
     private String field;

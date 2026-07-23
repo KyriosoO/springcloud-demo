@@ -13,11 +13,6 @@
 	<dependencies>
 		<dependency>
 			<groupId>com.dylan</groupId>
-			<artifactId>common-security</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.dylan</groupId>
 			<artifactId>es-query-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>

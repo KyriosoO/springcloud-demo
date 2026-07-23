@@ -33,16 +33,16 @@ class PersistentRebuildTaskRepositoryTest {
         when(selectStatement.executeQuery()).thenReturn(resultSet);
         PersistentRebuildTaskRepository repository = new PersistentRebuildTaskRepository(dataSource);
 
-        repository.create("task-1", "agent-doc-policy", "agent-doc-policy-v2", "FULL");
+        repository.create("task-1", "orders", "orders-v2", "FULL");
         var task = repository.findById("task-1");
 
         verify(insertStatement).setString(1, "task-1");
-        verify(insertStatement).setString(2, "agent-doc-policy");
-        verify(insertStatement).setString(3, "agent-doc-policy-v2");
+        verify(insertStatement).setString(2, "orders");
+        verify(insertStatement).setString(3, "orders-v2");
         verify(insertStatement).executeUpdate();
         verify(selectStatement).setString(1, "task-1");
         assertThat(task.getTaskId()).isEqualTo("task-1");
-        assertThat(task.getTargetIndex()).isEqualTo("agent-doc-policy-v2");
+        assertThat(task.getTargetIndex()).isEqualTo("orders-v2");
         assertThat(task.getValidationStatus()).isEqualTo("PASSED");
         assertThat(task.getValidationDigest()).isEqualTo("digest-1");
     }
@@ -103,8 +103,8 @@ class PersistentRebuildTaskRepositoryTest {
         if (hasRow) {
             Instant now = Instant.parse("2026-07-07T00:00:00Z");
             when(resultSet.getString("task_id")).thenReturn("task-1");
-            when(resultSet.getString("index_name")).thenReturn("agent-doc-policy");
-            when(resultSet.getString("target_index")).thenReturn("agent-doc-policy-v2");
+            when(resultSet.getString("index_name")).thenReturn("orders");
+            when(resultSet.getString("target_index")).thenReturn("orders-v2");
             when(resultSet.getString("type")).thenReturn("FULL");
             when(resultSet.getString("status")).thenReturn("SUCCESS");
             when(resultSet.getLong("total_indexed")).thenReturn(3L);

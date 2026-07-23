@@ -25,8 +25,7 @@ public class IndexRebuildService {
 
 	private final EsDocumentService esDocumentService;
 	private final RebuildTaskRepository taskRepository;
-	private final DocumentIndexPolicy documentIndexPolicy;
-	private final DocumentSourceUrlPolicy sourceUrlPolicy;
+	private final RebuildSourceUrlPolicy sourceUrlPolicy;
 	private final EsQueryProperties properties;
 	private final RestTemplate restTemplate;
 	private final Executor rebuildExecutor;
@@ -36,23 +35,19 @@ public class IndexRebuildService {
 	 */
 	@Autowired
 	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
-			DocumentIndexPolicy documentIndexPolicy,
-			DocumentSourceUrlPolicy sourceUrlPolicy,
+			RebuildSourceUrlPolicy sourceUrlPolicy,
 			EsQueryProperties properties,
 			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
-		this(esDocumentService, taskRepository, documentIndexPolicy,
-				sourceUrlPolicy, properties, new RestTemplate(), rebuildExecutor);
+		this(esDocumentService, taskRepository, sourceUrlPolicy, properties, new RestTemplate(), rebuildExecutor);
 	}
 
 	IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
-			DocumentIndexPolicy documentIndexPolicy,
-			DocumentSourceUrlPolicy sourceUrlPolicy,
+			RebuildSourceUrlPolicy sourceUrlPolicy,
 			EsQueryProperties properties,
 			RestTemplate restTemplate,
 			Executor rebuildExecutor) {
 		this.esDocumentService = esDocumentService;
 		this.taskRepository = taskRepository;
-		this.documentIndexPolicy = documentIndexPolicy;
 		this.sourceUrlPolicy = sourceUrlPolicy;
 		this.properties = properties;
 		this.restTemplate = restTemplate;
@@ -60,22 +55,16 @@ public class IndexRebuildService {
 	}
 
 	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
-			DocumentIndexPolicy documentIndexPolicy,
 			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
-		this(esDocumentService, taskRepository, documentIndexPolicy,
-				new DocumentSourceUrlPolicy(defaultProperties()), defaultProperties(), new RestTemplate(), rebuildExecutor);
-	}
-
-	public IndexRebuildService(EsDocumentService esDocumentService, RebuildTaskRepository taskRepository,
-			@Qualifier("esRebuildExecutor") Executor rebuildExecutor) {
-		this(esDocumentService, taskRepository, new DocumentIndexPolicy(defaultProperties()), rebuildExecutor);
+		this(esDocumentService, taskRepository, new RebuildSourceUrlPolicy(defaultProperties()),
+				defaultProperties(), new RestTemplate(), rebuildExecutor);
 	}
 
 	/**
 	 * 处理 submitFullRebuild 相关逻辑。
 	 */
 	public synchronized RebuildTask submitFullRebuild(String index, RebuildRequest request) {
-		validateRequest(index, request, true);
+		validateRequest(request);
 		String targetIndex = targetIndex(index, request);
 		String taskId = UUID.randomUUID().toString();
 		RebuildTask task = taskRepository.create(taskId, index, targetIndex, "FULL");
@@ -87,7 +76,7 @@ public class IndexRebuildService {
 	 * 处理 submitIncrementalRebuild 相关逻辑。
 	 */
 	public synchronized RebuildTask submitIncrementalRebuild(String index, RebuildRequest request) {
-		validateRequest(index, request, false);
+		validateRequest(request);
 		String targetIndex = targetIndex(index, request);
 		String taskId = UUID.randomUUID().toString();
 		RebuildTask task = taskRepository.create(taskId, index, targetIndex, "INCREMENTAL");
@@ -170,7 +159,7 @@ public class IndexRebuildService {
 	/**
 	 * 校验相关业务规则。
 	 */
-	private void validateRequest(String index, RebuildRequest request, boolean fullRebuild) {
+	private void validateRequest(RebuildRequest request) {
 		if (request == null || request.getSourceUrl() == null || request.getSourceUrl().isBlank()) {
 			throw new IllegalArgumentException("sourceUrl must not be blank");
 		}
@@ -182,10 +171,6 @@ public class IndexRebuildService {
 			throw new IllegalArgumentException("batchSize must not exceed rebuildMaxBatchSize");
 		}
 		validateSourceParams(request.getSourceParams());
-		String targetIndex = targetIndex(index, request);
-		if (documentIndexPolicy.isDocumentIndex(index) || documentIndexPolicy.isDocumentIndex(targetIndex)) {
-			throw new IllegalArgumentException("DOCUMENT_SPECIALIZED_ENDPOINT_REQUIRED");
-		}
 	}
 
 	private void validateSourcePage(SourcePageResponse page) {
@@ -234,7 +219,7 @@ public class IndexRebuildService {
 	private static EsQueryProperties defaultProperties() {
 		EsQueryProperties properties = new EsQueryProperties();
 		properties.setTotalHitsThreshold(10000);
-		properties.setDocumentSourceAllowedHosts(List.of("document-platform"));
+		properties.setRebuildSourceAllowedHosts(List.of("employee-service"));
 		properties.setRebuildMaxBatchSize(DEFAULT_BATCH_SIZE);
 		return properties;
 	}

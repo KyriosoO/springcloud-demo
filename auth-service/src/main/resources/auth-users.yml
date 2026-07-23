@@ -1,0 +1,11 @@
+auth:
+  users:
+    admin:
+      password: "{noop}123456"
+      roles: [ADMIN]
+    dylan:
+      password: "{noop}123456"
+      roles: [USER]
+    viewer_t:
+      password: "{noop}123456"
+      roles: [VIEWER]

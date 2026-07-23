@@ -19,8 +19,7 @@ class EsDocumentServiceTest {
     void setUp() {
         EsQueryProperties properties = new EsQueryProperties();
         properties.setTotalHitsThreshold(10_000);
-        properties.setDocumentIndexPrefixes(List.of("agent-doc-"));
-        properties.setDocumentSourceAllowedHosts(List.of("document-platform"));
+        properties.setRebuildSourceAllowedHosts(List.of("employee-service"));
         properties.afterPropertiesSet();
         service = new EsDocumentService(null, new ObjectMapper(), properties);
     }
@@ -38,22 +37,15 @@ class EsDocumentServiceTest {
         VectorSearchRequest request = new VectorSearchRequest();
         request.setEmbeddingField("embedding_v2");request.setQueryVector(List.of(0.1, 0.2));
         request.setK(5);request.setNumCandidates(20);request.setFilter(Map.of("term", Map.of("tenantId", "t1")));
-        Map<String,Object> body = service.vectorSearchBody("generic-index", request);
+        Map<String,Object> body = service.vectorSearchBody(request);
         assertThat(body).containsKey("knn");
         assertThat(body.toString()).contains("embedding_v2", "tenantId");
     }
 
     @Test
-    void rejectsDirectDocumentVectorSearchWithoutProtectedFilter() {
-        VectorSearchRequest request = new VectorSearchRequest();request.setQueryVector(List.of(0.1, 0.2));
-        assertThatThrownBy(() -> service.vectorSearchBody("agent-doc-policy-read", request))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("protected ACL filter");
-    }
-
-    @Test
     void rejectsInvalidGenericSearchBounds() {
         VectorSearchRequest request = new VectorSearchRequest();request.setQueryVector(List.of(0.1));request.setK(0);
-        assertThatThrownBy(() -> service.vectorSearchBody("generic-index", request))
+        assertThatThrownBy(() -> service.vectorSearchBody(request))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("k must be positive");
     }
 }

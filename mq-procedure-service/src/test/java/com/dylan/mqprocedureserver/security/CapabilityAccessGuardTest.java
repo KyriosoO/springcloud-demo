@@ -17,18 +17,12 @@ class CapabilityAccessGuardTest {
     private final CapabilityAccessGuard guard = new CapabilityAccessGuard();
 
     @Test
-    void acceptsUserOrScopedAgentServiceAndRejectsInsufficientServiceScope() {
-        assertThatCode(() -> guard.requireUserOrAgentScope(
-                authentication("dylan", SecurityTokenUtils.USER_TOKEN_TYPE, null),
-                "agent.transaction.query"))
+    void acceptsUserAndRejectsServiceToken() {
+        assertThatCode(() -> guard.requireUser(
+                authentication("dylan", SecurityTokenUtils.USER_TOKEN_TYPE, null)))
                 .doesNotThrowAnyException();
-        assertThatCode(() -> guard.requireUserOrAgentScope(
-                authentication("agent-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE, "agent.transaction.query"),
-                "agent.transaction.query"))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> guard.requireUserOrAgentScope(
-                authentication("agent-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE, "other.scope"),
-                "agent.transaction.query"))
+        assertThatThrownBy(() -> guard.requireUser(
+                authentication("batch-service", SecurityTokenUtils.SERVICE_TOKEN_TYPE, "transaction.query")))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
     }

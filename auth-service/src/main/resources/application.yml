@@ -3,7 +3,7 @@ server:
 spring:
   config:
     import:
-      - classpath:agent-rbac.yml
+      - classpath:auth-users.yml
       - optional:configserver:http://localhost:9888
   application:
     name: auth-service

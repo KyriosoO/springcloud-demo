@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.dylan.esquery.api.model.BulkIndexRequest;
 import com.dylan.esquery.api.model.IndexDocumentRequest;
@@ -57,23 +58,26 @@ public interface EsQueryClient {
 	 * 发起全量索引重建任务。
 	 */
 	@PostMapping(value = "/indexes/{index}/rebuild/full", consumes = MediaType.APPLICATION_JSON_VALUE)
-	RebuildTask fullRebuild(@PathVariable("index") String index, @RequestBody RebuildRequest request);
+	RebuildTask fullRebuild(@PathVariable("index") String index, @RequestBody RebuildRequest request,
+			@RequestHeader("X-Es-Management-Token") String managementToken);
 
 	/**
 	 * 发起增量索引重建任务。
 	 */
 	@PostMapping(value = "/indexes/{index}/rebuild/incremental", consumes = MediaType.APPLICATION_JSON_VALUE)
-	RebuildTask incrementalRebuild(@PathVariable("index") String index, @RequestBody RebuildRequest request);
+	RebuildTask incrementalRebuild(@PathVariable("index") String index, @RequestBody RebuildRequest request,
+			@RequestHeader("X-Es-Management-Token") String managementToken);
 
 	/**
 	 * 查询单个索引重建任务。
 	 */
 	@GetMapping("/rebuild/tasks/{taskId}")
-	RebuildTask task(@PathVariable("taskId") String taskId);
+	RebuildTask task(@PathVariable("taskId") String taskId,
+			@RequestHeader("X-Es-Management-Token") String managementToken);
 
 	/**
 	 * 查询全部索引重建任务。
 	 */
 	@GetMapping("/rebuild/tasks")
-	Collection<RebuildTask> tasks();
+	Collection<RebuildTask> tasks(@RequestHeader("X-Es-Management-Token") String managementToken);
 }

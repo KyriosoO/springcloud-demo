@@ -2,6 +2,7 @@ employee:
   es:
     index: employee
     source-url: http://localhost:9210/internal/es/employees
+    management-service-token: ${ES_QUERY_MANAGEMENT_SERVICE_TOKEN:}
     embedding-field: embedding
   kafka:
     change-topic: employee-change-topic

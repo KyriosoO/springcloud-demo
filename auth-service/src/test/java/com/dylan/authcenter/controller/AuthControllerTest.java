@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -34,10 +36,9 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import com.dylan.authcenter.model.LoginRequest;
-import com.dylan.authcenter.config.AuthRbacProperties;
+import com.dylan.authcenter.config.AuthUserProperties;
 import com.dylan.authcenter.service.JwtService;
 import com.dylan.authcenter.service.UserService;
-import com.dylan.authcenter.testsupport.AuthRbacTestFixtures;
 
 @DisplayName("AuthController")
 class AuthControllerTest {
@@ -57,8 +58,7 @@ class AuthControllerTest {
                         .build())));
         decoder = NimbusJwtDecoder.withSecretKey(key).build();
         JwtKeyProvider jwtKeyProvider = () -> new JwtKeySet("ACTIVE", key, Map.of("ACTIVE", key));
-        AuthRbacProperties rbacProperties = AuthRbacTestFixtures.load();
-        UserService userService = new UserService(rbacProperties);
+        UserService userService = new UserService(userProperties());
         JwtService jwtService = new JwtService(encoder, decoder, jwtKeyProvider, userService);
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userService);
         provider.setPasswordEncoder(PasswordEncoderFactories.createDelegatingPasswordEncoder());
@@ -90,7 +90,7 @@ class AuthControllerTest {
     void loginIssuesViewerRole() {
         Jwt jwt = decoder.decode(login("viewer_t", "123456"));
         assertThat(jwt.getClaimAsStringList("role"))
-                .containsExactly("agent:viewer");
+                .containsExactly("VIEWER");
     }
 
     @Test
@@ -108,5 +108,23 @@ class AuthControllerTest {
         assertThat(setCookie).isNotBlank();
         String tokenPair = setCookie.split(";", 2)[0];
         return tokenPair.substring(tokenPair.indexOf('=') + 1);
+    }
+
+    private static AuthUserProperties userProperties() {
+        AuthUserProperties properties = new AuthUserProperties();
+        Map<String, AuthUserProperties.UserDefinition> users = new LinkedHashMap<>();
+        users.put("admin", user("{noop}123456", "ADMIN"));
+        users.put("dylan", user("{noop}123456", "USER"));
+        users.put("viewer_t", user("{noop}123456", "VIEWER"));
+        properties.setUsers(users);
+        properties.afterPropertiesSet();
+        return properties;
+    }
+
+    private static AuthUserProperties.UserDefinition user(String password, String role) {
+        AuthUserProperties.UserDefinition user = new AuthUserProperties.UserDefinition();
+        user.setPassword(password);
+        user.setRoles(Set.of(role));
+        return user;
     }
 }

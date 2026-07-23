@@ -46,7 +46,7 @@ public final class SecurityTokenUtils {
 	}
 
 	/**
-	 * 校验服务 token 的主体和单个 scope，供业务服务保护 Agent 专用入口。
+	 * 校验服务 token 的主体和单个 scope。
 	 */
 	public static boolean isServiceTokenAuthorized(Jwt jwt, String expectedSubject, String requiredScope) {
 		return isServiceToken(jwt)

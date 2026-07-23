@@ -27,7 +27,6 @@ public class SecretSanitizingConfiguration {
 		String normalized = key.toLowerCase(Locale.ROOT).replace('_', '.').replace('-', '.');
 		return normalized.startsWith("common.security.secrets.")
 				|| normalized.startsWith("common.security.jwt.hmac.key.")
-				|| normalized.startsWith("agent.payload.key.")
 				|| normalized.contains(".secret.")
 				|| normalized.endsWith(".secret")
 				|| normalized.contains(".password.")

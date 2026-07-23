@@ -22,7 +22,6 @@ class SecretPropertiesValidatorTest {
 	void rejectsConfigPreferredSourceOrderInProd() {
 		SecretProperties properties = SecretTestSupport.jwtOnlyProperties();
 		properties.getJwt().getKeys().values().forEach(key -> key.setValue(""));
-		properties.getAgentPayload().getKeys().values().forEach(key -> key.setValue(""));
 		MockEnvironment environment = new MockEnvironment().withProperty("spring.profiles.active", "prod");
 
 		assertThatThrownBy(() -> SecretPropertiesValidator.validateJwt(properties, environment))
@@ -45,36 +44,5 @@ class SecretPropertiesValidatorTest {
 		SecretProperties properties = new SecretProperties();
 
 		SecretPropertiesValidator.validateJwt(properties, new MockEnvironment());
-		SecretPropertiesValidator.validateAgentPayload(properties, new MockEnvironment());
-	}
-
-	@Test
-	void jwtValidationDoesNotRequireAgentPayloadKeyConfig() {
-		SecretProperties properties = SecretTestSupport.jwtOnlyProperties();
-		properties.getAgentPayload().getKeys().clear();
-
-		SecretPropertiesValidator.validateJwt(properties, new MockEnvironment());
-	}
-
-	@Test
-	void agentPayloadValidationRequiresAgentPayloadKeyConfig() {
-		SecretProperties properties = SecretTestSupport.jwtOnlyProperties();
-		properties.getAgentPayload().getKeys().clear();
-
-		assertThatThrownBy(() -> SecretPropertiesValidator.validateAgentPayload(properties, new MockEnvironment()))
-				.isInstanceOf(SecretMaterialException.class)
-				.hasMessageContaining("agent-payload");
-	}
-
-	@Test
-	void rejectsSecretBindingSharedAcrossPurposes() {
-		SecretProperties properties = SecretTestSupport.jwtOnlyProperties();
-		properties.getAgentPayload().getKeys().get(SecretTestSupport.ACTIVE)
-				.setValue(SecretTestSupport.ACTIVE_SECRET);
-
-		assertThatThrownBy(() -> SecretPropertiesValidator.validate(
-				properties, new MockEnvironment()))
-				.isInstanceOf(SecretMaterialException.class)
-				.hasMessageContaining("purpose-isolated");
 	}
 }

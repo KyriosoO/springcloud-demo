@@ -9,3 +9,6 @@ spring:
 es:
   query:
     total-hits-threshold: 10000
+    rebuild-source-allowed-hosts: [localhost, employee-service]
+    rebuild-max-batch-size: 500
+    management-service-token: ${ES_QUERY_MANAGEMENT_SERVICE_TOKEN:}

@@ -34,16 +34,14 @@ class GatewayEmployeeRouteExitTest {
     }
 
     @Test
-    @DisplayName("retained infrastructure routes remain available and removed Agent routes stay absent")
+    @DisplayName("retained infrastructure routes remain available")
     void shouldPreserveRetainedInfrastructureRoutes() {
         List<Route> routes = routes();
 
         assertThat(routes).extracting(Route::getId).contains(
                 "hello_route", "ws_route", "auth_route", "direct_route",
                 "mq_route", "workflow");
-        assertThat(routes).extracting(Route::getId).doesNotContain("agent_page", "agent_api");
         assertThat(matchingRouteIds(routes, "/workflows/42")).containsExactly("workflow");
-        assertThat(matchingRouteIds(routes, "/agent/query")).isEmpty();
     }
 
     private static List<Route> routes() {

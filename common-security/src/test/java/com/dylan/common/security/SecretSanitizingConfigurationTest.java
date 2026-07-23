@@ -30,11 +30,11 @@ class SecretSanitizingConfigurationTest {
 
 		assertThat(function.apply(new SanitizableData(
 				source,
-				"agent.document.provider.token",
+				"external.provider.token",
 				"token-value")).getValue()).isEqualTo(SanitizableData.SANITIZED_VALUE);
 		assertThat(function.apply(new SanitizableData(
 				source,
-				"agent.document.provider.api-key",
+				"external.provider.api-key",
 				"key-value")).getValue()).isEqualTo(SanitizableData.SANITIZED_VALUE);
 	}
 }

@@ -3,6 +3,7 @@ package com.dylan.employee.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -24,6 +25,7 @@ import com.dylan.esquery.api.model.SearchSort;
 import com.dylan.esquery.api.model.SearchSortDirection;
 import com.dylan.esquery.api.model.SemanticSearchRequest;
 import com.dylan.esquery.api.model.VectorSearchRequest;
+import com.dylan.esquery.api.model.RebuildTask;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -42,6 +44,7 @@ class EmployeeEsServiceTest {
 				objectMapper,
 				"employee",
 				"http://localhost:9210/internal/es/employees",
+				"management-token",
 				1024);
 	}
 
@@ -72,6 +75,15 @@ class EmployeeEsServiceTest {
 		assertThat(dsl.has("track_total_hits")).isFalse();
 		assertThat(dsl.at("/query/term/position.keyword").asText()).isEqualTo("HRBP");
 		assertThat(dsl.at("/sort/0/chineseName.keyword/order").asText()).isEqualTo("desc");
+	}
+
+	@Test
+	void fullRebuildPassesManagementToken() {
+		RebuildTask task = new RebuildTask();
+		when(esQueryClient.fullRebuild(eq("employee"), any(), eq("management-token"))).thenReturn(task);
+
+		assertThat(employeeEsService.fullRebuild(null)).isSameAs(task);
+		verify(esQueryClient).fullRebuild(eq("employee"), any(), eq("management-token"));
 	}
 
 	@Test
