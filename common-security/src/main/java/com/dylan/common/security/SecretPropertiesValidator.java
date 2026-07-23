@@ -17,6 +17,7 @@ public final class SecretPropertiesValidator {
 
 	public static void validate(SecretProperties properties, Environment environment) {
 		validateJwt(properties, environment);
+		validateAgentServiceJwt(properties, environment);
 		validateAgentPayload(properties, environment);
 	}
 
@@ -38,13 +39,38 @@ public final class SecretPropertiesValidator {
 		validatePurposeIsolation(properties);
 	}
 
+	public static void validateAgentServiceJwt(SecretProperties properties, Environment environment) {
+		Objects.requireNonNull(properties, "properties must not be null");
+		validateSources(properties);
+		validateProductionSourceOrder(properties, environment);
+		validatePurpose("agent-service-jwt", properties.getAgentServiceJwt());
+		validateConfigValuePolicy(properties, properties.getAgentServiceJwt(), environment);
+		validatePurposeIsolation(properties);
+	}
+
 	private static void validatePurposeIsolation(SecretProperties properties) {
 		for (SecretProperties.KeyProperties jwt : properties.getJwt().getKeys().values()) {
+			for (SecretProperties.KeyProperties service : properties.getAgentServiceJwt().getKeys().values()) {
+				if (sameNonBlank(jwt.getEnv(), service.getEnv())
+						|| sameNonBlank(jwt.getValue(), service.getValue())) {
+					throw new SecretMaterialException(
+							"User JWT and Agent service JWT secret bindings must be purpose-isolated");
+				}
+			}
 			for (SecretProperties.KeyProperties payload : properties.getAgentPayload().getKeys().values()) {
 				if (sameNonBlank(jwt.getEnv(), payload.getEnv())
 						|| sameNonBlank(jwt.getValue(), payload.getValue())) {
 					throw new SecretMaterialException(
 							"JWT and agent payload secret bindings must be purpose-isolated");
+				}
+			}
+		}
+		for (SecretProperties.KeyProperties service : properties.getAgentServiceJwt().getKeys().values()) {
+			for (SecretProperties.KeyProperties payload : properties.getAgentPayload().getKeys().values()) {
+				if (sameNonBlank(service.getEnv(), payload.getEnv())
+						|| sameNonBlank(service.getValue(), payload.getValue())) {
+					throw new SecretMaterialException(
+							"Agent service JWT and agent payload secret bindings must be purpose-isolated");
 				}
 			}
 		}

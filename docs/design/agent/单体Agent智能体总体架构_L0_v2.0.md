@@ -31,6 +31,7 @@
 | v2.0-r5 | 2026-07-22 | 完成逐文档五轮治理与严格架构回归。 |
 | v2.0-r6 | 2026-07-23 | 由六份 L2 串行复审触发原子同步：将内部就绪语义限定为进入实现评审，不表示已批准实施。 |
 | v2.0-r7 | 2026-07-23 | 原子同步本轮评审：分离规划授权上界与能力有效授权，校正阶段 A 范围，并移除 L0 的包级实现结构。 |
+| v2.0-r8 | 2026-07-23 | 按 Employee 既有 ES/向量能力复用决策增加独立 `agent-employee-adapter`：LangGraph 仍为唯一编排权威，适配器仅负责严格合同、安全转换和 Employee 接口复用。 |
 
 ## 3. 架构目标与非目标
 
@@ -66,9 +67,10 @@
 用户/调用方
     │ HTTPS + JWT
     ▼
-网关 ──► 单体 agent-service（后续新增，一个 Python LangGraph 部署单元）
+网关 ──► 单体 agent-service（Python LangGraph 唯一编排部署单元）
               ├─► auth-service：身份/RBAC 上界
-              ├─► employee-service、mq-procedure-service：业务查询/聚合
+              ├─► agent-employee-adapter ──► employee-service：Employee 搜索/查询适配
+              ├─► mq-procedure-service：后续业务聚合
               ├─► es-query-service：检索与索引原子能力
               └─► 获准模型端点：规划、回答、总结
                          ▲
@@ -79,6 +81,7 @@
 |---|---|---|
 | 身份、角色、权限码 | `auth-service` | 读取上界，不复制身份权威 |
 | 员工/交易主数据 | 对应业务服务 | 调用稳定 API，不直连数据库 |
+| Employee Agent 适配合同 | `agent-employee-adapter` | 消费严格 DTO；不依赖 Employee 实体或 ES 原始响应 |
 | 原始文档与版本 | 文档源 | 读取获准内容，不把 ES 当源数据 |
 | 索引和检索实现 | `es-query-service` | 提交受控查询/写入，不拼接原生 DSL |
 | 能力、字段、语料库策略 | Agent | 在 Auth 上界内进一步收紧 |
@@ -88,11 +91,11 @@
 
 ## 5. 组件关系与顶层调用链
 
-### 5.1 Agent 应用
+### 5.1 Agent 应用与 Employee 适配边界
 
-后续仅新增一个 Python `agent-service` 项目，以官方 `langgraph` 的 `StateGraph` 作为唯一编排运行时，以 ASGI HTTP 边界暴露入口。部署单元内部只冻结入口、图编排、规划、安全、能力、外部访问和可观测性七类逻辑责任及其单向依赖；具体包、文件、类和框架装配由 L2 决定，L0 不建立第二套实现结构权威。
+Python `agent-service`以官方 `langgraph` 的 `StateGraph` 作为唯一编排、计划和 Graph State 权威，以 ASGI HTTP 边界暴露入口。独立 Java `agent-employee-adapter`是无状态协议适配部署单元，只验证目标专属委托凭证、把严格 Employee canonical 请求映射到`employee-service`既有受控 ES/向量接口、投影稳定结果并翻译错误；它不得运行模型、LangGraph、计划路由、权限推导或持久状态，因此不形成第二编排/状态权威。
 
-依赖只允许从入口经固定图进入规划/安全/能力责任，再通过窄 Client 访问上游；外部访问不得反向依赖图节点，安全责任不得由能力或外部 Client 绕过。
+依赖只允许从入口经固定图进入规划/安全/能力责任，再通过窄 Client 访问适配器或其他上游；`agent-service -> agent-employee-adapter -> employee-service -> es-query-service`不得反向依赖。Employee 主数据和索引编排仍归`employee-service`，适配器不得直连 Employee 数据库或`es-query-service`。
 
 ### 5.2 检索与索引基础设施
 
@@ -122,7 +125,7 @@ API 边界以服务身份调用 Auth facade 一次，由 Auth 验证用户令牌
 
 | 编号 | 不可违反的约束 |
 |---|---|
-| AD-01 | 官方 Python LangGraph 是唯一 Agent 编排运行时和唯一 Agent 部署单元；禁止 Java 主编排 + Python Runtime。 |
+| AD-01 | 官方 Python LangGraph 是唯一 Agent 编排运行时、计划权威和 Graph State 所有者；允许独立无状态协议适配部署单元，但其不得运行模型、图、计划路由或持久 Agent 状态；禁止 Java 主编排 + Python Runtime。 |
 | AD-02 | 首阶段请求同步完成；顶层图及任何独立编译的嵌套图都以`checkpointer=False`显式禁止使用或继承 checkpointer；不得宣称持久记忆、恢复或人工中断能力。 |
 | AD-03 | 图结构固定且受限；模型只提议结构化计划，确定性 validate 冻结可执行计划，authorize 在任何上游调用前完成请求目的与资源事实授权；两者均不得被模型或能力节点绕过。 |
 | AD-04 | Auth 给出上界，Agent 与资源事实只做交集；事实缺失、过期或冲突时失败关闭。 |
@@ -145,7 +148,7 @@ API 边界以服务身份调用 Auth facade 一次，由 Auth 验证用户令牌
 | 正确性 | 计划到上游请求可确定映射；聚合结果不由模型计算 | 固定夹具和真实上游合同测试 |
 | 性能 | 同步请求有绝对 deadline；各依赖预算之和不超过总预算 | 超时/取消测试和指标 |
 | 可用性 | 依赖失败返回类型化错误，不静默切换更宽路径 | 故障注入和错误映射测试 |
-| 可维护性 | 一个 Python 部署单元、一个固定图、三个能力包、少量稳定 Client | 图拓扑快照和包依赖测试 |
+| 可维护性 | 一个 Python 编排部署单元、一个固定图、三个能力包及按真实边界建立的无状态适配服务 | 图拓扑、模块依赖和适配合同测试 |
 | 可审计 | requestId、主体摘要、能力、上游、策略版本、结果码可关联 | 审计字段测试；正文不落日志 |
 
 ## 9. 风险与演进触发器
@@ -156,6 +159,8 @@ API 边界以服务身份调用 Auth facade 一次，由 Auth 验证用户令牌
 | 同步超时 | 限制结果量/上下文、绝对 deadline | 明确长任务需求后设计异步 L2 |
 | 关键词召回不足 | 引用质量集和无证据拒答 | Recall/答案质量未达标再引入向量/重排 |
 | 上游合同不齐 | 实现前合同基线门禁 | 先修上游合同，不在 Agent 内猜测 |
+| 适配器演变为第二编排层 | 禁止模型、Graph State、动态路由和权限推导；只允许确定性映射 | 出现第二计划/状态权威时立即回退该职责并修订架构 |
+| Employee ES 派生数据滞后 | 明确最终一致语义；强一致判断不走 ES | 业务要求强一致时增加 Employee 权威查询合同，不由适配器猜测 |
 | 供应商/模型不合规 | 目标白名单和数据分级 | 合规、合同和效果证据齐全后启用 |
 | LangGraph 版本/依赖风险 | 锁定兼容版本、图拓扑与状态合同测试 | 升级前跑完整图回归；不使用未需要的高级能力 |
 | 仓库硬性 Java-only 约束 | 实现前 PoC 验证部署与安全合同 | 只有约束被证实才评估 LangGraph4j；其为独立社区项目，成熟度另审 |
@@ -164,11 +169,11 @@ API 边界以服务身份调用 Auth facade 一次，由 Auth 验证用户令牌
 
 | 决策 | 结论 | 主要取舍 |
 |---|---|---|
-| ADR-01 运行时 | 官方 Python LangGraph 是唯一 Agent 编排/部署单元 | 绿地期直接冻结图与状态合同，避免后续重写；Java 服务保持外部上游 |
+| ADR-01 运行时 | 官方 Python LangGraph 是唯一 Agent 编排/状态权威；Java 适配器只做无状态协议转换 | 保持单一编排，同时隔离跨语言/上游合同 |
 | ADR-02 图能力 | 受限同步 StateGraph、请求内类型化状态、无 checkpointer | 使用显式分支但不提前引入恢复、记忆和人工审批复杂度 |
 | ADR-03 模型权限 | 模型提议，确定性节点准入 | 牺牲部分自治性，换取稳定合同和失败关闭 |
 | ADR-04 检索 | 独立 `es-query-*`，首阶段关键词优先 | 保留可演进边界，不提前承担向量/融合复杂度 |
-| ADR-05 模块组织 | 一个项目内按能力包分层 | 避免空 API/Adapter 服务，出现真实复用再抽取 |
+| ADR-05 模块组织 | Agent 编排保持 Python 单体；Employee 采用独立 `agent-employee-adapter` | Employee 已有可复用 ES/向量能力，独立适配边界避免 Agent 专属 DTO、JWT 和查询规则进入业务服务 |
 | ADR-06 Java 备选 | 仅当硬性 Java-only 约束被验证后评估 LangGraph4j | 它不是官方 Python LangGraph，依赖成熟度与能力差异需单独 PoC/评审 |
 
 ## 11. 下位 L1 治理与实施顺序
@@ -190,7 +195,7 @@ API 边界以服务身份调用 Auth facade 一次，由 Auth 验证用户令牌
 
 | 阶段 | 进入条件 | 退出门禁 | 回滚边界 |
 |---|---|---|---|
-| PoC | L0/L1/L2 设计可追踪 | 固定图、状态、认证、错误和 deadline 夹具通过 | 删除 PoC 部署与未投产依赖，不影响现有 Java 上游 |
+| PoC | L0/L1/L2 设计可追踪 | 固定图、状态、Agent→Adapter→Employee 认证、错误和 deadline 夹具通过 | 删除 Agent/Adapter PoC 路由与未投产依赖，不影响 Employee 既有接口 |
 | 首个 QUERY 纵切 | PoC 通过且上游合同冻结 | 非法计划零上游调用、安全负向和结果投影通过 | 关闭 Agent 路由，现有上游合同保持兼容 |
 | Search / DOCUMENT | QUERY 纵切通过；Search 合同、供应商和质量前置分别满足 | Search 安全/真实 ES 测试以及 DOCUMENT 证据/引用/效果门禁分别通过 | 按能力开关隔离；关闭 DOCUMENT 时不降级到无证据生成 |
 | 后续 AGGREGATE / Index / Rebuild | 各自业务需求、来源版本/删除合同以及快照/游标/静默证明成立 | 专题 L2 修订和实现评审通过；聚合确定性、索引幂等或重建回滚测试按获准范围完成 | 关闭对应能力；存在已发布索引时仅按获批方案回切 Alias |

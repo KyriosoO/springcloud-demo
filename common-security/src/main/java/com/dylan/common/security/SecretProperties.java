@@ -15,6 +15,7 @@ public class SecretProperties {
 	private boolean allowConfigValues;
 	private boolean failFast = true;
 	private PurposeProperties jwt = new PurposeProperties("ACTIVE");
+	private PurposeProperties agentServiceJwt = new PurposeProperties("ACTIVE");
 	private PurposeProperties agentPayload = new PurposeProperties("ACTIVE");
 
 	public List<SecretSourceType> getSourceOrder() {
@@ -51,6 +52,14 @@ public class SecretProperties {
 
 	public PurposeProperties getAgentPayload() {
 		return agentPayload;
+	}
+
+	public PurposeProperties getAgentServiceJwt() {
+		return agentServiceJwt;
+	}
+
+	public void setAgentServiceJwt(PurposeProperties agentServiceJwt) {
+		this.agentServiceJwt = agentServiceJwt == null ? new PurposeProperties("ACTIVE") : agentServiceJwt;
 	}
 
 	public void setAgentPayload(PurposeProperties agentPayload) {

@@ -24,6 +24,7 @@
 | v2.0-r3 | 2026-07-23 | 完成本次串行五轮评审：收紧实施准入措辞、补 Gateway 无重试约束，并闭合总览实现落点与追踪。 |
 | v2.0-r4 | 2026-07-23 | 删除重复的 Java/Python 方法签名和路径合同，将总览收敛为专题所有者、阶段、依赖与门禁索引。 |
 | v2.0-r5 | 2026-07-23 | 原子同步本轮评审：统一 Auth facade 单次解析与“规划上界→能力有效授权”两阶段安全流。 |
+| v2.0-r6 | 2026-07-23 | 同步 Employee 适配边界：03 阶段 A 新增独立无状态 `agent-employee-adapter`，复用 Employee ES Search；不改变 LangGraph 单编排权威。 |
 
 ## 3. 设计目标与范围
 
@@ -31,11 +32,13 @@
 
 ## 4. 当前实现基线、关联资源与责任边界
 
-当前 Agent/document 项目已删除，新 Python LangGraph `agent-service` 尚不存在；`es-query-*` 仅保留基础设施路径且能力未验证。L0/L1 决定边界，L2 只补实施合同；Auth、Java 业务服务、检索和模型各自拥有上游资源，任何 L2 不得越权修改其公共合同。
+当前 P1 已形成 Python LangGraph `agent-service` 与 Auth/Gateway/Employee 临时实现；本次将 Employee 域内 Agent 专属 QUERY 迁移到独立`agent-employee-adapter`。`employee-service`既有 ES Search/Vector 能力已由单测验证，真实 ES 互操作和历史索引完整性仍未验证。L0/L1 决定边界，专题 L2 冻结合同；Auth、业务服务、检索和模型继续拥有各自资源。
 
 ## 5. 模块职责、依赖方向与调用边界
 
-01 提供 API、类型化 state 和固定图，02 提供确定性安全节点，03/04 实现能力节点，05 独立提供检索/索引合同。每个专题围绕一个稳定责任内聚，避免 Graph 与上游实现耦合。依赖方向为 `api -> graph -> 02 + 03/04 -> Python clients -> Auth/Java业务/检索/模型端点`，04 通过稳定 Search DTO 调用 05；禁止反向依赖图、Java 编排旁路或绕过 Validator。
+01 提供 API、类型化 state 和固定图，02 提供确定性安全节点，03/04 实现能力节点，05 独立提供检索/索引合同。依赖方向为`api -> graph -> 02 + 03/04 -> Python clients -> Auth/Adapter/检索/模型端点`；Employee 固定为`agent-service -> agent-employee-adapter -> employee-service -> es-query-service`。Adapter 只做协议与安全转换，禁止反向依赖图、Java 编排旁路、持有 Graph State 或绕过 Validator。
+
+内聚与耦合判断：Graph、权限交集、Employee 协议适配、业务数据和检索原子能力分别由单一所有者承担；新增 Adapter 保护真实跨语言/安全边界，不复制业务查询或编排规则，因此没有形成循环依赖或第二状态权威。
 
 ## 6. L2 责任分解
 

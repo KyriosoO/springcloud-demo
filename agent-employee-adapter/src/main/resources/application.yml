@@ -1,0 +1,37 @@
+server:
+  port: 9220
+
+spring:
+  application:
+    name: agent-employee-adapter
+  config:
+    import: optional:configserver:http://localhost:9888
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+
+agent:
+  employee:
+    adapter:
+      enabled: false
+      single-tenant-ref: tenant-main
+      delegated-audience: agent-employee-adapter
+      employee-search-url: http://127.0.0.1:9210/employees/es/search
+
+common:
+  security:
+    service-token:
+      enabled: true
+      service-id: agent-employee-adapter
+      ttl: 30s
+      scopes:
+        - agent.employee.query
+    secrets:
+      agent-service-jwt:
+        active-key-id: ACTIVE
+        previous-key-ids: [PREVIOUS]
+        keys:
+          ACTIVE:
+            env: AGENT_SERVICE_JWT_HMAC_KEY_ACTIVE
+          PREVIOUS:
+            env: AGENT_SERVICE_JWT_HMAC_KEY_PREVIOUS

@@ -13,3 +13,21 @@ spring:
 logging:
   level:
     "[org.springframework.security]": INFO
+agent:
+  security:
+    service-token:
+      issuer: agent-service
+      audience: auth-service
+      required-subject: agent-service
+      required-scopes: [agent.permission.resolve]
+common:
+  security:
+    secrets:
+      agent-service-jwt:
+        active-key-id: ACTIVE
+        previous-key-ids: [PREVIOUS]
+        keys:
+          ACTIVE:
+            env: AGENT_SERVICE_JWT_HMAC_KEY_ACTIVE
+          PREVIOUS:
+            env: AGENT_SERVICE_JWT_HMAC_KEY_PREVIOUS

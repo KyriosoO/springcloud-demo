@@ -75,6 +75,23 @@ class EmployeeEsServiceTest {
 	}
 
 	@Test
+	void searchBuildsExactWorkBaseFilterWithoutTextSubfield() throws Exception {
+		when(esQueryClient.search(eq("employee"), anyString())).thenReturn("{}");
+
+		SearchFilter filter = new SearchFilter();
+		filter.setField("workBaseSi");
+		filter.setOperator("EQ");
+		filter.setValue("SHANGHAI");
+		SearchRequest request = new SearchRequest();
+		request.setFilters(List.of(filter));
+
+		employeeEsService.search(request);
+
+		JsonNode dsl = capturedDsl();
+		assertThat(dsl.at("/query/term/workBaseSi").asText()).isEqualTo("SHANGHAI");
+	}
+
+	@Test
 	void searchBuildsNestedTermsAndCountAggregationDsl() throws Exception {
 		when(esQueryClient.search(eq("employee"), anyString())).thenReturn("{}");
 

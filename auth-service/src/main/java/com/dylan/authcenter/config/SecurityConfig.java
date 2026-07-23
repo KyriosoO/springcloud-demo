@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.core.annotation.Order;
 
 import com.dylan.authcenter.service.UserService;
 import com.dylan.common.security.JwtResourceServerHttpSecurity;
@@ -24,6 +25,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
+	@Order(2)
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		return JwtResourceServerHttpSecurity.applyDefaults(http)
 				.authorizeHttpRequests(auth -> auth

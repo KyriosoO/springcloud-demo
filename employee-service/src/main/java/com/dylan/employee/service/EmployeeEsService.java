@@ -44,7 +44,8 @@ public class EmployeeEsService {
 	private static final int MAX_GROUP_BY_FIELDS = 3;
 	private static final Pattern AGGREGATION_ALIAS = Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,63}");
 	private static final Set<String> SEARCHABLE_FIELDS = Set.of(
-			"contactAddress", "chineseName", "idCardNo", "memberNo", "phoneNo", "email", "position");
+			"contactAddress", "chineseName", "idCardNo", "memberNo", "phoneNo", "email", "position",
+			"workBaseSi");
 
 	private final EmployeeService employeeService;
 	private final EmployeeEmbeddingService embeddingService;
@@ -467,7 +468,7 @@ public class EmployeeEsService {
 
 	private boolean isKeywordField(String field) {
 		return "idCardNo".equals(field) || "memberNo".equals(field) || "phoneNo".equals(field)
-				|| "email".equals(field);
+				|| "email".equals(field) || "workBaseSi".equals(field);
 	}
 	
 	/**
@@ -500,6 +501,7 @@ public class EmployeeEsService {
 		properties.put("chineseName", textMapping());
 		properties.put("contactAddress", textMapping());
 		properties.put("position", textMapping());
+		properties.put("workBaseSi", keywordMapping());
 		properties.put("embeddingText", textMapping());
 		if (hasText(request.getEmbeddingField())) {
 			properties.put(request.getEmbeddingField(), Map.of(

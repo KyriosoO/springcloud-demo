@@ -18,15 +18,15 @@
 
 - 文档版本：`v2.0`。
 - 设计状态：`In Review`；2026-07-23 显式授权的上下级依赖五轮复审已在修订后达到最终未关闭问题 0。L2-01 正式实现评审通过，L2-02/03/04/05 按各自当前范围正式实现评审有条件通过；评审结论不等于实现或生产批准。历史 45 轮与 30 轮记录作为证据保留，不是后续必须复刻的流程；今后的文档自检仍按风险执行 1～3 轮，随后只做一次跨层回归。
-- 实施依据：阶段实施授权由获批的关闭计划统一治理。L2-02 需先实现并验证 Auth 单次解析、独立 keyset 与委托凭证；L2-03 阶段 A Employee QUERY、L2-05 阶段 A Search、L2-04 DOCUMENT 按 P1→P3 及各自技术门禁推进。Transaction 聚合、Index 与 Rebuild 尚未形成实现权威。
-- 实现状态：未开始；本轮没有编写 Agent 代码。
+- 实施依据：阶段实施授权由获批的关闭计划统一治理。P1 Employee 调用采用独立无状态`agent-employee-adapter`，复用`employee-service`既有 ES Search；向量接口暂不进入 Graph。L2-05 Search、L2-04 DOCUMENT 按 P2→P3 及各自门禁推进。
+- 实现状态：P1 实施中；已有 Python Agent/Auth/Gateway 临时实现，本次正在迁移 Employee Agent 专属实现到独立 Adapter，尚未完成真实互操作。
 - 生产状态：未批准；供应商合规、真实目标系统质量和运行环境验证均是后续门禁。
-- 实施计划：[`L2实施与文档关闭计划_v2.0.md`](L2实施与文档关闭计划_v2.0.md) 的 P0 已完成；基线、依赖、安全材料引用、单租户夹具与旧资产边界见 [`evidence/P0/P0_开发基线与资源准备记录_v2.0.md`](evidence/P0/P0_开发基线与资源准备记录_v2.0.md)。下一步为 P1 合同先行与最小 Employee QUERY 纵切，尚未创建 Agent 代码。
+- 实施计划：[`L2实施与文档关闭计划_v2.0.md`](L2实施与文档关闭计划_v2.0.md) 的 P0 已完成，P1 实施中；下一步是完成 Adapter、Employee ES字段/安全补强及 Python→Adapter→Employee 合同验证。
 
 ## 3. 基线规则
 
 1. 旧 `agent-*`、`document-*` 项目与旧设计只可作为迁移盘点、命名/路由冲突和现状勘察输入，不是目标架构基线、目标依赖或可直接复用的实现权威。
-2. 首阶段只设计一个官方 Python LangGraph `agent-service` 部署单元；不再叠加 Java 主编排、独立 Python Runtime 或 Provider 服务。
+2. 官方 Python LangGraph `agent-service`是唯一编排、计划和 Graph State 权威；允许独立无状态`agent-employee-adapter`，但禁止其运行模型、图或形成第二状态权威。
 3. Auth、业务数据和原始文档分别由其上游拥有；Agent 只编排、只收紧授权，不直连其数据库。
 4. `es-query-*` 是独立基础设施边界；其当前代码可用性必须在实现阶段单独验证。
 5. Transaction 运行时业务逻辑只落在`mq-procedure-service`；`transaction-api`只承载分布式共享 DTO、枚举和值对象，不承载 Controller、Service、Mapper、安全链或业务规则。
@@ -39,6 +39,6 @@
 
 ## 5. 齐备性与下一步
 
-当前文档集已覆盖首个最小纵切，无需扩写通用平台。下一步先关闭 L2-02 的 Auth 单次解析与委托凭证合同，再执行`AUTH -> PLAN -> VALIDATE -> AUTHORIZE -> EMPLOYEE QUERY/CLARIFY -> RESULT_SECURITY` PoC，验证类型化 State、非法计划或资源事实缺失时零上游调用、deadline/迟到结果、Python/Java 认证和错误映射；PoC 尚未执行。Search 作为第二个独立纵切，在其 OpenAPI、生产依赖与真实 ES 测试条件具备后实施。
+当前文档集已覆盖首个最小纵切，无需扩写通用平台。P1 固定执行`AUTH -> PLAN -> VALIDATE -> AUTHORIZE -> EMPLOYEE QUERY/CLARIFY -> RESULT_SECURITY`，其中 Employee 路径为`Python Agent -> Java Adapter -> employee-service ES Search`；验证非法计划零上游、委托凭证不转发、deadline/迟到结果和严格 ES 投影。真实 PoC 尚未完成。
 
 只有在真实需求和前置事实出现时才扩展：Employee QUERY 通过后再评估 Transaction AGGREGATE；首个文档源版本/删除合同具备后再设计 Index；快照/游标/静默证明具备后再设计 Rebuild。不得用新增文档替代 PoC、代码测试或目标环境验证。

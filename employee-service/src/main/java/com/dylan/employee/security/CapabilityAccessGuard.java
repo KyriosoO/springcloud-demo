@@ -13,11 +13,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class CapabilityAccessGuard {
 
-    private static final String AGENT_SERVICE = "agent-service";
+    private static final String AGENT_EMPLOYEE_ADAPTER = "agent-employee-adapter";
 
     public void requireUserOrAgentScope(Authentication authentication, String requiredScope) {
         Jwt jwt = extractJwt(authentication);
-        if (!SecurityTokenUtils.isUserOrAuthorizedService(jwt, AGENT_SERVICE, requiredScope)) {
+        if (!SecurityTokenUtils.isUserOrAuthorizedService(jwt, AGENT_EMPLOYEE_ADAPTER, requiredScope)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Employee capability permission denied");
         }
     }

@@ -42,14 +42,14 @@ auth:
           - knowledge_base
           - literature
         filterable-fields:
-          employee: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+          employee: [chineseName, memberNo, position, workBaseSi, contactAddress, idCardNo, phoneNo, email]
           transaction: [transId, transType, transDate, amount]
           company_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
           tax_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
           knowledge_base: [title, sourceType, category, tags, section, updatedAt, sourceUri, snippet]
           literature: [title, author, publishedAt, publication, section, page, sourceUri, snippet]
         displayable-fields:
-          employee: [chineseName, memberNo, position, contactAddress, idCardNo, phoneNo, email]
+          employee: [chineseName, memberNo, position, workBaseSi, contactAddress, idCardNo, phoneNo, email]
           transaction: [transId, transType, transDate, amount]
           company_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
           tax_policy: [title, sourceType, effectiveDate, tags, section, page, sourceUri, snippet]
@@ -59,6 +59,7 @@ auth:
           employee.chineseName: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
           employee.memberNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
           employee.position: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
+          employee.workBaseSi: [EQ, IN]
           employee.contactAddress: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
           employee.idCardNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]
           employee.phoneNo: [EQ, CONTAINS, CONTAINS_ANY, STARTS_WITH, STARTS_WITH_ANY, IN]

@@ -6,20 +6,31 @@ import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.RetryGatewayFilterFactory;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 
 @Configuration
+@EnableConfigurationProperties(AgentGatewayProperties.class)
 public class GatewayRouter {
-	@Bean
 	RouteLocator customRouteLocator(RouteLocatorBuilder builder, RetryGatewayFilterFactory retryFactory) {
+		return customRouteLocator(builder, retryFactory, new AgentGatewayProperties(false, null));
+	}
+
+	@Bean
+	RouteLocator customRouteLocator(RouteLocatorBuilder builder, RetryGatewayFilterFactory retryFactory,
+			AgentGatewayProperties agentGatewayProperties) {
 		GatewayFilter retry = retryFactory.apply(c -> {
 			c.setRetries(3);
 			c.setStatuses(HttpStatus.SERVICE_UNAVAILABLE);
 			c.setBackoff(Duration.ofMillis(500), Duration.ofMillis(500), 1, false);
 		});
-		return builder.routes()
+		RouteLocatorBuilder.Builder routes = builder.routes();
+		if (agentGatewayProperties.enabled()) {
+			routes.route("agent_route", r -> r.path("/api/agent/**").uri(agentGatewayProperties.uri()));
+		}
+		return routes
 				.route("hello_route", r -> r.path("/test", "/api/**", "/orders/**").filters(f -> f.filter(retry)).uri("lb://openfeign-service"))
 				.route("ws_route", r -> r.path("/ws/**").uri("lb:ws://mq-procedure-service"))
 				.route("auth_route", r -> r.path("/login", "/login.html", "/home.html", "/as/**").filters(f -> f.filter(retry)).uri("lb://auth-service"))

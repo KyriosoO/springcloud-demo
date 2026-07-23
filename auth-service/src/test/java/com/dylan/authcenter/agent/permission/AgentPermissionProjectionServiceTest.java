@@ -50,7 +50,7 @@ class AgentPermissionProjectionServiceTest {
         assertThat(response.allowedDomains()).containsExactlyInAnyOrder(
                 "employee", "transaction", "company_policy", "tax_policy", "knowledge_base", "literature");
         assertThat(response.filterableFields().get("employee"))
-                .containsExactlyInAnyOrder("chineseName", "memberNo", "position",
+                .containsExactlyInAnyOrder("chineseName", "memberNo", "position", "workBaseSi",
                         "contactAddress", "idCardNo", "phoneNo", "email");
         assertThat(response.filterableFields().get("tax_policy"))
                 .containsExactlyInAnyOrder("title", "sourceType", "effectiveDate", "tags",

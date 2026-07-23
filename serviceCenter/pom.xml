@@ -143,6 +143,7 @@
 		<module>../config-service</module>
 		<module>../gateway-service</module>
 		<module>../auth-service</module>
+		<module>../agent-employee-adapter</module>
 		<module>../m-service-1</module>
 		<module>../m-service-2</module>
 		<module>../openfeign-service</module>

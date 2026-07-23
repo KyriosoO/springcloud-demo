@@ -8,14 +8,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         properties = {
                 "eureka.client.enabled=false",
                 "spring.cloud.config.enabled=false",
                 "common.security.secrets.allow-config-values=true",
                 "common.security.secrets.source-order[0]=config",
                 "common.security.secrets.jwt.active-key-id=ACTIVE",
-                "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                "common.security.secrets.jwt.keys.ACTIVE.value=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                "common.security.secrets.agent-service-jwt.active-key-id=ACTIVE",
+                "common.security.secrets.agent-service-jwt.previous-key-ids[0]=PREVIOUS",
+                "common.security.secrets.agent-service-jwt.keys.ACTIVE.value=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+                "common.security.secrets.agent-service-jwt.keys.PREVIOUS.value=CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="
         })
 @DisplayName("AgentPermission Spring context")
 class AgentPermissionSpringContextTest {

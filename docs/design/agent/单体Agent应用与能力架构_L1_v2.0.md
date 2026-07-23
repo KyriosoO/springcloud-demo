@@ -33,6 +33,7 @@
 | v2.0-r6 | 2026-07-23 | 由六份 L2 串行复审触发原子同步：将内部就绪语义限定为进入实现评审，不表示已批准实施。 |
 | v2.0-r7 | 2026-07-23 | 按最小必要原则移除包结构和完整 State 字段清单，L1 只保留逻辑职责、状态不变量与下位门禁。 |
 | v2.0-r8 | 2026-07-23 | 原子同步本轮评审：明确 Auth facade 在图前单次解析，区分规划授权上界与能力有效授权，并校正阶段 A 实施范围。 |
+| v2.0-r9 | 2026-07-23 | 引入独立无状态 `agent-employee-adapter`，复用 Employee 既有 ES/向量接口；LangGraph 继续作为唯一编排与状态权威。 |
 
 ## 3. 架构目标与非目标
 
@@ -42,7 +43,7 @@
 
 | L0 约束 | 本 L1 落实 |
 |---|---|
-| AD-01、AD-02 | 一个 Python LangGraph 部署单元、同步请求内类型化状态、无 checkpointer |
+| AD-01、AD-02 | 一个 Python LangGraph 编排部署单元；独立适配服务无 Graph/模型/持久状态；同步请求内类型化状态、无 checkpointer |
 | AD-03、AD-04、AD-05、AD-13、AD-14 | 固定图、模型提议、确定性节点校验、权限只收紧、封闭输出、服务身份/用户事实分离与出站白名单 |
 | AD-06、AD-07、AD-08 | 上游数据所有权、DOCUMENT/检索责任分离、检索前过滤 |
 | AD-09、AD-10、AD-11、AD-12 | 单一 deadline/retry 所有者、严格合同、状态不夸大、按证据演进 |
@@ -50,7 +51,7 @@
 
 ## 5. 核心职责与职责边界
 
-Agent 是一个 Python 模块化单体，不是 Java/Python 服务集合。官方 LangGraph `StateGraph`是唯一编排和状态流转权威；所有请求在同一进程中完成“鉴权—规划—校验—单能力执行—结果安全”。模型没有 Tool/网络凭据，不能直接调用业务或检索服务；只有确定性节点可以访问上游 Client。
+Agent 编排是一个 Python 模块化单体，不是 Java/Python 双编排系统。官方 LangGraph `StateGraph`是唯一编排和状态流转权威；“鉴权—规划—校验—单能力执行—结果安全”只在`agent-service`中完成。独立`agent-employee-adapter`只承担 Employee 协议适配，不拥有模型、Graph State、能力路由或权限策略。模型没有 Tool/网络凭据，不能直接调用业务或检索服务；只有确定性节点可以访问上游 Client。
 
 ### 5.1 模块职责
 
@@ -64,6 +65,7 @@ Agent 是一个 Python 模块化单体，不是 Java/Python 服务集合。官�
 | QUERY/AGGREGATE | 受控上游调用和结果投影 | 能力互调、模型计算业务指标 |
 | DOCUMENT | retrieve/evidence/generate/citation 固定链 | 索引实现、原文所有权 |
 | 外部访问 | 通过获准的模型/Auth/业务/检索窄合同访问上游 | 动态目标切换、授权放宽、跨域聚合 |
+| Employee Adapter | 验证 Employee 目标委托凭证、映射严格请求、调用 Employee 既有受控接口、投影响应与错误 | 规划、模型、Graph State、Auth 权限推导、数据库/ES 直连 |
 | 可观测性 | 安全摘要、耗时、结果码和健康状态 | 请求正文、Prompt、密钥 |
 
 具体包、文件、类、方法和 DTO 由 L2-01～04 冻结；本 L1 不建立第二套实现结构权威。
@@ -74,8 +76,9 @@ Agent 是一个 Python 模块化单体，不是 Java/Python 服务集合。官�
 - `graph` 依赖 planning/capabilities/security 端口并决定唯一控制流；
 - 能力包依赖自己的 Validator 和上游 Client，不相互调用；
 - `clients` 不得反向依赖 `api`、`graph` 或其他 Client；
-- 不建立独立 `agent-api`、`agent-adapter-*`、`agent-runtime` 或 `document-provider-adapter` 项目；
+- 除已获准的独立 `agent-employee-adapter` 外，不建立通用 `agent-api`、`agent-adapter-*`、`agent-runtime` 或 `document-provider-adapter` 项目；
 - 不建立 Java 主编排或 LangGraph 旁路；共享 DTO 只有出现第二个真实 Python 消费方后才抽取公共包。
+- Employee 调用固定为`agent-service -> agent-employee-adapter -> employee-service`；适配器不得绕过 Employee 直连数据库或`es-query-service`。
 
 ## 6. 核心数据流与状态模型
 
@@ -127,12 +130,13 @@ API 边界先以 Agent 服务身份调用 Auth facade 一次，由 Auth 验证�
 | 上游 | Agent 使用方式 | 兼容要求 |
 |---|---|---|
 | `auth-service` | 内部权限解析，短超时、无正缓存 | 加字段可兼容；缺少必需安全事实时失败关闭 |
-| `employee-service` | 查询/计数等只读 API | DTO 显式版本；不得直接依赖其数据库模型 |
+| `agent-employee-adapter` | Employee 严格查询适配 | 验证目标委托凭证；将 canonical DTO 映射到 Employee 受控接口；拒绝原始 ES 响应泄漏 |
+| `employee-service` | 既有 ES 查询、向量查询和权威详情等业务 API | Adapter 使用业务中立接口；不得依赖其数据库模型或直传原生 ES DSL |
 | `mq-procedure-service` | 后续交易查询/聚合只读 API | 阶段 B 合同未冻结；写接口不属于 Agent 目标能力 |
 | `es-query-service` | 受控检索请求和索引任务查询 | Agent 不传原生 ES DSL 或物理索引名 |
 | 模型端点 | 规划、DOCUMENT 回答/总结 | OpenAI-compatible 只是线协议，不代表质量/合规通过 |
 
-现存接口只能作为实施期勘察输入。若其字段或错误语义不能支撑 L2，不得在 Agent 内猜测；应先获得对应上游合同变更授权。
+Employee 的`/employees/es/search`与`/employees/es/vector-search`是已核实的复用基线；当前阶段 A 先复用结构化 Search，向量查询只在明确能力与权限合同后接入 Graph。其他现存宽接口仍只作为勘察输入。若字段或错误语义不能支撑 L2，由 Adapter 进行受限映射或先修订 Employee 的业务中立合同，不得在 Agent 内猜测。
 
 每个上游 Client 必须分别拥有目标白名单、协议/证书校验、服务凭据装配、绝对 deadline 和错误翻译；禁止跟随到未获准主机的重定向。用户 subject/tenant/权限事实与服务凭据分离传递，不能用`X-USER-ID`等可伪造头代替 Auth 合同，也不能把用户 Bearer token 当作 Agent 服务身份。模型节点不接触 Client 或任何凭据。
 
@@ -149,14 +153,14 @@ API 边界先以 Agent 服务身份调用 Auth facade 一次，由 Auth 验证�
 
 | 编号 | 决策 | 依据 |
 |---|---|---|
-| APP-DEC-01 | 官方 Python LangGraph 是单一部署/编排单元 | 绿地期先冻结图和状态合同；Java 服务保持外部上游 |
+| APP-DEC-01 | 官方 Python LangGraph 是唯一编排/状态权威 | 独立 Java Adapter 仅做确定性协议转换，不形成第二运行时权威 |
 | APP-DEC-02 | 受限同步 StateGraph、请求级类型化状态、无 checkpointer | 利用显式分支，暂不承担恢复/记忆/人工审批复杂度 |
 | APP-DEC-03 | 模型提议、确定性节点准入 | 隔离非确定性与数据访问权限 |
 | APP-DEC-04 | 三个显式能力包 | 边界清晰且不引入通用插件框架 |
 | APP-DEC-05 | 业务结果不回送模型 | 防止数值改写、泄漏和不必要成本 |
 | APP-DEC-06 | DOCUMENT 由 Agent 编排 | 回答需要结合授权、证据和模型，检索服务只提供原子能力 |
 | APP-DEC-07 | 单个 `ModelClient` 端口 | 首阶段没有多供应商动态路由需求 |
-| APP-DEC-08 | 合同先在本项目定义 | 只有真实复用出现后再抽取，避免空 API 项目 |
+| APP-DEC-08 | Employee 合同由独立 Adapter 隔离 | 已存在 Employee ES/向量能力且跨语言映射真实存在；Adapter 不成为通用插件框架 |
 | APP-DEC-09 | LangGraph4j 仅为硬性 Java-only 备选 | 独立社区依赖，必须重新评估成熟度、API 差异和运维风险 |
 
 ## 13. 可观测性与风险门禁
@@ -178,7 +182,7 @@ API 边界先以 Agent 服务身份调用 Auth facade 一次，由 Auth 验证�
 | 03 业务查询与聚合 | AD-03/06/09/10/14；APP-DEC-04/08 |
 | 04 DOCUMENT 检索问答 | AD-04/05/07/08/09/10/12/13/14；APP-DEC-06/08 |
 
-下位 L2 必须给出严格 Graph State/DTO、固定节点/边、失败语义、实现落点和自动测试，不得引入 Java 编排旁路、第二 Agent 部署单元、动态 Tool 循环、通用插件系统或 checkpointer；公共上游合同变化必须先获得对应范围授权。
+下位 L2 必须给出严格 Graph State/DTO、固定节点/边、失败语义、实现落点和自动测试，不得让 Java Adapter 承担编排、Graph State、动态 Tool 循环、通用插件系统或 checkpointer；公共上游合同变化必须先获得对应范围授权。
 
 官方接口依据：`StateGraph`节点读写共享 state，条件边负责有限路由，图须 compile 后执行；checkpointer 是持久化、跨交互记忆和故障恢复的前提。本设计以`checkpointer=False`禁止当前图使用或继承 checkpointer：<https://reference.langchain.com/python/langgraph/graph/state/StateGraph/compile>、<https://docs.langchain.com/oss/python/langgraph/persistence>。
 

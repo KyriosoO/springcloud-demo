@@ -19,8 +19,11 @@ public final class CompositeSecretMaterialProvider implements SecretMaterialProv
 	private static SecretProperties.KeyProperties keyProperties(
 			SecretProperties properties,
 			SecretKeyRef ref) {
-		var group = ref.purpose() == SecretPurpose.JWT_HMAC
-				? properties.getJwt() : properties.getAgentPayload();
+		var group = switch (ref.purpose()) {
+			case JWT_HMAC -> properties.getJwt();
+			case AGENT_SERVICE_JWT -> properties.getAgentServiceJwt();
+			case AGENT_PAYLOAD -> properties.getAgentPayload();
+		};
 		SecretProperties.KeyProperties key = group.getKeys().get(ref.keyId());
 		if (key == null) {
 			throw new SecretMaterialException(

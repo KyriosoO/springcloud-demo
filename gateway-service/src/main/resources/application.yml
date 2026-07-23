@@ -1,5 +1,8 @@
 server:
   port: 8888
+agent:
+  gateway:
+    enabled: false
 spring:
   config:
     import: optional:configserver:http://localhost:9888

@@ -51,7 +51,8 @@ public class EmployeeEsController {
 	 * 执行向量检索逻辑。
 	 */
 	@PostMapping("/vector-search")
-	public String vectorSearch(@RequestBody SemanticSearchRequest request) {
+	public String vectorSearch(Authentication authentication, @RequestBody SemanticSearchRequest request) {
+		accessGuard.requireUserOrAgentScope(authentication, "agent.employee.vector-search");
 		return employeeEsService.vectorSearch(request);
 	}
 

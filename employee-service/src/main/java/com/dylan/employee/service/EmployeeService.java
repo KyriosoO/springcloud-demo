@@ -271,6 +271,7 @@ public class EmployeeService {
 		document.put("phoneNo", employee.getPhoneNo());
 		document.put("email", employee.getEmail());
 		document.put("position", employee.getPosition());
+		document.put("workBaseSi", employee.getWorkBaseSi());
 		document.put("operTime", employee.getOperTime());
 		document.put("embeddingText", embeddingText);
 		if (hasText(embeddingField)) {
