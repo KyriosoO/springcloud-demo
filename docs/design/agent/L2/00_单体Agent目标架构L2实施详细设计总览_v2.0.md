@@ -25,6 +25,7 @@
 | v2.0-r4 | 2026-07-23 | 删除重复的 Java/Python 方法签名和路径合同，将总览收敛为专题所有者、阶段、依赖与门禁索引。 |
 | v2.0-r5 | 2026-07-23 | 原子同步本轮评审：统一 Auth facade 单次解析与“规划上界→能力有效授权”两阶段安全流。 |
 | v2.0-r6 | 2026-07-23 | 同步 Employee 适配边界：03 阶段 A 新增独立无状态 `agent-employee-adapter`，复用 Employee ES Search；不改变 LangGraph 单编排权威。 |
+| v2.0-r7 | 2026-07-23 | Adapter 边界变更后完成定向跨层回归：同步 P1 已提交/单元验证事实，03 阶段 A 仍以真实 HTTP、稳定错误封套和历史索引回填为退出条件。 |
 
 ## 3. 设计目标与范围
 
@@ -32,7 +33,7 @@
 
 ## 4. 当前实现基线、关联资源与责任边界
 
-当前 P1 已形成 Python LangGraph `agent-service` 与 Auth/Gateway/Employee 临时实现；本次将 Employee 域内 Agent 专属 QUERY 迁移到独立`agent-employee-adapter`。`employee-service`既有 ES Search/Vector 能力已由单测验证，真实 ES 互操作和历史索引完整性仍未验证。L0/L1 决定边界，专题 L2 冻结合同；Auth、业务服务、检索和模型继续拥有各自资源。
+提交`3e379bc`已形成 Python LangGraph `agent-service`、Auth/Gateway、独立`agent-employee-adapter`与 Employee Search 复用的 P1 最小实现，并通过相关模块单元测试；Employee 域内 Agent 专属 QUERY 已移除。真实跨服务 HTTP、稳定错误封套、真实 ES 互操作和历史索引完整性仍未验证。L0/L1 决定边界，专题 L2 冻结合同；Auth、业务服务、检索和模型继续拥有各自资源。
 
 ## 5. 模块职责、依赖方向与调用边界
 

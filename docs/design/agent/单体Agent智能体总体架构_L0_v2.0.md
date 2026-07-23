@@ -13,7 +13,7 @@
 | 内部结论 | Ready for Implementation Review（内部评审结论；不代表已批准实施） |
 | 当前版本 | v2.0 |
 | 日期 | 2026-07-22 |
-| 适用基线 | 本目录 v2.0 设计基线；目标代码与外部合同仍待 PoC/实施核验 |
+| 适用基线 | 本目录 v2.0 设计基线；P1 最小实现已提交并通过单元验证，真实跨服务 PoC 与后续能力仍待核验 |
 | 维护责任角色 | Agent 架构负责人（具体人员由项目治理指定） |
 | 治理的 L1 | `单体Agent应用与能力架构_L1_v2.0.md`、`检索与索引基础设施架构_L1_v2.0.md` |
 | 文档范围 | 新单 Agent 的系统目标、权威边界、质量属性和下位设计约束 |
@@ -32,6 +32,7 @@
 | v2.0-r6 | 2026-07-23 | 由六份 L2 串行复审触发原子同步：将内部就绪语义限定为进入实现评审，不表示已批准实施。 |
 | v2.0-r7 | 2026-07-23 | 原子同步本轮评审：分离规划授权上界与能力有效授权，校正阶段 A 范围，并移除 L0 的包级实现结构。 |
 | v2.0-r8 | 2026-07-23 | 按 Employee 既有 ES/向量能力复用决策增加独立 `agent-employee-adapter`：LangGraph 仍为唯一编排权威，适配器仅负责严格合同、安全转换和 Employee 接口复用。 |
+| v2.0-r9 | 2026-07-23 | 完成 Adapter 边界变更后的定向跨层复审：阶段 A 仅暴露结构化 Search；同步 P1 已提交/单元验证事实，保留真实 HTTP、索引回填和生产门禁。 |
 
 ## 3. 架构目标与非目标
 
@@ -93,7 +94,7 @@
 
 ### 5.1 Agent 应用与 Employee 适配边界
 
-Python `agent-service`以官方 `langgraph` 的 `StateGraph` 作为唯一编排、计划和 Graph State 权威，以 ASGI HTTP 边界暴露入口。独立 Java `agent-employee-adapter`是无状态协议适配部署单元，只验证目标专属委托凭证、把严格 Employee canonical 请求映射到`employee-service`既有受控 ES/向量接口、投影稳定结果并翻译错误；它不得运行模型、LangGraph、计划路由、权限推导或持久状态，因此不形成第二编排/状态权威。
+Python `agent-service`以官方 `langgraph` 的 `StateGraph` 作为唯一编排、计划和 Graph State 权威，以 ASGI HTTP 边界暴露入口。独立 Java `agent-employee-adapter`是无状态协议适配部署单元，只验证目标专属委托凭证、把严格 Employee canonical 请求映射到`employee-service`既有受控接口、投影稳定结果并翻译错误；阶段 A 只映射结构化 ES Search，既有向量接口不进入 Graph。它不得运行模型、LangGraph、计划路由、权限推导或持久状态，因此不形成第二编排/状态权威。
 
 依赖只允许从入口经固定图进入规划/安全/能力责任，再通过窄 Client 访问适配器或其他上游；`agent-service -> agent-employee-adapter -> employee-service -> es-query-service`不得反向依赖。Employee 主数据和索引编排仍归`employee-service`，适配器不得直连 Employee 数据库或`es-query-service`。
 
