@@ -1,27 +1,10 @@
 server:
-  port: 0
+  port: 9201
 
 spring:
-  cloud:
-    config:
-      enabled: false
-    discovery:
-      enabled: false
-    service-registry:
-      auto-registration:
-        enabled: false
-
-eureka:
-  client:
-    enabled: false
-    register-with-eureka: false
-    fetch-registry: false
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health
-  endpoint:
-    health:
-      show-details: never
+  application:
+    name: es-query-service
+  config:
+    import: optional:configserver:http://localhost:9888
+  profiles:
+    active: datasource,es
