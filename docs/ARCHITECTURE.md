@@ -1,16 +1,21 @@
 # 架构文档索引
 
-本仓库的 Agent 目标架构以 `docs/design/agent/` 为唯一现行入口。历史 `agent-*`、`document-*`、P1/P2 设计、迁移报告和评审证据已退出目标基线，不得作为实现依据。
+本仓库新的 Agent 设计以已确认需求为当前需求基线。原 `docs/design/agent/` 下的旧 Agent 设计已退出当前工作区，不得作为新设计或实现依据。
 
-## 现行入口
+## 当前有效文档
 
-- [Agent 设计文档导航](design/agent/README.md)
-- [单体 Agent 总体架构 L0](design/agent/单体Agent智能体总体架构_L0_v2.0.md)
-- [Agent 应用与能力架构 L1](design/agent/单体Agent应用与能力架构_L1_v2.0.md)
-- [检索与索引基础设施架构 L1](design/agent/检索与索引基础设施架构_L1_v2.0.md)
+- [单体 Agent 查询能力建设需求说明](SINGLE_AGENT_QUERY_REQUIREMENTS.md)（v1.0，已确认）
+
+## 架构文档状态
+
+- L0 总体架构：当前工作区不存在，待依据已确认需求重新生成并确认。
+- L1 领域或模块架构：尚未建立，需在新 L0 的边界和约束下继续设计。
+- L2 详细设计：尚未建立，需由对应 L1 治理后再行编制。
+- 已删除的旧 L0、L1、L2 文档及历史 Agent 实现不得反向提升为当前架构权威。
 
 ## 权威边界
 
-- 新 Agent 是后续待实现的单一 Python LangGraph 部署单元；当前仓库没有可复用的 Agent 目标实现。
-- `auth-service`、业务服务、`es-query-*`、网关和通用组件是上游或基础设施，不属于 Agent 内部模块。
-- 文档状态只表示设计成熟度，不表示代码已实现、质量已验证或允许生产发布。
+- 当前权威顺序为：已确认需求 → 新 L0 → 新 L1 → 新 L2 → 实现与验证证据。
+- 在新 L0 确认前，不预设 Agent 的具体技术栈、部署形态或内部模块划分。
+- `auth-service`、`employee-service`、`mq-procedure-service`、`es-query-*`、网关、配置中心和通用组件可作为现状核实对象，但其既有实现不自动构成新 Agent 的目标架构。
+- 文档状态、代码实现状态、验证状态和发布状态相互独立，不得以其中一项替代其他项。
