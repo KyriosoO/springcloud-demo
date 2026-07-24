@@ -1,7 +1,7 @@
 # 单体 Agent 查询能力 L0 总体架构设计
 
 > 文档层级：L0
-> 文档状态：草稿
+> 文档状态：已评审
 
 ## 1. 文档治理信息
 
@@ -10,16 +10,16 @@
 | 文档标识 | SA-L0-001 |
 | 文档层级 | L0 总体架构 |
 | 权威范围 | 单体 Agent 查询系统的全局边界、模块划分、依赖方向、关键流程、质量约束和演进门禁 |
-| 文档状态 | 草稿 |
-| 评审状态 | 未评审 |
+| 文档状态 | 已评审 |
+| 评审状态 | 有条件通过 |
 | 实施状态 | 未实施 |
 | 生效状态 | 未生效 |
-| 当前版本 | v0.2 |
-| 适用基线 | `SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.1（2026-07-24，已确认）及 2026-07-24 工作区现状核实 |
+| 当前版本 | v0.3 |
+| 适用基线 | `SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.2（2026-07-24，已确认）及 2026-07-24 工作区现状核实 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
-| 目标文档位置 | `docs/SINGLE_AGENT_ARCHITECTURE.md` |
+| 目标文档位置 | `docs/design/SINGLE_AGENT_ARCHITECTURE.md` |
 | 上位架构文档 | 无 |
-| 外部治理文档 | [单体 Agent 查询能力建设需求说明](SINGLE_AGENT_QUERY_REQUIREMENTS.md) |
+| 外部治理文档 | [单体 Agent 查询能力建设需求说明](../SINGLE_AGENT_QUERY_REQUIREMENTS.md) |
 | 治理的 L1 文档 | 《单体 Agent 核心与运行架构 L1》《单体 Agent 知识查询能力架构 L1》《单体 Agent 业务查询适配架构 L1》（均待创建） |
 | 外部契约 | `auth-service` JWT 契约；`es-query-service` 只读检索契约；Embedding/重排/生成模型契约；`employee-service` 查询契约；`mq-procedure-service` 查询契约 |
 | 替代关系 | 新建基线；不继承已退出当前工作区的旧 Agent 架构设计 |
@@ -32,6 +32,7 @@
 |---:|---|---|---|---|
 | 1 | 2026-07-24 | 全文 | 创建单体 Agent 查询能力 L0 总体架构初稿 | 执行需求文档 P1 阶段，明确模块、依赖方向和演进边界 |
 | 2 | 2026-07-24 | 知识查询相关章节 | 将知识查询由外部既有能力调整为 Agent 内部能力，明确问题改写、多知识域、多路召回与重排、证据化答案摘要的分层和所有权 | 当前仅具备 ES 向量检索基础设施及测试数据，需要补齐知识查询能力 |
+| 3 | 2026-07-24 | 治理、模块、所有权、安全、门禁及追踪章节 | 完成五轮 L0 评审修订，修复迁移引用，拆清注册与配置所有权，统一 Knowledge 端口依赖，区分内容权威与检索快照，并补齐全查询认证和模型数据出域门禁 | 关闭 L0→L1 独立评审发现并形成可供项目维护者确认的 v0.3 基线 |
 
 ## 3. 文档定位
 
@@ -87,8 +88,8 @@
 
 | 文档或证据 | 关系角色 | 当前权限 | 说明 |
 |---|---|---|---|
-| `SINGLE_AGENT_QUERY_REQUIREMENTS.md` | external_contract | 本次仅按用户授权同步知识能力范围 | 本文的需求权威，L0 不得反向弱化或自行改义 |
-| [架构文档索引](ARCHITECTURE.md) | repository_rule | 只读 | 仓库架构入口索引，需在本文确认后另行同步 |
+| `SINGLE_AGENT_QUERY_REQUIREMENTS.md` | external_contract | 本次按用户授权同步版本和 P2 分层表述 | 本文的需求权威，L0 不得反向弱化或自行改义 |
+| [架构文档索引](../ARCHITECTURE.md) | repository_rule | 本次按用户授权原子同步 | 仓库架构入口索引，必须与本文位置、版本和评审状态一致 |
 | 本文 | target | 可写 | 本次唯一目标文档 |
 | 计划中的三份 L1 | governed_child | 只读/尚不存在 | 本文确认后创建 |
 | 现有服务代码、配置和测试 | implementation_evidence | 只读 | 用于核实现状，不反向定义目标架构 |
@@ -171,7 +172,7 @@
 
 | 质量属性 | 目标 | 适用范围 | 验证方式 |
 |---|---|---|---|
-| 安全性 | 缺少或无效 JWT 返回 401；无业务权限返回 403；禁止身份替换 | 入口及结构化查询链路 | 安全负向测试 |
+| 安全性 | 三类查询缺少或无效 JWT 均返回 401；业务域无权限返回 403；禁止身份替换 | Agent 入口及全部查询链路 | 安全负向测试 |
 | 边界完整性 | Agent 和 Adapter 不直接访问 Employee/Transaction DB 或 ES | 所有业务 Adapter | 依赖扫描、代码评审、集成调用记录 |
 | 扩展性 | 新增模拟查询能力不修改已有能力实现，不向核心增加业务域分支 | 能力 API、注册表、组合根 | 扩展性测试 |
 | 可靠性 | 参数错误不调用下游；无数据和失败可区分；失败不生成业务事实 | 核心与 Adapter | 单元和集成测试 |
@@ -224,6 +225,7 @@ flowchart LR
         AgentCore["agent-core"]
         Registry["能力注册与动作校验"]
         KnowledgeCapability["agent-knowledge-capability<br/>改写、域路由、召回编排、重排、证据"]
+        KnowledgeRetrievalPort["Knowledge 只读检索端口"]
         KnowledgeAdapter["agent-knowledge-adapter"]
         EmployeeAdapter["agent-employee-adapter"]
         TransactionAdapter["agent-transaction-adapter"]
@@ -247,7 +249,8 @@ flowchart LR
     Registry --> EmployeeAdapter
     Registry --> TransactionAdapter
     KnowledgeCapability -->|"改写、重排、证据化摘要"| Model
-    KnowledgeCapability --> KnowledgeAdapter
+    KnowledgeCapability --> KnowledgeRetrievalPort
+    KnowledgeAdapter --> KnowledgeRetrievalPort
     KnowledgeAdapter -->|"受控关键词/向量检索"| EsQuery
     EsQuery --> Elasticsearch
     EmployeeAdapter -->|"有限查询 + 原始用户 JWT"| Employee
@@ -296,8 +299,8 @@ flowchart LR
 | SA-C-004 | Employee、Transaction 的角色授权由目标业务服务最终执行 | 安全边界 | Adapter 不掌握业务授权规则 | 401/403 集成测试 | 无 |
 | SA-C-005 | 模型输出一律视为不可信输入 | 模型和能力边界 | 防止任意工具、参数和协议调用 | 动作与参数拒绝测试 | 无 |
 | SA-C-006 | 动作处理器、请求响应类型和业务映射由代码确定，配置只能收紧或启停 | 能力配置 | 防止配置变成动态执行平台 | 启动校验和配置测试 | 无 |
-| SA-C-007 | 缺少用户 JWT 时禁止回退到 Agent 服务身份 | 结构化查询链路 | 本期查询必须服从当前用户权限 | 无 JWT 及客户端测试 | 无 |
-| SA-C-008 | Agent 不持有业务数据源真相，不保存长期业务或会话状态 | 数据与状态 | 避免复制数据所有权和状态复杂度 | 存储依赖检查 | 无 |
+| SA-C-007 | 缺少用户 JWT 时禁止执行 Knowledge、Employee 或 Transaction 查询，也禁止回退到 Agent 服务身份 | 全部查询链路 | 本期所有查询均基于已认证用户上下文 | 无 JWT 及客户端测试 | 无 |
+| SA-C-008 | Agent 不持有知识内容或业务数据源真相，不保存长期业务或会话状态 | 数据与状态 | 避免复制数据所有权和状态复杂度 | 存储依赖检查 | 无 |
 | SA-C-009 | 无数据、调用失败或不完整结果不得转换为肯定业务事实 | 回答生成 | 防止幻觉和错误决策 | 故障注入测试 | 无 |
 | SA-C-010 | 新增能力通过能力实现、Adapter、配置和组合根接入，不向核心加入业务域分支 | 扩展边界 | 保持已有能力稳定 | 模拟能力扩展测试 | 无 |
 | SA-C-011 | 日志不得记录完整 JWT、密钥、密码或不必要敏感业务数据 | 全链路 | 满足最小安全要求 | 日志断言和检查 | 无 |
@@ -326,7 +329,7 @@ flowchart LR
 | `agent-transaction-adapter` | 将 Transaction 有限动作映射到 `mq-procedure-service`，透传 JWT 并标准化结果 | 不访问 Transaction DB/ES，不维护角色，不调用聚合或写入 | Transaction 动作配置；不拥有 Transaction 数据 | 项目维护者 | 业务查询适配 L1 |
 | 模型接入端口及实现 | 提供结构化能力选择和回答生成所需的模型调用 | 不直接执行动作，不持有业务权限 | 无业务状态 | 项目维护者 | 核心与运行 L1 |
 | Embedding 与重排端口及实现 | 为查询文本生成向量，并对受控候选集合执行语义重排 | 不选择知识域，不访问 ES，不生成最终答案 | 无业务持久状态 | 项目维护者 | 知识查询能力 L1 |
-| 能力注册与动作配置 | 注册能力实现，合并代码描述和配置限制，并在启动时校验 | 不动态加载代码，不定义业务接口类型 | 各能力或 Adapter 拥有本域配置，应用拥有注册运行态 | 项目维护者 | 三份 L1 共同约束 |
+| 能力注册运行时 | 提供稳定注册入口，合并能力描述和启用状态，并在启动时校验后形成只读注册表 | 不拥有知识域、Employee 或 Transaction 的具体动作和边界配置，不动态加载代码 | `agent-application` 拥有进程内只读注册运行态 | 项目维护者 | 核心与运行 L1 |
 
 ### 8.2 内部模块与依赖方向
 
@@ -375,6 +378,7 @@ flowchart TD
 8. `agent-knowledge-adapter` 只暴露 Knowledge L1 允许的只读检索端口；现有 ES 写入、删除、批量和重建能力对 Agent 不可见。
 9. 多知识域、多路召回是单个知识查询动作的内部实现，不得被核心解释为多个业务能力调用。
 10. Knowledge Capability 与 Knowledge Adapter 通过 Knowledge L1 定义的只读检索端口连接；应用组合根选择实现，能力实现不得直接引用具体 Adapter 类。
+11. 核心与运行 L1 定义能力注册语义和注册运行时；Knowledge、Employee、Transaction 分别拥有本能力的描述、启用状态及边界配置，不得共同拥有一个可修改的配置对象。
 
 ### 8.4 依赖方向
 
@@ -382,7 +386,7 @@ flowchart TD
 |---|---|---|---|---|
 | `agent-application` | `agent-core`、具体 Adapter | 装配和启动 | 应用 → 内部模块 | 内部模块反向控制应用生命周期 |
 | `agent-core` | `agent-capability-api` | 查询可用动作并执行统一能力 | 核心 → 抽象 | 核心直接调用业务 URL |
-| 具体 Adapter | `agent-capability-api` | 实现统一能力 | Adapter → 抽象 | Adapter 依赖核心业务分支 |
+| Employee/Transaction Adapter | `agent-capability-api` | 实现统一业务查询能力 | Adapter → 抽象 | Adapter 依赖核心业务分支 |
 | `agent-core` | 模型接入端口 | 动作候选和回答生成 | 核心 → 端口 | 模型实现直接执行工具 |
 | Knowledge Capability | 模型、Embedding 与重排端口 | 问题改写、查询向量、受控候选重排和证据整理 | 知识能力 → 端口 | 模型端口直接访问 ES 或扩展知识域 |
 | Knowledge Capability | Knowledge 只读检索端口 | 执行受控多域、多路检索计划 | 知识能力 → 端口 | Knowledge Capability 直接依赖 Adapter 或访问 ES |
@@ -409,7 +413,7 @@ flowchart TD
 
 | 流程 | 起点 | 决策责任 | 执行责任 | 状态或数据权威 | 失败与恢复 | 审计责任 |
 |---|---|---|---|---|---|---|
-| 知识查询 | 用户问题 | Agent 核心选择 `knowledge.query`；Knowledge Capability 决定改写、逻辑知识域和召回计划 | Knowledge Capability 编排，Knowledge Adapter 调用 `es-query-service` | 当前 ES 测试索引是检索事实来源；Agent 只拥有请求级计划和证据 | 单路失败、整体无结果、重排失败分别处理；不扩展到业务域 | Agent 记录阶段、逻辑域、召回路径、候选数量、状态和耗时 |
+| 知识查询 | 用户问题 | Agent 核心选择 `knowledge.query`；Knowledge Capability 决定改写、逻辑知识域和召回计划 | Knowledge Capability 通过只读检索端口编排，Knowledge Adapter 调用 `es-query-service` | 现有知识集是内容权威；当前 ES 测试索引是派生检索证据快照；Agent 只拥有请求级计划和证据 | 单路失败、整体无结果、重排失败分别处理；不扩展到业务域 | Agent 记录阶段、逻辑域、召回路径、候选数量、状态和耗时 |
 | Employee 查询 | 用户问题 | Agent 核心选择 Employee 动作，Adapter 校验 | Employee Adapter 调用 `employee-service` | `employee-service` | 401/403 失败关闭；超时不扩展查询 | Agent 与 Employee 各记录本边界事件 |
 | Transaction 查询 | 用户问题 | Agent 核心选择 Transaction 动作，Adapter 校验 | Transaction Adapter 调用 `mq-procedure-service` | `mq-procedure-service` | 401/403 失败关闭；不调用聚合或写入 | Agent 与 Transaction 各记录本边界事件 |
 | 不支持或跨业务域问题 | 用户问题 | Agent 核心 | 不调用下游 | 无 | 明确不支持或请求缩小范围；知识动作内部多知识域不在此限制内 | Agent 记录 `unsupported` |
@@ -483,11 +487,15 @@ sequenceDiagram
 | 用户身份和角色声明 | `auth-service` | 验证并透传 JWT | 否 |
 | Employee 数据及其可见性 | `employee-service` | 通过有限动作只读查询 | 否 |
 | Transaction 数据及其可见性 | `mq-procedure-service` | 通过有限动作只读查询 | 否 |
-| 知识测试数据和向量索引 | 当前 Elasticsearch 测试环境；知识内容业务来源和维护边界待 P2 确认 | 通过 Knowledge Adapter 只读检索 | 否 |
+| 现有知识集 | 项目维护者；具体来源位置、版本和维护方式待 P2 确认 | 只通过检索证据使用，不由 Agent 修改 | 否 |
+| 知识检索索引和测试向量 | `es-query-service` 与当前 Elasticsearch 测试环境 | 作为现有知识集的派生检索快照，通过 Knowledge Adapter 只读查询 | 否 |
 | 知识查询计划、候选、证据上下文和答案摘要 | `agent-knowledge-capability` | 仅在当前请求内编排和使用 | 否 |
 | Employee ES 索引 | Employee 域及其内部检索基础设施 | Agent 不直接访问 | 否 |
-| 查询动作配置 | 各具体 Adapter | 启动时强类型加载 | 仅进程内运行态 |
-| 能力注册运行态 | `agent-application` 组合根 | 启动时构建，只读使用 | 否 |
+| 能力注册运行态 | `agent-application` | 启动时组合并校验，运行期只读 | 仅进程内运行态 |
+| Knowledge 查询策略配置 | `agent-knowledge-capability` | 控制改写、域选择、召回、融合、重排和证据边界 | 仅进程内运行态 |
+| Knowledge 检索映射与边界配置 | `agent-knowledge-adapter` | 映射逻辑域到受控索引或别名并限制检索 | 仅进程内运行态 |
+| Employee 动作配置 | `agent-employee-adapter` | 定义本域已注册有限动作及边界 | 仅进程内运行态 |
+| Transaction 动作配置 | `agent-transaction-adapter` | 定义本域已注册有限动作及边界 | 仅进程内运行态 |
 | 调用日志元数据 | Agent 运行单元 | 故障定位和验证 | 按现有日志设施保存 |
 
 ### 10.2 状态所有权
@@ -507,7 +515,7 @@ sequenceDiagram
 | `role` → `GrantedAuthority` 映射 | `common-security` | Employee、Transaction | 统一实现，不允许各服务自行字符串解析 | 当前缺失 |
 | Employee 查询契约 | `employee-service` | Employee Adapter | 优先复用；不满足时经确认后新增 | 候选接口存在，动作范围待核实 |
 | Transaction 查询契约 | `mq-procedure-service` | Transaction Adapter | 优先复用；不满足时经确认后新增 | `/txn/search` 等候选存在，范围待核实 |
-| ES 类型化只读检索契约 | `es-query-service` / `es-query-api` | Knowledge Adapter | 复用现有 DSL/KNN 能力并收敛为受控请求和统一候选结果；不暴露管理接口 | 原始 DSL、KNN 和原始 ES 响应已存在，目标契约待 P2 核实 |
+| ES 类型化只读检索契约 | `es-query-service` / `es-query-api` | Knowledge Adapter | 复用底层关键词/KNN 检索实现并收敛为受控请求和统一候选结果；不得向 Agent 暴露原始 DSL、物理索引或管理接口 | 原始 DSL、KNN 和原始 ES 响应已存在，目标契约待 P2 核实 |
 | 查询向量化契约 | 待选 Embedding 模型端口 | Knowledge Capability | 模型差异限制在端口实现，输入输出维度与目标索引一致 | 当前仅发现 Employee 专用向量化实现，Knowledge 契约待定义 |
 | 候选重排契约 | 待选 Rerank 模型端口或确定性实现 | Knowledge Capability | 供应商和算法细节限制在端口实现 | 尚未选择 |
 | 模型结构化与生成契约 | 待选模型或框架 | Agent 核心和 Knowledge Capability 使用的模型端口实现 | 供应商差异限制在端口实现 | 尚未选择 |
@@ -532,7 +540,7 @@ sequenceDiagram
 5. Agent 和 Adapter 不保存业务角色白名单。
 6. Agent 用户查询客户端不得使用现有服务令牌兜底。
 7. 模型只能看到当前动作所需的数据；完整 JWT、密钥和密码不得进入提示词或日志。
-8. 如使用外部模型，真实敏感业务数据的出域范围必须在该集成切片开始前明确；未明确时不得发送。
+8. 如使用外部模型，知识证据及 Employee/Transaction 真实敏感数据的出域范围必须在对应集成切片开始前明确；未明确时不得发送。
 9. 检索内容和模型响应均作为不可信数据，不能扩展动作集合或触发第二次隐式调用。
 10. 模型不得生成或覆盖物理索引名、任意 ES DSL、动态 URL、写入、删除、批量或重建请求；逻辑知识域必须由代码和强类型配置映射为只读检索目标。
 
@@ -608,9 +616,9 @@ sequenceDiagram
 
 | L1 文档 | 权威范围 | 必须承接的约束 | 关联 L1 | 下位 L2 | 顺序或前置 | 状态 |
 |---|---|---|---|---|---|---|
-| 《单体 Agent 核心与运行架构 L1》 | `agent-application`、`agent-core`、`agent-capability-api`、模型生成端口、入口认证和请求级执行 | SA-C-001、002、005、007 至 012、014、018 | 知识查询能力 L1、业务查询适配 L1 | 核心执行、能力契约、生成模型接入、入口安全、错误与观测详细设计 | P1 确认后优先 | 待创建 |
-| 《单体 Agent 知识查询能力架构 L1》 | `agent-knowledge-capability`、`agent-knowledge-adapter`、逻辑知识域、查询 Embedding/Rerank 端口及证据上下文 | SA-C-002、005、006、008 至 012、014 至 018 | 核心与运行 L1 | 问题理解与域选择、ES 只读检索适配、多路融合与重排、证据上下文与答案摘要详细设计 | 核心能力契约边界稳定；SA-GATE-003 的事实可并行核实 | 待创建 |
-| 《单体 Agent 业务查询适配架构 L1》 | 能力注册与动作配置、Employee/Transaction Adapter 及业务权限联调 | SA-C-002 至 014（其中 015 至 018 不适用） | 核心与运行 L1 | 动作注册配置、Employee Adapter、Transaction Adapter、权限联调详细设计 | 核心能力契约边界稳定后 | 待创建 |
+| 《单体 Agent 核心与运行架构 L1》 | `agent-application`、`agent-core`、`agent-capability-api`、能力注册语义与运行时、模型生成端口、入口认证和请求级执行 | SA-C-001、002、005、007 至 012、014、018 | 知识查询能力 L1、业务查询适配 L1 | 核心执行、能力契约与注册运行时、生成模型接入、入口安全、错误与观测详细设计 | P1 确认后优先 | 待创建 |
+| 《单体 Agent 知识查询能力架构 L1》 | `agent-knowledge-capability`、`agent-knowledge-adapter`、Knowledge 能力描述与配置、逻辑知识域、查询 Embedding/Rerank 端口及证据上下文 | SA-C-002、005、006、008 至 012、014 至 018 | 核心与运行 L1 | 问题理解与域选择、Knowledge 注册描述与配置、ES 只读检索适配、多路融合与重排、证据上下文与答案摘要详细设计 | 核心能力契约边界稳定；SA-GATE-003 的事实可并行核实 | 待创建 |
+| 《单体 Agent 业务查询适配架构 L1》 | Employee/Transaction 能力描述与动作配置、两个业务 Adapter 及业务权限联调 | SA-C-002 至 014（其中 015 至 018 不适用） | 核心与运行 L1 | Employee/Transaction 注册描述与动作配置、Employee Adapter、Transaction Adapter、权限联调详细设计 | 核心能力契约边界稳定后 | 待创建 |
 
 ### 13.1 覆盖完整性
 
@@ -620,7 +628,9 @@ sequenceDiagram
 | `agent-core` | 核心与运行 L1 | 是 | 单动作编排与失败策略 |
 | `agent-capability-api` | 核心与运行 L1 | 是 | 稳定能力语义 |
 | 生成模型端口及实现 | 核心与运行 L1 | 是 | 供应商隔离、结构化动作和最终回答 |
-| 能力注册与动作配置 | 核心与运行 L1、业务查询适配 L1 | 是 | 核心定义注册语义，业务适配 L1 定义有限动作 |
+| 能力注册运行时 | 核心与运行 L1 | 是 | 定义稳定注册语义、启动校验和运行期只读注册表 |
+| Knowledge 能力描述与配置 | 知识查询能力 L1 | 是 | 定义知识能力注册描述、策略、域映射和检索边界 |
+| Employee/Transaction 能力描述与配置 | 业务查询适配 L1 | 是 | 分别定义两个业务域的有限动作和边界 |
 | Knowledge Capability | 知识查询能力 L1 | 是 | 问题改写、域选择、多路召回编排、融合重排和证据上下文 |
 | Knowledge Adapter | 知识查询能力 L1 | 是 | 类型化、只读 ES 检索 |
 | 查询 Embedding/Rerank 端口 | 知识查询能力 L1 | 是 | 模型或算法实现隔离 |
@@ -656,12 +666,12 @@ sequenceDiagram
 
 | 门禁 ID | 类型 | 适用阶段或模块切片 | 控制动作 | 关闭条件或证据类别 | 责任方或外部提供方 | 最晚关闭阶段 | 未关闭行为 | 下位承接 |
 |---|---|---|---|---|---|---|---|---|
-| SA-GATE-001 | design_decomposition | P1 → P2 | 开始 L1/L2 编制 | 项目维护者明确确认本 L0 的模块、依赖、三份 L1 分解和演进边界 | 项目维护者 | P2 开始前 | 允许继续阅读核实；不宣称 P1 完成，不创建下位设计 | 三份 L1 |
+| SA-GATE-001 | design_decomposition | P1 → P2 | 开始三份 L1 编制 | L0 独立评审不存在未关闭的 S0/S1；项目维护者明确确认本 L0 的模块、依赖、三份 L1 分解、演进边界及 17.1 节关注点 | 项目维护者；独立评审方提供评审结论 | P2 开始前 | 允许继续阅读和事实核实；不宣称 P1 完成，不创建下位设计 | 三份 L1 |
 | SA-GATE-002 | design_decomposition | Agent 核心模型接入 | 定版模型接入 L2 并进入真实模型实现 | 运行语言、Agent 框架和模型契约确定；完成一次受控结构化动作 PoC | 项目维护者/模型提供方 | 对应模型接入 L2 定版前 | 可编制模型无关 L1/L2 内容并使用测试替身；禁止模型接入 L2 定版和真实实现 | 核心与模型 L2 |
 | SA-GATE-003 | integration | Knowledge 查询切片 | 接入当前 ES 知识索引 | 首批逻辑知识域及物理索引/别名映射已确认；类型化只读检索请求、候选响应、无结果和错误契约已核实；Embedding 维度与索引兼容；管理接口不可达；存在契约测试 | 项目维护者、`es-query-service` 维护方 | Knowledge P4 联调前 | 可使用受控测试替身编制和实现模型无关部分；真实知识动作保持禁用 | Knowledge 检索适配 L2 |
 | SA-GATE-004 | integration | Employee Adapter | 接入 Employee 真实数据 | 有限动作及接口确认；角色矩阵确定；`role` 映射与业务域 401/403 测试通过 | `auth-service`、`common-security`、`employee-service` | Employee P4 联调前 | 可实现 Adapter 和契约测试；真实动作保持禁用并失败关闭 | Employee Adapter 与权限 L2 |
 | SA-GATE-005 | integration | Transaction Adapter | 接入 Transaction 真实数据 | 有限动作及接口确认；角色矩阵确定；`role` 映射与业务域 401/403 测试通过 | `auth-service`、`common-security`、`mq-procedure-service` | Transaction P4 联调前 | 可实现 Adapter 和契约测试；真实动作保持禁用并失败关闭 | Transaction Adapter 与权限 L2 |
-| SA-GATE-006 | integration | 真实业务结果进入模型 | 向模型发送 Employee/Transaction 真实结果 | 模型部署边界确定；允许发送的数据范围和最小化规则明确 | 项目维护者/模型提供方 | 首次真实数据联调前 | 只允许脱敏测试数据或本地受控替身；不得外发真实敏感数据 | 模型接入和 Adapter L2 |
+| SA-GATE-006 | integration | 真实或敏感数据进入外部模型 | 向外部模型发送知识证据或 Employee/Transaction 真实结果 | 模型部署边界确定；各类允许发送的数据范围、最小化及脱敏规则明确 | 项目维护者/模型提供方 | 对应能力首次真实数据联调前 | 只允许非敏感测试数据、脱敏数据或本地受控替身；不得外发未获准的知识证据或业务数据 | 模型接入、Knowledge 和业务 Adapter L2 |
 | SA-GATE-007 | closure | P5 知识库效果验证 | 声明第一阶段效果验证完成 | 代表性问题集、问题改写/域选择/召回/重排阶段指标、证据化答案判断标准和结果记录完成 | 项目维护者 | P5 结束前 | 可声明链路可运行，不得声明知识库效果已验证 | Knowledge L2 测试设计和效果验证记录 |
 
 ### 14.3 回滚原则
@@ -683,7 +693,7 @@ sequenceDiagram
 | ES 原始接口不能直接支撑受控候选契约 | 直接向 Agent 暴露原始 DSL、物理索引或原始 ES 响应 | 边界失控、适配脆弱或索引管理能力被误用 | 中 | SA-GATE-003、类型化只读契约、逻辑域映射和管理接口不可达测试 | 项目维护者 |
 | 多路召回和重排质量不稳定 | 各路分值不可直接比较、候选不足或重排模型不适配 | 相关证据丢失，最终答案质量下降 | 中 | L1 定义候选语义与质量预算，L2 选择融合策略，P5 分阶段评估 | 项目维护者 |
 | 知识答案脱离检索证据 | 生成模型补充未召回事实或证据上下文不足 | 产生不可追踪的错误结论 | 中 | SA-C-018、证据上下文约束、无证据拒答和事实一致性测试 | 项目维护者 |
-| 真实数据被发送到不合适的模型边界 | 使用外部模型且未限制字段 | 数据泄露 | 中 | SA-GATE-006 失败关闭、结果最小化和日志脱敏 | 项目维护者 |
+| 知识证据或业务数据被发送到不合适的模型边界 | 使用外部模型且未限制内容或字段 | 数据泄露 | 中 | SA-GATE-006 失败关闭、结果最小化和日志脱敏 | 项目维护者 |
 | 能力 API 设计过度通用 | 为未来 Multi-Agent、写入或工作流提前抽象 | P2/P3 复杂度增加 | 中 | 只包含本期统一请求、结果、上下文和注册语义 | 项目维护者 |
 | Adapter 契约漂移 | 业务接口不兼容变化 | 运行失败或错误解释 | 中 | 契约测试；代码和配置同步变更 | 项目维护者 |
 | 单实例故障 | Agent 进程退出 | 暂时不可用 | 低 | 本地重启；本期接受，不建设集群 | 项目维护者 |
@@ -699,7 +709,7 @@ sequenceDiagram
 | Employee 最终有限动作和可复用接口 | Employee Adapter 契约 | 项目维护者/Employee 域 | SA-GATE-004 | 只阻塞 Employee 真实集成 |
 | Transaction 最终有限动作和可复用接口 | Transaction Adapter 契约 | 项目维护者/Transaction 域 | SA-GATE-005 | 只阻塞 Transaction 真实集成 |
 | Employee 和 Transaction 允许角色 | 业务域授权 | 对应业务域 | SA-GATE-004/005 | 只阻塞对应域真实集成 |
-| 模型可接收的业务字段范围 | 真实数据安全 | 项目维护者 | SA-GATE-006 | 只阻塞真实数据进入模型 |
+| 外部模型可接收的知识证据和业务字段范围 | 真实数据安全 | 项目维护者 | SA-GATE-006 | 只阻塞对应真实或敏感数据进入外部模型 |
 | 知识库代表性问题、阶段指标和证据答案判断标准 | P5 效果结论 | 项目维护者 | SA-GATE-007 | 不阻塞 P2-P4 |
 
 ## 16. 约束追踪与验证
@@ -713,9 +723,9 @@ sequenceDiagram
 | FR-05 Adapter 模块 | SA-AD-004、011；模块地图 | 知识查询能力、业务查询适配 | 模块依赖和契约测试 | 已设计 |
 | FR-06 有限查询动作 | SA-C-002、005、006、013、016 | 三份 L1 | 未注册/禁用/越界参数、非法知识域/索引/DSL 拒绝测试 | 已设计 |
 | CFG-01 至 CFG-04 | SA-C-006、012、016；动作与知识域配置机制 | 知识查询能力、业务查询适配 | 强类型绑定、启动失败和兼容性测试 | 已设计 |
-| SEC-01/02 用户 JWT | SA-C-007；安全机制 | 核心与运行、业务查询适配 | 401、JWT 透传和无服务令牌回退测试 | 已设计 |
+| SEC-01/02 用户 JWT | SA-C-007；安全机制 | 三份 L1 | 三类能力的 401、业务 JWT 透传和无服务令牌回退测试 | 已设计 |
 | SEC-03/04 业务域授权与角色映射 | SA-C-004；SA-GATE-004/005 | 业务查询适配 | Authority 映射及角色允许/拒绝测试 | 已设计，当前实现未满足 |
-| SEC-05 服务身份 | SA-C-007 | 核心与运行、业务查询适配 | 缺少用户 JWT 失败关闭测试 | 已设计 |
+| SEC-05 服务身份 | SA-C-007 | 三份 L1 | 三类能力缺少用户 JWT 均失败关闭的测试 | 已设计 |
 | EXT-01/02 新增能力不侵入 | SA-C-010；SA-AD-002 | 三份 L1 | 新增模拟能力扩展测试 | 已设计 |
 | EXT-03 Multi-Agent 预留 | SA-C-014；能力 API 和模型端口 | 核心与运行 | 架构依赖检查 | 已设计，不实施 Multi-Agent |
 | 异常处理要求 | SA-C-009、018；关键流程 | 三份 L1 | 错误分类和故障注入测试 | 已设计 |
@@ -737,11 +747,11 @@ sequenceDiagram
 
 ### 17.2 正式评审记录
 
-正式结论只能由项目维护者明确给出。当前尚无正式评审记录。
+独立评审可以形成证据化结论，但 `SA-GATE-001` 的正式关闭仍需项目维护者明确确认 17.1 节关注点。
 
 | 日期 | 评审类型 | 结论 | 问题摘要 | 处理状态 |
 |---|---|---|---|---|
-| - | - | 未评审 | - | - |
+| 2026-07-24 | L0→L1 独立评审（五轮评审—修订—复核） | 有条件通过 | 已关闭迁移治理、需求追踪、所有权与依赖、安全契约和质量门禁问题；无剩余 S0/S1 | 整改完成，待项目维护者确认 `SA-GATE-001` |
 
 ## 18. 附录
 
