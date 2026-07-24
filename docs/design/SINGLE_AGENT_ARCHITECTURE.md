@@ -36,6 +36,7 @@
 | 4 | 2026-07-24 | 运行拓扑、模型与检索、业务权限、数据出域、门禁及待决事项 | 原子同步已确认的 Spring 接入治理层与 LangGraph 唯一编排权威、DeepSeek/BGE 模型边界、税务知识域、业务动作收紧、角色范围和分层出域策略 | 将 15.2 的项目维护者确认转化为 v0.4 L0 约束，并把实现契约下沉至对应 L1/L2 |
 | 5 | 2026-07-24 | 治理状态、阶段门禁和评审记录 | 记录 v0.4 针对性复核无 S0/S1、项目维护者确认及 `SA-GATE-001` 关闭，并与架构索引同步版本和状态 | 形成一致、可追踪的 L1 编写基线 |
 | 6 | 2026-07-24 | 文档治理、权威关系及 L1 治理计划 | 原子同步核心与运行 L1 v0.1 的文档链接、草稿状态和下位 L2 分解 | 保持 L0、L1 与架构索引的下位文档关系一致，不改变 v0.4 架构决策 |
+| 7 | 2026-07-24 | 6.2 目标系统上下文 | 收敛 Agent 内部展示层级，合并业务域服务和知识检索基础设施节点，移除业务域内部调用细节 | 突出单体 Agent 逻辑边界、双进程和唯一编排权威，避免与第 8 章模块视图重复；不改变 v0.4 架构决策 |
 
 ## 3. 文档定位
 
@@ -226,56 +227,34 @@ P1 只有在以下条件满足并由项目维护者确认后才完成：
 ```mermaid
 flowchart LR
     User["用户"]
-    Auth["auth-service<br/>JWT 与角色声明权威"]
-    Gateway["gateway-service<br/>可选接入路径"]
+    Access["接入与身份基础设施<br/>gateway-service / auth-service"]
 
     subgraph AgentBoundary["单体 Agent 逻辑边界"]
         AgentService["agent-service<br/>Spring Cloud 接入与治理进程"]
         subgraph LangGraphRuntime["agent-runtime<br/>Python LangGraph 编排进程"]
-            Graph["LangGraph 图<br/>唯一编排与请求级状态"]
-            AgentCore["agent-core<br/>确定性执行约束"]
-            Registry["能力注册与动作校验"]
-            KnowledgeCapability["agent-knowledge-capability<br/>改写、域路由、召回编排、重排、证据"]
-            KnowledgeRetrievalPort["Knowledge 只读检索端口"]
-            KnowledgeAdapter["agent-knowledge-adapter"]
-            EmployeeAdapter["agent-employee-adapter"]
-            TransactionAdapter["agent-transaction-adapter"]
+            Orchestration["编排与执行核心<br/>LangGraph 唯一编排权威"]
+            Knowledge["Knowledge 查询能力"]
+            BusinessQuery["业务查询能力<br/>Employee / Transaction"]
+            Orchestration --> Knowledge
+            Orchestration --> BusinessQuery
         end
     end
 
-    Model["DeepSeek API<br/>deepseek-v4-pro"]
-    Embedding["本地 BGE-M3<br/>Embedding"]
-    Rerank["本地 BAAI/bge-reranker-v2-m3<br/>Rerank"]
-    Employee["employee-service<br/>Employee 数据与授权权威"]
-    Transaction["mq-procedure-service<br/>Transaction 数据与授权权威"]
-    EsQuery["es-query-service<br/>类型化只读检索原子能力"]
-    Elasticsearch["Elasticsearch<br/>知识向量索引与测试数据"]
+    Model["外部生成模型<br/>DeepSeek deepseek-v4-pro"]
+    Retrieval["知识检索基础设施<br/>BGE / es-query-service / Elasticsearch"]
+    Business["业务域服务<br/>employee-service / mq-procedure-service"]
 
-    User -->|"登录"| Auth
-    Auth -->|"用户 JWT"| User
-    User -->|"问题 + 用户 JWT"| Gateway
-    User -.->|"本地验证可直连"| AgentService
-    Gateway -->|"问题 + 原始用户 JWT"| AgentService
-    AgentService -->|"问题 + 原始用户 JWT + 关联标识 + 总超时预算"| Graph
-    Graph --> AgentCore
-    AgentCore --> Registry
-    AgentCore -->|"受控模型请求"| Model
-    Registry --> KnowledgeCapability
-    Registry --> EmployeeAdapter
-    Registry --> TransactionAdapter
-    KnowledgeCapability -->|"改写、重排、证据化摘要"| Model
-    KnowledgeCapability -->|"受控查询文本"| Embedding
-    KnowledgeCapability -->|"受控候选集"| Rerank
-    KnowledgeCapability --> KnowledgeRetrievalPort
-    KnowledgeAdapter --> KnowledgeRetrievalPort
-    KnowledgeAdapter -->|"受控关键词/向量检索"| EsQuery
-    EsQuery --> Elasticsearch
-    EmployeeAdapter -->|"有限查询 + 原始用户 JWT"| Employee
-    TransactionAdapter -->|"有限查询 + 原始用户 JWT"| Transaction
-    Employee -->|"域内检索"| EsQuery
+    User --> Access
+    Access -->|"问题 + 原始用户 JWT"| AgentService
+    User -.->|"问题 + 原始用户 JWT（本地直连）"| AgentService
+    AgentService -->|"受控请求上下文"| Orchestration
+    Orchestration -->|"受控模型调用"| Model
+    Knowledge -->|"问题改写与答案摘要"| Model
+    Knowledge -->|"受控知识检索"| Retrieval
+    BusinessQuery -->|"有限查询 + 原始用户 JWT"| Business
 ```
 
-图中 Gateway 是可复用的接入基础设施，不是业务授权最终执行点。Spring `agent-service` 负责外部接入、JWT 验证和治理，不选择动作、不推进 Agent 流程，也不直接调用 Adapter；Python LangGraph 运行时是唯一 Agent 编排权威。下游业务系统必须再次验证原始用户 JWT 并执行本域最终角色授权。
+图中只表达系统上下文和主干依赖：Gateway 与 `auth-service` 归为接入与身份基础设施；BGE、`es-query-service` 和 Elasticsearch 归为知识检索基础设施；Employee 与 Transaction 归为业务域服务。DeepSeek 保持独立外部边界，以体现模型数据出域与本地检索的不同信任边界。Spring `agent-service` 只负责外部接入、JWT 验证和治理，不选择动作、不推进 Agent 流程，也不直接调用 Adapter；Python LangGraph 运行时是唯一 Agent 编排权威。业务域服务必须再次验证原始用户 JWT 并执行本域最终角色授权。具体核心、能力契约、注册、Capability、Adapter 和端口依赖由第 8 章展开。
 
 ### 6.3 差距分析
 
