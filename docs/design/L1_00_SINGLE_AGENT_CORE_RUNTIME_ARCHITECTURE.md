@@ -20,7 +20,7 @@
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 | 目标文档位置 | `docs/design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md` |
 | 上位 L0 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4 |
-| 关联 L1 | [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2（已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.1（草稿/未评审，`BQ-GATE-001` 开启） |
+| 关联 L1 | [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2（已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
 | 治理的 L2 | `L2_00_00` Spring 接入与运行协同、`L2_00_01` Agent 核心执行与能力注册、`L2_00_02` DeepSeek 模型接入与受控生成详细设计 |
 | 外部契约 | `auth-service` 用户 JWT 契约；Agent 对外查询契约；DeepSeek `deepseek-v4-pro` 模型契约 |
 | 替代关系 | 新建基线；历史 Agent 实现及已退出工作区的旧设计不得反向定义本文 |
@@ -42,6 +42,7 @@
 | 9 | 2026-07-25 | 文档治理信息 | 原子同步已创建的 Knowledge L1 v0.1 链接和草稿状态 | 保持同层文档引用可导航且状态一致；不改变本文 v0.2 架构决策、评审、实施或生效状态 |
 | 10 | 2026-07-25 | 文档治理信息、12 | 澄清 `CR-AD-008` 的处理器形态选择标准，并原子同步 Knowledge L1 v0.2 已评审/已通过状态及 `KQ-GATE-001` 关闭结果 | 防止未来按能力名称固化内部形态，同时保持同层文档状态与门禁引用一致；不改变本文版本、正式状态或 `CR-GATE-001` 结论 |
 | 11 | 2026-07-25 | 文档治理信息、18.2 | 原子同步已创建的业务查询适配 L1 v0.1 链接、草稿状态和 `BQ-GATE-001` 开放状态 | 保持三份 L1 的同层引用和治理状态一致；不改变本文 v0.2 架构决策、评审、实施、生效或 `CR-GATE-001` 结论 |
+| 12 | 2026-07-25 | 文档治理信息、18.2 | 原子同步业务查询适配 L1 v0.2 已评审/已通过状态及 `BQ-GATE-001` 关闭结果 | 保持三份 L1 的同层引用和治理状态一致；不改变本文 v0.2 架构决策、评审、实施、生效或 `CR-GATE-001` 结论 |
 
 ## 3. 文档定位与权威关系
 
@@ -711,4 +712,4 @@ sequenceDiagram
 - Spring/Python 内部协议已选定。
 - DeepSeek 结构化动作 PoC 已通过。
 - 任何代码、配置或真实模型链路已经实现。
-- `L1_01` 已完成 L1 正式评审；`L1_02` v0.1 已创建但仍是草稿/未评审，`BQ-GATE-001` 保持开启；任何关联 L2、实施、真实模型/数据集成或效果门禁均未因此关闭。
+- `L1_01`、`L1_02` 均已完成 L1 正式评审并关闭各自 L1→L2 分解门禁；这只允许开始对应 L2 编写，任何 L2 实施、外部契约变更、真实模型/数据集成或效果门禁均未因此关闭。
