@@ -1,4 +1,4 @@
-# 单体 Agent 查询能力 L0 总体架构设计
+# [L0_00] 单体 Agent 查询能力 L0 总体架构设计
 
 > 文档层级：L0
 > 文档状态：已评审
@@ -8,6 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档标识 | SA-L0-001 |
+| 文档编号 | `L0_00` |
 | 文档层级 | L0 总体架构 |
 | 权威范围 | 单体 Agent 查询系统的全局边界、模块划分、依赖方向、关键流程、质量约束和演进门禁 |
 | 文档状态 | 已评审 |
@@ -15,12 +16,12 @@
 | 实施状态 | 未实施 |
 | 生效状态 | 未生效 |
 | 当前版本 | v0.4 |
-| 适用基线 | `SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.2（2026-07-24，已确认）及 2026-07-24 工作区现状核实 |
+| 适用基线 | `REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.2（2026-07-24，已确认）及 2026-07-24 工作区现状核实 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
-| 目标文档位置 | `docs/design/SINGLE_AGENT_ARCHITECTURE.md` |
+| 目标文档位置 | `docs/design/L0_00_SINGLE_AGENT_ARCHITECTURE.md` |
 | 上位架构文档 | 无 |
-| 外部治理文档 | [单体 Agent 查询能力建设需求说明](../SINGLE_AGENT_QUERY_REQUIREMENTS.md) |
-| 治理的 L1 文档 | [《单体 Agent 核心与运行架构 L1》](SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)（v0.2，已评审/已通过，`CR-GATE-001` 已关闭）；《单体 Agent 知识查询能力架构 L1》《单体 Agent 业务查询适配架构 L1》（待创建） |
+| 外部治理文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) |
+| 治理的 L1 文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)（v0.2，已评审/已通过，`CR-GATE-001` 已关闭）；`L1_01`《单体 Agent 知识查询能力架构 L1》、`L1_02`《单体 Agent 业务查询适配架构 L1》（待创建） |
 | 外部契约 | `auth-service` JWT 契约；`es-query-service` 只读检索契约；Embedding/重排/生成模型契约；`employee-service` 查询契约；`mq-procedure-service` 查询契约 |
 | 替代关系 | 新建基线；不继承已退出当前工作区的旧 Agent 架构设计 |
 
@@ -38,6 +39,7 @@
 | 6 | 2026-07-24 | 文档治理、权威关系及 L1 治理计划 | 原子同步核心与运行 L1 v0.1 的文档链接、草稿状态和下位 L2 分解 | 保持 L0、L1 与架构索引的下位文档关系一致，不改变 v0.4 架构决策 |
 | 7 | 2026-07-24 | 6.2 目标系统上下文 | 收敛 Agent 内部展示层级，合并业务域服务和知识检索基础设施节点，移除业务域内部调用细节 | 突出单体 Agent 逻辑边界、双进程和唯一编排权威，避免与第 8 章模块视图重复；不改变 v0.4 架构决策 |
 | 8 | 2026-07-24 | 文档治理、权威关系及 L1 治理计划 | 原子同步核心与运行 L1 v0.2 已评审/已通过状态及 `CR-GATE-001` 关闭结果 | 保持 L0、L1 与架构索引的下位治理状态一致，不改变 v0.4 架构决策、实施状态或生效状态 |
+| 9 | 2026-07-25 | 文档标题、治理信息、权威关系及 L1 治理计划 | 用户授权后恢复：追加稳定编号 `L0_00`，迁移文件路径，并同步 `REQ_00`、`L1_00` 及规划中的 `L1_01/L1_02` 引用 | 形成可直接用于沟通的稳定编号体系；不改变 v0.4 架构决策、版本及正式状态 |
 
 ## 3. 文档定位
 
@@ -93,11 +95,11 @@
 
 | 文档或证据 | 关系角色 | 当前权限 | 说明 |
 |---|---|---|---|
-| `SINGLE_AGENT_QUERY_REQUIREMENTS.md` | external_contract | 只读 | 本文的需求权威，L0 不得反向弱化或自行改义 |
+| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | external_contract | 本次仅同步编号与路径 | 本文的需求权威，L0 不得反向弱化或自行改义 |
 | [架构文档索引](../ARCHITECTURE.md) | repository_rule | 本次按用户授权原子同步 | 仓库架构入口索引，必须与本文治理的 L1 位置和状态一致 |
 | 本文 | parent | 本次仅同步下位文档版本、评审状态和门禁引用 | v0.4 架构决策、评审状态和 `SA-GATE-001` 结论不变 |
-| [核心与运行 L1](SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | governed_child | 本次完成五轮评审并同步 | v0.2 已评审/已通过；`CR-GATE-001` 已关闭；未实施、未生效 |
-| 计划中的 Knowledge、业务查询两份 L1 | governed_child | 只读/尚不存在 | 后续按 L0 顺序和各自授权创建 |
+| [`L1_00` 核心与运行 L1](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | governed_child | 本次仅同步编号与路径 | v0.2 已评审/已通过；`CR-GATE-001` 已关闭；未实施、未生效 |
+| 计划中的 `L1_01` Knowledge、`L1_02` 业务查询两份 L1 | governed_child | 只读/尚不存在 | 后续按稳定编号和各自授权创建 |
 | 现有服务代码、配置和测试 | implementation_evidence | 只读 | 用于核实现状，不反向定义目标架构 |
 
 ## 4. 架构背景与驱动因素
@@ -647,9 +649,9 @@ sequenceDiagram
 
 | L1 文档 | 权威范围 | 必须承接的约束 | 关联 L1 | 下位 L2 | 顺序或前置 | 状态 |
 |---|---|---|---|---|---|---|
-| [《单体 Agent 核心与运行架构 L1》](SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | Spring `agent-service`、Python `agent-runtime`、LangGraph 唯一编排、`agent-core`、`agent-capability-api`、能力注册运行时、DeepSeek 模型端口、入口认证和请求级执行 | SA-C-001、002、005、007 至 012、014、018、019 | 知识查询能力 L1、业务查询适配 L1 | Spring 接入与运行协同、核心执行与能力注册、DeepSeek 模型接入与受控生成详细设计 | P1 已确认；v0.2 正式评审通过，`CR-GATE-001` 已关闭，可进入三份核心运行 L2 | v0.2 已评审/已通过；未实施、未生效 |
-| 《单体 Agent 知识查询能力架构 L1》 | `agent-knowledge-capability`、`agent-knowledge-adapter`、Knowledge 能力描述与配置、逻辑知识域、检索基础设施消费与集成边界、BGE Embedding/Rerank 消费端口、证据上下文及三层出域策略 | SA-C-002、005、006、008 至 012、014 至 019、021 | 核心与运行 L1 | 问题理解与域选择、Knowledge 注册描述与配置、ES 只读检索适配、多路融合与重排、证据上下文、出域策略与答案摘要，以及检索基础设施契约与本地模型接入详细设计 | 核心能力契约边界稳定；SA-GATE-003 的事实可并行核实 | 待创建 |
-| 《单体 Agent 业务查询适配架构 L1》 | Employee/Transaction 能力描述与强类型动作配置、两个业务 Adapter、业务字段出域和权限联调 | SA-C-002 至 014、019、020（其中 015 至 018、021 不适用） | 核心与运行 L1 | Employee/Transaction 注册描述与配置、Adapter、字段交集与有限枚举脱敏、权限联调详细设计 | 核心能力契约边界稳定后 | 待创建 |
+| [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | Spring `agent-service`、Python `agent-runtime`、LangGraph 唯一编排、`agent-core`、`agent-capability-api`、能力注册运行时、DeepSeek 模型端口、入口认证和请求级执行 | SA-C-001、002、005、007 至 012、014、018、019 | `L1_01` 知识查询能力、`L1_02` 业务查询适配 | `L2_00_00` Spring 接入与运行协同、`L2_00_01` 核心执行与能力注册、`L2_00_02` DeepSeek 模型接入与受控生成 | P1 已确认；v0.2 正式评审通过，`CR-GATE-001` 已关闭，可进入三份核心运行 L2 | v0.2 已评审/已通过；未实施、未生效 |
+| `L1_01`《单体 Agent 知识查询能力架构 L1》 | `agent-knowledge-capability`、`agent-knowledge-adapter`、Knowledge 能力描述与配置、逻辑知识域、检索基础设施消费与集成边界、BGE Embedding/Rerank 消费端口、证据上下文及三层出域策略 | SA-C-002、005、006、008 至 012、014 至 019、021 | `L1_00` 核心与运行、`L1_02` 业务查询适配 | 问题理解与域选择、Knowledge 注册描述与配置、ES 只读检索适配、多路融合与重排、证据上下文、出域策略与答案摘要，以及检索基础设施契约与本地模型接入详细设计 | 核心能力契约边界稳定；SA-GATE-003 的事实可并行核实 | 待创建 |
+| `L1_02`《单体 Agent 业务查询适配架构 L1》 | Employee/Transaction 能力描述与强类型动作配置、两个业务 Adapter、业务字段出域和权限联调 | SA-C-002 至 014、019、020（其中 015 至 018、021 不适用） | `L1_00` 核心与运行、`L1_01` 知识查询能力 | Employee/Transaction 注册描述与配置、Adapter、字段交集与有限枚举脱敏、权限联调详细设计 | 核心能力契约边界稳定后 | 待创建 |
 
 ### 13.1 覆盖完整性
 
