@@ -1,7 +1,7 @@
 # [L2_00_01] 单体 Agent 核心执行与能力注册详细设计 L2
 
 > 文档层级：L2
-> 文档状态：Approved
+> 文档状态：In Review
 
 ## 1. 文档信息
 
@@ -12,23 +12,23 @@
 | 文档编号 | `L2_00_01` |
 | 文档路径 | `docs/design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
-| 文档状态 | Approved |
-| 评审状态 | 已通过 |
-| 当前版本 | v0.3 |
+| 文档状态 | In Review |
+| 评审状态 | v0.3 已通过；v0.4 原始问题上下文补正待针对性复评 |
+| 当前版本 | v0.4 |
 | 日期 | 2026-07-25 |
 | 适用范围 | Python `agent-runtime` 内的 LangGraph 请求状态、`agent-core` 确定性执行、`agent-capability-api`、进程内能力注册运行时、组合根及模型无关测试替身 |
 | 上位文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2（已评审/已通过，`CR-GATE-001` 已关闭） |
 | 来源文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.2；[`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4 |
-| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；规划中的 `L2_00_00` Spring 接入与运行协同、`L2_00_02` DeepSeek 模型接入与受控生成 |
+| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.1 Draft |
 | 实现基线 | 当前工作区不存在目标 `agent-runtime`、`agent-service`、`agent-core`、`agent-capability-api` 或 Python 源码/测试工程；本机只读核实 Python 为 3.12.4 |
 | 技术基线 | Python `>=3.12,<3.13`；`langgraph==1.2.9`；使用 `StateGraph`、`TypedDict` 状态和 `context_schema` 运行上下文，不配置 checkpointer 或 store |
-| 是否可作为实现依据 | 否，v0.3 已评审通过并可用于申请关闭实施门禁，但 `CR-GATE-002` 仍为 Open 且项目维护者尚未授权目标代码/测试实施 |
+| 是否可作为实现依据 | 否，v0.3 曾评审通过，v0.4 对执行上下文作语义补正且尚未完成针对性复评，`CR-GATE-002` 仍为 Open |
 | 当前允许实施范围 | 不允许目标生产代码实施；仅允许本文评审、契约样例推演及不进入目标模块的隔离测试验证 |
 | 当前禁止动作 | 新建或修改 Agent 代码、测试、配置、公共接口、外部契约；启用真实模型或真实业务/知识数据；关闭 `CR-GATE-002` 或声明实现完成 |
-| 修改权限 | 本轮用户已授权本文与直接状态索引 `docs/ARCHITECTURE.md` 原子同步，并授权对应 Git commit/push；L0/L1、代码、测试、配置、Schema 和外部契约未获修改授权 |
+| 修改权限 | 本轮用户已授权第二批 L2 及必要直接关联文档原子同步，并授权对应 Git commit/push；本文仅同步 `original_question` 内部契约、追踪与状态，L0/L1、代码、测试、配置、Schema 和外部契约未获修改授权 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 
-> 本文只完成批次 1 的核心执行与能力注册详细设计。v0.3 已完成五轮独立评审—修订—复核，`REV-L2-001`～`REV-L2-009` 全部关闭且无未关闭 S0/S1；它不定义 Spring→Python 传输协议、DeepSeek 供应商契约、Knowledge 流水线、Employee/Transaction 动作、领域字段出域策略或生产级韧性机制，也不表示任何实现、集成或生效状态已经改变。
+> 本文只完成批次 1 的核心执行与能力注册详细设计。v0.3 已完成五轮独立评审—修订—复核，`REV-L2-001`～`REV-L2-009` 全部关闭；第二批 Knowledge L2 编写时发现处理器无法取得权威原始问题，v0.4 以最小方式补充 `CapabilityExecutionContext.original_question` 及同源校验，并回到 In Review 等待针对性复评。本文仍不定义 Spring→Python 传输协议、DeepSeek 供应商契约、Knowledge 流水线、Employee/Transaction 动作、领域字段出域策略或生产级韧性机制，也不表示任何实现、集成或生效状态已经改变。
 
 ## 2. 修改历史
 
@@ -42,6 +42,8 @@
 | 6 | 2026-07-25 | 7.1、8.1、11、15～16 | 第 3 轮独立评审修复 | 将模型 Protocol 输出收窄为候选/答案/有限失败决定，wrapper 独占 graph state update 与确定性状态映射，关闭 `REV-L2-005` |
 | 7 | 2026-07-25 | 8.7、11.1、14.2～14.3、15～16 | 第 4 轮独立评审修复 | 删除公共失败自由文本；固定安全诊断指纹输入并补充敏感异常测试，关闭 `REV-L2-006/007` |
 | 8 | 2026-07-25 | 4.2、8.3、10.1、11.1、15～16、18～21 | 第 5 轮独立评审修复及状态同步 | 明确 latch 是唯一一次执行权威；去除模型失败冗余 code 并固定 claim 前后 ID 锚定；完成追踪复核、v0.3 Approved 状态和直接索引同步，关闭 `REV-L2-008/009` |
+| 9 | 2026-07-25 | 1～4、8.1、8.5、10.1、11.1、15～21 | 第二批 Knowledge L2 发现直接契约缺口并获授权原子同步 | 增加只读 `original_question`、图输入同源校验及对应实现/测试追踪；不改变外部 HTTP、候选参数或领域职责；版本升为 v0.4、状态回到 In Review，并新增待针对性复评项 `REV-L2-010` |
+| 10 | 2026-07-25 | 1～2、5.1、16.3、18.3、21 | 第二批 L2 原子状态同步 | 将已建立的四份第二批 L2 从规划引用更新为 v0.1 Draft 只读依赖，并把后续动作收敛为独立评审；修正文案与本轮实际同步范围，不改变 v0.4 契约或评审状态 |
 
 ## 3. 背景、目标与范围
 
@@ -63,6 +65,7 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | `REQ-CORE-006` | 新增能力不侵入核心和已有能力 | 新增模拟能力只增加处理器、配置提供方、组合根装配和测试；核心包无领域导入或条件分支 | REQ_00 EXT-01/02/03 |
 | `REQ-CORE-007` | 参数、状态和执行失败具有稳定、可观测且不泄密的语义 | `unsupported`、`invalid_argument`、`timeout`、`internal_failure` 等可区分；日志不含完整 JWT、问题、领域结果或模型载荷 | REQ_00 异常与最小日志要求 |
 | `REQ-CORE-008` | 公共结构有界且配置错误失败关闭 | 能力数、描述、问题、参数、领域结果、安全载荷和嵌套深度均有启动或运行边界；越界不调用下游或模型 | L1_00 10.3、11 |
+| `REQ-CORE-009` | 领域处理器可取得与图输入同源、未经模型改写的原始问题 | Runtime 在请求开始时把同一已校验问题写入图输入与不可变执行上下文；两者不一致时模型和 handler 调用均为零 | REQ_00 FR-02；L1_01 7.1～7.2 |
 
 ### 3.3 范围内
 
@@ -131,6 +134,7 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | `CON-CORE-010` | L1_00 6.4、10.7 | 核心只依赖能力 API/注册表；组合根是唯一了解具体实现集合的位置 | `DR-CORE-003/010/013` | 无 |
 | `CON-CORE-011` | L1_01/02 公共契约对齐 | Knowledge/业务能力拥有领域校验、结果语义和出域策略，核心只验证公共不变量 | `DR-CORE-005/007` | 无 |
 | `CON-CORE-012` | L1_00 14.1 | `CR-GATE-001` 仅允许 L2 编写；代码实施仍受 `CR-GATE-002` 控制 | `DR-CORE-013` | 无 |
+| `CON-CORE-013` | L1_01 7.1～7.2 | Knowledge 必须关联原始问题与受控改写，不能把模型回填文本当作原始问题权威 | `DR-CORE-004/014` | 无 |
 
 ### 4.2 端到端追踪矩阵
 
@@ -144,6 +148,7 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | `REQ-CORE-006` | 扩展验证 | `DR-CORE-007/010/013` | 能力提供方、组合根 | 只增加装配，不修改核心 | `IMPL-CORE-003/007` | `TEST-CORE-006/007/009` | `VAL-CORE-003`、`VAL-CORE-005` |
 | `REQ-CORE-007` | 失败与观测 | `DR-CORE-009/012` | 执行核心、图节点 | 稳定状态和安全事件 | `IMPL-CORE-004/006` | `TEST-CORE-003/005/008` | `VAL-CORE-002/003` |
 | `REQ-CORE-008` | 资源边界 | `DR-CORE-006`、`DR-CORE-010`、`DR-CORE-011`、`DR-CORE-013` | 设置、注册表、执行核心 | 有界描述/参数/结果 | `IMPL-CORE-001/003/008` | `TEST-CORE-002/008` | `VAL-CORE-002`、`VAL-CORE-004` |
+| `REQ-CORE-009` | 原始问题同源 | `DR-CORE-004`、`DR-CORE-014` | Runtime、执行上下文 | 图输入/处理器上下文共享同一已校验值 | `IMPL-CORE-002/009` | `TEST-CORE-001/005/010` | `VAL-CORE-002/003/005` |
 | `CON-CORE-001` | 核心图 | `DR-CORE-001/002/008` | LangGraph、执行核心 | 单一图状态和确定性闸门 | `IMPL-CORE-004/005/006` | `TEST-CORE-004/005` | `VAL-CORE-003` |
 | `CON-CORE-002` | 能力调用 | `DR-CORE-002/007/009` | 执行核心、处理器 | 一次 Agent 动作/多次内部出站 | `IMPL-CORE-004` | `TEST-CORE-004/006` | `VAL-CORE-002/003` |
 | `CON-CORE-003` | 能力 API/注册 | `DR-CORE-003/006/010` | 注册表、组合根 | 显式代码绑定注册 | `IMPL-CORE-002/003/007` | `TEST-CORE-001/002/007` | `VAL-CORE-002/005` |
@@ -156,6 +161,7 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | `CON-CORE-010` | 依赖方向 | `DR-CORE-003`、`DR-CORE-010`、`DR-CORE-013` | 核心、组合根 | 无领域反向依赖 | `IMPL-CORE-002/003/004/007` | `TEST-CORE-007/009` | `VAL-CORE-003/005` |
 | `CON-CORE-011` | 同层分权 | `DR-CORE-005/007` | 核心、领域能力 | 核心不拥有领域策略 | `IMPL-CORE-002/004` | `TEST-CORE-001/006` | `VAL-CORE-003` |
 | `CON-CORE-012` | P2→P3 门禁 | `DR-CORE-013` | 项目维护者 | 文档状态与实施授权分离 | `IMPL-CORE-001/007` | `TEST-CORE-009` | `VAL-CORE-001`、`VAL-CORE-005` |
+| `CON-CORE-013` | Knowledge 原始问题 | `DR-CORE-004`、`DR-CORE-014` | Runtime、能力 API | 原问题不由模型候选重建 | `IMPL-CORE-002/009` | `TEST-CORE-005/010` | `VAL-CORE-003/005` |
 
 ## 5. 关联资源与责任边界
 
@@ -168,8 +174,10 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | L1_00 v0.2 | parent | 细化 L2_00_01 唯一范围 | 定义核心运行模块边界和门禁 | `CR-AD-*`、统一状态 | 直接上位权威 | 只读 |
 | L1_01 v0.2 | peer | 提供公共能力契约，供 Knowledge 未来实现 | 拥有 Knowledge 流程、领域结果和出域策略 | `knowledge.query` 处理器 | Knowledge 状态/配置 | 只读 |
 | L1_02 v0.2 | peer | 提供公共能力契约，供业务 Adapter 未来实现 | 拥有业务动作、领域结果、权限和出域策略 | 业务动作处理器 | 业务动作/配置 | 只读 |
-| `L2_00_00` | peer | 定义 Python 内部执行上下文的消费语义 | 定义 Spring→Python 传输、JWT 验证、截止时间换算和外部映射 | `ExecutionContext` 构造边界 | 跨进程接入状态 | 规划中、只读 |
-| `L2_00_02` | peer | 提供模型节点读取/写入的核心状态字段和安全调用前提 | 定义模型端口、候选动作、输入闸门和回答生成 | `ActionCandidate`、安全载荷 | 模型调用状态 | 规划中、只读 |
+| `L2_00_00` v0.1 Draft | peer | 定义 Python 内部执行上下文的消费语义 | 定义 Spring→Python 传输、JWT 验证、截止时间换算和外部映射 | `ExecutionContext` 构造边界 | 跨进程接入状态 | 只读 |
+| `L2_00_02` v0.1 Draft | peer | 提供模型节点读取/写入的核心状态字段和安全调用前提 | 定义模型端口、候选动作、输入闸门和回答生成 | `ActionCandidate`、安全载荷 | 模型调用状态 | 只读 |
+| `L2_01_00` v0.1 Draft | peer/consumer | 提供公共能力执行上下文和结果契约 | 定义 Knowledge 单动作流程、配置和阶段端口 | `CapabilityExecutionContext.original_question`、`CapabilityResult` | Knowledge 请求级状态 | 只读 |
+| `L2_02_00` v0.1 Draft | peer/consumer | 提供公共能力契约和 JWT wrapper | 定义业务查询公共约束、配置及出域原语 | `OpaqueUserToken`、`CapabilityResult`、safe payload | 业务查询公共状态 | 只读 |
 | 当前仓库代码 | implementation_baseline | 仅证明目标 Python 模块不存在 | 现有 Java 业务/基础设施继续独立演进 | 无目标调用链 | 现有系统所有者 | 只读 |
 | Python 3.12.4 本机环境 | implementation_baseline | 作为首期 Python 运行基线 | 不证明部署或依赖已安装 | CPython | 本地工具环境 | 只读 |
 | LangGraph 官方包与文档 | external_contract | 固定 `langgraph==1.2.9`，使用 `StateGraph`、`TypedDict`、`context_schema` 和无 checkpointer/store 编译 | 提供框架行为 | Python 库 API | 框架实现 | 外部只读 |
@@ -294,7 +302,7 @@ agent_runtime.bootstrap
 | `DR-CORE-001` | LangGraph wrapper 是唯一请求流程和 state update 权威；核心函数不返回下一节点或图命令，注入的模型 Protocol 不返回 graph update 或最终 outcome | LangGraph、执行核心 | 每次请求 | 防止第二编排和模型层改写确定性状态 |
 | `DR-CORE-002` | 仅首个通过上下文、候选、注册和参数校验的动作可以原子 claim；claim 后任意第二次提交均拒绝 | `RequestExecutionScope` | 核心执行 | 处理器调用次数≤1 |
 | `DR-CORE-003` | 能力通过版本化、供应商无关的公共契约和显式注册候选接入 | 能力 API | 启动/执行 | 核心不含领域分支 |
-| `DR-CORE-004` | 执行上下文只包含受控主体、opaque 用户 JWT、关联标识、单调截止时间和取消信号，并通过 LangGraph 运行上下文而非 state 传递 | 能力 API、运行入口 | 请求创建 | 身份/预算不被处理器改写或持久化 |
+| `DR-CORE-004` | 执行上下文只包含同源原始问题、受控主体、opaque 用户 JWT、关联标识、单调截止时间和取消信号，并通过 LangGraph 运行上下文而非 state 传递 | 能力 API、运行入口 | 请求创建 | 原问题/身份/预算不被处理器改写或持久化 |
 | `DR-CORE-005` | 公共结果严格校验状态、领域结果、失败详情、出域判定和安全载荷组合；核心不得推导领域策略 | 能力 API、执行核心 | 处理器返回 | 非法结果失败关闭 |
 | `DR-CORE-006` | 注册候选全量校验后一次冻结；描述列表有序、处理器只由核心查找、运行期不可写 | 注册表 | 启动 | 模型可见集合与执行集合一致 |
 | `DR-CORE-007` | 注册表只识别 `CapabilityHandler`，不识别独立 Capability 或直接 Adapter 的内部形态 | 能力 API、注册表 | 注册/执行 | 两种形态等价接入 |
@@ -304,6 +312,7 @@ agent_runtime.bootstrap
 | `DR-CORE-011` | 描述、参数、结果和安全载荷只接受有界 JSON 值；非有限数值、二进制和任意对象拒绝 | 公共契约、设置 | 注册/执行 | 控制内存和序列化 |
 | `DR-CORE-012` | 日志只记录安全元数据；token wrapper 的字符串表示固定脱敏，结果正文不记录 | 全部核心模块 | 日志/异常 | 防止敏感数据泄露 |
 | `DR-CORE-013` | API 破坏性变化必须提升主版本并同步全部处理器/测试；Draft 和 Open 门禁不得被当作实施授权 | 项目维护者、组合根 | 契约演进/阶段切换 | 兼容性和治理一致 |
+| `DR-CORE-014` | Runtime 必须以同一个已校验字符串构造 `AgentInputState.question` 与 `CapabilityExecutionContext.original_question`；调用图前做精确相等校验，不一致固定返回 `invalid_argument/core.question_context_mismatch`，模型、validator 和 handler 调用均为零 | 运行入口、能力 API | 每次 `ainvoke` | 能力取得权威原问题且不信任模型回填 |
 
 ### 8.2 `CapabilityDescriptor`
 
@@ -371,13 +380,14 @@ CapabilityRegistrationCandidate[TInput]
 |---|---|---|---|---|
 | `request_id` | `str` | 必填、非空 | 单次运行请求标识；1～128 个可打印 ASCII 字符 | 不作为去重键 |
 | `correlation_id` | `str` | 必填、非空 | Spring 创建的跨进程关联标识；1～128 个可打印 ASCII 字符 | 可进入安全日志 |
+| `original_question` | `str` | 必填、非空 | 与本次 `AgentInputState.question` 精确相同的已校验原始问题；1～`max_question_chars` 字符 | 可由能力处理器用于领域改写/追踪；不得记录、直接出域或由候选参数覆盖 |
 | `subject_id` | `str` | 必填、非空 | 已认证用户主体；UTF-8 后最多 256 bytes | 日志默认哈希或省略 |
 | `subject_type` | `SubjectType` | 必填 | 本期只能为 `user` | 非 user 直接 `unauthenticated` |
 | `user_token` | `OpaqueUserToken` | 必填 | 非空且最多 16384 bytes 的原始用户 JWT，只供需要透传的处理器使用 | `repr/str` 固定为 `<redacted>`；仅显式 `reveal_for_outbound()` 取得值 |
 | `deadline_monotonic` | `float` | 必填 | Python 入口根据上游剩余预算换算的本进程单调时钟绝对截止点 | 不跨进程反向序列化 |
 | `cancellation` | `CancellationSignal` | 必填 | 请求断开、上游取消或运行时停止信号 | 只读查询，不承诺中断已发出的下游请求 |
 
-`L2_00_00` 负责验签、跨进程字段和换算；本文只消费构造完成的上下文并做防御性非空、类型、取消和截止时间检查。角色声明不进入核心授权逻辑。
+`L2_00_00` 负责验签、跨进程字段、原始问题同源构造和截止时间换算；本文消费构造完成的上下文，并做防御性非空、类型、问题同源、取消和截止时间检查。角色声明不进入核心授权逻辑。`original_question` 是能力内部的请求事实，不是模型安全载荷；任何模型调用仍须经过 `L2_00_02` 输入/出域闸门。
 
 `CancellationSignal` 是请求级、只读、首个来源获胜的一次性信号，至少提供同步 `is_cancelled() -> bool`、异步 `wait_cancelled() -> CancellationSource` 和稳定来源枚举 `client_disconnect/upstream_cancel/runtime_shutdown`。`wait_cancelled()` 一旦完成，此后同一 scope 的 `is_cancelled()` 必须恒为真，后续调用必须返回同一个首个来源；多个来源竞争时不得覆盖已发布来源。只有前两类映射为请求取消；`runtime_shutdown` 触发的 `CancelledError` 向运行入口传播。handler/Adapter 必须传播 `CancelledError`，不得屏蔽或转成 success；Python 取消是协作式的，核心保证取消后不接纳结果，但不承诺强制终止违反协议的阻塞代码。
 
@@ -540,7 +550,7 @@ CapabilityRegistrationCandidate[TInput]
 ### 10.1 固定校验和调用顺序
 
 ```text
-1. 校验 CapabilityExecutionContext
+1. 校验 CapabilityExecutionContext，并在 Runtime 调图前校验 `question == context.original_question`
 2. 检查取消与 deadline
 3. 校验 ActionCandidate 公共结构/大小
 4. 从冻结注册表按 canonical ID 查找
@@ -640,7 +650,7 @@ OPEN → CLAIMED → FINISHED
 | `capability_result` | `CapabilityResult` | 未设置 | 能力执行节点写一次；第二次写入视为内部错误 |
 | `final_outcome` | `AgentSemanticOutcome` | 未设置 | 终止/回答节点写一次；一旦存在直接 END |
 
-Python 运行入口在调用图前对 `question` 做防御性校验：必须是非空字符串、不得仅含空白、字符数不超过 `max_question_chars`。失败直接返回 `invalid_argument/core.invalid_question`，模型和 handler 调用均为零；入口不得静默截断或改写问题。输入最小化、敏感分类及是否允许发送到 DeepSeek 仍归 L2_00_02。
+Python 运行入口在调用图前对 `question` 和 `scope.context.original_question` 做防御性校验：二者都必须是非空字符串、不得仅含空白、字符数不超过 `max_question_chars`，并且精确相等。普通非法值返回 `invalid_argument/core.invalid_question`；同源不一致返回 `invalid_argument/core.question_context_mismatch`；两类失败下模型、validator 和 handler 调用均为零。入口不得静默截断、改写或用其中一份覆盖另一份。输入最小化、敏感分类及是否允许发送到 DeepSeek 仍归 L2_00_02。
 
 `StateGraph` 必须以 `context_schema=GraphRunContext` 构建，并以 `graph.ainvoke(input, context=GraphRunContext(...))` 或等价异步 API 调用。`execute_capability_node(state, runtime: Runtime[GraphRunContext])` 是唯一允许读取 `runtime.context.execution_scope` 的图节点；动作选择、回答和路由节点不得声明 `Runtime` 参数，也不得导入 `GraphRunContext`、`RequestExecutionScope` 或 `OpaqueUserToken`。该限制由依赖/签名架构测试验证。运行上下文不是安全沙箱，但它把敏感依赖从共享 state 和未来误加的 checkpointer 序列化面中移除，并将可访问点收敛到一个节点。
 
@@ -826,14 +836,14 @@ flowchart LR
 | 实现编号 | 状态 | 类型 | 路径 | 符号/配置项 | 责任 | 必要性 | 设计规则 |
 |---|---|---|---|---|---|---|---|
 | `IMPL-CORE-001` | 建议新增 | Python 构建 | `agent-runtime/pyproject.toml` | Python `>=3.12,<3.13`、`langgraph==1.2.9`、test extra | 建立最小 Python 工程和锁定依赖 | 当前无目标工程 | `DR-CORE-008/013` |
-| `IMPL-CORE-002` | 建议新增 | Python 契约 | `agent-runtime/src/agent_runtime/capability_api/contracts.py` | descriptor、context、candidate、result、validator/handler/provider Protocol、JSON 冻结与不变量 | 唯一公共能力语义 | 防止三类能力各自定义契约 | `DR-CORE-003/004/005/007/011/012/013` |
+| `IMPL-CORE-002` | 建议新增 | Python 契约 | `agent-runtime/src/agent_runtime/capability_api/contracts.py` | descriptor、含 `original_question` 的 context、candidate、result、validator/handler/provider Protocol、JSON 冻结与不变量 | 唯一公共能力语义 | 防止三类能力各自定义契约 | `DR-CORE-003/004/005/007/011/012/013/014` |
 | `IMPL-CORE-003` | 建议新增 | Python 核心 | `agent-runtime/src/agent_runtime/core/registry.py` | `CapabilityRegistryBuilder`、`FrozenCapabilityRegistry`、注册错误 | 启动校验、冻结、快照和只读查找 | 有限发现与一致执行集合 | `DR-CORE-003/006/007/010/011/013` |
 | `IMPL-CORE-004` | 建议新增 | Python 核心 | `agent-runtime/src/agent_runtime/core/execution.py` | `RequestExecutionScope`、`ActionExecutionLatch`、`CapabilityExecutionCore` | 固定校验、单动作 claim、deadline、调用和结果约束 | 核心确定性边界 | `DR-CORE-001/002/004/005/009/011/012` |
 | `IMPL-CORE-005` | 建议新增 | LangGraph Schema | `agent-runtime/src/agent_runtime/graph/state.py` | input/internal/output/update TypedDict、模型节点窄输入、`GraphRunContext`、`AgentSemanticOutcome` | 请求级唯一 state、节点最小输入和运行上下文 Schema | 防内部身份及领域结果进入错误 state/output/模型节点 | `DR-CORE-001/004/005/008/012` |
 | `IMPL-CORE-006` | 建议新增 | LangGraph 节点 | `agent-runtime/src/agent_runtime/graph/nodes.py` | action/answer Protocol 和投影 wrapper、`execute_capability_node`、公共路由、固定终态 | 图与核心及相邻模型 L2 的最小协作 | 防图直接调用处理器/注册表，防模型节点接收整个 state | `DR-CORE-001/002/005/008/009/012` |
 | `IMPL-CORE-007` | 建议新增 | Python 装配 | `agent-runtime/src/agent_runtime/bootstrap.py` | `RuntimeCompositionRoot`、显式 provider 列表、无 checkpointer/store 图编译 | 唯一具体装配点 | 新能力不侵入核心 | `DR-CORE-006/007/008/010/013` |
 | `IMPL-CORE-008` | 建议新增 | Python 配置 | `agent-runtime/src/agent_runtime/settings.py` | `CoreRuntimeSettings` | 核心限制强类型绑定、范围校验和冻结 | 有界执行与失败关闭 | `DR-CORE-006/009/011/013` |
-| `IMPL-CORE-009` | 建议新增 | Python 运行入口 | `agent-runtime/src/agent_runtime/runtime.py` | `AgentRuntimeInvoker` | 防御性校验 question/context，以 `context=` 调用已编译图并返回语义结果 | 防敏感 scope 进入 state，阻止越界问题到达模型 | `DR-CORE-004/008/011/012` |
+| `IMPL-CORE-009` | 建议新增 | Python 运行入口 | `agent-runtime/src/agent_runtime/runtime.py` | `AgentRuntimeInvoker` | 防御性校验 question/context 及原始问题同源，以 `context=` 调用已编译图并返回语义结果 | 防敏感 scope 进入 state，阻止问题漂移或越界问题到达模型 | `DR-CORE-004/008/011/012/014` |
 
 ### 15.1 适用实施剖面与细节边界
 
@@ -905,7 +915,7 @@ flowchart LR
 | 建议新增：同上 `generate_answer_node` | `async def generate_answer_node(state: AgentRequestState, *, answer_generator: AnswerGenerationNode) -> FinalOutcomeStateUpdate` | 仅在 route=answer 后执行；确定性投影 question、capability ID 和 safe payload | 构造窄 `AnswerGenerationInput`；校验 decision 并按 11.1 锚定或失败映射；缺失/非法字段转 `internal_failure/core.invalid_graph_state`，非法决定转 `core.invalid_model_node_decision` | wrapper 独占最终 outcome 写入；不把整个 state 或 domain result 交给模型节点 | LangGraph；`TEST-CORE-005/008/009` |
 | 建议新增：同上 `finalize_without_model` | `def finalize_without_model(state: AgentRequestState) -> FinalOutcomeStateUpdate` | 只读已校验公共 result；严格按 11.1 终态映射表处理 `success + denied/not_applicable`、`no_result`、出域拒绝和其他失败 | 产生无模型 `AgentSemanticOutcome`；只在明确用户可见组合中原样深冻结 `domain_result` 为 `user_result`；`model_egress_denied` 和失败均丢弃领域结果；未知组合转 `core.invalid_result` | 纯函数，模型调用为零 | LangGraph fixed 分支；`TEST-CORE-003/005/008` |
 | 建议新增：`agent-runtime/src/agent_runtime/bootstrap.py` `RuntimeCompositionRoot.build` | `@staticmethod def build(*, settings: CoreRuntimeSettings, providers: Sequence[CapabilityRegistrationProvider], action_selector: ActionSelectionNode, answer_generator: AnswerGenerationNode) -> AgentRuntimeInvoker` | 仅启动期；显式 provider 顺序；先设置/注册校验；再把 descriptors/selector、core、answer generator 分别绑定到三个 wrapper 节点并编译无 store/checkpointer 图 | 返回完整运行入口；设置/注册/图校验错误阻止就绪，不转换为请求结果 | 创建对象图和冻结快照；不进入请求调用链 | Python 进程启动入口；`TEST-CORE-002/005/007/009`、`VAL-CORE-003/004` |
-| 建议新增：`agent-runtime/src/agent_runtime/runtime.py` `AgentRuntimeInvoker.ainvoke` | `async def ainvoke(self, *, question: str, scope: RequestExecutionScope) -> AgentSemanticOutcome` | 按 11.1 校验 question/context；以 `context=GraphRunContext(execution_scope=scope)` 调用图 | 返回唯一语义结果；普通图异常转 `internal_failure`；runtime shutdown cancel 传播 | 每次调用新建单请求图运行；不缓存、重放或持久化 | L2_00_00 Python 入站处理器；`TEST-CORE-005/008/009`、`VAL-CORE-003` |
+| 建议新增：`agent-runtime/src/agent_runtime/runtime.py` `AgentRuntimeInvoker.ainvoke` | `async def ainvoke(self, *, question: str, scope: RequestExecutionScope) -> AgentSemanticOutcome` | 按 11.1 校验 question/context，并要求 `question == scope.context.original_question`；以 `context=GraphRunContext(execution_scope=scope)` 调用图 | 非法问题/不同源分别返回固定 `invalid_argument`；否则返回唯一语义结果；普通图异常转 `internal_failure`；runtime shutdown cancel 传播 | 每次调用新建单请求图运行；不同源时图调用为零；不缓存、重放或持久化 | L2_00_00 Python 入站处理器；`TEST-CORE-005/008/009/010`、`VAL-CORE-003` |
 
 补充约束：
 
@@ -941,6 +951,7 @@ flowchart LR
 | `TEST-CORE-007` | 建议新增 | `DR-CORE-007/010/013` | Contract/Architecture | `agent-runtime/tests/architecture/test_extensibility.py` | 用 provider/root fixture 新增模拟域，并分别绑定替身和计数装饰器；检查核心源码未改 | 验证替换、装饰和新增模拟域 | 只改 provider/root fixture 即可新增；核心源码无领域分支 | 需要修改 core 或其他能力 |
 | `TEST-CORE-008` | 建议新增 | `DR-CORE-005/011/012` | Unit | `agent-runtime/tests/unit/test_limits_and_logging.py` | 参数化边界±1、深度、集合数、NaN、自定义对象；构造含秘密的异常 message/args/response；用 caplog 捕获 token/question/result/payload 并比较同类型同阶段异常指纹 | 验证容量、code/source-only 错误契约、指纹输入安全性和日志脱敏 | `FailureDetail` 无自由文本字段；超界失败关闭；不同秘密正文但同类型/阶段/规则码产生同一安全指纹；日志无秘密正文或 stack trace；指标标签有界 | 自由文本进入契约、敏感值影响指纹或日志、超界成功 |
 | `TEST-CORE-009` | 建议新增 | `DR-CORE-008/010/013` | Architecture | `agent-runtime/tests/architecture/test_dependency_rules.py` | AST/import 图和签名检查：限制 Runtime、领域包、插件/持久化依赖及 bootstrap 具体装配所有权；检查两个模型 Protocol 的返回类型；检查 registry 私有执行类型的导入者 | 验证包依赖、边界签名、运行上下文访问、模型无 state 写权、opaque call/registered capability 不形成旁路、无动态插件和无持久化 | capability_api/core 无领域/SDK/LangGraph 反向依赖；模型 Protocol 不接收 Runtime/全 state，且不返回 state update/`AgentSemanticOutcome`；仅执行核心可导入/接收 `ValidatedCapabilityCall`、`RegisteredCapability` 或调用 `resolve`；bootstrap 外无具体集合 | 出现禁止 import、签名漂移、Runtime 越权访问、模型直接写 state、注册项旁路、扫描或持久化 |
+| `TEST-CORE-010` | 建议新增 | `DR-CORE-004/014` | Unit/Integration | `agent-runtime/tests/unit/test_request_question_binding.py` | 参数化相同、不同、空白、超长问题；用 selector/validator/handler spies 调用 `AgentRuntimeInvoker.ainvoke` | 验证图输入与处理器原始问题同源且失败关闭 | 相同值时 handler 读取值与入站问题精确相同；不同/非法值返回固定 `invalid_argument`，graph/selector/validator/handler 均为 0 次；日志无问题正文 | 问题被静默覆盖、信任模型参数、调用下游或泄露正文 |
 
 ### 16.2 关键场景矩阵
 
@@ -958,6 +969,7 @@ flowchart LR
 | 取消与结果竞态 | cancellation waiter 与 handler future 同轮完成 | 执行核心仲裁并回收 task | 取消来源稳定且优先；handler 结果不接纳；latch FINISHED；无后台 task |
 | 运行时取消传播 | handler 已开始且外层 task 或 signal 触发 runtime shutdown | 取消并等待 handler 后传播 `CancelledError` | 不生成普通结果；latch 以 `runtime_cancelled` FINISHED；辅助 task 全部回收 |
 | 模型决定越权 | selector/answer stub 返回含自定义 status、capability ID、`user_result` 或完整 outcome 的对象 | wrapper 校验模型决定 | 非法决定整体丢弃并返回 `internal_failure/core.invalid_model_node_decision`；能力或模型不发生后续调用；越权字段不进入 state/output |
+| 原始问题同源 | 入站 question 与 scope context 分别设置相同/不同值 | 调用 Runtime invoker | 相同值时 Knowledge 风格 handler 可读取同一原问题；不同值时 graph/模型/validator/handler 全部零调用并返回 `invalid_argument/core.question_context_mismatch` |
 | 模型失败的 ID 锚定 | selector 在 claim 前失败；另一路 handler 成功后 answer stub 失败 | 分别执行两条图路径 | 选择阶段 outcome ID 为空；回答阶段 outcome 保留已执行 canonical ID；两条路径均按 failure kind 使用固定 code/source，领域结果和安全载荷不进入输出 |
 | 非法 allowed 结果 | allowed 但 payload 缺失 | handler 返回 | 全部载荷丢弃，internal_failure |
 | 取消/超时迟到 | handler 延迟或吞取消 | deadline 到达 | 迟到结果不写 state，不安排后续模型节点 |
@@ -971,7 +983,7 @@ flowchart LR
 | `VAL-CORE-002` | `D:\codex\agent-runtime`；未来代码、test extra 和本地 stub 已创建 | `python -m pytest tests/unit -q` | 覆盖公共契约、注册、执行、并发、限制和日志；足以定位单模块规则，但不证明包依赖和图协作 | 全部通过 | 共享能力 API 同时执行 `VAL-CORE-003/004` | 未执行：代码尚未获准创建 |
 | `VAL-CORE-003` | `D:\codex\agent-runtime`；未来 contract/architecture/integration tests 和模型无关 stubs 已创建 | `python -m pytest tests/contract tests/architecture tests/integration -q` | 覆盖双处理器形态、边界签名、扩展、依赖、state/context 隔离和模型无关图；不证明真实模型或业务集成 | 全部通过 | 真实模型/数据另受 `SA-GATE-002/006`、`CR-GATE-003` | 未执行：代码尚未获准创建 |
 | `VAL-CORE-004` | `D:\codex\agent-runtime`；未来源码、测试和锁定开发依赖已创建 | 依次执行 `python -m compileall -q src tests`、`python -m mypy --strict src tests`、`python -m pip check` | 证明语法、本文建议签名/泛型绑定和依赖一致；不证明运行行为 | 三条命令均无错误 | 与 `VAL-CORE-002/003` 联合才构成核心实现验证 | 未执行：工程尚不存在 |
-| `VAL-CORE-005` | `D:\codex`；本文独立评审记录、依赖报告和门禁材料可用 | 人工核对依赖图、建议签名、注册快照规则、状态/权限边界及每个开放门禁 | 证明设计结论和实施授权证据未被 validator/本地测试替代 | 独立评审明确结论后才可请求关闭 `CR-GATE-002` | 若评审发现上位/同层冲突，另行授权同步相关文档 | 已执行：五轮独立评审—修订—复核通过，`REV-L2-001`～`REV-L2-009` 全部关闭，无未关闭 S0/S1；未关闭 `CR-GATE-002`（2026-07-25） |
+| `VAL-CORE-005` | `D:\codex`；本文独立评审记录、依赖报告和门禁材料可用 | 人工核对依赖图、建议签名、注册快照规则、状态/权限边界及每个开放门禁 | 证明设计结论和实施授权证据未被 validator/本地测试替代 | v0.4 针对性独立复评明确结论后才可请求关闭 `CR-GATE-002` | 若复评发现上位/同层冲突，另行授权同步相关文档 | v0.3 五轮评审已完成；v0.4 `REV-L2-010` 待针对性复评，`CR-GATE-002` 保持 Open |
 
 ## 17. 发布、迁移与回滚
 
@@ -1006,13 +1018,14 @@ flowchart LR
 | `RISK-CORE-007` | 框架版本 | LangGraph 升级改变 StateGraph/取消语义 | 修改依赖锁定版本 | 图行为漂移 | 当前固定 1.2.9；升级单独评审并全量回归 | 不阻塞本文；升级需变更授权 |
 | `RISK-CORE-008` | 外部契约 | Spring→Python 传输和截止时间换算尚由 L2_00_00 设计 | 进入双进程联调 | context 构造不一致 | 本文只固定 Python 消费语义；等待 L2_00_00 对齐 | 不阻塞模型无关核心设计；阻塞双进程实施/联调 |
 | `RISK-CORE-009` | 模型协作 | 动作候选和最终回答节点由 L2_00_02 定义 | 接入真实 DeepSeek | Schema 映射或结果路由不一致 | 使用本地替身验证核心；真实模型受 `SA-GATE-002/CR-GATE-003` | 不阻塞模型无关核心设计；阻塞真实模型 |
+| `RISK-CORE-010` | 原始问题漂移 | 图输入与处理器上下文由不同值构造，或能力信任模型回填问题 | Runtime/Knowledge 装配错误 | 改写失去原问题权威、检索与回答无法追踪 | 单源构造、精确相等闸门和零调用负向测试 | `REV-L2-010` 未复评前阻塞 `CR-GATE-002` |
 
 ### 18.2 阶段门禁与外部证据
 
 | 门禁 ID | 类型 | 阶段/模块切片 | 控制动作 | 关闭条件 | 证据/权威来源 | 内部责任人/外部提供方 | 最晚关闭阶段 | 验证者与方法 | 状态 | 未关闭时允许/禁止动作 | 模拟或替代路径 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `CR-GATE-001` | `design_decomposition` | L1_00→三份核心 L2 | 开始本文编写 | L1_00 v0.2 正式评审通过 | L1_00 14.1、17.3 | 项目维护者/独立评审方 | P2-L2 前 | 核对正式评审记录 | Closed | 允许本文编写；不授权代码 | 不适用 |
-| `CR-GATE-002` | `slice_implementation` | `agent-runtime` 模型无关的核心执行、能力 API、注册、图 wrapper 与本地替身测试切片 | 开始该目标生产代码和测试实施 | 本文已评审可实施；本切片契约、失败、测试、回滚范围明确；项目维护者明确授权 | 本文正式评审记录、追踪矩阵和验证清单 | 项目维护者 | P3 核心实现前 | 独立设计评审、追踪和验证清单 | Open | 允许文档/契约样例/隔离推演；禁止目标代码实施和完成声明 | 本文中的纯文档场景及未来本地 stub |
+| `CR-GATE-002` | `slice_implementation` | `agent-runtime` 模型无关的核心执行、能力 API、注册、图 wrapper 与本地替身测试切片 | 开始该目标生产代码和测试实施 | v0.4 针对性复评通过且本文可实施；本切片契约、失败、测试、回滚范围明确；项目维护者明确授权 | 本文正式复评记录、追踪矩阵和验证清单 | 项目维护者 | P3 核心实现前 | 独立设计复评、追踪和验证清单 | Open | 允许文档/契约样例/隔离推演；禁止目标代码实施和完成声明 | 本文中的纯文档场景及未来本地 stub |
 | `SA-GATE-002` | `slice_implementation` | DeepSeek 模型切片 | 定版模型 L2和真实模型实现 | Provider 契约、结构化动作 PoC 和运行限制完成 | L2_00_02/模型提供方 | 项目维护者/DeepSeek | 模型 L2 定版前 | Provider 契约测试和 PoC | Open | 不阻塞本文模型无关核心；禁止真实模型实现 | 本地动作选择/回答替身 |
 | `CR-GATE-003` | `integration` | 用户问题模型输入 | 外发可能敏感的原始/改写问题 | 输入分类、最小化、拒绝零调用测试完成 | L2_00_02 | 项目维护者/模型提供方 | 首次敏感问题联调前 | 模型 spy/负向测试 | Open | 只允许非敏感测试问题或本地替身 | 本地选择器 |
 | `SA-GATE-006` | `integration` | 领域真实数据模型输入 | 将知识证据或业务结果外发 | 关联出域 L2、失败关闭和零调用证据完成 | 关联能力 L2、L2_00_02 | 项目维护者/领域/模型方 | 首次真实数据联调前 | 出域矩阵和 Provider spy | Open | 只允许非敏感测试载荷或本地替身 | 合成安全载荷 |
@@ -1022,9 +1035,9 @@ flowchart LR
 ### 18.3 需要后续授权的动作
 
 - 明确关闭 `CR-GATE-002`，并创建或修改 `agent-runtime` 代码、测试、配置或依赖。
-- 编写/评审 `L2_00_00`、`L2_00_02`，或开始双进程与真实模型联调。
+- 对 `L2_00_00`、`L2_00_02`、`L2_01_00`、`L2_02_00` 执行独立评审，或在相应门禁关闭后申请双进程与真实模型联调授权。
 - 修改 Spring、认证、模型或领域能力契约。
-- 对 v0.3 已评审结论作后续语义变更，或扩展本次原子同步范围。
+- 对 v0.4 `original_question` 补正执行独立针对性复评；其他后续语义变更仍需另行授权。
 
 ## 19. 评审记录
 
@@ -1054,6 +1067,12 @@ flowchart LR
 
 最终结论：0 个未关闭 S0、0 个未关闭 S1、0 个未关闭 S2；v0.3 详细设计评审通过并进入 Approved。该结论证明本文模型无关核心切片的详细设计已完备，可作为申请关闭 `CR-GATE-002` 的输入；在门禁关闭前仍不是当前代码实施依据，也不等于实现完成、跨进程契约定版或真实模型/数据集成通过。
 
+### 19.3 v0.4 针对性复评状态
+
+| 复评项 | 来源 | 变更 | 当前状态 | 关闭条件 |
+|---|---|---|---|---|
+| `REV-L2-010` | 编写 `L2_01_00` 时发现 L1_01 原始问题契约无法由 v0.3 handler 输入满足 | 在 `CapabilityExecutionContext` 增加 `original_question`，并在 Runtime 调图前校验其与 `AgentInputState.question` 精确相同；同步实现/测试追踪 | Open，待独立针对性复评 | 复核该补正不让核心理解 Knowledge、不扩大模型出域、不破坏单动作/状态边界；严格校验通过且无未关闭 S0/S1 |
+
 ## 20. 实施前检查
 
 - [x] 目标、范围、非目标和文档修改权限明确。
@@ -1070,17 +1089,18 @@ flowchart LR
 - [x] 每个开放门禁均说明控制动作、关闭证据、责任方和 fail-closed 行为。
 - [x] 作者内部自检完成且无遗留 Blocker/Major。
 - [x] `validate_detailed_design.py --strict` 通过。
-- [x] 五轮独立正式评审通过，`REV-L2-001`～`REV-L2-009` 全部关闭且无未关闭 S0/S1。
+- [x] v0.3 五轮独立正式评审通过，`REV-L2-001`～`REV-L2-009` 全部关闭且无未关闭 S0/S1。
+- [ ] v0.4 针对性独立复评关闭 `REV-L2-010`。
 - [ ] 项目维护者明确关闭 `CR-GATE-002` 并授权代码实施。
 
 ## 21. 当前结论
 
-- 本文版本：v0.3。
-- 文档状态：Approved。
-- 评审状态：已通过。
+- 本文版本：v0.4。
+- 文档状态：In Review。
+- 评审状态：v0.3 已通过；v0.4 `REV-L2-010` 待针对性复评。
 - 实施状态：未实施。
 - 生效状态：未生效。
-- 是否可作为实现依据：否；`CR-GATE-002` 仍为 Open，尚未获得目标代码/测试实施授权。
+- 是否可作为实现依据：否；v0.4 复评与 `CR-GATE-002` 均未关闭，且尚未获得目标代码/测试实施授权。
 - `CR-GATE-002` 尚未获得代码实施授权，当前仍不允许创建或修改目标代码、测试、配置和依赖。
 - `CR-GATE-001` 已关闭；`CR-GATE-002`、`SA-GATE-002`、`CR-GATE-003`、`SA-GATE-006` 保持 Open。
-- 本轮只原子同步本文与 `docs/ARCHITECTURE.md` 并按用户授权提交、推送；未修改或授权任何代码、测试、配置、公共接口或外部契约。
+- 本轮原子同步本文、四份第二批 L2 与 `docs/ARCHITECTURE.md`，并按用户授权提交、推送；未修改或授权任何代码、测试、配置、公共接口或外部契约。
