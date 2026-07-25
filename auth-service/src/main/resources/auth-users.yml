@@ -5,7 +5,7 @@ auth:
       roles: [ADMIN]
     dylan:
       password: "{noop}123456"
-      roles: [USER]
+      roles: [ADMIN]
     viewer_t:
       password: "{noop}123456"
       roles: [VIEWER]
