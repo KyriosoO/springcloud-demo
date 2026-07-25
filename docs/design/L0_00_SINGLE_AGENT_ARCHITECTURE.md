@@ -21,7 +21,7 @@
 | 目标文档位置 | `docs/design/L0_00_SINGLE_AGENT_ARCHITECTURE.md` |
 | 上位架构文档 | 无 |
 | 外部治理文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) |
-| 治理的 L1 文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)（v0.2，已评审/已通过，`CR-GATE-001` 已关闭）；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md)（v0.2，已评审/已通过，`KQ-GATE-001` 已关闭）；`L1_02`《单体 Agent 业务查询适配架构 L1》（待创建） |
+| 治理的 L1 文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)（v0.2，已评审/已通过，`CR-GATE-001` 已关闭）；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md)（v0.2，已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md)（v0.1，草稿/未评审，`BQ-GATE-001` 开启） |
 | 外部契约 | `auth-service` JWT 契约；`es-query-service` 只读检索契约；Embedding/重排/生成模型契约；`employee-service` 查询契约；`mq-procedure-service` 查询契约 |
 | 替代关系 | 新建基线；不继承已退出当前工作区的旧 Agent 架构设计 |
 
@@ -42,6 +42,7 @@
 | 9 | 2026-07-25 | 文档标题、治理信息、权威关系及 L1 治理计划 | 用户授权后恢复：追加稳定编号 `L0_00`，迁移文件路径，并同步 `REQ_00`、`L1_00` 及规划中的 `L1_01/L1_02` 引用 | 形成可直接用于沟通的稳定编号体系；不改变 v0.4 架构决策、版本及正式状态 |
 | 10 | 2026-07-25 | 文档治理、权威关系及 L1 治理计划 | 原子同步 Knowledge L1 v0.1 的文档链接、草稿状态、适用约束映射、下位 L2 分解和开启门禁 | 保持 L0、L1 与架构索引的下位关系一致并补齐全查询认证等全局约束追踪；不改变 v0.4 架构决策、评审、实施或生效状态 |
 | 11 | 2026-07-25 | 文档治理、权威关系及 L1 治理计划 | 原子同步 Knowledge L1 v0.2 已评审/已通过状态及 `KQ-GATE-001` 关闭结果 | 保持 L0、L1 与架构索引的下位治理状态一致；不改变 v0.4 架构决策、`SA-GATE-001`、实施状态、生效状态或其余集成/效果门禁 |
+| 12 | 2026-07-25 | 文档治理、权威关系及 L1 治理计划 | 原子同步业务查询适配 L1 v0.1 的文档链接、草稿状态、适用约束、三份 L2 分解和开放门禁 | 保持 L0、三份 L1 与架构索引的治理关系一致；不改变 v0.4 架构决策、评审状态、`SA-GATE-001` 或其余实施/集成门禁 |
 
 ## 3. 文档定位
 
@@ -102,7 +103,7 @@
 | 本文 | parent | 本次仅同步下位文档版本、评审状态和门禁引用 | v0.4 架构决策、评审状态和 `SA-GATE-001` 结论不变 |
 | [`L1_00` 核心与运行 L1](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | governed_child | 本次仅同步编号与路径 | v0.2 已评审/已通过；`CR-GATE-001` 已关闭；未实施、未生效 |
 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | governed_child | 本次按授权原子同步评审结论 | v0.2 已评审/已通过；`KQ-GATE-001` 已关闭；未实施、未生效 |
-| 计划中的 `L1_02` 业务查询 L1 | governed_child | 只读/尚不存在 | 后续按稳定编号和授权创建 |
+| [`L1_02` 业务查询适配 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | governed_child | 本次按用户授权创建并原子同步 | v0.1 草稿/未评审；`BQ-GATE-001` 开启；未实施、未生效 |
 | 现有服务代码、配置和测试 | implementation_evidence | 只读 | 用于核实现状，不反向定义目标架构 |
 
 ## 4. 架构背景与驱动因素
@@ -654,7 +655,7 @@ sequenceDiagram
 |---|---|---|---|---|---|---|
 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | Spring `agent-service`、Python `agent-runtime`、LangGraph 唯一编排、`agent-core`、`agent-capability-api`、能力注册运行时、DeepSeek 模型端口、入口认证和请求级执行 | SA-C-001、002、005、007 至 012、014、018、019 | `L1_01` 知识查询能力、`L1_02` 业务查询适配 | `L2_00_00` Spring 接入与运行协同、`L2_00_01` 核心执行与能力注册、`L2_00_02` DeepSeek 模型接入与受控生成 | P1 已确认；v0.2 正式评审通过，`CR-GATE-001` 已关闭，可进入三份核心运行 L2 | v0.2 已评审/已通过；未实施、未生效 |
 | [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | `agent-knowledge-capability`、`agent-knowledge-adapter`、Knowledge 能力描述与配置、逻辑知识域、检索基础设施消费与集成边界、BGE Embedding/Rerank 消费端口、证据上下文及三层出域策略 | SA-C-001、002、005 至 012、014 至 019、021（003、004、013、020 不适用） | `L1_00` 核心与运行、`L1_02` 业务查询适配 | `L2_01_00` Knowledge 查询流程与配置、`L2_01_01` Knowledge 检索与本地模型接入、`L2_01_02` Knowledge 证据/出域/摘要与效果验证 | v0.2 已完成五轮独立正式评审并关闭 `KQ-GATE-001`，可进入三份下位 L2；`SA-GATE-003/006/007` 仍按真实检索、证据外发和效果结论控制后续动作 | v0.2 已评审/已通过；未实施、未生效 |
-| `L1_02`《单体 Agent 业务查询适配架构 L1》 | Employee/Transaction 能力描述与强类型动作配置、两个业务 Adapter、业务字段出域和权限联调 | SA-C-002 至 014、019、020（其中 015 至 018、021 不适用） | `L1_00` 核心与运行、`L1_01` 知识查询能力 | Employee/Transaction 注册描述与配置、Adapter、字段交集与有限枚举脱敏、权限联调详细设计 | 核心能力契约边界稳定后 | 待创建 |
+| [`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | Employee/Transaction 能力描述与强类型动作配置、两个业务 Adapter、业务字段出域和权限联调 | SA-C-001 至 014、019、020（其中 015 至 018、021 不适用） | `L1_00` 核心与运行、`L1_01` 知识查询能力 | `L2_02_00` 业务查询公共约束/配置/出域、`L2_02_01` Employee Adapter/授权联调、`L2_02_02` Transaction Adapter/授权联调 | v0.1 须完成独立正式评审并关闭 `BQ-GATE-001` 后进入下位 L2；动作/角色/字段差距可并行核实 | v0.1 草稿/未评审；未实施、未生效 |
 
 ### 13.1 覆盖完整性
 

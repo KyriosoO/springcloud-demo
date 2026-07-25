@@ -20,7 +20,7 @@
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 | 目标文档位置 | `docs/design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md` |
 | 上位 L0 | [`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4 |
-| 关联 L1 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；计划中的 `L1_02`《单体 Agent 业务查询适配架构 L1》 |
+| 关联 L1 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.1（草稿/未评审，`BQ-GATE-001` 开启） |
 | 治理的 L2 | `L2_01_00` Knowledge 查询流程与配置；`L2_01_01` Knowledge 检索与本地模型接入；`L2_01_02` Knowledge 证据、出域、摘要与效果验证 |
 | 外部契约 | L1_00 能力执行与公共模型端口语义；`es-query-service` 类型化只读检索契约；本地 BGE-M3 Embedding 与 `BAAI/bge-reranker-v2-m3` Rerank 契约；知识内容、读取可见性及文档级出域元数据权威 |
 | 替代关系 | 新建基线；现有 `es-query-*` 实现和历史 Agent/Knowledge 代码只作为现状与迁移输入，不自动成为目标架构 |
@@ -40,6 +40,7 @@
 | 7 | 2026-07-25 | 4.2～4.3、5.1 | 第 4 轮评审修复：补充 Knowledge 直接承接的 L0 架构决策映射，并将本地模型具体 HTTP 路径移出 L1 事实表、声明现状事实不构成目标契约 | 关闭 `REV-KQ-005`、`REV-KQ-006`（S2），消除上位决策追踪依赖推断及提供方实现细节被误认作 L1 权威的风险 |
 | 8 | 2026-07-25 | 2、3.5、4.2、5.1、5.4、7.3、11、13、15～17 | 第 5 轮评审修复：区分首批知识内容范围与逻辑域划分，要求 L2 固化首批目录并以至少两个注册域或受控替身验证单域/多域/零域路径；同步补齐上位决策适用性并校正读取字段现状和阶段术语 | 关闭 `REV-KQ-007`（S1）和 `REV-KQ-008`（S2），防止单域实现误通过多域需求并消除追踪、事实和术语漂移 |
 | 9 | 2026-07-25 | 1、14.2、17.3、18.2 | 记录五轮正式评审通过，将文档更新为 v0.2 已评审/已通过并关闭 `KQ-GATE-001` | 形成可供三份 Knowledge L2 编写的治理基线；不改变未实施、未生效及其余门禁开放状态 |
+| 10 | 2026-07-25 | 文档治理、权威关系、非职责和同层一致性 | 原子同步已创建的业务查询适配 L1 v0.1 链接、草稿状态和 `BQ-GATE-001` 开放状态 | 保持 Knowledge 与业务查询同层隔离及治理状态一致；不改变本文 v0.2 架构决策、评审、实施、生效或 `KQ-GATE-001` 结论 |
 
 ## 3. 文档定位与权威关系
 
@@ -64,7 +65,7 @@ REQ_00 已确认需求
           → L2_01_00 查询流程与配置
           → L2_01_01 检索与本地模型接入
           → L2_01_02 证据、出域、摘要与效果验证
-      → L1_02 业务查询适配：Employee/Transaction（计划中）
+      → L1_02 业务查询适配：Employee/Transaction（v0.1 草稿）
 ```
 
 - L0 对单逻辑 Agent、单动作、模型不可信、检索只读、证据约束和三层出域具有上位权威。
@@ -92,7 +93,7 @@ REQ_00 已确认需求
 | Elasticsearch 集群、物理索引生命周期、文档录入、切分、批量写入、删除和重建 | `es-query-service`/索引建设流程 | 只消费经类型化只读契约暴露的派生检索快照 |
 | `es-query-service` 内部类、ES DSL、查询优化和模型服务内部部署 | 对应提供方详细设计 | 只约束 Knowledge 所需语义和禁止接口 |
 | 知识内容真相、文档读取权限和文档级出域元数据真相 | 知识内容及策略权威 | 消费带版本的读取/出域判定依据，不复制所有权 |
-| Employee/Transaction 动作、Adapter、业务授权和字段出域 | 计划中的 L1_02 | 不在 Knowledge 配置或流程内注册 |
+| Employee/Transaction 动作、Adapter、业务授权和字段出域 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | 不在 Knowledge 配置或流程内注册 |
 | 聚合、工作流、写入、持久会话、Multi-Agent 和生产级高可用 | 未来重新立项 | 本期不实现，也不建立通用平台 |
 
 ### 3.5 适用范围与简化原则
@@ -613,7 +614,7 @@ Knowledge 不新增数据库、缓存、消息队列或持久检查点。为效�
 
 - 与 L1_00 一致：只注册一个动作，公共状态不新增，领域结果/出域决定/模型载荷分离。
 - 与 L1_00 一致：DeepSeek 只通过公共模型 Port；Knowledge 只拥有场景语义和 BGE 消费 Port。
-- 与计划中的 L1_02 隔离：Knowledge 不复用业务 Adapter、业务动作配置、角色规则或业务字段脱敏策略。
+- 与 [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) 隔离：Knowledge 不复用业务 Adapter、业务动作配置、角色规则或业务字段脱敏策略；`L1_02` 当前仍为 v0.1 草稿。
 - 与 L0 一致：不新增 `knowledge-service`，不把 Adapter 独立部署，不把 `es-query-service` 扩张为知识编排或生成平台。
 
 ## 16. 风险、待确认项与影响
