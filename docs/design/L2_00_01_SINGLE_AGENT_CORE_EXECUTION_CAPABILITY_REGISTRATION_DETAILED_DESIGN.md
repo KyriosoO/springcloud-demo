@@ -1,7 +1,7 @@
 # [L2_00_01] 单体 Agent 核心执行与能力注册详细设计 L2
 
 > 文档层级：L2
-> 文档状态：In Review
+> 文档状态：Approved
 
 ## 1. 文档信息
 
@@ -12,23 +12,24 @@
 | 文档编号 | `L2_00_01` |
 | 文档路径 | `docs/design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
-| 文档状态 | In Review |
-| 评审状态 | v0.3 已通过；v0.4 原始问题上下文补正待针对性复评 |
+| 文档状态 | Approved |
+| 评审状态 | v0.3 五轮已通过；v0.4 原始问题上下文补正针对性复评已通过 |
 | 当前版本 | v0.4 |
 | 日期 | 2026-07-25 |
 | 适用范围 | Python `agent-runtime` 内的 LangGraph 请求状态、`agent-core` 确定性执行、`agent-capability-api`、进程内能力注册运行时、组合根及模型无关测试替身 |
 | 上位文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2（已评审/已通过，`CR-GATE-001` 已关闭） |
 | 来源文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.2；[`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4 |
-| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.1 Draft |
+| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4 Approved；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.2 Approved |
 | 实现基线 | 当前工作区不存在目标 `agent-runtime`、`agent-service`、`agent-core`、`agent-capability-api` 或 Python 源码/测试工程；本机只读核实 Python 为 3.12.4 |
 | 技术基线 | Python `>=3.12,<3.13`；`langgraph==1.2.9`；使用 `StateGraph`、`TypedDict` 状态和 `context_schema` 运行上下文，不配置 checkpointer 或 store |
-| 是否可作为实现依据 | 否，v0.3 曾评审通过，v0.4 对执行上下文作语义补正且尚未完成针对性复评，`CR-GATE-002` 仍为 Open |
+| 是否可作为实现依据 | 否 |
+| 实施依据说明 | v0.4 已评审通过，但 `CR-GATE-002` 仍为 Open，且尚未获得目标代码/测试实施授权 |
 | 当前允许实施范围 | 不允许目标生产代码实施；仅允许本文评审、契约样例推演及不进入目标模块的隔离测试验证 |
 | 当前禁止动作 | 新建或修改 Agent 代码、测试、配置、公共接口、外部契约；启用真实模型或真实业务/知识数据；关闭 `CR-GATE-002` 或声明实现完成 |
 | 修改权限 | 本轮用户已授权第二批 L2 及必要直接关联文档原子同步，并授权对应 Git commit/push；本文仅同步 `original_question` 内部契约、追踪与状态，L0/L1、代码、测试、配置、Schema 和外部契约未获修改授权 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 
-> 本文只完成批次 1 的核心执行与能力注册详细设计。v0.3 已完成五轮独立评审—修订—复核，`REV-L2-001`～`REV-L2-009` 全部关闭；第二批 Knowledge L2 编写时发现处理器无法取得权威原始问题，v0.4 以最小方式补充 `CapabilityExecutionContext.original_question` 及同源校验，并回到 In Review 等待针对性复评。本文仍不定义 Spring→Python 传输协议、DeepSeek 供应商契约、Knowledge 流水线、Employee/Transaction 动作、领域字段出域策略或生产级韧性机制，也不表示任何实现、集成或生效状态已经改变。
+> 本文只完成批次 1 的核心执行与能力注册详细设计。v0.3 已完成五轮独立评审—修订—复核，`REV-L2-001`～`REV-L2-009` 全部关闭；第二批 Knowledge L2 编写时发现处理器无法取得权威原始问题，v0.4 以最小方式补充 `CapabilityExecutionContext.original_question` 及同源校验，针对性复评确认该补正不让核心理解 Knowledge、不扩大模型出域且不破坏单动作/状态边界，`REV-L2-010` 已关闭。本文仍不定义 Spring→Python 传输协议、DeepSeek 供应商契约、Knowledge 流水线、Employee/Transaction 动作、领域字段出域策略或生产级韧性机制，也不表示任何实现、集成或生效状态已经改变。
 
 ## 2. 修改历史
 
@@ -44,6 +45,8 @@
 | 8 | 2026-07-25 | 4.2、8.3、10.1、11.1、15～16、18～21 | 第 5 轮独立评审修复及状态同步 | 明确 latch 是唯一一次执行权威；去除模型失败冗余 code 并固定 claim 前后 ID 锚定；完成追踪复核、v0.3 Approved 状态和直接索引同步，关闭 `REV-L2-008/009` |
 | 9 | 2026-07-25 | 1～4、8.1、8.5、10.1、11.1、15～21 | 第二批 Knowledge L2 发现直接契约缺口并获授权原子同步 | 增加只读 `original_question`、图输入同源校验及对应实现/测试追踪；不改变外部 HTTP、候选参数或领域职责；版本升为 v0.4、状态回到 In Review，并新增待针对性复评项 `REV-L2-010` |
 | 10 | 2026-07-25 | 1～2、5.1、16.3、18.3、21 | 第二批 L2 原子状态同步 | 将已建立的四份第二批 L2 从规划引用更新为 v0.1 Draft 只读依赖，并把后续动作收敛为独立评审；修正文案与本轮实际同步范围，不改变 v0.4 契约或评审状态 |
+| 11 | 2026-07-25 | 1～2、16.3、18～21 | v0.4 原始问题补正针对性独立复评 | 复核确认只读原始问题及精确同源闸门未引入 Knowledge 分支、未扩大模型出域且未破坏单动作/状态隔离；关闭 `REV-L2-010`，状态恢复 Approved；`CR-GATE-002` 仍保持 Open |
+| 12 | 2026-07-25 | 1、5.1 | 第二批 L2 终审状态原子同步 | 同步四份第二批 L2 的最终 Approved 版本；仅更新只读关联元数据，不改变核心契约、评审结论或开放门禁 |
 
 ## 3. 背景、目标与范围
 
@@ -174,10 +177,10 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | L1_00 v0.2 | parent | 细化 L2_00_01 唯一范围 | 定义核心运行模块边界和门禁 | `CR-AD-*`、统一状态 | 直接上位权威 | 只读 |
 | L1_01 v0.2 | peer | 提供公共能力契约，供 Knowledge 未来实现 | 拥有 Knowledge 流程、领域结果和出域策略 | `knowledge.query` 处理器 | Knowledge 状态/配置 | 只读 |
 | L1_02 v0.2 | peer | 提供公共能力契约，供业务 Adapter 未来实现 | 拥有业务动作、领域结果、权限和出域策略 | 业务动作处理器 | 业务动作/配置 | 只读 |
-| `L2_00_00` v0.1 Draft | peer | 定义 Python 内部执行上下文的消费语义 | 定义 Spring→Python 传输、JWT 验证、截止时间换算和外部映射 | `ExecutionContext` 构造边界 | 跨进程接入状态 | 只读 |
-| `L2_00_02` v0.1 Draft | peer | 提供模型节点读取/写入的核心状态字段和安全调用前提 | 定义模型端口、候选动作、输入闸门和回答生成 | `ActionCandidate`、安全载荷 | 模型调用状态 | 只读 |
-| `L2_01_00` v0.1 Draft | peer/consumer | 提供公共能力执行上下文和结果契约 | 定义 Knowledge 单动作流程、配置和阶段端口 | `CapabilityExecutionContext.original_question`、`CapabilityResult` | Knowledge 请求级状态 | 只读 |
-| `L2_02_00` v0.1 Draft | peer/consumer | 提供公共能力契约和 JWT wrapper | 定义业务查询公共约束、配置及出域原语 | `OpaqueUserToken`、`CapabilityResult`、safe payload | 业务查询公共状态 | 只读 |
+| `L2_00_00` v0.2 Approved | peer | 定义 Python 内部执行上下文的消费语义 | 定义 Spring→Python 传输、JWT 验证、截止时间换算和外部映射 | `ExecutionContext` 构造边界 | 跨进程接入状态 | 只读 |
+| `L2_00_02` v0.4 Approved | peer | 提供模型节点读取/写入的核心状态字段和安全调用前提 | 定义模型端口、候选动作、输入闸门和回答生成 | `ActionCandidate`、安全载荷 | 模型调用状态 | 只读 |
+| `L2_01_00` v0.2 Approved | peer/consumer | 提供公共能力执行上下文和结果契约 | 定义 Knowledge 单动作流程、配置和阶段端口 | `CapabilityExecutionContext.original_question`、`CapabilityResult` | Knowledge 请求级状态 | 只读 |
+| `L2_02_00` v0.2 Approved | peer/consumer | 提供公共能力契约和 JWT wrapper | 定义业务查询公共约束、配置及出域原语 | `OpaqueUserToken`、`CapabilityResult`、safe payload | 业务查询公共状态 | 只读 |
 | 当前仓库代码 | implementation_baseline | 仅证明目标 Python 模块不存在 | 现有 Java 业务/基础设施继续独立演进 | 无目标调用链 | 现有系统所有者 | 只读 |
 | Python 3.12.4 本机环境 | implementation_baseline | 作为首期 Python 运行基线 | 不证明部署或依赖已安装 | CPython | 本地工具环境 | 只读 |
 | LangGraph 官方包与文档 | external_contract | 固定 `langgraph==1.2.9`，使用 `StateGraph`、`TypedDict`、`context_schema` 和无 checkpointer/store 编译 | 提供框架行为 | Python 库 API | 框架实现 | 外部只读 |
@@ -983,7 +986,7 @@ flowchart LR
 | `VAL-CORE-002` | `D:\codex\agent-runtime`；未来代码、test extra 和本地 stub 已创建 | `python -m pytest tests/unit -q` | 覆盖公共契约、注册、执行、并发、限制和日志；足以定位单模块规则，但不证明包依赖和图协作 | 全部通过 | 共享能力 API 同时执行 `VAL-CORE-003/004` | 未执行：代码尚未获准创建 |
 | `VAL-CORE-003` | `D:\codex\agent-runtime`；未来 contract/architecture/integration tests 和模型无关 stubs 已创建 | `python -m pytest tests/contract tests/architecture tests/integration -q` | 覆盖双处理器形态、边界签名、扩展、依赖、state/context 隔离和模型无关图；不证明真实模型或业务集成 | 全部通过 | 真实模型/数据另受 `SA-GATE-002/006`、`CR-GATE-003` | 未执行：代码尚未获准创建 |
 | `VAL-CORE-004` | `D:\codex\agent-runtime`；未来源码、测试和锁定开发依赖已创建 | 依次执行 `python -m compileall -q src tests`、`python -m mypy --strict src tests`、`python -m pip check` | 证明语法、本文建议签名/泛型绑定和依赖一致；不证明运行行为 | 三条命令均无错误 | 与 `VAL-CORE-002/003` 联合才构成核心实现验证 | 未执行：工程尚不存在 |
-| `VAL-CORE-005` | `D:\codex`；本文独立评审记录、依赖报告和门禁材料可用 | 人工核对依赖图、建议签名、注册快照规则、状态/权限边界及每个开放门禁 | 证明设计结论和实施授权证据未被 validator/本地测试替代 | v0.4 针对性独立复评明确结论后才可请求关闭 `CR-GATE-002` | 若复评发现上位/同层冲突，另行授权同步相关文档 | v0.3 五轮评审已完成；v0.4 `REV-L2-010` 待针对性复评，`CR-GATE-002` 保持 Open |
+| `VAL-CORE-005` | `D:\codex`；本文独立评审记录、依赖报告和门禁材料可用 | 人工核对依赖图、建议签名、注册快照规则、状态/权限边界及每个开放门禁 | 证明设计结论和实施授权证据未被 validator/本地测试替代 | v0.4 补正不得让核心理解 Knowledge、扩大模型出域或破坏单动作/状态边界 | 后续语义变化需重新评审；实现仍受门禁和单独授权控制 | 已执行：针对性复评无 S0/S1/S2，`REV-L2-010` Closed；`CR-GATE-002` 保持 Open |
 
 ## 17. 发布、迁移与回滚
 
@@ -1018,7 +1021,7 @@ flowchart LR
 | `RISK-CORE-007` | 框架版本 | LangGraph 升级改变 StateGraph/取消语义 | 修改依赖锁定版本 | 图行为漂移 | 当前固定 1.2.9；升级单独评审并全量回归 | 不阻塞本文；升级需变更授权 |
 | `RISK-CORE-008` | 外部契约 | Spring→Python 传输和截止时间换算尚由 L2_00_00 设计 | 进入双进程联调 | context 构造不一致 | 本文只固定 Python 消费语义；等待 L2_00_00 对齐 | 不阻塞模型无关核心设计；阻塞双进程实施/联调 |
 | `RISK-CORE-009` | 模型协作 | 动作候选和最终回答节点由 L2_00_02 定义 | 接入真实 DeepSeek | Schema 映射或结果路由不一致 | 使用本地替身验证核心；真实模型受 `SA-GATE-002/CR-GATE-003` | 不阻塞模型无关核心设计；阻塞真实模型 |
-| `RISK-CORE-010` | 原始问题漂移 | 图输入与处理器上下文由不同值构造，或能力信任模型回填问题 | Runtime/Knowledge 装配错误 | 改写失去原问题权威、检索与回答无法追踪 | 单源构造、精确相等闸门和零调用负向测试 | `REV-L2-010` 未复评前阻塞 `CR-GATE-002` |
+| `RISK-CORE-010` | 原始问题漂移 | 图输入与处理器上下文由不同值构造，或能力信任模型回填问题 | Runtime/Knowledge 装配错误 | 改写失去原问题权威、检索与回答无法追踪 | 单源构造、精确相等闸门和零调用负向测试 | 设计复评已关闭；相关测试未实施前仍阻塞 `CR-GATE-002` |
 
 ### 18.2 阶段门禁与外部证据
 
@@ -1037,7 +1040,7 @@ flowchart LR
 - 明确关闭 `CR-GATE-002`，并创建或修改 `agent-runtime` 代码、测试、配置或依赖。
 - 对 `L2_00_00`、`L2_00_02`、`L2_01_00`、`L2_02_00` 执行独立评审，或在相应门禁关闭后申请双进程与真实模型联调授权。
 - 修改 Spring、认证、模型或领域能力契约。
-- 对 v0.4 `original_question` 补正执行独立针对性复评；其他后续语义变更仍需另行授权。
+- 其他后续语义变更仍需另行授权并重新评审；不得以本次针对性复评覆盖新变更。
 
 ## 19. 评审记录
 
@@ -1067,11 +1070,16 @@ flowchart LR
 
 最终结论：0 个未关闭 S0、0 个未关闭 S1、0 个未关闭 S2；v0.3 详细设计评审通过并进入 Approved。该结论证明本文模型无关核心切片的详细设计已完备，可作为申请关闭 `CR-GATE-002` 的输入；在门禁关闭前仍不是当前代码实施依据，也不等于实现完成、跨进程契约定版或真实模型/数据集成通过。
 
-### 19.3 v0.4 针对性复评状态
+### 19.3 v0.4 针对性复评结论
 
 | 复评项 | 来源 | 变更 | 当前状态 | 关闭条件 |
 |---|---|---|---|---|
-| `REV-L2-010` | 编写 `L2_01_00` 时发现 L1_01 原始问题契约无法由 v0.3 handler 输入满足 | 在 `CapabilityExecutionContext` 增加 `original_question`，并在 Runtime 调图前校验其与 `AgentInputState.question` 精确相同；同步实现/测试追踪 | Open，待独立针对性复评 | 复核该补正不让核心理解 Knowledge、不扩大模型出域、不破坏单动作/状态边界；严格校验通过且无未关闭 S0/S1 |
+| `REV-L2-010` | 编写 `L2_01_00` 时发现 L1_01 原始问题契约无法由 v0.3 handler 输入满足 | 在 `CapabilityExecutionContext` 增加 `original_question`，并在 Runtime 调图前校验其与 `AgentInputState.question` 精确相同；同步实现/测试追踪 | Closed；针对性复评无 S0/S1/S2 | 已确认字段为只读请求事实，核心不解释 Knowledge 语义；模型仍只能接收窄投影并受 `L2_00_02` 闸门控制；不同源在图、模型、validator、handler 前失败；单动作 latch 和 state 单写边界不变 |
+
+针对性复评结论：v0.4 相比已通过的 v0.3 仅补齐执行上下文中的权威原始问题和
+入口同源闸门。该变化没有引入领域依赖、模型旁路、第二动作或新增持久状态，相关
+IMPL/TEST/VAL 追踪闭合，`REV-L2-010` 关闭，本文恢复 Approved。此结论只证明设计
+可作为后续实施申请的输入，不关闭 `CR-GATE-002`，也不证明测试或代码已经存在。
 
 ## 20. 实施前检查
 
@@ -1090,17 +1098,17 @@ flowchart LR
 - [x] 作者内部自检完成且无遗留 Blocker/Major。
 - [x] `validate_detailed_design.py --strict` 通过。
 - [x] v0.3 五轮独立正式评审通过，`REV-L2-001`～`REV-L2-009` 全部关闭且无未关闭 S0/S1。
-- [ ] v0.4 针对性独立复评关闭 `REV-L2-010`。
+- [x] v0.4 针对性独立复评关闭 `REV-L2-010`，无未关闭 S0/S1/S2。
 - [ ] 项目维护者明确关闭 `CR-GATE-002` 并授权代码实施。
 
 ## 21. 当前结论
 
 - 本文版本：v0.4。
-- 文档状态：In Review。
-- 评审状态：v0.3 已通过；v0.4 `REV-L2-010` 待针对性复评。
+- 文档状态：Approved。
+- 评审状态：v0.3 五轮已通过；v0.4 `REV-L2-010` 针对性复评已通过并关闭。
 - 实施状态：未实施。
 - 生效状态：未生效。
-- 是否可作为实现依据：否；v0.4 复评与 `CR-GATE-002` 均未关闭，且尚未获得目标代码/测试实施授权。
+- 是否可作为实现依据：否；v0.4 设计已评审可实施，但 `CR-GATE-002` 仍未关闭，且尚未获得目标代码/测试实施授权。
 - `CR-GATE-002` 尚未获得代码实施授权，当前仍不允许创建或修改目标代码、测试、配置和依赖。
 - `CR-GATE-001` 已关闭；`CR-GATE-002`、`SA-GATE-002`、`CR-GATE-003`、`SA-GATE-006` 保持 Open。
 - 本轮原子同步本文、四份第二批 L2 与 `docs/ARCHITECTURE.md`，并按用户授权提交、推送；未修改或授权任何代码、测试、配置、公共接口或外部契约。

@@ -8,16 +8,17 @@
 | 文档编号 | `L2_00_00` |
 | 文档路径 | `docs/design/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
-| 文档状态 | Draft |
-| 当前版本 | v0.1 |
+| 文档状态 | Approved |
+| 评审状态 | 已完成 5 轮独立评审—修复—复评；`REV-ACCESS-001`～`017` 全部关闭 |
+| 当前版本 | v0.2 |
 | 日期 | 2026-07-25 |
 | 适用范围 | `agent-service` 外部接入、Spring→Python 内部协议、总时限与取消、双进程健康及观测 |
 | 上位文档 | `REQ_00`、`L0_00`、`L1_00` |
-| 直接依赖 | `L2_00_01` v0.4（In Review）的 `AgentRuntimeInvoker`、含 `original_question` 的执行上下文与 `AgentSemanticOutcome` |
+| 直接依赖 | `L2_00_01` v0.4（Approved）的 `AgentRuntimeInvoker`、含 `original_question` 的执行上下文与 `AgentSemanticOutcome` |
 | 关联文档 | `L2_00_02`、`L1_01`、`L1_02` |
 | 实现基线 | Spring Boot 3.5.10、Spring Cloud 2025.0.1、`common-security` 当前资源服务器能力；目标 `agent-service`、`agent-runtime` 均不存在 |
 | 是否可作为实现依据 | 否 |
-| 实施依据说明 | 本文尚未独立评审，`CR-GATE-002` 仍为 Open |
+| 实施依据说明 | 本文设计已评审可实施，但 `CR-GATE-002` 仍为 Open，且尚未获得目标代码、配置、OpenAPI 或测试实施授权 |
 | 当前允许实施范围 | 本文编写、评审、契约样例推演和不访问真实下游的隔离 PoC |
 | 当前禁止动作 | 创建或修改目标代码、配置、OpenAPI、测试；真实 Agent 请求联调；关闭实施或集成门禁 |
 | 修改权限 | 本轮授权本文及直接相关文档原子同步，并授权 Git 提交、推送；代码、配置、Schema 和测试未获修改授权 |
@@ -30,6 +31,11 @@
 | 2 | 2026-07-25 | 4.2、9、10、15、18～19 | 作者第 1 轮自检修复 | 展开全部追踪 ID，明确详细流程与权限/审计章节，规范建议新增测试路径和实施依据字段 |
 | 3 | 2026-07-25 | 1～4、8～9、14～15、17～20 | 原子同步 `L2_00_01` v0.4 原始问题上下文补正 | 固定同一已校验 `question` 同时用于图输入和 `CapabilityExecutionContext.original_question`，补充不同源零调用失败与测试追踪；外部/内部 HTTP 字段不变 |
 | 4 | 2026-07-25 | 14、19～20 | 本批次收口校验 | 重新执行严格文档校验并记录 0 errors、0 warnings；状态仍为 Draft，不替代独立评审 |
+| 5 | 2026-07-25 | 8～15、17～21 | 独立评审第 1 轮修复 | 使响应预留进入 Runtime 子截止，统一 120 秒配置上限；补齐双端请求体和 WebClient 响应的前置字节限制；改为应用级 Runtime 准入并固定 429；补齐内部版本 Header、WebFlux/FastAPI 边界签名及回环信任假设 |
+| 6 | 2026-07-25 | 8～15、17、19～21 | 独立评审第 2 轮修复 | 固定安全过滤器与 DTO 绑定前的统一公共错误信封；以最早 WebFilter 单调时钟定义总预算起点；对齐 16KiB JWT 与 32KiB 双端 Header 容量；明确 watcher 回收和 Jackson 未知字段配置 |
+| 7 | 2026-07-25 | 4、8～10、14～15、17、19～21 | 独立评审第 3 轮修复 | 覆盖 FastAPI 默认 422/验证详情，穷尽 Runtime 非 200 传输映射，固定 WebClient 非 2xx 正文释放，并收窄应用错误信封对服务器级 Header 拒绝的承诺 |
+| 8 | 2026-07-25 | 9、14～15、19～21 | 独立评审第 4 轮修复 | 固定问题长度按 Unicode code point 计数，由 Java 单一 validator 执行一次 `strip` 与计数，避免 `String.length/@Size` 和 Python `len` 漂移 |
+| 9 | 2026-07-25 | 1～2、15、19～21 | 独立评审第 5 轮终审 | 从第 4 轮修订后全文复核，无新增 S0/S1/S2；关闭 `REV-ACCESS-017`，状态转 Approved；保留 `CR-GATE-002` Open 和未实施事实 |
 
 ## 3. 背景、目标与范围
 
@@ -117,6 +123,7 @@
 | `REQ-ACCESS-009`、`CON-ACCESS-005` | 身份转换 | `DR-ACCESS-006`、`DR-ACCESS-015` | 两端入口 | token 不入正文/state/log | `IMPL-ACCESS-005`、`IMPL-ACCESS-010`、`IMPL-ACCESS-015` | `TEST-ACCESS-002`、`TEST-ACCESS-009` | `VAL-ACCESS-003`、`VAL-ACCESS-004` |
 | `REQ-ACCESS-010`、`CON-ACCESS-008` | 部署与重复语义 | `DR-ACCESS-014` | 组合根/启动配置 | 单 worker、无持久化/重放 | `IMPL-ACCESS-003`、`IMPL-ACCESS-012`、`IMPL-ACCESS-016` | `TEST-ACCESS-007`、`TEST-ACCESS-010` | `VAL-ACCESS-005` |
 | `REQ-ACCESS-011`、`CON-ACCESS-011` | 原始问题绑定 | `DR-ACCESS-017` | Python ingress + Runtime invoker | 一份已校验问题、两个只读消费视图 | `IMPL-ACCESS-011/015` | `TEST-ACCESS-011` | `VAL-ACCESS-003/004` |
+| `REQ-ACCESS-001`、`REQ-ACCESS-003`、`REQ-ACCESS-008` | 公开失败信封 | `DR-ACCESS-018` | metadata/security/error boundary | 进入应用链后的前 Controller 失败保持公共字段与零 Runtime 调用 | `IMPL-ACCESS-004/007/017/019` | `TEST-ACCESS-002/012` | `VAL-ACCESS-002/003` |
 
 ## 5. 关联资源与责任边界
 
@@ -209,11 +216,11 @@ Spring 接入与 Python 编排分离是已确认的技术边界，不为每个�
 | `DR-ACCESS-002` | 外部/内部契约分别以 OpenAPI 3.1 v1 为唯一字段权威 | 契约文件 | 构建与测试 | 漂移使契约测试失败 |
 | `DR-ACCESS-003` | Spring 每请求只调用 Runtime 一次且不选择动作、不重放 | application service | 通过认证和准入 | 单 invoke 或明确失败 |
 | `DR-ACCESS-004` | JWT 必须有效、subject 非空、`token_type=user` | Spring | 调用 Runtime 前 | 失败 401，内部调用为零 |
-| `DR-ACCESS-005` | Runtime 默认绑定回环地址且仅接收 Spring | Python 启动 | 进程启动 | 非回环部署不获本设计授权 |
+| `DR-ACCESS-005` | Runtime 默认绑定回环地址；在“单用户本机、无不受信本地进程”的冻结威胁模型内，Spring 是唯一受支持调用方 | Python 启动、部署约束 | 进程启动/调用 | 非回环或存在不受信本地调用方时不获本设计授权 |
 | `DR-ACCESS-006` | JWT 只在 Authorization header 和 `OpaqueUserToken` 中传递 | 两端入口 | 内部调用 | 不进 JSON/state/log |
-| `DR-ACCESS-007` | Spring 创建硬截止，Python 取剩余时限和绝对截止的较小值 | 两端 | 请求接收 | 单一有界预算 |
+| `DR-ACCESS-007` | Spring 创建外层硬截止，并在扣除固定响应预留后创建 Runtime 子截止；Python 取子截止与发送时剩余时限的较小值 | 两端 | 请求接收 | 子调用不能占用响应预留或延长外层预算 |
 | `DR-ACCESS-008` | 连接断开/超时通过取消信号停止新增节点，迟到结果丢弃 | 两端 | 取消或逾期 | 无后台可见结果 |
-| `DR-ACCESS-009` | 请求正文、问题、并发和响应均有固定上限 | 两端 | 入口/客户端 | 越界失败关闭 |
+| `DR-ACCESS-009` | 请求正文、问题、并发和响应均有固定上限；正文限制必须在 DTO 解码前按实际接收字节执行，Runtime 响应限制必须在 WebClient 聚合时执行 | 两端 | 入口/客户端 | Content-Length 和 chunked 均越界失败关闭 |
 | `DR-ACCESS-010` | Runtime 语义结果使用 HTTP 200，传输错误使用非 2xx | Python API | invoker 完成或协议失败 | 传输/语义不混淆 |
 | `DR-ACCESS-011` | Spring 保持 status、capability、answer、userResult、failure 语义 | response mapper | 收到合法内部响应 | 不改义、不补造领域结果 |
 | `DR-ACCESS-012` | 未知字段/枚举/版本均失败关闭，不做宽松兼容 | 两端 DTO | 解析请求/响应 | 明确协议失败 |
@@ -222,6 +229,7 @@ Spring 接入与 Python 编排分离是已确认的技术边界，不为每个�
 | `DR-ACCESS-015` | 日志仅记录安全元数据，异常正文不进入响应或日志 | 两端 | 全部边界 | JWT/问题/结果不泄露 |
 | `DR-ACCESS-016` | 运行时配置启动校验并冻结，变更重启生效 | 两端组合根 | 启动 | 非法配置不就绪 |
 | `DR-ACCESS-017` | Python ingress 对 `payload.question` 只校验一次并保存为局部不可变值；该值同时传给 `AgentRuntimeInvoker.ainvoke(question=...)` 和 `CapabilityExecutionContext.original_question`，不得再次 trim、改写或从模型候选回填 | Python ingress、Runtime invoker | 合法内部请求 | 同源进入图与 handler；不一致固定失败关闭 |
+| `DR-ACCESS-018` | 已通过 HTTP framing 并进入 Spring 应用过滤链的公开端点请求，在安全过滤器、codec、参数绑定、准入和 Runtime 映射各阶段均使用同一安全响应信封；请求元数据在安全链之前只创建一次 | Spring WebFilter、安全处理器、异常映射器 | 应用链内公开端点响应 | 401/400/413/415/429 与语义结果字段一致，且失败阶段不会调用 Runtime |
 
 ## 9. 详细功能与流程设计
 
@@ -254,6 +262,18 @@ Body：
 
 未知字段拒绝；正文最大 32768 bytes。当前不接收 `conversationId`、历史消息、动作 ID、模型名、URL、超时、角色或物理资源。
 
+“字符”精确定义为 Unicode code point。Java 不得用 `String.length()` 或 Bean Validation
+`@Size(max=4096)` 作为最终长度权威；`AgentQuestionValidator.normalize` 必须只执行一次
+`String.strip()`，再以 `codePointCount(0, normalized.length())` 校验 1～4096，并将该同一
+字符串继续传给内部 DTO。Python 内部模型以 `len(str)` 校验相同 code point 上限且不得再
+trim。UTF-8 字节总量另受 32768-byte 正文上限约束。
+
+`AgentRequestMetadataWebFilter` 以最高应用过滤顺序为每次
+`POST /api/v1/agent/queries` 创建一次 `requestId`、安全 `correlationId` 和
+`receivedMonotonicNanos`，写入只读 exchange attribute；它不读取正文、JWT claim 或用户
+身份。后续 Security entry point、codec/validation 异常映射、准入和 Controller 必须复用
+该对象，不得分别生成不同 requestId 或重新接受非法 correlation ID。
+
 ### 9.3 外部响应
 
 | 字段 | 类型 | 必填/空值 | 语义 |
@@ -273,12 +293,37 @@ Body：
 | `success` | 200 | 可空 | 空 |
 | `no_result` | 200 | 可为受控覆盖元数据 | 空 |
 | `unsupported` | 422 | 空 | 必填 |
-| `invalid_argument` | 400 | 空 | 必填 |
+| `invalid_argument` | 400；仅 `core.request_body_too_large` 为 413，`core.unsupported_media_type` 为 415 | 空 | 必填 |
 | `unauthenticated` | 401 | 空 | 必填 |
 | `forbidden`、`model_egress_denied` | 403 | 空 | 必填 |
 | `timeout` | 504 | 空 | 必填 |
-| `downstream_failure` | 502 | 空 | 必填 |
+| `downstream_failure` | 502；仅 `core.ingress_capacity_exceeded` 为 429 | 空 | 必填 |
 | `internal_failure` | 500 | 空 | 必填 |
+
+429 是 Spring 在调用 Runtime 前实施本地准入的唯一代码级例外；其响应保持
+`status=downstream_failure`、`error.code=core.ingress_capacity_exceeded`、`error.source=core`，
+且 `capabilityId/result` 为空。Runtime 的 429 不沿用该例外，而按 9.6 映射为外部 502。
+
+公开端点在 Controller 前失败时仍使用同一 `AgentQueryResponse` 字段契约：
+
+| 失败阶段 | HTTP | `status/error.code/source` | Runtime 调用 |
+|---|---:|---|---:|
+| JWT 缺失、无效、过期、空 subject、非 user token 或 token 超过 16384 UTF-8 bytes | 401 | `unauthenticated/core.user_identity_required/core` | 0 |
+| JSON 非法、未知字段、问题字段非法 | 400 | `invalid_argument/core.invalid_request/core` | 0 |
+| 实际正文超过 32768 bytes | 413 | `invalid_argument/core.request_body_too_large/core` | 0 |
+| Content-Type 不是 `application/json` | 415 | `invalid_argument/core.unsupported_media_type/core` | 0 |
+| Spring 准入超限 | 429 | `downstream_failure/core.ingress_capacity_exceeded/core` | 0 |
+
+`AgentPublicErrorWriter` 是上述固定信封的唯一序列化器；Spring Security
+`ServerAuthenticationEntryPoint`、`ServerAccessDeniedHandler` 和 WebFlux
+`ErrorWebExceptionHandler` 只选择稳定 code/HTTP 并调用该 writer，不能把框架异常 message、
+默认 HTML、OAuth 错误正文或 stack 写给调用方。
+
+超过 `server.max-http-request-header-size`、非法请求行或其他 Reactor Netty HTTP framing
+错误发生在任何应用 WebFilter 之前，无法取得 `AgentRequestMetadata`，因此不承诺
+`AgentQueryResponse` 信封；服务器按固定 400/431 关闭请求，应用/Runtime 调用为零。该边界
+只接受“组合 Header≤32KB 且 user token≤16KiB”的公开 API 输入，不能把 transport reject
+解释为 Agent 语义状态。
 
 ### 9.4 内部请求
 
@@ -294,8 +339,8 @@ Body：
 | `question` | string | 是 | 1～4096 字符 |
 | `subject.id` | string | 是 | Spring 认证后的 `sub`；UTF-8 ≤256 bytes |
 | `subject.type` | enum | 是 | 当前只能 `user` |
-| `deadlineEpochMs` | int64 | 是 | Spring 硬截止 UTC epoch 毫秒 |
-| `remainingTimeoutMs` | int32 | 是 | 1～60000；发送时剩余预算 |
+| `deadlineEpochMs` | int64 | 是 | Spring 计算的 Runtime 子截止 UTC epoch 毫秒，即外层硬截止减去 `response-reserve` |
+| `remainingTimeoutMs` | int32 | 是 | 1～120000；发送时至 Runtime 子截止的剩余预算 |
 
 Python 先把通过严格校验的 `question` 保存为单一局部值；该值既作为 `AgentRuntimeInvoker.ainvoke(question=...)` 的图输入，也由 `to_execution_scope` 原样写入 `CapabilityExecutionContext.original_question`。两处不得各自 trim、规范化或复制模型参数；Runtime 仍按 `L2_00_01` v0.4 执行精确相等闸门。该规则不增加内部协议字段。
 
@@ -308,7 +353,11 @@ deadlineMonotonic =
   time.monotonic() + max(0, effectiveRemainingMs - 100) / 1000
 ```
 
-100ms 是 Runtime 入口保护余量，不延长 Spring 硬截止。`effectiveRemainingMs <= 100` 时不调用 invoker，返回语义 `timeout/core.deadline_exhausted`。Python 不解析 JWT claims、不修改 token；其对 subject 的信任成立于回环内部边界，真实跨主机部署必须另行设计服务间认证。
+100ms 是 Runtime 入口保护余量，不延长 Runtime 子截止或 Spring 外层硬截止。
+`effectiveRemainingMs <= 100` 时不调用 invoker，返回语义
+`timeout/core.deadline_exhausted`。Python 不解析 JWT claims、不修改 token；其对 subject 的
+信任只成立于 10.2 冻结的本机威胁模型，真实跨主机或不受信本地进程场景必须另行设计
+服务间认证或受保护 IPC。
 
 ### 9.5 内部响应
 
@@ -330,35 +379,59 @@ Spring 先校验 HTTP 状态、媒体类型、body 大小、版本、requestId�
 
 | Runtime HTTP/传输场景 | Spring 语义状态/失败码 | 是否重试 | 外部 HTTP |
 |---|---|---:|---:|
-| 400/409/413 | `internal_failure/core.runtime_protocol_error` | 否 | 500 |
+| 2xx 但不是 200、3xx、400/404/405/409/413/415/422 或其他未登记非 2xx | `internal_failure/core.runtime_protocol_error` | 否 | 500 |
 | 401 | `unauthenticated/core.runtime_auth_context_invalid` | 否 | 401 |
 | 429 | `downstream_failure/core.runtime_capacity_exceeded` | 否 | 502 |
 | 503/连接拒绝 | `downstream_failure/downstream.runtime_unavailable` | 否 | 502 |
+| 500/502/504 或其他 Runtime 5xx（503 除外） | `downstream_failure/downstream.runtime_failure` | 否 | 502 |
 | Spring 硬截止/读取超时 | `timeout/downstream.runtime_timeout` | 否 | 504 |
 | 无效 JSON/媒体类型/超界 body | `internal_failure/core.runtime_invalid_response` | 否 | 500 |
 | Runtime 进程退出/连接重置 | `downstream_failure/downstream.runtime_connection_lost` | 否 | 502 |
 
-Spring 不读取 Runtime 错误正文构造用户响应。传输异常不触发第二次 invoke；调用方若重新提交，形成新的 requestId 和新请求。
+Runtime 必须把语义结果放在 HTTP 200；FastAPI 的 `RequestValidationError`、缺 Header、未知
+字段或类型错误统一由 `RuntimeProtocolExceptionHandlers` 转为 HTTP 400，固定小型正文只含
+`contractVersion=1` 和 `code=runtime.protocol_error`，不得返回默认 422、Pydantic
+`errors()`、输入值、URL 或异常 message。版本 Header/body 冲突仍为 409，正文采用同一安全
+形态；未知 ingress 异常固定 500 `runtime.internal_error`。
+
+Spring 使用 `exchangeToMono` 先按状态表选择映射；所有非 200 分支只调用
+`ClientResponse.releaseBody()` 并等待释放完成，不反序列化、不记录、不基于错误正文构造
+公开响应。200 分支才在 `max-response-bytes` 内聚合并严格解码。传输异常不触发第二次
+invoke；调用方若重新提交，形成新的 requestId 和新请求。
 
 ## 10. 权限、安全、审计与输入边界
 
 ### 10.1 Spring 认证顺序
 
-1. Reactor Netty 在 32768 bytes 限制内读取 JSON。
-2. Spring Security 验证 JWT 签名、有效期和结构。
-3. application service 读取 `Jwt`，校验 `sub` 非空及 `SecurityTokenUtils.isUserToken(jwt)`。
-4. 校验问题、关联标识和并发准入。
-5. 建立总截止时间并构造一次内部请求。
-6. 只有以上全部成功才显式读取 `jwt.getTokenValue()` 构造 Authorization header。
+1. `AgentRequestMetadataWebFilter` 在 Spring Security 之前创建 9.2 的请求元数据和单调预算起点。
+2. `AgentSecurityConfiguration` 显式复用 `common-security` 提供的
+   `ReactiveJwtDecoder`，只放行 `/actuator/health/**`，只允许已认证身份访问
+   `POST /api/v1/agent/queries`，其余路径失败关闭；自定义 `SecurityWebFilterChain` 后不得
+   依赖 `@ConditionalOnMissingBean` 的默认链继续生效。
+3. `AgentHttpCodecConfiguration` 在 WebFlux DTO 解码前把默认 codec
+   `maxInMemorySize` 精确绑定为 `agent.ingress.max-body-bytes`；Content-Length 已超限或
+   chunked 实际累计超限均返回 413，Controller/application service/Runtime 调用均为零。
+4. Spring Security 验证 JWT 签名、有效期和结构；失败由统一 entry point 写 401 信封。
+5. application service 读取 `Jwt`，校验 `sub` 非空、`SecurityTokenUtils.isUserToken(jwt)`
+   及 raw token UTF-8 bytes≤16384。
+6. 校验问题并执行并发准入。
+7. 从请求元数据恢复最早单调起点，计算剩余总预算并构造一次内部请求。
+8. 只有以上全部成功才显式读取 `jwt.getTokenValue()` 构造 Authorization header。
 
 角色 claim 不参与 Agent 入口的业务授权；Employee/Transaction 最终授权仍在业务服务。合法服务 token 也不得作为本链路用户身份，返回 401。
 
 ### 10.2 Runtime 内部边界
 
 - 默认 `host=127.0.0.1`、`port=8091`，Gateway/Eureka 不为 Runtime 建立路由或注册。
+- 本设计把操作系统登录会话内的本机进程视为同一受信部署边界；“Spring 是唯一调用方”
+  表示唯一受支持调用路径，不表示仅凭 TCP loopback 可以鉴别进程身份。
 - Python 入口只验证 header/bearer 非空、协议字段严格有效，并将 token 包装为 `OpaqueUserToken`。
+- Runtime 强制 Uvicorn `http="h11"` 且 `h11_max_incomplete_event_size=32768`；结合
+  `OpaqueUserToken` 的 16384-byte 上限，为 Authorization、版本和关联 Header 留出有界余量。
 - 不在 Python 重复实现 JWT 验签、role 解析或业务授权。
-- 若未来 Spring/Python 分主机部署，回环假设失效；必须新增受权的服务间认证/网络策略设计，不能仅把 host 改为 `0.0.0.0`。
+- 若未来 Spring/Python 分主机部署、共享开发主机存在不受信本地进程或 Runtime 需要面向
+  容器网络监听，回环信任假设失效；必须新增受权的服务间认证/网络策略或受保护 IPC
+  设计，不能仅把 host 改为 `0.0.0.0`。
 
 ### 10.3 日志脱敏
 
@@ -376,9 +449,26 @@ Spring 不读取 Runtime 错误正文构造用户响应。传输异常不触发�
 | `agent.ingress.response-reserve` | 500ms | 100～2000ms 且小于总时限 | Spring |
 | `agent.runtime.connect-timeout` | 1s | 100ms～5s | Spring client |
 | `agent.runtime.disconnect-poll-interval` | 100ms | 50～500ms | Python ingress |
-| `agent.runtime.cancel-grace` | 250ms | 0～1000ms | Python ingress |
 
-Spring 外层 `Mono.timeout(totalTimeout)` 是硬截止；内部连接、Runtime graph、模型和能力只能消费其剩余预算。任何子层配置不得延长总时限。
+Spring 以 9.2 最早 WebFilter 捕获的 `receivedMonotonicNanos` 为唯一总预算起点。应用服务
+在认证、字段校验和准入后只计算剩余量，不重新启动完整超时：
+
+```text
+hardDeadlineMonotonicNanos = receivedMonotonicNanos + totalTimeoutNanos
+hardRemainingMs = floor((hardDeadlineMonotonicNanos - nowMonotonicNanos) / 1_000_000)
+runtimeRemainingMs = hardRemainingMs - responseReserveMs
+runtimeDeadlineEpochMs = sendEpochMs + runtimeRemainingMs
+```
+
+内部请求使用 `deadlineEpochMs=runtimeDeadlineEpochMs`、
+`remainingTimeoutMs=runtimeRemainingMs`。`hardRemainingMs <= responseReserveMs` 时 Spring
+不建立内部连接，直接返回
+`timeout/downstream.runtime_timeout`。内部请求中的 `deadlineEpochMs` 使用
+`runtimeDeadlineEpochMs`；Spring 外层 `Mono.timeout` 只使用调用时剩余的
+`hardRemainingMs`，
+不在调用链中重新获得一个完整 `totalTimeout`。Runtime graph、模型和能力只能消费 Runtime
+子截止以内的预算，`response-reserve` 专用于内部响应读取、严格校验、外部 DTO 映射和写回。
+任何子层配置不得延长 Runtime 子截止或外层硬截止。
 
 ### 11.2 取消流程
 
@@ -389,6 +479,9 @@ Spring 外层 `Mono.timeout(totalTimeout)` 是硬截止；内部连接、Runtime
 5. 取消后到达的结果不序列化、不写最终 outcome；请求内对象释放。
 
 连接取消不能保证中断已经到达外部系统的只读请求，本期接受该限制。不得为“确认取消”新增持久任务、取消 API 或自动重放。
+无论 invoker 正常、失败、超时还是 route task 被取消，`invoke_agent` 的 `finally` 都必须取消
+并 `await` 当前请求的 disconnect watcher；只允许抑制该 watcher 自身因清理产生的
+`CancelledError`，外层 task 的取消必须继续传播。正常成功请求结束后 watcher 数必须回到零。
 
 ### 11.3 并发与重复
 
@@ -396,10 +489,15 @@ Spring 外层 `Mono.timeout(totalTimeout)` 是硬截止；内部连接、Runtime
 |---|---:|---|
 | Spring in-flight | 8 | 超出返回 429 `core.ingress_capacity_exceeded`，Runtime 调用为零 |
 | Uvicorn worker | 1 | 保持一个进程级冻结注册快照 |
-| Runtime in-flight | 8 | 超出返回 HTTP 429，Spring 映射下游容量失败 |
+| Runtime invoke in-flight | 8 | `RuntimeRequestLimiter` 在进入 invoker 前原子准入；超出返回 HTTP 429，invoker 调用为零，Spring 映射下游容量失败 |
 | request replay | 0 次自动重试 | 超时、连接失败和 5xx 均不重放 |
 
 requestId 仅用于关联，不是幂等键。重复 requestId 不授予重放安全；内部调用者只有 Spring，必须每次生成新 UUID。
+
+本期不把 Uvicorn `limit_concurrency` 当作上述语义准入器：该参数按 Uvicorn 契约返回 503，
+且会把健康请求和 invoke 连接共同计数，不能证明 429 及 invoker 零调用。若实施阶段另设
+Uvicorn 传输安全上限，它必须高于应用级 invoke 上限，触发的 503 只按
+`downstream.runtime_unavailable` 处理。
 
 ## 12. 健康、部署与观测
 
@@ -446,12 +544,16 @@ requestId 仅用于关联，不是幂等键。重复 requestId 不授予重放�
 | `server.port` | `8090` | 1～65535 | 否 | 重启 |
 | `agent.ingress.max-question-chars` | 4096 | 256～4096；不得高于 Core | 否 | 重启 |
 | `agent.ingress.max-body-bytes` | 32768 | 4096～65536 | 否 | 重启 |
+| `agent.ingress.max-user-token-bytes` | 16384 | 当前必须等于 `OpaqueUserToken` 上限，不允许域配置放宽 | 否 | 重启 |
 | `agent.ingress.max-in-flight` | 8 | 1～32 | 否 | 重启 |
 | `agent.ingress.total-timeout` | 60s | 5～120s | 否 | 重启 |
+| `agent.ingress.response-reserve` | 500ms | 100～2000ms 且小于 `total-timeout` | 否 | 重启 |
 | `agent.runtime.base-url` | `http://127.0.0.1:8091` | http + loopback；禁止 userinfo/path/query | 否 | 重启 |
 | `agent.runtime.contract-version` | 1 | 只能 1 | 否 | 启动失败 |
 | `agent.runtime.connect-timeout` | 1s | 100ms～5s | 否 | 重启 |
 | `agent.runtime.max-response-bytes` | 393216 | 32768～524288 | 否 | 重启 |
+| `server.max-http-request-header-size` | `32KB` | 当前固定 32KB；不得低于 user token 上限加受控 Header 余量 | 否 | 重启 |
+| `spring.jackson.deserialization.fail-on-unknown-properties` | `true` | 当前必须为 true | 否 | 启动校验，非法/缺失不就绪 |
 
 ### 13.2 Python 配置
 
@@ -460,9 +562,10 @@ requestId 仅用于关联，不是幂等键。重复 requestId 不授予重放�
 | `AGENT_RUNTIME_HOST` | `127.0.0.1` | 当前只能回环地址 | 否 | 非回环启动失败 |
 | `AGENT_RUNTIME_PORT` | `8091` | 1～65535 | 否 | 与 Spring URL 对齐 |
 | `AGENT_RUNTIME_CONTRACT_VERSION` | `1` | 只能 1 | 否 | 启动失败 |
-| `AGENT_RUNTIME_MAX_BODY_BYTES` | `32768` | 4096～65536 | 否 | ASGI 前置限制 |
-| `AGENT_RUNTIME_MAX_IN_FLIGHT` | `8` | 1～32 | 否 | 与 Uvicorn limit 对齐 |
+| `AGENT_RUNTIME_MAX_BODY_BYTES` | `32768` | 4096～65536 | 否 | ASGI receive 前置累计限制 |
+| `AGENT_RUNTIME_MAX_IN_FLIGHT` | `8` | 1～32 | 否 | 应用级 invoke 准入；不映射为 Uvicorn `limit_concurrency` |
 | `AGENT_RUNTIME_DISCONNECT_POLL_MS` | `100` | 50～500 | 否 | 取消观察 |
+| `AGENT_RUNTIME_MAX_INCOMPLETE_EVENT_BYTES` | `32768` | 当前固定 32768；仅与强制 h11 协议共同生效 | 否 | 覆盖 16KiB JWT 及受控 Header 余量 |
 
 配置加载后冻结，不支持热更新。Spring 配置可来自 Config Server；Python 仅通过启动环境/命令参数加载非敏感设置。两端显式非法值均阻止 readiness。
 
@@ -493,16 +596,28 @@ requestId 仅用于关联，不是幂等键。重复 requestId 不授予重放�
 | `IMPL-ACCESS-014` | 建议新增 | 契约测试资产 | `agent-contracts/fixtures/*.json` | 成功/失败/未知字段/版本样例 | 双端共用样例 | 防实现漂移 | `DR-ACCESS-002/012` |
 | `IMPL-ACCESS-015` | 建议新增 | Python transport DTO | `agent-runtime/src/agent_runtime/api/models.py` | strict Pydantic request/response models | camelCase↔核心转换并提供单一已校验 question 值 | 传输隔离 | `DR-ACCESS-006/010/012/017` |
 | `IMPL-ACCESS-016` | 建议新增 | 启动入口 | `agent-runtime/src/agent_runtime/main.py` | `def main() -> None` | 单 worker、回环启动 | 双进程部署 | `DR-ACCESS-005/014/016` |
+| `IMPL-ACCESS-017` | 建议新增 | Java codec 配置 | `agent-service/src/main/java/com/dylan/agent/service/config/AgentHttpCodecConfiguration.java` | `configureHttpMessageCodecs(...)`、Runtime `WebClient` codec | DTO 解码前限制外部正文、聚合时限制内部响应 | 声明上限必须可执行 | `DR-ACCESS-009/012/016` |
+| `IMPL-ACCESS-018` | 建议新增 | Python ASGI 边界 | `agent-runtime/src/agent_runtime/api/limits.py` | `MaxBodyBytesMiddleware`、`RuntimeRequestLimiter` | receive 累计字节限制和 invoke 应用级准入 | 覆盖 chunked 与确定性 429 | `DR-ACCESS-009/010/016` |
+| `IMPL-ACCESS-019` | 建议新增 | Java 请求元数据/错误边界 | `agent-service/src/main/java/com/dylan/agent/service/web/AgentRequestMetadataWebFilter.java`、`AgentPublicErrorWriter.java`、`AgentWebExceptionHandler.java` | `filter(...)`、`write(...)`、`handle(...)` | 安全链前单次元数据与统一公开错误信封 | 前 Controller 失败也必须满足 OpenAPI | `DR-ACCESS-004/009/015/018` |
+| `IMPL-ACCESS-020` | 建议新增 | Python 协议错误边界 | `agent-runtime/src/agent_runtime/api/errors.py` | `RuntimeProtocolExceptionHandlers`、固定错误 DTO | 覆盖 FastAPI/Pydantic 默认 422 和异常详情 | Spring 需要有限且安全的传输状态全集 | `DR-ACCESS-010/012/015` |
+| `IMPL-ACCESS-021` | 建议新增 | Java 输入值对象 | `agent-service/src/main/java/com/dylan/agent/service/application/AgentQuestionValidator.java` | `normalize(String)` | 单点 trim、Unicode code point 长度与同源字符串输出 | 防 Java/Python 字符计数漂移 | `DR-ACCESS-009/017` |
 
 ### 14.1 Java 边界关键签名
 
 | 路径/符号 | 建议签名 | 输入与校验 | 输出/错误 | 副作用/消费者 |
 |---|---|---|---|---|
-| `AgentUserContextFactory.requireUser` | `AgentUserContext requireUser(Jwt jwt)` | jwt 非空、sub 非空、`token_type=user`；不得校验业务角色 | 返回只读 `subjectId/rawToken`；失败抛无敏感正文的 `AgentUnauthenticatedException` | 无；application service |
-| `AgentQueryApplicationService.query` | `Mono<AgentQueryResponse> query(AgentQueryCommand command, Jwt jwt, String requestedCorrelationId)` | 身份→问题→关联 ID→准入→预算顺序 | 唯一外部响应；超时/协议错误按 9.6 映射 | 一次 runtime invoke；`doFinally` 释放 lease |
+| `AgentUserContextFactory.requireUser` | `AgentUserContext requireUser(Jwt jwt)` | jwt 非空、sub 非空、`token_type=user`，raw token UTF-8≤16384 bytes；不得校验业务角色 | 返回只读 `subjectId/rawToken`；失败抛无敏感正文的 `AgentUnauthenticatedException` | 无；application service |
+| `AgentQueryApplicationService.query` | `Mono<AgentQueryResponse> query(AgentQueryCommand command, Jwt jwt, AgentRequestMetadata metadata)` | 身份→问题→准入→从 metadata 计算剩余预算顺序；不得重新生成 ID/预算起点 | 唯一外部响应；超时/协议错误按 9.3/9.6 映射 | 一次 runtime invoke；`doFinally` 释放 lease |
 | `AgentRuntimeClient.invoke` | `Mono<RuntimeInvokeResponse> invoke(RuntimeInvokeRequest request, String rawUserToken)` | request 已由 application service 构造；raw token 不可空 | 仅返回已通过契约校验的 response；传输错误为 typed exception | 不重试；application service |
-| `AgentQueryController.query` | `Mono<ResponseEntity<AgentQueryResponse>> query(AgentQueryRequest request, JwtAuthenticationToken authentication, ServerWebExchange exchange)` | WebFlux/Bean Validation 只做传输校验 | 按 9.3 状态映射 HTTP | 不读取 Adapter/模型 |
+| `AgentQueryController.query` | `Mono<ResponseEntity<AgentQueryResponse>> query(@Valid @RequestBody AgentQueryRequest request, JwtAuthenticationToken authentication, ServerWebExchange exchange)` | WebFlux 在参数绑定前执行正文上限，Bean Validation 只做字段校验 | 按 9.3 状态映射 HTTP | 不读取 Adapter/模型 |
 | `AgentRequestLimiter.tryAcquire` | `Lease tryAcquire()` | 原子计数小于上限 | 返回 AutoCloseable lease；超限抛 `IngressCapacityExceeded` | 请求完成/取消只释放一次 |
+| `AgentHttpCodecConfiguration.configureHttpMessageCodecs` | `void configureHttpMessageCodecs(ServerCodecConfigurer configurer)` | 读取已校验的 `agent.ingress.max-body-bytes` | 设置 server default codecs 的 `maxInMemorySize`；超限统一映射 413，不把异常正文外发 | 只影响 `agent-service` 入站 DTO 解码 |
+| `WebClientAgentRuntimeClient.createWebClient` | `WebClient createWebClient(AgentRuntimeProperties properties)` | base URL 已校验为 loopback；`maxResponseBytes` 已在范围内；客户端禁止自动重定向 | 通过 `ExchangeStrategies` 将 default codecs `maxInMemorySize` 设置为 `agent.runtime.max-response-bytes`；`DataBufferLimitException` 映射 `core.runtime_invalid_response` | 构造一次不可变客户端；application service 消费 |
+| `WebClientAgentRuntimeClient.decodeResponse` | `Mono<RuntimeInvokeResponse> decodeResponse(ClientResponse response, String expectedRequestId)` | 先按 9.6 检查 HTTP status；仅 200 检查媒体类型并解码；requestId 必须匹配 | 非 200 先 `releaseBody()` 再抛仅含稳定码的 typed exception；200 无效/超界转 `core.runtime_invalid_response` | 每个 response body 只消费或释放一次；不得读取错误正文 |
+| `AgentRequestMetadataWebFilter.filter` | `Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain)` | 仅公开查询路径；严格校验或生成 correlation；捕获 requestId 与 `System.nanoTime()` | 把冻结 `AgentRequestMetadata` 写入 exchange attribute 后继续链；重复执行检测为内部失败 | 不读取正文/JWT；顺序必须早于 Spring Security |
+| `AgentPublicErrorWriter.write` | `Mono<Void> write(ServerWebExchange exchange, HttpStatusCode httpStatus, CapabilityStatus status, String code, FailureSource source)` | 只接受 9.3 的固定组合和现有 request metadata | 写唯一 `AgentQueryResponse`；非法组合固定转 500 `core.public_error_mapping_invalid` | 仅一次写响应；不得记录异常正文 |
+| `AgentSecurityConfiguration.agentSecurityWebFilterChain` | `SecurityWebFilterChain agentSecurityWebFilterChain(ServerHttpSecurity http, ReactiveJwtDecoder decoder, AgentPublicErrorWriter errorWriter)` | health permitAll；公开查询 authenticated；其余 denyAll；显式配置 OAuth2 JWT decoder | 认证失败使用 401 安全信封，拒绝使用 403 安全信封 | 覆盖 common-security 的默认 chain，但复用其 decoder/key provider |
+| `AgentQuestionValidator.normalize` | `String normalize(String rawQuestion)` | raw 不可空；只执行一次 `String.strip()`；以 `codePointCount` 校验 1～4096 | 返回唯一规范化字符串；非法值抛只含 `core.invalid_request` 的 typed exception | 无 I/O；application service 将返回值同时用于 command 和内部 request，不得再次 trim |
 
 建议 Java record：
 
@@ -540,11 +655,14 @@ RuntimeInvokeResponse(
 
 | 路径/符号 | 建议签名 | 输入与校验 | 输出/错误 | 副作用/消费者 |
 |---|---|---|---|---|
-| `api.ingress.invoke_agent` | `async def invoke_agent(request: Request, payload: RuntimeInvokeRequest, authorization: str, runtime: AgentRuntimeInvoker) -> RuntimeInvokeResponse` | header/body/version/预算严格校验；把同一已校验 question 传入 scope 与 invoker；token 包装；不解析 role | 合法 outcome 响应；不同源由 invoker 固定返回 `invalid_argument`；transport error 由 exception handler 映射 | 创建请求级 scope 和 disconnect task |
+| `api.ingress.invoke_agent` | `async def invoke_agent(request: Request, payload: RuntimeInvokeRequest, authorization: Annotated[str, Header(alias="Authorization")], x_agent_contract_version: Annotated[str, Header(alias="X-Agent-Contract-Version")], runtime: AgentRuntimeInvoker = Depends(require_runtime), limiter: RuntimeRequestLimiter = Depends(require_runtime_limiter)) -> RuntimeInvokeResponse` | 两个 Header、body、版本一致性和预算严格校验；先取得应用级 lease，再把同一已校验 question 传入 scope 与 invoker；token 包装；不解析 role | 合法 outcome 响应；版本 Header 缺失/非法为 400、与 body 不同为 409；超限为 429 且 invoker 零调用；不同源由 invoker 固定返回 `invalid_argument` | 创建请求级 lease、scope 和 disconnect task；`finally` 先取消并 await watcher，再 exactly-once 释放 lease；外层取消继续传播 |
 | `api.ingress.to_execution_scope` | `def to_execution_scope(payload: RuntimeInvokeRequest, raw_token: str, cancellation: CancellationSignal, clocks: RuntimeClocks) -> RequestExecutionScope` | 使用 9.4 较小预算、`payload.question` 原样写入 `original_question`；subject user | scope；非法身份/问题/过期预算为 typed ingress error | 无外部 I/O |
 | `api.cancellation.watch_disconnect` | `async def watch_disconnect(request: Request, signal: CancellationSignal, poll_interval_s: float) -> None` | 周期有界；只观察首个断开 | 无返回；首个断开发布 `upstream_cancel` | 不取消进程全局任务 |
+| `api.limits.MaxBodyBytesMiddleware.__call__` | `async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None` | 仅限制 `/internal/v1/agent-runs:invoke`；先拒绝超界 Content-Length，再包装 receive 并累计每个 `http.request.body` 实际字节 | 超过 `AGENT_RUNTIME_MAX_BODY_BYTES` 立即发送 413，Pydantic/route/invoker 调用均为零；不得缓存第二份完整正文 | 只代理当前 ASGI 请求；live/ready 不受影响 |
+| `api.limits.RuntimeRequestLimiter.try_acquire` | `async def try_acquire(self) -> RuntimeRequestLease` | 在 Header/body 严格校验后、scope/invoker 前原子比较 in-flight 上限 | 返回 async context lease；超限抛 `RuntimeCapacityExceeded`，异常处理器固定返回 429 空安全正文 | 完成、异常、超时、断连均 exactly-once 释放 |
+| `api.errors.RuntimeProtocolExceptionHandlers.install` | `def install(app: FastAPI) -> None` | app factory 创建时且 route 接收请求前安装一次；显式覆盖 `RequestValidationError`、受控协议异常和未知异常 | validation→400、版本冲突→409、capacity→429、未知→500；均使用固定 DTO，不含 `errors()/input/message/stack` | 只写 HTTP 传输错误；不得把 `AgentSemanticOutcome` 改成非 200 |
 | `api.app.create_app` | `def create_app(settings: RuntimeHttpSettings, runtime_factory: RuntimeFactory) -> FastAPI` | settings 已冻结；lifespan 构建 runtime | FastAPI app；构建失败保持 not ready | 唯一知道 transport/runtime 绑定 |
-| `main.main` | `def main() -> None` | 读取严格环境设置；host 必须回环、workers=1 | 启动 Uvicorn；非法配置退出非零 | 不动态扫描能力 |
+| `main.main` | `def main() -> None` | 读取严格环境设置；host 必须回环、workers=1、`http="h11"`、`h11_max_incomplete_event_size=32768` | 启动 Uvicorn；非法配置退出非零 | 不动态扫描能力 |
 
 Pydantic models 使用 `ConfigDict(extra="forbid", strict=True, populate_by_name=False)`，传输字段使用显式 alias；转换后不得把 Pydantic model 传入 core。
 
@@ -554,17 +672,18 @@ Pydantic models 使用 `ConfigDict(extra="forbid", strict=True, populate_by_name
 
 | 测试编号 | 设计规则 | 层级 | 建议路径/用例 | 测试意图与关键断言 | 失败信号 |
 |---|---|---|---|---|---|
-| `TEST-ACCESS-001` | `DR-ACCESS-002/012` | Contract | 建议新增：`agent-contracts/tests/test_openapi_examples.py` | 两份 schema 和全部 fixture 合法；未知字段/枚举/版本样例拒绝 | 任一端可接受契约外字段 |
-| `TEST-ACCESS-002` | `DR-ACCESS-004/006/015` | Java Unit/Web | 建议新增：`agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java` | 缺 token、坏 token、service token、空 sub 均 401；runtime spy=0；日志无 token | 非用户身份触发内部调用 |
-| `TEST-ACCESS-003` | `DR-ACCESS-003/009/014` | Java Unit | `AgentQueryApplicationServiceTest` | 成功/失败均一次 invoke；超限 429；客户端错误不重试 | invoke 次数不为 0/1 |
-| `TEST-ACCESS-004` | `DR-ACCESS-007/009` | Cross-language Integration | 建议新增：`agent-service/src/test/java/com/dylan/agent/service/runtime/AgentRuntimeDeadlineIntegrationTest.java`、`agent-runtime/tests/integration/test_deadline.py` | 预算取较小值、边界耗尽零 invoker、Spring 60s 硬截止 | 子预算延长总时限 |
-| `TEST-ACCESS-005` | `DR-ACCESS-008` | Integration | `agent-runtime/tests/integration/test_disconnect_cancellation.py` | 断连发布一次取消，停止新增 node，晚到结果不响应 | 取消后仍安排调用 |
+| `TEST-ACCESS-001` | `DR-ACCESS-002/012` | Contract | 建议新增：`agent-contracts/tests/test_openapi_examples.py` | 两份 schema 和全部 fixture 合法；未知字段/枚举/版本样例拒绝；内部 Header 缺失/非法/与 body 不同分别固定为 400/409 | 任一端可接受契约外字段或 Header 未参与判定 |
+| `TEST-ACCESS-002` | `DR-ACCESS-004/006/015/018` | Java Unit/Web | 建议新增：`agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java` | 缺 token、坏 token、service token、空 sub、token 16384±1 均使用 OpenAPI 401 信封；request/correlation 与预安全 metadata 相同；runtime spy=0；日志无 token；自定义 chain 仍实际调用 `ReactiveJwtDecoder` | 非用户身份触发内部调用、返回框架默认正文或自定义 chain 绕过 JWT |
+| `TEST-ACCESS-003` | `DR-ACCESS-003/009/014/017` | Java Unit | `AgentQueryApplicationServiceTest`、`AgentQuestionValidatorTest` | 成功/失败均一次 invoke；Spring 超限返回 `downstream_failure/core.ingress_capacity_exceeded` + HTTP 429；Runtime 429 映射外部 502；参数化 BMP/补充字符、首尾 Unicode 空白和 code point 边界±1，内部 request 与规范化值精确相同；客户端错误不重试 | invoke 次数不为 0/1、两个容量边界被混为同一 HTTP、使用 UTF-16 code unit 误拒绝或问题被二次规范化 |
+| `TEST-ACCESS-004` | `DR-ACCESS-007/009` | Cross-language Integration | 建议新增：`agent-service/src/test/java/com/dylan/agent/service/runtime/AgentRuntimeDeadlineIntegrationTest.java`、`agent-runtime/tests/integration/test_deadline.py` | 参数化 5s/60s/120s，并在预安全/解码阶段推进可控单调时钟；Runtime 子截止=最早接收起点的外层硬截止−响应预留；Python 取绝对/相对较小值；边界耗尽零 invoker；外层硬截止不重置 | 前置处理时间未计入、子预算占用响应预留、超过外层硬截止或合法 120s 配置生成非法内部 DTO |
+| `TEST-ACCESS-005` | `DR-ACCESS-008` | Integration | `agent-runtime/tests/integration/test_disconnect_cancellation.py` | 断连发布一次取消，停止新增 node，晚到结果不响应；成功/失败/超时/外层取消后 watcher task 与 lease 均归零 | 取消后仍安排调用、成功请求遗留 watcher 或外层取消被吞 |
 | `TEST-ACCESS-006` | `DR-ACCESS-010/011` | Contract | Java/Python `test_semantic_mapping` | 全状态/合法空值映射；失败不得变 success；safe payload 不出现 | 状态改义或字段泄露 |
 | `TEST-ACCESS-007` | `DR-ACCESS-005/013/016` | Integration | 建议新增：`agent-runtime/tests/integration/test_health_and_startup.py` | graph 未编译时 runtime not ready；runtime down 时 Spring not ready；liveness 独立 | 假就绪或健康泄密 |
-| `TEST-ACCESS-008` | `DR-ACCESS-002/012` | Consumer/Provider | 建议新增：`agent-service/src/test/java/com/dylan/agent/service/runtime/RuntimeContractTest.java`、`agent-runtime/tests/contract/test_runtime_openapi.py` | 共享 fixture 双端同判定，requestId 不匹配/超界响应拒绝 | 手写 DTO 漂移 |
+| `TEST-ACCESS-008` | `DR-ACCESS-002/010/012/015` | Consumer/Provider | 建议新增：`agent-service/src/test/java/com/dylan/agent/service/runtime/RuntimeContractTest.java`、`agent-runtime/tests/contract/test_runtime_openapi.py` | 共享 fixture 双端同判定；FastAPI 缺 Header/未知字段/类型错固定 400 且正文无输入详情；版本冲突 409；未知异常 500；Spring 对 2xx≠200、3xx、4xx、各 5xx 穷尽映射并 release 非 200 body；requestId 不匹配/超界 200 响应拒绝 | 默认 422/详情泄露、未映射状态、错误正文被读取、连接 buffer 未释放或手写 DTO 漂移 |
 | `TEST-ACCESS-009` | `DR-ACCESS-006/015` | Architecture/Log | Java/Python logging tests | body/state/log/repr 均无 JWT、subject、question、result | 捕获敏感文本 |
 | `TEST-ACCESS-010` | `DR-ACCESS-001/005/014` | Architecture | 建议新增：`agent-runtime/tests/architecture/test_runtime_not_public.py` | host 固定回环、无 Eureka/Gateway 注册、无 persistence/messaging dependency | Runtime 可由外部路由访问 |
 | `TEST-ACCESS-011` | `DR-ACCESS-017` | Python Unit/Integration | 建议新增：`agent-runtime/tests/unit/api/test_question_binding.py` | spy 捕获 invoker question 和 handler context；合法请求两值精确相同；人为构造不同值时 graph/selector/validator/handler 均为 0 且返回 `invalid_argument/core.question_context_mismatch`；日志无问题正文 | 两处独立规范化、静默覆盖、信任模型参数或发生下游调用 |
+| `TEST-ACCESS-012` | `DR-ACCESS-009/010/016/018` | Java/Python Boundary | 建议新增：Java `AgentBodyLimitTest`、`RuntimeResponseLimitTest`；Python `test_limits.py` | 两端分别发送 Content-Length 超界和 chunked 边界±1；WebClient 接收响应边界±1；Java 未知字段；组合 Header/JWT 边界；并发屏障超过 Runtime invoke 上限 | 公开超界使用 413 OpenAPI 信封且在 DTO/route/invoker 前失败；Python 超界固定 413；响应超界在聚合时失败关闭；未知字段 400；Runtime 超限固定 429 且 invoker=0；lease 最终归零 | 只校验 Content-Length、先聚合后限流、默认 Jackson 接受未知字段、Header 合法值被服务器先拒绝、返回 503/错误正文或发生 permit 泄漏 |
 
 ### 15.2 关键场景
 
@@ -584,7 +703,7 @@ Pydantic models 使用 `ConfigDict(extra="forbid", strict=True, populate_by_name
 
 | 验证编号 | 工作目录/前置 | 命令或人工步骤 | 验证范围与预期 | 当前执行状态 |
 |---|---|---|---|---|
-| `VAL-ACCESS-001` | `D:\codex` | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md --root D:\codex --strict` | 0 errors、0 warnings；仅证明文档确定性规则 | 已执行：0 errors、0 warnings（2026-07-25） |
+| `VAL-ACCESS-001` | `D:\codex` | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md --root D:\codex --strict` | 0 errors、0 warnings；仅证明文档确定性规则 | 已执行：v0.2 第 5 轮终审后 0 errors、0 warnings（2026-07-25） |
 | `VAL-ACCESS-002` | 未来 `agent-service` | `mvn -f agent-service/pom.xml test` | Java 安全、准入、映射和客户端测试通过 | 未执行：代码未授权且不存在 |
 | `VAL-ACCESS-003` | 未来契约与两端代码 | `python -m pytest agent-contracts/tests agent-runtime/tests/contract -q`，并执行 Java contract test | 两端对同一 fixture 判定一致 | 未执行：资产不存在 |
 | `VAL-ACCESS-004` | 两进程本地启动 | `python -m pytest agent-runtime/tests/integration/test_deadline.py agent-runtime/tests/integration/test_disconnect_cancellation.py -q` | 时限、取消和晚到结果符合设计 | 未执行：代码不存在 |
@@ -613,6 +732,8 @@ Pydantic models 使用 `ConfigDict(extra="forbid", strict=True, populate_by_name
 | `RISK-ACCESS-006` | 预算 | 60 秒对真实模型/知识链路是否合适尚无实测 | P4 完整链路 | 误超时或等待过长 | P3/P4 采集阶段耗时后在允许范围内调整 | 不阻塞设计；阻塞完成性能结论 |
 | `RISK-ACCESS-007` | 外部路由 | Gateway 当前路由与错误格式尚未为 Agent 固化 | P4 通过 Gateway | 外部响应可能被重写 | 后续在实现授权内增加 Gateway contract test | 不阻塞本文；阻塞 Gateway 端到端 |
 | `RISK-ACCESS-008` | 上下文同源 | ingress 分别构造图问题与 handler 原始问题 | 未来重构 DTO/scope 转换 | Knowledge 改写与图问题漂移 | 单一局部值、Runtime 精确相等闸门和 `TEST-ACCESS-011` | 阻塞对应实施门禁 |
+| `RISK-ACCESS-009` | 本机信任边界 | loopback 不能鉴别同机进程身份 | 共享主机出现不受信本地进程、容器共享网络或监听地址放宽 | 可旁路 Spring 的 JWT 验签和准入 | 本期冻结单用户可信本机假设；假设失效前必须新增服务间认证/受保护 IPC 并重审 | 不阻塞当前本地学习切片；假设失效时阻塞部署 |
+| `RISK-ACCESS-010` | 服务器 framing | 超界 Header 在应用 WebFilter 前被拒绝，无法生成 Agent error envelope | token/组合 Header 超过冻结 32KB transport 边界 | 调用方只得到服务器 400/431 | OpenAPI 明确应用契约输入上限；Gateway 联调验证相同或更宽 Header 上限 | 不阻塞合法输入；阻塞 Gateway 端到端契约关闭 |
 
 ### 17.2 阶段门禁与外部证据
 
@@ -640,7 +761,66 @@ Pydantic models 使用 `ConfigDict(extra="forbid", strict=True, populate_by_name
 
 作者自检只用于改进 Draft，不构成独立评审、Approved、实施授权或门禁关闭证据。
 
-## 19. 实施前检查
+## 19. 独立正式评审记录
+
+### 19.1 第 1 轮冻结发现与修复
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 当前状态 |
+|---|---|---|---|---|
+| `REV-ACCESS-001` | S1 | `response-reserve` 未进入任何截止计算，且总时限允许 120 秒而内部字段上限仅 60 秒；合法配置会失配，Runtime 可耗尽外层写回预算 | 区分外层硬截止和扣除响应预留后的 Runtime 子截止，字段上限统一为 120000ms，并增加 5/60/120 秒测试 | Closed（第 2 轮） |
+| `REV-ACCESS-002` | S1 | 三处字节上限只有数值，没有 DTO 解码前 ASGI/WebFlux receive 限制及 WebClient 聚合限制的实现落点；chunked 请求可绕过仅看 Content-Length 的方案 | 增加 WebFlux codec、ASGI receive middleware 和 WebClient codec 的路径、签名、错误映射及边界测试 | Closed（第 2 轮） |
+| `REV-ACCESS-003` | S1 | 文档要求 Runtime 超限返回 429，却把限制描述为 Uvicorn limit；后者契约返回 503 且同时计入健康连接 | 改为应用级 `RuntimeRequestLimiter`，Uvicorn 只可作为更高的传输安全上限，固定两类错误映射 | Closed（第 2 轮） |
+| `REV-ACCESS-004` | S1 | 内部契约要求 `X-Agent-Contract-Version`，但 Python route 签名没有消费该 Header，无法实现 Header/body 一致性检查 | 在 FastAPI 边界签名和契约测试中显式加入 Header 与 400/409 语义 | Closed（第 2 轮） |
+| `REV-ACCESS-005` | S1 | 场景要求 Spring 准入超限返回 429，但外部状态表把全部 `downstream_failure` 固定为 502 | 将 `core.ingress_capacity_exceeded` 定义为唯一 429 例外，并证明 Runtime 429 仍映射 502 | Closed（第 2 轮） |
+| `REV-ACCESS-006` | S2 | Java Controller 边界签名缺少 `@RequestBody/@Valid`，与文中“WebFlux/Bean Validation”不闭合 | 补齐精确注解和前置字节限制责任 | Closed（第 2 轮） |
+| `REV-ACCESS-007` | S2 | 仅凭 loopback 不能证明“只有 Spring 进程可调用” | 将其收敛为可信单用户本机的唯一受支持路径，并把假设失效条件列为部署阻塞风险 | Closed（第 2 轮） |
+
+### 19.2 第 2 轮冻结发现与修复
+
+第 2 轮从 v0.2 首轮修订后的全文重新评审，确认 `REV-ACCESS-001`～`007` 已关闭，并冻结：
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 当前状态 |
+|---|---|---|---|---|
+| `REV-ACCESS-008` | S1 | Spring Security、codec 和参数绑定均可在 Controller 前失败，但文档没有统一 error writer 或预安全 request/correlation 所有者，OpenAPI 必填字段与 401/413 实现无法同时成立 | 增加最早 metadata WebFilter、显式 JWT security chain、统一 error writer/exception handler 和前 Controller 失败矩阵 | Closed（第 3 轮） |
+| `REV-ACCESS-009` | S1 | 首轮公式同时使用“准入后”与“接收时”作为总预算起点，新引入的 413 也未进入公开状态矩阵 | 以最早 WebFilter 单调时间为唯一预算起点，并为 413/415 定义固定 `invalid_argument` 组合 | Closed（第 3 轮） |
+| `REV-ACCESS-010` | S1 | Core 允许 16384-byte JWT，但两端 HTTP Header 容量与 Uvicorn 协议未冻结，合法执行上下文可能在跨进程前被默认上限拒绝 | 冻结 16KiB token、32KiB server/h11 event 上限及强制 h11，并增加边界测试 | Closed（第 3 轮） |
+| `REV-ACCESS-011` | S1 | disconnect watcher 只描述创建，没有任何正常完成清理路径，每次成功请求都可能遗留后台 task | 固定 route `finally` 取消并 await watcher、保留外层取消并验证任务/lease 归零 | Closed（第 3 轮） |
+| `REV-ACCESS-012` | S2 | Java 端未知字段失败关闭未绑定到具体 Jackson 配置，默认行为可能接受未知字段 | 将 `fail-on-unknown-properties=true` 纳入冻结配置、启动校验和边界测试 | Closed（第 3 轮） |
+
+### 19.3 第 3 轮冻结发现与修复
+
+第 3 轮从第二轮修订后的全文重新评审，确认 `REV-ACCESS-008`～`012` 已关闭，并冻结：
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 当前状态 |
+|---|---|---|---|---|
+| `REV-ACCESS-013` | S1 | FastAPI/Pydantic 的绑定错误默认返回 422 和结构化 validation detail，而内部协议只登记 400/409/413，可能泄露输入并令 Spring 落入未定义映射 | 增加 Python 协议异常处理器，固定 400/409/429/500 小型安全正文并禁止默认 422/detail | Closed（第 4 轮） |
+| `REV-ACCESS-014` | S1 | Spring 未定义 Runtime 2xx≠200、3xx、404/405/415/422 和一般 5xx 映射，新增/框架错误可能绕过确定性失败语义 | 穷尽状态分类并固定 catch-all 失败关闭，语义结果仍只接受 200 | Closed（第 4 轮） |
+| `REV-ACCESS-015` | S2 | “不读取 Runtime 错误正文”没有 WebClient 消费/释放方法，可能泄漏连接 buffer 或被默认异常处理聚合 | 固定 `exchangeToMono`、非 200 `releaseBody()` 和 exactly-once body 消费 | Closed（第 4 轮） |
+| `REV-ACCESS-016` | S2 | 32KB Header framing reject 发生在应用过滤器前，不能满足“任意响应都有 Agent 信封”的表述 | 将统一信封收敛到进入应用链的请求，并明确 server 400/431、零调用及 Gateway 风险 | Closed（第 4 轮） |
+
+### 19.4 第 4 轮冻结发现与修复
+
+第 4 轮从第三轮修订后的全文重新评审，确认 `REV-ACCESS-013`～`016` 已关闭，并冻结：
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 当前状态 |
+|---|---|---|---|---|
+| `REV-ACCESS-017` | S1 | OpenAPI/Python 的 4096 长度按 Unicode code point，而 Java `String.length()`/`@Size` 按 UTF-16 code unit；包含补充字符的问题会在两端产生不同接受集合 | 固定 Java 单点 `strip + codePointCount` validator、Python 不再 trim，并增加 BMP/补充字符边界测试 | Closed（第 5 轮） |
+
+### 19.5 第 5 轮终审结论
+
+第 5 轮从第 4 轮修订后的全文重新执行依赖、契约、权限、时限、取消、并发、容量、
+错误、实现落点、测试与门禁复核，无新增 S0/S1/S2。累计关闭 S1 12 项、S2 5 项；
+当前未关闭 S0/S1/S2 均为 0，达到用户限定的 5 轮上限，本文评审结论为 Approved。
+
+该结论允许把 v0.2 作为后续 `CR-GATE-002` 实施授权申请的设计输入；仍只允许文档、
+OpenAPI/fixture 的只读推演和不访问真实下游的隔离验证。`CR-GATE-002` 未由项目维护者
+另行关闭前，禁止创建或修改目标代码、配置、OpenAPI、测试，禁止真实双进程、模型或
+业务数据联调，也不得声明实现完成或运行生效。
+
+本轮修复不等于评审通过；只有后续从修订后全文重新执行独立复评且无未关闭
+S0/S1，本文才能进入 Approved。外部框架事实仅用于验证设计可实现性，不替代本仓库契约。
+
+## 20. 实施前检查
 
 - [x] 所有范围内 REQ/CON 已映射到 DR。
 - [x] 所有重要 DR 已映射到 IMPL、TEST 和 VAL。
@@ -651,8 +831,12 @@ Pydantic models 使用 `ConfigDict(extra="forbid", strict=True, populate_by_name
 - [x] JWT、日志、Runtime 网络暴露和失败关闭已明确。
 - [x] 当前允许/禁止实施范围和开放门禁已明确。
 - [x] 本轮原始问题同源补正后已重新执行 `validate_detailed_design.py --strict`，结果为 0 errors、0 warnings；仅作为确定性文档证据。
-- [ ] 独立设计评审已通过并获准关闭对应 `CR-GATE-002` 切片。
+- [x] 5 轮独立评审—修复—复评已关闭全部 S0/S1/S2。
+- [ ] 项目维护者另行明确授权关闭对应 `CR-GATE-002` 切片。
 
-## 20. 当前结论
+## 21. 当前结论
 
-本文已形成 Spring WebFlux 外部入口、回环 HTTP/JSON 内部协议、OpenAPI 契约源、原始问题同源绑定、总时限/取消、双进程健康和实现/测试落点的 Draft，并已通过严格文档校验。它可进入独立设计评审，但在正式评审和 `CR-GATE-002` 关闭前，不得作为代码实施授权或真实链路可用证据。
+本文 v0.2 已完成 5 轮独立评审—修复—复评，`REV-ACCESS-001`～`017` 全部关闭，
+无未关闭 S0/S1/S2，文档状态为 Approved。本文已达到该切片的详细设计就绪标准，但
+`CR-GATE-002` 仍为 Open，且目标代码、配置、OpenAPI、测试和真实联调均未实施、未验证、
+未授权；因此当前仍不可作为直接代码实施授权或真实链路可用证据。
