@@ -25,7 +25,10 @@
 - [`L2_00_01` 单体 Agent 核心执行与能力注册详细设计 L2](design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)（v0.4，Approved；v0.3 五轮评审及 v0.4 针对性复评均通过；`CR-GATE-002` Open，未实施、未生效）
 - [`L2_00_02` 单体 Agent DeepSeek 模型接入与受控生成详细设计 L2](design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)（v0.4，Approved、五轮独立评审及 Knowledge 消费契约复评通过；模型实施/PoC/数据出域门禁 Open，未实施、未生效）
 - [`L2_01_00` 单体 Agent Knowledge 查询流程与配置详细设计 L2](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)（v0.2，Approved、五轮独立评审通过；`KQ-GATE-002` Open，未实施、未生效）
+- [`L2_01_01` 单体 Agent Knowledge 检索与本地模型接入详细设计 L2](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)（v0.1，Draft、三轮内部自检及严格校验通过；检索实施/集成门禁 Open，未实施、未生效）
 - [`L2_02_00` 单体 Agent 业务查询公共约束、配置与出域详细设计 L2](design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md)（v0.2，Approved、五轮独立评审通过；`BQ-GATE-002` 及真实业务/数据出域门禁 Open，未实施、未生效）
+- [`L2_02_01` 单体 Agent Employee Adapter 与业务授权联调详细设计 L2](design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md)（v0.1，Draft、三轮内部自检及严格校验通过；Provider/真实 Employee/出域门禁 Open，未实施、未生效）
+- [`L2_02_02` 单体 Agent Transaction Adapter 与业务授权联调详细设计 L2](design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md)（v0.1，Draft、三轮内部自检及严格校验通过；Provider/真实 Transaction/出域门禁 Open，未实施、未生效）
 
 ## 已预留文档编号
 
@@ -34,11 +37,11 @@
 | `L2_00_00` | 单体 Agent Spring 接入与运行协同 L2 | `L1_00` | 已创建（v0.2 Approved，五轮评审通过；实施门禁 Open） |
 | `L2_00_02` | 单体 Agent DeepSeek 模型接入与受控生成 L2 | `L1_00` | 已创建（v0.4 Approved，五轮评审及针对性复评通过；实施/PoC 门禁 Open） |
 | `L2_01_00` | 单体 Agent Knowledge 查询流程与配置 L2 | `L1_01` | 已创建（v0.2 Approved，五轮评审通过；实施门禁 Open） |
-| `L2_01_01` | 单体 Agent Knowledge 检索与本地模型接入 L2 | `L1_01` | 待创建 |
+| `L2_01_01` | 单体 Agent Knowledge 检索与本地模型接入 L2 | `L1_01` | 已创建（v0.1 Draft，三轮内部自检/严格校验通过；实施/集成门禁 Open） |
 | `L2_01_02` | 单体 Agent Knowledge 证据、出域、摘要与效果验证 L2 | `L1_01` | 待创建 |
 | `L2_02_00` | 单体 Agent 业务查询公共约束、配置与出域 L2 | `L1_02` | 已创建（v0.2 Approved，五轮评审通过；实施/集成门禁 Open） |
-| `L2_02_01` | 单体 Agent Employee Adapter 与业务授权联调 L2 | `L1_02` | 待创建 |
-| `L2_02_02` | 单体 Agent Transaction Adapter 与业务授权联调 L2 | `L1_02` | 待创建 |
+| `L2_02_01` | 单体 Agent Employee Adapter 与业务授权联调 L2 | `L1_02` | 已创建（v0.1 Draft，三轮内部自检/严格校验通过；Provider/集成门禁 Open） |
+| `L2_02_02` | 单体 Agent Transaction Adapter 与业务授权联调 L2 | `L1_02` | 已创建（v0.1 Draft，三轮内部自检/严格校验通过；Provider/集成门禁 Open） |
 
 ## 架构文档状态
 
@@ -47,8 +50,9 @@
 - `L1_01` Knowledge 架构：v0.2 已完成五轮独立评审并通过，关闭 `REV-KQ-001`～`REV-KQ-008`，明确读取授权先于候选正文/BGE、失败优先级、按 L2 切片实施门禁、上位决策追踪和可验证多域边界；`KQ-GATE-001` 已关闭。
 - `L1_02` 业务查询适配架构：v0.2 已完成五轮独立评审并通过，关闭 `REV-BQ-001`～`REV-BQ-006`，明确业务服务拥有动作及响应数据可见性的最终授权、Adapter 只能二次收紧、最小有效用户结果、业务文本不可执行、回答事实绑定安全载荷，以及代码绑定有限转换；`BQ-GATE-001` 已关闭。
 - `L2_00_01` 核心执行与能力注册详细设计：v0.3 已完成五轮独立评审—修订—复核并关闭 `REV-L2-001`～`009`；v0.4 对 `CapabilityExecutionContext.original_question` 及同源校验的针对性复评已关闭 `REV-L2-010`，当前为 Approved；`CR-GATE-002` 保持 Open。
-- 第二批四份 L2 已依次完成最多五轮独立评审—修复—复核并 Approved：`L2_00_00` v0.2 固化 Spring 接入、跨进程协议、总时限与取消；`L2_00_02` v0.4 固化 DeepSeek Provider、输入闸门、结构化动作和受控生成；`L2_01_00` v0.2 固化 Knowledge 单动作流程、问题改写、多域选择与检索计划；`L2_02_00` v0.2 固化业务查询公共配置、JWT/Authority 消费、字段交集、有限转换与安全载荷。五份 L2 均未实施、未生效，各自实施/集成门禁保持 Open。
-- `L2_01_01`、`L2_01_02`、`L2_02_01`、`L2_02_02` 尚未建立。切片实施、外部契约变更、真实模型/数据集成和效果证据均未完成。
+- 第二批四份 L2 已依次完成最多五轮独立评审—修复—复核并 Approved：`L2_00_00` v0.2 固化 Spring 接入、跨进程协议、总时限与取消；`L2_00_02` v0.4 固化 DeepSeek Provider、输入闸门、结构化动作和受控生成；`L2_01_00` v0.2 固化 Knowledge 单动作流程、问题改写、多域选择与检索计划；`L2_02_00` v0.2 固化业务查询公共配置、JWT/Authority 消费、字段交集、有限转换与安全载荷。连同先行完成的 `L2_00_01`，这五份 L2 均未实施、未生效，各自实施/集成门禁保持 Open。
+- 第三批三份 L2 已建立并完成各三轮内部自检：`L2_01_01` v0.1 固化 Knowledge typed ES/BGE、授权前置、RRF/Rerank 与候选契约；`L2_02_01` v0.1 提议首期仅 `employee.detail`；`L2_02_02` v0.1 提议首期仅 `transaction.search` 并排除 Date/聚合/写入口。三份均为 Draft，未完成独立正式评审，所有实施/Provider/真实集成/出域门禁保持 Open。
+- `L2_01_02` 尚未建立。证据出域、摘要、效果验证，以及全部切片实施、外部契约变更和真实模型/数据集成均未完成。
 - 已删除的旧 L0、L1、L2 文档及历史 Agent 实现不得反向提升为当前架构权威。
 
 ## 权威边界
@@ -58,6 +62,7 @@
 - `L1_00` v0.2 是其权威范围内的 L2 编写基线，不改变 `L0_00` 状态，也不代表内部协议已定版、模型 PoC 已通过、实现已完成或真实数据允许进入外部模型。
 - `L2_00_01` 当前权威版本为 v0.4 Approved，`REV-L2-010` 已关闭；`CR-GATE-002` 获准前仍不得据此实施代码。Spring→Python 传输/入口上下文和真实 DeepSeek 契约分别由 `L2_00_00`、`L2_00_02` 承接。
 - `L2_00_00` v0.2、`L2_00_02` v0.4、`L2_01_00` v0.2、`L2_02_00` v0.2 当前均为 Approved；独立评审和严格校验不代表实施门禁关闭、实现完成、真实 Provider/检索/业务链路可用或真实数据允许出域。
+- `L2_01_01`、`L2_02_01`、`L2_02_02` 当前均为 v0.1 Draft；三轮作者内部自检和严格校验只证明草稿质量，不构成独立评审通过、实现授权、Provider 契约确认或真实链路可用证据。
 - `L1_01` v0.2 是其权威范围内的 L2 编写基线，但仍未实施、未生效：2026-07-25 的 ES/BGE 点测可用不等于真实集成通过；当前 `es-query-service` 类型化只读契约、读取判定权威和文档级出域元数据仍受 `SA-GATE-003/006` 约束。
 - `L1_02` v0.2 是其权威范围内的 L2 编写基线，但仍未实施、未生效：现有业务只读候选接口、JWT 角色声明和业务服务当前实现只用于事实核实；最终动作映射、统一 Authority、业务最终授权、外部契约变化和业务字段出域仍受 `BQ-GATE-002/003`、`CR-GATE-003` 及 `SA-GATE-004/005/006` 约束。
 - `auth-service`、`employee-service`、`mq-procedure-service`、`es-query-*`、网关、配置中心和通用组件可作为现状核实对象，但其既有实现不自动构成新 Agent 的目标架构。

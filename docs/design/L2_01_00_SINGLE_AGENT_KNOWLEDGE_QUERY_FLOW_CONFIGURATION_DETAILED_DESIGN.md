@@ -16,7 +16,7 @@
 | 适用范围 | Python `agent-runtime` 内唯一 `knowledge.query` 能力的参数契约、请求级流程状态、问题改写、首批逻辑知识域、域选择、检索计划、跨域失败优先级、配置与组合根 |
 | 上位文档 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.2；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4；[`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2（已评审/已通过，`KQ-GATE-001` 已关闭） |
 | 直接依赖 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4（Approved）的能力 API、`original_question` 与公共结果；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4（Approved）的输入闸门、模型上下文与受控结构化任务 |
-| 下位/后续契约 | 规划中的 `L2_01_01` Knowledge 检索与本地模型接入；规划中的 `L2_01_02` Knowledge 证据、出域、摘要与效果验证 |
+| 下位/后续契约 | [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v0.1 Draft；规划中的 `L2_01_02` Knowledge 证据、出域、摘要与效果验证 |
 | 实现基线 | 当前工作区不存在目标 `agent-runtime`、Knowledge Capability、Knowledge Adapter 或目标 Python 测试；既有 `es-query-*` 与历史 Agent 代码只作为迁移输入，不是目标实现基线 |
 | 是否可作为实现依据 | 否 |
 | 当前允许实施范围 | 本文编写、自检、契约样例和使用内存 fake stage 的隔离推演 |
@@ -39,6 +39,7 @@
 | 7 | 2026-07-25 | 8.3～8.4、12.1、13.3、14、18～20 | 独立评审第 4 轮修复 | 补齐逻辑域允许路径与默认出域策略引用；修正部分成功阈值依赖校验；增加 retrieval 唯一公共映射签名 |
 | 8 | 2026-07-25 | 1～20 | 独立评审第 5 轮终审 | 全量复核无新增 S0/S1/S2，关闭 `REV-KFLOW-001`～`021`，版本升为 v0.2、状态改为 Approved；实施与真实链路门禁保持 Open |
 | 9 | 2026-07-25 | 1、14 | 第二批 L2 终审状态原子同步 | 明确当前 Approved 评审依据，并同步跨 L2 人工验证状态；不改变 Knowledge 流程契约或开放门禁 |
+| 10 | 2026-07-31 | 1、5、14、18、20 | 第三批 L2 状态原子同步 | 将 `L2_01_01` 更新为 v0.1 Draft/三轮内审完成，保留 `L2_01_02` 未创建及全部实施/集成门禁 Open；不改变本文 Approved 设计语义 |
 
 ## 3. 背景、目标与范围
 
@@ -147,7 +148,7 @@ L1_01 已确定知识查询必须在一个 `knowledge.query` 动作内完成问�
 | L1_01 v0.2 | parent | 细化 `L2_01_00` 唯一范围 | 定义 Knowledge 架构边界与门禁 | `knowledge.query`、五阶段语义 | 上位权威 | 只读 |
 | L2_00_01 v0.4 Approved | direct dependency | 消费能力 API、`original_question` 和公共结果契约 | 核心执行、注册、图状态和公共结果不变量 | `CapabilityHandler` | 公共执行上下文 | 只读 |
 | L2_00_02 v0.4 Approved | direct dependency | 定义 Knowledge 改写任务输入/输出，先消费全局问题闸门和安全模型上下文 | Provider、问题输入策略和供应商错误 | `QuestionEgressGuard`、`ModelCallContextAccessor`、`BoundedStructuredModelGateway` | 模型调用状态 | 本轮仅已授权消费契约原子补正 |
-| 规划中的 L2_01_01 | downstream provider | 定义检索计划消费和 coverage 控制语义 | ES/BGE、候选、融合、重排、读取授权 | `KnowledgeRetrievalStage[TBatch]` | 排序候选 batch | 只读，尚未创建 |
+| L2_01_01 v0.1 Draft | downstream provider | 定义检索计划消费和 coverage 控制语义 | ES/BGE、候选、融合、重排、读取授权 | `KnowledgeRetrievalStage[TBatch]` | 排序候选 batch | 只读；三轮内部自检完成，未独立评审 |
 | 规划中的 L2_01_02 | downstream provider | 定义证据 stage 调用时机与输入控制语义 | 证据、三层出域、摘要和最终领域结果 | `KnowledgeEvidenceStage[TBatch]` | 证据/模型安全载荷 | 只读，尚未创建 |
 | `es-query-service`/本地 BGE | external provider | 不定义或直接调用 | 提供类型化只读检索和本地模型能力 | 由 L2_01_01 固化 | 提供方资源 | 只读 |
 
@@ -789,7 +790,7 @@ disabled 路径在第 3 步终止，不创建 Knowledge task definition、rewrit
 | `VAL-KFLOW-002` | 未来 `D:\codex\agent-runtime`；Knowledge unit/contract tests 已创建 | `python -m pytest tests/unit/knowledge tests/contract/knowledge -q` | 证明动作、改写、域、计划、配置和失败矩阵 | 全部通过 | 未执行：代码/测试不存在且未授权 |
 | `VAL-KFLOW-003` | 未来 `D:\codex\agent-runtime`；fake stages/architecture tests 已创建 | `python -m pytest tests/integration/knowledge tests/architecture/test_knowledge_boundaries.py -q` | 证明 stage 接缝、请求状态、取消和依赖方向；不证明真实 ES/BGE/DeepSeek | 全部通过 | 未执行：代码/测试不存在且未授权 |
 | `VAL-KFLOW-004` | 未来 Python 工程和设置加载器已创建 | `python -m compileall -q src tests`、`python -m mypy --strict src tests`、`python -m pip check` | 证明签名、泛型 stage 和依赖一致；须与行为测试联合 | 三条无错误 | 未执行：工程不存在 |
-| `VAL-KFLOW-005` | 本文、L2_00_01 v0.4、L2_00_02 v0.4、后续两份 L2 草案/评审证据 | 人工核对原问题同源、问题闸门、stage 类型、责任防重叠和门禁 | 证明跨 L2 语义未漂移，不替代真实集成 | 无未关闭 S0/S1 后方可申请切片实施 | 部分完成：本文及两个直接依赖已 Approved；L2_01_01/02 尚未创建，真实检索/证据契约仍未验证 |
+| `VAL-KFLOW-005` | 本文、L2_00_01 v0.4、L2_00_02 v0.4、后续两份 L2 草案/评审证据 | 人工核对原问题同源、问题闸门、stage 类型、责任防重叠和门禁 | 证明跨 L2 语义未漂移，不替代真实集成 | 无未关闭 S0/S1 后方可申请切片实施 | 部分完成：本文及两个直接依赖已 Approved；L2_01_01 v0.1 Draft 已完成三轮内部自检，L2_01_02 尚未创建；真实检索/证据契约仍未验证 |
 
 ## 15. 发布、迁移与回滚
 
@@ -897,8 +898,8 @@ disabled 路径在第 3 步终止，不创建 Knowledge task definition、rewrit
 第 5 轮从需求追踪、单动作边界、descriptor、原问题/模型输入、JWT 最小传播、逻辑域、
 rewrite/stage 类型、coverage/失败优先级、绝对预算、配置/组合根、实现签名和测试反证重新
 全量检查；未发现新的 S0/S1/S2，`REV-KFLOW-001`～`021` 全部关闭。本文 Approved，
-设计已具备 flow/config 切片的实施就绪条件；但 `KQ-GATE-002` 未关闭，后续检索/证据 L2
-尚未创建，不能据此实施目标代码、启用真实链路或声明效果达标。
+设计已具备 flow/config 切片的实施就绪条件；但 `KQ-GATE-002` 未关闭，检索 L2_01_01
+仍为 Draft 且证据 L2_01_02 尚未创建，不能据此实施目标代码、启用真实链路或声明效果达标。
 
 ## 19. 实施前检查
 

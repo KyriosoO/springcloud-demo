@@ -16,7 +16,7 @@
 | 适用范围 | Python `agent-runtime` 内 Employee/Transaction Adapter 共用的代码绑定动作原语、强类型配置收紧、用户 JWT 透传、统一 Authority 外部契约消费语义、类型化业务结果、最小有效用户结果、字段交集、有限转换、模型安全载荷、事实绑定、失败矩阵、组合根与公共测试替身 |
 | 上位文档 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.2；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
 | 直接依赖 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4（Approved）的能力 API、JWT wrapper 和公共结果；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4（Approved）的 safe payload/grounding 接缝 |
-| 下位/后续契约 | 规划中的 `L2_02_01` Employee Adapter 与业务授权联调；规划中的 `L2_02_02` Transaction Adapter 与业务授权联调 |
+| 下位/后续契约 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v0.1 Draft |
 | 外部契约 | `auth-service` 用户 JWT；`common-security` role→Authority；`employee-service`、`mq-procedure-service` 公开只读查询契约 |
 | 实现基线 | 目标 `agent-runtime` 业务公共模块及两个 Adapter 均不存在；当前 JWT 已签发 `role` 集合，统一 Authority 映射和两域动作级最终授权尚未具备 |
 | 是否可作为实现依据 | 否，本文设计已 Approved，但本切片 `BQ-GATE-002` 尚未获得实施授权并保持 Open；真实业务授权/出域门禁也仍为 Open |
@@ -39,6 +39,7 @@
 | 6 | 2026-07-25 | 8、11～14、18 | 独立评审第 3 轮修复 | 固定 grounding 句段/token 算法和强类型转换，直接返回核心 egress 结果，删除当前不可达的模型专用失败分支并补齐全局策略 |
 | 7 | 2026-07-25 | 8～10、12～14、18 | 独立评审第 4 轮修复 | 固定 records/user result JSON 和字节上限，消除 Authority 401/403 歧义，并把非 2xx 解释收归公共状态映射 |
 | 8 | 2026-07-25 | 7～8、11、13～14、18～20 | 独立评审第 5 轮修复与终审 | 修正 grounding 重叠 token，固定动作约束/required 单一权威和 provider/support 接口；全量复核后批准设计，实施门禁保持 Open |
+| 9 | 2026-07-31 | 1、5 | 第三批 L2 状态原子同步 | 将两个域 L2 更新为 v0.1 Draft/三轮内审完成；不改变公共设计、Approved 状态或开放门禁 |
 
 ## 3. 背景、目标与范围
 
@@ -156,7 +157,7 @@ L1_02 已确定 Employee、Transaction 使用两个独立 Python Adapter，直�
 | `common-security` | external authority | 记录 Authority 可观察要求和差距 | role→GrantedAuthority 统一映射 | Spring Security Authentication | 角色映射 | 只读；本文不设计修改 |
 | `employee-service` | external/domain authority | 不定义具体动作 | Employee 最终授权和响应可见性 | 域 L2 固化 | Employee 数据/权限 | 只读 |
 | `mq-procedure-service` | external/domain authority | 不定义具体动作 | Transaction 最终授权和响应可见性 | 域 L2 固化 | Transaction 数据/权限 | 只读 |
-| 规划中的 L2_02_01/02 | child designs | 提供公共原语 | 分别实例化动作、字段、端点、客户端和权限测试 | code-bound definition | 域动作/配置 | 尚未创建 |
+| L2_02_01/02 v0.1 Draft | child designs | 提供公共原语 | 分别实例化动作、字段、端点、客户端和权限测试 | code-bound definition | 域动作/配置 | 三轮内部自检完成，未独立评审 |
 
 ### 5.1 当前 Java 触点（只读事实）
 
