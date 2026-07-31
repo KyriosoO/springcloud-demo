@@ -10,19 +10,19 @@
 | 文档路径 | `docs/design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
-| 评审状态 | 五轮独立评审—修复—复核已通过，`REV-BQCOM-001`～`021` 全部关闭 |
-| 当前版本 | v0.2 |
-| 日期 | 2026-07-25 |
+| 评审状态 | 五轮独立评审—修复—复核及第三批聚焦一致性复核已通过，`REV-BQCOM-001`～`022` 全部关闭 |
+| 当前版本 | v0.3 |
+| 日期 | 2026-07-31 |
 | 适用范围 | Python `agent-runtime` 内 Employee/Transaction Adapter 共用的代码绑定动作原语、强类型配置收紧、用户 JWT 透传、统一 Authority 外部契约消费语义、类型化业务结果、最小有效用户结果、字段交集、有限转换、模型安全载荷、事实绑定、失败矩阵、组合根与公共测试替身 |
-| 上位文档 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.2；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
+| 上位文档 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.3；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
 | 直接依赖 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4（Approved）的能力 API、JWT wrapper 和公共结果；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4（Approved）的 safe payload/grounding 接缝 |
-| 下位/后续契约 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v0.1 Draft；[`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v0.1 Draft |
+| 下位/后续契约 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v0.3 Approved；[`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v0.2 Approved |
 | 外部契约 | `auth-service` 用户 JWT；`common-security` role→Authority；`employee-service`、`mq-procedure-service` 公开只读查询契约 |
 | 实现基线 | 目标 `agent-runtime` 业务公共模块及两个 Adapter 均不存在；当前 JWT 已签发 `role` 集合，统一 Authority 映射和两域动作级最终授权尚未具备 |
 | 是否可作为实现依据 | 否，本文设计已 Approved，但本切片 `BQ-GATE-002` 尚未获得实施授权并保持 Open；真实业务授权/出域门禁也仍为 Open |
 | 当前允许实施范围 | 本文编写、自检、合成 DTO/字段/权限矩阵和不访问真实服务的公共 fake 推演 |
 | 当前禁止动作 | 创建或修改 Agent/Java 代码、配置、测试、公共契约；新增业务接口；启用真实 Employee/Transaction；发送真实业务数据到 DeepSeek；关闭任何门禁 |
-| 修改权限 | 本轮用户已授权第二批 L2 与必要直接关联文档原子同步，并授权 Git commit/push；代码、配置、Schema、外部契约和真实调用未获授权 |
+| 修改权限 | 本轮用户已授权第三批 L2 评审与必要直接关联文档原子同步，并授权 Git commit/push；代码、配置、Schema、外部契约和真实调用未获授权 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 
 > 本文只定义两个业务域可以复用的无业务字段语义原语，不列出 Employee/Transaction 精确动作、端点、请求/响应字段或业务授权实现。公共原语不得演化为动态 HTTP Adapter、权限引擎或字段脚本平台。
@@ -40,6 +40,8 @@
 | 7 | 2026-07-25 | 8～10、12～14、18 | 独立评审第 4 轮修复 | 固定 records/user result JSON 和字节上限，消除 Authority 401/403 歧义，并把非 2xx 解释收归公共状态映射 |
 | 8 | 2026-07-25 | 7～8、11、13～14、18～20 | 独立评审第 5 轮修复与终审 | 修正 grounding 重叠 token，固定动作约束/required 单一权威和 provider/support 接口；全量复核后批准设计，实施门禁保持 Open |
 | 9 | 2026-07-31 | 1、5 | 第三批 L2 状态原子同步 | 将两个域 L2 更新为 v0.1 Draft/三轮内审完成；不改变公共设计、Approved 状态或开放门禁 |
+| 10 | 2026-07-31 | 8.2/8.5/9.1/13/18～20 | Transaction 第4轮发现触发的聚焦一致性修订 | `decode_success` 显式接收同一次强类型 wire request，支持并发安全的请求—响应回显/结果上限校验；关闭 `REV-BQCOM-022`，保持 Approved 和所有实施/集成门禁 Open |
+| 11 | 2026-07-31 | 1、5、18～20 | 第三批 L2 终审状态原子同步 | 同步 `REQ_00` v1.3、`L0_00` v0.5，并将 Employee/Transaction 更新为 v0.3/v0.2 Approved；确认两份域设计均显式消费 v0.3 codec 请求关联契约，所有实施/Provider/真实集成/出域门禁保持 Open |
 
 ## 3. 背景、目标与范围
 
@@ -157,7 +159,7 @@ L1_02 已确定 Employee、Transaction 使用两个独立 Python Adapter，直�
 | `common-security` | external authority | 记录 Authority 可观察要求和差距 | role→GrantedAuthority 统一映射 | Spring Security Authentication | 角色映射 | 只读；本文不设计修改 |
 | `employee-service` | external/domain authority | 不定义具体动作 | Employee 最终授权和响应可见性 | 域 L2 固化 | Employee 数据/权限 | 只读 |
 | `mq-procedure-service` | external/domain authority | 不定义具体动作 | Transaction 最终授权和响应可见性 | 域 L2 固化 | Transaction 数据/权限 | 只读 |
-| L2_02_01/02 v0.1 Draft | child designs | 提供公共原语 | 分别实例化动作、字段、端点、客户端和权限测试 | code-bound definition | 域动作/配置 | 三轮内部自检完成，未独立评审 |
+| L2_02_01 v0.3 / L2_02_02 v0.2 Approved | child designs | 提供公共原语 | 分别实例化动作、字段、端点、客户端和权限测试 | code-bound definition | 域动作/配置 | 五轮独立评审通过；实施/Provider/真实集成/出域门禁 Open |
 
 ### 5.1 当前 Java 触点（只读事实）
 
@@ -288,7 +290,7 @@ BusinessActionDefinition[
 | `service_key` | `BusinessServiceKey` | 是 | provider 代码绑定且在组合根解析为一个受控 base endpoint；配置不能为动作选择 host |
 | `argument_validator` | `CapabilityArgumentValidator[TInput]` | 是 | 模型 JSON→强类型输入 |
 | `request_mapper` | `BusinessRequestMapper[TInput,TWireRequest]` | 是 | `(TInput, BusinessActionSettings)`→`TWireRequest`；必须执行分页/时间/过滤/排序收紧，不接受动态 URL |
-| `wire_codec` | `BusinessWireCodec[TWireRequest,TWireResponse]` | 是 | wire request→受控 HTTP；2xx bounded body→严格 typed wire response |
+| `wire_codec` | `BusinessWireCodec[TWireRequest,TWireResponse]` | 是 | wire request→受控 HTTP；同一次 wire request+2xx bounded body→严格 typed wire response |
 | `response_normalizer` | `BusinessResponseNormalizer[...]` | 是 | wire→tagged result |
 | `http_status_semantics` | `BusinessHttpStatusSemantics` | 是 | 代码冻结 204/400/404 的有限契约语义；其他状态不可配置 |
 | `applicable_dimensions` | `frozenset[ConstraintDimension]` | 是 | 配置可出现的有限维度 |
@@ -363,7 +365,7 @@ mapping 透传未声明配置。
 | `BoundedBusinessHttpResponse` | `status_code: int`；`content_type: str \| None`；`body: bytes \| None` | status 100～599；非 2xx 和 204 的 body 恒为 `None`；其他 2xx 只接受 `application/json`（参数可忽略）；body 已在聚合前受全局上限约束 |
 | `BusinessTransportFailure` | `kind: timeout/response_too_large/tls_or_connect/protocol` | 不携带 URL、异常、message、header 或 body；`CancelledError` 不转换为该类型，清理后原样传播 |
 | `BusinessRequestMapper[TInput,TWireRequest]` | `def map(self, input: TInput, settings: BusinessActionSettings) -> TWireRequest` | 纯函数；验证并收紧分页/时间/过滤/排序；只抛有限 `InvalidBusinessArguments`，不得访问网络或读取配置 |
-| `BusinessWireCodec[TWireRequest,TWireResponse]` | `def encode(self, request: TWireRequest) -> BusinessHttpRequest`；`def decode_success(self, response: BoundedBusinessHttpResponse) -> TWireResponse` | 代码绑定 method/path；decode 只接受 2xx，执行严格 UTF-8、JSON unique keys、顶层类型和 unknown-field 策略；只抛有限 `InvalidBusinessWireRequest/Response` |
+| `BusinessWireCodec[TWireRequest,TWireResponse]` | `def encode(self, request: TWireRequest) -> BusinessHttpRequest`；`def decode_success(self, *, request: TWireRequest, response: BoundedBusinessHttpResponse) -> TWireResponse` | 代码绑定 method/path；decode 显式接收当前调用栈中完成 encode 的同一冻结 request，只接受2xx，执行请求—响应回显/上限校验、严格 UTF-8、JSON unique keys、顶层类型和 unknown-field 策略；只抛有限 `InvalidBusinessWireRequest/Response`，不得把 request 保存为 codec 可变实例状态 |
 | `BusinessResponseNormalizer[TWireResponse,TRecord]` | `def normalize_success(self, response: TWireResponse) -> BusinessServiceResult[TRecord]` | 纯函数；输入只来自已解码 2xx；可生成 records/no_result/invalid_response，不能解释 4xx/5xx；不得读取 HTTP client、JWT 或配置 |
 
 `BusinessHttpStatusSemantics` 只有三个 bool：
@@ -386,7 +388,7 @@ mapping 透传未声明配置。
 3. request_mapper 使用冻结 settings 收紧分页/时间/过滤/排序并生成 TWireRequest
 4. wire_codec 生成一个 code-bound BusinessHttpRequest
 5. UserJwtBusinessHttpClient 发出至多一个请求并流式产生 bounded response
-6. common status mapper 对非 2xx 直接产生固定结果；只有 2xx 进入 wire_codec 严格解码
+6. common status mapper 对非 2xx 直接产生固定结果；只有 2xx 连同当前调用栈的同一 `TWireRequest` 进入 wire_codec 严格解码
 7. response_normalizer 只把 2xx typed wire response 映射为 BusinessServiceResult
 8. user projector 形成最小有效 BusinessUserResult
 9. egress projector 计算模型字段交集并执行有限转换
@@ -839,7 +841,7 @@ definition 的 domain 不匹配、跨 provider 重复 descriptor/service key 或
 |---|---|---|---|---|
 | 建议新增：`business.settings.BusinessSettingsValidator.validate` | `def validate(self, definitions: Sequence[BusinessActionDefinition[Any,Any,Any,Any]], raw: BusinessConfigurationSource, *, core_max_domain_result_bytes: int) -> BusinessConfigurationSnapshot` | descriptor/domain/service ID、维度/子集/上限/required fields/transform/binding/依赖、user≤core bytes 及 canonical snapshot | 冻结 snapshot；配置错误只含稳定 code | 无 I/O；composition root |
 | 建议新增：`business.contracts.BusinessRequestMapper.map` | `def map(self, input: TInput, settings: BusinessActionSettings) -> TWireRequest` | input 已由本 definition validator 产生；settings 属于同一 snapshot/action；执行域约束收紧 | typed wire request；有限 `InvalidBusinessArguments` | 纯函数；bound handler |
-| 建议新增：`business.contracts.BusinessWireCodec.encode/decode_success` | `def encode(self, request: TWireRequest) -> BusinessHttpRequest`；`def decode_success(self, response: BoundedBusinessHttpResponse) -> TWireResponse` | 8.5 的 path/method/query/body；decode 只接受 2xx 并校验 content-type/strict JSON | typed request/response；有限 wire error | 纯函数；bound handler |
+| 建议新增：`business.contracts.BusinessWireCodec.encode/decode_success` | `def encode(self, request: TWireRequest) -> BusinessHttpRequest`；`def decode_success(self, *, request: TWireRequest, response: BoundedBusinessHttpResponse) -> TWireResponse` | 8.5 的 path/method/query/body；decode 只接受2xx并校验当前冻结 request 对应的回显/结果边界、content-type/strict JSON | typed request/response；有限 wire error | 纯函数；bound handler按同一调用栈传参，不共享请求期状态 |
 | 建议新增：`business.result_mapping.map_business_http_status` | `def map_business_http_status(response: BoundedBusinessHttpResponse, semantics: BusinessHttpStatusSemantics) -> BusinessServiceResult[Never] | None` | 穷尽 1xx～5xx；semantics 来自 definition | 2xx 为 None；非2xx为固定 tagged result | 纯函数；codec 前唯一状态解释点 |
 | 建议新增：`business.contracts.BusinessResponseNormalizer.normalize_success` | `def normalize_success(self, response: TWireResponse) -> BusinessServiceResult[TRecord]` | 同一动作已解码 2xx wire response | records/no_result/invalid_response；不携带自定义 code/body | 纯函数；bound handler |
 | 建议新增：`business.http_client.UserJwtBusinessHttpClient.execute` | `async def execute(self, *, request: BusinessHttpRequest, user_token: OpaqueUserToken, call_deadline: float, cancellation: CancellationSignal) -> BoundedBusinessHttpResponse` | request 仅含受控相对路径；token 非空；绝对 deadline、取消、聚合前 raw body 上限；client 已绑定 service key/base endpoint | 任一 HTTP status 返回 bounded response（非 2xx body 恒空）；超时/超界/连接/协议为有限 typed transport failure | 一个绝对 timeout 内至多一次 HTTP、无 retry；所有路径关闭 response；域 client |
@@ -878,7 +880,7 @@ definition 的 domain 不匹配、跨 provider 重复 descriptor/service key 或
 | `TEST-BQCOM-006` | 建议新增 | `DR-BQCOM-007/008` | Unit | `agent-runtime/tests/unit/business/test_user_projection.py` | records/coverage不变量、连续 ref、字段顺序/额外/缺 required、canonical bytes limit±1、core limit小于业务设置 | 固定 JSON；extra零进入；必需/超界失败 downstream；core交叉约束启动失败；不制造 no_result/空 success | 宽字段、core invalid result 或状态漂移 |
 | `TEST-BQCOM-007` | 建议新增 | `DR-BQCOM-008/009/018` | Unit | `agent-runtime/tests/unit/business/test_egress_projection.py` | 字段交集；六转换逐一测试 exact type、边界±1、string/float/bool-as-int、控制/Bidi、naive/aware datetime、Decimal rounding；payload超界/global disabled | model⊂user；转换输出精确；未知/类型错/转换失败模型调用0且本地结果保留；只返回核心 `ModelEgressResult` | 原始字段外发、宽松强转或重复结果类型 |
 | `TEST-BQCOM-008` | 建议新增 | `DR-BQCOM-010/011` | Unit | `agent-runtime/tests/unit/business/test_grounding.py` | marker ID/连续性/重复/集合、每种句末/尾段、两个精确前缀、跨句引用、掩码ID/负数/日期的重叠 span、text 内 ASCII token、unsupported、truncated 禁词 | 同一 tokenizer 生成 fact/answer token；span 不重复提取；无依据或不确定候选整体拒绝；合法 canonical 引用通过 | 掩码/负数误拒、只核 fact ID、模糊前缀或未核本句事实 token |
-| `TEST-BQCOM-009` | 建议新增 | `DR-BQCOM-003/012/014` | Integration with fake server | `agent-runtime/tests/integration/business/test_failure_and_cancellation.py` | mapper/codec/client/normalizer spy、解析跨 deadline、迟到 body、断连、敏感异常、重复请求、启动中途失败 | 固定调用顺序；当前请求一次调用；解析超时/取消后丢弃；已建 client 逆序关闭；日志无敏感值 | 后台结果、半冻结 registry、资源或原始异常泄露 |
+| `TEST-BQCOM-009` | 建议新增 | `DR-BQCOM-003/012/014` | Integration with fake server | `agent-runtime/tests/integration/business/test_failure_and_cancellation.py` | mapper/codec/client/normalizer spy、两个并发请求交错响应、请求回显不匹配、解析跨 deadline、迟到 body、断连、敏感异常、重复请求、启动中途失败 | 固定调用顺序；decode每次取得当前调用栈同一冻结wire request且无codec可变请求状态；回显不匹配失败；当前请求一次调用；解析超时/取消后丢弃；已建client逆序关闭；日志无敏感值 | 并发串响应、后台结果、半冻结registry、资源或原始异常泄露 |
 | `TEST-BQCOM-010` | 建议新增 | `DR-BQCOM-013/014` | Architecture | `agent-runtime/tests/architecture/test_business_common_boundaries.py` | import graph、dependency/storage/retry scan | common 无域/SDK/DB/message/role auth；无 retry | 动态平台、持久化或反向依赖 |
 | `TEST-BQCOM-011` | 建议新增 | `DR-BQCOM-001/015` | Extensibility | `agent-runtime/tests/contract/business/test_fake_third_domain.py` | 新增 test-only `sample.read` definition/provider；provider 顺序置换、跨域 fragment/重复 service；全域禁用 | 只新增 fixture/provider；snapshot 顺序稳定；错配启动失败；禁用无 client/registration；core/common/已有域源不改 | 扩展要求改 core/common 或 provider 泄漏域 |
 | `TEST-BQCOM-012` | 建议新增 | `DR-BQCOM-010/011` | Model integration with spy | `agent-runtime/tests/integration/business/test_business_text_is_data.py` | fact text 含注入语句、模型越界回答 | 不触发工具/第二动作/权限变化；越界答案拒绝 | 文本影响控制语义 |
@@ -1023,6 +1025,14 @@ definition 的 domain 不匹配、跨 provider 重复 descriptor/service key 或
 设计具备实施就绪条件，但 `BQ-GATE-002` 仍为 Open，因此当前不构成代码实施授权；本结论
 也不证明共享安全、两域最终授权、真实业务接口或真实数据出域已经具备。
 
+### 18.6 第三批聚焦一致性复核
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 当前状态 |
+|---|---|---|---|---|
+| `REV-BQCOM-022` | S1 | Transaction 必须验证响应 page/size/records 没有超过当前请求及配置收紧值，但 v0.2 `decode_success(response)` 无原请求参数；若 codec 以实例字段保存“上次请求”，并发响应会串扰并可能接纳越界结果 | 将公共签名改为 `decode_success(*, request, response)`；bound handler 在同一调用栈传递冻结 `TWireRequest`，禁止 codec 请求期可变状态，并补充交错并发/回显不匹配测试 | Closed（聚焦修复后复核） |
+
+聚焦修复只扩大纯函数的显式输入，不改变动作身份、HTTP 请求、状态矩阵、授权、出域、调用次数或公开业务契约。重新复核 `BusinessActionDefinition`、mapper/codec/handler 顺序、绝对截止、并发隔离、Employee/Transaction 适配点和测试追踪后未发现新的 S0/S1/S2，故本文保持 Approved；`BQ-GATE-002` 及全部真实业务/出域门禁保持 Open。
+
 ## 19. 实施前检查
 
 - [x] 所有范围内 REQ/CON 已映射到 DR。
@@ -1037,14 +1047,14 @@ definition 的 domain 不匹配、跨 provider 重复 descriptor/service key 或
 - [x] 权限、安全、审计、取消、无重试/无持久化和外部门禁明确。
 - [x] 作者自检无遗留 Blocker/Major。
 - [x] `validate_detailed_design.py --strict` 已通过；该结果仅是确定性文档证据。
-- [x] 五轮独立正式评审已关闭全部 S0/S1/S2。
+- [x] 五轮独立正式评审及第三批聚焦一致性复核已关闭全部 S0/S1/S2。
 - [ ] 用户另行授权实施并关闭本切片 `BQ-GATE-002`。
 
 ## 20. 当前结论
 
-- 本文版本：v0.2。
+- 本文版本：v0.3。
 - 文档状态：Approved。
-- 评审状态：五轮独立评审通过，`REV-BQCOM-001`～`021` 全部关闭。
+- 评审状态：五轮独立评审及聚焦一致性复核通过，`REV-BQCOM-001`～`022` 全部关闭。
 - 实施状态：未实施。
 - 生效状态：未生效。
 - 是否可作为实现依据：否；设计已具备实施就绪条件，但 `BQ-GATE-002`、`SA-GATE-004/005/006` 均为 Open。

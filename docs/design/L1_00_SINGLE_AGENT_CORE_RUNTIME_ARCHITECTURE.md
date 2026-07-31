@@ -16,11 +16,11 @@
 | 实施状态 | 未实施 |
 | 生效状态 | 未生效 |
 | 当前版本 | v0.2 |
-| 适用基线 | `REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.2；`L0_00_SINGLE_AGENT_ARCHITECTURE.md` v0.4（`SA-GATE-001` 已关闭） |
+| 适用基线 | `REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.3；`L0_00_SINGLE_AGENT_ARCHITECTURE.md` v0.5（`SA-GATE-001` 已关闭） |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 | 目标文档位置 | `docs/design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md` |
-| 上位 L0 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4 |
-| 关联 L1 | [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2（已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
+| 上位 L0 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5 |
+| 关联 L1 | [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3（已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
 | 治理的 L2 | `L2_00_00` Spring 接入与运行协同、`L2_00_01` Agent 核心执行与能力注册、`L2_00_02` DeepSeek 模型接入与受控生成详细设计 |
 | 外部契约 | `auth-service` 用户 JWT 契约；Agent 对外查询契约；DeepSeek `deepseek-v4-pro` 模型契约 |
 | 替代关系 | 新建基线；历史 Agent 实现及已退出工作区的旧设计不得反向定义本文 |
@@ -43,6 +43,7 @@
 | 10 | 2026-07-25 | 文档治理信息、12 | 澄清 `CR-AD-008` 的处理器形态选择标准，并原子同步 Knowledge L1 v0.2 已评审/已通过状态及 `KQ-GATE-001` 关闭结果 | 防止未来按能力名称固化内部形态，同时保持同层文档状态与门禁引用一致；不改变本文版本、正式状态或 `CR-GATE-001` 结论 |
 | 11 | 2026-07-25 | 文档治理信息、18.2 | 原子同步已创建的业务查询适配 L1 v0.1 链接、草稿状态和 `BQ-GATE-001` 开放状态 | 保持三份 L1 的同层引用和治理状态一致；不改变本文 v0.2 架构决策、评审、实施、生效或 `CR-GATE-001` 结论 |
 | 12 | 2026-07-25 | 文档治理信息、18.2 | 原子同步业务查询适配 L1 v0.2 已评审/已通过状态及 `BQ-GATE-001` 关闭结果 | 保持三份 L1 的同层引用和治理状态一致；不改变本文 v0.2 架构决策、评审、实施、生效或 `CR-GATE-001` 结论 |
+| 13 | 2026-07-31 | 文档治理信息、权威关系 | 原子同步 `REQ_00` v1.3、`L0_00` v0.5 与 `L1_01` v0.3 当前引用，并完成 Knowledge 两级映射对核心运行边界的兼容性核对 | 两级映射完全位于 Knowledge 消费方/提供方内部，不改变能力 API、LangGraph 权威、注册运行时或本文 v0.2 评审结论；所有实施/集成门禁保持原状 |
 
 ## 3. 文档定位与权威关系
 
@@ -60,8 +61,8 @@
 ### 3.2 上位与同层权威关系
 
 ```text
-REQ_00 已确认需求 v1.2
-  → L0_00 单体 Agent L0 v0.4
+REQ_00 已确认需求 v1.3
+  → L0_00 单体 Agent L0 v0.5
       → 本文：L1_00 核心与运行 L1
           → 本文治理的核心与运行 L2
               → 实现与验证证据

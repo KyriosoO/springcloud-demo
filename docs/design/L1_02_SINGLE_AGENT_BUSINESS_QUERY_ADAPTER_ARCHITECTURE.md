@@ -16,12 +16,12 @@
 | 实施状态 | 未实施 |
 | 生效状态 | 未生效 |
 | 当前版本 | v0.2 |
-| 适用基线 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.2；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4（`SA-GATE-001` 已关闭）；[`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2 |
+| 适用基线 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.3；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5（`SA-GATE-001` 已关闭）；[`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 | 目标文档位置 | `docs/design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md` |
-| 上位 L0 | [`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.4 |
-| 关联 L1 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.2 |
-| 治理的 L2 | `L2_02_00` 业务查询公共约束、配置与出域；`L2_02_01` Employee Adapter 与业务授权联调；`L2_02_02` Transaction Adapter 与业务授权联调 |
+| 上位 L0 | [`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5 |
+| 关联 L1 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3 |
+| 治理的 L2 | `L2_02_00` 业务查询公共约束、配置与出域（v0.3 Approved）；`L2_02_01` Employee Adapter 与业务授权联调（v0.3 Approved）；`L2_02_02` Transaction Adapter 与业务授权联调（v0.2 Approved） |
 | 外部契约 | L1_00 能力执行、执行上下文与模型端口语义；`auth-service` 用户 JWT 契约；`common-security` 角色映射契约；`employee-service`、`mq-procedure-service` 公开只读查询契约 |
 | 替代关系 | 新建基线；现有业务接口、历史 Agent/Adapter 代码和实现配置只作为现状与迁移输入，不自动成为目标架构 |
 
@@ -41,6 +41,8 @@
 | 8 | 2026-07-25 | 5.1 | 第 4 轮正式评审修复：按当前只读代码证据校正 `dylan` 的种子角色事实，区分已一致的用户角色分配与仍未闭环的 Authority 规范/有效配置验证 | 关闭 `REV-BQ-004`（S2），避免 L2 设计无效的用户角色迁移，同时保留真实安全缺口和失败关闭门禁 |
 | 9 | 2026-07-25 | 5～7、9～13、16～17 | 第 5 轮正式评审修复：将业务文本固定为模型不可执行的数据，增加模型安全载荷到最终回答事实的追踪约束；同时明确有限转换由代码实现、配置只能选择已声明枚举并收紧 | 关闭 `REV-BQ-005`（S1）和 `REV-BQ-006`（S2），防止业务字段中的指令性文本影响模型控制语义、模型补造业务事实或配置演化为转换脚本 |
 | 10 | 2026-07-25 | 1、14.1～14.2、17.3、18.2 | 记录五轮正式评审通过，将文档更新为 v0.2 已评审/已通过并关闭 `BQ-GATE-001` | 形成可供三份业务查询 L2 编写的治理基线；不改变未实施、未生效及其余门禁开放状态 |
+| 11 | 2026-07-31 | 文档治理信息、权威关系 | 原子同步 `REQ_00` v1.3、`L0_00` v0.5 与 `L1_01` v0.3 当前引用，并核对 Knowledge 两级映射不影响业务查询适配边界 | 保持本文 v0.2 架构决策和 `BQ-GATE-001` 结论；Employee/Transaction 的动作、授权、字段和出域仍仅由本文及其下位 L2 治理 |
+| 12 | 2026-07-31 | 文档治理信息 | 原子同步 `L2_02_00/01/02` 当前 v0.3/v0.3/v0.2 Approved 状态 | 保持 L1→L2 当前状态可追踪；不改变本文 v0.2 架构语义、`BQ-GATE-001` 或任何实施/Provider/真实集成/出域门禁 |
 
 ## 3. 文档定位与权威关系
 

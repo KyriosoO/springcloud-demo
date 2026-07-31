@@ -15,17 +15,17 @@
 | 评审状态 | 有条件通过 |
 | 实施状态 | 未实施 |
 | 生效状态 | 未生效 |
-| 当前版本 | v0.4 |
-| 适用基线 | `REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.2（2026-07-24，已确认）及 2026-07-24 工作区现状核实 |
+| 当前版本 | v0.5 |
+| 适用基线 | `REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md` v1.3（2026-07-31，已确认）及 2026-07-24～2026-07-31 工作区现状核实 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 | 目标文档位置 | `docs/design/L0_00_SINGLE_AGENT_ARCHITECTURE.md` |
 | 上位架构文档 | 无 |
 | 外部治理文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) |
-| 治理的 L1 文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)（v0.2，已评审/已通过，`CR-GATE-001` 已关闭）；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md)（v0.2，已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md)（v0.2，已评审/已通过，`BQ-GATE-001` 已关闭） |
+| 治理的 L1 文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)（v0.2，已评审/已通过，`CR-GATE-001` 已关闭）；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md)（v0.3，已评审/已通过，`KQ-GATE-001` 已关闭）；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md)（v0.2，已评审/已通过，`BQ-GATE-001` 已关闭） |
 | 外部契约 | `auth-service` JWT 契约；`es-query-service` 只读检索契约；Embedding/重排/生成模型契约；`employee-service` 查询契约；`mq-procedure-service` 查询契约 |
 | 替代关系 | 新建基线；不继承已退出当前工作区的旧 Agent 架构设计 |
 
-> 本文是 P1 总体架构产出。v0.4 已完成针对性复核并由项目维护者确认，`SA-GATE-001` 已关闭，可作为三份 L1 的编写基线；“已评审/有条件通过”不表示已实施或已生效。
+> 本文是 P1 总体架构产出。v0.5 在 v0.4 已确认基线内完成 Knowledge 两级受控映射的针对性复核，`SA-GATE-001` 保持关闭，可作为三份 L1 的编写基线；“已评审/有条件通过”不表示已实施或已生效。
 
 ## 2. 修订历史
 
@@ -44,6 +44,7 @@
 | 11 | 2026-07-25 | 文档治理、权威关系及 L1 治理计划 | 原子同步 Knowledge L1 v0.2 已评审/已通过状态及 `KQ-GATE-001` 关闭结果 | 保持 L0、L1 与架构索引的下位治理状态一致；不改变 v0.4 架构决策、`SA-GATE-001`、实施状态、生效状态或其余集成/效果门禁 |
 | 12 | 2026-07-25 | 文档治理、权威关系及 L1 治理计划 | 原子同步业务查询适配 L1 v0.1 的文档链接、草稿状态、适用约束、三份 L2 分解和开放门禁 | 保持 L0、三份 L1 与架构索引的治理关系一致；不改变 v0.4 架构决策、评审状态、`SA-GATE-001` 或其余实施/集成门禁 |
 | 13 | 2026-07-25 | 文档治理、权威关系及 L1 治理计划 | 原子同步业务查询适配 L1 v0.2 已评审/已通过状态及 `BQ-GATE-001` 关闭结果 | 保持 L0、三份 L1 与架构索引的下位治理状态一致；不改变 v0.4 架构决策、`SA-GATE-001`、实施状态、生效状态或其余实施/集成门禁 |
+| 14 | 2026-07-31 | 4.2、6.4、8、10、13、17 | 第三批 Knowledge L2 独立评审原子补正：把原先重复表述的域到物理资源映射拆为 Adapter 的“逻辑域→稳定检索 Profile”和 `es-query-service` 的“Profile→物理资源”两级权威，并同步 REQ_00 v1.3、L1_01 v0.3 | 关闭消费方与提供方重复拥有物理映射的边界冲突，同时保持模型/Capability 不可见物理资源、`SA-GATE-003` 继续控制真实集成 |
 
 ## 3. 文档定位
 
@@ -101,9 +102,9 @@
 |---|---|---|---|
 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | external_contract | 本次仅同步编号与路径 | 本文的需求权威，L0 不得反向弱化或自行改义 |
 | [架构文档索引](../ARCHITECTURE.md) | repository_rule | 本次按用户授权原子同步 | 仓库架构入口索引，必须与本文治理的 L1 位置和状态一致 |
-| 本文 | parent | 本次仅同步下位文档版本、评审状态和门禁引用 | v0.4 架构决策、评审状态和 `SA-GATE-001` 结论不变 |
+| 本文 | parent | 本次原子同步 Knowledge 两级映射边界及下位版本、评审状态和门禁引用 | v0.5 映射边界已针对性复核；评审状态和 `SA-GATE-001` 结论不变 |
 | [`L1_00` 核心与运行 L1](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | governed_child | 本次仅同步编号与路径 | v0.2 已评审/已通过；`CR-GATE-001` 已关闭；未实施、未生效 |
-| [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | governed_child | 本次按授权原子同步评审结论 | v0.2 已评审/已通过；`KQ-GATE-001` 已关闭；未实施、未生效 |
+| [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | governed_child | 本次按授权原子同步映射边界及针对性复核结论 | v0.3 已评审/已通过；`KQ-GATE-001` 已关闭；未实施、未生效 |
 | [`L1_02` 业务查询适配 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | governed_child | 本次按用户授权原子同步评审结论 | v0.2 已评审/已通过；`BQ-GATE-001` 已关闭；未实施、未生效 |
 | 现有服务代码、配置和测试 | implementation_evidence | 只读 | 用于核实现状，不反向定义目标架构 |
 
@@ -135,7 +136,7 @@
 | SA-FACT-010 | 当前未发现问题改写、知识域注册与路由、多路召回融合、语义重排或证据化答案摘要实现 | 工作区代码和文档检索 | 四项能力均属于新增目标能力，不得宣称现状已具备 |
 | SA-FACT-011 | Agent 技术组合确认为 Spring Cloud 接入治理层与 Python LangGraph 运行时；LangGraph 是唯一 Agent 编排权威 | 项目维护者确认 | 接入治理与 Agent 编排必须分离，禁止 Spring 层形成第二套动作选择或流程状态机 |
 | SA-FACT-012 | 外部生成模型确认为 `deepseek-v4-pro`，OpenAI 兼容入口为 `https://api.deepseek.com`，凭证已通过操作系统环境变量外置 | 项目维护者确认及环境变量存在性检查；未读取密钥值 | 模型供应商实现进入模型端口之后，凭证不得进入文档、日志或代码 |
-| SA-FACT-013 | 首批知识为税务政策和法律；Elasticsearch `9200` 可访问，税务知识索引及读写别名存在，当前选定检索快照的向量维度为 1024 | 2026-07-24 本地 ES 只读核实 | 税务作为首批逻辑知识域，物理索引和别名由检索基础设施契约及 Knowledge Adapter 隐藏 |
+| SA-FACT-013 | 首批知识为税务政策和法律；Elasticsearch `9200` 可访问，税务知识索引及读写别名存在，当前选定检索快照的向量维度为 1024 | 2026-07-24 本地 ES 只读核实 | 税务作为首批逻辑知识域；Adapter 只选择稳定检索 Profile，物理索引、别名和字段由检索基础设施隐藏 |
 | SA-FACT-014 | 查询 Embedding 使用本地 BGE-M3 服务，Rerank 使用本地 `BAAI/bge-reranker-v2-m3` 服务，两个服务健康且分别暴露受控 Embedding/Rerank 接口 | 2026-07-24 本地服务健康检查和 OpenAPI 只读核实 | 模型已选定；接口字段、运行限制、超时和失败语义由检索基础设施 L2 固化 |
 | SA-FACT-015 | Employee 与 Transaction 首批允许角色均为 `admin`、`viewer`；用户 `dylan` 通过既有 `admin` 角色访问，不形成用户特例 | 项目维护者确认 | 业务服务按相同首批角色集合执行最终授权，Agent/Adapter 不维护用户名或角色白名单 |
 
@@ -333,12 +334,12 @@ flowchart LR
 | `agent-core` | 为 LangGraph 节点提供单动作约束、确定性校验、能力执行协调、结果状态约束及失败策略 | 不建立第二套编排状态机，不实现业务接口协议，不判断业务角色 | 无独立持久状态；状态由 LangGraph 请求上下文持有 | 项目维护者 | 核心与运行 L1 |
 | `agent-capability-api` | 定义统一能力描述、请求、结果和执行上下文语义 | 不绑定具体框架、URL、业务 DTO 或角色规则 | 无运行时持久状态 | 项目维护者 | 核心与运行 L1 |
 | `agent-knowledge-capability` | 在单个 `knowledge.query` 动作内编排问题改写、逻辑知识域选择、多路召回、候选融合与重排、证据整理和证据化答案摘要，并定义所需的只读检索端口 | 不访问 ES 协议，不管理索引，不依赖具体 Adapter 或供应商 SDK | 请求级知识查询计划、候选集、证据上下文和答案摘要 | 项目维护者 | 知识查询能力 L1 |
-| `agent-knowledge-adapter` | 实现 Knowledge 只读检索端口，将逻辑知识域和受控检索计划转换为 `es-query-service` 的类型化请求并标准化候选结果 | 不接受模型指定的物理索引或 DSL，不调用写入、删除、批量或重建接口 | 知识域到受控索引或别名的配置映射；不拥有知识内容 | 项目维护者 | 知识查询能力 L1 |
+| `agent-knowledge-adapter` | 实现 Knowledge 只读检索端口，将逻辑知识域映射为稳定检索 Profile，把受控检索计划转换为 `es-query-service` 类型化请求并标准化候选结果 | 不接受模型指定的 Profile、物理索引或 DSL，不解析 Profile 对应物理资源，不调用写入、删除、批量或重建接口 | 逻辑域到稳定检索 Profile 的消费映射；不拥有物理索引或知识内容 | 项目维护者 | 知识查询能力 L1 |
 | `agent-employee-adapter` | 将 Employee 有限动作映射到 `employee-service`，透传 JWT 并标准化结果 | 不访问 Employee DB/ES，不维护角色，不实现 Employee 业务规则 | Employee 动作配置；不拥有 Employee 数据 | 项目维护者 | 业务查询适配 L1 |
 | `agent-transaction-adapter` | 将 Transaction 有限动作映射到 `mq-procedure-service`，透传 JWT 并标准化结果 | 不访问 Transaction DB/ES，不维护角色，不调用聚合或写入 | Transaction 动作配置；不拥有 Transaction 数据 | 项目维护者 | 业务查询适配 L1 |
 | DeepSeek 模型接入端口及实现 | 通过 `deepseek-v4-pro` 提供结构化能力选择和回答生成所需的外部模型调用 | 不直接执行动作，不持有业务权限，不接收未通过出域策略的数据 | 无业务状态 | 项目维护者 | 核心与运行 L1 |
 | BGE Embedding 与重排消费端口 | 表达 Knowledge Capability 所需的查询向量化和受控候选重排语义 | 不定义本地模型服务协议、运行限制或部署参数，不选择知识域，不访问 ES | 无业务持久状态 | 项目维护者 | 知识查询能力 L1 |
-| 检索基础设施外部边界 | `es-query-service` 提供类型化只读检索和统一候选/失败语义；本地 BGE-M3/`BAAI/bge-reranker-v2-m3` 提供查询向量化与重排服务 | 不负责问题改写、知识域意图、召回编排、答案生成或外部模型调用 | ES 派生检索快照、别名映射和本地检索模型运行配置；不拥有知识内容 | 项目维护者 | 知识查询能力 L1 定义消费与集成边界 |
+| 检索基础设施外部边界 | `es-query-service` 提供类型化只读检索和统一候选/失败语义，并把稳定检索 Profile 解析为物理索引、别名、字段和过滤规则；本地 BGE-M3/`BAAI/bge-reranker-v2-m3` 提供查询向量化与重排服务 | 不负责问题改写、知识域意图、召回编排、答案生成或外部模型调用 | ES 派生检索快照、Profile 到物理资源的提供方映射和本地检索模型运行配置；不拥有知识内容 | 项目维护者 | 知识查询能力 L1 定义消费与集成边界 |
 | 能力注册运行时 | 提供稳定注册入口，合并能力描述和启用状态，并在启动时校验后形成只读注册表 | 不拥有知识域、Employee 或 Transaction 的具体动作和边界配置，不动态加载代码 | `agent-runtime` 拥有进程内只读注册运行态 | 项目维护者 | 核心与运行 L1 |
 
 ### 8.2 内部模块与依赖方向
@@ -521,7 +522,8 @@ sequenceDiagram
 | Employee ES 索引 | Employee 域及其内部检索基础设施 | Agent 不直接访问 | 否 |
 | 能力注册运行态 | `agent-runtime` | 启动时组合并校验，运行期只读 | 仅 Python 进程内运行态 |
 | Knowledge 查询策略配置 | `agent-knowledge-capability` | 控制改写、域选择、召回、融合、重排和证据边界 | 仅进程内运行态 |
-| Knowledge 检索映射与边界配置 | `agent-knowledge-adapter` | 映射逻辑域到受控索引或别名并限制检索 | 仅进程内运行态 |
+| Knowledge 检索消费映射与边界配置 | `agent-knowledge-adapter` | 映射逻辑域到稳定检索 Profile 并限制检索；不保存物理索引、别名或字段 | 仅进程内运行态 |
+| Knowledge 检索提供方映射 | `es-query-service` | 将稳定检索 Profile 解析为受控索引/别名、字段及过滤规则；请求不能覆盖 | 提供方强类型配置快照 |
 | Employee 动作配置 | `agent-employee-adapter` | 在 Employee 既有只读契约内按动作收紧查询条件、结果字段、模型出域字段和脱敏类型 | 仅进程内运行态 |
 | Transaction 动作配置 | `agent-transaction-adapter` | 在 Transaction 既有只读契约内按动作收紧查询条件、结果字段、模型出域字段和脱敏类型 | 仅进程内运行态 |
 | 调用日志元数据 | Agent 运行单元 | 故障定位和验证 | 按现有日志设施保存 |
@@ -543,7 +545,7 @@ sequenceDiagram
 | `role` → `GrantedAuthority` 映射 | `common-security` | Employee、Transaction | 统一实现，不允许各服务自行字符串解析 | 当前缺失 |
 | Employee 查询契约 | `employee-service` | Employee Adapter | 优先复用现有只读能力；强类型配置只能收紧，不能扩展公共契约或授权 | 候选接口存在，最终动作映射待业务查询 L1/L2 核实 |
 | Transaction 查询契约 | `mq-procedure-service` | Transaction Adapter | 优先复用现有只读能力；强类型配置只能收紧，不能扩展公共契约或授权 | `/txn/search` 等候选存在，最终动作映射待业务查询 L1/L2 核实 |
-| ES 类型化只读检索契约 | `es-query-service` / `es-query-api` | Knowledge Adapter | 复用底层关键词/KNN 检索实现并收敛为受控请求和统一候选结果；不得向 Agent 暴露原始 DSL、物理索引或管理接口 | 原始 DSL、KNN 和原始 ES 响应已存在，目标契约待 P2 核实 |
+| ES 类型化只读检索契约 | `es-query-service` / `es-query-api` | Knowledge Adapter | 复用底层关键词/KNN 检索实现并收敛为受控请求和统一候选结果；请求只携带代码绑定 Profile，不得向 Agent 暴露原始 DSL、物理索引或管理接口 | 原始 DSL、KNN 和原始 ES 响应已存在，目标契约待 P2 核实 |
 | 查询向量化契约 | 本地 BGE-M3 模型端口 | Knowledge Capability | 输入输出维度与目标索引一致；字段、批量、运行限制、超时和失败语义由检索基础设施 L2 固化 | 服务健康，当前检索快照向量维度 1024；目标契约待 L2 定义 |
 | 候选重排契约 | 本地 `BAAI/bge-reranker-v2-m3` 模型端口 | Knowledge Capability | 模型细节限制在端口实现；只接收受控候选集合 | 服务健康；字段、限制、超时和失败语义待 L2 定义 |
 | 模型结构化与生成契约 | DeepSeek `deepseek-v4-pro` 外部模型端口 | LangGraph 运行时和 Knowledge Capability | 供应商差异限制在端口实现；仅接收通过出域判定的数据 | 供应商、模型和入口已确认；结构化动作 PoC 与 L2 契约待完成 |
@@ -655,7 +657,7 @@ sequenceDiagram
 | L1 文档 | 权威范围 | 必须承接的约束 | 关联 L1 | 下位 L2 | 顺序或前置 | 状态 |
 |---|---|---|---|---|---|---|
 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | Spring `agent-service`、Python `agent-runtime`、LangGraph 唯一编排、`agent-core`、`agent-capability-api`、能力注册运行时、DeepSeek 模型端口、入口认证和请求级执行 | SA-C-001、002、005、007 至 012、014、018、019 | `L1_01` 知识查询能力、`L1_02` 业务查询适配 | `L2_00_00` Spring 接入与运行协同、`L2_00_01` 核心执行与能力注册、`L2_00_02` DeepSeek 模型接入与受控生成 | P1 已确认；v0.2 正式评审通过，`CR-GATE-001` 已关闭，可进入三份核心运行 L2 | v0.2 已评审/已通过；未实施、未生效 |
-| [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | `agent-knowledge-capability`、`agent-knowledge-adapter`、Knowledge 能力描述与配置、逻辑知识域、检索基础设施消费与集成边界、BGE Embedding/Rerank 消费端口、证据上下文及三层出域策略 | SA-C-001、002、005 至 012、014 至 019、021（003、004、013、020 不适用） | `L1_00` 核心与运行、`L1_02` 业务查询适配 | `L2_01_00` Knowledge 查询流程与配置、`L2_01_01` Knowledge 检索与本地模型接入、`L2_01_02` Knowledge 证据/出域/摘要与效果验证 | v0.2 已完成五轮独立正式评审并关闭 `KQ-GATE-001`，可进入三份下位 L2；`SA-GATE-003/006/007` 仍按真实检索、证据外发和效果结论控制后续动作 | v0.2 已评审/已通过；未实施、未生效 |
+| [`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | `agent-knowledge-capability`、`agent-knowledge-adapter`、Knowledge 能力描述与配置、逻辑知识域、检索基础设施消费与集成边界、BGE Embedding/Rerank 消费端口、证据上下文及三层出域策略 | SA-C-001、002、005 至 012、014 至 019、021（003、004、013、020 不适用） | `L1_00` 核心与运行、`L1_02` 业务查询适配 | `L2_01_00` Knowledge 查询流程与配置、`L2_01_01` Knowledge 检索与本地模型接入、`L2_01_02` Knowledge 证据/出域/摘要与效果验证 | v0.2 已完成五轮独立正式评审，v0.3 已完成两级映射针对性复核并保持 `KQ-GATE-001` 关闭；`SA-GATE-003/006/007` 仍按真实检索、证据外发和效果结论控制后续动作 | v0.3 已评审/已通过；未实施、未生效 |
 | [`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | Employee/Transaction 能力描述与强类型动作配置、两个业务 Adapter、业务字段出域和权限联调 | SA-C-001 至 014、019、020（其中 015 至 018、021 不适用） | `L1_00` 核心与运行、`L1_01` 知识查询能力 | `L2_02_00` 业务查询公共约束/配置/出域、`L2_02_01` Employee Adapter/授权联调、`L2_02_02` Transaction Adapter/授权联调 | v0.2 已完成五轮独立正式评审并关闭 `BQ-GATE-001`，可进入三份下位 L2；`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-004/005/006` 仍控制后续动作 | v0.2 已评审/已通过；未实施、未生效 |
 
 ### 13.1 覆盖完整性
@@ -668,12 +670,12 @@ sequenceDiagram
 | `agent-capability-api` | 核心与运行 L1 | 是 | 稳定能力语义 |
 | DeepSeek 模型端口及实现 | 核心与运行 L1 | 是 | `deepseek-v4-pro` 协议隔离、结构化动作和最终回答 |
 | 能力注册运行时 | 核心与运行 L1 | 是 | 定义稳定注册语义、启动校验和运行期只读注册表 |
-| Knowledge 能力描述与配置 | 知识查询能力 L1 | 是 | 定义知识能力注册描述、策略、域映射和检索边界 |
+| Knowledge 能力描述与配置 | 知识查询能力 L1 | 是 | 定义知识能力注册描述、策略、逻辑域到稳定检索 Profile 的消费映射和检索边界 |
 | Employee/Transaction 能力描述与配置 | 业务查询适配 L1 | 是 | 分别定义两个业务域的有限动作和边界 |
 | Knowledge Capability | 知识查询能力 L1 | 是 | 问题改写、域选择、多路召回编排、融合重排和证据上下文 |
 | Knowledge Adapter | 知识查询能力 L1 | 是 | 类型化、只读 ES 检索 |
 | BGE Embedding/Rerank 消费端口 | 知识查询能力 L1 | 是 | 表达 Knowledge Capability 所需的向量化与重排语义 |
-| `es-query-service` 类型化只读检索与统一候选/失败契约 | 知识查询能力 L1 | 是 | 定义 Knowledge 的消费和集成边界，隐藏物理索引和原始 DSL；详细接口由检索基础设施契约 L2 固化 |
+| `es-query-service` 类型化只读检索与统一候选/失败契约 | 知识查询能力 L1 | 是 | 定义 Knowledge 的消费和集成边界，由提供方解析 Profile 到物理资源并隐藏物理索引和原始 DSL；详细接口由检索基础设施契约 L2 固化 |
 | 本地 BGE 模型服务提供方契约 | 知识查询能力 L1 | 是 | 定义 Knowledge 所需语义；BGE-M3 与 `BAAI/bge-reranker-v2-m3` 的接口、运行限制、超时和失败语义由本地模型接入 L2 固化 |
 | Employee Adapter | 业务查询适配 L1 | 是 | Employee 有限查询 |
 | Transaction Adapter | 业务查询适配 L1 | 是 | Transaction 有限查询 |
@@ -707,7 +709,7 @@ sequenceDiagram
 
 | 门禁 ID | 类型 | 适用阶段或模块切片 | 控制动作 | 关闭条件或证据类别 | 责任方或外部提供方 | 最晚关闭阶段 | 未关闭行为 | 下位承接 |
 |---|---|---|---|---|---|---|---|---|
-| SA-GATE-001 | design_decomposition | P1 → P2 | 开始三份 L1 编制 | **已满足（2026-07-24）**：v0.4 针对性复核无未关闭 S0/S1；项目维护者已确认本 L0 的模块、依赖、三份 L1 分解、演进边界及 17.1 节关注点 | 项目维护者；独立评审方提供复核结论 | P2 开始前 | 已关闭；允许开始三份 L1 编制，但不授权 L2 定版、实现或真实集成 | 三份 L1 |
+| SA-GATE-001 | design_decomposition | P1 → P2 | 开始三份 L1 编制 | **已满足并保持关闭**：v0.4 针对性复核无未关闭 S0/S1；v0.5 两级映射针对性复核未改变三份 L1 分解或门禁语义 | 项目维护者；独立评审方提供复核结论 | P2 开始前 | 已关闭；允许三份 L1/L2 按各自门禁继续，但不授权实现或真实集成 | 三份 L1 |
 | SA-GATE-002 | design_decomposition | Agent 核心模型接入 | 定版模型接入 L2 并进入真实模型实现 | Spring Cloud、Python LangGraph、DeepSeek `deepseek-v4-pro` 及外部入口已确认；Spring/LangGraph 内部契约和 DeepSeek 模型契约确定；完成一次受控结构化动作 PoC | 项目维护者/模型提供方 | 对应模型接入 L2 定版前 | 可编制模型无关 L1/L2 内容并使用测试替身；PoC 和契约未完成前禁止真实模型实现 | 核心与模型 L2 |
 | SA-GATE-003 | integration | Knowledge 查询切片 | 接入当前 ES 税务知识索引 | 税务逻辑知识域及受控别名映射已确认；类型化只读检索请求、统一候选、无结果和失败边界已由 Knowledge L1 承接，详细契约由检索基础设施契约 L2 固化并核实；BGE-M3 维度与索引兼容；Rerank 契约、管理接口不可达及契约测试完成 | 项目维护者、`es-query-service` 维护方 | Knowledge P4 联调前 | 可使用受控测试替身编制和实现模型无关部分；真实知识动作保持禁用 | Knowledge 检索适配与检索基础设施契约 L2 |
 | SA-GATE-004 | integration | Employee Adapter | 接入 Employee 真实数据 | 现有只读接口到有限动作的映射确认；允许角色为 `admin`、`viewer`；强类型配置只收紧；`role` 映射与业务域允许/拒绝测试通过 | `auth-service`、`common-security`、`employee-service` | Employee P4 联调前 | 可实现 Adapter 和契约测试；真实动作保持禁用并失败关闭 | Employee Adapter 与权限 L2 |
@@ -791,14 +793,15 @@ sequenceDiagram
 
 ### 17.2 正式评审记录
 
-v0.4 针对性复核已覆盖新增运行拓扑、检索边界、业务权限和数据出域约束，未发现 S0/S1；项目维护者已确认 17.1 节关注点，`SA-GATE-001` 于 2026-07-24 关闭。
+v0.4 针对性复核已覆盖新增运行拓扑、检索边界、业务权限和数据出域约束；v0.5 针对性复核进一步关闭 Knowledge 消费/提供方物理映射重复权威，均未发现遗留 S0/S1。项目维护者已确认 17.1 节关注点，`SA-GATE-001` 自 2026-07-24 起保持关闭。
 
 | 日期 | 评审类型 | 结论 | 问题摘要 | 处理状态 |
 |---|---|---|---|---|
 | 2026-07-24 | L0→L1 独立评审（五轮评审—修订—复核） | 有条件通过 | 已关闭迁移治理、需求追踪、所有权与依赖、安全契约和质量门禁问题；无剩余 S0/S1 | 整改完成，待项目维护者确认 `SA-GATE-001` |
 | 2026-07-24 | v0.4 L0→L1 针对性复核 | 有条件通过，可进入 L1 | 新增双进程运行拓扑、LangGraph 唯一编排、检索消费边界、业务字段与知识证据出域约束无 S0/S1；后续模型、检索、业务和出域门禁按切片保持开放 | 项目维护者已确认；`SA-GATE-001` 已关闭 |
+| 2026-07-31 | v0.5 Knowledge 映射边界针对性复核 | 有条件通过，既有 L1 门禁结论不变 | Adapter 只拥有逻辑域到稳定 Profile 的消费映射，`es-query-service` 独占 Profile 到物理资源解析；模型、Capability 与请求均不可指定物理资源，无遗留 S0/S1 | 已按第三批 L2 独立评审结论原子同步；`SA-GATE-003` 仍 Open |
 
-> 第一行正式评审记录对应 v0.3；第二行记录 v0.4 针对性复核。本文保持“有条件通过”，条件仅约束 `SA-GATE-002` 至 `SA-GATE-007` 对应的 L2、实现、真实集成和效果声明，不再阻塞 L1 编写。
+> 第一行正式评审记录对应 v0.3，第二、三行分别记录 v0.4 与 v0.5 针对性复核。本文保持“有条件通过”，条件仅约束 `SA-GATE-002` 至 `SA-GATE-007` 对应的 L2、实现、真实集成和效果声明，不再阻塞 L1 编写。
 
 ## 18. 附录
 

@@ -1,7 +1,7 @@
 # [L2_02_01] 单体 Agent Employee Adapter 与业务授权联调详细设计 L2
 
 > 文档层级：L2
-> 文档状态：Draft
+> 文档状态：Approved
 
 ## 1. 文档信息
 
@@ -12,21 +12,22 @@
 | 文档编号 | `L2_02_01` |
 | 文档路径 | `docs/design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
-| 文档状态 | Draft |
-| 当前版本 | v0.1 |
+| 文档状态 | Approved |
+| 评审状态 | 五轮独立评审—修复—复核及直接依赖聚焦一致性复核已通过，`REV-EMP-001`～`REV-EMP-017` 全部关闭 |
+| 当前版本 | v0.3 |
 | 日期 | 2026-07-31 |
 | 适用范围 | Python `agent-employee-adapter` 的 `employee.detail` 单动作、现有 Employee 详情接口映射、参数/响应/字段收紧、业务服务最终角色授权、错误映射、模型字段候选和联调门禁 |
 | 上位文档 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2 Approved |
-| 直接输入 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
+| 直接输入 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.3 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
 | 外部契约 | `employee-service` `GET /employees/{idCardNo}`；`auth-service/common-security` 用户 JWT/Authority |
 | 实现基线 | 目标 Python Adapter 不存在；Employee 详情端点存在但返回宽 `Employee` 实体，未调用现有用户守卫；现有守卫只校验 user token，不校验 `ROLE_ADMIN/ROLE_VIEWER`；未找到统一 Authority converter |
 | 是否可作为实现依据 | 否 |
-| 实施依据说明 | 本文完成内部自检后仍需独立评审、业务接口/字段确认及 `BQ-GATE-003/SA-GATE-004` 关闭 |
+| 实施依据说明 | 本文已完成五轮独立评审并具备实施就绪条件；开始 Python 切片仍需明确关闭 `BQ-GATE-002`，Employee Java/公开行为修改和真实动作启用还分别受 `BQ-GATE-003/SA-GATE-004` 控制 |
 | 当前允许范围 | 文档评审、合成 Employee fixture、fake HTTP/Authority 契约推演 |
 | 当前禁止动作 | 修改 Agent/Java/安全代码、配置、测试或公开契约；调用真实 Employee 数据；启用真实动作或模型出域；关闭门禁 |
 | 修改权限 | 本轮只获授权第三批 L2 及直接相关文档索引原子同步；代码、配置、Schema、接口和真实数据只读 |
 
-> 第一阶段只注册 `employee.detail`。Adapter 复用现有详情接口并显式忽略宽实体中的非许可字段；分页、计数、ES 搜索、聚合、变更申请和全部写/管理入口不注册。字段投影不能替代 `employee-service` 的最终角色授权。
+> 第一阶段只设计 `employee.detail`。在 Employee 方确认完整响应可见性后，真实 Adapter 才可复用现有详情接口并显式忽略宽实体中的非许可字段；确认前只允许合成 fixture/fake。分页、计数、ES 搜索、聚合、变更申请和全部写/管理入口不注册。字段投影不能替代 `employee-service` 的最终角色授权。
 
 ## 2. 修改历史
 
@@ -37,6 +38,9 @@
 | 3 | 2026-07-31 | 3/6/9/10/14/15 章 | 第 2 轮内部自检 | 区分统一 role 映射与业务动作授权，增加宽响应可见性确认和敏感问题模型输入门禁 |
 | 4 | 2026-07-31 | 8～16 章 | 第 3 轮内部自检 | 补齐固定结果数配置、请求级宽响应生命周期和提供方响应可见性验证，完成实施可验证性收口 |
 | 5 | 2026-07-31 | 8 章 | 第三批原子一致性同步 | 补齐 Employee wire request/record 精确字段；不改变三轮内审结论或动作边界 |
+| 6 | 2026-07-31 | 全文 | 五轮独立评审—修复—复核 | 关闭实现门禁、公共转换/状态、宽响应生命周期、完整 descriptor、Java 触点、字段类型、发布回滚和验证命令等 `REV-EMP-001`～`016`，定版 v0.2 Approved；不关闭实施/集成门禁 |
+| 7 | 2026-07-31 | 1/8/9/12/13/16～18章 | `L2_02_00` v0.3 聚焦一致性同步 | `decode_success` 显式接收同一次 request，并验证响应 `idCardNo` 与请求标识精确一致；关闭 `REV-EMP-017`，保持 Approved 和开放门禁 |
+| 8 | 2026-07-31 | 13 章 | 终态验证证据同步 | 执行含 Employee 及直接依赖的 Maven 现有基线回归并通过；建议修改/新增的角色守卫、MVC 与响应可见性测试尚未实施，所有实施/集成门禁保持 Open |
 
 ## 3. 背景、目标与范围
 
@@ -137,7 +141,7 @@
 
 ### 6.2 最小改造判断
 
-候选最小方案是复用 `GET /employees/{idCardNo}`，不新增 DTO/endpoint。Provider 侧最小建议修改仅是在该详情 HTTP 入口调用一个 Employee 读权限 guard；Python 侧显式读取六个允许字段并忽略其余字段。该复用成立的前提是 Employee 方确认 ADMIN/VIEWER 对现有完整响应具有读取权限，且传输/访问日志符合敏感数据要求；Adapter 丢字段不是业务字段授权。若不能确认，必须停在 `BQ-GATE-003` 并另行确认窄响应契约。由于 400 同时承载参数错误和未找到，首期保守映射 invalid_argument；若需要准确 no-result，也必须另行确认业务服务异常契约调整。
+候选最小方案是复用 `GET /employees/{idCardNo}`，不新增 DTO/endpoint。Provider 侧最小建议修改仅是在该详情 HTTP 入口调用一个 Employee 读权限 guard；Python 侧显式读取六个允许字段并忽略其余字段。该复用成立的前提是 Employee 方确认 ADMIN/VIEWER 对现有完整响应具有读取权限，且传输/访问日志符合敏感数据要求；Adapter 丢字段不是业务字段授权。确认前，即使后续关闭 `BQ-GATE-002`，完整 Python provider wiring 也只能连接 fake server，不能配置或访问真实 Employee endpoint。若不能确认，必须停在 `BQ-GATE-003` 并另行确认窄响应契约，修订本文后才能真实接线。由于 400 同时承载参数错误和未找到，首期保守映射 invalid_argument；若需要准确 no-result，也必须另行确认业务服务异常契约调整。
 
 ## 7. 责任、依赖与禁止路径
 
@@ -177,14 +181,36 @@ agent-runtime registry
 |---|---|
 | `descriptor.capability_id` | `employee.detail` |
 | `api_version/kind` | `1/query` |
+| `display_name` | `Employee detail` |
+| `description` | `查询单个员工的受控基础信息；只接受 employee_identifier，不提供列表、聚合或写入。` |
+| `aliases` | `("员工详情","employee profile")`；只帮助模型理解，不可作为执行 ID |
+| `argument_schema` | 8.2 的固定 object schema；`required=["employee_identifier"]`、`additionalProperties=false` |
 | `domain_id/service_key` | `employee/employee-service` |
 | `answer_mode` | `model_assisted`，但本地结构化结果始终可返回 |
 | `applicable_dimensions` | 仅 `max_result_count`、`timeout_ms` |
-| `contract_limits` | result=1；timeout≤3000ms；request≤1024 bytes；无 page/time/filter/sort |
-| `http_status_semantics` | 400→invalid_argument；204/404 均不声明 no-result |
+| `contract_limits` | `max_result_count=1`；`max_timeout_ms=3000`；`max_request_bytes=1024`；无 page/time/filter/sort；Employee codec 另拒绝超过 65536 raw bytes 的已聚合 2xx body |
+| `http_status_semantics` | `http_400_is_invalid_argument=true`；`http_204_is_no_result=false`；`http_404_is_no_result=false` |
 | `required_user_field_ids` | `employee_id_masked,chinese_name` |
 
 ### 8.2 Python 输入与方法
+
+`CapabilityDescriptor.argument_schema` 固定为下列供应商无关受控子集；Schema 只用于动作选择描述，运行时仍必须由同一注册项的 validator 执行 UTF-8、控制字符、保留字符和掩码前置条件校验：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "employee_identifier": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 64,
+      "description": "Employee service identifier; never a URL or query expression."
+    }
+  },
+  "required": ["employee_identifier"],
+  "additionalProperties": false
+}
+```
 
 ```python
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -198,30 +224,31 @@ class EmployeeDetailInput:
 | `EmployeeDetailWireResponse` | `id_card_no: str`；`member_no: str \| None`；`chinese_name: str`；`public_email: str \| None`；`position: str \| None`；`work_base_si: str \| None` | 8.3 字段/空值/长度不变量 |
 | `EmployeeDetailRecord` | 与 wire response 相同的六个冻结 typed 字段 | 只由 normalizer 构造，不保留原始 JSON |
 
-`EmployeeDetailArgumentValidator.validate(arguments: JsonObject) -> EmployeeDetailInput` 只接受唯一 key `employee_identifier`。值 NFC、trim 后 1～64 ASCII 字符，只允许字母、数字、`-`、`_`，禁止空白、控制字符、`/`、反斜线和 `%`；大小写不变。该规则是 Agent 输入边界，不声称替代业务身份证规则；真实样本不兼容时需另行确认扩展，配置不能放宽。
+`EmployeeDetailArgumentValidator.validate(arguments: JsonObject) -> EmployeeDetailInput` 只接受唯一 key `employee_identifier`。输入必须是 exact string；先去除首尾 Unicode whitespace 再做 NFC，结果为 5～64 Unicode code points 且 UTF-8≤192 bytes；拒绝内部 whitespace、Unicode control/Bidi override/isolate、`/`、反斜线、`%`、`?`、`#`，大小写不变。该边界只保证单一 path segment 和必需掩码可实现，不猜测 Employee 方身份证/护照字符集；业务语义仍由现有接口判断，配置不能放宽。
 
-`EmployeeDetailRequestMapper.map(input, settings) -> EmployeeDetailWireRequest` 验证 result count 恰为 1；`EmployeeDetailWireCodec.encode` 使用 RFC 3986 segment percent-encoding、`safe=""`，生成且只生成 `GET /employees/{encoded}`，无 query/body/自定义 header。
+`EmployeeDetailRequestMapper.map(input, settings) -> EmployeeDetailWireRequest` 验证 result count 恰为 1；`EmployeeDetailWireCodec.encode` 把未预编码的 NFC 值按 UTF-8 做一次 RFC 3986 segment percent-encoding、`safe=""`，生成且只生成 `GET /employees/{encoded}`，无 query/body/自定义 header；不得接受或二次解释已有 `%HH`。
 
 ### 8.3 2xx wire response
 
-- 顶层必须为单个 JSON object，UTF-8、unique keys；body≤64 KiB。
-- 六个目标字段按现有 camelCase 名解码；`idCardNo/chineseName` 必须为非空 string，其余为 string 或 null。
-- 未列入的 Employee 字段和未来新增字段允许显式跳过，但不得进入 typed record、日志、错误或指标；目标字段类型错误、重复 key 或缺必需字段则整个响应 invalid_response。
-- string NFC 后上限：标识 64、姓名 128、邮箱 254、职位/工作地 256 code points；超限不截断，失败关闭。
-- decoder 不遍历/保存未知值，只流式跳过；测试以账户、地址、亲属和嵌套恶意字段证明零投影。
+- 顶层必须为单个 JSON object，严格 UTF-8、unique keys；Employee codec 只接受 body≤65536 raw bytes。公共客户端仍先按 `AGENT_BUSINESS_HTTP_MAX_RESPONSE_BYTES` 聚合，故 65537～全局上限由 codec 拒绝，超过全局上限由 transport 拒绝。
+- 六个目标字段按现有 camelCase 名解码；`idCardNo/chineseName` 必须为非空 exact string，其余为 exact string 或 null；bool、number、array、object 均不宽松转换。
+- 规范化后的响应 `idCardNo` 必须与同一次 `EmployeeDetailWireRequest.employee_identifier` code-point 精确相等；不做大小写或本地身份证规则归一化。不一致为 invalid_response，typed record/模型调用为零。
+- 未列入的 Employee 字段和未来新增字段允许解析后显式丢弃，但不得进入 typed record、日志、错误或指标；目标字段类型错误、重复 key 或缺必需字段则整个响应 invalid_response。该策略是对公共“默认严格拒绝”的本域兼容性例外，仅因当前公开响应是已核实的宽实体而成立。
+- string NFC 后上限：`idCardNo/memberNo` 为 5～64，姓名 1～128，邮箱 1～254，职位/工作地 1～256 code points；非空值含控制/Bidi 字符或越界时不截断并失败关闭。
+- 首期不引入流式 JSON 生产依赖：strict decoder 可短暂构造受全局字节上限约束的 JSON object，但只能把六个目标字段复制进冻结 typed response，随后释放原始 bytes/object。测试以账户、地址、亲属和嵌套恶意字段证明零 typed 投影、零日志和零错误回显，不能声称未知值未进入 Agent 内存。
 
 ### 8.4 字段目录与转换
 
-| field_id | source | class | user | model candidate | user transform | model transform |
-|---|---|---|---:|---:|---|---|
-| `employee_id_masked` | `idCardNo` | `personal_identifier` | 是/必需 | 否 | `mask_keep_last4` | 不适用 |
-| `member_no_masked` | `memberNo` | `employee_identifier` | 是 | 否 | `mask_keep_last4` | 不适用 |
-| `chinese_name` | `chineseName` | `personal_identifier` | 是/必需 | 否 | `bounded_text` | 不适用 |
-| `public_email` | `publicEmail` | `contact` | 是 | 否 | `bounded_text` | 不适用 |
-| `position` | `position` | `business_internal` | 是 | 是 | `bounded_text` | `bounded_text` |
-| `work_base_si` | `workBaseSi` | `business_internal` | 是 | 是 | `bounded_text` | `bounded_text` |
+| field_id | source | value_type | class | user | model candidate | allowed user transforms | allowed model transforms |
+|---|---|---|---|---:|---:|---|---|
+| `employee_id_masked` | `idCardNo` | `identifier` | `personal_identifier` | 是/必需 | 否 | `{mask_keep_last4}` | `{}` |
+| `member_no_masked` | `memberNo` | `identifier` | `employee_identifier` | 是 | 否 | `{mask_keep_last4}` | `{}` |
+| `chinese_name` | `chineseName` | `text` | `personal_identifier` | 是/必需 | 否 | `{bounded_text}` | `{}` |
+| `public_email` | `publicEmail` | `text` | `contact` | 是 | 否 | `{bounded_text}` | `{}` |
+| `position` | `position` | `text` | `business_internal` | 是 | 是 | `{bounded_text}` | `{bounded_text}` |
+| `work_base_si` | `workBaseSi` | `text` | `business_internal` | 是 | 是 | `{bounded_text}` | `{bounded_text}` |
 
-模型字段代码上限仅为 `position/work_base_si`，动作配置默认空，且仍与全局规则取交集。姓名、标识和邮箱永不进入模型候选。`mask_keep_last4` 对长度≤4 的值全部替换为 `*`，否则只保留末四字符；不得从掩码值反推或附带原值。
+表中顺序就是冻结 field definition、用户结果和事实生成顺序；`None` 依公共规则省略，不能进入结果。模型字段代码上限仅为 `position/work_base_si`，动作配置默认空，且仍与全局规则取交集。姓名、标识和邮箱永不进入模型候选。`mask_keep_last4` 完全复用 `L2_02_00`：输入必须为 NFC、无控制/Bidi 且 5～256 code points，输出固定为 `***` 加末四个 code points；本文不定义长度≤4的域内特例，任一不满足值使用户投影失败关闭。
 
 ## 9. 详细功能与处理流程
 
@@ -247,7 +274,7 @@ class EmployeeDetailInput:
 2. handler 校验 context、opaque user token、取消和绝对 deadline；失败时网络为零。
 3. mapper/codec 生成唯一详情 GET，common client 只向冻结的 employee-service origin 发送原用户 JWT。
 4. 统一安全边界拒绝非法 role claim；Employee Controller 再于调用 `EmployeeService.detail` 前执行动作角色 guard，拒绝时 service/mapper/DAO 为零。
-5. 2xx body 在 64 KiB 内严格解码六个目标字段；未知宽字段直接跳过。
+5. 2xx body 经 common 全局上限聚合后，由 Employee codec 以同一次 wire request 校验标识回显，并再校验≤65536 bytes及严格 JSON；未知宽字段只在受限临时 object 中存在，不能进入 typed response。
 6. normalizer 产生一条 records result；公共 projector 构造掩码后的用户结果。
 7. egress projector 计算配置/代码/全局交集；默认空时不调用模型，直接返回结构化结果。
 
@@ -278,7 +305,8 @@ class EmployeeDetailInput:
 | Authority 明确拒绝/不可判定 | forbidden | `business.downstream_forbidden` | service/DAO 0/模型 0 |
 | 输入格式非法或 Employee 400 | invalid_argument | `business.invalid_arguments` | 至多 HTTP 1/模型 0 |
 | Employee 2xx 合法 | records | success | HTTP 1/模型 0 或 1 |
-| Employee 204/404 | invalid_response | `business.invalid_response` | HTTP 1/模型 0 |
+| Employee 204 | invalid_response | `business.invalid_response` | HTTP 1/模型 0 |
+| Employee 404（未声明 no-result） | downstream_failure(`unavailable`) | `business.downstream_failure` | HTTP 1/模型 0 |
 | 目标字段缺失/类型错/body 超限 | invalid_response | `business.invalid_response` | HTTP 1/模型 0 |
 | required 投影失败 | records 后投影失败 | `business.minimum_user_result_not_met` | HTTP 1/模型 0 |
 | timeout/429/5xx/协议失败 | timeout/rate_limited/unavailable | common 固定 code | HTTP≤1/模型 0 |
@@ -287,7 +315,9 @@ class EmployeeDetailInput:
 
 ### 10.2 权限与审计
 
-建议 Employee 业务边界新增/修改的可观察方法为 `CapabilityAccessGuard.requireEmployeeRead(Authentication)`：先复用 user-token 判定，再要求已验证 Authority 至少包含 `ROLE_ADMIN` 或 `ROLE_VIEWER`，否则 403。它不解析原始 `role` claim，也不按 `dylan` 用户名判断；缺失、未知、大小写错误或已知+未知混合 role 必须已由统一 converter 在进入 Controller 前整体拒绝，不能靠 guard 从原 claim 重做映射。`EmployeeController.detail(Authentication,String)` 必须在 `EmployeeService.detail` 前调用。
+建议 Employee 业务边界新增/修改的可观察方法为 `CapabilityAccessGuard.requireEmployeeRead(Authentication)`：先调用现有 `requireUser(authentication)`，再从 `authentication.getAuthorities()` 读取不可变快照，并在至少一个 authority 精确等于 `ROLE_ADMIN` 或 `ROLE_VIEWER` 时允许，否则抛无敏感正文的 403。它不做大小写转换、不解析原始 `role` claim，也不按 `dylan` 用户名判断；缺失、未知、大小写错误或已知+未知混合 role 必须已由统一 converter 在进入 Controller 前整体拒绝，不能靠 guard 从原 claim 重做映射。`EmployeeController` 构造器必须新增注入 `CapabilityAccessGuard`，`detail(Authentication,String)` 必须先调用 guard，再且仅再调用一次 `EmployeeService.detail`。
+
+`BQ-GATE-003` 的响应可见性证据不能只由 Adapter 测试反推。建议 Employee 方在 provider 测试资源中新增版本化、无真实数据的 `employee-detail-response-visibility-v1.json`，至少冻结 endpoint、允许角色 `ADMIN/VIEWER`、当前 `Employee` 序列化字段名全集和 policy version；维护者对该证据作明确确认后，provider contract test 才能证明实际 200 字段集合与已确认策略一致。若 Employee 方不能确认完整字段集对两个角色均可见，则该 fixture 不得伪造，必须转入窄 DTO/endpoint 的单独设计与授权。
 
 日志只允许 correlation ID、`employee.detail`、有限状态、耗时、响应字节数和配置 snapshot ID。禁止 JWT、subject、原始/掩码员工标识、姓名、邮箱、完整 path、响应字段、异常 message/stack。由于现有标识位于 URL path，真实启用前还须验证 Gateway/Servlet access log 不记录或已脱敏该 path；未验证时 `SA-GATE-004` 保持 Open。
 
@@ -299,14 +329,15 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 
 ### 11.1 数据生命周期
 
-原始标识只存在于当前 input、编码 path 和业务调用；现有宽详情的 2xx 原始 body 会在 common 有界客户端中以最多 64 KiB 请求级字节存在，构造 typed record 后必须释放，不能声称未知字段从未进入 Agent 进程。原始/掩码标识和 Employee 字段均不持久化、不缓存、不写日志。模型 safe payload 若被全局允许，也只能含职位/工作地和请求内 `record_ref`。
+原始标识只存在于当前 input、编码 path 和业务调用；现有宽详情的 2xx 原始 body 会先在 common 客户端中以最多 `AGENT_BUSINESS_HTTP_MAX_RESPONSE_BYTES` 请求级字节聚合，Employee codec 只接受≤65536 bytes，并可能短暂构造包含未知字段的受限 JSON object。构造六字段 typed response 后必须解除原始 bytes/object 引用，不能声称未知字段从未进入 Agent 进程。原始/掩码标识和 Employee 字段均不持久化、不缓存、不写日志。模型 safe payload 若被全局允许，也只能含职位/工作地和请求内 `record_ref`。
 
 ### 11.2 发布与回滚
 
 1. 先用 synthetic Employee fake 完成 Python definition/codec/字段/失败测试。
-2. 再单独实施并验证 Authority converter 与 Employee detail guard；不同时改变响应 DTO。
-3. 真实动作初始仍 disabled；完成 provider/consumer、访问日志和角色矩阵后才允许启用。
-4. 回滚只将 `AGENT_EMPLOYEE_DETAIL_ENABLED=false` 并重启 Runtime；不得回退到无 guard、service token、分页或 ES 接口。
+2. 在修改详情 guard 前盘点现有 `GET /employees/{idCardNo}` 调用方及其角色；不能证明所有合法调用方均满足新角色契约时，`BQ-GATE-003` 不得关闭。
+3. 再单独实施并验证 Authority converter、Employee detail guard 和完整响应 visibility fixture；不同时改变响应 DTO。
+4. 真实动作初始仍 disabled；完成 provider/consumer、访问日志和角色矩阵后才允许启用。
+5. Agent 侧回滚只将 `AGENT_EMPLOYEE_DETAIL_ENABLED=false` 并重启 Runtime。Provider guard 失败时先停用 Agent 并阻断该详情入口的非预期流量，再按 provider 版本回滚；不得把“恢复任意 authenticated 用户可读宽实体”作为自动降级。公开行为恢复涉及安全接受，必须由 Employee 方明确决定。
 
 本文不含数据迁移。若后续把详情响应改为窄 DTO 或修正 404，必须制定公开契约兼容/回滚方案，不能只改 Adapter 猜测。
 
@@ -324,7 +355,8 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 | `IMPL-EMP-006` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/employee/settings.py` | 精确 env fragment/default/校验 | `DR-EMP-002/007` |
 | `IMPL-EMP-007` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/employee/provider.py` `EmployeeDomainProvider` | definition/config fragment；不建 client | `DR-EMP-001/009` |
 | `IMPL-EMP-008` | 建议修改 | `employee-service/src/main/java/com/dylan/employee/security/CapabilityAccessGuard.java` | 增加 Employee 读 Authority 判定 | `DR-EMP-004` |
-| `IMPL-EMP-009` | 建议修改 | `employee-service/src/main/java/com/dylan/employee/controller/EmployeeController.java` `detail` | 详情调用前执行业务 guard | `DR-EMP-004` |
+| `IMPL-EMP-009` | 建议修改 | `employee-service/src/main/java/com/dylan/employee/controller/EmployeeController.java` 构造器与 `detail` | 注入 guard；详情调用前执行业务 guard | `DR-EMP-004` |
+| `IMPL-EMP-010` | 建议新增 | `employee-service/src/test/resources/contracts/agent/employee-detail-response-visibility-v1.json` | 记录经维护者确认的角色/完整响应字段/policy version；无业务值 | `DR-EMP-004/005` |
 
 ### 12.2 Python 关键方法
 
@@ -333,15 +365,19 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 | `EmployeeDetailArgumentValidator.validate` | `def validate(self, arguments: JsonObject) -> EmployeeDetailInput` | 唯一标识字段；有限错误 | 纯函数 |
 | `EmployeeDetailRequestMapper.map` | `def map(self, input: EmployeeDetailInput, settings: BusinessActionSettings) -> EmployeeDetailWireRequest` | result=1/no extra dimension | 纯函数 |
 | `EmployeeDetailWireCodec.encode` | `def encode(self, request: EmployeeDetailWireRequest) -> BusinessHttpRequest` | 唯一 GET path | 纯函数 |
-| `EmployeeDetailWireCodec.decode_success` | `def decode_success(self, response: BoundedBusinessHttpResponse) -> EmployeeDetailWireResponse` | 2xx JSON/六字段/未知跳过 | 有界解析 |
+| `EmployeeDetailWireCodec.decode_success` | `def decode_success(self, *, request: EmployeeDetailWireRequest, response: BoundedBusinessHttpResponse) -> EmployeeDetailWireResponse` | 仅2xx application/json；request为当前调用栈同一冻结对象；严格UTF-8、无BOM/trailing、duplicate key/NaN/Infinity拒绝；body≤65536；六字段exact type；响应ID与请求精确一致；未知字段仅临时解析后丢弃 | 有界内存纯函数；不保存请求期状态/原object |
 | `EmployeeDetailResponseNormalizer.normalize_success` | `def normalize_success(self, response: EmployeeDetailWireResponse) -> BusinessServiceResult[EmployeeDetailRecord]` | 恰一 record | 纯函数 |
+| `employee_detail_definition` | `def employee_detail_definition() -> BusinessActionDefinition[EmployeeDetailInput,EmployeeDetailWireRequest,EmployeeDetailWireResponse,EmployeeDetailRecord]` | 返回冻结代码上限、字段顺序与状态语义 | 纯函数 |
+| `EmployeeDomainProvider.domain_id` | `def domain_id(self) -> BusinessDomainId` | 精确返回 `employee` | 纯函数 |
 | `EmployeeDomainProvider.definitions` | `def definitions(self) -> tuple[BusinessActionDefinition[Any,Any,Any,Any], ...]` | 恰含 `employee.detail` | 纯函数 |
+| `EmployeeDomainProvider.configuration_fragment` | `def configuration_fragment(self) -> BusinessConfigurationFragment` | 只投影 `AGENT_EMPLOYEE_DETAIL_*` 与 `employee-service` binding，不读取 `os.environ`/其他域 | 纯函数 |
 
 ### 12.3 Java 关键方法
 
 | 类/方法 | 建议签名 | 前置/返回 | 副作用 |
 |---|---|---|---|
 | `CapabilityAccessGuard.requireEmployeeRead` | `void requireEmployeeRead(Authentication authentication)` | user JWT；含 `ROLE_ADMIN` 或 `ROLE_VIEWER`；否则 403 | 无 DAO 调用 |
+| `EmployeeController.EmployeeController` | `EmployeeController(EmployeeService employeeService, CapabilityAccessGuard accessGuard)` | 两个依赖均由 Spring 注入并保存为 final | 仅装配依赖 |
 | `EmployeeController.detail` | `Employee detail(Authentication authentication, @PathVariable String idCardNo)` | guard allow 后调用 service；保持现有 200/400 wire | 一次 service 调用 |
 | `EmployeeService.detail` | 已存在 `Employee detail(String idCardNo)` | 本文不修改签名/异常 | 一次 mapper 读取 |
 
@@ -351,27 +387,28 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 
 | 测试编号 | 规则 | 层级 | 建议路径/场景 | 关键断言 |
 |---|---|---|---|---|
-| `TEST-EMP-001` | `DR-EMP-001/002` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/employee/test_definition.py` | 唯一动作/无 page/filter/sort/URL 配置 |
+| `TEST-EMP-001` | `DR-EMP-001/002` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/employee/test_definition.py` | descriptor 全字段与固定 argument schema；validator 对 schema 内更严格边界；唯一动作/无 page/filter/sort/URL 配置 |
 | `TEST-EMP-002` | `DR-EMP-001/009` | Architecture | 建议新增：`agent-runtime/tests/architecture/test_employee_adapter_boundaries.py` | 无 Transaction/Java/DB/ES/retry import；禁止路径不可达 |
-| `TEST-EMP-003` | `DR-EMP-002/010` | Unit | 建议新增：`tests/unit/adapters/employee/test_codec_request.py` | 标识边界、编码、唯一 GET、无 query/body |
-| `TEST-EMP-004` | `DR-EMP-003/004` | Java Unit/Contract | 建议新增：`employee-service/src/test/java/com/dylan/employee/security/CapabilityAccessGuardTest.java` 及统一 converter contract fixture | guard 对 ADMIN/VIEWER allow；converter 对 unknown/mixed role 403；service token 403 |
-| `TEST-EMP-005` | `DR-EMP-004` | Java MVC/Provider contract | 建议新增：`employee-service/src/test/java/com/dylan/employee/controller/EmployeeControllerAuthorizationTest.java` 和 `EmployeeControllerResponseVisibilityContractTest.java` | deny 时 service/mapper=0；allow 一次；批准的完整响应字段集合与角色决策证据一致 |
-| `TEST-EMP-006` | `DR-EMP-005/006` | Contract | 建议新增：`tests/contract/adapters/employee/test_detail_response.py` | 六字段 exact type/limit；宽敏感字段零投影 |
-| `TEST-EMP-007` | `DR-EMP-006` | Unit | 建议新增：`tests/unit/adapters/employee/test_user_projection.py` | 两种掩码边界、required 缺失不变 no-result |
-| `TEST-EMP-008` | `DR-EMP-007` | Unit | 建议新增：`tests/unit/adapters/employee/test_egress.py` | model⊂user；默认空；仅职位/工作地 |
-| `TEST-EMP-009` | `DR-EMP-007/011` | Model spy | 建议新增：`tests/integration/adapters/employee/test_sensitive_egress_zero_call.py` | 标识/姓名/邮箱/注入文本均模型 0 |
-| `TEST-EMP-010` | `DR-EMP-008` | Parameterized | 建议新增：`tests/unit/adapters/employee/test_status_mapping.py` | 400/401/403/404/204/429/5xx 精确且不读 body |
-| `TEST-EMP-011` | `DR-EMP-009` | Async fake HTTP | 建议新增：`tests/integration/adapters/employee/test_deadline_single_call.py` | ≤1 HTTP、无 retry、取消/迟到丢弃 |
-| `TEST-EMP-012` | `DR-EMP-010/011` | Log/security | 建议新增：`tests/integration/adapters/employee/test_sensitive_logging.py` | token/path/标识/字段/异常 sentinel 零出现 |
+| `TEST-EMP-003` | `DR-EMP-002/010` | Unit | 建议新增：`tests/unit/adapters/employee/test_codec_request.py` | Unicode/UTF-8/控制/Bidi/保留字符边界；单次编码且拒绝预编码 `%HH`；唯一 GET、无 query/body |
+| `TEST-EMP-004` | `DR-EMP-003/004` | Java Unit/Contract | 建议修改现有：`employee-service/src/test/java/com/dylan/employee/security/CapabilityAccessGuardTest.java`；建议新增统一 converter contract fixture | guard 对 ADMIN/VIEWER allow；converter 对 unknown/mixed role 403；service token 403 |
+| `TEST-EMP-005` | `DR-EMP-004/005` | Java MVC/Provider contract | 建议新增：`employee-service/src/test/java/com/dylan/employee/controller/EmployeeControllerAuthorizationTest.java`、`EmployeeControllerResponseVisibilityContractTest.java` 和 12.1 的 visibility fixture | deny 时 controller 的 service=0；allow 恰一次；实际 200 序列化字段集合与维护者确认的 versioned fixture 精确一致；fixture 未确认时测试不得替代门禁 |
+| `TEST-EMP-006` | `DR-EMP-005/006` | Contract | 建议新增：`agent-runtime/tests/contract/adapters/employee/test_detail_response.py` | 六字段exact type/limit；请求/响应ID相等与不匹配；两个并发请求交错响应不串状态；BOM/trailing/NaN/duplicate key；65536/65537 bytes；宽敏感字段可短暂解析但typed result/日志/错误零投影 |
+| `TEST-EMP-007` | `DR-EMP-006` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/employee/test_user_projection.py` | 5 字符/64 字符掩码与 4 字符拒绝；required 缺失不得变 no-result |
+| `TEST-EMP-008` | `DR-EMP-007` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/employee/test_egress.py` | model⊂user；默认空；仅职位/工作地 |
+| `TEST-EMP-009` | `DR-EMP-007/011` | Model spy | 建议新增：`agent-runtime/tests/integration/adapters/employee/test_sensitive_egress_zero_call.py` | 标识/姓名/邮箱/注入文本均模型 0 |
+| `TEST-EMP-010` | `DR-EMP-008` | Parameterized | 建议新增：`agent-runtime/tests/unit/adapters/employee/test_status_mapping.py` | 400→invalid_argument、204→invalid_response、未声明404→downstream_failure；401/403/429/5xx 精确且不读 body |
+| `TEST-EMP-011` | `DR-EMP-009` | Async fake HTTP | 建议新增：`agent-runtime/tests/integration/adapters/employee/test_deadline_single_call.py` | ≤1 HTTP、无 retry、取消/迟到丢弃 |
+| `TEST-EMP-012` | `DR-EMP-010/011` | Log/security | 建议新增：`agent-runtime/tests/integration/adapters/employee/test_sensitive_logging.py` | token/path/标识/字段/异常 sentinel 零出现 |
 
 ### 13.2 验证命令
 
 | 编号 | 命令 | 证明范围 | 当前状态 |
 |---|---|---|---|
-| `VAL-EMP-001` | `python -m pytest tests/unit/adapters/employee tests/contract/adapters/employee -q` | definition/codec/field/status | 未执行：代码不存在 |
-| `VAL-EMP-002` | `python -m pytest tests/integration/adapters/employee tests/architecture/test_employee_adapter_boundaries.py -q` | 单调用、模型/日志零泄露、边界 | 未执行：代码不存在 |
-| `VAL-EMP-003` | `mvn -pl employee-service -am test` | Employee guard/MVC/现有回归 | 未执行：未获代码授权 |
-| `VAL-EMP-004` | ADMIN/VIEWER/unknown/missing/malformed/service-token 真实 JWT 矩阵 | Authority/业务最终授权/DAO 次数 | 未执行：converter/guard 差距未关闭 |
+| `VAL-EMP-001` | `python -m pytest agent-runtime/tests/unit/adapters/employee agent-runtime/tests/contract/adapters/employee -q` | definition/codec/field/status | 未执行：代码不存在 |
+| `VAL-EMP-002` | `python -m pytest agent-runtime/tests/integration/adapters/employee agent-runtime/tests/architecture/test_employee_adapter_boundaries.py -q` | 单调用、模型/日志零泄露、边界 | 未执行：代码不存在 |
+| `VAL-EMP-003` | `mvn -f serviceCenter/pom.xml -pl :employee-service -am test` | Employee guard/MVC/现有回归 | 2026-07-31 通过更大聚合命令覆盖现有 Employee 基线并 `BUILD SUCCESS`；本文建议修改/新增的角色守卫、MVC 与响应可见性测试尚未实施 |
+| `VAL-EMP-004` | opt-in：ADMIN/VIEWER/unknown/missing/malformed/service-token 真实 JWT 矩阵，并以 service/mapper spy 计数 | Authority/业务最终授权/领域调用次数 | 未执行：converter/guard 差距未关闭 |
+| `VAL-EMP-005` | opt-in：以仅用于测试的合成 sentinel identifier 通过实际 Gateway/Servlet 发起一次详情请求，并检索该 correlation ID 的访问日志 | 完整/编码标识、JWT、完整 path 在 Gateway/Servlet/应用日志均零出现 | 未执行：真实入口和日志策略未获联调授权 |
 
 ## 14. 风险、门禁与授权
 
@@ -381,7 +418,7 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 |---|---|---|---|---|
 | `RISK-EMP-001` | 详情 URL 含敏感标识 | access log 开启 | 标识泄露 | P4 前验证 Gateway/Servlet path 脱敏；否则不启用 |
 | `RISK-EMP-002` | 400 混合 not-found/invalid | 不存在员工 | 不能准确 no-result | 保守 invalid_argument；变更 404 须另行确认 |
-| `RISK-EMP-003` | 宽实体兼容 | 新增/改变字段 | 类型失败或敏感泄露 | 仅六字段 typed decode，其他显式跳过 |
+| `RISK-EMP-003` | 宽实体兼容 | 目标六字段类型/语义改变，或新增未知字段含恶意嵌套值 | 目标变化导致受控失败；未知值短暂进入受限内存 | 六字段 exact decode；未知字段仅临时解析后丢弃；visibility fixture 使任何实际字段集合变化先触发 provider contract 失败 |
 | `RISK-EMP-004` | Authority 未闭环 | 真实调用 | 越权/误拒绝 | converter+业务 guard+DAO spy 矩阵 |
 | `RISK-EMP-005` | 姓名/职位用于模型 | 误开配置 | 个人/内部数据外发 | code candidates 最小、默认空、全局门禁仍 Open |
 | `RISK-EMP-006` | 宽响应可见性未确认 | VIEWER 调用现有详情 | 业务服务把未授权字段传给 Agent 进程 | Employee 方确认完整响应权限；否则另行确认窄 DTO/endpoint |
@@ -390,7 +427,8 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 
 | 门禁 ID | 类型 | 控制动作 | 关闭条件 | 责任方 | 状态 | 未关闭允许/禁止 |
 |---|---|---|---|---|---|---|
-| `BQ-GATE-003` | provider_contract | 实施/变更 Employee 提供方接口或守卫 | 维护者确认复用详情、ADMIN/VIEWER 对完整响应的可见性、角色 guard 与 400 语义；批准代码范围 | 维护者/Employee 方 | Open | 允许设计/fake；禁止 Java/公开契约修改 |
+| `BQ-GATE-002` | slice_implementation | 实施本 L2 的 Python Employee Adapter/配置/测试切片 | 本文独立评审可实施、直接依赖稳定且维护者明确授权具体代码切片；关闭后可实现完整 Python provider wiring，但在其余门禁开放时只能连接 fake server | 维护者 | Open | 允许文档与合成推演；禁止目标代码实施；关闭后仍禁止修改 Employee Java 或连接/启用真实 endpoint |
+| `BQ-GATE-003` | slice_implementation | 实施/变更 Employee 提供方接口、公开行为或守卫 | 维护者确认复用详情、ADMIN/VIEWER 对完整响应的可见性、versioned visibility fixture、现有调用方角色兼容、角色 guard 与 400 语义，并批准具体 Java/测试范围 | 维护者/Employee 方 | Open | 允许设计/fake；禁止 Java/公开行为修改 |
 | `CR-GATE-003` | integration | 具体 Employee 问题进入 DeepSeek 以选择/摘要动作 | 全局问题闸门能对标识、姓名、联系方式等形成已批准最小化或零调用路径 | 维护者/模型方 | Open | 允许显式 synthetic action/fake；禁止具体敏感问题外发 |
 | `SA-GATE-004` | integration | 启用真实 Employee 动作 | 本文独立评审；Authority、业务 guard、字段/status、访问日志、允许拒绝矩阵通过 | 维护者/安全/Employee 方 | Open | 允许 synthetic fake；禁止真实数据动作 |
 | `SA-GATE-006` | integration | Employee 结果进入 DeepSeek | 字段交集、全局策略、facts/grounding 和零调用测试通过 | 维护者/模型方 | Open | 允许本地结果/合成 payload；禁止真实数据外发 |
@@ -409,15 +447,71 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 | 2 | 2026-07-31 | 0 | 2 | 2 | 4 | 0 | Authority 分层、宽响应可见性和敏感问题门禁已对齐 |
 | 3 | 2026-07-31 | 0 | 0 | 3 | 3 | 0 | 固定结果数、原始 body 生命周期和提供方 visibility test 已收口 |
 
-## 16. 实施前检查
+## 16. 独立正式评审记录
+
+每轮均先在只读评审阶段冻结发现，再进入文档修复；修复完成后重新从当前全文开始下一轮，未把作者自检或确定性 validator 结果替代为独立评审结论。
+
+### 16.1 第 1 轮冻结发现与修复
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-EMP-001` | S1 | 本文未承接上位按 L2 切片判定的 `BQ-GATE-002`，可能把文档通过误解为 Python 实施授权 | 增加本切片实施门禁，并与 provider 变化、真实启用和出域门禁作交集 | Closed |
+| `REV-EMP-002` | S1 | 长度≤4的域内掩码特例违反 `L2_02_00 mask_keep_last4` 的 5～256 精确前置条件 | 删除特例，统一复用公共转换并令不满足值失败关闭 | Closed |
+| `REV-EMP-003` | S1 | 未声明 no-result 的 404 被写成 invalid_response，与公共 `unavailable` 映射冲突 | 分离 204 与 404，固定 404 为 downstream_failure(`unavailable`) | Closed |
+| `REV-EMP-004` | S1 | 文档声称宽字段流式跳过、原始 body 最多64KiB，但 common 先按全局上限聚合且无流式 JSON 依赖 | 区分全局 transport cap 与 Employee 65536-byte codec cap，承认受限临时 object 生命周期并禁止投影/日志/错误回显 | Closed |
+| `REV-EMP-005` | S2 | ASCII 字符白名单没有现有接口/数据契约依据，可能误拒合法业务标识 | 改为只解决 path/掩码安全的 Unicode/UTF-8/控制字符边界，业务标识语义仍归 Employee | Closed |
+
+### 16.2 第 2 轮冻结发现与修复
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-EMP-006` | S1 | Java 只列 guard/detail 方法，未覆盖 Controller 构造器依赖和 Authority 精确读取语义 | 补齐构造器、先 user-token 后 exact Authority 判定、guard-before-service 顺序和签名 | Closed |
+| `REV-EMP-007` | S1 | Adapter 侧字段测试不能证明 ADMIN/VIEWER 获准读取现有宽实体，真实复用缺少 provider 权威证据 | 增加 versioned visibility fixture、维护者确认和实际序列化字段集合契约测试；不能确认则转窄 DTO 设计 | Closed |
+| `REV-EMP-008` | S2 | 已存在 `CapabilityAccessGuardTest` 被误标为建议新增，实施者可能重复创建测试 | 改为建议修改现有测试，并分离新增 MVC/visibility 测试 | Closed |
+| `REV-EMP-009` | S2 | strict JSON、definition/provider 方法和配置 fragment 的输入输出不完整 | 固定 BOM/trailing/NaN/duplicate/字节语义，补齐 definition 与 provider 三个 Protocol 方法签名 | Closed |
+
+### 16.3 第 3 轮冻结发现与修复
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-EMP-010` | S1 | 动作定义缺 `display_name/description/aliases/argument_schema`，不能形成 L2_00_01 要求的完整 descriptor | 固定完整 descriptor 和受控 JSON Schema，明确 validator 是更严格运行权威 | Closed |
+| `REV-EMP-011` | S1 | `mvn -pl employee-service -am test` 在缺少 Maven 聚合入口的仓库根目录不可执行 | 改为 `mvn -f serviceCenter/pom.xml -pl :employee-service -am test`，并统一 Python 测试根路径 | Closed |
+| `REV-EMP-012` | S1 | 详情 guard 会收紧现有公开行为，但未盘点旧调用方，也无安全回滚边界 | 把调用方/角色兼容纳入 provider gate，增加 Agent 先停用、provider 显式决策的分层回滚 | Closed |
+
+### 16.4 第 4 轮冻结发现与修复
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-EMP-013` | S1 | 六字段目录没有 `value_type` 和允许转换集合，无法直接构造公共 `BusinessFieldDefinition` | 补齐每字段 value type、data class、代码可见性和两类 singleton/empty transform 集合，并固定顺序/null 语义 | Closed |
+| `REV-EMP-014` | S2 | 敏感标识位于 path，但只有笼统日志要求，没有真实 ingress 可复现验证 | 增加合成 sentinel 经 Gateway/Servlet 的日志零出现验证 `VAL-EMP-005` | Closed |
+| `REV-EMP-015` | S2 | `BQ-GATE-002` 的初版表述把 Python provider 代码 wiring 与连接真实 endpoint 混为一谈 | 明确关闭切片门禁可实现完整 Python wiring，但其余门禁开放时只能连接 fake | Closed |
+
+### 16.5 第 5 轮冻结发现、修复与终审
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-EMP-016` | S2 | `BQ-GATE-003` 类型写成未在上位门禁目录使用的 `provider_contract`，门禁报表会产生同 ID 异义 | 与 L1_02 统一为 `slice_implementation`，并在控制动作中标明 Employee provider 公开行为/守卫范围 | Closed |
+
+修复后重新从 REQ/L0/L1、`L2_00_01` 与 `L2_02_00` 契约、当前 Employee Java 事实、descriptor/输入/wire/字段、JWT/Authority、宽响应可见性、状态、配置、生命周期、实现签名、测试、发布回滚和全部开放门禁复核；未发现新的 S0/S1/S2，`REV-EMP-001`～`REV-EMP-016` 全部关闭。评审结论为 Approved；该结论不关闭 `BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-004/006`。
+
+### 16.6 直接依赖聚焦一致性复核
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-EMP-017` | S1 | `L2_02_00` v0.3要求codec显式接收同一次wire request；旧签名既不兼容，也无法拒绝provider返回另一员工记录 | 同步新签名并固定响应`idCardNo`与请求标识精确一致；增加错配及并发交错测试，禁止codec保存请求期状态 | Closed |
+
+该聚焦同步不改变动作、接口、字段可见性或门禁。重新复核调用顺序、标识规范化、宽响应生命周期和并发隔离后未发现新的S0/S1/S2，本文保持Approved。
+
+## 17. 实施前检查
 
 - [x] 单动作、现有接口、字段、状态和授权边界已显式定义。
 - [x] Adapter 投影与业务服务最终授权未混淆。
 - [x] 公开接口不足项保持门禁，不宣称已获修改授权。
 - [x] 三轮内部自检完成且无遗留 Blocker/Major。
 - [x] 严格详细设计校验通过。
-- [ ] 独立评审及 `BQ-GATE-003/SA-GATE-004` 关闭。
+- [x] 五轮独立评审—修复—复核及直接依赖聚焦一致性复核完成，全部S0/S1/S2已关闭。
+- [ ] 用户另行授权实施并关闭本切片 `BQ-GATE-002`；`BQ-GATE-003/SA-GATE-004` 仍分别控制 provider 变化与真实启用。
 
-## 17. 当前结论
+## 18. 当前结论
 
-本文为 Draft，只支持 Employee fake、独立评审和后续实施范围确认。`employee.detail` 的真实启用、Java guard 修改和任何 Employee 数据出域仍被开放门禁禁止。
+本文 v0.3 已完成五轮独立评审—修复—复核及直接依赖聚焦一致性复核并 Approved，可作为 `L2_02_01` Employee Adapter 切片的详细设计基线；但设计可实施不等于已获代码实施授权。`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-004/006` 均保持 Open，目标代码、Employee Java/公开行为修改、真实数据调用和模型出域仍禁止。
