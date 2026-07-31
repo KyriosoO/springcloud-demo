@@ -823,7 +823,7 @@ flowchart LR
 
 ### 14.3 指标与诊断
 
-第一阶段复用现有日志设施，不引入独立监控依赖。若运行入口已有指标能力，可按以下稳定语义投影：
+第一阶段复用各运行入口基础技术栈自带的日志能力：Java 侧使用 Spring Boot 既有日志体系，Python 侧优先使用标准库日志能力；不为本切片新增独立日志平台、指标平台或监控依赖。若具体部署入口已具备指标采集能力，可按以下稳定语义投影指标；否则仅输出 14.2 定义的结构化日志：
 
 - `agent_registry_enabled_capabilities`
 - `agent_core_execution_total{capability_id,status}`
