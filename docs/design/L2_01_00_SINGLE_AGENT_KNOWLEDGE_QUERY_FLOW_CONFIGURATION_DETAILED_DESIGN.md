@@ -10,21 +10,21 @@
 | 文档路径 | `docs/design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
-| 评审状态 | 五轮独立评审通过，`REV-KFLOW-001`～`021` 全部关闭 |
-| 当前版本 | v0.2 |
-| 日期 | 2026-07-25 |
+| 评审状态 | v0.2 五轮独立评审通过；v0.3 summary task 组合根兼容性针对性复评通过，`REV-KFLOW-022` 已关闭 |
+| 当前版本 | v0.3 |
+| 日期 | 2026-08-01 |
 | 适用范围 | Python `agent-runtime` 内唯一 `knowledge.query` 能力的参数契约、请求级流程状态、问题改写、首批逻辑知识域、域选择、检索计划、跨域失败优先级、配置与组合根 |
 | 上位文档 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.3；[`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5；[`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3（已评审/已通过，`KQ-GATE-001` 已关闭） |
 | 直接依赖 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4（Approved）的能力 API、`original_question` 与公共结果；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4（Approved）的输入闸门、模型上下文与受控结构化任务 |
-| 下位/后续契约 | [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v0.2 Approved；规划中的 `L2_01_02` Knowledge 证据、出域、摘要与效果验证 |
+| 下位/后续契约 | [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v0.2 Approved；[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v0.2 Approved |
 | 实现基线 | 当前工作区不存在目标 `agent-runtime`、Knowledge Capability、Knowledge Adapter 或目标 Python 测试；既有 `es-query-*` 与历史 Agent 代码只作为迁移输入，不是目标实现基线 |
 | 是否可作为实现依据 | 否 |
 | 当前允许实施范围 | 本文编写、自检、契约样例和使用内存 fake stage 的隔离推演 |
 | 当前禁止动作 | 创建或修改目标代码、配置、测试、ES/BGE/DeepSeek 公共契约；启用真实知识链路；关闭实施、集成或效果门禁 |
-| 修改权限 | 本轮用户已授权第三批 L2 评审与必要直接关联文档原子同步，并授权 Git commit/push；代码、配置、Schema、外部契约和真实数据调用未获授权 |
+| 修改权限 | 本轮用户已授权第四批 L2 评审修复、必要直接关联文档原子同步及 Git commit/push；代码、配置、Schema、外部契约和真实数据调用未获授权 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 
-> 本文只拥有 Knowledge 单动作内部的流程与配置，不拥有物理索引、ES/BGE 协议、统一候选字段、证据出域字段或摘要事实校验。v0.2 的 Approved 来自五轮独立评审；它不构成实现授权或真实链路可用证据。
+> 本文只拥有 Knowledge 单动作内部的流程与配置，不拥有物理索引、ES/BGE 协议、统一候选字段、证据出域字段或摘要事实校验。v0.2 的 Approved 来自五轮独立评审，v0.3 的 Approved 来自 summary task 组合根兼容性针对性复评；两者均不构成实现授权或真实链路可用证据。
 
 ## 2. 修改历史
 
@@ -41,6 +41,8 @@
 | 9 | 2026-07-25 | 1、14 | 第二批 L2 终审状态原子同步 | 明确当前 Approved 评审依据，并同步跨 L2 人工验证状态；不改变 Knowledge 流程契约或开放门禁 |
 | 10 | 2026-07-31 | 1、5、14、18、20 | 第三批 L2 状态原子同步 | 将 `L2_01_01` 更新为 v0.1 Draft/三轮内审完成，保留 `L2_01_02` 未创建及全部实施/集成门禁 Open；不改变本文 Approved 设计语义 |
 | 11 | 2026-07-31 | 1、5、14、18、20 | 第三批 L2 终审状态原子同步 | 将上位引用同步为 `REQ_00` v1.3、`L0_00` v0.5、`L1_01` v0.3，并将 `L2_01_01` 更新为 v0.2 Approved/五轮评审通过；确认两级 Profile 映射不改变本文只生成逻辑域检索计划的边界，全部实施/集成门禁保持 Open |
+| 12 | 2026-08-01 | 1、5、13～14、18～20 | 第四批 L2 跨文档兼容修复 | 将预留 Evidence 接缝具体化为 rewrite/summary 两个纯 task definitions 在 model registry 冻结前统一注册；同步 `L2_01_02` 状态，进入 v0.3 针对性复评，实施/集成门禁不变 |
+| 13 | 2026-08-01 | 1、5、13～14、18～20 | 第四批 L2 终审原子同步 | summary task 组合根、disabled 路径、registry 冻结顺序和契约测试针对性复评通过，关闭 `REV-KFLOW-022`；同步 `L2_01_02` v0.2 Approved，实施/集成门禁保持 Open |
 
 ## 3. 背景、目标与范围
 
@@ -150,7 +152,7 @@ L1_01 已确定知识查询必须在一个 `knowledge.query` 动作内完成问�
 | L2_00_01 v0.4 Approved | direct dependency | 消费能力 API、`original_question` 和公共结果契约 | 核心执行、注册、图状态和公共结果不变量 | `CapabilityHandler` | 公共执行上下文 | 只读 |
 | L2_00_02 v0.4 Approved | direct dependency | 定义 Knowledge 改写任务输入/输出，先消费全局问题闸门和安全模型上下文 | Provider、问题输入策略和供应商错误 | `QuestionEgressGuard`、`ModelCallContextAccessor`、`BoundedStructuredModelGateway` | 模型调用状态 | 本轮仅已授权消费契约原子补正 |
 | L2_01_01 v0.2 Approved | downstream provider | 定义检索计划消费和 coverage 控制语义 | ES/BGE、候选、融合、重排、读取授权 | `KnowledgeRetrievalStage[TBatch]` | 排序候选 batch | 只读；五轮独立评审通过，实施/集成门禁 Open |
-| 规划中的 L2_01_02 | downstream provider | 定义证据 stage 调用时机与输入控制语义 | 证据、三层出域、摘要和最终领域结果 | `KnowledgeEvidenceStage[TBatch]` | 证据/模型安全载荷 | 只读，尚未创建 |
+| `L2_01_02` v0.2 Approved | downstream provider | 定义证据 stage 调用时机与输入控制语义 | 证据、三层出域、摘要和最终领域结果 | `KnowledgeEvidenceStage[TBatch]` | 证据/模型安全载荷 | 设计已评审；实现/真实出域门禁 Open |
 | `es-query-service`/本地 BGE | external provider | 不定义或直接调用 | 提供类型化只读检索和本地模型能力 | 由 L2_01_01 固化 | 提供方资源 | 只读 |
 
 ### 5.1 唯一责任边界
@@ -696,17 +698,19 @@ evidence await；`timeout_s` 只是供下游继续细分预算，不能替代外
 1. 加载并校验 `KnowledgeSettings`。
 2. 构建代码绑定 `LogicalDomainCatalog`，投影启用域快照。
 3. 能力禁用时返回 disabled registration，不创建外部客户端。
-4. 能力启用时先由 `KnowledgeRewriteTaskV1.definition()` 创建纯、冻结、无客户端的
-   `ModelTaskDefinition`；顶层 `agent_runtime.bootstrap` 把它与 L2_00_02 的 action/answer
-   task 组成代码显式 tuple，再一次性构建/冻结 model task registry 和 gateway。model 公共
-   模块不得反向导入 Knowledge，配置也不能追加 task。
+4. 能力启用时先分别由 `KnowledgeRewriteTaskV1.definition()` 与
+   `KnowledgeSummaryTaskV1.definition()` 创建两个纯、冻结、无客户端的
+   `ModelTaskDefinition`；顶层 `agent_runtime.bootstrap` 把二者与 L2_00_02 的
+   action/answer task 组成代码显式 tuple，再一次性构建/冻结 model task registry 和
+   gateway。二者的领域 Prompt/DTO 分别由本文与 L2_01_02 定义；model 公共模块不得反向
+   导入 Knowledge，配置也不能追加 task。
 5. registry 冻结后，校验至少一个域、两条必需路径、阈值，以及 guard、model context
    accessor、structured gateway、retrieval stage、evidence stage 均已显式注入。
 6. 创建 semantic guard、rewriter、context projector、selector、plan builder 和 Capability。
 7. 创建唯一 `KnowledgeCapabilityProvider` 并交给 L2_00_01 组合根冻结注册。
 8. 任一步失败时 Runtime readiness=false；不带半有效 Knowledge 接收请求。
 
-disabled 路径在第 3 步终止，不创建 Knowledge task definition、rewriter、stage 或客户端；
+disabled 路径在第 3 步终止，不创建任一 Knowledge task definition、rewriter、stage 或客户端；
 但 L2_00_02 为动作选择/回答所需的公共 model 组件是否存在由其自身设置决定。该顺序保持
 “Knowledge 定义领域 task、model 层拥有 registry/gateway、顶层组合根显式装配”三项所有权，
 不存在 model→Knowledge 反向依赖。
@@ -763,7 +767,7 @@ disabled 路径在第 3 步终止，不创建 Knowledge task definition、rewrit
 | `TEST-KFLOW-005` | 建议新增 | `DR-KFLOW-007/008/010/012/014` | Integration with fakes | `agent-runtime/tests/integration/knowledge/test_flow_with_fake_stages.py` | plan 全路径的完整/遗漏/重复/额外/三集合重叠 coverage；generic opaque batch、部分/no-result/denied evidence；不可读过滤为空与真实空结果 | `map_retrieval_result` coverage 精确分区及 complete iff；两类空结果向用户均为 `no_candidate` 且结构相同；opaque batch 只透传；Capability 唯一映射；denied 下 summary=0；无持久状态 | 存在性泄漏、flow 读取 batch、stage 直接返回公共结果、出域拒绝后调用模型或部分失败伪完整 |
 | `TEST-KFLOW-006` | 建议新增 | `DR-KFLOW-007/008/013/014` | Parameterized Unit | `agent-runtime/tests/unit/knowledge/test_failure_priority.py` | 所有 retrieval/evidence stage_code、forbidden/unverifiable/timeout/failure/no-result 的笛卡尔代表集、自由 code/source 注入 | 固定优先级和公共映射；stage 不能选择公共 code/source；失败无载荷 | forbidden 被覆盖、自由错误穿透或失败变 no_result |
 | `TEST-KFLOW-007` | 建议新增 | `DR-KFLOW-004/009` | Unit | `agent-runtime/tests/unit/knowledge/test_settings_and_catalog.py` | 每个 bool/int 边界；partial threshold 与 per-path 的交叉边界；domain 空项/重复/顺序/大小写/尾逗号；未知前缀 key；缺/重复 path/policy ref；disabled 下非法值 | 非法配置/目录均不就绪；threshold≤per-path；合法配置按 catalog order 冻结；两域 path/policy ref/版本精确 | 宽松解析、不可达 partial 配置、缺策略接缝、disabled 隐藏错误或配置扩权 |
-| `TEST-KFLOW-008` | 建议新增 | `DR-KFLOW-001/009/012` | Contract | `agent-runtime/tests/contract/knowledge/test_provider_registration.py` | disabled、1 域、2 域 provider；task-definition/model-registry/core-registry fakes | 精确一个 candidate；disabled 不建 task/client/stage；enabled 先冻结唯一 rewrite task 再建 gateway/provider；model 公共模块无 Knowledge import | 循环装配、动态扫描、重复 task、多个动作或缺依赖仍就绪 |
+| `TEST-KFLOW-008` | 建议新增 | `DR-KFLOW-001/009/012` | Contract | `agent-runtime/tests/contract/knowledge/test_provider_registration.py` | disabled、1 域、2 域 provider；rewrite/summary task-definition、model-registry/core-registry fakes | 精确一个 capability candidate；disabled 不建任一 Knowledge task/client/stage；enabled 在 gateway 前精确冻结 rewrite/summary 两个唯一 task definitions；model 公共模块无 Knowledge import | 循环装配、动态扫描、漏/重复 task、多个动作或缺依赖仍就绪 |
 | `TEST-KFLOW-009` | 建议新增 | `DR-KFLOW-002/010/011/012` | Async Unit/Log | `agent-runtime/tests/unit/knowledge/test_deadline_cancellation_logging.py` | 可控 loop clock、忽略 timeout_s 的阻塞 stage、phase 边界±1、外层取消；sentinel token/subject/question 与 spies/caplog | 绝对 phase deadline 强制取消并 await；reserve 不被占用；runtime cancel 传播；rewriter 只读 model accessor；token 只到 retrieval context；evidence context 无 token，原问题只从 typed input 取得；日志无正文 | 仅传 timeout、后台继续、完整 context 泄漏、迟到结果或敏感日志 |
 | `TEST-KFLOW-010` | 建议新增 | `DR-KFLOW-012/013` | Architecture | `agent-runtime/tests/architecture/test_knowledge_boundaries.py` | AST/import/signature 检查 | core 无 knowledge import；Knowledge 仅导入 neutral model contract/guard/accessor，无 DeepSeek/ES/BGE DTO；Capability 不访问 batch 字段，stage 不返回 `CapabilityResult` | 依赖反转、Provider 类型泄漏、公共映射权泄漏或通用工作流引擎 |
 
@@ -787,11 +791,11 @@ disabled 路径在第 3 步终止，不创建 Knowledge task definition、rewrit
 
 | 验证编号 | 工作目录/前置 | 命令或人工步骤 | 验证范围与充分性 | 预期结果 | 当前执行状态 |
 |---|---|---|---|---|---|
-| `VAL-KFLOW-001` | `D:\codex`；本文和 validator 可读 | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md --root D:\codex --strict` | 只证明结构、追踪、引用和质量规则，不替代语义评审 | 0 errors、0 warnings | 已执行：0 errors、0 warnings（2026-07-25） |
+| `VAL-KFLOW-001` | `D:\codex`；本文和 validator 可读 | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md --root D:\codex --strict` | 只证明结构、追踪、引用和质量规则，不替代语义评审 | 0 errors、0 warnings | 已执行：0 errors、0 warnings（2026-08-01） |
 | `VAL-KFLOW-002` | 未来 `D:\codex\agent-runtime`；Knowledge unit/contract tests 已创建 | `python -m pytest tests/unit/knowledge tests/contract/knowledge -q` | 证明动作、改写、域、计划、配置和失败矩阵 | 全部通过 | 未执行：代码/测试不存在且未授权 |
 | `VAL-KFLOW-003` | 未来 `D:\codex\agent-runtime`；fake stages/architecture tests 已创建 | `python -m pytest tests/integration/knowledge tests/architecture/test_knowledge_boundaries.py -q` | 证明 stage 接缝、请求状态、取消和依赖方向；不证明真实 ES/BGE/DeepSeek | 全部通过 | 未执行：代码/测试不存在且未授权 |
 | `VAL-KFLOW-004` | 未来 Python 工程和设置加载器已创建 | `python -m compileall -q src tests`、`python -m mypy --strict src tests`、`python -m pip check` | 证明签名、泛型 stage 和依赖一致；须与行为测试联合 | 三条无错误 | 未执行：工程不存在 |
-| `VAL-KFLOW-005` | 本文、L2_00_01 v0.4、L2_00_02 v0.4、后续两份 L2 草案/评审证据 | 人工核对原问题同源、问题闸门、stage 类型、责任防重叠和门禁 | 证明跨 L2 语义未漂移，不替代真实集成 | 无未关闭 S0/S1 后方可申请切片实施 | 部分完成：本文、两个直接依赖及 L2_01_01 v0.2 均 Approved；L2_01_02 尚未创建，真实检索/证据契约仍未验证 |
+| `VAL-KFLOW-005` | 本文、L2_00_01 v0.4、L2_00_02 v0.4、L2_01_01 v0.2、L2_01_02 v0.2 及评审证据 | 人工核对原问题同源、问题闸门、stage 类型、task registry 冻结顺序、责任防重叠和门禁 | 证明跨 L2 语义未漂移，不替代真实集成 | 无未关闭 S0/S1 后方可申请切片实施 | 已完成：五份 L2 均 Approved；summary task 组合根针对性复评无新增 S0/S1/S2（2026-08-01） |
 
 ## 15. 发布、迁移与回滚
 
@@ -898,9 +902,18 @@ disabled 路径在第 3 步终止，不创建 Knowledge task definition、rewrit
 
 第 5 轮从需求追踪、单动作边界、descriptor、原问题/模型输入、JWT 最小传播、逻辑域、
 rewrite/stage 类型、coverage/失败优先级、绝对预算、配置/组合根、实现签名和测试反证重新
-全量检查；未发现新的 S0/S1/S2，`REV-KFLOW-001`～`021` 全部关闭。本文 Approved，
-设计已具备 flow/config 切片的实施就绪条件；但 `KQ-GATE-002` 未关闭，检索 L2_01_01
-仍为 Draft 且证据 L2_01_02 尚未创建，不能据此实施目标代码、启用真实链路或声明效果达标。
+全量检查；未发现新的 S0/S1/S2，`REV-KFLOW-001`～`021` 全部关闭。本文 v0.2 Approved，
+设计已具备 flow/config 切片的设计完整性。该轮终审时 L2_01_01 仍为 Draft、L2_01_02 尚未创建；
+这一历史前提已由后续批次替代，但 `KQ-GATE-002` 未关闭始终意味着不能据此实施目标代码、
+启用真实链路或声明效果达标。
+
+### 18.6 v0.3 summary task 组合根兼容性针对性复评
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 状态 |
+|---|---|---|---|---|
+| `REV-KFLOW-022` | S1 | v0.2 组合根只显式创建 `KnowledgeRewriteTaskV1`；L2_01_02 新增 summary task 后若在 registry 冻结后补注册，将导致启动遗漏或 model→Knowledge 反向依赖 | enabled 路径在 registry 冻结前同时创建 rewrite/summary 两个纯 definition，与 action/answer definitions 一次性冻结；disabled 路径两者均不创建，并补齐 `TEST-KFLOW-008` | Closed |
+
+针对性复评重新核对 Knowledge task 所有权、顶层组合根顺序、disabled 路径、唯一 capability 数量、公共 model 模块依赖方向及契约测试；未发现新的 S0/S1/S2。本文 v0.3 恢复 Approved；该结论不关闭 `KQ-GATE-002` 或任何真实模型、检索、证据出域门禁。
 
 ## 19. 实施前检查
 
@@ -916,16 +929,17 @@ rewrite/stage 类型、coverage/失败优先级、绝对预算、配置/组合�
 - [x] 开放门禁均具有控制动作、证据、责任方、最晚阶段和替代路径。
 - [x] 作者自检无遗留 Blocker/Major。
 - [x] `validate_detailed_design.py --strict` 已通过；该结果仅是确定性文档证据。
-- [x] 独立正式评审已关闭全部 S0/S1/S2。
+- [x] v0.2 五轮独立正式评审已关闭全部 S0/S1/S2。
+- [x] v0.3 summary task 组合根兼容性针对性复评通过。
 - [ ] 本切片 `KQ-GATE-002` 已在另行实施授权后关闭。
 
 ## 20. 当前结论
 
-- 本文版本：v0.2。
+- 本文版本：v0.3。
 - 文档状态：Approved。
-- 评审状态：五轮独立评审通过，`REV-KFLOW-001`～`021` 全部 Closed。
+- 评审状态：v0.2 五轮独立评审通过；v0.3 summary task 组合根兼容性针对性复评通过，`REV-KFLOW-001`～`022` 全部 Closed。
 - 实施状态：未实施。
 - 生效状态：未生效。
-- 是否可作为实现依据：否；设计已实施就绪，但本切片 `KQ-GATE-002` 为 Open 且本轮未获目标代码/测试实施授权。
+- 是否可作为实现依据：否；v0.3 设计已 Approved，但本切片 `KQ-GATE-002` 仍为 Open 且本轮未获目标代码/测试实施授权。
 - 确定性文档校验：已通过，0 errors、0 warnings；不替代独立正式评审。
 - 当前只允许文档、自检和 fake 契约推演；不允许创建目标代码、启用真实检索或把真实问题/证据发送外部模型。

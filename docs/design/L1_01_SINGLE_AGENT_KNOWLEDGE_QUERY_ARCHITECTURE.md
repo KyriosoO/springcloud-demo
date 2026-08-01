@@ -21,7 +21,7 @@
 | 目标文档位置 | `docs/design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md` |
 | 上位 L0 | [`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5 |
 | 关联 L1 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_02`《单体 Agent 业务查询适配架构 L1》](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2（已评审/已通过，`BQ-GATE-001` 已关闭） |
-| 治理的 L2 | `L2_01_00` Knowledge 查询流程与配置（v0.2 Approved）；`L2_01_01` Knowledge 检索与本地模型接入（v0.2 Approved）；`L2_01_02` Knowledge 证据、出域、摘要与效果验证（待创建） |
+| 治理的 L2 | `L2_01_00` Knowledge 查询流程与配置（v0.3 Approved）；`L2_01_01` Knowledge 检索与本地模型接入（v0.2 Approved）；`L2_01_02` Knowledge 证据、出域、摘要与效果验证（v0.2 Approved） |
 | 外部契约 | L1_00 能力执行与公共模型端口语义；`es-query-service` 类型化只读检索契约；本地 BGE-M3 Embedding 与 `BAAI/bge-reranker-v2-m3` Rerank 契约；知识内容、读取可见性及文档级出域元数据权威 |
 | 替代关系 | 新建基线；现有 `es-query-*` 实现和历史 Agent/Knowledge 代码只作为现状与迁移输入，不自动成为目标架构 |
 
@@ -44,6 +44,7 @@
 | 11 | 2026-07-25 | 文档治理、权威关系和同层一致性 | 原子同步业务查询适配 L1 v0.2 已评审/已通过状态及 `BQ-GATE-001` 关闭结果 | 保持 Knowledge 与业务查询同层隔离及治理状态一致；不改变本文 v0.2 架构决策、评审、实施、生效或 `KQ-GATE-001` 结论 |
 | 12 | 2026-07-31 | 5～8、10、12～18 | 第三批 L2 独立评审原子补正：把逻辑域到物理资源的单层表述拆为 Adapter 的“逻辑域→稳定检索 Profile”与 `es-query-service` 的“Profile→物理资源”两级权威，并完成针对性复核 | 关闭 `REV-KQ-009`，消除消费方/提供方重复拥有物理映射，同时保持物理资源不进入 Agent 请求及 `SA-GATE-003` 失败关闭 |
 | 13 | 2026-07-31 | 文档治理信息 | 原子同步 `L2_01_01` v0.2 Approved/五轮评审通过状态，并保留 `L2_01_02` 待创建 | 保持 L1→L2 当前状态可追踪；不改变本文 v0.3 架构语义、`KQ-GATE-001` 或任何实施/集成门禁 |
+| 14 | 2026-08-01 | 文档治理信息 | 原子同步 `L2_01_00` v0.3 与 `L2_01_02` v0.2 Approved、五轮评审通过状态；三份 Knowledge L2 均已完成设计评审 | 关闭“第四批文档未创建”的治理状态，不改变本文 v0.3 架构语义、`KQ-GATE-001` 或任何实施/集成/效果门禁 |
 
 ## 3. 文档定位与权威关系
 
@@ -698,5 +699,6 @@ Knowledge 不新增数据库、缓存、消息队列或持久检查点。为效�
 - 实施状态：未实施。
 - 生效状态：未生效。
 - `KQ-GATE-001` 已关闭，只允许开始 `L2_01_00`～`L2_01_02`。
+- `L2_01_00` v0.3、`L2_01_01` v0.2、`L2_01_02` v0.2 均为 Approved；这只表示三份详细设计已完成评审。
 - `KQ-GATE-002`、`CR-GATE-003`、`SA-GATE-003/006/007` 仍保持开启。
 - 本文未授权修改 `es-query-service`、BGE 服务、Agent 代码、配置、测试或外部契约。

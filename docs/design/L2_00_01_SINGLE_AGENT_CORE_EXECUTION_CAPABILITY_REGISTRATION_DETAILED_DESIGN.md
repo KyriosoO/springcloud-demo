@@ -13,13 +13,13 @@
 | 文档路径 | `docs/design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
-| 评审状态 | v0.3 五轮已通过；v0.4 原始问题上下文补正针对性复评已通过；`L2_02_00` v0.4 Core JSON 边界定向检查符合，未发现新的 S0/S1/S2 |
+| 评审状态 | v0.3 五轮已通过；v0.4 原始问题上下文补正针对性复评已通过；`L2_02_00` v0.4 Core JSON 及 `L2_01_00` v0.3 summary task 注册的 Core 边界定向检查均符合，未发现新的 S0/S1/S2 |
 | 当前版本 | v0.4 |
-| 日期 | 2026-07-25 |
+| 日期 | 2026-08-01 |
 | 适用范围 | Python `agent-runtime` 内的 LangGraph 请求状态、`agent-core` 确定性执行、`agent-capability-api`、进程内能力注册运行时、组合根及模型无关测试替身 |
 | 上位文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2（已评审/已通过，`CR-GATE-001` 已关闭） |
 | 来源文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.3；[`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5 |
-| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4 Approved；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.4 Approved（业务 wire 私有 `ExactDecimal`，不进入本文 Core `JsonObject`，定向边界检查已通过） |
+| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4 Approved；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.3 Approved（summary task 注册不进入 Core 能力/JSON 契约，定向边界检查已通过）；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.4 Approved（业务 wire 私有 `ExactDecimal`，不进入本文 Core `JsonObject`，定向边界检查已通过） |
 | 实现基线 | 当前工作区不存在目标 `agent-runtime`、`agent-service`、`agent-core`、`agent-capability-api` 或 Python 源码/测试工程；本机只读核实 Python 为 3.12.4 |
 | 技术基线 | Python `>=3.12,<3.13`；`langgraph==1.2.9`；使用 `StateGraph`、`TypedDict` 状态和 `context_schema` 运行上下文，不配置 checkpointer 或 store |
 | 是否可作为实现依据 | 否 |
@@ -50,6 +50,7 @@
 | 13 | 2026-07-31 | 1、5.1 | 第三批 L2 终审原子同步 | 同步 `REQ_00` v1.3、`L0_00` v0.5、`L1_01` v0.3 与 `L2_02_00` v0.3 当前引用；核对两级检索映射和业务 codec 请求关联均不改变核心能力 API、执行上下文或本文 v0.4 评审结论 |
 | 14 | 2026-08-01 | 1、5.1 | `L2_02_00` v0.4 精确十进制修订原子同步 | 明确 `ExactDecimal/BusinessWireJsonObject` 只属于业务传输私有契约，Core `JsonObject` 仍禁止 Decimal/自定义对象；不改变本文 v0.4 Approved 状态、能力 API 或执行语义 |
 | 15 | 2026-08-01 | 1、18～21章 | 公共 v0.4 Core JSON 边界定向检查 | 确认精确十进制只在 validator 后的私有 `TInput` 和业务 wire 内存在，Core 候选、状态、结果和模型载荷仍使用原 `JsonObject` 白名单；未发现新的 S0/S1/S2，保持 v0.4 Approved |
+| 16 | 2026-08-01 | 1、5.1、19～21 章 | 第四批 Knowledge task 注册边界原子同步 | 同步 `L2_01_00` v0.3；确认 rewrite/summary task definitions 仅由顶层组合根交给模型 registry，不进入 Core capability registry、`JsonObject`、状态或执行语义；保持 v0.4 Approved 与全部开放门禁 |
 
 ## 3. 背景、目标与范围
 
@@ -182,7 +183,7 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | L1_02 v0.2 | peer | 提供公共能力契约，供业务 Adapter 未来实现 | 拥有业务动作、领域结果、权限和出域策略 | 业务动作处理器 | 业务动作/配置 | 只读 |
 | `L2_00_00` v0.2 Approved | peer | 定义 Python 内部执行上下文的消费语义 | 定义 Spring→Python 传输、JWT 验证、截止时间换算和外部映射 | `ExecutionContext` 构造边界 | 跨进程接入状态 | 只读 |
 | `L2_00_02` v0.4 Approved | peer | 提供模型节点读取/写入的核心状态字段和安全调用前提 | 定义模型端口、候选动作、输入闸门和回答生成 | `ActionCandidate`、安全载荷 | 模型调用状态 | 只读 |
-| `L2_01_00` v0.2 Approved | peer/consumer | 提供公共能力执行上下文和结果契约 | 定义 Knowledge 单动作流程、配置和阶段端口 | `CapabilityExecutionContext.original_question`、`CapabilityResult` | Knowledge 请求级状态 | 只读 |
+| `L2_01_00` v0.3 Approved | peer/consumer | 提供公共能力执行上下文和结果契约 | 定义 Knowledge 单动作流程、配置、阶段端口及领域模型 task definition 装配 | `CapabilityExecutionContext.original_question`、`CapabilityResult` | Knowledge 请求级状态 | 只读；summary task 不进入 Core registry/JSON |
 | `L2_02_00` v0.4 Approved | peer/consumer | 提供公共能力契约和 JWT wrapper | 定义业务查询公共约束、配置、出域及 business wire 私有精确十进制；不得把其类型写回 Core JSON | `OpaqueUserToken`、`CapabilityResult`、safe payload；`ExactDecimal` 不跨入本文契约 | 业务查询公共状态 | 只读；Core JSON 边界定向检查通过 |
 | 当前仓库代码 | implementation_baseline | 仅证明目标 Python 模块不存在 | 现有 Java 业务/基础设施继续独立演进 | 无目标调用链 | 现有系统所有者 | 只读 |
 | Python 3.12.4 本机环境 | implementation_baseline | 作为首期 Python 运行基线 | 不证明部署或依赖已安装 | CPython | 本地工具环境 | 只读 |
@@ -985,7 +986,7 @@ flowchart LR
 
 | 验证编号 | 工作目录/前置 | 命令或人工步骤 | 验证范围与充分性 | 预期结果 | 更广回归 | 当前执行状态 |
 |---|---|---|---|---|---|---|
-| `VAL-CORE-001` | `D:\codex`；目标文档和 validator 可读 | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md --root D:\codex --strict` | 校验本文结构、逐行追踪、状态、引用和质量信号；只能证明确定性文档规则，不替代语义/独立评审 | 0 errors、0 warnings | 不需要其他文档 validator；关联文档保持只读 | 已执行：0 errors、0 warnings（2026-07-25） |
+| `VAL-CORE-001` | `D:\codex`；目标文档和 validator 可读 | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md --root D:\codex --strict` | 校验本文结构、逐行追踪、状态、引用和质量信号；只能证明确定性文档规则，不替代语义/独立评审 | 0 errors、0 warnings | 不需要其他文档 validator；关联文档保持只读 | 已执行：0 errors、0 warnings（2026-08-01） |
 | `VAL-CORE-002` | `D:\codex\agent-runtime`；未来代码、test extra 和本地 stub 已创建 | `python -m pytest tests/unit -q` | 覆盖公共契约、注册、执行、并发、限制和日志；足以定位单模块规则，但不证明包依赖和图协作 | 全部通过 | 共享能力 API 同时执行 `VAL-CORE-003/004` | 未执行：代码尚未获准创建 |
 | `VAL-CORE-003` | `D:\codex\agent-runtime`；未来 contract/architecture/integration tests 和模型无关 stubs 已创建 | `python -m pytest tests/contract tests/architecture tests/integration -q` | 覆盖双处理器形态、边界签名、扩展、依赖、state/context 隔离和模型无关图；不证明真实模型或业务集成 | 全部通过 | 真实模型/数据另受 `SA-GATE-002/006`、`CR-GATE-003` | 未执行：代码尚未获准创建 |
 | `VAL-CORE-004` | `D:\codex\agent-runtime`；未来源码、测试和锁定开发依赖已创建 | 依次执行 `python -m compileall -q src tests`、`python -m mypy --strict src tests`、`python -m pip check` | 证明语法、本文建议签名/泛型绑定和依赖一致；不证明运行行为 | 三条命令均无错误 | 与 `VAL-CORE-002/003` 联合才构成核心实现验证 | 未执行：工程尚不存在 |
@@ -1095,6 +1096,17 @@ IMPL/TEST/VAL 追踪闭合，`REV-L2-010` 关闭，本文恢复 Approved。此�
 
 定向检查未发现新的 S0/S1/S2。`L2_02_00` v0.4 没有扩大本文 8.4 的 Core `JsonObject`，也没有改变能力 API、执行语义或单动作边界；本文保持 v0.4 Approved，`CR-GATE-002` 仍为 Open。
 
+### 19.5 `L2_01_00` v0.3 Knowledge task 注册边界定向检查
+
+| 检查项 | 当前证据 | 结论 |
+|---|---|---|
+| Registry 所有权 | rewrite/summary 是 L2_00_02 `ModelTaskDefinition`，由顶层组合根在 model registry 冻结前显式合并 | 不进入 `CapabilityRegistryBuilder` 或 capability snapshot |
+| Core 数据边界 | task Prompt、input/output DTO、请求内 evidence ref 均由 Knowledge/模型边界拥有 | 不进入 Core `JsonObject`、LangGraph state 或公共 `CapabilityResult` 新字段 |
+| 单动作与依赖方向 | Knowledge 仍只注册一个 `knowledge.query` handler；model 公共模块不反向导入 Knowledge | 不增加 Core claim 次数，不引入领域条件分支 |
+| disabled 路径 | Knowledge disabled 时不创建两个 Knowledge task definitions 或外部客户端 | 不改变空/禁用 capability 的 Core 行为 |
+
+定向检查未发现新的 S0/S1/S2。`L2_01_00` v0.3 只在顶层组合根补齐领域 model task definitions 的显式装配，没有扩大本文能力 API、Core JSON、状态、注册快照或执行语义；本文保持 v0.4 Approved，`CR-GATE-002` 仍为 Open。
+
 ## 20. 实施前检查
 
 - [x] 目标、范围、非目标和文档修改权限明确。
@@ -1114,13 +1126,14 @@ IMPL/TEST/VAL 追踪闭合，`REV-L2-010` 关闭，本文恢复 Approved。此�
 - [x] v0.3 五轮独立正式评审通过，`REV-L2-001`～`REV-L2-009` 全部关闭且无未关闭 S0/S1。
 - [x] v0.4 针对性独立复评关闭 `REV-L2-010`，无未关闭 S0/S1/S2。
 - [x] `L2_02_00` v0.4 Core JSON 边界定向检查符合，未发现新的 S0/S1/S2。
+- [x] `L2_01_00` v0.3 Knowledge task 注册的 Core 边界定向检查符合，未发现新的 S0/S1/S2。
 - [ ] 项目维护者明确关闭 `CR-GATE-002` 并授权代码实施。
 
 ## 21. 当前结论
 
 - 本文版本：v0.4。
 - 文档状态：Approved。
-- 评审状态：v0.3 五轮已通过；v0.4 `REV-L2-010` 针对性复评已通过并关闭；`L2_02_00` v0.4 Core JSON 边界定向检查符合。
+- 评审状态：v0.3 五轮已通过；v0.4 `REV-L2-010` 针对性复评已通过并关闭；`L2_02_00` v0.4 Core JSON 和 `L2_01_00` v0.3 Knowledge task 注册边界定向检查均符合。
 - 实施状态：未实施。
 - 生效状态：未生效。
 - 是否可作为实现依据：否；v0.4 设计已评审可实施，但 `CR-GATE-002` 仍未关闭，且尚未获得目标代码/测试实施授权。

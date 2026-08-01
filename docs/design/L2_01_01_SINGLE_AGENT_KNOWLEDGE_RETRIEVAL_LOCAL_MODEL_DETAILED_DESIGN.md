@@ -14,20 +14,20 @@
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
 | 当前版本 | v0.2 |
-| 日期 | 2026-07-31 |
+| 日期 | 2026-08-01 |
 | 适用范围 | Python `agent-runtime` 内 Knowledge Retrieval Stage/Adapter、ES 类型化只读消费、BGE-M3 Embedding、BAAI/bge-reranker-v2-m3 Rerank、多路召回融合及排序候选契约；必要的 `es-query-api/es-query-service` 最小公开接口改造设计 |
 | 上位文档 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3 Approved；`KQ-GATE-001` Closed |
-| 直接输入 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
-| 后续消费方 | 规划中的 `L2_01_02` Knowledge 证据、出域、摘要与效果验证 |
+| 直接输入 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.3 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
+| 后续消费方 | [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v0.2 Approved；`RankedKnowledgeBatch` 消费兼容检查通过 |
 | 外部契约 | `es-query-api`/`es-query-service`；Elasticsearch `9200`；BGE-M3 `8908`；BAAI/bge-reranker-v2-m3 `8909`；`auth-service/common-security` 用户 JWT/Authority |
 | 实现基线 | 目标 `agent-runtime` 不存在；`es-query-service` 只有原始 DSL/向量查询并返回原始 JSON，未提供 Knowledge 类型化候选、读取授权和稳定失败契约 |
 | 当前环境证据 | `.tmp/chinatax-v2/build_manifest.json` 记录税务索引历史快照及 1024 维 BGE-M3；2026-07-31 只读点测确认 ES `9200`、Embedding `8908`、Rerank `8909` 在线，Embedding 返回 1024 维，Rerank 返回已确认模型的 `model/results[index,text,score]`；目标 typed ES 入口、授权、Profile/快照和自动化负向契约仍未实现或验证 |
 | 是否可作为实现依据 | 否 |
-| 评审状态 | 五轮独立评审—修复—复核已通过，`REV-KRET-001`～`REV-KRET-020` 全部关闭 |
+| 评审状态 | 五轮独立评审—修复—复核已通过，`REV-KRET-001`～`REV-KRET-020` 全部关闭；L2_01_02 下游消费兼容检查无新增 S0/S1/S2 |
 | 实施依据说明 | 本文设计已 Approved；仍须由项目维护者另行关闭本切片 `KQ-GATE-002` 后才能实施代码 |
 | 当前允许范围 | 文档评审、契约样例推演、只读基线核实和不访问真实服务的 fake 验证设计 |
 | 当前禁止动作 | 修改 Agent/ES/安全代码、配置、测试或公开契约；启用真实 ES/BGE；返回未授权候选正文；关闭 `KQ-GATE-002`/`SA-GATE-003` |
-| 修改权限 | 本轮已授权第三批 L2 评审修复、必要上位/关联文档原子同步及 Git commit/push；代码、配置、Schema、运行环境和公开契约实现仍只读 |
+| 修改权限 | 本轮已授权第四批 L2 评审修复、必要关联文档原子同步及 Git commit/push；代码、配置、Schema、运行环境和公开契约实现仍只读 |
 
 > 本文将“Agent 检索编排”与“ES 物理查询”分开：Python Adapter 负责逻辑域到稳定检索 Profile 的代码绑定映射、多路执行、融合、Rerank 和统一候选；`es-query-service` 独占 Profile 到物理资源的解析、读取授权和类型化只读召回。Profile 不是索引/别名且不能由模型或调用请求任意指定。本文不实施证据出域或 DeepSeek 摘要。
 
@@ -45,6 +45,7 @@
 | 8 | 2026-07-31 | 8、11～14、16～17 章 | 独立评审第 3 轮修复 | 固定安全链对统一 role converter 的显式消费、两链 CSRF 兼容语义；将 snapshot 改为启动重算校验并诚实声明无运行期轮询，关闭 `REV-KRET-010`～`REV-KRET-012` |
 | 9 | 2026-07-31 | 8、10～14、16～17 章 | 独立评审第 4 轮修复 | 固定 enabled 启动失败边界、把 body-limit filter 放入认证授权链之后，并补齐三类 Provider 的原始字节/压缩/Content-Type 上限，关闭 `REV-KRET-013`～`REV-KRET-016` |
 | 10 | 2026-07-31 | 1～2、6、9、12～18 章 | 独立评审第 5 轮修复与终审 | 补齐 `PathRank/PathCandidateSet/RerankScore` 强类型、异常落点及仓库根目录可执行的测试路径/命令；依据实时只读点测固化 Rerank 请求和 `model/text` 回显关联，并将响应上限对齐合法最大候选；全量复核无新增未关闭 S0/S1/S2，文档转为 v0.2 Approved，关闭 `REV-KRET-017`～`020`，实施及真实集成门禁保持 Open |
+| 11 | 2026-08-01 | 1～2、6、8、16～18 章 | 第四批下游契约状态原子同步 | 同步 `L2_01_00` v0.3 与 `L2_01_02` v0.2 Approved；复核 `RankedKnowledgeBatch` 候选身份、正文 hash、策略引用、读取策略和快照字段可被 Evidence Stage 无扩展消费，未修改检索契约或开放门禁 |
 
 ## 3. 背景、目标与范围
 
@@ -130,7 +131,7 @@
 | BGE-M3 | local provider | 定义查询 embedding 消费 | 生成向量 | `POST /embed` | 模型运行 | 只读证据 |
 | BGE Rerank | local provider | 定义候选重排消费 | 返回索引/分数 | `POST /rerank` | 模型运行 | 只读证据 |
 | `auth-service/common-security` | security authority | 仅消费角色/Authority 观察契约 | JWT 签发、验签与映射 | `role`→`ROLE_ADMIN/VIEWER` | 身份/角色 | 只读 |
-| `L2_01_02` | downstream | 提供排序候选与策略引用 | 证据裁剪、出域、摘要 | `RankedKnowledgeBatch` | 证据/出域 | 待建 |
+| `L2_01_02` v0.2 Approved | downstream | 提供排序候选与策略引用 | 证据裁剪、出域、摘要 | `RankedKnowledgeBatch` | 证据/出域 | 消费兼容检查通过；实现/出域门禁 Open |
 
 ## 6. 当前实现基线与最小改造
 
@@ -603,6 +604,10 @@ domain→Profile 对由 `EsKnowledgeSearchAdapter` 代码定义固定为 `tax.po
 
 修复后重新从 REQ/L0/L1 两级映射、L2_01_00 stage 接缝、Python/Java 类型、严格 HTTP、JWT/Authority、ES 查询与 snapshot、BGE、融合/Rerank、截止取消、配置、发布回滚、测试追踪和门禁全量复核；未发现新的未关闭 S0/S1/S2，`REV-KRET-001`～`REV-KRET-020` 全部关闭。评审结论为 Approved；该结论不关闭 `KQ-GATE-002` 或 `SA-GATE-003`。
 
+### 16.6 L2_01_02 下游消费兼容检查
+
+针对 `L2_01_02` v0.2 重新核对 `RankedKnowledgeCandidate(candidate,domain_ids,rerank_score,rank)`、嵌套 `AuthorizedKnowledgeCandidate`、`profile_version/index_snapshot_ids`、NFC 正文 hash、`read_policy_version` 和 opaque `policy_ref`。Evidence Stage 只复核、选择并投影这些既有字段，不要求本契约增加出域决定、模型引用或摘要字段，也不把 `policyRef` 误作允许决定；未发现新的 S0/S1/S2。本文保持 v0.2 Approved，检索实施与真实集成门禁不变。
+
 ## 17. 实施前检查
 
 - [x] 范围内 REQ/CON 已映射 DR、IMPL、TEST 和 VAL。
@@ -612,9 +617,9 @@ domain→Profile 对由 `EsKnowledgeSearchAdapter` 代码定义固定为 `tax.po
 - [x] 已存在、建议新增和待确认证据已分离。
 - [x] 三轮作者内审已完成且无遗留 Blocker/Major。
 - [x] 五轮独立评审—修复—复核已完成，全部 S0/S1/S2 关闭。
-- [x] `validate_detailed_design.py --strict` 通过（终态校验将在本批统一验证中复跑）。
+- [x] `validate_detailed_design.py --strict` 终态复跑通过：0 errors、0 warnings（2026-08-01）。
 - [ ] 用户另行授权实施并关闭 `KQ-GATE-002`；设计通过不自动关闭门禁。
 
 ## 18. 当前结论
 
-本文 v0.2 已完成五轮独立评审—修复—复核并 Approved，可作为 `L2_01_01` 检索切片的详细设计基线；但“设计可实施”不等于“已获代码实施授权”。`KQ-GATE-002`、`SA-GATE-003` 均保持 Open，目标代码、真实 ES/BGE、税务正文返回和统一 role converter 联调仍禁止。
+本文 v0.2 已完成五轮独立评审—修复—复核并 Approved，且 `L2_01_02` 下游消费兼容检查通过，可作为 `L2_01_01` 检索切片的详细设计基线；但“设计可实施”不等于“已获代码实施授权”。`KQ-GATE-002`、`SA-GATE-003` 均保持 Open，目标代码、真实 ES/BGE、税务正文返回和统一 role converter 联调仍禁止。
