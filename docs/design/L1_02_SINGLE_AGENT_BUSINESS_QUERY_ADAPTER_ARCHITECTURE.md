@@ -21,7 +21,7 @@
 | 目标文档位置 | `docs/design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md` |
 | 上位 L0 | [`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5 |
 | 关联 L1 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2；[`L1_01`《单体 Agent 知识查询能力架构 L1》](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3 |
-| 治理的 L2 | `L2_02_00` 业务查询公共约束、配置与出域（v0.3 Approved）；`L2_02_01` Employee Adapter 与业务授权联调（v0.3 Approved）；`L2_02_02` Transaction Adapter 与业务授权联调（v0.2 Approved） |
+| 治理的 L2 | `L2_02_00` 业务查询公共约束、配置与出域（v0.4 Approved，两轮独立复评及下游兼容检查通过）；`L2_02_01` Employee Adapter 与业务授权联调（v0.3 Approved，公共 v0.4 GET/no-body 兼容检查通过）；`L2_02_02` Transaction Adapter 与业务授权联调（v0.3 Approved，精确金额条件两轮独立复评通过） |
 | 外部契约 | L1_00 能力执行、执行上下文与模型端口语义；`auth-service` 用户 JWT 契约；`common-security` 角色映射契约；`employee-service`、`mq-procedure-service` 公开只读查询契约 |
 | 替代关系 | 新建基线；现有业务接口、历史 Agent/Adapter 代码和实现配置只作为现状与迁移输入，不自动成为目标架构 |
 
@@ -43,6 +43,8 @@
 | 10 | 2026-07-25 | 1、14.1～14.2、17.3、18.2 | 记录五轮正式评审通过，将文档更新为 v0.2 已评审/已通过并关闭 `BQ-GATE-001` | 形成可供三份业务查询 L2 编写的治理基线；不改变未实施、未生效及其余门禁开放状态 |
 | 11 | 2026-07-31 | 文档治理信息、权威关系 | 原子同步 `REQ_00` v1.3、`L0_00` v0.5 与 `L1_01` v0.3 当前引用，并核对 Knowledge 两级映射不影响业务查询适配边界 | 保持本文 v0.2 架构决策和 `BQ-GATE-001` 结论；Employee/Transaction 的动作、授权、字段和出域仍仅由本文及其下位 L2 治理 |
 | 12 | 2026-07-31 | 文档治理信息 | 原子同步 `L2_02_00/01/02` 当前 v0.3/v0.3/v0.2 Approved 状态 | 保持 L1→L2 当前状态可追踪；不改变本文 v0.2 架构语义、`BQ-GATE-001` 或任何实施/Provider/真实集成/出域门禁 |
+| 13 | 2026-08-01 | 文档治理信息 | 原子同步 `L2_02_00` v0.4 与 `L2_02_02` v0.3 精确十进制修订状态 | 两份 L2 进入 In Review；`L2_02_01` 保持历史 Approved 但待兼容性复核；不改变本文 v0.2 架构语义、动作所有权、`BQ-GATE-001` 或任何实施/集成门禁 |
+| 14 | 2026-08-01 | 文档治理信息 | 原子同步 `L2_02_00/01/02` 最终评审及兼容性检查状态 | 三份 L2 均为 Approved；公共与 Transaction 两轮复评、Employee GET/no-body 和 Core JSON 定向检查均通过；不重新评审或改变本文 v0.2 架构语义、`BQ-GATE-001` 及任何实施/Provider/真实集成/出域门禁 |
 
 ## 3. 文档定位与权威关系
 

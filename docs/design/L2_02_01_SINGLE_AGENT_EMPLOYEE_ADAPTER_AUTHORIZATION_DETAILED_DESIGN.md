@@ -13,19 +13,19 @@
 | 文档路径 | `docs/design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
-| 评审状态 | 五轮独立评审—修复—复核及直接依赖聚焦一致性复核已通过，`REV-EMP-001`～`REV-EMP-017` 全部关闭 |
+| 评审状态 | v0.3 五轮独立评审—修复—复核及 `L2_02_00` v0.3 聚焦一致性复核已通过，`REV-EMP-001`～`REV-EMP-017` 全部关闭；公共 v0.4 的 GET/no-body 定向兼容检查通过，未发现新的 S0/S1/S2 |
 | 当前版本 | v0.3 |
-| 日期 | 2026-07-31 |
+| 日期 | 2026-08-01 |
 | 适用范围 | Python `agent-employee-adapter` 的 `employee.detail` 单动作、现有 Employee 详情接口映射、参数/响应/字段收紧、业务服务最终角色授权、错误映射、模型字段候选和联调门禁 |
 | 上位文档 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2 Approved |
-| 直接输入 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.3 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
+| 直接输入 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.4 Approved（本文 GET 请求 body 恒空，定向兼容检查已通过）；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
 | 外部契约 | `employee-service` `GET /employees/{idCardNo}`；`auth-service/common-security` 用户 JWT/Authority |
 | 实现基线 | 目标 Python Adapter 不存在；Employee 详情端点存在但返回宽 `Employee` 实体，未调用现有用户守卫；现有守卫只校验 user token，不校验 `ROLE_ADMIN/ROLE_VIEWER`；未找到统一 Authority converter |
 | 是否可作为实现依据 | 否 |
-| 实施依据说明 | 本文已完成五轮独立评审并具备实施就绪条件；开始 Python 切片仍需明确关闭 `BQ-GATE-002`，Employee Java/公开行为修改和真实动作启用还分别受 `BQ-GATE-003/SA-GATE-004` 控制 |
+| 实施依据说明 | 本文 v0.3 及公共 v0.4 GET/no-body 兼容性均已评审通过；开始 Python 切片仍需关闭 `BQ-GATE-002`，Employee Java/公开行为修改和真实动作启用还分别受 `BQ-GATE-003/SA-GATE-004` 控制 |
 | 当前允许范围 | 文档评审、合成 Employee fixture、fake HTTP/Authority 契约推演 |
 | 当前禁止动作 | 修改 Agent/Java/安全代码、配置、测试或公开契约；调用真实 Employee 数据；启用真实动作或模型出域；关闭门禁 |
-| 修改权限 | 本轮只获授权第三批 L2 及直接相关文档索引原子同步；代码、配置、Schema、接口和真实数据只读 |
+| 修改权限 | 本轮用户已授权定向兼容检查、相关文档原子同步及 Git commit/push；代码、配置、Schema、接口和真实数据只读 |
 
 > 第一阶段只设计 `employee.detail`。在 Employee 方确认完整响应可见性后，真实 Adapter 才可复用现有详情接口并显式忽略宽实体中的非许可字段；确认前只允许合成 fixture/fake。分页、计数、ES 搜索、聚合、变更申请和全部写/管理入口不注册。字段投影不能替代 `employee-service` 的最终角色授权。
 
@@ -41,6 +41,8 @@
 | 6 | 2026-07-31 | 全文 | 五轮独立评审—修复—复核 | 关闭实现门禁、公共转换/状态、宽响应生命周期、完整 descriptor、Java 触点、字段类型、发布回滚和验证命令等 `REV-EMP-001`～`016`，定版 v0.2 Approved；不关闭实施/集成门禁 |
 | 7 | 2026-07-31 | 1/8/9/12/13/16～18章 | `L2_02_00` v0.3 聚焦一致性同步 | `decode_success` 显式接收同一次 request，并验证响应 `idCardNo` 与请求标识精确一致；关闭 `REV-EMP-017`，保持 Approved 和开放门禁 |
 | 8 | 2026-07-31 | 13 章 | 终态验证证据同步 | 执行含 Employee 及直接依赖的 Maven 现有基线回归并通过；建议修改/新增的角色守卫、MVC 与响应可见性测试尚未实施，所有实施/集成门禁保持 Open |
+| 9 | 2026-08-01 | 1 章治理信息 | `L2_02_00` v0.4 精确十进制修订原子同步 | 记录公共契约进入 In Review；本文仍为 GET 且 body 恒空，不消费 `ExactDecimal`，保持 v0.3 Approved 历史结论，但在公共 v0.4 独立复评中增加兼容性核对 |
+| 10 | 2026-08-01 | 1、16～18章 | 公共 v0.4 GET/no-body 定向兼容检查 | 确认 `ExactDecimal` 与 canonical body 只服务 POST，公共请求仍强制 GET body 为空；Employee 方法、路径、参数、响应、授权和失败契约不变，未发现新的 S0/S1/S2，保持 v0.3 Approved |
 
 ## 3. 背景、目标与范围
 
@@ -502,6 +504,16 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 
 该聚焦同步不改变动作、接口、字段可见性或门禁。重新复核调用顺序、标识规范化、宽响应生命周期和并发隔离后未发现新的S0/S1/S2，本文保持Approved。
 
+### 16.7 公共 v0.4 GET/no-body 定向兼容检查
+
+| 检查项 | 当前证据 | 结论 |
+|---|---|---|
+| 请求方法与正文 | 公共 `BusinessHttpRequest` 继续要求 GET 的 `json_body=None`；Employee codec 仍只生成 `GET /employees/{encoded}` 且无 query/body/自定义 header | 符合 |
+| 新增私有类型可达性 | `ExactDecimal`、`BusinessWireJsonObject` 和 `CanonicalBusinessJsonBody` 只由 POST 域 codec 使用；Employee definition、validator、mapper 和 codec 均不构造或消费这些类型 | 符合 |
+| 既有行为 | Employee 的 path 编码、JWT 透传、状态映射、响应解码、字段投影、调用次数和开放门禁未被公共 v0.4 改变 | 符合 |
+
+定向检查未发现新的 S0/S1/S2。本文保持 v0.3 Approved；该结论只证明公共 v0.4 对 Employee GET/no-body 契约向后兼容，不关闭 `BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-004/006`。
+
 ## 17. 实施前检查
 
 - [x] 单动作、现有接口、字段、状态和授权边界已显式定义。
@@ -510,8 +522,9 @@ Adapter 不创建事务，不写缓存、数据库、消息或索引。一次详
 - [x] 三轮内部自检完成且无遗留 Blocker/Major。
 - [x] 严格详细设计校验通过。
 - [x] 五轮独立评审—修复—复核及直接依赖聚焦一致性复核完成，全部S0/S1/S2已关闭。
+- [x] `L2_02_00` v0.4 GET/no-body 定向兼容检查通过，未发现新的 S0/S1/S2。
 - [ ] 用户另行授权实施并关闭本切片 `BQ-GATE-002`；`BQ-GATE-003/SA-GATE-004` 仍分别控制 provider 变化与真实启用。
 
 ## 18. 当前结论
 
-本文 v0.3 已完成五轮独立评审—修复—复核及直接依赖聚焦一致性复核并 Approved，可作为 `L2_02_01` Employee Adapter 切片的详细设计基线；但设计可实施不等于已获代码实施授权。`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-004/006` 均保持 Open，目标代码、Employee Java/公开行为修改、真实数据调用和模型出域仍禁止。
+本文 v0.3 已完成五轮独立评审—修复—复核、直接依赖聚焦一致性复核及公共 v0.4 GET/no-body 定向兼容检查并保持 Approved，可作为 `L2_02_01` Employee Adapter 切片的详细设计基线；但设计可实施不等于已获代码实施授权。`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-004/006` 均保持 Open，目标代码、Employee Java/公开行为修改、真实数据调用和模型出域仍禁止。

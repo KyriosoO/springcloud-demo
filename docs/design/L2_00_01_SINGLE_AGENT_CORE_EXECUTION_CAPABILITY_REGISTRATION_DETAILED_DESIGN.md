@@ -13,20 +13,20 @@
 | 文档路径 | `docs/design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
-| 评审状态 | v0.3 五轮已通过；v0.4 原始问题上下文补正针对性复评已通过 |
+| 评审状态 | v0.3 五轮已通过；v0.4 原始问题上下文补正针对性复评已通过；`L2_02_00` v0.4 Core JSON 边界定向检查符合，未发现新的 S0/S1/S2 |
 | 当前版本 | v0.4 |
 | 日期 | 2026-07-25 |
 | 适用范围 | Python `agent-runtime` 内的 LangGraph 请求状态、`agent-core` 确定性执行、`agent-capability-api`、进程内能力注册运行时、组合根及模型无关测试替身 |
 | 上位文档 | [`L1_00`《单体 Agent 核心与运行架构 L1》](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v0.2（已评审/已通过，`CR-GATE-001` 已关闭） |
 | 来源文档 | [`REQ_00`《单体 Agent 查询能力建设需求说明》](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.3；[`L0_00`《单体 Agent 查询能力 L0 总体架构设计》](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v0.5 |
-| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4 Approved；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.3 Approved |
+| 关联文档/契约 | [`L1_01` Knowledge L1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v0.3；[`L1_02` 业务查询 L1](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2；[`L2_00_00` Spring 接入与运行协同](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_00_02` DeepSeek 模型接入与受控生成](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v0.4 Approved；[`L2_01_00` Knowledge 查询流程与配置](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v0.2 Approved；[`L2_02_00` 业务查询公共约束、配置与出域](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.4 Approved（业务 wire 私有 `ExactDecimal`，不进入本文 Core `JsonObject`，定向边界检查已通过） |
 | 实现基线 | 当前工作区不存在目标 `agent-runtime`、`agent-service`、`agent-core`、`agent-capability-api` 或 Python 源码/测试工程；本机只读核实 Python 为 3.12.4 |
 | 技术基线 | Python `>=3.12,<3.13`；`langgraph==1.2.9`；使用 `StateGraph`、`TypedDict` 状态和 `context_schema` 运行上下文，不配置 checkpointer 或 store |
 | 是否可作为实现依据 | 否 |
 | 实施依据说明 | v0.4 已评审通过，但 `CR-GATE-002` 仍为 Open，且尚未获得目标代码/测试实施授权 |
 | 当前允许实施范围 | 不允许目标生产代码实施；仅允许本文评审、契约样例推演及不进入目标模块的隔离测试验证 |
 | 当前禁止动作 | 新建或修改 Agent 代码、测试、配置、公共接口、外部契约；启用真实模型或真实业务/知识数据；关闭 `CR-GATE-002` 或声明实现完成 |
-| 修改权限 | 本轮用户已授权第三批 L2 评审及必要直接关联文档原子同步，并授权 Git commit/push；本文仅同步当前权威版本引用，代码、测试、配置、Schema 和外部契约未获修改授权 |
+| 修改权限 | 本轮用户已授权定向边界检查、相关文档原子同步及 Git commit/push；代码、测试、配置、Schema 和外部契约未获修改授权 |
 | 维护责任人 | 项目维护者（个人开发者，姓名未在需求中指定） |
 
 > 本文只完成批次 1 的核心执行与能力注册详细设计。v0.3 已完成五轮独立评审—修订—复核，`REV-L2-001`～`REV-L2-009` 全部关闭；第二批 Knowledge L2 编写时发现处理器无法取得权威原始问题，v0.4 以最小方式补充 `CapabilityExecutionContext.original_question` 及同源校验，针对性复评确认该补正不让核心理解 Knowledge、不扩大模型出域且不破坏单动作/状态边界，`REV-L2-010` 已关闭。本文仍不定义 Spring→Python 传输协议、DeepSeek 供应商契约、Knowledge 流水线、Employee/Transaction 动作、领域字段出域策略或生产级韧性机制，也不表示任何实现、集成或生效状态已经改变。
@@ -48,6 +48,8 @@
 | 11 | 2026-07-25 | 1～2、16.3、18～21 | v0.4 原始问题补正针对性独立复评 | 复核确认只读原始问题及精确同源闸门未引入 Knowledge 分支、未扩大模型出域且未破坏单动作/状态隔离；关闭 `REV-L2-010`，状态恢复 Approved；`CR-GATE-002` 仍保持 Open |
 | 12 | 2026-07-25 | 1、5.1 | 第二批 L2 终审状态原子同步 | 同步四份第二批 L2 的最终 Approved 版本；仅更新只读关联元数据，不改变核心契约、评审结论或开放门禁 |
 | 13 | 2026-07-31 | 1、5.1 | 第三批 L2 终审原子同步 | 同步 `REQ_00` v1.3、`L0_00` v0.5、`L1_01` v0.3 与 `L2_02_00` v0.3 当前引用；核对两级检索映射和业务 codec 请求关联均不改变核心能力 API、执行上下文或本文 v0.4 评审结论 |
+| 14 | 2026-08-01 | 1、5.1 | `L2_02_00` v0.4 精确十进制修订原子同步 | 明确 `ExactDecimal/BusinessWireJsonObject` 只属于业务传输私有契约，Core `JsonObject` 仍禁止 Decimal/自定义对象；不改变本文 v0.4 Approved 状态、能力 API 或执行语义 |
+| 15 | 2026-08-01 | 1、18～21章 | 公共 v0.4 Core JSON 边界定向检查 | 确认精确十进制只在 validator 后的私有 `TInput` 和业务 wire 内存在，Core 候选、状态、结果和模型载荷仍使用原 `JsonObject` 白名单；未发现新的 S0/S1/S2，保持 v0.4 Approved |
 
 ## 3. 背景、目标与范围
 
@@ -181,7 +183,7 @@ L1_00 已确认 LangGraph 是唯一 Agent 编排权威，`agent-core` 只承担�
 | `L2_00_00` v0.2 Approved | peer | 定义 Python 内部执行上下文的消费语义 | 定义 Spring→Python 传输、JWT 验证、截止时间换算和外部映射 | `ExecutionContext` 构造边界 | 跨进程接入状态 | 只读 |
 | `L2_00_02` v0.4 Approved | peer | 提供模型节点读取/写入的核心状态字段和安全调用前提 | 定义模型端口、候选动作、输入闸门和回答生成 | `ActionCandidate`、安全载荷 | 模型调用状态 | 只读 |
 | `L2_01_00` v0.2 Approved | peer/consumer | 提供公共能力执行上下文和结果契约 | 定义 Knowledge 单动作流程、配置和阶段端口 | `CapabilityExecutionContext.original_question`、`CapabilityResult` | Knowledge 请求级状态 | 只读 |
-| `L2_02_00` v0.3 Approved | peer/consumer | 提供公共能力契约和 JWT wrapper | 定义业务查询公共约束、配置及出域原语 | `OpaqueUserToken`、`CapabilityResult`、safe payload | 业务查询公共状态 | 只读 |
+| `L2_02_00` v0.4 Approved | peer/consumer | 提供公共能力契约和 JWT wrapper | 定义业务查询公共约束、配置、出域及 business wire 私有精确十进制；不得把其类型写回 Core JSON | `OpaqueUserToken`、`CapabilityResult`、safe payload；`ExactDecimal` 不跨入本文契约 | 业务查询公共状态 | 只读；Core JSON 边界定向检查通过 |
 | 当前仓库代码 | implementation_baseline | 仅证明目标 Python 模块不存在 | 现有 Java 业务/基础设施继续独立演进 | 无目标调用链 | 现有系统所有者 | 只读 |
 | Python 3.12.4 本机环境 | implementation_baseline | 作为首期 Python 运行基线 | 不证明部署或依赖已安装 | CPython | 本地工具环境 | 只读 |
 | LangGraph 官方包与文档 | external_contract | 固定 `langgraph==1.2.9`，使用 `StateGraph`、`TypedDict`、`context_schema` 和无 checkpointer/store 编译 | 提供框架行为 | Python 库 API | 框架实现 | 外部只读 |
@@ -1039,7 +1041,7 @@ flowchart LR
 ### 18.3 需要后续授权的动作
 
 - 明确关闭 `CR-GATE-002`，并创建或修改 `agent-runtime` 代码、测试、配置或依赖。
-- 对 `L2_00_00`、`L2_00_02`、`L2_01_00`、`L2_02_00` 执行独立评审，或在相应门禁关闭后申请双进程与真实模型联调授权。
+- 在相应门禁关闭后申请双进程与真实模型/数据联调授权；任一直接依赖后续发生语义变更时，先完成对应范围的独立复评。
 - 修改 Spring、认证、模型或领域能力契约。
 - 其他后续语义变更仍需另行授权并重新评审；不得以本次针对性复评覆盖新变更。
 
@@ -1082,6 +1084,17 @@ flowchart LR
 IMPL/TEST/VAL 追踪闭合，`REV-L2-010` 关闭，本文恢复 Approved。此结论只证明设计
 可作为后续实施申请的输入，不关闭 `CR-GATE-002`，也不证明测试或代码已经存在。
 
+### 19.4 `L2_02_00` v0.4 Core JSON 边界定向检查
+
+| 检查项 | 当前证据 | 结论 |
+|---|---|---|
+| Core 输入边界 | 模型候选 `arguments` 仍为 `JsonObject`；Transaction 金额在该边界只允许规范十进制字符串 | 符合 |
+| 强类型内部边界 | 同一注册项的 validator 可把字符串转换为私有冻结 `TInput` 中的 `Decimal`；Core 不读取、转换或回写该对象 | 符合 |
+| Core 输出与状态边界 | 候选、描述、LangGraph state、公共结果和模型载荷继续禁止 `Decimal`、`ExactDecimal` 及其他自定义对象 | 符合 |
+| 业务 wire 隔离 | `ExactDecimal`、`BusinessWireJsonObject`、`CanonicalBusinessJsonBody` 只属于 Adapter 到业务服务的私有传输契约 | 符合 |
+
+定向检查未发现新的 S0/S1/S2。`L2_02_00` v0.4 没有扩大本文 8.4 的 Core `JsonObject`，也没有改变能力 API、执行语义或单动作边界；本文保持 v0.4 Approved，`CR-GATE-002` 仍为 Open。
+
 ## 20. 实施前检查
 
 - [x] 目标、范围、非目标和文档修改权限明确。
@@ -1100,16 +1113,17 @@ IMPL/TEST/VAL 追踪闭合，`REV-L2-010` 关闭，本文恢复 Approved。此�
 - [x] `validate_detailed_design.py --strict` 通过。
 - [x] v0.3 五轮独立正式评审通过，`REV-L2-001`～`REV-L2-009` 全部关闭且无未关闭 S0/S1。
 - [x] v0.4 针对性独立复评关闭 `REV-L2-010`，无未关闭 S0/S1/S2。
+- [x] `L2_02_00` v0.4 Core JSON 边界定向检查符合，未发现新的 S0/S1/S2。
 - [ ] 项目维护者明确关闭 `CR-GATE-002` 并授权代码实施。
 
 ## 21. 当前结论
 
 - 本文版本：v0.4。
 - 文档状态：Approved。
-- 评审状态：v0.3 五轮已通过；v0.4 `REV-L2-010` 针对性复评已通过并关闭。
+- 评审状态：v0.3 五轮已通过；v0.4 `REV-L2-010` 针对性复评已通过并关闭；`L2_02_00` v0.4 Core JSON 边界定向检查符合。
 - 实施状态：未实施。
 - 生效状态：未生效。
 - 是否可作为实现依据：否；v0.4 设计已评审可实施，但 `CR-GATE-002` 仍未关闭，且尚未获得目标代码/测试实施授权。
 - `CR-GATE-002` 尚未获得代码实施授权，当前仍不允许创建或修改目标代码、测试、配置和依赖。
 - `CR-GATE-001` 已关闭；`CR-GATE-002`、`SA-GATE-002`、`CR-GATE-003`、`SA-GATE-006` 保持 Open。
-- 本轮原子同步本文、四份第二批 L2 与 `docs/ARCHITECTURE.md`，并按用户授权提交、推送；未修改或授权任何代码、测试、配置、公共接口或外部契约。
+- 本轮仅原子同步相关设计文档并按用户授权提交、推送；未修改或授权任何代码、测试、配置、公共接口或外部契约。

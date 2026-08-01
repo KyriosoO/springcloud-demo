@@ -13,21 +13,21 @@
 | 文档路径 | `docs/design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md` |
 | 文档层级 | L2 详细设计 |
 | 文档状态 | Approved |
-| 评审状态 | 五轮独立评审—修复—复核已通过，`REV-TXN-001`～`REV-TXN-020` 全部关闭 |
-| 当前版本 | v0.2 |
-| 日期 | 2026-07-31 |
-| 适用范围 | Python `agent-transaction-adapter` 的 `transaction.search` 单动作、现有 Transaction 搜索接口映射、条件/排序/页大小收紧、响应/字段投影、业务服务最终角色授权、错误映射和联调门禁 |
+| 评审状态 | v0.3 已完成两轮独立复评—修复—复核，`REV-TXN-021` 已关闭且未发现新的 S0/S1/S2；v0.2 的 `REV-TXN-001`～`REV-TXN-020` 历史发现保持关闭 |
+| 当前版本 | v0.3 |
+| 日期 | 2026-08-01 |
+| 适用范围 | Python `agent-transaction-adapter` 的 `transaction.search` 单动作、现有 Transaction 搜索接口映射、标识/类型/精确金额条件、排序/页大小收紧、响应/字段投影、业务服务最终角色授权、错误映射和联调门禁 |
 | 上位文档 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v0.2 Approved |
-| 直接输入 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.3 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
+| 直接输入 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v0.4 Approved；[`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v0.4 Approved |
 | 外部契约 | `mq-procedure-service` `POST /txn/search`；`transaction-api` search DTO；`auth-service/common-security` 用户 JWT/Authority |
 | 实现基线 | 目标 Python Adapter 不存在；现有 search 已要求 user token、至少一项条件、page 1+、size 1～100、排序最多两项，但 guard 未校验角色，统一 Authority converter 未具备 |
 | 是否可作为实现依据 | 否 |
-| 实施依据说明 | 本文已完成五轮独立评审并具备实施就绪条件；开始 Python 切片仍需明确关闭 `BQ-GATE-002`，Transaction Java/公开行为修改和真实动作启用还分别受 `BQ-GATE-003/SA-GATE-005` 控制 |
+| 实施依据说明 | 设计已通过独立复评，但开始 Python 切片仍需关闭 `BQ-GATE-002`；Transaction Java/公开行为修改和真实动作启用还分别受 `BQ-GATE-003/SA-GATE-005` 控制 |
 | 当前允许范围 | 文档评审、synthetic Transaction fixture、fake HTTP/Authority 契约推演 |
 | 当前禁止动作 | 修改 Agent/Java/安全代码、配置、测试或公开契约；调用真实交易数据；启用真实动作、聚合或模型出域；关闭门禁 |
-| 修改权限 | 本轮只获授权第三批 L2 及直接相关文档索引原子同步；代码、配置、Schema、接口和真实数据只读 |
+| 修改权限 | 本轮用户已授权独立复评、相关文档原子同步及 Git commit/push；代码、配置、Schema、接口和真实数据只读 |
 
-> 第一阶段只设计 `transaction.search`，固定 page=1 并只支持交易标识、交易类型精确/包含条件。金额保留为结果字段和排序字段，但金额查询条件因 approved common JSON body 不允许 `Decimal` 且不能经 float 降精度而暂不纳入；Java `Date` 的 JSON 格式也未形成已验证契约，因此日期条件、日期排序和日期结果不进入 typed Agent 契约。detail/query/condition/aggregate 及写入口全部不可达。
+> 第一阶段只设计 `transaction.search`，固定 page=1，支持交易标识、交易类型精确/包含及金额等值/开区间条件。模型参数中的金额使用规范十进制字符串，validator 转为 Python `Decimal`，公共 business wire 以精确 JSON number 发送至现有 Java `BigDecimal` 字段，全链路禁止 float。Java `Date` 的 JSON 格式仍未形成已验证契约，因此日期条件、日期排序和日期结果不进入 typed Agent 契约。detail/query/condition/aggregate 及写入口全部不可达。
 
 ## 2. 修改历史
 
@@ -40,6 +40,9 @@
 | 5 | 2026-07-31 | 6 章 | 第三批原子一致性同步 | 展开已存在 Transaction Java 类完整路径；不改变三轮内审结论或动作边界 |
 | 6 | 2026-07-31 | 全文 | 五轮独立评审—修复—复核 | 关闭切片门禁、金额请求契约、短ID脱敏、完整descriptor、snake/camel、严格响应、业务可见性、Java触点、请求—响应关联、发布回滚和验证等`REV-TXN-001`～`020`，定版v0.2 Approved；所有实施/集成门禁保持Open |
 | 7 | 2026-07-31 | 13 章 | 终态验证证据同步 | 执行含 Transaction API、服务及直接依赖的 Maven 现有基线回归并通过；建议修改/新增的角色守卫、WebFlux 与响应可见性测试尚未实施，所有实施/集成门禁保持 Open |
+| 8 | 2026-08-01 | 1～15、17～18章 | 用户确认补齐 BigDecimal/Decimal 查询链路 | 对齐 `L2_02_00` v0.4，新增 amount/amount_gt/amount_lt 规范字符串参数、强类型 Decimal 条件、精确 JSON number wire、边界/互斥/配置/测试和 provider 门禁；更新为 v0.3 In Review |
+| 9 | 2026-08-01 | 8.1、8.3、13、16～18章 | v0.3 第 1 轮独立复评修复 | 将不可由合法 Transaction DTO 构造的 4096/4097-byte 域测试改为“最大合法请求小于动作上限”，并由公共 encoder 测试独占总字节边界；同步公共 v0.4 Approved 依赖，等待重新复评 |
+| 10 | 2026-08-01 | 1、16～18章 | v0.3 第 2 轮独立复评收口 | 从当前全文和直接依赖重新复核，确认公共字节边界仍由共享 encoder 验证、域测试只验证合法 Transaction 请求；关闭 `REV-TXN-021`，未发现新的 S0/S1/S2，恢复为 Approved；实施及集成门禁保持 Open |
 
 ## 3. 背景、目标与范围
 
@@ -52,24 +55,25 @@
 | 需求编号 | 目标 | 验收标准 | 来源 |
 |---|---|---|---|
 | `REQ-TXN-001` | 只提供一个代码绑定搜索动作 | registry 仅有 `transaction.search@1`；其他 `/txn` 路径调用数为零 | L1_02 6/7；L2_02_00 |
-| `REQ-TXN-002` | 条件与排序强类型收紧 | 至少一个标识/类型条件；page 固定 1；size≤配置≤50；排序≤2 且仅三字段 | L1_02 7.2 |
+| `REQ-TXN-002` | 条件与排序强类型收紧 | 至少一个文本或金额条件；page 固定 1；size≤配置≤50；排序≤2 且仅三字段 | L1_02 7.2 |
 | `REQ-TXN-003` | 首期排除不稳定 Date wire | Agent 请求/typed record/用户/模型结果均无日期字段；原始响应日期显式跳过 | 当前代码使用 `java.util.Date`，wire 未验证 |
 | `REQ-TXN-004` | 业务服务最终验证角色 | 统一安全边界拒绝非法 role；Transaction search 入口仍验证 ADMIN/VIEWER 后才调用 service/mapper | 用户确认；L1_02 7.4 |
 | `REQ-TXN-005` | 空结果、覆盖与近似总数真实 | 仅 page1 rows空+total0+exact 可为 no-result；非 exact total 不冒充精确 total | 现有 `TransactionSearchResponse` |
 | `REQ-TXN-006` | 结果字段最小化 | 用户最多交易 ID 掩码、类型、金额；短于掩码下限的 ID 安全省略；模型候选默认空；日期和所有查询辅助字段零 typed 投影 | L2_02_00 9/11 |
 | `REQ-TXN-007` | 状态与失败稳定 | 400 invalid_argument；401/403/429/5xx/timeout 不混淆；非法 2xx 不变 no-result | L2_02_00 12.1 |
 | `REQ-TXN-008` | 一次只读 HTTP、禁止聚合与写入 | 每次最多一次 POST `/txn/search`，无 retry/redirect/第二动作；禁止路径 spy 全零 | L1_02 9.3/10.3 |
+| `REQ-TXN-009` | 金额条件全链路保持十进制精度 | 模型参数以规范字符串进入；validator 生成 finite `Decimal`；wire 为未加引号 JSON number；Java 精确接收 `BigDecimal`，任何路径不得调用 float 或依赖 string coercion | 用户确认；现有 Transaction API/Mapper |
 
 ### 3.3 范围内
 
 - `transaction.search` descriptor、强类型条件/排序/input、wire request/response、normalizer/provider。
 - page1 有界搜索、最多 50 条、现有 total/totalExact 的 coverage 映射。
-- `transId/transType/transTypeContains` 条件和 `transId/transType/amount` 三字段排序。
+- `transId/transType/transTypeContains/amount/amountGt/amountLt` 条件和 `transId/transType/amount` 三字段排序。
 - Transaction search 入口的最终 Authority 判定建议、字段投影、失败和联调矩阵。
 
 ### 3.4 范围外
 
-- 金额条件、日期条件/排序/typed 输出；detail、condition、query、aggregate、create/update/delete、MQ/Kafka 提交。
+- 日期条件/排序/typed 输出；detail、condition、query、aggregate、create/update/delete、MQ/Kafka 提交。
 - 新增或修改 Transaction 公开 DTO/endpoint、日期格式、数据库查询或分页协议；需另行确认。
 - 跨域聚合、跨页遍历、自动翻页、汇总统计和总金额计算。
 - Employee、Knowledge、统一 converter 私有实现、DeepSeek Provider/Prompt。
@@ -100,6 +104,7 @@
 | `CON-TXN-004` | L2_02_00 8.5/12.1 | common status mapper 先处理非 2xx | `DR-TXN-008` | 无 |
 | `CON-TXN-005` | L1_02 9.3/10.3 | 一次调用、无重试、禁止聚合/写入 | `DR-TXN-009`、`DR-TXN-010` | 无 |
 | `CON-TXN-006` | L1_02 13.3 | 日期/接口差距不由域 L2 擅自改公开契约 | `DR-TXN-011` | 无 |
+| `CON-TXN-007` | L2_02_00 v0.4 `DR-BQCOM-019` | Core JSON 不接收 Decimal；业务 wire 以专用 ExactDecimal 编码为 JSON number | `DR-TXN-012` | 无 |
 
 ### 4.1 端到端追踪矩阵
 
@@ -113,6 +118,7 @@
 | `REQ-TXN-006` | `DR-TXN-007` | fields/projector | `IMPL-TXN-005/006` | `TEST-TXN-009/010` | `VAL-TXN-001/002` |
 | `REQ-TXN-007`,`CON-TXN-004` | `DR-TXN-008` | status mapper/codec | `IMPL-TXN-003/004` | `TEST-TXN-011` | `VAL-TXN-001/003` |
 | `REQ-TXN-008`,`CON-TXN-005` | `DR-TXN-009`、`DR-TXN-010` | common client/architecture | `IMPL-TXN-003/007` | `TEST-TXN-012/013` | `VAL-TXN-002` |
+| `REQ-TXN-009`,`CON-TXN-007` | `DR-TXN-005`、`DR-TXN-012` | validator/mapper/codec/common wire encoder | `IMPL-TXN-002/003` | `TEST-TXN-003/004/016` | `VAL-TXN-001/003` |
 
 ## 5. 关联资源与责任边界
 
@@ -135,12 +141,13 @@
 | 已存在 | `transaction-api/src/main/java/com/dylan/transaction/api/query/TransactionSearchRequest.java` | condition 复用宽 Transaction；sort/page/size | 只构造子集，不动态透传 |
 | 已存在 | `TransactionSearchResponse.java` | rows/total/totalExact/page/size；非 exact 时 total 是下界 | coverage 必须保真 |
 | 已存在 | `Transaction.java` | Date、BigDecimal 及辅助 filter 字段同 DTO | 首期忽略 Date/辅助响应字段 |
+| 已存在 | `Transaction.java` `amount/amountGt/amountLt`、`TransactionMapper.xml` 搜索条件 | 三个金额条件均使用 `BigDecimal`，Mapper 已支持 `=/>/<`；现有 service test 和 mapper integration test 使用 `new BigDecimal(...)` | 可复用现有公开 DTO/查询，无需新增 Java 字段或 endpoint；真实 precision/scale 仍待 provider contract 关闭门禁 |
 | 已存在但不足 | Transaction `CapabilityAccessGuard.requireUser` | 只校验 user token | 需动作角色 guard 证据 |
 | 缺失 | `common-security` role converter、Python Adapter | Authority/目标代码均未闭环 | 真实动作保持 disabled |
 
 ### 6.2 最小改造判断
 
-复用 `/txn/search`，不新增接口或 DTO。Python 仅构造现有 DTO 的安全子集。金额查询值若进入公共 `JsonObject`，只能降为 binary float 或改变 approved common HTTP body 契约；前者破坏精度，后者超出本动作最小修改，因此首期移除 `amount/amountGt/amountLt` 条件，但保留响应 Decimal 的严格读取和金额排序。Provider 侧建议新增动作专用 `requireTransactionRead` 并只替换 search 入口调用，现有 aggregate 继续使用 `requireUser`，避免本设计顺带改变聚合授权。日期 wire 没有显式 Jackson 配置或契约测试，因此首期排除而不是猜格式。搜索已有明确空结果和 400 语义，可直接映射，不需要 Provider 状态改造。
+复用 `/txn/search`，不新增接口或 DTO。Python 只构造现有 DTO 的安全子集。金额参数在 Core `JsonObject` 中保持规范字符串，由同一注册项 validator 转为 `Decimal`；mapper 执行范围、scale 和互斥校验，codec 复用 `L2_02_00` v0.4 `BusinessWireJsonEncoder` 把 `ExactDecimal` 写为未加引号 JSON number，禁止 binary float、quoted string coercion 和域内 raw JSON 拼接。Provider 侧继续建议新增动作专用 `requireTransactionRead` 并只替换 search 入口调用，现有 aggregate 继续使用 `requireUser`，避免本设计顺带改变聚合授权。日期 wire 没有显式 Jackson 配置或契约测试，因此首期仍排除。搜索已有明确空结果和 400 语义，可直接映射，不需要 Provider 状态改造；真实金额 precision/scale 与数据库比较行为必须在 `BQ-GATE-003` 关闭前验证。
 
 ## 7. 责任分解、依赖方向与耦合
 
@@ -170,7 +177,7 @@ agent-runtime registry
 
 ### 7.3 内聚与耦合判断
 
-Transaction 条件、wire 和 coverage 随业务 search 契约变化，内聚在 Transaction Adapter；JWT client/状态/投影留在 business common；角色与数据查询留在业务服务。模块只通过 action definition、现有 JSON wire 和 Authority 可观察契约耦合，不共享私有 DTO，后续验证 Date 时可只扩展 Transaction definition/codec/test，不修改 core、Employee 或 common 算法。
+Transaction 条件、wire 和 coverage 随业务 search 契约变化，内聚在 Transaction Adapter；精确十进制 JSON 编码、JWT client、状态和投影留在 business common；角色与数据查询留在业务服务。模块只通过 action definition、现有 JSON wire 和 Authority 可观察契约耦合，不共享私有 DTO。新增金额字段只实例化公共 `ExactDecimal`，不修改 core 或 Employee；后续验证 Date 时仍可只扩展 Transaction definition/codec/test。
 
 ## 8. 动作、输入、wire 与字段契约
 
@@ -181,15 +188,15 @@ Transaction 条件、wire 和 coverage 随业务 search 契约变化，内聚在
 | `descriptor.capability_id` | `transaction.search` |
 | `api_version/kind` | `1/query` |
 | `display_name` | `Transaction search` |
-| `description` | `按交易标识或交易类型查询第一页受控交易记录；不提供金额/日期条件、聚合或写入。` |
+| `description` | `按交易标识、交易类型或精确金额条件查询第一页受控交易记录；不提供日期条件、聚合或写入。` |
 | `aliases` | `("交易查询","transaction lookup")`；只帮助模型理解，不可作为执行 ID |
 | `argument_schema` | 8.2 的固定 object schema；无 Schema 默认表达式，`additionalProperties=false` |
 | `domain_id/service_key` | `transaction/mq-procedure-service` |
 | `answer_mode` | `model_assisted`，但结构化本地结果可独立返回 |
 | `applicable_dimensions` | `max_page_size,max_result_count,filter_fields,sort_fields,timeout_ms` |
-| filter code set | `trans_id,trans_type,trans_type_contains` |
+| filter code set | `trans_id,trans_type,trans_type_contains,amount,amount_gt,amount_lt` |
 | sort code set | `trans_id,trans_type,amount` |
-| contract limits | `max_page_size=max_result_count=50`；`max_timeout_ms=5000`；`max_request_bytes=4096`；无 time range；Transaction codec 另拒绝超过262144 raw bytes的已聚合2xx body |
+| contract limits | `max_page_size=max_result_count=50`；`max_timeout_ms=5000`；`max_request_bytes=4096`（共享 encoder 的安全上限；当前所有合法条件组合的 canonical body 必须严格小于该值）；无 time range；Transaction codec 另拒绝超过262144 raw bytes的已聚合2xx body |
 | status semantics | `http_400_is_invalid_argument=true`；`http_204_is_no_result=false`；`http_404_is_no_result=false` |
 | required user fields | `transaction_type,amount`；交易 ID 因短值不可安全保留末四位而为可选 |
 
@@ -204,6 +211,9 @@ Transaction 条件、wire 和 coverage 随业务 search 契约变化，内聚在
     "trans_id": {"type":"string","minLength":1,"maxLength":128},
     "trans_type": {"type":"string","minLength":1,"maxLength":128},
     "trans_type_contains": {"type":"string","minLength":1,"maxLength":128},
+    "amount": {"type":"string","minLength":1,"maxLength":32},
+    "amount_gt": {"type":"string","minLength":1,"maxLength":32},
+    "amount_lt": {"type":"string","minLength":1,"maxLength":32},
     "size": {"type":"integer","minimum":1,"maximum":50},
     "sorts": {
       "type":"array","maxItems":2,
@@ -228,6 +238,9 @@ class TransactionSearchInput:
     trans_id: str | None = None
     trans_type: str | None = None
     trans_type_contains: str | None = None
+    amount: Decimal | None = None
+    amount_gt: Decimal | None = None
+    amount_lt: Decimal | None = None
     size: int | None = None
     sorts: tuple[TransactionSort, ...] = ()
 ```
@@ -235,14 +248,15 @@ class TransactionSearchInput:
 | 类型 | 精确字段 | 不变量 |
 |---|---|---|
 | `TransactionSort` | `field: Literal["trans_id","trans_type","amount"]`；`direction: Literal["ASC","DESC"]` | tuple 最多2，field唯一 |
-| `TransactionSearchCondition` | `trans_id/trans_type/trans_type_contains: str | None` | 至少一项；类型条件互斥且已验证；冻结 |
+| `TransactionSearchCondition` | `trans_id/trans_type/trans_type_contains: str | None`；`amount/amount_gt/amount_lt: Decimal | None` | 至少一项；类型条件互斥；amount 与范围条件互斥；上下界有序；全部已验证并冻结 |
 | `TransactionSearchWireRequest` | `condition: TransactionSearchCondition`；`sorts: tuple[TransactionSort,...]`；`page: Literal[1]`；`size: int` | 只由 mapper 构造，size≤有效上限 |
 | `TransactionRecord` | `trans_id: str`；`trans_type: str`；`amount: Decimal` | 三字段非空、有界，不含 Date |
 | `TransactionSearchWireResponse` | `rows: tuple[TransactionRecord,...]`；`total: int`；`total_exact: bool`；`page: int`；`size: int` | 8.4 coverage 不变量 |
 
-- arguments 只接受 Schema 中 snake_case key；`size/sorts` 省略时 validator 保留 `None`/空 tuple，不从配置或模型补默认条件；未知/重复 key 拒绝，至少一个条件非空。
+- arguments 只接受 Schema 中 snake_case key；`size/sorts` 省略时 validator 保留 `None`/空 tuple，不从配置或模型补默认条件；未知/重复 key 拒绝，至少一个文本或金额条件非空。
 - 标识 NFC/trim 1～128，类型/contains 1～128；禁止控制/Bidi 字符；`trans_type` 与 `trans_type_contains` 互斥。由于现有 SQL `LIKE concat('%', value, '%')` 未转义，`trans_type_contains` 还必须拒绝 `%`、`_` 和反斜线，避免调用方注入通配语义。
-- `amount/amount_gt/amount_lt` 以及任意 Date key 均为 unknown argument 并在 HTTP 前拒绝；配置也不能增加这些条件。配置禁用的三个允许 filter 在 HTTP 前 invalid_argument。
+- `amount/amount_gt/amount_lt` 只接受 exact string，不接受 JSON number、float、int、bool 或 null。字符串必须匹配 `^-?(0|[1-9][0-9]*)(\.[0-9]{1,4})?$`，禁止前导 `+`、指数、前导零、whitespace、NaN/Infinity；解析后必须 finite、绝对值≤`9999999999999999.9999` 且 scale≤4。`amount` 与 `amount_gt/amount_lt` 互斥；两个范围同时存在时必须 `amount_gt < amount_lt`。任一失败均在 HTTP 前返回 invalid_argument，错误和日志不含原字符串。
+- 任意 Date key 仍为 unknown argument 并在 HTTP 前拒绝。配置禁用的任一允许 filter 在 HTTP 前 invalid_argument；配置不能放宽金额 grammar、绝对值或 scale 上限。
 - page 不暴露，wire 固定1。mapper 计算 `effective_max=min(settings.max_page_size,settings.max_result_count)`；显式 size 必须为1～effective_max，省略时取 `min(20,effective_max)`，因此配置降低上限不会让所有省略 size 的调用失效。
 - sorts 0～2 项，field 只取有效 sort 子集，direction 只允许 `ASC/DESC`；field 不重复。
 
@@ -253,7 +267,8 @@ class TransactionSearchInput:
 ```json
 {
   "condition": {
-    "transId": "optional"
+    "amountGt": 100.01,
+    "transType": "PAY"
   },
   "page": 1,
   "size": 20,
@@ -261,7 +276,9 @@ class TransactionSearchInput:
 }
 ```
 
-snake_case 条件/排序必须由 codec 显式映射为 Java wire 名：`trans_id→transId`、`trans_type→transType`、`trans_type_contains→transTypeContains`，排序字段 `trans_id→transId`、`trans_type→transType`、`amount→amount`。空条件字段必须省略，不发送 null、金额/Date 条件、响应专用字段或任意 unknown key。body 按 object key UTF-8 字节序升序、无多余空白的 common canonical JSON 编码，unique keys、UTF-8且≤4096 bytes；无 query 和自定义 header。上例因而使用顶层 `condition,page,size,sorts` 和 sort item `direction,field` 顺序。
+snake_case 条件/排序必须由 codec 显式映射为 Java wire 名：`trans_id→transId`、`trans_type→transType`、`trans_type_contains→transTypeContains`、`amount→amount`、`amount_gt→amountGt`、`amount_lt→amountLt`，排序字段 `trans_id→transId`、`trans_type→transType`、`amount→amount`。空条件字段必须省略，不发送 null、Date 条件、响应专用字段或任意 unknown key。
+
+金额在 capability arguments 中是字符串，但进入 `TransactionSearchInput/Condition` 后必须是 `Decimal`；codec 只能调用 `ExactDecimal.from_decimal` 和 `BusinessWireJsonEncoder.encode(..., max_bytes=4096)`，因此上例 `amountGt` 是未加引号的 JSON number。`"100.0100"` 可在通过 scale 校验后规范编码为 `100.01`，`-0/0.0` 统一为 `0`；禁止 `float()`、`json.dumps(default=str)`、quoted decimal、手写字符串拼接或绕过 `CanonicalBusinessJsonBody`。body 按公共 v0.4 的唯一 Unicode/key/number 规则、无多余空白编码，unique keys、UTF-8且≤4096 bytes；无 query 和自定义 header。上例因而使用顶层 `condition,page,size,sorts`、condition `amountGt,transType` 和 sort item `direction,field` 顺序。Transaction 域测试必须以所有合法条件组合中 canonical bytes 最大的一组证明长度严格小于4096；4096/4097 总字节边界由 `TEST-BQCOM-003/014` 直接构造共享 business-wire body 验证，域测试不得绕过 `TransactionSearchWireRequest` 不变量伪造超长请求。
 
 ### 8.4 2xx wire response 与 coverage
 
@@ -291,22 +308,23 @@ normalizer 规则：
 | 规则编号 | 规则 | 责任主体 | 效果 |
 |---|---|---|---|
 | `DR-TXN-001` | 只定义并注册 `transaction.search@1` | provider/组合根 | 动作有限 |
-| `DR-TXN-002` | 配置只能禁用、缩小 filter/sort/size/result/timeout/字段，不能增加 Date/路径/动作 | settings/provider | 配置不扩权 |
+| `DR-TXN-002` | 配置只能禁用、缩小 filter/sort/size/result/timeout/字段，不能放宽金额 grammar/range/scale 或增加 Date/路径/动作 | settings/provider | 配置不扩权 |
 | `DR-TXN-003` | Adapter 只透传当前 user JWT，不解析 role、不使用 service token | handler/client | 身份不替换 |
 | `DR-TXN-004` | 统一边界先验证 role；Transaction search 再要求 ADMIN/VIEWER Authority 后调用 service | common-security/业务入口 | 最终动作授权 |
-| `DR-TXN-005` | mapper 执行条件互斥、filter/sort/page/size 收紧并只构造无金额/Date 的现有 DTO 子集；codec 显式完成 snake→camel 映射 | mapper/codec | 请求有界且不降精度 |
+| `DR-TXN-005` | validator/mapper 执行文本与金额条件互斥、金额范围、filter/sort/page/size 收紧并只构造无 Date 的现有 DTO 子集；codec 显式完成 snake→camel 映射 | validator/mapper/codec | 请求有界且不降精度 |
 | `DR-TXN-006` | normalizer 严格解释 rows/total/exact/page/size，非 exact total 不进入 total_count | normalizer | coverage 真实 |
 | `DR-TXN-007` | 用户仅三字段，模型默认空；模型结果不得生成聚合/全量结论 | fields/egress | 字段和语义收紧 |
 | `DR-TXN-008` | 400/401/403/429/5xx 由 common 固定映射，域不读错误 body | status mapper | 状态稳定 |
 | `DR-TXN-009` | 一次动作最多一个 POST，共享绝对截止，无 retry/redirect/cache/自动翻页 | handler/client | 资源有界 |
 | `DR-TXN-010` | 所有非 search 路径和 MQ/Kafka/aggregate 代码在 Adapter 架构测试中不可达 | codec/architecture | 无副作用/聚合 |
 | `DR-TXN-011` | Date 输入/输出保持代码禁用，只有 wire 契约和时区测试确认后才可另行设计扩展 | definition/codec | 不猜日期 |
+| `DR-TXN-012` | amount 三参数在 Core 边界只接受规范 decimal string，validator 转为 exact `Decimal`；codec 只经公共 `ExactDecimal`/encoder 输出 JSON number，Java 以现有 `BigDecimal` 接收；禁止 float、quoted coercion 和 raw JSON 拼接 | validator/codec/common wire encoder | Python/JSON/Java 金额精度一致 |
 
 ### 9.2 正常序列
 
 1. core 以同一 descriptor validator 产生 typed input 并 claim 单动作。
-2. handler 校验 context/token/deadline；mapper 依据冻结 settings 校验条件和排序。
-3. codec 构造唯一 POST body，common client 向绑定 service origin 发送一次原用户 JWT。
+2. handler 校验 context/token/deadline；validator/mapper 依据冻结 settings 校验文本/金额条件和排序，金额保持 `Decimal`。
+3. codec 通过公共 exact-decimal encoder 构造唯一 POST body，common client 向绑定 service origin 发送一次原用户 JWT。
 4. 统一安全边界及 Transaction search guard 在 service 前完成角色验证；拒绝时 mapper/DB 为零。
 5. `TransactionService.search` 最多执行 count/query 并返回现有 typed response。
 6. Adapter 校验响应/coverage，只提取三字段；空与 records 按 8.4 映射。
@@ -322,7 +340,7 @@ normalizer 规则：
 | `AGENT_TRANSACTION_SEARCH_TIMEOUT_MS` | `3000` | 100～5000 |
 | `AGENT_TRANSACTION_SEARCH_MAX_PAGE_SIZE` | `20` | 1～50 |
 | `AGENT_TRANSACTION_SEARCH_MAX_RESULT_COUNT` | `20` | 1～50；有效 size 取二者较小值 |
-| `AGENT_TRANSACTION_SEARCH_FILTER_FIELDS` | 三个代码条件 | 只能取子集且非空 |
+| `AGENT_TRANSACTION_SEARCH_FILTER_FIELDS` | 六个代码条件 | 只能取 `trans_id,trans_type,trans_type_contains,amount,amount_gt,amount_lt` 子集且非空；不能放宽金额 grammar/range/scale |
 | `AGENT_TRANSACTION_SEARCH_SORT_FIELDS` | 三个代码排序字段 | 只能取子集，可空 |
 | `AGENT_TRANSACTION_SEARCH_USER_FIELDS` | 三字段 | 子集且保留全部 required |
 | `AGENT_TRANSACTION_SEARCH_MODEL_FIELDS` | 空 | 仅 type/amount 子集 |
@@ -368,10 +386,10 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 
 ### 11.2 发布与回滚
 
-1. synthetic fake 先完成条件、Decimal 响应、wire、coverage、禁止路径和模型零调用测试。
+1. synthetic fake 先完成规范金额字符串→Decimal→精确 JSON number 请求、Decimal 响应、coverage、禁止路径和模型零调用测试。
 2. 在修改 search guard 前盘点现有 `/txn/search` 调用方及其角色；不能证明合法调用方满足新角色契约时，`BQ-GATE-003` 不得关闭。
 3. 单独实施统一 reactive converter、Transaction search guard 和 response visibility fixture，并回归现有 search/aggregate；Agent 不调用 aggregate且 aggregate授权不随本切片变化。
-4. provider/consumer、角色和数据库 spy 矩阵通过后才允许真实 search；金额条件与 Date 仍禁用。
+4. provider/consumer、角色、BigDecimal 请求反序列化和数据库比较矩阵通过后才允许真实 search 及金额条件；Date 仍禁用。
 5. Agent 侧回滚将 `AGENT_TRANSACTION_SEARCH_ENABLED=false` 并重启 Runtime。Provider guard 事故先停用 Agent并阻断非预期 search 流量，再由 Transaction 方决定 provider 版本回滚；不得把恢复“任意 authenticated 用户可查询交易”作为自动降级，也不得切换到 detail/query/condition/aggregate。
 
 本文不含数据迁移。Date、窄响应、cursor 或权限响应变化均需独立公开契约设计和兼容回滚。
@@ -383,8 +401,8 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 | 编号 | 状态 | 路径/符号 | 责任 | 规则 |
 |---|---|---|---|---|
 | `IMPL-TXN-001` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/definition.py` | descriptor/limits/filter/sort/fields | `DR-TXN-001/002` |
-| `IMPL-TXN-002` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/contracts.py` | input/sort/wire/record | `DR-TXN-001/005/006` |
-| `IMPL-TXN-003` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/codec.py` | validator/mapper/POST encode/2xx decode | `DR-TXN-002/005/008/011` |
+| `IMPL-TXN-002` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/contracts.py` | 含 Decimal 金额条件的 input/sort/wire/record | `DR-TXN-001/005/006/012` |
+| `IMPL-TXN-003` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/codec.py` | decimal string validator、mapper、公共 exact-decimal POST encode、2xx decode | `DR-TXN-002/005/008/011/012` |
 | `IMPL-TXN-004` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/normalizer.py` | rows/total/exact→service result | `DR-TXN-006/008` |
 | `IMPL-TXN-005` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/fields.py` | 三字段/转换/无 Date | `DR-TXN-007/011` |
 | `IMPL-TXN-006` | 建议新增 | `agent-runtime/src/agent_runtime/adapters/transaction/settings.py` | 精确 env fragment/default | `DR-TXN-002/007` |
@@ -397,9 +415,9 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 
 | 符号 | 签名 | 输入/输出 | 副作用 |
 |---|---|---|---|
-| `TransactionSearchArgumentValidator.validate` | `def validate(self, arguments: JsonObject) -> TransactionSearchInput` | 三类字符串条件、sort、size；金额/Date key拒绝 | 纯函数 |
-| `TransactionSearchRequestMapper.map` | `def map(self, input: TransactionSearchInput, settings: BusinessActionSettings) -> TransactionSearchWireRequest` | filter/sort/settings 交集；page1 | 纯函数 |
-| `TransactionSearchWireCodec.encode` | `def encode(self, request: TransactionSearchWireRequest) -> BusinessHttpRequest` | canonical POST body | 纯函数 |
+| `TransactionSearchArgumentValidator.validate` | `def validate(self, arguments: JsonObject) -> TransactionSearchInput` | 三类文本条件、三个规范 decimal string、sort、size；金额转 exact Decimal；Date key拒绝 | 纯函数；非法值只抛 `InvalidCapabilityArguments` 且不含原值 |
+| `TransactionSearchRequestMapper.map` | `def map(self, input: TransactionSearchInput, settings: BusinessActionSettings) -> TransactionSearchWireRequest` | filter/sort/settings 交集；金额互斥/范围/scale；page1 | 纯函数 |
+| `TransactionSearchWireCodec.encode` | `def encode(self, request: TransactionSearchWireRequest) -> BusinessHttpRequest` | snake→camel；`ExactDecimal.from_decimal`；公共 encoder 产生≤4096 bytes canonical POST body | 纯函数；不得调用 float/quoted coercion/raw 拼接 |
 | `TransactionSearchWireCodec.decode_success` | `def decode_success(self, *, request: TransactionSearchWireRequest, response: BoundedBusinessHttpResponse) -> TransactionSearchWireResponse` | request为当前调用栈同一冻结对象；仅2xx application/json；严格UTF-8、BOM/trailing/duplicate/非有限数拒绝；body≤262144；page/size与request精确相等、rows≤request.size；amount直接Decimal；row仅允许已核实宽字段 | 有界内存纯函数；不保存请求期状态/原object |
 | `TransactionSearchResponseNormalizer.normalize_success` | `def normalize_success(self, response: TransactionSearchWireResponse) -> BusinessServiceResult[TransactionRecord]` | 8.4 exact/no-result/records | 纯函数 |
 | `transaction_search_definition` | `def transaction_search_definition() -> BusinessActionDefinition[TransactionSearchInput,TransactionSearchWireRequest,TransactionSearchWireResponse,TransactionRecord]` | 返回冻结 descriptor/filter/sort/limit/field/status | 纯函数 |
@@ -421,11 +439,11 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 
 | 测试编号 | 规则 | 层级 | 建议路径/场景 | 关键断言 |
 |---|---|---|---|---|
-| `TEST-TXN-001` | `DR-TXN-001/002` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/transaction/test_definition.py` | descriptor/argument schema 全字段；唯一 action；金额条件/Date/aggregate 不在定义/配置 |
+| `TEST-TXN-001` | `DR-TXN-001/002/012` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/transaction/test_definition.py` | descriptor/argument schema 全字段；唯一 action；三个金额参数为 string 且六个 filter 有限；Date/aggregate 不在定义/配置 |
 | `TEST-TXN-002` | `DR-TXN-001/010` | Architecture | 建议新增：`agent-runtime/tests/architecture/test_transaction_adapter_boundaries.py` | 无 Employee/Java/DB/MQ/ES/retry；禁止 path 字面量零 |
-| `TEST-TXN-003` | `DR-TXN-002/005` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/transaction/test_arguments.py` | 至少一项、类型互斥、LIKE wildcard、金额/Date key拒绝、page1/size边界 |
-| `TEST-TXN-004` | `DR-TXN-002/005` | Contract | 建议新增：`agent-runtime/tests/contract/adapters/transaction/test_search_request.py` | snake→camel、null省略、filter/sort子集、canonical key顺序和精确 POST body |
-| `TEST-TXN-005` | `DR-TXN-005/011` | Contract | 建议新增：`agent-runtime/tests/contract/adapters/transaction/test_date_exclusion.py` | Date/金额条件 args/config/request 拒绝；raw row Date只临时解析且 typed/user/model/log 零投影 |
+| `TEST-TXN-003` | `DR-TXN-002/005/012` | Unit | 建议新增：`agent-runtime/tests/unit/adapters/transaction/test_arguments.py` | 至少一项、类型互斥、LIKE wildcard；金额 exact/range 互斥、上下界、正负零、尾零、precision/scale±1；拒绝 JSON number/int/bool/null、指数及不符合 grammar 的字符串；Date拒绝；page1/size边界 |
+| `TEST-TXN-004` | `DR-TXN-002/005/012` | Contract | 建议新增：`agent-runtime/tests/contract/adapters/transaction/test_search_request.py` | snake→camel、null省略、filter/sort子集；金额未加引号、plain、canonical key/Unicode顺序和精确 POST body；枚举互斥约束下逐组构造各文本字段最大 UTF-8 值、金额边界和两项排序，取 canonical bytes 最大合法请求并断言 `<4096`；不得绕过 typed request 构造超长 body；共享 4096/4097 边界由 `TEST-BQCOM-003/014` 证明；全路径无float |
+| `TEST-TXN-005` | `DR-TXN-005/011` | Contract | 建议新增：`agent-runtime/tests/contract/adapters/transaction/test_date_exclusion.py` | Date args/config/request 拒绝；raw row Date只临时解析且 typed/user/model/log 零投影 |
 | `TEST-TXN-006` | `DR-TXN-003/004` | Java Unit | 建议修改现有：`mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/security/CapabilityAccessGuardTest.java` | ADMIN/VIEWER allow；缺失角色/service token deny；aggregate 的 `requireUser` 语义不被本切片改变 |
 | `TEST-TXN-007` | `DR-TXN-004/006/011` | Java MVC/Contract | 建议修改现有 `TransactionControllerTest.java` 并新增 `TransactionControllerAuthorizationTest.java`、`TransactionControllerResponseVisibilityContractTest.java` 与 12.1 visibility fixture | search 改调动作 guard；invalid/mixed role 在 reactive 安全边界403；deny service/mapper0；allow一次；实际顶层/row字段与维护者确认 fixture 精确一致 |
 | `TEST-TXN-008` | `DR-TXN-006` | Parameterized | 建议新增：`agent-runtime/tests/unit/adapters/transaction/test_coverage.py` | rows/total/exact/page/size笛卡尔边界；exact矛盾失败；non-exact不产生total_count |
@@ -436,6 +454,7 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 | `TEST-TXN-013` | `DR-TXN-010` | Security spies | 建议新增：`agent-runtime/tests/integration/adapters/transaction/test_forbidden_endpoints.py` | detail/query/condition/aggregate/write/MQ/Kafka调用全0 |
 | `TEST-TXN-014` | `DR-TXN-003/007/009` | Log/security | 建议新增：`agent-runtime/tests/integration/adapters/transaction/test_sensitive_logging.py` | JWT、条件值、原始/掩码ID、类型、金额、请求/响应和异常sentinel零出现 |
 | `TEST-TXN-015` | `DR-TXN-005/006/008` | Response contract/concurrency | 建议新增：`agent-runtime/tests/contract/adapters/transaction/test_search_response.py` | 顶层/row exact类型、已核实宽字段、未知字段、Decimal int/fraction/exponent/scale/界限、262144/262145 bytes；page/size错配；两个不同size并发交错响应 |
+| `TEST-TXN-016` | `DR-TXN-004/005/012` | Java MVC/DB contract | 建议新增：`mq-procedure-service` Transaction search BigDecimal contract test | POST 数值 token `0/0.1/100.00/负值/边界` 进入 `amount/amountGt/amountLt`；捕获 service/mapper 参数及数据库 `=/>/<` 结果；quoted string、超 provider precision/scale 的允许/拒绝行为显式冻结 | Jackson 不经 double 精确构造 `BigDecimal`；参数和值与预期 `compareTo==0`；数据库不截断/舍入；不依赖 string coercion；不修改 DTO/endpoint |
 
 ### 13.2 验证命令
 
@@ -446,6 +465,7 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 | `VAL-TXN-003` | `mvn -f serviceCenter/pom.xml -pl :transaction-api,:mq-procedure-service -am test` | provider DTO/search/guard/WebFlux回归 | 2026-07-31 通过更大聚合命令覆盖现有 Transaction 基线并 `BUILD SUCCESS`；本文建议修改/新增的角色守卫、WebFlux 与响应可见性测试尚未实施 |
 | `VAL-TXN-004` | opt-in：ADMIN/VIEWER/unknown/missing/malformed/service-token真实JWT矩阵，并以service/mapper spy计数 | reactive Authority/业务最终授权/mapper次数 | 未执行：converter/guard差距未关闭 |
 | `VAL-TXN-005` | opt-in：以合成 sentinel 条件经实际 Gateway/Netty 发起一次 search，并检索 correlation ID 对应日志 | JWT、请求 body、交易ID/类型/金额和原始异常在 Gateway/Netty/应用日志零出现 | 未执行：真实入口和日志策略未获联调授权 |
+| `VAL-TXN-006` | `python C:\Users\zhoud\.agents\skills\detailed-design-document\scripts\validate_detailed_design.py --file D:\codex\docs\design\L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md --root D:\codex --strict` | v0.3 文档结构、追踪、引用和质量规则；不替代独立复评或运行契约测试 | 2026-08-01 已执行：0 errors、0 warnings |
 
 ## 14. 风险、门禁与授权
 
@@ -455,7 +475,7 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 |---|---|---|---|---|
 | `RISK-TXN-001` | Date wire 未验证 | 日期查询/结果 | 时区/格式错误 | 首期代码排除，后续独立契约测试 |
 | `RISK-TXN-002` | count/query 非同一已证明快照 | 并发写 | total/rows 矛盾 | 严格不变量；不重查；业务侧另行设计 |
-| `RISK-TXN-003` | Decimal response/scale | provider返回大值、高scale或非标准数字 | 精度漂移或投影误差 | strict JSON直接解析为Decimal；有限值/绝对值/scale边界；金额查询条件首期排除；provider contract |
+| `RISK-TXN-003` | Decimal request/response/scale | provider 接收或返回大值、高 scale、quoted decimal 或非标准数字 | 精度漂移、截断/舍入或查询语义错误 | 请求使用规范字符串→Decimal→plain JSON number，响应 strict JSON直读Decimal；共同有限值/绝对值/scale边界；provider/DB contract 关闭后才真实启用金额条件 |
 | `RISK-TXN-004` | Authority 未闭环 | 真实 search | 越权/误拒绝 | converter+guard+mapper spy 矩阵 |
 | `RISK-TXN-005` | 聚合端点相邻且现存 | 动态 path/模型越界 | 超范围统计或大查询 | codec唯一 path、架构和HTTP spy零调用 |
 | `RISK-TXN-006` | total 非 exact | 大结果集 | 用户误读总数 | total_count=None、truncated=true、禁止聚合话术 |
@@ -465,9 +485,9 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 | 门禁 ID | 类型 | 控制动作 | 关闭条件 | 责任方 | 状态 | 未关闭允许/禁止 |
 |---|---|---|---|---|---|---|
 | `BQ-GATE-002` | slice_implementation | 实施本 L2 的 Python Transaction Adapter/配置/测试切片 | 本文独立评审可实施、直接依赖稳定且维护者明确授权；关闭后可实现完整 Python provider wiring，但其余门禁开放时只能连接 fake server | 维护者 | Open | 允许文档/synthetic 推演；禁止目标代码实施；关闭后仍禁止真实 endpoint |
-| `BQ-GATE-003` | slice_implementation | 修改 Transaction guard、API 或公开行为 | 维护者确认 search 子集、角色 guard、现有调用方兼容、versioned response visibility fixture、Decimal response/400/coverage 语义及具体代码范围 | 维护者/Transaction 方 | Open | 允许设计/fake；禁止 Java/API/公开行为修改 |
+| `BQ-GATE-003` | slice_implementation | 修改 Transaction guard、API 或公开行为及启用真实金额条件 | 维护者确认 search 子集、角色 guard、现有调用方兼容、versioned response visibility fixture、JSON number→BigDecimal→数据库 `=/>/<` 的 precision/scale/无舍入契约、Decimal response/400/coverage 语义及具体代码范围 | 维护者/Transaction 方 | Open | 允许设计/fake；禁止 Java/API/公开行为修改和真实金额查询 |
 | `CR-GATE-003` | integration | 具体交易问题进入 DeepSeek | 全局问题闸门对交易 ID、金额和敏感文本形成批准路径或零调用 | 维护者/模型方 | Open | 允许 synthetic explicit action；禁止真实敏感问题外发 |
-| `SA-GATE-005` | integration | 启用真实 Transaction | 本文独立评审；Authority、guard、response visibility、Decimal/coverage、禁止接口、访问日志和角色矩阵通过 | 维护者/安全/Transaction 方 | Open | 允许 fake；禁止真实交易查询 |
+| `SA-GATE-005` | integration | 启用真实 Transaction | 本文独立复评；Authority、guard、response visibility、JSON number→BigDecimal→数据库精确比较、Decimal response/coverage、禁止接口、访问日志和角色矩阵通过 | 维护者/安全/Transaction 方 | Open | 允许 fake；禁止真实交易查询和金额条件 |
 | `SA-GATE-006` | integration | 真实交易结果进入 DeepSeek | 字段交集、facts/grounding、无聚合越界、零调用测试通过 | 维护者/模型方 | Open | 允许本地结构化结果；禁止真实外发 |
 
 ### 14.3 后续需授权
@@ -483,6 +503,7 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 | 1 | 2026-07-31 | 0 | 0 | 0 | 0 | 0 | 结构与追踪完整，首次严格校验 0 error/0 warning |
 | 2 | 2026-07-31 | 0 | 2 | 2 | 4 | 0 | wildcard、Decimal、exact coverage 和 rounding 语义已收紧 |
 | 3 | 2026-07-31 | 0 | 1 | 2 | 3 | 0 | wire/record 类型、精确配置键和 Java 路径已补齐 |
+| 4 | 2026-08-01 | 0 | 2 | 1 | 3 | 0 | 将金额输入固定为规范字符串→Decimal→JSON number→BigDecimal，补齐互斥/边界/配置/跨语言测试与真实启用门禁；等待独立复评 |
 
 ## 16. 独立正式评审记录
 
@@ -535,16 +556,33 @@ Agent 无事务、持久化、缓存或重试。业务 search 当前先 count �
 
 修复后重新从REQ/L0/L1、`L2_00_01`与`L2_02_00` v0.3、当前Transaction API/service/mapper/security事实、descriptor、输入/配置/wire/coverage、Decimal、宽row、JWT/Authority、禁止端点、并发/截止、生命周期、实现签名、测试、发布回滚和全部开放门禁复核；未发现新的S0/S1/S2，`REV-TXN-001`～`REV-TXN-020`全部关闭。评审结论为Approved；该结论不关闭`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-005/006`。
 
+### 16.6 v0.3 精确金额条件修订范围
+
+v0.3 在保持 `transaction.search@1`、现有 endpoint/DTO、单次调用、权限、结果字段和 Date/聚合/写入禁项不变的前提下，新增三个金额过滤参数及其跨语言精确数值链路。这属于动作参数和共享 business wire 的语义变化；历史五轮评审与 `REV-TXN-001`～`020` 的关闭证据只覆盖 v0.2。本次两轮独立复评已覆盖该变化；`BQ-GATE-003` 关闭前，真实金额条件仍失败关闭。
+
+### 16.7 v0.3 第 1 轮独立复评冻结发现与修复
+
+| 发现 ID | 严重度 | 冻结证据与影响 | 修复 | 当前状态 |
+|---|---|---|---|---|
+| `REV-TXN-021` | S2 | `TEST-TXN-004` 要求 4096/4097-byte Transaction 请求，但合法字段长度、条件互斥和排序数量使 typed request 无法到达该边界；测试若强行构造只能绕过自身不变量，无法证明真实 codec 行为 | 域测试改为枚举各类最大合法组合并断言最大 canonical body `<4096`；4096/4097 边界由公共 `TEST-BQCOM-003/014` 独占验证 | Closed |
+
+本轮只修正共享边界与域测试的责任分配，不改变动作参数、金额范围/scale、wire bytes、Java DTO/endpoint、权限或开放门禁。
+
+### 16.8 v0.3 第 2 轮重新复评结论
+
+重新从当前全文及 `L2_02_00` v0.4、`L2_00_01` v0.4、现有 Transaction DTO/service/mapper 事实检查动作参数、Decimal/BigDecimal 精度链路、canonical request、合法请求上界、响应解码、权限、门禁和测试追踪。`TEST-TXN-004` 现在只使用合法 typed request 证明域内请求严格小于 4096 bytes，`TEST-BQCOM-003/014` 继续直接证明共享 encoder 的 4096/4097 bytes 边界；两者责任互补且没有测试绕过。`REV-TXN-021` 已关闭，未发现新的 S0/S1/S2，结论为 Approved。该结论不关闭 `BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-005/006`。
+
 ## 17. 实施前检查
 
-- [x] 单 search 动作、现有接口、条件/排序、字段和授权边界已定义。
+- [x] 单 search 动作、现有接口、文本/金额条件、排序、字段和授权边界已定义。
 - [x] Date、聚合、自动翻页和写入口均明确不可达。
 - [x] 公开接口/安全不足保持开放门禁。
 - [x] 三轮内部自检完成且无遗留 Blocker/Major。
 - [x] 严格详细设计校验通过。
-- [x] 五轮独立评审—修复—复核完成，全部S0/S1/S2已关闭。
+- [x] v0.2 五轮独立评审—修复—复核完成，全部历史 S0/S1/S2 已关闭。
+- [x] v0.3 精确金额条件与 `L2_02_00` v0.4 已完成两轮独立复评—修复—复核，`REV-TXN-021` 已关闭。
 - [ ] 用户另行授权实施并关闭本切片`BQ-GATE-002`；`BQ-GATE-003/SA-GATE-005`仍分别控制provider变化与真实启用。
 
 ## 18. 当前结论
 
-本文v0.2已完成五轮独立评审—修复—复核并Approved，可作为`L2_02_02` Transaction Adapter切片的详细设计基线；但设计可实施不等于已获代码实施授权。`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-005/006`均保持Open，目标代码、Transaction Java/API/公开行为修改、金额/日期条件、真实查询和真实数据模型出域仍禁止。
+本文 v0.3 已完成精确金额条件修订、作者内审及两轮独立复评—修复—复核，`REV-TXN-021` 已关闭且未发现新的 S0/S1/S2，文档状态恢复为 Approved。该结论确认设计内部一致，不代表实现授权或集成门禁关闭：`BQ-GATE-002/003`、`CR-GATE-003`、`SA-GATE-005/006` 均保持 Open；目标代码、Transaction Java/API/公开行为修改、真实金额/日期查询、真实 Transaction 接线和真实数据模型出域仍禁止。
