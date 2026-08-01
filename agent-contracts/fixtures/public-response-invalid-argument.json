@@ -1,0 +1,12 @@
+{
+  "requestId": "0cff43cc-254c-4fb7-b263-8b963265d4e8",
+  "correlationId": "corr-002",
+  "status": "invalid_argument",
+  "capabilityId": null,
+  "answer": "查询参数无效。",
+  "result": null,
+  "error": {
+    "code": "core.invalid_request",
+    "source": "core"
+  }
+}

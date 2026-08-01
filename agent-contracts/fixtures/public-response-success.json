@@ -1,0 +1,11 @@
+{
+  "requestId": "3b1b2b4e-b369-49ef-bbb8-72b33a43e81c",
+  "correlationId": "corr-001",
+  "status": "success",
+  "capabilityId": "employee.get",
+  "answer": "查询已完成。",
+  "result": {
+    "employeeId": "E-100"
+  },
+  "error": null
+}

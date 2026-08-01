@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {"roleClaim": ["ADMIN"], "authorities": ["ROLE_ADMIN"], "outcome": "allow"},
+    {"roleClaim": ["VIEWER"], "authorities": ["ROLE_VIEWER"], "outcome": "allow"},
+    {"roleClaim": ["ADMIN", "VIEWER"], "authorities": ["ROLE_ADMIN", "ROLE_VIEWER"], "outcome": "allow"},
+    {"roleClaim": [], "authorities": [], "outcome": "forbidden"},
+    {"roleClaim": ["UNKNOWN"], "authorities": [], "outcome": "forbidden"},
+    {"roleClaim": ["ADMIN", "UNKNOWN"], "authorities": [], "outcome": "forbidden"}
+  ]
+}

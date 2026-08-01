@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-runtime"
+version = "0.1.0"
+description = "Model-neutral single-agent runtime core"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.139.2",
+  "langgraph==1.2.9",
+  "pydantic==2.13.4",
+  "uvicorn==0.51.0",
+]
+
+[project.scripts]
+agent-runtime = "agent_runtime.main:main"
+
+[project.optional-dependencies]
+test = [
+  "httpx==0.28.1",
+  "mypy==1.17.1",
+  "pytest==8.4.2",
+  "pytest-asyncio==0.26.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true

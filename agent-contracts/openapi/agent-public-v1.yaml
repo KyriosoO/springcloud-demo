@@ -1,0 +1,145 @@
+openapi: 3.1.0
+info:
+  title: Single Agent Public API
+  version: 1.0.0
+paths:
+  /api/v1/agent/queries:
+    post:
+      operationId: queryAgent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Invalid or unsafe values are not echoed; the server generates a new UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentQueryRequest"
+            examples:
+              valid:
+                externalValue: ../fixtures/public-request-valid.json
+      responses:
+        "200":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "400":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "401":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "403":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "413":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "415":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "422":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "429":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "500":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "502":
+          $ref: "#/components/responses/AgentQueryResponse"
+        "504":
+          $ref: "#/components/responses/AgentQueryResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    AgentQueryResponse:
+      description: Agent semantic response or application-chain error envelope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AgentQueryResponse"
+          examples:
+            success:
+              externalValue: ../fixtures/public-response-success.json
+            invalidArgument:
+              externalValue: ../fixtures/public-response-invalid-argument.json
+  schemas:
+    CapabilityStatus:
+      type: string
+      enum:
+        - success
+        - no_result
+        - unsupported
+        - invalid_argument
+        - unauthenticated
+        - forbidden
+        - timeout
+        - downstream_failure
+        - model_egress_denied
+        - internal_failure
+    FailureSource:
+      type: string
+      enum: [core, capability, downstream, policy]
+    FailureResponse:
+      type: object
+      additionalProperties: false
+      required: [code, source]
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 128
+          pattern: "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        source:
+          $ref: "#/components/schemas/FailureSource"
+    AgentQueryRequest:
+      type: object
+      additionalProperties: false
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 4096
+    AgentQueryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - correlationId
+        - status
+        - capabilityId
+        - answer
+        - result
+        - error
+      properties:
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/CapabilityStatus"
+        capabilityId:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 80
+          pattern: "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        answer:
+          type: [string, "null"]
+        result:
+          type: [object, "null"]
+        error:
+          anyOf:
+            - $ref: "#/components/schemas/FailureResponse"
+            - type: "null"
+x-contract-limits:
+  maxRequestBodyBytes: 32768
+  maxQuestionCodePoints: 4096
+  maxUserTokenUtf8Bytes: 16384
+  maxCombinedHeaderBytes: 32768

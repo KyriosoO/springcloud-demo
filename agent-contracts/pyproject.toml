@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-contracts-test-assets"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+
+[project.optional-dependencies]
+test = [
+  "jsonschema==4.25.1",
+  "mypy==1.17.1",
+  "openapi-spec-validator==0.7.2",
+  "pytest==8.4.2",
+  "PyYAML==6.0.3",
+  "types-PyYAML==6.0.12.20260724",
+  "types-jsonschema==4.25.1.20251009",
+]
+
+[tool.setuptools]
+packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true

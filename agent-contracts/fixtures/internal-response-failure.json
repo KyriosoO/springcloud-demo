@@ -1,0 +1,12 @@
+{
+  "contractVersion": 1,
+  "requestId": "7251cedd-6762-4fd3-874d-b1607570f0ac",
+  "status": "forbidden",
+  "capabilityId": "employee.get",
+  "answerText": "没有权限执行该查询。",
+  "userResult": null,
+  "failure": {
+    "code": "capability.access_denied",
+    "source": "capability"
+  }
+}

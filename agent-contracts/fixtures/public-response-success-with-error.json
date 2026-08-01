@@ -1,0 +1,14 @@
+{
+  "requestId": "4d167031-71f8-4701-a3c4-a9bdc412210f",
+  "correlationId": "corr-004",
+  "status": "success",
+  "capabilityId": "employee.get",
+  "answer": "查询已完成。",
+  "result": {
+    "employeeId": "E-100"
+  },
+  "error": {
+    "code": "core.invalid_request",
+    "source": "core"
+  }
+}

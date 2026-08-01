@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: agent-service
+  config:
+    import: optional:configserver:http://127.0.0.1:8888
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+
+server:
+  port: 8090
+  max-http-request-header-size: 32KB
+
+agent:
+  ingress:
+    max-question-chars: 4096
+    max-body-bytes: 32768
+    max-user-token-bytes: 16384
+    max-in-flight: 8
+    total-timeout: 60s
+    response-reserve: 500ms
+  runtime:
+    base-url: http://127.0.0.1:8091
+    contract-version: 1
+    connect-timeout: 1s
+    max-response-bytes: 393216
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,agentRuntime
+  endpoints:
+    web:
+      exposure:
+        include: health

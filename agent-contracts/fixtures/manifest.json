@@ -1,0 +1,145 @@
+{
+  "contractVersion": 1,
+  "cases": [
+    {
+      "id": "public-request-valid",
+      "contract": "public",
+      "schema": "AgentQueryRequest",
+      "bodyFile": "public-request-valid.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true
+    },
+    {
+      "id": "public-request-unknown-field",
+      "contract": "public",
+      "schema": "AgentQueryRequest",
+      "bodyFile": "public-request-unknown-field.json",
+      "expectedSchemaValid": false,
+      "expectedSemanticValid": false
+    },
+    {
+      "id": "public-response-success",
+      "contract": "public",
+      "schema": "AgentQueryResponse",
+      "bodyFile": "public-response-success.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true
+    },
+    {
+      "id": "public-response-invalid-argument",
+      "contract": "public",
+      "schema": "AgentQueryResponse",
+      "bodyFile": "public-response-invalid-argument.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true
+    },
+    {
+      "id": "public-response-unknown-status",
+      "contract": "public",
+      "schema": "AgentQueryResponse",
+      "bodyFile": "public-response-unknown-status.json",
+      "expectedSchemaValid": false,
+      "expectedSemanticValid": false
+    },
+    {
+      "id": "public-response-success-with-error",
+      "contract": "public",
+      "schema": "AgentQueryResponse",
+      "bodyFile": "public-response-success-with-error.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": false
+    },
+    {
+      "id": "internal-request-valid",
+      "contract": "internal",
+      "schema": "RuntimeInvokeRequest",
+      "bodyFile": "internal-request-valid.json",
+      "headers": {
+        "Authorization": "Bearer synthetic.jwt.value",
+        "X-Agent-Contract-Version": "1"
+      },
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true,
+      "expectedProtocolStatus": 200
+    },
+    {
+      "id": "internal-request-version-conflict",
+      "contract": "internal",
+      "schema": "RuntimeInvokeRequest",
+      "bodyFile": "internal-request-valid.json",
+      "headers": {
+        "Authorization": "Bearer synthetic.jwt.value",
+        "X-Agent-Contract-Version": "2"
+      },
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": false,
+      "expectedProtocolStatus": 409
+    },
+    {
+      "id": "internal-request-missing-version-header",
+      "contract": "internal",
+      "schema": "RuntimeInvokeRequest",
+      "bodyFile": "internal-request-valid.json",
+      "headers": {
+        "Authorization": "Bearer synthetic.jwt.value"
+      },
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": false,
+      "expectedProtocolStatus": 400
+    },
+    {
+      "id": "internal-request-unknown-field",
+      "contract": "internal",
+      "schema": "RuntimeInvokeRequest",
+      "bodyFile": "internal-request-unknown-field.json",
+      "headers": {
+        "Authorization": "Bearer synthetic.jwt.value",
+        "X-Agent-Contract-Version": "1"
+      },
+      "expectedSchemaValid": false,
+      "expectedSemanticValid": false,
+      "expectedProtocolStatus": 400
+    },
+    {
+      "id": "internal-response-success",
+      "contract": "internal",
+      "schema": "RuntimeInvokeResponse",
+      "bodyFile": "internal-response-success.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true
+    },
+    {
+      "id": "internal-response-failure",
+      "contract": "internal",
+      "schema": "RuntimeInvokeResponse",
+      "bodyFile": "internal-response-failure.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true
+    },
+    {
+      "id": "internal-response-invalid-enum",
+      "contract": "internal",
+      "schema": "RuntimeInvokeResponse",
+      "bodyFile": "internal-response-invalid-enum.json",
+      "expectedSchemaValid": false,
+      "expectedSemanticValid": false
+    },
+    {
+      "id": "internal-response-success-with-failure",
+      "contract": "internal",
+      "schema": "RuntimeInvokeResponse",
+      "bodyFile": "internal-response-success-with-failure.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": false
+    },
+    {
+      "id": "internal-protocol-error",
+      "contract": "internal",
+      "schema": "RuntimeProtocolError",
+      "bodyFile": "internal-protocol-error.json",
+      "expectedSchemaValid": true,
+      "expectedSemanticValid": true,
+      "expectedProtocolStatus": 400
+    }
+  ]
+}

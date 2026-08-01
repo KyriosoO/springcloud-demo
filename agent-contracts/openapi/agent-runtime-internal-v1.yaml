@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: Single Agent Runtime Internal API
+  version: 1.0.0
+paths:
+  /internal/v1/agent-runs:invoke:
+    post:
+      operationId: invokeAgentRuntime
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 16391
+            pattern: "^Bearer .+$"
+        - name: X-Agent-Contract-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            const: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuntimeInvokeRequest"
+            examples:
+              valid:
+                externalValue: ../fixtures/internal-request-valid.json
+      responses:
+        "200":
+          description: Runtime semantic response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeInvokeResponse"
+              examples:
+                success:
+                  externalValue: ../fixtures/internal-response-success.json
+                failure:
+                  externalValue: ../fixtures/internal-response-failure.json
+        "400":
+          $ref: "#/components/responses/RuntimeProtocolError"
+        "401":
+          $ref: "#/components/responses/RuntimeProtocolError"
+        "409":
+          $ref: "#/components/responses/RuntimeProtocolError"
+        "413":
+          $ref: "#/components/responses/RuntimeProtocolError"
+        "415":
+          $ref: "#/components/responses/RuntimeProtocolError"
+        "429":
+          $ref: "#/components/responses/RuntimeProtocolError"
+        "500":
+          $ref: "#/components/responses/RuntimeProtocolError"
+  /internal/health/live:
+    get:
+      operationId: runtimeLiveness
+      responses:
+        "200":
+          description: ASGI event loop is alive. No response body contract.
+  /internal/health/ready:
+    get:
+      operationId: runtimeReadiness
+      responses:
+        "200":
+          description: Runtime object graph is ready. No response body contract.
+        "503":
+          description: Runtime object graph is not ready. No response body contract.
+components:
+  responses:
+    RuntimeProtocolError:
+      description: Fixed, safe transport error body.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RuntimeProtocolError"
+          examples:
+            protocolError:
+              externalValue: ../fixtures/internal-protocol-error.json
+  schemas:
+    CapabilityStatus:
+      type: string
+      enum:
+        - success
+        - no_result
+        - unsupported
+        - invalid_argument
+        - unauthenticated
+        - forbidden
+        - timeout
+        - downstream_failure
+        - model_egress_denied
+        - internal_failure
+    FailureSource:
+      type: string
+      enum: [core, capability, downstream, policy]
+    FailureResponse:
+      type: object
+      additionalProperties: false
+      required: [code, source]
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 128
+          pattern: "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        source:
+          $ref: "#/components/schemas/FailureSource"
+    RuntimeSubject:
+      type: object
+      additionalProperties: false
+      required: [id, type]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          x-maxUtf8Bytes: 256
+        type:
+          type: string
+          const: user
+    RuntimeInvokeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - requestId
+        - correlationId
+        - question
+        - subject
+        - deadlineEpochMs
+        - remainingTimeoutMs
+      properties:
+        contractVersion:
+          type: integer
+          const: 1
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: "^[\\x20-\\x7E]+$"
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: "^[\\x20-\\x7E]+$"
+        question:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        subject:
+          $ref: "#/components/schemas/RuntimeSubject"
+        deadlineEpochMs:
+          type: integer
+          format: int64
+          minimum: 1
+        remainingTimeoutMs:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 120000
+    RuntimeInvokeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - requestId
+        - status
+        - capabilityId
+        - answerText
+        - userResult
+        - failure
+      properties:
+        contractVersion:
+          type: integer
+          const: 1
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/CapabilityStatus"
+        capabilityId:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 80
+          pattern: "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        answerText:
+          type: [string, "null"]
+        userResult:
+          type: [object, "null"]
+        failure:
+          anyOf:
+            - $ref: "#/components/schemas/FailureResponse"
+            - type: "null"
+    RuntimeProtocolError:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, code]
+      properties:
+        contractVersion:
+          type: integer
+          const: 1
+        code:
+          type: string
+          enum:
+            - runtime.protocol_error
+            - runtime.internal_error
+x-contract-limits:
+  maxRequestBodyBytes: 32768
+  maxResponseBodyBytes: 393216
+  maxQuestionCodePoints: 4096
+  maxUserTokenUtf8Bytes: 16384
+  maxCombinedHeaderBytes: 32768

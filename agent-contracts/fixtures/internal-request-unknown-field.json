@@ -1,0 +1,13 @@
+{
+  "contractVersion": 1,
+  "requestId": "0d67ffc8-d28d-4cc0-a154-ea16c783f8ce",
+  "correlationId": "corr-102",
+  "question": "请查询员工信息",
+  "subject": {
+    "id": "dylan",
+    "type": "user"
+  },
+  "deadlineEpochMs": 1785600060000,
+  "remainingTimeoutMs": 59500,
+  "actionId": "forbidden"
+}

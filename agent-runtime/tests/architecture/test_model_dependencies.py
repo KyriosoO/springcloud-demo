@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+
+SOURCE = Path(__file__).resolve().parents[2] / "src" / "agent_runtime"
+
+
+def _imports(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            names.add(node.module)
+    return names
+
+
+def test_core_graph_and_capability_api_do_not_depend_on_model_package() -> None:
+    paths = [
+        SOURCE / "capability_api" / "contracts.py",
+        *(SOURCE / "core").glob("*.py"),
+        *(SOURCE / "graph").glob("*.py"),
+        SOURCE / "runtime.py",
+        SOURCE / "settings.py",
+    ]
+
+    for path in paths:
+        assert not any(name.startswith("agent_runtime.model") for name in _imports(path))
+
+
+def test_provider_neutral_model_modules_do_not_import_deepseek_dto_or_http_clients() -> None:
+    neutral_paths = [
+        path
+        for path in (SOURCE / "model").glob("*.py")
+        if path.name != "__init__.py"
+    ]
+    forbidden = ("agent_runtime.model.deepseek", "httpx", "requests", "aiohttp", "openai", "langchain")
+
+    for path in neutral_paths:
+        imports = _imports(path)
+        assert not any(name == marker or name.startswith(f"{marker}.") for name in imports for marker in forbidden)
+
+
+def test_local_slice_has_no_live_transport_or_http_dependency() -> None:
+    assert not (SOURCE / "model" / "deepseek" / "transport.py").exists()
+    all_imports = {
+        name
+        for path in (SOURCE / "model").rglob("*.py")
+        for name in _imports(path)
+    }
+    assert not any(
+        name == marker or name.startswith(f"{marker}.")
+        for name in all_imports
+        for marker in ("httpx", "requests", "aiohttp", "openai", "langchain")
+    )
+
+
+def test_transport_protocol_uses_only_neutral_request_and_response() -> None:
+    tree = ast.parse((SOURCE / "model" / "contracts.py").read_text(encoding="utf-8"))
+    protocol = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "StructuredModelTransport"
+    )
+    complete = next(
+        node for node in protocol.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "complete"
+    )
+
+    assert ast.unparse(complete.args.args[1].annotation) == "StructuredModelRequest"
+    assert ast.unparse(complete.returns) == "StructuredModelResponse"
+
+
+def test_model_context_binding_is_outside_core_runtime_implementation() -> None:
+    runtime_text = (SOURCE / "runtime.py").read_text(encoding="utf-8")
+    core_text = (SOURCE / "core" / "execution.py").read_text(encoding="utf-8")
+    context_text = (SOURCE / "model" / "context.py").read_text(encoding="utf-8")
+
+    assert "ContextVar" not in runtime_text
+    assert "ContextVar" not in core_text
+    assert "ContextVar" in context_text
+    assert "finally:" in context_text and "reset(token)" in context_text
+
+
+def test_context_projection_and_model_package_exclude_identity_domain_and_dynamic_prompt_inputs() -> None:
+    context_tree = ast.parse((SOURCE / "model" / "context.py").read_text(encoding="utf-8"))
+    projected_context_attributes = {
+        node.attr
+        for node in ast.walk(context_tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Attribute)
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id == "scope"
+        and node.value.attr == "context"
+    }
+    model_text = "\n".join(path.read_text(encoding="utf-8") for path in (SOURCE / "model").rglob("*.py"))
+
+    assert projected_context_attributes == {"request_id", "correlation_id", "deadline_monotonic"}
+    assert "OpaqueUserToken" not in model_text
+    assert "domain_result" not in model_text
+    assert "os.environ" not in model_text

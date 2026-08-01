@@ -1,0 +1,14 @@
+{
+  "contractVersion": 1,
+  "requestId": "7251cedd-6762-4fd3-874d-b1607570f0ac",
+  "status": "success",
+  "capabilityId": "employee.get",
+  "answerText": "查询已完成。",
+  "userResult": {
+    "employeeId": "E-100"
+  },
+  "failure": {
+    "code": "core.invalid_result",
+    "source": "core"
+  }
+}
