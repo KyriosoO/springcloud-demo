@@ -4,7 +4,7 @@ import json
 import math
 
 from agent_runtime.knowledge.retrieval.contracts import AuthorizedKnowledgeCandidate, RerankScore
-from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, LocalFakeHttpTransport, RetrievalTransportError
+from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, KnowledgeHttpTransport, RetrievalTransportError
 
 
 def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -20,7 +20,7 @@ class BgeRerankAdapter:
     __slots__ = ("_transport",)
     MODEL = "BAAI/bge-reranker-v2-m3"
 
-    def __init__(self, transport: LocalFakeHttpTransport) -> None:
+    def __init__(self, transport: KnowledgeHttpTransport) -> None:
         self._transport = transport
 
     async def rerank(
@@ -74,4 +74,3 @@ class BgeRerankAdapter:
         if seen != set(range(len(candidates))):
             raise RetrievalTransportError("invalid_response")
         return tuple(scores)
-

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 
-from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, LocalFakeHttpTransport, RetrievalTransportError
+from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, KnowledgeHttpTransport, RetrievalTransportError
 
 
 def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -18,7 +18,7 @@ def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
 class BgeM3EmbeddingAdapter:
     __slots__ = ("_transport",)
 
-    def __init__(self, transport: LocalFakeHttpTransport) -> None:
+    def __init__(self, transport: KnowledgeHttpTransport) -> None:
         self._transport = transport
 
     async def embed(self, *, text: str, timeout_s: float) -> tuple[float, ...]:
@@ -51,4 +51,3 @@ class BgeM3EmbeddingAdapter:
         if any(type(item) not in (int, float) or isinstance(item, bool) or not math.isfinite(item) for item in vectors[0]):
             raise RetrievalTransportError("invalid_response")
         return tuple(float(item) for item in vectors[0])
-

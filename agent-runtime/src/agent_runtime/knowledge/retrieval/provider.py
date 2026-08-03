@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from agent_runtime.knowledge.retrieval.bge_embedding import BgeM3EmbeddingAdapter
 from agent_runtime.knowledge.retrieval.bge_rerank import BgeRerankAdapter
 from agent_runtime.knowledge.retrieval.es_adapter import EsKnowledgeSearchAdapter
-from agent_runtime.knowledge.retrieval.http import LocalFakeHttpTransport
+from agent_runtime.knowledge.retrieval.http import KnowledgeHttpTransport
 from agent_runtime.knowledge.retrieval.settings import KnowledgeRetrievalSettings
 from agent_runtime.knowledge.retrieval.stage import DefaultKnowledgeRetrievalStage
 
@@ -19,15 +19,15 @@ class LocalKnowledgeRetrievalComponents:
 
 
 class LocalKnowledgeRetrievalFactory:
-    """Composes only injected in-memory/local-fake transports; it opens no connection."""
+    """Composes injected transports without owning their connection lifecycle."""
 
     @staticmethod
     def build(
         *,
         settings: KnowledgeRetrievalSettings,
-        search_transport: LocalFakeHttpTransport,
-        embedding_transport: LocalFakeHttpTransport,
-        rerank_transport: LocalFakeHttpTransport,
+        search_transport: KnowledgeHttpTransport,
+        embedding_transport: KnowledgeHttpTransport,
+        rerank_transport: KnowledgeHttpTransport,
     ) -> LocalKnowledgeRetrievalComponents:
         if settings.es_base_url is None:
             raise ValueError("knowledge.retrieval_es_base_url_required")

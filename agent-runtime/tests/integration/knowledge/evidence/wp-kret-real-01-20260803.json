@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-KRET-REAL-01",
+  "recordedAt": "2026-08-03T09:50:51Z",
+  "environment": "local-personal-r-and-d",
+  "dataBoundary": {
+    "questionKind": "synthetic",
+    "realKnowledgeContentPersisted": false,
+    "jwtPersisted": false,
+    "externalModelCalled": false
+  },
+  "indexSnapshot": {
+    "sourceIndex": "agent-doc-tax-policy-v3-20260710-dataopt-bge-m3",
+    "readIndex": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "readIndexUuid": "k97bn1gxROSfVm7zGfzbOg",
+    "mappingVersion": "agent-knowledge-tax-v1",
+    "documentCount": 14783,
+    "sourceAndReadIndexDigestSha256": "acd31d59eb80fe15200b035a2437de7d66e36bbc75f59e8364655f8f92fea7fe",
+    "writeBlocked": true,
+    "readAlias": "agent-doc-tax-policy-v2-read",
+    "writeAlias": "agent-doc-tax-policy-v2-write",
+    "writeAliasRemainsOnSourceIndex": true
+  },
+  "retrievalProfiles": [
+    {
+      "logicalDomainId": "tax.policy",
+      "retrievalProfileId": "tax-policy-v1",
+      "indexSnapshotId": "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed"
+    },
+    {
+      "logicalDomainId": "tax.law",
+      "retrievalProfileId": "tax-law-v1",
+      "indexSnapshotId": "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+    }
+  ],
+  "authorizationMatrix": {
+    "admin": "allowed-four-path-success",
+    "viewer": "allowed-four-path-success",
+    "unknownRole": {
+      "result": "forbidden",
+      "esQueryDelta": 0,
+      "rerankCalls": 0,
+      "agentBatchCount": 0,
+      "queryOnlyEmbeddingCalls": 1
+    },
+    "missingToken": {
+      "httpStatus": 401,
+      "esQueryDelta": 0
+    },
+    "malformedToken": {
+      "httpStatus": 401,
+      "esQueryDelta": 0
+    },
+    "serviceToken": {
+      "httpStatus": 401,
+      "esQueryDelta": 0
+    }
+  },
+  "validation": {
+    "liveTests": {
+      "passed": 2,
+      "failed": 0,
+      "readAlias": "agent-doc-tax-policy-v2-read",
+      "logLeakCount": 0
+    },
+    "pythonRelatedRegression": {
+      "passed": 48,
+      "skippedOptInLive": 2,
+      "failed": 0,
+      "mypyErrors": 0
+    },
+    "javaRegression": {
+      "commonSecurityPassed": 21,
+      "authServicePassed": 6,
+      "esQueryServicePassed": 43,
+      "failed": 0
+    }
+  },
+  "activation": {
+    "knowledgeEndpointDefaultEnabled": false,
+    "runtimeRealRetrievalDefaultEnabled": false,
+    "productionReadinessClaimed": false
+  },
+  "rollback": {
+    "action": "atomically-point-read-alias-back-to-source-index",
+    "indexDeletionRequired": false
+  }
+}

@@ -1,0 +1,68 @@
+spring:
+  config:
+    activate:
+      on-profile: knowledge-live
+
+es:
+  query:
+    knowledge:
+      enabled: true
+      profiles:
+        tax-policy-v1:
+          logical-domain-id: tax.policy
+          profile-version: tax-knowledge-search-v1
+          read-policy-version: tax-public-authenticated-v1
+          read-alias: ${AGENT_KNOWLEDGE_READ_ALIAS}
+          expected-index-name: ${AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME}
+          expected-index-uuid: ${AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID}
+          mapping-version: ${AGENT_KNOWLEDGE_MAPPING_VERSION}
+          index-snapshot-id: ${AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID}
+          category-field: channel
+          category-values:
+            - 税务规范性文件
+            - 财税文件
+            - 工作通知
+            - 其他文件
+            - 政策解读
+            - 税务部门规章
+            - 国务院文件
+            - curated
+          keyword-fields: [title, content, section]
+          vector-field: embedding
+          source-fields:
+            document-id: documentId
+            chunk-id: chunkId
+            title: title
+            content: content
+            source-url: sourceUrl
+            document-number: documentNo
+            written-date: writtenDate
+            material-type: materialType
+            policy-ref: aclRef
+          max-candidates: 20
+          max-content-chars: 4096
+        tax-law-v1:
+          logical-domain-id: tax.law
+          profile-version: tax-knowledge-search-v1
+          read-policy-version: tax-public-authenticated-v1
+          read-alias: ${AGENT_KNOWLEDGE_READ_ALIAS}
+          expected-index-name: ${AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME}
+          expected-index-uuid: ${AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID}
+          mapping-version: ${AGENT_KNOWLEDGE_MAPPING_VERSION}
+          index-snapshot-id: ${AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID}
+          category-field: channel
+          category-values: [法律, 行政法规]
+          keyword-fields: [title, content, section]
+          vector-field: embedding
+          source-fields:
+            document-id: documentId
+            chunk-id: chunkId
+            title: title
+            content: content
+            source-url: sourceUrl
+            document-number: documentNo
+            written-date: writtenDate
+            material-type: materialType
+            policy-ref: aclRef
+          max-candidates: 20
+          max-content-chars: 4096

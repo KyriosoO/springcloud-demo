@@ -113,3 +113,122 @@ async def test_es_adapter_rejects_drifted_or_ambiguous_success_contract(mutate: 
 
     assert result.kind is PathResultKind.FAILURE
     assert result.failure is PathResultFailure.INVALID_PROVIDER_RESULT
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content", ["第一行\n第二行", "第一列\t第二列", "第一段\r\n第二段"])
+async def test_es_adapter_accepts_bounded_json_whitespace_in_content(content: str) -> None:
+    response = {
+        "schemaVersion": 1, "logicalDomainId": "tax.law", "retrievalProfileId": "tax-law-v1",
+        "path": "keyword", "profileVersion": "tax-knowledge-search-v1", "indexSnapshotId": "a" * 64,
+        "readPolicyVersion": "tax-public-authenticated-v1", "truncated": False,
+        "candidates": [{
+            "documentId": "d1", "chunkId": "c1", "logicalDomainId": "tax.law", "title": "标题",
+            "content": content, "sourceUrl": None, "documentNumber": None, "writtenDate": None,
+            "materialType": "tax_policy", "sourceRank": 1,
+            "contentSha256": hashlib.sha256(content.encode()).hexdigest(), "policyRef": "policy-doc-v1",
+        }],
+    }
+    transport = FakeTransport(BoundedHttpResponse(
+        status_code=200,
+        content_type="application/json",
+        content_encoding=None,
+        body=json.dumps(response, ensure_ascii=False).encode(),
+    ))
+    request_scope = scope()
+    context = KnowledgeRetrievalContext(
+        request_id="r", correlation_id="c", subject="u", user_token=request_scope.context.user_token,
+        deadline_monotonic=asyncio.get_running_loop().time() + 5, cancellation=ManualCancellationSignal(),
+    )
+
+    result = await EsKnowledgeSearchAdapter(transport).search(
+        request=KnowledgePathRequest(
+            logical_domain_id="tax.law", retrieval_profile_id="tax-law-v1",
+            path=RetrievalPath.KEYWORD, query_text="税", query_vector=None, candidate_limit=5,
+        ),
+        context=context,
+        timeout_s=1,
+    )
+
+    assert result.kind is PathResultKind.CANDIDATES
+    assert result.candidates[0].content == content
+
+
+@pytest.mark.asyncio
+async def test_es_adapter_rejects_unsafe_control_character_in_content() -> None:
+    content = "正文\u0000隐藏"
+    response = {
+        "schemaVersion": 1, "logicalDomainId": "tax.policy", "retrievalProfileId": "tax-policy-v1",
+        "path": "keyword", "profileVersion": "tax-knowledge-search-v1", "indexSnapshotId": "a" * 64,
+        "readPolicyVersion": "tax-public-authenticated-v1", "truncated": False,
+        "candidates": [{
+            "documentId": "d1", "chunkId": "c1", "logicalDomainId": "tax.policy", "title": "标题",
+            "content": content, "sourceUrl": None, "documentNumber": None, "writtenDate": None,
+            "materialType": "tax_policy", "sourceRank": 1,
+            "contentSha256": hashlib.sha256(content.encode()).hexdigest(), "policyRef": "policy-doc-v1",
+        }],
+    }
+    transport = FakeTransport(BoundedHttpResponse(
+        status_code=200,
+        content_type="application/json",
+        content_encoding=None,
+        body=json.dumps(response, ensure_ascii=False).encode(),
+    ))
+    request_scope = scope()
+    context = KnowledgeRetrievalContext(
+        request_id="r", correlation_id="c", subject="u", user_token=request_scope.context.user_token,
+        deadline_monotonic=asyncio.get_running_loop().time() + 5, cancellation=ManualCancellationSignal(),
+    )
+
+    result = await EsKnowledgeSearchAdapter(transport).search(
+        request=KnowledgePathRequest(
+            logical_domain_id="tax.policy", retrieval_profile_id="tax-policy-v1",
+            path=RetrievalPath.KEYWORD, query_text="税", query_vector=None, candidate_limit=5,
+        ),
+        context=context,
+        timeout_s=1,
+    )
+
+    assert result.kind is PathResultKind.FAILURE
+    assert result.failure is PathResultFailure.INVALID_PROVIDER_RESULT
+
+
+@pytest.mark.asyncio
+async def test_es_adapter_accepts_empty_optional_source_strings_and_title() -> None:
+    content = "有效正文"
+    response = {
+        "schemaVersion": 1, "logicalDomainId": "tax.law", "retrievalProfileId": "tax-law-v1",
+        "path": "keyword", "profileVersion": "tax-knowledge-search-v1", "indexSnapshotId": "a" * 64,
+        "readPolicyVersion": "tax-public-authenticated-v1", "truncated": False,
+        "candidates": [{
+            "documentId": "d1", "chunkId": "c1", "logicalDomainId": "tax.law", "title": "",
+            "content": content, "sourceUrl": "", "documentNumber": "", "writtenDate": None,
+            "materialType": "tax_policy", "sourceRank": 1,
+            "contentSha256": hashlib.sha256(content.encode()).hexdigest(), "policyRef": "policy-doc-v1",
+        }],
+    }
+    transport = FakeTransport(BoundedHttpResponse(
+        status_code=200,
+        content_type="application/json",
+        content_encoding=None,
+        body=json.dumps(response, ensure_ascii=False).encode(),
+    ))
+    request_scope = scope()
+    context = KnowledgeRetrievalContext(
+        request_id="r", correlation_id="c", subject="u", user_token=request_scope.context.user_token,
+        deadline_monotonic=asyncio.get_running_loop().time() + 5, cancellation=ManualCancellationSignal(),
+    )
+
+    result = await EsKnowledgeSearchAdapter(transport).search(
+        request=KnowledgePathRequest(
+            logical_domain_id="tax.law", retrieval_profile_id="tax-law-v1",
+            path=RetrievalPath.KEYWORD, query_text="税", query_vector=None, candidate_limit=5,
+        ),
+        context=context,
+        timeout_s=1,
+    )
+
+    assert result.kind is PathResultKind.CANDIDATES
+    assert result.candidates[0].title == ""
+    assert result.candidates[0].source_url == ""
+    assert result.candidates[0].document_number == ""

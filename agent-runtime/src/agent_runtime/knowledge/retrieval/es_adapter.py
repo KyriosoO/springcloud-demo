@@ -14,24 +14,36 @@ from agent_runtime.knowledge.retrieval.contracts import (
     PathResultKind,
     PathRetrievalResult,
 )
-from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, LocalFakeHttpTransport, RetrievalTransportError
+from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, KnowledgeHttpTransport, RetrievalTransportError
 
 PROFILE_BY_DOMAIN = {"tax.policy": "tax-policy-v1", "tax.law": "tax-law-v1"}
 _SAFE_ID = re.compile(r"[A-Za-z0-9._:-]{1,256}")
 _LOWER_HEX_64 = re.compile(r"[0-9a-f]{64}")
+_CONTENT_CONTROLS = frozenset({"\t", "\n", "\r"})
 
 
 def _reject_constant(_: str) -> None:
     raise ValueError("knowledge.invalid_provider_result")
 
 
-def _text(value: object, *, maximum: int, optional: bool = False) -> str | None:
+def _text(
+    value: object,
+    *,
+    maximum: int,
+    optional: bool = False,
+    empty_allowed: bool = False,
+    allowed_controls: frozenset[str] = frozenset(),
+) -> str | None:
     if value is None and optional:
         return None
     if type(value) is not str:
         raise ValueError("knowledge.invalid_provider_result")
     normalized = unicodedata.normalize("NFC", value)
-    if not 1 <= len(normalized) <= maximum or any(unicodedata.category(character) == "Cc" for character in normalized):
+    minimum = 0 if empty_allowed else 1
+    if not minimum <= len(normalized) <= maximum or any(
+        unicodedata.category(character) == "Cc" and character not in allowed_controls
+        for character in normalized
+    ):
         raise ValueError("knowledge.invalid_provider_result")
     return normalized
 
@@ -48,7 +60,7 @@ def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
 class EsKnowledgeSearchAdapter:
     __slots__ = ("_expected_profile_version", "_transport")
 
-    def __init__(self, transport: LocalFakeHttpTransport, *, expected_profile_version: str = "tax-knowledge-search-v1") -> None:
+    def __init__(self, transport: KnowledgeHttpTransport, *, expected_profile_version: str = "tax-knowledge-search-v1") -> None:
         if expected_profile_version != "tax-knowledge-search-v1":
             raise ValueError("knowledge.invalid_profile_version")
         self._transport = transport
@@ -168,10 +180,10 @@ class EsKnowledgeSearchAdapter:
                 written = date.fromisoformat(written_raw)
             else:
                 raise ValueError("knowledge.invalid_provider_result")
-            title = _text(item["title"], maximum=256)
-            content = _text(item["content"], maximum=4096)
-            source_url = _text(item["sourceUrl"], maximum=1024, optional=True)
-            document_number = _text(item["documentNumber"], maximum=256, optional=True)
+            title = _text(item["title"], maximum=256, empty_allowed=True)
+            content = _text(item["content"], maximum=4096, allowed_controls=_CONTENT_CONTROLS)
+            source_url = _text(item["sourceUrl"], maximum=1024, optional=True, empty_allowed=True)
+            document_number = _text(item["documentNumber"], maximum=256, optional=True, empty_allowed=True)
             material_type = _text(item["materialType"], maximum=256)
             if type(item["sourceRank"]) is not int or not 1 <= item["sourceRank"] <= request.candidate_limit:
                 raise ValueError("knowledge.invalid_provider_result")

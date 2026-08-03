@@ -14,6 +14,7 @@ import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 
@@ -32,11 +33,11 @@ public final class KidAwareJwtDecoder implements JwtDecoder {
 	public Jwt decode(String token) throws JwtException {
 		String keyId = keyId(token);
 		if (keyId == null || keyId.isBlank()) {
-			throw new JwtException("JWT kid is required");
+			throw new BadJwtException("JWT kid is required");
 		}
 		SecretKey key = jwtKeyProvider.current().verificationKeys().get(keyId);
 		if (key == null) {
-			throw new JwtException("Unknown JWT kid");
+			throw new BadJwtException("Unknown JWT kid");
 		}
 		return decoders.computeIfAbsent(keyId, ignored -> createDecoder(key)).decode(token);
 	}
@@ -55,7 +56,7 @@ public final class KidAwareJwtDecoder implements JwtDecoder {
 		try {
 			return SignedJWT.parse(token).getHeader().getKeyID();
 		} catch (ParseException ex) {
-			throw new JwtException("Invalid JWT format", ex);
+			throw new BadJwtException("Invalid JWT format", ex);
 		}
 	}
 

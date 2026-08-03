@@ -68,8 +68,19 @@ class AuthorizedKnowledgeCandidate:
     index_snapshot_id: str
 
     def __post_init__(self) -> None:
-        required = (self.document_id, self.chunk_id, self.domain_id, self.title, self.content, self.material_type, self.read_policy_version, self.policy_ref, self.index_snapshot_id)
+        required = (
+            self.document_id,
+            self.chunk_id,
+            self.domain_id,
+            self.content,
+            self.material_type,
+            self.read_policy_version,
+            self.policy_ref,
+            self.index_snapshot_id,
+        )
         if any(not isinstance(value, str) or not value for value in required):
+            raise ValueError("knowledge.invalid_candidate")
+        if not isinstance(self.title, str):
             raise ValueError("knowledge.invalid_candidate")
         if self.domain_id not in {"tax.policy", "tax.law"} or not 1 <= self.source_rank <= 20:
             raise ValueError("knowledge.invalid_candidate")
@@ -172,4 +183,3 @@ class RerankPort(Protocol):
         candidates: tuple[AuthorizedKnowledgeCandidate, ...],
         timeout_s: float,
     ) -> tuple[RerankScore, ...]: ...
-

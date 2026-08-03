@@ -9,10 +9,10 @@ import java.util.Map;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 class KidAwareJwtDecoderTest {
@@ -32,11 +32,18 @@ class KidAwareJwtDecoderTest {
 		String missingKid = token(null, SecretTestSupport.hmacKey((byte) 1));
 
 		assertThatThrownBy(() -> decoder.decode(unknownKid))
-				.isInstanceOf(JwtException.class)
+				.isInstanceOf(BadJwtException.class)
 				.hasMessageContaining("Unknown JWT kid");
 		assertThatThrownBy(() -> decoder.decode(missingKid))
-				.isInstanceOf(JwtException.class)
+				.isInstanceOf(BadJwtException.class)
 				.hasMessageContaining("kid is required");
+	}
+
+	@Test
+	void classifiesMalformedCompactJwtAsBadJwt() {
+		assertThatThrownBy(() -> decoder().decode("not-a-jwt"))
+				.isInstanceOf(BadJwtException.class)
+				.hasMessageContaining("Invalid JWT format");
 	}
 
 	private static KidAwareJwtDecoder decoder() {
