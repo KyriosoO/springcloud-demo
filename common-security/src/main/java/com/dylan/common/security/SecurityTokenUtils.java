@@ -35,7 +35,11 @@ public final class SecurityTokenUtils {
 	 * 判断是否为最终用户 token。
 	 */
 	public static boolean isUserToken(Jwt jwt) {
-		return jwt != null && USER_TOKEN_TYPE.equals(jwt.getClaimAsString(TOKEN_TYPE_CLAIM));
+		if (jwt == null) {
+			return false;
+		}
+		Object tokenType = jwt.getClaims().get(TOKEN_TYPE_CLAIM);
+		return tokenType instanceof String value && USER_TOKEN_TYPE.equals(value);
 	}
 
 	/**

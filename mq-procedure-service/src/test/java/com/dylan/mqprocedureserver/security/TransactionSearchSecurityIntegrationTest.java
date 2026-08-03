@@ -1,10 +1,12 @@
 package com.dylan.mqprocedureserver.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -12,12 +14,19 @@ import java.util.Map;
 import reactor.core.publisher.Mono;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -38,9 +47,17 @@ import com.dylan.transaction.api.query.TransactionSearchResponse;
 @Import({ TransactionSearchSecurityConfiguration.class, CapabilityAccessGuard.class,
 		UserRoleAuthorityAutoConfiguration.class, TransactionSearchJsonConfiguration.class })
 @TestPropertySource(properties = { "spring.cloud.config.enabled=false", "spring.config.import=" })
+@ExtendWith(OutputCaptureExtension.class)
 class TransactionSearchSecurityIntegrationTest {
+	private static final String SENSITIVE_TOKEN = "sensitive-transaction-token";
+	private static final String SENSITIVE_SUBJECT = "sensitive-transaction-subject";
+	private static final String SENSITIVE_ROLE = "SENSITIVE_TRANSACTION_ROLE";
+	private static final String SENSITIVE_TRANSACTION_ID = "sensitive-transaction-id";
 	@Autowired
 	private WebTestClient client;
+	@Autowired
+	@Qualifier("reactiveUserRoleJwtAuthenticationConverter")
+	private Converter<Jwt, Mono<AbstractAuthenticationToken>> userRoleConverter;
 	@MockitoBean
 	private ReactiveJwtDecoder jwtDecoder;
 	@MockitoBean
@@ -51,6 +68,12 @@ class TransactionSearchSecurityIntegrationTest {
 	private TransactionOperMQProducer mqProducer;
 	@MockitoBean
 	private TransactionMapper transactionMapper;
+
+	@Test
+	void usesTheSharedReactiveAdapterWithoutProviderOverride() {
+		assertThat(userRoleConverter)
+				.isInstanceOf(ReactiveJwtAuthenticationConverterAdapter.class);
+	}
 
 	@Test
 	void adminAndViewerCanSearch() {
@@ -71,16 +94,27 @@ class TransactionSearchSecurityIntegrationTest {
 	}
 
 	@Test
-	void invalidRoleAndServiceTokenAreRejectedBeforeService() {
-		when(jwtDecoder.decode("unknown")).thenReturn(Mono.just(jwt("user", List.of("UNKNOWN"))));
-		when(jwtDecoder.decode("service")).thenReturn(Mono.just(jwt("service", List.of("ADMIN"))));
-		client.post().uri("/txn/search").header(HttpHeaders.AUTHORIZATION, "Bearer unknown")
-				.header(HttpHeaders.CONTENT_TYPE, "application/json").bodyValue(searchBody())
-				.exchange().expectStatus().isForbidden();
-		client.post().uri("/txn/search").header(HttpHeaders.AUTHORIZATION, "Bearer service")
-				.header(HttpHeaders.CONTENT_TYPE, "application/json").bodyValue(searchBody())
+	void rejectedRequestsDoNotReachServiceOrLeakSensitiveValues(CapturedOutput output) {
+		when(jwtDecoder.decode(SENSITIVE_TOKEN))
+				.thenReturn(Mono.just(jwt(SENSITIVE_TOKEN, SENSITIVE_SUBJECT, "user", List.of(SENSITIVE_ROLE))));
+		when(jwtDecoder.decode("sensitive-transaction-service-token"))
+				.thenReturn(Mono.just(jwt("sensitive-transaction-service-token",
+						"sensitive-transaction-service-subject", "service", List.of("ADMIN"))));
+		byte[] forbidden = client.post().uri("/txn/search")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + SENSITIVE_TOKEN)
+				.header(HttpHeaders.CONTENT_TYPE, "application/json").bodyValue(sensitiveSearchBody())
+				.exchange().expectStatus().isForbidden().expectBody().returnResult().getResponseBody();
+		byte[] unauthorized = client.post().uri("/txn/search")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer sensitive-transaction-service-token")
+				.header(HttpHeaders.CONTENT_TYPE, "application/json").bodyValue(sensitiveSearchBody())
+				.exchange().expectStatus().isUnauthorized().expectBody().returnResult().getResponseBody();
+		client.post().uri("/txn/search")
+				.header(HttpHeaders.CONTENT_TYPE, "application/json").bodyValue(sensitiveSearchBody())
 				.exchange().expectStatus().isUnauthorized();
 		verify(transactionService, never()).search(any());
+		assertNoSensitiveValues(responseText(forbidden));
+		assertNoSensitiveValues(responseText(unauthorized));
+		assertNoSensitiveValues(output.getAll());
 	}
 
 	@Test
@@ -110,9 +144,27 @@ class TransactionSearchSecurityIntegrationTest {
 		return "{\"condition\":{\"transId\":\"synthetic-id\"},\"page\":1,\"size\":20}";
 	}
 
+	private static String sensitiveSearchBody() {
+		return searchBody().replace("synthetic-id", SENSITIVE_TRANSACTION_ID);
+	}
+
+	private static String responseText(byte[] body) {
+		return body == null ? "" : new String(body, StandardCharsets.UTF_8);
+	}
+
+	private static void assertNoSensitiveValues(String actual) {
+		assertThat(actual).doesNotContain(SENSITIVE_TOKEN, SENSITIVE_SUBJECT, SENSITIVE_ROLE,
+				SENSITIVE_TRANSACTION_ID, "sensitive-transaction-service-token",
+				"sensitive-transaction-service-subject");
+	}
+
 	private static Jwt jwt(String tokenType, List<String> roles) {
+		return jwt("token", "synthetic-user", tokenType, roles);
+	}
+
+	private static Jwt jwt(String tokenValue, String subject, String tokenType, List<String> roles) {
 		Instant now = Instant.parse("2026-08-03T00:00:00Z");
-		return Jwt.withTokenValue("token").header("alg", "none").subject("synthetic-user")
+		return Jwt.withTokenValue(tokenValue).header("alg", "none").subject(subject)
 				.issuedAt(now).expiresAt(now.plusSeconds(300))
 				.claim(SecurityTokenUtils.TOKEN_TYPE_CLAIM, tokenType)
 				.claim("role", roles).build();

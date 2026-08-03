@@ -1,7 +1,6 @@
 package com.dylan.common.security;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.springframework.core.convert.converter.Converter;
@@ -37,9 +36,9 @@ public final class UserRoleJwtAuthenticationConverter
 		return new JwtAuthenticationToken(jwt, authorities(jwt));
 	}
 
-	private static Collection<GrantedAuthority> authorities(Jwt jwt) {
+	private static List<GrantedAuthority> authorities(Jwt jwt) {
 		Object claim = jwt.getClaims().get(ROLE_CLAIM);
-		if (!(claim instanceof Collection<?> roles) || roles.isEmpty()) {
+		if (!(claim instanceof List<?> roles) || roles.isEmpty()) {
 			return List.of();
 		}
 

@@ -10,6 +10,8 @@ import reactor.core.publisher.Mono;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -41,6 +43,46 @@ class UserRoleAuthorityAutoConfigurationTest {
 					.extracting(Object::toString)
 					.containsExactly("ROLE_ADMIN", "ROLE_VIEWER");
 		});
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void equivalentServletOverrideIsTheSingleReactiveDelegate() {
+		contextRunner.withUserConfiguration(EquivalentOverrideConfiguration.class).run(context -> {
+			Converter<Jwt, AbstractAuthenticationToken> servlet =
+					(Converter<Jwt, AbstractAuthenticationToken>) context
+							.getBean("userRoleJwtAuthenticationConverter", Converter.class);
+			Converter<Jwt, Mono<AbstractAuthenticationToken>> reactive =
+					(Converter<Jwt, Mono<AbstractAuthenticationToken>>) context
+							.getBean("reactiveUserRoleJwtAuthenticationConverter", Converter.class);
+
+			assertThat(servlet).isInstanceOf(EquivalentUserRoleConverter.class);
+			assertThat(servlet.convert(userJwt()).getAuthorities())
+					.extracting(Object::toString)
+					.containsExactly("ROLE_ADMIN", "ROLE_VIEWER");
+			assertThat(reactive.convert(userJwt()).block().getAuthorities())
+					.extracting(Object::toString)
+					.containsExactly("ROLE_ADMIN", "ROLE_VIEWER");
+		});
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class EquivalentOverrideConfiguration {
+		@Bean(name = "userRoleJwtAuthenticationConverter")
+		Converter<Jwt, AbstractAuthenticationToken> userRoleJwtAuthenticationConverter() {
+			return new EquivalentUserRoleConverter();
+		}
+	}
+
+	private static final class EquivalentUserRoleConverter
+			implements Converter<Jwt, AbstractAuthenticationToken> {
+		private final UserRoleJwtAuthenticationConverter delegate =
+				new UserRoleJwtAuthenticationConverter();
+
+		@Override
+		public AbstractAuthenticationToken convert(Jwt source) {
+			return delegate.convert(source);
+		}
 	}
 
 	private static Jwt userJwt() {

@@ -3,11 +3,11 @@ package com.dylan.authcenter.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
-import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -23,6 +23,12 @@ import com.nimbusds.jose.proc.SecurityContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -47,7 +53,7 @@ class AuthControllerTest {
     private JwtDecoder decoder;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         SecretKey key = new SecretKeySpec(
                 "test-secret-key-test-secret-key-1234".getBytes(StandardCharsets.UTF_8),
                 "HmacSHA256");
@@ -80,17 +86,17 @@ class AuthControllerTest {
 
     @Test
     void loginIssuesAdminRoles() {
-        Jwt jwt = decoder.decode(login("admin", "123456"));
-        assertThat(jwt.getClaimAsStringList("role"))
-                .containsExactly("ADMIN");
-        assertThat(jwt.getClaimAsString("token_type")).isEqualTo("user");
+        assertUserToken(login("admin", "123456"), "ADMIN");
+    }
+
+    @Test
+    void loginIssuesDylanAdminRole() {
+        assertUserToken(login("dylan", "123456"), "ADMIN");
     }
 
     @Test
     void loginIssuesViewerRole() {
-        Jwt jwt = decoder.decode(login("viewer_t", "123456"));
-        assertThat(jwt.getClaimAsStringList("role"))
-                .containsExactly("VIEWER");
+        assertUserToken(login("viewer_t", "123456"), "VIEWER");
     }
 
     @Test
@@ -110,21 +116,23 @@ class AuthControllerTest {
         return tokenPair.substring(tokenPair.indexOf('=') + 1);
     }
 
-    private static AuthUserProperties userProperties() {
-        AuthUserProperties properties = new AuthUserProperties();
-        Map<String, AuthUserProperties.UserDefinition> users = new LinkedHashMap<>();
-        users.put("admin", user("{noop}123456", "ADMIN"));
-        users.put("dylan", user("{noop}123456", "USER"));
-        users.put("viewer_t", user("{noop}123456", "VIEWER"));
-        properties.setUsers(users);
-        properties.afterPropertiesSet();
-        return properties;
+    private void assertUserToken(String token, String... expectedRoles) {
+        Jwt jwt = decoder.decode(token);
+        Object tokenType = jwt.getClaims().get("token_type");
+        Object roles = jwt.getClaims().get("role");
+        assertThat(tokenType).isInstanceOf(String.class).isEqualTo("user");
+        assertThat(roles).isInstanceOf(List.class);
+        assertThat(roles).isEqualTo(List.of(expectedRoles));
     }
 
-    private static AuthUserProperties.UserDefinition user(String password, String role) {
-        AuthUserProperties.UserDefinition user = new AuthUserProperties.UserDefinition();
-        user.setPassword(password);
-        user.setRoles(Set.of(role));
-        return user;
+    private static AuthUserProperties userProperties() throws IOException {
+        MutablePropertySources propertySources = new MutablePropertySources();
+        new YamlPropertySourceLoader().load("auth-users", new ClassPathResource("auth-users.yml"))
+                .forEach(propertySources::addLast);
+        AuthUserProperties properties = new Binder(ConfigurationPropertySources.from(propertySources))
+                .bind("auth", Bindable.of(AuthUserProperties.class))
+                .get();
+        properties.afterPropertiesSet();
+        return properties;
     }
 }

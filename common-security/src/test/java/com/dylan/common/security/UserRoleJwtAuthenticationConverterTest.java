@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -27,7 +28,10 @@ class UserRoleJwtAuthenticationConverterTest {
 		assertAuthorities(null);
 		assertAuthorities(List.of());
 		assertAuthorities("ADMIN");
+		assertAuthorities(Set.of("ADMIN"));
 		assertAuthorities(List.of(List.of("ADMIN")));
+		assertAuthorities(List.of(1));
+		assertAuthorities(List.of(true));
 		assertAuthorities(List.of(""));
 		assertAuthorities(List.of("admin"));
 		assertAuthorities(List.of("ADMIN", "UNKNOWN"));
@@ -41,6 +45,12 @@ class UserRoleJwtAuthenticationConverterTest {
 				.isInstanceOf(OAuth2AuthenticationException.class);
 		assertThatThrownBy(() -> converter.convert(jwt("USER", List.of("ADMIN"))))
 				.isInstanceOf(OAuth2AuthenticationException.class);
+		assertThatThrownBy(() -> converter.convert(jwt(1, List.of("ADMIN"))))
+				.isInstanceOf(OAuth2AuthenticationException.class);
+		assertThatThrownBy(() -> converter.convert(jwt(true, List.of("ADMIN"))))
+				.isInstanceOf(OAuth2AuthenticationException.class);
+		assertThatThrownBy(() -> converter.convert(jwt(List.of("user"), List.of("ADMIN"))))
+				.isInstanceOf(OAuth2AuthenticationException.class);
 	}
 
 	private void assertAuthorities(Object roles, String... expected) {
@@ -50,7 +60,7 @@ class UserRoleJwtAuthenticationConverterTest {
 				.containsExactly(expected);
 	}
 
-	private static Jwt jwt(String tokenType, Object roles) {
+	private static Jwt jwt(Object tokenType, Object roles) {
 		Instant now = Instant.parse("2026-08-03T00:00:00Z");
 		Jwt.Builder builder = Jwt.withTokenValue("token")
 				.header("alg", "none")
