@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pytest
 
 from agent_runtime.adapters.transaction.definition import transaction_search_definition
@@ -21,7 +23,7 @@ class FakeTransactionServer:
         self.requests.append(request)
         return FakeDomainHttpResponse(
             status_code=200, content_type="application/json",
-            body=b'{"rows":[{"transId":"T0001","transType":"PAY","amount":100.0100}],"total":1,"totalExact":true,"page":1,"size":20}',
+            body=b'{"rows":[{"transId":"T0001","transType":"PAY","amount":100.10}],"total":1,"totalExact":true,"page":1,"size":20}',
         )
 
     async def aclose(self) -> None:
@@ -40,15 +42,20 @@ async def test_transaction_handler_calls_search_once_preserves_amount_and_defaul
         egress_policy=GlobalBusinessEgressPolicy.from_settings(BusinessGlobalSettings()),
         config_snapshot_id="a" * 64, max_user_result_bytes=262144,
     )
-    input = definition.argument_validator.validate({"amount_gt": "100.0100"})
+    input = definition.argument_validator.validate({"amount_gt": "100.10"})
     result = await handler.handle(input, scope("查询交易").context)
 
     assert result.status is CapabilityStatus.SUCCESS
     assert result.egress.disposition is EgressDisposition.DENIED
     assert len(server.requests) == 1
     request_body = server.requests[0].request.json_body
-    assert request_body is not None and b'"amountGt":100.01' in request_body.content
-    assert b'"100.01"' not in request_body.content
-    record = result.domain_result["records"][0]  # type: ignore[index]
-    assert record["fields"]["amount"] == "100.01"  # type: ignore[index]
-
+    assert request_body is not None and b'"amountGt":100.1' in request_body.content
+    assert b'"100.1"' not in request_body.content
+    assert result.domain_result is not None
+    records = result.domain_result["records"]
+    assert isinstance(records, tuple)
+    record = records[0]
+    assert isinstance(record, Mapping)
+    fields = record["fields"]
+    assert isinstance(fields, Mapping)
+    assert fields["amount"] == "100.10"

@@ -29,8 +29,9 @@ from agent_runtime.adapters.transaction.contracts import (
     TransactionSort,
 )
 
-_AMOUNT = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?")
-_MAX_AMOUNT = Decimal("9999999999999999.9999")
+_AMOUNT = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?")
+_MAX_AMOUNT = Decimal("9999999999999999.99")
+_MAX_AMOUNT_SCALE = 2
 _BIDI = {"RLO", "LRO", "RLE", "LRE", "PDF", "RLI", "LRI", "FSI", "PDI"}
 _ARGUMENT_KEYS = {"trans_id", "trans_type", "trans_type_contains", "amount", "amount_gt", "amount_lt", "size", "sorts"}
 _FILTER_KEYS = ("trans_id", "trans_type", "trans_type_contains", "amount", "amount_gt", "amount_lt")
@@ -60,7 +61,7 @@ def _amount(value: object) -> Decimal | None:
     except InvalidOperation as exc:
         raise InvalidCapabilityArguments("business.invalid_arguments") from exc
     exponent = decimal.as_tuple().exponent
-    if not isinstance(exponent, int) or not decimal.is_finite() or abs(decimal) > _MAX_AMOUNT or max(0, -exponent) > 4:
+    if not isinstance(exponent, int) or not decimal.is_finite() or abs(decimal) > _MAX_AMOUNT or max(0, -exponent) > _MAX_AMOUNT_SCALE:
         raise InvalidCapabilityArguments("business.invalid_arguments")
     return decimal
 
@@ -208,7 +209,7 @@ class TransactionSearchWireCodec:
         else:
             raise InvalidBusinessWireResponse("business.invalid_response")
         exponent = amount.as_tuple().exponent
-        if not isinstance(exponent, int) or not amount.is_finite() or abs(amount) > _MAX_AMOUNT or max(0, -exponent) > 4:
+        if not isinstance(exponent, int) or not amount.is_finite() or abs(amount) > _MAX_AMOUNT or max(0, -exponent) > _MAX_AMOUNT_SCALE:
             raise InvalidBusinessWireResponse("business.invalid_response")
         return TransactionRecord(trans_id=trans_id, trans_type=trans_type, amount=amount)
 
