@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "task": "answer_generation",
+  "model": "deepseek-v4-pro",
+  "task_version": "answer-generation-v1",
+  "started_at_utc": "2026-08-03T01:50:31.567315Z",
+  "finished_at_utc": "2026-08-03T01:50:40.518917Z",
+  "authorized_call_limit": 6,
+  "attempted_calls": 6,
+  "completed_calls": 6,
+  "total_tokens": 1054,
+  "conclusion": "passed",
+  "structure_valid_calls": 6,
+  "expected_calls": 6,
+  "grounding_expected_calls": 6,
+  "invalid_execution_count": 0,
+  "public_unsupported_claims": 0,
+  "calls": [
+    {
+      "ordinal": 1,
+      "case_id": "answer_text_fact",
+      "repetition": 1,
+      "decision": "accepted",
+      "structure_valid": true,
+      "expected_match": true,
+      "grounding_accepted": true,
+      "public_unsupported_claim": false,
+      "latency_ms": 1779,
+      "usage_total_tokens": 160
+    },
+    {
+      "ordinal": 2,
+      "case_id": "answer_text_fact",
+      "repetition": 2,
+      "decision": "accepted",
+      "structure_valid": true,
+      "expected_match": true,
+      "grounding_accepted": true,
+      "public_unsupported_claim": false,
+      "latency_ms": 1593,
+      "usage_total_tokens": 160
+    },
+    {
+      "ordinal": 3,
+      "case_id": "answer_numeric_status",
+      "repetition": 1,
+      "decision": "accepted",
+      "structure_valid": true,
+      "expected_match": true,
+      "grounding_accepted": true,
+      "public_unsupported_claim": false,
+      "latency_ms": 1356,
+      "usage_total_tokens": 165
+    },
+    {
+      "ordinal": 4,
+      "case_id": "answer_numeric_status",
+      "repetition": 2,
+      "decision": "accepted",
+      "structure_valid": true,
+      "expected_match": true,
+      "grounding_accepted": true,
+      "public_unsupported_claim": false,
+      "latency_ms": 1321,
+      "usage_total_tokens": 165
+    },
+    {
+      "ordinal": 5,
+      "case_id": "answer_coverage",
+      "repetition": 1,
+      "decision": "accepted",
+      "structure_valid": true,
+      "expected_match": true,
+      "grounding_accepted": true,
+      "public_unsupported_claim": false,
+      "latency_ms": 1349,
+      "usage_total_tokens": 202
+    },
+    {
+      "ordinal": 6,
+      "case_id": "answer_coverage",
+      "repetition": 2,
+      "decision": "accepted",
+      "structure_valid": true,
+      "expected_match": true,
+      "grounding_accepted": true,
+      "public_unsupported_claim": false,
+      "latency_ms": 1553,
+      "usage_total_tokens": 202
+    }
+  ]
+}

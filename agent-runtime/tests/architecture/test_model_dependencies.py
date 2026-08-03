@@ -44,11 +44,13 @@ def test_provider_neutral_model_modules_do_not_import_deepseek_dto_or_http_clien
         assert not any(name == marker or name.startswith(f"{marker}.") for name in imports for marker in forbidden)
 
 
-def test_local_slice_has_no_live_transport_or_http_dependency() -> None:
-    assert not (SOURCE / "model" / "deepseek" / "transport.py").exists()
+def test_live_http_dependency_is_confined_to_deepseek_transport() -> None:
+    transport_path = SOURCE / "model" / "deepseek" / "transport.py"
+    assert transport_path.exists()
     all_imports = {
         name
         for path in (SOURCE / "model").rglob("*.py")
+        if path != transport_path
         for name in _imports(path)
     }
     assert not any(
@@ -56,6 +58,10 @@ def test_local_slice_has_no_live_transport_or_http_dependency() -> None:
         for name in all_imports
         for marker in ("httpx", "requests", "aiohttp", "openai", "langchain")
     )
+    assert "httpx" in _imports(transport_path)
+    bootstrap = (SOURCE / "bootstrap.py").read_text(encoding="utf-8")
+    assert "model.local_composition_requires_stub" in bootstrap
+    assert "DeepSeekChatTransport" not in bootstrap
 
 
 def test_transport_protocol_uses_only_neutral_request_and_response() -> None:

@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:knowledge-evaluation-result:v1",
+  "title": "Knowledge Evaluation Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "runId", "startedAt", "finishedAt", "datasetVersion", "datasetSha256",
+    "gitCommit", "worktreeDirty", "providerMode", "evaluationVariants", "principalProfileId",
+    "readAuthorizationEvidenceRef", "gateEvidence", "questionPolicyVersion", "domainCatalogVersion",
+    "flowConfigVersion", "retrievalProfileVersion", "indexSnapshotIds", "embeddingModel", "rerankModel",
+    "modelTaskVersions", "deepSeekModel", "policyCatalogVersion", "policyCatalogSha256",
+    "policyAuthorityId", "policyExportId", "policySourceRevision", "evidenceRulesVersion", "caseResults",
+    "aggregateMetrics", "safetyGate", "conclusion", "reviewer"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "runId": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._:/+-]+$"},
+    "startedAt": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"},
+    "finishedAt": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"},
+    "datasetVersion": {"$ref": "#/$defs/version"},
+    "datasetSha256": {"$ref": "#/$defs/sha256"},
+    "gitCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "worktreeDirty": {"type": "boolean"},
+    "providerMode": {"enum": ["stub", "live"]},
+    "evaluationVariants": {"type": "array", "prefixItems": [{"const": "primary"}, {"const": "rewrite_ablation"}], "items": false, "minItems": 2, "maxItems": 2},
+    "principalProfileId": {"$ref": "#/$defs/version"},
+    "readAuthorizationEvidenceRef": {"$ref": "#/$defs/safeRef"},
+    "gateEvidence": {"type": "array", "prefixItems": [
+      {"allOf": [{"$ref": "#/$defs/gateEvidence"}, {"properties": {"gateId": {"const": "SA-GATE-002"}}}]},
+      {"allOf": [{"$ref": "#/$defs/gateEvidence"}, {"properties": {"gateId": {"const": "CR-GATE-003"}}}]},
+      {"allOf": [{"$ref": "#/$defs/gateEvidence"}, {"properties": {"gateId": {"const": "SA-GATE-003"}}}]},
+      {"allOf": [{"$ref": "#/$defs/gateEvidence"}, {"properties": {"gateId": {"const": "SA-GATE-006"}}}]}
+    ], "items": false, "minItems": 4, "maxItems": 4},
+    "questionPolicyVersion": {"$ref": "#/$defs/version"},
+    "domainCatalogVersion": {"$ref": "#/$defs/version"},
+    "flowConfigVersion": {"$ref": "#/$defs/version"},
+    "retrievalProfileVersion": {"$ref": "#/$defs/version"},
+    "indexSnapshotIds": {"type": "array", "items": {"$ref": "#/$defs/sha256"}, "uniqueItems": true},
+    "embeddingModel": {"$ref": "#/$defs/version"},
+    "rerankModel": {"$ref": "#/$defs/version"},
+    "modelTaskVersions": {"type": "object", "additionalProperties": false, "required": ["action_selection", "answer_generation", "knowledge_rewrite", "knowledge_summary"], "properties": {
+      "action_selection": {"$ref": "#/$defs/version"}, "answer_generation": {"$ref": "#/$defs/version"},
+      "knowledge_rewrite": {"$ref": "#/$defs/version"}, "knowledge_summary": {"$ref": "#/$defs/version"}
+    }},
+    "deepSeekModel": {"$ref": "#/$defs/version"},
+    "policyCatalogVersion": {"$ref": "#/$defs/version"},
+    "policyCatalogSha256": {"$ref": "#/$defs/sha256"},
+    "policyAuthorityId": {"$ref": "#/$defs/version"},
+    "policyExportId": {"$ref": "#/$defs/version"},
+    "policySourceRevision": {"$ref": "#/$defs/version"},
+    "evidenceRulesVersion": {"$ref": "#/$defs/version"},
+    "caseResults": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/caseResult"}},
+    "aggregateMetrics": {"$ref": "#/$defs/evaluationMetrics"},
+    "safetyGate": {"$ref": "#/$defs/safetyGate"},
+    "conclusion": {"enum": ["effective", "partially_effective", "ineffective", "invalid_run"]},
+    "reviewer": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:/+-]+$"}
+  },
+  "$defs": {
+    "version": {"type": "string", "minLength": 1, "maxLength": 256},
+    "safeRef": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9._:/+-]+$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metric": {"oneOf": [{"type": "number", "minimum": 0, "maximum": 1}, {"const": "not_applicable"}]},
+    "delta": {"oneOf": [{"type": "number", "minimum": -1, "maximum": 1}, {"const": "not_applicable"}]},
+    "gateEvidence": {"type": "object", "additionalProperties": false, "required": ["gateId", "evidenceRef"], "properties": {
+      "gateId": {"enum": ["SA-GATE-002", "CR-GATE-003", "SA-GATE-003", "SA-GATE-006"]},
+      "evidenceRef": {"$ref": "#/$defs/safeRef"}
+    }},
+    "pathRanking": {"type": "object", "additionalProperties": false, "required": ["logicalDomainId", "path", "documentIds"], "properties": {
+      "logicalDomainId": {"enum": ["tax.policy", "tax.law"]}, "path": {"enum": ["keyword", "vector"]},
+      "documentIds": {"type": "array", "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}}
+    }},
+    "callCounts": {"type": "object", "additionalProperties": false, "required": ["rewrite", "embedding", "keywordRetrieval", "vectorRetrieval", "rerank", "summary", "coreAnswer"], "properties": {
+      "rewrite": {"type": "integer", "minimum": 0}, "embedding": {"type": "integer", "minimum": 0},
+      "keywordRetrieval": {"type": "integer", "minimum": 0}, "vectorRetrieval": {"type": "integer", "minimum": 0},
+      "rerank": {"type": "integer", "minimum": 0}, "summary": {"type": "integer", "minimum": 0, "maximum": 1},
+      "coreAnswer": {"const": 0}
+    }},
+    "variantMetrics": {"type": "object", "additionalProperties": false, "required": ["constraintPreserved", "pathHitAt10", "fusionRecallAt10", "fusionMrrAt10", "rerankRecallAt10", "rerankMrrAt10", "requiredEvidenceCoverage", "citationValidityRate"], "properties": {
+      "constraintPreserved": {"$ref": "#/$defs/metric"}, "pathHitAt10": {"$ref": "#/$defs/metric"},
+      "fusionRecallAt10": {"$ref": "#/$defs/metric"}, "fusionMrrAt10": {"$ref": "#/$defs/metric"},
+      "rerankRecallAt10": {"$ref": "#/$defs/metric"}, "rerankMrrAt10": {"$ref": "#/$defs/metric"},
+      "requiredEvidenceCoverage": {"$ref": "#/$defs/metric"}, "citationValidityRate": {"$ref": "#/$defs/metric"}
+    }},
+    "variantResult": {"type": "object", "additionalProperties": false, "required": ["variant", "terminalStatus", "rewriteMode", "selectedDomainIds", "pathRankings", "fusedTop10DocumentIds", "rerankedTop10DocumentIds", "adoptedEvidenceIds", "summaryStatus", "modelCallCounts", "metrics"], "properties": {
+      "variant": {"enum": ["primary", "rewrite_ablation"]},
+      "terminalStatus": {"enum": ["success", "no_result", "invalid_argument", "forbidden", "timeout", "downstream_failure", "model_egress_denied", "internal_failure"]},
+      "rewriteMode": {"enum": ["model", "original_fallback"]},
+      "selectedDomainIds": {"type": "array", "uniqueItems": true, "items": {"enum": ["tax.policy", "tax.law"]}},
+      "pathRankings": {"type": "array", "items": {"$ref": "#/$defs/pathRanking"}},
+      "fusedTop10DocumentIds": {"type": "array", "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+      "rerankedTop10DocumentIds": {"type": "array", "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+      "adoptedEvidenceIds": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+      "summaryStatus": {"enum": ["answer", "insufficient_evidence", "not_called", "failed"]},
+      "modelCallCounts": {"$ref": "#/$defs/callCounts"}, "metrics": {"$ref": "#/$defs/variantMetrics"}
+    }},
+    "comparisonMetrics": {"type": "object", "additionalProperties": false, "required": ["rewriteRerankRecallDelta", "rewriteRegression"], "properties": {
+      "rewriteRerankRecallDelta": {"$ref": "#/$defs/delta"}, "rewriteRegression": {"type": "boolean"}
+    }},
+    "humanJudgment": {"type": "object", "additionalProperties": false, "required": ["faithful", "relevant", "sufficientForInitialAnswer", "useful", "judgmentReason"], "properties": {
+      "faithful": {"type": "boolean"}, "relevant": {"type": "boolean"}, "sufficientForInitialAnswer": {"type": "boolean"},
+      "useful": {"type": "boolean"}, "judgmentReason": {"enum": ["none", "quote_context", "relevance", "coverage", "gold_issue"]}
+    }},
+    "caseResult": {"type": "object", "additionalProperties": false, "required": ["caseId", "primary", "rewriteAblation", "comparisonMetrics", "primaryJudgment"], "properties": {
+      "caseId": {"type": "string", "minLength": 1, "maxLength": 64},
+      "primary": {"allOf": [{"$ref": "#/$defs/variantResult"}, {"properties": {"variant": {"const": "primary"}}}]},
+      "rewriteAblation": {"allOf": [{"$ref": "#/$defs/variantResult"}, {"properties": {"variant": {"const": "rewrite_ablation"}}}]},
+      "comparisonMetrics": {"$ref": "#/$defs/comparisonMetrics"}, "primaryJudgment": {"$ref": "#/$defs/humanJudgment"}
+    }},
+    "pathHitAggregate": {"type": "object", "additionalProperties": false, "required": ["taxPolicyKeyword", "taxPolicyVector", "taxLawKeyword", "taxLawVector"], "properties": {
+      "taxPolicyKeyword": {"$ref": "#/$defs/metric"}, "taxPolicyVector": {"$ref": "#/$defs/metric"},
+      "taxLawKeyword": {"$ref": "#/$defs/metric"}, "taxLawVector": {"$ref": "#/$defs/metric"}
+    }},
+    "evaluationMetrics": {"type": "object", "additionalProperties": false, "required": ["constraintPreservationRate", "rewriteRerankRecallDelta", "rewriteRegressionRate", "domainExactMatchRate", "pathHitAt10ByDomainPath", "fusionRecallAt10", "fusionMrrAt10", "rerankRecallAt10", "rerankMrrAt10", "requiredEvidenceCoverage", "summaryValidCompletionRate", "citationValidityRate", "faithfulnessRate", "usefulnessRate", "q1", "q2", "q3", "q4"], "properties": {
+      "constraintPreservationRate": {"$ref": "#/$defs/metric"}, "rewriteRerankRecallDelta": {"$ref": "#/$defs/delta"},
+      "rewriteRegressionRate": {"$ref": "#/$defs/metric"}, "domainExactMatchRate": {"$ref": "#/$defs/metric"},
+      "pathHitAt10ByDomainPath": {"$ref": "#/$defs/pathHitAggregate"}, "fusionRecallAt10": {"$ref": "#/$defs/metric"},
+      "fusionMrrAt10": {"$ref": "#/$defs/metric"}, "rerankRecallAt10": {"$ref": "#/$defs/metric"},
+      "rerankMrrAt10": {"$ref": "#/$defs/metric"}, "requiredEvidenceCoverage": {"$ref": "#/$defs/metric"},
+      "summaryValidCompletionRate": {"$ref": "#/$defs/metric"}, "citationValidityRate": {"$ref": "#/$defs/metric"},
+      "faithfulnessRate": {"$ref": "#/$defs/metric"}, "usefulnessRate": {"$ref": "#/$defs/metric"},
+      "q1": {"type": "boolean"}, "q2": {"type": "boolean"}, "q3": {"type": "boolean"}, "q4": {"type": "boolean"}
+    }},
+    "safetyGate": {"type": "object", "additionalProperties": false, "required": ["deniedSummaryCallCount", "unauthorizedContentCount", "citationValidityRate", "constraintPreservationRate", "passed"], "properties": {
+      "deniedSummaryCallCount": {"type": "integer", "minimum": 0}, "unauthorizedContentCount": {"type": "integer", "minimum": 0},
+      "citationValidityRate": {"$ref": "#/$defs/metric"}, "constraintPreservationRate": {"$ref": "#/$defs/metric"},
+      "passed": {"type": "boolean"}
+    }}
+  }
+}

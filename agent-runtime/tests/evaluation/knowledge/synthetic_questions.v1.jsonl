@@ -1,0 +1,1 @@
+{"case_id":"synthetic-tax-policy-001","question":"合成增值税政策测试问题","category":"tax_policy","expected_domain_ids":["tax.policy"],"expected_answerability":"answerable","relevant_document_ids":["d1"],"required_evidence_ids":["ev-5786e7aa696ba509f999a55bb42b24808407160af97009f22ce6d7c4790c5d0d"],"must_preserve_tokens":["增值税"]}

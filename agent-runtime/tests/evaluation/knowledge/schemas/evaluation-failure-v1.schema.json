@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:knowledge-evaluation-failure:v1",
+  "title": "Knowledge Evaluation Failure v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "startedAt", "finishedAt", "gitCommit", "datasetSha256", "failureCode"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "runId": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._:/+-]+$"},
+    "startedAt": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"},
+    "finishedAt": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"},
+    "gitCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "datasetSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "failureCode": {"enum": ["bootstrap_invalid", "dataset_invalid", "snapshot_changed", "execution_failed", "schema_invalid", "write_failed"]}
+  }
+}
