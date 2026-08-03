@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "inventoryScope": "repository-static-production-http-callers",
+  "endpoint": "POST /txn/search",
+  "callers": [
+    {
+      "callerId": "agent-runtime.transaction.search",
+      "source": "agent-runtime/src/agent_runtime/adapters/transaction/codec.py",
+      "allowedRoles": ["ADMIN", "VIEWER"]
+    }
+  ],
+  "transportIntermediaries": [
+    {
+      "componentId": "gateway-service.mq-route",
+      "source": "gateway-service/src/main/java/com/dylan/springgateway/config/GatewayRouter.java",
+      "reason": "routes /txn/** but is not a business caller"
+    }
+  ],
+  "declaredExternalLegacyCallers": []
+}

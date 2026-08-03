@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 /** 统一校验 Transaction 能力接口的用户身份。 */
 @Component
 public class CapabilityAccessGuard {
+	private static final java.util.Set<String> TRANSACTION_READ_AUTHORITIES = java.util.Set.of(
+			"ROLE_ADMIN", "ROLE_VIEWER");
 
     public void requireUser(Authentication authentication) {
         Jwt jwt = extractJwt(authentication);
@@ -19,6 +21,16 @@ public class CapabilityAccessGuard {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Transaction capability permission denied");
         }
     }
+
+	public void requireTransactionRead(Authentication authentication) {
+		requireUser(authentication);
+		boolean allowed = authentication.getAuthorities().stream()
+				.map(Object::toString)
+				.anyMatch(TRANSACTION_READ_AUTHORITIES::contains);
+		if (!allowed) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Transaction capability permission denied");
+		}
+	}
 
     private Jwt extractJwt(Authentication authentication) {
         if (authentication instanceof JwtAuthenticationToken jwtAuthentication) {

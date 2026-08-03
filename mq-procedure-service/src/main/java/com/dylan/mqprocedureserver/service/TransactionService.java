@@ -136,6 +136,7 @@ public class TransactionService {
 		if (!hasCondition(request.getCondition())) {
 			throw new IllegalArgumentException("至少需要一个查询条件。");
 		}
+		TransactionAmountContract.validateSearchCondition(request.getCondition());
 		if (request.getPage() < 1) {
 			throw new IllegalArgumentException("page 必须 >= 1。");
 		}

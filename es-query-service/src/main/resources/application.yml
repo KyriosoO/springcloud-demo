@@ -8,3 +8,8 @@ spring:
     import: optional:configserver:http://localhost:9888
   profiles:
     active: datasource,es
+
+es:
+  query:
+    knowledge:
+      enabled: false

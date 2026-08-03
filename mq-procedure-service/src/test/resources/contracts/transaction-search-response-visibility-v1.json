@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "transaction-search-visibility-v1",
+  "endpoint": "POST /txn/search",
+  "allowedRoles": ["ADMIN", "VIEWER"],
+  "topLevelFields": ["rows", "total", "totalExact", "page", "size"],
+  "rowFields": [
+    "transId", "transType", "transDate", "amount", "transDateGt", "transDateLt",
+    "amountGt", "amountLt", "transTypeContains"
+  ]
+}

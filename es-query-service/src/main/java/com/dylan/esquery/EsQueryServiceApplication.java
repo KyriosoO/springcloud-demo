@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.dylan.esquery.config.EsQueryProperties;
+import com.dylan.esquery.config.KnowledgeSearchProperties;
 
 /**
  * ES 查询服务启动类，负责启动索引和检索服务。
@@ -15,7 +16,7 @@ import com.dylan.esquery.config.EsQueryProperties;
 @EnableAsync
 @EnableScheduling
 @EnableDiscoveryClient
-@EnableConfigurationProperties(EsQueryProperties.class)
+@EnableConfigurationProperties({ EsQueryProperties.class, KnowledgeSearchProperties.class })
 @SpringBootApplication
 public class EsQueryServiceApplication {
 

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "employee-detail-visibility-v1",
+  "endpoint": "GET /employees/{idCardNo}",
+  "allowedRoles": ["ADMIN", "VIEWER"],
+  "fields": [
+    "idCardNo", "memberNo", "chineseName", "foreignName", "dateOfBirth", "gender",
+    "maritalStatus", "phoneNo", "email", "ethnicGroup", "nationality", "addressOfDomicile",
+    "domicileType", "contactAddress", "caZipCode", "reimbursementBank", "reimbursementAccount",
+    "reimbursementInstCode", "salaryBank", "salaryAccount", "eiName", "eiRelationship", "eiTelNo",
+    "eiAddress", "swProperty", "swStartDate", "fatherName", "fatherEmployment", "fatherPosition",
+    "fatherTelNo", "fatherPhoneNo", "isFather", "motherName", "motherEmployment", "motherPosition",
+    "motherTelNo", "motherPhoneNo", "isMother", "spouseName", "spouseEmployment", "spousePosition",
+    "spouseTelNo", "spousePhoneNo", "isSpouse", "education", "institution", "major",
+    "academicDegree", "edStartDate", "edEndDate", "sapCode", "fileName", "operTime", "publicEmail",
+    "position", "workBaseSi", "workBaseAf", "afAccount"
+  ]
+}

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.dylan.employee.model.Employee;
 import com.dylan.employee.model.EmployeeChangeRequest;
+import com.dylan.employee.security.CapabilityAccessGuard;
 import com.dylan.employee.service.EmployeeService;
 import com.dylan.employee.web.EmployeeChangeSubmitResponse;
 
@@ -24,9 +26,11 @@ import com.dylan.employee.web.EmployeeChangeSubmitResponse;
 @RequestMapping("/employees")
 public class EmployeeController {
 	private final EmployeeService employeeService;
+	private final CapabilityAccessGuard accessGuard;
 
-	public EmployeeController(EmployeeService employeeService) {
+	public EmployeeController(EmployeeService employeeService, CapabilityAccessGuard accessGuard) {
 		this.employeeService = employeeService;
+		this.accessGuard = accessGuard;
 	}
 
 	@GetMapping
@@ -36,7 +40,8 @@ public class EmployeeController {
 	}
 
 	@GetMapping("/{idCardNo}")
-	public Employee detail(@PathVariable String idCardNo) {
+	public Employee detail(Authentication authentication, @PathVariable String idCardNo) {
+		accessGuard.requireEmployeeRead(authentication);
 		return employeeService.detail(idCardNo);
 	}
 

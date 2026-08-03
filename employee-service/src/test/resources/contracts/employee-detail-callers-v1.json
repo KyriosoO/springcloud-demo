@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "inventoryScope": "repository-static-production-http-callers",
+  "endpoint": "GET /employees/{idCardNo}",
+  "callers": [
+    {
+      "callerId": "agent-runtime.employee.detail",
+      "source": "agent-runtime/src/agent_runtime/adapters/employee/codec.py",
+      "allowedRoles": ["ADMIN", "VIEWER"]
+    }
+  ],
+  "nonHttpInternalConsumers": [
+    {
+      "consumerId": "employee-service.employee-es-service",
+      "source": "employee-service/src/main/java/com/dylan/employee/service/EmployeeEsService.java",
+      "reason": "calls EmployeeService.detail directly and is not affected by the Controller guard"
+    }
+  ],
+  "declaredExternalLegacyCallers": []
+}

@@ -66,7 +66,7 @@ class TransactionControllerTest {
                 .jsonPath("$.page").isEqualTo(2)
                 .jsonPath("$.size").isEqualTo(20);
 
-        verify(accessGuard).requireUser(null);
+        verify(accessGuard).requireTransactionRead(null);
     }
 
     @Test

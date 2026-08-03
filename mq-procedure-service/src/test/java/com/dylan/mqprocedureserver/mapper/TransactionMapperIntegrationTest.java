@@ -126,6 +126,29 @@ class TransactionMapperIntegrationTest {
         assertThat(mapper.query(condition, null, null)).hasSize(2);
     }
 
+	@Test
+	void shouldCompareDecimal50Scale2AmountsExactlyForEqualsAndOpenRanges() {
+		insert("TN1", "PAYMENT", "2026-06-22T01:00:00Z", "-1.00");
+		insert("TZ0", "PAYMENT", "2026-06-22T02:00:00Z", "0.00");
+		insert("TP1", "PAYMENT", "2026-06-22T03:00:00Z", "1.23");
+		insert("TP2", "PAYMENT", "2026-06-22T04:00:00Z", "1.24");
+
+		Transaction equal = new Transaction();
+		equal.setAmount(new BigDecimal("1.23"));
+		assertThat(mapper.query(equal, null, null)).extracting(Transaction::getTransId)
+				.containsExactly("TP1");
+
+		Transaction greater = new Transaction();
+		greater.setAmountGt(new BigDecimal("1.23"));
+		assertThat(mapper.query(greater, null, null)).extracting(Transaction::getTransId)
+				.containsExactly("TP2");
+
+		Transaction less = new Transaction();
+		less.setAmountLt(new BigDecimal("0.00"));
+		assertThat(mapper.query(less, null, null)).extracting(Transaction::getTransId)
+				.containsExactly("TN1");
+	}
+
     private void insert(String id, String type, String instant, String amount) {
         jdbc.update("""
                 insert into t_transaction (TRANS_ID, TRANS_TYPE, TRANS_DATE, AMOUNT)

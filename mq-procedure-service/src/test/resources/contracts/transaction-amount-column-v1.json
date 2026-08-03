@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "read-only information_schema.columns snapshot",
+  "observedAt": "2026-08-03",
+  "schema": "springboot_db",
+  "table": "t_transaction",
+  "column": "AMOUNT",
+  "dataType": "decimal",
+  "precision": 50,
+  "scale": 2,
+  "contract": "reject values outside DECIMAL(50,2) before mapper execution; never round or truncate"
+}

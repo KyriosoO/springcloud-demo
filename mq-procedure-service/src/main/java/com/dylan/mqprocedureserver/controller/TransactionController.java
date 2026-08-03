@@ -78,7 +78,7 @@ public class TransactionController {
 	@PostMapping("/search")
 	public TransactionSearchResponse search(Authentication authentication,
 			@RequestBody TransactionSearchRequest request) {
-		accessGuard.requireUser(authentication);
+		accessGuard.requireTransactionRead(authentication);
 		return transactionService.search(request);
 	}
 

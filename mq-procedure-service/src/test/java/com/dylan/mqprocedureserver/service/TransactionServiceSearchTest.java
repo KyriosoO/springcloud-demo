@@ -183,6 +183,16 @@ class TransactionServiceSearchTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("排序字段");
         }
+
+		@Test
+		@DisplayName("超出生产金额 scale 时在 Mapper 前拒绝")
+		void shouldRejectAmountScaleBeforeMapper() {
+			TransactionSearchRequest request = makeRequest("PAY", new BigDecimal("1.001"), null, 1, 20);
+			assertThatThrownBy(() -> service.search(request))
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("DECIMAL(50,2)");
+			assertThat(mapper.countCalls).isZero();
+		}
     }
 
     private TransactionSearchRequest makeRequest(String transId, BigDecimal amountGt, BigDecimal amountLt, int page, int size) {
@@ -208,11 +218,13 @@ class TransactionServiceSearchTest {
 
     static class StubTransactionMapper implements TransactionMapper {
         long countUpToResult;
+		int countCalls;
         List<Transaction> queryResults = List.of();
         String lastOrderByClause;
 
         @Override
         public long countUpTo(Transaction condition, int limit) {
+			countCalls++;
             return countUpToResult;
         }
 
