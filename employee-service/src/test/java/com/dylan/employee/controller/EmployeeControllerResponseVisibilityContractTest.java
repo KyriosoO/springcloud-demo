@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.TreeSet;
@@ -29,6 +31,9 @@ class EmployeeControllerResponseVisibilityContractTest {
 
 		assertThat(fixture.path("allowedRoles")).extracting(JsonNode::asText)
 				.containsExactly("ADMIN", "VIEWER");
+		assertThat(fixture.path("schemaVersion").asInt()).isEqualTo(1);
+		assertThat(fixture.path("policyVersion").asText()).isEqualTo("employee-detail-visibility-v1");
+		assertThat(fixture.path("endpoint").asText()).isEqualTo("GET /employees/{idCardNo}");
 		assertThat(actual).containsExactlyElementsOf(expected);
 		assertThat(actual).hasSize(58);
 	}
@@ -37,11 +42,25 @@ class EmployeeControllerResponseVisibilityContractTest {
 	void callerInventoryFreezesTheOnlyRepositoryHttpConsumer() throws Exception {
 		JsonNode fixture = fixture("/contracts/employee-detail-callers-v1.json");
 		assertThat(fixture.path("callers")).hasSize(1);
-		assertThat(fixture.path("callers").get(0).path("callerId").asText())
+		JsonNode caller = fixture.path("callers").get(0);
+		assertThat(fixture.path("schemaVersion").asInt()).isEqualTo(1);
+		assertThat(fixture.path("inventoryScope").asText())
+				.isEqualTo("repository-static-production-http-callers");
+		assertThat(fixture.path("endpoint").asText()).isEqualTo("GET /employees/{idCardNo}");
+		assertThat(caller.path("callerId").asText())
 				.isEqualTo("agent-runtime.employee.detail");
-		assertThat(repositoryFile(fixture.path("callers").get(0).path("source").asText())).isRegularFile();
-		assertThat(repositoryFile(fixture.path("nonHttpInternalConsumers").get(0).path("source").asText()))
-				.isRegularFile();
+		assertThat(caller.path("allowedRoles")).extracting(JsonNode::asText)
+				.containsExactly("ADMIN", "VIEWER");
+		Path callerSource = repositoryFile(caller.path("source").asText());
+		assertThat(callerSource).isRegularFile();
+		assertThat(Files.readString(callerSource, StandardCharsets.UTF_8))
+				.contains("method=\"GET\"")
+				.contains("/employees/{encoded}");
+		JsonNode internalConsumer = fixture.path("nonHttpInternalConsumers").get(0);
+		Path internalSource = repositoryFile(internalConsumer.path("source").asText());
+		assertThat(internalSource).isRegularFile();
+		assertThat(Files.readString(internalSource, StandardCharsets.UTF_8))
+				.contains("employeeService.detail(idCardNo)");
 		assertThat(fixture.path("declaredExternalLegacyCallers")).isEmpty();
 	}
 

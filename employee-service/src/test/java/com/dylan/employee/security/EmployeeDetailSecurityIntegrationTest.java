@@ -8,7 +8,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +41,8 @@ import com.dylan.employee.mapper.EmployeeMapper;
 import com.dylan.employee.dao.EmployeeChangeRequestMapper;
 import com.dylan.employee.dao.EmployeeWorkflowInboxMessageMapper;
 import com.dylan.employee.service.EmployeeService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(EmployeeController.class)
 @Import({ EmployeeDetailSecurityConfiguration.class, CapabilityAccessGuard.class,
@@ -50,6 +56,8 @@ class EmployeeDetailSecurityIntegrationTest {
 	private static final String SENSITIVE_ID = "sensitive-employee-id";
 	@Autowired
 	private MockMvc mvc;
+	@Autowired
+	private ObjectMapper objectMapper;
 	@Autowired
 	@Qualifier("userRoleJwtAuthenticationConverter")
 	private Converter<Jwt, AbstractAuthenticationToken> userRoleConverter;
@@ -72,14 +80,30 @@ class EmployeeDetailSecurityIntegrationTest {
 
 	@Test
 	void adminAndViewerCanReadDetail() throws Exception {
+		Set<String> expectedFields = visibilityFields();
 		for (String role : List.of("ADMIN", "VIEWER")) {
 			when(jwtDecoder.decode("token-" + role)).thenReturn(jwt("user", List.of(role)));
-			when(employeeService.detail("synthetic-id")).thenReturn(new Employee());
-			mvc.perform(get("/employees/synthetic-id")
+			when(employeeService.detail("synthetic-id")).thenReturn(allFieldsSynthetic());
+			MvcResult result = mvc.perform(get("/employees/synthetic-id")
 					.header(HttpHeaders.AUTHORIZATION, "Bearer token-" + role))
-					.andExpect(status().isOk());
+					.andExpect(status().isOk()).andReturn();
+			Set<String> actualFields = new TreeSet<>();
+			objectMapper.readTree(result.getResponse().getContentAsByteArray())
+					.fieldNames().forEachRemaining(actualFields::add);
+			assertThat(actualFields).containsExactlyElementsOf(expectedFields);
 		}
 		verify(employeeService, org.mockito.Mockito.times(2)).detail("synthetic-id");
+	}
+
+	@Test
+	void existingNotFoundFailureRemainsBadRequest() throws Exception {
+		when(jwtDecoder.decode("admin")).thenReturn(jwt("user", List.of("ADMIN")));
+		when(employeeService.detail("missing-id"))
+				.thenThrow(new IllegalArgumentException("Employee not found: missing-id"));
+		mvc.perform(get("/employees/missing-id")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer admin"))
+				.andExpect(status().isBadRequest());
+		verify(employeeService).detail("missing-id");
 	}
 
 	@Test
@@ -89,16 +113,23 @@ class EmployeeDetailSecurityIntegrationTest {
 		when(jwtDecoder.decode("sensitive-employee-service-token"))
 				.thenReturn(jwt("sensitive-employee-service-token", "sensitive-employee-service-subject",
 						"service", List.of("ADMIN")));
+		when(jwtDecoder.decode("mixed-role-token"))
+				.thenReturn(jwt("mixed-role-token", "mixed-role-subject",
+						"user", List.of("ADMIN", "UNKNOWN")));
 		MvcResult forbidden = mvc.perform(get("/employees/" + SENSITIVE_ID)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + SENSITIVE_TOKEN))
 				.andExpect(status().isForbidden()).andReturn();
 		MvcResult unauthorized = mvc.perform(get("/employees/" + SENSITIVE_ID)
 				.header(HttpHeaders.AUTHORIZATION, "Bearer sensitive-employee-service-token"))
 				.andExpect(status().isUnauthorized()).andReturn();
+		MvcResult mixedRole = mvc.perform(get("/employees/" + SENSITIVE_ID)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer mixed-role-token"))
+				.andExpect(status().isForbidden()).andReturn();
 		mvc.perform(get("/employees/" + SENSITIVE_ID)).andExpect(status().isUnauthorized());
 		verify(employeeService, never()).detail(SENSITIVE_ID);
 		assertNoSensitiveValues(forbidden.getResponse().getContentAsString());
 		assertNoSensitiveValues(unauthorized.getResponse().getContentAsString());
+		assertNoSensitiveValues(mixedRole.getResponse().getContentAsString());
 		assertNoSensitiveValues(output.getAll());
 	}
 
@@ -126,6 +157,28 @@ class EmployeeDetailSecurityIntegrationTest {
 
 	private static void assertNoSensitiveValues(String actual) {
 		assertThat(actual).doesNotContain(SENSITIVE_TOKEN, SENSITIVE_SUBJECT, SENSITIVE_ROLE, SENSITIVE_ID,
-				"sensitive-employee-service-token", "sensitive-employee-service-subject");
+				"sensitive-employee-service-token", "sensitive-employee-service-subject",
+				"mixed-role-token", "mixed-role-subject");
+	}
+
+	private Set<String> visibilityFields() throws Exception {
+		try (InputStream input = getClass().getResourceAsStream(
+				"/contracts/employee-detail-response-visibility-v1.json")) {
+			JsonNode fixture = objectMapper.readTree(input);
+			Set<String> fields = new TreeSet<>();
+			fixture.path("fields").forEach(node -> fields.add(node.asText()));
+			return fields;
+		}
+	}
+
+	private static Employee allFieldsSynthetic() throws Exception {
+		Employee employee = new Employee();
+		for (Method method : Employee.class.getMethods()) {
+			if (method.getName().startsWith("set") && method.getParameterCount() == 1
+					&& method.getParameterTypes()[0] == String.class) {
+				method.invoke(employee, "synthetic-" + method.getName());
+			}
+		}
+		return employee;
 	}
 }

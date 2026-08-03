@@ -45,6 +45,29 @@ class KnowledgeSearchJsonCodecTest {
 				.isInstanceOf(KnowledgeInvalidRequestException.class);
 	}
 
+	@Test
+	void rejectsScalarCoercionAndMalformedUtf8() {
+		assertInvalid("""
+				{"schemaVersion":"1","logicalDomainId":"tax.policy","retrievalProfileId":"tax-policy-v1","path":"keyword","queryText":"q","queryVector":null,"limit":20}
+				""");
+		assertInvalid("""
+				{"schemaVersion":1,"logicalDomainId":"tax.policy","retrievalProfileId":"tax-policy-v1","path":"keyword","queryText":123,"queryVector":null,"limit":20}
+				""");
+		assertInvalid("""
+				{"schemaVersion":1,"logicalDomainId":"tax.policy","retrievalProfileId":"tax-policy-v1","path":"keyword","queryText":"q","queryVector":null,"limit":"20"}
+				""");
+		byte[] malformed = "{\"schemaVersion\":1,\"logicalDomainId\":\"tax.policy\",\"retrievalProfileId\":\"tax-policy-v1\",\"path\":\"keyword\",\"queryText\":\""
+				.getBytes(StandardCharsets.UTF_8);
+		byte[] suffix = "\",\"queryVector\":null,\"limit\":20}".getBytes(StandardCharsets.UTF_8);
+		byte[] body = new byte[malformed.length + 2 + suffix.length];
+		System.arraycopy(malformed, 0, body, 0, malformed.length);
+		body[malformed.length] = (byte) 0xc3;
+		body[malformed.length + 1] = 0x28;
+		System.arraycopy(suffix, 0, body, malformed.length + 2, suffix.length);
+		assertThatThrownBy(() -> codec.decodeRequest(body))
+				.isInstanceOf(KnowledgeInvalidRequestException.class);
+	}
+
 	private void assertInvalid(String json) {
 		assertThatThrownBy(() -> codec.decodeRequest(json.getBytes(StandardCharsets.UTF_8)))
 				.isInstanceOf(KnowledgeInvalidRequestException.class);

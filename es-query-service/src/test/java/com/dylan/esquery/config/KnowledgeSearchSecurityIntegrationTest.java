@@ -39,6 +39,7 @@ import com.dylan.esquery.service.KnowledgeProfileVerifier;
 import com.dylan.esquery.service.KnowledgeReadAccessGuard;
 import com.dylan.esquery.service.KnowledgeReadDecision;
 import com.dylan.esquery.service.KnowledgeSearchService;
+import com.dylan.esquery.web.KnowledgeSearchJsonCodec;
 
 @WebMvcTest(KnowledgeSearchController.class)
 @ContextConfiguration(classes = KnowledgeSearchController.class)
@@ -128,6 +129,33 @@ class KnowledgeSearchSecurityIntegrationTest {
 	void fallbackChainKeepsNonKnowledgePathsPublic() throws Exception {
 		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/not-a-knowledge-path"))
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.post("/not-a-knowledge-path").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+	}
+
+	@Test
+	void authenticationPrecedesBodyValidationAndMediaTypeRemainsStrict() throws Exception {
+		when(jwtDecoder.decode("contract-admin"))
+				.thenReturn(jwt("contract-admin", "contract-user", "user", List.of("ADMIN")));
+		byte[] oversized = new byte[KnowledgeSearchJsonCodec.MAX_BODY_BYTES + 1];
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.post("/es/knowledge/search")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer contract-admin")
+				.contentType(MediaType.APPLICATION_JSON).content(oversized))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.post("/es/knowledge/search")
+				.contentType(MediaType.APPLICATION_JSON).content(oversized))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnauthorized());
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.post("/es/knowledge/search")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer contract-admin")
+				.contentType(MediaType.TEXT_PLAIN).content(searchBody()))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+						.isUnsupportedMediaType());
+		verify(accessGuard, never()).authorize(any(), any(), any());
+		verify(searchService, never()).search(any(), any());
 	}
 
 	private static String searchBody() {

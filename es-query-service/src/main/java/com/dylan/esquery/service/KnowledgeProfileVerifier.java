@@ -1,19 +1,24 @@
 package com.dylan.esquery.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.http.HttpHeaders;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RequestOptions;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
 import com.dylan.esquery.config.KnowledgeSearchProperties;
 import com.dylan.esquery.config.KnowledgeSearchProperties.KnowledgeSearchProfile;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -27,7 +32,9 @@ public final class KnowledgeProfileVerifier implements SmartInitializingSingleto
 	public KnowledgeProfileVerifier(RestClient restClient, ObjectMapper objectMapper,
 			KnowledgeSearchProperties properties) {
 		this.restClient = restClient;
-		this.objectMapper = objectMapper;
+		this.objectMapper = objectMapper.copy()
+				.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+				.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 		this.properties = properties;
 	}
 
@@ -81,12 +88,33 @@ public final class KnowledgeProfileVerifier implements SmartInitializingSingleto
 		fields.add(profile.getVectorField());
 		for (String field : fields) {
 			JsonNode definition = fieldDefinition(propertiesNode, field);
-			if (definition == null || definition.isMissingNode()) {
+			if (definition == null || definition.isMissingNode()
+					|| definition.path("type").asText("").isBlank()) {
 				throw invalid(profileId);
 			}
 		}
+		requireType(profileId, propertiesNode, profile.getCategoryField(),
+				Set.of("keyword", "constant_keyword"));
+		for (String field : profile.getKeywordFields()) {
+			requireType(profileId, propertiesNode, field,
+					Set.of("text", "match_only_text", "keyword"));
+		}
+		for (Map.Entry<String, String> sourceField : profile.getSourceFields().entrySet()) {
+			Set<String> allowedTypes = "written-date".equals(sourceField.getKey())
+					? Set.of("date")
+					: Set.of("text", "match_only_text", "keyword", "constant_keyword", "wildcard");
+			requireType(profileId, propertiesNode, sourceField.getValue(), allowedTypes);
+		}
 		JsonNode vector = fieldDefinition(propertiesNode, profile.getVectorField());
 		if (!"dense_vector".equals(vector.path("type").asText()) || vector.path("dims").asInt(-1) != 1024) {
+			throw invalid(profileId);
+		}
+	}
+
+	private static void requireType(String profileId, JsonNode propertiesNode,
+			String field, Set<String> allowedTypes) {
+		String type = fieldDefinition(propertiesNode, field).path("type").asText("");
+		if (!allowedTypes.contains(type)) {
 			throw invalid(profileId);
 		}
 	}
@@ -108,12 +136,26 @@ public final class KnowledgeProfileVerifier implements SmartInitializingSingleto
 	}
 
 	private JsonNode getJson(String endpoint) throws IOException {
-		Response response = restClient.performRequest(new Request("GET", endpoint));
-		byte[] body = response.getEntity().getContent().readNBytes(MAX_METADATA_BYTES + 1);
-		if (body.length == 0 || body.length > MAX_METADATA_BYTES) {
-			throw new IOException("Knowledge metadata response size is invalid");
+		Request request = new Request("GET", endpoint);
+		request.setOptions(RequestOptions.DEFAULT.toBuilder()
+				.addHeader(HttpHeaders.ACCEPT_ENCODING, "identity"));
+		Response response = restClient.performRequest(request);
+		if (response == null || response.getEntity() == null) {
+			throw new IOException("Knowledge metadata response is empty");
 		}
-		return objectMapper.readTree(body);
+		String contentType = response.getHeader("Content-Type");
+		String contentEncoding = response.getHeader("Content-Encoding");
+		if (contentType == null || !contentType.toLowerCase().startsWith("application/json")
+				|| contentEncoding != null && !"identity".equalsIgnoreCase(contentEncoding)) {
+			throw new IOException("Knowledge metadata response media type is invalid");
+		}
+		try (InputStream input = response.getEntity().getContent()) {
+			byte[] body = input.readNBytes(MAX_METADATA_BYTES + 1);
+			if (body.length == 0 || body.length > MAX_METADATA_BYTES) {
+				throw new IOException("Knowledge metadata response size is invalid");
+			}
+			return objectMapper.readTree(body);
+		}
 	}
 
 	static String snapshot(String profileId, String indexName, String indexUuid,

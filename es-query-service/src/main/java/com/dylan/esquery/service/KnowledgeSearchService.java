@@ -1,6 +1,7 @@
 package com.dylan.esquery.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,11 +18,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.http.entity.ContentType;
+import org.apache.http.HttpHeaders;
 import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RequestOptions;
 
 import com.dylan.esquery.api.knowledge.KnowledgeSearchCandidate;
 import com.dylan.esquery.api.knowledge.KnowledgeSearchRequest;
@@ -33,6 +36,8 @@ import com.dylan.esquery.web.KnowledgeSearchExceptions.KnowledgeProviderExceptio
 import com.dylan.esquery.web.KnowledgeSearchExceptions.KnowledgeRateLimitedException;
 import com.dylan.esquery.web.KnowledgeSearchExceptions.KnowledgeTimeoutException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public final class KnowledgeSearchService {
@@ -45,7 +50,9 @@ public final class KnowledgeSearchService {
 	public KnowledgeSearchService(RestClient restClient, ObjectMapper objectMapper,
 			KnowledgeSearchProperties properties) {
 		this.restClient = restClient;
-		this.objectMapper = objectMapper;
+		this.objectMapper = objectMapper.copy()
+				.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+				.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 		this.properties = properties;
 	}
 
@@ -62,6 +69,8 @@ public final class KnowledgeSearchService {
 		}
 
 		Request esRequest = new Request("POST", "/" + profile.getReadAlias() + "/_search");
+		esRequest.setOptions(RequestOptions.DEFAULT.toBuilder()
+				.addHeader(HttpHeaders.ACCEPT_ENCODING, "identity"));
 		try {
 			esRequest.setEntity(new NStringEntity(
 					objectMapper.writeValueAsString(buildSearchBody(request, profile)),
@@ -156,11 +165,7 @@ public final class KnowledgeSearchService {
 			KnowledgeSearchProfile profile, int rank) {
 		Map<String, String> fields = profile.getSourceFields();
 		Set<String> allowedFields = Set.copyOf(fields.values());
-		source.fieldNames().forEachRemaining(field -> {
-			if (!allowedFields.contains(field)) {
-				throw new KnowledgeProviderException();
-			}
-		});
+		validateSourceFields(source, "", allowedFields);
 		String documentId = requiredNfcText(source, fields.get("document-id"), 256, false);
 		String chunkId = requiredNfcText(source, fields.get("chunk-id"), 256, false);
 		String title = requiredNfcText(source, fields.get("title"), 256, true);
@@ -182,7 +187,7 @@ public final class KnowledgeSearchService {
 	}
 
 	private static String requiredNfcText(JsonNode source, String field, int maxCodePoints, boolean emptyAllowed) {
-		JsonNode node = source.get(field);
+		JsonNode node = sourceAt(source, field);
 		if (node == null || !node.isTextual()) {
 			throw new KnowledgeProviderException();
 		}
@@ -195,7 +200,7 @@ public final class KnowledgeSearchService {
 	}
 
 	private static String optionalNfcText(JsonNode source, String field, int maxCodePoints) {
-		JsonNode node = source.get(field);
+		JsonNode node = sourceAt(source, field);
 		if (node == null || node.isNull()) {
 			return null;
 		}
@@ -203,7 +208,7 @@ public final class KnowledgeSearchService {
 	}
 
 	private static LocalDate optionalDate(JsonNode source, String field) {
-		JsonNode node = source.get(field);
+		JsonNode node = sourceAt(source, field);
 		if (node == null || node.isNull()) {
 			return null;
 		}
@@ -227,11 +232,37 @@ public final class KnowledgeSearchService {
 				|| (contentEncoding != null && !"identity".equalsIgnoreCase(contentEncoding))) {
 			throw new KnowledgeProviderException();
 		}
-		byte[] body = response.getEntity().getContent().readNBytes(MAX_ES_RESPONSE_BYTES + 1);
-		if (body.length == 0 || body.length > MAX_ES_RESPONSE_BYTES) {
-			throw new KnowledgeProviderException();
+		try (InputStream input = response.getEntity().getContent()) {
+			byte[] body = input.readNBytes(MAX_ES_RESPONSE_BYTES + 1);
+			if (body.length == 0 || body.length > MAX_ES_RESPONSE_BYTES) {
+				throw new KnowledgeProviderException();
+			}
+			return body;
 		}
-		return body;
+	}
+
+	private static JsonNode sourceAt(JsonNode source, String dottedField) {
+		JsonNode current = source;
+		for (String part : dottedField.split("\\.")) {
+			if (current == null || !current.isObject()) {
+				return null;
+			}
+			current = current.get(part);
+		}
+		return current;
+	}
+
+	private static void validateSourceFields(JsonNode node, String prefix, Set<String> allowedFields) {
+		if (!node.isObject()) {
+			if (!allowedFields.contains(prefix)) {
+				throw new KnowledgeProviderException();
+			}
+			return;
+		}
+		node.properties().forEach(entry -> {
+			String path = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+			validateSourceFields(entry.getValue(), path, allowedFields);
+		});
 	}
 
 	private static boolean hasSocketTimeout(Throwable throwable) {

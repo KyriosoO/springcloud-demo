@@ -6,8 +6,11 @@ import java.util.List;
 import com.dylan.esquery.api.knowledge.KnowledgeSearchRequest;
 import com.dylan.esquery.web.KnowledgeSearchExceptions.KnowledgeInvalidRequestException;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.cfg.CoercionAction;
+import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.LogicalType;
 
 public final class KnowledgeSearchJsonCodec {
 	public static final int MAX_BODY_BYTES = 128 * 1024;
@@ -20,6 +23,18 @@ public final class KnowledgeSearchJsonCodec {
 				.enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
 				.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 				.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+		failScalarCoercion(LogicalType.Textual, CoercionInputShape.Integer,
+				CoercionInputShape.Float, CoercionInputShape.Boolean);
+		failScalarCoercion(LogicalType.Integer, CoercionInputShape.String,
+				CoercionInputShape.Float, CoercionInputShape.Boolean);
+		failScalarCoercion(LogicalType.Float, CoercionInputShape.String,
+				CoercionInputShape.Boolean);
+	}
+
+	private void failScalarCoercion(LogicalType logicalType, CoercionInputShape... inputShapes) {
+		for (CoercionInputShape inputShape : inputShapes) {
+			strictMapper.coercionConfigFor(logicalType).setCoercion(inputShape, CoercionAction.Fail);
+		}
 	}
 
 	public KnowledgeSearchRequest decodeRequest(byte[] body) {

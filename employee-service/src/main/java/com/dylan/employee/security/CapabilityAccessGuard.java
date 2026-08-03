@@ -4,6 +4,7 @@ import com.dylan.common.security.SecurityTokenUtils;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,7 @@ public class CapabilityAccessGuard {
 	public void requireEmployeeRead(Authentication authentication) {
 		requireUser(authentication);
 		boolean allowed = authentication.getAuthorities().stream()
-				.map(Object::toString)
+				.map(GrantedAuthority::getAuthority)
 				.anyMatch(EMPLOYEE_READ_AUTHORITIES::contains);
 		if (!allowed) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Employee capability permission denied");

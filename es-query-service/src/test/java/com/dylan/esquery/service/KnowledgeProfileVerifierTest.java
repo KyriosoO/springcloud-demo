@@ -1,9 +1,12 @@
 package com.dylan.esquery.service;
 
 import static com.dylan.esquery.KnowledgeTestProfiles.enabledProperties;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
@@ -11,8 +14,10 @@ import java.nio.charset.StandardCharsets;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Response;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RestClient;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.dylan.esquery.config.KnowledgeSearchProperties;
 import com.dylan.esquery.config.KnowledgeSearchProperties.KnowledgeSearchProfile;
@@ -34,6 +39,15 @@ class KnowledgeProfileVerifierTest {
 
 		new KnowledgeProfileVerifier(client, new ObjectMapper(), properties)
 				.verify("tax-policy-v1", properties.requireProfile("tax.policy", "tax-policy-v1"));
+		ArgumentCaptor<Request> requests = ArgumentCaptor.forClass(Request.class);
+		verify(client, times(3)).performRequest(requests.capture());
+		assertThat(requests.getAllValues()).allSatisfy(request ->
+				org.assertj.core.api.Assertions.assertThat(request.getOptions().getHeaders())
+						.anySatisfy(header -> {
+							org.assertj.core.api.Assertions.assertThat(header.getName())
+									.isEqualToIgnoringCase("Accept-Encoding");
+							org.assertj.core.api.Assertions.assertThat(header.getValue()).isEqualTo("identity");
+						}));
 	}
 
 	@Test
@@ -48,9 +62,46 @@ class KnowledgeProfileVerifierTest {
 				.verify("tax-policy-v1", profile)).isInstanceOf(IllegalStateException.class);
 	}
 
+	@Test
+	void rejectsCompressedTrailingAndIncompatibleMetadata() throws Exception {
+		KnowledgeSearchProperties properties = enabledProperties("0".repeat(64));
+		KnowledgeSearchProfile profile = properties.requireProfile("tax.policy", "tax-policy-v1");
+
+		RestClient compressedClient = mock(RestClient.class);
+		Response compressedResponse = response(aliasJson(false), "application/json", "gzip");
+		when(compressedClient.performRequest(any())).thenReturn(compressedResponse);
+		assertThatThrownBy(() -> new KnowledgeProfileVerifier(compressedClient,
+				new ObjectMapper(), properties).verify("tax-policy-v1", profile))
+				.isInstanceOf(IllegalStateException.class);
+
+		RestClient trailingClient = mock(RestClient.class);
+		Response trailingResponse = response(aliasJson(false) + " {}", "application/json", null);
+		when(trailingClient.performRequest(any())).thenReturn(trailingResponse);
+		assertThatThrownBy(() -> new KnowledgeProfileVerifier(trailingClient,
+				new ObjectMapper(), properties).verify("tax-policy-v1", profile))
+				.isInstanceOf(IllegalStateException.class);
+
+		RestClient incompatibleClient = mock(RestClient.class);
+		Response aliasResponse = response(aliasJson(false));
+		Response settingsResponse = response(settingsJson("index-uuid-1"));
+		Response incompatibleMappingResponse = response(mappingJson().replace(
+				"\"content\":{\"type\":\"text\"}", "\"content\":{\"type\":\"long\"}"));
+		when(incompatibleClient.performRequest(any())).thenReturn(
+				aliasResponse, settingsResponse, incompatibleMappingResponse);
+		assertThatThrownBy(() -> new KnowledgeProfileVerifier(incompatibleClient,
+				new ObjectMapper(), properties).verify("tax-policy-v1", profile))
+				.isInstanceOf(IllegalStateException.class);
+	}
+
 	private static Response response(String json) throws Exception {
+		return response(json, "application/json", null);
+	}
+
+	private static Response response(String json, String contentType, String contentEncoding) throws Exception {
 		Response response = mock(Response.class);
 		when(response.getEntity()).thenReturn(new NStringEntity(json, ContentType.APPLICATION_JSON));
+		when(response.getHeader("Content-Type")).thenReturn(contentType);
+		when(response.getHeader("Content-Encoding")).thenReturn(contentEncoding);
 		return response;
 	}
 

@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
@@ -48,6 +49,24 @@ class KnowledgeReadAccessGuardTest {
 		assertThatThrownBy(() -> guard.authorize(authentication("user", "ROLE_ADMIN"),
 				"tax.law", "tax-law-v1"))
 				.isInstanceOf(KnowledgeAuthorityUnavailableException.class);
+	}
+
+	@Test
+	void consumesGrantedAuthorityValueRatherThanToStringRepresentation() {
+		GrantedAuthority deceptive = new GrantedAuthority() {
+			@Override
+			public String getAuthority() {
+				return "ROLE_OTHER";
+			}
+
+			@Override
+			public String toString() {
+				return "ROLE_ADMIN";
+			}
+		};
+		JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt("user"), List.of(deceptive));
+		assertThatThrownBy(() -> guard.authorize(authentication, "tax.policy", "tax-policy-v1"))
+				.isInstanceOf(KnowledgeForbiddenException.class);
 	}
 
 	private static JwtAuthenticationToken authentication(String tokenType, String authority) {

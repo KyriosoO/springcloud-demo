@@ -61,6 +61,7 @@ public class KnowledgeSearchProperties implements InitializingBean {
 
 	private static void validateProfile(String profileId, KnowledgeSearchProfile profile, Set<String> domains) {
 		if (profile == null || !physicalToken(profileId) || blank(profile.logicalDomainId)
+				|| !supportedDomainProfile(profile.logicalDomainId, profileId)
 				|| blank(profile.profileVersion) || blank(profile.readPolicyVersion)
 				|| !physicalToken(profile.readAlias) || !physicalToken(profile.expectedIndexName)
 				|| !physicalToken(profile.expectedIndexUuid) || blank(profile.mappingVersion)
@@ -81,6 +82,11 @@ public class KnowledgeSearchProperties implements InitializingBean {
 			throw new IllegalStateException("duplicate Knowledge logical domain: " + profile.logicalDomainId);
 		}
 		profile.freeze();
+	}
+
+	private static boolean supportedDomainProfile(String logicalDomainId, String profileId) {
+		return "tax.policy".equals(logicalDomainId) && "tax-policy-v1".equals(profileId)
+				|| "tax.law".equals(logicalDomainId) && "tax-law-v1".equals(profileId);
 	}
 
 	private static boolean blank(String value) {

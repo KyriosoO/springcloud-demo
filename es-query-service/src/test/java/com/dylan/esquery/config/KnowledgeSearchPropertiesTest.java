@@ -54,6 +54,19 @@ class KnowledgeSearchPropertiesTest {
 		assertThatThrownBy(properties::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
 	}
 
+	@Test
+	void enabledConfigurationRejectsUnsupportedDomainProfilePairs() {
+		KnowledgeSearchProperties baseline = enabledProperties("0".repeat(64));
+		KnowledgeSearchProfile profile = copyOf(
+				baseline.requireProfile("tax.policy", "tax-policy-v1"));
+		profile.setLogicalDomainId("tax.unknown");
+		KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
+		properties.setEnabled(true);
+		properties.setProfiles(Map.of("tax-unknown-v1", profile));
+		assertThatThrownBy(properties::afterPropertiesSet)
+				.isInstanceOf(IllegalStateException.class);
+	}
+
 	private static KnowledgeSearchProfile copyOf(KnowledgeSearchProfile source) {
 		KnowledgeSearchProfile copy = new KnowledgeSearchProfile();
 		copy.setLogicalDomainId(source.getLogicalDomainId());

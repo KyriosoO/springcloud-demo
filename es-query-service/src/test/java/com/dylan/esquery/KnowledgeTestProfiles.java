@@ -12,6 +12,11 @@ public final class KnowledgeTestProfiles {
 	}
 
 	public static KnowledgeSearchProperties enabledProperties(String snapshot) {
+		return enabledProperties(snapshot, defaultSourceFields());
+	}
+
+	public static KnowledgeSearchProperties enabledProperties(String snapshot,
+			Map<String, String> sourceFields) {
 		KnowledgeSearchProfile profile = new KnowledgeSearchProfile();
 		profile.setLogicalDomainId("tax.policy");
 		profile.setProfileVersion("tax-knowledge-search-v1");
@@ -25,6 +30,16 @@ public final class KnowledgeTestProfiles {
 		profile.setCategoryValues(List.of("policy"));
 		profile.setKeywordFields(List.of("title", "content"));
 		profile.setVectorField("embedding");
+		profile.setSourceFields(sourceFields);
+
+		KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
+		properties.setEnabled(true);
+		properties.setProfiles(Map.of("tax-policy-v1", profile));
+		properties.afterPropertiesSet();
+		return properties;
+	}
+
+	public static Map<String, String> defaultSourceFields() {
 		Map<String, String> sourceFields = new LinkedHashMap<>();
 		sourceFields.put("document-id", "document_id");
 		sourceFields.put("chunk-id", "chunk_id");
@@ -35,12 +50,6 @@ public final class KnowledgeTestProfiles {
 		sourceFields.put("written-date", "written_date");
 		sourceFields.put("material-type", "material_type");
 		sourceFields.put("policy-ref", "policy_ref");
-		profile.setSourceFields(sourceFields);
-
-		KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
-		properties.setEnabled(true);
-		properties.setProfiles(Map.of("tax-policy-v1", profile));
-		properties.afterPropertiesSet();
-		return properties;
+		return sourceFields;
 	}
 }

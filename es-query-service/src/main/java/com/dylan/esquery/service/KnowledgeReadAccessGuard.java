@@ -2,9 +2,10 @@ package com.dylan.esquery.service;
 
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.List;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
@@ -29,12 +30,12 @@ public final class KnowledgeReadAccessGuard {
 			String logicalDomainId, String retrievalProfileId) {
 		KnowledgeSearchProfile profile = properties.requireProfile(logicalDomainId, retrievalProfileId);
 		Jwt jwt = authentication instanceof JwtAuthenticationToken token ? token.getToken() : null;
-		Set<String> authorities = authentication == null ? Set.of()
+		List<String> authorities = authentication == null ? List.of()
 				: authentication.getAuthorities().stream()
-						.map(Object::toString)
-						.collect(Collectors.toUnmodifiableSet());
+						.map(GrantedAuthority::getAuthority)
+						.toList();
 		if (!SecurityTokenUtils.isUserToken(jwt) || authorities.isEmpty()
-				|| !ALLOWED_AUTHORITIES.containsAll(authorities)) {
+				|| authorities.stream().anyMatch(authority -> !ALLOWED_AUTHORITIES.contains(authority))) {
 			throw new KnowledgeForbiddenException();
 		}
 		return new KnowledgeReadDecision(logicalDomainId, retrievalProfileId,
