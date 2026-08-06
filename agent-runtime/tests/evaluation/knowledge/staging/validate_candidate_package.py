@@ -6,8 +6,11 @@ import json
 import re
 import unicodedata
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from tests.evaluation.knowledge.run_evaluation import EvaluationRunError, load_dataset
 
 
 _CANDIDATE_FIELDS = {
@@ -56,6 +59,8 @@ _PROVENANCE_FIELDS = {
     "generated_at",
     "candidate_questions_sha256",
     "retrieval_annotations_sha256",
+    "proposed_decisions_sha256",
+    "maintainer_case_decisions_sha256",
     "inputs",
     "current_retrieval_snapshot",
     "candidate_retrieval_identity_ref",
@@ -99,9 +104,67 @@ _PACKAGE_CONFIRMATION_FIELDS = {
     "read_authorization_evidence",
     "freeze_approval",
 }
+_PROPOSAL_FIELDS = {
+    "candidate_id",
+    "proposal_status",
+    "suggested_category",
+    "suggested_expected_domain_ids",
+    "suggested_expected_answerability",
+    "sensitive_data_assessment",
+    "suggested_document_ids",
+    "suggested_evidence_ids",
+    "confidence",
+    "basis_codes",
+    "ambiguity_codes",
+    "recommended_action",
+    "maintainer_confirmation",
+}
+_MAINTAINER_DECISION_FIELDS = {
+    "schema_version",
+    "status",
+    "work_package_id",
+    "source_proposed_decisions_sha256",
+    "confirmed_by",
+    "confirmed_at",
+    "case_decisions",
+    "representative_designation_confirmed",
+    "formal_dataset_freeze_authorized",
+    "gate_028_status",
+}
+_CASE_DECISION_FIELDS = {"candidate_id", "decision", "accepted_recommended_action"}
 
 _CATEGORIES = {"tax_policy", "tax_law", "mixed", "no_match", "insufficient", "security_negative"}
 _DOMAINS = {"tax.policy", "tax.law"}
+_ANSWERABILITY = {"answerable", "no_result", "model_egress_denied"}
+_SENSITIVE_ASSESSMENTS = {"no_real_sensitive_data_observed", "synthetic_invalid_sentinel_only"}
+_CONFIDENCE = {"high", "medium", "low"}
+_RECOMMENDED_ACTIONS = {"confirm_as_proposed", "confirm_no_result", "revise_or_replace"}
+_BASIS_CODES = {
+    "article_reference_mismatch",
+    "cross_domain_evidence_match",
+    "current_policy_source_missing",
+    "current_summary_match",
+    "direct_clause_match",
+    "fictional_reference_no_match",
+    "insufficient_user_facts",
+    "no_exact_reference_match",
+    "obsolete_higher_rank_detected",
+    "synthetic_negative_boundary",
+    "temporal_conflict_detected",
+}
+_AMBIGUITY_CODES = {
+    "article_reference_mismatch",
+    "broad_scope",
+    "current_policy_source_missing",
+    "document_number_not_found",
+    "obsolete_higher_rank_candidate",
+    "temporal_policy_conflict",
+}
+_DECISION_BY_ACTION = {
+    "confirm_as_proposed": "accepted_as_proposed",
+    "confirm_no_result": "accepted_no_result",
+    "revise_or_replace": "accepted_with_label_revision",
+}
 _LOWER_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _CANDIDATE_ID = re.compile(r"^[a-z0-9-]{1,64}$")
 _EVIDENCE_ID = re.compile(r"^ev-[0-9a-f]{64}$")
@@ -111,6 +174,8 @@ _CHINESE_ID = re.compile(r"(?<!\d)\d{17}[0-9Xx](?!\d)")
 _PHONE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 _EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 _BOUNDARY = re.compile(r"(?:\d|〔|第[一二三四五六七八九十百零〇]+条|不|未|否)")
+_RFC3339_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_OPAQUE_ACTOR = re.compile(r"^[A-Za-z0-9._:+/-]{1,128}$")
 
 
 class CandidatePackageError(RuntimeError):
@@ -165,6 +230,16 @@ def _validate_text(value: Any, *, code: str, maximum: int = 4096) -> str:
     return value
 
 
+def _validate_utc_timestamp(value: Any, *, code: str) -> str:
+    if not isinstance(value, str) or not _RFC3339_UTC.fullmatch(value):
+        raise CandidatePackageError(code)
+    try:
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise CandidatePackageError(code) from exc
+    return value
+
+
 def _validate_no_sensitive_value(question: str) -> None:
     if any(pattern.search(question) for pattern in (_JWT, _API_KEY, _CHINESE_ID, _PHONE, _EMAIL)):
         raise CandidatePackageError("candidate_package.sensitive_value_detected")
@@ -205,7 +280,7 @@ def _validate_candidates(path: Path, *, repository_root: Path) -> tuple[tuple[di
         if category == "insufficient" and not domains:
             raise CandidatePackageError("candidate_package.invalid_category_domains")
         answerability = candidate["proposed_expected_answerability"]
-        if answerability not in {"answerable", "no_result", "model_egress_denied"}:
+        if answerability not in _ANSWERABILITY:
             raise CandidatePackageError("candidate_package.invalid_answerability")
         if category == "security_negative":
             if answerability != "model_egress_denied" or "SYNTHETIC_INVALID_" not in question:
@@ -318,6 +393,133 @@ def _validate_annotations(path: Path, candidates: tuple[dict[str, Any], ...]) ->
     return annotations
 
 
+def _validate_proposals(
+    path: Path,
+    candidates: tuple[dict[str, Any], ...],
+    annotations: tuple[dict[str, Any], ...],
+) -> tuple[dict[str, Any], ...]:
+    proposals = read_jsonl(path)
+    candidate_ids = tuple(item["candidate_id"] for item in candidates)
+    if tuple(item.get("candidate_id") for item in proposals) != candidate_ids:
+        raise CandidatePackageError("candidate_package.proposal_order_mismatch")
+    expected_domains = {
+        "tax_policy": ["tax.policy"],
+        "tax_law": ["tax.law"],
+        "mixed": ["tax.policy", "tax.law"],
+        "no_match": [],
+        "security_negative": [],
+    }
+    for candidate, annotation, proposal in zip(candidates, annotations, proposals, strict=True):
+        if set(proposal) != _PROPOSAL_FIELDS:
+            raise CandidatePackageError("candidate_package.invalid_proposal_fields")
+        if proposal["proposal_status"] != "assistant_proposal_pending_maintainer":
+            raise CandidatePackageError("candidate_package.invalid_proposal_status")
+        if proposal["maintainer_confirmation"] != "pending":
+            raise CandidatePackageError("candidate_package.unauthorized_proposal_confirmation")
+        category = proposal["suggested_category"]
+        domains = proposal["suggested_expected_domain_ids"]
+        answerability = proposal["suggested_expected_answerability"]
+        if category not in _CATEGORIES or answerability not in _ANSWERABILITY:
+            raise CandidatePackageError("candidate_package.invalid_proposal_classification")
+        if not isinstance(domains, list) or len(domains) > 2 or len(set(domains)) != len(domains) or any(item not in _DOMAINS for item in domains):
+            raise CandidatePackageError("candidate_package.invalid_proposal_domains")
+        if category in expected_domains and domains != expected_domains[category]:
+            raise CandidatePackageError("candidate_package.invalid_proposal_domains")
+        if category == "insufficient" and not domains:
+            raise CandidatePackageError("candidate_package.invalid_proposal_domains")
+        if category in {"no_match", "insufficient"} and answerability != "no_result":
+            raise CandidatePackageError("candidate_package.invalid_proposal_answerability")
+        assessment = proposal["sensitive_data_assessment"]
+        if assessment not in _SENSITIVE_ASSESSMENTS:
+            raise CandidatePackageError("candidate_package.invalid_sensitive_assessment")
+        is_security = candidate["proposed_category"] == "security_negative"
+        expected_assessment = "synthetic_invalid_sentinel_only" if is_security else "no_real_sensitive_data_observed"
+        if assessment != expected_assessment:
+            raise CandidatePackageError("candidate_package.invalid_sensitive_assessment")
+        if is_security and (category != "security_negative" or answerability != "model_egress_denied"):
+            raise CandidatePackageError("candidate_package.invalid_security_proposal")
+
+        document_ids = proposal["suggested_document_ids"]
+        evidence_ids = proposal["suggested_evidence_ids"]
+        if (
+            not isinstance(document_ids, list)
+            or not isinstance(evidence_ids, list)
+            or len(document_ids) != len(evidence_ids)
+            or len(set(document_ids)) != len(document_ids)
+            or len(set(evidence_ids)) != len(evidence_ids)
+        ):
+            raise CandidatePackageError("candidate_package.invalid_proposal_selection")
+        candidate_pairs = {
+            (item["document_id"], item["evidence_id"]): set(item["domain_ids"])
+            for item in annotation["candidate_documents"]
+        }
+        if any((document_id, evidence_id) not in candidate_pairs for document_id, evidence_id in zip(document_ids, evidence_ids, strict=True)):
+            raise CandidatePackageError("candidate_package.proposal_outside_candidate_set")
+        selected_domains: set[str] = set()
+        for document_id, evidence_id in zip(document_ids, evidence_ids, strict=True):
+            selected_domains.update(candidate_pairs[(document_id, evidence_id)])
+        if answerability == "answerable" and not set(domains).issubset(selected_domains):
+            raise CandidatePackageError("candidate_package.proposal_domain_evidence_gap")
+
+        confidence = proposal["confidence"]
+        action = proposal["recommended_action"]
+        basis_codes = proposal["basis_codes"]
+        ambiguity_codes = proposal["ambiguity_codes"]
+        if confidence not in _CONFIDENCE or action not in _RECOMMENDED_ACTIONS:
+            raise CandidatePackageError("candidate_package.invalid_proposal_judgment")
+        if not isinstance(basis_codes, list) or not basis_codes or len(set(basis_codes)) != len(basis_codes) or any(code not in _BASIS_CODES for code in basis_codes):
+            raise CandidatePackageError("candidate_package.invalid_proposal_basis")
+        if not isinstance(ambiguity_codes, list) or len(set(ambiguity_codes)) != len(ambiguity_codes) or any(code not in _AMBIGUITY_CODES for code in ambiguity_codes):
+            raise CandidatePackageError("candidate_package.invalid_proposal_ambiguity")
+        if action == "confirm_no_result" and (answerability != "no_result" or document_ids):
+            raise CandidatePackageError("candidate_package.invalid_no_result_proposal")
+        if action == "revise_or_replace" and (not ambiguity_codes or document_ids):
+            raise CandidatePackageError("candidate_package.invalid_revision_proposal")
+        if answerability == "answerable" and not document_ids:
+            raise CandidatePackageError("candidate_package.answerable_proposal_without_evidence")
+        if answerability != "answerable" and document_ids:
+            raise CandidatePackageError("candidate_package.non_answerable_proposal_with_evidence")
+    return proposals
+
+
+def _validate_maintainer_case_decisions(
+    path: Path,
+    *,
+    proposals_path: Path,
+    proposals: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    value = _read_json(path)
+    if set(value) != _MAINTAINER_DECISION_FIELDS or value["schema_version"] != 1:
+        raise CandidatePackageError("candidate_package.invalid_maintainer_decisions")
+    if value["status"] != "case_recommendations_confirmed" or value["work_package_id"] != "WP-KP5-DATASET-01":
+        raise CandidatePackageError("candidate_package.invalid_maintainer_decision_status")
+    if value["source_proposed_decisions_sha256"] != _sha256(proposals_path):
+        raise CandidatePackageError("candidate_package.maintainer_decision_source_drift")
+    if not isinstance(value["confirmed_by"], str) or not _OPAQUE_ACTOR.fullmatch(value["confirmed_by"]):
+        raise CandidatePackageError("candidate_package.invalid_maintainer_actor")
+    _validate_utc_timestamp(value["confirmed_at"], code="candidate_package.invalid_maintainer_timestamp")
+    decisions = value["case_decisions"]
+    if not isinstance(decisions, list) or len(decisions) != len(proposals):
+        raise CandidatePackageError("candidate_package.maintainer_decision_count_mismatch")
+    if tuple(item.get("candidate_id") for item in decisions if isinstance(item, dict)) != tuple(
+        proposal["candidate_id"] for proposal in proposals
+    ):
+        raise CandidatePackageError("candidate_package.maintainer_decision_order_mismatch")
+    for decision, proposal in zip(decisions, proposals, strict=True):
+        if not isinstance(decision, dict) or set(decision) != _CASE_DECISION_FIELDS:
+            raise CandidatePackageError("candidate_package.invalid_case_decision")
+        action = proposal["recommended_action"]
+        if decision["accepted_recommended_action"] != action or decision["decision"] != _DECISION_BY_ACTION[action]:
+            raise CandidatePackageError("candidate_package.maintainer_decision_mismatch")
+        if decision["decision"] == "accepted_with_label_revision" and proposal["suggested_expected_answerability"] != "no_result":
+            raise CandidatePackageError("candidate_package.invalid_label_revision")
+    if not value["representative_designation_confirmed"] or not value["formal_dataset_freeze_authorized"]:
+        raise CandidatePackageError("candidate_package.dataset_freeze_not_confirmed")
+    if value["gate_028_status"] != "closed":
+        raise CandidatePackageError("candidate_package.gate_028_not_closed")
+    return value
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -343,15 +545,20 @@ def _validate_provenance(
     *,
     questions_path: Path,
     annotations_path: Path,
+    proposals_path: Path,
+    maintainer_decisions_path: Path,
     repository_root: Path,
 ) -> dict[str, Any]:
     value = _read_json(path)
     if set(value) != _PROVENANCE_FIELDS or value["schema_version"] != 1:
         raise CandidatePackageError("candidate_package.invalid_provenance")
-    if value["status"] != "candidate_only_pending_maintainer" or value["work_package_id"] != "WP-KP5-DATASET-01":
+    if value["status"] != "representative_dataset_frozen" or value["work_package_id"] != "WP-KP5-DATASET-01":
         raise CandidatePackageError("candidate_package.invalid_provenance_status")
+    _validate_utc_timestamp(value["generated_at"], code="candidate_package.invalid_provenance_timestamp")
     if value["candidate_questions_sha256"] != _sha256(questions_path) or value["retrieval_annotations_sha256"] != _sha256(annotations_path):
         raise CandidatePackageError("candidate_package.provenance_hash_mismatch")
+    if value["proposed_decisions_sha256"] != _sha256(proposals_path) or value["maintainer_case_decisions_sha256"] != _sha256(maintainer_decisions_path):
+        raise CandidatePackageError("candidate_package.provenance_decision_hash_mismatch")
     if not isinstance(value["inputs"], list) or not value["inputs"]:
         raise CandidatePackageError("candidate_package.missing_provenance_inputs")
     inputs_by_role: dict[str, Path] = {}
@@ -412,10 +619,10 @@ def _validate_provenance(
     }
     if snapshot != expected_snapshot:
         raise CandidatePackageError("candidate_package.snapshot_evidence_mismatch")
-    if value["representative_dataset_approved"] or value["gold_approved"] or value["authorization_fixture_approved"]:
-        raise CandidatePackageError("candidate_package.unauthorized_provenance_approval")
-    if value["gate_028_status"] != "open":
-        raise CandidatePackageError("candidate_package.gate_028_must_remain_open")
+    if not value["representative_dataset_approved"] or not value["gold_approved"] or not value["authorization_fixture_approved"]:
+        raise CandidatePackageError("candidate_package.provenance_approval_missing")
+    if value["gate_028_status"] != "closed" or value["prohibited_claims"] != ["live_p5_effectiveness"]:
+        raise CandidatePackageError("candidate_package.invalid_closed_gate_state")
     return value
 
 
@@ -423,7 +630,7 @@ def _validate_checklist(path: Path, candidates: tuple[dict[str, Any], ...], cate
     value = _read_json(path)
     if set(value) != _CHECKLIST_FIELDS or value["schema_version"] != 1:
         raise CandidatePackageError("candidate_package.invalid_checklist")
-    if value["status"] != "pending_maintainer_review" or value["gate_028_close_allowed"]:
+    if value["status"] != "representative_dataset_frozen" or not value["gate_028_close_allowed"]:
         raise CandidatePackageError("candidate_package.invalid_checklist_status")
     if value["candidate_count"] != len(candidates) or value["category_counts"] != dict(sorted(categories.items())):
         raise CandidatePackageError("candidate_package.checklist_count_mismatch")
@@ -431,11 +638,70 @@ def _validate_checklist(path: Path, candidates: tuple[dict[str, Any], ...], cate
     if not isinstance(confirmations, list) or tuple(item.get("candidate_id") for item in confirmations if isinstance(item, dict)) != tuple(item["candidate_id"] for item in candidates):
         raise CandidatePackageError("candidate_package.checklist_case_mismatch")
     for item in confirmations:
-        if set(item) != _CASE_CONFIRMATION_FIELDS or any(item[field] != "pending" for field in _CASE_CONFIRMATION_FIELDS - {"candidate_id"}):
-            raise CandidatePackageError("candidate_package.case_confirmation_not_pending")
+        if set(item) != _CASE_CONFIRMATION_FIELDS or item["representative"] != "confirmed":
+            raise CandidatePackageError("candidate_package.case_confirmation_missing")
+        confirmed_fields = _CASE_CONFIRMATION_FIELDS - {"candidate_id", "representative"}
+        if any(item[field] != "confirmed" for field in confirmed_fields):
+            raise CandidatePackageError("candidate_package.case_recommendation_not_confirmed")
     package = value["package_confirmations"]
-    if not isinstance(package, dict) or set(package) != _PACKAGE_CONFIRMATION_FIELDS or any(status != "pending" for status in package.values()):
-        raise CandidatePackageError("candidate_package.package_confirmation_not_pending")
+    if not isinstance(package, dict) or set(package) != _PACKAGE_CONFIRMATION_FIELDS or any(status != "confirmed" for status in package.values()):
+        raise CandidatePackageError("candidate_package.package_confirmation_missing")
+
+
+def _validate_formal_dataset(
+    *,
+    repository_root: Path,
+    candidates: tuple[dict[str, Any], ...],
+    proposals: tuple[dict[str, Any], ...],
+    maintainer_decisions: dict[str, Any],
+) -> tuple[str, int]:
+    dataset_path = repository_root / "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.jsonl"
+    try:
+        _, digest, cases = load_dataset(dataset_path)
+    except EvaluationRunError as exc:
+        raise CandidatePackageError(f"candidate_package.formal_dataset_invalid:{exc}") from exc
+    decisions = maintainer_decisions["case_decisions"]
+    if len(cases) != len(candidates) or len(cases) != len(proposals) or len(cases) != len(decisions):
+        raise CandidatePackageError("candidate_package.formal_dataset_count_mismatch")
+    for case, candidate, proposal, decision in zip(cases, candidates, proposals, decisions, strict=True):
+        if decision["candidate_id"] != case.case_id:
+            raise CandidatePackageError("candidate_package.formal_dataset_decision_mismatch")
+        expected = {
+            "case_id": candidate["candidate_id"],
+            "question": candidate["question"],
+            "category": proposal["suggested_category"],
+            "expected_domain_ids": tuple(proposal["suggested_expected_domain_ids"]),
+            "expected_answerability": proposal["suggested_expected_answerability"],
+            "relevant_document_ids": tuple(proposal["suggested_document_ids"]),
+            "required_evidence_ids": tuple(proposal["suggested_evidence_ids"]),
+            "must_preserve_tokens": tuple(candidate["must_preserve_tokens"]),
+        }
+        actual = {
+            "case_id": case.case_id,
+            "question": case.question,
+            "category": case.category,
+            "expected_domain_ids": case.expected_domain_ids,
+            "expected_answerability": case.expected_answerability,
+            "relevant_document_ids": case.relevant_document_ids,
+            "required_evidence_ids": case.required_evidence_ids,
+            "must_preserve_tokens": case.must_preserve_tokens,
+        }
+        if actual != expected:
+            raise CandidatePackageError(f"candidate_package.formal_dataset_source_mismatch:{case.case_id}")
+
+    formal_provenance = _read_json(dataset_path.with_suffix(".provenance.json"))
+    source_assets = formal_provenance.get("source_assets")
+    if not isinstance(source_assets, list):
+        raise CandidatePackageError("candidate_package.formal_source_assets_missing")
+    for asset in source_assets:
+        if not isinstance(asset, dict) or set(asset) != {"path", "sha256", "role"}:
+            raise CandidatePackageError("candidate_package.invalid_formal_source_asset")
+        source_path = (repository_root / asset["path"]).resolve()
+        if not source_path.is_relative_to(repository_root) or not source_path.is_file():
+            raise CandidatePackageError("candidate_package.formal_source_asset_missing")
+        if _sha256(source_path) != asset["sha256"]:
+            raise CandidatePackageError("candidate_package.formal_source_asset_hash_mismatch")
+    return digest, len(cases)
 
 
 def validate_package(root: Path, *, repository_root: Path | None = None) -> dict[str, Any]:
@@ -448,7 +714,10 @@ def validate_package(root: Path, *, repository_root: Path | None = None) -> dict
         "candidate_retrieval_annotations.v1.jsonl",
         "collect_candidate_retrieval.py",
         "dataset_provenance.template.json",
+        "maintainer_case_decisions.v1.json",
         "maintainer_review_checklist.v1.json",
+        "proposed_decisions.v1.jsonl",
+        "review_candidates.py",
         "run_candidate_retrieval.ps1",
         "test_candidate_package.py",
         "validate_candidate_package.py",
@@ -462,11 +731,21 @@ def validate_package(root: Path, *, repository_root: Path | None = None) -> dict
     annotations_path = resolved_root / "candidate_retrieval_annotations.v1.jsonl"
     candidates, categories = _validate_candidates(questions_path, repository_root=resolved_repository_root)
     annotations = _validate_annotations(annotations_path, candidates)
+    proposals_path = resolved_root / "proposed_decisions.v1.jsonl"
+    proposals = _validate_proposals(proposals_path, candidates, annotations)
+    maintainer_decisions_path = resolved_root / "maintainer_case_decisions.v1.json"
+    maintainer_decisions = _validate_maintainer_case_decisions(
+        maintainer_decisions_path,
+        proposals_path=proposals_path,
+        proposals=proposals,
+    )
     _validate_authorization(resolved_root / "authorization_fixture.template.json")
     provenance = _validate_provenance(
         resolved_root / "dataset_provenance.template.json",
         questions_path=questions_path,
         annotations_path=annotations_path,
+        proposals_path=proposals_path,
+        maintainer_decisions_path=maintainer_decisions_path,
         repository_root=resolved_repository_root,
     )
     snapshot_by_domain = {
@@ -481,14 +760,29 @@ def validate_package(root: Path, *, repository_root: Path | None = None) -> dict
         if annotation["index_snapshot_ids"] != expected_snapshots:
             raise CandidatePackageError("candidate_package.annotation_snapshot_mismatch")
     _validate_checklist(resolved_root / "maintainer_review_checklist.v1.json", candidates, categories)
+    representative_dataset_sha256, representative_case_count = _validate_formal_dataset(
+        repository_root=resolved_repository_root,
+        candidates=candidates,
+        proposals=proposals,
+        maintainer_decisions=maintainer_decisions,
+    )
     return {
-        "status": "candidate_only_pending_maintainer",
+        "status": "representative_dataset_frozen",
         "candidate_count": len(candidates),
         "annotation_count": len(annotations),
         "category_counts": dict(sorted(categories.items())),
         "candidate_questions_sha256": provenance["candidate_questions_sha256"],
         "retrieval_annotations_sha256": provenance["retrieval_annotations_sha256"],
-        "gate_028_status": "open",
+        "proposed_decisions_sha256": _sha256(proposals_path),
+        "proposal_count": len(proposals),
+        "proposal_action_counts": dict(sorted(Counter(item["recommended_action"] for item in proposals).items())),
+        "maintainer_decision_count": len(maintainer_decisions["case_decisions"]),
+        "maintainer_decisions_sha256": _sha256(maintainer_decisions_path),
+        "representative_case_count": representative_case_count,
+        "representative_dataset_sha256": representative_dataset_sha256,
+        "representative_designation_confirmed": True,
+        "formal_dataset_freeze_authorized": True,
+        "gate_028_status": "closed",
     }
 
 

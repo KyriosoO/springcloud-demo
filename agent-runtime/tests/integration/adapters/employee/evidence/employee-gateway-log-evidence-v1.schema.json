@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-gateway-log-evidence-v1.schema.json",
+  "title": "WP-EMP-REAL-01 VAL-EMP-005 finite evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackage",
+    "validation",
+    "status",
+    "startedAtUtc",
+    "completedAtUtc",
+    "durationMs",
+    "requestCounts",
+    "responseStatus",
+    "logSafety",
+    "runtimeIsolation"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackage": { "const": "WP-EMP-REAL-01" },
+    "validation": { "const": "VAL-EMP-005" },
+    "status": { "const": "passed" },
+    "startedAtUtc": { "type": "string", "format": "date-time" },
+    "completedAtUtc": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "requestCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gateway",
+        "servlet",
+        "serviceDetail",
+        "mapperSelectByIdCardNo",
+        "otherServiceMethods"
+      ],
+      "properties": {
+        "gateway": { "const": 1 },
+        "servlet": { "const": 1 },
+        "serviceDetail": { "const": 1 },
+        "mapperSelectByIdCardNo": { "const": 1 },
+        "otherServiceMethods": { "const": 0 }
+      }
+    },
+    "responseStatus": { "const": 400 },
+    "logSafety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logLeakCount",
+        "rawLogsDeleted",
+        "sentinelPersisted",
+        "jwtPersisted",
+        "hmacKeyPersisted",
+        "fullPathPersisted"
+      ],
+      "properties": {
+        "logLeakCount": { "const": 0 },
+        "rawLogsDeleted": { "const": true },
+        "sentinelPersisted": { "const": false },
+        "jwtPersisted": { "const": false },
+        "hmacKeyPersisted": { "const": false },
+        "fullPathPersisted": { "const": false }
+      }
+    },
+    "runtimeIsolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gatewayService",
+        "employeeService",
+        "permanentEmployeeRoute",
+        "realEmployeeIdentifierUsed",
+        "deepSeekCalled"
+      ],
+      "properties": {
+        "gatewayService": { "const": "actual_jar_test_route" },
+        "employeeService": { "const": "spring_boot_test_servlet" },
+        "permanentEmployeeRoute": { "const": false },
+        "realEmployeeIdentifierUsed": { "const": false },
+        "deepSeekCalled": { "const": false }
+      }
+    }
+  }
+}

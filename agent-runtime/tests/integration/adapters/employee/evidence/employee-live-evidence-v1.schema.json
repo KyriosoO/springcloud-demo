@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:codex:wp-emp-real-01:employee-live-evidence:v1",
+  "title": "WP-EMP-REAL-01 controlled local live evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackage",
+    "status",
+    "startedAtUtc",
+    "completedAtUtc",
+    "durationMs",
+    "authorizationMatrix",
+    "requestCounts",
+    "responseVisibility",
+    "logSafety",
+    "runtimeIsolation"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackage": { "const": "WP-EMP-REAL-01" },
+    "status": { "const": "passed" },
+    "startedAtUtc": { "type": "string", "format": "date-time" },
+    "completedAtUtc": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "authorizationMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adminPrimary",
+        "adminSecondary",
+        "viewer",
+        "unknownRole",
+        "missingToken",
+        "malformedToken",
+        "serviceToken"
+      ],
+      "properties": {
+        "adminPrimary": { "const": "allowed" },
+        "adminSecondary": { "const": "allowed" },
+        "viewer": { "const": "allowed" },
+        "unknownRole": { "const": "forbidden" },
+        "missingToken": { "const": "unauthenticated" },
+        "malformedToken": { "const": "unauthenticated" },
+        "serviceToken": { "const": "unauthenticated" }
+      }
+    },
+    "requestCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "employee",
+        "adapter",
+        "serviceDetail",
+        "mapperSelectByIdCardNo",
+        "otherServiceMethods",
+        "otherEmployeeEndpoints",
+        "model"
+      ],
+      "properties": {
+        "employee": { "const": 7 },
+        "adapter": { "const": 6 },
+        "serviceDetail": { "const": 3 },
+        "mapperSelectByIdCardNo": { "const": 3 },
+        "otherServiceMethods": { "const": 0 },
+        "otherEmployeeEndpoints": { "const": 0 },
+        "model": { "const": 0 }
+      }
+    },
+    "responseVisibility": { "const": "validated_by_employee_adapter_and_fixture" },
+    "logSafety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logLeakCount",
+        "rawLogsDeleted",
+        "identifierPersisted",
+        "jwtPersisted",
+        "hmacKeyPersisted"
+      ],
+      "properties": {
+        "logLeakCount": { "const": 0 },
+        "rawLogsDeleted": { "const": true },
+        "identifierPersisted": { "const": false },
+        "jwtPersisted": { "const": false },
+        "hmacKeyPersisted": { "const": false }
+      }
+    },
+    "runtimeIsolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authService",
+        "employeeService",
+        "gatewayStarted",
+        "esCalled",
+        "workflowCalled",
+        "deepSeekCalled"
+      ],
+      "properties": {
+        "authService": { "const": "isolated_local" },
+        "employeeService": { "const": "spring_boot_test" },
+        "gatewayStarted": { "const": false },
+        "esCalled": { "const": false },
+        "workflowCalled": { "const": false },
+        "deepSeekCalled": { "const": false }
+      }
+    }
+  }
+}

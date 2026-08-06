@@ -54,8 +54,6 @@ public class GatewaySecurityConfig {
 	@Order(Integer.MIN_VALUE) // 最早执行
 	public GlobalFilter authTokenFilter(JwtDecoder jwtDecoder) {
 		return (exchange, chain) -> {
-			System.out.println("GlobalFilter executed: " + exchange.getRequest().getId() + " path="
-					+ exchange.getRequest().getURI().getPath());
 			String path = exchange.getRequest().getURI().getPath();
 			// 1️ 白名单直接放行
 			if (WHITE_LIST.stream().anyMatch(path::startsWith)) {

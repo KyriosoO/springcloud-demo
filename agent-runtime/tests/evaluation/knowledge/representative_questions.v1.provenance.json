@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "status": "representative_dataset_frozen",
+  "work_package_id": "WP-KP5-DATASET-01",
+  "frozen_at": "2026-08-06T04:40:23Z",
+  "dataset_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.jsonl",
+  "dataset_version": "representative_questions.v1",
+  "dataset_sha256": "00e6a8b3d7b172d4b9de7fe4712ed0f308b41855d5212bc3eb6ed42e78182dd7",
+  "dataset_hash_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.sha256",
+  "authorization_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.authorization.json",
+  "authorization_sha256": "46312361ec52395ea4c4f7f0d7b50dd7e4f70ac5e3ed5ce844a363a06253d7db",
+  "source_assets": [
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/staging/candidate_questions.v1.jsonl",
+      "sha256": "d0206f1c22c292451bf6d6c0d57dbbea953a000118591c08df464a4c64aeb232",
+      "role": "maintainer_reviewed_questions"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/staging/candidate_retrieval_annotations.v1.jsonl",
+      "sha256": "5422b519796716bb59e7fd6aeae69989a029c79b56d6ca1827b750e1d601465f",
+      "role": "frozen_retrieval_candidates"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/staging/proposed_decisions.v1.jsonl",
+      "sha256": "355d74362622c5c81e8aea3c92b1ab148587137a7a8dd7df45eb63ca981acfdd",
+      "role": "assistant_proposals"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/staging/maintainer_case_decisions.v1.json",
+      "sha256": "7e1fa47027042d5fa19a2a609720df970cad2b01aa88f43f8f89f5cf606ddbb3",
+      "role": "maintainer_case_confirmations"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/wp-kret-real-01-20260803.json",
+      "sha256": "a0547439e9b4434b63b3efa73a901d2cb96d52ee9307bcc5cb9ff22dfc63bdd3",
+      "role": "retrieval_authorization_and_snapshot_evidence"
+    }
+  ],
+  "retrieval_snapshot": {
+    "read_index": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "read_index_uuid": "k97bn1gxROSfVm7zGfzbOg",
+    "mapping_version": "agent-knowledge-tax-v1",
+    "retrieval_profile_version": "tax-knowledge-search-v1",
+    "profiles": [
+      {
+        "logical_domain_id": "tax.policy",
+        "retrieval_profile_id": "tax-policy-v1",
+        "index_snapshot_id": "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed"
+      },
+      {
+        "logical_domain_id": "tax.law",
+        "retrieval_profile_id": "tax-law-v1",
+        "index_snapshot_id": "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+      }
+    ]
+  },
+  "case_count": 26,
+  "category_counts": {
+    "insufficient": 2,
+    "mixed": 4,
+    "no_match": 2,
+    "security_negative": 4,
+    "tax_law": 6,
+    "tax_policy": 8
+  },
+  "answerable_count": 14,
+  "relevant_document_reference_count": 23,
+  "required_evidence_reference_count": 23,
+  "sensitive_data_check": "passed_no_real_sensitive_or_secret_values",
+  "representative_dataset_approved": true,
+  "gold_approved": true,
+  "authorization_fixture_approved": true,
+  "gate_028_status": "closed",
+  "live_p5_authorized": false
+}

@@ -6,7 +6,10 @@ param(
     [string]$ExpectedIndexUuid = 'k97bn1gxROSfVm7zGfzbOg',
     [string]$MappingVersion = 'agent-knowledge-tax-v1',
     [string]$PolicySnapshotId = '7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed',
-    [string]$LawSnapshotId = '99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2'
+    [string]$LawSnapshotId = '99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2',
+    [string[]]$ReviewCaseId = @(),
+    [ValidateRange(1, 10)]
+    [int]$ReviewDisplayLimit = 3
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,7 +34,8 @@ foreach ($port in $dependencyPorts) {
 $stagingRoot = Join-Path $repository 'agent-runtime\tests\evaluation\knowledge\staging'
 $questions = Join-Path $stagingRoot 'candidate_questions.v1.jsonl'
 $annotations = Join-Path $stagingRoot 'candidate_retrieval_annotations.v1.jsonl'
-if (Test-Path -LiteralPath $annotations) {
+$reviewMode = $ReviewCaseId.Count -gt 0
+if (-not $reviewMode -and (Test-Path -LiteralPath $annotations)) {
     throw 'candidate_retrieval.annotation_asset_already_exists'
 }
 
@@ -179,10 +183,19 @@ try {
     $python = Join-Path $repository '.tmp\agent-runtime-venv\Scripts\python.exe'
     Push-Location (Join-Path $repository 'agent-runtime')
     try {
-        & $python -m tests.evaluation.knowledge.staging.collect_candidate_retrieval `
-            --questions $questions --output $annotations
+        if ($reviewMode) {
+            $reviewArguments = @('-m', 'tests.evaluation.knowledge.staging.review_candidates')
+            foreach ($caseId in $ReviewCaseId) {
+                $reviewArguments += @('--case-id', $caseId)
+            }
+            $reviewArguments += @('--display-limit', [string]$ReviewDisplayLimit)
+            & $python @reviewArguments
+        } else {
+            & $python -m tests.evaluation.knowledge.staging.collect_candidate_retrieval `
+                --questions $questions --output $annotations
+        }
         if ($LASTEXITCODE -ne 0) {
-            throw 'candidate_retrieval.collector_failed'
+            throw $(if ($reviewMode) { 'candidate_review.runner_failed' } else { 'candidate_retrieval.collector_failed' })
         }
     } finally {
         Pop-Location
@@ -191,9 +204,10 @@ try {
         throw 'candidate_retrieval.log_leak'
     }
     [pscustomobject]@{
-        status = 'candidate_only'
+        status = $(if ($reviewMode) { 'transient_maintainer_review_only' } else { 'candidate_only' })
         candidateCount = $candidateQuestions.Count
-        annotationPath = $annotations
+        reviewedCaseCount = $(if ($reviewMode) { $ReviewCaseId.Count } else { 0 })
+        annotationPath = $(if ($reviewMode) { $null } else { $annotations })
         externalModelCalled = $false
         knowledgeContentPersisted = $false
         gate028Closed = $false

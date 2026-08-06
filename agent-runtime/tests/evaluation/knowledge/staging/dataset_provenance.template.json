@@ -1,10 +1,12 @@
 {
   "schema_version": 1,
-  "status": "candidate_only_pending_maintainer",
+  "status": "representative_dataset_frozen",
   "work_package_id": "WP-KP5-DATASET-01",
-  "generated_at": "2026-08-06T02:57:05Z",
+  "generated_at": "2026-08-06T04:40:23Z",
   "candidate_questions_sha256": "d0206f1c22c292451bf6d6c0d57dbbea953a000118591c08df464a4c64aeb232",
   "retrieval_annotations_sha256": "5422b519796716bb59e7fd6aeae69989a029c79b56d6ca1827b750e1d601465f",
+  "proposed_decisions_sha256": "355d74362622c5c81e8aea3c92b1ab148587137a7a8dd7df45eb63ca981acfdd",
+  "maintainer_case_decisions_sha256": "7e1fa47027042d5fa19a2a609720df970cad2b01aa88f43f8f89f5cf606ddbb3",
   "inputs": [
     {
       "path": ".tmp/chinatax-v2/post-cutover-gold-report.json",
@@ -45,14 +47,11 @@
     ]
   },
   "candidate_retrieval_identity_ref": "WP-KRET-REAL-01:authorizationMatrix.admin",
-  "representative_dataset_approved": false,
-  "gold_approved": false,
-  "authorization_fixture_approved": false,
-  "gate_028_status": "open",
+  "representative_dataset_approved": true,
+  "gold_approved": true,
+  "authorization_fixture_approved": true,
+  "gate_028_status": "closed",
   "prohibited_claims": [
-    "representative_dataset",
-    "gold_approved",
-    "gate_028_closed",
     "live_p5_effectiveness"
   ]
 }

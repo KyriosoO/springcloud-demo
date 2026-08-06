@@ -13,7 +13,10 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import subprocess
+import unicodedata
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -42,6 +45,116 @@ class EvaluationRunError(RuntimeError):
     pass
 
 
+_REPRESENTATIVE_DATASET_NAME = "representative_questions.v1.jsonl"
+_REPRESENTATIVE_DATASET_VERSION = "representative_questions.v1"
+_REPRESENTATIVE_PROFILE_ID = "tax-knowledge-admin-reader-v1"
+_REPRESENTATIVE_AUTHORIZATION_REF = "WP-KRET-REAL-01:authorizationMatrix.admin"
+_REPRESENTATIVE_DOMAINS = ("tax.policy", "tax.law")
+_REPRESENTATIVE_CATEGORY_COUNTS = {
+    "insufficient": 2,
+    "mixed": 4,
+    "no_match": 2,
+    "security_negative": 4,
+    "tax_law": 6,
+    "tax_policy": 8,
+}
+_REPRESENTATIVE_AUTHORIZATION_FIELDS = {
+    "schema_version",
+    "status",
+    "work_package_id",
+    "dataset_version",
+    "dataset_sha256",
+    "principal_profile_id",
+    "read_authorization_evidence_ref",
+    "allowed_logical_domain_ids",
+    "authorized_for_representative_dataset",
+    "authorized_for_live_p5",
+    "jwt_persisted",
+    "confirmed_by",
+    "confirmed_at",
+}
+_REPRESENTATIVE_PROVENANCE_FIELDS = {
+    "schema_version",
+    "status",
+    "work_package_id",
+    "frozen_at",
+    "dataset_path",
+    "dataset_version",
+    "dataset_sha256",
+    "dataset_hash_path",
+    "authorization_path",
+    "authorization_sha256",
+    "source_assets",
+    "retrieval_snapshot",
+    "case_count",
+    "category_counts",
+    "answerable_count",
+    "relevant_document_reference_count",
+    "required_evidence_reference_count",
+    "sensitive_data_check",
+    "representative_dataset_approved",
+    "gold_approved",
+    "authorization_fixture_approved",
+    "gate_028_status",
+    "live_p5_authorized",
+}
+_REPRESENTATIVE_SOURCE_ASSETS = (
+    (
+        "agent-runtime/tests/evaluation/knowledge/staging/candidate_questions.v1.jsonl",
+        "d0206f1c22c292451bf6d6c0d57dbbea953a000118591c08df464a4c64aeb232",
+        "maintainer_reviewed_questions",
+    ),
+    (
+        "agent-runtime/tests/evaluation/knowledge/staging/candidate_retrieval_annotations.v1.jsonl",
+        "5422b519796716bb59e7fd6aeae69989a029c79b56d6ca1827b750e1d601465f",
+        "frozen_retrieval_candidates",
+    ),
+    (
+        "agent-runtime/tests/evaluation/knowledge/staging/proposed_decisions.v1.jsonl",
+        "355d74362622c5c81e8aea3c92b1ab148587137a7a8dd7df45eb63ca981acfdd",
+        "assistant_proposals",
+    ),
+    (
+        "agent-runtime/tests/evaluation/knowledge/staging/maintainer_case_decisions.v1.json",
+        "7e1fa47027042d5fa19a2a609720df970cad2b01aa88f43f8f89f5cf606ddbb3",
+        "maintainer_case_confirmations",
+    ),
+    (
+        "agent-runtime/tests/integration/knowledge/evidence/wp-kret-real-01-20260803.json",
+        "a0547439e9b4434b63b3efa73a901d2cb96d52ee9307bcc5cb9ff22dfc63bdd3",
+        "retrieval_authorization_and_snapshot_evidence",
+    ),
+)
+_REPRESENTATIVE_RETRIEVAL_SNAPSHOT = {
+    "read_index": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "read_index_uuid": "k97bn1gxROSfVm7zGfzbOg",
+    "mapping_version": "agent-knowledge-tax-v1",
+    "retrieval_profile_version": "tax-knowledge-search-v1",
+    "profiles": [
+        {
+            "logical_domain_id": "tax.policy",
+            "retrieval_profile_id": "tax-policy-v1",
+            "index_snapshot_id": "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed",
+        },
+        {
+            "logical_domain_id": "tax.law",
+            "retrieval_profile_id": "tax-law-v1",
+            "index_snapshot_id": "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2",
+        },
+    ],
+}
+_RFC3339_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$")
+_EVIDENCE_ID = re.compile(r"^ev-[0-9a-f]{64}$")
+_BOUNDARY_SIGNAL = re.compile(r"\d|〔|〕|第.{0,12}条|未|无|不|否")
+_SENSITIVE_PATTERNS = (
+    re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"),
+    re.compile(r"(?i)\b(?:api[_-]?key|authorization|bearer)\s*[:=]\s*\S+"),
+    re.compile(r"(?<!\d)\d{17}[0-9Xx](?!\d)"),
+    re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"),
+    re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+)
+
+
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
@@ -55,8 +168,170 @@ def _unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return output
 
 
+def _strict_json_object(path: Path) -> tuple[dict[str, Any], bytes]:
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_pairs)
+    except (OSError, UnicodeError, json.JSONDecodeError, EvaluationRunError) as exc:
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized") from exc
+    if not isinstance(value, dict):
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+    return value, raw
+
+
+def _is_valid_utc_timestamp(value: object) -> bool:
+    if not isinstance(value, str) or not _RFC3339_UTC.fullmatch(value):
+        return False
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo == UTC
+
+
+def _validate_representative_cases(cases: tuple[EvaluationCase, ...]) -> dict[str, int]:
+    counts: dict[str, int] = dict(sorted(Counter(case.category for case in cases).items()))
+    if counts != _REPRESENTATIVE_CATEGORY_COUNTS:
+        raise EvaluationRunError("evaluation.dataset_invalid")
+    questions: set[str] = set()
+    for case in cases:
+        normalized_question = unicodedata.normalize("NFC", case.question).strip()
+        if normalized_question != case.question or any(unicodedata.category(char) == "Cc" for char in case.question):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        case_values = (
+            case.question,
+            *case.relevant_document_ids,
+            *case.required_evidence_ids,
+            *case.must_preserve_tokens,
+        )
+        if normalized_question in questions or any(
+            value != unicodedata.normalize("NFC", value)
+            or any(unicodedata.category(char) == "Cc" for char in value)
+            or any(pattern.search(value) for pattern in _SENSITIVE_PATTERNS)
+            for value in case_values
+        ):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        questions.add(normalized_question)
+        if not case.must_preserve_tokens or any(token not in case.question for token in case.must_preserve_tokens):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if any(not _EVIDENCE_ID.fullmatch(item) for item in case.required_evidence_ids):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category == "tax_policy" and case.expected_domain_ids != ("tax.policy",):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category == "tax_law" and case.expected_domain_ids != ("tax.law",):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category == "mixed" and case.expected_domain_ids != _REPRESENTATIVE_DOMAINS:
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category in {"no_match", "security_negative"} and case.expected_domain_ids:
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category == "security_negative":
+            if case.expected_answerability != "model_egress_denied" or "SYNTHETIC_INVALID_" not in case.question:
+                raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category in {"no_match", "insufficient"} and case.expected_answerability != "no_result":
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.category in {"tax_policy", "tax_law", "mixed"} and case.expected_answerability not in {
+            "answerable",
+            "no_result",
+        }:
+            raise EvaluationRunError("evaluation.dataset_invalid")
+        if case.expected_answerability == "answerable":
+            if not case.relevant_document_ids:
+                raise EvaluationRunError("evaluation.dataset_invalid")
+        elif case.relevant_document_ids or case.required_evidence_ids:
+            raise EvaluationRunError("evaluation.dataset_invalid")
+    for category in _REPRESENTATIVE_CATEGORY_COUNTS:
+        if not any(case.category == category and _BOUNDARY_SIGNAL.search(case.question) for case in cases):
+            raise EvaluationRunError("evaluation.dataset_invalid")
+    return counts
+
+
+def _validate_representative_package(
+    *, path: Path, digest: str, cases: tuple[EvaluationCase, ...]
+) -> None:
+    hash_path = path.with_suffix(".sha256")
+    authorization_path = path.with_suffix(".authorization.json")
+    provenance_path = path.with_suffix(".provenance.json")
+    try:
+        hash_value = hash_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized") from exc
+    if hash_value != f"{digest}\n":
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+
+    authorization, authorization_raw = _strict_json_object(authorization_path)
+    if set(authorization) != _REPRESENTATIVE_AUTHORIZATION_FIELDS:
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+    expected_authorization = {
+        "schema_version": 1,
+        "status": "representative_dataset_authorized",
+        "work_package_id": "WP-KP5-DATASET-01",
+        "dataset_version": _REPRESENTATIVE_DATASET_VERSION,
+        "dataset_sha256": digest,
+        "principal_profile_id": _REPRESENTATIVE_PROFILE_ID,
+        "read_authorization_evidence_ref": _REPRESENTATIVE_AUTHORIZATION_REF,
+        "allowed_logical_domain_ids": list(_REPRESENTATIVE_DOMAINS),
+        "authorized_for_representative_dataset": True,
+        "authorized_for_live_p5": False,
+        "jwt_persisted": False,
+    }
+    if any(authorization.get(key) != value for key, value in expected_authorization.items()):
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+    if authorization.get("confirmed_by") != "project-maintainer" or not _is_valid_utc_timestamp(
+        authorization.get("confirmed_at")
+    ):
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+
+    counts = _validate_representative_cases(cases)
+    provenance, _ = _strict_json_object(provenance_path)
+    if set(provenance) != _REPRESENTATIVE_PROVENANCE_FIELDS:
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+    authorization_sha256 = hashlib.sha256(authorization_raw).hexdigest()
+    source_assets = provenance.get("source_assets")
+    if not isinstance(source_assets, list) or [
+        (item.get("path"), item.get("sha256"), item.get("role")) if isinstance(item, dict) and set(item) == {
+            "path",
+            "sha256",
+            "role",
+        } else None
+        for item in source_assets
+    ] != list(_REPRESENTATIVE_SOURCE_ASSETS):
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+    expected_provenance = {
+        "schema_version": 1,
+        "status": "representative_dataset_frozen",
+        "work_package_id": "WP-KP5-DATASET-01",
+        "dataset_path": f"agent-runtime/tests/evaluation/knowledge/{_REPRESENTATIVE_DATASET_NAME}",
+        "dataset_version": _REPRESENTATIVE_DATASET_VERSION,
+        "dataset_sha256": digest,
+        "dataset_hash_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.sha256",
+        "authorization_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.authorization.json",
+        "authorization_sha256": authorization_sha256,
+        "retrieval_snapshot": _REPRESENTATIVE_RETRIEVAL_SNAPSHOT,
+        "case_count": len(cases),
+        "category_counts": counts,
+        "answerable_count": sum(case.expected_answerability == "answerable" for case in cases),
+        "relevant_document_reference_count": sum(len(case.relevant_document_ids) for case in cases),
+        "required_evidence_reference_count": sum(len(case.required_evidence_ids) for case in cases),
+        "sensitive_data_check": "passed_no_real_sensitive_or_secret_values",
+        "representative_dataset_approved": True,
+        "gold_approved": True,
+        "authorization_fixture_approved": True,
+        "gate_028_status": "closed",
+        "live_p5_authorized": False,
+    }
+    if any(provenance.get(key) != value for key, value in expected_provenance.items()):
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+    if not _is_valid_utc_timestamp(provenance.get("frozen_at")) or provenance.get("frozen_at") != authorization.get(
+        "confirmed_at"
+    ):
+        raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
+
+
 def load_dataset(path: Path) -> tuple[str, str, tuple[EvaluationCase, ...]]:
-    raw = path.read_bytes()
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise EvaluationRunError("evaluation.dataset_invalid") from exc
     digest = hashlib.sha256(raw).hexdigest()
     cases: list[EvaluationCase] = []
     for line in raw.splitlines():
@@ -69,9 +344,12 @@ def load_dataset(path: Path) -> tuple[str, str, tuple[EvaluationCase, ...]]:
             raise EvaluationRunError("evaluation.dataset_invalid") from exc
     if not cases or len({case.case_id for case in cases}) != len(cases):
         raise EvaluationRunError("evaluation.dataset_invalid")
-    if not path.name.startswith("synthetic_"):
+    frozen_cases = tuple(cases)
+    if path.name == _REPRESENTATIVE_DATASET_NAME:
+        _validate_representative_package(path=path, digest=digest, cases=frozen_cases)
+    elif not path.name.startswith("synthetic_"):
         raise EvaluationRunError("evaluation.representative_dataset_not_authorized")
-    return path.stem, digest, tuple(cases)
+    return path.stem, digest, frozen_cases
 
 
 def validate_result_bytes(raw: bytes) -> EvaluationRunResult:
