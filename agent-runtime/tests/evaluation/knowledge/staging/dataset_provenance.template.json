@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_pending_maintainer",
+  "work_package_id": "WP-KP5-DATASET-01",
+  "generated_at": "2026-08-06T02:57:05Z",
+  "candidate_questions_sha256": "d0206f1c22c292451bf6d6c0d57dbbea953a000118591c08df464a4c64aeb232",
+  "retrieval_annotations_sha256": "5422b519796716bb59e7fd6aeae69989a029c79b56d6ca1827b750e1d601465f",
+  "inputs": [
+    {
+      "path": ".tmp/chinatax-v2/post-cutover-gold-report.json",
+      "sha256": "9b4811ff2210fd9ada22a4dfd883bb4ec59f17bf4ffb595cc87a070e420a8fac",
+      "role": "legacy_question_candidate_source",
+      "status": "unverified_candidate_only"
+    },
+    {
+      "path": ".tmp/chinatax-v2/build_manifest.json",
+      "sha256": "2a366c24d3a31e50618cad4fd8600f6a9ac21522b7fc4e59d8ce5a6fcf7a4073",
+      "role": "legacy_source_metadata_reference",
+      "status": "reference_only"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/wp-kret-real-01-20260803.json",
+      "sha256": "a0547439e9b4434b63b3efa73a901d2cb96d52ee9307bcc5cb9ff22dfc63bdd3",
+      "role": "current_retrieval_snapshot_evidence",
+      "status": "verified_existing"
+    }
+  ],
+  "current_retrieval_snapshot": {
+    "source_index": "agent-doc-tax-policy-v3-20260710-dataopt-bge-m3",
+    "read_index": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "read_index_uuid": "k97bn1gxROSfVm7zGfzbOg",
+    "mapping_version": "agent-knowledge-tax-v1",
+    "profile_version": "tax-knowledge-search-v1",
+    "profiles": [
+      {
+        "logical_domain_id": "tax.policy",
+        "retrieval_profile_id": "tax-policy-v1",
+        "index_snapshot_id": "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed"
+      },
+      {
+        "logical_domain_id": "tax.law",
+        "retrieval_profile_id": "tax-law-v1",
+        "index_snapshot_id": "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+      }
+    ]
+  },
+  "candidate_retrieval_identity_ref": "WP-KRET-REAL-01:authorizationMatrix.admin",
+  "representative_dataset_approved": false,
+  "gold_approved": false,
+  "authorization_fixture_approved": false,
+  "gate_028_status": "open",
+  "prohibited_claims": [
+    "representative_dataset",
+    "gold_approved",
+    "gate_028_closed",
+    "live_p5_effectiveness"
+  ]
+}

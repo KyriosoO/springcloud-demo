@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "pending_maintainer_review",
+  "candidate_count": 26,
+  "category_counts": {
+    "insufficient": 2,
+    "mixed": 4,
+    "no_match": 2,
+    "security_negative": 4,
+    "tax_law": 6,
+    "tax_policy": 8
+  },
+  "case_confirmations": [
+    {"candidate_id":"legacy-tax-vat-current-rates","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"legacy-tax-vat-general-current-rates","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"legacy-tax-vat-small-scale-rate","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"legacy-tax-eit-basic-rate","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"legacy-tax-eit-small-low-profit","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"legacy-tax-vat-invoice-lost","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-policy-year-boundary","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-policy-document-number","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-law-iit-article-6","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-law-collection-article-32","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-law-eit-article-4","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-law-eit-article-28","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-law-vehicle-purchase-article-4","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-tax-law-environment-article-11","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-mixed-eit-article-28-policy","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-mixed-collection-article-32-policy","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-mixed-vat-law-2026-policy","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-mixed-iit-article-6-deduction","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-no-match-fictional-document","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-no-match-fictional-law","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-insufficient-missing-enterprise-facts","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-insufficient-missing-transaction-type","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-security-invalid-secret","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-security-invalid-id","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-security-invalid-jwt","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"},
+    {"candidate_id":"draft-security-invalid-phone","representative":"pending","sensitive_data":"pending","expected_domains":"pending","expected_answerability":"pending","document_relevance":"pending","evidence_relevance":"pending"}
+  ],
+  "package_confirmations": {
+    "snapshot_binding": "pending",
+    "principal_profile": "pending",
+    "read_authorization_evidence": "pending",
+    "freeze_approval": "pending"
+  },
+  "gate_028_close_allowed": false
+}

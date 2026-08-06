@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "template_pending_maintainer",
+  "principal_profile_id": "PENDING_MAINTAINER_SELECTION",
+  "read_authorization_evidence_ref": "PENDING_MAINTAINER_EVIDENCE_REF",
+  "allowed_logical_domain_ids": [
+    "tax.policy",
+    "tax.law"
+  ],
+  "authorized_for_representative_dataset": false,
+  "authorized_for_live_p5": false,
+  "jwt_persisted": false,
+  "maintainer_id": null,
+  "confirmed_at": null
+}
