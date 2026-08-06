@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:transaction-live-evidence:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "workPackage", "validations", "status", "startedAtUtc", "completedAtUtc",
+    "durationMs", "authorizationMatrix", "precisionMatrix", "requestCounts", "responseVisibility",
+    "logSafety", "runtimeIsolation"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "workPackage": {"const": "WP-TXN-REAL-01"},
+    "validations": {
+      "type": "array", "prefixItems": [{"const": "VAL-TXN-004"}, {"const": "VAL-TXN-005"}],
+      "items": false, "minItems": 2, "maxItems": 2
+    },
+    "status": {"const": "passed"},
+    "startedAtUtc": {"type": "string", "format": "date-time"},
+    "completedAtUtc": {"type": "string", "format": "date-time"},
+    "durationMs": {"type": "integer", "minimum": 0},
+    "authorizationMatrix": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adminPrimary", "adminSecondary", "viewer", "unknownRole", "missingToken", "malformedToken", "serviceToken"],
+      "properties": {
+        "adminPrimary": {"const": "allowed"}, "adminSecondary": {"const": "allowed"},
+        "viewer": {"const": "allowed"}, "unknownRole": {"const": "forbidden"},
+        "missingToken": {"const": "unauthenticated"}, "malformedToken": {"const": "unauthenticated"},
+        "serviceToken": {"const": "unauthenticated"}
+      }
+    },
+    "precisionMatrix": {
+      "type": "object", "additionalProperties": false,
+      "required": ["amountExact", "amountGtExact", "amountLtExact", "gatewayAmountExact", "jsonNumberOnly", "mapperValuesUnmodified"],
+      "properties": {
+        "amountExact": {"const": true}, "amountGtExact": {"const": true},
+        "amountLtExact": {"const": true}, "gatewayAmountExact": {"const": true},
+        "jsonNumberOnly": {"const": true}, "mapperValuesUnmodified": {"const": true}
+      }
+    },
+    "requestCounts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transaction", "adapter", "gateway", "serviceSearch", "mapperCountUpTo", "mapperQuery", "otherServiceMethods", "otherTransactionEndpoints", "model"],
+      "properties": {
+        "transaction": {"const": 7}, "adapter": {"const": 6}, "gateway": {"const": 1},
+        "serviceSearch": {"const": 4}, "mapperCountUpTo": {"const": 4}, "mapperQuery": {"const": 0},
+        "otherServiceMethods": {"const": 0}, "otherTransactionEndpoints": {"const": 0}, "model": {"const": 0}
+      }
+    },
+    "responseVisibility": {"const": "provider_contract_and_empty_live_response"},
+    "logSafety": {
+      "type": "object", "additionalProperties": false,
+      "required": ["logLeakCount", "rawLogsDeleted", "transactionValuePersisted", "jwtPersisted", "hmacKeyPersisted", "bodyPersisted", "principalPersisted"],
+      "properties": {
+        "logLeakCount": {"const": 0}, "rawLogsDeleted": {"const": true},
+        "transactionValuePersisted": {"const": false}, "jwtPersisted": {"const": false},
+        "hmacKeyPersisted": {"const": false}, "bodyPersisted": {"const": false},
+        "principalPersisted": {"const": false}
+      }
+    },
+    "runtimeIsolation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authService", "transactionService", "gatewayService", "databaseAccessed", "permanentRouteUsed", "deepSeekCalled"],
+      "properties": {
+        "authService": {"const": "isolated_local"},
+        "transactionService": {"const": "spring_boot_test_netty"},
+        "gatewayService": {"const": "actual_jar_formal_mq_route"},
+        "databaseAccessed": {"const": false}, "permanentRouteUsed": {"const": true},
+        "deepSeekCalled": {"const": false}
+      }
+    }
+  }
+}
