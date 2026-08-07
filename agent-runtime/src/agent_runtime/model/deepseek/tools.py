@@ -6,12 +6,18 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping, cast
 
-from agent_runtime.capability_api.contracts import CapabilityDescriptor, JsonValue, canonical_json_bytes
+from agent_runtime.capability_api.contracts import CapabilityDescriptor, JsonObject, JsonValue, canonical_json_bytes
 from agent_runtime.model.contracts import ModelInputDenied, StructuredToolDefinition
 
 
 UNSUPPORTED_TOOL_NAME = "agent_unsupported"
 _UNSAFE_SLUG_CHARACTER = re.compile(r"[^a-z0-9]+")
+_EMPTY_ARGUMENTS_SCHEMA: JsonObject = {
+    "type": "object",
+    "properties": {},
+    "required": (),
+    "additionalProperties": False,
+}
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -37,24 +43,28 @@ def project_capability_tools(
 ) -> CapabilityToolProjection:
     if not 1 <= len(descriptors) <= 32:
         raise ModelInputDenied("model.invalid_capability_tools")
+    if any(not isinstance(descriptor, CapabilityDescriptor) for descriptor in descriptors):
+        raise ModelInputDenied("model.invalid_capability_tools")
     tools: list[StructuredToolDefinition] = []
     reverse: dict[str, str] = {}
     seen_capabilities: set[str] = set()
-    for descriptor in descriptors:
-        if not isinstance(descriptor, CapabilityDescriptor) or descriptor.capability_id in seen_capabilities:
+    for descriptor in sorted(descriptors, key=lambda item: item.capability_id):
+        if descriptor.capability_id in seen_capabilities:
             raise ModelInputDenied("model.invalid_capability_tools")
         seen_capabilities.add(descriptor.capability_id)
         name = _tool_name(descriptor.capability_id)
         if name in reverse or name == UNSUPPORTED_TOOL_NAME:
             raise ModelInputDenied("model.invalid_capability_tools")
+        aliases = ", ".join(descriptor.aliases)
+        alias_text = f" Aliases: {aliases}." if aliases else ""
         tools.append(
             StructuredToolDefinition(
                 name=name,
                 description=(
                     f"{descriptor.display_name}: {descriptor.description} "
-                    f"[capability={descriptor.capability_id}]"
+                    f"[capability={descriptor.capability_id}].{alias_text}"
                 ),
-                arguments_schema=descriptor.argument_schema,
+                arguments_schema=_EMPTY_ARGUMENTS_SCHEMA,
             )
         )
         reverse[name] = descriptor.capability_id
@@ -62,7 +72,7 @@ def project_capability_tools(
         StructuredToolDefinition(
             name=UNSUPPORTED_TOOL_NAME,
             description="No registered capability safely matches this request.",
-            arguments_schema={"type": "object", "properties": {}, "required": (), "additionalProperties": False},
+            arguments_schema=_EMPTY_ARGUMENTS_SCHEMA,
         )
     )
     serialized = tuple(

@@ -4,9 +4,11 @@ import pytest
 
 from agent_runtime.bootstrap import LocalModelCompositionRoot
 from agent_runtime.capability_api.contracts import JsonObject
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionDecisionKind,
+    CapabilitySelectionInput,
+)
 from agent_runtime.graph.state import (
-    ActionSelectionDecisionKind,
-    ActionSelectionInput,
     AnswerGenerationDecisionKind,
     AnswerGenerationInput,
     ModelNodeFailureKind,
@@ -37,9 +39,9 @@ async def test_denied_or_unknown_action_question_never_calls_transport() -> None
 
     for question in ("员工编号 E-1001 的税务信息", "今天天气如何"):
         decision = await components.action_selector(
-            ActionSelectionInput(question=question, descriptors=(descriptor(),))
+            CapabilitySelectionInput(question=question, descriptors=(descriptor(),))
         )
-        assert decision.kind is ActionSelectionDecisionKind.FAILURE
+        assert decision.kind is CapabilitySelectionDecisionKind.FAILURE
         assert decision.failure is not None
         assert decision.failure.kind is ModelNodeFailureKind.INPUT_DENIED
 

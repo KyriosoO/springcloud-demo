@@ -12,6 +12,7 @@ from agent_runtime.model.contracts import (
     ModelInputDenied,
     ModelTransportError,
     QuestionEgressDisposition,
+    StructuredModelRequest,
     StructuredModelTransport,
 )
 from agent_runtime.model.deepseek.action_selector import (
@@ -26,7 +27,14 @@ from agent_runtime.model.deepseek.json_codec import parse_unique_json_object
 from agent_runtime.model.deepseek.tools import UNSUPPORTED_TOOL_NAME, project_capability_tools
 from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelSettings
-from tests.poc.contracts import DeepSeekPocResult, PocCallRecord, write_append_only_result
+from tests.poc.contracts import (
+    ActionPocRunAuthorization,
+    DeepSeekPocResult,
+    PocCallRecord,
+    consume_action_poc_authorization,
+    validate_action_poc_manifest,
+    write_append_only_result,
+)
 from tests.poc.fixtures import ACTION_CASES, ANSWER_CASES, ActionPocCase, AnswerPocCase, action_descriptors
 
 
@@ -37,6 +45,9 @@ def _utc_now() -> str:
 async def run_action_poc(
     *,
     transport: StructuredModelTransport,
+    manifest_path: Path,
+    repository_root: Path,
+    authorization: ActionPocRunAuthorization,
     result_directory: Path,
     timeout_ms: int = 8000,
 ) -> tuple[DeepSeekPocResult, Path]:
@@ -44,58 +55,83 @@ async def run_action_poc(
     definition = build_action_selection_task_definition(timeout_ms=timeout_ms)
     projection = project_capability_tools(action_descriptors())
     guard = QuestionEgressGuard()
-    records: list[PocCallRecord] = []
-    total_tokens = 0
-    provider_failed = False
-
+    manifest, manifest_sha256 = validate_action_poc_manifest(
+        path=manifest_path,
+        repository_root=repository_root,
+    )
+    if definition.task_version != manifest.task_version:
+        raise RuntimeError("poc.task_version_drift")
+    prepared_requests: list[tuple[ActionPocCase, int, StructuredModelRequest]] = []
     for case in ACTION_CASES:
         decision = guard.evaluate(case.question)
         if decision.disposition is not QuestionEgressDisposition.ALLOWED or decision.minimized_question is None:
             raise RuntimeError(f"poc.fixture_denied:{case.case_id}")
         for repetition in range(1, 4):
-            if len(records) >= 30:
-                raise RuntimeError("poc.action_budget_exceeded")
-            started_call = perf_counter()
-            structure_valid = False
-            expected_match = False
-            decision_name = "invalid_output"
-            usage_total_tokens = None
-            try:
-                request = definition.build_request(
-                    ActionSelectionTaskInput(
-                        minimized_question=decision.minimized_question,
-                        projection=projection,
-                    )
-                )
-                response = await transport.complete(
-                    request,
-                    call_deadline=asyncio.get_running_loop().time() + timeout_ms / 1000,
-                )
-                usage_total_tokens = response.usage_total_tokens
-                total_tokens += usage_total_tokens or 0
-                call = definition.parse_response(response)
-                decision_name, arguments = _map_action_call(call.name, call.arguments_json, projection.capability_by_tool)
-                structure_valid = _validate_action_arguments(decision_name, arguments)
-                expected_match = structure_valid and decision_name == case.expected_capability_id
-            except (InvalidModelOutput, ModelInputDenied):
-                pass
-            except ModelTransportError as exc:
-                decision_name = f"provider_{exc.kind.value}"
-                provider_failed = True
-            records.append(
-                PocCallRecord(
-                    ordinal=len(records) + 1,
-                    case_id=case.case_id,
-                    repetition=repetition,
-                    decision=decision_name,
-                    structure_valid=structure_valid,
-                    expected_match=expected_match,
-                    latency_ms=round((perf_counter() - started_call) * 1000),
-                    usage_total_tokens=usage_total_tokens,
+            prepared_requests.append(
+                (
+                    case,
+                    repetition,
+                    definition.build_request(
+                        ActionSelectionTaskInput(
+                            minimized_question=decision.minimized_question,
+                            projection=projection,
+                        )
+                    ),
                 )
             )
-            if provider_failed:
-                break
+    if len(prepared_requests) != manifest.authorized_call_limit:
+        raise RuntimeError("poc.action_fixture_count_invalid")
+
+    records: list[PocCallRecord] = []
+    total_tokens = 0
+    provider_failed = False
+
+    consume_action_poc_authorization(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        manifest_sha256=manifest_sha256,
+        authorization=authorization,
+        consumed_at_utc=_utc_now(),
+    )
+    for case, repetition, request in prepared_requests:
+        if len(records) >= manifest.authorized_call_limit:
+            raise RuntimeError("poc.action_budget_exceeded")
+        started_call = perf_counter()
+        structure_valid = False
+        expected_match = False
+        arguments_empty = False
+        decision_name = "invalid_output"
+        usage_total_tokens = None
+        try:
+            response = await transport.complete(
+                request,
+                call_deadline=asyncio.get_running_loop().time() + timeout_ms / 1000,
+            )
+            usage_total_tokens = response.usage_total_tokens
+            total_tokens += usage_total_tokens or 0
+            call = definition.parse_response(response)
+            decision_name, arguments = _map_action_call(call.name, call.arguments_json, projection.capability_by_tool)
+            arguments_empty = not arguments
+            structure_valid = arguments_empty
+            expected_match = structure_valid and decision_name == case.expected_capability_id
+        except (InvalidModelOutput, ModelInputDenied):
+            pass
+        except ModelTransportError as exc:
+            decision_name = f"provider_{exc.kind.value}"
+            provider_failed = True
+        records.append(
+            PocCallRecord(
+                ordinal=len(records) + 1,
+                case_id=case.case_id,
+                repetition=repetition,
+                decision=decision_name,
+                structure_valid=structure_valid,
+                expected_match=expected_match,
+                arguments_empty=arguments_empty,
+                latency_ms=round((perf_counter() - started_call) * 1000),
+                usage_total_tokens=usage_total_tokens,
+            )
+        )
         if provider_failed:
             break
 
@@ -113,6 +149,8 @@ async def run_action_poc(
     result = DeepSeekPocResult(
         task="action_selection",
         task_version=definition.task_version,
+        run_id=manifest.run_id,
+        manifest_sha256=manifest_sha256,
         started_at_utc=started,
         finished_at_utc=_utc_now(),
         authorized_call_limit=30,
@@ -233,14 +271,6 @@ def _map_action_call(name: str, arguments_json: str, reverse: object) -> tuple[s
     if not isinstance(capability_id, str):
         raise InvalidModelOutput("poc.action_tool_unknown")
     return capability_id, arguments
-
-
-def _validate_action_arguments(capability_id: str, arguments: JsonObject) -> bool:
-    if capability_id == "knowledge.query":
-        return set(arguments) == {"question"} and isinstance(arguments.get("question"), str)
-    if capability_id in {"employee.query", "transaction.query", "agent_unsupported"}:
-        return not arguments
-    return False
 
 
 def _validate_answer_grounding(case: AnswerPocCase, answer: str, used_fact_ids: frozenset[str]) -> bool:

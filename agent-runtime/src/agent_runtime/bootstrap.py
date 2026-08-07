@@ -11,7 +11,6 @@ from agent_runtime.capability_api.contracts import CapabilityDescriptor, Capabil
 from agent_runtime.core.execution import CapabilityExecutionCore
 from agent_runtime.core.registry import CapabilityRegistryBuilder
 from agent_runtime.graph.nodes import (
-    ActionSelectionNode,
     AnswerGenerationNode,
     execute_capability_node,
     finalize_without_model,
@@ -39,7 +38,7 @@ from agent_runtime.model.contracts import (
     StructuredModelTransport,
 )
 from agent_runtime.model.deepseek.action_selector import (
-    DeepSeekActionSelector,
+    DeepSeekCapabilitySelector,
     build_action_selection_task_definition,
 )
 from agent_runtime.model.deepseek.answer_generator import (
@@ -151,7 +150,7 @@ def _validate_local_action_resolvers(
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LocalModelComponents:
-    action_selector: ActionSelectionNode
+    action_selector: CapabilitySelectionNode
     answer_generator: AnswerGenerationNode
     context_accessor: ModelCallContextAccessor
     gateway: StructuredModelGateway
@@ -190,7 +189,7 @@ class LocalModelCompositionRoot:
         accessor = ModelCallContextAccessor()
         grounding = GroundingPolicyRegistry(grounding_policies)
         return LocalModelComponents(
-            action_selector=DeepSeekActionSelector(
+            action_selector=DeepSeekCapabilitySelector(
                 guard=guard,
                 gateway=gateway,
                 context=accessor,

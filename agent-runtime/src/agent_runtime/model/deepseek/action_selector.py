@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from agent_runtime.capability_api.contracts import ActionCandidate, freeze_json_object
+from agent_runtime.capability_api.contracts import freeze_json_object
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionDecision,
+    CapabilitySelectionDecisionKind,
+    CapabilitySelectionInput,
+)
 from agent_runtime.graph.state import (
-    ActionSelectionDecision,
-    ActionSelectionDecisionKind,
-    ActionSelectionInput,
+    ModelNodeFailure,
     ModelNodeFailureKind,
 )
 from agent_runtime.model.context import ModelCallContextAccessor
@@ -35,11 +38,11 @@ from agent_runtime.model.deepseek.tools import (
 from agent_runtime.model.input_guard import QuestionEgressGuard
 
 
-_ACTION_SYSTEM_INSTRUCTION = (
+ACTION_SELECTION_SYSTEM_INSTRUCTION = (
     "Select exactly one registered function tool for the user request. "
-    "Return arguments that conform exactly to the selected tool's JSON Schema; when the schema "
-    "declares no properties, return an empty JSON object. Do not execute tools, invent functions, "
-    "add undeclared arguments, or return prose. Use agent_unsupported when none applies."
+    "Return arguments as exactly an empty JSON object. Do not generate query conditions, identifiers, "
+    "amounts, pagination, sorting, or any other tool arguments. Do not execute tools, invent functions, "
+    "or return prose. Use agent_unsupported when none applies."
 )
 
 
@@ -68,7 +71,7 @@ def build_action_selection_task_definition(
         return StructuredModelRequest(
             task_id=definition.task_id,
             task_version=definition.task_version,
-            system_instruction=_ACTION_SYSTEM_INSTRUCTION,
+            system_instruction=ACTION_SELECTION_SYSTEM_INSTRUCTION,
             user_payload_json=canonical_object_json(payload),
             tools=input.projection.tools,
             tool_mode=StructuredToolMode.REQUIRED,
@@ -87,7 +90,7 @@ def build_action_selection_task_definition(
 
     definition = ModelTaskDefinition(
         task_id=ModelTaskId.ACTION_SELECTION,
-        task_version="action-selection-v2",
+        task_version="action-selection-v3",
         input_type=ActionSelectionTaskInput,
         max_input_bytes=max_input_bytes,
         timeout_ms=timeout_ms,
@@ -98,7 +101,7 @@ def build_action_selection_task_definition(
     return definition
 
 
-class DeepSeekActionSelector:
+class DeepSeekCapabilitySelector:
     __slots__ = ("_context", "_definition", "_gateway", "_guard", "_max_argument_bytes")
 
     def __init__(
@@ -116,7 +119,7 @@ class DeepSeekActionSelector:
         self._definition = definition
         self._max_argument_bytes = max_argument_bytes
 
-    async def __call__(self, input: ActionSelectionInput) -> ActionSelectionDecision:
+    async def __call__(self, input: CapabilitySelectionInput) -> CapabilitySelectionDecision:
         decision = self._guard.evaluate(input.question)
         if decision.disposition is QuestionEgressDisposition.DENIED:
             return _failure(ModelNodeFailureKind.INPUT_DENIED)
@@ -135,8 +138,8 @@ class DeepSeekActionSelector:
             context=context,
         )
         if result.failure_kind is not None:
-            return ActionSelectionDecision(
-                kind=ActionSelectionDecisionKind.FAILURE,
+            return CapabilitySelectionDecision(
+                kind=CapabilitySelectionDecisionKind.FAILURE,
                 failure=to_model_node_failure(result.failure_kind),
             )
         call = result.output
@@ -154,7 +157,7 @@ class DeepSeekActionSelector:
                 return _failure(ModelNodeFailureKind.INVALID_OUTPUT)
             if arguments:
                 return _failure(ModelNodeFailureKind.INVALID_OUTPUT)
-            return ActionSelectionDecision(kind=ActionSelectionDecisionKind.UNSUPPORTED)
+            return CapabilitySelectionDecision(kind=CapabilitySelectionDecisionKind.UNSUPPORTED)
         capability_id = projection.capability_by_tool.get(call.name)
         if capability_id is None:
             return _failure(ModelNodeFailureKind.INVALID_OUTPUT)
@@ -165,19 +168,22 @@ class DeepSeekActionSelector:
                 max_depth=8,
                 max_items=256,
             )
-            candidate = ActionCandidate(capability_id=capability_id, arguments=arguments)
-        except ValueError:
+        except InvalidModelOutput:
             return _failure(ModelNodeFailureKind.INVALID_OUTPUT)
-        return ActionSelectionDecision(
-            kind=ActionSelectionDecisionKind.CANDIDATE,
-            candidate=candidate,
+        if arguments:
+            return _failure(ModelNodeFailureKind.INVALID_OUTPUT)
+        return CapabilitySelectionDecision(
+            kind=CapabilitySelectionDecisionKind.CANDIDATE,
+            capability_id=capability_id,
         )
 
 
-def _failure(kind: ModelNodeFailureKind) -> ActionSelectionDecision:
-    from agent_runtime.graph.state import ModelNodeFailure
-
-    return ActionSelectionDecision(
-        kind=ActionSelectionDecisionKind.FAILURE,
+def _failure(kind: ModelNodeFailureKind) -> CapabilitySelectionDecision:
+    return CapabilitySelectionDecision(
+        kind=CapabilitySelectionDecisionKind.FAILURE,
         failure=ModelNodeFailure(kind=kind),
     )
+
+
+# Compatibility alias for existing internal imports; the v3 contract is capability-ID only.
+DeepSeekActionSelector = DeepSeekCapabilitySelector

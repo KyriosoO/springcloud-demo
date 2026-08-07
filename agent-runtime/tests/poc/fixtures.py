@@ -1,15 +1,29 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
 
-from agent_runtime.capability_api.contracts import CapabilityDescriptor, CapabilityKind, JsonObject
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+from agent_runtime.adapters.employee.definition import employee_detail_definition
+from agent_runtime.adapters.transaction.definition import transaction_search_definition
+from agent_runtime.capability_api.contracts import CapabilityDescriptor, JsonObject
+from agent_runtime.knowledge.provider import knowledge_query_descriptor
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ActionPocCase:
-    case_id: str
-    question: str
-    expected_capability_id: str
+class ActionPocCase(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    case_id: str = Field(pattern=r"^[a-z][a-z0-9_-]{2,63}$")
+    question: str = Field(min_length=1, max_length=256)
+    expected_capability_id: Literal[
+        "knowledge.query",
+        "employee.detail",
+        "transaction.search",
+        "agent_unsupported",
+    ]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,61 +36,46 @@ class AnswerPocCase:
 
 
 def action_descriptors() -> tuple[CapabilityDescriptor, ...]:
-    empty_schema: JsonObject = {
-        "type": "object",
-        "properties": {},
-        "required": (),
-        "additionalProperties": False,
-    }
-    knowledge_schema: JsonObject = {
-        "type": "object",
-        "properties": {"question": {"type": "string", "minLength": 1, "maxLength": 256}},
-        "required": ("question",),
-        "additionalProperties": False,
-    }
     return (
-        CapabilityDescriptor(
-            capability_id="knowledge.query",
-            api_version=1,
-            kind=CapabilityKind.QUERY,
-            display_name="Public tax knowledge query",
-            description="Answer a public tax law, regulation, policy, invoice, or filing knowledge question.",
-            aliases=(),
-            argument_schema=knowledge_schema,
-        ),
-        CapabilityDescriptor(
-            capability_id="employee.query",
-            api_version=1,
-            kind=CapabilityKind.QUERY,
-            display_name="Employee query metadata",
-            description="Describe supported employee list or query fields and conditions; never reads a person record.",
-            aliases=(),
-            argument_schema=empty_schema,
-        ),
-        CapabilityDescriptor(
-            capability_id="transaction.query",
-            api_version=1,
-            kind=CapabilityKind.QUERY,
-            display_name="Transaction query metadata",
-            description="Describe supported transaction search fields and conditions; never reads a transaction record.",
-            aliases=(),
-            argument_schema=empty_schema,
-        ),
+        knowledge_query_descriptor(),
+        employee_detail_definition().descriptor,
+        transaction_search_definition().descriptor,
     )
 
 
-ACTION_CASES: tuple[ActionPocCase, ...] = (
-    ActionPocCase(case_id="tax_policy_scope", question="增值税政策适用范围是什么？", expected_capability_id="knowledge.query"),
-    ActionPocCase(case_id="tax_invoice_rule", question="发票管理法规有哪些基本要求？", expected_capability_id="knowledge.query"),
-    ActionPocCase(case_id="tax_filing_rule", question="纳税申报政策的一般原则是什么？", expected_capability_id="knowledge.query"),
-    ActionPocCase(case_id="tax_law_hierarchy", question="税收法律和行政法规的关系是什么？", expected_capability_id="knowledge.query"),
-    ActionPocCase(case_id="employee_conditions", question="员工查询支持哪些条件？", expected_capability_id="employee.query"),
-    ActionPocCase(case_id="employee_fields", question="员工列表允许哪些字段？", expected_capability_id="employee.query"),
-    ActionPocCase(case_id="employee_filters", question="员工查询有哪些筛选项？", expected_capability_id="employee.query"),
-    ActionPocCase(case_id="transaction_conditions", question="交易查询支持哪些条件？", expected_capability_id="transaction.query"),
-    ActionPocCase(case_id="transaction_fields", question="交易记录允许哪些字段？", expected_capability_id="transaction.query"),
-    ActionPocCase(case_id="transaction_filters", question="交易查询有哪些筛选项？", expected_capability_id="transaction.query"),
-)
+ACTION_FIXTURE_PATH = Path(__file__).with_name("fixtures") / "action_selection_v3.json"
+
+
+class _DuplicateFixtureKey(ValueError):
+    pass
+
+
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _DuplicateFixtureKey
+        result[key] = value
+    return result
+
+
+def load_action_cases(path: Path = ACTION_FIXTURE_PATH) -> tuple[ActionPocCase, ...]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
+    except _DuplicateFixtureKey as exc:
+        raise ValueError("poc.action_fixture_duplicate_key") from exc
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("poc.action_fixture_invalid") from exc
+    cases = TypeAdapter(tuple[ActionPocCase, ...]).validate_python(
+        tuple(raw) if isinstance(raw, list) else raw,
+        strict=True,
+    )
+    if len(cases) != 10 or len({case.case_id for case in cases}) != 10:
+        raise ValueError("poc.action_fixture_invalid")
+    return cases
+
+
+ACTION_CASES = load_action_cases()
 
 
 ANSWER_CASES: tuple[AnswerPocCase, ...] = (

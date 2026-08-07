@@ -109,3 +109,20 @@ def test_context_projection_and_model_package_exclude_identity_domain_and_dynami
     assert "OpaqueUserToken" not in model_text
     assert "domain_result" not in model_text
     assert "os.environ" not in model_text
+
+
+def test_action_selector_is_id_only_and_does_not_depend_on_execution_arguments() -> None:
+    selector_path = SOURCE / "model" / "deepseek" / "action_selector.py"
+    tools_path = SOURCE / "model" / "deepseek" / "tools.py"
+    selector_text = selector_path.read_text(encoding="utf-8")
+    tools_tree = ast.parse(tools_path.read_text(encoding="utf-8"))
+
+    assert "CapabilitySelectionDecision" in selector_text
+    assert "ActionCandidate" not in selector_text
+    assert "LocalActionResolver" not in selector_text
+    assert "employee_identifier" not in selector_text
+    assert "amount_gt" not in selector_text
+    assert not any(
+        isinstance(node, ast.Attribute) and node.attr == "argument_schema"
+        for node in ast.walk(tools_tree)
+    )
