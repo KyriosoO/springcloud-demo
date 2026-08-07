@@ -6,6 +6,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Callable, Generic, Literal, NewType, Protocol, TypeVar
 
+from agent_runtime.capability_api.action_resolution import LocalActionResolver
 from agent_runtime.capability_api.contracts import (
     CapabilityArgumentValidator,
     CapabilityDescriptor,
@@ -277,6 +278,7 @@ class BusinessActionDefinition(Generic[TInput, TWireRequest, TWireResponse, TRec
     domain_id: BusinessDomainId
     service_key: BusinessServiceKey
     argument_validator: CapabilityArgumentValidator[TInput]
+    local_action_resolver: LocalActionResolver
     request_mapper: BusinessRequestMapper[TInput, TWireRequest]
     wire_codec: BusinessWireCodec[TWireRequest, TWireResponse]
     response_normalizer: BusinessResponseNormalizer[TWireResponse, TRecord]

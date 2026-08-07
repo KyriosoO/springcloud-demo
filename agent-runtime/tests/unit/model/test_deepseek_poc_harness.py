@@ -27,7 +27,7 @@ def _result() -> DeepSeekPocResult:
     )
     return DeepSeekPocResult(
         task="action_selection",
-        task_version="action-selection-v1",
+        task_version="action-selection-v2",
         started_at_utc="2026-08-03T00:00:00.000000Z",
         finished_at_utc="2026-08-03T00:00:01.000000Z",
         authorized_call_limit=30,

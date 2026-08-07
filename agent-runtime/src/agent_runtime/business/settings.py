@@ -244,6 +244,11 @@ class BusinessSettingsValidator:
         limits = definition.contract_limits
         fields = definition.field_definitions
         field_ids = tuple(item.field_id for item in fields)
+        try:
+            resolver_capability_id = definition.local_action_resolver.capability_id
+            resolver_method = definition.local_action_resolver.resolve
+        except Exception:
+            raise BusinessConfigurationError("business.invalid_local_action_resolver") from None
         if (
             _ID.fullmatch(descriptor.capability_id) is None
             or descriptor.api_version != 1
@@ -261,6 +266,8 @@ class BusinessSettingsValidator:
             or any(item.model_candidate_by_code and not item.user_visible_by_code for item in fields)
             or any(item.model_candidate_by_code and item.data_class in {DataClass.CREDENTIAL_OR_SECRET, DataClass.FREE_TEXT_SENSITIVE, DataClass.UNKNOWN} for item in fields)
             or definition.answer_mode not in {BusinessAnswerMode.STRUCTURED_ONLY, BusinessAnswerMode.MODEL_ASSISTED}
+            or resolver_capability_id != descriptor.capability_id
+            or not callable(resolver_method)
         ):
             raise BusinessConfigurationError("business.invalid_definition")
         for item in fields:

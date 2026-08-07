@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 
 import pytest
 
@@ -11,8 +12,23 @@ from agent_runtime.business.handler import BoundBusinessActionHandler
 from agent_runtime.business.http_client import FakeDomainHttpRequest, FakeDomainHttpResponse, UserJwtBusinessHttpClient
 from agent_runtime.business.settings import BusinessGlobalSettings, GlobalBusinessEgressPolicy
 from agent_runtime.business.user_projection import BusinessUserResultProjector
-from agent_runtime.capability_api.contracts import CapabilityStatus, EgressDisposition
+from agent_runtime.capability_api.contracts import (
+    CapabilityStatus,
+    EgressDisposition,
+    JsonObject,
+    JsonValue,
+)
 from tests.helpers import scope
+
+
+def _json_object(value: JsonValue) -> JsonObject:
+    assert isinstance(value, Mapping)
+    return value
+
+
+def _json_array(value: JsonValue) -> tuple[JsonValue, ...]:
+    assert isinstance(value, tuple)
+    return value
 
 
 class FakeEmployeeServer:
@@ -51,7 +67,9 @@ async def test_employee_handler_calls_fake_once_and_returns_six_field_projection
     assert result.egress.disposition is EgressDisposition.DENIED
     assert len(server.requests) == 1
     assert server.requests[0].authorization.startswith("Bearer ")
-    record = result.domain_result["records"][0]  # type: ignore[index]
-    assert record["fields"]["employee_id_masked"] == "***BCDE"  # type: ignore[index]
+    assert result.domain_result is not None
+    records = _json_array(result.domain_result["records"])
+    record = _json_object(records[0])
+    fields = _json_object(record["fields"])
+    assert fields["employee_id_masked"] == "***BCDE"
     assert "rawSensitiveField" not in str(result.domain_result)
-

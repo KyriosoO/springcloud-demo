@@ -22,10 +22,13 @@ from agent_runtime.capability_api.contracts import (
     OpaqueUserToken,
     SubjectType,
 )
+from agent_runtime.capability_api.action_resolution import LocalActionResolution
 from agent_runtime.core.execution import RequestExecutionScope
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionDecision,
+    CapabilitySelectionInput,
+)
 from agent_runtime.graph.state import (
-    ActionSelectionDecision,
-    ActionSelectionInput,
     AnswerGenerationDecision,
     AnswerGenerationInput,
 )
@@ -109,15 +112,32 @@ class Provider:
 
 
 class FixedSelector:
-    def __init__(self, decision: ActionSelectionDecision) -> None:
+    def __init__(self, decision: CapabilitySelectionDecision) -> None:
         self.decision = decision
         self.calls = 0
-        self.inputs: list[ActionSelectionInput] = []
+        self.inputs: list[CapabilitySelectionInput] = []
 
-    async def __call__(self, input: ActionSelectionInput) -> ActionSelectionDecision:
+    async def __call__(self, input: CapabilitySelectionInput) -> CapabilitySelectionDecision:
         self.calls += 1
         self.inputs.append(input)
         return self.decision
+
+
+class FixedLocalActionResolver:
+    def __init__(self, capability_id: str, resolution: LocalActionResolution) -> None:
+        self._capability_id = capability_id
+        self.resolution = resolution
+        self.calls = 0
+        self.questions: list[str] = []
+
+    @property
+    def capability_id(self) -> str:
+        return self._capability_id
+
+    def resolve(self, question: str) -> LocalActionResolution:
+        self.calls += 1
+        self.questions.append(question)
+        return self.resolution
 
 
 class FixedAnswerGenerator:

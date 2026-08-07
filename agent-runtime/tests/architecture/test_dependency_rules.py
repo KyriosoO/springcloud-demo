@@ -81,6 +81,23 @@ def test_model_protocols_keep_narrow_inputs_and_decisions() -> None:
         assert ast.unparse(call.args.args[1].annotation) == input_type
         assert call.returns is not None and ast.unparse(call.returns) == return_type
 
+    resolution_tree = ast.parse((SOURCE / "graph" / "action_resolution.py").read_text(encoding="utf-8"))
+    capability_protocol = next(
+        node
+        for node in resolution_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "CapabilitySelectionNode"
+    )
+    capability_call = next(
+        item
+        for item in capability_protocol.body
+        if isinstance(item, ast.AsyncFunctionDef) and item.name == "__call__"
+    )
+    assert len(capability_call.args.args) == 2
+    assert capability_call.args.args[1].annotation is not None
+    assert ast.unparse(capability_call.args.args[1].annotation) == "CapabilitySelectionInput"
+    assert capability_call.returns is not None
+    assert ast.unparse(capability_call.returns) == "CapabilitySelectionDecision"
+
 
 def test_registry_resolution_has_one_execution_owner() -> None:
     callers: set[str] = set()

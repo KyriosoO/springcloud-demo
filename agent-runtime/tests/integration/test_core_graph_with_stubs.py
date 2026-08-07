@@ -3,15 +3,21 @@ from __future__ import annotations
 import pytest
 
 from agent_runtime.bootstrap import RuntimeCompositionRoot
+from agent_runtime.capability_api.action_resolution import (
+    LocalActionResolution,
+    LocalActionResolutionKind,
+)
 from agent_runtime.capability_api.contracts import (
     CapabilityResult,
     CapabilityStatus,
     EgressDisposition,
     ModelEgressResult,
 )
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionDecision,
+    CapabilitySelectionDecisionKind,
+)
 from agent_runtime.graph.state import (
-    ActionSelectionDecision,
-    ActionSelectionDecisionKind,
     AnswerGenerationDecision,
     AnswerGenerationDecisionKind,
     ModelNodeFailure,
@@ -20,11 +26,11 @@ from agent_runtime.graph.state import (
 from agent_runtime.settings import CoreRuntimeSettings
 from tests.helpers import (
     FixedAnswerGenerator,
+    FixedLocalActionResolver,
     FixedSelector,
     Provider,
     QueryValidator,
     ResultHandler,
-    candidate,
     registration,
     scope,
     success_result,
@@ -33,11 +39,19 @@ from tests.helpers import (
 
 def _selector() -> FixedSelector:
     return FixedSelector(
-        ActionSelectionDecision(
-            kind=ActionSelectionDecisionKind.CANDIDATE,
-            candidate=candidate(),
+        CapabilitySelectionDecision(
+            kind=CapabilitySelectionDecisionKind.CANDIDATE,
+            capability_id="test.query",
         )
     )
+
+
+def _resolver(*, matched: bool = True) -> FixedLocalActionResolver:
+    resolution = LocalActionResolution(
+        kind=LocalActionResolutionKind.CANDIDATE if matched else LocalActionResolutionKind.NO_MATCH,
+        arguments={"value": "x"} if matched else None,
+    )
+    return FixedLocalActionResolver("test.query", resolution)
 
 
 def _answer() -> FixedAnswerGenerator:
@@ -56,7 +70,7 @@ async def test_empty_registry_short_circuits_selector_and_handler() -> None:
     invoker = RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(Provider(registration(enabled=False)),),
-        action_selector=selector,
+        capability_selector=selector,
         answer_generator=answer,
     )
 
@@ -77,8 +91,9 @@ async def test_allowed_payload_is_the_only_answer_model_input() -> None:
     invoker = RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(Provider(registration(validator=QueryValidator(), handler=handler)),),
-        action_selector=selector,
+        capability_selector=selector,
         answer_generator=answer,
+        local_action_resolvers=(_resolver(),),
     )
 
     outcome = await invoker.ainvoke(question="test question", scope=execution_scope)
@@ -101,8 +116,9 @@ async def test_denied_success_returns_authorized_local_result_without_model() ->
     invoker = RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(Provider(registration(validator=QueryValidator(), handler=handler)),),
-        action_selector=_selector(),
+        capability_selector=_selector(),
         answer_generator=answer,
+        local_action_resolvers=(_resolver(),),
     )
 
     outcome = await invoker.ainvoke(question="test question", scope=scope())
@@ -124,8 +140,9 @@ async def test_no_result_keeps_status_and_optional_coverage_metadata() -> None:
     invoker = RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(Provider(registration(validator=QueryValidator(), handler=ResultHandler(result))),),
-        action_selector=_selector(),
+        capability_selector=_selector(),
         answer_generator=answer,
+        local_action_resolvers=(_resolver(),),
     )
 
     outcome = await invoker.ainvoke(question="test question", scope=scope())
@@ -138,8 +155,8 @@ async def test_no_result_keeps_status_and_optional_coverage_metadata() -> None:
 @pytest.mark.asyncio
 async def test_selector_failure_has_no_capability_id() -> None:
     selector = FixedSelector(
-        ActionSelectionDecision(
-            kind=ActionSelectionDecisionKind.FAILURE,
+        CapabilitySelectionDecision(
+            kind=CapabilitySelectionDecisionKind.FAILURE,
             failure=ModelNodeFailure(kind=ModelNodeFailureKind.PROVIDER_TIMEOUT),
         )
     )
@@ -147,8 +164,9 @@ async def test_selector_failure_has_no_capability_id() -> None:
     invoker = RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(Provider(registration(validator=QueryValidator(), handler=handler)),),
-        action_selector=selector,
+        capability_selector=selector,
         answer_generator=_answer(),
+        local_action_resolvers=(_resolver(matched=False),),
     )
 
     outcome = await invoker.ainvoke(question="test question", scope=scope())
@@ -176,8 +194,9 @@ async def test_answer_failure_preserves_claimed_capability_id_and_drops_payload(
                 )
             ),
         ),
-        action_selector=_selector(),
+        capability_selector=_selector(),
         answer_generator=answer,
+        local_action_resolvers=(_resolver(),),
     )
 
     outcome = await invoker.ainvoke(question="test question", scope=scope())
@@ -186,4 +205,3 @@ async def test_answer_failure_preserves_claimed_capability_id_and_drops_payload(
     assert outcome.capability_id == "test.query"
     assert outcome.user_result is None
     assert outcome.failure is not None and outcome.failure.code == "model.provider_failure"
-

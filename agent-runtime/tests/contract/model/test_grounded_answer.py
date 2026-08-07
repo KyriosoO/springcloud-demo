@@ -5,7 +5,9 @@ import json
 import pytest
 
 from agent_runtime.bootstrap import LocalModelCompositionRoot
+from agent_runtime.capability_api.contracts import JsonObject
 from agent_runtime.graph.state import (
+    AnswerGenerationDecision,
     AnswerGenerationDecisionKind,
     AnswerGenerationInput,
     ModelNodeFailureKind,
@@ -16,15 +18,15 @@ from tests.model_helpers import AcceptGroundingPolicy, FakeStructuredModelTransp
 
 
 QUESTION = "现行增值税政策是什么"
-PAYLOAD = {
+PAYLOAD: JsonObject = {
     "schema_version": 1,
-    "facts": [
+    "facts": (
         {
             "fact_id": "fact-0001",
             "value": "ACTIVE",
             "source": {"record_ref": "record-0001", "field_id": "status"},
-        }
-    ],
+        },
+    ),
     "coverage": {"truncated": False},
 }
 
@@ -38,7 +40,10 @@ def _response(body: dict[str, object]) -> StructuredModelResponse:
     )
 
 
-async def _generate(response: StructuredModelResponse, policy: AcceptGroundingPolicy):
+async def _generate(
+    response: StructuredModelResponse,
+    policy: AcceptGroundingPolicy,
+) -> tuple[AnswerGenerationDecision, FakeStructuredModelTransport]:
     transport = FakeStructuredModelTransport(response)
     components = LocalModelCompositionRoot.build(
         settings=ModelSettings(),

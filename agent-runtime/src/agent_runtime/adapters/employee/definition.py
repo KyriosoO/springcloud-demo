@@ -23,6 +23,7 @@ from agent_runtime.adapters.employee.contracts import (
 )
 from agent_runtime.adapters.employee.fields import employee_field_definitions
 from agent_runtime.adapters.employee.normalizer import EmployeeDetailResponseNormalizer
+from agent_runtime.adapters.employee.action_resolver import EmployeeDetailLocalActionResolver
 
 
 def employee_detail_definition() -> BusinessActionDefinition[
@@ -49,6 +50,7 @@ def employee_detail_definition() -> BusinessActionDefinition[
         domain_id=BusinessDomainId("employee"),
         service_key=BusinessServiceKey("employee-service"),
         argument_validator=EmployeeDetailArgumentValidator(),
+        local_action_resolver=EmployeeDetailLocalActionResolver(),
         request_mapper=EmployeeDetailRequestMapper(),
         wire_codec=EmployeeDetailWireCodec(),
         response_normalizer=EmployeeDetailResponseNormalizer(),
@@ -63,4 +65,3 @@ def employee_detail_definition() -> BusinessActionDefinition[
             max_timeout_ms=3000, max_request_bytes=1024,
         ),
     )
-

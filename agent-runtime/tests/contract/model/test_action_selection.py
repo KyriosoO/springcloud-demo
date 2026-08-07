@@ -4,6 +4,7 @@ import pytest
 
 from agent_runtime.bootstrap import LocalModelCompositionRoot
 from agent_runtime.graph.state import (
+    ActionSelectionDecision,
     ActionSelectionDecisionKind,
     ActionSelectionInput,
     ModelNodeFailureKind,
@@ -31,7 +32,9 @@ def _response(*calls: StructuredToolCall, content: str | None = None) -> Structu
     )
 
 
-async def _select(response: StructuredModelResponse):
+async def _select(
+    response: StructuredModelResponse,
+) -> tuple[ActionSelectionDecision, FakeStructuredModelTransport]:
     transport = FakeStructuredModelTransport(response)
     components = LocalModelCompositionRoot.build(
         settings=ModelSettings(),
@@ -62,6 +65,9 @@ async def test_single_registered_tool_becomes_untrusted_action_candidate() -> No
     assert transport.calls == 1
     assert transport.requests[0].tools[-1].name == UNSUPPORTED_TOOL_NAME
     assert "http" not in transport.requests[0].system_instruction.casefold()
+    assert transport.requests[0].task_version == "action-selection-v2"
+    assert "conform exactly" in transport.requests[0].system_instruction
+    assert "empty JSON object" in transport.requests[0].system_instruction
 
 
 @pytest.mark.asyncio
@@ -107,4 +113,3 @@ def test_tool_names_are_deterministic_unique_and_irreversible() -> None:
     assert len({tool.name for tool in projection.tools}) == 3
     assert all("." not in tool.name for tool in projection.tools)
     assert projection.capability_by_tool == repeated.capability_by_tool
-

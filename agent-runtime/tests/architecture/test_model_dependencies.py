@@ -73,8 +73,12 @@ def test_transport_protocol_uses_only_neutral_request_and_response() -> None:
         node for node in protocol.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "complete"
     )
 
-    assert ast.unparse(complete.args.args[1].annotation) == "StructuredModelRequest"
-    assert ast.unparse(complete.returns) == "StructuredModelResponse"
+    request_annotation = complete.args.args[1].annotation
+    return_annotation = complete.returns
+    assert request_annotation is not None
+    assert return_annotation is not None
+    assert ast.unparse(request_annotation) == "StructuredModelRequest"
+    assert ast.unparse(return_annotation) == "StructuredModelResponse"
 
 
 def test_model_context_binding_is_outside_core_runtime_implementation() -> None:

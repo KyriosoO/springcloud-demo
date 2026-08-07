@@ -5,21 +5,24 @@ from dataclasses import dataclass
 import pytest
 
 from agent_runtime.bootstrap import RuntimeCompositionRoot
+from agent_runtime.capability_api.action_resolution import LocalActionResolution, LocalActionResolutionKind
 from agent_runtime.capability_api.contracts import CapabilityExecutionContext, CapabilityResult, CapabilityStatus
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionDecision,
+    CapabilitySelectionDecisionKind,
+)
 from agent_runtime.graph.state import (
-    ActionSelectionDecision,
-    ActionSelectionDecisionKind,
     AnswerGenerationDecision,
     AnswerGenerationDecisionKind,
 )
 from agent_runtime.settings import CoreRuntimeSettings
 from tests.helpers import (
     FixedAnswerGenerator,
+    FixedLocalActionResolver,
     FixedSelector,
     Provider,
     QueryInput,
     QueryValidator,
-    candidate,
     descriptor,
     registration,
     scope,
@@ -57,20 +60,29 @@ async def test_new_simulated_capability_only_changes_provider_and_root_fixture()
         handler=decorator,
     )
     selector = FixedSelector(
-        ActionSelectionDecision(
-            kind=ActionSelectionDecisionKind.CANDIDATE,
-            candidate=candidate("simulated.query"),
+        CapabilitySelectionDecision(
+            kind=CapabilitySelectionDecisionKind.CANDIDATE,
+            capability_id="simulated.query",
         )
     )
     invoker = RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(Provider(simulated),),
-        action_selector=selector,
+        capability_selector=selector,
         answer_generator=FixedAnswerGenerator(
             AnswerGenerationDecision(
                 kind=AnswerGenerationDecisionKind.ANSWER,
                 answer_text="unused",
             )
+        ),
+        local_action_resolvers=(
+            FixedLocalActionResolver(
+                "simulated.query",
+                LocalActionResolution(
+                    kind=LocalActionResolutionKind.CANDIDATE,
+                    arguments={"value": "x"},
+                ),
+            ),
         ),
     )
 
@@ -85,4 +97,3 @@ def test_existing_registration_factory_remains_domain_neutral() -> None:
     value = registration(enabled=False)
 
     assert value.descriptor.capability_id == "test.query"
-

@@ -6,7 +6,8 @@ from typing import Any, Mapping, Sequence
 
 from langgraph.graph import END, START, StateGraph
 
-from agent_runtime.capability_api.contracts import CapabilityRegistrationProvider
+from agent_runtime.capability_api.action_resolution import LocalActionResolver
+from agent_runtime.capability_api.contracts import CapabilityDescriptor, CapabilityRegistrationProvider
 from agent_runtime.core.execution import CapabilityExecutionCore
 from agent_runtime.core.registry import CapabilityRegistryBuilder
 from agent_runtime.graph.nodes import (
@@ -18,6 +19,11 @@ from agent_runtime.graph.nodes import (
     route_after_capability,
     route_after_selection,
     select_action_node,
+)
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionNode,
+    HybridActionSelectionNode,
+    is_exact_empty_execution_schema,
 )
 from agent_runtime.graph.state import AgentInputState, AgentOutputState, AgentRequestState, GraphRunContext
 from agent_runtime.runtime import AgentRuntimeInvoker
@@ -52,8 +58,9 @@ class RuntimeCompositionRoot:
         *,
         settings: CoreRuntimeSettings,
         providers: Sequence[CapabilityRegistrationProvider],
-        action_selector: ActionSelectionNode,
+        capability_selector: CapabilitySelectionNode,
         answer_generator: AnswerGenerationNode,
+        local_action_resolvers: Sequence[LocalActionResolver] = (),
     ) -> AgentRuntimeInvoker:
         candidates = tuple(
             candidate
@@ -61,6 +68,16 @@ class RuntimeCompositionRoot:
             for candidate in provider.registrations()
         )
         registry = CapabilityRegistryBuilder(settings).build(candidates)
+        descriptors = registry.descriptors()
+        resolvers = _validate_local_action_resolvers(
+            descriptors=descriptors,
+            resolvers=local_action_resolvers,
+        )
+        action_selector = HybridActionSelectionNode(
+            descriptors=descriptors,
+            resolvers=resolvers,
+            capability_selector=capability_selector,
+        )
         core = CapabilityExecutionCore(registry, settings)
 
         graph = StateGraph(
@@ -73,7 +90,7 @@ class RuntimeCompositionRoot:
             "select_action",
             partial(
                 select_action_node,
-                descriptors=registry.descriptors(),
+                descriptors=descriptors,
                 selector=action_selector,
             ),
         )
@@ -98,6 +115,38 @@ class RuntimeCompositionRoot:
         graph.add_edge("finalize_without_model", END)
         compiled = graph.compile()
         return AgentRuntimeInvoker(compiled, settings)
+
+
+def _validate_local_action_resolvers(
+    *,
+    descriptors: tuple[CapabilityDescriptor, ...],
+    resolvers: Sequence[LocalActionResolver],
+) -> tuple[LocalActionResolver, ...]:
+    descriptor_by_id = {descriptor.capability_id: descriptor for descriptor in descriptors}
+    resolver_by_id: dict[str, LocalActionResolver] = {}
+    resolver_objects: set[int] = set()
+    for resolver in resolvers:
+        try:
+            capability_id = resolver.capability_id
+            resolve = resolver.resolve
+        except Exception:
+            raise ValueError("runtime.invalid_local_action_resolver") from None
+        if not isinstance(capability_id, str) or not capability_id or not callable(resolve):
+            raise ValueError("runtime.invalid_local_action_resolver")
+        if capability_id not in descriptor_by_id:
+            raise ValueError("runtime.local_action_resolver_not_enabled")
+        if capability_id in resolver_by_id or id(resolver) in resolver_objects:
+            raise ValueError("runtime.duplicate_local_action_resolver")
+        resolver_by_id[capability_id] = resolver
+        resolver_objects.add(id(resolver))
+
+    for descriptor in descriptors:
+        if (
+            not is_exact_empty_execution_schema(descriptor.argument_schema)
+            and descriptor.capability_id not in resolver_by_id
+        ):
+            raise ValueError("runtime.local_action_resolver_missing")
+    return tuple(resolver_by_id[capability_id] for capability_id in sorted(resolver_by_id))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

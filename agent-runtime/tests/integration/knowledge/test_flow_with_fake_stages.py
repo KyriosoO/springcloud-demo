@@ -57,15 +57,17 @@ async def test_flow_passes_opaque_batch_and_strips_token_from_evidence_context()
         candidate_count_by_domain=(DomainCandidateCount(logical_domain_id="tax.policy", count=1),),
         complete=True,
     )
-    retrieval = FakeRetrievalStage(RetrievalStageResult(kind=RetrievalStageKind.SUCCESS, batch=batch, coverage=coverage))
-    evidence = FakeEvidenceStage(
+    retrieval = FakeRetrievalStage[object](
+        RetrievalStageResult(kind=RetrievalStageKind.SUCCESS, batch=batch, coverage=coverage)
+    )
+    evidence = FakeEvidenceStage[object](
         EvidenceStageResult(
             kind=EvidenceStageKind.SUCCESS,
             domain_result={"answer": "受控摘要"},
             egress=ModelEgressResult(disposition=EgressDisposition.NOT_APPLICABLE),
         )
     )
-    capability = KnowledgeQueryCapability(
+    capability = KnowledgeQueryCapability[object](
         settings=settings,
         enabled_domains=build_tax_domain_catalog().enabled(settings.enabled_domain_ids),
         rewriter=rewrite,
@@ -88,14 +90,14 @@ def test_coverage_rejects_duplicate_domain_counts_and_non_boolean_complete() -> 
     settings = KnowledgeSettings.from_env(
         {"AGENT_KNOWLEDGE_ENABLED": "true", "AGENT_KNOWLEDGE_ENABLED_DOMAINS": "tax.policy"}
     )
-    capability = KnowledgeQueryCapability(
+    capability = KnowledgeQueryCapability[object](
         settings=settings,
         enabled_domains=build_tax_domain_catalog().enabled(settings.enabled_domain_ids),
         rewriter=FakeRewriteStage(RewriteStageResult(kind=RewriteStageKind.FAILURE)),
         selector=DeterministicDomainSelector(),
         planner=KnowledgeRetrievalPlanBuilder(),
-        retrieval=FakeRetrievalStage(RetrievalStageResult(kind=RetrievalStageKind.NO_RESULT)),
-        evidence=FakeEvidenceStage(EvidenceStageResult(kind=EvidenceStageKind.NO_RESULT)),
+        retrieval=FakeRetrievalStage[object](RetrievalStageResult(kind=RetrievalStageKind.NO_RESULT)),
+        evidence=FakeEvidenceStage[object](EvidenceStageResult(kind=EvidenceStageKind.NO_RESULT)),
     )
     rewrite = RewriteResult(
         original_question="税务政策", selected_query="税务政策",

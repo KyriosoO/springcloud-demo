@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
+
 import pytest
 
 from agent_runtime.model.settings import ModelApiKey, ModelProvider, ModelSettings
 
 
-class TrackingEnvironment(dict[str, str]):
-    def __init__(self, *args: object, **kwargs: str) -> None:
-        super().__init__(*args, **kwargs)
+class TrackingEnvironment(Mapping[str, str]):
+    def __init__(self, **values: str) -> None:
+        self._values = dict(values)
         self.read_keys: list[str] = []
 
-    def get(self, key: str, default: str | None = None) -> str | None:
+    def __getitem__(self, key: str) -> str:
         self.read_keys.append(key)
-        return super().get(key, default)
+        return self._values[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 def test_stub_mode_does_not_read_api_key() -> None:
@@ -61,4 +69,3 @@ def test_invalid_model_settings_fail_startup(key: str, value: str) -> None:
 def test_stub_settings_reject_accidental_secret_retention() -> None:
     with pytest.raises(ValueError, match="model.stub_api_key_forbidden"):
         ModelSettings(provider=ModelProvider.STUB, api_key=ModelApiKey("sentinel"))
-

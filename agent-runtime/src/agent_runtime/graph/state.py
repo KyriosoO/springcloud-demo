@@ -84,20 +84,49 @@ class ModelNodeFailure:
 class ActionSelectionDecisionKind(StrEnum):
     CANDIDATE = "candidate"
     UNSUPPORTED = "unsupported"
+    INVALID_ARGUMENT = "invalid_argument"
     FAILURE = "failure"
+
+
+class ActionSelectionInvalidCode(StrEnum):
+    LOCAL_ACTION_INVALID = "core.local_action_invalid"
+    LOCAL_ACTION_AMBIGUOUS = "core.local_action_ambiguous"
+    LOCAL_ARGUMENTS_REQUIRED = "core.local_arguments_required"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ActionSelectionDecision:
     kind: ActionSelectionDecisionKind
     candidate: ActionCandidate | None = None
+    invalid_code: ActionSelectionInvalidCode | None = None
     failure: ModelNodeFailure | None = None
 
     def __post_init__(self) -> None:
         valid = (
-            (self.kind is ActionSelectionDecisionKind.CANDIDATE and self.candidate is not None and self.failure is None)
-            or (self.kind is ActionSelectionDecisionKind.UNSUPPORTED and self.candidate is None and self.failure is None)
-            or (self.kind is ActionSelectionDecisionKind.FAILURE and self.candidate is None and self.failure is not None)
+            (
+                self.kind is ActionSelectionDecisionKind.CANDIDATE
+                and isinstance(self.candidate, ActionCandidate)
+                and self.invalid_code is None
+                and self.failure is None
+            )
+            or (
+                self.kind is ActionSelectionDecisionKind.UNSUPPORTED
+                and self.candidate is None
+                and self.invalid_code is None
+                and self.failure is None
+            )
+            or (
+                self.kind is ActionSelectionDecisionKind.INVALID_ARGUMENT
+                and self.candidate is None
+                and isinstance(self.invalid_code, ActionSelectionInvalidCode)
+                and self.failure is None
+            )
+            or (
+                self.kind is ActionSelectionDecisionKind.FAILURE
+                and self.candidate is None
+                and self.invalid_code is None
+                and isinstance(self.failure, ModelNodeFailure)
+            )
         )
         if not valid:
             raise ValueError("core.invalid_model_node_decision")

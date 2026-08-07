@@ -5,10 +5,12 @@ import uvicorn
 from agent_runtime.api.app import create_app
 from agent_runtime.api.settings import RuntimeHttpSettings
 from agent_runtime.bootstrap import RuntimeCompositionRoot
+from agent_runtime.graph.action_resolution import (
+    CapabilitySelectionDecision,
+    CapabilitySelectionDecisionKind,
+    CapabilitySelectionInput,
+)
 from agent_runtime.graph.state import (
-    ActionSelectionDecision,
-    ActionSelectionDecisionKind,
-    ActionSelectionInput,
     AnswerGenerationDecision,
     AnswerGenerationDecisionKind,
     AnswerGenerationInput,
@@ -20,9 +22,9 @@ from agent_runtime.settings import CoreRuntimeSettings
 
 
 class _DisabledSelector:
-    async def __call__(self, input: ActionSelectionInput) -> ActionSelectionDecision:
+    async def __call__(self, input: CapabilitySelectionInput) -> CapabilitySelectionDecision:
         del input
-        return ActionSelectionDecision(kind=ActionSelectionDecisionKind.UNSUPPORTED)
+        return CapabilitySelectionDecision(kind=CapabilitySelectionDecisionKind.UNSUPPORTED)
 
 
 class _DisabledAnswerGenerator:
@@ -38,7 +40,7 @@ def build_stub_runtime() -> AgentRuntimeInvoker:
     return RuntimeCompositionRoot.build(
         settings=CoreRuntimeSettings(),
         providers=(),
-        action_selector=_DisabledSelector(),
+        capability_selector=_DisabledSelector(),
         answer_generator=_DisabledAnswerGenerator(),
     )
 

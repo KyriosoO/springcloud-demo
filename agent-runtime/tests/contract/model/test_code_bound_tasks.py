@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
+from typing import cast
 
 import pytest
 
@@ -84,10 +85,14 @@ async def test_wrong_input_class_cannot_reach_registered_task() -> None:
         definitions=(definition,),
         max_concurrency=1,
     )
+    invalid_input = cast(
+        ActionSelectionTaskInput,
+        {"minimized_question": "查询员工列表支持哪些条件"},
+    )
 
     result = await gateway.generate(
         definition=definition,
-        input={"minimized_question": "查询员工列表支持哪些条件"},  # type: ignore[arg-type]
+        input=invalid_input,
         context=ModelCallContext(
             request_id="req-1",
             correlation_id="corr-1",

@@ -37,7 +37,9 @@ from agent_runtime.model.input_guard import QuestionEgressGuard
 
 _ACTION_SYSTEM_INSTRUCTION = (
     "Select exactly one registered function tool for the user request. "
-    "Do not execute tools, invent functions, or return prose. Use agent_unsupported when none applies."
+    "Return arguments that conform exactly to the selected tool's JSON Schema; when the schema "
+    "declares no properties, return an empty JSON object. Do not execute tools, invent functions, "
+    "add undeclared arguments, or return prose. Use agent_unsupported when none applies."
 )
 
 
@@ -85,7 +87,7 @@ def build_action_selection_task_definition(
 
     definition = ModelTaskDefinition(
         task_id=ModelTaskId.ACTION_SELECTION,
-        task_version="action-selection-v1",
+        task_version="action-selection-v2",
         input_type=ActionSelectionTaskInput,
         max_input_bytes=max_input_bytes,
         timeout_ms=timeout_ms,

@@ -18,6 +18,7 @@ from agent_runtime.graph.state import (
     ActionSelectionDecision,
     ActionSelectionDecisionKind,
     ActionSelectionInput,
+    ActionSelectionInvalidCode,
     AgentInputState,
     AgentRequestState,
     AgentSemanticOutcome,
@@ -31,6 +32,7 @@ from agent_runtime.graph.state import (
     ModelNodeFailureKind,
 )
 from agent_runtime.capability_api.contracts import CapabilityDescriptor
+from agent_runtime.graph.action_resolution import InvalidActionResolution
 
 
 class ActionSelectionNode(Protocol):
@@ -124,7 +126,16 @@ async def select_action_node(
                 FailureSource.CORE,
             )
         }
-    decision = await selector(ActionSelectionInput(question=state["question"], descriptors=descriptors))
+    try:
+        decision = await selector(ActionSelectionInput(question=state["question"], descriptors=descriptors))
+    except InvalidActionResolution:
+        return {
+            "final_outcome": _failure_outcome(
+                CapabilityStatus.INTERNAL_FAILURE,
+                "core.invalid_action_resolution",
+                FailureSource.CORE,
+            )
+        }
     if isinstance(decision, ActionSelectionDecision):
         if decision.kind is ActionSelectionDecisionKind.CANDIDATE and decision.candidate is not None:
             return {"action_candidate": decision.candidate}
@@ -133,6 +144,17 @@ async def select_action_node(
                 "final_outcome": _failure_outcome(
                     CapabilityStatus.UNSUPPORTED,
                     "core.no_supported_capability_candidate",
+                    FailureSource.CORE,
+                )
+            }
+        if (
+            decision.kind is ActionSelectionDecisionKind.INVALID_ARGUMENT
+            and isinstance(decision.invalid_code, ActionSelectionInvalidCode)
+        ):
+            return {
+                "final_outcome": _failure_outcome(
+                    CapabilityStatus.INVALID_ARGUMENT,
+                    decision.invalid_code.value,
                     FailureSource.CORE,
                 )
             }

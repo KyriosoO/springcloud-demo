@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from typing import TypeVar, cast
+from typing import TypeVar
 
 from agent_runtime.capability_api.contracts import CapabilityStatus
+from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.graph.state import AgentSemanticOutcome
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
 from agent_runtime.model.contracts import (
@@ -92,7 +93,12 @@ async def call_with_model_context(
     result: list[T] = []
 
     class Delegate:
-        async def ainvoke(self, *, question: str, scope: object) -> AgentSemanticOutcome:
+        async def ainvoke(
+            self,
+            *,
+            question: str,
+            scope: RequestExecutionScope,
+        ) -> AgentSemanticOutcome:
             del question, scope
             result.append(await operation())
             return AgentSemanticOutcome(
@@ -103,9 +109,8 @@ async def call_with_model_context(
                 failure=None,
             )
 
-    await ModelContextBindingRuntimeInvoker(cast(object, Delegate())).ainvoke(
+    await ModelContextBindingRuntimeInvoker(Delegate()).ainvoke(
         question=question,
         scope=scope(question, deadline_monotonic=deadline_monotonic),
     )
     return result[0]
-

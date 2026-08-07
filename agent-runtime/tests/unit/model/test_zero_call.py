@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from agent_runtime.bootstrap import LocalModelCompositionRoot
+from agent_runtime.capability_api.contracts import JsonObject
 from agent_runtime.graph.state import (
     ActionSelectionDecisionKind,
     ActionSelectionInput,
@@ -16,12 +17,12 @@ from tests.helpers import descriptor
 from tests.model_helpers import AcceptGroundingPolicy, FakeStructuredModelTransport
 
 
-def _safe_payload() -> dict[str, object]:
+def _safe_payload() -> JsonObject:
     return {
         "schema_version": 1,
-        "facts": [
-            {"fact_id": "fact-0001", "value": "ACTIVE", "source": {"field_id": "status"}}
-        ],
+        "facts": (
+            {"fact_id": "fact-0001", "value": "ACTIVE", "source": {"field_id": "status"}},
+        ),
     }
 
 
@@ -98,4 +99,3 @@ async def test_missing_bound_context_fails_closed_before_transport() -> None:
     assert decision.failure is not None
     assert decision.failure.kind is ModelNodeFailureKind.INVALID_OUTPUT
     assert transport.calls == 0
-

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from agent_runtime.bootstrap import LocalModelCompositionRoot
+from agent_runtime.capability_api.contracts import JsonObject
 from agent_runtime.graph.state import (
     AnswerGenerationDecisionKind,
     AnswerGenerationInput,
@@ -17,16 +18,16 @@ from tests.model_helpers import AcceptGroundingPolicy, FakeStructuredModelTransp
     "payload",
     [
         {},
-        {"schema_version": 1, "facts": []},
-        {"schema_version": 2, "facts": [{"fact_id": "fact-0001"}]},
-        {"schema_version": 1, "facts": [{"value": "missing-id"}]},
+        {"schema_version": 1, "facts": ()},
+        {"schema_version": 2, "facts": ({"fact_id": "fact-0001"},)},
+        {"schema_version": 1, "facts": ({"value": "missing-id"},)},
         {
             "schema_version": 1,
-            "facts": [{"fact_id": "fact-0001"}, {"fact_id": "fact-0001"}],
+            "facts": ({"fact_id": "fact-0001"}, {"fact_id": "fact-0001"}),
         },
     ],
 )
-async def test_invalid_safe_payload_is_zero_call(payload: dict[str, object]) -> None:
+async def test_invalid_safe_payload_is_zero_call(payload: JsonObject) -> None:
     transport = FakeStructuredModelTransport()
     components = LocalModelCompositionRoot.build(
         settings=ModelSettings(),
@@ -58,7 +59,7 @@ async def test_missing_capability_grounding_policy_is_zero_call() -> None:
         transport=transport,
         grounding_policies={},
     )
-    payload = {"schema_version": 1, "facts": [{"fact_id": "fact-0001"}]}
+    payload: JsonObject = {"schema_version": 1, "facts": ({"fact_id": "fact-0001"},)}
 
     decision = await call_with_model_context(
         lambda: components.answer_generator(
@@ -74,4 +75,3 @@ async def test_missing_capability_grounding_policy_is_zero_call() -> None:
     assert decision.failure is not None
     assert decision.failure.kind is ModelNodeFailureKind.INVALID_OUTPUT
     assert transport.calls == 0
-

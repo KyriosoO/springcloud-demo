@@ -25,6 +25,7 @@ from agent_runtime.adapters.transaction.contracts import (
 )
 from agent_runtime.adapters.transaction.fields import transaction_field_definitions
 from agent_runtime.adapters.transaction.normalizer import TransactionSearchResponseNormalizer
+from agent_runtime.adapters.transaction.action_resolver import TransactionSearchLocalActionResolver
 
 
 def transaction_search_definition() -> BusinessActionDefinition[
@@ -65,7 +66,9 @@ def transaction_search_definition() -> BusinessActionDefinition[
             ),
         ),
         domain_id=BusinessDomainId("transaction"), service_key=BusinessServiceKey("mq-procedure-service"),
-        argument_validator=TransactionSearchArgumentValidator(), request_mapper=TransactionSearchRequestMapper(),
+        argument_validator=TransactionSearchArgumentValidator(),
+        local_action_resolver=TransactionSearchLocalActionResolver(),
+        request_mapper=TransactionSearchRequestMapper(),
         wire_codec=TransactionSearchWireCodec(), response_normalizer=TransactionSearchResponseNormalizer(),
         http_status_semantics=BusinessHttpStatusSemantics(http_400_is_invalid_argument=True),
         applicable_dimensions=frozenset({ConstraintDimension.PAGE_SIZE, ConstraintDimension.RESULT_COUNT, ConstraintDimension.FILTER_FIELDS, ConstraintDimension.SORT_FIELDS}),
