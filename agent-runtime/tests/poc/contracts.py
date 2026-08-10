@@ -11,14 +11,20 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from agent_runtime.capability_api.contracts import JsonValue, canonical_json_bytes
 
 
-ACTION_V3_IMPLEMENTATION_PATHS = (
-    "src/agent_runtime/bootstrap.py",
+ACTION_V4_IMPLEMENTATION_PATHS = (
+    "src/agent_runtime/adapters/employee/definition.py",
+    "src/agent_runtime/adapters/transaction/definition.py",
+    "src/agent_runtime/knowledge/provider.py",
+    "src/agent_runtime/model/input_guard.py",
+    "src/agent_runtime/model/question_policy.py",
     "src/agent_runtime/model/deepseek/action_selector.py",
     "src/agent_runtime/model/deepseek/tools.py",
+    "src/agent_runtime/model/deepseek/dto.py",
+    "src/agent_runtime/model/deepseek/json_codec.py",
     "tests/poc/contracts.py",
     "tests/poc/fixtures.py",
-    "tests/poc/fixtures/action_selection_v3.json",
-    "tests/poc/prepare_action_selection_v3_manifest.py",
+    "tests/poc/fixtures/action_selection_v4.json",
+    "tests/poc/prepare_action_selection_v4_manifest.py",
     "tests/poc/runner.py",
     "tests/poc/test_deepseek_action_selection_live.py",
 )
@@ -35,21 +41,21 @@ class ActionPocManifest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
     schema_version: Literal[1] = 1
-    run_id: str = Field(pattern=r"^action-selection-v3-[a-z0-9][a-z0-9-]{5,63}$")
+    run_id: str = Field(pattern=r"^action-selection-v4-[a-z0-9][a-z0-9-]{5,63}$")
     created_at_utc: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$")
     model: Literal["deepseek-v4-pro"] = "deepseek-v4-pro"
-    task_version: Literal["action-selection-v3"] = "action-selection-v3"
+    task_version: Literal["action-selection-v4"] = "action-selection-v4"
     authorization_reference: str = Field(pattern=r"^[A-Za-z0-9_.:-]{3,128}$")
     authorized_call_limit: Literal[30] = 30
     case_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     system_instruction_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    tool_projection_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    catalog_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     implementation_files: tuple[PocFileHash, ...]
 
     @model_validator(mode="after")
     def validate_file_set(self) -> "ActionPocManifest":
         paths = tuple(item.path for item in self.implementation_files)
-        if paths != ACTION_V3_IMPLEMENTATION_PATHS:
+        if paths != ACTION_V4_IMPLEMENTATION_PATHS:
             raise ValueError("poc.manifest_file_set_invalid")
         return self
 
@@ -57,7 +63,7 @@ class ActionPocManifest(BaseModel):
 class ActionPocRunAuthorization(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
-    run_id: str = Field(pattern=r"^action-selection-v3-[a-z0-9][a-z0-9-]{5,63}$")
+    run_id: str = Field(pattern=r"^action-selection-v4-[a-z0-9][a-z0-9-]{5,63}$")
     manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     authorization_reference: str = Field(pattern=r"^[A-Za-z0-9_.:-]{3,128}$")
     authorized_call_limit: Literal[30] = 30
@@ -86,7 +92,10 @@ class DeepSeekPocResult(BaseModel):
     task: Literal["action_selection", "answer_generation"]
     model: Literal["deepseek-v4-pro"] = "deepseek-v4-pro"
     task_version: str = Field(min_length=1, max_length=64)
-    run_id: str | None = Field(default=None, pattern=r"^action-selection-v3-[a-z0-9][a-z0-9-]{5,63}$")
+    run_id: str | None = Field(
+        default=None,
+        pattern=r"^action-selection-v(?:3|4)-[a-z0-9][a-z0-9-]{5,63}$",
+    )
     manifest_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     started_at_utc: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$")
     finished_at_utc: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$")
@@ -110,6 +119,11 @@ class DeepSeekPocResult(BaseModel):
             raise ValueError("poc.completed_count_invalid")
         if self.structure_valid_calls > self.completed_calls or self.expected_calls > self.completed_calls:
             raise ValueError("poc.metric_count_invalid")
+        if (
+            self.structure_valid_calls != sum(call.structure_valid for call in self.calls)
+            or self.expected_calls != sum(call.expected_match for call in self.calls)
+        ):
+            raise ValueError("poc.metric_count_mismatch")
         expected_limit = 30 if self.task == "action_selection" else 6
         if self.authorized_call_limit != expected_limit:
             raise ValueError("poc.authorized_limit_invalid")
@@ -117,7 +131,10 @@ class DeepSeekPocResult(BaseModel):
             raise ValueError("poc.action_grounding_forbidden")
         if self.task == "answer_generation" and self.grounding_expected_calls is None:
             raise ValueError("poc.answer_grounding_required")
-        if self.task == "action_selection" and self.task_version == "action-selection-v3":
+        if self.task == "action_selection" and self.task_version in {
+            "action-selection-v3",
+            "action-selection-v4",
+        }:
             if self.run_id is None or self.manifest_sha256 is None:
                 raise ValueError("poc.action_manifest_required")
             keys = tuple((call.case_id, call.repetition) for call in self.calls)
@@ -127,13 +144,6 @@ class DeepSeekPocResult(BaseModel):
                 or any(call.arguments_empty is None for call in self.calls)
             ):
                 raise ValueError("poc.action_record_invalid")
-            from tests.poc.fixtures import ACTION_CASES
-
-            expected_keys = {
-                (case.case_id, repetition)
-                for case in ACTION_CASES
-                for repetition in range(1, 4)
-            }
             allowed_decisions = {
                 "knowledge.query",
                 "employee.detail",
@@ -145,16 +155,39 @@ class DeepSeekPocResult(BaseModel):
                 "provider_provider_failure",
                 "provider_invalid_output",
             }
-            if not set(keys).issubset(expected_keys) or any(
-                call.decision not in allowed_decisions for call in self.calls
-            ):
+            if any(call.decision not in allowed_decisions for call in self.calls):
                 raise ValueError("poc.action_record_invalid")
+            if self.task_version == "action-selection-v4":
+                from tests.poc.fixtures import ACTION_CASES
+
+                expected_keys = {
+                    (case.case_id, repetition)
+                    for case in ACTION_CASES
+                    for repetition in range(1, 4)
+                }
+                if not set(keys).issubset(expected_keys):
+                    raise ValueError("poc.action_record_invalid")
+                if self.conclusion == "passed" and set(keys) != expected_keys:
+                    raise ValueError("poc.action_pass_invalid")
             if self.conclusion == "passed" and (
                 len(self.calls) != 30
-                or set(keys) != expected_keys
+                or self.completed_calls != 30
+                or self.structure_valid_calls != 30
+                or self.expected_calls < 27
                 or not all(call.arguments_empty is True for call in self.calls)
             ):
                 raise ValueError("poc.action_pass_invalid")
+            if self.task_version == "action-selection-v4" and self.conclusion == "passed":
+                if any(
+                    sum(
+                        call.expected_match
+                        for call in self.calls
+                        if call.case_id == case_id
+                    )
+                    < 2
+                    for case_id in {call.case_id for call in self.calls}
+                ):
+                    raise ValueError("poc.action_pass_invalid")
         elif self.run_id is not None or self.manifest_sha256 is not None:
             raise ValueError("poc.manifest_reference_forbidden")
         return self
@@ -168,22 +201,14 @@ def build_action_poc_manifest(
     authorization_reference: str,
 ) -> ActionPocManifest:
     from agent_runtime.model.deepseek.action_selector import ACTION_SELECTION_SYSTEM_INSTRUCTION
-    from agent_runtime.model.deepseek.tools import project_capability_tools
+    from agent_runtime.model.deepseek.tools import project_capability_catalog
     from tests.poc.fixtures import ACTION_CASES, action_descriptors
 
     cases = tuple(case.model_dump(mode="json") for case in ACTION_CASES)
-    projection = project_capability_tools(action_descriptors())
-    tools = tuple(
-        {
-            "name": tool.name,
-            "description": tool.description,
-            "arguments_schema": tool.arguments_schema,
-        }
-        for tool in projection.tools
-    )
+    catalog = project_capability_catalog(action_descriptors())
     file_hashes = tuple(
         PocFileHash(path=path, sha256=_sha256_bytes((repository_root / path).read_bytes()))
-        for path in ACTION_V3_IMPLEMENTATION_PATHS
+        for path in ACTION_V4_IMPLEMENTATION_PATHS
     )
     return ActionPocManifest(
         run_id=run_id,
@@ -191,7 +216,7 @@ def build_action_poc_manifest(
         authorization_reference=authorization_reference,
         case_manifest_sha256=_sha256_canonical(cases),
         system_instruction_sha256=_sha256_canonical(ACTION_SELECTION_SYSTEM_INSTRUCTION),
-        tool_projection_sha256=_sha256_canonical(tools),
+        catalog_sha256=_sha256_canonical(catalog),
         implementation_files=file_hashes,
     )
 

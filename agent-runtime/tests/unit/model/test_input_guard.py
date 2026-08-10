@@ -16,6 +16,9 @@ from agent_runtime.model.question_policy import QUESTION_EGRESS_POLICY_VERSION
         ("增值税小规模纳税人的现行政策是什么", "增值税小规模纳税人的现行政策是什么"),
         ("  查询员工列表支持哪些条件  ", "查询员工列表支持哪些条件"),
         ("查询交易记录支持哪些时间范围", "查询交易记录支持哪些时间范围"),
+        ("如何查询某一名员工的详情？", "如何查询某一名员工的详情？"),
+        ("查看指定员工的基础信息。", "查看指定员工的基础信息。"),
+        ("查询单个员工资料。", "查询单个员工资料。"),
         ("现行税务\u3000政策是什么", "现行税务 政策是什么"),
     ],
 )
@@ -33,6 +36,10 @@ def test_allows_only_explicit_public_or_generic_questions(question: str, expecte
     [
         "税务政策是什么，身份证号 11010519491231002X",
         "查询员工编号 E-1024 的信息",
+        "查询单个员工详情，员工编号 E-1024",
+        "查看指定员工详情，身份证号 11010519491231002X",
+        "查询某一名员工资料，联系电话 13800138000",
+        "了解单个员工基础信息，账户 6222021234567890",
         "查询交易号 TXN-20260001",
         "银行账号 6222021234567890 的交易规则",
         "联系电话 13800138000",
@@ -74,4 +81,3 @@ def test_normalization_is_nfc_and_deterministic() -> None:
     assert first.disposition is QuestionEgressDisposition.ALLOWED
     assert first.minimized_question is not None
     assert "é" in first.minimized_question
-

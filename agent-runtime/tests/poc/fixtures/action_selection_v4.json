@@ -1,0 +1,52 @@
+[
+  {
+    "case_id": "tax_policy_scope",
+    "question": "增值税政策适用范围是什么？",
+    "expected_capability_id": "knowledge.query"
+  },
+  {
+    "case_id": "tax_invoice_rule",
+    "question": "发票管理法规有哪些基本要求？",
+    "expected_capability_id": "knowledge.query"
+  },
+  {
+    "case_id": "tax_filing_rule",
+    "question": "纳税申报政策的一般原则是什么？",
+    "expected_capability_id": "knowledge.query"
+  },
+  {
+    "case_id": "employee_detail_how",
+    "question": "如何查询某一名员工的详情？",
+    "expected_capability_id": "employee.detail"
+  },
+  {
+    "case_id": "employee_detail_view",
+    "question": "查看指定员工的基础信息。",
+    "expected_capability_id": "employee.detail"
+  },
+  {
+    "case_id": "employee_detail_single",
+    "question": "查询单个员工资料。",
+    "expected_capability_id": "employee.detail"
+  },
+  {
+    "case_id": "transaction_conditions",
+    "question": "交易查询支持哪些条件？",
+    "expected_capability_id": "transaction.search"
+  },
+  {
+    "case_id": "transaction_fields",
+    "question": "交易记录允许哪些字段？",
+    "expected_capability_id": "transaction.search"
+  },
+  {
+    "case_id": "transaction_filters",
+    "question": "交易查询有哪些筛选项？",
+    "expected_capability_id": "transaction.search"
+  },
+  {
+    "case_id": "unsupported_traffic_law",
+    "question": "道路交通法律有哪些基本规则？",
+    "expected_capability_id": "agent_unsupported"
+  }
+]

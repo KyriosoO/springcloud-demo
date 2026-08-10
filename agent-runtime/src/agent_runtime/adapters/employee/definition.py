@@ -36,7 +36,7 @@ def employee_detail_definition() -> BusinessActionDefinition[
         descriptor=CapabilityDescriptor(
             capability_id="employee.detail", api_version=1, kind=CapabilityKind.QUERY,
             display_name="Employee detail",
-            description="查询单个员工的受控基础信息；只接受 employee_identifier，不提供列表、聚合或写入。",
+            description="查询单个员工的受控基础信息；不提供列表、聚合或写入。",
             aliases=("员工详情", "employee profile"),
             argument_schema={
                 "type": "object",

@@ -22,11 +22,14 @@ _PHONE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 _EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 _EMPLOYEE_ID = re.compile(r"(?:员工编号|工号|employee\s*id)\s*[:=：#]?\s*[A-Za-z0-9_-]{2,}", re.IGNORECASE)
 _TRANSACTION_ID = re.compile(r"(?:交易号|流水号|transaction\s*id)\s*[:=：#]?\s*[A-Za-z0-9_-]{4,}", re.IGNORECASE)
-_FINANCIAL_ACCOUNT = re.compile(r"(?:银行卡|银行账户|账号|account)\s*[:=：#]?\s*\d{6,}", re.IGNORECASE)
+_FINANCIAL_ACCOUNT = re.compile(r"(?:银行卡|银行账户|账户|账号|account)\s*[:=：#]?\s*\d{6,}", re.IGNORECASE)
 _FREE_TEXT_SENSITIVE = re.compile(r"(?:病历|病史|家庭住址|薪资明细|绩效评价|征信记录)")
 _PUBLIC_KNOWLEDGE = re.compile(r"(?:税|纳税|发票|法律|法规|政策|条例|司法解释|行政规定)")
 _GENERIC_BUSINESS = re.compile(
     r"^(?:查询|查看|了解)?(?:员工列表|员工查询|交易记录|交易查询)(?:支持|允许|可以使用|有哪些)(?:哪些|什么)?(?:条件|字段|时间范围|筛选项|查询项)[？?。]?$"
+)
+_GENERIC_EMPLOYEE_DETAIL = re.compile(
+    r"^(?:如何)?(?:查询|查看|了解)(?:某一名|某个|指定|单个)员工(?:的)?(?:详情|基础信息|资料)[？?。]?$"
 )
 
 
@@ -78,9 +81,8 @@ def classify_question(question: str) -> frozenset[QuestionDataClass]:
         classes.add(QuestionDataClass.FREE_TEXT_SENSITIVE)
     if _PUBLIC_KNOWLEDGE.search(question):
         classes.add(QuestionDataClass.PUBLIC_KNOWLEDGE)
-    if _GENERIC_BUSINESS.fullmatch(question):
+    if _GENERIC_BUSINESS.fullmatch(question) or _GENERIC_EMPLOYEE_DETAIL.fullmatch(question):
         classes.add(QuestionDataClass.GENERIC_BUSINESS)
     if not classes:
         classes.add(QuestionDataClass.UNKNOWN)
     return frozenset(classes)
-

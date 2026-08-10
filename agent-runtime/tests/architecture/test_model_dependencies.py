@@ -122,6 +122,10 @@ def test_action_selector_is_id_only_and_does_not_depend_on_execution_arguments()
     assert "LocalActionResolver" not in selector_text
     assert "employee_identifier" not in selector_text
     assert "amount_gt" not in selector_text
+    assert "StructuredToolDefinition" not in selector_text
+    assert "StructuredToolCall" not in selector_text
+    assert "project_capability_tools" not in selector_text
+    assert "argument_schema" not in tools_path.read_text(encoding="utf-8")
     assert not any(
         isinstance(node, ast.Attribute) and node.attr == "argument_schema"
         for node in ast.walk(tools_tree)

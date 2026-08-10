@@ -37,7 +37,14 @@ async def test_denied_or_unknown_action_question_never_calls_transport() -> None
         grounding_policies={},
     )
 
-    for question in ("员工编号 E-1001 的税务信息", "今天天气如何"):
+    for question in (
+        "员工编号 E-1001 的税务信息",
+        "查询单个员工详情，员工编号 E-1024",
+        "查看指定员工详情，身份证号 11010519491231002X",
+        "查询某一名员工资料，联系电话 13800138000",
+        "了解单个员工基础信息，账户 6222021234567890",
+        "今天天气如何",
+    ):
         decision = await components.action_selector(
             CapabilitySelectionInput(question=question, descriptors=(descriptor(),))
         )

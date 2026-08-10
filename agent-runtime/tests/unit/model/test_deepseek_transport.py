@@ -98,6 +98,9 @@ async def test_posts_one_canonical_request_and_strictly_decodes_response(caplog:
         assert parsed["model"] == "deepseek-v4-pro"
         assert parsed["thinking"] == {"type": "disabled"}
         assert parsed["stream"] is False
+        assert parsed["response_format"] == {"type": "json_object"}
+        assert "tools" not in parsed
+        assert "tool_choice" not in parsed
         return httpx.Response(
             200,
             headers={"Content-Type": "application/json", "Content-Encoding": "identity"},

@@ -12,7 +12,7 @@ from agent_runtime.model.deepseek.action_selector import (
     ActionSelectionTaskInput,
     build_action_selection_task_definition,
 )
-from agent_runtime.model.deepseek.tools import project_capability_tools
+from agent_runtime.model.deepseek.tools import project_capability_catalog
 from agent_runtime.model.gateway import BoundedStructuredModelGateway
 from agent_runtime.model.settings import ModelApiKey, ModelProvider, ModelSettings
 from tests.helpers import descriptor
@@ -31,7 +31,7 @@ async def test_equivalent_but_unregistered_definition_cannot_execute() -> None:
     )
     input = ActionSelectionTaskInput(
         minimized_question="查询员工列表支持哪些条件",
-        projection=project_capability_tools((descriptor(),)),
+        catalog=project_capability_catalog((descriptor(),)),
     )
 
     result = await gateway.generate(
@@ -59,7 +59,7 @@ async def test_dynamic_task_input_over_limit_maps_to_input_denied_without_transp
     )
     input = ActionSelectionTaskInput(
         minimized_question="税" * 64,
-        projection=project_capability_tools((descriptor(),)),
+        catalog=project_capability_catalog((descriptor(),)),
     )
 
     result = await gateway.generate(

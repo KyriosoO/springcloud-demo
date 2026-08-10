@@ -12,23 +12,23 @@ from tests.poc.runner import run_action_poc
 
 
 pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_DEEPSEEK_ACTION_V3_POC") != "1",
-    reason="requires manifest-bound one-shot paid DeepSeek action v3 PoC opt-in",
+    os.environ.get("RUN_DEEPSEEK_ACTION_V4_POC") != "1",
+    reason="requires manifest-bound one-shot paid DeepSeek action v4 PoC opt-in",
 )
 
 
 @pytest.mark.asyncio
 async def test_deepseek_action_selection_live() -> None:
     repository_root = Path(__file__).resolve().parents[2]
-    manifest_path = Path(os.environ["DEEPSEEK_ACTION_V3_MANIFEST_PATH"]).resolve()
+    manifest_path = Path(os.environ["DEEPSEEK_ACTION_V4_MANIFEST_PATH"]).resolve()
     manifest, actual_manifest_sha256 = validate_action_poc_manifest(
         path=manifest_path,
         repository_root=repository_root,
     )
     authorization = ActionPocRunAuthorization(
-        run_id=os.environ["DEEPSEEK_ACTION_V3_RUN_ID"],
-        manifest_sha256=os.environ["DEEPSEEK_ACTION_V3_MANIFEST_SHA256"],
-        authorization_reference=os.environ["DEEPSEEK_ACTION_V3_AUTHORIZATION_REF"],
+        run_id=os.environ["DEEPSEEK_ACTION_V4_RUN_ID"],
+        manifest_sha256=os.environ["DEEPSEEK_ACTION_V4_MANIFEST_SHA256"],
+        authorization_reference=os.environ["DEEPSEEK_ACTION_V4_AUTHORIZATION_REF"],
     )
     if (
         actual_manifest_sha256 != authorization.manifest_sha256

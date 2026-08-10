@@ -43,7 +43,7 @@ def action_descriptors() -> tuple[CapabilityDescriptor, ...]:
     )
 
 
-ACTION_FIXTURE_PATH = Path(__file__).with_name("fixtures") / "action_selection_v3.json"
+ACTION_FIXTURE_PATH = Path(__file__).with_name("fixtures") / "action_selection_v4.json"
 
 
 class _DuplicateFixtureKey(ValueError):

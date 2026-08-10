@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -11,12 +13,12 @@ from agent_runtime.model.contracts import (
     StructuredFinishKind,
     StructuredModelRequest,
     StructuredModelResponse,
-    StructuredToolCall,
+    StructuredOutputMode,
+    StructuredToolMode,
 )
-from agent_runtime.model.deepseek.tools import UNSUPPORTED_TOOL_NAME, project_capability_tools
 from agent_runtime.model.input_guard import QuestionEgressGuard
 from tests.poc.contracts import (
-    ACTION_V3_IMPLEMENTATION_PATHS,
+    ACTION_V4_IMPLEMENTATION_PATHS,
     ActionPocRunAuthorization,
     DeepSeekPocResult,
     PocCallRecord,
@@ -32,10 +34,20 @@ from tests.poc.runner import run_action_poc
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-RUN_ID = "action-selection-v3-nonlive-test"
-AUTHORIZATION_REFERENCE = "P3_00:GATE-035:test"
-CANDIDATE_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v3-20260807-candidate-01.json"
-CANDIDATE_MANIFEST_SHA256 = "fdcbe2a29ab6729e412ba58d7b85c4b7baf68e83ebad4e23da66a7d8008ee635"
+WORKSPACE_ROOT = REPOSITORY_ROOT.parent
+RUN_ID = "action-selection-v4-nonlive-test"
+AUTHORIZATION_REFERENCE = "P3_00:GATE-037:test"
+HISTORICAL_V3_COMMIT = "f6274b2b21420d2b2b3d0f4b693978fa4526ef57"
+HISTORICAL_V3_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v3-20260807-candidate-01.json"
+HISTORICAL_V3_CONSUMED = HISTORICAL_V3_MANIFEST.with_suffix(HISTORICAL_V3_MANIFEST.suffix + ".consumed.json")
+HISTORICAL_V3_RESULT = REPOSITORY_ROOT / "tests/poc/results/action_selection-20260807T133851985471Z.json"
+CANDIDATE_V4_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v4-20260807-candidate-01.json"
+CANDIDATE_V4_MANIFEST_SHA256 = "af290a91cc58a989ff700a1a95685f8d1efeeea0f17828e36b12e28de08adfbe"
+HISTORICAL_V3_ARTIFACT_HASHES = {
+    HISTORICAL_V3_MANIFEST: "fdcbe2a29ab6729e412ba58d7b85c4b7baf68e83ebad4e23da66a7d8008ee635",
+    HISTORICAL_V3_CONSUMED: "d60298139ebd2d3fa1e8ee53d823aaaa410812c5ea47a97117cd670b8feb98e3",
+    HISTORICAL_V3_RESULT: "1947d17872fdba8ff9defefc3e2d0f282cb1552ffcfa2d491d67c7ef3c360e0a",
+}
 
 
 def _historical_result() -> DeepSeekPocResult:
@@ -83,11 +95,6 @@ def _write_manifest(tmp_path: Path) -> tuple[Path, str]:
 class CorrectActionTransport:
     def __init__(self) -> None:
         self.calls = 0
-        projection = project_capability_tools(action_descriptors())
-        self._tool_by_capability = {
-            capability_id: tool_name
-            for tool_name, capability_id in projection.capability_by_tool.items()
-        }
         self._expected_by_question = {case.question: case.expected_capability_id for case in ACTION_CASES}
 
     async def complete(
@@ -98,18 +105,20 @@ class CorrectActionTransport:
     ) -> StructuredModelResponse:
         del call_deadline
         self.calls += 1
-        question = json.loads(request.user_payload_json)["question"]
-        expected = self._expected_by_question[question]
-        name = UNSUPPORTED_TOOL_NAME if expected == "agent_unsupported" else self._tool_by_capability[expected]
+        assert request.tools == ()
+        assert request.tool_mode is StructuredToolMode.NONE
+        assert request.output_mode is StructuredOutputMode.JSON_OBJECT
+        payload = json.loads(request.user_payload_json)
+        expected = self._expected_by_question[payload["question"]]
         return StructuredModelResponse(
-            finish_kind=StructuredFinishKind.TOOL_CALLS,
-            content=None,
-            tool_calls=(StructuredToolCall(name=name, arguments_json="{}"),),
+            finish_kind=StructuredFinishKind.STOP,
+            content=json.dumps({"capability_id": expected}, separators=(",", ":")),
+            tool_calls=(),
             usage_total_tokens=1,
         )
 
 
-def test_v3_fixture_uses_actual_ids_is_fixed_synthetic_and_allowed() -> None:
+def test_v4_fixture_uses_actual_ids_is_semantically_valid_and_allowed() -> None:
     guard = QuestionEgressGuard()
     ids = [case.case_id for case in ACTION_CASES] + [case.case_id for case in ANSWER_CASES]
 
@@ -126,6 +135,14 @@ def test_v3_fixture_uses_actual_ids_is_fixed_synthetic_and_allowed() -> None:
         "employee.detail",
         "transaction.search",
         "agent_unsupported",
+    }
+    employee_questions = {
+        case.question for case in ACTION_CASES if case.expected_capability_id == "employee.detail"
+    }
+    assert employee_questions == {
+        "如何查询某一名员工的详情？",
+        "查看指定员工的基础信息。",
+        "查询单个员工资料。",
     }
     assert all(guard.evaluate(case.question).disposition is QuestionEgressDisposition.ALLOWED for case in ACTION_CASES)
     assert all(guard.evaluate(case.question).disposition is QuestionEgressDisposition.ALLOWED for case in ANSWER_CASES)
@@ -144,6 +161,49 @@ def test_result_contract_is_strict_closed_and_preserves_historical_v2() -> None:
         parse_result(b'{"schema_version":1,"schema_version":1}')
 
 
+def test_v4_result_cannot_claim_pass_without_threshold_metrics() -> None:
+    calls = tuple(
+        PocCallRecord(
+            ordinal=index,
+            case_id=case.case_id,
+            repetition=repetition,
+            decision=case.expected_capability_id,
+            structure_valid=True,
+            expected_match=index <= 26,
+            arguments_empty=True,
+            latency_ms=1,
+            usage_total_tokens=1,
+        )
+        for index, (case, repetition) in enumerate(
+            (
+                (case, repetition)
+                for case in ACTION_CASES
+                for repetition in range(1, 4)
+            ),
+            start=1,
+        )
+    )
+
+    with pytest.raises(ValidationError, match="poc.action_pass_invalid"):
+        DeepSeekPocResult(
+            task="action_selection",
+            task_version="action-selection-v4",
+            run_id=RUN_ID,
+            manifest_sha256="0" * 64,
+            started_at_utc="2026-08-07T00:00:00.000000Z",
+            finished_at_utc="2026-08-07T00:00:01.000000Z",
+            authorized_call_limit=30,
+            attempted_calls=30,
+            completed_calls=30,
+            total_tokens=30,
+            conclusion="passed",
+            structure_valid_calls=30,
+            expected_calls=26,
+            grounding_expected_calls=None,
+            calls=calls,
+        )
+
+
 def test_append_only_result_writer_refuses_overwrite_and_round_trips(tmp_path: Path) -> None:
     result = _historical_result()
     path = write_append_only_result(result, directory=tmp_path)
@@ -153,13 +213,13 @@ def test_append_only_result_writer_refuses_overwrite_and_round_trips(tmp_path: P
         write_append_only_result(result, directory=tmp_path)
 
 
-def test_manifest_is_strict_hash_bound_and_append_only(tmp_path: Path) -> None:
+def test_v4_manifest_is_strict_hash_bound_and_append_only(tmp_path: Path) -> None:
     path, digest = _write_manifest(tmp_path)
     manifest, validated_digest = validate_action_poc_manifest(path=path, repository_root=REPOSITORY_ROOT)
 
     assert validated_digest == digest
-    assert manifest.task_version == "action-selection-v3"
-    assert tuple(item.path for item in manifest.implementation_files) == ACTION_V3_IMPLEMENTATION_PATHS
+    assert manifest.task_version == "action-selection-v4"
+    assert tuple(item.path for item in manifest.implementation_files) == ACTION_V4_IMPLEMENTATION_PATHS
     with pytest.raises(FileExistsError):
         write_append_only_manifest(manifest, path=path)
     with pytest.raises(ValueError, match="poc.manifest_duplicate_key"):
@@ -172,19 +232,45 @@ def test_manifest_is_strict_hash_bound_and_append_only(tmp_path: Path) -> None:
         validate_action_poc_manifest(path=drifted_path, repository_root=REPOSITORY_ROOT)
 
 
-def test_frozen_candidate_manifest_matches_current_v3_inputs() -> None:
+def test_historical_v3_evidence_is_immutable_and_source_is_reconstructible() -> None:
+    for path, expected_hash in HISTORICAL_V3_ARTIFACT_HASHES.items():
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+
+    manifest = json.loads(HISTORICAL_V3_MANIFEST.read_text(encoding="utf-8"))
+    assert manifest["task_version"] == "action-selection-v3"
+    for item in manifest["implementation_files"]:
+        completed = subprocess.run(
+            [
+                "git",
+                "show",
+                f"{HISTORICAL_V3_COMMIT}:agent-runtime/{item['path']}",
+            ],
+            cwd=WORKSPACE_ROOT,
+            check=True,
+            capture_output=True,
+        )
+        assert hashlib.sha256(completed.stdout).hexdigest() == item["sha256"]
+
+    historical_result = parse_result(HISTORICAL_V3_RESULT.read_bytes())
+    assert historical_result.task_version == "action-selection-v3"
+    assert historical_result.run_id == manifest["run_id"]
+
+
+def test_frozen_v4_candidate_manifest_matches_current_inputs_and_is_unconsumed() -> None:
     manifest, digest = validate_action_poc_manifest(
-        path=CANDIDATE_MANIFEST,
+        path=CANDIDATE_V4_MANIFEST,
         repository_root=REPOSITORY_ROOT,
     )
 
-    assert manifest.run_id == "action-selection-v3-20260807-candidate-01"
-    assert digest == CANDIDATE_MANIFEST_SHA256
-    assert not CANDIDATE_MANIFEST.with_suffix(CANDIDATE_MANIFEST.suffix + ".consumed.json").exists()
+    assert manifest.run_id == "action-selection-v4-20260807-candidate-01"
+    assert digest == CANDIDATE_V4_MANIFEST_SHA256
+    assert not CANDIDATE_V4_MANIFEST.with_suffix(
+        CANDIDATE_V4_MANIFEST.suffix + ".consumed.json"
+    ).exists()
 
 
 @pytest.mark.asyncio
-async def test_v3_runner_consumes_authorization_once_and_records_no_arguments(tmp_path: Path) -> None:
+async def test_v4_runner_consumes_authorization_once_and_records_no_arguments(tmp_path: Path) -> None:
     manifest_path, digest = _write_manifest(tmp_path)
     authorization = ActionPocRunAuthorization(
         run_id=RUN_ID,
@@ -206,7 +292,9 @@ async def test_v3_runner_consumes_authorization_once_and_records_no_arguments(tm
     assert transport.calls == 30
     assert len({(call.case_id, call.repetition) for call in result.calls}) == 30
     assert all(call.arguments_empty is True for call in result.calls)
-    assert "employee_identifier" not in result_path.read_text(encoding="utf-8")
+    result_text = result_path.read_text(encoding="utf-8")
+    assert "employee_identifier" not in result_text
+    assert "question" not in result_text
     second_transport = CorrectActionTransport()
     with pytest.raises(RuntimeError, match="poc.authorization_already_consumed"):
         await run_action_poc(
@@ -220,7 +308,7 @@ async def test_v3_runner_consumes_authorization_once_and_records_no_arguments(tm
 
 
 @pytest.mark.asyncio
-async def test_v3_runner_rejects_manifest_authorization_mismatch_before_outbound(tmp_path: Path) -> None:
+async def test_v4_runner_rejects_manifest_authorization_mismatch_before_outbound(tmp_path: Path) -> None:
     manifest_path, _ = _write_manifest(tmp_path)
     transport = CorrectActionTransport()
     invalid_authorization = ActionPocRunAuthorization(

@@ -6,7 +6,6 @@ from pathlib import Path
 from time import perf_counter
 from typing import Literal
 
-from agent_runtime.capability_api.contracts import JsonObject
 from agent_runtime.model.contracts import (
     InvalidModelOutput,
     ModelInputDenied,
@@ -18,13 +17,13 @@ from agent_runtime.model.contracts import (
 from agent_runtime.model.deepseek.action_selector import (
     ActionSelectionTaskInput,
     build_action_selection_task_definition,
+    decode_action_selection_output,
 )
 from agent_runtime.model.deepseek.answer_generator import (
     AnswerGenerationTaskInput,
     build_answer_generation_task_definition,
 )
-from agent_runtime.model.deepseek.json_codec import parse_unique_json_object
-from agent_runtime.model.deepseek.tools import UNSUPPORTED_TOOL_NAME, project_capability_tools
+from agent_runtime.model.deepseek.tools import project_capability_catalog
 from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelSettings
 from tests.poc.contracts import (
@@ -53,7 +52,7 @@ async def run_action_poc(
 ) -> tuple[DeepSeekPocResult, Path]:
     started = _utc_now()
     definition = build_action_selection_task_definition(timeout_ms=timeout_ms)
-    projection = project_capability_tools(action_descriptors())
+    catalog = project_capability_catalog(action_descriptors())
     guard = QuestionEgressGuard()
     manifest, manifest_sha256 = validate_action_poc_manifest(
         path=manifest_path,
@@ -74,7 +73,7 @@ async def run_action_poc(
                     definition.build_request(
                         ActionSelectionTaskInput(
                             minimized_question=decision.minimized_question,
-                            projection=projection,
+                            catalog=catalog,
                         )
                     ),
                 )
@@ -109,10 +108,14 @@ async def run_action_poc(
             )
             usage_total_tokens = response.usage_total_tokens
             total_tokens += usage_total_tokens or 0
-            call = definition.parse_response(response)
-            decision_name, arguments = _map_action_call(call.name, call.arguments_json, projection.capability_by_tool)
-            arguments_empty = not arguments
-            structure_valid = arguments_empty
+            content = definition.parse_response(response)
+            decision_name = decode_action_selection_output(
+                content,
+                catalog=catalog,
+                max_bytes=16384,
+            )
+            arguments_empty = True
+            structure_valid = True
             expected_match = structure_valid and decision_name == case.expected_capability_id
         except (InvalidModelOutput, ModelInputDenied):
             pass
@@ -257,20 +260,6 @@ async def run_answer_poc(
         calls=tuple(records),
     )
     return result, write_append_only_result(result, directory=result_directory)
-
-
-def _map_action_call(name: str, arguments_json: str, reverse: object) -> tuple[str, JsonObject]:
-    from collections.abc import Mapping
-
-    if not isinstance(reverse, Mapping):
-        raise InvalidModelOutput("poc.action_reverse_invalid")
-    arguments = parse_unique_json_object(arguments_json, max_bytes=16384, max_depth=8, max_items=256)
-    if name == UNSUPPORTED_TOOL_NAME:
-        return "agent_unsupported", arguments
-    capability_id = reverse.get(name)
-    if not isinstance(capability_id, str):
-        raise InvalidModelOutput("poc.action_tool_unknown")
-    return capability_id, arguments
 
 
 def _validate_answer_grounding(case: AnswerPocCase, answer: str, used_fact_ids: frozenset[str]) -> bool:
