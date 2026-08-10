@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,8 @@ from agent_runtime.model.contracts import (
 from agent_runtime.model.input_guard import QuestionEgressGuard
 from tests.poc.contracts import (
     ACTION_V4_IMPLEMENTATION_PATHS,
+    HISTORICAL_ACTION_V4_IMPLEMENTATION_PATHS,
+    HISTORICAL_ACTION_V4_RUN_ID,
     ActionPocRunAuthorization,
     DeepSeekPocResult,
     PocCallRecord,
@@ -36,17 +39,26 @@ from tests.poc.runner import run_action_poc
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 WORKSPACE_ROOT = REPOSITORY_ROOT.parent
 RUN_ID = "action-selection-v4-nonlive-test"
-AUTHORIZATION_REFERENCE = "P3_00:GATE-037:test"
+AUTHORIZATION_REFERENCE = "P3_00:GATE-038:test"
 HISTORICAL_V3_COMMIT = "f6274b2b21420d2b2b3d0f4b693978fa4526ef57"
 HISTORICAL_V3_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v3-20260807-candidate-01.json"
 HISTORICAL_V3_CONSUMED = HISTORICAL_V3_MANIFEST.with_suffix(HISTORICAL_V3_MANIFEST.suffix + ".consumed.json")
 HISTORICAL_V3_RESULT = REPOSITORY_ROOT / "tests/poc/results/action_selection-20260807T133851985471Z.json"
-CANDIDATE_V4_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v4-20260807-candidate-01.json"
-CANDIDATE_V4_MANIFEST_SHA256 = "af290a91cc58a989ff700a1a95685f8d1efeeea0f17828e36b12e28de08adfbe"
+HISTORICAL_V4_COMMIT = "cd8007e58bbeca902bec722eb98bbfbf8fe7c55f"
+HISTORICAL_V4_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v4-20260807-candidate-01.json"
+HISTORICAL_V4_CONSUMED = HISTORICAL_V4_MANIFEST.with_suffix(HISTORICAL_V4_MANIFEST.suffix + ".consumed.json")
+HISTORICAL_V4_RESULT = REPOSITORY_ROOT / "tests/poc/results/action_selection-20260810T100832615726Z.json"
+CANDIDATE_V4_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v4-20260810-candidate-02.json"
+CANDIDATE_V4_MANIFEST_SHA256 = "9ec90a3f8a874308fb6a0a8c580ea8adae037f39bbf430717dfc6f58d531a494"
 HISTORICAL_V3_ARTIFACT_HASHES = {
     HISTORICAL_V3_MANIFEST: "fdcbe2a29ab6729e412ba58d7b85c4b7baf68e83ebad4e23da66a7d8008ee635",
     HISTORICAL_V3_CONSUMED: "d60298139ebd2d3fa1e8ee53d823aaaa410812c5ea47a97117cd670b8feb98e3",
     HISTORICAL_V3_RESULT: "1947d17872fdba8ff9defefc3e2d0f282cb1552ffcfa2d491d67c7ef3c360e0a",
+}
+HISTORICAL_V4_ARTIFACT_HASHES = {
+    HISTORICAL_V4_MANIFEST: "af290a91cc58a989ff700a1a95685f8d1efeeea0f17828e36b12e28de08adfbe",
+    HISTORICAL_V4_CONSUMED: "b394ca5239af5cbe17181581763983b7ae824f62fd16fff845b8970f2f45e10c",
+    HISTORICAL_V4_RESULT: "462f7be1140bbd2edee56df97faaacf87422d6a002080edcbeef796e7d1dcdd0",
 }
 
 
@@ -136,6 +148,19 @@ def test_v4_fixture_uses_actual_ids_is_semantically_valid_and_allowed() -> None:
         "transaction.search",
         "agent_unsupported",
     }
+    assert Counter(case.expected_capability_id for case in ACTION_CASES) == {
+        "knowledge.query": 3,
+        "employee.detail": 3,
+        "transaction.search": 3,
+        "agent_unsupported": 1,
+    }
+    cases_by_id = {case.case_id: case for case in ACTION_CASES}
+    assert cases_by_id["unsupported_transaction_fields"].question == "交易记录允许哪些字段？"
+    assert cases_by_id["unsupported_transaction_fields"].expected_capability_id == "agent_unsupported"
+    assert cases_by_id["transaction_query_items"].question == "查看交易记录支持哪些查询项？"
+    assert cases_by_id["transaction_query_items"].expected_capability_id == "transaction.search"
+    assert "transaction_fields" not in cases_by_id
+    assert "unsupported_traffic_law" not in cases_by_id
     employee_questions = {
         case.question for case in ACTION_CASES if case.expected_capability_id == "employee.detail"
     }
@@ -256,13 +281,41 @@ def test_historical_v3_evidence_is_immutable_and_source_is_reconstructible() -> 
     assert historical_result.run_id == manifest["run_id"]
 
 
-def test_frozen_v4_candidate_manifest_matches_current_inputs_and_is_unconsumed() -> None:
+def test_historical_v4_evidence_is_immutable_failed_and_source_is_reconstructible() -> None:
+    for path, expected_hash in HISTORICAL_V4_ARTIFACT_HASHES.items():
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+
+    manifest = parse_action_manifest(HISTORICAL_V4_MANIFEST.read_bytes())
+    assert manifest.run_id == HISTORICAL_ACTION_V4_RUN_ID
+    assert tuple(item.path for item in manifest.implementation_files) == HISTORICAL_ACTION_V4_IMPLEMENTATION_PATHS
+    for item in manifest.implementation_files:
+        completed = subprocess.run(
+            ["git", "show", f"{HISTORICAL_V4_COMMIT}:agent-runtime/{item.path}"],
+            cwd=WORKSPACE_ROOT,
+            check=True,
+            capture_output=True,
+        )
+        assert hashlib.sha256(completed.stdout).hexdigest() == item.sha256
+
+    result = parse_result(HISTORICAL_V4_RESULT.read_bytes())
+    assert result.run_id == HISTORICAL_ACTION_V4_RUN_ID
+    assert result.conclusion == "failed"
+    assert result.attempted_calls == result.completed_calls == result.structure_valid_calls == 30
+    assert result.expected_calls == 27
+    assert all(call.arguments_empty is True for call in result.calls)
+    transaction_fields = tuple(call for call in result.calls if call.case_id == "transaction_fields")
+    assert len(transaction_fields) == 3
+    assert all(call.decision == "agent_unsupported" and not call.expected_match for call in transaction_fields)
+
+
+def test_corrected_v4_candidate_manifest_matches_current_inputs_and_is_unconsumed() -> None:
     manifest, digest = validate_action_poc_manifest(
         path=CANDIDATE_V4_MANIFEST,
         repository_root=REPOSITORY_ROOT,
     )
 
-    assert manifest.run_id == "action-selection-v4-20260807-candidate-01"
+    assert manifest.run_id == "action-selection-v4-20260810-candidate-02"
+    assert manifest.authorization_reference == "P3_00:GATE-038"
     assert digest == CANDIDATE_V4_MANIFEST_SHA256
     assert not CANDIDATE_V4_MANIFEST.with_suffix(
         CANDIDATE_V4_MANIFEST.suffix + ".consumed.json"

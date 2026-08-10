@@ -11,7 +11,21 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from agent_runtime.capability_api.contracts import JsonValue, canonical_json_bytes
 
 
-ACTION_V4_IMPLEMENTATION_PATHS = (
+HISTORICAL_ACTION_V4_RUN_ID = "action-selection-v4-20260807-candidate-01"
+HISTORICAL_ACTION_V4_CASE_IDS = (
+    "tax_policy_scope",
+    "tax_invoice_rule",
+    "tax_filing_rule",
+    "employee_detail_how",
+    "employee_detail_view",
+    "employee_detail_single",
+    "transaction_conditions",
+    "transaction_fields",
+    "transaction_filters",
+    "unsupported_traffic_law",
+)
+
+HISTORICAL_ACTION_V4_IMPLEMENTATION_PATHS = (
     "src/agent_runtime/adapters/employee/definition.py",
     "src/agent_runtime/adapters/transaction/definition.py",
     "src/agent_runtime/knowledge/provider.py",
@@ -27,6 +41,13 @@ ACTION_V4_IMPLEMENTATION_PATHS = (
     "tests/poc/prepare_action_selection_v4_manifest.py",
     "tests/poc/runner.py",
     "tests/poc/test_deepseek_action_selection_live.py",
+)
+
+ACTION_V4_IMPLEMENTATION_PATHS = tuple(
+    "tests/poc/fixtures/action_selection_v4_2.json"
+    if path == "tests/poc/fixtures/action_selection_v4.json"
+    else path
+    for path in HISTORICAL_ACTION_V4_IMPLEMENTATION_PATHS
 )
 
 
@@ -55,7 +76,12 @@ class ActionPocManifest(BaseModel):
     @model_validator(mode="after")
     def validate_file_set(self) -> "ActionPocManifest":
         paths = tuple(item.path for item in self.implementation_files)
-        if paths != ACTION_V4_IMPLEMENTATION_PATHS:
+        expected_paths = (
+            HISTORICAL_ACTION_V4_IMPLEMENTATION_PATHS
+            if self.run_id == HISTORICAL_ACTION_V4_RUN_ID
+            else ACTION_V4_IMPLEMENTATION_PATHS
+        )
+        if paths != expected_paths:
             raise ValueError("poc.manifest_file_set_invalid")
         return self
 
@@ -160,9 +186,14 @@ class DeepSeekPocResult(BaseModel):
             if self.task_version == "action-selection-v4":
                 from tests.poc.fixtures import ACTION_CASES
 
+                case_ids = (
+                    HISTORICAL_ACTION_V4_CASE_IDS
+                    if self.run_id == HISTORICAL_ACTION_V4_RUN_ID
+                    else tuple(case.case_id for case in ACTION_CASES)
+                )
                 expected_keys = {
-                    (case.case_id, repetition)
-                    for case in ACTION_CASES
+                    (case_id, repetition)
+                    for case_id in case_ids
                     for repetition in range(1, 4)
                 }
                 if not set(keys).issubset(expected_keys):
