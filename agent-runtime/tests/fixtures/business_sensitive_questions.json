@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "cases": [
     {"category": "personal_identifier", "question": "查询合成身份证 11010519491231002X"},
-    {"category": "employee_identifier", "question": "查询员工 EMP-000001"},
-    {"category": "transaction_identifier", "question": "查询交易 TXN-000001"},
+    {"category": "employee_identifier", "question": "查询员工编号 EMP-000001（姓名张三）"},
+    {"category": "transaction_identifier", "question": "查询交易号 TXN-000001"},
     {"category": "financial_account", "question": "查询账户 6222020000000000000"},
     {"category": "contact", "question": "联系 test@example.invalid"},
     {"category": "credential_or_secret", "question": "Bearer synthetic.header.signature"},
-    {"category": "free_text_sensitive", "question": "查询某个人的内部交易详情"},
+    {"category": "free_text_sensitive", "question": "查询某个人的薪资明细"},
     {"category": "generic_business", "question": "查询员工列表支持哪些条件"}
   ]
 }

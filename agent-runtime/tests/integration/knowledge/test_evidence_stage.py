@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 
 import pytest
 
@@ -67,9 +68,16 @@ async def test_question_denied_is_fail_closed_before_catalog_and_model() -> None
         definition=KnowledgeSummaryTaskV1.definition(),
     )
 
-    result = await stage.build_result(input=evidence_input(question_denied=True), context=_context(), timeout_s=4)
+    result = await stage.build_result(
+        input=replace(
+            evidence_input(),
+            original_question="税务政策是什么，身份证号 11010519491231002X",
+            question_egress_denied=False,
+        ),
+        context=_context(),
+        timeout_s=4,
+    )
 
     assert result.kind is EvidenceStageKind.MODEL_EGRESS_DENIED
     assert result.denial_reason is EvidenceEgressDenialReason.QUESTION_DENIED
     assert gateway.calls == 0
-
