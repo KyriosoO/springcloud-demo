@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knowledge-egress-live-evidence-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "gateId", "authorizationGateId", "runId", "recordedAt", "authorizationReference", "taskBinding", "dataBoundary", "catalog", "retrievalSnapshot", "budget", "negativeMatrix", "cases", "validation"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "workPackageId": {"const": "WP-K-EGRESS-01"},
+    "gateId": {"const": "GATE-022"},
+    "authorizationGateId": {"const": "GATE-043"},
+    "runId": {"const": "knowledge-egress-v2-20260812-candidate-01"},
+    "recordedAt": {"type": "string", "format": "date-time"},
+    "authorizationReference": {"const": "P3_00:GATE-043"},
+    "taskBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "taskVersion", "promptVersion", "instructionSha256"],
+      "properties": {
+        "taskId": {"const": "knowledge_summary"},
+        "taskVersion": {"const": "2"},
+        "promptVersion": {"const": "knowledge-summary-extractive-prompt-v2"},
+        "instructionSha256": {"const": "b6cf5e9a2d49ef09ce441ee5547eb57429f4df37c9efa6cc0bf29feec06a4797"}
+      }
+    },
+    "dataBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["questionKind", "realKnowledgeContentPersisted", "jwtPersisted", "rawModelPayloadPersisted", "p5Executed"],
+      "properties": {
+        "questionKind": {"const": "fixed_non_sensitive_public_knowledge"},
+        "realKnowledgeContentPersisted": {"const": false},
+        "jwtPersisted": {"const": false},
+        "rawModelPayloadPersisted": {"const": false},
+        "p5Executed": {"const": false}
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogSha256", "metadataSha256", "bindingsSha256", "documentCount"],
+      "properties": {
+        "catalogSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "metadataSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bindingsSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "documentCount": {"const": 5596}
+      }
+    },
+    "retrievalSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readIndex", "readIndexUuid", "profileVersion", "indexSnapshotIds"],
+      "properties": {
+        "readIndex": {"const": "agent-doc-tax-policy-v3-20260803-agent-read-v1"},
+        "readIndexUuid": {"const": "k97bn1gxROSfVm7zGfzbOg"},
+        "profileVersion": {"const": "tax-knowledge-search-v1"},
+        "indexSnapshotIds": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorizedSummaryCalls", "actualSummaryCalls", "retryCount"],
+      "properties": {
+        "authorizedSummaryCalls": {"const": 30},
+        "actualSummaryCalls": {"const": 30},
+        "retryCount": {"const": 0}
+      }
+    },
+    "negativeMatrix": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "resultKind", "denialReason", "summaryCallDelta"],
+        "properties": {
+          "caseId": {"enum": ["question-denied", "policy-missing"]},
+          "resultKind": {"const": "model_egress_denied"},
+          "denialReason": {"enum": ["question_denied", "policy_missing"]},
+          "summaryCallDelta": {"const": 0}
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 30,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "repeatOrdinal", "selectedDomainIds", "retrievalKind", "coverageComplete", "candidateCount", "evidenceKind", "summaryCallDelta", "pointCount", "quoteValidation"],
+        "properties": {
+          "caseId": {"enum": ["tax-policy", "tax-law", "tax-mixed"]},
+          "repeatOrdinal": {"type": "integer", "minimum": 1, "maximum": 10},
+          "selectedDomainIds": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["tax.policy", "tax.law"]}},
+          "retrievalKind": {"const": "success"},
+          "coverageComplete": {"const": true},
+          "candidateCount": {"type": "integer", "minimum": 1, "maximum": 20},
+          "evidenceKind": {"enum": ["success", "no_result", "model_egress_denied", "forbidden", "timeout", "downstream_failure"]},
+          "summaryCallDelta": {"const": 1},
+          "pointCount": {"type": "integer", "minimum": 0, "maximum": 5},
+          "quoteValidation": {"enum": ["passed", "failed"]}
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogValidation", "payloadForbiddenFieldCount", "logLeakCount", "schemaValidation", "resultRecordCount", "terminalRecordCount", "invalidQuoteAcceptedCount", "businessCallCount"],
+      "properties": {
+        "catalogValidation": {"const": "passed"},
+        "payloadForbiddenFieldCount": {"const": 0},
+        "logLeakCount": {"const": 0},
+        "schemaValidation": {"const": "passed"},
+        "resultRecordCount": {"const": 30},
+        "terminalRecordCount": {"const": 30},
+        "invalidQuoteAcceptedCount": {"const": 0},
+        "businessCallCount": {"const": 0}
+      }
+    }
+  }
+}
