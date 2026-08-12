@@ -28,6 +28,9 @@ test = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"agent_runtime.knowledge.evidence" = ["egress-policy-catalog.json"]
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 asyncio_mode = "auto"

@@ -288,7 +288,6 @@ class KnowledgeCompositionRoot:
         model: LocalModelComponents,
         tasks: KnowledgeTaskDefinitions | None,
         retrieval: object | None,
-        policy_catalog: object | None,
     ) -> CapabilityRegistrationProvider:
         from typing import cast
 
@@ -306,11 +305,12 @@ class KnowledgeCompositionRoot:
 
         typed_settings = cast(KnowledgeSettings, settings)
         if not typed_settings.enabled:
-            if tasks is not None or retrieval is not None or policy_catalog is not None:
+            if tasks is not None or retrieval is not None:
                 raise ValueError("knowledge.disabled_dependencies_forbidden")
             return KnowledgeCapabilityProvider(enabled=False, handler=None)
-        if tasks is None or retrieval is None or not isinstance(policy_catalog, KnowledgeEgressPolicyCatalog):
+        if tasks is None or retrieval is None:
             raise ValueError("knowledge.dependencies_required")
+        policy_catalog = KnowledgeEgressPolicyCatalog.load_v1_resource()
         rewrite_definition = cast(ModelTaskDefinition[KnowledgeRewriteInput, KnowledgeRewriteOutput], tasks.rewrite)
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
         rewriter = KnowledgeQuestionRewriter(

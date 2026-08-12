@@ -6,7 +6,12 @@ from dataclasses import replace
 import pytest
 
 from agent_runtime.knowledge.contracts import EvidenceEgressDenialReason, EvidenceStageKind, KnowledgeEvidenceContext
-from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryOutput, KnowledgeSummaryPoint, SummaryOutcome
+from agent_runtime.knowledge.evidence.contracts import (
+    KnowledgeEgressDisposition,
+    KnowledgeSummaryOutput,
+    KnowledgeSummaryPoint,
+    SummaryOutcome,
+)
 from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
 from agent_runtime.knowledge.evidence.summary_task import KnowledgeSummaryTaskV1
 from agent_runtime.model.context import ModelCallContextAccessor
@@ -80,4 +85,52 @@ async def test_question_denied_is_fail_closed_before_catalog_and_model() -> None
 
     assert result.kind is EvidenceStageKind.MODEL_EGRESS_DENIED
     assert result.denial_reason is EvidenceEgressDenialReason.QUESTION_DENIED
+    assert gateway.calls == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("scenario", "expected_reason"),
+    (
+        ("document-denied", EvidenceEgressDenialReason.DOCUMENT_DENIED),
+        ("policy-missing", EvidenceEgressDenialReason.POLICY_MISSING),
+        ("policy-conflict", EvidenceEgressDenialReason.POLICY_CONFLICT),
+    ),
+)
+async def test_document_policy_negative_matrix_never_calls_summary(
+    scenario: str,
+    expected_reason: EvidenceEgressDenialReason,
+) -> None:
+    gateway = FakeGateway()
+    source = evidence_input()
+    catalog = synthetic_catalog(
+        disposition=(
+            KnowledgeEgressDisposition.DENY
+            if scenario == "document-denied"
+            else KnowledgeEgressDisposition.ALLOW_MINIMAL
+        )
+    )
+    if scenario in {"policy-missing", "policy-conflict"}:
+        ranked = source.batch.candidates[0]
+        candidate = replace(
+            ranked.candidate,
+            document_id="missing-document" if scenario == "policy-missing" else ranked.candidate.document_id,
+            policy_ref="conflicting-policy" if scenario == "policy-conflict" else ranked.candidate.policy_ref,
+        )
+        source = replace(
+            source,
+            batch=replace(source.batch, candidates=(replace(ranked, candidate=candidate),)),
+        )
+    stage = DefaultKnowledgeEvidenceStage(
+        catalog=catalog,
+        guard=QuestionEgressGuard(),
+        context=ModelCallContextAccessor(),
+        gateway=gateway,  # type: ignore[arg-type]
+        definition=KnowledgeSummaryTaskV1.definition(),
+    )
+
+    result = await stage.build_result(input=source, context=_context(), timeout_s=4)
+
+    assert result.kind is EvidenceStageKind.MODEL_EGRESS_DENIED
+    assert result.denial_reason is expected_reason
     assert gateway.calls == 0

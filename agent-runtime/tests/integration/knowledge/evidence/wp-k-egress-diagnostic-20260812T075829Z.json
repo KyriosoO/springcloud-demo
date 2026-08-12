@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-K-EGRESS-01",
+  "gateId": "GATE-022",
+  "runId": "knowledge-egress-v1-20260812-diagnostic-01",
+  "recordedAt": "2026-08-12T07:58:29Z",
+  "mode": "real_retrieval_local_deterministic_summary",
+  "dataBoundary": {
+    "realKnowledgeContentPersisted": false,
+    "questionPersisted": false,
+    "jwtPersisted": false,
+    "rawModelPayloadPersisted": false,
+    "externalModelCalled": false,
+    "p5Executed": false
+  },
+  "catalog": {
+    "catalogSha256": "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698",
+    "metadataSha256": "64f18ff1f8525df2f9a1e1657f87b608f174876157109390e47a653ddeaf2392",
+    "bindingsSha256": "dc7aa05e04176b8853dc6ba78d6941e5eff5495a80797e9f3e9b8953c81d3ed2",
+    "documentCount": 5596
+  },
+  "retrievalSnapshot": {
+    "readIndex": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "readIndexUuid": "k97bn1gxROSfVm7zGfzbOg",
+    "profileVersion": "tax-knowledge-search-v1",
+    "indexSnapshotIds": [
+      "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed",
+      "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+    ]
+  },
+  "localSummaryCalls": 3,
+  "externalModelCalls": 0,
+  "cases": [
+    {
+      "caseId": "tax-policy",
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "selectedEvidenceCount": 8,
+      "summaryPayloadBytes": 12294,
+      "evidenceKind": "success",
+      "pointCount": 1,
+      "decoderValidation": "passed",
+      "referenceValidation": "passed",
+      "substringValidation": "passed",
+      "localAssembly": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "selectedEvidenceCount": 6,
+      "summaryPayloadBytes": 18369,
+      "evidenceKind": "success",
+      "pointCount": 1,
+      "decoderValidation": "passed",
+      "referenceValidation": "passed",
+      "substringValidation": "passed",
+      "localAssembly": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "selectedEvidenceCount": 8,
+      "summaryPayloadBytes": 17737,
+      "evidenceKind": "success",
+      "pointCount": 1,
+      "decoderValidation": "passed",
+      "referenceValidation": "passed",
+      "substringValidation": "passed",
+      "localAssembly": "passed"
+    }
+  ],
+  "negativeMatrix": [
+    {
+      "caseId": "question-denied",
+      "resultKind": "model_egress_denied",
+      "reason": "question_denied",
+      "localSummaryCallDelta": 0,
+      "externalModelCallDelta": 0
+    },
+    {
+      "caseId": "policy-missing",
+      "resultKind": "model_egress_denied",
+      "reason": "policy_missing",
+      "localSummaryCallDelta": 0,
+      "externalModelCallDelta": 0
+    },
+    {
+      "caseId": "document-denied",
+      "resultKind": "model_egress_denied",
+      "reason": "document_denied",
+      "localSummaryCallDelta": 0,
+      "externalModelCallDelta": 0
+    },
+    {
+      "caseId": "policy-conflict",
+      "resultKind": "model_egress_denied",
+      "reason": "policy_conflict",
+      "localSummaryCallDelta": 0,
+      "externalModelCallDelta": 0
+    },
+    {
+      "caseId": "snapshot-mismatch",
+      "resultKind": "model_egress_denied",
+      "reason": "policy_missing",
+      "localSummaryCallDelta": 0,
+      "externalModelCallDelta": 0
+    }
+  ],
+  "validation": {
+    "catalogValidation": "passed",
+    "logLeakCount": 0,
+    "schemaValidation": "passed"
+  }
+}

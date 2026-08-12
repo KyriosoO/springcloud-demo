@@ -11,6 +11,9 @@ def test_evidence_has_no_provider_http_es_or_role_dependency() -> None:
         assert marker not in text
 
 
-def test_no_real_policy_resource_is_created_in_fake_only_slice() -> None:
-    assert not (SOURCE / "egress-policy-catalog.json").exists()
+def test_real_policy_resource_is_fixed_and_has_no_runtime_path_override() -> None:
+    catalog_source = (SOURCE / "catalog.py").read_text(encoding="utf-8")
 
+    assert (SOURCE / "egress-policy-catalog.json").is_file()
+    assert "load_v1_resource(cls)" in catalog_source
+    assert "AGENT_KNOWLEDGE_EGRESS" not in catalog_source

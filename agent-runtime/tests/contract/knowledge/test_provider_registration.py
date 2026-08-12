@@ -12,7 +12,6 @@ def test_disabled_knowledge_registers_descriptor_without_tasks_stages_or_clients
         model=None,  # type: ignore[arg-type]
         tasks=tasks,
         retrieval=None,
-        policy_catalog=None,
     )
 
     registration = provider.registrations()[0]
@@ -28,4 +27,3 @@ def test_enabled_knowledge_defines_rewrite_and_summary_before_gateway_freeze() -
     assert tasks is not None
     assert tuple(item.task_id.value for item in tasks.as_tuple()) == ("knowledge_rewrite", "knowledge_summary")
     assert tuple(item.task_version for item in tasks.as_tuple()) == ("1", "1")
-

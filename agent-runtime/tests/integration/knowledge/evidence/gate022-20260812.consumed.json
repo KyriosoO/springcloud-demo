@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "gateId": "GATE-022",
+  "workPackageId": "WP-K-EGRESS-01",
+  "authorizationReference": "P3_00:GATE-022",
+  "consumedAt": "2026-08-12T07:05:34Z",
+  "authorizedSummaryCalls": 3,
+  "retryAllowed": false
+}
