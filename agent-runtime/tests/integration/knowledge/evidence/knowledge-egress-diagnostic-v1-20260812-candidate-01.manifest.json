@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "runId": "knowledge-egress-diagnostic-v1-20260812-candidate-01",
+  "workPackageId": "WP-K-EGRESS-DIAG-01",
+  "authorizationGateId": "GATE-041",
+  "authorizationReference": "P3_00:GATE-041",
+  "recordedAt": "2026-08-12T09:40:00Z",
+  "status": "prepared_unconsumed",
+  "diagnosticOnly": true,
+  "executionBoundary": {
+    "caseIds": [
+      "tax-policy",
+      "tax-law",
+      "tax-mixed"
+    ],
+    "repeatCount": 3,
+    "executionOrder": "round_major_tax_policy_tax_law_tax_mixed",
+    "authorizedSummaryCalls": 9,
+    "firstOutboundConsumesAuthorization": true,
+    "retryAllowed": false,
+    "resumeAllowed": false,
+    "answerCallsAllowed": false,
+    "p5Allowed": false,
+    "businessCallsAllowed": false,
+    "closureClaimAllowed": false,
+    "persistedDiagnosticFields": [
+      "status",
+      "validationReason",
+      "integerCounts"
+    ],
+    "forbiddenPersistedFields": [
+      "question",
+      "quote",
+      "knowledgeContent",
+      "rawModelResponse",
+      "jwt",
+      "subject",
+      "evidenceIdentity"
+    ],
+    "consumedMarkerPath": "agent-runtime/tests/integration/knowledge/evidence/gate041-knowledge-egress-diagnostic-v1-20260812-candidate-01.consumed.json"
+  },
+  "frozenInputs": [
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog.json",
+      "sha256": "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/knowledge-egress-export-20260812-01.manifest.json",
+      "sha256": "75ab6ed2aae4843b2d4d4292d49c4cfa78a17d26ec238c2aa5306520af3d3bfe"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py",
+      "sha256": "80a3846814dc360291078649697aebdd2b393971b8abb933ed0f645200c4f6d6"
+    },
+    {
+      "path": "agent-runtime/tests/unit/knowledge/evidence/test_summary_validation_reasons.py",
+      "sha256": "b0741804c8d820ffa726333895dd3513fc93c7836f5a42c53c481df30101897f"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/egress_diagnostic_journal.py",
+      "sha256": "8008a1975027bd2530bf885ab9b153b99d72cc845ff7ce6d25dad6acc096a5c4"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/knowledge_egress_diagnostic_support.py",
+      "sha256": "dde374f62b40f7465edbe4c9cafa8984d794c0c539a75d4109a37e3cdc3199d6"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/test_egress_diagnostic_journal.py",
+      "sha256": "7b34ead074d1de7c3e5d78bdd64f5f12208ae802929a9d4c6dbcc7a8448ef451"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/test_knowledge_egress_diagnostic_harness.py",
+      "sha256": "3703d09a55ea905e76e3034099376585e056db1b6b2955623d251da13a9aaef0"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/test_real_knowledge_egress_diagnostic_v1.py",
+      "sha256": "59569c4cec4639fb75a11b1e03f7cc2b7c8126d3b8be0d2b8162343274f11a6b"
+    },
+    {
+      "path": "agent-runtime/scripts/run-knowledge-egress-diagnostic-v1.ps1",
+      "sha256": "add0f95fa11aaa65e9c05aa879cbe153733fda661fe885ce512ad178b75ea345"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/test_egress_diagnostic_candidate_manifest.py",
+      "sha256": "5e42339b1c9de586c8a40e03f791d0e13c27c2be8d481a322d6e087b60b17fa9"
+    }
+  ],
+  "immutableHistory": [
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/knowledge-egress-v1-20260812-candidate-03.manifest.json",
+      "sha256": "ef1751a4297b653d0ee746c7653bba5642384e5b8a027a912b2760a581d19b18"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/gate040-knowledge-egress-v1-20260812-candidate-03.consumed.json",
+      "sha256": "6d96b5e260f454f2ef15c2a7a4794e6f45304e5b2702a3ea3be10b4b60291e37"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/wp-k-egress-01-20260812T085839Z.failed-attempt.json",
+      "sha256": "70a71461fff58e6638e8e3a686cacd5ab260a7ee9b6c82b94da89db2ba9c674c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/wp-k-egress-01-20260812T085839Z.failed-attempt.jsonl",
+      "sha256": "b8cbc36a38ca97ca39b7cbcafa768795c72b30b4e007c8ba11ce59aaad23a94b"
+    }
+  ]
+}

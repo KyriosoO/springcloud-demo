@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final
@@ -10,6 +11,9 @@ from typing import Any, Final
 
 _SAFE_ID: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
 _CASE_IDS: Final = ("tax-policy", "tax-law", "tax-mixed")
+_REPEAT_COUNT: Final = 10
+_AUTHORIZED_SUMMARY_CALLS: Final = len(_CASE_IDS) * _REPEAT_COUNT
+_CASE_SEQUENCE: Final = tuple(case_id for _ in range(_REPEAT_COUNT) for case_id in _CASE_IDS)
 _TERMINAL_STATUSES: Final = frozenset(
     {
         "success",
@@ -87,7 +91,7 @@ def validate_attempt_journal(path: Path) -> tuple[dict[str, Any], ...]:
         or header["gateId"] != "GATE-022"
         or header["workPackageId"] != "WP-K-EGRESS-01"
         or not _safe_id(header["authorizationReference"])
-        or header["authorizedSummaryCalls"] != 3
+        or header["authorizedSummaryCalls"] != _AUTHORIZED_SUMMARY_CALLS
         or header["retryAllowed"] is not False
         or not isinstance(header["recordedAt"], str)
     ):
@@ -104,7 +108,7 @@ def validate_attempt_journal(path: Path) -> tuple[dict[str, Any], ...]:
             or record.get("schemaVersion") != 1
             or record.get("runId") != run_id
             or type(record.get("callOrdinal")) is not int
-            or record["callOrdinal"] not in (1, 2, 3)
+            or not 1 <= record["callOrdinal"] <= _AUTHORIZED_SUMMARY_CALLS
             or record.get("caseId") not in _CASE_IDS
             or not isinstance(record.get("recordedAt"), str)
         ):
@@ -112,7 +116,7 @@ def validate_attempt_journal(path: Path) -> tuple[dict[str, Any], ...]:
         ordinal = record["callOrdinal"]
         case_id = record["caseId"]
         if event == "outbound_started":
-            if ordinal in started or ordinal != len(started) + 1 or case_id != _CASE_IDS[ordinal - 1]:
+            if ordinal in started or ordinal != len(started) + 1 or case_id != _CASE_SEQUENCE[ordinal - 1]:
                 raise KnowledgeEgressAttemptJournalError("knowledge.egress_journal_invalid")
             started[ordinal] = case_id
         elif event == "call_terminal":
@@ -127,6 +131,57 @@ def validate_attempt_journal(path: Path) -> tuple[dict[str, Any], ...]:
         else:
             raise KnowledgeEgressAttemptJournalError("knowledge.egress_journal_invalid")
     return records
+
+
+def write_failure_attempt_from_journal(*, journal_path: Path, output_path: Path) -> None:
+    records = validate_attempt_journal(journal_path)
+    header = records[0]
+    terminals = {
+        record["callOrdinal"]: record["status"]
+        for record in records[1:]
+        if record["event"] == "call_terminal"
+    }
+    started = [record for record in records[1:] if record["event"] == "outbound_started"]
+    value = {
+        "schemaVersion": 1,
+        "workPackageId": "WP-K-EGRESS-01",
+        "gateId": "GATE-022",
+        "runId": header["runId"],
+        "recordedAt": _timestamp(),
+        "authorizationReference": header["authorizationReference"],
+        "status": "failed_incomplete",
+        "actualSummaryCalls": len(started),
+        "retryCount": 0,
+        "terminalRecordCount": len(terminals),
+        "incompleteCallCount": len(started) - len(terminals),
+        "caseResults": [
+            {
+                "callOrdinal": record["callOrdinal"],
+                "caseId": record["caseId"],
+                "status": terminals.get(record["callOrdinal"], "started_without_terminal"),
+            }
+            for record in started
+        ],
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("x", encoding="utf-8", newline="\n") as stream:
+        json.dump(value, stream, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _main(arguments: list[str]) -> int:
+    if len(arguments) != 2:
+        return 2
+    try:
+        write_failure_attempt_from_journal(
+            journal_path=Path(arguments[0]),
+            output_path=Path(arguments[1]),
+        )
+    except (KnowledgeEgressAttemptJournalError, OSError):
+        return 2
+    return 0
 
 
 class KnowledgeEgressAttemptJournal:
@@ -154,7 +209,7 @@ class KnowledgeEgressAttemptJournal:
                 "gateId": "GATE-022",
                 "workPackageId": "WP-K-EGRESS-01",
                 "authorizationReference": authorization_reference,
-                "authorizedSummaryCalls": 3,
+                "authorizedSummaryCalls": _AUTHORIZED_SUMMARY_CALLS,
                 "retryAllowed": False,
                 "recordedAt": _timestamp(),
             },
@@ -163,8 +218,8 @@ class KnowledgeEgressAttemptJournal:
 
     def record_outbound_started(self, *, call_ordinal: int, case_id: str) -> None:
         if (
-            call_ordinal not in (1, 2, 3)
-            or case_id != _CASE_IDS[call_ordinal - 1]
+            not 1 <= call_ordinal <= _AUTHORIZED_SUMMARY_CALLS
+            or case_id != _CASE_SEQUENCE[call_ordinal - 1]
             or call_ordinal != len(self._started) + 1
             or call_ordinal in self._started
         ):
@@ -208,3 +263,6 @@ class KnowledgeEgressAttemptJournal:
     def is_terminal(self, call_ordinal: int) -> bool:
         return call_ordinal in self._terminal
 
+
+if __name__ == "__main__":
+    raise SystemExit(_main(sys.argv[1:]))

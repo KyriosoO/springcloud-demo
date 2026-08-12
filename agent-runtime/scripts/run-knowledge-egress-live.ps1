@@ -18,9 +18,9 @@ if ($repository -ne 'D:\codex') {
     throw 'knowledge.egress_live_repository_invalid'
 }
 
-$expectedRunId = 'knowledge-egress-v1-20260812-candidate-02'
-$expectedAuthorizationReference = 'P3_00:GATE-039'
-$candidateManifest = Join-Path $repository 'agent-runtime\tests\integration\knowledge\evidence\knowledge-egress-v1-20260812-candidate-02.manifest.json'
+$expectedRunId = 'knowledge-egress-v1-20260812-candidate-03'
+$expectedAuthorizationReference = 'P3_00:GATE-040'
+$candidateManifest = Join-Path $repository 'agent-runtime\tests\integration\knowledge\evidence\knowledge-egress-v1-20260812-candidate-03.manifest.json'
 if (
     $AuthorizedRunId -ne $expectedRunId -or
     $AuthorizationReference -ne $expectedAuthorizationReference -or
@@ -50,7 +50,7 @@ if ([string]::IsNullOrWhiteSpace($apiKey)) {
 
 $runtimeRoot = Join-Path $repository 'agent-runtime'
 $evidenceRoot = Join-Path $runtimeRoot 'tests\integration\knowledge\evidence'
-$consumedPath = Join-Path $evidenceRoot 'gate039-knowledge-egress-v1-20260812-candidate-02.consumed.json'
+$consumedPath = Join-Path $evidenceRoot 'gate040-knowledge-egress-v1-20260812-candidate-03.consumed.json'
 if (Test-Path -LiteralPath $consumedPath) {
     throw 'knowledge.egress_live_authorization_consumed'
 }
@@ -272,6 +272,18 @@ try {
     }
     if ($pytestExitCode -ne 0) {
         $failureStamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
+        $failureEvidenceInvalid = $false
+        if (-not (Test-Path -LiteralPath $stagedAttempt) -and (Test-Path -LiteralPath $stagedJournal)) {
+            Push-Location $runtimeRoot
+            try {
+                python -m tests.integration.knowledge.egress_attempt_journal $stagedJournal $stagedAttempt
+                if ($LASTEXITCODE -ne 0) {
+                    $failureEvidenceInvalid = $true
+                }
+            } finally {
+                Pop-Location
+            }
+        }
         if (Test-Path -LiteralPath $stagedAttempt) {
             $failureAttempt = Join-Path $evidenceRoot "wp-k-egress-01-$failureStamp.failed-attempt.json"
             if (Test-Path -LiteralPath $failureAttempt) {
@@ -285,6 +297,9 @@ try {
                 throw 'knowledge.egress_live_failure_evidence_conflict'
             }
             Move-Item -LiteralPath $stagedJournal -Destination $failureJournal
+        }
+        if ($failureEvidenceInvalid) {
+            throw 'knowledge.egress_live_failure_evidence_invalid'
         }
         throw 'knowledge.egress_live_integration_failed'
     }
@@ -313,7 +328,7 @@ try {
 
     [pscustomobject]@{
         status = 'passed'
-        summaryCalls = 3
+        summaryCalls = 30
         retryCount = 0
         logLeakCount = 0
         evidence = $finalEvidence

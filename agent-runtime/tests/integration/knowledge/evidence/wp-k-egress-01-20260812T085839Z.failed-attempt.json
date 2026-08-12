@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-K-EGRESS-01",
+  "gateId": "GATE-022",
+  "runId": "knowledge-egress-v1-20260812-candidate-03",
+  "recordedAt": "2026-08-12T08:58:38Z",
+  "authorizationReference": "P3_00:GATE-040",
+  "status": "failed",
+  "actualSummaryCalls": 30,
+  "retryCount": 0,
+  "payloadForbiddenFieldCount": 0,
+  "caseResults": [
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 1,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 1,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 1,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 2,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 2,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 2,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 3,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 3,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 3,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 4,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 4,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 4,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 5,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 5,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 5,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 6,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 6,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 6,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 7,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 7,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 7,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 8,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 8,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 9,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 10,
+      "evidenceKind": "downstream_failure",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1
+    }
+  ]
+}

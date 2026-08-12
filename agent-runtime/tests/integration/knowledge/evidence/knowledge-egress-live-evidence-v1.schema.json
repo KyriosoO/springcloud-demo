@@ -8,9 +8,9 @@
     "schemaVersion": {"const": 1},
     "workPackageId": {"const": "WP-K-EGRESS-01"},
     "gateId": {"const": "GATE-022"},
-    "runId": {"const": "knowledge-egress-v1-20260812-candidate-02"},
+    "runId": {"const": "knowledge-egress-v1-20260812-candidate-03"},
     "recordedAt": {"type": "string", "format": "date-time"},
-    "authorizationReference": {"const": "P3_00:GATE-039"},
+    "authorizationReference": {"const": "P3_00:GATE-040"},
     "dataBoundary": {
       "type": "object",
       "additionalProperties": false,
@@ -50,8 +50,8 @@
       "additionalProperties": false,
       "required": ["authorizedSummaryCalls", "actualSummaryCalls", "retryCount"],
       "properties": {
-        "authorizedSummaryCalls": {"const": 3},
-        "actualSummaryCalls": {"const": 3},
+        "authorizedSummaryCalls": {"const": 30},
+        "actualSummaryCalls": {"const": 30},
         "retryCount": {"const": 0}
       }
     },
@@ -73,34 +73,39 @@
     },
     "cases": {
       "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
+      "minItems": 30,
+      "maxItems": 30,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["caseId", "selectedDomainIds", "retrievalKind", "coverageComplete", "candidateCount", "evidenceKind", "summaryCallDelta", "pointCount", "quoteValidation"],
+        "required": ["caseId", "repeatOrdinal", "selectedDomainIds", "retrievalKind", "coverageComplete", "candidateCount", "evidenceKind", "summaryCallDelta", "pointCount", "quoteValidation"],
         "properties": {
           "caseId": {"enum": ["tax-policy", "tax-law", "tax-mixed"]},
+          "repeatOrdinal": {"type": "integer", "minimum": 1, "maximum": 10},
           "selectedDomainIds": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["tax.policy", "tax.law"]}},
           "retrievalKind": {"const": "success"},
           "coverageComplete": {"const": true},
           "candidateCount": {"type": "integer", "minimum": 1, "maximum": 20},
-          "evidenceKind": {"const": "success"},
+          "evidenceKind": {"enum": ["success", "no_result", "model_egress_denied", "forbidden", "timeout", "downstream_failure"]},
           "summaryCallDelta": {"const": 1},
-          "pointCount": {"type": "integer", "minimum": 1, "maximum": 5},
-          "quoteValidation": {"const": "passed"}
+          "pointCount": {"type": "integer", "minimum": 0, "maximum": 5},
+          "quoteValidation": {"enum": ["passed", "failed"]}
         }
       }
     },
     "validation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["catalogValidation", "payloadForbiddenFieldCount", "logLeakCount", "schemaValidation"],
+      "required": ["catalogValidation", "payloadForbiddenFieldCount", "logLeakCount", "schemaValidation", "resultRecordCount", "terminalRecordCount", "invalidQuoteAcceptedCount", "businessCallCount"],
       "properties": {
         "catalogValidation": {"const": "passed"},
         "payloadForbiddenFieldCount": {"const": 0},
         "logLeakCount": {"const": 0},
-        "schemaValidation": {"const": "passed"}
+        "schemaValidation": {"const": "passed"},
+        "resultRecordCount": {"const": 30},
+        "terminalRecordCount": {"const": 30},
+        "invalidQuoteAcceptedCount": {"const": 0},
+        "businessCallCount": {"const": 0}
       }
     }
   }

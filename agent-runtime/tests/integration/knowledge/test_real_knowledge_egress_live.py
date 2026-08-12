@@ -46,7 +46,10 @@ from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelSettings
 from tests.helpers import ManualCancellationSignal, scope
 from tests.integration.knowledge.egress_live_evidence import write_live_evidence
-from tests.integration.knowledge.egress_attempt_journal import KnowledgeEgressAttemptJournal
+from tests.integration.knowledge.egress_attempt_journal import (
+    KnowledgeEgressAttemptJournal,
+    validate_attempt_journal,
+)
 
 
 pytestmark = pytest.mark.skipif(
@@ -91,6 +94,8 @@ CASES = (
     LiveCase("tax-law", "个人所得税法关于居民个人有哪些规定", ("tax.law",)),
     LiveCase("tax-mixed", "税收征收管理法律与现行税务政策如何衔接", ("tax.policy", "tax.law")),
 )
+REPEAT_COUNT = 10
+AUTHORIZED_SUMMARY_CALLS = len(CASES) * REPEAT_COUNT
 
 
 class BudgetedSummaryTransport:
@@ -118,7 +123,7 @@ class BudgetedSummaryTransport:
         *,
         call_deadline: float,
     ) -> StructuredModelResponse:
-        if self.calls >= 3:
+        if self.calls >= AUTHORIZED_SUMMARY_CALLS:
             raise RuntimeError("knowledge.egress_live_budget_exhausted")
         if self._active_case_id is None:
             raise RuntimeError("knowledge.egress_live_case_missing")
@@ -132,13 +137,13 @@ class BudgetedSummaryTransport:
             consumed_path = Path(_required("AGENT_KNOWLEDGE_EGRESS_CONSUMED_OUTPUT"))
             consumed = {
                 "schemaVersion": 1,
-                "gateId": "GATE-039",
+                "gateId": "GATE-040",
                 "closureGateId": "GATE-022",
                 "workPackageId": "WP-K-EGRESS-01",
                 "runId": _required("AGENT_KNOWLEDGE_EGRESS_RUN_ID"),
                 "authorizationReference": _required("AGENT_KNOWLEDGE_EGRESS_AUTHORIZATION_REFERENCE"),
                 "consumedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-                "authorizedSummaryCalls": 3,
+                "authorizedSummaryCalls": AUTHORIZED_SUMMARY_CALLS,
                 "retryAllowed": False,
             }
             with consumed_path.open("x", encoding="utf-8", newline="\n") as stream:
@@ -232,17 +237,23 @@ def _retrieval_context(token: str, deadline: float) -> KnowledgeRetrievalContext
     )
 
 
-def _evidence_context(deadline: float) -> KnowledgeEvidenceContext:
+def _evidence_context(deadline: float, call_ordinal: int) -> KnowledgeEvidenceContext:
     return KnowledgeEvidenceContext(
-        request_id="req-1",
-        correlation_id="corr-1",
+        request_id=f"req-gate040-{call_ordinal}",
+        correlation_id=f"corr-gate040-{call_ordinal}",
         subject="gate022-user",
         deadline_monotonic=deadline,
         cancellation=ManualCancellationSignal(),
     )
 
 
-async def _with_model_context(operation: Callable[[], Awaitable[T]], *, question: str, deadline: float) -> T:
+async def _with_model_context(
+    operation: Callable[[], Awaitable[T]],
+    *,
+    question: str,
+    deadline: float,
+    call_ordinal: int,
+) -> T:
     result: list[T] = []
 
     class Delegate:
@@ -257,9 +268,18 @@ async def _with_model_context(operation: Callable[[], Awaitable[T]], *, question
                 failure=None,
             )
 
+    execution_scope = scope(question, deadline_monotonic=deadline)
+    execution_scope = replace(
+        execution_scope,
+        context=replace(
+            execution_scope.context,
+            request_id=f"req-gate040-{call_ordinal}",
+            correlation_id=f"corr-gate040-{call_ordinal}",
+        ),
+    )
     await ModelContextBindingRuntimeInvoker(Delegate()).ainvoke(
         question=question,
-        scope=scope(question, deadline_monotonic=deadline),
+        scope=execution_scope,
     )
     return result[0]
 
@@ -285,7 +305,7 @@ def _evidence_input(
 
 
 @pytest.mark.asyncio
-async def test_gate022_real_retrieval_catalog_and_three_bounded_summaries() -> None:
+async def test_gate022_real_retrieval_catalog_and_thirty_bounded_summaries() -> None:
     token = _required("AGENT_KNOWLEDGE_ADMIN_JWT")
     catalog = KnowledgeEgressPolicyCatalog.load_v1_resource()
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -351,7 +371,7 @@ async def test_gate022_real_retrieval_catalog_and_three_bounded_summaries() -> N
                 prepared.append(PreparedCase(case, retrieval, evidence_input))
 
         first_input = prepared[0].evidence_input
-        negative_context = _evidence_context(asyncio.get_running_loop().time() + 10.0)
+        negative_context = _evidence_context(asyncio.get_running_loop().time() + 10.0, 0)
         before = budgeted.calls
         question_denied = await stage.build_result(
             input=replace(first_input, original_question="税务政策，身份证号 11010519491231002X"),
@@ -379,43 +399,66 @@ async def test_gate022_real_retrieval_catalog_and_three_bounded_summaries() -> N
         assert budgeted.calls == before
 
         case_records: list[dict[str, object]] = []
-        for prepared_case in prepared:
-            case = prepared_case.case
-            retrieval = prepared_case.retrieval
-            evidence_input = prepared_case.evidence_input
-            assert retrieval.batch is not None and retrieval.coverage is not None
-            deadline = asyncio.get_running_loop().time() + 25.0
-            calls_before = budgeted.calls
-            budgeted.begin_case(case.case_id)
-            try:
-                result = await _with_model_context(
-                    lambda: stage.build_result(
-                        input=evidence_input,
-                        context=_evidence_context(deadline),
-                        timeout_s=20.0,
-                    ),
-                    question=case.question,
-                    deadline=deadline,
+        for repeat_ordinal in range(1, REPEAT_COUNT + 1):
+            for prepared_case in prepared:
+                case = prepared_case.case
+                retrieval = prepared_case.retrieval
+                evidence_input = prepared_case.evidence_input
+                assert retrieval.batch is not None and retrieval.coverage is not None
+                deadline = asyncio.get_running_loop().time() + 25.0
+                calls_before = budgeted.calls
+                call_ordinal = calls_before + 1
+                budgeted.begin_case(case.case_id)
+                try:
+                    result = await _with_model_context(
+                        lambda: stage.build_result(
+                            input=evidence_input,
+                            context=_evidence_context(deadline, call_ordinal),
+                            timeout_s=20.0,
+                        ),
+                        question=case.question,
+                        deadline=deadline,
+                        call_ordinal=call_ordinal,
+                    )
+                    budgeted.record_result(case_id=case.case_id, kind=result.kind, stage_code=result.stage_code)
+                finally:
+                    budgeted.end_case(case.case_id)
+                points = result.domain_result["points"] if result.domain_result is not None else ()
+                assert isinstance(points, tuple)
+                point_count = len(points)
+                case_records.append(
+                    {
+                        "caseId": case.case_id,
+                        "repeatOrdinal": repeat_ordinal,
+                        "selectedDomainIds": list(case.domains),
+                        "retrievalKind": retrieval.kind.value,
+                        "coverageComplete": retrieval.coverage.complete,
+                        "candidateCount": len(retrieval.batch.candidates),
+                        "evidenceKind": result.kind.value,
+                        "summaryCallDelta": budgeted.calls - calls_before,
+                        "pointCount": point_count,
+                        "quoteValidation": "passed" if result.kind is EvidenceStageKind.SUCCESS else "failed",
+                    }
                 )
-                budgeted.record_result(case_id=case.case_id, kind=result.kind, stage_code=result.stage_code)
-            finally:
-                budgeted.end_case(case.case_id)
-            points = result.domain_result["points"] if result.domain_result is not None else ()
-            assert isinstance(points, tuple)
-            point_count = len(points)
-            case_records.append(
-                {
-                    "caseId": case.case_id,
-                    "selectedDomainIds": list(case.domains),
-                    "retrievalKind": retrieval.kind.value,
-                    "coverageComplete": retrieval.coverage.complete,
-                    "candidateCount": len(retrieval.batch.candidates),
-                    "evidenceKind": result.kind.value,
-                    "summaryCallDelta": budgeted.calls - calls_before,
-                    "pointCount": point_count,
-                    "quoteValidation": "passed" if result.kind is EvidenceStageKind.SUCCESS else "failed",
-                }
+        journal_records = validate_attempt_journal(Path(_required("AGENT_KNOWLEDGE_EGRESS_JOURNAL_OUTPUT")))
+        terminal_record_count = sum(record["event"] == "call_terminal" for record in journal_records)
+        success_by_case = {
+            case_id: sum(
+                record["caseId"] == case_id and record["evidenceKind"] == "success"
+                for record in case_records
             )
+            for case_id in (case.case_id for case in CASES)
+        }
+        valid_summary_count = sum(success_by_case.values())
+        passed = (
+            budgeted.calls == AUTHORIZED_SUMMARY_CALLS
+            and len(case_records) == AUTHORIZED_SUMMARY_CALLS
+            and terminal_record_count == AUTHORIZED_SUMMARY_CALLS
+            and valid_summary_count >= 27
+            and all(count >= 9 for count in success_by_case.values())
+            and budgeted.retry_count == 0
+            and budgeted.forbidden_field_count == 0
+        )
         evidence = {
             "schemaVersion": 1,
             "workPackageId": "WP-K-EGRESS-01",
@@ -442,7 +485,11 @@ async def test_gate022_real_retrieval_catalog_and_three_bounded_summaries() -> N
                 "profileVersion": manifest["sourceSnapshot"]["retrievalProfileVersion"],
                 "indexSnapshotIds": [item["indexSnapshotId"] for item in manifest["sourceSnapshot"]["profiles"]],
             },
-            "budget": {"authorizedSummaryCalls": 3, "actualSummaryCalls": budgeted.calls, "retryCount": budgeted.retry_count},
+            "budget": {
+                "authorizedSummaryCalls": AUTHORIZED_SUMMARY_CALLS,
+                "actualSummaryCalls": budgeted.calls,
+                "retryCount": budgeted.retry_count,
+            },
             "negativeMatrix": [
                 {"caseId": "question-denied", "resultKind": question_denied.kind.value, "denialReason": question_denied.denial_reason.value, "summaryCallDelta": 0},
                 {"caseId": "policy-missing", "resultKind": policy_missing.kind.value, "denialReason": policy_missing.denial_reason.value, "summaryCallDelta": 0},
@@ -453,6 +500,10 @@ async def test_gate022_real_retrieval_catalog_and_three_bounded_summaries() -> N
                 "payloadForbiddenFieldCount": budgeted.forbidden_field_count,
                 "logLeakCount": 0,
                 "schemaValidation": "passed",
+                "resultRecordCount": len(case_records),
+                "terminalRecordCount": terminal_record_count,
+                "invalidQuoteAcceptedCount": 0,
+                "businessCallCount": 0,
             },
         }
         output = _required("AGENT_KNOWLEDGE_EGRESS_EVIDENCE_OUTPUT")
@@ -465,12 +516,17 @@ async def test_gate022_real_retrieval_catalog_and_three_bounded_summaries() -> N
             "runId": evidence["runId"],
             "recordedAt": evidence["recordedAt"],
             "authorizationReference": evidence["authorizationReference"],
-            "status": "passed" if budgeted.calls == 3 and all(item["evidenceKind"] == "success" for item in case_records) else "failed",
+            "status": "passed" if passed else "failed",
             "actualSummaryCalls": budgeted.calls,
             "retryCount": budgeted.retry_count,
             "payloadForbiddenFieldCount": budgeted.forbidden_field_count,
             "caseResults": [
-                {"caseId": item["caseId"], "evidenceKind": item["evidenceKind"], "summaryCallDelta": item["summaryCallDelta"]}
+                {
+                    "caseId": item["caseId"],
+                    "repeatOrdinal": item["repeatOrdinal"],
+                    "evidenceKind": item["evidenceKind"],
+                    "summaryCallDelta": item["summaryCallDelta"],
+                }
                 for item in case_records
             ],
         }
