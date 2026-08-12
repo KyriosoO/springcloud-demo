@@ -50,6 +50,12 @@ HISTORICAL_V4_CONSUMED = HISTORICAL_V4_MANIFEST.with_suffix(HISTORICAL_V4_MANIFE
 HISTORICAL_V4_RESULT = REPOSITORY_ROOT / "tests/poc/results/action_selection-20260810T100832615726Z.json"
 CANDIDATE_V4_MANIFEST = REPOSITORY_ROOT / "tests/poc/manifests/action-selection-v4-20260810-candidate-02.json"
 CANDIDATE_V4_MANIFEST_SHA256 = "9ec90a3f8a874308fb6a0a8c580ea8adae037f39bbf430717dfc6f58d531a494"
+CANDIDATE_V4_CONSUMED = CANDIDATE_V4_MANIFEST.with_suffix(CANDIDATE_V4_MANIFEST.suffix + ".consumed.json")
+CANDIDATE_V4_RESULT = REPOSITORY_ROOT / "tests/poc/results/action_selection-20260810T120158644883Z.json"
+CANDIDATE_V4_EVIDENCE_HASHES = {
+    CANDIDATE_V4_CONSUMED: "64478b36c68afba51fd4eb69b11dc1c6d31e412f45ddb87fbbe3ab7babf48fba",
+    CANDIDATE_V4_RESULT: "f9d48b4cf4f8427b42deee2ebb23e6c646de0552e4dec929acbad55e253a910b",
+}
 HISTORICAL_V3_ARTIFACT_HASHES = {
     HISTORICAL_V3_MANIFEST: "fdcbe2a29ab6729e412ba58d7b85c4b7baf68e83ebad4e23da66a7d8008ee635",
     HISTORICAL_V3_CONSUMED: "d60298139ebd2d3fa1e8ee53d823aaaa410812c5ea47a97117cd670b8feb98e3",
@@ -308,7 +314,7 @@ def test_historical_v4_evidence_is_immutable_failed_and_source_is_reconstructibl
     assert all(call.decision == "agent_unsupported" and not call.expected_match for call in transaction_fields)
 
 
-def test_corrected_v4_candidate_manifest_matches_current_inputs_and_is_unconsumed() -> None:
+def test_corrected_v4_candidate_manifest_matches_inputs_and_evidence_is_immutable_passed() -> None:
     manifest, digest = validate_action_poc_manifest(
         path=CANDIDATE_V4_MANIFEST,
         repository_root=REPOSITORY_ROOT,
@@ -317,9 +323,28 @@ def test_corrected_v4_candidate_manifest_matches_current_inputs_and_is_unconsume
     assert manifest.run_id == "action-selection-v4-20260810-candidate-02"
     assert manifest.authorization_reference == "P3_00:GATE-038"
     assert digest == CANDIDATE_V4_MANIFEST_SHA256
-    assert not CANDIDATE_V4_MANIFEST.with_suffix(
-        CANDIDATE_V4_MANIFEST.suffix + ".consumed.json"
-    ).exists()
+    for path, expected_hash in CANDIDATE_V4_EVIDENCE_HASHES.items():
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+
+    consumed = json.loads(CANDIDATE_V4_CONSUMED.read_text(encoding="utf-8"))
+    assert set(consumed) == {"schema_version", "run_id", "manifest_sha256", "consumed_at_utc"}
+    assert consumed["schema_version"] == 1
+    assert consumed["run_id"] == manifest.run_id
+    assert consumed["manifest_sha256"] == digest
+
+    result = parse_result(CANDIDATE_V4_RESULT.read_bytes())
+    assert result.run_id == manifest.run_id
+    assert result.manifest_sha256 == digest
+    assert result.conclusion == "passed"
+    assert result.attempted_calls == result.completed_calls == 30
+    assert result.structure_valid_calls == result.expected_calls == 30
+    assert len({(call.case_id, call.repetition) for call in result.calls}) == 30
+    assert all(call.arguments_empty is True for call in result.calls)
+    assert Counter(call.case_id for call in result.calls) == Counter({case.case_id: 3 for case in ACTION_CASES})
+
+    result_text = CANDIDATE_V4_RESULT.read_text(encoding="utf-8").lower()
+    for forbidden in ("question", "raw_response", "api_key", "jwt", "employee_identifier", "transaction_id", "amount"):
+        assert forbidden not in result_text
 
 
 @pytest.mark.asyncio
