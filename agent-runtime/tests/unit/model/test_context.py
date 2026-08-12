@@ -91,3 +91,28 @@ async def test_cancellation_resets_context_and_propagates() -> None:
     with pytest.raises(MissingModelCallContext):
         accessor.require_current()
 
+
+@pytest.mark.asyncio
+async def test_close_is_idempotent_and_rejects_new_invocations() -> None:
+    close_calls = 0
+    delegate_calls = 0
+
+    class Delegate:
+        async def ainvoke(self, *, question: str, scope: object) -> AgentSemanticOutcome:
+            nonlocal delegate_calls
+            del question, scope
+            delegate_calls += 1
+            return _outcome()
+
+    async def close() -> None:
+        nonlocal close_calls
+        close_calls += 1
+
+    binder = ModelContextBindingRuntimeInvoker(Delegate(), close=close)
+    await asyncio.gather(binder.aclose(), binder.aclose())
+
+    with pytest.raises(RuntimeError, match="model.runtime_closed"):
+        await binder.ainvoke(question="税务政策", scope=scope("税务政策"))
+
+    assert close_calls == 1
+    assert delegate_calls == 0

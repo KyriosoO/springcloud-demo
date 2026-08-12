@@ -14,7 +14,7 @@ from agent_runtime.model.deepseek.action_selector import (
 )
 from agent_runtime.model.deepseek.tools import project_capability_catalog
 from agent_runtime.model.gateway import BoundedStructuredModelGateway
-from agent_runtime.model.settings import ModelApiKey, ModelProvider, ModelSettings
+from agent_runtime.model.settings import ModelSettings
 from tests.helpers import descriptor
 from tests.model_helpers import FakeStructuredModelTransport
 
@@ -115,15 +115,9 @@ def test_duplicate_task_id_and_version_prevents_startup() -> None:
         )
 
 
-def test_local_composition_rejects_deepseek_provider_even_with_key() -> None:
-    settings = ModelSettings(
-        provider=ModelProvider.DEEPSEEK,
-        api_key=ModelApiKey("sentinel-secret"),
-    )
-
-    with pytest.raises(ValueError, match="model.local_composition_requires_stub"):
+def test_stub_composition_requires_an_explicit_local_transport() -> None:
+    with pytest.raises(ValueError, match="model.stub_transport_required"):
         LocalModelCompositionRoot.build(
-            settings=settings,
-            transport=FakeStructuredModelTransport(),
+            settings=ModelSettings(),
             grounding_policies={},
         )

@@ -31,3 +31,24 @@ async def test_liveness_is_independent_and_readiness_follows_lifespan() -> None:
     assert during_ready.status_code == 200
     assert after_ready.status_code == 503
     assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_lifespan_closes_a_managed_runtime_once() -> None:
+    class ManagedInvoker(CapturingInvoker):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_calls = 0
+
+        async def aclose(self) -> None:
+            self.close_calls += 1
+
+    runtime = ManagedInvoker()
+    app = create_app(RuntimeHttpSettings(), lambda: runtime)
+
+    async with app.router.lifespan_context(app):
+        assert app.state.ready is True
+
+    assert bool(getattr(app.state, "ready")) is False
+    assert getattr(app.state, "runtime") is None
+    assert runtime.close_calls == 1

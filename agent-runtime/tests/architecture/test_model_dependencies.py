@@ -60,8 +60,9 @@ def test_live_http_dependency_is_confined_to_deepseek_transport() -> None:
     )
     assert "httpx" in _imports(transport_path)
     bootstrap = (SOURCE / "bootstrap.py").read_text(encoding="utf-8")
-    assert "model.local_composition_requires_stub" in bootstrap
-    assert "DeepSeekChatTransport" not in bootstrap
+    assert "DeepSeekChatTransport" in bootstrap
+    assert "build_deepseek_http_client" in bootstrap
+    assert "import httpx" not in bootstrap
 
 
 def test_transport_protocol_uses_only_neutral_request_and_response() -> None:

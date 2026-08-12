@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from functools import partial
+import asyncio
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from functools import partial
+from typing import Any, Awaitable, Callable, Mapping, Sequence, cast
 
 from langgraph.graph import END, START, StateGraph
 
@@ -44,6 +45,10 @@ from agent_runtime.model.deepseek.action_selector import (
 from agent_runtime.model.deepseek.answer_generator import (
     DeepSeekAnswerGenerator,
     build_answer_generation_task_definition,
+)
+from agent_runtime.model.deepseek.transport import (
+    DeepSeekChatTransport,
+    build_deepseek_http_client,
 )
 from agent_runtime.model.gateway import BoundedStructuredModelGateway
 from agent_runtime.model.grounding import GroundingPolicyRegistry
@@ -154,40 +159,85 @@ class LocalModelComponents:
     answer_generator: AnswerGenerationNode
     context_accessor: ModelCallContextAccessor
     gateway: StructuredModelGateway
+    _lifecycle: _ModelResourceLifecycle
 
     def bind_runtime(self, runtime: AgentRuntimeInvoker) -> ModelContextBindingRuntimeInvoker:
-        return ModelContextBindingRuntimeInvoker(runtime)
+        return ModelContextBindingRuntimeInvoker(runtime, close=self.aclose)
+
+    async def aclose(self) -> None:
+        await self._lifecycle.aclose()
+
+
+class _ModelResourceLifecycle:
+    __slots__ = ("_close", "_closed", "_lock")
+
+    def __init__(self, close: Callable[[], Awaitable[None]] | None) -> None:
+        self._close = close
+        self._closed = False
+        self._lock = asyncio.Lock()
+
+    async def aclose(self) -> None:
+        async with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            if self._close is not None:
+                await self._close()
 
 
 class LocalModelCompositionRoot:
-    """Builds only the provider-neutral local/stub model slice."""
+    """Builds the provider-neutral model slice and owns provider resources."""
 
     @staticmethod
     def build(
         *,
         settings: ModelSettings,
-        transport: StructuredModelTransport,
+        transport: StructuredModelTransport | None = None,
         grounding_policies: Mapping[str, AnswerGroundingPolicy],
         max_question_chars: int = 4096,
         max_argument_bytes: int = 16384,
         additional_definitions: Sequence[ModelTaskDefinition[Any, Any]] = (),
     ) -> LocalModelComponents:
-        if settings.provider is not ModelProvider.STUB:
-            raise ValueError("model.local_composition_requires_stub")
         action_definition = build_action_selection_task_definition(
             timeout_ms=settings.action_timeout_ms,
         )
         answer_definition = build_answer_generation_task_definition(
             timeout_ms=settings.answer_timeout_ms,
         )
-        gateway = BoundedStructuredModelGateway(
-            transport=transport,
-            definitions=(action_definition, answer_definition, *additional_definitions),
-            max_concurrency=settings.max_concurrency,
+        definitions: tuple[ModelTaskDefinition[Any, Any], ...] = (
+            cast(ModelTaskDefinition[Any, Any], action_definition),
+            cast(ModelTaskDefinition[Any, Any], answer_definition),
+            *additional_definitions,
         )
+        definition_keys = tuple((definition.task_id, definition.task_version) for definition in definitions)
+        if len(set(definition_keys)) != len(definition_keys):
+            raise ValueError("model.duplicate_task_definition")
+        if (
+            not isinstance(max_argument_bytes, int)
+            or isinstance(max_argument_bytes, bool)
+            or max_argument_bytes <= 0
+        ):
+            raise ValueError("model.invalid_action_output_limit")
         guard = QuestionEgressGuard(max_question_chars=max_question_chars)
         accessor = ModelCallContextAccessor()
         grounding = GroundingPolicyRegistry(grounding_policies)
+
+        close: Callable[[], Awaitable[None]] | None = None
+        if settings.provider is ModelProvider.STUB:
+            if transport is None:
+                raise ValueError("model.stub_transport_required")
+            active_transport = transport
+        else:
+            if transport is not None:
+                raise ValueError("model.deepseek_transport_managed")
+            client = build_deepseek_http_client(settings)
+            active_transport = DeepSeekChatTransport(settings=settings, client=client)
+            close = client.aclose
+        gateway = BoundedStructuredModelGateway(
+            transport=active_transport,
+            definitions=definitions,
+            max_concurrency=settings.max_concurrency,
+        )
         return LocalModelComponents(
             action_selector=DeepSeekCapabilitySelector(
                 guard=guard,
@@ -205,6 +255,7 @@ class LocalModelCompositionRoot:
             ),
             context_accessor=accessor,
             gateway=gateway,
+            _lifecycle=_ModelResourceLifecycle(close),
         )
 
 

@@ -32,6 +32,12 @@ def create_app(settings: RuntimeHttpSettings, runtime_factory: RuntimeFactory) -
         finally:
             app.state.ready = False
             app.state.runtime = None
+            close = getattr(runtime, "aclose", None)
+            if close is not None:
+                closed = close()
+                if not inspect.isawaitable(closed):
+                    raise TypeError("runtime.aclose_invalid")
+                await closed
 
     app = FastAPI(
         title="Single Agent Runtime Internal API",
