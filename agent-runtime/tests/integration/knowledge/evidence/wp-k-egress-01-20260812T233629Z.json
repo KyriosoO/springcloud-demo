@@ -1,0 +1,498 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-K-EGRESS-01",
+  "gateId": "GATE-022",
+  "runId": "knowledge-egress-v2-20260812-candidate-01",
+  "recordedAt": "2026-08-12T23:36:29Z",
+  "authorizationReference": "P3_00:GATE-043",
+  "dataBoundary": {
+    "questionKind": "fixed_non_sensitive_public_knowledge",
+    "realKnowledgeContentPersisted": false,
+    "jwtPersisted": false,
+    "rawModelPayloadPersisted": false,
+    "p5Executed": false
+  },
+  "catalog": {
+    "catalogSha256": "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698",
+    "metadataSha256": "64f18ff1f8525df2f9a1e1657f87b608f174876157109390e47a653ddeaf2392",
+    "bindingsSha256": "dc7aa05e04176b8853dc6ba78d6941e5eff5495a80797e9f3e9b8953c81d3ed2",
+    "documentCount": 5596
+  },
+  "retrievalSnapshot": {
+    "readIndex": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "readIndexUuid": "k97bn1gxROSfVm7zGfzbOg",
+    "profileVersion": "tax-knowledge-search-v1",
+    "indexSnapshotIds": [
+      "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed",
+      "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+    ]
+  },
+  "budget": {
+    "authorizedSummaryCalls": 30,
+    "actualSummaryCalls": 30,
+    "retryCount": 0
+  },
+  "negativeMatrix": [
+    {
+      "caseId": "question-denied",
+      "resultKind": "model_egress_denied",
+      "denialReason": "question_denied",
+      "summaryCallDelta": 0
+    },
+    {
+      "caseId": "policy-missing",
+      "resultKind": "model_egress_denied",
+      "denialReason": "policy_missing",
+      "summaryCallDelta": 0
+    }
+  ],
+  "cases": [
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 1,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 1,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 1,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 2,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 2,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 2,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 3,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 3,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 3,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 4,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 4,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 4,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 5,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 5,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 5,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 6,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 6,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 6,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 7,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 7,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 2,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 7,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 8,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 8,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 8,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 9,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 9,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 9,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-policy",
+      "repeatOrdinal": 10,
+      "selectedDomainIds": [
+        "tax.policy"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 9,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-law",
+      "repeatOrdinal": 10,
+      "selectedDomainIds": [
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 8,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    },
+    {
+      "caseId": "tax-mixed",
+      "repeatOrdinal": 10,
+      "selectedDomainIds": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "retrievalKind": "success",
+      "coverageComplete": true,
+      "candidateCount": 10,
+      "evidenceKind": "success",
+      "summaryCallDelta": 1,
+      "pointCount": 1,
+      "quoteValidation": "passed"
+    }
+  ],
+  "validation": {
+    "catalogValidation": "passed",
+    "payloadForbiddenFieldCount": 0,
+    "logLeakCount": 0,
+    "schemaValidation": "passed",
+    "resultRecordCount": 30,
+    "terminalRecordCount": 30,
+    "invalidQuoteAcceptedCount": 0,
+    "businessCallCount": 0
+  },
+  "authorizationGateId": "GATE-043",
+  "taskBinding": {
+    "taskId": "knowledge_summary",
+    "taskVersion": "2",
+    "promptVersion": "knowledge-summary-extractive-prompt-v2",
+    "instructionSha256": "b6cf5e9a2d49ef09ce441ee5547eb57429f4df37c9efa6cc0bf29feec06a4797"
+  }
+}
