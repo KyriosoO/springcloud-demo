@@ -1,0 +1,7 @@
+{"authorizationReference":"P3_00:GATE-039","authorizedSummaryCalls":3,"event":"attempt_started","gateId":"GATE-022","recordedAt":"2026-08-12T08:27:15.241Z","retryAllowed":false,"runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1,"workPackageId":"WP-K-EGRESS-01"}
+{"callOrdinal":1,"caseId":"tax-policy","event":"outbound_started","recordedAt":"2026-08-12T08:27:17.677Z","runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1}
+{"callOrdinal":1,"caseId":"tax-policy","event":"call_terminal","recordedAt":"2026-08-12T08:27:20.038Z","runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1,"status":"quote_invalid"}
+{"callOrdinal":2,"caseId":"tax-law","event":"outbound_started","recordedAt":"2026-08-12T08:27:20.041Z","runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1}
+{"callOrdinal":2,"caseId":"tax-law","event":"call_terminal","recordedAt":"2026-08-12T08:27:21.897Z","runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1,"status":"success"}
+{"callOrdinal":3,"caseId":"tax-mixed","event":"outbound_started","recordedAt":"2026-08-12T08:27:21.900Z","runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1}
+{"callOrdinal":3,"caseId":"tax-mixed","event":"call_terminal","recordedAt":"2026-08-12T08:27:23.789Z","runId":"knowledge-egress-v1-20260812-candidate-02","schemaVersion":1,"status":"success"}
