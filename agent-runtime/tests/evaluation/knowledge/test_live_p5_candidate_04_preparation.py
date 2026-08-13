@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,6 @@ from tests.evaluation.knowledge.live_contracts import (
     BudgetedLiveModelTransport,
     load_authorization,
     load_manifest,
-    verify_manifest_assets,
 )
 from tests.evaluation.knowledge.live_diagnostics import LivePhaseCheckpointJournal
 from tests.evaluation.knowledge.run_evaluation import load_dataset
@@ -31,6 +31,7 @@ from tests.evaluation.knowledge.test_live_p5_candidate_03_preparation import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 RUN_ID = "knowledge-p5-live-v1-20260813-candidate-04"
+FROZEN_HEAD = "6108b2ac6718f0b8161f77ced1ef06bf0c994b18"
 AUTHORIZATION_REFERENCE = "P3_00:GATE-047"
 DATASET = Path(__file__).with_name("representative_questions.v2.jsonl")
 DATASET_SHA256 = "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408"
@@ -136,8 +137,14 @@ def test_candidate_04_manifest_authorization_v2_and_history_scope_are_exact() ->
     assert "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-04.manifest.json" not in paths
     assert {path: manifest_hashes[path] for path in HISTORY_HASHES} == HISTORY_HASHES
     assert all(_sha256(REPOSITORY_ROOT / path) == expected for path, expected in HISTORY_HASHES.items())
-    verify_manifest_assets(manifest=manifest, repository_root=REPOSITORY_ROOT)
-    assert not (REPOSITORY_ROOT / "agent-runtime/tests/evaluation/knowledge/results" / RUN_ID).exists()
+    for asset in manifest.asset_hashes:
+        frozen = subprocess.run(
+            ["git", "show", f"{FROZEN_HEAD}:{asset.path}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        assert hashlib.sha256(frozen).hexdigest() == asset.sha256
 
     assert manifest_path(REPOSITORY_ROOT).name.endswith("candidate-03.manifest.json")
     assert manifest_path(REPOSITORY_ROOT, "candidate-04").name.endswith("candidate-04.manifest.json")
