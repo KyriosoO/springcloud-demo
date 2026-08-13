@@ -143,6 +143,17 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         if asyncio.get_running_loop().time() - started > 0.05:
             return _result(CapabilityStatus.INTERNAL_FAILURE, code="knowledge.local_stage_overrun")
         if not domains.selected_domain_ids:
+            if rewritten.question_egress_denied:
+                return _result(
+                    CapabilityStatus.MODEL_EGRESS_DENIED,
+                    code="knowledge.rewrite_input_denied",
+                    source=FailureSource.POLICY,
+                    egress=ModelEgressResult(
+                        disposition=EgressDisposition.DENIED,
+                        policy_version=rewritten.question_policy_version,
+                        reason_code="knowledge.rewrite_input_denied",
+                    ),
+                )
             return _result(
                 CapabilityStatus.NO_RESULT,
                 domain_result={"reason": "no_matching_domain", "selected_domain_ids": (), "coverage_complete": True},

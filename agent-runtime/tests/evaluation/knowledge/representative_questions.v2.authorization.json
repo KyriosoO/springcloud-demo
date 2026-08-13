@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "representative_dataset_authorized",
+  "work_package_id": "WP-KP5-DATASET-V2-01",
+  "dataset_version": "representative_questions.v2",
+  "dataset_sha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408",
+  "principal_profile_id": "tax-knowledge-admin-reader-v1",
+  "read_authorization_evidence_ref": "WP-KRET-REAL-01:authorizationMatrix.admin",
+  "allowed_logical_domain_ids": [
+    "tax.policy",
+    "tax.law"
+  ],
+  "authorized_for_representative_dataset": true,
+  "authorized_for_live_p5": false,
+  "jwt_persisted": false,
+  "confirmed_by": "project-maintainer",
+  "confirmed_at": "2026-08-13T06:01:57Z"
+}

@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "status": "representative_dataset_frozen",
+  "work_package_id": "WP-KP5-DATASET-V2-01",
+  "frozen_at": "2026-08-13T06:01:57Z",
+  "dataset_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+  "dataset_version": "representative_questions.v2",
+  "dataset_sha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408",
+  "dataset_hash_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.sha256",
+  "authorization_path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.authorization.json",
+  "authorization_sha256": "026e69a13663080beb2621c101e944fb5b44ff0e66b14f3bdfba4ee0c47cf669",
+  "source_assets": [
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.jsonl",
+      "sha256": "00e6a8b3d7b172d4b9de7fe4712ed0f308b41855d5212bc3eb6ed42e78182dd7",
+      "role": "immutable_representative_v1_dataset"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.authorization.json",
+      "sha256": "46312361ec52395ea4c4f7f0d7b50dd7e4f70ac5e3ed5ce844a363a06253d7db",
+      "role": "immutable_representative_v1_authorization"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.provenance.json",
+      "sha256": "59d040c1d247fdcc4fd64896aaed76e631be3c96ccef9ce21a6113cb93029718",
+      "role": "immutable_representative_v1_provenance"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.sha256",
+      "sha256": "e1b9073cdbadca78bfcfcbcbd0a95e1ffcb2820808e5c42a4f031dabff44e199",
+      "role": "immutable_representative_v1_hash_record"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/input_guard.py",
+      "sha256": "60effe5b917a981b4fa74d35739ffad4b72bdc95060fd248c557b46931dd3c18",
+      "role": "production_question_egress_guard"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/question_policy.py",
+      "sha256": "b9d9f1a95a374fb80a0d093409080cf95b43a6f18fa88109c67c439ba6046802",
+      "role": "production_question_classification_policy"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/domain_selection.py",
+      "sha256": "6c2b7bc597d520ad69bda8d319b2455ee81fd5235bea464998b25c664c8361ec",
+      "role": "production_domain_selector"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/catalog.py",
+      "sha256": "d6bfa260c4aadc5edf003f489fbdff0ac4c7eeebfc5d28c3d1a624620f6bd7aa",
+      "role": "production_logical_domain_catalog"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/wp-kret-real-01-20260803.json",
+      "sha256": "a0547439e9b4434b63b3efa73a901d2cb96d52ee9307bcc5cb9ff22dfc63bdd3",
+      "role": "retrieval_authorization_and_snapshot_evidence"
+    }
+  ],
+  "retrieval_snapshot": {
+    "read_index": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "read_index_uuid": "k97bn1gxROSfVm7zGfzbOg",
+    "mapping_version": "agent-knowledge-tax-v1",
+    "retrieval_profile_version": "tax-knowledge-search-v1",
+    "profiles": [
+      {
+        "logical_domain_id": "tax.policy",
+        "retrieval_profile_id": "tax-policy-v1",
+        "index_snapshot_id": "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed"
+      },
+      {
+        "logical_domain_id": "tax.law",
+        "retrieval_profile_id": "tax-law-v1",
+        "index_snapshot_id": "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+      }
+    ]
+  },
+  "case_count": 26,
+  "category_counts": {
+    "insufficient": 2,
+    "mixed": 4,
+    "no_match": 2,
+    "security_negative": 4,
+    "tax_law": 6,
+    "tax_policy": 8
+  },
+  "answerable_count": 14,
+  "relevant_document_reference_count": 23,
+  "required_evidence_reference_count": 23,
+  "sensitive_data_check": "passed_no_real_sensitive_or_secret_values",
+  "representative_dataset_approved": true,
+  "gold_approved": true,
+  "authorization_fixture_approved": true,
+  "gate_028_status": "closed",
+  "live_p5_authorized": false
+}

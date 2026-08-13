@@ -7,6 +7,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from agent_runtime.knowledge.catalog import build_tax_domain_catalog
+from agent_runtime.knowledge.domain_selection import DeterministicDomainSelector
+from agent_runtime.model.contracts import QuestionEgressDisposition
+from agent_runtime.model.input_guard import QuestionEgressGuard
 from tests.evaluation.knowledge.bootstrap import build_from_environment
 from tests.evaluation.knowledge.contracts import EvaluationRunResult
 from tests.evaluation.knowledge.run_evaluation import EvaluationRunError, load_dataset, run, validate_result_bytes
@@ -14,13 +18,14 @@ from tests.evaluation.knowledge.run_evaluation import EvaluationRunError, load_d
 
 DATASET = Path(__file__).with_name("synthetic_questions.v1.jsonl")
 REPRESENTATIVE_DATASET = Path(__file__).with_name("representative_questions.v1.jsonl")
+REPRESENTATIVE_DATASET_V2 = Path(__file__).with_name("representative_questions.v2.jsonl")
 SCHEMA = Path(__file__).parent / "schemas" / "evaluation-result-v1.schema.json"
 
 
-def _copy_representative_package(target_dir: Path) -> Path:
-    target = target_dir / REPRESENTATIVE_DATASET.name
+def _copy_representative_package(target_dir: Path, source_dataset: Path = REPRESENTATIVE_DATASET) -> Path:
+    target = target_dir / source_dataset.name
     for suffix in (".jsonl", ".sha256", ".authorization.json", ".provenance.json"):
-        source = REPRESENTATIVE_DATASET.with_suffix(suffix)
+        source = source_dataset.with_suffix(suffix)
         target.with_suffix(suffix).write_bytes(source.read_bytes())
     return target
 
@@ -74,6 +79,81 @@ def test_frozen_representative_dataset_package_is_strict_and_authorized() -> Non
     assert sum(case.expected_answerability == "answerable" for case in cases) == 14
     assert sum(len(case.relevant_document_ids) for case in cases) == 23
     assert sum(len(case.required_evidence_ids) for case in cases) == 23
+
+
+def test_representative_v1_package_hashes_remain_exact() -> None:
+    expected = {
+        ".jsonl": "00e6a8b3d7b172d4b9de7fe4712ed0f308b41855d5212bc3eb6ed42e78182dd7",
+        ".authorization.json": "46312361ec52395ea4c4f7f0d7b50dd7e4f70ac5e3ed5ce844a363a06253d7db",
+        ".provenance.json": "59d040c1d247fdcc4fd64896aaed76e631be3c96ccef9ce21a6113cb93029718",
+        ".sha256": "e1b9073cdbadca78bfcfcbcbd0a95e1ffcb2820808e5c42a4f031dabff44e199",
+    }
+    assert {
+        suffix: hashlib.sha256(REPRESENTATIVE_DATASET.with_suffix(suffix).read_bytes()).hexdigest()
+        for suffix in expected
+    } == expected
+
+
+def test_representative_v2_changes_only_four_security_questions_and_is_not_live_authorized() -> None:
+    version, digest, v2_cases = load_dataset(REPRESENTATIVE_DATASET_V2)
+    _, _, v1_cases = load_dataset(REPRESENTATIVE_DATASET)
+
+    assert version == "representative_questions.v2"
+    assert digest == "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408"
+    assert len(v2_cases) == len(v1_cases) == 26
+    assert v2_cases[:22] == v1_cases[:22]
+    for v1_case, v2_case in zip(v1_cases[22:], v2_cases[22:], strict=True):
+        v1_value = v1_case.model_dump(mode="json")
+        v2_value = v2_case.model_dump(mode="json")
+        assert v1_value.pop("question") != v2_value.pop("question")
+        assert v1_value == v2_value
+
+    authorization = json.loads(
+        REPRESENTATIVE_DATASET_V2.with_suffix(".authorization.json").read_text(encoding="utf-8")
+    )
+    assert authorization["authorized_for_representative_dataset"] is True
+    assert authorization["authorized_for_live_p5"] is False
+    assert authorization["jwt_persisted"] is False
+
+
+def test_representative_v2_security_questions_use_production_denied_and_zero_domain() -> None:
+    _, _, cases = load_dataset(REPRESENTATIVE_DATASET_V2)
+    guard = QuestionEgressGuard()
+    selector = DeterministicDomainSelector()
+    enabled_domains = build_tax_domain_catalog().domains
+
+    security_cases = tuple(case for case in cases if case.category == "security_negative")
+    assert len(security_cases) == 4
+    for case in security_cases:
+        assert guard.evaluate(case.question).disposition is QuestionEgressDisposition.DENIED
+        assert not selector.select(
+            original_question=case.question, enabled_domains=enabled_domains
+        ).selected_domain_ids
+
+
+@pytest.mark.parametrize("mutation", ("ordinary_case", "security_question", "live_authorized"))
+def test_representative_v2_rejects_version_delta_or_authorization_expansion(
+    tmp_path: Path, mutation: str
+) -> None:
+    path = _copy_representative_package(tmp_path, REPRESENTATIVE_DATASET_V2)
+    if mutation == "live_authorized":
+        authorization_path = path.with_suffix(".authorization.json")
+        authorization = json.loads(authorization_path.read_text(encoding="utf-8"))
+        authorization["authorized_for_live_p5"] = True
+        authorization_path.write_text(json.dumps(authorization), encoding="utf-8")
+        expected_error = "representative_dataset_not_authorized"
+    else:
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+        if mutation == "ordinary_case":
+            rows[0]["question"] = "增值税目前有哪些税率？"
+            rows[0]["must_preserve_tokens"] = ["增值税", "税率"]
+        else:
+            rows[-1]["question"] = "请处理SYNTHETIC_INVALID_PHONE_004。"
+        _rewrite_dataset_and_authorization(path, rows)
+        expected_error = "dataset_invalid"
+
+    with pytest.raises(EvaluationRunError, match=expected_error):
+        load_dataset(path)
 
 
 @pytest.mark.parametrize("mutation", ("hash", "profile", "snapshot", "jwt"))
