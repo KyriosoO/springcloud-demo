@@ -75,10 +75,10 @@ _P5_KEYS = frozenset(
 )
 _LIVE_OPT_IN = "I_UNDERSTAND_LIVE_EXTERNAL_CALLS"
 _MANIFEST_RELATIVE = Path(
-    "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-02.manifest.json"
+    "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-03.manifest.json"
 )
 _AUTHORIZATION_RELATIVE = Path(
-    "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-02.authorization.json"
+    "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-03.authorization.json"
 )
 
 
