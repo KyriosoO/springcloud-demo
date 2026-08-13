@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.agent.test/schemas/employee-egress-live-evidence-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "workPackageId",
+    "gateId",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "recordedAt",
+    "modelBinding",
+    "fieldBoundary",
+    "businessSnapshot",
+    "authorizationEvidenceRefs",
+    "attemptJournal",
+    "counts",
+    "safety",
+    "outcomes"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "status": {"enum": ["passed", "failed"]},
+    "workPackageId": {"const": "WP-EMP-EGRESS-01"},
+    "gateId": {"const": "GATE-024"},
+    "runId": {"const": "employee-egress-v1-20260813-candidate-01"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-024"},
+    "recordedAt": {"type": "string", "pattern": "Z$"},
+    "modelBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "taskVersion", "modelName"],
+      "properties": {
+        "taskId": {"const": "answer_generation"},
+        "taskVersion": {"const": "answer-generation-v1"},
+        "modelName": {"const": "deepseek-v4-pro"}
+      }
+    },
+    "fieldBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelVisibleFieldIds"],
+      "properties": {
+        "modelVisibleFieldIds": {
+          "const": ["position", "work_base_si"]
+        }
+      }
+    },
+    "businessSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyVersion", "configSnapshotId"],
+      "properties": {
+        "policyVersion": {"const": "business-egress-v1"},
+        "configSnapshotId": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "authorizationEvidenceRefs": {
+      "const": ["WP-EMP-REAL-01:authorizationMatrix.admin", "WP-EMP-REAL-01:VAL-EMP-005"]
+    },
+    "attemptJournal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recordCount", "sha256"],
+      "properties": {
+        "recordCount": {"type": "integer", "minimum": 1, "maximum": 61},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "employeeDetailRequests",
+        "otherEmployeeEndpoints",
+        "plannedAnswerCalls",
+        "maximumPaidAnswerCalls",
+        "actualAnswerCalls",
+        "terminalAnswerRecords",
+        "validAnswers",
+        "retryCount",
+        "resumeCount"
+      ],
+      "properties": {
+        "employeeDetailRequests": {"const": 1},
+        "otherEmployeeEndpoints": {"const": 0},
+        "plannedAnswerCalls": {"const": 30},
+        "maximumPaidAnswerCalls": {"const": 30},
+        "actualAnswerCalls": {"type": "integer", "minimum": 0, "maximum": 30},
+        "terminalAnswerRecords": {"type": "integer", "minimum": 0, "maximum": 30},
+        "validAnswers": {"type": "integer", "minimum": 0, "maximum": 30},
+        "retryCount": {"const": 0},
+        "resumeCount": {"const": 0}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "forbiddenPayloadFieldCount",
+        "forbiddenLiteralCount",
+        "logLeakCount",
+        "jwtPersisted",
+        "identifierPersisted",
+        "employeeDataPersisted",
+        "rawModelResponsePersisted"
+      ],
+      "properties": {
+        "forbiddenPayloadFieldCount": {"const": 0},
+        "forbiddenLiteralCount": {"const": 0},
+        "logLeakCount": {"const": 0},
+        "jwtPersisted": {"const": false},
+        "identifierPersisted": {"const": false},
+        "employeeDataPersisted": {"const": false},
+        "rawModelResponsePersisted": {"const": false}
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["attemptOrdinal", "status"],
+        "properties": {
+          "attemptOrdinal": {"type": "integer", "minimum": 1, "maximum": 30},
+          "status": {
+            "enum": ["answer", "invalid_output", "input_denied", "timeout", "provider_failure"]
+          }
+        }
+      }
+    }
+  }
+}
