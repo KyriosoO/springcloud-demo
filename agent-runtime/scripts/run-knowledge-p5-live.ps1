@@ -14,10 +14,12 @@ if ($repository -ne 'D:\codex') {
 }
 
 $runtimeRoot = Join-Path $repository 'agent-runtime'
-$manifestPath = Join-Path $runtimeRoot 'tests\evaluation\knowledge\live\evidence\knowledge-p5-live-v1-20260813-candidate-01.manifest.json'
+$manifestPath = Join-Path $runtimeRoot 'tests\evaluation\knowledge\live\evidence\knowledge-p5-live-v1-20260813-candidate-02.manifest.json'
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $actualManifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
 if (
+    [int]$manifest.schemaVersion -ne 2 -or
+    $null -eq $manifest.retrievalBinding -or
     $AuthorizedRunId -ne [string]$manifest.runId -or
     $AuthorizationReference -ne [string]$manifest.authorizationReference -or
     $MaximumPaidRequests -ne [int]$manifest.paidRequestBudget.maximumPaidRequests -or
@@ -78,6 +80,12 @@ $environmentNames = @(
     'AGENT_KNOWLEDGE_ES_BASE_URL',
     'AGENT_KNOWLEDGE_EMBEDDING_BASE_URL',
     'AGENT_KNOWLEDGE_RERANK_BASE_URL',
+    'AGENT_KNOWLEDGE_READ_ALIAS',
+    'AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME',
+    'AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID',
+    'AGENT_KNOWLEDGE_MAPPING_VERSION',
+    'AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID',
+    'AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID',
     'AGENT_MODEL_PROVIDER',
     'AGENT_MODEL_MAX_CONCURRENCY',
     'PYTHONPATH'
@@ -99,6 +107,12 @@ $esErr = Join-Path $runRoot 'es.err.log'
 $keyBytes = [Security.Cryptography.RandomNumberGenerator]::GetBytes(48)
 $secret = [Convert]::ToBase64String($keyBytes)
 $env:COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE = $secret
+$env:AGENT_KNOWLEDGE_READ_ALIAS = [string]$manifest.retrievalBinding.readAlias
+$env:AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME = [string]$manifest.retrievalBinding.expectedIndexName
+$env:AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID = [string]$manifest.retrievalBinding.expectedIndexUuid
+$env:AGENT_KNOWLEDGE_MAPPING_VERSION = [string]$manifest.retrievalBinding.mappingVersion
+$env:AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID = [string]$manifest.retrievalBinding.policySnapshotId
+$env:AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID = [string]$manifest.retrievalBinding.lawSnapshotId
 $commonArgs = @(
     '--spring.cloud.config.enabled=false',
     '--spring.config.additional-location=optional:file:D:/codex/config-service/src/main/resources/config/',

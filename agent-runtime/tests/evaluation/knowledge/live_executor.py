@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, cast
 
@@ -231,6 +231,23 @@ def _metric_for_rank(document_ids: tuple[str, ...], gold: tuple[str, ...]) -> tu
     return recall, 0.0 if first is None else 1.0 / first
 
 
+def _top_document_ids(document_ids: Iterable[str], *, limit: int = 10) -> tuple[str, ...]:
+    if limit <= 0:
+        raise ValueError("evaluation.document_id_limit_invalid")
+    output: list[str] = []
+    seen: set[str] = set()
+    for document_id in document_ids:
+        if not isinstance(document_id, str) or not document_id:
+            raise ValueError("evaluation.document_id_invalid")
+        if document_id in seen:
+            continue
+        seen.add(document_id)
+        output.append(document_id)
+        if len(output) == limit:
+            break
+    return tuple(output)
+
+
 def _evidence_ids(result: CapabilityResult) -> tuple[str, ...]:
     if result.domain_result is None:
         return ()
@@ -365,7 +382,11 @@ class LiveKnowledgeEvaluationCaseExecutor:
         if plan is not None:
             for item in plan.items:
                 path_result = self.search.results.get((item.logical_domain_id, item.path))
-                ids = () if path_result is None else tuple(candidate.document_id for candidate in path_result.candidates[:10])
+                ids = (
+                    ()
+                    if path_result is None
+                    else _top_document_ids(candidate.document_id for candidate in path_result.candidates)
+                )
                 path_rankings.append(
                     PathRankingRecord(
                         logicalDomainId=cast(Literal["tax.policy", "tax.law"], item.logical_domain_id),
@@ -373,9 +394,9 @@ class LiveKnowledgeEvaluationCaseExecutor:
                         documentIds=ids,
                     )
                 )
-        fused_ids = tuple(item.candidate.document_id for item in self.fusion.last_fused[:10])
+        fused_ids = _top_document_ids(item.candidate.document_id for item in self.fusion.last_fused)
         batch = self.retrieval.last_result.batch if self.retrieval.last_result is not None else None
-        reranked_ids = () if batch is None else tuple(item.candidate.document_id for item in batch.candidates[:10])
+        reranked_ids = () if batch is None else _top_document_ids(item.candidate.document_id for item in batch.candidates)
         fusion_recall, fusion_mrr = _metric_for_rank(fused_ids, case.relevant_document_ids)
         rerank_recall, rerank_mrr = _metric_for_rank(reranked_ids, case.relevant_document_ids)
         path_hit: MetricValue

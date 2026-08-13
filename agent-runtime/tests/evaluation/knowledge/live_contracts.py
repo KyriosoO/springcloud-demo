@@ -66,8 +66,21 @@ class LiveGateEvidence(StrictLiveModel):
         return value
 
 
+class LiveRetrievalBinding(StrictLiveModel):
+    read_alias: Literal["agent-doc-tax-policy-v2-read"] = Field(alias="readAlias")
+    expected_index_name: Literal["agent-doc-tax-policy-v3-20260803-agent-read-v1"] = Field(alias="expectedIndexName")
+    expected_index_uuid: Literal["k97bn1gxROSfVm7zGfzbOg"] = Field(alias="expectedIndexUuid")
+    mapping_version: Literal["agent-knowledge-tax-v1"] = Field(alias="mappingVersion")
+    policy_snapshot_id: Literal["7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed"] = Field(
+        alias="policySnapshotId"
+    )
+    law_snapshot_id: Literal["99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"] = Field(
+        alias="lawSnapshotId"
+    )
+
+
 class LiveP5Manifest(StrictLiveModel):
-    schema_version: Literal[1] = Field(alias="schemaVersion")
+    schema_version: Literal[1, 2] = Field(alias="schemaVersion")
     status: Literal["prepared_unconsumed"]
     work_package_id: Literal["WP-KP5-LIVE-01"] = Field(alias="workPackageId")
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
@@ -84,6 +97,7 @@ class LiveP5Manifest(StrictLiveModel):
     model_name: Literal["deepseek-v4-pro"] = Field(alias="modelName")
     task_versions: dict[Literal["knowledge_rewrite", "knowledge_summary"], str] = Field(alias="taskVersions")
     index_snapshot_ids: tuple[str, str] = Field(alias="indexSnapshotIds")
+    retrieval_binding: LiveRetrievalBinding | None = Field(default=None, alias="retrievalBinding")
     asset_hashes: tuple[LiveAssetHash, ...] = Field(alias="assetHashes", min_length=1)
     prepared_at: str = Field(alias="preparedAt")
 
@@ -104,11 +118,18 @@ class LiveP5Manifest(StrictLiveModel):
             or self.task_versions != {"knowledge_rewrite": "1", "knowledge_summary": "2"}
             or len(set(self.index_snapshot_ids)) != 2
             or any(not _LOWER_HEX_64.fullmatch(item) for item in self.index_snapshot_ids)
+            or (self.schema_version == 1 and self.retrieval_binding is not None)
+            or (self.schema_version == 2 and self.retrieval_binding is None)
             or tuple(item.path for item in self.asset_hashes) != tuple(sorted(item.path for item in self.asset_hashes))
             or len({item.path for item in self.asset_hashes}) != len(self.asset_hashes)
             or not _valid_utc_seconds(self.prepared_at)
         ):
             raise ValueError("evaluation.live_manifest_invalid")
+        if self.retrieval_binding is not None and self.index_snapshot_ids != (
+            self.retrieval_binding.policy_snapshot_id,
+            self.retrieval_binding.law_snapshot_id,
+        ):
+            raise ValueError("evaluation.live_manifest_retrieval_binding_invalid")
         return self
 
 

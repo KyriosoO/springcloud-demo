@@ -23,6 +23,7 @@ from tests.evaluation.knowledge.contracts import (
     EvaluationExecutionFixture,
     EvaluationVariantResult,
     ModelCallCountRecord,
+    PathRankingRecord,
     VariantCaseMetrics,
 )
 from tests.evaluation.knowledge.live_bootstrap import authorization_path, manifest_path
@@ -34,7 +35,7 @@ from tests.evaluation.knowledge.live_contracts import (
     load_manifest,
     verify_manifest_assets,
 )
-from tests.evaluation.knowledge.live_executor import LiveEvaluatedVariant
+from tests.evaluation.knowledge.live_executor import LiveEvaluatedVariant, _top_document_ids
 from tests.evaluation.knowledge.live_runner import _execute_pairs, _repository_state_excluding_output
 from tests.evaluation.knowledge.run_evaluation import load_dataset, run, validate_result_bytes
 
@@ -154,7 +155,45 @@ def test_frozen_live_manifest_authorization_and_assets_are_strict() -> None:
     assert manifest.paid_request_budget.capability_executions == 52
     assert manifest.paid_request_budget.maximum_paid_requests == 78
     assert authorization.maximum_paid_requests == 78
+    assert manifest.schema_version == 2
+    assert manifest.retrieval_binding is not None
+    assert manifest.index_snapshot_ids == (
+        manifest.retrieval_binding.policy_snapshot_id,
+        manifest.retrieval_binding.law_snapshot_id,
+    )
     verify_manifest_assets(manifest=manifest, repository_root=REPOSITORY_ROOT)
+
+
+def test_live_document_rankings_deduplicate_before_top_ten() -> None:
+    raw = ("doc-1", "doc-1", *(f"doc-{index}" for index in range(2, 12)))
+
+    actual = _top_document_ids(raw)
+    ranking = PathRankingRecord(logicalDomainId="tax.policy", path="keyword", documentIds=actual)
+
+    assert actual == tuple(f"doc-{index}" for index in range(1, 11))
+    assert ranking.document_ids == actual
+    with pytest.raises(ValidationError, match="evaluation.invalid_document_ids"):
+        PathRankingRecord(logicalDomainId="tax.policy", path="keyword", documentIds=raw[:2])
+
+
+def test_live_manifest_retrieval_binding_is_fail_closed_and_launcher_owned() -> None:
+    manifest, _ = load_manifest(manifest_path(REPOSITORY_ROOT))
+    payload = manifest.model_dump(by_alias=True, mode="json")
+    payload["retrievalBinding"]["policySnapshotId"] = "0" * 64
+
+    with pytest.raises(ValidationError, match="policySnapshotId"):
+        LiveP5Manifest.model_validate(payload)
+
+    launcher = (REPOSITORY_ROOT / "agent-runtime/scripts/run-knowledge-p5-live.ps1").read_text(encoding="utf-8")
+    for key, field in {
+        "AGENT_KNOWLEDGE_READ_ALIAS": "readAlias",
+        "AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME": "expectedIndexName",
+        "AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID": "expectedIndexUuid",
+        "AGENT_KNOWLEDGE_MAPPING_VERSION": "mappingVersion",
+        "AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID": "policySnapshotId",
+        "AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID": "lawSnapshotId",
+    }.items():
+        assert f"$env:{key} = [string]$manifest.retrievalBinding.{field}" in launcher
 
 
 @pytest.mark.asyncio
