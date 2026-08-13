@@ -61,6 +61,7 @@ from tests.evaluation.knowledge.live_executor import (
     RecordingRerank,
     RecordingRetrievalStage,
 )
+from tests.evaluation.knowledge.live_diagnostics import LivePhaseCheckpointJournal
 from tests.helpers import ManualCancellationSignal
 
 
@@ -94,6 +95,7 @@ class LiveEvaluationBootstrapResult:
     executors: LiveEvaluationExecutors
     fixture: EvaluationExecutionFixture
     model_transport: BudgetedLiveModelTransport
+    diagnostics: LivePhaseCheckpointJournal
     _clients: tuple[httpx.AsyncClient, ...]
 
     async def aclose(self) -> None:
@@ -150,6 +152,7 @@ def _build_executor(
     rerank_adapter: BgeRerankAdapter,
     catalog: KnowledgeEgressPolicyCatalog,
     tasks: object,
+    diagnostics: LivePhaseCheckpointJournal,
     component_signature: str,
 ) -> LiveKnowledgeEvaluationCaseExecutor:
     typed_tasks = cast(Any, tasks)
@@ -169,7 +172,7 @@ def _build_executor(
         rewriter_delegate = IdentityQuestionRewriter()
     else:
         raise ValueError("evaluation.live_variant_invalid")
-    rewriter = RecordingQuestionRewriter(rewriter_delegate)
+    rewriter = RecordingQuestionRewriter(rewriter_delegate, diagnostics)
     search = RecordingKnowledgeSearch(search_adapter)
     embedding = RecordingEmbedding(embedding_adapter)
     fusion = RecordingFusion()
@@ -181,7 +184,8 @@ def _build_executor(
             rerank=rerank,
             fusion=cast(Any, fusion),
             final_candidates=20,
-        )
+        ),
+        diagnostics,
     )
     summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], typed_tasks.summary)
     evidence = RecordingEvidenceStage(
@@ -191,7 +195,8 @@ def _build_executor(
             context=context_accessor,
             gateway=gateway,
             definition=summary_definition,
-        )
+        ),
+        diagnostics,
     )
     capability = KnowledgeQueryCapability(
         settings=settings,
@@ -213,6 +218,7 @@ def _build_executor(
         retrieval=retrieval,
         evidence=evidence,
         model_transport=model_transport,
+        diagnostics=diagnostics,
         component_signature=component_signature,
     )
 
@@ -280,6 +286,7 @@ async def build_live_from_environment(
             manifest_sha256=manifest_sha256,
             frozen_head=frozen_head,
         )
+        diagnostics = LivePhaseCheckpointJournal(output_dir=output_dir, run_id=manifest.run_id)
         action_definition = build_action_selection_task_definition(timeout_ms=model_settings.action_timeout_ms)
         answer_definition = build_answer_generation_task_definition(timeout_ms=model_settings.answer_timeout_ms)
         gateway = BoundedStructuredModelGateway(
@@ -304,6 +311,7 @@ async def build_live_from_environment(
             rerank_adapter=rerank_adapter,
             catalog=catalog,
             tasks=tasks,
+            diagnostics=diagnostics,
             component_signature=signature,
         )
         ablation = _build_executor(
@@ -317,6 +325,7 @@ async def build_live_from_environment(
             rerank_adapter=rerank_adapter,
             catalog=catalog,
             tasks=tasks,
+            diagnostics=diagnostics,
             component_signature=signature,
         )
     except Exception:
@@ -385,5 +394,6 @@ async def build_live_from_environment(
         executors=executors,
         fixture=EvaluationExecutionFixture(make_scope=make_scope, synthetic_only=False),
         model_transport=budgeted_transport,
+        diagnostics=diagnostics,
         _clients=clients,
     )

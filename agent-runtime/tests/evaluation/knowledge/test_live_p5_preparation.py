@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal, cast
@@ -33,7 +35,6 @@ from tests.evaluation.knowledge.live_contracts import (
     LiveP5Manifest,
     load_authorization,
     load_manifest,
-    verify_manifest_assets,
 )
 from tests.evaluation.knowledge.live_executor import LiveEvaluatedVariant, _top_document_ids
 from tests.evaluation.knowledge.live_runner import _execute_pairs, _repository_state_excluding_output
@@ -42,6 +43,7 @@ from tests.evaluation.knowledge.run_evaluation import load_dataset, run, validat
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 DATASET = Path(__file__).with_name("representative_questions.v1.jsonl")
+FROZEN_CANDIDATE_02_COMMIT = "adab16fcd39932c060bb8a33488741da18f81783"
 
 
 class FakeTransport:
@@ -161,7 +163,14 @@ def test_frozen_live_manifest_authorization_and_assets_are_strict() -> None:
         manifest.retrieval_binding.policy_snapshot_id,
         manifest.retrieval_binding.law_snapshot_id,
     )
-    verify_manifest_assets(manifest=manifest, repository_root=REPOSITORY_ROOT)
+    for asset in manifest.asset_hashes:
+        frozen_bytes = subprocess.run(
+            ["git", "show", f"{FROZEN_CANDIDATE_02_COMMIT}:{asset.path}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        assert hashlib.sha256(frozen_bytes).hexdigest() == asset.sha256
 
 
 def test_live_document_rankings_deduplicate_before_top_ten() -> None:

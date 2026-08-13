@@ -47,6 +47,7 @@ from tests.evaluation.knowledge.contracts import (
     VariantCaseMetrics,
 )
 from tests.evaluation.knowledge.live_contracts import BudgetedLiveModelTransport
+from tests.evaluation.knowledge.live_diagnostics import LiveDiagnosticPhase, LivePhaseCheckpointJournal
 
 
 class ResettableRecorder(Protocol):
@@ -54,8 +55,9 @@ class ResettableRecorder(Protocol):
 
 
 class RecordingQuestionRewriter:
-    def __init__(self, delegate: KnowledgeQuestionRewriteStage) -> None:
+    def __init__(self, delegate: KnowledgeQuestionRewriteStage, diagnostics: LivePhaseCheckpointJournal) -> None:
         self._delegate = delegate
+        self._diagnostics = diagnostics
         self.calls = 0
         self.last_result: RewriteStageResult | None = None
 
@@ -64,7 +66,10 @@ class RecordingQuestionRewriter:
 
     async def rewrite(self, *, original_question: str, timeout_s: float) -> RewriteStageResult:
         self.calls += 1
-        self.last_result = await self._delegate.rewrite(original_question=original_question, timeout_s=timeout_s)
+        self.last_result = await self._diagnostics.run_async(
+            phase=LiveDiagnosticPhase.REWRITE,
+            operation=self._delegate.rewrite(original_question=original_question, timeout_s=timeout_s),
+        )
         return self.last_result
 
 
@@ -139,8 +144,13 @@ class RecordingRerank:
 
 
 class RecordingRetrievalStage:
-    def __init__(self, delegate: KnowledgeRetrievalStage[RankedKnowledgeBatch]) -> None:
+    def __init__(
+        self,
+        delegate: KnowledgeRetrievalStage[RankedKnowledgeBatch],
+        diagnostics: LivePhaseCheckpointJournal,
+    ) -> None:
         self._delegate = delegate
+        self._diagnostics = diagnostics
         self.calls = 0
         self.last_plan: KnowledgeRetrievalPlan | None = None
         self.last_result: RetrievalStageResult[RankedKnowledgeBatch] | None = None
@@ -158,13 +168,21 @@ class RecordingRetrievalStage:
     ) -> RetrievalStageResult[RankedKnowledgeBatch]:
         self.calls += 1
         self.last_plan = plan
-        self.last_result = await self._delegate.execute(plan=plan, context=context, timeout_s=timeout_s)
+        self.last_result = await self._diagnostics.run_async(
+            phase=LiveDiagnosticPhase.RETRIEVAL,
+            operation=self._delegate.execute(plan=plan, context=context, timeout_s=timeout_s),
+        )
         return self.last_result
 
 
 class RecordingEvidenceStage:
-    def __init__(self, delegate: KnowledgeEvidenceStage[RankedKnowledgeBatch]) -> None:
+    def __init__(
+        self,
+        delegate: KnowledgeEvidenceStage[RankedKnowledgeBatch],
+        diagnostics: LivePhaseCheckpointJournal,
+    ) -> None:
         self._delegate = delegate
+        self._diagnostics = diagnostics
         self.calls = 0
         self.last_input: KnowledgeEvidenceInput[RankedKnowledgeBatch] | None = None
         self.last_result: EvidenceStageResult | None = None
@@ -182,7 +200,10 @@ class RecordingEvidenceStage:
     ) -> EvidenceStageResult:
         self.calls += 1
         self.last_input = input
-        self.last_result = await self._delegate.build_result(input=input, context=context, timeout_s=timeout_s)
+        self.last_result = await self._diagnostics.run_async(
+            phase=LiveDiagnosticPhase.EVIDENCE,
+            operation=self._delegate.build_result(input=input, context=context, timeout_s=timeout_s),
+        )
         return self.last_result
 
 
@@ -303,6 +324,7 @@ class LiveKnowledgeEvaluationCaseExecutor:
         retrieval: RecordingRetrievalStage,
         evidence: RecordingEvidenceStage,
         model_transport: BudgetedLiveModelTransport,
+        diagnostics: LivePhaseCheckpointJournal,
         component_signature: str,
     ) -> None:
         self.variant = variant
@@ -315,6 +337,7 @@ class LiveKnowledgeEvaluationCaseExecutor:
         self.retrieval = retrieval
         self.evidence = evidence
         self.model_transport = model_transport
+        self.diagnostics = diagnostics
         self.component_signature = component_signature
         self.calls = 0
 
@@ -334,6 +357,21 @@ class LiveKnowledgeEvaluationCaseExecutor:
         if fixture.synthetic_only:
             raise ValueError("evaluation.live_fixture_required")
         self.calls += 1
+        self.diagnostics.begin_variant(case_id=case.case_id, variant=self.variant)
+        try:
+            return await self.diagnostics.run_async(
+                phase=LiveDiagnosticPhase.VARIANT_EXECUTION,
+                operation=self._execute_bound(case=case, fixture=fixture),
+            )
+        finally:
+            self.diagnostics.end_variant()
+
+    async def _execute_bound(
+        self,
+        *,
+        case: EvaluationCase,
+        fixture: EvaluationExecutionFixture,
+    ) -> LiveEvaluatedVariant:
         self._reset_recorders()
         before = {
             "rewrite": self.model_transport.rewrite_calls,
@@ -359,11 +397,30 @@ class LiveKnowledgeEvaluationCaseExecutor:
                 )
 
         execution_scope = scope
-        self.model_transport.begin(case_id=case.case_id, variant=self.variant)
-        try:
-            await ModelContextBindingRuntimeInvoker(Delegate()).ainvoke(question=case.question, scope=scope)
-        finally:
-            self.model_transport.end()
+
+        async def invoke_capability() -> None:
+            self.model_transport.begin(case_id=case.case_id, variant=self.variant)
+            try:
+                await ModelContextBindingRuntimeInvoker(Delegate()).ainvoke(question=case.question, scope=scope)
+            finally:
+                self.model_transport.end()
+
+        await self.diagnostics.run_async(
+            phase=LiveDiagnosticPhase.CAPABILITY,
+            operation=invoke_capability(),
+        )
+        return self.diagnostics.run_sync(
+            phase=LiveDiagnosticPhase.VARIANT_PACK,
+            operation=lambda: self._pack_result(case=case, before=before, result_box=result_box),
+        )
+
+    def _pack_result(
+        self,
+        *,
+        case: EvaluationCase,
+        before: Mapping[str, int],
+        result_box: list[CapabilityResult],
+    ) -> LiveEvaluatedVariant:
         if len(result_box) != 1:
             raise ValueError("evaluation.live_capability_result_missing")
         result = result_box[0]
