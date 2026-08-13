@@ -1,0 +1,4 @@
+{"callOrdinal":1,"caseId":"legacy-tax-vat-current-rates","event":"started","runId":"knowledge-p5-live-v1-20260813-candidate-01","schemaVersion":1,"taskId":"knowledge_rewrite","variant":"primary"}
+{"callOrdinal":1,"caseId":"legacy-tax-vat-current-rates","event":"terminal","runId":"knowledge-p5-live-v1-20260813-candidate-01","schemaVersion":1,"status":"completed","taskId":"knowledge_rewrite","variant":"primary"}
+{"callOrdinal":2,"caseId":"legacy-tax-vat-current-rates","event":"started","runId":"knowledge-p5-live-v1-20260813-candidate-01","schemaVersion":1,"taskId":"knowledge_summary","variant":"primary"}
+{"callOrdinal":2,"caseId":"legacy-tax-vat-current-rates","event":"terminal","runId":"knowledge-p5-live-v1-20260813-candidate-01","schemaVersion":1,"status":"completed","taskId":"knowledge_summary","variant":"primary"}
