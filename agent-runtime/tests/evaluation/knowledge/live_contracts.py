@@ -85,7 +85,10 @@ class LiveP5Manifest(StrictLiveModel):
     work_package_id: Literal["WP-KP5-LIVE-01"] = Field(alias="workPackageId")
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
     authorization_reference: str = Field(alias="authorizationReference", min_length=1, max_length=256)
-    dataset_path: Literal["agent-runtime/tests/evaluation/knowledge/representative_questions.v1.jsonl"] = Field(alias="datasetPath")
+    dataset_path: Literal[
+        "agent-runtime/tests/evaluation/knowledge/representative_questions.v1.jsonl",
+        "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+    ] = Field(alias="datasetPath")
     dataset_sha256: str = Field(alias="datasetSha256")
     dataset_case_count: Literal[26] = Field(alias="datasetCaseCount")
     evaluation_variants: tuple[Literal["primary"], Literal["rewrite_ablation"]] = Field(alias="evaluationVariants")

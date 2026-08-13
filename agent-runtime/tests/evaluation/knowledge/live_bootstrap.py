@@ -71,15 +71,48 @@ _P5_KEYS = frozenset(
         "P5_KNOWLEDGE_LIVE_OPT_IN",
         "P5_KNOWLEDGE_USER_JWT",
         "P5_KNOWLEDGE_AUTH_EVIDENCE_REF",
+        "P5_KNOWLEDGE_CANDIDATE",
     }
 )
 _LIVE_OPT_IN = "I_UNDERSTAND_LIVE_EXTERNAL_CALLS"
-_MANIFEST_RELATIVE = Path(
-    "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-03.manifest.json"
-)
-_AUTHORIZATION_RELATIVE = Path(
-    "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-03.authorization.json"
-)
+LiveCandidateId = Literal["candidate-03", "candidate-04"]
+_DEFAULT_LIVE_CANDIDATE: LiveCandidateId = "candidate-03"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class LiveCandidateBinding:
+    manifest_relative: Path
+    authorization_relative: Path
+    run_id: str
+    dataset_path: str
+
+
+_CANDIDATE_BINDINGS: dict[LiveCandidateId, LiveCandidateBinding] = {
+    "candidate-03": LiveCandidateBinding(
+        manifest_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v1-20260813-candidate-03.manifest.json"
+        ),
+        authorization_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v1-20260813-candidate-03.authorization.json"
+        ),
+        run_id="knowledge-p5-live-v1-20260813-candidate-03",
+        dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v1.jsonl",
+    ),
+    "candidate-04": LiveCandidateBinding(
+        manifest_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v1-20260813-candidate-04.manifest.json"
+        ),
+        authorization_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v1-20260813-candidate-04.authorization.json"
+        ),
+        run_id="knowledge-p5-live-v1-20260813-candidate-04",
+        dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+    ),
+}
 
 
 class LiveEvaluationBootstrapError(ValueError):
@@ -103,12 +136,18 @@ class LiveEvaluationBootstrapResult:
             await client.aclose()
 
 
-def manifest_path(repository_root: Path) -> Path:
-    return repository_root / _MANIFEST_RELATIVE
+def _candidate_id(raw: str) -> LiveCandidateId:
+    if raw not in _CANDIDATE_BINDINGS:
+        raise LiveEvaluationBootstrapError("evaluation.live_candidate_invalid")
+    return cast(LiveCandidateId, raw)
 
 
-def authorization_path(repository_root: Path) -> Path:
-    return repository_root / _AUTHORIZATION_RELATIVE
+def manifest_path(repository_root: Path, candidate_id: LiveCandidateId = _DEFAULT_LIVE_CANDIDATE) -> Path:
+    return repository_root / _CANDIDATE_BINDINGS[candidate_id].manifest_relative
+
+
+def authorization_path(repository_root: Path, candidate_id: LiveCandidateId = _DEFAULT_LIVE_CANDIDATE) -> Path:
+    return repository_root / _CANDIDATE_BINDINGS[candidate_id].authorization_relative
 
 
 def _required(environ: Mapping[str, str], key: str) -> str:
@@ -241,11 +280,15 @@ async def build_live_from_environment(
     if output_dir.exists():
         raise LiveEvaluationBootstrapError("evaluation.output_exists")
 
-    manifest, manifest_sha256 = load_manifest(manifest_path(repository_root))
-    authorization = load_authorization(authorization_path(repository_root))
+    candidate_id = _candidate_id(environ.get("P5_KNOWLEDGE_CANDIDATE", _DEFAULT_LIVE_CANDIDATE))
+    manifest, manifest_sha256 = load_manifest(manifest_path(repository_root, candidate_id))
+    authorization = load_authorization(authorization_path(repository_root, candidate_id))
+    binding = _CANDIDATE_BINDINGS[candidate_id]
     verify_manifest_assets(manifest=manifest, repository_root=repository_root)
     if (
-        authorization.run_id != manifest.run_id
+        manifest.run_id != binding.run_id
+        or manifest.dataset_path != binding.dataset_path
+        or authorization.run_id != manifest.run_id
         or authorization.authorization_reference != manifest.authorization_reference
         or authorization.maximum_paid_requests != manifest.paid_request_budget.maximum_paid_requests
         or authorization.dataset_sha256 != manifest.dataset_sha256
