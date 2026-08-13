@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "capabilityId": "employee.detail",
+  "defaultModelFields": [],
+  "maximumModelFields": ["position", "work_base_si"],
+  "fields": [
+    {"fieldId": "employee_id_masked", "dataClass": "personal_identifier", "userVisible": true, "modelCandidate": false},
+    {"fieldId": "member_no_masked", "dataClass": "employee_identifier", "userVisible": true, "modelCandidate": false},
+    {"fieldId": "chinese_name", "dataClass": "personal_identifier", "userVisible": true, "modelCandidate": false},
+    {"fieldId": "public_email", "dataClass": "contact", "userVisible": true, "modelCandidate": false},
+    {"fieldId": "position", "dataClass": "business_internal", "userVisible": true, "modelCandidate": true},
+    {"fieldId": "work_base_si", "dataClass": "business_internal", "userVisible": true, "modelCandidate": true}
+  ],
+  "zeroCallScenarios": [
+    "default_empty",
+    "identifier_only",
+    "member_number_only",
+    "name_only",
+    "contact_only",
+    "financial_account_only",
+    "credential_only",
+    "instruction_injection_only",
+    "unclassified_only",
+    "policy_conflict",
+    "minimum_user_result_missing"
+  ]
+}
