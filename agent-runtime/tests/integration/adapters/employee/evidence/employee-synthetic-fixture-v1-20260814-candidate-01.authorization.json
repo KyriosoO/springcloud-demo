@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-TEST-DATA-CANDIDATE-01-PREP",
+  "workPackageId": "WP-EMP-EGRESS-TEST-DATA-CANDIDATE-01",
+  "gateId": "GATE-051",
+  "runId": "employee-synthetic-fixture-v1-20260814-candidate-01",
+  "manifestSha256": "e0c74e5a21d4b80c292cf20266227f7c8f1a11037d1816a6513f6de604e98b11",
+  "authorizationReference": "P3_00:GATE-051",
+  "databaseSelectMaximum": 3,
+  "databaseInsertMaximum": 1,
+  "databaseDeleteMaximum": 1,
+  "employeeEndpointMaximum": 0,
+  "modelMaximumCalls": 0,
+  "retryAllowed": false,
+  "resumeAllowed": false,
+  "liveExecutionAuthorized": false,
+  "confirmedBy": "project-maintainer-pending-gate-051-live-authorization",
+  "preparedAt": "2026-08-14T10:00:00Z"
+}

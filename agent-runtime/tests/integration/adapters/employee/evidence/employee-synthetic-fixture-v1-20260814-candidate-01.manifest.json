@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-TEST-DATA-CANDIDATE-01-PREP",
+  "workPackageId": "WP-EMP-EGRESS-TEST-DATA-CANDIDATE-01",
+  "gateId": "GATE-051",
+  "runId": "employee-synthetic-fixture-v1-20260814-candidate-01",
+  "authorizationReference": "P3_00:GATE-051",
+  "preparedAt": "2026-08-14T10:00:00Z",
+  "executionBoundary": {
+    "databaseSelectMaximum": 3,
+    "databaseInsertMaximum": 1,
+    "databaseDeleteMaximum": 1,
+    "employeeEndpointMaximum": 0,
+    "modelMaximumCalls": 0,
+    "retryAllowed": false,
+    "resumeAllowed": false,
+    "liveExecutionAuthorized": false
+  },
+  "sourceHistory": [
+    {
+      "kind": "fixture_contract",
+      "path": "agent-runtime/tests/integration/adapters/employee/employee_test_data_fixture.py",
+      "sha256": "d0b23b75edb600d6aba2e143305a3492c5f263e9d5ce58de55c138c082aa1148"
+    },
+    {
+      "kind": "fixture_schema",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-test-data-fixture-v1.schema.json",
+      "sha256": "93db9b28e38dc77b6568e28e3e3878a021164c6e187ed5e7a7244336005f5f31"
+    },
+    {
+      "kind": "metadata_manifest",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.manifest.json",
+      "sha256": "ce3dcd481352bbb59be01a2d3b975dfd1b9f35ae1479dd24d7408f11be7af6b7"
+    },
+    {
+      "kind": "metadata_authorization",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.authorization.json",
+      "sha256": "532353a032835c7f9eb4e5d8548061f22f45b16f42525d79e635131f5e0a2fb4"
+    },
+    {
+      "kind": "metadata_lifecycle",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.lifecycle.jsonl",
+      "sha256": "affbd35987e4caaa4950888eaed80cf12e695470b1703735716f2dd54d52a105"
+    },
+    {
+      "kind": "metadata_result",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.result.json",
+      "sha256": "9973863d43112a8142bf54eaa1ea18905112d8ca802a24dda7eed5599ab7cd51"
+    }
+  ],
+  "assetHashes": [
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/employee_test_data_fixture_candidate.py",
+      "sha256": "a01337c88d30a335a162cbb69516532771b7cf6618746b57e92265f0796fc1d0"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_test_data_fixture_candidate.py",
+      "sha256": "02b28f72763d42615dda1866dd7123ec0594dee1da4764ed37f1efa76da60552"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/run_employee_test_data_fixture_candidate_01.ps1",
+      "sha256": "4554d92e85f6c9c9fde561664c08b2ab99dfe035e8801917c414e90cc273c0be"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-test-data-fixture-candidate-v1-lifecycle.schema.json",
+      "sha256": "6b0495bb79a1c6b25fb8696fcda14e7efb257aa31e6e2f1808d4651891a784e6"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-test-data-fixture-candidate-v1-result.schema.json",
+      "sha256": "00feea12755a0464ad7170723f84e57e3c18ff636b96c1d7c288f040e8924039"
+    },
+    {
+      "path": "employee-service/src/test/java/com/dylan/employee/live/EmployeeSyntheticFixtureCandidateLiveIntegrationTest.java",
+      "sha256": "6a440fb556f623c4b1078665ee7c1336efcba25701d7564ef4cfb81ab8c1e759"
+    }
+  ]
+}
