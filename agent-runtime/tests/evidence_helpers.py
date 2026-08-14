@@ -18,6 +18,7 @@ from agent_runtime.knowledge.evidence.contracts import (
     PolicyCatalogSnapshot,
 )
 from agent_runtime.knowledge.retrieval.contracts import RankedKnowledgeBatch, RankedKnowledgeCandidate
+from agent_runtime.model.question_policy import QUESTION_EGRESS_POLICY_VERSION
 from tests.retrieval_helpers import candidate
 
 
@@ -40,7 +41,7 @@ def evidence_input(*, question_denied: bool = False) -> KnowledgeEvidenceInput[R
             candidate_count_by_domain=(DomainCandidateCount(logical_domain_id="tax.policy", count=1),),
             complete=True,
         ),
-        question_policy_version="question-egress-v1",
+        question_policy_version=QUESTION_EGRESS_POLICY_VERSION,
         question_egress_denied=question_denied,
         batch=batch,
     )

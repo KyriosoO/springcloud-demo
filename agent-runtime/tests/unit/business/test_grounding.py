@@ -35,3 +35,28 @@ def test_grounding_rejects_protected_token_not_present_in_referenced_fact() -> N
     assert not BusinessAnswerGroundingPolicy().validate(
         _input("职位代码为 ADMIN [fact-0001]。", ("fact-0001",))
     ).accepted
+
+
+def test_grounding_keeps_exact_decimal_value_in_one_sentence() -> None:
+    input_value = GroundingInput(
+        capability_id="transaction.search",
+        minimized_question="概述这一条交易结果的交易类型和金额",
+        safe_payload={
+            "schema_version": 1,
+            "policy_version": "business-egress-v1",
+            "config_snapshot_id": "a" * 64,
+            "facts": (
+                {"fact_id": "fact-0001", "value_type": "enum", "value": "PAYMENT", "transform_id": "enum_code", "source": {"record_ref": "record-0001", "field_id": "transaction_type"}},
+                {"fact_id": "fact-0002", "value_type": "decimal", "value": "100.10", "transform_id": "decimal_2", "source": {"record_ref": "record-0001", "field_id": "amount"}},
+            ),
+            "presentation": {"mode": "business_facts", "action_id": "transaction.search"},
+            "coverage": {"truncated": False},
+        },
+        candidate=CandidateAnswer(
+            answer="交易类型为 PAYMENT [fact-0001]。金额为 100.10 [fact-0002]。",
+            used_fact_ids=("fact-0001", "fact-0002"),
+            unsupported_claims=(),
+        ),
+    )
+
+    assert BusinessAnswerGroundingPolicy().validate(input_value).accepted

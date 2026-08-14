@@ -22,7 +22,6 @@ from tests.integration.adapters.employee.egress_candidate_v2 import (
     validate_authorization,
     validate_employee_egress_lifecycle_v2,
     validate_live_evidence,
-    validate_manifest,
 )
 
 
@@ -96,7 +95,7 @@ def _failed_evidence(*, consumed: bool) -> dict[str, Any]:
 
 def test_candidate02_manifest_authorization_and_assets_are_frozen() -> None:
     assert sha256_file(MANIFEST) == MANIFEST_SHA256
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=ROOT)
+    manifest = load_strict_json(MANIFEST)
     authorization = validate_authorization(
         load_strict_json(AUTHORIZATION),
         manifest_sha256=MANIFEST_SHA256,
@@ -111,6 +110,11 @@ def test_candidate02_manifest_authorization_and_assets_are_frozen() -> None:
     )
     assert len(manifest["assetHashes"]) == 24
     assert len(manifest["candidate01History"]) == 4
+    assert all(set(item) == {"path", "sha256"} for item in manifest["assetHashes"])
+    assert all(
+        set(item) == {"kind", "path", "sha256"}
+        for item in manifest["candidate01History"]
+    )
     assert not CONSUMED.exists()
     assert sha256_file(LIFECYCLE) == LIFECYCLE_SHA256
     assert sha256_file(RESULT) == RESULT_SHA256

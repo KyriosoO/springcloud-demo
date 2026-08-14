@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-TXN-EGRESS-CANDIDATE-01-PREP",
+  "workPackageId": "WP-TXN-EGRESS-01",
+  "gateId": "GATE-026",
+  "runId": "transaction-egress-v1-20260814-candidate-01",
+  "authorizationReference": "P3_00:GATE-026",
+  "preparedAt": "2026-08-14T12:00:00Z",
+  "inputContractVersion": "transaction-search-type-equality-v1",
+  "executionBoundary": {
+    "transactionSearchMaximum": 1,
+    "paidAnswerMaximum": 30,
+    "minimumValidAnswers": 27,
+    "modelVisibleFieldIds": ["transaction_type", "amount"],
+    "liveExecutionAuthorized": false,
+    "transactionAccessAuthorized": false,
+    "modelAccessAuthorized": false,
+    "retryAllowed": false,
+    "resumeAllowed": false
+  },
+  "history": [
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/wp-txn-real-01-20260806T134518Z.json", "sha256": "1109da47183a822c9ad82fbcc2ef3619163a8089d8f0f420d045e0d30d80f7d1"}
+  ],
+  "assetHashes": [
+    {"path": "agent-runtime/src/agent_runtime/model/question_policy.py", "sha256": "b49daef5ea47670b0bdf3e51e211116b1ff1db3345660056fef3a7c0f376d5ba"},
+    {"path": "agent-runtime/src/agent_runtime/model/input_guard.py", "sha256": "60effe5b917a981b4fa74d35739ffad4b72bdc95060fd248c557b46931dd3c18"},
+    {"path": "agent-runtime/src/agent_runtime/business/egress.py", "sha256": "a818681370cb12658da42c7e37a7cd762bfaf4c4591c5dfadf14e8fc3fc1ee82"},
+    {"path": "agent-runtime/src/agent_runtime/business/grounding.py", "sha256": "84300d19f01060591f661356e7fbdbcf743d304e04dd266379e67ef909170c5e"},
+    {"path": "agent-runtime/src/agent_runtime/business/handler.py", "sha256": "5674a3080c6bac3c08de14d63d62d56c447c0dc1a9db278ce8fde4b8c36ccc36"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/definition.py", "sha256": "6ae0decc2884a970eea7fb646733f298ad91c3ac2330b5d5de9d9fccb3ada99e"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/codec.py", "sha256": "dcfa85791b4716ac212243678ced1173a74482d6f0cb1eb9687c365a9e420c0b"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/normalizer.py", "sha256": "12cbee5b480b3437800611da3d963b4c42527c35a97f472b547e3c188616e5f5"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/fields.py", "sha256": "e3163ce2f3f6b448c8a92e46a30233b42fd4eadd2a8072f35ce67a78b660fa3d"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/settings.py", "sha256": "8a775dcb07d4431387e444e69300481a36b74ba67bc68e0939df9682f6ac169e"},
+    {"path": "agent-runtime/src/agent_runtime/model/deepseek/answer_generator.py", "sha256": "9ad5bb89ebdb951fe0681a2bc07edd2b452d2ca495f3c100702eb2abfdc3271f"},
+    {"path": "agent-runtime/src/agent_runtime/bootstrap.py", "sha256": "a726f86e64bf56abdb441083d3096d3364ae29f83f66a59e57a6423f9e8dc143"},
+    {"path": "agent-runtime/tests/unit/model/test_input_guard.py", "sha256": "741d6fe475d897262ebafb92adbc348f8d37b7e6102da0258fd40f83febede5c"},
+    {"path": "agent-runtime/tests/unit/business/test_grounding.py", "sha256": "50e6786f4e08cb6edd4cfe87c970f28f29f38c8d53a353a217579aea96653142"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/egress_candidate.py", "sha256": "0faa785afe1dc5c707986578809175bbc7cfcf3ecd134b4f2bc5c4ffb9adf51e"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_egress_candidate_harness.py", "sha256": "22472e57080bbcfeb337acbc6b12157287f1b0ddd873f83ef4c14ede880ace76"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_real_transaction_egress_candidate.py", "sha256": "315ad40a7665a16393c2e597c1ed2d596823f10cb9d1ac7655dd4ca39b63e091"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-candidate-v1-lifecycle.schema.json", "sha256": "58854e742472129e331d50472a7a55f08b9c239b778828810f85c848df999079"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-candidate-v1-result.schema.json", "sha256": "3c5968272ef9717b420ee282c5529d75325cf6f596af07b3024631a14b783599"},
+    {"path": "agent-runtime/scripts/run-transaction-egress-live-candidate-01.ps1", "sha256": "4c0a95b146782e51d1f1fd06872608a0f8f360f46d128708dd17f93d1721522b"}
+  ]
+}

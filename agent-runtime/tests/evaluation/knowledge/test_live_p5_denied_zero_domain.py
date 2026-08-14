@@ -39,6 +39,7 @@ from agent_runtime.knowledge.settings import KnowledgeSettings
 from agent_runtime.model.context import ModelCallContextAccessor
 from agent_runtime.model.contracts import ModelTaskResult
 from agent_runtime.model.input_guard import QuestionEgressGuard
+from agent_runtime.model.question_policy import QUESTION_EGRESS_POLICY_VERSION
 from tests.evaluation.knowledge.executor import IdentityQuestionRewriter
 from tests.evaluation.knowledge.contracts import EvaluationCase
 from tests.evaluation.knowledge.live_executor import LiveKnowledgeEvaluationCaseExecutor
@@ -47,7 +48,7 @@ from tests.helpers import scope
 
 
 DATASET_V2 = Path(__file__).with_name("representative_questions.v2.jsonl")
-POLICY_VERSION = "question-egress-v1"
+POLICY_VERSION = QUESTION_EGRESS_POLICY_VERSION
 DENIAL_CODE = "knowledge.rewrite_input_denied"
 
 

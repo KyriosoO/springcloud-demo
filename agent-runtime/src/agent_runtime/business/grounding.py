@@ -11,7 +11,7 @@ from agent_runtime.model.contracts import (
 )
 
 _MARKER = re.compile(r"\[(fact-[0-9]{4})\]")
-_SPLIT = re.compile(r"(?<=[.?!。！？;；\n])")
+_SPLIT = re.compile(r"(?<=[?!。！？;；\n])|(?<=\.)(?![0-9])")
 _FACT_ID = re.compile(r"fact-[0-9]{4}")
 _RECORD_REF = re.compile(r"record-[0-9]{4}")
 _FIELD_ID = re.compile(r"[a-z][a-z0-9_]{0,127}")

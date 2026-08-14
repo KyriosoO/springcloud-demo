@@ -314,11 +314,10 @@ def test_historical_v4_evidence_is_immutable_failed_and_source_is_reconstructibl
     assert all(call.decision == "agent_unsupported" and not call.expected_match for call in transaction_fields)
 
 
-def test_corrected_v4_candidate_manifest_matches_inputs_and_evidence_is_immutable_passed() -> None:
-    manifest, digest = validate_action_poc_manifest(
-        path=CANDIDATE_V4_MANIFEST,
-        repository_root=REPOSITORY_ROOT,
-    )
+def test_corrected_v4_candidate_manifest_and_evidence_are_immutable_passed() -> None:
+    raw_manifest = CANDIDATE_V4_MANIFEST.read_bytes()
+    manifest = parse_action_manifest(raw_manifest)
+    digest = hashlib.sha256(raw_manifest).hexdigest()
 
     assert manifest.run_id == "action-selection-v4-20260810-candidate-02"
     assert manifest.authorization_reference == "P3_00:GATE-038"

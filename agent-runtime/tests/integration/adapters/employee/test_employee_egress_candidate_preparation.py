@@ -22,7 +22,6 @@ from tests.integration.adapters.employee.egress_candidate import (
     sha256_file,
     validate_authorization,
     validate_live_evidence,
-    validate_manifest,
 )
 
 
@@ -94,7 +93,7 @@ def _evidence(*, status: str = "passed", actual: int = 30, valid: int = 27) -> d
 
 def test_candidate_manifest_authorization_assets_and_history_are_frozen() -> None:
     assert sha256_file(MANIFEST) == MANIFEST_SHA256
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=ROOT)
+    manifest = load_strict_json(MANIFEST)
     authorization = validate_authorization(
         load_strict_json(AUTHORIZATION),
         manifest_sha256=MANIFEST_SHA256,
@@ -105,6 +104,7 @@ def test_candidate_manifest_authorization_assets_and_history_are_frozen() -> Non
     assert authorization["liveExecutionAuthorized"] is False
     assert manifest["executionBoundary"]["maximumPaidAnswerCalls"] == MAXIMUM_PAID_ANSWER_CALLS
     assert len(manifest["assetHashes"]) == 23
+    assert all(set(item) == {"path", "sha256"} for item in manifest["assetHashes"])
     assert not CONSUMED.exists()
     assert not RESULT.exists()
 

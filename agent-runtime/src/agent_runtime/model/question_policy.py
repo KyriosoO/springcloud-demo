@@ -6,7 +6,7 @@ import unicodedata
 from agent_runtime.model.contracts import QuestionDataClass
 
 
-QUESTION_EGRESS_POLICY_VERSION = "question-egress-v1"
+QUESTION_EGRESS_POLICY_VERSION = "question-egress-v2"
 
 _WHITESPACE = re.compile(r"\s+")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]{8,})?\b")
@@ -30,6 +30,9 @@ _GENERIC_BUSINESS = re.compile(
 )
 _GENERIC_EMPLOYEE_DETAIL = re.compile(
     r"^(?:如何)?(?:查询|查看|了解)(?:某一名|某个|指定|单个)员工(?:的)?(?:详情|基础信息|资料)[？?。]?$"
+)
+_GENERIC_TRANSACTION_RESULT = re.compile(
+    r"^(?:概述这一条交易结果的交易类型和金额|说明该条交易结果的交易类型和金额|总结单条交易结果的交易类型和金额)[？?。]?$"
 )
 
 
@@ -81,7 +84,11 @@ def classify_question(question: str) -> frozenset[QuestionDataClass]:
         classes.add(QuestionDataClass.FREE_TEXT_SENSITIVE)
     if _PUBLIC_KNOWLEDGE.search(question):
         classes.add(QuestionDataClass.PUBLIC_KNOWLEDGE)
-    if _GENERIC_BUSINESS.fullmatch(question) or _GENERIC_EMPLOYEE_DETAIL.fullmatch(question):
+    if (
+        _GENERIC_BUSINESS.fullmatch(question)
+        or _GENERIC_EMPLOYEE_DETAIL.fullmatch(question)
+        or _GENERIC_TRANSACTION_RESULT.fullmatch(question)
+    ):
         classes.add(QuestionDataClass.GENERIC_BUSINESS)
     if not classes:
         classes.add(QuestionDataClass.UNKNOWN)
