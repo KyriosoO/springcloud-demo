@@ -294,7 +294,33 @@ def test_schemas_are_closed_and_launcher_is_prepared_only() -> None:
     assert "INSERT INTO" not in launcher and "DELETE FROM" not in launcher
 
 
-def test_live_outputs_do_not_exist_during_preparation() -> None:
+def test_post_consumption_outputs_are_strict_and_frozen() -> None:
     prefix = "employee-fixture-metadata-diagnostic-v2-20260814-candidate-02"
-    assert not (EVIDENCE / f"{prefix}.lifecycle.jsonl").exists()
-    assert not (EVIDENCE / f"{prefix}.result.json").exists()
+    lifecycle = EVIDENCE / f"{prefix}.lifecycle.jsonl"
+    result_path = EVIDENCE / f"{prefix}.result.json"
+    assert sha256_file(lifecycle) == (
+        "affbd35987e4caaa4950888eaed80cf12e695470b1703735716f2dd54d52a105"
+    )
+    assert sha256_file(result_path) == (
+        "9973863d43112a8142bf54eaa1ea18905112d8ca802a24dda7eed5599ab7cd51"
+    )
+    records = validate_lifecycle(lifecycle)
+    result = load_strict_json(result_path)
+    validate_result(result)
+    assert len(records) == 10
+    assert result["status"] == "passed"
+    assert result["queryCounts"] == {
+        "maximum": 4,
+        "started": 4,
+        "terminal": 4,
+        "succeeded": 4,
+        "failed": 0,
+        "retryCount": 0,
+        "resumeCount": 0,
+    }
+    metadata = result["metadata"]
+    assert metadata["table"]["engine"] == "InnoDB"
+    assert len(metadata["table"]["columns"]) == 58
+    assert metadata["constraints"] == []
+    assert metadata["checks"] == []
+    assert metadata["triggers"] == []
