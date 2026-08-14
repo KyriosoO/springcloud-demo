@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-fixture-metadata-diagnostic-v2-failure.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "preparationWorkPackageId", "workPackageId", "gateId", "runId", "authorizationReference", "status", "history", "queryCounts", "failure", "safety"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "preparationWorkPackageId": { "const": "WP-EMP-EGRESS-FIXTURE-METADATA-CANDIDATE-02-PREP" },
+    "workPackageId": { "const": "WP-EMP-EGRESS-TEST-DATA-PREP-01" },
+    "gateId": { "const": "GATE-050" },
+    "runId": { "const": "employee-fixture-metadata-diagnostic-v2-20260814-candidate-02" },
+    "authorizationReference": { "const": "P3_00:GATE-050" },
+    "status": { "const": "failed" },
+    "history": { "$ref": "employee-fixture-metadata-diagnostic-v2-success.schema.json#/$defs/history" },
+    "queryCounts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maximum", "started", "terminal", "succeeded", "failed", "retryCount", "resumeCount"],
+      "properties": {
+        "maximum": { "const": 4 },
+        "started": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "terminal": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "succeeded": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "failed": { "type": "integer", "minimum": 0, "maximum": 1 }, "retryCount": { "const": 0 }, "resumeCount": { "const": 0 }
+      }
+    },
+    "failure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phase", "reason", "queryOrdinal", "sqlState", "vendorCode"],
+      "properties": {
+        "phase": { "enum": ["column_and_engine", "key_and_foreign_key", "check_constraints", "triggers", "result_assembly"] },
+        "reason": { "enum": ["information_schema_query_failed", "metadata_invalid"] },
+        "queryOrdinal": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "sqlState": { "type": ["string", "null"], "maxLength": 5 },
+        "vendorCode": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "safety": { "$ref": "employee-fixture-metadata-diagnostic-v2-success.schema.json#/$defs/safety" }
+  }
+}

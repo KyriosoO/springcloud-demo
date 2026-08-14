@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-fixture-metadata-diagnostic-v2-success.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "preparationWorkPackageId", "workPackageId", "gateId", "runId", "authorizationReference", "status", "history", "queryCounts", "metadata", "safety"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "preparationWorkPackageId": { "const": "WP-EMP-EGRESS-FIXTURE-METADATA-CANDIDATE-02-PREP" },
+    "workPackageId": { "const": "WP-EMP-EGRESS-TEST-DATA-PREP-01" },
+    "gateId": { "const": "GATE-050" },
+    "runId": { "const": "employee-fixture-metadata-diagnostic-v2-20260814-candidate-02" },
+    "authorizationReference": { "const": "P3_00:GATE-050" },
+    "status": { "const": "passed" },
+    "history": { "$ref": "#/$defs/history" },
+    "queryCounts": { "$ref": "#/$defs/passedCounts" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "safety": { "$ref": "#/$defs/safety" }
+  },
+  "$defs": {
+    "history": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "passedCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximum", "started", "terminal", "succeeded", "failed", "retryCount", "resumeCount"],
+      "properties": {
+        "maximum": { "const": 4 }, "started": { "const": 4 }, "terminal": { "const": 4 },
+        "succeeded": { "const": 4 }, "failed": { "const": 0 }, "retryCount": { "const": 0 }, "resumeCount": { "const": 0 }
+      }
+    },
+    "metadata": {
+      "type": "object", "additionalProperties": false,
+      "required": ["table", "constraints", "checks", "triggers"],
+      "properties": {
+        "table": {
+          "type": "object", "additionalProperties": false,
+          "required": ["name", "engine", "columns"],
+          "properties": {
+            "name": { "const": "employee" },
+            "engine": { "type": "string", "minLength": 1 },
+            "columns": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "$ref": "#/$defs/column" } }
+          }
+        },
+        "constraints": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/constraint" } },
+        "checks": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/check" } },
+        "triggers": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/trigger" } }
+      }
+    },
+    "column": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "ordinal", "dataType", "columnType", "nullable", "default", "extra", "generationExpression", "maximumLength", "characterSet", "collation"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "dataType": { "type": "string", "minLength": 1 },
+        "columnType": { "type": "string", "minLength": 1 },
+        "nullable": { "enum": ["YES", "NO"] },
+        "default": { "type": ["string", "null"] },
+        "extra": { "type": "string" },
+        "generationExpression": { "type": "string" },
+        "maximumLength": { "type": ["integer", "null"], "minimum": 0 },
+        "characterSet": { "type": ["string", "null"] },
+        "collation": { "type": ["string", "null"] }
+      }
+    },
+    "constraint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["direction", "name", "type", "table", "column", "ordinal", "referencedTable", "referencedColumn"],
+      "properties": {
+        "direction": { "enum": ["owned", "inbound"] },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["PRIMARY KEY", "UNIQUE", "FOREIGN KEY"] },
+        "table": { "type": "string", "minLength": 1 },
+        "column": { "type": "string", "minLength": 1 },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "referencedTable": { "type": ["string", "null"] },
+        "referencedColumn": { "type": ["string", "null"] }
+      }
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "expressionSha256"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "expressionSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "trigger": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "timing", "event", "orientation", "actionSha256", "sideEffectClassification"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "timing": { "enum": ["BEFORE", "AFTER"] },
+        "event": { "enum": ["INSERT", "UPDATE", "DELETE"] },
+        "orientation": { "const": "ROW" },
+        "actionSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sideEffectClassification": { "const": "present_requires_manual_review" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["businessRowsRead", "employeeEndpointCalls", "authCalls", "jwtRead", "llmApiKeyRead", "modelCalls", "modelOutbound", "databaseWrites", "schemaChanges", "identifiersPersisted", "fieldValuesPersisted", "rawTriggerStatementsPersisted", "logLeakCount", "rawLogsDeleted"],
+      "properties": {
+        "businessRowsRead": { "const": false }, "employeeEndpointCalls": { "const": 0 }, "authCalls": { "const": 0 },
+        "jwtRead": { "const": false }, "llmApiKeyRead": { "const": false }, "modelCalls": { "const": 0 },
+        "modelOutbound": { "const": false }, "databaseWrites": { "const": 0 }, "schemaChanges": { "const": 0 },
+        "identifiersPersisted": { "const": false }, "fieldValuesPersisted": { "const": false },
+        "rawTriggerStatementsPersisted": { "const": false }, "logLeakCount": { "const": 0 }, "rawLogsDeleted": { "const": true }
+      }
+    }
+  }
+}

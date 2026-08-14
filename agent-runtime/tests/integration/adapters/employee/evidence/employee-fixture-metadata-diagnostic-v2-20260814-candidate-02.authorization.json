@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 2,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-FIXTURE-METADATA-CANDIDATE-02-PREP",
+  "workPackageId": "WP-EMP-EGRESS-TEST-DATA-PREP-01",
+  "gateId": "GATE-050",
+  "runId": "employee-fixture-metadata-diagnostic-v2-20260814-candidate-02",
+  "manifestSha256": "ce3dcd481352bbb59be01a2d3b975dfd1b9f35ae1479dd24d7408f11be7af6b7",
+  "authorizationReference": "P3_00:GATE-050",
+  "maximumQueries": 4,
+  "databaseAccessAuthorized": false,
+  "liveExecutionAuthorized": false,
+  "retryAllowed": false,
+  "resumeAllowed": false,
+  "confirmedBy": "project-maintainer-pending-gate-050-live-authorization",
+  "preparedAt": "2026-08-14T08:00:00Z"
+}

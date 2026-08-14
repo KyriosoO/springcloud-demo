@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-fixture-metadata-diagnostic-v2-lifecycle.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "authorizationReference", "sequence", "event", "phase", "status", "reason", "queryOrdinal", "retryCount", "resumeCount"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "runId": { "const": "employee-fixture-metadata-diagnostic-v2-20260814-candidate-02" },
+    "authorizationReference": { "const": "P3_00:GATE-050" },
+    "sequence": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "event": { "enum": ["run_started", "query_started", "query_terminal", "run_terminal"] },
+    "phase": { "enum": ["run", "column_and_engine", "key_and_foreign_key", "check_constraints", "triggers"] },
+    "status": { "enum": ["started", "succeeded", "failed", "passed"] },
+    "reason": { "type": ["string", "null"], "enum": [null, "information_schema_query_failed", "metadata_invalid"] },
+    "queryOrdinal": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "retryCount": { "const": 0 },
+    "resumeCount": { "const": 0 }
+  }
+}

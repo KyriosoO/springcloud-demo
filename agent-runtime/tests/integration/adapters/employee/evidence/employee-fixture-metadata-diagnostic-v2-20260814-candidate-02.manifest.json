@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-FIXTURE-METADATA-CANDIDATE-02-PREP",
+  "workPackageId": "WP-EMP-EGRESS-TEST-DATA-PREP-01",
+  "gateId": "GATE-050",
+  "runId": "employee-fixture-metadata-diagnostic-v2-20260814-candidate-02",
+  "authorizationReference": "P3_00:GATE-050",
+  "preparedAt": "2026-08-14T08:00:00Z",
+  "queryBudget": 4,
+  "executionBoundary": {
+    "databaseAccessAuthorized": false,
+    "liveExecutionAuthorized": false,
+    "retryAllowed": false,
+    "resumeAllowed": false,
+    "lifecycleOutputPath": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.lifecycle.jsonl",
+    "resultOutputPath": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.result.json"
+  },
+  "history": [
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-work-base-data-diagnostic-v1-20260814-run-01.json",
+      "sha256": "b79f3601c3ead955e5cf747fa91cc000aad9773a1294c17277deeef05f92efe6"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v1-20260814-run-01.failure.json",
+      "sha256": "dce5e7659ed9cc49b52aa9cca6b70c9701c22cc55867f26cfa6a50ead291e7a1"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v1-failure.schema.json",
+      "sha256": "e9182239e7425a071c7daaf4c2a74fb3ef354fec9907ca0da5cef92f8ac85adc"
+    }
+  ],
+  "assetHashes": [
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/fixture_metadata_diagnostic_v2.py",
+      "sha256": "d5b7c5a3d4a51f87e4876f20e62c5b1f0b87f051dd1406aaf6f3f815e85cb388"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_fixture_metadata_diagnostic_v2.py",
+      "sha256": "e37c161ab73870c601debc038eee661e48bdc9affaff25fc6b3fb0b86faf43a1"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/run_employee_fixture_metadata_diagnostic_v2.ps1",
+      "sha256": "b91aa7adb8d5051fb650347498e3265186b9a4feb8963d21eca463b9a00ac11e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-lifecycle.schema.json",
+      "sha256": "9a0cd108c7fd6908004004c1b453ac53f39531479e4be18aacb8c0740907898c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-success.schema.json",
+      "sha256": "79720598ebf43139ef25e88e8af283ad36b953e4f5f84a4124fd8aebdaeb7f7e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-failure.schema.json",
+      "sha256": "a88a7cad7e419cb749dcc47c5d1cfe9808c83c22e923ca2af57115aec27317ed"
+    },
+    {
+      "path": "employee-service/src/test/java/com/dylan/employee/live/EmployeeFixtureMetadataDiagnosticV2LiveIntegrationTest.java",
+      "sha256": "0cddf7397c5f0931522ef062b32c4c5ce9db1fb03ae55300f29c28afca49108f"
+    }
+  ]
+}
