@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-EMP-EGRESS-ENV-DIAG-01",
+  "gateId": "GATE-024",
+  "runId": "employee-egress-env-diagnostic-v1-20260814-candidate-01",
+  "status": "passed",
+  "startedAt": "2026-08-14T00:41:25.808Z",
+  "completedAt": "2026-08-14T00:45:17.062Z",
+  "candidateBinding": {
+    "runId": "employee-egress-v1-20260813-candidate-01",
+    "manifestSha256": "c3cdfacd32797474f68e11758ec094df97a95d56fb0efed9355ccfaa6a145c57",
+    "authorizationReference": "P3_00:GATE-024",
+    "authorizationConsumed": false
+  },
+  "diagnosticHistory": [
+    {
+      "phase": "initial_reproduction",
+      "authServiceReady": true,
+      "authHttpStatus": 200,
+      "employeeServiceReady": false,
+      "employeeExitBeforeReady": true,
+      "employeeExitCode": 1,
+      "exceptionTypes": [
+        "IllegalArgumentException"
+      ],
+      "configurationKeys": [
+        "spring.cloud.config.enabled"
+      ],
+      "classification": "duplicate_command_line_boolean_value"
+    },
+    {
+      "phase": "deduplication_validation_1",
+      "authServiceReady": true,
+      "authHttpStatus": 200,
+      "employeeServiceReady": false,
+      "employeeExitBeforeReady": true,
+      "employeeExitCode": 1,
+      "exceptionTypes": [
+        "BeanCreationNotAllowedException",
+        "IllegalArgumentException",
+        "UnsatisfiedDependencyException"
+      ],
+      "configurationKeys": [
+        "eureka.client.enabled"
+      ],
+      "classification": "remaining_duplicate_command_line_boolean_value"
+    },
+    {
+      "phase": "deduplication_validation_2",
+      "authServiceReady": true,
+      "authHttpStatus": 200,
+      "employeeProcessRunning": true,
+      "employeeHttpStatus": 401,
+      "classification": "secured_actuator_readiness_false_negative"
+    },
+    {
+      "phase": "final_readiness_validation",
+      "authServiceReady": true,
+      "authHttpStatus": 200,
+      "authPidOwnershipVerified": true,
+      "employeeServiceReady": true,
+      "employeeHttpStatus": 401,
+      "employeePidOwnershipVerified": true,
+      "exceptionTypes": [],
+      "configurationKeys": []
+    }
+  ],
+  "rootCause": {
+    "failingComponent": "temporary_isolated_environment_orchestration",
+    "primary": "employee-specific arguments repeated spring.cloud.config.enabled and eureka.client.enabled already supplied by the common argument set, producing duplicate scalar boolean values during Spring command-line binding",
+    "secondary": "the temporary readiness probe required HTTP 200 although the protected Employee actuator endpoint correctly returned HTTP 401",
+    "productionCodeDefect": false,
+    "productionConfigurationDefect": false,
+    "designChangeRequired": false
+  },
+  "minimalFix": {
+    "location": "temporary GATE-024 isolated environment bootstrap",
+    "actions": [
+      "supply each common Spring command-line property exactly once",
+      "treat Employee actuator HTTP 401 as HTTP-listener readiness only when the listener PID belongs to the process started by the bootstrap"
+    ],
+    "publicContractChanged": false,
+    "securityPolicyChanged": false
+  },
+  "finalReadiness": {
+    "authService": {
+      "endpoint": "/public/test",
+      "httpStatus": 200,
+      "pidOwnershipVerified": true
+    },
+    "employeeService": {
+      "endpoint": "/actuator/health",
+      "httpStatus": 401,
+      "pidOwnershipVerified": true,
+      "businessAuthorizationBypassed": false
+    }
+  },
+  "prohibitedOperations": {
+    "loginRequests": 0,
+    "jwtIssued": 0,
+    "employeeBusinessRequests": 0,
+    "modelRequests": 0,
+    "llmApiKeyRead": false,
+    "employeeIdentifierRead": false
+  },
+  "cleanup": {
+    "ownedProcessesStopped": true,
+    "rawLogsScanned": true,
+    "rawLogsDeleted": true,
+    "rawLogsPersisted": false,
+    "secretLeakCount": 0
+  },
+  "gate024Prerequisites": {
+    "isolatedStartupVerified": true,
+    "requiresFreshExplicitLiveAuthorization": true,
+    "liveExecutionPerformed": false
+  }
+}
