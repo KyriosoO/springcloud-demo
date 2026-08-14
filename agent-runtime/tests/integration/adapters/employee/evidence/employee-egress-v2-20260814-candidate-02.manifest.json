@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 2,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-CANDIDATE-02-PREP",
+  "preparationGateId": "GATE-048",
+  "workPackageId": "WP-EMP-EGRESS-01",
+  "gateId": "GATE-024",
+  "runId": "employee-egress-v2-20260814-candidate-02",
+  "authorizationReference": "P3_00:GATE-024",
+  "preparedAt": "2026-08-14T01:46:03Z",
+  "modelBinding": {
+    "taskId": "answer_generation",
+    "taskVersion": "answer-generation-v1",
+    "modelName": "deepseek-v4-pro"
+  },
+  "businessSnapshot": {
+    "policyVersion": "business-egress-v1",
+    "configSnapshotId": "14b609a7d9ca95a97e830e570f8b48ed84e8476a3cf3d4b198558e8a4f6efd28",
+    "serviceBaseEndpoint": "http://127.0.0.1:9210",
+    "employeeActionEnabled": true,
+    "globalEgressEnabled": true
+  },
+  "fieldBoundary": {
+    "modelVisibleFieldIds": [
+      "position",
+      "work_base_si"
+    ],
+    "defaultDeny": true,
+    "minimumSafeFactCount": 2
+  },
+  "authorizationEvidence": [
+    {
+      "evidenceRef": "WP-EMP-REAL-01:authorizationMatrix.admin",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-real-01-20260806T075036Z.json",
+      "sha256": "f5af997fd9b7b8cce6a6b99fcd6c00dddc43ff105ab2c69c085801d7d2ff382c"
+    },
+    {
+      "evidenceRef": "WP-EMP-REAL-01:VAL-EMP-005",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-gateway-log-20260806T091456Z.json",
+      "sha256": "eb9342b550f2bc2a3a391563e24045baccfade687790ab2e5dbe396d3a92396e"
+    }
+  ],
+  "candidate01History": [
+    {
+      "kind": "manifest",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v1-20260813-candidate-01.manifest.json",
+      "sha256": "c3cdfacd32797474f68e11758ec094df97a95d56fb0efed9355ccfaa6a145c57"
+    },
+    {
+      "kind": "authorization",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v1-20260813-candidate-01.authorization.json",
+      "sha256": "52b9075117f3e5f3ea84f1ea3c5da846c7b168f013fc4d8523d7ed52979f416c"
+    },
+    {
+      "kind": "environment_diagnostic",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-egress-env-diag-01-20260814T004517Z.json",
+      "sha256": "2bc16cf63f3775d778925a5a5a66cfbae5138401e2f209e8288f4db076598a2c"
+    },
+    {
+      "kind": "pre_model_failure",
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v1-20260813-candidate-01.pre-model-failure-20260814T005222Z.json",
+      "sha256": "1a55b324fc912ee4e9133c2946183473347eb8e7f3337f8e33286bdf96f0b76f"
+    }
+  ],
+  "executionBoundary": {
+    "employeeDetailRequests": 1,
+    "plannedAnswerCalls": 30,
+    "maximumPaidAnswerCalls": 30,
+    "minimumValidAnswerCalls": 27,
+    "firstModelOutboundConsumesAuthorization": true,
+    "retryAllowed": false,
+    "resumeAllowed": false,
+    "answerOnly": true,
+    "sensitiveQuestionAllowed": false,
+    "rawEmployeeDataPersistenceAllowed": false,
+    "lifecycleJournalOutputPath": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.lifecycle.jsonl",
+    "consumedMarkerPath": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.authorization.consumed.json",
+    "evidenceOutputPath": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.result.json"
+  },
+  "assetHashes": [
+    {
+      "path": "agent-runtime/scripts/run-employee-egress-live-candidate-02.ps1",
+      "sha256": "df48f5158dd44d115f6f07047b85de319b75daf62bcf21f5b3b482a3fe2f4bc4"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/bootstrap.py",
+      "sha256": "a726f86e64bf56abdb441083d3096d3364ae29f83f66a59e57a6423f9e8dc143"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/egress.py",
+      "sha256": "a818681370cb12658da42c7e37a7cd762bfaf4c4591c5dfadf14e8fc3fc1ee82"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/grounding.py",
+      "sha256": "9b9a92324f53c647eb47699329a812b5b487b7ad6e860b3b3f7cba6f5e8c355c"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/handler.py",
+      "sha256": "5674a3080c6bac3c08de14d63d62d56c447c0dc1a9db278ce8fde4b8c36ccc36"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/settings.py",
+      "sha256": "1216aefeb8dcb57397d161f148dea422b53fb66346d5664fa2433cf6346a3eed"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/graph/nodes.py",
+      "sha256": "2cf3f236ba59d313b79b04a27c2db9d4fe645b4408a44de676b5475e8a14935d"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/deepseek/answer_generator.py",
+      "sha256": "9ad5bb89ebdb951fe0681a2bc07edd2b452d2ca495f3c100702eb2abfdc3271f"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/input_guard.py",
+      "sha256": "60effe5b917a981b4fa74d35739ffad4b72bdc95060fd248c557b46931dd3c18"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/question_policy.py",
+      "sha256": "b9d9f1a95a374fb80a0d093409080cf95b43a6f18fa88109c67c439ba6046802"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/definition.py",
+      "sha256": "bfd2be2dd89c3f5e1263c4128a84fc8613123c5fc89a37c51593d5ddbcfe2fb3"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/fields.py",
+      "sha256": "cf274b94e9165a0ba01d7332bbb4856682cc6cd1132a1513e6ae1943d2135ce7"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/settings.py",
+      "sha256": "399b411025398e023b350844fc927ddff84dffe4ba8fe57021f494ad5bd3c6dc"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/codec.py",
+      "sha256": "9c11376c7c877be83d73cc45d77c67b19ec11371c350023e8bd71266dda44404"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/normalizer.py",
+      "sha256": "8a221a94239110786056f67d2c60c3201fecf6318e4f6d9860e03ae07f2af74a"
+    },
+    {
+      "path": "agent-runtime/tests/fixtures/employee_egress_field_matrix.json",
+      "sha256": "14a2636e907a25987975987f9eaf6096b33f5799dd51f2001f636c9ac14ae368"
+    },
+    {
+      "path": "agent-runtime/tests/unit/adapters/employee/test_egress.py",
+      "sha256": "2ec35b96858852b34698f265d17e9955b04089e6ad9c1b3d7c07afc40a038157"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_sensitive_egress_zero_call.py",
+      "sha256": "00c7a315aabe17f296742c0246afab0f59422d364dc8822f0f02a581a2b9ef35"
+    },
+    {
+      "path": "agent-runtime/tests/integration/business/test_business_text_is_data.py",
+      "sha256": "d740ae5804b29c5195b697dd8bf4fc40046d88c1ca3f122c9e52dc65a584a5ce"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/egress_candidate_v2.py",
+      "sha256": "fbdd9b2c19426b9c5e3fdc32f4c2b575ce995b1ddb269c7eb19dd3a7a0fbbe9c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_real_employee_egress_candidate_v2.py",
+      "sha256": "3351a111ae8de266cce2ca993c91f85f36395f55c9d1e5bb9d027fd660ac1725"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_egress_candidate_v2_harness.py",
+      "sha256": "372fb36c52018a8c5e787d8d50cea9511f1ddeb17e6fb6910e3af3dd20b156a8"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_egress_candidate_01_history.py",
+      "sha256": "ab2f5da5ebe4d68a1448627cb1e6d1965d95294cda16e6c0851f24c687d528b1"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-live-evidence-v2.schema.json",
+      "sha256": "15243ce233178e19eb60d8b2d517fc87cb53f1939ac31e82edb3c6d223f00b7a"
+    }
+  ]
+}

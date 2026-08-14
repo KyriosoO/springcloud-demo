@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-CANDIDATE-02-PREP",
+  "preparationGateId": "GATE-048",
+  "workPackageId": "WP-EMP-EGRESS-01",
+  "gateId": "GATE-024",
+  "runId": "employee-egress-v2-20260814-candidate-02",
+  "manifestSha256": "28cd7b04b0700b43e5feed7bdef22e9da0494cd941e2e9f96b698a75b21b03b1",
+  "authorizationReference": "P3_00:GATE-024",
+  "singleUse": true,
+  "maximumPaidAnswerCalls": 30,
+  "retryAllowed": false,
+  "resumeAllowed": false,
+  "liveExecutionAuthorized": false,
+  "confirmedBy": "project-maintainer-pending-live-authorization",
+  "preparedAt": "2026-08-14T01:46:03Z"
+}

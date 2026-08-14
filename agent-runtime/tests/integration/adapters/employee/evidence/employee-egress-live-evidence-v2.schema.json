@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.agent.test/schemas/employee-egress-live-evidence-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "workPackageId",
+    "gateId",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "recordedAt",
+    "modelBinding",
+    "fieldBoundary",
+    "businessSnapshot",
+    "authorizationEvidenceRefs",
+    "authorizationState",
+    "lifecycleJournal",
+    "counts",
+    "failure",
+    "safety",
+    "outcomes"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "status": {"enum": ["passed", "failed_unconsumed", "failed_consumed"]},
+    "workPackageId": {"const": "WP-EMP-EGRESS-01"},
+    "gateId": {"const": "GATE-024"},
+    "runId": {"const": "employee-egress-v2-20260814-candidate-02"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-024"},
+    "recordedAt": {"type": "string", "pattern": "Z$"},
+    "modelBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "taskVersion", "modelName"],
+      "properties": {
+        "taskId": {"const": "answer_generation"},
+        "taskVersion": {"const": "answer-generation-v1"},
+        "modelName": {"const": "deepseek-v4-pro"}
+      }
+    },
+    "fieldBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelVisibleFieldIds"],
+      "properties": {
+        "modelVisibleFieldIds": {"const": ["position", "work_base_si"]}
+      }
+    },
+    "businessSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyVersion", "configSnapshotId"],
+      "properties": {
+        "policyVersion": {"const": "business-egress-v1"},
+        "configSnapshotId": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "authorizationEvidenceRefs": {
+      "const": ["WP-EMP-REAL-01:authorizationMatrix.admin", "WP-EMP-REAL-01:VAL-EMP-005"]
+    },
+    "authorizationState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumed", "consumedMarkerSha256"],
+      "properties": {
+        "consumed": {"type": "boolean"},
+        "consumedMarkerSha256": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          ]
+        }
+      }
+    },
+    "lifecycleJournal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recordCount", "sha256"],
+      "properties": {
+        "recordCount": {"type": "integer", "minimum": 2, "maximum": 64},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "employeeDetailRequests",
+        "otherEmployeeEndpoints",
+        "plannedAnswerCalls",
+        "maximumPaidAnswerCalls",
+        "actualAnswerCalls",
+        "terminalAnswerRecords",
+        "validAnswers",
+        "retryCount",
+        "resumeCount"
+      ],
+      "properties": {
+        "employeeDetailRequests": {"type": "integer", "minimum": 0, "maximum": 1},
+        "otherEmployeeEndpoints": {"const": 0},
+        "plannedAnswerCalls": {"const": 30},
+        "maximumPaidAnswerCalls": {"const": 30},
+        "actualAnswerCalls": {"type": "integer", "minimum": 0, "maximum": 30},
+        "terminalAnswerRecords": {"type": "integer", "minimum": 0, "maximum": 30},
+        "validAnswers": {"type": "integer", "minimum": 0, "maximum": 30},
+        "retryCount": {"const": 0},
+        "resumeCount": {"const": 0}
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "reason"],
+      "properties": {
+        "phase": {
+          "oneOf": [
+            {"type": "null"},
+            {"enum": ["employee_request", "employee_result", "egress_projection", "model_setup", "model_call", "threshold", "cleanup", "internal"]}
+          ]
+        },
+        "reason": {
+          "oneOf": [
+            {"type": "null"},
+            {"enum": ["employee_request_failed", "employee_result_invalid", "egress_projection_invalid", "model_setup_failed", "model_request_invalid", "model_call_failed", "threshold_not_met", "cleanup_failed", "log_leak_detected", "evidence_write_failed", "internal_failure"]}
+          ]
+        }
+      },
+      "oneOf": [
+        {"properties": {"phase": {"const": null}, "reason": {"const": null}}},
+        {"properties": {"phase": {"const": "employee_request"}, "reason": {"const": "employee_request_failed"}}},
+        {"properties": {"phase": {"const": "employee_result"}, "reason": {"const": "employee_result_invalid"}}},
+        {"properties": {"phase": {"const": "egress_projection"}, "reason": {"const": "egress_projection_invalid"}}},
+        {"properties": {"phase": {"const": "model_setup"}, "reason": {"const": "model_setup_failed"}}},
+        {"properties": {"phase": {"const": "model_call"}, "reason": {"enum": ["model_request_invalid", "model_call_failed"]}}},
+        {"properties": {"phase": {"const": "threshold"}, "reason": {"const": "threshold_not_met"}}},
+        {"properties": {"phase": {"const": "cleanup"}, "reason": {"enum": ["cleanup_failed", "log_leak_detected"]}}},
+        {"properties": {"phase": {"const": "internal"}, "reason": {"enum": ["evidence_write_failed", "internal_failure"]}}}
+      ]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "forbiddenPayloadFieldCount",
+        "forbiddenLiteralCount",
+        "logLeakCount",
+        "jwtPersisted",
+        "identifierPersisted",
+        "employeeDataPersisted",
+        "rawModelResponsePersisted"
+      ],
+      "properties": {
+        "forbiddenPayloadFieldCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "forbiddenLiteralCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "logLeakCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "jwtPersisted": {"const": false},
+        "identifierPersisted": {"const": false},
+        "employeeDataPersisted": {"const": false},
+        "rawModelResponsePersisted": {"const": false}
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["attemptOrdinal", "status"],
+        "properties": {
+          "attemptOrdinal": {"type": "integer", "minimum": 1, "maximum": 30},
+          "status": {"enum": ["answer", "invalid_output", "input_denied", "timeout", "provider_failure"]}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "passed"}}},
+      "then": {
+        "properties": {
+          "authorizationState": {"properties": {"consumed": {"const": true}}},
+          "failure": {"properties": {"phase": {"const": null}, "reason": {"const": null}}},
+          "counts": {
+            "properties": {
+              "employeeDetailRequests": {"const": 1},
+              "actualAnswerCalls": {"const": 30},
+              "terminalAnswerRecords": {"const": 30},
+              "validAnswers": {"minimum": 27}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "failed_unconsumed"}}},
+      "then": {
+        "properties": {
+          "authorizationState": {
+            "properties": {
+              "consumed": {"const": false},
+              "consumedMarkerSha256": {"const": null}
+            }
+          },
+          "counts": {"properties": {"actualAnswerCalls": {"const": 0}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "failed_consumed"}}},
+      "then": {
+        "properties": {
+          "authorizationState": {
+            "properties": {
+              "consumed": {"const": true},
+              "consumedMarkerSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        }
+      }
+    }
+  ]
+}
