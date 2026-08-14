@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-work-base-data-diagnostic-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "runId", "recordedAt", "status", "sourceEvidence", "columnDefinition", "counts", "diagnosis", "safety"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackageId": { "const": "WP-EMP-EGRESS-WORK-BASE-DATA-DIAG-01" },
+    "runId": { "const": "employee-work-base-data-diagnostic-v1-20260814-run-01" },
+    "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$" },
+    "status": { "const": "completed" },
+    "sourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "expectedTotalRows", "expectedValidRows"],
+      "properties": {
+        "path": { "const": "agent-runtime/tests/integration/adapters/employee/evidence/employee-work-base-static-diagnostic-v1-20260814-run-01.json" },
+        "sha256": { "const": "7edad245f9041535a6cb579401102fc8a754980b4f6951c1192836c2d4271ed8" },
+        "expectedTotalRows": { "const": 990 },
+        "expectedValidRows": { "const": 0 }
+      }
+    },
+    "columnDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataType", "columnType", "isNullable", "characterMaximumLength", "columnDefault", "collationName"],
+      "properties": {
+        "dataType": { "type": "string", "minLength": 1 },
+        "columnType": { "type": "string", "minLength": 1 },
+        "isNullable": { "enum": ["YES", "NO"] },
+        "characterMaximumLength": { "type": ["integer", "null"], "minimum": 0 },
+        "columnDefault": { "type": ["string", "null"] },
+        "collationName": { "type": ["string", "null"] }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalRows", "nullRows", "lengthInvalidRows", "controlCharacterRows", "bidiControlRows", "validRows", "metadataQueries", "metadataResultRows", "aggregateQueries", "aggregateResultRows", "employeeEndpointCalls", "modelCalls", "retryCount", "resumeCount"],
+      "properties": {
+        "totalRows": { "type": "integer", "minimum": 0 },
+        "nullRows": { "type": "integer", "minimum": 0 },
+        "lengthInvalidRows": { "type": "integer", "minimum": 0 },
+        "controlCharacterRows": { "type": "integer", "minimum": 0 },
+        "bidiControlRows": { "type": "integer", "minimum": 0 },
+        "validRows": { "type": "integer", "minimum": 0 },
+        "metadataQueries": { "const": 1 },
+        "metadataResultRows": { "const": 1 },
+        "aggregateQueries": { "const": 1 },
+        "aggregateResultRows": { "const": 1 },
+        "employeeEndpointCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "retryCount": { "const": 0 },
+        "resumeCount": { "const": 0 }
+      }
+    },
+    "diagnosis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "distributionProven", "sourceSnapshotMatches", "nextStep"],
+      "properties": {
+        "reason": { "enum": ["source_snapshot_mismatch", "all_rows_null", "all_rows_length_invalid", "all_rows_control_character_invalid", "all_rows_bidi_control_invalid", "mixed_invalid_values"] },
+        "distributionProven": { "type": "boolean" },
+        "sourceSnapshotMatches": { "type": "boolean" },
+        "nextStep": { "enum": ["reconcile_source_snapshot_required", "separate_test_data_remediation_authorization_required"] }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identifiersPersisted", "fieldValuesPersisted", "rawRowsPersisted", "jwtRead", "llmApiKeyRead", "modelOutbound", "logLeakCount", "rawLogsDeleted"],
+      "properties": {
+        "identifiersPersisted": { "const": false },
+        "fieldValuesPersisted": { "const": false },
+        "rawRowsPersisted": { "const": false },
+        "jwtRead": { "const": false },
+        "llmApiKeyRead": { "const": false },
+        "modelOutbound": { "const": false },
+        "logLeakCount": { "const": 0 },
+        "rawLogsDeleted": { "const": true }
+      }
+    }
+  }
+}
