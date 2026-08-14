@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-test-data-fixture-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractHash",
+    "contractVersion",
+    "counts",
+    "fieldNames",
+    "fixtureFingerprintPersisted",
+    "identifierPersisted",
+    "metadataResultSha256",
+    "nonRealIdentifier",
+    "reason",
+    "runId",
+    "schemaVersion",
+    "status",
+    "synthetic",
+    "valuesPersisted",
+    "workPackageId"
+  ],
+  "properties": {
+    "contractHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "contractVersion": {"const": "employee-synthetic-fixture-v1"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deleted",
+        "existingRowsModified",
+        "inserted",
+        "preexisting",
+        "remaining",
+        "resumeCount",
+        "retryCount",
+        "verified"
+      ],
+      "properties": {
+        "deleted": {"type": "integer", "minimum": 0, "maximum": 1},
+        "existingRowsModified": {"const": 0},
+        "inserted": {"type": "integer", "minimum": 0, "maximum": 1},
+        "preexisting": {"type": "integer", "minimum": 0, "maximum": 1},
+        "remaining": {"type": "integer", "minimum": 0, "maximum": 1},
+        "resumeCount": {"const": 0},
+        "retryCount": {"const": 0},
+        "verified": {"type": "integer", "minimum": 0, "maximum": 1}
+      }
+    },
+    "fieldNames": {"const": ["idCardNo", "chineseName", "position", "workBaseSi"]},
+    "fixtureFingerprintPersisted": {"const": false},
+    "identifierPersisted": {"const": false},
+    "metadataResultSha256": {"const": "9973863d43112a8142bf54eaa1ea18905112d8ca802a24dda7eed5599ab7cd51"},
+    "nonRealIdentifier": {"const": true},
+    "reason": {
+      "enum": [
+        "none",
+        "identifier_conflict",
+        "repository_failure",
+        "insert_count_invalid",
+        "fingerprint_mismatch",
+        "consumer_failure",
+        "cleanup_count_invalid",
+        "cleanup_verification_failed",
+        "journal_failure"
+      ]
+    },
+    "runId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,95}$"},
+    "schemaVersion": {"const": 1},
+    "status": {"enum": ["passed", "failed", "failed_cleanup_required"]},
+    "synthetic": {"const": true},
+    "valuesPersisted": {"const": false},
+    "workPackageId": {"const": "WP-EMP-EGRESS-TEST-DATA-PREP-01"}
+  }
+}
