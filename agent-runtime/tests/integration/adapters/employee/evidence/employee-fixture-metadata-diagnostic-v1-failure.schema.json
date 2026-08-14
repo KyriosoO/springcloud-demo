@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-fixture-metadata-diagnostic-v1-failure.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "runId", "authorizationReference", "recordedAt", "status", "sourceEvidence", "implementationSources", "failure", "queryCounts", "rawReportDigests", "safety"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackageId": { "const": "WP-EMP-EGRESS-TEST-DATA-PREP-01" },
+    "runId": { "const": "employee-fixture-metadata-diagnostic-v1-20260814-run-01" },
+    "authorizationReference": { "const": "P3_00:GATE-050" },
+    "recordedAt": { "const": "2026-08-14T07:15:35Z" },
+    "status": { "const": "failed" },
+    "sourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "const": "agent-runtime/tests/integration/adapters/employee/evidence/employee-work-base-data-diagnostic-v1-20260814-run-01.json" },
+        "sha256": { "const": "b79f3601c3ead955e5cf747fa91cc000aad9773a1294c17277deeef05f92efe6" }
+      }
+    },
+    "implementationSources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pythonProbe", "pythonTest", "successSchema", "launcher", "javaProbe"],
+      "properties": {
+        "pythonProbe": { "const": "6737a6d775bac740f70628dad98076b93112a8f28ed1cea6f4a03e46cdd735ed" },
+        "pythonTest": { "const": "aa1b54205026e349c143fe313dadcdb75e5f071889b634d741d1a0251d841b21" },
+        "successSchema": { "const": "523bf02cb522f09f717511815ed59e025321ff43b0c31b96fef8f7774122d05b" },
+        "launcher": { "const": "d9e8147d5b76defc57351f3828aa09ab42996dbcfde5ba7f00e2d0c13d8c3eff" },
+        "javaProbe": { "const": "0581a9f1f49f0440db77545ca07e09563706ee4d6eaac6aa6cd9d8f2ed44b8e9" }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "reason", "sqlState", "vendorCode", "failedQueryOrdinal"],
+      "properties": {
+        "phase": { "const": "constraint_metadata_query" },
+        "reason": { "const": "information_schema_collation_mismatch" },
+        "sqlState": { "const": "HY000" },
+        "vendorCode": { "const": 1267 },
+        "failedQueryOrdinal": { "const": 2 }
+      }
+    },
+    "queryCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxQueries", "totalStarted", "successfulQueries", "failedQueries", "columnStarted", "columnTerminal", "constraintStarted", "constraintTerminal", "checkStarted", "checkTerminal", "triggerStarted", "triggerTerminal", "retryCount", "resumeCount"],
+      "properties": {
+        "maxQueries": { "const": 4 },
+        "totalStarted": { "const": 2 },
+        "successfulQueries": { "const": 1 },
+        "failedQueries": { "const": 1 },
+        "columnStarted": { "const": 1 },
+        "columnTerminal": { "const": 1 },
+        "constraintStarted": { "const": 1 },
+        "constraintTerminal": { "const": 1 },
+        "checkStarted": { "const": 0 },
+        "checkTerminal": { "const": 0 },
+        "triggerStarted": { "const": 0 },
+        "triggerTerminal": { "const": 0 },
+        "retryCount": { "const": 0 },
+        "resumeCount": { "const": 0 }
+      }
+    },
+    "rawReportDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "xml", "dumpstream"],
+      "properties": {
+        "text": { "const": "c83bb86c816b4e961f66d97e64cc09bcb04a6b5ee2e60ebebc76f7bb025c5d1d" },
+        "xml": { "const": "f33e29be20c212749c3555caa2cc81f3973522c5a56ad20d79f8f3e2271d74dd" },
+        "dumpstream": { "const": "b1efe518d8f49ad396d40a4728f1e3284b1c7eae5b14bdbccca3383c34f55312" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["businessRowsRead", "identifiersPersisted", "fieldValuesPersisted", "rawTriggerStatementsPersisted", "employeeEndpointCalls", "authCalls", "jwtRead", "llmApiKeyRead", "modelCalls", "modelOutbound", "databaseWrites", "schemaChanges", "logLeakCount", "rawLogsDeleted"],
+      "properties": {
+        "businessRowsRead": { "const": false },
+        "identifiersPersisted": { "const": false },
+        "fieldValuesPersisted": { "const": false },
+        "rawTriggerStatementsPersisted": { "const": false },
+        "employeeEndpointCalls": { "const": 0 },
+        "authCalls": { "const": 0 },
+        "jwtRead": { "const": false },
+        "llmApiKeyRead": { "const": false },
+        "modelCalls": { "const": 0 },
+        "modelOutbound": { "const": false },
+        "databaseWrites": { "const": 0 },
+        "schemaChanges": { "const": 0 },
+        "logLeakCount": { "const": 0 },
+        "rawLogsDeleted": { "const": true }
+      }
+    }
+  }
+}

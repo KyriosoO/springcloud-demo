@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-fixture-metadata-diagnostic-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "runId", "authorizationReference", "recordedAt", "status", "sourceEvidence", "implementationSources", "tableMetadata", "constraintMetadata", "triggerMetadata", "counts", "assessment", "safety"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackageId": { "const": "WP-EMP-EGRESS-TEST-DATA-PREP-01" },
+    "runId": { "const": "employee-fixture-metadata-diagnostic-v1-20260814-run-01" },
+    "authorizationReference": { "const": "P3_00:GATE-050" },
+    "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$" },
+    "status": { "const": "completed" },
+    "sourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "const": "agent-runtime/tests/integration/adapters/employee/evidence/employee-work-base-data-diagnostic-v1-20260814-run-01.json" },
+        "sha256": { "const": "b79f3601c3ead955e5cf747fa91cc000aad9773a1294c17277deeef05f92efe6" }
+      }
+    },
+    "implementationSources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["employee-service/src/main/java/com/dylan/employee/mapper/EmployeeSqlProvider.java", "employee-service/src/main/java/com/dylan/employee/mapper/EmployeeMapper.java", "employee-service/src/main/java/com/dylan/employee/service/EmployeeService.java"],
+      "properties": {
+        "employee-service/src/main/java/com/dylan/employee/mapper/EmployeeSqlProvider.java": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "employee-service/src/main/java/com/dylan/employee/mapper/EmployeeMapper.java": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "employee-service/src/main/java/com/dylan/employee/service/EmployeeService.java": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "tableMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tableName", "engine", "columns"],
+      "properties": {
+        "tableName": { "const": "employee" },
+        "engine": { "type": "string", "minLength": 1 },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/column" }
+        }
+      }
+    },
+    "constraintMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries", "checks"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/constraint" }
+        },
+        "checks": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/check" }
+        }
+      }
+    },
+    "triggerMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/trigger" }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxQueries", "executedQueries", "columnQueries", "columnResultRows", "constraintQueries", "constraintResultRows", "checkQueries", "checkResultRows", "triggerQueries", "triggerResultRows", "employeeBusinessRowQueries", "employeeEndpointCalls", "authCalls", "modelCalls", "retryCount", "resumeCount"],
+      "properties": {
+        "maxQueries": { "const": 4 },
+        "executedQueries": { "const": 4 },
+        "columnQueries": { "const": 1 },
+        "columnResultRows": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "constraintQueries": { "const": 1 },
+        "constraintResultRows": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "checkQueries": { "const": 1 },
+        "checkResultRows": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "triggerQueries": { "const": 1 },
+        "triggerResultRows": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "employeeBusinessRowQueries": { "const": 0 },
+        "employeeEndpointCalls": { "const": 0 },
+        "authCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "retryCount": { "const": 0 },
+        "resumeCount": { "const": 0 }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "reason", "metadataComplete", "transactionalEngine", "providerColumnSetMatches", "logicalFieldsPresent", "logicalFieldsWritable", "minimalInsertColumns", "blockingRequiredColumns", "idCardNoUnique", "outboundForeignKeyConstraints", "inboundForeignKeyConstraints", "checkConstraints", "triggers", "exactCleanupSupported", "gateMayClose"],
+      "properties": {
+        "result": { "enum": ["gate_closed", "gate_open"] },
+        "reason": { "enum": ["metadata_incomplete", "unsupported_engine", "provider_column_set_mismatch", "logical_fields_missing", "logical_fields_not_writable", "omitted_required_columns", "identifier_not_unique", "foreign_keys_present", "checks_present", "triggers_present", "safe_to_prepare_fixture"] },
+        "metadataComplete": { "type": "boolean" },
+        "transactionalEngine": { "type": "boolean" },
+        "providerColumnSetMatches": { "type": "boolean" },
+        "logicalFieldsPresent": { "type": "boolean" },
+        "logicalFieldsWritable": { "type": "boolean" },
+        "minimalInsertColumns": { "const": ["ID_CARD_NO", "CHINESE_NAME", "POSITION", "WORK_BASE_SI"] },
+        "blockingRequiredColumns": { "type": "array", "maxItems": 58, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "idCardNoUnique": { "type": "boolean" },
+        "outboundForeignKeyConstraints": { "type": "integer", "minimum": 0 },
+        "inboundForeignKeyConstraints": { "type": "integer", "minimum": 0 },
+        "checkConstraints": { "type": "integer", "minimum": 0 },
+        "triggers": { "type": "integer", "minimum": 0 },
+        "exactCleanupSupported": { "type": "boolean" },
+        "gateMayClose": { "type": "boolean" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["businessRowsRead", "identifiersPersisted", "fieldValuesPersisted", "rawTriggerStatementsPersisted", "jwtRead", "llmApiKeyRead", "modelOutbound", "databaseWrites", "schemaChanges", "logLeakCount", "rawLogsDeleted"],
+      "properties": {
+        "businessRowsRead": { "const": false },
+        "identifiersPersisted": { "const": false },
+        "fieldValuesPersisted": { "const": false },
+        "rawTriggerStatementsPersisted": { "const": false },
+        "jwtRead": { "const": false },
+        "llmApiKeyRead": { "const": false },
+        "modelOutbound": { "const": false },
+        "databaseWrites": { "const": 0 },
+        "schemaChanges": { "const": 0 },
+        "logLeakCount": { "const": 0 },
+        "rawLogsDeleted": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columnName", "ordinalPosition", "dataType", "columnType", "isNullable", "columnDefault", "extra", "generationExpression", "characterMaximumLength", "characterSetName", "collationName"],
+      "properties": {
+        "columnName": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "ordinalPosition": { "type": "integer", "minimum": 1 },
+        "dataType": { "type": "string", "minLength": 1 },
+        "columnType": { "type": "string", "minLength": 1 },
+        "isNullable": { "enum": ["YES", "NO"] },
+        "columnDefault": { "type": ["string", "null"] },
+        "extra": { "type": "string" },
+        "generationExpression": { "type": "string" },
+        "characterMaximumLength": { "type": ["integer", "null"], "minimum": 0 },
+        "characterSetName": { "type": ["string", "null"] },
+        "collationName": { "type": ["string", "null"] }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "constraintName", "constraintType", "tableName", "columnName", "ordinalPosition", "referencedTableName", "referencedColumnName"],
+      "properties": {
+        "direction": { "enum": ["owned", "inbound"] },
+        "constraintName": { "type": "string", "minLength": 1 },
+        "constraintType": { "enum": ["PRIMARY KEY", "UNIQUE", "FOREIGN KEY"] },
+        "tableName": { "type": "string", "minLength": 1 },
+        "columnName": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "ordinalPosition": { "type": "integer", "minimum": 1 },
+        "referencedTableName": { "type": ["string", "null"] },
+        "referencedColumnName": { "type": ["string", "null"] }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["constraintName", "checkClause"],
+      "properties": {
+        "constraintName": { "type": "string", "minLength": 1 },
+        "checkClause": { "type": "string", "minLength": 1 }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triggerName", "timing", "event", "orientation", "actionStatementSha256", "sideEffectClassification"],
+      "properties": {
+        "triggerName": { "type": "string", "minLength": 1 },
+        "timing": { "enum": ["BEFORE", "AFTER"] },
+        "event": { "enum": ["INSERT", "UPDATE", "DELETE"] },
+        "orientation": { "const": "ROW" },
+        "actionStatementSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sideEffectClassification": { "const": "present_requires_manual_review" }
+      }
+    }
+  }
+}

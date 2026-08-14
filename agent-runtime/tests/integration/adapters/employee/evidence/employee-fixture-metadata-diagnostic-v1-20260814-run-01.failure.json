@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-EMP-EGRESS-TEST-DATA-PREP-01",
+  "runId": "employee-fixture-metadata-diagnostic-v1-20260814-run-01",
+  "authorizationReference": "P3_00:GATE-050",
+  "recordedAt": "2026-08-14T07:15:35Z",
+  "status": "failed",
+  "sourceEvidence": {
+    "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-work-base-data-diagnostic-v1-20260814-run-01.json",
+    "sha256": "b79f3601c3ead955e5cf747fa91cc000aad9773a1294c17277deeef05f92efe6"
+  },
+  "implementationSources": {
+    "pythonProbe": "6737a6d775bac740f70628dad98076b93112a8f28ed1cea6f4a03e46cdd735ed",
+    "pythonTest": "aa1b54205026e349c143fe313dadcdb75e5f071889b634d741d1a0251d841b21",
+    "successSchema": "523bf02cb522f09f717511815ed59e025321ff43b0c31b96fef8f7774122d05b",
+    "launcher": "d9e8147d5b76defc57351f3828aa09ab42996dbcfde5ba7f00e2d0c13d8c3eff",
+    "javaProbe": "0581a9f1f49f0440db77545ca07e09563706ee4d6eaac6aa6cd9d8f2ed44b8e9"
+  },
+  "failure": {
+    "phase": "constraint_metadata_query",
+    "reason": "information_schema_collation_mismatch",
+    "sqlState": "HY000",
+    "vendorCode": 1267,
+    "failedQueryOrdinal": 2
+  },
+  "queryCounts": {
+    "maxQueries": 4,
+    "totalStarted": 2,
+    "successfulQueries": 1,
+    "failedQueries": 1,
+    "columnStarted": 1,
+    "columnTerminal": 1,
+    "constraintStarted": 1,
+    "constraintTerminal": 1,
+    "checkStarted": 0,
+    "checkTerminal": 0,
+    "triggerStarted": 0,
+    "triggerTerminal": 0,
+    "retryCount": 0,
+    "resumeCount": 0
+  },
+  "rawReportDigests": {
+    "text": "c83bb86c816b4e961f66d97e64cc09bcb04a6b5ee2e60ebebc76f7bb025c5d1d",
+    "xml": "f33e29be20c212749c3555caa2cc81f3973522c5a56ad20d79f8f3e2271d74dd",
+    "dumpstream": "b1efe518d8f49ad396d40a4728f1e3284b1c7eae5b14bdbccca3383c34f55312"
+  },
+  "safety": {
+    "businessRowsRead": false,
+    "identifiersPersisted": false,
+    "fieldValuesPersisted": false,
+    "rawTriggerStatementsPersisted": false,
+    "employeeEndpointCalls": 0,
+    "authCalls": 0,
+    "jwtRead": false,
+    "llmApiKeyRead": false,
+    "modelCalls": 0,
+    "modelOutbound": false,
+    "databaseWrites": 0,
+    "schemaChanges": 0,
+    "logLeakCount": 0,
+    "rawLogsDeleted": true
+  }
+}
