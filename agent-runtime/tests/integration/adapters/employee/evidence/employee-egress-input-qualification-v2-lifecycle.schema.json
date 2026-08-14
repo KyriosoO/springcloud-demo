@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.agent.test/schemas/employee-egress-input-qualification-v2-lifecycle.schema.json",
+  "title": "Employee input qualification v2 lifecycle record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackageId",
+    "gateId",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "event"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "workPackageId": {"const": "WP-EMP-EGRESS-INPUT-QUALIFY-02"},
+    "gateId": {"const": "GATE-049"},
+    "runId": {"const": "employee-egress-input-qualification-v2-20260814-candidate-02"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-049"},
+    "event": {
+      "enum": [
+        "run_started",
+        "database_selection_started",
+        "database_selection_terminal",
+        "employee_detail_started",
+        "employee_detail_terminal",
+        "run_terminal"
+      ]
+    },
+    "selectionMode": {"const": "read_only_database"},
+    "databaseSelectionMaximumRows": {"const": 1},
+    "employeeDetailMaximumRequests": {"const": 1},
+    "modelMaximumCalls": {"const": 0},
+    "retryAllowed": {"const": false},
+    "resumeAllowed": {"const": false},
+    "queryOrdinal": {"const": 1},
+    "requestOrdinal": {"const": 1},
+    "selectedRows": {"type": "integer", "minimum": 0, "maximum": 1},
+    "status": {"enum": ["completed", "failed", "qualified", "not_qualified"]},
+    "failurePhase": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "database_selection",
+        "employee_detail",
+        "employee_result",
+        "egress_projection",
+        "cleanup",
+        "internal"
+      ]
+    },
+    "failureReason": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "employee.no_qualified_input",
+        "employee.database_selection_failed",
+        "employee.request_failed",
+        "employee.result_invalid",
+        "business.egress_projection_invalid",
+        "employee.cleanup_failed",
+        "employee.log_leak_detected",
+        "employee.evidence_write_failed",
+        "employee.internal_failure"
+      ]
+    }
+  }
+}

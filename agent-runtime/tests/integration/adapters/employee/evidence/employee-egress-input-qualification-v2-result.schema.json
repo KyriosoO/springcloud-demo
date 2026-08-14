@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.agent.test/schemas/employee-egress-input-qualification-v2-result.schema.json",
+  "title": "Employee input qualification v2 finite result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackageId",
+    "gateId",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "recordedAt",
+    "status",
+    "selectionMode",
+    "codecMinimumFieldPresence",
+    "requiredUserResultFieldPresence",
+    "egressReason",
+    "counts",
+    "failure",
+    "lifecycle",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "workPackageId": {"const": "WP-EMP-EGRESS-INPUT-QUALIFY-02"},
+    "gateId": {"const": "GATE-049"},
+    "runId": {"const": "employee-egress-input-qualification-v2-20260814-candidate-02"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-049"},
+    "recordedAt": {"type": "string"},
+    "status": {"enum": ["qualified", "not_qualified", "failed"]},
+    "selectionMode": {"const": "read_only_database"},
+    "codecMinimumFieldPresence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idCardNo", "chineseName", "position", "workBaseSi"],
+      "properties": {
+        "idCardNo": {"type": "boolean"},
+        "chineseName": {"type": "boolean"},
+        "position": {"type": "boolean"},
+        "workBaseSi": {"type": "boolean"}
+      }
+    },
+    "requiredUserResultFieldPresence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["employeeIdMasked", "chineseName"],
+      "properties": {
+        "employeeIdMasked": {"type": "boolean"},
+        "chineseName": {"type": "boolean"}
+      }
+    },
+    "egressReason": {
+      "enum": [
+        "qualified",
+        "employee.no_qualified_input",
+        "employee.database_selection_failed",
+        "employee.request_failed",
+        "employee.result_invalid",
+        "business.egress_projection_invalid",
+        "employee.cleanup_failed",
+        "employee.log_leak_detected",
+        "employee.evidence_write_failed",
+        "employee.internal_failure"
+      ]
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "databaseSelectionStarted",
+        "databaseSelectionTerminal",
+        "databaseSelectionRows",
+        "employeeDetailStarted",
+        "employeeDetailTerminal",
+        "otherEmployeeEndpoints",
+        "modelCalls",
+        "retryCount",
+        "resumeCount"
+      ],
+      "properties": {
+        "databaseSelectionStarted": {"type": "integer", "minimum": 0, "maximum": 1},
+        "databaseSelectionTerminal": {"type": "integer", "minimum": 0, "maximum": 1},
+        "databaseSelectionRows": {"type": "integer", "minimum": 0, "maximum": 1},
+        "employeeDetailStarted": {"type": "integer", "minimum": 0, "maximum": 1},
+        "employeeDetailTerminal": {"type": "integer", "minimum": 0, "maximum": 1},
+        "otherEmployeeEndpoints": {"const": 0},
+        "modelCalls": {"const": 0},
+        "retryCount": {"const": 0},
+        "resumeCount": {"const": 0}
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "reason"],
+      "properties": {
+        "phase": {
+          "type": ["string", "null"],
+          "enum": [null, "database_selection", "employee_detail", "employee_result", "egress_projection", "cleanup", "internal"]
+        },
+        "reason": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "employee.no_qualified_input",
+            "employee.database_selection_failed",
+            "employee.request_failed",
+            "employee.result_invalid",
+            "business.egress_projection_invalid",
+            "employee.cleanup_failed",
+            "employee.log_leak_detected",
+            "employee.evidence_write_failed",
+            "employee.internal_failure"
+          ]
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recordCount", "sha256"],
+      "properties": {
+        "recordCount": {"type": "integer", "minimum": 2, "maximum": 6},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifierPersisted",
+        "jwtPersisted",
+        "fieldValuesPersisted",
+        "rawResponsePersisted",
+        "llmApiKeyRead",
+        "modelOutbound",
+        "logLeakCount",
+        "logScanCompleted",
+        "rawLogsDeleted"
+      ],
+      "properties": {
+        "identifierPersisted": {"const": false},
+        "jwtPersisted": {"const": false},
+        "fieldValuesPersisted": {"const": false},
+        "rawResponsePersisted": {"const": false},
+        "llmApiKeyRead": {"const": false},
+        "modelOutbound": {"const": false},
+        "logLeakCount": {"type": "integer", "minimum": 0},
+        "logScanCompleted": {"type": "boolean"},
+        "rawLogsDeleted": {"type": "boolean"}
+      }
+    }
+  }
+}
