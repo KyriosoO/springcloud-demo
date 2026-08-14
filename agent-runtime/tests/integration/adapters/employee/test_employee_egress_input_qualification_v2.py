@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -36,6 +37,13 @@ from tests.integration.adapters.employee.egress_input_qualification_v2 import (
 
 
 _MANIFEST_SHA = "a" * 64
+_FROZEN_PREPARATION_COMMIT = "7eef0e2cd533aa071e89cdcb78c747d8c4722a30"
+_CONSUMED_LIFECYCLE_SHA256 = (
+    "570295951f8bf1a109156c017c30609ca548bfba3f021bff4cd2825f978ac231"
+)
+_CONSUMED_RESULT_SHA256 = (
+    "7534b1d04a1512720dcbee1fe630114fb1f08bf9c3615dec1d2cb18bec4d5054"
+)
 
 
 def _success(*, position: str | None = "synthetic-position") -> CapabilityResult:
@@ -283,14 +291,43 @@ def test_schemas_are_strict_and_zero_model() -> None:
     }
 
 
-def test_frozen_manifest_authorization_history_and_no_live_outputs() -> None:
+def test_frozen_manifest_authorization_history_and_consumed_outputs(tmp_path: Path) -> None:
     repository = Path(__file__).parents[5]
     evidence = Path(__file__).parent / "evidence"
     manifest_path = evidence / f"{RUN_ID}.manifest.json"
     authorization_path = evidence / f"{RUN_ID}.authorization.json"
     manifest_sha = sha256_file(manifest_path)
+    manifest_value = load_strict_json(manifest_path)
+    assert type(manifest_value) is dict
 
-    manifest = validate_manifest(load_strict_json(manifest_path), repository_root=repository)
+    prepared_repository = tmp_path / "prepared-repository"
+    asset_groups = (
+        cast(dict[str, Any], manifest_value["retiredQualificationRun"])["assetHashes"],
+        manifest_value["employeeEgressHistory"],
+        manifest_value["assetHashes"],
+    )
+    for group in asset_groups:
+        assert type(group) is list
+        for untyped_asset in group:
+            asset = cast(dict[str, Any], untyped_asset)
+            relative_path = cast(str, asset["path"])
+            target = prepared_repository / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if relative_path == (
+                "agent-runtime/tests/integration/adapters/employee/"
+                "test_employee_egress_input_qualification_v2.py"
+            ):
+                frozen = subprocess.run(
+                    ["git", "show", f"{_FROZEN_PREPARATION_COMMIT}:{relative_path}"],
+                    cwd=repository,
+                    check=True,
+                    capture_output=True,
+                ).stdout
+                target.write_bytes(frozen)
+            else:
+                target.write_bytes((repository / relative_path).read_bytes())
+
+    manifest = validate_manifest(manifest_value, repository_root=prepared_repository)
     authorization = validate_authorization(
         load_strict_json(authorization_path), manifest_sha256=manifest_sha
     )
@@ -299,8 +336,14 @@ def test_frozen_manifest_authorization_history_and_no_live_outputs() -> None:
     assert authorization["liveExecutionAuthorized"] is False
     for _, path, digest in EMPLOYEE_EGRESS_HISTORY:
         assert sha256_file(repository / path) == digest
-    assert not (evidence / f"{RUN_ID}.lifecycle.jsonl").exists()
-    assert not (evidence / f"{RUN_ID}.result.json").exists()
+    lifecycle_path = evidence / f"{RUN_ID}.lifecycle.jsonl"
+    result_path = evidence / f"{RUN_ID}.result.json"
+    assert sha256_file(lifecycle_path) == _CONSUMED_LIFECYCLE_SHA256
+    assert sha256_file(result_path) == _CONSUMED_RESULT_SHA256
+    lifecycle = validate_lifecycle(lifecycle_path, manifest_sha256=manifest_sha)
+    assert lifecycle.run_status is QualificationRunStatus.NOT_QUALIFIED
+    assert lifecycle.failure_reason is QualificationReason.NO_QUALIFIED_INPUT
+    validate_result(load_strict_json(result_path))
 
 
 def test_launcher_requires_new_live_authorization_before_any_external_process() -> None:
