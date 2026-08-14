@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-EMP-EGRESS-01",
+  "gateId": "GATE-024",
+  "runId": "employee-egress-v1-20260813-candidate-01",
+  "status": "failed_before_model_outbound",
+  "recordedAt": "2026-08-14T00:52:22.784Z",
+  "manifestSha256": "c3cdfacd32797474f68e11758ec094df97a95d56fb0efed9355ccfaa6a145c57",
+  "authorizationReference": "P3_00:GATE-024",
+  "environmentDiagnosticEvidenceSha256": "2bc16cf63f3775d778925a5a5a66cfbae5138401e2f209e8288f4db076598a2c",
+  "temporaryBootstrapSha256": "c1503e09f68bc6c99bf410853eaa33126fcfae81af446cf7e81169d071c761ef",
+  "failure": {
+    "code": "employee.egress_candidate_execution_failed",
+    "window": "after isolated readiness, PID ownership and ADMIN login; before first model outbound",
+    "exactCauseAvailable": false,
+    "evidenceLimitation": "the live test creates its attempt journal only after Employee result and egress projection succeed, then its finally path validates that not-yet-created journal; the launcher retains only a generic safe failure code"
+  },
+  "authorization": {
+    "consumed": false,
+    "retryPerformed": false,
+    "resumePerformed": false,
+    "rerunAllowedByThisEvidence": false
+  },
+  "counts": {
+    "employeeDetailRequestsMinimum": 0,
+    "employeeDetailRequestsMaximum": 1,
+    "employeeDetailRequestsExactKnown": false,
+    "otherEmployeeEndpoints": 0,
+    "modelOutboundRequests": 0,
+    "paidModelRequests": 0,
+    "retryCount": 0,
+    "resumeCount": 0
+  },
+  "safety": {
+    "outerLogLeakCount": 0,
+    "rawServiceLogsDeleted": true,
+    "temporaryRunDirectoryDeleted": true,
+    "jwtPersisted": false,
+    "identifierPersisted": false,
+    "employeeDataPersisted": false,
+    "rawModelResponsePersisted": false
+  },
+  "gateDecision": {
+    "gate024": "Open",
+    "employeeScopeSaGate006": "Open",
+    "gate033": "Open",
+    "workPackage": "Blocked",
+    "reason": "no model outbound or valid live result; pre-model failure cause is not observable under the frozen candidate failure path"
+  }
+}
