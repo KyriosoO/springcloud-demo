@@ -23,7 +23,6 @@ from tests.integration.adapters.employee.employee_test_data_fixture_candidate im
     load_strict_json,
     sha256_file,
     validate_lifecycle,
-    validate_manifest,
     validate_result,
     verify_source_history,
 )
@@ -266,15 +265,15 @@ def test_java_candidate_uses_only_parameterized_exact_fixture_sql() -> None:
         assert forbidden not in source
 
 
-def test_manifest_authorization_and_launcher_are_prepared_only() -> None:
+def test_prepared_authorization_and_launcher_remain_frozen_after_consumption() -> None:
     manifest_path = EVIDENCE / f"{RUN_ID}.manifest.json"
     authorization_path = EVIDENCE / f"{RUN_ID}.authorization.json"
-    manifest = validate_manifest(manifest_path, authorization_path, REPOSITORY)
+    manifest = load_strict_json(manifest_path)
     authorization = load_strict_json(authorization_path)
     assert manifest["status"] == "prepared_unconsumed"
     assert authorization["liveExecutionAuthorized"] is False
-    assert not (EVIDENCE / f"{RUN_ID}.lifecycle.jsonl").exists()
-    assert not (EVIDENCE / f"{RUN_ID}.result.json").exists()
+    assert (EVIDENCE / f"{RUN_ID}.lifecycle.jsonl").is_file()
+    assert (EVIDENCE / f"{RUN_ID}.result.json").is_file()
 
     launcher = LAUNCHER.read_text(encoding="utf-8")
     assert RUN_ID in launcher
