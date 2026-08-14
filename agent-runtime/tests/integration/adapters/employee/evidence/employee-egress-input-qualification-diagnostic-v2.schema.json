@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-egress-input-qualification-diagnostic-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackageId",
+    "runId",
+    "recordedAt",
+    "status",
+    "sourceEvidence",
+    "counts",
+    "diagnosis",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackageId": { "const": "WP-EMP-EGRESS-INPUT-QUALIFY-DIAG-02" },
+    "runId": { "const": "employee-egress-input-qualification-diagnostic-v2-20260814-run-01" },
+    "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$" },
+    "status": { "const": "completed" },
+    "sourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateRunId", "candidateLifecycleSha256", "candidateResultSha256"],
+      "properties": {
+        "candidateRunId": { "const": "employee-egress-input-qualification-v2-20260814-candidate-02" },
+        "candidateLifecycleSha256": { "const": "570295951f8bf1a109156c017c30609ca548bfba3f021bff4cd2825f978ac231" },
+        "candidateResultSha256": { "const": "7534b1d04a1512720dcbee1fe630114fb1f08bf9c3615dec1d2cb18bec4d5054" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalRows",
+        "idCardNoCondition",
+        "chineseNameCondition",
+        "positionCondition",
+        "workBaseSiCondition",
+        "cumulativeIdCardNo",
+        "cumulativeChineseName",
+        "cumulativePosition",
+        "cumulativeWorkBaseSi",
+        "aggregateQueries",
+        "resultRows",
+        "employeeDetailCalls",
+        "otherEmployeeEndpointCalls",
+        "modelCalls",
+        "retryCount",
+        "resumeCount"
+      ],
+      "properties": {
+        "totalRows": { "type": "integer", "minimum": 0 },
+        "idCardNoCondition": { "type": "integer", "minimum": 0 },
+        "chineseNameCondition": { "type": "integer", "minimum": 0 },
+        "positionCondition": { "type": "integer", "minimum": 0 },
+        "workBaseSiCondition": { "type": "integer", "minimum": 0 },
+        "cumulativeIdCardNo": { "type": "integer", "minimum": 0 },
+        "cumulativeChineseName": { "type": "integer", "minimum": 0 },
+        "cumulativePosition": { "type": "integer", "minimum": 0 },
+        "cumulativeWorkBaseSi": { "type": "integer", "minimum": 0 },
+        "aggregateQueries": { "const": 1 },
+        "resultRows": { "const": 1 },
+        "employeeDetailCalls": { "const": 0 },
+        "otherEmployeeEndpointCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "retryCount": { "const": 0 },
+        "resumeCount": { "const": 0 }
+      }
+    },
+    "diagnosis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "qualifiedInputAvailable", "firstZeroStage"],
+      "properties": {
+        "reason": { "enum": ["qualified_input_available", "no_qualified_input"] },
+        "qualifiedInputAvailable": { "type": "boolean" },
+        "firstZeroStage": {
+          "enum": ["none", "total_records", "id_card_no", "chinese_name", "position", "work_base_si"]
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifierPersisted",
+        "fieldValuesPersisted",
+        "rawRowsPersisted",
+        "jwtRead",
+        "llmApiKeyRead",
+        "modelOutbound",
+        "logLeakCount",
+        "rawLogsDeleted"
+      ],
+      "properties": {
+        "identifierPersisted": { "const": false },
+        "fieldValuesPersisted": { "const": false },
+        "rawRowsPersisted": { "const": false },
+        "jwtRead": { "const": false },
+        "llmApiKeyRead": { "const": false },
+        "modelOutbound": { "const": false },
+        "logLeakCount": { "const": 0 },
+        "rawLogsDeleted": { "const": true }
+      }
+    }
+  }
+}
