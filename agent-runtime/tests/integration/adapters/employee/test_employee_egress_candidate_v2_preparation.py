@@ -20,6 +20,7 @@ from tests.integration.adapters.employee.egress_candidate_v2 import (
     load_strict_json,
     sha256_file,
     validate_authorization,
+    validate_employee_egress_lifecycle_v2,
     validate_live_evidence,
     validate_manifest,
 )
@@ -35,6 +36,8 @@ LIFECYCLE = EVIDENCE / f"{RUN_ID}.lifecycle.jsonl"
 CONSUMED = EVIDENCE / f"{RUN_ID}.authorization.consumed.json"
 RESULT = EVIDENCE / f"{RUN_ID}.result.json"
 MANIFEST_SHA256 = "28cd7b04b0700b43e5feed7bdef22e9da0494cd941e2e9f96b698a75b21b03b1"
+LIFECYCLE_SHA256 = "15982e15d454795d7052215ad46221b6f85cc26726ca0267a597f6d6002ec679"
+RESULT_SHA256 = "dd8a5bac1586da4e44cc6a583c07289a91012bc34892f848ffb4a0241ae7561d"
 
 
 def _failed_evidence(*, consumed: bool) -> dict[str, Any]:
@@ -108,9 +111,28 @@ def test_candidate02_manifest_authorization_and_assets_are_frozen() -> None:
     )
     assert len(manifest["assetHashes"]) == 24
     assert len(manifest["candidate01History"]) == 4
-    assert not LIFECYCLE.exists()
     assert not CONSUMED.exists()
-    assert not RESULT.exists()
+    assert sha256_file(LIFECYCLE) == LIFECYCLE_SHA256
+    assert sha256_file(RESULT) == RESULT_SHA256
+    lifecycle = validate_employee_egress_lifecycle_v2(
+        LIFECYCLE,
+        consumed_path=CONSUMED,
+        manifest_sha256=MANIFEST_SHA256,
+    )
+    result = validate_live_evidence(load_strict_json(RESULT))
+    assert lifecycle.run_status == "failed_unconsumed"
+    assert lifecycle.employee_detail_requests == 1
+    assert lifecycle.model_outbound_calls == 0
+    assert lifecycle.authorization_consumed is False
+    assert result["status"] == "failed_unconsumed"
+    assert result["failure"] == {
+        "phase": "egress_projection",
+        "reason": "egress_projection_invalid",
+    }
+    assert result["lifecycleJournal"] == {
+        "recordCount": lifecycle.record_count,
+        "sha256": LIFECYCLE_SHA256,
+    }
 
 
 def test_v2_evidence_schema_and_python_validator_keep_three_terminal_states_strict() -> None:

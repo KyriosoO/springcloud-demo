@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.agent.test/schemas/employee-egress-input-qualification-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackageId",
+    "runId",
+    "selectionMode",
+    "status",
+    "fieldPresence",
+    "egressReason",
+    "requestCounts",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "workPackageId": {"const": "WP-EMP-EGRESS-INPUT-QUALIFY-01"},
+    "runId": {"const": "employee-egress-input-qualification-v1-20260814-candidate-01"},
+    "selectionMode": {"enum": ["maintainer_confirmed", "read_only_database"]},
+    "status": {"enum": ["qualified", "not_qualified", "failed"]},
+    "fieldPresence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "workBaseSi"],
+      "properties": {
+        "position": {"type": "boolean"},
+        "workBaseSi": {"type": "boolean"}
+      }
+    },
+    "egressReason": {
+      "enum": [
+        "qualified",
+        "employee.no_qualified_input",
+        "business.no_model_fields",
+        "business.egress_disabled",
+        "business.policy_conflict",
+        "employee.result_invalid",
+        "employee.request_failed"
+      ]
+    },
+    "requestCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["databaseSelectionRows", "employeeDetail", "otherEmployeeEndpoints", "model"],
+      "properties": {
+        "databaseSelectionRows": {"type": "integer", "minimum": 0, "maximum": 1},
+        "employeeDetail": {"type": "integer", "minimum": 0, "maximum": 1},
+        "otherEmployeeEndpoints": {"const": 0},
+        "model": {"const": 0}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifierPersisted",
+        "jwtPersisted",
+        "fieldValuesPersisted",
+        "rawResponsePersisted",
+        "llmApiKeyRead",
+        "modelOutbound",
+        "logLeakCount",
+        "rawLogsDeleted"
+      ],
+      "properties": {
+        "identifierPersisted": {"const": false},
+        "jwtPersisted": {"const": false},
+        "fieldValuesPersisted": {"const": false},
+        "rawResponsePersisted": {"const": false},
+        "llmApiKeyRead": {"const": false},
+        "modelOutbound": {"const": false},
+        "logLeakCount": {"const": 0},
+        "rawLogsDeleted": {"const": true}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "qualified"}}},
+      "then": {
+        "properties": {
+          "fieldPresence": {
+            "properties": {
+              "position": {"const": true},
+              "workBaseSi": {"const": true}
+            }
+          },
+          "egressReason": {"const": "qualified"},
+          "requestCounts": {"properties": {"employeeDetail": {"const": 1}}}
+        }
+      }
+    }
+  ]
+}
