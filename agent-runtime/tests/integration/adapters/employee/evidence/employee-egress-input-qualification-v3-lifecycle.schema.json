@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Employee egress input qualification v3 lifecycle record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "gateId", "runId", "manifestSha256", "authorizationReference", "sequence", "phase", "state", "reason"],
+  "properties": {
+    "schemaVersion": {"const": 3},
+    "workPackageId": {"const": "WP-EMP-EGRESS-INPUT-QUALIFY-03"},
+    "gateId": {"const": "GATE-049"},
+    "runId": {"const": "employee-egress-input-qualification-v3-20260814-candidate-03"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-049"},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 16},
+    "phase": {"enum": ["run", "fixture_precheck", "fixture_insert", "fixture_verify", "employee_detail", "cleanup_delete", "cleanup_verify", "host_validation"]},
+    "state": {"enum": ["started", "succeeded", "failed"]},
+    "reason": {"enum": ["none", "identifier_conflict", "database_operation_failed", "insert_count_invalid", "fingerprint_mismatch", "employee_request_failed", "employee_result_invalid", "egress_projection_invalid", "cleanup_count_invalid", "cleanup_verification_failed", "host_execution_failed", "log_leak_detected"]}
+  }
+}

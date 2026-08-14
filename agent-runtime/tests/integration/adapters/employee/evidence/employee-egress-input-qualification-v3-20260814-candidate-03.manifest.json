@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 3,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-INPUT-QUALIFY-03-PREP",
+  "workPackageId": "WP-EMP-EGRESS-INPUT-QUALIFY-03",
+  "gateId": "GATE-049",
+  "runId": "employee-egress-input-qualification-v3-20260814-candidate-03",
+  "authorizationReference": "P3_00:GATE-049",
+  "preparedAt": "2026-08-14T12:00:00Z",
+  "budgets": {
+    "databaseSelect": 3,
+    "databaseInsert": 1,
+    "databaseDelete": 1,
+    "employeeDetail": 1,
+    "model": 0,
+    "retry": 0,
+    "resume": 0
+  },
+  "outputPaths": {
+    "lifecycle": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v3-20260814-candidate-03.lifecycle.jsonl",
+    "result": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v3-20260814-candidate-03.result.json"
+  },
+  "history": [
+    {"kind": "qualification_v2_manifest", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v2-20260814-candidate-02.manifest.json", "sha256": "6d853ecee412a734f111d1d30740a703fe0343593560b7b01ed4c5194dfdb66f"},
+    {"kind": "qualification_v2_authorization", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v2-20260814-candidate-02.authorization.json", "sha256": "c49f3bc23b6131506431b98697bb9dd35bc2d33200b29a1e507d845c95b587e1"},
+    {"kind": "qualification_v2_lifecycle", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v2-20260814-candidate-02.lifecycle.jsonl", "sha256": "570295951f8bf1a109156c017c30609ca548bfba3f021bff4cd2825f978ac231"},
+    {"kind": "qualification_v2_result", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v2-20260814-candidate-02.result.json", "sha256": "7534b1d04a1512720dcbee1fe630114fb1f08bf9c3615dec1d2cb18bec4d5054"},
+    {"kind": "fixture_v1_manifest", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-synthetic-fixture-v1-20260814-candidate-01.manifest.json", "sha256": "e0c74e5a21d4b80c292cf20266227f7c8f1a11037d1816a6513f6de604e98b11"},
+    {"kind": "fixture_v1_authorization", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-synthetic-fixture-v1-20260814-candidate-01.authorization.json", "sha256": "00e44c6df2d04edbc03ee9eaa51541041b6263a73bc91c3fdf9ed57bf11c3a2f"},
+    {"kind": "fixture_v1_lifecycle", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-synthetic-fixture-v1-20260814-candidate-01.lifecycle.jsonl", "sha256": "4d5ab81e68d24ac76a7c1d6f7b1a57204b7cb81c99f40f93afe444f4077f5b6c"},
+    {"kind": "fixture_v1_result", "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-synthetic-fixture-v1-20260814-candidate-01.result.json", "sha256": "f0003ec559fa4606edda2982f0ae6878bfa066262168236128705d0c40aa0e4a"}
+  ],
+  "assetHashes": [
+    {"path": "agent-runtime/scripts/run-employee-egress-input-qualification-candidate-03.ps1", "sha256": "ffb6ac9df5c7d2c893694c0af2ab4d2e1c5bfd0b9cd40ce0c275fdca90eb3a28"},
+    {"path": "agent-runtime/tests/integration/adapters/employee/egress_input_qualification_v3.py", "sha256": "4a0a11032fa9b0a2bd8116f4a28a6fd910f4a3068aa7e53e7a8fb1f5cfe74adb"},
+    {"path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v3-lifecycle.schema.json", "sha256": "c7a95ea9fe76e10506e501a47cc4f88fd79f39224d4b1a52587470c7d17f8e27"},
+    {"path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v3-result.schema.json", "sha256": "830ef3dd2dfd97c7af34fd93ed3313d1d217cdc715d4e5f01fdd6021397ffc00"},
+    {"path": "agent-runtime/tests/integration/adapters/employee/test_employee_egress_input_qualification_v3.py", "sha256": "6454f868e3d533d6384681c4d3905f42e713ca67872a29239f6fad8d0b8eb454"},
+    {"path": "agent-runtime/tests/integration/adapters/employee/test_real_employee_egress_input_qualification_v3.py", "sha256": "610db99d4b8a47ba9ca6543f3e3c37b3f89ec8475c361f68a2d187ced864f945"},
+    {"path": "employee-service/src/test/java/com/dylan/employee/live/EmployeeEgressInputQualificationV3LiveIntegrationTest.java", "sha256": "56721aaa34d55f5b2af08df46a0c9e07bbfb32af5ad695eedeaf278b96ac9159"}
+  ]
+}
