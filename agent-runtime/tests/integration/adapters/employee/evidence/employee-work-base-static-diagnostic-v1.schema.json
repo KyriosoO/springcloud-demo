@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "employee-work-base-static-diagnostic-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workPackageId",
+    "runId",
+    "recordedAt",
+    "status",
+    "sourceEvidence",
+    "sourceFiles",
+    "mapping",
+    "writeSources",
+    "repositoryAssets",
+    "diagnosis",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workPackageId": { "const": "WP-EMP-EGRESS-WORK-BASE-DIAG-01" },
+    "runId": { "const": "employee-work-base-static-diagnostic-v1-20260814-run-01" },
+    "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$" },
+    "status": { "const": "completed_with_static_limit" },
+    "sourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "totalRows", "workBaseSiValidRows"],
+      "properties": {
+        "path": { "const": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-diagnostic-v2-20260814-run-01.json" },
+        "sha256": { "const": "f23115069adaa0bfedcfdb01b7f0889acb079961319db3c44547549ca088c46f" },
+        "totalRows": { "const": 990 },
+        "workBaseSiValidRows": { "const": 0 }
+      }
+    },
+    "sourceFiles": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityProperty", "entityGetter", "entitySetter", "resultMap", "selectColumn", "insertColumn", "updateColumn", "priorAggregateDirectColumn"],
+      "properties": {
+        "entityProperty": { "const": true },
+        "entityGetter": { "const": true },
+        "entitySetter": { "const": true },
+        "resultMap": { "const": true },
+        "selectColumn": { "const": true },
+        "insertColumn": { "const": true },
+        "updateColumn": { "const": true },
+        "priorAggregateDirectColumn": { "const": true }
+      }
+    },
+    "writeSources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controllerUsesMapPayload", "serviceUsesMapPayload", "insertWritesOnlyPresentKey", "updateWritesOnlyPresentKey", "typedWriteRequestDto", "workBaseRequiredValidation", "workBaseDefaulting", "workBaseBackfill", "esRebuildIsDownstream"],
+      "properties": {
+        "controllerUsesMapPayload": { "const": true },
+        "serviceUsesMapPayload": { "const": true },
+        "insertWritesOnlyPresentKey": { "const": true },
+        "updateWritesOnlyPresentKey": { "const": true },
+        "typedWriteRequestDto": { "const": false },
+        "workBaseRequiredValidation": { "const": false },
+        "workBaseDefaulting": { "const": false },
+        "workBaseBackfill": { "const": false },
+        "esRebuildIsDownstream": { "const": true }
+      }
+    },
+    "repositoryAssets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["employeeDdlAssets", "employeeDataAssets", "employeeInitializationComponents", "employeeImportComponents", "employeeBackfillComponents"],
+      "properties": {
+        "employeeDdlAssets": { "const": 0 },
+        "employeeDataAssets": { "const": 0 },
+        "employeeInitializationComponents": { "const": 0 },
+        "employeeImportComponents": { "const": 0 },
+        "employeeBackfillComponents": { "const": 0 }
+      }
+    },
+    "diagnosis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "readMappingCauseExcluded", "physicalColumnDefinition", "rawValueDistribution", "confidence", "nextStep"],
+      "properties": {
+        "reason": { "const": "data_population_provenance_gap" },
+        "readMappingCauseExcluded": { "const": true },
+        "physicalColumnDefinition": { "const": "not_versioned" },
+        "rawValueDistribution": { "const": "not_observable_without_separate_query" },
+        "confidence": { "const": "strong_static_mapping_limited_physical_state" },
+        "nextStep": { "const": "separate_metadata_and_aggregate_authorization_required" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["databaseQueries", "employeeEndpointCalls", "serviceStarts", "modelCalls", "jwtRead", "llmApiKeyRead", "identifiersPersisted", "fieldValuesPersisted"],
+      "properties": {
+        "databaseQueries": { "const": 0 },
+        "employeeEndpointCalls": { "const": 0 },
+        "serviceStarts": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "jwtRead": { "const": false },
+        "llmApiKeyRead": { "const": false },
+        "identifiersPersisted": { "const": false },
+        "fieldValuesPersisted": { "const": false }
+      }
+    }
+  }
+}

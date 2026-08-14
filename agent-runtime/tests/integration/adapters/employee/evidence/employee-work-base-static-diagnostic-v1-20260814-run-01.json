@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-EMP-EGRESS-WORK-BASE-DIAG-01",
+  "runId": "employee-work-base-static-diagnostic-v1-20260814-run-01",
+  "recordedAt": "2026-08-14T05:25:19Z",
+  "status": "completed_with_static_limit",
+  "sourceEvidence": {
+    "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-diagnostic-v2-20260814-run-01.json",
+    "sha256": "f23115069adaa0bfedcfdb01b7f0889acb079961319db3c44547549ca088c46f",
+    "totalRows": 990,
+    "workBaseSiValidRows": 0
+  },
+  "sourceFiles": [
+    {"path": "employee-service/src/main/java/com/dylan/employee/model/Employee.java", "sha256": "680238f6773c28e9d830503441be4e069c2f2f70ba4bedb1d32f5a1046abd5b7"},
+    {"path": "employee-service/src/main/java/com/dylan/employee/mapper/EmployeeMapper.java", "sha256": "a8296dc6ebbb8763dd6b7972f350ae4aea78a3cb3780ec0057f481a89471c4dc"},
+    {"path": "employee-service/src/main/java/com/dylan/employee/mapper/EmployeeSqlProvider.java", "sha256": "372cae00185752cc57ad3409453cfc2522b05ab2a832b05f7938584a502aaa68"},
+    {"path": "employee-service/src/main/java/com/dylan/employee/service/EmployeeService.java", "sha256": "350484f3fd5f9a9085759a671d5112a822a4cc7956e608d4d2b85326a1a17bf2"},
+    {"path": "employee-service/src/main/java/com/dylan/employee/controller/EmployeeController.java", "sha256": "75aa9c2eff20f42790b605f811efe41a7352cd7441bb9a90911d03142d88cf3a"},
+    {"path": "employee-service/src/main/resources/static/employee-workflow.html", "sha256": "844b4c362878f0d2a4acfa1ad241e665201ddfa7f0e58dc45359aea505bbebd3"},
+    {"path": "employee-service/README.md", "sha256": "1956d3a31338ace3602b9f11bbdd8c6e592381322b9972a3c16106ebd719aec8"},
+    {"path": "scripts/migration/off-03a-employee-index-rebuild.ps1", "sha256": "1be57cc0f84e04fea28c0973a1e79da5aef1479444833b514c5cc9dffff18632"},
+    {"path": "employee-service/src/test/java/com/dylan/employee/live/EmployeeEgressInputQualificationDiagnosticV2LiveIntegrationTest.java", "sha256": "564f71c0ffa76223db8dac3da755e9a7650513c8dda54eee0a4205215f89e6da"}
+  ],
+  "mapping": {
+    "entityProperty": true,
+    "entityGetter": true,
+    "entitySetter": true,
+    "resultMap": true,
+    "selectColumn": true,
+    "insertColumn": true,
+    "updateColumn": true,
+    "priorAggregateDirectColumn": true
+  },
+  "writeSources": {
+    "controllerUsesMapPayload": true,
+    "serviceUsesMapPayload": true,
+    "insertWritesOnlyPresentKey": true,
+    "updateWritesOnlyPresentKey": true,
+    "typedWriteRequestDto": false,
+    "workBaseRequiredValidation": false,
+    "workBaseDefaulting": false,
+    "workBaseBackfill": false,
+    "esRebuildIsDownstream": true
+  },
+  "repositoryAssets": {
+    "employeeDdlAssets": 0,
+    "employeeDataAssets": 0,
+    "employeeInitializationComponents": 0,
+    "employeeImportComponents": 0,
+    "employeeBackfillComponents": 0
+  },
+  "diagnosis": {
+    "reason": "data_population_provenance_gap",
+    "readMappingCauseExcluded": true,
+    "physicalColumnDefinition": "not_versioned",
+    "rawValueDistribution": "not_observable_without_separate_query",
+    "confidence": "strong_static_mapping_limited_physical_state",
+    "nextStep": "separate_metadata_and_aggregate_authorization_required"
+  },
+  "safety": {
+    "databaseQueries": 0,
+    "employeeEndpointCalls": 0,
+    "serviceStarts": 0,
+    "modelCalls": 0,
+    "jwtRead": false,
+    "llmApiKeyRead": false,
+    "identifiersPersisted": false,
+    "fieldValuesPersisted": false
+  }
+}
