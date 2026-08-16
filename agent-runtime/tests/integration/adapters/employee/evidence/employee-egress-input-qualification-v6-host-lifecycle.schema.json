@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Employee qualification v6 host lifecycle record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "gateId", "runId", "manifestSha256", "authorizationReference", "sequence", "phase", "state", "reason"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "workPackageId": {"const": "WP-EMP-EGRESS-INPUT-QUALIFY-06"},
+    "gateId": {"const": "GATE-049"},
+    "runId": {"const": "employee-egress-input-qualification-v6-20260816-candidate-06"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-049"},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 4},
+    "phase": {"enum": ["host_bootstrap", "spring_context"]},
+    "state": {"enum": ["started", "succeeded", "failed"]},
+    "reason": {"enum": ["none", "spring_context_start_failed"]}
+  }
+}

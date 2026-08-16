@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from tests.integration.adapters.employee.egress_input_qualification_v5 import (
+    AUTHORIZATION_REFERENCE,
+    RUN_ID,
+    load_strict_json,
+    sha256_file,
+    validate_authorization,
+    validate_lifecycle,
+    validate_manifest,
+    validate_result,
+)
+from tests.integration.adapters.employee.egress_input_qualification_v5_host import (
+    validate_host_lifecycle,
+)
+
+
+REPOSITORY = Path(__file__).resolve().parents[5]
+EVIDENCE = Path(__file__).parent / "evidence"
+MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
+AUTHORIZATION = EVIDENCE / f"{RUN_ID}.authorization.json"
+HOST_LIFECYCLE = EVIDENCE / f"{RUN_ID}.host-lifecycle.jsonl"
+LIFECYCLE = EVIDENCE / f"{RUN_ID}.lifecycle.jsonl"
+RESULT = EVIDENCE / f"{RUN_ID}.result.json"
+
+EXPECTED_MANIFEST_SHA256 = "8b44a38ad6a02edd6db64b7c8e5fd02adee67a19ff1e9ef08e2ed3eb82f5ff74"
+EXPECTED_AUTHORIZATION_SHA256 = "c8e3a3c5b85994a446fd93e9b7d291a189d36a1016856e4acb8f3969cd2e1d72"
+EXPECTED_HOST_LIFECYCLE_SHA256 = "c0e8ef84d1deedb3adaaeca7866e87d278d4112248c775e45739e6dbb72eb51e"
+EXPECTED_LIFECYCLE_SHA256 = "442dfc7e88aa6a02689e0431805311e71e384ea19c53761da609b72b88ea318f"
+EXPECTED_RESULT_SHA256 = "f51915e067433dace3c0019dd85e99e7dde443204089fea6d078401df24a6690"
+
+
+def test_candidate_v5_prepared_and_consumed_assets_are_exact() -> None:
+    assert sha256_file(MANIFEST) == EXPECTED_MANIFEST_SHA256
+    assert sha256_file(AUTHORIZATION) == EXPECTED_AUTHORIZATION_SHA256
+    assert sha256_file(HOST_LIFECYCLE) == EXPECTED_HOST_LIFECYCLE_SHA256
+    assert sha256_file(LIFECYCLE) == EXPECTED_LIFECYCLE_SHA256
+    assert sha256_file(RESULT) == EXPECTED_RESULT_SHA256
+
+    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=REPOSITORY)
+    authorization = validate_authorization(
+        load_strict_json(AUTHORIZATION), manifest_sha256=EXPECTED_MANIFEST_SHA256
+    )
+    assert manifest["runId"] == RUN_ID
+    assert authorization["authorizationReference"] == AUTHORIZATION_REFERENCE
+    assert authorization["liveExecutionAuthorized"] is False
+
+
+def test_candidate_v5_failed_after_one_complete_safe_lifecycle() -> None:
+    host_records = validate_host_lifecycle(
+        HOST_LIFECYCLE, manifest_sha256=EXPECTED_MANIFEST_SHA256
+    )
+    lifecycle_records = validate_lifecycle(
+        LIFECYCLE, manifest_sha256=EXPECTED_MANIFEST_SHA256
+    )
+    result = validate_result(load_strict_json(RESULT))
+
+    assert len(host_records) == 4
+    assert host_records[-1]["state"] == "succeeded"
+    assert len(lifecycle_records) == 16
+    assert [
+        (record["sequence"], record["phase"], record["state"], record["reason"])
+        for record in lifecycle_records
+    ] == [
+        (1, "run", "started", "none"),
+        (2, "fixture_precheck", "started", "none"),
+        (3, "fixture_precheck", "succeeded", "none"),
+        (4, "fixture_insert", "started", "none"),
+        (5, "fixture_insert", "succeeded", "none"),
+        (6, "fixture_verify", "started", "none"),
+        (7, "fixture_verify", "succeeded", "none"),
+        (8, "employee_detail", "started", "none"),
+        (9, "employee_detail", "succeeded", "none"),
+        (10, "cleanup_delete", "started", "none"),
+        (11, "cleanup_delete", "succeeded", "none"),
+        (12, "cleanup_verify", "started", "none"),
+        (13, "cleanup_verify", "succeeded", "none"),
+        (14, "host_validation", "started", "none"),
+        (15, "host_validation", "succeeded", "none"),
+        (16, "run", "failed", "employee_result_invalid"),
+    ]
+    assert result["status"] == "failed"
+    assert result["reason"] == "employee_result_invalid"
+    assert result["lifecycleSha256"] == EXPECTED_LIFECYCLE_SHA256
+    assert result["counts"] == {
+        "databaseDeleteStarted": 1,
+        "databaseDeleteTerminal": 1,
+        "databaseInsertStarted": 1,
+        "databaseInsertTerminal": 1,
+        "databaseSelectStarted": 3,
+        "databaseSelectTerminal": 3,
+        "deleted": 1,
+        "employeeDetailStarted": 1,
+        "employeeDetailTerminal": 1,
+        "inserted": 1,
+        "modelCalls": 0,
+        "otherEmployeeEndpoints": 0,
+        "preexisting": 0,
+        "remaining": 0,
+        "resumeCount": 0,
+        "retryCount": 0,
+        "verified": 1,
+    }
+    assert not any(result["fieldPresence"]["codec"].values())
+    assert not any(result["fieldPresence"]["requiredUser"].values())
+    assert result["fieldPresence"]["egressAllowed"] is False
+    assert result["safety"] == {
+        "existingRowsModified": 0,
+        "fieldValuesPersisted": False,
+        "identifierPersisted": False,
+        "jwtPersisted": False,
+        "llmApiKeyRead": False,
+        "logLeakCount": 0,
+        "modelOutbound": False,
+        "nonRealIdentifier": True,
+        "rawLogsDeleted": True,
+        "rawResponsePersisted": False,
+        "synthetic": True,
+    }
+
+    for suffix in ("pre-sql-failure.json", "pending.json", "qualification-staging.json"):
+        assert not (EVIDENCE / f"{RUN_ID}.{suffix}").exists()
