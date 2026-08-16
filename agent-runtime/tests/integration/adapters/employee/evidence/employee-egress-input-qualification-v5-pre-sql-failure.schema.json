@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Employee qualification v5 pre-SQL failure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackageId", "gateId", "runId", "manifestSha256", "authorizationReference", "status", "reason", "hostExitCode", "counts", "safety", "hostLifecycleSha256"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "workPackageId": {"const": "WP-EMP-EGRESS-INPUT-QUALIFY-05"},
+    "gateId": {"const": "GATE-049"},
+    "runId": {"const": "employee-egress-input-qualification-v5-20260816-candidate-05"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-049"},
+    "status": {"const": "failed_unconsumed"},
+    "reason": {"const": "spring_context_start_failed"},
+    "hostExitCode": {"type": "integer"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["firstSqlStarted", "databaseSelectStarted", "databaseInsertStarted", "databaseDeleteStarted", "employeeDetailStarted", "modelCalls", "retryCount", "resumeCount"],
+      "properties": {
+        "firstSqlStarted": {"const": 0},
+        "databaseSelectStarted": {"const": 0},
+        "databaseInsertStarted": {"const": 0},
+        "databaseDeleteStarted": {"const": 0},
+        "employeeDetailStarted": {"const": 0},
+        "modelCalls": {"const": 0},
+        "retryCount": {"const": 0},
+        "resumeCount": {"const": 0}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logLeakCount", "rawLogsDeleted", "jwtPersisted", "hmacPersisted", "employeeIdentifierPersisted", "employeeFieldValuePersisted", "rawResponsePersisted"],
+      "properties": {
+        "logLeakCount": {"type": "integer", "minimum": 0},
+        "rawLogsDeleted": {"const": true},
+        "jwtPersisted": {"const": false},
+        "hmacPersisted": {"const": false},
+        "employeeIdentifierPersisted": {"const": false},
+        "employeeFieldValuePersisted": {"const": false},
+        "rawResponsePersisted": {"const": false}
+      }
+    },
+    "hostLifecycleSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
