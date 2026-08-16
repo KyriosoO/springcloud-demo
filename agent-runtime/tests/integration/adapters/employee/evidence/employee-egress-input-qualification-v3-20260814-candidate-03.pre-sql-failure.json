@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-EMP-EGRESS-INPUT-QUALIFY-03",
+  "gateId": "GATE-049",
+  "runId": "employee-egress-input-qualification-v3-20260814-candidate-03",
+  "manifestSha256": "495063a328af6a233f5600bd4efff31fdae5ab4e28aad8287bfce194051680dd",
+  "authorizationReference": "P3_00:GATE-049",
+  "status": "failed_unconsumed",
+  "reason": "spring_boot_configuration_ambiguous",
+  "recordedAtUtc": "2026-08-16T05:34:54.737Z",
+  "execution": {
+    "launcherStarted": true,
+    "launcherExitCode": 1,
+    "lifecycleCreated": false,
+    "resultCreated": false,
+    "firstSqlStarted": false,
+    "databaseSelectStarted": 0,
+    "databaseInsertStarted": 0,
+    "databaseDeleteStarted": 0,
+    "employeeDetailStarted": 0,
+    "modelCalls": 0,
+    "retryCount": 0,
+    "resumeCount": 0
+  },
+  "diagnostic": {
+    "exceptionType": "java.lang.IllegalStateException",
+    "classification": "multiple_spring_boot_configuration",
+    "conflictingConfigurationCount": 5,
+    "minimumFixLocation": "EmployeeEgressInputQualificationV3LiveIntegrationTest.SpringBootTest.classes"
+  },
+  "safety": {
+    "logLeakCount": 0,
+    "forbiddenFieldCount": 0,
+    "rawLogsDeleted": true,
+    "jwtPersisted": false,
+    "hmacPersisted": false,
+    "employeeIdentifierPersisted": false,
+    "employeeFieldValuePersisted": false
+  },
+  "deletedRawReportHashes": {
+    "surefireXmlSha256": "3236ac84d561e43e2fc354d78beaf366ee9ab42e91581e4d9141cfddef56e82b",
+    "surefireTextSha256": "ba50c8ad3794daa4167fac6eda97b6b901c305f92f5d6e63ff27a022bba11ba0"
+  }
+}

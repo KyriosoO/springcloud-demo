@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 4,
+  "status": "prepared_unconsumed",
+  "workPackageId": "WP-EMP-EGRESS-INPUT-QUALIFY-04",
+  "gateId": "GATE-049",
+  "runId": "employee-egress-input-qualification-v4-20260816-candidate-04",
+  "manifestSha256": "7dcae58a2a503a97fe89de0d01e63cb0450ccb0dd5945e4da5947d2df0875bb9",
+  "authorizationReference": "P3_00:GATE-049",
+  "budgets": {
+    "databaseSelect": 3,
+    "databaseInsert": 1,
+    "databaseDelete": 1,
+    "employeeDetail": 1,
+    "model": 0,
+    "retry": 0,
+    "resume": 0
+  },
+  "liveExecutionAuthorized": false,
+  "confirmedBy": "project-maintainer-pending-gate-049-live-authorization",
+  "preparedAt": "2026-08-16T06:00:00Z"
+}
