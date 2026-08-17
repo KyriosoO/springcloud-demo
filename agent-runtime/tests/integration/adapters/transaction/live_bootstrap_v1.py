@@ -41,6 +41,29 @@ DATASOURCE_PATHS: Final = (
     "spring.datasource.password",
     "spring.datasource.driver-class-name",
 )
+BOOTSTRAP_ASSET_PATHS: Final = frozenset(
+    {
+        "agent-runtime/scripts/run-transaction-egress-live-bootstrap-candidate-01.ps1",
+        "agent-runtime/tests/integration/adapters/business_egress_live_bootstrap.py",
+        "agent-runtime/tests/integration/adapters/test_business_egress_live_bootstrap.py",
+        "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-lifecycle.schema.json",
+        "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-result.schema.json",
+        "agent-runtime/tests/integration/adapters/transaction/live_bootstrap_v1.py",
+        "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v1.py",
+        "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v1_history.py",
+    }
+)
+BOOTSTRAP_HISTORY_PATHS: Final = frozenset(
+    {
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.bootstrap-failure.json",
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.manifest.json",
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.authorization.json",
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.host-preflight.jsonl",
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.host-result.json",
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.lifecycle.jsonl",
+        "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.result.json",
+    }
+)
 
 
 def evidence_directory(repository_root: Path) -> Path:

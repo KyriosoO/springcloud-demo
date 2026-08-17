@@ -32,6 +32,28 @@ CANDIDATE_AUTHORIZATION_SHA256: Final = (
     "fd14adc193244a4a91c785b2eb10710fa0c08cb81107d630164ee8fb7228e0d2"
 )
 AUTH_PORT: Final = 8090
+BOOTSTRAP_ASSET_PATHS: Final = frozenset(
+    {
+        "agent-runtime/scripts/run-employee-egress-live-host-candidate-01.ps1",
+        "agent-runtime/tests/integration/adapters/business_egress_live_bootstrap.py",
+        "agent-runtime/tests/integration/adapters/test_business_egress_live_bootstrap.py",
+        "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-lifecycle.schema.json",
+        "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-result.schema.json",
+        "agent-runtime/tests/integration/adapters/employee/live_bootstrap_v1.py",
+        "agent-runtime/tests/integration/adapters/employee/test_employee_live_bootstrap_v1.py",
+        "agent-runtime/tests/integration/adapters/employee/test_employee_live_bootstrap_v1_history.py",
+    }
+)
+BOOTSTRAP_HISTORY_PATHS: Final = frozenset(
+    {
+        "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-egress-env-diag-01-20260814T004517Z.json",
+        "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.manifest.json",
+        "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.authorization.json",
+        "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.lifecycle.jsonl",
+        "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.authorization.consumed.json",
+        "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.result.json",
+    }
+)
 
 
 def evidence_directory(repository_root: Path) -> Path:
