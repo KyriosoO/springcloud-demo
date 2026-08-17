@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 2,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-TXN-EGRESS-CANDIDATE-02-PREP",
+  "workPackageId": "WP-TXN-EGRESS-01",
+  "gateId": "GATE-026",
+  "runId": "transaction-egress-v2-20260817-candidate-02",
+  "authorizationReference": "P3_00:GATE-026",
+  "preparedAt": "2026-08-17T00:00:00Z",
+  "inputContractVersion": "transaction-search-type-equality-v1",
+  "executionBoundary": {
+    "transactionSearchMaximum": 1,
+    "paidAnswerMaximum": 30,
+    "minimumValidAnswers": 27,
+    "modelVisibleFieldIds": [
+      "transaction_type",
+      "amount"
+    ],
+    "liveExecutionAuthorized": false,
+    "transactionAccessAuthorized": false,
+    "modelAccessAuthorized": false,
+    "retryAllowed": false,
+    "resumeAllowed": false
+  },
+  "history": [
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v1-20260814-candidate-01.authorization.json",
+      "sha256": "067b7d79f7e7e3d744e79a670378c9219aecf795b570522f7bd98335a09cc038"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v1-20260814-candidate-01.manifest.json",
+      "sha256": "dba4610cc0e578e65c45b49b288ce9d4b74b90eea9f9d05609e7935dd2feac44"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/evidence/wp-txn-real-01-20260806T134518Z.json",
+      "sha256": "1109da47183a822c9ad82fbcc2ef3619163a8089d8f0f420d045e0d30d80f7d1"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_egress_candidate_history.py",
+      "sha256": "ce0aeb534062eeb3244250fdb73f1e9ec0832ffd31ef75994930f97cd02e372a"
+    }
+  ],
+  "assetHashes": [
+    {
+      "path": "agent-runtime/scripts/run-transaction-egress-live-candidate-02.ps1",
+      "sha256": "a378058ccb051d360e708c4c5a3787c9e0d9309275aee61e974baecbd2de3076"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/transaction/codec.py",
+      "sha256": "dcfa85791b4716ac212243678ced1173a74482d6f0cb1eb9687c365a9e420c0b"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/transaction/definition.py",
+      "sha256": "6ae0decc2884a970eea7fb646733f298ad91c3ac2330b5d5de9d9fccb3ada99e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/transaction/fields.py",
+      "sha256": "e3163ce2f3f6b448c8a92e46a30233b42fd4eadd2a8072f35ce67a78b660fa3d"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/transaction/normalizer.py",
+      "sha256": "12cbee5b480b3437800611da3d963b4c42527c35a97f472b547e3c188616e5f5"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/transaction/settings.py",
+      "sha256": "8a775dcb07d4431387e444e69300481a36b74ba67bc68e0939df9682f6ac169e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/bootstrap.py",
+      "sha256": "b2b50c6318189d883bfe8f81257f474060de448be1733db799bda4da5d76d3b0"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/egress.py",
+      "sha256": "a818681370cb12658da42c7e37a7cd762bfaf4c4591c5dfadf14e8fc3fc1ee82"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/grounding.py",
+      "sha256": "84300d19f01060591f661356e7fbdbcf743d304e04dd266379e67ef909170c5e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/handler.py",
+      "sha256": "5674a3080c6bac3c08de14d63d62d56c447c0dc1a9db278ce8fde4b8c36ccc36"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/http_client.py",
+      "sha256": "b27630c70c21acbbda37812ac6a7eabaa83bb503ee95f7d1beb407fd3a5412f1"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/settings.py",
+      "sha256": "1216aefeb8dcb57397d161f148dea422b53fb66346d5664fa2433cf6346a3eed"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/user_projection.py",
+      "sha256": "033ee5db3a23eaa6d375201d94c218d84cc64565cf9b25e9c5c14e86ff82a54f"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/deepseek/answer_generator_v2.py",
+      "sha256": "d98d66c0d327bc6129e3fcc48669461d94cc570575ed4cd07cedf474dd3a5c1f"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/deepseek/transport.py",
+      "sha256": "f12283c76d41c7fcaa6eb67b06128a3f76c1897a3206db8a6efd055ffcffc310"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/input_guard.py",
+      "sha256": "60effe5b917a981b4fa74d35739ffad4b72bdc95060fd248c557b46931dd3c18"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/question_policy.py",
+      "sha256": "b49daef5ea47670b0bdf3e51e211116b1ff1db3345660056fef3a7c0f376d5ba"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/settings.py",
+      "sha256": "3913c3c8d9969be1b39b61e230a708d7c51cd787c0bead807c4b203d3c5f7bf5"
+    },
+    {
+      "path": "agent-runtime/tests/helpers.py",
+      "sha256": "ec31b107d6d60494866d148e451c69d60d032b8efca80a71afec304094339bab"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/egress_candidate_v2.py",
+      "sha256": "39cbe17267c23541d085ef09dce65c20d0de513416f06422f56eb34054c320be"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-candidate-v2-lifecycle.schema.json",
+      "sha256": "e6debf593b040a371e60989d5de89bd4c0b44cc384c92b1739db65702673435e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-candidate-v2-result.schema.json",
+      "sha256": "3aff6eaf4dfc2ca1b34cd00dd4dc6d48050e8e6c52e7971371c1f817106064ac"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/test_real_transaction_egress_candidate_v2.py",
+      "sha256": "6d19f99fe74ded9a34e0bc0c9d2c8dc87fdf9112dabb0db4b7ea4a4be98f2971"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_egress_candidate_v2_harness.py",
+      "sha256": "ab2d48f1a8e3e200e4bba0cc179e8fbd76cdaeea9026b7880a5966bb3a9f7fc7"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_egress_candidate_v2_history.py",
+      "sha256": "8b2fed3c39a93549211e35b1960e5763463705bc89e593d448b14cf217076e28"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_egress_candidate_v2_preparation.py",
+      "sha256": "030a0e3d94bd6162d58e4ae4fbf323fbd2ec238192486efcfbb080d82c5934ef"
+    },
+    {
+      "path": "agent-runtime/tests/model_helpers.py",
+      "sha256": "af13baae620550dfc251523a7ba2b21ece71849f2047e250ca00b99ec9d92910"
+    },
+    {
+      "path": "agent-runtime/tests/unit/business/test_grounding.py",
+      "sha256": "50e6786f4e08cb6edd4cfe87c970f28f29f38c8d53a353a217579aea96653142"
+    },
+    {
+      "path": "agent-runtime/tests/unit/model/test_input_guard.py",
+      "sha256": "741d6fe475d897262ebafb92adbc348f8d37b7e6102da0258fd40f83febede5c"
+    }
+  ]
+}

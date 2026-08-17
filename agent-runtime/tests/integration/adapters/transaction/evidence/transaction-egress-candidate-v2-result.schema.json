@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Transaction egress candidate v1 limited result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "runId", "manifestSha256", "authorizationReference", "policyVersions", "counts", "threshold", "safety", "failure"],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "status": {"enum": ["passed", "failed_unconsumed", "failed_consumed"]},
+    "runId": {"const": "transaction-egress-v2-20260817-candidate-02"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-026"},
+    "policyVersions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["question", "business", "inputContract", "configSnapshotSha256"],
+      "properties": {
+        "question": {"const": "question-egress-v2"},
+        "business": {"const": "business-egress-v1"},
+        "inputContract": {"const": "transaction-search-type-equality-v1"},
+        "configSnapshotSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transactionSearchStarted", "transactionSearchTerminal", "answerStarted", "answerTerminal", "validAnswers", "otherTransactionEndpoints", "retryCount", "resumeCount"],
+      "properties": {
+        "transactionSearchStarted": {"type": "integer", "minimum": 0, "maximum": 1},
+        "transactionSearchTerminal": {"type": "integer", "minimum": 0, "maximum": 1},
+        "answerStarted": {"type": "integer", "minimum": 0, "maximum": 30},
+        "answerTerminal": {"type": "integer", "minimum": 0, "maximum": 30},
+        "validAnswers": {"type": "integer", "minimum": 0, "maximum": 30},
+        "otherTransactionEndpoints": {"const": 0},
+        "retryCount": {"const": 0},
+        "resumeCount": {"const": 0}
+      }
+    },
+    "threshold": {"const": {"maximumAnswerCalls": 30, "minimumValidAnswers": 27}},
+    "safety": {
+      "type": "object", "additionalProperties": false,
+      "required": ["forbiddenPayloadFieldCount", "forbiddenLiteralCount", "logLeakCount", "queryValuePersisted", "transactionValuePersisted", "jwtPersisted", "factsPersisted", "promptPersisted", "rawResponsePersisted"],
+      "properties": {
+        "forbiddenPayloadFieldCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "forbiddenLiteralCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "logLeakCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "queryValuePersisted": {"const": false},
+        "transactionValuePersisted": {"const": false},
+        "jwtPersisted": {"const": false},
+        "factsPersisted": {"const": false},
+        "promptPersisted": {"const": false},
+        "rawResponsePersisted": {"const": false}
+      }
+    },
+    "failure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phase", "reason"],
+      "properties": {
+        "phase": {"type": ["string", "null"]},
+        "reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
