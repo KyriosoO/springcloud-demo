@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Transaction egress candidate v3 lifecycle record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "manifestSha256", "authorizationReference", "sequence", "event", "phase", "ordinal", "status", "reason", "retryCount", "resumeCount"],
+  "properties": {
+    "schemaVersion": {"const": 3},
+    "runId": {"const": "transaction-egress-v3-20260817-candidate-03"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-026"},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 64},
+    "event": {"enum": ["run_started", "transaction_search_started", "transaction_search_terminal", "model_answer_started", "model_answer_terminal", "run_terminal"]},
+    "phase": {"enum": ["run", "transaction_search", "transaction_result", "egress_projection", "model_setup", "model_answer", "model_call", "threshold", "cleanup", "internal"]},
+    "ordinal": {"type": "integer", "minimum": 0, "maximum": 30},
+    "status": {"enum": ["started", "completed", "failed", "answer", "input_denied", "invalid_output", "provider_timeout", "provider_failure", "passed", "failed_unconsumed", "failed_consumed"]},
+    "reason": {"enum": ["none", "transaction_search_failed", "transaction_result_invalid", "egress_projection_invalid", "model_request_invalid", "model_call_failed", "threshold_not_met", "log_leak_detected", "cleanup_failed", "internal_failure"]},
+    "retryCount": {"const": 0},
+    "resumeCount": {"const": 0}
+  }
+}

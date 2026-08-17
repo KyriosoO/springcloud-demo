@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3,
+  "status": "prepared_unconsumed",
+  "preparationWorkPackageId": "WP-TXN-EGRESS-CANDIDATE-03-PREP",
+  "workPackageId": "WP-TXN-EGRESS-01",
+  "gateId": "GATE-026",
+  "runId": "transaction-egress-v3-20260817-candidate-03",
+  "manifestSha256": "9c1fb119f98fa9f1dc9bbd6904955d222c26fb39c837c179d3a85c1d883e6460",
+  "authorizationReference": "P3_00:GATE-026",
+  "transactionSearchMaximum": 1,
+  "paidAnswerMaximum": 30,
+  "minimumValidAnswers": 27,
+  "liveExecutionAuthorized": false,
+  "transactionAccessAuthorized": false,
+  "modelAccessAuthorized": false,
+  "retryAllowed": false,
+  "resumeAllowed": false,
+  "confirmedBy": "project-maintainer-pending-gate-026-live-authorization",
+  "preparedAt": "2026-08-17T00:00:00Z"
+}

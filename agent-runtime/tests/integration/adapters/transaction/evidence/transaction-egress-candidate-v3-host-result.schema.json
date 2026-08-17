@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "manifestSha256", "authorizationReference", "status", "sourceValidated", "collectionValidated", "counts", "safety", "failure"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "runId": {"const": "transaction-egress-v3-20260817-candidate-03"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-026"},
+    "status": {"enum": ["passed", "failed_unconsumed"]},
+    "sourceValidated": {"type": "boolean"},
+    "collectionValidated": {"type": "boolean"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["databaseSelectorStatements", "transactionSearchRequests", "modelOutboundRequests", "retryCount", "resumeCount"],
+      "properties": {
+        "databaseSelectorStatements": {"const": 0},
+        "transactionSearchRequests": {"const": 0},
+        "modelOutboundRequests": {"const": 0},
+        "retryCount": {"const": 0},
+        "resumeCount": {"const": 0}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transactionTypePersisted", "jwtPersisted", "databaseCredentialsPersisted", "rawOutputPersisted"],
+      "properties": {
+        "transactionTypePersisted": {"const": false},
+        "jwtPersisted": {"const": false},
+        "databaseCredentialsPersisted": {"const": false},
+        "rawOutputPersisted": {"const": false}
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": {"type": ["string", "null"], "enum": [null, "asset_hash_invalid", "manifest_binding_invalid", "python_import_failed", "python_import_source_invalid", "python_collection_failed", "preflight_internal_failure"]}
+      }
+    }
+  }
+}
