@@ -9,7 +9,6 @@ from typing import cast
 import pytest
 
 from agent_runtime.adapters.transaction.definition import transaction_search_definition
-from agent_runtime.bootstrap import LocalModelCompositionRoot
 from agent_runtime.business.egress import BusinessEgressProjector
 from agent_runtime.business.grounding import BusinessAnswerGroundingPolicy
 from agent_runtime.business.handler import BoundBusinessActionHandler
@@ -23,7 +22,6 @@ from agent_runtime.business.user_projection import BusinessUserResultProjector
 from agent_runtime.capability_api.contracts import CapabilityResult, CapabilityStatus, EgressDisposition
 from agent_runtime.graph.state import AnswerGenerationDecisionKind, AnswerGenerationInput, ModelNodeFailureKind
 from agent_runtime.model.contracts import StructuredFinishKind, StructuredModelRequest, StructuredModelResponse
-from agent_runtime.model.settings import ModelSettings
 from tests.helpers import scope
 from tests.integration.adapters.transaction.egress_candidate import (
     MAXIMUM_PAID_ANSWER_CALLS,
@@ -43,7 +41,11 @@ from tests.integration.adapters.transaction.egress_candidate import (
     validate_lifecycle,
     validate_result,
 )
-from tests.model_helpers import FakeStructuredModelTransport, call_with_model_context
+from tests.model_helpers import (
+    FakeStructuredModelTransport,
+    build_historical_v1_answer_components,
+    call_with_model_context,
+)
 
 
 _SYNTHETIC_TYPE = "SYNTHETIC_PAYMENT"
@@ -155,8 +157,7 @@ async def _answer_once(
     transport: BudgetedTransactionAnswerTransport,
     question: str = SAFE_QUESTION,
 ) -> tuple[AnswerGenerationDecisionKind, ModelNodeFailureKind | None]:
-    components = LocalModelCompositionRoot.build(
-        settings=ModelSettings(),
+    components = build_historical_v1_answer_components(
         transport=transport,
         grounding_policies={"transaction.search": BusinessAnswerGroundingPolicy()},
     )

@@ -8,7 +8,6 @@ import pytest
 
 from agent_runtime.adapters.employee.definition import employee_detail_definition
 from agent_runtime.adapters.employee.settings import EmployeeAdapterSettings
-from agent_runtime.bootstrap import LocalModelCompositionRoot
 from agent_runtime.business.egress import BusinessEgressProjector
 from agent_runtime.business.grounding import BusinessAnswerGroundingPolicy
 from agent_runtime.business.handler import BoundBusinessActionHandler
@@ -33,7 +32,6 @@ from agent_runtime.model.contracts import (
     StructuredOutputMode,
     StructuredToolMode,
 )
-from agent_runtime.model.settings import ModelSettings
 from tests.helpers import scope
 from tests.integration.adapters.employee.egress_candidate import (
     AUTHORIZATION_REFERENCE,
@@ -50,7 +48,11 @@ from tests.integration.adapters.employee.test_sensitive_egress_zero_call import 
     FakeEmployeeServer,
     _employee_body,
 )
-from tests.model_helpers import FakeStructuredModelTransport, call_with_model_context
+from tests.model_helpers import (
+    FakeStructuredModelTransport,
+    build_historical_v1_answer_components,
+    call_with_model_context,
+)
 
 
 _SYNTHETIC_IDENTIFIER = "SYNTH-CANDIDATE-0001"
@@ -100,8 +102,7 @@ async def _call_answer(
     transport: BudgetedEmployeeAnswerTransport,
 ) -> AnswerGenerationDecisionKind:
     assert route_after_capability(cast(AgentRequestState, {"capability_result": result})) == "answer"
-    components = LocalModelCompositionRoot.build(
-        settings=ModelSettings(),
+    components = build_historical_v1_answer_components(
         transport=transport,
         grounding_policies={"employee.detail": BusinessAnswerGroundingPolicy()},
     )

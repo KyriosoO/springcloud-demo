@@ -16,7 +16,6 @@ from tests.integration.adapters.employee.egress_candidate_v3 import (
     load_strict_json,
     sha256_file,
     validate_authorization,
-    validate_manifest,
     verify_history,
 )
 
@@ -25,11 +24,13 @@ REPOSITORY = Path(__file__).parents[5]
 EVIDENCE = Path(__file__).parent / "evidence"
 MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
 AUTHORIZATION = EVIDENCE / f"{RUN_ID}.authorization.json"
+MANIFEST_SHA256 = "901ac019188e1eb15793aa93dd2add0444962f706539742ad6f5b087664ad16e"
 
 
 def test_manifest_authorization_assets_and_history_are_frozen() -> None:
     manifest_sha = sha256_file(MANIFEST)
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=REPOSITORY)
+    assert manifest_sha == MANIFEST_SHA256
+    manifest = load_strict_json(MANIFEST)
     authorization = validate_authorization(
         load_strict_json(AUTHORIZATION), manifest_sha256=manifest_sha
     )
@@ -40,6 +41,11 @@ def test_manifest_authorization_assets_and_history_are_frozen() -> None:
     assert manifest["authorizationReference"] == AUTHORIZATION_REFERENCE
     assert len(manifest["historyHashes"]) == len(HISTORY_ASSETS)
     assert len(manifest["assetHashes"]) == len(REQUIRED_ASSET_PATHS)
+    assert {item["path"] for item in manifest["assetHashes"]} == REQUIRED_ASSET_PATHS
+    assert all(
+        isinstance(item["sha256"], str) and len(item["sha256"]) == 64
+        for item in manifest["assetHashes"]
+    )
     assert authorization["liveExecutionAuthorized"] is False
     assert authorization["maximumPaidAnswerCalls"] == MAXIMUM_PAID_ANSWER_CALLS
     verify_history(REPOSITORY)

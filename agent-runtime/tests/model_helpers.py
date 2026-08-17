@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from typing import TypeVar
 
 from agent_runtime.capability_api.contracts import CapabilityStatus
@@ -9,11 +10,22 @@ from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.graph.state import AgentSemanticOutcome
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
 from agent_runtime.model.contracts import (
+    AnswerGroundingPolicy,
     GroundingDecision,
     GroundingInput,
+    StructuredModelTransport,
     StructuredModelRequest,
     StructuredModelResponse,
 )
+from agent_runtime.model.context import ModelCallContextAccessor
+from agent_runtime.model.deepseek.answer_generator import (
+    DeepSeekAnswerGenerator,
+    build_answer_generation_task_definition,
+)
+from agent_runtime.model.gateway import BoundedStructuredModelGateway
+from agent_runtime.model.grounding import GroundingPolicyRegistry
+from agent_runtime.model.input_guard import QuestionEgressGuard
+from agent_runtime.model.settings import ModelSettings
 from tests.helpers import scope
 
 
@@ -79,6 +91,40 @@ class AcceptGroundingPolicy:
             accepted=False,
             reason=GroundingRejectionReason.DOMAIN_POLICY_REJECTED,
         )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class HistoricalV1AnswerComponents:
+    answer_generator: DeepSeekAnswerGenerator
+
+    async def aclose(self) -> None:
+        return None
+
+
+def build_historical_v1_answer_components(
+    *,
+    transport: StructuredModelTransport,
+    grounding_policies: Mapping[str, AnswerGroundingPolicy],
+    settings: ModelSettings | None = None,
+) -> HistoricalV1AnswerComponents:
+    active_settings = settings or ModelSettings()
+    definition = build_answer_generation_task_definition(
+        timeout_ms=active_settings.answer_timeout_ms,
+    )
+    accessor = ModelCallContextAccessor()
+    return HistoricalV1AnswerComponents(
+        answer_generator=DeepSeekAnswerGenerator(
+            guard=QuestionEgressGuard(),
+            gateway=BoundedStructuredModelGateway(
+                transport=transport,
+                definitions=(definition,),
+                max_concurrency=active_settings.max_concurrency,
+            ),
+            context=accessor,
+            grounding=GroundingPolicyRegistry(grounding_policies),
+            definition=definition,
+        )
+    )
 
 
 T = TypeVar("T")

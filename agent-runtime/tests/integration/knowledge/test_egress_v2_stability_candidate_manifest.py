@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ ATTEMPT = ROOT / "tests/integration/knowledge/evidence/wp-k-egress-01-20260812T2
 JOURNAL = ROOT / "tests/integration/knowledge/evidence/wp-k-egress-01-20260812T233629Z.attempt.jsonl"
 RUN_ID = "knowledge-egress-v2-20260812-candidate-01"
 AUTHORIZATION_REFERENCE = "P3_00:GATE-043"
+FROZEN_COMMIT = "ac799d3df4b751ae8977c039f28d6700146a993d"
 HISTORY_SHA256 = {
     CONSUMED: "a50f4c7032d90d96340a71a5a82b9b8c6b3c790102ebf945f76b97576044e8e5",
     EVIDENCE: "060ca50c1f44ab7b1d85f4bc92a327f4383edfbfaf4108d9f457129aa2046fd2",
@@ -113,7 +115,15 @@ def test_gate043_v2_manifest_is_strict_prepared_and_all_frozen_hashes_match() ->
     assert len(frozen) == 15
     assert len(history) == 14
     assert len({item["path"] for item in (*frozen, *history)}) == 29
-    for item in (*frozen, *history):
+    for item in frozen:
+        content = subprocess.run(
+            ["git", "show", f"{FROZEN_COMMIT}:{item['path']}"],
+            cwd=REPOSITORY,
+            check=True,
+            capture_output=True,
+        ).stdout
+        assert hashlib.sha256(content).hexdigest() == item["sha256"], item["path"]
+    for item in history:
         path = REPOSITORY / item["path"]
         assert path.is_file(), item["path"]
         assert _sha256(path) == item["sha256"], item["path"]

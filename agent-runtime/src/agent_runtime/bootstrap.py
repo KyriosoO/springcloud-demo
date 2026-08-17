@@ -44,7 +44,9 @@ from agent_runtime.model.deepseek.action_selector import (
 )
 from agent_runtime.model.deepseek.answer_generator import (
     DeepSeekAnswerGenerator,
-    build_answer_generation_task_definition,
+)
+from agent_runtime.model.deepseek.answer_generator_v2 import (
+    build_answer_generation_v2_task_definition,
 )
 from agent_runtime.model.deepseek.transport import (
     DeepSeekChatTransport,
@@ -201,7 +203,7 @@ class LocalModelCompositionRoot:
         action_definition = build_action_selection_task_definition(
             timeout_ms=settings.action_timeout_ms,
         )
-        answer_definition = build_answer_generation_task_definition(
+        answer_definition = build_answer_generation_v2_task_definition(
             timeout_ms=settings.answer_timeout_ms,
         )
         definitions: tuple[ModelTaskDefinition[Any, Any], ...] = (
