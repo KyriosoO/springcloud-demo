@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "runId": "employee-egress-live-bootstrap-v1-20260817-candidate-01",
+  "manifestSha256": "b7be5caa4b3450242e9c63abf80152c023874641ed1bf4bf34bafdb10177af9a",
+  "authorizationReference": "P3_00:GATE-024",
+  "liveExecutionAuthorized": false
+}

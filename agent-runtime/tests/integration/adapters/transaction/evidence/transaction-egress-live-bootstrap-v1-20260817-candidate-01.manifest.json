@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "status": "prepared_unconsumed",
+  "runId": "transaction-egress-live-bootstrap-v1-20260817-candidate-01",
+  "authorizationReference": "P3_00:GATE-026",
+  "domain": "transaction",
+  "wrapperSourceCommit": "038b6a0f54f5f8ace9a68e49073e5035279473da",
+  "candidate": {
+    "runId": "transaction-egress-v4-20260817-candidate-04",
+    "manifestPath": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.manifest.json",
+    "manifestSha256": "ca440b8f3cf664cfe77b803c6a7786816935d391bc56e50a522f6cb76f0535d3",
+    "authorizationPath": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.authorization.json",
+    "authorizationSha256": "885ddb8854b34ccebf29d481e78fb84b1b6a550adf5330bf321eea5085690359"
+  },
+  "assetHashes": [
+    {"path": "agent-runtime/scripts/run-transaction-egress-live-bootstrap-candidate-01.ps1", "sha256": "d7493da4b925167f37659fbf108fdae2380138448343812d50846ba582882bd9"},
+    {"path": "agent-runtime/tests/integration/adapters/business_egress_live_bootstrap.py", "sha256": "1135b8a241844de52fc4320e94794a3b7e0d40eb1fb667498d95d232393df009"},
+    {"path": "agent-runtime/tests/integration/adapters/test_business_egress_live_bootstrap.py", "sha256": "40016cbdc486cfdc24945725e50753ee73da753fd4119bb8687a4286ff5d7050"},
+    {"path": "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-lifecycle.schema.json", "sha256": "30dd78bd4b0dd72ceb9510b63e19e5c5c088af1c18ea8e85c6f864c5da336ca7"},
+    {"path": "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-result.schema.json", "sha256": "6b4cdf76db29681abf067ab869faccd0d3d1e64e0b89843d715566fcecec4d23"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/live_bootstrap_v1.py", "sha256": "cdfecd505600cfe41e4c64e245d5cede6a193a85ce10fd1f15f834d346061a80"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v1.py", "sha256": "338851f380e20477028a33ba46f9baf33964e66182a7de73ee6112a3cb8ce3d8"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v1_history.py", "sha256": "72ef6988908174c83e6e89cd827b1de56f18c593ac857c6b8c16f0336ea79d35"}
+  ],
+  "historyHashes": [
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.bootstrap-failure.json", "sha256": "b831d2f9d019fcd3347f389cd92fa00b0fc5e6deee3efd2ff0024c17594c7357"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.manifest.json", "sha256": "9c1fb119f98fa9f1dc9bbd6904955d222c26fb39c837c179d3a85c1d883e6460"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.authorization.json", "sha256": "ca8983463fc051cf87bc563658bbe80cd583453de4547cd4c81df6524522970c"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.host-preflight.jsonl", "sha256": "869e441bca5b85dcf71508d5f5a7e94fa8fb7f2a981eb0850f8a082a030eb2f4"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.host-result.json", "sha256": "ca87a7db00f38890d9f1cb17e3acd1dc520ddbd814e1496ca2b9b9b9bf1a6f2c"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.lifecycle.jsonl", "sha256": "b5bb3e3d9413ad3a98ca9f34b0c76a6fd4b36c7c36d94ddf7aa5902827b7019f"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v3-20260817-candidate-03.result.json", "sha256": "eb5003cdc31a25a5aa2c201250fa00e4d7e5291aaf6482ffce63c3b5c8070b7d"}
+  ],
+  "executionBoundary": {
+    "liveExecutionAuthorized": false,
+    "sideEffectsAllowed": false,
+    "candidateInvocationsMaximum": 1,
+    "retryAllowed": false,
+    "resumeAllowed": false
+  }
+}
