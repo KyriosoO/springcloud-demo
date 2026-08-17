@@ -35,4 +35,3 @@ finally {
         [Environment]::SetEnvironmentVariable('PYTHONPATH', $previousPythonPath, 'Process')
     }
 }
-
