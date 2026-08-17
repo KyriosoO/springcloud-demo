@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:employee-egress-v3-consumed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "runId", "manifestSha256", "authorizationReference", "maximumPaidAnswerCalls"],
+  "properties": {
+    "schemaVersion": {"const": 4},
+    "status": {"const": "consumed"},
+    "runId": {"const": "employee-egress-v4-20260817-candidate-04"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-024"},
+    "maximumPaidAnswerCalls": {"const": 40}
+  }
+}
+

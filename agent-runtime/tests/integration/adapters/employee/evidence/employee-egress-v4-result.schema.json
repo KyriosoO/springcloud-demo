@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:employee-egress-v3-result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "manifestSha256", "authorizationReference", "status", "failure", "authorizationConsumed", "counts", "cleanup", "safety", "lifecycle", "consumedMarkerSha256"],
+  "properties": {
+    "schemaVersion": {"const": 4},
+    "runId": {"const": "employee-egress-v4-20260817-candidate-04"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-024"},
+    "status": {"enum": ["passed", "failed_unconsumed", "failed_consumed", "failed_cleanup_required"]},
+    "failure": {"type": "object", "additionalProperties": false, "required": ["phase", "reason"], "properties": {"phase": {"enum": ["none", "fixture_precheck", "fixture_insert", "fixture_verify", "employee_detail", "model_setup", "model_answer", "threshold", "cleanup_delete", "cleanup_verify", "host_validation"]}, "reason": {"enum": ["none", "identifier_conflict", "database_operation_failed", "employee_request_failed", "employee_result_invalid", "egress_projection_invalid", "model_setup_failed", "model_call_failed", "threshold_not_met", "cleanup_failed", "log_leak_detected", "host_failed", "evidence_write_failed"]}}},
+    "authorizationConsumed": {"type": "boolean"},
+    "counts": {"type": "object", "additionalProperties": false, "required": ["databaseSelectStarted", "databaseSelectTerminal", "databaseInsertStarted", "databaseInsertTerminal", "databaseDeleteStarted", "databaseDeleteTerminal", "employeeDetailStarted", "employeeDetailTerminal", "modelAnswerStarted", "modelAnswerTerminal", "validAnswers", "retryCount", "resumeCount", "otherEndpointCalls", "preexisting", "inserted", "verified"], "properties": {"databaseSelectStarted": {"type": "integer", "minimum": 0, "maximum": 3}, "databaseSelectTerminal": {"type": "integer", "minimum": 0, "maximum": 3}, "databaseInsertStarted": {"type": "integer", "minimum": 0, "maximum": 1}, "databaseInsertTerminal": {"type": "integer", "minimum": 0, "maximum": 1}, "databaseDeleteStarted": {"type": "integer", "minimum": 0, "maximum": 1}, "databaseDeleteTerminal": {"type": "integer", "minimum": 0, "maximum": 1}, "employeeDetailStarted": {"type": "integer", "minimum": 0, "maximum": 1}, "employeeDetailTerminal": {"type": "integer", "minimum": 0, "maximum": 1}, "modelAnswerStarted": {"type": "integer", "minimum": 0, "maximum": 30}, "modelAnswerTerminal": {"type": "integer", "minimum": 0, "maximum": 30}, "validAnswers": {"type": "integer", "minimum": 0, "maximum": 30}, "retryCount": {"const": 0}, "resumeCount": {"const": 0}, "otherEndpointCalls": {"const": 0}, "preexisting": {"type": "integer", "minimum": 0, "maximum": 1}, "inserted": {"type": "integer", "minimum": 0, "maximum": 1}, "verified": {"type": "integer", "minimum": 0, "maximum": 1}}},
+    "cleanup": {"type": "object", "additionalProperties": false, "required": ["deleted", "remaining"], "properties": {"deleted": {"type": "integer", "minimum": 0, "maximum": 1}, "remaining": {"type": "integer", "minimum": 0, "maximum": 1}}},
+    "safety": {"type": "object", "additionalProperties": false, "required": ["forbiddenPayloadFieldCount", "forbiddenLiteralCount", "logLeakCount", "rawLogsDeleted"], "properties": {"forbiddenPayloadFieldCount": {"type": "integer", "minimum": 0, "maximum": 1000}, "forbiddenLiteralCount": {"type": "integer", "minimum": 0, "maximum": 1000}, "logLeakCount": {"type": "integer", "minimum": 0, "maximum": 1000}, "rawLogsDeleted": {"const": true}}},
+    "lifecycle": {"type": "object", "additionalProperties": false, "required": ["recordCount", "sha256"], "properties": {"recordCount": {"type": "integer", "minimum": 4, "maximum": 76}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "consumedMarkerSha256": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[0-9a-f]{64}$"}]}
+  }
+}
+

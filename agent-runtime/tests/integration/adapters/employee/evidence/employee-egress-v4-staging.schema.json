@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:employee-egress-v3-staging",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "manifestSha256", "authorizationReference", "failure", "counts", "safety"],
+  "properties": {
+    "schemaVersion": {"const": 4},
+    "runId": {"const": "employee-egress-v4-20260817-candidate-04"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"const": "P3_00:GATE-024"},
+    "failure": {"type": "object", "additionalProperties": false, "required": ["phase", "reason"], "properties": {"phase": {"type": "string"}, "reason": {"type": "string"}}},
+    "counts": {"type": "object", "additionalProperties": false, "required": ["employeeDetailStarted", "employeeDetailTerminal", "modelAnswerStarted", "modelAnswerTerminal", "validAnswers"], "properties": {"employeeDetailStarted": {"type": "integer", "minimum": 0, "maximum": 1}, "employeeDetailTerminal": {"type": "integer", "minimum": 0, "maximum": 1}, "modelAnswerStarted": {"type": "integer", "minimum": 0, "maximum": 30}, "modelAnswerTerminal": {"type": "integer", "minimum": 0, "maximum": 30}, "validAnswers": {"type": "integer", "minimum": 0, "maximum": 30}}},
+    "safety": {"type": "object", "additionalProperties": false, "required": ["retryCount", "resumeCount", "otherEndpointCalls", "forbiddenPayloadFieldCount", "forbiddenLiteralCount", "logLeakCount"], "properties": {"retryCount": {"const": 0}, "resumeCount": {"const": 0}, "otherEndpointCalls": {"const": 0}, "forbiddenPayloadFieldCount": {"type": "integer", "minimum": 0, "maximum": 1000}, "forbiddenLiteralCount": {"type": "integer", "minimum": 0, "maximum": 1000}, "logLeakCount": {"type": "integer", "minimum": 0, "maximum": 1000}}}
+  }
+}
+

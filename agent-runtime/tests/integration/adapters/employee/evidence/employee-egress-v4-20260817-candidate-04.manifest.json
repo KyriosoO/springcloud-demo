@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 4,
+  "status": "prepared_unconsumed",
+  "runId": "employee-egress-v4-20260817-candidate-04",
+  "preparationWorkPackageId": "WP-EMP-EGRESS-CANDIDATE-04-PREP",
+  "workPackageId": "WP-EMP-EGRESS-01",
+  "preparationGateId": "GATE-054",
+  "gateId": "GATE-024",
+  "authorizationReference": "P3_00:GATE-024",
+  "executionBoundary": {
+    "databaseSelects": 3,
+    "databaseInserts": 1,
+    "databaseDeletes": 1,
+    "employeeDetailRequests": 1,
+    "plannedAnswerCalls": 30,
+    "maximumPaidAnswerCalls": 30,
+    "minimumValidAnswers": 27,
+    "retryAllowed": false,
+    "resumeAllowed": false
+  },
+  "fieldBoundary": {
+    "modelVisibleFieldIds": [
+      "position",
+      "work_base_si"
+    ]
+  },
+  "historyHashes": [
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-real-01-20260806T075036Z.json",
+      "sha256": "f5af997fd9b7b8cce6a6b99fcd6c00dddc43ff105ab2c69c085801d7d2ff382c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-gateway-log-20260806T091456Z.json",
+      "sha256": "eb9342b550f2bc2a3a391563e24045baccfade687790ab2e5dbe396d3a92396e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v6-20260816-candidate-06.manifest.json",
+      "sha256": "44f25232b445e0f1c8184b31ccf2dff4d5751a796b4f3ec327fb1ea2cbb702b2"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v6-20260816-candidate-06.authorization.json",
+      "sha256": "bd0cb4d67c00e2aeba7756860f02a4f7df1fd9f17eb9420cc3ece4e524a697c5"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v6-20260816-candidate-06.host-lifecycle.jsonl",
+      "sha256": "9c4f7d9981bef665bd06068a96155433bfbe838ebad65d4ac5dc4424106c28d5"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v6-20260816-candidate-06.lifecycle.jsonl",
+      "sha256": "ec87bcb430fc90b3e9511871625bba60c07f7d4cc7e12842f3e18255624f6677"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-input-qualification-v6-20260816-candidate-06.result.json",
+      "sha256": "750f2e0d13866203116884e1950734bcb2b06100343f142cb5e96c63fe55a9cd"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v1-20260813-candidate-01.manifest.json",
+      "sha256": "c3cdfacd32797474f68e11758ec094df97a95d56fb0efed9355ccfaa6a145c57"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v1-20260813-candidate-01.authorization.json",
+      "sha256": "52b9075117f3e5f3ea84f1ea3c5da846c7b168f013fc4d8523d7ed52979f416c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/wp-emp-egress-env-diag-01-20260814T004517Z.json",
+      "sha256": "2bc16cf63f3775d778925a5a5a66cfbae5138401e2f209e8288f4db076598a2c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v1-20260813-candidate-01.pre-model-failure-20260814T005222Z.json",
+      "sha256": "1a55b324fc912ee4e9133c2946183473347eb8e7f3337f8e33286bdf96f0b76f"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.manifest.json",
+      "sha256": "28cd7b04b0700b43e5feed7bdef22e9da0494cd941e2e9f96b698a75b21b03b1"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.authorization.json",
+      "sha256": "6fe6489fb5d32481909b88b860325dbbc35dec0c242d86f106327222e790c971"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.lifecycle.jsonl",
+      "sha256": "15982e15d454795d7052215ad46221b6f85cc26726ca0267a597f6d6002ec679"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v2-20260814-candidate-02.result.json",
+      "sha256": "dd8a5bac1586da4e44cc6a583c07289a91012bc34892f848ffb4a0241ae7561d"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-fixture-metadata-diagnostic-v2-20260814-candidate-02.result.json",
+      "sha256": "9973863d43112a8142bf54eaa1ea18905112d8ca802a24dda7eed5599ab7cd51"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-synthetic-fixture-v1-20260814-candidate-01.result.json",
+      "sha256": "f0003ec559fa4606edda2982f0ae6878bfa066262168236128705d0c40aa0e4a"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.manifest.json",
+      "sha256": "901ac019188e1eb15793aa93dd2add0444962f706539742ad6f5b087664ad16e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.authorization.json",
+      "sha256": "a4dff9272a539f162fa0bd36fe88d3a1a3592c16294622cb6e9925f59896c4f8"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.lifecycle.jsonl",
+      "sha256": "da23d55c4aada51fe47bdd68ec2ec40a2895997e3050b04b21dba27f70ab8ce8"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.authorization.consumed.json",
+      "sha256": "e7def6942e153cea5787f503250c514e738f81cdea0a015ad47a948f782341a5"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v3-20260817-candidate-03.result.json",
+      "sha256": "2ab7a22476ba4e0b5ddd54ef4749b04ca2653c0bb7f4a811f1e78af20bb256a2"
+    }
+  ],
+  "assetHashes": [
+    {
+      "path": "agent-runtime/scripts/run-employee-egress-live-candidate-04.ps1",
+      "sha256": "51b563ca3b9abe4691f4a6cb2c3560f90e6cd8a0c18a35fd1608af4b87838f4c"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/codec.py",
+      "sha256": "9c11376c7c877be83d73cc45d77c67b19ec11371c350023e8bd71266dda44404"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/definition.py",
+      "sha256": "bfd2be2dd89c3f5e1263c4128a84fc8613123c5fc89a37c51593d5ddbcfe2fb3"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/fields.py",
+      "sha256": "cf274b94e9165a0ba01d7332bbb4856682cc6cd1132a1513e6ae1943d2135ce7"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/normalizer.py",
+      "sha256": "8a221a94239110786056f67d2c60c3201fecf6318e4f6d9860e03ae07f2af74a"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/adapters/employee/settings.py",
+      "sha256": "399b411025398e023b350844fc927ddff84dffe4ba8fe57021f494ad5bd3c6dc"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/bootstrap.py",
+      "sha256": "b2b50c6318189d883bfe8f81257f474060de448be1733db799bda4da5d76d3b0"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/egress.py",
+      "sha256": "a818681370cb12658da42c7e37a7cd762bfaf4c4591c5dfadf14e8fc3fc1ee82"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/grounding.py",
+      "sha256": "84300d19f01060591f661356e7fbdbcf743d304e04dd266379e67ef909170c5e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/handler.py",
+      "sha256": "5674a3080c6bac3c08de14d63d62d56c447c0dc1a9db278ce8fde4b8c36ccc36"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/settings.py",
+      "sha256": "1216aefeb8dcb57397d161f148dea422b53fb66346d5664fa2433cf6346a3eed"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/business/user_projection.py",
+      "sha256": "033ee5db3a23eaa6d375201d94c218d84cc64565cf9b25e9c5c14e86ff82a54f"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/deepseek/answer_generator_v2.py",
+      "sha256": "d98d66c0d327bc6129e3fcc48669461d94cc570575ed4cd07cedf474dd3a5c1f"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/deepseek/transport.py",
+      "sha256": "f12283c76d41c7fcaa6eb67b06128a3f76c1897a3206db8a6efd055ffcffc310"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/input_guard.py",
+      "sha256": "60effe5b917a981b4fa74d35739ffad4b72bdc95060fd248c557b46931dd3c18"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/question_policy.py",
+      "sha256": "b49daef5ea47670b0bdf3e51e211116b1ff1db3345660056fef3a7c0f376d5ba"
+    },
+    {
+      "path": "agent-runtime/tests/fixtures/employee_egress_field_matrix.json",
+      "sha256": "14a2636e907a25987975987f9eaf6096b33f5799dd51f2001f636c9ac14ae368"
+    },
+    {
+      "path": "agent-runtime/tests/helpers.py",
+      "sha256": "ec31b107d6d60494866d148e451c69d60d032b8efca80a71afec304094339bab"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/egress_candidate_v2.py",
+      "sha256": "fbdd9b2c19426b9c5e3fdc32f4c2b575ce995b1ddb269c7eb19dd3a7a0fbbe9c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/egress_candidate_v4.py",
+      "sha256": "0113f1b5467fb347e405fef4dba7a48400dd8858bd960c9286a45ed68f858890"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v4-consumed.schema.json",
+      "sha256": "e9367231c3b75fe143accb9faa9d119f7adff96ccaba00e806d51dcc15b4969a"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v4-lifecycle.schema.json",
+      "sha256": "f7a8d9c5f48bf5775f67e6c654b7dc960e7fc1b40529535404a4411cfdb4cd11"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v4-pending.schema.json",
+      "sha256": "976f3a809e7e9562b0a2f29e29028141eeeceedff3c0f9066fbfe0c18eb78d51"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v4-result.schema.json",
+      "sha256": "7920194f59297a52aa28763750b7cbcbbc47fbe58ad9448eaeb8c28e0dffce5e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/evidence/employee-egress-v4-staging.schema.json",
+      "sha256": "97107233375b6fc5315a236e935f2a0ee79fe2acc20e24631d923c4d9a43952c"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_egress_candidate_v4_harness.py",
+      "sha256": "0c3109d95f2cf9b7b432333f76864aaf8ac32c7bdb05676afafbb86a492ec16e"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_egress_candidate_v4_history.py",
+      "sha256": "41d5239de3aa67b1fbabaf0d8da1e785f768a473cebb9c62368f39842def414d"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_employee_egress_candidate_v4_preparation.py",
+      "sha256": "f8c127bcbb688507647a5c49b58ff5e57f323da040dea8dc1d8f6097c3f1316f"
+    },
+    {
+      "path": "agent-runtime/tests/integration/adapters/employee/test_real_employee_egress_candidate_v4.py",
+      "sha256": "216b097e0244529229e3372817870cca9720b931c5dfa9ad85315a34d02548b6"
+    },
+    {
+      "path": "agent-runtime/tests/model_helpers.py",
+      "sha256": "af13baae620550dfc251523a7ba2b21ece71849f2047e250ca00b99ec9d92910"
+    },
+    {
+      "path": "employee-service/src/test/java/com/dylan/employee/live/EmployeeEgressCandidateV4LiveIntegrationTest.java",
+      "sha256": "823115dccad428d6684d1c29224311b3e29a020bf43ccb4914bd42ac652e96dd"
+    }
+  ]
+}
