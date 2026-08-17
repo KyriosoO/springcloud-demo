@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Business Egress Live Bootstrap Lifecycle V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "domain",
+    "sequence",
+    "phase",
+    "status",
+    "reason"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "runId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"type": "string", "pattern": "^P3_00:GATE-[0-9]{3}$"},
+    "domain": {"enum": ["employee", "transaction"]},
+    "sequence": {"type": "integer", "minimum": 1},
+    "phase": {
+      "enum": [
+        "asset_preflight",
+        "config_resolution",
+        "auth_start",
+        "auth_readiness",
+        "auth_login",
+        "domain_start",
+        "domain_readiness",
+        "candidate_invoke",
+        "cleanup"
+      ]
+    },
+    "status": {"enum": ["started", "passed", "failed"]},
+    "reason": {
+      "enum": [
+        "none",
+        "asset_hash_invalid",
+        "authorization_binding_invalid",
+        "config_missing",
+        "config_duplicate",
+        "config_invalid",
+        "port_occupied",
+        "process_start_failed",
+        "process_exited",
+        "readiness_timeout",
+        "readiness_pid_mismatch",
+        "login_failed",
+        "candidate_failed",
+        "phase_timeout",
+        "cancelled",
+        "cleanup_failed",
+        "log_leak_detected",
+        "log_delete_failed",
+        "evidence_write_failed",
+        "internal_failure"
+      ]
+    }
+  }
+}

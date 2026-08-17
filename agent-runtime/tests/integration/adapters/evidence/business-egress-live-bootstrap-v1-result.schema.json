@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Business Egress Live Bootstrap Result V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "domain",
+    "status",
+    "candidateInvoked",
+    "counts",
+    "safety",
+    "failure"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "runId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"type": "string", "pattern": "^P3_00:GATE-[0-9]{3}$"},
+    "domain": {"enum": ["employee", "transaction"]},
+    "status": {
+      "enum": [
+        "passed",
+        "failed_pre_candidate_unconsumed",
+        "failed_candidate",
+        "failed_cleanup_required"
+      ]
+    },
+    "candidateInvoked": {"type": "boolean"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phaseStarted", "phaseTerminal", "candidateInvocations", "retry", "resume"],
+      "properties": {
+        "phaseStarted": {"type": "integer", "minimum": 1},
+        "phaseTerminal": {"type": "integer", "minimum": 1},
+        "candidateInvocations": {"type": "integer", "minimum": 0, "maximum": 1},
+        "retry": {"const": 0},
+        "resume": {"const": 0}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "forbiddenFields",
+        "secretPersistence",
+        "logLeakCount",
+        "rawLogsDeleted",
+        "ownedProcessesStopped"
+      ],
+      "properties": {
+        "forbiddenFields": {"const": 0},
+        "secretPersistence": {"const": 0},
+        "logLeakCount": {"type": "integer", "minimum": 0},
+        "rawLogsDeleted": {"type": "boolean"},
+        "ownedProcessesStopped": {"type": "boolean"}
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "reason"],
+      "properties": {
+        "phase": {
+          "type": ["string", "null"],
+          "maxLength": 64
+        },
+        "reason": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    }
+  }
+}
