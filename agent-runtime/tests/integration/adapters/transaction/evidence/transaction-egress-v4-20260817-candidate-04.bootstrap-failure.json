@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "workPackageId": "WP-TXN-EGRESS-01",
+  "gateId": "GATE-026",
+  "runId": "transaction-egress-v4-20260817-candidate-04",
+  "manifestSha256": "ca440b8f3cf664cfe77b803c6a7786816935d391bc56e50a522f6cb76f0535d3",
+  "authorizationSha256": "885ddb8854b34ccebf29d481e78fb84b1b6a550adf5330bf321eea5085690359",
+  "authorizationReference": "P3_00:GATE-026",
+  "status": "failed_pre_candidate_unconsumed",
+  "failure": {
+    "phase": "bootstrap.datasource_config_parse",
+    "code": "transaction.egress_candidate_database_config_missing",
+    "classification": "test_bootstrap_regex_escape_mismatch"
+  },
+  "counts": {
+    "authServiceStarts": 0,
+    "transactionServiceStarts": 0,
+    "databaseSelects": 0,
+    "transactionSearchRequests": 0,
+    "modelOutboundRequests": 0,
+    "retryCount": 0,
+    "resumeCount": 0
+  },
+  "candidateOutputs": {
+    "hostPreflightExists": false,
+    "hostResultExists": false,
+    "lifecycleExists": false,
+    "consumedExists": false,
+    "resultExists": false
+  },
+  "cleanup": {
+    "authPortListening": false,
+    "transactionPortListening": false,
+    "temporaryRunDirectoriesRemaining": 0,
+    "rawLogsDeleted": true,
+    "logLeakCount": 0
+  },
+  "recordedAtUtc": "2026-08-17T10:49:46.895Z"
+}
