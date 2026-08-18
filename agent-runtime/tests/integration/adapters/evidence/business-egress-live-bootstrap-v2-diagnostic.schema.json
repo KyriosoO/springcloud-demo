@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "business-egress-live-bootstrap-v2-diagnostic.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "manifestSha256",
+    "authorizationReference",
+    "domain",
+    "service",
+    "phase",
+    "classification",
+    "exitCodePresent",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "runId": {"type": "string", "minLength": 1},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorizationReference": {"type": "string", "pattern": "^P3_00:GATE-[0-9]+$"},
+    "domain": {"const": "transaction"},
+    "service": {
+      "enum": ["auth-service", "transaction-service"]
+    },
+    "phase": {"enum": ["auth_readiness", "auth_login", "domain_readiness"]},
+    "classification": {
+      "enum": [
+        "configuration_binding",
+        "class_loading",
+        "port_binding",
+        "dependency_connectivity",
+        "application_context",
+        "unknown"
+      ]
+    },
+    "exitCodePresent": {"const": true},
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["forbiddenFields", "secretPersistence", "logLeakCount"],
+      "properties": {
+        "forbiddenFields": {"const": 0},
+        "secretPersistence": {"const": 0},
+        "logLeakCount": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
