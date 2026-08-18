@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "status": "prepared_unconsumed",
+  "runId": "transaction-egress-live-bootstrap-v2-20260818-candidate-02",
+  "authorizationReference": "P3_00:GATE-061",
+  "domain": "transaction",
+  "wrapperSourceCommit": "779c03c084655b2b2caa535c05911f303194f5e8",
+  "candidate": {
+    "runId": "transaction-egress-v4-20260817-candidate-04",
+    "manifestPath": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.manifest.json",
+    "manifestSha256": "ca440b8f3cf664cfe77b803c6a7786816935d391bc56e50a522f6cb76f0535d3",
+    "authorizationPath": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.authorization.json",
+    "authorizationSha256": "885ddb8854b34ccebf29d481e78fb84b1b6a550adf5330bf321eea5085690359"
+  },
+  "buildProvenance": {
+    "sourceCommit": "779c03c084655b2b2caa535c05911f303194f5e8",
+    "command": "mvn -f serviceCenter/pom.xml -pl :auth-service,:mq-procedure-service -am -DskipTests package",
+    "javaVersion": "25.0.2",
+    "mavenVersion": "3.9.16"
+  },
+  "assetHashes": [
+    {"path": "agent-runtime/scripts/run-transaction-egress-live-bootstrap-candidate-02.ps1", "sha256": "81a4f15c78466b2703e5f1cde0eb1bbb747e35d1933ac0134d596fabb2db8fa0"},
+    {"path": "agent-runtime/tests/integration/adapters/business_egress_live_bootstrap.py", "sha256": "1135b8a241844de52fc4320e94794a3b7e0d40eb1fb667498d95d232393df009"},
+    {"path": "agent-runtime/tests/integration/adapters/business_egress_live_bootstrap_v2.py", "sha256": "ae35aea438f5fa616957a3a60afe27100b444446acf2b67ae6699c5e6ddcb681"},
+    {"path": "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-lifecycle.schema.json", "sha256": "30dd78bd4b0dd72ceb9510b63e19e5c5c088af1c18ea8e85c6f864c5da336ca7"},
+    {"path": "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v1-result.schema.json", "sha256": "6b4cdf76db29681abf067ab869faccd0d3d1e64e0b89843d715566fcecec4d23"},
+    {"path": "agent-runtime/tests/integration/adapters/evidence/business-egress-live-bootstrap-v2-diagnostic.schema.json", "sha256": "ccb42053d0af59d952ae30fa6b4474e5aab5cbb7cf92edc4181ae082e4899841"},
+    {"path": "agent-runtime/tests/integration/adapters/test_business_egress_live_bootstrap_v2.py", "sha256": "7872909029a20e84634572f701c5b3fc9dd81a89c920b9fdccc5dd7ced3f04ec"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/live_bootstrap_v2.py", "sha256": "8d00e9ad139682d8de6c055999a86b9eae6c0684502f846205a8bc42a2f530a6"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v2.py", "sha256": "329087da014b025e3e06a422acb6bc048596840a8d5c9a15c8c596228d389675"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v2_history.py", "sha256": "ec4593bc952c67e800a992c3530b0b06f71fbb0936dbdd11ea3703c6d5ebec2b"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v2_preparation.py", "sha256": "23003fe08512a4c649acb1052943a1bc7e65a887775c1e5e3c77c0ad3c25dc15"}
+  ],
+  "executableHashes": [
+    {"path": "auth-service/target/auth-service-0.0.1-SNAPSHOT.jar", "sha256": "da59695336c6f2fd11581760b41f0958114ac1f9e728ad834ff1a25a7595a96b"},
+    {"path": "mq-procedure-service/target/mq-procedure-service-0.0.1-SNAPSHOT.jar", "sha256": "69cbb7a7a1b3193fb5d06a2c9af474e54917b1ac9c7786dcac1565aa32a8487e"}
+  ],
+  "historyHashes": [
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-live-bootstrap-v1-20260817-candidate-01.manifest.json", "sha256": "c1a90bb90a0cf44b378f9bde1b1701f8de1321e75a9eae0c23d1a15f30d4c0d6"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-live-bootstrap-v1-20260817-candidate-01.authorization.json", "sha256": "b2b8d057afb1651cbb1b3ef098100846b30339da09ebbf2d7bb44ab705ae8308"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-live-bootstrap-v1-20260817-candidate-01.lifecycle.jsonl", "sha256": "a69fa805b9aa9b77035aa1f3c509195dd8a4e6ae0ed194ad2a58a8aa48f74891"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-live-bootstrap-v1-20260817-candidate-01.result.json", "sha256": "626ac18f8738cfe73dbeed9461e7cd21fa07edd9ec6911263a9177d64fc0a60a"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/test_transaction_live_bootstrap_v1_failed_history.py", "sha256": "40fc19d93b6bdfdb6294eddf657f1ab829249cd8e2c49fcf6d324589b2533f94"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.manifest.json", "sha256": "ca440b8f3cf664cfe77b803c6a7786816935d391bc56e50a522f6cb76f0535d3"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.authorization.json", "sha256": "885ddb8854b34ccebf29d481e78fb84b1b6a550adf5330bf321eea5085690359"},
+    {"path": "agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.bootstrap-failure.json", "sha256": "b831d2f9d019fcd3347f389cd92fa00b0fc5e6deee3efd2ff0024c17594c7357"}
+  ],
+  "executionBoundary": {
+    "liveExecutionAuthorized": false,
+    "sideEffectsAllowed": false,
+    "candidateInvocationsMaximum": 1,
+    "retryAllowed": false,
+    "resumeAllowed": false
+  }
+}

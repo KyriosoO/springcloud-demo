@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 2,
+  "runId": "transaction-egress-live-bootstrap-v2-20260818-candidate-02",
+  "manifestSha256": "a244abd6da21ce4bc04c65480208989714380dfbc7a28e61261bb97797fefd0d",
+  "authorizationReference": "P3_00:GATE-061",
+  "liveExecutionAuthorized": false
+}
