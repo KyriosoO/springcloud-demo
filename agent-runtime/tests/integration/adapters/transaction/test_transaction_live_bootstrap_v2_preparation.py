@@ -93,6 +93,16 @@ def _prepared_fixture(root: Path) -> tuple[Path, Path]:
     return manifest_path, authorization_path
 
 
+def _rebind_authorization(manifest_path: Path, authorization_path: Path) -> None:
+    authorization = json.loads(authorization_path.read_text(encoding="utf-8"))
+    authorization["manifestSha256"] = _sha256(manifest_path)
+    authorization_path.write_text(
+        json.dumps(authorization, ensure_ascii=True, separators=(",", ":"), sort_keys=True),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
 def test_v2_manifest_binds_both_executable_jars(tmp_path: Path) -> None:
     manifest, authorization = _prepared_fixture(tmp_path)
     binding = validate_prepared_assets_v2(
@@ -112,4 +122,29 @@ def test_v2_manifest_rejects_executable_jar_drift(tmp_path: Path) -> None:
             repository_root=tmp_path,
             manifest_path=manifest,
             authorization_path=authorization,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("sourceCommit", "b" * 40), ("command", "mvn unbound package")),
+)
+def test_v2_manifest_rejects_build_provenance_drift(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    manifest_path, authorization_path = _prepared_fixture(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["buildProvenance"][field] = value
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True),
+        encoding="utf-8",
+        newline="\n",
+    )
+    _rebind_authorization(manifest_path, authorization_path)
+
+    with pytest.raises(BootstrapContractError, match="bootstrap_v2_invalid"):
+        validate_prepared_assets_v2(
+            repository_root=tmp_path,
+            manifest_path=manifest_path,
+            authorization_path=authorization_path,
         )
