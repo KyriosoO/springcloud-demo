@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import unicodedata
 
 from agent_runtime.knowledge.contracts import KnowledgeEvidenceInput
@@ -21,6 +22,9 @@ from agent_runtime.knowledge.retrieval.contracts import RankedKnowledgeBatch
 
 class EvidenceIntegrityError(ValueError):
     pass
+
+
+_LOWER_HEX_64 = re.compile(r"[0-9a-f]{64}")
 
 
 class EvidenceIntegrityVerifier:
@@ -75,8 +79,13 @@ class EvidenceIntegrityVerifier:
                     profile_version=batch.profile_version,
                 )
             )
-        observed_snapshots = tuple(dict.fromkeys(item.candidate.index_snapshot_id for item in batch.candidates))
-        if batch.index_snapshot_ids != observed_snapshots:
+        snapshots = batch.index_snapshot_ids
+        if (
+            not snapshots
+            or len(set(snapshots)) != len(snapshots)
+            or any(type(item) is not str or _LOWER_HEX_64.fullmatch(item) is None for item in snapshots)
+            or any(item.candidate.index_snapshot_id not in snapshots for item in batch.candidates)
+        ):
             raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
         return tuple(verified)
 

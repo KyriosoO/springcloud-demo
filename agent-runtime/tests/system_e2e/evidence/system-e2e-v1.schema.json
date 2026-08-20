@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:system-e2e:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workPackage", "status", "failureCode", "providers", "cases", "requestCounts", "security", "cleanup"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "workPackage": {"const": "WP-SYSTEM-E2E-01"},
+    "status": {"enum": ["runtime_closed", "passed", "failed"]},
+    "failureCode": {"type": ["string", "null"], "pattern": "^system_e2e\\.[a-z0-9_]+$"},
+    "providers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knowledge", "employee", "transaction", "model"],
+      "properties": {
+        "knowledge": {"const": "real"},
+        "employee": {"const": "real"},
+        "transaction": {"const": "real"},
+        "model": {"const": "stub"}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "status", "capabilityId"],
+        "properties": {
+          "caseId": {"type": "string", "pattern": "^system-[a-z0-9-]{1,48}$"},
+          "status": {"type": "string", "maxLength": 32},
+          "capabilityId": {"type": ["string", "null"], "maxLength": 80}
+        }
+      }
+    },
+    "requestCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["knowledgeSearch", "embedding", "rerank", "employee", "transaction", "otherBusinessEndpoints", "localKnowledgeModel", "answerGeneration", "externalModelOutbound"],
+      "properties": {
+        "knowledgeSearch": {"type": "integer", "minimum": 0, "maximum": 8},
+        "embedding": {"type": "integer", "minimum": 0, "maximum": 2},
+        "rerank": {"type": "integer", "minimum": 0, "maximum": 1},
+        "employee": {"type": "integer", "minimum": 0, "maximum": 2},
+        "transaction": {"type": "integer", "minimum": 0, "maximum": 2},
+        "otherBusinessEndpoints": {"const": 0},
+        "localKnowledgeModel": {"type": "integer", "minimum": 0, "maximum": 3},
+        "answerGeneration": {"const": 0},
+        "externalModelOutbound": {"const": 0}
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logLeakCount", "sensitivePersistence"],
+      "properties": {
+        "logLeakCount": {"const": 0},
+        "sensitivePersistence": {"const": false}
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimeClosed", "ownedProcessesStopped", "rawLogsDeleted"],
+      "properties": {
+        "runtimeClosed": {"type": "boolean"},
+        "ownedProcessesStopped": {"type": "boolean"},
+        "rawLogsDeleted": {"type": "boolean"}
+      }
+    }
+  }
+}

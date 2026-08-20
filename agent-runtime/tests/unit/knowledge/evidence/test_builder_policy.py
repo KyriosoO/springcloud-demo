@@ -57,6 +57,42 @@ def test_integrity_rejects_snapshot_or_domain_order_drift() -> None:
     with pytest.raises(ValueError, match="knowledge.evidence_integrity_failed"):
         EvidenceIntegrityVerifier().verify(input=missing_snapshot)
 
+    for invalid_snapshots in ((), ("a" * 64, "a" * 64), ("not-a-snapshot",)):
+        invalid = replace(source, batch=replace(source.batch, index_snapshot_ids=invalid_snapshots))
+        with pytest.raises(ValueError, match="knowledge.evidence_integrity_failed"):
+            EvidenceIntegrityVerifier().verify(input=invalid)
+
+
+def test_integrity_preserves_plan_order_when_rerank_places_law_candidate_first() -> None:
+    source = evidence_input()
+    policy_candidate = source.batch.candidates[0]
+    law_source = replace(
+        candidate(chunk="law-c1", domain="tax.law", content="税收法律正文"),
+        document_id="law-d1",
+        index_snapshot_id="b" * 64,
+    )
+    law_candidate = RankedKnowledgeCandidate(
+        candidate=law_source,
+        domain_ids=("tax.law",),
+        rerank_score=2.0,
+        rank=1,
+    )
+    policy_candidate = replace(policy_candidate, rank=2, rerank_score=1.0)
+    multi_domain = replace(
+        source,
+        selected_domain_ids=("tax.policy", "tax.law"),
+        batch=RankedKnowledgeBatch(
+            candidates=(law_candidate, policy_candidate),
+            profile_version=source.batch.profile_version,
+            index_snapshot_ids=("a" * 64, "b" * 64),
+        ),
+    )
+
+    verified = EvidenceIntegrityVerifier().verify(input=multi_domain)
+
+    assert tuple(item.candidate.index_snapshot_id for item in verified) == ("b" * 64, "a" * 64)
+    assert multi_domain.batch.index_snapshot_ids == ("a" * 64, "b" * 64)
+
 
 def test_second_selection_pass_skips_saturated_document_without_skipping_later_document() -> None:
     source = evidence_input()
