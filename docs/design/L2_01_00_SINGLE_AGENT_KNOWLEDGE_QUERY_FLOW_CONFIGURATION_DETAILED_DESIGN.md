@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
@@ -22,6 +22,7 @@
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立 Knowledge 流程新基线 | 删除 candidate/Gate 流水，保留单动作、五阶段、问题保护、零域语义与当前任务版本 |
+| v1.1 | 2026-08-21 | 代码对照评审修复 | 明确阶段 operation 的创建时点，并校正错误码、内部类型约束和测试落点 |
 
 ## 3. 目标与范围
 
@@ -90,9 +91,9 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、税务两域目录、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline 和组合根。生产任务组合固定为 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV2`。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、税务两域目录、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline 和可注入组合根。当前运行组合的任务绑定固定为 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV2`；默认包入口尚未装配 Knowledge Provider。
 
-新文档不要求代码变更。旧 summary v1 保留给历史资产，但生产组合根只能注册 v2；不得为减少文件而覆盖或删除历史任务。
+旧 summary v1 保留给历史资产，任何启用 Knowledge 的运行组合根只能注册 v2；不得为减少文件而覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 
 ## 7. 动作、逻辑域与请求状态
 
@@ -107,7 +108,7 @@
 | `DR-KFLOW-005` | 模型被拒绝/失败时仅在配置允许且原问题安全有效时回退原问题 |
 | `DR-KFLOW-006` | 逻辑域目录代码绑定且有序；配置只能选择已知域 |
 | `DR-KFLOW-007` | 计划仅含逻辑域、stable path、query、limit；不含索引/字段/DSL |
-| `DR-KFLOW-008` | 每阶段使用总 deadline 派生的较小 phase deadline，超时不进入下一阶段 |
+| `DR-KFLOW-008` | 每阶段使用总 deadline 派生的较小 phase deadline；仅在预算校验通过后创建阶段 operation，超时不进入下一阶段 |
 | `DR-KFLOW-009` | 授权拒绝/读取权威失败优先于局部技术成功；coverage 必须与计划精确对应 |
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
 
@@ -126,7 +127,7 @@
 
 ### 7.4 请求级状态
 
-请求中依次产生 `ProtectedConstraintSet`、`RewriteStageResult`、`DomainSelection`、`KnowledgeRetrievalPlan`、`RetrievalStageResult`、`EvidenceStageResult`。所有类型 frozen、slots、有界；不写跨请求存储。
+请求中依次产生 `ProtectedConstraintSet`、`RewriteStageResult`、`DomainSelection`、`KnowledgeRetrievalPlan`、`RetrievalStageResult`、`EvidenceStageResult`。内部传递类型为 frozen、slots；字符串、集合、coverage 与 stage-result 组合等边界分别由可信生产者、严格 decoder 和 Capability 消费点校验，不要求每个内部 dataclass 重复同一组校验；不写跨请求存储。
 
 ## 8. 问题改写详细设计
 
@@ -183,7 +184,7 @@ validate empty arguments
 
 | 场景 | Capability 状态 | 典型 code/结果 |
 |---|---|---|
-| 非空 arguments/问题非法 | `invalid_argument` | `knowledge.arguments_invalid` / `knowledge.question_invalid` |
+| 非空 arguments/问题非法 | `invalid_argument` | `knowledge.arguments_not_empty` / `knowledge.invalid_question` |
 | 问题策略拒绝 | `model_egress_denied` | `knowledge.rewrite_input_denied`，模型调用 0 |
 | 安全普通零域 | `no_result` | `reason=no_matching_domain` |
 | 整域读取拒绝 | `forbidden` | `knowledge.domain_forbidden` |
@@ -273,12 +274,12 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 测试编号 | 场景与路径 |
 |---|---|
 | `TEST-KFLOW-001` | descriptor/empty arguments/单注册：`agent-runtime/tests/contract/knowledge/test_provider_registration.py` |
-| `TEST-KFLOW-002` | Capability 五阶段和调用顺序：`agent-runtime/tests/unit/knowledge/test_capability_contract.py` |
+| `TEST-KFLOW-002` | Capability 契约、阶段协同和上下文裁剪：`agent-runtime/tests/unit/knowledge/test_capability_contract.py`、`agent-runtime/tests/integration/knowledge/test_flow_with_fake_stages.py` |
 | `TEST-KFLOW-003` | 保护约束和 rewrite candidate：`agent-runtime/tests/contract/knowledge/test_provider_registration.py`、Knowledge Capability tests |
 | `TEST-KFLOW-004` | input denied/模型失败/原问题回退与零调用 |
 | `TEST-KFLOW-005` | 两域单选/多选/零域与稳定顺序：`test_domain_selection.py` |
 | `TEST-KFLOW-006` | plan 域×路径、limit 和无物理资源字段：`test_planning.py` |
-| `TEST-KFLOW-007` | coverage、部分成功、授权优先和阶段 timeout：`agent-runtime/tests/unit/knowledge/test_capability_contract.py` |
+| `TEST-KFLOW-007` | coverage、部分成功、授权优先和阶段 timeout：`agent-runtime/tests/integration/knowledge/test_flow_with_fake_stages.py` 与 Retrieval/Evidence Stage tests |
 | `TEST-KFLOW-008` | denied + zero-domain 与普通 zero-domain 反证：`agent-runtime/tests/evaluation/knowledge/test_live_p5_denied_zero_domain.py` |
 
 ### 15.2 验证编号定义
@@ -304,7 +305,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为 Knowledge 流程、配置和组合根代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为 Knowledge 流程、配置和组合根代码评审依据 |
 | 当前允许实施范围 | 单动作、rewrite v1、逻辑域/计划、Stage 协同、失败映射、summary v2 绑定和非 live 测试 |
 | 当前禁止动作 | 新域/物理资源、公共契约变化、真实模型调用、索引写入和独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
@@ -318,6 +319,6 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 内审 3 | 真实落点、测试、版本、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-01-00-001` 已修复；单动作、五阶段、任务绑定、失败优先级与实现复核通过 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。

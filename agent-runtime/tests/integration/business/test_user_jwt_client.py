@@ -4,7 +4,11 @@ import asyncio
 
 import pytest
 
-from agent_runtime.business.contracts import BusinessHttpRequest
+from agent_runtime.business.contracts import (
+    BusinessHttpRequest,
+    BusinessTransportFailure,
+    BusinessTransportFailureKind,
+)
 from agent_runtime.business.http_client import FakeDomainHttpRequest, FakeDomainHttpResponse, UserJwtBusinessHttpClient
 from tests.helpers import ManualCancellationSignal, scope
 
@@ -40,3 +44,17 @@ async def test_client_forwards_only_original_user_jwt_once_and_drops_error_body(
     await client.aclose()
     assert transport.closed == 1
 
+
+@pytest.mark.asyncio
+async def test_client_rejects_oversized_error_body_before_dropping_it() -> None:
+    client = UserJwtBusinessHttpClient(transport=FakeTransport(), max_response_bytes=8)
+
+    with pytest.raises(BusinessTransportFailure) as failure:
+        await client.execute(
+            request=BusinessHttpRequest(method="GET", relative_path="/fake", query=(), json_body=None),
+            user_token=scope().context.user_token,
+            call_deadline=asyncio.get_running_loop().time() + 2,
+            cancellation=ManualCancellationSignal(),
+        )
+
+    assert failure.value.kind is BusinessTransportFailureKind.RESPONSE_TOO_LARGE

@@ -34,23 +34,26 @@ class UserRoleJwtAuthenticationConverterTest {
 		assertAuthorities(List.of(true));
 		assertAuthorities(List.of(""));
 		assertAuthorities(List.of("admin"));
+		assertAuthorities(List.of(" ADMIN "));
+		assertAuthorities(List.of("ROLE_ADMIN"));
 		assertAuthorities(List.of("ADMIN", "UNKNOWN"));
 	}
 
 	@Test
 	void nonUserTokenIsAnAuthenticationFailure() {
-		assertThatThrownBy(() -> converter.convert(jwt(null, List.of("ADMIN"))))
-				.isInstanceOf(OAuth2AuthenticationException.class);
-		assertThatThrownBy(() -> converter.convert(jwt("service", List.of("ADMIN"))))
-				.isInstanceOf(OAuth2AuthenticationException.class);
-		assertThatThrownBy(() -> converter.convert(jwt("USER", List.of("ADMIN"))))
-				.isInstanceOf(OAuth2AuthenticationException.class);
-		assertThatThrownBy(() -> converter.convert(jwt(1, List.of("ADMIN"))))
-				.isInstanceOf(OAuth2AuthenticationException.class);
-		assertThatThrownBy(() -> converter.convert(jwt(true, List.of("ADMIN"))))
-				.isInstanceOf(OAuth2AuthenticationException.class);
-		assertThatThrownBy(() -> converter.convert(jwt(List.of("user"), List.of("ADMIN"))))
-				.isInstanceOf(OAuth2AuthenticationException.class);
+		assertInvalidToken(null);
+		assertInvalidToken("service");
+		assertInvalidToken("USER");
+		assertInvalidToken(1);
+		assertInvalidToken(true);
+		assertInvalidToken(List.of("user"));
+	}
+
+	private void assertInvalidToken(Object tokenType) {
+		assertThatThrownBy(() -> converter.convert(jwt(tokenType, List.of("ADMIN"))))
+				.isInstanceOf(OAuth2AuthenticationException.class)
+				.satisfies(error -> assertThat(((OAuth2AuthenticationException) error)
+						.getError().getErrorCode()).isEqualTo("invalid_token"));
 	}
 
 	private void assertAuthorities(Object roles, String... expected) {

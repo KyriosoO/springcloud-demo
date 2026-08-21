@@ -72,10 +72,10 @@ class UserJwtBusinessHttpClient:
             raise BusinessTransportFailure(BusinessTransportFailureKind.TLS_OR_CONNECT) from exc
         if cancellation.is_cancelled():
             raise BusinessTransportFailure(BusinessTransportFailureKind.TIMEOUT)
+        if len(response.body) > self._max_response_bytes:
+            raise BusinessTransportFailure(BusinessTransportFailureKind.RESPONSE_TOO_LARGE)
         body: bytes | None = None
         if 200 <= response.status_code < 300 and response.status_code != 204:
-            if len(response.body) > self._max_response_bytes:
-                raise BusinessTransportFailure(BusinessTransportFailureKind.RESPONSE_TOO_LARGE)
             body = bytes(response.body)
         return BoundedBusinessHttpResponse(
             status_code=response.status_code,
@@ -87,4 +87,3 @@ class UserJwtBusinessHttpClient:
         if not self._closed:
             self._closed = True
             await self._transport.aclose()
-

@@ -9,8 +9,6 @@ import java.time.Instant;
 import com.dylan.agent.service.config.AgentIngressProperties;
 import com.dylan.agent.service.config.AgentRuntimeProperties;
 import com.dylan.agent.service.contract.CapabilityStatus;
-import com.dylan.agent.service.contract.FailureResponse;
-import com.dylan.agent.service.contract.FailureSource;
 import com.dylan.agent.service.contract.RuntimeInvokeRequest;
 import com.dylan.agent.service.contract.RuntimeInvokeResponse;
 import com.dylan.agent.service.runtime.AgentRuntimeClient;

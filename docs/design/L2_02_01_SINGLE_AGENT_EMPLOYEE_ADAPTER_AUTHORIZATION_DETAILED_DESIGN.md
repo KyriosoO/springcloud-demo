@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_02_01` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | `employee.detail` 的参数、映射、wire、响应、字段投影、业务域授权与验证 |
 | 上位文档 | [`L1_02` v1.0](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
-| 公共下位依赖 | [`L2_02_00` v1.0](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| 安全依赖 | [`L2_00_03` v1.0](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) |
+| 公共下位依赖 | [`L2_02_00` v1.1](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
+| 安全依赖 | [`L2_00_03` v1.1](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) |
 | 来源文档 | [L2_02_01 v0.49 归档版](历史文档/2026-08-21-v0-baseline/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) |
 | 实施状态 | Adapter、领域最终授权与非 live 测试已实现；真实业务结果外部模型出域默认关闭 |
 
@@ -23,6 +23,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码对照设计评审 | 对齐公共出域逐记录完整性规则，补充 partial-field 零调用覆盖，修正可执行 Maven 命令并隔离历史 live 资产与当前源码测试 |
 | v1.0 | 2026-08-21 | 建立 Employee 当前稳定基线 | 删除历史 Gate、临时数据诊断和候选运行流水，只保留现行代码契约、安全边界、验证入口及来源 |
 
 ## 3. 目标与范围
@@ -187,7 +188,7 @@ body: none
 | `position` | business internal | 是 | bounded text | 是 |
 | `work_base_si` | business internal | 是 | bounded text | 是 |
 
-用户结果最小字段是 `employee_id_masked,chinese_name`。启用模型出域时若 `position/work_base_si` 均为空、含注入文本、转换失败或策略冲突，拒绝且模型调用为 0。
+用户结果最小字段是 `employee_id_masked,chinese_name`。启用模型出域时，每条结果必须具备本次配置选中的全部模型字段；例如同时配置 `position,work_base_si` 时任一字段为空都拒绝。模型字段为空、含注入文本、转换失败、未知内部字段或策略冲突时同样拒绝且模型调用为 0，不生成部分 facts。
 
 身份证、工号、姓名、邮箱、JWT、原始响应和问题中的具体标识永不进入模型。候选回答必须通过公共 grounding；拒绝时仅返回本地受控结果或固定失败。
 
@@ -302,7 +303,7 @@ SecurityFilterChain employeeDetailSecurityFilterChain(
 | `TEST-EMP-006` | normalizer、coverage、用户最小字段和转换 |
 | `TEST-EMP-007` | ADMIN/VIEWER 允许，unknown/missing/malformed/service token 拒绝 |
 | `TEST-EMP-008` | matcher、controller guard、非详情 endpoint 不被扩大 |
-| `TEST-EMP-009` | 默认模型字段空；仅 position/work_base_si；敏感/未知/冲突零调用 |
+| `TEST-EMP-009` | 默认模型字段空；仅 position/work_base_si；敏感/未知/冲突/已配置字段部分缺失零调用 |
 | `TEST-EMP-010` | model spy、grounding、日志/禁止字面量零泄漏 |
 
 ### 15.2 验证编号定义
@@ -324,11 +325,13 @@ python -m mypy --strict src/agent_runtime/adapters/employee tests/unit/adapters/
 python -m compileall -q src/agent_runtime/adapters/employee
 
 Set-Location D:\codex
-mvn -pl employee-service -am -DskipTests compile
-mvn -pl employee-service -am -Dtest=EmployeeControllerAuthorizationTest,EmployeeDetailSecurityConfigurationTest,EmployeeDetailSecurityIntegrationTest test
+mvn -f serviceCenter/pom.xml -pl :employee-service -am -DskipTests compile
+mvn -f serviceCenter/pom.xml -pl :employee-service -am "-Dtest=EmployeeControllerAuthorizationTest,EmployeeDetailSecurityConfigurationTest,EmployeeDetailSecurityIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 
 真实 JWT/Employee 数据/模型出域只在独立显式授权下执行，不属于文档基线校验。
+
+历史 candidate/qualification/bootstrap 测试必须按其冻结提交和精确 evidence 哈希验证；候选已产生终态证据后不得继续断言“未消费/无输出”。当前源码的 preflight 行为测试不得修改、重绑定或复用历史授权资产。
 
 ## 16. 可观测性与运维
 

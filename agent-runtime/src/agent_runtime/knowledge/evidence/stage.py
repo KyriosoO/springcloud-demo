@@ -122,6 +122,11 @@ class DefaultKnowledgeEvidenceStage:
             raise
         except TimeoutError:
             return EvidenceStageResult(kind=EvidenceStageKind.TIMEOUT, stage_code=EvidenceStageCode.SUMMARY_TIMEOUT)
+        except Exception:
+            return EvidenceStageResult(
+                kind=EvidenceStageKind.DOWNSTREAM_FAILURE,
+                stage_code=EvidenceStageCode.SUMMARY_FAILURE,
+            )
         if model_result.failure_kind is not None:
             if model_result.failure_kind is ModelProviderFailureKind.PROVIDER_TIMEOUT:
                 return EvidenceStageResult(kind=EvidenceStageKind.TIMEOUT, stage_code=EvidenceStageCode.SUMMARY_TIMEOUT)
@@ -147,4 +152,3 @@ class DefaultKnowledgeEvidenceStage:
             policy_version="knowledge-evidence-egress-v1",
             denial_reason=reason,
         )
-

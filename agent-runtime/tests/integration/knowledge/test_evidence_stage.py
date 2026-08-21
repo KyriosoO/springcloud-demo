@@ -5,7 +5,12 @@ from dataclasses import replace
 
 import pytest
 
-from agent_runtime.knowledge.contracts import EvidenceEgressDenialReason, EvidenceStageKind, KnowledgeEvidenceContext
+from agent_runtime.knowledge.contracts import (
+    EvidenceEgressDenialReason,
+    EvidenceStageCode,
+    EvidenceStageKind,
+    KnowledgeEvidenceContext,
+)
 from agent_runtime.knowledge.evidence.contracts import (
     KnowledgeEgressDisposition,
     KnowledgeSummaryOutput,
@@ -35,6 +40,16 @@ class FakeGateway:
                 points=(KnowledgeSummaryPoint(evidence_ref="e1", quote="税务政策正文"),),
             )
         )
+
+
+class FailingGateway:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def generate(self, *, definition: object, input: object, context: object) -> ModelTaskResult[KnowledgeSummaryOutput]:
+        del definition, input, context
+        self.calls += 1
+        raise RuntimeError("synthetic provider detail must not escape")
 
 
 def _context() -> KnowledgeEvidenceContext:
@@ -134,3 +149,23 @@ async def test_document_policy_negative_matrix_never_calls_summary(
     assert result.kind is EvidenceStageKind.MODEL_EGRESS_DENIED
     assert result.denial_reason is expected_reason
     assert gateway.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_unexpected_gateway_exception_maps_to_finite_summary_failure() -> None:
+    gateway = FailingGateway()
+    stage = DefaultKnowledgeEvidenceStage(
+        catalog=synthetic_catalog(),
+        guard=QuestionEgressGuard(),
+        context=ModelCallContextAccessor(),
+        gateway=gateway,  # type: ignore[arg-type]
+        definition=KnowledgeSummaryTaskV1.definition(),
+    )
+
+    result = await call_with_model_context(
+        lambda: stage.build_result(input=evidence_input(), context=_context(), timeout_s=4)
+    )
+
+    assert result.kind is EvidenceStageKind.DOWNSTREAM_FAILURE
+    assert result.stage_code is EvidenceStageCode.SUMMARY_FAILURE
+    assert gateway.calls == 1

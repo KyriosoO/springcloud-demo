@@ -78,3 +78,49 @@ def test_egress_projection_fails_closed_when_global_text_limit_is_exceeded() -> 
 
     assert result.disposition is EgressDisposition.DENIED
     assert result.reason_code == "business.payload_limit"
+
+
+def test_egress_projection_rejects_partial_configured_model_fields() -> None:
+    settings = TransactionAdapterSettings.from_env({
+        "AGENT_TRANSACTION_SEARCH_MODEL_FIELDS": "transaction_type,amount",
+    }).action
+    result = BusinessEgressProjector().project(
+        definition=transaction_search_definition(),
+        settings=settings,
+        user_result=BusinessUserResult(
+            capability_id="transaction.search",
+            records=(BusinessUserRecord(
+                record_ref="record-0001",
+                fields=(BusinessUserField(field_id="transaction_type", value="PAY"),),
+            ),),
+            coverage=BusinessResultCoverage(returned_count=1, truncated=False, total_count=1),
+        ),
+        policy=GlobalBusinessEgressPolicy.from_settings(BusinessGlobalSettings(egress_enabled=True)),
+        config_snapshot_id="a" * 64,
+    )
+
+    assert result.disposition is EgressDisposition.DENIED
+    assert result.reason_code == "business.no_model_fields"
+
+
+def test_egress_projection_rejects_unknown_internal_result_field() -> None:
+    settings = TransactionAdapterSettings.from_env({
+        "AGENT_TRANSACTION_SEARCH_MODEL_FIELDS": "transaction_type,amount",
+    }).action
+    result = BusinessEgressProjector().project(
+        definition=transaction_search_definition(),
+        settings=settings,
+        user_result=BusinessUserResult(
+            capability_id="transaction.search",
+            records=(BusinessUserRecord(
+                record_ref="record-0001",
+                fields=(*_user_result().records[0].fields, BusinessUserField(field_id="unknown", value="hidden")),
+            ),),
+            coverage=BusinessResultCoverage(returned_count=1, truncated=False, total_count=1),
+        ),
+        policy=GlobalBusinessEgressPolicy.from_settings(BusinessGlobalSettings(egress_enabled=True)),
+        config_snapshot_id="a" * 64,
+    )
+
+    assert result.disposition is EgressDisposition.DENIED
+    assert result.reason_code == "business.policy_conflict"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.integration.adapters.frozen_manifest import materialize_manifest_at_commit
 from tests.integration.adapters.employee.egress_input_qualification_v5 import (
     AUTHORIZATION_REFERENCE,
     RUN_ID,
@@ -30,16 +31,25 @@ EXPECTED_AUTHORIZATION_SHA256 = "c8e3a3c5b85994a446fd93e9b7d291a189d36a1016856e4
 EXPECTED_HOST_LIFECYCLE_SHA256 = "c0e8ef84d1deedb3adaaeca7866e87d278d4112248c775e45739e6dbb72eb51e"
 EXPECTED_LIFECYCLE_SHA256 = "442dfc7e88aa6a02689e0431805311e71e384ea19c53761da609b72b88ea318f"
 EXPECTED_RESULT_SHA256 = "f51915e067433dace3c0019dd85e99e7dde443204089fea6d078401df24a6690"
+FROZEN_SOURCE_COMMIT = "7b55b2faaad9122c8588a9195c0273f53b1bb7ed"
 
 
-def test_candidate_v5_prepared_and_consumed_assets_are_exact() -> None:
+def test_candidate_v5_prepared_and_consumed_assets_are_exact(tmp_path: Path) -> None:
     assert sha256_file(MANIFEST) == EXPECTED_MANIFEST_SHA256
     assert sha256_file(AUTHORIZATION) == EXPECTED_AUTHORIZATION_SHA256
     assert sha256_file(HOST_LIFECYCLE) == EXPECTED_HOST_LIFECYCLE_SHA256
     assert sha256_file(LIFECYCLE) == EXPECTED_LIFECYCLE_SHA256
     assert sha256_file(RESULT) == EXPECTED_RESULT_SHA256
 
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=REPOSITORY)
+    raw_manifest = load_strict_json(MANIFEST)
+    frozen_repository = materialize_manifest_at_commit(
+        raw_manifest,
+        repository_root=REPOSITORY,
+        destination=tmp_path / "frozen-repository",
+        source_commit=FROZEN_SOURCE_COMMIT,
+        collection_names=("history", "assetHashes"),
+    )
+    manifest = validate_manifest(raw_manifest, repository_root=frozen_repository)
     authorization = validate_authorization(
         load_strict_json(AUTHORIZATION), manifest_sha256=EXPECTED_MANIFEST_SHA256
     )

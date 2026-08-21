@@ -4,6 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from tests.integration.adapters.frozen_manifest import materialize_manifest_at_commit
 from tests.integration.adapters.employee.egress_candidate_v4 import (
     AUTHORIZATION_REFERENCE,
     EXPECTED_PASSED_RECORDS,
@@ -25,9 +26,20 @@ REPOSITORY = Path(__file__).parents[5]
 EVIDENCE = Path(__file__).parent / "evidence"
 MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
 AUTHORIZATION = EVIDENCE / f"{RUN_ID}.authorization.json"
-def test_manifest_authorization_assets_and_history_are_frozen() -> None:
+FROZEN_SOURCE_COMMIT = "b1b755ba21e9dcea611c29ab30622249b5c29d7b"
+
+
+def test_manifest_authorization_assets_and_history_are_frozen(tmp_path: Path) -> None:
     manifest_sha = sha256_file(MANIFEST)
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=REPOSITORY)
+    raw_manifest = load_strict_json(MANIFEST)
+    frozen_repository = materialize_manifest_at_commit(
+        raw_manifest,
+        repository_root=REPOSITORY,
+        destination=tmp_path / "frozen-repository",
+        source_commit=FROZEN_SOURCE_COMMIT,
+        collection_names=("historyHashes", "assetHashes"),
+    )
+    manifest = validate_manifest(raw_manifest, repository_root=frozen_repository)
     raw_authorization = load_strict_json(AUTHORIZATION)
     assert raw_authorization["manifestSha256"] == manifest_sha
     authorization = validate_authorization(

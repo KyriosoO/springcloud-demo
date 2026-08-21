@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from agent_runtime.capability_api.contracts import CapabilityStatus, EgressDisposition, ModelEgressResult
@@ -126,3 +128,34 @@ def test_coverage_rejects_duplicate_domain_counts_and_non_boolean_complete() -> 
 
     assert not capability._valid_coverage(duplicate_counts, plan, require_candidates=False)
     assert not capability._valid_coverage(non_boolean, plan, require_candidates=False)
+
+
+@pytest.mark.asyncio
+async def test_expired_phase_budget_does_not_create_the_stage_operation() -> None:
+    settings = KnowledgeSettings.from_env(
+        {"AGENT_KNOWLEDGE_ENABLED": "true", "AGENT_KNOWLEDGE_ENABLED_DOMAINS": "tax.policy"}
+    )
+    capability = KnowledgeQueryCapability[object](
+        settings=settings,
+        enabled_domains=build_tax_domain_catalog().enabled(settings.enabled_domain_ids),
+        rewriter=FakeRewriteStage(RewriteStageResult(kind=RewriteStageKind.FAILURE)),
+        selector=DeterministicDomainSelector(),
+        planner=KnowledgeRetrievalPlanBuilder(),
+        retrieval=FakeRetrievalStage[object](RetrievalStageResult(kind=RetrievalStageKind.NO_RESULT)),
+        evidence=FakeEvidenceStage[object](EvidenceStageResult(kind=EvidenceStageKind.NO_RESULT)),
+    )
+    operation_calls = 0
+
+    async def operation() -> object:
+        nonlocal operation_calls
+        operation_calls += 1
+        return object()
+
+    with pytest.raises(TimeoutError, match="knowledge.phase_timeout"):
+        await capability._run_phase(
+            operation,
+            context=scope(deadline_monotonic=asyncio.get_running_loop().time() - 1.0).context,
+            phase_timeout_s=1.0,
+        )
+
+    assert operation_calls == 0

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from typing import Awaitable, Generic, TypeVar
+from typing import Awaitable, Callable, Generic, TypeVar
 
 from agent_runtime.capability_api.contracts import (
     CapabilityExecutionContext,
@@ -114,7 +114,10 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             return _result(CapabilityStatus.INVALID_ARGUMENT, code="knowledge.invalid_question")
         try:
             rewrite = await self._run_phase(
-                self._rewriter.rewrite(original_question=question, timeout_s=self._settings.rewrite_timeout_ms / 1000),
+                lambda: self._rewriter.rewrite(
+                    original_question=question,
+                    timeout_s=self._settings.rewrite_timeout_ms / 1000,
+                ),
                 context=context,
                 phase_timeout_s=self._settings.rewrite_timeout_ms / 1000,
             )
@@ -162,7 +165,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             plan = self._planner.build(rewrite=rewritten, domains=domains, settings=self._settings)
             retrieval_context = to_retrieval_context(context)
             retrieval = await self._run_phase(
-                self._retrieval.execute(
+                lambda: self._retrieval.execute(
                     plan=plan,
                     context=retrieval_context,
                     timeout_s=self._settings.retrieval_timeout_ms / 1000,
@@ -187,7 +190,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         )
         try:
             evidence = await self._run_phase(
-                self._evidence.build_result(
+                lambda: self._evidence.build_result(
                     input=evidence_input,
                     context=to_evidence_context(context),
                     timeout_s=self._settings.evidence_timeout_ms / 1000,
@@ -201,7 +204,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
 
     async def _run_phase(
         self,
-        operation: Awaitable[TPhase],
+        operation_factory: Callable[[], Awaitable[TPhase]],
         *,
         context: CapabilityExecutionContext,
         phase_timeout_s: float,
@@ -213,7 +216,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             now_monotonic=loop.time(), request_deadline=context.deadline_monotonic, phase_timeout_s=phase_timeout_s
         )
         async with asyncio.timeout_at(deadline):
-            result = await operation
+            result = await operation_factory()
         if context.cancellation.is_cancelled() or loop.time() >= context.deadline_monotonic:
             raise TimeoutError("knowledge.deadline_exhausted")
         return result

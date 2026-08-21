@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_02_02` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | `transaction.search` 参数、精确金额、wire、分页、字段投影、业务域授权与验证 |
 | 上位文档 | [`L1_02` v1.0](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
-| 公共下位依赖 | [`L2_02_00` v1.0](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| 安全依赖 | [`L2_00_03` v1.0](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) |
+| 公共下位依赖 | [`L2_02_00` v1.1](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
+| 安全依赖 | [`L2_00_03` v1.1](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) |
 | 来源文档 | [L2_02_02 v0.23 归档版](历史文档/2026-08-21-v0-baseline/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) |
 | 实施状态 | Adapter、精确金额链和领域最终授权已实现；真实业务结果外部模型出域默认关闭 |
 
@@ -23,6 +23,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码对照设计评审 | 对齐公共出域逐记录完整性与有限 grounding 边界，修正 Maven 聚合入口、完整模块测试覆盖和历史 live 资产隔离规则 |
 | v1.0 | 2026-08-21 | 建立 Transaction 当前稳定基线 | 删除历史 live candidate 和门禁流水，固化当前 search、DECIMAL(50,2)、三字段投影、业务域授权及验证入口 |
 
 ## 3. 目标与范围
@@ -211,7 +212,7 @@ HTTP 400 可映射 invalid arguments；401/403/429/5xx、超时、取消、stric
 | `transaction_type` | business internal | 是 | bounded text | 是 |
 | `amount` | financial value | 是 | decimal 2 | 是 |
 
-用户结果必须含 `transaction_type,amount`。模型候选默认空；显式启用时最多是这两项。原始交易号、JWT、查询条件、原始 row/response 不得进入模型。模型回答必须通过公共 fact ID、规范金额显示和 protected-token grounding。
+用户结果必须含 `transaction_type,amount`。模型候选默认空；显式启用时最多是这两项，且每条结果必须完整具备全部已配置模型字段，禁止生成部分 facts。原始交易号、JWT、查询条件、原始 row/response 不得进入模型。模型回答必须通过公共 fact ID、同句规范金额显示和 protected-token 有限 grounding。
 
 ### 10.2 最终授权
 
@@ -354,11 +355,13 @@ python -m mypy --strict src/agent_runtime/adapters/transaction tests/unit/adapte
 python -m compileall -q src/agent_runtime/adapters/transaction
 
 Set-Location D:\codex
-mvn -pl mq-procedure-service -am -DskipTests compile
-mvn -pl mq-procedure-service -am -Dtest=TransactionSearchRequestDeserializerTest,TransactionAmountContractTest,TransactionServiceSearchTest,TransactionControllerAuthorizationTest,TransactionSearchSecurityConfigurationTest,TransactionSearchSecurityIntegrationTest,TransactionMapperIntegrationTest test
+mvn -f serviceCenter/pom.xml -pl :mq-procedure-service -am -DskipTests compile
+mvn -f serviceCenter/pom.xml -pl :mq-procedure-service -am test
 ```
 
 真实 JWT/Transaction 数据/外部模型只在独立显式授权下执行，不属于基线校验。
+
+历史 candidate/bootstrap 的 manifest、authorization 与终态 evidence 必须保持字节不变，并按冻结提交/精确哈希验证；当前源码 preflight 行为只允许使用测试目录中的临时非 live 重绑定 manifest，不得把它解释为新的 live 授权或覆盖历史终态。
 
 ## 16. 可观测性与运维
 

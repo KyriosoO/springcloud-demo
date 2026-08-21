@@ -8,7 +8,13 @@ import pytest
 
 from tests.integration.adapters.business_egress_live_bootstrap import (
     load_strict_json,
+    read_lifecycle,
     sha256_file,
+    validate_result,
+)
+from tests.integration.adapters.frozen_manifest import (
+    materialize_manifest_at_commit,
+    materialize_manifest_from_current_hashes,
 )
 from tests.integration.adapters.employee.live_bootstrap_v2 import (
     AUTHORIZATION_REFERENCE,
@@ -31,6 +37,12 @@ from tests.integration.adapters.employee.live_bootstrap_v2 import (
 ROOT = Path(__file__).resolve().parents[5]
 MANIFEST = manifest_path(ROOT)
 AUTHORIZATION = authorization_path(ROOT)
+EXPECTED_SHA256 = {
+    f"{RUN_ID}.manifest.json": "899eb378df014085c6e419a1720be96994698457b1f248215e8df2374118b383",
+    f"{RUN_ID}.authorization.json": "0f9d71d0636f956aa12c4928a91137e53a211a74718a66a30b8f29fd8eb63000",
+    f"{RUN_ID}.lifecycle.jsonl": "58d315f6ee87dde24b166ef7c58fdcbd74ef8e0c61ae6c5f97596d419f539abc",
+    f"{RUN_ID}.result.json": "0b320ff1ab9bc28d759531cacca44d3fc01392c6d6058eae0f20ff1f13bac6d0",
+}
 
 
 def _require_prepared_assets() -> None:
@@ -38,9 +50,32 @@ def _require_prepared_assets() -> None:
         pytest.skip("employee bootstrap v2 manifest is generated after source commit")
 
 
-def test_employee_v2_manifest_authorization_and_histories_are_frozen() -> None:
+def _frozen_repository(tmp_path: Path) -> Path:
+    manifest = load_strict_json(MANIFEST)
+    frozen = materialize_manifest_at_commit(
+        manifest,
+        repository_root=ROOT,
+        destination=tmp_path / "frozen-repository",
+        source_commit=manifest["wrapperSourceCommit"],
+        collection_names=("assetHashes", "historyHashes"),
+    )
+    return materialize_manifest_from_current_hashes(
+        manifest,
+        repository_root=ROOT,
+        destination=frozen,
+        collection_names=("executableHashes",),
+    )
+
+
+def test_employee_v2_manifest_authorization_and_histories_are_frozen(
+    tmp_path: Path,
+) -> None:
     _require_prepared_assets()
-    binding = validate_prepared_assets(ROOT)
+    binding = validate_prepared_assets(
+        _frozen_repository(tmp_path),
+        prepared_manifest_path=MANIFEST,
+        prepared_authorization_path=AUTHORIZATION,
+    )
     manifest = load_strict_json(MANIFEST)
     assert binding.run_id == RUN_ID
     assert binding.authorization_reference == AUTHORIZATION_REFERENCE
@@ -77,7 +112,33 @@ def test_employee_v2_assets_exist_at_frozen_source_commit() -> None:
         assert hashlib.sha256(completed.stdout).hexdigest() == expected_sha256
 
 
-def test_employee_v2_is_prepared_without_outer_or_inner_outputs() -> None:
+def test_employee_v2_failed_history_is_exact_and_non_reusable(tmp_path: Path) -> None:
     _require_prepared_assets()
-    assert all(not path.exists() for path in output_paths(ROOT))
+    evidence = MANIFEST.parent
+    paths = {name: evidence / name for name in EXPECTED_SHA256}
+    assert {name: sha256_file(path) for name, path in paths.items()} == EXPECTED_SHA256
+
+    binding = validate_prepared_assets(
+        _frozen_repository(tmp_path),
+        prepared_manifest_path=MANIFEST,
+        prepared_authorization_path=AUTHORIZATION,
+    )
+    lifecycle_path, result_path, diagnostic_path = output_paths(ROOT)
+    lifecycle = read_lifecycle(lifecycle_path, binding=binding)
+    result = load_strict_json(result_path)
+    validate_result(result, binding=binding)
+
+    assert len(lifecycle) == 4
+    assert lifecycle[1]["phase"] == "asset_preflight"
+    assert lifecycle[1]["status"] == "failed"
+    assert lifecycle[1]["reason"] == "asset_hash_invalid"
+    assert result["status"] == "failed_pre_candidate_unconsumed"
+    assert result["candidateInvoked"] is False
+    assert result["failure"] == {
+        "phase": "asset_preflight",
+        "reason": "asset_hash_invalid",
+    }
+    assert result["counts"]["retry"] == 0
+    assert result["counts"]["resume"] == 0
+    assert not diagnostic_path.exists()
     assert all(not path.exists() for path in candidate_output_paths(ROOT))

@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.integration.adapters.frozen_manifest import (
+    materialize_current_hash_bindings,
+    materialize_manifest_at_commit,
+)
 from tests.integration.adapters.business_egress_live_bootstrap import (
     load_strict_json,
     read_lifecycle,
@@ -35,13 +39,32 @@ EXPECTED_SHA256 = {
 }
 
 
-def test_transaction_bootstrap_failed_history_is_exact_and_non_reusable() -> None:
+def test_transaction_bootstrap_failed_history_is_exact_and_non_reusable(
+    tmp_path: Path,
+) -> None:
     evidence = manifest_path(ROOT).parent
     paths = {name: evidence / name for name in EXPECTED_SHA256}
     assert {name: sha256_file(path) for name, path in paths.items()} == EXPECTED_SHA256
 
-    binding = validate_prepared_assets(
+    manifest_value = load_strict_json(manifest_path(ROOT))
+    frozen_repository = materialize_manifest_at_commit(
+        manifest_value,
         repository_root=ROOT,
+        destination=tmp_path / "frozen-repository",
+        source_commit=manifest_value["wrapperSourceCommit"],
+        collection_names=("assetHashes", "historyHashes"),
+    )
+    candidate = manifest_value["candidate"]
+    materialize_current_hash_bindings(
+        {
+            candidate["manifestPath"]: candidate["manifestSha256"],
+            candidate["authorizationPath"]: candidate["authorizationSha256"],
+        },
+        repository_root=ROOT,
+        destination=frozen_repository,
+    )
+    binding = validate_prepared_assets(
+        repository_root=frozen_repository,
         manifest_path=manifest_path(ROOT),
         authorization_path=authorization_path(ROOT),
     )

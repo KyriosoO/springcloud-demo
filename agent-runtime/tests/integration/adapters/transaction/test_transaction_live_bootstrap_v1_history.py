@@ -11,6 +11,10 @@ from tests.integration.adapters.business_egress_live_bootstrap import (
     sha256_file,
     validate_prepared_assets,
 )
+from tests.integration.adapters.frozen_manifest import (
+    materialize_current_hash_bindings,
+    materialize_manifest_at_commit,
+)
 from tests.integration.adapters.transaction.live_bootstrap_v1 import (
     AUTHORIZATION_REFERENCE,
     BOOTSTRAP_ASSET_PATHS,
@@ -36,10 +40,32 @@ def _require_prepared_assets() -> None:
         pytest.skip("transaction bootstrap manifest is generated after wrapper source commit")
 
 
-def test_transaction_bootstrap_manifest_authorization_assets_and_history_are_frozen() -> None:
+def _frozen_repository(tmp_path: Path) -> Path:
+    manifest = load_strict_json(MANIFEST)
+    frozen = materialize_manifest_at_commit(
+        manifest,
+        repository_root=ROOT,
+        destination=tmp_path / "frozen-repository",
+        source_commit=manifest["wrapperSourceCommit"],
+        collection_names=("assetHashes", "historyHashes"),
+    )
+    candidate = manifest["candidate"]
+    return materialize_current_hash_bindings(
+        {
+            candidate["manifestPath"]: candidate["manifestSha256"],
+            candidate["authorizationPath"]: candidate["authorizationSha256"],
+        },
+        repository_root=ROOT,
+        destination=frozen,
+    )
+
+
+def test_transaction_bootstrap_manifest_authorization_assets_and_history_are_frozen(
+    tmp_path: Path,
+) -> None:
     _require_prepared_assets()
     binding = validate_prepared_assets(
-        repository_root=ROOT,
+        repository_root=_frozen_repository(tmp_path),
         manifest_path=MANIFEST,
         authorization_path=AUTHORIZATION,
     )
@@ -70,7 +96,7 @@ def test_transaction_bootstrap_assets_exist_at_frozen_source_commit() -> None:
         assert hashlib.sha256(completed.stdout).hexdigest() == expected_sha256
 
 
-def test_transaction_bootstrap_is_prepared_and_has_no_outer_or_inner_outputs() -> None:
+def test_transaction_bootstrap_has_recorded_outer_failure_and_no_inner_outputs() -> None:
     _require_prepared_assets()
-    assert all(not path.exists() for path in output_paths(ROOT))
+    assert all(path.is_file() for path in output_paths(ROOT))
     assert all(not path.exists() for path in candidate_output_paths(ROOT))

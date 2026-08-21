@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_03` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | `common-security` 中用户 JWT `role` claim 到 Servlet/Reactive Authority 的唯一转换契约与具名 Bean |
 | 上位文档 | [`L1_00` v1.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码评审发现验证命令不能从仓库根执行 | 改为以 `serviceCenter/pom.xml` 为聚合入口并使用实际 artifactId 选择器；补强严格 claim 负向验证，不改变安全契约 |
 | v1.0 | 2026-08-21 | 建立共享安全契约新基线 | 删除实施门禁流水，明确当前严格大写角色列表、具名 Bean、fail-closed 和业务服务最终授权关系 |
 
 ## 3. 目标与范围
@@ -219,9 +220,9 @@ public final class UserRoleJwtAuthenticationConverter
 
 | 验证编号 | 判定 |
 |---|---|
-| `VAL-AUTH-001` | `mvn -pl common-security -am test` 通过，两个 Bean 语义相同 |
+| `VAL-AUTH-001` | 仓库根执行 `mvn -f serviceCenter/pom.xml -pl :auth-service,:common-security -am test` 通过，签发 claim 与两个 Bean 语义一致 |
 | `VAL-AUTH-002` | 全部非法 claim fail closed，service token 为 401，零部分授权 |
-| `VAL-AUTH-003` | `mvn -pl employee-service,mq-procedure-service,es-query-service -am test` 的定向 Security 测试通过 |
+| `VAL-AUTH-003` | 仓库根执行 `mvn -f serviceCenter/pom.xml -pl :common-security,:employee-service,:mq-procedure-service,:es-query-service -am test`，定向 Security、拒绝零调用与 fallback 兼容测试通过 |
 
 ## 13. 风险与保护条件
 
@@ -237,7 +238,7 @@ public final class UserRoleJwtAuthenticationConverter
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为共享 Authority Converter 及 Provider 消费代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为共享 Authority Converter 及 Provider 消费代码评审依据 |
 | 当前允许实施范围 | common-security Converter/AutoConfiguration、三 Provider 显式绑定和测试 |
 | 当前禁止动作 | 新角色、用户特例、auth-service 签发变更、业务授权迁移和生产生效 |
 | 回滚单位 | common-security 与所有显式消费 Provider 的兼容版本 |
@@ -251,6 +252,6 @@ public final class UserRoleJwtAuthenticationConverter
 | 内审 3 | 最小必要性、真实落点、测试和可读性检查通过 | Passed |
 | 独立评审 | 未发现 S0/S1/S2；claim、Bean、Servlet/Reactive 适配与 Provider 消费契约一致 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 新版本不继承旧版评审流水；历史文档只作为来源。

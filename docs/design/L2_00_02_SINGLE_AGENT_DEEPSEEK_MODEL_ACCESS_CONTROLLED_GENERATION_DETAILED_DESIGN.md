@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_02` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | Provider-neutral 模型任务、问题输入闸门、DeepSeek transport、ID-only action selection、受控 answer generation、ModelContext 和生命周期 |
 | 上位文档 | [`L1_00` v1.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码对照评审发现压缩版类型与签名失真 | 恢复 Provider-neutral request/result、`CandidateAnswer` 和 transport 的精确字段与调用契约；不改变实现边界 |
 | v1.0 | 2026-08-21 | 建立模型接入稳定基线 | 删除 candidate/付费调用流水，保留 v4 ID-only、answer v2、输入安全、严格 transport 与默认 stub 边界 |
 
 ## 3. 目标与范围
@@ -91,7 +92,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现具备 Provider-neutral contracts、冻结 task registry、有界 gateway、contextvars 请求绑定、DeepSeek HTTP transport、v4 action selector、answer v1/v2、问题分类和默认 stub 组合根。历史 PoC 已证明固定任务可调用真实接口，但其 manifest/evidence 只作不可变审计，不构成当前授权。
+当前实现具备 Provider-neutral contracts、冻结 task registry、有界 gateway、contextvars 请求绑定、DeepSeek HTTP transport、v4 action selector、answer v1/v2、问题分类和默认 stub 组合根。`LocalModelCompositionRoot` 支持显式 DeepSeek 装配，但默认包入口没有调用该装配；历史 PoC 已证明固定任务可调用真实接口，其 manifest/evidence 只作不可变审计，不构成当前授权或默认生产生效证据。
 
 新基线不要求生产代码变更。保留 answer v1 仅用于历史 harness/evidence 或仍显式绑定的兼容调用方，生产 Business answer 使用 v2；Knowledge rewrite/summary 使用各自独立的领域任务定义。禁止为“统一版本”删除历史任务或重写 evidence。
 
@@ -116,9 +117,9 @@
 ### 7.2 核心类型
 
 - `ModelTaskId`：action selection、answer generation、knowledge rewrite/summary 等有限枚举。
-- `StructuredModelRequest`：task/version、system/user message、structured output mode、token/byte 限额；不可携带任意 SDK 对象。
+- `StructuredModelRequest`：task/version、system instruction、canonical user payload JSON、有限 tool/output mode 与 `max_output_tokens`；不可携带任意 SDK 对象。任务输入字节上限和超时属于 `ModelTaskDefinition`，完整 Provider 请求/响应字节上限属于 `ModelSettings`。
 - `StructuredModelResponse`：完成类型、内容、tool calls 和有限 usage；字段组合严格。
-- `ModelTaskResult[T]`：解析后的领域中立输出和有限调用元数据。
+- `ModelTaskResult[T]`：只能二选一携带解析后的领域中立 `output` 或有限 `failure_kind`；不携带调用元数据、异常消息、HTTP body、Prompt 或供应商 DTO。
 - `ModelCallContext`：request ID、correlation ID、deadline、cancellation。
 
 ## 8. 问题输入闸门
@@ -145,7 +146,7 @@
 
 Answer 输入只包含任务固定指令、用户安全问题、领域安全 payload 和 fact IDs。v2 强化业务事实表达和禁止字段约束；v1 只用于仍绑定该版本的历史/兼容任务。
 
-模型输出经 strict parser 得到 `CandidateAnswer(answer_text, cited_fact_ids)`；随后领域 grounding 校验引用存在、事实覆盖、禁止 token 和表达约束。失败返回受控模型节点失败，绝不回退未经校验的原文本。
+模型输出经 strict parser 得到 `CandidateAnswer(answer, used_fact_ids, unsupported_claims)`；其中事实 ID 去重且 `unsupported_claims` 必须为空。随后领域 grounding 校验引用存在、事实覆盖、禁止 token 和表达约束。失败返回受控模型节点失败，绝不回退未经校验的原文本。
 
 ### 9.3 Knowledge 结构化任务
 
@@ -167,7 +168,7 @@ Knowledge rewrite/summary 复用 Gateway/transport/context，但任务输入、�
 
 ### 10.2 HTTP 请求
 
-`DeepSeekChatTransport.complete(request, context)` 将 Provider-neutral request 映射为 Chat Completions JSON：`model`、messages、`temperature=0`、`max_tokens`、必要时 `response_format={type:json_object}`。API key 只进入 Authorization header。
+`DeepSeekChatTransport.complete(request, *, call_deadline)` 将 Provider-neutral request 映射为 Chat Completions JSON：`model`、messages、`temperature=0`、`max_tokens`、必要时 `response_format={type:json_object}`。`call_deadline` 是当前事件循环的绝对单调时刻；API key 只进入 Authorization header。
 
 禁止传入真实 JWT、密钥、未授权问题、知识正文或业务原始响应。调用次数由上层一次性授权/harness 控制；Runtime 本身不自动重试。
 
@@ -280,7 +281,7 @@ class AnswerGroundingPolicy(Protocol):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为模型本地实现、Runtime 装配和代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为模型本地实现、Runtime 装配和代码评审依据 |
 | 当前允许实施范围 | Provider-neutral contracts、Guard、v4 selector、answer v1/v2、fake transport、显式 DeepSeek wiring 与非 live 测试 |
 | 当前禁止动作 | 未经新鲜授权的真实调用、领域策略扩大、公共 Core/HTTP 变化、自动重试和默认启用 DeepSeek |
 | 回滚单位 | Provider 配置、task definitions、Gateway/transport 和组合根绑定按兼容快照回滚 |
@@ -294,6 +295,6 @@ class AnswerGroundingPolicy(Protocol):
 | 内审 3 | 真实落点、测试、兼容和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-00-02-001/002` 已修复；模型公共接缝、领域所有权、实现落点与安全边界复核通过 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 历史 PoC 与证据不可变，但不继承为本版本修订记录或新执行许可。

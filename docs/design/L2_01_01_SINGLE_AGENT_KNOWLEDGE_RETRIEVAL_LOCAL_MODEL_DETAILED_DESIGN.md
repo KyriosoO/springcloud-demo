@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、ES 候选、本地 BGE-M3、RRF 和 rerank |
 | 上位文档 | [`L1_01` v1.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
@@ -22,6 +22,7 @@
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立检索基础设施稳定基线 | 删除真实联调流水，突出 Agent/ES 边界、授权前置、统一候选、快照和本地模型契约 |
+| v1.1 | 2026-08-21 | 代码对照评审修复 | 补强并发失败清理、同 Profile 快照一致性，并校正 path 失败分类、rerank 上限和 batch 字段说明 |
 
 ## 3. 目标与范围
 
@@ -88,7 +89,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage、RRF 和 rerank；Java 端已有 `es-query-api` DTO、专用 `/es/knowledge/search`、endpoint-scoped Security、Profile 配置/启动验证、读取 Guard 和 Service。现状不要求代码变更。
+Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage、RRF 和 rerank；Java 端已有 `es-query-api` DTO、专用 `/es/knowledge/search`、endpoint-scoped Security、Profile 配置/启动验证、读取 Guard 和 Service。并发 path 的异常路径必须取消并等待尚未结束的 sibling 调用；同一 Profile 的成功 path 必须返回一致的 profile/index/read-policy snapshot。
 
 通用 `EsQueryController` 原有端点保持兼容且不得被 Agent 使用。Knowledge endpoint 默认 disabled；目标启用需要冻结 Profile 与真实授权配置。
 
@@ -99,7 +100,7 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 | 规则编号 | 规则 |
 |---|---|
 | `DR-KRET-001` | 每个 plan item 精确执行一次；vector 路径先 embedding 再 typed ES search |
-| `DR-KRET-002` | path 结果只允许 success/no_result/forbidden/authority_failure/timeout/rate_limited/provider_failure/invalid_response |
+| `DR-KRET-002` | path 结果只允许 candidates/no_result/forbidden/timeout/failure；failure 进一步限定为读取决定不可验证、读取权威失败、检索失败或 provider 响应非法，HTTP 429 收敛为检索失败 |
 | `DR-KRET-003` | coverage 必须记录每个计划 path 的唯一终态和每域 candidate count |
 | `DR-KRET-004` | HTTP 请求只含 schemaVersion/domain/profile/path/queryText/queryVector?/limit |
 | `DR-KRET-005` | Profile→alias/index/fields/filter/source mapping 只在 es-query-service 配置中解析 |
@@ -107,13 +108,13 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 | `DR-KRET-007` | 任何返回候选均携带授权/快照/策略所需元数据且严格解码 |
 | `DR-KRET-008` | RRF 使用 `1/(60+rank)`，按 `(documentId, chunkId)` 去重并检测内容冲突 |
 | `DR-KRET-009` | rerank 只处理融合后的有界授权候选；分数非有限、重复、缺失或越界失败 |
-| `DR-KRET-010` | 所有选中域必须属于同一 profile/mapping/index snapshot 集合；不一致失败关闭 |
+| `DR-KRET-010` | 同一逻辑域/Profile 的所有成功 path 必须返回一致的 profileVersion、indexSnapshotId、readPolicyVersion；不同域可各有一个冻结 snapshot，任一域内不一致失败关闭 |
 
 ### 7.2 Python 内部类型
 
 `KnowledgePathRequest`：logical domain、retrieval profile、path、query text、optional vector、limit。`AuthorizedKnowledgeCandidate`：document/chunk ID、domain、title/content/source metadata、source rank、content SHA-256、policy ref、profile/index/read-policy snapshot metadata。
 
-`RankedKnowledgeBatch` 只包含最终有序 `RankedKnowledgeCandidate`、selected domains、完整 snapshot 集和截断信息；构造时验证唯一性和顺序。
+`RankedKnowledgeBatch` 只包含最终有序 `RankedKnowledgeCandidate`、统一 profile version 和按首次出现稳定排列的 snapshot ID 集；构造时验证候选数量和连续 rank。Provider 的 `truncated` 仅表示该 path 的 top-k 边界，不等同于技术失败或 coverage 不完整，不进入最终 batch。
 
 ### 7.3 Knowledge HTTP 请求
 
@@ -189,14 +190,14 @@ Service 只根据冻结 Profile 构造 keyword 或 vector query，自动附加 c
 ### 9.3 BGE Rerank
 
 - endpoint 默认 loopback `http://127.0.0.1:8909`，model exact `BAAI/bge-reranker-v2-m3`；
-- 输入为 query + 融合后候选最小文本，最多 20；
+- 输入为 query + 融合后候选最小正文；两域×两路径×每路径 20 的硬上限为 80；
 - 输出必须一一覆盖候选且索引唯一，score 有限；
 - 最终按 rerank score 降序及稳定 tie-break，截取 `final_candidates` 3..20。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
 - Stage 为每个 plan item 建立有界任务；相同 query 的 vector embedding 至多一次。
-- cancellation/deadline 传播到全部 transport；阶段失败时取消并 join 未完成任务。
+- cancellation/deadline 传播到全部 transport；任一并发 path 异常或阶段失败时取消并 join 未完成任务。
 - 整域 forbidden/authority failure 是安全失败，不能用另一 path/domain 的 success 降级。
 - rate limit、timeout、provider failure 是技术失败，由 L2_01_00 coverage 规则决定是否部分继续。
 - Profile/index snapshot 在所有成功 path 间必须一致；任何成员缺失或冲突使整批失败。
@@ -310,7 +311,7 @@ KnowledgeSearchResponse search(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为 Knowledge retrieval、Java Provider 与本地 BGE 接入代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为 Knowledge retrieval、Java Provider 与本地 BGE 接入代码评审依据 |
 | 当前允许实施范围 | typed endpoint、Profile/授权、Python adapters、RRF/rerank、配置和非写入测试 |
 | 当前禁止动作 | ES 写入/管理、物理资源参数化、未授权正文、生产启用和真实模型出域 |
 | 回滚单位 | Python retrieval + es-query-api/service Knowledge endpoint + Profile 配置 |
@@ -324,6 +325,6 @@ KnowledgeSearchResponse search(
 | 内审 3 | 真实落点、测试、兼容、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-01-01-001` 已修复；typed retrieval、两级 Profile、读取授权、RRF/rerank 与实现复核通过 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。

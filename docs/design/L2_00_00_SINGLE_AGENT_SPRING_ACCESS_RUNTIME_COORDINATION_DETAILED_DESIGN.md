@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_00` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | `agent-service` 公共 HTTP 接入、Spring→Python 内部协议、预算/取消/容量、健康与错误映射 |
 | 上位文档 | [`L1_00` v1.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码对照评审发现容量映射与验证入口表述失真 | 区分 Spring ingress 与 Runtime 容量语义，改正 Maven/Python 可执行验证命令；不改变公共或内部协议 |
 | v1.0 | 2026-08-21 | 建立可实施且易读的新基线 | 删除历史 Gate/评审流水，保留当前协议、时限、容量、安全和代码锚点 |
 
 ## 3. 目标与范围
@@ -93,6 +94,7 @@
 - Python FastAPI 内部端点、严格 Pydantic DTO、请求体限制、并发 limiter、断连监视和生命周期关闭已存在。
 - 公共/内部状态枚举、Failure source、contract version=1 和跨语言 fixture 已落地。
 - 当前默认内部地址为 loopback，Runtime 不公开 OpenAPI UI。
+- 包入口 `agent_runtime.main` 当前只装配空能力、禁用 selector/answer 的安全基线；完整领域组合由可注入组合根和系统 E2E 验证，尚未接入默认生产启动入口。不得以系统 E2E 装配推导默认启动已具备领域能力。
 
 ### 6.2 最小变更与抽象必要性
 
@@ -184,7 +186,8 @@
 |---|---|---:|
 | JWT 缺失/无效 | `unauthenticated` | 401 |
 | 公共请求非法 | `invalid_argument` | 400 |
-| 接入或 Runtime 容量不足 | `downstream_failure` + `core.ingress_capacity_exceeded` | 429 |
+| Spring 接入容量不足 | `downstream_failure` + `core.ingress_capacity_exceeded` | 429 |
+| Runtime 容量不足 | `downstream_failure` + `core.runtime_capacity_exceeded` | 502 |
 | 能力不支持 | `unsupported` | 422 |
 | 业务拒绝 | `forbidden` | 403 |
 | 模型出域拒绝 | `model_egress_denied` | 403 |
@@ -290,8 +293,8 @@ async def invoke_agent(
 | `TEST-ACCESS-002` | Java/Python 内部 DTO 和严格 JSON：`agent-service/src/test/java/com/dylan/agent/service/runtime/RuntimeContractTest.java`、`agent-runtime/tests/contract/test_runtime_openapi.py` |
 | `TEST-ACCESS-003` | Spring 预算/容量：`AgentQueryApplicationServiceTest.java`、`AgentRequestLimiterTest.java` |
 | `TEST-ACCESS-004` | 接入 E2E：`agent-service/src/test/java/com/dylan/agent/service/e2e/AgentAccessE2ETest.java` |
-| `TEST-ACCESS-005` | Python API、版本、未知字段与大小限制：`agent-runtime/tests/api` |
-| `TEST-ACCESS-006` | Runtime 并发、断连、取消、lease 释放：`agent-runtime/tests/api` |
+| `TEST-ACCESS-005` | Python API、版本、未知字段与大小限制：`agent-runtime/tests/unit/api`、`agent-runtime/tests/contract/test_runtime_openapi.py` |
+| `TEST-ACCESS-006` | Runtime 并发、断连、取消、lease 释放：`agent-runtime/tests/unit/api`、`agent-runtime/tests/integration/test_disconnect_cancellation.py`、`test_health_and_startup.py` |
 | `TEST-ACCESS-007` | 认证、401/403 和零泄漏：`agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java` |
 | `TEST-ACCESS-008` | 三能力系统 E2E：`agent-service/src/test/java/com/dylan/agent/service/e2e/AgentSystemE2ETest.java` |
 
@@ -299,9 +302,9 @@ async def invoke_agent(
 
 | 验证编号 | 命令/判定 |
 |---|---|
-| `VAL-ACCESS-001` | `mvn -pl agent-service -am test` 通过 |
+| `VAL-ACCESS-001` | 仓库根执行 `mvn -f agent-service/pom.xml test` 通过 |
 | `VAL-ACCESS-002` | Java Runtime contract 与 Python API contract 全部通过，未知字段和版本漂移失败关闭 |
-| `VAL-ACCESS-003` | `pytest agent-runtime/tests/api agent-runtime/tests/integration/api` 及 strict mypy 通过 |
+| `VAL-ACCESS-003` | 在 `agent-runtime` 目录设置 `PYTHONPATH=src` 后执行 `python -m pytest tests/unit/api tests/integration/test_disconnect_cancellation.py tests/integration/test_health_and_startup.py tests/contract/test_runtime_openapi.py -q`，并对 `src/agent_runtime/api` 执行 strict mypy |
 | `VAL-ACCESS-004` | 系统 E2E 中 Spring 仅一次 Runtime 调用，失败映射、日志扫描和默认 stub 模型符合约束 |
 
 ## 15. 风险与保护条件
@@ -318,7 +321,7 @@ async def invoke_agent(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为该切片实现与代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为该切片实现与代码评审依据 |
 | 当前允许实施范围 | Spring 公共接入、Runtime 内部 API、跨语言契约、预算/取消/容量、健康和测试 |
 | 当前禁止动作 | 新公共能力字段、Gateway 正式路由、生产部署、领域语义、重试熔断和持久化 |
 | 回滚单位 | `agent-service` 接入切片与 `agent-runtime/api` 内部协议必须按兼容版本共同回滚 |
@@ -332,6 +335,6 @@ async def invoke_agent(
 | 内审 3 | 实现落点、测试、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-00-00-001` 已修复；公共/内部字段、上位约束、实现落点与验证闭环一致 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 新版本不继承旧版修订流水；旧版只作为来源和审计档案。

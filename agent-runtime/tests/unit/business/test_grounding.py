@@ -37,6 +37,12 @@ def test_grounding_rejects_protected_token_not_present_in_referenced_fact() -> N
     ).accepted
 
 
+def test_grounding_rejects_marker_without_referenced_fact_value() -> None:
+    assert not BusinessAnswerGroundingPolicy().validate(
+        _input("该员工已经离职 [fact-0001]。", ("fact-0001",))
+    ).accepted
+
+
 def test_grounding_keeps_exact_decimal_value_in_one_sentence() -> None:
     input_value = GroundingInput(
         capability_id="transaction.search",

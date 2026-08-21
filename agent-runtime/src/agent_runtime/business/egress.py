@@ -42,6 +42,10 @@ class BusinessEgressProjector:
             if len(record.fields) > policy.max_fields_per_record:
                 return self._denied("business.payload_limit")
             source_fields = {item.field_id: item.value for item in record.fields}
+            if len(source_fields) != len(record.fields) or not set(source_fields).issubset(definitions):
+                return self._denied("business.policy_conflict")
+            if not model_fields.issubset(source_fields):
+                return self._denied("business.no_model_fields")
             for field_definition in definition.field_definitions:
                 field_id = field_definition.field_id
                 if field_id not in model_fields or field_id not in source_fields or not field_definition.model_candidate_by_code:

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from tests.integration.adapters.frozen_manifest import materialize_manifest_at_commit
 from tests.integration.adapters.transaction.egress_candidate_v3 import (
     AUTHORIZATION_REFERENCE,
     MAXIMUM_PAID_ANSWER_CALLS,
@@ -35,11 +36,20 @@ HOST_JOURNAL_SCHEMA = EVIDENCE / "transaction-egress-candidate-v3-host-preflight
 HOST_RESULT_SCHEMA = EVIDENCE / "transaction-egress-candidate-v3-host-result.schema.json"
 HOST_JOURNAL = EVIDENCE / f"{RUN_ID}.host-preflight.jsonl"
 HOST_RESULT = EVIDENCE / f"{RUN_ID}.host-result.json"
+FROZEN_SOURCE_COMMIT = "0e6b748b8263fc5f0c35729099e41313bdddc247"
 
 
-def test_candidate_manifest_authorization_and_all_assets_are_frozen() -> None:
+def test_candidate_manifest_authorization_and_all_assets_are_frozen(tmp_path: Path) -> None:
     manifest_sha256 = sha256_file(MANIFEST)
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=ROOT)
+    raw_manifest = load_strict_json(MANIFEST)
+    frozen_repository = materialize_manifest_at_commit(
+        raw_manifest,
+        repository_root=ROOT,
+        destination=tmp_path / "frozen-repository",
+        source_commit=FROZEN_SOURCE_COMMIT,
+        collection_names=("history", "assetHashes"),
+    )
+    manifest = validate_manifest(raw_manifest, repository_root=frozen_repository)
     raw_authorization = load_strict_json(AUTHORIZATION)
     assert raw_authorization["manifestSha256"] == manifest_sha256
     authorization = validate_authorization(
@@ -67,11 +77,11 @@ def test_candidate_manifest_authorization_and_all_assets_are_frozen() -> None:
         for item in manifest["assetHashes"]
     )
     assert authorization["liveExecutionAuthorized"] is False
-    assert not HOST_JOURNAL.exists()
-    assert not HOST_RESULT.exists()
-    assert not lifecycle_path_for(EVIDENCE).exists()
+    assert HOST_JOURNAL.exists()
+    assert HOST_RESULT.exists()
+    assert lifecycle_path_for(EVIDENCE).exists()
     assert not consumed_path_for(EVIDENCE).exists()
-    assert not result_path_for(EVIDENCE).exists()
+    assert result_path_for(EVIDENCE).exists()
 
 
 def test_manifest_binds_answer_v2_current_bootstrap_and_retired_history() -> None:

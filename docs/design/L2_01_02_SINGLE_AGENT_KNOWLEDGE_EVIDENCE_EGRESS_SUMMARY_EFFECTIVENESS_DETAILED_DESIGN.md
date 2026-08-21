@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV2、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
@@ -22,6 +22,7 @@
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立证据与效果稳定基线 | 删除多代 candidate/Gate 流水，保留当前 v2 任务、不可变证据规则、正式 P5 方法和 `ineffective` 结论 |
+| v1.1 | 2026-08-21 | 代码对照评审修复 | 将 Gateway 非超时异常收敛为有限 summary failure，并补充对应反证测试 |
 
 ## 3. 目标与范围
 
@@ -93,7 +94,9 @@
 
 当前已有完整 Evidence contracts、integrity verifier、selector、代码绑定策略目录、三层 decider、summary v1/v2、extractive validator、Stage、representative v1/v2、严格 P5 loader/runner/Schema 和 append-only 历史测试。
 
-生产组合根只注册 `KnowledgeSummaryTaskV2`；v1 和历史 evidence 保持字节级兼容。当前 P5 candidate-04 是有效 run，安全 Gate 通过，但 Q1/Q3/Q4 未达标，结论为 `ineffective`。不建议为改善结论修改现有 evidence、gold、阈值或 validator；后续改进必须新版本、新 run。
+Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常并映射为 `summary_failure`，不得让 Provider 异常细节越过 Stage 或退化为 Core 内部异常。
+
+任何启用 Knowledge 的运行组合根只注册 `KnowledgeSummaryTaskV2`；默认包入口尚未装配 Knowledge Provider。v1 和历史 evidence 保持字节级兼容。当前 P5 candidate-04 是有效 run，安全 Gate 通过，但 Q1/Q3/Q4 未达标，结论为 `ineffective`。不建议为改善结论修改现有 evidence、gold、阈值或 validator；后续改进必须新版本、新 run。
 
 ## 7. 证据构建与选择
 
@@ -198,7 +201,7 @@ question denied flag / fresh Guard
 | 证据不足 | `no_result/insufficient_evidence` | 0 |
 | context 不匹配 | `downstream_failure/evidence_failure` | 0 |
 | deadline/Provider timeout | `timeout/summary_timeout` | 0 或 1 |
-| Provider/schema/validator failure | `downstream_failure/summary_failure` | 1 |
+| Provider/schema/validator failure（包括 Gateway 非超时异常） | `downstream_failure/summary_failure` | 1 |
 | 模型声明证据不足 | `no_result/insufficient_evidence` | 1 |
 | 合法抽取式结果 | `success` | 1 |
 
@@ -338,7 +341,7 @@ class DefaultKnowledgeEvidenceStage:
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为 Evidence/Policy/Summary/P5 代码评审和后续版本化改进依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为 Evidence/Policy/Summary/P5 代码评审和后续版本化改进依据 |
 | 当前允许实施范围 | 当前证据链、三层策略、summary v2、extractive validator、P5 非 live/history 验证 |
 | 当前禁止动作 | 改写历史数据/evidence/结论、放宽 validator、未经新授权真实调用、宣称效果达标 |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -352,6 +355,6 @@ class DefaultKnowledgeEvidenceStage:
 | 内审 3 | 真实落点、测试、当前证据引用和历史隔离检查通过 | Passed |
 | 独立评审 | 未发现 S0/S1/S2；证据、三层出域、Summary v2、P5 方法与冻结结论一致 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 当前 P5 结论为 `ineffective`；不得因新基线重写而改变。

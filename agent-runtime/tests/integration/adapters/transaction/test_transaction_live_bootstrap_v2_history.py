@@ -14,6 +14,11 @@ from tests.integration.adapters.business_egress_live_bootstrap_v2 import (
     EXECUTABLE_ASSET_PATHS,
     validate_prepared_assets_v2,
 )
+from tests.integration.adapters.frozen_manifest import (
+    materialize_current_hash_bindings,
+    materialize_manifest_at_commit,
+    materialize_manifest_from_current_hashes,
+)
 from tests.integration.adapters.transaction.live_bootstrap_v2 import (
     AUTHORIZATION_REFERENCE,
     BOOTSTRAP_ASSET_PATHS,
@@ -40,10 +45,38 @@ def _require_prepared_assets() -> None:
         pytest.skip("transaction bootstrap v2 manifest is generated after source commit")
 
 
-def test_transaction_v2_manifest_authorization_and_histories_are_frozen() -> None:
+def _frozen_repository(tmp_path: Path) -> Path:
+    manifest = load_strict_json(MANIFEST)
+    frozen = materialize_manifest_at_commit(
+        manifest,
+        repository_root=ROOT,
+        destination=tmp_path / "frozen-repository",
+        source_commit=manifest["wrapperSourceCommit"],
+        collection_names=("assetHashes", "historyHashes"),
+    )
+    materialize_manifest_from_current_hashes(
+        manifest,
+        repository_root=ROOT,
+        destination=frozen,
+        collection_names=("executableHashes",),
+    )
+    candidate = manifest["candidate"]
+    return materialize_current_hash_bindings(
+        {
+            candidate["manifestPath"]: candidate["manifestSha256"],
+            candidate["authorizationPath"]: candidate["authorizationSha256"],
+        },
+        repository_root=ROOT,
+        destination=frozen,
+    )
+
+
+def test_transaction_v2_manifest_authorization_and_histories_are_frozen(
+    tmp_path: Path,
+) -> None:
     _require_prepared_assets()
     binding = validate_prepared_assets_v2(
-        repository_root=ROOT,
+        repository_root=_frozen_repository(tmp_path),
         manifest_path=MANIFEST,
         authorization_path=AUTHORIZATION,
     )

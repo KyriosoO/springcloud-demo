@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
 
 from agent_runtime.knowledge.contracts import (
     DomainCandidateCount,
@@ -94,7 +93,7 @@ class DefaultKnowledgeRetrievalStage:
             except Exception:
                 vector_failure = PathFailureKind.DOWNSTREAM_FAILURE
 
-        calls: list[Awaitable[PathRetrievalResult]] = []
+        calls: list[asyncio.Task[PathRetrievalResult]] = []
         call_ordinals: list[int] = []
         synthetic: dict[int, PathRetrievalResult] = {}
         for index, item in enumerate(plan.items):
@@ -116,17 +115,39 @@ class DefaultKnowledgeRetrievalStage:
                 candidate_limit=item.candidate_limit,
             )
             calls.append(
-                self._search.search(
-                    request=request,
-                    context=context,
-                    timeout_s=min(5.0, deadline - asyncio.get_running_loop().time()),
+                asyncio.create_task(
+                    self._search.search(
+                        request=request,
+                        context=context,
+                        timeout_s=min(5.0, deadline - asyncio.get_running_loop().time()),
+                    )
                 )
             )
             call_ordinals.append(index)
-        raw = await asyncio.gather(*calls) if calls else []
+        try:
+            raw = await asyncio.gather(*calls) if calls else []
+        finally:
+            for task in calls:
+                if not task.done():
+                    task.cancel()
+            if calls:
+                await asyncio.gather(*calls, return_exceptions=True)
         results = dict(synthetic)
         results.update(zip(call_ordinals, raw))
         ordered = tuple(results[index] for index in range(len(plan.items)))
+
+        for item, path_result in zip(plan.items, ordered, strict=True):
+            if (
+                path_result.logical_domain_id != item.logical_domain_id
+                or path_result.retrieval_profile_id != PROFILE_BY_DOMAIN[item.logical_domain_id]
+                or path_result.path is not item.path
+                or (path_result.kind is PathResultKind.CANDIDATES and not path_result.candidates)
+                or (path_result.kind is not PathResultKind.CANDIDATES and path_result.candidates)
+            ):
+                return RetrievalStageResult(
+                    kind=RetrievalStageKind.DOWNSTREAM_FAILURE,
+                    stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT,
+                )
 
         if any(item.kind is PathResultKind.FORBIDDEN for item in ordered):
             return RetrievalStageResult(kind=RetrievalStageKind.FORBIDDEN, stage_code=RetrievalStageCode.DOMAIN_FORBIDDEN)
@@ -144,6 +165,16 @@ class DefaultKnowledgeRetrievalStage:
             if path_result.kind is PathResultKind.CANDIDATES:
                 if not path_result.profile_version or not path_result.index_snapshot_id or not path_result.read_policy_version:
                     return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
+                if any(
+                    candidate.domain_id != path_result.logical_domain_id
+                    or candidate.index_snapshot_id != path_result.index_snapshot_id
+                    or candidate.read_policy_version != path_result.read_policy_version
+                    for candidate in path_result.candidates
+                ):
+                    return RetrievalStageResult(
+                        kind=RetrievalStageKind.DOWNSTREAM_FAILURE,
+                        stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT,
+                    )
                 successful.append(ref)
                 candidate_sets.append(
                     PathCandidateSet(
@@ -163,6 +194,21 @@ class DefaultKnowledgeRetrievalStage:
                 failed.append(FailedPath(logical_domain_id=path_result.logical_domain_id, path=path_result.path, failure_kind=PathFailureKind.TIMEOUT))
             else:
                 failed.append(FailedPath(logical_domain_id=path_result.logical_domain_id, path=path_result.path, failure_kind=PathFailureKind.DOWNSTREAM_FAILURE))
+
+        profile_snapshots: dict[tuple[str, str], tuple[str, str, str]] = {}
+        for candidate_set in candidate_sets:
+            key = (candidate_set.logical_domain_id, candidate_set.retrieval_profile_id)
+            snapshot = (
+                candidate_set.profile_version,
+                candidate_set.index_snapshot_id,
+                candidate_set.read_policy_version,
+            )
+            existing = profile_snapshots.setdefault(key, snapshot)
+            if existing != snapshot:
+                return RetrievalStageResult(
+                    kind=RetrievalStageKind.DOWNSTREAM_FAILURE,
+                    stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT,
+                )
 
         fused = self._fusion.fuse(tuple(candidate_sets))
         if not fused:

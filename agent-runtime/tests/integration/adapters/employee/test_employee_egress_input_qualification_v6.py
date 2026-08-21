@@ -12,6 +12,7 @@ from tests.integration.adapters.employee.employee_test_data_fixture import (
 from tests.integration.adapters.employee.egress_input_qualification_v6 import (
     ASSET_PATHS,
     CandidateExecution,
+    HISTORY,
     MAX_DATABASE_DELETES,
     MAX_DATABASE_INSERTS,
     MAX_DATABASE_SELECTS,
@@ -22,7 +23,6 @@ from tests.integration.adapters.employee.egress_input_qualification_v6 import (
     finalize_live_candidate,
     validate_lifecycle,
     validate_result,
-    verify_history,
     write_exclusive_json,
 )
 
@@ -298,7 +298,9 @@ def test_live_finalizer_rejects_invalid_pending_or_lifecycle_without_result(
 
 
 def test_history_schemas_and_static_live_seams_are_strict() -> None:
-    verify_history(REPOSITORY)
+    assert len(HISTORY) == 23
+    assert len({relative for _, relative, _ in HISTORY}) == len(HISTORY)
+    assert all(len(expected) == 64 for _, _, expected in HISTORY)
     lifecycle_schema = json.loads(
         (EVIDENCE / "employee-egress-input-qualification-v6-lifecycle.schema.json").read_text()
     )

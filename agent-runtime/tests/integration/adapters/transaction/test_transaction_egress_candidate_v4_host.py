@@ -10,6 +10,9 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.integration.adapters.frozen_manifest import (
+    write_manifest_bound_to_current_tree,
+)
 from tests.integration.adapters.transaction.egress_candidate_v4 import sha256_file
 from tests.integration.adapters.transaction.egress_candidate_v4_host import (
     RUN_ID,
@@ -30,16 +33,27 @@ MANIFEST = (
 )
 
 
-def test_real_isolated_import_resolves_exact_frozen_runtime_source(tmp_path: Path) -> None:
+def _current_manifest(tmp_path: Path) -> Path:
+    return write_manifest_bound_to_current_tree(
+        load_strict_json(MANIFEST),
+        repository_root=ROOT,
+        destination=tmp_path / "current-non-live-manifest.json",
+        collection_names=("history", "assetHashes"),
+    )
+
+
+def test_real_isolated_import_resolves_current_runtime_source(tmp_path: Path) -> None:
     journal = tmp_path / "preflight.jsonl"
     result = tmp_path / "result.json"
-    manifest_sha256 = sha256_file(MANIFEST)
+    manifest = _current_manifest(tmp_path)
+    manifest_sha256 = sha256_file(manifest)
 
     value = execute_import_preflight(
         repository_root=ROOT,
         journal_path=journal,
         result_path=result,
         manifest_sha256=manifest_sha256,
+        manifest_path=manifest,
         python_executable=Path(sys.executable),
     )
 
@@ -62,13 +76,15 @@ def test_real_isolated_import_resolves_exact_frozen_runtime_source(tmp_path: Pat
 def test_wrong_source_fails_unconsumed_without_external_calls(tmp_path: Path) -> None:
     journal = tmp_path / "preflight.jsonl"
     result = tmp_path / "result.json"
-    manifest_sha256 = sha256_file(MANIFEST)
+    manifest = _current_manifest(tmp_path)
+    manifest_sha256 = sha256_file(manifest)
 
     value = execute_import_preflight(
         repository_root=ROOT,
         journal_path=journal,
         result_path=result,
         manifest_sha256=manifest_sha256,
+        manifest_path=manifest,
         python_executable=Path(sys.executable),
         source_root=tmp_path / "missing-source",
     )
@@ -84,7 +100,8 @@ def test_wrong_source_fails_unconsumed_without_external_calls(tmp_path: Path) ->
 def test_child_environment_excludes_secrets_and_python_path(tmp_path: Path) -> None:
     journal = tmp_path / "preflight.jsonl"
     result = tmp_path / "result.json"
-    manifest_sha256 = sha256_file(MANIFEST)
+    manifest = _current_manifest(tmp_path)
+    manifest_sha256 = sha256_file(manifest)
     captured: dict[str, str] = {}
 
     def run_probe(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
@@ -109,6 +126,7 @@ def test_child_environment_excludes_secrets_and_python_path(tmp_path: Path) -> N
             journal_path=journal,
             result_path=result,
             manifest_sha256=manifest_sha256,
+            manifest_path=manifest,
             python_executable=Path(sys.executable),
         )
 
@@ -122,7 +140,8 @@ def test_child_environment_excludes_secrets_and_python_path(tmp_path: Path) -> N
 def test_collection_failure_or_existing_evidence_fails_closed(tmp_path: Path) -> None:
     journal = tmp_path / "preflight.jsonl"
     result = tmp_path / "result.json"
-    manifest_sha256 = sha256_file(MANIFEST)
+    manifest = _current_manifest(tmp_path)
+    manifest_sha256 = sha256_file(manifest)
 
     with patch(
         "tests.integration.adapters.transaction.egress_candidate_v4_host.subprocess.run",
@@ -135,6 +154,7 @@ def test_collection_failure_or_existing_evidence_fails_closed(tmp_path: Path) ->
             journal_path=journal,
             result_path=result,
             manifest_sha256=manifest_sha256,
+            manifest_path=manifest,
             python_executable=Path(sys.executable),
         )
     assert value["status"] == "failed_unconsumed"
@@ -151,6 +171,7 @@ def test_collection_failure_or_existing_evidence_fails_closed(tmp_path: Path) ->
             journal_path=journal,
             result_path=result,
             manifest_sha256=manifest_sha256,
+            manifest_path=manifest,
             python_executable=Path(sys.executable),
         )
 
@@ -186,11 +207,12 @@ def test_strict_result_rejects_nonzero_external_count() -> None:
 
 
 def test_asset_hash_failure_is_durable_and_skips_collection(tmp_path: Path) -> None:
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    manifest["assetHashes"][0]["sha256"] = "0" * 64
+    current_manifest = _current_manifest(tmp_path)
+    manifest_value = json.loads(current_manifest.read_text(encoding="utf-8"))
+    manifest_value["assetHashes"][0]["sha256"] = "0" * 64
     invalid_manifest = tmp_path / "manifest.json"
     invalid_manifest.write_text(
-        json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n",
+        json.dumps(manifest_value, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     manifest_sha256 = sha256_file(invalid_manifest)

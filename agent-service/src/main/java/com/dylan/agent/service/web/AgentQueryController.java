@@ -5,7 +5,6 @@ import com.dylan.agent.service.application.AgentQueryApplicationService;
 import com.dylan.agent.service.application.AgentQueryCommand;
 import com.dylan.agent.service.contract.AgentQueryRequest;
 import com.dylan.agent.service.contract.AgentQueryResponse;
-import com.dylan.agent.service.contract.CapabilityStatus;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

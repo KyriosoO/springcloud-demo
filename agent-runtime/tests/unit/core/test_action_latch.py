@@ -82,4 +82,6 @@ async def test_handler_failure_consumes_action_and_rejects_second_submission() -
 
     assert first.status is CapabilityStatus.DOWNSTREAM_FAILURE
     assert second.status is CapabilityStatus.INVALID_ARGUMENT
+    assert second.failure is not None
+    assert second.failure.code == "core.second_action_not_allowed"
     assert handler.calls == 1

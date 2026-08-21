@@ -157,6 +157,8 @@ class BusinessAnswerGroundingPolicy:
                 if not refs or any(ref not in facts for ref in refs):
                     return self._reject()
                 unmarked = _MARKER.sub(" ", stripped)
+                if any(facts[ref] not in unmarked for ref in refs):
+                    return self._reject()
                 observed_tokens = extract_protected_tokens(unmarked)
                 allowed_tokens = frozenset(
                     token

@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_02_00` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | Business 公共类型、动作定义、强类型配置、JWT Client、结果映射、用户投影、有限转换、模型出域和 grounding |
 | 上位文档 | [`L1_02` v1.0](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 来源文档 | [L2_02_00 v0.57 归档版](历史文档/2026-08-21-v0-baseline/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| 实施状态 | Business common 与两个域的装配已实现并验证；真实业务结果外部模型出域默认关闭；未生产生效 |
+| 实施状态 | Business common、两个域组件与测试装配已实现并验证；默认包入口未装配领域 Provider；真实业务结果外部模型出域默认关闭；未生产生效 |
 
 ## 2. 阅读导航与变更记录
 
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码对照设计评审修复 | 明确所有 HTTP 状态统一执行响应大小限制、模型字段逐记录完整性、grounding 的确定性验证边界，以及历史 live 资产与当前源码测试的隔离规则 |
 | v1.0 | 2026-08-21 | 建立业务公共层稳定基线 | 删除多轮真实 egress/fixture Gate 流水，保留当前类型、ExactDecimal、只收紧配置、三视图和默认关闭边界 |
 
 ## 3. 目标与范围
@@ -93,9 +94,9 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有完整公共 contracts/settings/client/mapping/projection/transforms/egress/grounding/handler/provider/wire JSON，并由 Employee/Transaction 两域使用。默认 `AGENT_BUSINESS_EGRESS_ENABLED=false`；真实 Provider + 本地/stub 模型链可用。
+当前实现已有公共 contracts/settings/client/mapping/projection/transforms/egress/grounding/handler/provider/wire JSON，并由 Employee/Transaction 两域的定义和测试装配使用。默认 `AGENT_BUSINESS_EGRESS_ENABLED=false`；是否存在生产组合根装配由跨 L2 评审单独判定，不能以测试装配替代生产生效证据。
 
-新基线不要求代码修改。真实业务结果外部模型实验不是主链完成前置；未来启用需按域重新验证新鲜输入、字段交集和零泄漏。
+本次代码对照评审已最小修复 HTTP 错误响应限长、模型字段不完整时的失败关闭和 grounding 引用值校验。真实业务结果外部模型实验不是主链完成前置；未来启用需按域重新验证新鲜输入、字段交集和零泄漏。
 
 ## 7. 公共类型、动作定义与配置
 
@@ -111,8 +112,8 @@
 | `DR-BQCOM-006` | 业务服务 HTTP 状态按动作固定 semantics 映射，401/403/no-result/technical failure 不混淆 |
 | `DR-BQCOM-007` | 响应先按动作 codec 的显式字段 allowlist strict decode/normalize，再构造用户结果；allowlist 外字段或错误类型失败，不做宽松 coercion；被兼容 allowlist 接受但未投影的既有宽字段不得进入用户结果或模型 |
 | `DR-BQCOM-008` | 用户结果、模型 safe facts 和授权 wire response 是独立对象 |
-| `DR-BQCOM-009` | 模型字段为代码候选∩动作设置∩全局策略，未知/敏感/冲突/转换失败拒绝且模型调用 0 |
-| `DR-BQCOM-010` | 候选回答必须经 `BusinessAnswerGroundingPolicy` 验证 protected tokens、fact ID 和规范值 |
+| `DR-BQCOM-009` | 模型字段为代码候选∩动作设置∩全局策略；每条有结果记录必须具备全部已配置模型字段，未知/重复/缺失/敏感/冲突/转换失败均拒绝且模型调用 0，不产生部分 facts |
+| `DR-BQCOM-010` | 候选回答必须经 `BusinessAnswerGroundingPolicy` 验证 protected tokens、fact ID、同句引用和规范值；该验证是有限确定性约束，不宣称证明自然语言全部语义为真 |
 | `DR-BQCOM-011` | Decimal 使用 `ExactDecimal` canonical JSON number，不接受 float、字符串金额或舍入 |
 
 ### 7.2 `BusinessActionDefinition`
@@ -154,7 +155,7 @@ Bound Handler 在每个边界前后检查 deadline/cancellation。一次动作�
 
 ### 8.2 HTTP 请求/响应
 
-`BusinessHttpRequest` 只允许固定 method/path、有限 headers/body bytes；Client 添加 Authorization，不允许调用方提供认证 header。响应严格限制状态、headers/body bytes；超界即 transport failure。
+`BusinessHttpRequest` 只允许固定 method/path、有限 headers/body bytes；Client 添加 Authorization，不允许调用方提供认证 header。响应体在解释 HTTP 状态或丢弃错误正文之前统一执行字节上限检查；任意状态超界均为 `response_too_large` transport failure，错误正文不得透传。
 
 `map_business_http_status` 把动作定义中的 success/no-result statuses 与 401/403/429/5xx 映射到 `BusinessRecordsResult/BusinessNoResult/BusinessFailureResult` 或有限 transport failure。
 
@@ -193,7 +194,7 @@ normalized authorized record fields
 ∩ GlobalBusinessEgressPolicy allowed data classes/transforms
 ```
 
-任一未知 field、敏感 data class、transform 不匹配、值非法、字段冲突、safe facts 空/超数或 payload 超字节，返回 `DENIED`，不产生部分 payload。
+每条有结果记录必须完整包含当前配置的全部模型字段；重复或缺失字段也失败关闭。任一未知 field、敏感 data class、transform 不匹配、值非法、字段冲突、safe facts 空/超数或 payload 超字节，返回 `DENIED`，不产生部分 payload。
 
 ### 10.2 Safe facts
 
@@ -201,7 +202,7 @@ normalized authorized record fields
 
 ### 10.3 Grounding
 
-`BusinessAnswerGroundingPolicy.validate` 要求模型 cited fact IDs 存在且唯一，回答中保护 token 不能来自 safe facts 外部，关键值必须与 fact 的 canonical display 对齐；额外事实、缺失引用、禁止标识或注入文本导致拒绝。拒绝后返回本地结构化结果或固定失败，不返回原模型文本。
+`BusinessAnswerGroundingPolicy.validate` 要求模型 cited fact IDs 存在且与回答标记集合一致，每个含引用的句段必须出现所引用 fact 的 canonical display，回答中 protected token 不能来自该句段引用的 safe facts 外部；额外 facts 标记、缺失引用、规范值缺失、禁止 token 或模型声明的 unsupported claims 导致拒绝。该策略只证明上述可确定校验项，不等价于通用自然语言蕴含证明；拒绝后返回本地结构化结果或固定失败，不返回原模型文本。
 
 ## 11. ExactDecimal wire
 
@@ -278,11 +279,12 @@ class BusinessHttpClient(Protocol):
 | `TEST-BQCOM-002` | Provider factory ID/domain/handler registration and snapshot |
 | `TEST-BQCOM-003` | config unknown key/subset/bounds/endpoint/min fields：Business settings tests |
 | `TEST-BQCOM-004` | invalid field/transform/sensitive candidate/startup fail |
-| `TEST-BQCOM-005` | original JWT、no token zero call、timeout/cancel/size：Business HTTP tests |
+| `TEST-BQCOM-005` | original JWT、no token zero call、timeout/cancel、成功与错误响应统一限长：Business HTTP tests |
 | `TEST-BQCOM-006` | status mapping、strict decode、no-result 与 user projection |
-| `TEST-BQCOM-007` | field intersection/default deny/zero call：`employee_egress_field_matrix.json` 和域矩阵 |
-| `TEST-BQCOM-008` | injection/protected tokens/fact ID/value grounding |
+| `TEST-BQCOM-007` | field intersection/default deny、未知/重复/部分缺失字段失败关闭及 zero call：`employee_egress_field_matrix.json` 和域矩阵 |
+| `TEST-BQCOM-008` | injection/protected tokens/fact ID、同句 canonical value grounding |
 | `TEST-BQCOM-009` | ExactDecimal canonical number、no float/string/rounding、深度/大小 |
+| `TEST-BQCOM-010` | 历史 live manifest/evidence 按冻结提交和精确哈希验证；当前 preflight 行为只使用临时非 live 重绑定 manifest，不改写或复用历史授权 |
 
 ### 15.2 验证编号定义
 
@@ -291,8 +293,9 @@ class BusinessHttpClient(Protocol):
 | `VAL-BQCOM-001` | common contracts/provider/第三域扩展测试通过，Core 无域分支 |
 | `VAL-BQCOM-002` | 配置只收紧与启动失败矩阵通过 |
 | `VAL-BQCOM-003` | fake domain server JWT/HTTP/status/取消/响应大小测试通过 |
-| `VAL-BQCOM-004` | `TEST-BQCOM-007/008/012/013` 语义对应的出域/grounding/零调用回归通过 |
+| `VAL-BQCOM-004` | `TEST-BQCOM-007/008` 对应的出域、grounding 和零调用回归通过 |
 | `VAL-BQCOM-005` | Decimal 精度与 canonical wire、strict mypy、compileall、全量 Business 非 live 回归通过 |
+| `VAL-BQCOM-006` | 历史资产字节不变，历史测试不与移动中的当前工作树哈希或已过期的“未消费”状态耦合 |
 
 ## 16. 风险与保护条件
 
@@ -309,7 +312,7 @@ class BusinessHttpClient(Protocol):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为 Business common、两个域公共装配和代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为 Business common、两个域公共装配和代码评审依据 |
 | 当前允许实施范围 | 公共类型/配置/JWT client/handler/投影/出域/grounding/ExactDecimal 与非 live 测试 |
 | 当前禁止动作 | 新业务动作/接口、角色判断、真实业务结果外发、默认/生产启用、重试熔断 |
 | 回滚单位 | Business common + 两域 definitions/settings/组合根的兼容快照 |
@@ -323,6 +326,6 @@ class BusinessHttpClient(Protocol):
 | 内审 3 | 真实落点、测试、扩展、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-02-00-001～003` 已修复；公共 Protocol、失败语义、响应 allowlist、配置、出域与 Decimal 边界复核通过 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 新版本不继承旧版 fixture/Gate/真实试验流水；仅保留当前稳定契约和保护条件。

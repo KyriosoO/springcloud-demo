@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.integration.adapters.frozen_manifest import materialize_manifest_at_commit
 from tests.integration.adapters.transaction.egress_candidate_v3 import (
     RUN_ID,
     load_strict_json,
@@ -27,17 +28,25 @@ EXPECTED_SHA256 = {
     f"{RUN_ID}.lifecycle.jsonl": "b5bb3e3d9413ad3a98ca9f34b0c76a6fd4b36c7c36d94ddf7aa5902827b7019f",
     f"{RUN_ID}.result.json": "eb5003cdc31a25a5aa2c201250fa00e4d7e5291aaf6482ffce63c3b5c8070b7d",
 }
+FROZEN_SOURCE_COMMIT = "0e6b748b8263fc5f0c35729099e41313bdddc247"
 
 
-def test_candidate03_failed_unconsumed_history_is_exact_and_non_reusable() -> None:
+def test_candidate03_failed_unconsumed_history_is_exact_and_non_reusable(
+    tmp_path: Path,
+) -> None:
     paths = {name: EVIDENCE / name for name in EXPECTED_SHA256}
     assert {name: sha256_file(path) for name, path in paths.items()} == EXPECTED_SHA256
 
     manifest_sha256 = EXPECTED_SHA256[f"{RUN_ID}.manifest.json"]
-    validate_manifest(
-        load_strict_json(paths[f"{RUN_ID}.manifest.json"]),
+    raw_manifest = load_strict_json(paths[f"{RUN_ID}.manifest.json"])
+    frozen_repository = materialize_manifest_at_commit(
+        raw_manifest,
         repository_root=ROOT,
+        destination=tmp_path / "frozen-repository",
+        source_commit=FROZEN_SOURCE_COMMIT,
+        collection_names=("history", "assetHashes"),
     )
+    validate_manifest(raw_manifest, repository_root=frozen_repository)
     validate_authorization(
         load_strict_json(paths[f"{RUN_ID}.authorization.json"]),
         manifest_sha256=manifest_sha256,

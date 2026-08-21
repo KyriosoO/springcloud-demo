@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.integration.adapters.frozen_manifest import materialize_manifest_at_commit
 from tests.integration.adapters.employee.egress_input_qualification_v6 import (
     ASSET_PATHS,
     AUTHORIZATION_REFERENCE,
@@ -19,12 +20,28 @@ REPOSITORY = Path(__file__).resolve().parents[5]
 EVIDENCE = Path(__file__).parent / "evidence"
 MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
 AUTHORIZATION = EVIDENCE / f"{RUN_ID}.authorization.json"
+FROZEN_SOURCE_COMMIT = "9585d1e77bba019ddef81a8d548eb3ddc16ee1b7"
 
 
-def test_prepared_manifest_authorization_assets_and_history_are_exact() -> None:
-    verify_history(REPOSITORY)
+def _frozen_repository(tmp_path: Path) -> Path:
+    return materialize_manifest_at_commit(
+        load_strict_json(MANIFEST),
+        repository_root=REPOSITORY,
+        destination=tmp_path / "frozen-repository",
+        source_commit=FROZEN_SOURCE_COMMIT,
+        collection_names=("history", "assetHashes"),
+    )
+
+
+def test_prepared_manifest_authorization_assets_and_history_are_exact(
+    tmp_path: Path,
+) -> None:
+    frozen_repository = _frozen_repository(tmp_path)
+    verify_history(frozen_repository)
     manifest_sha256 = sha256_file(MANIFEST)
-    manifest = validate_manifest(load_strict_json(MANIFEST), repository_root=REPOSITORY)
+    manifest = validate_manifest(
+        load_strict_json(MANIFEST), repository_root=frozen_repository
+    )
     authorization = validate_authorization(
         load_strict_json(AUTHORIZATION), manifest_sha256=manifest_sha256
     )
@@ -37,7 +54,9 @@ def test_prepared_manifest_authorization_assets_and_history_are_exact() -> None:
     assert {item["path"] for item in manifest["assetHashes"]} == ASSET_PATHS
 
 
-def test_candidate_v5_post_consumption_history_is_bound_and_immutable() -> None:
+def test_candidate_v5_post_consumption_history_is_bound_and_immutable(
+    tmp_path: Path,
+) -> None:
     expected = {
         "qualification_v5_manifest",
         "qualification_v5_authorization",
@@ -49,4 +68,4 @@ def test_candidate_v5_post_consumption_history_is_bound_and_immutable() -> None:
     assert {
         kind for kind, _, _ in HISTORY if kind.startswith("qualification_v5_")
     } == expected
-    verify_history(REPOSITORY)
+    verify_history(_frozen_repository(tmp_path))

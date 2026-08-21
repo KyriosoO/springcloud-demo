@@ -301,3 +301,19 @@ async def test_raw_injection_and_unclassified_fields_without_allowed_facts_are_z
         "SYNTHETIC-UNKNOWN",
     ):
         assert denied_value not in domain_text
+
+
+@pytest.mark.asyncio
+async def test_employee_partial_configured_model_fields_are_zero_call() -> None:
+    result = await _execute(
+        _handler(server=FakeEmployeeServer(_employee_body(workBaseSi=None)))
+    )
+    transport = FakeStructuredModelTransport(_model_response())
+
+    decision = await _call_answer_seam(result=result, question=_SAFE_QUESTION, transport=transport)
+
+    assert result.status is CapabilityStatus.SUCCESS
+    assert result.egress.disposition is EgressDisposition.DENIED
+    assert result.egress.reason_code == "business.no_model_fields"
+    assert decision is None
+    assert transport.calls == 0

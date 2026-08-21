@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_01` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 日期 | 2026-08-21 |
 | 权威范围 | Capability 公共契约、注册冻结、本地/模型动作解析、Core 单动作执行、LangGraph 状态与固定终态 |
 | 上位文档 | [`L1_00` v1.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.1 | 2026-08-21 | 代码对照评审发现压缩版公共类型与执行顺序失真 | 恢复 enabled binding、Core JSON、Result、validate-before-claim、第二动作和安全日志的精确契约；不改变生产执行语义 |
 | v1.0 | 2026-08-21 | 建立 Core 当前稳定基线 | 删除历史实现/评审流水，合并 Provider-neutral ID、Resolver、latch、状态与失败语义 |
 
 ## 3. 目标与范围
@@ -89,7 +90,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前代码已具备：不可变公共 dataclass、canonical JSON、冻结 Registry、请求级 latch、Hybrid selection、本地 Resolver 列表、ID-only selector、LangGraph 节点、组合根对齐校验、Runtime `ainvoke` 和关闭生命周期。
+当前代码已具备：不可变公共 dataclass、canonical JSON、冻结 Registry、请求级 latch、Hybrid selection、本地 Resolver 列表、ID-only selector、LangGraph 节点、组合根对齐校验、Runtime `ainvoke` 和关闭生命周期。上述结论证明 Core 与可注入组合根可用，不表示 `agent_runtime.main` 已注册领域 Provider；默认包入口仍是空能力安全基线。
 
 现状与设计一致，不要求代码变更。新增能力只增加实现与组合根注册；若需要第二动作、聚合或重试，必须先修改上位架构而非扩展当前 Core 隐式行为。
 
@@ -100,13 +101,13 @@
 | 规则编号 | 规则 |
 |---|---|
 | `DR-CORE-001` | `CapabilityDescriptor` 使用稳定 ID、kind、版本、模型安全描述/aliases 和受限 JSON Schema |
-| `DR-CORE-002` | 注册项必须同时提供 descriptor、validator、handler；三者不可运行时替换 |
+| `DR-CORE-002` | 每个注册候选必须提供 descriptor；仅 `enabled=true` 的候选必须同时提供 validator、async handler 并形成可执行 binding；冻结后不可运行时替换 |
 | `DR-CORE-003` | Registry 在启动期校验并冻结；重复 ID、禁用/启用不一致或可变输入使启动失败 |
 | `DR-CORE-004` | Local Resolver 只返回 `matched/no_match/invalid` 与本域参数，不执行调用 |
 | `DR-CORE-005` | 模型 selection 只返回 exact capability ID 或 no-match，不返回 arguments |
 | `DR-CORE-006` | Hybrid 仅在本地无匹配时调用模型；多本地匹配、ID 不对齐或需要参数的 model-only 选择失败关闭 |
-| `DR-CORE-007` | `ActionExecutionLatch` 在 validator/handler 前 claim；同请求第二次 claim 永远拒绝 |
-| `DR-CORE-008` | Core 固定顺序为 context→candidate→registry→claim→argument validate→budget/cancel→handler→result validate→finish |
+| `DR-CORE-007` | `ActionExecutionLatch` 在参数 validator 成功后、handler 前 claim；非法参数不消费动作，同请求第二次有效动作 claim 永远拒绝 |
+| `DR-CORE-008` | Core 固定顺序为 context→candidate→registry→argument validate→claim→budget/cancel→handler→result validate→finish |
 | `DR-CORE-009` | 统一状态和 failure source/code 必须满足组合不变量；错误不得携带原异常正文 |
 | `DR-CORE-010` | 取消、截止或 shutdown 与 handler 竞争；迟到结果丢弃且任务被 join |
 | `DR-CORE-011` | Graph 只保存当前请求状态；能力结果决定 answer 或 fixed 路径，不允许循环回执行节点 |
@@ -115,7 +116,7 @@
 
 `CapabilityDescriptor` 的关键字段为 `capability_id`、`api_version`、`kind`、`display_name`、`description`、`aliases` 和 `argument_schema`。ID 采用小写点分域格式；版本为正整数；展示文本和 aliases 有界且不含敏感值。启停状态由 `CapabilityRegistrationCandidate.enabled` 持有，不得复制进 Descriptor。
 
-Core JSON 只允许 `null/bool/int/有限 Decimal/str/list/object` 的受控子集，拒绝 float、非字符串 key、深度/节点/字符串超界和循环引用。`freeze_json_object` 深冻结输入，`canonical_json_bytes` 提供稳定比较；它不是业务 wire encoder，ExactDecimal 由 Business L2 单独治理。
+Core JSON 只允许 `null/bool/int/有限 float/str/list/object` 的受控子集，拒绝 NaN/Infinity、`Decimal`、自定义对象、非字符串 key、深度/集合项/字节超界和循环引用。`freeze_json_object` 深冻结输入，`canonical_json_bytes` 提供稳定比较；它不是业务 wire encoder，ExactDecimal 由 Business L2 单独治理。
 
 Argument Schema 只支持本期有限 JSON Schema 关键字；不允许 `$ref`、自定义执行关键字或宽松 additional properties。
 
@@ -125,7 +126,7 @@ Argument Schema 只支持本期有限 JSON Schema 关键字；不允许 `$ref`�
 
 ### 7.4 Result
 
-`CapabilityResult` 包含 `status`、`domain_result?`、`answer_text?`、`failure?`、`model_egress`。成功/无结果不得带 failure；失败必须带有限 `FailureDetail`；领域结果必须是不可变公共 JSON object。
+`CapabilityResult` 精确包含 `status`、`domain_result?`、`egress`、`failure?`。成功/无结果不得带 failure；失败必须带有限 `FailureDetail`；领域结果必须是不可变公共 JSON object。最终 `answer_text` 属于 Graph 的 `AgentSemanticOutcome`，不属于 Capability 公共结果。
 
 `ModelEgressResult` 明确 `not_applicable/allowed/denied`，并把领域是否允许模型调用与 Core 终态分离。
 
@@ -168,15 +169,15 @@ ActionCandidate
   → validate context
   → validate candidate shape
   → registry.resolve
-  → latch.claim(capability_id)
   → registered.validate(arguments)
+  → latch.claim(capability_id)
   → calculate remaining budget / cancellation race
   → handler.handle(validated, context)
   → validate capability result
   → latch.finish(completion)
 ```
 
-claim 位于 handler 之前，因此 validator 异常后也不可用另一动作回退。一次请求中 handler 实际调用次数为 0 或 1。
+参数 validator 在 claim 前执行，因此非法参数不会消费动作；validator 成功后立即 claim，任何 handler 终态或异常均消费该动作。一次请求中 handler 实际调用次数为 0 或 1。
 
 ### 10.2 截止、取消和并发一致性
 
@@ -205,13 +206,13 @@ Graph 不循环到 select/execute。回答节点不执行能力；模型失败�
 | 本地歧义/非法、模型非法 ID | `invalid_argument` 或受控 `unsupported` | 0 |
 | 候选未注册/禁用/参数非法 | `invalid_argument` | 0 |
 | 身份/context 非法 | `unauthenticated` 或 `invalid_argument` | 0 |
-| 第二次 claim | `internal_failure`，记录不含输入的诊断 fingerprint | 0（第二次） |
+| 第二次 claim | `invalid_argument/core.second_action_not_allowed` | 0（第二次） |
 | 截止耗尽/请求取消 | 公共状态 `timeout` | 0 或 1，迟到结果无效 |
 | Runtime shutdown/外层任务取消 | 内部 latch 完成值 `runtime_cancelled`，随后传播 `CancelledError`；不生成公共 `CapabilityResult` | 0 或 1 |
 | handler 已知失败 | 保留领域映射后的有限状态/failure | 1 |
 | handler 未知异常/结果违反契约 | `internal_failure` | 1 |
 
-异常类名、堆栈、原消息和用户输入不进入公共结果；日志使用 rule code、stage 和不可逆 fingerprint。
+异常类名、堆栈、原消息和用户输入不进入公共结果；日志可使用有限 rule code、stage、安全异常类型名称和不可逆 fingerprint，但不得记录异常消息或正文。
 
 ## 12. 权限、安全、审计与状态生命周期
 
@@ -296,7 +297,7 @@ class CapabilityRegistrationProvider(Protocol):
 |---|---|---|---|
 | Core 域分支 | 按 capability ID 写 if/else | handler/registry 多态与依赖测试 | 否 |
 | 模型直接执行 | 模型返回 arguments/URL | ID-only decoder + local parameter source | 否 |
-| 第二动作 | 失败后回退另一 handler | claim-before-validate latch + 无图循环 | 否 |
+| 第二动作 | 已通过校验并 claim 后回退另一 handler | validate-before-claim、claim-before-handler + 无图循环 | 否 |
 | 可变注册 | 运行时修改 descriptor | 深冻结、snapshot、ready 前构建 | 否 |
 | 新增聚合/工作流 | 试图复用当前 Core | 必须修改上位设计和状态模型 | 需授权但不阻塞当前依据 |
 
@@ -304,7 +305,7 @@ class CapabilityRegistrationProvider(Protocol):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.0 可作为 Core/Registry/Graph 切片实现与代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.1 可作为 Core/Registry/Graph 切片实现与代码评审依据 |
 | 当前允许实施范围 | Capability API、Registry、Resolver/Hybrid、单动作 Core、Graph、组合根与非 live 测试 |
 | 当前禁止动作 | 领域参数变更、公共 HTTP、真实模型调用、第二动作、重试和持久化工作流 |
 | 回滚单位 | Runtime Core + Registry + Graph + 组合根按同一兼容快照回滚 |
@@ -318,6 +319,6 @@ class CapabilityRegistrationProvider(Protocol):
 | 内审 3 | 真实落点、测试、扩展与可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-00-01-001/002` 已修复；公共类型、取消语义、实现落点与上位约束复核通过 | Passed |
 
-- 当前版本：v1.0。
+- 当前版本：v1.1。
 - 文档状态：Approved。
 - 新版本不继承旧版评审和实现流水；历史文档仅作为来源。

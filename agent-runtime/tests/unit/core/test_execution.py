@@ -50,6 +50,16 @@ async def test_invalid_arguments_do_not_claim_or_call_handler() -> None:
 
     assert result.status is CapabilityStatus.INVALID_ARGUMENT
     assert handler.calls == 0
+    assert execution_scope.latch.state.value == "open"
+
+    subsequent_valid_execution = await _core(validator, handler).execute(
+        candidate=candidate(),
+        scope=execution_scope,
+    )
+
+    assert subsequent_valid_execution.status is CapabilityStatus.SUCCESS
+    assert execution_scope.latch.state.value == "finished"
+    assert handler.calls == 1
 
 
 @pytest.mark.asyncio

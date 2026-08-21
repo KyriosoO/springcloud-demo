@@ -8,7 +8,6 @@ from agent_runtime.business.contracts import BusinessActionDefinition, BusinessA
 from agent_runtime.business.settings import (
     BusinessConfigurationError,
     BusinessConfigurationFragment,
-    BusinessConfigurationSnapshot,
     BusinessConfigurationSource,
     BusinessGlobalSettings,
     BusinessServiceBinding,

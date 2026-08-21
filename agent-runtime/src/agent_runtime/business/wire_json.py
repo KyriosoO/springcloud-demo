@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from decimal import Decimal
-from types import MappingProxyType
 from typing import Mapping, Self, TypeAlias
 
 BUSINESS_WIRE_MAX_DEPTH = 8
