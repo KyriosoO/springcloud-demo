@@ -7,11 +7,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_00 |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.2、Employee/Transaction L2 v1.2 |
-| 实施状态 | 现有 Business contracts/settings/handler/egress 已实现；QueryPlan/config 扩展和 Resolver 退役尚未实现 |
+| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.3、Employee/Transaction L2 v1.2 |
+| 实施状态 | QueryPlan/value/ref、typed config、snapshot、catalog、exact payload decoder、validator 和 binder 的公共 non-live 实现已完成；域 definition 与生产组合根中的 Resolver 退役尚未完成 |
 
 ## 2. 修改历史、设计目标与范围外
 
@@ -19,6 +19,7 @@
 |---|---|---|
 | v1.1 | 2026-08-21 | 既有 Business common/config/egress 基线 |
 | v1.2 | 2026-08-24 | 新增 QueryPlan/typed input config/slot binder，移除 Business definition 的 Resolver 目标绑定 |
+| v1.3 | 2026-08-24 | 同步 `WP-BQ-PLAN-CONTRACT-01` non-live 实施证据；域配置与生产唯一链路仍由后续工作包承接 |
 
 本文详细定义两域共享的：
 
@@ -40,7 +41,7 @@
 - `agent-runtime/src/agent_runtime/business/handler.py`、`http_client.py`、`result_mapping.py`、`egress.py`；
 - 两域 definition 当前强制包含 `local_action_resolver`。
 
-目标差距：输入字段/operator/组合/模型安全描述尚未形成完整配置；definition 仍绑定 Local Resolver；没有 QueryPlan validator/binder；生产组合根仍可走本地参数路径。
+当前剩余差距：公共 QueryPlan/config/decoder/validator/binder 已实现，但 Employee/Transaction definition 尚未切换到强类型字段配置且仍绑定 Local Resolver；生产组合根仍可走旧本地参数路径。
 
 ## 4. 模块职责、代码绑定定义与接口契约设计
 
@@ -322,7 +323,7 @@ model facts = code model-candidate ∩ config model fields
 
 ## 15. 当前差距与门禁
 
-`IMPL-BQCOM-001～005` 尚未实施。P3_00 的 `WP-BQ-PLAN-CONTRACT-01` 先完成公共合同与非 live 校验，之后 Runtime 和两域工作包才能开始；真实模型/业务 UAT 需独立门禁。
+`IMPL-BQCOM-001～005` 的公共 non-live 实现已由 `WP-BQ-PLAN-CONTRACT-01` 完成并通过定向、Business 回归、strict mypy 和 compileall。Employee/Transaction definition/config、Runtime 唯一链路和跨模块 E2E 仍由后续工作包承接；真实模型/业务 UAT 继续受独立门禁约束。
 
 ## 16. 评审记录
 

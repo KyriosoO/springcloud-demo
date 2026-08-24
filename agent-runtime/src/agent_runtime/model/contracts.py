@@ -76,6 +76,7 @@ class QuestionEgressDecision:
 
 class ModelTaskId(StrEnum):
     ACTION_SELECTION = "action_selection"
+    BUSINESS_QUERY_PLAN = "business_query_plan"
     ANSWER_GENERATION = "answer_generation"
     KNOWLEDGE_REWRITE = "knowledge_rewrite"
     KNOWLEDGE_SUMMARY = "knowledge_summary"
@@ -157,6 +158,35 @@ class ModelCallContext:
             or not math.isfinite(self.deadline_monotonic)
         ):
             raise ValueError("model.invalid_call_context")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessQueryPlanTaskInput:
+    minimized_question: str
+    catalog: JsonObject
+    catalog_snapshot_id: str
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.minimized_question, str)
+            or not self.minimized_question
+            or len(self.minimized_question) > 4096
+            or not isinstance(self.catalog_snapshot_id, str)
+            or not _ASCII_IDENTIFIER.fullmatch(self.catalog_snapshot_id)
+        ):
+            raise ModelInputDenied("model.business_query_plan_input_invalid")
+        try:
+            catalog = freeze_json_object(
+                self.catalog,
+                max_bytes=32768,
+                max_depth=8,
+                max_collection_items=256,
+            )
+        except ValueError as exc:
+            raise ModelInputDenied("model.business_query_plan_input_invalid") from exc
+        if catalog.get("snapshot_id") != self.catalog_snapshot_id:
+            raise ModelInputDenied("model.business_catalog_snapshot_mismatch")
+        object.__setattr__(self, "catalog", catalog)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -364,6 +394,15 @@ class StructuredModelGateway(Protocol):
         input: TInput,
         context: ModelCallContext,
     ) -> ModelTaskResult[TOutput]: ...
+
+
+class BusinessQueryPlanGenerator(Protocol):
+    async def generate(
+        self,
+        input: BusinessQueryPlanTaskInput,
+        *,
+        context: ModelCallContext,
+    ) -> JsonObject: ...
 
 
 class StructuredModelTransport(Protocol):

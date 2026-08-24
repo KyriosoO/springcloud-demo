@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_02 |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.1 |
-| 协作设计 | `L2_00_01` v1.2、`L2_02_00` v1.2 |
+| 协作设计 | `L2_00_01` v1.2、`L2_02_00` v1.3 |
 | Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | transport、gateway、ID-only action selector 和 answer tasks 已有实现；Business QueryPlan task v1 尚未实现或接入生产组合根 |
+| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder 和 fake transport 测试已实现；生产 Business 组合根切换与真实模型验证尚未实施 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -20,6 +20,7 @@
 |---|---|---|
 | v1.1 | 2026-08-21 | 既有 transport、ID-only selector、answer task 基线 |
 | v1.2 | 2026-08-24 | 新增 `business-query-plan-v1`，Business 不再使用 ID-only selector |
+| v1.3 | 2026-08-24 | 同步 `WP-BQ-MODEL-QUERYPLAN-01` non-live 实施与验证状态；生产 wiring/live 门禁保持未关闭 |
 
 本文新增一个 provider-neutral `business-query-plan-v1` 模型任务。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
 
@@ -27,7 +28,7 @@
 
 上位约束来源是 L1_00 v1.1 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
 
-当前实现基线是 transport/gateway/action selector/answer task 已存在；本 task、catalog 和 production wiring 是目标新增。
+当前实现基线已包含 transport/gateway、历史 action selector、answer task，以及新增的 QueryPlan task/generator/provider decoder 和 Business 输入保护接缝；catalog 由 Business common 构造，production wiring 仍由 Runtime 工作包承接。
 
 ## 3. 模块职责、依赖方向与模型任务分类
 
@@ -285,7 +286,7 @@ class LocalModelCompositionRoot:
 
 ## 15. 当前差距与门禁
 
-本 task、catalog、slot 输出和组合根 wiring 尚未实现。P3_00 的 `WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-BQ-PLAN-RUNTIME-01` 和 `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` 承接；真实调用需单独门禁。旧 Action PoC 不自动关闭新 QueryPlan 门禁。
+`WP-BQ-PLAN-CONTRACT-01` 与 `WP-BQ-MODEL-QUERYPLAN-01` 已完成 non-live 实施：catalog、task、输入保护接缝、provider decoder 和 fake transport 验证已具备。生产组合根 wiring、两域 definition/config、non-live E2E 与真实调用仍分别由后续工作包和独立门禁承接；旧 Action PoC 不自动关闭新 QueryPlan 门禁。
 
 ## 16. 评审记录
 

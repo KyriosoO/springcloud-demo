@@ -34,9 +34,14 @@ from agent_runtime.model.context import (
 )
 from agent_runtime.model.contracts import (
     AnswerGroundingPolicy,
+    BusinessQueryPlanGenerator,
     ModelTaskDefinition,
     StructuredModelGateway,
     StructuredModelTransport,
+)
+from agent_runtime.model.deepseek.business_query_plan import (
+    DeepSeekBusinessQueryPlanGenerator,
+    build_business_query_plan_task_definition,
 )
 from agent_runtime.model.deepseek.action_selector import (
     DeepSeekCapabilitySelector,
@@ -158,6 +163,7 @@ def _validate_local_action_resolvers(
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LocalModelComponents:
     action_selector: CapabilitySelectionNode
+    business_query_plan_generator: BusinessQueryPlanGenerator
     answer_generator: AnswerGenerationNode
     context_accessor: ModelCallContextAccessor
     gateway: StructuredModelGateway
@@ -200,26 +206,31 @@ class LocalModelCompositionRoot:
         max_argument_bytes: int = 16384,
         additional_definitions: Sequence[ModelTaskDefinition[Any, Any]] = (),
     ) -> LocalModelComponents:
-        action_definition = build_action_selection_task_definition(
-            timeout_ms=settings.action_timeout_ms,
-        )
-        answer_definition = build_answer_generation_v2_task_definition(
-            timeout_ms=settings.answer_timeout_ms,
-        )
-        definitions: tuple[ModelTaskDefinition[Any, Any], ...] = (
-            cast(ModelTaskDefinition[Any, Any], action_definition),
-            cast(ModelTaskDefinition[Any, Any], answer_definition),
-            *additional_definitions,
-        )
-        definition_keys = tuple((definition.task_id, definition.task_version) for definition in definitions)
-        if len(set(definition_keys)) != len(definition_keys):
-            raise ValueError("model.duplicate_task_definition")
         if (
             not isinstance(max_argument_bytes, int)
             or isinstance(max_argument_bytes, bool)
             or max_argument_bytes <= 0
         ):
             raise ValueError("model.invalid_action_output_limit")
+        action_definition = build_action_selection_task_definition(
+            timeout_ms=settings.action_timeout_ms,
+        )
+        business_query_plan_definition = build_business_query_plan_task_definition(
+            timeout_ms=settings.action_timeout_ms,
+            max_output_bytes=max_argument_bytes,
+        )
+        answer_definition = build_answer_generation_v2_task_definition(
+            timeout_ms=settings.answer_timeout_ms,
+        )
+        definitions: tuple[ModelTaskDefinition[Any, Any], ...] = (
+            cast(ModelTaskDefinition[Any, Any], action_definition),
+            cast(ModelTaskDefinition[Any, Any], business_query_plan_definition),
+            cast(ModelTaskDefinition[Any, Any], answer_definition),
+            *additional_definitions,
+        )
+        definition_keys = tuple((definition.task_id, definition.task_version) for definition in definitions)
+        if len(set(definition_keys)) != len(definition_keys):
+            raise ValueError("model.duplicate_task_definition")
         guard = QuestionEgressGuard(max_question_chars=max_question_chars)
         accessor = ModelCallContextAccessor()
         grounding = GroundingPolicyRegistry(grounding_policies)
@@ -247,6 +258,10 @@ class LocalModelCompositionRoot:
                 context=accessor,
                 definition=action_definition,
                 max_argument_bytes=max_argument_bytes,
+            ),
+            business_query_plan_generator=DeepSeekBusinessQueryPlanGenerator(
+                gateway=gateway,
+                definition=business_query_plan_definition,
             ),
             answer_generator=DeepSeekAnswerGenerator(
                 guard=guard,
