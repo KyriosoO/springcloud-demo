@@ -7,6 +7,7 @@ from typing import Any, cast
 
 
 _ASSET = Path(__file__).with_name("uat_cases.v1.json")
+_STRUCTURED_RUNNER = Path(__file__).parents[2] / "scripts" / "run-structured-query-uat.ps1"
 _CASE_KEYS = {
     "caseId",
     "domain",
@@ -181,3 +182,16 @@ def test_uat_catalog_uses_placeholders_instead_of_employee_or_transaction_values
         "${SYSTEM_E2E_EMPLOYEE_IDENTIFIER}" in item for item in employee_questions
     )
     assert all("${UAT_TRANSACTION_TYPE}" in item for item in transaction_success_questions)
+
+
+def test_structured_query_runner_is_stub_only_bounded_and_does_not_read_model_key() -> None:
+    source = _STRUCTURED_RUNNER.read_text(encoding="utf-8")
+
+    assert "LLM_API_KEY" not in source
+    assert "$env:AGENT_MODEL_PROVIDER = 'stub'" in source
+    assert "RUN_STRUCTURED_QUERY_UAT" in source
+    assert "Get-TransactionType" in source
+    assert source.count("SELECT TRANS_TYPE FROM t_transaction") == 1
+    assert "transaction.search" not in source
+    assert "employee.detail" not in source
+    assert "Remove-Item -LiteralPath $runRoot -Recurse -Force" in source

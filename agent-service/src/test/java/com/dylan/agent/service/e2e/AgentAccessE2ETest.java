@@ -33,6 +33,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
 class AgentAccessE2ETest {
+    private static final String UNSUPPORTED_UAT_QUESTION = "请帮我预订明天的会议室";
     private static final Path DEFAULT_PYTHON = Path.of(
             "..", ".tmp", "agent-runtime-venv", "Scripts", "python.exe").toAbsolutePath().normalize();
     private static final Path RUNTIME_ROOT = Path.of("..", "agent-runtime").toAbsolutePath().normalize();
@@ -62,7 +63,7 @@ class AgentAccessE2ETest {
                 .header("Authorization", "Bearer e2e-user-token")
                 .header("X-Correlation-Id", "corr-e2e-safe")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue("{\"question\":\"税务政策\"}")
+                .bodyValue("{\"question\":\"" + UNSUPPORTED_UAT_QUESTION + "\"}")
                 .exchange()
                 .expectStatus().isEqualTo(422)
                 .expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
@@ -79,7 +80,7 @@ class AgentAccessE2ETest {
         String runtimeLog = Files.exists(RUNTIME_LOG)
                 ? Files.readString(RUNTIME_LOG, StandardCharsets.UTF_8)
                 : "";
-        assertThat(runtimeLog).doesNotContain("e2e-user-token", "税务政策");
+        assertThat(runtimeLog).doesNotContain("e2e-user-token", UNSUPPORTED_UAT_QUESTION);
     }
 
     private WebTestClient startSpring(int runtimePort) {

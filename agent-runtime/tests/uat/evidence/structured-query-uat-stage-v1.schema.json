@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:uat:structured-query-stage:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "suiteId", "stage", "status", "gitHead", "caseCatalogSha256",
+    "modelProvider", "businessModelEgress", "cases", "requestCounts", "security", "cleanup"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "suiteId": {"const": "single-agent-structured-query-uat-v1"},
+    "stage": {"enum": ["access", "employee", "transaction"]},
+    "status": {"const": "passed"},
+    "gitHead": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "caseCatalogSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "modelProvider": {"const": "stub"},
+    "businessModelEgress": {"const": false},
+    "cases": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "httpStatus", "status", "capabilityId"],
+        "properties": {
+          "caseId": {"type": "string", "pattern": "^UAT-(ACCESS|EMPLOYEE|TRANSACTION)-[0-9]{3}$"},
+          "httpStatus": {"type": "integer", "minimum": 100, "maximum": 599},
+          "status": {"type": "string", "maxLength": 32},
+          "capabilityId": {"type": ["string", "null"], "maxLength": 80}
+        }
+      }
+    },
+    "requestCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledgeSearch", "embedding", "rerank", "employee", "transaction",
+        "otherBusinessEndpoints", "localKnowledgeModel", "answerGeneration", "externalModelOutbound"
+      ],
+      "properties": {
+        "knowledgeSearch": {"const": 0},
+        "embedding": {"const": 0},
+        "rerank": {"const": 0},
+        "employee": {"type": "integer", "minimum": 0, "maximum": 3},
+        "transaction": {"type": "integer", "minimum": 0, "maximum": 3},
+        "otherBusinessEndpoints": {"const": 0},
+        "localKnowledgeModel": {"const": 0},
+        "answerGeneration": {"const": 0},
+        "externalModelOutbound": {"const": 0}
+      }
+    },
+    "security": {
+      "const": {"logLeakCount": 0, "sensitivePersistence": false}
+    },
+    "cleanup": {
+      "const": {"runtimeClosed": true, "ownedProcessesStopped": true, "rawLogsDeleted": true}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"stage": {"const": "access"}}},
+      "then": {"properties": {"requestCounts": {"properties": {"employee": {"const": 0}, "transaction": {"const": 0}}}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "employee"}}},
+      "then": {"properties": {"requestCounts": {"properties": {"employee": {"const": 3}, "transaction": {"const": 0}}}}}
+    },
+    {
+      "if": {"properties": {"stage": {"const": "transaction"}}},
+      "then": {"properties": {"requestCounts": {"properties": {"employee": {"const": 0}, "transaction": {"const": 3}}}}}
+    }
+  ]
+}

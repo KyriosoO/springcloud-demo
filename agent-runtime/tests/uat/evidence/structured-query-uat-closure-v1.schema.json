@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agent-runtime:uat:structured-query-closure:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "suiteId", "phase", "status", "gitHead", "caseCatalogSha256",
+    "stageEvidenceSha256", "cases", "requestCounts", "regressions", "security", "cleanup", "scope"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "suiteId": {"const": "single-agent-structured-query-uat-v1"},
+    "phase": {"const": "structured_query"},
+    "status": {"const": "passed"},
+    "gitHead": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "caseCatalogSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "stageEvidenceSha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["access", "employee", "transaction"],
+      "properties": {
+        "access": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "employee": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "transaction": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caseId", "httpStatus", "status", "capabilityId"],
+        "properties": {
+          "caseId": {"type": "string", "pattern": "^UAT-(ACCESS|EMPLOYEE|TRANSACTION)-[0-9]{3}$"},
+          "httpStatus": {"type": "integer", "minimum": 100, "maximum": 599},
+          "status": {"type": "string", "maxLength": 32},
+          "capabilityId": {"type": ["string", "null"], "maxLength": 80}
+        }
+      }
+    },
+    "requestCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledgeSearch", "embedding", "rerank", "employee", "transaction",
+        "otherBusinessEndpoints", "localKnowledgeModel", "answerGeneration", "externalModelOutbound"
+      ],
+      "properties": {
+        "knowledgeSearch": {"const": 0},
+        "embedding": {"const": 0},
+        "rerank": {"const": 0},
+        "employee": {"const": 3},
+        "transaction": {"const": 3},
+        "otherBusinessEndpoints": {"const": 0},
+        "localKnowledgeModel": {"const": 0},
+        "answerGeneration": {"const": 0},
+        "externalModelOutbound": {"const": 0}
+      }
+    },
+    "regressions": {
+      "const": {"access": "passed", "core": "passed", "resolver": "passed", "jwtPassThrough": "passed", "singleAction": "passed"}
+    },
+    "security": {"const": {"logLeakCount": 0, "sensitivePersistence": false}},
+    "cleanup": {"const": {"runtimeClosed": true, "ownedProcessesStopped": true, "rawLogsDeleted": true}},
+    "scope": {"const": {"knowledgeEvaluated": false, "fullUatGateClosed": false, "productionEnabled": false}}
+  }
+}
