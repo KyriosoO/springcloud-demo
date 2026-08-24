@@ -122,7 +122,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | 门禁 ID | 工作包 | 类型 | 控制动作 | 是否阻塞入口 | 关闭条件 | 证据/权威来源 | 责任方/外部提供方 | 最晚关闭阶段 | 验证者与方法 | 未关闭行为 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `GATE-064` | `WP-BQ-PLAN-CONTRACT-01` | slice_implementation | non-live代码实施 | 是 | 用户明确授权目标代码/测试/文档范围 | 2026-08-24目标授权与提交范围 | 用户 | P3开始 | 授权边界复核；真实调用仍排除 | 后续non-live包按依赖推进 | Closed |
-| `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/task/prompt/catalog/config/cases/预算并一次性授权 | candidate-01：frozen HEAD `b22497242807e38855a322b6d1ee7d5514edeaaa`；run `business-query-plan-live-v1-20260824-candidate-01`；manifest SHA-256 `eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8`；预算 model/Employee/Transaction=`6/2/2` | 用户/维护者 | P4 live前 | 独立hash/schema/preflight | 候选已准备；未获绑定上述 frozen HEAD 的一次性授权前不产生outbound | Open |
+| `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/task/prompt/catalog/config/cases/预算并一次性授权 | candidate-01 asset commit `b22497242807e38855a322b6d1ee7d5514edeaaa`；run `business-query-plan-live-v1-20260824-candidate-01`；manifest SHA-256 `eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8`；预算 model/Employee/Transaction=`6/2/2`；最终执行 HEAD 由一次性授权绑定 | 用户/维护者 | P4 live前 | 独立hash/schema/preflight | 候选已准备；未获绑定最终执行 HEAD 的一次性授权前不产生outbound | Open |
 | `GATE-066` | `WP-BQ-QUERYPLAN-LIVE-01` | closure | 宣告唯一链路集成完成 | 否 | 合格case plan=1、业务≤1、Resolver/另一域/Knowledge=0，权限/跨语言/零泄漏通过 | live evidence | Codex复核 | UAT前 | code-against-design + evidence | live包不Done | Open |
 
 ## 8. 外部资源与事实
@@ -206,8 +206,8 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 - Done 工作包：6（`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`、`WP-BQ-PLAN-RUNTIME-01`、`WP-BQ-QUERYPLAN-NONLIVE-E2E-01`）。
 - Deferred 工作包：0。
 - 关键开放门禁：P3 `GATE-065/066`；`GATE-064` 已关闭；UAT 另有 `GATE-UAT-006`。
-- `GATE-065` non-live 候选已冻结：run `business-query-plan-live-v1-20260824-candidate-01`，manifest SHA-256 `eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8`，frozen HEAD `b22497242807e38855a322b6d1ee7d5514edeaaa`，精确预算 model/Employee/Transaction=`6/2/2`。
-- 推荐下一步：申请并绑定上述 frozen HEAD/run/manifest/预算的一次性 `GATE-065` live 授权；授权前不读取密钥、不调用真实模型或业务服务、不产生 outbound。
+- `GATE-065` non-live 候选已冻结：run `business-query-plan-live-v1-20260824-candidate-01`，manifest SHA-256 `eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8`，candidate asset commit `b22497242807e38855a322b6d1ee7d5514edeaaa`，精确预算 model/Employee/Transaction=`6/2/2`；最终执行 HEAD 在全部准备提交完成后由一次性授权绑定。
+- 推荐下一步：申请并绑定最终执行 HEAD、上述 run/manifest/预算的一次性 `GATE-065` live 授权；授权前不读取密钥、不调用真实模型或业务服务、不产生 outbound。
 - 当前不得执行真实 LLM、业务服务调用或 Employee/Transaction 成功 UAT。
 - Employee 地点/职位筛选保持 `unsupported`：现有通用 ES 搜索的字段能力已确认，但最终角色授权与受限响应契约未满足，不属于本计划。
 
