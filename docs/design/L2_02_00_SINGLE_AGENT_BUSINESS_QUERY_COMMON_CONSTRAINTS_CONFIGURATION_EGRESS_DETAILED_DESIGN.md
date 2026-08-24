@@ -10,8 +10,8 @@
 | 当前版本 | v1.6 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
-| 协作设计 | `L2_00_01` v1.5、`L2_00_02` v1.5、Employee L2 v1.4、Transaction L2 v1.4 |
-| 实施状态 | 公共 QueryPlan 合同、Employee/Transaction definition/config/protected-ref 与生产组合根唯一分支的 non-live 实现及代码复核已完成；双域系统 E2E 尚未完成 |
+| 协作设计 | `L2_00_01` v1.6、`L2_00_02` v1.5、Employee L2 v1.4、Transaction L2 v1.4 |
+| 实施状态 | 公共 QueryPlan 合同、Employee/Transaction definition/config/protected-ref、生产组合根唯一分支及 fake 双域系统 E2E 已完成 non-live 实现与代码复核 |
 
 ## 2. 修改历史、设计目标与范围外
 
@@ -44,7 +44,7 @@
 - `agent-runtime/src/agent_runtime/business/handler.py`、`http_client.py`、`result_mapping.py`、`egress.py`；
 - Employee/Transaction definition 已移除有效 `local_action_resolver`，并已具备强类型 QueryPlan 字段/配置。
 
-当前剩余差距：公共 QueryPlan/config/decoder/validator/binder、两域 definition/config 与 Runtime 唯一分支已完成 non-live 实现及复核；仍待系统 E2E 和受控 live 验证。
+当前剩余差距：公共 QueryPlan/config/decoder/validator/binder、两域 definition/config、Runtime 唯一分支与 fake 系统 E2E 已完成 non-live 实现及复核；仅剩受控 live 验证。
 
 ## 4. 模块职责、代码绑定定义与接口契约设计
 
@@ -88,7 +88,7 @@ class BusinessActionDefinition(Generic[TInput, TWireRequest, TWireResponse, TRec
     answer_mode: BusinessAnswerMode
 ```
 
-`BusinessActionDefinition.local_action_resolver` 与底层 legacy validator 仅为冻结历史 harness 复验保留；生产 `BusinessSupportFactory.build(...)` 遇到任一非空 Resolver 必须 readiness 失败，不得收集为目标 support。Employee/Transaction 专属 resolver 类/旧旁路测试在无调用方核实后删除。`BusinessSupportSnapshot.local_action_resolvers` 当前仅有 system E2E 空元组调用方，先固定为空，待 E2E 改为 QueryPlan bindings 后再删除。共享 capability/graph resolver 合同继续服务非 Business。
+`BusinessActionDefinition.local_action_resolver` 与底层 legacy validator 仅为冻结历史 harness 复验保留；生产 `BusinessSupportFactory.build(...)` 遇到任一非空 Resolver 必须 readiness 失败，不得收集为目标 support。Employee/Transaction 专属 resolver 类/旧旁路测试以及 `BusinessSupportSnapshot.local_action_resolvers` 空字段已经无调用方、共享复用和冻结证据核实后删除。共享 capability/graph resolver 合同继续服务非 Business。
 
 ### 4.2 有限枚举
 
@@ -333,7 +333,7 @@ model facts = code model-candidate ∩ config model fields
 
 ## 15. 当前差距与门禁
 
-`IMPL-BQCOM-001～005` 的公共 non-live 实现、Employee/Transaction definition/config 和 Runtime 唯一分支已完成并通过定向、Business/域回归、strict mypy、compileall 与代码对照设计复核。跨模块 E2E 仍由后续工作包承接；真实模型/业务 UAT 继续受独立门禁约束。
+`IMPL-BQCOM-001～007` 的公共 non-live 实现、Employee/Transaction definition/config、Runtime 唯一分支和跨模块 fake E2E 已完成并通过定向、Business/域回归、strict mypy、compileall 与代码对照设计复核。真实模型/业务 UAT 继续受独立门禁约束。
 
 ## 16. 评审记录
 
@@ -360,7 +360,7 @@ QueryPlan/config/binder 形成一个高内聚 Business planning 边界，并以�
 | 项目 | 内容 |
 |---|---|
 | 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施 |
-| 当前允许实施范围 | 取得 P3 `GATE-064` 后，仅限 IMPL-BQCOM-001～007 的 non-live 实现 |
+| 当前允许实施范围 | non-live 实现已完成；真实模型/业务调用仍受 `GATE-065` 控制 |
 | 当前禁止动作 | 新业务接口/DTO/DB、扩大权限/字段、真实调用、动态 DSL、恢复 Resolver 旁路 |
 
 ## 18. 端到端追踪矩阵

@@ -12,8 +12,10 @@ import httpx
 import uvicorn
 
 from agent_runtime.adapters.employee.provider import EmployeeDomainProvider
+from agent_runtime.adapters.employee.protected_input import EmployeeProtectedValueExtractor
 from agent_runtime.adapters.employee.settings import EmployeeAdapterSettings
 from agent_runtime.adapters.transaction.provider import TransactionDomainProvider
+from agent_runtime.adapters.transaction.protected_input import TransactionProtectedValueExtractor
 from agent_runtime.adapters.transaction.settings import TransactionAdapterSettings
 from agent_runtime.api.app import create_app
 from agent_runtime.api.settings import RuntimeHttpSettings
@@ -23,6 +25,7 @@ from agent_runtime.business.egress import BusinessEgressProjector
 from agent_runtime.business.handler import BoundBusinessActionHandler
 from agent_runtime.business.http_client import FakeDomainHttpRequest, FakeDomainHttpResponse, UserJwtBusinessHttpClient
 from agent_runtime.business.provider import BusinessSupportFactory
+from agent_runtime.business.protected_input import CompositeBusinessProtectedValueExtractor
 from agent_runtime.business.settings import (
     BusinessConfigurationSource,
     BusinessGlobalSettings,
@@ -37,6 +40,7 @@ from agent_runtime.graph.action_resolution import (
     CapabilitySelectionDecisionKind,
     CapabilitySelectionInput,
 )
+from agent_runtime.graph.business_query_planning import BusinessQueryPlanRuntimeBindings
 from agent_runtime.graph.state import AgentSemanticOutcome, AnswerGenerationInput
 from agent_runtime.knowledge.retrieval.bge_embedding import BgeM3EmbeddingAdapter
 from agent_runtime.knowledge.retrieval.bge_rerank import BgeRerankAdapter
@@ -57,6 +61,7 @@ from agent_runtime.model.contracts import (
     StructuredModelResponse,
 )
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
+from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelSettings
 from agent_runtime.settings import CoreRuntimeSettings
 from tests.system_e2e.evidence_contract import write_runtime_evidence
@@ -95,7 +100,7 @@ class _ForbiddenAnswerGenerator:
 
 
 class _DeterministicKnowledgeModelTransport:
-    """Local deterministic transport for Knowledge rewrite/summary only."""
+    """Local deterministic transport for Knowledge tasks and Business QueryPlan."""
 
     def __init__(self) -> None:
         self.calls = 0
@@ -141,8 +146,32 @@ class _DeterministicKnowledgeModelTransport:
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )
+        elif request.task_id is ModelTaskId.BUSINESS_QUERY_PLAN:
+            question = payload.get("question")
+            if type(question) is not str or not question:
+                raise AssertionError("system_e2e.local_model_payload_invalid")
+            if "员工" in question or "employee" in question.casefold():
+                content = (
+                    '{"domain":"employee","action":"employee.detail",'
+                    '"arguments":{"employee_identifier":{"value_ref":"slot-1"}}}'
+                    if "protected-ref(slot-1)" in question
+                    else '{"domain":"employee","action":"unsupported","arguments":{}}'
+                )
+            elif "交易" in question or "transaction" in question.casefold():
+                amount = re.search(r"金额\s*(?:为|是|=|:|：|大于|>)\s*(-?[0-9]+(?:\.[0-9]+)?)", question)
+                content = json.dumps(
+                    {
+                        "domain": "transaction",
+                        "action": "transaction.search",
+                        "arguments": {"amount": {"literal": amount.group(1) if amount is not None else "1.00"}},
+                    },
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            else:
+                content = '{"domain":"unsupported","action":"unsupported","arguments":{}}'
         else:
-            raise AssertionError("system_e2e.non_knowledge_model_task_forbidden")
+            raise AssertionError("system_e2e.model_task_forbidden")
         return StructuredModelResponse(
             finish_kind=StructuredFinishKind.STOP,
             content=content,
@@ -291,7 +320,10 @@ class SystemE2ERuntime:
                     "transaction": self._transaction.calls,
                     "otherBusinessEndpoints": self._employee.other_endpoint_calls
                     + self._transaction.other_endpoint_calls,
-                    "localKnowledgeModel": self._model.calls,
+                    "localKnowledgeModel": sum(
+                        self._model.calls_by_task.get(task.value, 0)
+                        for task in (ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY)
+                    ),
                     "answerGeneration": self._answer.calls,
                     "externalModelOutbound": 0,
                 },
@@ -393,6 +425,8 @@ def build_system_e2e_runtime(env: Mapping[str, str] | None = None) -> SystemE2ER
         ),
         core_max_domain_result_bytes=core_settings.max_domain_result_bytes,
     )
+    if support.planner_catalog is None:
+        raise ValueError("system_e2e.business_planner_catalog_unavailable")
     employee_transport = _DomainTransport(domain="employee", base_url=employee_binding.base_endpoint)
     transaction_transport = _DomainTransport(domain="transaction", base_url=transaction_binding.base_endpoint)
     clients = {
@@ -430,7 +464,17 @@ def build_system_e2e_runtime(env: Mapping[str, str] | None = None) -> SystemE2ER
         providers=(knowledge_provider, _StaticProvider(*registrations)),
         capability_selector=_KnowledgeOnlySelector(),
         answer_generator=answer_generator,
-        local_action_resolvers=support.local_action_resolvers,
+        business_query_plan=BusinessQueryPlanRuntimeBindings(
+            definitions=definitions,
+            snapshot=support.configuration_snapshot,
+            planner_catalog=support.planner_catalog,
+            generator=model.business_query_plan_generator,
+            context_accessor=model.context_accessor,
+            protected_value_extractor=CompositeBusinessProtectedValueExtractor(
+                (EmployeeProtectedValueExtractor(), TransactionProtectedValueExtractor())
+            ),
+            guard=QuestionEgressGuard(),
+        ),
     )
     return SystemE2ERuntime(
         delegate=model.bind_runtime(runtime),

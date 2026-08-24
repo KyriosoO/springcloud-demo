@@ -48,7 +48,7 @@ def test_graph_compile_has_no_persistence_or_dynamic_plugin_configuration() -> N
     assert "scan" not in bootstrap
 
 
-def test_only_capability_node_accepts_langgraph_runtime() -> None:
+def test_only_selection_and_capability_nodes_accept_langgraph_runtime() -> None:
     tree = ast.parse((SOURCE / "graph" / "nodes.py").read_text(encoding="utf-8"))
     runtime_functions = {
         node.name
@@ -57,13 +57,28 @@ def test_only_capability_node_accepts_langgraph_runtime() -> None:
         and any(argument.arg == "runtime" for argument in node.args.args)
     }
 
-    assert runtime_functions == {"execute_capability_node"}
+    assert runtime_functions == {"select_action_node", "execute_capability_node"}
+
+    select_action = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "select_action_node"
+    )
+    select_source = ast.unparse(select_action)
+    assert "runtime.context.execution_scope.context.cancellation" in select_source
+    assert not any(
+        isinstance(node, ast.Attribute) and node.attr in {"store", "stream_writer"}
+        for node in ast.walk(select_action)
+    )
 
 
 def test_model_protocols_keep_narrow_inputs_and_decisions() -> None:
     tree = ast.parse((SOURCE / "graph" / "nodes.py").read_text(encoding="utf-8"))
     expected = {
-        "ActionSelectionNode": ("ActionSelectionInput", "ActionSelectionDecision"),
+        "ActionSelectionNode": (
+            "ActionSelectionInput",
+            "ActionSelectionDecision | BusinessPlanningDecision",
+        ),
         "AnswerGenerationNode": ("AnswerGenerationInput", "AnswerGenerationDecision"),
     }
 
@@ -99,7 +114,7 @@ def test_model_protocols_keep_narrow_inputs_and_decisions() -> None:
     assert ast.unparse(capability_call.returns) == "CapabilitySelectionDecision"
 
 
-def test_registry_resolution_has_one_execution_owner() -> None:
+def test_registry_resolution_is_limited_to_execution_and_planning_validation() -> None:
     callers: set[str] = set()
     for path in SOURCE.rglob("*.py"):
         if path.name == "registry.py":
@@ -115,7 +130,24 @@ def test_registry_resolution_has_one_execution_owner() -> None:
         ):
             callers.add(path.relative_to(SOURCE).as_posix())
 
-    assert callers == {"core/execution.py"}
+    assert callers == {"core/execution.py", "graph/business_query_planning.py"}
+
+    planning_tree = ast.parse(
+        (SOURCE / "graph" / "business_query_planning.py").read_text(encoding="utf-8")
+    )
+    registered_methods = {
+        node.func.attr
+        for node in ast.walk(planning_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "registered"
+    }
+    assert registered_methods == {"validate"}
+    assert not any(
+        isinstance(node, ast.Attribute) and node.attr == "handler"
+        for node in ast.walk(planning_tree)
+    )
 
 
 def test_core_modules_have_no_http_domain_or_provider_specific_dependency() -> None:

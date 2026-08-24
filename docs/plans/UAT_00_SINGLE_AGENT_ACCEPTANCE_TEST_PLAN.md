@@ -5,12 +5,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | UAT_00 |
-| 当前版本 | v0.5 |
+| 当前版本 | v0.6 |
 | 状态 | Reviewed |
 | 更新日期 | 2026-08-24 |
 | 范围 | 公共接入冒烟、Employee、Transaction、结构化查询阶段收口 |
-| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.27 |
-| 当前执行状态 | Blocked：non-live E2E 架构门禁复核、`GATE-065/066` 和 `GATE-UAT-006` 未完成 |
+| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.28 |
+| 当前执行状态 | Blocked：non-live E2E 已完成；`GATE-065/066` 和 `GATE-UAT-006` 未完成 |
 
 ## 2. 验收目标
 
@@ -27,7 +27,7 @@ Knowledge 查询 UAT 不在本批，待结构化查询收口后单独执行。
 
 ## 3. 当前事实与执行阻断
 
-QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支及 Spring→Runtime→fake model→fake domain 的 non-live 候选已有实现；全量架构门禁复核、真实集成和 UAT 尚未完成。旧 resolver/ID-only UAT fixture 与 evidence 只作为历史审计资产，不得执行为当前用例或满足本版本门禁；无审计价值的旧可执行测试由 P3 清理。
+QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支及 Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环已完成；真实集成和 UAT 尚未完成。旧 resolver/ID-only UAT fixture 与 evidence 只作为历史审计资产，不得执行为当前用例或满足本版本门禁；无审计价值的旧可执行测试已由 P3 清理。
 
 开始成功场景前必须满足：
 
@@ -204,5 +204,6 @@ Employee 与 Transaction 可在公共冒烟后独立执行；阶段收口等待�
 | v0.4 独立评审 R1～R3 | 旧用例不可执行与历史资产保留 | 补充 launcher 清理、冻结 fixture 只读边界后，R3 无发现 |
 | v0.5 内审1～3 | non-live 门禁、UAT 依赖与最小性 | 精确架构断言修复仍属于 P3，不改变 live/UAT 用例、预算或授权边界 |
 | v0.5 独立评审 R1～R2 | 跨层状态与无环 | non-live In Progress，live/UAT 继续 Blocked；R2 无 Blocker/Major/Minor |
+| v0.6 状态复核 | P3 交接与证据隔离 | non-live Done；fake 证据不关闭 live/UAT，`GATE-065/066` 和 `GATE-UAT-006` 继续 Open |
 
 当前：`GATE-UAT-006` Open，四个 UAT 工作项均 Blocked。只有 P3 新工作包实施和受控 live 集成完成后，才可申请正式 UAT 执行授权。

@@ -18,17 +18,27 @@ def _imports(path: Path) -> set[str]:
     return names
 
 
-def test_core_graph_and_capability_api_do_not_depend_on_model_package() -> None:
+def test_only_business_planning_graph_bridge_depends_on_provider_neutral_model_ports() -> None:
+    planning_bridge = SOURCE / "graph" / "business_query_planning.py"
     paths = [
         SOURCE / "capability_api" / "contracts.py",
         *(SOURCE / "core").glob("*.py"),
-        *(SOURCE / "graph").glob("*.py"),
+        *(path for path in (SOURCE / "graph").glob("*.py") if path != planning_bridge),
         SOURCE / "runtime.py",
         SOURCE / "settings.py",
     ]
 
     for path in paths:
         assert not any(name.startswith("agent_runtime.model") for name in _imports(path))
+
+    planning_model_imports = {
+        name for name in _imports(planning_bridge) if name.startswith("agent_runtime.model")
+    }
+    assert planning_model_imports == {
+        "agent_runtime.model.context",
+        "agent_runtime.model.contracts",
+        "agent_runtime.model.input_guard",
+    }
 
 
 def test_provider_neutral_model_modules_do_not_import_deepseek_dto_or_http_clients() -> None:

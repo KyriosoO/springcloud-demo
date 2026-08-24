@@ -12,7 +12,7 @@
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
 | 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.6 |
 | 业务接口 | `GET /employees/{idCardNo}` |
-| 实施状态 | Employee detail QueryPlan definition/config、Runtime non-live 消费、codec 与 Java 授权回归已有证据；system E2E/live 尚未完成，专属旧 Resolver 资产待清理 |
+| 实施状态 | Employee detail QueryPlan definition/config、Runtime 唯一分支、codec、Java 授权回归、专属旧 Resolver 清理与 fake system E2E 已有证据；live 尚未完成 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -228,8 +228,8 @@ HTTP 行为沿用现有契约：
 |---|---|---|---|
 | `IMPL-EMP-001` | `agent-runtime/src/agent_runtime/adapters/employee/definition.py` | 修改 | 去 Local Resolver；增加 query field/contract ref |
 | `IMPL-EMP-002` | `agent-runtime/src/agent_runtime/adapters/employee/settings.py` | 修改 | input config/version/snapshot |
-| `IMPL-EMP-003` | `agent-runtime/src/agent_runtime/adapters/employee/action_resolver.py` | 删除 | 专属旧旁路且无有效调用方；历史 evidence/hash 不删除 |
-| `IMPL-EMP-003A` | `agent-runtime/tests/unit/adapters/employee/test_action_resolver.py` | 删除 | 仅验证已废弃专属实现，等价负向由 QueryPlan/组合根测试覆盖 |
+| `IMPL-EMP-003` | 已删除的 Employee 专属 action resolver | 已清理 | 专属旧旁路且无有效调用方；历史 evidence/hash 不删除 |
+| `IMPL-EMP-003A` | 已删除的 Employee 专属 resolver 单元测试 | 已清理 | 仅验证已废弃专属实现，等价负向由 QueryPlan/组合根测试覆盖 |
 | `IMPL-EMP-004` | `agent-runtime/src/agent_runtime/adapters/employee/codec.py` | 回归 | 既有参数/GET/strict decode 保持 |
 | `IMPL-EMP-005` | `agent-runtime/src/agent_runtime/adapters/employee/provider.py` | 修改 | 注册无 Resolver definition 与 snapshot |
 | `IMPL-EMP-006` | `employee-service/.../EmployeeController.java` | 只读回归 | 不改接口/DTO；验证 guard |
@@ -264,7 +264,7 @@ HTTP 行为沿用现有契约：
 
 ## 13. 当前差距与门禁
 
-`WP-EMP-QUERYPLAN-01` 已完成 non-live 实施，Runtime 候选已消费该 definition；专属旧 Resolver 源码/测试仍待 `CLN-BQP-001` 清理，system E2E 与真实模型/服务 UAT 仍未完成。
+`WP-EMP-QUERYPLAN-01` 及其 non-live system E2E 已完成，Runtime 唯一分支已消费该 definition，专属旧 Resolver 源码/测试已按 `CLN-BQP-001` 清理。真实模型/服务集成与 UAT 仍未完成；地点/职位筛选仍为 `unsupported`。
 
 ## 14. 评审记录
 
@@ -279,7 +279,7 @@ HTTP 行为沿用现有契约：
 | v1.4 内审3 | GET/授权/接口范围 | 清理不改 codec、endpoint、Java guard、字段或角色 |
 | v1.4 独立评审 R1～R3 | Employee 专属删除与历史复验 | 确认 action_resolver 未被冻结 manifest 引用；R3 无发现 |
 
-Approved 与当前实现状态不表示 system E2E/live 已完成，也不表示现有通用筛选端点已满足 Agent 复用条件。
+Approved 与当前 non-live 实现状态不表示 live 已完成，也不表示现有通用筛选端点已满足 Agent 复用条件。
 
 ## 15. 数据生命周期、一致性、风险与实现就绪判定
 
@@ -288,7 +288,7 @@ Employee identifier、slot、JWT 和原始响应只存在于单请求生命周�
 | 项目 | 内容 |
 |---|---|
 | 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施 |
-| 当前允许实施范围 | 取得 P3 `GATE-064` 后，仅限 IMPL-EMP-001～006 的 non-live 实现/回归 |
+| 当前允许实施范围 | Employee non-live 实现已完成；真实调用仍受 `GATE-065` 控制 |
 | 当前禁止动作 | 新增 Employee search/DTO、修改数据库/角色、真实调用、记录标识/JWT、恢复 Resolver |
 
 ## 16. 端到端追踪矩阵

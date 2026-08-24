@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, Sequence
 
-from agent_runtime.capability_api.action_resolution import LocalActionResolver
 from agent_runtime.business.contracts import BusinessActionDefinition, BusinessActionSettings, BusinessDomainId
 from agent_runtime.business.settings import (
     BusinessConfigurationError,
@@ -36,7 +35,6 @@ class BoundBusinessActionSupport:
 class BusinessSupportSnapshot:
     global_settings: BusinessGlobalSettings
     actions: tuple[BoundBusinessActionSupport, ...]
-    local_action_resolvers: tuple[LocalActionResolver, ...]
     service_bindings: tuple[BusinessServiceBinding, ...]
     snapshot_id: str
     configuration_snapshot: BusinessConfigurationSnapshot
@@ -74,7 +72,6 @@ class BusinessSupportFactory:
                 BoundBusinessActionSupport(definition=by_id[capability_id], settings=settings)
                 for capability_id, settings in validated.actions
             ),
-            local_action_resolvers=(),
             service_bindings=validated.service_bindings,
             snapshot_id=validated.snapshot_id,
             configuration_snapshot=validated,

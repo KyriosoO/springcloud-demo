@@ -43,7 +43,7 @@ def _support() -> BusinessSupportSnapshot:
 def test_business_snapshot_exposes_only_queryplan_catalog_and_no_resolver_path() -> None:
     snapshot = _support()
 
-    assert snapshot.local_action_resolvers == ()
+    assert not hasattr(snapshot, "local_action_resolvers")
     assert snapshot.planner_catalog is not None
     actions = snapshot.planner_catalog.payload["actions"]
     assert isinstance(actions, tuple)

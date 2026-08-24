@@ -13,7 +13,7 @@
 | 更新日期 | 2026-08-24 |
 | 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.6 |
 | 架构范围 | 单体 Agent 接入、编排、Knowledge 与 Employee/Transaction 查询、权限和模型边界 |
-| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支和旧 Resolver 清理已完成；fake 双域 system entry 候选已通过定向验证，仍待全量架构门禁复核；真实环境结论尚未完成 |
+| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支、旧 Resolver 清理及 fake 双域 system entry non-live 闭环已完成；真实环境结论尚未完成 |
 
 ## 2. 来源与变更记录
 
@@ -205,15 +205,14 @@ Business QueryPlan 顶层只包含 `domain`、`action`、`arguments`。它是模
 
 - Access、Core、能力注册、模型 transport、Business Adapter、JWT 透传、业务服务授权守卫和受控只读接口已有不同层级的实现/验证证据。
 - QueryPlan 公共合同、模型任务、两域 definition/config 与 Runtime 唯一分支已有实现；共享 ID-only selector 仅服务非 Business，Employee/Transaction 专属旧 Resolver 资产和最后空 support 字段已按边界清理。
+- Spring→Runtime→fake QueryPlan model→fake Employee/Transaction 的 10-case non-live 闭环已验证成功、授权拒绝、非法计划、unsupported、超时、单动作与零旁路计数。
 - `employee.detail`、`transaction.search` 可复用。Employee 通用 ES 搜索具有字段筛选能力，但缺少本架构要求的业务角色最终授权与受限响应契约，不能作为当前 Agent 动作。
 
 ### 13.2 未完成目标
 
-- system entry 的 QueryPlan 组合装配与双域 non-live E2E；
-- 经引用核实删除 Employee/Transaction 专属旧 Resolver 代码/测试；
 - 受控真实 LLM + 业务服务集成和 UAT。
 
-这些差距由 P3_00 v1.27 工作包和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
+这些差距由 P3_00 v1.28 工作包和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
 
 ## 14. 风险与控制
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import replace
 from typing import Any, cast
 
 import pytest
@@ -91,7 +91,7 @@ def test_queryplan_business_snapshot_has_no_enabled_local_resolvers(
         core_max_domain_result_bytes=1048576,
     )
 
-    assert snapshot.local_action_resolvers == ()
+    assert not hasattr(snapshot, "local_action_resolvers")
     expected_action_ids = tuple(
         capability_id
         for capability_id, enabled in (
@@ -107,10 +107,6 @@ def test_queryplan_business_snapshot_has_no_enabled_local_resolvers(
     ) == expected_action_ids
     assert snapshot.planner_catalog is not None
     assert len(snapshot.planner_catalog.payload["actions"]) == len(expected_action_ids)  # type: ignore[arg-type]
-    with pytest.raises(FrozenInstanceError):
-        snapshot.local_action_resolvers = ()  # type: ignore[misc]
-
-
 def test_queryplan_definition_rejects_legacy_resolver_binding() -> None:
     employee, transaction = _definitions()
     transaction = replace(transaction, local_action_resolver=ResolverStub("employee.detail"))

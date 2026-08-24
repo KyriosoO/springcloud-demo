@@ -11,10 +11,10 @@
 | 文档层级 | L1 |
 | 当前版本 | v1.2 |
 | 更新日期 | 2026-08-24 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.2 |
-| 协作文档 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.3 |
+| 协作文档 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
 | 权威范围 | Business QueryPlan 公共约束、每域每动作配置、Employee/Transaction Adapter、业务 Provider、结果与模型出域 |
-| 实施状态 | 两域 QueryPlan definition/config/Adapter/授权和 Runtime non-live 候选已有实现；system E2E/live 尚未完成，专属旧 Resolver 资产待清理 |
+| 实施状态 | 两域 QueryPlan definition/config/Adapter/授权、Runtime 唯一分支、专属旧 Resolver 清理和 fake system E2E 已完成；live 尚未完成 |
 
 ## 2. 变更记录与接口核实
 
@@ -227,12 +227,11 @@ effective model result = code model fields ∩ config model fields ∩ classific
 
 ## 15. 当前差距与实施顺序
 
-1. 公共合同、模型 task、两域 definition/config 与 Runtime non-live 分支已实现；
-2. 清理 Employee/Transaction 专属 Resolver 兼容字段、源码和旧旁路测试；
-3. 完成 system entry 双域 non-live 负向/组合根验证；
-4. 经单独授权执行真实模型 + 真实业务服务 UAT。
+1. 公共合同、模型 task、两域 definition/config、Runtime 唯一分支和专属 Resolver 清理已完成；
+2. Spring→Runtime→fake model→fake domain 的双域 non-live 负向/组合根验证已完成；
+3. 经单独精确授权执行真实模型 + 真实业务服务集成与 UAT。
 
-当前两域 Adapter 和业务 guard 的既有证据可复用，但不能证明 system E2E 或 live 已完成。
+当前 non-live system E2E 可以证明 fake 边界下的唯一链路，但不能证明真实 LLM、业务服务或 UAT 已完成。
 
 ## 16. 风险与关键架构决策
 

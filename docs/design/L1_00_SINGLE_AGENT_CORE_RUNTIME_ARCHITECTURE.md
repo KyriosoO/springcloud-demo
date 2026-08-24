@@ -13,7 +13,7 @@
 | 更新日期 | 2026-08-24 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.3 |
 | 权威范围 | Runtime 请求状态、Business QueryPlan 调用顺序、Core、能力注册、组合根和模型端口协作 |
-| 实施状态 | Business QueryPlan 节点、绑定、取消、组合校验与旧 Business Resolver 清理已完成；fake system entry 候选已通过定向验证，仍待全量架构门禁复核；live 尚未完成 |
+| 实施状态 | Business QueryPlan 节点、绑定、取消、组合校验、旧 Business Resolver 清理及 fake system entry non-live 闭环已完成；live 尚未完成 |
 
 ## 2. 变更记录
 
@@ -223,8 +223,8 @@ Canonical 顺序不可调整为本地先解析。任何实现不得并行调用�
 
 | 目标 | 当前事实 | 处理 |
 |---|---|---|
-| Business 模型输出完整 QueryPlan | task/generator/两级 decoder 已实现 | system entry 仍需装配并做双域 E2E |
-| 模型强制参与 | Runtime Business 分支已有 non-live 实现 | 清理专属 Resolver 资产并验证生产唯一可达性 |
+| Business 模型输出完整 QueryPlan | task/generator/两级 decoder 及 fake 双域 system entry 已实现 | 待受控真实集成 |
+| 模型强制参与 | Runtime Business 唯一分支、专属 Resolver 清理和 non-live 可达性已验证 | 待真实 QueryPlan 证据 |
 | 强类型 snapshot 校验 | 配置、canonical catalog 与启动 validator 已实现 | E2E 证明实际启动快照一致 |
 | 受保护引用 | Guard extractor + value_ref + 同请求 binder 已实现 | E2E 继续证明并发隔离和零泄漏 |
 | 真实 LLM UAT | 当前 UAT 以 stub 为主 | 实施完成后单独受控 live UAT |
