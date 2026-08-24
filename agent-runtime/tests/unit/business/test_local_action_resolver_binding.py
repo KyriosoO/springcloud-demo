@@ -73,9 +73,9 @@ def _definitions() -> tuple[
     ("employee_enabled", "transaction_enabled", "expected_ids"),
     [
         (False, False, ()),
-        (True, False, ("employee.detail",)),
+        (True, False, ()),
         (False, True, ("transaction.search",)),
-        (True, True, ("employee.detail", "transaction.search")),
+        (True, True, ("transaction.search",)),
     ],
 )
 def test_support_snapshot_projects_only_enabled_resolvers_in_canonical_order(
@@ -93,18 +93,26 @@ def test_support_snapshot_projects_only_enabled_resolvers_in_canonical_order(
     )
 
     assert tuple(item.capability_id for item in snapshot.local_action_resolvers) == expected_ids
+    expected_action_ids = tuple(
+        capability_id
+        for capability_id, enabled in (
+            ("employee.detail", employee_enabled),
+            ("transaction.search", transaction_enabled),
+        )
+        if enabled
+    )
     assert tuple(
         item.definition.descriptor.capability_id
         for item in snapshot.actions
         if item.settings.enabled
-    ) == expected_ids
+    ) == expected_action_ids
     with pytest.raises(FrozenInstanceError):
         snapshot.local_action_resolvers = ()  # type: ignore[misc]
 
 
 def test_definition_resolver_id_mismatch_prevents_support_readiness() -> None:
     employee, transaction = _definitions()
-    employee = replace(employee, local_action_resolver=ResolverStub("transaction.search"))
+    transaction = replace(transaction, local_action_resolver=ResolverStub("employee.detail"))
 
     with pytest.raises(BusinessConfigurationError, match="business.invalid_definition"):
         BusinessSupportFactory().build(
@@ -116,7 +124,7 @@ def test_definition_resolver_id_mismatch_prevents_support_readiness() -> None:
 
 def test_definition_without_resolver_prevents_support_readiness() -> None:
     employee, transaction = _definitions()
-    employee = replace(employee, local_action_resolver=cast(Any, None))
+    transaction = replace(transaction, local_action_resolver=cast(Any, None))
 
     with pytest.raises(BusinessConfigurationError, match="business.invalid_local_action_resolver"):
         BusinessSupportFactory().build(

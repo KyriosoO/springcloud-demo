@@ -291,7 +291,7 @@ class BusinessSettingsValidator:
         resolver = definition.local_action_resolver
         resolver_capability_id: str | None = None
         resolver_method: object | None = None
-        if resolver is None and not definition.query_fields:
+        if (resolver is None) == (not definition.query_fields):
             raise BusinessConfigurationError("business.invalid_local_action_resolver")
         if resolver is not None:
             try:

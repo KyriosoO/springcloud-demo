@@ -73,7 +73,7 @@ def _support() -> BusinessSupportSnapshot:
 
 
 @pytest.mark.asyncio
-async def test_business_snapshot_wires_registration_and_resolver_sets_one_to_one() -> None:
+async def test_transitional_snapshot_excludes_queryplan_employee_from_resolver_path() -> None:
     snapshot = _support()
     handler = CaptureHandler()
     candidates = tuple(
@@ -84,7 +84,7 @@ async def test_business_snapshot_wires_registration_and_resolver_sets_one_to_one
             handler=handler,
         )
         for item in snapshot.actions
-        if item.settings.enabled
+        if item.settings.enabled and item.definition.local_action_resolver is not None
     )
     selector = ForbiddenSelector()
     runtime = RuntimeCompositionRoot.build(
@@ -100,18 +100,14 @@ async def test_business_snapshot_wires_registration_and_resolver_sets_one_to_one
         local_action_resolvers=snapshot.local_action_resolvers,
     )
 
-    employee_question = "查询员工详情 员工标识=ABCDE"
     transaction_question = "查询交易 交易类型=PAY"
-    employee_outcome = await runtime.ainvoke(
-        question=employee_question,
-        scope=scope(question=employee_question),
-    )
     transaction_outcome = await runtime.ainvoke(
         question=transaction_question,
         scope=scope(question=transaction_question),
     )
 
-    assert employee_outcome.capability_id == "employee.detail"
+    assert tuple(item.capability_id for item in snapshot.local_action_resolvers) == ("transaction.search",)
+    assert snapshot.planner_catalog is None
     assert transaction_outcome.capability_id == "transaction.search"
-    assert len(handler.inputs) == 2
+    assert len(handler.inputs) == 1
     assert selector.calls == 0

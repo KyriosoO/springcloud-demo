@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_01 |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.2 |
+| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.3 |
 | 业务接口 | `GET /employees/{idCardNo}` |
-| 实施状态 | Employee Adapter/codec/guard 与受控真实 detail 证据已存在；LLM QueryPlan、protected ref 配置和 Resolver 切断尚未实现 |
+| 实施状态 | Employee detail QueryPlan definition、protected-ref 输入提取、强类型配置、binder/validator/codec 非 live 验证及 Java 最终授权回归已完成；生产 Runtime wiring 与真实 QueryPlan UAT 尚未实施 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -20,10 +20,11 @@
 |---|---|---|
 | v1.1 | 2026-08-21 | 既有 Employee Adapter/授权/结果出域基线 |
 | v1.2 | 2026-08-24 | Employee 目标改为 LLM detail QueryPlan + protected ref；核实通用 ES 搜索能力与授权/契约缺口并失败关闭 |
+| v1.3 | 2026-08-24 | 同步 `WP-EMP-QUERYPLAN-01` non-live 实施与验证状态；地点/职位筛选缺口及 live 门禁保持不变 |
 
 设计目标是仅用已确认 detail 接口完成受控 LLM QueryPlan 查询。范围外/不负责：Employee 列表筛选、ES 搜索、写接口、新 DTO、数据库和业务角色变更。
 
-上位约束来源是 L1_02 v1.1 与 L2_02_00 v1.2。关联责任边界：Employee L2 负责 detail definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权。`CON-EMP-001`：禁止 Employee Adapter 依赖模型、数据库/ES、Knowledge 或 Transaction。
+上位约束来源是 L1_02 v1.1 与 L2_02_00 v1.3。关联责任边界：Employee L2 负责 detail definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权。`CON-EMP-001`：禁止 Employee Adapter 依赖模型、数据库/ES、Knowledge 或 Transaction。
 
 ### 2.1 当前实现基线与只读接口核实
 
@@ -260,7 +261,7 @@ HTTP 行为沿用现有契约：
 
 ## 13. 当前差距与门禁
 
-目标变更由 P3_00 `WP-EMP-QUERYPLAN-01` 承接，依赖公共 QueryPlan 与 Runtime 切换。完成前 Employee LLM 成功 UAT Blocked；真实模型/服务 UAT 需单独授权。
+`WP-EMP-QUERYPLAN-01` 已完成 non-live 实施：definition/config 已切断 Resolver，具体标识只通过 request-local protected ref，固定 GET/codec 与 Java 最终授权回归通过。生产 Runtime 组合根尚未消费该 definition，Employee LLM 成功 UAT 继续 Blocked；真实模型/服务 UAT 仍需单独授权。
 
 ## 14. 评审记录
 

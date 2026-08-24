@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Mapping, Self
 
 from agent_runtime.business.contracts import (
     BusinessActionSettings,
     BusinessFieldTransform,
+    BusinessQueryFieldSettings,
+    BusinessQueryOperator,
     FieldTransformSelection,
 )
 
@@ -23,7 +26,13 @@ _DEFAULT_USER_TRANSFORMS = {
 _KNOWN = frozenset({
     _PREFIX + "ENABLED", _PREFIX + "TIMEOUT_MS", _PREFIX + "MAX_RESULT_COUNT",
     _PREFIX + "USER_FIELDS", _PREFIX + "MODEL_FIELDS", _PREFIX + "USER_TRANSFORMS", _PREFIX + "MODEL_TRANSFORMS",
+    _PREFIX + "CONFIG_VERSION", _PREFIX + "CODE_CONTRACT_VERSION", _PREFIX + "SERVICE_CONTRACT_REF",
 })
+_CONFIG_VERSION = "employee-detail-config-v1"
+_CODE_CONTRACT_VERSION = "employee-detail-plan-v1"
+_SERVICE_CONTRACT_REF = "employee-detail-v1"
+_QUERY_DESCRIPTION = "当前请求中单一员工标识的受保护引用"
+_VERSION = re.compile(r"[a-z][a-z0-9_.-]{0,63}")
 
 
 def _bool(raw: str | None, default: bool) -> bool:
@@ -39,6 +48,13 @@ def _integer(raw: str | None, default: int) -> int:
     if not value or not value.isascii() or not value.isdecimal() or value != str(int(value)):
         raise ValueError("business.employee_settings_invalid")
     return int(value)
+
+
+def _version(raw: str | None, default: str) -> str:
+    value = default if raw is None else raw
+    if _VERSION.fullmatch(value) is None:
+        raise ValueError("business.employee_settings_invalid")
+    return value
 
 
 def _list(raw: str, allowed: frozenset[str]) -> tuple[str, ...]:
@@ -89,6 +105,11 @@ class EmployeeAdapterSettings:
         user_transforms = _transforms(env.get(_PREFIX + "USER_TRANSFORMS"), user_fields, _DEFAULT_USER_TRANSFORMS)
         model_defaults = {field: BusinessFieldTransform.BOUNDED_TEXT for field in model_fields}
         model_transforms = _transforms(env.get(_PREFIX + "MODEL_TRANSFORMS"), model_fields, model_defaults)
+        config_version = _version(env.get(_PREFIX + "CONFIG_VERSION"), _CONFIG_VERSION)
+        code_contract_version = _version(env.get(_PREFIX + "CODE_CONTRACT_VERSION"), _CODE_CONTRACT_VERSION)
+        service_contract_ref = _version(env.get(_PREFIX + "SERVICE_CONTRACT_REF"), _SERVICE_CONTRACT_REF)
+        if code_contract_version != _CODE_CONTRACT_VERSION or service_contract_ref != _SERVICE_CONTRACT_REF:
+            raise ValueError("business.employee_settings_invalid")
         return cls(action=BusinessActionSettings(
             enabled=_bool(env.get(_PREFIX + "ENABLED"), False),
             max_page_size=None, max_result_count=1, max_time_range_days=None,
@@ -96,4 +117,17 @@ class EmployeeAdapterSettings:
             user_result_field_ids=user_fields, model_field_ids=model_fields,
             user_transforms=user_transforms, model_transforms=model_transforms,
             timeout_ms=timeout,
+            config_version=config_version,
+            code_contract_version=code_contract_version,
+            service_contract_ref=service_contract_ref,
+            query_fields=(
+                BusinessQueryFieldSettings(
+                    logical_name="employee_identifier",
+                    enabled=True,
+                    model_safe_description=_QUERY_DESCRIPTION,
+                    allowed_operators=(BusinessQueryOperator.EQ,),
+                    required=True,
+                ),
+            ),
+            combination_rule_ids=(),
         ))

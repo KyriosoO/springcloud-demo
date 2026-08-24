@@ -7,6 +7,10 @@ from agent_runtime.business.contracts import (
     BusinessContractLimits,
     BusinessDomainId,
     BusinessHttpStatusSemantics,
+    BusinessInputExposure,
+    BusinessQueryFieldDefinition,
+    BusinessQueryOperator,
+    BusinessQueryValueType,
     BusinessServiceKey,
     ConstraintDimension,
 )
@@ -23,7 +27,6 @@ from agent_runtime.adapters.employee.contracts import (
 )
 from agent_runtime.adapters.employee.fields import employee_field_definitions
 from agent_runtime.adapters.employee.normalizer import EmployeeDetailResponseNormalizer
-from agent_runtime.adapters.employee.action_resolver import EmployeeDetailLocalActionResolver
 
 
 def employee_detail_definition() -> BusinessActionDefinition[
@@ -50,7 +53,6 @@ def employee_detail_definition() -> BusinessActionDefinition[
         domain_id=BusinessDomainId("employee"),
         service_key=BusinessServiceKey("employee-service"),
         argument_validator=EmployeeDetailArgumentValidator(),
-        local_action_resolver=EmployeeDetailLocalActionResolver(),
         request_mapper=EmployeeDetailRequestMapper(),
         wire_codec=EmployeeDetailWireCodec(),
         response_normalizer=EmployeeDetailResponseNormalizer(),
@@ -64,4 +66,17 @@ def employee_detail_definition() -> BusinessActionDefinition[
             max_page_size=None, max_result_count=1, max_time_range_days=None,
             max_timeout_ms=3000, max_request_bytes=1024,
         ),
+        query_fields=(
+            BusinessQueryFieldDefinition(
+                logical_name="employee_identifier",
+                model_safe_description="当前请求中单一员工标识的受保护引用",
+                value_type=BusinessQueryValueType.IDENTIFIER,
+                allowed_operators=frozenset({BusinessQueryOperator.EQ}),
+                input_exposure=BusinessInputExposure.PROTECTED_REF,
+                required=True,
+            ),
+        ),
+        combination_rules=(),
+        code_contract_version="employee-detail-plan-v1",
+        service_contract_ref="employee-detail-v1",
     )

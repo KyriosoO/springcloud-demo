@@ -5,6 +5,7 @@ import json
 import os
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final, NoReturn
@@ -19,6 +20,10 @@ from agent_runtime.business.settings import (
     BusinessSettingsValidator,
 )
 from agent_runtime.capability_api.contracts import JsonObject
+from agent_runtime.capability_api.action_resolution import (
+    LocalActionResolution,
+    LocalActionResolutionKind,
+)
 from agent_runtime.model.contracts import (
     ModelTaskId,
     StructuredModelRequest,
@@ -36,11 +41,26 @@ AUTHORIZATION_REFERENCE: Final = "P3_00:GATE-024"
 MAXIMUM_PAID_ANSWER_CALLS: Final = 30
 MINIMUM_VALID_ANSWER_CALLS: Final = 27
 MODEL_VISIBLE_FIELD_IDS: Final = ("position", "work_base_si")
+FROZEN_CONFIG_SNAPSHOT_ID: Final = (
+    "14b609a7d9ca95a97e830e570f8b48ed84e8476a3cf3d4b198558e8a4f6efd28"
+)
 MODEL_TASK_BINDING: Final = {
     "taskId": "answer_generation",
     "taskVersion": "answer-generation-v1",
     "modelName": "deepseek-v4-pro",
 }
+
+
+class _HistoricalEmployeeResolver:
+    __slots__ = ()
+
+    @property
+    def capability_id(self) -> str:
+        return "employee.detail"
+
+    def resolve(self, question: str) -> LocalActionResolution:
+        del question
+        return LocalActionResolution(kind=LocalActionResolutionKind.NO_MATCH)
 AUTHORIZATION_EVIDENCE_REFS: Final = (
     "WP-EMP-REAL-01:authorizationMatrix.admin",
     "WP-EMP-REAL-01:VAL-EMP-005",
@@ -198,13 +218,27 @@ def sha256_file(path: Path) -> str:
 
 
 def build_employee_egress_snapshot() -> BusinessConfigurationSnapshot:
-    definition = employee_detail_definition()
-    action = EmployeeAdapterSettings.from_env(
-        {
-            "AGENT_EMPLOYEE_DETAIL_ENABLED": "true",
-            "AGENT_EMPLOYEE_DETAIL_MODEL_FIELDS": ",".join(MODEL_VISIBLE_FIELD_IDS),
-        }
-    ).action
+    definition = replace(
+        employee_detail_definition(),
+        query_fields=(),
+        combination_rules=(),
+        code_contract_version="legacy-v1",
+        service_contract_ref="legacy-v1",
+        local_action_resolver=_HistoricalEmployeeResolver(),
+    )
+    action = replace(
+        EmployeeAdapterSettings.from_env(
+            {
+                "AGENT_EMPLOYEE_DETAIL_ENABLED": "true",
+                "AGENT_EMPLOYEE_DETAIL_MODEL_FIELDS": ",".join(MODEL_VISIBLE_FIELD_IDS),
+            }
+        ).action,
+        config_version="legacy-v1",
+        code_contract_version="legacy-v1",
+        service_contract_ref="legacy-v1",
+        query_fields=(),
+        combination_rule_ids=(),
+    )
     return BusinessSettingsValidator().validate(
         (definition,),
         BusinessConfigurationSource(
@@ -252,10 +286,9 @@ def validate_manifest(value: object, *, repository_root: Path) -> dict[str, Any]
     ):
         _invalid()
     snapshot = value["businessSnapshot"]
-    expected_snapshot = build_employee_egress_snapshot()
     if type(snapshot) is not dict or snapshot != {
         "policyVersion": "business-egress-v1",
-        "configSnapshotId": expected_snapshot.snapshot_id,
+        "configSnapshotId": FROZEN_CONFIG_SNAPSHOT_ID,
         "serviceBaseEndpoint": "http://127.0.0.1:9210",
         "employeeActionEnabled": True,
         "globalEgressEnabled": True,
@@ -386,7 +419,7 @@ def validate_live_evidence(value: object) -> dict[str, Any]:
         or type(snapshot) is not dict
         or set(snapshot) != {"policyVersion", "configSnapshotId"}
         or snapshot["policyVersion"] != "business-egress-v1"
-        or snapshot["configSnapshotId"] != build_employee_egress_snapshot().snapshot_id
+        or snapshot["configSnapshotId"] != FROZEN_CONFIG_SNAPSHOT_ID
     ):
         _invalid()
     try:

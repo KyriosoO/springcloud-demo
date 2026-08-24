@@ -313,10 +313,13 @@ def test_frozen_manifest_authorization_history_and_consumed_outputs(tmp_path: Pa
             relative_path = cast(str, asset["path"])
             target = prepared_repository / relative_path
             target.parent.mkdir(parents=True, exist_ok=True)
-            if relative_path == (
-                "agent-runtime/tests/integration/adapters/employee/"
-                "test_employee_egress_input_qualification_v2.py"
-            ):
+            if relative_path in {
+                "agent-runtime/src/agent_runtime/adapters/employee/definition.py",
+                (
+                    "agent-runtime/tests/integration/adapters/employee/"
+                    "test_employee_egress_input_qualification_v2.py"
+                ),
+            }:
                 frozen = subprocess.run(
                     ["git", "show", f"{_FROZEN_PREPARATION_COMMIT}:{relative_path}"],
                     cwd=repository,

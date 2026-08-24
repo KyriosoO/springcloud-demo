@@ -10,7 +10,7 @@
 | 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.3、Employee/Transaction L2 v1.2 |
+| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.3、Employee L2 v1.3、Transaction L2 v1.2 |
 | 实施状态 | QueryPlan/value/ref、typed config、snapshot、catalog、exact payload decoder、validator 和 binder 的公共 non-live 实现已完成；域 definition 与生产组合根中的 Resolver 退役尚未完成 |
 
 ## 2. 修改历史、设计目标与范围外
