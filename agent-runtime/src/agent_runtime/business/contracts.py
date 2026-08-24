@@ -39,6 +39,37 @@ class BusinessFieldValueType(StrEnum):
     IDENTIFIER = "identifier"
 
 
+class BusinessQueryValueType(StrEnum):
+    TEXT = "text"
+    IDENTIFIER = "identifier"
+    DECIMAL = "decimal"
+    INTEGER = "integer"
+    SORT_LIST = "sort_list"
+
+
+class BusinessQueryOperator(StrEnum):
+    EQ = "eq"
+    CONTAINS = "contains"
+    GT = "gt"
+    LT = "lt"
+
+
+class BusinessInputExposure(StrEnum):
+    MODEL_LITERAL = "model_literal"
+    PROTECTED_REF = "protected_ref"
+
+
+class BusinessTextPolicyId(StrEnum):
+    SAFE_TOKEN = "safe_token"
+    SAFE_CONTAINS_TOKEN = "safe_contains_token"
+
+
+class BusinessCombinationRuleKind(StrEnum):
+    AT_LEAST_ONE = "at_least_one"
+    MUTUALLY_EXCLUSIVE = "mutually_exclusive"
+    ALL_OR_NONE = "all_or_none"
+
+
 class DataClass(StrEnum):
     PUBLIC = "public"
     BUSINESS_INTERNAL = "business_internal"
@@ -111,12 +142,50 @@ class BusinessContractLimits:
     max_time_range_days: int | None
     max_timeout_ms: int
     max_request_bytes: int
+    max_decimal_abs: str | None = None
+    max_decimal_scale: int | None = None
+    fixed_page: int | None = None
+    allowed_sort_directions: frozenset[str] = frozenset()
+    max_sort_items: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class FieldTransformSelection:
     field_id: str
     transform_id: BusinessFieldTransform
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessQueryFieldDefinition:
+    logical_name: str
+    model_safe_description: str
+    value_type: BusinessQueryValueType
+    allowed_operators: frozenset[BusinessQueryOperator]
+    input_exposure: BusinessInputExposure
+    required: bool
+    allow_negative: bool = False
+    max_text_chars: int | None = None
+    minimum_integer: int | None = None
+    maximum_integer: int | None = None
+    text_policy_id: BusinessTextPolicyId | None = None
+    enum_values: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessCombinationRule:
+    rule_id: str
+    kind: BusinessCombinationRuleKind
+    field_names: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessQueryFieldSettings:
+    logical_name: str
+    enabled: bool
+    model_safe_description: str
+    allowed_operators: tuple[BusinessQueryOperator, ...]
+    required: bool
+    max_text_chars: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -132,6 +201,16 @@ class BusinessActionSettings:
     user_transforms: tuple[FieldTransformSelection, ...]
     model_transforms: tuple[FieldTransformSelection, ...]
     timeout_ms: int
+    config_version: str = "legacy-v1"
+    code_contract_version: str = "legacy-v1"
+    service_contract_ref: str = "legacy-v1"
+    query_fields: tuple[BusinessQueryFieldSettings, ...] = ()
+    combination_rule_ids: tuple[str, ...] = ()
+    max_decimal_abs: str | None = None
+    max_decimal_scale: int | None = None
+    fixed_page: int | None = None
+    allowed_sort_directions: tuple[str, ...] | None = None
+    max_sort_items: int | None = None
 
 
 TRecord = TypeVar("TRecord")
@@ -276,7 +355,6 @@ class BusinessActionDefinition(Generic[TInput, TWireRequest, TWireResponse, TRec
     domain_id: BusinessDomainId
     service_key: BusinessServiceKey
     argument_validator: CapabilityArgumentValidator[TInput]
-    local_action_resolver: LocalActionResolver
     request_mapper: BusinessRequestMapper[TInput, TWireRequest]
     wire_codec: BusinessWireCodec[TWireRequest, TWireResponse]
     response_normalizer: BusinessResponseNormalizer[TWireResponse, TRecord]
@@ -288,6 +366,11 @@ class BusinessActionDefinition(Generic[TInput, TWireRequest, TWireResponse, TRec
     required_user_field_ids: tuple[str, ...]
     answer_mode: BusinessAnswerMode
     contract_limits: BusinessContractLimits
+    query_fields: tuple[BusinessQueryFieldDefinition, ...] = ()
+    combination_rules: tuple[BusinessCombinationRule, ...] = ()
+    code_contract_version: str = "legacy-v1"
+    service_contract_ref: str = "legacy-v1"
+    local_action_resolver: LocalActionResolver | None = None
 
 
 class BusinessHttpClient(Protocol):

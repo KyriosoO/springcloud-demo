@@ -8,10 +8,15 @@ from agent_runtime.business.contracts import BusinessActionDefinition, BusinessA
 from agent_runtime.business.settings import (
     BusinessConfigurationError,
     BusinessConfigurationFragment,
+    BusinessConfigurationSnapshot,
     BusinessConfigurationSource,
     BusinessGlobalSettings,
     BusinessServiceBinding,
     BusinessSettingsValidator,
+)
+from agent_runtime.business.planner_catalog import (
+    BusinessPlannerCatalog,
+    build_business_planner_catalog,
 )
 
 
@@ -34,6 +39,8 @@ class BusinessSupportSnapshot:
     local_action_resolvers: tuple[LocalActionResolver, ...]
     service_bindings: tuple[BusinessServiceBinding, ...]
     snapshot_id: str
+    configuration_snapshot: BusinessConfigurationSnapshot
+    planner_catalog: BusinessPlannerCatalog | None
 
 
 class BusinessSupportFactory:
@@ -45,7 +52,11 @@ class BusinessSupportFactory:
         core_max_domain_result_bytes: int,
     ) -> BusinessSupportSnapshot:
         definitions = tuple(definitions)
-        resolver_objects = tuple(id(item.local_action_resolver) for item in definitions)
+        resolver_objects = tuple(
+            id(item.local_action_resolver)
+            for item in definitions
+            if item.local_action_resolver is not None
+        )
         if len(set(resolver_objects)) != len(resolver_objects):
             raise BusinessConfigurationError("business.duplicate_local_action_resolver")
         validated = BusinessSettingsValidator().validate(
@@ -53,9 +64,21 @@ class BusinessSupportFactory:
         )
         by_id = {item.descriptor.capability_id: item for item in definitions}
         enabled_resolvers = tuple(
-            by_id[capability_id].local_action_resolver
+            resolver
             for capability_id, settings in validated.actions
             if settings.enabled
+            for resolver in (by_id[capability_id].local_action_resolver,)
+            if resolver is not None
+        )
+        planner_ready = all(
+            not settings.enabled
+            or bool(by_id[capability_id].query_fields and settings.query_fields)
+            for capability_id, settings in validated.actions
+        )
+        planner_catalog = (
+            build_business_planner_catalog(definitions, validated)
+            if planner_ready
+            else None
         )
         return BusinessSupportSnapshot(
             global_settings=validated.global_settings,
@@ -66,4 +89,6 @@ class BusinessSupportFactory:
             local_action_resolvers=enabled_resolvers,
             service_bindings=validated.service_bindings,
             snapshot_id=validated.snapshot_id,
+            configuration_snapshot=validated,
+            planner_catalog=planner_catalog,
         )

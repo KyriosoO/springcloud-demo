@@ -7,14 +7,14 @@
 | 文档标识 | P3_00 |
 | 文档类型 | 设计驱动实施计划 |
 | 文档状态 | Reviewed |
-| 当前版本 | v1.18 |
+| 当前版本 | v1.19 |
 | 更新日期 | 2026-08-24 |
 | 目标计划路径 | Employee/Transaction LLM QueryPlan 唯一链路 |
 | 适用范围 | QueryPlan 合同、模型任务、两域定义、Runtime 切换、non-live/live 集成 |
 | 非范围 | Knowledge 改造、结果模型出域、新业务接口/DTO/DB、生产发布 |
 | 权威顺序 | 用户范围 → REQ/L0/L1 → L2 → 当前实现证据 → 本计划 |
 | 历史审计 | [`P3_00_CODE_IMPLEMENTATION_AUDIT_HISTORY.md`](history/P3_00_CODE_IMPLEMENTATION_AUDIT_HISTORY.md)，只读且不构成新授权 |
-| 实施授权 | 本计划的 Ready 不等于实施授权；当前仅授权文档修订/评审 |
+| 实施授权 | Ready 不等于实施授权；`GATE-064` 已由 2026-08-24 用户目标授权关闭，non-live 代码/测试/状态同步及原子 Git 提交推送已授权，真实模型/业务调用仍受 `GATE-065` 控制 |
 
 ## 2. 修改历史
 
@@ -22,6 +22,7 @@
 |---:|---|---|---|---|
 | 1 | 2026-08-21 | 全文 | 建立瘦身后的当前计划基线 | v1.17；历史流水迁移到审计附件 |
 | 2 | 2026-08-24 | 全文 | Business 查询权威改为 LLM QueryPlan | v1.18；重算7包、8条依赖、3个P3门禁和UAT交接 |
+| 3 | 2026-08-24 | §5/7/9/12/14 | `GATE-064` 授权与公共合同实施证据成立 | v1.19；关闭 `GATE-064`，完成 `WP-BQ-PLAN-CONTRACT-01`，开放 Model/Employee/Transaction 三个 Ready 工作包 |
 
 ## 3. 来源清单与当前基线
 
@@ -65,10 +66,10 @@
 
 | 工作包 ID | 名称 | 来源设计 | 范围 | 直接依赖 | 入口门禁 | 交付物 | 验证 | 回滚边界 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|
-| `WP-BQ-PLAN-CONTRACT-01` | QueryPlan 公共合同与配置 | `L2_02_00 IMPL-BQCOM-001～005` | plan/value/ref/slot、payload decoder、validator/binder、typed config/snapshot、catalog；fake/static | - | `GATE-064` | Business planning common 源码与测试 | `TEST-BQCOM-001～012`,`VAL-BQCOM-001～003`,mypy/compileall | feature disabled；不改 Core/历史 | Blocked |
-| `WP-BQ-MODEL-QUERYPLAN-01` | `business-query-plan-v1` 本地任务 | `L2_00_02 IMPL-MODEL-001～006` | task/prompt/catalog wire/provider response exact JSON decoder/generator；fake transport、零密钥 | `WP-BQ-PLAN-CONTRACT-01` | - | model task 与 contract tests | `TEST-MODEL-001～008`,`VAL-MODEL-001～003` | 不注册新 task；保留既有 tasks | Blocked |
-| `WP-EMP-QUERYPLAN-01` | Employee detail QueryPlan | `L2_02_01 IMPL-EMP-001～006` | definition 去 Resolver、protected-ref config/provider、detail/unsupported tests；不改 Java API | `WP-BQ-PLAN-CONTRACT-01` | - | Employee plan definition/config/tests | `TEST-EMP-001～012`,`VAL-EMP-001～003` | Employee action disabled | Blocked |
-| `WP-TXN-QUERYPLAN-01` | Transaction search QueryPlan | `L2_02_02 IMPL-TXN-001～007` | definition 去 Resolver、field/operator/config、Decimal/page/sort；不改 Java DTO | `WP-BQ-PLAN-CONTRACT-01` | - | Transaction plan definition/config/tests | `TEST-TXN-001～012`,`VAL-TXN-001～003` | Transaction action disabled；不改DB | Blocked |
+| `WP-BQ-PLAN-CONTRACT-01` | QueryPlan 公共合同与配置 | `L2_02_00 IMPL-BQCOM-001～005` | plan/value/ref/slot、payload decoder、validator/binder、typed config/snapshot、catalog；fake/static | - | `GATE-064` | Business planning common 源码与测试 | 13项定向、53项Business回归、strict mypy/compileall；代码对照设计无未关闭Major | feature disabled；不改 Core/历史 | Done |
+| `WP-BQ-MODEL-QUERYPLAN-01` | `business-query-plan-v1` 本地任务 | `L2_00_02 IMPL-MODEL-001～006` | task/prompt/catalog wire/provider response exact JSON decoder/generator；fake transport、零密钥 | `WP-BQ-PLAN-CONTRACT-01` | - | model task 与 contract tests | `TEST-MODEL-001～008`,`VAL-MODEL-001～003` | 不注册新 task；保留既有 tasks | Ready |
+| `WP-EMP-QUERYPLAN-01` | Employee detail QueryPlan | `L2_02_01 IMPL-EMP-001～006` | definition 去 Resolver、protected-ref config/provider、detail/unsupported tests；不改 Java API | `WP-BQ-PLAN-CONTRACT-01` | - | Employee plan definition/config/tests | `TEST-EMP-001～012`,`VAL-EMP-001～003` | Employee action disabled | Ready |
+| `WP-TXN-QUERYPLAN-01` | Transaction search QueryPlan | `L2_02_02 IMPL-TXN-001～007` | definition 去 Resolver、field/operator/config、Decimal/page/sort；不改 Java DTO | `WP-BQ-PLAN-CONTRACT-01` | - | Transaction plan definition/config/tests | `TEST-TXN-001～012`,`VAL-TXN-001～003` | Transaction action disabled；不改DB | Ready |
 | `WP-BQ-PLAN-RUNTIME-01` | Runtime 唯一链路切换 | `L2_00_01 IMPL-CORE-001～006` | planning node、plan→candidate、ModelContext、composition切断Resolver/ID-only Business路径 | `WP-BQ-MODEL-QUERYPLAN-01`,`WP-EMP-QUERYPLAN-01`,`WP-TXN-QUERYPLAN-01` | - | Runtime对象图、启动校验、测试 | `TEST-CORE-001～009`,`VAL-CORE-001～003` | 两域 disabled；不恢复旁路为目标配置 | Blocked |
 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | fake 双域系统闭环 | 全部五份L2测试约束 | Spring→Runtime→fake model→fake domain；成功/非法/失败/unsupported/JWT/单动作 | `WP-BQ-PLAN-RUNTIME-01` | - | non-live E2E与零旁路证据 | 全量non-live、mypy、compileall、Java contract | 新链路 disabled | Blocked |
 | `WP-BQ-QUERYPLAN-LIVE-01` | 真实模型与业务服务集成 | `REQ_00 §12`; UAT前置 | 冻结非敏感case、真实DeepSeek plan、Employee detail/Transaction search、权限/计数/零泄漏 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | `GATE-065` | append-only有限evidence与集成结论 | manifest/schema/预算/权限/跨语言/日志，关闭`GATE-066` | 停隔离进程、恢复disabled | Blocked |
@@ -104,7 +105,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 | 门禁 ID | 工作包 | 类型 | 控制动作 | 是否阻塞入口 | 关闭条件 | 证据/权威来源 | 责任方/外部提供方 | 最晚关闭阶段 | 验证者与方法 | 未关闭行为 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| `GATE-064` | `WP-BQ-PLAN-CONTRACT-01` | slice_implementation | non-live代码实施 | 是 | 用户明确授权目标代码/测试/文档范围 | 本计划与用户授权 | 用户 | P3开始 | Codex核对授权边界 | 7包保持Blocked | Open |
+| `GATE-064` | `WP-BQ-PLAN-CONTRACT-01` | slice_implementation | non-live代码实施 | 是 | 用户明确授权目标代码/测试/文档范围 | 2026-08-24目标授权与提交范围 | 用户 | P3开始 | 授权边界复核；真实调用仍排除 | 后续non-live包按依赖推进 | Closed |
 | `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/task/prompt/catalog/config/cases/预算并一次性授权 | L2/UAT manifest | 用户/维护者 | P4 live前 | 独立hash/schema/preflight | 不产生outbound | Open |
 | `GATE-066` | `WP-BQ-QUERYPLAN-LIVE-01` | closure | 宣告唯一链路集成完成 | 否 | 合格case plan=1、业务≤1、Resolver/另一域/Knowledge=0，权限/跨语言/零泄漏通过 | live evidence | Codex复核 | UAT前 | code-against-design + evidence | live包不Done | Open |
 
@@ -120,15 +121,15 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 | 顺序 | 工作包 | 判定 | 未关闭依赖/门禁 | 选择理由 |
 |---:|---|---|---|---|
-| 1 | `WP-BQ-PLAN-CONTRACT-01` | Blocked | `GATE-064` | 首个技术前置；只需non-live授权即可开始 |
-| 2 | `WP-BQ-MODEL-QUERYPLAN-01` | Blocked | contract包 | 依赖公共schema/catalog |
-| 3 | `WP-EMP-QUERYPLAN-01` | Blocked | contract包 | 与Transaction可并行 |
-| 4 | `WP-TXN-QUERYPLAN-01` | Blocked | contract包 | 与Employee可并行 |
-| 5 | `WP-BQ-PLAN-RUNTIME-01` | Blocked | model+两域包 | 必须一次性切换完整对象图 |
-| 6 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | Blocked | runtime包 | 证明无旁路后才可live |
-| 7 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | non-live包、`GATE-065` | 真实资源后置 |
+| 1 | `WP-BQ-MODEL-QUERYPLAN-01` | Ready | 无 | 公共schema/catalog已完成；按用户串行顺序先实施 |
+| 2 | `WP-EMP-QUERYPLAN-01` | Ready | 无 | 与Transaction独立，但按用户顺序串行 |
+| 3 | `WP-TXN-QUERYPLAN-01` | Ready | 无 | 与Employee独立，但按用户顺序串行 |
+| 4 | `WP-BQ-PLAN-RUNTIME-01` | Blocked | model+两域包 | 必须一次性切换完整对象图 |
+| 5 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | Blocked | runtime包 | 证明无旁路后才可live |
+| 6 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | non-live包、`GATE-065` | 真实资源后置 |
+| 7 | `WP-BQ-PLAN-CONTRACT-01` | Done | 无 | 公共合同、配置、binder 和 catalog 已验证 |
 
-推荐顺序只用于从 Ready 工作包中选择，不构成新的依赖边。当前无 Ready 工作包。
+推荐顺序只用于从 Ready 工作包中选择，不构成新的依赖边。当前按用户指定顺序从 Model 工作包开始。
 
 ## 10. 实施交接
 
@@ -156,10 +157,10 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 | 工作包 | 来源 REQ/CON/DR | IMPL | TEST | VAL | 交付状态 |
 |---|---|---|---|---|---|
-| `WP-BQ-PLAN-CONTRACT-01` | `DR-BQCOM-019～024` | `IMPL-BQCOM-001～005` | `TEST-BQCOM-001～012` | `VAL-BQCOM-001～003` | Blocked |
-| `WP-BQ-MODEL-QUERYPLAN-01` | `DR-MODEL-016～021` | `IMPL-MODEL-001～006` | `TEST-MODEL-001～008` | `VAL-MODEL-001～003` | Blocked |
-| `WP-EMP-QUERYPLAN-01` | `DR-EMP-013～017` | `IMPL-EMP-001～006` | `TEST-EMP-001～012` | `VAL-EMP-001～003` | Blocked |
-| `WP-TXN-QUERYPLAN-01` | `DR-TXN-013～018` | `IMPL-TXN-001～007` | `TEST-TXN-001～012` | `VAL-TXN-001～003` | Blocked |
+| `WP-BQ-PLAN-CONTRACT-01` | `DR-BQCOM-019～024` | `IMPL-BQCOM-001～005` | `TEST-BQCOM-001～012` | `VAL-BQCOM-001～003` | Done |
+| `WP-BQ-MODEL-QUERYPLAN-01` | `DR-MODEL-016～021` | `IMPL-MODEL-001～006` | `TEST-MODEL-001～008` | `VAL-MODEL-001～003` | Ready |
+| `WP-EMP-QUERYPLAN-01` | `DR-EMP-013～017` | `IMPL-EMP-001～006` | `TEST-EMP-001～012` | `VAL-EMP-001～003` | Ready |
+| `WP-TXN-QUERYPLAN-01` | `DR-TXN-013～018` | `IMPL-TXN-001～007` | `TEST-TXN-001～012` | `VAL-TXN-001～003` | Ready |
 | `WP-BQ-PLAN-RUNTIME-01` | `DR-CORE-012～016` | `IMPL-CORE-001～006` | `TEST-CORE-001～009` | `VAL-CORE-001～003` | Blocked |
 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | 全部L2 non-live约束 | 各包组合根/测试 | 全量non-live | 跨层验证 | Blocked |
 | `WP-BQ-QUERYPLAN-LIVE-01` | `REQ_00 §12`; UAT_00 | opt-in launcher/evidence | live matrix | `GATE-066` | Blocked |
@@ -174,13 +175,13 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 ## 14. 当前结论
 
-- Ready 工作包：0。
-- Blocked 工作包：7。
+- Ready 工作包：3（`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`）。
+- Blocked 工作包：3（Runtime、non-live E2E、live）。
 - In Progress 工作包：0。
-- Done 工作包：0（仅统计v1.18新包）。
+- Done 工作包：1（`WP-BQ-PLAN-CONTRACT-01`）。
 - Deferred 工作包：0。
-- 关键开放门禁：P3 `GATE-064/065/066`；UAT 另有 `GATE-UAT-006`。
-- 推荐下一工作包：先取得 `GATE-064` 授权，再实施 `WP-BQ-PLAN-CONTRACT-01`。
+- 关键开放门禁：P3 `GATE-065/066`；`GATE-064` 已关闭；UAT 另有 `GATE-UAT-006`。
+- 推荐下一工作包：按授权顺序实施 `WP-BQ-MODEL-QUERYPLAN-01`。
 - 当前不得执行真实 LLM、业务服务调用或 Employee/Transaction 成功 UAT。
 - Employee 地点/职位筛选保持 `unsupported`：现有通用 ES 搜索的字段能力已确认，但最终角色授权与受限响应契约未满足，不属于本计划。
 
