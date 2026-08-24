@@ -408,7 +408,12 @@ def _reject_prohibited_keys(value: JsonValue) -> None:
 
 
 def _matches_text_policy(value: str, policy: BusinessTextPolicyId | None) -> bool:
-    if not value or policy is None:
+    if (
+        not value
+        or policy is None
+        or value != value.strip()
+        or value != unicodedata.normalize("NFC", value)
+    ):
         return False
     punctuation = {"-", "."}
     if policy is BusinessTextPolicyId.SAFE_TOKEN:

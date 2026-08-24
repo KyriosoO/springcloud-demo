@@ -7,11 +7,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_00 |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.3、Employee L2 v1.3、Transaction L2 v1.2 |
-| 实施状态 | QueryPlan/value/ref、typed config、snapshot、catalog、exact payload decoder、validator 和 binder 的公共 non-live 实现已完成；域 definition 与生产组合根中的 Resolver 退役尚未完成 |
+| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.3、Employee L2 v1.3、Transaction L2 v1.3 |
+| 实施状态 | 公共 QueryPlan 合同与 Employee/Transaction definition/config/protected-ref non-live 实现已完成；生产组合根切换和双域 E2E 尚未完成 |
 
 ## 2. 修改历史、设计目标与范围外
 
@@ -20,6 +20,7 @@
 | v1.1 | 2026-08-21 | 既有 Business common/config/egress 基线 |
 | v1.2 | 2026-08-24 | 新增 QueryPlan/typed input config/slot binder，移除 Business definition 的 Resolver 目标绑定 |
 | v1.3 | 2026-08-24 | 同步 `WP-BQ-PLAN-CONTRACT-01` non-live 实施证据；域配置与生产唯一链路仍由后续工作包承接 |
+| v1.4 | 2026-08-24 | 同步两域 QueryPlan definition/config 完成状态；修正字段子集关闭时 Decimal/排序上界校验，并以拒绝首尾空格/非 NFC 防止文本 literal 在下游被规范化 |
 
 本文详细定义两域共享的：
 

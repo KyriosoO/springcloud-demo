@@ -70,18 +70,17 @@ def _definitions() -> tuple[
 
 
 @pytest.mark.parametrize(
-    ("employee_enabled", "transaction_enabled", "expected_ids"),
+    ("employee_enabled", "transaction_enabled"),
     [
-        (False, False, ()),
-        (True, False, ()),
-        (False, True, ("transaction.search",)),
-        (True, True, ("transaction.search",)),
+        (False, False),
+        (True, False),
+        (False, True),
+        (True, True),
     ],
 )
-def test_support_snapshot_projects_only_enabled_resolvers_in_canonical_order(
+def test_queryplan_business_snapshot_has_no_enabled_local_resolvers(
     employee_enabled: bool,
     transaction_enabled: bool,
-    expected_ids: tuple[str, ...],
 ) -> None:
     snapshot = BusinessSupportFactory().build(
         definitions=tuple(reversed(_definitions())),
@@ -92,7 +91,7 @@ def test_support_snapshot_projects_only_enabled_resolvers_in_canonical_order(
         core_max_domain_result_bytes=1048576,
     )
 
-    assert tuple(item.capability_id for item in snapshot.local_action_resolvers) == expected_ids
+    assert snapshot.local_action_resolvers == ()
     expected_action_ids = tuple(
         capability_id
         for capability_id, enabled in (
@@ -106,30 +105,20 @@ def test_support_snapshot_projects_only_enabled_resolvers_in_canonical_order(
         for item in snapshot.actions
         if item.settings.enabled
     ) == expected_action_ids
+    assert snapshot.planner_catalog is not None
+    assert len(snapshot.planner_catalog.payload["actions"]) == len(expected_action_ids)  # type: ignore[arg-type]
     with pytest.raises(FrozenInstanceError):
         snapshot.local_action_resolvers = ()  # type: ignore[misc]
 
 
-def test_definition_resolver_id_mismatch_prevents_support_readiness() -> None:
+def test_queryplan_definition_rejects_legacy_resolver_binding() -> None:
     employee, transaction = _definitions()
     transaction = replace(transaction, local_action_resolver=ResolverStub("employee.detail"))
-
-    with pytest.raises(BusinessConfigurationError, match="business.invalid_definition"):
-        BusinessSupportFactory().build(
-            definitions=(employee, transaction),
-            config=_source(employee_enabled=True, transaction_enabled=True),
-            core_max_domain_result_bytes=1048576,
-        )
-
-
-def test_definition_without_resolver_prevents_support_readiness() -> None:
-    employee, transaction = _definitions()
-    transaction = replace(transaction, local_action_resolver=cast(Any, None))
 
     with pytest.raises(BusinessConfigurationError, match="business.invalid_local_action_resolver"):
         BusinessSupportFactory().build(
             definitions=(employee, transaction),
-            config=_source(employee_enabled=True, transaction_enabled=False),
+            config=_source(employee_enabled=True, transaction_enabled=True),
             core_max_domain_result_bytes=1048576,
         )
 

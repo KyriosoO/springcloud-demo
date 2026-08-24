@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_02 |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.2 |
+| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.4 |
 | 业务接口 | `POST /txn/search` |
-| 实施状态 | Transaction Adapter/ExactDecimal/业务 guard 与真实只读 search 证据已存在；LLM QueryPlan 配置和 Resolver 切断尚未实现 |
+| 实施状态 | Transaction QueryPlan definition/config/protected-ref、Resolver 切断及 non-live/Java 合同回归已完成；生产 Runtime 唯一链路与新 live 证据仍未完成 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -20,6 +20,7 @@
 |---|---|---|
 | v1.1 | 2026-08-21 | 既有 Transaction Adapter/Decimal/授权基线 |
 | v1.2 | 2026-08-24 | Transaction 目标改为 LLM search QueryPlan，保留精确金额和有限查询上界 |
+| v1.3 | 2026-08-24 | 同步 `WP-TXN-QUERYPLAN-01` 实施证据；固定 POST/Decimal/业务授权不变，Runtime/live 仍由后续工作包承接 |
 
 设计目标是只复用 `/txn/search` 完成 LLM 受限查询。范围外/不负责：Date、aggregate、detail、写入、管理、新 DTO、数据库结构和业务角色变更。
 
@@ -267,7 +268,7 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 
 ## 14. 当前差距与门禁
 
-目标变更由 P3_00 `WP-TXN-QUERYPLAN-01` 承接，依赖公共 QueryPlan 和 Runtime 切换。完成前 Transaction LLM 成功 UAT Blocked；真实模型/服务 UAT 需单独授权。
+`WP-TXN-QUERYPLAN-01` 已完成：production definition 不再绑定 Resolver，8 个逻辑字段、4 条组合规则、配置版本/Decimal/page/sort 上界和 transaction ID protected-ref 已落地；既有 codec、POST endpoint、Java DTO 与业务 guard 未修改。生产 Runtime 切换、双域 non-live E2E 与新 live 证据仍由 P3 后续工作包承接，因此 Transaction LLM 成功 UAT 继续 Blocked。
 
 ## 15. 评审记录
 
@@ -278,7 +279,7 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 | 内审3 | Java BigDecimal/DB `DECIMAL(50,2)`、endpoint 可达性与 DAG | 只读证据一致，无新增问题，通过 |
 | 独立评审 R1～R3 | L2 与跨层一致性 | 增加代码绑定安全文本策略，Decimal/分页/排序/Java合同保持不变；R3 无发现，通过 |
 
-Approved 不表示 QueryPlan 已实现或 GATE-026 历史 evidence 可直接证明本目标。
+Approved 与本节实施状态均不表示 Runtime 唯一链路已切换，也不表示 GATE-026 历史 evidence 可直接证明本目标。
 
 ## 16. 数据生命周期、一致性、风险与实现就绪判定
 
@@ -286,8 +287,8 @@ QueryPlan、Decimal、JWT 和响应只存在于单请求生命周期，无持久
 
 | 项目 | 内容 |
 |---|---|
-| 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施 |
-| 当前允许实施范围 | 取得 P3 `GATE-064` 后，仅限 IMPL-TXN-001～007 的 non-live 实现/回归 |
+| 是否可作为实现依据 | 是；IMPL-TXN-001～007 已完成代码对照设计复核，后续由 Runtime/E2E 工作包消费 |
+| 当前允许实施范围 | Transaction 域包已完成；继续按 P3 实施 Runtime 与 non-live E2E，真实调用仍受 `GATE-065` 控制 |
 | 当前禁止动作 | Date/aggregate/detail/write、新 DTO/DB/角色、float/舍入、真实调用、恢复 Resolver |
 
 ## 17. 端到端追踪矩阵

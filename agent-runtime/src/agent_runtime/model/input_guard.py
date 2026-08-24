@@ -87,11 +87,21 @@ class QuestionEgressGuard:
             value_classes = classify_question(raw_value)
             if value_classes & (
                 _EXPLICIT_SENSITIVE_CLASSES
-                - {QuestionDataClass.PERSONAL_IDENTIFIER, QuestionDataClass.EMPLOYEE_IDENTIFIER}
+                - {
+                    QuestionDataClass.PERSONAL_IDENTIFIER,
+                    QuestionDataClass.EMPLOYEE_IDENTIFIER,
+                    QuestionDataClass.TRANSACTION_IDENTIFIER,
+                }
             ):
                 return self._business_denied(QuestionEgressReasonCode.SENSITIVE_INPUT)
             redacted = redacted.replace(raw_value, f"protected-ref({slot_id})", 1)
-        classes = classify_question(redacted)
+        classification_input = redacted
+        for slot_id in values:
+            classification_input = classification_input.replace(
+                f"protected-ref({slot_id})",
+                "",
+            )
+        classes = classify_question(classification_input)
         if classes & _EXPLICIT_SENSITIVE_CLASSES:
             return self._business_denied(QuestionEgressReasonCode.SENSITIVE_INPUT)
         if not _BUSINESS_ANCHOR.search(redacted):

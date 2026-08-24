@@ -609,8 +609,8 @@ class BusinessSettingsValidator:
                 raise BusinessConfigurationError("business.invalid_combination_rules")
         limits = definition.contract_limits
         has_decimal = any(
-            definitions[name].value_type is BusinessQueryValueType.DECIMAL
-            for name in enabled_fields
+            field.value_type is BusinessQueryValueType.DECIMAL
+            for field in definitions.values()
         )
         if has_decimal:
             try:
@@ -639,8 +639,8 @@ class BusinessSettingsValidator:
         ):
             raise BusinessConfigurationError("business.invalid_decimal_limits")
         has_sort = any(
-            definitions[name].value_type is BusinessQueryValueType.SORT_LIST
-            for name in enabled_fields
+            field.value_type is BusinessQueryValueType.SORT_LIST
+            for field in definitions.values()
         )
         if has_sort:
             if (

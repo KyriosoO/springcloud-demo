@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
-
-import pytest
+from collections.abc import Mapping
 
 from agent_runtime.adapters.employee.definition import employee_detail_definition
 from agent_runtime.adapters.employee.settings import EmployeeAdapterSettings
 from agent_runtime.adapters.transaction.definition import transaction_search_definition
 from agent_runtime.adapters.transaction.settings import TransactionAdapterSettings
-from agent_runtime.bootstrap import RuntimeCompositionRoot
 from agent_runtime.business.contracts import BusinessServiceKey
 from agent_runtime.business.provider import BusinessSupportFactory, BusinessSupportSnapshot
 from agent_runtime.business.settings import (
@@ -16,35 +13,6 @@ from agent_runtime.business.settings import (
     BusinessGlobalSettings,
     BusinessServiceBinding,
 )
-from agent_runtime.capability_api.contracts import (
-    CapabilityExecutionContext,
-    CapabilityRegistrationCandidate,
-    CapabilityResult,
-)
-from agent_runtime.graph.action_resolution import CapabilitySelectionDecision, CapabilitySelectionInput
-from agent_runtime.graph.state import AnswerGenerationDecision, AnswerGenerationDecisionKind
-from agent_runtime.settings import CoreRuntimeSettings
-from tests.helpers import FixedAnswerGenerator, Provider, scope, success_result
-
-
-class ForbiddenSelector:
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def __call__(self, input: CapabilitySelectionInput) -> CapabilitySelectionDecision:
-        del input
-        self.calls += 1
-        raise AssertionError("business local resolution must not call the model selector")
-
-
-class CaptureHandler:
-    def __init__(self) -> None:
-        self.inputs: list[object] = []
-
-    async def handle(self, input: object, context: CapabilityExecutionContext) -> CapabilityResult:
-        del context
-        self.inputs.append(input)
-        return success_result()
 
 
 def _support() -> BusinessSupportSnapshot:
@@ -72,42 +40,15 @@ def _support() -> BusinessSupportSnapshot:
     return snapshot
 
 
-@pytest.mark.asyncio
-async def test_transitional_snapshot_excludes_queryplan_employee_from_resolver_path() -> None:
+def test_business_snapshot_exposes_only_queryplan_catalog_and_no_resolver_path() -> None:
     snapshot = _support()
-    handler = CaptureHandler()
-    candidates = tuple(
-        CapabilityRegistrationCandidate[Any](
-            descriptor=item.definition.descriptor,
-            enabled=True,
-            argument_validator=item.definition.argument_validator,
-            handler=handler,
-        )
-        for item in snapshot.actions
-        if item.settings.enabled and item.definition.local_action_resolver is not None
-    )
-    selector = ForbiddenSelector()
-    runtime = RuntimeCompositionRoot.build(
-        settings=CoreRuntimeSettings(),
-        providers=(Provider(*candidates),),
-        capability_selector=selector,
-        answer_generator=FixedAnswerGenerator(
-            AnswerGenerationDecision(
-                kind=AnswerGenerationDecisionKind.ANSWER,
-                answer_text="unused",
-            )
-        ),
-        local_action_resolvers=snapshot.local_action_resolvers,
-    )
 
-    transaction_question = "查询交易 交易类型=PAY"
-    transaction_outcome = await runtime.ainvoke(
-        question=transaction_question,
-        scope=scope(question=transaction_question),
+    assert snapshot.local_action_resolvers == ()
+    assert snapshot.planner_catalog is not None
+    actions = snapshot.planner_catalog.payload["actions"]
+    assert isinstance(actions, tuple)
+    assert all(isinstance(item, Mapping) for item in actions)
+    assert tuple(item["action"] for item in actions if isinstance(item, Mapping)) == (
+        "employee.detail",
+        "transaction.search",
     )
-
-    assert tuple(item.capability_id for item in snapshot.local_action_resolvers) == ("transaction.search",)
-    assert snapshot.planner_catalog is None
-    assert transaction_outcome.capability_id == "transaction.search"
-    assert len(handler.inputs) == 1
-    assert selector.calls == 0
