@@ -92,7 +92,7 @@ def test_wrong_source_fails_unconsumed_without_external_calls(tmp_path: Path) ->
     assert value["status"] == "failed_unconsumed"
     assert value["sourceValidated"] is False
     assert value["collectionValidated"] is False
-    assert value["failure"]["reason"] == "python_import_failed"
+    assert value["failure"]["reason"] == "python_import_source_invalid"
     assert all(item == 0 for item in value["counts"].values())
     assert not any(value["safety"].values())
 

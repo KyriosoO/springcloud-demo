@@ -304,8 +304,9 @@ def _employee_asset_counts(repository_root: Path) -> dict[str, int]:
     }
 
 
-def inspect_repository(repository_root: Path) -> dict[str, object]:
-    validate_repository_snapshot(repository_root)
+def inspect_current_repository(repository_root: Path) -> dict[str, object]:
+    """Inspect current repository semantics without rebinding historical hashes."""
+
     employee = (repository_root / SOURCE_FILES[0][0]).read_text(encoding="utf-8")
     mapper = (repository_root / SOURCE_FILES[1][0]).read_text(encoding="utf-8")
     sql_provider = (repository_root / SOURCE_FILES[2][0]).read_text(encoding="utf-8")
@@ -390,6 +391,13 @@ def inspect_repository(repository_root: Path) -> dict[str, object]:
         "writeSources": write_sources,
         "repositoryAssets": assets,
     }
+
+
+def inspect_repository(repository_root: Path) -> dict[str, object]:
+    """Reconstruct the historical diagnostic only from its frozen source snapshot."""
+
+    validate_repository_snapshot(repository_root)
+    return inspect_current_repository(repository_root)
 
 
 def validate_evidence(value: Mapping[str, object]) -> None:

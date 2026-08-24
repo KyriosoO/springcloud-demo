@@ -279,7 +279,7 @@ def execute_import_preflight(
                 str(source),
                 str(runtime),
                 str(live_test),
-                str(runtime / "src"),
+                str(source),
             ],
             cwd=repository,
             env=_safe_subprocess_environment(),

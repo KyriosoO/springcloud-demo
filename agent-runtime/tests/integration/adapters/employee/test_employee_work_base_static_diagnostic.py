@@ -11,8 +11,7 @@ from tests.integration.adapters.employee.work_base_static_diagnostic import (
     SOURCE_EVIDENCE_SHA256,
     WorkBaseStaticDiagnosticError,
     _employee_asset_counts,
-    build_evidence,
-    inspect_repository,
+    inspect_current_repository,
     load_strict_json,
     validate_evidence,
     validate_repository_snapshot,
@@ -29,7 +28,7 @@ _EVIDENCE_PATH = Path(__file__).with_name("evidence") / (
 
 
 def test_repository_inspection_excludes_read_mapping_as_the_zero_count_cause() -> None:
-    inspection = inspect_repository(_REPOSITORY_ROOT)
+    inspection = inspect_current_repository(_REPOSITORY_ROOT)
 
     assert all(cast(dict[str, bool], inspection["mapping"]).values())
     assert inspection["writeSources"] == {
@@ -92,11 +91,9 @@ def test_repository_asset_scan_ignores_ordinary_language_imports(
     assert _employee_asset_counts(tmp_path)["employeeImportComponents"] == 0
 
 
-def test_builds_strict_static_limited_evidence() -> None:
-    evidence = build_evidence(
-        _REPOSITORY_ROOT,
-        recorded_at="2026-08-14T05:25:19Z",
-    )
+def test_frozen_evidence_has_strict_static_limited_conclusion() -> None:
+    evidence = load_strict_json(_EVIDENCE_PATH)
+    validate_evidence(evidence)
 
     assert evidence["sourceEvidence"] == {
         "path": (
@@ -150,10 +147,7 @@ def _claim_required_write(value: dict[str, Any]) -> None:
 def test_validator_fails_closed(
     mutate: Callable[[dict[str, Any]], None],
 ) -> None:
-    value = build_evidence(
-        _REPOSITORY_ROOT,
-        recorded_at="2026-08-14T05:25:19Z",
-    )
+    value = load_strict_json(_EVIDENCE_PATH)
     copied = cast(dict[str, Any], json.loads(json.dumps(value)))
     mutate(copied)
 
@@ -179,10 +173,16 @@ def test_schema_is_strict_and_forbids_external_activity() -> None:
         assert cast(dict[str, Any], safety[key])["const"] == 0
 
 
-def test_frozen_source_snapshot_and_evidence_are_valid() -> None:
-    validate_repository_snapshot(_REPOSITORY_ROOT)
+def test_frozen_evidence_remains_valid_without_rebinding_current_sources() -> None:
     evidence = load_strict_json(_EVIDENCE_PATH)
     validate_evidence(evidence)
+
+
+def test_historical_snapshot_validation_fails_closed_for_missing_sources(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(WorkBaseStaticDiagnosticError):
+        validate_repository_snapshot(tmp_path)
 
 
 def test_evidence_contains_no_employee_values_or_credentials() -> None:

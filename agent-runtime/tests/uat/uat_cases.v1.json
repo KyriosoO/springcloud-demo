@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "suiteId": "single-agent-uat-v1",
+  "executionProfile": {
+    "knowledgeProvider": "real",
+    "employeeProvider": "real",
+    "transactionProvider": "real",
+    "modelProvider": "stub",
+    "businessModelEgress": false,
+    "externalModelOutboundMax": 0,
+    "maxActionsPerRequest": 1
+  },
+  "runtimeInputs": [
+    {
+      "name": "SYSTEM_E2E_EMPLOYEE_IDENTIFIER",
+      "classification": "sensitive",
+      "persistence": "process_only"
+    },
+    {
+      "name": "UAT_TRANSACTION_TYPE",
+      "classification": "business_test_filter",
+      "persistence": "process_only"
+    }
+  ],
+  "cases": [
+    {
+      "caseId": "UAT-ACCESS-001",
+      "domain": "access",
+      "principal": "missing",
+      "requestVariant": "valid_json",
+      "questionTemplate": "增值税相关税收法规政策",
+      "expectedHttpStatus": 401,
+      "expectedStatus": "unauthenticated",
+      "expectedCapabilityId": null,
+      "automationReference": "AgentSecurityContractTest#missingInvalidAndServiceTokensUseSafe401EnvelopeWithoutRuntime",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-ACCESS-002",
+      "domain": "access",
+      "principal": "malformed",
+      "requestVariant": "valid_json",
+      "questionTemplate": "增值税相关税收法规政策",
+      "expectedHttpStatus": 401,
+      "expectedStatus": "unauthenticated",
+      "expectedCapabilityId": null,
+      "automationReference": "AgentSecurityContractTest#missingInvalidAndServiceTokensUseSafe401EnvelopeWithoutRuntime",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-ACCESS-003",
+      "domain": "access",
+      "principal": "admin",
+      "requestVariant": "unknown_request_field",
+      "questionTemplate": "增值税相关税收法规政策",
+      "expectedHttpStatus": 400,
+      "expectedStatus": "invalid_argument",
+      "expectedCapabilityId": null,
+      "automationReference": "AgentSecurityContractTest#rejectsUnknownRequestFieldsUnsupportedMediaTypeAndOversizedBody",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-ACCESS-004",
+      "domain": "access",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "请帮我预订明天的会议室",
+      "expectedHttpStatus": 422,
+      "expectedStatus": "unsupported",
+      "expectedCapabilityId": null,
+      "automationReference": "AgentAccessE2ETest#returnsRuntimeSemanticFailureThroughPublicContract",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-KNOWLEDGE-001",
+      "domain": "knowledge",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "增值税相关税收法规政策",
+      "expectedHttpStatus": 200,
+      "expectedStatus": "success",
+      "expectedCapabilityId": "knowledge.query",
+      "automationReference": "AgentSystemE2ETest#system-k-admin",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-KNOWLEDGE-002",
+      "domain": "knowledge",
+      "principal": "viewer",
+      "requestVariant": "valid_json",
+      "questionTemplate": "增值税相关税收法规政策",
+      "expectedHttpStatus": 200,
+      "expectedStatus": "success",
+      "expectedCapabilityId": "knowledge.query",
+      "automationReference": "uat_manual",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-KNOWLEDGE-003",
+      "domain": "knowledge",
+      "principal": "unknown",
+      "requestVariant": "valid_json",
+      "questionTemplate": "增值税相关税收法规政策",
+      "expectedHttpStatus": 403,
+      "expectedStatus": "forbidden",
+      "expectedCapabilityId": "knowledge.query",
+      "automationReference": "AgentSystemE2ETest#system-k-deny",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-EMPLOYEE-001",
+      "domain": "employee",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询员工详情 员工标识=${SYSTEM_E2E_EMPLOYEE_IDENTIFIER}",
+      "expectedHttpStatus": 200,
+      "expectedStatus": "success",
+      "expectedCapabilityId": "employee.detail",
+      "automationReference": "AgentSystemE2ETest#system-emp-admin",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-EMPLOYEE-002",
+      "domain": "employee",
+      "principal": "viewer",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询员工详情 员工标识=${SYSTEM_E2E_EMPLOYEE_IDENTIFIER}",
+      "expectedHttpStatus": 200,
+      "expectedStatus": "success",
+      "expectedCapabilityId": "employee.detail",
+      "automationReference": "uat_manual",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-EMPLOYEE-003",
+      "domain": "employee",
+      "principal": "unknown",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询员工详情 员工标识=${SYSTEM_E2E_EMPLOYEE_IDENTIFIER}",
+      "expectedHttpStatus": 403,
+      "expectedStatus": "forbidden",
+      "expectedCapabilityId": "employee.detail",
+      "automationReference": "AgentSystemE2ETest#system-emp-deny",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-EMPLOYEE-004",
+      "domain": "employee",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询员工详情 员工标识=${SYSTEM_E2E_EMPLOYEE_IDENTIFIER} 并删除",
+      "expectedHttpStatus": 400,
+      "expectedStatus": "invalid_argument",
+      "expectedCapabilityId": null,
+      "automationReference": "test_employee_action_resolver",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-TRANSACTION-001",
+      "domain": "transaction",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询交易 交易类型=${UAT_TRANSACTION_TYPE}，条数=5",
+      "expectedHttpStatus": 200,
+      "expectedStatus": "success",
+      "expectedCapabilityId": "transaction.search",
+      "automationReference": "uat_manual",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-TRANSACTION-002",
+      "domain": "transaction",
+      "principal": "viewer",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询交易 交易类型=${UAT_TRANSACTION_TYPE}，条数=5",
+      "expectedHttpStatus": 200,
+      "expectedStatus": "success",
+      "expectedCapabilityId": "transaction.search",
+      "automationReference": "uat_manual",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-TRANSACTION-003",
+      "domain": "transaction",
+      "principal": "unknown",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询交易 金额=0.01",
+      "expectedHttpStatus": 403,
+      "expectedStatus": "forbidden",
+      "expectedCapabilityId": "transaction.search",
+      "automationReference": "AgentSystemE2ETest#system-txn-deny",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-TRANSACTION-004",
+      "domain": "transaction",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询交易 金额=1.000",
+      "expectedHttpStatus": 400,
+      "expectedStatus": "invalid_argument",
+      "expectedCapabilityId": null,
+      "automationReference": "AgentSystemE2ETest#system-invalid",
+      "mandatory": true
+    },
+    {
+      "caseId": "UAT-TRANSACTION-005",
+      "domain": "transaction",
+      "principal": "admin",
+      "requestVariant": "valid_json",
+      "questionTemplate": "查询交易 聚合=金额",
+      "expectedHttpStatus": 400,
+      "expectedStatus": "invalid_argument",
+      "expectedCapabilityId": null,
+      "automationReference": "test_transaction_action_resolver",
+      "mandatory": true
+    }
+  ]
+}
