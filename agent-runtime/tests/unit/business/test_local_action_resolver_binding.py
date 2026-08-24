@@ -123,13 +123,13 @@ def test_queryplan_definition_rejects_legacy_resolver_binding() -> None:
         )
 
 
-def test_duplicate_resolver_object_prevents_support_readiness() -> None:
+def test_any_legacy_resolver_prevents_support_readiness() -> None:
     employee, transaction = _definitions()
     shared = ResolverStub("employee.detail")
     employee = replace(employee, local_action_resolver=shared)
     transaction = replace(transaction, local_action_resolver=shared)
 
-    with pytest.raises(BusinessConfigurationError, match="business.duplicate_local_action_resolver"):
+    with pytest.raises(BusinessConfigurationError, match="business.invalid_local_action_resolver"):
         BusinessSupportFactory().build(
             definitions=(employee, transaction),
             config=_source(employee_enabled=False, transaction_enabled=False),

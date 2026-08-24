@@ -49,7 +49,6 @@ if ($Stage -eq 'Closure') {
             tests/unit/core/test_action_latch.py `
             tests/unit/core/test_execution.py `
             tests/unit/graph/test_hybrid_action_resolution.py `
-            tests/integration/graph/test_business_local_resolvers.py `
             tests/integration/business/test_business_resolver_composition.py `
             tests/integration/adapters/employee/test_fake_server.py `
             tests/integration/adapters/transaction/test_fake_server.py `

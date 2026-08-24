@@ -52,24 +52,12 @@ class BusinessSupportFactory:
         core_max_domain_result_bytes: int,
     ) -> BusinessSupportSnapshot:
         definitions = tuple(definitions)
-        resolver_objects = tuple(
-            id(item.local_action_resolver)
-            for item in definitions
-            if item.local_action_resolver is not None
-        )
-        if len(set(resolver_objects)) != len(resolver_objects):
-            raise BusinessConfigurationError("business.duplicate_local_action_resolver")
+        if any(item.local_action_resolver is not None for item in definitions):
+            raise BusinessConfigurationError("business.invalid_local_action_resolver")
         validated = BusinessSettingsValidator().validate(
             definitions, config, core_max_domain_result_bytes=core_max_domain_result_bytes
         )
         by_id = {item.descriptor.capability_id: item for item in definitions}
-        enabled_resolvers = tuple(
-            resolver
-            for capability_id, settings in validated.actions
-            if settings.enabled
-            for resolver in (by_id[capability_id].local_action_resolver,)
-            if resolver is not None
-        )
         planner_ready = all(
             not settings.enabled
             or bool(by_id[capability_id].query_fields and settings.query_fields)
@@ -86,7 +74,7 @@ class BusinessSupportFactory:
                 BoundBusinessActionSupport(definition=by_id[capability_id], settings=settings)
                 for capability_id, settings in validated.actions
             ),
-            local_action_resolvers=enabled_resolvers,
+            local_action_resolvers=(),
             service_bindings=validated.service_bindings,
             snapshot_id=validated.snapshot_id,
             configuration_snapshot=validated,
