@@ -232,7 +232,11 @@ def test_exact_decode_validate_bind_and_unsupported_terminal() -> None:
 
     assert isinstance(validated, ValidatedBusinessQueryPlan)
     slots = ProtectedValueSlots(request_id="request-1", values={"slot-1": "ABCDE"})
-    candidate = RequestProtectedValueBinder().bind(validated, slots=slots)
+    candidate = RequestProtectedValueBinder().bind(
+        validated,
+        slots=slots,
+        request_id="request-1",
+    )
     assert candidate.capability_id == "employee.detail"
     assert candidate.arguments == {"employee_identifier": "ABCDE"}
     assert "ABCDE" not in repr(slots)
@@ -340,6 +344,33 @@ def test_missing_or_reused_protected_values_fail_closed() -> None:
         RequestProtectedValueBinder().bind(
             validated,
             slots=ProtectedValueSlots(request_id="request-1", values={}),
+            request_id="request-1",
+        )
+
+
+def test_protected_slot_binding_rejects_cross_request_context() -> None:
+    definitions, snapshot = _snapshot()
+    plan = ExactBusinessQueryPlanDecoder().decode(
+        {
+            "domain": "employee",
+            "action": "employee.detail",
+            "arguments": {"employee_identifier": {"value_ref": "slot-1"}},
+        }
+    )
+    validated = DefaultBusinessQueryPlanValidator(definitions).validate(
+        plan,
+        snapshot=snapshot,
+    )
+    assert isinstance(validated, ValidatedBusinessQueryPlan)
+
+    with pytest.raises(InvalidProtectedValue):
+        RequestProtectedValueBinder().bind(
+            validated,
+            slots=ProtectedValueSlots(
+                request_id="request-1",
+                values={"slot-1": "ABCDE"},
+            ),
+            request_id="request-2",
         )
 
 

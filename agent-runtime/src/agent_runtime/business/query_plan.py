@@ -352,7 +352,14 @@ class RequestProtectedValueBinder:
         plan: ValidatedBusinessQueryPlan,
         *,
         slots: ProtectedValueSlots,
+        request_id: str,
     ) -> ActionCandidate:
+        if (
+            not isinstance(request_id, str)
+            or not request_id
+            or request_id != slots.request_id
+        ):
+            raise InvalidProtectedValue()
         arguments: dict[str, JsonValue] = {}
         used_refs: set[str] = set()
         for logical_name, value in plan.plan.arguments.items():
