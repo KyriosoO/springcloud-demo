@@ -9,6 +9,7 @@ from agent_runtime.capability_api.contracts import (
     CapabilityDescriptor,
     CapabilityResult,
     CapabilityStatus,
+    CancellationSignal,
     FailureDetail,
     JsonObject,
 )
@@ -60,6 +61,7 @@ class AgentSemanticOutcome:
 class ActionSelectionInput:
     question: str
     descriptors: tuple[CapabilityDescriptor, ...]
+    cancellation: CancellationSignal | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

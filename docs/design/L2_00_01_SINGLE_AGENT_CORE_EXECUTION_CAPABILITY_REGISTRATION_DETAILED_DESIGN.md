@@ -11,7 +11,7 @@
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
 | 协作设计 | `L2_00_02` v1.5、`L2_02_00` v1.6 |
-| 实施状态 | 公共 QueryPlan 合同已实现；Business planning/组合根已有 non-live 候选实现，尚待本工作包最终代码复核与提交 |
+| 实施状态 | 公共 QueryPlan 合同、Business planning、组合根唯一分支与旧 Business Resolver 第一阶段清理已完成 non-live 实施及代码复核；系统 E2E/live 尚未完成 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -287,7 +287,7 @@ Core 不读取问题、不调用模型、不解析 QueryPlan、不读取 Busines
 
 ## 13. 当前差距与门禁
 
-`IMPL-CORE-001/004` 已完成；`IMPL-CORE-002/003` 已形成 non-live 候选并进入 `WP-BQ-PLAN-RUNTIME-01` 最终复核。双域系统 E2E 与真实调用仍由后续工作包/门禁承接，Business UAT 成功路径保持 Blocked。
+`IMPL-CORE-001～008` 已完成 non-live 实施：两级 decoder 后按 validator→binder→registry argument validator 固定顺序生成唯一 candidate，Business 描述符从 Hybrid/ID-only fallback 中剔除，取消/超时/非法计划均在 Core/Adapter 前终止。专属 Employee/Transaction Resolver 及旧旁路测试已删除，生产 Business factory 拒绝非空 legacy Resolver；冻结历史 harness 所需兼容字段保持不变。双域系统 E2E 与真实调用仍由后续工作包/门禁承接，Business UAT 成功路径保持 Blocked。
 
 ## 14. 评审记录
 

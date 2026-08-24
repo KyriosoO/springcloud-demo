@@ -33,10 +33,14 @@ from agent_runtime.graph.state import (
 )
 from agent_runtime.capability_api.contracts import CapabilityDescriptor
 from agent_runtime.graph.action_resolution import InvalidActionResolution
+from agent_runtime.graph.business_query_planning import BusinessPlanningDecision
 
 
 class ActionSelectionNode(Protocol):
-    async def __call__(self, input: ActionSelectionInput) -> ActionSelectionDecision: ...
+    async def __call__(
+        self,
+        input: ActionSelectionInput,
+    ) -> ActionSelectionDecision | BusinessPlanningDecision: ...
 
 
 class AnswerGenerationNode(Protocol):
@@ -114,6 +118,7 @@ def _map_model_failure(
 
 async def select_action_node(
     state: AgentInputState,
+    runtime: Runtime[GraphRunContext] | None = None,
     *,
     descriptors: tuple[CapabilityDescriptor, ...],
     selector: ActionSelectionNode,
@@ -127,13 +132,42 @@ async def select_action_node(
             )
         }
     try:
-        decision = await selector(ActionSelectionInput(question=state["question"], descriptors=descriptors))
+        decision = await selector(ActionSelectionInput(
+            question=state["question"],
+            descriptors=descriptors,
+            cancellation=(
+                runtime.context.execution_scope.context.cancellation
+                if runtime is not None
+                else None
+            ),
+        ))
     except InvalidActionResolution:
         return {
             "final_outcome": _failure_outcome(
                 CapabilityStatus.INTERNAL_FAILURE,
                 "core.invalid_action_resolution",
                 FailureSource.CORE,
+            )
+        }
+    if isinstance(decision, BusinessPlanningDecision):
+        if decision.candidate is not None:
+            return {"action_candidate": decision.candidate}
+        assert decision.status is not None and decision.failure_code is not None
+        source = (
+            FailureSource.POLICY
+            if decision.status in {
+                CapabilityStatus.FORBIDDEN,
+                CapabilityStatus.MODEL_EGRESS_DENIED,
+            }
+            else FailureSource.DOWNSTREAM
+            if decision.status in {CapabilityStatus.TIMEOUT, CapabilityStatus.DOWNSTREAM_FAILURE}
+            else FailureSource.CORE
+        )
+        return {
+            "final_outcome": _failure_outcome(
+                decision.status,
+                decision.failure_code,
+                source,
             )
         }
     if isinstance(decision, ActionSelectionDecision):

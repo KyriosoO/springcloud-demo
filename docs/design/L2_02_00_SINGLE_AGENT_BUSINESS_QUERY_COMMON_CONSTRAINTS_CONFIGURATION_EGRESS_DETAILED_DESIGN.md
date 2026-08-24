@@ -11,7 +11,7 @@
 | 更新日期 | 2026-08-24 |
 | 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
 | 协作设计 | `L2_00_01` v1.5、`L2_00_02` v1.5、Employee L2 v1.4、Transaction L2 v1.4 |
-| 实施状态 | 公共 QueryPlan 合同与 Employee/Transaction definition/config/protected-ref non-live 实现已完成；生产组合根已有 non-live 候选，双域 E2E 尚未完成 |
+| 实施状态 | 公共 QueryPlan 合同、Employee/Transaction definition/config/protected-ref 与生产组合根唯一分支的 non-live 实现及代码复核已完成；双域系统 E2E 尚未完成 |
 
 ## 2. 修改历史、设计目标与范围外
 
@@ -44,7 +44,7 @@
 - `agent-runtime/src/agent_runtime/business/handler.py`、`http_client.py`、`result_mapping.py`、`egress.py`；
 - Employee/Transaction definition 已移除有效 `local_action_resolver`，并已具备强类型 QueryPlan 字段/配置。
 
-当前剩余差距：公共 QueryPlan/config/decoder/validator/binder 和两域 definition/config 已实现；Runtime 唯一分支已有 non-live 候选，仍待最终复核、系统 E2E 和受控 live 验证。
+当前剩余差距：公共 QueryPlan/config/decoder/validator/binder、两域 definition/config 与 Runtime 唯一分支已完成 non-live 实现及复核；仍待系统 E2E 和受控 live 验证。
 
 ## 4. 模块职责、代码绑定定义与接口契约设计
 
@@ -333,7 +333,7 @@ model facts = code model-candidate ∩ config model fields
 
 ## 15. 当前差距与门禁
 
-`IMPL-BQCOM-001～005` 的公共 non-live 实现和 Employee/Transaction definition/config 已完成并通过定向、Business/域回归、strict mypy 和 compileall。Runtime 唯一分支已有候选实现，最终代码复核与跨模块 E2E 仍由后续工作包承接；真实模型/业务 UAT 继续受独立门禁约束。
+`IMPL-BQCOM-001～005` 的公共 non-live 实现、Employee/Transaction definition/config 和 Runtime 唯一分支已完成并通过定向、Business/域回归、strict mypy、compileall 与代码对照设计复核。跨模块 E2E 仍由后续工作包承接；真实模型/业务 UAT 继续受独立门禁约束。
 
 ## 16. 评审记录
 

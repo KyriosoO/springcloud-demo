@@ -11,7 +11,13 @@ from agent_runtime.capability_api.action_resolution import LocalActionResolver
 from agent_runtime.capability_api.contracts import CapabilityDescriptor, CapabilityRegistrationProvider
 from agent_runtime.core.execution import CapabilityExecutionCore
 from agent_runtime.core.registry import CapabilityRegistryBuilder
+from agent_runtime.business.query_plan import (
+    DefaultBusinessQueryPlanValidator,
+    ExactBusinessQueryPlanDecoder,
+    RequestProtectedValueBinder,
+)
 from agent_runtime.graph.nodes import (
+    ActionSelectionNode,
     AnswerGenerationNode,
     execute_capability_node,
     finalize_without_model,
@@ -24,6 +30,12 @@ from agent_runtime.graph.action_resolution import (
     CapabilitySelectionNode,
     HybridActionSelectionNode,
     is_exact_empty_execution_schema,
+)
+from agent_runtime.graph.business_query_planning import (
+    BusinessAwareActionSelectionNode,
+    BusinessQueryPlanningNode,
+    BusinessQueryPlanRuntimeBindings,
+    validate_business_query_plan_composition,
 )
 from agent_runtime.graph.state import AgentInputState, AgentOutputState, AgentRequestState, GraphRunContext
 from agent_runtime.runtime import AgentRuntimeInvoker
@@ -72,6 +84,7 @@ class RuntimeCompositionRoot:
         capability_selector: CapabilitySelectionNode,
         answer_generator: AnswerGenerationNode,
         local_action_resolvers: Sequence[LocalActionResolver] = (),
+        business_query_plan: BusinessQueryPlanRuntimeBindings | None = None,
     ) -> AgentRuntimeInvoker:
         candidates = tuple(
             candidate
@@ -80,15 +93,46 @@ class RuntimeCompositionRoot:
         )
         registry = CapabilityRegistryBuilder(settings).build(candidates)
         descriptors = registry.descriptors()
+        business_action_ids = (
+            validate_business_query_plan_composition(
+                registry=registry,
+                bindings=business_query_plan,
+            )
+            if business_query_plan is not None
+            else ()
+        )
+        fallback_descriptors = tuple(
+            descriptor
+            for descriptor in descriptors
+            if descriptor.capability_id not in business_action_ids
+        )
         resolvers = _validate_local_action_resolvers(
-            descriptors=descriptors,
+            descriptors=fallback_descriptors,
             resolvers=local_action_resolvers,
         )
-        action_selector = HybridActionSelectionNode(
-            descriptors=descriptors,
+        fallback_selector = HybridActionSelectionNode(
+            descriptors=fallback_descriptors,
             resolvers=resolvers,
             capability_selector=capability_selector,
         )
+        action_selector: ActionSelectionNode = fallback_selector
+        if business_query_plan is not None:
+            action_selector = BusinessAwareActionSelectionNode(
+                all_descriptors=descriptors,
+                fallback_descriptors=fallback_descriptors,
+                fallback_selector=fallback_selector,
+                planning_node=BusinessQueryPlanningNode(
+                    generator=business_query_plan.generator,
+                    decoder=ExactBusinessQueryPlanDecoder(),
+                    validator=DefaultBusinessQueryPlanValidator(
+                        business_query_plan.definitions
+                    ),
+                    binder=RequestProtectedValueBinder(),
+                    registry=registry,
+                    planner_catalog=business_query_plan.planner_catalog,
+                ),
+                bindings=business_query_plan,
+            )
         core = CapabilityExecutionCore(registry, settings)
 
         graph = StateGraph(

@@ -5,7 +5,7 @@ import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence, TypeAlias
+from typing import Any, Mapping, Protocol, Sequence, TypeAlias
 
 from agent_runtime.capability_api.contracts import (
     ActionCandidate,
@@ -118,6 +118,29 @@ class UnsupportedBusinessQueryPlan:
 BusinessQueryPlanValidationResult: TypeAlias = (
     ValidatedBusinessQueryPlan | UnsupportedBusinessQueryPlan
 )
+
+
+class BusinessQueryPlanDecoder(Protocol):
+    def decode(self, payload: JsonObject) -> BusinessQueryPlan: ...
+
+
+class BusinessQueryPlanValidator(Protocol):
+    def validate(
+        self,
+        plan: BusinessQueryPlan,
+        *,
+        snapshot: BusinessConfigurationSnapshot,
+    ) -> BusinessQueryPlanValidationResult: ...
+
+
+class ProtectedValueBinder(Protocol):
+    def bind(
+        self,
+        plan: ValidatedBusinessQueryPlan,
+        *,
+        slots: ProtectedValueSlots,
+        request_id: str,
+    ) -> ActionCandidate: ...
 
 
 class ExactBusinessQueryPlanDecoder:

@@ -101,3 +101,19 @@ def test_normalization_is_nfc_and_deterministic() -> None:
     assert first.disposition is QuestionEgressDisposition.ALLOWED
     assert first.minimized_question is not None
     assert "é" in first.minimized_question
+
+
+@pytest.mark.parametrize(
+    "question",
+    (
+        "查询员工\x00详情",
+        "查询交易" + "x" * 4096,
+    ),
+)
+def test_business_anchor_routes_to_business_before_input_validation(question: str) -> None:
+    guard = QuestionEgressGuard()
+
+    assert guard.is_business_question(question)
+    decision = guard.evaluate_business(question)
+    assert decision.disposition is QuestionEgressDisposition.DENIED
+    assert decision.reason_code is QuestionEgressReasonCode.INVALID_QUESTION

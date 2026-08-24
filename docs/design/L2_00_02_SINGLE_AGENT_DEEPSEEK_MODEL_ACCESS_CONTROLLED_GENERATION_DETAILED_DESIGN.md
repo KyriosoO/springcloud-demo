@@ -12,7 +12,7 @@
 | 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
 | 协作设计 | `L2_00_01` v1.5、`L2_02_00` v1.6 |
 | Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder 和 fake transport 测试已实现；生产 Business 组合根已有 non-live 候选，真实模型验证尚未实施 |
+| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder、fake transport 及生产 Business non-live 组合根已实现；真实模型验证尚未实施 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -30,7 +30,7 @@
 
 上位约束来源是 L1_00 v1.2 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
 
-当前实现基线已包含 transport/gateway、历史 action selector、answer task，以及新增的 QueryPlan task/generator/provider decoder 和 Business 输入保护接缝；catalog 由 Business common 构造，production wiring 仍由 Runtime 工作包承接。
+当前实现基线已包含 transport/gateway、历史 action selector、answer task，以及新增的 QueryPlan task/generator/provider decoder 和 Business 输入保护接缝；catalog 由 Business common 构造，QueryPlan generator 已在 Runtime Business 专用分支完成 non-live 装配。历史 action selector 仅保留给非 Business/历史验证，对 Employee/Transaction 生产组合不可达。
 
 ## 3. 模块职责、依赖方向与模型任务分类
 
@@ -288,7 +288,7 @@ class LocalModelCompositionRoot:
 
 ## 15. 当前差距与门禁
 
-`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01` 与两域 definition/config 已完成 non-live 实施：catalog、task、输入保护接缝、provider decoder 和 fake transport 验证已具备。生产组合根已有候选实现并待 Runtime 工作包最终复核；non-live E2E 与真实调用仍由后续工作包和独立门禁承接；旧 Action PoC 不自动关闭新 QueryPlan 门禁。
+`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config 与 Runtime Business 专用分支已完成 non-live 实施和代码复核：catalog、task、输入保护、provider decoder、失败关闭及组合根唯一性验证已具备。系统级 non-live E2E 与真实调用仍由后续工作包和独立门禁承接；旧 Action PoC 不自动关闭新 QueryPlan 门禁。
 
 ## 16. 评审记录
 

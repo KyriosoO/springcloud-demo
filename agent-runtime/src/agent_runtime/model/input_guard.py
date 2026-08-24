@@ -57,11 +57,18 @@ class QuestionEgressGuard:
             minimized_question=minimized,
         )
 
+    def is_business_question(self, question: str) -> bool:
+        return (
+            isinstance(question, str)
+            and bool(question)
+            and _BUSINESS_ANCHOR.search(question) is not None
+        )
+
     def evaluate_business(
         self,
         question: str,
         *,
-        protected_values: Mapping[str, str] | None = None,
+        protected_values: Mapping[str, object] | None = None,
     ) -> QuestionEgressDecision:
         if (
             not isinstance(question, str)

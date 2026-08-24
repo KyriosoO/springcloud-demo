@@ -7,7 +7,7 @@
 | 文档标识 | P3_00 |
 | 文档类型 | 设计驱动实施计划 |
 | 文档状态 | Reviewed |
-| 当前版本 | v1.25 |
+| 当前版本 | v1.26 |
 | 更新日期 | 2026-08-24 |
 | 目标计划路径 | Employee/Transaction LLM QueryPlan 唯一链路 |
 | 适用范围 | QueryPlan 合同、模型任务、两域定义、Runtime 切换、non-live/live 集成 |
@@ -29,6 +29,7 @@
 | 7 | 2026-08-24 | §3/5/9/12/14 | Runtime 实施发现 binder 当前请求签名、extractor/Guard 责任和共享分支描述不闭合 | v1.23；原子修订三份 L2，`WP-BQ-PLAN-RUNTIME-01` 转为 In Progress，待修订评审后恢复代码收口 |
 | 8 | 2026-08-24 | §5/12/13/14 | 独立复评发现 request cancellation 未显式进入 planning | v1.24；L2_00_01 v1.4 增加取消/迟到结果接缝，Runtime 保持 In Progress |
 | 9 | 2026-08-24 | §3/5/9/12/13/14 | 扩展回归发现旧 Business Local Resolver 测试与唯一链路冲突 | v1.25；区分历史 evidence 与过时可执行资产，增加范围受限清理活动，不改变7个目标工作包 DAG |
+| 10 | 2026-08-24 | §5/9/12/14/15 | Runtime 唯一分支、取消/迟到失败关闭、生产 Resolver 拒绝及专属旧旁路清理验证成立 | v1.26；完成 `WP-BQ-PLAN-RUNTIME-01`，`WP-BQ-QUERYPLAN-NONLIVE-E2E-01` 转为 Ready |
 
 ## 3. 来源清单与当前基线
 
@@ -76,13 +77,13 @@
 | `WP-BQ-MODEL-QUERYPLAN-01` | `business-query-plan-v1` 本地任务 | `L2_00_02 IMPL-MODEL-001～006` | task/prompt/catalog wire/provider response exact JSON decoder/generator；fake transport、零密钥 | `WP-BQ-PLAN-CONTRACT-01` | - | model task 与 contract tests | 20项新契约测试、199项Model非live回归、strict mypy/compileall；代码对照设计无未关闭Major | 移除新task注册；保留既有tasks与默认stub | Done |
 | `WP-EMP-QUERYPLAN-01` | Employee detail QueryPlan | `L2_02_01 IMPL-EMP-001～006` | definition 去 Resolver、protected-ref config/provider、detail/unsupported tests；不改 Java API | `WP-BQ-PLAN-CONTRACT-01` | - | Employee plan definition/config/tests | 25项定向、442项相关非live通过/14项按授权跳过、Java授权/可见性7项通过、strict mypy/compileall；2项旧bootstrap仅因本地冻结JAR哈希漂移未计入 | 保持action disabled；回滚新组合装配，不恢复旧 Resolver；历史evidence不改 | Done |
 | `WP-TXN-QUERYPLAN-01` | Transaction search QueryPlan | `L2_02_02 IMPL-TXN-001～007` | definition 去 Resolver、field/operator/config、Decimal/page/sort；不改 Java DTO | `WP-BQ-PLAN-CONTRACT-01` | - | Transaction plan definition/config/tests | 代码评审修复文本 literal 下游 strip 风险后，112项定向、226项Transaction非live通过/5项live按门禁跳过、243项Business/Model回归、Java授权/Decimal 25项通过、strict mypy/compileall；3项冻结历史环境测试不计入且资产未改 | Transaction action disabled；不改DB | Done |
-| `WP-BQ-PLAN-RUNTIME-01` | Runtime 唯一链路切换 | `L2_00_01 IMPL-CORE-001～008` | planning node、protected extractor 组合、request cancellation、plan→candidate、ModelContext、composition切断Resolver/ID-only Business路径 | `WP-BQ-MODEL-QUERYPLAN-01`,`WP-EMP-QUERYPLAN-01`,`WP-TXN-QUERYPLAN-01` | - | Runtime对象图、启动校验、测试 | 当前候选已通过59项直接测试、75项既有组合回归及strict mypy/compileall；待取消接缝实现、全量相关回归和最终代码复核 | 两域 disabled；不恢复旁路为目标配置 | In Progress |
-| `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | fake 双域系统闭环 | 全部五份L2测试约束 | Spring→Runtime→fake model→fake domain；成功/非法/失败/unsupported/JWT/单动作 | `WP-BQ-PLAN-RUNTIME-01` | - | non-live E2E与零旁路证据 | 全量non-live、mypy、compileall、Java contract | 新链路 disabled | Blocked |
+| `WP-BQ-PLAN-RUNTIME-01` | Runtime 唯一链路切换 | `L2_00_01 IMPL-CORE-001～008` | planning node、protected extractor 组合、request cancellation、plan→candidate、ModelContext、composition切断Resolver/ID-only Business路径 | `WP-BQ-MODEL-QUERYPLAN-01`,`WP-EMP-QUERYPLAN-01`,`WP-TXN-QUERYPLAN-01` | - | Runtime对象图、启动校验、测试 | 64项直接回归、452项相关回归、strict mypy/compileall；独立代码复核修复1个固定失败码 Minor 后复评无 Blocker/Major/Minor | 两域 disabled；不恢复旁路为目标配置 | Done |
+| `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | fake 双域系统闭环 | 全部五份L2测试约束 | Spring→Runtime→fake model→fake domain；成功/非法/失败/unsupported/JWT/单动作 | `WP-BQ-PLAN-RUNTIME-01` | - | non-live E2E与零旁路证据 | 全量non-live、mypy、compileall、Java contract | 新链路 disabled | Ready |
 | `WP-BQ-QUERYPLAN-LIVE-01` | 真实模型与业务服务集成 | `REQ_00 §12`; UAT前置 | 冻结非敏感case、真实DeepSeek plan、Employee detail/Transaction search、权限/计数/零泄漏 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | `GATE-065` | append-only有限evidence与集成结论 | manifest/schema/预算/权限/跨语言/日志，关闭`GATE-066` | 停隔离进程、恢复disabled | Blocked |
 
 ### 5.1 范围受限清理活动（不新增工作包或依赖边）
 
-`CLN-BQP-001` 随 `WP-BQ-PLAN-RUNTIME-01` 收口执行：删除 Employee/Transaction 专属 `action_resolver.py` 及只验证旧旁路的单元/集成测试，并从 `run-structured-query-uat.ps1` 移除旧旁路测试入口；生产 `BusinessSupportFactory` 拒绝非空 resolver 并固定 support resolver 集为空。`BusinessActionDefinition` legacy 字段和底层 validator 因冻结历史 Employee egress harness 复验保留；`BusinessSupportSnapshot.local_action_resolvers` 等 system E2E 解除空元组调用后再删除。删除前后必须执行引用扫描、共享组件核实、Knowledge/Core/Business/双域回归和 Git 删除范围复核。
+`CLN-BQP-001` 第一阶段已随 `WP-BQ-PLAN-RUNTIME-01` 完成：删除 Employee/Transaction 专属 `action_resolver.py` 及只验证旧旁路的单元/集成测试，并从 `run-structured-query-uat.ps1` 移除旧旁路测试入口；生产 `BusinessSupportFactory` 拒绝非空 resolver 并固定 support resolver 集为空。`BusinessActionDefinition` legacy 字段和底层 validator 因冻结历史 Employee egress harness 复验保留；`BusinessSupportSnapshot.local_action_resolvers` 等 system E2E 解除空元组调用后再删除。引用扫描为零，历史 harness、Core/Business/双域回归和 Git 删除范围复核已通过。
 
 必须保留通用 capability/graph resolver 合同及仍由非 Business 使用的实现；必须保留全部冻结 manifest、authorization、evidence、hash、审计记录和旧 UAT fixture。旧 UAT fixture 不再执行为本版本测试。清理不得改变公共 HTTP、业务 DTO、数据库、权限或历史文件字节。
 
@@ -133,15 +134,15 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 | 顺序 | 工作包 | 判定 | 未关闭依赖/门禁 | 选择理由 |
 |---:|---|---|---|---|
-| 1 | `WP-BQ-PLAN-RUNTIME-01` | In Progress | L2_00_01 v1.5、L2_00_02 v1.5、L2_02_00 v1.6 聚焦复评与 `CLN-BQP-001` | 候选实现已形成；先关闭清理设计评审和旧旁路测试冲突，再完成代码收口 |
-| 2 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | Blocked | runtime包 | 证明无旁路后才可live |
-| 3 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | non-live包、`GATE-065` | 真实资源后置 |
+| 1 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | Ready | 无 | Runtime 唯一对象图已完成，下一步证明跨模块闭环和零旁路 |
+| 2 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | non-live包、`GATE-065` | 真实资源后置 |
+| 3 | `WP-BQ-PLAN-RUNTIME-01` | Done | 无 | planning 顺序、取消/迟到、组合根、Resolver 隔离与清理已验证 |
 | 4 | `WP-BQ-PLAN-CONTRACT-01` | Done | 无 | 公共合同、配置、binder 和 catalog 已验证 |
 | 5 | `WP-BQ-MODEL-QUERYPLAN-01` | Done | 无 | QueryPlan task、输入保护、decoder/generator 与 fake transport 已验证 |
 | 6 | `WP-EMP-QUERYPLAN-01` | Done | 无 | protected-ref、definition/config、固定GET及Java授权回归已验证 |
 | 7 | `WP-TXN-QUERYPLAN-01` | Done | 无 | 8字段配置、protected-ref、Decimal/page/sort及固定POST合同已验证 |
 
-本表只描述当前推进顺序，不构成新的依赖边。当前先完成 Runtime 工作包的设计复评，再继续代码收口。
+本表只描述当前推进顺序，不构成新的依赖边。当前进入 fake 双域系统闭环。
 
 ## 10. 实施交接
 
@@ -173,8 +174,8 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | `WP-BQ-MODEL-QUERYPLAN-01` | `DR-MODEL-016～021` | `IMPL-MODEL-001～006` | `TEST-MODEL-001～008` | `VAL-MODEL-001～003` | Done |
 | `WP-EMP-QUERYPLAN-01` | `DR-EMP-013～017` | `IMPL-EMP-001～006` | `TEST-EMP-001～012` | `VAL-EMP-001～003` | Done |
 | `WP-TXN-QUERYPLAN-01` | `DR-TXN-013～018` | `IMPL-TXN-001～007` | `TEST-TXN-001～012` | `VAL-TXN-001～003` | Done |
-| `WP-BQ-PLAN-RUNTIME-01` | `DR-CORE-012～016` | `IMPL-CORE-001～008` | `TEST-CORE-001～009` | `VAL-CORE-001～003` | In Progress |
-| `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | 全部L2 non-live约束 | 各包组合根/测试 | 全量non-live | 跨层验证 | Blocked |
+| `WP-BQ-PLAN-RUNTIME-01` | `DR-CORE-012～016` | `IMPL-CORE-001～008` | `TEST-CORE-001～009` | `VAL-CORE-001～003` | Done |
+| `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | 全部L2 non-live约束 | 各包组合根/测试 | 全量non-live | 跨层验证 | Ready |
 | `WP-BQ-QUERYPLAN-LIVE-01` | `REQ_00 §12`; UAT_00 | opt-in launcher/evidence | live matrix | `GATE-066` | Blocked |
 
 ## 13. 自检记录
@@ -194,16 +195,16 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 ## 14. 当前结论
 
-- Ready 工作包：0。
-- Blocked 工作包：2（non-live E2E、live）。
-- In Progress 工作包：1（`WP-BQ-PLAN-RUNTIME-01`）。
-- Done 工作包：4（`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`）。
+- Ready 工作包：1（`WP-BQ-QUERYPLAN-NONLIVE-E2E-01`）。
+- Blocked 工作包：1（`WP-BQ-QUERYPLAN-LIVE-01`）。
+- In Progress 工作包：0。
+- Done 工作包：5（`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`、`WP-BQ-PLAN-RUNTIME-01`）。
 - Deferred 工作包：0。
 - 关键开放门禁：P3 `GATE-065/066`；`GATE-064` 已关闭；UAT 另有 `GATE-UAT-006`。
-- 推荐下一步：完成 L2 v1.3/v1.5 聚焦独立复评后，继续收口 `WP-BQ-PLAN-RUNTIME-01`。
+- 推荐下一步：实施 `WP-BQ-QUERYPLAN-NONLIVE-E2E-01`，完成 Spring→Runtime→fake model→fake domain 双域闭环与零旁路证据。
 - 当前不得执行真实 LLM、业务服务调用或 Employee/Transaction 成功 UAT。
 - Employee 地点/职位筛选保持 `unsupported`：现有通用 ES 搜索的字段能力已确认，但最终角色授权与受限响应契约未满足，不属于本计划。
 
 ## 15. 评审记录
 
-原 v1.18 三轮作者内审及独立评审已通过。v1.25 清理修订另执行三轮内审与三轮独立复评：R1 关闭冻结历史 harness legacy 字段误删 Major，R2 关闭旧 UAT launcher 可执行旁路及实现落点缺口，R3 无 Blocker/Major/Minor。Reviewed 仅表示计划可执行，不表示 live 门禁关闭。
+原 v1.18 三轮作者内审及独立评审已通过。v1.25 清理修订另执行三轮内审与三轮独立复评：R1 关闭冻结历史 harness legacy 字段误删 Major，R2 关闭旧 UAT launcher 可执行旁路及实现落点缺口，R3 无 Blocker/Major/Minor。Runtime 代码对照设计复核 R1 发现 binder 失败固定 code 不一致 Minor，最小修复并补测试后 R2 无 Blocker/Major/Minor。Reviewed/Done 均不表示 live 门禁关闭。
