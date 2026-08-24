@@ -9,16 +9,16 @@
 |---|---|
 | 文档编号 | L1_02 |
 | 文档层级 | L1 |
-| 当前版本 | v1.1 |
+| 当前版本 | v1.2 |
 | 更新日期 | 2026-08-24 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.1 |
-| 协作文档 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.1 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.2 |
+| 协作文档 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
 | 权威范围 | Business QueryPlan 公共约束、每域每动作配置、Employee/Transaction Adapter、业务 Provider、结果与模型出域 |
-| 实施状态 | 两域 Adapter/Provider/授权已有证据；LLM QueryPlan、完整配置和生产切换尚未实现 |
+| 实施状态 | 两域 QueryPlan definition/config/Adapter/授权和 Runtime non-live 候选已有实现；system E2E/live 尚未完成，专属旧 Resolver 资产待清理 |
 
 ## 2. 变更记录与接口核实
 
-v1.1 将两域的目标动作解析从本地 Resolver 改为 LLM QueryPlan。当前 Resolver 代码和历史验证不删除，但必须在后续生产组合根中不可达。
+v1.1 将两域的目标动作解析从本地 Resolver 改为 LLM QueryPlan。v1.2 校正保留边界：冻结历史 manifest/evidence/hash 及其复验必需的兼容类型不删除，但生产 `BusinessSupportFactory` 拒绝非空 Resolver；Employee/Transaction 专属 Resolver 源码和只验证旧旁路的可执行测试，经调用方、共享组件和回归核实后删除，不作为回滚机制保留。
 
 只读核实结果：
 
@@ -227,14 +227,12 @@ effective model result = code model fields ∩ config model fields ∩ classific
 
 ## 15. 当前差距与实施顺序
 
-1. 实现 Business QueryPlan 公共合同、配置和启动 validator；
-2. 实现模型 `business-query-plan-v1` task 与 provider response exact JSON decoder；
-3. 切换 Runtime 组合根，使 Business Resolver/ID-only selector 不可达；
-4. 实现 Employee protected-ref 计划映射和 Transaction typed 计划映射；
-5. 完成非 live 负向/组合根验证；
-6. 经单独授权执行真实模型 + 真实业务服务 UAT。
+1. 公共合同、模型 task、两域 definition/config 与 Runtime non-live 分支已实现；
+2. 清理 Employee/Transaction 专属 Resolver 兼容字段、源码和旧旁路测试；
+3. 完成 system entry 双域 non-live 负向/组合根验证；
+4. 经单独授权执行真实模型 + 真实业务服务 UAT。
 
-当前两域 Adapter 和业务 guard 的历史证据可复用，但不能证明第 1～4 项已完成。
+当前两域 Adapter 和业务 guard 的既有证据可复用，但不能证明 system E2E 或 live 已完成。
 
 ## 16. 风险与关键架构决策
 
@@ -267,6 +265,10 @@ effective model result = code model fields ∩ config model fields ∩ classific
 | 内审2 | unsupported、业务最终授权与失败关闭 | 闭合 unsupported 与 `401/403/no_result` 边界，修复后通过 |
 | 内审3 | 只读接口复核、能力扩张与 DAG | 核实 Employee ES 字段能力及授权/响应缺口；保持不纳入，修复后通过 |
 | 独立评审 R1～R3 | 分层与跨层一致性 | provider/payload decoder、Employee ES 复用条件及 unsupported 上位合同均闭合；R3 无发现，通过 |
+| v1.2 内审1 | Adapter/Resolver 职责 | 专属 Resolver 源码/旧旁路测试删除，不触及 Adapter/服务合同 | 修复后通过 |
+| v1.2 内审2 | 历史 manifest 与兼容调用 | 冻结 harness 所需字段保留，生产 support 禁止非空 Resolver | 修复后通过 |
+| v1.2 内审3 | 两域隔离、版本与 DAG | 无跨域/Knowledge 回退，无新 API/DTO/DB/权限 | 通过 |
+| v1.2 独立评审 R1～R3 | 两域清理、历史证据与接口边界 | 修正兼容字段与 launcher 范围后，R3 无发现 | 通过 |
 
 评审通过不代表 QueryPlan 代码或 UAT 已完成。
 

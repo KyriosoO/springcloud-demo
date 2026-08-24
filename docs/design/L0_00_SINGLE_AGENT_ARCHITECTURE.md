@@ -9,20 +9,21 @@
 |---|---|
 | 文档编号 | L0_00 |
 | 文档层级 | L0 |
-| 当前版本 | v1.1 |
+| 当前版本 | v1.2 |
 | 更新日期 | 2026-08-24 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.4 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.5 |
 | 架构范围 | 单体 Agent 接入、编排、Knowledge 与 Employee/Transaction 查询、权限和模型边界 |
-| 实施状态 | 既有 Access/Core/Adapter/Provider 有实现证据；Employee/Transaction LLM QueryPlan 目标链路尚未实现，未形成目标环境生效结论 |
+| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config 与 Runtime non-live 候选已有实现证据；system entry、双域 E2E 和真实环境结论尚未完成 |
 
 ## 2. 来源与变更记录
 
-本文来源于 REQ_00 v1.4 及 v1.0 架构基线。v1.1 将 Employee/Transaction 的权威路径由“本地 Resolver 生成参数、模型只选 ID”改为“LLM 生成逻辑 QueryPlan、本地严格校验和绑定”。历史代码与证据不改写；旧路径作为当前实现差距处理，不再是目标架构。
+本文来源于 REQ_00 v1.5 及 v1.0 架构基线。v1.1 将 Employee/Transaction 的权威路径由“本地 Resolver 生成参数、模型只选 ID”改为“LLM 生成逻辑 QueryPlan、本地严格校验和绑定”。历史 append-only 证据不改写；其复验所需兼容类型只能保留为生产不可达接缝。无调用方、无审计价值的旧可执行路径不属于历史证据，应在引用和回归核实后清理。
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-08-21 | 建立当前文档基线 |
 | v1.1 | 2026-08-24 | 确立 Employee/Transaction LLM QueryPlan 唯一链路、强类型配置和接口缺口失败关闭 |
+| v1.2 | 2026-08-24 | 区分历史不可变证据与过时可执行资产，允许最小清理无调用方 Business Resolver 代码/测试 |
 
 ## 3. 目标、范围与非目标
 
@@ -200,17 +201,16 @@ Business QueryPlan 顶层只包含 `domain`、`action`、`arguments`。它是模
 ### 13.1 已有事实
 
 - Access、Core、能力注册、模型 transport、Business Adapter、JWT 透传、业务服务授权守卫和受控只读接口已有不同层级的实现/验证证据。
-- 当前代码仍存在 Business 本地 Resolver 与 ID-only model selector；这些只是现状，不满足 v1.1 目标。
+- QueryPlan 公共合同、模型任务、两域 definition/config 与 Runtime non-live 候选已有实现；共享 ID-only selector 仍服务非 Business，Employee/Transaction 专属旧 Resolver 资产待按 v1.2 边界清理。
 - `employee.detail`、`transaction.search` 可复用。Employee 通用 ES 搜索具有字段筛选能力，但缺少本架构要求的业务角色最终授权与受限响应契约，不能作为当前 Agent 动作。
 
 ### 13.2 未完成目标
 
-- Business QueryPlan exact schema、模型任务、输入 slot、配置和启动一致性；
-- LangGraph 生产组合根切换并删除/禁用 Business Resolver 旁路；
-- 两域 QueryPlan 映射与失败关闭；
-- 真实 LLM QueryPlan 集成测试和 UAT。
+- system entry 的 QueryPlan 组合装配与双域 non-live E2E；
+- 经引用核实删除 Employee/Transaction 专属旧 Resolver 代码/测试；
+- 受控真实 LLM + 业务服务集成和 UAT。
 
-这些差距由 P3_00 v1.18 新工作包和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
+这些差距由 P3_00 v1.25 工作包、清理活动和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
 
 ## 14. 风险与控制
 
@@ -243,6 +243,10 @@ Business QueryPlan 顶层只包含 `domain`、`action`、`arguments`。它是模
 | 内审2 | 失败语义与 unsupported | 统一 `unauthenticated`，闭合 unsupported 终态 | 修复后通过 |
 | 内审3 | 业务接口、安全与无环性 | 将 Employee 搜索结论修正为“有技术能力但不满足最终授权/受限契约” | 修复后通过 |
 | 独立评审 R1～R3 | 分层与跨层一致性 | 依次关闭 decoder 所有权、文本 literal 安全、上位 unsupported 合同三项跨层问题；R3 无发现 | 通过 |
+| v1.2 内审1 | 唯一链路与清理职责 | 明确旧可执行旁路不属于架构回滚资产 | 修复后通过 |
+| v1.2 内审2 | 历史证据和兼容风险 | 保留冻结 harness 复验所需类型，生产工厂拒绝非空绑定 | 修复后通过 |
+| v1.2 内审3 | 跨层版本、DAG与最小性 | 清理活动不扩大动作/API/DB/权限且不新增依赖边 | 通过 |
+| v1.2 独立评审 R1～R3 | 证据不可变、生产隔离、跨层一致性 | 历史复验兼容与生产拒绝边界修复后，R3 无发现 | 通过 |
 
 评审通过只代表设计一致、可实施，不代表代码已实现或环境已生效。
 

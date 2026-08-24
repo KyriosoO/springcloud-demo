@@ -7,11 +7,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_00 |
-| 当前版本 | v1.4 |
+| 当前版本 | v1.6 |
 | 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 协作设计 | `L2_00_01` v1.2、`L2_00_02` v1.3、Employee L2 v1.3、Transaction L2 v1.3 |
-| 实施状态 | 公共 QueryPlan 合同与 Employee/Transaction definition/config/protected-ref non-live 实现已完成；生产组合根切换和双域 E2E 尚未完成 |
+| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
+| 协作设计 | `L2_00_01` v1.5、`L2_00_02` v1.5、Employee L2 v1.4、Transaction L2 v1.4 |
+| 实施状态 | 公共 QueryPlan 合同与 Employee/Transaction definition/config/protected-ref non-live 实现已完成；生产组合根已有 non-live 候选，双域 E2E 尚未完成 |
 
 ## 2. 修改历史、设计目标与范围外
 
@@ -21,6 +21,8 @@
 | v1.2 | 2026-08-24 | 新增 QueryPlan/typed input config/slot binder，移除 Business definition 的 Resolver 目标绑定 |
 | v1.3 | 2026-08-24 | 同步 `WP-BQ-PLAN-CONTRACT-01` non-live 实施证据；域配置与生产唯一链路仍由后续工作包承接 |
 | v1.4 | 2026-08-24 | 同步两域 QueryPlan definition/config 完成状态；修正字段子集关闭时 Decimal/排序上界校验，并以拒绝首尾空格/非 NFC 防止文本 literal 在下游被规范化 |
+| v1.5 | 2026-08-24 | 闭合 binder 当前请求绑定签名，移除无职责的 definitions 入参；同步两域与 Runtime 候选实现基线 |
+| v1.6 | 2026-08-24 | 收紧旧 Business Resolver 保留边界：保留冻结历史 harness 必需兼容类型，生产工厂拒绝非空绑定；删除无调用方专属实现 |
 
 本文详细定义两域共享的：
 
@@ -31,7 +33,7 @@
 
 本文不负责且不修改公共 Core/HTTP、业务服务 DTO、数据库、角色范围或 endpoint 路径；不实现自然语言本地 Resolver、SQL/ES DSL 或动态工具协议。
 
-上位约束来源是 L1_02 v1.1 的 QueryPlan/config/Adapter 所有权。关联责任边界：common 负责 plan/config/binder，模型 L2 负责 provider decode，域 L2 负责字段/codec，Core 只执行候选。`CON-BQCOM-001`：依赖方向固定为 Model→Business validation→Core→Domain Handler，禁止绕过或反向依赖。
+上位约束来源是 L1_02 v1.2 的 QueryPlan/config/Adapter 所有权。关联责任边界：common 负责 plan/config/binder，模型 L2 负责 provider decode，域 L2 负责字段/codec，Core 只执行候选。`CON-BQCOM-001`：依赖方向固定为 Model→Business validation→Core→Domain Handler，禁止绕过或反向依赖。
 
 ## 3. 当前实现基线与目标差距
 
@@ -40,9 +42,9 @@
 - `agent-runtime/src/agent_runtime/business/contracts.py`：`BusinessActionDefinition`、字段/结果/HTTP 类型；
 - `agent-runtime/src/agent_runtime/business/settings.py`：动作设置、字段投影、service binding 和 snapshot；
 - `agent-runtime/src/agent_runtime/business/handler.py`、`http_client.py`、`result_mapping.py`、`egress.py`；
-- 两域 definition 当前强制包含 `local_action_resolver`。
+- Employee/Transaction definition 已移除有效 `local_action_resolver`，并已具备强类型 QueryPlan 字段/配置。
 
-当前剩余差距：公共 QueryPlan/config/decoder/validator/binder 已实现，但 Employee/Transaction definition 尚未切换到强类型字段配置且仍绑定 Local Resolver；生产组合根仍可走旧本地参数路径。
+当前剩余差距：公共 QueryPlan/config/decoder/validator/binder 和两域 definition/config 已实现；Runtime 唯一分支已有 non-live 候选，仍待最终复核、系统 E2E 和受控 live 验证。
 
 ## 4. 模块职责、代码绑定定义与接口契约设计
 
@@ -86,7 +88,7 @@ class BusinessActionDefinition(Generic[TInput, TWireRequest, TWireResponse, TRec
     answer_mode: BusinessAnswerMode
 ```
 
-删除目标 definition 对 `LocalActionResolver` 的强制属性；旧类文件可保留历史兼容，但 Employee/Transaction definition 和组合根不得引用。
+`BusinessActionDefinition.local_action_resolver` 与底层 legacy validator 仅为冻结历史 harness 复验保留；生产 `BusinessSupportFactory.build(...)` 遇到任一非空 Resolver 必须 readiness 失败，不得收集为目标 support。Employee/Transaction 专属 resolver 类/旧旁路测试在无调用方核实后删除。`BusinessSupportSnapshot.local_action_resolvers` 当前仅有 system E2E 空元组调用方，先固定为空，待 E2E 改为 QueryPlan bindings 后再删除。共享 capability/graph resolver 合同继续服务非 Business。
 
 ### 4.2 有限枚举
 
@@ -138,11 +140,15 @@ class BusinessCombinationRuleKind(StrEnum):
 
 ```python
 class DefaultBusinessQueryPlanValidator:
+    def __init__(
+        self,
+        definitions: Sequence[BusinessActionDefinition[Any, Any, Any, Any]],
+    ) -> None: ...
+
     def validate(
         self,
         plan: BusinessQueryPlan,
         *,
-        definitions: Mapping[str, BusinessActionDefinition[Any, Any, Any, Any]],
         snapshot: BusinessConfigurationSnapshot,
     ) -> BusinessQueryPlanValidationResult: ...
 ```
@@ -170,13 +176,13 @@ class RequestProtectedValueBinder:
         plan: ValidatedBusinessQueryPlan,
         *,
         slots: ProtectedValueSlots,
-        definitions: Mapping[str, BusinessActionDefinition[Any, Any, Any, Any]],
+        request_id: str,
     ) -> ActionCandidate: ...
 ```
 
 规则：
 
-- `slots.request_id` 必须等于当前请求；
+- `slots.request_id` 必须等于显式传入的当前 `request_id`；binder 不从 plan、日志或全局状态推断请求身份；
 - ref 必须存在一次，值类别/目标类型匹配，且未被未授权字段复用；
 - binder 只把 QueryPlan logical key 映射为同名既有 argument key，并恢复 value；
 - binder 不读取 original question、不解析文本、不调用模型或服务；
@@ -293,6 +299,8 @@ model facts = code model-candidate ∩ config model fields
 | `IMPL-BQCOM-005` | `agent-runtime/src/agent_runtime/business/provider.py` | 修改 | 提供 definitions/snapshot/planning bindings |
 | `IMPL-BQCOM-006` | `agent-runtime/src/agent_runtime/business/handler.py` | 最小修改/回归 | 仅证明已验证 input 与单 Adapter，不接收 plan |
 | `IMPL-BQCOM-007` | `agent-runtime/src/agent_runtime/business/egress.py` | 回归 | 规划 catalog 与结果 facts 分离 |
+| `IMPL-BQCOM-008` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 建议新增（候选已实现） | 组合域级 protected extractor，不承担 domain/action 选择 |
+| `IMPL-BQCOM-009` | `agent-runtime/src/agent_runtime/business/provider.py` | 修改 | `BusinessSupportFactory.build(...)` 拒绝非空 legacy resolver；当前 support resolver 集固定为空 |
 
 ## 13. 测试与验证设计
 
@@ -310,6 +318,7 @@ model facts = code model-candidate ∩ config model fields
 | `TEST-BQCOM-010` | JWT 只进入 HTTP client，日志/模型为0 |
 | `TEST-BQCOM-011` | 启动唯一性与 Resolver/ID-only Business 可达性为0 |
 | `TEST-BQCOM-012` | 既有 Business handler/result/egress 回归 |
+| `TEST-BQCOM-013` | factory 对 legacy resolver readiness 失败；冻结 harness 可继续直接使用底层 validator；共享非 Business resolver 回归不变 |
 
 ## 14. 设计决策
 
@@ -324,7 +333,7 @@ model facts = code model-candidate ∩ config model fields
 
 ## 15. 当前差距与门禁
 
-`IMPL-BQCOM-001～005` 的公共 non-live 实现已由 `WP-BQ-PLAN-CONTRACT-01` 完成并通过定向、Business 回归、strict mypy 和 compileall。Employee/Transaction definition/config、Runtime 唯一链路和跨模块 E2E 仍由后续工作包承接；真实模型/业务 UAT 继续受独立门禁约束。
+`IMPL-BQCOM-001～005` 的公共 non-live 实现和 Employee/Transaction definition/config 已完成并通过定向、Business/域回归、strict mypy 和 compileall。Runtime 唯一分支已有候选实现，最终代码复核与跨模块 E2E 仍由后续工作包承接；真实模型/业务 UAT 继续受独立门禁约束。
 
 ## 16. 评审记录
 
@@ -334,6 +343,13 @@ model facts = code model-candidate ∩ config model fields
 | 内审2 | unsupported、slot 与 Core 隔离 | 增加 unsupported 终态 union，修复后通过 |
 | 内审3 | 配置子集、快照、出域与过度设计 | 确认静态有限配置、不引入 DSL/平台，通过 |
 | 独立评审 R1～R3 | L2 与跨层一致性 | 增加 payload decoder 和有限文本策略，闭合物理表达式值旁路；R3 无发现，通过 |
+| v1.5 内审1 | validator/binder 签名 | definitions 固定于 validator 构造；binder 显式接收当前 `request_id` |
+| v1.5 内审2 | extractor/Guard 与依赖方向 | extractor 只创建 request-local slot，不选择 domain/action；Model Guard 独立负责出域拒绝 |
+| v1.5 内审3 | 配置/安全/跨域与最小变更 | 保持静态有限配置、零新 API/DTO/DB/权限扩张，通过 |
+| v1.6 内审1 | definition/support 清理边界 | 专属实现删除；shared resolver 合同保留给非 Business |
+| v1.6 内审2 | 历史 harness 兼容 | 发现 legacy 字段受冻结 manifest 间接约束；保留字段/validator但生产 factory 拒绝绑定 |
+| v1.6 内审3 | snapshot、E2E 调用与过度设计 | 空 support 字段延后删除，避免扩大本轮影响；DAG 无新增边 |
+| v1.6 独立评审 R1～R3 | factory/legacy/harness 跨层兼容 | R1 修正 contract 字段误删，R2 补齐 factory 拒绝和测试落点，R3 无发现 |
 
 Approved 不表示当前配置或代码已完成本设计。
 

@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_02 |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.4 |
+| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
+| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.6 |
 | 业务接口 | `POST /txn/search` |
-| 实施状态 | Transaction QueryPlan definition/config/protected-ref、Resolver 切断及 non-live/Java 合同回归已完成；生产 Runtime 唯一链路与新 live 证据仍未完成 |
+| 实施状态 | Transaction QueryPlan definition/config/protected-ref、Runtime non-live 消费及 Java 合同回归已有证据；system E2E/live 尚未完成，专属旧 Resolver 资产待清理 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -21,10 +21,11 @@
 | v1.1 | 2026-08-21 | 既有 Transaction Adapter/Decimal/授权基线 |
 | v1.2 | 2026-08-24 | Transaction 目标改为 LLM search QueryPlan，保留精确金额和有限查询上界 |
 | v1.3 | 2026-08-24 | 同步 `WP-TXN-QUERYPLAN-01` 实施证据；固定 POST/Decimal/业务授权不变，Runtime/live 仍由后续工作包承接 |
+| v1.4 | 2026-08-24 | 明确删除无调用方的 Transaction 专属 Local Resolver 源码/测试，不修改 Decimal/POST、历史 evidence 或共享组件 |
 
 设计目标是只复用 `/txn/search` 完成 LLM 受限查询。范围外/不负责：Date、aggregate、detail、写入、管理、新 DTO、数据库结构和业务角色变更。
 
-上位约束来源是 L1_02 v1.1 与 L2_02_00 v1.2。关联责任边界：Transaction L2 负责 search definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权和 SQL。`CON-TXN-001`：禁止 Transaction Adapter 依赖模型、其他 endpoint、Employee/Knowledge 或数据库直连。
+上位约束来源是 L1_02 v1.2 与 L2_02_00 v1.6。关联责任边界：Transaction L2 负责 search definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权和 SQL。`CON-TXN-001`：禁止 Transaction Adapter 依赖模型、其他 endpoint、Employee/Knowledge 或数据库直连。
 
 ### 2.1 当前实现基线与只读接口核实
 
@@ -232,7 +233,8 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 |---|---|---|---|
 | `IMPL-TXN-001` | `agent-runtime/src/agent_runtime/adapters/transaction/definition.py` | 修改 | 去 Resolver；增加 query fields/rules/version ref |
 | `IMPL-TXN-002` | `agent-runtime/src/agent_runtime/adapters/transaction/settings.py` | 修改 | typed input config/Decimal/page/sort/snapshot |
-| `IMPL-TXN-003` | `agent-runtime/src/agent_runtime/adapters/transaction/action_resolver.py` | 保留历史/生产退役 | 目标组合根不可达 |
+| `IMPL-TXN-003` | `agent-runtime/src/agent_runtime/adapters/transaction/action_resolver.py` | 删除 | 专属旧旁路且无有效调用方；历史 evidence/hash 不删除 |
+| `IMPL-TXN-003A` | `agent-runtime/tests/unit/adapters/transaction/test_action_resolver.py` | 删除 | 仅验证已废弃专属实现，等价负向由 QueryPlan/组合根测试覆盖 |
 | `IMPL-TXN-004` | `agent-runtime/src/agent_runtime/adapters/transaction/codec.py` | 最小适配/回归 | plan unwrapped args 复用、wire 精度不变 |
 | `IMPL-TXN-005` | `agent-runtime/src/agent_runtime/adapters/transaction/provider.py` | 修改 | 注册无 Resolver definition/snapshot |
 | `IMPL-TXN-006` | `transaction-api/.../query/*` | 只读回归 | 不修改公开 DTO |
@@ -254,6 +256,7 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 | `TEST-TXN-010` | 仅 `/txn/search` 可达，其他 endpoint=0 |
 | `TEST-TXN-011` | model failure 无 Resolver/Employee/Knowledge fallback |
 | `TEST-TXN-012` | Python/Java DTO、数据库 precision/scale 兼容回归 |
+| `TEST-TXN-013` | 删除后引用扫描为0；旧 UAT launcher 不再选择 Resolver 测试；历史 manifest/hash 不变 |
 
 ## 13. 设计决策
 
@@ -268,7 +271,7 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 
 ## 14. 当前差距与门禁
 
-`WP-TXN-QUERYPLAN-01` 已完成：production definition 不再绑定 Resolver，8 个逻辑字段、4 条组合规则、配置版本/Decimal/page/sort 上界和 transaction ID protected-ref 已落地；既有 codec、POST endpoint、Java DTO 与业务 guard 未修改。生产 Runtime 切换、双域 non-live E2E 与新 live 证据仍由 P3 后续工作包承接，因此 Transaction LLM 成功 UAT 继续 Blocked。
+`WP-TXN-QUERYPLAN-01` 已完成，Runtime 候选已消费该 definition；8 个逻辑字段、4 条组合规则、配置版本/Decimal/page/sort 上界和 transaction ID protected-ref 已落地。专属旧 Resolver 源码/测试仍待 `CLN-BQP-001` 清理，system E2E 与新 live 证据仍由后续步骤承接。
 
 ## 15. 评审记录
 
@@ -278,6 +281,10 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 | 内审2 | 非法计划与失败关闭 | 明确不切域、不回退、不补参数，修复后通过 |
 | 内审3 | Java BigDecimal/DB `DECIMAL(50,2)`、endpoint 可达性与 DAG | 只读证据一致，无新增问题，通过 |
 | 独立评审 R1～R3 | L2 与跨层一致性 | 增加代码绑定安全文本策略，Decimal/分页/排序/Java合同保持不变；R3 无发现，通过 |
+| v1.4 内审1 | 专属 Resolver 调用方 | 仅旧单元/旁路测试引用，production definition 已为 None |
+| v1.4 内审2 | 历史证据与共享合同 | 专属实现文件不在冻结 manifest；shared resolver 与 evidence 保持 |
+| v1.4 内审3 | Decimal/POST/授权范围 | 清理不改金额、codec、Java DTO、endpoint、DB或角色 |
+| v1.4 独立评审 R1～R3 | Transaction 专属删除与跨语言稳定 | 确认 action_resolver 未被冻结 manifest 引用；R3 无发现 |
 
 Approved 与本节实施状态均不表示 Runtime 唯一链路已切换，也不表示 GATE-026 历史 evidence 可直接证明本目标。
 
@@ -287,7 +294,8 @@ QueryPlan、Decimal、JWT 和响应只存在于单请求生命周期，无持久
 
 | 项目 | 内容 |
 |---|---|
-| 是否可作为实现依据 | 是；IMPL-TXN-001～007 已完成代码对照设计复核，后续由 Runtime/E2E 工作包消费 |
+| 是否可作为实现依据 | 是 |
+| 实现说明 | IMPL-TXN-001～007 已完成代码对照设计复核，后续由 Runtime/E2E 工作包消费 |
 | 当前允许实施范围 | Transaction 域包已完成；继续按 P3 实施 Runtime 与 non-live E2E，真实调用仍受 `GATE-065` 控制 |
 | 当前禁止动作 | Date/aggregate/detail/write、新 DTO/DB/角色、float/舍入、真实调用、恢复 Resolver |
 

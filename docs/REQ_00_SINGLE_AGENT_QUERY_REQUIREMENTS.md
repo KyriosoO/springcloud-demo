@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v1.4 |
+| 当前版本 | v1.5 |
 | 状态 | 已确认 |
 | 更新日期 | 2026-08-24 |
 | 需求来源 | 用户确认的单体 Agent、知识查询、Employee/Transaction 结构化查询及 LLM QueryPlan 唯一链路 |
@@ -32,13 +32,9 @@ Employee 现有分页接口只接受 `page/size`。`POST /employees/es/search` �
 
 ### 3.2 当前实现差距
 
-当前代码仍以本地 Resolver 生成 Employee/Transaction 执行参数，并由模型只选择 capability ID。该实现是只读历史现状，不符合本版本目标。以下能力均尚未实现，不得标记为已完成：
+严格 `QueryPlan` 公共合同、模型任务、两域 definition/config 与 Runtime non-live 候选已形成；生产 system entry、双域 non-live E2E 和真实 LLM/业务 UAT 尚未完成。旧 Business Resolver/ID-only 运行证据只能说明历史路径，不得标记为本版本完成证据。
 
-- LLM 同时判定 `domain`、`action` 并生成 `arguments`；
-- Employee/Transaction 共用的严格 `QueryPlan` 契约；
-- 生产组合根对业务本地 Resolver 的切断；
-- 按域、按动作的完整查询字段配置与启动快照一致性校验；
-- 基于真实 LLM QueryPlan 的 Employee/Transaction UAT。
+历史 append-only manifest、authorization、evidence、hash 和审计记录必须保持不可变；被冻结 manifest 绑定且为历史 evidence 复验所必需的兼容类型可保留，但生产工厂/组合根必须拒绝或隔离其可执行绑定。仅服务于已废弃 Business Resolver 路径、经引用扫描确认无有效调用方且不承载历史复验职责的源文件与可执行测试，应在新链路覆盖等价验证后删除。不得把“保留历史证据”解释为保留生产替代链路。
 
 ## 4. 范围
 
@@ -254,9 +250,9 @@ Adapter 不负责问题理解、QueryPlan 生成、角色判定、SQL/DSL 生成
 ## 14. 待确认与阻断事项
 
 - Employee 按地点、职位等筛选存在技术搜索端点，但缺少本需求要求的 endpoint-scoped `ROLE_ADMIN/ROLE_VIEWER` 最终授权和稳定受限响应契约；当前保持 `unsupported`。若要支持，需用户另行确认是否收紧现有端点或新增受限 DTO/端点，并授权相应业务服务、Adapter、设计与测试变更。
-- 目标 QueryPlan Runtime、强类型配置和生产组合根尚未实现，第一批业务 UAT 当前不得开始执行成功场景。
+- QueryPlan/强类型配置与 Runtime non-live 候选已有实现，但 system entry、双域 E2E、真实集成和 `GATE-UAT-006` 未完成；第一批业务 UAT 当前不得开始成功场景。
 - 真实 LLM UAT 需要单独绑定 Provider、模型、固定问题集、预算和一次性调用授权。
-- 本需求不授权修改代码、业务接口、数据库结构、生产依赖或执行真实调用。
+- 当前目标已授权实现代码和范围受限 Git 提交推送；业务接口、数据库结构、生产依赖和真实调用仍未授权。
 
 ## 15. 原子修订内审记录
 
@@ -266,5 +262,9 @@ Adapter 不负责问题理解、QueryPlan 生成、角色判定、SQL/DSL 生成
 | 2 | 失败关闭、状态词汇、unsupported 终态、当前/目标分离 | 统一 `unauthenticated`；增加不可进入 binder/Core 的 unsupported 计划终态；明确旧 Resolver/ID-only 仅为现状 | 通过修复复核 |
 | 3 | 既有接口事实、安全复用条件、引用一致性、无环性 | 核实 Employee 通用 ES 搜索具备字段能力但缺最终角色授权和受限响应契约；修正失效工作包引用 | 通过修复复核 |
 | 独立评审 R1～R3 | 分层与跨层合同、状态、门禁和可实施性 | R1 关闭两项 Major（两级 decoder 所有权、文本 literal 物理表达式）；R2 关闭一项 Major（REQ unsupported sentinel）；R3 无发现 | 通过 |
+| v1.5 内审1 | 唯一路径、实现状态与清理目标 | 删除“全部尚未实现”的失真陈述，区分 system E2E/live 未完成 | 通过修复复核 |
+| v1.5 内审2 | 历史证据、兼容与删除安全 | 发现冻结 harness 依赖 legacy 字段；改为生产拒绝绑定、历史复验兼容保留 | 通过修复复核 |
+| v1.5 内审3 | 版本、DAG、门禁与过度设计 | 清理不新增工作包/依赖边，不引入迁移或兼容层平台 | 通过修复复核 |
+| v1.5 独立评审 R1～R3 | 历史兼容、生产可达性与跨层原子性 | R1 修正冻结 harness legacy 字段误删；R2 补齐旧 launcher/实现触点；R3 无新增发现 | 通过 |
 
 三轮均复核模型失败、非法计划和不支持查询无 Adapter/业务调用，JWT/受保护值不出域，Employee/Transaction 不切域、不回退 Knowledge，配置不得扩大代码与业务契约。正式独立评审结论由下位设计和计划的评审记录共同承载。

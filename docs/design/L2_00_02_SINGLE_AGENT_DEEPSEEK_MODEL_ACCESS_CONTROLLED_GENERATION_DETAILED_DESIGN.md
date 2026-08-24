@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_02 |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.5 |
 | 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.1 |
-| 协作设计 | `L2_00_01` v1.2、`L2_02_00` v1.3 |
+| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
+| 协作设计 | `L2_00_01` v1.5、`L2_02_00` v1.6 |
 | Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder 和 fake transport 测试已实现；生产 Business 组合根切换与真实模型验证尚未实施 |
+| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder 和 fake transport 测试已实现；生产 Business 组合根已有 non-live 候选，真实模型验证尚未实施 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -21,12 +21,14 @@
 | v1.1 | 2026-08-21 | 既有 transport、ID-only selector、answer task 基线 |
 | v1.2 | 2026-08-24 | 新增 `business-query-plan-v1`，Business 不再使用 ID-only selector |
 | v1.3 | 2026-08-24 | 同步 `WP-BQ-MODEL-QUERYPLAN-01` non-live 实施与验证状态；生产 wiring/live 门禁保持未关闭 |
+| v1.4 | 2026-08-24 | 校正 protected extractor 与 Model Guard 职责；非法 Business 输入固定在 Business 分支失败关闭，澄清生产 stub 与测试 fake 的边界 |
+| v1.5 | 2026-08-24 | 明确历史 ID-only task/evidence 不改写，但 Employee/Transaction 不保留任何依赖该 task 的生产装配或专属兼容接缝 |
 
 本文新增一个 provider-neutral `business-query-plan-v1` 模型任务。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
 
 范围外/不负责：本文不定义业务字段合法性、Adapter、SQL/ES、权限或结果字段；这些由 Business L2 和业务服务治理。模型输出始终不可信，只有经下游本地 validator/binder 后才可执行。
 
-上位约束来源是 L1_00 v1.1 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
+上位约束来源是 L1_00 v1.2 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
 
 当前实现基线已包含 transport/gateway、历史 action selector、answer task，以及新增的 QueryPlan task/generator/provider decoder 和 Business 输入保护接缝；catalog 由 Business common 构造，production wiring 仍由 Runtime 工作包承接。
 
@@ -137,14 +139,14 @@ Catalog canonical JSON 参与 snapshot/hash 测试，启动时与 Business snaps
 
 ### 6.1 输入闸门
 
-现有 `model/question_policy.py` 与 `model/input_guard.py` 继续优先拒绝凭证、JWT、账户等禁止输入。对允许的 Employee 单标识问题，目标 Business Guard 只执行：
+现有 `model/question_policy.py` 与 `model/input_guard.py` 继续优先拒绝凭证、JWT、账户等禁止输入。输入处理分为两个不重叠责任：
 
-1. 识别明确的受保护 literal 类别；
-2. 在请求内存创建无业务语义 `slot-N`；
-3. 将问题中的 literal 替换为固定占位表达；
-4. 输出 minimized question 与 slot map。
+1. Business/domain protected extractor 只识别代码绑定的明确受保护 literal，在请求内存创建无业务语义 `slot-N`；它不得选择 domain/action，多个域同时形成非空 slot 或跨请求绑定时失败；
+2. Model `QuestionEgressGuard.is_business_question(...)` 只按有限 Employee/Transaction 业务锚点决定进入 Business 安全分支，不判定具体 domain/action；即使问题超长或含控制字符，也不得因此落入 Knowledge/ID-only fallback，而应交给 Business Guard 拒绝；
+3. `QuestionEgressGuard.evaluate_business(...)` 接收 request-local slot map，将唯一 literal 替换为固定占位表达并执行敏感分类，输出 minimized question 或 `forbidden`；
+4. 只有 Guard 允许后，Runtime 才能调用一次 Business QueryPlan generator。
 
-该 Guard 不输出 domain/action，不生成执行参数，不校验业务字段组合。
+Extractor/Guard 均不输出 domain/action，不生成执行参数，不校验业务字段组合。slot value 不进入模型输入、日志或 evidence。
 
 ### 6.2 模型输出引用
 
@@ -210,7 +212,7 @@ Prompt、task version、catalog schema 和 decoder source 均需在 UAT manifest
 - HTTP/Schema/timeout 映射为有限 `ModelProviderFailureKind`；
 - default `AGENT_MODEL_PROVIDER=stub`。
 
-显式 `deepseek` 且配置完整才可进入真实 QueryPlan UAT。stub 对 Business 输入必须返回固定 model failure/unsupported，不能产生可执行候选。
+显式 `deepseek` 且配置完整才可进入真实 QueryPlan UAT。默认生产 stub 组合不装配可执行 Business generator/bindings并固定 model failure/unsupported；仅测试范围可显式注入 fake generator 与 fake handler 验证 non-live 成功链，该证据不能关闭 live/UAT 门禁。
 
 ## 10. 错误分类、失败映射与调用方可见错误码
 
@@ -253,7 +255,7 @@ class LocalModelCompositionRoot:
 |---|---|---|---|
 | `IMPL-MODEL-001` | `agent-runtime/src/agent_runtime/model/contracts.py` | 修改 | task id/input/generator protocol |
 | `IMPL-MODEL-002` | 建议新增模块 `agent_runtime.model.deepseek.business_query_plan` | 建议新增 | request、prompt、decoder、generator |
-| `IMPL-MODEL-003` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 最小修改 | Business minimized question/slot 输出接缝 |
+| `IMPL-MODEL-003` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 已修改/回归 | Business 锚点分支、minimized question、slot redaction 与拒绝接缝；不创建 slot、不选择域 |
 | `IMPL-MODEL-004` | `agent-runtime/src/agent_runtime/model/gateway.py` | 修改 | 注册 code-bound QueryPlan task |
 | `IMPL-MODEL-005` | `agent-runtime/src/agent_runtime/bootstrap.py` | 修改 | generator/catalog/context/lifecycle 装配 |
 | `IMPL-MODEL-006` | `agent-runtime/src/agent_runtime/model/deepseek/action_selector.py` | 保留/隔离 | 不得服务 Business 目标路径；历史行为不改写 |
@@ -265,7 +267,7 @@ class LocalModelCompositionRoot:
 | `TEST-MODEL-001` | catalog snapshot | 只含安全逻辑字段；物理/权限/结果信息为0 |
 | `TEST-MODEL-002` | provider exact JSON decoder | 单一 JSON object、重复键/fence/前后文本/null/float/超限拒绝；三字段/tagged union 由 `TEST-BQCOM-001` 验证 |
 | `TEST-MODEL-003` | prompt contract | domain/action/arguments 强制；unsupported 唯一终态 |
-| `TEST-MODEL-004` | input slotting | 受保护 literal 不进入 transport，Guard 不生成语义计划 |
+| `TEST-MODEL-004` | input slotting | extractor 创建 request-local slot；受保护 literal 不进入 transport；非法业务输入不回退；Guard 不生成语义计划 |
 | `TEST-MODEL-005` | failure/zero call | input denied 调用0；provider failure 无 retry/fallback |
 | `TEST-MODEL-006` | composition | Business 注入 QueryPlan generator，不注入 ID-only selector |
 | `TEST-MODEL-007` | lifecycle/concurrency | context 隔离、cancel、close、secret/log 零泄漏 |
@@ -286,7 +288,7 @@ class LocalModelCompositionRoot:
 
 ## 15. 当前差距与门禁
 
-`WP-BQ-PLAN-CONTRACT-01` 与 `WP-BQ-MODEL-QUERYPLAN-01` 已完成 non-live 实施：catalog、task、输入保护接缝、provider decoder 和 fake transport 验证已具备。生产组合根 wiring、两域 definition/config、non-live E2E 与真实调用仍分别由后续工作包和独立门禁承接；旧 Action PoC 不自动关闭新 QueryPlan 门禁。
+`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01` 与两域 definition/config 已完成 non-live 实施：catalog、task、输入保护接缝、provider decoder 和 fake transport 验证已具备。生产组合根已有候选实现并待 Runtime 工作包最终复核；non-live E2E 与真实调用仍由后续工作包和独立门禁承接；旧 Action PoC 不自动关闭新 QueryPlan 门禁。
 
 ## 16. 评审记录
 
@@ -296,6 +298,13 @@ class LocalModelCompositionRoot:
 | 内审2 | exact JSON、敏感输入、ID-only 隔离 | 无可执行旁路，修复状态词汇后通过 |
 | 内审3 | 工作包引用、历史资产与模型调用边界 | 修正工作包引用；无真实调用，修复后通过 |
 | 独立评审 R1～R3 | L2 与跨层一致性 | provider JSON decoder 与 Business payload decoder 已分责；R2复核 sentinel，R3 无发现，通过 |
+| v1.4 内审1 | extractor/Guard 职责 | slot 创建归 Business/domain extractor，Guard 只负责锚点、最小化和拒绝 |
+| v1.4 内审2 | 失败关闭与 fallback | 非法 Business 输入仍固定进入 Business Guard，禁止落入 Knowledge/ID-only |
+| v1.4 内审3 | stub/fake、live 门禁与最小变更 | 区分默认生产 stub 和测试 fake；不新增 provider/task/公共合同，通过 |
+| v1.5 内审1 | Business/非 Business 模型职责 | 共享 ID-only task 保留但不进入两域 QueryPlan 组合 |
+| v1.5 内审2 | 历史 evidence 与任务兼容 | 不改写 task/PoC/evidence，不保留两域专属装配 |
+| v1.5 内审3 | 门禁、调用预算与最小性 | 清理阶段不读 key、不调用模型、不新增 task |
+| v1.5 独立评审 R1～R3 | ID-only 历史与 Business 隔离 | 共享 task/evidence 保留、两域生产装配为0；R3 无发现 |
 
 Approved 不表示真实模型任务已实施或执行。
 
@@ -306,7 +315,7 @@ Approved 不表示真实模型任务已实施或执行。
 | 项目 | 内容 |
 |---|---|
 | 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施/真实调用 |
-| 当前允许实施范围 | 取得 P3 `GATE-064` 后，仅限 IMPL-MODEL-001～006 的 non-live 实现 |
+| 当前允许实施范围 | `GATE-064` 已关闭；允许完成 Runtime non-live 组合与相关 Model Guard 回归 |
 | 当前禁止动作 | 读取 LLM_API_KEY、真实调用、修改历史 task/evidence、接入业务结果出域 |
 
 ## 18. 端到端追踪矩阵

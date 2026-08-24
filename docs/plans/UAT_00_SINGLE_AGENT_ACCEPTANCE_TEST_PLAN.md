@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | UAT_00 |
-| 当前版本 | v0.3 |
+| 当前版本 | v0.4 |
 | 状态 | Reviewed |
 | 更新日期 | 2026-08-24 |
 | 范围 | 公共接入冒烟、Employee、Transaction、结构化查询阶段收口 |
-| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.18 |
+| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.25 |
 | 当前执行状态 | Blocked：Business QueryPlan 代码和 `GATE-UAT-006` 未完成 |
 
 ## 2. 验收目标
@@ -27,7 +27,7 @@ Knowledge 查询 UAT 不在本批，待结构化查询收口后单独执行。
 
 ## 3. 当前事实与执行阻断
 
-当前代码仍使用 Business Local Resolver 和 ID-only selector，已有 Employee/Transaction UAT evidence 以 stub/本地解析为主。因此旧 evidence 不能满足本版本。
+QueryPlan 合同、模型任务、两域 definition/config 与 Runtime non-live 候选已有实现；system E2E、真实集成和 UAT 尚未完成。旧 resolver/ID-only UAT fixture 与 evidence 只作为历史审计资产，不得执行为当前用例或满足本版本门禁；无审计价值的旧可执行测试由 P3 清理。
 
 开始成功场景前必须满足：
 
@@ -198,5 +198,9 @@ Employee 与 Transaction 可在公共冒烟后独立执行；阶段收口等待�
 | 内审2 | default stub、unsupported 与失败关闭 | 明确 stub 仅证明失败关闭，修复后通过 |
 | 内审3 | 两域跨语言、权限、接口缺口与无环性 | Employee ES 复用条件如实记录；P3/UAT 门禁分属清晰，修复后通过 |
 | 独立评审 R1～R3 | UAT 与跨层一致性 | 补齐物理表达式文本负例与 unsupported 上位合同；R3 无发现，通过 |
+| v0.4 内审1 | 当前状态与旧用例隔离 | 区分 Runtime non-live 候选与尚未完成的 system/live/UAT |
+| v0.4 内审2 | 历史 fixture/evidence | 保留旧资产但禁止执行为本版本证据；不删除冻结文件 |
+| v0.4 内审3 | 门禁、预算、DAG | 清理不关闭 live/UAT 门禁，不改变一次性授权和调用预算 |
+| v0.4 独立评审 R1～R3 | 旧用例不可执行与历史资产保留 | 补充 launcher 清理、冻结 fixture 只读边界后，R3 无发现 |
 
 当前：`GATE-UAT-006` Open，四个 UAT 工作项均 Blocked。只有 P3 新工作包实施和受控 live 集成完成后，才可申请正式 UAT 执行授权。

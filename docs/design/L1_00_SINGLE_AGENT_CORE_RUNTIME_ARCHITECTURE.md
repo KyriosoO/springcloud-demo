@@ -9,15 +9,15 @@
 |---|---|
 | 文档编号 | L1_00 |
 | 文档层级 | L1 |
-| 当前版本 | v1.1 |
+| 当前版本 | v1.2 |
 | 更新日期 | 2026-08-24 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.1 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.2 |
 | 权威范围 | Runtime 请求状态、Business QueryPlan 调用顺序、Core、能力注册、组合根和模型端口协作 |
-| 实施状态 | Core、Registry、模型 transport 和 ID-only selector 已有实现；Business QueryPlan 节点、绑定与生产切换尚未实现 |
+| 实施状态 | Business QueryPlan 节点、绑定、取消和组合校验已有 non-live 实现；system entry/E2E/live 尚未完成，旧 Business 可执行 Resolver 资产待安全清理 |
 
 ## 2. 变更记录
 
-v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止 Employee/Transaction 目标路径中的“Local Resolver 优先、模型只选 ID”。Business 请求改为强制一次 LLM QueryPlan，再经本地验证映射为既有 `ActionCandidate`。Knowledge 既有内部流程不因本变更成为 Business 回退。
+v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止 Employee/Transaction 目标路径中的“Local Resolver 优先、模型只选 ID”。Business 请求改为强制一次 LLM QueryPlan，再经本地验证映射为既有 `ActionCandidate`。Knowledge 既有内部流程不因本变更成为 Business 回退。v1.2 明确共享非 Business Hybrid/ID-only 组件继续保留，但 Employee/Transaction 专属 Resolver 源码及仅验证旧旁路的测试在无调用方后删除；冻结历史 harness 所需兼容类型可保留，生产工厂必须拒绝非空绑定，历史 evidence/hash 不动。
 
 ## 3. 目标与边界
 
@@ -221,13 +221,13 @@ Canonical 顺序不可调整为本地先解析。任何实现不得并行调用�
 
 | 目标 | 当前事实 | 处理 |
 |---|---|---|
-| Business 模型输出完整 QueryPlan | 当前 selector 只输出 capability ID | 新增 task/decoder；旧 selector 不得用于 Business 目标路径 |
-| 模型强制参与 | 当前 LocalActionResolver 先产生参数 | 新组合根切断 Employee/Transaction Resolver 可达边 |
-| 强类型 snapshot 校验 | 当前配置不含完整字段/operator/版本闭环 | 新 Business common 配置与启动 validator |
-| 受保护引用 | 当前员工解析由本地 Resolver 直接取值 | Guard slot + value_ref + binder |
+| Business 模型输出完整 QueryPlan | task/generator/两级 decoder 已实现 | system entry 仍需装配并做双域 E2E |
+| 模型强制参与 | Runtime Business 分支已有 non-live 实现 | 清理专属 Resolver 资产并验证生产唯一可达性 |
+| 强类型 snapshot 校验 | 配置、canonical catalog 与启动 validator 已实现 | E2E 证明实际启动快照一致 |
+| 受保护引用 | Guard extractor + value_ref + 同请求 binder 已实现 | E2E 继续证明并发隔离和零泄漏 |
 | 真实 LLM UAT | 当前 UAT 以 stub 为主 | 实施完成后单独受控 live UAT |
 
-旧实现和历史证据保持不变，但不得再作为 v1.1 的符合性证据。
+历史不可变 evidence/hash 保持不变；无调用方的旧可执行资产按 v1.2 清理，不得再作为符合性证据。
 
 ## 15. 验证与评审
 
@@ -248,6 +248,10 @@ Canonical 顺序不可调整为本地先解析。任何实现不得并行调用�
 | 内审2 | unsupported、模型失败与无旁路 | 增加终态隔离并统一状态，修复后通过 |
 | 内审3 | 并发 slot、JWT、跨层引用与 DAG | 无新增运行边；修正关联工作包引用后通过 |
 | 独立评审 R1～R3 | 分层与跨层一致性 | 两级 decoder 与 unsupported 合同修复后，R3 无发现，通过 |
+| v1.2 内审1 | Runtime 唯一路径与共享组件 | 仅清理两域专属 Resolver，保留非 Business Hybrid/ID-only | 修复后通过 |
+| v1.2 内审2 | 历史复验兼容 | legacy definition 字段可保留但生产工厂拒绝非空绑定 | 修复后通过 |
+| v1.2 内审3 | 取消、并发、DAG与过度设计 | 无新增运行节点/依赖边，system E2E 后再删空快照字段 | 通过 |
+| v1.2 独立评审 R1～R3 | Runtime 可达性与清理兼容 | legacy 字段仅历史复验、生产 factory 拒绝；R3 无发现 | 通过 |
 
 评审结论不等于代码实施完成。
 

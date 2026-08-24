@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_01 |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.1 |
-| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.3 |
+| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
+| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.6 |
 | 业务接口 | `GET /employees/{idCardNo}` |
-| 实施状态 | Employee detail QueryPlan definition、protected-ref 输入提取、强类型配置、binder/validator/codec 非 live 验证及 Java 最终授权回归已完成；生产 Runtime wiring 与真实 QueryPlan UAT 尚未实施 |
+| 实施状态 | Employee detail QueryPlan definition/config、Runtime non-live 消费、codec 与 Java 授权回归已有证据；system E2E/live 尚未完成，专属旧 Resolver 资产待清理 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -21,10 +21,11 @@
 | v1.1 | 2026-08-21 | 既有 Employee Adapter/授权/结果出域基线 |
 | v1.2 | 2026-08-24 | Employee 目标改为 LLM detail QueryPlan + protected ref；核实通用 ES 搜索能力与授权/契约缺口并失败关闭 |
 | v1.3 | 2026-08-24 | 同步 `WP-EMP-QUERYPLAN-01` non-live 实施与验证状态；地点/职位筛选缺口及 live 门禁保持不变 |
+| v1.4 | 2026-08-24 | 明确删除无调用方的 Employee 专属 Local Resolver 源码/测试，不修改固定 GET、历史 evidence 或共享组件 |
 
 设计目标是仅用已确认 detail 接口完成受控 LLM QueryPlan 查询。范围外/不负责：Employee 列表筛选、ES 搜索、写接口、新 DTO、数据库和业务角色变更。
 
-上位约束来源是 L1_02 v1.1 与 L2_02_00 v1.3。关联责任边界：Employee L2 负责 detail definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权。`CON-EMP-001`：禁止 Employee Adapter 依赖模型、数据库/ES、Knowledge 或 Transaction。
+上位约束来源是 L1_02 v1.2 与 L2_02_00 v1.6。关联责任边界：Employee L2 负责 detail definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权。`CON-EMP-001`：禁止 Employee Adapter 依赖模型、数据库/ES、Knowledge 或 Transaction。
 
 ### 2.1 当前实现基线与只读接口核实
 
@@ -227,7 +228,8 @@ HTTP 行为沿用现有契约：
 |---|---|---|---|
 | `IMPL-EMP-001` | `agent-runtime/src/agent_runtime/adapters/employee/definition.py` | 修改 | 去 Local Resolver；增加 query field/contract ref |
 | `IMPL-EMP-002` | `agent-runtime/src/agent_runtime/adapters/employee/settings.py` | 修改 | input config/version/snapshot |
-| `IMPL-EMP-003` | `agent-runtime/src/agent_runtime/adapters/employee/action_resolver.py` | 保留历史/生产退役 | 不再由目标组合根引用 |
+| `IMPL-EMP-003` | `agent-runtime/src/agent_runtime/adapters/employee/action_resolver.py` | 删除 | 专属旧旁路且无有效调用方；历史 evidence/hash 不删除 |
+| `IMPL-EMP-003A` | `agent-runtime/tests/unit/adapters/employee/test_action_resolver.py` | 删除 | 仅验证已废弃专属实现，等价负向由 QueryPlan/组合根测试覆盖 |
 | `IMPL-EMP-004` | `agent-runtime/src/agent_runtime/adapters/employee/codec.py` | 回归 | 既有参数/GET/strict decode 保持 |
 | `IMPL-EMP-005` | `agent-runtime/src/agent_runtime/adapters/employee/provider.py` | 修改 | 注册无 Resolver definition 与 snapshot |
 | `IMPL-EMP-006` | `employee-service/.../EmployeeController.java` | 只读回归 | 不改接口/DTO；验证 guard |
@@ -248,6 +250,7 @@ HTTP 行为沿用现有契约：
 | `TEST-EMP-010` | composition 仅一 Employee handler/Adapter，Resolver 不可达 |
 | `TEST-EMP-011` | 日志/model spy 无 identifier/JWT/raw response |
 | `TEST-EMP-012` | 既有 Java/Python contract 与调用方兼容回归 |
+| `TEST-EMP-013` | 删除后引用扫描为0；旧 UAT launcher 不再选择 Resolver 测试；历史 manifest/hash 不变 |
 
 ## 12. 设计决策
 
@@ -261,7 +264,7 @@ HTTP 行为沿用现有契约：
 
 ## 13. 当前差距与门禁
 
-`WP-EMP-QUERYPLAN-01` 已完成 non-live 实施：definition/config 已切断 Resolver，具体标识只通过 request-local protected ref，固定 GET/codec 与 Java 最终授权回归通过。生产 Runtime 组合根尚未消费该 definition，Employee LLM 成功 UAT 继续 Blocked；真实模型/服务 UAT 仍需单独授权。
+`WP-EMP-QUERYPLAN-01` 已完成 non-live 实施，Runtime 候选已消费该 definition；专属旧 Resolver 源码/测试仍待 `CLN-BQP-001` 清理，system E2E 与真实模型/服务 UAT 仍未完成。
 
 ## 14. 评审记录
 
@@ -271,8 +274,12 @@ HTTP 行为沿用现有契约：
 | 内审2 | literal/ref 失败与 unsupported 隔离 | 明确下游零调用和不回退，修复后通过 |
 | 内审3 | Employee 既有接口只读复核 | 确认 ES 搜索字段能力，但因最终角色授权和受限响应契约缺口不纳入，修复后通过 |
 | 独立评审 R1～R3 | L2 与跨层一致性 | detail/ref/授权合同与既有接口事实一致；R3 无发现，通过 |
+| v1.4 内审1 | 专属 Resolver 调用方 | 仅旧单元/旁路测试引用，production definition 已为 None |
+| v1.4 内审2 | 历史 Employee egress 复验 | legacy 字段保留，专属实现文件不被冻结 manifest 引用 |
+| v1.4 内审3 | GET/授权/接口范围 | 清理不改 codec、endpoint、Java guard、字段或角色 |
+| v1.4 独立评审 R1～R3 | Employee 专属删除与历史复验 | 确认 action_resolver 未被冻结 manifest 引用；R3 无发现 |
 
-Approved 不表示 Employee QueryPlan 已实现，也不表示现有通用筛选端点已满足 Agent 复用条件。
+Approved 与当前实现状态不表示 system E2E/live 已完成，也不表示现有通用筛选端点已满足 Agent 复用条件。
 
 ## 15. 数据生命周期、一致性、风险与实现就绪判定
 
