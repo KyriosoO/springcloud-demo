@@ -12,6 +12,7 @@ from tests.system_e2e.business_query_plan_live_contracts import (
     AUTHORIZATION_REFERENCE,
     MODEL_CALL_BUDGET,
     RUN_ID,
+    validate_authorization_template,
     validate_result,
 )
 from tests.system_e2e.business_query_plan_live_runner import (
@@ -215,3 +216,43 @@ async def test_live_entry_fails_before_secret_or_outbound_when_not_explicitly_en
                 "BUSINESS_QUERY_PLAN_LIVE_EMPLOYEE_IDENTIFIER": "must-not-be-read",
             }
         )
+
+
+def test_authorization_template_is_non_executable_until_final_binding() -> None:
+    value = {
+        "schemaVersion": 1,
+        "state": "prepared_unconsumed",
+        "liveExecutionAuthorized": False,
+        "runId": RUN_ID,
+        "authorizationReference": AUTHORIZATION_REFERENCE,
+        "sourcePreparedHead": "e" * 40,
+        "manifestSha256": "f" * 64,
+        "budgets": {
+            "modelCalls": 6,
+            "employeeDetail": 2,
+            "transactionSearch": 2,
+            "retry": 0,
+            "resume": 0,
+        },
+        "requiredBindings": {
+            "finalFrozenHead": "required_in_final_authorization",
+            "processLlmApiKey": "required_memory_only",
+            "processEmployeeIdentifier": "required_memory_only",
+            "processAdminJwt": "required_memory_only",
+            "processDeniedJwt": "required_memory_only",
+            "employeeBaseUrl": "http://127.0.0.1:9210",
+            "transactionBaseUrl": "http://127.0.0.1:8182",
+        },
+        "constraints": {
+            "singleUse": True,
+            "firstOutboundConsumes": True,
+            "automaticRetry": False,
+            "rerun": False,
+            "resume": False,
+            "answerTask": False,
+        },
+    }
+    validate_authorization_template(value, manifest_sha256="f" * 64, prepared_head="e" * 40)
+    value["liveExecutionAuthorized"] = True
+    with pytest.raises(ValueError, match="business_query_plan_live.authorization_template_invalid"):
+        validate_authorization_template(value, manifest_sha256="f" * 64, prepared_head="e" * 40)

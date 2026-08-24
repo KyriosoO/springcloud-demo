@@ -205,6 +205,86 @@ def validate_manifest(value: object) -> dict[str, object]:
     return manifest
 
 
+def validate_authorization_template(
+    value: object,
+    *,
+    manifest_sha256: str,
+    prepared_head: str,
+) -> None:
+    item = _exact_mapping(
+        value,
+        {
+            "schemaVersion",
+            "state",
+            "liveExecutionAuthorized",
+            "runId",
+            "authorizationReference",
+            "sourcePreparedHead",
+            "manifestSha256",
+            "budgets",
+            "requiredBindings",
+            "constraints",
+        },
+    )
+    if (
+        item["schemaVersion"] != 1
+        or item["state"] != "prepared_unconsumed"
+        or item["liveExecutionAuthorized"] is not False
+        or item["runId"] != RUN_ID
+        or item["authorizationReference"] != AUTHORIZATION_REFERENCE
+        or item["sourcePreparedHead"] != prepared_head
+        or item["manifestSha256"] != manifest_sha256
+    ):
+        raise ValueError("business_query_plan_live.authorization_template_invalid")
+    budgets = _exact_mapping(
+        item["budgets"],
+        {"modelCalls", "employeeDetail", "transactionSearch", "retry", "resume"},
+    )
+    if budgets != {
+        "modelCalls": MODEL_CALL_BUDGET,
+        "employeeDetail": EMPLOYEE_DETAIL_BUDGET,
+        "transactionSearch": TRANSACTION_SEARCH_BUDGET,
+        "retry": 0,
+        "resume": 0,
+    }:
+        raise ValueError("business_query_plan_live.authorization_template_invalid")
+    bindings = _exact_mapping(
+        item["requiredBindings"],
+        {
+            "finalFrozenHead",
+            "processLlmApiKey",
+            "processEmployeeIdentifier",
+            "processAdminJwt",
+            "processDeniedJwt",
+            "employeeBaseUrl",
+            "transactionBaseUrl",
+        },
+    )
+    if bindings != {
+        "finalFrozenHead": "required_in_final_authorization",
+        "processLlmApiKey": "required_memory_only",
+        "processEmployeeIdentifier": "required_memory_only",
+        "processAdminJwt": "required_memory_only",
+        "processDeniedJwt": "required_memory_only",
+        "employeeBaseUrl": "http://127.0.0.1:9210",
+        "transactionBaseUrl": "http://127.0.0.1:8182",
+    }:
+        raise ValueError("business_query_plan_live.authorization_template_invalid")
+    constraints = _exact_mapping(
+        item["constraints"],
+        {"singleUse", "firstOutboundConsumes", "automaticRetry", "rerun", "resume", "answerTask"},
+    )
+    if constraints != {
+        "singleUse": True,
+        "firstOutboundConsumes": True,
+        "automaticRetry": False,
+        "rerun": False,
+        "resume": False,
+        "answerTask": False,
+    }:
+        raise ValueError("business_query_plan_live.authorization_template_invalid")
+
+
 def validate_result(value: object, *, require_passed: bool) -> dict[str, object]:
     if type(value) is not dict:
         raise ValueError("business_query_plan_live.result_shape_invalid")
