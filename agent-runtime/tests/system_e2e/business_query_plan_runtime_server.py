@@ -10,40 +10,19 @@ from typing import Any
 
 import uvicorn
 
-from agent_runtime.adapters.employee.protected_input import EmployeeProtectedValueExtractor
-from agent_runtime.adapters.employee.provider import EmployeeDomainProvider
-from agent_runtime.adapters.employee.settings import EmployeeAdapterSettings
-from agent_runtime.adapters.transaction.protected_input import TransactionProtectedValueExtractor
-from agent_runtime.adapters.transaction.provider import TransactionDomainProvider
-from agent_runtime.adapters.transaction.settings import TransactionAdapterSettings
 from agent_runtime.api.app import create_app
 from agent_runtime.api.settings import RuntimeHttpSettings
-from agent_runtime.bootstrap import LocalModelCompositionRoot, RuntimeCompositionRoot
-from agent_runtime.business.contracts import BusinessServiceKey
-from agent_runtime.business.egress import BusinessEgressProjector
-from agent_runtime.business.handler import BoundBusinessActionHandler
+from agent_runtime.bootstrap import LocalModelCompositionRoot
 from agent_runtime.business.http_client import (
     FakeDomainHttpRequest,
     FakeDomainHttpResponse,
-    UserJwtBusinessHttpClient,
 )
-from agent_runtime.business.protected_input import CompositeBusinessProtectedValueExtractor
-from agent_runtime.business.provider import BusinessSupportFactory
-from agent_runtime.business.settings import (
-    BusinessConfigurationSource,
-    BusinessGlobalSettings,
-    BusinessServiceBinding,
-    GlobalBusinessEgressPolicy,
-)
-from agent_runtime.business.user_projection import BusinessUserResultProjector
-from agent_runtime.capability_api.contracts import CapabilityRegistrationCandidate
 from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.graph.action_resolution import (
     CapabilitySelectionDecision,
     CapabilitySelectionDecisionKind,
     CapabilitySelectionInput,
 )
-from agent_runtime.graph.business_query_planning import BusinessQueryPlanRuntimeBindings
 from agent_runtime.graph.state import AgentSemanticOutcome, AnswerGenerationInput
 from agent_runtime.model.contracts import (
     ModelTaskId,
@@ -52,22 +31,13 @@ from agent_runtime.model.contracts import (
     StructuredModelResponse,
 )
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
-from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelSettings
-from agent_runtime.settings import CoreRuntimeSettings
 from tests.system_e2e.business_query_plan_evidence import write_business_query_plan_evidence
+from tests.system_e2e.business_query_plan_runtime_support import build_business_query_plan_runtime
 
 
 _SAFE_CASE_ID = re.compile(r"bq-nonlive-[a-z0-9-]{1,40}")
 _AMOUNT = re.compile(r"金额\s*(?:为|是|=|:|：|大于|>)\s*(-?[0-9]+(?:\.[0-9]+)?)")
-
-
-class _StaticProvider:
-    def __init__(self, *registrations: CapabilityRegistrationCandidate[Any]) -> None:
-        self._registrations = tuple(registrations)
-
-    def registrations(self) -> tuple[CapabilityRegistrationCandidate[Any], ...]:
-        return self._registrations
 
 
 class _ForbiddenFallbackSelector:
@@ -279,66 +249,8 @@ def build_business_query_plan_nonlive_runtime(
         raise ValueError("business_query_plan_e2e.model_provider_must_be_stub")
     evidence_path = Path(_required(active, "BUSINESS_QUERY_PLAN_E2E_EVIDENCE_PATH")).resolve()
     admin_token = _required(active, "BUSINESS_QUERY_PLAN_E2E_ADMIN_TOKEN")
-    core_settings = CoreRuntimeSettings()
-    employee_domain = EmployeeDomainProvider(
-        settings=EmployeeAdapterSettings.from_env({"AGENT_EMPLOYEE_DETAIL_ENABLED": "true"}),
-        service_binding=BusinessServiceBinding(
-            service_key=BusinessServiceKey("employee-service"),
-            base_endpoint="http://employee.invalid",
-        ),
-    )
-    transaction_domain = TransactionDomainProvider(
-        settings=TransactionAdapterSettings.from_env({"AGENT_TRANSACTION_SEARCH_ENABLED": "true"}),
-        service_binding=BusinessServiceBinding(
-            service_key=BusinessServiceKey("mq-procedure-service"),
-            base_endpoint="http://transaction.invalid",
-        ),
-    )
-    definitions = (*employee_domain.definitions(), *transaction_domain.definitions())
-    fragments = (employee_domain.configuration_fragment(), transaction_domain.configuration_fragment())
-    global_settings = BusinessGlobalSettings()
-    support = BusinessSupportFactory().build(
-        definitions=definitions,
-        config=BusinessConfigurationSource(
-            global_settings=global_settings,
-            actions=tuple(item for fragment in fragments for item in fragment.actions),
-            service_bindings=tuple(item for fragment in fragments for item in fragment.service_bindings),
-        ),
-        core_max_domain_result_bytes=core_settings.max_domain_result_bytes,
-    )
-    if support.planner_catalog is None:
-        raise ValueError("business_query_plan_e2e.catalog_unavailable")
     employee_transport = _FakeBusinessDomainTransport(domain="employee", admin_token=admin_token)
     transaction_transport = _FakeBusinessDomainTransport(domain="transaction", admin_token=admin_token)
-    clients = {
-        "employee-service": UserJwtBusinessHttpClient(
-            transport=employee_transport,
-            max_response_bytes=global_settings.http_max_response_bytes,
-        ),
-        "mq-procedure-service": UserJwtBusinessHttpClient(
-            transport=transaction_transport,
-            max_response_bytes=global_settings.http_max_response_bytes,
-        ),
-    }
-    registrations = tuple(
-        CapabilityRegistrationCandidate[Any](
-            descriptor=item.definition.descriptor,
-            enabled=item.settings.enabled,
-            argument_validator=item.definition.argument_validator,
-            handler=BoundBusinessActionHandler(
-                definition=item.definition,
-                settings=item.settings,
-                client=clients[str(item.definition.service_key)],
-                user_projector=BusinessUserResultProjector(),
-                egress_projector=BusinessEgressProjector(),
-                egress_policy=GlobalBusinessEgressPolicy.from_settings(support.global_settings),
-                config_snapshot_id=support.snapshot_id,
-                max_user_result_bytes=support.global_settings.max_user_result_bytes,
-            ),
-        )
-        for item in support.actions
-        if item.settings.enabled
-    )
     model_transport = _FakeBusinessQueryPlanTransport()
     model = LocalModelCompositionRoot.build(
         settings=ModelSettings(),
@@ -347,25 +259,17 @@ def build_business_query_plan_nonlive_runtime(
     )
     fallback = _ForbiddenFallbackSelector()
     answer = _ForbiddenAnswerGenerator()
-    runtime = RuntimeCompositionRoot.build(
-        settings=core_settings,
-        providers=(_StaticProvider(*registrations),),
-        capability_selector=fallback,
+    runtime = build_business_query_plan_runtime(
+        model=model,
+        employee_transport=employee_transport,
+        transaction_transport=transaction_transport,
+        fallback_selector=fallback,
         answer_generator=answer,
-        business_query_plan=BusinessQueryPlanRuntimeBindings(
-            definitions=definitions,
-            snapshot=support.configuration_snapshot,
-            planner_catalog=support.planner_catalog,
-            generator=model.business_query_plan_generator,
-            context_accessor=model.context_accessor,
-            protected_value_extractor=CompositeBusinessProtectedValueExtractor(
-                (EmployeeProtectedValueExtractor(), TransactionProtectedValueExtractor())
-            ),
-            guard=QuestionEgressGuard(),
-        ),
+        employee_endpoint="http://employee.invalid",
+        transaction_endpoint="http://transaction.invalid",
     )
     return BusinessQueryPlanNonLiveRuntime(
-        delegate=model.bind_runtime(runtime),
+        delegate=runtime,
         evidence_path=evidence_path,
         model=model_transport,
         fallback=fallback,
