@@ -9,21 +9,22 @@
 |---|---|
 | 文档编号 | L0_00 |
 | 文档层级 | L0 |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.5 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.6 |
 | 架构范围 | 单体 Agent 接入、编排、Knowledge 与 Employee/Transaction 查询、权限和模型边界 |
-| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config 与 Runtime non-live 候选已有实现证据；system entry、双域 E2E 和真实环境结论尚未完成 |
+| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支和旧 Resolver 清理已完成；fake 双域 system entry 候选已通过定向验证，仍待全量架构门禁复核；真实环境结论尚未完成 |
 
 ## 2. 来源与变更记录
 
-本文来源于 REQ_00 v1.5 及 v1.0 架构基线。v1.1 将 Employee/Transaction 的权威路径由“本地 Resolver 生成参数、模型只选 ID”改为“LLM 生成逻辑 QueryPlan、本地严格校验和绑定”。历史 append-only 证据不改写；其复验所需兼容类型只能保留为生产不可达接缝。无调用方、无审计价值的旧可执行路径不属于历史证据，应在引用和回归核实后清理。
+本文来源于 REQ_00 v1.6 及 v1.0 架构基线。v1.1 将 Employee/Transaction 的权威路径由“本地 Resolver 生成参数、模型只选 ID”改为“LLM 生成逻辑 QueryPlan、本地严格校验和绑定”。历史 append-only 证据不改写；其复验所需兼容类型只能保留为生产不可达接缝。无调用方、无审计价值的旧可执行路径不属于历史证据，应在引用和回归核实后清理。
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-08-21 | 建立当前文档基线 |
 | v1.1 | 2026-08-24 | 确立 Employee/Transaction LLM QueryPlan 唯一链路、强类型配置和接口缺口失败关闭 |
 | v1.2 | 2026-08-24 | 区分历史不可变证据与过时可执行资产，允许最小清理无调用方 Business Resolver 代码/测试 |
+| v1.3 | 2026-08-24 | 闭合既有架构测试与新 planning 的依赖边界：只允许唯一 LangGraph bridge 依赖 provider-neutral Model Port，Core/能力合同与 provider 实现继续隔离 |
 
 ## 3. 目标、范围与非目标
 
@@ -81,6 +82,8 @@ Client
 | `agent-core` | 注册、单动作、最终候选校验、统一结果不变量 | 文本理解、领域语法、业务权限 |
 | Employee/Transaction Adapter | 固定 endpoint 编码、JWT 透传、严格解码、投影 | 问题理解、角色判断、DB/ES 直连 |
 | 业务服务 | 最终授权、业务契约、SQL/ES 选择与执行、数据所有权 | Agent 编排、模型调用 |
+
+依赖方向补充：`capability_api`、`core` 和业务 handler 不依赖 Model；LangGraph 的 Business planning bridge 是唯一允许直接调用 provider-neutral Model Port 的编排接缝。它可以读取请求级 cancellation/deadline 并只读复用 Registry 中实际注册的 argument validator，但不得持有 handler 执行权，也不得依赖 DeepSeek/HTTP/provider DTO。该精确例外不构成第二编排器或 Core 反向依赖。
 
 状态与数据所有权：图状态、slot map、配置快照和 QueryPlan 都是请求级非持久状态；Employee/Transaction 数据及物理查询由业务服务拥有；Agent 不复制业务数据。
 
@@ -201,7 +204,7 @@ Business QueryPlan 顶层只包含 `domain`、`action`、`arguments`。它是模
 ### 13.1 已有事实
 
 - Access、Core、能力注册、模型 transport、Business Adapter、JWT 透传、业务服务授权守卫和受控只读接口已有不同层级的实现/验证证据。
-- QueryPlan 公共合同、模型任务、两域 definition/config 与 Runtime non-live 候选已有实现；共享 ID-only selector 仍服务非 Business，Employee/Transaction 专属旧 Resolver 资产待按 v1.2 边界清理。
+- QueryPlan 公共合同、模型任务、两域 definition/config 与 Runtime 唯一分支已有实现；共享 ID-only selector 仅服务非 Business，Employee/Transaction 专属旧 Resolver 资产和最后空 support 字段已按边界清理。
 - `employee.detail`、`transaction.search` 可复用。Employee 通用 ES 搜索具有字段筛选能力，但缺少本架构要求的业务角色最终授权与受限响应契约，不能作为当前 Agent 动作。
 
 ### 13.2 未完成目标
@@ -210,7 +213,7 @@ Business QueryPlan 顶层只包含 `domain`、`action`、`arguments`。它是模
 - 经引用核实删除 Employee/Transaction 专属旧 Resolver 代码/测试；
 - 受控真实 LLM + 业务服务集成和 UAT。
 
-这些差距由 P3_00 v1.25 工作包、清理活动和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
+这些差距由 P3_00 v1.27 工作包和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
 
 ## 14. 风险与控制
 

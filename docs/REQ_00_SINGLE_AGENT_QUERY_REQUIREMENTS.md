@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v1.5 |
+| 当前版本 | v1.6 |
 | 状态 | 已确认 |
 | 更新日期 | 2026-08-24 |
 | 需求来源 | 用户确认的单体 Agent、知识查询、Employee/Transaction 结构化查询及 LLM QueryPlan 唯一链路 |
@@ -32,7 +32,7 @@ Employee 现有分页接口只接受 `page/size`。`POST /employees/es/search` �
 
 ### 3.2 当前实现差距
 
-严格 `QueryPlan` 公共合同、模型任务、两域 definition/config 与 Runtime non-live 候选已形成；生产 system entry、双域 non-live E2E 和真实 LLM/业务 UAT 尚未完成。旧 Business Resolver/ID-only 运行证据只能说明历史路径，不得标记为本版本完成证据。
+严格 `QueryPlan` 公共合同、模型任务、两域 definition/config、Runtime 唯一分支与旧 Resolver 清理已完成；Spring→Runtime→fake model→fake domain 候选已通过定向验证，仍待全量架构门禁复核。真实 LLM/业务 UAT 尚未完成。旧 Business Resolver/ID-only 运行证据只能说明历史路径，不得标记为本版本完成证据。
 
 历史 append-only manifest、authorization、evidence、hash 和审计记录必须保持不可变；被冻结 manifest 绑定且为历史 evidence 复验所必需的兼容类型可保留，但生产工厂/组合根必须拒绝或隔离其可执行绑定。仅服务于已废弃 Business Resolver 路径、经引用扫描确认无有效调用方且不承载历史复验职责的源文件与可执行测试，应在新链路覆盖等价验证后删除。不得把“保留历史证据”解释为保留生产替代链路。
 
@@ -66,6 +66,7 @@ Employee 现有分页接口只接受 `page/size`。`POST /employees/es/search` �
 2. 每个请求最多执行一个已注册、启用且校验通过的动作。
 3. Spring、Core、Adapter 和业务服务不得建立第二套 Agent 编排状态机。
 4. 第二动作、跨域重试和 Business→Knowledge 回退必须被拒绝。
+5. Core 与 capability API 保持模型无关；LangGraph 的唯一 Business planning bridge 可以依赖 provider-neutral Model Port 和请求级取消上下文，但不得依赖 DeepSeek DTO、HTTP client 或其他 provider 实现。
 
 ### FR-02 Knowledge 查询
 
@@ -250,7 +251,7 @@ Adapter 不负责问题理解、QueryPlan 生成、角色判定、SQL/DSL 生成
 ## 14. 待确认与阻断事项
 
 - Employee 按地点、职位等筛选存在技术搜索端点，但缺少本需求要求的 endpoint-scoped `ROLE_ADMIN/ROLE_VIEWER` 最终授权和稳定受限响应契约；当前保持 `unsupported`。若要支持，需用户另行确认是否收紧现有端点或新增受限 DTO/端点，并授权相应业务服务、Adapter、设计与测试变更。
-- QueryPlan/强类型配置与 Runtime non-live 候选已有实现，但 system entry、双域 E2E、真实集成和 `GATE-UAT-006` 未完成；第一批业务 UAT 当前不得开始成功场景。
+- QueryPlan/强类型配置、Runtime 唯一分支和 fake 双域 system entry 候选已有实现，但全量 non-live 架构门禁、真实集成和 `GATE-UAT-006` 未完成；第一批业务 UAT 当前不得开始成功场景。
 - 真实 LLM UAT 需要单独绑定 Provider、模型、固定问题集、预算和一次性调用授权。
 - 当前目标已授权实现代码和范围受限 Git 提交推送；业务接口、数据库结构、生产依赖和真实调用仍未授权。
 
@@ -265,6 +266,10 @@ Adapter 不负责问题理解、QueryPlan 生成、角色判定、SQL/DSL 生成
 | v1.5 内审1 | 唯一路径、实现状态与清理目标 | 删除“全部尚未实现”的失真陈述，区分 system E2E/live 未完成 | 通过修复复核 |
 | v1.5 内审2 | 历史证据、兼容与删除安全 | 发现冻结 harness 依赖 legacy 字段；改为生产拒绝绑定、历史复验兼容保留 | 通过修复复核 |
 | v1.5 内审3 | 版本、DAG、门禁与过度设计 | 清理不新增工作包/依赖边，不引入迁移或兼容层平台 | 通过修复复核 |
+| v1.6 内审1 | 门禁失败分类与需求边界 | 确认 graph→provider-neutral Model Port 是编排职责，不扩大 Core/业务能力 |
+| v1.6 内审2 | 取消、Registry 与单动作 | 仅 planning 读取取消并只读复用注册 validator；handler 执行仍由 Core 独占 |
+| v1.6 内审3 | 个人项目最小性与无环 | 采用精确架构测试白名单，不新增转发层、包或公共合同 |
+| v1.6 独立评审 R1～R2 | 上下位合同与门禁合理性 | R1 收紧为 provider-neutral 单桥接并保留 Core 执行所有权；R2 无 Blocker/Major/Minor |
 | v1.5 独立评审 R1～R3 | 历史兼容、生产可达性与跨层原子性 | R1 修正冻结 harness legacy 字段误删；R2 补齐旧 launcher/实现触点；R3 无新增发现 | 通过 |
 
 三轮均复核模型失败、非法计划和不支持查询无 Adapter/业务调用，JWT/受保护值不出域，Employee/Transaction 不切域、不回退 Knowledge，配置不得扩大代码与业务契约。正式独立评审结论由下位设计和计划的评审记录共同承载。

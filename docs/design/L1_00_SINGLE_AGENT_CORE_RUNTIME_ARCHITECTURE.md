@@ -9,15 +9,15 @@
 |---|---|
 | 文档编号 | L1_00 |
 | 文档层级 | L1 |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 更新日期 | 2026-08-24 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.2 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.3 |
 | 权威范围 | Runtime 请求状态、Business QueryPlan 调用顺序、Core、能力注册、组合根和模型端口协作 |
-| 实施状态 | Business QueryPlan 节点、绑定、取消和组合校验已有 non-live 实现；system entry/E2E/live 尚未完成，旧 Business 可执行 Resolver 资产待安全清理 |
+| 实施状态 | Business QueryPlan 节点、绑定、取消、组合校验与旧 Business Resolver 清理已完成；fake system entry 候选已通过定向验证，仍待全量架构门禁复核；live 尚未完成 |
 
 ## 2. 变更记录
 
-v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止 Employee/Transaction 目标路径中的“Local Resolver 优先、模型只选 ID”。Business 请求改为强制一次 LLM QueryPlan，再经本地验证映射为既有 `ActionCandidate`。Knowledge 既有内部流程不因本变更成为 Business 回退。v1.2 明确共享非 Business Hybrid/ID-only 组件继续保留，但 Employee/Transaction 专属 Resolver 源码及仅验证旧旁路的测试在无调用方后删除；冻结历史 harness 所需兼容类型可保留，生产工厂必须拒绝非空绑定，历史 evidence/hash 不动。
+v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止 Employee/Transaction 目标路径中的“Local Resolver 优先、模型只选 ID”。Business 请求改为强制一次 LLM QueryPlan，再经本地验证映射为既有 `ActionCandidate`。Knowledge 既有内部流程不因本变更成为 Business 回退。v1.2 明确共享非 Business Hybrid/ID-only 组件继续保留，但 Employee/Transaction 专属 Resolver 源码及仅验证旧旁路的测试在无调用方后删除；冻结历史 harness 所需兼容类型可保留，生产工厂必须拒绝非空绑定，历史 evidence/hash 不动。v1.3 明确 Business planning 是唯一 graph→provider-neutral Model Port 接缝，并收紧 Runtime cancellation、decision union 与 Registry 只读验证的测试边界。
 
 ## 3. 目标与边界
 
@@ -59,6 +59,8 @@ v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止
 | CapabilityExecutionCore | 候选、上下文 | 统一 `CapabilityResult` | 选择第二动作、领域路由 |
 | CapabilityRegistry | descriptor/validator/handler | 不可变注册表 | 动态发现任意工具 |
 | Composition Root | 定义、配置、Provider | 唯一运行对象图 | 运行时隐式补默认绑定 |
+
+`BusinessQueryPlanningNode` 属于 LangGraph 编排接缝而非 Core：可依赖 provider-neutral Model contracts/context，禁止依赖 `model.deepseek`、HTTP client 或 provider DTO。`select_action_node` 仅为把 `GraphRunContext` 中的 request-scoped cancellation 传入 planning 而接收 LangGraph Runtime；`execute_capability_node` 仍是唯一调用 Core 执行的图节点。planning 可通过 Registry 只读定位实际注册 validator 并调用 `validate`，不得取得或调用 handler；Registry/handler 的执行所有权仍在 Core。
 
 ## 5. 运行视图
 
@@ -252,6 +254,10 @@ Canonical 顺序不可调整为本地先解析。任何实现不得并行调用�
 | v1.2 内审2 | 历史复验兼容 | legacy definition 字段可保留但生产工厂拒绝非空绑定 | 修复后通过 |
 | v1.2 内审3 | 取消、并发、DAG与过度设计 | 无新增运行节点/依赖边，system E2E 后再删空快照字段 | 通过 |
 | v1.2 独立评审 R1～R3 | Runtime 可达性与清理兼容 | legacy 字段仅历史复验、生产 factory 拒绝；R3 无发现 | 通过 |
+| v1.3 内审1 | graph/model 与 provider 隔离 | 允许唯一 provider-neutral planning bridge，继续禁止 DeepSeek/HTTP 反向依赖 | 通过 |
+| v1.3 内审2 | Runtime/decision/Registry 所有权 | cancellation 只透传；Business decision 为内部有限 union；Registry 只读 validate、Core 独占 handler | 通过 |
+| v1.3 内审3 | 门禁最小性与扩展影响 | 更新精确架构测试，不增加转发层或公共 Core 类型 | 通过 |
+| v1.3 独立评审 R1～R2 | 跨层依赖与执行所有权 | R1 补充禁止 provider DTO/handler 调用；R2 无 Blocker/Major/Minor | 通过 |
 
 评审结论不等于代码实施完成。
 

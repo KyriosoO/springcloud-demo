@@ -7,9 +7,9 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_01 |
-| 当前版本 | v1.5 |
+| 当前版本 | v1.6 |
 | 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
+| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
 | 协作设计 | `L2_00_02` v1.5、`L2_02_00` v1.6 |
 | 实施状态 | 公共 QueryPlan 合同、Business planning、组合根唯一分支与旧 Business Resolver 第一阶段清理已完成 non-live 实施及代码复核；系统 E2E/live 尚未完成 |
 
@@ -22,6 +22,7 @@
 | v1.3 | 2026-08-24 | 显式绑定当前 `request_id`；明确共享 Runtime 中 Business 与非 Business 分支隔离、输入拒绝语义及启动一一映射校验 |
 | v1.4 | 2026-08-24 | 独立复评 R1 发现并闭合请求取消信号接缝，禁止模型迟到结果进入 decoder/binder/Core |
 | v1.5 | 2026-08-24 | 明确清理 Employee/Transaction 专属 Resolver 可执行资产，同时保留非 Business 共享 Hybrid/ID-only 与历史不可变证据 |
+| v1.6 | 2026-08-24 | 处理全量回归门禁冲突：固化唯一 graph→provider-neutral Model bridge、request cancellation、有限 decision union 和 Registry 只读 validator 例外 |
 
 本文定义 Business QueryPlan 如何在 LangGraph 中转换为既有 `ActionCandidate`，以及 Registry/Core/组合根如何保证单动作和唯一链路。
 
@@ -38,7 +39,7 @@
 
 ## 3. 上位约束、需求与关联责任边界
 
-上位约束来源是 L1_00 v1.2 的唯一编排、单动作和无 Business Resolver 旁路；本 L2 负责图/Core 接缝，不负责域字段、模型 transport 或 HTTP codec。`CON-CORE-001`：QueryPlan 只有在 Business 层验证并绑定后才能进入 Core，依赖方向固定为 Planning→Core→Handler，禁止反向依赖和绕过。
+上位约束来源是 L1_00 v1.3 的唯一编排、单动作、无 Business Resolver 旁路和唯一 provider-neutral planning bridge；本 L2 负责图/Core 接缝，不负责域字段、模型 transport 实现或 HTTP codec。`CON-CORE-001`：QueryPlan 只有在 Business 层验证并绑定后才能进入 Core，依赖方向固定为 Planning→Core→Handler，禁止反向依赖和绕过。
 
 | ID | 要求 |
 |---|---|
@@ -121,6 +122,8 @@ class ProtectedValueBinder(Protocol):
 
 ### 4.2 建议新增模块 `agent_runtime.graph.business_query_planning`
 
+这是 `graph` 包内唯一允许直接导入 `agent_runtime.model` provider-neutral contracts/context 的模块；禁止导入 `agent_runtime.model.deepseek`、HTTP client、transport 实现或 provider DTO。其职责是编排模型计划和确定性转换，不属于 Core，也不拥有 handler 执行权。
+
 ```python
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BusinessPlanningInput:
@@ -157,7 +160,7 @@ class BusinessQueryPlanningNode:
 4. 调用 `BusinessQueryPlanDecoder.decode(...)` 对对象执行 exact `domain/action/arguments` 与 tagged-value 解码；
 5. `BusinessQueryPlanValidator.validate(...)` 校验 domain/action/arguments/config；若返回 unsupported 终态则立即结束；
 6. 绑定前再次检查取消；仅对 `ValidatedBusinessQueryPlan` 调用 `ProtectedValueBinder.bind(..., request_id=input.request_id)`，显式校验并解析同请求引用后构造候选参数；
-7. 使用 Registry 对应的既有 `CapabilityArgumentValidator.validate(...)` 再校验；
+7. 只读 `Registry.resolve(...)` 定位实际注册项并仅调用其 `CapabilityArgumentValidator.validate(...)` 再校验；不得导入私有 registered-call 类型或调用 handler；
 8. 返回唯一 ActionCandidate；
 9. 图进入 `CapabilityExecutionCore.execute(...)` 一次。
 
@@ -183,6 +186,8 @@ class RuntimeCompositionRoot:
 ```
 
 `BusinessQueryPlanRuntimeBindings` 只携带 Business definitions/snapshot/catalog/generator/context/extractor/guard；decoder、validator、binder 与 registry view 由组合根固定装配。为兼容既有 Knowledge 分支，公共 Runtime 仍可接收 `local_action_resolvers`，但启动时只允许它们绑定已从 Business action 集合剔除的非 Business descriptor。Business 分支先按有限业务锚点进入 planning，不能调用、枚举或回退至该 Hybrid/ID-only 分支；包含业务锚点但输入非法时仍在 Business Guard 内失败关闭。
+
+`ActionSelectionNode` 的内部返回类型允许 `ActionSelectionDecision | BusinessPlanningDecision`；后者只包含 candidate 或有限 terminal status/code，不携带模型原文。`select_action_node` 可接收 LangGraph Runtime，但只读取 `GraphRunContext.execution_scope.context.cancellation` 并透传；不得执行 capability。架构测试必须精确允许上述接缝，同时继续证明 `execute_capability_node` 是唯一 Core 执行节点。
 
 ### 6.2 启动校验
 
@@ -255,7 +260,7 @@ Core 不读取问题、不调用模型、不解析 QueryPlan、不读取 Busines
 | `IMPL-CORE-006` | `agent-runtime/src/agent_runtime/graph/action_resolution.py` | 保留/隔离 | Hybrid 节点不再承载 Business 目标路径 |
 | `IMPL-CORE-007` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 建议新增（候选已实现） | 组合域 extractor 的 request-local slot，拒绝跨请求或多域非空 slot；不选择 domain/action |
 | `IMPL-CORE-008` | `agent-runtime/src/agent_runtime/graph/state.py`、`agent-runtime/src/agent_runtime/graph/nodes.py`、`agent-runtime/src/agent_runtime/graph/business_query_planning.py` | 建议修改 | 从 `GraphRunContext.execution_scope` 传递请求取消信号，并在模型前/后及绑定前失败关闭 |
-| `IMPL-CORE-009` | `agent-runtime/tests/integration/graph/test_business_local_resolvers.py`、`agent-runtime/scripts/run-structured-query-uat.ps1` | 删除/修改 | 删除旧旁路集成测试并移除 launcher 入口；不改共享 resolver 测试 |
+| `IMPL-CORE-009` | 已删除的旧 Business 旁路集成测试与结构化 UAT launcher 入口 | 已清理 | 删除旧旁路集成测试并移除 launcher 入口；不改共享 resolver 测试 |
 
 不得修改公共 Spring/OpenAPI、业务 Adapter 参数 Schema 或 Java 服务。
 
@@ -308,6 +313,10 @@ Core 不读取问题、不调用模型、不解析 QueryPlan、不读取 Busines
 | v1.5 内审2 | 历史 harness 兼容 | 修正为保留 legacy 字段、生产 factory 拒绝非空 Resolver，避免破坏冻结源码复验 |
 | v1.5 内审3 | 引用、取消、版本与无环 | 空 support 字段延后至 E2E 解除调用；不新增节点、依赖或公共合同 |
 | v1.5 独立评审 R1～R3 | 可达性、冻结兼容与实现触点 | R1 修复 legacy 字段误删，R2 增加旧集成测试/launcher 清理落点，R3 无发现 |
+| v1.6 内审1 | graph/model 依赖与 provider 泄漏 | 精确允许唯一 provider-neutral bridge，禁止 deepseek/http/transport |
+| v1.6 内审2 | Runtime/decision/Registry | cancellation 与有限 union 必要；Registry 仅 validate，Core 独占 handler 执行 |
+| v1.6 内审3 | 测试门禁、DAG 与过度设计 | 更新旧绝对断言而不新增转发层/包/公共合同 |
+| v1.6 独立评审 R1～R2 | 实现可达性与跨层边界 | R1 补齐私有注册类型/handler 禁止项；R2 无 Blocker/Major/Minor |
 
 Approved 表示本文可作为实施依据，不表示目标代码已实现。
 
