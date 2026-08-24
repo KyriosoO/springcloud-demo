@@ -130,7 +130,7 @@ def validate_manifest(value: object) -> dict[str, object]:
         or manifest["state"] != "prepared_unconsumed"
         or manifest["runId"] != RUN_ID
         or manifest["authorizationReference"] != AUTHORIZATION_REFERENCE
-        or not _is_sha256(manifest["preparedHead"])
+        or not _is_git_sha(manifest["preparedHead"])
     ):
         raise ValueError("business_query_plan_live.manifest_binding_invalid")
     model = _exact_mapping(manifest["model"], {"provider", "name", "requestMode"})
@@ -400,3 +400,7 @@ def _exact_sequence(value: object, minimum: int) -> tuple[object, ...]:
 
 def _is_sha256(value: object) -> bool:
     return type(value) is str and len(value) == 64 and set(value) <= _SHA256
+
+
+def _is_git_sha(value: object) -> bool:
+    return type(value) is str and len(value) == 40 and set(value) <= _SHA256
