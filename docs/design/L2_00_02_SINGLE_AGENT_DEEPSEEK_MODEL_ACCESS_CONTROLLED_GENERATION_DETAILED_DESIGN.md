@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v4` 已实施三个动作安全 catalog、strict provider decoder 和完整意图 Prompt；semantic+地点过滤、缺少批准时钟的相对日期均通过 adversarial fake unsupported/零调用。119 项定向、1440 项 non-live 和 115 个模块 strict mypy 通过；历史 v3 controlled/UAT 证据及哈希不可变，正式 v4 UAT 尚未执行。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v4` 已实施三个动作安全 catalog、strict provider decoder 和完整意图 Prompt；semantic+地点过滤、缺少批准时钟的相对日期均通过 adversarial fake 及真实 UAT unsupported/零调用。正式 run03 UAT 18/18 通过，结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；历史 v3 controlled/UAT 证据及哈希保持不可变。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -119,7 +119,7 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 | 当前允许实施范围 | v4 Prompt/task version、版本化 UAT manifest 和 adversarial fake/non-live 实施 |
 | 当前禁止动作 | 真实模型调用、读取密钥、修改 Knowledge task、放宽 Business validator |
 
-风险包括 Prompt 遗漏用户条件、敏感值出域和旧 v2/v3 证据误用。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 证明 semantic+location 原 Prompt 不稳定；以明确反例、adversarial fake、零调用、版本化 task/manifest 及历史哈希控制，不添加本地语义识别。评审记录：当前修订必须完成三轮内审和独立分层/跨层评审后再实施。
+风险包括 Prompt 遗漏用户条件、敏感值出域和旧 v2/v3 证据误用。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 证明 semantic+location 原 Prompt 不稳定；以明确反例、adversarial fake、零调用、版本化 task/manifest 及历史哈希控制，不添加本地语义识别。评审记录：当前修订已完成三轮内审和独立分层/跨层评审并通过。
 
 ## 11. 端到端追踪矩阵
 

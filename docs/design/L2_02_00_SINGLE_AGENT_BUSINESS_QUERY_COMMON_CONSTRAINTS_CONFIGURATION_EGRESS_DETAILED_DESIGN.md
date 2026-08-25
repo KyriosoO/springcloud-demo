@@ -18,7 +18,7 @@
 
 设计目标是让 Business 公共层统一承担 provider-neutral QueryPlan、field/operator/slot、配置 snapshot、启动一致性、JWT 透传、结果投影和可选模型出域。范围外包括问题语义本地生成、provider transport、Core 执行规则、业务 SQL/ES、业务最终授权、新 endpoint/DTO 和真实模型调用。
 
-当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已实施并通过 non-live，真实三动作 controlled 联调已通过。公共 validator 已依据 operator 区分 `trans_type eq` 安全 token 与 `contains` 防 LIKE 通配策略，并通过双向 fake/零调用验证；Employee 业务最终授权和 SQL 实现仍不是公共层责任。
+当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已通过 non-live、真实 controlled 及 18 项正式 UAT。公共 validator 依据 operator 区分 `trans_type eq` 安全 token 与 `contains` 防 LIKE 通配策略；当前 Employee 配置、实际定义和模型目录均无 workBase，未配置字段依靠通用白名单自然失败关闭。Employee 业务最终授权和 SQL 实现仍不是公共层责任。
 
 | 需求编号 | 需求 |
 |---|---|

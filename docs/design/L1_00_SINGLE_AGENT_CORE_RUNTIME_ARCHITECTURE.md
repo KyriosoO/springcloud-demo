@@ -12,7 +12,7 @@
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | 三动作组合根、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 已实施；119 项定向、1440 项 non-live 通过，正式 UAT Ready |
+| 当前实现 | 三动作组合根、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 已实施；正式 run03 UAT 18/18 通过 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -56,7 +56,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 ## 5. 生产组合根与单动作不变量
 
-目标 Registry 公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；旧 `employee.detail` 仅在完成调用方/兼容性分析前作为历史实现存在，不能继续作为目标 Employee 主查询能力。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义，并明确排除 `workBaseSi/workBaseAf`；具体字段与 DTO 映射仍归 Business L1/L2 所有。
+目标 Registry 公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；旧 `employee.detail` 已核实仅由历史兼容测试及冻结资产使用，不进入目标生产 Registry。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义；未配置字段通过通用白名单自然不可达，具体字段与 DTO 映射仍归 Business L1/L2 所有。
 
 生产 Business 对象图禁止 Local Resolver、ID-only selector、自动补全 filters、旧 fallback、跨域重试和第二次 handler 调用。共享 Knowledge/Core 兼容类型只有在仍被有效调用方或冻结历史资产依赖时保留，不得以兼容性为由重新接入 Business 生产路径。
 
@@ -84,4 +84,4 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 应验证三动作唯一可达、一次规划/一次 handler、并发请求 slot 隔离、取消、strict decoder、config snapshot、不支持条件零调用和 Knowledge 回归。无须独立工作流引擎、复杂 circuit breaker、动态 registry 或生产级治理平台。
 
-既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能证明 v4 完整意图行为。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；现已通过 v4 Prompt 和 adversarial fake 固化语义+filter、相对日期的 exact unsupported/零调用，119 项定向和 1440 项 non-live 通过。正式 UAT 必须使用独立新 manifest，不增加本地语义 Resolver 或重复 live 审计平台。
+既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能替代 v4 验收。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；v4 Prompt 已在独立 run03 正式 UAT 完成 18/18 真实规划，语义+filter、相对日期均 exact unsupported/零业务调用。成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；未增加本地语义 Resolver 或重复 live 审计平台。

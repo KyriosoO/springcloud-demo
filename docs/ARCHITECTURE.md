@@ -7,7 +7,7 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- Employee/Transaction 相关需求、L0/L1/L2 与实施计划以 v2.0 为新权威基线；Model 完整意图纠偏后 `L1_00` 和 Model L2 为 v2.1，`L1_02`、Business 公共/Employee/Transaction L2 为 v2.3，实施计划为 v2.13、正式验收计划为 v1.11。Knowledge 与未涉及的公共文档保持原版本。
+- Employee/Transaction 相关需求、L0/L1/L2 与实施计划以 v2.0 为新权威基线；Model 完整意图纠偏后 `L1_00` 和 Model L2 为 v2.1，`L1_02`、Business 公共/Employee/Transaction L2 为 v2.3，实施计划为 v2.14、正式验收计划为 v1.12。Knowledge 与未涉及的公共文档保持原版本。
 
 ## 2. 需求与总体架构
 
@@ -56,14 +56,14 @@
 - 一个逻辑 Agent 由 Spring `agent-service` 与 Python `agent-runtime` 两个进程组成；LangGraph 是唯一编排权威，Spring 只负责接入与治理。
 - Core 只执行一个已验证 Action；能力通过冻结 Registry 接入。新增能力不得在 Core 写域分支。
 - Knowledge 是一个复合查询能力，流程固定为问题处理、逻辑域选择、检索计划、多路检索/融合/重排、证据与摘要；不新增 `knowledge-service`。
-- Business 目标动作是 `employee.search`、`employee.semantic_search` 与 `transaction.search`；`employee.detail` 为待核实迁移的历史能力。Adapter 透传用户 JWT，业务服务完成最终授权。
+- Business 目标动作是 `employee.search`、`employee.semantic_search` 与 `transaction.search`；`employee.detail` 仅保留历史兼容调用方，不在目标生产组合根。Adapter 透传用户 JWT，业务服务完成最终授权。
 - 外部模型只接收各域明确允许的最小 payload；未知、敏感、冲突或未分类内容失败关闭。Business 真实结果出域默认关闭。
 - 当前 Knowledge P5 已得到有效但 `ineffective` 的结论；这表示验证完成但效果未达阈值，不应改写为“未执行”或“已达标”。
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.13 / Reviewed。计划是调度/证据索引，不得反向修改设计权威。
-- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.11 / Reviewed；v4 完整意图 Prompt 与 1440 项 non-live 已通过，正式 UAT Ready。
+- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.14 / Reviewed；15 个工作包 Done，相关门禁 Closed。
+- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.12 / Reviewed；18 项真实 v4 QueryPlan 验收全部通过。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。统一配置、三个列表动作、生产组合根、Employee 最终授权、Transaction 日期/文本策略和 v4 完整意图 Prompt 均已实施；v3 controlled 六场景、119 项定向和 1440 项 non-live 通过。两次失败结果保持不可变，新的 v4 manifest 已冻结，正式 UAT Ready。
+Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。统一配置、三个列表动作、生产组合根、Employee 最终授权、Transaction 日期/文本策略和 v4 完整意图 Prompt 均已实施。正式 run03 UAT 18/18 通过：Employee search 6 次、semantic 1 次、Transaction search 7 次，四项 unsupported 均零业务调用；其他 endpoint、answer、Knowledge、retry/resume 和敏感持久化均为 0。结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；两次历史失败结果保持不可变。

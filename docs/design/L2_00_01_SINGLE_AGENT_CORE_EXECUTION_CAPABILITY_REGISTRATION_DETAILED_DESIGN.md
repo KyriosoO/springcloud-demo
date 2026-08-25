@@ -18,7 +18,7 @@
 
 目标是在不修改公共 Core、HTTP、CapabilityResult 和 Knowledge 契约的前提下，由唯一 LangGraph Business bridge 执行 filters QueryPlan 验证并产生一个 ActionCandidate。范围外包括本地语义补参、SQL/ES 生成、业务权限判断、domain fallback 和真实模型调用。
 
-当前实现：`agent-runtime/src/agent_runtime/graph/business_query_planning.py`、`agent-runtime/src/agent_runtime/business/query_plan.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 及 Registry/Core 已承接新 filters QueryPlan、`employee.search`、`employee.semantic_search`、扩展 `transaction.search` 和唯一三动作生产组合根。Employee 服务端点级角色转换、六场景受控联调和 v4 完整意图 non-live 均已通过；完整正式 UAT 待执行。
+当前实现：`agent-runtime/src/agent_runtime/graph/business_query_planning.py`、`agent-runtime/src/agent_runtime/business/query_plan.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 及 Registry/Core 已承接新 filters QueryPlan、`employee.search`、`employee.semantic_search`、扩展 `transaction.search` 和唯一三动作生产组合根。Employee 服务端点级角色转换、六场景受控联调及正式 18 项 v4 UAT 全部通过；每个成功业务请求仅生成一个计划、执行一个固定 endpoint。
 
 | 需求编号 | 需求 |
 |---|---|

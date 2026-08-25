@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.11 |
+| 当前版本 | v1.12 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3；Employee L2 v2.3；Transaction L2 v2.3 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.13 |
-| 当前状态 | v4 完整意图 Prompt、两个 unsupported 零调用场景、1440 项 non-live 与独立 manifest 已通过；`GATE-UAT-007` Closed，正式 run03 验收 Ready |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.14 |
+| 当前状态 | 公共冒烟及正式 run03 UAT 全部通过：18 次真实 v4 QueryPlan，Employee search/semantic 6/1，Transaction search 7，四项 unsupported 均零业务调用 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -37,9 +37,9 @@
 | 阶段 | 内容 | 前置 | 当前状态 |
 |---|---|---|---|
 | `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed |
-| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Ready |
-| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Ready |
-| `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Ready，待正式 UAT 结果 |
+| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Passed：9 个真实场景；search 6、semantic 1、unsupported 2 |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Passed：9 个真实场景；search 7、unsupported 2 |
+| `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Passed：18 次真实规划、14 次单 endpoint 调用，禁止调用均为 0 |
 
 Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
 
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；公共接入 Java 20 项通过。首次和第二次 UAT 不可变失败 SHA-256 分别为 `cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`、`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`。Transaction `eq/contains`、v4 完整意图 Prompt、semantic+filter/相对日期 fake 零调用、119 项定向、1440 项 non-live 和 115 个模块 strict mypy 均通过；新 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`，`GATE-UAT-007` Closed。正式 UAT 尚未执行，只能使用独立 run03 结果路径。
+v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；首次和第二次 UAT 不可变失败 SHA-256 分别为 `cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`、`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`。新 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`；v4 run03 正式成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。18 个固定场景各使用 1 次真实 QueryPlan；Employee search 6 次、semantic 1 次、Transaction search 7 次；workBase 样例、semantic+地点、无批准时钟相对日期和聚合均 unsupported/零业务调用；两域 denied 角色各由业务服务返回 forbidden。其他 endpoint、answer、Knowledge、retry/resume、禁止字段与敏感持久化均为 0；职位、绝对日期与等值金额存在 no_result 样本，但查询执行合同和有结果范围查询均已验证。最终 Python 回归 1441 项通过，27 项历史 opt-in live 测试按设计跳过；`GATE-UAT-007` Closed，四个验收阶段 Passed。
