@@ -119,10 +119,35 @@ def employee_search_definition() -> BusinessActionDefinition[
             argument_schema={
                 "type": "object",
                 "properties": {
-                    "filters": {"type": "array", "maxItems": 8},
+                    "filters": {
+                        "type": "array",
+                        "maxItems": 8,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "field": {"type": "string"},
+                                "operator": {"type": "string"},
+                                "value": {"type": "string"},
+                            },
+                            "required": ("field", "operator", "value"),
+                            "additionalProperties": False,
+                        },
+                    },
                     "page": {"type": "integer", "minimum": 1, "maximum": 1000},
                     "size": {"type": "integer", "minimum": 1, "maximum": 50},
-                    "sorts": {"type": "array", "maxItems": 2},
+                    "sorts": {
+                        "type": "array",
+                        "maxItems": 2,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "field": {"type": "string"},
+                                "direction": {"type": "string", "enum": ("ASC", "DESC")},
+                            },
+                            "required": ("field", "direction"),
+                            "additionalProperties": False,
+                        },
+                    },
                     "keyword": {"type": "string", "minLength": 1, "maxLength": 128},
                 },
                 "required": ("filters", "page", "size", "sorts"),

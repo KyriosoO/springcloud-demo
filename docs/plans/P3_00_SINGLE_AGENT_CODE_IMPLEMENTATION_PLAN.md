@@ -34,7 +34,7 @@
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Employee search/semantic/role guard | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Transaction Date/Decimal/page/sort | Approved |
 
-Verified existing：Business filters plan、统一字段 JSON、v3 model catalog、Employee search/semantic Adapter、Employee ES 最终读取授权、Transaction Date/Decimal/完整分页 Adapter 和现有三个业务接口。Not implemented：三动作生产组合根切换、旧目标入口退役核实、新版整体 fake/live 及正式 UAT 证据。
+Verified existing：Business filters plan、统一字段 JSON、v3 model catalog、Employee search/semantic Adapter、Employee ES 最终读取授权、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根及现有三个业务接口。Not implemented：旧目标入口退役核实、新版整体 fake/live 及正式 UAT 证据。
 
 ## 4. 分批与执行边界
 
@@ -53,9 +53,9 @@ Verified existing：Business filters plan、统一字段 JSON、v3 model catalog
 | `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Done |
 | `WP-EMP-ES-AUTH-02` | Employee ES 最终读取授权 | `L2_02_01 DR-EMP-105` | 调用方兼容核查、两入口 requireEmployeeRead、角色矩阵 | - | - | Java guard/controller/security 测试 | `VAL-EMP-102` | 未确认兼容前不启用授权变更 | Done |
 | `WP-TXN-SEARCH-EXT-02` | Transaction Date/金额/分页扩展 | `L2_02_02 DR-TXN-101～105` | 四字段 operator、Date/Decimal、page/sort、稳定列表 | `WP-BQ-FIELD-CONFIG-02` | - | 扩展 Transaction Adapter 和 Java contract tests | `VAL-TXN-101/102/103` | 关闭新字段，不修改 Java DTO/SQL | Done |
-| `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02`, `WP-EMP-ES-AUTH-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Ready |
-| `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Blocked |
-| `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Blocked |
+| `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02`, `WP-EMP-ES-AUTH-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Done |
+| `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Ready |
+| `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Ready |
 | `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 单次授权、有限固定场景、敏感值内存化 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02` | `GATE-070` | 真实三动作 finite evidence | 一计划/一业务调用与权限矩阵 | 失败即停止，不补跑或复用历史授权 | Blocked |
 | `WP-BQ-UAT-HANDOFF-02` | 正式 UAT 环境与交接 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | UAT 前置、真实数据可用性、固定用例与结论 | `WP-BQ-CONTROLLED-LIVE-02` | `GATE-UAT-007` | UAT 准入记录及阶段结论 | UAT 公共/Employee/Transaction/收口 | 不把旧 evidence 冒充本版 UAT | Blocked |
 
@@ -111,9 +111,9 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | 5 | `WP-EMP-SEMANTIC-ADAPTER-02` | Done | `WP-BQ-FIELD-CONFIG-02` | 固定 vector-search/profile、单调用、敏感与 filter/vector 拒绝通过 82 项回归 |
 | 6 | `WP-EMP-ES-AUTH-02` | Done | - | 两入口复用现有读取守卫，调用方兼容核实与 7 项安全测试通过 |
 | 7 | `WP-TXN-SEARCH-EXT-02` | Done | `WP-BQ-FIELD-CONFIG-02` | 四字段 operator、精确 Decimal、offset Date、epoch 毫秒响应、完整分页及 Java/生产 metadata 契约通过 |
-| 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Ready | - | Model、两个 Employee Adapter、Transaction Adapter 与 Employee 最终授权五项前置均完成 |
-| 9 | `WP-EMP-DETAIL-RETIRE-02` | Blocked | `WP-BQ-RUNTIME-CUTOVER-02` | 先具备新列表替代路径 |
-| 10 | `WP-BQ-NONLIVE-E2E-02` | Blocked | `WP-BQ-RUNTIME-CUTOVER-02` | E2E 需要唯一三动作对象图 |
+| 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Done | - | 正式启动入口、统一配置、三动作 Registry、受控 HTTP transport 与默认 stub 契约通过 |
+| 9 | `WP-EMP-DETAIL-RETIRE-02` | Ready | - | 新生产列表组合根已建立，可核实旧 detail 调用方与历史兼容 |
+| 10 | `WP-BQ-NONLIVE-E2E-02` | Ready | - | 三动作唯一 production 对象图已可用于完整 fake 端到端验证 |
 | 11 | `WP-BQ-CONTROLLED-LIVE-02` | Blocked | non-live/retire 与 `GATE-070` | 真实调用必须独立授权和受控 |
 | 12 | `WP-BQ-UAT-HANDOFF-02` | Blocked | controlled live 与 `GATE-UAT-007` | UAT 不能复用旧 detail 证据 |
 
@@ -149,9 +149,9 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-EMP-SEMANTIC-ADAPTER-02` | `DR-EMP-102/104` | `IMPL-EMP-101～105` | `TEST-EMP-103/104` | `VAL-EMP-101/103` | Done |
 | `WP-EMP-ES-AUTH-02` | `DR-EMP-105` | `IMPL-EMP-106/107` | `TEST-EMP-106` | `VAL-EMP-102` | Done |
 | `WP-TXN-SEARCH-EXT-02` | `DR-TXN-101～105` | `IMPL-TXN-101～107` | `TEST-TXN-101～106` | `VAL-TXN-101/102/103` | Done |
-| `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Ready |
-| `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Blocked |
-| `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Blocked |
+| `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Done |
+| `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Ready |
+| `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Ready |
 | `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-EMP-105`; `DR-TXN-105` | 受控 runner 和有限 evidence | 有限三动作 live 矩阵 | `GATE-070` 关闭证据 | Blocked |
 | `WP-BQ-UAT-HANDOFF-02` | `REQ-BQS-012` | UAT 环境与用例清单 | UAT 四阶段 | `GATE-UAT-007` 关闭证据 | Blocked |
 
@@ -178,8 +178,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Done 7 个，Ready 1 个，Blocked 4 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、Employee 最终读取授权与 Transaction 四字段/Date/Decimal/分页 Adapter 已完成；相关 368 项 Python 回归、Java Jackson/Controller 契约和生产 `TRANS_DATE DATETIME(0)` 只读元数据核实通过。三动作生产组合根切换已具备入口条件。`GATE-067/068/069` Closed，`GATE-070` 与 `GATE-UAT-007` 保持 Open。
+总计 12 个工作包、15 条直接依赖：Done 8 个，Ready 2 个，Blocked 2 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、Employee 最终读取授权、Transaction 四字段/Date/Decimal/分页 Adapter 与唯一三动作生产组合根已完成；正式启动入口显式启用 DeepSeek 时使用受控 Business HTTP transport，默认 stub 保持无动作。三动作成功、旧 detail 不可达、未配置字段、模型失败、服务拒绝及固定 endpoint 已通过定向测试。`GATE-067/068/069` Closed，`GATE-070` 与 `GATE-UAT-007` 保持 Open。
 
 ## 15. 后续实施建议
 
-继续执行 `WP-BQ-RUNTIME-CUTOVER-02`，再完成旧 Employee detail 目标入口退役核实、三动作 non-live E2E、受控 live 和正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。
+继续执行旧 Employee detail 目标入口退役核实及完整三动作 non-live E2E，再完成受控 live 和正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。

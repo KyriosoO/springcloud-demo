@@ -8,14 +8,36 @@ from typing import Any, Awaitable, Callable, Mapping, Sequence, cast
 from langgraph.graph import END, START, StateGraph
 
 from agent_runtime.capability_api.action_resolution import LocalActionResolver
-from agent_runtime.capability_api.contracts import CapabilityDescriptor, CapabilityRegistrationProvider
+from agent_runtime.capability_api.contracts import (
+    CapabilityDescriptor,
+    CapabilityRegistrationCandidate,
+    CapabilityRegistrationProvider,
+)
 from agent_runtime.core.execution import CapabilityExecutionCore
 from agent_runtime.core.registry import CapabilityRegistryBuilder
+from agent_runtime.adapters.employee.protected_input import EmployeeProtectedValueExtractor
+from agent_runtime.adapters.employee.provider import EmployeeSearchDomainProvider
+from agent_runtime.adapters.transaction.protected_input import TransactionProtectedValueExtractor
+from agent_runtime.adapters.transaction.provider import TransactionListDomainProvider
+from agent_runtime.business.contracts import BusinessServiceKey
+from agent_runtime.business.egress import BusinessEgressProjector
+from agent_runtime.business.handler import BoundBusinessActionHandler
+from agent_runtime.business.http_client import FakeDomainTransport, UserJwtBusinessHttpClient
+from agent_runtime.business.protected_input import CompositeBusinessProtectedValueExtractor
+from agent_runtime.business.provider import BusinessSupportFactory
 from agent_runtime.business.query_plan import (
     DefaultBusinessQueryPlanValidator,
     ExactBusinessQueryPlanDecoder,
     RequestProtectedValueBinder,
 )
+from agent_runtime.business.settings import (
+    BusinessConfigurationSource,
+    BusinessGlobalSettings,
+    BusinessQueryConfigurationLoader,
+    BusinessServiceBinding,
+    GlobalBusinessEgressPolicy,
+)
+from agent_runtime.business.user_projection import BusinessUserResultProjector
 from agent_runtime.graph.nodes import (
     ActionSelectionNode,
     AnswerGenerationNode,
@@ -318,6 +340,150 @@ class LocalModelCompositionRoot:
             gateway=gateway,
             _lifecycle=_ModelResourceLifecycle(close),
         )
+
+
+class _BusinessRegistrationProvider:
+    __slots__ = ("_registrations",)
+
+    def __init__(self, registrations: Sequence[CapabilityRegistrationCandidate[Any]]) -> None:
+        self._registrations = tuple(registrations)
+
+    def registrations(self) -> tuple[CapabilityRegistrationCandidate[Any], ...]:
+        return self._registrations
+
+
+class _BusinessRuntimeLifecycle:
+    __slots__ = ("_clients", "_model")
+
+    def __init__(
+        self,
+        *,
+        clients: tuple[UserJwtBusinessHttpClient, ...],
+        model: LocalModelComponents,
+    ) -> None:
+        self._clients = clients
+        self._model = model
+
+    async def aclose(self) -> None:
+        failure: BaseException | None = None
+        for resource in self._clients:
+            try:
+                await resource.aclose()
+            except BaseException as exc:
+                if failure is None:
+                    failure = exc
+        try:
+            await self._model.aclose()
+        except BaseException as exc:
+            if failure is None:
+                failure = exc
+        if failure is not None:
+            raise failure
+
+
+class BusinessQueryRuntimeCompositionRoot:
+    """Owns the sole three-action Business QueryPlan production object graph."""
+
+    @staticmethod
+    def build(
+        *,
+        model: LocalModelComponents,
+        employee_transport: FakeDomainTransport,
+        transaction_transport: FakeDomainTransport,
+        employee_endpoint: str,
+        transaction_endpoint: str,
+        global_settings: BusinessGlobalSettings | None = None,
+        additional_providers: Sequence[CapabilityRegistrationProvider] = (),
+        local_action_resolvers: Sequence[LocalActionResolver] = (),
+    ) -> ModelContextBindingRuntimeInvoker:
+        core_settings = CoreRuntimeSettings()
+        configured = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)
+        employee_provider = EmployeeSearchDomainProvider(
+            search_settings=configured["employee.search"],
+            semantic_settings=configured["employee.semantic_search"],
+            service_binding=BusinessServiceBinding(
+                service_key=BusinessServiceKey("employee-service"),
+                base_endpoint=employee_endpoint,
+            ),
+        )
+        transaction_provider = TransactionListDomainProvider(
+            settings=configured["transaction.search"],
+            service_binding=BusinessServiceBinding(
+                service_key=BusinessServiceKey("mq-procedure-service"),
+                base_endpoint=transaction_endpoint,
+            ),
+        )
+        definitions = (*employee_provider.definitions(), *transaction_provider.definitions())
+        fragments = (
+            employee_provider.configuration_fragment(),
+            transaction_provider.configuration_fragment(),
+        )
+        support = BusinessSupportFactory().build(
+            definitions=definitions,
+            config=BusinessConfigurationSource(
+                global_settings=global_settings or BusinessGlobalSettings(),
+                actions=tuple(item for fragment in fragments for item in fragment.actions),
+                service_bindings=tuple(
+                    item for fragment in fragments for item in fragment.service_bindings
+                ),
+            ),
+            core_max_domain_result_bytes=core_settings.max_domain_result_bytes,
+        )
+        if support.planner_catalog is None:
+            raise ValueError("business.plan_composition_invalid")
+        clients = {
+            "employee-service": UserJwtBusinessHttpClient(
+                transport=employee_transport,
+                max_response_bytes=support.global_settings.http_max_response_bytes,
+            ),
+            "mq-procedure-service": UserJwtBusinessHttpClient(
+                transport=transaction_transport,
+                max_response_bytes=support.global_settings.http_max_response_bytes,
+            ),
+        }
+        registrations = tuple(
+            CapabilityRegistrationCandidate[Any](
+                descriptor=item.definition.descriptor,
+                enabled=item.settings.enabled,
+                argument_validator=item.definition.argument_validator,
+                handler=BoundBusinessActionHandler(
+                    definition=item.definition,
+                    settings=item.settings,
+                    client=clients[str(item.definition.service_key)],
+                    user_projector=BusinessUserResultProjector(),
+                    egress_projector=BusinessEgressProjector(),
+                    egress_policy=GlobalBusinessEgressPolicy.from_settings(
+                        support.global_settings
+                    ),
+                    config_snapshot_id=support.snapshot_id,
+                    max_user_result_bytes=support.global_settings.max_user_result_bytes,
+                ),
+            )
+            for item in support.actions
+        )
+        runtime = RuntimeCompositionRoot.build(
+            settings=core_settings,
+            providers=(
+                _BusinessRegistrationProvider(registrations),
+                *additional_providers,
+            ),
+            capability_selector=model.action_selector,
+            answer_generator=model.answer_generator,
+            local_action_resolvers=local_action_resolvers,
+            business_query_plan=BusinessQueryPlanRuntimeBindings(
+                definitions=definitions,
+                snapshot=support.configuration_snapshot,
+                planner_catalog=support.planner_catalog,
+                generator=model.business_query_plan_generator,
+                context_accessor=model.context_accessor,
+                protected_value_extractor=CompositeBusinessProtectedValueExtractor(
+                    (EmployeeProtectedValueExtractor(), TransactionProtectedValueExtractor())
+                ),
+                guard=QuestionEgressGuard(),
+            ),
+        )
+        lifecycle = _BusinessRuntimeLifecycle(clients=tuple(clients.values()), model=model)
+        return ModelContextBindingRuntimeInvoker(runtime, close=lifecycle.aclose)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
