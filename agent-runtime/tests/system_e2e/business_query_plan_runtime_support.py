@@ -125,10 +125,14 @@ def build_business_query_plan_runtime(
     return model.bind_runtime(runtime)
 
 
-def business_query_plan_snapshot_id() -> str:
+def business_query_plan_snapshot_id(
+    *,
+    employee_endpoint: str,
+    transaction_endpoint: str,
+) -> str:
     _, support = _build_business_query_plan_support(
-        employee_endpoint="http://employee.invalid",
-        transaction_endpoint="http://transaction.invalid",
+        employee_endpoint=employee_endpoint,
+        transaction_endpoint=transaction_endpoint,
         core_settings=CoreRuntimeSettings(),
     )
     if support.planner_catalog is None or support.planner_catalog.snapshot_id != support.snapshot_id:

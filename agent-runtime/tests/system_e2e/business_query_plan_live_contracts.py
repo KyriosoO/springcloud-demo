@@ -13,12 +13,14 @@ from agent_runtime.model.deepseek.business_query_plan import (
 )
 
 
-RUN_ID: Final = "business-query-plan-live-v1-20260824-candidate-01"
+RUN_ID: Final = "business-query-plan-live-v1-20260825-candidate-02"
 AUTHORIZATION_REFERENCE: Final = "P3_00:GATE-065"
 WORK_PACKAGE: Final = "WP-BQ-QUERYPLAN-LIVE-01"
 MODEL_CALL_BUDGET: Final = 6
 EMPLOYEE_DETAIL_BUDGET: Final = 2
 TRANSACTION_SEARCH_BUDGET: Final = 2
+EMPLOYEE_BASE_URL: Final = "http://127.0.0.1:9210"
+TRANSACTION_BASE_URL: Final = "http://127.0.0.1:8182"
 
 CASE_IDS: Final = (
     "bq-live-emp-admin",
@@ -102,7 +104,7 @@ def append_journal(path: Path, value: object) -> None:
         os.fsync(stream.fileno())
 
 
-def validate_manifest(value: object) -> dict[str, object]:
+def validate_manifest(value: object, *, expected_run_id: str = RUN_ID) -> dict[str, object]:
     if type(value) is not dict:
         raise ValueError("business_query_plan_live.manifest_shape_invalid")
     manifest = cast(dict[str, object], value)
@@ -128,7 +130,7 @@ def validate_manifest(value: object) -> dict[str, object]:
         manifest["schemaVersion"] != 1
         or manifest["workPackage"] != WORK_PACKAGE
         or manifest["state"] != "prepared_unconsumed"
-        or manifest["runId"] != RUN_ID
+        or manifest["runId"] != expected_run_id
         or manifest["authorizationReference"] != AUTHORIZATION_REFERENCE
         or not _is_git_sha(manifest["preparedHead"])
     ):
@@ -146,7 +148,10 @@ def validate_manifest(value: object) -> dict[str, object]:
     ):
         raise ValueError("business_query_plan_live.manifest_task_invalid")
     snapshots = _exact_mapping(manifest["snapshots"], {"catalogSha256", "configSha256"})
-    if not all(_is_sha256(item) for item in snapshots.values()):
+    if (
+        not all(_is_sha256(item) for item in snapshots.values())
+        or snapshots["catalogSha256"] != snapshots["configSha256"]
+    ):
         raise ValueError("business_query_plan_live.manifest_snapshot_invalid")
     cases = _exact_sequence(manifest["cases"], len(CASE_IDS))
     if tuple(_case_id(item) for item in cases) != CASE_IDS or cases != _MANIFEST_CASES:
@@ -210,6 +215,7 @@ def validate_authorization_template(
     *,
     manifest_sha256: str,
     prepared_head: str,
+    expected_run_id: str = RUN_ID,
 ) -> None:
     item = _exact_mapping(
         value,
@@ -230,7 +236,7 @@ def validate_authorization_template(
         item["schemaVersion"] != 1
         or item["state"] != "prepared_unconsumed"
         or item["liveExecutionAuthorized"] is not False
-        or item["runId"] != RUN_ID
+        or item["runId"] != expected_run_id
         or item["authorizationReference"] != AUTHORIZATION_REFERENCE
         or item["sourcePreparedHead"] != prepared_head
         or item["manifestSha256"] != manifest_sha256
@@ -266,8 +272,8 @@ def validate_authorization_template(
         "processEmployeeIdentifier": "required_memory_only",
         "processAdminJwt": "required_memory_only",
         "processDeniedJwt": "required_memory_only",
-        "employeeBaseUrl": "http://127.0.0.1:9210",
-        "transactionBaseUrl": "http://127.0.0.1:8182",
+        "employeeBaseUrl": EMPLOYEE_BASE_URL,
+        "transactionBaseUrl": TRANSACTION_BASE_URL,
     }:
         raise ValueError("business_query_plan_live.authorization_template_invalid")
     constraints = _exact_mapping(
@@ -285,7 +291,12 @@ def validate_authorization_template(
         raise ValueError("business_query_plan_live.authorization_template_invalid")
 
 
-def validate_result(value: object, *, require_passed: bool) -> dict[str, object]:
+def validate_result(
+    value: object,
+    *,
+    require_passed: bool,
+    expected_run_id: str = RUN_ID,
+) -> dict[str, object]:
     if type(value) is not dict:
         raise ValueError("business_query_plan_live.result_shape_invalid")
     result = cast(dict[str, object], value)
@@ -307,7 +318,7 @@ def validate_result(value: object, *, require_passed: bool) -> dict[str, object]
     if (
         result["schemaVersion"] != 1
         or result["workPackage"] != WORK_PACKAGE
-        or result["runId"] != RUN_ID
+        or result["runId"] != expected_run_id
         or result["authorizationReference"] != AUTHORIZATION_REFERENCE
         or not _is_sha256(result["manifestSha256"])
         or result["status"] not in _TERMINAL_STATUSES
@@ -400,14 +411,19 @@ def validate_result(value: object, *, require_passed: bool) -> dict[str, object]
     return result
 
 
-def validate_lifecycle(value: object, *, manifest_sha256: str) -> None:
+def validate_lifecycle(
+    value: object,
+    *,
+    manifest_sha256: str,
+    expected_run_id: str = RUN_ID,
+) -> None:
     item = _exact_mapping(
         value,
         {"schemaVersion", "runId", "authorizationReference", "manifestSha256", "event"},
     )
     if item != {
         "schemaVersion": 1,
-        "runId": RUN_ID,
+        "runId": expected_run_id,
         "authorizationReference": AUTHORIZATION_REFERENCE,
         "manifestSha256": manifest_sha256,
         "event": "run_started",

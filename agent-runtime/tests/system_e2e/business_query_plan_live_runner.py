@@ -49,9 +49,11 @@ from tests.helpers import ManualCancellationSignal
 from tests.system_e2e.business_query_plan_live_contracts import (
     AUTHORIZATION_REFERENCE,
     CASE_IDS,
+    EMPLOYEE_BASE_URL,
     EMPLOYEE_DETAIL_BUDGET,
     MODEL_CALL_BUDGET,
     RUN_ID,
+    TRANSACTION_BASE_URL,
     TRANSACTION_SEARCH_BUDGET,
     append_journal,
     sha256_file,
@@ -62,7 +64,10 @@ from tests.system_e2e.business_query_plan_live_contracts import (
     validate_result,
     write_exclusive_json,
 )
-from tests.system_e2e.business_query_plan_runtime_support import build_business_query_plan_runtime
+from tests.system_e2e.business_query_plan_runtime_support import (
+    build_business_query_plan_runtime,
+    business_query_plan_snapshot_id,
+)
 
 
 _ACTIVE_CASE: ContextVar[str | None] = ContextVar("business_query_plan_live_case", default=None)
@@ -422,8 +427,8 @@ async def run_candidate(
             transaction_transport=dependencies.transaction_transport,
             fallback_selector=fallback,
             answer_generator=answer,
-            employee_endpoint="http://127.0.0.1:9210",
-            transaction_endpoint="http://127.0.0.1:8182",
+            employee_endpoint=EMPLOYEE_BASE_URL,
+            transaction_endpoint=TRANSACTION_BASE_URL,
             expected_snapshot_id=dependencies.expected_snapshot_id,
         )
         for case_id in CASE_IDS:
@@ -559,6 +564,17 @@ async def run_live_from_environment(env: Mapping[str, str] | None = None) -> dic
         if not asset_path.is_relative_to(repository_root) or sha256_file(asset_path) != raw_asset["sha256"]:
             raise RuntimeError("business_query_plan_live.asset_hash_mismatch")
 
+    employee_endpoint = _required(active, "BUSINESS_QUERY_PLAN_LIVE_EMPLOYEE_BASE_URL")
+    transaction_endpoint = _required(active, "BUSINESS_QUERY_PLAN_LIVE_TRANSACTION_BASE_URL")
+    if employee_endpoint != EMPLOYEE_BASE_URL or transaction_endpoint != TRANSACTION_BASE_URL:
+        raise RuntimeError("business_query_plan_live.endpoint_invalid")
+    expected_snapshot_id = business_query_plan_snapshot_id(
+        employee_endpoint=employee_endpoint,
+        transaction_endpoint=transaction_endpoint,
+    )
+    if cast(dict[str, str], manifest["snapshots"])["configSha256"] != expected_snapshot_id:
+        raise RuntimeError("business_query_plan_live.snapshot_mismatch")
+
     settings = ModelSettings.from_env(active)
     if settings.provider is not ModelProvider.DEEPSEEK:
         raise RuntimeError("business_query_plan_live.deepseek_required")
@@ -578,8 +594,8 @@ async def run_live_from_environment(env: Mapping[str, str] | None = None) -> dic
         model_api_key=_required(active, "LLM_API_KEY"),
     )
     model_client = build_deepseek_http_client(settings)
-    employee_client = _domain_client(_required(active, "BUSINESS_QUERY_PLAN_LIVE_EMPLOYEE_BASE_URL"))
-    transaction_client = _domain_client(_required(active, "BUSINESS_QUERY_PLAN_LIVE_TRANSACTION_BASE_URL"))
+    employee_client = _domain_client(employee_endpoint)
+    transaction_client = _domain_client(transaction_endpoint)
     metrics = CandidateMetrics()
     employee_transport = HttpxLiveDomainTransport(domain="employee", client=employee_client, metrics=metrics)
     transaction_transport = HttpxLiveDomainTransport(domain="transaction", client=transaction_client, metrics=metrics)
@@ -597,7 +613,7 @@ async def run_live_from_environment(env: Mapping[str, str] | None = None) -> dic
         transaction_transport=transaction_transport,
         close_model=model_client.aclose,
         close_domains=close_domains,
-        expected_snapshot_id=cast(dict[str, str], manifest["snapshots"])["configSha256"],
+        expected_snapshot_id=expected_snapshot_id,
     )
     return await run_candidate(
         live=True,
@@ -637,6 +653,10 @@ def build_fake_dependencies(
         transaction_transport=transaction,
         close_model=None,
         close_domains=close_domains,
+        expected_snapshot_id=business_query_plan_snapshot_id(
+            employee_endpoint=EMPLOYEE_BASE_URL,
+            transaction_endpoint=TRANSACTION_BASE_URL,
+        ),
     )
 
 

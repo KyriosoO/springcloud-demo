@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "workPackage": "WP-BQ-QUERYPLAN-LIVE-01",
+  "state": "prepared_unconsumed",
+  "runId": "business-query-plan-live-v1-20260825-candidate-02",
+  "authorizationReference": "P3_00:GATE-065",
+  "preparedHead": "fd2d84b87d161255c19650470d3eb3eff8f0dd8b",
+  "model": {
+    "provider": "deepseek",
+    "name": "deepseek-v4-pro",
+    "requestMode": "json_object_no_tools"
+  },
+  "queryPlanTask": {
+    "id": "business_query_plan",
+    "version": "business-query-plan-v1",
+    "systemInstructionSha256": "59ed646d9b77659ad4ca3b6b555aae6e21985f4d875ee12bfdc2f5dc14b0f3b4"
+  },
+  "snapshots": {
+    "catalogSha256": "79b7045d68be4e2934707d63fd25cd6c60c729a36460f87fd3ccdd67b41a539b",
+    "configSha256": "79b7045d68be4e2934707d63fd25cd6c60c729a36460f87fd3ccdd67b41a539b"
+  },
+  "cases": [
+    {"caseId": "bq-live-emp-admin", "domain": "employee", "principal": "admin", "questionTemplate": "employee.detail.protected-ref", "expectedStatus": "success", "expectedCapabilityId": "employee.detail"},
+    {"caseId": "bq-live-emp-denied", "domain": "employee", "principal": "denied", "questionTemplate": "employee.detail.protected-ref", "expectedStatus": "forbidden", "expectedCapabilityId": "employee.detail"},
+    {"caseId": "bq-live-emp-unsupported", "domain": "employee", "principal": "admin", "questionTemplate": "employee.location.unsupported", "expectedStatus": "unsupported", "expectedCapabilityId": null},
+    {"caseId": "bq-live-txn-admin", "domain": "transaction", "principal": "admin", "questionTemplate": "transaction.amount.exact", "expectedStatus": "success_or_no_result", "expectedCapabilityId": "transaction.search"},
+    {"caseId": "bq-live-txn-denied", "domain": "transaction", "principal": "denied", "questionTemplate": "transaction.amount.exact", "expectedStatus": "forbidden", "expectedCapabilityId": "transaction.search"},
+    {"caseId": "bq-live-txn-unsupported", "domain": "transaction", "principal": "admin", "questionTemplate": "transaction.date.unsupported", "expectedStatus": "unsupported", "expectedCapabilityId": null}
+  ],
+  "budgets": {
+    "modelCalls": 6,
+    "employeeDetail": 2,
+    "transactionSearch": 2,
+    "otherBusinessEndpoints": 0,
+    "retry": 0,
+    "resume": 0
+  },
+  "assets": [
+    {"path": "agent-runtime/src/agent_runtime/bootstrap.py", "sha256": "4b9f4c89644bae4719c4a1eef940cbde1564a8c96795818a23fdb0c1980da267"},
+    {"path": "agent-runtime/src/agent_runtime/graph/business_query_planning.py", "sha256": "3fe99919d32665b3781ba84ec0282349e487ed02e98a73099fcb2436bb4ef863"},
+    {"path": "agent-runtime/src/agent_runtime/business/query_plan.py", "sha256": "8d49971458a64e929ed0c61298ea4c224df5ee8d2c39486b95a09276200b87b1"},
+    {"path": "agent-runtime/src/agent_runtime/business/planner_catalog.py", "sha256": "8b94194f5497c5681684110e6e7c447ff70232640b72e7076bb54b753927a7da"},
+    {"path": "agent-runtime/src/agent_runtime/business/settings.py", "sha256": "8b7a5c56e52cbf51a329baf9eed908b99891ed0d6ec92e93b03166dc053bc454"},
+    {"path": "agent-runtime/src/agent_runtime/business/handler.py", "sha256": "5674a3080c6bac3c08de14d63d62d56c447c0dc1a9db278ce8fde4b8c36ccc36"},
+    {"path": "agent-runtime/src/agent_runtime/business/http_client.py", "sha256": "156e7cf715320930ab8574c67a24903b0b5b0cbad8665ca69ed544d801601e5a"},
+    {"path": "agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py", "sha256": "799af07ee62a725b3b11e94aa99818307e2dfd372f47949f5b8b87636d5ce11d"},
+    {"path": "agent-runtime/src/agent_runtime/model/deepseek/transport.py", "sha256": "f12283c76d41c7fcaa6eb67b06128a3f76c1897a3206db8a6efd055ffcffc310"},
+    {"path": "agent-runtime/src/agent_runtime/model/gateway.py", "sha256": "e9af6b0d9cdeb21f838d6b54cb7f4f4c6c2e7e05e2b91e8742553211edb26faa"},
+    {"path": "agent-runtime/src/agent_runtime/model/input_guard.py", "sha256": "874b01fbf8cc884f08303a7ea83738b3081cd2d7e3c56832c6f3525748613f17"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/employee/definition.py", "sha256": "c4c20d6881f9fdc618528013e15c3af20fcf515dab9aade1aa1946c1944d3471"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/employee/settings.py", "sha256": "15f4c5844cd01b705448f2d1f341dd9a5f7ba653e389b6d85debe3d379644409"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/employee/codec.py", "sha256": "9c11376c7c877be83d73cc45d77c67b19ec11371c350023e8bd71266dda44404"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/employee/provider.py", "sha256": "67b909806c576a76b5b6860eab66d76d8b6b54c22e3ad946a590595566d2d64a"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/employee/protected_input.py", "sha256": "00d8a2c978151fdb0ff8bfd53b0053cb909596b479c976d09128a9fe0396d946"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/definition.py", "sha256": "99227c4cd373ac160a26223cd7dcfe0066c625be03e87699825a4af714366873"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/settings.py", "sha256": "7c14c0d5d9d92247e11d08b2938e13e80f53a4f27f88cb5fa5d0cc3e7398fbb2"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/codec.py", "sha256": "dcfa85791b4716ac212243678ced1173a74482d6f0cb1eb9687c365a9e420c0b"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/provider.py", "sha256": "6b8743d50a791909fad54cbcbf881c6bc1cae0637eee27afddc02359272bcf56"},
+    {"path": "agent-runtime/src/agent_runtime/adapters/transaction/protected_input.py", "sha256": "4881cb6fbb69cbef0044fb03e9fbad90cdc210997ac39fab1ec6ddd938d4de56"},
+    {"path": "agent-runtime/tests/system_e2e/business_query_plan_live_contracts.py", "sha256": "b5ef17c0f61624c5f154573c5cbed073b17beec70daac5d8f28bbf9fbc2887b9"},
+    {"path": "agent-runtime/tests/system_e2e/business_query_plan_live_runner.py", "sha256": "e04b56f9d607028dabf754aebe340c5e695f4be0cfcdfcecafb48196189ab87a"},
+    {"path": "agent-runtime/tests/system_e2e/business_query_plan_runtime_support.py", "sha256": "df5f6a59beec4cf3497660537e78583dd199452e360b9ab70dc86ced8a2d5cc1"},
+    {"path": "agent-runtime/tests/system_e2e/test_business_query_plan_live_preparation.py", "sha256": "95a0733074b9e1e1fde87292bc17fb4817110db801fde5e07c30814a42d16db0"},
+    {"path": "agent-runtime/tests/system_e2e/test_business_query_plan_live_manifest.py", "sha256": "1e6c1c532820f6b3270a0b79352f7e5464442ebb9f00fc85c86b186bfa536689"},
+    {"path": "agent-runtime/scripts/run-business-query-plan-live-candidate-02.ps1", "sha256": "67fe12df9b90b6abd990860fd79a34967e632e0092be9df6debb7b93bc28f7e2"},
+    {"path": "agent-runtime/tests/system_e2e/business_query_plan_runtime_server.py", "sha256": "79c4adae37ea505f4406dfc06d8af99d08b445faef5c58492d55eee0fb9157ba"},
+    {"path": "agent-runtime/tests/system_e2e/business_query_plan_evidence.py", "sha256": "c0bf2542d93c8e65a2c81d166af65e28f1542ed2362e161e70fb75c6be2255b7"},
+    {"path": "agent-runtime/tests/system_e2e/test_business_query_plan_nonlive_runtime.py", "sha256": "69634b685df75b5fdbbfdb742916dd558a39531688d418e9ebb2b5a28bd485cb"},
+    {"path": "agent-runtime/tests/system_e2e/test_business_query_plan_live_history.py", "sha256": "04e98ed6c5d84e2aecef7eb2b0138a15fbd5fcff87f44ab830799d009bdacfae"},
+    {"path": "agent-runtime/tests/system_e2e/live/evidence/business-query-plan-live-v1-20260824-candidate-01.manifest.json", "sha256": "eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8"},
+    {"path": "agent-runtime/tests/system_e2e/live/evidence/business-query-plan-live-v1-20260824-candidate-01.authorization-template.json", "sha256": "82a95b17047021342e563515c616ff7980c16455b24a1f0487772f68a854afc9"},
+    {"path": "agent-runtime/tests/system_e2e/live/results/business-query-plan-live-v1-20260824-candidate-01/lifecycle.jsonl", "sha256": "478962f96c7c61b94418ac8723f5180511ff0ea84523e87a76d28022c1efc7c2"},
+    {"path": "agent-runtime/tests/system_e2e/live/results/business-query-plan-live-v1-20260824-candidate-01/result.json", "sha256": "9511c5ece2d167e51e81f94a17dbf799d76df3aa20526e7f46481672de3c8492"}
+  ],
+  "history": {
+    "nonLiveTestSha256": "69634b685df75b5fdbbfdb742916dd558a39531688d418e9ebb2b5a28bd485cb",
+    "nonLiveEvidenceContractSha256": "c0bf2542d93c8e65a2c81d166af65e28f1542ed2362e161e70fb75c6be2255b7",
+    "historicalAssetsImmutable": true
+  },
+  "constraints": {
+    "firstOutboundConsumes": true,
+    "noRetry": true,
+    "noResume": true,
+    "noAnswerTask": true,
+    "noKnowledgeFallback": true,
+    "noCrossDomainFallback": true,
+    "noRawPersistence": true
+  }
+}

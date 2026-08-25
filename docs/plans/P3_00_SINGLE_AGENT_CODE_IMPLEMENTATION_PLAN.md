@@ -7,8 +7,8 @@
 | 文档标识 | P3_00 |
 | 文档类型 | 设计驱动实施计划 |
 | 文档状态 | Reviewed |
-| 当前版本 | v1.29 |
-| 更新日期 | 2026-08-24 |
+| 当前版本 | v1.30 |
+| 更新日期 | 2026-08-25 |
 | 目标计划路径 | Employee/Transaction LLM QueryPlan 唯一链路 |
 | 适用范围 | QueryPlan 合同、模型任务、两域定义、Runtime 切换、non-live/live 集成 |
 | 非范围 | Knowledge 改造、结果模型出域、新业务接口/DTO/DB、生产发布 |
@@ -33,6 +33,7 @@
 | 11 | 2026-08-24 | §5/11/13/14/15 | non-live 全量回归发现4项旧架构绝对断言与已评审 planning 设计冲突 | v1.27；按个人项目最小性保留唯一 provider-neutral bridge，更新精确架构门禁；non-live E2E 转 In Progress |
 | 12 | 2026-08-24 | §3/5/9/12/14/15 | 10-case 双域 E2E、精确架构门禁、全量当前 non-live 回归及代码复评成立 | v1.28；完成 `WP-BQ-QUERYPLAN-NONLIVE-E2E-01`，关闭最后空 support 字段清理，live 仍受 `GATE-065` 阻塞 |
 | 13 | 2026-08-24 | §5/7/9/12/13/14/15 | `GATE-065` non-live 候选、严格 manifest/authorization template、预算/消费/失败关闭及历史不可变验证成立 | v1.29；冻结 candidate-01，live 仍待绑定最终 frozen HEAD 的一次性明确授权，未产生 outbound |
+| 14 | 2026-08-25 | §5/7/9/13/14/15 | candidate-01 因 fake endpoint snapshot 漂移失败关闭；candidate-02 绑定真实 endpoint snapshot 与冻结历史 | v1.30；保留 failed_unconsumed 证据，修复测试侧 preflight/history，冻结 candidate-02；`GATE-065/066` 保持 Open |
 
 ## 3. 来源清单与当前基线
 
@@ -82,7 +83,7 @@
 | `WP-TXN-QUERYPLAN-01` | Transaction search QueryPlan | `L2_02_02 IMPL-TXN-001～007` | definition 去 Resolver、field/operator/config、Decimal/page/sort；不改 Java DTO | `WP-BQ-PLAN-CONTRACT-01` | - | Transaction plan definition/config/tests | 代码评审修复文本 literal 下游 strip 风险后，112项定向、226项Transaction非live通过/5项live按门禁跳过、243项Business/Model回归、Java授权/Decimal 25项通过、strict mypy/compileall；3项冻结历史环境测试不计入且资产未改 | Transaction action disabled；不改DB | Done |
 | `WP-BQ-PLAN-RUNTIME-01` | Runtime 唯一链路切换 | `L2_00_01 IMPL-CORE-001～008` | planning node、protected extractor 组合、request cancellation、plan→candidate、ModelContext、composition切断Resolver/ID-only Business路径 | `WP-BQ-MODEL-QUERYPLAN-01`,`WP-EMP-QUERYPLAN-01`,`WP-TXN-QUERYPLAN-01` | - | Runtime对象图、启动校验、测试 | 64项直接回归、452项相关回归、strict mypy/compileall；独立代码复核修复1个固定失败码 Minor 后复评无 Blocker/Major/Minor | 两域 disabled；不恢复旁路为目标配置 | Done |
 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | fake 双域系统闭环 | 全部五份L2测试约束 | Spring→Runtime→fake model→fake domain；成功/非法/失败/unsupported/JWT/单动作；精确架构门禁 | `WP-BQ-PLAN-RUNTIME-01` | - | non-live E2E与零旁路证据 | 10-case Spring/Runtime/fake 双域、31项定向/架构测试、strict mypy/compileall 通过；全量1220通过/27 live跳过/3项冻结JAR哈希漂移精确排除；代码复评修复3个证据严格性 Minor 后无未关闭 Blocker/Major/Minor | 新链路 disabled | Done |
-| `WP-BQ-QUERYPLAN-LIVE-01` | 真实模型与业务服务集成 | `REQ_00 §12`; UAT前置 | 冻结非敏感case、真实DeepSeek plan、Employee detail/Transaction search、权限/计数/零泄漏 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | `GATE-065` | append-only有限evidence与集成结论 | candidate-01 non-live：12项定向、strict mypy/compileall、PowerShell AST、预算/消费/失败关闭/历史hash通过；正式 live 未执行，`GATE-066` 未关闭 | 停隔离进程、恢复disabled | Blocked |
+| `WP-BQ-QUERYPLAN-LIVE-01` | 真实模型与业务服务集成 | `REQ_00 §12`; UAT前置 | 冻结非敏感case、真实DeepSeek plan、Employee detail/Transaction search、权限/计数/零泄漏 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | `GATE-065` | append-only有限evidence与集成结论 | candidate-01 终态 `failed_unconsumed`、model/Employee/Transaction=`0/0/0`；candidate-02 真实 endpoint snapshot、14项定向、全量1232通过/27 live跳过/5历史环境精确排除、冻结历史/source hash、strict mypy/compileall 和 PowerShell AST 通过；新 live 尚未授权 | 停隔离进程、恢复disabled；保留全部历史 evidence | Blocked |
 
 ### 5.1 范围受限清理活动（不新增工作包或依赖边）
 
@@ -122,7 +123,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | 门禁 ID | 工作包 | 类型 | 控制动作 | 是否阻塞入口 | 关闭条件 | 证据/权威来源 | 责任方/外部提供方 | 最晚关闭阶段 | 验证者与方法 | 未关闭行为 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `GATE-064` | `WP-BQ-PLAN-CONTRACT-01` | slice_implementation | non-live代码实施 | 是 | 用户明确授权目标代码/测试/文档范围 | 2026-08-24目标授权与提交范围 | 用户 | P3开始 | 授权边界复核；真实调用仍排除 | 后续non-live包按依赖推进 | Closed |
-| `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/task/prompt/catalog/config/cases/预算并一次性授权 | candidate-01 asset commit `b22497242807e38855a322b6d1ee7d5514edeaaa`；run `business-query-plan-live-v1-20260824-candidate-01`；manifest SHA-256 `eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8`；预算 model/Employee/Transaction=`6/2/2`；最终执行 HEAD 由一次性授权绑定 | 用户/维护者 | P4 live前 | 独立hash/schema/preflight | 候选已准备；未获绑定最终执行 HEAD 的一次性授权前不产生outbound | Open |
+| `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/task/prompt/catalog/config/cases/预算并一次性授权 | candidate-01 `failed_unconsumed`：lifecycle SHA-256 `478962f96c7c61b94418ac8723f5180511ff0ea84523e87a76d28022c1efc7c2`，result SHA-256 `9511c5ece2d167e51e81f94a17dbf799d76df3aa20526e7f46481672de3c8492`；candidate-02 run `business-query-plan-live-v1-20260825-candidate-02`，manifest SHA-256 `af57c8c8d032a83383670368addee24240bf6894ae9b543457feb4c0a910db3f`，真实 endpoint snapshot `79b7045d68be4e2934707d63fd25cd6c60c729a36460f87fd3ccdd67b41a539b`；预算 model/Employee/Transaction=`6/2/2` | 用户/维护者 | P4 live前 | 独立hash/schema/preflight；candidate-01 历史源码按冻结提交校验 | candidate-01 不可重跑；candidate-02 未获最终 frozen HEAD 一次性授权前不产生outbound | Open |
 | `GATE-066` | `WP-BQ-QUERYPLAN-LIVE-01` | closure | 宣告唯一链路集成完成 | 否 | 合格case plan=1、业务≤1、Resolver/另一域/Knowledge=0，权限/跨语言/零泄漏通过 | live evidence | Codex复核 | UAT前 | code-against-design + evidence | live包不Done | Open |
 
 ## 8. 外部资源与事实
@@ -137,7 +138,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 | 顺序 | 工作包 | 判定 | 未关闭依赖/门禁 | 选择理由 |
 |---:|---|---|---|---|
-| 1 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | `GATE-065` 的一次性明确授权及运行时资源 | candidate-01 已冻结并通过 non-live 验证；真实模型和域服务调用尚未授权 |
+| 1 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | `GATE-065` candidate-02 的一次性明确授权及运行时资源 | candidate-01 已失败关闭且不可重跑；candidate-02 真实 endpoint snapshot、历史证据和 non-live 回归已验证 |
 | 2 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | Done | 无 | 10-case 双域 E2E、精确架构门禁和全量当前 non-live 回归已通过 |
 | 3 | `WP-BQ-PLAN-RUNTIME-01` | Done | 无 | planning 顺序、取消/迟到、组合根、Resolver 隔离与清理已验证 |
 | 4 | `WP-BQ-PLAN-CONTRACT-01` | Done | 无 | 公共合同、配置、binder 和 catalog 已验证 |
@@ -197,6 +198,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | 10 | 2026-08-24 | 0 | 0 | 2 | 修复 L2 当前基线标题与 Transaction readiness 值；版本/DAG/门禁复核无环 | 0 | 三轮完成 |
 | 11 | 2026-08-24 | 0 | 0 | 3 | non-live 代码评审修复 evidence 通过不变式、空字段响应断言和 Employee 精确端点校验 | 0 | 修复后复评通过 |
 | 12 | 2026-08-24 | 0 | 2 | 4 | 修复构造期资源清理/有限失败证据、逐 case 跨域计数、资产路径约束、受保护值模型输入扫描、Git SHA 长度校验及 authorization template 可执行性约束 | 0 | candidate-01 non-live 复评通过；正式 live 等待授权 |
+| 13 | 2026-08-25 | 0 | 2 | 1 | 修复 fake endpoint snapshot 绑定、历史结果目录误判和读取密钥前 preflight；冻结 candidate-01 四项资产与30项历史 source blob | 0 | candidate-02 non-live 通过；正式 live 等待新的精确授权 |
 
 ## 14. 当前结论
 
@@ -206,8 +208,9 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 - Done 工作包：6（`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`、`WP-BQ-PLAN-RUNTIME-01`、`WP-BQ-QUERYPLAN-NONLIVE-E2E-01`）。
 - Deferred 工作包：0。
 - 关键开放门禁：P3 `GATE-065/066`；`GATE-064` 已关闭；UAT 另有 `GATE-UAT-006`。
-- `GATE-065` non-live 候选已冻结：run `business-query-plan-live-v1-20260824-candidate-01`，manifest SHA-256 `eed2e0c3b84649823bcfc0fd52a899f6336d8de8bf3fe5f83731e96dd3daa2b8`，candidate asset commit `b22497242807e38855a322b6d1ee7d5514edeaaa`，精确预算 model/Employee/Transaction=`6/2/2`；最终执行 HEAD 在全部准备提交完成后由一次性授权绑定。
-- 推荐下一步：申请并绑定最终执行 HEAD、上述 run/manifest/预算的一次性 `GATE-065` live 授权；授权前不读取密钥、不调用真实模型或业务服务、不产生 outbound。
+- candidate-01 已不可逆进入 `failed_unconsumed`：原因是 manifest fake endpoint snapshot 与真实 endpoint Runtime snapshot 不一致；model/Employee/Transaction 调用=`0/0/0`，lifecycle SHA-256 `478962f96c7c61b94418ac8723f5180511ff0ea84523e87a76d28022c1efc7c2`，result SHA-256 `9511c5ece2d167e51e81f94a17dbf799d76df3aa20526e7f46481672de3c8492`；冻结 manifest、authorization、evidence 和源码不得改写或重跑。
+- `GATE-065` 新 non-live 候选已冻结：run `business-query-plan-live-v1-20260825-candidate-02`，manifest SHA-256 `af57c8c8d032a83383670368addee24240bf6894ae9b543457feb4c0a910db3f`，真实 endpoint snapshot `79b7045d68be4e2934707d63fd25cd6c60c729a36460f87fd3ccdd67b41a539b`，35项资产覆盖 candidate-01 四项历史；预算 model/Employee/Transaction=`6/2/2`。
+- 推荐下一步：申请并绑定新的最终执行 HEAD、candidate-02 run/manifest/预算的一次性 `GATE-065` live 授权；授权前不读取密钥、不调用真实模型或业务服务、不产生 outbound。
 - 当前不得执行真实 LLM、业务服务调用或 Employee/Transaction 成功 UAT。
 - Employee 地点/职位筛选保持 `unsupported`：现有通用 ES 搜索的字段能力已确认，但最终角色授权与受限响应契约未满足，不属于本计划。
 
@@ -220,3 +223,5 @@ v1.27 门禁审查按“个人学习验证、必要安全边界、避免过度�
 v1.28 non-live 代码对照设计评审 R1 发现3个 Minor：evidence 的 passed 未绑定完整矩阵，Java 未断言空 `capabilityId/error`，fake Employee 只校验路径前缀。最小修复及负向测试后 R2 无 Blocker/Major/Minor；3项冻结历史 JAR 哈希漂移不改写、不计为当前实现缺陷。
 
 v1.29 candidate-01 non-live 代码对照设计评审 R1 发现构造阶段失败清理与逐 case 跨域计数2个 Major，以及资产路径、模型输入受保护值扫描等4个 Minor；最小修复后 R2 发现 `preparedHead` 错按 SHA-256 长度校验和授权模板缺少不可执行断言2个 Minor，修复后 R3 无 Blocker/Major/Minor。全量当前非-live为1224通过、27项live跳过；5项独立历史环境/冻结hash测试精确排除且未修改历史资产。
+
+v1.30 candidate-01 live 复核确认 fake endpoint snapshot 与真实 service binding 快照不一致；执行在首次模型/业务调用前 `failed_unconsumed`，原授权和结果目录不可复用。candidate-02 代码对照设计 R1 补齐真实 endpoint config/catalog 一致性、模型密钥读取前 preflight 和冻结提交历史 source 校验；R2 复核 fake 正反向、不可变有限失败 evidence、35项 asset、预算和无生产代码变更后无未关闭 Blocker/Major/Minor。全量当前 non-live 为1232通过、27项 live 按授权跳过、5项既有冻结 JAR/历史 host 环境失败按精确 node ID 隔离。个人学习项目不新增 Gate、包装层、业务接口或生产依赖。
