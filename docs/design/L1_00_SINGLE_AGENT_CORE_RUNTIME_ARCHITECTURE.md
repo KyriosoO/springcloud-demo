@@ -12,7 +12,7 @@
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | 三动作组合根及 Transaction operator-specific 文本策略已实施；v3 controlled 通过，但第二次 UAT 证明模型可能省略语义查询中的地址条件，v4 完整意图 Prompt 尚未实施 |
+| 当前实现 | 三动作组合根、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 已实施；119 项定向、1440 项 non-live 通过，正式 UAT Ready |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -84,4 +84,4 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 应验证三动作唯一可达、一次规划/一次 handler、并发请求 slot 隔离、取消、strict decoder、config snapshot、不支持条件零调用和 Knowledge 回归。无须独立工作流引擎、复杂 circuit breaker、动态 registry 或生产级治理平台。
 
-既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能证明 v4 完整意图行为。第二次 UAT 中模型将“语义检索并限定上海”缩减为 semantic 单动作，错误产生一次业务调用；失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 必须不可变。需先通过 v4 Prompt 和 adversarial fake 固化语义+filter、相对日期的 exact unsupported/零调用，再以新 manifest 执行正式 UAT；不得增加本地语义 Resolver 或重复 live 审计平台。
+既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能证明 v4 完整意图行为。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；现已通过 v4 Prompt 和 adversarial fake 固化语义+filter、相对日期的 exact unsupported/零调用，119 项定向和 1440 项 non-live 通过。正式 UAT 必须使用独立新 manifest，不增加本地语义 Resolver 或重复 live 审计平台。

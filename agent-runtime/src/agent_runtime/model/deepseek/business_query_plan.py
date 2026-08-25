@@ -23,7 +23,7 @@ from agent_runtime.model.contracts import (
 from agent_runtime.model.deepseek.json_codec import parse_unique_json_object
 
 
-BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v3"
+BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v4"
 BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION = (
     "Create exactly one logical Business QueryPlan from the supplied question and catalog. "
     "Return exactly one JSON object with exactly domain, action, and arguments; output no other text. "
@@ -50,9 +50,16 @@ BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION = (
     "For '查询具备金融风控经验的员工', when semantic search is enabled, return exactly "
     '{"domain":"employee","action":"employee.semantic_search","arguments":'
     '{"query":{"literal":"金融风控经验"},"size":20}}. '
-    "For a transaction date question such as "
-    "'查询今天发生的交易', when no date field is enabled, return exactly "
+    "For '按语义搜索金融风控经验并限定上海员工', always return exactly "
+    '{"domain":"employee","action":"unsupported","arguments":{}}. '
+    "Neither employee.semantic_search nor employee.search can represent both the requested semantic "
+    "meaning and the required Shanghai location in one enabled action. Never drop the location, "
+    "drop the semantic requirement, select either action, or broaden the requested result. "
+    "For a relative transaction date question such as '查询今天发生的交易', when the catalog does "
+    "not provide an approved current-date or clock context, always return exactly "
     '{"domain":"transaction","action":"unsupported","arguments":{}}. '
+    "This unsupported rule still applies when trans_date is enabled; never infer today's date, "
+    "invent a time window, omit the requested date, or issue an executable transaction plan. "
     "For an employee location question such as '帮我查看上海的员工', when no location field is enabled, "
     'return exactly {"domain":"employee","action":"unsupported","arguments":{}}. '
     "When a business domain is clear but no enabled action can represent the complete question, keep that "

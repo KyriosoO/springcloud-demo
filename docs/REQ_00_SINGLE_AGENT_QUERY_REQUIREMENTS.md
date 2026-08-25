@@ -10,7 +10,7 @@
 | 当前版本 | v2.0 |
 | 更新日期 | 2026-08-25 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
-| 当前基线 | Knowledge、三动作 Adapter/组合根、Transaction operator-specific 文本策略及 v3 controlled 已通过；第二次 UAT 暴露 Model 省略语义+地址条件，v4 完整意图 Prompt 与正式 UAT 尚未完成 |
+| 当前基线 | Knowledge、三动作 Adapter/组合根、Transaction operator-specific 文本策略及 v4 完整意图 Prompt 已通过 non-live；正式 UAT Ready |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
 
@@ -28,7 +28,7 @@
 |---|---|---|---|
 | Knowledge | 既有问题改写、检索、证据及摘要链路；既有 P5 结论为 ineffective | 保持原有独立能力和结果，不作为 Business fallback | 不属于本次业务设计纠偏 |
 | Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 读取守卫、endpoint-scoped 共享 converter、Agent Adapter 和真实 controlled 已通过 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | 首次 UAT Employee 场景通过，完整结构化 UAT 尚未完成 |
-| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter、共享 converter 和真实 v3 controlled 已通过 | `employee.semantic_search` 返回受控列表；semantic+地址必须 unsupported/零调用 | 第二次 UAT 证明 v3 模型可能省略地址条件，v4 完整意图 Prompt 待实施 |
+| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter、共享 converter、v3 controlled 与 v4 adversarial fake 已通过 | `employee.semantic_search` 返回受控列表；semantic+地址必须 unsupported/零调用 | v4 完整意图 Prompt 已实施，完整正式 UAT 待执行 |
 | Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权；新版 Adapter、operator-specific 文本策略和金额 controlled 场景已通过 | `transaction.search` 完整映射既有列表搜索能力 | 完整正式 UAT 尚未通过 |
 
 现有 `employee.detail` 属于已实现的历史能力，不是本版 Employee 主查询目标；只有完成调用方、兼容性和历史审计资产核实后，才能迁移或废止。
@@ -106,4 +106,4 @@ Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结�
 3. Transaction：类型、日期、金额、同字段区间、组合过滤、分页、排序、精度及拒绝矩阵。
 4. 结构化查询收口：Access/Core/Model/配置/Adapter/JWT/单动作与失败零调用回归。
 
-开放事项：Employee Controller 读取守卫及两个 ES POST endpoint-scoped 共享 JWT role converter 已实施；真实 Servlet 过滤链角色矩阵、detail/fallback 兼容和 Employee 全模块回归已通过。filters 合同、统一配置、两个 Employee Adapter、Transaction Date/Decimal/operator-specific 策略、生产组合根、1438 项 non-live 和六场景 v3 controlled 均有证据。第二次 UAT 暴露 v3 模型对 semantic+地址组合可能省略条件，v4 完整意图 Prompt 与完整正式 UAT 尚未完成；两次失败结果不可变，不得替代新版本成功证明。
+开放事项：Employee Controller 读取守卫及两个 ES POST endpoint-scoped 共享 JWT role converter 已实施；真实 Servlet 过滤链角色矩阵、detail/fallback 兼容和 Employee 全模块回归已通过。filters 合同、统一配置、两个 Employee Adapter、Transaction Date/Decimal/operator-specific 策略、生产组合根、v4 完整意图 Prompt、1440 项 non-live 和六场景 v3 controlled 均有证据。两次 UAT 失败结果不可变；完整 v4 正式 UAT 尚未执行，不得用历史结果替代新版本成功证明。

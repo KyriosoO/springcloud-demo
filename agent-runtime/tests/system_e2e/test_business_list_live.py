@@ -147,8 +147,9 @@ async def test_controlled_runner_uses_real_production_composition_and_strict_fak
 
 
 def test_manifest_freezes_only_task_configuration_cases_and_bounded_budgets() -> None:
-    path = Path(__file__).with_name("business_list_live_manifest_v2.json")
+    path = Path(__file__).with_name("business_list_live_manifest_v3.json")
     manifest = validate_manifest(json.loads(path.read_text(encoding="utf-8")))
+    assert manifest["taskVersion"] == "business-query-plan-v4"
     assert manifest["budgets"] == {"controlled": 6, "uat": 18}
     modified = dict(manifest)
     modified["promptSha256"] = "0" * 64
@@ -229,7 +230,10 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
         "d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6"
     )
     sixth_evidence = json.loads(sixth.read_text(encoding="utf-8"))
-    validate_evidence(sixth_evidence, stage="controlled")
+    assert sixth_evidence["modelTaskVersion"] == "business-query-plan-v3"
+    assert sixth_evidence["promptSha256"] == (
+        "a5d3c0bb34b551ebe98bba1547ffa0f50a7e201014317a86913a929a89cd9360"
+    )
     assert [case["status"] for case in sixth_evidence["cases"]] == [
         "success", "success", "success", "forbidden", "forbidden", "unsupported"
     ]
@@ -264,10 +268,25 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     assert first_uat_evidence["counts"]["retry"] == 0
     assert first_uat_evidence["counts"]["resume"] == 0
 
+    second_uat = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run02.result.json"
+    assert hashlib.sha256(second_uat.read_bytes()).hexdigest() == (
+        "1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f"
+    )
+    second_uat_evidence = json.loads(second_uat.read_text(encoding="utf-8"))
+    assert second_uat_evidence["status"] == "failed"
+    assert second_uat_evidence["modelTaskVersion"] == "business-query-plan-v3"
+    assert second_uat_evidence["cases"][-1]["caseId"] == "UAT-EMP-210"
+    assert second_uat_evidence["cases"][-1]["status"] == "success"
+    assert second_uat_evidence["cases"][-1]["capabilityId"] == "employee.semantic_search"
+    assert second_uat_evidence["cases"][-1]["domainCalls"] == 1
+    assert second_uat_evidence["counts"]["modelQueryPlan"] == 7
+    assert second_uat_evidence["counts"]["retry"] == 0
+    assert second_uat_evidence["counts"]["resume"] == 0
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
     assert "business-list-v2-controlled-run06.result.json" in source
-    assert "business-list-v2-uat-run02.result.json" in source
+    assert "business-list-v2-uat-run03.result.json" in source
     assert "spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201" in source
     assert "[switch]$DownstreamOnly" in source
     assert "[switch]$SemanticOnly" in source
@@ -284,6 +303,16 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     )
     assert json.loads(historical_manifest.read_text(encoding="utf-8"))["configurationSha256"] == (
         "55352c6c2f91b01f5faba42b48eb80bbae143a11b846bd7fb5ec5ca3a76c1601"
+    )
+
+    previous_manifest = root / "agent-runtime/tests/system_e2e/business_list_live_manifest_v2.json"
+    assert hashlib.sha256(previous_manifest.read_bytes()).hexdigest() == (
+        "3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2"
+    )
+    previous = json.loads(previous_manifest.read_text(encoding="utf-8"))
+    assert previous["taskVersion"] == "business-query-plan-v3"
+    assert previous["promptSha256"] == (
+        "a5d3c0bb34b551ebe98bba1547ffa0f50a7e201014317a86913a929a89cd9360"
     )
 
 

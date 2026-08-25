@@ -26,7 +26,7 @@ $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $runtime 'tests\system_e2e\liv
 $evidenceName = if ($stageValue -eq 'controlled') {
     'business-list-v2-controlled-run06.result.json'
 } else {
-    'business-list-v2-uat-run02.result.json'
+    'business-list-v2-uat-run03.result.json'
 }
 $evidence = Join-Path $evidenceRoot $evidenceName
 if (-not (Test-Path -LiteralPath $python)) {

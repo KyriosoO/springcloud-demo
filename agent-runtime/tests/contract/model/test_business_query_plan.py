@@ -130,11 +130,11 @@ def test_task_request_is_no_tools_exact_json_and_model_safe() -> None:
         assert prohibited in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
 
 
-def test_query_plan_v3_requires_filters_complete_intent_and_exact_action_shapes() -> None:
+def test_query_plan_v4_requires_filters_complete_intent_and_exact_action_shapes() -> None:
     definition = build_business_query_plan_task_definition(timeout_ms=8000)
 
-    assert BUSINESS_QUERY_PLAN_TASK_VERSION == "business-query-plan-v3"
-    assert definition.task_version == "business-query-plan-v3"
+    assert BUSINESS_QUERY_PLAN_TASK_VERSION == "business-query-plan-v4"
+    assert definition.task_version == "business-query-plan-v4"
     assert "complete user intent" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "empty or partial arguments" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "employee.search" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
@@ -143,6 +143,10 @@ def test_query_plan_v3_requires_filters_complete_intent_and_exact_action_shapes(
     assert "financial" not in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION.casefold()
     assert '"operator":"contains"' in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "查询今天发生的交易" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "按语义搜索金融风控经验并限定上海员工" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "Never drop the location" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "still applies when trans_date is enabled" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "approved current-date or clock context" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "帮我查看上海的员工" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert (
         '{"domain":"transaction","action":"unsupported","arguments":{}}'

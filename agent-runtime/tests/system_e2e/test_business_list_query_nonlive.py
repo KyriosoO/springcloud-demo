@@ -154,6 +154,18 @@ _SCENARIOS = (
         CapabilityStatus.UNSUPPORTED,
         None,
     ),
+    _Scenario(
+        "按语义搜索金融风控经验并限定上海员工",
+        {"domain": "employee", "action": "unsupported", "arguments": {}},
+        CapabilityStatus.UNSUPPORTED,
+        None,
+    ),
+    _Scenario(
+        "查询今天发生的交易",
+        {"domain": "transaction", "action": "unsupported", "arguments": {}},
+        CapabilityStatus.UNSUPPORTED,
+        None,
+    ),
     _Scenario("查询模型格式错误的员工", "not-json", CapabilityStatus.INVALID_ARGUMENT, None),
     _Scenario(
         "查询模型超时的交易",

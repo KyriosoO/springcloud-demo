@@ -37,7 +37,7 @@ from tests.helpers import scope
 
 _ROOT: Final = Path(__file__).resolve().parents[3]
 _CONFIG: Final = _ROOT / "agent-runtime/src/agent_runtime/business/business-query.v2.json"
-_MANIFEST: Final = Path(__file__).with_name("business_list_live_manifest_v2.json")
+_MANIFEST: Final = Path(__file__).with_name("business_list_live_manifest_v3.json")
 _ACTIVE_CASE: ContextVar[str] = ContextVar("business_list_live_active_case", default="")
 _ALLOWED_PATHS: Final = {
     "/employees/es/search": "employeeSearch",

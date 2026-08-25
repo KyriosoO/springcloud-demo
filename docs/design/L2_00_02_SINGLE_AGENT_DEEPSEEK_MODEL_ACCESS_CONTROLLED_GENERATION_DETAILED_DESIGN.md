@@ -10,7 +10,7 @@
 | 更新时间 | 2026-08-25 |
 | 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施 `business-query-plan-v3`；默认 provider 为 stub |
+| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施 `business-query-plan-v4`；默认 provider 为 stub |
 | 归档来源 | [v1.9 已评审旧版](历史文档/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN_v1.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v3` task、三个动作安全 catalog、filters Prompt 和 strict provider decoder 已实施，六场景 controlled 通过；但第二次正式 UAT 中模型丢弃“限定上海”条件并错误执行 semantic 查询。目标 `business-query-plan-v4` 仅强化完整意图和 exact unsupported 明确示例，尚未实施；v3 manifest、controlled/UAT 证据及哈希不可变。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v4` 已实施三个动作安全 catalog、strict provider decoder 和完整意图 Prompt；semantic+地点过滤、缺少批准时钟的相对日期均通过 adversarial fake unsupported/零调用。119 项定向、1440 项 non-live 和 115 个模块 strict mypy 通过；历史 v3 controlled/UAT 证据及哈希不可变，正式 v4 UAT 尚未执行。
 
 | 需求编号 | 需求 |
 |---|---|

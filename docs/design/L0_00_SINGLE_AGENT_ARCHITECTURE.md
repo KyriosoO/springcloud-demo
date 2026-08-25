@@ -11,7 +11,7 @@
 | 更新时间 | 2026-08-25 |
 | 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
-| 当前实现 | Knowledge 基线、三动作 Adapter/组合根、最终授权及 Transaction 文本 operator 已实施；v3 controlled 通过，第二次 UAT 暴露 Model 完整意图 Prompt 缺口，v4 与正式 UAT 尚未完成 |
+| 当前实现 | Knowledge 基线、三动作 Adapter/组合根、最终授权、Transaction 文本 operator 和 v4 完整意图 Prompt 已实施；1440 项 non-live 通过，正式 UAT Ready |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -68,9 +68,9 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | v3 controlled 已通过；v4 完整意图 Prompt 与正式 UAT 待完成 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | v4 完整意图 Prompt 和 non-live 已通过；正式 UAT Ready |
 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.0 | Knowledge 问题改写、检索、证据和摘要 | 保持既有权威，不做语义修改 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作和真实 controlled 联调已完成；Transaction 精确类型文本策略及正式 UAT 待完成 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作、真实 controlled 和 Transaction 精确类型文本策略已完成；正式 UAT Ready |
 
 ## 8. 质量属性、风险与当前结论
 
