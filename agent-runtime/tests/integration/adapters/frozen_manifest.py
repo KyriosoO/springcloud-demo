@@ -7,7 +7,13 @@ import re
 import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Literal, cast
+
+from tests.integration.adapters.business_egress_live_bootstrap import (
+    BootstrapBinding,
+    load_strict_json,
+    sha256_file,
+)
 
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -43,6 +49,96 @@ def materialize_manifest_at_commit(
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
     return destination
+
+
+def bind_historical_bootstrap(
+    *,
+    repository_root: Path,
+    manifest_path: Path,
+    authorization_path: Path,
+    destination: Path,
+    executable_paths: frozenset[str],
+) -> BootstrapBinding:
+    """Validate immutable history without requiring a rebuildable historical JAR."""
+    manifest = load_strict_json(manifest_path)
+    authorization = load_strict_json(authorization_path)
+    assert set(manifest) == {
+        "schemaVersion",
+        "status",
+        "runId",
+        "authorizationReference",
+        "domain",
+        "wrapperSourceCommit",
+        "candidate",
+        "buildProvenance",
+        "assetHashes",
+        "executableHashes",
+        "historyHashes",
+        "executionBoundary",
+    }
+    assert manifest["schemaVersion"] == 2
+    assert manifest["status"] == "prepared_unconsumed"
+    candidate = manifest["candidate"]
+    assert isinstance(candidate, Mapping)
+    assert set(candidate) == {
+        "runId",
+        "manifestPath",
+        "manifestSha256",
+        "authorizationPath",
+        "authorizationSha256",
+    }
+    manifest_sha256 = sha256_file(manifest_path)
+    binding = BootstrapBinding(
+        run_id=str(manifest["runId"]),
+        manifest_sha256=manifest_sha256,
+        authorization_reference=str(manifest["authorizationReference"]),
+        domain=cast(Literal["employee", "transaction"], manifest["domain"]),
+        wrapper_source_commit=str(manifest["wrapperSourceCommit"]),
+        candidate_run_id=str(candidate["runId"]),
+        candidate_manifest_sha256=str(candidate["manifestSha256"]),
+        candidate_authorization_sha256=str(candidate["authorizationSha256"]),
+    )
+    binding.validate()
+    assert authorization == {
+        "schemaVersion": 2,
+        "runId": binding.run_id,
+        "manifestSha256": binding.manifest_sha256,
+        "authorizationReference": binding.authorization_reference,
+        "liveExecutionAuthorized": False,
+    }
+    build = manifest["buildProvenance"]
+    assert isinstance(build, Mapping)
+    assert set(build) == {"sourceCommit", "command", "javaVersion", "mavenVersion"}
+    assert build["sourceCommit"] == binding.wrapper_source_commit
+    assert isinstance(build["command"], str) and build["command"]
+    assert isinstance(build["javaVersion"], str) and build["javaVersion"].startswith("25.")
+    assert isinstance(build["mavenVersion"], str) and build["mavenVersion"].startswith("3.")
+    assert manifest["executionBoundary"] == {
+        "liveExecutionAuthorized": False,
+        "sideEffectsAllowed": False,
+        "candidateInvocationsMaximum": 1,
+        "retryAllowed": False,
+        "resumeAllowed": False,
+    }
+    materialize_manifest_at_commit(
+        manifest,
+        repository_root=repository_root,
+        destination=destination,
+        source_commit=binding.wrapper_source_commit,
+        collection_names=("assetHashes", "historyHashes"),
+    )
+    assert frozenset(
+        _manifest_hashes(manifest, collection_names=("executableHashes",))
+    ) == executable_paths
+    materialize_current_hash_bindings(
+        {
+            str(candidate["manifestPath"]): binding.candidate_manifest_sha256,
+            str(candidate["authorizationPath"]): binding.candidate_authorization_sha256,
+        },
+        repository_root=repository_root,
+        destination=destination,
+    )
+    return binding
 
 
 def write_manifest_bound_to_current_tree(

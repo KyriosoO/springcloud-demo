@@ -314,7 +314,9 @@ def test_frozen_manifest_authorization_history_and_consumed_outputs(tmp_path: Pa
             target = prepared_repository / relative_path
             target.parent.mkdir(parents=True, exist_ok=True)
             if relative_path in {
+                "agent-runtime/src/agent_runtime/adapters/employee/codec.py",
                 "agent-runtime/src/agent_runtime/adapters/employee/definition.py",
+                "agent-runtime/src/agent_runtime/adapters/employee/normalizer.py",
                 (
                     "agent-runtime/tests/integration/adapters/employee/"
                     "test_employee_egress_input_qualification_v2.py"

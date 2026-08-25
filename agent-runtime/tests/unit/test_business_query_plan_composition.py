@@ -275,7 +275,7 @@ async def test_invalid_business_input_does_not_fall_back_to_non_business_selecto
 async def test_sensitive_business_input_is_forbidden_without_model_or_fallback() -> None:
     generator = _QuestionPlanGenerator()
     runtime, employee, transaction, fallback = _runtime(generator)
-    question = "查询员工，员工标识 ABCDE，联系电话 13800138000"
+    question = "查询员工，员工标识 ABCDE，密码=secret123"
 
     outcome = await runtime.ainvoke(question=question, scope=scope(question))
 

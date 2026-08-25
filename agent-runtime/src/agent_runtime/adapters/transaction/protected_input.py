@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from agent_runtime.adapters.transaction.codec import TransactionSearchArgumentValidator
+from agent_runtime.adapters.transaction.codec import TransactionListSearchArgumentValidator
 from agent_runtime.business.query_plan import InvalidProtectedValue, ProtectedValueSlots
 from agent_runtime.capability_api.contracts import InvalidCapabilityArguments
 
@@ -22,7 +22,7 @@ class TransactionProtectedValueExtractor:
     __slots__ = ("_validator",)
 
     def __init__(self) -> None:
-        self._validator = TransactionSearchArgumentValidator()
+        self._validator = TransactionListSearchArgumentValidator()
 
     def extract(self, question: str, *, request_id: str) -> ProtectedValueSlots:
         if (
@@ -45,10 +45,20 @@ class TransactionProtectedValueExtractor:
             raise InvalidProtectedValue()
         raw = matches[0].group(1)
         try:
-            validated = self._validator.validate({"trans_id": raw})
+            validated = self._validator.validate(
+                {
+                    "filters": ({"field": "trans_id", "operator": "eq", "value": raw},),
+                    "page": 1,
+                    "size": 1,
+                    "sorts": (),
+                }
+            )
         except InvalidCapabilityArguments as exc:
             raise InvalidProtectedValue() from exc
+        identifier = validated.filters[0].value
+        if not isinstance(identifier, str):
+            raise InvalidProtectedValue()
         return ProtectedValueSlots(
             request_id=request_id,
-            values={"slot-1": validated.trans_id},
+            values={"slot-1": identifier},
         )

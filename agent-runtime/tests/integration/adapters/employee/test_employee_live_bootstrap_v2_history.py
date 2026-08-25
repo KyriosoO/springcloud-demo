@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 
 from tests.integration.adapters.business_egress_live_bootstrap import (
+    BootstrapBinding,
     load_strict_json,
     read_lifecycle,
     sha256_file,
     validate_result,
 )
 from tests.integration.adapters.frozen_manifest import (
-    materialize_manifest_at_commit,
-    materialize_manifest_from_current_hashes,
+    bind_historical_bootstrap,
 )
 from tests.integration.adapters.employee.live_bootstrap_v2 import (
     AUTHORIZATION_REFERENCE,
@@ -30,7 +30,6 @@ from tests.integration.adapters.employee.live_bootstrap_v2 import (
     candidate_output_paths,
     manifest_path,
     output_paths,
-    validate_prepared_assets,
 )
 
 
@@ -50,20 +49,13 @@ def _require_prepared_assets() -> None:
         pytest.skip("employee bootstrap v2 manifest is generated after source commit")
 
 
-def _frozen_repository(tmp_path: Path) -> Path:
-    manifest = load_strict_json(MANIFEST)
-    frozen = materialize_manifest_at_commit(
-        manifest,
+def _historical_binding(tmp_path: Path) -> BootstrapBinding:
+    return bind_historical_bootstrap(
         repository_root=ROOT,
         destination=tmp_path / "frozen-repository",
-        source_commit=manifest["wrapperSourceCommit"],
-        collection_names=("assetHashes", "historyHashes"),
-    )
-    return materialize_manifest_from_current_hashes(
-        manifest,
-        repository_root=ROOT,
-        destination=frozen,
-        collection_names=("executableHashes",),
+        manifest_path=MANIFEST,
+        authorization_path=AUTHORIZATION,
+        executable_paths=EMPLOYEE_EXECUTABLE_ASSET_PATHS,
     )
 
 
@@ -71,11 +63,7 @@ def test_employee_v2_manifest_authorization_and_histories_are_frozen(
     tmp_path: Path,
 ) -> None:
     _require_prepared_assets()
-    binding = validate_prepared_assets(
-        _frozen_repository(tmp_path),
-        prepared_manifest_path=MANIFEST,
-        prepared_authorization_path=AUTHORIZATION,
-    )
+    binding = _historical_binding(tmp_path)
     manifest = load_strict_json(MANIFEST)
     assert binding.run_id == RUN_ID
     assert binding.authorization_reference == AUTHORIZATION_REFERENCE
@@ -118,11 +106,7 @@ def test_employee_v2_failed_history_is_exact_and_non_reusable(tmp_path: Path) ->
     paths = {name: evidence / name for name in EXPECTED_SHA256}
     assert {name: sha256_file(path) for name, path in paths.items()} == EXPECTED_SHA256
 
-    binding = validate_prepared_assets(
-        _frozen_repository(tmp_path),
-        prepared_manifest_path=MANIFEST,
-        prepared_authorization_path=AUTHORIZATION,
-    )
+    binding = _historical_binding(tmp_path)
     lifecycle_path, result_path, diagnostic_path = output_paths(ROOT)
     lifecycle = read_lifecycle(lifecycle_path, binding=binding)
     result = load_strict_json(result_path)
