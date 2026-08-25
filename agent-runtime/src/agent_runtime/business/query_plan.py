@@ -457,6 +457,7 @@ class DefaultBusinessQueryPlanValidator:
         if (
             settings.max_page_size is None
             or arguments.size > settings.max_page_size
+            or (settings.max_page is not None and arguments.page > settings.max_page)
             or (arguments.page - 1) * arguments.size > 2147483647
             or (settings.fixed_page is not None and arguments.page != settings.fixed_page)
         ):
@@ -523,7 +524,10 @@ class DefaultBusinessQueryPlanValidator:
             maximum_items=settings.max_sort_items,
         )
         if arguments.keyword is not None:
-            if definition.descriptor.capability_id != "employee.search":
+            if (
+                definition.descriptor.capability_id != "employee.search"
+                or not settings.keyword_enabled
+            ):
                 raise InvalidBusinessQueryPlan()
             keyword_definition = definition_fields.get("contact_address")
             keyword_settings = configured_fields.get("contact_address")

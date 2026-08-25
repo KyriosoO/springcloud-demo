@@ -47,12 +47,12 @@ Verified existing：旧 detail、有限 Transaction、Business protected slot、
 | 工作包 ID | 名称 | 来源设计 | 范围 | 直接依赖 | 入口门禁 | 交付物 | 验证 | 回滚边界 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|
 | `WP-BQ-FILTER-CONTRACT-02` | 公共 filters QueryPlan 合同 | `L2_02_00 DR-BQCOM-101/103` | exact filters/operator/tagged value、validator/binder、组合规则 | - | - | 公共计划类型与 fake 测试 | `VAL-BQCOM-101` | 撤销新合同，不恢复旧 Business 旁路 | Done |
-| `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、keyword 受控策略、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Ready |
-| `WP-BQ-MODEL-CATALOG-02` | filters 模型目录与 Prompt | `L2_00_02 DR-MODEL-101～105` | v3 task、安全目录、protected slots、unsupported | `WP-BQ-FIELD-CONFIG-02` | - | fake model task/catalog 测试 | `VAL-MODEL-101/102` | 移除 v3 装配，不复用旧 live 证据 | Blocked |
-| `WP-EMP-SEARCH-ADAPTER-02` | Employee 条件搜索 | `L2_02_01 DR-EMP-101/103/104` | filters→SearchRequest、分页、排序、bounded hits | `WP-BQ-FIELD-CONFIG-02` | - | search definition/codec/projection | `VAL-EMP-101/103` | 禁用新 action，保留历史资产 | Blocked |
-| `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Blocked |
+| `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、keyword 受控策略、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Done |
+| `WP-BQ-MODEL-CATALOG-02` | filters 模型目录与 Prompt | `L2_00_02 DR-MODEL-101～105` | v3 task、安全目录、protected slots、unsupported | `WP-BQ-FIELD-CONFIG-02` | - | fake model task/catalog 测试 | `VAL-MODEL-101/102` | 移除 v3 装配，不复用旧 live 证据 | Ready |
+| `WP-EMP-SEARCH-ADAPTER-02` | Employee 条件搜索 | `L2_02_01 DR-EMP-101/103/104` | filters→SearchRequest、分页、排序、bounded hits | `WP-BQ-FIELD-CONFIG-02` | - | search definition/codec/projection | `VAL-EMP-101/103` | 禁用新 action，保留历史资产 | Ready |
+| `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Ready |
 | `WP-EMP-ES-AUTH-02` | Employee ES 最终读取授权 | `L2_02_01 DR-EMP-105` | 调用方兼容核查、两入口 requireEmployeeRead、角色矩阵 | - | - | Java guard/controller/security 测试 | `VAL-EMP-102` | 未确认兼容前不启用授权变更 | Done |
-| `WP-TXN-SEARCH-EXT-02` | Transaction Date/金额/分页扩展 | `L2_02_02 DR-TXN-101～105` | 四字段 operator、Date/Decimal、page/sort、稳定列表 | `WP-BQ-FIELD-CONFIG-02` | - | 扩展 Transaction Adapter 和 Java contract tests | `VAL-TXN-101/102/103` | 关闭新字段，不修改 Java DTO/SQL | Blocked |
+| `WP-TXN-SEARCH-EXT-02` | Transaction Date/金额/分页扩展 | `L2_02_02 DR-TXN-101～105` | 四字段 operator、Date/Decimal、page/sort、稳定列表 | `WP-BQ-FIELD-CONFIG-02` | - | 扩展 Transaction Adapter 和 Java contract tests | `VAL-TXN-101/102/103` | 关闭新字段，不修改 Java DTO/SQL | Ready |
 | `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02`, `WP-EMP-ES-AUTH-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Blocked |
 | `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Blocked |
 | `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Blocked |
@@ -105,12 +105,12 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | 顺序 | 工作包 | 判定 | 未关闭依赖/门禁 | 选择理由 |
 |---|---|---|---|---|
 | 1 | `WP-BQ-FILTER-CONTRACT-02` | Done | - | filters/operator/tagged value、组合校验与绑定已通过 45 项回归及 strict mypy |
-| 2 | `WP-BQ-FIELD-CONFIG-02` | Ready | `WP-BQ-FILTER-CONTRACT-02` | 配置依赖的 operator/type 已实施并验证 |
-| 3 | `WP-BQ-MODEL-CATALOG-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | catalog 必须取已校验配置 |
-| 4 | `WP-EMP-SEARCH-ADAPTER-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | ES 字段/action 需配置权威 |
-| 5 | `WP-EMP-SEMANTIC-ADAPTER-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | semantic profile 和字段分类需配置权威 |
+| 2 | `WP-BQ-FIELD-CONFIG-02` | Done | `WP-BQ-FILTER-CONTRACT-02` | 三动作统一 JSON、固定字段映射、敏感暴露与有限脱敏通过 64 项回归 |
+| 3 | `WP-BQ-MODEL-CATALOG-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | catalog 依赖的三动作字段配置已就绪 |
+| 4 | `WP-EMP-SEARCH-ADAPTER-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | ES search 字段及 action 配置已就绪 |
+| 5 | `WP-EMP-SEMANTIC-ADAPTER-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | semantic profile 和字段分类已就绪 |
 | 6 | `WP-EMP-ES-AUTH-02` | Done | - | 两入口复用现有读取守卫，调用方兼容核实与 7 项安全测试通过 |
-| 7 | `WP-TXN-SEARCH-EXT-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | Date/Decimal/分页需要统一字段合同 |
+| 7 | `WP-TXN-SEARCH-EXT-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | Date/Decimal/分页统一字段合同已就绪 |
 | 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Blocked | Model/两个 Employee/Transaction/Employee 授权五项前置 | 生产组合根必须等待完整安全对象图 |
 | 9 | `WP-EMP-DETAIL-RETIRE-02` | Blocked | `WP-BQ-RUNTIME-CUTOVER-02` | 先具备新列表替代路径 |
 | 10 | `WP-BQ-NONLIVE-E2E-02` | Blocked | `WP-BQ-RUNTIME-CUTOVER-02` | E2E 需要唯一三动作对象图 |
@@ -143,12 +143,12 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | 工作包 | 来源 REQ/CON/DR | IMPL | TEST | VAL | 交付状态 |
 |---|---|---|---|---|---|
 | `WP-BQ-FILTER-CONTRACT-02` | `DR-BQCOM-101/103` | `IMPL-BQCOM-101/106` | `TEST-BQCOM-101/102/104` | `VAL-BQCOM-101` | Done |
-| `WP-BQ-FIELD-CONFIG-02` | `DR-BQCOM-102/104` | `IMPL-BQCOM-102/103/104/105/107/108` | `TEST-BQCOM-103/106` | `VAL-BQCOM-101/102` | Ready |
-| `WP-BQ-MODEL-CATALOG-02` | `DR-MODEL-101～105` | `IMPL-MODEL-101～105` | `TEST-MODEL-101～105` | `VAL-MODEL-101/102` | Blocked |
-| `WP-EMP-SEARCH-ADAPTER-02` | `DR-EMP-101/103/104` | `IMPL-EMP-101～105/108` | `TEST-EMP-101/102/104/105` | `VAL-EMP-101/103` | Blocked |
-| `WP-EMP-SEMANTIC-ADAPTER-02` | `DR-EMP-102/104` | `IMPL-EMP-101～105` | `TEST-EMP-103/104` | `VAL-EMP-101/103` | Blocked |
+| `WP-BQ-FIELD-CONFIG-02` | `DR-BQCOM-102/104` | `IMPL-BQCOM-102/103/104/105/107/108` | `TEST-BQCOM-103/106` | `VAL-BQCOM-101/102` | Done |
+| `WP-BQ-MODEL-CATALOG-02` | `DR-MODEL-101～105` | `IMPL-MODEL-101～105` | `TEST-MODEL-101～105` | `VAL-MODEL-101/102` | Ready |
+| `WP-EMP-SEARCH-ADAPTER-02` | `DR-EMP-101/103/104` | `IMPL-EMP-101～105/108` | `TEST-EMP-101/102/104/105` | `VAL-EMP-101/103` | Ready |
+| `WP-EMP-SEMANTIC-ADAPTER-02` | `DR-EMP-102/104` | `IMPL-EMP-101～105` | `TEST-EMP-103/104` | `VAL-EMP-101/103` | Ready |
 | `WP-EMP-ES-AUTH-02` | `DR-EMP-105` | `IMPL-EMP-106/107` | `TEST-EMP-106` | `VAL-EMP-102` | Done |
-| `WP-TXN-SEARCH-EXT-02` | `DR-TXN-101～105` | `IMPL-TXN-101～107` | `TEST-TXN-101～106` | `VAL-TXN-101/102/103` | Blocked |
+| `WP-TXN-SEARCH-EXT-02` | `DR-TXN-101～105` | `IMPL-TXN-101～107` | `TEST-TXN-101～106` | `VAL-TXN-101/102/103` | Ready |
 | `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Blocked |
 | `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Blocked |
 | `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Blocked |
@@ -178,7 +178,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Ready 1 个，Blocked 9 个，Done 2 个。filters QueryPlan 公共合同已通过 45 项相关测试、strict mypy 与 compileall；统一字段配置已解除依赖并进入 Ready。`GATE-067/068` Closed，`GATE-069/070` 与 `GATE-UAT-007` 保持 Open；旧证据一律不能冒充新动作证据。
+总计 12 个工作包、15 条直接依赖：Ready 4 个，Blocked 5 个，Done 3 个。filters 合同、统一三动作字段配置与 Employee ES 最终读取授权已完成；配置/合同 64 项 Python 回归和读取授权 7 项 Java 测试通过。Model、两个 Employee Adapter 和 Transaction Adapter 可独立实施。`GATE-067/068` Closed，`GATE-069/070` 与 `GATE-UAT-007` 保持 Open。
 
 ## 15. 后续实施建议
 

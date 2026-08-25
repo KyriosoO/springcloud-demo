@@ -98,7 +98,11 @@ class BusinessFieldTransform(StrEnum):
     IDENTITY_SCALAR = "identity_scalar"
     BOUNDED_TEXT = "bounded_text"
     MASK_KEEP_LAST4 = "mask_keep_last4"
+    MASK_NAME = "mask_name"
+    MASK_ADDRESS = "mask_address"
+    MASK_CONTACT = "mask_contact"
     DATE_ONLY = "date_only"
+    DATETIME_ISO = "datetime_iso"
     DECIMAL_2 = "decimal_2"
     ENUM_CODE = "enum_code"
 
@@ -152,6 +156,7 @@ class BusinessContractLimits:
     fixed_page: int | None = None
     allowed_sort_directions: frozenset[str] = frozenset()
     max_sort_items: int | None = None
+    max_page: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -197,6 +202,261 @@ class BusinessQueryFieldSettings:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessQueryActionContract:
+    action_id: str
+    domain_id: BusinessDomainId
+    service_key: BusinessServiceKey
+    code_contract_version: str
+    service_contract_ref: str
+    query_fields: tuple[BusinessQueryFieldDefinition, ...]
+    allowed_sort_fields: frozenset[str]
+    max_page: int
+    max_page_size: int
+    max_result_count: int
+    max_timeout_ms: int
+    keyword_service_field_ids: tuple[str, ...] = ()
+    semantic_profile_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessResultFieldContract:
+    field_id: str
+    value_type: BusinessFieldValueType
+    data_class: DataClass
+    user_transform: BusinessFieldTransform
+    model_transform: BusinessFieldTransform | None
+    required: bool = False
+
+
+def business_query_v2_result_contracts(
+    action_id: str,
+) -> tuple[BusinessResultFieldContract, ...]:
+    if action_id in {"employee.search", "employee.semantic_search"}:
+        return (
+            BusinessResultFieldContract(
+                field_id="contact_address", value_type=BusinessFieldValueType.TEXT,
+                data_class=DataClass.CONTACT, user_transform=BusinessFieldTransform.MASK_ADDRESS,
+                model_transform=None,
+            ),
+            BusinessResultFieldContract(
+                field_id="chinese_name", value_type=BusinessFieldValueType.TEXT,
+                data_class=DataClass.PERSONAL_IDENTIFIER,
+                user_transform=BusinessFieldTransform.MASK_NAME,
+                model_transform=None, required=True,
+            ),
+            BusinessResultFieldContract(
+                field_id="employee_identifier", value_type=BusinessFieldValueType.IDENTIFIER,
+                data_class=DataClass.PERSONAL_IDENTIFIER,
+                user_transform=BusinessFieldTransform.MASK_KEEP_LAST4,
+                model_transform=None, required=True,
+            ),
+            BusinessResultFieldContract(
+                field_id="member_no", value_type=BusinessFieldValueType.IDENTIFIER,
+                data_class=DataClass.EMPLOYEE_IDENTIFIER,
+                user_transform=BusinessFieldTransform.MASK_KEEP_LAST4,
+                model_transform=None,
+            ),
+            BusinessResultFieldContract(
+                field_id="phone_no", value_type=BusinessFieldValueType.TEXT,
+                data_class=DataClass.CONTACT,
+                user_transform=BusinessFieldTransform.MASK_CONTACT,
+                model_transform=None,
+            ),
+            BusinessResultFieldContract(
+                field_id="email", value_type=BusinessFieldValueType.TEXT,
+                data_class=DataClass.CONTACT,
+                user_transform=BusinessFieldTransform.MASK_CONTACT,
+                model_transform=None,
+            ),
+            BusinessResultFieldContract(
+                field_id="position", value_type=BusinessFieldValueType.TEXT,
+                data_class=DataClass.BUSINESS_INTERNAL,
+                user_transform=BusinessFieldTransform.BOUNDED_TEXT,
+                model_transform=BusinessFieldTransform.BOUNDED_TEXT,
+            ),
+        )
+    if action_id == "transaction.search":
+        return (
+            BusinessResultFieldContract(
+                field_id="trans_id", value_type=BusinessFieldValueType.IDENTIFIER,
+                data_class=DataClass.TRANSACTION_IDENTIFIER,
+                user_transform=BusinessFieldTransform.MASK_KEEP_LAST4,
+                model_transform=None,
+            ),
+            BusinessResultFieldContract(
+                field_id="trans_type", value_type=BusinessFieldValueType.TEXT,
+                data_class=DataClass.BUSINESS_INTERNAL,
+                user_transform=BusinessFieldTransform.BOUNDED_TEXT,
+                model_transform=BusinessFieldTransform.BOUNDED_TEXT, required=True,
+            ),
+            BusinessResultFieldContract(
+                field_id="trans_date", value_type=BusinessFieldValueType.DATETIME,
+                data_class=DataClass.BUSINESS_INTERNAL,
+                user_transform=BusinessFieldTransform.DATETIME_ISO,
+                model_transform=None,
+            ),
+            BusinessResultFieldContract(
+                field_id="amount", value_type=BusinessFieldValueType.DECIMAL,
+                data_class=DataClass.FINANCIAL_VALUE,
+                user_transform=BusinessFieldTransform.DECIMAL_2,
+                model_transform=BusinessFieldTransform.DECIMAL_2, required=True,
+            ),
+        )
+    raise ValueError("business.unknown_action_contract")
+
+
+def business_query_v2_action_contracts() -> tuple[BusinessQueryActionContract, ...]:
+    text_ops = frozenset(
+        {
+            BusinessQueryOperator.EQ,
+            BusinessQueryOperator.CONTAINS,
+            BusinessQueryOperator.PREFIX,
+            BusinessQueryOperator.IN,
+        }
+    )
+    exact = frozenset({BusinessQueryOperator.EQ})
+    employee_fields = (
+        BusinessQueryFieldDefinition(
+            logical_name="contact_address", service_field="contactAddress",
+            model_safe_description="员工联系地点的非敏感城市片段",
+            value_type=BusinessQueryValueType.TEXT, allowed_operators=text_ops,
+            input_exposure=BusinessInputExposure.LITERAL_OR_PROTECTED_REF,
+            required=False, max_text_chars=128,
+            text_policy_id=BusinessTextPolicyId.SAFE_CONTAINS_TOKEN,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="chinese_name", service_field="chineseName",
+            model_safe_description="当前请求中员工姓名的受保护引用",
+            value_type=BusinessQueryValueType.TEXT, allowed_operators=text_ops,
+            input_exposure=BusinessInputExposure.PROTECTED_REF,
+            required=False, max_text_chars=128,
+            text_policy_id=BusinessTextPolicyId.SAFE_CONTAINS_TOKEN,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="employee_identifier", service_field="idCardNo",
+            model_safe_description="当前请求中员工标识的受保护引用",
+            value_type=BusinessQueryValueType.IDENTIFIER, allowed_operators=exact,
+            input_exposure=BusinessInputExposure.PROTECTED_REF, required=False,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="member_no", service_field="memberNo",
+            model_safe_description="当前请求中会员编号的受保护引用",
+            value_type=BusinessQueryValueType.IDENTIFIER,
+            allowed_operators=frozenset({BusinessQueryOperator.EQ, BusinessQueryOperator.PREFIX}),
+            input_exposure=BusinessInputExposure.PROTECTED_REF, required=False,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="phone_no", service_field="phoneNo",
+            model_safe_description="当前请求中员工联系电话的受保护引用",
+            value_type=BusinessQueryValueType.TEXT,
+            allowed_operators=frozenset({BusinessQueryOperator.EQ, BusinessQueryOperator.PREFIX}),
+            input_exposure=BusinessInputExposure.PROTECTED_REF,
+            required=False, max_text_chars=128,
+            text_policy_id=BusinessTextPolicyId.SAFE_TOKEN,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="email", service_field="email",
+            model_safe_description="当前请求中员工邮箱的受保护引用",
+            value_type=BusinessQueryValueType.TEXT, allowed_operators=exact,
+            input_exposure=BusinessInputExposure.PROTECTED_REF,
+            required=False, max_text_chars=128,
+            text_policy_id=BusinessTextPolicyId.SAFE_TOKEN,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="position", service_field="position",
+            model_safe_description="员工职位的非敏感业务文本",
+            value_type=BusinessQueryValueType.TEXT, allowed_operators=text_ops,
+            input_exposure=BusinessInputExposure.LITERAL,
+            required=False, max_text_chars=128,
+            text_policy_id=BusinessTextPolicyId.SAFE_CONTAINS_TOKEN,
+        ),
+    )
+    employee_semantic_fields = (
+        BusinessQueryFieldDefinition(
+            logical_name="query", service_field="queryText",
+            model_safe_description="不包含姓名、地址、标识或联系方式的员工专业能力描述",
+            value_type=BusinessQueryValueType.TEXT, allowed_operators=exact,
+            input_exposure=BusinessInputExposure.LITERAL,
+            required=True, max_text_chars=256,
+            text_policy_id=BusinessTextPolicyId.SAFE_CONTAINS_TOKEN,
+        ),
+    )
+    transaction_fields = (
+        BusinessQueryFieldDefinition(
+            logical_name="trans_id", service_field="transId",
+            model_safe_description="当前请求中交易标识的受保护引用",
+            value_type=BusinessQueryValueType.IDENTIFIER, allowed_operators=exact,
+            input_exposure=BusinessInputExposure.PROTECTED_REF, required=False,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="trans_type", service_field="transType",
+            model_safe_description="交易类型的精确或包含匹配业务文本",
+            value_type=BusinessQueryValueType.TEXT,
+            allowed_operators=frozenset({BusinessQueryOperator.EQ, BusinessQueryOperator.CONTAINS}),
+            input_exposure=BusinessInputExposure.LITERAL,
+            required=False, max_text_chars=128,
+            text_policy_id=BusinessTextPolicyId.SAFE_CONTAINS_TOKEN,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="trans_date", service_field="transDate",
+            model_safe_description="包含明确时区偏移的绝对交易时间",
+            value_type=BusinessQueryValueType.DATETIME,
+            allowed_operators=frozenset(
+                {BusinessQueryOperator.EQ, BusinessQueryOperator.GT, BusinessQueryOperator.LT}
+            ),
+            input_exposure=BusinessInputExposure.LITERAL, required=False,
+        ),
+        BusinessQueryFieldDefinition(
+            logical_name="amount", service_field="amount",
+            model_safe_description="最多两位小数的规范十进制交易金额",
+            value_type=BusinessQueryValueType.DECIMAL,
+            allowed_operators=frozenset(
+                {BusinessQueryOperator.EQ, BusinessQueryOperator.GT, BusinessQueryOperator.LT}
+            ),
+            input_exposure=BusinessInputExposure.LITERAL,
+            required=False, allow_negative=True,
+        ),
+    )
+    return (
+        BusinessQueryActionContract(
+            action_id="employee.search", domain_id=BusinessDomainId("employee"),
+            service_key=BusinessServiceKey("employee-service"),
+            code_contract_version="employee-search-plan-v2",
+            service_contract_ref="employee.es.search.v1", query_fields=employee_fields,
+            allowed_sort_fields=frozenset({"chinese_name", "position"}),
+            max_page=1000, max_page_size=50, max_result_count=50, max_timeout_ms=3000,
+            keyword_service_field_ids=("contactAddress", "chineseName", "idCardNo"),
+        ),
+        BusinessQueryActionContract(
+            action_id="employee.semantic_search", domain_id=BusinessDomainId("employee"),
+            service_key=BusinessServiceKey("employee-service"),
+            code_contract_version="employee-semantic-search-plan-v2",
+            service_contract_ref="employee.es.vector-search.v1",
+            query_fields=employee_semantic_fields, allowed_sort_fields=frozenset(),
+            max_page=1, max_page_size=50, max_result_count=50, max_timeout_ms=3000,
+            semantic_profile_id="employee-default-v1",
+        ),
+        BusinessQueryActionContract(
+            action_id="transaction.search", domain_id=BusinessDomainId("transaction"),
+            service_key=BusinessServiceKey("mq-procedure-service"),
+            code_contract_version="transaction-search-plan-v2",
+            service_contract_ref="transaction.search.v1", query_fields=transaction_fields,
+            allowed_sort_fields=frozenset({"trans_id", "trans_type", "trans_date", "amount"}),
+            max_page=1000, max_page_size=50, max_result_count=50, max_timeout_ms=5000,
+        ),
+    )
+
+
+def business_query_v2_action_contract(action_id: str) -> BusinessQueryActionContract:
+    matches = tuple(
+        item for item in business_query_v2_action_contracts() if item.action_id == action_id
+    )
+    if len(matches) != 1:
+        raise ValueError("business.unknown_action_contract")
+    return matches[0]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class BusinessActionSettings:
     enabled: bool
     max_page_size: int | None
@@ -219,6 +479,12 @@ class BusinessActionSettings:
     fixed_page: int | None = None
     allowed_sort_directions: tuple[str, ...] | None = None
     max_sort_items: int | None = None
+    max_page: int | None = None
+    keyword_enabled: bool = False
+    keyword_service_field_ids: tuple[str, ...] = ()
+    keyword_input_exposure: BusinessInputExposure | None = None
+    keyword_max_text_chars: int | None = None
+    semantic_profile_id: str | None = None
 
 
 TRecord = TypeVar("TRecord")

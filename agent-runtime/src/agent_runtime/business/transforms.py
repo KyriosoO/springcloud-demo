@@ -46,9 +46,24 @@ class BusinessTransformRegistry:
             normalized = _safe_text(value, max_chars=256)
             if len(normalized) >= 5:
                 return _safe_text("***" + normalized[-4:], max_chars=self._max_text_value_chars)
+        elif transform_id is BusinessFieldTransform.MASK_NAME and type(value) is str:
+            normalized = _safe_text(value, max_chars=256)
+            return _safe_text(normalized[:1] + "***", max_chars=self._max_text_value_chars)
+        elif transform_id is BusinessFieldTransform.MASK_ADDRESS and type(value) is str:
+            normalized = _safe_text(value, max_chars=256)
+            return _safe_text(normalized[:2] + "***", max_chars=self._max_text_value_chars)
+        elif transform_id is BusinessFieldTransform.MASK_CONTACT and type(value) is str:
+            normalized = _safe_text(value, max_chars=256)
+            return _safe_text(normalized[:1] + "***", max_chars=self._max_text_value_chars)
         elif transform_id is BusinessFieldTransform.DATE_ONLY and type(value) in (date, datetime):
             result = value.date().isoformat() if type(value) is datetime else value.isoformat()
             return _safe_text(result, max_chars=self._max_text_value_chars)
+        elif transform_id is BusinessFieldTransform.DATETIME_ISO and type(value) is datetime:
+            if value.tzinfo is not None and value.utcoffset() is not None:
+                return _safe_text(
+                    value.isoformat(timespec="seconds"),
+                    max_chars=self._max_text_value_chars,
+                )
         elif transform_id is BusinessFieldTransform.DECIMAL_2 and type(value) is Decimal and value.is_finite():
             try:
                 result = format(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "f")

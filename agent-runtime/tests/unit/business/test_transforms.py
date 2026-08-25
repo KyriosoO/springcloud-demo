@@ -32,6 +32,9 @@ def test_finite_transforms_are_deterministic() -> None:
     registry = BusinessTransformRegistry()
     assert registry.apply(transform_id=BusinessFieldTransform.MASK_KEEP_LAST4, definition=_definition(BusinessFieldTransform.MASK_KEEP_LAST4), value="ABCDEF") == "***CDEF"
     assert registry.apply(transform_id=BusinessFieldTransform.DECIMAL_2, definition=_definition(BusinessFieldTransform.DECIMAL_2), value=Decimal("1.235")) == "1.24"
+    assert registry.apply(transform_id=BusinessFieldTransform.MASK_NAME, definition=_definition(BusinessFieldTransform.MASK_NAME), value="张三") == "张***"
+    assert registry.apply(transform_id=BusinessFieldTransform.MASK_ADDRESS, definition=_definition(BusinessFieldTransform.MASK_ADDRESS), value="上海市浦东新区") == "上海***"
+    assert registry.apply(transform_id=BusinessFieldTransform.MASK_CONTACT, definition=_definition(BusinessFieldTransform.MASK_CONTACT), value="13800138000") == "1***"
 
 
 def test_transform_rejects_wrong_type_without_coercion() -> None:
@@ -41,4 +44,3 @@ def test_transform_rejects_wrong_type_without_coercion() -> None:
             definition=_definition(BusinessFieldTransform.DECIMAL_2),
             value="1.23",
         )
-
