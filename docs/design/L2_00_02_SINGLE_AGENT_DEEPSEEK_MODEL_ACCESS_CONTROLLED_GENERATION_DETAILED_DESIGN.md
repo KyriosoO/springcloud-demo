@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_02 |
-| 当前版本 | v1.7 |
+| 当前版本 | v1.8 |
 | 更新日期 | 2026-08-25 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
-| 协作设计 | `L2_00_01` v1.6、`L2_02_00` v1.6 |
+| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.4 |
+| 协作设计 | `L2_00_01` v1.7、`L2_02_00` v1.7 |
 | Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | `business-query-plan-v2`、完整意图/unsupported 指令、provider exact JSON decoder、fake transport、版本化有限诊断和生产 Business non-live 组合根已实现；candidate-01/02 冻结历史按原版本校验；candidate-03 已完成 non-live 准备，真实验证尚未执行 |
+| 实施状态 | `business-query-plan-v2`、完整意图/unsupported 指令、provider exact JSON decoder、版本化有限诊断及生产 Business 唯一组合根已实现；candidate-01/02 历史保持不可变，candidate-03 真实 6-case 集成已通过；正式 UAT 尚未执行 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -25,12 +25,13 @@
 | v1.5 | 2026-08-24 | 明确历史 ID-only task/evidence 不改写，但 Employee/Transaction 不保留任何依赖该 task 的生产装配或专属兼容接缝 |
 | v1.6 | 2026-08-25 | candidate-02 日期负例真实失败后，设计 `business-query-plan-v2`、完整意图覆盖与不可表达显式示例；增加有限失败诊断、对抗 fake 和冻结历史兼容，不改变 validator 或业务契约 |
 | v1.7 | 2026-08-25 | 同步 v2 Prompt、result schema v2、日期对抗 fake、candidate-01/02 历史校验及 candidate-03 non-live 冻结资产；真实门禁仍未关闭 |
+| v1.8 | 2026-08-25 | 仅同步 candidate-03 真实 6-case 集成通过、P3 门禁关闭及上下位版本；不修改任务、Prompt、validator 或历史证据 |
 
 本文为 provider-neutral Business QueryPlan 模型任务设计受控升级：已实施的 `business-query-plan-v1` 保留于已冻结历史提交；新的 `business-query-plan-v2` 只强化模型可见指令对完整用户意图和不可表达条件的约束，不改变 task ID、三字段输出、catalog、decoder、validator、Adapter 或公开契约。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
 
 范围外/不负责：本文不定义业务字段合法性、Adapter、SQL/ES、权限或结果字段；这些由 Business L2 和业务服务治理。模型输出始终不可信，只有经下游本地 validator/binder 后才可执行。
 
-上位约束来源是 L1_00 v1.3 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
+上位约束来源是 L1_00 v1.4 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
 
 当前实现基线已包含 transport/gateway、历史 action selector、answer task，以及新增的 QueryPlan task/generator/provider decoder 和 Business 输入保护接缝；catalog 由 Business common 构造，QueryPlan generator 已在 Runtime Business 专用分支完成 non-live 装配。历史 action selector 仅保留给非 Business/历史验证，对 Employee/Transaction 生产组合不可达。
 
@@ -300,7 +301,7 @@ class LocalModelCompositionRoot:
 
 ## 15. 当前差距与门禁
 
-`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核。candidate-02 使用 v1 实际完成模型/Employee/Transaction=`6/2/2`，前五场景通过，Transaction 日期负例未达到 `unsupported` 并形成不可复用的 `failed_consumed` 历史；因此 v1 不能关闭 `GATE-065/066`。v2 Prompt、有限失败诊断、日期五类对抗 fake、candidate-01/02 历史兼容和 candidate-03 冻结候选已通过 non-live 验证；真实矩阵仍待按固定 `6/2/2` 预算执行。旧 Action PoC 和已失败历史不得作为通过证据。
+`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核。candidate-02 使用 v1 实际完成模型/Employee/Transaction=`6/2/2`，但 Transaction 日期负例未达到 `unsupported`，其 `failed_consumed` 历史保持不可变。candidate-03 使用 `business-query-plan-v2` 完成真实 6-case 集成，模型/Employee/Transaction=`6/2/2`，地点和日期 negative 均为 `unsupported` 且下游零调用；result SHA-256 为 `b00d37119b557f985093f6d2dae809304cbf68bbace55def9c360f8d15d1015b`，`GATE-065/066` 已关闭。正式 UAT 仍由 `GATE-UAT-006` 独立治理；旧 Action PoC 和失败历史不得作为通过证据。
 
 ## 16. 评审记录
 
@@ -322,8 +323,9 @@ class LocalModelCompositionRoot:
 | v1.6 内审3 | 授权、状态、严格校验与最小性 | 修正实施判定、P3 Ready 授权约束及重复状态；保持六次预算、失败关闭与 DAG，不增加 Gate/接口 |
 | v1.6 独立评审 R1 | v2 与 REQ/L1、失败关闭、历史证据和 P3 DAG | exact unsupported、两级 decoder、只读历史及有限诊断一致；允许 non-live 实施，新 live 仍需冻结独立候选 |
 | v1.7 代码对照设计复核 | v2 Prompt、schema 分版、日期对抗、42项资产与冻结历史 | 43项定向、1241项全量 non-live 通过/27项 opt-in 跳过/5项既有历史环境精确隔离；strict mypy、compileall 和 PowerShell AST 通过，未扩大业务契约 |
+| v1.8 真实集成复核 | v2 完整意图、权限、unsupported 和冻结历史 | candidate-03 六场景通过，model/Employee/Transaction=`6/2/2`，retry/answer/Knowledge/泄漏为0；前两次失败历史保持不可变 |
 
-Approved 不表示真实模型任务已实施或执行。
+Approved 本身不替代真实证据；本目标真实执行结论仅依据 candidate-03 冻结结果。
 
 ## 17. 质量、数据生命周期、风险与实现就绪判定
 
@@ -332,8 +334,8 @@ Approved 不表示真实模型任务已实施或执行。
 | 项目 | 内容 |
 |---|---|
 | 是否可作为实现依据 | 是 |
-| 当前允许实施范围 | v2 Prompt/task、测试侧失败诊断、对抗 fake、历史兼容和新的 non-live 候选；完成冻结后按用户持续授权进入一次性 GATE-065 live |
-| 当前禁止动作 | candidate-01/02 重跑或历史改写；放宽 unsupported/validator；业务结果模型出域、真实数据落盘和预算外调用 |
+| 当前允许实施范围 | v2 Prompt/task、non-live 回归及一次性真实 6-case 集成均已完成；正式 UAT 仍需独立门禁 |
+| 当前禁止动作 | candidate-01/02/03 重跑或历史改写；放宽 unsupported/validator；业务结果模型出域、真实数据落盘和预算外调用 |
 
 ## 18. 端到端追踪矩阵
 

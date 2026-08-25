@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_02 |
-| 当前版本 | v1.4 |
-| 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
-| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.6 |
+| 当前版本 | v1.5 |
+| 更新日期 | 2026-08-25 |
+| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.3 |
+| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.7 |
 | 业务接口 | `POST /txn/search` |
-| 实施状态 | Transaction QueryPlan definition/config/protected-ref、Runtime 唯一分支、Java 合同回归、专属旧 Resolver 清理与 fake system E2E 已有证据；live 尚未完成 |
+| 实施状态 | Transaction QueryPlan definition/config/protected-ref、Runtime 唯一分支、Java 合同回归、专属旧 Resolver 清理、fake 系统闭环及真实 no_result/forbidden/unsupported 三场景均已验证；正式 UAT 尚未执行 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -22,10 +22,11 @@
 | v1.2 | 2026-08-24 | Transaction 目标改为 LLM search QueryPlan，保留精确金额和有限查询上界 |
 | v1.3 | 2026-08-24 | 同步 `WP-TXN-QUERYPLAN-01` 实施证据；固定 POST/Decimal/业务授权不变，Runtime/live 仍由后续工作包承接 |
 | v1.4 | 2026-08-24 | 明确删除无调用方的 Transaction 专属 Local Resolver 源码/测试，不修改 Decimal/POST、历史 evidence 或共享组件 |
+| v1.5 | 2026-08-25 | 仅同步 Transaction 真实 no_result/forbidden/unsupported 三场景及 P3 门禁关闭；Date 仍 unsupported |
 
 设计目标是只复用 `/txn/search` 完成 LLM 受限查询。范围外/不负责：Date、aggregate、detail、写入、管理、新 DTO、数据库结构和业务角色变更。
 
-上位约束来源是 L1_02 v1.2 与 L2_02_00 v1.6。关联责任边界：Transaction L2 负责 search definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权和 SQL。`CON-TXN-001`：禁止 Transaction Adapter 依赖模型、其他 endpoint、Employee/Knowledge 或数据库直连。
+上位约束来源是 L1_02 v1.3 与 L2_02_00 v1.7。关联责任边界：Transaction L2 负责 search definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权和 SQL。`CON-TXN-001`：禁止 Transaction Adapter 依赖模型、其他 endpoint、Employee/Knowledge 或数据库直连。
 
 ### 2.1 当前实现基线与只读接口核实
 
@@ -271,7 +272,7 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 
 ## 14. 当前差距与门禁
 
-`WP-TXN-QUERYPLAN-01` 及其 non-live system E2E 已完成，Runtime 唯一分支已消费该 definition；8 个逻辑字段、4 条组合规则、配置版本/Decimal/page/sort 上界和 transaction ID protected-ref 已落地。专属旧 Resolver 源码/测试已按 `CLN-BQP-001` 清理，新 live 证据仍由后续门禁承接。
+`WP-TXN-QUERYPLAN-01` 及其 non-live system E2E 已完成，Runtime 唯一分支已消费该 definition；8 个逻辑字段、4 条组合规则、配置版本/Decimal/page/sort 上界和 transaction ID protected-ref 已落地。专属旧 Resolver 源码/测试已按 `CLN-BQP-001` 清理，真实 DeepSeek/Transaction 服务的 no_result、forbidden、unsupported 三场景均已通过，Transaction search 调用精确为2；正式 UAT 尚未执行。
 
 ## 15. 评审记录
 
@@ -286,7 +287,7 @@ Adapter 透传用户 JWT；Transaction service `CapabilityAccessGuard.requireTra
 | v1.4 内审3 | Decimal/POST/授权范围 | 清理不改金额、codec、Java DTO、endpoint、DB或角色 |
 | v1.4 独立评审 R1～R3 | Transaction 专属删除与跨语言稳定 | 确认 action_resolver 未被冻结 manifest 引用；R3 无发现 |
 
-Approved 与本节 non-live 实施状态不表示新 live 已完成，也不表示 GATE-026 历史 evidence 可直接证明本目标。
+Approved 本身不替代真实证据；本目标只使用新的 Transaction 三场景集成结果，不使用 GATE-026 历史 evidence 代替。
 
 ## 16. 数据生命周期、一致性、风险与实现就绪判定
 
@@ -295,9 +296,9 @@ QueryPlan、Decimal、JWT 和响应只存在于单请求生命周期，无持久
 | 项目 | 内容 |
 |---|---|
 | 是否可作为实现依据 | 是 |
-| 实现说明 | IMPL-TXN-001～007 已完成代码对照设计复核，后续由 Runtime/E2E 工作包消费 |
-| 当前允许实施范围 | Transaction non-live 实现已完成；真实调用仍受 `GATE-065` 控制 |
-| 当前禁止动作 | Date/aggregate/detail/write、新 DTO/DB/角色、float/舍入、真实调用、恢复 Resolver |
+| 实现说明 | IMPL-TXN-001～007、Runtime/E2E 消费及真实 no_result/forbidden/unsupported 三场景均已通过代码对照设计复核 |
+| 当前允许实施范围 | Transaction non-live 实现及一次性真实三场景均已完成；正式 UAT 仍需独立门禁 |
+| 当前禁止动作 | Date/aggregate/detail/write、新 DTO/DB/角色、float/舍入、预算外真实调用、恢复 Resolver |
 
 ## 17. 端到端追踪矩阵
 

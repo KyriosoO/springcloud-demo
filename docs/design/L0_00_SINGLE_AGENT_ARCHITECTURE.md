@@ -9,15 +9,15 @@
 |---|---|
 | 文档编号 | L0_00 |
 | 文档层级 | L0 |
-| 当前版本 | v1.3 |
-| 更新日期 | 2026-08-24 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.6 |
+| 当前版本 | v1.4 |
+| 更新日期 | 2026-08-25 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.7 |
 | 架构范围 | 单体 Agent 接入、编排、Knowledge 与 Employee/Transaction 查询、权限和模型边界 |
-| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支、旧 Resolver 清理及 fake 双域 system entry non-live 闭环已完成；真实环境结论尚未完成 |
+| 实施状态 | QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支、旧 Resolver 清理、fake 系统闭环及真实 DeepSeek/两域服务 6-case 集成均已完成；正式 UAT 尚未执行 |
 
 ## 2. 来源与变更记录
 
-本文来源于 REQ_00 v1.6 及 v1.0 架构基线。v1.1 将 Employee/Transaction 的权威路径由“本地 Resolver 生成参数、模型只选 ID”改为“LLM 生成逻辑 QueryPlan、本地严格校验和绑定”。历史 append-only 证据不改写；其复验所需兼容类型只能保留为生产不可达接缝。无调用方、无审计价值的旧可执行路径不属于历史证据，应在引用和回归核实后清理。
+本文来源于 REQ_00 v1.7 及 v1.0 架构基线。v1.1 将 Employee/Transaction 的权威路径由“本地 Resolver 生成参数、模型只选 ID”改为“LLM 生成逻辑 QueryPlan、本地严格校验和绑定”。历史 append-only 证据不改写；其复验所需兼容类型只能保留为生产不可达接缝。无调用方、无审计价值的旧可执行路径不属于历史证据，应在引用和回归核实后清理。
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
@@ -25,6 +25,7 @@
 | v1.1 | 2026-08-24 | 确立 Employee/Transaction LLM QueryPlan 唯一链路、强类型配置和接口缺口失败关闭 |
 | v1.2 | 2026-08-24 | 区分历史不可变证据与过时可执行资产，允许最小清理无调用方 Business Resolver 代码/测试 |
 | v1.3 | 2026-08-24 | 闭合既有架构测试与新 planning 的依赖边界：只允许唯一 LangGraph bridge 依赖 provider-neutral Model Port，Core/能力合同与 provider 实现继续隔离 |
+| v1.4 | 2026-08-25 | 仅同步真实 6-case 双域集成、P3 门禁关闭及正式 UAT 未执行的已验证状态，不改变架构 |
 
 ## 3. 目标、范围与非目标
 
@@ -206,13 +207,14 @@ Business QueryPlan 顶层只包含 `domain`、`action`、`arguments`。它是模
 - Access、Core、能力注册、模型 transport、Business Adapter、JWT 透传、业务服务授权守卫和受控只读接口已有不同层级的实现/验证证据。
 - QueryPlan 公共合同、模型任务、两域 definition/config 与 Runtime 唯一分支已有实现；共享 ID-only selector 仅服务非 Business，Employee/Transaction 专属旧 Resolver 资产和最后空 support 字段已按边界清理。
 - Spring→Runtime→fake QueryPlan model→fake Employee/Transaction 的 10-case non-live 闭环已验证成功、授权拒绝、非法计划、unsupported、超时、单动作与零旁路计数。
+- 真实 DeepSeek QueryPlan 与 Employee/Transaction 服务的 6-case 集成已通过；调用计数为 `6/2/2`，两项 unsupported 均无业务调用，retry/Knowledge/answer/泄漏为 0。
 - `employee.detail`、`transaction.search` 可复用。Employee 通用 ES 搜索具有字段筛选能力，但缺少本架构要求的业务角色最终授权与受限响应契约，不能作为当前 Agent 动作。
 
 ### 13.2 未完成目标
 
-- 受控真实 LLM + 业务服务集成和 UAT。
+- 第一批正式 UAT 仍需关闭其独立入口 `GATE-UAT-006`；受控真实集成已完成。
 
-这些差距由 P3_00 v1.28 工作包和门禁治理。在完成前，不得把原有本地 Resolver E2E 或历史模型 PoC 当作本目标通过证据。
+P3_00 v1.33 的七个 QueryPlan 工作包及 `GATE-064/065/066` 均已完成；正式 UAT 继续由其独立门禁治理，不得使用原有本地 Resolver E2E 或历史模型 PoC 替代当前证据。
 
 ## 14. 风险与控制
 

@@ -7,14 +7,14 @@
 | 文档标识 | P3_00 |
 | 文档类型 | 设计驱动实施计划 |
 | 文档状态 | Reviewed |
-| 当前版本 | v1.32 |
+| 当前版本 | v1.33 |
 | 更新日期 | 2026-08-25 |
 | 目标计划路径 | Employee/Transaction LLM QueryPlan 唯一链路 |
 | 适用范围 | QueryPlan 合同、模型任务、两域定义、Runtime 切换、non-live/live 集成 |
 | 非范围 | Knowledge 改造、结果模型出域、新业务接口/DTO/DB、生产发布 |
 | 权威顺序 | 用户范围 → REQ/L0/L1 → L2 → 当前实现证据 → 本计划 |
 | 历史审计 | [`P3_00_CODE_IMPLEMENTATION_AUDIT_HISTORY.md`](history/P3_00_CODE_IMPLEMENTATION_AUDIT_HISTORY.md)，只读且不构成新授权 |
-| 实施授权 | Ready 不等于实施授权；`GATE-064` 已关闭；用户已追加目标内设计/代码修复、内审/独立评审、一次性受控真实验证及 Git 提交推送持续授权；真实模型/业务调用仍必须使用新冻结候选、预算和 `GATE-065` 单次消费约束 |
+| 实施授权 | Ready 不等于实施授权；用户已授权目标内设计/代码修复、内审/独立评审、一次性受控真实验证及 Git 提交推送；`GATE-064/065/066` 已依据新冻结 candidate-03 证据关闭，正式 UAT 与预算外真实调用不属于本目标 |
 
 ## 2. 修改历史
 
@@ -36,6 +36,7 @@
 | 14 | 2026-08-25 | §5/7/9/13/14/15 | candidate-01 因 fake endpoint snapshot 漂移失败关闭；candidate-02 绑定真实 endpoint snapshot 与冻结历史 | v1.30；保留 failed_unconsumed 证据，修复测试侧 preflight/history，冻结 candidate-02；`GATE-065/066` 保持 Open |
 | 15 | 2026-08-25 | §3/5/7/9/11/13/14/15 | candidate-02 实际完成 `6/2/2` 但日期负例断言失败，且旧结果缺少失败 case 有限诊断 | v1.31；冻结四项 failed_consumed 历史，规划 `business-query-plan-v2`、有限诊断、对抗 fake 和 candidate-03；不增加工作包或门禁 |
 | 16 | 2026-08-25 | §3/5/7/9/13/14/15 | v2 完整意图 Prompt、有限失败诊断、五类日期对抗、双历史及 candidate-03 冻结验证成立 | v1.32；冻结 candidate-03 的 v2 task、42项资产和 `6/2/2` 预算；真实 `GATE-065/066` 仍 Open |
+| 17 | 2026-08-25 | §1/3/5/7/9/12/13/14/15 | candidate-03 真实 6-case 唯一链路、两域最终授权、unsupported 零调用及有限 evidence 全部通过 | v1.33；关闭 `GATE-065/066`，完成 `WP-BQ-QUERYPLAN-LIVE-01`，七个目标工作包全部 Done；正式 UAT 仍未执行 |
 
 ## 3. 来源清单与当前基线
 
@@ -43,26 +44,26 @@
 
 | 资源 | 角色 | 层级 | 状态/版本 | 权威范围 | 是否读取 | 置信度 |
 |---|---|---|---|---|---|---|
-| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | 需求 | REQ | 已确认 v1.6 | 唯一查询链、接口缺口、UAT目标、历史/过时资产边界 | 是 | 高 |
-| [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | 总体架构 | L0 | Approved v1.3 | 全局不变量、所有权和清理边界 | 是 | 高 |
-| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | Core/Runtime架构 | L1 | Approved v1.3 | planning node、Core、组合根 | 是 | 高 |
-| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | Business架构 | L1 | Approved v1.2 | plan/config/Adapter/权限和专属旧 Resolver 清理 | 是 | 高 |
-| [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | Core详细设计 | L2 | Approved v1.6 | plan→candidate、composition、request cancellation | 是 | 高 |
-| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型详细设计 | L2 | Approved v1.7 | model task/catalog/decoder/Business Guard；v2 完整意图及版本化有限失败诊断 | 是 | 高 |
-| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | Business common | L2 | Approved v1.6 | plan/config/validator/binder和旧兼容字段清理 | 是 | 高 |
-| [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | Employee | L2 | Approved v1.4 | detail/ref/接口缺口 | 是 | 高 |
-| [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | Transaction | L2 | Approved v1.4 | search/Decimal/page/sort | 是 | 高 |
+| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | 需求 | REQ | 已确认 v1.7 | 唯一查询链、接口缺口、UAT目标、历史/过时资产边界 | 是 | 高 |
+| [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | 总体架构 | L0 | Approved v1.4 | 全局不变量、所有权和清理边界 | 是 | 高 |
+| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | Core/Runtime架构 | L1 | Approved v1.4 | planning node、Core、组合根 | 是 | 高 |
+| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | Business架构 | L1 | Approved v1.3 | plan/config/Adapter/权限和专属旧 Resolver 清理 | 是 | 高 |
+| [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | Core详细设计 | L2 | Approved v1.7 | plan→candidate、composition、request cancellation | 是 | 高 |
+| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型详细设计 | L2 | Approved v1.8 | model task/catalog/decoder/Business Guard；v2 完整意图及版本化有限失败诊断 | 是 | 高 |
+| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | Business common | L2 | Approved v1.7 | plan/config/validator/binder和旧兼容字段清理 | 是 | 高 |
+| [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | Employee | L2 | Approved v1.5 | detail/ref/接口缺口 | 是 | 高 |
+| [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | Transaction | L2 | Approved v1.5 | search/Decimal/page/sort | 是 | 高 |
 
 ### 3.2 当前实现基线
 
 | 模块 | 当前事实 | 新目标差距 |
 |---|---|---|
 | Access/Core/Registry | 已实现并有测试 | 可复用，公共契约不扩大 |
-| Model runtime | transport/gateway/ID-only selector/answer task 与 `business-query-plan-v2` 本地任务已实现，默认 stub；Business Runtime 装配、有限诊断、日期对抗和 candidate-01/02 历史校验完成 | 缺 candidate-03 真实 QueryPlan 集成 |
-| Business common | handler/JWT/config snapshot/result/egress、plan validator/binder、两域 typed config、唯一 Runtime 入口与 fake system E2E 已实现 | 缺真实 QueryPlan 集成 |
-| Employee | detail Adapter、最终授权、protected-ref definition/config 与 fake system E2E 已实现 | 缺真实 QueryPlan 集成 |
-| Transaction | search Adapter、ExactDecimal、最终授权、8字段 definition/config 与 fake system E2E 已实现 | 缺真实 QueryPlan 集成 |
-| UAT | 旧 evidence 使用 stub/本地解析 | 不满足真实 LLM QueryPlan 目标 |
+| Model runtime | transport/gateway/ID-only selector/answer task 与 `business-query-plan-v2` 已实现，默认 stub；candidate-03 六次真实 QueryPlan 和完整意图均通过 | 本目标无剩余实施差距 |
+| Business common | handler/JWT/config snapshot/result/egress、plan validator/binder、两域 typed config、唯一 Runtime 入口、fake E2E 和真实双域集成已通过 | 本目标无剩余实施差距 |
+| Employee | detail Adapter、最终授权、protected-ref definition/config、fake E2E 和真实 success/forbidden/unsupported 已通过 | 地点/职位筛选仍为未授权接口缺口 |
+| Transaction | search Adapter、ExactDecimal、最终授权、8字段 definition/config、fake E2E 和真实 no_result/forbidden/unsupported 已通过 | Date 继续明确 unsupported |
+| UAT | 本计划真实集成已完成，旧 evidence 仍不得替代新 UAT | `GATE-UAT-006` 尚未关闭，正式 UAT 未执行 |
 
 历史 `WP-ACTION-RESOLUTION-01`、`WP-BUSINESS-LOCAL-RESOLVER-01` 和 ID-only PoC 的 Done 不改写，但不是新目标的完成证据。Employee 只确认 detail；地点/职位筛选不在计划内。
 
@@ -85,7 +86,7 @@
 | `WP-TXN-QUERYPLAN-01` | Transaction search QueryPlan | `L2_02_02 IMPL-TXN-001～007` | definition 去 Resolver、field/operator/config、Decimal/page/sort；不改 Java DTO | `WP-BQ-PLAN-CONTRACT-01` | - | Transaction plan definition/config/tests | 代码评审修复文本 literal 下游 strip 风险后，112项定向、226项Transaction非live通过/5项live按门禁跳过、243项Business/Model回归、Java授权/Decimal 25项通过、strict mypy/compileall；3项冻结历史环境测试不计入且资产未改 | Transaction action disabled；不改DB | Done |
 | `WP-BQ-PLAN-RUNTIME-01` | Runtime 唯一链路切换 | `L2_00_01 IMPL-CORE-001～008` | planning node、protected extractor 组合、request cancellation、plan→candidate、ModelContext、composition切断Resolver/ID-only Business路径 | `WP-BQ-MODEL-QUERYPLAN-01`,`WP-EMP-QUERYPLAN-01`,`WP-TXN-QUERYPLAN-01` | - | Runtime对象图、启动校验、测试 | 64项直接回归、452项相关回归、strict mypy/compileall；独立代码复核修复1个固定失败码 Minor 后复评无 Blocker/Major/Minor | 两域 disabled；不恢复旁路为目标配置 | Done |
 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | fake 双域系统闭环 | 全部五份L2测试约束 | Spring→Runtime→fake model→fake domain；成功/非法/失败/unsupported/JWT/单动作；精确架构门禁 | `WP-BQ-PLAN-RUNTIME-01` | - | non-live E2E与零旁路证据 | 10-case Spring/Runtime/fake 双域、31项定向/架构测试、strict mypy/compileall 通过；全量1220通过/27 live跳过/3项冻结JAR哈希漂移精确排除；代码复评修复3个证据严格性 Minor 后无未关闭 Blocker/Major/Minor | 新链路 disabled | Done |
-| `WP-BQ-QUERYPLAN-LIVE-01` | 真实模型与业务服务集成 | `REQ_00 §12`; UAT前置 | v2 完整意图 Prompt、有限失败诊断、历史兼容、冻结非敏感case、真实DeepSeek plan、Employee detail/Transaction search、权限/计数/零泄漏 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | `GATE-065` | append-only有限evidence与集成结论 | candidate-01/02 失败历史不可变；v2 Prompt、schema v2、五类日期 fake、43项定向、1241项全量通过/27项跳过/5项既有环境隔离、strict mypy/compileall/AST 和 candidate-03 42项资产冻结通过；live 尚未执行 | 停隔离进程、恢复disabled；保留全部历史 evidence | Blocked |
+| `WP-BQ-QUERYPLAN-LIVE-01` | 真实模型与业务服务集成 | `REQ_00 §12`; UAT前置 | v2 完整意图 Prompt、有限失败诊断、历史兼容、冻结非敏感case、真实DeepSeek plan、Employee detail/Transaction search、权限/计数/零泄漏 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | `GATE-065` | append-only有限evidence与集成结论 | candidate-01/02 失败历史不可变；candidate-03 六场景全部通过，model/Employee/Transaction=`6/2/2`，unsupported 零业务调用，retry/answer/Knowledge/泄漏=0；result SHA-256 `b00d37119b557f985093f6d2dae809304cbf68bbace55def9c360f8d15d1015b`；43项定向、1241项全量通过/27项跳过/5项既有环境隔离 | 自有隔离进程已停止、临时日志已删除；保留全部历史 evidence | Done |
 
 ### 5.1 范围受限清理活动（不新增工作包或依赖边）
 
@@ -125,8 +126,8 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | 门禁 ID | 工作包 | 类型 | 控制动作 | 是否阻塞入口 | 关闭条件 | 证据/权威来源 | 责任方/外部提供方 | 最晚关闭阶段 | 验证者与方法 | 未关闭行为 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `GATE-064` | `WP-BQ-PLAN-CONTRACT-01` | slice_implementation | non-live代码实施 | 是 | 用户明确授权目标代码/测试/文档范围 | 2026-08-24目标授权与提交范围 | 用户 | P3开始 | 授权边界复核；真实调用仍排除 | 后续non-live包按依赖推进 | Closed |
-| `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/v2 task/prompt/catalog/config/cases/预算，继承用户目标内持续授权且每 candidate 只消费一次 | candidate-01 `failed_unconsumed`；candidate-02 `failed_consumed`：lifecycle `75f11bf84cb0c8bfc77f7e831409511aba08b12379b8c8fc225655e00fd44c97`、consumed `bb766f5262bea97429a09516c316c6633153490b70da0e1ccd5df1b8cd7776e7`、journal `6f552ca379bb4d4825f76be483fb67aba80be0cceb2b24ffd56c02904d7c6b9a`、result `ef3f8f2a50eb69cfc75cbf81638b26fe99027ebf1716aebee937011b375a4d79`；candidate-03 run `business-query-plan-live-v2-20260825-candidate-03`、manifest `7c8bd97685fc3c8515f70fa78e7c97e949bf2b9478e2148f9272cfa0b74f7477`、42项资产；预算 model/Employee/Transaction=`6/2/2` | 用户/实施者 | P4 live前 | 独立hash/schema/preflight；candidate-01/02 历史源码按各自 frozen 提交校验 | 已消费候选不可重跑；candidate-03 仅在最终 HEAD 冻结、worktree clean 后执行一次 | Open |
-| `GATE-066` | `WP-BQ-QUERYPLAN-LIVE-01` | closure | 宣告唯一链路集成完成 | 否 | 合格case plan=1、业务≤1、Resolver/另一域/Knowledge=0，权限/跨语言/零泄漏通过 | live evidence | Codex复核 | UAT前 | code-against-design + evidence | live包不Done | Open |
+| `GATE-065` | `WP-BQ-QUERYPLAN-LIVE-01` | integration | 真实模型/服务/付费调用 | 是 | 前六包Done；冻结HEAD/v2 task/prompt/catalog/config/cases/预算，继承用户目标内持续授权且每 candidate 只消费一次 | candidate-01/02 失败历史不变；candidate-03 frozen HEAD `956a80f4993cae1c3ce88a7ffd9ad295e73fa098`、manifest `7c8bd97685fc3c8515f70fa78e7c97e949bf2b9478e2148f9272cfa0b74f7477`；consumed `1e1b46c8e12692219a200b5523e6ce1a142bb13353e504a69032e9b591ee97e6`、lifecycle `61a16a39b6bdfaeadc738b14989c14645c5f827bc89bb77ed85787758c437fb3`、journal `6f552ca379bb4d4825f76be483fb67aba80be0cceb2b24ffd56c02904d7c6b9a`、result `b00d37119b557f985093f6d2dae809304cbf68bbace55def9c360f8d15d1015b`；实际 model/Employee/Transaction=`6/2/2` | 用户/实施者 | P4 live前 | 独立hash/schema/preflight；candidate-01/02 历史源码按各自 frozen 提交校验 | 已消费候选不可重跑；禁止预算外或正式 UAT 调用 | Closed |
+| `GATE-066` | `WP-BQ-QUERYPLAN-LIVE-01` | closure | 宣告唯一链路集成完成 | 否 | 合格case plan=1、业务≤1、Resolver/另一域/Knowledge=0，权限/跨语言/零泄漏通过 | candidate-03 六场景 passed，unsupported 下游=0，retry/resume/answer/Knowledge/泄漏=0；result SHA-256 `b00d37119b557f985093f6d2dae809304cbf68bbace55def9c360f8d15d1015b` | Codex复核 | UAT前 | code-against-design + evidence | 正式 UAT 仍受独立门禁控制 | Closed |
 
 ## 8. 外部资源与事实
 
@@ -140,7 +141,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 
 | 顺序 | 工作包 | 判定 | 未关闭依赖/门禁 | 选择理由 |
 |---:|---|---|---|---|
-| 1 | `WP-BQ-QUERYPLAN-LIVE-01` | Blocked | `GATE-065` 仍 Open；candidate-03 需提交冻结最终 HEAD 并执行一次真实矩阵 | v2/有限诊断/42项绑定资产 non-live 已通过；candidate-01/02 均不可重跑 |
+| 1 | `WP-BQ-QUERYPLAN-LIVE-01` | Done | 无；`GATE-065/066` 已关闭 | candidate-03 真实六场景通过且 model/Employee/Transaction=`6/2/2`；candidate-01/02 历史不变 |
 | 2 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | Done | 无 | 10-case 双域 E2E、精确架构门禁和全量当前 non-live 回归已通过 |
 | 3 | `WP-BQ-PLAN-RUNTIME-01` | Done | 无 | planning 顺序、取消/迟到、组合根、Resolver 隔离与清理已验证 |
 | 4 | `WP-BQ-PLAN-CONTRACT-01` | Done | 无 | 公共合同、配置、binder 和 catalog 已验证 |
@@ -148,7 +149,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | 6 | `WP-EMP-QUERYPLAN-01` | Done | 无 | protected-ref、definition/config、固定GET及Java授权回归已验证 |
 | 7 | `WP-TXN-QUERYPLAN-01` | Done | 无 | 8字段配置、protected-ref、Decimal/page/sort及固定POST合同已验证 |
 
-本表只描述当前推进顺序，不构成新的依赖边。当前进入 fake 双域系统闭环。
+本表只描述已完成的依赖顺序，不构成新的依赖边。七个工作包均已完成；正式 UAT 由独立计划和门禁治理。
 
 ## 10. 实施交接
 
@@ -183,7 +184,7 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | `WP-TXN-QUERYPLAN-01` | `DR-TXN-013～018` | `IMPL-TXN-001～007` | `TEST-TXN-001～012` | `VAL-TXN-001～003` | Done |
 | `WP-BQ-PLAN-RUNTIME-01` | `DR-CORE-012～016` | `IMPL-CORE-001～008` | `TEST-CORE-001～009` | `VAL-CORE-001～003` | Done |
 | `WP-BQ-QUERYPLAN-NONLIVE-E2E-01` | 全部L2 non-live约束 | 各包组合根/测试 | 全量non-live | 跨层验证 | Done |
-| `WP-BQ-QUERYPLAN-LIVE-01` | `REQ_00 §12`; UAT_00 | opt-in launcher/evidence | live matrix | `GATE-066` | Blocked |
+| `WP-BQ-QUERYPLAN-LIVE-01` | `REQ_00 §12`; UAT_00 | opt-in launcher/evidence | live matrix | `GATE-066` | Done |
 
 ## 13. 自检记录
 
@@ -205,20 +206,22 @@ DAG 无环，Employee/Transaction 之间没有依赖边。
 | 14 | 2026-08-25 | 0 | 1 | 1 | 核实 candidate-02 已消费日期负例与缺失失败诊断；明确 v2 完整意图、上位当前版本及 exact unsupported | 0 | v1.31 内审第1轮 |
 | 15 | 2026-08-25 | 0 | 1 | 0 | 增加独立 result schema v2 有限诊断，保持 candidate-01/02 原 schema、冻结 source 与四项失败哈希 | 0 | v1.31 内审第2轮 |
 | 16 | 2026-08-25 | 0 | 1 | 2 | 恢复 Ready 授权约束、严格实施判定和 Open 入口门禁对应 Blocked 状态；两份严格校验零错误零告警 | 0 | v1.31 内审第3轮；独立设计复评无遗留 |
+| 17 | 2026-08-25 | 0 | 0 | 0 | 独立核实 candidate-03 frozen HEAD、42项资产、四项证据哈希、六场景权限/unsupported/调用计数和跨层状态 | 0 | 真实集成及代码对照设计复核通过，七包全部 Done |
 
 ## 14. 当前结论
 
 - Ready 工作包：0。
 - In Progress 工作包：0。
-- Blocked 工作包：1（`WP-BQ-QUERYPLAN-LIVE-01`；不阻止已授权的 non-live 前置修复）。
-- Done 工作包：6（`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`、`WP-BQ-PLAN-RUNTIME-01`、`WP-BQ-QUERYPLAN-NONLIVE-E2E-01`）。
+- Blocked 工作包：0。
+- Done 工作包：7（`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、`WP-EMP-QUERYPLAN-01`、`WP-TXN-QUERYPLAN-01`、`WP-BQ-PLAN-RUNTIME-01`、`WP-BQ-QUERYPLAN-NONLIVE-E2E-01`、`WP-BQ-QUERYPLAN-LIVE-01`）。
 - Deferred 工作包：0。
-- 关键开放门禁：P3 `GATE-065/066`；`GATE-064` 已关闭；UAT 另有 `GATE-UAT-006`。
+- P3 `GATE-064/065/066` 均已关闭；正式 UAT 的 `GATE-UAT-006` 仍 Open，且不属于本目标。
 - candidate-01 已不可逆进入 `failed_unconsumed`：原因是 manifest fake endpoint snapshot 与真实 endpoint Runtime snapshot 不一致；model/Employee/Transaction 调用=`0/0/0`，lifecycle SHA-256 `478962f96c7c61b94418ac8723f5180511ff0ea84523e87a76d28022c1efc7c2`，result SHA-256 `9511c5ece2d167e51e81f94a17dbf799d76df3aa20526e7f46481672de3c8492`；冻结 manifest、authorization、evidence 和源码不得改写或重跑。
 - `GATE-065` candidate-02 已消费失败：6次模型、Employee/Transaction各2次、前5场景通过；lifecycle/consumed/journal/result 四项 SHA-256 已冻结，失败原因是 Transaction 日期负例未满足 exact unsupported，且无额外下游调用。
-- candidate-03 已完成 non-live 冻结：run `business-query-plan-live-v2-20260825-candidate-03`，manifest SHA-256 `7c8bd97685fc3c8515f70fa78e7c97e949bf2b9478e2148f9272cfa0b74f7477`，v2 Prompt SHA-256 `a9c312fc0ab0ab6924da63fa0a5a3b79829b4a967502d3e74e3b18a564a8b2fc`，42项资产绑定 candidate-01/02 全部历史；预算 model/Employee/Transaction=`6/2/2`。
-- 推荐下一步：提交并推送 candidate-03 源码/测试/资产和目标状态文档，冻结最终 HEAD、确认 clean worktree 后按用户持续授权执行一次真实矩阵，再依据结果关闭 `GATE-065/066`。
-- 正式 Employee/Transaction UAT 尚未授权；目标内真实 LLM/业务调用必须等待 candidate-03 完成冻结和 `GATE-065` preflight，且仅可执行一次受控集成矩阵。
+- candidate-03 已完成一次性真实集成：run `business-query-plan-live-v2-20260825-candidate-03`，manifest SHA-256 `7c8bd97685fc3c8515f70fa78e7c97e949bf2b9478e2148f9272cfa0b74f7477`，v2 Prompt SHA-256 `a9c312fc0ab0ab6924da63fa0a5a3b79829b4a967502d3e74e3b18a564a8b2fc`，42项资产及 candidate-01/02 全部历史不变；实际 model/Employee/Transaction=`6/2/2`。
+- candidate-03 不可变证据：consumed=`1e1b46c8e12692219a200b5523e6ce1a142bb13353e504a69032e9b591ee97e6`，lifecycle=`61a16a39b6bdfaeadc738b14989c14645c5f827bc89bb77ed85787758c437fb3`，journal=`6f552ca379bb4d4825f76be483fb67aba80be0cceb2b24ffd56c02904d7c6b9a`，result=`b00d37119b557f985093f6d2dae809304cbf68bbace55def9c360f8d15d1015b`。
+- 推荐下一步：在独立准备和关闭 `GATE-UAT-006` 后，按 UAT_00 依次执行公共冒烟、Employee、Transaction 和结构化阶段收口。
+- 正式 Employee/Transaction UAT 尚未执行；本目标真实矩阵仅消费一次，禁止重跑、续跑或复用授权。
 - Employee 地点/职位筛选保持 `unsupported`：现有通用 ES 搜索的字段能力已确认，但最终角色授权与受限响应契约未满足，不属于本计划。
 
 ## 15. 评审记录
@@ -236,3 +239,5 @@ v1.30 candidate-01 live 复核确认 fake endpoint snapshot 与真实 service bi
 v1.31 candidate-02 真实运行已消费6次 QueryPlan，Employee/Transaction各2次，前5场景分别为 success/forbidden/unsupported/no_result/forbidden；第6个日期负例模型已调用但预期 unsupported 断言失败，下游仍为0。v2 设计保持 REQ exact unsupported 与所有 validator/安全边界，强化完整用户意图和不可表达示例；测试仅增加有限失败状态/计数、对抗 fake 和冻结历史兼容，不新增工作包、门禁、业务接口或结果出域。
 
 v1.32 non-live 代码复核确认生产变化仅为 task version/Prompt；live runner 使用 schema v2 六字段失败诊断，v1 candidate-01/02 继续按 frozen commit 和精确哈希验证。日期 explicit unsupported/未开放字段/空参数/非法结构/非空 unsupported 五类 fake 均验证下游零调用；43项定向与全量1241项 non-live 通过，27项 live/opt-in 按默认边界跳过，5项既有冻结 JAR/历史环境按精确 node ID 隔离。42项冻结资产与真实 endpoint snapshot 一致，未新增 Gate、业务接口、生产依赖或授权范围。
+
+v1.33 正式代码对照设计复核确认 candidate-03 六场景依次为 Employee `success/forbidden/unsupported`、Transaction `no_result/forbidden/unsupported`；每个场景恰好一次真实 QueryPlan，两个 unsupported 的 domain 调用均为0。实际 model/Employee/Transaction=`6/2/2`，Resolver/跨域/Knowledge/answer/retry/resume/日志泄漏均为0，四项不可变 evidence 精确绑定 frozen HEAD/manifest/authorization。隔离服务和原始日志均已清理；无未关闭 Blocker/Major/Minor，无新业务接口、生产依赖或安全扩权。P3 七包和三项门禁完成，不等于正式 UAT 已执行。

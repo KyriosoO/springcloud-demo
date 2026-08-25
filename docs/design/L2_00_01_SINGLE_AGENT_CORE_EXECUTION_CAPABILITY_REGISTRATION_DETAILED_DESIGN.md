@@ -7,11 +7,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_01 |
-| 当前版本 | v1.6 |
-| 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
-| 协作设计 | `L2_00_02` v1.5、`L2_02_00` v1.6 |
-| 实施状态 | 公共 QueryPlan 合同、Business planning、组合根唯一分支、旧 Business Resolver 清理及 fake 双域 system E2E 已完成 non-live 实施及代码复核；live 尚未完成 |
+| 当前版本 | v1.7 |
+| 更新日期 | 2026-08-25 |
+| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.4 |
+| 协作设计 | `L2_00_02` v1.8、`L2_02_00` v1.7 |
+| 实施状态 | 公共 QueryPlan 合同、Business planning、组合根唯一分支、旧 Business Resolver 清理、fake 双域 system E2E 及真实 DeepSeek/两域服务 6-case 集成均已完成并通过代码复核；正式 UAT 尚未执行 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -23,6 +23,7 @@
 | v1.4 | 2026-08-24 | 独立复评 R1 发现并闭合请求取消信号接缝，禁止模型迟到结果进入 decoder/binder/Core |
 | v1.5 | 2026-08-24 | 明确清理 Employee/Transaction 专属 Resolver 可执行资产，同时保留非 Business 共享 Hybrid/ID-only 与历史不可变证据 |
 | v1.6 | 2026-08-24 | 处理全量回归门禁冲突：固化唯一 graph→provider-neutral Model bridge、request cancellation、有限 decision union 和 Registry 只读 validator 例外 |
+| v1.7 | 2026-08-25 | 仅同步真实 6-case QueryPlan 集成、P3 门禁关闭及上下位文档版本，不改变 Core 设计 |
 
 本文定义 Business QueryPlan 如何在 LangGraph 中转换为既有 `ActionCandidate`，以及 Registry/Core/组合根如何保证单动作和唯一链路。
 
@@ -39,7 +40,7 @@
 
 ## 3. 上位约束、需求与关联责任边界
 
-上位约束来源是 L1_00 v1.3 的唯一编排、单动作、无 Business Resolver 旁路和唯一 provider-neutral planning bridge；本 L2 负责图/Core 接缝，不负责域字段、模型 transport 实现或 HTTP codec。`CON-CORE-001`：QueryPlan 只有在 Business 层验证并绑定后才能进入 Core，依赖方向固定为 Planning→Core→Handler，禁止反向依赖和绕过。
+上位约束来源是 L1_00 v1.4 的唯一编排、单动作、无 Business Resolver 旁路和唯一 provider-neutral planning bridge；本 L2 负责图/Core 接缝，不负责域字段、模型 transport 实现或 HTTP codec。`CON-CORE-001`：QueryPlan 只有在 Business 层验证并绑定后才能进入 Core，依赖方向固定为 Planning→Core→Handler，禁止反向依赖和绕过。
 
 | ID | 要求 |
 |---|---|
@@ -292,7 +293,7 @@ Core 不读取问题、不调用模型、不解析 QueryPlan、不读取 Busines
 
 ## 13. 当前差距与门禁
 
-`IMPL-CORE-001～009` 已完成 non-live 实施：两级 decoder 后按 validator→binder→registry argument validator 固定顺序生成唯一 candidate，Business 描述符从 Hybrid/ID-only fallback 中剔除，取消/超时/非法计划均在 Core/Adapter 前终止。专属 Employee/Transaction Resolver、旧旁路测试和最后空 support 字段已删除，生产 Business factory 拒绝非空 legacy Resolver；冻结历史 harness 所需兼容字段保持不变。fake 双域 system E2E 已通过；真实调用仍由后续门禁承接，Business UAT 成功路径保持 Blocked。
+`IMPL-CORE-001～009` 已完成实施：两级 decoder 后按 validator→binder→registry argument validator 固定顺序生成唯一 candidate，Business 描述符从 Hybrid/ID-only fallback 中剔除，取消/超时/非法计划均在 Core/Adapter 前终止。专属 Employee/Transaction Resolver、旧旁路测试和最后空 support 字段已删除，生产 Business factory 拒绝非空 legacy Resolver；冻结历史 harness 所需兼容字段保持不变。fake 双域 system E2E 与真实 6-case QueryPlan 集成均已通过，`GATE-064/065/066` 已关闭；正式 Business UAT 仍受 `GATE-UAT-006` 阻塞。
 
 ## 14. 评审记录
 
@@ -326,9 +327,9 @@ Approved 表示本文可作为实施依据，不表示目标代码已实现。
 
 | 项目 | 内容 |
 |---|---|
-| 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施 |
-| 当前允许实施范围 | `GATE-064` 已关闭且前六个 non-live 工作包已完成；真实调用仍受 `GATE-065` 控制 |
-| 当前禁止动作 | 修改公共 Core/HTTP、业务字段、真实模型调用或恢复 Business Resolver 旁路 |
+| 是否可作为实现依据 | 是 |
+| 当前允许实施范围 | 七个 QueryPlan 工作包及受控真实 6-case 集成已完成；正式 UAT 仍由 `GATE-UAT-006` 独立治理 |
+| 当前禁止动作 | 修改公共 Core/HTTP、业务字段、预算外真实模型调用或恢复 Business Resolver 旁路 |
 
 ## 16. 端到端追踪矩阵
 

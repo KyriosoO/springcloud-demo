@@ -5,9 +5,9 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v1.6 |
+| 当前版本 | v1.7 |
 | 状态 | 已确认 |
-| 更新日期 | 2026-08-24 |
+| 更新日期 | 2026-08-25 |
 | 需求来源 | 用户确认的单体 Agent、知识查询、Employee/Transaction 结构化查询及 LLM QueryPlan 唯一链路 |
 | 适用阶段 | P1～UAT |
 
@@ -32,7 +32,7 @@ Employee 现有分页接口只接受 `page/size`。`POST /employees/es/search` �
 
 ### 3.2 当前实现差距
 
-严格 `QueryPlan` 公共合同、模型任务、两域 definition/config、Runtime 唯一分支与旧 Resolver 清理已完成；Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环、精确架构门禁与当前非 live 回归已通过。真实 LLM/业务集成与 UAT 尚未完成。旧 Business Resolver/ID-only 运行证据只能说明历史路径，不得标记为本版本完成证据。
+严格 `QueryPlan` 公共合同、模型任务、两域 definition/config、Runtime 唯一分支与旧 Resolver 清理已完成；Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环、精确架构门禁与当前非 live 回归已通过。真实 DeepSeek 与两域业务服务的 6-case 集成已通过，模型/Employee/Transaction 调用分别为 `6/2/2`；正式 UAT 尚未执行。旧 Business Resolver/ID-only 运行证据只能说明历史路径，不得标记为本版本完成证据。
 
 历史 append-only manifest、authorization、evidence、hash 和审计记录必须保持不可变；被冻结 manifest 绑定且为历史 evidence 复验所必需的兼容类型可保留，但生产工厂/组合根必须拒绝或隔离其可执行绑定。仅服务于已废弃 Business Resolver 路径、经引用扫描确认无有效调用方且不承载历史复验职责的源文件与可执行测试，应在新链路覆盖等价验证后删除。不得把“保留历史证据”解释为保留生产替代链路。
 
@@ -251,9 +251,9 @@ Adapter 不负责问题理解、QueryPlan 生成、角色判定、SQL/DSL 生成
 ## 14. 待确认与阻断事项
 
 - Employee 按地点、职位等筛选存在技术搜索端点，但缺少本需求要求的 endpoint-scoped `ROLE_ADMIN/ROLE_VIEWER` 最终授权和稳定受限响应契约；当前保持 `unsupported`。若要支持，需用户另行确认是否收紧现有端点或新增受限 DTO/端点，并授权相应业务服务、Adapter、设计与测试变更。
-- QueryPlan/强类型配置、Runtime 唯一分支和 fake 双域 system entry non-live 闭环已完成，但真实集成、`GATE-065/066` 和 `GATE-UAT-006` 未完成；第一批业务 UAT 当前不得开始成功场景。
+- QueryPlan/强类型配置、Runtime 唯一分支、fake 双域 system entry 和真实 6-case 双域集成均已完成，`GATE-064/065/066` 已关闭；`GATE-UAT-006` 仍 Open，第一批正式业务 UAT 尚未执行。
 - 真实 LLM UAT 需要单独绑定 Provider、模型、固定问题集、预算和一次性调用授权。
-- 当前目标已授权实现代码和范围受限 Git 提交推送；业务接口、数据库结构、生产依赖和真实调用仍未授权。
+- 当前目标内代码、受控真实集成和范围受限 Git 提交推送已授权；业务接口、数据库结构、生产依赖及正式 UAT 不属于本次授权。
 
 ## 15. 原子修订内审记录
 

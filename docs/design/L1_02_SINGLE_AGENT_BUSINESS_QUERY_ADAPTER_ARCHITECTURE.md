@@ -9,16 +9,16 @@
 |---|---|
 | 文档编号 | L1_02 |
 | 文档层级 | L1 |
-| 当前版本 | v1.2 |
-| 更新日期 | 2026-08-24 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.3 |
-| 协作文档 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
+| 当前版本 | v1.3 |
+| 更新日期 | 2026-08-25 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.4 |
+| 协作文档 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.4 |
 | 权威范围 | Business QueryPlan 公共约束、每域每动作配置、Employee/Transaction Adapter、业务 Provider、结果与模型出域 |
-| 实施状态 | 两域 QueryPlan definition/config/Adapter/授权、Runtime 唯一分支、专属旧 Resolver 清理和 fake system E2E 已完成；live 尚未完成 |
+| 实施状态 | 两域 QueryPlan definition/config/Adapter/授权、Runtime 唯一分支、专属旧 Resolver 清理、fake 系统闭环及真实 DeepSeek/两域服务 6-case 集成均已完成；正式 UAT 尚未执行 |
 
 ## 2. 变更记录与接口核实
 
-v1.1 将两域的目标动作解析从本地 Resolver 改为 LLM QueryPlan。v1.2 校正保留边界：冻结历史 manifest/evidence/hash 及其复验必需的兼容类型不删除，但生产 `BusinessSupportFactory` 拒绝非空 Resolver；Employee/Transaction 专属 Resolver 源码和只验证旧旁路的可执行测试，经调用方、共享组件和回归核实后删除，不作为回滚机制保留。
+v1.1 将两域的目标动作解析从本地 Resolver 改为 LLM QueryPlan。v1.2 校正保留边界：冻结历史 manifest/evidence/hash 及其复验必需的兼容类型不删除，但生产 `BusinessSupportFactory` 拒绝非空 Resolver；Employee/Transaction 专属 Resolver 源码和只验证旧旁路的可执行测试，经调用方、共享组件和回归核实后删除，不作为回滚机制保留。v1.3 仅同步真实 6-case 双域集成通过及正式 UAT 尚未执行的已验证状态。
 
 只读核实结果：
 
@@ -229,9 +229,9 @@ effective model result = code model fields ∩ config model fields ∩ classific
 
 1. 公共合同、模型 task、两域 definition/config、Runtime 唯一分支和专属 Resolver 清理已完成；
 2. Spring→Runtime→fake model→fake domain 的双域 non-live 负向/组合根验证已完成；
-3. 经单独精确授权执行真实模型 + 真实业务服务集成与 UAT。
+3. 真实模型与两域业务服务的 6-case 集成已通过；正式 UAT 仍需独立门禁和授权。
 
-当前 non-live system E2E 可以证明 fake 边界下的唯一链路，但不能证明真实 LLM、业务服务或 UAT 已完成。
+当前 non-live system E2E 与受控真实 6-case 证据共同证明唯一链路、两域最终授权和 unsupported 零调用；这些集成证据不等于正式 UAT 已执行。
 
 ## 16. 风险与关键架构决策
 

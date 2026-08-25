@@ -9,15 +9,15 @@
 |---|---|
 | 文档编号 | L1_00 |
 | 文档层级 | L1 |
-| 当前版本 | v1.3 |
-| 更新日期 | 2026-08-24 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.3 |
+| 当前版本 | v1.4 |
+| 更新日期 | 2026-08-25 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.4 |
 | 权威范围 | Runtime 请求状态、Business QueryPlan 调用顺序、Core、能力注册、组合根和模型端口协作 |
-| 实施状态 | Business QueryPlan 节点、绑定、取消、组合校验、旧 Business Resolver 清理及 fake system entry non-live 闭环已完成；live 尚未完成 |
+| 实施状态 | Business QueryPlan 节点、绑定、取消、组合校验、旧 Business Resolver 清理、fake 系统闭环和真实 DeepSeek/两域服务 6-case 集成均已完成；正式 UAT 尚未执行 |
 
 ## 2. 变更记录
 
-v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止 Employee/Transaction 目标路径中的“Local Resolver 优先、模型只选 ID”。Business 请求改为强制一次 LLM QueryPlan，再经本地验证映射为既有 `ActionCandidate`。Knowledge 既有内部流程不因本变更成为 Business 回退。v1.2 明确共享非 Business Hybrid/ID-only 组件继续保留，但 Employee/Transaction 专属 Resolver 源码及仅验证旧旁路的测试在无调用方后删除；冻结历史 harness 所需兼容类型可保留，生产工厂必须拒绝非空绑定，历史 evidence/hash 不动。v1.3 明确 Business planning 是唯一 graph→provider-neutral Model Port 接缝，并收紧 Runtime cancellation、decision union 与 Registry 只读验证的测试边界。
+v1.1 保留 LangGraph、Core、Registry、Model Port 和单动作契约，废止 Employee/Transaction 目标路径中的“Local Resolver 优先、模型只选 ID”。Business 请求改为强制一次 LLM QueryPlan，再经本地验证映射为既有 `ActionCandidate`。Knowledge 既有内部流程不因本变更成为 Business 回退。v1.2 明确共享非 Business Hybrid/ID-only 组件继续保留，但 Employee/Transaction 专属 Resolver 源码及仅验证旧旁路的测试在无调用方后删除；冻结历史 harness 所需兼容类型可保留，生产工厂必须拒绝非空绑定，历史 evidence/hash 不动。v1.3 明确 Business planning 是唯一 graph→provider-neutral Model Port 接缝，并收紧 Runtime cancellation、decision union 与 Registry 只读验证的测试边界。v1.4 仅同步真实 6-case 集成通过和正式 UAT 尚未执行的已验证状态。
 
 ## 3. 目标与边界
 
@@ -223,11 +223,11 @@ Canonical 顺序不可调整为本地先解析。任何实现不得并行调用�
 
 | 目标 | 当前事实 | 处理 |
 |---|---|---|
-| Business 模型输出完整 QueryPlan | task/generator/两级 decoder 及 fake 双域 system entry 已实现 | 待受控真实集成 |
-| 模型强制参与 | Runtime Business 唯一分支、专属 Resolver 清理和 non-live 可达性已验证 | 待真实 QueryPlan 证据 |
+| Business 模型输出完整 QueryPlan | task/generator/两级 decoder、fake 系统闭环及真实 6-case 集成均已通过 | P3 已完成；正式 UAT 独立执行 |
+| 模型强制参与 | Runtime Business 唯一分支、专属 Resolver 清理及 6 次真实 QueryPlan 均已验证 | 无本目标实施差距 |
 | 强类型 snapshot 校验 | 配置、canonical catalog 与启动 validator 已实现 | E2E 证明实际启动快照一致 |
 | 受保护引用 | Guard extractor + value_ref + 同请求 binder 已实现 | E2E 继续证明并发隔离和零泄漏 |
-| 真实 LLM UAT | 当前 UAT 以 stub 为主 | 实施完成后单独受控 live UAT |
+| 真实 LLM UAT | 真实 QueryPlan 集成已通过；正式 UAT 尚未执行 | 单独关闭 `GATE-UAT-006` 后按计划执行 |
 
 历史不可变 evidence/hash 保持不变；无调用方的旧可执行资产按 v1.2 清理，不得再作为符合性证据。
 

@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_01 |
-| 当前版本 | v1.4 |
-| 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
-| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.6 |
+| 当前版本 | v1.5 |
+| 更新日期 | 2026-08-25 |
+| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.3 |
+| 公共详细设计 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.7 |
 | 业务接口 | `GET /employees/{idCardNo}` |
-| 实施状态 | Employee detail QueryPlan definition/config、Runtime 唯一分支、codec、Java 授权回归、专属旧 Resolver 清理与 fake system E2E 已有证据；live 尚未完成 |
+| 实施状态 | Employee detail QueryPlan definition/config、Runtime 唯一分支、codec、Java 授权回归、专属旧 Resolver 清理、fake 系统闭环及真实 success/forbidden/unsupported 三场景均已验证；正式 UAT 尚未执行 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -22,10 +22,11 @@
 | v1.2 | 2026-08-24 | Employee 目标改为 LLM detail QueryPlan + protected ref；核实通用 ES 搜索能力与授权/契约缺口并失败关闭 |
 | v1.3 | 2026-08-24 | 同步 `WP-EMP-QUERYPLAN-01` non-live 实施与验证状态；地点/职位筛选缺口及 live 门禁保持不变 |
 | v1.4 | 2026-08-24 | 明确删除无调用方的 Employee 专属 Local Resolver 源码/测试，不修改固定 GET、历史 evidence 或共享组件 |
+| v1.5 | 2026-08-25 | 仅同步 Employee 真实 success/forbidden/unsupported 三场景及 P3 门禁关闭；地点筛选仍 unsupported |
 
 设计目标是仅用已确认 detail 接口完成受控 LLM QueryPlan 查询。范围外/不负责：Employee 列表筛选、ES 搜索、写接口、新 DTO、数据库和业务角色变更。
 
-上位约束来源是 L1_02 v1.2 与 L2_02_00 v1.6。关联责任边界：Employee L2 负责 detail definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权。`CON-EMP-001`：禁止 Employee Adapter 依赖模型、数据库/ES、Knowledge 或 Transaction。
+上位约束来源是 L1_02 v1.3 与 L2_02_00 v1.7。关联责任边界：Employee L2 负责 detail definition/config/codec，公共 plan 层负责 exact 校验/binder，业务服务负责最终授权。`CON-EMP-001`：禁止 Employee Adapter 依赖模型、数据库/ES、Knowledge 或 Transaction。
 
 ### 2.1 当前实现基线与只读接口核实
 
@@ -264,7 +265,7 @@ HTTP 行为沿用现有契约：
 
 ## 13. 当前差距与门禁
 
-`WP-EMP-QUERYPLAN-01` 及其 non-live system E2E 已完成，Runtime 唯一分支已消费该 definition，专属旧 Resolver 源码/测试已按 `CLN-BQP-001` 清理。真实模型/服务集成与 UAT 仍未完成；地点/职位筛选仍为 `unsupported`。
+`WP-EMP-QUERYPLAN-01` 及其 non-live system E2E 已完成，Runtime 唯一分支已消费该 definition，专属旧 Resolver 源码/测试已按 `CLN-BQP-001` 清理。真实 DeepSeek/Employee 服务的 success、forbidden、unsupported 三场景已通过，Employee detail 调用精确为2；正式 UAT 尚未执行，地点/职位筛选仍为 `unsupported`。
 
 ## 14. 评审记录
 
@@ -279,7 +280,7 @@ HTTP 行为沿用现有契约：
 | v1.4 内审3 | GET/授权/接口范围 | 清理不改 codec、endpoint、Java guard、字段或角色 |
 | v1.4 独立评审 R1～R3 | Employee 专属删除与历史复验 | 确认 action_resolver 未被冻结 manifest 引用；R3 无发现 |
 
-Approved 与当前 non-live 实现状态不表示 live 已完成，也不表示现有通用筛选端点已满足 Agent 复用条件。
+Approved 本身不替代真实证据；已完成的 Employee 三场景集成也不表示现有通用筛选端点已满足 Agent 复用条件。
 
 ## 15. 数据生命周期、一致性、风险与实现就绪判定
 
@@ -287,9 +288,9 @@ Employee identifier、slot、JWT 和原始响应只存在于单请求生命周�
 
 | 项目 | 内容 |
 |---|---|
-| 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施 |
-| 当前允许实施范围 | Employee non-live 实现已完成；真实调用仍受 `GATE-065` 控制 |
-| 当前禁止动作 | 新增 Employee search/DTO、修改数据库/角色、真实调用、记录标识/JWT、恢复 Resolver |
+| 是否可作为实现依据 | 是 |
+| 当前允许实施范围 | Employee non-live 实现及一次性真实 success/forbidden/unsupported 三场景均已完成；正式 UAT 仍需独立门禁 |
+| 当前禁止动作 | 新增 Employee search/DTO、修改数据库/角色、预算外真实调用、记录标识/JWT、恢复 Resolver |
 
 ## 16. 端到端追踪矩阵
 

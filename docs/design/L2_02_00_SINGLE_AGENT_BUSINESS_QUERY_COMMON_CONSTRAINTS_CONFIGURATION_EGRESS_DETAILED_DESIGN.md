@@ -7,11 +7,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_02_00 |
-| 当前版本 | v1.6 |
-| 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.2 |
-| 协作设计 | `L2_00_01` v1.6、`L2_00_02` v1.5、Employee L2 v1.4、Transaction L2 v1.4 |
-| 实施状态 | 公共 QueryPlan 合同、Employee/Transaction definition/config/protected-ref、生产组合根唯一分支及 fake 双域系统 E2E 已完成 non-live 实现与代码复核 |
+| 当前版本 | v1.7 |
+| 更新日期 | 2026-08-25 |
+| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.3 |
+| 协作设计 | `L2_00_01` v1.7、`L2_00_02` v1.8、Employee L2 v1.5、Transaction L2 v1.5 |
+| 实施状态 | 公共 QueryPlan 合同、Employee/Transaction definition/config/protected-ref、生产组合根唯一分支、fake 双域系统 E2E 及真实 DeepSeek/两域服务 6-case 集成均已完成；正式 UAT 尚未执行 |
 
 ## 2. 修改历史、设计目标与范围外
 
@@ -23,6 +23,7 @@
 | v1.4 | 2026-08-24 | 同步两域 QueryPlan definition/config 完成状态；修正字段子集关闭时 Decimal/排序上界校验，并以拒绝首尾空格/非 NFC 防止文本 literal 在下游被规范化 |
 | v1.5 | 2026-08-24 | 闭合 binder 当前请求绑定签名，移除无职责的 definitions 入参；同步两域与 Runtime 候选实现基线 |
 | v1.6 | 2026-08-24 | 收紧旧 Business Resolver 保留边界：保留冻结历史 harness 必需兼容类型，生产工厂拒绝非空绑定；删除无调用方专属实现 |
+| v1.7 | 2026-08-25 | 仅同步真实 6-case 双域集成、P3 门禁关闭及上下位版本，不改变公共合同或配置边界 |
 
 本文详细定义两域共享的：
 
@@ -33,7 +34,7 @@
 
 本文不负责且不修改公共 Core/HTTP、业务服务 DTO、数据库、角色范围或 endpoint 路径；不实现自然语言本地 Resolver、SQL/ES DSL 或动态工具协议。
 
-上位约束来源是 L1_02 v1.2 的 QueryPlan/config/Adapter 所有权。关联责任边界：common 负责 plan/config/binder，模型 L2 负责 provider decode，域 L2 负责字段/codec，Core 只执行候选。`CON-BQCOM-001`：依赖方向固定为 Model→Business validation→Core→Domain Handler，禁止绕过或反向依赖。
+上位约束来源是 L1_02 v1.3 的 QueryPlan/config/Adapter 所有权。关联责任边界：common 负责 plan/config/binder，模型 L2 负责 provider decode，域 L2 负责字段/codec，Core 只执行候选。`CON-BQCOM-001`：依赖方向固定为 Model→Business validation→Core→Domain Handler，禁止绕过或反向依赖。
 
 ## 3. 当前实现基线与目标差距
 
@@ -333,7 +334,7 @@ model facts = code model-candidate ∩ config model fields
 
 ## 15. 当前差距与门禁
 
-`IMPL-BQCOM-001～007` 的公共 non-live 实现、Employee/Transaction definition/config、Runtime 唯一分支和跨模块 fake E2E 已完成并通过定向、Business/域回归、strict mypy、compileall 与代码对照设计复核。真实模型/业务 UAT 继续受独立门禁约束。
+`IMPL-BQCOM-001～007` 的公共实现、Employee/Transaction definition/config、Runtime 唯一分支和跨模块 fake E2E 已完成并通过定向、Business/域回归、strict mypy、compileall 与代码对照设计复核。真实 DeepSeek/两域业务服务的 6-case 集成已通过，`GATE-065/066` 已关闭；正式 UAT 继续受独立 `GATE-UAT-006` 约束。
 
 ## 16. 评审记录
 
@@ -359,9 +360,9 @@ QueryPlan/config/binder 形成一个高内聚 Business planning 边界，并以�
 
 | 项目 | 内容 |
 |---|---|
-| 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施 |
-| 当前允许实施范围 | non-live 实现已完成；真实模型/业务调用仍受 `GATE-065` 控制 |
-| 当前禁止动作 | 新业务接口/DTO/DB、扩大权限/字段、真实调用、动态 DSL、恢复 Resolver 旁路 |
+| 是否可作为实现依据 | 是 |
+| 当前允许实施范围 | 公共实现、fake 系统闭环及一次性真实 6-case 双域集成均已完成；正式 UAT 仍需独立门禁 |
+| 当前禁止动作 | 新业务接口/DTO/DB、扩大权限/字段、预算外真实调用、动态 DSL、恢复 Resolver 旁路 |
 
 ## 18. 端到端追踪矩阵
 

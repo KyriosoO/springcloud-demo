@@ -5,12 +5,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | UAT_00 |
-| 当前版本 | v0.7 |
+| 当前版本 | v0.8 |
 | 状态 | Reviewed |
-| 更新日期 | 2026-08-24 |
+| 更新日期 | 2026-08-25 |
 | 范围 | 公共接入冒烟、Employee、Transaction、结构化查询阶段收口 |
-| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.29 |
-| 当前执行状态 | Blocked：non-live E2E 与 P3 live candidate-01 准备已完成；`GATE-065/066` 和 `GATE-UAT-006` 未完成 |
+| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.33 |
+| 当前执行状态 | Blocked：P3 七包及真实 6-case 集成已完成，`GATE-064/065/066` 已关闭；仅 `GATE-UAT-006` 尚未关闭，正式 UAT 未执行 |
 
 ## 2. 验收目标
 
@@ -27,7 +27,7 @@ Knowledge 查询 UAT 不在本批，待结构化查询收口后单独执行。
 
 ## 3. 当前事实与执行阻断
 
-QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分支及 Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环已完成；P3 candidate-01 已冻结6个最小 live 集成场景及 model/Employee/Transaction=`6/2/2` 预算，但未获得 `GATE-065` 一次性 live 授权，未读取密钥、未调用真实模型或业务服务。真实集成和 UAT 尚未完成。旧 resolver/ID-only UAT fixture 与 evidence 只作为历史审计资产，不得执行为当前用例或满足本版本门禁；无审计价值的旧可执行测试已由 P3 清理。
+QueryPlan 合同、`business-query-plan-v2` 模型任务、两域 definition/config、Runtime 唯一分支及 Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环已完成；P3 candidate-03 的六个真实 DeepSeek/业务服务集成场景均已通过，实际 model/Employee/Transaction=`6/2/2`，`GATE-065/066` 已关闭。正式 UAT 尚未执行，仍受 `GATE-UAT-006` 独立阻塞。旧 resolver/ID-only UAT fixture 与 evidence 只作为历史审计资产，不得执行为当前用例或满足本版本门禁；无审计价值的旧可执行测试已由 P3 清理。
 
 开始成功场景前必须满足：
 
@@ -42,7 +42,7 @@ QueryPlan 合同、模型任务、两域 definition/config、Runtime 唯一分�
 UAT question
   → agent-service auth / strict JSON
   → agent-runtime Business Guard
-  → real LLM business-query-plan-v1
+  → real LLM business-query-plan-v2
   → exact decode + config validation + protected value binding
   → agent-core single action
   → Employee or Transaction Adapter
@@ -206,5 +206,6 @@ Employee 与 Transaction 可在公共冒烟后独立执行；阶段收口等待�
 | v0.5 独立评审 R1～R2 | 跨层状态与无环 | non-live In Progress，live/UAT 继续 Blocked；R2 无 Blocker/Major/Minor |
 | v0.6 状态复核 | P3 交接与证据隔离 | non-live Done；fake 证据不关闭 live/UAT，`GATE-065/066` 和 `GATE-UAT-006` 继续 Open |
 | v0.7 状态复核 | P3 live candidate-01 冻结与门禁隔离 | 6-case 候选、精确预算和不可执行授权模板已通过 non-live 复核；未产生 outbound，`GATE-065/066` 和 `GATE-UAT-006` 继续 Open |
+| v0.8 状态复核 | P3 candidate-03 真实集成与正式 UAT 边界 | 真实 6-case 通过、model/Employee/Transaction=`6/2/2`，`GATE-065/066` 已关闭；UAT task 对齐 v2，`GATE-UAT-006` 仍 Open，未执行任何正式 UAT |
 
-当前：`GATE-UAT-006` Open，四个 UAT 工作项均 Blocked。只有 P3 新工作包实施和受控 live 集成完成后，才可申请正式 UAT 执行授权。
+当前：P3 七个工作包及 `GATE-064/065/066` 均已关闭；`GATE-UAT-006` 仍 Open，四个 UAT 工作项均 Blocked。只有独立冻结 UAT HEAD、task/Prompt/catalog/config、用例、主体和调用预算并关闭该门禁后，才可正式执行 UAT。
