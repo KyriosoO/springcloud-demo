@@ -23,7 +23,7 @@ from agent_runtime.model.contracts import (
 from agent_runtime.model.deepseek.json_codec import parse_unique_json_object
 
 
-BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v1"
+BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v2"
 BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION = (
     "Create exactly one logical Business QueryPlan from the supplied question and catalog. "
     "Return exactly one JSON object with exactly domain, action, and arguments; output no other text. "
@@ -33,8 +33,16 @@ BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION = (
     "or guess its value. Follow every field type, operator, combination, decimal, size, and sort limit. "
     "Never output SQL, ES DSL, URLs, endpoints, indexes, tables, columns, headers, JWTs, roles, class names, "
     "method names, implementation details, a second action, fallback, or another domain suggestion. "
-    "When a business domain is clear but no enabled action can represent the question, keep that catalog "
-    "domain and return action unsupported with empty arguments. When no catalog domain applies, return exactly "
+    "Preserve the complete user intent: every requested field, condition, and operator must be explicitly "
+    "enabled in the supplied catalog. If any requested date, time, location, field, condition, or operator "
+    "cannot be expressed, never omit that condition, broaden the query, substitute another condition, or "
+    "return an executable action with empty or partial arguments. For a transaction date question such as "
+    "'查询今天发生的交易', when no date field is enabled, return exactly "
+    '{"domain":"transaction","action":"unsupported","arguments":{}}. '
+    "For an employee location question such as '帮我查看上海的员工', when no location field is enabled, "
+    'return exactly {"domain":"employee","action":"unsupported","arguments":{}}. '
+    "When a business domain is clear but no enabled action can represent the complete question, keep that "
+    "catalog domain and return action unsupported with empty arguments. When no catalog domain applies, return exactly "
     '{"domain":"unsupported","action":"unsupported","arguments":{}}.'
 )
 

@@ -399,6 +399,7 @@ async def run_candidate(
         },
     )
     cases: list[dict[str, object]] = []
+    failure_case: dict[str, object] | None = None
     failure: BaseException | None = None
     runtime_closed = False
     model_closed = False
@@ -449,7 +450,11 @@ async def run_candidate(
                 "planCalls": metrics.model_calls_by_case.get(case_id, 0),
                 "domainCalls": metrics.domain_calls_by_case.get(case_id, 0),
             }
-            _validate_case_result(case_result)
+            try:
+                _validate_case_result(case_result)
+            except AssertionError:
+                failure_case = _finite_failure_case(case_result)
+                raise
             cases.append(case_result)
     except BaseException as exc:
         failure = exc
@@ -508,7 +513,7 @@ async def run_candidate(
     status = "passed" if failure is None else ("failed_consumed" if paths.consumed.exists() else "failed_unconsumed")
     reason = "business_query_plan_live.passed" if failure is None else _safe_failure_reason(failure)
     result: dict[str, object] = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "workPackage": "WP-BQ-QUERYPLAN-LIVE-01",
         "runId": RUN_ID,
         "authorizationReference": AUTHORIZATION_REFERENCE,
@@ -516,6 +521,7 @@ async def run_candidate(
         "status": status,
         "reason": reason,
         "cases": cases,
+        "failureCase": failure_case,
         "counts": metrics.as_result(),
         "security": {
             "forbiddenFields": metrics.forbidden_fields,
@@ -736,6 +742,17 @@ def _validate_case_result(value: Mapping[str, object]) -> None:
     capability_id = value["capabilityId"]
     domain_calls = value["domainCalls"]
     plan_calls = value["planCalls"]
+    expected_statuses, expected_capability, expected_domain_calls = _case_expectations(case_id)
+    if (
+        status not in expected_statuses
+        or capability_id != expected_capability
+        or plan_calls != 1
+        or domain_calls != expected_domain_calls
+    ):
+        raise AssertionError("business_query_plan_live.case_failed")
+
+
+def _case_expectations(case_id: str) -> tuple[frozenset[str], str | None, int]:
     expected_statuses: dict[str, frozenset[str]] = {
         "bq-live-emp-admin": frozenset({CapabilityStatus.SUCCESS.value}),
         "bq-live-emp-denied": frozenset({CapabilityStatus.FORBIDDEN.value}),
@@ -748,13 +765,34 @@ def _validate_case_result(value: Mapping[str, object]) -> None:
         "employee.detail" if "emp-" in case_id else "transaction.search"
     )
     expected_domain_calls = 0 if case_id.endswith("unsupported") else 1
-    if (
-        status not in expected_statuses[case_id]
-        or capability_id != expected_capability
-        or plan_calls != 1
-        or domain_calls != expected_domain_calls
-    ):
-        raise AssertionError("business_query_plan_live.case_failed")
+    return expected_statuses[case_id], expected_capability, expected_domain_calls
+
+
+def _finite_failure_case(value: Mapping[str, object]) -> dict[str, object]:
+    case_id = cast(str, value["caseId"])
+    status = cast(str, value["status"])
+    capability_id = value["capabilityId"]
+    plan_calls = value["planCalls"]
+    domain_calls = value["domainCalls"]
+    expected_statuses, expected_capability, expected_domain_calls = _case_expectations(case_id)
+    if status not in expected_statuses:
+        reason = "status_mismatch"
+    elif capability_id != expected_capability:
+        reason = "capability_mismatch"
+    elif plan_calls != 1:
+        reason = "plan_call_mismatch"
+    elif domain_calls != expected_domain_calls:
+        reason = "domain_call_mismatch"
+    else:
+        raise AssertionError("business_query_plan_live.failure_case_not_failed")
+    return {
+        "caseId": case_id,
+        "status": status,
+        "capabilityId": capability_id,
+        "planCalls": plan_calls,
+        "domainCalls": domain_calls,
+        "reason": reason,
+    }
 
 
 def _scan_sensitive(paths: CandidatePaths, secrets: CandidateSecrets) -> bool:

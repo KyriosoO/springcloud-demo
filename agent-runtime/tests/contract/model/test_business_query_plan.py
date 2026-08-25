@@ -130,6 +130,25 @@ def test_task_request_is_no_tools_exact_json_and_model_safe() -> None:
         assert prohibited in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
 
 
+def test_query_plan_v2_requires_complete_intent_and_explicit_unsupported_examples() -> None:
+    definition = build_business_query_plan_task_definition(timeout_ms=8000)
+
+    assert BUSINESS_QUERY_PLAN_TASK_VERSION == "business-query-plan-v2"
+    assert definition.task_version == "business-query-plan-v2"
+    assert "complete user intent" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "empty or partial arguments" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "查询今天发生的交易" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "帮我查看上海的员工" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert (
+        '{"domain":"transaction","action":"unsupported","arguments":{}}'
+        in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    )
+    assert (
+        '{"domain":"employee","action":"unsupported","arguments":{}}'
+        in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    )
+
+
 def test_provider_decoder_returns_only_resource_bounded_json_object() -> None:
     decoded = decode_business_query_plan_output(
         _response(

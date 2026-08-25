@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_02 |
-| 当前版本 | v1.6 |
+| 当前版本 | v1.7 |
 | 更新日期 | 2026-08-25 |
 | 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
 | 协作设计 | `L2_00_01` v1.6、`L2_02_00` v1.6 |
 | Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder、fake transport 及生产 Business non-live 组合根已实现；candidate-02 真实验证 `failed_consumed`；`business-query-plan-v2` 为已设计、尚未实施的后续收口范围 |
+| 实施状态 | `business-query-plan-v2`、完整意图/unsupported 指令、provider exact JSON decoder、fake transport、版本化有限诊断和生产 Business non-live 组合根已实现；candidate-01/02 冻结历史按原版本校验；candidate-03 已完成 non-live 准备，真实验证尚未执行 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -24,6 +24,7 @@
 | v1.4 | 2026-08-24 | 校正 protected extractor 与 Model Guard 职责；非法 Business 输入固定在 Business 分支失败关闭，澄清生产 stub 与测试 fake 的边界 |
 | v1.5 | 2026-08-24 | 明确历史 ID-only task/evidence 不改写，但 Employee/Transaction 不保留任何依赖该 task 的生产装配或专属兼容接缝 |
 | v1.6 | 2026-08-25 | candidate-02 日期负例真实失败后，设计 `business-query-plan-v2`、完整意图覆盖与不可表达显式示例；增加有限失败诊断、对抗 fake 和冻结历史兼容，不改变 validator 或业务契约 |
+| v1.7 | 2026-08-25 | 同步 v2 Prompt、result schema v2、日期对抗 fake、candidate-01/02 历史校验及 candidate-03 non-live 冻结资产；真实门禁仍未关闭 |
 
 本文为 provider-neutral Business QueryPlan 模型任务设计受控升级：已实施的 `business-query-plan-v1` 保留于已冻结历史提交；新的 `business-query-plan-v2` 只强化模型可见指令对完整用户意图和不可表达条件的约束，不改变 task ID、三字段输出、catalog、decoder、validator、Adapter 或公开契约。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
 
@@ -299,7 +300,7 @@ class LocalModelCompositionRoot:
 
 ## 15. 当前差距与门禁
 
-`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核。candidate-02 使用 v1 实际完成模型/Employee/Transaction=`6/2/2`，前五场景通过，Transaction 日期负例未达到 `unsupported` 并形成不可复用的 `failed_consumed` 历史；因此 v1 不能关闭 `GATE-065/066`。v2 Prompt、有限失败诊断、对抗 fake、历史兼容和新的冻结候选仍待实施与验证；旧 Action PoC 和已失败历史不得作为通过证据。
+`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核。candidate-02 使用 v1 实际完成模型/Employee/Transaction=`6/2/2`，前五场景通过，Transaction 日期负例未达到 `unsupported` 并形成不可复用的 `failed_consumed` 历史；因此 v1 不能关闭 `GATE-065/066`。v2 Prompt、有限失败诊断、日期五类对抗 fake、candidate-01/02 历史兼容和 candidate-03 冻结候选已通过 non-live 验证；真实矩阵仍待按固定 `6/2/2` 预算执行。旧 Action PoC 和已失败历史不得作为通过证据。
 
 ## 16. 评审记录
 
@@ -320,6 +321,7 @@ class LocalModelCompositionRoot:
 | v1.6 内审2 | 失败诊断、版本化结果与历史不可变 | 明确 result schema v2 六字段有限失败诊断；candidate-01/02 继续按 schema v1 和 frozen commit/hash 校验 |
 | v1.6 内审3 | 授权、状态、严格校验与最小性 | 修正实施判定、P3 Ready 授权约束及重复状态；保持六次预算、失败关闭与 DAG，不增加 Gate/接口 |
 | v1.6 独立评审 R1 | v2 与 REQ/L1、失败关闭、历史证据和 P3 DAG | exact unsupported、两级 decoder、只读历史及有限诊断一致；允许 non-live 实施，新 live 仍需冻结独立候选 |
+| v1.7 代码对照设计复核 | v2 Prompt、schema 分版、日期对抗、42项资产与冻结历史 | 43项定向、1241项全量 non-live 通过/27项 opt-in 跳过/5项既有历史环境精确隔离；strict mypy、compileall 和 PowerShell AST 通过，未扩大业务契约 |
 
 Approved 不表示真实模型任务已实施或执行。
 

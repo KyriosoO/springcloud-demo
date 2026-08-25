@@ -13,7 +13,7 @@ from agent_runtime.model.deepseek.business_query_plan import (
 )
 
 
-RUN_ID: Final = "business-query-plan-live-v1-20260825-candidate-02"
+RUN_ID: Final = "business-query-plan-live-v2-20260825-candidate-03"
 AUTHORIZATION_REFERENCE: Final = "P3_00:GATE-065"
 WORK_PACKAGE: Final = "WP-BQ-QUERYPLAN-LIVE-01"
 MODEL_CALL_BUDGET: Final = 6
@@ -33,6 +33,23 @@ CASE_IDS: Final = (
 
 _SHA256 = frozenset("0123456789abcdef")
 _TERMINAL_STATUSES = frozenset({"passed", "failed_unconsumed", "failed_consumed"})
+_FAILURE_CASE_STATUSES = frozenset(
+    {
+        "success",
+        "no_result",
+        "unsupported",
+        "invalid_argument",
+        "unauthenticated",
+        "forbidden",
+        "timeout",
+        "downstream_failure",
+        "model_egress_denied",
+        "internal_failure",
+    }
+)
+_FAILURE_CASE_REASONS = frozenset(
+    {"status_mismatch", "capability_mismatch", "plan_call_mismatch", "domain_call_mismatch"}
+)
 _CASE_STATUSES = {
     "bq-live-emp-admin": frozenset({"success"}),
     "bq-live-emp-denied": frozenset({"forbidden"}),
@@ -104,7 +121,13 @@ def append_journal(path: Path, value: object) -> None:
         os.fsync(stream.fileno())
 
 
-def validate_manifest(value: object, *, expected_run_id: str = RUN_ID) -> dict[str, object]:
+def validate_manifest(
+    value: object,
+    *,
+    expected_run_id: str = RUN_ID,
+    expected_task_version: str = BUSINESS_QUERY_PLAN_TASK_VERSION,
+    expected_system_instruction_sha256: str | None = None,
+) -> dict[str, object]:
     if type(value) is not dict:
         raise ValueError("business_query_plan_live.manifest_shape_invalid")
     manifest = cast(dict[str, object], value)
@@ -139,12 +162,16 @@ def validate_manifest(value: object, *, expected_run_id: str = RUN_ID) -> dict[s
     if model != {"provider": "deepseek", "name": "deepseek-v4-pro", "requestMode": "json_object_no_tools"}:
         raise ValueError("business_query_plan_live.manifest_model_invalid")
     task = _exact_mapping(manifest["queryPlanTask"], {"id", "version", "systemInstructionSha256"})
+    expected_prompt_sha256 = (
+        hashlib.sha256(BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION.encode("utf-8")).hexdigest()
+        if expected_system_instruction_sha256 is None
+        else expected_system_instruction_sha256
+    )
     if (
         task.get("id") != "business_query_plan"
-        or task.get("version") != BUSINESS_QUERY_PLAN_TASK_VERSION
-        or task.get("systemInstructionSha256") != hashlib.sha256(
-            BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION.encode("utf-8")
-        ).hexdigest()
+        or task.get("version") != expected_task_version
+        or not _is_sha256(expected_prompt_sha256)
+        or task.get("systemInstructionSha256") != expected_prompt_sha256
     ):
         raise ValueError("business_query_plan_live.manifest_task_invalid")
     snapshots = _exact_mapping(manifest["snapshots"], {"catalogSha256", "configSha256"})
@@ -300,6 +327,8 @@ def validate_result(
     if type(value) is not dict:
         raise ValueError("business_query_plan_live.result_shape_invalid")
     result = cast(dict[str, object], value)
+    schema_version = result.get("schemaVersion")
+    expected_schema_version = 2 if expected_run_id == RUN_ID else 1
     expected_keys = {
         "schemaVersion",
         "workPackage",
@@ -313,10 +342,12 @@ def validate_result(
         "security",
         "cleanup",
     }
+    if schema_version == 2:
+        expected_keys.add("failureCase")
     if set(result) != expected_keys:
         raise ValueError("business_query_plan_live.result_shape_invalid")
     if (
-        result["schemaVersion"] != 1
+        schema_version != expected_schema_version
         or result["workPackage"] != WORK_PACKAGE
         or result["runId"] != expected_run_id
         or result["authorizationReference"] != AUTHORIZATION_REFERENCE
@@ -347,6 +378,36 @@ def validate_result(
             or item["domainCalls"] != _CASE_DOMAIN_CALLS[case_id]
         ):
             raise ValueError("business_query_plan_live.result_case_invalid")
+    if schema_version == 2:
+        failure_case = result["failureCase"]
+        if failure_case is not None:
+            if status == "passed" or len(cases) >= len(CASE_IDS):
+                raise ValueError("business_query_plan_live.result_failure_case_invalid")
+            failed = _exact_mapping(
+                failure_case,
+                {"caseId", "status", "capabilityId", "planCalls", "domainCalls", "reason"},
+            )
+            if (
+                failed["caseId"] != CASE_IDS[len(cases)]
+                or type(failed["status"]) is not str
+                or failed["status"] not in _FAILURE_CASE_STATUSES
+                or (
+                    failed["capabilityId"] is not None
+                    and (
+                        type(failed["capabilityId"]) is not str
+                        or failed["capabilityId"] not in {"employee.detail", "transaction.search"}
+                    )
+                )
+                or type(failed["planCalls"]) is not int
+                or failed["planCalls"] not in {0, 1}
+                or type(failed["domainCalls"]) is not int
+                or failed["domainCalls"] not in {0, 1}
+                or type(failed["reason"]) is not str
+                or failed["reason"] not in _FAILURE_CASE_REASONS
+            ):
+                raise ValueError("business_query_plan_live.result_failure_case_invalid")
+        elif status == "passed" and len(cases) != len(CASE_IDS):
+            raise ValueError("business_query_plan_live.result_failure_case_invalid")
     counts = _exact_mapping(
         result["counts"],
         {
@@ -399,6 +460,7 @@ def validate_result(
         raise ValueError("business_query_plan_live.result_security_invalid")
     passed = (
         status == "passed"
+        and (schema_version != 2 or result["failureCase"] is None)
         and result["reason"] == "business_query_plan_live.passed"
         and counts == expected_counts
         and security == {"forbiddenFields": 0, "sensitivePersistence": False, "logLeakCount": 0}
@@ -431,14 +493,19 @@ def validate_lifecycle(
         raise ValueError("business_query_plan_live.lifecycle_invalid")
 
 
-def validate_consumed(value: object, *, manifest_sha256: str) -> None:
+def validate_consumed(
+    value: object,
+    *,
+    manifest_sha256: str,
+    expected_run_id: str = RUN_ID,
+) -> None:
     item = _exact_mapping(
         value,
         {"schemaVersion", "runId", "authorizationReference", "manifestSha256", "event"},
     )
     if item != {
         "schemaVersion": 1,
-        "runId": RUN_ID,
+        "runId": expected_run_id,
         "authorizationReference": AUTHORIZATION_REFERENCE,
         "manifestSha256": manifest_sha256,
         "event": "first_model_outbound",

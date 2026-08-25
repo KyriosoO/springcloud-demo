@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 from dataclasses import replace
@@ -72,6 +73,8 @@ async def test_fake_candidate_proves_exact_matrix_budget_and_first_outbound_cons
     )
 
     validate_result(result, require_passed=True)
+    assert result["schemaVersion"] == 2
+    assert result["failureCase"] is None
     assert result["runId"] == RUN_ID
     assert result["authorizationReference"] == AUTHORIZATION_REFERENCE
     assert result["counts"] == {
@@ -127,6 +130,156 @@ class _CrossDomainTransport(FakeQueryPlanTransport):
             tool_calls=(),
             usage_total_tokens=0,
         )
+
+
+class _TransactionDateVariantTransport(FakeQueryPlanTransport):
+    def __init__(self, response: str) -> None:
+        self._response = response
+
+    async def complete(
+        self,
+        request: StructuredModelRequest,
+        *,
+        call_deadline: float,
+    ) -> StructuredModelResponse:
+        if live_runner._ACTIVE_CASE.get() != "bq-live-txn-unsupported":
+            return await super().complete(request, call_deadline=call_deadline)
+        return StructuredModelResponse(
+            finish_kind=StructuredFinishKind.STOP,
+            content=self._response,
+            tool_calls=(),
+            usage_total_tokens=0,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("response", "expected_terminal", "expected_status"),
+    [
+        (
+            '{"domain":"transaction","action":"unsupported","arguments":{}}',
+            "passed",
+            "unsupported",
+        ),
+        (
+            '{"domain":"transaction","action":"transaction.search",'
+            '"arguments":{"date":{"literal":"2026-08-25"}}}',
+            "passed",
+            "unsupported",
+        ),
+        (
+            '{"domain":"transaction","action":"transaction.search","arguments":{}}',
+            "failed_consumed",
+            "invalid_argument",
+        ),
+        (
+            '{"domain":"transaction","action":"transaction.search",'
+            '"arguments":{"date":"today"}}',
+            "failed_consumed",
+            "invalid_argument",
+        ),
+        (
+            '{"domain":"transaction","action":"unsupported",'
+            '"arguments":{"date":{"literal":"today"}}}',
+            "failed_consumed",
+            "invalid_argument",
+        ),
+    ],
+    ids=("explicit-unsupported", "unopened-date-field", "empty-search", "invalid-argument-shape", "nonempty-unsupported"),
+)
+async def test_transaction_date_variants_remain_fail_closed_and_diagnosable(
+    tmp_path: Path,
+    response: str,
+    expected_terminal: str,
+    expected_status: str,
+) -> None:
+    metrics = CandidateMetrics()
+    dependencies = replace(
+        build_fake_dependencies(secrets=_SECRETS, metrics=metrics),
+        model_transport=_TransactionDateVariantTransport(response),
+    )
+    paths = _paths(tmp_path)
+    if expected_terminal == "passed":
+        result = await run_candidate(
+            live=True,
+            paths=paths,
+            manifest_sha256="8" * 64,
+            secrets=_SECRETS,
+            dependencies=dependencies,
+        )
+        assert result["failureCase"] is None
+        assert cast(list[dict[str, object]], result["cases"])[-1]["status"] == expected_status
+    else:
+        with pytest.raises(RuntimeError, match="business_query_plan_live.assertion_failed"):
+            await run_candidate(
+                live=True,
+                paths=paths,
+                manifest_sha256="8" * 64,
+                secrets=_SECRETS,
+                dependencies=dependencies,
+            )
+        result = validate_result(
+            json.loads(paths.result.read_text(encoding="utf-8")),
+            require_passed=False,
+        )
+        assert result["failureCase"] == {
+            "caseId": "bq-live-txn-unsupported",
+            "status": expected_status,
+            "capabilityId": None,
+            "planCalls": 1,
+            "domainCalls": 0,
+            "reason": "status_mismatch",
+        }
+        assert len(cast(list[object], result["cases"])) == 5
+    assert result["status"] == expected_terminal
+    assert metrics.model_calls == 6
+    assert metrics.employee_detail == 2
+    assert metrics.transaction_search == 2
+    assert metrics.domain_calls_by_case.get("bq-live-txn-unsupported", 0) == 0
+    assert paths.consumed.exists()
+    assert len(paths.journal.read_text(encoding="utf-8").splitlines()) == 6
+    assert response not in paths.result.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_result_v2_rejects_unbounded_or_sensitive_failure_diagnostics(tmp_path: Path) -> None:
+    metrics = CandidateMetrics()
+    dependencies = replace(
+        build_fake_dependencies(secrets=_SECRETS, metrics=metrics),
+        model_transport=_TransactionDateVariantTransport(
+            '{"domain":"transaction","action":"transaction.search","arguments":{}}'
+        ),
+    )
+    paths = _paths(tmp_path)
+    with pytest.raises(RuntimeError, match="business_query_plan_live.assertion_failed"):
+        await run_candidate(
+            live=True,
+            paths=paths,
+            manifest_sha256="9" * 64,
+            secrets=_SECRETS,
+            dependencies=dependencies,
+        )
+    original = json.loads(paths.result.read_text(encoding="utf-8"))
+    for forbidden_key in ("question", "modelResponse", "businessResponse", "jwt", "employeeIdentifier"):
+        value = copy.deepcopy(original)
+        value["failureCase"][forbidden_key] = "must-not-persist"
+        with pytest.raises(ValueError, match="business_query_plan_live.object_shape_invalid"):
+            validate_result(value, require_passed=False)
+    value = copy.deepcopy(original)
+    value["failureCase"]["reason"] = "unbounded_raw_exception"
+    with pytest.raises(ValueError, match="business_query_plan_live.result_failure_case_invalid"):
+        validate_result(value, require_passed=False)
+    for field_name, invalid_value in (
+        ("status", {"raw": "invalid_argument"}),
+        ("capabilityId", ["transaction.search"]),
+        ("planCalls", True),
+        ("domainCalls", 2),
+        ("reason", {"raw": "status_mismatch"}),
+    ):
+        value = copy.deepcopy(original)
+        value["failureCase"][field_name] = invalid_value
+        with pytest.raises(ValueError, match="business_query_plan_live.result_failure_case_invalid"):
+            validate_result(value, require_passed=False)
 
 
 @pytest.mark.asyncio

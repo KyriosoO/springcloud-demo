@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "state": "prepared_unconsumed",
+  "liveExecutionAuthorized": false,
+  "runId": "business-query-plan-live-v2-20260825-candidate-03",
+  "authorizationReference": "P3_00:GATE-065",
+  "sourcePreparedHead": "a809e06735e2c29e1e0aa8cf665733d9eb942bce",
+  "manifestSha256": "7c8bd97685fc3c8515f70fa78e7c97e949bf2b9478e2148f9272cfa0b74f7477",
+  "budgets": {
+    "modelCalls": 6,
+    "employeeDetail": 2,
+    "transactionSearch": 2,
+    "retry": 0,
+    "resume": 0
+  },
+  "requiredBindings": {
+    "finalFrozenHead": "required_in_final_authorization",
+    "processLlmApiKey": "required_memory_only",
+    "processEmployeeIdentifier": "required_memory_only",
+    "processAdminJwt": "required_memory_only",
+    "processDeniedJwt": "required_memory_only",
+    "employeeBaseUrl": "http://127.0.0.1:9210",
+    "transactionBaseUrl": "http://127.0.0.1:8182"
+  },
+  "constraints": {
+    "singleUse": true,
+    "firstOutboundConsumes": true,
+    "automaticRetry": false,
+    "rerun": false,
+    "resume": false,
+    "answerTask": false
+  }
+}
