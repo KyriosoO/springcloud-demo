@@ -18,20 +18,34 @@ from agent_runtime.business.contracts import (
     BusinessServiceKey,
     BusinessTextPolicyId,
     ConstraintDimension,
+    business_query_v2_action_contract,
 )
 from agent_runtime.adapters.transaction.codec import (
     TransactionSearchArgumentValidator,
     TransactionSearchRequestMapper,
     TransactionSearchWireCodec,
+    TransactionListSearchArgumentValidator,
+    TransactionListSearchRequestMapper,
+    TransactionListSearchWireCodec,
 )
 from agent_runtime.adapters.transaction.contracts import (
     TransactionRecord,
     TransactionSearchInput,
     TransactionSearchWireRequest,
     TransactionSearchWireResponse,
+    TransactionListRecord,
+    TransactionListSearchInput,
+    TransactionListSearchWireRequest,
+    TransactionListSearchWireResponse,
 )
-from agent_runtime.adapters.transaction.fields import transaction_field_definitions
-from agent_runtime.adapters.transaction.normalizer import TransactionSearchResponseNormalizer
+from agent_runtime.adapters.transaction.fields import (
+    transaction_field_definitions,
+    transaction_list_field_definitions,
+)
+from agent_runtime.adapters.transaction.normalizer import (
+    TransactionListSearchResponseNormalizer,
+    TransactionSearchResponseNormalizer,
+)
 
 
 def transaction_search_definition() -> BusinessActionDefinition[
@@ -192,4 +206,77 @@ def transaction_search_definition() -> BusinessActionDefinition[
         ),
         code_contract_version="transaction-search-plan-v1",
         service_contract_ref="transaction-search-v1",
+    )
+
+
+def transaction_list_search_definition() -> BusinessActionDefinition[
+    TransactionListSearchInput,
+    TransactionListSearchWireRequest,
+    TransactionListSearchWireResponse,
+    TransactionListRecord,
+]:
+    contract = business_query_v2_action_contract("transaction.search")
+    return BusinessActionDefinition(
+        descriptor=CapabilityDescriptor(
+            capability_id=contract.action_id,
+            api_version=1,
+            kind=CapabilityKind.QUERY,
+            display_name="Transaction search",
+            description="根据交易标识、类型、明确时区时间和精确金额条件查询交易列表。",
+            aliases=("交易列表查询", "transaction list search"),
+            argument_schema={
+                "type": "object",
+                "properties": {
+                    "filters": {"type": "array", "minItems": 1, "maxItems": 8},
+                    "page": {"type": "integer", "minimum": 1, "maximum": 1000},
+                    "size": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "sorts": {"type": "array", "maxItems": 2},
+                },
+                "required": ("filters", "page", "size", "sorts"),
+                "additionalProperties": False,
+            },
+        ),
+        domain_id=contract.domain_id,
+        service_key=contract.service_key,
+        argument_validator=TransactionListSearchArgumentValidator(),
+        request_mapper=TransactionListSearchRequestMapper(),
+        wire_codec=TransactionListSearchWireCodec(),
+        response_normalizer=TransactionListSearchResponseNormalizer(),
+        http_status_semantics=BusinessHttpStatusSemantics(http_400_is_invalid_argument=True),
+        applicable_dimensions=frozenset({
+            ConstraintDimension.PAGE_SIZE,
+            ConstraintDimension.RESULT_COUNT,
+            ConstraintDimension.TIME_RANGE_DAYS,
+            ConstraintDimension.FILTER_FIELDS,
+            ConstraintDimension.SORT_FIELDS,
+        }),
+        filter_field_ids_by_code=frozenset(
+            field.logical_name for field in contract.query_fields
+        ),
+        sort_field_ids_by_code=contract.allowed_sort_fields,
+        field_definitions=transaction_list_field_definitions(),
+        required_user_field_ids=("trans_type", "amount"),
+        answer_mode=BusinessAnswerMode.STRUCTURED_ONLY,
+        contract_limits=BusinessContractLimits(
+            max_page_size=contract.max_page_size,
+            max_result_count=contract.max_result_count,
+            max_time_range_days=366,
+            max_timeout_ms=contract.max_timeout_ms,
+            max_request_bytes=4096,
+            max_decimal_abs="9999999999999999.99",
+            max_decimal_scale=2,
+            allowed_sort_directions=frozenset({"ASC", "DESC"}),
+            max_sort_items=2,
+            max_page=contract.max_page,
+        ),
+        query_fields=contract.query_fields,
+        combination_rules=(
+            BusinessCombinationRule(
+                rule_id="transaction-filter-at-least-one",
+                kind=BusinessCombinationRuleKind.AT_LEAST_ONE,
+                field_names=("trans_id", "trans_type", "trans_date", "amount"),
+            ),
+        ),
+        code_contract_version=contract.code_contract_version,
+        service_contract_ref=contract.service_contract_ref,
     )

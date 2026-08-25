@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from agent_runtime.business.contracts import (
     BusinessFieldDefinition,
     BusinessFieldTransform,
     BusinessFieldValueType,
     DataClass,
+    business_query_v2_result_contracts,
 )
-from agent_runtime.adapters.transaction.contracts import TransactionRecord
+from agent_runtime.adapters.transaction.contracts import TransactionListRecord, TransactionRecord
 
 
 def transaction_field_definitions() -> tuple[BusinessFieldDefinition[TransactionRecord, Any], ...]:
@@ -37,3 +38,37 @@ def transaction_field_definitions() -> tuple[BusinessFieldDefinition[Transaction
         ),
     )
 
+
+def transaction_list_field_definitions() -> tuple[
+    BusinessFieldDefinition[TransactionListRecord, Any], ...
+]:
+    definitions: list[BusinessFieldDefinition[TransactionListRecord, Any]] = []
+    for contract in business_query_v2_result_contracts("transaction.search"):
+        model_transforms = (
+            frozenset({contract.model_transform})
+            if contract.model_transform is not None
+            else frozenset()
+        )
+        definitions.append(
+            BusinessFieldDefinition(
+                field_id=contract.field_id,
+                value_type=contract.value_type,
+                data_class=contract.data_class,
+                extractor=_transaction_list_extractor(contract.field_id),
+                user_visible_by_code=True,
+                model_candidate_by_code=contract.model_transform is not None,
+                allowed_user_transforms=frozenset({contract.user_transform}),
+                allowed_model_transforms=model_transforms,
+            )
+        )
+    return tuple(definitions)
+
+
+def _transaction_list_extractor(field_id: str) -> Callable[[TransactionListRecord], Any]:
+    def extract(record: TransactionListRecord) -> Any:
+        value = getattr(record, field_id)
+        if field_id == "trans_id" and isinstance(value, str) and len(value) < 5:
+            return None
+        return value
+
+    return extract

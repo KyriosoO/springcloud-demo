@@ -34,7 +34,7 @@
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Employee search/semantic/role guard | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Transaction Date/Decimal/page/sort | Approved |
 
-Verified existing：旧 detail、有限 Transaction、Business protected slot、Model transport、现有三个业务接口和 Transaction 最终读取授权。Not implemented：filters plan、统一 JSON、v3 catalog、Employee search/semantic Adapter、Employee ES role guard、Transaction Date/完整分页、新组合根、fake/live/UAT 证据。
+Verified existing：Business filters plan、统一字段 JSON、v3 model catalog、Employee search/semantic Adapter、Employee ES 最终读取授权、Transaction Date/Decimal/完整分页 Adapter 和现有三个业务接口。Not implemented：三动作生产组合根切换、旧目标入口退役核实、新版整体 fake/live 及正式 UAT 证据。
 
 ## 4. 分批与执行边界
 
@@ -52,8 +52,8 @@ Verified existing：旧 detail、有限 Transaction、Business protected slot、
 | `WP-EMP-SEARCH-ADAPTER-02` | Employee 条件搜索 | `L2_02_01 DR-EMP-101/103/104` | filters→SearchRequest、分页、排序、bounded hits | `WP-BQ-FIELD-CONFIG-02` | - | search definition/codec/projection | `VAL-EMP-101/103` | 禁用新 action，保留历史资产 | Done |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Done |
 | `WP-EMP-ES-AUTH-02` | Employee ES 最终读取授权 | `L2_02_01 DR-EMP-105` | 调用方兼容核查、两入口 requireEmployeeRead、角色矩阵 | - | - | Java guard/controller/security 测试 | `VAL-EMP-102` | 未确认兼容前不启用授权变更 | Done |
-| `WP-TXN-SEARCH-EXT-02` | Transaction Date/金额/分页扩展 | `L2_02_02 DR-TXN-101～105` | 四字段 operator、Date/Decimal、page/sort、稳定列表 | `WP-BQ-FIELD-CONFIG-02` | - | 扩展 Transaction Adapter 和 Java contract tests | `VAL-TXN-101/102/103` | 关闭新字段，不修改 Java DTO/SQL | Ready |
-| `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02`, `WP-EMP-ES-AUTH-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Blocked |
+| `WP-TXN-SEARCH-EXT-02` | Transaction Date/金额/分页扩展 | `L2_02_02 DR-TXN-101～105` | 四字段 operator、Date/Decimal、page/sort、稳定列表 | `WP-BQ-FIELD-CONFIG-02` | - | 扩展 Transaction Adapter 和 Java contract tests | `VAL-TXN-101/102/103` | 关闭新字段，不修改 Java DTO/SQL | Done |
+| `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02`, `WP-EMP-ES-AUTH-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Ready |
 | `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Blocked |
 | `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Blocked |
 | `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 单次授权、有限固定场景、敏感值内存化 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02` | `GATE-070` | 真实三动作 finite evidence | 一计划/一业务调用与权限矩阵 | 失败即停止，不补跑或复用历史授权 | Blocked |
@@ -87,7 +87,7 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `GATE-067` | `WP-BQ-FILTER-CONTRACT-02` | closure | 新设计基线生效 | 否 | REQ/L0/L1/L2/P3/UAT 两阶段评审通过且版本一致 | 当前 Approved/Reviewed 文档、strict validators、跨层追踪与无环 DAG | 文档维护者 | 代码实施前 | 分层/跨层独立评审与 DAG 校验 | 不允许依据未评审设计实施 | Closed |
 | `GATE-068` | `WP-EMP-ES-AUTH-02` | release_effective | Employee search/vector 角色守卫生效 | 否 | 调用方兼容性确认，两入口 requireEmployeeRead 及完整角色矩阵通过 | Employee Controller/security/调用方回归：7 项测试通过；既有交互用户仅 ADMIN/VIEWER | Employee 业务维护者/实施者 | 生产组合根切换前 | Java MVC/security 与既有调用方测试 | 禁止有效生产路径和真实 Employee 联调 | Closed |
-| `GATE-069` | `WP-TXN-SEARCH-EXT-02` | integration | Transaction Date 时区/精度合同生效 | 否 | Python Date→HTTP→Jackson→Mapper instant/open interval/DB precision 证据成立 | Transaction Java/Python fixture 与业务时区合同 | Transaction 维护者/实施者 | 日期 live/UAT 前 | 双语言 contract 与 strict bounds tests | 日期相关真实联调/UAT 不执行 | Open |
+| `GATE-069` | `WP-TXN-SEARCH-EXT-02` | integration | Transaction Date 时区/精度合同生效 | 否 | Python Date→HTTP→Jackson→Mapper instant/open interval/DB precision 证据成立 | Python filters/epoch 毫秒/Shanghai timezone 契约、Java Jackson/Controller 测试及只读生产 `DATETIME(0)` 元数据验证 | Transaction 维护者/实施者 | 日期 live/UAT 前 | 双语言 contract 与 strict bounds tests | 日期相关真实联调/UAT 不执行 | Closed |
 | `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，环境/预算/授权/安全边界已确认 | 实施代码证据、服务状态和用户真实调用授权 | 用户/业务维护者 | 首次模型或业务调用前 | frozen task/config/cases、预算和零泄漏 preflight | live 保持 Blocked，不调用真实系统 | Open |
 | `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 前 11 个工作包与 controlled live 完成，UAT 环境/代表性业务数据就绪并获得明确授权；不要求 UAT 工作包自身预先完成 | UAT_00 准入和本版 live evidence | 用户/UAT 执行者 | 首个正式 UAT 用例前 | UAT checklist、调用预算及 gate→UAT 无环性复核 | 正式 UAT 保持 Blocked | Open |
 
@@ -110,8 +110,8 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | 4 | `WP-EMP-SEARCH-ADAPTER-02` | Done | `WP-BQ-FIELD-CONFIG-02` | search 固定接口、上海地址、分页排序、严格 hits、字段脱敏及 protected slot 通过 106 项回归 |
 | 5 | `WP-EMP-SEMANTIC-ADAPTER-02` | Done | `WP-BQ-FIELD-CONFIG-02` | 固定 vector-search/profile、单调用、敏感与 filter/vector 拒绝通过 82 项回归 |
 | 6 | `WP-EMP-ES-AUTH-02` | Done | - | 两入口复用现有读取守卫，调用方兼容核实与 7 项安全测试通过 |
-| 7 | `WP-TXN-SEARCH-EXT-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | Date/Decimal/分页统一字段合同已就绪 |
-| 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Blocked | Model/两个 Employee/Transaction/Employee 授权五项前置 | 生产组合根必须等待完整安全对象图 |
+| 7 | `WP-TXN-SEARCH-EXT-02` | Done | `WP-BQ-FIELD-CONFIG-02` | 四字段 operator、精确 Decimal、offset Date、epoch 毫秒响应、完整分页及 Java/生产 metadata 契约通过 |
+| 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Ready | - | Model、两个 Employee Adapter、Transaction Adapter 与 Employee 最终授权五项前置均完成 |
 | 9 | `WP-EMP-DETAIL-RETIRE-02` | Blocked | `WP-BQ-RUNTIME-CUTOVER-02` | 先具备新列表替代路径 |
 | 10 | `WP-BQ-NONLIVE-E2E-02` | Blocked | `WP-BQ-RUNTIME-CUTOVER-02` | E2E 需要唯一三动作对象图 |
 | 11 | `WP-BQ-CONTROLLED-LIVE-02` | Blocked | non-live/retire 与 `GATE-070` | 真实调用必须独立授权和受控 |
@@ -148,8 +148,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-EMP-SEARCH-ADAPTER-02` | `DR-EMP-101/103/104` | `IMPL-EMP-101～105/108` | `TEST-EMP-101/102/104/105` | `VAL-EMP-101/103` | Done |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | `DR-EMP-102/104` | `IMPL-EMP-101～105` | `TEST-EMP-103/104` | `VAL-EMP-101/103` | Done |
 | `WP-EMP-ES-AUTH-02` | `DR-EMP-105` | `IMPL-EMP-106/107` | `TEST-EMP-106` | `VAL-EMP-102` | Done |
-| `WP-TXN-SEARCH-EXT-02` | `DR-TXN-101～105` | `IMPL-TXN-101～107` | `TEST-TXN-101～106` | `VAL-TXN-101/102/103` | Ready |
-| `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Blocked |
+| `WP-TXN-SEARCH-EXT-02` | `DR-TXN-101～105` | `IMPL-TXN-101～107` | `TEST-TXN-101～106` | `VAL-TXN-101/102/103` | Done |
+| `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Ready |
 | `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Blocked |
 | `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Blocked |
 | `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-EMP-105`; `DR-TXN-105` | 受控 runner 和有限 evidence | 有限三动作 live 矩阵 | `GATE-070` 关闭证据 | Blocked |
@@ -178,8 +178,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Ready 3 个，Blocked 5 个，Done 4 个。filters 合同、统一三动作配置、v3 Model 逻辑目录/Prompt 与 Employee ES 最终读取授权已完成；Model/Business/graph 231 项 Python 回归和读取授权 7 项 Java 测试通过。两个 Employee Adapter 和 Transaction Adapter 可独立实施。`GATE-067/068` Closed，`GATE-069/070` 与 `GATE-UAT-007` 保持 Open。
+总计 12 个工作包、15 条直接依赖：Done 7 个，Ready 1 个，Blocked 4 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、Employee 最终读取授权与 Transaction 四字段/Date/Decimal/分页 Adapter 已完成；相关 368 项 Python 回归、Java Jackson/Controller 契约和生产 `TRANS_DATE DATETIME(0)` 只读元数据核实通过。三动作生产组合根切换已具备入口条件。`GATE-067/068/069` Closed，`GATE-070` 与 `GATE-UAT-007` 保持 Open。
 
 ## 15. 后续实施建议
 
-获得代码授权后，先并行执行 `WP-BQ-FILTER-CONTRACT-02` 和 `WP-EMP-ES-AUTH-02` 调用方核实；再实施统一配置、Model/Employee/Transaction、组合根、non-live E2E、受控 live 和 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。
+继续执行 `WP-BQ-RUNTIME-CUTOVER-02`，再完成旧 Employee detail 目标入口退役核实、三动作 non-live E2E、受控 live 和正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。

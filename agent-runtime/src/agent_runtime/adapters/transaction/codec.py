@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from collections.abc import Mapping
 from typing import Any, Literal, cast
@@ -14,6 +15,8 @@ from agent_runtime.business.contracts import (
     BusinessHttpRequest,
     InvalidBusinessArguments,
     InvalidBusinessWireResponse,
+    BusinessQueryOperator,
+    business_query_v2_action_contract,
 )
 from agent_runtime.business.wire_json import (
     BusinessWireJsonEncoder,
@@ -27,6 +30,13 @@ from agent_runtime.adapters.transaction.contracts import (
     TransactionSearchWireRequest,
     TransactionSearchWireResponse,
     TransactionSort,
+    TransactionListFilter,
+    TransactionListRecord,
+    TransactionListSearchCondition,
+    TransactionListSearchInput,
+    TransactionListSearchWireRequest,
+    TransactionListSearchWireResponse,
+    TransactionListSort,
 )
 
 _AMOUNT = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?")
@@ -36,6 +46,10 @@ _BIDI = {"RLO", "LRO", "RLE", "LRE", "PDF", "RLI", "LRI", "FSI", "PDI"}
 _ARGUMENT_KEYS = {"trans_id", "trans_type", "trans_type_contains", "amount", "amount_gt", "amount_lt", "size", "sorts"}
 _FILTER_KEYS = ("trans_id", "trans_type", "trans_type_contains", "amount", "amount_gt", "amount_lt")
 _ROW_WIDE = {"transDate", "transDateGt", "transDateLt", "amountGt", "amountLt", "transTypeContains"}
+_TIMESTAMP = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}"
+)
+_SHANGHAI = timezone(timedelta(hours=8))
 
 
 def _text(value: object, *, contains: bool = False) -> str | None:
@@ -230,3 +244,331 @@ def _wire_text(value: object) -> str:
     if not 1 <= len(normalized) <= 128 or any(unicodedata.category(character) == "Cc" or unicodedata.bidirectional(character) in _BIDI for character in normalized):
         raise InvalidBusinessWireResponse("business.invalid_response")
     return normalized
+
+
+def _strict_text(value: object, *, contains: bool = False) -> str:
+    normalized = _text(value, contains=contains)
+    if normalized is None or normalized != value:
+        raise InvalidCapabilityArguments("business.invalid_arguments")
+    return normalized
+
+
+def _strict_datetime(value: object) -> datetime:
+    if type(value) is not str or _TIMESTAMP.fullmatch(value) is None:
+        raise InvalidCapabilityArguments("business.invalid_arguments")
+    try:
+        result = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise InvalidCapabilityArguments("business.invalid_arguments") from exc
+    if result.tzinfo is None or result.utcoffset() is None:
+        raise InvalidCapabilityArguments("business.invalid_arguments")
+    return result
+
+
+class TransactionListSearchArgumentValidator:
+    def validate(self, arguments: JsonObject) -> TransactionListSearchInput:
+        if set(arguments) != {"filters", "page", "size", "sorts"}:
+            raise InvalidCapabilityArguments("business.invalid_arguments")
+        raw_filters = arguments["filters"]
+        raw_sorts = arguments["sorts"]
+        page = arguments["page"]
+        size = arguments["size"]
+        if (
+            type(raw_filters) is not tuple
+            or not 1 <= len(raw_filters) <= 8
+            or type(raw_sorts) is not tuple
+            or len(raw_sorts) > 2
+            or type(page) is not int
+            or not 1 <= page <= 1000
+            or type(size) is not int
+            or not 1 <= size <= 50
+            or (page - 1) * size > 2147483647
+        ):
+            raise InvalidCapabilityArguments("business.invalid_arguments")
+
+        contract = business_query_v2_action_contract("transaction.search")
+        definitions = {field.logical_name: field for field in contract.query_fields}
+        filters: list[TransactionListFilter] = []
+        operators: dict[str, set[str]] = {}
+        bounds: dict[str, dict[str, Decimal | datetime]] = {}
+        for raw in raw_filters:
+            if not isinstance(raw, Mapping) or set(raw) != {"field", "operator", "value"}:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            field = raw["field"]
+            operator = raw["operator"]
+            if type(field) is not str or type(operator) is not str or field not in definitions:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            try:
+                selected_operator = BusinessQueryOperator(operator)
+            except ValueError as exc:
+                raise InvalidCapabilityArguments("business.invalid_arguments") from exc
+            if selected_operator not in definitions[field].allowed_operators:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            selected = operators.setdefault(field, set())
+            if operator in selected or "eq" in selected or operator == "eq" and selected:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            if operator == "contains" and selected:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            selected.add(operator)
+
+            value: str | Decimal | datetime
+            if field in {"trans_id", "trans_type"}:
+                value = _strict_text(raw["value"], contains=operator == "contains")
+            elif field == "trans_date":
+                value = _strict_datetime(raw["value"])
+            else:
+                decimal = _amount(raw["value"])
+                if decimal is None or decimal.is_zero() and str(raw["value"]).startswith("-"):
+                    raise InvalidCapabilityArguments("business.invalid_arguments")
+                value = decimal
+            if operator in {"gt", "lt"}:
+                if not isinstance(value, (datetime, Decimal)):
+                    raise InvalidCapabilityArguments("business.invalid_arguments")
+                bounds.setdefault(field, {})[operator] = value
+            filters.append(TransactionListFilter(field=field, operator=operator, value=value))
+
+        for values in bounds.values():
+            lower, upper = values.get("gt"), values.get("lt")
+            if lower is not None and upper is not None and lower >= upper:  # type: ignore[operator]
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+
+        sorts: list[TransactionListSort] = []
+        seen: set[str] = set()
+        for raw in raw_sorts:
+            if not isinstance(raw, Mapping) or set(raw) != {"field", "direction"}:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            field, direction = raw["field"], raw["direction"]
+            if (
+                type(field) is not str
+                or field not in contract.allowed_sort_fields
+                or field in seen
+                or type(direction) is not str
+                or direction not in {"ASC", "DESC"}
+            ):
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            seen.add(field)
+            sorts.append(TransactionListSort(field=field, direction=direction))
+
+        return TransactionListSearchInput(
+            filters=tuple(filters), page=page, size=size, sorts=tuple(sorts)
+        )
+
+
+class TransactionListSearchRequestMapper:
+    _CONDITION_ATTRIBUTES: dict[tuple[str, str], str] = {
+        ("trans_id", "eq"): "trans_id",
+        ("trans_type", "eq"): "trans_type",
+        ("trans_type", "contains"): "trans_type_contains",
+        ("trans_date", "eq"): "trans_date",
+        ("trans_date", "gt"): "trans_date_gt",
+        ("trans_date", "lt"): "trans_date_lt",
+        ("amount", "eq"): "amount",
+        ("amount", "gt"): "amount_gt",
+        ("amount", "lt"): "amount_lt",
+    }
+
+    def map(
+        self, input: TransactionListSearchInput, settings: BusinessActionSettings
+    ) -> TransactionListSearchWireRequest:
+        if (
+            settings.config_version != "business-query-v2"
+            or settings.code_contract_version != "transaction-search-plan-v2"
+            or settings.service_contract_ref != "transaction.search.v1"
+            or settings.max_page_size is None
+            or settings.max_result_count is None
+            or settings.max_page is None
+            or input.page > settings.max_page
+            or input.size > min(settings.max_page_size, settings.max_result_count)
+            or (input.page - 1) * input.size > 2147483647
+            or not input.filters
+        ):
+            raise InvalidBusinessArguments("business.invalid_arguments")
+
+        enabled = {item.logical_name: item for item in settings.query_fields if item.enabled}
+        allowed_fields = frozenset(settings.allowed_filter_field_ids or ())
+        values: dict[str, str | Decimal | datetime] = {}
+        for item in input.filters:
+            configured = enabled.get(item.field)
+            target = self._CONDITION_ATTRIBUTES.get((item.field, item.operator))
+            if (
+                item.field not in allowed_fields
+                or configured is None
+                or target is None
+                or item.operator not in {operator.value for operator in configured.allowed_operators}
+            ):
+                raise InvalidBusinessArguments("business.invalid_arguments")
+            if isinstance(item.value, Decimal):
+                self._validate_configured_amount(item.value, settings)
+            values[target] = item.value
+
+        lower = values.get("trans_date_gt")
+        upper = values.get("trans_date_lt")
+        if isinstance(lower, datetime) and isinstance(upper, datetime):
+            if (
+                settings.max_time_range_days is None
+                or upper - lower > timedelta(days=settings.max_time_range_days)
+            ):
+                raise InvalidBusinessArguments("business.invalid_arguments")
+
+        directions = frozenset(settings.allowed_sort_directions or ())
+        allowed_sorts = frozenset(settings.allowed_sort_field_ids or ())
+        if settings.max_sort_items is None or len(input.sorts) > settings.max_sort_items:
+            raise InvalidBusinessArguments("business.invalid_arguments")
+        for sort_item in input.sorts:
+            if sort_item.field not in allowed_sorts or sort_item.direction not in directions:
+                raise InvalidBusinessArguments("business.invalid_arguments")
+
+        return TransactionListSearchWireRequest(
+            condition=TransactionListSearchCondition(**values),  # type: ignore[arg-type]
+            sorts=input.sorts,
+            page=input.page,
+            size=input.size,
+        )
+
+    @staticmethod
+    def _validate_configured_amount(value: Decimal, settings: BusinessActionSettings) -> None:
+        if settings.max_decimal_abs is None or settings.max_decimal_scale is None:
+            raise InvalidBusinessArguments("business.invalid_arguments")
+        exponent = value.as_tuple().exponent
+        if (
+            not isinstance(exponent, int)
+            or abs(value) > Decimal(settings.max_decimal_abs)
+            or max(0, -exponent) > settings.max_decimal_scale
+        ):
+            raise InvalidBusinessArguments("business.invalid_arguments")
+
+
+class TransactionListSearchWireCodec:
+    _CONDITION_NAMES = {
+        "trans_id": "transId",
+        "trans_type": "transType",
+        "trans_type_contains": "transTypeContains",
+        "trans_date": "transDate",
+        "trans_date_gt": "transDateGt",
+        "trans_date_lt": "transDateLt",
+        "amount": "amount",
+        "amount_gt": "amountGt",
+        "amount_lt": "amountLt",
+    }
+    _SORT_NAMES = {
+        "trans_id": "transId",
+        "trans_type": "transType",
+        "trans_date": "transDate",
+        "amount": "amount",
+    }
+    _ROW_FIELDS = frozenset(_CONDITION_NAMES.values())
+
+    def encode(self, request: TransactionListSearchWireRequest) -> BusinessHttpRequest:
+        condition: dict[str, BusinessWireJsonValue] = {}
+        for source, target in self._CONDITION_NAMES.items():
+            value = getattr(request.condition, source)
+            if isinstance(value, Decimal):
+                condition[target] = ExactDecimal.from_decimal(value)
+            elif isinstance(value, datetime):
+                condition[target] = value.isoformat(timespec="seconds")
+            elif value is not None:
+                condition[target] = value
+        sorts = tuple(
+            {"field": self._SORT_NAMES[item.field], "direction": item.direction}
+            for item in request.sorts
+        )
+        return BusinessHttpRequest(
+            method="POST",
+            relative_path="/txn/search",
+            query=(),
+            json_body=BusinessWireJsonEncoder().encode(
+                {"condition": condition, "page": request.page, "size": request.size, "sorts": sorts},
+                max_bytes=4096,
+            ),
+        )
+
+    def decode_success(
+        self,
+        *,
+        request: TransactionListSearchWireRequest,
+        response: BoundedBusinessHttpResponse,
+    ) -> TransactionListSearchWireResponse:
+        if (
+            not 200 <= response.status_code < 300
+            or response.status_code == 204
+            or response.content_type != "application/json"
+            or response.body is None
+            or len(response.body) > 262144
+            or response.body.startswith(b"\xef\xbb\xbf")
+        ):
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        try:
+            raw = json.loads(
+                response.body.decode("utf-8"),
+                object_pairs_hook=_unique,
+                parse_float=Decimal,
+                parse_int=int,
+                parse_constant=lambda _: (_ for _ in ()).throw(
+                    InvalidBusinessWireResponse("business.invalid_response")
+                ),
+            )
+        except (UnicodeError, json.JSONDecodeError, InvalidBusinessWireResponse) as exc:
+            raise InvalidBusinessWireResponse("business.invalid_response") from exc
+        if type(raw) is not dict or set(raw) != {"rows", "total", "totalExact", "page", "size"}:
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        if (
+            type(raw["rows"]) is not list
+            or type(raw["total"]) is not int
+            or type(raw["totalExact"]) is not bool
+            or type(raw["page"]) is not int
+            or type(raw["size"]) is not int
+            or raw["page"] != request.page
+            or raw["size"] != request.size
+            or not 0 <= raw["total"] <= 2**63 - 1
+            or len(raw["rows"]) > request.size
+        ):
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        return TransactionListSearchWireResponse(
+            rows=tuple(self._row(item) for item in raw["rows"]),
+            total=raw["total"],
+            total_exact=raw["totalExact"],
+            page=raw["page"],
+            size=raw["size"],
+        )
+
+    @classmethod
+    def _row(cls, raw: object) -> TransactionListRecord:
+        if (
+            type(raw) is not dict
+            or not {"transId", "transType", "transDate", "amount"}.issubset(raw)
+            or not set(raw).issubset(cls._ROW_FIELDS)
+        ):
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        trans_date = cls._date(raw["transDate"])
+        raw_amount = raw["amount"]
+        if type(raw_amount) is int:
+            amount = Decimal(raw_amount)
+        elif type(raw_amount) is Decimal:
+            amount = raw_amount
+        else:
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        exponent = amount.as_tuple().exponent
+        if (
+            not isinstance(exponent, int)
+            or not amount.is_finite()
+            or abs(amount) > _MAX_AMOUNT
+            or max(0, -exponent) > _MAX_AMOUNT_SCALE
+        ):
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        return TransactionListRecord(
+            trans_id=_wire_text(raw["transId"]),
+            trans_type=_wire_text(raw["transType"]),
+            trans_date=trans_date,
+            amount=amount,
+        )
+
+    @staticmethod
+    def _date(value: object) -> datetime | None:
+        if value is None:
+            return None
+        if type(value) is not int or value % 1000 != 0:
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        try:
+            return datetime.fromtimestamp(value // 1000, tz=timezone.utc).astimezone(_SHANGHAI)
+        except (OverflowError, OSError, ValueError) as exc:
+            raise InvalidBusinessWireResponse("business.invalid_response") from exc
