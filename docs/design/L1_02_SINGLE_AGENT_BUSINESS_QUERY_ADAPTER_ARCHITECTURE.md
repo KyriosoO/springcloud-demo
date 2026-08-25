@@ -7,12 +7,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.2 |
+| 当前版本 | v2.3 |
 | 更新日期 | 2026-08-25 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
-| 当前实现 | filters/config、三个列表动作、生产组合根、Controller 读取守卫和 Employee ES 专用 JWT 角色转换均已实施；完整安全链回归已通过，成功真实联调和 UAT 尚未完成 |
+| 当前实现 | filters/config、三个列表动作、生产组合根、Controller 读取守卫和 Employee ES 专用 JWT 角色转换均已实施；真实三动作 controlled 联调通过，首次 UAT 暴露 Transaction 精确/模糊文本策略未按 operator 区分 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -27,9 +27,9 @@
 
 | 动作 | 固定业务接口 | 已核实能力 | 当前缺口 |
 |---|---|---|---|
-| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter、读取守卫与专用共享 converter 已实施 | 成功受控真实联调和正式 UAT 尚未完成 |
-| `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter、读取守卫与专用共享 converter 已实施 | 成功受控真实联调和正式 UAT 尚未完成 |
-| `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；Agent Adapter 已实施 | 当前仍缺新版本受控真实联调与正式 UAT 证据 |
+| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter、读取守卫与专用共享 converter 已实施 | controlled 与首次 UAT Employee 场景通过；完整正式 UAT 尚未完成 |
+| `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter、读取守卫与专用共享 converter 已实施 | controlled 与首次 UAT Employee 场景通过；完整正式 UAT 尚未完成 |
+| `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；Agent Adapter 与金额 controlled 场景已通过 | `trans_type eq` 尚未兼容现有含下划线类型；`contains` 必须继续拒绝 SQL LIKE 通配字符 |
 
 Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`，且必须复用与 filter 相同的 `literal/value_ref` 输入保护；真实姓名、员工标识和详细地址不能作为明文 keyword 出域。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
 
@@ -56,7 +56,7 @@ Model 只认识逻辑 domain/action/field/operator；Business 公共层拥有 st
 
 ### 5.2 Transaction 字段与操作符
 
-`trans_id:eq`；`trans_type:eq/contains`；`trans_date:eq/gt/lt`；`amount:eq/gt/lt`。逻辑 field/operator 分离；DTO `transTypeContains/transDateGt/transDateLt/amountGt/amountLt` 仅为 Adapter 私有映射。Date 采用明确 offset 与 `Asia/Shanghai` 合同；未验证自然日边界时相对日期 unsupported。金额采用 canonical decimal string → JSON number → BigDecimal，scale≤2；page 不固定为 1，size≤50 且不突破服务上限 100，最多两个排序字段。
+`trans_id:eq`；`trans_type:eq/contains`；`trans_date:eq/gt/lt`；`amount:eq/gt/lt`。逻辑 field/operator 分离；同一文本字段的安全策略也必须按 operator 区分：`trans_type eq` 允许代码绑定安全 token 中的 `_`，`contains` 因现有 SQL LIKE 不转义通配符而继续拒绝 `_`、`%` 和反斜杠，不修改业务 SQL。DTO `transTypeContains/transDateGt/transDateLt/amountGt/amountLt` 仅为 Adapter 私有映射。Date 采用明确 offset 与 `Asia/Shanghai` 合同；未验证自然日边界时相对日期 unsupported。金额采用 canonical decimal string → JSON number → BigDecimal，scale≤2；page 不固定为 1，size≤50 且不突破服务上限 100，最多两个排序字段。
 
 ## 6. 业务最终授权、响应与模型出域
 
@@ -81,14 +81,14 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 | 决策 | 内容 | 下位设计 |
 |---|---|---|
-| `BQ-AD-001` | filters/operator/tagged value 与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2 |
+| `BQ-AD-001` | filters/operator/tagged value、按 operator 的代码绑定文本策略与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3 |
 | `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing、端点级统一角色转换与业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.3 |
-| `BQ-AD-003` | Transaction Date/Decimal、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.2 |
+| `BQ-AD-003` | Transaction Date/Decimal、按 operator 区分文本安全策略、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.3 |
 
 关联 L1 协作：Runtime L1 拥有组合根和 Core 单动作；Model L2 拥有安全 catalog/Prompt 与 provider framing decoder；Business L2 不改变公共 Core/HTTP/业务 DTO。
 
 ## 9. 当前实现、风险与验证
 
-本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。首次受控联调的真实 LLM 已生成上海 `contact_address contains` 计划，但旧安全链导致 ADMIN 403；现已通过 endpoint-scoped 共享 converter 修复，并以两个 ES 入口完整角色矩阵及 detail/fallback 兼容测试验证。该历史失败证据不可替代修复后的成功受控联调或正式 UAT。
+本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。修复 Employee 端点级共享 converter、语义超时/partial hits 及 Transaction Date wire 差异后，controlled-run06 六个真实 LLM 场景全部通过。首次正式 UAT 已通过九个 Employee 场景，但现有三字符 Transaction 类型包含 `_`；原公共字段策略误将精确匹配套用 LIKE 安全限制，导致第一个 Transaction 场景失败关闭且业务调用为 0。需先实施 operator 区分，不得放宽 contains 通配限制或改写不可变失败证据。
 
 主要风险为 Employee ES 现有调用方兼容性、原始 hits 泄漏、受保护值出域、Date/Jackson/数据库精度不一致和 workBase 虚假可用。通过受限 Adapter、角色矩阵、严格跨语言合同、配置 snapshot、零调用断言及非 live 优先顺序控制；不引入配置中心、规则引擎或多层重复门禁。

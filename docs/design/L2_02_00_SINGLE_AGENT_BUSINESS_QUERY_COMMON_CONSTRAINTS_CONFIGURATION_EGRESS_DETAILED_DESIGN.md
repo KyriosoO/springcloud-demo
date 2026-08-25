@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.2 |
+| 当前版本 | v2.3 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
@@ -18,7 +18,7 @@
 
 设计目标是让 Business 公共层统一承担 provider-neutral QueryPlan、field/operator/slot、配置 snapshot、启动一致性、JWT 透传、结果投影和可选模型出域。范围外包括问题语义本地生成、provider transport、Core 执行规则、业务 SQL/ES、业务最终授权、新 endpoint/DTO 和真实模型调用。
 
-当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已实施并通过 non-live。Employee 业务服务真实角色转换与成功 controlled live/UAT 属于对应 L2 和实施计划的未关闭事项，不属于 Business 公共层的新责任。
+当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已实施并通过 non-live，真实三动作 controlled 联调已通过。首次正式 UAT 证明同一 `trans_type` 字段尚未区分 `eq` 和 `contains` 的文本策略；该公共 validator 缺口待实施，Employee 业务最终授权和 SQL 实现仍不是公共层责任。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -81,6 +81,8 @@ filter 必须 exact 包含 `field/operator/value`；value exact 为 `{"literal":
 ### 3.2 Employee 和 Transaction 逻辑 operator
 
 Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支持 `gt/lt`；keyword 只对应服务既有 `contactAddress/chineseName/idCardNo` multi-match。Transaction：`trans_id:eq`、`trans_type:eq/contains`、`trans_date:eq/gt/lt`、`amount:eq/gt/lt`；DTO suffix 仅归 Adapter 所有。
+
+文本策略由有限代码枚举及当前 filter operator 共同确定，不引入可配置表达式：普通安全 token 可包含 `_`，但 `contains` 必须收紧为不包含 `_`、`%`、反斜杠和控制字符的安全片段。`trans_type eq` 因现有 SQL 使用参数化 `=`，必须允许真实已存在的合法下划线类型；`trans_type contains` 因现有 Mapper 使用未转义 `LIKE`，必须在模型计划校验和 Adapter 两层均失败关闭。Employee 既有城市、敏感字段和 protected-ref 规则保持不变；统一配置只启用既有 operator，不能放宽代码绑定策略，也无需新增配置 schema 或规则引擎。
 
 时间文本必须是带明确 offset 的 ISO-8601/RFC3339 timestamp，按 `Asia/Shanghai` 合同归一，且 Java/Jackson/数据库 precision 必须由 contract test 证明；相对自然日未完成时钟/精度/边界验证时 unsupported。金额 literal 为 canonical decimal string，`abs≤9999999999999999.99`、scale≤2，发往 Java 时是 JSON number；禁止 float、舍入或截断。
 
@@ -173,7 +175,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | 测试编号 | 重点 |
 |---|---|
 | `TEST-BQCOM-101` | exact 三字段/filter/tagged union、重复键、unknown、float、集合/深度上限 |
-| `TEST-BQCOM-102` | 同字段 gt+lt、eq/range 互斥、上下界、Employee operator 和 semantic+filter 拒绝 |
+| `TEST-BQCOM-102` | 同字段 gt+lt、eq/range 互斥、上下界、Employee operator 和 semantic+filter 拒绝；同一 Transaction 类型字段 `eq` 允许 `_` 而 `contains` 拒绝 `_/%/反斜杠` 并保持零调用 |
 | `TEST-BQCOM-103` | config version/hash/subset、三动作 alignment、keyword 三字段和 protected exposure 对齐、未配置字段由通用 subset/白名单校验拒绝 |
 | `TEST-BQCOM-104` | 同请求 slot、跨请求/重复 slot 拒绝，详细地址与上海片段边界，keyword tagged union 与敏感 keyword 零泄漏 |
 | `TEST-BQCOM-105` | Date offset/timezone、相对日期 unsupported、Decimal canonical/scale≤2/JSON number |
@@ -191,7 +193,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 | 规则编号 | 设计规则 |
 |---|---|
-| `DR-BQCOM-101` | filters 列表与逻辑 operator 独立，exact decode 支持同字段开区间 |
+| `DR-BQCOM-101` | filters 列表与逻辑 operator 独立，exact decode 支持同字段开区间；文本策略必须以字段及 operator 共同确定，`eq` 安全 token 与 `contains` 防 LIKE 通配约束不得混用 |
 | `DR-BQCOM-102` | 单一字段级 JSON 配置只能收紧 code/service contract，snapshot 不可变 |
 | `DR-BQCOM-103` | protected ref 绑定在 validator 后、Core 前，仅限当前 request |
 | `DR-BQCOM-104` | 用户结果与模型出域分别投影和脱敏；未配置、未知及敏感字段由通用白名单默认拒绝 |
@@ -204,7 +206,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 ## 9. 风险、评审记录与实施就绪判定
 
-主要风险：敏感地址误当城市 literal、组合条件被丢弃、配置扩大字段、Date precision 不明、旧 detail/flat arguments 被误认为新目标、Employee 角色守卫未就绪。以 code-bound policies、strict decode、subset 启动校验、fake 零调用和后置业务授权集成门禁处理。
+主要风险：敏感地址误当城市 literal、组合条件被丢弃、配置扩大字段、Date precision 不明、`trans_type eq` 被错误套用 contains 限制或 contains 通配符导致查询扩大、旧 detail/flat arguments 被误认为新目标。以 code-bound operator policies、strict decode、subset 启动校验、fake 零调用和业务最终授权控制；首次 UAT 失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 必须保持不可变。
 
 | 项目 | 判定 |
 |---|---|

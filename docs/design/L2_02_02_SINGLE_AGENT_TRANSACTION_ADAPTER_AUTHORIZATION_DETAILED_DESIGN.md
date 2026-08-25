@@ -6,10 +6,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.2 |
+| 当前版本 | v2.3 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -18,7 +18,7 @@
 
 唯一动作 `transaction.search` 固定复用 `POST /txn/search`，以逻辑 filters/operator 查询既有 SQL 列表，并保留服务最终读取授权。范围外包括 aggregate、detail、condition、query、写入、管理接口、Agent 数据库直连、float/rounding、跨域 fallback 与新 DTO。
 
-当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 已严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；真实 Spring 安全链 JSON 测试、Python 双形态/非法日期矩阵和零模型生产 codec 已通过，真实 HTTP 返回 20/104 条且解码成功。成功 controlled live 和正式 UAT 当前尚未完成。
+当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 已严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；真实 Spring 安全链、零模型 20/104 codec 及六场景 controlled 联调均通过。首次 UAT 暴露实际交易类型含 `_`，而公共 validator 对 `eq` 错误沿用 contains 安全策略；operator-specific 文本策略尚未实施，正式 UAT 未通过。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -45,8 +45,8 @@ Service 要求至少一个条件、page≥1、1≤size≤100、最多两项不�
 | 逻辑 field | operator | 服务 condition 字段 | value exposure | 数据分类 |
 |---|---|---|---|---|
 | `trans_id` | `eq` | `transId` | `protected_ref` | 交易标识 |
-| `trans_type` | `eq` | `transType` | 安全文本 literal | 内部业务文本 |
-| `trans_type` | `contains` | `transTypeContains` | 安全文本 literal | 内部业务文本 |
+| `trans_type` | `eq` | `transType` | `safe_token` literal，允许合法 `_` | 内部业务文本 |
+| `trans_type` | `contains` | `transTypeContains` | `safe_contains_token` literal，拒绝 `_/%/反斜杠` | 内部业务文本 |
 | `trans_date` | `eq` | `transDate` | canonical timestamp literal | 交易时间 |
 | `trans_date` | `gt` | `transDateGt` | canonical timestamp literal | 交易时间 |
 | `trans_date` | `lt` | `transDateLt` | canonical timestamp literal | 交易时间 |
@@ -54,7 +54,7 @@ Service 要求至少一个条件、page≥1、1≤size≤100、最多两项不�
 | `amount` | `gt` | `amountGt` | canonical decimal literal | 金融金额 |
 | `amount` | `lt` | `amountLt` | canonical decimal literal | 金融金额 |
 
-`trans_type_contains/trans_date_gt/trans_date_lt/amount_gt/amount_lt` 不再是模型逻辑字段；Java DTO 字段名仅可存在于 Adapter 内。每字段最多一次同 operator；同字段 `gt+lt` 同时存在时必须严格 lower<upper；eq 与同字段其他 operator 互斥，contains 与 eq 互斥。整体 filters 至少一项，最多 8 项。
+`trans_type_contains/trans_date_gt/trans_date_lt/amount_gt/amount_lt` 不再是模型逻辑字段；Java DTO 字段名仅可存在于 Adapter 内。现有 Mapper 对 `transType` 使用参数化 `=`，但对 `transTypeContains` 使用 `LIKE concat('%', value, '%')` 且不转义通配字符，因此同一个逻辑字段必须根据 operator 选择有限代码策略：`eq` 接受真实安全 token 中的 `_`；`contains` 继续拒绝 `_`、`%` 和反斜杠，禁止通过修改 SQL、转义规则或放宽 validator 解决。每字段最多一次同 operator；同字段 `gt+lt` 同时存在时必须严格 lower<upper；eq 与同字段其他 operator 互斥，contains 与 eq 互斥。整体 filters 至少一项，最多 8 项。
 
 ## 5. Python/Java Date 接口契约
 
@@ -94,7 +94,7 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 
 | 测试编号 | 场景 |
 |---|---|
-| `TEST-TXN-101` | 四字段/operator 全矩阵、同字段上下界、冲突/unknown/empty 条件 |
+| `TEST-TXN-101` | 四字段/operator 全矩阵、同字段上下界、冲突/unknown/empty 条件；真实类型形状 `eq` 允许 `_`，`contains` 拒绝 `_/%/反斜杠` 且下游零调用 |
 | `TEST-TXN-102` | Python→HTTP→Jackson Date offset/instant/open interval；生产 Spring UTC 零毫秒 offset 响应与 standalone 整秒 epoch 毫秒归一；其他 wire 形态拒绝；未验证相对日期 unsupported |
 | `TEST-TXN-103` | canonical Decimal、scale≤2、极值、JSON number、BigDecimal、禁止 float/rounding |
 | `TEST-TXN-104` | page 2、size 边界、offset overflow、四字段排序、重复/方向/项数拒绝 |
@@ -111,7 +111,7 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 
 | 规则编号 | 设计规则 |
 |---|---|
-| `DR-TXN-101` | 四逻辑 field/operator 映射现有 condition DTO，不把 suffix 暴露给模型 |
+| `DR-TXN-101` | 四逻辑 field/operator 映射现有 condition DTO，不把 suffix 暴露给模型；`trans_type eq` 使用允许 `_` 的 safe token，`contains` 使用拒绝 SQL LIKE 通配字符的更严格 token |
 | `DR-TXN-102` | 请求 Date 使用显式 offset、固定时区和严格开区间；响应只接受生产 UTC 零毫秒 offset 字符串或 standalone 整秒 epoch 毫秒并按同一 instant 转换；相对日期必须先证明边界 |
 | `DR-TXN-103` | ExactDecimal canonical string→JSON number→BigDecimal，scale≤2，无舍入 |
 | `DR-TXN-104` | page 不固定；size≤50、offset 不溢出、最多两项四字段排序 |
@@ -121,7 +121,7 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 
 ## 11. 风险、评审记录与实施就绪判定
 
-主要风险是 standalone Controller 默认 codec 与真实 Spring/Jackson HTTP codec 对 Date 的序列化不同、生产 TRANS_DATE 精度未证明、金额数值退化、page 溢出和 totalExact 误读。Date 独立跨语言验证必须覆盖真实 Spring 配置并先于相关真实集成/UAT，但不阻塞其他 non-live 工作包；不得通过调整服务配置、接受任意日期字符串或重新执行查询规避该不一致。
+主要风险是 standalone Controller 默认 codec 与真实 Spring/Jackson HTTP codec 对 Date 的序列化不同、生产 TRANS_DATE 精度未证明、金额数值退化、page 溢出、totalExact 误读，以及合法带 `_` 的精确类型被误拒或 contains 通配导致查询扩大。Date 和 operator 文本策略均需 non-live 双向测试先于对应真实 UAT；不得调整业务服务、接受任意日期字符串、放宽 LIKE 校验或重新执行已消费 UAT。首次失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 保持不变。
 
 | 项目 | 判定 |
 |---|---|

@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.9 |
+| 当前版本 | v2.10 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-08-25 |
 | 适用范围 | Business filters 合同、统一字段配置、三动作 Adapter、最终授权、组合根、联调与 UAT 交接 |
@@ -27,14 +27,16 @@
 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.0 | 唯一链路、三动作、字段与验收 | Approved |
 | [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.0 | 系统边界和下位治理 | Approved |
 | [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v2.0 | Runtime/Model/Core/组合根 | Approved |
-| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.2 | Business 公共边界、Adapter、结果卫生与 Employee 端点级角色转换 | Approved |
+| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.3 | Business 公共边界、按 operator 区分文本策略、Adapter、结果卫生与 Employee 端点级角色转换 | Approved |
 | [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.0 | planning bridge、组合根和单动作 | Approved |
 | [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.0 | v3 模型安全 catalog 和 Prompt | Approved |
-| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.2 | filters、统一配置、独立动作超时、validator、slot、真实 coverage | Approved |
+| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.3 | filters、统一配置、operator-specific 文本策略、动作超时、validator、slot、真实 coverage | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.3 | Employee search/semantic、partial hits、记录卫生、端点级 converter 与最终读取授权 | Approved |
-| [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.2 | Transaction Date/Decimal/page/sort 与生产 Spring UTC 响应合同 | Approved |
+| [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.3 | Transaction Date/Decimal/page/sort、精确/模糊文本策略与生产 Spring UTC 响应合同 | Approved |
 
 Verified existing：Business filters plan、统一字段 JSON、v3 model catalog、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作完整 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态已实施，真实 Spring JSON 6/6、Python 专项 244/244、全量 1424/1424 和真实零模型 20/104 生产 codec 通过。新配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，独立 live manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`。controlled-run06 已完成 6 个真实模型计划场景：Employee search 2、semantic 1、Transaction search 2，未配置字段零业务调用，answer/Knowledge/重试/跨域均为 0；有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`。公共接入认证、严格 JSON、默认 stub、unsupported 和零调用通过 Java 20 项。Not implemented：正式 Employee/Transaction 真实 LLM UAT。前四次失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`；第五次 SHA-256=`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`。五项失败、controlled-run06 和原 live manifest 均保持不可变。
+
+首次正式 UAT 新增 verified gap：现有 Transaction 类型样本是长度 3、含 `_` 的合法安全 token；模型已正确生成 `trans_type eq`，但公共 validator 错误使用 `safe_contains_token`，因此 `UAT-TXN-201` 返回 `invalid_argument` 且 Transaction 调用为 0。失败证据 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 不可变；新增 `WP-TXN-TEXT-POLICY-COMPAT-03` 在正式 UAT 前实现同字段 operator-specific 安全策略，保持现有业务 Mapper、JSON 配置结构及 Employee 规则不变。
 
 ## 4. 分批与执行边界
 
@@ -58,7 +60,8 @@ Verified existing：Business filters plan、统一字段 JSON、v3 model catalog
 | `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Done |
 | `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Done |
 | `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 有限固定场景、敏感值内存化、五次失败历史不可变 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02`, `WP-EMP-ES-AUTH-02`, `WP-TXN-DATE-WIRE-COMPAT-03` | `GATE-070` | controlled-run06 真实三动作通过，不覆盖既有失败证据 | 一计划/一业务调用与真实权限矩阵 | 失败即停止，先修复根因，不复用失败结果路径 | Done |
-| `WP-BQ-UAT-HANDOFF-02` | 正式 UAT 环境与交接 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | UAT 前置、真实数据可用性、固定用例与结论 | `WP-BQ-CONTROLLED-LIVE-02` | `GATE-UAT-007` | UAT 准入记录及阶段结论 | UAT 公共/Employee/Transaction/收口 | 不把旧 evidence 冒充本版 UAT | Ready |
+| `WP-TXN-TEXT-POLICY-COMPAT-03` | Transaction 按 operator 区分文本安全策略 | `L2_02_00 DR-BQCOM-101`; `L2_02_02 DR-TXN-101` | `eq` 允许合法 `_`，`contains` 继续拒绝 `_/%/反斜杠`，UAT 选择安全 contains 片段并冻结失败历史 | `WP-BQ-FILTER-CONTRACT-02`, `WP-TXN-SEARCH-EXT-02` | - | code-bound 文本策略、validator/Adapter 双向 tests、独立 UAT 结果路径 | `TEST-BQCOM-102`; `TEST-TXN-101` | 不修改业务 SQL/DTO，不放宽 contains 或覆盖历史结果 | Ready |
+| `WP-BQ-UAT-HANDOFF-02` | 正式 UAT 环境与交接 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | UAT 前置、真实数据可用性、固定用例与结论 | `WP-BQ-CONTROLLED-LIVE-02`, `WP-TXN-TEXT-POLICY-COMPAT-03` | `GATE-UAT-007` | UAT 准入记录及阶段结论 | UAT 公共/Employee/Transaction/收口 | 不把旧 evidence 冒充本版 UAT | Blocked |
 
 ## 6. 直接依赖图
 
@@ -81,6 +84,9 @@ Verified existing：Business filters plan、统一字段 JSON、v3 model catalog
 | `DEP-BQS-016` | `WP-EMP-ES-AUTH-02` | `WP-BQ-CONTROLLED-LIVE-02` | security | 恢复真实模型/Employee 调用前必须补齐 endpoint-scoped 共享 converter 和真实过滤链矩阵 | `DR-EMP-105`; `DR-AUTH-007` |
 | `DEP-BQS-017` | `WP-TXN-SEARCH-EXT-02` | `WP-TXN-DATE-WIRE-COMPAT-03` | contract | 生产响应兼容建立在既有 Date/Decimal/page Adapter 上 | `DR-TXN-102/105` |
 | `DEP-BQS-018` | `WP-TXN-DATE-WIRE-COMPAT-03` | `WP-BQ-CONTROLLED-LIVE-02` | validation | 新 controlled live 前先证明真实 Spring 日期可被生产 codec 处理 | `VAL-TXN-101/102/103` |
+| `DEP-BQS-019` | `WP-BQ-FILTER-CONTRACT-02` | `WP-TXN-TEXT-POLICY-COMPAT-03` | contract | 公共 validator 必须依据已验证 filter/operator 类型选择有限文本策略 | `DR-BQCOM-101` |
+| `DEP-BQS-020` | `WP-TXN-SEARCH-EXT-02` | `WP-TXN-TEXT-POLICY-COMPAT-03` | security | Transaction `=` 与 `LIKE` 不同安全语义只能收紧现有 Adapter 合同 | `DR-TXN-101` |
+| `DEP-BQS-021` | `WP-TXN-TEXT-POLICY-COMPAT-03` | `WP-BQ-UAT-HANDOFF-02` | validation | 首次 UAT 失败后先修复实际类型精确匹配并证明 contains 通配拒绝，再使用独立结果路径 | `TEST-BQCOM-102`; `TEST-TXN-101` |
 
 DAG 无环；既有 `WP-TXN-SEARCH-EXT-02` 的请求、Decimal/page 和 standalone epoch 证据保持 Done，新增 `WP-TXN-DATE-WIRE-COMPAT-03` 仅承接真实 Spring 响应差异，避免回退已被 Runtime 依赖的历史工作包。该兼容包在 `GATE-069/070` Open 时实施，完成后再恢复 controlled live，不构成门禁依赖环；后置 live/UAT gate 不反向阻塞独立 non-live 工作。
 
@@ -92,7 +98,7 @@ DAG 无环；既有 `WP-TXN-SEARCH-EXT-02` 的请求、Decimal/page 和 standalo
 | `GATE-068` | `WP-EMP-ES-AUTH-02` | release_effective | Employee search/vector 端点级角色转换及最终守卫生效 | 否 | 两个既有 POST endpoint 显式绑定共享 converter，真实 JWT role claim 经完整 SecurityFilterChain 通过 ADMIN/VIEWER、拒绝矩阵及 detail/fallback 兼容 | `EmployeeEsSecurityIntegrationTest` 两入口真实 JWT role 矩阵；detail/matcher/controller 共 15 项定向通过，Employee 全模块 50 项中 30 通过、20 项 opt-in 跳过 | Employee 业务维护者/实施者 | 恢复 Employee 真实联调前 | Java 真实 Servlet SecurityFilterChain、两 endpoint 矩阵与既有调用方测试 | 禁止真实 Employee 联调及宣称最终授权已生效 | Closed |
 | `GATE-069` | `WP-TXN-DATE-WIRE-COMPAT-03` | integration | Transaction Date 时区/精度及真实响应合同生效 | 否 | Python Date→HTTP→Jackson→Mapper instant/open interval/DB precision 成立；生产 Spring UTC 零毫秒 offset 字符串与 standalone 整秒 epoch 都通过严格 codec | 真实零模型 codec 成功解析 20/104；Java Spring JSON/安全链 6 项、Python 专项 244 项、全量 1424 项、非法日期拒绝与 `DATETIME(0)` 元数据 | Transaction 维护者/实施者 | 日期 live/UAT 前 | 双语言 production-config contract、strict bounds 与零模型实际 codec | 日期相关真实联调/UAT 不执行 | Closed |
 | `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，semantic partial hits 与 Transaction 生产 Date 响应合同均已实现，环境/预算/授权/安全边界重新确认，历史 evidence 不可变 | controlled-run06 全新路径、五项 failure hash、Employee 9/20 和 Transaction 20/104 零模型生产 codec、Java 6 项、Python 1424 项及 strict mypy | 用户/业务维护者 | 下一次真实模型联调前 | frozen task/config/cases、真实安全链、预算、历史 hash 和零泄漏 preflight | controlled live 保持 Blocked；只允许独立零模型只读诊断 | Closed |
-| `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 前 12 个工作包与 controlled live 完成，UAT 环境/代表性业务数据就绪并获得明确授权；不要求 UAT 工作包自身预先完成 | controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`，6 次真实 LLM，三动作和角色矩阵通过；公共接入 Java 20 项通过 | 用户/UAT 执行者 | 首个正式 UAT 用例前 | UAT checklist、调用预算及 gate→UAT 无环性复核 | 正式 UAT 保持 Blocked | Closed |
+| `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 前 13 个工作包、controlled live 及 operator-specific 文本策略完成，UAT 环境/代表性业务数据就绪并获得明确授权；不要求 UAT 工作包自身预先完成 | controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；首次 UAT 失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`；`eq` 下划线/contains 通配双向非 live 证据待补齐 | 用户/UAT 执行者 | 新的正式 UAT 用例前 | UAT checklist、独立结果路径、调用预算及 gate→UAT 无环性复核 | 正式 UAT 保持 Blocked | Open |
 
 ## 8. 外部资源与事实
 
@@ -119,7 +125,8 @@ DAG 无环；既有 `WP-TXN-SEARCH-EXT-02` 的请求、Decimal/page 和 standalo
 | 10 | `WP-EMP-DETAIL-RETIRE-02` | Done | - | 生产目录只有三动作，Transaction protected slot 不再依赖旧参数校验；历史源码按冻结提交核验 |
 | 11 | `WP-BQ-NONLIVE-E2E-02` | Done | - | 三动作唯一 production 对象图、上海地址、Date/Decimal、角色拒绝、非法字段、跨域与 Knowledge 隔离通过全量 1392 项测试 |
 | 12 | `WP-BQ-CONTROLLED-LIVE-02` | Done | - | controlled-run06 六个真实模型场景通过：Employee search/semantic、Transaction、权限拒绝和未配置字段零调用 |
-| 13 | `WP-BQ-UAT-HANDOFF-02` | Ready | - | controlled-run06、公共接入 Java 20 项与 `GATE-UAT-007` 已通过；UAT 不能复用旧 detail 证据 |
+| 13 | `WP-TXN-TEXT-POLICY-COMPAT-03` | Ready | - | 首次 UAT 精确类型被 contains 策略误拒；须保留 `LIKE` 通配零调用约束 |
+| 14 | `WP-BQ-UAT-HANDOFF-02` | Blocked | `WP-TXN-TEXT-POLICY-COMPAT-03` 与 `GATE-UAT-007` | 首次失败证据不可变，修复后只能使用全新 UAT 结果路径 |
 
 ## 10. 实施交接
 
@@ -137,6 +144,7 @@ DAG 无环；既有 `WP-TXN-SEARCH-EXT-02` 的请求、Decimal/page 和 standalo
 | `WP-EMP-DETAIL-RETIRE-02` | caller/历史核实和移除目标绑定 | 删除冻结 evidence 或仍被使用代码 | Employee provider/生产组合根 | `DR-EMP-106` | `TEST-EMP-107` | controlled live 依赖 | implement-from-detailed-design |
 | `WP-BQ-NONLIVE-E2E-02` | fake 三动作、拒绝矩阵和 Knowledge 回归 | 真实凭证/真实调用 | system_e2e/tests | `DR-CORE-101`; `DR-BQCOM-106` | fake E2E/strict mypy | `GATE-070` 准备 | implement-from-detailed-design |
 | `WP-BQ-CONTROLLED-LIVE-02` | 明确授权后有限真实集成 | 无授权费用、补跑、敏感持久化 | 受控 integration runner | `DR-MODEL-104`; `DR-EMP-105`; `DR-TXN-105` | 单调用/权限/敏感扫描 | `GATE-UAT-007` 准备 | implement-from-detailed-design |
+| `WP-TXN-TEXT-POLICY-COMPAT-03` | code-bound `eq/contains` 文本策略、fake 兼容矩阵与独立 UAT 结果路径 | 放宽 LIKE 通配、修改 SQL/DTO、覆盖失败历史 | business/contracts/query_plan 与 UAT tests/launcher | `DR-BQCOM-101`; `DR-TXN-101` | `TEST-BQCOM-102`; `TEST-TXN-101` | `GATE-UAT-007` 重新准入 | implement-from-detailed-design |
 | `WP-BQ-UAT-HANDOFF-02` | 授权后执行四阶段 UAT | 旧 detail 证据替代新用例 | UAT 用例及阶段结论 | `REQ-BQS-012` | UAT 验收矩阵 | 正式验收结论 | code-review-against-docs |
 
 ## 11. 风险与回滚
@@ -159,7 +167,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Done |
 | `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Done |
 | `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-BQCOM-107/108`; `DR-EMP-105/107/108`; `DR-TXN-102/105` | action 独立超时、partial page、生产 Date codec、受控 runner、五次不可变失败及新的独立有限结果 | controlled-run06 六场景真实三动作和拒绝矩阵 | `GATE-069/070` 已关闭 | Done |
-| `WP-BQ-UAT-HANDOFF-02` | `REQ-BQS-012` | UAT 环境与用例清单 | UAT 四阶段 | `GATE-UAT-007` 关闭证据 | Ready |
+| `WP-TXN-TEXT-POLICY-COMPAT-03` | `DR-BQCOM-101`; `DR-TXN-101` | `IMPL-BQCOM-101`; `IMPL-BQCOM-102`; `IMPL-TXN-102`; UAT runner | `eq` 下划线接受、contains 通配拒绝、下游零调用与历史 hash | `TEST-BQCOM-102`; `TEST-TXN-101` | Ready |
+| `WP-BQ-UAT-HANDOFF-02` | `REQ-BQS-012` | UAT 环境与用例清单 | UAT 四阶段 | `GATE-UAT-007` 关闭证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
 
@@ -184,7 +193,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 13 个工作包、17 条直接依赖：Done 12 个，Ready 1 个，Blocked 0 个。controlled-run06 六个真实模型场景全部通过：Employee search 2 次、semantic 1 次、Transaction search 2 次，未配置字段业务调用为 0，answer/Knowledge/重试均为 0；证据 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`。公共接入 Java 20 项通过，五项失败历史和 manifest 不可变；`GATE-067/068/069/070/GATE-UAT-007` 均 Closed。正式 Employee/Transaction UAT 已具备执行条件，尚未完成。
+总计 14 个工作包、20 条直接依赖：Done 12 个，Ready 1 个，Blocked 1 个。controlled-run06 六个真实模型场景通过，证据 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；公共接入 Java 20 项通过。首次 UAT 前九个 Employee 场景全部通过，首个 Transaction 类型精确匹配因真实 token 含 `_` 被原 contains 文本策略误拒；模型调用 10 次、Transaction 调用 0 次、retry/resume 为 0，失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`，必须保持不可变。`GATE-067/068/069/070` Closed；`GATE-UAT-007` Open。先完成 operator-specific 策略及 safe contains 片段修复，再使用独立新 UAT 路径，不重跑既有结果。
 
 ## 15. 后续实施建议
 
