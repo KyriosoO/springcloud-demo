@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.9 |
+| 当前版本 | v1.10 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3；Employee L2 v2.3；Transaction L2 v2.3 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.11 |
-| 当前状态 | controlled-run06 已通过；首次 UAT 失败历史保持不可变，Transaction operator-specific 文本策略和安全 contains 片段已修复；`GATE-UAT-007` Closed，新的正式 UAT Ready |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.12 |
+| 当前状态 | v3 controlled 已通过；第二次 UAT 在 semantic+地点组合上丢失限定并产生一次业务调用，v4 完整意图 Prompt 尚未实施；`GATE-UAT-007` Open |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -23,7 +23,7 @@
 
 ## 3. 环境前置和准入门禁
 
-1. P3 中正式 UAT 之前的 13 个新目标工作包按依赖完成；第 14 个 `WP-BQ-UAT-HANDOFF-02` 必须在 `GATE-UAT-007` 关闭后执行，不能反向作为本门禁前置；Employee 两入口最终读取授权已验证。
+1. P3 中正式 UAT 之前的 14 个新目标工作包按依赖完成，包括 v4 完整意图 Prompt；第 15 个 `WP-BQ-UAT-HANDOFF-02` 必须在 `GATE-UAT-007` 关闭后执行，不能反向作为本门禁前置；Employee 两入口最终读取授权已验证。
 2. `GATE-068` 已关闭；两个 Employee ES POST endpoint 使用明确绑定共享 `userRoleJwtAuthenticationConverter` 的专用真实 Servlet 安全链，ADMIN/VIEWER 允许及 denied/missing/malformed/service-token 拒绝矩阵成立；detail 和其他 endpoint 历史行为不变。仅有直接 Controller 单元测试或手工赋予 authority 的测试不能替代该证据。
 3. `GATE-069` 已关闭后才执行 Transaction 绝对 Date 用例；必须验证生产 Spring UTC 零毫秒 offset 响应字符串与 legacy standalone epoch 毫秒都转换为同一上海时区 instant，拒绝其他日期形态。相对自然日若无数据库精度/边界证据，仍按 unsupported 验收。
 4. 新三动作 filters task、code/config snapshot、权限、业务服务和 non-live/live 结果均属于当前设计，不得复用旧 detail 或旧 v2 Prompt 证据。
@@ -37,8 +37,8 @@
 | 阶段 | 内容 | 前置 | 当前状态 |
 |---|---|---|---|
 | `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed |
-| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟与 Employee 读取授权 | Partial：首次九场景通过，完整 UAT 尚未通过 |
-| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同与 operator-specific 文本策略 | Ready |
+| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Blocked：第二次 UAT 在 semantic+地点场景错误执行 |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Blocked |
 | `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Blocked |
 
 Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
@@ -66,7 +66,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 | `UAT-EMP-207` | Employee page/size/sort | 1/1 | from 转换正确、size≤50、rows 不超界 |
 | `UAT-EMP-208` | 业务语义：`employee.semantic_search + query + size` | 1/1 | 只调用 vector-search；允许既有接口返回小于 k 的 partial hits，仅隔离缺必填身份字段的历史记录并保留真实 total/coverage；10000ms 上限、请求 deadline、零重试和零 fallback |
 | `UAT-EMP-209` | 未配置 Employee 字段；以 `workBaseSi/workBaseAf` 作为样例 | 1/0 | 模型依据通用目录返回 `unsupported`，或字段 validator 返回 `invalid_argument`；业务调用为 0，不增加 workBase 专用识别或拒绝逻辑 |
-| `UAT-EMP-210` | “语义能力 + 上海地址过滤” | 1/0 | unsupported；禁止两次搜索或客户端补筛 |
+| `UAT-EMP-210` | “语义能力 + 上海地址过滤” | 1/0 | 必须 exact unsupported；禁止省略上海后调用 semantic，也禁止调用 search、两次搜索或客户端补筛 |
 | `UAT-EMP-211` | ADMIN/VIEWER 实际 JWT role claim 分别经真实 Servlet 安全链访问 search 与 semantic | 各 1/1 | endpoint-scoped 共享 converter 生效，Employee 服务最终授权允许；detail/fallback 行为保持兼容 |
 | `UAT-EMP-212` | 无读取角色、service token | 1/1 或接入拒绝 0/0 | forbidden；不切换动作或域 |
 | `UAT-EMP-213` | missing/malformed token | 0/0 | unauthenticated；不调用模型和服务 |
@@ -90,7 +90,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 | `UAT-TXN-209` | 四字段各自排序、最多两项 | 1/1 | 只允许 ASC/DESC；稳定 tiebreaker 由业务服务掌握 |
 | `UAT-TXN-210` | trans_id protected-ref | 1/1 | 标识不进入模型、日志及结果明文 |
 | `UAT-TXN-211` | Decimal 超精度、float、非法 date/offset/size/sort | 0 或 1/0 | invalid_argument；不调用 search |
-| `UAT-TXN-212` | 相对自然日缺少 precision/边界证明 | 1/0 | unsupported；不能猜测“今天/最近一周” |
+| `UAT-TXN-212` | 相对自然日缺少批准时钟/precision/边界证明 | 1/0 | 即使 `trans_date` 已启用也必须 unsupported；不能猜测“今天/最近一周” |
 | `UAT-TXN-213` | ADMIN/VIEWER/denied/missing/malformed/service-token | 0/0 或 1/1，按接入/业务拒绝位置断言 | 最终读取授权仍由 Transaction 服务执行 |
 | `UAT-TXN-214` | rows/total/totalExact/page/size 及生产 Spring Date response | 1/1 | totalExact=false 仅表示 lower bound；仅接受真实 UTC `.000+00:00` 或 standalone 整秒 epoch 日期，转换上海时区；兼容九项 row 白名单并丢弃五项条件属性 |
 | `UAT-TXN-215` | 聚合、detail、写入、物理 SQL/表列 | 0/0 或 1/0 | unsupported/invalid；其他 endpoint=0 |
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-controlled-run06 完成 6 次真实 LLM QueryPlan，证据 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；公共接入 Java 20 项通过。首次 UAT 失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 保持不可变。`trans_type eq` 现已允许安全 `_`，contains 继续双层拒绝 `_/%/反斜杠`；UAT 只取真实类型内的安全片段。95 项定向测试、1438 项 non-live 回归和 strict mypy 均通过；`GATE-UAT-007` Closed，正式 UAT 必须写入全新 run02 结果路径，当前尚未完成。
+v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；公共接入 Java 20 项通过。首次 UAT 失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`；第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`，`UAT-EMP-210` 错误执行 semantic 一次，模型总调用 7 次。两项结果和旧 v3 manifest 必须不可变；Transaction `eq/contains` 修复保持有效，但 v4 完整意图 Prompt、新 manifest、semantic+filter/相对日期 fake 零调用尚未完成。`GATE-UAT-007` Open，正式 UAT 后续只能使用独立 run03 结果路径。

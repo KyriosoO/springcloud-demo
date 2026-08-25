@@ -7,12 +7,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v2.1 |
 | 更新日期 | 2026-08-25 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | 新 filters/actions/config 三动作组合根与 Knowledge 独立对象图、Employee ES 端点级角色转换及 Transaction operator-specific 文本策略均已通过 non-live；六场景真实 controlled 已通过，完整 UAT 尚未完成 |
+| 当前实现 | 三动作组合根及 Transaction operator-specific 文本策略已实施；v3 controlled 通过，但第二次 UAT 证明模型可能省略语义查询中的地址条件，v4 完整意图 Prompt 尚未实施 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -46,7 +46,7 @@
 
 1. Spring 接入层完成认证、严格请求结构和请求 ID。
 2. Runtime 的输入安全闸门先生成受保护 slot、最小化模型问题，并固定请求级配置 snapshot、取消信号和时钟；该闸门不得选择 domain/action 或生成 filters。
-3. Model Port 只接收脱敏问题、安全 action/field/operator 目录、slot ID 和已批准时间上下文。
+3. Model Port 只接收脱敏问题、安全 action/field/operator 目录、slot ID 和已批准时间上下文；模型必须完整保留用户限定条件，不能将“语义检索 + 地址过滤”降级为只执行语义检索，也不能在缺少已批准时钟上下文时推断相对日期。
 4. Model 层严格解码 provider response，Business 层再解码 `domain/action/arguments`、filters、tagged value、分页和排序。
 5. 业务 validator 依据代码合同与配置校验，并执行同字段 range、日期、Decimal、敏感值和单接口可表达性验证。
 6. binder 仅绑定当前请求 slot，生成一个 ActionCandidate；Core 再执行既有 CapabilityArgumentValidator 并只调用一个 handler。
@@ -77,11 +77,11 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 |---|---|
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.0 | 既有 Spring 接入与 Runtime 协同，不在本次修改范围 |
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.0 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.0 | 模型安全 catalog、Prompt、provider response 严格解码 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.1 | 模型安全 catalog、v4 完整意图 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3 | QueryPlan、字段配置、按 operator 校验文本、validator、binder 与出域策略 |
 
 ## 8. 风险、验证与当前实施状态
 
 应验证三动作唯一可达、一次规划/一次 handler、并发请求 slot 隔离、取消、strict decoder、config snapshot、不支持条件零调用和 Knowledge 回归。无须独立工作流引擎、复杂 circuit breaker、动态 registry 或生产级治理平台。
 
-既有 v2 模型任务和旧 production bridge 只证明旧合同，不证明 filters QueryPlan、Employee search/semantic 或扩展 Transaction。当前三动作生产组合根、fake 验证及六场景 controlled 真实联调已通过；首次 UAT 在 Transaction 类型文本策略处失败关闭，完整正式 UAT 尚未完成，不能将 controlled、fake 或历史证据表述为 UAT 通过。
+既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能证明 v4 完整意图行为。第二次 UAT 中模型将“语义检索并限定上海”缩减为 semantic 单动作，错误产生一次业务调用；失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 必须不可变。需先通过 v4 Prompt 和 adversarial fake 固化语义+filter、相对日期的 exact unsupported/零调用，再以新 manifest 执行正式 UAT；不得增加本地语义 Resolver 或重复 live 审计平台。

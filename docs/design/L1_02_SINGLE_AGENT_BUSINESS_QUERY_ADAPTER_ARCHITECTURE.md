@@ -10,9 +10,9 @@
 | 当前版本 | v2.3 |
 | 更新日期 | 2026-08-25 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
-| 当前实现 | filters/config、三个列表动作、生产组合根、Controller 读取守卫、Employee ES 专用 JWT 角色转换及 Transaction operator-specific 文本策略均已实施；真实 controlled 已通过，正式 UAT 尚未完成 |
+| 当前实现 | filters/config、三个列表动作、生产组合根、最终授权及 Transaction operator-specific 文本策略已实施；v3 controlled 已通过，但第二次 UAT 暴露 Model semantic+location 意图丢失，v4 Prompt 待实施 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -89,6 +89,6 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 ## 9. 当前实现、风险与验证
 
-本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。Employee 端点级 converter、语义超时/partial hits、Transaction Date wire 及 operator-specific 文本策略均已修复；controlled-run06 六个真实 LLM 场景全部通过。首次 UAT 失败证据保持不可变；`eq` 现允许真实下划线类型，contains 继续拒绝 LIKE 通配，95 项定向与 1438 项 non-live 通过。完整正式 UAT 仍待执行。
+本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。Employee 端点级 converter、语义超时/partial hits、Transaction Date wire 及 operator-specific 文本策略均已修复；v3 controlled-run06 六个真实场景通过。第二次正式 UAT 中模型丢弃“限定上海”条件后执行 semantic 查询，失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`；应由 Model L2 强化 v4 完整意图 Prompt，而非让 Adapter 推断用户语义或新增本地 Resolver。两个 UAT 失败结果与旧 manifest 均保持不可变。
 
 主要风险为 Employee ES 现有调用方兼容性、原始 hits 泄漏、受保护值出域、Date/Jackson/数据库精度不一致和 workBase 虚假可用。通过受限 Adapter、角色矩阵、严格跨语言合同、配置 snapshot、零调用断言及非 live 优先顺序控制；不引入配置中心、规则引擎或多层重复门禁。

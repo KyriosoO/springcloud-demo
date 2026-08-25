@@ -6,11 +6,11 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v2.1 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| Provider 基线 | 已有 DeepSeek transport、input guard 与旧 `business-query-plan-v2`；默认 provider 为 stub |
+| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施 `business-query-plan-v3`；默认 provider 为 stub |
 | 归档来源 | [v1.9 已评审旧版](历史文档/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN_v1.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v3` task、三个动作安全 catalog、filters Prompt 和 strict provider decoder 已实施；首次受控真实调用已生成正确 `employee.search/contact_address/contains` 计划，但该单次结果不能证明完整 live 矩阵或正式 UAT。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v3` task、三个动作安全 catalog、filters Prompt 和 strict provider decoder 已实施，六场景 controlled 通过；但第二次正式 UAT 中模型丢弃“限定上海”条件并错误执行 semantic 查询。目标 `business-query-plan-v4` 仅强化完整意图和 exact unsupported 明确示例，尚未实施；v3 manifest、controlled/UAT 证据及哈希不可变。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -33,9 +33,9 @@
 
 ## 3. 模块职责设计、依赖方向与接口契约
 
-现有 provider-neutral `BusinessQueryPlanGenerator.generate(...)` 返回 `JsonObject`；复用现有 ModelContext、DeepSeek transport 与 client 生命周期。建议修改既有 `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py`，将代码绑定 task version 提升为 `business-query-plan-v3`；保留历史 `v2` source/evidence 的 Git 可追溯性，不以旧 Prompt 结果证明新合同。
+现有 provider-neutral `BusinessQueryPlanGenerator.generate(...)` 返回 `JsonObject`；复用现有 ModelContext、DeepSeek transport 与 client 生命周期。只修改既有 `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py` 中代码绑定 Prompt 和 task version，提升为 `business-query-plan-v4`；历史 v2/v3 source、manifest 和 evidence 保持 Git 可追溯及字节不可变，不以旧 Prompt 结果证明 v4 完整意图行为。
 
-provider response decoder 仅执行单 JSON object、重复键、额外文本、字节数、深度、集合上限和有限数字校验。它不解析 Business field/operator；`JsonObject → BusinessQueryPlan` 的 exact 三字段、filters 与业务语义由 `L2_02_00` 拥有。依赖方向固定 `Model task → provider transport` 和 `Graph → provider-neutral Model Port`，禁止反向依赖 Business Adapter 或 Core handler。
+provider response decoder 仅执行单 JSON object、重复键、额外文本、字节数、深度、集合上限和有限数字校验。它不解析 Business field/operator；`JsonObject → BusinessQueryPlan` 的 exact 三字段、filters 与业务语义由 `L2_02_00` 拥有。依赖方向固定 `Model task → provider transport` 和 `Graph → provider-neutral Model Port`，禁止反向依赖 Business Adapter 或 Core handler。完整意图示例归属 Model Prompt，保持模型规划职责内聚，不在 Business/Core 新增自然语言解析耦合。
 
 关键已存在接口及目标变更：
 
@@ -46,7 +46,7 @@ async BusinessQueryPlanGenerator.generate(input: BusinessQueryPlanTaskInput, *, 
 decode_business_query_plan_output(response: StructuredModelResponse, *, max_output_bytes: int, max_json_depth: int, max_collection_items: int) -> JsonObject
 ```
 
-建议修改现有 task definition 和安全目录使其表达 filters、受保护 keyword 与 v3 Prompt；不新增 Provider 私有类型到公共生成接口，也不提前声称 v3 已实现。
+现有安全目录、provider-neutral generator、task input 和 strict framing decoder 保持不变；只强化 v4 Prompt 对不可表达复合意图的 exact unsupported 输出，不新增 Provider 私有类型、额外本地语义解析或公共合同。
 
 ## 4. 模型安全 catalog 与受控输入
 
@@ -62,8 +62,9 @@ Prompt 必须明确：
 2. 条件搜索 arguments 使用 filters/page/size/sorts，每个 filter 都必须满足目录中逻辑 field/operator/value tagged union；Employee 可选 keyword 也必须是相同的 `literal/value_ref` tagged union，敏感值只能引用当前请求 slot。
 3. Transaction `gt + lt` 可以组合；不得吞掉用户条件、把逻辑 operator 编码进 field、发明字段或使用物理信息。
 4. Employee 地点“上海”规划为 `contact_address contains "上海"`；职位对应 position；workBase 永远不可用。
-5. Employee semantic 只接受语义文本；语义+结构过滤、非法日期边界和其他不可表达组合必须返回 exact `action=unsupported`，arguments 为空。
+5. Employee semantic 只接受语义文本。对“按语义搜索金融风控经验并限定上海员工”必须给出 exact `{"domain":"employee","action":"unsupported","arguments":{}}` 的显式反例；即使 search 和 semantic 两个 action 都启用，也不得选择其中一个后省略另一类限定，业务调用必须为 0。
 6. 限定 domain 的不支持请求返回该 domain + unsupported；无可识别 domain 时返回 `domain=unsupported/action=unsupported/arguments={}`。
+7. 对“查询今天发生的交易”，只要没有已批准的 request-local 日期/时钟上下文，即使 `trans_date` 已启用，也必须返回 exact `{"domain":"transaction","action":"unsupported","arguments":{}}`；不得猜测绝对日期或省略日期条件。
 
 QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必须由独立 Business egress 策略授权，不是列表查询默认步骤。
 
@@ -77,18 +78,18 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 
 | 实现编号 | 已验证位置 | 目标变更 |
 |---|---|---|
-| `IMPL-MODEL-101` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py` | v3 filters Prompt、task version、no-tools JSON contract |
+| `IMPL-MODEL-101` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py` | v4 filters Prompt、完整意图 unsupported 反例、task version、no-tools JSON contract |
 | `IMPL-MODEL-102` | `agent-runtime/src/agent_runtime/business/planner_catalog.py` | 由 Business 提供安全三动作 field/operator 目录；模型只消费 |
 | `IMPL-MODEL-103` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 安全地点片段、slot、Business 锚点与 prohibited 字段回归 |
 | `IMPL-MODEL-104` | `agent-runtime/src/agent_runtime/model/contracts.py` | 保留 generator `JsonObject` 边界，仅扩展必要 task 输入 |
-| `IMPL-MODEL-105` | `agent-runtime/src/agent_runtime/bootstrap.py` | provider-neutral v3 generator/lifecycle 组合装配 |
+| `IMPL-MODEL-105` | `agent-runtime/src/agent_runtime/bootstrap.py` | 保持现有 provider-neutral generator/lifecycle 装配，不新增本地语义分支 |
 
 ## 8. 测试与验证设计
 
 | 测试编号 | 核心场景 |
 |---|---|
 | `TEST-MODEL-101` | 三动作安全目录、operator、workBase/物理信息/敏感字段为 0 |
-| `TEST-MODEL-102` | v3 Prompt：上海地址、职位、amount/date 范围和 exact unsupported |
+| `TEST-MODEL-102` | v4 Prompt：上海地址、职位、amount/date 范围；semantic+地点过滤和缺少批准时钟的相对日期必须 exact unsupported/零调用 |
 | `TEST-MODEL-103` | duplicate key、非 JSON、深度/大小/float 非法，provider decoder 边界明确 |
 | `TEST-MODEL-104` | slot、详细地址/姓名/标识零出域，失败/取消/unsupported 业务零调用 |
 | `TEST-MODEL-105` | Knowledge/answer 现有任务、默认 stub、client close 和并发隔离回归 |
@@ -102,23 +103,23 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 
 | 规则编号 | 设计规则 |
 |---|---|
-| `DR-MODEL-101` | code-bound `business-query-plan-v3` 只生成逻辑 filters QueryPlan |
+| `DR-MODEL-101` | code-bound `business-query-plan-v4` 只生成逻辑 filters QueryPlan；旧 v2/v3 source、manifest 与证据只作不可变历史 |
 | `DR-MODEL-102` | provider framing decoder 和 Business payload decoder 分层，不互相替代 |
 | `DR-MODEL-103` | 安全目录只包含三动作及已启用逻辑 field/operator，protected slot 不含真实值 |
-| `DR-MODEL-104` | 完整意图不可表达时 exact unsupported，禁止近似、丢条件与任何 fallback |
+| `DR-MODEL-104` | 完整意图不可表达时 exact unsupported；semantic+结构过滤与无批准时钟的相对日期必须通过显式 Prompt 反例失败关闭，禁止近似、丢条件和任何 fallback |
 | `DR-MODEL-105` | 默认 stub、最小必要代码变更、现有 transport/Knowledge 任务稳定 |
 
-权限与审计：模型不接触角色与 JWT；仅记录 snapshot、task version、action、有限错误和调用计数。数据生命周期与迁移回滚不改变数据库或历史 evidence；回滚撤销 v3 装配，不把 v2 重新用于新 Business filters 路径。该方案避免新增平台、复杂规则 DSL 与低内聚的领域 provider 耦合。
+权限与审计：模型不接触角色与 JWT；仅记录 snapshot、task version、action、有限错误和调用计数。数据生命周期与迁移回滚不改变数据库或历史 evidence；v3 controlled/UAT 结果只能证明历史版本，不得替代 v4 UAT。使用独立版本化 manifest 与新结果路径，不新增生产级审批、复杂规则 DSL 或本地语义 Resolver。
 
 ## 10. 风险、评审记录与实现就绪判定
 
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
-| 当前允许实施范围 | v3 task/catalog/input guard 的 fake/non-live 实施 |
+| 当前允许实施范围 | v4 Prompt/task version、版本化 UAT manifest 和 adversarial fake/non-live 实施 |
 | 当前禁止动作 | 真实模型调用、读取密钥、修改 Knowledge task、放宽 Business validator |
 
-风险包括 Prompt 遗漏用户条件、敏感值出域和旧 v2 证据误用；以 adversarial fake、零调用、source/evidence 历史核查控制。评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+风险包括 Prompt 遗漏用户条件、敏感值出域和旧 v2/v3 证据误用。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 证明 semantic+location 原 Prompt 不稳定；以明确反例、adversarial fake、零调用、版本化 task/manifest 及历史哈希控制，不添加本地语义识别。评审记录：当前修订必须完成三轮内审和独立分层/跨层评审后再实施。
 
 ## 11. 端到端追踪矩阵
 
