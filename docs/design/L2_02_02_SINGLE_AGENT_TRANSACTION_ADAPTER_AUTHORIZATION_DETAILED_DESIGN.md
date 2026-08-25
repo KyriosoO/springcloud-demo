@@ -18,7 +18,7 @@
 
 唯一动作 `transaction.search` 固定复用 `POST /txn/search`，以逻辑 filters/operator 查询既有 SQL 列表，并保留服务最终读取授权。范围外包括 aggregate、detail、condition、query、写入、管理接口、Agent 数据库直连、float/rounding、跨域 fallback 与新 DTO。
 
-当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 已严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；真实 Spring 安全链、零模型 20/104 codec 及六场景 controlled 联调均通过。首次 UAT 暴露实际交易类型含 `_`，而公共 validator 对 `eq` 错误沿用 contains 安全策略；operator-specific 文本策略尚未实施，正式 UAT 未通过。
+当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 已严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；真实 Spring 安全链、零模型 20/104 codec 及六场景 controlled 联调均通过。`trans_type eq` 现允许真实安全 token 中的 `_`，`contains` 在公共 validator 与 Adapter 两层拒绝 `_/%/反斜杠`；95 项定向及 1438 项 non-live 回归通过，完整正式 UAT 尚未完成。
 
 | 需求编号 | 需求 |
 |---|---|

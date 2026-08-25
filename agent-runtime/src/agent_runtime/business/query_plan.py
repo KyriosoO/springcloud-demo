@@ -492,6 +492,7 @@ class DefaultBusinessQueryPlanValidator:
                         settings=configured,
                         action_settings=settings,
                         definition_action=definition,
+                        operator=item.operator,
                     )
             else:
                 cls._validate_value(
@@ -500,6 +501,7 @@ class DefaultBusinessQueryPlanValidator:
                     settings=configured,
                     action_settings=settings,
                     definition_action=definition,
+                    operator=item.operator,
                 )
             if item.operator in {BusinessQueryOperator.GT, BusinessQueryOperator.LT}:
                 if not isinstance(item.value, QueryPlanLiteral) or not isinstance(item.value.value, str):
@@ -549,6 +551,7 @@ class DefaultBusinessQueryPlanValidator:
         settings: BusinessQueryFieldSettings,
         action_settings: BusinessActionSettings,
         definition_action: BusinessActionDefinition[Any, Any, Any, Any],
+        operator: BusinessQueryOperator | None = None,
     ) -> None:
         if not settings.allowed_operators or not set(settings.allowed_operators).issubset(
             definition.allowed_operators
@@ -574,7 +577,13 @@ class DefaultBusinessQueryPlanValidator:
                 raise InvalidBusinessQueryPlan()
             if definition.enum_values and literal not in definition.enum_values:
                 raise InvalidBusinessQueryPlan()
-            if not _matches_text_policy(literal, definition.text_policy_id):
+            text_policy = definition.text_policy_id
+            if (
+                operator is BusinessQueryOperator.CONTAINS
+                and text_policy is BusinessTextPolicyId.SAFE_TOKEN
+            ):
+                text_policy = BusinessTextPolicyId.SAFE_CONTAINS_TOKEN
+            if not _matches_text_policy(literal, text_policy):
                 raise InvalidBusinessQueryPlan()
             if (
                 definition.input_exposure is BusinessInputExposure.LITERAL_OR_PROTECTED_REF

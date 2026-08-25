@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.8 |
+| 当前版本 | v1.9 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3；Employee L2 v2.3；Transaction L2 v2.3 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.10 |
-| 当前状态 | controlled-run06 已通过；首次 UAT 的九个 Employee 场景通过，首个 Transaction 类型 eq 因 `_` 被原 contains 策略误拒；`GATE-UAT-007` Open，operator-specific 修复待实施 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.11 |
+| 当前状态 | controlled-run06 已通过；首次 UAT 失败历史保持不可变，Transaction operator-specific 文本策略和安全 contains 片段已修复；`GATE-UAT-007` Closed，新的正式 UAT Ready |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -38,7 +38,7 @@
 |---|---|---|---|
 | `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed |
 | `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟与 Employee 读取授权 | Partial：首次九场景通过，完整 UAT 尚未通过 |
-| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同与 operator-specific 文本策略 | Blocked |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同与 operator-specific 文本策略 | Ready |
 | `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Blocked |
 
 Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-controlled-run06 完成 6 次真实 LLM QueryPlan，证据 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；公共接入 Java 20 项通过。首次正式 UAT 已通过九个 Employee search/semantic/角色/零调用场景，但在 `UAT-TXN-201` 处因真实 `trans_type` 包含 `_` 被原 contains 策略错误拒绝；Transaction 调用为 0、retry/resume 为 0，失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`。`GATE-UAT-007` 已重新打开；须先修复 `eq/contains` 代码绑定策略并验证 contains 通配拒绝，再使用独立新 UAT 结果路径，既有失败及 manifest 保持不可变。
+controlled-run06 完成 6 次真实 LLM QueryPlan，证据 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；公共接入 Java 20 项通过。首次 UAT 失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 保持不可变。`trans_type eq` 现已允许安全 `_`，contains 继续双层拒绝 `_/%/反斜杠`；UAT 只取真实类型内的安全片段。95 项定向测试、1438 项 non-live 回归和 strict mypy 均通过；`GATE-UAT-007` Closed，正式 UAT 必须写入全新 run02 结果路径，当前尚未完成。

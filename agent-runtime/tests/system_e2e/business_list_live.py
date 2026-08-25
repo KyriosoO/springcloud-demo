@@ -79,7 +79,20 @@ def controlled_cases() -> tuple[LiveCase, ...]:
 def uat_cases(*, transaction_type: str, employee_identifier: str) -> tuple[LiveCase, ...]:
     if not transaction_type or len(transaction_type) > 64 or len(employee_identifier) < 5:
         raise ValueError("business_list_live.runtime_input_invalid")
-    type_fragment = transaction_type[: max(1, min(3, len(transaction_type)))]
+    safe_fragment = next(
+        (
+            fragment
+            for fragment in re.split(r"[_%\\]", transaction_type)
+            if fragment and fragment == fragment.strip() and all(
+                character.isalnum() or character in {"-", ".", " "}
+                for character in fragment
+            )
+        ),
+        None,
+    )
+    if safe_fragment is None:
+        raise ValueError("business_list_live.transaction_contains_fragment_invalid")
+    type_fragment = safe_fragment[:3]
     return (
         LiveCase(case_id="UAT-EMP-201", question="帮我查一下在上海的员工", expected_action="employee.search", expected_statuses=(CapabilityStatus.SUCCESS,), expected_fields=("contact_address",), expected_operators=("contains",), minimum_rows=1),
         LiveCase(case_id="UAT-EMP-203", question="查询职位包含工程的员工", expected_action="employee.search", expected_statuses=(CapabilityStatus.SUCCESS, CapabilityStatus.NO_RESULT), expected_fields=("position",), expected_operators=("contains",)),

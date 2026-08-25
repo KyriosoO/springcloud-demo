@@ -246,10 +246,28 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
         "resume": 0,
     }
 
+    first_uat = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat.result.json"
+    assert hashlib.sha256(first_uat.read_bytes()).hexdigest() == (
+        "cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3"
+    )
+    first_uat_evidence = json.loads(first_uat.read_text(encoding="utf-8"))
+    assert first_uat_evidence["status"] == "failed"
+    assert len(first_uat_evidence["cases"]) == 10
+    assert all(
+        case["caseId"].startswith("UAT-EMP-")
+        for case in first_uat_evidence["cases"][:9]
+    )
+    assert first_uat_evidence["cases"][-1]["caseId"] == "UAT-TXN-201"
+    assert first_uat_evidence["cases"][-1]["status"] == "invalid_argument"
+    assert first_uat_evidence["counts"]["modelQueryPlan"] == 10
+    assert first_uat_evidence["counts"]["transactionSearch"] == 0
+    assert first_uat_evidence["counts"]["retry"] == 0
+    assert first_uat_evidence["counts"]["resume"] == 0
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
     assert "business-list-v2-controlled-run06.result.json" in source
-    assert "business-list-v2-uat.result.json" in source
+    assert "business-list-v2-uat-run02.result.json" in source
     assert "spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201" in source
     assert "[switch]$DownstreamOnly" in source
     assert "[switch]$SemanticOnly" in source
@@ -289,6 +307,23 @@ def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -
         for case in cases
         if case.case_id in {"UAT-EMP-209", "UAT-EMP-210", "UAT-TXN-212", "UAT-TXN-215"}
     )
+
+
+def test_uat_catalog_uses_only_a_safe_existing_transaction_type_fragment() -> None:
+    cases = {
+        case.case_id: case
+        for case in uat_cases(
+            transaction_type="A_B",
+            employee_identifier="SYNTHETIC12345",
+        )
+    }
+
+    assert "A_B" in cases["UAT-TXN-201"].question
+    assert "包含A" in cases["UAT-TXN-202"].question
+    assert "A_B" not in cases["UAT-TXN-202"].question
+
+    with pytest.raises(ValueError, match="transaction_contains_fragment_invalid"):
+        uat_cases(transaction_type="_%\\", employee_identifier="SYNTHETIC12345")
 
 
 @pytest.mark.asyncio

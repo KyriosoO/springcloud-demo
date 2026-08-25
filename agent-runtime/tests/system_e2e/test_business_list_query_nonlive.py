@@ -87,6 +87,30 @@ _SCENARIOS = (
     ),
     _Scenario("查询类型包含 PAY 的交易", _TRANSACTION_PLAN, CapabilityStatus.SUCCESS, "transaction.search"),
     _Scenario(
+        "查询类型等于 A_B 的交易",
+        _filters_plan("transaction", "transaction.search", "trans_type", "eq", "A_B"),
+        CapabilityStatus.SUCCESS,
+        "transaction.search",
+    ),
+    _Scenario(
+        "查询类型包含下划线的交易",
+        _filters_plan("transaction", "transaction.search", "trans_type", "contains", "A_B"),
+        CapabilityStatus.INVALID_ARGUMENT,
+        None,
+    ),
+    _Scenario(
+        "查询类型包含百分号的交易",
+        _filters_plan("transaction", "transaction.search", "trans_type", "contains", "A%B"),
+        CapabilityStatus.INVALID_ARGUMENT,
+        None,
+    ),
+    _Scenario(
+        "查询类型包含反斜杠的交易",
+        _filters_plan("transaction", "transaction.search", "trans_type", "contains", "A\\B"),
+        CapabilityStatus.INVALID_ARGUMENT,
+        None,
+    ),
+    _Scenario(
         "查询金额大于一百元的交易",
         _filters_plan("transaction", "transaction.search", "amount", "gt", "100.00"),
         CapabilityStatus.SUCCESS,

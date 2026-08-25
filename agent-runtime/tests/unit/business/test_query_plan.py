@@ -546,6 +546,47 @@ def test_filters_contract_decodes_validates_and_binds_open_decimal_interval() ->
 
 
 @pytest.mark.parametrize(
+    ("operator", "literal", "accepted"),
+    (
+        ("eq", "A_B", True),
+        ("contains", "A", True),
+        ("contains", "A_B", False),
+        ("contains", "A%B", False),
+        ("contains", "A\\B", False),
+    ),
+)
+def test_filters_text_policy_is_selected_by_operator(
+    operator: str,
+    literal: str,
+    accepted: bool,
+) -> None:
+    definitions, snapshot = _filters_snapshot()
+    plan = ExactBusinessQueryPlanDecoder().decode(
+        {
+            "domain": "transaction",
+            "action": "transaction.search",
+            "arguments": {
+                "filters": (
+                    {"field": "trans_type", "operator": operator, "value": {"literal": literal}},
+                ),
+                "page": 1,
+                "size": 20,
+                "sorts": (),
+            },
+        }
+    )
+
+    if accepted:
+        validated = DefaultBusinessQueryPlanValidator(definitions).validate(
+            plan, snapshot=snapshot
+        )
+        assert isinstance(validated, ValidatedBusinessQueryPlan)
+    else:
+        with pytest.raises(InvalidBusinessQueryPlan):
+            DefaultBusinessQueryPlanValidator(definitions).validate(plan, snapshot=snapshot)
+
+
+@pytest.mark.parametrize(
     "filters",
     (
         (

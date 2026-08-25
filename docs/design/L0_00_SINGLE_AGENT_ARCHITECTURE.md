@@ -11,7 +11,7 @@
 | 更新时间 | 2026-08-25 |
 | 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
-| 当前实现 | Knowledge 基线、新版 filters/config/三动作 Adapter/组合根及 Employee ES 端点级角色转换均已实施；六场景 controlled 真实联调通过，Transaction 文本 operator 纠偏和完整 UAT 未完成 |
+| 当前实现 | Knowledge 基线、新版 filters/config/三动作 Adapter/组合根、Employee ES 端点级角色转换及 Transaction 文本 operator 纠偏均已实施；六场景 controlled 真实联调通过，完整 UAT 尚未完成 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。

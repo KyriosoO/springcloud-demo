@@ -12,7 +12,7 @@
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
-| 当前实现 | filters/config、三个列表动作、生产组合根、Controller 读取守卫和 Employee ES 专用 JWT 角色转换均已实施；真实三动作 controlled 联调通过，首次 UAT 暴露 Transaction 精确/模糊文本策略未按 operator 区分 |
+| 当前实现 | filters/config、三个列表动作、生产组合根、Controller 读取守卫、Employee ES 专用 JWT 角色转换及 Transaction operator-specific 文本策略均已实施；真实 controlled 已通过，正式 UAT 尚未完成 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -29,7 +29,7 @@
 |---|---|---|---|
 | `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter、读取守卫与专用共享 converter 已实施 | controlled 与首次 UAT Employee 场景通过；完整正式 UAT 尚未完成 |
 | `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter、读取守卫与专用共享 converter 已实施 | controlled 与首次 UAT Employee 场景通过；完整正式 UAT 尚未完成 |
-| `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；Agent Adapter 与金额 controlled 场景已通过 | `trans_type eq` 尚未兼容现有含下划线类型；`contains` 必须继续拒绝 SQL LIKE 通配字符 |
+| `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；`trans_type eq` 已兼容下划线类型，`contains` 仍拒绝 SQL LIKE 通配字符 | 完整正式 UAT 尚未完成 |
 
 Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`，且必须复用与 filter 相同的 `literal/value_ref` 输入保护；真实姓名、员工标识和详细地址不能作为明文 keyword 出域。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
 
@@ -89,6 +89,6 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 ## 9. 当前实现、风险与验证
 
-本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。修复 Employee 端点级共享 converter、语义超时/partial hits 及 Transaction Date wire 差异后，controlled-run06 六个真实 LLM 场景全部通过。首次正式 UAT 已通过九个 Employee 场景，但现有三字符 Transaction 类型包含 `_`；原公共字段策略误将精确匹配套用 LIKE 安全限制，导致第一个 Transaction 场景失败关闭且业务调用为 0。需先实施 operator 区分，不得放宽 contains 通配限制或改写不可变失败证据。
+本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。Employee 端点级 converter、语义超时/partial hits、Transaction Date wire 及 operator-specific 文本策略均已修复；controlled-run06 六个真实 LLM 场景全部通过。首次 UAT 失败证据保持不可变；`eq` 现允许真实下划线类型，contains 继续拒绝 LIKE 通配，95 项定向与 1438 项 non-live 通过。完整正式 UAT 仍待执行。
 
 主要风险为 Employee ES 现有调用方兼容性、原始 hits 泄漏、受保护值出域、Date/Jackson/数据库精度不一致和 workBase 虚假可用。通过受限 Adapter、角色矩阵、严格跨语言合同、配置 snapshot、零调用断言及非 live 优先顺序控制；不引入配置中心、规则引擎或多层重复门禁。

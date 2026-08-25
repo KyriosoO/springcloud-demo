@@ -87,6 +87,19 @@ def test_transaction_list_maps_independent_operators_date_decimal_and_second_pag
     assert request.sorts[0].field == "trans_date"
 
 
+def test_transaction_list_maps_exact_text_with_literal_underscore() -> None:
+    arguments = _arguments()
+    arguments["filters"] = (
+        {"field": "trans_type", "operator": "eq", "value": "A_B"},
+    )
+
+    selected = TransactionListSearchArgumentValidator().validate(arguments)
+    request = TransactionListSearchRequestMapper().map(selected, _settings())
+
+    assert request.condition.trans_type == "A_B"
+    assert request.condition.trans_type_contains is None
+
+
 @pytest.mark.parametrize(
     "field,operator,value",
     (
@@ -96,6 +109,9 @@ def test_transaction_list_maps_independent_operators_date_decimal_and_second_pag
         ("trans_id", "contains", "TXN-0001"),
         ("trans_type", "gt", "PAY"),
         ("trans_type", "contains", "%PAY"),
+        ("trans_type", "contains", "A_B"),
+        ("trans_type", "contains", "A%B"),
+        ("trans_type", "contains", "A\\B"),
         ("trans_date", "gt", "2026-08-25T09:00:00"),
         ("trans_date", "gt", "2026-08-25T09:00:00.001+08:00"),
         ("trans_date", "gt", "今天"),

@@ -395,7 +395,7 @@ def business_query_v2_action_contracts() -> tuple[BusinessQueryActionContract, .
             allowed_operators=frozenset({BusinessQueryOperator.EQ, BusinessQueryOperator.CONTAINS}),
             input_exposure=BusinessInputExposure.LITERAL,
             required=False, max_text_chars=128,
-            text_policy_id=BusinessTextPolicyId.SAFE_CONTAINS_TOKEN,
+            text_policy_id=BusinessTextPolicyId.SAFE_TOKEN,
         ),
         BusinessQueryFieldDefinition(
             logical_name="trans_date", service_field="transDate",

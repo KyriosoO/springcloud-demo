@@ -7,7 +7,7 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- Employee/Transaction 相关需求、L0/L1/L2 与实施计划以 v2.0 为新权威基线；Employee 端点级授权、真实 ES partial hits、Transaction Date 响应及文本 operator 策略纠偏后，`L1_02`、Business 公共 L2、Employee L2 和 Transaction L2 均为 v2.3，实施计划为 v2.10、正式验收计划为 v1.8。Knowledge 与未涉及的公共文档保持原版本。
+- Employee/Transaction 相关需求、L0/L1/L2 与实施计划以 v2.0 为新权威基线；Employee 端点级授权、真实 ES partial hits、Transaction Date 响应及文本 operator 策略纠偏后，`L1_02`、Business 公共 L2、Employee L2 和 Transaction L2 均为 v2.3，实施计划为 v2.11、正式验收计划为 v1.9。Knowledge 与未涉及的公共文档保持原版本。
 
 ## 2. 需求与总体架构
 
@@ -62,8 +62,8 @@
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.10 / Reviewed。计划是调度/证据索引，不得反向修改设计权威。
-- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.8 / Reviewed；公共接入和首次九个 Employee UAT 场景通过，Transaction operator-specific 文本策略待修复。
+- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.11 / Reviewed。计划是调度/证据索引，不得反向修改设计权威。
+- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.9 / Reviewed；公共接入、真实 controlled 和 Transaction operator-specific 文本策略均已通过，正式 UAT Ready。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。新版统一配置、三个列表动作、生产组合根及 Employee 两个 ES POST endpoint 专用共享 JWT role converter 均已实施；Transaction 日期双 wire 已严格兼容。受控真实联调 6 个场景、公共接入 Java 20 项及首次 UAT 九个 Employee 场景通过；Transaction 类型 `eq/contains` 安全策略纠偏待实施，正式 UAT 未通过。
+Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。新版统一配置、三个列表动作、生产组合根及 Employee 两个 ES POST endpoint 专用共享 JWT role converter 均已实施；Transaction 日期双 wire 和 operator-specific 文本安全策略已严格兼容。受控真实联调 6 个场景、公共接入 Java 20 项、95 项定向和 1438 项 non-live 均通过；正式 UAT Ready，尚未完成。
