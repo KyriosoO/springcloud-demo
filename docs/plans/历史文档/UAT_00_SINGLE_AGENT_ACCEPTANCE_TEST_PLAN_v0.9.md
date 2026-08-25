@@ -4,16 +4,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.0 |
+| 当前版本 | v0.9 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0；Employee/Transaction 对应 L2 v2.0 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.0 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.8；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.8；Employee/Transaction 对应 L2 v1.6 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.34 |
 | 当前状态 | 新列表 filters QueryPlan 尚未实施；本版 UAT 未执行，`GATE-UAT-007` Open |
-| 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：以 Employee search/semantic 和扩展 Transaction search 取代旧 detail/flat plan 验收目标，旧 UAT 或 live 记录仅供审计追溯。
 
 ## 2. 验收目标与范围外
 
@@ -23,7 +22,7 @@
 
 ## 3. 环境前置和准入门禁
 
-1. P3 中正式 UAT 之前的 11 个新目标工作包按依赖完成；第 12 个 `WP-BQ-UAT-HANDOFF-02` 必须在 `GATE-UAT-007` 关闭后执行，不能反向作为本门禁前置；Employee 两入口最终读取授权已验证。
+1. P3 12 个新目标工作包按依赖完成；Employee 两入口最终读取授权已验证。
 2. `GATE-068` 已关闭，ADMIN/VIEWER 允许及 denied/missing/malformed/service-token 拒绝矩阵成立。
 3. `GATE-069` 已关闭后才执行 Transaction 绝对 Date 用例；相对自然日若无数据库精度/边界证据，仍按 unsupported 验收。
 4. 新三动作 filters task、code/config snapshot、权限、业务服务和 non-live/live 结果均属于当前设计，不得复用旧 detail 或旧 v2 Prompt 证据。
@@ -61,7 +60,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 | `UAT-EMP-203` | 职位模糊：`position contains` | 1/1 | 不退化为其他 field/operator |
 | `UAT-EMP-204` | 姓名查询：`chinese_name + value_ref` | 1/1 | 模型、日志和 evidence 不含真实姓名 |
 | `UAT-EMP-205` | 员工标识：`employee_identifier eq + value_ref` | 1/1 | 不调用旧 detail，ID 不进入模型或 evidence |
-| `UAT-EMP-206` | Employee ES keyword + tagged literal/ref | 1/1 | 只对 contactAddress/chineseName/idCardNo 的现有 multi-match 解释；敏感 keyword 必须为 protected ref，模型和日志无明文 |
+| `UAT-EMP-206` | Employee ES keyword | 1/1 | 只对 contactAddress/chineseName/idCardNo 的现有 multi-match 解释 |
 | `UAT-EMP-207` | Employee page/size/sort | 1/1 | from 转换正确、size≤50、rows 不超界 |
 | `UAT-EMP-208` | 业务语义：`employee.semantic_search + query + size` | 1/1 | 只调用 vector-search；无用户 vector 或物理 embedding 参数 |
 | `UAT-EMP-209` | `workBaseSi/workBaseAf` 被明确请求 | 1/0 或安全输入闸门 0/0 | unsupported；不进入 enabled fields、成功用例或结果字段 |

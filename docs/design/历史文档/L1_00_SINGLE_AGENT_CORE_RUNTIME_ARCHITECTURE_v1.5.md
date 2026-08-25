@@ -7,15 +7,14 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.5 |
 | 更新日期 | 2026-08-25 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
-| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0；Knowledge L1 保持 v1.0 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.5 |
+| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
 | 当前实现 | 旧 QueryPlan 对象图和 Knowledge 对象图已存在；新 filters/actions/config 组合根尚未实施 |
-| 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本版将 Business 运行目标由旧 Employee detail/有限 Transaction 参数合同升级为三动作 filters 计划。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -76,9 +75,9 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | L2 | 唯一权威责任 |
 |---|---|
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.0 | 既有 Spring 接入与 Runtime 协同，不在本次修改范围 |
-| [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.0 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.0 | 模型安全 catalog、Prompt、provider response 严格解码 |
-| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 | QueryPlan、字段配置、validator、binder 与出域策略 |
+| [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v1.8 | Business bridge、组合根、Registry、取消与单动作执行 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v1.9 | 模型安全 catalog、Prompt、provider response 严格解码 |
+| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.8 | QueryPlan、字段配置、validator、binder 与出域策略 |
 
 ## 8. 风险、验证与当前实施状态
 

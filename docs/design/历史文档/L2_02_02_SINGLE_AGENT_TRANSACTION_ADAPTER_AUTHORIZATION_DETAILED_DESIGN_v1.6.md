@@ -6,13 +6,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.6 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 |
-| 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.8 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：将现有有限 Transaction 参数扩展为既有 search 服务已支持的日期、金额、类型、完整分页及有限排序。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -37,8 +36,6 @@
 `TransactionController.search` 执行既有 `requireTransactionRead` 后调用 Service；`TransactionSearchRequest` 包含 `condition/sorts/page/size`，`Transaction` condition 已包含 transId、transType、transTypeContains、transDate、transDateGt/Lt、amount、amountGt/Lt。现有 `TransactionSearchRequestDeserializer` 会跳过未知属性，并对 page/size 使用 Jackson `getValueAsInt()`；因此 Agent 必须先 exact 拒绝未知属性、bool、字符串和非整数，不能依赖业务端反序列化补做严格校验，也不得修改既有公共 DTO。
 
 Service 要求至少一个条件、page≥1、1≤size≤100、最多两项不重复排序；排序字段为 transId/transType/transDate/amount，ASC/DESC；缺少 transId sort 时业务服务会添加稳定 transId tiebreaker。Mapper 使用精确 `=`、严格 `>`、严格 `<` 和 `LIKE contains`，禁止 Agent 伪造 `>=/<=`。依赖方向为 validated Business plan → Transaction Adapter → TransactionController/Service → Mapper/DB；Agent 禁止绕过服务访问数据库。
-
-已存在的关键实现接缝为 `transaction_search_definition()`、`TransactionSearchArgumentValidator.validate(arguments: JsonObject) -> TransactionSearchInput`、`TransactionSearchRequestMapper.map(input: TransactionSearchInput, settings: BusinessActionSettings) -> TransactionSearchWireRequest`、`TransactionSearchWireCodec.encode(request) -> BusinessHttpRequest` 和 `decode_success(*, request, response) -> TransactionSearchWireResponse`。建议在这些既有类中补齐独立 field/operator、Date、page>1 和既有九字段响应兼容；Java `TransactionController.search(Authentication, TransactionSearchRequest) -> TransactionSearchResponse`、公开 DTO 和 Mapper SQL 不改变。
 
 ## 4. field/operator/DTO 固定映射
 
@@ -127,7 +124,7 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 | 当前允许实施范围 | Transaction fake Adapter、Date/Decimal/Page/Sort 合同及 Java 非 live 测试 |
 | 当前禁止动作 | 真实业务/模型/数据库调用、相对日期无证启用、业务 DTO/SQL/公开接口扩张 |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：正式 L2 评审已确认现有服务能力、时区/Decimal 跨语言合同、无接口扩张和未实现状态。
 
 ## 12. 端到端追踪矩阵
 

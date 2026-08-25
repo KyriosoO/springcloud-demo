@@ -7,14 +7,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.5 |
 | 更新时间 | 2026-08-25 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.8 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
 | 当前实现 | 旧 Business QueryPlan 与 Knowledge 基线已存在；新列表动作、配置和组合根尚未实施 |
-| 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本版依据 Employee ES/向量与 Transaction SQL 现有搜索接口，重建 Business 目标架构；历史过程以 Git 记录为准。
 
 ## 2. 架构目标、非目标与架构原则
 
@@ -68,9 +67,9 @@ Employee 两个现有 ES endpoint 目前只有 `requireUser`，目标必须先�
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 | Runtime、LangGraph、Model Port、Core、Registry、组合根与单动作 | 目标修订，新生产组合根未实施 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.5 | Runtime、LangGraph、Model Port、Core、Registry、组合根与单动作 | 目标修订，新生产组合根未实施 |
 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.0 | Knowledge 问题改写、检索、证据和摘要 | 保持既有权威，不做语义修改 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 | Business fields/config、Employee/Transaction Adapter 与最终授权 | 目标修订，新能力未实施 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 | Business fields/config、Employee/Transaction Adapter 与最终授权 | 目标修订，新能力未实施 |
 
 ## 8. 质量属性、风险与当前结论
 

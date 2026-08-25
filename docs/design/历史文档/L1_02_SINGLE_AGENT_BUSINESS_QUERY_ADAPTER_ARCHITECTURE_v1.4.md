@@ -7,15 +7,14 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.4 |
 | 更新日期 | 2026-08-25 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v1.5 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.5 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
 | 当前实现 | 已实现旧 `employee.detail` 和有限 `transaction.search`；本版列表目标尚未实施 |
-| 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本版纠正 Employee 主查询方向，复用已核实的现有 ES/向量 endpoint，并扩展 Transaction 已有 search 能力。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -31,7 +30,7 @@
 | `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter | 现仅 `requireUser`；Agent Adapter/语义配置未实施 |
 | `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort | Agent 当前未开放 Date、page>1 和独立 field/operator |
 
-Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`，且必须复用与 filter 相同的 `literal/value_ref` 输入保护；真实姓名、员工标识和详细地址不能作为明文 keyword 出域。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
+Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
 
 ## 4. Business 唯一数据流与职责边界
 
@@ -48,7 +47,7 @@ Model 只认识逻辑 domain/action/field/operator；Business 公共层拥有 st
 
 顶层 exact 三字段 `domain/action/arguments`。列表 arguments 采用 `filters/page/size/sorts`；filter 为 `field/operator/value`，value 只能为 `literal` 或当前请求 `value_ref`；同字段可组合 `gt + lt`，不能重复同 operator、冲突 eq/range 或丢弃未知条件。unsupported 仅允许 exact sentinel，且业务调用为 0。
 
-一份版本化、强类型、默认拒绝 JSON 配置声明 domain/action/field、模型安全描述、operator、输入 exposure、必填/组合、Decimal/日期、分页/排序、用户结果、分类/脱敏和模型出域；Employee keyword 另以动作级受控策略定义启用状态、输入保护及代码绑定的既有三字段集合。启动时校验 version/snapshot、definition/validator/mapper/codec 对齐、service contract reference、所有字段和 operator 子集；`workBaseSi/workBaseAf` 永远不能通过配置直接启用。
+一份版本化、强类型、默认拒绝 JSON 配置声明 domain/action/field、模型安全描述、operator、输入 exposure、必填/组合、Decimal/日期、分页/排序、用户结果、分类/脱敏和模型出域。启动时校验 version/snapshot、definition/validator/mapper/codec 对齐、service contract reference、所有字段和 operator 子集；`workBaseSi/workBaseAf` 永远不能通过配置直接启用。
 
 ### 5.1 Employee 字段
 
@@ -81,9 +80,9 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 | 决策 | 内容 | 下位设计 |
 |---|---|---|
-| `BQ-AD-001` | filters/operator/tagged value 与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 |
-| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing 和业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.0 |
-| `BQ-AD-003` | Transaction Date/Decimal、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.0 |
+| `BQ-AD-001` | filters/operator/tagged value 与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.8 |
+| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing 和业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v1.6 |
+| `BQ-AD-003` | Transaction Date/Decimal、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v1.6 |
 
 关联 L1 协作：Runtime L1 拥有组合根和 Core 单动作；Model L2 拥有安全 catalog/Prompt 与 provider framing decoder；Business L2 不改变公共 Core/HTTP/业务 DTO。
 

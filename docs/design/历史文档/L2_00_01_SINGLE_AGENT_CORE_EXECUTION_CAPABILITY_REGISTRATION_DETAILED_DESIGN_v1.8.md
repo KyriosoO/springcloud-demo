@@ -6,13 +6,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.8 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.5 |
 | 关联责任边界 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| 归档来源 | [v1.8 已评审旧版](历史文档/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：当前版本将 Business 执行接缝升级为 filters 型三动作 QueryPlan；旧历史由 Git 保存。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -44,18 +43,6 @@ BusinessQueryPlanningNode
 Model generator 只返回完成 provider framing 校验的 `JsonObject`；Business decoder 才理解 filters/page/size/sorts；validator 固定 domain/action、代码/配置、operator/slot/时间/Decimal；binder 只解析同请求引用，不产生缺失语义。Core 继续调用既有 capability argument validator，不接触模型、字段配置或业务私有 DTO。
 
 依赖方向固定为 graph → provider-neutral model/business contracts → Core/Registry → domain handler；禁止绕过、反向依赖、直接调用 registered handler 或依赖私有 registered-call 类型。
-
-关键已存在接缝必须保持明确：
-
-```python
-async BusinessQueryPlanningNode.__call__(input: BusinessPlanningInput) -> BusinessPlanningDecision
-BusinessQueryPlanDecoder.decode(payload: JsonObject) -> BusinessQueryPlan
-BusinessQueryPlanValidator.validate(plan: BusinessQueryPlan, *, snapshot: BusinessConfigurationSnapshot) -> BusinessQueryPlanValidationResult
-ProtectedValueBinder.bind(plan: ValidatedBusinessQueryPlan, *, slots: ProtectedValueSlots, request_id: str) -> ActionCandidate
-async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: RequestExecutionScope) -> CapabilityResult
-```
-
-前三个 Business 接缝的 filters 语义需要在既有类中扩展；公共 Core `execute` 签名与返回合同保持不变，不能把这些目标变更误记为已实施。
 
 ## 4. 核心处理流程、状态与失败类型
 
@@ -121,7 +108,7 @@ async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: Requ
 | 当前允许实施范围 | graph/组合根 non-live 改造和 fake 契约验证 |
 | 当前禁止动作 | 修改公共 Core/HTTP/Knowledge、真实模型/业务调用、授权扩权 |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：当前版本已通过独立分层及跨层评审；设计通过不代表代码已实施。
 
 ## 10. 端到端追踪矩阵
 

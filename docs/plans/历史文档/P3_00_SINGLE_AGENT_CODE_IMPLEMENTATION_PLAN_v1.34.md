@@ -5,14 +5,13 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.0 |
+| 当前版本 | v1.34 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-08-25 |
 | 适用范围 | Business filters 合同、统一字段配置、三动作 Adapter、最终授权、组合根、联调与 UAT 交接 |
 | 实施授权 | Ready 不等于实施授权；当前目标仅授权文档修改，不授权代码或真实调用 |
-| 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本版替换以 `employee.detail` 与旧 flat QueryPlan 为目标的历史计划；已完成旧工作包只作为 Git 追溯证据，不等于新列表能力完成。
 
 ## 2. 目标、范围与计划原则
 
@@ -24,15 +23,15 @@
 
 | 来源 | 当前版本 | 权威责任 | 状态 |
 |---|---|---|---|
-| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.0 | 唯一链路、三动作、字段与验收 | Approved |
-| [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.0 | 系统边界和下位治理 | Approved |
-| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v2.0 | Runtime/Model/Core/组合根 | Approved |
-| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.0 | Business 公共边界和 Adapter | Approved |
-| [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.0 | planning bridge、组合根和单动作 | Approved |
-| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.0 | v3 模型安全 catalog 和 Prompt | Approved |
-| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.0 | filters、统一配置、validator、slot、projection | Approved |
-| [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Employee search/semantic/role guard | Approved |
-| [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Transaction Date/Decimal/page/sort | Approved |
+| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v1.8 | 唯一链路、三动作、字段与验收 | Approved |
+| [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v1.5 | 系统边界和下位治理 | Approved |
+| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v1.5 | Runtime/Model/Core/组合根 | Approved |
+| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v1.4 | Business 公共边界和 Adapter | Approved |
+| [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v1.8 | planning bridge、组合根和单动作 | Approved |
+| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v1.9 | v3 模型安全 catalog 和 Prompt | Approved |
+| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v1.8 | filters、统一配置、validator、slot、projection | Approved |
+| [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v1.6 | Employee search/semantic/role guard | Approved |
+| [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v1.6 | Transaction Date/Decimal/page/sort | Approved |
 
 Verified existing：旧 detail、有限 Transaction、Business protected slot、Model transport、现有三个业务接口和 Transaction 最终读取授权。Not implemented：filters plan、统一 JSON、v3 catalog、Employee search/semantic Adapter、Employee ES role guard、Transaction Date/完整分页、新组合根、fake/live/UAT 证据。
 
@@ -47,7 +46,7 @@ Verified existing：旧 detail、有限 Transaction、Business protected slot、
 | 工作包 ID | 名称 | 来源设计 | 范围 | 直接依赖 | 入口门禁 | 交付物 | 验证 | 回滚边界 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|
 | `WP-BQ-FILTER-CONTRACT-02` | 公共 filters QueryPlan 合同 | `L2_02_00 DR-BQCOM-101/103` | exact filters/operator/tagged value、validator/binder、组合规则 | - | - | 公共计划类型与 fake 测试 | `VAL-BQCOM-101` | 撤销新合同，不恢复旧 Business 旁路 | Ready |
-| `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、keyword 受控策略、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Blocked |
+| `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Blocked |
 | `WP-BQ-MODEL-CATALOG-02` | filters 模型目录与 Prompt | `L2_00_02 DR-MODEL-101～105` | v3 task、安全目录、protected slots、unsupported | `WP-BQ-FIELD-CONFIG-02` | - | fake model task/catalog 测试 | `VAL-MODEL-101/102` | 移除 v3 装配，不复用旧 live 证据 | Blocked |
 | `WP-EMP-SEARCH-ADAPTER-02` | Employee 条件搜索 | `L2_02_01 DR-EMP-101/103/104` | filters→SearchRequest、分页、排序、bounded hits | `WP-BQ-FIELD-CONFIG-02` | - | search definition/codec/projection | `VAL-EMP-101/103` | 禁用新 action，保留历史资产 | Blocked |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Blocked |
@@ -85,11 +84,11 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 
 | 门禁 ID | 工作包 | 类型 | 控制动作 | 是否阻塞入口 | 关闭条件 | 证据/权威来源 | 责任方/外部提供方 | 最晚关闭阶段 | 验证者与方法 | 未关闭行为 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| `GATE-067` | `WP-BQ-FILTER-CONTRACT-02` | closure | 新设计基线生效 | 否 | REQ/L0/L1/L2/P3/UAT 两阶段评审通过且版本一致 | 当前 Approved/Reviewed 文档、strict validators、跨层追踪与无环 DAG | 文档维护者 | 代码实施前 | 分层/跨层独立评审与 DAG 校验 | 不允许依据未评审设计实施 | Closed |
+| `GATE-067` | `WP-BQ-FILTER-CONTRACT-02` | closure | 新设计基线生效 | 否 | REQ/L0/L1/L2/P3/UAT 两阶段评审通过且版本一致 | 本次设计评审和 strict validators | 文档维护者 | 代码实施前 | 分层/跨层独立评审与 DAG 校验 | 不允许依据未评审设计实施 | Open |
 | `GATE-068` | `WP-EMP-ES-AUTH-02` | release_effective | Employee search/vector 角色守卫生效 | 否 | 调用方兼容性确认，两入口 requireEmployeeRead 及完整角色矩阵通过 | Employee Controller/security/调用方回归 | Employee 业务维护者/实施者 | 生产组合根切换前 | Java MVC/security 与既有调用方测试 | 禁止有效生产路径和真实 Employee 联调 | Open |
 | `GATE-069` | `WP-TXN-SEARCH-EXT-02` | integration | Transaction Date 时区/精度合同生效 | 否 | Python Date→HTTP→Jackson→Mapper instant/open interval/DB precision 证据成立 | Transaction Java/Python fixture 与业务时区合同 | Transaction 维护者/实施者 | 日期 live/UAT 前 | 双语言 contract 与 strict bounds tests | 日期相关真实联调/UAT 不执行 | Open |
 | `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，环境/预算/授权/安全边界已确认 | 实施代码证据、服务状态和用户真实调用授权 | 用户/业务维护者 | 首次模型或业务调用前 | frozen task/config/cases、预算和零泄漏 preflight | live 保持 Blocked，不调用真实系统 | Open |
-| `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 前 11 个工作包与 controlled live 完成，UAT 环境/代表性业务数据就绪并获得明确授权；不要求 UAT 工作包自身预先完成 | UAT_00 准入和本版 live evidence | 用户/UAT 执行者 | 首个正式 UAT 用例前 | UAT checklist、调用预算及 gate→UAT 无环性复核 | 正式 UAT 保持 Blocked | Open |
+| `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | controlled live 完成，UAT 环境与代表性业务数据就绪并获得明确授权 | UAT_00 准入和本版 live evidence | 用户/UAT 执行者 | 首个正式 UAT 用例前 | UAT checklist 与调用预算复核 | 正式 UAT 保持 Blocked | Open |
 
 ## 8. 外部资源与事实
 
@@ -178,7 +177,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Ready 2 个，Blocked 10 个，Done 0 个。`GATE-067` 已基于两阶段独立评审、版本一致、strict validators 和无环 DAG 关闭，仅表示设计基线生效，不等于实施授权；`GATE-068/069/070` 与 `GATE-UAT-007` 保持 Open。正式 live 与 UAT 仍需后续明确授权，旧证据一律不能冒充新动作证据。
+总计 12 个工作包、15 条直接依赖：Ready 2 个，Blocked 10 个，Done 0 个；`GATE-067/068/069/070` 与 `GATE-UAT-007` 当前均 Open。`GATE-067` 仅在当前/大版本设计独立评审全部通过后关闭；它不是实施授权。正式 live 与 UAT 仍需后续明确授权，旧证据一律不能冒充新动作证据。
 
 ## 15. 后续实施建议
 

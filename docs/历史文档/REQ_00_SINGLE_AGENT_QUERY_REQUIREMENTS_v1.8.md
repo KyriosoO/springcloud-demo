@@ -7,14 +7,13 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v2.0 |
+| 当前版本 | v1.8 |
 | 更新日期 | 2026-08-25 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
 | 当前基线 | 已有 Knowledge 链路；已有 Employee detail 和有限 Transaction QueryPlan，但不满足本版列表查询目标 |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
-| 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本版依据已核实的三个既有业务搜索接口纠正 Employee/Transaction 查询目标；既有详细版本过程由 Git 历史保留。
 
 ## 2. 背景、设计目标与非目标
 
@@ -50,7 +49,7 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 
 `REQ-BQS-002`：外层 QueryPlan 只能包含 `domain/action/arguments`；列表 arguments 使用 `filters/page/size/sorts`，其中每条 filter 包含 `field/operator/value`，value 严格为 `literal` 或 `value_ref` 之一。允许同一字段以不同 operator 表达开区间上下界；拒绝重复键、未知属性、null、float、非有限值、超限集合和不被现有接口支持的组合。语义查询只允许受限业务语义文本与受控数量，不允许结构化 filter。
 
-`REQ-BQS-003`：配置按 `version → domain → action → field/operator/result/egress` 组织；Employee keyword 必须具有同一份配置中的动作级 enable、输入保护及代码绑定字段集合，不能绕过字段策略。配置只能收紧 `业务服务现有能力 ∩ Adapter 代码合同 ∩ 数据分类策略`。采用单个版本化 JSON 文件与既有严格 Python 解析，不引入新平台。
+`REQ-BQS-003`：配置按 `version → domain → action → field/operator/result/egress` 组织，并且只能收紧 `业务服务现有能力 ∩ Adapter 代码合同 ∩ 数据分类策略`。采用单个版本化 JSON 文件与既有严格 Python 解析，不引入新平台。
 
 ## 5. Employee 列表与语义查询
 
@@ -64,7 +63,7 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 | `email` | `email` | `eq` | `value_ref` |
 | `position` | `position` | `eq/contains/prefix/in` 的代码绑定子集 | 安全业务文本 literal |
 
-`REQ-BQS-004`：用户问“帮我查询上海的员工”时，目标动作是 `employee.search`，过滤条件是 `contact_address contains "上海"`；不得默认把“上海”和其他编码视为等价。`keyword` 仅匹配现有服务的 `contactAddress/chineseName/idCardNo`，不能描述成覆盖全部字段；它同样必须使用 `literal/value_ref` 联合类型，真实姓名、员工标识及详细地址不得以明文 keyword 进入模型。
+`REQ-BQS-004`：用户问“帮我查询上海的员工”时，目标动作是 `employee.search`，过滤条件是 `contact_address contains "上海"`；不得默认把“上海”和其他编码视为等价。`keyword` 仅匹配现有服务的 `contactAddress/chineseName/idCardNo`，不能描述成覆盖全部字段。
 
 `REQ-BQS-005`：`workBaseSi/workBaseAf` 虽存在于部分代码或数据库模型，但当前数据没有有效启用；不得进入开放字段、模型目录、成功 UAT 或结果投影。未来开放必须重新核实真实数据、索引同步、设计和 UAT，而不能只改配置。
 

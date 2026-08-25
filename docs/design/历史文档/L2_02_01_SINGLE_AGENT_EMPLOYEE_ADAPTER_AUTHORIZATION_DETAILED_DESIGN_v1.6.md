@@ -6,13 +6,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.6 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 |
-| 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.8 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本版将 Employee 目标从旧 detail 改为既有 ES search 与 semantic search 两个受控列表动作。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -43,8 +42,6 @@
 
 `buildEmbeddingText` 拼接姓名、联系地址、职位、学历、院校、专业、workBaseSi、workBaseAf。它表明现有 embedding 的历史组成，不代表支持按其中任一单字段独立向量检索；workBase 两字段仍不开放。依赖方向为 Business validated plan → Employee Adapter → EmployeeEsController → EmployeeEsService；禁止绕过 Controller/业务权限访问 ES。
 
-既有 Java 边界为 `EmployeeEsController.search(Authentication, SearchRequest) -> String` 和 `EmployeeEsController.vectorSearch(Authentication, SemanticSearchRequest) -> String`，公开签名保持不变。Python 建议新增 `employee_search_definition()`、`employee_semantic_search_definition()`、`EmployeeSearchArgumentValidator.validate(JsonObject) -> EmployeeSearchInput`、`EmployeeSearchRequestMapper.map(EmployeeSearchInput, BusinessActionSettings) -> EmployeeSearchWireRequest`，以及对应 semantic mapper 与 `encode/decode_success` codec。上述 search/semantic 类和函数当前尚不存在，不能把已存在 `EmployeeDetail*` 类型冒充新动作实现。
-
 ## 4. 字段矩阵、输入保护与模型目录
 
 | 逻辑字段 | 服务字段 | action | operator 代码上界 | 输入 exposure | 用户可见/转换 | 模型可见 |
@@ -69,7 +66,7 @@ workBase 字段禁止出现在 query fields、result fields、模型目录、成
 {"domain":"employee","action":"employee.search","arguments":{"filters":[{"field":"contact_address","operator":"contains","value":{"literal":"上海"}}],"page":1,"size":20,"sorts":[]}}
 ```
 
-Adapter 固定映射为现有 `SearchRequest`：`filters[].field=contactAddress`、`operator=contains`、`value=上海`；`from=(page-1)*size`、`size≤50`，sort 字段和方向仅取已验证允许集合。keyword 可选，但必须先通过统一配置中的 action-level keyword policy，并使用 `literal/value_ref` tagged value；代码绑定匹配字段仅为 contactAddress/chineseName/idCardNo，真实姓名、标识和详细地址只能绑定请求级 protected ref，禁止裸字符串或敏感 literal。aggregate 必须始终不存在；filters 或 keyword 至少存在一个，避免默认 match_all。
+Adapter 固定映射为现有 `SearchRequest`：`filters[].field=contactAddress`、`operator=contains`、`value=上海`；`from=(page-1)*size`、`size≤50`，sort 字段和方向仅取已验证允许集合。keyword 可选，但必须按现有三字段 multi-match 行为解释，不能伪称所有字段模糊匹配。aggregate 必须始终不存在；filters 或 keyword 至少存在一个，避免默认 match_all。
 
 `in` 值映射至现有 `SearchFilter.values`；敏感字段的多值集合必须由 protected slot 提供。禁止 DTO 字段名、ES DSL 和 raw query 进入模型。
 
@@ -110,7 +107,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 
 | 测试编号 | 场景 |
 |---|---|
-| `TEST-EMP-101` | 上海地址 contains、position eq/contains、keyword 真实三字段语义及 tagged literal/ref 合同 |
+| `TEST-EMP-101` | 上海地址 contains、position eq/contains、keyword 真实三字段语义 |
 | `TEST-EMP-102` | 姓名/标识 protected ref、个人字段模型零泄漏、workBase unsupported |
 | `TEST-EMP-103` | Semantic queryText/k/profile，vector/physical 字段拒绝、semantic+filter 调用 0 |
 | `TEST-EMP-104` | ES content-type、1 MiB、duplicate key、hits shape、unknown/embedding/workBase 丢弃 |
@@ -147,7 +144,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | 当前允许实施范围 | Employee 两动作 fake Adapter、codec、字段配置及授权兼容性只读核实 |
 | 当前禁止动作 | 未确认兼容即启用守卫、真实 Employee/模型调用、新业务接口/DTO、索引或数据修改 |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：独立评审已确认接口复用、最终授权、ES 安全 parsing 与当前实现差距；批准不表示授权改造已完成。
 
 ## 11. 端到端追踪矩阵
 

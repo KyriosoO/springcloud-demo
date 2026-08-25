@@ -6,13 +6,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v1.8 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
-| 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：在现有 flat arguments、受保护 slot 和 typed settings 基础上，定义 filters 列表、统一字段 JSON 配置和三动作固定合同。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -35,8 +34,6 @@
 ## 3. 模块职责、依赖方向与接口契约设计
 
 Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `JsonObject → BusinessQueryPlan` exact payload；validator 负责代码 definition、配置 snapshot、日期/Decimal 与 field/operator；binder 只把同请求 `value_ref` 转换为 Adapter 输入。依赖方向固定 Model → Business decode/validate/bind → Core → Domain Adapter；禁止绕过或反向依赖。
-
-现有关键接缝为 `ExactBusinessQueryPlanDecoder.decode(payload: JsonObject) -> BusinessQueryPlan`、`DefaultBusinessQueryPlanValidator.validate(plan, *, snapshot) -> BusinessQueryPlanValidationResult`、`RequestProtectedValueBinder.bind(plan, *, slots, request_id) -> ActionCandidate` 和 `build_business_planner_catalog(...) -> BusinessPlannerCatalog`。建议新增不可变 `BusinessQueryFilter(field, operator, value)`、`BusinessListQueryArguments(filters, page, size, sorts, keyword)` 与 `EmployeeSemanticQueryArguments(query, size)` 等业务合同；它们是明确的目标类型，不得误认为现有 flat arguments 已满足新设计。
 
 ### 3.1 统一计划外层与列表 arguments
 
@@ -72,7 +69,7 @@ Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `
 }
 ```
 
-外层只能包含 `domain/action/arguments`。`employee.search` arguments 只允许 `filters/page/size/sorts` 及可选 `keyword`；keyword 必须 exact 为 `{"literal": ...}` 或 `{"value_ref":"slot-N"}`，不得使用裸字符串；只有代码判定的安全城市片段可使用 literal，真实姓名、标识和详细地址必须绑定同请求 protected slot。`transaction.search` 只允许 `filters/page/size/sorts`；`employee.semantic_search` 只允许 `query/size`，其中 query 为 tagged value。分页与排序属于计划语义，不能由本地猜测；默认值只允许由代码绑定的 exact defaults 明确决定并在 catalog 中声明。
+外层只能包含 `domain/action/arguments`。`employee.search` arguments 只允许 `filters/page/size/sorts` 及可选 `keyword`；`transaction.search` 只允许 `filters/page/size/sorts`；`employee.semantic_search` 只允许 `query/size`，其中 query 为 tagged value。分页与排序属于计划语义，不能由本地猜测；默认值只允许由代码绑定的 exact defaults 明确决定并在 catalog 中声明。
 
 filter 必须 exact 包含 `field/operator/value`；value exact 为 `{"literal": ...}` 或 `{"value_ref":"slot-N"}`；sort exact 为 `field/direction`。请求 JSON 禁止 duplicate key、unknown property、null、bool-as-int、float、NaN/Infinity、控制字符和物理键；继承现有上界 `max_bytes=16384/max_depth=8/max_collection_items=128`，filters≤8、每个 `in` 集合≤16、sorts≤2、page≤1000、size≤50，且具体 action 配置可继续收紧。
 
@@ -100,12 +97,6 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
       "service_contract_ref": "employee.es.search.v1",
       "pagination": {"max_page": 1000, "max_size": 50, "max_results": 50},
       "sorts": {"max_items": 2, "directions": ["ASC", "DESC"]},
-      "keyword": {
-        "enabled": true,
-        "input_exposure": "literal_or_protected_ref",
-        "max_text_chars": 128,
-        "service_field_ids": ["contactAddress", "chineseName", "idCardNo"]
-      },
       "timeout_ms": 2000,
       "fields": [{
         "logical_name": "contact_address",
@@ -135,11 +126,11 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 }
 ```
 
-示例只展示形状，正式配置必须同时包括两个 Employee 动作、Transaction 动作及全部允许字段，不得把示例中的 `contains` 误解成唯一可允许 operator。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐，不允许配置改写字段映射，且绝不进入模型目录。Employee `keyword.service_field_ids` 必须逐字匹配既有三字段 multi-match；keyword 可被配置禁用或收紧，但不能新增匹配字段、允许敏感 literal，或将物理字段名暴露给模型。endpoint、HTTP method 和 semantic profile 始终由代码绑定；配置最多选择已注册的 finite profile ID。
+示例只展示形状，正式配置必须同时包括两个 Employee 动作、Transaction 动作及全部允许字段，不得把示例中的 `contains` 误解成唯一可允许 operator。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐，不允许配置改写字段映射，且绝不进入模型目录。endpoint、HTTP method 和 semantic profile 始终由代码绑定；配置最多选择已注册的 finite profile ID。
 
 输入 exposure 有限枚举为 `literal/protected_ref/literal_or_protected_ref`；`contact_address` literal 只可通过代码内有限安全城市片段判定，详细地址仍必须 protected ref，配置不能注入正则或放宽判定。用户/模型 transform 为有限代码枚举，不能运行表达式。排序、超时、返回字段、模型字段、Decimal 和时间规则都只能小于或等于代码与服务合同。
 
-启动校验：exact JSON、版本、duplicate、动作/字段/operator 子集、code/service contract、逻辑字段与 `service_field` 固定映射、keyword 三字段及 protected exposure 对齐、descriptor/definition/config/validator/mapper/codec 完整对齐、result/model 字段子集和大小/timeout 上限；显式拒绝 `workBaseSi/workBaseAf/work_base_si/work_base_af`。snapshot 使用 canonical JSON SHA-256，不可变地绑定单请求；不一致 readiness 失败，不得加载旧 Resolver。
+启动校验：exact JSON、版本、duplicate、动作/字段/operator 子集、code/service contract、逻辑字段与 `service_field` 固定映射、descriptor/definition/config/validator/mapper/codec 完整对齐、result/model 字段子集和大小/timeout 上限；显式拒绝 `workBaseSi/workBaseAf/work_base_si/work_base_af`。snapshot 使用 canonical JSON SHA-256，不可变地绑定单请求；不一致 readiness 失败，不得加载旧 Resolver。
 
 ## 5. 处理流程、权限与审计设计
 
@@ -172,8 +163,8 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 |---|---|
 | `TEST-BQCOM-101` | exact 三字段/filter/tagged union、重复键、unknown、float、集合/深度上限 |
 | `TEST-BQCOM-102` | 同字段 gt+lt、eq/range 互斥、上下界、Employee operator 和 semantic+filter 拒绝 |
-| `TEST-BQCOM-103` | config version/hash/subset、三动作 alignment、keyword 三字段和 protected exposure 对齐、workBase 显式拒绝 |
-| `TEST-BQCOM-104` | 同请求 slot、跨请求/重复 slot 拒绝，详细地址与上海片段边界，keyword tagged union 与敏感 keyword 零泄漏 |
+| `TEST-BQCOM-103` | config version/hash/subset、三动作 alignment、workBase 显式拒绝 |
+| `TEST-BQCOM-104` | 同请求 slot、跨请求/重复 slot 拒绝，详细地址与上海片段边界 |
 | `TEST-BQCOM-105` | Date offset/timezone、相对日期 unsupported、Decimal canonical/scale≤2/JSON number |
 | `TEST-BQCOM-106` | page/size/sorts/offset overflow、投影脱敏、模型出域拒绝与调用计数 |
 
@@ -206,7 +197,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | 当前允许实施范围 | QueryPlan/config/catalog/slot/projection 的 non-live 代码与 fake 测试 |
 | 当前禁止动作 | 真实模型/业务/数据库调用、新业务接口、权限扩权、放宽敏感与结果边界 |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：本版已通过独立 L2 和跨层评审；已存在旧公共组件不表示新 filters 和统一配置已实现。
 
 ## 10. 端到端追踪矩阵
 
