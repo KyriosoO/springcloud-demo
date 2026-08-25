@@ -18,7 +18,7 @@
 
 目标复用 `EmployeeEsController.search` 和 `vectorSearch` 现有公开接口，分别提供 `employee.search`、`employee.semantic_search`，返回严格投影的员工列表。范围外包括新 endpoint/DTO、ES 直连、索引重建、聚合、写入、客户端二次筛选、自动互相 fallback 和启用 workBase 字段。
 
-当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec 与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 现已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。真实零模型诊断已证明向量请求 `k=20` 返回 `total=20`、10 条 hits，其中 1 条缺失姓名；当前 codec/normalizer 尚未兼容既有接口的有限 partial page 和历史脏记录。成功受控真实联调和正式 UAT 尚未完成。
+当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec、partial page/记录级卫生与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 现已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。真实零模型诊断已证明向量请求 `k=20` 返回 `total=20`、10 条 hits，其中 1 条缺失姓名；生产 codec/normalizer 仅隔离该记录，返回 9 条有效用户记录，保留 `total=20`、`truncated=true`。成功受控真实联调和正式 UAT 尚未完成。
 
 | 需求编号 | 需求 |
 |---|---|

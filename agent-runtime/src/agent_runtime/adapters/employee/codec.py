@@ -327,6 +327,7 @@ class EmployeeSearchWireCodec:
             response=response,
             from_index=request.from_index,
             size=request.size,
+            allow_partial_page=False,
         )
 
 
@@ -335,6 +336,7 @@ def _decode_employee_hits(
     response: BoundedBusinessHttpResponse,
     from_index: int,
     size: int,
+    allow_partial_page: bool,
 ) -> EmployeeSearchWireResponse:
     content_type_parts = (response.content_type or "").split(";")
     media_type = content_type_parts[0].strip().lower()
@@ -378,34 +380,63 @@ def _decode_employee_hits(
         or total.get("relation") not in {"eq", "gte"}
         or type(rows) is not list
         or len(rows) > size
+        or cast(int, total["value"]) < len(rows)
     ):
         raise InvalidBusinessWireResponse("business.invalid_response")
-    records = tuple(_employee_hit_record(item) for item in rows)
+    parsed = tuple(_employee_hit_record(item) for item in rows)
+    records = tuple(item for item in parsed if item is not None)
+    if rows and not records:
+        raise InvalidBusinessWireResponse("business.invalid_response")
     return EmployeeSearchWireResponse(
         rows=records,
         total=cast(int, total["value"]),
         total_exact=total["relation"] == "eq",
         from_index=from_index,
         size=size,
+        upstream_hit_count=len(rows),
+        allow_partial_page=allow_partial_page,
     )
 
 
-def _employee_hit_record(raw: object) -> EmployeeSearchRecord:
+def _employee_hit_record(raw: object) -> EmployeeSearchRecord | None:
     if not isinstance(raw, dict) or not isinstance(raw.get("_source"), dict):
         raise InvalidBusinessWireResponse("business.invalid_response")
     source = cast(dict[str, object], raw["_source"])
-    if not {"idCardNo", "chineseName"}.issubset(source):
-        raise InvalidBusinessWireResponse("business.invalid_response")
+    missing_required_field = False
+    for field in ("idCardNo", "chineseName"):
+        value = source.get(field)
+        if value is None:
+            missing_required_field = True
+            continue
+        if type(value) is not str:
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        if any(
+            unicodedata.category(character) == "Cc"
+            or unicodedata.bidirectional(character) in _BIDI
+            for character in value
+        ):
+            raise InvalidBusinessWireResponse("business.invalid_response")
+        if not value.strip():
+            missing_required_field = True
+    contact_address = _normalize(
+        source.get("contactAddress"), minimum=1, maximum=256, optional=True
+    )
+    member_no = _normalize(source.get("memberNo"), minimum=5, maximum=64, optional=True)
+    phone_no = _normalize(source.get("phoneNo"), minimum=1, maximum=128, optional=True)
+    email = _normalize(source.get("email"), minimum=1, maximum=254, optional=True)
+    position = _normalize(source.get("position"), minimum=1, maximum=256, optional=True)
+    if missing_required_field:
+        return None
     identifier = _required(_normalize(source["idCardNo"], minimum=5, maximum=64))
     name = _required(_normalize(source["chineseName"], minimum=1, maximum=128))
     return EmployeeSearchRecord(
         employee_identifier=identifier,
         chinese_name=name,
-        contact_address=_normalize(source.get("contactAddress"), minimum=1, maximum=256, optional=True),
-        member_no=_normalize(source.get("memberNo"), minimum=5, maximum=64, optional=True),
-        phone_no=_normalize(source.get("phoneNo"), minimum=1, maximum=128, optional=True),
-        email=_normalize(source.get("email"), minimum=1, maximum=254, optional=True),
-        position=_normalize(source.get("position"), minimum=1, maximum=256, optional=True),
+        contact_address=contact_address,
+        member_no=member_no,
+        phone_no=phone_no,
+        email=email,
+        position=position,
     )
 
 
@@ -474,4 +505,9 @@ class EmployeeSemanticSearchWireCodec:
         request: EmployeeSemanticSearchWireRequest,
         response: BoundedBusinessHttpResponse,
     ) -> EmployeeSearchWireResponse:
-        return _decode_employee_hits(response=response, from_index=0, size=request.size)
+        return _decode_employee_hits(
+            response=response,
+            from_index=0,
+            size=request.size,
+            allow_partial_page=True,
+        )

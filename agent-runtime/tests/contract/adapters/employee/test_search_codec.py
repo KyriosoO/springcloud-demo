@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 
@@ -123,6 +124,70 @@ def test_employee_search_rejects_unprovable_total_and_missing_required_source() 
     ):
         with pytest.raises(InvalidBusinessWireResponse):
             codec.decode_success(request=_request(), response=_response(payload))
+
+
+@pytest.mark.parametrize(
+    "missing_field,missing_value",
+    (
+        ("chineseName", None),
+        ("chineseName", ""),
+        ("chineseName", "   "),
+        ("idCardNo", None),
+    ),
+)
+def test_employee_search_isolates_only_records_missing_required_identity(
+    missing_field: str,
+    missing_value: str | None,
+) -> None:
+    payload = _payload(total=2)
+    hits = cast(dict[str, object], payload["hits"])
+    rows = cast(list[dict[str, object]], hits["hits"])
+    invalid_source: dict[str, object] = {
+        "idCardNo": "ABCDE67890",
+        "chineseName": "历史员工",
+    }
+    if missing_value is None:
+        invalid_source.pop(missing_field)
+    else:
+        invalid_source[missing_field] = missing_value
+    rows.append({"_source": invalid_source})
+
+    decoded = EmployeeSearchWireCodec().decode_success(
+        request=_request(), response=_response(payload)
+    )
+    result = EmployeeSearchResponseNormalizer().normalize_success(decoded)
+
+    assert decoded.upstream_hit_count == 2
+    assert not decoded.allow_partial_page
+    assert len(decoded.rows) == 1
+    assert isinstance(result, BusinessRecordsResult)
+    assert result.coverage.returned_count == 1
+    assert result.coverage.total_count == 2
+    assert result.coverage.truncated
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        {"idCardNo": 12345, "chineseName": "测试员工"},
+        {"idCardNo": "ABCDE12345", "chineseName": "坏\x00值"},
+        {"idCardNo": "ABCDE12345", "chineseName": "\n"},
+        {"idCardNo": "ABCDE12345", "chineseName": "测试员工", "memberNo": 1},
+        {"idCardNo": "ABCDE12345", "chineseName": None, "memberNo": 1},
+    ),
+)
+def test_employee_search_does_not_isolate_invalid_types_controls_or_optional_fields(
+    source: dict[str, object],
+) -> None:
+    payload = _payload(total=2)
+    hits = cast(dict[str, object], payload["hits"])
+    rows = cast(list[dict[str, object]], hits["hits"])
+    rows.append({"_source": source})
+
+    with pytest.raises(InvalidBusinessWireResponse, match="business.invalid_response"):
+        EmployeeSearchWireCodec().decode_success(
+            request=_request(), response=_response(payload)
+        )
 
 
 def test_employee_search_rejects_duplicate_key_invalid_media_and_oversized_payload() -> None:

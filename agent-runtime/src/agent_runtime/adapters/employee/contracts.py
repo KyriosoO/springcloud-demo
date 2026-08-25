@@ -90,6 +90,8 @@ class EmployeeSearchWireResponse:
     total_exact: bool
     from_index: int
     size: int
+    upstream_hit_count: int
+    allow_partial_page: bool
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

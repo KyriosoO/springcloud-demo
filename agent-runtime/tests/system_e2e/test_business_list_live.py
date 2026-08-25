@@ -198,13 +198,28 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     assert third_evidence["counts"]["employeeSearch"] == 1
     assert third_evidence["counts"]["employeeSemantic"] == 1
 
+    fourth = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled-run04.result.json"
+    assert hashlib.sha256(fourth.read_bytes()).hexdigest() == (
+        "3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de"
+    )
+    fourth_evidence = json.loads(fourth.read_text(encoding="utf-8"))
+    assert [case["status"] for case in fourth_evidence["cases"]] == [
+        "success", "downstream_failure"
+    ]
+    assert fourth_evidence["counts"]["modelQueryPlan"] == 2
+    assert fourth_evidence["counts"]["employeeSearch"] == 1
+    assert fourth_evidence["counts"]["employeeSemantic"] == 1
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
-    assert "business-list-v2-controlled-run04.result.json" in source
+    assert "business-list-v2-controlled-run05.result.json" in source
     assert "business-list-v2-uat.result.json" in source
     assert "spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201" in source
     assert "[switch]$DownstreamOnly" in source
     assert "[switch]$SemanticOnly" in source
+    assert "EmployeeSemanticSearchWireCodec().decode_success" in source
+    assert "EmployeeSearchResponseNormalizer().normalize_success" in source
+    assert "decodedReturnedCount" in source
 
     historical_manifest = root / "agent-runtime/tests/system_e2e/business_list_live_manifest.json"
     assert hashlib.sha256(historical_manifest.read_bytes()).hexdigest() == (

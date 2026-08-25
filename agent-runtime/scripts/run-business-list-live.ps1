@@ -22,7 +22,7 @@ $python = Join-Path $repository '.tmp\agent-runtime-venv\Scripts\python.exe'
 $stageValue = $Stage.ToLowerInvariant()
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $runtime 'tests\system_e2e\live\results'))
 $evidenceName = if ($stageValue -eq 'controlled') {
-    'business-list-v2-controlled-run04.result.json'
+    'business-list-v2-controlled-run05.result.json'
 } else {
     'business-list-v2-uat.result.json'
 }
@@ -319,6 +319,83 @@ try {
         if ($null -eq $document.hits) {
             throw 'business_list_live.domain_preflight_response_invalid'
         }
+        $diagnosticResponseBytes = [Text.Encoding]::UTF8.GetByteCount([string]$response.Content)
+        $diagnosticRows = @($document.hits.hits)
+        $diagnosticTotalFields = @($document.hits.total.PSObject.Properties.Name) -join ','
+        $diagnosticTotalRelation = [string]$document.hits.total.relation
+        $diagnosticTotalValue = [int]$document.hits.total.value
+        $diagnosticMissingIdentifier = @($diagnosticRows | Where-Object {
+            $null -eq $_._source.idCardNo
+        }).Count
+        $diagnosticMissingName = @($diagnosticRows | Where-Object {
+            $null -eq $_._source.chineseName
+        }).Count
+        $diagnosticMissingIdentity = @($diagnosticRows | Where-Object {
+            $null -eq $_._source.idCardNo -or $null -eq $_._source.chineseName
+        }).Count
+        $diagnosticInvalidOptional = @($diagnosticRows | Where-Object {
+            $null -ne $_._source.memberNo -and ([string]$_._source.memberNo).Length -lt 5
+        }).Count
+        if ($SemanticOnly) {
+            $decoderProgram = @'
+import json
+import sys
+
+from agent_runtime.adapters.employee.codec import (
+    EmployeeSemanticSearchArgumentValidator,
+    EmployeeSemanticSearchRequestMapper,
+    EmployeeSemanticSearchWireCodec,
+)
+from agent_runtime.adapters.employee.normalizer import EmployeeSearchResponseNormalizer
+from agent_runtime.business.contracts import BoundedBusinessHttpResponse, BusinessRecordsResult
+from agent_runtime.business.settings import BusinessQueryConfigurationLoader
+
+try:
+    settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
+        "employee.semantic_search"
+    ]
+    selected = EmployeeSemanticSearchArgumentValidator().validate(
+        {"query": "synthetic semantic diagnostic", "size": 20}
+    )
+    request = EmployeeSemanticSearchRequestMapper().map(selected, settings)
+    response = BoundedBusinessHttpResponse(
+        status_code=200,
+        content_type="text/plain;charset=UTF-8",
+        body=sys.stdin.buffer.read(),
+    )
+    decoded = EmployeeSemanticSearchWireCodec().decode_success(
+        request=request,
+        response=response,
+    )
+    result = EmployeeSearchResponseNormalizer().normalize_success(decoded)
+    if not isinstance(result, BusinessRecordsResult):
+        raise ValueError("invalid_response")
+    print(json.dumps({
+        "status": "passed",
+        "upstreamHits": decoded.upstream_hit_count,
+        "returnedCount": result.coverage.returned_count,
+        "totalCount": result.coverage.total_count,
+        "truncated": result.coverage.truncated,
+    }))
+except Exception:
+    print(json.dumps({"status": "invalid_response"}))
+    sys.exit(1)
+'@
+            [Environment]::SetEnvironmentVariable('PYTHONPATH', 'src;.', 'Process')
+            Push-Location $runtime
+            try {
+                $decoderOutput = [string]([string]$response.Content | & $python -c $decoderProgram)
+                if ($LASTEXITCODE -ne 0) {
+                    throw 'business_list_live.domain_preflight_response_invalid'
+                }
+                $diagnosticCoverage = $decoderOutput | ConvertFrom-Json
+                if ($diagnosticCoverage.status -ne 'passed') {
+                    throw 'business_list_live.domain_preflight_response_invalid'
+                }
+            } finally {
+                Pop-Location
+            }
+        }
     } elseif (-not $PreflightOnly) {
         $adminToken = Get-OwnedLoginToken 'admin'
         $viewerToken = Get-OwnedLoginToken 'viewer_t'
@@ -424,6 +501,18 @@ if ($DownstreamOnly -or $SemanticOnly) {
         employeeSearch = if ($SemanticOnly) { 0 } else { 1 }
         employeeSemantic = if ($SemanticOnly) { 1 } else { 0 }
         elapsedMs = $diagnosticTimer.ElapsedMilliseconds
+        responseBytes = $diagnosticResponseBytes
+        rowCount = $diagnosticRows.Count
+        totalFields = $diagnosticTotalFields
+        totalRelation = $diagnosticTotalRelation
+        totalValue = $diagnosticTotalValue
+        missingIdentifierCount = $diagnosticMissingIdentifier
+        missingNameCount = $diagnosticMissingName
+        missingIdentityCount = $diagnosticMissingIdentity
+        shortMemberCount = $diagnosticInvalidOptional
+        decodedReturnedCount = if ($SemanticOnly) { $diagnosticCoverage.returnedCount } else { $null }
+        decodedTotalCount = if ($SemanticOnly) { $diagnosticCoverage.totalCount } else { $null }
+        decodedTruncated = if ($SemanticOnly) { $diagnosticCoverage.truncated } else { $null }
     }
     return
 }

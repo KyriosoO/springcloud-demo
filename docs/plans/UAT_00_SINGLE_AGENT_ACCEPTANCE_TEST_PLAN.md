@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2；Employee L2 v2.3；Transaction L2 v2.0 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.5 |
-| 当前状态 | 三动作 filters/config/Adapter/组合根及 Employee ES 端点级共享 role converter 已实施；上海真实 search 已返回列表，现有向量接口 partial hits/缺姓名历史记录的 Adapter 修复及成功 controlled live/UAT 尚未完成，`GATE-UAT-007` Open |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.6 |
+| 当前状态 | 三动作 filters/config/Adapter/组合根及 Employee ES 端点级共享 role converter 已实施；真实 search 已返回列表，向量 partial hits/历史缺姓名记录已通过生产 codec 零模型验证；成功 controlled live/UAT 尚未完成，`GATE-UAT-007` Open |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1、新组合根及 Employee ES endpoint-scoped 共享 converter 均已有当前版本 non-live/真实 Servlet 过滤链证据；ADMIN 403 和隔离 Feign 服务发现已修复，上海真实 search 返回 20 条。semantic 独立 10000ms 合同已通过，但真实零模型诊断证明向量接口返回 10/20 partial hits 且 1 条历史文档缺姓名，结果兼容修复尚未实施；四次失败及历史 manifest 保持不可变。成功 controlled live 和 `GATE-UAT-007` 仍未完成；旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。
+本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1、新组合根及 Employee ES endpoint-scoped 共享 converter 均已有当前版本 non-live/真实 Servlet 过滤链证据；ADMIN 403 和隔离 Feign 服务发现已修复，上海真实 search 返回 20 条。semantic 独立 10000ms 与 bounded partial hits/记录卫生已实施，真实零模型生产 codec 返回 9 条有效记录、`total=20`、`truncated=true`；35 项定向及 1417 项 non-live 通过，四次失败及历史 manifest 保持不可变。成功 controlled live 和 `GATE-UAT-007` 仍未完成；旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。

@@ -158,6 +158,67 @@ async def test_semantic_handler_uses_only_vector_endpoint_once() -> None:
 
 
 @pytest.mark.asyncio
+async def test_semantic_handler_projects_partial_hits_without_fallback_or_extra_call() -> None:
+    class PartialEmployeeSearchServer(FakeEmployeeSearchServer):
+        async def send(self, request: FakeDomainHttpRequest) -> FakeDomainHttpResponse:
+            self.requests.append(request)
+            rows = [
+                {
+                    "_source": {
+                        "idCardNo": f"ABCDE{index:05d}",
+                        "chineseName": f"员工{index}",
+                        "position": "工程师",
+                    }
+                }
+                for index in range(9)
+            ]
+            rows.append({"_source": {"idCardNo": "ABCDE99999"}})
+            return FakeDomainHttpResponse(
+                status_code=200,
+                content_type="text/plain;charset=UTF-8",
+                body=json.dumps(
+                    {
+                        "hits": {
+                            "total": {"value": 20, "relation": "eq"},
+                            "hits": rows,
+                        }
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+            )
+
+    definition = employee_semantic_search_definition()
+    settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
+        "employee.semantic_search"
+    ]
+    server = PartialEmployeeSearchServer()
+    handler = BoundBusinessActionHandler(
+        definition=definition,
+        settings=settings,
+        client=UserJwtBusinessHttpClient(transport=server, max_response_bytes=1048576),
+        user_projector=BusinessUserResultProjector(),
+        egress_projector=BusinessEgressProjector(),
+        egress_policy=GlobalBusinessEgressPolicy.from_settings(BusinessGlobalSettings()),
+        config_snapshot_id="a" * 64,
+        max_user_result_bytes=262144,
+    )
+    selected = definition.argument_validator.validate({"query": "金融风控经验", "size": 20})
+
+    result = await handler.handle(selected, scope("查询具备金融风控经验的员工").context)
+
+    assert result.status is CapabilityStatus.SUCCESS
+    assert len(server.requests) == 1
+    assert server.requests[0].request.relative_path == "/employees/es/vector-search"
+    assert result.domain_result is not None
+    records = result.domain_result["records"]
+    coverage = result.domain_result["coverage"]
+    assert isinstance(records, tuple)
+    assert len(records) == 9
+    assert isinstance(coverage, Mapping)
+    assert coverage == {"returned_count": 9, "truncated": True, "total_count": 20}
+
+
+@pytest.mark.asyncio
 async def test_semantic_budget_respects_request_deadline_without_retry_or_fallback() -> None:
     class SlowEmployeeSearchServer(FakeEmployeeSearchServer):
         async def send(self, request: FakeDomainHttpRequest) -> FakeDomainHttpResponse:
