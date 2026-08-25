@@ -156,7 +156,7 @@ def test_manifest_freezes_only_task_configuration_cases_and_bounded_budgets() ->
         validate_manifest(modified)
 
 
-def test_first_controlled_failure_is_immutable_and_retry_uses_an_independent_path() -> None:
+def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() -> None:
     root = Path(__file__).resolve().parents[3]
     historical = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled.result.json"
     assert hashlib.sha256(historical.read_bytes()).hexdigest() == (
@@ -172,10 +172,26 @@ def test_first_controlled_failure_is_immutable_and_retry_uses_an_independent_pat
     assert evidence["counts"]["modelQueryPlan"] == 1
     assert evidence["counts"]["employeeSearch"] == 1
 
+    second = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled-run02.result.json"
+    assert hashlib.sha256(second.read_bytes()).hexdigest() == (
+        "121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08"
+    )
+    second_evidence = json.loads(second.read_text(encoding="utf-8"))
+    assert second_evidence["status"] == "failed"
+    assert second_evidence["cases"] == [{
+        "capabilityId": "employee.search", "caseId": "LIVE-EMP-001",
+        "domainCalls": 1, "fields": ["contact_address"], "modelCalls": 1,
+        "operators": ["contains"], "rowCount": 0, "status": "downstream_failure",
+    }]
+    assert second_evidence["counts"]["modelQueryPlan"] == 1
+    assert second_evidence["counts"]["employeeSearch"] == 1
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
-    assert "business-list-v2-controlled-run02.result.json" in source
+    assert "business-list-v2-controlled-run03.result.json" in source
     assert "business-list-v2-uat.result.json" in source
+    assert "spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201" in source
+    assert "[switch]$DownstreamOnly" in source
 
 
 def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -> None:

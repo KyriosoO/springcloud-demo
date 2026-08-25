@@ -4,7 +4,9 @@ param(
     [ValidateSet('Controlled', 'Uat')]
     [string]$Stage,
 
-    [switch]$PreflightOnly
+    [switch]$PreflightOnly,
+
+    [switch]$DownstreamOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,7 +20,7 @@ $python = Join-Path $repository '.tmp\agent-runtime-venv\Scripts\python.exe'
 $stageValue = $Stage.ToLowerInvariant()
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $runtime 'tests\system_e2e\live\results'))
 $evidenceName = if ($stageValue -eq 'controlled') {
-    'business-list-v2-controlled-run02.result.json'
+    'business-list-v2-controlled-run03.result.json'
 } else {
     'business-list-v2-uat.result.json'
 }
@@ -30,8 +32,12 @@ if (Test-Path -LiteralPath $evidence) {
     throw 'business_list_live.evidence_exists'
 }
 
-$modelKey = [Environment]::GetEnvironmentVariable('LLM_API_KEY', 'Process')
-if ([string]::IsNullOrWhiteSpace($modelKey)) {
+$modelKey = if ($DownstreamOnly) {
+    $null
+} else {
+    [Environment]::GetEnvironmentVariable('LLM_API_KEY', 'Process')
+}
+if (-not $DownstreamOnly -and [string]::IsNullOrWhiteSpace($modelKey)) {
     throw 'business_list_live.model_key_missing'
 }
 
@@ -260,7 +266,10 @@ try {
         '--es.query.rebuild-max-batch-size=500'
     ) + $commonArguments) (Join-Path $repository 'es-query-service')
     $employee = Start-OwnedService 'employee' (
-        @('-jar', $jars.employee, '--server.port=9210') + $commonArguments
+        @(
+            '-jar', $jars.employee, '--server.port=9210',
+            '--spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201'
+        ) + $commonArguments
     ) (Join-Path $repository 'employee-service')
     $transaction = Start-OwnedService 'transaction' (
         @('-jar', $jars.transaction, '--server.port=8182') + $commonArguments
@@ -271,7 +280,25 @@ try {
     Wait-OwnedService $employee 9210 'http://127.0.0.1:9210/actuator/health' @(200, 401, 403)
     Wait-OwnedService $transaction 8182 'http://127.0.0.1:8182/actuator/health' @(200, 401, 403)
 
-    if (-not $PreflightOnly) {
+    if ($DownstreamOnly) {
+        $adminToken = Get-OwnedLoginToken 'admin'
+        $body = @{
+            filters = @(@{ field = 'contactAddress'; operator = 'contains'; value = '上海' })
+            from = 0
+            size = 1
+        } | ConvertTo-Json -Depth 5 -Compress
+        $response = Invoke-WebRequest -Uri 'http://127.0.0.1:9210/employees/es/search' `
+            -Method Post -ContentType 'application/json' -Body $body `
+            -Headers @{ Authorization = "Bearer $adminToken" } `
+            -TimeoutSec 15 -SkipHttpErrorCheck
+        if ([int]$response.StatusCode -ne 200) {
+            throw "business_list_live.domain_preflight_http_$([int]$response.StatusCode)"
+        }
+        $document = $response.Content | ConvertFrom-Json
+        if ($null -eq $document.hits) {
+            throw 'business_list_live.domain_preflight_response_invalid'
+        }
+    } elseif (-not $PreflightOnly) {
         $adminToken = Get-OwnedLoginToken 'admin'
         $viewerToken = Get-OwnedLoginToken 'viewer_t'
         $deniedToken = New-DeniedToken $keyBytes
@@ -366,6 +393,16 @@ if ($null -ne $failureCode) {
 }
 if (-not $logsDeleted) {
     throw 'business_list_live.log_cleanup_incomplete'
+}
+
+if ($DownstreamOnly) {
+    [PSCustomObject]@{
+        stage = $stageValue
+        status = 'downstream_passed'
+        modelCalls = 0
+        employeeSearch = 1
+    }
+    return
 }
 
 if ($PreflightOnly) {
