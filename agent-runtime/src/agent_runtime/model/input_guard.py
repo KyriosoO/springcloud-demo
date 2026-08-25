@@ -98,6 +98,7 @@ class QuestionEgressGuard:
                     QuestionDataClass.PERSONAL_IDENTIFIER,
                     QuestionDataClass.EMPLOYEE_IDENTIFIER,
                     QuestionDataClass.TRANSACTION_IDENTIFIER,
+                    QuestionDataClass.CONTACT,
                 }
             ):
                 return self._business_denied(QuestionEgressReasonCode.SENSITIVE_INPUT)

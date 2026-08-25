@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from agent_runtime.business.contracts import (
     BusinessFieldDefinition,
@@ -8,7 +8,8 @@ from agent_runtime.business.contracts import (
     BusinessFieldValueType,
     DataClass,
 )
-from agent_runtime.adapters.employee.contracts import EmployeeDetailRecord
+from agent_runtime.adapters.employee.contracts import EmployeeDetailRecord, EmployeeSearchRecord
+from agent_runtime.business.contracts import business_query_v2_result_contracts
 
 
 def employee_field_definitions() -> tuple[BusinessFieldDefinition[EmployeeDetailRecord, Any], ...]:
@@ -23,3 +24,35 @@ def employee_field_definitions() -> tuple[BusinessFieldDefinition[EmployeeDetail
         BusinessFieldDefinition(field_id="work_base_si", value_type=BusinessFieldValueType.TEXT, data_class=DataClass.BUSINESS_INTERNAL, extractor=lambda r: r.work_base_si, user_visible_by_code=True, model_candidate_by_code=True, allowed_user_transforms=bounded, allowed_model_transforms=bounded),
     )
 
+
+def employee_search_field_definitions() -> tuple[
+    BusinessFieldDefinition[EmployeeSearchRecord, Any], ...
+]:
+    definitions: list[BusinessFieldDefinition[EmployeeSearchRecord, Any]] = []
+    for contract in business_query_v2_result_contracts("employee.search"):
+        field_id = contract.field_id
+        model_transforms = (
+            frozenset({contract.model_transform})
+            if contract.model_transform is not None
+            else frozenset()
+        )
+        definitions.append(
+            BusinessFieldDefinition(
+                field_id=field_id,
+                value_type=contract.value_type,
+                data_class=contract.data_class,
+                extractor=_employee_search_extractor(field_id),
+                user_visible_by_code=True,
+                model_candidate_by_code=contract.model_transform is not None,
+                allowed_user_transforms=frozenset({contract.user_transform}),
+                allowed_model_transforms=model_transforms,
+            )
+        )
+    return tuple(definitions)
+
+
+def _employee_search_extractor(field_id: str) -> Callable[[EmployeeSearchRecord], Any]:
+    def extract(record: EmployeeSearchRecord) -> Any:
+        return getattr(record, field_id)
+
+    return extract
