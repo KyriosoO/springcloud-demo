@@ -224,6 +224,28 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     assert fifth_evidence["counts"]["employeeSemantic"] == 1
     assert fifth_evidence["counts"]["transactionSearch"] == 1
 
+    sixth = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled-run06.result.json"
+    assert hashlib.sha256(sixth.read_bytes()).hexdigest() == (
+        "d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6"
+    )
+    sixth_evidence = json.loads(sixth.read_text(encoding="utf-8"))
+    validate_evidence(sixth_evidence, stage="controlled")
+    assert [case["status"] for case in sixth_evidence["cases"]] == [
+        "success", "success", "success", "forbidden", "forbidden", "unsupported"
+    ]
+    assert [case["rowCount"] for case in sixth_evidence["cases"][:3]] == [20, 9, 20]
+    assert sixth_evidence["counts"] == {
+        "modelQueryPlan": 6,
+        "employeeSearch": 2,
+        "employeeSemantic": 1,
+        "transactionSearch": 2,
+        "otherBusinessEndpoints": 0,
+        "answerGeneration": 0,
+        "knowledge": 0,
+        "retry": 0,
+        "resume": 0,
+    }
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
     assert "business-list-v2-controlled-run06.result.json" in source
@@ -249,6 +271,7 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
 
 def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -> None:
     cases = uat_cases(transaction_type="SYNTHETIC", employee_identifier="SYNTHETIC12345")
+    by_id = {case.case_id: case for case in cases}
     assert len(cases) == 18
     assert len({case.case_id for case in cases}) == len(cases)
     assert {case.expected_action for case in cases} == {
@@ -257,6 +280,10 @@ def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -
     assert all(case.expected_model_calls == 1 for case in cases)
     assert any(case.principal == "viewer" for case in cases)
     assert any(case.principal == "denied" for case in cases)
+    assert by_id["UAT-TXN-203"].expected_fields == ("trans_date",)
+    assert by_id["UAT-TXN-203"].expected_operators == ("eq",)
+    assert by_id["UAT-TXN-205"].expected_fields == ("amount",)
+    assert by_id["UAT-TXN-205"].expected_operators == ("eq",)
     assert all(
         case.expected_action is None
         for case in cases

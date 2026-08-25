@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.6 |
+| 当前版本 | v1.7 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2；Employee L2 v2.3；Transaction L2 v2.2 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.8 |
-| 当前状态 | Employee 真实 search/semantic 分别返回 20/9；Transaction 生产 Spring UTC 字符串/standalone epoch 双形态已实现，零模型实际 codec 通过 20/104；成功 controlled live/UAT 尚未完成，`GATE-UAT-007` Open |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.9 |
+| 当前状态 | controlled-run06 六个真实 LLM 三动作/角色场景通过；公共接入 Java 20 项通过，`GATE-UAT-007` Closed；正式 Employee/Transaction UAT Ready |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -36,9 +36,9 @@
 
 | 阶段 | 内容 | 前置 | 当前状态 |
 |---|---|---|---|
-| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Blocked |
-| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟与 Employee 读取授权 | Blocked |
-| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟与 Transaction Date 合同 | Blocked |
+| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed |
+| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟与 Employee 读取授权 | Ready |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟与 Transaction Date 合同 | Ready |
 | `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Blocked |
 
 Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-本版所有 UAT 阶段均未开始。Employee 真实两动作分别返回 20/9；Transaction 生产 UTC `.000+00:00` 和 standalone epoch 双形态已严格实现，真实 Spring JSON 6 项、Python 专项 244 项、全量 1424 项和真实零模型 20/104 codec 通过。第五次失败 SHA-256=`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e` 和历史 manifest 不可变；`GATE-069/070` 已复核关闭，但成功 controlled live 及 `GATE-UAT-007` 仍未完成。
+controlled-run06 完成 6 次真实 LLM QueryPlan：Employee search/semantic 和 Transaction search 成功，两个最终授权拒绝及未配置字段零业务调用均通过；有限证据 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`。公共接入认证、严格 JSON、默认 stub、unsupported 和零调用通过 Java 20 项。`GATE-UAT-007` 已关闭；Employee/Transaction 正式真实 LLM UAT 尚未执行，不能用 controlled 结果冒充验收完成。既有五次失败和 live manifest 不可变。
