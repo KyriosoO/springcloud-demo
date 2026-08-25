@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.5 |
+| 当前版本 | v1.6 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2；Employee L2 v2.3；Transaction L2 v2.1 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.7 |
-| 当前状态 | Employee 真实 search/semantic 已分别返回 20/9 条；Transaction 服务真实响应使用 UTC 零毫秒 offset 字符串，现有 Agent codec 尚不兼容；成功 controlled live/UAT 尚未完成，`GATE-069/070/UAT-007` Open |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2；Employee L2 v2.3；Transaction L2 v2.2 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.8 |
+| 当前状态 | Employee 真实 search/semantic 分别返回 20/9；Transaction 生产 Spring UTC 字符串/standalone epoch 双形态已实现，零模型实际 codec 通过 20/104；成功 controlled live/UAT 尚未完成，`GATE-UAT-007` Open |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、新组合根及 Employee endpoint-scoped 共享 converter 已具备当前代码证据；真实 LLM Employee 两动作分别返回 20/9 条。Transaction 单次零模型诊断确认 HTTP 200、20/104 条，但运行中 Spring 输出 UTC `.000+00:00` 日期字符串，现有仅接受 epoch 的 codec 拒绝；第五次失败 SHA-256=`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e` 和历史 manifest 不可变。应先完成 L2 v2.1 严格双形态 Date 合同及 `GATE-069/070` 复核，再恢复 controlled live；`GATE-UAT-007` 仍 Open。
+本版所有 UAT 阶段均未开始。Employee 真实两动作分别返回 20/9；Transaction 生产 UTC `.000+00:00` 和 standalone epoch 双形态已严格实现，真实 Spring JSON 6 项、Python 专项 244 项、全量 1424 项和真实零模型 20/104 codec 通过。第五次失败 SHA-256=`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e` 和历史 manifest 不可变；`GATE-069/070` 已复核关闭，但成功 controlled live 及 `GATE-UAT-007` 仍未完成。

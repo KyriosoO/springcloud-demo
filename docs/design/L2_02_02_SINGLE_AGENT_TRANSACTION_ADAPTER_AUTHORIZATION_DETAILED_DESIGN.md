@@ -6,7 +6,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.1 |
+| 当前版本 | v2.2 |
 | 更新时间 | 2026-08-25 |
 | 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
 | 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2 |
@@ -18,7 +18,7 @@
 
 唯一动作 `transaction.search` 固定复用 `POST /txn/search`，以逻辑 filters/operator 查询既有 SQL 列表，并保留服务最终读取授权。范围外包括 aggregate、detail、condition、query、写入、管理接口、Agent 数据库直连、float/rounding、跨域 fallback 与新 DTO。
 
-当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。真实零模型诊断已证明运行中 Spring 服务返回 UTC offset、三位零毫秒的 ISO 字符串，而历史 standalone Controller 测试返回 epoch 毫秒；现有 Agent 仅接受后者，故真实列表被误判 invalid_response。运行时字符串响应兼容、真实 Spring 编解码合同、成功 controlled live 和正式 UAT 当前尚未完成。
+当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 已严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；真实 Spring 安全链 JSON 测试、Python 双形态/非法日期矩阵和零模型生产 codec 已通过，真实 HTTP 返回 20/104 条且解码成功。成功 controlled live 和正式 UAT 当前尚未完成。
 
 | 需求编号 | 需求 |
 |---|---|

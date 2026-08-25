@@ -49,6 +49,9 @@ _ROW_WIDE = {"transDate", "transDateGt", "transDateLt", "amountGt", "amountLt", 
 _TIMESTAMP = re.compile(
     r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}"
 )
+_RESPONSE_UTC_TIMESTAMP = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.000\+00:00"
+)
 _SHANGHAI = timezone(timedelta(hours=8))
 
 
@@ -577,6 +580,13 @@ class TransactionListSearchWireCodec:
     def _date(value: object) -> datetime | None:
         if value is None:
             return None
+        if type(value) is str:
+            if _RESPONSE_UTC_TIMESTAMP.fullmatch(value) is None:
+                raise InvalidBusinessWireResponse("business.invalid_response")
+            try:
+                return datetime.fromisoformat(value).astimezone(_SHANGHAI)
+            except (OverflowError, ValueError) as exc:
+                raise InvalidBusinessWireResponse("business.invalid_response") from exc
         if type(value) is not int or value % 1000 != 0:
             raise InvalidBusinessWireResponse("business.invalid_response")
         try:

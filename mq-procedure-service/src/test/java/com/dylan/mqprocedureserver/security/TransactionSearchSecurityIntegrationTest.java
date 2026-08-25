@@ -7,7 +7,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +42,7 @@ import com.dylan.mqprocedureserver.mapper.TransactionMapper;
 import com.dylan.mqprocedureserver.service.TransactionOperKafkaProducer;
 import com.dylan.mqprocedureserver.service.TransactionOperMQProducer;
 import com.dylan.mqprocedureserver.service.TransactionService;
+import com.dylan.transaction.api.model.Transaction;
 import com.dylan.transaction.api.query.TransactionSearchResponse;
 
 @WebFluxTest(TransactionController.class)
@@ -91,6 +94,34 @@ class TransactionSearchSecurityIntegrationTest {
 					.exchange().expectStatus().isOk();
 		}
 		verify(transactionService, org.mockito.Mockito.times(2)).search(any());
+	}
+
+	@Test
+	void productionSpringCodecSerializesTransactionDateAsUtcOffsetMilliseconds() {
+		when(jwtDecoder.decode("token-ADMIN"))
+				.thenReturn(Mono.just(jwt("user", List.of("ADMIN"))));
+		Transaction record = new Transaction();
+		record.setTransId("SYNTHETIC-0001");
+		record.setTransType("PAYMENT");
+		record.setTransDate(Date.from(Instant.parse("2026-08-25T01:00:00Z")));
+		record.setAmount(new BigDecimal("100.20"));
+		TransactionSearchResponse response = new TransactionSearchResponse();
+		response.setRows(List.of(record));
+		response.setTotal(1);
+		response.setTotalExact(true);
+		response.setPage(1);
+		response.setSize(20);
+		when(transactionService.search(any())).thenReturn(response);
+
+		client.post().uri("/txn/search")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer token-ADMIN")
+				.header(HttpHeaders.CONTENT_TYPE, "application/json")
+				.bodyValue(searchBody())
+				.exchange().expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.rows[0].transDate")
+				.isEqualTo("2026-08-25T01:00:00.000+00:00");
+		verify(transactionService).search(any());
 	}
 
 	@Test

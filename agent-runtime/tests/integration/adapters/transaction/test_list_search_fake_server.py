@@ -24,9 +24,10 @@ from tests.helpers import scope
 
 
 class FakeTransactionListServer:
-    def __init__(self, *, status: int = 200) -> None:
+    def __init__(self, *, status: int = 200, production_date: bool = False) -> None:
         self.requests: list[FakeDomainHttpRequest] = []
         self.status = status
+        self.production_date = production_date
 
     async def send(self, request: FakeDomainHttpRequest) -> FakeDomainHttpResponse:
         self.requests.append(request)
@@ -34,7 +35,11 @@ class FakeTransactionListServer:
             "rows": [{
                 "transId": "TXN-00000001",
                 "transType": "PAYMENT",
-                "transDate": 1787619600000,
+                "transDate": (
+                    "2026-08-25T01:00:00.000+00:00"
+                    if self.production_date
+                    else 1787619600000
+                ),
                 "amount": 100.25,
                 "transDateGt": None,
                 "transDateLt": None,
@@ -58,12 +63,15 @@ class FakeTransactionListServer:
 
 
 @pytest.mark.asyncio
-async def test_transaction_list_handler_uses_one_fixed_endpoint_and_masked_results() -> None:
+@pytest.mark.parametrize("production_date", (False, True))
+async def test_transaction_list_handler_uses_one_fixed_endpoint_and_masked_results(
+    production_date: bool,
+) -> None:
     definition = transaction_list_search_definition()
     settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
         "transaction.search"
     ]
-    server = FakeTransactionListServer()
+    server = FakeTransactionListServer(production_date=production_date)
     handler = BoundBusinessActionHandler(
         definition=definition,
         settings=settings,

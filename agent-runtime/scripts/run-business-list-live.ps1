@@ -8,7 +8,9 @@ param(
 
     [switch]$DownstreamOnly,
 
-    [switch]$SemanticOnly
+    [switch]$SemanticOnly,
+
+    [switch]$TransactionOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,7 +24,7 @@ $python = Join-Path $repository '.tmp\agent-runtime-venv\Scripts\python.exe'
 $stageValue = $Stage.ToLowerInvariant()
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $runtime 'tests\system_e2e\live\results'))
 $evidenceName = if ($stageValue -eq 'controlled') {
-    'business-list-v2-controlled-run05.result.json'
+    'business-list-v2-controlled-run06.result.json'
 } else {
     'business-list-v2-uat.result.json'
 }
@@ -34,12 +36,12 @@ if (Test-Path -LiteralPath $evidence) {
     throw 'business_list_live.evidence_exists'
 }
 
-$modelKey = if ($DownstreamOnly -or $SemanticOnly) {
+$modelKey = if ($DownstreamOnly -or $SemanticOnly -or $TransactionOnly) {
     $null
 } else {
     [Environment]::GetEnvironmentVariable('LLM_API_KEY', 'Process')
 }
-if (-not ($DownstreamOnly -or $SemanticOnly) -and [string]::IsNullOrWhiteSpace($modelKey)) {
+if (-not ($DownstreamOnly -or $SemanticOnly -or $TransactionOnly) -and [string]::IsNullOrWhiteSpace($modelKey)) {
     throw 'business_list_live.model_key_missing'
 }
 
@@ -282,14 +284,23 @@ try {
     Wait-OwnedService $employee 9210 'http://127.0.0.1:9210/actuator/health' @(200, 401, 403)
     Wait-OwnedService $transaction 8182 'http://127.0.0.1:8182/actuator/health' @(200, 401, 403)
 
-    if ($DownstreamOnly -or $SemanticOnly) {
+    if ($DownstreamOnly -or $SemanticOnly -or $TransactionOnly) {
         $adminToken = Get-OwnedLoginToken 'admin'
-        $uri = if ($SemanticOnly) {
+        $uri = if ($TransactionOnly) {
+            'http://127.0.0.1:8182/txn/search'
+        } elseif ($SemanticOnly) {
             'http://127.0.0.1:9210/employees/es/vector-search'
         } else {
             'http://127.0.0.1:9210/employees/es/search'
         }
-        $payload = if ($SemanticOnly) {
+        $payload = if ($TransactionOnly) {
+            @{
+                condition = @{ amountGt = [decimal]::Parse('0.01', [Globalization.CultureInfo]::InvariantCulture) }
+                page = 1
+                size = 20
+                sorts = @()
+            }
+        } elseif ($SemanticOnly) {
             @{
                 queryText = '金融风控经验'
                 embeddingField = 'embedding'
@@ -312,30 +323,81 @@ try {
             -Headers @{ Authorization = "Bearer $adminToken" } `
             -TimeoutSec 30 -SkipHttpErrorCheck
         $diagnosticTimer.Stop()
-        if ([int]$response.StatusCode -ne 200) {
+        $diagnosticHttpStatus = [int]$response.StatusCode
+        if (-not $TransactionOnly -and $diagnosticHttpStatus -ne 200) {
             throw "business_list_live.domain_preflight_http_$([int]$response.StatusCode)"
         }
         $document = $response.Content | ConvertFrom-Json
-        if ($null -eq $document.hits) {
+        if (-not $TransactionOnly -and $null -eq $document.hits) {
             throw 'business_list_live.domain_preflight_response_invalid'
         }
         $diagnosticResponseBytes = [Text.Encoding]::UTF8.GetByteCount([string]$response.Content)
-        $diagnosticRows = @($document.hits.hits)
-        $diagnosticTotalFields = @($document.hits.total.PSObject.Properties.Name) -join ','
-        $diagnosticTotalRelation = [string]$document.hits.total.relation
-        $diagnosticTotalValue = [int]$document.hits.total.value
-        $diagnosticMissingIdentifier = @($diagnosticRows | Where-Object {
-            $null -eq $_._source.idCardNo
-        }).Count
-        $diagnosticMissingName = @($diagnosticRows | Where-Object {
-            $null -eq $_._source.chineseName
-        }).Count
-        $diagnosticMissingIdentity = @($diagnosticRows | Where-Object {
-            $null -eq $_._source.idCardNo -or $null -eq $_._source.chineseName
-        }).Count
-        $diagnosticInvalidOptional = @($diagnosticRows | Where-Object {
-            $null -ne $_._source.memberNo -and ([string]$_._source.memberNo).Length -lt 5
-        }).Count
+        if ($TransactionOnly) {
+            $diagnosticTopFields = @($document.PSObject.Properties.Name) -join ','
+            if ($diagnosticHttpStatus -eq 200) {
+                $diagnosticRows = @($document.rows)
+                $diagnosticTotalValue = [int]$document.total
+                $diagnosticTotalExact = [bool]$document.totalExact
+                $diagnosticPage = [int]$document.page
+                $diagnosticPageSize = [int]$document.size
+                $diagnosticRowFields = @(
+                    $diagnosticRows |
+                        ForEach-Object { $_.PSObject.Properties.Name } |
+                        Sort-Object -Unique
+                ) -join ','
+                $diagnosticDateTypes = @(
+                    $diagnosticRows |
+                        ForEach-Object {
+                            if ($null -eq $_.transDate) { 'null' } else { $_.transDate.GetType().Name }
+                        } |
+                        Sort-Object -Unique
+                ) -join ','
+                $diagnosticAmountTypes = @(
+                    $diagnosticRows |
+                        ForEach-Object {
+                            if ($null -eq $_.amount) { 'null' } else { $_.amount.GetType().Name }
+                        } |
+                        Sort-Object -Unique
+                ) -join ','
+            } else {
+                $diagnosticRows = @()
+                $diagnosticServiceFailure = 'unclassified'
+                $categories = @(
+                    'BadSqlGrammarException', 'SQLSyntaxErrorException',
+                    'SQLIntegrityConstraintViolationException', 'DataIntegrityViolationException',
+                    'TypeException', 'BindingException', 'HttpMessageNotReadableException',
+                    'AccessDeniedException', 'IllegalArgumentException', 'TimeoutException'
+                )
+                foreach ($log in $logPaths) {
+                    if (-not (Test-Path -LiteralPath $log)) { continue }
+                    $logText = Get-Content -LiteralPath $log -Raw -Encoding UTF8
+                    foreach ($category in $categories) {
+                        if ($null -ne $logText -and $logText.Contains($category, [StringComparison]::Ordinal)) {
+                            $diagnosticServiceFailure = $category
+                            break
+                        }
+                    }
+                    if ($diagnosticServiceFailure -ne 'unclassified') { break }
+                }
+            }
+        } else {
+            $diagnosticRows = @($document.hits.hits)
+            $diagnosticTotalFields = @($document.hits.total.PSObject.Properties.Name) -join ','
+            $diagnosticTotalRelation = [string]$document.hits.total.relation
+            $diagnosticTotalValue = [int]$document.hits.total.value
+            $diagnosticMissingIdentifier = @($diagnosticRows | Where-Object {
+                $null -eq $_._source.idCardNo
+            }).Count
+            $diagnosticMissingName = @($diagnosticRows | Where-Object {
+                $null -eq $_._source.chineseName
+            }).Count
+            $diagnosticMissingIdentity = @($diagnosticRows | Where-Object {
+                $null -eq $_._source.idCardNo -or $null -eq $_._source.chineseName
+            }).Count
+            $diagnosticInvalidOptional = @($diagnosticRows | Where-Object {
+                $null -ne $_._source.memberNo -and ([string]$_._source.memberNo).Length -lt 5
+            }).Count
+        }
         if ($SemanticOnly) {
             $decoderProgram = @'
 import json
@@ -392,6 +454,91 @@ except Exception:
                 if ($diagnosticCoverage.status -ne 'passed') {
                     throw 'business_list_live.domain_preflight_response_invalid'
                 }
+            } finally {
+                Pop-Location
+            }
+        }
+        if ($TransactionOnly -and $diagnosticHttpStatus -eq 200) {
+            $decoderProgram = @'
+import json
+import re
+import sys
+from decimal import Decimal
+
+from agent_runtime.adapters.transaction.codec import (
+    TransactionListSearchArgumentValidator,
+    TransactionListSearchRequestMapper,
+    TransactionListSearchWireCodec,
+)
+from agent_runtime.business.contracts import BoundedBusinessHttpResponse
+from agent_runtime.business.settings import BusinessQueryConfigurationLoader
+
+payload = sys.stdin.buffer.read()
+raw = json.loads(payload, parse_float=Decimal)
+dates = [row["transDate"] for row in raw["rows"]]
+date_kinds = sorted({type(value).__name__ for value in dates})
+date_shapes = sorted({
+    "offset_seconds" if isinstance(value, str) and re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}", value
+    ) else "offset_milliseconds" if isinstance(value, str) and re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}[+-][0-9]{2}:[0-9]{2}", value
+    ) else "utc_seconds" if isinstance(value, str) and re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", value
+    ) else "utc_milliseconds" if isinstance(value, str) and re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z", value
+    ) else "epoch_milliseconds" if type(value) is int else "other"
+    for value in dates
+})
+date_offset_kinds = sorted({
+    "utc_z" if isinstance(value, str) and value.endswith("Z")
+    else "zero_offset" if isinstance(value, str) and value.endswith("+00:00")
+    else "nonzero_offset" if isinstance(value, str) and re.search(r"[+-][0-9]{2}:[0-9]{2}$", value)
+    else "none"
+    for value in dates
+})
+date_fraction_kinds = sorted({
+    "zero_milliseconds" if isinstance(value, str) and re.search(r"\.000(?:Z|[+-][0-9]{2}:[0-9]{2})$", value)
+    else "nonzero_milliseconds" if isinstance(value, str) and re.search(r"\.[0-9]{3}(?:Z|[+-][0-9]{2}:[0-9]{2})$", value)
+    else "none"
+    for value in dates
+})
+settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
+    "transaction.search"
+]
+selected = TransactionListSearchArgumentValidator().validate({
+    "filters": ({"field": "amount", "operator": "gt", "value": "0.01"},),
+    "page": 1,
+    "size": 20,
+    "sorts": (),
+})
+request = TransactionListSearchRequestMapper().map(selected, settings)
+try:
+    TransactionListSearchWireCodec().decode_success(
+        request=request,
+        response=BoundedBusinessHttpResponse(
+            status_code=200, content_type="application/json", body=payload
+        ),
+    )
+    decoder_status = "passed"
+except Exception as exc:
+    decoder_status = type(exc).__name__
+
+print(json.dumps({
+    "wireDateKinds": date_kinds,
+    "wireDateShapes": date_shapes,
+    "wireDateOffsetKinds": date_offset_kinds,
+    "wireDateFractionKinds": date_fraction_kinds,
+    "productionDecoder": decoder_status,
+}))
+'@
+            [Environment]::SetEnvironmentVariable('PYTHONPATH', 'src;.', 'Process')
+            Push-Location $runtime
+            try {
+                $decoderOutput = [string]([string]$response.Content | & $python -c $decoderProgram)
+                if ($LASTEXITCODE -ne 0) {
+                    throw 'business_list_live.domain_preflight_response_invalid'
+                }
+                $transactionDiagnosis = $decoderOutput | ConvertFrom-Json
             } finally {
                 Pop-Location
             }
@@ -491,6 +638,33 @@ if ($null -ne $failureCode) {
 }
 if (-not $logsDeleted) {
     throw 'business_list_live.log_cleanup_incomplete'
+}
+
+if ($TransactionOnly) {
+    [PSCustomObject]@{
+        stage = $stageValue
+        status = if ($diagnosticHttpStatus -eq 200) { 'downstream_passed' } else { 'downstream_http_failure' }
+        modelCalls = 0
+        transactionSearch = 1
+        httpStatus = $diagnosticHttpStatus
+        responseBytes = $diagnosticResponseBytes
+        responseFields = $diagnosticTopFields
+        rowCount = $diagnosticRows.Count
+        totalValue = $diagnosticTotalValue
+        totalExact = $diagnosticTotalExact
+        page = $diagnosticPage
+        pageSize = $diagnosticPageSize
+        rowFields = $diagnosticRowFields
+        dateTypes = $diagnosticDateTypes
+        amountTypes = $diagnosticAmountTypes
+        wireDateKinds = @($transactionDiagnosis.wireDateKinds) -join ','
+        wireDateShapes = @($transactionDiagnosis.wireDateShapes) -join ','
+        wireDateOffsetKinds = @($transactionDiagnosis.wireDateOffsetKinds) -join ','
+        wireDateFractionKinds = @($transactionDiagnosis.wireDateFractionKinds) -join ','
+        productionDecoder = $transactionDiagnosis.productionDecoder
+        serviceFailure = $diagnosticServiceFailure
+    }
+    return
 }
 
 if ($DownstreamOnly -or $SemanticOnly) {

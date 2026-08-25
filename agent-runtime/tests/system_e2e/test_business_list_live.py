@@ -210,15 +210,32 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     assert fourth_evidence["counts"]["employeeSearch"] == 1
     assert fourth_evidence["counts"]["employeeSemantic"] == 1
 
+    fifth = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled-run05.result.json"
+    assert hashlib.sha256(fifth.read_bytes()).hexdigest() == (
+        "e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e"
+    )
+    fifth_evidence = json.loads(fifth.read_text(encoding="utf-8"))
+    assert [case["status"] for case in fifth_evidence["cases"]] == [
+        "success", "success", "downstream_failure"
+    ]
+    assert [case["rowCount"] for case in fifth_evidence["cases"]] == [20, 9, 0]
+    assert fifth_evidence["counts"]["modelQueryPlan"] == 3
+    assert fifth_evidence["counts"]["employeeSearch"] == 1
+    assert fifth_evidence["counts"]["employeeSemantic"] == 1
+    assert fifth_evidence["counts"]["transactionSearch"] == 1
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
-    assert "business-list-v2-controlled-run05.result.json" in source
+    assert "business-list-v2-controlled-run06.result.json" in source
     assert "business-list-v2-uat.result.json" in source
     assert "spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201" in source
     assert "[switch]$DownstreamOnly" in source
     assert "[switch]$SemanticOnly" in source
+    assert "[switch]$TransactionOnly" in source
     assert "EmployeeSemanticSearchWireCodec().decode_success" in source
     assert "EmployeeSearchResponseNormalizer().normalize_success" in source
+    assert "TransactionListSearchWireCodec().decode_success" in source
+    assert '"wireDateShapes": date_shapes' in source
     assert "decodedReturnedCount" in source
 
     historical_manifest = root / "agent-runtime/tests/system_e2e/business_list_live_manifest.json"

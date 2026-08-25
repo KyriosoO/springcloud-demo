@@ -89,10 +89,34 @@ def test_v2_response_decodes_java_epoch_milliseconds_into_shanghai_offset() -> N
     assert not normalized.coverage.truncated
 
 
+def test_v2_response_decodes_production_spring_utc_milliseconds_into_same_instant() -> None:
+    body = (
+        b'{"rows":[{"transId":"TXN-0001","transType":"PAY",'
+        b'"transDate":"2026-08-25T01:00:00.000+00:00","amount":100.10,'
+        b'"transDateGt":null,"transDateLt":null,"amountGt":null,'
+        b'"amountLt":null,"transTypeContains":null}],'
+        b'"total":3,"totalExact":true,"page":2,"size":2}'
+    )
+
+    response = TransactionListSearchWireCodec().decode_success(
+        request=_request(), response=_response(body)
+    )
+
+    assert response.rows[0].trans_date == datetime.fromisoformat(
+        "2026-08-25T09:00:00+08:00"
+    )
+    assert response.rows[0].amount == Decimal("100.10")
+
+
 @pytest.mark.parametrize(
     "body",
     (
         b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":"2026-08-25","amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
+        b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":"2026-08-25T01:00:00.000Z","amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
+        b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":"2026-08-25T09:00:00.000+08:00","amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
+        b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":"2026-08-25T01:00:00.001+00:00","amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
+        b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":"2026-08-25T01:00:00+00:00","amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
+        b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":"2026-02-30T01:00:00.000+00:00","amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
         b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":1787619600001,"amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
         b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":true,"amount":1}],"total":3,"totalExact":true,"page":2,"size":2}',
         b'{"rows":[{"transId":"TXN-1","transType":"PAY","transDate":1787619600000,"amount":"1.00"}],"total":3,"totalExact":true,"page":2,"size":2}',
