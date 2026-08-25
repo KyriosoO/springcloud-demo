@@ -5,7 +5,10 @@ from collections.abc import Mapping
 
 import pytest
 
-from agent_runtime.adapters.employee.definition import employee_search_definition
+from agent_runtime.adapters.employee.definition import (
+    employee_search_definition,
+    employee_semantic_search_definition,
+)
 from agent_runtime.business.egress import BusinessEgressProjector
 from agent_runtime.business.handler import BoundBusinessActionHandler
 from agent_runtime.business.http_client import (
@@ -124,3 +127,30 @@ async def test_search_handler_preserves_service_final_authorization(
     assert result.status is expected
     assert result.domain_result is None
     assert len(server.requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_semantic_handler_uses_only_vector_endpoint_once() -> None:
+    definition = employee_semantic_search_definition()
+    settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
+        "employee.semantic_search"
+    ]
+    server = FakeEmployeeSearchServer()
+    handler = BoundBusinessActionHandler(
+        definition=definition,
+        settings=settings,
+        client=UserJwtBusinessHttpClient(transport=server, max_response_bytes=1048576),
+        user_projector=BusinessUserResultProjector(),
+        egress_projector=BusinessEgressProjector(),
+        egress_policy=GlobalBusinessEgressPolicy.from_settings(BusinessGlobalSettings()),
+        config_snapshot_id="a" * 64,
+        max_user_result_bytes=262144,
+    )
+    selected = definition.argument_validator.validate(
+        {"query": "熟悉分布式系统的开发工程师", "size": 10}
+    )
+    result = await handler.handle(selected, scope("查擅长分布式系统的员工").context)
+    assert len(server.requests) == 1
+    assert server.requests[0].request.relative_path == "/employees/es/vector-search"
+    assert result.status is CapabilityStatus.SUCCESS
+    assert result.egress.disposition is EgressDisposition.NOT_APPLICABLE

@@ -27,8 +27,12 @@ from agent_runtime.adapters.employee.contracts import (
     EmployeeSearchWireFilter,
     EmployeeSearchWireRequest,
     EmployeeSearchWireResponse,
+    EmployeeSemanticSearchInput,
+    EmployeeSemanticSearchWireRequest,
 )
 from agent_runtime.business.wire_json import BusinessWireJsonEncoder, BusinessWireJsonValue
+from agent_runtime.model.contracts import QuestionDataClass
+from agent_runtime.model.question_policy import DENY_CLASSES, classify_question
 
 _BIDI = {"RLO", "LRO", "RLE", "LRE", "PDF", "RLI", "LRI", "FSI", "PDI"}
 _TARGETS = {"idCardNo", "memberNo", "chineseName", "publicEmail", "position", "workBaseSi"}
@@ -403,3 +407,71 @@ def _employee_hit_record(raw: object) -> EmployeeSearchRecord:
         email=_normalize(source.get("email"), minimum=1, maximum=254, optional=True),
         position=_normalize(source.get("position"), minimum=1, maximum=256, optional=True),
     )
+
+
+class EmployeeSemanticSearchArgumentValidator:
+    def validate(self, arguments: JsonObject) -> EmployeeSemanticSearchInput:
+        if set(arguments) != {"query", "size"}:
+            raise InvalidCapabilityArguments("business.invalid_arguments")
+        query = _argument_text(arguments["query"], maximum=256)
+        size = arguments["size"]
+        if (
+            type(size) is not int
+            or not 1 <= size <= 50
+            or classify_question(query) & (DENY_CLASSES - {QuestionDataClass.UNKNOWN})
+        ):
+            raise InvalidCapabilityArguments("business.invalid_arguments")
+        return EmployeeSemanticSearchInput(query=query, size=size)
+
+
+class EmployeeSemanticSearchRequestMapper:
+    def map(
+        self,
+        input: EmployeeSemanticSearchInput,
+        settings: BusinessActionSettings,
+    ) -> EmployeeSemanticSearchWireRequest:
+        if (
+            settings.semantic_profile_id != "employee-default-v1"
+            or settings.max_page_size is None
+            or settings.max_result_count is None
+            or input.size > min(settings.max_page_size, settings.max_result_count)
+            or settings.fixed_page != 1
+            or settings.max_page != 1
+            or settings.allowed_filter_field_ids is not None
+            or settings.allowed_sort_field_ids is not None
+        ):
+            raise InvalidBusinessArguments("business.invalid_arguments")
+        return EmployeeSemanticSearchWireRequest(
+            query=input.query,
+            size=input.size,
+            embedding_field="embedding",
+            embedding_dims=1024,
+            num_candidates=100,
+            track_total_hits=10000,
+        )
+
+
+class EmployeeSemanticSearchWireCodec:
+    def encode(self, request: EmployeeSemanticSearchWireRequest) -> BusinessHttpRequest:
+        payload: dict[str, BusinessWireJsonValue] = {
+            "queryText": request.query,
+            "k": request.size,
+            "embeddingField": request.embedding_field,
+            "embeddingDims": request.embedding_dims,
+            "numCandidates": request.num_candidates,
+            "trackTotalHits": request.track_total_hits,
+        }
+        return BusinessHttpRequest(
+            method="POST",
+            relative_path="/employees/es/vector-search",
+            query=(),
+            json_body=BusinessWireJsonEncoder().encode(payload, max_bytes=4096),
+        )
+
+    def decode_success(
+        self,
+        *,
+        request: EmployeeSemanticSearchWireRequest,
+        response: BoundedBusinessHttpResponse,
+    ) -> EmployeeSearchWireResponse:
+        return _decode_employee_hits(response=response, from_index=0, size=request.size)

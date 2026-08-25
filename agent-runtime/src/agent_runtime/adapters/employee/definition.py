@@ -22,6 +22,9 @@ from agent_runtime.adapters.employee.codec import (
     EmployeeSearchArgumentValidator,
     EmployeeSearchRequestMapper,
     EmployeeSearchWireCodec,
+    EmployeeSemanticSearchArgumentValidator,
+    EmployeeSemanticSearchRequestMapper,
+    EmployeeSemanticSearchWireCodec,
 )
 from agent_runtime.adapters.employee.contracts import (
     EmployeeDetailInput,
@@ -32,6 +35,8 @@ from agent_runtime.adapters.employee.contracts import (
     EmployeeSearchRecord,
     EmployeeSearchWireRequest,
     EmployeeSearchWireResponse,
+    EmployeeSemanticSearchInput,
+    EmployeeSemanticSearchWireRequest,
 )
 from agent_runtime.adapters.employee.fields import (
     employee_field_definitions,
@@ -152,6 +157,63 @@ def employee_search_definition() -> BusinessActionDefinition[
             max_request_bytes=16384,
             allowed_sort_directions=frozenset({"ASC", "DESC"}),
             max_sort_items=2,
+            max_page=contract.max_page,
+        ),
+        query_fields=contract.query_fields,
+        combination_rules=(),
+        code_contract_version=contract.code_contract_version,
+        service_contract_ref=contract.service_contract_ref,
+    )
+
+
+def employee_semantic_search_definition() -> BusinessActionDefinition[
+    EmployeeSemanticSearchInput,
+    EmployeeSemanticSearchWireRequest,
+    EmployeeSearchWireResponse,
+    EmployeeSearchRecord,
+]:
+    contract = business_query_v2_action_contract("employee.semantic_search")
+    return BusinessActionDefinition(
+        descriptor=CapabilityDescriptor(
+            capability_id=contract.action_id,
+            api_version=1,
+            kind=CapabilityKind.QUERY,
+            display_name="Employee semantic search",
+            description="依据非敏感员工专业能力语义描述查询员工列表。",
+            aliases=("员工能力语义查询", "employee semantic search"),
+            argument_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "size": {"type": "integer", "minimum": 1, "maximum": 50},
+                },
+                "required": ("query", "size"),
+                "additionalProperties": False,
+            },
+        ),
+        domain_id=contract.domain_id,
+        service_key=contract.service_key,
+        argument_validator=EmployeeSemanticSearchArgumentValidator(),
+        request_mapper=EmployeeSemanticSearchRequestMapper(),
+        wire_codec=EmployeeSemanticSearchWireCodec(),
+        response_normalizer=EmployeeSearchResponseNormalizer(),
+        http_status_semantics=BusinessHttpStatusSemantics(http_400_is_invalid_argument=True),
+        applicable_dimensions=frozenset({
+            ConstraintDimension.PAGE_SIZE,
+            ConstraintDimension.RESULT_COUNT,
+        }),
+        filter_field_ids_by_code=frozenset(),
+        sort_field_ids_by_code=frozenset(),
+        field_definitions=employee_search_field_definitions(),
+        required_user_field_ids=("chinese_name", "employee_identifier"),
+        answer_mode=BusinessAnswerMode.STRUCTURED_ONLY,
+        contract_limits=BusinessContractLimits(
+            max_page_size=contract.max_page_size,
+            max_result_count=contract.max_result_count,
+            max_time_range_days=None,
+            max_timeout_ms=contract.max_timeout_ms,
+            max_request_bytes=4096,
+            fixed_page=1,
             max_page=contract.max_page,
         ),
         query_fields=contract.query_fields,

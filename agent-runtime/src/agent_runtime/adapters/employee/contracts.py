@@ -90,3 +90,19 @@ class EmployeeSearchWireResponse:
     total_exact: bool
     from_index: int
     size: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EmployeeSemanticSearchInput:
+    query: str
+    size: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EmployeeSemanticSearchWireRequest:
+    query: str
+    size: int
+    embedding_field: str
+    embedding_dims: int
+    num_candidates: int
+    track_total_hits: int
