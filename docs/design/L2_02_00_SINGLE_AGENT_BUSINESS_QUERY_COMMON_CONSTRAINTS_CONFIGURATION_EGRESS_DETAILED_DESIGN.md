@@ -6,7 +6,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v2.1 |
 | 更新时间 | 2026-08-25 |
 | 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
@@ -139,6 +139,8 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 输入 exposure 有限枚举为 `literal/protected_ref/literal_or_protected_ref`；`contact_address` literal 只可通过代码内有限安全城市片段判定，详细地址仍必须 protected ref，配置不能注入正则或放宽判定。用户/模型 transform 为有限代码枚举，不能运行表达式。排序、超时、返回字段、模型字段、Decimal 和时间规则都只能小于或等于代码与服务合同。
 
+超时按 action 的真实业务链路分别绑定：`employee.search≤3000ms`、`employee.semantic_search≤10000ms`、`transaction.search≤5000ms`。语义动作包含业务服务内本地 Embedding、Feign 转发及 ES 向量检索，不能机械复用普通 Employee 搜索的 3000ms 上限；10000ms 只调整该 action 的代码合同和受限配置，不扩张 endpoint、查询字段、结果字段、权限或模型调用。实际 deadline 仍取请求剩余时间与 action 配置的较小值，超时失败关闭，不重试、不降级。配置 snapshot 发生变化时启用全新的 live manifest；此前 manifest 和失败证据保持原始字节及哈希不变。
+
 启动校验：exact JSON、版本、duplicate、动作/字段/operator 子集、code/service contract、逻辑字段与 `service_field` 固定映射、keyword 三字段及 protected exposure 对齐、descriptor/definition/config/validator/mapper/codec 完整对齐、result/model 字段子集和大小/timeout 上限；未出现在 Agent 代码定义和启用配置中的字段通过通用字段子集校验自然不可用，无需针对 `workBaseSi/workBaseAf` 增加专用黑名单、启动校验或输入分支。snapshot 使用 canonical JSON SHA-256，不可变地绑定单请求；不一致 readiness 失败，不得加载旧 Resolver。
 
 ## 5. 处理流程、权限与审计设计
@@ -176,6 +178,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `TEST-BQCOM-104` | 同请求 slot、跨请求/重复 slot 拒绝，详细地址与上海片段边界，keyword tagged union 与敏感 keyword 零泄漏 |
 | `TEST-BQCOM-105` | Date offset/timezone、相对日期 unsupported、Decimal canonical/scale≤2/JSON number |
 | `TEST-BQCOM-106` | page/size/sorts/offset overflow、投影脱敏、模型出域拒绝与调用计数 |
+| `TEST-BQCOM-107` | 三动作独立超时上限、semantic 10000ms contract/config 对齐、超界配置拒绝及历史 snapshot/manifest 不可变 |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -193,6 +196,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `DR-BQCOM-104` | 用户结果与模型出域分别投影和脱敏；未配置、未知及敏感字段由通用白名单默认拒绝 |
 | `DR-BQCOM-105` | Decimal/Date/分页/排序使用跨语言严格合同，失败关闭 |
 | `DR-BQCOM-106` | 配置不携带 SQL/ES/endpoint，禁止 Agent DB/ES 依赖与权限替代 |
+| `DR-BQCOM-107` | action 超时仅可由代码绑定合同及配置收紧：Employee search 3000ms、semantic 10000ms、Transaction 5000ms；保持请求 deadline、失败关闭及历史 snapshot 不可变 |
 
 数据生命周期：slots、JWT、plan、原始业务响应只存在于 request memory；不存在 Agent 数据库或数据迁移。事务边界与一致性由业务服务拥有；启动 snapshot 只读、无热更新。最小必要变更复用现有 query_plan/settings/projection/egress，不引入配置中心、通用规则 DSL、模板表达式或额外生产依赖，以避免耦合。
 
@@ -218,3 +222,4 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `REQ-BQCOM-103` | `DR-BQCOM-104` | `IMPL-BQCOM-107`; `IMPL-BQCOM-108` | `TEST-BQCOM-106` | `VAL-BQCOM-102` |
 | `REQ-BQCOM-104` | `DR-BQCOM-105` | `IMPL-BQCOM-101`; `IMPL-BQCOM-103` | `TEST-BQCOM-105`; `TEST-BQCOM-106` | `VAL-BQCOM-103` |
 | `CON-BQCOM-102` | `DR-BQCOM-106` | `IMPL-BQCOM-102`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-103` |
+| `REQ-BQCOM-102`; `REQ-BQCOM-104` | `DR-BQCOM-107` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-104` | `TEST-BQCOM-103`; `TEST-BQCOM-107` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |

@@ -78,7 +78,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.0 | 既有 Spring 接入与 Runtime 协同，不在本次修改范围 |
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.0 | Business bridge、组合根、Registry、取消与单动作执行 |
 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.0 | 模型安全 catalog、Prompt、provider response 严格解码 |
-| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 | QueryPlan、字段配置、validator、binder 与出域策略 |
+| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.1 | QueryPlan、字段配置、validator、binder 与出域策略 |
 
 ## 8. 风险、验证与当前实施状态
 

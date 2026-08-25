@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.1 |
+| 当前版本 | v1.2 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0；Employee L2 v2.1；Transaction L2 v2.0 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.2 |
-| 当前状态 | 三动作 filters/config/Adapter/组合根及 Employee ES 端点级共享 role converter 已实施，完整权限过滤链通过；首次 controlled live 403 已修复，成功 live/UAT 尚未执行，`GATE-UAT-007` Open |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.1；Employee L2 v2.2；Transaction L2 v2.0 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.3 |
+| 当前状态 | 三动作 filters/config/Adapter/组合根及 Employee ES 端点级共享 role converter 已实施；上海真实 search 已返回列表，semantic 旧 3000ms 预算待按已评审 10000ms 设计纠正，成功 controlled live/UAT 尚未完成，`GATE-UAT-007` Open |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -30,6 +30,7 @@
 5. 真实 provider、用户 JWT、Employee 标识和业务样本仅在明确授权后进程内使用；日志/evidence 只存有限 case 状态和调用计数。
 6. 联系地址样本确实支持 “上海” contains；若真实数据不存在，不得构造 workBase 样本伪造通过，应停止并报告数据前置缺失。
 7. 正式验收仅在独立 `GATE-UAT-007` 关闭后开始；默认 provider `stub` 只能证明失败关闭，不能形成业务成功 UAT。
+8. 三动作超时必须与代码/配置 snapshot 一致：Employee search 3000ms、semantic 10000ms、Transaction 5000ms；不得为规避超时增加重试、fallback 或第二次业务调用。
 
 ## 4. 固定验收顺序
 
@@ -63,7 +64,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 | `UAT-EMP-205` | 员工标识：`employee_identifier eq + value_ref` | 1/1 | 不调用旧 detail，ID 不进入模型或 evidence |
 | `UAT-EMP-206` | Employee ES keyword + tagged literal/ref | 1/1 | 只对 contactAddress/chineseName/idCardNo 的现有 multi-match 解释；敏感 keyword 必须为 protected ref，模型和日志无明文 |
 | `UAT-EMP-207` | Employee page/size/sort | 1/1 | from 转换正确、size≤50、rows 不超界 |
-| `UAT-EMP-208` | 业务语义：`employee.semantic_search + query + size` | 1/1 | 只调用 vector-search；无用户 vector 或物理 embedding 参数 |
+| `UAT-EMP-208` | 业务语义：`employee.semantic_search + query + size` | 1/1 | 只调用 vector-search；采用独立 10000ms action 上限且受请求 deadline 约束；无用户 vector、物理 embedding 参数、重试或 fallback |
 | `UAT-EMP-209` | 未配置 Employee 字段；以 `workBaseSi/workBaseAf` 作为样例 | 1/0 | 模型依据通用目录返回 `unsupported`，或字段 validator 返回 `invalid_argument`；业务调用为 0，不增加 workBase 专用识别或拒绝逻辑 |
 | `UAT-EMP-210` | “语义能力 + 上海地址过滤” | 1/0 | unsupported；禁止两次搜索或客户端补筛 |
 | `UAT-EMP-211` | ADMIN/VIEWER 实际 JWT role claim 分别经真实 Servlet 安全链访问 search 与 semantic | 各 1/1 | endpoint-scoped 共享 converter 生效，Employee 服务最终授权允许；detail/fallback 行为保持兼容 |
@@ -106,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1、新组合根及 Employee ES endpoint-scoped 共享 converter 均已有当前版本 non-live/真实 Servlet 过滤链证据；首次 ADMIN 403 已修复并保留原始失败记录。成功 controlled live 和 `GATE-UAT-007` 仍未完成；旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。
+本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1、新组合根及 Employee ES endpoint-scoped 共享 converter 均已有当前版本 non-live/真实 Servlet 过滤链证据；ADMIN 403 和隔离 Feign 服务发现已修复，上海真实 search 返回 20 条。semantic 原 3000ms 预算失败及历史 manifest/evidence 保持不可变，须按新设计落地 10000ms 独立 action 预算后再恢复 controlled live。成功 controlled live 和 `GATE-UAT-007` 仍未完成；旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。

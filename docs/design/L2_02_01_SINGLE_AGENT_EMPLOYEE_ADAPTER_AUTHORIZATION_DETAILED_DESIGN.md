@@ -6,10 +6,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.1 |
+| 当前版本 | v2.2 |
 | 更新时间 | 2026-08-25 |
 | 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.1 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -79,6 +79,8 @@ arguments exact 为 `query/size`；query 是安全业务文本 tagged literal，
 
 当前 DTO 没有 `filters`，因此“语义能力匹配 + contact_address”等结构化约束必须 unsupported、调用 0；不得普通搜索后客户端过滤，不得一次请求执行 search 再 vector-search。语义请求包含姓名、手机号、详细地址等敏感值时拒绝，不得将 protected slot 解包到 embedding query。
 
+该 action 的真实服务链路为 Employee 读取授权 → 本地 BGE Embedding → Feign → ES 向量检索，因此代码绑定最大超时及默认配置为 `10000ms`；普通 `employee.search` 保持 `3000ms`。两动作均只允许一次既有 endpoint 调用，仍受请求总 deadline 约束；语义超时不得触发普通 search、重复 embedding、模型重试或跨域回退。此前 `3000ms` semantic timeout 产生的有限失败证据 SHA-256=`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d` 仅作为不可变历史，不得回写或作为本次成功证据。
+
 ### 5.3 bounded ES hits 响应
 
 只接受固定 allowlist 的 JSON-compatible content-type：`application/json`、`application/*+json` 或既有 String Controller 的 `text/plain` 且 UTF-8；拒绝缺失类型、HTML 和非 UTF-8。复用现有最大响应字节上界 1 MiB，strict JSON decoder 拒绝重复键、非有限数值和非法 hits 结构；rows 数量不得超过请求 size。
@@ -121,6 +123,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `TEST-EMP-105` | page/from overflow、size、sort、in 上限及 aggregate 禁止 |
 | `TEST-EMP-106` | 两个 ES POST 真实 SecurityFilterChain：共享 role converter、ADMIN/VIEWER 允许、denied/mixed/missing/malformed/service-token 拒绝、被拒绝请求零下游，以及 detail/其他 endpoint 历史调用方回归 |
 | `TEST-EMP-107` | detail 调用方、兼容性和冻结历史证据核查；目标组合根不可达 |
+| `TEST-EMP-108` | search 3000ms/semantic 10000ms action 独立预算、配置超界拒绝、单次向量调用、请求 deadline 截断及 timeout 后零重试/零 fallback |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -138,12 +141,13 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `DR-EMP-104` | bounded strict ES hits、字段白名单、敏感脱敏与模型出域默认拒绝 |
 | `DR-EMP-105` | 两个 ES 查询 POST endpoint 必须显式绑定共享 `userRoleJwtAuthenticationConverter`；最终 ADMIN/VIEWER 授权仍由 Employee 读取守卫判定，detail/其他 endpoint 行为不变，切换前完成完整安全链及调用方兼容验证 |
 | `DR-EMP-106` | detail 为历史实现，迁移/删除前核查 caller、公共兼容和冻结 evidence |
+| `DR-EMP-107` | semantic 动作因 Embedding+Feign+ES 链路采用 10000ms 代码绑定上限，普通 search 维持 3000ms；单动作、请求 deadline、失败关闭和历史证据保持不变 |
 
 错误分类：unsupported/invalid plan 在发送前业务调用 0；forbidden 为固定 endpoint 1 次；timeout/unavailable/invalid_response 不重试、不切换搜索方式。数据生命周期仅为 request 内存；不修改 Employee 数据、索引和历史 evidence。事务边界与一致性归 employee-service/ES；本版复用现有 endpoint/guard，属于最小必要变更，避免 DTO 膨胀和 Adapter 耦合泄漏。
 
 ## 10. 风险、评审记录与实现就绪判定
 
-主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。该修复不代表后续成功真实联调或 UAT 自动完成。
+主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter；把多跳语义检索误套普通搜索 3000ms 上限会产生真实 timeout。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。语义 timeout 仅通过 action 独立预算纠正，不恢复 fallback 或额外调用；成功受控真实联调和 UAT 仍需独立完成。
 
 | 项目 | 判定 |
 |---|---|
@@ -163,3 +167,4 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `REQ-EMP-103` | `DR-EMP-104` | `IMPL-EMP-103`; `IMPL-EMP-104` | `TEST-EMP-104` | `VAL-EMP-101` |
 | `REQ-EMP-104`; `CON-EMP-102` | `DR-EMP-105` | `IMPL-EMP-106`; `IMPL-EMP-107`; `IMPL-EMP-109`; `IMPL-EMP-110` | `TEST-EMP-106` | `VAL-EMP-102` |
 | `REQ-EMP-101` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` |
+| `REQ-EMP-102`; `CON-EMP-101` | `DR-EMP-107` | `IMPL-EMP-102`; `IMPL-EMP-105` | `TEST-EMP-103`; `TEST-EMP-108` | `VAL-EMP-101`; `VAL-EMP-103` |
