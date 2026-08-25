@@ -147,7 +147,7 @@ async def test_controlled_runner_uses_real_production_composition_and_strict_fak
 
 
 def test_manifest_freezes_only_task_configuration_cases_and_bounded_budgets() -> None:
-    path = Path(__file__).with_name("business_list_live_manifest.json")
+    path = Path(__file__).with_name("business_list_live_manifest_v2.json")
     manifest = validate_manifest(json.loads(path.read_text(encoding="utf-8")))
     assert manifest["budgets"] == {"controlled": 6, "uat": 18}
     modified = dict(manifest)
@@ -186,12 +186,33 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     assert second_evidence["counts"]["modelQueryPlan"] == 1
     assert second_evidence["counts"]["employeeSearch"] == 1
 
+    third = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled-run03.result.json"
+    assert hashlib.sha256(third.read_bytes()).hexdigest() == (
+        "737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d"
+    )
+    third_evidence = json.loads(third.read_text(encoding="utf-8"))
+    assert third_evidence["status"] == "failed"
+    assert [case["status"] for case in third_evidence["cases"]] == ["success", "timeout"]
+    assert third_evidence["cases"][0]["rowCount"] == 20
+    assert third_evidence["counts"]["modelQueryPlan"] == 2
+    assert third_evidence["counts"]["employeeSearch"] == 1
+    assert third_evidence["counts"]["employeeSemantic"] == 1
+
     launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
     source = launcher.read_text(encoding="utf-8")
-    assert "business-list-v2-controlled-run03.result.json" in source
+    assert "business-list-v2-controlled-run04.result.json" in source
     assert "business-list-v2-uat.result.json" in source
     assert "spring.cloud.discovery.client.simple.instances.es-query-service[0].uri=http://127.0.0.1:9201" in source
     assert "[switch]$DownstreamOnly" in source
+    assert "[switch]$SemanticOnly" in source
+
+    historical_manifest = root / "agent-runtime/tests/system_e2e/business_list_live_manifest.json"
+    assert hashlib.sha256(historical_manifest.read_bytes()).hexdigest() == (
+        "974228e060383324255a393d3f1107506510b515d0577b44c2671ea24d3a7d90"
+    )
+    assert json.loads(historical_manifest.read_text(encoding="utf-8"))["configurationSha256"] == (
+        "55352c6c2f91b01f5faba42b48eb80bbae143a11b846bd7fb5ec5ca3a76c1601"
+    )
 
 
 def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -> None:

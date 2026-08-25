@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.3 |
+| 当前版本 | v2.4 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-08-25 |
 | 适用范围 | Business filters 合同、统一字段配置、三动作 Adapter、最终授权、组合根、联调与 UAT 交接 |
@@ -34,7 +34,7 @@
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.2 | Employee search/semantic、语义 10000ms 预算、端点级 converter 与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 | Transaction Date/Decimal/page/sort | Approved |
 
-Verified existing：Business filters plan、统一字段 JSON、v3 model catalog、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作完整 fake E2E、现有三个业务接口及隔离 Employee→es-query-service 只读联通。Not implemented：semantic 独立 10000ms action budget、更新后独立 live manifest、成功受控 live 及正式 UAT 证据。首次失败 SHA-256=`fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607` 为 Employee 403；第二次失败 SHA-256=`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08` 为隔离 Feign 服务发现缺失；第三次失败 SHA-256=`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d` 已真实返回 20 条上海员工，但 semantic 多跳链路超过旧 3000ms 上限。三项失败和原 live manifest 字节保持不变；修复后必须生成独立 manifest 和 controlled-run04 结果。
+Verified existing：Business filters plan、统一字段 JSON、v3 model catalog、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作完整 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通及 semantic 独立 10000ms action budget。新配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，独立 live manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`。Not implemented：成功受控 live 及正式 UAT 证据。首次失败 SHA-256=`fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607` 为 Employee 403；第二次失败 SHA-256=`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08` 为隔离 Feign 服务发现缺失；第三次失败 SHA-256=`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d` 已真实返回 20 条上海员工，但 semantic 多跳链路超过旧 3000ms 上限。三项失败和原 live manifest 字节保持不变；下一次联调使用独立 controlled-run04 结果。
 
 ## 4. 分批与执行边界
 
@@ -56,7 +56,7 @@ Verified existing：Business filters plan、统一字段 JSON、v3 model catalog
 | `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径；仅证明本地对象图，不代表 Employee 真实授权生效 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Done |
 | `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Done |
 | `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Done |
-| `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 有限固定场景、敏感值内存化、三次失败历史不可变 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02`, `WP-EMP-ES-AUTH-02` | `GATE-070` | 新的真实三动作 finite evidence，不覆盖既有失败证据 | 一计划/一业务调用与真实权限矩阵 | 失败即停止，先修复根因，不复用失败结果路径 | Blocked |
+| `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 有限固定场景、敏感值内存化、三次失败历史不可变 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02`, `WP-EMP-ES-AUTH-02` | `GATE-070` | 新的真实三动作 finite evidence，不覆盖既有失败证据 | 一计划/一业务调用与真实权限矩阵 | 失败即停止，先修复根因，不复用失败结果路径 | Ready |
 | `WP-BQ-UAT-HANDOFF-02` | 正式 UAT 环境与交接 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | UAT 前置、真实数据可用性、固定用例与结论 | `WP-BQ-CONTROLLED-LIVE-02` | `GATE-UAT-007` | UAT 准入记录及阶段结论 | UAT 公共/Employee/Transaction/收口 | 不把旧 evidence 冒充本版 UAT | Blocked |
 
 ## 6. 直接依赖图
@@ -88,7 +88,7 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | `GATE-067` | `WP-BQ-FILTER-CONTRACT-02` | closure | 新设计基线生效 | 否 | REQ/L0/L1/L2/P3/UAT 两阶段评审通过且版本一致 | 当前 Approved/Reviewed 文档、strict validators、跨层追踪与无环 DAG | 文档维护者 | 代码实施前 | 分层/跨层独立评审与 DAG 校验 | 不允许依据未评审设计实施 | Closed |
 | `GATE-068` | `WP-EMP-ES-AUTH-02` | release_effective | Employee search/vector 端点级角色转换及最终守卫生效 | 否 | 两个既有 POST endpoint 显式绑定共享 converter，真实 JWT role claim 经完整 SecurityFilterChain 通过 ADMIN/VIEWER、拒绝矩阵及 detail/fallback 兼容 | `EmployeeEsSecurityIntegrationTest` 两入口真实 JWT role 矩阵；detail/matcher/controller 共 15 项定向通过，Employee 全模块 50 项中 30 通过、20 项 opt-in 跳过 | Employee 业务维护者/实施者 | 恢复 Employee 真实联调前 | Java 真实 Servlet SecurityFilterChain、两 endpoint 矩阵与既有调用方测试 | 禁止真实 Employee 联调及宣称最终授权已生效 | Closed |
 | `GATE-069` | `WP-TXN-SEARCH-EXT-02` | integration | Transaction Date 时区/精度合同生效 | 否 | Python Date→HTTP→Jackson→Mapper instant/open interval/DB precision 证据成立 | Python filters/epoch 毫秒/Shanghai timezone 契约、Java Jackson/Controller 测试及只读生产 `DATETIME(0)` 元数据验证 | Transaction 维护者/实施者 | 日期 live/UAT 前 | 双语言 contract 与 strict bounds tests | 日期相关真实联调/UAT 不执行 | Closed |
-| `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，semantic 10000ms action budget 已实现，环境/预算/授权/安全边界已重新确认，历史失败 evidence 与旧 manifest 不可变 | 新配置 snapshot/独立 live manifest、controlled-run04 路径、三项 failure 与旧 manifest SHA-256 回归、fake 超时边界及零模型 search/vector 两接口只读联通 | 用户/业务维护者 | 下一次模型或业务调用前 | frozen task/config/cases、真实安全链矩阵、预算、历史 hash 和零泄漏 preflight | live 保持 Blocked，不调用真实系统 | Open |
+| `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，semantic 10000ms action budget 已实现，环境/预算/授权/安全边界已重新确认，历史失败 evidence 与旧 manifest 不可变 | 新配置 snapshot/独立 live manifest、controlled-run04 路径、三项 failure 与旧 manifest SHA-256 回归、92 项定向、1403 项全量 non-live、fake 超时边界及零模型 search/vector 两接口只读联通 | 用户/业务维护者 | 下一次模型或业务调用前 | frozen task/config/cases、真实安全链矩阵、预算、历史 hash 和零泄漏 preflight | live 保持 Blocked，不调用真实系统 | Closed |
 | `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 前 11 个工作包与 controlled live 完成，UAT 环境/代表性业务数据就绪并获得明确授权；不要求 UAT 工作包自身预先完成 | UAT_00 准入和本版 live evidence | 用户/UAT 执行者 | 首个正式 UAT 用例前 | UAT checklist、调用预算及 gate→UAT 无环性复核 | 正式 UAT 保持 Blocked | Open |
 
 ## 8. 外部资源与事实
@@ -114,7 +114,7 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Done | - | 正式启动入口、统一配置、三动作 Registry、受控 HTTP transport 与默认 stub 契约通过 |
 | 9 | `WP-EMP-DETAIL-RETIRE-02` | Done | - | 生产目录只有三动作，Transaction protected slot 不再依赖旧参数校验；历史源码按冻结提交核验 |
 | 10 | `WP-BQ-NONLIVE-E2E-02` | Done | - | 三动作唯一 production 对象图、上海地址、Date/Decimal、角色拒绝、非法字段、跨域与 Knowledge 隔离通过全量 1392 项测试 |
-| 11 | `WP-BQ-CONTROLLED-LIVE-02` | Blocked | `GATE-070` | 旧 3000ms semantic action 预算造成真实 timeout；须先实现 10000ms 代码/配置对齐、保留三项历史和旧 manifest，再冻结独立 controlled-run04 |
+| 11 | `WP-BQ-CONTROLLED-LIVE-02` | Ready | - | semantic 10000ms 代码/配置已对齐；92 项定向、1403 项全量 non-live、两动作零模型只读联通及三个 failure/旧 manifest 历史保护通过，controlled-run04 未执行 |
 | 12 | `WP-BQ-UAT-HANDOFF-02` | Blocked | controlled live 与 `GATE-UAT-007` | UAT 不能复用旧 detail 证据 |
 
 ## 10. 实施交接
@@ -152,7 +152,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Done |
 | `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Done |
 | `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Done |
-| `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-BQCOM-107`; `DR-EMP-105/107`; `DR-TXN-105` | action 独立超时、受控 runner、三次不可变失败及新的独立有限结果 | 有限三动作 live 矩阵 | `GATE-070` 重新关闭证据 | Blocked |
+| `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-BQCOM-107`; `DR-EMP-105/107`; `DR-TXN-105` | action 独立超时、受控 runner、三次不可变失败及新的独立有限结果 | 有限三动作 live 矩阵 | `GATE-070` 重新关闭证据 | Ready |
 | `WP-BQ-UAT-HANDOFF-02` | `REQ-BQS-012` | UAT 环境与用例清单 | UAT 四阶段 | `GATE-UAT-007` 关闭证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -178,8 +178,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Done 10 个，Blocked 2 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、端点级共享 JWT converter/真实 Servlet 安全链、Transaction 四字段/Date/Decimal/分页 Adapter、唯一三动作生产组合根、旧 detail 目标入口退役核实与新版完整 non-live E2E 已完成。真实上海员工查询已返回 20 条；semantic 独立零模型调用已成功，但旧 3000ms 多跳动作预算导致 controlled-run03 timeout。403、Feign 服务发现和语义 timeout 三项失败分别冻结 SHA-256=`fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`；旧 manifest SHA-256=`974228e060383324255a393d3f1107506510b515d0577b44c2671ea24d3a7d90`。`GATE-067/068/069` Closed；`GATE-070`、`GATE-UAT-007` Open。
+总计 12 个工作包、15 条直接依赖：Done 10 个，Ready 1 个，Blocked 1 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、端点级共享 JWT converter/真实 Servlet 安全链、Transaction 四字段/Date/Decimal/分页 Adapter、唯一三动作生产组合根、旧 detail 目标入口退役核实与新版完整 non-live E2E 已完成。真实上海员工查询已返回 20 条；semantic 独立 10000ms 合同及配置已落地，零模型 semantic 调用成功。403、Feign 服务发现和旧 semantic timeout 三项失败分别冻结 SHA-256=`fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`；旧 manifest SHA-256=`974228e060383324255a393d3f1107506510b515d0577b44c2671ea24d3a7d90` 不变，新 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`。92 项定向、1403 项全量 non-live、strict mypy、请求 deadline/单次调用/零重试及两 Employee 只读预检通过。`GATE-067/068/069/070` Closed；`GATE-UAT-007` Open。
 
 ## 15. 后续实施建议
 
-先实现 semantic 10000ms 代码绑定上限及配置、独立 snapshot/live manifest 和 fake 边界回归；重新关闭 `GATE-070` 后，使用独立 controlled-run04 执行六场景真实联调，保护三个失败结果与旧 manifest。真实三动作及权限矩阵通过后，按证据开放正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。
+使用已冻结的新配置 snapshot/manifest 和独立 controlled-run04 执行六场景真实联调，保护三个失败结果与旧 manifest。真实三动作及权限矩阵通过后，按证据开放正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。

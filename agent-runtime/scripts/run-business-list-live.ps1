@@ -6,7 +6,9 @@ param(
 
     [switch]$PreflightOnly,
 
-    [switch]$DownstreamOnly
+    [switch]$DownstreamOnly,
+
+    [switch]$SemanticOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,7 +22,7 @@ $python = Join-Path $repository '.tmp\agent-runtime-venv\Scripts\python.exe'
 $stageValue = $Stage.ToLowerInvariant()
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $runtime 'tests\system_e2e\live\results'))
 $evidenceName = if ($stageValue -eq 'controlled') {
-    'business-list-v2-controlled-run03.result.json'
+    'business-list-v2-controlled-run04.result.json'
 } else {
     'business-list-v2-uat.result.json'
 }
@@ -32,12 +34,12 @@ if (Test-Path -LiteralPath $evidence) {
     throw 'business_list_live.evidence_exists'
 }
 
-$modelKey = if ($DownstreamOnly) {
+$modelKey = if ($DownstreamOnly -or $SemanticOnly) {
     $null
 } else {
     [Environment]::GetEnvironmentVariable('LLM_API_KEY', 'Process')
 }
-if (-not $DownstreamOnly -and [string]::IsNullOrWhiteSpace($modelKey)) {
+if (-not ($DownstreamOnly -or $SemanticOnly) -and [string]::IsNullOrWhiteSpace($modelKey)) {
     throw 'business_list_live.model_key_missing'
 }
 
@@ -280,17 +282,36 @@ try {
     Wait-OwnedService $employee 9210 'http://127.0.0.1:9210/actuator/health' @(200, 401, 403)
     Wait-OwnedService $transaction 8182 'http://127.0.0.1:8182/actuator/health' @(200, 401, 403)
 
-    if ($DownstreamOnly) {
+    if ($DownstreamOnly -or $SemanticOnly) {
         $adminToken = Get-OwnedLoginToken 'admin'
-        $body = @{
-            filters = @(@{ field = 'contactAddress'; operator = 'contains'; value = '上海' })
-            from = 0
-            size = 1
-        } | ConvertTo-Json -Depth 5 -Compress
-        $response = Invoke-WebRequest -Uri 'http://127.0.0.1:9210/employees/es/search' `
+        $uri = if ($SemanticOnly) {
+            'http://127.0.0.1:9210/employees/es/vector-search'
+        } else {
+            'http://127.0.0.1:9210/employees/es/search'
+        }
+        $payload = if ($SemanticOnly) {
+            @{
+                queryText = '金融风控经验'
+                embeddingField = 'embedding'
+                embeddingDims = 1024
+                k = 20
+                numCandidates = 100
+                trackTotalHits = 10000
+            }
+        } else {
+            @{
+                filters = @(@{ field = 'contactAddress'; operator = 'contains'; value = '上海' })
+                from = 0
+                size = 1
+            }
+        }
+        $body = $payload | ConvertTo-Json -Depth 5 -Compress
+        $diagnosticTimer = [System.Diagnostics.Stopwatch]::StartNew()
+        $response = Invoke-WebRequest -Uri $uri `
             -Method Post -ContentType 'application/json' -Body $body `
             -Headers @{ Authorization = "Bearer $adminToken" } `
-            -TimeoutSec 15 -SkipHttpErrorCheck
+            -TimeoutSec 30 -SkipHttpErrorCheck
+        $diagnosticTimer.Stop()
         if ([int]$response.StatusCode -ne 200) {
             throw "business_list_live.domain_preflight_http_$([int]$response.StatusCode)"
         }
@@ -395,12 +416,14 @@ if (-not $logsDeleted) {
     throw 'business_list_live.log_cleanup_incomplete'
 }
 
-if ($DownstreamOnly) {
+if ($DownstreamOnly -or $SemanticOnly) {
     [PSCustomObject]@{
         stage = $stageValue
         status = 'downstream_passed'
         modelCalls = 0
-        employeeSearch = 1
+        employeeSearch = if ($SemanticOnly) { 0 } else { 1 }
+        employeeSemantic = if ($SemanticOnly) { 1 } else { 0 }
+        elapsedMs = $diagnosticTimer.ElapsedMilliseconds
     }
     return
 }

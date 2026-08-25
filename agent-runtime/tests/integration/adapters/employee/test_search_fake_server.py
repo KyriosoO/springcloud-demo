@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Mapping
 
@@ -154,3 +155,45 @@ async def test_semantic_handler_uses_only_vector_endpoint_once() -> None:
     assert server.requests[0].request.relative_path == "/employees/es/vector-search"
     assert result.status is CapabilityStatus.SUCCESS
     assert result.egress.disposition is EgressDisposition.NOT_APPLICABLE
+
+
+@pytest.mark.asyncio
+async def test_semantic_budget_respects_request_deadline_without_retry_or_fallback() -> None:
+    class SlowEmployeeSearchServer(FakeEmployeeSearchServer):
+        async def send(self, request: FakeDomainHttpRequest) -> FakeDomainHttpResponse:
+            self.requests.append(request)
+            await asyncio.sleep(0.5)
+            return FakeDomainHttpResponse(
+                status_code=200,
+                content_type="application/json",
+                body=b"{}",
+            )
+
+    definition = employee_semantic_search_definition()
+    settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
+        "employee.semantic_search"
+    ]
+    server = SlowEmployeeSearchServer()
+    handler = BoundBusinessActionHandler(
+        definition=definition,
+        settings=settings,
+        client=UserJwtBusinessHttpClient(transport=server, max_response_bytes=1048576),
+        user_projector=BusinessUserResultProjector(),
+        egress_projector=BusinessEgressProjector(),
+        egress_policy=GlobalBusinessEgressPolicy.from_settings(BusinessGlobalSettings()),
+        config_snapshot_id="a" * 64,
+        max_user_result_bytes=262144,
+    )
+    selected = definition.argument_validator.validate({"query": "金融风控经验", "size": 10})
+    context = scope(
+        "查询具备金融风控经验的员工",
+        deadline_monotonic=asyncio.get_running_loop().time() + 0.25,
+    ).context
+
+    result = await handler.handle(selected, context)
+
+    assert settings.timeout_ms == 10000
+    assert result.status is CapabilityStatus.TIMEOUT
+    assert result.domain_result is None
+    assert len(server.requests) == 1
+    assert server.requests[0].request.relative_path == "/employees/es/vector-search"

@@ -433,7 +433,7 @@ def business_query_v2_action_contracts() -> tuple[BusinessQueryActionContract, .
             code_contract_version="employee-semantic-search-plan-v2",
             service_contract_ref="employee.es.vector-search.v1",
             query_fields=employee_semantic_fields, allowed_sort_fields=frozenset(),
-            max_page=1, max_page_size=50, max_result_count=50, max_timeout_ms=3000,
+            max_page=1, max_page_size=50, max_result_count=50, max_timeout_ms=10000,
             semantic_profile_id="employee-default-v1",
         ),
         BusinessQueryActionContract(

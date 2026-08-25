@@ -81,6 +81,36 @@ def test_unconfigured_field_is_unreachable_through_generic_allowlist() -> None:
         _load(payload)
 
 
+def test_action_timeout_budgets_reflect_distinct_service_dependency_depths() -> None:
+    actions = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)
+    budgets = {
+        action_id: (business_query_v2_action_contract(action_id).max_timeout_ms, settings.timeout_ms)
+        for action_id, settings in actions.items()
+    }
+
+    assert budgets == {
+        "employee.search": (3000, 3000),
+        "employee.semantic_search": (10000, 10000),
+        "transaction.search": (5000, 5000),
+    }
+
+
+@pytest.mark.parametrize(
+    "domain_index,action_index,timeout",
+    ((0, 0, 3001), (0, 1, 10001), (1, 0, 5001)),
+)
+def test_action_timeout_configuration_cannot_exceed_code_bound_contract(
+    domain_index: int,
+    action_index: int,
+    timeout: int,
+) -> None:
+    payload = _payload()
+    payload["domains"][domain_index]["actions"][action_index]["timeout_ms"] = timeout
+
+    with pytest.raises(BusinessConfigurationError, match="business.configuration_schema_invalid"):
+        _load(payload)
+
+
 @pytest.mark.parametrize(
     "mutation,error",
     (

@@ -37,7 +37,7 @@
           "service_contract_ref": "employee.es.vector-search.v1",
           "pagination": {"max_page": 1, "max_size": 50, "max_results": 50},
           "semantic_profile_id": "employee-default-v1",
-          "timeout_ms": 3000,
+          "timeout_ms": 10000,
           "fields": [
             {"logical_name": "query", "service_field": "queryText", "model_safe_description": "不包含姓名、地址、标识或联系方式的员工专业能力描述", "value_type": "text", "enabled": true, "allowed_operators": ["eq"], "input_exposure": "literal", "required": true, "max_text_chars": 256, "data_class": "business_internal", "user_visible": false, "model_visible": false, "sortable": false}
           ],

@@ -33,12 +33,14 @@ def test_semantic_definition_exposes_only_query_and_size() -> None:
     assert definition.sort_field_ids_by_code == frozenset()
     assert definition.answer_mode is BusinessAnswerMode.STRUCTURED_ONLY
     assert definition.local_action_resolver is None
+    assert definition.contract_limits.max_timeout_ms == 10000
 
 
 def test_semantic_mapper_uses_only_fixed_code_bound_vector_profile() -> None:
     settings = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)[
         "employee.semantic_search"
     ]
+    assert settings.timeout_ms == 10000
     selected = EmployeeSemanticSearchArgumentValidator().validate(
         {"query": "熟悉分布式系统的开发工程师", "size": 10}
     )
