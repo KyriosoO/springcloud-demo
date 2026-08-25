@@ -316,6 +316,62 @@ def test_controlled_failures_are_immutable_and_retry_uses_an_independent_path() 
     )
 
 
+def test_v4_uat_evidence_proves_complete_intent_and_bounded_live_calls() -> None:
+    root = Path(__file__).resolve().parents[3]
+    path = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == (
+        "b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8"
+    )
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    validate_evidence(evidence, stage="uat")
+    assert evidence["status"] == "passed"
+    assert evidence["modelTaskVersion"] == "business-query-plan-v4"
+    assert evidence["promptSha256"] == (
+        "c0141675fe5a44d73b18738aa9dbc989e6735e0352a8e8f0344477225d88032a"
+    )
+    assert evidence["configurationSha256"] == (
+        "47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba"
+    )
+    assert evidence["counts"] == {
+        "modelQueryPlan": 18,
+        "employeeSearch": 6,
+        "employeeSemantic": 1,
+        "transactionSearch": 7,
+        "otherBusinessEndpoints": 0,
+        "answerGeneration": 0,
+        "knowledge": 0,
+        "retry": 0,
+        "resume": 0,
+    }
+    assert evidence["security"] == {
+        "forbiddenFields": 0,
+        "sensitivePersistence": False,
+    }
+    observations = {case["caseId"]: case for case in evidence["cases"]}
+    manifest_path = Path(__file__).with_name("business_list_live_manifest_v3.json")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert list(observations) == manifest["uatCaseIds"]
+    assert all(case["modelCalls"] == 1 for case in observations.values())
+
+    shanghai = observations["UAT-EMP-201"]
+    assert shanghai["capabilityId"] == "employee.search"
+    assert shanghai["fields"] == ["contact_address"]
+    assert shanghai["operators"] == ["contains"]
+    assert shanghai["rowCount"] == 20
+    semantic = observations["UAT-EMP-208"]
+    assert semantic["capabilityId"] == "employee.semantic_search"
+    assert semantic["rowCount"] == 9
+
+    for case_id in ("UAT-EMP-209", "UAT-EMP-210", "UAT-TXN-212", "UAT-TXN-215"):
+        case = observations[case_id]
+        assert case["status"] == "unsupported"
+        assert case["capabilityId"] is None
+        assert case["domainCalls"] == 0
+    for case_id in ("UAT-EMP-212", "UAT-TXN-213"):
+        assert observations[case_id]["status"] == "forbidden"
+        assert observations[case_id]["domainCalls"] == 1
+
+
 def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -> None:
     cases = uat_cases(transaction_type="SYNTHETIC", employee_identifier="SYNTHETIC12345")
     by_id = {case.case_id: case for case in cases}

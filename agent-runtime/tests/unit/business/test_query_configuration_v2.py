@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from dataclasses import replace
 from importlib.resources import files
 from typing import Any, cast
 
 import pytest
 
-from agent_runtime.adapters.employee.definition import employee_detail_definition
-from agent_runtime.adapters.transaction.definition import transaction_search_definition
+from agent_runtime.adapters.employee.definition import (
+    employee_search_definition,
+    employee_semantic_search_definition,
+)
+from agent_runtime.adapters.transaction.definition import transaction_list_search_definition
 from agent_runtime.business.contracts import (
     BusinessInputExposure,
     BusinessQueryOperator,
@@ -67,6 +69,14 @@ def test_unified_config_binds_three_actions_and_code_bound_field_matrices() -> N
     assert actions["transaction.search"].allowed_sort_field_ids == (
         "trans_id", "trans_type", "trans_date", "amount"
     )
+    for action_id in ("employee.search", "employee.semantic_search"):
+        employee_action = actions[action_id]
+        unavailable_fields = {"work_base_si", "work_base_af"}
+        assert unavailable_fields.isdisjoint(
+            field.logical_name for field in employee_action.query_fields
+        )
+        assert unavailable_fields.isdisjoint(employee_action.user_result_field_ids)
+        assert unavailable_fields.isdisjoint(employee_action.model_field_ids)
 
 
 def test_unconfigured_field_is_unreachable_through_generic_allowlist() -> None:
@@ -177,22 +187,11 @@ def test_disabled_domain_disables_its_actions_without_expanding_another_domain()
 
 def test_v2_catalog_contains_only_logical_fields_and_exact_action_shapes() -> None:
     configuration = BusinessQueryConfigurationLoader.load_v2_resource()
-    employee = employee_detail_definition()
-    transaction = transaction_search_definition()
-    definitions = []
-    for action_id in ("employee.search", "employee.semantic_search", "transaction.search"):
-        base = employee if action_id.startswith("employee.") else transaction
-        contract = business_query_v2_action_contract(action_id)
-        definitions.append(
-            replace(
-                base,
-                descriptor=replace(base.descriptor, capability_id=action_id),
-                query_fields=contract.query_fields,
-                code_contract_version=contract.code_contract_version,
-                service_contract_ref=contract.service_contract_ref,
-                combination_rules=(),
-            )
-        )
+    definitions = (
+        employee_search_definition(),
+        employee_semantic_search_definition(),
+        transaction_list_search_definition(),
+    )
     catalog = build_business_planner_catalog(
         definitions,
         BusinessConfigurationSnapshot(
@@ -211,5 +210,6 @@ def test_v2_catalog_contains_only_logical_fields_and_exact_action_shapes() -> No
     for forbidden in (
         "contactAddress", "chineseName", "idCardNo", "queryText",
         "transDate", "service_field", "service_contract_ref", "http://", "jwt",
+        "work_base_si", "work_base_af", "workBaseSi", "workBaseAf", "employee.detail",
     ):
         assert forbidden not in material
