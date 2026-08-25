@@ -130,13 +130,18 @@ def test_task_request_is_no_tools_exact_json_and_model_safe() -> None:
         assert prohibited in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
 
 
-def test_query_plan_v2_requires_complete_intent_and_explicit_unsupported_examples() -> None:
+def test_query_plan_v3_requires_filters_complete_intent_and_exact_action_shapes() -> None:
     definition = build_business_query_plan_task_definition(timeout_ms=8000)
 
-    assert BUSINESS_QUERY_PLAN_TASK_VERSION == "business-query-plan-v2"
-    assert definition.task_version == "business-query-plan-v2"
+    assert BUSINESS_QUERY_PLAN_TASK_VERSION == "business-query-plan-v3"
+    assert definition.task_version == "business-query-plan-v3"
     assert "complete user intent" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "empty or partial arguments" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "employee.search" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "employee.semantic_search" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "contact_address" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
+    assert "financial" not in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION.casefold()
+    assert '"operator":"contains"' in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "查询今天发生的交易" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert "帮我查看上海的员工" in BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION
     assert (
@@ -275,6 +280,42 @@ async def test_generator_uses_registered_task_once_and_returns_decoded_object() 
     output = await generator.generate(_input(question="帮我查看上海的员工"), context=_context())
 
     assert output == {"domain": "unsupported", "action": "unsupported", "arguments": {}}
+    assert transport.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_v3_generator_preserves_shanghai_filters_without_provider_side_planning() -> None:
+    definition = build_business_query_plan_task_definition(timeout_ms=8000)
+    transport = FakeStructuredModelTransport(
+        _response(
+            '{"domain":"employee","action":"employee.search","arguments":'
+            '{"filters":[{"field":"contact_address","operator":"contains",'
+            '"value":{"literal":"上海"}}],"page":1,"size":20,"sorts":[]}}'
+        )
+    )
+    generator = DeepSeekBusinessQueryPlanGenerator(
+        gateway=BoundedStructuredModelGateway(
+            transport=transport,
+            definitions=(definition,),
+            max_concurrency=1,
+        ),
+        definition=definition,
+    )
+
+    result = await generator.generate(
+        _input(question="帮我查一下在上海的员工"),
+        context=_context(),
+    )
+
+    assert result["action"] == "employee.search"
+    assert result["arguments"] == {
+        "filters": (
+            {"field": "contact_address", "operator": "contains", "value": {"literal": "上海"}},
+        ),
+        "page": 1,
+        "size": 20,
+        "sorts": (),
+    }
     assert transport.calls == 1
 
 

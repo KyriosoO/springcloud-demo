@@ -48,7 +48,7 @@ Verified existing：旧 detail、有限 Transaction、Business protected slot、
 |---|---|---|---|---|---|---|---|---|---|
 | `WP-BQ-FILTER-CONTRACT-02` | 公共 filters QueryPlan 合同 | `L2_02_00 DR-BQCOM-101/103` | exact filters/operator/tagged value、validator/binder、组合规则 | - | - | 公共计划类型与 fake 测试 | `VAL-BQCOM-101` | 撤销新合同，不恢复旧 Business 旁路 | Done |
 | `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、keyword 受控策略、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Done |
-| `WP-BQ-MODEL-CATALOG-02` | filters 模型目录与 Prompt | `L2_00_02 DR-MODEL-101～105` | v3 task、安全目录、protected slots、unsupported | `WP-BQ-FIELD-CONFIG-02` | - | fake model task/catalog 测试 | `VAL-MODEL-101/102` | 移除 v3 装配，不复用旧 live 证据 | Ready |
+| `WP-BQ-MODEL-CATALOG-02` | filters 模型目录与 Prompt | `L2_00_02 DR-MODEL-101～105` | v3 task、安全目录、protected slots、unsupported | `WP-BQ-FIELD-CONFIG-02` | - | fake model task/catalog 测试 | `VAL-MODEL-101/102` | 移除 v3 装配，不复用旧 live 证据 | Done |
 | `WP-EMP-SEARCH-ADAPTER-02` | Employee 条件搜索 | `L2_02_01 DR-EMP-101/103/104` | filters→SearchRequest、分页、排序、bounded hits | `WP-BQ-FIELD-CONFIG-02` | - | search definition/codec/projection | `VAL-EMP-101/103` | 禁用新 action，保留历史资产 | Ready |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Ready |
 | `WP-EMP-ES-AUTH-02` | Employee ES 最终读取授权 | `L2_02_01 DR-EMP-105` | 调用方兼容核查、两入口 requireEmployeeRead、角色矩阵 | - | - | Java guard/controller/security 测试 | `VAL-EMP-102` | 未确认兼容前不启用授权变更 | Done |
@@ -106,7 +106,7 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 |---|---|---|---|---|
 | 1 | `WP-BQ-FILTER-CONTRACT-02` | Done | - | filters/operator/tagged value、组合校验与绑定已通过 45 项回归及 strict mypy |
 | 2 | `WP-BQ-FIELD-CONFIG-02` | Done | `WP-BQ-FILTER-CONTRACT-02` | 三动作统一 JSON、固定字段映射、敏感暴露与有限脱敏通过 64 项回归 |
-| 3 | `WP-BQ-MODEL-CATALOG-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | catalog 依赖的三动作字段配置已就绪 |
+| 3 | `WP-BQ-MODEL-CATALOG-02` | Done | `WP-BQ-FIELD-CONFIG-02` | v3 filters Prompt、三个逻辑 action 目录及上海地址 fake 生成已通过 |
 | 4 | `WP-EMP-SEARCH-ADAPTER-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | ES search 字段及 action 配置已就绪 |
 | 5 | `WP-EMP-SEMANTIC-ADAPTER-02` | Ready | `WP-BQ-FIELD-CONFIG-02` | semantic profile 和字段分类已就绪 |
 | 6 | `WP-EMP-ES-AUTH-02` | Done | - | 两入口复用现有读取守卫，调用方兼容核实与 7 项安全测试通过 |
@@ -144,7 +144,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 |---|---|---|---|---|---|
 | `WP-BQ-FILTER-CONTRACT-02` | `DR-BQCOM-101/103` | `IMPL-BQCOM-101/106` | `TEST-BQCOM-101/102/104` | `VAL-BQCOM-101` | Done |
 | `WP-BQ-FIELD-CONFIG-02` | `DR-BQCOM-102/104` | `IMPL-BQCOM-102/103/104/105/107/108` | `TEST-BQCOM-103/106` | `VAL-BQCOM-101/102` | Done |
-| `WP-BQ-MODEL-CATALOG-02` | `DR-MODEL-101～105` | `IMPL-MODEL-101～105` | `TEST-MODEL-101～105` | `VAL-MODEL-101/102` | Ready |
+| `WP-BQ-MODEL-CATALOG-02` | `DR-MODEL-101～105` | `IMPL-MODEL-101～105` | `TEST-MODEL-101～105` | `VAL-MODEL-101/102` | Done |
 | `WP-EMP-SEARCH-ADAPTER-02` | `DR-EMP-101/103/104` | `IMPL-EMP-101～105/108` | `TEST-EMP-101/102/104/105` | `VAL-EMP-101/103` | Ready |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | `DR-EMP-102/104` | `IMPL-EMP-101～105` | `TEST-EMP-103/104` | `VAL-EMP-101/103` | Ready |
 | `WP-EMP-ES-AUTH-02` | `DR-EMP-105` | `IMPL-EMP-106/107` | `TEST-EMP-106` | `VAL-EMP-102` | Done |
@@ -178,7 +178,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Ready 4 个，Blocked 5 个，Done 3 个。filters 合同、统一三动作字段配置与 Employee ES 最终读取授权已完成；配置/合同 64 项 Python 回归和读取授权 7 项 Java 测试通过。Model、两个 Employee Adapter 和 Transaction Adapter 可独立实施。`GATE-067/068` Closed，`GATE-069/070` 与 `GATE-UAT-007` 保持 Open。
+总计 12 个工作包、15 条直接依赖：Ready 3 个，Blocked 5 个，Done 4 个。filters 合同、统一三动作配置、v3 Model 逻辑目录/Prompt 与 Employee ES 最终读取授权已完成；Model/Business/graph 231 项 Python 回归和读取授权 7 项 Java 测试通过。两个 Employee Adapter 和 Transaction Adapter 可独立实施。`GATE-067/068` Closed，`GATE-069/070` 与 `GATE-UAT-007` 保持 Open。
 
 ## 15. 后续实施建议
 

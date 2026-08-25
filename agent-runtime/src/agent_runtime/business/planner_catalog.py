@@ -61,26 +61,46 @@ def build_business_planner_catalog(
             for rule in definition.combination_rules
             if rule.rule_id in settings.combination_rule_ids
         )
-        actions.append(
-            {
-                "domain": str(definition.domain_id),
-                "action": action_id,
-                "fields": tuple(fields),
-                "combination_rules": rules,
-                "limits": {
-                    "max_decimal_abs": settings.max_decimal_abs,
-                    "max_decimal_scale": settings.max_decimal_scale,
-                    "fixed_page": settings.fixed_page,
-                    "max_page_size": settings.max_page_size,
-                    "allowed_sort_fields": settings.allowed_sort_field_ids,
-                    "allowed_sort_directions": settings.allowed_sort_directions,
-                    "max_sort_items": settings.max_sort_items,
-                },
-            }
-        )
+        limits: dict[str, object] = {
+            "max_decimal_abs": settings.max_decimal_abs,
+            "max_decimal_scale": settings.max_decimal_scale,
+            "fixed_page": settings.fixed_page,
+            "max_page_size": settings.max_page_size,
+            "allowed_sort_fields": settings.allowed_sort_field_ids,
+            "allowed_sort_directions": settings.allowed_sort_directions,
+            "max_sort_items": settings.max_sort_items,
+        }
+        action: dict[str, object] = {
+            "domain": str(definition.domain_id),
+            "action": action_id,
+            "fields": tuple(fields),
+            "combination_rules": rules,
+            "limits": limits,
+        }
+        if settings.config_version == "business-query-v2":
+            limits["max_page"] = settings.max_page
+            action["argument_shape"] = (
+                "semantic_query" if settings.semantic_profile_id is not None else "filters"
+            )
+            if action_id == "employee.search":
+                action["keyword"] = {
+                    "enabled": settings.keyword_enabled,
+                    "input_exposure": (
+                        None
+                        if settings.keyword_input_exposure is None
+                        else settings.keyword_input_exposure.value
+                    ),
+                    "max_text_chars": settings.keyword_max_text_chars,
+                }
+        actions.append(action)
+    schema_version = (
+        2
+        if all(value.config_version == "business-query-v2" for _, value in snapshot.actions)
+        else 1
+    )
     payload = freeze_json_object(
         {
-            "schema_version": 1,
+            "schema_version": schema_version,
             "snapshot_id": snapshot.snapshot_id,
             "actions": tuple(actions),
             "unsupported": {

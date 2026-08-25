@@ -2,13 +2,27 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from dataclasses import replace
 from importlib.resources import files
 from typing import Any, cast
 
 import pytest
 
-from agent_runtime.business.contracts import BusinessInputExposure, BusinessQueryOperator
-from agent_runtime.business.settings import BusinessConfigurationError, BusinessQueryConfigurationLoader
+from agent_runtime.adapters.employee.definition import employee_detail_definition
+from agent_runtime.adapters.transaction.definition import transaction_search_definition
+from agent_runtime.business.contracts import (
+    BusinessInputExposure,
+    BusinessQueryOperator,
+    business_query_v2_action_contract,
+)
+from agent_runtime.business.planner_catalog import build_business_planner_catalog
+from agent_runtime.business.settings import (
+    BusinessConfigurationError,
+    BusinessConfigurationSnapshot,
+    BusinessGlobalSettings,
+    BusinessQueryConfigurationLoader,
+)
+from agent_runtime.capability_api.contracts import canonical_json_bytes
 
 
 def _payload() -> dict[str, Any]:
@@ -129,3 +143,43 @@ def test_disabled_domain_disables_its_actions_without_expanding_another_domain()
     assert not actions["employee.search"].enabled
     assert not actions["employee.semantic_search"].enabled
     assert actions["transaction.search"].enabled
+
+
+def test_v2_catalog_contains_only_logical_fields_and_exact_action_shapes() -> None:
+    configuration = BusinessQueryConfigurationLoader.load_v2_resource()
+    employee = employee_detail_definition()
+    transaction = transaction_search_definition()
+    definitions = []
+    for action_id in ("employee.search", "employee.semantic_search", "transaction.search"):
+        base = employee if action_id.startswith("employee.") else transaction
+        contract = business_query_v2_action_contract(action_id)
+        definitions.append(
+            replace(
+                base,
+                descriptor=replace(base.descriptor, capability_id=action_id),
+                query_fields=contract.query_fields,
+                code_contract_version=contract.code_contract_version,
+                service_contract_ref=contract.service_contract_ref,
+                combination_rules=(),
+            )
+        )
+    catalog = build_business_planner_catalog(
+        definitions,
+        BusinessConfigurationSnapshot(
+            global_settings=BusinessGlobalSettings(),
+            actions=configuration.actions,
+            service_bindings=(),
+            snapshot_id="v2-test-snapshot",
+        ),
+    )
+    material = canonical_json_bytes(catalog.payload).decode("utf-8")
+
+    assert catalog.payload["schema_version"] == 2
+    assert '"contact_address"' in material
+    assert '"argument_shape":"filters"' in material
+    assert '"argument_shape":"semantic_query"' in material
+    for forbidden in (
+        "contactAddress", "chineseName", "idCardNo", "queryText",
+        "transDate", "service_field", "service_contract_ref", "http://", "jwt",
+    ):
+        assert forbidden not in material

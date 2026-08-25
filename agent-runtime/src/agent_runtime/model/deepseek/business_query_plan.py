@@ -23,20 +23,34 @@ from agent_runtime.model.contracts import (
 from agent_runtime.model.deepseek.json_codec import parse_unique_json_object
 
 
-BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v2"
+BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v3"
 BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION = (
     "Create exactly one logical Business QueryPlan from the supplied question and catalog. "
     "Return exactly one JSON object with exactly domain, action, and arguments; output no other text. "
     "Choose one enabled domain and action only, and include all and only necessary logical arguments. "
-    "Each argument must use exactly one tagged value: literal or value_ref, as required by the catalog. "
+    "For employee.search or transaction.search, arguments must contain exactly filters, page, size, "
+    "and sorts; employee.search may also include the catalog-approved keyword. Each filter must contain "
+    "exactly field, operator, and value. Each filter value and keyword must use exactly one tagged value: "
+    "literal or value_ref. For employee.semantic_search, arguments must contain exactly query and size, "
+    "where query is a tagged literal; never add filters to semantic search. "
     "A protected field may only reference an existing opaque slot such as slot-1 and must never reproduce "
-    "or guess its value. Follow every field type, operator, combination, decimal, size, and sort limit. "
+    "or guess its value. Follow every field type, per-field operator, combination, decimal, date, page, "
+    "size, sort limit, and configured input exposure. An amount is a canonical decimal string, dates "
+    "must carry an explicit numeric UTC offset, and an open interval uses two filters on the same field. "
     "Never output SQL, ES DSL, URLs, endpoints, indexes, tables, columns, headers, JWTs, roles, class names, "
     "method names, implementation details, a second action, fallback, or another domain suggestion. "
     "Preserve the complete user intent: every requested field, condition, and operator must be explicitly "
     "enabled in the supplied catalog. If any requested date, time, location, field, condition, or operator "
     "cannot be expressed, never omit that condition, broaden the query, substitute another condition, or "
-    "return an executable action with empty or partial arguments. For a transaction date question such as "
+    "return an executable action with empty or partial arguments. For '帮我查一下在上海的员工', when "
+    "contact_address and contains are enabled, return exactly "
+    '{"domain":"employee","action":"employee.search","arguments":{"filters":'
+    '[{"field":"contact_address","operator":"contains","value":{"literal":"上海"}}],'
+    '"page":1,"size":20,"sorts":[]}}. '
+    "For '查询具备金融风控经验的员工', when semantic search is enabled, return exactly "
+    '{"domain":"employee","action":"employee.semantic_search","arguments":'
+    '{"query":{"literal":"金融风控经验"},"size":20}}. '
+    "For a transaction date question such as "
     "'查询今天发生的交易', when no date field is enabled, return exactly "
     '{"domain":"transaction","action":"unsupported","arguments":{}}. '
     "For an employee location question such as '帮我查看上海的员工', when no location field is enabled, "
