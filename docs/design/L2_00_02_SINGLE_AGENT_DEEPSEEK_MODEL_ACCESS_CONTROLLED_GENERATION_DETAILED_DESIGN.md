@@ -7,12 +7,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | L2_00_02 |
-| 当前版本 | v1.5 |
-| 更新日期 | 2026-08-24 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.2 |
+| 当前版本 | v1.6 |
+| 更新日期 | 2026-08-25 |
+| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.3 |
 | 协作设计 | `L2_00_01` v1.6、`L2_02_00` v1.6 |
 | Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder、fake transport 及生产 Business non-live 组合根已实现；真实模型验证尚未实施 |
+| 实施状态 | `business-query-plan-v1`、模型安全输入接缝、no-tools request、provider exact JSON decoder、fake transport 及生产 Business non-live 组合根已实现；candidate-02 真实验证 `failed_consumed`；`business-query-plan-v2` 为已设计、尚未实施的后续收口范围 |
 
 ## 2. 修改历史、设计目标与范围
 
@@ -23,8 +23,9 @@
 | v1.3 | 2026-08-24 | 同步 `WP-BQ-MODEL-QUERYPLAN-01` non-live 实施与验证状态；生产 wiring/live 门禁保持未关闭 |
 | v1.4 | 2026-08-24 | 校正 protected extractor 与 Model Guard 职责；非法 Business 输入固定在 Business 分支失败关闭，澄清生产 stub 与测试 fake 的边界 |
 | v1.5 | 2026-08-24 | 明确历史 ID-only task/evidence 不改写，但 Employee/Transaction 不保留任何依赖该 task 的生产装配或专属兼容接缝 |
+| v1.6 | 2026-08-25 | candidate-02 日期负例真实失败后，设计 `business-query-plan-v2`、完整意图覆盖与不可表达显式示例；增加有限失败诊断、对抗 fake 和冻结历史兼容，不改变 validator 或业务契约 |
 
-本文新增一个 provider-neutral `business-query-plan-v1` 模型任务。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
+本文为 provider-neutral Business QueryPlan 模型任务设计受控升级：已实施的 `business-query-plan-v1` 保留于已冻结历史提交；新的 `business-query-plan-v2` 只强化模型可见指令对完整用户意图和不可表达条件的约束，不改变 task ID、三字段输出、catalog、decoder、validator、Adapter 或公开契约。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
 
 范围外/不负责：本文不定义业务字段合法性、Adapter、SQL/ES、权限或结果字段；这些由 Business L2 和业务服务治理。模型输出始终不可信，只有经下游本地 validator/binder 后才可执行。
 
@@ -36,7 +37,7 @@
 
 | Task | 输入 | 输出 | 是否 Business 目标路径 |
 |---|---|---|---|
-| `business-query-plan-v1` | 最小化问题、模型安全 Business catalog | exact `{domain,action,arguments}` | 是，强制 |
+| `business-query-plan-v2` | 最小化问题、模型安全 Business catalog | exact `{domain,action,arguments}` | 是，强制；v1 只存在于冻结历史提交 |
 | `action-selection-v4` | 问题、安全 capability catalog | exact capability ID | 否，不得用于 Employee/Transaction 目标路径 |
 | `answer-generation-v2` | 已批准安全 facts | grounded answer | 可选、默认关闭 |
 | Knowledge tasks | Knowledge 受控输入 | 各自契约 | 与 Business 不互为回退 |
@@ -69,10 +70,10 @@ class BusinessQueryPlanGenerator(Protocol):
 
 返回 `JsonObject` 仍是未信任 decoded object；业务语义校验由 `L2_02_00` 完成。接口不接收 original question、slot values、JWT、结果或 Adapter 信息。
 
-### 4.2 task definition（建议新增模块 `agent_runtime.model.deepseek.business_query_plan`）
+### 4.2 task definition（现有模块 `agent_runtime.model.deepseek.business_query_plan`）
 
 ```python
-BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v1"
+BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v2"
 
 def build_business_query_plan_task_definition(
     *,
@@ -199,6 +200,12 @@ system instruction 必须表达：
 6. 不可表达时仍输出 exact 三字段 QueryPlan，action 为 `unsupported`、arguments 为空；
 7. 不解释、不建议另一个域、不生成第二动作。
 
+`business-query-plan-v2` 必须额外明确完整意图覆盖：用户明确要求的任一条件、字段或操作符无法由当前 enabled catalog 表达时，整条意图只能返回该 domain 的 exact `unsupported` sentinel；不得丢弃日期、地点或其他条件形成空参数、部分匹配或扩大范围的可执行 `search`。Prompt 应包含无敏感数据的中英文受限示例，至少覆盖 Transaction 日期条件和 Employee 地点筛选；示例仅使用逻辑 domain/action，不得包含 SQL、ES DSL、endpoint、业务标识、JWT 或实际业务数据。
+
+`v2` 是现有 task 的显式版本升级，不新增 Model task/Provider、兼容双执行链路或本地意图解析；v1 的冻结 manifest、authorization、lifecycle、consumed、journal、result 均按原 SHA-256 保留，历史 source 以对应 frozen Git commit 验证。
+
+新增 live candidate 采用独立有限结果 `schemaVersion=2`：只在失败时增加可为空的 `failureCase`，字段严格限定为 `caseId`、有限 `status`、`capabilityId`、`planCalls`、`domainCalls` 与有限 `reason` 枚举；成功结果必须保持 `failureCase=null`。candidate-01/02 历史仍按其冻结 `schemaVersion=1`、原 task/prompt 与精确 SHA-256 验证，不修改或迁移既有结果。
+
 Prompt、task version、catalog schema 和 decoder source 均需在 UAT manifest 中冻结。更改任一项需新 task version 和重新验证。
 
 ## 9. Transport 与运行设置
@@ -254,7 +261,7 @@ class LocalModelCompositionRoot:
 | ID | 路径 | 类型 | 目标变更 |
 |---|---|---|---|
 | `IMPL-MODEL-001` | `agent-runtime/src/agent_runtime/model/contracts.py` | 修改 | task id/input/generator protocol |
-| `IMPL-MODEL-002` | 建议新增模块 `agent_runtime.model.deepseek.business_query_plan` | 建议新增 | request、prompt、decoder、generator |
+| `IMPL-MODEL-002` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py` | 已存在/建议修改 | task version 升为 v2，强化完整意图/unsupported 示例；request、decoder、generator 契约保持不变 |
 | `IMPL-MODEL-003` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 已修改/回归 | Business 锚点分支、minimized question、slot redaction 与拒绝接缝；不创建 slot、不选择域 |
 | `IMPL-MODEL-004` | `agent-runtime/src/agent_runtime/model/gateway.py` | 修改 | 注册 code-bound QueryPlan task |
 | `IMPL-MODEL-005` | `agent-runtime/src/agent_runtime/bootstrap.py` | 修改 | generator/catalog/context/lifecycle 装配 |
@@ -272,6 +279,8 @@ class LocalModelCompositionRoot:
 | `TEST-MODEL-006` | composition | Business 注入 QueryPlan generator，不注入 ID-only selector |
 | `TEST-MODEL-007` | lifecycle/concurrency | context 隔离、cancel、close、secret/log 零泄漏 |
 | `TEST-MODEL-008` | history | 既有 task/source/evidence hash 不被改写 |
+| `TEST-MODEL-009` | v2 unsupported/adversarial fake | 日期/地点不可表达时 exact unsupported；空参数、非法 tag、附加条件继续失败关闭且下游=0；不得将 invalid_argument 改判 unsupported |
+| `TEST-MODEL-010` | live candidate 历史与有限诊断 | 已消费失败历史按 frozen HEAD/hash 独立验证；新失败只记录 `caseId/status/capabilityId/planCalls/domainCalls` 与有限原因枚举，不含模型/业务原文或敏感值 |
 
 真实模型 UAT 另行授权，固定 case、task/prompt/catalog/HEAD、调用上限和一次性授权；非 live 测试不得读取 `LLM_API_KEY`。
 
@@ -279,16 +288,18 @@ class LocalModelCompositionRoot:
 
 | ID | 决策 |
 |---|---|
-| `DR-MODEL-016` | 新建 `business-query-plan-v1`，不篡改历史 ID-only task |
+| `DR-MODEL-016` | Business QueryPlan 使用 `business-query-plan-v2`；v1 与历史 ID-only task/source/evidence 保持冻结提交和 SHA-256 不变 |
 | `DR-MODEL-017` | no-tools exact JSON 同时输出 domain/action/arguments |
 | `DR-MODEL-018` | protected value 用 opaque ref，不向模型暴露原值 |
 | `DR-MODEL-019` | provider decoder 只做 JSON framing/资源限制；Business payload decoder 做计划结构，业务语义由 validator 决定 |
 | `DR-MODEL-020` | 模型失败无 retry、Local Resolver 或跨域降级 |
 | `DR-MODEL-021` | 默认 stub 只能证明失败关闭，不能满足 Business UAT |
+| `DR-MODEL-022` | v2 Prompt 强制完整意图覆盖：未开放日期/地点条件必须输出 domain 保留、`action=unsupported`、空 arguments；不得忽略条件、补参数、放宽 validator 或创建第二链路 |
+| `DR-MODEL-023` | live 失败诊断仅使用有限 case 状态/计数/原因；失败历史与新 result Schema 分版本验证，禁止持久化问题、模型响应、业务结果、JWT、标识和密钥 |
 
 ## 15. 当前差距与门禁
 
-`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核：catalog、task、输入保护、provider decoder、失败关闭、组合根唯一性和模型零外呼已验证。真实调用仍由独立门禁承接；旧 Action PoC 不自动关闭新 QueryPlan 门禁。
+`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核。candidate-02 使用 v1 实际完成模型/Employee/Transaction=`6/2/2`，前五场景通过，Transaction 日期负例未达到 `unsupported` 并形成不可复用的 `failed_consumed` 历史；因此 v1 不能关闭 `GATE-065/066`。v2 Prompt、有限失败诊断、对抗 fake、历史兼容和新的冻结候选仍待实施与验证；旧 Action PoC 和已失败历史不得作为通过证据。
 
 ## 16. 评审记录
 
@@ -305,6 +316,10 @@ class LocalModelCompositionRoot:
 | v1.5 内审2 | 历史 evidence 与任务兼容 | 不改写 task/PoC/evidence，不保留两域专属装配 |
 | v1.5 内审3 | 门禁、调用预算与最小性 | 清理阶段不读 key、不调用模型、不新增 task |
 | v1.5 独立评审 R1～R3 | ID-only 历史与 Business 隔离 | 共享 task/evidence 保留、两域生产装配为0；R3 无发现 |
+| v1.6 内审1 | v2 task/version、版本引用与完整意图 | 修正 L1 当前版本与现有模块定位；明确日期/地点 exact unsupported，不改变三字段或 validator |
+| v1.6 内审2 | 失败诊断、版本化结果与历史不可变 | 明确 result schema v2 六字段有限失败诊断；candidate-01/02 继续按 schema v1 和 frozen commit/hash 校验 |
+| v1.6 内审3 | 授权、状态、严格校验与最小性 | 修正实施判定、P3 Ready 授权约束及重复状态；保持六次预算、失败关闭与 DAG，不增加 Gate/接口 |
+| v1.6 独立评审 R1 | v2 与 REQ/L1、失败关闭、历史证据和 P3 DAG | exact unsupported、两级 decoder、只读历史及有限诊断一致；允许 non-live 实施，新 live 仍需冻结独立候选 |
 
 Approved 不表示真实模型任务已实施或执行。
 
@@ -314,9 +329,9 @@ Approved 不表示真实模型任务已实施或执行。
 
 | 项目 | 内容 |
 |---|---|
-| 是否可作为实现依据 | 是，设计可作为后续代码实施依据，但当前未授权实施/真实调用 |
-| 当前允许实施范围 | non-live 工作包已完成；真实 QueryPlan 调用必须先关闭 `GATE-065` |
-| 当前禁止动作 | 读取 LLM_API_KEY、真实调用、修改历史 task/evidence、接入业务结果出域 |
+| 是否可作为实现依据 | 是 |
+| 当前允许实施范围 | v2 Prompt/task、测试侧失败诊断、对抗 fake、历史兼容和新的 non-live 候选；完成冻结后按用户持续授权进入一次性 GATE-065 live |
+| 当前禁止动作 | candidate-01/02 重跑或历史改写；放宽 unsupported/validator；业务结果模型出域、真实数据落盘和预算外调用 |
 
 ## 18. 端到端追踪矩阵
 
