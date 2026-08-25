@@ -11,7 +11,7 @@
 | 更新时间 | 2026-08-25 |
 | 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
-| 当前实现 | 旧 Business QueryPlan 与 Knowledge 基线已存在；新列表动作、配置和组合根尚未实施 |
+| 当前实现 | Knowledge 基线与新版 filters/config/三动作 Adapter/组合根已实施并通过 non-live；Employee ES 端点级角色转换尚缺失，成功 live/UAT 未完成 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -50,7 +50,7 @@ Employee 目标动作是 `employee.search` 与 `employee.semantic_search`；Tran
 
 模型仅获得代码生成的模型安全目录和请求级 protected slot 引用；用户 JWT、真实标识、详细地址、完整业务响应、索引与数据库细节不出域。结果用户可见性和模型可见性独立执行默认拒绝交集；未知字段、敏感内容及策略冲突失败关闭。
 
-Employee 两个现有 ES endpoint 目前只有 `requireUser`，目标必须先完成既有调用方兼容性验证和业务域读取守卫；Transaction 既有 service 已执行读取授权。字段 `workBaseSi/workBaseAf` 不属于当前有效能力；员工地点仅使用 `contact_address → contactAddress`。
+Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫，但必须由端点级安全链显式绑定既有共享 JWT role converter；现有 detail 和其他 endpoint 行为不得改变，业务服务仍拥有最终授权。Transaction 既有 service 已执行读取授权。字段 `workBaseSi/workBaseAf` 不属于当前有效能力；员工地点仅使用 `contact_address → contactAddress`。
 
 请求状态、slots、JWT、不可变配置 snapshot 和取消信号限定在单请求生命周期；业务 SQL/ES、数据事务和最终一致性由业务服务维护，Agent 不新增事务、缓存平台或数据同步机制。
 
@@ -68,12 +68,12 @@ Employee 两个现有 ES endpoint 目前只有 `requireUser`，目标必须先�
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 | Runtime、LangGraph、Model Port、Core、Registry、组合根与单动作 | 目标修订，新生产组合根未实施 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 | Runtime、LangGraph、Model Port、Core、Registry、组合根与单动作 | 新生产组合根与三动作 non-live 已实施，成功真实联调待完成 |
 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.0 | Knowledge 问题改写、检索、证据和摘要 | 保持既有权威，不做语义修改 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 | Business fields/config、Employee/Transaction Adapter 与最终授权 | 目标修订，新能力未实施 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 | Business fields/config、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作 non-live 已实施；Employee ES 真实角色转换缺口待修复 |
 
 ## 8. 质量属性、风险与当前结论
 
 安全优先于可用性：非法计划、模型失败、配置失配、敏感 slot 和不支持条件均失败关闭；调用计数应证明每请求最多一次模型规划和一个业务动作。保留请求级取消与确定性数值/时间合同，但不引入高可用框架、复杂重试、分布式事务或独立监控平台。
 
-主要风险：Employee ES 授权尚未收紧；Transaction 日期时区和数据库精度尚未形成合同；ES 原始 hits 需严格 bounded parsing；workBase 字段数据无效。上述均为待实施或待验证事实，评审通过不等于实现、真实联调或 UAT 完成。
+主要风险：Employee ES Controller 已收紧权限，但通用安全链未绑定共享 role converter 会误拒绝真实 ADMIN/VIEWER；ES 原始 hits、受保护值和 Date/Decimal 必须维持当前已验证合同；workBase 字段数据无效且仅通过未配置自然不可达。non-live 通过不等于端点级真实角色转换、成功真实联调或 UAT 完成。

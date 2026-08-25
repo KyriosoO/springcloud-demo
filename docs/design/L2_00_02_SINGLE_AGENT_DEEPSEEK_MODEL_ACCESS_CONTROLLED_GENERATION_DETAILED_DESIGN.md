@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、真实付费调用、模型失败回退或修改现有公共 Core/HTTP 合同。当前实现的 `business-query-plan-v2` 仍使用旧 argument 结构和旧 action catalog；本版目标 task 及 Prompt 尚未实施。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v3` task、三个动作安全 catalog、filters Prompt 和 strict provider decoder 已实施；首次受控真实调用已生成正确 `employee.search/contact_address/contains` 计划，但该单次结果不能证明完整 live 矩阵或正式 UAT。
 
 | 需求编号 | 需求 |
 |---|---|

@@ -7,12 +7,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
+| 当前版本 | v2.1 |
 | 更新日期 | 2026-08-25 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
-| 当前实现 | 已实现旧 `employee.detail` 和有限 `transaction.search`；本版列表目标尚未实施 |
+| 当前实现 | filters/config、三个列表动作、生产组合根和 Controller 读取守卫已实施；Employee ES 专用 JWT 角色转换尚未实施，真实联调被 ADMIN 403 阻断 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -27,9 +27,9 @@
 
 | 动作 | 固定业务接口 | 已核实能力 | 当前缺口 |
 |---|---|---|---|
-| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits | 现仅 `requireUser`；Agent Adapter/严格 hits parsing 未实施 |
-| `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter | 现仅 `requireUser`；Agent Adapter/语义配置未实施 |
-| `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort | Agent 当前未开放 Date、page>1 和独立 field/operator |
+| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter 已实施 | Controller 已执行 `requireEmployeeRead`，但当前匹配的通用安全链未绑定统一角色转换器，真实 ADMIN 被误拒绝 |
+| `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter 已实施 | 与条件搜索共用缺失统一角色转换的通用安全链 |
+| `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；Agent Adapter 已实施 | 当前仍缺新版本受控真实联调与正式 UAT 证据 |
 
 Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`，且必须复用与 filter 相同的 `literal/value_ref` 输入保护；真实姓名、员工标识和详细地址不能作为明文 keyword 出域。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
 
@@ -60,7 +60,7 @@ Model 只认识逻辑 domain/action/field/operator；Business 公共层拥有 st
 
 ## 6. 业务最终授权、响应与模型出域
 
-Employee 两个 ES 入口当前只有认证，需要由业务服务收紧到 `requireEmployeeRead`，先完成已有调用方兼容性和 ADMIN/VIEWER/denied/missing/malformed/service-token 回归。Transaction 保持现有 `requireTransactionRead`。Agent 只传递当前用户 JWT，不判断域内角色。
+Employee 两个 ES 入口已由 Controller 执行 `requireEmployeeRead`，但必须同时使用仅覆盖这两个既有 POST endpoint 的专用 Servlet 安全链，显式绑定共享 `userRoleJwtAuthenticationConverter`，以满足 `L2_00_03 DR-AUTH-007`。现有 detail 专用链和其他 endpoint 的通用认证行为保持不变；业务读取授权仍由 Employee 服务守卫最终判定。必须用真实 Spring Security 过滤链验证 ADMIN/VIEWER 允许、denied/missing/malformed/service-token 拒绝及既有调用方兼容。Transaction 保持现有 `requireTransactionRead`；Agent 只透传当前用户 JWT，不判断域内角色。
 
 Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON duplicate key、hits 结构和 `_source` 白名单校验；未知、workBase、`embedding`、`embeddingText` 默认丢弃。Transaction 解析既有 rows/total/totalExact/page/size 合同；`totalExact=false` 不是精确总数。
 
@@ -82,13 +82,13 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 | 决策 | 内容 | 下位设计 |
 |---|---|---|
 | `BQ-AD-001` | filters/operator/tagged value 与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0 |
-| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing 和业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.0 |
+| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing、端点级统一角色转换与业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.1 |
 | `BQ-AD-003` | Transaction Date/Decimal、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.0 |
 
 关联 L1 协作：Runtime L1 拥有组合根和 Core 单动作；Model L2 拥有安全 catalog/Prompt 与 provider framing decoder；Business L2 不改变公共 Core/HTTP/业务 DTO。
 
 ## 9. 当前实现、风险与验证
 
-已有旧 `employee.detail`、旧 flat arguments Transaction 和历史 live 证据不能证明本版 filters、ES 列表、语义、日期、分页或权限收紧。所有新动作、统一配置、组合根、non-live/live/UAT 目前均未实施。
+本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。首次受控联调已证明真实 LLM 能生成上海 `contact_address contains` 计划，但 Employee search 因通用安全链未显式绑定共享角色转换器返回 403；该失败证据不可替代成功联调或 UAT。Employee 专用安全链修复、后续受控联调和正式 UAT 仍未完成。
 
 主要风险为 Employee ES 现有调用方兼容性、原始 hits 泄漏、受保护值出域、Date/Jackson/数据库精度不一致和 workBase 虚假可用。通过受限 Adapter、角色矩阵、严格跨语言合同、配置 snapshot、零调用断言及非 live 优先顺序控制；不引入配置中心、规则引擎或多层重复门禁。

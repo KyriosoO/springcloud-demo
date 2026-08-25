@@ -10,7 +10,7 @@
 | 当前版本 | v2.0 |
 | 更新日期 | 2026-08-25 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
-| 当前基线 | 已有 Knowledge 链路；已有 Employee detail 和有限 Transaction QueryPlan，但不满足本版列表查询目标 |
+| 当前基线 | Knowledge 链路及新版 filters/config/三动作 Adapter/生产组合根已存在；Employee ES 真实 JWT 角色转换仍待修复，成功真实联调和 UAT 尚未完成 |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
 
@@ -27,9 +27,9 @@
 | 对象 | verified existing | target design | 当前差距 |
 |---|---|---|---|
 | Knowledge | 既有问题改写、检索、证据及摘要链路；既有 P5 结论为 ineffective | 保持原有独立能力和结果，不作为 Business fallback | 不属于本次业务设计纠偏 |
-| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；当前只执行 `requireUser` | `employee.search` 返回受控列表，业务服务执行读取角色授权 | Agent Adapter、字段配置、响应解析及最终读取授权均未实施 |
-| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter | `employee.semantic_search` 返回受控列表 | Agent Adapter、受控语义参数及最终读取授权均未实施 |
-| Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权 | `transaction.search` 完整映射既有列表搜索能力 | Agent 当前未开放日期、完整分页、独立 field/operator 和同字段范围组合 |
+| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 已调用读取守卫，Agent Adapter/配置已实施 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | ES endpoint 安全链尚未显式绑定共享 role converter，真实 ADMIN 请求被 403 拒绝 |
+| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter 已实施 | `employee.semantic_search` 返回受控列表 | 与条件搜索共享同一 endpoint 级角色转换缺口；真实联调和 UAT 尚未通过 |
+| Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权；新版 Adapter 已实施 | `transaction.search` 完整映射既有列表搜索能力 | 新版成功受控真实联调和正式 UAT 尚未完成 |
 
 现有 `employee.detail` 属于已实现的历史能力，不是本版 Employee 主查询目标；只有完成调用方、兼容性和历史审计资产核实后，才能迁移或废止。
 
@@ -87,7 +87,7 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 
 ## 7. 权限、敏感输入与模型出域
 
-`REQ-BQS-010`：Employee 两个 ES endpoint 必须从现有 `requireUser` 收紧到业务域 `requireEmployeeRead`，先核实已有调用方兼容性，并验证 ADMIN/VIEWER 允许和无权限、missing、malformed、service-token 拒绝；Transaction 继续由服务执行最终读取授权。Agent 和 Adapter 只透传当前用户 JWT，不替代业务角色判定。
+`REQ-BQS-010`：Employee 两个 ES endpoint 必须由业务域 `requireEmployeeRead` 执行最终读取授权，并经其端点级安全链显式使用既有共享 JWT role converter；先核实已有调用方兼容性，验证真实 ADMIN/VIEWER role claim 允许和无权限、missing、malformed、service-token 拒绝，不改变 detail 或其他 endpoint 的既有行为。Transaction 继续由服务执行最终读取授权。Agent 和 Adapter 只透传当前用户 JWT，不替代业务角色判定。
 
 `REQ-BQS-011`：模型只能看到最小化问题、模型安全动作/字段/operator 目录、请求级 slot、配置 snapshot 及已批准的时间上下文；不得看到身份证号、员工编号、电话、邮箱、姓名、详细地址、JWT、凭证、业务原始响应、ES `_source`/`embeddingText`、索引或数据库物理信息。用户可见字段与模型可见字段是两套独立交集策略，未分类、冲突或转换失败时模型调用为 0。
 
@@ -106,4 +106,4 @@ Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结�
 3. Transaction：类型、日期、金额、同字段区间、组合过滤、分页、排序、精度及拒绝矩阵。
 4. 结构化查询收口：Access/Core/Model/配置/Adapter/JWT/单动作与失败零调用回归。
 
-开放事项：Employee ES 既有调用方兼容性和读取授权尚未完成；Transaction Date/Jackson/时区/数据库精度合同尚未验证；新 filters 合同、统一配置、两个 Employee Adapter、扩展 Transaction Adapter、新组合根及其 non-live/live/UAT 均未实施。既有旧动作及其历史证据不能替代新目标证明。
+开放事项：Employee Controller 读取守卫已经实施，但两个 ES POST 安全链仍未显式绑定共享 JWT role converter，真实 ADMIN 请求存在已证实的 403 缺口；须补齐完整 Servlet 过滤链与历史 fallback 兼容验证。新版 filters 合同、统一配置、两个 Employee Adapter、扩展 Transaction Adapter、Date/Decimal 合同、生产组合根和 non-live 已具备当前代码证据；成功受控真实联调及正式 UAT 尚未完成。既有旧动作及其历史证据不能替代新目标证明。

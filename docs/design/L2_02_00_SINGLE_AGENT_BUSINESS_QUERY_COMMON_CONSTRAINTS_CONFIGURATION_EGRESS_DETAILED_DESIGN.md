@@ -8,7 +8,7 @@
 |---|---|
 | 当前版本 | v2.0 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.0 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
@@ -18,7 +18,7 @@
 
 设计目标是让 Business 公共层统一承担 provider-neutral QueryPlan、field/operator/slot、配置 snapshot、启动一致性、JWT 透传、结果投影和可选模型出域。范围外包括问题语义本地生成、provider transport、Core 执行规则、业务 SQL/ES、业务最终授权、新 endpoint/DTO 和真实模型调用。
 
-当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 只支持 `Mapping[field, tagged_value]`，不能表示同字段多个 operator；`agent-runtime/src/agent_runtime/business/settings.py` 和两个 adapter settings 为现有动作各自构造；没有三动作统一版本化 JSON 文件。现有 HTTP client、protected slots、projection 和 egress 可作为 verified existing 基础，但目标合同仍未实施。
+当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已实施并通过 non-live。Employee 业务服务真实角色转换与成功 controlled live/UAT 属于对应 L2 和实施计划的未关闭事项，不属于 Business 公共层的新责任。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -139,7 +139,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 输入 exposure 有限枚举为 `literal/protected_ref/literal_or_protected_ref`；`contact_address` literal 只可通过代码内有限安全城市片段判定，详细地址仍必须 protected ref，配置不能注入正则或放宽判定。用户/模型 transform 为有限代码枚举，不能运行表达式。排序、超时、返回字段、模型字段、Decimal 和时间规则都只能小于或等于代码与服务合同。
 
-启动校验：exact JSON、版本、duplicate、动作/字段/operator 子集、code/service contract、逻辑字段与 `service_field` 固定映射、keyword 三字段及 protected exposure 对齐、descriptor/definition/config/validator/mapper/codec 完整对齐、result/model 字段子集和大小/timeout 上限；显式拒绝 `workBaseSi/workBaseAf/work_base_si/work_base_af`。snapshot 使用 canonical JSON SHA-256，不可变地绑定单请求；不一致 readiness 失败，不得加载旧 Resolver。
+启动校验：exact JSON、版本、duplicate、动作/字段/operator 子集、code/service contract、逻辑字段与 `service_field` 固定映射、keyword 三字段及 protected exposure 对齐、descriptor/definition/config/validator/mapper/codec 完整对齐、result/model 字段子集和大小/timeout 上限；未出现在 Agent 代码定义和启用配置中的字段通过通用字段子集校验自然不可用，无需针对 `workBaseSi/workBaseAf` 增加专用黑名单、启动校验或输入分支。snapshot 使用 canonical JSON SHA-256，不可变地绑定单请求；不一致 readiness 失败，不得加载旧 Resolver。
 
 ## 5. 处理流程、权限与审计设计
 
@@ -172,7 +172,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 |---|---|
 | `TEST-BQCOM-101` | exact 三字段/filter/tagged union、重复键、unknown、float、集合/深度上限 |
 | `TEST-BQCOM-102` | 同字段 gt+lt、eq/range 互斥、上下界、Employee operator 和 semantic+filter 拒绝 |
-| `TEST-BQCOM-103` | config version/hash/subset、三动作 alignment、keyword 三字段和 protected exposure 对齐、workBase 显式拒绝 |
+| `TEST-BQCOM-103` | config version/hash/subset、三动作 alignment、keyword 三字段和 protected exposure 对齐、未配置字段由通用 subset/白名单校验拒绝 |
 | `TEST-BQCOM-104` | 同请求 slot、跨请求/重复 slot 拒绝，详细地址与上海片段边界，keyword tagged union 与敏感 keyword 零泄漏 |
 | `TEST-BQCOM-105` | Date offset/timezone、相对日期 unsupported、Decimal canonical/scale≤2/JSON number |
 | `TEST-BQCOM-106` | page/size/sorts/offset overflow、投影脱敏、模型出域拒绝与调用计数 |
@@ -190,7 +190,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `DR-BQCOM-101` | filters 列表与逻辑 operator 独立，exact decode 支持同字段开区间 |
 | `DR-BQCOM-102` | 单一字段级 JSON 配置只能收紧 code/service contract，snapshot 不可变 |
 | `DR-BQCOM-103` | protected ref 绑定在 validator 后、Core 前，仅限当前 request |
-| `DR-BQCOM-104` | 用户结果与模型出域分别投影和脱敏；未知、workBase 与敏感字段默认拒绝 |
+| `DR-BQCOM-104` | 用户结果与模型出域分别投影和脱敏；未配置、未知及敏感字段由通用白名单默认拒绝 |
 | `DR-BQCOM-105` | Decimal/Date/分页/排序使用跨语言严格合同，失败关闭 |
 | `DR-BQCOM-106` | 配置不携带 SQL/ES/endpoint，禁止 Agent DB/ES 依赖与权限替代 |
 

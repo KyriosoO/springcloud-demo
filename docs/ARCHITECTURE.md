@@ -7,7 +7,7 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- Employee/Transaction 相关需求、L0/L1/L2 与实施计划升级至 v2.0，正式验收计划升级至 v1.0；Knowledge 与未涉及的公共文档继续使用原有 v1.0 版本。
+- Employee/Transaction 相关需求、L0/L1/L2 与实施计划以 v2.0 为新权威基线；Employee 端点级授权纠偏后 `L1_02`、`L2_02_01` 和 `P3_00` 升级至 v2.1，正式验收计划升级至 v1.1。Knowledge 与未涉及的公共文档保持原版本。
 
 ## 2. 需求与总体架构
 
@@ -22,7 +22,7 @@
 |---|---|---|---|
 | `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v2.0 / Approved | Runtime、filters planning bridge、Core 与三动作组合根 |
 | `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.0 / Approved | 问题改写、多域、多路召回/重排、证据与摘要、P5 |
-| `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.0 / Approved | 三动作 Adapter、字段级配置、最终授权与列表结果 |
+| `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.1 / Approved | 三动作 Adapter、字段级配置、端点级角色转换、最终授权与列表结果 |
 
 ## 4. L2 详细设计
 
@@ -48,7 +48,7 @@
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
 | `L2_02_00` | [Business 公共约束、配置与出域](design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.0 / Approved |
-| `L2_02_01` | [Employee Adapter 与授权](design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 / Approved |
+| `L2_02_01` | [Employee Adapter 与授权](design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.1 / Approved |
 | `L2_02_02` | [Transaction Adapter 与授权](design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.0 / Approved |
 
 ## 5. 关键阅读结论
@@ -62,8 +62,8 @@
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.0 / Reviewed。计划是调度/证据索引，不得反向修改设计权威。
-- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.0 / Reviewed；正式 UAT 尚未执行。
+- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.1 / Reviewed。计划是调度/证据索引，不得反向修改设计权威。
+- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.1 / Reviewed；正式 UAT 尚未执行。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 新大版本需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；设计基线 `GATE-067` 已关闭，但 Knowledge 及未涉及的公共设计仍保留现有 Approved 基线。新列表动作、授权收紧、统一配置、组合根、真实联调和 UAT 均未实施，不得由设计 Approved 或历史实现状态推断已完成。
+Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。新版统一配置、三个列表动作、生产组合根及 non-live 已实施；Employee Controller 已执行读取守卫，但两个 ES POST endpoint 缺少专用共享 JWT role converter，首次真实联调因 ADMIN 403 失败。成功真实联调和正式 UAT 尚未完成，不能由设计 Approved、单个失败记录或历史实现推断通过。
