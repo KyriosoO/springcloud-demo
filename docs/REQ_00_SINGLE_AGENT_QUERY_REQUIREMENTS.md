@@ -1,275 +1,108 @@
 # [REQ_00] 单体 Agent 查询能力建设需求说明
 
-## 1. 文档信息
+> 文档状态：Approved
+
+## 1. 文档信息与来源
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v1.7 |
-| 状态 | 已确认 |
+| 当前版本 | v1.8 |
 | 更新日期 | 2026-08-25 |
-| 需求来源 | 用户确认的单体 Agent、知识查询、Employee/Transaction 结构化查询及 LLM QueryPlan 唯一链路 |
-| 适用阶段 | P1～UAT |
+| 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
+| 当前基线 | 已有 Knowledge 链路；已有 Employee detail 和有限 Transaction QueryPlan，但不满足本版列表查询目标 |
+| 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 
-## 2. 背景与目标
+修订历史：本版依据已核实的三个既有业务搜索接口纠正 Employee/Transaction 查询目标；既有详细版本过程由 Git 历史保留。
 
-本项目是个人研发项目，用于学习、验证 Agent 技术与架构，并以“架构完整、链路打通、能力可验证”为优先，不追求生产级规模和复杂交接流程。
+## 2. 背景、设计目标与非目标
 
-本期建立一个单体 Agent，提供已有知识库查询、Employee 域有限只读查询和 Transaction 域有限只读查询，并建立查询、权限、模型出域和失败语义的最小可靠约束。
+建设一个逻辑 Agent，优先打通知识查询以及 Employee、Transaction 只读列表查询。Spring 负责接入与治理，Python Runtime/LangGraph 负责唯一编排，业务服务保留数据、检索实现和最终授权。设计应与个人学习和技术验证的背景匹配，不引入配置中心、规则平台、审批系统或产品级证据体系。
 
-Employee/Transaction 的目标不是让模型生成 SQL 或任意工具调用，而是让模型在业务服务既有只读契约之内生成一个受限逻辑查询计划，再由本地确定性校验和 Adapter 执行。
+非目标：新增业务公开接口或 DTO、直接访问业务数据库/ES、写操作、聚合、工作流、多 Agent、业务域间自动切换、文档录入，以及未经确认的字段、角色或模型出域扩张。
 
-## 3. 当前事实与目标差距
+## 3. 已核实能力、目标与当前差距
 
-### 3.1 已确认的业务接口基线
-
-| 域 | 可复用只读接口 | 本期动作 | 已确认边界 |
+| 对象 | verified existing | target design | 当前差距 |
 |---|---|---|---|
-| Employee | `GET /employees/{idCardNo}` | `employee.detail` | 仅按单一员工标识查询详情；业务服务最终授权 |
-| Transaction | `POST /txn/search` | `transaction.search` | 复用现有 search；Agent 仅开放有限条件、精确金额、有限分页与排序 |
+| Knowledge | 既有问题改写、检索、证据及摘要链路；既有 P5 结论为 ineffective | 保持原有独立能力和结果，不作为 Business fallback | 不属于本次业务设计纠偏 |
+| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；当前只执行 `requireUser` | `employee.search` 返回受控列表，业务服务执行读取角色授权 | Agent Adapter、字段配置、响应解析及最终读取授权均未实施 |
+| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter | `employee.semantic_search` 返回受控列表 | Agent Adapter、受控语义参数及最终读取授权均未实施 |
+| Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权 | `transaction.search` 完整映射既有列表搜索能力 | Agent 当前未开放日期、完整分页、独立 field/operator 和同字段范围组合 |
 
-Employee 现有分页接口只接受 `page/size`。`POST /employees/es/search` 虽在服务内支持 `workBaseSi` 等字段，但当前只执行用户令牌校验、没有落实本需求要求的 `ROLE_ADMIN/ROLE_VIEWER` 业务域最终读取授权，并复用通用动态搜索 DTO、返回原始 ES 字符串；因此它尚不构成可供 Agent 复用的受限业务动作。“查看上海的员工”等筛选需求当前必须返回 `unsupported`，不得自行新增接口、借用宽泛接口或绕过业务域最终授权。
+现有 `employee.detail` 属于已实现的历史能力，不是本版 Employee 主查询目标；只有完成调用方、兼容性和历史审计资产核实后，才能迁移或废止。
 
-### 3.2 当前实现差距
+## 4. 唯一查询链路与需求编号
 
-严格 `QueryPlan` 公共合同、模型任务、两域 definition/config、Runtime 唯一分支与旧 Resolver 清理已完成；Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环、精确架构门禁与当前非 live 回归已通过。真实 DeepSeek 与两域业务服务的 6-case 集成已通过，模型/Employee/Transaction 调用分别为 `6/2/2`；正式 UAT 尚未执行。旧 Business Resolver/ID-only 运行证据只能说明历史路径，不得标记为本版本完成证据。
-
-历史 append-only manifest、authorization、evidence、hash 和审计记录必须保持不可变；被冻结 manifest 绑定且为历史 evidence 复验所必需的兼容类型可保留，但生产工厂/组合根必须拒绝或隔离其可执行绑定。仅服务于已废弃 Business Resolver 路径、经引用扫描确认无有效调用方且不承载历史复验职责的源文件与可执行测试，应在新链路覆盖等价验证后删除。不得把“保留历史证据”解释为保留生产替代链路。
-
-## 4. 范围
-
-### 4.1 本期范围
-
-- 单次请求、单动作、只读查询；
-- `knowledge.query`、`employee.detail`、`transaction.search`；
-- LangGraph 作为唯一 Agent 编排权威；
-- Spring 接入治理、JWT 透传、业务服务最终授权；
-- LLM 生成 Employee/Transaction 逻辑 QueryPlan；
-- 本地强类型配置、严格校验、Adapter 与统一失败语义；
-- 最小日志、测试和 UAT 证据。
-
-### 4.2 非本期范围
-
-- 聚合查询、跨域查询、自动切换业务域；
-- 工作流、写入、审批、状态变更；
-- Multi-Agent 实现；
-- Agent/Adapter 直连数据库或业务域 ES；
-- 新增业务接口、公共 DTO、数据库结构或扩大业务授权；
-- 模型生成 SQL、ES DSL、URL、索引名、类名、方法名或物理调用信息；
-- 文档录入和知识库治理平台。
-
-## 5. 功能需求
-
-### FR-01 单体 Agent 与单动作
-
-1. 每个请求由 LangGraph 维护唯一请求级状态。
-2. 每个请求最多执行一个已注册、启用且校验通过的动作。
-3. Spring、Core、Adapter 和业务服务不得建立第二套 Agent 编排状态机。
-4. 第二动作、跨域重试和 Business→Knowledge 回退必须被拒绝。
-5. Core 与 capability API 保持模型无关；LangGraph 的唯一 Business planning bridge 可以依赖 provider-neutral Model Port 和请求级取消上下文，但不得依赖 DeepSeek DTO、HTTP client 或其他 provider 实现。
-
-### FR-02 Knowledge 查询
-
-Knowledge 继续使用既有独立链路，包含问题改写、多域、多路召回与重排、证据选择和答案摘要。Knowledge 不是 Business 查询失败后的回退路径，本次修订不改变其检索与证据契约。
-
-### FR-03 Employee 查询
-
-1. 首期仅开放 `employee.detail`。
-2. QueryPlan 必须以受保护值引用表达员工标识，原始身份证号、员工编号等具体标识不得发送给模型。
-3. 本地绑定器只能把 QueryPlan 中已验证的引用绑定回同一请求内存中的值。
-4. Adapter 固定调用 `GET /employees/{idCardNo}`，不得调用列表、ES 搜索或写接口。
-5. `work_base_si`、职位等筛选当前不受支持；模型提出此类计划时本地返回 `unsupported`，业务调用为零。
-
-### FR-04 Transaction 查询
-
-1. 首期仅开放 `transaction.search`。
-2. 允许条件限于既有代码和配置共同开放的 `trans_id`、`trans_type`、`trans_type_contains`、`amount`、`amount_gt`、`amount_lt`，以及有限 `size/sorts`。
-3. 金额使用精确 Decimal；禁止 float、舍入、字符串金额 wire 和隐式 scale 转换。
-4. 首期排除 Date、聚合、detail、写入和管理动作。
-5. Adapter 固定调用 `POST /txn/search`，业务服务自行决定 SQL/ES 等物理实现。
-
-### FR-05 Employee/Transaction 唯一 QueryPlan 链路
-
-对通过接入认证、严格 JSON 和敏感输入闸门的 Employee/Transaction 问题，唯一业务查询链路为：
+`REQ-BQS-001`：
 
 ```text
-用户问题
-  → LLM 生成 {domain, action, arguments} 受限 QueryPlan
-  → 本地按代码契约和强类型配置严格校验与受保护值绑定
-  → 对应 Employee/Transaction Adapter
-  → employee-service 或 mq-procedure-service
-  → 业务服务最终授权并执行 SQL/ES 查询
-  → 返回结果
+用户问题 → 输入安全闸门与请求级 protected slot 提取
+→ LLM 基于最小化问题和 slot 引用生成受限 QueryPlan → Model 严格解码为 JsonObject
+→ Business 严格解码、配置校验和 protected value 绑定
+→ 唯一 ActionCandidate → Employee/Transaction Adapter
+→ 现有业务服务 → 业务服务最终授权与 ES/向量/SQL 查询
+→ 响应严格解析、字段投影和脱敏 → 用户列表结果
 ```
 
-约束：
+LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和一个业务 endpoint。输入闸门只做安全识别、最小化与 slot 提取，不选择 domain/action、生成 filters 或补充业务语义。禁止 Local Resolver 绕过 LLM、ID-only 补参、模型失败本地降级、Business→Knowledge、跨域 fallback、普通与向量搜索互相 fallback、客户端二次筛选，以及模型生成 SQL、DSL、URL、索引、表列、类名或方法名。
 
-- LLM 必须参与目标域、动作和逻辑参数的生成；本地代码不得绕过 LLM 生成完整执行参数。
-- 模型失败、超时、拒绝或计划非法时失败关闭，不得降级为本地查询。
-- 一个业务域失败后不得自动切换到另一业务域。
-- 模型只接触逻辑字段、有限运算符和模型安全描述，不接触固定 endpoint、SQL/ES、代码符号、JWT 或原始业务响应。
+`REQ-BQS-002`：外层 QueryPlan 只能包含 `domain/action/arguments`；列表 arguments 使用 `filters/page/size/sorts`，其中每条 filter 包含 `field/operator/value`，value 严格为 `literal` 或 `value_ref` 之一。允许同一字段以不同 operator 表达开区间上下界；拒绝重复键、未知属性、null、float、非有限值、超限集合和不被现有接口支持的组合。语义查询只允许受限业务语义文本与受控数量，不允许结构化 filter。
 
-### FR-06 Adapter
+`REQ-BQS-003`：配置按 `version → domain → action → field/operator/result/egress` 组织，并且只能收紧 `业务服务现有能力 ∩ Adapter 代码合同 ∩ 数据分类策略`。采用单个版本化 JSON 文件与既有严格 Python 解析，不引入新平台。
 
-每个业务域使用独立 Adapter。Adapter 负责：
+## 5. Employee 列表与语义查询
 
-- 把已验证的逻辑参数编码为既有业务接口请求；
-- 透传当前用户 JWT；
-- 设置超时、处理取消、严格解码和归一失败；
-- 执行允许返回字段投影。
+| 逻辑字段 | 服务字段 | 可选操作符上界 | 输入保护 |
+|---|---|---|---|
+| `contact_address` | `contactAddress` | `eq/contains/prefix/in` 的代码绑定子集 | 仅“上海”一类有限安全地点片段可 literal；详细地址必须 `value_ref` |
+| `chinese_name` | `chineseName` | `eq/contains/prefix/in` 的代码绑定子集 | `value_ref` |
+| `employee_identifier` | `idCardNo` | `eq` | `value_ref` |
+| `member_no` | `memberNo` | `eq/prefix` 的代码绑定子集 | `value_ref` |
+| `phone_no` | `phoneNo` | `eq/prefix` 的代码绑定子集 | `value_ref` |
+| `email` | `email` | `eq` | `value_ref` |
+| `position` | `position` | `eq/contains/prefix/in` 的代码绑定子集 | 安全业务文本 literal |
 
-Adapter 不负责问题理解、QueryPlan 生成、角色判定、SQL/DSL 生成、数据库访问或新业务规则。
+`REQ-BQS-004`：用户问“帮我查询上海的员工”时，目标动作是 `employee.search`，过滤条件是 `contact_address contains "上海"`；不得默认把“上海”和其他编码视为等价。`keyword` 仅匹配现有服务的 `contactAddress/chineseName/idCardNo`，不能描述成覆盖全部字段。
 
-### FR-07 结果与可选答案生成
+`REQ-BQS-005`：`workBaseSi/workBaseAf` 虽存在于部分代码或数据库模型，但当前数据没有有效启用；不得进入开放字段、模型目录、成功 UAT 或结果投影。未来开放必须重新核实真实数据、索引同步、设计和 UAT，而不能只改配置。
 
-业务查询结果默认在本地形成确定性回答。若显式启用模型答案生成，模型可见字段必须满足“代码允许 ∩ 配置允许 ∩ 数据分类允许”，且调用发生在业务查询成功之后。答案模型调用不是 QueryPlan 的替代，也不得改变业务结果状态。
+`REQ-BQS-006`：`employee.semantic_search` 只传递安全业务语义，embedding 参数和向量物理信息由固定代码掌握。现有 `buildEmbeddingText` 含姓名、联系地址、职位、教育/院校/专业及 workBase 字段，但这不代表支持单字段向量查询，亦不代表 workBase 字段已启用。语义检索与结构化地址过滤不能由现有单接口同时表达时返回 `unsupported`，业务调用为 0。
 
-## 6. QueryPlan 与强类型配置需求
+## 6. Transaction 列表查询
 
-### CFG-01 QueryPlan 外形
-
-业务 QueryPlan 仅允许以下顶层结构。可执行计划为：
-
-```json
-{
-  "domain": "employee|transaction",
-  "action": "employee.detail|transaction.search",
-  "arguments": {}
-}
-```
-
-不可表达或未开放的意图只能使用同一三字段外形的保留终态：
-
-```json
-{
-  "domain": "employee|transaction|unsupported",
-  "action": "unsupported",
-  "arguments": {}
-}
-```
-
-`unsupported` 不是可执行 action；它必须在本地校验阶段终止，不能进入 binder、Core 或 Adapter。已知业务域但动作/字段未开放时可保留对应 domain；无法识别为两个业务域时 domain 必须为保留值 `unsupported`。
-
-- exact JSON：禁止额外顶层字段、重复键、非有限数和超限嵌套；
-- 每次只能包含一个 domain、一个 action 和一组 arguments；
-- arguments 只能使用当前动作配置声明的逻辑字段；
-- 受保护值使用不含业务语义的请求级 `value_ref`，其他值只有在配置显式允许模型读取时才可使用 literal；
-- QueryPlan 的键和值均不得承载 endpoint、HTTP 方法、SQL、ES DSL、URL、索引、类、方法、角色或 JWT；文本 literal 必须通过动作代码绑定的有限安全字符策略，不能由配置注入任意正则或表达式。
-
-### CFG-02 每域每动作配置
-
-每个配置单元至少包含：
-
-- 已启用的 `domain/action`、配置版本、代码契约版本和快照 ID；
-- 查询字段、模型安全描述、字段类型、允许操作符及输入暴露方式；
-- 必填、可选、互斥、至少一项和合法组合条件；
-- Decimal 绝对值和 scale、固定/允许页码、条数上限、排序字段/方向及排序项上限；
-- 允许返回字段和模型可见字段；
-- Adapter 代码绑定标识和业务契约快照引用。
-
-配置只能收紧代码绑定能力和业务服务现有契约；不能通过配置新增 action、字段、操作符、endpoint、授权、返回字段或模型出域范围。
-
-### CFG-03 启动一致性
-
-组合根必须在 readiness 前验证：
-
-- 配置 domain/action 是代码定义的子集且唯一；
-- 参数字段、类型、操作符和边界不超过代码 validator；
-- 返回字段和模型字段均为代码允许集合的子集；
-- descriptor、QueryPlan validator、binder、handler、Adapter 和动作 ID 完全对齐；
-- 配置版本、代码契约版本和快照 ID 可追踪。
-
-不一致时相关业务能力不得注册或对外就绪，禁止宽松默认值或部分启用。
-
-### CFG-04 变更
-
-配置变更必须版本化，并重新执行启动校验、契约测试和相关 UAT。运行中请求绑定不可变快照；本期不要求动态热更新。
-
-## 7. 身份、敏感数据与授权
-
-1. `agent-service` 验证用户身份后，将用户 JWT 通过内部请求交给 Runtime。
-2. JWT 不得发送给模型、写入 QueryPlan 或持久化。
-3. 具体员工标识等敏感 literal 在模型调用前由确定性输入闸门替换为请求级 opaque reference；原值只驻留请求内存。
-4. Adapter 透传用户 JWT；业务服务依据统一 Authority Converter 和自身权限规则执行最终授权。
-5. Agent 的配置和字段策略只能进一步收紧，不能扩大业务服务授权。
-6. 未分类字段、策略冲突、引用不存在/重复/跨请求时失败关闭。
-
-## 8. 失败语义
-
-| 场景 | 对外有限状态 | 必须行为 |
+| 逻辑字段 | 允许 operator | Adapter 到现有 DTO 的固定映射 |
 |---|---|---|
-| 未认证/业务服务拒绝 | `unauthenticated/forbidden` | 不改写为无结果或成功 |
-| 模型不可用、超时 | `downstream_failure/timeout` | Adapter 和业务调用为零；无本地降级 |
-| QueryPlan JSON/Schema 非法 | `invalid_argument` | 不执行；不修补模型输出 |
-| domain/action/字段/操作符未开放 | `unsupported` | 不切域、不回退 Knowledge |
-| 值引用、类型、组合或边界非法 | `invalid_argument` | 不执行；不得猜值或舍入 |
-| 业务查询无结果 | `no_result` | 保持业务事实，不切换域 |
-| 下游协议或依赖失败 | `downstream_failure/timeout` | 不把失败伪装成空结果 |
+| `trans_id` | `eq` | `condition.transId` |
+| `trans_type` | `eq/contains` | `condition.transType/transTypeContains` |
+| `trans_date` | `eq/gt/lt` | `condition.transDate/transDateGt/transDateLt` |
+| `amount` | `eq/gt/lt` | `condition.amount/amountGt/amountLt` |
 
-## 9. 扩展性与最小设计
+`REQ-BQS-007`：field 和 operator 分离，支持同字段 `gt + lt` 范围；不得把 `amount_gt`、`trans_date_lt` 等 DTO 映射名公开给模型。日期使用带明确时区的规范时间格式；`gt/lt` 均为严格开区间。业务时区固定 `Asia/Shanghai`；“今天”“最近一周”等相对自然日只有在请求级时钟、数据库时间精度和边界规则得到合同证据后开放，否则 `unsupported`。
 
-- 新业务域通过新的代码绑定定义、强类型配置、validator/binder、Adapter 和 handler 接入，不修改既有域实现。
-- Core 只接收经校验的最终 ActionCandidate，不包含 Employee/Transaction 语法。
-- 不为未来 Multi-Agent、动态 DSL、配置平台、通用查询语言或复杂韧性框架提前建设实现。
-- 未来新增业务接口必须先由业务服务明确契约与授权，再更新上位需求和设计。
+`REQ-BQS-008`：金额对齐 `DECIMAL(50,2)`；QueryPlan 使用 canonical decimal string，Java wire 使用 JSON number，业务服务使用 BigDecimal；保持现有更严格金额绝对值上界，scale≤2，禁止 float、舍入、截断和隐式 scale 转换。
 
-## 10. 日志与观测
+`REQ-BQS-009`：page≥1，不再固定为 1；size 不得超过业务服务上限 100，也不得突破 Agent 现有更严格代码上限 50；验证 `(page-1)×size` 不溢出。排序只允许四个已核实字段、`ASC/DESC`、最多两项。结果包含 `rows/total/totalExact/page/size`；`totalExact=false` 表示下界估计，不得宣称精确总数。
 
-至少记录 correlation ID、配置快照、domain/action、阶段、有限状态、模型/下游调用计数和耗时。不得记录 JWT、密钥、原始员工标识、数据库凭据、完整 QueryPlan 原文、完整模型响应或业务原始响应。
+## 7. 权限、敏感输入与模型出域
 
-## 11. 测试要求
+`REQ-BQS-010`：Employee 两个 ES endpoint 必须从现有 `requireUser` 收紧到业务域 `requireEmployeeRead`，先核实已有调用方兼容性，并验证 ADMIN/VIEWER 允许和无权限、missing、malformed、service-token 拒绝；Transaction 继续由服务执行最终读取授权。Agent 和 Adapter 只透传当前用户 JWT，不替代业务角色判定。
 
-- exact JSON、重复键、额外字段、深度/大小上限；
-- 每域每动作配置的子集、版本、快照和启动失败测试；
-- 受保护值 slot 化、绑定、跨请求/缺失/重复引用及零泄漏；
-- 模型必须生成 domain/action/arguments，且非法计划失败关闭；
-- Employee 仅 detail 成功；`work_base_si` 筛选为 `unsupported` 且下游零调用；
-- Transaction 有限条件、Decimal scale≤2、边界、分页和排序；
-- 模型失败无本地降级、Business 无 Knowledge 回退、域失败不切换；
-- JWT 透传与业务服务最终允许/拒绝矩阵；
-- 单动作、并发隔离、取消、日志敏感扫描；
-- 默认 stub 只能用于非 live 测试，不能作为 Employee/Transaction LLM 计划 UAT 的通过证据。
+`REQ-BQS-011`：模型只能看到最小化问题、模型安全动作/字段/operator 目录、请求级 slot、配置 snapshot 及已批准的时间上下文；不得看到身份证号、员工编号、电话、邮箱、姓名、详细地址、JWT、凭证、业务原始响应、ES `_source`/`embeddingText`、索引或数据库物理信息。用户可见字段与模型可见字段是两套独立交集策略，未分类、冲突或转换失败时模型调用为 0。
 
-## 12. 第一批 UAT 验收标准
+Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结构校验，严格解析 hits，并丢弃 `embedding`、`embeddingText`、workBase 和未知字段；不得仅因原始响应而新增业务 endpoint 或公共 DTO。
 
-1. 公共接入冒烟：认证、严格 JSON、`unsupported`、单动作和默认 stub 失败关闭。
-2. Employee：显式真实模型 Provider 生成 `employee.detail` QueryPlan；受保护值不出域；仅一次 detail 调用；权限与失败语义正确。
-3. Employee 缺口：地点筛选问题产生的未开放计划被本地拒绝，模型一次、Employee 调用零次。
-4. Transaction：显式真实模型 Provider 生成受限 `transaction.search` QueryPlan；精确 Decimal 与有限分页/排序正确；仅一次 search 调用。
-5. 阶段收口：Access、Core、QueryPlan validator、配置快照、JWT、Adapter、单动作和禁止替代链路全部回归通过。
+## 8. 失败关闭和可观测性
 
-## 13. 实施阶段
+`REQ-BQS-012`：模型失败、非法计划、不支持字段/operator、slot 非法、配置不一致、日期或金额无效、分页排序超界、物理表达式、workBase 字段及不可表达的语义+结构组合必须失败关闭，且下游业务调用为 0；业务服务返回拒绝时仅允许本次既定调用，不重试、不跨域、不回退。
 
-| 阶段 | 内容 | 退出条件 |
-|---|---|---|
-| P1/P2 | REQ、L0/L1/L2 权威对齐 | QueryPlan 与配置边界评审通过 |
-| P3 | QueryPlan 合同、配置、Runtime 切换、两域接入 | 非 live 测试通过且无业务 Resolver 生产旁路 |
-| P4 | 受控真实模型与业务服务集成 | 权限、单动作、失败关闭和零泄漏证据完整 |
-| UAT | 公共冒烟、Employee、Transaction、结构化收口 | 第 12 章全部满足 |
-| 后续 | Knowledge UAT 与效果优化 | 单独授权与数据/模型门禁 |
+仅记录 correlation ID、action、配置快照、有限阶段/错误、调用计数和耗时；不记录问题正文、slot 值、密钥、JWT、原始 QueryPlan、原始模型响应或原始业务响应。对个人学习项目保持普通日志和最小测试证明，不建设复杂审计平台。
 
-## 14. 待确认与阻断事项
+## 9. 验收顺序与开放事项
 
-- Employee 按地点、职位等筛选存在技术搜索端点，但缺少本需求要求的 endpoint-scoped `ROLE_ADMIN/ROLE_VIEWER` 最终授权和稳定受限响应契约；当前保持 `unsupported`。若要支持，需用户另行确认是否收紧现有端点或新增受限 DTO/端点，并授权相应业务服务、Adapter、设计与测试变更。
-- QueryPlan/强类型配置、Runtime 唯一分支、fake 双域 system entry 和真实 6-case 双域集成均已完成，`GATE-064/065/066` 已关闭；`GATE-UAT-006` 仍 Open，第一批正式业务 UAT 尚未执行。
-- 真实 LLM UAT 需要单独绑定 Provider、模型、固定问题集、预算和一次性调用授权。
-- 当前目标内代码、受控真实集成和范围受限 Git 提交推送已授权；业务接口、数据库结构、生产依赖及正式 UAT 不属于本次授权。
+1. 公共接入冒烟：认证、严格 JSON、默认 stub、单动作与 unsupported。
+2. Employee：上海地址、职位、受保护标识/姓名、ES 列表、语义检索、权限矩阵、workBase 拒绝和 ES 字段丢弃。
+3. Transaction：类型、日期、金额、同字段区间、组合过滤、分页、排序、精度及拒绝矩阵。
+4. 结构化查询收口：Access/Core/Model/配置/Adapter/JWT/单动作与失败零调用回归。
 
-## 15. 原子修订内审记录
-
-| 轮次 | 检查重点 | 发现与最小修复 | 结论 |
-|---:|---|---|---|
-| 1 | 唯一链路、职责、QueryPlan/config、权限、跨语言、DAG、过度设计 | 补齐架构元数据、L2 追踪/就绪信息和计划模板；修正计划门禁/资源所有权 | 通过修复复核 |
-| 2 | 失败关闭、状态词汇、unsupported 终态、当前/目标分离 | 统一 `unauthenticated`；增加不可进入 binder/Core 的 unsupported 计划终态；明确旧 Resolver/ID-only 仅为现状 | 通过修复复核 |
-| 3 | 既有接口事实、安全复用条件、引用一致性、无环性 | 核实 Employee 通用 ES 搜索具备字段能力但缺最终角色授权和受限响应契约；修正失效工作包引用 | 通过修复复核 |
-| 独立评审 R1～R3 | 分层与跨层合同、状态、门禁和可实施性 | R1 关闭两项 Major（两级 decoder 所有权、文本 literal 物理表达式）；R2 关闭一项 Major（REQ unsupported sentinel）；R3 无发现 | 通过 |
-| v1.5 内审1 | 唯一路径、实现状态与清理目标 | 删除“全部尚未实现”的失真陈述，区分 system E2E/live 未完成 | 通过修复复核 |
-| v1.5 内审2 | 历史证据、兼容与删除安全 | 发现冻结 harness 依赖 legacy 字段；改为生产拒绝绑定、历史复验兼容保留 | 通过修复复核 |
-| v1.5 内审3 | 版本、DAG、门禁与过度设计 | 清理不新增工作包/依赖边，不引入迁移或兼容层平台 | 通过修复复核 |
-| v1.6 内审1 | 门禁失败分类与需求边界 | 确认 graph→provider-neutral Model Port 是编排职责，不扩大 Core/业务能力 |
-| v1.6 内审2 | 取消、Registry 与单动作 | 仅 planning 读取取消并只读复用注册 validator；handler 执行仍由 Core 独占 |
-| v1.6 内审3 | 个人项目最小性与无环 | 采用精确架构测试白名单，不新增转发层、包或公共合同 |
-| v1.6 独立评审 R1～R2 | 上下位合同与门禁合理性 | R1 收紧为 provider-neutral 单桥接并保留 Core 执行所有权；R2 无 Blocker/Major/Minor |
-| v1.5 独立评审 R1～R3 | 历史兼容、生产可达性与跨层原子性 | R1 修正冻结 harness legacy 字段误删；R2 补齐旧 launcher/实现触点；R3 无新增发现 | 通过 |
-
-三轮均复核模型失败、非法计划和不支持查询无 Adapter/业务调用，JWT/受保护值不出域，Employee/Transaction 不切域、不回退 Knowledge，配置不得扩大代码与业务契约。正式独立评审结论由下位设计和计划的评审记录共同承载。
+开放事项：Employee ES 既有调用方兼容性和读取授权尚未完成；Transaction Date/Jackson/时区/数据库精度合同尚未验证；新 filters 合同、统一配置、两个 Employee Adapter、扩展 Transaction Adapter、新组合根及其 non-live/live/UAT 均未实施。既有旧动作及其历史证据不能替代新目标证明。

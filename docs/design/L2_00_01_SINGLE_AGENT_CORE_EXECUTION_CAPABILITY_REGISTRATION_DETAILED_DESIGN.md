@@ -2,339 +2,119 @@
 
 > 文档状态：Approved
 
-## 1. 文档信息
+## 1. 文档信息、来源与修订历史
 
 | 项目 | 内容 |
 |---|---|
-| 文档编号 | L2_00_01 |
-| 当前版本 | v1.7 |
-| 更新日期 | 2026-08-25 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.4 |
-| 协作设计 | `L2_00_02` v1.8、`L2_02_00` v1.7 |
-| 实施状态 | 公共 QueryPlan 合同、Business planning、组合根唯一分支、旧 Business Resolver 清理、fake 双域 system E2E 及真实 DeepSeek/两域服务 6-case 集成均已完成并通过代码复核；正式 UAT 尚未执行 |
+| 当前版本 | v1.8 |
+| 更新时间 | 2026-08-25 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.5 |
+| 关联责任边界 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 
-## 2. 修改历史、设计目标与范围
+修订历史：当前版本将 Business 执行接缝升级为 filters 型三动作 QueryPlan；旧历史由 Git 保存。
 
-| 版本 | 日期 | 修改内容 |
-|---|---|---|
-| v1.1 | 2026-08-21 | 既有 Core/Hybrid/Registry 详细设计基线 |
-| v1.2 | 2026-08-24 | 新增 Business QueryPlan→ActionCandidate 唯一接缝并退役 Business Resolver 目标路径 |
-| v1.3 | 2026-08-24 | 显式绑定当前 `request_id`；明确共享 Runtime 中 Business 与非 Business 分支隔离、输入拒绝语义及启动一一映射校验 |
-| v1.4 | 2026-08-24 | 独立复评 R1 发现并闭合请求取消信号接缝，禁止模型迟到结果进入 decoder/binder/Core |
-| v1.5 | 2026-08-24 | 明确清理 Employee/Transaction 专属 Resolver 可执行资产，同时保留非 Business 共享 Hybrid/ID-only 与历史不可变证据 |
-| v1.6 | 2026-08-24 | 处理全量回归门禁冲突：固化唯一 graph→provider-neutral Model bridge、request cancellation、有限 decision union 和 Registry 只读 validator 例外 |
-| v1.7 | 2026-08-25 | 仅同步真实 6-case QueryPlan 集成、P3 门禁关闭及上下位文档版本，不改变 Core 设计 |
+## 2. 设计目标、范围外与当前实现基线
 
-本文定义 Business QueryPlan 如何在 LangGraph 中转换为既有 `ActionCandidate`，以及 Registry/Core/组合根如何保证单动作和唯一链路。
+目标是在不修改公共 Core、HTTP、CapabilityResult 和 Knowledge 契约的前提下，由唯一 LangGraph Business bridge 执行 filters QueryPlan 验证并产生一个 ActionCandidate。范围外包括本地语义补参、SQL/ES 生成、业务权限判断、domain fallback 和真实模型调用。
 
-范围外/不负责：不修改以下公共契约：
+当前实现：`agent-runtime/src/agent_runtime/graph/business_query_planning.py`、`agent-runtime/src/agent_runtime/business/query_plan.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 及 Registry/Core 已存在，但只承接旧 flat-argument QueryPlan 与 `employee.detail`。`employee.search`、`employee.semantic_search`、filters 结构、扩展 Transaction 和新组合根仍未实施。
 
-- `CapabilityDescriptor`、`ActionCandidate`、`CapabilityResult` 的既有对外含义；
-- `CapabilityExecutionCore.execute(...)` 的职责；
-- Spring/Runtime HTTP/OpenAPI；
-- Employee/Transaction 参数字段和 Adapter codec。
-
-### 2.1 当前实现基线
-
-共享 `LocalActionResolver`、`HybridActionSelectionNode` 和 ID-only selector 仍可服务显式非 Business 能力；Employee/Transaction 专属 Resolver 类及只验证其旁路的测试不再有合法调用方，应删除。冻结历史 harness 仍可依赖兼容字段做离线复验，但其 definition 不得进入生产 `BusinessSupportFactory`/组合根；历史 evidence/hash 保持不变且不能证明新设计已实现。
-
-## 3. 上位约束、需求与关联责任边界
-
-上位约束来源是 L1_00 v1.4 的唯一编排、单动作、无 Business Resolver 旁路和唯一 provider-neutral planning bridge；本 L2 负责图/Core 接缝，不负责域字段、模型 transport 实现或 HTTP codec。`CON-CORE-001`：QueryPlan 只有在 Business 层验证并绑定后才能进入 Core，依赖方向固定为 Planning→Core→Handler，禁止反向依赖和绕过。
-
-| ID | 要求 |
+| 需求编号 | 需求 |
 |---|---|
-| `REQ-CORE-001` | 每请求最多形成并执行一个 ActionCandidate |
-| `REQ-CORE-002` | Business 候选必须来自一个经验证、绑定的 LLM QueryPlan |
-| `REQ-CORE-003` | 模型失败或非法计划不得调用 Local Resolver、Knowledge 或另一个域 |
-| `REQ-CORE-004` | QueryPlan 未验证前不得进入 Core |
-| `REQ-CORE-005` | 配置 snapshot 与候选/注册绑定必须一致 |
-| `REQ-CORE-006` | Core 不包含 Employee/Transaction 自然语言或字段语法 |
+| `REQ-CORE-101` | 规划、严格验证和一次 Core 执行顺序唯一 |
+| `REQ-CORE-102` | 三动作组合根、不可变 snapshot 与 Business 无旁路 |
+| `REQ-CORE-103` | 请求隔离、取消、失败关闭并保留 Knowledge/Core 兼容 |
 
-## 4. 模块职责与接口契约设计
-
-以下 provider-neutral 类型已由 `WP-BQ-PLAN-CONTRACT-01` 实现；Runtime 只依赖这些稳定边界。
-
-### 4.1 建议新增模块 `agent_runtime.business.query_plan`
-
-```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class QueryPlanLiteral:
-    value: JsonValue
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class QueryPlanValueRef:
-    value_ref: str
-
-QueryPlanArgumentValue: TypeAlias = QueryPlanLiteral | QueryPlanValueRef
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessQueryPlan:
-    domain: str
-    action: str
-    arguments: Mapping[str, QueryPlanArgumentValue]
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ProtectedValueSlots:
-    request_id: str
-    values: Mapping[str, object]
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ValidatedBusinessQueryPlan:
-    plan: BusinessQueryPlan
-    config_snapshot_id: str
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class UnsupportedBusinessQueryPlan:
-    domain: str
-    config_snapshot_id: str
-
-BusinessQueryPlanValidationResult: TypeAlias = (
-    ValidatedBusinessQueryPlan | UnsupportedBusinessQueryPlan
-)
-
-class BusinessQueryPlanDecoder(Protocol):
-    def decode(self, payload: JsonObject) -> BusinessQueryPlan: ...
-
-class BusinessQueryPlanValidator(Protocol):
-    def validate(
-        self,
-        plan: BusinessQueryPlan,
-        *,
-        snapshot: BusinessConfigurationSnapshot,
-    ) -> BusinessQueryPlanValidationResult: ...
-
-class ProtectedValueBinder(Protocol):
-    def bind(
-        self,
-        plan: ValidatedBusinessQueryPlan,
-        *,
-        slots: ProtectedValueSlots,
-        request_id: str,
-    ) -> ActionCandidate: ...
-```
-
-约束：
-
-- Decimal 不进入公共 Core `JsonValue` 扩展；QueryPlan 中采用严格 canonical decimal string，域 validator 构造 `Decimal`。
-- `ProtectedValueSlots` 不可序列化、不可哈希、`repr` 必须脱敏，且只能匹配同一 `request_id`。
-- `UnsupportedBusinessQueryPlan` 仅表示 exact `action=unsupported` 且 arguments 为空；它不能进入 binder/Core。
-- `ActionCandidate.arguments` 保持既有 JSON 兼容对象；snapshot 关联由请求图状态/注册绑定保存，不向公共 HTTP 扩展字段。
-
-### 4.2 建议新增模块 `agent_runtime.graph.business_query_planning`
-
-这是 `graph` 包内唯一允许直接导入 `agent_runtime.model` provider-neutral contracts/context 的模块；禁止导入 `agent_runtime.model.deepseek`、HTTP client、transport 实现或 provider DTO。其职责是编排模型计划和确定性转换，不属于 Core，也不拥有 handler 执行权。
-
-```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessPlanningInput:
-    request_id: str
-    minimized_question: str
-    protected_slots: ProtectedValueSlots
-    config_snapshot: BusinessConfigurationSnapshot
-    model_context: ModelCallContext
-    cancellation: CancellationSignal
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessPlanningDecision:
-    candidate: ActionCandidate | None
-    status: CapabilityStatus | None
-    failure_code: str | None
-    config_snapshot_id: str
-
-class BusinessQueryPlanningNode:
-    async def __call__(
-        self,
-        input: BusinessPlanningInput,
-    ) -> BusinessPlanningDecision: ...
-```
-
-构造依赖：model `BusinessQueryPlanGenerator`、Business `BusinessQueryPlanDecoder`、validator、binder 和 registry view。generator 内部完成 provider response→`JsonObject` 的严格 JSON 解码；Business decoder 只完成 `JsonObject`→三字段/tagged-value `BusinessQueryPlan` 的严格对象解码。不得接收 Local Resolver。
-
-## 5. 核心处理流程与调用边界
-
-`BusinessQueryPlanningNode.__call__` 必须按以下顺序执行：
-
-1. 校验 request/model context/deadline/snapshot 一致性，并在模型调用前检查 request-scoped `CancellationSignal`；
-2. 调用一次 `BusinessQueryPlanGenerator.generate(...)`，取得已通过 provider JSON framing/大小/深度校验的 `JsonObject`；
-3. 模型返回后再次检查 `CancellationSignal`；已取消则丢弃迟到结果并返回 `timeout`，不得进入 decoder/binder/Core；
-4. 调用 `BusinessQueryPlanDecoder.decode(...)` 对对象执行 exact `domain/action/arguments` 与 tagged-value 解码；
-5. `BusinessQueryPlanValidator.validate(...)` 校验 domain/action/arguments/config；若返回 unsupported 终态则立即结束；
-6. 绑定前再次检查取消；仅对 `ValidatedBusinessQueryPlan` 调用 `ProtectedValueBinder.bind(..., request_id=input.request_id)`，显式校验并解析同请求引用后构造候选参数；
-7. 只读 `Registry.resolve(...)` 定位实际注册项并仅调用其 `CapabilityArgumentValidator.validate(...)` 再校验；不得导入私有 registered-call 类型或调用 handler；
-8. 返回唯一 ActionCandidate；
-9. 图进入 `CapabilityExecutionCore.execute(...)` 一次。
-
-任何步骤失败均直接返回终态，不继续后续步骤。禁止：模型重试、计划修补、Local Resolver、ID-only selector 补参、另一个 domain、Knowledge 回退。
-
-## 6. 组合根改造
-
-### 6.1 `agent-runtime/src/agent_runtime/bootstrap.py`
-
-`RuntimeCompositionRoot` 使用以下兼容式签名：
-
-```python
-class RuntimeCompositionRoot:
-    def build(
-        *,
-        settings: CoreRuntimeSettings,
-        providers: Sequence[CapabilityRegistrationProvider],
-        capability_selector: CapabilitySelectionNode,
-        answer_generator: AnswerGenerationNode,
-        local_action_resolvers: Sequence[LocalActionResolver] = (),
-        business_query_plan: BusinessQueryPlanRuntimeBindings | None = None,
-    ) -> AgentRuntimeInvoker: ...
-```
-
-`BusinessQueryPlanRuntimeBindings` 只携带 Business definitions/snapshot/catalog/generator/context/extractor/guard；decoder、validator、binder 与 registry view 由组合根固定装配。为兼容既有 Knowledge 分支，公共 Runtime 仍可接收 `local_action_resolvers`，但启动时只允许它们绑定已从 Business action 集合剔除的非 Business descriptor。Business 分支先按有限业务锚点进入 planning，不能调用、枚举或回退至该 Hybrid/ID-only 分支；包含业务锚点但输入非法时仍在 Business Guard 内失败关闭。
-
-`ActionSelectionNode` 的内部返回类型允许 `ActionSelectionDecision | BusinessPlanningDecision`；后者只包含 candidate 或有限 terminal status/code，不携带模型原文。`select_action_node` 可接收 LangGraph Runtime，但只读取 `GraphRunContext.execution_scope.context.cancellation` 并透传；不得执行 capability。架构测试必须精确允许上述接缝，同时继续证明 `execute_capability_node` 是唯一 Core 执行节点。
-
-### 6.2 启动校验
-
-建议新增：
-
-```python
-def validate_business_query_plan_composition(
-    *,
-    registry: CapabilityRegistry,
-    definitions: Sequence[BusinessActionDefinition[Any, Any, Any, Any]],
-    snapshot: BusinessConfigurationSnapshot,
-    planner_catalog: BusinessPlannerCatalog,
-) -> None: ...
-```
-
-校验：
-
-- snapshot 中启用动作与 definitions/registry/catalog 完全一致；
-- 每个动作一个 validator、handler、Adapter binding；
-- domain/action 到 capability ID 映射一一对应；
-- Business definitions 不再包含有效 `local_action_resolver` 绑定；
-- catalog 的 `domain/action` 对、snapshot 启用动作、definitions 和 registry 必须数量及值完全一致；
-- `HybridActionSelectionNode` 和 ID-only selector 只属于显式非 Business fallback 分支，对 Business 输入不可达；
-- 默认生产 stub 组合不装配可执行 Business generator/bindings并固定失败关闭；测试范围可显式注入 fake generator 与 fake handler 验证成功链，但不能据此证明 live/UAT。
-
-## 7. Core 与 Registry 保持不变的部分
-
-`agent-runtime/src/agent_runtime/core/registry.py` 继续负责 descriptor/validator/handler 注册唯一性；`agent-runtime/src/agent_runtime/core/execution.py` 继续负责：
-
-- candidate 基本结构、注册和 enabled 校验；
-- action latch 从 0→1；
-- 领域 argument validator；
-- handler 调用、取消/deadline 和结果契约；
-- 统一异常到有限 `CapabilityStatus/FailureDetail`。
-
-Core 不读取问题、不调用模型、不解析 QueryPlan、不读取 Business 配置字段，也不切换动作。
-
-## 8. 状态与错误映射
-
-| 原因 | `BusinessPlanningDecision` | Core/Adapter 调用 |
-|---|---|---|
-| model input denied / Business Guard 拒绝 | `forbidden` | 0/0 |
-| model unavailable | `downstream_failure` | 0/0 |
-| model timeout/cancel | `timeout` | 0/0 |
-| JSON/Schema/值引用非法 | `invalid_argument` | 0/0 |
-| 未开放 domain/action/field/operator | `unsupported` | 0/0 |
-| snapshot mismatch | `internal_failure`，readiness 原则上应先失败 | 0/0 |
-| candidate validator 失败 | `invalid_argument` | 0/0 |
-| 成功 | candidate | Core 1，Adapter 最多1 |
-
-错误详情只使用固定 code，例如 `business.plan_model_failure`、`business.plan_invalid`、`business.plan_unsupported`、`business.plan_snapshot_mismatch`、`business.protected_value_invalid`；不携带模型原文或业务值。
-
-## 9. 并发、取消与安全
-
-- 每请求新建 `ProtectedValueSlots`、planning input/decision 和 action latch；
-- model gateway 可共享，`ModelCallContext` 必须显式绑定 request/correlation/deadline；
-- 取消发生于计划阶段时不得调用 binder/Core；执行阶段取消沿既有 Core/Adapter 传播；
-- 日志不输出 original/minimized question、slot、完整 plan、JWT 或模型响应；
-- metrics 记录 `planning_calls`、`planning_terminal`、`core_execute_calls`、`adapter_calls` 的整数及有限标签。
-
-## 10. 实现落点清单
-
-| ID | 路径 | 类型 | 目标变更 |
-|---|---|---|---|
-| `IMPL-CORE-001` | `agent-runtime/src/agent_runtime/business/query_plan.py` | 已存在 | QueryPlan/slot/validator/binder provider-neutral 类型 |
-| `IMPL-CORE-002` | `agent-runtime/src/agent_runtime/graph/business_query_planning.py` | 建议新增（候选已实现） | 单次模型计划与确定性转换节点 |
-| `IMPL-CORE-003` | `agent-runtime/src/agent_runtime/bootstrap.py` | 建议修改（候选已实现） | Business 分支切换、非 Business fallback 隔离、启动唯一性校验 |
-| `IMPL-CORE-004` | `agent-runtime/src/agent_runtime/business/contracts.py` | 已存在 | definition 已支持 plan definition 且两域不再绑定 Resolver |
-| `IMPL-CORE-005` | `agent-runtime/src/agent_runtime/capability_api/action_resolution.py` | 保留/退役 | 现有类型可留作历史兼容，但 Business 生产组合不得引用 |
-| `IMPL-CORE-006` | `agent-runtime/src/agent_runtime/graph/action_resolution.py` | 保留/隔离 | Hybrid 节点不再承载 Business 目标路径 |
-| `IMPL-CORE-007` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 建议新增（候选已实现） | 组合域 extractor 的 request-local slot，拒绝跨请求或多域非空 slot；不选择 domain/action |
-| `IMPL-CORE-008` | `agent-runtime/src/agent_runtime/graph/state.py`、`agent-runtime/src/agent_runtime/graph/nodes.py`、`agent-runtime/src/agent_runtime/graph/business_query_planning.py` | 建议修改 | 从 `GraphRunContext.execution_scope` 传递请求取消信号，并在模型前/后及绑定前失败关闭 |
-| `IMPL-CORE-009` | 已删除的旧 Business 旁路集成测试与结构化 UAT launcher 入口 | 已清理 | 删除旧旁路集成测试并移除 launcher 入口；不改共享 resolver 测试 |
-
-不得修改公共 Spring/OpenAPI、业务 Adapter 参数 Schema 或 Java 服务。
-
-## 11. 测试与验证设计
-
-| ID | 测试 | 断言 |
-|---|---|---|
-| `TEST-CORE-001` | exact plan decode | extra/duplicate/null/超限/物理键拒绝 |
-| `TEST-CORE-002` | canonical order | model→decode→validate→bind→candidate→Core 顺序唯一 |
-| `TEST-CORE-003` | model failure | Core/Adapter/Knowledge/另一域均0 |
-| `TEST-CORE-004` | protected slots | 同请求成功；缺失/重复/跨请求失败且零泄漏 |
-| `TEST-CORE-005` | snapshot startup | 漂移/扩大/缺失/重复绑定 readiness 失败 |
-| `TEST-CORE-006` | composition reachability | Employee/Transaction 无 Resolver/ID-only selector 可达边 |
-| `TEST-CORE-007` | action latch | 每请求 Core/handler 最多1次 |
-| `TEST-CORE-008` | concurrency/cancel | 状态隔离、取消后无迟到执行 |
-| `TEST-CORE-009` | Core regression | 既有 Registry/Core/CapabilityResult 契约不变 |
-
-建议新增测试模块：`tests.unit.business.test_query_plan`、`tests.unit.graph.test_business_query_planning`、`tests.unit.test_business_query_plan_composition`、`tests.integration.business.test_business_query_plan_runtime`。
-
-## 12. 设计决策
-
-| ID | 决策 |
+| 约束编号 | 上位约束 |
 |---|---|
-| `DR-CORE-012` | QueryPlan 位于 Model 与 Core 之间，不扩大 Core 公共契约 |
-| `DR-CORE-013` | Employee/Transaction 目标组合根中 Local Resolver 和 ID-only selector 不可达 |
-| `DR-CORE-014` | Binder 只解析请求级引用，不做语义参数生成 |
-| `DR-CORE-015` | snapshot 绑定由 Business planning 状态携带，Core 仍保持领域中立 |
-| `DR-CORE-016` | 默认生产 stub 不装配可执行 Business generator/bindings并固定失败关闭；仅测试范围可注入 fake generator/handler 验证 non-live 链 |
+| `CON-CORE-101` | L1 Core 不拥有业务合同、模型 provider 或角色授权 |
 
-## 13. 当前差距与门禁
+## 3. 模块职责设计、依赖方向与接口契约
 
-`IMPL-CORE-001～009` 已完成实施：两级 decoder 后按 validator→binder→registry argument validator 固定顺序生成唯一 candidate，Business 描述符从 Hybrid/ID-only fallback 中剔除，取消/超时/非法计划均在 Core/Adapter 前终止。专属 Employee/Transaction Resolver、旧旁路测试和最后空 support 字段已删除，生产 Business factory 拒绝非空 legacy Resolver；冻结历史 harness 所需兼容字段保持不变。fake 双域 system E2E 与真实 6-case QueryPlan 集成均已通过，`GATE-064/065/066` 已关闭；正式 Business UAT 仍受 `GATE-UAT-006` 阻塞。
+```text
+BusinessQueryPlanningNode
+  → BusinessQueryPlanGenerator.generate(request)
+  → BusinessQueryPlanDecoder.decode(JsonObject)
+  → BusinessQueryPlanValidator.validate(plan, snapshot)
+  → ProtectedValueBinder.bind(validated, slots, request_id)
+  → CapabilityExecutionCore.execute(ActionCandidate)
+```
 
-## 14. 评审记录
+Model generator 只返回完成 provider framing 校验的 `JsonObject`；Business decoder 才理解 filters/page/size/sorts；validator 固定 domain/action、代码/配置、operator/slot/时间/Decimal；binder 只解析同请求引用，不产生缺失语义。Core 继续调用既有 capability argument validator，不接触模型、字段配置或业务私有 DTO。
 
-| 阶段 | 重点 | 结果 |
+依赖方向固定为 graph → provider-neutral model/business contracts → Core/Registry → domain handler；禁止绕过、反向依赖、直接调用 registered handler 或依赖私有 registered-call 类型。
+
+## 4. 核心处理流程、状态与失败类型
+
+1. 接收已认证的 execution scope、request ID、取消信号和用户 JWT。
+2. 输入安全闸门先创建 request-local protected slots 和最小化问题，并捕获不可变 Business 配置 snapshot；不得在此步骤选择 domain/action 或生成 filters。
+3. 检查取消，然后调用模型一次；模型只接收安全 catalog 和 slot 标识。
+4. 再检查取消，依次执行 provider decode、Business decode、validator。
+5. exact unsupported sentinel 直接终止；其他失败映射到 `invalid_argument/timeout/unavailable`，Core 和 Adapter 均不调用。
+6. 在 slot binding 前检查取消；binder 生成唯一 action candidate，现有 Core/Registry 验证和执行一次。
+7. 返回确定性列表/错误；禁止第二动作、Employee search/semantic 切换、跨域切换及 Knowledge fallback。
+
+快照不一致应在 readiness 失败；若请求间发生失配，返回 `internal_failure` 且业务调用为 0。业务 `forbidden` 只允许当前固定 endpoint 的单次请求。
+
+## 5. 组合根、取消与事务边界
+
+`agent-runtime/src/agent_runtime/bootstrap.py` 建议修改：装配 `employee.search`、`employee.semantic_search`、`transaction.search` 三条 code-bound capability、共享 JSON 配置 snapshot、provider-neutral planning generator、request cancellation 和固定 domain handlers。启动检查 action 唯一、descriptor/config/validator/mapper/codec 对齐、三动作与注册表一致，以及旧 `employee.detail` 不再出现在目标模型目录。
+
+默认 provider 仍为 stub；只有测试明确注入 fake provider 或后续获得真实调用授权，才允许规划成功。现有 Knowledge 图和公共 action selector 不得被无关修改。
+
+请求状态、JWT、slot 和计划都不落盘；无 Agent 数据库事务。事务边界与一致性归业务服务；取消在模型前、模型后、绑定前检查，禁止迟到业务执行和跨请求 slot 复用。
+
+## 6. 实现落点清单
+
+| 实现编号 | 已验证位置 | 目标变更 |
 |---|---|---|
-| 内审1 | 类型/函数、处理顺序、Core 稳定性 | 补齐实现落点与 trace/readiness，修复后通过 |
-| 内审2 | unsupported 不进入 Core、固定失败映射 | 增加终态 union/分支约束，修复后通过 |
-| 内审3 | 组合根唯一性、并发隔离、依赖无环 | 无新增问题，通过 |
-| 独立评审 R1～R3 | L2 与跨层一致性 | 明确 generator→payload decoder→validator 顺序；R2复核上位 sentinel，R3 无发现，通过 |
-| v1.3 内审1 | binder 当前请求安全合同 | 增加显式 `request_id`，关闭无法证明同请求绑定的问题 |
-| v1.3 内审2 | 共享 Runtime 分支与失败语义 | 明确 Business/非 Business 分支隔离、非法业务输入不回退、input denied=`forbidden` |
-| v1.3 内审3 | 组合校验、trace 与过度设计 | 增加 domain/action 数量和值一致性；复用共享 Runtime 而不新增第二编排器，通过 |
-| v1.4 独立复评 R1 | 取消与迟到结果 | S1：缺少显式 `CancellationSignal` 接缝；冻结发现后进入授权内修订 |
-| v1.4 内审1 | 取消信号所有权与依赖 | 信号继续由 request execution scope 所有，Runtime 只透传/检查，不扩公共 Core/HTTP |
-| v1.4 内审2 | 前置/迟到/失败语义 | 模型前、模型返回后和 binder 前检查；统一 `timeout`，Core/Adapter=0 |
-| v1.4 内审3 | 并发、兼容与过度设计 | `ActionSelectionInput` 仅增加可选内部信号，既有非 Business 节点忽略；不新增全局状态，通过 |
-| v1.5 内审1 | 唯一可达性与清理范围 | 删除两域专属 Resolver/旧旁路测试，保留非 Business shared Hybrid |
-| v1.5 内审2 | 历史 harness 兼容 | 修正为保留 legacy 字段、生产 factory 拒绝非空 Resolver，避免破坏冻结源码复验 |
-| v1.5 内审3 | 引用、取消、版本与无环 | 空 support 字段延后至 E2E 解除调用；不新增节点、依赖或公共合同 |
-| v1.5 独立评审 R1～R3 | 可达性、冻结兼容与实现触点 | R1 修复 legacy 字段误删，R2 增加旧集成测试/launcher 清理落点，R3 无发现 |
-| v1.6 内审1 | graph/model 依赖与 provider 泄漏 | 精确允许唯一 provider-neutral bridge，禁止 deepseek/http/transport |
-| v1.6 内审2 | Runtime/decision/Registry | cancellation 与有限 union 必要；Registry 仅 validate，Core 独占 handler 执行 |
-| v1.6 内审3 | 测试门禁、DAG 与过度设计 | 更新旧绝对断言而不新增转发层/包/公共合同 |
-| v1.6 独立评审 R1～R2 | 实现可达性与跨层边界 | R1 补齐私有注册类型/handler 禁止项；R2 无 Blocker/Major/Minor |
+| `IMPL-CORE-101` | `agent-runtime/src/agent_runtime/graph/business_query_planning.py` | 复用现有 node，承接新 filters plan 与单次调用顺序 |
+| `IMPL-CORE-102` | `agent-runtime/src/agent_runtime/bootstrap.py` | 新三动作/config/provider 组合根及唯一可达性 |
+| `IMPL-CORE-103` | `agent-runtime/src/agent_runtime/graph/state.py` | 请求级 snapshot、取消和 slot 生命周期复核 |
+| `IMPL-CORE-104` | `agent-runtime/src/agent_runtime/core/execution.py` | 保持公共 Core 不改；以回归验证一次执行 |
 
-Approved 表示本文可作为实施依据，不表示目标代码已实现。
+## 7. 测试与验证设计
 
-## 15. 质量、风险与实现就绪判定
-
-本设计保持 Core 稳定契约，新增抽象的必要性仅来自“模型计划对象在进入 Core 前必须有独立不可信边界”；最小变更是不扩展公共 ActionCandidate/HTTP。错误分类和调用方可见错误码见第8章。请求数据生命周期止于请求终态，无持久化或迁移；回滚只禁用新组合根。权限与审计设计只记录有限阶段/计数，不记录 token/slot/plan 原文。
-
-| 项目 | 内容 |
+| 测试编号 | 场景 |
 |---|---|
-| 是否可作为实现依据 | 是 |
-| 当前允许实施范围 | 七个 QueryPlan 工作包及受控真实 6-case 集成已完成；正式 UAT 仍由 `GATE-UAT-006` 独立治理 |
-| 当前禁止动作 | 修改公共 Core/HTTP、业务字段、预算外真实模型调用或恢复 Business Resolver 旁路 |
+| `TEST-CORE-101` | model→decode→validate→bind→Core 调用顺序、exact unsupported 和零调用 |
+| `TEST-CORE-102` | 三动作 Registry、旧 detail/Resolver/ID-only/fallback 不可达 |
+| `TEST-CORE-103` | snapshot 漂移、并发 slot 隔离、三处取消、Knowledge 回归 |
+| `TEST-CORE-104` | business 服务拒绝只触发固定 endpoint，一次 handler 上界 |
 
-## 16. 端到端追踪矩阵
+| 验证编号 | 验证方式 |
+|---|---|
+| `VAL-CORE-101` | 定向 graph/Core 单测、组合根契约和 fake handler 调用计数 |
+| `VAL-CORE-102` | Business/Knowledge 回归、strict mypy 和 compileall |
+
+## 8. 设计规则、权限与审计设计
+
+| 规则编号 | 设计规则 |
+|---|---|
+| `DR-CORE-101` | Model decoder、Business decoder、validator、binder、Core 必须固定顺序 |
+| `DR-CORE-102` | 三动作是唯一 Business 生产可达路径；不得保留旧 detail/Resolver 旁路 |
+| `DR-CORE-103` | snapshot、slot、JWT 和取消只存在于当前请求；失败关闭 |
+| `DR-CORE-104` | 公共 Core/HTTP/Knowledge 合同稳定，保持高内聚与最小必要变更 |
+
+权限与审计：Runtime 只透传当前用户 JWT，业务角色由业务服务判断；日志只允许 correlation/action/阶段/有限错误/调用计数，禁止问题、slot、JWT、完整计划和原始响应。数据生命周期与迁移回滚：无数据库变更；回滚只撤销新对象图，不恢复旧 Business 本地 Resolver。
+
+## 9. 风险、评审记录与实施就绪判定
+
+风险包括模型失败被误降级、组合根混入历史 selector、取消后晚执行及请求 slot 泄漏；对应唯一可达性、取消和零调用测试。最小变更只扩展既有 node/组合根，不新增通用编排框架。
+
+| 项目 | 判定 |
+|---|---|
+| 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
+| 当前允许实施范围 | graph/组合根 non-live 改造和 fake 契约验证 |
+| 当前禁止动作 | 修改公共 Core/HTTP/Knowledge、真实模型/业务调用、授权扩权 |
+
+评审记录：当前版本已通过独立分层及跨层评审；设计通过不代表代码已实施。
+
+## 10. 端到端追踪矩阵
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
-| `REQ-CORE-001`; `CON-CORE-001` | `DR-CORE-012` | `IMPL-CORE-001` | `TEST-CORE-001` | `VAL-CORE-001` |
-| `REQ-CORE-002` | `DR-CORE-013` | `IMPL-CORE-003` | `TEST-CORE-006` | `VAL-CORE-002` |
-| `REQ-CORE-003` | `DR-CORE-016` | `IMPL-CORE-003` | `TEST-CORE-003` | `VAL-CORE-003` |
+| `REQ-CORE-101`; `CON-CORE-101` | `DR-CORE-101` | `IMPL-CORE-101` | `TEST-CORE-101` | `VAL-CORE-101` |
+| `REQ-CORE-102` | `DR-CORE-102` | `IMPL-CORE-102` | `TEST-CORE-102`; `TEST-CORE-104` | `VAL-CORE-101` |
+| `REQ-CORE-103` | `DR-CORE-103` | `IMPL-CORE-103` | `TEST-CORE-103` | `VAL-CORE-102` |
+| `REQ-CORE-103` | `DR-CORE-104` | `IMPL-CORE-104` | `TEST-CORE-103` | `VAL-CORE-102` |

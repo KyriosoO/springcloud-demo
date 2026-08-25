@@ -1,346 +1,119 @@
-# [L2_00_02] 单体 Agent DeepSeek 模型接入与 Business QueryPlan 受控生成详细设计
+# [L2_00_02] 单体 Agent 模型接入与 Business filters QueryPlan 详细设计
 
 > 文档状态：Approved
 
-## 1. 文档信息
+## 1. 文档信息、上位约束与修订历史
 
 | 项目 | 内容 |
 |---|---|
-| 文档编号 | L2_00_02 |
-| 当前版本 | v1.8 |
-| 更新日期 | 2026-08-25 |
-| 上位设计 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.4 |
-| 协作设计 | `L2_00_01` v1.7、`L2_02_00` v1.7 |
-| Provider | DeepSeek OpenAI-compatible API；默认 Runtime Provider 仍为 `stub` |
-| 实施状态 | `business-query-plan-v2`、完整意图/unsupported 指令、provider exact JSON decoder、版本化有限诊断及生产 Business 唯一组合根已实现；candidate-01/02 历史保持不可变，candidate-03 真实 6-case 集成已通过；正式 UAT 尚未执行 |
+| 当前版本 | v1.9 |
+| 更新时间 | 2026-08-25 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v1.5 |
+| 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
+| Provider 基线 | 已有 DeepSeek transport、input guard 与旧 `business-query-plan-v2`；默认 provider 为 stub |
 
-## 2. 修改历史、设计目标与范围
+修订历史：新 Business 模型任务与安全 catalog 必须承接 filters/operator 三动作，而不能复用旧 detail/flat arguments 的成功证据。
 
-| 版本 | 日期 | 修改内容 |
-|---|---|---|
-| v1.1 | 2026-08-21 | 既有 transport、ID-only selector、answer task 基线 |
-| v1.2 | 2026-08-24 | 新增 `business-query-plan-v1`，Business 不再使用 ID-only selector |
-| v1.3 | 2026-08-24 | 同步 `WP-BQ-MODEL-QUERYPLAN-01` non-live 实施与验证状态；生产 wiring/live 门禁保持未关闭 |
-| v1.4 | 2026-08-24 | 校正 protected extractor 与 Model Guard 职责；非法 Business 输入固定在 Business 分支失败关闭，澄清生产 stub 与测试 fake 的边界 |
-| v1.5 | 2026-08-24 | 明确历史 ID-only task/evidence 不改写，但 Employee/Transaction 不保留任何依赖该 task 的生产装配或专属兼容接缝 |
-| v1.6 | 2026-08-25 | candidate-02 日期负例真实失败后，设计 `business-query-plan-v2`、完整意图覆盖与不可表达显式示例；增加有限失败诊断、对抗 fake 和冻结历史兼容，不改变 validator 或业务契约 |
-| v1.7 | 2026-08-25 | 同步 v2 Prompt、result schema v2、日期对抗 fake、candidate-01/02 历史校验及 candidate-03 non-live 冻结资产；真实门禁仍未关闭 |
-| v1.8 | 2026-08-25 | 仅同步 candidate-03 真实 6-case 集成通过、P3 门禁关闭及上下位版本；不修改任务、Prompt、validator 或历史证据 |
+## 2. 设计目标、范围外与当前实现基线
 
-本文为 provider-neutral Business QueryPlan 模型任务设计受控升级：已实施的 `business-query-plan-v1` 保留于已冻结历史提交；新的 `business-query-plan-v2` 只强化模型可见指令对完整用户意图和不可表达条件的约束，不改变 task ID、三字段输出、catalog、decoder、validator、Adapter 或公开契约。对于 Employee/Transaction，它取代“action-selection-v4 只输出 capability ID”的目标职责；旧 task 和历史 PoC/evidence 保持不可变，但不能作为新 QueryPlan 链路证据。
+目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外/不负责：本文不定义业务字段合法性、Adapter、SQL/ES、权限或结果字段；这些由 Business L2 和业务服务治理。模型输出始终不可信，只有经下游本地 validator/binder 后才可执行。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、真实付费调用、模型失败回退或修改现有公共 Core/HTTP 合同。当前实现的 `business-query-plan-v2` 仍使用旧 argument 结构和旧 action catalog；本版目标 task 及 Prompt 尚未实施。
 
-上位约束来源是 L1_00 v1.4 的模型端口、唯一链路和敏感数据边界。关联责任边界：Model 只生成未信任计划，Business 层校验语义，Core 执行候选。`CON-MODEL-001`：禁止 Model 依赖 Adapter/业务服务/JWT，禁止 ID-only selector 绕过 QueryPlan。
-
-当前实现基线已包含 transport/gateway、历史 action selector、answer task，以及新增的 QueryPlan task/generator/provider decoder 和 Business 输入保护接缝；catalog 由 Business common 构造，QueryPlan generator 已在 Runtime Business 专用分支完成 non-live 装配。历史 action selector 仅保留给非 Business/历史验证，对 Employee/Transaction 生产组合不可达。
-
-## 3. 模块职责、依赖方向与模型任务分类
-
-| Task | 输入 | 输出 | 是否 Business 目标路径 |
-|---|---|---|---|
-| `business-query-plan-v2` | 最小化问题、模型安全 Business catalog | exact `{domain,action,arguments}` | 是，强制；v1 只存在于冻结历史提交 |
-| `action-selection-v4` | 问题、安全 capability catalog | exact capability ID | 否，不得用于 Employee/Transaction 目标路径 |
-| `answer-generation-v2` | 已批准安全 facts | grounded answer | 可选、默认关闭 |
-| Knowledge tasks | Knowledge 受控输入 | 各自契约 | 与 Business 不互为回退 |
-
-## 4. Provider-neutral 接口契约设计
-
-### 4.1 `agent-runtime/src/agent_runtime/model/contracts.py`
-
-建议扩展：
-
-```python
-class ModelTaskId(StrEnum):
-    BUSINESS_QUERY_PLAN = "business_query_plan"
-    # 既有枚举保持
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessQueryPlanTaskInput:
-    minimized_question: str
-    catalog: JsonObject
-    catalog_snapshot_id: str
-
-class BusinessQueryPlanGenerator(Protocol):
-    async def generate(
-        self,
-        input: BusinessQueryPlanTaskInput,
-        *,
-        context: ModelCallContext,
-    ) -> JsonObject: ...
-```
-
-返回 `JsonObject` 仍是未信任 decoded object；业务语义校验由 `L2_02_00` 完成。接口不接收 original question、slot values、JWT、结果或 Adapter 信息。
-
-### 4.2 task definition（现有模块 `agent_runtime.model.deepseek.business_query_plan`）
-
-```python
-BUSINESS_QUERY_PLAN_TASK_VERSION = "business-query-plan-v2"
-
-def build_business_query_plan_task_definition(
-    *,
-    max_output_bytes: int,
-    max_json_depth: int,
-    max_collection_items: int,
-) -> ModelTaskDefinition[BusinessQueryPlanTaskInput, JsonObject]: ...
-
-class DeepSeekBusinessQueryPlanGenerator:
-    async def generate(
-        self,
-        input: BusinessQueryPlanTaskInput,
-        *,
-        context: ModelCallContext,
-    ) -> JsonObject: ...
-
-def decode_business_query_plan_output(
-    response: StructuredModelResponse,
-    *,
-    max_output_bytes: int,
-    max_json_depth: int,
-    max_collection_items: int,
-) -> JsonObject: ...
-```
-
-`DeepSeekBusinessQueryPlanGenerator.generate(...)` 必须在内部调用 `decode_business_query_plan_output(...)`，因此其返回值已是通过 provider JSON framing、重复键、大小、深度和集合上限校验的 `JsonObject`，不暴露模型原始文本或 `StructuredModelResponse` 给 Runtime。`JsonObject`→`BusinessQueryPlan` 的三字段/tagged-value exact decode 由 L2_02_00 定义的 Business decoder 负责；两级解码不得重复解析文本，也不得互相承担业务字段合法性。
-
-## 5. 模型安全 Catalog
-
-Catalog 由 Business code definitions 与配置 snapshot 的交集生成，建议新增：
-
-```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessPlannerCatalog:
-    snapshot_id: str
-    payload: JsonObject
-
-def build_business_planner_catalog(
-    definitions: Sequence[BusinessActionDefinition[Any, Any, Any, Any]],
-    snapshot: BusinessConfigurationSnapshot,
-) -> BusinessPlannerCatalog: ...
-```
-
-模型可见：
-
-- finite `domain`、`action`；
-- 每个逻辑字段的模型安全描述、类型、允许 operator；
-- required/optional、互斥/组合、Decimal/size/sort 的有限边界；
-- 参数应使用 literal 还是 `value_ref`；
-- 无法表达时必须返回协议定义的 `unsupported` 计划结果。
-
-模型不可见：
-
-- endpoint、HTTP method/header、服务地址；
-- SQL、ES DSL、索引、表、列物理名；
-- Python/Java 类、模块、函数、方法；
-- JWT、角色、subject、slot value；
-- 用户/模型结果字段、原始业务数据；
-- disabled action/field/operator。
-
-Catalog canonical JSON 参与 snapshot/hash 测试，启动时与 Business snapshot 对齐。
-
-## 6. 输入安全、权限与审计设计
-
-### 6.1 输入闸门
-
-现有 `model/question_policy.py` 与 `model/input_guard.py` 继续优先拒绝凭证、JWT、账户等禁止输入。输入处理分为两个不重叠责任：
-
-1. Business/domain protected extractor 只识别代码绑定的明确受保护 literal，在请求内存创建无业务语义 `slot-N`；它不得选择 domain/action，多个域同时形成非空 slot 或跨请求绑定时失败；
-2. Model `QuestionEgressGuard.is_business_question(...)` 只按有限 Employee/Transaction 业务锚点决定进入 Business 安全分支，不判定具体 domain/action；即使问题超长或含控制字符，也不得因此落入 Knowledge/ID-only fallback，而应交给 Business Guard 拒绝；
-3. `QuestionEgressGuard.evaluate_business(...)` 接收 request-local slot map，将唯一 literal 替换为固定占位表达并执行敏感分类，输出 minimized question 或 `forbidden`；
-4. 只有 Guard 允许后，Runtime 才能调用一次 Business QueryPlan generator。
-
-Extractor/Guard 均不输出 domain/action，不生成执行参数，不校验业务字段组合。slot value 不进入模型输入、日志或 evidence。
-
-### 6.2 模型输出引用
-
-模型只能把 catalog 声明为 `protected_ref` 的字段输出为 `{"value_ref":"slot-N"}`，不能回显或猜测原值。不存在的 ref 在本地失败；模型不得请求 slot 内容。
-
-## 7. 输出协议与核心处理流程
-
-正常计划只允许：
-
-```json
-{
-  "domain": "transaction",
-  "action": "transaction.search",
-  "arguments": {
-    "amount_gt": {"literal": "100.00"}
-  }
-}
-```
-
-不支持的自然语言意图仍使用相同三字段 QueryPlan 外形；`unsupported` 是协议保留 action，不是可执行业务动作：
-
-```json
-{
-  "domain": "employee",
-  "action": "unsupported",
-  "arguments": {}
-}
-```
-
-对无法归入 Employee/Transaction 的问题，`domain` 使用协议保留值 `unsupported`。禁止 reason 自由文本。任务合同要求 `domain/action/arguments` 三字段结构；provider decoder 只安全地产生 `JsonObject`，随后 Business decoder 严格执行三字段/tagged-value 解码，Business validator 再将保留 sentinel 映射为 `unsupported` 并校验其余 domain/action/field/config。
-
-provider response exact JSON decode 限制：
-
-- no-tools；只允许 JSON Output；
-- 顶层必须为单个 JSON object，重复键拒绝、UTF-8、最大 16 KiB、深度≤8、集合项≤128；
-- 禁止 markdown fence、前后文本、null、float/非有限数；
-- decoder 不做 coercion、key rename、值修复或重试。
-
-Business payload decoder 随后强制顶层 exact 三字段、argument value 为 `literal`/`value_ref` 二选一，并递归拒绝 `sql/dsl/url/index/table/class/method/endpoint/http/headers/jwt/role` 等物理或安全键；该职责见 L2_02_00，不由 provider decoder重复实现。
-
-## 8. Prompt 约束
-
-system instruction 必须表达：
-
-1. 只从 catalog 选择一个 domain/action；无法表达时使用保留 `unsupported` sentinel；
-2. 根据用户问题生成所有且仅必要的逻辑 arguments；
-3. 严格遵守字段、operator、组合和边界；
-4. protected field 只引用已有 slot；
-5. 不输出物理查询或实现信息；
-6. 不可表达时仍输出 exact 三字段 QueryPlan，action 为 `unsupported`、arguments 为空；
-7. 不解释、不建议另一个域、不生成第二动作。
-
-`business-query-plan-v2` 必须额外明确完整意图覆盖：用户明确要求的任一条件、字段或操作符无法由当前 enabled catalog 表达时，整条意图只能返回该 domain 的 exact `unsupported` sentinel；不得丢弃日期、地点或其他条件形成空参数、部分匹配或扩大范围的可执行 `search`。Prompt 应包含无敏感数据的中英文受限示例，至少覆盖 Transaction 日期条件和 Employee 地点筛选；示例仅使用逻辑 domain/action，不得包含 SQL、ES DSL、endpoint、业务标识、JWT 或实际业务数据。
-
-`v2` 是现有 task 的显式版本升级，不新增 Model task/Provider、兼容双执行链路或本地意图解析；v1 的冻结 manifest、authorization、lifecycle、consumed、journal、result 均按原 SHA-256 保留，历史 source 以对应 frozen Git commit 验证。
-
-新增 live candidate 采用独立有限结果 `schemaVersion=2`：只在失败时增加可为空的 `failureCase`，字段严格限定为 `caseId`、有限 `status`、`capabilityId`、`planCalls`、`domainCalls` 与有限 `reason` 枚举；成功结果必须保持 `failureCase=null`。candidate-01/02 历史仍按其冻结 `schemaVersion=1`、原 task/prompt 与精确 SHA-256 验证，不修改或迁移既有结果。
-
-Prompt、task version、catalog schema 和 decoder source 均需在 UAT manifest 中冻结。更改任一项需新 task version 和重新验证。
-
-## 9. Transport 与运行设置
-
-复用 `agent_runtime/model/deepseek/transport.py`、`gateway.py` 和现有 `httpx` 生命周期：
-
-- API Key 仅从 `LLM_API_KEY` 注入，不记录/持久化；
-- 模型名、base URL、timeout、concurrency 为受控设置；
-- QueryPlan task 自动重试固定为 0；
-- cancel/deadline 透传；
-- HTTP/Schema/timeout 映射为有限 `ModelProviderFailureKind`；
-- default `AGENT_MODEL_PROVIDER=stub`。
-
-显式 `deepseek` 且配置完整才可进入真实 QueryPlan UAT。默认生产 stub 组合不装配可执行 Business generator/bindings并固定 model failure/unsupported；仅测试范围可显式注入 fake generator 与 fake handler 验证 non-live 成功链，该证据不能关闭 live/UAT 门禁。
-
-## 10. 错误分类、失败映射与调用方可见错误码
-
-| 模型层原因 | planning 结果 | 下游行为 |
-|---|---|---|
-| input denied | `forbidden` | Core/Adapter=0 |
-| unsupported exact output | `unsupported` | Core/Adapter=0 |
-| timeout/cancel | `timeout` | 无重试/降级 |
-| network/provider | `downstream_failure` | 无重试/降级 |
-| malformed/schema/prohibited key | `invalid_argument` | 不修补 |
-| catalog snapshot mismatch | `internal_failure` | readiness 原则上先失败 |
-
-错误与日志不包含请求、响应、slot、key 或 provider 原始正文。
-
-## 11. 组合根与生命周期
-
-`LocalModelCompositionRoot` 建议增加：
-
-```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class LocalModelComponents:
-    business_query_plan_generator: BusinessQueryPlanGenerator
-    answer_generator: AnswerGenerator
-    # existing components
-
-class LocalModelCompositionRoot:
-    def build(
-        self,
-        *,
-        settings: ModelSettings,
-        business_catalog: BusinessPlannerCatalog,
-    ) -> LocalModelComponents: ...
-```
-
-真实 transport 仍由组合根单例拥有并显式 `aclose()`；调用 context 请求隔离。不得把 ID-only selector 作为 Business generator 注入。
-
-## 12. 实现落点清单
-
-| ID | 路径 | 类型 | 目标变更 |
-|---|---|---|---|
-| `IMPL-MODEL-001` | `agent-runtime/src/agent_runtime/model/contracts.py` | 修改 | task id/input/generator protocol |
-| `IMPL-MODEL-002` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py` | 已存在/建议修改 | task version 升为 v2，强化完整意图/unsupported 示例；request、decoder、generator 契约保持不变 |
-| `IMPL-MODEL-003` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 已修改/回归 | Business 锚点分支、minimized question、slot redaction 与拒绝接缝；不创建 slot、不选择域 |
-| `IMPL-MODEL-004` | `agent-runtime/src/agent_runtime/model/gateway.py` | 修改 | 注册 code-bound QueryPlan task |
-| `IMPL-MODEL-005` | `agent-runtime/src/agent_runtime/bootstrap.py` | 修改 | generator/catalog/context/lifecycle 装配 |
-| `IMPL-MODEL-006` | `agent-runtime/src/agent_runtime/model/deepseek/action_selector.py` | 保留/隔离 | 不得服务 Business 目标路径；历史行为不改写 |
-
-## 13. 测试与验证设计
-
-| ID | 测试 | 关键断言 |
-|---|---|---|
-| `TEST-MODEL-001` | catalog snapshot | 只含安全逻辑字段；物理/权限/结果信息为0 |
-| `TEST-MODEL-002` | provider exact JSON decoder | 单一 JSON object、重复键/fence/前后文本/null/float/超限拒绝；三字段/tagged union 由 `TEST-BQCOM-001` 验证 |
-| `TEST-MODEL-003` | prompt contract | domain/action/arguments 强制；unsupported 唯一终态 |
-| `TEST-MODEL-004` | input slotting | extractor 创建 request-local slot；受保护 literal 不进入 transport；非法业务输入不回退；Guard 不生成语义计划 |
-| `TEST-MODEL-005` | failure/zero call | input denied 调用0；provider failure 无 retry/fallback |
-| `TEST-MODEL-006` | composition | Business 注入 QueryPlan generator，不注入 ID-only selector |
-| `TEST-MODEL-007` | lifecycle/concurrency | context 隔离、cancel、close、secret/log 零泄漏 |
-| `TEST-MODEL-008` | history | 既有 task/source/evidence hash 不被改写 |
-| `TEST-MODEL-009` | v2 unsupported/adversarial fake | 日期/地点不可表达时 exact unsupported；空参数、非法 tag、附加条件继续失败关闭且下游=0；不得将 invalid_argument 改判 unsupported |
-| `TEST-MODEL-010` | live candidate 历史与有限诊断 | 已消费失败历史按 frozen HEAD/hash 独立验证；新失败只记录 `caseId/status/capabilityId/planCalls/domainCalls` 与有限原因枚举，不含模型/业务原文或敏感值 |
-
-真实模型 UAT 另行授权，固定 case、task/prompt/catalog/HEAD、调用上限和一次性授权；非 live 测试不得读取 `LLM_API_KEY`。
-
-## 14. 设计决策
-
-| ID | 决策 |
+| 需求编号 | 需求 |
 |---|---|
-| `DR-MODEL-016` | Business QueryPlan 使用 `business-query-plan-v2`；v1 与历史 ID-only task/source/evidence 保持冻结提交和 SHA-256 不变 |
-| `DR-MODEL-017` | no-tools exact JSON 同时输出 domain/action/arguments |
-| `DR-MODEL-018` | protected value 用 opaque ref，不向模型暴露原值 |
-| `DR-MODEL-019` | provider decoder 只做 JSON framing/资源限制；Business payload decoder 做计划结构，业务语义由 validator 决定 |
-| `DR-MODEL-020` | 模型失败无 retry、Local Resolver 或跨域降级 |
-| `DR-MODEL-021` | 默认 stub 只能证明失败关闭，不能满足 Business UAT |
-| `DR-MODEL-022` | v2 Prompt 强制完整意图覆盖：未开放日期/地点条件必须输出 domain 保留、`action=unsupported`、空 arguments；不得忽略条件、补参数、放宽 validator 或创建第二链路 |
-| `DR-MODEL-023` | live 失败诊断仅使用有限 case 状态/计数/原因；失败历史与新 result Schema 分版本验证，禁止持久化问题、模型响应、业务结果、JWT、标识和密钥 |
+| `REQ-MODEL-101` | 安全三动作 catalog 与 filters JSON 一次规划 |
+| `REQ-MODEL-102` | Provider framing decoder 与 Business payload decoder 分离 |
+| `REQ-MODEL-103` | 敏感值保护、unsupported 完整意图和模型失败零下游调用 |
 
-## 15. 当前差距与门禁
-
-`WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域 definition/config、Runtime Business 专用分支与系统级 fake non-live E2E 已完成实施和代码复核。candidate-02 使用 v1 实际完成模型/Employee/Transaction=`6/2/2`，但 Transaction 日期负例未达到 `unsupported`，其 `failed_consumed` 历史保持不可变。candidate-03 使用 `business-query-plan-v2` 完成真实 6-case 集成，模型/Employee/Transaction=`6/2/2`，地点和日期 negative 均为 `unsupported` 且下游零调用；result SHA-256 为 `b00d37119b557f985093f6d2dae809304cbf68bbace55def9c360f8d15d1015b`，`GATE-065/066` 已关闭。正式 UAT 仍由 `GATE-UAT-006` 独立治理；旧 Action PoC 和失败历史不得作为通过证据。
-
-## 16. 评审记录
-
-| 阶段 | 重点 | 结果 |
-|---|---|---|
-| 内审1 | task/catalog/decoder/失败语义 | 补齐实现与验证追踪，修复后通过 |
-| 内审2 | exact JSON、敏感输入、ID-only 隔离 | 无可执行旁路，修复状态词汇后通过 |
-| 内审3 | 工作包引用、历史资产与模型调用边界 | 修正工作包引用；无真实调用，修复后通过 |
-| 独立评审 R1～R3 | L2 与跨层一致性 | provider JSON decoder 与 Business payload decoder 已分责；R2复核 sentinel，R3 无发现，通过 |
-| v1.4 内审1 | extractor/Guard 职责 | slot 创建归 Business/domain extractor，Guard 只负责锚点、最小化和拒绝 |
-| v1.4 内审2 | 失败关闭与 fallback | 非法 Business 输入仍固定进入 Business Guard，禁止落入 Knowledge/ID-only |
-| v1.4 内审3 | stub/fake、live 门禁与最小变更 | 区分默认生产 stub 和测试 fake；不新增 provider/task/公共合同，通过 |
-| v1.5 内审1 | Business/非 Business 模型职责 | 共享 ID-only task 保留但不进入两域 QueryPlan 组合 |
-| v1.5 内审2 | 历史 evidence 与任务兼容 | 不改写 task/PoC/evidence，不保留两域专属装配 |
-| v1.5 内审3 | 门禁、调用预算与最小性 | 清理阶段不读 key、不调用模型、不新增 task |
-| v1.5 独立评审 R1～R3 | ID-only 历史与 Business 隔离 | 共享 task/evidence 保留、两域生产装配为0；R3 无发现 |
-| v1.6 内审1 | v2 task/version、版本引用与完整意图 | 修正 L1 当前版本与现有模块定位；明确日期/地点 exact unsupported，不改变三字段或 validator |
-| v1.6 内审2 | 失败诊断、版本化结果与历史不可变 | 明确 result schema v2 六字段有限失败诊断；candidate-01/02 继续按 schema v1 和 frozen commit/hash 校验 |
-| v1.6 内审3 | 授权、状态、严格校验与最小性 | 修正实施判定、P3 Ready 授权约束及重复状态；保持六次预算、失败关闭与 DAG，不增加 Gate/接口 |
-| v1.6 独立评审 R1 | v2 与 REQ/L1、失败关闭、历史证据和 P3 DAG | exact unsupported、两级 decoder、只读历史及有限诊断一致；允许 non-live 实施，新 live 仍需冻结独立候选 |
-| v1.7 代码对照设计复核 | v2 Prompt、schema 分版、日期对抗、42项资产与冻结历史 | 43项定向、1241项全量 non-live 通过/27项 opt-in 跳过/5项既有历史环境精确隔离；strict mypy、compileall 和 PowerShell AST 通过，未扩大业务契约 |
-| v1.8 真实集成复核 | v2 完整意图、权限、unsupported 和冻结历史 | candidate-03 六场景通过，model/Employee/Transaction=`6/2/2`，retry/answer/Knowledge/泄漏为0；前两次失败历史保持不可变 |
-
-Approved 本身不替代真实证据；本目标真实执行结论仅依据 candidate-03 冻结结果。
-
-## 17. 质量、数据生命周期、风险与实现就绪判定
-
-本设计保持 Model gateway 稳定契约；新 task 的必要性来自 Business 输出合同与历史 ID-only task 不兼容，采用新版本比原地改写影响更小。模型调用数据生命周期仅覆盖单请求，不持久化问题、slot、响应或密钥，无数据迁移；回滚为取消 task 注册并保持 stub。主要风险是 catalog/Prompt 漂移、敏感值出域和错误重试，分别由 snapshot、model spy 和 retry=0 控制。
-
-| 项目 | 内容 |
+| 约束编号 | 上位约束 |
 |---|---|
-| 是否可作为实现依据 | 是 |
-| 当前允许实施范围 | v2 Prompt/task、non-live 回归及一次性真实 6-case 集成均已完成；正式 UAT 仍需独立门禁 |
-| 当前禁止动作 | candidate-01/02/03 重跑或历史改写；放宽 unsupported/validator；业务结果模型出域、真实数据落盘和预算外调用 |
+| `CON-MODEL-101` | Model 不拥有 Business 字段验证、角色授权、数据库/ES 或结果投影 |
 
-## 18. 端到端追踪矩阵
+## 3. 模块职责设计、依赖方向与接口契约
+
+现有 provider-neutral `BusinessQueryPlanGenerator.generate(...)` 返回 `JsonObject`；复用现有 ModelContext、DeepSeek transport 与 client 生命周期。建议修改既有 `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py`，将代码绑定 task version 提升为 `business-query-plan-v3`；保留历史 `v2` source/evidence 的 Git 可追溯性，不以旧 Prompt 结果证明新合同。
+
+provider response decoder 仅执行单 JSON object、重复键、额外文本、字节数、深度、集合上限和有限数字校验。它不解析 Business field/operator；`JsonObject → BusinessQueryPlan` 的 exact 三字段、filters 与业务语义由 `L2_02_00` 拥有。依赖方向固定 `Model task → provider transport` 和 `Graph → provider-neutral Model Port`，禁止反向依赖 Business Adapter 或 Core handler。
+
+## 4. 模型安全 catalog 与受控输入
+
+目录只包含 enabled `employee.search`、`employee.semantic_search`、`transaction.search`，逻辑字段、模型安全说明、允许 operator、literal/ref 限制、已批准的日期时区和不可变 snapshot ID。模型不得看到 Java DTO 名称、endpoint、HTTP method、SQL、ES DSL、索引、向量字段/provider、embedding 参数、JWT、角色、详细地址、身份证、姓名、电话、邮箱、业务响应或 `workBaseSi/workBaseAf` 字段。
+
+安全地点片段如“上海”仅在 code-bound 安全地点策略识别通过后进入模型；详细地址及其他个人字段只允许 request-local slot。Business 问题先由 protected input extractor 生成 slot，再由 Model input guard 核实 minimized question；guard 不选择 domain/action、不补参数、不创建第二链路。
+
+## 5. Prompt、输出合同与核心处理流程
+
+Prompt 必须明确：
+
+1. 一次只输出一个 exact `{domain,action,arguments}` JSON object。
+2. 条件搜索 arguments 使用 filters/page/size/sorts，每个 filter 都必须满足目录中逻辑 field/operator/value tagged union。
+3. Transaction `gt + lt` 可以组合；不得吞掉用户条件、把逻辑 operator 编码进 field、发明字段或使用物理信息。
+4. Employee 地点“上海”规划为 `contact_address contains "上海"`；职位对应 position；workBase 永远不可用。
+5. Employee semantic 只接受语义文本；语义+结构过滤、非法日期边界和其他不可表达组合必须返回 exact `action=unsupported`，arguments 为空。
+6. 限定 domain 的不支持请求返回该 domain + unsupported；无可识别 domain 时返回 `domain=unsupported/action=unsupported/arguments={}`。
+
+QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必须由独立 Business egress 策略授权，不是列表查询默认步骤。
+
+## 6. Transport、失败类型与事务边界
+
+复用现有 DeepSeek HTTP transport、超时、取消、client lifecycle 和 `LLM_API_KEY` 环境注入；默认 provider 必须继续为 stub。non-live 仅使用 fake transport，不读取密钥；真实调用另由 P3 live gate 明确约束。
+
+模型失败/timeout、非法 framing、输入拒绝或取消固定映射为 `unavailable/timeout/invalid_argument`，业务下游调用为 0，不 retry、fallback、选择 Knowledge 或第二 domain。JWT/slot/model response 不持久化；数据生命周期只在单请求内，事务边界与一致性归业务服务。
+
+## 7. 实现落点清单
+
+| 实现编号 | 已验证位置 | 目标变更 |
+|---|---|---|
+| `IMPL-MODEL-101` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan.py` | v3 filters Prompt、task version、no-tools JSON contract |
+| `IMPL-MODEL-102` | `agent-runtime/src/agent_runtime/business/planner_catalog.py` | 由 Business 提供安全三动作 field/operator 目录；模型只消费 |
+| `IMPL-MODEL-103` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 安全地点片段、slot、Business 锚点与 prohibited 字段回归 |
+| `IMPL-MODEL-104` | `agent-runtime/src/agent_runtime/model/contracts.py` | 保留 generator `JsonObject` 边界，仅扩展必要 task 输入 |
+| `IMPL-MODEL-105` | `agent-runtime/src/agent_runtime/bootstrap.py` | provider-neutral v3 generator/lifecycle 组合装配 |
+
+## 8. 测试与验证设计
+
+| 测试编号 | 核心场景 |
+|---|---|
+| `TEST-MODEL-101` | 三动作安全目录、operator、workBase/物理信息/敏感字段为 0 |
+| `TEST-MODEL-102` | v3 Prompt：上海地址、职位、amount/date 范围和 exact unsupported |
+| `TEST-MODEL-103` | duplicate key、非 JSON、深度/大小/float 非法，provider decoder 边界明确 |
+| `TEST-MODEL-104` | slot、详细地址/姓名/标识零出域，失败/取消/unsupported 业务零调用 |
+| `TEST-MODEL-105` | Knowledge/answer 现有任务、默认 stub、client close 和并发隔离回归 |
+
+| 验证编号 | 验证方式 |
+|---|---|
+| `VAL-MODEL-101` | fake transport catalog/Prompt/framing contract tests |
+| `VAL-MODEL-102` | Business/Core/Knowledge 非 live 回归、strict mypy、compileall |
+
+## 9. 设计规则、权限与审计设计
+
+| 规则编号 | 设计规则 |
+|---|---|
+| `DR-MODEL-101` | code-bound `business-query-plan-v3` 只生成逻辑 filters QueryPlan |
+| `DR-MODEL-102` | provider framing decoder 和 Business payload decoder 分层，不互相替代 |
+| `DR-MODEL-103` | 安全目录只包含三动作及已启用逻辑 field/operator，protected slot 不含真实值 |
+| `DR-MODEL-104` | 完整意图不可表达时 exact unsupported，禁止近似、丢条件与任何 fallback |
+| `DR-MODEL-105` | 默认 stub、最小必要代码变更、现有 transport/Knowledge 任务稳定 |
+
+权限与审计：模型不接触角色与 JWT；仅记录 snapshot、task version、action、有限错误和调用计数。数据生命周期与迁移回滚不改变数据库或历史 evidence；回滚撤销 v3 装配，不把 v2 重新用于新 Business filters 路径。该方案避免新增平台、复杂规则 DSL 与低内聚的领域 provider 耦合。
+
+## 10. 风险、评审记录与实现就绪判定
+
+| 项目 | 判定 |
+|---|---|
+| 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
+| 当前允许实施范围 | v3 task/catalog/input guard 的 fake/non-live 实施 |
+| 当前禁止动作 | 真实模型调用、读取密钥、修改 Knowledge task、放宽 Business validator |
+
+风险包括 Prompt 遗漏用户条件、敏感值出域和旧 v2 证据误用；以 adversarial fake、零调用、source/evidence 历史核查控制。评审记录：本版已通过独立设计评审。
+
+## 11. 端到端追踪矩阵
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
-| `REQ-MODEL-001`; `CON-MODEL-001` | `DR-MODEL-016` | `IMPL-MODEL-001` | `TEST-MODEL-001` | `VAL-MODEL-001` |
-| `REQ-MODEL-002` | `DR-MODEL-017` | `IMPL-MODEL-002` | `TEST-MODEL-002` | `VAL-MODEL-002` |
-| `REQ-MODEL-003` | `DR-MODEL-018` | `IMPL-MODEL-003` | `TEST-MODEL-004` | `VAL-MODEL-003` |
+| `REQ-MODEL-101`; `CON-MODEL-101` | `DR-MODEL-101` | `IMPL-MODEL-101`; `IMPL-MODEL-102` | `TEST-MODEL-101`; `TEST-MODEL-102` | `VAL-MODEL-101` |
+| `REQ-MODEL-102` | `DR-MODEL-102` | `IMPL-MODEL-104` | `TEST-MODEL-103` | `VAL-MODEL-101` |
+| `REQ-MODEL-103` | `DR-MODEL-103` | `IMPL-MODEL-103` | `TEST-MODEL-104` | `VAL-MODEL-102` |
+| `REQ-MODEL-103` | `DR-MODEL-104` | `IMPL-MODEL-101` | `TEST-MODEL-102` | `VAL-MODEL-101` |
+| `REQ-MODEL-102` | `DR-MODEL-105` | `IMPL-MODEL-105` | `TEST-MODEL-105` | `VAL-MODEL-102` |

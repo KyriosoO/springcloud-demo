@@ -1,373 +1,211 @@
-# [L2_02_00] 单体 Agent Business QueryPlan 公共约束、配置与出域详细设计
+# [L2_02_00] 单体 Agent Business filters QueryPlan、字段配置与出域详细设计
 
 > 文档状态：Approved
 
-## 1. 文档信息
+## 1. 文档信息、上位约束与修订历史
 
 | 项目 | 内容 |
 |---|---|
-| 文档编号 | L2_02_00 |
-| 当前版本 | v1.7 |
-| 更新日期 | 2026-08-25 |
-| 上位设计 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.3 |
-| 协作设计 | `L2_00_01` v1.7、`L2_00_02` v1.8、Employee L2 v1.5、Transaction L2 v1.5 |
-| 实施状态 | 公共 QueryPlan 合同、Employee/Transaction definition/config/protected-ref、生产组合根唯一分支、fake 双域系统 E2E 及真实 DeepSeek/两域服务 6-case 集成均已完成；正式 UAT 尚未执行 |
+| 当前版本 | v1.8 |
+| 更新时间 | 2026-08-25 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 |
+| 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 
-## 2. 修改历史、设计目标与范围外
+修订历史：在现有 flat arguments、受保护 slot 和 typed settings 基础上，定义 filters 列表、统一字段 JSON 配置和三动作固定合同。
 
-| 版本 | 日期 | 修改内容 |
-|---|---|---|
-| v1.1 | 2026-08-21 | 既有 Business common/config/egress 基线 |
-| v1.2 | 2026-08-24 | 新增 QueryPlan/typed input config/slot binder，移除 Business definition 的 Resolver 目标绑定 |
-| v1.3 | 2026-08-24 | 同步 `WP-BQ-PLAN-CONTRACT-01` non-live 实施证据；域配置与生产唯一链路仍由后续工作包承接 |
-| v1.4 | 2026-08-24 | 同步两域 QueryPlan definition/config 完成状态；修正字段子集关闭时 Decimal/排序上界校验，并以拒绝首尾空格/非 NFC 防止文本 literal 在下游被规范化 |
-| v1.5 | 2026-08-24 | 闭合 binder 当前请求绑定签名，移除无职责的 definitions 入参；同步两域与 Runtime 候选实现基线 |
-| v1.6 | 2026-08-24 | 收紧旧 Business Resolver 保留边界：保留冻结历史 harness 必需兼容类型，生产工厂拒绝非空绑定；删除无调用方专属实现 |
-| v1.7 | 2026-08-25 | 仅同步真实 6-case 双域集成、P3 门禁关闭及上下位版本，不改变公共合同或配置边界 |
+## 2. 设计目标、范围外与当前实现基线
 
-本文详细定义两域共享的：
+设计目标是让 Business 公共层统一承担 provider-neutral QueryPlan、field/operator/slot、配置 snapshot、启动一致性、JWT 透传、结果投影和可选模型出域。范围外包括问题语义本地生成、provider transport、Core 执行规则、业务 SQL/ES、业务最终授权、新 endpoint/DTO 和真实模型调用。
 
-- QueryPlan provider-neutral 类型、exact 结构、业务校验和受保护值绑定；
-- 每域每动作代码 definition 与强类型配置；
-- 配置版本、snapshot、启动一致性；
-- JWT client、结果投影、可选模型 facts、失败与测试。
+当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 只支持 `Mapping[field, tagged_value]`，不能表示同字段多个 operator；`agent-runtime/src/agent_runtime/business/settings.py` 和两个 adapter settings 为现有动作各自构造；没有三动作统一版本化 JSON 文件。现有 HTTP client、protected slots、projection 和 egress 可作为 verified existing 基础，但目标合同仍未实施。
 
-本文不负责且不修改公共 Core/HTTP、业务服务 DTO、数据库、角色范围或 endpoint 路径；不实现自然语言本地 Resolver、SQL/ES DSL 或动态工具协议。
-
-上位约束来源是 L1_02 v1.3 的 QueryPlan/config/Adapter 所有权。关联责任边界：common 负责 plan/config/binder，模型 L2 负责 provider decode，域 L2 负责字段/codec，Core 只执行候选。`CON-BQCOM-001`：依赖方向固定为 Model→Business validation→Core→Domain Handler，禁止绕过或反向依赖。
-
-## 3. 当前实现基线与目标差距
-
-现有文件：
-
-- `agent-runtime/src/agent_runtime/business/contracts.py`：`BusinessActionDefinition`、字段/结果/HTTP 类型；
-- `agent-runtime/src/agent_runtime/business/settings.py`：动作设置、字段投影、service binding 和 snapshot；
-- `agent-runtime/src/agent_runtime/business/handler.py`、`http_client.py`、`result_mapping.py`、`egress.py`；
-- Employee/Transaction definition 已移除有效 `local_action_resolver`，并已具备强类型 QueryPlan 字段/配置。
-
-当前剩余差距：公共 QueryPlan/config/decoder/validator/binder、两域 definition/config、Runtime 唯一分支与 fake 系统 E2E 已完成 non-live 实现及复核；仅剩受控 live 验证。
-
-## 4. 模块职责、代码绑定定义与接口契约设计
-
-### 4.1 扩展 `BusinessActionDefinition`
-
-目标签名：
-
-```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessQueryFieldDefinition:
-    logical_name: str
-    model_safe_description: str
-    value_type: BusinessQueryValueType
-    allowed_operators: frozenset[BusinessQueryOperator]
-    input_exposure: BusinessInputExposure
-    required: bool
-    max_text_chars: int | None = None
-    text_policy_id: BusinessTextPolicyId | None = None
-    enum_values: frozenset[str] = frozenset()
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessCombinationRule:
-    rule_id: str
-    kind: BusinessCombinationRuleKind
-    field_names: tuple[str, ...]
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessActionDefinition(Generic[TInput, TWireRequest, TWireResponse, TRecord]):
-    descriptor: CapabilityDescriptor
-    domain_id: str
-    service_key: BusinessServiceKey
-    query_fields: tuple[BusinessQueryFieldDefinition, ...]
-    combination_rules: tuple[BusinessCombinationRule, ...]
-    argument_validator: CapabilityArgumentValidator[TInput]
-    request_mapper: BusinessRequestMapper[TInput, TWireRequest]
-    wire_codec: BusinessWireCodec[TWireRequest, TWireResponse]
-    response_normalizer: BusinessResponseNormalizer[TWireResponse, TRecord]
-    field_definitions: tuple[BusinessFieldDefinition[TRecord, object], ...]
-    required_user_field_ids: tuple[str, ...]
-    contract_limits: BusinessContractLimits
-    answer_mode: BusinessAnswerMode
-```
-
-`BusinessActionDefinition.local_action_resolver` 与底层 legacy validator 仅为冻结历史 harness 复验保留；生产 `BusinessSupportFactory.build(...)` 遇到任一非空 Resolver 必须 readiness 失败，不得收集为目标 support。Employee/Transaction 专属 resolver 类/旧旁路测试以及 `BusinessSupportSnapshot.local_action_resolvers` 空字段已经无调用方、共享复用和冻结证据核实后删除。共享 capability/graph resolver 合同继续服务非 Business。
-
-### 4.2 有限枚举
-
-```python
-class BusinessQueryValueType(StrEnum):
-    TEXT = "text"
-    IDENTIFIER = "identifier"
-    DECIMAL = "decimal"
-    INTEGER = "integer"
-    SORT_LIST = "sort_list"
-
-class BusinessQueryOperator(StrEnum):
-    EQ = "eq"
-    CONTAINS = "contains"
-    GT = "gt"
-    LT = "lt"
-
-class BusinessInputExposure(StrEnum):
-    MODEL_LITERAL = "model_literal"
-    PROTECTED_REF = "protected_ref"
-
-class BusinessTextPolicyId(StrEnum):
-    SAFE_TOKEN = "safe_token"
-    SAFE_CONTAINS_TOKEN = "safe_contains_token"
-
-class BusinessCombinationRuleKind(StrEnum):
-    AT_LEAST_ONE = "at_least_one"
-    MUTUALLY_EXCLUSIVE = "mutually_exclusive"
-    ALL_OR_NONE = "all_or_none"
-```
-
-不引入任意表达式语言。每个动作只声明本身需要的有限规则。
-
-## 5. QueryPlan 数据设计与生命周期
-
-### 5.1 类型
-
-建议新增模块 `agent_runtime.business.query_plan`，类型与 `L2_00_01` 一致。模型 L2 的 provider decoder 只把原始响应严格解码为 `JsonObject`；本模块的 `BusinessQueryPlanDecoder.decode(payload: JsonObject) -> BusinessQueryPlan` 再严格校验顶层仅有 `domain/action/arguments`、argument value 仅为 `literal/value_ref` tagged union，并构造未信任的结构化计划。随后本文 validator 才校验 domain/action/字段/operator/组合/config。计划、slot 和 snapshot 只存在于单请求生命周期，无持久化或数据迁移。
-
-### 5.2 计划值规则
-
-- `MODEL_LITERAL`：只接受 exact `{"literal": value}`；值类型必须匹配 definition/config。
-- `PROTECTED_REF`：只接受 exact `{"value_ref": "slot-N"}`；禁止 literal。
-- `TEXT` literal 必须执行代码绑定 `BusinessTextPolicyId`：`SAFE_TOKEN` 仅允许 Unicode 字母/数字、空格、`_-.`；`SAFE_CONTAINS_TOKEN` 仅允许 Unicode 字母/数字、空格、`-.`。两者均拒绝控制字符、换行、引号、冒号、斜线/反斜线、括号、花括号、分号、等号和尖括号，不做 normalization/coercion；配置不得提供自定义正则或扩大字符集合。
-- Decimal literal 必须匹配 `0|[1-9][0-9]*` 加可选小数，禁止指数、符号 `+`、前导零、NaN/Infinity；允许负数与否由域 definition 决定。
-- `SORT_LIST` 是有限对象数组，字段和方向均来自配置 allowlist；禁止表达式和物理列名。
-
-### 5.3 Validator 核心处理流程与调用边界
-
-```python
-class DefaultBusinessQueryPlanValidator:
-    def __init__(
-        self,
-        definitions: Sequence[BusinessActionDefinition[Any, Any, Any, Any]],
-    ) -> None: ...
-
-    def validate(
-        self,
-        plan: BusinessQueryPlan,
-        *,
-        snapshot: BusinessConfigurationSnapshot,
-    ) -> BusinessQueryPlanValidationResult: ...
-```
-
-顺序：
-
-1. 先识别 exact unsupported sentinel：`domain` 仅允许已知域或保留 `unsupported`，`action=unsupported` 且 arguments 为空；返回 `UnsupportedBusinessQueryPlan` 并终止；
-2. 对可执行计划校验 domain/action 语法和一一映射；
-3. action enabled 与 snapshot/version；
-4. argument key exact subset；
-5. literal/ref 形态和 input exposure；
-6. field type/operator/enum/text/Decimal/int/sort 边界；
-7. required/at-least-one/mutual-exclusion/all-or-none；
-8. 禁止物理字段、未知字段和超限；
-9. 生成不可变 Validated plan。
-
-模型输出不能被 rename、补默认业务条件或改选 action。分页的代码固定值可以在 domain mapper 中使用，但不得把缺失业务筛选条件补成另一查询含义。
-
-## 6. 受保护值绑定
-
-```python
-class RequestProtectedValueBinder:
-    def bind(
-        self,
-        plan: ValidatedBusinessQueryPlan,
-        *,
-        slots: ProtectedValueSlots,
-        request_id: str,
-    ) -> ActionCandidate: ...
-```
-
-规则：
-
-- `slots.request_id` 必须等于显式传入的当前 `request_id`；binder 不从 plan、日志或全局状态推断请求身份；
-- ref 必须存在一次，值类别/目标类型匹配，且未被未授权字段复用；
-- binder 只把 QueryPlan logical key 映射为同名既有 argument key，并恢复 value；
-- binder 不读取 original question、不解析文本、不调用模型或服务；
-- 输出立即进入已有 `CapabilityArgumentValidator`；
-- slot map 在请求终止后释放，`repr/log/evidence` 均不含值。
-
-## 7. 强类型配置
-
-### 7.1 扩展设置
-
-```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessQueryFieldSettings:
-    logical_name: str
-    enabled: bool
-    model_safe_description: str
-    allowed_operators: tuple[BusinessQueryOperator, ...]
-    required: bool
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BusinessActionSettings:
-    enabled: bool
-    config_version: str
-    code_contract_version: str
-    service_contract_ref: str
-    query_fields: tuple[BusinessQueryFieldSettings, ...]
-    combination_rule_ids: tuple[str, ...]
-    max_decimal_abs: str | None
-    max_decimal_scale: int | None
-    fixed_page: int | None
-    max_page_size: int | None
-    max_result_count: int | None
-    allowed_sort_field_ids: tuple[str, ...] | None
-    allowed_sort_directions: tuple[str, ...] | None
-    max_sort_items: int | None
-    user_result_field_ids: tuple[str, ...]
-    model_field_ids: tuple[str, ...]
-    timeout_ms: int
-```
-
-使用现有静态环境/配置加载方式即可，不建设配置中心。base endpoint 仍是环境级 service binding；固定 path/method 只在 Adapter codec 中。
-
-### 7.2 子集与 snapshot
-
-`BusinessSettingsValidator.validate(...)` 扩展检查：
-
-- 配置 action/field/operator/rule 是 definition 子集；
-- model-safe description 非空、长度有限且不含 URL/SQL/实现标记；TEXT 字段的 `text_policy_id` 必须来自代码 definition，配置只能保持该策略并收紧长度；
-- required 不能从代码 required 放宽为 optional；
-- Decimal/page/size/result/sort/timeout 不超过代码上限；
-- model fields ⊆ user fields ∩ code model candidates；
-- service contract ref 与 definition 固定值相等；
-- config/code version 非空且进入 canonical snapshot material。
-
-snapshot 继续用 canonical JSON + SHA-256。未知配置 key、重复键、宽松 bool/int 或隐式默认扩大均失败。
-
-## 8. Planner Catalog
-
-```python
-def build_business_planner_catalog(
-    definitions: Sequence[BusinessActionDefinition[Any, Any, Any, Any]],
-    snapshot: BusinessConfigurationSnapshot,
-) -> BusinessPlannerCatalog: ...
-```
-
-只输出有效 domain/action、field 安全描述、logical type/operator/exposure、组合与有限边界。endpoint、service binding、result fields、data class、role、transform 和代码路径不得出现。catalog snapshot 必须绑定 Business snapshot ID。
-
-## 9. Handler、JWT、权限与审计设计
-
-复用既有 `BusinessCapabilityHandler.handle(input, context)`：
-
-1. 从 context 获取 opaque user token，仅传给 `BusinessHttpClient`；
-2. mapper/codec 固定构造现有 endpoint 请求；
-3. strict response decode/normalize；
-4. user projection；
-5. 可选 egress policy/facts；
-6. 构造 `CapabilityResult`。
-
-Handler 不接收 QueryPlan、slot、original question 或其他 domain Adapter；它只消费已验证 domain input。
-
-## 10. 结果与模型出域
-
-有效交集：
-
-```text
-user result = code user-visible ∩ config user fields
-model facts = code model-candidate ∩ config model fields
-              ∩ user result ∩ data classification policy
-```
-
-规划 catalog 与结果 facts 分离。结果 egress 默认 `disabled`；未分类、敏感类别、策略冲突、转换失败或最小字段缺失时模型答案调用为零。即使答案生成失败，也不得重跑业务查询。
-
-## 11. 错误分类、失败语义与调用方可见错误码
-
-| Code | 状态 | 场景 |
-|---|---|---|
-| `business.plan_invalid` | `invalid_argument` | 结构值/引用/组合非法 |
-| `business.plan_unsupported` | `unsupported` | domain/action/field/operator 未启用 |
-| `business.plan_snapshot_mismatch` | `internal_failure` | 启动或请求 snapshot 漂移 |
-| `business.protected_value_invalid` | `invalid_argument` | ref 缺失/跨请求/类型错误 |
-| `business.configuration_invalid` | readiness failed | 配置扩大/不一致 |
-| 既有 HTTP/codec codes | 既有状态 | Adapter/业务服务阶段 |
-
-不得把规划失败映射为本地解析、另一个 action 或 `no_result`。
-
-## 12. 实现落点清单
-
-| ID | 路径 | 类型 | 目标变更 |
-|---|---|---|---|
-| `IMPL-BQCOM-001` | 建议新增模块 `agent_runtime.business.query_plan` | 建议新增 | plan/value/ref/payload decoder/validator/binder |
-| `IMPL-BQCOM-002` | `agent-runtime/src/agent_runtime/business/contracts.py` | 修改 | query field/operator/combination 与 definition 去 Resolver |
-| `IMPL-BQCOM-003` | `agent-runtime/src/agent_runtime/business/settings.py` | 修改 | typed input config、version、snapshot/subset |
-| `IMPL-BQCOM-004` | 建议新增模块 `agent_runtime.business.planner_catalog` | 建议新增 | 安全 catalog |
-| `IMPL-BQCOM-005` | `agent-runtime/src/agent_runtime/business/provider.py` | 修改 | 提供 definitions/snapshot/planning bindings |
-| `IMPL-BQCOM-006` | `agent-runtime/src/agent_runtime/business/handler.py` | 最小修改/回归 | 仅证明已验证 input 与单 Adapter，不接收 plan |
-| `IMPL-BQCOM-007` | `agent-runtime/src/agent_runtime/business/egress.py` | 回归 | 规划 catalog 与结果 facts 分离 |
-| `IMPL-BQCOM-008` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 建议新增（候选已实现） | 组合域级 protected extractor，不承担 domain/action 选择 |
-| `IMPL-BQCOM-009` | `agent-runtime/src/agent_runtime/business/provider.py` | 修改 | `BusinessSupportFactory.build(...)` 拒绝非空 legacy resolver；当前 support resolver 集固定为空 |
-
-## 13. 测试与验证设计
-
-| ID | 覆盖 |
+| 需求编号 | 需求 |
 |---|---|
-| `TEST-BQCOM-001` | `JsonObject`→plan 的 domain/action/arguments exact、tagged union、unsupported 与 prohibited keys |
-| `TEST-BQCOM-002` | literal/ref union、字段类型/operator/enum/text；物理键及 SQL/DSL/URL 形态文本值拒绝 |
-| `TEST-BQCOM-003` | required/互斥/至少一项/all-or-none |
-| `TEST-BQCOM-004` | Decimal/page/size/sort 边界及无 coercion |
-| `TEST-BQCOM-005` | config 只能收紧、version/snapshot canonical |
-| `TEST-BQCOM-006` | catalog 不含 endpoint/SQL/ES/code/JWT/result/role |
-| `TEST-BQCOM-007` | slot 同请求绑定、并发隔离、缺失/跨请求失败 |
-| `TEST-BQCOM-008` | model/plan failure 时 handler/Adapter/Knowledge/另一域=0 |
-| `TEST-BQCOM-009` | user/model 字段交集和默认 egress off |
-| `TEST-BQCOM-010` | JWT 只进入 HTTP client，日志/模型为0 |
-| `TEST-BQCOM-011` | 启动唯一性与 Resolver/ID-only Business 可达性为0 |
-| `TEST-BQCOM-012` | 既有 Business handler/result/egress 回归 |
-| `TEST-BQCOM-013` | factory 对 legacy resolver readiness 失败；冻结 harness 可继续直接使用底层 validator；共享非 Business resolver 回归不变 |
+| `REQ-BQCOM-101` | exact filters QueryPlan 和同字段 operator 组合 |
+| `REQ-BQCOM-102` | 统一字段级配置、严格收紧与不可变 snapshot |
+| `REQ-BQCOM-103` | 受保护输入、JWT 透传、结果分类和模型出域独立 |
+| `REQ-BQCOM-104` | 非法计划、语义+结构缺口、日期/金额越界失败关闭 |
 
-## 14. 设计决策
-
-| ID | 决策 |
+| 约束编号 | 上位约束 |
 |---|---|
-| `DR-BQCOM-019` | Definition 是上界，配置只收紧 |
-| `DR-BQCOM-020` | QueryPlan typed union 显式区分 literal 与 protected ref |
-| `DR-BQCOM-021` | Decimal 在逻辑计划中用 canonical string，wire 仍用 JSON number |
-| `DR-BQCOM-022` | 不引入规则 DSL，只用有限枚举和规则元组 |
-| `DR-BQCOM-023` | endpoint path/method 只在 Adapter 代码，不进模型 catalog |
-| `DR-BQCOM-024` | Local Resolver 不再属于 BusinessActionDefinition 目标合同 |
+| `CON-BQCOM-101` | domain/action/field/operator 不得超过现有业务接口和代码定义 |
+| `CON-BQCOM-102` | Agent 不直接访问业务数据库或 ES，不替代业务最终授权 |
 
-## 15. 当前差距与门禁
+## 3. 模块职责、依赖方向与接口契约设计
 
-`IMPL-BQCOM-001～007` 的公共实现、Employee/Transaction definition/config、Runtime 唯一分支和跨模块 fake E2E 已完成并通过定向、Business/域回归、strict mypy、compileall 与代码对照设计复核。真实 DeepSeek/两域业务服务的 6-case 集成已通过，`GATE-065/066` 已关闭；正式 UAT 继续受独立 `GATE-UAT-006` 约束。
+Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `JsonObject → BusinessQueryPlan` exact payload；validator 负责代码 definition、配置 snapshot、日期/Decimal 与 field/operator；binder 只把同请求 `value_ref` 转换为 Adapter 输入。依赖方向固定 Model → Business decode/validate/bind → Core → Domain Adapter；禁止绕过或反向依赖。
 
-## 16. 评审记录
+### 3.1 统一计划外层与列表 arguments
 
-| 阶段 | 重点 | 结果 |
+```json
+{
+  "domain": "employee",
+  "action": "employee.search",
+  "arguments": {
+    "filters": [
+      {"field": "contact_address", "operator": "contains", "value": {"literal": "上海"}}
+    ],
+    "page": 1,
+    "size": 20,
+    "sorts": []
+  }
+}
+```
+
+```json
+{
+  "domain": "transaction",
+  "action": "transaction.search",
+  "arguments": {
+    "filters": [
+      {"field": "trans_type", "operator": "contains", "value": {"literal": "PAY"}},
+      {"field": "amount", "operator": "gt", "value": {"literal": "100.00"}},
+      {"field": "amount", "operator": "lt", "value": {"literal": "500.00"}}
+    ],
+    "page": 2,
+    "size": 20,
+    "sorts": [{"field": "trans_date", "direction": "DESC"}]
+  }
+}
+```
+
+外层只能包含 `domain/action/arguments`。`employee.search` arguments 只允许 `filters/page/size/sorts` 及可选 `keyword`；`transaction.search` 只允许 `filters/page/size/sorts`；`employee.semantic_search` 只允许 `query/size`，其中 query 为 tagged value。分页与排序属于计划语义，不能由本地猜测；默认值只允许由代码绑定的 exact defaults 明确决定并在 catalog 中声明。
+
+filter 必须 exact 包含 `field/operator/value`；value exact 为 `{"literal": ...}` 或 `{"value_ref":"slot-N"}`；sort exact 为 `field/direction`。请求 JSON 禁止 duplicate key、unknown property、null、bool-as-int、float、NaN/Infinity、控制字符和物理键；继承现有上界 `max_bytes=16384/max_depth=8/max_collection_items=128`，filters≤8、每个 `in` 集合≤16、sorts≤2、page≤1000、size≤50，且具体 action 配置可继续收紧。
+
+同字段允许一次 `gt` 和一次 `lt`；`eq` 与同字段 range/contains/prefix/in 互斥，重复 operator 拒绝；上下界必须严格 `lower < upper`。protected slot 只能属于当前 request ID，单次绑定，不能跨请求复用。`unsupported` 仅允许 action 为 `unsupported` 且 arguments 为 `{}`，domain 属于当前明确域或 `unsupported`。
+
+### 3.2 Employee 和 Transaction 逻辑 operator
+
+Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支持 `gt/lt`；keyword 只对应服务既有 `contactAddress/chineseName/idCardNo` multi-match。Transaction：`trans_id:eq`、`trans_type:eq/contains`、`trans_date:eq/gt/lt`、`amount:eq/gt/lt`；DTO suffix 仅归 Adapter 所有。
+
+时间文本必须是带明确 offset 的 ISO-8601/RFC3339 timestamp，按 `Asia/Shanghai` 合同归一，且 Java/Jackson/数据库 precision 必须由 contract test 证明；相对自然日未完成时钟/精度/边界验证时 unsupported。金额 literal 为 canonical decimal string，`abs≤9999999999999999.99`、scale≤2，发往 Java 时是 JSON number；禁止 float、舍入或截断。
+
+## 4. 统一字段级配置与 snapshot
+
+建议新增 `agent-runtime/src/agent_runtime/business/business-query.v2.json`：单个版本控制 JSON 文件，由现有严格 Python 解码器读取；路径是否最终放置在相邻包目录由实现时打包可达性验证，但本期不新增配置平台、DSL、watcher 或生产依赖。
+
+```json
+{
+  "config_version": "business-query-v2",
+  "code_contract_version": "business-query-contract-v2",
+  "domains": [{
+    "domain": "employee",
+    "actions": [{
+      "action": "employee.search",
+      "enabled": true,
+      "service_contract_ref": "employee.es.search.v1",
+      "pagination": {"max_page": 1000, "max_size": 50, "max_results": 50},
+      "sorts": {"max_items": 2, "directions": ["ASC", "DESC"]},
+      "timeout_ms": 2000,
+      "fields": [{
+        "logical_name": "contact_address",
+        "service_field": "contactAddress",
+        "model_safe_description": "员工联系地点的非敏感城市片段",
+        "value_type": "text",
+        "enabled": true,
+        "allowed_actions": ["employee.search"],
+        "allowed_operators": ["contains"],
+        "input_exposure": "literal_or_protected_ref",
+        "required": false,
+        "max_text_chars": 128,
+        "enum_values": [],
+        "combination_rules": [],
+        "data_class": "personal_address",
+        "user_visible": true,
+        "user_transform": "mask_address",
+        "model_visible": false,
+        "model_transform": "deny",
+        "sortable": false,
+        "result_required": false,
+        "code_contract_version": "employee.es.search.v1",
+        "service_contract_ref": "employee.es.search.v1"
+      }]
+    }]
+  }]
+}
+```
+
+示例只展示形状，正式配置必须同时包括两个 Employee 动作、Transaction 动作及全部允许字段，不得把示例中的 `contains` 误解成唯一可允许 operator。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐，不允许配置改写字段映射，且绝不进入模型目录。endpoint、HTTP method 和 semantic profile 始终由代码绑定；配置最多选择已注册的 finite profile ID。
+
+输入 exposure 有限枚举为 `literal/protected_ref/literal_or_protected_ref`；`contact_address` literal 只可通过代码内有限安全城市片段判定，详细地址仍必须 protected ref，配置不能注入正则或放宽判定。用户/模型 transform 为有限代码枚举，不能运行表达式。排序、超时、返回字段、模型字段、Decimal 和时间规则都只能小于或等于代码与服务合同。
+
+启动校验：exact JSON、版本、duplicate、动作/字段/operator 子集、code/service contract、逻辑字段与 `service_field` 固定映射、descriptor/definition/config/validator/mapper/codec 完整对齐、result/model 字段子集和大小/timeout 上限；显式拒绝 `workBaseSi/workBaseAf/work_base_si/work_base_af`。snapshot 使用 canonical JSON SHA-256，不可变地绑定单请求；不一致 readiness 失败，不得加载旧 Resolver。
+
+## 5. 处理流程、权限与审计设计
+
+1. request-local extractor 将姓名、标识、会员号、电话、邮箱和详细地址替换成不可逆 slot 标识。
+2. 模型只见 minimized question、field/operator 目录、安全地点片段、slot ID、已批准时间上下文与 snapshot。
+3. provider decoder 后执行 Business exact decoder、配置 validator 和 protected binder。
+4. Core 执行一次固定 Domain Adapter；client 仅透传原用户 JWT。
+5. Adapter 严格解析服务返回；user projection 和 model egress 分别执行代码/配置/分类交集。
+
+用户读取权限不等于模型出域许可。未知字段、embedding、embeddingText、workBase、JWT、详细地址、姓名、标识、联系方式和原始业务响应不得进入模型。Transaction 默认模型字段仍最多 `trans_type/amount`；Employee 默认最多安全 `position`，绝不恢复 workBase 模型字段。结果模型调用不是列表查询必需步骤，默认关闭。
+
+错误分类：`unsupported`、`invalid_argument`、`unauthenticated`、`forbidden`、`timeout`、`unavailable`、`invalid_response`、`internal_failure`；计划/配置/模型前置失败业务调用为 0，服务拒绝只允许既定一次调用。审计仅保留有限 action、snapshot、状态与计数，不输出问题、JWT、slot、数据库凭据、完整 plan 或原始响应。
+
+## 6. 实现落点清单
+
+| 实现编号 | 位置 | 责任 |
 |---|---|---|
-| 内审1 | QueryPlan/config/validator/binder 责任闭合 | 补齐配置 Schema、实现追踪与启动校验，修复后通过 |
-| 内审2 | unsupported、slot 与 Core 隔离 | 增加 unsupported 终态 union，修复后通过 |
-| 内审3 | 配置子集、快照、出域与过度设计 | 确认静态有限配置、不引入 DSL/平台，通过 |
-| 独立评审 R1～R3 | L2 与跨层一致性 | 增加 payload decoder 和有限文本策略，闭合物理表达式值旁路；R3 无发现，通过 |
-| v1.5 内审1 | validator/binder 签名 | definitions 固定于 validator 构造；binder 显式接收当前 `request_id` |
-| v1.5 内审2 | extractor/Guard 与依赖方向 | extractor 只创建 request-local slot，不选择 domain/action；Model Guard 独立负责出域拒绝 |
-| v1.5 内审3 | 配置/安全/跨域与最小变更 | 保持静态有限配置、零新 API/DTO/DB/权限扩张，通过 |
-| v1.6 内审1 | definition/support 清理边界 | 专属实现删除；shared resolver 合同保留给非 Business |
-| v1.6 内审2 | 历史 harness 兼容 | 发现 legacy 字段受冻结 manifest 间接约束；保留字段/validator但生产 factory 拒绝绑定 |
-| v1.6 内审3 | snapshot、E2E 调用与过度设计 | 空 support 字段延后删除，避免扩大本轮影响；DAG 无新增边 |
-| v1.6 独立评审 R1～R3 | factory/legacy/harness 跨层兼容 | R1 修正 contract 字段误删，R2 补齐 factory 拒绝和测试落点，R3 无发现 |
+| `IMPL-BQCOM-101` | `agent-runtime/src/agent_runtime/business/query_plan.py` | filters/operator/tagged value 精确类型、decoder、validator、binder |
+| `IMPL-BQCOM-102` | `agent-runtime/src/agent_runtime/business/contracts.py` | code-bound action、field、operator、classification、分页和时间合同 |
+| `IMPL-BQCOM-103` | `agent-runtime/src/agent_runtime/business/settings.py` | 统一配置读取、subset 校验、canonical snapshot 和 readiness |
+| `IMPL-BQCOM-104` | 建议新增 `agent-runtime/src/agent_runtime/business/business-query.v2.json` | 三动作单文件、版本化、默认拒绝的字段与结果配置 |
+| `IMPL-BQCOM-105` | `agent-runtime/src/agent_runtime/business/planner_catalog.py` | 生成仅含逻辑字段的安全目录 |
+| `IMPL-BQCOM-106` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 请求级 slots 和地点片段/详细地址差异化保护 |
+| `IMPL-BQCOM-107` | `agent-runtime/src/agent_runtime/business/user_projection.py` | 用户结果字段白名单与有限脱敏 |
+| `IMPL-BQCOM-108` | `agent-runtime/src/agent_runtime/business/egress.py` | 模型字段交集、未知/敏感/冲突零调用 |
 
-Approved 不表示当前配置或代码已完成本设计。
+## 7. 测试与验证设计
 
-## 17. 质量、耦合、风险与实现就绪判定
-
-QueryPlan/config/binder 形成一个高内聚 Business planning 边界，并以稳定 ActionCandidate 与 Core 解耦。新增抽象是支持模型计划、敏感引用和配置子集的最小必要集合；不引入规则 DSL 或配置平台。风险包括配置扩大、snapshot 漂移、slot 泄漏和双链路，分别由 startup subset、request binding、脱敏审计和 composition reachability 控制；回滚为禁用新 action/config，不迁移数据。
-
-| 项目 | 内容 |
+| 测试编号 | 重点 |
 |---|---|
-| 是否可作为实现依据 | 是 |
-| 当前允许实施范围 | 公共实现、fake 系统闭环及一次性真实 6-case 双域集成均已完成；正式 UAT 仍需独立门禁 |
-| 当前禁止动作 | 新业务接口/DTO/DB、扩大权限/字段、预算外真实调用、动态 DSL、恢复 Resolver 旁路 |
+| `TEST-BQCOM-101` | exact 三字段/filter/tagged union、重复键、unknown、float、集合/深度上限 |
+| `TEST-BQCOM-102` | 同字段 gt+lt、eq/range 互斥、上下界、Employee operator 和 semantic+filter 拒绝 |
+| `TEST-BQCOM-103` | config version/hash/subset、三动作 alignment、workBase 显式拒绝 |
+| `TEST-BQCOM-104` | 同请求 slot、跨请求/重复 slot 拒绝，详细地址与上海片段边界 |
+| `TEST-BQCOM-105` | Date offset/timezone、相对日期 unsupported、Decimal canonical/scale≤2/JSON number |
+| `TEST-BQCOM-106` | page/size/sorts/offset overflow、投影脱敏、模型出域拒绝与调用计数 |
 
-## 18. 端到端追踪矩阵
+| 验证编号 | 验证方式 |
+|---|---|
+| `VAL-BQCOM-101` | Business query/config/slot 定向单测和 strict JSON contract tests |
+| `VAL-BQCOM-102` | Employee/Transaction fake adapters、零调用矩阵和用户/模型投影测试 |
+| `VAL-BQCOM-103` | Business/Core/Knowledge 非 live 回归、strict mypy、compileall |
+
+## 8. 设计规则、数据生命周期与迁移回滚
+
+| 规则编号 | 设计规则 |
+|---|---|
+| `DR-BQCOM-101` | filters 列表与逻辑 operator 独立，exact decode 支持同字段开区间 |
+| `DR-BQCOM-102` | 单一字段级 JSON 配置只能收紧 code/service contract，snapshot 不可变 |
+| `DR-BQCOM-103` | protected ref 绑定在 validator 后、Core 前，仅限当前 request |
+| `DR-BQCOM-104` | 用户结果与模型出域分别投影和脱敏；未知、workBase 与敏感字段默认拒绝 |
+| `DR-BQCOM-105` | Decimal/Date/分页/排序使用跨语言严格合同，失败关闭 |
+| `DR-BQCOM-106` | 配置不携带 SQL/ES/endpoint，禁止 Agent DB/ES 依赖与权限替代 |
+
+数据生命周期：slots、JWT、plan、原始业务响应只存在于 request memory；不存在 Agent 数据库或数据迁移。事务边界与一致性由业务服务拥有；启动 snapshot 只读、无热更新。最小必要变更复用现有 query_plan/settings/projection/egress，不引入配置中心、通用规则 DSL、模板表达式或额外生产依赖，以避免耦合。
+
+## 9. 风险、评审记录与实施就绪判定
+
+主要风险：敏感地址误当城市 literal、组合条件被丢弃、配置扩大字段、Date precision 不明、旧 detail/flat arguments 被误认为新目标、Employee 角色守卫未就绪。以 code-bound policies、strict decode、subset 启动校验、fake 零调用和后置业务授权集成门禁处理。
+
+| 项目 | 判定 |
+|---|---|
+| 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
+| 当前允许实施范围 | QueryPlan/config/catalog/slot/projection 的 non-live 代码与 fake 测试 |
+| 当前禁止动作 | 真实模型/业务/数据库调用、新业务接口、权限扩权、放宽敏感与结果边界 |
+
+评审记录：本版已通过独立 L2 和跨层评审；已存在旧公共组件不表示新 filters 和统一配置已实现。
+
+## 10. 端到端追踪矩阵
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
-| `REQ-BQCOM-001`; `CON-BQCOM-001` | `DR-BQCOM-019` | `IMPL-BQCOM-002` | `TEST-BQCOM-005` | `VAL-BQCOM-001` |
-| `REQ-BQCOM-002` | `DR-BQCOM-020` | `IMPL-BQCOM-001` | `TEST-BQCOM-001` | `VAL-BQCOM-002` |
-| `REQ-BQCOM-003` | `DR-BQCOM-023` | `IMPL-BQCOM-004` | `TEST-BQCOM-006` | `VAL-BQCOM-003` |
+| `REQ-BQCOM-101`; `CON-BQCOM-101` | `DR-BQCOM-101` | `IMPL-BQCOM-101` | `TEST-BQCOM-101`; `TEST-BQCOM-102` | `VAL-BQCOM-101` |
+| `REQ-BQCOM-102` | `DR-BQCOM-102` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-104`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-101` |
+| `REQ-BQCOM-103` | `DR-BQCOM-103` | `IMPL-BQCOM-106` | `TEST-BQCOM-104` | `VAL-BQCOM-102` |
+| `REQ-BQCOM-103` | `DR-BQCOM-104` | `IMPL-BQCOM-107`; `IMPL-BQCOM-108` | `TEST-BQCOM-106` | `VAL-BQCOM-102` |
+| `REQ-BQCOM-104` | `DR-BQCOM-105` | `IMPL-BQCOM-101`; `IMPL-BQCOM-103` | `TEST-BQCOM-105`; `TEST-BQCOM-106` | `VAL-BQCOM-103` |
+| `CON-BQCOM-102` | `DR-BQCOM-106` | `IMPL-BQCOM-102`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-103` |

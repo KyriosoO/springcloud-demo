@@ -1,211 +1,108 @@
-# [UAT_00] 单体 Agent 第一批验收测试计划
+# [UAT_00] 单体 Agent 结构化查询用户验收计划
 
-## 1. 文档信息
+## 1. 文档信息与来源
 
 | 项目 | 内容 |
 |---|---|
-| 文档编号 | UAT_00 |
-| 当前版本 | v0.8 |
-| 状态 | Reviewed |
+| 当前版本 | v0.9 |
+| 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
-| 范围 | 公共接入冒烟、Employee、Transaction、结构化查询阶段收口 |
-| 前置计划 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.33 |
-| 当前执行状态 | Blocked：P3 七包及真实 6-case 集成已完成，`GATE-064/065/066` 已关闭；仅 `GATE-UAT-006` 尚未关闭，正式 UAT 未执行 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v1.8；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v1.4 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v1.8；Employee/Transaction 对应 L2 v1.6 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v1.34 |
+| 当前状态 | 新列表 filters QueryPlan 尚未实施；本版 UAT 未执行，`GATE-UAT-007` Open |
 
-## 2. 验收目标
+修订历史：以 Employee search/semantic 和扩展 Transaction search 取代旧 detail/flat plan 验收目标，旧 UAT 或 live 记录仅供审计追溯。
 
-第一批 UAT 证明：
+## 2. 验收目标与范围外
 
-1. 公共接入的认证、严格 JSON、有限失败和单动作约束正确；
-2. Employee/Transaction 成功查询必须由真实 LLM 生成包含 `domain/action/arguments` 的受限 QueryPlan；
-3. 本地仅按代码/配置校验、绑定并调用对应 Adapter；
-4. 业务服务执行最终授权和 SQL/ES；
-5. 模型失败或计划非法时无 Resolver、Knowledge、另一域或数据库/ES 旁路；
-6. 结果模型出域保持关闭，本批只验收规划模型调用。
+验证输入安全闸门先形成最小化问题和 request-local slots，真实 LLM 再根据安全目录生成 `employee.search`、`employee.semantic_search`、`transaction.search` 三动作之一的 filters QueryPlan，经严格 decoder/validator/`value_ref` slot binder 和一次 Adapter 调用，复用现有 Employee ES/向量或 Transaction SQL 接口，返回受控列表。输入闸门不得选择业务动作或生成 filters；Knowledge 保持独立，不在本阶段执行效果验收。
 
-Knowledge 查询 UAT 不在本批，待结构化查询收口后单独执行。
+范围外：真实业务写入、聚合、新 endpoint/DTO、DB/ES 直连、workBase 查询、跨域 fallback、Employee 双接口拼装、历史 evidence 复用，以及未经授权的模型费用和敏感数据持久化。
 
-## 3. 当前事实与执行阻断
+## 3. 环境前置和准入门禁
 
-QueryPlan 合同、`business-query-plan-v2` 模型任务、两域 definition/config、Runtime 唯一分支及 Spring→Runtime→fake model→fake domain 的 10-case non-live 闭环已完成；P3 candidate-03 的六个真实 DeepSeek/业务服务集成场景均已通过，实际 model/Employee/Transaction=`6/2/2`，`GATE-065/066` 已关闭。正式 UAT 尚未执行，仍受 `GATE-UAT-006` 独立阻塞。旧 resolver/ID-only UAT fixture 与 evidence 只作为历史审计资产，不得执行为当前用例或满足本版本门禁；无审计价值的旧可执行测试已由 P3 清理。
+1. P3 12 个新目标工作包按依赖完成；Employee 两入口最终读取授权已验证。
+2. `GATE-068` 已关闭，ADMIN/VIEWER 允许及 denied/missing/malformed/service-token 拒绝矩阵成立。
+3. `GATE-069` 已关闭后才执行 Transaction 绝对 Date 用例；相对自然日若无数据库精度/边界证据，仍按 unsupported 验收。
+4. 新三动作 filters task、code/config snapshot、权限、业务服务和 non-live/live 结果均属于当前设计，不得复用旧 detail 或旧 v2 Prompt 证据。
+5. 真实 provider、用户 JWT、Employee 标识和业务样本仅在明确授权后进程内使用；日志/evidence 只存有限 case 状态和调用计数。
+6. 联系地址样本确实支持 “上海” contains；若真实数据不存在，不得构造 workBase 样本伪造通过，应停止并报告数据前置缺失。
+7. 正式验收仅在独立 `GATE-UAT-007` 关闭后开始；默认 provider `stub` 只能证明失败关闭，不能形成业务成功 UAT。
 
-开始成功场景前必须满足：
+## 4. 固定验收顺序
 
-- P3 `WP-BQ-PLAN-CONTRACT-01`、`WP-BQ-MODEL-QUERYPLAN-01`、两域包、Runtime cutover 和 non-live E2E 均 Done；
-- `GATE-065` 真实集成和 `GATE-066` 唯一链路已关闭；
-- `GATE-UAT-006` 绑定 UAT HEAD、task/prompt/catalog/config snapshot、用例、账号/数据、模型和最大调用预算；
-- 默认配置仍为 stub/动作 disabled；UAT 通过显式 opt-in 启用。
-
-## 4. UAT 唯一运行链
-
-```text
-UAT question
-  → agent-service auth / strict JSON
-  → agent-runtime Business Guard
-  → real LLM business-query-plan-v2
-  → exact decode + config validation + protected value binding
-  → agent-core single action
-  → Employee or Transaction Adapter
-  → existing business service final authorization/query
-  → local deterministic result
-```
-
-认证/strict JSON/输入安全可在模型前拒绝；除此之外，Employee/Transaction 语义成功或不支持判定不得绕过 LLM。
-
-## 5. 环境与数据边界
-
-### 5.1 配置
-
-- 显式 `AGENT_MODEL_PROVIDER=deepseek` 仅用于 Employee/Transaction live UAT；
-- QueryPlan task/version、prompt、catalog/config snapshot 和代码 HEAD 冻结；
-- answer generation、Business result egress、Knowledge fallback、自动重试均关闭；
-- Employee/Transaction action 显式启用，其他业务 action 不注册；
-- 所有服务使用受控本地/隔离端口并记录 PID；不得停止维护者管理的进程。
-
-### 5.2 凭证与数据
-
-- `LLM_API_KEY`、JWT、员工标识、Transaction 查询值只驻留进程内存；
-- Employee 使用维护者确认的测试标识或独立 synthetic fixture，禁止写入文档/evidence/log；
-- Transaction 使用只读、已确认存在的有限查询值；禁止持久化原始 rows；
-- evidence 只记录 case ID、snapshot/hash、有限状态、调用计数、结果字段存在性和零泄漏结论。
-
-## 6. 工作项与顺序
-
-| UAT ID | 内容 | 直接依赖 | 状态 |
+| 阶段 | 内容 | 前置 | 当前状态 |
 |---|---|---|---|
-| `UAT-PUBLIC-01` | 公共接入冒烟 | `GATE-UAT-006`、P3 non-live E2E | Blocked |
-| `UAT-EMP-01` | Employee LLM QueryPlan UAT | `UAT-PUBLIC-01`、P3 live integration | Blocked |
-| `UAT-TXN-01` | Transaction LLM QueryPlan UAT | `UAT-PUBLIC-01`、P3 live integration | Blocked |
-| `UAT-STRUCTURED-CLOSE-01` | Access/Core/plan/config/JWT/单动作/禁止旁路回归与阶段结论 | `UAT-EMP-01`,`UAT-TXN-01` | Blocked |
+| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Blocked |
+| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟与 Employee 读取授权 | Blocked |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟与 Transaction Date 合同 | Blocked |
+| `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Blocked |
 
-Employee 与 Transaction 可在公共冒烟后独立执行；阶段收口等待两者完成。
+Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
 
-## 7. 公共接入冒烟
+## 5. 公共接入冒烟
 
-| Case | 输入/前置 | 期望 | 模型/业务调用 |
+| 用例 | 验证项 | 预期模型调用 | 预期业务调用 |
+|---|---|---:|---:|
+| `UAT-PUB-201` | missing/malformed 身份认证 | 0 | 0 |
+| `UAT-PUB-202` | duplicate key、额外字段、null 和非法 JSON | 0 | 0 |
+| `UAT-PUB-203` | 默认 stub 业务请求失败关闭，不生成成功查询 | 0 或按 stub 合同计 1；无真实 outbound | 0 |
+| `UAT-PUB-204` | 非业务或超出当前目录的问题 unsupported | 0 或 1；按明确入口设计断言 | 0 |
+| `UAT-PUB-205` | 第二动作/跨域/Knowledge/Resolver/ID-only 不可达 | 0 或 1；不得触发第二模型规划 | 0 |
+
+## 6. Employee UAT
+
+| 用例 | 用户意图与 QueryPlan 断言 | 预期模型/Employee 调用 | 结果与安全断言 |
 |---|---|---|---|
-| `PUB-001` | missing JWT | `unauthenticated` | plan=0，Employee/Txn=0 |
-| `PUB-002` | malformed/unknown auth | `unauthenticated/forbidden` | 0/0 |
-| `PUB-003` | extra JSON field/duplicate key/wrong content type/oversize | `invalid_argument` | 0/0 |
-| `PUB-004` | default stub + 合格 Business 问题 | 固定 model failure，失败关闭 | plan stub attempt≤1，业务=0 |
-| `PUB-005` | fake planner exact unsupported（non-live） | `unsupported` | fake plan=1，业务=0 |
-| `PUB-006` | fake planner 产生第二 action/跨域 plan | `invalid_argument` | Core/业务=0 |
+| `UAT-EMP-201` | “查询上海员工”：`employee.search + contact_address + contains + 上海` | 1/1 | 只调用 search，rows 为受控列表；不使用 workBase |
+| `UAT-EMP-202` | 职位精确：`position eq` | 1/1 | 查询字段、operator 和用户投影精确匹配 |
+| `UAT-EMP-203` | 职位模糊：`position contains` | 1/1 | 不退化为其他 field/operator |
+| `UAT-EMP-204` | 姓名查询：`chinese_name + value_ref` | 1/1 | 模型、日志和 evidence 不含真实姓名 |
+| `UAT-EMP-205` | 员工标识：`employee_identifier eq + value_ref` | 1/1 | 不调用旧 detail，ID 不进入模型或 evidence |
+| `UAT-EMP-206` | Employee ES keyword | 1/1 | 只对 contactAddress/chineseName/idCardNo 的现有 multi-match 解释 |
+| `UAT-EMP-207` | Employee page/size/sort | 1/1 | from 转换正确、size≤50、rows 不超界 |
+| `UAT-EMP-208` | 业务语义：`employee.semantic_search + query + size` | 1/1 | 只调用 vector-search；无用户 vector 或物理 embedding 参数 |
+| `UAT-EMP-209` | `workBaseSi/workBaseAf` 被明确请求 | 1/0 或安全输入闸门 0/0 | unsupported；不进入 enabled fields、成功用例或结果字段 |
+| `UAT-EMP-210` | “语义能力 + 上海地址过滤” | 1/0 | unsupported；禁止两次搜索或客户端补筛 |
+| `UAT-EMP-211` | ADMIN/VIEWER 分别访问 search 与 semantic | 各 1/1 | Employee 服务最终授权允许 |
+| `UAT-EMP-212` | 无读取角色、service token | 1/1 或接入拒绝 0/0 | forbidden；不切换动作或域 |
+| `UAT-EMP-213` | missing/malformed token | 0/0 | unauthenticated；不调用模型和服务 |
+| `UAT-EMP-214` | 原始 ES hits 含未知字段、embedding、embeddingText、workBase | 1/1 | 仅七字段受控投影，敏感字段按配置脱敏 |
+| `UAT-EMP-215` | 详细地址、电话、邮箱、真实姓名及 identifier 输入 | 0/0 或 1/1，仅当 protected-ref 已成功绑定 | 模型 payload/log/evidence 不含具体敏感值 |
 
-公共冒烟不以 stub 生成成功 QueryPlan；stub 的验收目标只是证明默认环境不误执行。
+普通与向量模式不得互相 fallback。真实数据为空或索引未同步时，应记录 no_result/数据缺口，不得把合成 workBase 值当真实能力。
 
-## 8. Employee UAT
+## 7. Transaction UAT
 
-### 8.1 支持场景
-
-| Case | 问题类型 | QueryPlan 断言 | 服务/结果断言 |
+| 用例 | QueryPlan 断言 | 模型/search 调用 | 结果与合同断言 |
 |---|---|---|---|
-| `EMP-001` | 查询一个已存在测试员工详情 | `employee/employee.detail`；argument 为 `value_ref` | planning=1、detail=1、success；标识不出域 |
-| `EMP-002` | 同义表达的单员工详情 | 同上 | 仅一次 detail；字段投影正确 |
-| `EMP-003` | ADMIN 用户 | 同上 | 业务服务最终允许 |
-| `EMP-004` | VIEWER 用户 | 同上 | 按业务 guard 当前矩阵最终允许 |
+| `UAT-TXN-201` | `trans_type eq` | 1/1 | condition.transType 精确映射 |
+| `UAT-TXN-202` | `trans_type contains` | 1/1 | condition.transTypeContains；不公开 DTO suffix |
+| `UAT-TXN-203` | `trans_date eq` + canonical offset | 1/1 | Java Date instant、Asia/Shanghai 合同、返回 rows 一致 |
+| `UAT-TXN-204` | `trans_date gt + lt` | 1/1 | SQL 严格开区间；上下界不丢失 |
+| `UAT-TXN-205` | `amount eq` | 1/1 | canonical decimal→JSON number→BigDecimal，scale≤2 |
+| `UAT-TXN-206` | `amount gt + lt` | 1/1 | 同字段双 filter 和严格 open range |
+| `UAT-TXN-207` | `trans_type + trans_date + amount` 组合 | 1/1 | 所有用户条件完整存在，不能删条件执行更宽查询 |
+| `UAT-TXN-208` | page 2、size≤50 | 1/1 | page 不固定为1，offset 安全 |
+| `UAT-TXN-209` | 四字段各自排序、最多两项 | 1/1 | 只允许 ASC/DESC；稳定 tiebreaker 由业务服务掌握 |
+| `UAT-TXN-210` | trans_id protected-ref | 1/1 | 标识不进入模型、日志及结果明文 |
+| `UAT-TXN-211` | Decimal 超精度、float、非法 date/offset/size/sort | 0 或 1/0 | invalid_argument；不调用 search |
+| `UAT-TXN-212` | 相对自然日缺少 precision/边界证明 | 1/0 | unsupported；不能猜测“今天/最近一周” |
+| `UAT-TXN-213` | ADMIN/VIEWER/denied/missing/malformed/service-token | 0/0 或 1/1，按接入/业务拒绝位置断言 | 最终读取授权仍由 Transaction 服务执行 |
+| `UAT-TXN-214` | rows/total/totalExact/page/size | 1/1 | totalExact=false 仅表示 lower bound；兼容既有九项 row 白名单，丢弃五项条件属性并严格投影 |
+| `UAT-TXN-215` | 聚合、detail、写入、物理 SQL/表列 | 0/0 或 1/0 | unsupported/invalid；其他 endpoint=0 |
 
-### 8.2 失败与缺口
+## 8. 结构化阶段收口
 
-| Case | 问题/前置 | 期望 | 调用断言 |
-|---|---|---|---|
-| `EMP-005` | “帮我查看上海的员工” | `unsupported`；记录现有通用 ES 搜索缺少最终角色授权与受限响应契约 | plan=1，detail/list/ES=0 |
-| `EMP-006` | 模型输出 literal employee ID | `invalid_argument` | Employee=0 |
-| `EMP-007` | ref 缺失/跨请求 | `invalid_argument` | Employee=0 |
-| `EMP-008` | 业务服务拒绝角色 | `forbidden` | plan=1，detail=1，不改义 |
-| `EMP-009` | 模型 timeout/schema invalid | `timeout/invalid_argument` | Employee/Knowledge/Transaction=0 |
+回归 Access 认证/严格 JSON、LangGraph/Core、v3 Model task、filters 两级 decoder、Business validator/binder、不可变 JSON snapshot、request-local slots、用户 JWT 透传、三个固定 endpoint、单 action latch、取消、Knowledge 隔离、用户投影及模型出域默认拒绝。
 
-敏感扫描必须证明模型输入/输出捕获、日志和 evidence 均不含 Employee 标识/JWT/原始响应。
+每个成功业务 case 必须证明真实 QueryPlan 模型调用=1、对应 endpoint 调用=1、另一域/另一 Employee 动作/Knowledge/第二动作/重试=0。模型失败、非法计划、workBase、unsupported semantic+filter、非法日期/金额/分页均必须证明业务调用=0。
 
-## 9. Transaction UAT
+## 9. 结果记录、敏感扫描与失败处理
 
-### 9.1 支持场景
+只允许记录 case ID、action、有限状态、模型/业务调用整数、projection/敏感扫描布尔值以及必要配置版本。不得保存原始用户问题、姓名、地址、身份证、电话、邮箱、JWT、模型原文、ES raw hits 或 Transaction raw rows。出现服务权限缺口、数据不具备、Date contract 不成立或模型失败时，暂停该用例并报告，不自动切换域、搜索方式或降低断言。
 
-| Case | 问题类型 | QueryPlan 断言 | 服务/结果断言 |
-|---|---|---|---|
-| `TXN-001` | 按交易类型精确查询 | `transaction.search/trans_type` | plan=1、search=1、page=1 |
-| `TXN-002` | 按类型包含查询 | `trans_type_contains` | contains 安全字符、search=1 |
-| `TXN-003` | 精确金额 | canonical decimal string | wire JSON number、Java BigDecimal、无舍入 |
-| `TXN-004` | 金额开区间 | `amount_gt/amount_lt` 且 gt<lt | search=1、边界正确 |
-| `TXN-005` | size + 有限排序 | size≤50、sort≤2/allowlist | response page/size/totalExact 保真 |
-| `TXN-006` | ADMIN/VIEWER | 相同计划合同 | 业务服务最终授权矩阵正确 |
+## 10. 当前状态与明确差距
 
-### 9.2 失败
-
-| Case | 问题/计划 | 期望 | 调用断言 |
-|---|---|---|---|
-| `TXN-007` | Date 条件 | `unsupported` | search/其他 endpoint=0 |
-| `TXN-008` | 聚合/detail/write | `unsupported` | search/其他 endpoint=0 |
-| `TXN-009` | float/scale>2/互斥金额/空条件 | `invalid_argument` | search=0 |
-| `TXN-010` | sort/page 超界、物理键或 SQL/DSL/URL 形态文本 literal | `invalid_argument/unsupported` | search=0 |
-| `TXN-011` | 模型 failure/schema invalid | 固定失败 | Transaction/Employee/Knowledge=0 |
-| `TXN-012` | 业务 forbidden/no result | `forbidden/no_result` | search=1，状态不改义 |
-
-## 10. 结构化查询阶段收口
-
-必须回归：
-
-- Access 认证、strict JSON、deadline/cancel；
-- Business Guard slotting 和并发隔离；
-- model task/prompt/catalog/config snapshot 一致；
-- QueryPlan exact decode、业务 validator、binder、既有 argument validator；
-- Core action latch、handler/Adapter 唯一；
-- JWT 仅透传业务服务、最终权限在域内；
-- Employee GET/no-body、Transaction POST/ExactDecimal 跨语言合同；
-- model failure/illegal plan 下 Resolver、ID-only 补参、Knowledge、另一域和 DB/ES 直连均不可达；
-- answer model/Business result egress 调用为0；
-- 日志、evidence 和临时文件零敏感泄漏。
-
-阶段结论只能是 `passed`、`failed` 或 `blocked`，并列出逐 case 状态和未关闭缺口。Employee 筛选保持已知 unsupported 不算缺陷；现有通用 ES 端点不能因具备字段能力而绕过最终角色授权或受限契约。若需求要扩大，退出 UAT 并回到业务接口与设计授权。
-
-## 11. 调用预算与一次性授权
-
-非 live 准备阶段使用 fake transport，模型真实调用为0。正式 UAT 前由 launcher 根据冻结用例计算精确最大规划调用数：每个进入 Business 语义处理的 case 最多1次；认证/strict JSON/输入策略拒绝为0；自动 retry/resume=0。
-
-授权必须绑定：frozen HEAD、run ID、manifest SHA-256、model/task/prompt/catalog/config snapshots、case IDs、最大 DeepSeek 调用数、Employee detail 上限、Transaction search 上限和 authorization reference。首个 outbound 后授权耗尽；失败不补跑。
-
-## 12. Evidence 与通过标准
-
-有限 evidence 至少包含：
-
-- run/manifest/authorization/hash 绑定；
-- case ID、预期/实际有限状态；
-- validated domain/action/argument key/type（不含值）；
-- planning/Core/Employee/Transaction/Knowledge/answer 调用整数；
-- config snapshot、task version、终态与耗时区间；
-- JWT/标识/业务值/model raw/log leak 计数均为0；
-- 服务 PID/清理有限结论。
-
-通过标准：
-
-1. 所有必测 case 终态符合预期；
-2. 每个支持的业务 case planning=1、对应业务 endpoint=1、Core=1；
-3. 每个失败/不支持 case 的后续计数符合第7～9章；
-4. 任何 case 的 Resolver、另一业务域、Knowledge fallback、answer model 均为0；
-5. 权限、Decimal、跨语言、snapshot、单动作和零泄漏全部通过；
-6. 无测试通过依赖放宽 validator、删除断言或改变既有业务接口。
-
-## 13. 停止条件与回滚
-
-出现以下任一条件立即停止：manifest/hash 不一致、真实调用预算不可证明、需要新业务接口/DTO/DB/依赖/扩权、敏感值进入模型/日志/evidence、产生第二动作或 fallback、服务进程归属不明。
-
-回滚：停止且仅停止 UAT 启动并核实 PID 的进程；删除扫描后的临时原始日志；恢复默认 stub 和 action disabled；保留 append-only 有限失败证据；不修改业务数据或历史 evidence。
-
-## 14. 执行结论与评审
-
-| 阶段 | 重点 | 结果 |
-|---|---|---|
-| 内审1 | 公共→Employee→Transaction→收口顺序与预算 | 补齐前置门禁、调用断言和 evidence，修复后通过 |
-| 内审2 | default stub、unsupported 与失败关闭 | 明确 stub 仅证明失败关闭，修复后通过 |
-| 内审3 | 两域跨语言、权限、接口缺口与无环性 | Employee ES 复用条件如实记录；P3/UAT 门禁分属清晰，修复后通过 |
-| 独立评审 R1～R3 | UAT 与跨层一致性 | 补齐物理表达式文本负例与 unsupported 上位合同；R3 无发现，通过 |
-| v0.4 内审1 | 当前状态与旧用例隔离 | 区分 Runtime non-live 候选与尚未完成的 system/live/UAT |
-| v0.4 内审2 | 历史 fixture/evidence | 保留旧资产但禁止执行为本版本证据；不删除冻结文件 |
-| v0.4 内审3 | 门禁、预算、DAG | 清理不关闭 live/UAT 门禁，不改变一次性授权和调用预算 |
-| v0.4 独立评审 R1～R3 | 旧用例不可执行与历史资产保留 | 补充 launcher 清理、冻结 fixture 只读边界后，R3 无发现 |
-| v0.5 内审1～3 | non-live 门禁、UAT 依赖与最小性 | 精确架构断言修复仍属于 P3，不改变 live/UAT 用例、预算或授权边界 |
-| v0.5 独立评审 R1～R2 | 跨层状态与无环 | non-live In Progress，live/UAT 继续 Blocked；R2 无 Blocker/Major/Minor |
-| v0.6 状态复核 | P3 交接与证据隔离 | non-live Done；fake 证据不关闭 live/UAT，`GATE-065/066` 和 `GATE-UAT-006` 继续 Open |
-| v0.7 状态复核 | P3 live candidate-01 冻结与门禁隔离 | 6-case 候选、精确预算和不可执行授权模板已通过 non-live 复核；未产生 outbound，`GATE-065/066` 和 `GATE-UAT-006` 继续 Open |
-| v0.8 状态复核 | P3 candidate-03 真实集成与正式 UAT 边界 | 真实 6-case 通过、model/Employee/Transaction=`6/2/2`，`GATE-065/066` 已关闭；UAT task 对齐 v2，`GATE-UAT-006` 仍 Open，未执行任何正式 UAT |
-
-当前：P3 七个工作包及 `GATE-064/065/066` 均已关闭；`GATE-UAT-006` 仍 Open，四个 UAT 工作项均 Blocked。只有独立冻结 UAT HEAD、task/Prompt/catalog/config、用例、主体和调用预算并关闭该门禁后，才可正式执行 UAT。
+本版所有 UAT 阶段均未开始。Employee search/semantic Agent Adapter、ES 最终角色授权、统一配置、新 filters v3 QueryPlan、Transaction Date/page>1、新组合根、controlled live 以及 `GATE-UAT-007` 均不能由旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 推断完成。
