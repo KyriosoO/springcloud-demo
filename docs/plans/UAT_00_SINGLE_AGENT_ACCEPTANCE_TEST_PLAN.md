@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.4 |
+| 当前版本 | v1.5 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-25 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2；Employee L2 v2.3；Transaction L2 v2.0 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.6 |
-| 当前状态 | 三动作 filters/config/Adapter/组合根及 Employee ES 端点级共享 role converter 已实施；真实 search 已返回列表，向量 partial hits/历史缺姓名记录已通过生产 codec 零模型验证；成功 controlled live/UAT 尚未完成，`GATE-UAT-007` Open |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2；Employee L2 v2.3；Transaction L2 v2.1 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.7 |
+| 当前状态 | Employee 真实 search/semantic 已分别返回 20/9 条；Transaction 服务真实响应使用 UTC 零毫秒 offset 字符串，现有 Agent codec 尚不兼容；成功 controlled live/UAT 尚未完成，`GATE-069/070/UAT-007` Open |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -23,9 +23,9 @@
 
 ## 3. 环境前置和准入门禁
 
-1. P3 中正式 UAT 之前的 11 个新目标工作包按依赖完成；第 12 个 `WP-BQ-UAT-HANDOFF-02` 必须在 `GATE-UAT-007` 关闭后执行，不能反向作为本门禁前置；Employee 两入口最终读取授权已验证。
+1. P3 中正式 UAT 之前的 12 个新目标工作包按依赖完成；第 13 个 `WP-BQ-UAT-HANDOFF-02` 必须在 `GATE-UAT-007` 关闭后执行，不能反向作为本门禁前置；Employee 两入口最终读取授权已验证。
 2. `GATE-068` 已关闭；两个 Employee ES POST endpoint 使用明确绑定共享 `userRoleJwtAuthenticationConverter` 的专用真实 Servlet 安全链，ADMIN/VIEWER 允许及 denied/missing/malformed/service-token 拒绝矩阵成立；detail 和其他 endpoint 历史行为不变。仅有直接 Controller 单元测试或手工赋予 authority 的测试不能替代该证据。
-3. `GATE-069` 已关闭后才执行 Transaction 绝对 Date 用例；相对自然日若无数据库精度/边界证据，仍按 unsupported 验收。
+3. `GATE-069` 已关闭后才执行 Transaction 绝对 Date 用例；必须验证生产 Spring UTC 零毫秒 offset 响应字符串与 legacy standalone epoch 毫秒都转换为同一上海时区 instant，拒绝其他日期形态。相对自然日若无数据库精度/边界证据，仍按 unsupported 验收。
 4. 新三动作 filters task、code/config snapshot、权限、业务服务和 non-live/live 结果均属于当前设计，不得复用旧 detail 或旧 v2 Prompt 证据。
 5. 真实 provider、用户 JWT、Employee 标识和业务样本仅在明确授权后进程内使用；日志/evidence 只存有限 case 状态和调用计数。
 6. 联系地址样本确实支持 “上海” contains；若真实数据不存在，不得构造 workBase 样本伪造通过，应停止并报告数据前置缺失。
@@ -92,7 +92,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 | `UAT-TXN-211` | Decimal 超精度、float、非法 date/offset/size/sort | 0 或 1/0 | invalid_argument；不调用 search |
 | `UAT-TXN-212` | 相对自然日缺少 precision/边界证明 | 1/0 | unsupported；不能猜测“今天/最近一周” |
 | `UAT-TXN-213` | ADMIN/VIEWER/denied/missing/malformed/service-token | 0/0 或 1/1，按接入/业务拒绝位置断言 | 最终读取授权仍由 Transaction 服务执行 |
-| `UAT-TXN-214` | rows/total/totalExact/page/size | 1/1 | totalExact=false 仅表示 lower bound；兼容既有九项 row 白名单，丢弃五项条件属性并严格投影 |
+| `UAT-TXN-214` | rows/total/totalExact/page/size 及生产 Spring Date response | 1/1 | totalExact=false 仅表示 lower bound；仅接受真实 UTC `.000+00:00` 或 standalone 整秒 epoch 日期，转换上海时区；兼容九项 row 白名单并丢弃五项条件属性 |
 | `UAT-TXN-215` | 聚合、detail、写入、物理 SQL/表列 | 0/0 或 1/0 | unsupported/invalid；其他 endpoint=0 |
 
 ## 8. 结构化阶段收口
@@ -107,4 +107,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1、新组合根及 Employee ES endpoint-scoped 共享 converter 均已有当前版本 non-live/真实 Servlet 过滤链证据；ADMIN 403 和隔离 Feign 服务发现已修复，上海真实 search 返回 20 条。semantic 独立 10000ms 与 bounded partial hits/记录卫生已实施，真实零模型生产 codec 返回 9 条有效记录、`total=20`、`truncated=true`；35 项定向及 1417 项 non-live 通过，四次失败及历史 manifest 保持不可变。成功 controlled live 和 `GATE-UAT-007` 仍未完成；旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。
+本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、新组合根及 Employee endpoint-scoped 共享 converter 已具备当前代码证据；真实 LLM Employee 两动作分别返回 20/9 条。Transaction 单次零模型诊断确认 HTTP 200、20/104 条，但运行中 Spring 输出 UTC `.000+00:00` 日期字符串，现有仅接受 epoch 的 codec 拒绝；第五次失败 SHA-256=`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e` 和历史 manifest 不可变。应先完成 L2 v2.1 严格双形态 Date 合同及 `GATE-069/070` 复核，再恢复 controlled live；`GATE-UAT-007` 仍 Open。
