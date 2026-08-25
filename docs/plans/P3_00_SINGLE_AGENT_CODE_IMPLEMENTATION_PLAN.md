@@ -56,7 +56,7 @@ Verified existing：Business filters plan、统一字段 JSON、v3 model catalog
 | `WP-BQ-RUNTIME-CUTOVER-02` | 三动作生产组合根切换 | `L2_00_01 DR-CORE-101～104` | model/catalog/snapshot/三 action/Registry 单一路径 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEARCH-ADAPTER-02`, `WP-EMP-SEMANTIC-ADAPTER-02`, `WP-TXN-SEARCH-EXT-02`, `WP-EMP-ES-AUTH-02` | - | 组合根和 Core fake 契约 | `VAL-CORE-101/102` | 关闭新组合根，不恢复 Resolver | Done |
 | `WP-EMP-DETAIL-RETIRE-02` | Employee detail 退役核实 | `L2_02_01 DR-EMP-106` | 调用方/兼容/历史证据核查，目标生产路径移除 | `WP-BQ-RUNTIME-CUTOVER-02` | - | 调用方清单和可达性/历史回归 | `TEST-EMP-107` | 保留冻结历史与仍有调用方的共享类型 | Done |
 | `WP-BQ-NONLIVE-E2E-02` | 三动作 non-live E2E | `L2_00_01`; `L2_02_00`; `L2_02_01`; `L2_02_02` | fake model/三个 fake endpoint/失败零调用 | `WP-BQ-RUNTIME-CUTOVER-02` | - | non-live E2E 及跨域/Knowledge 回归 | 三动作、权限 fake、contract、mypy | 移除测试装配，不改历史 evidence | Done |
-| `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 单次授权、有限固定场景、敏感值内存化 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02` | `GATE-070` | 真实三动作 finite evidence | 一计划/一业务调用与权限矩阵 | 失败即停止，不补跑或复用历史授权 | Blocked |
+| `WP-BQ-CONTROLLED-LIVE-02` | 受控模型与业务联调 | `REQ_00`; `L2_00_02`; 两域 L2 | 单次授权、有限固定场景、敏感值内存化 | `WP-BQ-NONLIVE-E2E-02`, `WP-EMP-DETAIL-RETIRE-02` | `GATE-070` | 真实三动作 finite evidence | 一计划/一业务调用与权限矩阵 | 失败即停止，不补跑或复用历史授权 | Ready |
 | `WP-BQ-UAT-HANDOFF-02` | 正式 UAT 环境与交接 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | UAT 前置、真实数据可用性、固定用例与结论 | `WP-BQ-CONTROLLED-LIVE-02` | `GATE-UAT-007` | UAT 准入记录及阶段结论 | UAT 公共/Employee/Transaction/收口 | 不把旧 evidence 冒充本版 UAT | Blocked |
 
 ## 6. 直接依赖图
@@ -88,7 +88,7 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | `GATE-067` | `WP-BQ-FILTER-CONTRACT-02` | closure | 新设计基线生效 | 否 | REQ/L0/L1/L2/P3/UAT 两阶段评审通过且版本一致 | 当前 Approved/Reviewed 文档、strict validators、跨层追踪与无环 DAG | 文档维护者 | 代码实施前 | 分层/跨层独立评审与 DAG 校验 | 不允许依据未评审设计实施 | Closed |
 | `GATE-068` | `WP-EMP-ES-AUTH-02` | release_effective | Employee search/vector 角色守卫生效 | 否 | 调用方兼容性确认，两入口 requireEmployeeRead 及完整角色矩阵通过 | Employee Controller/security/调用方回归：7 项测试通过；既有交互用户仅 ADMIN/VIEWER | Employee 业务维护者/实施者 | 生产组合根切换前 | Java MVC/security 与既有调用方测试 | 禁止有效生产路径和真实 Employee 联调 | Closed |
 | `GATE-069` | `WP-TXN-SEARCH-EXT-02` | integration | Transaction Date 时区/精度合同生效 | 否 | Python Date→HTTP→Jackson→Mapper instant/open interval/DB precision 证据成立 | Python filters/epoch 毫秒/Shanghai timezone 契约、Java Jackson/Controller 测试及只读生产 `DATETIME(0)` 元数据验证 | Transaction 维护者/实施者 | 日期 live/UAT 前 | 双语言 contract 与 strict bounds tests | 日期相关真实联调/UAT 不执行 | Closed |
-| `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，环境/预算/授权/安全边界已确认 | 实施代码证据、服务状态和用户真实调用授权 | 用户/业务维护者 | 首次模型或业务调用前 | frozen task/config/cases、预算和零泄漏 preflight | live 保持 Blocked，不调用真实系统 | Open |
+| `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，环境/预算/授权/安全边界已确认 | 三动作生产对象图、6 项 controlled 与 18 项 UAT fake、v3 task/config manifest、用户目标授权，以及四个隔离服务零模型调用 readiness 预检 | 用户/业务维护者 | 首次模型或业务调用前 | frozen task/config/cases、预算和零泄漏 preflight | live 保持 Blocked，不调用真实系统 | Closed |
 | `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 前 11 个工作包与 controlled live 完成，UAT 环境/代表性业务数据就绪并获得明确授权；不要求 UAT 工作包自身预先完成 | UAT_00 准入和本版 live evidence | 用户/UAT 执行者 | 首个正式 UAT 用例前 | UAT checklist、调用预算及 gate→UAT 无环性复核 | 正式 UAT 保持 Blocked | Open |
 
 ## 8. 外部资源与事实
@@ -114,7 +114,7 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 | 8 | `WP-BQ-RUNTIME-CUTOVER-02` | Done | - | 正式启动入口、统一配置、三动作 Registry、受控 HTTP transport 与默认 stub 契约通过 |
 | 9 | `WP-EMP-DETAIL-RETIRE-02` | Done | - | 生产目录只有三动作，Transaction protected slot 不再依赖旧参数校验；历史源码按冻结提交核验 |
 | 10 | `WP-BQ-NONLIVE-E2E-02` | Done | - | 三动作唯一 production 对象图、上海地址、Date/Decimal、角色拒绝、非法字段、跨域与 Knowledge 隔离通过全量 1392 项测试 |
-| 11 | `WP-BQ-CONTROLLED-LIVE-02` | Blocked | `GATE-070` | non-live/retire 已完成，需核实有限预算、服务和已获得的目标范围真实调用授权 |
+| 11 | `WP-BQ-CONTROLLED-LIVE-02` | Ready | - | non-live/retire 完成；6 个固定联调场景、三动作真实 endpoint、用户授权和四服务零调用 readiness 预检均已核实 |
 | 12 | `WP-BQ-UAT-HANDOFF-02` | Blocked | controlled live 与 `GATE-UAT-007` | UAT 不能复用旧 detail 证据 |
 
 ## 10. 实施交接
@@ -152,7 +152,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-BQ-RUNTIME-CUTOVER-02` | `DR-CORE-101～104` | `IMPL-CORE-101～104` | `TEST-CORE-101～104` | `VAL-CORE-101/102` | Done |
 | `WP-EMP-DETAIL-RETIRE-02` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` | Done |
 | `WP-BQ-NONLIVE-E2E-02` | `DR-BQCOM-106`; `DR-CORE-102` | 现有 system_e2e 测试入口 | 三动作 fake 与零调用 | non-live/mypy/compileall | Done |
-| `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-EMP-105`; `DR-TXN-105` | 受控 runner 和有限 evidence | 有限三动作 live 矩阵 | `GATE-070` 关闭证据 | Blocked |
+| `WP-BQ-CONTROLLED-LIVE-02` | `DR-MODEL-104`; `DR-EMP-105`; `DR-TXN-105` | 受控 runner 和有限 evidence | 有限三动作 live 矩阵 | `GATE-070` 关闭证据 | Ready |
 | `WP-BQ-UAT-HANDOFF-02` | `REQ-BQS-012` | UAT 环境与用例清单 | UAT 四阶段 | `GATE-UAT-007` 关闭证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -178,8 +178,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Done 10 个，Ready 0 个，Blocked 2 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、Employee 最终读取授权、Transaction 四字段/Date/Decimal/分页 Adapter、唯一三动作生产组合根、旧 detail 目标入口退役核实与新版完整 non-live E2E 已完成；正式启动入口显式启用 DeepSeek 时使用 Adapter 基础设施中的受控 HTTP transport，Business 公共层只依赖抽象协议，默认 stub 保持无动作。旧 detail 及对应 workBase 设置仅由冻结历史与兼容测试引用，不进入生产配置、模型目录或结果投影；Date 按 canonical 字符串穿过 Core 不可变边界并在 Adapter 内转换为业务 wire。三动作成功、上海地址、Date/Decimal、历史不可变、未配置字段、模型失败、服务拒绝、Knowledge 隔离及固定 endpoint 已通过全量 1392 项测试，27 项 live opt-in 按设计跳过。`GATE-067/068/069` Closed，`GATE-070` 与 `GATE-UAT-007` 保持 Open。
+总计 12 个工作包、15 条直接依赖：Done 10 个，Ready 1 个，Blocked 1 个。filters 合同、统一三动作配置、v3 Model 逻辑目录、Employee search/semantic Adapter、Employee 最终读取授权、Transaction 四字段/Date/Decimal/分页 Adapter、唯一三动作生产组合根、旧 detail 目标入口退役核实与新版完整 non-live E2E 已完成；正式启动入口显式启用 DeepSeek 时使用 Adapter 基础设施中的受控 HTTP transport，Business 公共层只依赖抽象协议，默认 stub 保持无动作。旧 detail 及对应 workBase 设置仅由冻结历史与兼容测试引用，不进入生产配置、模型目录或结果投影；Date 按 canonical 字符串穿过 Core 不可变边界并在 Adapter 内转换为业务 wire。三动作成功、上海地址、Date/Decimal、历史不可变、未配置字段、模型失败、服务拒绝、Knowledge 隔离及固定 endpoint 已通过全量 1392 项测试，27 项 live opt-in 按设计跳过；新增 controlled 六场景、UAT 十八场景 fake 和四个隔离服务零模型调用预检通过。`GATE-067/068/069/070` Closed，`GATE-UAT-007` 保持 Open。
 
 ## 15. 后续实施建议
 
-继续核实 `GATE-070` 所需服务、有限预算和真实调用授权，再完成受控 live 和正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。
+执行已就绪的六场景受控 live；真实三动作及权限矩阵通过后，按证据开放正式 UAT。若现有接口无法安全表达目标，应停止对应扩展并报告，不得自行新建接口或扩大权限。

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "taskVersion": "business-query-plan-v3",
+  "promptSha256": "a5d3c0bb34b551ebe98bba1547ffa0f50a7e201014317a86913a929a89cd9360",
+  "configurationSha256": "55352c6c2f91b01f5faba42b48eb80bbae143a11b846bd7fb5ec5ca3a76c1601",
+  "endpoints": {
+    "employee": "http://127.0.0.1:9210",
+    "transaction": "http://127.0.0.1:8182"
+  },
+  "budgets": {"controlled": 6, "uat": 18},
+  "controlledCaseIds": [
+    "LIVE-EMP-001", "LIVE-EMP-002", "LIVE-TXN-001",
+    "LIVE-EMP-003", "LIVE-TXN-002", "LIVE-EMP-004"
+  ],
+  "uatCaseIds": [
+    "UAT-EMP-201", "UAT-EMP-203", "UAT-EMP-205", "UAT-EMP-207",
+    "UAT-EMP-208", "UAT-EMP-209", "UAT-EMP-210", "UAT-EMP-211",
+    "UAT-EMP-212", "UAT-TXN-201", "UAT-TXN-202", "UAT-TXN-203",
+    "UAT-TXN-205", "UAT-TXN-206", "UAT-TXN-208", "UAT-TXN-212",
+    "UAT-TXN-213", "UAT-TXN-215"
+  ]
+}
