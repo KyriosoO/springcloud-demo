@@ -10,7 +10,7 @@
 | 当前版本 | v2.0 |
 | 更新日期 | 2026-08-25 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
-| 当前基线 | Knowledge 链路及新版 filters/config/三动作 Adapter/生产组合根已存在；Employee ES 真实 JWT 角色转换仍待修复，成功真实联调和 UAT 尚未完成 |
+| 当前基线 | Knowledge 链路及新版 filters/config/三动作 Adapter/生产组合根已存在；Employee ES 端点级 JWT 角色转换和真实安全链测试已通过，成功真实联调和 UAT 尚未完成 |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
 
@@ -27,8 +27,8 @@
 | 对象 | verified existing | target design | 当前差距 |
 |---|---|---|---|
 | Knowledge | 既有问题改写、检索、证据及摘要链路；既有 P5 结论为 ineffective | 保持原有独立能力和结果，不作为 Business fallback | 不属于本次业务设计纠偏 |
-| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 已调用读取守卫，Agent Adapter/配置已实施 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | ES endpoint 安全链尚未显式绑定共享 role converter，真实 ADMIN 请求被 403 拒绝 |
-| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter 已实施 | `employee.semantic_search` 返回受控列表 | 与条件搜索共享同一 endpoint 级角色转换缺口；真实联调和 UAT 尚未通过 |
+| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 读取守卫、endpoint-scoped 共享 converter 和 Agent Adapter/配置已实施 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | 本版成功受控真实联调和正式 UAT 尚未完成 |
+| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter 和 endpoint-scoped 共享 converter 已实施 | `employee.semantic_search` 返回受控列表 | 本版成功受控真实联调和正式 UAT 尚未完成 |
 | Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权；新版 Adapter 已实施 | `transaction.search` 完整映射既有列表搜索能力 | 新版成功受控真实联调和正式 UAT 尚未完成 |
 
 现有 `employee.detail` 属于已实现的历史能力，不是本版 Employee 主查询目标；只有完成调用方、兼容性和历史审计资产核实后，才能迁移或废止。
@@ -106,4 +106,4 @@ Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结�
 3. Transaction：类型、日期、金额、同字段区间、组合过滤、分页、排序、精度及拒绝矩阵。
 4. 结构化查询收口：Access/Core/Model/配置/Adapter/JWT/单动作与失败零调用回归。
 
-开放事项：Employee Controller 读取守卫已经实施，但两个 ES POST 安全链仍未显式绑定共享 JWT role converter，真实 ADMIN 请求存在已证实的 403 缺口；须补齐完整 Servlet 过滤链与历史 fallback 兼容验证。新版 filters 合同、统一配置、两个 Employee Adapter、扩展 Transaction Adapter、Date/Decimal 合同、生产组合根和 non-live 已具备当前代码证据；成功受控真实联调及正式 UAT 尚未完成。既有旧动作及其历史证据不能替代新目标证明。
+开放事项：Employee Controller 读取守卫及两个 ES POST endpoint-scoped 共享 JWT role converter 已实施；真实 Servlet 过滤链角色矩阵、detail/fallback 兼容和 Employee 全模块回归已通过。新版 filters 合同、统一配置、两个 Employee Adapter、扩展 Transaction Adapter、Date/Decimal 合同、生产组合根和 non-live 已具备当前代码证据；成功受控真实联调及正式 UAT 尚未完成。首次 403 历史失败只用于追溯，既有旧动作及历史证据不能替代新目标成功证明。

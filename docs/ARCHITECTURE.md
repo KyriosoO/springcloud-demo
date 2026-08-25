@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。新版统一配置、三个列表动作、生产组合根及 non-live 已实施；Employee Controller 已执行读取守卫，但两个 ES POST endpoint 缺少专用共享 JWT role converter，首次真实联调因 ADMIN 403 失败。成功真实联调和正式 UAT 尚未完成，不能由设计 Approved、单个失败记录或历史实现推断通过。
+Employee/Transaction 需求与设计已通过独立分层和跨层评审，实施/UAT 计划为 Reviewed；Knowledge 及未涉及的公共设计保留原有 Approved 基线。新版统一配置、三个列表动作、生产组合根、non-live 及 Employee 两个 ES POST endpoint 专用共享 JWT role converter 均已实施，完整 Servlet 权限与历史 fallback 回归通过。首次真实联调的 ADMIN 403 失败记录保持不可变；修复后的成功真实联调和正式 UAT 尚未完成，不能由设计 Approved 或历史记录推断通过。

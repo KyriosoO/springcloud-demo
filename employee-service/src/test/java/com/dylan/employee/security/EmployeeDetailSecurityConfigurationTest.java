@@ -18,6 +18,17 @@ class EmployeeDetailSecurityConfigurationTest {
 		assertThat(matcher.matches(request("PUT", "/employees/synthetic-id"))).isFalse();
 	}
 
+	@Test
+	void esQueryMatcherOnlyMatchesTheTwoExistingPostQueryEndpoints() {
+		RequestMatcher esQueryMatcher = EmployeeDetailSecurityConfiguration.employeeEsQueryMatcher();
+		assertThat(esQueryMatcher.matches(request("POST", "/employees/es/search"))).isTrue();
+		assertThat(esQueryMatcher.matches(request("POST", "/employees/es/vector-search"))).isTrue();
+		assertThat(esQueryMatcher.matches(request("GET", "/employees/es/search"))).isFalse();
+		assertThat(esQueryMatcher.matches(request("POST", "/employees/es/search/more"))).isFalse();
+		assertThat(esQueryMatcher.matches(request("POST", "/employees/es/bulk"))).isFalse();
+		assertThat(esQueryMatcher.matches(request("GET", "/employees/synthetic-id"))).isFalse();
+	}
+
 	private static MockHttpServletRequest request(String method, String path) {
 		MockHttpServletRequest request = new MockHttpServletRequest(method, path);
 		request.setServletPath(path);

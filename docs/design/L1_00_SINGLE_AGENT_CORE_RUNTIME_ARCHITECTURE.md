@@ -12,7 +12,7 @@
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | 新 filters/actions/config 三动作组合根与 Knowledge 独立对象图已实施并通过 non-live；Employee ES 端点级角色转换修复前不得宣称真实联调完成 |
+| 当前实现 | 新 filters/actions/config 三动作组合根与 Knowledge 独立对象图已实施并通过 non-live；Employee ES 端点级角色转换已通过真实 Servlet 过滤链测试，成功联调和 UAT 尚未完成 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。

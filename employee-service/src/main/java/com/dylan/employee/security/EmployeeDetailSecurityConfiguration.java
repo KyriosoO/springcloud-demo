@@ -36,6 +36,19 @@ public class EmployeeDetailSecurityConfiguration {
 
 	@Bean
 	@Order(2)
+	SecurityFilterChain employeeEsQuerySecurityFilterChain(HttpSecurity http,
+			@Qualifier("userRoleJwtAuthenticationConverter")
+			Converter<Jwt, AbstractAuthenticationToken> converter) throws Exception {
+		return http.securityMatcher(employeeEsQueryMatcher())
+				.csrf(csrf -> csrf.disable())
+				.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+				.oauth2ResourceServer(oauth2 -> oauth2
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+				.build();
+	}
+
+	@Bean
+	@Order(3)
 	SecurityFilterChain employeeFallbackSecurityFilterChain(HttpSecurity http) throws Exception {
 		return JwtResourceServerHttpSecurity.applyDefaults(http)
 				.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
@@ -57,6 +70,21 @@ public class EmployeeDetailSecurityConfiguration {
 			}
 			String segment = path.substring("/employees/".length());
 			return !segment.isBlank() && !segment.contains("/") && !NON_DETAIL_SEGMENTS.contains(segment);
+		};
+	}
+
+	static RequestMatcher employeeEsQueryMatcher() {
+		return request -> {
+			if (!"POST".equalsIgnoreCase(request.getMethod())) {
+				return false;
+			}
+			String requestUri = request.getRequestURI();
+			String contextPath = request.getContextPath();
+			String path = contextPath == null || contextPath.isEmpty()
+					? requestUri
+					: requestUri.substring(contextPath.length());
+			return "/employees/es/search".equals(path)
+					|| "/employees/es/vector-search".equals(path);
 		};
 	}
 }

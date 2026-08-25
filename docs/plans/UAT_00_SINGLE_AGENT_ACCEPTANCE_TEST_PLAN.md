@@ -10,7 +10,7 @@
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.0；Employee L2 v2.1；Transaction L2 v2.0 |
 | 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.1 |
-| 当前状态 | 三动作 filters/config/Adapter/组合根及 non-live 已实施；Employee ES 共享 role converter 未完成，controlled live 首次 403；本版 UAT 未执行，`GATE-UAT-007` Open |
+| 当前状态 | 三动作 filters/config/Adapter/组合根及 Employee ES 端点级共享 role converter 已实施，完整权限过滤链通过；首次 controlled live 403 已修复，成功 live/UAT 尚未执行，`GATE-UAT-007` Open |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -106,4 +106,4 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 当前状态与明确差距
 
-本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1 和新组合根已有当前版本 non-live 证据，但 Employee ES endpoint-scoped 共享 converter 尚未完成，首次真实联调得到 ADMIN 403；成功 controlled live 和 `GATE-UAT-007` 均未完成。旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。
+本版所有 UAT 阶段均未开始。统一配置、filters v3 QueryPlan、Employee search/semantic Agent Adapter、Transaction Date/page>1、新组合根及 Employee ES endpoint-scoped 共享 converter 均已有当前版本 non-live/真实 Servlet 过滤链证据；首次 ADMIN 403 已修复并保留原始失败记录。成功 controlled live 和 `GATE-UAT-007` 仍未完成；旧 detail、旧 date unsupported、旧 page=1 或历史 candidate evidence 不能代替本版成功验收。

@@ -18,7 +18,7 @@
 
 目标复用 `EmployeeEsController.search` 和 `vectorSearch` 现有公开接口，分别提供 `employee.search`、`employee.semantic_search`，返回严格投影的员工列表。范围外包括新 endpoint/DTO、ES 直连、索引重建、聚合、写入、客户端二次筛选、自动互相 fallback 和启用 workBase 字段。
 
-当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec 与生产组合根；两个 Controller 入口已调用 `requireEmployeeRead`。但现有 `EmployeeDetailSecurityConfiguration` 只为历史 detail 入口显式绑定 `userRoleJwtAuthenticationConverter`，两个 ES POST 仍落入使用 Spring 默认转换器的通用安全链，导致真实 `role=[ADMIN]` JWT 无法形成 `ROLE_ADMIN` 并被现有守卫误拒绝。该端点级安全链和真实过滤链权限测试尚未实施。
+当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec 与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 现已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。首次修复前 403 仅为不可变历史失败；成功受控真实联调和正式 UAT 尚未完成。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -36,8 +36,8 @@
 
 | 动作 | Java 接口 | 请求类型 | 真实能力 | 当前鉴权 |
 |---|---|---|---|---|
-| `employee.search` | `POST /employees/es/search` | `SearchRequest/SearchFilter/SearchSort` | keyword、filter、from/size、sort；可含 aggregate 但 Agent 禁止 | Controller 已 `requireEmployeeRead`；安全链目前缺少共享角色转换 |
-| `employee.semantic_search` | `POST /employees/es/vector-search` | `SemanticSearchRequest` | queryText、embeddingField、embeddingDims、k、numCandidates、trackTotalHits；没有 filter | Controller 已 `requireEmployeeRead`；安全链目前缺少共享角色转换 |
+| `employee.search` | `POST /employees/es/search` | `SearchRequest/SearchFilter/SearchSort` | keyword、filter、from/size、sort；可含 aggregate 但 Agent 禁止 | endpoint-scoped 共享 converter + Controller `requireEmployeeRead` |
+| `employee.semantic_search` | `POST /employees/es/vector-search` | `SemanticSearchRequest` | queryText、embeddingField、embeddingDims、k、numCandidates、trackTotalHits；没有 filter | endpoint-scoped 共享 converter + Controller `requireEmployeeRead` |
 
 `EmployeeEsService.SEARCHABLE_FIELDS` 当前包括 `contactAddress/chineseName/idCardNo/memberNo/phoneNo/email/position/workBaseSi`；其中 workBaseSi 因无有效数据而禁止，workBaseAf 也不能成为开放字段。`keyword` multi-match 仅包括 `contactAddress/chineseName/idCardNo`。普通搜索 operator 现有归一化支持 `eq/contains/prefix/in` 及别名，但 Agent 只生成有限 canonical operator。
 
@@ -107,8 +107,8 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `IMPL-EMP-106` | `employee-service/src/main/java/com/dylan/employee/controller/EmployeeEsController.java` | 已存在：两个既有 endpoint 执行 `requireEmployeeRead`，继续保持业务服务最终授权及调用方兼容 |
 | `IMPL-EMP-107` | `employee-service/src/main/java/com/dylan/employee/security/CapabilityAccessGuard.java` | 复用已存在的最终读取守卫，不扩展角色 |
 | `IMPL-EMP-108` | `agent-runtime/src/agent_runtime/adapters/employee/protected_input.py` | 姓名/标识/联系方式/详细地址 request-local slots |
-| `IMPL-EMP-109` | `employee-service/src/main/java/com/dylan/employee/security/EmployeeDetailSecurityConfiguration.java` | 建议修改已存在配置：只为两个 ES 查询 POST endpoint 新增显式绑定共享 converter 的安全链，保持 detail 和其他 endpoint 行为 |
-| `IMPL-EMP-110` | `employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java` | 建议新增真实 Servlet 安全过滤链测试，验证 role claim、两入口矩阵、下游零调用与敏感信息保护 |
+| `IMPL-EMP-109` | `employee-service/src/main/java/com/dylan/employee/security/EmployeeDetailSecurityConfiguration.java` | 已实施：只为两个 ES 查询 POST endpoint 绑定共享 converter 的专用安全链，保持 detail 和其他 endpoint 行为 |
+| `IMPL-EMP-110` | `employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java` | 已实施：真实 Servlet 安全过滤链测试，验证 role claim、两入口矩阵、下游零调用及 fallback 兼容 |
 
 ## 8. 测试与验证设计
 
@@ -143,13 +143,13 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 
 ## 10. 风险、评审记录与实现就绪判定
 
-主要风险：ES 查询入口虽然已调用读取守卫，但匹配通用安全链时 Spring 默认 converter 不理解既有 `role` claim，真实 ADMIN/VIEWER 会被错误拒绝；已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter。首次真实失败证明只测 Controller 会产生权限假阳性。endpoint-scoped 真实 SecurityFilterChain 与兼容检查是恢复业务服务和受控联调的前置，而非阻塞已完成 Python fake Adapter 的理由。
+主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。该修复不代表后续成功真实联调或 UAT 自动完成。
 
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
-| 当前允许实施范围 | 已批准的 endpoint-scoped 共享 converter 绑定、真实过滤链权限矩阵、detail/fallback 兼容测试及对应门禁复核 |
-| 当前禁止动作 | 过滤链和兼容验证未通过前恢复真实 Employee/模型联调；新增业务接口/DTO、改全局 fallback、索引或数据修改 |
+| 当前允许实施范围 | 已通过 endpoint-scoped converter、真实过滤链权限矩阵和 detail/fallback 兼容验证；按计划门禁执行后续受控联调 |
+| 当前禁止动作 | 绕过受控联调门禁；新增业务接口/DTO、改全局 fallback、索引或数据修改 |
 
 评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
 

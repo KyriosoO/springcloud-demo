@@ -11,7 +11,7 @@
 | 更新时间 | 2026-08-25 |
 | 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
-| 当前实现 | Knowledge 基线与新版 filters/config/三动作 Adapter/组合根已实施并通过 non-live；Employee ES 端点级角色转换尚缺失，成功 live/UAT 未完成 |
+| 当前实现 | Knowledge 基线、新版 filters/config/三动作 Adapter/组合根及 Employee ES 端点级角色转换均已实施并通过 non-live；成功 live/UAT 未完成 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -70,10 +70,10 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 |---|---|---|
 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 | Runtime、LangGraph、Model Port、Core、Registry、组合根与单动作 | 新生产组合根与三动作 non-live 已实施，成功真实联调待完成 |
 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.0 | Knowledge 问题改写、检索、证据和摘要 | 保持既有权威，不做语义修改 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 | Business fields/config、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作 non-live 已实施；Employee ES 真实角色转换缺口待修复 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 | Business fields/config、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作和 Employee 真实 Servlet 过滤链 non-live 已实施；成功受控联调待完成 |
 
 ## 8. 质量属性、风险与当前结论
 
 安全优先于可用性：非法计划、模型失败、配置失配、敏感 slot 和不支持条件均失败关闭；调用计数应证明每请求最多一次模型规划和一个业务动作。保留请求级取消与确定性数值/时间合同，但不引入高可用框架、复杂重试、分布式事务或独立监控平台。
 
-主要风险：Employee ES Controller 已收紧权限，但通用安全链未绑定共享 role converter 会误拒绝真实 ADMIN/VIEWER；ES 原始 hits、受保护值和 Date/Decimal 必须维持当前已验证合同；workBase 字段数据无效且仅通过未配置自然不可达。non-live 通过不等于端点级真实角色转换、成功真实联调或 UAT 完成。
+主要风险：Employee ES endpoint-scoped 共享 converter 和读取守卫必须维持真实过滤链矩阵及历史 fallback 兼容；ES 原始 hits、受保护值和 Date/Decimal 必须维持当前已验证合同；workBase 字段数据无效且仅通过未配置自然不可达。non-live 和过滤链测试通过不等于成功受控真实联调或 UAT 完成。

@@ -12,7 +12,7 @@
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
-| 当前实现 | filters/config、三个列表动作、生产组合根和 Controller 读取守卫已实施；Employee ES 专用 JWT 角色转换尚未实施，真实联调被 ADMIN 403 阻断 |
+| 当前实现 | filters/config、三个列表动作、生产组合根、Controller 读取守卫和 Employee ES 专用 JWT 角色转换均已实施；完整安全链回归已通过，成功真实联调和 UAT 尚未完成 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -27,8 +27,8 @@
 
 | 动作 | 固定业务接口 | 已核实能力 | 当前缺口 |
 |---|---|---|---|
-| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter 已实施 | Controller 已执行 `requireEmployeeRead`，但当前匹配的通用安全链未绑定统一角色转换器，真实 ADMIN 被误拒绝 |
-| `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter 已实施 | 与条件搜索共用缺失统一角色转换的通用安全链 |
+| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter、读取守卫与专用共享 converter 已实施 | 成功受控真实联调和正式 UAT 尚未完成 |
+| `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter、读取守卫与专用共享 converter 已实施 | 成功受控真实联调和正式 UAT 尚未完成 |
 | `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；Agent Adapter 已实施 | 当前仍缺新版本受控真实联调与正式 UAT 证据 |
 
 Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`，且必须复用与 filter 相同的 `literal/value_ref` 输入保护；真实姓名、员工标识和详细地址不能作为明文 keyword 出域。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
@@ -89,6 +89,6 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 ## 9. 当前实现、风险与验证
 
-本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。首次受控联调已证明真实 LLM 能生成上海 `contact_address contains` 计划，但 Employee search 因通用安全链未显式绑定共享角色转换器返回 403；该失败证据不可替代成功联调或 UAT。Employee 专用安全链修复、后续受控联调和正式 UAT 仍未完成。
+本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归已实施；旧 `employee.detail` 不在新目标生产注册表。首次受控联调的真实 LLM 已生成上海 `contact_address contains` 计划，但旧安全链导致 ADMIN 403；现已通过 endpoint-scoped 共享 converter 修复，并以两个 ES 入口完整角色矩阵及 detail/fallback 兼容测试验证。该历史失败证据不可替代修复后的成功受控联调或正式 UAT。
 
 主要风险为 Employee ES 现有调用方兼容性、原始 hits 泄漏、受保护值出域、Date/Jackson/数据库精度不一致和 workBase 虚假可用。通过受限 Adapter、角色矩阵、严格跨语言合同、配置 snapshot、零调用断言及非 live 优先顺序控制；不引入配置中心、规则引擎或多层重复门禁。

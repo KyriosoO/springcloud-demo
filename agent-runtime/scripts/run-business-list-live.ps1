@@ -17,7 +17,12 @@ $runtime = Join-Path $repository 'agent-runtime'
 $python = Join-Path $repository '.tmp\agent-runtime-venv\Scripts\python.exe'
 $stageValue = $Stage.ToLowerInvariant()
 $evidenceRoot = [IO.Path]::GetFullPath((Join-Path $runtime 'tests\system_e2e\live\results'))
-$evidence = Join-Path $evidenceRoot "business-list-v2-$stageValue.result.json"
+$evidenceName = if ($stageValue -eq 'controlled') {
+    'business-list-v2-controlled-run02.result.json'
+} else {
+    'business-list-v2-uat.result.json'
+}
+$evidence = Join-Path $evidenceRoot $evidenceName
 if (-not (Test-Path -LiteralPath $python)) {
     throw 'business_list_live.python_missing'
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -153,6 +154,28 @@ def test_manifest_freezes_only_task_configuration_cases_and_bounded_budgets() ->
     modified["promptSha256"] = "0" * 64
     with pytest.raises(ValueError, match="business_list_live.manifest_invalid"):
         validate_manifest(modified)
+
+
+def test_first_controlled_failure_is_immutable_and_retry_uses_an_independent_path() -> None:
+    root = Path(__file__).resolve().parents[3]
+    historical = root / "agent-runtime/tests/system_e2e/live/results/business-list-v2-controlled.result.json"
+    assert hashlib.sha256(historical.read_bytes()).hexdigest() == (
+        "fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607"
+    )
+    evidence = json.loads(historical.read_text(encoding="utf-8"))
+    assert evidence["status"] == "failed"
+    assert evidence["cases"] == [{
+        "capabilityId": "employee.search", "caseId": "LIVE-EMP-001",
+        "domainCalls": 1, "fields": ["contact_address"], "modelCalls": 1,
+        "operators": ["contains"], "rowCount": 0, "status": "forbidden",
+    }]
+    assert evidence["counts"]["modelQueryPlan"] == 1
+    assert evidence["counts"]["employeeSearch"] == 1
+
+    launcher = root / "agent-runtime/scripts/run-business-list-live.ps1"
+    source = launcher.read_text(encoding="utf-8")
+    assert "business-list-v2-controlled-run02.result.json" in source
+    assert "business-list-v2-uat.result.json" in source
 
 
 def test_uat_catalog_covers_three_live_actions_and_safe_zero_call_boundaries() -> None:
