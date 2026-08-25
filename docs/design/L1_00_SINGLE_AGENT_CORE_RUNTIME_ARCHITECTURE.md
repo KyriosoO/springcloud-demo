@@ -10,7 +10,7 @@
 | 当前版本 | v2.0 |
 | 更新日期 | 2026-08-25 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
-| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1；Knowledge L1 保持 v1.0 |
+| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
 | 当前实现 | 新 filters/actions/config 三动作组合根与 Knowledge 独立对象图已实施并通过 non-live；Employee ES 端点级角色转换已通过真实 Servlet 过滤链测试，成功联调和 UAT 尚未完成 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
@@ -78,10 +78,10 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.0 | 既有 Spring 接入与 Runtime 协同，不在本次修改范围 |
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.0 | Business bridge、组合根、Registry、取消与单动作执行 |
 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.0 | 模型安全 catalog、Prompt、provider response 严格解码 |
-| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.1 | QueryPlan、字段配置、validator、binder 与出域策略 |
+| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2 | QueryPlan、字段配置、validator、binder 与出域策略 |
 
 ## 8. 风险、验证与当前实施状态
 
 应验证三动作唯一可达、一次规划/一次 handler、并发请求 slot 隔离、取消、strict decoder、config snapshot、不支持条件零调用和 Knowledge 回归。无须独立工作流引擎、复杂 circuit breaker、动态 registry 或生产级治理平台。
 
-既有 v2 模型任务和旧 production bridge 只证明旧合同，不证明 filters QueryPlan、Employee search/semantic 或扩展 Transaction。新组合根与其 fake/live/UAT 证据均为 proposed implementation，不得标记 Implemented。
+既有 v2 模型任务和旧 production bridge 只证明旧合同，不证明 filters QueryPlan、Employee search/semantic 或扩展 Transaction。当前三动作生产组合根与 fake 验证已实施；成功 controlled live 和正式 UAT 尚未完成，不能将既有 fake 或历史证据表述为 live/UAT 通过。

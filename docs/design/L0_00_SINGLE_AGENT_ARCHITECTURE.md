@@ -70,7 +70,7 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 |---|---|---|
 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 | Runtime、LangGraph、Model Port、Core、Registry、组合根与单动作 | 新生产组合根与三动作 non-live 已实施，成功真实联调待完成 |
 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.0 | Knowledge 问题改写、检索、证据和摘要 | 保持既有权威，不做语义修改 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 | Business fields/config、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作和 Employee 真实 Servlet 过滤链 non-live 已实施；成功受控联调待完成 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 | Business fields/config、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作和 Employee 真实 Servlet 过滤链 non-live 已实施；成功受控联调待完成 |
 
 ## 8. 质量属性、风险与当前结论
 

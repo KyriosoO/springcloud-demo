@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.1 |
+| 当前版本 | v2.2 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
@@ -149,7 +149,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 2. 模型只见 minimized question、field/operator 目录、安全地点片段、slot ID、已批准时间上下文与 snapshot。
 3. provider decoder 后执行 Business exact decoder、配置 validator 和 protected binder。
 4. Core 执行一次固定 Domain Adapter；client 仅透传原用户 JWT。
-5. Adapter 严格解析服务返回；user projection 和 model egress 分别执行代码/配置/分类交集。
+5. Adapter 严格解析服务返回；Employee 仅按其域内合同隔离缺失必填结果字段的历史索引记录，保留真实 total、有效 returned count 和 truncated 语义；user projection 和 model egress 分别执行代码/配置/分类交集。
 
 用户读取权限不等于模型出域许可。未知字段、embedding、embeddingText、workBase、JWT、详细地址、姓名、标识、联系方式和原始业务响应不得进入模型。Transaction 默认模型字段仍最多 `trans_type/amount`；Employee 默认最多安全 `position`，绝不恢复 workBase 模型字段。结果模型调用不是列表查询必需步骤，默认关闭。
 
@@ -162,7 +162,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `IMPL-BQCOM-101` | `agent-runtime/src/agent_runtime/business/query_plan.py` | filters/operator/tagged value 精确类型、decoder、validator、binder |
 | `IMPL-BQCOM-102` | `agent-runtime/src/agent_runtime/business/contracts.py` | code-bound action、field、operator、classification、分页和时间合同 |
 | `IMPL-BQCOM-103` | `agent-runtime/src/agent_runtime/business/settings.py` | 统一配置读取、subset 校验、canonical snapshot 和 readiness |
-| `IMPL-BQCOM-104` | 建议新增 `agent-runtime/src/agent_runtime/business/business-query.v2.json` | 三动作单文件、版本化、默认拒绝的字段与结果配置 |
+| `IMPL-BQCOM-104` | `agent-runtime/src/agent_runtime/business/business-query.v2.json` | 已实施：三动作单文件、版本化、默认拒绝的字段与结果配置 |
 | `IMPL-BQCOM-105` | `agent-runtime/src/agent_runtime/business/planner_catalog.py` | 生成仅含逻辑字段的安全目录 |
 | `IMPL-BQCOM-106` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 请求级 slots 和地点片段/详细地址差异化保护 |
 | `IMPL-BQCOM-107` | `agent-runtime/src/agent_runtime/business/user_projection.py` | 用户结果字段白名单与有限脱敏 |
@@ -179,6 +179,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `TEST-BQCOM-105` | Date offset/timezone、相对日期 unsupported、Decimal canonical/scale≤2/JSON number |
 | `TEST-BQCOM-106` | page/size/sorts/offset overflow、投影脱敏、模型出域拒绝与调用计数 |
 | `TEST-BQCOM-107` | 三动作独立超时上限、semantic 10000ms contract/config 对齐、超界配置拒绝及历史 snapshot/manifest 不可变 |
+| `TEST-BQCOM-108` | 上游 total、合法 raw hits 数量与有效返回记录数分离；eq 保留真实 total、gte 不公开精确 total；partial coverage 不伪造计数，全部命中不可投影时失败关闭 |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -197,6 +198,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `DR-BQCOM-105` | Decimal/Date/分页/排序使用跨语言严格合同，失败关闭 |
 | `DR-BQCOM-106` | 配置不携带 SQL/ES/endpoint，禁止 Agent DB/ES 依赖与权限替代 |
 | `DR-BQCOM-107` | action 超时仅可由代码绑定合同及配置收紧：Employee search 3000ms、semantic 10000ms、Transaction 5000ms；保持请求 deadline、失败关闭及历史 snapshot 不可变 |
+| `DR-BQCOM-108` | Domain Adapter 保留已证明的上游 total 与有效记录 coverage；只允许域合同明确的结果卫生，不得构造用户条件过滤、补请求、伪造 total 或放宽响应外壳/安全校验 |
 
 数据生命周期：slots、JWT、plan、原始业务响应只存在于 request memory；不存在 Agent 数据库或数据迁移。事务边界与一致性由业务服务拥有；启动 snapshot 只读、无热更新。最小必要变更复用现有 query_plan/settings/projection/egress，不引入配置中心、通用规则 DSL、模板表达式或额外生产依赖，以避免耦合。
 
@@ -223,3 +225,4 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `REQ-BQCOM-104` | `DR-BQCOM-105` | `IMPL-BQCOM-101`; `IMPL-BQCOM-103` | `TEST-BQCOM-105`; `TEST-BQCOM-106` | `VAL-BQCOM-103` |
 | `CON-BQCOM-102` | `DR-BQCOM-106` | `IMPL-BQCOM-102`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-103` |
 | `REQ-BQCOM-102`; `REQ-BQCOM-104` | `DR-BQCOM-107` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-104` | `TEST-BQCOM-103`; `TEST-BQCOM-107` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |
+| `REQ-BQCOM-103`; `CON-BQCOM-102` | `DR-BQCOM-108` | `IMPL-BQCOM-107` | `TEST-BQCOM-106`; `TEST-BQCOM-108` | `VAL-BQCOM-102` |

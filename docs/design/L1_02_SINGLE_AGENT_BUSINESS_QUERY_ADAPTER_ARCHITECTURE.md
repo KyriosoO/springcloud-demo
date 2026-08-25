@@ -7,7 +7,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.1 |
+| 当前版本 | v2.2 |
 | 更新日期 | 2026-08-25 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.0 |
@@ -62,7 +62,7 @@ Model 只认识逻辑 domain/action/field/operator；Business 公共层拥有 st
 
 Employee 两个 ES 入口已由 Controller 执行 `requireEmployeeRead`，但必须同时使用仅覆盖这两个既有 POST endpoint 的专用 Servlet 安全链，显式绑定共享 `userRoleJwtAuthenticationConverter`，以满足 `L2_00_03 DR-AUTH-007`。现有 detail 专用链和其他 endpoint 的通用认证行为保持不变；业务读取授权仍由 Employee 服务守卫最终判定。必须用真实 Spring Security 过滤链验证 ADMIN/VIEWER 允许、denied/missing/malformed/service-token 拒绝及既有调用方兼容。Transaction 保持现有 `requireTransactionRead`；Agent 只透传当前用户 JWT，不判断域内角色。
 
-Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON duplicate key、hits 结构和 `_source` 白名单校验；未知、workBase、`embedding`、`embeddingText` 默认丢弃。Transaction 解析既有 rows/total/totalExact/page/size 合同；`totalExact=false` 不是精确总数。
+Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON duplicate key、hits 结构和 `_source` 白名单校验；未知、workBase、`embedding`、`embeddingText` 默认丢弃。真实向量接口可能返回少于请求 `k` 的 hits；已有索引也可能混入缺少必填标识或姓名的历史文档。Adapter 只允许隔离这些无法构成安全用户结果的记录，并保留上游真实 total 与 partial coverage；响应外壳、字段类型、长度、安全字符及全部命中无效时仍失败关闭。此记录级结果卫生不是业务条件过滤，不允许补请求或改变服务查询。Transaction 解析既有 rows/total/totalExact/page/size 合同；`totalExact=false` 不是精确总数。
 
 用户可见字段与模型可见字段各自执行 `代码允许 ∩ 配置允许 ∩ 分类允许`。标识、姓名、联系方式、详细地址、JWT 和业务原始响应不可出域；未分类、冲突或敏感转换失败必须零模型调用。
 
@@ -81,8 +81,8 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 | 决策 | 内容 | 下位设计 |
 |---|---|---|
-| `BQ-AD-001` | filters/operator/tagged value 与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.1 |
-| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing、端点级统一角色转换与业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.2 |
+| `BQ-AD-001` | filters/operator/tagged value 与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2 |
+| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing、端点级统一角色转换与业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.3 |
 | `BQ-AD-003` | Transaction Date/Decimal、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.0 |
 
 关联 L1 协作：Runtime L1 拥有组合根和 Core 单动作；Model L2 拥有安全 catalog/Prompt 与 provider framing decoder；Business L2 不改变公共 Core/HTTP/业务 DTO。

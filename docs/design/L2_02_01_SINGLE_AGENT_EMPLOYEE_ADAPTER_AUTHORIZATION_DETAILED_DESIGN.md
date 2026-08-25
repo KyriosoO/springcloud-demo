@@ -6,10 +6,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.2 |
+| 当前版本 | v2.3 |
 | 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.1；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.1 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.2；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) `DR-AUTH-007` |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.2 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -18,7 +18,7 @@
 
 目标复用 `EmployeeEsController.search` 和 `vectorSearch` 现有公开接口，分别提供 `employee.search`、`employee.semantic_search`，返回严格投影的员工列表。范围外包括新 endpoint/DTO、ES 直连、索引重建、聚合、写入、客户端二次筛选、自动互相 fallback 和启用 workBase 字段。
 
-当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec 与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 现已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。首次修复前 403 仅为不可变历史失败；成功受控真实联调和正式 UAT 尚未完成。
+当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec 与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 现已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。真实零模型诊断已证明向量请求 `k=20` 返回 `total=20`、10 条 hits，其中 1 条缺失姓名；当前 codec/normalizer 尚未兼容既有接口的有限 partial page 和历史脏记录。成功受控真实联调和正式 UAT 尚未完成。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -43,7 +43,7 @@
 
 `buildEmbeddingText` 拼接姓名、联系地址、职位、学历、院校、专业、workBaseSi、workBaseAf。它表明现有 embedding 的历史组成，不代表支持按其中任一单字段独立向量检索；workBase 两字段仍不开放。依赖方向为 Business validated plan → Employee Adapter → EmployeeEsController → EmployeeEsService；禁止绕过 Controller/业务权限访问 ES。
 
-既有 Java 边界为 `EmployeeEsController.search(Authentication, SearchRequest) -> String` 和 `EmployeeEsController.vectorSearch(Authentication, SemanticSearchRequest) -> String`，公开签名保持不变。Python 建议新增 `employee_search_definition()`、`employee_semantic_search_definition()`、`EmployeeSearchArgumentValidator.validate(JsonObject) -> EmployeeSearchInput`、`EmployeeSearchRequestMapper.map(EmployeeSearchInput, BusinessActionSettings) -> EmployeeSearchWireRequest`，以及对应 semantic mapper 与 `encode/decode_success` codec。上述 search/semantic 类和函数当前尚不存在，不能把已存在 `EmployeeDetail*` 类型冒充新动作实现。
+既有 Java 边界为 `EmployeeEsController.search(Authentication, SearchRequest) -> String` 和 `EmployeeEsController.vectorSearch(Authentication, SemanticSearchRequest) -> String`，公开签名保持不变。Python 已实现 `employee_search_definition()`、`employee_semantic_search_definition()`、`EmployeeSearchArgumentValidator.validate(JsonObject) -> EmployeeSearchInput`、`EmployeeSearchRequestMapper.map(EmployeeSearchInput, BusinessActionSettings) -> EmployeeSearchWireRequest`，以及对应 semantic mapper 与 `encode/decode_success` codec；`EmployeeDetail*` 类型仅属于冻结历史兼容，不得冒充当前动作实现。
 
 ## 4. 字段矩阵、输入保护与模型目录
 
@@ -87,6 +87,10 @@ arguments exact 为 `query/size`；query 是安全业务文本 tagged literal，
 
 仅按已允许的七个业务字段执行 `_source` 白名单投影；未配置字段以及 `embedding`、`embeddingText`、`operTime`、ES 索引/score 元数据均不会进入用户结果，其中 `workBaseSi/workBaseAf` 无需额外专用处理。`hits.total.relation=eq/gte` 分别映射 `totalExact=true/false`；无法证明 total 形状时返回 `invalid_response`，不得将原始 ES JSON 转发到用户或模型。
 
+现有向量业务接口传递 `k`，但下游 ES 请求未设置同值的顶层 `size`，因此合法返回条数可以小于请求 `k`；Agent 不修改共享 ES 服务、公开接口或现有索引，而是仅对 semantic action 接受 `0 < upstream_hit_count ≤ requested_size` 且 `upstream_hit_count ≤ total` 的 partial page；只有 `total=0` 且 raw hits 为空时允许 `no_result`。普通 search 继续按隔离前 raw hits 数校验既有 from/size/total 精确分页合同。两动作均只允许在 `_source` 是 object 且必填 `idCardNo` 或 `chineseName` 缺失、null、空字符串或不含控制/双向字符的纯空白时隔离该条历史记录；值类型错误、长度越界、控制字符/双向字符、optional 字段错误、非法 envelope，或全部非空 hits 均不可形成有效记录，仍使整个响应 `invalid_response`。
+
+内部 wire response 额外保存 `upstream_hit_count` 和代码绑定的 `allow_partial_page`，二者只用于 normalizer，不能从配置、模型或外部输入覆盖。`relation=eq` 时真实 `total` 仍向 user coverage 透传；`relation=gte` 时 total 仅用于下界一致性检查、user coverage `total_count=None`。coverage 的 returned count 始终等于已脱敏有效记录数；上游截断、语义 partial page 或隔离任何记录时 `truncated=true`。隔离发生在结果合同归一化内，不改变 SQL/ES 查询、用户过滤条件、模型输入、权限、调用次数或返回字段。
+
 ## 6. 最终读取授权、权限与审计设计
 
 现有 `EmployeeEsController.search(...)` 和 `vectorSearch(...)` 已调用 `accessGuard.requireEmployeeRead(authentication)`。按共享安全设计 `L2_00_03 DR-AUTH-007`，还必须在现有 `EmployeeDetailSecurityConfiguration` 内新增仅匹配 `POST /employees/es/search` 和 `POST /employees/es/vector-search` 的 endpoint-scoped `SecurityFilterChain`，显式使用 `@Qualifier("userRoleJwtAuthenticationConverter")` 注入现有共享 Servlet converter。该链位于历史 detail 专用链之后、通用 fallback 链之前；只要求已认证用户进入 Controller，最终 ADMIN/VIEWER 读取决策仍由 `CapabilityAccessGuard.requireEmployeeRead` 执行。
@@ -111,6 +115,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `IMPL-EMP-108` | `agent-runtime/src/agent_runtime/adapters/employee/protected_input.py` | 姓名/标识/联系方式/详细地址 request-local slots |
 | `IMPL-EMP-109` | `employee-service/src/main/java/com/dylan/employee/security/EmployeeDetailSecurityConfiguration.java` | 已实施：只为两个 ES 查询 POST endpoint 绑定共享 converter 的专用安全链，保持 detail 和其他 endpoint 行为 |
 | `IMPL-EMP-110` | `employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java` | 已实施：真实 Servlet 安全过滤链测试，验证 role claim、两入口矩阵、下游零调用及 fallback 兼容 |
+| `IMPL-EMP-111` | `agent-runtime/src/agent_runtime/adapters/employee/normalizer.py` | 区分 raw hits、有效记录与 semantic partial page，保留真实 total/truncated；search 分页和全部无效记录失败关闭 |
 
 ## 8. 测试与验证设计
 
@@ -124,6 +129,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `TEST-EMP-106` | 两个 ES POST 真实 SecurityFilterChain：共享 role converter、ADMIN/VIEWER 允许、denied/mixed/missing/malformed/service-token 拒绝、被拒绝请求零下游，以及 detail/其他 endpoint 历史调用方回归 |
 | `TEST-EMP-107` | detail 调用方、兼容性和冻结历史证据核查；目标组合根不可达 |
 | `TEST-EMP-108` | search 3000ms/semantic 10000ms action 独立预算、配置超界拒绝、单次向量调用、请求 deadline 截断及 timeout 后零重试/零 fallback |
+| `TEST-EMP-109` | semantic 实际 partial page、单条缺姓名/标识记录隔离、真实 total/returned/truncated 保留；整批无有效行、非法结构/字段类型及 search 分页不一致继续失败关闭 |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -142,6 +148,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `DR-EMP-105` | 两个 ES 查询 POST endpoint 必须显式绑定共享 `userRoleJwtAuthenticationConverter`；最终 ADMIN/VIEWER 授权仍由 Employee 读取守卫判定，detail/其他 endpoint 行为不变，切换前完成完整安全链及调用方兼容验证 |
 | `DR-EMP-106` | detail 为历史实现，迁移/删除前核查 caller、公共兼容和冻结 evidence |
 | `DR-EMP-107` | semantic 动作因 Embedding+Feign+ES 链路采用 10000ms 代码绑定上限，普通 search 维持 3000ms；单动作、请求 deadline、失败关闭和历史证据保持不变 |
+| `DR-EMP-108` | semantic 容忍现有服务返回少于 k 的合法 partial page；两动作只隔离缺失/null/空白必填姓名或标识的历史记录，保留真实 total 与有效记录 coverage；其余响应错误或全部命中无效仍失败关闭 |
 
 错误分类：unsupported/invalid plan 在发送前业务调用 0；forbidden 为固定 endpoint 1 次；timeout/unavailable/invalid_response 不重试、不切换搜索方式。数据生命周期仅为 request 内存；不修改 Employee 数据、索引和历史 evidence。事务边界与一致性归 employee-service/ES；本版复用现有 endpoint/guard，属于最小必要变更，避免 DTO 膨胀和 Adapter 耦合泄漏。
 
@@ -168,3 +175,4 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `REQ-EMP-104`; `CON-EMP-102` | `DR-EMP-105` | `IMPL-EMP-106`; `IMPL-EMP-107`; `IMPL-EMP-109`; `IMPL-EMP-110` | `TEST-EMP-106` | `VAL-EMP-102` |
 | `REQ-EMP-101` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` |
 | `REQ-EMP-102`; `CON-EMP-101` | `DR-EMP-107` | `IMPL-EMP-102`; `IMPL-EMP-105` | `TEST-EMP-103`; `TEST-EMP-108` | `VAL-EMP-101`; `VAL-EMP-103` |
+| `REQ-EMP-102`; `REQ-EMP-103` | `DR-EMP-108` | `IMPL-EMP-101`; `IMPL-EMP-103`; `IMPL-EMP-111` | `TEST-EMP-104`; `TEST-EMP-109` | `VAL-EMP-101`; `VAL-EMP-103` |
