@@ -24,7 +24,9 @@ from agent_runtime.business.contracts import (
 )
 from agent_runtime.business.planner_catalog import build_business_planner_catalog
 from agent_runtime.business.query_plan import (
+    BusinessListQueryArguments,
     DefaultBusinessQueryPlanValidator,
+    EmployeeSemanticQueryArguments,
     ExactBusinessQueryPlanDecoder,
     InvalidBusinessQueryPlan,
     InvalidProtectedValue,
@@ -431,3 +433,210 @@ def test_configuration_is_narrowing_and_catalog_is_model_safe() -> None:
     assert catalog.snapshot_id == snapshot.snapshot_id
     for forbidden in ("endpoint", "http", "sql", "dsl", "jwt", "role", "result_fields"):
         assert forbidden not in material
+
+
+def _filters_snapshot() -> tuple[tuple[Definition, Definition], BusinessConfigurationSnapshot]:
+    definitions, snapshot = _snapshot()
+    employee, original = definitions
+    amount = BusinessQueryFieldDefinition(
+        logical_name="amount",
+        model_safe_description="Canonical transaction amount",
+        value_type=BusinessQueryValueType.DECIMAL,
+        allowed_operators=frozenset(
+            {BusinessQueryOperator.EQ, BusinessQueryOperator.GT, BusinessQueryOperator.LT}
+        ),
+        input_exposure=BusinessInputExposure.LITERAL,
+        required=False,
+        allow_negative=True,
+        service_field="amount",
+    )
+    trans_type = replace(
+        original.query_fields[0],
+        allowed_operators=frozenset(
+            {BusinessQueryOperator.EQ, BusinessQueryOperator.CONTAINS}
+        ),
+        input_exposure=BusinessInputExposure.LITERAL,
+        service_field="transType",
+    )
+    transaction = replace(
+        original,
+        query_fields=(trans_type, amount),
+        combination_rules=(
+            BusinessCombinationRule(
+                rule_id="transaction-filter-at-least-one",
+                kind=BusinessCombinationRuleKind.AT_LEAST_ONE,
+                field_names=("trans_type", "amount"),
+            ),
+        ),
+        code_contract_version="transaction-search-plan-v2",
+    )
+    settings = dict(snapshot.actions)["transaction.search"]
+    adjusted = replace(
+        settings,
+        code_contract_version="transaction-search-plan-v2",
+        query_fields=(
+            BusinessQueryFieldSettings(
+                logical_name="trans_type",
+                enabled=True,
+                model_safe_description=trans_type.model_safe_description,
+                allowed_operators=(BusinessQueryOperator.EQ, BusinessQueryOperator.CONTAINS),
+                required=False,
+                max_text_chars=128,
+                service_field="transType",
+                input_exposure=BusinessInputExposure.LITERAL,
+            ),
+            BusinessQueryFieldSettings(
+                logical_name="amount",
+                enabled=True,
+                model_safe_description=amount.model_safe_description,
+                allowed_operators=(
+                    BusinessQueryOperator.EQ,
+                    BusinessQueryOperator.GT,
+                    BusinessQueryOperator.LT,
+                ),
+                required=False,
+                service_field="amount",
+                input_exposure=BusinessInputExposure.LITERAL,
+            ),
+        ),
+        fixed_page=None,
+    )
+    return (employee, transaction), replace(
+        snapshot,
+        actions=(("employee.detail", dict(snapshot.actions)["employee.detail"]),
+                 ("transaction.search", adjusted)),
+    )
+
+
+def test_filters_contract_decodes_validates_and_binds_open_decimal_interval() -> None:
+    definitions, snapshot = _filters_snapshot()
+    plan = ExactBusinessQueryPlanDecoder().decode(
+        {
+            "domain": "transaction",
+            "action": "transaction.search",
+            "arguments": {
+                "filters": (
+                    {"field": "trans_type", "operator": "contains", "value": {"literal": "PAY"}},
+                    {"field": "amount", "operator": "gt", "value": {"literal": "100.00"}},
+                    {"field": "amount", "operator": "lt", "value": {"literal": "500.00"}},
+                ),
+                "page": 2,
+                "size": 20,
+                "sorts": ({"field": "amount", "direction": "DESC"},),
+            },
+        }
+    )
+    assert isinstance(plan.arguments, BusinessListQueryArguments)
+    result = DefaultBusinessQueryPlanValidator(definitions).validate(plan, snapshot=snapshot)
+    assert isinstance(result, ValidatedBusinessQueryPlan)
+
+    candidate = RequestProtectedValueBinder().bind(
+        result,
+        slots=ProtectedValueSlots(request_id="request-1", values={}),
+        request_id="request-1",
+    )
+
+    assert candidate.capability_id == "transaction.search"
+    assert candidate.arguments["page"] == 2
+    assert candidate.arguments["filters"] == (
+        {"field": "trans_type", "operator": "contains", "value": "PAY"},
+        {"field": "amount", "operator": "gt", "value": "100.00"},
+        {"field": "amount", "operator": "lt", "value": "500.00"},
+    )
+
+
+@pytest.mark.parametrize(
+    "filters",
+    (
+        (
+            {"field": "amount", "operator": "eq", "value": {"literal": "100.00"}},
+            {"field": "amount", "operator": "gt", "value": {"literal": "50.00"}},
+        ),
+        (
+            {"field": "amount", "operator": "gt", "value": {"literal": "100.00"}},
+            {"field": "amount", "operator": "gt", "value": {"literal": "50.00"}},
+        ),
+        (
+            {"field": "amount", "operator": "gt", "value": {"literal": "500.00"}},
+            {"field": "amount", "operator": "lt", "value": {"literal": "100.00"}},
+        ),
+        ({"field": "amount", "operator": "contains", "value": {"literal": "100.00"}},),
+        ({"field": "amount", "operator": "eq", "value": {"literal": "100.001"}},),
+    ),
+)
+def test_filters_contract_rejects_conflicting_operator_and_decimal_conditions(
+    filters: tuple[JsonObject, ...],
+) -> None:
+    definitions, snapshot = _filters_snapshot()
+    plan = ExactBusinessQueryPlanDecoder().decode(
+        {
+            "domain": "transaction",
+            "action": "transaction.search",
+            "arguments": {"filters": filters, "page": 1, "size": 20, "sorts": ()},
+        }
+    )
+    with pytest.raises(InvalidBusinessQueryPlan):
+        DefaultBusinessQueryPlanValidator(definitions).validate(plan, snapshot=snapshot)
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    (
+        {"filters": (), "page": 1, "size": 20, "sorts": ()},
+        {"filters": (), "page": True, "size": 20, "sorts": ()},
+        {"filters": (), "page": 1, "size": 51, "sorts": ()},
+        {"filters": (), "page": 1001, "size": 20, "sorts": ()},
+        {"filters": (), "page": 1, "size": 20, "sorts": (), "sql": "select"},
+        {"filters": ({"field": "amount", "operator": "gte", "value": {"literal": "1"}},),
+         "page": 1, "size": 20, "sorts": ()},
+        {"filters": ({"field": "amount", "operator": "eq", "value": {"literal": None}},),
+         "page": 1, "size": 20, "sorts": ()},
+    ),
+)
+def test_filters_contract_rejects_invalid_structure_before_business_call(
+    arguments: JsonObject,
+) -> None:
+    with pytest.raises(InvalidBusinessQueryPlan):
+        ExactBusinessQueryPlanDecoder().decode(
+            {
+                "domain": "transaction",
+                "action": "transaction.search",
+                "arguments": arguments,
+            }
+        )
+
+
+def test_new_transaction_contract_rejects_legacy_flat_query_arguments() -> None:
+    definitions, snapshot = _filters_snapshot()
+    plan = ExactBusinessQueryPlanDecoder().decode(
+        {
+            "domain": "transaction",
+            "action": "transaction.search",
+            "arguments": {"trans_type": {"literal": "PAY"}},
+        }
+    )
+    with pytest.raises(InvalidBusinessQueryPlan):
+        DefaultBusinessQueryPlanValidator(definitions).validate(plan, snapshot=snapshot)
+
+
+def test_semantic_query_uses_exact_tagged_query_without_structured_filters() -> None:
+    plan = ExactBusinessQueryPlanDecoder().decode(
+        {
+            "domain": "employee",
+            "action": "employee.semantic_search",
+            "arguments": {"query": {"literal": "金融风控经验"}, "size": 10},
+        }
+    )
+    assert isinstance(plan.arguments, EmployeeSemanticQueryArguments)
+    with pytest.raises(InvalidBusinessQueryPlan):
+        ExactBusinessQueryPlanDecoder().decode(
+            {
+                "domain": "employee",
+                "action": "employee.semantic_search",
+                "arguments": {
+                    "query": {"literal": "金融风控经验"},
+                    "size": 10,
+                    "filters": (),
+                },
+            }
+        )

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Any, Mapping, Protocol, Sequence, TypeAlias
@@ -21,6 +22,7 @@ from agent_runtime.business.contracts import (
     BusinessInputExposure,
     BusinessQueryFieldDefinition,
     BusinessQueryFieldSettings,
+    BusinessQueryOperator,
     BusinessQueryValueType,
     BusinessTextPolicyId,
 )
@@ -30,6 +32,9 @@ from agent_runtime.business.settings import BusinessConfigurationSnapshot
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,127}")
 _SLOT_ID = re.compile(r"slot-[1-9][0-9]{0,5}")
 _DECIMAL = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?")
+_TIMESTAMP = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}"
+)
 _PROHIBITED_KEYS = frozenset(
     {
         "sql",
@@ -75,13 +80,49 @@ QueryPlanArgumentValue: TypeAlias = QueryPlanLiteral | QueryPlanValueRef
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessQueryFilter:
+    field: str
+    operator: BusinessQueryOperator
+    value: QueryPlanArgumentValue
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessQuerySort:
+    field: str
+    direction: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BusinessListQueryArguments:
+    filters: tuple[BusinessQueryFilter, ...]
+    page: int
+    size: int
+    sorts: tuple[BusinessQuerySort, ...]
+    keyword: QueryPlanArgumentValue | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EmployeeSemanticQueryArguments:
+    query: QueryPlanArgumentValue
+    size: int
+
+
+BusinessQueryArguments: TypeAlias = (
+    Mapping[str, QueryPlanArgumentValue]
+    | BusinessListQueryArguments
+    | EmployeeSemanticQueryArguments
+)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class BusinessQueryPlan:
     domain: str
     action: str
-    arguments: Mapping[str, QueryPlanArgumentValue]
+    arguments: BusinessQueryArguments
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "arguments", MappingProxyType(dict(self.arguments)))
+        if isinstance(self.arguments, Mapping):
+            object.__setattr__(self, "arguments", MappingProxyType(dict(self.arguments)))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True, repr=False)
@@ -171,20 +212,121 @@ class ExactBusinessQueryPlanDecoder:
         ):
             raise InvalidBusinessQueryPlan()
         _reject_prohibited_keys(frozen)
+        if action in {"employee.search", "transaction.search"} and "filters" in arguments:
+            return BusinessQueryPlan(
+                domain=domain,
+                action=action,
+                arguments=self._decode_list_arguments(action, arguments),
+            )
+        if action == "employee.semantic_search":
+            return BusinessQueryPlan(
+                domain=domain,
+                action=action,
+                arguments=self._decode_semantic_arguments(arguments),
+            )
         decoded: dict[str, QueryPlanArgumentValue] = {}
         for key, raw in arguments.items():
-            if not isinstance(key, str) or _ID.fullmatch(key) is None or not isinstance(raw, Mapping):
+            if not isinstance(key, str) or _ID.fullmatch(key) is None:
                 raise InvalidBusinessQueryPlan()
-            if set(raw) == {"literal"}:
-                decoded[key] = QueryPlanLiteral(value=raw["literal"])
-            elif set(raw) == {"value_ref"}:
-                value_ref = raw["value_ref"]
-                if not isinstance(value_ref, str) or _SLOT_ID.fullmatch(value_ref) is None:
-                    raise InvalidBusinessQueryPlan()
-                decoded[key] = QueryPlanValueRef(value_ref=value_ref)
-            else:
-                raise InvalidBusinessQueryPlan()
+            decoded[key] = self._decode_tagged_value(raw)
         return BusinessQueryPlan(domain=domain, action=action, arguments=decoded)
+
+    @staticmethod
+    def _decode_tagged_value(raw: JsonValue) -> QueryPlanArgumentValue:
+        if not isinstance(raw, Mapping):
+            raise InvalidBusinessQueryPlan()
+        if set(raw) == {"literal"}:
+            if raw["literal"] is None:
+                raise InvalidBusinessQueryPlan()
+            return QueryPlanLiteral(value=raw["literal"])
+        if set(raw) == {"value_ref"}:
+            value_ref = raw["value_ref"]
+            if not isinstance(value_ref, str) or _SLOT_ID.fullmatch(value_ref) is None:
+                raise InvalidBusinessQueryPlan()
+            return QueryPlanValueRef(value_ref=value_ref)
+        raise InvalidBusinessQueryPlan()
+
+    @classmethod
+    def _decode_list_arguments(
+        cls,
+        action: str,
+        raw: Mapping[str, JsonValue],
+    ) -> BusinessListQueryArguments:
+        required = {"filters", "page", "size", "sorts"}
+        allowed = required | ({"keyword"} if action == "employee.search" else set())
+        if not required.issubset(raw) or not set(raw).issubset(allowed):
+            raise InvalidBusinessQueryPlan()
+        raw_filters = raw["filters"]
+        raw_sorts = raw["sorts"]
+        page = raw["page"]
+        size = raw["size"]
+        if (
+            not isinstance(raw_filters, tuple)
+            or len(raw_filters) > 8
+            or not isinstance(raw_sorts, tuple)
+            or len(raw_sorts) > 2
+            or type(page) is not int
+            or not 1 <= page <= 1000
+            or type(size) is not int
+            or not 1 <= size <= 50
+        ):
+            raise InvalidBusinessQueryPlan()
+        filters: list[BusinessQueryFilter] = []
+        for item in raw_filters:
+            if not isinstance(item, Mapping) or set(item) != {"field", "operator", "value"}:
+                raise InvalidBusinessQueryPlan()
+            field = item["field"]
+            operator = item["operator"]
+            if not isinstance(field, str) or _ID.fullmatch(field) is None or not isinstance(operator, str):
+                raise InvalidBusinessQueryPlan()
+            try:
+                typed_operator = BusinessQueryOperator(operator)
+            except ValueError as exc:
+                raise InvalidBusinessQueryPlan() from exc
+            value = cls._decode_tagged_value(item["value"])
+            if typed_operator is BusinessQueryOperator.IN and isinstance(value, QueryPlanLiteral):
+                if not isinstance(value.value, tuple) or not 1 <= len(value.value) <= 16:
+                    raise InvalidBusinessQueryPlan()
+            filters.append(BusinessQueryFilter(field=field, operator=typed_operator, value=value))
+        sorts: list[BusinessQuerySort] = []
+        for item in raw_sorts:
+            if not isinstance(item, Mapping) or set(item) != {"field", "direction"}:
+                raise InvalidBusinessQueryPlan()
+            field = item["field"]
+            direction = item["direction"]
+            if (
+                not isinstance(field, str)
+                or _ID.fullmatch(field) is None
+                or not isinstance(direction, str)
+                or direction not in {"ASC", "DESC"}
+            ):
+                raise InvalidBusinessQueryPlan()
+            sorts.append(BusinessQuerySort(field=field, direction=direction))
+        keyword = cls._decode_tagged_value(raw["keyword"]) if "keyword" in raw else None
+        if not filters and keyword is None:
+            raise InvalidBusinessQueryPlan()
+        return BusinessListQueryArguments(
+            filters=tuple(filters),
+            page=page,
+            size=size,
+            sorts=tuple(sorts),
+            keyword=keyword,
+        )
+
+    @classmethod
+    def _decode_semantic_arguments(
+        cls,
+        raw: Mapping[str, JsonValue],
+    ) -> EmployeeSemanticQueryArguments:
+        if set(raw) != {"query", "size"}:
+            raise InvalidBusinessQueryPlan()
+        size = raw["size"]
+        if type(size) is not int or not 1 <= size <= 50:
+            raise InvalidBusinessQueryPlan()
+        return EmployeeSemanticQueryArguments(
+            query=cls._decode_tagged_value(raw["query"]),
+            size=size,
+        )
 
 
 class DefaultBusinessQueryPlanValidator:
@@ -206,7 +348,11 @@ class DefaultBusinessQueryPlanValidator:
         snapshot: BusinessConfigurationSnapshot,
     ) -> BusinessQueryPlanValidationResult:
         if plan.action == "unsupported":
-            if plan.arguments or plan.domain not in self._domains | {"unsupported"}:
+            if (
+                not isinstance(plan.arguments, Mapping)
+                or plan.arguments
+                or plan.domain not in self._domains | {"unsupported"}
+            ):
                 raise InvalidBusinessQueryPlan()
             return UnsupportedBusinessQueryPlan(
                 domain=plan.domain,
@@ -233,34 +379,163 @@ class DefaultBusinessQueryPlanValidator:
         }
         if not definition_fields or not configured_fields:
             raise InvalidBusinessQueryPlan("business.plan_snapshot_mismatch")
-        unknown = set(plan.arguments) - set(definition_fields)
-        disabled = set(plan.arguments) - set(configured_fields)
+        if isinstance(plan.arguments, BusinessListQueryArguments):
+            if plan.action not in {"employee.search", "transaction.search"}:
+                raise InvalidBusinessQueryPlan()
+            present_fields = {item.field for item in plan.arguments.filters}
+        elif isinstance(plan.arguments, EmployeeSemanticQueryArguments):
+            if plan.action != "employee.semantic_search":
+                raise InvalidBusinessQueryPlan()
+            present_fields = {"query"}
+        elif isinstance(plan.arguments, Mapping):
+            if plan.action in {"employee.search", "employee.semantic_search"} or (
+                definition.code_contract_version.endswith("-v2")
+            ):
+                raise InvalidBusinessQueryPlan()
+            present_fields = set(plan.arguments)
+        else:
+            raise InvalidBusinessQueryPlan()
+        unknown = present_fields - set(definition_fields)
+        disabled = present_fields - set(configured_fields)
         if unknown or disabled:
             return UnsupportedBusinessQueryPlan(
                 domain=plan.domain,
                 config_snapshot_id=snapshot.snapshot_id,
             )
         for logical_name, field in configured_fields.items():
-            if field.required and logical_name not in plan.arguments:
+            if field.required and logical_name not in present_fields:
                 raise InvalidBusinessQueryPlan()
-        for logical_name, value in plan.arguments.items():
+        if isinstance(plan.arguments, BusinessListQueryArguments):
+            self._validate_list_arguments(
+                plan.arguments,
+                definition_fields=definition_fields,
+                configured_fields=configured_fields,
+                settings=settings,
+                definition=definition,
+            )
+        elif isinstance(plan.arguments, EmployeeSemanticQueryArguments):
             self._validate_value(
-                value,
-                definition=definition_fields[logical_name],
-                settings=configured_fields[logical_name],
+                plan.arguments.query,
+                definition=definition_fields["query"],
+                settings=configured_fields["query"],
                 action_settings=settings,
                 definition_action=definition,
             )
+            if settings.max_page_size is None or plan.arguments.size > settings.max_page_size:
+                raise InvalidBusinessQueryPlan()
+        else:
+            for logical_name, value in plan.arguments.items():
+                self._validate_value(
+                    value,
+                    definition=definition_fields[logical_name],
+                    settings=configured_fields[logical_name],
+                    action_settings=settings,
+                    definition_action=definition,
+                )
         self._validate_combinations(
             plan=plan,
             definition=definition,
             settings=settings,
             configured_fields=frozenset(configured_fields),
+            present_fields=present_fields,
         )
         return ValidatedBusinessQueryPlan(
             plan=plan,
             config_snapshot_id=snapshot.snapshot_id,
         )
+
+    @classmethod
+    def _validate_list_arguments(
+        cls,
+        arguments: BusinessListQueryArguments,
+        *,
+        definition_fields: Mapping[str, BusinessQueryFieldDefinition],
+        configured_fields: Mapping[str, BusinessQueryFieldSettings],
+        settings: BusinessActionSettings,
+        definition: BusinessActionDefinition[Any, Any, Any, Any],
+    ) -> None:
+        if (
+            settings.max_page_size is None
+            or arguments.size > settings.max_page_size
+            or (arguments.page - 1) * arguments.size > 2147483647
+            or (settings.fixed_page is not None and arguments.page != settings.fixed_page)
+        ):
+            raise InvalidBusinessQueryPlan()
+        seen_operators: dict[str, set[BusinessQueryOperator]] = {}
+        bounds: dict[str, dict[BusinessQueryOperator, Decimal | datetime]] = {}
+        for item in arguments.filters:
+            field = definition_fields[item.field]
+            configured = configured_fields[item.field]
+            if item.operator not in field.allowed_operators or item.operator not in configured.allowed_operators:
+                raise InvalidBusinessQueryPlan()
+            previous = seen_operators.setdefault(item.field, set())
+            if (
+                item.operator in previous
+                or (BusinessQueryOperator.EQ in previous)
+                or (item.operator is BusinessQueryOperator.EQ and previous)
+                or (
+                    item.operator in {BusinessQueryOperator.CONTAINS, BusinessQueryOperator.PREFIX, BusinessQueryOperator.IN}
+                    and previous
+                )
+            ):
+                raise InvalidBusinessQueryPlan()
+            previous.add(item.operator)
+            if item.operator is BusinessQueryOperator.IN and isinstance(item.value, QueryPlanLiteral):
+                literal_values = item.value.value
+                if not isinstance(literal_values, tuple) or not 1 <= len(literal_values) <= 16:
+                    raise InvalidBusinessQueryPlan()
+                for literal in literal_values:
+                    cls._validate_value(
+                        QueryPlanLiteral(value=literal),
+                        definition=field,
+                        settings=configured,
+                        action_settings=settings,
+                        definition_action=definition,
+                    )
+            else:
+                cls._validate_value(
+                    item.value,
+                    definition=field,
+                    settings=configured,
+                    action_settings=settings,
+                    definition_action=definition,
+                )
+            if item.operator in {BusinessQueryOperator.GT, BusinessQueryOperator.LT}:
+                if not isinstance(item.value, QueryPlanLiteral) or not isinstance(item.value.value, str):
+                    raise InvalidBusinessQueryPlan()
+                bound: Decimal | datetime
+                if field.value_type is BusinessQueryValueType.DECIMAL:
+                    bound = Decimal(item.value.value)
+                elif field.value_type is BusinessQueryValueType.DATETIME:
+                    bound = datetime.fromisoformat(item.value.value)
+                else:
+                    raise InvalidBusinessQueryPlan()
+                bounds.setdefault(item.field, {})[item.operator] = bound
+        for values in bounds.values():
+            lower = values.get(BusinessQueryOperator.GT)
+            upper = values.get(BusinessQueryOperator.LT)
+            if lower is not None and upper is not None and lower >= upper:  # type: ignore[operator]
+                raise InvalidBusinessQueryPlan()
+        _validate_sort_list(
+            tuple({"field": item.field, "direction": item.direction} for item in arguments.sorts),
+            allowed_fields=settings.allowed_sort_field_ids,
+            allowed_directions=settings.allowed_sort_directions,
+            maximum_items=settings.max_sort_items,
+        )
+        if arguments.keyword is not None:
+            if definition.descriptor.capability_id != "employee.search":
+                raise InvalidBusinessQueryPlan()
+            keyword_definition = definition_fields.get("contact_address")
+            keyword_settings = configured_fields.get("contact_address")
+            if keyword_definition is None or keyword_settings is None:
+                raise InvalidBusinessQueryPlan()
+            cls._validate_value(
+                arguments.keyword,
+                definition=keyword_definition,
+                settings=keyword_settings,
+                action_settings=settings,
+                definition_action=definition,
+            )
 
     @staticmethod
     def _validate_value(
@@ -275,10 +550,15 @@ class DefaultBusinessQueryPlanValidator:
             definition.allowed_operators
         ):
             raise InvalidBusinessQueryPlan("business.plan_snapshot_mismatch")
-        if definition.input_exposure is BusinessInputExposure.PROTECTED_REF:
-            if not isinstance(value, QueryPlanValueRef):
+        if isinstance(value, QueryPlanValueRef):
+            if definition.input_exposure not in {
+                BusinessInputExposure.PROTECTED_REF,
+                BusinessInputExposure.LITERAL_OR_PROTECTED_REF,
+            }:
                 raise InvalidBusinessQueryPlan()
             return
+        if definition.input_exposure is BusinessInputExposure.PROTECTED_REF:
+            raise InvalidBusinessQueryPlan()
         if not isinstance(value, QueryPlanLiteral):
             raise InvalidBusinessQueryPlan()
         literal = value.value
@@ -291,6 +571,11 @@ class DefaultBusinessQueryPlanValidator:
             if definition.enum_values and literal not in definition.enum_values:
                 raise InvalidBusinessQueryPlan()
             if not _matches_text_policy(literal, definition.text_policy_id):
+                raise InvalidBusinessQueryPlan()
+            if (
+                definition.input_exposure is BusinessInputExposure.LITERAL_OR_PROTECTED_REF
+                and not _is_safe_city_fragment(literal)
+            ):
                 raise InvalidBusinessQueryPlan()
             return
         if definition.value_type is BusinessQueryValueType.DECIMAL:
@@ -320,6 +605,16 @@ class DefaultBusinessQueryPlanValidator:
                 or abs(decimal_value) > configured_abs
                 or scale > configured_scale
             ):
+                raise InvalidBusinessQueryPlan()
+            return
+        if definition.value_type is BusinessQueryValueType.DATETIME:
+            if not isinstance(literal, str) or _TIMESTAMP.fullmatch(literal) is None:
+                raise InvalidBusinessQueryPlan()
+            try:
+                parsed = datetime.fromisoformat(literal)
+            except ValueError as exc:
+                raise InvalidBusinessQueryPlan() from exc
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
                 raise InvalidBusinessQueryPlan()
             return
         if definition.value_type is BusinessQueryValueType.INTEGER:
@@ -352,12 +647,13 @@ class DefaultBusinessQueryPlanValidator:
         definition: BusinessActionDefinition[Any, Any, Any, Any],
         settings: BusinessActionSettings,
         configured_fields: frozenset[str],
+        present_fields: set[str],
     ) -> None:
         active_rules = set(settings.combination_rule_ids)
         rules = {item.rule_id: item for item in definition.combination_rules}
         if active_rules != set(rules):
             raise InvalidBusinessQueryPlan("business.plan_snapshot_mismatch")
-        present = set(plan.arguments)
+        present = present_fields
         for rule in rules.values():
             fields = set(rule.field_names) & set(configured_fields)
             count = len(present & fields)
@@ -385,28 +681,70 @@ class RequestProtectedValueBinder:
             raise InvalidProtectedValue()
         arguments: dict[str, JsonValue] = {}
         used_refs: set[str] = set()
-        for logical_name, value in plan.plan.arguments.items():
-            if isinstance(value, QueryPlanLiteral):
-                arguments[logical_name] = value.value
-                continue
-            if value.value_ref in used_refs or value.value_ref not in slots.values:
-                raise InvalidProtectedValue()
-            used_refs.add(value.value_ref)
-            raw = slots.values[value.value_ref]
-            try:
-                frozen = freeze_json_object(
-                    {"value": raw},
-                    max_bytes=65536,
-                    max_depth=8,
-                    max_collection_items=128,
+        planned = plan.plan.arguments
+        if isinstance(planned, BusinessListQueryArguments):
+            arguments["filters"] = tuple(
+                {
+                    "field": item.field,
+                    "operator": item.operator.value,
+                    "value": self._bind_value(item.value, slots=slots, used_refs=used_refs),
+                }
+                for item in planned.filters
+            )
+            arguments["page"] = planned.page
+            arguments["size"] = planned.size
+            arguments["sorts"] = tuple(
+                {"field": item.field, "direction": item.direction}
+                for item in planned.sorts
+            )
+            if planned.keyword is not None:
+                arguments["keyword"] = self._bind_value(
+                    planned.keyword,
+                    slots=slots,
+                    used_refs=used_refs,
                 )
-            except ContractViolation as exc:
-                raise InvalidProtectedValue() from exc
-            arguments[logical_name] = frozen["value"]
+        elif isinstance(planned, EmployeeSemanticQueryArguments):
+            arguments["query"] = self._bind_value(
+                planned.query,
+                slots=slots,
+                used_refs=used_refs,
+            )
+            arguments["size"] = planned.size
+        else:
+            for logical_name, value in planned.items():
+                arguments[logical_name] = self._bind_value(
+                    value,
+                    slots=slots,
+                    used_refs=used_refs,
+                )
         return ActionCandidate(
             capability_id=plan.plan.action,
             arguments=arguments,
         )
+
+    @staticmethod
+    def _bind_value(
+        value: QueryPlanArgumentValue,
+        *,
+        slots: ProtectedValueSlots,
+        used_refs: set[str],
+    ) -> JsonValue:
+        if isinstance(value, QueryPlanLiteral):
+            return value.value
+        if value.value_ref in used_refs or value.value_ref not in slots.values:
+            raise InvalidProtectedValue()
+        used_refs.add(value.value_ref)
+        raw = slots.values[value.value_ref]
+        try:
+            frozen = freeze_json_object(
+                {"value": raw},
+                max_bytes=65536,
+                max_depth=8,
+                max_collection_items=128,
+            )
+        except ContractViolation as exc:
+            raise InvalidProtectedValue() from exc
+        return frozen["value"]
 
 
 def _contains_float(value: JsonValue) -> bool:
@@ -448,6 +786,15 @@ def _matches_text_policy(value: str, policy: BusinessTextPolicyId | None) -> boo
             continue
         return False
     return True
+
+
+def _is_safe_city_fragment(value: str) -> bool:
+    return value in frozenset(
+        {
+            "上海", "北京", "广州", "深圳", "杭州", "南京", "苏州", "成都",
+            "重庆", "天津", "武汉", "西安", "厦门", "青岛", "宁波", "长沙",
+        }
+    )
 
 
 def _validate_sort_list(

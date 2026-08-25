@@ -43,6 +43,7 @@ class BusinessQueryValueType(StrEnum):
     TEXT = "text"
     IDENTIFIER = "identifier"
     DECIMAL = "decimal"
+    DATETIME = "datetime"
     INTEGER = "integer"
     SORT_LIST = "sort_list"
 
@@ -50,13 +51,17 @@ class BusinessQueryValueType(StrEnum):
 class BusinessQueryOperator(StrEnum):
     EQ = "eq"
     CONTAINS = "contains"
+    PREFIX = "prefix"
+    IN = "in"
     GT = "gt"
     LT = "lt"
 
 
 class BusinessInputExposure(StrEnum):
     MODEL_LITERAL = "model_literal"
+    LITERAL = "literal"
     PROTECTED_REF = "protected_ref"
+    LITERAL_OR_PROTECTED_REF = "literal_or_protected_ref"
 
 
 class BusinessTextPolicyId(StrEnum):
@@ -169,6 +174,7 @@ class BusinessQueryFieldDefinition:
     maximum_integer: int | None = None
     text_policy_id: BusinessTextPolicyId | None = None
     enum_values: frozenset[str] = frozenset()
+    service_field: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -186,6 +192,8 @@ class BusinessQueryFieldSettings:
     allowed_operators: tuple[BusinessQueryOperator, ...]
     required: bool
     max_text_chars: int | None = None
+    service_field: str | None = None
+    input_exposure: BusinessInputExposure | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

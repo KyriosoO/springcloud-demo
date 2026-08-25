@@ -46,8 +46,8 @@ Verified existing：旧 detail、有限 Transaction、Business protected slot、
 
 | 工作包 ID | 名称 | 来源设计 | 范围 | 直接依赖 | 入口门禁 | 交付物 | 验证 | 回滚边界 | 状态 |
 |---|---|---|---|---|---|---|---|---|---|
-| `WP-BQ-FILTER-CONTRACT-02` | 公共 filters QueryPlan 合同 | `L2_02_00 DR-BQCOM-101/103` | exact filters/operator/tagged value、validator/binder、组合规则 | - | - | 公共计划类型与 fake 测试 | `VAL-BQCOM-101` | 撤销新合同，不恢复旧 Business 旁路 | Ready |
-| `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、keyword 受控策略、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Blocked |
+| `WP-BQ-FILTER-CONTRACT-02` | 公共 filters QueryPlan 合同 | `L2_02_00 DR-BQCOM-101/103` | exact filters/operator/tagged value、validator/binder、组合规则 | - | - | 公共计划类型与 fake 测试 | `VAL-BQCOM-101` | 撤销新合同，不恢复旧 Business 旁路 | Done |
+| `WP-BQ-FIELD-CONFIG-02` | 统一字段级 JSON 配置 | `L2_02_00 DR-BQCOM-102/104` | 三动作 JSON、keyword 受控策略、subset、snapshot、分类与脱敏 | `WP-BQ-FILTER-CONTRACT-02` | - | 版本化配置与 strict loader | `VAL-BQCOM-101/102` | 关闭新配置，不扩大旧动作 | Ready |
 | `WP-BQ-MODEL-CATALOG-02` | filters 模型目录与 Prompt | `L2_00_02 DR-MODEL-101～105` | v3 task、安全目录、protected slots、unsupported | `WP-BQ-FIELD-CONFIG-02` | - | fake model task/catalog 测试 | `VAL-MODEL-101/102` | 移除 v3 装配，不复用旧 live 证据 | Blocked |
 | `WP-EMP-SEARCH-ADAPTER-02` | Employee 条件搜索 | `L2_02_01 DR-EMP-101/103/104` | filters→SearchRequest、分页、排序、bounded hits | `WP-BQ-FIELD-CONFIG-02` | - | search definition/codec/projection | `VAL-EMP-101/103` | 禁用新 action，保留历史资产 | Blocked |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | Employee 语义搜索 | `L2_02_01 DR-EMP-102/104` | queryText/k/profile、单接口语义列表 | `WP-BQ-FIELD-CONFIG-02` | - | semantic definition/codec 与 fake tests | `VAL-EMP-101/103` | 禁用新 action，不建立普通搜索 fallback | Blocked |
@@ -104,8 +104,8 @@ DAG 无环；Employee guard 调查与公共合同可并行，三个 Adapter/Mode
 
 | 顺序 | 工作包 | 判定 | 未关闭依赖/门禁 | 选择理由 |
 |---|---|---|---|---|
-| 1 | `WP-BQ-FILTER-CONTRACT-02` | Ready | - | 建立其他业务 action 共享的严格合同 |
-| 2 | `WP-BQ-FIELD-CONFIG-02` | Blocked | `WP-BQ-FILTER-CONTRACT-02` | 配置必须依赖已冻结 operator/type |
+| 1 | `WP-BQ-FILTER-CONTRACT-02` | Done | - | filters/operator/tagged value、组合校验与绑定已通过 45 项回归及 strict mypy |
+| 2 | `WP-BQ-FIELD-CONFIG-02` | Ready | `WP-BQ-FILTER-CONTRACT-02` | 配置依赖的 operator/type 已实施并验证 |
 | 3 | `WP-BQ-MODEL-CATALOG-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | catalog 必须取已校验配置 |
 | 4 | `WP-EMP-SEARCH-ADAPTER-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | ES 字段/action 需配置权威 |
 | 5 | `WP-EMP-SEMANTIC-ADAPTER-02` | Blocked | `WP-BQ-FIELD-CONFIG-02` | semantic profile 和字段分类需配置权威 |
@@ -142,8 +142,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 | 工作包 | 来源 REQ/CON/DR | IMPL | TEST | VAL | 交付状态 |
 |---|---|---|---|---|---|
-| `WP-BQ-FILTER-CONTRACT-02` | `DR-BQCOM-101/103` | `IMPL-BQCOM-101/106` | `TEST-BQCOM-101/102/104` | `VAL-BQCOM-101` | Ready |
-| `WP-BQ-FIELD-CONFIG-02` | `DR-BQCOM-102/104` | `IMPL-BQCOM-102/103/104/105/107/108` | `TEST-BQCOM-103/106` | `VAL-BQCOM-101/102` | Blocked |
+| `WP-BQ-FILTER-CONTRACT-02` | `DR-BQCOM-101/103` | `IMPL-BQCOM-101/106` | `TEST-BQCOM-101/102/104` | `VAL-BQCOM-101` | Done |
+| `WP-BQ-FIELD-CONFIG-02` | `DR-BQCOM-102/104` | `IMPL-BQCOM-102/103/104/105/107/108` | `TEST-BQCOM-103/106` | `VAL-BQCOM-101/102` | Ready |
 | `WP-BQ-MODEL-CATALOG-02` | `DR-MODEL-101～105` | `IMPL-MODEL-101～105` | `TEST-MODEL-101～105` | `VAL-MODEL-101/102` | Blocked |
 | `WP-EMP-SEARCH-ADAPTER-02` | `DR-EMP-101/103/104` | `IMPL-EMP-101～105/108` | `TEST-EMP-101/102/104/105` | `VAL-EMP-101/103` | Blocked |
 | `WP-EMP-SEMANTIC-ADAPTER-02` | `DR-EMP-102/104` | `IMPL-EMP-101～105` | `TEST-EMP-103/104` | `VAL-EMP-101/103` | Blocked |
@@ -178,7 +178,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 ## 14. 当前结论
 
-总计 12 个工作包、15 条直接依赖：Ready 1 个，Blocked 10 个，Done 1 个。`GATE-067` 基于已评审设计关闭；`GATE-068` 基于 Employee 两个 ES 查询入口读取守卫、既有调用方兼容性和 7 项 Java Controller/guard 测试关闭。`GATE-069/070` 与 `GATE-UAT-007` 保持 Open；真实验证继续遵循当前目标授权和后续前置条件，旧证据一律不能冒充新动作证据。
+总计 12 个工作包、15 条直接依赖：Ready 1 个，Blocked 9 个，Done 2 个。filters QueryPlan 公共合同已通过 45 项相关测试、strict mypy 与 compileall；统一字段配置已解除依赖并进入 Ready。`GATE-067/068` Closed，`GATE-069/070` 与 `GATE-UAT-007` 保持 Open；旧证据一律不能冒充新动作证据。
 
 ## 15. 后续实施建议
 
