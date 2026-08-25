@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import subprocess
 from dataclasses import replace
@@ -12,6 +13,10 @@ import pytest
 import tests.system_e2e.business_query_plan_live_runner as live_runner
 from agent_runtime.model.contracts import StructuredModelRequest, StructuredModelResponse
 from agent_runtime.model.contracts import StructuredFinishKind
+from agent_runtime.model.deepseek.business_query_plan import (
+    BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION,
+    BUSINESS_QUERY_PLAN_TASK_VERSION,
+)
 from tests.system_e2e.business_query_plan_live_contracts import (
     AUTHORIZATION_REFERENCE,
     EMPLOYEE_BASE_URL,
@@ -423,13 +428,23 @@ async def test_live_entry_fails_before_secret_or_outbound_when_not_explicitly_en
 @pytest.mark.asyncio
 async def test_live_preflight_rejects_snapshot_drift_before_reading_secrets(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     root = Path(__file__).resolve().parents[3]
-    manifest = (
+    historical_manifest = (
         root
         / "agent-runtime/tests/system_e2e/live/evidence"
         / f"{RUN_ID}.manifest.json"
     )
+    active_manifest = json.loads(historical_manifest.read_text(encoding="utf-8"))
+    active_manifest["queryPlanTask"]["version"] = BUSINESS_QUERY_PLAN_TASK_VERSION
+    active_manifest["queryPlanTask"]["systemInstructionSha256"] = hashlib.sha256(
+        BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION.encode("utf-8")
+    ).hexdigest()
+    for asset in active_manifest["assets"]:
+        asset["sha256"] = sha256_file(root / asset["path"])
+    manifest = tmp_path / "current-non-live-manifest.json"
+    manifest.write_text(json.dumps(active_manifest), encoding="utf-8")
     current_head = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=root,

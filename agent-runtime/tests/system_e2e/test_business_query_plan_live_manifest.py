@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -25,11 +27,18 @@ ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE = ROOT / "agent-runtime/tests/system_e2e/live/evidence"
 MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
 AUTHORIZATION_TEMPLATE = EVIDENCE / f"{RUN_ID}.authorization-template.json"
+FROZEN_SOURCE_COMMIT = "956a80f4993cae1c3ce88a7ffd9ad295e73fa098"
+HISTORICAL_TASK_VERSION = "business-query-plan-v2"
+HISTORICAL_PROMPT_SHA256 = "a9c312fc0ab0ab6924da63fa0a5a3b79829b4a967502d3e74e3b18a564a8b2fc"
 
 
 def test_candidate_manifest_authorization_and_assets_are_strict_in_prepared_or_passed_state() -> None:
     manifest_sha256 = sha256_file(MANIFEST)
-    manifest = validate_manifest(json.loads(MANIFEST.read_text(encoding="utf-8")))
+    manifest = validate_manifest(
+        json.loads(MANIFEST.read_text(encoding="utf-8")),
+        expected_task_version=HISTORICAL_TASK_VERSION,
+        expected_system_instruction_sha256=HISTORICAL_PROMPT_SHA256,
+    )
     expected_snapshot = business_query_plan_snapshot_id(
         employee_endpoint=EMPLOYEE_BASE_URL,
         transaction_endpoint=TRANSACTION_BASE_URL,
@@ -56,7 +65,13 @@ def test_candidate_manifest_authorization_and_assets_are_strict_in_prepared_or_p
     for asset in assets:
         path = (ROOT / asset["path"]).resolve()
         assert path.is_relative_to(ROOT)
-        assert sha256_file(path) == asset["sha256"]
+        frozen = subprocess.run(
+            ["git", "show", f"{FROZEN_SOURCE_COMMIT}:{asset['path']}"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        assert hashlib.sha256(frozen).hexdigest() == asset["sha256"]
 
     authorization = json.loads(AUTHORIZATION_TEMPLATE.read_text(encoding="utf-8"))
     validate_authorization_template(
@@ -100,7 +115,11 @@ def test_candidate_manifest_rejects_catalog_configuration_snapshot_drift() -> No
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     manifest["snapshots"]["catalogSha256"] = "0" * 64
     with pytest.raises(ValueError, match="business_query_plan_live.manifest_snapshot_invalid"):
-        validate_manifest(manifest)
+        validate_manifest(
+            manifest,
+            expected_task_version=HISTORICAL_TASK_VERSION,
+            expected_system_instruction_sha256=HISTORICAL_PROMPT_SHA256,
+        )
 
 
 def test_candidate_assets_contain_no_secret_or_runtime_value_fields() -> None:

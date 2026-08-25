@@ -9,15 +9,13 @@ from agent_runtime.bootstrap import (
     BusinessQueryRuntimeCompositionRoot,
     LocalModelCompositionRoot,
 )
+from agent_runtime.adapters.http_transport import HttpxBusinessDomainTransport
 from agent_runtime.business.contracts import (
     BusinessHttpRequest,
     BusinessTransportFailure,
     BusinessTransportFailureKind,
 )
-from agent_runtime.business.http_client import (
-    FakeDomainHttpRequest,
-    HttpxBusinessDomainTransport,
-)
+from agent_runtime.business.http_client import FakeDomainHttpRequest
 from agent_runtime.business.wire_json import BusinessWireJsonEncoder
 from agent_runtime.capability_api.contracts import CapabilityStatus
 from agent_runtime.main import build_runtime

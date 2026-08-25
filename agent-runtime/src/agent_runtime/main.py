@@ -12,7 +12,7 @@ from agent_runtime.bootstrap import (
     LocalModelCompositionRoot,
     RuntimeCompositionRoot,
 )
-from agent_runtime.business.http_client import HttpxBusinessDomainTransport
+from agent_runtime.adapters.http_transport import HttpxBusinessDomainTransport
 from agent_runtime.business.settings import BusinessGlobalSettings
 from agent_runtime.graph.action_resolution import (
     CapabilitySelectionDecision,

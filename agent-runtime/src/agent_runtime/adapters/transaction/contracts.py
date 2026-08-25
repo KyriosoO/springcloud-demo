@@ -62,7 +62,7 @@ class TransactionSearchWireResponse:
 class TransactionListFilter:
     field: str
     operator: str
-    value: str | Decimal | datetime
+    value: str | Decimal
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

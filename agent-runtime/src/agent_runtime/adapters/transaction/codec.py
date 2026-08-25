@@ -311,20 +311,25 @@ class TransactionListSearchArgumentValidator:
                 raise InvalidCapabilityArguments("business.invalid_arguments")
             selected.add(operator)
 
-            value: str | Decimal | datetime
+            value: str | Decimal
             if field in {"trans_id", "trans_type"}:
                 value = _strict_text(raw["value"], contains=operator == "contains")
             elif field == "trans_date":
-                value = _strict_datetime(raw["value"])
+                _strict_datetime(raw["value"])
+                value = cast(str, raw["value"])
             else:
                 decimal = _amount(raw["value"])
                 if decimal is None or decimal.is_zero() and str(raw["value"]).startswith("-"):
                     raise InvalidCapabilityArguments("business.invalid_arguments")
                 value = decimal
             if operator in {"gt", "lt"}:
-                if not isinstance(value, (datetime, Decimal)):
+                if field == "trans_date" and isinstance(value, str):
+                    bound_value: datetime | Decimal = _strict_datetime(value)
+                elif isinstance(value, Decimal):
+                    bound_value = value
+                else:
                     raise InvalidCapabilityArguments("business.invalid_arguments")
-                bounds.setdefault(field, {})[operator] = value
+                bounds.setdefault(field, {})[operator] = bound_value
             filters.append(TransactionListFilter(field=field, operator=operator, value=value))
 
         for values in bounds.values():
@@ -399,7 +404,13 @@ class TransactionListSearchRequestMapper:
                 raise InvalidBusinessArguments("business.invalid_arguments")
             if isinstance(item.value, Decimal):
                 self._validate_configured_amount(item.value, settings)
-            values[target] = item.value
+            if item.field == "trans_date":
+                try:
+                    values[target] = _strict_datetime(item.value)
+                except InvalidCapabilityArguments as exc:
+                    raise InvalidBusinessArguments("business.invalid_arguments") from exc
+            else:
+                values[target] = item.value
 
         lower = values.get("trans_date_gt")
         upper = values.get("trans_date_lt")

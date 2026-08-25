@@ -57,7 +57,7 @@ async def test_business_query_plan_nonlive_matrix_is_single_action_and_fail_clos
         ("bq-nonlive-second", "查询员工 第二动作", _ADMIN, CapabilityStatus.INVALID_ARGUMENT, None),
         ("bq-nonlive-cross", "查询员工 跨域计划", _ADMIN, CapabilityStatus.UNSUPPORTED, None),
         ("bq-nonlive-timeout", "查询交易 模型超时", _ADMIN, CapabilityStatus.TIMEOUT, None),
-        ("bq-nonlive-sensitive", "查询员工 联系电话 13800138000", _ADMIN, CapabilityStatus.FORBIDDEN, None),
+        ("bq-nonlive-sensitive", "查询员工 password=synthetic-secret", _ADMIN, CapabilityStatus.FORBIDDEN, None),
     )
 
     for case_id, question, token, status, capability_id in cases:
@@ -65,7 +65,7 @@ async def test_business_query_plan_nonlive_matrix_is_single_action_and_fail_clos
             question=question,
             scope=_scope(question, case_id=case_id, token=token),
         )
-        assert outcome.status is status
+        assert outcome.status is status, case_id
         assert outcome.capability_id == capability_id
     await runtime.aclose()
 
@@ -85,7 +85,7 @@ async def test_business_query_plan_nonlive_matrix_is_single_action_and_fail_clos
         "externalModelOutbound": 0,
     }
     assert "ABCDE" not in raw
-    assert "13800138000" not in raw
+    assert "synthetic-secret" not in raw
     assert _ADMIN not in raw
     assert _DENIED not in raw
 

@@ -75,6 +75,7 @@ def test_transaction_list_maps_independent_operators_date_decimal_and_second_pag
     selected = TransactionListSearchArgumentValidator().validate(_arguments())
     request = TransactionListSearchRequestMapper().map(selected, _settings())
 
+    assert selected.filters[3].value == "2026-08-25T09:00:00+08:00"
     assert request.page == 2
     assert request.size == 20
     assert request.condition.trans_type_contains == "PAY"
