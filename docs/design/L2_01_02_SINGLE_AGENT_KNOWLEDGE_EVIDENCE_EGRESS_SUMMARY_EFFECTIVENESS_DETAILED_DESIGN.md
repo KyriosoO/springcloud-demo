@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 日期 | 2026-08-26 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV2/V3、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.2](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy/Summary v2、生产接线和功能 UAT 已验证；candidate-04 诊断支持 Summary v3，代码实施与 candidate-05 非 live 准备待完成 |
+| 实施状态 | Evidence/Policy、生产接线、功能 UAT、candidate-04 只读诊断和生产 Summary v3 已验证；candidate-05 已非 live 冻结，`GATE-072` 仍 Open，真实效果 UAT 未执行 |
 
 ## 2. 阅读导航与变更记录
 
@@ -25,6 +25,7 @@
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 将 Gateway 非超时异常收敛为有限 summary failure，并补充对应反证测试 |
 | v1.2 | 2026-08-26 | 功能/效果验收分离与优化准备 | 固化 candidate-04 诊断维度、最小优化条件、新候选冻结和真实 outbound 授权边界 |
 | v1.3 | 2026-08-26 | candidate-04 只读诊断落地 | 固化诊断指标与根因，新增 Summary v3 覆盖指令；不改 validator、检索参数、数据集或历史资产 |
+| v1.4 | 2026-08-26 | 优化与候选收口 | 如实同步 Summary v3 已实施、candidate-05 已冻结及正式效果调用仍受 `GATE-072` 阻断 |
 
 ## 3. 目标与范围
 

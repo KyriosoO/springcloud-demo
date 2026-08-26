@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.1 |
+| 当前版本 | v1.2 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-26 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.4、`L1_01` v1.2、`L2_01_00` v1.3、`L2_01_01` v1.2、`L2_01_02` v1.3、`P3_00` v2.18 |
+| 上位依据 | `L1_00` v2.5、`L1_01` v1.3、`L2_01_00` v1.4、`L2_01_01` v1.3、`L2_01_02` v1.4、`P3_00` v2.19 |
 | 历史边界 | candidate-04 及其 manifest/authorization/journal/result/evidence/hash 保持不可变，正式结论仍为 `ineffective` |
 
 本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。
@@ -162,6 +162,8 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 
 新候选必须在功能 UAT Passed、根因明确、新版本 non-live 回归通过后冻结。准备资产至少包含新 run ID、manifest 与 SHA-256、authorization reference、case/variant 数、精确最大模型调用数、任务/Prompt/代码/Profile/index/策略快照、首个 outbound 消费规则、retry/resume=0、append-only Schema 和失败关闭测试。
 
+candidate-05 已完成非 live 冻结：run ID=`knowledge-p5-live-v2-20260826-candidate-05`，manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c`，authorization reference=`P3_00:GATE-072`，26 case × 2 variant，最大付费请求数 78。当前只有 `liveP5Authorized=false` 的授权模板，不存在正式 authorization 记录；因此 Effectiveness 保持 `Not run`，不得读取模型密钥或产生 outbound。
+
 本计划不授权真实效果 UAT。未绑定新 run ID、manifest SHA-256、预算和 authorization reference 前，不得读取 `LLM_API_KEY` 或产生 outbound。
 
 ## 8. 门禁与状态
@@ -191,3 +193,4 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 | 独立评审 | 无 S0/S1/未处理 S2；可作为 Knowledge 验收依据 | Passed |
 | v1.1 三轮内审 | 37 case 追踪、诊断到优化映射、历史边界与 GATE-072 无环 | Passed |
 | v1.1 独立评审 | 无 S0/S1/未处理 S2；功能已通过，效果仍为 `ineffective` | Passed |
+| v1.2 状态与代码评审同步 | 37/37 功能追踪、candidate-04 `ineffective`、candidate-05 非 live 冻结及 `GATE-072` Open 一致；正式代码评审无 Blocker/Major | Passed |

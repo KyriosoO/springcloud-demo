@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 日期 | 2026-08-26 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.2](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性与 Spring non-live E2E 已实现；candidate-04 诊断支持域目录 v2 与 summary v3，目标版本待实施 |
+| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary v3 均已实现并通过回归；candidate-05 已完成非 live 冻结，真实效果 UAT 未执行 |
 
 ## 2. 阅读导航与变更记录
 
@@ -25,6 +25,7 @@
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 明确阶段 operation 的创建时点，并校正错误码、内部类型约束和测试落点 |
 | v1.2 | 2026-08-26 | 生产接线与功能 UAT | 固化默认关闭、同 Registry 单注册、任务/Provider/资源生命周期和功能验收边界 |
 | v1.3 | 2026-08-26 | Q1/Q3/Q4 效果诊断 | 将域目录升级为 v2，并把生产目标任务改为 rewrite v1 + summary v3；历史 v1/v2 继续不可变 |
+| v1.4 | 2026-08-26 | 实施与评审收口 | 如实同步域目录 v2、rewrite v1 + summary v3、candidate-05 冻结和正式代码评审已完成 |
 
 ## 3. 目标与范围
 
@@ -96,7 +97,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、税务两域目录、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。当前运行组合仍绑定 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV2`；本版目标在完成代码实施后切换为 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV3`。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。当前生产组合已经唯一绑定 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV3`；历史 Summary v1/v2 只保留兼容和历史证据责任。
 
 旧 summary v1/v2 保留给历史资产；新生产组合根完成切换后只能注册 v3，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 

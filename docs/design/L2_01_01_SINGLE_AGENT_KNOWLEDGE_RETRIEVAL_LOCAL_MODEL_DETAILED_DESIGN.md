@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 日期 | 2026-08-26 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、ES 候选、本地 BGE-M3、RRF 和 rerank |
-| 上位文档 | [`L1_01` v1.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
-| 实施状态 | Python retrieval 与 Java typed Provider 已实现且有冻结只读证据；当前启动入口尚未创建和托管三个 Knowledge HTTP client |
+| 实施状态 | Python retrieval、Java typed Provider 及启动入口三个固定 Knowledge HTTP client 的创建、所有权和关闭均已实现并通过 non-live 回归 |
 
 ## 2. 阅读导航与变更记录
 
@@ -24,6 +24,7 @@
 | v1.0 | 2026-08-21 | 建立检索基础设施稳定基线 | 删除真实联调流水，突出 Agent/ES 边界、授权前置、统一候选、快照和本地模型契约 |
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 补强并发失败清理、同 Profile 快照一致性，并校正 path 失败分类、rerank 上限和 batch 字段说明 |
 | v1.2 | 2026-08-26 | 生产接线与生命周期 | 明确三固定 origin client 的创建、所有权、失败清理、关闭及 non-live 调用计数 |
+| v1.3 | 2026-08-26 | 实施状态收口 | 如实同步 typed Provider、读取授权、RRF/rerank 与三个 owned client 已通过 Python/Java 验证 |
 
 ## 3. 目标与范围
 
