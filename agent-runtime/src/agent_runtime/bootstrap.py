@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Awaitable, Callable, Mapping, Sequence, cast
+from typing import Any, Awaitable, Callable, Mapping, Protocol, Sequence, cast
 
 from langgraph.graph import END, START, StateGraph
 
@@ -352,21 +352,29 @@ class _BusinessRegistrationProvider:
         return self._registrations
 
 
+class _AsyncCloseable(Protocol):
+    async def aclose(self) -> None: ...
+
+
 class _BusinessRuntimeLifecycle:
-    __slots__ = ("_clients", "_model")
+    __slots__ = ("_model", "_resources")
 
     def __init__(
         self,
         *,
         clients: tuple[UserJwtBusinessHttpClient, ...],
+        additional_resources: Sequence[_AsyncCloseable],
         model: LocalModelComponents,
     ) -> None:
-        self._clients = clients
+        resources: tuple[_AsyncCloseable, ...] = (*clients, *additional_resources)
+        if len({id(resource) for resource in resources}) != len(resources):
+            raise ValueError("runtime.duplicate_owned_resource")
+        self._resources = resources
         self._model = model
 
     async def aclose(self) -> None:
         failure: BaseException | None = None
-        for resource in self._clients:
+        for resource in self._resources:
             try:
                 await resource.aclose()
             except BaseException as exc:
@@ -394,6 +402,7 @@ class BusinessQueryRuntimeCompositionRoot:
         transaction_endpoint: str,
         global_settings: BusinessGlobalSettings | None = None,
         additional_providers: Sequence[CapabilityRegistrationProvider] = (),
+        additional_resources: Sequence[_AsyncCloseable] = (),
         local_action_resolvers: Sequence[LocalActionResolver] = (),
     ) -> ModelContextBindingRuntimeInvoker:
         core_settings = CoreRuntimeSettings()
@@ -482,7 +491,11 @@ class BusinessQueryRuntimeCompositionRoot:
                 guard=QuestionEgressGuard(),
             ),
         )
-        lifecycle = _BusinessRuntimeLifecycle(clients=tuple(clients.values()), model=model)
+        lifecycle = _BusinessRuntimeLifecycle(
+            clients=tuple(clients.values()),
+            additional_resources=additional_resources,
+            model=model,
+        )
         return ModelContextBindingRuntimeInvoker(runtime, close=lifecycle.aclose)
 
 
@@ -515,6 +528,7 @@ class KnowledgeCompositionRoot:
         model: LocalModelComponents,
         tasks: KnowledgeTaskDefinitions | None,
         retrieval: object | None,
+        policy_catalog: object | None = None,
     ) -> CapabilityRegistrationProvider:
         from typing import cast
 
@@ -537,7 +551,13 @@ class KnowledgeCompositionRoot:
             return KnowledgeCapabilityProvider(enabled=False, handler=None)
         if tasks is None or retrieval is None:
             raise ValueError("knowledge.dependencies_required")
-        policy_catalog = KnowledgeEgressPolicyCatalog.load_v1_resource()
+        typed_policy_catalog = (
+            KnowledgeEgressPolicyCatalog.load_v1_resource()
+            if policy_catalog is None
+            else policy_catalog
+        )
+        if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
+            raise ValueError("knowledge.policy_catalog_invalid")
         rewrite_definition = cast(ModelTaskDefinition[KnowledgeRewriteInput, KnowledgeRewriteOutput], tasks.rewrite)
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
         rewriter = KnowledgeQuestionRewriter(
@@ -551,7 +571,7 @@ class KnowledgeCompositionRoot:
             allow_original_fallback=typed_settings.allow_original_fallback,
         )
         evidence = DefaultKnowledgeEvidenceStage(
-            catalog=policy_catalog,
+            catalog=typed_policy_catalog,
             guard=QuestionEgressGuard(max_question_chars=4096),
             context=model.context_accessor,
             gateway=model.gateway,
