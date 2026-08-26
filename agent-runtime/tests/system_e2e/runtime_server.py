@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 import uvicorn
 
-from agent_runtime.adapters.employee.provider import EmployeeDomainProvider
+from agent_runtime.adapters.employee.definition import employee_detail_definition
 from agent_runtime.adapters.employee.protected_input import EmployeeProtectedValueExtractor
 from agent_runtime.adapters.employee.settings import EmployeeAdapterSettings
 from agent_runtime.adapters.transaction.provider import TransactionDomainProvider
@@ -405,23 +405,23 @@ def build_system_e2e_runtime(env: Mapping[str, str] | None = None) -> SystemE2ER
         service_key=BusinessServiceKey("mq-procedure-service"),
         base_endpoint=_required(active, "SYSTEM_E2E_TRANSACTION_BASE_URL"),
     )
-    employee_domain = EmployeeDomainProvider(
-        settings=EmployeeAdapterSettings.from_env({"AGENT_EMPLOYEE_DETAIL_ENABLED": "true"}),
-        service_binding=employee_binding,
-    )
+    employee_definition = employee_detail_definition()
+    employee_settings = EmployeeAdapterSettings.from_env(
+        {"AGENT_EMPLOYEE_DETAIL_ENABLED": "true"}
+    ).action
     transaction_domain = TransactionDomainProvider(
         settings=TransactionAdapterSettings.from_env({"AGENT_TRANSACTION_SEARCH_ENABLED": "true"}),
         service_binding=transaction_binding,
     )
-    definitions = (*employee_domain.definitions(), *transaction_domain.definitions())
-    fragments = (employee_domain.configuration_fragment(), transaction_domain.configuration_fragment())
+    definitions = (employee_definition, *transaction_domain.definitions())
+    transaction_fragment = transaction_domain.configuration_fragment()
     global_settings = BusinessGlobalSettings()
     support = BusinessSupportFactory().build(
         definitions=definitions,
         config=BusinessConfigurationSource(
             global_settings=global_settings,
-            actions=tuple(item for fragment in fragments for item in fragment.actions),
-            service_bindings=tuple(item for fragment in fragments for item in fragment.service_bindings),
+            actions=(("employee.detail", employee_settings), *transaction_fragment.actions),
+            service_bindings=(employee_binding, *transaction_fragment.service_bindings),
         ),
         core_max_domain_result_bytes=core_settings.max_domain_result_bytes,
     )

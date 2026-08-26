@@ -137,8 +137,15 @@ def test_launcher_has_valid_ast_and_pre_model_fail_closed_checks() -> None:
 
 def test_model_field_matrix_remains_position_and_work_base_only() -> None:
     matrix = json.loads(
-        (REPOSITORY / "agent-runtime/tests/fixtures/employee_egress_field_matrix.json").read_text(
-            encoding="utf-8"
-        )
+        subprocess.run(
+            [
+                "git",
+                "show",
+                f"{FROZEN_SOURCE_COMMIT}:agent-runtime/tests/fixtures/employee_egress_field_matrix.json",
+            ],
+            cwd=REPOSITORY,
+            check=True,
+            capture_output=True,
+        ).stdout.decode("utf-8")
     )
     assert matrix["maximumModelFields"] == ["position", "work_base_si"]

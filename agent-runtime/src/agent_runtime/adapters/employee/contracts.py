@@ -20,7 +20,6 @@ class EmployeeDetailWireResponse:
     chinese_name: str
     public_email: str | None
     position: str | None
-    work_base_si: str | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -30,7 +29,6 @@ class EmployeeDetailRecord:
     chinese_name: str
     public_email: str | None
     position: str | None
-    work_base_si: str | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

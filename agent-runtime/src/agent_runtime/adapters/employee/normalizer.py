@@ -24,7 +24,6 @@ class EmployeeDetailResponseNormalizer:
             chinese_name=response.chinese_name,
             public_email=response.public_email,
             position=response.position,
-            work_base_si=response.work_base_si,
         )
         return BusinessRecordsResult(
             records=(record,),

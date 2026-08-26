@@ -7,12 +7,12 @@ from agent_runtime.adapters.employee.settings import EmployeeAdapterSettings
 from agent_runtime.business.contracts import BusinessQueryOperator
 
 
-def test_employee_fields_limit_model_candidates_to_position_and_work_base() -> None:
+def test_employee_fields_limit_model_candidates_to_position() -> None:
     fields = employee_field_definitions()
     assert tuple(item.field_id for item in fields) == (
-        "employee_id_masked", "member_no_masked", "chinese_name", "public_email", "position", "work_base_si"
+        "employee_id_masked", "member_no_masked", "chinese_name", "public_email", "position"
     )
-    assert {item.field_id for item in fields if item.model_candidate_by_code} == {"position", "work_base_si"}
+    assert {item.field_id for item in fields if item.model_candidate_by_code} == {"position"}
 
 
 def test_employee_settings_default_disabled_and_cannot_remove_required_fields() -> None:

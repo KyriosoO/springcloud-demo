@@ -46,7 +46,6 @@ def _user_result() -> BusinessUserResult:
                     BusinessUserField(field_id="chinese_name", value="合成员工"),
                     BusinessUserField(field_id="public_email", value="synthetic@example.invalid"),
                     BusinessUserField(field_id="position", value="工程师"),
-                    BusinessUserField(field_id="work_base_si", value="上海"),
                 ),
             ),
         ),
@@ -73,7 +72,7 @@ def test_employee_egress_field_matrix_matches_code_bound_definition_and_defaults
     assert matrix["schemaVersion"] == 1
     assert matrix["capabilityId"] == "employee.detail"
     assert matrix["defaultModelFields"] == []
-    assert matrix["maximumModelFields"] == ["position", "work_base_si"]
+    assert matrix["maximumModelFields"] == ["position"]
     assert matrix["zeroCallScenarios"] == [
         "default_empty",
         "identifier_only",
@@ -127,9 +126,9 @@ def test_employee_forbidden_or_unknown_model_field_fails_configuration_closed(fi
         EmployeeAdapterSettings.from_env({"AGENT_EMPLOYEE_DETAIL_MODEL_FIELDS": field_id})
 
 
-def test_employee_egress_projects_only_position_and_work_base_facts() -> None:
+def test_employee_egress_projects_only_position_fact() -> None:
     settings = EmployeeAdapterSettings.from_env(
-        {"AGENT_EMPLOYEE_DETAIL_MODEL_FIELDS": "position,work_base_si"}
+        {"AGENT_EMPLOYEE_DETAIL_MODEL_FIELDS": "position"}
     ).action
 
     result = BusinessEgressProjector().project(
@@ -145,9 +144,8 @@ def test_employee_egress_projects_only_position_and_work_base_facts() -> None:
     facts = tuple(_json_object(item) for item in _json_array(result.safe_payload["facts"]))
     assert tuple(_json_object(item["source"])["field_id"] for item in facts) == (
         "position",
-        "work_base_si",
     )
-    assert tuple(item["value"] for item in facts) == ("工程师", "上海")
+    assert tuple(item["value"] for item in facts) == ("工程师",)
     payload_text = json.dumps(result.safe_payload, ensure_ascii=False, default=list)
     for denied_value in ("***A001", "***M001", "合成员工", "synthetic@example.invalid"):
         assert denied_value not in payload_text

@@ -35,7 +35,7 @@ from agent_runtime.model.contracts import QuestionDataClass
 from agent_runtime.model.question_policy import DENY_CLASSES, classify_question
 
 _BIDI = {"RLO", "LRO", "RLE", "LRE", "PDF", "RLI", "LRI", "FSI", "PDI"}
-_TARGETS = {"idCardNo", "memberNo", "chineseName", "publicEmail", "position", "workBaseSi"}
+_TARGETS = {"idCardNo", "memberNo", "chineseName", "publicEmail", "position"}
 
 
 def _normalize(value: object, *, minimum: int, maximum: int, optional: bool = False) -> str | None:
@@ -116,7 +116,6 @@ class EmployeeDetailWireCodec:
             chinese_name=_required(_normalize(raw["chineseName"], minimum=1, maximum=128)),
             public_email=_normalize(raw["publicEmail"], minimum=1, maximum=254, optional=True),
             position=_normalize(raw["position"], minimum=1, maximum=256, optional=True),
-            work_base_si=_normalize(raw["workBaseSi"], minimum=1, maximum=256, optional=True),
         )
 
 

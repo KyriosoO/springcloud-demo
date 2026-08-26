@@ -25,6 +25,7 @@ EVIDENCE = Path(__file__).parent / "evidence"
 MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
 AUTHORIZATION = EVIDENCE / f"{RUN_ID}.authorization.json"
 MANIFEST_SHA256 = "901ac019188e1eb15793aa93dd2add0444962f706539742ad6f5b087664ad16e"
+FROZEN_SOURCE_COMMIT = "23ed432cef2c5d5509139e6d8921372ba6cb4501"
 
 
 def test_manifest_authorization_assets_and_history_are_frozen() -> None:
@@ -110,8 +111,15 @@ def test_launcher_has_valid_ast_and_pre_model_fail_closed_checks() -> None:
 
 def test_model_field_matrix_remains_position_and_work_base_only() -> None:
     matrix = json.loads(
-        (REPOSITORY / "agent-runtime/tests/fixtures/employee_egress_field_matrix.json").read_text(
-            encoding="utf-8"
-        )
+        subprocess.run(
+            [
+                "git",
+                "show",
+                f"{FROZEN_SOURCE_COMMIT}:agent-runtime/tests/fixtures/employee_egress_field_matrix.json",
+            ],
+            cwd=REPOSITORY,
+            check=True,
+            capture_output=True,
+        ).stdout.decode("utf-8")
     )
     assert matrix["maximumModelFields"] == ["position", "work_base_si"]

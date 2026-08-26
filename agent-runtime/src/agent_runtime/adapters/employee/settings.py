@@ -13,15 +13,14 @@ from agent_runtime.business.contracts import (
 )
 
 _PREFIX = "AGENT_EMPLOYEE_DETAIL_"
-_FIELDS = ("employee_id_masked", "member_no_masked", "chinese_name", "public_email", "position", "work_base_si")
-_MODEL_FIELDS = frozenset({"position", "work_base_si"})
+_FIELDS = ("employee_id_masked", "member_no_masked", "chinese_name", "public_email", "position")
+_MODEL_FIELDS = frozenset({"position"})
 _DEFAULT_USER_TRANSFORMS = {
     "employee_id_masked": BusinessFieldTransform.MASK_KEEP_LAST4,
     "member_no_masked": BusinessFieldTransform.MASK_KEEP_LAST4,
     "chinese_name": BusinessFieldTransform.BOUNDED_TEXT,
     "public_email": BusinessFieldTransform.BOUNDED_TEXT,
     "position": BusinessFieldTransform.BOUNDED_TEXT,
-    "work_base_si": BusinessFieldTransform.BOUNDED_TEXT,
 }
 _KNOWN = frozenset({
     _PREFIX + "ENABLED", _PREFIX + "TIMEOUT_MS", _PREFIX + "MAX_RESULT_COUNT",
