@@ -9,9 +9,7 @@ from typing import cast
 import pytest
 
 from tests.system_e2e.business_query_plan_live_contracts import (
-    EMPLOYEE_BASE_URL,
     RUN_ID,
-    TRANSACTION_BASE_URL,
     sha256_file,
     validate_attempt_journal,
     validate_authorization_template,
@@ -20,9 +18,6 @@ from tests.system_e2e.business_query_plan_live_contracts import (
     validate_manifest,
     validate_result,
 )
-from tests.system_e2e.business_query_plan_runtime_support import business_query_plan_snapshot_id
-
-
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE = ROOT / "agent-runtime/tests/system_e2e/live/evidence"
 MANIFEST = EVIDENCE / f"{RUN_ID}.manifest.json"
@@ -30,6 +25,7 @@ AUTHORIZATION_TEMPLATE = EVIDENCE / f"{RUN_ID}.authorization-template.json"
 FROZEN_SOURCE_COMMIT = "956a80f4993cae1c3ce88a7ffd9ad295e73fa098"
 HISTORICAL_TASK_VERSION = "business-query-plan-v2"
 HISTORICAL_PROMPT_SHA256 = "a9c312fc0ab0ab6924da63fa0a5a3b79829b4a967502d3e74e3b18a564a8b2fc"
+HISTORICAL_SNAPSHOT_SHA256 = "79b7045d68be4e2934707d63fd25cd6c60c729a36460f87fd3ccdd67b41a539b"
 
 
 def test_candidate_manifest_authorization_and_assets_are_strict_in_prepared_or_passed_state() -> None:
@@ -39,13 +35,9 @@ def test_candidate_manifest_authorization_and_assets_are_strict_in_prepared_or_p
         expected_task_version=HISTORICAL_TASK_VERSION,
         expected_system_instruction_sha256=HISTORICAL_PROMPT_SHA256,
     )
-    expected_snapshot = business_query_plan_snapshot_id(
-        employee_endpoint=EMPLOYEE_BASE_URL,
-        transaction_endpoint=TRANSACTION_BASE_URL,
-    )
     assert manifest["snapshots"] == {
-        "catalogSha256": expected_snapshot,
-        "configSha256": expected_snapshot,
+        "catalogSha256": HISTORICAL_SNAPSHOT_SHA256,
+        "configSha256": HISTORICAL_SNAPSHOT_SHA256,
     }
     assets = cast(list[dict[str, str]], manifest["assets"])
     historical_run = "business-query-plan-live-v1-20260824-candidate-01"

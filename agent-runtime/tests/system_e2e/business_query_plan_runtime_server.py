@@ -25,7 +25,9 @@ from agent_runtime.graph.action_resolution import (
 )
 from agent_runtime.graph.state import AgentSemanticOutcome, AnswerGenerationInput
 from agent_runtime.model.contracts import (
+    ModelProviderFailureKind,
     ModelTaskId,
+    ModelTransportError,
     StructuredFinishKind,
     StructuredModelRequest,
     StructuredModelResponse,
@@ -37,9 +39,6 @@ from tests.system_e2e.business_query_plan_runtime_support import build_business_
 
 
 _SAFE_CASE_ID = re.compile(r"bq-nonlive-[a-z0-9-]{1,40}")
-_AMOUNT = re.compile(r"金额\s*(?:为|是|=|:|：|大于|>)\s*(-?[0-9]+(?:\.[0-9]+)?)")
-
-
 class _ForbiddenFallbackSelector:
     def __init__(self) -> None:
         self.calls = 0
@@ -83,25 +82,40 @@ class _FakeBusinessQueryPlanTransport:
         question = payload["question"]
         if "模型超时" in question:
             raise TimeoutError("business_query_plan_e2e.synthetic_timeout")
+        if "模型失败" in question:
+            raise ModelTransportError(ModelProviderFailureKind.PROVIDER_FAILURE)
         if "第二动作" in question:
-            content = '{"domain":"employee","action":"employee.detail","arguments":{},"second_action":"transaction.search"}'
+            content = '{"domain":"employee","action":"employee.search","arguments":{"filters":[],"page":1,"size":20,"sorts":[]},"second_action":"transaction.search"}'
         elif "跨域计划" in question:
-            content = '{"domain":"employee","action":"transaction.search","arguments":{"amount":{"literal":"1.00"}}}'
+            content = '{"domain":"employee","action":"transaction.search","arguments":{"filters":[{"field":"trans_type","operator":"contains","value":{"literal":"PAY"}}],"page":1,"size":20,"sorts":[]}}'
+        elif "模型格式错误" in question:
+            content = "not-json"
         elif "员工" in question or "employee" in question.casefold():
-            if "工作地" in question or "列表" in question:
+            if "未配置" in question:
+                content = '{"domain":"employee","action":"employee.search","arguments":{"filters":[{"field":"work_base_si","operator":"contains","value":{"literal":"上海"}}],"page":1,"size":20,"sorts":[]}}'
+            elif "非法操作符" in question:
+                content = '{"domain":"employee","action":"employee.search","arguments":{"filters":[{"field":"contact_address","operator":"gt","value":{"literal":"上海"}}],"page":1,"size":20,"sorts":[]}}'
+            elif "不支持动作" in question:
                 content = '{"domain":"employee","action":"unsupported","arguments":{}}'
-            elif "protected-ref(slot-1)" in question:
-                content = '{"domain":"employee","action":"employee.detail","arguments":{"employee_identifier":{"value_ref":"slot-1"}}}'
+            elif "专业能力" in question or "语义" in question:
+                content = '{"domain":"employee","action":"employee.semantic_search","arguments":{"query":{"literal":"分布式系统开发经验"},"size":10}}'
             else:
-                content = '{"domain":"employee","action":"unsupported","arguments":{}}'
+                content = '{"domain":"employee","action":"employee.search","arguments":{"filters":[{"field":"contact_address","operator":"contains","value":{"literal":"上海"}}],"page":1,"size":20,"sorts":[]}}'
         elif "交易" in question or "transaction" in question.casefold():
-            match = _AMOUNT.search(question)
-            amount = match.group(1) if match is not None else "1.00"
             content = json.dumps(
                 {
                     "domain": "transaction",
                     "action": "transaction.search",
-                    "arguments": {"amount": {"literal": amount}},
+                    "arguments": {
+                        "filters": [{
+                            "field": "trans_type",
+                            "operator": "contains",
+                            "value": {"literal": "PAY"},
+                        }],
+                        "page": 1,
+                        "size": 20,
+                        "sorts": [],
+                    },
                 },
                 ensure_ascii=False,
                 separators=(",", ":"),
@@ -128,10 +142,10 @@ class _FakeBusinessDomainTransport:
     async def send(self, outbound: FakeDomainHttpRequest) -> FakeDomainHttpResponse:
         request = outbound.request
         expected = (
-            request.method == "GET"
-            and request.relative_path == "/employees/ABCDE"
+            request.method == "POST"
+            and request.relative_path in {"/employees/es/search", "/employees/es/vector-search"}
             and request.query == ()
-            and request.json_body is None
+            and request.json_body is not None
             if self._domain == "employee"
             else request.method == "POST"
             and request.relative_path == "/txn/search"
@@ -146,16 +160,29 @@ class _FakeBusinessDomainTransport:
             return FakeDomainHttpResponse(status_code=403, content_type="application/json", body=b"{}")
         if self._domain == "employee":
             body: dict[str, object] = {
-                "idCardNo": "ABCDE",
-                "memberNo": "MEM01",
-                "chineseName": "测试员工",
-                "publicEmail": "synthetic@example.invalid",
-                "position": "工程师",
-                "workBaseSi": "合成地点",
+                "hits": {
+                    "total": {"value": 1, "relation": "eq"},
+                    "hits": [{"_source": {
+                        "idCardNo": "ABCDE12345",
+                        "chineseName": "测试员工",
+                        "contactAddress": "上海市测试路",
+                        "position": "工程师",
+                    }}],
+                },
             }
         else:
             body = {
-                "rows": [{"transId": "SYNTHETIC-TXN", "transType": "TEST", "amount": 1.00}],
+                "rows": [{
+                    "transId": "SYNTHETIC-TXN",
+                    "transType": "PAYMENT",
+                    "transDate": 1787619600000,
+                    "amount": 1.00,
+                    "transDateGt": None,
+                    "transDateLt": None,
+                    "amountGt": None,
+                    "amountLt": None,
+                    "transTypeContains": None,
+                }],
                 "total": 1,
                 "totalExact": True,
                 "page": 1,

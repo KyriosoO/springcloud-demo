@@ -48,12 +48,17 @@ async def test_business_query_plan_nonlive_matrix_is_single_action_and_fail_clos
         {**_environment(tmp_path), "LLM_API_KEY": "must-not-be-read"}
     )
     cases = (
-        ("bq-nonlive-emp-ok", "查询员工详情 员工标识=ABCDE", _ADMIN, CapabilityStatus.SUCCESS, "employee.detail"),
-        ("bq-nonlive-emp-deny", "查询员工详情 员工标识=ABCDE", _DENIED, CapabilityStatus.FORBIDDEN, "employee.detail"),
-        ("bq-nonlive-txn-ok", "查询交易 金额=1.00", _ADMIN, CapabilityStatus.SUCCESS, "transaction.search"),
-        ("bq-nonlive-txn-deny", "查询交易 金额=1.00", _DENIED, CapabilityStatus.FORBIDDEN, "transaction.search"),
-        ("bq-nonlive-invalid", "查询交易 金额=1.000", _ADMIN, CapabilityStatus.INVALID_ARGUMENT, None),
-        ("bq-nonlive-unsupported", "查询员工列表 工作地=上海", _ADMIN, CapabilityStatus.UNSUPPORTED, None),
+        ("bq-nonlive-emp-search-ok", "帮我查一下在上海的员工", _ADMIN, CapabilityStatus.SUCCESS, "employee.search"),
+        ("bq-nonlive-emp-semantic-ok", "查询具备专业能力的员工", _ADMIN, CapabilityStatus.SUCCESS, "employee.semantic_search"),
+        ("bq-nonlive-emp-search-deny", "查询无权限员工", _DENIED, CapabilityStatus.FORBIDDEN, "employee.search"),
+        ("bq-nonlive-emp-semantic-deny", "查询无权限员工专业能力", _DENIED, CapabilityStatus.FORBIDDEN, "employee.semantic_search"),
+        ("bq-nonlive-txn-ok", "查询交易类型包含 PAY 的交易", _ADMIN, CapabilityStatus.SUCCESS, "transaction.search"),
+        ("bq-nonlive-txn-deny", "查询无权限交易", _DENIED, CapabilityStatus.FORBIDDEN, "transaction.search"),
+        ("bq-nonlive-invalid", "查询模型格式错误的员工", _ADMIN, CapabilityStatus.INVALID_ARGUMENT, None),
+        ("bq-nonlive-unconfigured", "查询未配置 workBase 的员工", _ADMIN, CapabilityStatus.UNSUPPORTED, None),
+        ("bq-nonlive-invalid-operator", "查询非法操作符的员工", _ADMIN, CapabilityStatus.INVALID_ARGUMENT, None),
+        ("bq-nonlive-model-failure", "查询模型失败的员工", _ADMIN, CapabilityStatus.DOWNSTREAM_FAILURE, None),
+        ("bq-nonlive-unsupported", "查询不支持动作的员工", _ADMIN, CapabilityStatus.UNSUPPORTED, None),
         ("bq-nonlive-second", "查询员工 第二动作", _ADMIN, CapabilityStatus.INVALID_ARGUMENT, None),
         ("bq-nonlive-cross", "查询员工 跨域计划", _ADMIN, CapabilityStatus.UNSUPPORTED, None),
         ("bq-nonlive-timeout", "查询交易 模型超时", _ADMIN, CapabilityStatus.TIMEOUT, None),
@@ -75,9 +80,9 @@ async def test_business_query_plan_nonlive_matrix_is_single_action_and_fail_clos
     validate_business_query_plan_evidence(evidence)
     assert evidence["status"] == "passed"
     assert evidence["requestCounts"] == {
-        "queryPlanModel": 9,
+        "queryPlanModel": 14,
         "otherModelTasks": 0,
-        "employee": 2,
+        "employee": 4,
         "transaction": 2,
         "otherBusinessEndpoints": 0,
         "fallbackSelector": 0,

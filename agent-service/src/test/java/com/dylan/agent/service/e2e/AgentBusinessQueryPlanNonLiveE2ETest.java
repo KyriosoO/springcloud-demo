@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.reactive.context.ReactiveWebServerApplicationContext;
@@ -37,10 +36,10 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import reactor.core.publisher.Mono;
 
-@EnabledIfEnvironmentVariable(named = "RUN_BUSINESS_QUERY_PLAN_NONLIVE_E2E", matches = "1")
 class AgentBusinessQueryPlanNonLiveE2ETest {
     private static final String ADMIN_TOKEN = "synthetic-admin-token";
     private static final String DENIED_TOKEN = "synthetic-denied-token";
+    private static final String SERVICE_TOKEN = "synthetic-service-token";
     private static final Path DEFAULT_PYTHON = Path.of(
             "..", ".tmp", "agent-runtime-venv", "Scripts", "python.exe").toAbsolutePath().normalize();
     private static final Path RUNTIME_ROOT = Path.of("..", "agent-runtime").toAbsolutePath().normalize();
@@ -66,17 +65,27 @@ class AgentBusinessQueryPlanNonLiveE2ETest {
         WebTestClient client = startSpring(runtimePort);
         await("Spring readiness", () -> springReady(client));
 
-        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-emp-ok", "查询员工详情 员工标识=ABCDE",
-                200, "success", "employee.detail", null);
-        assertOutcome(client, DENIED_TOKEN, "bq-nonlive-emp-deny", "查询员工详情 员工标识=ABCDE",
-                403, "forbidden", "employee.detail", "business.downstream_forbidden");
-        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-txn-ok", "查询交易 金额=1.00",
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-emp-search-ok", "帮我查一下在上海的员工",
+                200, "success", "employee.search", null);
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-emp-semantic-ok", "查询具备专业能力的员工",
+                200, "success", "employee.semantic_search", null);
+        assertOutcome(client, DENIED_TOKEN, "bq-nonlive-emp-search-deny", "查询无权限员工",
+                403, "forbidden", "employee.search", "business.downstream_forbidden");
+        assertOutcome(client, DENIED_TOKEN, "bq-nonlive-emp-semantic-deny", "查询无权限员工专业能力",
+                403, "forbidden", "employee.semantic_search", "business.downstream_forbidden");
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-txn-ok", "查询交易类型包含 PAY 的交易",
                 200, "success", "transaction.search", null);
-        assertOutcome(client, DENIED_TOKEN, "bq-nonlive-txn-deny", "查询交易 金额=1.00",
+        assertOutcome(client, DENIED_TOKEN, "bq-nonlive-txn-deny", "查询无权限交易",
                 403, "forbidden", "transaction.search", "business.downstream_forbidden");
-        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-invalid", "查询交易 金额=1.000",
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-invalid", "查询模型格式错误的员工",
                 400, "invalid_argument", null, "business.plan_invalid");
-        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-unsupported", "查询员工列表 工作地=上海",
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-unconfigured", "查询未配置 workBase 的员工",
+                422, "unsupported", null, "business.plan_unsupported");
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-invalid-operator", "查询非法操作符的员工",
+                400, "invalid_argument", null, "business.plan_invalid");
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-model-failure", "查询模型失败的员工",
+                502, "downstream_failure", null, "business.plan_model_failure");
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-unsupported", "查询不支持动作的员工",
                 422, "unsupported", null, "business.plan_unsupported");
         assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-second", "查询员工 第二动作",
                 400, "invalid_argument", null, "business.plan_invalid");
@@ -84,8 +93,11 @@ class AgentBusinessQueryPlanNonLiveE2ETest {
                 422, "unsupported", null, "business.plan_unsupported");
         assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-timeout", "查询交易 模型超时",
                 504, "timeout", null, "business.plan_model_timeout");
-        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-sensitive", "查询员工 联系电话 13800138000",
+        assertOutcome(client, ADMIN_TOKEN, "bq-nonlive-sensitive", "查询员工 password=synthetic-secret",
                 403, "forbidden", null, "business.plan_input_denied");
+        assertIngressRejected(client, null);
+        assertIngressRejected(client, "malformed-token");
+        assertIngressRejected(client, SERVICE_TOKEN);
 
         stopSpring();
         stopRuntime();
@@ -93,21 +105,33 @@ class AgentBusinessQueryPlanNonLiveE2ETest {
         JsonNode evidence = objectMapper.readTree(evidencePath.toFile());
         assertThat(evidence.path("status").asText()).isEqualTo("passed");
         JsonNode counts = evidence.path("requestCounts");
-        assertThat(counts.path("queryPlanModel").asInt()).isEqualTo(9);
-        assertThat(counts.path("employee").asInt()).isEqualTo(2);
+        assertThat(counts.path("queryPlanModel").asInt()).isEqualTo(14);
+        assertThat(counts.path("employee").asInt()).isEqualTo(4);
         assertThat(counts.path("transaction").asInt()).isEqualTo(2);
         assertThat(counts.path("otherModelTasks").asInt()).isZero();
         assertThat(counts.path("otherBusinessEndpoints").asInt()).isZero();
         assertThat(counts.path("fallbackSelector").asInt()).isZero();
         assertThat(counts.path("answerGeneration").asInt()).isZero();
         assertThat(counts.path("externalModelOutbound").asInt()).isZero();
-        assertThat(evidence.path("cases").size()).isEqualTo(10);
+        assertThat(evidence.path("cases").size()).isEqualTo(15);
         String finiteEvidence = Files.readString(evidencePath, StandardCharsets.UTF_8);
         String runtimeLog = Files.exists(runtimeLogPath)
                 ? Files.readString(runtimeLogPath, StandardCharsets.UTF_8)
                 : "";
-        assertThat(finiteEvidence).doesNotContain("ABCDE", "13800138000", ADMIN_TOKEN, DENIED_TOKEN);
-        assertThat(runtimeLog).doesNotContain("ABCDE", "13800138000", ADMIN_TOKEN, DENIED_TOKEN);
+        assertThat(finiteEvidence).doesNotContain("synthetic-secret", ADMIN_TOKEN, DENIED_TOKEN, SERVICE_TOKEN);
+        assertThat(runtimeLog).doesNotContain("synthetic-secret", ADMIN_TOKEN, DENIED_TOKEN, SERVICE_TOKEN);
+    }
+
+    private void assertIngressRejected(WebTestClient client, String token) {
+        WebTestClient.RequestBodySpec request = client.post().uri("/api/v1/agent/queries")
+                .header("X-Correlation-Id", "bq-ingress-rejected")
+                .contentType(MediaType.APPLICATION_JSON);
+        if (token != null) {
+            request.header("Authorization", "Bearer " + token);
+        }
+        request.bodyValue(Map.of("question", "帮我查一下在上海的员工"))
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     private WebTestClient startSpring(int runtimePort) {
@@ -276,14 +300,16 @@ class AgentBusinessQueryPlanNonLiveE2ETest {
         @Bean
         ReactiveJwtDecoder reactiveJwtDecoder() {
             return token -> {
-                if (!ADMIN_TOKEN.equals(token) && !DENIED_TOKEN.equals(token)) {
+                if (!ADMIN_TOKEN.equals(token) && !DENIED_TOKEN.equals(token) && !SERVICE_TOKEN.equals(token)) {
                     return Mono.error(new JwtException("invalid"));
                 }
                 Instant now = Instant.now();
                 return Mono.just(Jwt.withTokenValue(token)
                         .header("alg", "none")
-                        .subject(ADMIN_TOKEN.equals(token) ? "admin" : "denied")
-                        .claim(SecurityTokenUtils.TOKEN_TYPE_CLAIM, SecurityTokenUtils.USER_TOKEN_TYPE)
+                        .subject(ADMIN_TOKEN.equals(token) ? "admin" : DENIED_TOKEN.equals(token) ? "denied" : "agent-service")
+                        .claim(SecurityTokenUtils.TOKEN_TYPE_CLAIM, SERVICE_TOKEN.equals(token)
+                                ? SecurityTokenUtils.SERVICE_TOKEN_TYPE
+                                : SecurityTokenUtils.USER_TOKEN_TYPE)
                         .claim("role", List.of(ADMIN_TOKEN.equals(token) ? "ADMIN" : "UNKNOWN"))
                         .issuedAt(now)
                         .expiresAt(now.plusSeconds(60))
