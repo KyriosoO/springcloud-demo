@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.1 |
+| 当前版本 | v1.2 |
 | 日期 | 2026-08-26 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
 | 上位文档 | [`L0_00` v2.1](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 当前能力切片与真实检索/出域/P5 证据存在；目标通过默认关闭开关接入同一生产 Runtime，接线与功能 UAT 尚待实施 |
+| 实施状态 | 默认关闭的生产接线与功能 UAT 已完成；candidate-04 只读诊断支持域目录 v2 与 Summary v3，代码实施和 candidate-05 冻结待完成 |
 
 ## 2. 阅读导航
 
@@ -54,6 +54,7 @@
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立新的可读能力架构基线 | 合并重复检索/授权/出域描述，突出四项能力、两级映射、失败优先级与 P5 结论 |
 | v1.1 | 2026-08-26 | 生产接线与 Knowledge UAT | 明确默认关闭的同 Runtime 注册、owned client 生命周期、功能/效果 UAT 分离及 candidate-04 诊断边界 |
+| v1.2 | 2026-08-26 | candidate-04 效果诊断 | 依据 Q1/Q3/Q4 证据收紧域选择并新增 Summary v3；保持检索参数、validator、数据集和历史结论不变 |
 
 ## 4. 目标、范围与上位约束
 
@@ -195,6 +196,7 @@ flowchart LR
 - 未注册、禁用或非法域拒绝；模型和请求不得临时创建域。
 - 无匹配域返回 `no_result`；启动时无有效域则能力不可执行，不能在请求内伪装为无结果。
 - 多域验证必须覆盖至少两个已注册域或受控替身的单域、多域、零域和非法域路径。
+- `tax-domain-catalog-v2` 对有税务锚点但无明确法律信号的问题默认只选 `tax.policy`；显式法律名称/法条优先形成 `tax.law`，只有同时存在独立政策信号时才多选。该规则不判断文档是否真实存在，虚构文件的 `no_result` 仍由检索结果决定。
 
 ### 7.4 Retrieval Port
 
@@ -235,6 +237,7 @@ Provider 必须在候选正文返回前完成读取授权，仅返回当前用�
 - 只发送回答所需的最小允许证据，不发送全部候选或策略内部信息。
 - 每个肯定事实和引用必须能映射到本次证据。
 - 摘要不得增加证据外的主体、规则、数值、时间或结论。
+- Summary v3 在 v2 的唯一引用和连续子串约束上，要求对问题中可由不同证据独立回答的条件、日期、税率、主体类型等尽量逐项覆盖，最多仍为 5 个唯一引用；单条证据足够时不得为了凑数增加引用。
 - 输出结构或引用校验失败时丢弃草稿；不得返回未经验证的答案。
 - 最终对话格式化仍服从 `L1_00`，不能形成第二个知识推理阶段。
 
@@ -423,7 +426,7 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | `SEC-01/02/05` | 7.4、10.1 | `L2_01_01` |
 | 知识测试与效果 | 11、14 | `L2_01_02` |
 
-## 16. v1.1 评审记录
+## 16. 评审记录
 
 | 轮次 | 类型 | 结论 | 状态 |
 |---:|---|---|---|
@@ -432,3 +435,5 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | 3 | 作者内审 | 可读性、追踪、链接和历史隔离检查通过 | Passed |
 | 4 | 独立设计评审 | `REV-L1-01-001` 已修复并复评；无执行阻断、无未关闭 S0/S1/S2，可治理三份 Knowledge L2 | Passed |
 | 5 | 独立聚焦评审与复评 | 首轮发现 production-stub 歧义和同步工厂半成品清理过度要求两项 S2；最小修复后复评默认关闭、共享 Core、生命周期、UAT 与门禁无环，无 S0/S1/未处理 S2 | Passed |
+| 6 | v1.2 三轮内审 | candidate-04 诊断、域目录 v2、Summary v3 及历史/权限边界一致 | Passed |
+| 7 | v1.2 独立评审 | 无 S0/S1/未处理 S2；未扩大检索、validator、数据或公共契约 | Passed |

@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.2 |
+| 当前版本 | v1.3 |
 | 日期 | 2026-08-26 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.2](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 当前代码已实现 rewrite v1 + summary v2、两逻辑域和五阶段；生产入口接线、disabled 惰性与 Spring non-live E2E 尚待实施 |
+| 实施状态 | 生产入口、disabled 惰性与 Spring non-live E2E 已实现；candidate-04 诊断支持域目录 v2 与 summary v3，目标版本待实施 |
 
 ## 2. 阅读导航与变更记录
 
@@ -24,6 +24,7 @@
 | v1.0 | 2026-08-21 | 建立 Knowledge 流程新基线 | 删除 candidate/Gate 流水，保留单动作、五阶段、问题保护、零域语义与当前任务版本 |
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 明确阶段 operation 的创建时点，并校正错误码、内部类型约束和测试落点 |
 | v1.2 | 2026-08-26 | 生产接线与功能 UAT | 固化默认关闭、同 Registry 单注册、任务/Provider/资源生命周期和功能验收边界 |
+| v1.3 | 2026-08-26 | Q1/Q3/Q4 效果诊断 | 将域目录升级为 v2，并把生产目标任务改为 rewrite v1 + summary v3；历史 v1/v2 继续不可变 |
 
 ## 3. 目标与范围
 
@@ -87,7 +88,7 @@
 | Plan Builder | 逻辑域×允许检索路径的有界计划 | 执行 HTTP 或排序 |
 | Retrieval Stage | 消费计划并返回 typed batch+coverage | 改写和摘要 |
 | Evidence Stage | 消费授权候选并形成最终本地/出域结果 | 首次读取授权 |
-| Composition Root | 绑定 rewrite v1、summary v2、目录、Stages 和设置 | 请求级策略判断 |
+| Composition Root | 绑定 rewrite v1、目标 summary v3、目录、Stages 和设置 | 请求级策略判断 |
 
 依赖方向为 `Capability → stage Protocol ← retrieval/evidence implementations`；目录和 settings 不依赖 HTTP/DeepSeek。禁止 Knowledge 内部阶段注册为公共能力，禁止 Capability 依赖 ES DSL 或模型 SDK。
 
@@ -95,9 +96,9 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、税务两域目录、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline 和可注入组合根。当前运行组合的任务绑定固定为 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV2`；默认包入口尚未装配 Knowledge Provider。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、税务两域目录、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。当前运行组合仍绑定 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV2`；本版目标在完成代码实施后切换为 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV3`。
 
-旧 summary v1 保留给历史资产，任何启用 Knowledge 的运行组合根只能注册 v2；不得为减少文件而覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
+旧 summary v1/v2 保留给历史资产；新生产组合根完成切换后只能注册 v3，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 
 ## 7. 动作、逻辑域与请求状态
 
@@ -116,7 +117,7 @@
 | `DR-KFLOW-009` | 授权拒绝/读取权威失败优先于局部技术成功；coverage 必须与计划精确对应 |
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
 | `DR-KFLOW-011` | 默认启动入口必须先解析 `AGENT_KNOWLEDGE_ENABLED`；false 时不得加载下游配置、任务、策略或创建 client |
-| `DR-KFLOW-012` | true 时只向既有 Registry 追加一个 Provider，并只向既有 Model Gateway 追加 rewrite v1/summary v2；重复 ID/version 启动失败 |
+| `DR-KFLOW-012` | true 时只向既有 Registry 追加一个 Provider，并只向既有 Model Gateway 追加 rewrite v1/summary v3；重复 ID/version 启动失败；v1/v2 只作历史兼容，不进入新生产组合根 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
 
@@ -131,7 +132,15 @@
 | `tax.policy` | 税务锚点 + 政策/公告/通知/优惠/征管等 | keyword, vector | `knowledge.egress.tax_policy.v1` |
 | `tax.law` | 税务锚点 + 法律/法规/条例/法条等 | keyword, vector | `knowledge.egress.tax_law.v1` |
 
-目录版本 `tax-domain-catalog-v1`。域选择要求税务锚点，并可多选；输出按目录顺序稳定。模型和配置不可创建域。
+目录版本 `tax-domain-catalog-v2`。域选择要求税务锚点，输出按目录顺序稳定，模型和配置不可创建域。确定性优先级为：
+
+1. 没有税务锚点时选择零域；
+2. 显式法律名称、`税法`、`法律/法规/条例` 或法条引用形成 `tax.law` 信号；
+3. 独立政策文种或政策语义形成 `tax.policy` 信号；仅出现“优惠”等弱政策词且已有明确法律名称/法条时，不额外扩为政策域；
+4. 法律与独立政策信号同时存在时按目录顺序选择两域；
+5. 有税务锚点但没有明确法律信号时默认只选择 `tax.policy`，不再以全域 fallback 扩大召回。
+
+Selector 不判断被问文件是否真实存在；有合法域但检索无候选时由既有 `no_result` 语义处理。此边界避免为虚构文件建立专用识别或修改数据集。
 
 ### 7.4 请求级状态
 
@@ -313,7 +322,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `VAL-KFLOW-001` | Provider/Capability 契约和单动作调用计数测试通过 |
 | `VAL-KFLOW-002` | rewrite v1、Guard、fallback、敏感零调用测试通过 |
 | `VAL-KFLOW-003` | 两域目录、计划、配置未知 key/越界启动失败测试通过 |
-| `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 summary v2 单注册通过 |
+| `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 summary v3 单注册及 v1/v2 历史不可变通过 |
 | `VAL-KFLOW-005` | 当前启动入口 disabled 零依赖、enabled 唯一对象图和 Spring→Runtime 功能 UAT 通过 |
 
 ## 16. 风险与保护条件
@@ -330,8 +339,8 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.2 可作为 Knowledge 流程、默认关闭生产接线、配置和组合根代码评审依据 |
-| 当前允许实施范围 | 单动作、rewrite v1、逻辑域/计划、Stage 协同、失败映射、summary v2 绑定、同 Runtime 生产接线和 non-live 功能 UAT |
+| 是否可作为实现依据 | 是，当前 v1.3 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
+| 当前允许实施范围 | 单动作、rewrite v1、域目录 v2、Stage 协同、失败映射、summary v3 目标绑定、同 Runtime 生产接线和 non-live 功能 UAT |
 | 当前禁止动作 | 新域/物理资源、公共契约变化、真实模型调用、索引写入和独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
 
@@ -344,7 +353,9 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 内审 3 | 真实落点、测试、版本、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-01-00-001` 已修复；单动作、五阶段、任务绑定、失败优先级与实现复核通过 | Passed |
 | v1.2 聚焦评审与复评 | 修复 enabled+production-stub 歧义和半成品异步清理过度要求后，disabled 惰性、唯一注册、资源释放、Business 隔离通过；无 S0/S1/未处理 S2 | Passed |
+| v1.3 三轮内审 | 域选择优先级、Summary v3 绑定、零域语义与历史任务隔离一致 | Passed |
+| v1.3 独立评审 | 无 S0/S1/未处理 S2；Selector 不猜测文档真实性，DAG 无环 | Passed |
 
-- 当前版本：v1.2。
+- 当前版本：v1.3。
 - 文档状态：Approved。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。

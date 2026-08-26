@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.3 |
+| 当前版本 | v2.4 |
 | 更新日期 | 2026-08-26 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.1 |
-| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.1；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.2；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | Business 三动作生产对象图已实施；Knowledge 能力切片存在但默认启动入口尚未装配，目标由 `AGENT_KNOWLEDGE_ENABLED` 受控接入同一 Registry/Core |
+| 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，并完成 Spring→Runtime non-live 功能验收 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.3 增加 Knowledge 可选生产接线、共享单动作与生命周期边界，不改变 Business QueryPlan 合同。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.3 增加 Knowledge 可选生产接线、共享单动作与生命周期边界；v2.4 如实同步该接线和功能验收已实施，不改变 Business QueryPlan 或公共 Runtime 合同。
 
 ## 2. 架构目标、非目标与上位约束映射
 

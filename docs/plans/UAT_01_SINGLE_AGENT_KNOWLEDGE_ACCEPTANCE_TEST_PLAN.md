@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.0 |
+| 当前版本 | v1.1 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-26 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.3、`L1_01` v1.1、`L2_01_00/01/02` v1.2、`P3_00` v2.17 |
+| 上位依据 | `L1_00` v2.4、`L1_01` v1.2、`L2_01_00` v1.3、`L2_01_01` v1.2、`L2_01_02` v1.3、`P3_00` v2.18 |
 | 历史边界 | candidate-04 及其 manifest/authorization/journal/result/evidence/hash 保持不可变，正式结论仍为 `ineffective` |
 
 本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。
@@ -33,7 +33,7 @@ Spring 公共接入与认证
   → es-query-service typed Knowledge endpoint / 最终读取授权
   → keyword + vector / RRF / BGE rerank
   → Evidence 完整性、选择与三层出域交集
-  → KnowledgeSummaryTaskV2 / 引用唯一性与原文连续子串校验
+  → KnowledgeSummaryTaskV3 / 独立子问题证据覆盖、引用唯一性与原文连续子串校验
   → 受控 Knowledge 结果
 ```
 
@@ -112,10 +112,10 @@ Spring 公共接入与认证
 |---|---|---|
 | `UAT-K-EV-001` | candidate hash/domain/snapshot/policy ref 完整 | 生成确定性 Evidence Bundle |
 | `UAT-K-EV-002` | 完整性冲突或缺失 | `evidence_failure`，模型调用 0 |
-| `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入 summary v2 |
+| `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入 summary v3 |
 | `UAT-K-EV-004` | 未分类、策略缺失/冲突或文档收紧拒绝 | `model_egress_denied`，summary 调用 0 |
 | `UAT-K-EV-005` | 证据覆盖不足 | `no_result/insufficient_evidence`，不生成肯定回答 |
-| `UAT-K-EV-006` | 合法 summary v2 | ref 唯一、quote 为对应授权正文连续子串 |
+| `UAT-K-EV-006` | 合法 summary v3 | 独立子问题使用最小充分证据，ref 唯一、quote 为对应授权正文连续子串 |
 | `UAT-K-EV-007` | unknown/duplicate ref 或非子串 quote | `knowledge.summary_failure`，不返回模型原文 |
 | `UAT-K-EV-008` | summary timeout/provider/schema failure | 固定 timeout/downstream failure，无 retry/resume |
 
@@ -132,7 +132,7 @@ Spring 公共接入与认证
 
 ## 6. 功能 UAT 通过条件
 
-上述 case 必须均有实际自动化或等价有限证据；关键 Spring→Runtime E2E 不得默认 skip 后计为通过。允许按风险用 fake Model、Java Security、Python contract 和现有不可变只读证据组合验收，不机械要求全部 case 进行真实 LLM 调用。
+上述 37 个 case 已通过 `knowledge_uat_traceability.v1.json` 追踪到实际自动化或等价有限证据；当前 Spring→Runtime 16 场景 E2E 实际执行且未 skip。允许按风险用 fake Model、Java Security、Python contract 和现有不可变只读证据组合验收，不机械要求全部 case 进行真实 LLM 调用。
 
 功能结论为 Passed 还要求：
 
@@ -152,6 +152,8 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 
 只读诊断至少输出：domain exact match、keyword/vector path hit、fusion/rerank recall 与 MRR、required evidence coverage、summary valid completion、faithfulness、usefulness，以及 gold_issue/no_result/insufficient_evidence/downstream_failure 分布。每项根因按问题集/gold、rewrite、域、文档结构、召回、embedding、RRF、rerank、Evidence、策略、Prompt、validator 或环境分类，并标注证据强度。
 
+当前可复现诊断：domain exact match=0.5909、rerank recall@10=0.9405、required evidence coverage=0.4643、summary valid completion=0.6923。证据支持域目录 v2 与 Summary v3；不支持修改 RRF/rerank、validator、dataset/gold。两个虚构文件 case 的零域期望保留为数据/gold 事项，不要求生产 Selector 猜测文件真实性。
+
 ### 7.3 最小优化与版本规则
 
 只有被证据支持的 Prompt、逻辑域安全描述、Retrieval Profile 逻辑参数、RRF/rerank 参数、Evidence 选择或 Harness 才能新版本化；不得改历史 case/gold、放宽 validator、修改正文/index/mapping/alias、扩大授权或降低阈值改判。
@@ -167,7 +169,7 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 | 门禁 | 控制内容 | 关闭条件 | 当前状态 |
 |---|---|---|---|
 | `GATE-071` | Knowledge 当前设计基线 | L1/L2/P3/UAT_01 三轮内审及独立评审通过 | Closed |
-| `GATE-UAT-008` | 功能型 Knowledge UAT | 全部功能 case 有证据、关键 E2E 实际通过、状态一致 | Open |
+| `GATE-UAT-008` | 功能型 Knowledge UAT | 37/37 case 有严格追踪、关键 16 场景 E2E 实际通过、状态一致 | Closed |
 | `GATE-072` | 新效果 UAT outbound | 新候选冻结且用户精确绑定 run/hash/budget/reference 授权 | Open |
 
 `GATE-072` 不阻塞生产接线、non-live 功能 UAT、历史诊断和新候选非 live 准备；它只阻止真实付费 outbound。
@@ -187,3 +189,5 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 | 内审 2 | 权限、出域、失败优先级、历史不可变 | Passed |
 | 内审 3 | DAG、证据口径、过度设计与跨文档链接 | Passed |
 | 独立评审 | 无 S0/S1/未处理 S2；可作为 Knowledge 验收依据 | Passed |
+| v1.1 三轮内审 | 37 case 追踪、诊断到优化映射、历史边界与 GATE-072 无环 | Passed |
+| v1.1 独立评审 | 无 S0/S1/未处理 S2；功能已通过，效果仍为 `ineffective` | Passed |
