@@ -6,10 +6,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.3 |
-| 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3 |
+| 当前版本 | v2.4 |
+| 更新时间 | 2026-08-26 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -18,7 +18,7 @@
 
 唯一动作 `transaction.search` 固定复用 `POST /txn/search`，以逻辑 filters/operator 查询既有 SQL 列表，并保留服务最终读取授权。范围外包括 aggregate、detail、condition、query、写入、管理接口、Agent 数据库直连、float/rounding、跨域 fallback 与新 DTO。
 
-当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；`trans_type eq` 允许真实安全 token 中的 `_`，`contains` 在公共 validator 与 Adapter 两层拒绝 `_/%/反斜杠`。正式 run03 的 9 个 Transaction 场景全部通过：search 7 次，类型精确/模糊、绝对日期、金额等值/范围、分页和 denied 授权均按合同运行；相对日期和聚合均 unsupported/零业务调用。
+当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；`trans_type eq` 允许真实安全 token 中的 `_`，`contains` 在公共 validator 与 Adapter 两层拒绝 `_/%/反斜杠`。正式 run03 的 9 个 Transaction 真实场景全部通过：search 7 次，类型精确/模糊、绝对日期、金额等值/范围、分页和 denied 授权均按合同运行；相对日期和聚合均 unsupported/零业务调用。其余 6 个 Transaction 计划用例由当前 Adapter、Java 安全链及跨语言合同自动化逐项关闭，Transaction 追踪为 15/15。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -38,7 +38,7 @@
 
 Service 要求至少一个条件、page≥1、1≤size≤100、最多两项不重复排序；排序字段为 transId/transType/transDate/amount，ASC/DESC；缺少 transId sort 时业务服务会添加稳定 transId tiebreaker。Mapper 使用精确 `=`、严格 `>`、严格 `<` 和 `LIKE contains`，禁止 Agent 伪造 `>=/<=`。依赖方向为 validated Business plan → Transaction Adapter → TransactionController/Service → Mapper/DB；Agent 禁止绕过服务访问数据库。
 
-已存在的关键实现接缝为 `transaction_search_definition()`、`TransactionSearchArgumentValidator.validate(arguments: JsonObject) -> TransactionSearchInput`、`TransactionSearchRequestMapper.map(input: TransactionSearchInput, settings: BusinessActionSettings) -> TransactionSearchWireRequest`、`TransactionSearchWireCodec.encode(request) -> BusinessHttpRequest` 和 `decode_success(*, request, response) -> TransactionSearchWireResponse`。建议在这些既有类中补齐独立 field/operator、Date、page>1 和既有九字段响应兼容；Java `TransactionController.search(Authentication, TransactionSearchRequest) -> TransactionSearchResponse`、公开 DTO 和 Mapper SQL 不改变。
+已存在的关键实现接缝为 `transaction_search_definition()`、`TransactionSearchArgumentValidator.validate(arguments: JsonObject) -> TransactionSearchInput`、`TransactionSearchRequestMapper.map(input: TransactionSearchInput, settings: BusinessActionSettings) -> TransactionSearchWireRequest`、`TransactionSearchWireCodec.encode(request) -> BusinessHttpRequest` 和 `decode_success(*, request, response) -> TransactionSearchWireResponse`。这些既有类已完成独立 field/operator、Date、page>1 和既有九字段响应兼容；Java `TransactionController.search(Authentication, TransactionSearchRequest) -> TransactionSearchResponse`、公开 DTO 和 Mapper SQL 未改变。
 
 ## 4. field/operator/DTO 固定映射
 
@@ -126,8 +126,9 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
-| 当前允许实施范围 | Transaction fake Adapter、Date/Decimal/Page/Sort 合同及 Java 非 live 测试 |
-| 当前禁止动作 | 真实业务/模型/数据库调用、相对日期无证启用、业务 DTO/SQL/公开接口扩张 |
+| 当前实施状态 | Transaction Adapter、Date/Decimal/Page/Sort、Java/Python 合同、受控真实验证与 run03 UAT 已完成 |
+| 当前允许实施范围 | 已实施 Transaction 链路的缺陷修复及 non-live 回归；相对日期须先取得边界证据 |
+| 当前禁止动作 | 扩张业务 DTO/SQL/公开接口、无证启用相对日期或允许 Agent 数据库直连 |
 
 评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
 

@@ -4,13 +4,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.12 |
+| 当前版本 | v1.14 |
 | 文档状态 | Reviewed |
-| 更新日期 | 2026-08-25 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3；Employee L2 v2.3；Transaction L2 v2.3 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.14 |
-| 当前状态 | 公共冒烟及正式 run03 UAT 全部通过：18 次真实 v4 QueryPlan，Employee search/semantic 6/1，Transaction search 7，四项 unsupported 均零业务调用 |
+| 更新日期 | 2026-08-26 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4；Employee L2 v2.4；Transaction L2 v2.4 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.16 |
+| 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -29,17 +29,17 @@
 4. 新三动作 filters task、code/config snapshot、权限、业务服务和 non-live/live 结果均属于当前设计，不得复用旧 detail 或旧 v2 Prompt 证据。
 5. 真实 provider、用户 JWT、Employee 标识和业务样本仅在明确授权后进程内使用；日志/evidence 只存有限 case 状态和调用计数。
 6. 联系地址样本确实支持 “上海” contains；若真实数据不存在，不得构造 workBase 样本伪造通过，应停止并报告数据前置缺失。
-7. 正式验收仅在独立 `GATE-UAT-007` 关闭后开始；默认 provider `stub` 只能证明失败关闭，不能形成业务成功 UAT。
+7. `GATE-UAT-007` 是 UAT 准入与证据闭合门禁：成功业务规划风险必须由不可变真实 v4 结果覆盖；严格 JSON、身份拒绝、字段边界和跨语言契约可由当前自动化等价验证。默认 provider `stub` 不能单独形成业务成功证据。
 8. 三动作超时必须与代码/配置 snapshot 一致：Employee search 3000ms、semantic 10000ms、Transaction 5000ms；不得为规避超时增加重试、fallback 或第二次业务调用。
 
 ## 4. 固定验收顺序
 
 | 阶段 | 内容 | 前置 | 当前状态 |
 |---|---|---|---|
-| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed |
-| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Passed：9 个真实场景；search 6、semantic 1、unsupported 2 |
-| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Passed：9 个真实场景；search 7、unsupported 2 |
-| `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Passed：18 次真实规划、14 次单 endpoint 调用，禁止调用均为 0 |
+| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed：5/5，均由当前 Spring 安全/严格 JSON/Runtime E2E 自动化验证 |
+| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Passed：15/15；9 个真实场景，6 个风险等价自动化场景 |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Passed：15/15；9 个真实场景，6 个风险等价自动化场景 |
+| `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Passed：35/35 可追踪；18 次真实规划，17 个等价自动化风险闭合 |
 
 Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
 
@@ -105,6 +105,50 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 只允许记录 case ID、action、有限状态、模型/业务调用整数、projection/敏感扫描布尔值以及必要配置版本。不得保存原始用户问题、姓名、地址、身份证、电话、邮箱、JWT、模型原文、ES raw hits 或 Transaction raw rows。出现服务权限缺口、数据不具备、Date contract 不成立或模型失败时，暂停该用例并报告，不自动切换域、搜索方式或降低断言。
 
-## 10. 当前状态与明确差距
+## 10. 用例—证据追踪
 
-v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；首次和第二次 UAT 不可变失败 SHA-256 分别为 `cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`、`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`。新 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`；v4 run03 正式成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。18 个固定场景各使用 1 次真实 QueryPlan；Employee search 6 次、semantic 1 次、Transaction search 7 次；workBase 样例、semantic+地点、无批准时钟相对日期和聚合均 unsupported/零业务调用；两域 denied 角色各由业务服务返回 forbidden。其他 endpoint、answer、Knowledge、retry/resume、禁止字段与敏感持久化均为 0；职位、绝对日期与等值金额存在 no_result 样本，但查询执行合同和有结果范围查询均已验证。最终 Python 回归 1441 项通过，27 项历史 opt-in live 测试按设计跳过；`GATE-UAT-007` Closed，四个验收阶段 Passed。
+当前权威机器可校验追踪资产为 `agent-runtime/tests/uat/uat_traceability.v2.json`，严格校验入口为 `tests/uat/test_current_traceability.py`。旧 `uat_cases.v1.json` 与 `structured-query-uat-v1` 结果只代表历史 `employee.detail + stub` 阶段，保持字节不变但不参与当前 35 个用例的通过判定。
+
+| 用例 | 验证方式 | 当前证据 | 状态 |
+|---|---|---|---|
+| `UAT-PUB-201` | Spring 安全链 | `AgentSecurityContractTest#missingInvalidAndServiceTokensUseSafe401EnvelopeWithoutRuntime` | Passed |
+| `UAT-PUB-202` | Spring 严格 JSON | `AgentSecurityContractTest#duplicateNullAndMalformedJsonFailBeforeRuntime`；unknown-field 测试 | Passed |
+| `UAT-PUB-203` | 默认 stub/零外发契约 | `test_runtime_composition.py` | Passed |
+| `UAT-PUB-204` | Spring→Runtime non-live | `AgentBusinessQueryPlanNonLiveE2ETest` | Passed |
+| `UAT-PUB-205` | Spring→Runtime + 当前三动作组合根 | 第二动作/跨域用例；当前三动作 Resolver 零绑定与 cutover 测试 | Passed |
+| `UAT-EMP-201` | 真实 LLM + 真实业务 | run03 `UAT-EMP-201` | Passed |
+| `UAT-EMP-202` | Python Adapter 合同 | position `eq` 精确映射与受控用户结果投影 | Passed |
+| `UAT-EMP-203` | 真实 LLM + 真实业务 | run03 `UAT-EMP-203` | Passed |
+| `UAT-EMP-204` | 当前生产组合根 non-live | 姓名 `value_ref` 模型前替换/模型后绑定 | Passed |
+| `UAT-EMP-205` | 真实 LLM + 真实业务 | run03 `UAT-EMP-205` | Passed |
+| `UAT-EMP-206` | 当前生产组合根 non-live + 配置合同 | keyword protected-ref 与固定三字段服务解释 | Passed |
+| `UAT-EMP-207` | 真实 LLM + 真实业务 | run03 `UAT-EMP-207` | Passed |
+| `UAT-EMP-208` | 真实 LLM + 真实业务 | run03 `UAT-EMP-208` | Passed |
+| `UAT-EMP-209` | 真实 LLM + 通用配置白名单 | run03 + `test_unconfigured_field_is_unreachable_through_generic_allowlist` | Passed |
+| `UAT-EMP-210` | 真实 LLM 零业务调用 | run03 `UAT-EMP-210` | Passed |
+| `UAT-EMP-211` | 真实 LLM + Java Servlet 安全链 | run03 + `EmployeeEsSecurityIntegrationTest` ADMIN/VIEWER 双入口 | Passed |
+| `UAT-EMP-212` | 真实 LLM + Java Servlet 安全链 | run03 + denied/service-token 矩阵 | Passed |
+| `UAT-EMP-213` | Spring 接入 + Java Servlet 安全链 | missing/malformed 零下游调用 | Passed |
+| `UAT-EMP-214` | Python fake ES 合同 | unknown/embedding/workBase 丢弃与 partial hits 隔离 | Passed |
+| `UAT-EMP-215` | 输入保护 + 当前组合根 non-live | 地址/电话/邮箱/姓名/标识模型前保护 | Passed |
+| `UAT-TXN-201` | 真实 LLM + 真实业务 | run03 `UAT-TXN-201` | Passed |
+| `UAT-TXN-202` | 真实 LLM + 真实业务 | run03 `UAT-TXN-202` | Passed |
+| `UAT-TXN-203` | 真实 LLM + 真实业务 | run03 `UAT-TXN-203` | Passed |
+| `UAT-TXN-204` | Python/Java 范围合同 | 双 Date bound 与严格开区间 | Passed |
+| `UAT-TXN-205` | 真实 LLM + 真实业务 | run03 `UAT-TXN-205` | Passed |
+| `UAT-TXN-206` | 真实 LLM + 真实业务 | run03 `UAT-TXN-206` | Passed |
+| `UAT-TXN-207` | Python Adapter 合同 | type/date/amount 条件完整保留 | Passed |
+| `UAT-TXN-208` | 真实 LLM + 真实业务 | run03 `UAT-TXN-208` | Passed |
+| `UAT-TXN-209` | Python Adapter 合同 | 排序映射与非法/重复排序拒绝 | Passed |
+| `UAT-TXN-210` | Python protected-ref 合同 | 标识 request-local 绑定且模型不可见 | Passed |
+| `UAT-TXN-211` | Python/Java 输入合同 | Decimal/float/date/page/size/sort 非法输入零 search | Passed |
+| `UAT-TXN-212` | 真实 LLM 零业务调用 | run03 `UAT-TXN-212` | Passed |
+| `UAT-TXN-213` | 真实 LLM + Java Reactive 安全链 | run03 + ADMIN/VIEWER/拒绝矩阵 | Passed |
+| `UAT-TXN-214` | Python/Java 跨语言合同 | rows/totalExact/page/size/Date/Decimal | Passed |
+| `UAT-TXN-215` | 真实 LLM 零业务调用 | run03 `UAT-TXN-215` | Passed |
+
+## 11. 当前结论与证据边界
+
+v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；首次和第二次 UAT 不可变失败 SHA-256 分别为 `cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`、`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`。v4 run03 正式成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`，只证明其中列出的 18 个真实场景，不外推为 35 次真实执行。
+
+剩余 17 个用例按风险分别由当前 Spring→Runtime、Spring/Servlet/Reactive 安全链、Python 生产组合根 fake E2E 和 Java/Python 跨语言契约关闭；追踪资产验证每个引用路径与测试符号真实存在，并强制真实证据集合仍为 18。该分层与个人学习项目的风险相称：不重复付费验证确定性 codec/权限/严格 JSON，同时不降低 QueryPlan 真实模型及真实业务调用证据。最终全量 Python non-live 回归为 `1389 passed / 27 opt-in skipped`，agent-service 当前 Spring→Runtime 与严格 JSON 套件包含在 `34 tests / 1 opt-in skipped / 0 failures` 中；Employee/Transaction Java 安全和合同回归分别为 `50 tests / 20 opt-in skipped / 0 failures`、`51 tests / 2 skipped / 0 failures`。四个阶段均标记 Passed，`GATE-UAT-007` 基于 35/35 追踪矩阵有效关闭。

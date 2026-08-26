@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.1 |
-| 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 |
+| 当前版本 | v2.2 |
+| 更新时间 | 2026-08-26 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.2 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 | Provider 基线 | 已有 DeepSeek transport、input guard 与已实施 `business-query-plan-v4`；默认 provider 为 stub |
 | 归档来源 | [v1.9 已评审旧版](历史文档/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN_v1.9.md)；当前代码和既有接口 |
@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v4` 已实施三个动作安全 catalog、strict provider decoder 和完整意图 Prompt；semantic+地点过滤、缺少批准时钟的相对日期均通过 adversarial fake 及真实 UAT unsupported/零调用。正式 run03 UAT 18/18 通过，结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；历史 v3 controlled/UAT 证据及哈希保持不可变。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v4` 已实施三个动作安全 catalog、strict provider decoder 和完整意图 Prompt；semantic+地点过滤、缺少批准时钟的相对日期均通过 adversarial fake 及真实 UAT unsupported/零调用。正式 run03 真实 UAT 18/18 通过，结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；其余确定性风险由非 live/合同自动化关闭，历史 v3 controlled/UAT 证据及哈希保持不可变。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -116,8 +116,9 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
-| 当前允许实施范围 | v4 Prompt/task version、版本化 UAT manifest 和 adversarial fake/non-live 实施 |
-| 当前禁止动作 | 真实模型调用、读取密钥、修改 Knowledge task、放宽 Business validator |
+| 当前实施状态 | v4 Prompt/task version、版本化 UAT、adversarial fake/non-live 与既有受控真实验证已完成 |
+| 当前允许实施范围 | 已实施 v4 链路的缺陷修复、fake/non-live 回归；额外真实调用须绑定新的受控场景与预算 |
+| 当前禁止动作 | 修改 Knowledge task、放宽 Business validator、复用历史授权或无界真实模型调用 |
 
 风险包括 Prompt 遗漏用户条件、敏感值出域和旧 v2/v3 证据误用。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 证明 semantic+location 原 Prompt 不稳定；以明确反例、adversarial fake、零调用、版本化 task/manifest 及历史哈希控制，不添加本地语义识别。评审记录：当前修订已完成三轮内审和独立分层/跨层评审并通过。
 

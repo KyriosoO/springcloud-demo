@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.3 |
-| 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3 |
+| 当前版本 | v2.4 |
+| 更新时间 | 2026-08-26 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
@@ -18,7 +18,7 @@
 
 设计目标是让 Business 公共层统一承担 provider-neutral QueryPlan、field/operator/slot、配置 snapshot、启动一致性、JWT 透传、结果投影和可选模型出域。范围外包括问题语义本地生成、provider transport、Core 执行规则、业务 SQL/ES、业务最终授权、新 endpoint/DTO 和真实模型调用。
 
-当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已通过 non-live、真实 controlled 及 18 项正式 UAT。公共 validator 依据 operator 区分 `trans_type eq` 安全 token 与 `contains` 防 LIKE 通配策略；当前 Employee 配置、实际定义和模型目录均无 workBase，未配置字段依靠通用白名单自然失败关闭。Employee 业务最终授权和 SQL 实现仍不是公共层责任。
+当前实现：`agent-runtime/src/agent_runtime/business/query_plan.py` 已实现 filters/operator/tagged value、同字段组合与严格 decoder；统一三动作版本化 JSON、strict settings/snapshot、protected slots、有限字段映射、projection 和目标生产组合根已通过 non-live、真实 controlled、18 个真实 UAT 场景及 17 个等价自动化风险验证。公共 validator 依据 operator 区分 `trans_type eq` 安全 token 与 `contains` 防 LIKE 通配策略；当前 Employee 配置、实际定义和模型目录均无 workBase，未配置字段依靠通用白名单自然失败关闭。Employee 业务最终授权和 SQL 实现仍不是公共层责任。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -36,7 +36,7 @@
 
 Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `JsonObject → BusinessQueryPlan` exact payload；validator 负责代码 definition、配置 snapshot、日期/Decimal 与 field/operator；binder 只把同请求 `value_ref` 转换为 Adapter 输入。依赖方向固定 Model → Business decode/validate/bind → Core → Domain Adapter；禁止绕过或反向依赖。
 
-现有关键接缝为 `ExactBusinessQueryPlanDecoder.decode(payload: JsonObject) -> BusinessQueryPlan`、`DefaultBusinessQueryPlanValidator.validate(plan, *, snapshot) -> BusinessQueryPlanValidationResult`、`RequestProtectedValueBinder.bind(plan, *, slots, request_id) -> ActionCandidate` 和 `build_business_planner_catalog(...) -> BusinessPlannerCatalog`。建议新增不可变 `BusinessQueryFilter(field, operator, value)`、`BusinessListQueryArguments(filters, page, size, sorts, keyword)` 与 `EmployeeSemanticQueryArguments(query, size)` 等业务合同；它们是明确的目标类型，不得误认为现有 flat arguments 已满足新设计。
+现有关键接缝为 `ExactBusinessQueryPlanDecoder.decode(payload: JsonObject) -> BusinessQueryPlan`、`DefaultBusinessQueryPlanValidator.validate(plan, *, snapshot) -> BusinessQueryPlanValidationResult`、`RequestProtectedValueBinder.bind(plan, *, slots, request_id) -> ActionCandidate` 和 `build_business_planner_catalog(...) -> BusinessPlannerCatalog`。不可变 `BusinessQueryFilter(field, operator, value)`、`BusinessListQueryArguments(filters, page, size, sorts, keyword)` 与 `EmployeeSemanticQueryArguments(query, size)` 等业务合同均已实施；历史 flat arguments 不满足且不得替代本设计。
 
 ### 3.1 统一计划外层与列表 arguments
 
@@ -88,7 +88,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 ## 4. 统一字段级配置与 snapshot
 
-建议新增 `agent-runtime/src/agent_runtime/business/business-query.v2.json`：单个版本控制 JSON 文件，由现有严格 Python 解码器读取；路径是否最终放置在相邻包目录由实现时打包可达性验证，但本期不新增配置平台、DSL、watcher 或生产依赖。
+已存在 `agent-runtime/src/agent_runtime/business/business-query.v2.json`：单个版本控制 JSON 文件，由严格 Python 解码器读取，并已完成打包可达性及 snapshot 校验；本期不新增配置平台、DSL、watcher 或生产依赖。
 
 ```json
 {
@@ -211,8 +211,9 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
-| 当前允许实施范围 | QueryPlan/config/catalog/slot/projection 的 non-live 代码与 fake 测试 |
-| 当前禁止动作 | 真实模型/业务/数据库调用、新业务接口、权限扩权、放宽敏感与结果边界 |
+| 当前实施状态 | QueryPlan/config/catalog/slot/projection、三动作 non-live/live/UAT 与跨语言合同验证已完成 |
+| 当前允许实施范围 | 已实施合同的缺陷修复、配置收紧和 non-live 回归 |
+| 当前禁止动作 | 新增业务接口、权限扩权、放宽敏感/结果边界或允许 Agent 直接访问业务数据库/ES |
 
 评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
 

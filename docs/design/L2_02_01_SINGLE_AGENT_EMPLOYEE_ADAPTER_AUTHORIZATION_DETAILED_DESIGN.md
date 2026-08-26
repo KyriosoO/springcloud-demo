@@ -6,10 +6,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.3 |
-| 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3 |
+| 当前版本 | v2.4 |
+| 更新时间 | 2026-08-26 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) `DR-AUTH-007` |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -18,7 +18,7 @@
 
 目标复用 `EmployeeEsController.search` 和 `vectorSearch` 现有公开接口，分别提供 `employee.search`、`employee.semantic_search`，返回严格投影的员工列表。范围外包括新 endpoint/DTO、ES 直连、索引重建、聚合、写入、客户端二次筛选、自动互相 fallback 和启用 workBase 字段。
 
-当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec、partial page/记录级卫生与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。正式 run03 的 9 个 Employee 场景全部通过：条件搜索 6 次、语义搜索 1 次，上海地址返回 20 条、语义返回 9 条受控记录；workBase 样例及 semantic+上海均 unsupported/零业务调用，denied 角色由业务服务返回 forbidden。
+当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec、partial page/记录级卫生与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。正式 run03 的 9 个 Employee 真实场景全部通过：条件搜索 6 次、语义搜索 1 次，上海地址返回 20 条、语义返回 9 条受控记录；workBase 样例及 semantic+上海均 unsupported/零业务调用，denied 角色由业务服务返回 forbidden。其余 6 个 Employee 计划用例由当前生产组合根、安全链或 Adapter 合同自动化逐项关闭，Employee 追踪为 15/15。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -154,13 +154,14 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 
 ## 10. 风险、评审记录与实现就绪判定
 
-主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter；把多跳语义检索误套普通搜索 3000ms 上限会产生真实 timeout。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。语义 timeout 仅通过 action 独立预算纠正，不恢复 fallback 或额外调用；成功受控真实联调和 UAT 仍需独立完成。
+主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter；把多跳语义检索误套普通搜索 3000ms 上限会产生真实 timeout。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。语义 timeout 仅通过 action 独立预算纠正，不恢复 fallback 或额外调用；受控真实联调和 run03 UAT 已独立完成，历史失败证据保持不可变。
 
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
-| 当前允许实施范围 | 已通过 endpoint-scoped converter、真实过滤链权限矩阵和 detail/fallback 兼容验证；按计划门禁执行后续受控联调 |
-| 当前禁止动作 | 绕过受控联调门禁；新增业务接口/DTO、改全局 fallback、索引或数据修改 |
+| 当前实施状态 | endpoint-scoped converter、真实过滤链权限矩阵、detail/fallback 兼容、受控联调与 run03 UAT 已完成 |
+| 当前允许实施范围 | 已实施 Employee search/semantic 链路的缺陷修复及 non-live 回归 |
+| 当前禁止动作 | 新增业务接口/DTO、修改全局 fallback、索引或业务数据，或恢复 detail 目标链路 |
 
 评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
 

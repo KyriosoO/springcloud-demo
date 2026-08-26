@@ -7,12 +7,12 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.1 |
-| 更新日期 | 2026-08-25 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.0 |
-| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.3；Knowledge L1 保持 v1.0 |
+| 当前版本 | v2.2 |
+| 更新日期 | 2026-08-26 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.1 |
+| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4；Knowledge L1 保持 v1.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | 三动作组合根、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 已实施；正式 run03 UAT 18/18 通过 |
+| 当前实现 | 三动作组合根、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 已实施；run03 真实场景 18/18 与当前等价自动化风险 17/17 均已闭合 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -76,12 +76,12 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | L2 | 唯一权威责任 |
 |---|---|
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.0 | 既有 Spring 接入与 Runtime 协同，不在本次修改范围 |
-| [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.0 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.1 | 模型安全 catalog、v4 完整意图 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
-| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.3 | QueryPlan、字段配置、按 operator 校验文本、validator、binder 与出域策略 |
+| [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.1 | Business bridge、组合根、Registry、取消与单动作执行 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.2 | 模型安全 catalog、v4 完整意图 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
+| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4 | QueryPlan、字段配置、按 operator 校验文本、validator、binder 与出域策略 |
 
 ## 8. 风险、验证与当前实施状态
 
 应验证三动作唯一可达、一次规划/一次 handler、并发请求 slot 隔离、取消、strict decoder、config snapshot、不支持条件零调用和 Knowledge 回归。无须独立工作流引擎、复杂 circuit breaker、动态 registry 或生产级治理平台。
 
-既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能替代 v4 验收。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；v4 Prompt 已在独立 run03 正式 UAT 完成 18/18 真实规划，语义+filter、相对日期均 exact unsupported/零业务调用。成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；未增加本地语义 Resolver 或重复 live 审计平台。
+既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能替代 v4 验收。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；v4 Prompt 已在独立 run03 正式 UAT 完成 18/18 真实规划，语义+filter、相对日期均 exact unsupported/零业务调用。成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；其余 17 个确定性风险由当前 Spring→Runtime、安全链和跨语言合同自动化逐项关闭，未增加本地语义 Resolver、重复付费调用或 live 审计平台。

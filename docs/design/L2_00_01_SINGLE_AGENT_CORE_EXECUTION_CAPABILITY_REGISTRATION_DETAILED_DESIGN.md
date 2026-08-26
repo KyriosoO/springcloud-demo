@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.0 |
-| 更新时间 | 2026-08-25 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.1 |
+| 当前版本 | v2.1 |
+| 更新时间 | 2026-08-26 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.2 |
 | 关联责任边界 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
@@ -55,7 +55,7 @@ ProtectedValueBinder.bind(plan: ValidatedBusinessQueryPlan, *, slots: ProtectedV
 async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: RequestExecutionScope) -> CapabilityResult
 ```
 
-前三个 Business 接缝的 filters 语义需要在既有类中扩展；公共 Core `execute` 签名与返回合同保持不变，不能把这些目标变更误记为已实施。
+前三个 Business 接缝的 filters 语义已在既有类中完成扩展，并由当前 contract/non-live/UAT 证据验证；公共 Core `execute` 签名与返回合同保持不变。
 
 ## 4. 核心处理流程、状态与失败类型
 
@@ -71,7 +71,7 @@ async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: Requ
 
 ## 5. 组合根、取消与事务边界
 
-`agent-runtime/src/agent_runtime/bootstrap.py` 建议修改：装配 `employee.search`、`employee.semantic_search`、`transaction.search` 三条 code-bound capability、共享 JSON 配置 snapshot、provider-neutral planning generator、request cancellation 和固定 domain handlers。启动检查 action 唯一、descriptor/config/validator/mapper/codec 对齐、三动作与注册表一致，以及旧 `employee.detail` 不再出现在目标模型目录。
+`agent-runtime/src/agent_runtime/bootstrap.py` 已装配 `employee.search`、`employee.semantic_search`、`transaction.search` 三条 code-bound capability、共享 JSON 配置 snapshot、provider-neutral planning generator、request cancellation 和固定 domain handlers。启动检查 action 唯一、descriptor/config/validator/mapper/codec 对齐、三动作与注册表一致，以及旧 `employee.detail` 不再出现在目标模型目录。
 
 默认 provider 仍为 stub；只有测试明确注入 fake provider 或后续获得真实调用授权，才允许规划成功。现有 Knowledge 图和公共 action selector 不得被无关修改。
 
@@ -118,8 +118,9 @@ async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: Requ
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
-| 当前允许实施范围 | graph/组合根 non-live 改造和 fake 契约验证 |
-| 当前禁止动作 | 修改公共 Core/HTTP/Knowledge、真实模型/业务调用、授权扩权 |
+| 当前实施状态 | filters planning bridge、三动作组合根、单动作/取消/隔离及 non-live/live/UAT 验证已完成 |
+| 当前允许实施范围 | 仅允许按新的已评审需求修复现行链路并执行 non-live 回归 |
+| 当前禁止动作 | 修改公共 Core/HTTP/Knowledge、恢复旁路或扩大授权 |
 
 评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
 
