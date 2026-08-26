@@ -79,10 +79,25 @@ class LiveRetrievalBinding(StrictLiveModel):
     )
 
 
+class LiveKnowledgeConfigurationBinding(StrictLiveModel):
+    domain_catalog_version: Literal["tax-domain-catalog-v2"] = Field(alias="domainCatalogVersion")
+    flow_config_version: Literal["knowledge-flow-config-v1"] = Field(alias="flowConfigVersion")
+    retrieval_profile_version: Literal["tax-knowledge-search-v1"] = Field(alias="retrievalProfileVersion")
+    embedding_model: Literal["BGE-M3"] = Field(alias="embeddingModel")
+    rerank_model: Literal["BAAI/bge-reranker-v2-m3"] = Field(alias="rerankModel")
+    policy_catalog_sha256: Literal["442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698"] = Field(
+        alias="policyCatalogSha256"
+    )
+    evidence_rules_version: Literal["knowledge-evidence-v1"] = Field(alias="evidenceRulesVersion")
+    summary_prompt_sha256: Literal["cf6318629fcc7e6156efa89e566e2083b84da94c2c783a041cf9f1338476ca22"] = Field(
+        alias="summaryPromptSha256"
+    )
+
+
 class LiveP5Manifest(StrictLiveModel):
-    schema_version: Literal[1, 2] = Field(alias="schemaVersion")
+    schema_version: Literal[1, 2, 3] = Field(alias="schemaVersion")
     status: Literal["prepared_unconsumed"]
-    work_package_id: Literal["WP-KP5-LIVE-01"] = Field(alias="workPackageId")
+    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05"] = Field(alias="workPackageId")
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
     authorization_reference: str = Field(alias="authorizationReference", min_length=1, max_length=256)
     dataset_path: Literal[
@@ -99,6 +114,7 @@ class LiveP5Manifest(StrictLiveModel):
     provider_mode: Literal["live"] = Field(alias="providerMode")
     model_name: Literal["deepseek-v4-pro"] = Field(alias="modelName")
     task_versions: dict[Literal["knowledge_rewrite", "knowledge_summary"], str] = Field(alias="taskVersions")
+    configuration_binding: LiveKnowledgeConfigurationBinding | None = Field(default=None, alias="configurationBinding")
     index_snapshot_ids: tuple[str, str] = Field(alias="indexSnapshotIds")
     retrieval_binding: LiveRetrievalBinding | None = Field(default=None, alias="retrievalBinding")
     asset_hashes: tuple[LiveAssetHash, ...] = Field(alias="assetHashes", min_length=1)
@@ -118,11 +134,20 @@ class LiveP5Manifest(StrictLiveModel):
             or not _LOWER_HEX_64.fullmatch(self.dataset_sha256)
             or tuple(item.gate_id for item in self.gate_evidence) != expected_gates
             or set(self.task_versions) != {"knowledge_rewrite", "knowledge_summary"}
-            or self.task_versions != {"knowledge_rewrite": "1", "knowledge_summary": "2"}
+            or self.task_versions
+            != (
+                {"knowledge_rewrite": "1", "knowledge_summary": "3"}
+                if self.schema_version == 3
+                else {"knowledge_rewrite": "1", "knowledge_summary": "2"}
+            )
             or len(set(self.index_snapshot_ids)) != 2
             or any(not _LOWER_HEX_64.fullmatch(item) for item in self.index_snapshot_ids)
             or (self.schema_version == 1 and self.retrieval_binding is not None)
-            or (self.schema_version == 2 and self.retrieval_binding is None)
+            or (self.schema_version >= 2 and self.retrieval_binding is None)
+            or (self.schema_version < 3 and self.configuration_binding is not None)
+            or (self.schema_version == 3 and self.configuration_binding is None)
+            or (self.schema_version < 3 and self.work_package_id != "WP-KP5-LIVE-01")
+            or (self.schema_version == 3 and self.work_package_id != "WP-K-EFFECT-LIVE-05")
             or tuple(item.path for item in self.asset_hashes) != tuple(sorted(item.path for item in self.asset_hashes))
             or len({item.path for item in self.asset_hashes}) != len(self.asset_hashes)
             or not _valid_utc_seconds(self.prepared_at)
@@ -139,7 +164,7 @@ class LiveP5Manifest(StrictLiveModel):
 class LiveAuthorizationRecord(StrictLiveModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     status: Literal["authorized_unconsumed"]
-    work_package_id: Literal["WP-KP5-LIVE-01"] = Field(alias="workPackageId")
+    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05"] = Field(alias="workPackageId")
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
     authorization_reference: str = Field(alias="authorizationReference", min_length=1, max_length=256)
     single_use: Literal[True] = Field(alias="singleUse")
@@ -164,6 +189,43 @@ class LiveAuthorizationRecord(StrictLiveModel):
             or not _valid_utc_seconds(self.confirmed_at)
         ):
             raise ValueError("evaluation.live_authorization_invalid")
+        return self
+
+
+class LiveAuthorizationTemplate(StrictLiveModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    status: Literal["awaiting_explicit_authorization"]
+    work_package_id: Literal["WP-K-EFFECT-LIVE-05"] = Field(alias="workPackageId")
+    run_id: str = Field(alias="runId", min_length=1, max_length=64)
+    authorization_reference: Literal["P3_00:GATE-072"] = Field(alias="authorizationReference")
+    single_use: Literal[True] = Field(alias="singleUse")
+    maximum_paid_requests: Literal[78] = Field(alias="maximumPaidRequests")
+    retry_allowed: Literal[False] = Field(alias="retryAllowed")
+    answer_requests_allowed: Literal[False] = Field(alias="answerRequestsAllowed")
+    live_p5_authorized: Literal[False] = Field(alias="liveP5Authorized")
+    dataset_sha256: str = Field(alias="datasetSha256")
+    required_binding_fields: tuple[
+        Literal["frozenHead"],
+        Literal["runId"],
+        Literal["manifestSha256"],
+        Literal["authorizationReference"],
+        Literal["maximumPaidRequests"],
+    ] = Field(alias="requiredBindingFields")
+
+    @field_validator("required_binding_fields", mode="before")
+    @classmethod
+    def decode_binding_fields(cls, value: object) -> object:
+        return tuple(value) if isinstance(value, list) else value
+
+    @model_validator(mode="after")
+    def validate_template(self) -> "LiveAuthorizationTemplate":
+        if (
+            not _ASCII_SAFE.fullmatch(self.run_id)
+            or not _LOWER_HEX_64.fullmatch(self.dataset_sha256)
+            or self.required_binding_fields
+            != ("frozenHead", "runId", "manifestSha256", "authorizationReference", "maximumPaidRequests")
+        ):
+            raise ValueError("evaluation.live_authorization_template_invalid")
         return self
 
 
@@ -245,6 +307,11 @@ def load_authorization(path: Path) -> LiveAuthorizationRecord:
     return LiveAuthorizationRecord.model_validate(value)
 
 
+def load_authorization_template(path: Path) -> LiveAuthorizationTemplate:
+    value, _ = strict_json_bytes(path)
+    return LiveAuthorizationTemplate.model_validate(value)
+
+
 def verify_manifest_assets(*, manifest: LiveP5Manifest, repository_root: Path) -> None:
     for asset in manifest.asset_hashes:
         resolved = (repository_root / asset.path).resolve()
@@ -324,6 +391,13 @@ class BudgetedLiveModelTransport:
             raise RuntimeError("evaluation.live_attempt_missing")
         if request.task_id not in self._calls_by_task:
             raise RuntimeError("evaluation.live_task_forbidden")
+        expected_task_version = (
+            self._manifest.task_versions["knowledge_rewrite"]
+            if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE
+            else self._manifest.task_versions["knowledge_summary"]
+        )
+        if request.task_version != expected_task_version:
+            raise RuntimeError("evaluation.live_task_version_drift")
         if request.task_id in self._tasks_in_active:
             raise RuntimeError("evaluation.live_retry_forbidden")
         if active.variant == "rewrite_ablation" and request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
@@ -370,7 +444,7 @@ class BudgetedLiveModelTransport:
         value = {
             "schemaVersion": 1,
             "status": "consumed",
-            "workPackageId": "WP-KP5-LIVE-01",
+            "workPackageId": self._manifest.work_package_id,
             "runId": self._manifest.run_id,
             "manifestSha256": self._manifest_sha256,
             "authorizationReference": self._manifest.authorization_reference,

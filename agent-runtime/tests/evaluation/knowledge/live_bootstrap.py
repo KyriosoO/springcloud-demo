@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Mapping, cast
@@ -16,6 +17,7 @@ from agent_runtime.knowledge.domain_selection import DeterministicDomainSelector
 from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
 from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput, KnowledgeSummaryOutput
 from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
+from agent_runtime.knowledge.evidence.summary_task_v3 import SUMMARY_PROMPT_V3
 from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
 from agent_runtime.knowledge.question_semantics import QuestionSemanticGuard
 from agent_runtime.knowledge.retrieval.bge_embedding import BgeM3EmbeddingAdapter
@@ -75,7 +77,7 @@ _P5_KEYS = frozenset(
     }
 )
 _LIVE_OPT_IN = "I_UNDERSTAND_LIVE_EXTERNAL_CALLS"
-LiveCandidateId = Literal["candidate-03", "candidate-04"]
+LiveCandidateId = Literal["candidate-03", "candidate-04", "candidate-05"]
 _DEFAULT_LIVE_CANDIDATE: LiveCandidateId = "candidate-03"
 
 
@@ -110,6 +112,18 @@ _CANDIDATE_BINDINGS: dict[LiveCandidateId, LiveCandidateBinding] = {
             "knowledge-p5-live-v1-20260813-candidate-04.authorization.json"
         ),
         run_id="knowledge-p5-live-v1-20260813-candidate-04",
+        dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+    ),
+    "candidate-05": LiveCandidateBinding(
+        manifest_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v2-20260826-candidate-05.manifest.json"
+        ),
+        authorization_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v2-20260826-candidate-05.authorization.json"
+        ),
+        run_id="knowledge-p5-live-v2-20260826-candidate-05",
         dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
     ),
 }
@@ -282,7 +296,10 @@ async def build_live_from_environment(
 
     candidate_id = _candidate_id(environ.get("P5_KNOWLEDGE_CANDIDATE", _DEFAULT_LIVE_CANDIDATE))
     manifest, manifest_sha256 = load_manifest(manifest_path(repository_root, candidate_id))
-    authorization = load_authorization(authorization_path(repository_root, candidate_id))
+    try:
+        authorization = load_authorization(authorization_path(repository_root, candidate_id))
+    except FileNotFoundError as exc:
+        raise LiveEvaluationBootstrapError("evaluation.live_authorization_missing") from exc
     binding = _CANDIDATE_BINDINGS[candidate_id]
     verify_manifest_assets(manifest=manifest, repository_root=repository_root)
     if (
@@ -314,6 +331,20 @@ async def build_live_from_environment(
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
     if tasks is None:
         raise LiveEvaluationBootstrapError("evaluation.live_tasks_missing")
+    runtime_task_versions = {
+        "knowledge_rewrite": cast(Any, tasks.rewrite).task_version,
+        "knowledge_summary": cast(Any, tasks.summary).task_version,
+    }
+    configuration = manifest.configuration_binding
+    if (
+        manifest.task_versions != runtime_task_versions
+        or configuration is None
+        or configuration.domain_catalog_version != CATALOG_VERSION
+        or configuration.flow_config_version != settings.config_version
+        or configuration.summary_prompt_sha256
+        != hashlib.sha256(SUMMARY_PROMPT_V3.encode("utf-8")).hexdigest()
+    ):
+        raise LiveEvaluationBootstrapError("evaluation.live_runtime_snapshot_drift")
 
     model_client = build_deepseek_http_client(model_settings)
     es_client = build_knowledge_http_client(_required(environ, "AGENT_KNOWLEDGE_ES_BASE_URL"))
@@ -339,10 +370,15 @@ async def build_live_from_environment(
         )
         context_accessor = ModelCallContextAccessor()
         catalog = KnowledgeEgressPolicyCatalog.load_v1_resource()
+        if catalog.snapshot.source_sha256 != configuration.policy_catalog_sha256:
+            raise LiveEvaluationBootstrapError("evaluation.live_runtime_snapshot_drift")
         search_adapter = EsKnowledgeSearchAdapter(HttpxKnowledgeTransport(es_client))
         embedding_adapter = BgeM3EmbeddingAdapter(HttpxKnowledgeTransport(embedding_client))
         rerank_adapter = BgeRerankAdapter(HttpxKnowledgeTransport(rerank_client))
-        signature = f"knowledge-live-p5-v1|{manifest_sha256}|summary-v2|retrieval-v1|catalog-{catalog.snapshot.source_sha256}"
+        signature = (
+            f"knowledge-live-p5-v2|{manifest_sha256}|summary-v{runtime_task_versions['knowledge_summary']}|"
+            f"retrieval-v1|domain-{CATALOG_VERSION}|policy-{catalog.snapshot.source_sha256}"
+        )
         primary = _build_executor(
             variant="primary",
             settings=settings,
