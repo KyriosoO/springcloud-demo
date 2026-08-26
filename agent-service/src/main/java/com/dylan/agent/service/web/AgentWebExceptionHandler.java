@@ -3,6 +3,7 @@ package com.dylan.agent.service.web;
 import com.dylan.agent.service.application.AgentPublicException;
 import com.dylan.agent.service.contract.CapabilityStatus;
 import com.dylan.agent.service.contract.FailureSource;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.Ordered;
@@ -47,7 +48,9 @@ public final class AgentWebExceptionHandler implements ErrorWebExceptionHandler,
             return writer.write(exchange, HttpStatus.UNSUPPORTED_MEDIA_TYPE, CapabilityStatus.INVALID_ARGUMENT,
                     "core.unsupported_media_type", FailureSource.CORE);
         }
-        if (error instanceof ServerWebInputException || error instanceof DecodingException) {
+        if (hasCause(error, ServerWebInputException.class)
+                || hasCause(error, DecodingException.class)
+                || hasCause(error, JsonProcessingException.class)) {
             return writer.write(exchange, HttpStatus.BAD_REQUEST, CapabilityStatus.INVALID_ARGUMENT,
                     "core.invalid_request", FailureSource.CORE);
         }

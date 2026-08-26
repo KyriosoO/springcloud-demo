@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 2,
+  "suiteId": "single-agent-business-query-uat-v2",
+  "authority": "UAT_00 v1.14",
+  "historicalRealEvidence": {
+    "path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json",
+    "sha256": "b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8",
+    "caseCount": 18
+  },
+  "cases": [
+    {
+      "caseId": "UAT-PUB-201",
+      "stage": "public",
+      "status": "passed",
+      "verificationKind": "spring_security",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java", "symbol": "missingInvalidAndServiceTokensUseSafe401EnvelopeWithoutRuntime"}
+      ],
+      "riskClosure": "missing, malformed and service tokens are rejected before Runtime"
+    },
+    {
+      "caseId": "UAT-PUB-202",
+      "stage": "public",
+      "status": "passed",
+      "verificationKind": "spring_security",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java", "symbol": "duplicateNullAndMalformedJsonFailBeforeRuntime"},
+        {"path": "agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java", "symbol": "unknownFieldWrongMediaTypeAndOversizedBodyFailBeforeRuntime"}
+      ],
+      "riskClosure": "duplicate, null, malformed and unknown-field JSON fail with zero Runtime calls"
+    },
+    {
+      "caseId": "UAT-PUB-203",
+      "stage": "public",
+      "status": "passed",
+      "verificationKind": "python_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/test_runtime_composition.py", "symbol": "test_test_only_composition_uses_stub_and_rejects_invalid_local_arguments_without_network"}
+      ],
+      "riskClosure": "default stub cannot produce a successful business query or external outbound"
+    },
+    {
+      "caseId": "UAT-PUB-204",
+      "stage": "public",
+      "status": "passed",
+      "verificationKind": "spring_runtime_nonlive",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-service/src/test/java/com/dylan/agent/service/e2e/AgentBusinessQueryPlanNonLiveE2ETest.java", "symbol": "verifiesSpringRuntimeFakeModelAndFakeDomainsUseOnlyQueryPlanPath"}
+      ],
+      "riskClosure": "unsupported requests preserve the Runtime semantic status through Spring"
+    },
+    {
+      "caseId": "UAT-PUB-205",
+      "stage": "public",
+      "status": "passed",
+      "verificationKind": "combined_automation",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-service/src/test/java/com/dylan/agent/service/e2e/AgentBusinessQueryPlanNonLiveE2ETest.java", "symbol": "verifiesSpringRuntimeFakeModelAndFakeDomainsUseOnlyQueryPlanPath"},
+        {"path": "agent-runtime/tests/unit/business/test_local_action_resolver_binding.py", "symbol": "test_queryplan_business_snapshot_has_no_enabled_local_resolvers"},
+        {"path": "agent-runtime/tests/integration/business/test_business_query_runtime_cutover.py", "symbol": "test_cutover_registers_only_three_list_actions_and_executes_one"}
+      ],
+      "riskClosure": "second action, cross-domain plan and legacy Resolver paths remain unreachable in the current three-action composition"
+    },
+
+    {
+      "caseId": "UAT-EMP-201",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-201"}
+      ],
+      "riskClosure": "real v4 plan maps Shanghai to contact_address contains and one employee.search"
+    },
+    {
+      "caseId": "UAT-EMP-202",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "python_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/employee/test_search_definition.py", "symbol": "test_employee_search_maps_position_eq_and_keyword_without_expanding_fields"},
+        {"path": "agent-runtime/tests/integration/adapters/employee/test_search_fake_server.py", "symbol": "test_search_handler_uses_one_endpoint_jwt_and_masked_list_without_answer_call"}
+      ],
+      "riskClosure": "position eq maps exactly without widening the field catalog and the user result uses the bounded projection"
+    },
+    {
+      "caseId": "UAT-EMP-203",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-203"}
+      ],
+      "riskClosure": "real v4 plan preserves position contains"
+    },
+    {
+      "caseId": "UAT-EMP-204",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "python_integration",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/test_business_list_query_nonlive.py", "symbol": "test_protected_employee_name_is_bound_after_model_and_uses_search_once"}
+      ],
+      "riskClosure": "employee name is replaced by value_ref before model and request-bound afterwards"
+    },
+    {
+      "caseId": "UAT-EMP-205",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-205"}
+      ],
+      "riskClosure": "real v4 plan binds employee identifier and invokes search rather than detail"
+    },
+    {
+      "caseId": "UAT-EMP-206",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "python_integration",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/test_business_list_query_nonlive.py", "symbol": "test_protected_employee_keyword_is_bound_after_model_and_uses_search_once"},
+        {"path": "agent-runtime/tests/unit/business/test_query_configuration_v2.py", "symbol": "test_unified_config_binds_three_actions_and_code_bound_field_matrices"}
+      ],
+      "riskClosure": "keyword uses the fixed service field set and binds sensitive values after model planning"
+    },
+    {
+      "caseId": "UAT-EMP-207",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-207"}
+      ],
+      "riskClosure": "real v4 plan preserves second-page pagination within the configured limit"
+    },
+    {
+      "caseId": "UAT-EMP-208",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-208"}
+      ],
+      "riskClosure": "real v4 plan invokes only employee.semantic_search"
+    },
+    {
+      "caseId": "UAT-EMP-209",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-209"},
+        {"path": "agent-runtime/tests/unit/business/test_query_configuration_v2.py", "symbol": "test_unconfigured_field_is_unreachable_through_generic_allowlist"}
+      ],
+      "riskClosure": "workBase sample is unsupported with zero business calls through the generic allowlist"
+    },
+    {
+      "caseId": "UAT-EMP-210",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-210"}
+      ],
+      "riskClosure": "semantic plus location is exact unsupported with zero search or vector calls"
+    },
+    {
+      "caseId": "UAT-EMP-211",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_and_java_security",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-211"},
+        {"path": "employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java", "symbol": "adminAndViewerRoleClaimsReachBothExistingReadEndpoints"}
+      ],
+      "riskClosure": "real viewer plan and full Servlet ADMIN/VIEWER matrix cover both Employee endpoints"
+    },
+    {
+      "caseId": "UAT-EMP-212",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "real_and_java_security",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-EMP-212"},
+        {"path": "employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java", "symbol": "rejectedRolesAndInvalidTokensNeverReachEitherEmployeeQuery"}
+      ],
+      "riskClosure": "real denied role and Servlet service-token matrix fail without endpoint switching"
+    },
+    {
+      "caseId": "UAT-EMP-213",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "combined_automation",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java", "symbol": "missingInvalidAndServiceTokensUseSafe401EnvelopeWithoutRuntime"},
+        {"path": "employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java", "symbol": "rejectedRolesAndInvalidTokensNeverReachEitherEmployeeQuery"}
+      ],
+      "riskClosure": "missing and malformed identity are rejected at ingress and Employee security layers"
+    },
+    {
+      "caseId": "UAT-EMP-214",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "python_integration",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/integration/adapters/employee/test_search_fake_server.py", "symbol": "test_search_handler_uses_one_endpoint_jwt_and_masked_list_without_answer_call"},
+        {"path": "agent-runtime/tests/integration/adapters/employee/test_search_fake_server.py", "symbol": "test_semantic_handler_projects_partial_hits_without_fallback_or_extra_call"}
+      ],
+      "riskClosure": "raw ES-only fields are dropped and partial valid hits remain bounded without fallback"
+    },
+    {
+      "caseId": "UAT-EMP-215",
+      "stage": "employee",
+      "status": "passed",
+      "verificationKind": "python_integration",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/employee/test_search_definition.py", "symbol": "test_employee_search_protected_fields_are_redacted_before_model"},
+        {"path": "agent-runtime/tests/system_e2e/test_business_list_query_nonlive.py", "symbol": "test_protected_employee_keyword_is_bound_after_model_and_uses_search_once"}
+      ],
+      "riskClosure": "address, phone, email, name and identifiers are either rejected or request-bound without model leakage"
+    },
+
+    {
+      "caseId": "UAT-TXN-201",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-201"}
+      ],
+      "riskClosure": "real v4 plan preserves trans_type eq including a legal underscore"
+    },
+    {
+      "caseId": "UAT-TXN-202",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-202"}
+      ],
+      "riskClosure": "real v4 plan preserves safe trans_type contains"
+    },
+    {
+      "caseId": "UAT-TXN-203",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-203"}
+      ],
+      "riskClosure": "real v4 absolute-date equality plan reaches one transaction.search"
+    },
+    {
+      "caseId": "UAT-TXN-204",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "python_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_list_search_definition.py", "symbol": "test_transaction_list_maps_independent_operators_date_decimal_and_second_page"},
+        {"path": "mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/mapper/TransactionMapperIntegrationTest.java", "symbol": "shouldCompareDecimal50Scale2AmountsExactlyForEqualsAndOpenRanges"}
+      ],
+      "riskClosure": "both date bounds survive the plan and strict open-range mapping"
+    },
+    {
+      "caseId": "UAT-TXN-205",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-205"}
+      ],
+      "riskClosure": "real v4 amount equality preserves canonical Decimal semantics"
+    },
+    {
+      "caseId": "UAT-TXN-206",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-206"}
+      ],
+      "riskClosure": "real v4 amount interval preserves both strict bounds"
+    },
+    {
+      "caseId": "UAT-TXN-207",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "python_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_list_search_definition.py", "symbol": "test_transaction_list_maps_independent_operators_date_decimal_and_second_page"}
+      ],
+      "riskClosure": "type, date and amount conditions are all retained in one mapped request"
+    },
+    {
+      "caseId": "UAT-TXN-208",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-208"}
+      ],
+      "riskClosure": "real v4 plan preserves second-page pagination"
+    },
+    {
+      "caseId": "UAT-TXN-209",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "python_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_list_search_definition.py", "symbol": "test_transaction_list_maps_independent_operators_date_decimal_and_second_page"},
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_list_search_definition.py", "symbol": "test_transaction_list_rejects_pagination_and_sort_violations"}
+      ],
+      "riskClosure": "allowed sort fields and directions map exactly while duplicate or invalid sorts fail closed"
+    },
+    {
+      "caseId": "UAT-TXN-210",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "python_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_query_plan.py", "symbol": "test_transaction_protected_id_is_request_bound_and_never_model_visible"}
+      ],
+      "riskClosure": "transaction identifier is request-bound and absent from model-visible material"
+    },
+    {
+      "caseId": "UAT-TXN-211",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "combined_automation",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_list_search_definition.py", "symbol": "test_transaction_list_rejects_unsupported_fields_operators_and_wire_types"},
+        {"path": "agent-runtime/tests/unit/adapters/transaction/test_list_search_definition.py", "symbol": "test_transaction_list_rejects_pagination_and_sort_violations"},
+        {"path": "mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/security/TransactionSearchSecurityIntegrationTest.java", "symbol": "quotedAmountIsRejectedBeforeTheService"}
+      ],
+      "riskClosure": "invalid Decimal, quoted amount, date, page, size and sort fail before search"
+    },
+    {
+      "caseId": "UAT-TXN-212",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-212"}
+      ],
+      "riskClosure": "relative date remains unsupported with zero business calls"
+    },
+    {
+      "caseId": "UAT-TXN-213",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_and_java_security",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-213"},
+        {"path": "mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/security/TransactionSearchSecurityIntegrationTest.java", "symbol": "adminAndViewerCanSearch"},
+        {"path": "mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/security/TransactionSearchSecurityIntegrationTest.java", "symbol": "rejectedRequestsDoNotReachServiceOrLeakSensitiveValues"}
+      ],
+      "riskClosure": "real denied plan and full reactive security matrix preserve final authorization"
+    },
+    {
+      "caseId": "UAT-TXN-214",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "cross_language_contract",
+      "hasRealLlmEvidence": false,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/integration/adapters/transaction/test_list_search_fake_server.py", "symbol": "test_transaction_list_handler_uses_one_fixed_endpoint_and_masked_results"},
+        {"path": "mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/controller/TransactionControllerTest.java", "symbol": "shouldExposeSearchContract"},
+        {"path": "mq-procedure-service/src/test/java/com/dylan/mqprocedureserver/security/TransactionSearchSecurityIntegrationTest.java", "symbol": "productionSpringCodecSerializesTransactionDateAsUtcOffsetMilliseconds"}
+      ],
+      "riskClosure": "rows, totalExact, page, size, Date and Decimal remain consistent across Java and Python"
+    },
+    {
+      "caseId": "UAT-TXN-215",
+      "stage": "transaction",
+      "status": "passed",
+      "verificationKind": "real_llm_business",
+      "hasRealLlmEvidence": true,
+      "evidenceRefs": [
+        {"path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json", "symbol": "UAT-TXN-215"}
+      ],
+      "riskClosure": "aggregate and unsupported physical actions produce zero business calls"
+    }
+  ]
+}

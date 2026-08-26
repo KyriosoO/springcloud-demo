@@ -66,6 +66,25 @@ def test_employee_search_maps_shanghai_to_existing_contact_address_filter() -> N
     assert wire.filters[0].value == "上海"
 
 
+def test_employee_search_maps_position_eq_and_keyword_without_expanding_fields() -> None:
+    arguments: dict[str, JsonValue] = {
+        "filters": ({"field": "position", "operator": "eq", "value": "架构师"},),
+        "page": 1,
+        "size": 20,
+        "sorts": (),
+        "keyword": "受控关键字",
+    }
+
+    wire = EmployeeSearchRequestMapper().map(
+        EmployeeSearchArgumentValidator().validate(arguments), _settings()
+    )
+
+    assert wire.filters[0].field == "position"
+    assert wire.filters[0].operator == "eq"
+    assert wire.filters[0].value == "架构师"
+    assert wire.keyword == "受控关键字"
+
+
 def test_employee_search_maps_in_values_page_and_sort_without_aggregate() -> None:
     arguments: dict[str, JsonValue] = {
         "filters": ({"field": "position", "operator": "in", "value": ("工程师", "架构师")},),

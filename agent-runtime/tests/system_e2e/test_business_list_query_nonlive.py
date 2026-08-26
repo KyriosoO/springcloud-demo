@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from agent_runtime.bootstrap import BusinessQueryRuntimeCompositionRoot, LocalModelCompositionRoot
+from agent_runtime.adapters.employee.protected_input import EmployeeProtectedValueExtractor
 from agent_runtime.business.http_client import FakeDomainHttpRequest, FakeDomainHttpResponse
 from agent_runtime.capability_api.action_resolution import (
     LocalActionResolution,
@@ -24,6 +25,7 @@ from agent_runtime.model.contracts import (
     StructuredModelResponse,
 )
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
+from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelSettings
 from tests.helpers import (
     FixedLocalActionResolver,
@@ -368,6 +370,87 @@ async def test_protected_identifier_is_request_bound_and_never_visible_to_model(
     assert employee.requests[0].request.json_body is not None
     assert identifier in employee.requests[0].request.json_body.content.decode("utf-8")
     assert identifier not in str(result.user_result)
+
+
+@pytest.mark.asyncio
+async def test_protected_employee_name_is_bound_after_model_and_uses_search_once() -> None:
+    protected_name = "张三"
+    question = f"查询员工，员工姓名 {protected_name}"
+    slots = EmployeeProtectedValueExtractor().extract(question, request_id="request-name")
+    decision = QuestionEgressGuard().evaluate_business(question, protected_values=slots.values)
+    assert decision.minimized_question is not None
+    plan = {
+        "domain": "employee",
+        "action": "employee.search",
+        "arguments": {
+            "filters": [{
+                "field": "chinese_name", "operator": "eq", "value": {"value_ref": "slot-1"}
+            }],
+            "page": 1,
+            "size": 20,
+            "sorts": [],
+        },
+    }
+    runtime, model, employee, transaction, knowledge = _runtime(
+        {decision.minimized_question: plan}
+    )
+
+    result = await runtime.ainvoke(
+        question=question,
+        scope=_scope(question, token=_ADMIN_TOKEN, case_id="business-list-protected-name"),
+    )
+    await runtime.aclose()
+
+    assert result.status is CapabilityStatus.SUCCESS
+    assert len(model.requests) == 1
+    assert protected_name not in model.requests[0].user_payload_json
+    assert len(employee.requests) == 1 and not transaction.requests and knowledge.calls == 0
+    assert employee.requests[0].request.json_body is not None
+    wire = json.loads(employee.requests[0].request.json_body.content)
+    assert wire["filters"] == [
+        {"field": "chineseName", "operator": "eq", "value": protected_name}
+    ]
+    assert protected_name not in str(result.user_result)
+
+
+@pytest.mark.asyncio
+async def test_protected_employee_keyword_is_bound_after_model_and_uses_search_once() -> None:
+    protected_keyword = "上海市测试街道"
+    question = f"查询员工，详细联系地址为{protected_keyword}"
+    slots = EmployeeProtectedValueExtractor().extract(question, request_id="request-keyword")
+    decision = QuestionEgressGuard().evaluate_business(question, protected_values=slots.values)
+    assert decision.minimized_question is not None
+    plan = {
+        "domain": "employee",
+        "action": "employee.search",
+        "arguments": {
+            "filters": [],
+            "page": 1,
+            "size": 20,
+            "sorts": [],
+            "keyword": {"value_ref": "slot-1"},
+        },
+    }
+    runtime, model, employee, transaction, knowledge = _runtime(
+        {decision.minimized_question: plan}
+    )
+
+    result = await runtime.ainvoke(
+        question=question,
+        scope=_scope(question, token=_ADMIN_TOKEN, case_id="business-list-protected-keyword"),
+    )
+    await runtime.aclose()
+
+    assert result.status is CapabilityStatus.SUCCESS
+    assert len(model.requests) == 1
+    assert protected_keyword not in model.requests[0].user_payload_json
+    assert len(employee.requests) == 1 and not transaction.requests and knowledge.calls == 0
+    assert employee.requests[0].request.relative_path == "/employees/es/search"
+    assert employee.requests[0].request.json_body is not None
+    wire = json.loads(employee.requests[0].request.json_body.content)
+    assert wire["keyword"] == protected_keyword
+    assert wire["filters"] == []
+    assert protected_keyword not in str(result.user_result)
 
 
 @pytest.mark.asyncio

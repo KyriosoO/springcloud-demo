@@ -111,6 +111,21 @@ class AgentSecurityContractTest {
     }
 
     @Test
+    void duplicateNullAndMalformedJsonFailBeforeRuntime() {
+        request("application/json", "{\"question\":\"first\",\"question\":\"second\"}")
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.error.code").isEqualTo("core.invalid_request");
+        request("application/json", "{\"question\":null}")
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.error.code").isEqualTo("core.invalid_request");
+        request("application/json", "{\"question\":")
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.error.code").isEqualTo("core.invalid_request");
+
+        assertThat(runtime.calls).hasValue(0);
+    }
+
+    @Test
     void chunkedBodyAcceptsExactByteLimitAndRejectsOneAdditionalByte() {
         chunkedRequest(32_768)
                 .expectStatus().isEqualTo(422)
