@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.4 |
+| 当前版本 | v1.5 |
 | 日期 | 2026-08-26 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV2/V3、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy、生产接线、功能 UAT、candidate-04 只读诊断和生产 Summary v3 已验证；candidate-05 已非 live 冻结，`GATE-072` 仍 Open，真实效果 UAT 未执行 |
+| 实施状态 | Evidence/Policy、生产接线、功能 UAT 和 Summary v3 已验证；candidate-05 已完成冻结效果 UAT，`GATE-072` Closed，结论为 `partially_effective` |
 
 ## 2. 阅读导航与变更记录
 
@@ -26,6 +26,7 @@
 | v1.2 | 2026-08-26 | 功能/效果验收分离与优化准备 | 固化 candidate-04 诊断维度、最小优化条件、新候选冻结和真实 outbound 授权边界 |
 | v1.3 | 2026-08-26 | candidate-04 只读诊断落地 | 固化诊断指标与根因，新增 Summary v3 覆盖指令；不改 validator、检索参数、数据集或历史资产 |
 | v1.4 | 2026-08-26 | 优化与候选收口 | 如实同步 Summary v3 已实施、candidate-05 已冻结及正式效果调用仍受 `GATE-072` 阻断 |
+| v1.5 | 2026-08-26 | 效果 UAT 收口 | 固化 candidate-05 的 append-only 证据、Q1/Q2 通过、Q3/Q4 未通过及 `partially_effective` 结论 |
 
 ## 3. 目标与范围
 
@@ -98,7 +99,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前已有完整 Evidence contracts、integrity verifier、selector、代码绑定策略目录、三层 decider、summary v1/v2、extractive validator、Stage、representative v1/v2、严格 P5 loader/runner/Schema 和 append-only 历史测试；生产组合根当前仍使用 v2。
+当前已有完整 Evidence contracts、integrity verifier、selector、代码绑定策略目录、三层 decider、summary v1/v2/v3、extractive validator、Stage、representative v1/v2、严格 P5 loader/runner/Schema 和 append-only 历史测试；生产组合根当前使用 v3。
 
 Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常并映射为 `summary_failure`，不得让 Provider 异常细节越过 Stage 或退化为 Core 内部异常。
 
@@ -265,7 +266,9 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 当前 candidate-04：52 个 Capability 成对执行完整，实际付费 rewrite 22 + summary 36=58，retry/core answer=0，安全 Gate 通过；Q2 通过，Q1/Q3/Q4 未全部满足，正式结论 `ineffective`。这证明初步效果验证已完成且当前效果未达标，不授权声称效果达标。
 
-权威结果：`agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/result.json`；有限证据：同目录 `evidence.json`。后续改进必须新 dataset/task/run version，保持当前结果 append-only。
+权威结果：`agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/result.json`；有限证据：`agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/evidence.json`。后续改进必须新 dataset/task/run version，保持当前结果 append-only。
+
+当前 candidate-05：52 个 Capability 成对执行完整，实际付费 rewrite 22 + summary 22=44，retry/core answer=0，安全 Gate 通过；Q1、Q2 通过，Q3、Q4 未通过，正式结论为 `partially_effective`。domain exact match=0.8636、rerank recall@10=0.9643、required evidence coverage=0.7024、summary valid completion=0.8462、faithfulness=0.9286、usefulness=0.7143。权威结果 SHA-256=`a6de81fe960c80aecae6d198d1de8b99eb13b14d69128541418dab2849af36eb`；该结论不得改述为整体效果达标。
 
 ### 13.6 candidate-04 只读诊断合同
 
@@ -290,6 +293,8 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 5. 变更无法由授权范围解决时停止，不为关闭效果门禁降低阈值。
 
 candidate-05 仅在功能 UAT Passed 和新版本 non-live 通过后准备。其 manifest 必须绑定 representative dataset/provenance、primary/rewrite_ablation、任务/Prompt/source、域/Profile/全部 index snapshot、BGE、policy/evidence、历史 candidate-01～04 hash、精确最大请求数、首个 outbound 消费、retry/resume=0 和失败关闭。准备阶段不读取 `LLM_API_KEY`，不产生 outbound；正式执行由独立 `GATE-072` 精确授权。
+
+candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa`、manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c` 唯一执行；authorization、paid journal、phase checkpoints、result、evidence 和 launcher evidence 均作为 append-only 资产保存。历史 candidate-01～04 保持不可变。
 
 本次只读诊断已形成可复现产物 `candidate_04_effect_diagnosis.v1.json`：domain exact match=0.5909、rerank recall@10=0.9405、required evidence coverage=0.4643、summary valid completion=0.6923，Q1/Q3/Q4 未通过。9 个域不一致 case 中，5 个政策问题被全域扩大、1 个明确法律问题被弱政策词扩大、1 个混合问题漏选法律；另 2 个虚构文件 case 的“期望零域”属于数据/gold 口径，不由 Selector 猜测真实性。由此只批准域目录 v2 和 Summary v3；不批准修改 RRF/rerank、validator、数据集或 gold。
 
@@ -354,7 +359,7 @@ class DefaultKnowledgeEvidenceStage:
 | `TEST-KEV-007` | dataset/hash/loader、成对 executor、指标/Schema/invalid run：`agent-runtime/tests/evaluation/knowledge` |
 | `TEST-KEV-008` | candidate-04 post-consumption/history 哈希和 `ineffective` 结论不可变 |
 | `TEST-KEV-009` | candidate-04 指标/分布诊断 Schema、敏感字段禁止和历史 hash |
-| `TEST-KEV-010` | 新版本 fake 回归、安全 Gate 反证、candidate-05 manifest/预算/首 outbound/失败关闭 |
+| `TEST-KEV-010` | 新版本 fake 回归、安全 Gate 反证、candidate-05 manifest/预算/首 outbound/失败关闭及 post-consumption 哈希 |
 
 ### 15.2 验证编号定义
 
@@ -364,7 +369,7 @@ class DefaultKnowledgeEvidenceStage:
 | `VAL-KEV-002` | 三层策略目录、出域零调用和 snapshot tests 通过 |
 | `VAL-KEV-003` | summary v3、validator、Stage、历史 v1/v2 hash 和非 live 回归通过 |
 | `VAL-KEV-004` | representative v2、52 对/58 paid/安全/人工 rubric/严格 Schema 与当前 `ineffective` 结果持续通过历史校验 |
-| `VAL-KEV-005` | 功能 UAT 与效果结论分离、诊断可复现、新候选非 live 冻结且真实 outbound=0 |
+| `VAL-KEV-005` | 功能 UAT 与效果结论分离、诊断可复现、candidate-05 唯一执行有效且结论为 `partially_effective` |
 
 ## 16. 风险与保护条件
 
@@ -381,8 +386,8 @@ class DefaultKnowledgeEvidenceStage:
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.3 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
-| 当前允许实施范围 | 当前证据链、三层策略、summary v3、extractive validator、功能 UAT、candidate-04 只读诊断与 candidate-05 非 live 准备 |
+| 是否可作为实现依据 | 是，当前 v1.5 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
+| 当前允许实施范围 | 当前证据链、三层策略、summary v3、extractive validator、功能 UAT、candidate-04 只读诊断与 candidate-05 append-only 效果证据维护 |
 | 当前禁止动作 | 改写历史数据/evidence/结论、放宽 validator、未经新授权真实调用、宣称效果达标 |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
 
@@ -400,6 +405,6 @@ class DefaultKnowledgeEvidenceStage:
 | v1.3 内审 3 | candidate-05 依赖、GATE-072 无环和个人项目最小治理 | Passed |
 | v1.3 独立评审 | 无 S0/S1/未处理 S2；只批准域目录 v2 和 Summary v3 | Passed |
 
-- 当前版本：v1.3。
+- 当前版本：v1.5。
 - 文档状态：Approved。
-- 当前 P5 结论为 `ineffective`；不得因新基线重写而改变。
+- candidate-04 历史结论为 `ineffective`；candidate-05 当前结论为 `partially_effective`，两者均不得重写或改判。

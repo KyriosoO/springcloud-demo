@@ -373,7 +373,7 @@ async def run_live(
         {
             "schemaVersion": 1,
             "status": "completed" if conclusion != "invalid_run" else "invalid_run",
-            "workPackageId": "WP-KP5-LIVE-01",
+            "workPackageId": bootstrap.manifest.work_package_id,
             "runId": bootstrap.manifest.run_id,
             "manifestSha256": bootstrap.manifest_sha256,
             "authorizationReference": bootstrap.manifest.authorization_reference,

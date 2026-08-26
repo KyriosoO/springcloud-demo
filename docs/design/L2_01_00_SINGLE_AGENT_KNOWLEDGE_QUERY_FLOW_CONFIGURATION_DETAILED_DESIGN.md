@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.4 |
+| 当前版本 | v1.5 |
 | 日期 | 2026-08-26 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary v3 均已实现并通过回归；candidate-05 已完成非 live 冻结，真实效果 UAT 未执行 |
+| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary v3 均已实现并通过回归；candidate-05 已完成效果 UAT，结论为 `partially_effective` |
 
 ## 2. 阅读导航与变更记录
 
@@ -26,6 +26,7 @@
 | v1.2 | 2026-08-26 | 生产接线与功能 UAT | 固化默认关闭、同 Registry 单注册、任务/Provider/资源生命周期和功能验收边界 |
 | v1.3 | 2026-08-26 | Q1/Q3/Q4 效果诊断 | 将域目录升级为 v2，并把生产目标任务改为 rewrite v1 + summary v3；历史 v1/v2 继续不可变 |
 | v1.4 | 2026-08-26 | 实施与评审收口 | 如实同步域目录 v2、rewrite v1 + summary v3、candidate-05 冻结和正式代码评审已完成 |
+| v1.5 | 2026-08-26 | 效果 UAT 收口 | 如实同步 candidate-05 有效运行和 `partially_effective` 结论，不改变流程、任务或失败语义 |
 
 ## 3. 目标与范围
 
@@ -340,7 +341,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.3 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.5 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
 | 当前允许实施范围 | 单动作、rewrite v1、域目录 v2、Stage 协同、失败映射、summary v3 目标绑定、同 Runtime 生产接线和 non-live 功能 UAT |
 | 当前禁止动作 | 新域/物理资源、公共契约变化、真实模型调用、索引写入和独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
@@ -357,6 +358,6 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.3 三轮内审 | 域选择优先级、Summary v3 绑定、零域语义与历史任务隔离一致 | Passed |
 | v1.3 独立评审 | 无 S0/S1/未处理 S2；Selector 不猜测文档真实性，DAG 无环 | Passed |
 
-- 当前版本：v1.3。
+- 当前版本：v1.5。
 - 文档状态：Approved。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。

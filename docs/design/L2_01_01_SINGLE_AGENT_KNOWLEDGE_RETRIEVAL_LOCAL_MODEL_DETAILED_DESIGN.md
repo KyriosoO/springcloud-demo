@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 日期 | 2026-08-26 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、ES 候选、本地 BGE-M3、RRF 和 rerank |
-| 上位文档 | [`L1_01` v1.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
-| 实施状态 | Python retrieval、Java typed Provider 及启动入口三个固定 Knowledge HTTP client 的创建、所有权和关闭均已实现并通过 non-live 回归 |
+| 实施状态 | Python retrieval、Java typed Provider 及三个固定 Knowledge HTTP client 已通过 non-live 回归；candidate-05 live 进一步验证 keyword/vector、RRF、rerank 与读取授权链路 |
 
 ## 2. 阅读导航与变更记录
 
@@ -25,6 +25,7 @@
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 补强并发失败清理、同 Profile 快照一致性，并校正 path 失败分类、rerank 上限和 batch 字段说明 |
 | v1.2 | 2026-08-26 | 生产接线与生命周期 | 明确三固定 origin client 的创建、所有权、失败清理、关闭及 non-live 调用计数 |
 | v1.3 | 2026-08-26 | 实施状态收口 | 如实同步 typed Provider、读取授权、RRF/rerank 与三个 owned client 已通过 Python/Java 验证 |
+| v1.4 | 2026-08-26 | 效果 UAT 证据同步 | 记录 candidate-05 对真实检索链路的验证，不改变 typed contract、Profile 或排序算法 |
 
 ## 3. 目标与范围
 
@@ -338,6 +339,6 @@ KnowledgeSearchResponse search(
 | 独立评审 | `REV-L2-01-01-001` 已修复；typed retrieval、两级 Profile、读取授权、RRF/rerank 与实现复核通过 | Passed |
 | v1.2 聚焦评审与复评 | 前置纯校验替代半成品异步清理后，fixed origin、disabled 惰性、owned client、授权/快照失败关闭通过；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.2。
+- 当前版本：v1.4。
 - 文档状态：Approved。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。

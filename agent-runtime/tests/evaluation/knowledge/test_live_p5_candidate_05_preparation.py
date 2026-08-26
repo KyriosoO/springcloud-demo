@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Literal
 
@@ -23,9 +24,9 @@ from tests.evaluation.knowledge.live_bootstrap import (
 )
 from tests.evaluation.knowledge.live_contracts import (
     BudgetedLiveModelTransport,
+    load_authorization,
     load_authorization_template,
     load_manifest,
-    verify_manifest_assets,
 )
 from tests.evaluation.knowledge.live_diagnostics import LiveDiagnosticPhase, LivePhaseCheckpointJournal
 from tests.evaluation.knowledge.run_evaluation import load_dataset
@@ -34,6 +35,7 @@ from tests.evaluation.knowledge.test_live_p5_candidate_03_preparation import SAF
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 RUN_ID = "knowledge-p5-live-v2-20260826-candidate-05"
+FROZEN_HEAD = "63bc30baa68948a35840b650c0deb39d1e312efa"
 AUTHORIZATION_REFERENCE = "P3_00:GATE-072"
 DATASET = Path(__file__).with_name("representative_questions.v2.jsonl")
 DATASET_SHA256 = "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408"
@@ -41,6 +43,7 @@ AUTHORIZATION_TEMPLATE = REPOSITORY_ROOT / (
     "agent-runtime/tests/evaluation/knowledge/live/evidence/"
     "knowledge-p5-live-v2-20260826-candidate-05.authorization-template.json"
 )
+RESULT_ROOT = REPOSITORY_ROOT / "agent-runtime/tests/evaluation/knowledge/results" / RUN_ID
 HISTORY_HASHES = {
     "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-01.authorization.json": "c599996d71bc62c756a51e711b7509882643723798c33ff9d851c8b1ee1dfc3c",
     "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-01.manifest.json": "b57af536909af4b6ec9a3c02b4332b91db4f48f4b23e2c33e4a1570100de7084",
@@ -155,8 +158,9 @@ class FakeTransport:
         )
 
 
-def test_candidate_05_manifest_template_history_and_assets_are_exact() -> None:
+def test_candidate_05_manifest_template_history_and_frozen_assets_are_exact() -> None:
     manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-05"))
+    authorization = load_authorization(authorization_path(REPOSITORY_ROOT, "candidate-05"))
     template = load_authorization_template(AUTHORIZATION_TEMPLATE)
     _, _, cases = load_dataset(DATASET)
 
@@ -183,14 +187,26 @@ def test_candidate_05_manifest_template_history_and_assets_are_exact() -> None:
     assert manifest.paid_request_budget.maximum_paid_requests == template.maximum_paid_requests == 78
     assert manifest.paid_request_budget.retry == 0
     assert template.live_p5_authorized is False
+    assert authorization.status == "authorized_unconsumed"
+    assert authorization.live_p5_authorized is True
+    assert authorization.run_id == manifest.run_id
+    assert authorization.authorization_reference == manifest.authorization_reference
+    assert authorization.maximum_paid_requests == manifest.paid_request_budget.maximum_paid_requests
     assert len(digest) == 64
-    assert not authorization_path(REPOSITORY_ROOT, "candidate-05").exists()
+    assert RESULT_ROOT.is_dir()
 
-    verify_manifest_assets(manifest=manifest, repository_root=REPOSITORY_ROOT)
     manifest_hashes = {item.path: item.sha256 for item in manifest.asset_hashes}
     assert set(HISTORY_HASHES) <= set(manifest_hashes)
     assert {path: manifest_hashes[path] for path in HISTORY_HASHES} == HISTORY_HASHES
     assert all(_sha256(REPOSITORY_ROOT / path) == expected for path, expected in HISTORY_HASHES.items())
+    for asset in manifest.asset_hashes:
+        frozen = subprocess.run(
+            ["git", "show", f"{FROZEN_HEAD}:{asset.path}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+        assert hashlib.sha256(frozen).hexdigest() == asset.sha256
     assert str(AUTHORIZATION_TEMPLATE.relative_to(REPOSITORY_ROOT)).replace("\\", "/") in manifest_hashes
     assert "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v3.py" in manifest_hashes
     assert "agent-runtime/src/agent_runtime/knowledge/catalog.py" in manifest_hashes
@@ -198,8 +214,8 @@ def test_candidate_05_manifest_template_history_and_assets_are_exact() -> None:
 
 
 @pytest.mark.asyncio
-async def test_candidate_05_cannot_start_without_a_new_explicit_authorization(tmp_path: Path) -> None:
-    with pytest.raises(LiveEvaluationBootstrapError, match="evaluation.live_authorization_missing"):
+async def test_candidate_05_cannot_restart_after_authorization_was_consumed() -> None:
+    with pytest.raises(LiveEvaluationBootstrapError, match="evaluation.output_exists"):
         await build_live_from_environment(
             environ={
                 "P5_KNOWLEDGE_MODE": "live",
@@ -209,7 +225,7 @@ async def test_candidate_05_cannot_start_without_a_new_explicit_authorization(tm
                 "P5_KNOWLEDGE_CANDIDATE": "candidate-05",
             },
             repository_root=REPOSITORY_ROOT,
-            output_dir=tmp_path / RUN_ID,
+            output_dir=RESULT_ROOT,
         )
 
 
