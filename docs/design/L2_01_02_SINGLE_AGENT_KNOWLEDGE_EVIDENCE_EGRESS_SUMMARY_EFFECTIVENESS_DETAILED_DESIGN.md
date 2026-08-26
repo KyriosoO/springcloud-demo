@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.1 |
-| 日期 | 2026-08-21 |
+| 当前版本 | v1.2 |
+| 日期 | 2026-08-26 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV2、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy/Summary v2 与真实 Knowledge 出域已验证；P5 有效 run 已完成且结论 `ineffective`；未生产生效 |
+| 实施状态 | Evidence/Policy/Summary v2 与真实 Knowledge 出域已验证；candidate-04 有效且 `ineffective`；待完成功能 UAT、根因诊断、最小新版本与 candidate-05 非 live 准备 |
 
 ## 2. 阅读导航与变更记录
 
@@ -23,6 +23,7 @@
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立证据与效果稳定基线 | 删除多代 candidate/Gate 流水，保留当前 v2 任务、不可变证据规则、正式 P5 方法和 `ineffective` 结论 |
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 将 Gateway 非超时异常收敛为有限 summary failure，并补充对应反证测试 |
+| v1.2 | 2026-08-26 | 功能/效果验收分离与优化准备 | 固化 candidate-04 诊断维度、最小优化条件、新候选冻结和真实 outbound 授权边界 |
 
 ## 3. 目标与范围
 
@@ -56,6 +57,8 @@
 | `REQ-KEV-002` | 三层策略任一拒绝/缺失/冲突时 summary 模型调用为 0 |
 | `REQ-KEV-003` | 摘要点引用唯一、quote 为对应证据原文连续子串，失败不返回模型文本 |
 | `REQ-KEV-004` | P5 以代表性成对 run 记录阶段、人工判断、安全和明确结论 |
+| `REQ-KEV-005` | 功能验收与效果验收独立，历史 `ineffective` 只作为诊断基线 |
+| `REQ-KEV-006` | 只有证据支持的新版本可进入新候选；精确授权前真实 outbound 为 0 |
 
 | 约束编号 | 来源与约束 |
 |---|---|
@@ -72,6 +75,7 @@
 | `REQ-KEV-002`、`CON-KEV-001`、`CON-KEV-002` | `DR-KEV-004`、`DR-KEV-005`、`DR-KEV-006` | `IMPL-KEV-003`、`IMPL-KEV-004` | `TEST-KEV-003`、`TEST-KEV-004` | `VAL-KEV-002` |
 | `REQ-KEV-003`、`CON-KEV-004` | `DR-KEV-007`、`DR-KEV-008`、`DR-KEV-009` | `IMPL-KEV-005`、`IMPL-KEV-006` | `TEST-KEV-005`、`TEST-KEV-006` | `VAL-KEV-003` |
 | `REQ-KEV-004` | `DR-KEV-010`、`DR-KEV-011`、`DR-KEV-012` | `IMPL-KEV-007`、`IMPL-KEV-008` | `TEST-KEV-007`、`TEST-KEV-008` | `VAL-KEV-004` |
+| `REQ-KEV-005`、`REQ-KEV-006` | `DR-KEV-013`、`DR-KEV-014`、`DR-KEV-015` | `IMPL-KEV-009` | `TEST-KEV-009`、`TEST-KEV-010` | `VAL-KEV-005` |
 
 ## 5. 关联资源与责任边界
 
@@ -116,6 +120,9 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-010` | P5 primary 与 rewrite_ablation 每 case 各执行一次同一 Capability，除 rewriter 外完全相同 |
 | `DR-KEV-011` | P5 数据集/gold/snapshot/版本/身份和阶段必须冻结；无效 run 不计算结论 |
 | `DR-KEV-012` | 有效 run 按固定 Q1～Q4 与安全阈值得出 effective/partially_effective/ineffective，不改判 |
+| `DR-KEV-013` | 功能 UAT 与效果 UAT 独立；功能通过不关闭效果达标，`ineffective` 有效 run 不改判 |
+| `DR-KEV-014` | 后续优化必须由 candidate-04 有限指标/逐 case 分布支持，形成新 Prompt/config/selection/Harness 版本；不得改变历史、gold、validator 或阈值 |
+| `DR-KEV-015` | 新效果候选必须冻结 task/Prompt/code/Profile/index/policy/dataset/provenance、预算和 append-only Schema；精确授权前模型 outbound 为 0 |
 
 ### 7.2 完整性复核
 
@@ -257,6 +264,30 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 权威结果：`agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/result.json`；有限证据：同目录 `evidence.json`。后续改进必须新 dataset/task/run version，保持当前结果 append-only。
 
+### 13.6 candidate-04 只读诊断合同
+
+诊断输入只允许读取 candidate-04 的冻结 result/evidence、代表性数据集元数据、gold 引用和现有有限阶段结果；不得修改或重新执行该 run。输出必须至少包含：
+
+- Q1：domain exact match、primary/ablation rerank recall delta 与 regression；
+- Q2：keyword/vector path hit、fusion/rerank recall@10 与 MRR@10；
+- Q3：required evidence coverage、faithfulness、gold_issue/coverage reason；
+- Q4：summary valid completion、usefulness、no_result/insufficient_evidence/downstream_failure 分布；
+- 每个根因的分类、受影响 case 数、证据强度和最小可改接缝。
+
+诊断产物不得保存 question、正文、quote、原始模型响应、JWT 或策略明文。若有限历史结果不足以证明某根因，应标记 `insufficient_diagnostic_evidence`，不能凭推测修改生产算法。
+
+### 13.7 最小优化与 candidate-05 准备
+
+允许的新版本接缝仅限 Prompt、域安全描述、Retrieval Profile 逻辑参数、RRF/rerank 有界参数、Evidence 选择或 evaluation Harness。选择优化时必须满足：
+
+1. 直接对应诊断中的失败指标或 case 分布；
+2. 不修改 typed HTTP、公共 Stage/Core/HTTP、读取/出域权限或 extractive validator；
+3. fake/历史反证证明不会降低安全 Gate；
+4. 新旧版本可并存，历史 source/hash 可继续验证；
+5. 变更无法由授权范围解决时停止，不为关闭效果门禁降低阈值。
+
+candidate-05 仅在功能 UAT Passed 和新版本 non-live 通过后准备。其 manifest 必须绑定 representative dataset/provenance、primary/rewrite_ablation、任务/Prompt/source、域/Profile/全部 index snapshot、BGE、policy/evidence、历史 candidate-01～04 hash、精确最大请求数、首个 outbound 消费、retry/resume=0 和失败关闭。准备阶段不读取 `LLM_API_KEY`，不产生 outbound；正式执行由独立 `GATE-072` 精确授权。
+
 ## 14. 实现落点清单
 
 ### 14.1 实现编号定义
@@ -271,6 +302,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-006` | `agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py`、`agent-runtime/src/agent_runtime/knowledge/evidence/stage.py` |
 | `IMPL-KEV-007` | `agent-runtime/tests/evaluation/knowledge/contracts.py`、`executor.py`、`live_executor.py` |
 | `IMPL-KEV-008` | `agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl`、`live_contracts.py`、result schemas |
+| `IMPL-KEV-009` | `agent-runtime/tests/evaluation/knowledge`：candidate-04 有限诊断、版本化优化反证与 candidate-05 preparation/history tests |
 
 ### 14.2 关键签名
 
@@ -316,6 +348,8 @@ class DefaultKnowledgeEvidenceStage:
 | `TEST-KEV-006` | quote 子串、控制字符、大小、引用和本地结果 |
 | `TEST-KEV-007` | dataset/hash/loader、成对 executor、指标/Schema/invalid run：`agent-runtime/tests/evaluation/knowledge` |
 | `TEST-KEV-008` | candidate-04 post-consumption/history 哈希和 `ineffective` 结论不可变 |
+| `TEST-KEV-009` | candidate-04 指标/分布诊断 Schema、敏感字段禁止和历史 hash |
+| `TEST-KEV-010` | 新版本 fake 回归、安全 Gate 反证、candidate-05 manifest/预算/首 outbound/失败关闭 |
 
 ### 15.2 验证编号定义
 
@@ -325,6 +359,7 @@ class DefaultKnowledgeEvidenceStage:
 | `VAL-KEV-002` | 三层策略目录、出域零调用和 snapshot tests 通过 |
 | `VAL-KEV-003` | summary v2、validator、Stage、历史 v1 hash 和非 live 回归通过 |
 | `VAL-KEV-004` | representative v2、52 对/58 paid/安全/人工 rubric/严格 Schema 与当前 `ineffective` 结果持续通过历史校验 |
+| `VAL-KEV-005` | 功能 UAT 与效果结论分离、诊断可复现、新候选非 live 冻结且真实 outbound=0 |
 
 ## 16. 风险与保护条件
 
@@ -341,8 +376,8 @@ class DefaultKnowledgeEvidenceStage:
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.1 可作为 Evidence/Policy/Summary/P5 代码评审和后续版本化改进依据 |
-| 当前允许实施范围 | 当前证据链、三层策略、summary v2、extractive validator、P5 非 live/history 验证 |
+| 是否可作为实现依据 | 是，当前 v1.2 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
+| 当前允许实施范围 | 当前证据链、三层策略、summary v2、extractive validator、功能 UAT、candidate-04 只读诊断、证据支持的最小新版本与 candidate-05 非 live 准备 |
 | 当前禁止动作 | 改写历史数据/evidence/结论、放宽 validator、未经新授权真实调用、宣称效果达标 |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
 
@@ -354,7 +389,8 @@ class DefaultKnowledgeEvidenceStage:
 | 内审 2 | 安全、错误分类、P5 有效性和 `ineffective` 结论一致 | Passed |
 | 内审 3 | 真实落点、测试、当前证据引用和历史隔离检查通过 | Passed |
 | 独立评审 | 未发现 S0/S1/S2；证据、三层出域、Summary v2、P5 方法与冻结结论一致 | Passed |
+| v1.2 聚焦评审 | 功能/效果分离、历史不可变、诊断证据、优化边界和 GATE-072 授权无环；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.1。
+- 当前版本：v1.2。
 - 文档状态：Approved。
 - 当前 P5 结论为 `ineffective`；不得因新基线重写而改变。

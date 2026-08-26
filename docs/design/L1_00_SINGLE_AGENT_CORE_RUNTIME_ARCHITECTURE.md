@@ -7,19 +7,19 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.2 |
+| 当前版本 | v2.3 |
 | 更新日期 | 2026-08-26 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.1 |
-| 关联 L1 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4；Knowledge L1 保持 v1.0 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.1；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | 三动作组合根、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 已实施；run03 真实场景 18/18 与当前等价自动化风险 17/17 均已闭合 |
+| 当前实现 | Business 三动作生产对象图已实施；Knowledge 能力切片存在但默认启动入口尚未装配，目标由 `AGENT_KNOWLEDGE_ENABLED` 受控接入同一 Registry/Core |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.3 增加 Knowledge 可选生产接线、共享单动作与生命周期边界，不改变 Business QueryPlan 合同。
 
 ## 2. 架构目标、非目标与上位约束映射
 
-核心职责是让 LangGraph 在一个逻辑 Agent 中维护单请求状态，并把已验证的 Business 计划转换为唯一 Core ActionCandidate。非目标是不可信模型直达 handler、本地业务语义解析、业务 SQL/ES、角色判定、第二动作及 Knowledge/跨域 fallback。
+核心职责是让 LangGraph 在一个逻辑 Agent 中维护单请求状态，把已验证的 Business 计划或 Knowledge 单动作选择转换为唯一 Core ActionCandidate。非目标是不可信模型直达 handler、本地业务语义解析、业务 SQL/ES、角色判定、第二动作及 Business/Knowledge 相互 fallback。
 
 | L0 约束 | 模块约束落实 |
 |---|---|
@@ -27,7 +27,7 @@
 | `SA-AD-002` | Registry 只注册已绑定的 Employee/Transaction 固定动作 |
 | `SA-AD-003` | 请求从组合根捕获不可变已验证配置 snapshot |
 | `SA-AD-004` | Runtime 透传用户上下文和取消信号，不判定业务角色 |
-| `SA-AD-005` | Knowledge 保持独立分支，不作为 Business fallback |
+| `SA-AD-005` | Knowledge 作为同一 Registry/Core 内的独立 capability，可按开关注册，但与 Business 互不 fallback |
 
 ## 3. 模块职责与协作边界
 
@@ -38,9 +38,9 @@
 | Model Port | 基于安全目录请求模型并返回 provider-neutral `JsonObject` | Business field 校验或 Adapter 调用 |
 | Business planning | strict decode、字段/config 验证、slot 绑定 | 生成缺失语义、数据库/ES 查询 |
 | Registry/Core | 查找唯一 capability、复核参数并执行一次 | 解释自然语言、调用第二动作 |
-| 组合根 | 装配三动作 definition、snapshot、model port 与 handler | 决定业务查询条件或兼容旁路 |
+| 组合根 | 始终装配 Business 三动作；按显式开关追加唯一 `knowledge.query`、两项 Knowledge 模型任务和 owned clients | 决定查询语义、复制 Runtime 或建立兼容旁路 |
 
-依赖方向：`LangGraph → provider-neutral Model Port → Business validation/binder → ActionCandidate → Core → Domain Handler`。provider 实现只能位于 Model 适配边界；Domain handler 不得反向依赖 LangGraph 或模型实现。
+Business 依赖方向为 `LangGraph → provider-neutral Model Port → Business validation/binder → ActionCandidate → Core → Domain Handler`；Knowledge 依赖方向为 `LangGraph → capability selector → knowledge.query → Knowledge stages/ports`。两者共享 Registry、Core、Model Gateway 与请求上下文，但不共享领域计划、Adapter 或失败降级。provider 实现只能位于适配边界；Domain handler 不得反向依赖 LangGraph 或模型实现。
 
 ## 4. 运行处理流程与数据模型
 
@@ -56,9 +56,11 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 ## 5. 生产组合根与单动作不变量
 
-目标 Registry 公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；旧 `employee.detail` 已核实仅由历史兼容测试及冻结资产使用，不进入目标生产 Registry。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义；未配置字段通过通用白名单自然不可达，具体字段与 DTO 映射仍归 Business L1/L2 所有。
+目标 Registry 始终公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；仅当 `AGENT_KNOWLEDGE_ENABLED=true` 时追加且只追加一个 `knowledge.query`。旧 `employee.detail` 已核实仅由历史兼容测试及冻结资产使用，不进入目标生产 Registry。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义；未配置字段通过通用白名单自然不可达，具体字段与 DTO 映射仍归 Business L1/L2 所有。
 
-生产 Business 对象图禁止 Local Resolver、ID-only selector、自动补全 filters、旧 fallback、跨域重试和第二次 handler 调用。共享 Knowledge/Core 兼容类型只有在仍被有效调用方或冻结历史资产依赖时保留，不得以兼容性为由重新接入 Business 生产路径。
+生产 Business 对象图禁止 Local Resolver、ID-only selector、自动补全 filters、旧 fallback、跨域重试和第二次 handler 调用。Knowledge 由普通 capability selector 选择空参数动作，内部五阶段仍只对应一次 Core handler；不得进入 Business QueryPlan decoder/binder，也不得作为其失败后备。两类能力共享的 Core 单动作约束必须对“第二动作”统一拒绝。
+
+`AGENT_KNOWLEDGE_ENABLED=false` 为默认值：不得注册 Knowledge、创建其 HTTP client 或要求其配置。启用时组合根必须先加载 Knowledge flow/retrieval/policy/task 快照，再创建三个有限 HTTP client（es-query-service、Embedding、Rerank），并把唯一 Provider 作为附加注册项装入既有 Runtime；关闭时由同一 Runtime lifecycle 精确释放这些 owned clients 和模型资源。重复 capability、重复 task、缺失依赖或快照不一致均使启动失败关闭。
 
 单请求数据仅在内存存在；JWT、真实标识、slot 值和原始响应不得进入模型、日志或持久化。请求级时钟只为已证明正确的日期解析提供一致性；自然日相对查询在数据库时间精度/边界合同未关闭前 unsupported。
 
@@ -70,6 +72,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | `CR-AD-002` | 组合根一次装配三个现有接口动作与不可变字段配置 |
 | `CR-AD-003` | 所有失败在对应职责层停止，禁止任何替代业务执行链路 |
 | `CR-AD-004` | 既有 Knowledge 路径和公共 Core/HTTP 契约保持兼容 |
+| `CR-AD-005` | Knowledge 采用默认关闭、同 Runtime 可选注册；不复制组合根，资源生命周期由顶层组合根统一拥有 |
 
 ## 7. 下位 L2 详细设计与责任分解
 
@@ -79,9 +82,14 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.1 | Business bridge、组合根、Registry、取消与单动作执行 |
 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.2 | 模型安全 catalog、v4 完整意图 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4 | QueryPlan、字段配置、按 operator 校验文本、validator、binder 与出域策略 |
+| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.2 | Knowledge 开关、单注册、任务绑定、阶段与组合根接线 |
+| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v1.2 | Knowledge typed HTTP、读取授权、RRF/rerank 与 client 生命周期 |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.2 | Evidence/出域/Summary v2、功能与效果 UAT 分离及新效果候选 |
 
 ## 8. 风险、验证与当前实施状态
 
-应验证三动作唯一可达、一次规划/一次 handler、并发请求 slot 隔离、取消、strict decoder、config snapshot、不支持条件零调用和 Knowledge 回归。无须独立工作流引擎、复杂 circuit breaker、动态 registry 或生产级治理平台。
+应验证 Business 三动作不回退、Knowledge disabled 完全惰性、enabled 唯一注册、一次规划/一次 handler、并发请求隔离、取消/关闭、strict decoder、config snapshot、不支持条件零调用和 Business/Knowledge 互不 fallback。无须独立工作流引擎、复杂 circuit breaker、动态 registry、第二套 Runtime 或生产级治理平台。
 
 既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能替代 v4 验收。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；v4 Prompt 已在独立 run03 正式 UAT 完成 18/18 真实规划，语义+filter、相对日期均 exact unsupported/零业务调用。成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；其余 17 个确定性风险由当前 Spring→Runtime、安全链和跨语言合同自动化逐项关闭，未增加本地语义 Resolver、重复付费调用或 live 审计平台。
+
+Knowledge candidate-04 的有效运行和 `ineffective` 结论只作为效果诊断基线，不证明当前生产入口已接线或效果达标。当前目标先以 non-live 生产对象图和功能 UAT 关闭接线、安全及失败语义，再冻结新效果候选；真实效果 UAT 仍受独立精确授权门禁控制。

@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.0 |
-| 日期 | 2026-08-21 |
+| 当前版本 | v1.1 |
+| 日期 | 2026-08-26 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v1.0](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 上位文档 | [`L0_00` v2.1](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 当前冻结 Profile/快照的真实检索、Knowledge 出域和 P5 已有证据；P5 有效结论为 `ineffective`；未生产生效 |
+| 实施状态 | 当前能力切片与真实检索/出域/P5 证据存在；目标通过默认关闭开关接入同一生产 Runtime，接线与功能 UAT 尚待实施 |
 
 ## 2. 阅读导航
 
@@ -53,6 +53,7 @@
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立新的可读能力架构基线 | 合并重复检索/授权/出域描述，突出四项能力、两级映射、失败优先级与 P5 结论 |
+| v1.1 | 2026-08-26 | 生产接线与 Knowledge UAT | 明确默认关闭的同 Runtime 注册、owned client 生命周期、功能/效果 UAT 分离及 candidate-04 诊断边界 |
 
 ## 4. 目标、范围与上位约束
 
@@ -365,7 +366,25 @@ accepted → rewritten → domains_selected → retrieved
 - 26-case representative 数据集和 live P5 已执行；人工 rubric 的明确结论为 `ineffective`。
 - 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置，当前未生产生效。
 
-### 14.2 `ineffective` 的含义
+### 14.2 目标生产接线
+
+Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
+
+- `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
+- `true`：在同一 Model Gateway 注册且只注册 Rewrite V1、Summary V2，在同一 Registry 追加且只追加 `knowledge.query`，并由同一 Core/Graph 保持顶层单动作；
+- `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
+- 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
+- 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。
+
+Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通过普通 capability selection 产生 exact-empty ActionCandidate。Business 失败不得回退 Knowledge，Knowledge 失败也不得选择或执行 Business。
+
+### 14.3 功能验收与效果验收
+
+功能验收覆盖 Spring→Runtime、读取授权、双路检索、Evidence、出域、Summary v2、失败优先级和零调用；它可以由 fake Model、真实生产对象图、Java 安全链与契约测试组合完成。效果验收继续使用 P5 成对运行、代表性数据和人工 rubric，必须独立给出结论。
+
+新效果候选只能在功能验收通过、历史根因诊断明确、最小优化形成新版本且 non-live 回归通过后冻结。未精确绑定新 run ID、manifest SHA-256、authorization reference 和调用预算前不得产生真实模型 outbound。
+
+### 14.4 `ineffective` 的含义
 
 `ineffective` 表示本次冻结数据集和版本下，完整评估运行有效但效果未达到预期。它：
 
@@ -375,7 +394,7 @@ accepted → rewritten → domains_selected → retrieved
 - 是后续改写、召回、重排或摘要改进的事实输入；
 - 不能外推为生产效果结论。
 
-### 14.3 变更触发保护
+### 14.5 变更触发保护
 
 逻辑域、Profile、索引快照、读取/出域策略、Embedding/Rerank 模型、summary task/Prompt 或 dataset/gold 任一变化后，旧真实出域和 P5 证据不得直接复用；新真实调用前必须重新绑定版本并验证。
 
@@ -404,7 +423,7 @@ accepted → rewritten → domains_selected → retrieved
 | `SEC-01/02/05` | 7.4、10.1 | `L2_01_01` |
 | 知识测试与效果 | 11、14 | `L2_01_02` |
 
-## 16. v1.0 评审记录
+## 16. v1.1 评审记录
 
 | 轮次 | 类型 | 结论 | 状态 |
 |---:|---|---|---|
@@ -412,3 +431,4 @@ accepted → rewritten → domains_selected → retrieved
 | 2 | 作者内审 | 授权、Profile、证据出域、失败和 P5 结论一致 | Passed |
 | 3 | 作者内审 | 可读性、追踪、链接和历史隔离检查通过 | Passed |
 | 4 | 独立设计评审 | `REV-L1-01-001` 已修复并复评；无执行阻断、无未关闭 S0/S1/S2，可治理三份 Knowledge L2 | Passed |
+| 5 | 独立聚焦评审与复评 | 首轮发现 production-stub 歧义和同步工厂半成品清理过度要求两项 S2；最小修复后复评默认关闭、共享 Core、生命周期、UAT 与门禁无环，无 S0/S1/未处理 S2 | Passed |

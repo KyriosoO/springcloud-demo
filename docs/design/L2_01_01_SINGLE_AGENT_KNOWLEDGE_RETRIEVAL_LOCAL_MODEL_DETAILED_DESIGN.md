@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v1.1 |
-| 日期 | 2026-08-21 |
+| 当前版本 | v1.2 |
+| 日期 | 2026-08-26 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、ES 候选、本地 BGE-M3、RRF 和 rerank |
-| 上位文档 | [`L1_01` v1.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
-| 实施状态 | Python retrieval 与 Java typed Provider 已实现；当前冻结 Profile/索引快照真实检索已有证据；未生产生效 |
+| 实施状态 | Python retrieval 与 Java typed Provider 已实现且有冻结只读证据；当前启动入口尚未创建和托管三个 Knowledge HTTP client |
 
 ## 2. 阅读导航与变更记录
 
@@ -23,6 +23,7 @@
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立检索基础设施稳定基线 | 删除真实联调流水，突出 Agent/ES 边界、授权前置、统一候选、快照和本地模型契约 |
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 补强并发失败清理、同 Profile 快照一致性，并校正 path 失败分类、rerank 上限和 batch 字段说明 |
+| v1.2 | 2026-08-26 | 生产接线与生命周期 | 明确三固定 origin client 的创建、所有权、失败清理、关闭及 non-live 调用计数 |
 
 ## 3. 目标与范围
 
@@ -54,6 +55,7 @@
 | `REQ-KRET-002` | Agent 不可指定物理索引、字段、过滤或 DSL |
 | `REQ-KRET-003` | 读取授权先于正文返回，拒绝/权威失败不可被其他路径成功掩盖 |
 | `REQ-KRET-004` | RRF 和 rerank 稳定、有界、可解释，快照不一致失败关闭 |
+| `REQ-KRET-005` | Knowledge client 仅在 enabled 时创建，并由顶层 Runtime 在失败、取消和关闭时完整释放 |
 
 | 约束编号 | 来源与约束 |
 |---|---|
@@ -70,6 +72,7 @@
 | `REQ-KRET-002`、`CON-KRET-002` | `DR-KRET-004`、`DR-KRET-005` | `IMPL-KRET-003`、`IMPL-KRET-004` | `TEST-KRET-003`、`TEST-KRET-004` | `VAL-KRET-002` |
 | `REQ-KRET-003`、`CON-KRET-001` | `DR-KRET-006`、`DR-KRET-007` | `IMPL-KRET-005`、`IMPL-KRET-006` | `TEST-KRET-005`、`TEST-KRET-006` | `VAL-KRET-003` |
 | `REQ-KRET-004`、`CON-KRET-004` | `DR-KRET-008`、`DR-KRET-009`、`DR-KRET-010` | `IMPL-KRET-007`、`IMPL-KRET-008` | `TEST-KRET-007`、`TEST-KRET-008` | `VAL-KRET-004` |
+| `REQ-KRET-005` | `DR-KRET-011`、`DR-KRET-012` | `IMPL-KRET-009` | `TEST-KRET-009` | `VAL-KRET-005` |
 
 ## 5. 关联资源与责任边界
 
@@ -109,6 +112,8 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 | `DR-KRET-008` | RRF 使用 `1/(60+rank)`，按 `(documentId, chunkId)` 去重并检测内容冲突 |
 | `DR-KRET-009` | rerank 只处理融合后的有界授权候选；分数非有限、重复、缺失或越界失败 |
 | `DR-KRET-010` | 同一逻辑域/Profile 的所有成功 path 必须返回一致的 profileVersion、indexSnapshotId、readPolicyVersion；不同域可各有一个冻结 snapshot，任一域内不一致失败关闭 |
+| `DR-KRET-011` | 生产组合根只为 es-query-service、Embedding、Rerank 三个已验证 origin 创建 bounded client；Capability/Stage 不拥有 client 生命周期 |
+| `DR-KRET-012` | disabled 时 client 创建次数为 0；所有非资源校验先于 client 创建；已装配 Runtime 取消或关闭时所有 owned client 至多关闭一次且尽力全部释放 |
 
 ### 7.2 Python 内部类型
 
@@ -202,6 +207,7 @@ Service 只根据冻结 Profile 构造 keyword 或 vector query，自动附加 c
 - rate limit、timeout、provider failure 是技术失败，由 L2_01_00 coverage 规则决定是否部分继续。
 - Profile/index snapshot 在所有成功 path 间必须一致；任何成员缺失或冲突使整批失败。
 - 无重试、resume、跨请求 cache 或数据库事务；候选只驻留请求内存。
+- 三个 origin 使用独立 bounded `httpx.AsyncClient`；它们由顶层 Runtime lifecycle 统一关闭。关闭一个资源失败不能阻止尝试关闭其余 Knowledge/Business/model 资源。
 
 ## 11. 权限、安全、审计与日志
 
@@ -223,6 +229,8 @@ Service 只根据冻结 Profile 构造 keyword 或 vector query，自动附加 c
 
 Java endpoint 默认 disabled；启用时全部 Profile 必须完整并通过 alias/index snapshot 校验。发布不修改 mapping、alias、索引或正文。回滚禁用 endpoint/Knowledge action 并恢复上一配置；无 Agent 数据迁移。
 
+Python Runtime 的 Knowledge 开关与 Java endpoint 开关独立：Python disabled 不要求 Java 就绪；Python enabled 只在本地启动校验通过后 ready，运行时 Java 503/授权权威失败仍按 typed failure 失败关闭，不回退通用 ES endpoint。
+
 ## 13. 实现落点清单
 
 ### 13.1 实现编号定义
@@ -237,6 +245,7 @@ Java endpoint 默认 disabled；启用时全部 Profile 必须完整并通过 al
 | `IMPL-KRET-006` | `es-query-service/src/main/java/com/dylan/esquery/controller/KnowledgeSearchController.java`、`service/KnowledgeSearchService.java` |
 | `IMPL-KRET-007` | `agent-runtime/src/agent_runtime/knowledge/retrieval/fusion.py`、`bge_rerank.py`、`bge_embedding.py` |
 | `IMPL-KRET-008` | `agent-runtime/src/agent_runtime/knowledge/retrieval/settings.py`、Java `KnowledgeSearchProperties.java`/`KnowledgeProfileVerifier.java` |
+| `IMPL-KRET-009` | `agent-runtime/src/agent_runtime/knowledge/retrieval/http.py`、`agent-runtime/src/agent_runtime/bootstrap.py`：三个固定 client、transport 与 owned lifecycle |
 
 ### 13.2 关键签名
 
@@ -287,6 +296,7 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-006` | endpoint security、正文前授权和原端点兼容：`KnowledgeSearchSecurityIntegrationTest.java`、Controller tests |
 | `TEST-KRET-007` | RRF rank、去重、冲突、稳定 tie；BGE contracts：`test_bge_embedding.py`、`test_bge_rerank.py` |
 | `TEST-KRET-008` | Profile/index snapshot 一致性和真实冻结链回归 |
+| `TEST-KRET-009` | disabled 零 client、enabled 三 client、校验先于创建、取消/关闭幂等与日志零泄漏 |
 
 ### 14.2 验证编号定义
 
@@ -296,6 +306,7 @@ KnowledgeSearchResponse search(
 | `VAL-KRET-002` | Java DTO/Profile/strict JSON/原端点兼容 Maven 测试通过 |
 | `VAL-KRET-003` | 读取授权矩阵、正文零泄漏和安全失败优先测试通过 |
 | `VAL-KRET-004` | strict mypy、compileall、Profile/索引快照成员检查和受控真实只读检索证据一致 |
+| `VAL-KRET-005` | 当前生产组合根的 typed path 调用计数、业务零调用和 owned client 生命周期测试通过 |
 
 ## 15. 风险与保护条件
 
@@ -311,7 +322,7 @@ KnowledgeSearchResponse search(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.1 可作为 Knowledge retrieval、Java Provider 与本地 BGE 接入代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.2 可作为 Knowledge retrieval、Java Provider、本地 BGE 与生产 client 生命周期代码评审依据 |
 | 当前允许实施范围 | typed endpoint、Profile/授权、Python adapters、RRF/rerank、配置和非写入测试 |
 | 当前禁止动作 | ES 写入/管理、物理资源参数化、未授权正文、生产启用和真实模型出域 |
 | 回滚单位 | Python retrieval + es-query-api/service Knowledge endpoint + Profile 配置 |
@@ -324,7 +335,8 @@ KnowledgeSearchResponse search(
 | 内审 2 | 授权、错误分类、快照、本地模型和并发一致 | Passed |
 | 内审 3 | 真实落点、测试、兼容、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-01-01-001` 已修复；typed retrieval、两级 Profile、读取授权、RRF/rerank 与实现复核通过 | Passed |
+| v1.2 聚焦评审与复评 | 前置纯校验替代半成品异步清理后，fixed origin、disabled 惰性、owned client、授权/快照失败关闭通过；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.1。
+- 当前版本：v1.2。
 - 文档状态：Approved。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
