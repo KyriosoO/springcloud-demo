@@ -17,6 +17,7 @@ def test_catalog_and_settings_freeze_two_code_bound_domains() -> None:
     )
 
     assert tuple(item.domain_id for item in catalog.domains) == ("tax.policy", "tax.law")
+    assert catalog.version == "tax-domain-catalog-v2"
     assert settings.enabled_domain_ids == ("tax.policy", "tax.law")
 
 
@@ -33,4 +34,3 @@ def test_catalog_and_settings_freeze_two_code_bound_domains() -> None:
 def test_invalid_or_expanding_settings_fail_closed(env: dict[str, str]) -> None:
     with pytest.raises(KnowledgeConfigurationError):
         KnowledgeSettings.from_env(env)
-

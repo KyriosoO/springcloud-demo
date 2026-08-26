@@ -10,7 +10,7 @@ from agent_runtime.bootstrap import KnowledgeCompositionRoot
 from agent_runtime.capability_api.contracts import CapabilityExecutionContext, OpaqueUserToken, SubjectType
 from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.knowledge.capability import KnowledgeQueryCapability
-from agent_runtime.knowledge.catalog import build_tax_domain_catalog
+from agent_runtime.knowledge.catalog import CATALOG_VERSION, build_tax_domain_catalog
 from agent_runtime.knowledge.contracts import KnowledgeQuestionRewriteStage
 from agent_runtime.knowledge.domain_selection import DeterministicDomainSelector
 from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
@@ -407,7 +407,7 @@ async def build_live_from_environment(
         read_authorization_evidence_ref=manifest.read_authorization_evidence_ref,
         gate_evidence=cast(Any, gates),
         question_policy_version="question-egress-v1",
-        domain_catalog_version="tax-domain-catalog-v1",
+        domain_catalog_version=CATALOG_VERSION,
         flow_config_version=settings.config_version,
         retrieval_profile_version="tax-knowledge-search-v1",
         index_snapshot_ids=manifest.index_snapshot_ids,

@@ -9,10 +9,13 @@ from agent_runtime.knowledge.contracts import (
 )
 from agent_runtime.knowledge.errors import KnowledgeConfigurationError
 
-CATALOG_VERSION = "tax-domain-catalog-v1"
+CATALOG_VERSION = "tax-domain-catalog-v2"
 TAX_ANCHORS = ("税", "税务", "税收", "纳税", "增值税", "所得税", "企业所得税", "个人所得税", "发票")
-POLICY_TERMS = ("政策", "公告", "通知", "优惠", "指引", "口径", "征管", "实施")
-LAW_TERMS = ("法律", "法规", "条例", "司法解释", "法条", "违法", "处罚")
+STRONG_POLICY_TERMS = ("政策", "公告", "通知", "指引", "口径", "征管", "实施")
+WEAK_POLICY_TERMS = ("优惠",)
+POLICY_TERMS = STRONG_POLICY_TERMS + WEAK_POLICY_TERMS
+INDEPENDENT_POLICY_TERMS = ("政策", "公告", "通知", "指引", "口径")
+LAW_TERMS = ("税法", "法律", "法规", "条例", "司法解释", "法条", "违法", "处罚", "征管法", "征收管理法")
 ARTICLE_PATTERN = r"第[零〇一二三四五六七八九十百千万0-9]{1,12}(条|款|项)"
 
 
@@ -47,4 +50,3 @@ def build_tax_domain_catalog() -> LogicalDomainCatalog:
         if item.classifier_pattern is not None:
             re.compile(item.classifier_pattern)
     return LogicalDomainCatalog(version=CATALOG_VERSION, domains=domains)
-
