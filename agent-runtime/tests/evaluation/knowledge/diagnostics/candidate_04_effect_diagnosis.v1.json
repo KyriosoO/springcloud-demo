@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "diagnosisId": "knowledge-p5-candidate-04-readonly-diagnosis-v1",
+  "source": {
+    "runId": "knowledge-p5-live-v1-20260813-candidate-04",
+    "resultPath": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/result.json",
+    "resultSha256": "8be86ed49d8560265ab87fbf7441d45d382b2dc40c3e099eb105f55c1507e1c3",
+    "manifestPath": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-04.manifest.json",
+    "manifestSha256": "8d1976508830024cbdec1a98adb0b5254afe51a33f933ceccf45a2d192a0b4b2",
+    "authorizationPath": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-04.authorization.json",
+    "authorizationSha256": "2e19e1cbca2e1c8530d3530ae9c2e02d7bc3f27c65e03b617614cb520fafea70"
+  },
+  "historicalConclusion": "ineffective",
+  "metrics": {
+    "domainExactMatchRate": 0.5909090909090909,
+    "pathHitAt10": 1.0,
+    "fusionRecallAt10": 0.869047619047619,
+    "fusionMrrAt10": 0.6119047619047618,
+    "rerankRecallAt10": 0.9404761904761905,
+    "rerankMrrAt10": 0.8595238095238095,
+    "requiredEvidenceCoverage": 0.4642857142857143,
+    "summaryValidCompletionRate": 0.6923076923076923,
+    "citationValidityRate": 1.0,
+    "faithfulnessRate": 0.8571428571428571,
+    "usefulnessRate": 0.7142857142857143,
+    "q1": false,
+    "q2": true,
+    "q3": false,
+    "q4": false
+  },
+  "distributions": {
+    "terminalStatus": {"success": 14, "downstream_failure": 4, "no_result": 4, "model_egress_denied": 4},
+    "summaryStatus": {"answer": 14, "insufficient_evidence": 4, "not_called": 8},
+    "judgmentReason": {"gold_issue": 12, "coverage": 4, "none": 10}
+  },
+  "domainMismatchCaseIds": [
+    "draft-mixed-vat-law-2026-policy",
+    "draft-no-match-fictional-document",
+    "draft-no-match-fictional-law",
+    "draft-tax-law-eit-article-28",
+    "legacy-tax-eit-basic-rate",
+    "legacy-tax-vat-current-rates",
+    "legacy-tax-vat-general-current-rates",
+    "legacy-tax-vat-invoice-lost",
+    "legacy-tax-vat-small-scale-rate"
+  ],
+  "rootCauses": [
+    {
+      "id": "domain_selector_generic_overselection",
+      "evidenceStrength": "strong",
+      "evidence": "five policy cases selected policy and law while policy was expected"
+    },
+    {
+      "id": "domain_selector_tax_law_lexical_gap",
+      "evidenceStrength": "strong",
+      "evidence": "one explicit-law case overselected and one mixed case missed law"
+    },
+    {
+      "id": "summary_single_point_undercoverage",
+      "evidenceStrength": "strong",
+      "evidence": "required evidence coverage was 0.4643 while rerank recall was 0.9405"
+    },
+    {
+      "id": "dataset_gold_or_corpus_issue",
+      "evidenceStrength": "medium",
+      "evidence": "twelve cases were judged gold_issue; two no-match cases also expect no domain despite valid tax-domain signals"
+    }
+  ],
+  "optimizationDecision": {
+    "domainCatalogVersion": "tax-domain-catalog-v2",
+    "summaryTaskVersion": "3",
+    "changeRetrievalWeights": false,
+    "changeDatasetOrGold": false,
+    "changeValidator": false,
+    "reason": "domain and summary changes are directly supported; retrieval and validator changes are not"
+  }
+}

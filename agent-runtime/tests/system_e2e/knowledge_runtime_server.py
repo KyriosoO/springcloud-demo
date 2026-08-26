@@ -75,21 +75,25 @@ class _KnowledgeModelTransport:
         if request.task_id is ModelTaskId.ACTION_SELECTION:
             self._probe.counts["action"] += 1
             question = payload["question"]
-            content = (
-                '{"capability_id":"knowledge.query","second":"employee.search"}'
-                if "第二动作" in question
-                else '{"capability_id":"knowledge.query"}'
-            )
+            if "第二动作" in question:
+                content = '{"capability_id":"knowledge.query","second":"employee.search"}'
+            elif "不支持能力" in question:
+                content = '{"capability_id":"agent_unsupported"}'
+            else:
+                content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
             self._probe.counts["rewrite"] += 1
             question = payload["question"]
             if "改写失败" in question:
                 raise ModelTransportError(ModelProviderFailureKind.PROVIDER_FAILURE)
-            content = json.dumps(
-                {"candidates": [question]},
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
+            if "改写非法" in question:
+                content = '{"candidates":[],"unexpected":true}'
+            else:
+                content = json.dumps(
+                    {"candidates": [question]},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
             self._probe.counts["summary"] += 1
             question = payload["question"]

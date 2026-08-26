@@ -10,6 +10,7 @@ EXPECTED_CASE_IDS = frozenset({
     "k-nonlive-law-viewer",
     "k-nonlive-multi-domain",
     "k-nonlive-rewrite-fallback",
+    "k-nonlive-rewrite-invalid",
     "k-nonlive-no-result",
     "k-nonlive-read-denied",
     "k-nonlive-partial-path",
@@ -20,6 +21,7 @@ EXPECTED_CASE_IDS = frozenset({
     "k-nonlive-summary-failure",
     "k-nonlive-sensitive",
     "k-nonlive-second-action",
+    "k-nonlive-unsupported",
 })
 
 _TOP_LEVEL = {

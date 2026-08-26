@@ -75,6 +75,8 @@ class AgentKnowledgeNonLiveE2ETest {
                 200, "success", "knowledge.query", null);
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-rewrite-fallback", "税务政策改写失败仍如何处理",
                 200, "success", "knowledge.query", null);
+        assertOutcome(client, ADMIN_TOKEN, "k-nonlive-rewrite-invalid", "税务政策改写非法仍如何处理",
+                200, "success", "knowledge.query", null);
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-no-result", "不存在资料的税务政策是什么",
                 200, "no_result", "knowledge.query", null);
         assertOutcome(client, DENIED_TOKEN, "k-nonlive-read-denied", "现行税务政策是什么",
@@ -95,6 +97,8 @@ class AgentKnowledgeNonLiveE2ETest {
                 403, "model_egress_denied", null, "model.input_denied");
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-second-action", "税务政策 第二动作",
                 502, "downstream_failure", null, "model.invalid_output");
+        assertOutcome(client, ADMIN_TOKEN, "k-nonlive-unsupported", "不支持能力的税务咨询",
+                422, "unsupported", null, "core.no_supported_capability_candidate");
         assertIngressRejected(client, null);
         assertIngressRejected(client, "malformed-token");
         assertIngressRejected(client, SERVICE_TOKEN);
@@ -103,7 +107,7 @@ class AgentKnowledgeNonLiveE2ETest {
         stopRuntime();
         JsonNode evidence = objectMapper.readTree(evidencePath.toFile());
         assertThat(evidence.path("status").asText()).isEqualTo("passed");
-        assertThat(evidence.path("cases").size()).isEqualTo(14);
+        assertThat(evidence.path("cases").size()).isEqualTo(16);
         assertThat(evidence.path("totals").path("businessModel").asInt()).isZero();
         assertThat(evidence.path("totals").path("externalModelOutbound").asInt()).isZero();
         assertThat(evidence.path("cleanup").path("runtimeClosed").asBoolean()).isTrue();

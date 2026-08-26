@@ -56,6 +56,7 @@ async def test_current_production_composition_executes_knowledge_matrix(
         ("k-nonlive-law-viewer", "税收法律第一条规定什么", _VIEWER, CapabilityStatus.SUCCESS),
         ("k-nonlive-multi-domain", "税务政策和税收法律有哪些规定", _ADMIN, CapabilityStatus.SUCCESS),
         ("k-nonlive-rewrite-fallback", "税务政策改写失败仍如何处理", _ADMIN, CapabilityStatus.SUCCESS),
+        ("k-nonlive-rewrite-invalid", "税务政策改写非法仍如何处理", _ADMIN, CapabilityStatus.SUCCESS),
         ("k-nonlive-no-result", "不存在资料的税务政策是什么", _ADMIN, CapabilityStatus.NO_RESULT),
         ("k-nonlive-read-denied", "现行税务政策是什么", _DENIED, CapabilityStatus.FORBIDDEN),
         ("k-nonlive-partial-path", "税务政策单路失败如何处理", _ADMIN, CapabilityStatus.SUCCESS),
@@ -66,6 +67,7 @@ async def test_current_production_composition_executes_knowledge_matrix(
         ("k-nonlive-summary-failure", "税务政策摘要失败", _ADMIN, CapabilityStatus.DOWNSTREAM_FAILURE),
         ("k-nonlive-sensitive", "税务政策 password=synthetic-secret", _ADMIN, CapabilityStatus.MODEL_EGRESS_DENIED),
         ("k-nonlive-second-action", "税务政策 第二动作", _ADMIN, CapabilityStatus.DOWNSTREAM_FAILURE),
+        ("k-nonlive-unsupported", "不支持能力的税务咨询", _ADMIN, CapabilityStatus.UNSUPPORTED),
     )
     outcomes = {}
     for case_id, question, token, expected in cases:
