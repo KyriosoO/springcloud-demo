@@ -6,13 +6,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.6 |
+| 当前版本 | v2.7 |
 | 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.3 `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.6 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.7；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.3 `DR-AUTH-007` |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.7 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 同步上位 Business/Authority 版本并把运行证据明细留在 UAT_00/evidence；Employee 两动作、字段和授权合同不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.7 基于既有 SearchFilter.values/anyFilterClause/bool.must 设计姓名多值、同字段 AND 和行政区 contains-any 映射；不修改 Java 公共 DTO 或 endpoint。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -39,7 +39,7 @@
 | `employee.search` | `POST /employees/es/search` | `SearchRequest/SearchFilter/SearchSort` | keyword、filter、from/size、sort；可含 aggregate 但 Agent 禁止 | endpoint-scoped 共享 converter + Controller `requireEmployeeRead` |
 | `employee.semantic_search` | `POST /employees/es/vector-search` | `SemanticSearchRequest` | queryText、embeddingField、embeddingDims、k、numCandidates、trackTotalHits；没有 filter | endpoint-scoped 共享 converter + Controller `requireEmployeeRead` |
 
-`EmployeeEsService.SEARCHABLE_FIELDS` 当前包括 `contactAddress/chineseName/idCardNo/memberNo/phoneNo/email/position/workBaseSi`；其中 workBaseSi 因无有效数据而禁止，workBaseAf 也不能成为开放字段。`keyword` multi-match 仅包括 `contactAddress/chineseName/idCardNo`。普通搜索 operator 现有归一化支持 `eq/contains/prefix/in` 及别名，但 Agent 只生成有限 canonical operator。
+`EmployeeEsService.SEARCHABLE_FIELDS` 当前包括 `contactAddress/chineseName/idCardNo/memberNo/phoneNo/email/position/workBaseSi`；其中 workBaseSi 因无有效数据而禁止，workBaseAf 也不能成为开放字段。`keyword` multi-match 仅包括 `contactAddress/chineseName/idCardNo`。现有 `SearchFilter.values` 与 `anyFilterClause` 已支持 `in/equalsAny`、`prefixAny`、`containsAny`，多个 filter 由 `buildQuery` 的 `bool.must` 组合；Agent 只生成逻辑 canonical operator并固定映射到这些既有别名。
 
 `buildEmbeddingText` 拼接姓名、联系地址、职位、学历、院校、专业、workBaseSi、workBaseAf。它表明现有 embedding 的历史组成，不代表支持按其中任一单字段独立向量检索；workBase 两字段仍不开放。依赖方向为 Business validated plan → Employee Adapter → EmployeeEsController → EmployeeEsService；禁止绕过 Controller/业务权限访问 ES。
 
@@ -49,15 +49,15 @@
 
 | 逻辑字段 | 服务字段 | action | operator 代码上界 | 输入 exposure | 用户可见/转换 | 模型可见 |
 |---|---|---|---|---|---|---|
-| `contact_address` | `contactAddress` | search | `eq,contains,prefix,in` | 安全地点片段 literal；详细地址 ref | 是，`mask_address` | 否 |
-| `chinese_name` | `chineseName` | search | `eq,contains,prefix,in` | `protected_ref` | 是，`mask_name` | 否 |
+| `contact_address` | `contactAddress` | search | `contains,contains_any` | 行政区 literal/list；详细地址 ref | 是，`mask_address` | 否 |
+| `chinese_name` | `chineseName` | search | `eq,contains,prefix,in,prefix_any` | `protected_ref/value_refs` | 是，`mask_name` | 否 |
 | `employee_identifier` | `idCardNo` | search | `eq` | `protected_ref` | 是，`mask_identifier` | 否 |
 | `member_no` | `memberNo` | search | `eq,prefix` | `protected_ref` | 是，`mask_identifier` | 否 |
 | `phone_no` | `phoneNo` | search | `eq,prefix` | `protected_ref` | 是，`mask_contact` | 否 |
 | `email` | `email` | search | `eq` | `protected_ref` | 是，`mask_contact` | 否 |
 | `position` | `position` | search | `eq,contains,prefix,in` | `literal` 安全业务文本 | 是，bounded text | 可由独立策略启用 |
 
-安全地点 literal 只允许代码识别的有限城市片段，如“上海”；详细地址、姓名、证件、编号、邮箱和电话必须先经 request-local protected extractor 替换为 slot。不得假定“上海”、拼音、编码或同义词等价。
+行政区 literal 只允许版本化代码目录中的省、市、自治区及明确别名；例如上海市/上海地区→上海、江苏省/江苏地区→江苏、浙江省/浙江地区→浙江。详细地址、姓名、姓氏、证件、编号、邮箱和电话必须先经 request-local protected extractor 分别替换为 slot。目录不接受任意自由文本、拼音或编码。
 
 `workBaseSi/workBaseAf` 不纳入 Agent 已定义字段、启用配置、模型目录、结果字段或 semantic 可声明字段。未配置字段通过通用 QueryPlan 字段白名单拒绝，按通用合同返回 `unsupported` 或 `invalid_argument`，业务调用为 0；ES `_source` 中未配置字段由通用结果投影白名单自然丢弃。不得增加 workBase 专用黑名单、识别分支或门禁。
 
@@ -71,7 +71,7 @@
 
 Adapter 固定映射为现有 `SearchRequest`：`filters[].field=contactAddress`、`operator=contains`、`value=上海`；`from=(page-1)*size`、`size≤50`，sort 字段和方向仅取已验证允许集合。keyword 可选，但必须先通过统一配置中的 action-level keyword policy，并使用 `literal/value_ref` tagged value；代码绑定匹配字段仅为 contactAddress/chineseName/idCardNo，真实姓名、标识和详细地址只能绑定请求级 protected ref，禁止裸字符串或敏感 literal。aggregate 必须始终不存在；filters 或 keyword 至少存在一个，避免默认 match_all。
 
-`in` 值映射至现有 `SearchFilter.values`；敏感字段的多值集合必须由 protected slot 提供。禁止 DTO 字段名、ES DSL 和 raw query 进入模型。
+`in/prefix_any/contains_any` 的值均映射至现有 `SearchFilter.values`，wire operator 固定为 `in/prefixAny/containsAny`；敏感字段多值必须来自 `value_refs`。单姓为 `prefix+value_ref`，多姓名为 `in+value_refs`，多姓为 `prefix_any+value_refs`，姓氏+姓名片段为两个 `chinese_name` filter 并由服务 `bool.must` 执行。Adapter 不合并、丢弃或二次筛选。禁止 DTO 字段名、ES DSL 和 raw query 进入模型。
 
 ### 5.2 employee.semantic_search
 
@@ -116,6 +116,8 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `IMPL-EMP-109` | `employee-service/src/main/java/com/dylan/employee/security/EmployeeDetailSecurityConfiguration.java` | 已实施：只为两个 ES 查询 POST endpoint 绑定共享 converter 的专用安全链，保持 detail 和其他 endpoint 行为 |
 | `IMPL-EMP-110` | `employee-service/src/test/java/com/dylan/employee/security/EmployeeEsSecurityIntegrationTest.java` | 已实施：真实 Servlet 安全过滤链测试，验证 role claim、两入口矩阵、下游零调用及 fallback 兼容 |
 | `IMPL-EMP-111` | `agent-runtime/src/agent_runtime/adapters/employee/normalizer.py` | 区分 raw hits、有效记录与 semantic partial page，保留真实 total/truncated；search 分页和全部无效记录失败关闭 |
+| `IMPL-EMP-112` | `agent-runtime/src/agent_runtime/adapters/employee/protected_input.py` | 单/复姓、多姓名、多姓及姓名片段逐值 slots，保留连接词且不生成计划 |
+| `IMPL-EMP-113` | `agent-runtime/src/agent_runtime/adapters/employee/codec.py` | `prefix_any/contains_any` 到既有 `SearchFilter.values` 与 Java operator alias 的固定映射 |
 
 ## 8. 测试与验证设计
 
@@ -130,6 +132,8 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `TEST-EMP-107` | detail 调用方、兼容性和冻结历史证据核查；目标组合根不可达 |
 | `TEST-EMP-108` | search 3000ms/semantic 10000ms action 独立预算、配置超界拒绝、单次向量调用、请求 deadline 截断及 timeout 后零重试/零 fallback |
 | `TEST-EMP-109` | semantic 实际 partial page、单条缺姓名/标识记录隔离、真实 total/returned/truncated 保留；整批无有效行、非法结构/字段类型及 search 分页不一致继续失败关闭 |
+| `TEST-EMP-110` | 姓某/某姓/复姓、多姓名、多姓、姓氏+姓名片段抽取与敏感值零模型/日志/diagnostics 暴露 |
+| `TEST-EMP-111` | 单/多行政区别名、contains/contains_any、prefix_any/in wire 映射和 fake server bool.must 语义 |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -149,6 +153,9 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `DR-EMP-106` | detail 为历史实现，迁移/删除前核查 caller、公共兼容和冻结 evidence |
 | `DR-EMP-107` | semantic 动作因 Embedding+Feign+ES 链路采用 10000ms 代码绑定上限，普通 search 维持 3000ms；单动作、请求 deadline、失败关闭和历史证据保持不变 |
 | `DR-EMP-108` | semantic 容忍现有服务返回少于 k 的合法 partial page；两动作只隔离缺失/null/空白必填姓名或标识的历史记录，保留真实 total 与有效记录 coverage；其余响应错误或全部命中无效仍失败关闭 |
+| `DR-EMP-109` | `employee.search` 复用既有 values/anyFilterClause/bool.must：`in→in`、`prefix_any→prefixAny`、`contains_any→containsAny`，不改公共 DTO |
+| `DR-EMP-110` | extractor 只保护敏感值、记录 typed logical field 并保留词序/连接词；LLM 决定字段、operator 与 AND/OR；重叠、歧义、异常字符或超限失败关闭 |
+| `DR-EMP-111` | contact_address 行政区只走代码绑定 normalization profile；详细地址仍为 protected ref，workBase 继续未配置自然不可达 |
 
 错误分类：unsupported/invalid plan 在发送前业务调用 0；forbidden 为固定 endpoint 1 次；timeout/unavailable/invalid_response 不重试、不切换搜索方式。数据生命周期仅为 request 内存；不修改 Employee 数据、索引和历史 evidence。事务边界与一致性归 employee-service/ES；本版复用现有 endpoint/guard，属于最小必要变更，避免 DTO 膨胀和 Adapter 耦合泄漏。
 

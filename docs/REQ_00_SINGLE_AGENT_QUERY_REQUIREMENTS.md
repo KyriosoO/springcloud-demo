@@ -7,14 +7,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v2.1 |
+| 当前版本 | v2.2 |
 | 更新日期 | 2026-08-28 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
 | 当前基线 | Knowledge 与 Business 查询能力均已接入统一 Runtime；功能验收和效果验收分开治理，具体运行状态由 P3/UAT 计划及 evidence 记录 |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.1 移除运行批次、哈希和动态测试结果，只保留稳定需求与验收原则；具体工作包、门禁、候选和证据分别由 P3、UAT 与 evidence 治理。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.2 在既有 Employee 接口内增加受控多值引用、前缀/包含任一、同字段收紧型 AND 与有限行政区别名需求；不新增 endpoint、DTO、ES 结构或本地语义 Resolver。
 
 ## 2. 背景、设计目标与非目标
 
@@ -48,7 +48,7 @@
 
 LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和一个业务 endpoint。输入闸门只做安全识别、最小化与 slot 提取，不选择 domain/action、生成 filters 或补充业务语义。禁止 Local Resolver 绕过 LLM、ID-only 补参、模型失败本地降级、Business→Knowledge、跨域 fallback、普通与向量搜索互相 fallback、客户端二次筛选，以及模型生成 SQL、DSL、URL、索引、表列、类名或方法名。
 
-`REQ-BQS-002`：外层 QueryPlan 只能包含 `domain/action/arguments`；列表 arguments 使用 `filters/page/size/sorts`，其中每条 filter 包含 `field/operator/value`，value 严格为 `literal` 或 `value_ref` 之一。允许同一字段以不同 operator 表达开区间上下界；拒绝重复键、未知属性、null、float、非有限值、超限集合和不被现有接口支持的组合。语义查询只允许受限业务语义文本与受控数量，不允许结构化 filter。
+`REQ-BQS-002`：外层 QueryPlan 只能包含 `domain/action/arguments`；列表 arguments 使用 `filters/page/size/sorts`，其中每条 filter 包含 `field/operator/value`。value 严格为 `literal`、`value_ref` 或受控敏感多值 `value_refs` 之一；`value_refs` 仅供多值 operator 使用，数量 1～16、不得重复且必须全部属于当前请求并与目标逻辑字段类型一致。`in` 保持完整值精确任一，新增 `prefix_any/contains_any` 分别表达前缀任一和包含任一。允许 Decimal/Date 的 `gt+lt`，以及配置和代码共同批准的 Text 同字段收紧型 AND；拒绝重复键、未知属性、null、float、非有限值、超限集合和不被现有接口支持的组合。语义查询只允许受限业务语义文本与受控数量，不允许结构化 filter。
 
 `REQ-BQS-003`：配置按 `version → domain → action → field/operator/result/egress` 组织；Employee keyword 必须具有同一份配置中的动作级 enable、输入保护及代码绑定字段集合，不能绕过字段策略。配置只能收紧 `业务服务现有能力 ∩ Adapter 代码合同 ∩ 数据分类策略`。采用单个版本化 JSON 文件与既有严格 Python 解析，不引入新平台。
 
@@ -56,15 +56,15 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 
 | 逻辑字段 | 服务字段 | 可选操作符上界 | 输入保护 |
 |---|---|---|---|
-| `contact_address` | `contactAddress` | `eq/contains/prefix/in` 的代码绑定子集 | 仅“上海”一类有限安全地点片段可 literal；详细地址必须 `value_ref` |
-| `chinese_name` | `chineseName` | `eq/contains/prefix/in` 的代码绑定子集 | `value_ref` |
+| `contact_address` | `contactAddress` | `contains/contains_any` | 代码绑定行政区 literal 或 literal list；详细地址必须 `value_ref` |
+| `chinese_name` | `chineseName` | `eq/contains/prefix/in/prefix_any` 的代码绑定子集 | `value_ref/value_refs` |
 | `employee_identifier` | `idCardNo` | `eq` | `value_ref` |
 | `member_no` | `memberNo` | `eq/prefix` 的代码绑定子集 | `value_ref` |
 | `phone_no` | `phoneNo` | `eq/prefix` 的代码绑定子集 | `value_ref` |
 | `email` | `email` | `eq` | `value_ref` |
 | `position` | `position` | `eq/contains/prefix/in` 的代码绑定子集 | 安全业务文本 literal |
 
-`REQ-BQS-004`：用户问“帮我查询上海的员工”时，目标动作是 `employee.search`，过滤条件是 `contact_address contains "上海"`；不得默认把“上海”和其他编码视为等价。`keyword` 仅匹配现有服务的 `contactAddress/chineseName/idCardNo`，不能描述成覆盖全部字段；它同样必须使用 `literal/value_ref` 联合类型，真实姓名、员工标识及详细地址不得以明文 keyword 进入模型。
+`REQ-BQS-004`：用户问“帮我查询上海的员工”“上海地区的员工”或“上海市的员工”时，LLM 都应生成 `employee.search + contact_address contains`，本地只把模型已选择的有限行政区别名规范为“上海”。多地区使用 `contains_any`，不得用精确 `in` 冒充地址包含任一。单一姓氏使用 `chinese_name prefix + value_ref`，多个完整姓名使用 `in + value_refs`，多个姓氏使用 `prefix_any + value_refs`，姓氏与姓名片段可按批准矩阵形成同字段 `prefix+contains` AND。`keyword` 仅匹配现有服务的 `contactAddress/chineseName/idCardNo`；真实姓名、员工标识及详细地址不得以明文进入模型。
 
 `REQ-BQS-005`：`workBaseSi/workBaseAf` 虽存在于部分代码或数据库模型，但当前数据没有有效启用；不得进入开放字段、模型目录、成功 UAT 或结果投影。未来开放必须重新核实真实数据、索引同步、设计和 UAT，而不能只改配置。
 
@@ -89,7 +89,7 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 
 `REQ-BQS-010`：Employee 两个 ES endpoint 必须由业务域 `requireEmployeeRead` 执行最终读取授权，并经其端点级安全链显式使用既有共享 JWT role converter；先核实已有调用方兼容性，验证真实 ADMIN/VIEWER role claim 允许和无权限、missing、malformed、service-token 拒绝，不改变 detail 或其他 endpoint 的既有行为。Transaction 继续由服务执行最终读取授权。Agent 和 Adapter 只透传当前用户 JWT，不替代业务角色判定。
 
-`REQ-BQS-011`：模型只能看到最小化问题、模型安全动作/字段/operator 目录、请求级 slot、配置 snapshot 及已批准的时间上下文；不得看到身份证号、员工编号、电话、邮箱、姓名、详细地址、JWT、凭证、业务原始响应、ES `_source`/`embeddingText`、索引或数据库物理信息。用户可见字段与模型可见字段是两套独立交集策略，未分类、冲突或转换失败时模型调用为 0。
+`REQ-BQS-011`：模型只能看到最小化问题、模型安全动作/字段/operator 目录、请求级 slot、配置 snapshot 及已批准的时间上下文；目录必须描述 operator 语义、单/多值形状、数量上限和允许的 tagged value。不得看到身份证号、员工编号、电话、邮箱、姓名、详细地址、JWT、凭证、业务原始响应、ES `_source`/`embeddingText`、索引或数据库物理信息。输入安全层只提取并替换敏感值，保留词序和 AND/OR 连接词，不得选择 domain/action/operator 或生成 filter。对不含“员工”但具有受保护姓名/姓氏强提示的输入，本地只允许进入受控规划，最终 domain/action 仍由 LLM 决定；无法可靠准入时返回 unsupported。
 
 Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结构校验，严格解析 hits，并丢弃 `embedding`、`embeddingText`、workBase 和未知字段；不得仅因原始响应而新增业务 endpoint 或公共 DTO。
 
@@ -105,5 +105,6 @@ Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结�
 2. Employee：上海地址、职位、受保护标识/姓名、ES 列表、语义检索、权限矩阵、workBase 拒绝和 ES 字段丢弃。
 3. Transaction：类型、日期、金额、同字段区间、组合过滤、分页、排序、精度及拒绝矩阵。
 4. 结构化查询收口：Access/Core/Model/配置/Adapter/JWT/单动作与失败零调用回归。
+5. Employee 自然语言扩展：单/复姓、多姓名、多姓氏、同字段 AND、行政区别名、多地区及问句/祈使句；真实模型和 Employee search 均受独立总预算约束。
 
 实施状态由 P3 与 UAT 计划记录；本需求只要求 Employee/Transaction 读取守卫、严格 QueryPlan、固定 Adapter、业务最终授权、失败关闭及受控结果成立，不保存运行批次、调用计数或证据哈希。

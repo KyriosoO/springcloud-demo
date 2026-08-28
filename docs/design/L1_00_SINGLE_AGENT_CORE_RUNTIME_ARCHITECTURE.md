@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
+| 当前版本 | v3.2 |
 | 更新日期 | 2026-08-28 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
-| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.9；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.9；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.7 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
 | 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过；最新有效 Knowledge 效果等级为 `partially_effective` |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.1 移除候选、Gate、manifest 和动态测试流水，只保留 Runtime/Model/Core 的稳定职责、当前生产接线与高层效果状态；运行权威下沉到 P3、UAT_01 和 evidence。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.2 明确 Business 候选准入可以利用已安全抽取的姓名/姓氏强提示，但输入层仍不得选择 domain/action/operator 或生成 filter。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -45,7 +45,7 @@ Business 依赖方向为 `LangGraph → provider-neutral Model Port → Business
 ## 4. 运行处理流程与数据模型
 
 1. Spring 接入层完成认证、严格请求结构和请求 ID。
-2. Runtime 的输入安全闸门先生成受保护 slot、最小化模型问题，并固定请求级配置 snapshot、取消信号和时钟；该闸门不得选择 domain/action 或生成 filters。
+2. Runtime 的输入安全闸门先生成受保护 slot、最小化模型问题，并固定请求级配置 snapshot、取消信号和时钟；该闸门可以基于显式业务锚点或受保护姓名/姓氏强提示决定是否允许进入受控 Business planning，但不得选择 domain/action/operator 或生成 filters。
 3. Model Port 只接收脱敏问题、安全 action/field/operator 目录、slot ID 和已批准时间上下文；模型必须完整保留用户限定条件，不能将“语义检索 + 地址过滤”降级为只执行语义检索，也不能在缺少已批准时钟上下文时推断相对日期。
 4. Model 层严格解码 provider response，Business 层再解码 `domain/action/arguments`、filters、tagged value、分页和排序。
 5. 业务 validator 依据代码合同与配置校验，并执行同字段 range、日期、Decimal、敏感值和单接口可表达性验证。
@@ -80,9 +80,9 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 |---|---|
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.2 | Spring 接入、Runtime 协同及当前生产启动入口状态 |
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.2 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.3 | 模型安全 catalog、v4 完整意图 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.5 | 模型安全 catalog、v5 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
 | [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.2 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
-| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5 | QueryPlan、字段配置、按 operator 校验文本、validator、binder 与出域策略 |
+| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.7 | QueryPlan、多值引用、字段组合、行政区规范化、validator、binder 与出域策略 |
 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.10 | Knowledge 开关、单注册、域目录 v2、Summary V4 绑定、阶段与组合根接线 |
 | [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v1.9 | Knowledge typed HTTP、读取授权、RRF/rerank 与 client 生命周期 |
 | [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.12 | Evidence/出域/Summary V4、效果口径 v2 与有限测量收口合同 |

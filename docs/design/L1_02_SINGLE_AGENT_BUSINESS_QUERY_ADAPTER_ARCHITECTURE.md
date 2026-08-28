@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.6 |
+| 当前版本 | v2.7 |
 | 更新日期 | 2026-08-28 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
 | 当前实现 | filters/config、三个列表动作、生产组合根、最终授权、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 均已实施；18 个真实场景与 17 个确定性风险等价自动化均已闭合 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 原子同步上位及关联架构版本，并保持 Business 三动作设计和既有验收结论不变；运行批次与动态证据继续由 UAT_00/P3 治理。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.7 在既有 Employee search 接口内增加受控多值引用、`prefix_any/contains_any`、有限同字段 AND 和行政区别名；保持三个动作、公共 DTO、权限及历史证据不变。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -27,11 +27,13 @@
 
 | 动作 | 固定业务接口 | 已核实能力 | 当前缺口 |
 |---|---|---|---|
-| `employee.search` | `POST /employees/es/search` | keyword、`eq/contains/prefix/in`、分页、排序、原始 ES hits；Agent Adapter、读取守卫与专用共享 converter 已实施 | 正式 UAT search 6 次；上海地址受控返回 20 条 |
+| `employee.search` | `POST /employees/es/search` | keyword、单值 `eq/contains/prefix`、多值 exact/prefix/contains-any、多个 filter 的 `bool.must`、分页和排序 | Agent 尚缺 typed `value_refs`、逻辑 operator 映射、有限同字段组合和行政区别名 |
 | `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter、读取守卫与专用共享 converter 已实施 | 正式 UAT semantic 1 次返回 9 条；semantic+地点零业务调用 |
 | `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；`trans_type eq` 已兼容下划线类型，`contains` 仍拒绝 SQL LIKE 通配字符 | 正式 UAT search 7 次；相对日期和聚合零业务调用 |
 
 Employee `keyword` 只匹配 `contactAddress/chineseName/idCardNo`，且必须复用与 filter 相同的 `literal/value_ref` 输入保护；真实姓名、员工标识和详细地址不能作为明文 keyword 出域。当前语义接口不能表达“语义匹配 + contact_address 过滤”；必须 unsupported，不能调用两个接口或客户端补筛。
+
+方案比较：仅增加 Prompt 示例不能闭合多值引用、operator 形状与 Adapter 映射；仅放宽 validator 会使敏感值形状、组合语义和服务能力失去约束。采用“LLM 语义理解 + typed protected references + operator-specific value shape + 有限行政区规范化 + 严格行为校验”：LLM 决定 domain/action/field/operator/AND/OR，本地只保护敏感值、规范模型已选择的行政区值、校验代码与配置交集并固定映射到现有 DTO。
 
 ## 4. Business 唯一数据流与职责边界
 
@@ -46,13 +48,13 @@ Model 只认识逻辑 domain/action/field/operator；Business 公共层拥有 st
 
 ## 5. QueryPlan、统一字段配置与模型目录
 
-顶层 exact 三字段 `domain/action/arguments`。列表 arguments 采用 `filters/page/size/sorts`；filter 为 `field/operator/value`，value 只能为 `literal` 或当前请求 `value_ref`；同字段可组合 `gt + lt`，不能重复同 operator、冲突 eq/range 或丢弃未知条件。unsupported 仅允许 exact sentinel，且业务调用为 0。
+顶层 exact 三字段 `domain/action/arguments`。列表 arguments 采用 `filters/page/size/sorts`；filter 为 `field/operator/value`，value 只能为 `literal`、当前请求 `value_ref` 或多值 `value_refs`。多值引用数量 1～16、唯一、只绑定当前请求且 slot 的 typed logical field 必须与 filter field 一致。`in` 是完整值精确任一，`prefix_any/contains_any` 分别是前缀/包含任一；同字段只允许代码和配置共同批准的收紧型组合，不能重复同 operator、冲突 eq/range 或丢弃未知条件。unsupported 仅允许 exact sentinel，且业务调用为 0。
 
-一份版本化、强类型、默认拒绝 JSON 配置声明 domain/action/field、模型安全描述、operator、输入 exposure、必填/组合、Decimal/日期、分页/排序、用户结果、分类/脱敏和模型出域；Employee keyword 另以动作级受控策略定义启用状态、输入保护及代码绑定的既有三字段集合。启动时校验 version/snapshot、definition/validator/mapper/codec 对齐、service contract reference、所有字段和 operator 子集；`workBaseSi/workBaseAf` 永远不能通过配置直接启用。
+一份版本化、强类型、默认拒绝 JSON 配置声明 domain/action/field、模型安全描述、operator、输入 exposure、operator-specific value shape、有限同字段组合、行政区 normalization profile、Decimal/日期、分页/排序、用户结果、分类/脱敏和模型出域；Employee keyword 另以动作级受控策略定义启用状态、输入保护及代码绑定的既有三字段集合。启动时校验 version/snapshot、definition/validator/mapper/codec 对齐、service contract reference、所有字段/operator/组合/profile 均为代码上界子集；`workBaseSi/workBaseAf` 永远不能通过配置直接启用。
 
 ### 5.1 Employee 字段
 
-`contact_address → contactAddress`、`chinese_name → chineseName`、`employee_identifier → idCardNo`、`member_no → memberNo`、`phone_no → phoneNo`、`email → email`、`position → position`。地址仅允许有限安全地点片段如“上海”作为 literal；详细地址、姓名、标识、会员号、电话和邮箱必须使用 protected slot。`workBaseSi/workBaseAf` 数据无效，排除查询目录、结果字段、模型目录及成功用例。
+`contact_address → contactAddress`、`chinese_name → chineseName`、`employee_identifier → idCardNo`、`member_no → memberNo`、`phone_no → phoneNo`、`email → email`、`position → position`。地址只启用 `contains/contains_any`，模型生成的省、市、自治区有限别名由版本化代码目录确定性规范化；详细地址必须使用 protected slot。姓名启用 `eq/contains/prefix/in/prefix_any`，敏感单/多值分别使用 `value_ref/value_refs`；`in→in`、`prefix_any→prefixAny`、`contains_any→containsAny` 固定映射现有 DTO。`workBaseSi/workBaseAf` 数据无效，排除查询目录、结果字段、模型目录及成功用例。
 
 ### 5.2 Transaction 字段与操作符
 

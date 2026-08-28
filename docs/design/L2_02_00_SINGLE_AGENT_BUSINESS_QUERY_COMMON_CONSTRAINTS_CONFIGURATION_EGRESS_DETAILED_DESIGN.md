@@ -6,13 +6,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.6 |
+| 当前版本 | v2.7 |
 | 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.7 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 同步上位 Business 架构版本并把运行证据明细留在 UAT_00/evidence；QueryPlan/config/egress 合同不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.7 设计 `value_refs`、`prefix_any/contains_any`、有限同字段 Text 组合和版本化行政区规范化；v2 配置和历史 evidence 保持不可变。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -34,7 +34,7 @@
 
 ## 3. 模块职责、依赖方向与接口契约设计
 
-Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `JsonObject → BusinessQueryPlan` exact payload；validator 负责代码 definition、配置 snapshot、日期/Decimal 与 field/operator；binder 只把同请求 `value_ref` 转换为 Adapter 输入。依赖方向固定 Model → Business decode/validate/bind → Core → Domain Adapter；禁止绕过或反向依赖。
+Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `JsonObject → BusinessQueryPlan` exact payload；validator 负责代码 definition、配置 snapshot、日期/Decimal、operator value shape 与字段组合；binder 只把同请求 `value_ref/value_refs` 转换为不可变 Adapter 输入。依赖方向固定 Model → Business decode/validate/bind → Core → Domain Adapter；禁止绕过或反向依赖。
 
 现有关键接缝为 `ExactBusinessQueryPlanDecoder.decode(payload: JsonObject) -> BusinessQueryPlan`、`DefaultBusinessQueryPlanValidator.validate(plan, *, snapshot) -> BusinessQueryPlanValidationResult`、`RequestProtectedValueBinder.bind(plan, *, slots, request_id) -> ActionCandidate` 和 `build_business_planner_catalog(...) -> BusinessPlannerCatalog`。不可变 `BusinessQueryFilter(field, operator, value)`、`BusinessListQueryArguments(filters, page, size, sorts, keyword)` 与 `EmployeeSemanticQueryArguments(query, size)` 等业务合同均已实施；历史 flat arguments 不满足且不得替代本设计。
 
@@ -72,15 +72,15 @@ Model provider decoder 只负责 JSON framing；公共 Business decoder 负责 `
 }
 ```
 
-外层只能包含 `domain/action/arguments`。`employee.search` arguments 只允许 `filters/page/size/sorts` 及可选 `keyword`；keyword 必须 exact 为 `{"literal": ...}` 或 `{"value_ref":"slot-N"}`，不得使用裸字符串；只有代码判定的安全城市片段可使用 literal，真实姓名、标识和详细地址必须绑定同请求 protected slot。`transaction.search` 只允许 `filters/page/size/sorts`；`employee.semantic_search` 只允许 `query/size`，其中 query 为 tagged value。分页与排序属于计划语义，不能由本地猜测；默认值只允许由代码绑定的 exact defaults 明确决定并在 catalog 中声明。
+外层只能包含 `domain/action/arguments`。`employee.search` arguments 只允许 `filters/page/size/sorts` 及可选 `keyword`；标量值 exact 为 `{"literal": ...}` 或 `{"value_ref":"slot-N"}`，多值 exact 为 literal list 或 `{"value_refs":["slot-1","slot-2"]}`。真实姓名、标识和详细地址必须绑定同请求 protected slot。`transaction.search` 只允许 `filters/page/size/sorts`；`employee.semantic_search` 只允许 `query/size`。分页与排序属于计划语义，不能由本地猜测。
 
-filter 必须 exact 包含 `field/operator/value`；value exact 为 `{"literal": ...}` 或 `{"value_ref":"slot-N"}`；sort exact 为 `field/direction`。请求 JSON 禁止 duplicate key、unknown property、null、bool-as-int、float、NaN/Infinity、控制字符和物理键；继承现有上界 `max_bytes=16384/max_depth=8/max_collection_items=128`，filters≤8、每个 `in` 集合≤16、sorts≤2、page≤1000、size≤50，且具体 action 配置可继续收紧。
+filter 必须 exact 包含 `field/operator/value`；sort exact 为 `field/direction`。scalar operator 只接受 scalar literal/value_ref；`in/prefix_any/contains_any` 只接受 1～16 项 literal list 或唯一 `value_refs`。请求 JSON 禁止 duplicate key、unknown property、null、bool-as-int、float、NaN/Infinity、控制字符和物理键；继承现有大小上限，filters≤8、sorts≤2、page≤1000、size≤50，且具体 action 配置可继续收紧。
 
-同字段允许一次 `gt` 和一次 `lt`；`eq` 与同字段 range/contains/prefix/in 互斥，重复 operator 拒绝；上下界必须严格 `lower < upper`。protected slot 只能属于当前 request ID，单次绑定，不能跨请求复用。`unsupported` 仅允许 action 为 `unsupported` 且 arguments 为 `{}`，domain 属于当前明确域或 `unsupported`。
+同字段 Decimal/Date 允许一次 `gt` 和一次 `lt`；`eq` 与 range 互斥且上下界严格 `lower < upper`。Text 默认互斥，只有字段 code definition 与配置共同列出的无序 operator 组合可按 AND 执行；`chinese_name` 上界仅含 `prefix+contains` 与 `prefix+eq`，重复 operator 始终拒绝。Employee extractor 为每个新 slot 同时保存 typed logical field；binder 必须验证 request ID、slot唯一性和 field一致性。同一个 slot 不能在同一计划重复引用或跨请求绑定；旧历史构造的无类型单值 slot 仅保留兼容，不允许形成新 `value_refs`。`unsupported` 仅允许 action 为 `unsupported` 且 arguments 为 `{}`。
 
 ### 3.2 Employee 和 Transaction 逻辑 operator
 
-Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支持 `gt/lt`；keyword 只对应服务既有 `contactAddress/chineseName/idCardNo` multi-match。Transaction：`trans_id:eq`、`trans_type:eq/contains`、`trans_date:eq/gt/lt`、`amount:eq/gt/lt`；DTO suffix 仅归 Adapter 所有。
+Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny`、`prefix_any→prefixAny`、`contains_any→containsAny`，均映射既有 `SearchFilter.values`；多个 filters 由服务 `bool.must` 组合。`chinese_name` 可配置 `eq/contains/prefix/in/prefix_any`，`contact_address` 仅配置 `contains/contains_any`。Transaction operator 集合保持不变；DTO/Java alias 仅归 Adapter 所有。
 
 文本策略由有限代码枚举及当前 filter operator 共同确定，不引入可配置表达式：普通安全 token 可包含 `_`，但 `contains` 必须收紧为不包含 `_`、`%`、反斜杠和控制字符的安全片段。`trans_type eq` 因现有 SQL 使用参数化 `=`，必须允许真实已存在的合法下划线类型；`trans_type contains` 因现有 Mapper 使用未转义 `LIKE`，必须在模型计划校验和 Adapter 两层均失败关闭。Employee 既有城市、敏感字段和 protected-ref 规则保持不变；统一配置只启用既有 operator，不能放宽代码绑定策略，也无需新增配置 schema 或规则引擎。
 
@@ -88,7 +88,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 ## 4. 统一字段级配置与 snapshot
 
-已存在 `agent-runtime/src/agent_runtime/business/business-query.v2.json`：单个版本控制 JSON 文件，由严格 Python 解码器读取，并已完成打包可达性及 snapshot 校验；本期不新增配置平台、DSL、watcher 或生产依赖。
+历史 `business-query.v2.json` 和 loader 保持字节与语义不变；当前生产新增 `business-query.v3.json`，仍由同一严格 Python 解码器读取并形成不可变 snapshot。本期不新增配置平台、DSL、watcher 或生产依赖。
 
 ```json
 {
@@ -137,9 +137,9 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 }
 ```
 
-示例只展示形状，正式配置必须同时包括两个 Employee 动作、Transaction 动作及全部允许字段，不得把示例中的 `contains` 误解成唯一可允许 operator。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐，不允许配置改写字段映射，且绝不进入模型目录。Employee `keyword.service_field_ids` 必须逐字匹配既有三字段 multi-match；keyword 可被配置禁用或收紧，但不能新增匹配字段、允许敏感 literal，或将物理字段名暴露给模型。endpoint、HTTP method 和 semantic profile 始终由代码绑定；配置最多选择已注册的 finite profile ID。
+示例只展示形状。v3 配置新增有限 `operator_combinations` 与 `normalization_profile`，两者必须是代码 definition 的子集；不得携带正则或表达式。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐且绝不进入模型目录。Employee keyword、endpoint、HTTP method 和 semantic profile 仍由既有代码边界控制。
 
-输入 exposure 有限枚举为 `literal/protected_ref/literal_or_protected_ref`；`contact_address` literal 只可通过代码内有限安全城市片段判定，详细地址仍必须 protected ref，配置不能注入正则或放宽判定。用户/模型 transform 为有限代码枚举，不能运行表达式。排序、超时、返回字段、模型字段、Decimal 和时间规则都只能小于或等于代码与服务合同。
+输入 exposure 有限枚举保持不变；`value_refs` 是 protected_ref 的多值形状，不新增暴露类别。`contact_address` literal 只可通过版本化 code-bound 行政区目录规范化；配置只能选择该 profile，不能注入别名、正则或放宽判定。详细地址仍必须 protected ref。用户/模型 transform 为有限代码枚举，不能运行表达式。
 
 超时按 action 的真实业务链路分别绑定：`employee.search≤3000ms`、`employee.semantic_search≤10000ms`、`transaction.search≤5000ms`。语义动作包含业务服务内本地 Embedding、Feign 转发及 ES 向量检索，不能机械复用普通 Employee 搜索的 3000ms 上限；10000ms 只调整该 action 的代码合同和受限配置，不扩张 endpoint、查询字段、结果字段、权限或模型调用。实际 deadline 仍取请求剩余时间与 action 配置的较小值，超时失败关闭，不重试、不降级。配置 snapshot 发生变化时启用全新的 live manifest；此前 manifest 和失败证据保持原始字节及哈希不变。
 
@@ -147,9 +147,9 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 ## 5. 处理流程、权限与审计设计
 
-1. request-local extractor 将姓名、标识、会员号、电话、邮箱和详细地址替换成不可逆 slot 标识。
-2. 模型只见 minimized question、field/operator 目录、安全地点片段、slot ID、已批准时间上下文与 snapshot。
-3. provider decoder 后执行 Business exact decoder、配置 validator 和 protected binder。
+1. request-local extractor 将单/复姓、姓名片段、完整姓名、标识、会员号、电话、邮箱和详细地址分别替换成 slot，保留原词序与连接词，但不生成业务计划。
+2. 模型只见 minimized question、operator 语义/形状、字段组合、行政区 literal、slot ID、已批准时间上下文与 snapshot。
+3. provider decoder 后执行 Business exact decoder、配置 validator、行政区规范化和 protected binder；规范化不选择字段或 operator。
 4. Core 执行一次固定 Domain Adapter；client 仅透传原用户 JWT。
 5. Adapter 严格解析服务返回；Employee 仅按其域内合同隔离缺失必填结果字段的历史索引记录，保留真实 total、有效 returned count 和 truncated 语义；user projection 和 model egress 分别执行代码/配置/分类交集。
 
@@ -169,6 +169,8 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `IMPL-BQCOM-106` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 请求级 slots 和地点片段/详细地址差异化保护 |
 | `IMPL-BQCOM-107` | `agent-runtime/src/agent_runtime/business/user_projection.py` | 用户结果字段白名单与有限脱敏 |
 | `IMPL-BQCOM-108` | `agent-runtime/src/agent_runtime/business/egress.py` | 模型字段交集、未知/敏感/冲突零调用 |
+| `IMPL-BQCOM-109` | `agent-runtime/src/agent_runtime/business/business-query.v3.json` | 当前三动作配置、Employee 多值 operator、组合与行政区 profile；v2 保持历史兼容 |
+| `IMPL-BQCOM-110` | `agent-runtime/src/agent_runtime/business/region_catalog.py` | 版本化省/市/自治区有限别名目录和确定性规范化 |
 
 ## 7. 测试与验证设计
 
@@ -182,6 +184,8 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `TEST-BQCOM-106` | page/size/sorts/offset overflow、投影脱敏、模型出域拒绝与调用计数 |
 | `TEST-BQCOM-107` | 三动作独立超时上限、semantic 10000ms contract/config 对齐、超界配置拒绝及历史 snapshot/manifest 不可变 |
 | `TEST-BQCOM-108` | 上游 total、合法 raw hits 数量与有效返回记录数分离；eq 保留真实 total、gte 不公开精确 total；partial coverage 不伪造计数，全部命中不可投影时失败关闭 |
+| `TEST-BQCOM-109` | `value_refs` 1～16、唯一/current-request 绑定、operator-specific shape 和零敏感出域 |
+| `TEST-BQCOM-110` | `prefix+contains/prefix+eq` 允许，其余 Text 组合拒绝；行政区别名/未知值/多值规范化 |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -201,6 +205,9 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 | `DR-BQCOM-106` | 配置不携带 SQL/ES/endpoint，禁止 Agent DB/ES 依赖与权限替代 |
 | `DR-BQCOM-107` | action 超时仅可由代码绑定合同及配置收紧：Employee search 3000ms、semantic 10000ms、Transaction 5000ms；保持请求 deadline、失败关闭及历史 snapshot 不可变 |
 | `DR-BQCOM-108` | Domain Adapter 保留已证明的上游 total 与有效记录 coverage；只允许域合同明确的结果卫生，不得构造用户条件过滤、补请求、伪造 total 或放宽响应外壳/安全校验 |
+| `DR-BQCOM-109` | `value_refs` 只服务多值 operator，1～16、唯一且 current-request；每个 slot 的 typed logical field 必须匹配 filter，绑定后为不可变字符串 tuple，真实值不出域 |
+| `DR-BQCOM-110` | Text 同字段组合默认拒绝，仅允许 code/config 双重批准的收紧型 AND；不得合并、丢弃或改写 filter |
+| `DR-BQCOM-111` | 行政区别名只在模型已选择 `contact_address` 后确定性规范化；目录代码绑定且配置只能选择/收紧，未知值失败关闭 |
 
 数据生命周期：slots、JWT、plan、原始业务响应只存在于 request memory；不存在 Agent 数据库或数据迁移。事务边界与一致性由业务服务拥有；启动 snapshot 只读、无热更新。最小必要变更复用现有 query_plan/settings/projection/egress，不引入配置中心、通用规则 DSL、模板表达式或额外生产依赖，以避免耦合。
 

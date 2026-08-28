@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.29 |
+| 当前版本 | v2.30 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-08-28 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -14,7 +14,7 @@
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
 
-v2.29 修复 Business/Knowledge 当前 UAT 追踪 authority 与效果元数据漂移；Knowledge traceability schema v2 分别绑定最新有效效果、最新执行终态和当前 Summary 版本证据状态，保持37/37功能结论及全部历史 candidate 字节不变。
+v2.30 新增 Employee 自然语言扩展的有限工作包：typed 多值引用、operator 语义目录、姓名/地区保护与现有 search DTO 映射；不改变既有35项 UAT、公共接口、权限或历史 evidence。
 
 ## 2. 目标、范围与计划原则
 
@@ -26,22 +26,22 @@ v2.29 修复 Business/Knowledge 当前 UAT 追踪 authority 与效果元数据�
 
 | 来源 | 当前版本 | 权威责任 | 状态 |
 |---|---|---|---|
-| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.1 | 稳定业务目标、安全与验收原则 | Approved |
+| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.2 | 稳定业务目标、安全、受控多值与验收原则 | Approved |
 | [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.6 | 系统边界和下位治理 | Approved |
-| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.1 | Runtime/Model/Core、Knowledge 可选接线、组合根及完整意图边界 | Approved |
-| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.6 | Business 公共边界、Adapter、结果卫生与最终授权 | Approved |
+| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.2 | Runtime/Model/Core、受控 Business 候选准入、组合根及完整意图边界 | Approved |
+| [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.7 | Business 多值/组合边界、Adapter、结果卫生与最终授权 | Approved |
 | [`L2_00_00`](../design/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) | v1.3 | Spring 公共接入、Runtime 内部协议和当前生产启动入口状态 | Approved |
 | [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.3 | planning bridge、组合根和单动作 | Approved |
-| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.4 | v4 模型安全 catalog、完整意图 Prompt 与 unsupported | Approved |
+| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.5 | v5 operator 语义 catalog、多值/组合 Prompt 与 unsupported | Approved |
 | [`L2_00_03`](../design/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) | v1.3 | 用户角色 Authority 的 Servlet/Reactive 统一转换及 Provider 消费 | Approved |
-| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.6 | filters、统一配置、validator、slot 与结果出域 | Approved |
-| [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Employee search/semantic、记录卫生与最终读取授权 | Approved |
+| [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.7 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
+| [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.7 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.9 | Knowledge 稳定流程、Summary V4、效果口径与最新有效等级 | Approved |
 | [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.10 | 单动作、域目录 v2、默认关闭接线和任务/Provider 装配 | Approved |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v1.9 | typed retrieval、读取授权、RRF/rerank 和 client 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.12 | Evidence/出域、Summary V4、效果口径和 Harness 状态合同 | Approved |
-| [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.20 | Business 35/35 固定用例与证据映射 | Reviewed |
+| [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.21 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
 | [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.12 | Knowledge 功能、candidate 与效果结论 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -375,24 +375,52 @@ Employee/Transaction 保持已完成。当前没有必须继续实施的目标�
 
 | 权威文档/要求 | 代码或配置实现 | 单元/契约/集成验证 | UAT/evidence | 当前状态 | 缺口与处置 |
 |---|---|---|---|---|---|
-| `REQ_00 v2.1` 查询、安全、功能/效果分离 | `agent_runtime.main`、Business/Knowledge 组合根及现有 Java Provider | Core/Business/Knowledge、Spring E2E、权限与严格契约测试 | `UAT_00` 35/35；`UAT_01` Functional 37/37 | Implemented and verified | 效果等级不是功能完成条件，具体状态见 UAT_01 |
+| `REQ_00 v2.2` 查询、安全、功能/效果分离与 Employee 自然语言扩展 | 既有组合根已实施；多值/组合/region/v5 待本目标工作包 | 既有回归通过；新测试由第17节治理 | 既有35/35；扩展UAT待执行 | Designed but not implemented | 不回退既有结论，待 `GATE-081/082` |
 | `L0_00 v2.6` 系统边界与唯一链路 | Spring 接入、统一 Runtime、业务 Adapter、typed Knowledge Provider | Spring→Runtime Business/Knowledge E2E 与隔离反证 | 两份 UAT 计划 | Implemented and verified | 无目标内缺口 |
-| `L1_00 v3.1` Core/Model/Registry/生命周期 | `main.py`、`bootstrap.py`、`core/`、`graph/`、`model/` | Core、组合根、取消/关闭、并发隔离与失败映射测试 | 功能 UAT 入口证据 | Implemented and verified | 无目标内缺口 |
+| `L1_00 v3.2` Core/Model/Registry/生命周期 | 既有 Runtime 已实施；姓名/姓氏强提示准入待实现 | Core、组合根、候选闸门与失败映射测试 | 扩展 UAT | Designed but not implemented | 不允许本地生成计划 |
 | `L1_01 v1.9` `KQ-AD-001～010` | `knowledge/` 单 Capability、typed retrieval、Evidence/Policy、Summary V4 | Knowledge unit/contract/integration/evaluation 与 Spring E2E | Functional 37/37；最新有效 Effectiveness=`partially_effective` | Implemented but effectiveness below target | 当前 V4 候选未形成有效效果测量；不自动创建新候选 |
-| `L1_02 v2.6` Business 三动作与最终授权 | Business QueryPlan、Employee/Transaction Adapter、Java guards | Business/Employee/Transaction contract、E2E、权限测试 | `UAT_00` 35/35 | Implemented and verified | 无目标内缺口 |
+| `L1_02 v2.7` Business 三动作与最终授权 | 既有动作/授权已实施；多值/组合/region待实现 | 新Business/Employee contract、E2E、权限防回退 | 既有35/35；扩展待执行 | Designed but not implemented | 不修改公共DTO/endpoint |
 | `L2_00_00 v1.3` `DR-ACCESS-001～009` | `agent-service`、`runtime_http.py`、`main.build_runtime` | Agent access/runtime/Spring E2E | 公共接入与两类领域 UAT | Implemented and verified | 无目标内缺口 |
 | `L2_00_01 v2.3` `DR-CORE-101～104` | `core/`、`graph/business_query_planning.py`、Registry/组合根 | Core、QueryPlan、单动作、失败关闭测试 | Business/Knowledge E2E | Implemented and verified | 无目标内缺口 |
-| `L2_00_02 v2.4` `DR-MODEL-101～105` | DeepSeek transport、Business QueryPlan task、Knowledge Rewrite/Summary tasks | Model contract、fake transport、组合根和敏感输入零调用测试 | 既有受控 Business 真实证据；Knowledge 历史效果证据 | Implemented and verified | 本目标未复用或新增真实模型授权 |
+| `L2_00_02 v2.5` `DR-MODEL-101～107` | v4已实施；v5 task/catalog/production binding待实现 | v5 fake Prompt/catalog及零泄漏 | 扩展真实规划待执行 | Designed but not implemented | v4与历史证据不可变 |
 | `L2_00_03 v1.3` `DR-AUTH-001～007` | `common-security` Authority Converter 与各 Provider 安全配置 | Servlet/Reactive converter、角色矩阵及兼容测试 | Business/Knowledge 权限场景 | Implemented and verified | 无目标内缺口 |
 | `L2_01_00 v1.10` `DR-KFLOW-001～014` | `knowledge/capability.py`、rewrite、domain/planning/settings、生产惰性装配 | Flow、settings/catalog、production wiring、Spring E2E | Functional 37/37 | Implemented and verified | 无目标内缺口 |
 | `L2_01_01 v1.9` `DR-KRET-001～012` | Python retrieval/clients 与 `es-query-service` typed endpoint/Profile/security | Retrieval unit/contract/integration 与 Java DTO/security/endpoint 测试 | 功能检索用例 | Implemented and verified | 无目标内缺口 |
 | `L2_01_02 v1.12` `DR-KEV-001～009/016～018` | Evidence/Policy、Summary V4、validator、效果口径 v2 | Evidence/summary/effect metric、安全与 E2E 测试 | Functional 37/37 | Implemented and verified | 无目标内缺口 |
 | `L2_01_02 v1.12` `DR-KEV-010～015/019～022` | P5 runner、冻结合同、状态 allowlist、candidate-07 preflight/history 修复 | preparation/history/schema/budget/failure-close 测试 | candidate-07=`invalid_run / failed_unconsumed`；最新有效为 partial | Evidence missing | 当前 V4 没有有效效果测量；按有限收口设计记录风险，不创建 candidate-08 |
-| `L2_02_00 v2.6` `DR-BQCOM-101～108` | typed field config、decoder/validator/binder、egress/grounding | Business unit/contract/E2E | `UAT_00` 35/35 | Implemented and verified | 无目标内缺口 |
-| `L2_02_01 v2.6` `DR-EMP-101～108` | `employee.search`、`employee.semantic_search`、结果投影与 Java guards | Adapter/codec/endpoint/security tests | Employee UAT | Implemented and verified | 无目标内缺口 |
+| `L2_02_00 v2.7` `DR-BQCOM-101～111` | v2合同已实施；v3/value_refs/组合/region待实现 | Business unit/contract/E2E待补 | 扩展UAT待执行 | Designed but not implemented | v2配置与历史证据不可变 |
+| `L2_02_01 v2.7` `DR-EMP-101～111` | 既有两动作已实施；多值extractor/mapper待实现 | Adapter/codec/fake server待补 | Employee扩展UAT待执行 | Designed but not implemented | 只调用现有search endpoint |
 | `L2_02_02 v2.6` `DR-TXN-101～105` | `transaction.search`、Date/Decimal/page/sort、Java guard | Python/Java/cross-language/frozen-host tests | Transaction UAT | Implemented and verified | 无目标内缺口 |
-| `UAT_00 v1.20` 35 个固定 Business case | 当前生产组合根、Spring 安全链和既有业务服务接口 | 18 项真实证据加 17 项等价自动化逐 case 映射 | 35/35 Passed | Implemented and verified | 不维护全仓动态测试总数 |
+| `UAT_00 v1.21` 35 个固定 Business case 与15项扩展 | 既有35项实现/证据不变；扩展待实现 | 扩展non-live与受控UAT待执行 | 35/35既有Passed；扩展Prepared | Designed but not implemented | 扩展失败不改写历史35项 |
 | `UAT_01 v1.12` Functional | 当前 Knowledge 生产对象图 | 37 项逐 case trace、Spring E2E、Java/Python 契约 | 37/37 Passed | Implemented and verified | 无目标内缺口 |
 | `UAT_01 v1.12` Effectiveness | P5 v2 metric、Summary V4、版本化 candidate runner | non-live、历史哈希、安全 Gate、candidate-07 history 与 traceability schema v2 | 当前 candidate-07 无效；最新有效 partial | Evidence missing | 当前 V4 效果未形成有效测量；作为显式剩余风险，不阻塞功能/架构收口 |
-| `P3_00 v2.29` 工作包、Gate 与最终收口 | 本矩阵、Harness 修复、UAT traceability schema v2 及最终验证/评审工作包 | DAG、状态、全量验证与评审记录 | `GATE-079` 已终止；`GATE-078` Closed | Implemented and verified | Git 交付结果由最终报告记录，避免文档自引用提交 SHA |
+| `P3_00 v2.30` 工作包、Gate 与最终收口 | 既有工作包已闭合；第17节扩展包待推进 | `GATE-080～082`与验证/评审 | 扩展UAT Prepared | Designed but not implemented | Git 交付结果由最终报告记录 |
 | `ARCHITECTURE.md` 权威索引 | 不对应生产实现 | 链接、版本与状态校验 | 引用 P3/UAT 高层状态 | Not applicable | 索引不复制运行流水或动态测试总数 |
+
+## 17. Employee 自然语言扩展工作包（v2.30）
+
+本节只扩展现有 `employee.search` 的规划表达力，不新增动作、服务接口或权限。三个方案已比较：Prompt-only 缺少合同闭环；validator-only 会造成语义和安全边界失控；采用 typed multi-value + v5 catalog/Prompt + code/config 双重校验。
+
+| 顺序 | 工作包 | 直接依赖 | Gate | 初始状态 | 完成证据 |
+|---:|---|---|---|---|---|
+| 39 | `WP-EMP-NL-DESIGN-10` | 当前 REQ/L1/L2 与已核实 Java search 合同 | `GATE-080` | Done | 三轮内审、独立跨层评审，S0/S1/未处理S2均为0 |
+| 40 | `WP-BQ-MULTIVALUE-CONTRACT-10` | `WP-EMP-NL-DESIGN-10` | `GATE-080` Closed | Ready | v3 config、`value_refs`、operator shape、组合、region profile、v5 catalog/task 单元和契约测试 |
+| 41 | `WP-EMP-NL-QUERY-10` | `WP-BQ-MULTIVALUE-CONTRACT-10` | `GATE-081` | Blocked | extractor、binder、Employee mapper/fake server、Spring E2E、零泄漏与全量 non-live |
+| 42 | `WP-EMP-NL-UAT-10` | `WP-EMP-NL-QUERY-10` | `GATE-082` | Blocked | 冻结 HEAD/Prompt/config/cases/budget 后最多30次 QueryPlan 与30次 search；无 retry/resume/fallback |
+| 43 | `WP-EMP-NL-CLOSURE-10` | `WP-EMP-NL-UAT-10` | `GATE-082` 终态 | Blocked | 正式代码评审、文档/UAT状态、原子 Git 提交与推送 |
+
+`GATE-080` 只判定方案和设计可实施；`GATE-081` 只判定 non-live 合同与回归；`GATE-082` 是一次性 UAT 预算与执行门。任一 Gate 失败先区分实现、测试、环境、数据或设计，不得放宽 validator、修改历史 evidence 或增加未冻结调用。工作包 DAG 为线性直接依赖，无反向以 UAT 证明设计、无循环。
+
+设计评审记录：第1轮内审修复 P3/索引旧版本引用及 v4/v5 目标混淆；第2轮补齐 typed logical field 与 current-request slot 绑定；第3轮核实唯一链路、行政区有限目录、服务能力交集、权限/出域、历史兼容和 DAG。独立分层及跨层评审复核 Java `SearchFilter.values`/`anyFilterClause`/`bool.must` 证据，结论 S0=0、S1=0、未处理S2=0，`GATE-080` Closed。
+
+### 17.1 目标内实施映射
+
+| 来源 | 实施 | 测试/UAT |
+|---|---|---|
+| `REQ-BQS-002/004/011/012` | `BusinessQueryOperator`、exact decoder/validator/binder、v3 settings、region catalog | `TEST-BQCOM-109/110`；`UAT-EMP-NL-301～315` |
+| `DR-MODEL-106/107` | `business_query_plan_v5.py`、planner catalog、bootstrap 当前版本切换 | `TEST-MODEL-106/107`；真实 QueryPlan 预算 |
+| `DR-EMP-109～111` | Employee extractor、argument validator、request mapper | `TEST-EMP-110/111`；只读 Employee search 预算 |
+
+### 17.2 关闭条件
+
+只有设计评审通过后才能关闭 `GATE-080`；只有全部目标 non-live 测试、strict mypy、compileall、Employee Maven 与防回退回归通过后才能关闭 `GATE-081`。`GATE-082` 必须先冻结当前 HEAD、task version、Prompt hash、配置 snapshot、15项 case 和精确预算；执行后逐 case 如实记录 Passed/Failed，不补跑单例，至少一个已确认存在数据的地区场景返回受控列表。UAT 失败不影响既有35/35历史结论，但本扩展工作包保持未完成。
