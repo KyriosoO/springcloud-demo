@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 from pathlib import Path
 from typing import Literal
 
@@ -16,7 +15,11 @@ from agent_runtime.model.contracts import (
     StructuredOutputMode,
     StructuredToolMode,
 )
-from tests.evaluation.knowledge.live_bootstrap import manifest_path
+from tests.evaluation.knowledge.live_bootstrap import (
+    LiveEvaluationBootstrapError,
+    build_live_from_environment,
+    manifest_path,
+)
 from tests.evaluation.knowledge.live_contracts import (
     BudgetedLiveModelTransport,
     load_authorization_template,
@@ -27,13 +30,24 @@ from tests.evaluation.knowledge.test_live_p5_candidate_03_preparation import SAF
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-RUN_ID = "knowledge-p5-live-v3-20260828-candidate-06"
-MANIFEST_SHA256 = "7f54ddff600726d364edee6f7c6939d99c52aa5b533ac309d98887b6e8cc51b8"
-AUTHORIZATION_REFERENCE = "P3_00:GATE-077"
+RUN_ID = "knowledge-p5-live-v4-20260828-candidate-07"
+MANIFEST_SHA256 = "af545166b37a33899d6f1d7830c09472df8cc2fe45047fea242ecc524bfc2211"
+AUTHORIZATION_REFERENCE = "P3_00:GATE-079"
 AUTHORIZATION_TEMPLATE = REPOSITORY_ROOT / (
     "agent-runtime/tests/evaluation/knowledge/live/evidence/"
-    "knowledge-p5-live-v3-20260828-candidate-06.authorization-template.json"
+    "knowledge-p5-live-v4-20260828-candidate-07.authorization-template.json"
 )
+AUTHORIZATION_PATH = REPOSITORY_ROOT / (
+    "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+    "knowledge-p5-live-v4-20260828-candidate-07.authorization.json"
+)
+RESULT_ROOT = REPOSITORY_ROOT / "agent-runtime/tests/evaluation/knowledge/results" / RUN_ID
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _request(task_id: ModelTaskId) -> StructuredModelRequest:
     task_version = "1" if task_id is ModelTaskId.KNOWLEDGE_REWRITE else "4"
     payload = '{"question":"synthetic"}' if task_id is ModelTaskId.KNOWLEDGE_REWRITE else '{"evidence":[]}'
@@ -113,13 +127,13 @@ class FakeTransport:
         )
 
 
-def test_candidate_06_manifest_template_assets_and_history_are_frozen() -> None:
-    manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-06"))
+def test_candidate_07_manifest_template_assets_and_history_are_frozen() -> None:
+    manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-07"))
     template = load_authorization_template(AUTHORIZATION_TEMPLATE)
 
     assert digest == MANIFEST_SHA256
-    assert manifest.schema_version == 4
-    assert manifest.work_package_id == "WP-K-EFFECT-LIVE-06"
+    assert manifest.schema_version == 5
+    assert manifest.work_package_id == "WP-K-EFFECT-LIVE-07"
     assert manifest.run_id == template.run_id == RUN_ID
     assert manifest.authorization_reference == template.authorization_reference == AUTHORIZATION_REFERENCE
     assert manifest.task_versions == {"knowledge_rewrite": "1", "knowledge_summary": "4"}
@@ -131,26 +145,40 @@ def test_candidate_06_manifest_template_assets_and_history_are_frozen() -> None:
     assert template.live_p5_authorized is False
 
     asset_paths = {asset.path for asset in manifest.asset_hashes}
-    for candidate in range(1, 6):
+    for candidate in range(1, 7):
         assert any(f"candidate-0{candidate}" in path for path in asset_paths)
     assert "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v4.py" in asset_paths
     assert "agent-runtime/tests/evaluation/knowledge/test_effect_metrics_v2.py" in asset_paths
-    assert "agent-runtime/scripts/run-knowledge-p5-live-candidate-06.ps1" in asset_paths
+    assert "agent-runtime/scripts/run-knowledge-p5-live-candidate-07.ps1" in asset_paths
     assert str(AUTHORIZATION_TEMPLATE.relative_to(REPOSITORY_ROOT)).replace("\\", "/") in asset_paths
     assert tuple(asset.path for asset in manifest.asset_hashes) == tuple(sorted(asset_paths))
-    for asset in manifest.asset_hashes:
-        source = subprocess.run(
-            ["git", "show", f"4f304fab0b52339dbbc8c75cf58ed123d88f8b02:{asset.path}"],
-            cwd=REPOSITORY_ROOT,
-            check=True,
-            capture_output=True,
-        ).stdout
-        assert hashlib.sha256(source).hexdigest() == asset.sha256
+    assert all(_sha256(REPOSITORY_ROOT / asset.path) == asset.sha256 for asset in manifest.asset_hashes)
+
+
+def test_candidate_07_prepared_state_has_no_authorization_or_result() -> None:
+    assert not AUTHORIZATION_PATH.exists()
+    assert not RESULT_ROOT.exists()
 
 
 @pytest.mark.asyncio
-async def test_candidate_06_fake_budget_pairs_52_executions_and_consumes_once(tmp_path: Path) -> None:
-    manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-06"))
+async def test_candidate_07_requires_separate_authorization_before_key_or_outbound(tmp_path: Path) -> None:
+    with pytest.raises(LiveEvaluationBootstrapError, match="evaluation.live_authorization_missing"):
+        await build_live_from_environment(
+            environ={
+                "P5_KNOWLEDGE_MODE": "live",
+                "P5_KNOWLEDGE_LIVE_OPT_IN": "I_UNDERSTAND_LIVE_EXTERNAL_CALLS",
+                "P5_KNOWLEDGE_USER_JWT": "synthetic-not-persisted",
+                "P5_KNOWLEDGE_AUTH_EVIDENCE_REF": "WP-KRET-REAL-01:authorizationMatrix.admin",
+                "P5_KNOWLEDGE_CANDIDATE": "candidate-07",
+            },
+            repository_root=REPOSITORY_ROOT,
+            output_dir=tmp_path / RUN_ID,
+        )
+
+
+@pytest.mark.asyncio
+async def test_candidate_07_fake_budget_pairs_52_executions_and_consumes_once(tmp_path: Path) -> None:
+    manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-07"))
     output_dir = tmp_path / RUN_ID
     delegate = FakeTransport(output_dir=output_dir)
     transport = BudgetedLiveModelTransport(
@@ -186,8 +214,8 @@ async def test_candidate_06_fake_budget_pairs_52_executions_and_consumes_once(tm
 
 
 @pytest.mark.asyncio
-async def test_candidate_06_failure_is_terminal_without_retry_or_resume(tmp_path: Path) -> None:
-    manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-06"))
+async def test_candidate_07_failure_is_terminal_without_retry_or_resume(tmp_path: Path) -> None:
+    manifest, digest = load_manifest(manifest_path(REPOSITORY_ROOT, "candidate-07"))
     output_dir = tmp_path / RUN_ID
     delegate = FakeTransport(output_dir=output_dir, fail=True)
     transport = BudgetedLiveModelTransport(
@@ -214,9 +242,11 @@ async def test_candidate_06_failure_is_terminal_without_retry_or_resume(tmp_path
     assert paid_events[-1]["status"] == "failed"
 
 
-def test_candidate_06_frozen_preparation_assets_contain_no_secret() -> None:
-    raw = manifest_path(REPOSITORY_ROOT, "candidate-06").read_text(encoding="utf-8") + AUTHORIZATION_TEMPLATE.read_text(
+def test_candidate_07_prepared_assets_contain_no_secret_or_live_result() -> None:
+    raw = manifest_path(REPOSITORY_ROOT, "candidate-07").read_text(encoding="utf-8") + AUTHORIZATION_TEMPLATE.read_text(
         encoding="utf-8"
     )
     assert "LLM_API_KEY" not in raw
     assert "Bearer " not in raw
+    assert not AUTHORIZATION_PATH.exists()
+    assert not RESULT_ROOT.exists()

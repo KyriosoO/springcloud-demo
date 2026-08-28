@@ -102,9 +102,11 @@ class LiveKnowledgeConfigurationBinding(StrictLiveModel):
 
 
 class LiveP5Manifest(StrictLiveModel):
-    schema_version: Literal[1, 2, 3, 4] = Field(alias="schemaVersion")
+    schema_version: Literal[1, 2, 3, 4, 5] = Field(alias="schemaVersion")
     status: Literal["prepared_unconsumed"]
-    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06"] = Field(
+    work_package_id: Literal[
+        "WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06", "WP-K-EFFECT-LIVE-07"
+    ] = Field(
         alias="workPackageId"
     )
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
@@ -149,6 +151,7 @@ class LiveP5Manifest(StrictLiveModel):
                 2: {"knowledge_rewrite": "1", "knowledge_summary": "2"},
                 3: {"knowledge_rewrite": "1", "knowledge_summary": "3"},
                 4: {"knowledge_rewrite": "1", "knowledge_summary": "4"},
+                5: {"knowledge_rewrite": "1", "knowledge_summary": "4"},
             }[self.schema_version]
             or len(set(self.index_snapshot_ids)) != 2
             or any(not _LOWER_HEX_64.fullmatch(item) for item in self.index_snapshot_ids)
@@ -159,6 +162,7 @@ class LiveP5Manifest(StrictLiveModel):
             or (self.schema_version < 3 and self.work_package_id != "WP-KP5-LIVE-01")
             or (self.schema_version == 3 and self.work_package_id != "WP-K-EFFECT-LIVE-05")
             or (self.schema_version == 4 and self.work_package_id != "WP-K-EFFECT-LIVE-06")
+            or (self.schema_version == 5 and self.work_package_id != "WP-K-EFFECT-LIVE-07")
             or tuple(item.path for item in self.asset_hashes) != tuple(sorted(item.path for item in self.asset_hashes))
             or len({item.path for item in self.asset_hashes}) != len(self.asset_hashes)
             or not _valid_utc_seconds(self.prepared_at)
@@ -173,6 +177,7 @@ class LiveP5Manifest(StrictLiveModel):
             expected_prompt_sha256 = {
                 3: "cf6318629fcc7e6156efa89e566e2083b84da94c2c783a041cf9f1338476ca22",
                 4: "f71ab8e899fe7d33688270d026077f8a102585b6e19135e9d002962ad41d7ec6",
+                5: "f71ab8e899fe7d33688270d026077f8a102585b6e19135e9d002962ad41d7ec6",
             }.get(self.schema_version)
             metric_binding = (
                 self.configuration_binding.effect_metric_version,
@@ -180,7 +185,7 @@ class LiveP5Manifest(StrictLiveModel):
             )
             if (
                 self.configuration_binding.summary_prompt_sha256 != expected_prompt_sha256
-                or (self.schema_version == 4 and metric_binding != ("knowledge-effect-metrics-v2", 0.9))
+                or (self.schema_version >= 4 and metric_binding != ("knowledge-effect-metrics-v2", 0.9))
                 or (self.schema_version < 4 and metric_binding != (None, None))
             ):
                 raise ValueError("evaluation.live_manifest_metric_binding_invalid")
@@ -190,7 +195,9 @@ class LiveP5Manifest(StrictLiveModel):
 class LiveAuthorizationRecord(StrictLiveModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     status: Literal["authorized_unconsumed"]
-    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06"] = Field(
+    work_package_id: Literal[
+        "WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06", "WP-K-EFFECT-LIVE-07"
+    ] = Field(
         alias="workPackageId"
     )
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
@@ -219,7 +226,7 @@ class LiveAuthorizationRecord(StrictLiveModel):
             or not _valid_utc_seconds(self.confirmed_at)
         ):
             raise ValueError("evaluation.live_authorization_invalid")
-        if self.work_package_id == "WP-K-EFFECT-LIVE-06" and (
+        if self.work_package_id in {"WP-K-EFFECT-LIVE-06", "WP-K-EFFECT-LIVE-07"} and (
             self.frozen_head is None
             or self.manifest_sha256 is None
             or not _LOWER_HEX_40.fullmatch(self.frozen_head)
@@ -236,9 +243,13 @@ class LiveAuthorizationRecord(StrictLiveModel):
 class LiveAuthorizationTemplate(StrictLiveModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     status: Literal["awaiting_explicit_authorization"]
-    work_package_id: Literal["WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06"] = Field(alias="workPackageId")
+    work_package_id: Literal["WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06", "WP-K-EFFECT-LIVE-07"] = Field(
+        alias="workPackageId"
+    )
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
-    authorization_reference: Literal["P3_00:GATE-072", "P3_00:GATE-077"] = Field(alias="authorizationReference")
+    authorization_reference: Literal["P3_00:GATE-072", "P3_00:GATE-077", "P3_00:GATE-079"] = Field(
+        alias="authorizationReference"
+    )
     single_use: Literal[True] = Field(alias="singleUse")
     maximum_paid_requests: Literal[78] = Field(alias="maximumPaidRequests")
     retry_allowed: Literal[False] = Field(alias="retryAllowed")

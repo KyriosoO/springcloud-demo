@@ -78,7 +78,7 @@ _P5_KEYS = frozenset(
     }
 )
 _LIVE_OPT_IN = "I_UNDERSTAND_LIVE_EXTERNAL_CALLS"
-LiveCandidateId = Literal["candidate-03", "candidate-04", "candidate-05", "candidate-06"]
+LiveCandidateId = Literal["candidate-03", "candidate-04", "candidate-05", "candidate-06", "candidate-07"]
 _DEFAULT_LIVE_CANDIDATE: LiveCandidateId = "candidate-03"
 
 
@@ -139,6 +139,18 @@ _CANDIDATE_BINDINGS: dict[LiveCandidateId, LiveCandidateBinding] = {
         run_id="knowledge-p5-live-v3-20260828-candidate-06",
         dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
     ),
+    "candidate-07": LiveCandidateBinding(
+        manifest_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v4-20260828-candidate-07.manifest.json"
+        ),
+        authorization_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v4-20260828-candidate-07.authorization.json"
+        ),
+        run_id="knowledge-p5-live-v4-20260828-candidate-07",
+        dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+    ),
 }
 
 
@@ -156,6 +168,7 @@ class LiveEvaluationBootstrapResult:
     fixture: EvaluationExecutionFixture
     model_transport: BudgetedLiveModelTransport
     diagnostics: LivePhaseCheckpointJournal
+    allowed_worktree_entries: tuple[str, ...]
     _clients: tuple[httpx.AsyncClient, ...]
 
     async def aclose(self) -> None:
@@ -169,14 +182,18 @@ def _candidate_id(raw: str) -> LiveCandidateId:
     return cast(LiveCandidateId, raw)
 
 
+def _allowed_live_worktree_entries(*, candidate_id: LiveCandidateId) -> tuple[str, ...]:
+    if candidate_id not in {"candidate-06", "candidate-07"}:
+        return ()
+    authorization_relative = _CANDIDATE_BINDINGS[candidate_id].authorization_relative.as_posix()
+    return (f"?? {authorization_relative}",)
+
+
 def _unexpected_live_worktree_entries(
     *, candidate_id: LiveCandidateId, entries: tuple[str, ...]
 ) -> tuple[str, ...]:
-    if candidate_id != "candidate-06":
-        return entries
-    authorization_relative = _CANDIDATE_BINDINGS[candidate_id].authorization_relative.as_posix()
-    allowed = f"?? {authorization_relative}"
-    return tuple(entry for entry in entries if entry != allowed)
+    allowed = set(_allowed_live_worktree_entries(candidate_id=candidate_id))
+    return tuple(entry for entry in entries if entry not in allowed)
 
 
 def manifest_path(repository_root: Path, candidate_id: LiveCandidateId = _DEFAULT_LIVE_CANDIDATE) -> Path:
@@ -318,6 +335,7 @@ async def build_live_from_environment(
         raise LiveEvaluationBootstrapError("evaluation.output_exists")
 
     candidate_id = _candidate_id(environ.get("P5_KNOWLEDGE_CANDIDATE", _DEFAULT_LIVE_CANDIDATE))
+    allowed_worktree_entries = _allowed_live_worktree_entries(candidate_id=candidate_id)
     manifest, manifest_sha256 = load_manifest(manifest_path(repository_root, candidate_id))
     try:
         authorization = load_authorization(authorization_path(repository_root, candidate_id))
@@ -338,7 +356,7 @@ async def build_live_from_environment(
     frozen_head, _, worktree_entries = read_repository_state(repository_root)
     if _unexpected_live_worktree_entries(candidate_id=candidate_id, entries=worktree_entries):
         raise LiveEvaluationBootstrapError("evaluation.live_worktree_dirty")
-    if candidate_id == "candidate-06" and (
+    if candidate_id in {"candidate-06", "candidate-07"} and (
         authorization.frozen_head != frozen_head or authorization.manifest_sha256 != manifest_sha256
     ):
         raise LiveEvaluationBootstrapError("evaluation.live_authorization_binding_invalid")
@@ -505,5 +523,6 @@ async def build_live_from_environment(
         fixture=EvaluationExecutionFixture(make_scope=make_scope, synthetic_only=False),
         model_transport=budgeted_transport,
         diagnostics=diagnostics,
+        allowed_worktree_entries=allowed_worktree_entries,
         _clients=clients,
     )

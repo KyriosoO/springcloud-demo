@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.9 |
+| 当前版本 | v1.11 |
 | 日期 | 2026-08-28 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V4、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4 与效果口径 v2 已完成 non-live 实施和评审；candidate-05 保持 `partially_effective`，candidate-06 已完成非 live 冻结并等待精确授权 |
+| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4 与效果口径 v2 已完成；candidate-05 保持 `partially_effective`；candidate-06 已消费失败并完成历史闭环；共享 allowlist 修复与 candidate-07 non-live 冻结已通过，真实效果仍等待新精确授权 |
 
 ## 2. 阅读导航与变更记录
 
@@ -31,6 +31,8 @@
 | v1.7 | 2026-08-28 | candidate-05 根因与评估口径修复 | 新增 Summary V4 多域直接证据覆盖和效果口径 v2；阈值、安全 Gate、validator、数据集、gold 与历史资产不变 |
 | v1.8 | 2026-08-28 | 最小优化实施同步 | Summary V4、效果口径 v2、生产单绑定和 live/stub 统一 evaluator 已通过 non-live |
 | v1.9 | 2026-08-28 | candidate-06 非 live 冻结 | 冻结新 run、92 项资产、manifest、预算、历史哈希与失败关闭；真实执行仍受 `GATE-077` 约束 |
+| v1.10 | 2026-08-28 | candidate-06 消费后失败与 Harness 纠偏 | 如实记录 `snapshot_changed` 误判；统一启动前/结束时工作树 allowlist，保持 candidate-06 append-only，并要求新候选重新冻结与授权 |
+| v1.11 | 2026-08-28 | Harness 修复与 candidate-07 冻结 | 前后快照共享精确 allowlist；candidate-06 五项资产历史化；冻结 candidate-07 的100项资产、manifest和新授权模板，保持 outbound=0 |
 
 ## 3. 目标与范围
 
@@ -81,7 +83,7 @@
 | `REQ-KEV-001`、`CON-KEV-003` | `DR-KEV-001`、`DR-KEV-002`、`DR-KEV-003` | `IMPL-KEV-001`、`IMPL-KEV-002` | `TEST-KEV-001`、`TEST-KEV-002` | `VAL-KEV-001` |
 | `REQ-KEV-002`、`CON-KEV-001`、`CON-KEV-002` | `DR-KEV-004`、`DR-KEV-005`、`DR-KEV-006` | `IMPL-KEV-003`、`IMPL-KEV-004` | `TEST-KEV-003`、`TEST-KEV-004` | `VAL-KEV-002` |
 | `REQ-KEV-003`、`CON-KEV-004` | `DR-KEV-007`、`DR-KEV-008`、`DR-KEV-009`、`DR-KEV-016`、`DR-KEV-017` | `IMPL-KEV-005`、`IMPL-KEV-006` | `TEST-KEV-005`、`TEST-KEV-006` | `VAL-KEV-003` |
-| `REQ-KEV-004` | `DR-KEV-010`、`DR-KEV-011`、`DR-KEV-012`、`DR-KEV-018` | `IMPL-KEV-007`、`IMPL-KEV-008` | `TEST-KEV-007`、`TEST-KEV-008`、`TEST-KEV-010` | `VAL-KEV-004`、`VAL-KEV-006` |
+| `REQ-KEV-004` | `DR-KEV-010`、`DR-KEV-011`、`DR-KEV-012`、`DR-KEV-018`、`DR-KEV-020` | `IMPL-KEV-007`、`IMPL-KEV-008`、`IMPL-KEV-010` | `TEST-KEV-007`、`TEST-KEV-008`、`TEST-KEV-010`、`TEST-KEV-012` | `VAL-KEV-004`、`VAL-KEV-006`、`VAL-KEV-007` |
 | `REQ-KEV-005`、`REQ-KEV-006` | `DR-KEV-013`、`DR-KEV-014`、`DR-KEV-015`、`DR-KEV-019` | `IMPL-KEV-009` | `TEST-KEV-009`、`TEST-KEV-010`、`TEST-KEV-011` | `VAL-KEV-005`、`VAL-KEV-006` |
 
 ## 5. 关联资源与责任边界
@@ -134,6 +136,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-017` | Summary V4 继承 V3 全部安全约束；问题含多个独立要点或 evidence 跨多个适用逻辑域时，每个有直接证据的要点/域至少采用一个非重复 ref，任一显式要点或适用域缺少直接证据则输出 `insufficient_evidence`，禁止部分肯定回答 |
 | `DR-KEV-018` | 效果口径 v2 仅从 summary completion 分母排除必须零模型调用的 `security_negative`；普通无结果、证据不足、失败和超时仍计入。answerable 的显式 `gold_issue` 从 faithfulness/usefulness 模型质量分母排除并单独计数；质量可评样本不足原 answerable 集合的 90% 时整次 run 无效 |
 | `DR-KEV-019` | candidate-06 必须冻结 Summary V4、效果口径 v2 实现和测试哈希；Q1～Q4 阈值、安全 Gate、dataset/gold、人工 rubric 枚举和 append-only 历史合同均不变 |
+| `DR-KEV-020` | live bootstrap 必须输出本次候选精确允许的运行时工作树条目；启动前和结果写入前的最终快照检查必须复用同一 allowlist，仅忽略当前 output 目录与该候选唯一未跟踪 authorization 记录。任何其他 staged、modified、untracked 条目或 HEAD 变化仍失败关闭；已消费候选不得通过修复后重跑 |
 
 ### 7.2 完整性复核
 
@@ -308,6 +311,12 @@ candidate-06 已在功能 UAT Passed、candidate-05 根因明确、Summary V4/�
 
 正式授权记录是用户精确授权后生成的运行资产，不进入 manifest 的源码/配置资产集合，避免形成“授权文件必须先进入 frozen HEAD、而其内容又依赖该 HEAD”的循环。执行时仅允许该 candidate-06 授权记录作为唯一未跟踪文件；必须经严格 JSON 校验并同时绑定 frozen HEAD、manifest SHA-256、run/reference/budget/dataset/live 标志，launcher 参数、授权记录与运行时读取结果任一不一致都失败关闭；任何其他 staged、modified 或 untracked 项仍按 dirty source 失败关闭。授权记录在首次 outbound 前由既有 consumed marker 消费，运行后与结果一并作为 append-only 证据保存。
 
+candidate-06 已按 frozen HEAD=`4f304fab0b52339dbbc8c75cf58ed123d88f8b02` 唯一执行并消费 `GATE-077`。52 个 capability 变体均完成，实际付费 rewrite=22、summary=22、总计 44，retry/core answer=0；运行在写入最终 result/evidence 前终止，有限失败码为 `snapshot_changed`。只读复核证明：启动前校验已将该候选严格 authorization 作为唯一允许的未跟踪运行资产，结束校验却只排除 output 目录，必然把同一 authorization 误判为源码变化。该结果属于 Harness 缺陷导致的失败运行，不产生 Q1～Q4 或效果结论，也不得重跑、补跑、续跑或改判；authorization、consumed、paid journal、phase checkpoints 和 failure 作为 append-only 历史保存。
+
+后续最小修复仅发生在 evaluation/Harness：`LiveEvaluationBootstrapResult` 显式携带精确允许条目，最终快照检查复用该集合，并以 fake 测试证明合法 authorization 被忽略、任意额外工作树变化仍拒绝。修复后必须创建全新候选，绑定修复源码、candidate-06 历史哈希和全部既有冻结资产；真实 outbound 仍需新的 run/HEAD/manifest/reference/预算精确授权。
+
+上述修复已完成并通过代码对照设计复核。全新 candidate-07 的 run ID=`knowledge-p5-live-v4-20260828-candidate-07`，manifest SHA-256=`af545166b37a33899d6f1d7830c09472df8cc2fe45047fea242ecc524bfc2211`，authorization reference=`P3_00:GATE-079`，最大付费请求数=78；manifest 共绑定100项资产，包含当前 Harness/任务/配置/数据/索引快照、candidate-01～05历史以及candidate-06 authorization/consumed/journal/checkpoint/failure哈希。准备阶段只使用 fake transport，未创建正式 authorization/result，未读取密钥或产生 outbound。
+
 candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa`、manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c` 唯一执行；authorization、paid journal、phase checkpoints、result、evidence 和 launcher evidence 均作为 append-only 资产保存。历史 candidate-01～04 保持不可变。
 
 本次只读诊断已形成可复现产物 `candidate_04_effect_diagnosis.v1.json`：domain exact match=0.5909、rerank recall@10=0.9405、required evidence coverage=0.4643、summary valid completion=0.6923，Q1/Q3/Q4 未通过。9 个域不一致 case 中，5 个政策问题被全域扩大、1 个明确法律问题被弱政策词扩大、1 个混合问题漏选法律；另 2 个虚构文件 case 的“期望零域”属于数据/gold 口径，不由 Selector 猜测真实性。由此只批准域目录 v2 和 Summary v3；不批准修改 RRF/rerank、validator、数据集或 gold。
@@ -334,7 +343,8 @@ candidate-05 的只读诊断产物为 `candidate_05_effect_diagnosis.v1.json`，
 | `IMPL-KEV-006` | `agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py`、`agent-runtime/src/agent_runtime/knowledge/evidence/stage.py` |
 | `IMPL-KEV-007` | `agent-runtime/tests/evaluation/knowledge/contracts.py`、`executor.py`、`live_executor.py` |
 | `IMPL-KEV-008` | `agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl`、`live_contracts.py`、result schemas |
-| `IMPL-KEV-009` | `agent-runtime/tests/evaluation/knowledge`：candidate-04/05 有限诊断、效果口径 v2、版本化优化反证与 candidate-06 preparation/history tests |
+| `IMPL-KEV-009` | `agent-runtime/tests/evaluation/knowledge`：candidate-04/05 有限诊断、效果口径 v2 与版本化优化反证 |
+| `IMPL-KEV-010` | `agent-runtime/tests/evaluation/knowledge/live_bootstrap.py`、`live_runner.py`、`live_contracts.py`、candidate-06 history 与 candidate-07 preparation/contracts/launcher |
 
 ### 14.2 关键签名
 
@@ -416,6 +426,7 @@ def classify_conclusion(
 | `TEST-KEV-009` | candidate-04 指标/分布诊断 Schema、敏感字段禁止和历史 hash |
 | `TEST-KEV-010` | candidate-05 只读诊断重算、效果口径 v2 分母/数据质量 Gate、安全负例零调用、普通失败仍入分母及历史哈希 |
 | `TEST-KEV-011` | Summary V4 fake 回归、安全 Gate 反证、candidate-06 manifest/预算/首 outbound/失败关闭及 candidate-01～05 历史哈希 |
+| `TEST-KEV-012` | candidate-06 authorization/consumed/journal/checkpoint/failure 精确哈希；启动前与结束时 allowlist 一致；额外 staged/modified/untracked 或 HEAD 变化继续失败关闭；新候选绑定 candidate-06 历史且无 outbound |
 
 ### 15.2 验证编号定义
 
@@ -427,6 +438,7 @@ def classify_conclusion(
 | `VAL-KEV-004` | representative v2、candidate-04 的 52 对/58 paid/安全/人工 rubric/严格 Schema 与历史 `ineffective` 结果持续通过不可变校验 |
 | `VAL-KEV-005` | 功能 UAT 与效果结论分离、诊断可复现、candidate-05 唯一执行有效且结论为 `partially_effective` |
 | `VAL-KEV-006` | 效果口径 v2 保留安全零调用和失败分母，Summary V4 覆盖多域直接证据，candidate-06 non-live 资产完整且无 outbound |
+| `VAL-KEV-007` | candidate-06 失败运行保持 append-only；Harness 最终快照不再误拒绝唯一授权文件且不放宽其他工作树变化；新候选 non-live 冻结后才可申请新的真实授权 |
 
 ## 16. 风险与保护条件
 
@@ -438,14 +450,15 @@ def classify_conclusion(
 | 策略/快照漂移 | 新文档或 index snapshot | fingerprint/full membership；新切片重验 | 否；真实外发需重新授权 |
 | 效果结论失真 | 删除失败、改 gold/阈值 | 冻结数据/Schema/append-only result | 否 |
 | 当前效果不足 | candidate-05 的 Q3/Q4 未达标 | 保留 `partially_effective`，后续只允许基于新版本和新候选改进 | 不阻塞学习基线，但阻塞“效果达标”声明 |
+| live 快照误判 | 启动前允许 authorization，但结束校验使用不同排除规则 | bootstrap 输出唯一 allowlist，前后复用；candidate-06 历史化并创建新候选 | 阻塞效果结论；不阻塞 non-live Harness 修复 |
 
 ## 17. 实施依据
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.9 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
-| 当前允许实施范围 | 当前证据链、三层策略、Summary V4、效果口径 v2、extractive validator、功能 UAT、candidate-05 只读诊断与 candidate-06 non-live 准备 |
-| 当前禁止动作 | 改写历史数据/evidence/结论、放宽 validator、未经新授权真实调用、宣称效果达标 |
+| 是否可作为实现依据 | 是，当前 v1.11 可作为 candidate-06 历史闭环、共享 allowlist 和 candidate-07 冻结/后续一次性效果验收依据 |
+| 当前允许实施范围 | 已完成部分仅维护历史校验；后续仅允许在 `GATE-079` 新精确授权后执行 candidate-07 一次性效果 UAT |
+| 当前禁止动作 | 改写 candidate-06 或其他历史资产、重跑/补跑/续跑、放宽 validator/权限/阈值、未经新精确授权真实调用、宣称效果达标 |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
 
 ## 18. 三轮内部自检与独立评审记录
@@ -464,7 +477,9 @@ def classify_conclusion(
 | v1.6 三轮内审与独立复评 | V3 当前生产、V1/V2 历史兼容、candidate-04/05 结论及后续新候选门禁一致；无 S0/S1/未处理 S2 | Passed |
 | v1.7 三轮内审与独立评审 | candidate-05 分母/归因冲突、Summary V4、多候选历史隔离和 candidate-06 门禁无环；无 S0/S1/未处理 S2 | Passed |
 | v1.9 三轮内审与独立评审 | 首轮修复范围节仍称 V3 当前生产一项 S2；代码评审修复授权文件与 clean HEAD 循环、授权记录未强绑定实际 HEAD/manifest 两项 Major，复评确认 candidate-06 92项绑定、唯一运行授权资产、V4/效果口径 v2、历史不可变和 GATE-077 无环；无 S0/S1/未处理 S2 | Passed |
+| v1.10 三轮内审与独立评审 | candidate-06 已消费失败事实、前后 allowlist 单一来源、失败运行不可重用、新候选授权无环及个人项目最小治理；无 S0/S1/未处理 S2 | Passed |
+| v1.11 实施与代码评审 | Harness/candidate-06历史/candidate-07首轮35项验证发现launcher仍校验schema v4一项Major；最小修复为v5并重算manifest，复评及正式隔离全量1462 passed/27 opt-in skipped，Blocker/Major=0 | Passed |
 
-- 当前版本：v1.9。
+- 当前版本：v1.11。
 - 文档状态：Approved。
 - candidate-04 历史结论为 `ineffective`；candidate-05 当前结论为 `partially_effective`，两者均不得重写或改判。

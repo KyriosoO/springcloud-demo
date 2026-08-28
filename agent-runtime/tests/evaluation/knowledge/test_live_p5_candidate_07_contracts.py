@@ -24,11 +24,11 @@ SUMMARY_PROMPT_V4_SHA256 = hashlib.sha256(SUMMARY_PROMPT_V4.encode("utf-8")).hex
 
 def _manifest_payload() -> dict[str, object]:
     return {
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "status": "prepared_unconsumed",
-        "workPackageId": "WP-K-EFFECT-LIVE-06",
-        "runId": "knowledge-p5-live-v3-20260828-candidate-06",
-        "authorizationReference": "P3_00:GATE-077",
+        "workPackageId": "WP-K-EFFECT-LIVE-07",
+        "runId": "knowledge-p5-live-v4-20260828-candidate-07",
+        "authorizationReference": "P3_00:GATE-079",
         "datasetPath": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
         "datasetSha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408",
         "datasetCaseCount": 26,
@@ -81,17 +81,17 @@ def _manifest_payload() -> dict[str, object]:
     }
 
 
-def test_candidate_06_schema_binds_summary_v4_and_effect_metrics_v2() -> None:
+def test_candidate_07_schema_binds_summary_v4_and_effect_metrics_v2() -> None:
     manifest = LiveP5Manifest.model_validate(_manifest_payload())
 
-    assert manifest.schema_version == 4
-    assert manifest.work_package_id == "WP-K-EFFECT-LIVE-06"
+    assert manifest.schema_version == 5
+    assert manifest.work_package_id == "WP-K-EFFECT-LIVE-07"
     assert manifest.task_versions == {"knowledge_rewrite": "1", "knowledge_summary": "4"}
     assert manifest.configuration_binding is not None
     assert manifest.configuration_binding.summary_prompt_sha256 == SUMMARY_PROMPT_V4_SHA256
     assert manifest.configuration_binding.effect_metric_version == "knowledge-effect-metrics-v2"
     assert manifest.configuration_binding.quality_population_minimum_rate == 0.9
-    assert _candidate_id("candidate-06") == "candidate-06"
+    assert _candidate_id("candidate-07") == "candidate-07"
 
 
 @pytest.mark.parametrize(
@@ -103,7 +103,7 @@ def test_candidate_06_schema_binds_summary_v4_and_effect_metrics_v2() -> None:
         (("configurationBinding", "qualityPopulationMinimumRate"), None),
     ),
 )
-def test_candidate_06_rejects_version_or_metric_drift(path: tuple[str, str], value: object) -> None:
+def test_candidate_07_rejects_version_or_metric_drift(path: tuple[str, str], value: object) -> None:
     payload = _manifest_payload()
     parent = payload[path[0]]
     assert isinstance(parent, dict)
@@ -116,14 +116,14 @@ def test_candidate_06_rejects_version_or_metric_drift(path: tuple[str, str], val
         LiveP5Manifest.model_validate(payload)
 
 
-def test_candidate_06_authorization_template_remains_unconsumed() -> None:
+def test_candidate_07_authorization_template_remains_unconsumed() -> None:
     template = LiveAuthorizationTemplate.model_validate(
         {
             "schemaVersion": 1,
             "status": "awaiting_explicit_authorization",
-            "workPackageId": "WP-K-EFFECT-LIVE-06",
-            "runId": "knowledge-p5-live-v3-20260828-candidate-06",
-            "authorizationReference": "P3_00:GATE-077",
+            "workPackageId": "WP-K-EFFECT-LIVE-07",
+            "runId": "knowledge-p5-live-v4-20260828-candidate-07",
+            "authorizationReference": "P3_00:GATE-079",
             "singleUse": True,
             "maximumPaidRequests": 78,
             "retryAllowed": False,
@@ -144,13 +144,13 @@ def test_candidate_06_authorization_template_remains_unconsumed() -> None:
     assert template.maximum_paid_requests == 78
 
 
-def test_candidate_06_authorization_record_requires_frozen_head_and_manifest_hash() -> None:
+def test_candidate_07_authorization_record_requires_frozen_head_and_manifest_hash() -> None:
     payload = {
         "schemaVersion": 1,
         "status": "authorized_unconsumed",
-        "workPackageId": "WP-K-EFFECT-LIVE-06",
-        "runId": "knowledge-p5-live-v3-20260828-candidate-06",
-        "authorizationReference": "P3_00:GATE-077",
+        "workPackageId": "WP-K-EFFECT-LIVE-07",
+        "runId": "knowledge-p5-live-v4-20260828-candidate-07",
+        "authorizationReference": "P3_00:GATE-079",
         "singleUse": True,
         "maximumPaidRequests": 78,
         "retryAllowed": False,
@@ -176,17 +176,17 @@ def test_candidate_06_authorization_record_requires_frozen_head_and_manifest_has
     assert authorization.manifest_sha256 == "b" * 64
 
 
-def test_candidate_06_allows_only_its_untracked_runtime_authorization_record() -> None:
+def test_candidate_07_allows_only_its_untracked_runtime_authorization_record() -> None:
     authorization_entry = (
         "?? agent-runtime/tests/evaluation/knowledge/live/evidence/"
-        "knowledge-p5-live-v3-20260828-candidate-06.authorization.json"
+        "knowledge-p5-live-v4-20260828-candidate-07.authorization.json"
     )
 
     assert _unexpected_live_worktree_entries(
-        candidate_id="candidate-06", entries=(authorization_entry,)
+        candidate_id="candidate-07", entries=(authorization_entry,)
     ) == ()
     assert _unexpected_live_worktree_entries(
-        candidate_id="candidate-06",
+        candidate_id="candidate-07",
         entries=(authorization_entry, " M agent-runtime/src/agent_runtime/bootstrap.py"),
     ) == (" M agent-runtime/src/agent_runtime/bootstrap.py",)
     assert _unexpected_live_worktree_entries(
@@ -197,7 +197,7 @@ def test_candidate_06_allows_only_its_untracked_runtime_authorization_record() -
 def test_final_snapshot_reuses_exact_authorization_allowlist(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     authorization_entry = (
         "?? agent-runtime/tests/evaluation/knowledge/live/evidence/"
-        "knowledge-p5-live-v3-20260828-candidate-06.authorization.json"
+        "knowledge-p5-live-v4-20260828-candidate-07.authorization.json"
     )
     calls = iter(
         (
@@ -228,7 +228,7 @@ def test_final_snapshot_does_not_allow_modified_or_unrelated_entries(
     del tmp_path
     authorization_path = (
         "agent-runtime/tests/evaluation/knowledge/live/evidence/"
-        "knowledge-p5-live-v3-20260828-candidate-06.authorization.json"
+        "knowledge-p5-live-v4-20260828-candidate-07.authorization.json"
     )
     calls = iter(
         (

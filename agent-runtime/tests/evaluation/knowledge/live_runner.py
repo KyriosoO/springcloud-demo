@@ -87,7 +87,12 @@ def _write_atomic_new(path: Path, value: object) -> None:
         raise
 
 
-def _repository_state_excluding_output(*, repository_root: Path, output_dir: Path) -> tuple[str, tuple[str, ...]]:
+def _repository_state_excluding_output(
+    *,
+    repository_root: Path,
+    output_dir: Path,
+    allowed_entries: tuple[str, ...] = (),
+) -> tuple[str, tuple[str, ...]]:
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=repository_root,
@@ -109,8 +114,11 @@ def _repository_state_excluding_output(*, repository_root: Path, output_dir: Pat
     except ValueError:
         relative_output = None
     entries: list[str] = []
+    allowed = set(allowed_entries)
     for line in raw.splitlines():
         if not line:
+            continue
+        if line in allowed:
             continue
         path = line[3:].replace("\\", "/")
         if relative_output is not None and path.startswith(relative_output):
@@ -309,7 +317,11 @@ async def run_live(
             and metrics.constraint_preservation_rate == 1.0
         ),
     )
-    commit, entries = _repository_state_excluding_output(repository_root=repository_root, output_dir=output_dir)
+    commit, entries = _repository_state_excluding_output(
+        repository_root=repository_root,
+        output_dir=output_dir,
+        allowed_entries=bootstrap.allowed_worktree_entries,
+    )
     if commit != bootstrap.snapshot.git_commit or entries:
         raise EvaluationRunError("evaluation.snapshot_changed")
     conclusion: Literal["effective", "partially_effective", "ineffective", "invalid_run"]
