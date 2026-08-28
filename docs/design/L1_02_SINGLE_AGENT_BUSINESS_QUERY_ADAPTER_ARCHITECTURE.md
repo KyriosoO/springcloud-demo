@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.5 |
+| 当前版本 | v2.6 |
 | 更新日期 | 2026-08-28 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.2 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.7 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
 | 当前实现 | filters/config、三个列表动作、生产组合根、最终授权、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 均已实施；18 个真实场景与 17 个确定性风险等价自动化均已闭合 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅原子同步上位及关联架构版本，Business 三动作设计和既有验收结论不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 原子同步上位及关联架构版本，并保持 Business 三动作设计和既有验收结论不变；运行批次与动态证据继续由 UAT_00/P3 治理。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -89,6 +89,6 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 ## 9. 当前实现、风险与验证
 
-本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归均已实施；旧 `employee.detail` 不在新目标生产注册表。Employee 端点级 converter、语义超时/partial hits、Transaction Date wire 及 operator-specific 文本策略均已通过正式验收。v4 run03 真实 UAT 18/18 通过，成功 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；semantic+location、相对日期及其他 unsupported 均零业务调用。另有 17 个确定性风险由当前生产组合根、安全链及跨语言合同自动化逐项关闭，35 个计划用例均可追踪；两次 UAT 失败历史与旧 manifest 保持不可变，不由 Adapter 推断用户语义或新增本地 Resolver。
+本版 filters 合同、统一配置、三个 Adapter、生产组合根和 non-live 回归均已实施；旧 `employee.detail` 不在新目标生产注册表。Employee 端点级 converter、语义超时/partial hits、Transaction Date wire 及 operator-specific 文本策略均已通过正式验收。35个固定计划用例均可追踪，semantic+location、相对日期及其他 unsupported 均保持零业务调用；运行批次和哈希由 UAT_00/evidence 管理，不由 Adapter 推断用户语义或新增本地 Resolver。
 
 主要风险为 Employee ES 现有调用方兼容性、原始 hits 泄漏、受保护值出域、Date/Jackson/数据库精度不一致和 workBase 虚假可用。通过受限 Adapter、角色矩阵、严格跨语言合同、配置 snapshot、零调用断言及非 live 优先顺序控制；不引入配置中心、规则引擎或多层重复门禁。

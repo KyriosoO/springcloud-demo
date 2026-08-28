@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.9 |
+| 当前版本 | v1.10 |
 | 日期 | 2026-08-28 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.9](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary V4 已实现并通过 non-live 回归；candidate-05 保持 `partially_effective`，candidate-06 已完成非 live 冻结并等待精确授权 |
+| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary V4 已实现并通过验证；效果运行与门禁状态由 UAT_01/P3 管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -25,12 +25,9 @@
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 明确阶段 operation 的创建时点，并校正错误码、内部类型约束和测试落点 |
 | v1.2 | 2026-08-26 | 生产接线与功能 UAT | 固化默认关闭、同 Registry 单注册、任务/Provider/资源生命周期和功能验收边界 |
 | v1.3 | 2026-08-26 | Q1/Q3/Q4 效果诊断 | 将域目录升级为 v2，并把生产目标任务改为 rewrite v1 + summary v3；历史 v1/v2 继续不可变 |
-| v1.4 | 2026-08-26 | 实施与评审收口 | 如实同步域目录 v2、rewrite v1 + summary v3、candidate-05 冻结和正式代码评审已完成 |
-| v1.5 | 2026-08-26 | 效果 UAT 收口 | 如实同步 candidate-05 有效运行和 `partially_effective` 结论，不改变流程、任务或失败语义 |
-| v1.6 | 2026-08-28 | 任务版本与依赖纠偏 | 将组合根步骤统一为 Rewrite V1 + Summary V3，并同步 L1 当前版本；历史 V1/V2 责任不变 |
-| v1.7 | 2026-08-28 | Summary V4 目标装配 | 基于 candidate-05 只读诊断把目标组合根更新为 Rewrite V1 + Summary V4；V1～V3 保持历史不可变，实施状态不提前关闭 |
+| v1.6 | 2026-08-28 | 任务版本与依赖纠偏 | 将组合根步骤统一为 Rewrite V1 + Summary V3；历史 V1/V2 责任不变 |
 | v1.8 | 2026-08-28 | Summary V4 实施同步 | 组合根已唯一切换为 Rewrite V1 + Summary V4，disabled 零依赖和 V1～V3 历史哈希保持不变 |
-| v1.9 | 2026-08-28 | candidate-06 非 live 冻结 | 同步新候选的版本化 launcher、92 项资产、预算与失败关闭已验证；不产生真实 outbound |
+| v1.10 | 2026-08-28 | 稳定权威纠偏 | 移除候选、Gate、预算和运行流水，只保留流程、任务版本、配置、失败语义及验证合同 |
 
 ## 3. 目标与范围
 
@@ -363,7 +360,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.3 独立评审 | 无 S0/S1/未处理 S2；Selector 不猜测文档真实性，DAG 无环 | Passed |
 | v1.6 三轮内审与独立复评 | Rewrite V1/Summary V3 唯一生产绑定、历史 V1/V2 隔离和上位版本一致；无 S0/S1/未处理 S2 | Passed |
 | v1.7 三轮内审与独立评审 | Summary V4 单绑定目标、V1～V3 历史隔离、组合根/回滚/门禁一致；无 S0/S1/未处理 S2 | Passed |
-| v1.9 三轮内审与独立评审 | candidate-06 仅冻结评估资产，不改变在线流程、任务唯一性或失败语义；无 S0/S1/未处理 S2 | Passed |
+| v1.10 三轮内审与独立评审 | 稳定流程权威、Summary V4 单绑定、效果运行状态下沉与跨层依赖核对通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
 - 当前版本：v1.9。
 - 文档状态：Approved。

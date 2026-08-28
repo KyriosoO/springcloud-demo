@@ -6,13 +6,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.5 |
+| 当前版本 | v2.6 |
 | 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅同步上位 Business 架构版本，QueryPlan/config/egress 合同不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 同步上位 Business 架构版本并把运行证据明细留在 UAT_00/evidence；QueryPlan/config/egress 合同不变。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -206,7 +206,7 @@ Employee 普通搜索使用 `eq/contains/prefix/in` 的逐字段子集，不支�
 
 ## 9. 风险、评审记录与实施就绪判定
 
-主要风险：敏感地址误当城市 literal、组合条件被丢弃、配置扩大字段、Date precision 不明、`trans_type eq` 被错误套用 contains 限制或 contains 通配符导致查询扩大、旧 detail/flat arguments 被误认为新目标。以 code-bound operator policies、strict decode、subset 启动校验、fake 零调用和业务最终授权控制；首次 UAT 失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 必须保持不可变。
+主要风险：敏感地址误当城市 literal、组合条件被丢弃、配置扩大字段、Date precision 不明、`trans_type eq` 被错误套用 contains 限制或 contains 通配符导致查询扩大、旧 detail/flat arguments 被误认为新目标。以 code-bound operator policies、strict decode、subset 启动校验、fake 零调用和业务最终授权控制；历史 UAT 失败证据由 UAT_00/evidence 保持不可变。
 
 | 项目 | 判定 |
 |---|---|

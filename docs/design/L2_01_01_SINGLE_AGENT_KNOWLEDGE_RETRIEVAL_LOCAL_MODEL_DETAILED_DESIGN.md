@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v1.8 |
+| 当前版本 | v1.9 |
 | 日期 | 2026-08-28 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、ES 候选、本地 BGE-M3、RRF 和 rerank |
-| 上位文档 | [`L1_01` v1.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.9](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
-| 实施状态 | Python retrieval、Java typed Provider 及三个固定 Knowledge HTTP client 已通过 non-live 回归；candidate-05 live 进一步验证 keyword/vector、RRF、rerank 与读取授权链路 |
+| 实施状态 | Python retrieval、Java typed Provider 及三个固定 Knowledge HTTP client 已通过 non-live 与功能验收；具体效果运行由 UAT_01/evidence 管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -25,11 +25,11 @@
 | v1.1 | 2026-08-21 | 代码对照评审修复 | 补强并发失败清理、同 Profile 快照一致性，并校正 path 失败分类、rerank 上限和 batch 字段说明 |
 | v1.2 | 2026-08-26 | 生产接线与生命周期 | 明确三固定 origin client 的创建、所有权、失败清理、关闭及 non-live 调用计数 |
 | v1.3 | 2026-08-26 | 实施状态收口 | 如实同步 typed Provider、读取授权、RRF/rerank 与三个 owned client 已通过 Python/Java 验证 |
-| v1.4 | 2026-08-26 | 效果 UAT 证据同步 | 记录 candidate-05 对真实检索链路的验证，不改变 typed contract、Profile 或排序算法 |
+| v1.4 | 2026-08-26 | 效果 UAT 证据同步 | 记录真实效果运行对检索链路的验证，不改变 typed contract、Profile 或排序算法 |
 | v1.5 | 2026-08-28 | 依赖与实现依据纠偏 | 同步 L1 当前版本并校正本文可实施版本；typed contract、Profile 与排序算法不变 |
-| v1.6 | 2026-08-28 | 上位效果设计同步 | 同步 L1 candidate-05 根因版本；检索合同、Profile、RRF/rerank 实现及当前参数均不改变 |
+| v1.6 | 2026-08-28 | 上位效果设计同步 | 同步上位效果诊断结论；检索合同、Profile、RRF/rerank 实现及当前参数均不改变 |
 | v1.7 | 2026-08-28 | 上位实施状态同步 | 同步 L1/L2 当前版本与 Summary V4 non-live 状态；检索合同、Profile、RRF/rerank 实现及参数不变 |
-| v1.8 | 2026-08-28 | candidate-06 上位状态同步 | 新候选冻结沿用现有 typed retrieval/Profile/索引快照，不修改检索合同、参数或服务行为 |
+| v1.9 | 2026-08-28 | 稳定权威纠偏 | 移除候选运行状态，只保留 typed retrieval、Profile、授权、RRF/rerank 和 client 生命周期合同 |
 
 ## 3. 目标与范围
 
@@ -343,8 +343,8 @@ KnowledgeSearchResponse search(
 | 独立评审 | `REV-L2-01-01-001` 已修复；typed retrieval、两级 Profile、读取授权、RRF/rerank 与实现复核通过 | Passed |
 | v1.2 聚焦评审与复评 | 前置纯校验替代半成品异步清理后，fixed origin、disabled 惰性、owned client、授权/快照失败关闭通过；无 S0/S1/未处理 S2 | Passed |
 | v1.5 三轮内审与独立复评 | 当前版本、上位依赖和实现依据已同步；retrieval/Profile/授权合同未改变，无 S0/S1/未处理 S2 | Passed |
-| v1.6 聚焦内审与独立评审 | 上位版本同步且 candidate-05 证据不足以批准检索调参；typed contract/Profile/排序不变；无 S0/S1/未处理 S2 | Passed |
-| v1.8 聚焦内审与独立评审 | candidate-06 只绑定现有 Profile/索引快照，检索合同、参数、授权和物理边界未改变；无 S0/S1/未处理 S2 | Passed |
+| v1.6 聚焦内审与独立评审 | 上位证据不足以批准检索调参；typed contract/Profile/排序不变；无 S0/S1/未处理 S2 | Passed |
+| v1.9 聚焦内审与独立评审 | typed retrieval、Profile/物理资源边界、授权及运行状态下沉核对通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
 - 当前版本：v1.8。
 - 文档状态：Approved。

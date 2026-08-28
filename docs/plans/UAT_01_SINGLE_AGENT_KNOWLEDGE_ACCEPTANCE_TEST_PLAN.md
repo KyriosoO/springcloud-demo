@@ -5,14 +5,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.10 |
+| 当前版本 | v1.11 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v3.0、`L1_01` v1.8、`L2_01_00` v1.9、`L2_01_01` v1.8、`L2_01_02` v1.11、`P3_00` v2.27 |
-| 历史边界 | candidate-04 `ineffective`、candidate-05 `partially_effective`、candidate-06 `snapshot_changed` 失败运行及各自冻结/运行资产均保持不可变 |
+| 上位依据 | `L1_00` v3.1、`L1_01` v1.9、`L2_01_00` v1.10、`L2_01_01` v1.9、`L2_01_02` v1.12、`P3_00` v2.28 |
+| 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
-本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.9 如实记录 candidate-06 已消费失败；v1.10 同步共享 allowlist 修复和 candidate-07 non-live 冻结。修订不改变 37/37 功能结论、candidate-04/05 历史结论、效果阈值、validator 或安全 Gate。
+本计划是 Knowledge 功能/效果验收、candidate 身份和效果结论的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.11 如实记录 candidate-07 授权后预检合同冲突、0 outbound 和 `failed_unconsumed` 终态，并明确有效测量与效果等级分离。
 
 ## 2. 目标、非目标与结论口径
 
@@ -21,7 +21,7 @@
 - Functional：`Passed` / `Failed`；
 - Effectiveness：`Effective` / `Partially effective` / `Ineffective` / `Invalid run` / `Not run`。
 
-功能通过不代表效果达标。有效但 `ineffective` 的运行只能证明效果被有效测量，不能改判为达标。当前阶段不修改知识正文、ES mapping/alias/index、公共 DTO、角色或出域权限，也不建立第二套在线流程。
+功能通过不代表效果达标。一次有效、完整且安全 Gate 通过的运行关闭“效果已测量”责任，其效果等级必须如实记录；`effective` 是质量目标而非项目硬关闭条件。`invalid_run` 不形成有效测量，且不得自动重跑或创建新 candidate。当前阶段不修改知识正文、ES mapping/alias/index、公共 DTO、角色或出域权限，也不建立第二套在线流程。
 
 ## 3. 被验收的生产链路
 
@@ -159,16 +159,16 @@ candidate-04 的历史诊断保持：domain exact match=0.5909、rerank recall@1
 
 只有被证据支持的 Prompt、逻辑域安全描述、Retrieval Profile 逻辑参数、RRF/rerank 参数、Evidence 选择或 Harness 才能新版本化；不得改历史 case/gold、放宽 validator、修改正文/index/mapping/alias、扩大授权或降低阈值改判。
 
-后续全新候选继续使用与 candidate-06 相同的效果口径 v2，并必须满足：
+效果口径 v2 下的后续独立运行必须满足：
 
 - summary completion 只排除按设计必须零调用的 `security_negative`；普通无结果、证据不足、技术失败、超时和校验失败仍作为失败计入；
 - faithfulness/usefulness 只排除人工明确的 answerable `gold_issue`，同时保留 count/case ID；质量可评 answerable 少于原集合 90% 时整次 run 为 `Invalid run`；
 - Q3≥0.95、Q4 completion≥0.90/usefulness≥0.80 以及全部安全 Gate 不变；
 - 历史 candidate-04/05 继续按冻结 evaluator 解释，不重算或改判。
 
-### 7.4 新候选准备
+### 7.4 候选准备与当前运行事实
 
-新候选必须在功能 UAT Passed、根因明确、新版本 non-live 回归通过后冻结。准备资产至少包含新 run ID、manifest 与 SHA-256、authorization reference、case/variant 数、精确最大模型调用数、任务/Prompt/代码/Profile/index/策略快照、首个 outbound 消费规则、retry/resume=0、append-only Schema 和失败关闭测试。
+新候选必须在功能 UAT Passed、根因明确、新版本 non-live 回归通过后冻结。准备资产至少包含新 run ID、manifest 与 SHA-256、authorization reference、case/variant 数、精确最大模型调用数、任务/Prompt/代码/Profile/index/策略快照、首个 outbound 消费规则、retry/resume=0、append-only Schema 和失败关闭测试。准备态测试可以要求正式 authorization/result 不存在，但正式 authorization 创建后不得被 live launcher 再次执行。
 
 candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa` 唯一执行：run ID=`knowledge-p5-live-v2-20260826-candidate-05`，manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c`，26 case × 2 variant；52 个 Capability 成对完整，实际付费 rewrite22+summary22=44，retry/resume/core answer=0。安全 Gate 通过，Q1/Q2 通过、Q3/Q4 未通过，Effectiveness=`Partially effective`。
 
@@ -176,22 +176,13 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。candidate-06 也已�
 
 后续必须先完成共享工作树 allowlist 的 non-live 修复和 candidate-06 历史校验，再冻结全新候选。新候选必须重新绑定 frozen HEAD、manifest SHA-256、run/reference/budget/dataset，并在新的精确授权前保持 outbound=0。
 
-该前置现已完成：candidate-07 run ID=`knowledge-p5-live-v4-20260828-candidate-07`，manifest SHA-256=`af545166b37a33899d6f1d7830c09472df8cc2fe45047fea242ecc524bfc2211`，authorization reference=`P3_00:GATE-079`，最大付费请求数=78，100项资产已冻结。正式 authorization、consumed和result均不存在；candidate-06五项失败资产哈希保持不可变。candidate-07 仍不是效果通过证据。
+candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run ID=`knowledge-p5-live-v4-20260828-candidate-07`、manifest SHA-256=`af545166b37a33899d6f1d7830c09472df8cc2fe45047fea242ecc524bfc2211`、authorization reference=`P3_00:GATE-079` 和最多78次预算。正式 authorization SHA-256=`47575441f1c9123facc19ad32210375cb919174c0260c6fc0e612740abf07a06` 创建后，launcher 的授权后预检又执行 `test_candidate_07_prepared_assets_contain_no_secret_or_live_result`，该准备态测试断言 authorization 不存在，形成不可同时满足的合同。运行在任何服务启动或模型 outbound 前以 `failed_unconsumed` 停止：model/paid/answer/business/retry/resume 均为0；有限 failure SHA-256=`919fa1480b2ad3c7144559a3f10746ded7e0d069beae0977e0a7222e771d32d6`。该运行的 Effectiveness=`Invalid run`，不改变最新有效 `Partially effective` 结论，不得重跑、补跑、续跑或自动创建 candidate-08。
 
-## 8. 门禁与状态
+消费后闭环保持上述三项资产字节不变：preparation 从 frozen HEAD 校验准备态，history 测试锁定三项精确哈希、100项资产、唯一 failure 和0调用计数；launcher 后续版本仅修正 preflight 状态合同，不赋予 candidate-07 再次执行资格。
 
-| 门禁 | 控制内容 | 关闭条件 | 当前状态 |
-|---|---|---|---|
-| `GATE-071` | Knowledge 当前设计基线 | L1/L2/P3/UAT_01 三轮内审及独立评审通过 | Closed |
-| `GATE-UAT-008` | 功能型 Knowledge UAT | 37/37 case 有严格追踪、关键 16 场景 E2E 实际通过、状态一致 | Closed |
-| `GATE-072` | 新效果 UAT outbound | candidate-05 唯一运行有效完成并形成 append-only result/evidence | Closed |
-| `GATE-073～074` | 文档和正式 Python 测试入口 | 已按 P3 证据关闭 | Closed |
-| `GATE-075` | Summary V4/效果口径 v2 | 生产单绑定、定向/全量/E2E/类型/历史回归和代码评审通过 | Closed |
-| `GATE-076` | candidate-06 非 live 准备 | run/manifest/hash/reference/预算、92项快照及 fake 失败关闭全部冻结 | Closed |
-| `GATE-077` | candidate-06 一次性效果 UAT outbound | 授权已消费；运行因 Harness `snapshot_changed` 失败且不形成效果结论 | Closed（Consumed/Failed） |
-| `GATE-079` | candidate-07 一次性效果 UAT outbound | 用户重新精确绑定最终 clean HEAD、上述 run/manifest/reference 和78次上限 | Open |
+## 8. 状态权威与有限收口
 
-`GATE-072` 已消费并关闭，只证明本次效果被有效测量；`Partially effective` 不等于整体效果达标。
+工作包和 Gate 的状态只在 P3 维护，本计划不复制 Gate 表。当前 UAT 结论为：Functional=`Passed`（37/37）；latest valid Effectiveness=`Partially effective`；candidate-07=`Invalid run / failed_unconsumed`。有效但非 effective 的运行证明效果已被测量，不等于整体效果达标；无效运行只证明该次执行合同未形成测量，也不自动触发新候选。
 
 ## 9. 回滚与失败处理
 
@@ -217,4 +208,5 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。candidate-06 也已�
 | v1.7 实施状态复核 | Summary V4 生产单绑定、效果口径 v2、全量/E2E/类型/历史回归证据与 `GATE-075` 状态一致；无 S0/S1/未处理 S2 | Passed |
 | v1.8 candidate-06 准备复核 | run/manifest/reference/预算、92项资产、首 outbound 消费、失败关闭和历史哈希一致；未创建正式授权或 outbound | Passed |
 | v1.9 candidate-06 消费后评审 | 失败事实、44 次付费终态、592 阶段记录、最终 allowlist 缺口、历史不可变及新候选授权无环；无 S0/S1/未处理 S2 | Passed |
-| v1.10 candidate-07 准备复核 | 共享allowlist、candidate-06五项精确哈希、candidate-07 schema v5/100项资产/预算/失败关闭、正式隔离1462 passed/27 opt-in skipped；无真实outbound | Passed |
+| v1.11 三轮内审 | candidate-07 终态、功能/效果分离、UAT/P3/evidence 权威边界、历史不可变及无新候选检查完成；修复 P3 摘要状态与关闭循环 | Passed |
+| v1.11 独立评审 | 37 个功能用例、最新有效效果、candidate-07 无效测量及跨层引用一致；S0=0、S1=0、未处理 S2=0 | Passed |

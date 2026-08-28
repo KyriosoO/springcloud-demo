@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 更新日期 | 2026-08-28 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.5 |
-| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.8；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.9；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过，candidate-05 效果 UAT 结论为 `partially_effective` |
+| 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过；最新有效 Knowledge 效果等级为 `partially_effective` |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.3 增加 Knowledge 可选生产接线、共享单动作与生命周期边界；v2.4 如实同步该接线和功能验收已实施；v2.5 同步域目录 v2、Summary v3、candidate-05 非 live 冻结和正式代码评审结论；v2.6 同步 candidate-05 有效效果 UAT 的 `partially_effective` 结论；v2.7 原子对齐 L0、两份关联 L1 与下位 Knowledge L2 的当前版本；v2.8 同步 Summary V4 目标单绑定和效果口径 v2；v2.9 如实同步该目标已完成 non-live 实施和生产单绑定切换；v3.0 同步 candidate-06 非 live 冻结及其一次性真实效果授权边界，不改变 Runtime 公共合同。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.1 移除候选、Gate、manifest 和动态测试流水，只保留 Runtime/Model/Core 的稳定职责、当前生产接线与高层效果状态；运行权威下沉到 P3、UAT_01 和 evidence。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -83,14 +83,14 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.3 | 模型安全 catalog、v4 完整意图 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
 | [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.2 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5 | QueryPlan、字段配置、按 operator 校验文本、validator、binder 与出域策略 |
-| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.9 | Knowledge 开关、单注册、域目录 v2、Summary V4 绑定、阶段与组合根接线 |
-| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v1.8 | Knowledge typed HTTP、读取授权、RRF/rerank 与 client 生命周期；本轮未调参 |
-| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.9 | Evidence/出域/Summary V4、效果口径 v2、candidate-05 根因及 candidate-06 冻结合同 |
+| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.10 | Knowledge 开关、单注册、域目录 v2、Summary V4 绑定、阶段与组合根接线 |
+| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v1.9 | Knowledge typed HTTP、读取授权、RRF/rerank 与 client 生命周期 |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.12 | Evidence/出域/Summary V4、效果口径 v2 与有限测量收口合同 |
 
 ## 8. 风险、验证与当前实施状态
 
 应验证 Business 三动作不回退、Knowledge disabled 完全惰性、enabled 唯一注册、一次规划/一次 handler、并发请求隔离、取消/关闭、strict decoder、config snapshot、不支持条件零调用和 Business/Knowledge 互不 fallback。无须独立工作流引擎、复杂 circuit breaker、动态 registry、第二套 Runtime 或生产级治理平台。
 
-既有 v2 模型任务和旧 production bridge 只证明旧合同；v3 controlled-run06 也只能证明 v3 历史结果，不能替代 v4 验收。第二次 UAT 失败 SHA-256=`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f` 保持不可变；v4 Prompt 已在独立 run03 正式 UAT 完成 18/18 真实规划，语义+filter、相对日期均 exact unsupported/零业务调用。成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；其余 17 个确定性风险由当前 Spring→Runtime、安全链和跨语言合同自动化逐项关闭，未增加本地语义 Resolver、重复付费调用或 live 审计平台。
+旧模型任务和旧 production bridge 只证明各自历史合同，不能替代当前 v4 验收。v4 Prompt 已通过正式真实规划与等价自动化风险验证，语义+filter、相对日期均 exact unsupported/零业务调用；具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。当前实现未增加本地语义 Resolver、重复付费调用或 live 审计平台。
 
-Knowledge candidate-04 的有效运行和 `ineffective` 结论只作为效果诊断基线，不证明当前生产入口已接线或效果达标。当前目标先以 non-live 生产对象图和功能 UAT 关闭接线、安全及失败语义，再冻结新效果候选；真实效果 UAT 仍受独立精确授权门禁控制。
+Knowledge 历史效果运行只作为效果诊断基线，不证明当前生产入口已接线或效果达标。生产对象图和功能 UAT 分别关闭接线、安全及失败语义；效果运行必须由 P3/UAT_01 的独立精确授权控制。

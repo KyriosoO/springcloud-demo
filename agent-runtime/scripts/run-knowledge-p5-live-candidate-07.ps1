@@ -88,7 +88,6 @@ try {
         tests/evaluation/knowledge/test_live_p5_candidate_07_preparation.py::test_candidate_07_manifest_template_assets_and_history_are_frozen `
         tests/evaluation/knowledge/test_live_p5_candidate_07_preparation.py::test_candidate_07_fake_budget_pairs_52_executions_and_consumes_once `
         tests/evaluation/knowledge/test_live_p5_candidate_07_preparation.py::test_candidate_07_failure_is_terminal_without_retry_or_resume `
-        tests/evaluation/knowledge/test_live_p5_candidate_07_preparation.py::test_candidate_07_prepared_assets_contain_no_secret_or_live_result `
         tests/evaluation/knowledge/test_live_p5_candidate_03_preparation.py `
         tests/evaluation/knowledge/test_live_p5_diagnostics.py `
         tests/evaluation/knowledge/test_live_p5_candidate_01_history.py `

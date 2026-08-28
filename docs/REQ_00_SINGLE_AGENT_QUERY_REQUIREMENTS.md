@@ -7,14 +7,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v2.0 |
-| 更新日期 | 2026-08-25 |
+| 当前版本 | v2.1 |
+| 更新日期 | 2026-08-28 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
-| 当前基线 | Knowledge 基线保留；三动作 Adapter/组合根、Transaction operator-specific 文本策略及 v4 完整意图 Prompt 已通过正式 UAT 18/18 |
+| 当前基线 | Knowledge 与 Business 查询能力均已接入统一 Runtime；功能验收和效果验收分开治理，具体运行状态由 P3/UAT 计划及 evidence 记录 |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.1 移除运行批次、哈希和动态测试结果，只保留稳定需求与验收原则；具体工作包、门禁、候选和证据分别由 P3、UAT 与 evidence 治理。
 
 ## 2. 背景、设计目标与非目标
 
@@ -106,4 +106,4 @@ Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结�
 3. Transaction：类型、日期、金额、同字段区间、组合过滤、分页、排序、精度及拒绝矩阵。
 4. 结构化查询收口：Access/Core/Model/配置/Adapter/JWT/单动作与失败零调用回归。
 
-实施结果：Employee Controller 读取守卫及两个 ES POST endpoint-scoped 共享 JWT role converter 已实施；真实 Servlet 过滤链角色矩阵、detail/fallback 兼容和目标回归均已通过。filters 合同、统一配置、两个 Employee Adapter、Transaction Date/Decimal/operator-specific 策略、生产组合根与 v4 完整意图 Prompt 已完成。正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；18 次模型规划、14 次固定业务接口调用、4 次 unsupported 零业务调用，两次历史失败保持不可变。
+实施状态由 P3 与 UAT 计划记录；本需求只要求 Employee/Transaction 读取守卫、严格 QueryPlan、固定 Adapter、业务最终授权、失败关闭及受控结果成立，不保存运行批次、调用计数或证据哈希。

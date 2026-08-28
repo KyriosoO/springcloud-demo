@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.8 |
+| 当前版本 | v1.9 |
 | 日期 | 2026-08-28 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v2.5](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 上位文档 | [`L0_00` v2.6](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 保持 `partially_effective` 历史结论；Summary V4 与评估口径 v2 已完成 non-live 实施，candidate-06 已冻结但尚未执行真实效果 UAT |
+| 实施状态 | 默认关闭的生产接线、功能 UAT、Summary V4 与效果口径 v2 已实施；最新有效效果等级为 `partially_effective`，当前任务版本没有更新的有效效果测量 |
 
 ## 2. 阅读导航
 
@@ -42,7 +42,7 @@
 - 领域结果、证据上下文和模型安全载荷是三个不同视图。
 - Knowledge 出域采用全局 ∩ 逻辑域默认 ∩ 文档级收紧策略，缺失、未知或冲突失败关闭。
 - 整域授权拒绝和读取权威失败优先于其他域成功；仅技术性单路失败允许在证据充分时受控继续。
-- P5 结论可以是 `effective`、`partially_effective`、`ineffective` 或 `invalid_run`；candidate-04 的历史结论为 `ineffective`，candidate-05 是当前最新有效运行且结论为 `partially_effective`，两者均不等于整体效果达标。
+- P5 结论可以是 `effective`、`partially_effective`、`ineffective` 或 `invalid_run`；最新有效效果等级为 `partially_effective`，不等于整体效果达标。候选和运行明细只由 UAT_01/evidence 保存。
 - 安全负例以“模型零调用”验收，不能同时作为摘要有效完成率的失败样本；显式 `gold_issue` 必须由独立数据质量门禁约束，不能混入模型忠实度或可用性归因。普通 `no_result`、`insufficient_evidence`、技术失败和超时仍保留在各自适用的效果分母中。
 
 ### 3.2 简化内容
@@ -54,14 +54,7 @@
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立新的可读能力架构基线 | 合并重复检索/授权/出域描述，突出四项能力、两级映射、失败优先级与 P5 结论 |
-| v1.1 | 2026-08-26 | 生产接线与 Knowledge UAT | 明确默认关闭的同 Runtime 注册、owned client 生命周期、功能/效果 UAT 分离及 candidate-04 诊断边界 |
-| v1.2 | 2026-08-26 | candidate-04 效果诊断 | 依据 Q1/Q3/Q4 证据收紧域选择并新增 Summary v3；保持检索参数、validator、数据集和历史结论不变 |
-| v1.3 | 2026-08-26 | 优化和非 live 收口 | 同步域目录 v2、Summary v3、candidate-05 冻结及正式代码评审 |
-| v1.4 | 2026-08-26 | 效果 UAT 收口 | 同步 candidate-05 有效运行、Q1/Q2 通过、Q3/Q4 未通过和 `partially_effective` 结论 |
-| v1.5 | 2026-08-28 | 当前/历史效果结论纠偏 | 明确 candidate-04 `ineffective` 仅为历史结论，candidate-05 `partially_effective` 是最新有效结论且不代表整体达标 |
-| v1.6 | 2026-08-28 | candidate-05 根因与效果合同纠偏 | 修复安全负例和显式 gold issue 的归因冲突，批准 Summary V4 多域直接证据覆盖；不改阈值、validator、授权、数据集或历史结论 |
-| v1.7 | 2026-08-28 | Summary V4 实施状态同步 | 如实记录 Summary V4、效果口径 v2 及生产单绑定已完成 non-live 实施和评审 |
-| v1.8 | 2026-08-28 | candidate-06 非 live 冻结 | 同步新 run、manifest、预算、历史哈希与失败关闭已冻结；真实效果 UAT 仍受 `GATE-077` 精确授权约束 |
+| v1.9 | 2026-08-28 | 稳定权威与效果收口纠偏 | 保留生产流程、Summary V4、效果口径和最新有效效果等级；移除候选、Gate、哈希、预算及逐次运行流水，明确有效测量与效果等级相互独立 |
 
 ## 4. 目标、范围与上位约束
 
@@ -373,7 +366,7 @@ accepted → rewritten → domains_selected → retrieved
 - 三份 L2 的本地实现切片、共享 Authority Converter 和 ES Knowledge Provider 已存在。
 - 当前冻结 Profile/索引快照的真实 JWT、ES、BGE-M3、Rerank 多域多路链已验证。
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
-- candidate-04 的 26-case live P5 历史结论保持 `ineffective`；candidate-05 在相同 26-case/双变体基线上完成新版本运行，人工 rubric 的当前结论为 `partially_effective`。
+- 历史有效效果等级及对应不可变运行资产由 UAT_01/evidence 管理；当前最新有效效果等级为 `partially_effective`，不得改述为整体效果达标。
 - 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Summary V4，V1～V3 仅承担历史兼容和哈希追溯。
 
 ### 14.2 目标生产接线
@@ -392,11 +385,11 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 
 功能验收覆盖 Spring→Runtime、读取授权、双路检索、Evidence、出域、当前 Summary 任务、失败优先级和零调用；它可以由 fake Model、真实生产对象图、Java 安全链与契约测试组合完成。效果验收继续使用 P5 成对运行、代表性数据和人工 rubric，必须独立给出结论。候选使用的具体 Summary 和评估口径版本必须写入冻结 manifest。
 
-新效果候选只能在功能验收通过、历史根因诊断明确、最小优化形成新版本且 non-live 回归通过后冻结。未精确绑定新 run ID、manifest SHA-256、authorization reference 和调用预算前不得产生真实模型 outbound。
+新效果运行只能在功能验收通过、根因诊断明确、最小优化形成新版本且 non-live 回归通过后准备。具体 run、manifest、授权和预算由 UAT_01/P3/evidence 管理；未经一次性精确授权不得产生真实模型 outbound。
 
 ### 14.4 效果结论的含义
 
-`ineffective` 表示有效运行少于两个效果问题达标；`partially_effective` 表示至少两个但并非全部 Q1～Q4 达标。candidate-05 属于后者，不能改述为整体效果达标。两种结论均：
+`ineffective` 表示有效运行少于两个效果问题达标；`partially_effective` 表示至少两个但并非全部 Q1～Q4 达标。当前最新有效等级属于后者，不能改述为整体效果达标。两种结论均：
 
 - 不等于流程、门禁或评估运行失败；
 - 不允许改判为效果达标；
@@ -404,7 +397,9 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 - 是后续改写、召回、重排或摘要改进的事实输入；
 - 不能外推为生产效果结论。
 
-candidate-06 起采用效果口径 v2：摘要有效完成率只统计允许进入 Summary 的非安全负例；安全负例继续由强制零调用 Gate 单独判定。answerable case 若人工明确标记 `gold_issue`，从 faithfulness/usefulness 模型质量分母排除，但必须显式计数；有效质量样本须不少于原 answerable 集合的 90%，否则整次运行 `invalid_run`。阈值仍为 Q3≥0.95、Q4 completion≥0.90 且 usefulness≥0.80，不因口径纠偏降低。
+效果口径 v2 下，摘要有效完成率只统计允许进入 Summary 的非安全负例；安全负例由强制零调用安全校验单独判定。answerable case 若人工明确标记 `gold_issue`，从 faithfulness/usefulness 模型质量分母排除，但必须显式计数；有效质量样本须不少于原 answerable 集合的 90%，否则整次运行 `invalid_run`。阈值仍为 Q3≥0.95、Q4 completion≥0.90 且 usefulness≥0.80，不因口径纠偏降低。
+
+一次完整、合同有效的效果运行关闭“已测量”责任，其四类效果等级是输出而不是项目硬门禁。`effective` 是后续质量改进目标；非 effective 结果不得自动触发新候选或阻塞已通过的架构、功能 UAT 和实现收口。`invalid_run` 表示未形成有效测量，只能如实记录并作为独立后续目标处理，不能自动重跑。
 
 ### 14.5 变更触发保护
 
@@ -444,8 +439,5 @@ candidate-06 起采用效果口径 v2：摘要有效完成率只统计允许进�
 | 3 | 作者内审 | 可读性、追踪、链接和历史隔离检查通过 | Passed |
 | 4 | 独立设计评审 | `REV-L1-01-001` 已修复并复评；无执行阻断、无未关闭 S0/S1/S2，可治理三份 Knowledge L2 | Passed |
 | 5 | 独立聚焦评审与复评 | 首轮发现 production-stub 歧义和同步工厂半成品清理过度要求两项 S2；最小修复后复评默认关闭、共享 Core、生命周期、UAT 与门禁无环，无 S0/S1/未处理 S2 | Passed |
-| 6 | v1.2 三轮内审 | candidate-04 诊断、域目录 v2、Summary v3 及历史/权限边界一致 | Passed |
-| 7 | v1.2 独立评审 | 无 S0/S1/未处理 S2；未扩大检索、validator、数据或公共契约 | Passed |
-| 8 | v1.5 三轮内审与独立复评 | 修复当前/历史效果结论、下位版本和跨层来源两项 S2；复评无 S0/S1/未处理 S2 | Passed |
-| 9 | v1.6 三轮内审与独立评审 | candidate-05 分母冲突、gold issue 归因、Summary V4 多域覆盖和历史不可变边界；无 S0/S1/未处理 S2 | Passed |
-| 10 | v1.8 三轮内审与独立评审 | candidate-06 冻结状态、下位版本、历史隔离与精确授权边界一致；无 S0/S1/未处理 S2 | Passed |
+| 6 | v1.9 三轮内审 | 运行流水下沉、效果测量/等级分离、权威边界、DAG 和无能力扩张检查完成；修复 P3 状态表与自引用关闭条件 | Passed |
+| 7 | v1.9 独立评审 | 生产代码、L0/L1/L2/P3/UAT 跨层核对通过；S0=0、S1=0、未处理 S2=0 | Passed |

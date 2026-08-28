@@ -7,22 +7,22 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- `REQ_00` v2.0 继续作为需求权威；当前设计基线为 L0 v2.5、L1 Core/Knowledge/Business v3.0/v1.8/v2.5，14 份 L2 的当前版本见下表。实施计划为 P3 v2.25，Business/Knowledge 验收计划分别为 UAT_00 v1.19、UAT_01 v1.8。
+- `REQ_00` v2.1 继续作为需求权威；当前设计基线为 L0 v2.6、L1 Core/Knowledge/Business v3.1/v1.9/v2.6，10 份 L2 的当前版本见下表。实施计划为 P3 v2.28，Business/Knowledge 验收计划分别为 UAT_00 v1.20、UAT_01 v1.11。本索引不复制工作包、Gate、candidate、哈希或动态测试总数。
 
 ## 2. 需求与总体架构
 
 | 编号 | 文档 | 版本/状态 | 阅读重点 |
 |---|---|---|---|
-| `REQ_00` | [单体 Agent 查询能力建设需求说明](REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.0 / Approved | 三动作、filters QueryPlan、字段边界与验收 |
-| `L0_00` | [单体 Agent L0 总体架构](design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.5 / Approved | 系统边界、唯一链路、权限与分域决策 |
+| `REQ_00` | [单体 Agent 查询能力建设需求说明](REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.1 / Approved | 三动作、filters QueryPlan、字段边界与验收 |
+| `L0_00` | [单体 Agent L0 总体架构](design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.6 / Approved | 系统边界、唯一链路、权限与分域决策 |
 
 ## 3. L1 架构
 
 | 编号 | 文档 | 版本/状态 | 治理范围 |
 |---|---|---|---|
-| `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.0 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
-| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.8 / Approved | 问题改写、多域、多路召回/重排、证据与摘要、P5 |
-| `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.5 / Approved | 三动作 Adapter、字段级配置、operator-specific 文本安全、端点级角色转换、最终授权与列表结果 |
+| `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.1 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
+| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.9 / Approved | 问题改写、多域、多路召回/重排、证据与摘要、P5 |
+| `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.6 / Approved | 三动作 Adapter、字段级配置、operator-specific 文本安全、端点级角色转换、最终授权与列表结果 |
 
 ## 4. L2 详细设计
 
@@ -30,26 +30,26 @@
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_00_00` | [Spring 接入与 Runtime 协同](design/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) | v1.2 / Approved |
-| `L2_00_01` | [Core 执行与能力注册](design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.2 / Approved |
-| `L2_00_02` | [DeepSeek 接入与受控生成](design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.3 / Approved |
-| `L2_00_03` | [用户角色 Authority Converter](design/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) | v1.2 / Approved |
+| `L2_00_00` | [Spring 接入与 Runtime 协同](design/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) | v1.3 / Approved |
+| `L2_00_01` | [Core 执行与能力注册](design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.3 / Approved |
+| `L2_00_02` | [DeepSeek 接入与受控生成](design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.4 / Approved |
+| `L2_00_03` | [用户角色 Authority Converter](design/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) | v1.3 / Approved |
 
 ### 4.2 Knowledge（受 `L1_01` 治理）
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.9 / Approved |
-| `L2_01_01` | [Knowledge 检索与本地模型](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v1.8 / Approved |
-| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.9 / Approved |
+| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.10 / Approved |
+| `L2_01_01` | [Knowledge 检索与本地模型](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v1.9 / Approved |
+| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.12 / Approved |
 
 ### 4.3 Business（受 `L1_02` 治理）
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_02_00` | [Business 公共约束、配置与出域](design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.5 / Approved |
-| `L2_02_01` | [Employee Adapter 与授权](design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.5 / Approved |
-| `L2_02_02` | [Transaction Adapter 与授权](design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.5 / Approved |
+| `L2_02_00` | [Business 公共约束、配置与出域](design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.6 / Approved |
+| `L2_02_01` | [Employee Adapter 与授权](design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 / Approved |
+| `L2_02_02` | [Transaction Adapter 与授权](design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 / Approved |
 
 ## 5. 关键阅读结论
 
@@ -58,12 +58,12 @@
 - Knowledge 是一个复合查询能力，流程固定为问题处理、逻辑域选择、检索计划、多路检索/融合/重排、证据与摘要；不新增 `knowledge-service`。
 - Business 目标动作是 `employee.search`、`employee.semantic_search` 与 `transaction.search`；`employee.detail` 仅保留历史兼容调用方，不在目标生产组合根。Adapter 透传用户 JWT，业务服务完成最终授权。
 - 外部模型只接收各域明确允许的最小 payload；未知、敏感、冲突或未分类内容失败关闭。Business 真实结果出域默认关闭。
-- Knowledge candidate-04 是历史有效运行且结论为 `ineffective`；candidate-05 是最新有效运行，Q1/Q2 通过、Q3/Q4 未通过，结论为 `partially_effective`。两者都不得改写为整体效果达标。
+- Knowledge 最新有效效果等级为 `partially_effective`，不等于整体效果达标；具体候选、运行结论和证据由 UAT_01/evidence 管理。
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.25 / Reviewed；既有 25 个工作包 Done，本轮新增 7 个收口包中，文档纠偏、正式 Python 测试入口、candidate-05 诊断、Summary V4/效果口径 v2 和 candidate-06 非 live 准备已 Done，live 和最终收口按依赖推进。
-- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.19 / Reviewed；18 项真实 v4 QueryPlan 与 17 项等价自动化风险闭合，共 35/35 可追踪。Knowledge 由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.8 独立治理，功能 37/37 Passed，效果仍为 `partially_effective`。
+- 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.28 / Reviewed；工作包、Gate、当前验证和提交状态只在该计划维护。
+- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.20 / Reviewed，固定治理35个 Business 用例；Knowledge 由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.11 独立治理，功能 37/37 Passed，最新有效效果等级为 `partially_effective`。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求、设计与 35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已完成 non-live 实施；candidate-04/05 历史资产保持不可变，最新效果仍为 `partially_effective`。正式 Python 隔离入口、candidate-05 根因诊断、最小优化和 candidate-06 非 live 冻结已经关闭；下一步须以新 frozen HEAD 精确授权并执行 `GATE-077`。在新候选 Q1～Q4 全部通过前不得宣称 Knowledge 整体效果达标或七项收口完成。
+Employee/Transaction 需求、设计与35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已实施；最新有效效果等级为 `partially_effective`。效果是否 `effective` 不再作为项目硬关闭条件，但任何文档都不得宣称当前效果已 effective。具体 Gate、candidate、测试总数和 evidence 只在 P3、UAT_01 与 evidence 中维护。

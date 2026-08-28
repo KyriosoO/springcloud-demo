@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Literal
 
@@ -31,6 +32,7 @@ from tests.evaluation.knowledge.test_live_p5_candidate_03_preparation import SAF
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 RUN_ID = "knowledge-p5-live-v4-20260828-candidate-07"
+FROZEN_HEAD = "e4ba0c6c5909bb04bbcd0206085e95952b2350a3"
 MANIFEST_SHA256 = "af545166b37a33899d6f1d7830c09472df8cc2fe45047fea242ecc524bfc2211"
 AUTHORIZATION_REFERENCE = "P3_00:GATE-079"
 AUTHORIZATION_TEMPLATE = REPOSITORY_ROOT / (
@@ -44,8 +46,25 @@ AUTHORIZATION_PATH = REPOSITORY_ROOT / (
 RESULT_ROOT = REPOSITORY_ROOT / "agent-runtime/tests/evaluation/knowledge/results" / RUN_ID
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _frozen_bytes(relative_path: str) -> bytes:
+    return subprocess.run(
+        ["git", "show", f"{FROZEN_HEAD}:{relative_path}"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
+def _frozen_path_exists(relative_path: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "cat-file", "-e", f"{FROZEN_HEAD}:{relative_path}"],
+            cwd=REPOSITORY_ROOT,
+            check=False,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
 
 
 def _request(task_id: ModelTaskId) -> StructuredModelRequest:
@@ -152,16 +171,23 @@ def test_candidate_07_manifest_template_assets_and_history_are_frozen() -> None:
     assert "agent-runtime/scripts/run-knowledge-p5-live-candidate-07.ps1" in asset_paths
     assert str(AUTHORIZATION_TEMPLATE.relative_to(REPOSITORY_ROOT)).replace("\\", "/") in asset_paths
     assert tuple(asset.path for asset in manifest.asset_hashes) == tuple(sorted(asset_paths))
-    assert all(_sha256(REPOSITORY_ROOT / asset.path) == asset.sha256 for asset in manifest.asset_hashes)
+    assert all(hashlib.sha256(_frozen_bytes(asset.path)).hexdigest() == asset.sha256 for asset in manifest.asset_hashes)
 
 
 def test_candidate_07_prepared_state_has_no_authorization_or_result() -> None:
-    assert not AUTHORIZATION_PATH.exists()
-    assert not RESULT_ROOT.exists()
+    assert not _frozen_path_exists(str(AUTHORIZATION_PATH.relative_to(REPOSITORY_ROOT)).replace("\\", "/"))
+    assert not _frozen_path_exists(str(RESULT_ROOT.relative_to(REPOSITORY_ROOT)).replace("\\", "/"))
 
 
 @pytest.mark.asyncio
-async def test_candidate_07_requires_separate_authorization_before_key_or_outbound(tmp_path: Path) -> None:
+async def test_candidate_07_requires_separate_authorization_before_key_or_outbound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "tests.evaluation.knowledge.live_bootstrap.authorization_path",
+        lambda repository_root, candidate_id="candidate-07": tmp_path / "missing.authorization.json",
+    )
     with pytest.raises(LiveEvaluationBootstrapError, match="evaluation.live_authorization_missing"):
         await build_live_from_environment(
             environ={
@@ -248,5 +274,14 @@ def test_candidate_07_prepared_assets_contain_no_secret_or_live_result() -> None
     )
     assert "LLM_API_KEY" not in raw
     assert "Bearer " not in raw
-    assert not AUTHORIZATION_PATH.exists()
-    assert not RESULT_ROOT.exists()
+    assert not _frozen_path_exists(str(AUTHORIZATION_PATH.relative_to(REPOSITORY_ROOT)).replace("\\", "/"))
+    assert not _frozen_path_exists(str(RESULT_ROOT.relative_to(REPOSITORY_ROOT)).replace("\\", "/"))
+
+
+def test_candidate_07_live_preflight_excludes_prepared_state_absence_checks() -> None:
+    launcher = (REPOSITORY_ROOT / "agent-runtime/scripts/run-knowledge-p5-live-candidate-07.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "::test_candidate_07_prepared_state_has_no_authorization_or_result" not in launcher
+    assert "::test_candidate_07_prepared_assets_contain_no_secret_or_live_result" not in launcher

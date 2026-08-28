@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.19 |
+| 当前版本 | v1.20 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-28 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5；Employee L2 v2.5；Transaction L2 v2.5 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.25 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.1；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.6；Employee L2 v2.6；Transaction L2 v2.6 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.28 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.15 对齐当前 P3/L1/L2，并把本轮实际测试计数与 Python 安装环境问题分开记录；v1.16 以版本化隔离入口的本轮实际结果替换临时失败基线；v1.17 仅同步 P3 Knowledge 后续计划版本；v1.18 同步 Summary V4 实施后的正式 Python 全量与类型检查计数；v1.19 仅同步 P3 candidate-06 非 live 冻结状态，35/35 Business UAT 和证据不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.20 明确本计划只治理35个固定 Business 用例及其证据映射，移除全仓 Python/Java/mypy 动态测试总数和 Knowledge 运行状态；精确验证计数改由 P3 最终验证记录或最终报告保存。
 
 ## 2. 验收目标与范围外
 
@@ -153,4 +153,4 @@ v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f
 
 剩余 17 个用例按风险分别由当前 Spring→Runtime、Spring/Servlet/Reactive 安全链、Python 生产组合根 fake E2E 和 Java/Python 跨语言契约关闭；追踪资产验证每个引用路径与测试符号真实存在，并强制真实证据集合仍为 18。该分层与个人学习项目的风险相称：不重复付费验证确定性 codec/权限/严格 JSON，同时不降低 QueryPlan 真实模型及真实业务调用证据。
 
-2026-08-28 本轮正式可复现基线：`agent-runtime/scripts/run-nonlive-regression.ps1` 在一次性 Python 3.12.4 venv 中显式安装固定构建后端和当前源码；Transaction 冻结 host/preflight `14 passed`，随后 Python 全量 non-live 为 `1442 passed / 27 opt-in skipped / 0 failed`，strict mypy 覆盖 454 个文件且 compileall 通过。agent-service 为 `35 tests / 1 opt-in skipped / 0 failures`；Employee 为 `50 tests / 20 opt-in skipped / 0 failures`；Transaction 为 `51 tests / 6 opt-in/环境 skipped / 0 failures`。新增计数来自 Knowledge V4/效果口径 v2 与 candidate-06 非 live 测试，Knowledge 验收结论仍归 `UAT_01`，不计入本计划的 35 个用例。四个 Business 阶段、`GATE-UAT-007` 及仓库级 Python 可复现性门禁 `GATE-074` 均由当前证据支持。
+正式可复现回归入口、Python/Java/mypy 的本轮精确执行数量及仓库级环境结论由 P3 最终验证记录保存，本计划不复制动态总数。新增无关测试或测试数量变化不会自动使 Business UAT 失效；只有某个固定 UAT case 的映射合同、自动化证据或真实 evidence 失效时，才重新打开该用例或对应门禁。Knowledge 的功能与效果验收只由 UAT_01 治理，不计入本计划的35个用例。

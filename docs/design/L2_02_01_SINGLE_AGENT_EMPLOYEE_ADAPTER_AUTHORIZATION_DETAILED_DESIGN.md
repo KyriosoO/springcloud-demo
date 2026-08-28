@@ -6,19 +6,19 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.5 |
+| 当前版本 | v2.6 |
 | 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.2 `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.3 `DR-AUTH-007` |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.6 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅同步上位 Business/Authority 版本，Employee 两动作、字段和授权合同不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 同步上位 Business/Authority 版本并把运行证据明细留在 UAT_00/evidence；Employee 两动作、字段和授权合同不变。
 
 ## 2. 设计目标、范围外与当前实现基线
 
 目标复用 `EmployeeEsController.search` 和 `vectorSearch` 现有公开接口，分别提供 `employee.search`、`employee.semantic_search`，返回严格投影的员工列表。范围外包括新 endpoint/DTO、ES 直连、索引重建、聚合、写入、客户端二次筛选、自动互相 fallback 和启用 workBase 字段。
 
-当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec、partial page/记录级卫生与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。正式 run03 的 9 个 Employee 真实场景全部通过：条件搜索 6 次、语义搜索 1 次，上海地址返回 20 条、语义返回 9 条受控记录；workBase 样例及 semantic+上海均 unsupported/零业务调用，denied 角色由业务服务返回 forbidden。其余 6 个 Employee 计划用例由当前生产组合根、安全链或 Adapter 合同自动化逐项关闭，Employee 追踪为 15/15。
+当前实现：Agent 已实现 search/semantic definition、统一字段配置、固定 endpoint Adapter、bounded ES hits codec、partial page/记录级卫生与生产组合根；两个 Controller 入口调用 `requireEmployeeRead`。`EmployeeDetailSecurityConfiguration` 已为两个 ES POST 入口单独绑定共享 `userRoleJwtAuthenticationConverter`，并通过真实 `SecurityFilterChain` 的 ADMIN/VIEWER、unknown/mixed/service/missing/malformed 拒绝及 detail/fallback 兼容回归。Employee 的 15 个固定验收用例均有可审查证据；具体真实场景、调用计数和证据哈希由 UAT_00/evidence 管理。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -79,7 +79,7 @@ arguments exact 为 `query/size`；query 是安全业务文本 tagged literal，
 
 当前 DTO 没有 `filters`，因此“语义能力匹配 + contact_address”等结构化约束必须 unsupported、调用 0；不得普通搜索后客户端过滤，不得一次请求执行 search 再 vector-search。语义请求包含姓名、手机号、详细地址等敏感值时拒绝，不得将 protected slot 解包到 embedding query。
 
-该 action 的真实服务链路为 Employee 读取授权 → 本地 BGE Embedding → Feign → ES 向量检索，因此代码绑定最大超时及默认配置为 `10000ms`；普通 `employee.search` 保持 `3000ms`。两动作均只允许一次既有 endpoint 调用，仍受请求总 deadline 约束；语义超时不得触发普通 search、重复 embedding、模型重试或跨域回退。此前 `3000ms` semantic timeout 产生的有限失败证据 SHA-256=`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d` 仅作为不可变历史，不得回写或作为本次成功证据。
+该 action 的真实服务链路为 Employee 读取授权 → 本地 BGE Embedding → Feign → ES 向量检索，因此代码绑定最大超时及默认配置为 `10000ms`；普通 `employee.search` 保持 `3000ms`。两动作均只允许一次既有 endpoint 调用，仍受请求总 deadline 约束；语义超时不得触发普通 search、重复 embedding、模型重试或跨域回退。历史超时失败证据由 UAT_00/evidence 保持不可变，不作为当前成功证据。
 
 ### 5.3 bounded ES hits 响应
 

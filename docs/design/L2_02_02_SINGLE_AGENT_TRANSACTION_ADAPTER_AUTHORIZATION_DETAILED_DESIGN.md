@@ -6,19 +6,19 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.5 |
+| 当前版本 | v2.6 |
 | 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.6 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅同步上位 Business 架构版本，Transaction 字段/operator/Decimal 合同不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 同步上位 Business 架构版本并把运行证据明细留在 UAT_00/evidence；Transaction 字段/operator/Decimal 合同不变。
 
 ## 2. 设计目标、范围外与当前实现基线
 
 唯一动作 `transaction.search` 固定复用 `POST /txn/search`，以逻辑 filters/operator 查询既有 SQL 列表，并保留服务最终读取授权。范围外包括 aggregate、detail、condition、query、写入、管理接口、Agent 数据库直连、float/rounding、跨域 fallback 与新 DTO。
 
-当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；`trans_type eq` 允许真实安全 token 中的 `_`，`contains` 在公共 validator 与 Adapter 两层拒绝 `_/%/反斜杠`。正式 run03 的 9 个 Transaction 真实场景全部通过：search 7 次，类型精确/模糊、绝对日期、金额等值/范围、分页和 denied 授权均按合同运行；相对日期和聚合均 unsupported/零业务调用。其余 6 个 Transaction 计划用例由当前 Adapter、Java 安全链及跨语言合同自动化逐项关闭，Transaction 追踪为 15/15。
+当前实现：Java Controller、`TransactionSearchRequest/Response`、Deserializer、Service 与 Mapper 已支持 transId/transType/transDate/amount；Agent 新 Adapter 已实施独立 field/operator、Date filters、Decimal、完整分页、同字段上下界和受控 result projection。Agent 严格兼容生产 Spring UTC 零毫秒 offset 字符串与历史 standalone 整秒 epoch 毫秒；`trans_type eq` 允许真实安全 token 中的 `_`，`contains` 在公共 validator 与 Adapter 两层拒绝 `_/%/反斜杠`。Transaction 的 15 个固定验收用例均有可审查证据；具体真实场景、调用计数和证据哈希由 UAT_00/evidence 管理。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -121,7 +121,7 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 
 ## 11. 风险、评审记录与实施就绪判定
 
-主要风险是 standalone Controller 默认 codec 与真实 Spring/Jackson HTTP codec 对 Date 的序列化不同、生产 TRANS_DATE 精度未证明、金额数值退化、page 溢出、totalExact 误读，以及合法带 `_` 的精确类型被误拒或 contains 通配导致查询扩大。Date 和 operator 文本策略均需 non-live 双向测试先于对应真实 UAT；不得调整业务服务、接受任意日期字符串、放宽 LIKE 校验或重新执行已消费 UAT。首次失败 SHA-256=`cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3` 保持不变。
+主要风险是 standalone Controller 默认 codec 与真实 Spring/Jackson HTTP codec 对 Date 的序列化不同、生产 TRANS_DATE 精度未证明、金额数值退化、page 溢出、totalExact 误读，以及合法带 `_` 的精确类型被误拒或 contains 通配导致查询扩大。Date 和 operator 文本策略均需 non-live 双向测试先于对应真实 UAT；不得调整业务服务、接受任意日期字符串、放宽 LIKE 校验或重新执行已消费 UAT。历史失败证据由 UAT_00/evidence 保持不可变。
 
 | 项目 | 判定 |
 |---|---|
