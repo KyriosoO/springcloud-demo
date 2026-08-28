@@ -5,14 +5,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.4 |
+| 当前版本 | v1.5 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.7、`L1_01` v1.5、`L2_01_00` v1.6、`L2_01_01` v1.5、`L2_01_02` v1.6、`P3_00` v2.21 |
+| 上位依据 | `L1_00` v2.7、`L1_01` v1.5、`L2_01_00` v1.6、`L2_01_01` v1.5、`L2_01_02` v1.6、`P3_00` v2.22 |
 | 历史边界 | candidate-04 `ineffective`、candidate-05 `partially_effective` 及各自 manifest/authorization/journal/result/evidence/hash 均保持不可变 |
 
-本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。
+本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.5 仅同步正式 Python 可复现入口已关闭及 P3 上位版本，不改变 37/37 功能结论、candidate-04/05 历史结论或效果阈值。
 
 ## 2. 目标、非目标与结论口径
 

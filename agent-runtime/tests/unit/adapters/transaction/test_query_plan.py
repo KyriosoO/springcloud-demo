@@ -108,7 +108,7 @@ def test_transaction_protected_id_is_request_bound_and_never_model_visible() -> 
     )
     decision = QuestionEgressGuard().evaluate_business(
         f"查询交易，交易号 {raw}",
-        protected_values=slots.values,  # type: ignore[arg-type]
+        protected_values=slots.values,
     )
     candidate = RequestProtectedValueBinder().bind(
         validated,

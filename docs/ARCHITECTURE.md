@@ -7,7 +7,7 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- `REQ_00` v2.0 继续作为需求权威；当前设计基线为 L0 v2.2、L1 Core/Knowledge/Business v2.7/v1.5/v2.5，14 份 L2 的当前版本见下表。实施计划为 P3 v2.21，Business/Knowledge 验收计划分别为 UAT_00 v1.15、UAT_01 v1.4。
+- `REQ_00` v2.0 继续作为需求权威；当前设计基线为 L0 v2.2、L1 Core/Knowledge/Business v2.7/v1.5/v2.5，14 份 L2 的当前版本见下表。实施计划为 P3 v2.22，Business/Knowledge 验收计划分别为 UAT_00 v1.16、UAT_01 v1.5。
 
 ## 2. 需求与总体架构
 
@@ -62,8 +62,8 @@
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.21 / Reviewed；既有 25 个工作包 Done，本轮新增 7 个收口包按文档评审、测试入口、效果诊断、优化、候选、live 和最终收口顺序推进。
-- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.15 / Reviewed；18 项真实 v4 QueryPlan 与 17 项等价自动化风险闭合，共 35/35 可追踪。Knowledge 由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.4 独立治理，功能 37/37 Passed，效果为 `partially_effective`。
+- 当前实施计划：[P3_00 单体 Agent 查询能力代码实施计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.22 / Reviewed；既有 25 个工作包 Done，本轮新增 7 个收口包中，文档纠偏与正式 Python 测试入口已 Done，效果诊断 Ready，后续优化、候选、live 和最终收口按依赖推进。
+- 当前验收计划：[UAT_00 单体 Agent 查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.16 / Reviewed；18 项真实 v4 QueryPlan 与 17 项等价自动化风险闭合，共 35/35 可追踪。Knowledge 由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.5 独立治理，功能 37/37 Passed，效果为 `partially_effective`。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求、设计与 35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2 与 Summary v3 已实施；candidate-04/05 历史资产保持不可变，最新效果为 `partially_effective`。本轮尚待关闭的是正式 Python 隔离测试入口、candidate-05 的 Q3/Q4 根因、最小新版本优化、candidate-06 非 live 冻结及其后续精确授权效果 UAT；在这些门禁关闭前不得宣称 Knowledge 整体效果达标或七项收口完成。
+Employee/Transaction 需求、设计与 35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2 与 Summary v3 已实施；candidate-04/05 历史资产保持不可变，最新效果为 `partially_effective`。正式 Python 隔离入口已以 host 14/14、全量 1419 passed/27 opt-in skipped 和历史哈希复核关闭；本轮尚待关闭的是 candidate-05 的 Q3/Q4 根因、最小新版本优化、candidate-06 非 live 冻结及其后续精确授权效果 UAT，在这些门禁关闭前不得宣称 Knowledge 整体效果达标或七项收口完成。
