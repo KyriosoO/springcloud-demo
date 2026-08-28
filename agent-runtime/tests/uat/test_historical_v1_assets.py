@@ -7,6 +7,9 @@ from typing import Final
 
 _UAT_ROOT: Final[Path] = Path(__file__).parent
 _EXPECTED_SHA256: Final[dict[str, str]] = {
+    "knowledge_uat_traceability.v1.json": (
+        "287e069d456c3cf70d0bb47af2c231849c8e8b4487db683a7de8ad60cf44d4ca"
+    ),
     "uat_cases.v1.json": "b10c793a29114a7d92f048156b433056cfc8a81b0646dddf0ea1e954a3f381da",
     "evidence/structured-query-uat-access-v1.result.json": (
         "0c01ceb5b0ca0c94a63cd1a930d23bc2570a9704b34d467cf44b993eb4793057"
@@ -38,3 +41,8 @@ def test_historical_detail_stub_uat_assets_remain_byte_identical_and_non_current
     current = (_UAT_ROOT / "uat_traceability.v2.json").read_text(encoding="utf-8")
     assert "employee.detail" not in current
     assert "single-agent-structured-query-uat-v1" not in current
+
+    current_knowledge = (
+        _UAT_ROOT / "knowledge_uat_traceability.v2.json"
+    ).read_text(encoding="utf-8")
+    assert "ineffective_candidate_04" not in current_knowledge

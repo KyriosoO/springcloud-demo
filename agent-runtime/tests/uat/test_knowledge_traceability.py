@@ -18,8 +18,17 @@ def test_knowledge_functional_uat_traceability_closes_all_37_cases() -> None:
     assert isinstance(cases, list)
     assert len(cases) == 37
     assert {item["status"] for item in cases} == {"passed"}
+    assert value["authority"] == "UAT_01 v1.12"
     assert value["functionalConclusion"] == "passed"
-    assert value["effectivenessConclusion"] == "ineffective_candidate_04"
+    effectiveness = value["effectiveness"]
+    assert isinstance(effectiveness, dict)
+    assert effectiveness["latestValid"]["conclusion"] == "partially_effective"
+    assert effectiveness["latestExecution"]["conclusion"] == "invalid_run"
+    assert effectiveness["latestExecution"]["state"] == "failed_unconsumed"
+    assert effectiveness["currentVersion"] == {
+        "summaryTaskVersion": "4",
+        "evidenceStatus": "missing",
+    }
 
 
 @pytest.mark.parametrize(
@@ -39,6 +48,24 @@ def test_knowledge_functional_uat_traceability_closes_all_37_cases() -> None:
         (
             lambda value: value["cases"][0].__setitem__("question", "forbidden"),
             "knowledge_uat_traceability.case_shape_invalid",
+        ),
+        (
+            lambda value: value["effectiveness"]["latestValid"].__setitem__(
+                "conclusion", "effective"
+            ),
+            "knowledge_uat_traceability.latest_valid_invalid",
+        ),
+        (
+            lambda value: value["effectiveness"]["latestExecution"].__setitem__(
+                "state", "passed"
+            ),
+            "knowledge_uat_traceability.latest_execution_invalid",
+        ),
+        (
+            lambda value: value["effectiveness"]["currentVersion"].__setitem__(
+                "evidenceStatus", "measured"
+            ),
+            "knowledge_uat_traceability.current_version_invalid",
         ),
     ),
 )
