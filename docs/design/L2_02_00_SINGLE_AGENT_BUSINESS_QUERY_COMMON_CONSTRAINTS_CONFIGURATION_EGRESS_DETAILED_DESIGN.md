@@ -6,13 +6,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.4 |
-| 更新时间 | 2026-08-26 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
+| 当前版本 | v2.5 |
+| 更新时间 | 2026-08-28 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅同步上位 Business 架构版本，QueryPlan/config/egress 合同不变。
 
 ## 2. 设计目标、范围外与当前实现基线
 

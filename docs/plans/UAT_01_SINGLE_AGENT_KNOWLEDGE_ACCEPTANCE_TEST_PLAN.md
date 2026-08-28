@@ -5,12 +5,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.3 |
+| 当前版本 | v1.4 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-08-26 |
+| 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.6、`L1_01` v1.4、`L2_01_00` v1.5、`L2_01_01` v1.4、`L2_01_02` v1.5、`P3_00` v2.20 |
-| 历史边界 | candidate-04 及其 manifest/authorization/journal/result/evidence/hash 保持不可变，正式结论仍为 `ineffective` |
+| 上位依据 | `L1_00` v2.7、`L1_01` v1.5、`L2_01_00` v1.6、`L2_01_01` v1.5、`L2_01_02` v1.6、`P3_00` v2.21 |
+| 历史边界 | candidate-04 `ineffective`、candidate-05 `partially_effective` 及各自 manifest/authorization/journal/result/evidence/hash 均保持不可变 |
 
 本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。
 
@@ -164,7 +164,7 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 
 candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa` 唯一执行：run ID=`knowledge-p5-live-v2-20260826-candidate-05`，manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c`，26 case × 2 variant；52 个 Capability 成对完整，实际付费 rewrite22+summary22=44，retry/resume/core answer=0。安全 Gate 通过，Q1/Q2 通过、Q3/Q4 未通过，Effectiveness=`Partially effective`。
 
-GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用必须建立新版本、新候选和新的精确授权。
+GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用必须建立新版本、新候选和新的精确授权；candidate-06 只有在 P3 `GATE-073～076` 依次关闭后才可申请 `GATE-077`，未精确绑定前不得读取密钥或产生 outbound。
 
 ## 8. 门禁与状态
 
@@ -173,6 +173,8 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | `GATE-071` | Knowledge 当前设计基线 | L1/L2/P3/UAT_01 三轮内审及独立评审通过 | Closed |
 | `GATE-UAT-008` | 功能型 Knowledge UAT | 37/37 case 有严格追踪、关键 16 场景 E2E 实际通过、状态一致 | Closed |
 | `GATE-072` | 新效果 UAT outbound | candidate-05 唯一运行有效完成并形成 append-only result/evidence | Closed |
+| `GATE-073～076` | 文档、测试入口、优化和 candidate-06 非 live 准备 | 各工作包按 P3 证据关闭 | Open |
+| `GATE-077` | candidate-06 一次性效果 UAT outbound | 用户精确绑定 frozen HEAD、run ID、manifest SHA-256、authorization reference 和调用上限 | Open |
 
 `GATE-072` 已消费并关闭，只证明本次效果被有效测量；`Partially effective` 不等于整体效果达标。
 
@@ -195,3 +197,4 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | v1.1 独立评审 | 无 S0/S1/未处理 S2；功能已通过，效果仍为 `ineffective` | Passed |
 | v1.2 状态与代码评审同步 | 37/37 功能追踪、candidate-04 `ineffective`、candidate-05 非 live 冻结及 `GATE-072` Open 一致；正式代码评审无 Blocker/Major | Passed |
 | v1.3 效果 UAT 收口 | candidate-05 绑定、44 次 paid journal、592 项阶段事件、安全 Gate、人工 rubric、`partially_effective` 结论和历史不可变一致 | Passed |
+| v1.4 七项收口计划同步与独立复评 | candidate-04/05 历史分离、当前 Summary v3、Python 正式入口前置及 candidate-06 新授权门禁无环；无未处理 S2 | Passed |

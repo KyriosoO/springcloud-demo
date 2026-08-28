@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_03` |
-| 当前版本 | v1.1 |
-| 日期 | 2026-08-21 |
+| 当前版本 | v1.2 |
+| 日期 | 2026-08-28 |
 | 权威范围 | `common-security` 中用户 JWT `role` claim 到 Servlet/Reactive Authority 的唯一转换契约与具名 Bean |
-| 上位文档 | [`L1_00` v1.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
+| 上位文档 | [`L1_00` v2.7](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
 | 来源文档 | [L2_00_03 v0.4 归档版](历史文档/2026-08-21-v0-baseline/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) |
-| 实施状态 | 共享 Converter、自动配置及三 Provider 消费已实现并验证；未生产生效 |
+| 实施状态 | 共享 Converter、自动配置及 Employee/Transaction/Knowledge Provider 生产代码消费已实现并验证；不据此声明外部部署已上线 |
 
 ## 2. 阅读导航与变更记录
 
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.2 | 2026-08-28 | 状态与上位版本同步 | 如实记录三个 Provider 的生产代码消费并对齐 L1；角色和授权合同不变 |
 | v1.1 | 2026-08-21 | 代码评审发现验证命令不能从仓库根执行 | 改为以 `serviceCenter/pom.xml` 为聚合入口并使用实际 artifactId 选择器；补强严格 claim 负向验证，不改变安全契约 |
 | v1.0 | 2026-08-21 | 建立共享安全契约新基线 | 删除实施门禁流水，明确当前严格大写角色列表、具名 Bean、fail-closed 和业务服务最终授权关系 |
 
@@ -251,7 +252,8 @@ public final class UserRoleJwtAuthenticationConverter
 | 内审 2 | fail-closed、Servlet/Reactive 覆盖和兼容一致 | Passed |
 | 内审 3 | 最小必要性、真实落点、测试和可读性检查通过 | Passed |
 | 独立评审 | 未发现 S0/S1/S2；claim、Bean、Servlet/Reactive 适配与 Provider 消费契约一致 | Passed |
+| v1.2 三轮内审与独立复评 | 上位版本和三个 Provider 生产代码消费状态已核实；角色/权限合同未扩大，无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.1。
+- 当前版本：v1.2。
 - 文档状态：Approved。
 - 新版本不继承旧版评审流水；历史文档只作为来源。

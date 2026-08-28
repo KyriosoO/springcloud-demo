@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.5 |
-| 日期 | 2026-08-26 |
+| 当前版本 | v1.6 |
+| 日期 | 2026-08-28 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.5](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary v3 均已实现并通过回归；candidate-05 已完成效果 UAT，结论为 `partially_effective` |
 
@@ -27,6 +27,7 @@
 | v1.3 | 2026-08-26 | Q1/Q3/Q4 效果诊断 | 将域目录升级为 v2，并把生产目标任务改为 rewrite v1 + summary v3；历史 v1/v2 继续不可变 |
 | v1.4 | 2026-08-26 | 实施与评审收口 | 如实同步域目录 v2、rewrite v1 + summary v3、candidate-05 冻结和正式代码评审已完成 |
 | v1.5 | 2026-08-26 | 效果 UAT 收口 | 如实同步 candidate-05 有效运行和 `partially_effective` 结论，不改变流程、任务或失败语义 |
+| v1.6 | 2026-08-28 | 任务版本与依赖纠偏 | 将组合根步骤统一为 Rewrite V1 + Summary V3，并同步 L1 当前版本；历史 V1/V2 责任不变 |
 
 ## 3. 目标与范围
 
@@ -232,7 +233,7 @@ validate empty arguments
 1. 加载 `KnowledgeSettings`；disabled 时立即返回“无附加任务、无附加 Provider、无 owned Knowledge resource”的结果。
 2. enabled 时拒绝生产 stub provider；测试可显式注入 fake transport，但必须继续走同一装配函数和注册校验。
 3. enabled 时加载 `KnowledgeRetrievalSettings` 和 policy catalog，验证已启用域、Profile version、ES/BGE origins、1024 维、rerank model、final candidates 与 task version。
-4. 创建 Rewrite V1/Summary V2 definitions，并作为 `LocalModelCompositionRoot.additional_definitions` 的唯一 Knowledge 项；重复 `(task_id, task_version)` 失败。
+4. 创建 Rewrite V1/Summary V3 definitions，并作为 `LocalModelCompositionRoot.additional_definitions` 的唯一 Knowledge 项；重复 `(task_id, task_version)` 失败。Summary V1/V2 仅承担历史兼容与不可变证据校验，不进入当前生产组合根。
 5. 所有纯配置、目录、策略和任务校验完成后，才为三个固定 origin 分别创建 bounded HTTP client/transport并构建 Retrieval/Provider。
 6. 把 `KnowledgeCapabilityProvider` 作为 `BusinessQueryRuntimeCompositionRoot.additional_providers` 追加到同一 Runtime。
 7. 顶层 lifecycle 同时拥有 Business clients、Knowledge clients 和 model；关闭按资源逐项尝试，保留首个异常但仍释放其余资源。
@@ -341,7 +342,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.5 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.6 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
 | 当前允许实施范围 | 单动作、rewrite v1、域目录 v2、Stage 协同、失败映射、summary v3 目标绑定、同 Runtime 生产接线和 non-live 功能 UAT |
 | 当前禁止动作 | 新域/物理资源、公共契约变化、真实模型调用、索引写入和独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
@@ -357,7 +358,8 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.2 聚焦评审与复评 | 修复 enabled+production-stub 歧义和半成品异步清理过度要求后，disabled 惰性、唯一注册、资源释放、Business 隔离通过；无 S0/S1/未处理 S2 | Passed |
 | v1.3 三轮内审 | 域选择优先级、Summary v3 绑定、零域语义与历史任务隔离一致 | Passed |
 | v1.3 独立评审 | 无 S0/S1/未处理 S2；Selector 不猜测文档真实性，DAG 无环 | Passed |
+| v1.6 三轮内审与独立复评 | Rewrite V1/Summary V3 唯一生产绑定、历史 V1/V2 隔离和上位版本一致；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.5。
+- 当前版本：v1.6。
 - 文档状态：Approved。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。

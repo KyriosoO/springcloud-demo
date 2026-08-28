@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_00` |
-| 当前版本 | v1.1 |
-| 日期 | 2026-08-21 |
+| 当前版本 | v1.2 |
+| 日期 | 2026-08-28 |
 | 权威范围 | `agent-service` 公共 HTTP 接入、Spring→Python 内部协议、预算/取消/容量、健康与错误映射 |
-| 上位文档 | [`L1_00` v1.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
+| 上位文档 | [`L1_00` v2.7](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
 | 来源文档 | [L2_00_00 v0.9 归档版](历史文档/2026-08-21-v0-baseline/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) |
-| 实施状态 | 当前代码已实现并有 Java/Python 契约及系统 E2E；未生产生效 |
+| 实施状态 | Spring 公共接入和 `agent_runtime.main.build_runtime` 生产启动入口均已接线并通过 Java/Python 契约与系统 E2E；不据此声明外部部署已上线 |
 
 ## 2. 阅读导航与变更记录
 
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.2 | 2026-08-28 | 生产入口状态纠偏 | 如实同步 Business 生产组合根及 Knowledge 默认关闭、启用后惰性装配；不改变公共/内部协议 |
 | v1.1 | 2026-08-21 | 代码对照评审发现容量映射与验证入口表述失真 | 区分 Spring ingress 与 Runtime 容量语义，改正 Maven/Python 可执行验证命令；不改变公共或内部协议 |
 | v1.0 | 2026-08-21 | 建立可实施且易读的新基线 | 删除历史 Gate/评审流水，保留当前协议、时限、容量、安全和代码锚点 |
 
@@ -94,7 +95,7 @@
 - Python FastAPI 内部端点、严格 Pydantic DTO、请求体限制、并发 limiter、断连监视和生命周期关闭已存在。
 - 公共/内部状态枚举、Failure source、contract version=1 和跨语言 fixture 已落地。
 - 当前默认内部地址为 loopback，Runtime 不公开 OpenAPI UI。
-- 包入口 `agent_runtime.main` 当前只装配空能力、禁用 selector/answer 的安全基线；完整领域组合由可注入组合根和系统 E2E 验证，尚未接入默认生产启动入口。不得以系统 E2E 装配推导默认启动已具备领域能力。
+- 包入口 `agent_runtime.main.build_runtime` 已接入生产对象图：默认 `AGENT_MODEL_PROVIDER=stub` 时返回禁用 selector/answer 的空能力安全基线；显式启用非 stub provider 时装配 Business 三动作，`AGENT_KNOWLEDGE_ENABLED=false` 不创建 Knowledge task、Provider 或 HTTP client，显式设为 `true` 时才惰性追加唯一 `knowledge.query`。测试组合根不能替代该生产入口事实，外部部署是否上线也不由本设计推导。
 
 ### 6.2 最小变更与抽象必要性
 
@@ -334,7 +335,8 @@ async def invoke_agent(
 | 内审 2 | 失败、安全、预算、状态和数据生命周期一致 | Passed |
 | 内审 3 | 实现落点、测试、链接和可读性检查通过 | Passed |
 | 独立评审 | `REV-L2-00-00-001` 已修复；公共/内部字段、上位约束、实现落点与验证闭环一致 | Passed |
+| v1.2 三轮内审与独立复评 | 生产入口、默认 stub、Business 接线和 Knowledge disabled/enabled 惰性语义与代码一致；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.1。
+- 当前版本：v1.2。
 - 文档状态：Approved。
 - 新版本不继承旧版修订流水；旧版只作为来源和审计档案。

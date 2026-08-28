@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.5 |
-| 日期 | 2026-08-26 |
+| 当前版本 | v1.6 |
+| 日期 | 2026-08-28 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV2/V3、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.5](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、生产接线、功能 UAT 和 Summary v3 已验证；candidate-05 已完成冻结效果 UAT，`GATE-072` Closed，结论为 `partially_effective` |
 
@@ -27,6 +27,7 @@
 | v1.3 | 2026-08-26 | candidate-04 只读诊断落地 | 固化诊断指标与根因，新增 Summary v3 覆盖指令；不改 validator、检索参数、数据集或历史资产 |
 | v1.4 | 2026-08-26 | 优化与候选收口 | 如实同步 Summary v3 已实施、candidate-05 已冻结及正式效果调用仍受 `GATE-072` 阻断 |
 | v1.5 | 2026-08-26 | 效果 UAT 收口 | 固化 candidate-05 的 append-only 证据、Q1/Q2 通过、Q3/Q4 未通过及 `partially_effective` 结论 |
+| v1.6 | 2026-08-28 | Summary 版本与状态纠偏 | 明确 Summary V3 是当前生产任务、V1/V2 仅为历史兼容，并修复实现清单和当前风险结论漂移 |
 
 ## 3. 目标与范围
 
@@ -39,7 +40,7 @@
 - ranked candidate 完整性复核和确定性证据选择；
 - Evidence Bundle、coverage、source 和 question trace；
 - 全局规则∩逻辑域默认策略∩文档级收紧策略；
-- Knowledge summary v1 兼容与 v2 生产任务；
+- Knowledge summary v1/v2 历史兼容与 v3 当前生产任务；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
 - representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
 
@@ -103,7 +104,7 @@
 
 Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常并映射为 `summary_failure`，不得让 Provider 异常细节越过 Stage 或退化为 Core 内部异常。
 
-本版目标是任何启用 Knowledge 的新生产组合根只注册 `KnowledgeSummaryTaskV3`；v1/v2 和历史 evidence 保持字节级兼容。当前 P5 candidate-04 是有效 run，安全 Gate 通过，但 Q1/Q3/Q4 未达标，结论为 `ineffective`。不建议为改善结论修改现有 evidence、gold、阈值、retrieval 权重或 validator；后续改进必须新版本、新 run。
+任何启用 Knowledge 的当前生产组合根只注册 `KnowledgeSummaryTaskV3`；v1/v2 和历史 evidence 保持字节级兼容。candidate-04 是历史有效 run 且结论为 `ineffective`；candidate-05 是最新有效 run，安全 Gate 通过、Q1/Q2 通过、Q3/Q4 未通过，结论为 `partially_effective`。不得为改善结论修改既有 evidence、gold、阈值或 validator；后续改进必须由 candidate-05 根因证据支持，并建立新版本、新 run。
 
 ## 7. 证据构建与选择
 
@@ -230,7 +231,7 @@ question denied flag / fresh Guard
 
 - `KnowledgeEvidenceLimits.v1()` 代码绑定证据数、quote、payload 和结果上限；配置不能放宽。
 - 策略目录 artifact 随代码发布，启动严格加载；内容变化必须新 version/export/source revision 并重跑快照/出域测试。
-- summary task version 的当前实现为 `2`、本版目标为 `3`；回滚通过禁用 Knowledge 或显式恢复已验证任务绑定完成，不改写 v1/v2/v3 源码和历史 evidence。
+- summary task version 的当前生产实现为 `3`；v1/v2 仅保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用 Knowledge；若显式恢复已验证旧任务绑定，必须形成新配置快照，不改写 v1/v2/v3 源码和历史 evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
 
 ## 13. P5 效果验证设计与当前结论
@@ -308,7 +309,7 @@ candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa`、man
 | `IMPL-KEV-002` | `agent-runtime/src/agent_runtime/knowledge/evidence/contracts.py`：Evidence/Bundle/limits/types |
 | `IMPL-KEV-003` | `agent-runtime/src/agent_runtime/knowledge/evidence/catalog.py`：strict catalog、fingerprint |
 | `IMPL-KEV-004` | `agent-runtime/src/agent_runtime/knowledge/evidence/policy.py`：`KnowledgeEvidenceEgressDecider.decide` |
-| `IMPL-KEV-005` | 现有 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v2.py`；建议新增同目录 `summary_task_v3.py` 和 `KnowledgeSummaryTaskV3.definition`，历史 v2 不改 |
+| `IMPL-KEV-005` | `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v3.py` 与 `KnowledgeSummaryTaskV3.definition` 已实施并由生产组合根唯一绑定；`summary_task.py`、`summary_task_v2.py` 保留历史兼容且不修改 |
 | `IMPL-KEV-006` | `agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py`、`agent-runtime/src/agent_runtime/knowledge/evidence/stage.py` |
 | `IMPL-KEV-007` | `agent-runtime/tests/evaluation/knowledge/contracts.py`、`executor.py`、`live_executor.py` |
 | `IMPL-KEV-008` | `agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl`、`live_contracts.py`、result schemas |
@@ -368,7 +369,7 @@ class DefaultKnowledgeEvidenceStage:
 | `VAL-KEV-001` | Evidence integrity/selection 定向测试通过 |
 | `VAL-KEV-002` | 三层策略目录、出域零调用和 snapshot tests 通过 |
 | `VAL-KEV-003` | summary v3、validator、Stage、历史 v1/v2 hash 和非 live 回归通过 |
-| `VAL-KEV-004` | representative v2、52 对/58 paid/安全/人工 rubric/严格 Schema 与当前 `ineffective` 结果持续通过历史校验 |
+| `VAL-KEV-004` | representative v2、candidate-04 的 52 对/58 paid/安全/人工 rubric/严格 Schema 与历史 `ineffective` 结果持续通过不可变校验 |
 | `VAL-KEV-005` | 功能 UAT 与效果结论分离、诊断可复现、candidate-05 唯一执行有效且结论为 `partially_effective` |
 
 ## 16. 风险与保护条件
@@ -380,13 +381,13 @@ class DefaultKnowledgeEvidenceStage:
 | 重复引用 | 多点复用同一 ref | v2/v3 Prompt + validator 不放宽 | 否 |
 | 策略/快照漂移 | 新文档或 index snapshot | fingerprint/full membership；新切片重验 | 否；真实外发需重新授权 |
 | 效果结论失真 | 删除失败、改 gold/阈值 | 冻结数据/Schema/append-only result | 否 |
-| 当前效果不足 | Q1/Q3/Q4 未达标 | 保留 `ineffective`，后续版本化改进 | 不阻塞学习基线，但阻塞“效果达标”声明 |
+| 当前效果不足 | candidate-05 的 Q3/Q4 未达标 | 保留 `partially_effective`，后续只允许基于新版本和新候选改进 | 不阻塞学习基线，但阻塞“效果达标”声明 |
 
 ## 17. 实施依据
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.5 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
+| 是否可作为实现依据 | 是，当前 v1.6 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
 | 当前允许实施范围 | 当前证据链、三层策略、summary v3、extractive validator、功能 UAT、candidate-04 只读诊断与 candidate-05 append-only 效果证据维护 |
 | 当前禁止动作 | 改写历史数据/evidence/结论、放宽 validator、未经新授权真实调用、宣称效果达标 |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -395,8 +396,8 @@ class DefaultKnowledgeEvidenceStage:
 
 | 轮次 | 检查重点 | 结论 |
 |---|---|---|
-| 内审 1 | 证据、三层策略、summary v2 契约和追踪一致 | Passed |
-| 内审 2 | 安全、错误分类、P5 有效性和 `ineffective` 结论一致 | Passed |
+| 内审 1 | 证据、三层策略、summary v2 历史兼容契约和追踪一致 | Passed |
+| 内审 2 | 安全、错误分类、P5 有效性和 candidate-04 历史 `ineffective` 结论一致 | Passed |
 | 内审 3 | 真实落点、测试、当前证据引用和历史隔离检查通过 | Passed |
 | 独立评审 | 未发现 S0/S1/S2；证据、三层出域、Summary v2、P5 方法与冻结结论一致 | Passed |
 | v1.2 聚焦评审 | 功能/效果分离、历史不可变、诊断证据、优化边界和 GATE-072 授权无环；无 S0/S1/未处理 S2 | Passed |
@@ -404,7 +405,8 @@ class DefaultKnowledgeEvidenceStage:
 | v1.3 内审 2 | v3 与 v2 parser/validator/公共契约兼容、域选择职责 | Passed |
 | v1.3 内审 3 | candidate-05 依赖、GATE-072 无环和个人项目最小治理 | Passed |
 | v1.3 独立评审 | 无 S0/S1/未处理 S2；只批准域目录 v2 和 Summary v3 | Passed |
+| v1.6 三轮内审与独立复评 | V3 当前生产、V1/V2 历史兼容、candidate-04/05 结论及后续新候选门禁一致；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.5。
+- 当前版本：v1.6。
 - 文档状态：Approved。
 - candidate-04 历史结论为 `ineffective`；candidate-05 当前结论为 `partially_effective`，两者均不得重写或改判。

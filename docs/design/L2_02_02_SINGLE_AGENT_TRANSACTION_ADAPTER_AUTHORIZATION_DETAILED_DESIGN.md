@@ -6,13 +6,13 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.4 |
-| 更新时间 | 2026-08-26 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
+| 当前版本 | v2.5 |
+| 更新时间 | 2026-08-28 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
 | 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4 |
 | 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅同步上位 Business 架构版本，Transaction 字段/operator/Decimal 合同不变。
 
 ## 2. 设计目标、范围外与当前实现基线
 

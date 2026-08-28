@@ -10,10 +10,10 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.4 |
-| 日期 | 2026-08-26 |
+| 当前版本 | v1.5 |
+| 日期 | 2026-08-28 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v2.1](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 上位文档 | [`L0_00` v2.2](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
@@ -42,7 +42,7 @@
 - 领域结果、证据上下文和模型安全载荷是三个不同视图。
 - Knowledge 出域采用全局 ∩ 逻辑域默认 ∩ 文档级收紧策略，缺失、未知或冲突失败关闭。
 - 整域授权拒绝和读取权威失败优先于其他域成功；仅技术性单路失败允许在证据充分时受控继续。
-- P5 结论可以是 `effective` 或 `ineffective`；当前有效结论为 `ineffective`。
+- P5 结论可以是 `effective`、`partially_effective`、`ineffective` 或 `invalid_run`；candidate-04 的历史结论为 `ineffective`，candidate-05 是当前最新有效运行且结论为 `partially_effective`，两者均不等于整体效果达标。
 
 ### 3.2 简化内容
 
@@ -57,6 +57,7 @@
 | v1.2 | 2026-08-26 | candidate-04 效果诊断 | 依据 Q1/Q3/Q4 证据收紧域选择并新增 Summary v3；保持检索参数、validator、数据集和历史结论不变 |
 | v1.3 | 2026-08-26 | 优化和非 live 收口 | 同步域目录 v2、Summary v3、candidate-05 冻结及正式代码评审 |
 | v1.4 | 2026-08-26 | 效果 UAT 收口 | 同步 candidate-05 有效运行、Q1/Q2 通过、Q3/Q4 未通过和 `partially_effective` 结论 |
+| v1.5 | 2026-08-28 | 当前/历史效果结论纠偏 | 明确 candidate-04 `ineffective` 仅为历史结论，candidate-05 `partially_effective` 是最新有效结论且不代表整体达标 |
 
 ## 4. 目标、范围与上位约束
 
@@ -439,3 +440,4 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | 5 | 独立聚焦评审与复评 | 首轮发现 production-stub 歧义和同步工厂半成品清理过度要求两项 S2；最小修复后复评默认关闭、共享 Core、生命周期、UAT 与门禁无环，无 S0/S1/未处理 S2 | Passed |
 | 6 | v1.2 三轮内审 | candidate-04 诊断、域目录 v2、Summary v3 及历史/权限边界一致 | Passed |
 | 7 | v1.2 独立评审 | 无 S0/S1/未处理 S2；未扩大检索、validator、数据或公共契约 | Passed |
+| 8 | v1.5 三轮内审与独立复评 | 修复当前/历史效果结论、下位版本和跨层来源两项 S2；复评无 S0/S1/未处理 S2 | Passed |

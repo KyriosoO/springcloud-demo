@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.14 |
+| 当前版本 | v1.15 |
 | 文档状态 | Reviewed |
-| 更新日期 | 2026-08-26 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.4 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4；Employee L2 v2.4；Transaction L2 v2.4 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.16 |
+| 更新日期 | 2026-08-28 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5；Employee L2 v2.5；Transaction L2 v2.5 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.21 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.15 对齐当前 P3/L1/L2，并把本轮实际测试计数与尚待关闭的 Python 安装环境问题分开记录；35/35 业务 UAT 证据不改写。
 
 ## 2. 验收目标与范围外
 
@@ -151,4 +151,6 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；首次和第二次 UAT 不可变失败 SHA-256 分别为 `cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`、`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`。v4 run03 正式成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`，只证明其中列出的 18 个真实场景，不外推为 35 次真实执行。
 
-剩余 17 个用例按风险分别由当前 Spring→Runtime、Spring/Servlet/Reactive 安全链、Python 生产组合根 fake E2E 和 Java/Python 跨语言契约关闭；追踪资产验证每个引用路径与测试符号真实存在，并强制真实证据集合仍为 18。该分层与个人学习项目的风险相称：不重复付费验证确定性 codec/权限/严格 JSON，同时不降低 QueryPlan 真实模型及真实业务调用证据。最终全量 Python non-live 回归为 `1389 passed / 27 opt-in skipped`，agent-service 当前 Spring→Runtime 与严格 JSON 套件包含在 `34 tests / 1 opt-in skipped / 0 failures` 中；Employee/Transaction Java 安全和合同回归分别为 `50 tests / 20 opt-in skipped / 0 failures`、`51 tests / 2 skipped / 0 failures`。四个阶段均标记 Passed，`GATE-UAT-007` 基于 35/35 追踪矩阵有效关闭。
+剩余 17 个用例按风险分别由当前 Spring→Runtime、Spring/Servlet/Reactive 安全链、Python 生产组合根 fake E2E 和 Java/Python 跨语言契约关闭；追踪资产验证每个引用路径与测试符号真实存在，并强制真实证据集合仍为 18。该分层与个人学习项目的风险相称：不重复付费验证确定性 codec/权限/严格 JSON，同时不降低 QueryPlan 真实模型及真实业务调用证据。
+
+2026-08-28 本轮实际基线：普通源码树 Python 全量 non-live 为 `1414 passed / 27 opt-in skipped / 2 failed`，两个失败均来自 Transaction 冻结 host 在 `python -I` 下无法导入未安装的当前源码，而非 UAT 行为断言失败；版本化隔离安装入口及本轮全量通过证据由 P3 `WP-PY-REGRESSION-REPRO-06/GATE-074` 负责，关闭前不得把该普通命令表述为稳定全量通过。agent-service 为 `35 tests / 1 opt-in skipped / 0 failures`；Employee 为 `50 tests / 20 opt-in skipped / 0 failures`；Transaction 为 `51 tests / 6 opt-in/环境 skipped / 0 failures`。Knowledge 测试计数归 `UAT_01`，不计入本计划的 35 个用例。四个 Business 阶段及 `GATE-UAT-007` 仍由既有 35/35 追踪和不可变证据支持，但最终仓库级收口还需 `GATE-074`。

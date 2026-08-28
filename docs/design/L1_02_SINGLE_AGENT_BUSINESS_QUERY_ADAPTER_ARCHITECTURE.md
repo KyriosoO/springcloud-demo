@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.4 |
-| 更新日期 | 2026-08-26 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.1 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.2 |
+| 当前版本 | v2.5 |
+| 更新日期 | 2026-08-28 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.2 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.7 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
 | 当前实现 | filters/config、三个列表动作、生产组合根、最终授权、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 均已实施；18 个真实场景与 17 个确定性风险等价自动化均已闭合 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 仅原子同步上位及关联架构版本，Business 三动作设计和既有验收结论不变。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -81,9 +81,9 @@ Employee Adapter 对原始 ES JSON 执行 content-type、最大字节数、JSON 
 
 | 决策 | 内容 | 下位设计 |
 |---|---|---|
-| `BQ-AD-001` | filters/operator/tagged value、按 operator 的代码绑定文本策略与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.4 |
-| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing、端点级统一角色转换与业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.4 |
-| `BQ-AD-003` | Transaction Date/Decimal、按 operator 区分文本安全策略、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.4 |
+| `BQ-AD-001` | filters/operator/tagged value、按 operator 的代码绑定文本策略与统一收紧型字段配置 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.5 |
+| `BQ-AD-002` | Employee search/semantic 两动作、ES hits parsing、端点级统一角色转换与业务最终授权 | [`L2_02_01`](L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.5 |
+| `BQ-AD-003` | Transaction Date/Decimal、按 operator 区分文本安全策略、分页、排序和 Java DTO 固定映射 | [`L2_02_02`](L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) v2.5 |
 
 关联 L1 协作：Runtime L1 拥有组合根和 Core 单动作；Model L2 拥有安全 catalog/Prompt 与 provider framing decoder；Business L2 不改变公共 Core/HTTP/业务 DTO。
 
