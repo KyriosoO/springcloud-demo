@@ -17,12 +17,18 @@ from tests.uat.employee_nl.contracts import (
     validate_manifest,
     validate_result,
 )
-from tests.uat.employee_nl.runner import CountingPlanGenerator, UatMetrics, _ACTIVE_CASE
+from tests.uat.employee_nl.runner import (
+    CountingPlanGenerator,
+    UatMetrics,
+    _ACTIVE_CASE,
+    _limited_failure_code,
+    _protected_reference_diagnostic,
+)
 
 
 _ROOT = Path(__file__).resolve().parents[4]
 _MANIFEST = Path(__file__).with_name("evidence") / (
-    "employee-natural-language-v1-20260828-candidate-02.manifest.json"
+    "employee-natural-language-v1-20260828-candidate-03.manifest.json"
 )
 
 
@@ -59,11 +65,15 @@ def test_manifest_freezes_cases_budgets_and_all_asset_hashes() -> None:
         json.loads(_MANIFEST.read_text(encoding="utf-8")),
         repository=_ROOT,
     )
-    assert len(cast(list[object], manifest["assets"])) == 29
+    assert len(cast(list[object], manifest["assets"])) == 45
     assert len(cast(list[object], manifest["cases"])) == CASE_COUNT
     assert sum(case.expected_model_calls for case in cases()) <= MODEL_CALL_BUDGET
     assert sum(case.expected_employee_calls for case in cases()) <= EMPLOYEE_SEARCH_BUDGET
-    assert sha256_file(_MANIFEST) == sha256_file(_MANIFEST)
+    assert manifest["sourceHead"] == "af7ccbacb713402caa57a1b8245b3029e7b557eb"
+    assert cast(dict[str, object], manifest["task"])["version"] == (
+        "business-query-plan-v6"
+    )
+    assert len(sha256_file(_MANIFEST)) == 64
 
 
 @pytest.mark.asyncio
@@ -116,7 +126,7 @@ def test_result_schema_rejects_nonzero_forbidden_endpoints() -> None:
     result: dict[str, object] = {
         "schemaVersion": 1,
         "status": "failed_unconsumed",
-        "runId": "employee-natural-language-v1-20260828-candidate-02",
+        "runId": "employee-natural-language-v1-20260828-candidate-03",
         "authorizationReference": "P3_00:GATE-082",
         "frozenHead": "0" * 40,
         "manifestSha256": "1" * 64,
@@ -146,3 +156,69 @@ def test_result_schema_rejects_nonzero_forbidden_endpoints() -> None:
     }
     with pytest.raises(ValueError, match="result_counts_invalid"):
         validate_result(result)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    (
+        ({"value_refs": ("slot-1", "slot-2")}, ("valid", 2)),
+        (
+            {
+                "value_refs": (
+                    "protected-ref(slot-1)",
+                    "protected-ref(slot-2)",
+                )
+            },
+            ("wrapper", 2),
+        ),
+        ({"value_refs": ("slot-1", "slot-1")}, ("duplicate", 2)),
+        ({"value_refs": ("slot-1", "slot-3")}, ("unknown", 2)),
+        ({"value_refs": ("slot-1",)}, ("missing", 1)),
+    ),
+)
+def test_reference_diagnostic_records_only_finite_status_and_count(
+    value: dict[str, object], expected: tuple[str, int]
+) -> None:
+    response = {
+        "domain": "employee",
+        "action": "employee.search",
+        "arguments": {
+            "filters": (
+                {
+                    "field": "chinese_name",
+                    "operator": "prefix_any",
+                    "value": value,
+                },
+            ),
+            "page": 1,
+            "size": 20,
+            "sorts": (),
+        },
+    }
+    assert _protected_reference_diagnostic(
+        response,
+        "查询姓protected-ref(slot-1)或姓protected-ref(slot-2)的员工",
+    ) == expected
+
+
+def test_reference_diagnostic_distinguishes_no_reference_from_missing_reference() -> None:
+    unsupported = {
+        "domain": "unsupported",
+        "action": "unsupported",
+        "arguments": {},
+    }
+    assert _protected_reference_diagnostic(unsupported, "查询未配置字段") == (
+        "not_applicable",
+        0,
+    )
+    assert _protected_reference_diagnostic(
+        unsupported, "查询姓protected-ref(slot-1)的员工"
+    ) == ("missing", 0)
+
+
+def test_failure_diagnostic_maps_unknown_codes_to_one_finite_enum() -> None:
+    assert _limited_failure_code("core.invalid_argument") == "core.invalid_argument"
+    assert _limited_failure_code("provider.secret.detail") == (
+        "employee_nl_uat.other_failure"
+    )
+    assert _limited_failure_code(None) is None
