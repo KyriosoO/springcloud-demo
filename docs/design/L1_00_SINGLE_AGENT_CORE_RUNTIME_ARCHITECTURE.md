@@ -7,7 +7,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.3 |
+| 当前版本 | v3.4 |
 | 更新日期 | 2026-08-28 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
 | 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.9；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
@@ -15,7 +15,7 @@
 | 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过；最新有效 Knowledge 效果等级为 `partially_effective` |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.3 保持 Business 候选准入职责不变，并同步当前 Employee 多值受保护引用由模型输出裸 slot ID、由本地严格绑定的边界。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.4 保持 Business 候选准入职责不变，并明确模型不得把用户显式提出但 catalog 未开放的属性替换、丢弃或近似为已开放字段；此类请求必须在业务调用前失败关闭。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -80,7 +80,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 |---|---|
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.2 | Spring 接入、Runtime 协同及当前生产启动入口状态 |
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.2 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.6 | 模型安全 catalog、v6 裸 slot 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.7 | 模型安全 catalog、v7 显式字段完整性与裸 slot 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
 | [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.2 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8 | QueryPlan、多值引用、字段组合、行政区规范化、validator、binder 与出域策略 |
 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.10 | Knowledge 开关、单注册、域目录 v2、Summary V4 绑定、阶段与组合根接线 |
@@ -91,6 +91,6 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 应验证 Business 三动作不回退、Knowledge disabled 完全惰性、enabled 唯一注册、一次规划/一次 handler、并发请求隔离、取消/关闭、strict decoder、config snapshot、不支持条件零调用和 Business/Knowledge 互不 fallback。无须独立工作流引擎、复杂 circuit breaker、动态 registry、第二套 Runtime 或生产级治理平台。
 
-旧模型任务和旧 production bridge 只证明各自历史合同，不能替代当前 v4 验收。v4 Prompt 已通过正式真实规划与等价自动化风险验证，语义+filter、相对日期均 exact unsupported/零业务调用；具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。当前实现未增加本地语义 Resolver、重复付费调用或 live 审计平台。
+旧模型任务和旧 production bridge 只证明各自历史合同，不能替代当前版本验收。v7 在 v6 裸 slot 合同之上要求显式字段不可被替换或丢弃；catalog 未开放的显式字段必须 exact unsupported，仍由模型理解语义、本地严格校验，且业务调用为 0。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。当前实现未增加字段专用黑名单、本地语义 Resolver、重复付费调用或 live 审计平台。
 
 Knowledge 历史效果运行只作为效果诊断基线，不证明当前生产入口已接线或效果达标。生产对象图和功能 UAT 分别关闭接线、安全及失败语义；效果运行必须由 P3/UAT_01 的独立精确授权控制。

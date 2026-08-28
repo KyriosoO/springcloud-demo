@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "suiteId": "single-agent-business-query-uat-v2",
-  "authority": "UAT_00 v1.22",
+  "authority": "UAT_00 v1.23",
   "historicalRealEvidence": {
     "path": "agent-runtime/tests/system_e2e/live/results/business-list-v2-uat-run03.result.json",
     "sha256": "b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8",

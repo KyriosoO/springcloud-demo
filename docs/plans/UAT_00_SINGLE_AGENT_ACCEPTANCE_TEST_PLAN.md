@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.22 |
+| 当前版本 | v1.23 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-28 |
 | 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.2；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8；Employee L2 v2.8；Transaction L2 v2.6 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.31 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.32 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.22 保留原35项已通过结论，如实记录扩展 candidate-01 harness 失败及 candidate-02 多值计划严格拒绝，并以 v6 裸 slot 合同准备独立后续候选；失败候选均不可重跑。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.23 保留原35项已通过结论，如实记录 candidate-01～03 的不可变失败；candidate-03 前13项通过后暴露显式未开放字段被近似替换，v7 只强化通用字段完整性，最后候选受剩余总预算约束且不得重跑历史候选。
 
 ## 2. 验收目标与范围外
 
@@ -179,4 +179,4 @@ v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f
 
 每个 case 只记录 case ID、计划结构摘要、逻辑 operator、模型/Employee整数调用、有限结果状态、安全扫描布尔值和 Passed/Failed；不保存原问题、姓名/姓氏真值、员工标识、JWT、原始模型/业务响应或未脱敏地址。无真实命中时，正确计划、一次 search 和 `no_result` 可证明链路，但完整 UAT 必须至少包含一个已确认存在数据的地区列表成功场景。任一失败均不补跑单 case；先按实现、测试、环境、数据或设计分类，并保持该扩展组未完成。
 
-执行历史：candidate-01 在首个 provider 成功响应后因 harness 使用标准 `json.dumps` 处理冻结 `JsonObject` 而 `failed_consumed`（模型1、Employee0）；candidate-02 修复该问题后，301/302通过，303生成正确 `prefix_any/value_refs` 结构但被 strict planning 合同拒绝，终态 `failed_consumed`（模型3、Employee2）。两者均无 retry/resume、其他 endpoint、敏感值或日志泄漏，证据 append-only。v6 只澄清 bare slot 合同，不放宽 decoder/validator/binder。
+执行历史：candidate-01 在首个 provider 成功响应后因 harness 使用标准 `json.dumps` 处理冻结 `JsonObject` 而 `failed_consumed`（模型1、Employee0）；candidate-02 修复后301/302通过，303生成正确 `prefix_any/value_refs` 但用 wrapper slot 而被 strict planning 合同拒绝，终态 `failed_consumed`（模型3、Employee2）；candidate-03 的301～313全部通过，314却把显式未配置 `workBaseSi` 替换成 `contact_address contains` 并产生一次不应发生的 search，随即 `failed_consumed`（模型14、Employee14）。三次累计模型18、Employee16，retry/resume、其他 endpoint、敏感值和日志泄漏均为0。v7只增加通用显式字段完整性规则，不增加workBase专用逻辑或放宽decoder/validator/binder；最后候选选择13项代表性集合，结合candidate-03不可变301～313覆盖全部15类目标，预算至多模型12、Employee14。

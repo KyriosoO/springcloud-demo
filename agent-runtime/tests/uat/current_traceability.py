@@ -37,7 +37,7 @@ def validate_current_uat_traceability(value: object) -> None:
     if (
         value["schemaVersion"] != 2
         or value["suiteId"] != "single-agent-business-query-uat-v2"
-        or value["authority"] != "UAT_00 v1.22"
+        or value["authority"] != "UAT_00 v1.23"
     ):
         raise ValueError("uat_traceability.identity_invalid")
 

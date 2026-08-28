@@ -74,7 +74,7 @@ from agent_runtime.model.contracts import (
     StructuredModelTransport,
 )
 from agent_runtime.model.deepseek.business_query_plan import DeepSeekBusinessQueryPlanGenerator
-from agent_runtime.model.deepseek.business_query_plan_v6 import build_business_query_plan_task_definition
+from agent_runtime.model.deepseek.business_query_plan_v7 import build_business_query_plan_task_definition
 from agent_runtime.model.deepseek.action_selector import (
     DeepSeekCapabilitySelector,
     build_action_selection_task_definition,

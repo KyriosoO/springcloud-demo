@@ -277,6 +277,20 @@ def _limited_failure_code(code: str | None) -> str | None:
     return code if code in allowed else "employee_nl_uat.other_failure"
 
 
+def _plan_shape_matches(
+    case: EmployeeNaturalLanguageCase,
+    plan: tuple[str, tuple[str, ...], tuple[str, ...], tuple[str, ...]],
+) -> bool:
+    if case.expected_action is None:
+        return True
+    return plan == (
+        case.expected_action,
+        case.expected_fields,
+        case.expected_operators,
+        case.expected_value_shapes,
+    )
+
+
 def _execution_scope(case: EmployeeNaturalLanguageCase, *, jwt: str) -> RequestExecutionScope:
     original = scope(
         case.question,
@@ -443,14 +457,13 @@ async def execute(
                     else "not_applicable"
                 )
             )
+            plan_shape_matches = _plan_shape_matches(case, plan)
             passed = (
                 outcome.status in case.expected_statuses
                 and outcome.capability_id == case.expected_action
                 and model_calls == case.expected_model_calls
                 and employee_calls == case.expected_employee_calls
-                and plan[1] == case.expected_fields
-                and plan[2] == case.expected_operators
-                and plan[3] == case.expected_value_shapes
+                and plan_shape_matches
                 and reference_diagnostic
                 == (
                     expected_reference_status,

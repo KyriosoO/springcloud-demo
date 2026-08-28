@@ -10,7 +10,7 @@
 | 当前版本 | v2.8 |
 | 更新日期 | 2026-08-28 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.3 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.4 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
 | 当前实现 | filters/config、三个列表动作、typed `value_refs`、多值 operator、有限同字段组合、行政区规范化、生产组合根和最终授权均已实施；既有35项 UAT 保持通过，Employee 自然语言扩展 UAT 正在收口 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
