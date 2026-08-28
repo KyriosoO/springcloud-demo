@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "status": "authorized_unconsumed",
+  "workPackageId": "WP-K-EFFECT-LIVE-07",
+  "runId": "knowledge-p5-live-v4-20260828-candidate-07",
+  "authorizationReference": "P3_00:GATE-079",
+  "singleUse": true,
+  "maximumPaidRequests": 78,
+  "retryAllowed": false,
+  "answerRequestsAllowed": false,
+  "liveP5Authorized": true,
+  "datasetSha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408",
+  "frozenHead": "e4ba0c6c5909bb04bbcd0206085e95952b2350a3",
+  "manifestSha256": "af545166b37a33899d6f1d7830c09472df8cc2fe45047fea242ecc524bfc2211"
+}
