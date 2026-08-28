@@ -1,0 +1,3 @@
+{"event":"run_started","frozenHead":"054292478bb1feb45c76993292ed6fe09ff7ba17","manifestSha256":"1beaea9c2ac864430e86db360df62a109a5e3be3bfcbc8f22d79852694b5cf71","runId":"employee-natural-language-v1-20260828-candidate-03","schemaVersion":1}
+{"caseId":"UAT-EMP-NL-301","event":"authorization_consumed","modelCalls":0,"runId":"employee-natural-language-v1-20260828-candidate-03","schemaVersion":1}
+{"employeeSearchCalls":14,"event":"run_terminal","modelCalls":14,"runId":"employee-natural-language-v1-20260828-candidate-03","schemaVersion":1,"status":"failed_consumed"}
