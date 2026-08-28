@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "state": "prepared_unconsumed",
+  "workPackage": "WP-EMP-NL-UAT-10",
+  "runId": "employee-natural-language-v1-20260828-candidate-01",
+  "authorizationReference": "P3_00:GATE-082",
+  "sourceHead": "53665fc50e3db0fa7e534c896f66946e5f384a33",
+  "model": {
+    "provider": "deepseek",
+    "name": "deepseek-v4-pro",
+    "requestMode": "json_object_no_tools"
+  },
+  "task": {
+    "id": "business_query_plan",
+    "version": "business-query-plan-v5",
+    "promptSha256": "0857b194a117fcf7b7f695182b3aba946465e1dc0e8de355d9b538b3b65e2efa"
+  },
+  "configuration": {
+    "contractVersion": 3,
+    "snapshotId": "4c2f3b6ea593869d4c0c6e7c59416cbbce134a5612eeea23075699bcd06a214d",
+    "fileSha256": "d0c0c0763bff06d9556dc4e0a53ae2ec187bb93a2451462b76ae0eee9a7ea8ce",
+    "employeeBaseUrl": "http://127.0.0.1:19210"
+  },
+  "cases": [
+    {"caseId":"UAT-EMP-NL-301","inputClass":"single_surname_prefix","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-302","inputClass":"compound_surname_prefix","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-303","inputClass":"multiple_surnames_prefix_any","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-304","inputClass":"multiple_full_names_in","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-305","inputClass":"surname_and_name_fragment","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-306","inputClass":"region_preposition","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-307","inputClass":"region_area_alias","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-308","inputClass":"province_suffix_alias","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-309","inputClass":"province_short_alias","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-310","inputClass":"multiple_regions_contains_any","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-311","inputClass":"implicit_employee_question","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-312","inputClass":"imperative_variant","principal":"admin","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-313","inputClass":"endpoint_authorization_denied","principal":"denied","expectedAction":"employee.search","expectedModelCalls":1,"expectedEmployeeSearchCalls":1},
+    {"caseId":"UAT-EMP-NL-314","inputClass":"unconfigured_workbase","principal":"admin","expectedAction":null,"expectedModelCalls":1,"expectedEmployeeSearchCalls":0},
+    {"caseId":"UAT-EMP-NL-315","inputClass":"protected_value_limit","principal":"admin","expectedAction":null,"expectedModelCalls":0,"expectedEmployeeSearchCalls":0}
+  ],
+  "budgets": {
+    "maximumModelCalls": 30,
+    "maximumEmployeeSearchCalls": 30,
+    "employeeSemantic": 0,
+    "transaction": 0,
+    "knowledge": 0,
+    "answer": 0,
+    "otherEmployeeEndpoints": 0,
+    "retry": 0,
+    "resume": 0
+  },
+  "assets": [
+    {"path":"agent-runtime/src/agent_runtime/bootstrap.py","sha256":"979ab07e6a452f68f4059845c7d2745307615ded3a2fa6f04d232f7b9f78301c"},
+    {"path":"agent-runtime/src/agent_runtime/business/business-query.v3.json","sha256":"d0c0c0763bff06d9556dc4e0a53ae2ec187bb93a2451462b76ae0eee9a7ea8ce"},
+    {"path":"agent-runtime/src/agent_runtime/business/contracts.py","sha256":"b43c41219e7aea0305740ee596b18597918d1ad401fd8422868bc5f9f40c30b0"},
+    {"path":"agent-runtime/src/agent_runtime/business/planner_catalog.py","sha256":"d00b87672cdd0d1bbea3cc6581992a0c4427cd8187487b9ea382ad6c433d4d86"},
+    {"path":"agent-runtime/src/agent_runtime/business/query_plan.py","sha256":"29d7c463b8c94e879cc9b2d282eb6630a5b073bc7bf246deb60d0c915991cf34"},
+    {"path":"agent-runtime/src/agent_runtime/business/region_normalization.py","sha256":"50b1929039c357e838a91177f7814b84563f728b46a54f2a44229cb5e47447e7"},
+    {"path":"agent-runtime/src/agent_runtime/business/settings.py","sha256":"cc28f6f22e25591a73488e4037adf6b77be47b61f01bdd15622a5f760096c039"},
+    {"path":"agent-runtime/src/agent_runtime/model/contracts.py","sha256":"dfb197b8b8fd881f49a7c8815daa676a3f5c43fe703f44d07f5886438e3ea1f8"},
+    {"path":"agent-runtime/src/agent_runtime/model/deepseek/business_query_plan_v5.py","sha256":"370668b9c89a6ce4ecc77e9628c9604f6008835fb5856218615c428246363174"},
+    {"path":"agent-runtime/src/agent_runtime/model/input_guard.py","sha256":"3dd21dc6a3f9eb537f73d6e6159ea03984f8ab86e2592da09d2124bb0a3f21be"},
+    {"path":"agent-runtime/src/agent_runtime/adapters/employee/codec.py","sha256":"115e18569ca4a5345c9f6b39716751fdf1cfc904fe4ac9f36688e34f68dac8ce"},
+    {"path":"agent-runtime/src/agent_runtime/adapters/employee/definition.py","sha256":"09988d7636672b8b36ad186f4e4c2458f8f8470f99f54987d4ed37e984e89c5c"},
+    {"path":"agent-runtime/src/agent_runtime/adapters/employee/protected_input.py","sha256":"a374a465f800e011833f92b6d647cccf6f01ec9e2c7fe90604a26c10370f7fd9"},
+    {"path":"agent-runtime/src/agent_runtime/adapters/employee/provider.py","sha256":"3973d26ca560f13697618854bc41c5ae9abd4e0dcb3b9bcc07328c692e1059dc"},
+    {"path":"agent-runtime/tests/uat/employee_nl/contracts.py","sha256":"21f8bb287911eeab4777275d260fe7e214bce653f9a15eae7327680ffab85675"},
+    {"path":"agent-runtime/tests/uat/employee_nl/runner.py","sha256":"f4d5a6c6db7c0ff60740f8ed181295f84c1dae2ece59b964cd5fd809e33205d0"},
+    {"path":"agent-runtime/tests/uat/employee_nl/test_preparation.py","sha256":"d38f03f562ffd947289556b16a62f9c5130d27c959557dd0dee1d65166c75b4f"},
+    {"path":"agent-runtime/tests/system_e2e/test_employee_natural_language_query_nonlive.py","sha256":"0a1465103f5b0f2f48b40d77d62c6a58e88fef80b202eb73ff2614865917b0fe"},
+    {"path":"agent-runtime/scripts/run-employee-natural-language-uat-candidate-01.ps1","sha256":"46055f215df604eb7457105cf2a87d7eb0a36c3fe0d4b7ce041d5d0a231d2be4"}
+  ],
+  "constraints": {
+    "firstModelOutboundConsumes": true,
+    "noRetry": true,
+    "noResume": true,
+    "singleAction": true,
+    "noFallback": true,
+    "noAnswer": true,
+    "noKnowledge": true,
+    "noSemantic": true,
+    "noTransaction": true,
+    "noRawPersistence": true,
+    "historicalAssetsImmutable": true
+  }
+}
