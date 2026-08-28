@@ -7,14 +7,14 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.2 |
+| 当前版本 | v2.3 |
 | 更新时间 | 2026-08-28 |
 | 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.0 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
 | 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配，Business UAT 35/35、Knowledge 功能 UAT 37/37 已闭合；candidate-05 效果结论为 `partially_effective`，不等于整体效果达标 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.2 原子同步 Knowledge 生产接线、功能 UAT 与 candidate-05 当前效果结论，不改变顶层职责或能力边界。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.2 原子同步 Knowledge 生产接线、功能 UAT 与 candidate-05 当前效果结论，不改变顶层职责或能力边界。v2.3 同步 Knowledge 评估口径纠偏和 Summary V4 目标版本；安全、权限、服务边界与效果阈值不变。
 
 ## 2. 架构目标、非目标与架构原则
 
@@ -68,8 +68,8 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.7 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
-| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.5 | Knowledge 问题改写、检索、证据和摘要 | 功能 UAT 37/37；candidate-04 `ineffective`、candidate-05 `partially_effective` 分离记录 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v2.8 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
+| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.6 | Knowledge 问题改写、检索、证据、摘要和效果口径 | 功能 UAT 37/37；candidate-05 诊断批准 Summary V4 与效果口径 v2，尚未宣称效果达标 |
 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.5 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作、真实 controlled、Transaction 文本策略与正式 UAT 均已通过 |
 
 ## 8. 质量属性、风险与当前结论

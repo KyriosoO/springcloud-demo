@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "diagnosisId": "knowledge-p5-candidate-05-readonly-diagnosis-v1",
+  "source": {
+    "runId": "knowledge-p5-live-v2-20260826-candidate-05",
+    "resultPath": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/result.json",
+    "resultSha256": "a6de81fe960c80aecae6d198d1de8b99eb13b14d69128541418dab2849af36eb",
+    "manifestPath": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v2-20260826-candidate-05.manifest.json",
+    "manifestSha256": "41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c",
+    "authorizationPath": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v2-20260826-candidate-05.authorization.json",
+    "authorizationSha256": "186815c07475ab35489f40e32ac4c9714574354bb2c7bda8a4f080065b91c1d5"
+  },
+  "historicalConclusion": "partially_effective",
+  "metrics": {
+    "domainExactMatchRate": 0.8636363636363636,
+    "fusionRecallAt10": 0.9285714285714286,
+    "fusionMrrAt10": 0.7285714285714285,
+    "rerankRecallAt10": 0.9642857142857143,
+    "rerankMrrAt10": 0.8714285714285713,
+    "requiredEvidenceCoverage": 0.7023809523809524,
+    "summaryValidCompletionRate": 0.8461538461538461,
+    "citationValidityRate": 1.0,
+    "faithfulnessRate": 0.9285714285714286,
+    "usefulnessRate": 0.7142857142857143,
+    "q1": true,
+    "q2": true,
+    "q3": false,
+    "q4": false
+  },
+  "distributions": {
+    "caseCount": 26,
+    "answerableCount": 14,
+    "securityNegativeCount": 4,
+    "terminalStatus": {"success": 17, "no_result": 5, "model_egress_denied": 4},
+    "summaryStatus": {"answer": 17, "insufficient_evidence": 5, "not_called": 4},
+    "judgmentReason": {"gold_issue": 13, "none": 10, "coverage": 3}
+  },
+  "denominatorAnalysis": {
+    "historicalSummary": {"valid": 22, "eligible": 26, "rate": 0.8461538461538461},
+    "safetyCompatibleSummary": {"valid": 22, "eligible": 22, "rate": 1.0},
+    "historicalFaithfulness": {"passed": 13, "eligible": 14, "rate": 0.9285714285714286},
+    "qualityEligibleFaithfulness": {"passed": 13, "eligible": 13, "rate": 1.0},
+    "historicalUsefulness": {"passed": 10, "eligible": 14, "rate": 0.7142857142857143},
+    "qualityEligibleUsefulness": {"passed": 10, "eligible": 13, "rate": 0.7692307692307693},
+    "answerableGoldIssueCount": 1,
+    "answerableGoldIssueCaseIds": ["draft-tax-law-vehicle-purchase-article-4"]
+  },
+  "coverageCases": [
+    {
+      "caseId": "draft-mixed-eit-article-28-policy",
+      "fusionRecallAt10": 0.5,
+      "rerankRecallAt10": 0.5,
+      "requiredEvidenceCoverage": 0.0,
+      "adoptedEvidenceCount": 1,
+      "requiredEvidenceCount": 2
+    },
+    {
+      "caseId": "draft-mixed-collection-article-32-policy",
+      "fusionRecallAt10": 1.0,
+      "rerankRecallAt10": 1.0,
+      "requiredEvidenceCoverage": 0.5,
+      "adoptedEvidenceCount": 1,
+      "requiredEvidenceCount": 2
+    },
+    {
+      "caseId": "draft-mixed-vat-law-2026-policy",
+      "fusionRecallAt10": 1.0,
+      "rerankRecallAt10": 1.0,
+      "requiredEvidenceCoverage": 0.3333333333333333,
+      "adoptedEvidenceCount": 1,
+      "requiredEvidenceCount": 3
+    }
+  ],
+  "mixedCoverageControl": {
+    "caseId": "draft-mixed-iit-article-6-deduction",
+    "fusionRecallAt10": 1.0,
+    "rerankRecallAt10": 1.0,
+    "requiredEvidenceCoverage": 1.0,
+    "adoptedEvidenceCount": 2,
+    "requiredEvidenceCount": 2,
+    "useful": true
+  },
+  "rootCauses": [
+    {
+      "id": "security_negative_summary_denominator_conflict",
+      "evidenceStrength": "strong",
+      "minimalFixLocation": "evaluation metric semantics",
+      "evidence": "four security-negative cases correctly stop before model summary, but historical summary completion counts all 26 cases, limiting the safety-compatible maximum to 22/26"
+    },
+    {
+      "id": "answerable_gold_issue_attribution_conflict",
+      "evidenceStrength": "strong",
+      "minimalFixLocation": "evaluation metric semantics and data-quality gate",
+      "evidence": "one answerable case with complete retrieval and evidence coverage was explicitly judged gold_issue but was still counted as a model faithfulness and usefulness failure"
+    },
+    {
+      "id": "mixed_domain_summary_coverage_gap",
+      "evidenceStrength": "strong",
+      "minimalFixLocation": "versioned summary task prompt",
+      "evidence": "two of three failing mixed-domain cases had complete rerank recall but adopted only one evidence item, while the mixed-domain control adopted both required evidence items"
+    },
+    {
+      "id": "mixed_domain_retrieval_gap",
+      "evidenceStrength": "medium",
+      "minimalFixLocation": "diagnose after summary-only non-live validation",
+      "evidence": "one mixed-domain case had only 0.5 fusion and rerank recall, so prompt changes alone may not make that case useful"
+    }
+  ],
+  "optimizationDecision": {
+    "reviseSummaryCompletionDenominator": true,
+    "excludeOnlySecurityNegativeFromSummaryDenominator": true,
+    "retainOrdinaryFailureCasesInSummaryDenominator": true,
+    "excludeExplicitAnswerableGoldIssueFromQualityDenominators": true,
+    "requireGoldIssueQualityGate": true,
+    "summaryTaskVersion": "4",
+    "changeRetrievalWeightsInitially": false,
+    "changeDatasetOrGold": false,
+    "changeValidator": false,
+    "changeAuthorizationOrEgressPolicy": false,
+    "reason": "correct an impossible metric denominator, separate an explicit data-quality defect from model quality, and strengthen multi-domain evidence coverage without weakening any safety or citation rule"
+  }
+}

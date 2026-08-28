@@ -5,14 +5,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.5 |
+| 当前版本 | v1.6 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.7、`L1_01` v1.5、`L2_01_00` v1.6、`L2_01_01` v1.5、`L2_01_02` v1.6、`P3_00` v2.22 |
+| 上位依据 | `L1_00` v2.8、`L1_01` v1.6、`L2_01_00` v1.7、`L2_01_01` v1.6、`L2_01_02` v1.7、`P3_00` v2.23 |
 | 历史边界 | candidate-04 `ineffective`、candidate-05 `partially_effective` 及各自 manifest/authorization/journal/result/evidence/hash 均保持不可变 |
 
-本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.5 仅同步正式 Python 可复现入口已关闭及 P3 上位版本，不改变 37/37 功能结论、candidate-04/05 历史结论或效果阈值。
+本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.6 记录 candidate-05 只读根因、Summary V4 目标和效果口径 v2；不改变 37/37 功能结论、candidate-04/05 历史结论、效果阈值、validator 或安全 Gate。
 
 ## 2. 目标、非目标与结论口径
 
@@ -33,7 +33,8 @@ Spring 公共接入与认证
   → es-query-service typed Knowledge endpoint / 最终读取授权
   → keyword + vector / RRF / BGE rerank
   → Evidence 完整性、选择与三层出域交集
-  → KnowledgeSummaryTaskV3 / 独立子问题证据覆盖、引用唯一性与原文连续子串校验
+  → 当前冻结候选绑定的 Summary task / candidate-06 目标为 KnowledgeSummaryTaskV4
+  → 多要点与适用逻辑域直接证据覆盖、引用唯一性与原文连续子串校验
   → 受控 Knowledge 结果
 ```
 
@@ -112,10 +113,10 @@ Spring 公共接入与认证
 |---|---|---|
 | `UAT-K-EV-001` | candidate hash/domain/snapshot/policy ref 完整 | 生成确定性 Evidence Bundle |
 | `UAT-K-EV-002` | 完整性冲突或缺失 | `evidence_failure`，模型调用 0 |
-| `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入 summary v3 |
+| `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入当前 Summary task |
 | `UAT-K-EV-004` | 未分类、策略缺失/冲突或文档收紧拒绝 | `model_egress_denied`，summary 调用 0 |
 | `UAT-K-EV-005` | 证据覆盖不足 | `no_result/insufficient_evidence`，不生成肯定回答 |
-| `UAT-K-EV-006` | 合法 summary v3 | 独立子问题使用最小充分证据，ref 唯一、quote 为对应授权正文连续子串 |
+| `UAT-K-EV-006` | 合法 Summary V4 | 独立子问题和适用逻辑域使用最小充分直接证据；缺少任一显式要点/域时 insufficient；ref 唯一、quote 为对应授权正文连续子串 |
 | `UAT-K-EV-007` | unknown/duplicate ref 或非子串 quote | `knowledge.summary_failure`，不返回模型原文 |
 | `UAT-K-EV-008` | summary timeout/provider/schema failure | 固定 timeout/downstream failure，无 retry/resume |
 
@@ -152,11 +153,18 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 
 只读诊断至少输出：domain exact match、keyword/vector path hit、fusion/rerank recall 与 MRR、required evidence coverage、summary valid completion、faithfulness、usefulness，以及 gold_issue/no_result/insufficient_evidence/downstream_failure 分布。每项根因按问题集/gold、rewrite、域、文档结构、召回、embedding、RRF、rerank、Evidence、策略、Prompt、validator 或环境分类，并标注证据强度。
 
-当前可复现诊断：domain exact match=0.5909、rerank recall@10=0.9405、required evidence coverage=0.4643、summary valid completion=0.6923。证据支持域目录 v2 与 Summary v3；不支持修改 RRF/rerank、validator、dataset/gold。两个虚构文件 case 的零域期望保留为数据/gold 事项，不要求生产 Selector 猜测文件真实性。
+candidate-04 的历史诊断保持：domain exact match=0.5909、rerank recall@10=0.9405、required evidence coverage=0.4643、summary valid completion=0.6923，证据只支持域目录 v2 与 Summary V3。candidate-05 的新只读诊断绑定 result SHA-256=`a6de81fe960c80aecae6d198d1de8b99eb13b14d69128541418dab2849af36eb`，确认 4 个安全负例导致历史 completion 分母理论上限 22/26、1 个 answerable `gold_issue` 归因冲突，以及 3 个 mixed coverage 失败。由此批准 Summary V4 与效果口径 v2；不支持修改 RRF/rerank、validator、dataset/gold、权限或阈值。
 
 ### 7.3 最小优化与版本规则
 
 只有被证据支持的 Prompt、逻辑域安全描述、Retrieval Profile 逻辑参数、RRF/rerank 参数、Evidence 选择或 Harness 才能新版本化；不得改历史 case/gold、放宽 validator、修改正文/index/mapping/alias、扩大授权或降低阈值改判。
+
+candidate-06 的效果口径 v2 必须满足：
+
+- summary completion 只排除按设计必须零调用的 `security_negative`；普通无结果、证据不足、技术失败、超时和校验失败仍作为失败计入；
+- faithfulness/usefulness 只排除人工明确的 answerable `gold_issue`，同时保留 count/case ID；质量可评 answerable 少于原集合 90% 时整次 run 为 `Invalid run`；
+- Q3≥0.95、Q4 completion≥0.90/usefulness≥0.80 以及全部安全 Gate 不变；
+- 历史 candidate-04/05 继续按冻结 evaluator 解释，不重算或改判。
 
 ### 7.4 新候选准备
 
@@ -164,7 +172,7 @@ candidate-04 是有效 P5 run：安全 Gate 通过，Q2 通过，Q1/Q3/Q4 未达
 
 candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa` 唯一执行：run ID=`knowledge-p5-live-v2-20260826-candidate-05`，manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c`，26 case × 2 variant；52 个 Capability 成对完整，实际付费 rewrite22+summary22=44，retry/resume/core answer=0。安全 Gate 通过，Q1/Q2 通过、Q3/Q4 未通过，Effectiveness=`Partially effective`。
 
-GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用必须建立新版本、新候选和新的精确授权；candidate-06 只有在 P3 `GATE-073～076` 依次关闭后才可申请 `GATE-077`，未精确绑定前不得读取密钥或产生 outbound。
+GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用必须建立新版本、新候选和新的精确授权；candidate-06 只有在 P3 `GATE-073～076` 依次关闭后才可申请 `GATE-077`，未精确绑定前不得读取密钥或产生 outbound。candidate-06 manifest 还必须绑定 Summary V4、效果口径 v2 源码/测试哈希和 candidate-01～05 历史哈希。
 
 ## 8. 门禁与状态
 
@@ -173,7 +181,8 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | `GATE-071` | Knowledge 当前设计基线 | L1/L2/P3/UAT_01 三轮内审及独立评审通过 | Closed |
 | `GATE-UAT-008` | 功能型 Knowledge UAT | 37/37 case 有严格追踪、关键 16 场景 E2E 实际通过、状态一致 | Closed |
 | `GATE-072` | 新效果 UAT outbound | candidate-05 唯一运行有效完成并形成 append-only result/evidence | Closed |
-| `GATE-073～076` | 文档、测试入口、优化和 candidate-06 非 live 准备 | 各工作包按 P3 证据关闭 | Open |
+| `GATE-073～074` | 文档和正式 Python 测试入口 | 已按 P3 证据关闭 | Closed |
+| `GATE-075～076` | Summary V4/效果口径 v2 与 candidate-06 非 live 准备 | 各工作包按 P3 证据关闭 | Open |
 | `GATE-077` | candidate-06 一次性效果 UAT outbound | 用户精确绑定 frozen HEAD、run ID、manifest SHA-256、authorization reference 和调用上限 | Open |
 
 `GATE-072` 已消费并关闭，只证明本次效果被有效测量；`Partially effective` 不等于整体效果达标。
@@ -198,3 +207,4 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | v1.2 状态与代码评审同步 | 37/37 功能追踪、candidate-04 `ineffective`、candidate-05 非 live 冻结及 `GATE-072` Open 一致；正式代码评审无 Blocker/Major | Passed |
 | v1.3 效果 UAT 收口 | candidate-05 绑定、44 次 paid journal、592 项阶段事件、安全 Gate、人工 rubric、`partially_effective` 结论和历史不可变一致 | Passed |
 | v1.4 七项收口计划同步与独立复评 | candidate-04/05 历史分离、当前 Summary v3、Python 正式入口前置及 candidate-06 新授权门禁无环；无未处理 S2 | Passed |
+| v1.6 三轮内审与独立评审 | candidate-05 分母/归因冲突、Summary V4、效果口径 v2 和 candidate-06 精确授权边界；无 S0/S1/未处理 S2 | Passed |

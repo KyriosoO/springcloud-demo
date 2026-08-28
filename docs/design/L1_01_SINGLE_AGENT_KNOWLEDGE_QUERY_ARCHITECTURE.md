@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.5 |
+| 当前版本 | v1.6 |
 | 日期 | 2026-08-28 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v2.2](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 上位文档 | [`L0_00` v2.3](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 已完成一次冻结效果 UAT，安全 Gate 通过，正式结论为 `partially_effective` |
+| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 保持 `partially_effective` 历史结论；其只读诊断已完成，Summary V4 与评估口径 v2 尚待实施和新候选验证 |
 
 ## 2. 阅读导航
 
@@ -43,6 +43,7 @@
 - Knowledge 出域采用全局 ∩ 逻辑域默认 ∩ 文档级收紧策略，缺失、未知或冲突失败关闭。
 - 整域授权拒绝和读取权威失败优先于其他域成功；仅技术性单路失败允许在证据充分时受控继续。
 - P5 结论可以是 `effective`、`partially_effective`、`ineffective` 或 `invalid_run`；candidate-04 的历史结论为 `ineffective`，candidate-05 是当前最新有效运行且结论为 `partially_effective`，两者均不等于整体效果达标。
+- 安全负例以“模型零调用”验收，不能同时作为摘要有效完成率的失败样本；显式 `gold_issue` 必须由独立数据质量门禁约束，不能混入模型忠实度或可用性归因。普通 `no_result`、`insufficient_evidence`、技术失败和超时仍保留在各自适用的效果分母中。
 
 ### 3.2 简化内容
 
@@ -58,6 +59,7 @@
 | v1.3 | 2026-08-26 | 优化和非 live 收口 | 同步域目录 v2、Summary v3、candidate-05 冻结及正式代码评审 |
 | v1.4 | 2026-08-26 | 效果 UAT 收口 | 同步 candidate-05 有效运行、Q1/Q2 通过、Q3/Q4 未通过和 `partially_effective` 结论 |
 | v1.5 | 2026-08-28 | 当前/历史效果结论纠偏 | 明确 candidate-04 `ineffective` 仅为历史结论，candidate-05 `partially_effective` 是最新有效结论且不代表整体达标 |
+| v1.6 | 2026-08-28 | candidate-05 根因与效果合同纠偏 | 修复安全负例和显式 gold issue 的归因冲突，批准 Summary V4 多域直接证据覆盖；不改阈值、validator、授权、数据集或历史结论 |
 
 ## 4. 目标、范围与上位约束
 
@@ -240,7 +242,7 @@ Provider 必须在候选正文返回前完成读取授权，仅返回当前用�
 - 只发送回答所需的最小允许证据，不发送全部候选或策略内部信息。
 - 每个肯定事实和引用必须能映射到本次证据。
 - 摘要不得增加证据外的主体、规则、数值、时间或结论。
-- Summary v3 在 v2 的唯一引用和连续子串约束上，要求对问题中可由不同证据独立回答的条件、日期、税率、主体类型等尽量逐项覆盖，最多仍为 5 个唯一引用；单条证据足够时不得为了凑数增加引用。
+- Summary V4 继承 V3 的唯一引用、连续子串和最多 5 个 point 约束；当问题显式包含多个独立条件/子问题，或输入中的直接证据跨越多个已选择逻辑域时，必须覆盖每个有直接证据支持的要点和适用域。任一显式要点或适用域缺少直接证据时输出 `insufficient_evidence`，不得给出部分肯定答案；单条证据足以覆盖全部问题时仍只使用一个引用。
 - 输出结构或引用校验失败时丢弃草稿；不得返回未经验证的答案。
 - 最终对话格式化仍服从 `L1_00`，不能形成第二个知识推理阶段。
 
@@ -370,14 +372,14 @@ accepted → rewritten → domains_selected → retrieved
 - 当前冻结 Profile/索引快照的真实 JWT、ES、BGE-M3、Rerank 多域多路链已验证。
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
 - candidate-04 的 26-case live P5 历史结论保持 `ineffective`；candidate-05 在相同 26-case/双变体基线上完成新版本运行，人工 rubric 的当前结论为 `partially_effective`。
-- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置，当前未生产生效。
+- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径仍绑定 Summary V3，V4 在工作包通过前不得写成已实施。
 
 ### 14.2 目标生产接线
 
 Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
 
 - `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
-- `true`：在同一 Model Gateway 注册且只注册 Rewrite V1、Summary V3，在同一 Registry 追加且只追加 `knowledge.query`，并由同一 Core/Graph 保持顶层单动作；
+- `true`：目标版本在同一 Model Gateway 注册且只注册 Rewrite V1、Summary V4，在同一 Registry 追加且只追加 `knowledge.query`，并由同一 Core/Graph 保持顶层单动作；V1～V3 仅承担历史兼容和回滚追踪，不与 V4 同时进入当前生产对象图；
 - `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
 - 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
 - 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。
@@ -386,7 +388,7 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 
 ### 14.3 功能验收与效果验收
 
-功能验收覆盖 Spring→Runtime、读取授权、双路检索、Evidence、出域、Summary v3、失败优先级和零调用；它可以由 fake Model、真实生产对象图、Java 安全链与契约测试组合完成。效果验收继续使用 P5 成对运行、代表性数据和人工 rubric，必须独立给出结论。
+功能验收覆盖 Spring→Runtime、读取授权、双路检索、Evidence、出域、当前 Summary 任务、失败优先级和零调用；它可以由 fake Model、真实生产对象图、Java 安全链与契约测试组合完成。效果验收继续使用 P5 成对运行、代表性数据和人工 rubric，必须独立给出结论。候选使用的具体 Summary 和评估口径版本必须写入冻结 manifest。
 
 新效果候选只能在功能验收通过、历史根因诊断明确、最小优化形成新版本且 non-live 回归通过后冻结。未精确绑定新 run ID、manifest SHA-256、authorization reference 和调用预算前不得产生真实模型 outbound。
 
@@ -399,6 +401,8 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 - 不自动触发无限调参或再次付费运行；
 - 是后续改写、召回、重排或摘要改进的事实输入；
 - 不能外推为生产效果结论。
+
+candidate-06 起采用效果口径 v2：摘要有效完成率只统计允许进入 Summary 的非安全负例；安全负例继续由强制零调用 Gate 单独判定。answerable case 若人工明确标记 `gold_issue`，从 faithfulness/usefulness 模型质量分母排除，但必须显式计数；有效质量样本须不少于原 answerable 集合的 90%，否则整次运行 `invalid_run`。阈值仍为 Q3≥0.95、Q4 completion≥0.90 且 usefulness≥0.80，不因口径纠偏降低。
 
 ### 14.5 变更触发保护
 
@@ -441,3 +445,4 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | 6 | v1.2 三轮内审 | candidate-04 诊断、域目录 v2、Summary v3 及历史/权限边界一致 | Passed |
 | 7 | v1.2 独立评审 | 无 S0/S1/未处理 S2；未扩大检索、validator、数据或公共契约 | Passed |
 | 8 | v1.5 三轮内审与独立复评 | 修复当前/历史效果结论、下位版本和跨层来源两项 S2；复评无 S0/S1/未处理 S2 | Passed |
+| 9 | v1.6 三轮内审与独立评审 | candidate-05 分母冲突、gold issue 归因、Summary V4 多域覆盖和历史不可变边界；无 S0/S1/未处理 S2 | Passed |
