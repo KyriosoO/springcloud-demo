@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.28 |
+| 当前版本 | v2.29 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-08-28 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -14,7 +14,7 @@
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
 
-v2.28 如实记录 candidate-07 在任何 outbound 前因准备态断言进入授权后预检而 `failed_unconsumed`；新增有限 Harness 状态合同修复、文档权威纠偏、全量设计落实审计与最终收口，不创建 candidate-08，不把 `effective` 作为项目硬关闭条件。
+v2.29 修复 Business/Knowledge 当前 UAT 追踪 authority 与效果元数据漂移；Knowledge traceability schema v2 分别绑定最新有效效果、最新执行终态和当前 Summary 版本证据状态，保持37/37功能结论及全部历史 candidate 字节不变。
 
 ## 2. 目标、范围与计划原则
 
@@ -42,7 +42,7 @@ v2.28 如实记录 candidate-07 在任何 outbound 前因准备态断言进入�
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v1.9 | typed retrieval、读取授权、RRF/rerank 和 client 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.12 | Evidence/出域、Summary V4、效果口径和 Harness 状态合同 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.20 | Business 35/35 固定用例与证据映射 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.11 | Knowledge 功能、candidate 与效果结论 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.12 | Knowledge 功能、candidate 与效果结论 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
 
@@ -75,11 +75,11 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-TXN-TEXT-POLICY-COMPAT-03` | Transaction 按 operator 区分文本安全策略 | `L2_02_00 DR-BQCOM-101`; `L2_02_02 DR-TXN-101` | `eq` 允许合法 `_`，`contains` 继续拒绝 `_/%/反斜杠`，UAT 选择安全 contains 片段并冻结失败历史 | `WP-BQ-FILTER-CONTRACT-02`, `WP-TXN-SEARCH-EXT-02` | - | code-bound 文本策略、validator/Adapter 双向 tests、独立 UAT 结果路径 | `TEST-BQCOM-102`; `TEST-TXN-101` | 不修改业务 SQL/DTO，不放宽 contains 或覆盖历史结果 | Done |
 | `WP-BQ-MODEL-INTENT-COMPLETENESS-03` | Model 完整意图与不可表达组合收紧 | `L2_00_02 DR-MODEL-101/104`; `L2_02_01 DR-EMP-102` | v4 Prompt、semantic+地点及无批准时钟相对日期 exact unsupported；保留 v2/v3 manifest 和两次 UAT 失败历史 | `WP-BQ-MODEL-CATALOG-02`, `WP-EMP-SEMANTIC-ADAPTER-02` | - | 新 task version、直接 model/adversarial fake 测试、新 v3 manifest 与独立 run03 路径 | `TEST-MODEL-102/104`; `VAL-MODEL-101/102` | 不引入本地 Resolver、额外门禁、生产 DTO 或历史改写 | Done |
 | `WP-BQ-UAT-HANDOFF-02` | 正式 UAT 环境与交接 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | UAT 前置、真实数据可用性、固定用例与结论 | `WP-BQ-CONTROLLED-LIVE-02`, `WP-TXN-TEXT-POLICY-COMPAT-03`, `WP-BQ-MODEL-INTENT-COMPLETENESS-03` | `GATE-UAT-007` | 18 项真实结果及其不可变边界 | 当前真实模型/业务场景 | 不把旧 evidence 或未执行场景冒充真实执行 | Done |
-| `WP-BQ-COMPLETION-CLOSURE-04` | 当前 35 用例证据与实现收口 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) v1.14；当前代码 | Spring 严格 JSON、Spring→Runtime 当前链路、workBase/detail 历史隔离、Transaction preflight 环境、35 用例逐项追踪、全量回归与正式代码评审 | `WP-BQ-UAT-HANDOFF-02` | - | `uat_traceability.v2.json`、当前测试结果、代码评审和 Git 提交 | 当前 Spring/Runtime/Employee/Transaction 测试与全量 non-live 回归 | 保持 18 项真实证据集合不变；17 项仅按风险使用等价自动化 | Done |
+| `WP-BQ-COMPLETION-CLOSURE-04` | 当前 35 用例证据与实现收口 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) v1.20；当前代码 | Spring 严格 JSON、Spring→Runtime 当前链路、workBase/detail 历史隔离、Transaction preflight 环境、35 用例逐项追踪、全量回归与正式代码评审 | `WP-BQ-UAT-HANDOFF-02` | - | `uat_traceability.v2.json`、当前测试结果、代码评审和 Git 提交 | 当前 Spring/Runtime/Employee/Transaction 测试与全量 non-live 回归 | 保持 18 项真实证据集合不变；17 项仅按风险使用等价自动化 | Done |
 | `WP-K-BASELINE-03` | Knowledge 设计与 UAT 基线 | `L1_00/L1_01`、三份 Knowledge L2、`UAT_01` | 当前事实核实、生产接线/功能效果分离、三轮内审及独立评审 | - | - | Approved/Reviewed 文档和无环 DAG | strict validators、分层/跨层评审 | 仅回退本次文档语义，不改历史证据 | Done |
 | `WP-K-RUNTIME-WIRING-03` | Knowledge 默认关闭生产接线 | `L2_01_00 DR-KFLOW-011～014`、`L2_01_01 DR-KRET-011/012` | 启动开关、stub/fake 边界、任务/Provider/typed retrieval、同 Registry、owned clients 和关闭 | `WP-K-BASELINE-03` | `GATE-071` | 生产组合根、配置和生命周期测试 | `VAL-KFLOW-005`; `VAL-KRET-005` | 关闭开关即恢复 Business-only 对象图 | Done |
 | `WP-K-SPRING-NONLIVE-E2E-03` | Spring→Runtime Knowledge non-live E2E | 三份 Knowledge L2、`UAT_01` | 当前生产对象图、fake Model/typed Provider、权限/失败/零调用/关闭矩阵 | `WP-K-RUNTIME-WIRING-03` | - | Spring/Python 16 场景 E2E 与有限调用计数 | `UAT-K-*` 功能矩阵 | 删除测试装配，不改生产合同 | Done |
-| `WP-K-FUNCTIONAL-UAT-03` | Knowledge 功能 UAT | `UAT_01` 第 5～6 节 | 37 case 追踪、Java/Python/当前对象图证据和功能结论 | `WP-K-SPRING-NONLIVE-E2E-03` | `GATE-UAT-008` | `knowledge_uat_traceability.v1.json` 和执行结果 | 37/37 有实际/等价证据 | 保持 Effectiveness 独立 | Done |
+| `WP-K-FUNCTIONAL-UAT-03` | Knowledge 功能 UAT | `UAT_01` 第 5～6 节 | 37 case 追踪、Java/Python/当前对象图证据和功能结论 | `WP-K-SPRING-NONLIVE-E2E-03` | `GATE-UAT-008` | `knowledge_uat_traceability.v2.json` 和执行结果 | 37/37 有实际/等价证据 | 保持 Effectiveness 独立 | Done |
 | `WP-K-EFFECT-DIAG-03` | candidate-04 只读效果诊断 | `L2_01_02 DR-KEV-013/014` | Q1/Q3/Q4 指标、逐 case 分布、根因与证据强度 | `WP-K-FUNCTIONAL-UAT-03` | - | `candidate_04_effect_diagnosis.v1.json` 与可复现测试 | 三项历史 SHA、指标/分布/域差异重算 | 不修改 candidate-04 | Done |
 | `WP-K-EFFECT-OPT-03` | 最小效果改进 | `L2_01_02 DR-KEV-014/016`；`L2_01_00 DR-KFLOW-006/012` | 实施域目录 v2 与 Summary v3；不调整 RRF/rerank、validator、dataset/gold | `WP-K-EFFECT-DIAG-03` | - | 新版本代码/配置与 fake 反证 | 安全 Gate、Knowledge 回归、strict mypy | 新旧版本并存，可禁用新版本 | Done |
 | `WP-K-EFFECT-CANDIDATE-05-PREP` | 新效果候选非 live 准备 | `L2_01_02 DR-KEV-015` | 新 run/manifest/hash/reference/预算/快照/历史 hash 和失败关闭 | `WP-K-EFFECT-OPT-03` | - | candidate-05 preparation 资产与正式授权模板 | fake budget、首 outbound、retry/resume=0 | 不执行真实 outbound | Done |
@@ -94,9 +94,10 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-K-EFFECT-HARNESS-CLOSURE-07` | candidate-06 历史闭环与 Harness 修复 | `L2_01_02 DR-KEV-020` | 启动前/结束时共享唯一工作树 allowlist，固定 candidate-06 失败历史 | `WP-K-EFFECT-CANDIDATE-06-PREP` | - | allowlist 修复、history tests、评审结论 | 合法 authorization 可通过；任何额外变化失败关闭 | 不改生产 src、历史证据或效果合同 | Done |
 | `WP-K-EFFECT-CANDIDATE-07-PREP` | 全新效果候选 non-live 冻结 | `DR-KEV-015/019/020` | 绑定 Harness 修复、candidate-06 历史和既有全部快照 | `WP-K-EFFECT-HARNESS-CLOSURE-07` | - | run=`knowledge-p5-live-v4-20260828-candidate-07`、manifest=`af545166...fc2211`、100项资产、reference/预算/launcher | fake 52 对、预算、失败关闭、历史 hash | 不读取密钥或产生 outbound | Done |
 | `WP-K-EFFECT-LIVE-07` | 全新候选效果 UAT | `UAT_01` 效果验收合同 | 一次性绑定已执行；授权后预检因准备态 absence assertion 冲突而在 outbound 前停止 | `WP-K-EFFECT-CANDIDATE-07-PREP` | `GATE-079` | append-only authorization 与有限 failed_unconsumed evidence | 0 model/paid/business/retry/resume、历史不可变 | 不重跑、补跑、续跑或创建 candidate-08 | Deferred |
-| `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | 效果 Harness 状态合同修复 | `L2_01_02 DR-KEV-020～022` | 准备态测试与授权后 live preflight 分离；历史 candidate-07 从 frozen HEAD 校验 | `WP-K-EFFECT-LIVE-07` | - | launcher、history/preparation tests、失败证据哈希 | non-live、PowerShell AST、历史 hash、代码评审 | 不修改历史 manifest/evidence，不执行 live | Done |
+| `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | 效果 Harness 状态合同修复 | `L2_01_02 DR-KEV-020～022`；candidate-07 append-only 失败证据 | 准备态测试与授权后 live preflight 分离；历史 candidate-07 从 frozen HEAD 校验 | `WP-K-EFFECT-CANDIDATE-07-PREP` | - | launcher、history/preparation tests、失败证据哈希 | non-live、PowerShell AST、历史 hash、代码评审 | 不修改历史 manifest/evidence，不执行 live | Done |
 | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | 全部当前设计落实审计 | 当前 REQ/L0/L1/L2/P3/UAT/ARCH、代码、配置、测试和 evidence | 建立设计要求→实现→测试→UAT/evidence 矩阵并修复目标内缺口 | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | - | 第16节完整审计矩阵、缺口处置与评审记录 | 文档/代码/测试交叉验证 | 超范围依赖如实标记，不伪装完成 | Done |
-| `WP-SEVEN-ITEM-CLOSURE-06` | 最终验证与评审收口 | 本轮全部文档/代码/测试/UAT | 全量验证、代码评审、最终状态同步、原子提交推送 | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | `GATE-078` | 测试清单、评审结论与 Git 交付记录 | Blocker/Major=0、最终 Git 状态明确 | 不改判效果或覆盖历史 | Done |
+| `WP-SEVEN-ITEM-CLOSURE-06` | 最终验证与评审收口 | 本轮全部文档/代码/测试/UAT | 全量验证、代码评审、最终状态同步、原子提交推送 | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | - | 测试清单、评审结论与 Git 交付记录；`GATE-078` 是本工作包的关闭门而非入口门 | Blocker/Major=0、最终 Git 状态明确 | 不改判效果或覆盖历史 | Done |
+| `WP-K-UAT-TRACE-CLOSURE-09` | Knowledge UAT 追踪资产纠偏与有限收口 | `UAT_00 v1.20`、`UAT_01 v1.12`、candidate-05/07 不可变证据 | 修复 Business authority；以 Knowledge traceability schema v2 分离最新有效效果、最新执行终态和当前版本证据状态 | `WP-SEVEN-ITEM-CLOSURE-06` | - | 两份当前 traceability、strict validator/tests、评审与回归结果 | 35/35、37/37、历史哈希、零新 outbound、跨层状态一致 | 回退当前追踪资产和 validator，不修改任何历史 candidate/evidence | Done |
 
 ## 6. 直接依赖图
 
@@ -125,7 +126,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `DEP-BQS-022` | `WP-BQ-MODEL-CATALOG-02` | `WP-BQ-MODEL-INTENT-COMPLETENESS-03` | contract | v4 Prompt 复用已验证三动作安全 catalog 和 provider-neutral generator | `DR-MODEL-101/103` |
 | `DEP-BQS-023` | `WP-EMP-SEMANTIC-ADAPTER-02` | `WP-BQ-MODEL-INTENT-COMPLETENESS-03` | contract | semantic+地点组合不能由任一现有单接口表达，必须规划 unsupported | `DR-EMP-102`; `DR-MODEL-104` |
 | `DEP-BQS-024` | `WP-BQ-MODEL-INTENT-COMPLETENESS-03` | `WP-BQ-UAT-HANDOFF-02` | validation | 两次失败后先固定 v4 完整意图约束和新 manifest，再使用 run03 独立结果路径 | `TEST-MODEL-102/104`; `VAL-MODEL-101` |
-| `DEP-BQS-025` | `WP-BQ-UAT-HANDOFF-02` | `WP-BQ-COMPLETION-CLOSURE-04` | validation | 先冻结 18 项真实结果，再对未执行风险建立当前自动化追踪并完成正式收口 | `UAT_00` v1.14；`uat_traceability.v2.json` |
+| `DEP-BQS-025` | `WP-BQ-UAT-HANDOFF-02` | `WP-BQ-COMPLETION-CLOSURE-04` | validation | 先冻结 18 项真实结果，再对未执行风险建立当前自动化追踪并完成正式收口 | `UAT_00` v1.20；`uat_traceability.v2.json` |
 | `DEP-KQ-001` | `WP-K-BASELINE-03` | `WP-K-RUNTIME-WIRING-03` | contract | 生产接线只能依据评审通过的默认关闭与生命周期合同 | `L1_00` v3.1；`L2_01_00` v1.10；`L2_01_01` v1.9 |
 | `DEP-KQ-002` | `WP-K-RUNTIME-WIRING-03` | `WP-K-SPRING-NONLIVE-E2E-03` | runtime | Spring E2E 必须使用当前生产对象图而非历史专用 Runtime | `DR-KFLOW-011～013` |
 | `DEP-KQ-003` | `WP-K-SPRING-NONLIVE-E2E-03` | `WP-K-FUNCTIONAL-UAT-03` | validation | 先证明完整链路和失败/零调用，再汇总逐 case 功能结论 | `UAT_01` 第 5～6 节 |
@@ -143,9 +144,10 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `DEP-KQ-016` | `WP-K-EFFECT-CANDIDATE-06-PREP` | `WP-K-EFFECT-HARNESS-CLOSURE-07` | validation | candidate-06 已消费失败证据暴露准备合同在结束校验未完整实现；修复只继承其冻结合同，不继承失败运行状态 | `DR-KEV-020`；candidate-06 failure |
 | `DEP-KQ-017` | `WP-K-EFFECT-HARNESS-CLOSURE-07` | `WP-K-EFFECT-CANDIDATE-07-PREP` | validation | 新候选必须冻结修复后源码及 candidate-06 历史哈希 | `TEST-KEV-012` |
 | `DEP-KQ-018` | `WP-K-EFFECT-CANDIDATE-07-PREP` | `WP-K-EFFECT-LIVE-07` | security | 新 outbound 只能消费全新 HEAD/run/manifest/reference/预算 | `GATE-079` |
-| `DEP-KQ-019` | `WP-K-EFFECT-LIVE-07` | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | validation | 无效运行先历史化并修复不可达预检合同，禁止重跑 | append-only authorization/failure；`DR-KEV-021` |
+| `DEP-KQ-019` | `WP-K-EFFECT-CANDIDATE-07-PREP` | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | validation | 以已冻结候选和其 append-only 无效运行证据修复不可达预检合同；不把 Deferred live 工作包伪装为完成前置 | append-only authorization/failure；`DR-KEV-021` |
 | `DEP-KQ-020` | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | validation | 先使当前 Harness 合同与设计一致，再审计全部当前设计落实状态 | `TEST-KEV-013`; non-live/history checks |
 | `DEP-KQ-021` | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | `WP-SEVEN-ITEM-CLOSURE-06` | validation | 缺口处置与评审完成后才能执行最终全量收口 | 完整落实矩阵；`GATE-078` |
+| `DEP-KQ-022` | `WP-SEVEN-ITEM-CLOSURE-06` | `WP-K-UAT-TRACE-CLOSURE-09` | validation | 追踪元数据纠偏必须建立在已冻结的35/35、37/37及candidate-05/07终态上，不得反向改写既有验收 | `UAT_00 v1.20`；`UAT_01 v1.12`；不可变 evidence |
 
 DAG 无环；Business 与 Knowledge 工作包之间没有反向依赖。Knowledge 接线只向既有 Runtime 添加可选 Provider/任务/resources，不恢复或重开 Business 工作包。所有已消费授权均不得复用；当前只允许按 candidate-07 失败历史化→Harness 状态合同修复→全量设计落实审计→最终收口单向推进，不创建 candidate-08。
 
@@ -159,15 +161,15 @@ DAG 无环；Business 与 Knowledge 工作包之间没有反向依赖。Knowledg
 | `GATE-070` | `WP-BQ-CONTROLLED-LIVE-02` | integration | 真实模型、业务服务和有限敏感数据调用 | 是 | 前置 non-live 包完成，GATE-068/069 关闭，semantic partial hits 与 Transaction 生产 Date 响应合同均已实现，环境/预算/授权/安全边界重新确认，历史 evidence 不可变 | controlled-run06 全新路径、五项 failure hash、Employee 9/20 和 Transaction 20/104 零模型生产 codec、Java 6 项、Python 1424 项及 strict mypy | 用户/业务维护者 | 下一次真实模型联调前 | frozen task/config/cases、真实安全链、预算、历史 hash 和零泄漏 preflight | controlled live 保持 Blocked；只允许独立零模型只读诊断 | Closed |
 | `GATE-UAT-007` | `WP-BQ-UAT-HANDOFF-02` | closure | 正式四阶段 UAT | 是 | 18 个真实模型/业务场景保持不可变，剩余 17 个确定性风险由当前生产组合根、Spring 安全链或跨语言合同逐项验证，35 个计划用例均有唯一追踪且不外推真实执行范围 | run03 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`；`uat_traceability.v2.json`；Spring→Runtime、Java 安全链及 Python/Java 合同测试 | 用户/UAT 执行者 | 阶段最终收口前 | 严格校验 35 个 case、18/17 证据分类、引用符号、历史 hash、零调用与权限边界 | 任一 case 无实际或等价证据则恢复 Open，不得靠旧 detail/stub 结果关闭 | Closed |
 | `GATE-071` | `WP-K-RUNTIME-WIRING-03` | closure | Knowledge 生产接线设计生效 | 是 | L1/L2/P3/UAT_01 语义一致，三轮内审与独立评审无 S0/S1/未处理 S2 | 当前文档、strict validators、跨层追踪和 DAG | 文档维护者 | 生产接线前 | 分层/跨层设计评审 | 不允许依据未评审语义接线 | Closed |
-| `GATE-UAT-008` | `WP-K-FUNCTIONAL-UAT-03` | closure | Knowledge 功能验收 | 是 | UAT_01 37 个功能 case 均有实际/等价证据，关键 Spring→Runtime 16 场景 E2E 实际执行，权限/出域/失败/零调用成立 | `knowledge_uat_traceability.v1.json`、Spring/Python 测试与有限 evidence | 实施者/UAT 评审者 | 效果诊断前 | Schema、引用、调用计数和回归验证 | 任一当前证据失效则恢复 Open | Closed |
+| `GATE-UAT-008` | `WP-K-FUNCTIONAL-UAT-03` | closure | Knowledge 功能验收 | 是 | UAT_01 37 个功能 case 均有实际/等价证据，关键 Spring→Runtime 16 场景 E2E 实际执行，权限/出域/失败/零调用成立 | `knowledge_uat_traceability.v2.json`、Spring/Python 测试与有限 evidence | 实施者/UAT 评审者 | 效果诊断前 | Schema、引用、调用计数和回归验证 | 任一当前证据失效则恢复 Open | Closed |
 | `GATE-072` | `WP-K-EFFECT-LIVE-05` | integration | 真实付费 Knowledge 效果 UAT | 是 | frozen HEAD=`63bc30b...2efa`、manifest=`41997c6...e278c`、26 case 双变体、预算78完成唯一执行；安全 Gate 通过，结论 `partially_effective` | result SHA-256=`a6de81f...36eb`；44/44 terminal、rewrite22、summary22、retry/core answer=0；post-consumption tests | 用户 | 首个模型 outbound 前 | clean/frozen source、预算、历史 hash、敏感扫描 | 禁止重跑、补跑、续跑或改判 | Closed |
 | `GATE-073` | `WP-DOC-CONSISTENCY-06` | closure | 七项文档纠偏生效 | 否 | 3 轮内审及独立分层/跨层评审通过，版本/状态/DAG/实现事实一致 | strict design/plan validators、链接和跨层差异矩阵 | 文档维护者 | 测试入口或效果代码修改前 | 独立评审无 S0/S1/未处理 S2 | 受影响代码实施保持 Blocked | Closed |
 | `GATE-074` | `WP-PY-REGRESSION-REPRO-06` | closure | Python 正式全量入口生效 | 否 | 版本化隔离 bootstrap 显式安装当前源码；14 项 host/preflight 与全量 non-live 通过且历史 hash 不变 | `scripts/run-nonlive-regression.ps1`：Python 3.12.4、host 14/14、全量 1419 passed/27 opt-in skipped/0 failed；strict mypy 448 文件；candidate-04/05 17 项哈希复核 | 实施者 | candidate-05 根因复核前 | 从干净源码树重复执行 | 效果优化保持 Blocked | Closed |
 | `GATE-075` | `WP-K-EFFECT-OPT-06` | closure | Summary V4 与效果口径 v2 生效 | 否 | candidate-05 诊断和设计评审通过；Summary V4 多要点/多域覆盖、v2 分母/质量 Gate、non-live、安全、E2E、类型和历史回归全部通过 | Knowledge 260 passed/6 opt-in skipped；正式全量 1427 passed/27 skipped；Spring E2E 1 passed；strict mypy 452 文件；compileall、历史哈希及代码评审通过 | 实施者/评审者 | 新候选冻结前 | 阈值/validator/权限/历史反证 | candidate-06 准备保持 Blocked | Closed |
 | `GATE-076` | `WP-K-EFFECT-CANDIDATE-06-PREP` | closure | candidate-06 非 live 冻结 | 否 | run=`knowledge-p5-live-v3-20260828-candidate-06`、manifest=`7f54ddff...cc51b8`、reference=`P3_00:GATE-077`、预算78、92项资产与失败关闭已冻结 | candidate-06 preparation/contracts/history、唯一未跟踪授权记录及 HEAD/manifest 强绑定边界；正式全量1442 passed/27 skipped；strict mypy 454文件；compileall、PowerShell AST、历史 hash | 实施者 | 真实授权申请前 | 首 outbound、预算、retry/resume=0 | 关闭时未创建正式 authorization、未读取密钥或产生 outbound；后续消费不改写本门禁历史结论 | Closed |
 | `GATE-077` | `WP-K-EFFECT-LIVE-06` | integration | candidate-06 一次性真实效果 UAT | 是 | 精确授权已消费；candidate-06 因 Harness `snapshot_changed` 失败，不形成效果结论 | consumed/failure/journals 精确哈希；44 paid、52 变体、retry=0 | 用户/实施者 | 已消费 | 历史哈希与有限失败复核 | 禁止重跑、补跑、续跑或复用授权 | Closed |
-| `GATE-079` | `WP-K-EFFECT-LIVE-07` | integration | candidate-07 一次性真实效果 UAT 授权 | 是 | 绑定授权已执行一次并形成唯一终态；无论是否产生有效测量均不得复用 | authorization SHA-256=`47575441...7a06`；preflight failure SHA-256=`919fa148...32d6`；model/paid/business=0 | 用户/实施者 | 已终止 | frozen binding、失败阶段、零调用、敏感扫描和历史不可变 | 禁止重跑、补跑、续跑或创建 candidate-08 | Closed（Failed/Unconsumed） |
-| `GATE-078` | `WP-SEVEN-ITEM-CLOSURE-06` | closure | 当前项目实现与验收治理收口 | 否 | candidate-07 无效运行及最新有效 `partially_effective` 均如实记录；Harness 状态合同、全量设计落实审计、必要实现、全量 Python/Java、设计/代码评审和文档状态全部闭合 | P3 第16节审计矩阵、UAT_01、1465/27 Python 隔离回归、五个 Java 模块验证与评审结论 | 实施者/评审者 | 最终内容提交前 | Blocker/Major=0；当前 V4 效果证据缺口显式列出；不存在待修改的目标内内容 | 不宣称效果已 effective；不自动创建新候选。Git commit/push 是门禁关闭后的交付验证，只记录在最终报告，避免 tracked 文档对自身提交 SHA 形成循环依赖 | Closed |
+| `GATE-079` | `WP-K-EFFECT-LIVE-07` | integration | candidate-07 一次性真实效果 UAT 授权 | 是 | 绑定授权已执行一次并形成 `Failed/Unconsumed` 唯一终态；无论是否产生有效测量均不得复用 | authorization SHA-256=`47575441...7a06`；preflight failure SHA-256=`919fa148...32d6`；model/paid/business=0 | 用户/实施者 | 已终止 | frozen binding、失败阶段、零调用、敏感扫描和历史不可变 | 禁止重跑、补跑、续跑或创建 candidate-08 | Closed |
+| `GATE-078` | `WP-SEVEN-ITEM-CLOSURE-06` | closure | 当前项目实现与验收治理收口 | 否 | candidate-07 无效运行及最新有效 `partially_effective` 均如实记录；Harness 状态合同、全量设计落实审计、必要实现、全量 Python/Java、设计/代码评审和文档状态全部闭合 | P3 第16节审计矩阵、UAT_01、1468/27 Python 隔离回归、五个 Java 模块验证与评审结论 | 实施者/评审者 | 最终内容提交前 | Blocker/Major=0；当前 V4 效果证据缺口显式列出；不存在待修改的目标内内容 | 不宣称效果已 effective；不自动创建新候选。Git commit/push 是门禁关闭后的交付验证，只记录在最终报告，避免 tracked 文档对自身提交 SHA 形成循环依赖 | Closed |
 
 ## 8. 外部资源与事实
 
@@ -220,9 +222,10 @@ DAG 无环；Business 与 Knowledge 工作包之间没有反向依赖。Knowledg
 | 32 | `WP-K-EFFECT-HARNESS-CLOSURE-07` | Done | `WP-K-EFFECT-CANDIDATE-06-PREP`；candidate-06 append-only 失败证据 | 共享allowlist、五项历史哈希和代码评审通过 |
 | 33 | `WP-K-EFFECT-CANDIDATE-07-PREP` | Done | `WP-K-EFFECT-HARNESS-CLOSURE-07` | run/manifest/reference/78次预算/100项资产冻结，outbound=0 |
 | 34 | `WP-K-EFFECT-LIVE-07` | Deferred | `WP-K-EFFECT-CANDIDATE-07-PREP`; `GATE-079` | candidate-07 已在 outbound 前形成 `failed_unconsumed` 唯一终态，Effectiveness=`invalid_run`；禁止重跑或创建 candidate-08 |
-| 35 | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | Done | `WP-K-EFFECT-LIVE-07` | launcher 不再执行准备态 absence assertion；candidate-07 源码和三项历史资产从 frozen HEAD/精确哈希校验 |
+| 35 | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | Done | `WP-K-EFFECT-CANDIDATE-07-PREP`；candidate-07 append-only failure | launcher 不再执行准备态 absence assertion；candidate-07 源码和三项历史资产从 frozen HEAD/精确哈希校验 |
 | 36 | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | Done | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | 第16节覆盖全部当前权威文档；仅当前 V4 效果测量标记为 `Evidence missing` |
 | 37 | `WP-SEVEN-ITEM-CLOSURE-06` | Done | `WP-DESIGN-IMPLEMENTATION-AUDIT-08`; `GATE-078` | 全量 Python/Java、文档、类型、历史、安全和正式评审通过；Git 交付状态由最终报告记录 |
+| 38 | `WP-K-UAT-TRACE-CLOSURE-09` | Done | `WP-SEVEN-ITEM-CLOSURE-06` | Business 35/35 与 Knowledge 37/37 不变；当前追踪资产明确 latest valid partial、latest execution invalid 和 Summary V4 evidence missing |
 
 ## 10. 实施交接
 
@@ -265,6 +268,7 @@ DAG 无环；Business 与 Knowledge 工作包之间没有反向依赖。Knowledg
 | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | 分离准备态和授权后 live preflight | 修改历史 manifest/evidence、读取密钥或 outbound | evaluation/knowledge launcher/tests | `DR-KEV-020～022` | 定向/non-live/AST/history hash | 设计落实审计 | implement-from-detailed-design |
 | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | 全部当前设计落实矩阵与目标内缺口修复 | 以历史/fake/skip冒充当前实现或扩大公共契约 | 当前文档、代码、配置、测试和 UAT/evidence | 全部当前 REQ/DR/VAL | 交叉追踪、代码对照设计评审 | `GATE-078` | code-review-against-docs |
 | `WP-SEVEN-ITEM-CLOSURE-06` | 全量验证、正式代码评审、状态与 Git 收口 | 隐瞒失败、提前关闭 live 或覆盖历史 | 当前目标代码/测试/文档 | 本轮全部 DR/VAL/UAT | review-and-fix、全量回归、git checks | 本目标完成 | code-review-against-docs |
+| `WP-K-UAT-TRACE-CLOSURE-09` | 更新当前 traceability、strict validator/tests 和直接状态引用 | 修改历史 candidate/evidence、产生新模型 outbound、创建 candidate-08 | `agent-runtime/tests/uat`、P3/UAT_01/ARCHITECTURE | `UAT_00 v1.20`；`UAT_01 v1.12` | 35/37 case、effect evidence binding、全量回归、设计/代码评审 | 无新增 Gate | implement-from-detailed-design + code-review-against-docs |
 
 ## 11. 风险与回滚
 
@@ -311,6 +315,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` | `DR-KEV-020～022` | launcher/preparation/history tests | 准备态/live preflight 分离、历史 hash | non-live 与代码评审 | Done |
 | `WP-DESIGN-IMPLEMENTATION-AUDIT-08` | 全部当前设计/UAT | 设计落实矩阵与目标内修复 | 文档/代码/配置/测试/evidence 交叉验证 | 独立评审与代码评审 | Done |
 | `WP-SEVEN-ITEM-CLOSURE-06` | 本轮全部设计/UAT | review fixes/state sync | 全量 Python/Java/文档 | `GATE-078` | Done |
+| `WP-K-UAT-TRACE-CLOSURE-09` | `UAT_00 v1.20`；`UAT_01 v1.12` | 当前 traceability schema/validator/tests | 35/35、37/37及三层效果状态绑定 | authority/evidence hash/回归/评审 | Done |
 
 需求到工作包/UAT 的跨层映射：
 
@@ -352,9 +357,13 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 
 本轮 `WP-K-EFFECT-PREFLIGHT-CLOSURE-08` 将 candidate-07 preparation 的 absence assertions 固定为 frozen HEAD 历史检查，并从已要求正式 authorization 存在的 launcher preflight 移除该选择器；新 history 测试锁定 manifest/authorization/failure 三项 SHA-256、100项 frozen 资产、0 调用和唯一失败文件。定向 candidate-06/07 为 23 passed；Knowledge/追踪范围 308 passed、6 opt-in skipped；正式隔离 host 14/14、全量 non-live 1465 passed、27 opt-in skipped、0 failed；strict mypy 458 文件、compileall 和 PowerShell AST 通过。Java 实际结果为 agent-service 35/1 skipped、common-security 21/0、employee-service 50/20 skipped、mq-procedure-service 51/2 skipped、es-query-service reactor 43/0；单独运行 es-query-service 曾因未先构建 `es-query-api` 导致发现期 `ClassNotFoundException`，使用父 reactor `-pl :es-query-service -am test` 后通过，不涉及代码或设计修改。正式代码对照设计评审结论：Blocker=0、Major=0、Minor=0。
 
+`WP-K-UAT-TRACE-CLOSURE-09` 保持 Business 35/35 与 Knowledge Functional 37/37 结论不变，只修复当前追踪权威和效果状态表达：Business traceability 绑定 `UAT_00 v1.20`；Knowledge traceability schema v2 绑定 candidate-05 最新有效 `partially_effective`、candidate-07 最新执行 `invalid_run / failed_unconsumed` 和 Summary V4 `Evidence missing`。旧 Knowledge traceability v1 通过精确哈希保留，candidate-01～07 运行资产均不修改；未读取 `LLM_API_KEY`、未创建 candidate-08、模型 outbound=0。
+
+本轮最终验证实际结果：UAT traceability 13 passed；Knowledge 定向集合 311 passed/6 opt-in skipped；正式隔离入口先完成 Transaction host/preflight 14/14，再完成全量 non-live 1468 passed/27 opt-in skipped/0 failed；strict mypy 458 文件、compileall、candidate-07 PowerShell AST、19 份当前文档链接、P3 strict DAG 和敏感扫描均通过。Maven 实际结果为 agent-service 37 tests/3 skipped、common-security 21/0、employee-service 50/20、mq-procedure-service 37/2、es-query-service reactor 43/0，全部 0 failure/0 error。三轮内审第 1 轮修复 P3 状态/DAG，第 2～3 轮无新增问题；独立设计评审第 1 轮修复多余 `Not run` 效果枚举，复评 S0=0、S1=0、未处理 S2=0。正式代码/证据评审第 1 轮发现当前 `UAT-K-EV-006/007` 仍只绑定 Summary V2 合同的一项 Major，已改为同时绑定 Summary V4 当前任务合同与共享 validator 反证；30 项定向复核通过，第 2 轮 Blocker=0、Major=0、Minor=0。
+
 ## 14. 当前结论
 
-总计 37 个工作包。candidate-07 已以 `failed_unconsumed` 形成终态，`WP-K-EFFECT-LIVE-07` 为 Deferred；Harness 状态合同、全量设计落实审计和最终内容收口均已完成，`GATE-078` Closed。历史资产保持不可变，最新有效效果等级仍为 `partially_effective`，当前 Summary V4 效果证据为 `Evidence missing`，不得宣称已 effective。
+总计 38 个工作包。candidate-07 已以 `failed_unconsumed` 形成终态，`WP-K-EFFECT-LIVE-07` 为 Deferred；Harness 状态合同、全量设计落实审计、UAT 追踪资产纠偏和最终内容收口均已完成，`GATE-078` Closed。历史资产保持不可变，最新有效效果等级仍为 `partially_effective`，当前 Summary V4 效果证据为 `Evidence missing`，不得宣称已 effective。
 
 ## 15. 后续实施建议
 
@@ -383,7 +392,7 @@ Employee/Transaction 保持已完成。当前没有必须继续实施的目标�
 | `L2_02_01 v2.6` `DR-EMP-101～108` | `employee.search`、`employee.semantic_search`、结果投影与 Java guards | Adapter/codec/endpoint/security tests | Employee UAT | Implemented and verified | 无目标内缺口 |
 | `L2_02_02 v2.6` `DR-TXN-101～105` | `transaction.search`、Date/Decimal/page/sort、Java guard | Python/Java/cross-language/frozen-host tests | Transaction UAT | Implemented and verified | 无目标内缺口 |
 | `UAT_00 v1.20` 35 个固定 Business case | 当前生产组合根、Spring 安全链和既有业务服务接口 | 18 项真实证据加 17 项等价自动化逐 case 映射 | 35/35 Passed | Implemented and verified | 不维护全仓动态测试总数 |
-| `UAT_01 v1.11` Functional | 当前 Knowledge 生产对象图 | 37 项逐 case trace、Spring E2E、Java/Python 契约 | 37/37 Passed | Implemented and verified | 无目标内缺口 |
-| `UAT_01 v1.11` Effectiveness | P5 v2 metric、Summary V4、版本化 candidate runner | non-live、历史哈希、安全 Gate 和 candidate-07 history | 当前 candidate-07 无效；最新有效 partial | Evidence missing | 当前 V4 效果未形成有效测量；作为显式剩余风险，不阻塞功能/架构收口 |
-| `P3_00 v2.28` 工作包、Gate 与最终收口 | 本矩阵、Harness 修复及最终验证/评审工作包 | DAG、状态、全量验证与评审记录 | `GATE-079` 已终止；`GATE-078` Closed | Implemented and verified | Git 交付结果由最终报告记录，避免文档自引用提交 SHA |
+| `UAT_01 v1.12` Functional | 当前 Knowledge 生产对象图 | 37 项逐 case trace、Spring E2E、Java/Python 契约 | 37/37 Passed | Implemented and verified | 无目标内缺口 |
+| `UAT_01 v1.12` Effectiveness | P5 v2 metric、Summary V4、版本化 candidate runner | non-live、历史哈希、安全 Gate、candidate-07 history 与 traceability schema v2 | 当前 candidate-07 无效；最新有效 partial | Evidence missing | 当前 V4 效果未形成有效测量；作为显式剩余风险，不阻塞功能/架构收口 |
+| `P3_00 v2.29` 工作包、Gate 与最终收口 | 本矩阵、Harness 修复、UAT traceability schema v2 及最终验证/评审工作包 | DAG、状态、全量验证与评审记录 | `GATE-079` 已终止；`GATE-078` Closed | Implemented and verified | Git 交付结果由最终报告记录，避免文档自引用提交 SHA |
 | `ARCHITECTURE.md` 权威索引 | 不对应生产实现 | 链接、版本与状态校验 | 引用 P3/UAT 高层状态 | Not applicable | 索引不复制运行流水或动态测试总数 |

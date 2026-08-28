@@ -5,21 +5,21 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.11 |
+| 当前版本 | v1.12 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v3.1、`L1_01` v1.9、`L2_01_00` v1.10、`L2_01_01` v1.9、`L2_01_02` v1.12、`P3_00` v2.28 |
+| 上位依据 | `L1_00` v3.1、`L1_01` v1.9、`L2_01_00` v1.10、`L2_01_01` v1.9、`L2_01_02` v1.12、`P3_00` v2.29 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
-本计划是 Knowledge 功能/效果验收、candidate 身份和效果结论的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.11 如实记录 candidate-07 授权后预检合同冲突、0 outbound 和 `failed_unconsumed` 终态，并明确有效测量与效果等级分离。
+本计划是 Knowledge 功能/效果验收、candidate 身份和效果结论的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.12 将当前机器可校验追踪资产升级为 schema v2，分别绑定最新有效效果、最新执行终态和当前 Summary 版本证据状态；candidate-01～07 的历史运行资产保持字节不变。
 
 ## 2. 目标、非目标与结论口径
 
 功能 UAT 验证生产链路、权限、安全、失败关闭、证据可追踪和组件隔离；效果 UAT 验证域选择、召回、融合、重排、证据覆盖、摘要有效性和人工 usefulness。两类结论独立：
 
 - Functional：`Passed` / `Failed`；
-- Effectiveness：`Effective` / `Partially effective` / `Ineffective` / `Invalid run` / `Not run`。
+- Effectiveness：`Effective` / `Partially effective` / `Ineffective` / `Invalid run`；当前任务版本尚无有效测量时，使用独立的 `evidenceStatus=missing` 表达，不新增效果结论枚举。
 
 功能通过不代表效果达标。一次有效、完整且安全 Gate 通过的运行关闭“效果已测量”责任，其效果等级必须如实记录；`effective` 是质量目标而非项目硬关闭条件。`invalid_run` 不形成有效测量，且不得自动重跑或创建新 candidate。当前阶段不修改知识正文、ES mapping/alias/index、公共 DTO、角色或出域权限，也不建立第二套在线流程。
 
@@ -133,7 +133,7 @@ Spring 公共接入与认证
 
 ## 6. 功能 UAT 通过条件
 
-上述 37 个 case 已通过 `knowledge_uat_traceability.v1.json` 追踪到实际自动化或等价有限证据；当前 Spring→Runtime 16 场景 E2E 实际执行且未 skip。允许按风险用 fake Model、Java Security、Python contract 和现有不可变只读证据组合验收，不机械要求全部 case 进行真实 LLM 调用。
+上述 37 个 case 已通过 `knowledge_uat_traceability.v2.json` 追踪到实际自动化或等价有限证据；schema v2 同时校验 candidate-05 最新有效 `partially_effective`、candidate-07 最新执行 `invalid_run / failed_unconsumed` 以及 Summary V4 `Evidence missing`，但不修改历史运行文件。当前 Spring→Runtime 16 场景 E2E 实际执行且未 skip。允许按风险用 fake Model、Java Security、Python contract 和现有不可变只读证据组合验收，不机械要求全部 case 进行真实 LLM 调用。
 
 功能结论为 Passed 还要求：
 
@@ -210,3 +210,5 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 | v1.9 candidate-06 消费后评审 | 失败事实、44 次付费终态、592 阶段记录、最终 allowlist 缺口、历史不可变及新候选授权无环；无 S0/S1/未处理 S2 | Passed |
 | v1.11 三轮内审 | candidate-07 终态、功能/效果分离、UAT/P3/evidence 权威边界、历史不可变及无新候选检查完成；修复 P3 摘要状态与关闭循环 | Passed |
 | v1.11 独立评审 | 37 个功能用例、最新有效效果、candidate-07 无效测量及跨层引用一致；S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.12 三轮内审 | 当前 authority、35/37 case、最新有效/最新执行/当前版本三层状态、历史哈希和 P3 DAG 完成三轮核对；第 1 轮修复 P3 状态与依赖，第 2～3 轮无新增问题 | Passed |
+| v1.12 独立评审与复评 | 第 1 轮修复多余 `Not run` 效果枚举；复评确认四类效果结论与 `evidenceStatus=missing` 职责分离，S0=0、S1=0、未处理 S2=0 | Passed |
