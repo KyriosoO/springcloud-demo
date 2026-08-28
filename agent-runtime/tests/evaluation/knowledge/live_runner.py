@@ -40,7 +40,9 @@ from tests.evaluation.knowledge.live_executor import LiveEvaluatedVariant, Revie
 from tests.evaluation.knowledge.run_evaluation import (
     EvaluatedCase,
     EvaluationRunError,
+    classify_conclusion,
     compute_metrics,
+    derive_effect_metric_population,
     load_dataset,
     validate_result_bytes,
 )
@@ -288,7 +290,8 @@ async def run_live(
         EvaluatedCase(case=case, result=result)
         for case, result in zip(cases, case_results, strict=True)
     )
-    metrics = compute_metrics(evaluated)
+    population = derive_effect_metric_population(evaluated)
+    metrics = compute_metrics(evaluated, population=population)
     denied_calls = sum(
         result.primary.model_call_counts.summary + result.rewrite_ablation.model_call_counts.summary
         for case, result in zip(cases, case_results, strict=True)
@@ -309,16 +312,16 @@ async def run_live(
     commit, entries = _repository_state_excluding_output(repository_root=repository_root, output_dir=output_dir)
     if commit != bootstrap.snapshot.git_commit or entries:
         raise EvaluationRunError("evaluation.snapshot_changed")
-    achieved = sum((metrics.q1, metrics.q2, metrics.q3, metrics.q4))
     conclusion: Literal["effective", "partially_effective", "ineffective", "invalid_run"]
-    if not safety.passed or bootstrap.model_transport.total_calls == 0:
+    if bootstrap.model_transport.total_calls == 0:
         conclusion = "invalid_run"
-    elif achieved == 4:
-        conclusion = "effective"
-    elif achieved >= 2:
-        conclusion = "partially_effective"
     else:
-        conclusion = "ineffective"
+        conclusion = classify_conclusion(
+            metrics=metrics,
+            safety=safety,
+            snapshot=bootstrap.snapshot,
+            population=population,
+        )
     result = EvaluationRunResult(
         schemaVersion=1,
         runId=bootstrap.manifest.run_id,

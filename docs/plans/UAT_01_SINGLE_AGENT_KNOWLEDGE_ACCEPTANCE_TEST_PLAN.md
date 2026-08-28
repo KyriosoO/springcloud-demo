@@ -5,14 +5,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.6 |
+| 当前版本 | v1.7 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.8、`L1_01` v1.6、`L2_01_00` v1.7、`L2_01_01` v1.6、`L2_01_02` v1.7、`P3_00` v2.23 |
+| 上位依据 | `L1_00` v2.9、`L1_01` v1.7、`L2_01_00` v1.8、`L2_01_01` v1.7、`L2_01_02` v1.8、`P3_00` v2.24 |
 | 历史边界 | candidate-04 `ineffective`、candidate-05 `partially_effective` 及各自 manifest/authorization/journal/result/evidence/hash 均保持不可变 |
 
-本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.6 记录 candidate-05 只读根因、Summary V4 目标和效果口径 v2；不改变 37/37 功能结论、candidate-04/05 历史结论、效果阈值、validator 或安全 Gate。
+本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.6 记录 candidate-05 只读根因、Summary V4 目标和效果口径 v2；v1.7 如实同步 Summary V4、效果口径 v2 已完成 non-live 实施并关闭 `GATE-075`。两次修订均不改变 37/37 功能结论、candidate-04/05 历史结论、效果阈值、validator 或安全 Gate。
 
 ## 2. 目标、非目标与结论口径
 
@@ -182,7 +182,8 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | `GATE-UAT-008` | 功能型 Knowledge UAT | 37/37 case 有严格追踪、关键 16 场景 E2E 实际通过、状态一致 | Closed |
 | `GATE-072` | 新效果 UAT outbound | candidate-05 唯一运行有效完成并形成 append-only result/evidence | Closed |
 | `GATE-073～074` | 文档和正式 Python 测试入口 | 已按 P3 证据关闭 | Closed |
-| `GATE-075～076` | Summary V4/效果口径 v2 与 candidate-06 非 live 准备 | 各工作包按 P3 证据关闭 | Open |
+| `GATE-075` | Summary V4/效果口径 v2 | 生产单绑定、定向/全量/E2E/类型/历史回归和代码评审通过 | Closed |
+| `GATE-076` | candidate-06 非 live 准备 | run/HEAD/manifest/hash/reference/预算/快照及 fake 失败关闭全部冻结 | Open |
 | `GATE-077` | candidate-06 一次性效果 UAT outbound | 用户精确绑定 frozen HEAD、run ID、manifest SHA-256、authorization reference 和调用上限 | Open |
 
 `GATE-072` 已消费并关闭，只证明本次效果被有效测量；`Partially effective` 不等于整体效果达标。
@@ -208,3 +209,4 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | v1.3 效果 UAT 收口 | candidate-05 绑定、44 次 paid journal、592 项阶段事件、安全 Gate、人工 rubric、`partially_effective` 结论和历史不可变一致 | Passed |
 | v1.4 七项收口计划同步与独立复评 | candidate-04/05 历史分离、当前 Summary v3、Python 正式入口前置及 candidate-06 新授权门禁无环；无未处理 S2 | Passed |
 | v1.6 三轮内审与独立评审 | candidate-05 分母/归因冲突、Summary V4、效果口径 v2 和 candidate-06 精确授权边界；无 S0/S1/未处理 S2 | Passed |
+| v1.7 实施状态复核 | Summary V4 生产单绑定、效果口径 v2、全量/E2E/类型/历史回归证据与 `GATE-075` 状态一致；无 S0/S1/未处理 S2 | Passed |

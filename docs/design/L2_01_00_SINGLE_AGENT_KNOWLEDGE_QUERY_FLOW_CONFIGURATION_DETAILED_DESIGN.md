@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.7 |
+| 当前版本 | v1.8 |
 | 日期 | 2026-08-28 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary V3 已实现；candidate-05 保持 `partially_effective`，目标 Summary V4 尚待工作包实施和新候选验证 |
+| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary V4 已实现并通过 non-live 回归；candidate-05 保持 `partially_effective`，新候选尚待冻结和精确授权 |
 
 ## 2. 阅读导航与变更记录
 
@@ -29,6 +29,8 @@
 | v1.5 | 2026-08-26 | 效果 UAT 收口 | 如实同步 candidate-05 有效运行和 `partially_effective` 结论，不改变流程、任务或失败语义 |
 | v1.6 | 2026-08-28 | 任务版本与依赖纠偏 | 将组合根步骤统一为 Rewrite V1 + Summary V3，并同步 L1 当前版本；历史 V1/V2 责任不变 |
 | v1.7 | 2026-08-28 | Summary V4 目标装配 | 基于 candidate-05 只读诊断把目标组合根更新为 Rewrite V1 + Summary V4；V1～V3 保持历史不可变，实施状态不提前关闭 |
+| v1.8 | 2026-08-28 | Summary V4 实施状态同步 | 如实记录生产组合根唯一绑定 Rewrite V1 + Summary V4 及 non-live 回归通过；candidate-06 仍待冻结与精确授权 |
+| v1.8 | 2026-08-28 | Summary V4 实施同步 | 组合根已唯一切换为 Rewrite V1 + Summary V4，disabled 零依赖和 V1～V3 历史哈希保持不变 |
 
 ## 3. 目标与范围
 
@@ -100,7 +102,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。执行本版本设计前，显式启用的生产组合唯一绑定 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV3`；本版本的实施目标是以独立 `KnowledgeSummaryTaskV4` 替换该单一绑定，V1～V3 只保留兼容、历史证据和可追溯回滚责任。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合现已唯一绑定 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV4`；V1～V3 只保留兼容、历史证据和可追溯回滚责任。
 
 旧 Summary V1～V3 保留给历史资产；新生产组合根完成切换后只能注册 V4，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 
@@ -343,7 +345,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.7 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.8 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
 | 当前允许实施范围 | 单动作、Rewrite V1、域目录 v2、Stage 协同、失败映射、Summary V4 目标绑定、同 Runtime 生产接线和 non-live 功能 UAT |
 | 当前禁止动作 | 新域/物理资源、公共契约变化、真实模型调用、索引写入和独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
@@ -362,6 +364,6 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.6 三轮内审与独立复评 | Rewrite V1/Summary V3 唯一生产绑定、历史 V1/V2 隔离和上位版本一致；无 S0/S1/未处理 S2 | Passed |
 | v1.7 三轮内审与独立评审 | Summary V4 单绑定目标、V1～V3 历史隔离、组合根/回滚/门禁一致；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.7。
+- 当前版本：v1.8。
 - 文档状态：Approved。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。

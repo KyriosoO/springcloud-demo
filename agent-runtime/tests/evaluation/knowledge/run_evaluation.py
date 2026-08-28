@@ -510,7 +510,38 @@ class EvaluatedCase:
     result: EvaluationCaseResult
 
 
-def compute_metrics(cases: tuple[EvaluatedCase, ...]) -> EvaluationMetrics:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EffectMetricPopulation:
+    summary_cases: tuple[EvaluatedCase, ...]
+    quality_cases: tuple[EvaluatedCase, ...]
+    answerable_count: int
+    answerable_gold_issue_count: int
+    quality_coverage_rate: float
+    valid: bool
+
+
+def derive_effect_metric_population(cases: tuple[EvaluatedCase, ...]) -> EffectMetricPopulation:
+    answerable = tuple(item for item in cases if item.case.expected_answerability == "answerable")
+    answerable_gold_issues = tuple(
+        item for item in answerable if item.result.primary_judgment.judgment_reason == "gold_issue"
+    )
+    quality_cases = tuple(item for item in answerable if item not in answerable_gold_issues)
+    answerable_count = len(answerable)
+    quality_coverage_rate = len(quality_cases) / answerable_count if answerable_count else 0.0
+    return EffectMetricPopulation(
+        summary_cases=tuple(item for item in cases if item.case.category != "security_negative"),
+        quality_cases=quality_cases,
+        answerable_count=answerable_count,
+        answerable_gold_issue_count=len(answerable_gold_issues),
+        quality_coverage_rate=quality_coverage_rate,
+        valid=answerable_count > 0 and quality_coverage_rate >= 0.90,
+    )
+
+
+def compute_metrics(
+    cases: tuple[EvaluatedCase, ...], *, population: EffectMetricPopulation | None = None
+) -> EvaluationMetrics:
+    population = population or derive_effect_metric_population(cases)
     primary = tuple(item.result.primary for item in cases)
     constraint = [value for item in primary if (value := _metric(item.metrics.constraint_preserved)) is not None]
     delta = [
@@ -535,7 +566,10 @@ def compute_metrics(cases: tuple[EvaluatedCase, ...]) -> EvaluationMetrics:
         for variant in (case.result.primary, case.result.rewrite_ablation)
         if (value := _metric(variant.metrics.citation_validity_rate)) is not None
     ]
-    summary = [1.0 if item.summary_status in {"answer", "insufficient_evidence"} else 0.0 for item in primary]
+    summary = [
+        1.0 if item.result.primary.summary_status in {"answer", "insufficient_evidence"} else 0.0
+        for item in population.summary_cases
+    ]
     path_values: dict[tuple[str, str], list[float]] = {
         ("tax.policy", "keyword"): [],
         ("tax.policy", "vector"): [],
@@ -547,16 +581,8 @@ def compute_metrics(cases: tuple[EvaluatedCase, ...]) -> EvaluationMetrics:
         if hit is not None:
             for ranking in item.path_rankings:
                 path_values[(ranking.logical_domain_id, ranking.path)].append(hit)
-    faithfulness = [
-        1.0 if item.result.primary_judgment.faithful else 0.0
-        for item in cases
-        if item.case.expected_answerability == "answerable"
-    ]
-    usefulness = [
-        1.0 if item.result.primary_judgment.useful else 0.0
-        for item in cases
-        if item.case.expected_answerability == "answerable"
-    ]
+    faithfulness = [1.0 if item.result.primary_judgment.faithful else 0.0 for item in population.quality_cases]
+    usefulness = [1.0 if item.result.primary_judgment.useful else 0.0 for item in population.quality_cases]
     delta_mean = _mean(delta)
     regression_mean = _mean(regressions)
     domain_mean = _mean(domain_matches)
@@ -616,10 +642,20 @@ def compute_metrics(cases: tuple[EvaluatedCase, ...]) -> EvaluationMetrics:
 
 
 def classify_conclusion(
-    *, metrics: EvaluationMetrics, safety: SafetyGateResult, snapshot: EvaluationSystemSnapshot
+    *,
+    metrics: EvaluationMetrics,
+    safety: SafetyGateResult,
+    snapshot: EvaluationSystemSnapshot,
+    population: EffectMetricPopulation,
 ) -> Literal["effective", "partially_effective", "ineffective", "invalid_run"]:
     gates_closed = all(item.evidence_ref != "open-synthetic-only" for item in snapshot.gate_evidence)
-    if snapshot.provider_mode != "live" or snapshot.worktree_dirty or not gates_closed or not safety.passed:
+    if (
+        snapshot.provider_mode != "live"
+        or snapshot.worktree_dirty
+        or not gates_closed
+        or not safety.passed
+        or not population.valid
+    ):
         return "invalid_run"
     achieved = sum((metrics.q1, metrics.q2, metrics.q3, metrics.q4))
     return "effective" if achieved == 4 else "partially_effective" if achieved >= 2 else "ineffective"
@@ -675,7 +711,8 @@ async def run(
     if len(case_results) != len(cases):
         raise EvaluationRunError("evaluation.case_pair_incomplete")
     evaluated_cases = tuple(EvaluatedCase(case=case, result=result) for case, result in zip(cases, case_results, strict=True))
-    metrics = compute_metrics(evaluated_cases)
+    population = derive_effect_metric_population(evaluated_cases)
+    metrics = compute_metrics(evaluated_cases, population=population)
     safety = SafetyGateResult(
         deniedSummaryCallCount=0,
         unauthorizedContentCount=0,
@@ -683,7 +720,7 @@ async def run(
         constraintPreservationRate=metrics.constraint_preservation_rate,
         passed=(metrics.citation_validity_rate == 1.0 and metrics.constraint_preservation_rate == 1.0),
     )
-    conclusion = classify_conclusion(metrics=metrics, safety=safety, snapshot=snapshot)
+    conclusion = classify_conclusion(metrics=metrics, safety=safety, snapshot=snapshot, population=population)
     final_commit, _, final_entries = read_repository_state(Path(snapshot.repository_root))
     if final_commit != snapshot.git_commit or final_entries != snapshot.worktree_entries:
         raise EvaluationRunError("evaluation.snapshot_changed")

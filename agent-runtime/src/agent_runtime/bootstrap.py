@@ -513,12 +513,12 @@ class KnowledgeCompositionRoot:
     def task_definitions(*, enabled: bool) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
-        from agent_runtime.knowledge.evidence.summary_task_v3 import KnowledgeSummaryTaskV3
+        from agent_runtime.knowledge.evidence.summary_task_v4 import KnowledgeSummaryTaskV4
         from agent_runtime.knowledge.rewrite import KnowledgeRewriteTaskV1
 
         return KnowledgeTaskDefinitions(
             rewrite=KnowledgeRewriteTaskV1.definition(),
-            summary=KnowledgeSummaryTaskV3.definition(),
+            summary=KnowledgeSummaryTaskV4.definition(),
         )
 
     @staticmethod

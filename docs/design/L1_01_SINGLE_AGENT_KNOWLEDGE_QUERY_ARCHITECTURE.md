@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.6 |
+| 当前版本 | v1.7 |
 | 日期 | 2026-08-28 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v2.3](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 上位文档 | [`L0_00` v2.4](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 保持 `partially_effective` 历史结论；其只读诊断已完成，Summary V4 与评估口径 v2 尚待实施和新候选验证 |
+| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 保持 `partially_effective` 历史结论；Summary V4 与评估口径 v2 已完成 non-live 实施和评审，尚待新候选效果 UAT |
 
 ## 2. 阅读导航
 
@@ -60,6 +60,8 @@
 | v1.4 | 2026-08-26 | 效果 UAT 收口 | 同步 candidate-05 有效运行、Q1/Q2 通过、Q3/Q4 未通过和 `partially_effective` 结论 |
 | v1.5 | 2026-08-28 | 当前/历史效果结论纠偏 | 明确 candidate-04 `ineffective` 仅为历史结论，candidate-05 `partially_effective` 是最新有效结论且不代表整体达标 |
 | v1.6 | 2026-08-28 | candidate-05 根因与效果合同纠偏 | 修复安全负例和显式 gold issue 的归因冲突，批准 Summary V4 多域直接证据覆盖；不改阈值、validator、授权、数据集或历史结论 |
+| v1.7 | 2026-08-28 | Summary V4 实施状态同步 | 如实记录 Summary V4、效果口径 v2 及生产单绑定已完成 non-live 实施和评审；candidate-06 仍待冻结与精确授权 |
+| v1.7 | 2026-08-28 | 最小优化实施同步 | Summary V4 已成为启用 Knowledge 时的唯一生产绑定，效果口径 v2 已用于当前 evaluator；新候选尚未执行 |
 
 ## 4. 目标、范围与上位约束
 
@@ -372,7 +374,7 @@ accepted → rewritten → domains_selected → retrieved
 - 当前冻结 Profile/索引快照的真实 JWT、ES、BGE-M3、Rerank 多域多路链已验证。
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
 - candidate-04 的 26-case live P5 历史结论保持 `ineffective`；candidate-05 在相同 26-case/双变体基线上完成新版本运行，人工 rubric 的当前结论为 `partially_effective`。
-- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径仍绑定 Summary V3，V4 在工作包通过前不得写成已实施。
+- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Summary V4，V1～V3 仅承担历史兼容和哈希追溯。
 
 ### 14.2 目标生产接线
 
