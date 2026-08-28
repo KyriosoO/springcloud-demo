@@ -182,7 +182,7 @@ try {
     )
     $es = Start-OwnedService 'es-query' (@(
         '-jar', $jars.es, '--server.port=19201',
-        '--spring.profiles.active=datasource,es,knowledge-live',
+        '--spring.profiles.active=datasource,es',
         '--spring.elasticsearch.uris=http://127.0.0.1:9200',
         '--es.query.total-hits-threshold=10000'
     ) + $commonArguments) (Join-Path $artifactRepositoryPath 'es-query-service')

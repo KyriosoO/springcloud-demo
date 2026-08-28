@@ -68,7 +68,7 @@
     {"path":"agent-runtime/tests/uat/employee_nl/runner.py","sha256":"f4d5a6c6db7c0ff60740f8ed181295f84c1dae2ece59b964cd5fd809e33205d0"},
     {"path":"agent-runtime/tests/uat/employee_nl/test_preparation.py","sha256":"d38f03f562ffd947289556b16a62f9c5130d27c959557dd0dee1d65166c75b4f"},
     {"path":"agent-runtime/tests/system_e2e/test_employee_natural_language_query_nonlive.py","sha256":"0a1465103f5b0f2f48b40d77d62c6a58e88fef80b202eb73ff2614865917b0fe"},
-    {"path":"agent-runtime/scripts/run-employee-natural-language-uat-candidate-01.ps1","sha256":"46055f215df604eb7457105cf2a87d7eb0a36c3fe0d4b7ce041d5d0a231d2be4"}
+    {"path":"agent-runtime/scripts/run-employee-natural-language-uat-candidate-01.ps1","sha256":"9567f6c71eead16c94310530f1bf03b3e7b2fd9a3f0d61e8389a705abd135e8f"}
   ],
   "constraints": {
     "firstModelOutboundConsumes": true,
