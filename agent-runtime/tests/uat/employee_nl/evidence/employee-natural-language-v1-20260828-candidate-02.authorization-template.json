@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "state": "awaiting_execution",
+  "liveExecutionAuthorized": false,
+  "singleUse": true,
+  "runId": "employee-natural-language-v1-20260828-candidate-02",
+  "authorizationReference": "P3_00:GATE-082",
+  "requiredBindings": [
+    "frozenHead",
+    "manifestSha256",
+    "maximumModelCalls",
+    "maximumEmployeeSearchCalls"
+  ],
+  "maximumModelCalls": 29,
+  "maximumEmployeeSearchCalls": 30,
+  "constraints": {
+    "noRetry": true,
+    "noResume": true,
+    "noRawPersistence": true,
+    "noOtherEndpoints": true
+  }
+}

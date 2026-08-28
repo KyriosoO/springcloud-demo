@@ -17,10 +17,10 @@ from agent_runtime.model.deepseek.business_query_plan_v5 import (
 )
 
 
-RUN_ID: Final = "employee-natural-language-v1-20260828-candidate-01"
+RUN_ID: Final = "employee-natural-language-v1-20260828-candidate-02"
 AUTHORIZATION_REFERENCE: Final = "P3_00:GATE-082"
 WORK_PACKAGE: Final = "WP-EMP-NL-UAT-10"
-MODEL_CALL_BUDGET: Final = 30
+MODEL_CALL_BUDGET: Final = 29
 EMPLOYEE_SEARCH_BUDGET: Final = 30
 CASE_COUNT: Final = 15
 _SHA256: Final = re.compile(r"[0-9a-f]{64}")

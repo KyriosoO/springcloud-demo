@@ -6,7 +6,7 @@ from typing import cast
 
 import pytest
 
-from agent_runtime.capability_api.contracts import JsonObject
+from agent_runtime.capability_api.contracts import JsonObject, freeze_json_object
 from agent_runtime.model.contracts import BusinessQueryPlanTaskInput, ModelCallContext
 from tests.uat.employee_nl.contracts import (
     CASE_COUNT,
@@ -22,7 +22,7 @@ from tests.uat.employee_nl.runner import CountingPlanGenerator, UatMetrics, _ACT
 
 _ROOT = Path(__file__).resolve().parents[4]
 _MANIFEST = Path(__file__).with_name("evidence") / (
-    "employee-natural-language-v1-20260828-candidate-01.manifest.json"
+    "employee-natural-language-v1-20260828-candidate-02.manifest.json"
 )
 
 
@@ -31,22 +31,27 @@ class _Generator:
         self, input: BusinessQueryPlanTaskInput, *, context: ModelCallContext
     ) -> JsonObject:
         del input, context
-        return {
-            "domain": "employee",
-            "action": "employee.search",
-            "arguments": {
-                "filters": (
-                    {
-                        "field": "chinese_name",
-                        "operator": "prefix",
-                        "value": {"value_ref": "slot-1"},
-                    },
-                ),
-                "page": 1,
-                "size": 20,
-                "sorts": (),
+        return freeze_json_object(
+            {
+                "domain": "employee",
+                "action": "employee.search",
+                "arguments": {
+                    "filters": (
+                        {
+                            "field": "chinese_name",
+                            "operator": "prefix",
+                            "value": {"value_ref": "slot-1"},
+                        },
+                    ),
+                    "page": 1,
+                    "size": 20,
+                    "sorts": (),
+                },
             },
-        }
+            max_bytes=65536,
+            max_depth=16,
+            max_collection_items=2048,
+        )
 
 
 def test_manifest_freezes_cases_budgets_and_all_asset_hashes() -> None:
@@ -54,6 +59,7 @@ def test_manifest_freezes_cases_budgets_and_all_asset_hashes() -> None:
         json.loads(_MANIFEST.read_text(encoding="utf-8")),
         repository=_ROOT,
     )
+    assert len(cast(list[object], manifest["assets"])) == 29
     assert len(cast(list[object], manifest["cases"])) == CASE_COUNT
     assert sum(case.expected_model_calls for case in cases()) <= MODEL_CALL_BUDGET
     assert sum(case.expected_employee_calls for case in cases()) <= EMPLOYEE_SEARCH_BUDGET
@@ -110,7 +116,7 @@ def test_result_schema_rejects_nonzero_forbidden_endpoints() -> None:
     result: dict[str, object] = {
         "schemaVersion": 1,
         "status": "failed_unconsumed",
-        "runId": "employee-natural-language-v1-20260828-candidate-01",
+        "runId": "employee-natural-language-v1-20260828-candidate-02",
         "authorizationReference": "P3_00:GATE-082",
         "frozenHead": "0" * 40,
         "manifestSha256": "1" * 64,

@@ -28,6 +28,7 @@ from agent_runtime.model.contracts import (
     BusinessQueryPlanGenerator,
     BusinessQueryPlanTaskInput,
     ModelCallContext,
+    canonical_object_json,
 )
 from agent_runtime.model.settings import ModelProvider, ModelSettings
 from tests.helpers import scope
@@ -129,7 +130,11 @@ class CountingPlanGenerator:
             )
         self._metrics.model_calls += 1
         response = await self._delegate.generate(input, context=context)
-        serialized_output = json.dumps(response, ensure_ascii=False, sort_keys=True)
+        # Model output is an immutable JsonObject (mappingproxy/tuples).  Use the
+        # shared canonical serializer rather than json.dumps, which cannot encode
+        # the frozen container types and caused candidate-01 to fail after its
+        # first successful provider response.
+        serialized_output = canonical_object_json(response)
         if any(token in serialized_output for token in _FORBIDDEN_PLAN_TOKENS):
             self._metrics.forbidden_plan_values += 1
             raise AssertionError("employee_nl_uat.protected_value_plan_leak")

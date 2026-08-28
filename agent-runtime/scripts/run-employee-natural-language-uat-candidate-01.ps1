@@ -9,7 +9,17 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ResultRoot,
 
-    [string]$ArtifactRepository = 'D:\codex'
+    [string]$ArtifactRepository = 'D:\codex',
+
+    [string]$ManifestRelativePath = 'tests\uat\employee_nl\evidence\employee-natural-language-v1-20260828-candidate-01.manifest.json',
+
+    [string]$ExpectedRunId = 'employee-natural-language-v1-20260828-candidate-01',
+
+    [int]$ExpectedMaximumModelCalls = 30,
+
+    [int]$ExpectedMaximumEmployeeSearchCalls = 30,
+
+    [string]$RunnerModule = 'tests.uat.employee_nl.runner'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,9 +28,8 @@ $artifactRepositoryPath = [IO.Path]::GetFullPath($ArtifactRepository)
 $authorizationFile = [IO.Path]::GetFullPath($AuthorizationPath)
 $resultRootPath = [IO.Path]::GetFullPath($ResultRoot)
 $runtime = Join-Path $frozenRepositoryPath 'agent-runtime'
-$manifest = Join-Path $runtime 'tests\uat\employee_nl\evidence\employee-natural-language-v1-20260828-candidate-01.manifest.json'
+$manifest = Join-Path $runtime $ManifestRelativePath
 $launcherEvidence = Join-Path $resultRootPath 'launcher-evidence.json'
-$expectedRunId = 'employee-natural-language-v1-20260828-candidate-01'
 $expectedAuthorizationReference = 'P3_00:GATE-082'
 
 foreach ($required in @($frozenRepositoryPath, $artifactRepositoryPath, $authorizationFile, $manifest)) {
@@ -42,12 +51,12 @@ if ($LASTEXITCODE -ne 0 -or $dirty.Count -ne 0) {
 $manifestSha256 = (Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant()
 $authorization = Get-Content -LiteralPath $authorizationFile -Raw -Encoding UTF8 | ConvertFrom-Json
 if (
-    $authorization.runId -cne $expectedRunId -or
+    $authorization.runId -cne $ExpectedRunId -or
     $authorization.authorizationReference -cne $expectedAuthorizationReference -or
     $authorization.frozenHead -cne $head -or
     $authorization.manifestSha256 -cne $manifestSha256 -or
-    [int]$authorization.maximumModelCalls -ne 30 -or
-    [int]$authorization.maximumEmployeeSearchCalls -ne 30 -or
+    [int]$authorization.maximumModelCalls -ne $ExpectedMaximumModelCalls -or
+    [int]$authorization.maximumEmployeeSearchCalls -ne $ExpectedMaximumEmployeeSearchCalls -or
     [bool]$authorization.liveExecutionAuthorized -ne $true
 ) {
     throw 'employee_nl_uat.authorization_binding_invalid'
@@ -204,7 +213,7 @@ try {
     [Environment]::SetEnvironmentVariable('LLM_API_KEY', $modelKey, 'Process')
     Push-Location $runtime
     try {
-        & python -m tests.uat.employee_nl.runner `
+        & python -m $RunnerModule `
             --repository $frozenRepositoryPath `
             --manifest $manifest `
             --authorization $authorizationFile `
@@ -274,7 +283,7 @@ try {
         $launcherRecord = [ordered]@{
             schemaVersion = 1
             status = $launcherStatus
-            runId = $expectedRunId
+            runId = $ExpectedRunId
             authorizationReference = $expectedAuthorizationReference
             frozenHead = $head
             manifestSha256 = $manifestSha256
