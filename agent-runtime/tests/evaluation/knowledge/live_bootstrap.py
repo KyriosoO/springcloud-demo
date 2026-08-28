@@ -18,6 +18,7 @@ from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalo
 from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput, KnowledgeSummaryOutput
 from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
 from agent_runtime.knowledge.evidence.summary_task_v3 import SUMMARY_PROMPT_V3
+from agent_runtime.knowledge.evidence.summary_task_v4 import SUMMARY_PROMPT_V4
 from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
 from agent_runtime.knowledge.question_semantics import QuestionSemanticGuard
 from agent_runtime.knowledge.retrieval.bge_embedding import BgeM3EmbeddingAdapter
@@ -77,7 +78,7 @@ _P5_KEYS = frozenset(
     }
 )
 _LIVE_OPT_IN = "I_UNDERSTAND_LIVE_EXTERNAL_CALLS"
-LiveCandidateId = Literal["candidate-03", "candidate-04", "candidate-05"]
+LiveCandidateId = Literal["candidate-03", "candidate-04", "candidate-05", "candidate-06"]
 _DEFAULT_LIVE_CANDIDATE: LiveCandidateId = "candidate-03"
 
 
@@ -124,6 +125,18 @@ _CANDIDATE_BINDINGS: dict[LiveCandidateId, LiveCandidateBinding] = {
             "knowledge-p5-live-v2-20260826-candidate-05.authorization.json"
         ),
         run_id="knowledge-p5-live-v2-20260826-candidate-05",
+        dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+    ),
+    "candidate-06": LiveCandidateBinding(
+        manifest_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v3-20260828-candidate-06.manifest.json"
+        ),
+        authorization_relative=Path(
+            "agent-runtime/tests/evaluation/knowledge/live/evidence/"
+            "knowledge-p5-live-v3-20260828-candidate-06.authorization.json"
+        ),
+        run_id="knowledge-p5-live-v3-20260828-candidate-06",
         dataset_path="agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
     ),
 }
@@ -336,13 +349,17 @@ async def build_live_from_environment(
         "knowledge_summary": cast(Any, tasks.summary).task_version,
     }
     configuration = manifest.configuration_binding
+    summary_prompts = {"3": SUMMARY_PROMPT_V3, "4": SUMMARY_PROMPT_V4}
+    summary_version = runtime_task_versions["knowledge_summary"]
+    expected_summary_prompt = summary_prompts.get(summary_version)
     if (
         manifest.task_versions != runtime_task_versions
         or configuration is None
+        or expected_summary_prompt is None
         or configuration.domain_catalog_version != CATALOG_VERSION
         or configuration.flow_config_version != settings.config_version
         or configuration.summary_prompt_sha256
-        != hashlib.sha256(SUMMARY_PROMPT_V3.encode("utf-8")).hexdigest()
+        != hashlib.sha256(expected_summary_prompt.encode("utf-8")).hexdigest()
     ):
         raise LiveEvaluationBootstrapError("evaluation.live_runtime_snapshot_drift")
 

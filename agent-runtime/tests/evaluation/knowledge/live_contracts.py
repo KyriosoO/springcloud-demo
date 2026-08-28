@@ -89,15 +89,24 @@ class LiveKnowledgeConfigurationBinding(StrictLiveModel):
         alias="policyCatalogSha256"
     )
     evidence_rules_version: Literal["knowledge-evidence-v1"] = Field(alias="evidenceRulesVersion")
-    summary_prompt_sha256: Literal["cf6318629fcc7e6156efa89e566e2083b84da94c2c783a041cf9f1338476ca22"] = Field(
-        alias="summaryPromptSha256"
+    summary_prompt_sha256: Literal[
+        "cf6318629fcc7e6156efa89e566e2083b84da94c2c783a041cf9f1338476ca22",
+        "f71ab8e899fe7d33688270d026077f8a102585b6e19135e9d002962ad41d7ec6",
+    ] = Field(alias="summaryPromptSha256")
+    effect_metric_version: Literal["knowledge-effect-metrics-v2"] | None = Field(
+        default=None, alias="effectMetricVersion"
+    )
+    quality_population_minimum_rate: float | None = Field(
+        default=None, alias="qualityPopulationMinimumRate"
     )
 
 
 class LiveP5Manifest(StrictLiveModel):
-    schema_version: Literal[1, 2, 3] = Field(alias="schemaVersion")
+    schema_version: Literal[1, 2, 3, 4] = Field(alias="schemaVersion")
     status: Literal["prepared_unconsumed"]
-    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05"] = Field(alias="workPackageId")
+    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06"] = Field(
+        alias="workPackageId"
+    )
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
     authorization_reference: str = Field(alias="authorizationReference", min_length=1, max_length=256)
     dataset_path: Literal[
@@ -135,19 +144,21 @@ class LiveP5Manifest(StrictLiveModel):
             or tuple(item.gate_id for item in self.gate_evidence) != expected_gates
             or set(self.task_versions) != {"knowledge_rewrite", "knowledge_summary"}
             or self.task_versions
-            != (
-                {"knowledge_rewrite": "1", "knowledge_summary": "3"}
-                if self.schema_version == 3
-                else {"knowledge_rewrite": "1", "knowledge_summary": "2"}
-            )
+            != {
+                1: {"knowledge_rewrite": "1", "knowledge_summary": "2"},
+                2: {"knowledge_rewrite": "1", "knowledge_summary": "2"},
+                3: {"knowledge_rewrite": "1", "knowledge_summary": "3"},
+                4: {"knowledge_rewrite": "1", "knowledge_summary": "4"},
+            }[self.schema_version]
             or len(set(self.index_snapshot_ids)) != 2
             or any(not _LOWER_HEX_64.fullmatch(item) for item in self.index_snapshot_ids)
             or (self.schema_version == 1 and self.retrieval_binding is not None)
             or (self.schema_version >= 2 and self.retrieval_binding is None)
             or (self.schema_version < 3 and self.configuration_binding is not None)
-            or (self.schema_version == 3 and self.configuration_binding is None)
+            or (self.schema_version >= 3 and self.configuration_binding is None)
             or (self.schema_version < 3 and self.work_package_id != "WP-KP5-LIVE-01")
             or (self.schema_version == 3 and self.work_package_id != "WP-K-EFFECT-LIVE-05")
+            or (self.schema_version == 4 and self.work_package_id != "WP-K-EFFECT-LIVE-06")
             or tuple(item.path for item in self.asset_hashes) != tuple(sorted(item.path for item in self.asset_hashes))
             or len({item.path for item in self.asset_hashes}) != len(self.asset_hashes)
             or not _valid_utc_seconds(self.prepared_at)
@@ -158,13 +169,30 @@ class LiveP5Manifest(StrictLiveModel):
             self.retrieval_binding.law_snapshot_id,
         ):
             raise ValueError("evaluation.live_manifest_retrieval_binding_invalid")
+        if self.configuration_binding is not None:
+            expected_prompt_sha256 = {
+                3: "cf6318629fcc7e6156efa89e566e2083b84da94c2c783a041cf9f1338476ca22",
+                4: "f71ab8e899fe7d33688270d026077f8a102585b6e19135e9d002962ad41d7ec6",
+            }.get(self.schema_version)
+            metric_binding = (
+                self.configuration_binding.effect_metric_version,
+                self.configuration_binding.quality_population_minimum_rate,
+            )
+            if (
+                self.configuration_binding.summary_prompt_sha256 != expected_prompt_sha256
+                or (self.schema_version == 4 and metric_binding != ("knowledge-effect-metrics-v2", 0.9))
+                or (self.schema_version < 4 and metric_binding != (None, None))
+            ):
+                raise ValueError("evaluation.live_manifest_metric_binding_invalid")
         return self
 
 
 class LiveAuthorizationRecord(StrictLiveModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     status: Literal["authorized_unconsumed"]
-    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05"] = Field(alias="workPackageId")
+    work_package_id: Literal["WP-KP5-LIVE-01", "WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06"] = Field(
+        alias="workPackageId"
+    )
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
     authorization_reference: str = Field(alias="authorizationReference", min_length=1, max_length=256)
     single_use: Literal[True] = Field(alias="singleUse")
@@ -195,9 +223,9 @@ class LiveAuthorizationRecord(StrictLiveModel):
 class LiveAuthorizationTemplate(StrictLiveModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     status: Literal["awaiting_explicit_authorization"]
-    work_package_id: Literal["WP-K-EFFECT-LIVE-05"] = Field(alias="workPackageId")
+    work_package_id: Literal["WP-K-EFFECT-LIVE-05", "WP-K-EFFECT-LIVE-06"] = Field(alias="workPackageId")
     run_id: str = Field(alias="runId", min_length=1, max_length=64)
-    authorization_reference: Literal["P3_00:GATE-072"] = Field(alias="authorizationReference")
+    authorization_reference: Literal["P3_00:GATE-072", "P3_00:GATE-077"] = Field(alias="authorizationReference")
     single_use: Literal[True] = Field(alias="singleUse")
     maximum_paid_requests: Literal[78] = Field(alias="maximumPaidRequests")
     retry_allowed: Literal[False] = Field(alias="retryAllowed")
