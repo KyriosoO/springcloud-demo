@@ -201,6 +201,8 @@ class LiveAuthorizationRecord(StrictLiveModel):
     answer_requests_allowed: Literal[False] = Field(alias="answerRequestsAllowed")
     live_p5_authorized: Literal[True] = Field(alias="liveP5Authorized")
     dataset_sha256: str = Field(alias="datasetSha256")
+    frozen_head: str | None = Field(default=None, alias="frozenHead")
+    manifest_sha256: str | None = Field(default=None, alias="manifestSha256")
     principal_profile_id: Literal["tax-knowledge-admin-reader-v1"] = Field(alias="principalProfileId")
     read_authorization_evidence_ref: Literal["WP-KRET-REAL-01:authorizationMatrix.admin"] = Field(alias="readAuthorizationEvidenceRef")
     jwt_persisted: Literal[False] = Field(alias="jwtPersisted")
@@ -217,6 +219,17 @@ class LiveAuthorizationRecord(StrictLiveModel):
             or not _valid_utc_seconds(self.confirmed_at)
         ):
             raise ValueError("evaluation.live_authorization_invalid")
+        if self.work_package_id == "WP-K-EFFECT-LIVE-06" and (
+            self.frozen_head is None
+            or self.manifest_sha256 is None
+            or not _LOWER_HEX_40.fullmatch(self.frozen_head)
+            or not _LOWER_HEX_64.fullmatch(self.manifest_sha256)
+        ):
+            raise ValueError("evaluation.live_authorization_binding_invalid")
+        if self.frozen_head is not None and not _LOWER_HEX_40.fullmatch(self.frozen_head):
+            raise ValueError("evaluation.live_authorization_binding_invalid")
+        if self.manifest_sha256 is not None and not _LOWER_HEX_64.fullmatch(self.manifest_sha256):
+            raise ValueError("evaluation.live_authorization_binding_invalid")
         return self
 
 

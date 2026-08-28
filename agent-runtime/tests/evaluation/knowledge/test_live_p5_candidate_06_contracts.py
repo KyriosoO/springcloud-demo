@@ -7,8 +7,13 @@ import pytest
 from pydantic import ValidationError
 
 from agent_runtime.knowledge.evidence.summary_task_v4 import SUMMARY_PROMPT_V4
-from tests.evaluation.knowledge.live_bootstrap import _candidate_id
-from tests.evaluation.knowledge.live_contracts import LiveAuthorizationTemplate, LiveP5Manifest, load_manifest
+from tests.evaluation.knowledge.live_bootstrap import _candidate_id, _unexpected_live_worktree_entries
+from tests.evaluation.knowledge.live_contracts import (
+    LiveAuthorizationRecord,
+    LiveAuthorizationTemplate,
+    LiveP5Manifest,
+    load_manifest,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
@@ -135,6 +140,56 @@ def test_candidate_06_authorization_template_remains_unconsumed() -> None:
 
     assert template.live_p5_authorized is False
     assert template.maximum_paid_requests == 78
+
+
+def test_candidate_06_authorization_record_requires_frozen_head_and_manifest_hash() -> None:
+    payload = {
+        "schemaVersion": 1,
+        "status": "authorized_unconsumed",
+        "workPackageId": "WP-K-EFFECT-LIVE-06",
+        "runId": "knowledge-p5-live-v3-20260828-candidate-06",
+        "authorizationReference": "P3_00:GATE-077",
+        "singleUse": True,
+        "maximumPaidRequests": 78,
+        "retryAllowed": False,
+        "answerRequestsAllowed": False,
+        "liveP5Authorized": True,
+        "datasetSha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408",
+        "principalProfileId": "tax-knowledge-admin-reader-v1",
+        "readAuthorizationEvidenceRef": "WP-KRET-REAL-01:authorizationMatrix.admin",
+        "jwtPersisted": False,
+        "apiKeyPersisted": False,
+        "confirmedBy": "project-maintainer",
+        "confirmedAt": "2026-08-28T12:00:00Z",
+    }
+
+    with pytest.raises(ValidationError):
+        LiveAuthorizationRecord.model_validate(payload)
+
+    payload["frozenHead"] = "a" * 40
+    payload["manifestSha256"] = "b" * 64
+    authorization = LiveAuthorizationRecord.model_validate(payload)
+
+    assert authorization.frozen_head == "a" * 40
+    assert authorization.manifest_sha256 == "b" * 64
+
+
+def test_candidate_06_allows_only_its_untracked_runtime_authorization_record() -> None:
+    authorization_entry = (
+        "?? agent-runtime/tests/evaluation/knowledge/live/evidence/"
+        "knowledge-p5-live-v3-20260828-candidate-06.authorization.json"
+    )
+
+    assert _unexpected_live_worktree_entries(
+        candidate_id="candidate-06", entries=(authorization_entry,)
+    ) == ()
+    assert _unexpected_live_worktree_entries(
+        candidate_id="candidate-06",
+        entries=(authorization_entry, " M agent-runtime/src/agent_runtime/bootstrap.py"),
+    ) == (" M agent-runtime/src/agent_runtime/bootstrap.py",)
+    assert _unexpected_live_worktree_entries(
+        candidate_id="candidate-05", entries=(authorization_entry,)
+    ) == (authorization_entry,)
 
 
 def test_candidate_05_schema_and_hash_remain_unchanged() -> None:

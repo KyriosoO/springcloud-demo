@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.7 |
+| 当前版本 | v1.8 |
 | 日期 | 2026-08-28 |
 | 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v2.4](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 上位文档 | [`L0_00` v2.5](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 保持 `partially_effective` 历史结论；Summary V4 与评估口径 v2 已完成 non-live 实施和评审，尚待新候选效果 UAT |
+| 实施状态 | 默认关闭的生产接线和功能 UAT 已完成；candidate-05 保持 `partially_effective` 历史结论；Summary V4 与评估口径 v2 已完成 non-live 实施，candidate-06 已冻结但尚未执行真实效果 UAT |
 
 ## 2. 阅读导航
 
@@ -60,8 +60,8 @@
 | v1.4 | 2026-08-26 | 效果 UAT 收口 | 同步 candidate-05 有效运行、Q1/Q2 通过、Q3/Q4 未通过和 `partially_effective` 结论 |
 | v1.5 | 2026-08-28 | 当前/历史效果结论纠偏 | 明确 candidate-04 `ineffective` 仅为历史结论，candidate-05 `partially_effective` 是最新有效结论且不代表整体达标 |
 | v1.6 | 2026-08-28 | candidate-05 根因与效果合同纠偏 | 修复安全负例和显式 gold issue 的归因冲突，批准 Summary V4 多域直接证据覆盖；不改阈值、validator、授权、数据集或历史结论 |
-| v1.7 | 2026-08-28 | Summary V4 实施状态同步 | 如实记录 Summary V4、效果口径 v2 及生产单绑定已完成 non-live 实施和评审；candidate-06 仍待冻结与精确授权 |
-| v1.7 | 2026-08-28 | 最小优化实施同步 | Summary V4 已成为启用 Knowledge 时的唯一生产绑定，效果口径 v2 已用于当前 evaluator；新候选尚未执行 |
+| v1.7 | 2026-08-28 | Summary V4 实施状态同步 | 如实记录 Summary V4、效果口径 v2 及生产单绑定已完成 non-live 实施和评审 |
+| v1.8 | 2026-08-28 | candidate-06 非 live 冻结 | 同步新 run、manifest、预算、历史哈希与失败关闭已冻结；真实效果 UAT 仍受 `GATE-077` 精确授权约束 |
 
 ## 4. 目标、范围与上位约束
 
@@ -448,3 +448,4 @@ candidate-06 起采用效果口径 v2：摘要有效完成率只统计允许进�
 | 7 | v1.2 独立评审 | 无 S0/S1/未处理 S2；未扩大检索、validator、数据或公共契约 | Passed |
 | 8 | v1.5 三轮内审与独立复评 | 修复当前/历史效果结论、下位版本和跨层来源两项 S2；复评无 S0/S1/未处理 S2 | Passed |
 | 9 | v1.6 三轮内审与独立评审 | candidate-05 分母冲突、gold issue 归因、Summary V4 多域覆盖和历史不可变边界；无 S0/S1/未处理 S2 | Passed |
+| 10 | v1.8 三轮内审与独立评审 | candidate-06 冻结状态、下位版本、历史隔离与精确授权边界一致；无 S0/S1/未处理 S2 | Passed |

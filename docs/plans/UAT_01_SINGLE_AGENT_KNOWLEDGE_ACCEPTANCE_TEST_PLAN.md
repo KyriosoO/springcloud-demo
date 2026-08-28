@@ -5,14 +5,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.7 |
+| 当前版本 | v1.8 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-08-28 |
 | 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v2.9、`L1_01` v1.7、`L2_01_00` v1.8、`L2_01_01` v1.7、`L2_01_02` v1.8、`P3_00` v2.24 |
+| 上位依据 | `L1_00` v3.0、`L1_01` v1.8、`L2_01_00` v1.9、`L2_01_01` v1.8、`L2_01_02` v1.9、`P3_00` v2.25 |
 | 历史边界 | candidate-04 `ineffective`、candidate-05 `partially_effective` 及各自 manifest/authorization/journal/result/evidence/hash 均保持不可变 |
 
-本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.6 记录 candidate-05 只读根因、Summary V4 目标和效果口径 v2；v1.7 如实同步 Summary V4、效果口径 v2 已完成 non-live 实施并关闭 `GATE-075`。两次修订均不改变 37/37 功能结论、candidate-04/05 历史结论、效果阈值、validator 或安全 Gate。
+本计划是 Knowledge 专用验收权威；`UAT_00` 继续只治理公共接入与 Employee/Transaction，不用其 Business 结果代替 Knowledge 验收。v1.6 记录 candidate-05 只读根因、Summary V4 目标和效果口径 v2；v1.7 如实同步 Summary V4、效果口径 v2 已完成 non-live 实施并关闭 `GATE-075`；v1.8 同步 candidate-06 非 live 冻结并关闭 `GATE-076`。修订不改变 37/37 功能结论、candidate-04/05 历史结论、效果阈值、validator 或安全 Gate。
 
 ## 2. 目标、非目标与结论口径
 
@@ -172,7 +172,7 @@ candidate-06 的效果口径 v2 必须满足：
 
 candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa` 唯一执行：run ID=`knowledge-p5-live-v2-20260826-candidate-05`，manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c`，26 case × 2 variant；52 个 Capability 成对完整，实际付费 rewrite22+summary22=44，retry/resume/core answer=0。安全 Gate 通过，Q1/Q2 通过、Q3/Q4 未通过，Effectiveness=`Partially effective`。
 
-GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用必须建立新版本、新候选和新的精确授权；candidate-06 只有在 P3 `GATE-073～076` 依次关闭后才可申请 `GATE-077`，未精确绑定前不得读取密钥或产生 outbound。candidate-06 manifest 还必须绑定 Summary V4、效果口径 v2 源码/测试哈希和 candidate-01～05 历史哈希。
+GATE-072 授权已消费，不得重跑、补跑或续跑。candidate-06 已冻结 run ID=`knowledge-p5-live-v3-20260828-candidate-06`、manifest SHA-256=`7f54ddff600726d364edee6f7c6939d99c52aa5b533ac309d98887b6e8cc51b8`、authorization reference=`P3_00:GATE-077`、最多 78 次付费请求和 92 项资产，包含 Summary V4、效果口径 v2 源码/测试哈希及 candidate-01～05 历史哈希。`GATE-076` 已关闭；未精确绑定 frozen HEAD 和上述标识前不得创建正式授权、读取密钥或产生 outbound。正式授权记录是唯一允许的未跟踪运行资产，必须严格绑定 frozen HEAD、manifest SHA-256、run/reference/budget/dataset 且不属于 frozen source；其他工作树变化继续失败关闭。
 
 ## 8. 门禁与状态
 
@@ -183,7 +183,7 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | `GATE-072` | 新效果 UAT outbound | candidate-05 唯一运行有效完成并形成 append-only result/evidence | Closed |
 | `GATE-073～074` | 文档和正式 Python 测试入口 | 已按 P3 证据关闭 | Closed |
 | `GATE-075` | Summary V4/效果口径 v2 | 生产单绑定、定向/全量/E2E/类型/历史回归和代码评审通过 | Closed |
-| `GATE-076` | candidate-06 非 live 准备 | run/HEAD/manifest/hash/reference/预算/快照及 fake 失败关闭全部冻结 | Open |
+| `GATE-076` | candidate-06 非 live 准备 | run/manifest/hash/reference/预算、92项快照及 fake 失败关闭全部冻结 | Closed |
 | `GATE-077` | candidate-06 一次性效果 UAT outbound | 用户精确绑定 frozen HEAD、run ID、manifest SHA-256、authorization reference 和调用上限 | Open |
 
 `GATE-072` 已消费并关闭，只证明本次效果被有效测量；`Partially effective` 不等于整体效果达标。
@@ -210,3 +210,4 @@ GATE-072 授权已消费，不得重跑、补跑或续跑。未来效果调用�
 | v1.4 七项收口计划同步与独立复评 | candidate-04/05 历史分离、当前 Summary v3、Python 正式入口前置及 candidate-06 新授权门禁无环；无未处理 S2 | Passed |
 | v1.6 三轮内审与独立评审 | candidate-05 分母/归因冲突、Summary V4、效果口径 v2 和 candidate-06 精确授权边界；无 S0/S1/未处理 S2 | Passed |
 | v1.7 实施状态复核 | Summary V4 生产单绑定、效果口径 v2、全量/E2E/类型/历史回归证据与 `GATE-075` 状态一致；无 S0/S1/未处理 S2 | Passed |
+| v1.8 candidate-06 准备复核 | run/manifest/reference/预算、92项资产、首 outbound 消费、失败关闭和历史哈希一致；未创建正式授权或 outbound | Passed |

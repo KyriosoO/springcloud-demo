@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v1.7 |
+| 当前版本 | v1.8 |
 | 日期 | 2026-08-28 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、ES 候选、本地 BGE-M3、RRF 和 rerank |
-| 上位文档 | [`L1_01` v1.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | Python retrieval、Java typed Provider 及三个固定 Knowledge HTTP client 已通过 non-live 回归；candidate-05 live 进一步验证 keyword/vector、RRF、rerank 与读取授权链路 |
 
@@ -29,6 +29,7 @@
 | v1.5 | 2026-08-28 | 依赖与实现依据纠偏 | 同步 L1 当前版本并校正本文可实施版本；typed contract、Profile 与排序算法不变 |
 | v1.6 | 2026-08-28 | 上位效果设计同步 | 同步 L1 candidate-05 根因版本；检索合同、Profile、RRF/rerank 实现及当前参数均不改变 |
 | v1.7 | 2026-08-28 | 上位实施状态同步 | 同步 L1/L2 当前版本与 Summary V4 non-live 状态；检索合同、Profile、RRF/rerank 实现及参数不变 |
+| v1.8 | 2026-08-28 | candidate-06 上位状态同步 | 新候选冻结沿用现有 typed retrieval/Profile/索引快照，不修改检索合同、参数或服务行为 |
 
 ## 3. 目标与范围
 
@@ -327,7 +328,7 @@ KnowledgeSearchResponse search(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.7 可作为 Knowledge retrieval、Java Provider、本地 BGE 与生产 client 生命周期代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.8 可作为 Knowledge retrieval、Java Provider、本地 BGE 与生产 client 生命周期代码评审依据 |
 | 当前允许实施范围 | typed endpoint、Profile/授权、Python adapters、RRF/rerank、配置和非写入测试 |
 | 当前禁止动作 | ES 写入/管理、物理资源参数化、未授权正文、生产启用和真实模型出域 |
 | 回滚单位 | Python retrieval + es-query-api/service Knowledge endpoint + Profile 配置 |
@@ -343,7 +344,8 @@ KnowledgeSearchResponse search(
 | v1.2 聚焦评审与复评 | 前置纯校验替代半成品异步清理后，fixed origin、disabled 惰性、owned client、授权/快照失败关闭通过；无 S0/S1/未处理 S2 | Passed |
 | v1.5 三轮内审与独立复评 | 当前版本、上位依赖和实现依据已同步；retrieval/Profile/授权合同未改变，无 S0/S1/未处理 S2 | Passed |
 | v1.6 聚焦内审与独立评审 | 上位版本同步且 candidate-05 证据不足以批准检索调参；typed contract/Profile/排序不变；无 S0/S1/未处理 S2 | Passed |
+| v1.8 聚焦内审与独立评审 | candidate-06 只绑定现有 Profile/索引快照，检索合同、参数、授权和物理边界未改变；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.7。
+- 当前版本：v1.8。
 - 文档状态：Approved。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。

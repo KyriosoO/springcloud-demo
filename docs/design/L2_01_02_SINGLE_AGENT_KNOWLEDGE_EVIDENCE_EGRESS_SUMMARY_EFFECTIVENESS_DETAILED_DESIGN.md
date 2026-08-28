@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.8 |
+| 当前版本 | v1.9 |
 | 日期 | 2026-08-28 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V4、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4 与效果口径 v2 已完成 non-live 实施和评审；candidate-05 保持 `partially_effective`，candidate-06 尚待冻结和精确授权 |
+| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4 与效果口径 v2 已完成 non-live 实施和评审；candidate-05 保持 `partially_effective`，candidate-06 已完成非 live 冻结并等待精确授权 |
 
 ## 2. 阅读导航与变更记录
 
@@ -29,8 +29,8 @@
 | v1.5 | 2026-08-26 | 效果 UAT 收口 | 固化 candidate-05 的 append-only 证据、Q1/Q2 通过、Q3/Q4 未通过及 `partially_effective` 结论 |
 | v1.6 | 2026-08-28 | Summary 版本与状态纠偏 | 明确 Summary V3 是当前生产任务、V1/V2 仅为历史兼容，并修复实现清单和当前风险结论漂移 |
 | v1.7 | 2026-08-28 | candidate-05 根因与评估口径修复 | 新增 Summary V4 多域直接证据覆盖和效果口径 v2；阈值、安全 Gate、validator、数据集、gold 与历史资产不变 |
-| v1.8 | 2026-08-28 | Summary V4 与效果口径 v2 实施同步 | 如实记录生产单绑定、non-live、E2E、类型、历史回归和代码评审已通过；candidate-06 仍待冻结与精确授权 |
-| v1.8 | 2026-08-28 | 最小优化实施同步 | Summary V4、效果口径 v2、生产单绑定和 live/stub 统一 evaluator 已通过 non-live；candidate-06 尚未执行 |
+| v1.8 | 2026-08-28 | 最小优化实施同步 | Summary V4、效果口径 v2、生产单绑定和 live/stub 统一 evaluator 已通过 non-live |
+| v1.9 | 2026-08-28 | candidate-06 非 live 冻结 | 冻结新 run、92 项资产、manifest、预算、历史哈希与失败关闭；真实执行仍受 `GATE-077` 约束 |
 
 ## 3. 目标与范围
 
@@ -43,7 +43,7 @@
 - ranked candidate 完整性复核和确定性证据选择；
 - Evidence Bundle、coverage、source 和 question trace；
 - 全局规则∩逻辑域默认策略∩文档级收紧策略；
-- Knowledge summary v1/v2 历史兼容与 v3 当前生产任务；
+- Knowledge Summary V1～V3 历史兼容与 V4 当前生产任务；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
 - representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
 
@@ -304,7 +304,9 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 4. 新旧版本可并存，历史 source/hash 可继续验证；
 5. 变更无法由授权范围解决时停止，不为关闭效果门禁降低阈值。
 
-candidate-06 仅在功能 UAT Passed、candidate-05 根因明确、Summary V4/效果口径 v2 non-live 通过后准备。其 manifest 必须绑定 representative dataset/provenance、primary/rewrite_ablation、任务/Prompt/source、evaluator source/tests、域/Profile/全部 index snapshot、BGE、policy/evidence、历史 candidate-01～05 hash、精确最大请求数、首个 outbound 消费、retry/resume=0 和失败关闭。准备阶段不读取 `LLM_API_KEY`，不产生 outbound；正式执行由独立 `GATE-077` 精确授权。
+candidate-06 已在功能 UAT Passed、candidate-05 根因明确、Summary V4/效果口径 v2 non-live 通过后完成准备。run ID=`knowledge-p5-live-v3-20260828-candidate-06`，manifest SHA-256=`7f54ddff600726d364edee6f7c6939d99c52aa5b533ac309d98887b6e8cc51b8`，authorization reference=`P3_00:GATE-077`，最大付费请求数=78。manifest 绑定 representative dataset/provenance、primary/rewrite_ablation、任务/Prompt/source、evaluator source/tests、域/Profile/全部 index snapshot、BGE、policy/evidence、candidate-01～05 历史 hash、首个 outbound 消费、retry/resume=0 和失败关闭，共 92 项资产。准备阶段未读取 `LLM_API_KEY`、未产生 outbound；正式执行仍由独立 `GATE-077` 精确授权。
+
+正式授权记录是用户精确授权后生成的运行资产，不进入 manifest 的源码/配置资产集合，避免形成“授权文件必须先进入 frozen HEAD、而其内容又依赖该 HEAD”的循环。执行时仅允许该 candidate-06 授权记录作为唯一未跟踪文件；必须经严格 JSON 校验并同时绑定 frozen HEAD、manifest SHA-256、run/reference/budget/dataset/live 标志，launcher 参数、授权记录与运行时读取结果任一不一致都失败关闭；任何其他 staged、modified 或 untracked 项仍按 dirty source 失败关闭。授权记录在首次 outbound 前由既有 consumed marker 消费，运行后与结果一并作为 append-only 证据保存。
 
 candidate-05 已按 frozen HEAD=`63bc30baa68948a35840b650c0deb39d1e312efa`、manifest SHA-256=`41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c` 唯一执行；authorization、paid journal、phase checkpoints、result、evidence 和 launcher evidence 均作为 append-only 资产保存。历史 candidate-01～04 保持不可变。
 
@@ -441,7 +443,7 @@ def classify_conclusion(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.8 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
+| 是否可作为实现依据 | 是，当前 v1.9 可作为 Evidence/Policy/Summary、功能/效果 UAT 分离、诊断和后续版本化改进依据 |
 | 当前允许实施范围 | 当前证据链、三层策略、Summary V4、效果口径 v2、extractive validator、功能 UAT、candidate-05 只读诊断与 candidate-06 non-live 准备 |
 | 当前禁止动作 | 改写历史数据/evidence/结论、放宽 validator、未经新授权真实调用、宣称效果达标 |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -461,7 +463,8 @@ def classify_conclusion(
 | v1.3 独立评审 | 无 S0/S1/未处理 S2；只批准域目录 v2 和 Summary v3 | Passed |
 | v1.6 三轮内审与独立复评 | V3 当前生产、V1/V2 历史兼容、candidate-04/05 结论及后续新候选门禁一致；无 S0/S1/未处理 S2 | Passed |
 | v1.7 三轮内审与独立评审 | candidate-05 分母/归因冲突、Summary V4、多候选历史隔离和 candidate-06 门禁无环；无 S0/S1/未处理 S2 | Passed |
+| v1.9 三轮内审与独立评审 | 首轮修复范围节仍称 V3 当前生产一项 S2；代码评审修复授权文件与 clean HEAD 循环、授权记录未强绑定实际 HEAD/manifest 两项 Major，复评确认 candidate-06 92项绑定、唯一运行授权资产、V4/效果口径 v2、历史不可变和 GATE-077 无环；无 S0/S1/未处理 S2 | Passed |
 
-- 当前版本：v1.8。
+- 当前版本：v1.9。
 - 文档状态：Approved。
 - candidate-04 历史结论为 `ineffective`；candidate-05 当前结论为 `partially_effective`，两者均不得重写或改判。

@@ -169,6 +169,16 @@ def _candidate_id(raw: str) -> LiveCandidateId:
     return cast(LiveCandidateId, raw)
 
 
+def _unexpected_live_worktree_entries(
+    *, candidate_id: LiveCandidateId, entries: tuple[str, ...]
+) -> tuple[str, ...]:
+    if candidate_id != "candidate-06":
+        return entries
+    authorization_relative = _CANDIDATE_BINDINGS[candidate_id].authorization_relative.as_posix()
+    allowed = f"?? {authorization_relative}"
+    return tuple(entry for entry in entries if entry != allowed)
+
+
 def manifest_path(repository_root: Path, candidate_id: LiveCandidateId = _DEFAULT_LIVE_CANDIDATE) -> Path:
     return repository_root / _CANDIDATE_BINDINGS[candidate_id].manifest_relative
 
@@ -325,9 +335,13 @@ async def build_live_from_environment(
         or read_authorization_ref != manifest.read_authorization_evidence_ref
     ):
         raise LiveEvaluationBootstrapError("evaluation.live_authorization_binding_invalid")
-    frozen_head, dirty, worktree_entries = read_repository_state(repository_root)
-    if dirty or worktree_entries:
+    frozen_head, _, worktree_entries = read_repository_state(repository_root)
+    if _unexpected_live_worktree_entries(candidate_id=candidate_id, entries=worktree_entries):
         raise LiveEvaluationBootstrapError("evaluation.live_worktree_dirty")
+    if candidate_id == "candidate-06" and (
+        authorization.frozen_head != frozen_head or authorization.manifest_sha256 != manifest_sha256
+    ):
+        raise LiveEvaluationBootstrapError("evaluation.live_authorization_binding_invalid")
 
     model_settings = ModelSettings.from_env(
         {

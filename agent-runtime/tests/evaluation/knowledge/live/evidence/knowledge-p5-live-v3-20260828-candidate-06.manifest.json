@@ -1,0 +1,443 @@
+{
+  "schemaVersion": 4,
+  "status": "prepared_unconsumed",
+  "workPackageId": "WP-K-EFFECT-LIVE-06",
+  "runId": "knowledge-p5-live-v3-20260828-candidate-06",
+  "authorizationReference": "P3_00:GATE-077",
+  "datasetPath": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+  "datasetSha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408",
+  "datasetCaseCount": 26,
+  "evaluationVariants": [
+    "primary",
+    "rewrite_ablation"
+  ],
+  "principalProfileId": "tax-knowledge-admin-reader-v1",
+  "readAuthorizationEvidenceRef": "WP-KRET-REAL-01:authorizationMatrix.admin",
+  "gateEvidence": [
+    {
+      "gateId": "SA-GATE-002",
+      "evidenceRef": "P3_00:GATE-020"
+    },
+    {
+      "gateId": "CR-GATE-003",
+      "evidenceRef": "P3_00:CR-GATE-003"
+    },
+    {
+      "gateId": "SA-GATE-003",
+      "evidenceRef": "P3_00:GATE-029"
+    },
+    {
+      "gateId": "SA-GATE-006",
+      "evidenceRef": "P3_00:GATE-032"
+    }
+  ],
+  "paidRequestBudget": {
+    "capabilityExecutions": 52,
+    "knowledgeRewrite": 26,
+    "knowledgeSummary": 52,
+    "coreAnswer": 0,
+    "retry": 0,
+    "maximumPaidRequests": 78
+  },
+  "providerMode": "live",
+  "modelName": "deepseek-v4-pro",
+  "taskVersions": {
+    "knowledge_rewrite": "1",
+    "knowledge_summary": "4"
+  },
+  "configurationBinding": {
+    "domainCatalogVersion": "tax-domain-catalog-v2",
+    "flowConfigVersion": "knowledge-flow-config-v1",
+    "retrievalProfileVersion": "tax-knowledge-search-v1",
+    "embeddingModel": "BGE-M3",
+    "rerankModel": "BAAI/bge-reranker-v2-m3",
+    "policyCatalogSha256": "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698",
+    "evidenceRulesVersion": "knowledge-evidence-v1",
+    "summaryPromptSha256": "f71ab8e899fe7d33688270d026077f8a102585b6e19135e9d002962ad41d7ec6",
+    "effectMetricVersion": "knowledge-effect-metrics-v2",
+    "qualityPopulationMinimumRate": 0.9
+  },
+  "indexSnapshotIds": [
+    "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed",
+    "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+  ],
+  "retrievalBinding": {
+    "readAlias": "agent-doc-tax-policy-v2-read",
+    "expectedIndexName": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+    "expectedIndexUuid": "k97bn1gxROSfVm7zGfzbOg",
+    "mappingVersion": "agent-knowledge-tax-v1",
+    "policySnapshotId": "7c71202794927a9497fed9df7cc0db5a052a53f0f6c2afdb6c0a16089f1c96ed",
+    "lawSnapshotId": "99ae962ae1c8e5026187c864eada38b3c3b82d6b017e6e8f076f116aba53fce2"
+  },
+  "assetHashes": [
+    {
+      "path": "agent-runtime/scripts/run-knowledge-p5-live-candidate-06.ps1",
+      "sha256": "63e0af13cf7a61091d9a9275866b609616b4f6b2c028fbcd83925b352a846cfe"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/bootstrap.py",
+      "sha256": "32bbb1d26279ee038a2337976b0884afa92308e1792b3898ecf43592ae3208fb"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/capability.py",
+      "sha256": "887488b426f3cf6ac2c8b6d052b4a3f45b8ffbc687ff2b3fcbad3641fe13e601"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/catalog.py",
+      "sha256": "dc62f35d0308169a7a5581cab3b1fe8262296f7ba5efabfbeabab3e8ded57c35"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/domain_selection.py",
+      "sha256": "363ba13db5283b53b34fabccbb826bdc4cab5ce1dcaf469e5712c1a2ead73fbf"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/builder.py",
+      "sha256": "12817b9cfc8ca83c1e3135aebe4f107d22841dfd79fa115dc44d49198fe07ff2"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/catalog.py",
+      "sha256": "adaeb67eeadab23b6dc53e132b14f787beafc9dec8027fb06415ac1479bbaeee"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/contracts.py",
+      "sha256": "6c284054c74fcbe7bf35c80d1180a836ebd04f96fbf17a5acae0e636d392bbd6"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog.json",
+      "sha256": "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/policy.py",
+      "sha256": "1e4ab2b4249984ac49d946c0f5fe1a2240478892395869b14328e04fd2ff7593"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/stage.py",
+      "sha256": "56e8bdb3104e0d3004ba55d30834c2249c5635369516e6ba62a01d2fb5c0d072"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task.py",
+      "sha256": "dba0175a7e2810ea1a1c5601499cd9da74de6c3cf60b4026cc7136233b864645"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v2.py",
+      "sha256": "cf8e8c7f56a9bffb36828a91a923955529d0e23fbd9084229a68ea47a8d8643b"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v3.py",
+      "sha256": "54b3d95b3c95bf84b3e8723bf96eccd7ae649a77ca9ff3ce530de53d0fe96de8"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v4.py",
+      "sha256": "4536806fb8f23762e531c54c7061205a912994d0ad45e0997554815097bbd50e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py",
+      "sha256": "80a3846814dc360291078649697aebdd2b393971b8abb933ed0f645200c4f6d6"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/planning.py",
+      "sha256": "4f3b152e94770de30c9f38a8f76f3632b60660e8817ba05f84b2261e36ffe7ee"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/question_semantics.py",
+      "sha256": "0cda53d8981b12da65c76f0a200e41ac9e05e33a075dbdaab1e4bd7b8818223e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/bge_embedding.py",
+      "sha256": "a2d99912d2b6442f5b2095fd5083bfcd38cc33de2b029dd778ea6fd679793063"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/bge_rerank.py",
+      "sha256": "744e387b82aff45ee41df4b7c373a04f4dcc844fe390f9d96bab6b7a257536c2"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/contracts.py",
+      "sha256": "03cb1761d840f8449b192a8034a6596ec3edb2d319e621c82e3ac8f99a47a90a"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/es_adapter.py",
+      "sha256": "ebc3f6e6f3ab2441c6d6584fc1ac87c6c381123bb9d539a99ad29a3a570827f4"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/fusion.py",
+      "sha256": "765fc301926ca69e7c5ddcb807cee20132396326612d4edff4870f21e12539b0"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/http.py",
+      "sha256": "da5bccac8d85c46d345120e05c474f7dc7af1ff28e5d7362252d946107bab8f3"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/retrieval/stage.py",
+      "sha256": "16207f7fa3c0126c960429e79e6c91960c584d8905ab1a9d0a5b2c75eeb4416c"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/rewrite.py",
+      "sha256": "4ecd21a078bdf09a1a36a154cc431a02a7ff140d0af93dd1276b0f5ff04583bc"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/knowledge/settings.py",
+      "sha256": "46187c97505babbcd1a4c8e39eb7b9cf38406b1b26e058a35256ee58925a881e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/main.py",
+      "sha256": "743aa05a95e53198254f71b522f62d1307ea15689dcf4e11c7a9f8e6750704d6"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/contracts.py",
+      "sha256": "4225a3c2bd2831013313bdfa3ab861dcb0c984eb5665f6a6bf32c46f5e9be994"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/deepseek/transport.py",
+      "sha256": "f12283c76d41c7fcaa6eb67b06128a3f76c1897a3206db8a6efd055ffcffc310"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/gateway.py",
+      "sha256": "e9af6b0d9cdeb21f838d6b54cb7f4f4c6c2e7e05e2b91e8742553211edb26faa"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/input_guard.py",
+      "sha256": "f58bfbab62a76ce5f49768ea5cf55cfb8f9fefdf5d13175e25438be0996d293e"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/question_policy.py",
+      "sha256": "b49daef5ea47670b0bdf3e51e211116b1ff1db3345660056fef3a7c0f376d5ba"
+    },
+    {
+      "path": "agent-runtime/src/agent_runtime/model/settings.py",
+      "sha256": "3913c3c8d9969be1b39b61e230a708d7c51cd787c0bead807c4b203d3c5f7bf5"
+    },
+    {
+      "path": "agent-runtime/tests/contract/knowledge/test_summary_task_v4.py",
+      "sha256": "d6db85f777c65d5fa830d26a02ba2119ee73887e20412b5317a6fc8223b50dee"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/contracts.py",
+      "sha256": "a710602e3c38b134c79efa19b43f6140cc73fc91fcfa32d87492f14bb92ac827"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/diagnostics/candidate_05_effect_diagnosis.v1.json",
+      "sha256": "d13336cede802bfb4b88671802123d5ac1d7885ab5f6fc12cf7d8525952d3a2b"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-01.authorization.json",
+      "sha256": "c599996d71bc62c756a51e711b7509882643723798c33ff9d851c8b1ee1dfc3c"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-01.manifest.json",
+      "sha256": "b57af536909af4b6ec9a3c02b4332b91db4f48f4b23e2c33e4a1570100de7084"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-02.authorization.json",
+      "sha256": "d1faad700c6933c19fff6162768e890834da6caf29f9f4fceed054b8090f6988"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-02.manifest.json",
+      "sha256": "9fba41444d6bf55d8d54900d188317de796688849ce256b95756df688b245471"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-03.authorization.json",
+      "sha256": "cc0d2efb360b30148fe81fdcc3be58918f5f67ee890696a63342ebab73d4bca3"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-03.manifest.json",
+      "sha256": "5c83082828596f567c46a2047ac57b35f3aac44f5389d9846f2d63109d551988"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-04.authorization.json",
+      "sha256": "2e19e1cbca2e1c8530d3530ae9c2e02d7bc3f27c65e03b617614cb520fafea70"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v1-20260813-candidate-04.manifest.json",
+      "sha256": "8d1976508830024cbdec1a98adb0b5254afe51a33f933ceccf45a2d192a0b4b2"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v2-20260826-candidate-05.authorization-template.json",
+      "sha256": "f6ce20d6d4951321fd7891e3be1e58adfc9a4fabc98ab6c6838ea15bc197ae7d"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v2-20260826-candidate-05.authorization.json",
+      "sha256": "186815c07475ab35489f40e32ac4c9714574354bb2c7bda8a4f080065b91c1d5"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v2-20260826-candidate-05.manifest.json",
+      "sha256": "41997c6d41f3109b178844c9b74799bb59c869ae06ec23aca66bea1a6f1e278c"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v3-20260828-candidate-06.authorization-template.json",
+      "sha256": "06dc54cfee49a6d73e19b4ebb0824c6231d8cf4558021b08ab0f4ef755e21669"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live_bootstrap.py",
+      "sha256": "747d7b0849cf282da58254aa9ecf0ef8523937f58fa176cce72d24ebbaa1e14f"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live_contracts.py",
+      "sha256": "2d6e35b2a141e170ce271ccbd64b1d06024edbe7856865ad5860925f1fd1e25b"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live_diagnostics.py",
+      "sha256": "98220ebc7bafa938504c5fd39cb30a5d93096a4c8cf3766c22a72ba9ccc51d99"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live_executor.py",
+      "sha256": "e3d29a51848f75ed769040b0d687befe04ade43f0d5724d705c87ca3926779c4"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/live_runner.py",
+      "sha256": "d1134a221f391789a419d8af8407039b3adbd62b49cc4fe3e12ecc5245e31470"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.authorization.json",
+      "sha256": "026e69a13663080beb2621c101e944fb5b44ff0e66b14f3bdfba4ee0c47cf669"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl",
+      "sha256": "1ea7417d80686545bd96d0f88f27b5b57de3de2ae6d6cb60c272190193645408"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.provenance.json",
+      "sha256": "b14591a60c23f87b140d3dffe3d060520c48afa7186f2ac9d9edef9f71288cae"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/representative_questions.v2.sha256",
+      "sha256": "2c9ec6de0cb44e7c48e9fec5f79f10e1fa7b2202b0c11eb84f5980b84121ff66"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-01/authorization.consumed.json",
+      "sha256": "1f767a5887854b32255134d0f0166aa106c2be4f576b59fac396cdf74eb0349e"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-01/failure.json",
+      "sha256": "1162eeddee526006168653c90c7fcd59eda69d6163952a6d289b2433fe4fb3b7"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-01/paid-attempts.jsonl",
+      "sha256": "94846c956d867feb42c098f6881db28dd1966643ec9335d22ee300ea21433a15"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-02/authorization.consumed.json",
+      "sha256": "dc729185ebc77eed16c7b0ca493d5d4dd7017a12d4e82998a909b9dae9c39e3d"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-02/failure.json",
+      "sha256": "08f4de1203a5fb419eb8e4b032669125da4afdb26aa693c264d87e045e8750fd"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-02/paid-attempts.jsonl",
+      "sha256": "081d881a57ae38e07a7d61f78e80aa515362745b1f845fcf0b5719791eb0b2f6"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-03/authorization.consumed.json",
+      "sha256": "c1fe1dcc0abce62620e1eca27103654fa5ffd1605632c57d8de8f15626e92cfe"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-03/failure.json",
+      "sha256": "6881cf6194dac87df5b6f9cf5d9c31ffb434f02b8d734506adcbdf5901e27188"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-03/paid-attempts.jsonl",
+      "sha256": "779e6b318e46a84fdf1ca0b93933190bac1e4e6e542c75f6b3f78bb28dccad75"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-03/phase-checkpoints.jsonl",
+      "sha256": "917a8ed73ba43c3d7bef50c8ff88a803c7b6b077af9da98a1e6d9977aae4393f"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/authorization.consumed.json",
+      "sha256": "96685b9eb8cd554d45ee8f0511f3ec582192063d816aa6ce64d9ecb9bfbc6651"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/evidence.json",
+      "sha256": "03932c85d6a9da835aaf6e699af27a1006f025a14c4abec18df48b5bda446cf7"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/launcher-evidence.json",
+      "sha256": "afe1a86b7a88649628b0aa43b81cff1006841e5353cf0fe9be70b2ded5c0b837"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/paid-attempts.jsonl",
+      "sha256": "9d83b2970903d97a085ecee9ba8fd6eb2f50987528d8d1a25fbdcd05b3f8d855"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/phase-checkpoints.jsonl",
+      "sha256": "bd8e9babb8fe44bfd4d1aacef3aab745a1dcccd82f469824908f9b17adac71c2"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v1-20260813-candidate-04/result.json",
+      "sha256": "8be86ed49d8560265ab87fbf7441d45d382b2dc40c3e099eb105f55c1507e1c3"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/authorization.consumed.json",
+      "sha256": "29181761560afd6ecece5740fc774205a42e3e557e183a1e86fed9cc0417a821"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/evidence.json",
+      "sha256": "75391778b123ac96f5f4889d9fffec6306d118e6d4347121995227d84f6d42df"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/launcher-evidence.json",
+      "sha256": "8defbd1f85374d3afe5a08de0158662fa79e02a133f497583dd88eca69899888"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/paid-attempts.jsonl",
+      "sha256": "f37e7926cf1c0e068251d8819d4cfcd3d195b739ec23c3d1658e5be626e6042b"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/phase-checkpoints.jsonl",
+      "sha256": "c6e95ed58c9f974f0a83287ab80b4ba57133d58dd6078d79e18c3a1f6bc7e062"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/results/knowledge-p5-live-v2-20260826-candidate-05/result.json",
+      "sha256": "a6de81fe960c80aecae6d198d1de8b99eb13b14d69128541418dab2849af36eb"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/run_evaluation.py",
+      "sha256": "80d9ca88bbb6ea29da8614138f3354557e27fdf4178126833a4ae76c27fb69c3"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/schemas/evaluation-failure-v1.schema.json",
+      "sha256": "afa91087dc2cffaec2cd69c975fda681b8045e2558e0e24583f256a4a912d182"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/schemas/evaluation-result-v1.schema.json",
+      "sha256": "c1fd54d6d91ad32215f88060b5c4b68a539e2b80a18d38db037c22ae048407c3"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/test_candidate_05_effect_diagnosis.py",
+      "sha256": "80b967bbe5209108095ec02824f7cbf65311d7aa8b100a61ce57d69adfa30ebd"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/test_dataset_and_metrics.py",
+      "sha256": "25d322b2db9fc8efe0d6b80ba2da8fa10cb5861c5c067df5d754b207138a3cbb"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/test_effect_metrics_v2.py",
+      "sha256": "5edf32c5c8c79e511e311a27c0cee8eb1fcf10982f5a02a26d54969f67edd57b"
+    },
+    {
+      "path": "agent-runtime/tests/evaluation/knowledge/test_live_p5_candidate_06_contracts.py",
+      "sha256": "4172a82874f180aac556e0e5b8b3f190356ba24d25aceae2d798faf86da7c4fd"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/knowledge-egress-export-20260812-01.manifest.json",
+      "sha256": "75ab6ed2aae4843b2d4d4292d49c4cfa78a17d26ec238c2aa5306520af3d3bfe"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/evidence/wp-kret-real-01-20260803.json",
+      "sha256": "a0547439e9b4434b63b3efa73a901d2cb96d52ee9307bcc5cb9ff22dfc63bdd3"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/test_production_runtime_wiring.py",
+      "sha256": "7d34a552716c471288fefbc51a544ad791b1ff924e04ca3c189a5e8bfc6f736f"
+    },
+    {
+      "path": "agent-runtime/tests/integration/knowledge/test_summary_v4_composition.py",
+      "sha256": "cb4118483dcbd088ffcf22168e927f309f137e54395aff714682d285b0cdab17"
+    },
+    {
+      "path": "agent-runtime/tests/unit/knowledge/test_domain_selection.py",
+      "sha256": "79e1f4241cd48c90790634dadcda3560606726770e413a2797c55b92a1599e7b"
+    }
+  ],
+  "preparedAt": "2026-08-28T12:30:00Z"
+}

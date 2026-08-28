@@ -7,21 +7,21 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- `REQ_00` v2.0 继续作为需求权威；当前设计基线为 L0 v2.4、L1 Core/Knowledge/Business v2.9/v1.7/v2.5，14 份 L2 的当前版本见下表。实施计划为 P3 v2.24，Business/Knowledge 验收计划分别为 UAT_00 v1.18、UAT_01 v1.7。
+- `REQ_00` v2.0 继续作为需求权威；当前设计基线为 L0 v2.5、L1 Core/Knowledge/Business v3.0/v1.8/v2.5，14 份 L2 的当前版本见下表。实施计划为 P3 v2.25，Business/Knowledge 验收计划分别为 UAT_00 v1.19、UAT_01 v1.8。
 
 ## 2. 需求与总体架构
 
 | 编号 | 文档 | 版本/状态 | 阅读重点 |
 |---|---|---|---|
 | `REQ_00` | [单体 Agent 查询能力建设需求说明](REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.0 / Approved | 三动作、filters QueryPlan、字段边界与验收 |
-| `L0_00` | [单体 Agent L0 总体架构](design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.4 / Approved | 系统边界、唯一链路、权限与分域决策 |
+| `L0_00` | [单体 Agent L0 总体架构](design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.5 / Approved | 系统边界、唯一链路、权限与分域决策 |
 
 ## 3. L1 架构
 
 | 编号 | 文档 | 版本/状态 | 治理范围 |
 |---|---|---|---|
-| `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v2.9 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
-| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.7 / Approved | 问题改写、多域、多路召回/重排、证据与摘要、P5 |
+| `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.0 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
+| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.8 / Approved | 问题改写、多域、多路召回/重排、证据与摘要、P5 |
 | `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.5 / Approved | 三动作 Adapter、字段级配置、operator-specific 文本安全、端点级角色转换、最终授权与列表结果 |
 
 ## 4. L2 详细设计
@@ -39,9 +39,9 @@
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.8 / Approved |
-| `L2_01_01` | [Knowledge 检索与本地模型](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v1.7 / Approved |
-| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.8 / Approved |
+| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.9 / Approved |
+| `L2_01_01` | [Knowledge 检索与本地模型](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v1.8 / Approved |
+| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.9 / Approved |
 
 ### 4.3 Business（受 `L1_02` 治理）
 
@@ -62,8 +62,8 @@
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.24 / Reviewed；既有 25 个工作包 Done，本轮新增 7 个收口包中，文档纠偏、正式 Python 测试入口、candidate-05 诊断和 Summary V4/效果口径 v2 已 Done，candidate-06 非 live 准备 Ready，live 和最终收口按依赖推进。
-- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.18 / Reviewed；18 项真实 v4 QueryPlan 与 17 项等价自动化风险闭合，共 35/35 可追踪。Knowledge 由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.7 独立治理，功能 37/37 Passed，效果仍为 `partially_effective`。
+- 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.25 / Reviewed；既有 25 个工作包 Done，本轮新增 7 个收口包中，文档纠偏、正式 Python 测试入口、candidate-05 诊断、Summary V4/效果口径 v2 和 candidate-06 非 live 准备已 Done，live 和最终收口按依赖推进。
+- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.19 / Reviewed；18 项真实 v4 QueryPlan 与 17 项等价自动化风险闭合，共 35/35 可追踪。Knowledge 由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.8 独立治理，功能 37/37 Passed，效果仍为 `partially_effective`。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求、设计与 35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已完成 non-live 实施；candidate-04/05 历史资产保持不可变，最新效果仍为 `partially_effective`。正式 Python 隔离入口、candidate-05 根因诊断及最小优化已经关闭；下一步只准备 candidate-06 非 live 冻结及其精确授权效果 UAT。在新候选 Q1～Q4 全部通过前不得宣称 Knowledge 整体效果达标或七项收口完成。
+Employee/Transaction 需求、设计与 35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已完成 non-live 实施；candidate-04/05 历史资产保持不可变，最新效果仍为 `partially_effective`。正式 Python 隔离入口、candidate-05 根因诊断、最小优化和 candidate-06 非 live 冻结已经关闭；下一步须以新 frozen HEAD 精确授权并执行 `GATE-077`。在新候选 Q1～Q4 全部通过前不得宣称 Knowledge 整体效果达标或七项收口完成。

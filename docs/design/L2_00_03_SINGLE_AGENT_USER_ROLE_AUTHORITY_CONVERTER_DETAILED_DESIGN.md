@@ -239,7 +239,7 @@ public final class UserRoleJwtAuthenticationConverter
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.1 可作为共享 Authority Converter 及 Provider 消费代码评审依据 |
+| 是否可作为实现依据 | 是，当前 v1.2 可作为共享 Authority Converter 及 Provider 消费代码评审依据 |
 | 当前允许实施范围 | common-security Converter/AutoConfiguration、三 Provider 显式绑定和测试 |
 | 当前禁止动作 | 新角色、用户特例、auth-service 签发变更、业务授权迁移和生产生效 |
 | 回滚单位 | common-security 与所有显式消费 Provider 的兼容版本 |

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$RepositoryRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
+    [Parameter(Mandatory = $true)][string]$AuthorizedFrozenHead,
     [Parameter(Mandatory = $true)][string]$AuthorizedRunId,
     [Parameter(Mandatory = $true)][string]$AuthorizedManifestSha256,
     [Parameter(Mandatory = $true)][string]$AuthorizationReference,
@@ -15,8 +16,11 @@ if ($repository -ne 'D:\codex') {
 
 $runtimeRoot = Join-Path $repository 'agent-runtime'
 $manifestPath = Join-Path $runtimeRoot 'tests\evaluation\knowledge\live\evidence\knowledge-p5-live-v3-20260828-candidate-06.manifest.json'
+$authorizationRelativePath = 'agent-runtime/tests/evaluation/knowledge/live/evidence/knowledge-p5-live-v3-20260828-candidate-06.authorization.json'
+$authorizationPath = Join-Path $repository ($authorizationRelativePath -replace '/', '\')
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $actualManifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$actualFrozenHead = (git -C $repository rev-parse HEAD).Trim().ToLowerInvariant()
 if (
     [int]$manifest.schemaVersion -ne 4 -or
     $null -eq $manifest.retrievalBinding -or
@@ -24,6 +28,8 @@ if (
     $AuthorizedRunId -ne [string]$manifest.runId -or
     $AuthorizationReference -ne [string]$manifest.authorizationReference -or
     $MaximumPaidRequests -ne [int]$manifest.paidRequestBudget.maximumPaidRequests -or
+    $AuthorizedFrozenHead -notmatch '^[0-9a-f]{40}$' -or
+    $actualFrozenHead -ne $AuthorizedFrozenHead -or
     $AuthorizedManifestSha256 -notmatch '^[0-9a-f]{64}$' -or
     $actualManifestSha256 -ne $AuthorizedManifestSha256
 ) {
@@ -35,8 +41,31 @@ $outputRoot = Join-Path $runtimeRoot "tests\evaluation\knowledge\results\$Author
 if (Test-Path -LiteralPath $outputRoot) {
     throw 'knowledge.p5_live_authorization_consumed'
 }
-if ((git -C $repository status --porcelain --untracked-files=all)) {
+$worktreeEntries = @(git -C $repository status --porcelain --untracked-files=all)
+$unexpectedWorktreeEntries = @($worktreeEntries | Where-Object { $_ -ne "?? $authorizationRelativePath" })
+if ($unexpectedWorktreeEntries.Count -ne 0) {
     throw 'knowledge.p5_live_worktree_dirty'
+}
+if (-not (Test-Path -LiteralPath $authorizationPath -PathType Leaf)) {
+    throw 'knowledge.p5_live_authorization_missing'
+}
+$authorization = Get-Content -LiteralPath $authorizationPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if (
+    [int]$authorization.schemaVersion -ne 1 -or
+    [string]$authorization.status -ne 'authorized_unconsumed' -or
+    [string]$authorization.workPackageId -ne 'WP-K-EFFECT-LIVE-06' -or
+    [string]$authorization.runId -ne $AuthorizedRunId -or
+    [string]$authorization.authorizationReference -ne $AuthorizationReference -or
+    [bool]$authorization.singleUse -ne $true -or
+    [int]$authorization.maximumPaidRequests -ne $MaximumPaidRequests -or
+    [bool]$authorization.retryAllowed -ne $false -or
+    [bool]$authorization.answerRequestsAllowed -ne $false -or
+    [bool]$authorization.liveP5Authorized -ne $true -or
+    [string]$authorization.datasetSha256 -ne [string]$manifest.datasetSha256 -or
+    [string]$authorization.frozenHead -ne $AuthorizedFrozenHead -or
+    [string]$authorization.manifestSha256 -ne $AuthorizedManifestSha256
+) {
+    throw 'knowledge.p5_live_authorization_binding_invalid'
 }
 
 $ownedPorts = 18090, 19201
@@ -55,7 +84,11 @@ try {
     $previousPythonPath = [Environment]::GetEnvironmentVariable('PYTHONPATH', 'Process')
     $env:PYTHONPATH = 'src'
     python -m pytest `
-        tests/evaluation/knowledge/test_live_p5_candidate_06_preparation.py `
+        tests/evaluation/knowledge/test_live_p5_candidate_06_contracts.py `
+        tests/evaluation/knowledge/test_live_p5_candidate_06_preparation.py::test_candidate_06_manifest_template_assets_and_history_are_frozen `
+        tests/evaluation/knowledge/test_live_p5_candidate_06_preparation.py::test_candidate_06_fake_budget_pairs_52_executions_and_consumes_once `
+        tests/evaluation/knowledge/test_live_p5_candidate_06_preparation.py::test_candidate_06_failure_is_terminal_without_retry_or_resume `
+        tests/evaluation/knowledge/test_live_p5_candidate_06_preparation.py::test_candidate_06_prepared_assets_contain_no_secret_or_live_result `
         tests/evaluation/knowledge/test_live_p5_candidate_03_preparation.py `
         tests/evaluation/knowledge/test_live_p5_diagnostics.py `
         tests/evaluation/knowledge/test_live_p5_candidate_01_history.py `
