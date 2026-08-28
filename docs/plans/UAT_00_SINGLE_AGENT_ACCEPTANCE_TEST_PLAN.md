@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.21 |
+| 当前版本 | v1.22 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-28 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.2；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.7 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.7；Employee L2 v2.7；Transaction L2 v2.6 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.30 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.2；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8；Employee L2 v2.8；Transaction L2 v2.6 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.31 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.21 保留原35项已通过结论，并增加15项 Employee 自然语言扩展 UAT；扩展用例独立冻结、计数和判定，不改写历史证据。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.22 保留原35项已通过结论，如实记录扩展 candidate-01 harness 失败及 candidate-02 多值计划严格拒绝，并以 v6 裸 slot 合同准备独立后续候选；失败候选均不可重跑。
 
 ## 2. 验收目标与范围外
 
@@ -157,24 +157,26 @@ v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f
 
 ## 12. Employee 自然语言扩展 UAT
 
-本组不改写第5～10节的35项历史结论。准入条件是 P3 `GATE-081` 关闭并冻结 HEAD、Business QueryPlan v5 task、Prompt hash、business-query-v3 snapshot、15项用例和预算。完整运行最多30次真实 QueryPlan、30次只读 Employee search；semantic/Transaction/Knowledge/answer、retry/resume/fallback 均为0。
+本组不改写第5～10节的35项历史结论。`GATE-081` 已由 non-live、类型、Java 与正式隔离全量回归关闭。受控 UAT 按候选冻结 HEAD、Business QueryPlan task、Prompt hash、business-query-v3 snapshot、15项用例和总预算；所有候选合计最多30次真实 QueryPlan、30次只读 Employee search，semantic/Transaction/Knowledge/answer、retry/resume/fallback 均为0。
 
 | 用例 | 输入风险类别 | 必须生成的计划/行为 | 通过条件 |
 |---|---|---|---|
 | `UAT-EMP-NL-301` | 姓杨/杨姓/姓氏为杨 | `chinese_name prefix + value_ref` | 真值模型零可见；search≤1 |
 | `UAT-EMP-NL-302` | 复姓 | `chinese_name prefix + value_ref` | 复姓形成单一 slot |
-| `UAT-EMP-NL-303` | 多完整姓名 | `chinese_name in + value_refs` | 精确任一，slot唯一 |
-| `UAT-EMP-NL-304` | 多姓氏 | `chinese_name prefix_any + value_refs` | 不得用 `in` 近似 |
+| `UAT-EMP-NL-303` | 多姓氏 | `chinese_name prefix_any + value_refs` | 裸 slot 精确对应，不得用 `in` 近似 |
+| `UAT-EMP-NL-304` | 多完整姓名 | `chinese_name in + value_refs` | 精确任一，裸 slot 唯一 |
 | `UAT-EMP-NL-305` | 姓氏+姓名片段 | 同字段 `prefix + contains` 两 filter | AND完整保留，不合并/丢弃 |
 | `UAT-EMP-NL-306` | 上海市/上海地区/在上海 | `contact_address contains 上海` | 别名规范化后调用search |
-| `UAT-EMP-NL-307` | 江苏省/江苏地区 | `contact_address contains 江苏` | 未使用workBase |
-| `UAT-EMP-NL-308` | 浙江省/浙江地区 | `contact_address contains 浙江` | 未使用workBase |
-| `UAT-EMP-NL-309` | 多地区 | `contact_address contains_any` literal list | 不得用精确 `in` |
-| `UAT-EMP-NL-310` | 帮我查询/查一下/是否有 | 语义等价计划 | 本地句式不决定operator |
+| `UAT-EMP-NL-307` | 上海地区 | `contact_address contains 上海` | 未使用workBase |
+| `UAT-EMP-NL-308` | 江苏省 | `contact_address contains 江苏` | 未使用workBase |
+| `UAT-EMP-NL-309` | 浙江短名 | `contact_address contains 浙江` | 未使用workBase |
+| `UAT-EMP-NL-310` | 多地区 | `contact_address contains_any` literal list | 不得用精确 `in` |
 | `UAT-EMP-NL-311` | 无“员工”但姓名强提示 | 进入受控规划或 exact unsupported | 本地不生成Employee计划 |
-| `UAT-EMP-NL-312` | 未配置字段/未知operator | invalid/unsupported | Employee调用0 |
-| `UAT-EMP-NL-313` | 超限/重复/跨请求slot | invalid_argument | Employee调用0 |
-| `UAT-EMP-NL-314` | denied/missing/malformed/service-token | 确定性拒绝 | 未授权数据不可返回 |
-| `UAT-EMP-NL-315` | 单动作/敏感扫描 | 仅 `/employees/es/search` | 其他endpoint=0；payload/log/evidence零敏感值 |
+| `UAT-EMP-NL-312` | 祈使句变化 | 语义等价 `prefix` 计划 | 本地句式不决定operator |
+| `UAT-EMP-NL-313` | denied角色 | 业务最终授权拒绝 | 仅一次 search，未授权数据不可返回 |
+| `UAT-EMP-NL-314` | workBase未配置字段 | invalid/unsupported | Employee调用0 |
+| `UAT-EMP-NL-315` | 超限protected slots | invalid_argument | 模型和Employee调用均为0 |
 
 每个 case 只记录 case ID、计划结构摘要、逻辑 operator、模型/Employee整数调用、有限结果状态、安全扫描布尔值和 Passed/Failed；不保存原问题、姓名/姓氏真值、员工标识、JWT、原始模型/业务响应或未脱敏地址。无真实命中时，正确计划、一次 search 和 `no_result` 可证明链路，但完整 UAT 必须至少包含一个已确认存在数据的地区列表成功场景。任一失败均不补跑单 case；先按实现、测试、环境、数据或设计分类，并保持该扩展组未完成。
+
+执行历史：candidate-01 在首个 provider 成功响应后因 harness 使用标准 `json.dumps` 处理冻结 `JsonObject` 而 `failed_consumed`（模型1、Employee0）；candidate-02 修复该问题后，301/302通过，303生成正确 `prefix_any/value_refs` 结构但被 strict planning 合同拒绝，终态 `failed_consumed`（模型3、Employee2）。两者均无 retry/resume、其他 endpoint、敏感值或日志泄漏，证据 append-only。v6 只澄清 bare slot 合同，不放宽 decoder/validator/binder。

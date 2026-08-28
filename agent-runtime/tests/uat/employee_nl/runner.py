@@ -4,6 +4,8 @@ import argparse
 import asyncio
 import json
 import os
+import re
+import subprocess
 from collections.abc import Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
@@ -72,6 +74,9 @@ class UatMetrics:
     plans: dict[str, tuple[str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = field(
         default_factory=dict
     )
+    protected_reference_diagnostics: dict[str, tuple[str, int]] = field(
+        default_factory=dict
+    )
 
 
 class CountingPlanGenerator:
@@ -138,6 +143,9 @@ class CountingPlanGenerator:
         if any(token in serialized_output for token in _FORBIDDEN_PLAN_TOKENS):
             self._metrics.forbidden_plan_values += 1
             raise AssertionError("employee_nl_uat.protected_value_plan_leak")
+        self._metrics.protected_reference_diagnostics[case_id] = (
+            _protected_reference_diagnostic(response, input.minimized_question)
+        )
         action, fields, operators, shapes = _plan_shape(response)
         self._metrics.plans[case_id] = (action, fields, operators, shapes)
         return response
@@ -203,6 +211,70 @@ def _plan_shape(
                 shape = "literal_list" if type(value.get("literal")) is tuple else "literal"
         shapes.append(shape)
     return action, tuple(fields), tuple(operators), tuple(shapes)
+
+
+def _protected_reference_diagnostic(
+    response: Mapping[str, object], minimized_question: str
+) -> tuple[str, int]:
+    source_refs = tuple(
+        re.findall(r"protected-ref\((slot-[1-9][0-9]{0,5})\)", minimized_question)
+    )
+    arguments = response.get("arguments")
+    if not isinstance(arguments, Mapping):
+        return ("not_observed", 0)
+    raw_filters = arguments.get("filters")
+    if type(raw_filters) is not tuple:
+        return ("missing", 0) if source_refs else ("not_applicable", 0)
+    output_refs: list[str] = []
+    for raw_filter in raw_filters:
+        if not isinstance(raw_filter, Mapping):
+            continue
+        value = raw_filter.get("value")
+        if not isinstance(value, Mapping):
+            continue
+        if set(value) == {"value_ref"}:
+            raw_ref = value.get("value_ref")
+            if type(raw_ref) is not str:
+                return ("malformed", len(output_refs))
+            output_refs.append(raw_ref)
+        elif set(value) == {"value_refs"}:
+            raw_refs = value.get("value_refs")
+            if type(raw_refs) is not tuple or any(type(item) is not str for item in raw_refs):
+                return ("malformed", len(output_refs))
+            output_refs.extend(cast(tuple[str, ...], raw_refs))
+    if not source_refs and not output_refs:
+        return ("not_applicable", 0)
+    if any(ref.startswith("protected-ref(") for ref in output_refs):
+        return ("wrapper", len(output_refs))
+    if len(output_refs) != len(set(output_refs)):
+        return ("duplicate", len(output_refs))
+    if any(ref not in source_refs for ref in output_refs):
+        return ("unknown", len(output_refs))
+    if set(output_refs) != set(source_refs):
+        return ("missing", len(output_refs))
+    return ("valid", len(output_refs))
+
+
+def _limited_failure_code(code: str | None) -> str | None:
+    allowed = {
+        "business.plan_context_missing",
+        "business.plan_input_denied",
+        "business.plan_internal_failure",
+        "business.plan_invalid",
+        "business.plan_model_denied",
+        "business.plan_model_failure",
+        "business.plan_model_timeout",
+        "business.plan_registry_mismatch",
+        "business.plan_snapshot_mismatch",
+        "business.plan_unsupported",
+        "business.protected_value_invalid",
+        "core.downstream_failure",
+        "core.forbidden",
+        "core.invalid_argument",
+    }
+    if code is None:
+        return None
+    return code if code in allowed else "employee_nl_uat.other_failure"
 
 
 def _execution_scope(case: EmployeeNaturalLanguageCase, *, jwt: str) -> RequestExecutionScope:
@@ -272,7 +344,14 @@ async def execute(
         manifest_sha256=manifest_sha256,
         frozen_head=frozen_head,
     )
-    if manifest["sourceHead"] != "53665fc50e3db0fa7e534c896f66946e5f384a33":
+    source_head = cast(str, manifest["sourceHead"])
+    if subprocess.run(
+        ["git", "merge-base", "--is-ancestor", source_head, frozen_head],
+        cwd=repository,
+        check=False,
+        capture_output=True,
+        text=True,
+    ).returncode != 0:
         raise RuntimeError("employee_nl_uat.source_head_invalid")
     configuration = cast(dict[str, object], manifest["configuration"])
     employee_base_url = cast(str, configuration["employeeBaseUrl"])
@@ -351,7 +430,19 @@ async def execute(
             model_calls = metrics.model_calls - before_model
             employee_calls = metrics.employee_search_calls - before_employee
             plan = metrics.plans.get(case.case_id, ("", (), (), ()))
+            reference_diagnostic = metrics.protected_reference_diagnostics.get(
+                case.case_id, ("not_observed", 0)
+            )
             row_count = _row_count(cast(Mapping[str, object] | None, outcome.user_result))
+            expected_reference_status = (
+                "not_observed"
+                if case.expected_model_calls == 0
+                else (
+                    "valid"
+                    if case.expected_protected_reference_count > 0
+                    else "not_applicable"
+                )
+            )
             passed = (
                 outcome.status in case.expected_statuses
                 and outcome.capability_id == case.expected_action
@@ -360,6 +451,11 @@ async def execute(
                 and plan[1] == case.expected_fields
                 and plan[2] == case.expected_operators
                 and plan[3] == case.expected_value_shapes
+                and reference_diagnostic
+                == (
+                    expected_reference_status,
+                    case.expected_protected_reference_count,
+                )
                 and row_count >= case.minimum_rows
                 and metrics.forbidden_plan_values == 0
             )
@@ -371,6 +467,11 @@ async def execute(
                 "fields": list(plan[1]),
                 "operators": list(plan[2]),
                 "valueShapes": list(plan[3]),
+                "protectedReferenceStatus": reference_diagnostic[0],
+                "protectedReferenceCount": reference_diagnostic[1],
+                "failureCode": _limited_failure_code(
+                    None if outcome.failure is None else outcome.failure.code
+                ),
                 "modelCalls": model_calls,
                 "employeeSearchCalls": employee_calls,
                 "rowCount": row_count,
@@ -388,6 +489,9 @@ async def execute(
             item.get("caseId") == active_case.case_id for item in observations
         ):
             plan = metrics.plans.get(active_case.case_id, ("", (), (), ()))
+            reference_diagnostic = metrics.protected_reference_diagnostics.get(
+                active_case.case_id, ("not_observed", 0)
+            )
             failed_observation: dict[str, object] = {
                 "caseId": active_case.case_id,
                 "inputClass": active_case.input_class,
@@ -396,6 +500,9 @@ async def execute(
                 "fields": list(plan[1]),
                 "operators": list(plan[2]),
                 "valueShapes": list(plan[3]),
+                "protectedReferenceStatus": reference_diagnostic[0],
+                "protectedReferenceCount": reference_diagnostic[1],
+                "failureCode": "employee_nl_uat.runner_exception",
                 "modelCalls": metrics.model_calls - before_model,
                 "employeeSearchCalls": metrics.employee_search_calls - before_employee,
                 "rowCount": 0,

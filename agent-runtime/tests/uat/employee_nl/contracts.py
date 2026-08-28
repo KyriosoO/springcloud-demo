@@ -11,20 +11,52 @@ from pathlib import Path
 from typing import Final, cast
 
 from agent_runtime.capability_api.contracts import CapabilityStatus
-from agent_runtime.model.deepseek.business_query_plan_v5 import (
+from agent_runtime.model.deepseek.business_query_plan_v6 import (
     BUSINESS_QUERY_PLAN_SYSTEM_INSTRUCTION,
     BUSINESS_QUERY_PLAN_TASK_VERSION,
 )
 
 
-RUN_ID: Final = "employee-natural-language-v1-20260828-candidate-02"
+RUN_ID: Final = "employee-natural-language-v1-20260828-candidate-03"
 AUTHORIZATION_REFERENCE: Final = "P3_00:GATE-082"
 WORK_PACKAGE: Final = "WP-EMP-NL-UAT-10"
-MODEL_CALL_BUDGET: Final = 29
-EMPLOYEE_SEARCH_BUDGET: Final = 30
+MODEL_CALL_BUDGET: Final = 26
+EMPLOYEE_SEARCH_BUDGET: Final = 28
 CASE_COUNT: Final = 15
 _SHA256: Final = re.compile(r"[0-9a-f]{64}")
 _GIT_SHA: Final = re.compile(r"[0-9a-f]{40}")
+_PROTECTED_REFERENCE_STATUSES: Final = frozenset(
+    {
+        "valid",
+        "not_applicable",
+        "not_observed",
+        "malformed",
+        "wrapper",
+        "duplicate",
+        "unknown",
+        "missing",
+    }
+)
+_FAILURE_CODES: Final = frozenset(
+    {
+        "business.plan_context_missing",
+        "business.plan_input_denied",
+        "business.plan_internal_failure",
+        "business.plan_invalid",
+        "business.plan_model_denied",
+        "business.plan_model_failure",
+        "business.plan_model_timeout",
+        "business.plan_registry_mismatch",
+        "business.plan_snapshot_mismatch",
+        "business.plan_unsupported",
+        "business.protected_value_invalid",
+        "core.downstream_failure",
+        "core.forbidden",
+        "core.invalid_argument",
+        "employee_nl_uat.other_failure",
+        "employee_nl_uat.runner_exception",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -38,6 +70,7 @@ class EmployeeNaturalLanguageCase:
     expected_fields: tuple[str, ...] = ()
     expected_operators: tuple[str, ...] = ()
     expected_value_shapes: tuple[str, ...] = ()
+    expected_protected_reference_count: int = 0
     expected_model_calls: int = 1
     expected_employee_calls: int = 1
     minimum_rows: int = 0
@@ -46,18 +79,18 @@ class EmployeeNaturalLanguageCase:
 def cases() -> tuple[EmployeeNaturalLanguageCase, ...]:
     list_statuses = (CapabilityStatus.SUCCESS, CapabilityStatus.NO_RESULT)
     return (
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-301", input_class="single_surname_prefix", question="姓杨的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",)),
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-302", input_class="compound_surname_prefix", question="欧阳姓员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",)),
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-303", input_class="multiple_surnames_prefix_any", question="查询姓杨或姓王的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix_any",), expected_value_shapes=("value_refs",)),
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-304", input_class="multiple_full_names_in", question="查询姓名为杨明或王芳的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("in",), expected_value_shapes=("value_refs",)),
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-305", input_class="surname_and_name_fragment", question="查询姓杨且姓名中包含明的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name", "chinese_name"), expected_operators=("prefix", "contains"), expected_value_shapes=("value_ref", "value_ref")),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-301", input_class="single_surname_prefix", question="姓杨的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",), expected_protected_reference_count=1),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-302", input_class="compound_surname_prefix", question="欧阳姓员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",), expected_protected_reference_count=1),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-303", input_class="multiple_surnames_prefix_any", question="查询姓杨或姓王的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix_any",), expected_value_shapes=("value_refs",), expected_protected_reference_count=2),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-304", input_class="multiple_full_names_in", question="查询姓名为杨明或王芳的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("in",), expected_value_shapes=("value_refs",), expected_protected_reference_count=2),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-305", input_class="surname_and_name_fragment", question="查询姓杨且姓名中包含明的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name", "chinese_name"), expected_operators=("prefix", "contains"), expected_value_shapes=("value_ref", "value_ref"), expected_protected_reference_count=2),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-306", input_class="region_preposition", question="查询在上海的员工", principal="admin", expected_statuses=(CapabilityStatus.SUCCESS,), expected_action="employee.search", expected_fields=("contact_address",), expected_operators=("contains",), expected_value_shapes=("literal",), minimum_rows=1),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-307", input_class="region_area_alias", question="查询上海地区的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("contact_address",), expected_operators=("contains",), expected_value_shapes=("literal",)),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-308", input_class="province_suffix_alias", question="查询江苏省的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("contact_address",), expected_operators=("contains",), expected_value_shapes=("literal",)),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-309", input_class="province_short_alias", question="查询浙江的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("contact_address",), expected_operators=("contains",), expected_value_shapes=("literal",)),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-310", input_class="multiple_regions_contains_any", question="查询江苏、浙江或上海的员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("contact_address",), expected_operators=("contains_any",), expected_value_shapes=("literal_list",)),
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-311", input_class="implicit_employee_question", question="是否有姓杨的", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",)),
-        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-312", input_class="imperative_variant", question="请查一下杨姓员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",)),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-311", input_class="implicit_employee_question", question="是否有姓杨的", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",), expected_protected_reference_count=1),
+        EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-312", input_class="imperative_variant", question="请查一下杨姓员工", principal="admin", expected_statuses=list_statuses, expected_action="employee.search", expected_fields=("chinese_name",), expected_operators=("prefix",), expected_value_shapes=("value_ref",), expected_protected_reference_count=1),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-313", input_class="endpoint_authorization_denied", question="查询在上海的员工", principal="denied", expected_statuses=(CapabilityStatus.FORBIDDEN,), expected_action="employee.search", expected_fields=("contact_address",), expected_operators=("contains",), expected_value_shapes=("literal",)),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-314", input_class="unconfigured_workbase", question="查询员工的workBaseSi等于上海", principal="admin", expected_statuses=(CapabilityStatus.UNSUPPORTED, CapabilityStatus.INVALID_ARGUMENT), expected_action=None, expected_model_calls=1, expected_employee_calls=0),
         EmployeeNaturalLanguageCase(case_id="UAT-EMP-NL-315", input_class="protected_value_limit", question="查询姓赵、姓钱、姓孙、姓李、姓周、姓吴、姓郑、姓王、姓冯、姓陈、姓褚、姓卫、姓蒋、姓沈、姓韩、姓杨或姓朱的员工", principal="admin", expected_statuses=(CapabilityStatus.INVALID_ARGUMENT,), expected_action=None, expected_model_calls=0, expected_employee_calls=0),
@@ -280,14 +313,16 @@ def validate_result(value: object) -> dict[str, object]:
             raw,
             {
                 "caseId", "inputClass", "status", "capabilityId", "fields",
-                "operators", "valueShapes", "modelCalls", "employeeSearchCalls",
-                "rowCount", "securityPassed", "passed",
+                "operators", "valueShapes", "protectedReferenceStatus",
+                "protectedReferenceCount", "failureCode", "modelCalls",
+                "employeeSearchCalls", "rowCount", "securityPassed", "passed",
             },
         )
         case_id = item.get("caseId")
         model_calls = item.get("modelCalls")
         employee_calls = item.get("employeeSearchCalls")
         row_count = item.get("rowCount")
+        protected_reference_count = item.get("protectedReferenceCount")
         if (
             type(case_id) is not str
             or case_id in seen
@@ -298,6 +333,10 @@ def validate_result(value: object) -> dict[str, object]:
             or employee_calls not in {0, 1}
             or type(row_count) is not int
             or row_count < 0
+            or type(protected_reference_count) is not int
+            or protected_reference_count < 0
+            or item.get("protectedReferenceStatus") not in _PROTECTED_REFERENCE_STATUSES
+            or item.get("failureCode") not in _FAILURE_CODES | {None}
             or type(item.get("securityPassed")) is not bool
             or type(item.get("passed")) is not bool
         ):

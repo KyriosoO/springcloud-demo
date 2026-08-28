@@ -6,20 +6,20 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.5 |
+| 当前版本 | v2.6 |
 | 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.3 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施 `business-query-plan-v4`；本版目标为独立 `business-query-plan-v5`，默认 provider 仍为 stub |
+| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施并由生产组合根绑定的 `business-query-plan-v6`；默认 provider 仍为 stub，v5仅作历史兼容 |
 | 归档来源 | [v1.9 已评审旧版](历史文档/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN_v1.9.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.5 设计 Business v5 的 operator 语义目录、受控 `value_refs` 和自然语言完整意图要求；v4 源码及历史 evidence 保持不可变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 基于 candidate-02 有限证据补齐受保护引用序列化合同：模型输出只能使用裸 `slot-N`，不能把问题中的 `protected-ref(slot-N)` wrapper 写入 `value_ref(s)`；v5 及历史 evidence 保持不可变。
 
 ## 2. 设计目标、范围外与当前实现基线
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v4` 已实施；目标 `business-query-plan-v5` 在不复用历史授权的前提下补充 operator 语义、单/多值形状、AND/OR 保留和姓名/地区自然语言规划。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。
+范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v5` 已实施；目标 `business-query-plan-v6` 只澄清裸 slot ID、全部相关 slot 一次性引用及 exact tagged value 形状，不改变 Business decoder、validator、binder 或业务接口。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -34,7 +34,7 @@
 
 ## 3. 模块职责设计、依赖方向与接口契约
 
-现有 provider-neutral `BusinessQueryPlanGenerator.generate(...)` 返回 `JsonObject`；复用现有 ModelContext、DeepSeek transport 与 client 生命周期。新增独立 `business_query_plan_v5.py` 并由当前生产组合根切换到 v5；既有 v4 模块及更早 source、manifest 和 evidence 保持 Git 可追溯及字节不可变，不以旧 Prompt 结果证明 v5 多值/组合行为。
+现有 provider-neutral `BusinessQueryPlanGenerator.generate(...)` 返回 `JsonObject`；复用现有 ModelContext、DeepSeek transport 与 client 生命周期。新增独立 `business_query_plan_v6.py` 并由当前生产组合根从 v5 切换到 v6；既有 v4/v5 模块及更早 source、manifest 和 evidence 保持 Git 可追溯及字节不可变。
 
 provider response decoder 仅执行单 JSON object、重复键、额外文本、字节数、深度、集合上限和有限数字校验。它不解析 Business field/operator；`JsonObject → BusinessQueryPlan` 的 exact 三字段、filters 与业务语义由 `L2_02_00` 拥有。依赖方向固定 `Model task → provider transport` 和 `Graph → provider-neutral Model Port`，禁止反向依赖 Business Adapter 或 Core handler。完整意图示例归属 Model Prompt，保持模型规划职责内聚，不在 Business/Core 新增自然语言解析耦合。
 
@@ -69,9 +69,9 @@ Prompt 必须明确：
 
 QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必须由独立 Business egress 策略授权，不是列表查询默认步骤。
 
-### 5.1 Business QueryPlan v5 目录与 Prompt
+### 5.1 Business QueryPlan v6 目录与 Prompt
 
-目录对每个 operator 提供逻辑语义、`scalar/multi` cardinality、1～16 上限及允许的 `literal/value_ref/value_refs` tagged forms，并对每个字段提供允许组合。Prompt 负责理解问句、祈使句、姓氏/姓名/地区、多值和 AND/OR；输入安全层只把敏感值替换为 `protected-ref(slot-N)`，保留词序与连接词。模型不得复述 slot 真值，不能用 `in` 代替 `prefix_any/contains_any`，也不能在任一条件不可表达时生成部分计划。
+目录对每个 operator 提供逻辑语义、`scalar/multi` cardinality、1～16 上限及允许的 `literal/value_ref/value_refs` tagged forms，并对每个字段提供允许组合。Prompt 负责理解问句、祈使句、姓氏/姓名/地区、多值和 AND/OR；输入安全层只把敏感值替换为 `protected-ref(slot-N)`，保留词序与连接词。v6 明确 tagged value 内只能写裸 `slot-N`：单值为 `{"value_ref":"slot-1"}`，多值为 `{"value_refs":["slot-1","slot-2"]}`；禁止写 `protected-ref(...)` wrapper、遗漏语义相关 slot、重复 slot 或凭空生成 slot。模型不得复述 slot 真值，不能用 `in` 代替 `prefix_any/contains_any`，也不能在任一条件不可表达时生成部分计划。
 
 不含“员工”但经输入层识别出受保护姓名/姓氏强提示的请求可以进入同一 Business planning；这只是受控候选准入，domain/action 仍由模型决定，非法或不确定计划按 existing unsupported/invalid plan 失败关闭。v5 必须独立版本化，v4 模块和冻结证据不修改。
 
@@ -114,13 +114,14 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 
 | 规则编号 | 设计规则 |
 |---|---|
-| `DR-MODEL-101` | 当前生产 task 必须是 code-bound `business-query-plan-v5` 并只生成逻辑 filters QueryPlan；v4 及更早 source、manifest 与证据只作不可变历史 |
+| `DR-MODEL-101` | 当前生产 task 必须是 code-bound `business-query-plan-v6` 并只生成逻辑 filters QueryPlan；v4/v5 及更早 source、manifest 与证据只作不可变历史 |
 | `DR-MODEL-102` | provider framing decoder 和 Business payload decoder 分层，不互相替代 |
 | `DR-MODEL-103` | 安全目录只包含三动作及已启用逻辑 field/operator，protected slot 不含真实值 |
 | `DR-MODEL-104` | 完整意图不可表达时 exact unsupported；semantic+结构过滤与无批准时钟的相对日期必须通过显式 Prompt 反例失败关闭，禁止近似、丢条件和任何 fallback |
 | `DR-MODEL-105` | 默认 stub、最小必要代码变更、现有 transport/Knowledge 任务稳定 |
-| `DR-MODEL-106` | `business-query-plan-v5` 使用语义目录而非逐句规则；LLM 决定 domain/action/field/operator/AND/OR，本地只执行安全准入和行为校验 |
+| `DR-MODEL-106` | `business-query-plan-v6` 使用语义目录而非逐句规则；LLM 决定 domain/action/field/operator/AND/OR，本地只执行安全准入和行为校验 |
 | `DR-MODEL-107` | `literal/value_ref/value_refs`、operator cardinality 和组合必须由 catalog 与 Business exact validator 一致约束；敏感真值模型零可见 |
+| `DR-MODEL-108` | `value_ref(s)` 只接收问题中出现的裸 `slot-N`；wrapper、未知/重复/遗漏相关 slot 均由现有严格合同失败关闭，不做本地修补 |
 
 权限与审计：模型不接触角色与 JWT；仅记录 snapshot、task version、action、有限错误和调用计数。数据生命周期与迁移回滚不改变数据库或历史 evidence；v3 controlled/UAT 结果只能证明历史版本，不得替代 v4 UAT。使用独立版本化 manifest 与新结果路径，不新增生产级审批、复杂规则 DSL 或本地语义 Resolver。
 

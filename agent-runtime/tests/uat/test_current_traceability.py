@@ -19,7 +19,7 @@ def test_current_uat_traceability_closes_all_35_cases_without_relabeling_history
     assert sum(item["hasRealLlmEvidence"] is True for item in cases) == 18
     assert sum(item["hasRealLlmEvidence"] is False for item in cases) == 17
     assert {item["stage"] for item in cases} == {"public", "employee", "transaction"}
-    assert value["authority"] == "UAT_00 v1.20"
+    assert value["authority"] == "UAT_00 v1.22"
 
 
 @pytest.mark.parametrize(

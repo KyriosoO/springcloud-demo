@@ -7,15 +7,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.7 |
+| 当前版本 | v2.8 |
 | 更新日期 | 2026-08-28 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.6 |
-| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 |
+| 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.3 |
 | 权威范围 | Business filters QueryPlan、统一字段配置、三动作 Adapter、最终授权与结果投影 |
-| 当前实现 | filters/config、三个列表动作、生产组合根、最终授权、Transaction operator-specific 文本策略和 v4 完整意图 Prompt 均已实施；18 个真实场景与 17 个确定性风险等价自动化均已闭合 |
+| 当前实现 | filters/config、三个列表动作、typed `value_refs`、多值 operator、有限同字段组合、行政区规范化、生产组合根和最终授权均已实施；既有35项 UAT 保持通过，Employee 自然语言扩展 UAT 正在收口 |
 | 归档来源 | [v1.4 已评审旧版](历史文档/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE_v1.4.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.7 在既有 Employee search 接口内增加受控多值引用、`prefix_any/contains_any`、有限同字段 AND 和行政区别名；保持三个动作、公共 DTO、权限及历史证据不变。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.8 如实标记 Employee 多值/组合/行政区能力已实施；模型必须输出裸 `slot-N` 引用，wrapper 仅存在于最小化问题文本，不改变 Adapter 合同。
 
 ## 2. 架构目标、非目标与上位约束映射
 
@@ -27,7 +27,7 @@
 
 | 动作 | 固定业务接口 | 已核实能力 | 当前缺口 |
 |---|---|---|---|
-| `employee.search` | `POST /employees/es/search` | keyword、单值 `eq/contains/prefix`、多值 exact/prefix/contains-any、多个 filter 的 `bool.must`、分页和排序 | Agent 尚缺 typed `value_refs`、逻辑 operator 映射、有限同字段组合和行政区别名 |
+| `employee.search` | `POST /employees/es/search` | keyword、单值 `eq/contains/prefix`、多值 exact/prefix/contains-any、多个 filter 的 `bool.must`、分页和排序 | Agent 已完成 typed `value_refs`、逻辑 operator 映射、有限同字段组合和行政区别名；扩展真实 UAT 待最终闭合 |
 | `employee.semantic_search` | `POST /employees/es/vector-search` | `queryText` 向量检索和受控 k；无结构化 filter；Agent Adapter、读取守卫与专用共享 converter 已实施 | 正式 UAT semantic 1 次返回 9 条；semantic+地点零业务调用 |
 | `transaction.search` | `POST /txn/search` | 类型、标识、Date、BigDecimal、page/size、最多两个 sort；`trans_type eq` 已兼容下划线类型，`contains` 仍拒绝 SQL LIKE 通配字符 | 正式 UAT search 7 次；相对日期和聚合零业务调用 |
 
