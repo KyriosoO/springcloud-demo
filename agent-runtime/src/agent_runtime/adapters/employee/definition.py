@@ -14,6 +14,7 @@ from agent_runtime.business.contracts import (
     BusinessServiceKey,
     ConstraintDimension,
     business_query_v2_action_contract,
+    business_query_v3_action_contract,
 )
 from agent_runtime.adapters.employee.codec import (
     EmployeeDetailArgumentValidator,
@@ -101,13 +102,21 @@ def employee_detail_definition() -> BusinessActionDefinition[
     )
 
 
-def employee_search_definition() -> BusinessActionDefinition[
+def employee_search_definition(
+    *,
+    contract_version: str = "v3",
+) -> BusinessActionDefinition[
     EmployeeSearchInput,
     EmployeeSearchWireRequest,
     EmployeeSearchWireResponse,
     EmployeeSearchRecord,
 ]:
-    contract = business_query_v2_action_contract("employee.search")
+    if contract_version == "v3":
+        contract = business_query_v3_action_contract("employee.search")
+    elif contract_version == "v2":
+        contract = business_query_v2_action_contract("employee.search")
+    else:
+        raise ValueError("business.unknown_action_contract")
     return BusinessActionDefinition(
         descriptor=CapabilityDescriptor(
             capability_id=contract.action_id,
@@ -127,7 +136,13 @@ def employee_search_definition() -> BusinessActionDefinition[
                             "properties": {
                                 "field": {"type": "string"},
                                 "operator": {"type": "string"},
-                                "value": {"type": "string"},
+                                "value": {
+                                    "type": "string",
+                                    "description": (
+                                        "Scalar or bounded tuple after strict QueryPlan binding; "
+                                        "the typed Business validator is authoritative."
+                                    ),
+                                },
                             },
                             "required": ("field", "operator", "value"),
                             "additionalProperties": False,

@@ -34,9 +34,18 @@ class EmployeeSearchDomainProvider:
         return BusinessDomainId("employee")
 
     def definitions(self) -> tuple[BusinessActionDefinition[Any, Any, Any, Any], ...]:
+        if self._search_settings.code_contract_version == "employee-search-plan-v3":
+            contract_version = "v3"
+        elif self._search_settings.code_contract_version == "employee-search-plan-v2":
+            contract_version = "v2"
+        else:
+            raise ValueError("business.unknown_action_contract")
         if self._semantic_settings is None:
-            return (employee_search_definition(),)
-        return (employee_search_definition(), employee_semantic_search_definition())
+            return (employee_search_definition(contract_version=contract_version),)
+        return (
+            employee_search_definition(contract_version=contract_version),
+            employee_semantic_search_definition(),
+        )
 
     def configuration_fragment(self) -> BusinessConfigurationFragment:
         actions: tuple[tuple[str, BusinessActionSettings], ...] = (

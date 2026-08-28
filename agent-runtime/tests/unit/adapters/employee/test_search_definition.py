@@ -31,7 +31,7 @@ from agent_runtime.model.input_guard import QuestionEgressGuard
 
 
 def _settings() -> BusinessActionSettings:
-    return dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)["employee.search"]
+    return dict(BusinessQueryConfigurationLoader.load_v3_resource().actions)["employee.search"]
 
 
 def _arguments() -> dict[str, JsonValue]:

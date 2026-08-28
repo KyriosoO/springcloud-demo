@@ -73,10 +73,8 @@ from agent_runtime.model.contracts import (
     StructuredModelGateway,
     StructuredModelTransport,
 )
-from agent_runtime.model.deepseek.business_query_plan import (
-    DeepSeekBusinessQueryPlanGenerator,
-    build_business_query_plan_task_definition,
-)
+from agent_runtime.model.deepseek.business_query_plan import DeepSeekBusinessQueryPlanGenerator
+from agent_runtime.model.deepseek.business_query_plan_v5 import build_business_query_plan_task_definition
 from agent_runtime.model.deepseek.action_selector import (
     DeepSeekCapabilitySelector,
     build_action_selection_task_definition,
@@ -406,7 +404,7 @@ class BusinessQueryRuntimeCompositionRoot:
         local_action_resolvers: Sequence[LocalActionResolver] = (),
     ) -> ModelContextBindingRuntimeInvoker:
         core_settings = CoreRuntimeSettings()
-        configured = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)
+        configured = dict(BusinessQueryConfigurationLoader.load_v3_resource().actions)
         employee_provider = EmployeeSearchDomainProvider(
             search_settings=configured["employee.search"],
             semantic_settings=configured["employee.semantic_search"],

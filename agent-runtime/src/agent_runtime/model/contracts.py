@@ -178,9 +178,9 @@ class BusinessQueryPlanTaskInput:
         try:
             catalog = freeze_json_object(
                 self.catalog,
-                max_bytes=32768,
-                max_depth=8,
-                max_collection_items=256,
+                max_bytes=65536,
+                max_depth=12,
+                max_collection_items=1024,
             )
         except ValueError as exc:
             raise ModelInputDenied("model.business_query_plan_input_invalid") from exc

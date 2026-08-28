@@ -31,6 +31,7 @@ from agent_runtime.business.contracts import (
     FieldTransformSelection,
     business_query_v2_action_contracts,
     business_query_v2_result_contracts,
+    business_query_v3_action_contracts,
 )
 
 
@@ -203,7 +204,15 @@ class BusinessQueryConfigurationLoader:
             "user_visible", "model_visible", "sortable",
         }
     )
-    _OPTIONAL_FIELD_KEYS = frozenset({"max_text_chars", "user_transform", "model_transform"})
+    _OPTIONAL_FIELD_KEYS = frozenset(
+        {
+            "max_text_chars",
+            "user_transform",
+            "model_transform",
+            "operator_combinations",
+            "normalization_profile",
+        }
+    )
 
     @classmethod
     def load_v2_resource(cls) -> BusinessQueryConfiguration:
@@ -212,6 +221,36 @@ class BusinessQueryConfigurationLoader:
 
     @classmethod
     def load_v2_bytes(cls, content: bytes) -> BusinessQueryConfiguration:
+        return cls._load_bytes(
+            content,
+            config_version="business-query-v2",
+            code_contract_version="business-query-contract-v2",
+            contracts=business_query_v2_action_contracts(),
+        )
+
+    @classmethod
+    def load_v3_resource(cls) -> BusinessQueryConfiguration:
+        content = files("agent_runtime.business").joinpath("business-query.v3.json").read_bytes()
+        return cls.load_v3_bytes(content)
+
+    @classmethod
+    def load_v3_bytes(cls, content: bytes) -> BusinessQueryConfiguration:
+        return cls._load_bytes(
+            content,
+            config_version="business-query-v3",
+            code_contract_version="business-query-contract-v3",
+            contracts=business_query_v3_action_contracts(),
+        )
+
+    @classmethod
+    def _load_bytes(
+        cls,
+        content: bytes,
+        *,
+        config_version: str,
+        code_contract_version: str,
+        contracts: Sequence[BusinessQueryActionContract],
+    ) -> BusinessQueryConfiguration:
         if not isinstance(content, bytes) or not 1 <= len(content) <= 65536:
             raise BusinessConfigurationError("business.configuration_schema_invalid")
         try:
@@ -227,9 +266,12 @@ class BusinessQueryConfigurationLoader:
                 raise
             raise BusinessConfigurationError("business.configuration_schema_invalid") from exc
         root = _configuration_object(payload, required=cls._ROOT_KEYS)
-        if root["config_version"] != "business-query-v2" or root["code_contract_version"] != "business-query-contract-v2":
+        if (
+            root["config_version"] != config_version
+            or root["code_contract_version"] != code_contract_version
+        ):
             raise BusinessConfigurationError("business.configuration_version_mismatch")
-        contracts = {item.action_id: item for item in business_query_v2_action_contracts()}
+        contract_by_action = {item.action_id: item for item in contracts}
         configured: dict[str, BusinessActionSettings] = {}
         seen_domains: set[str] = set()
         for raw_domain in _configuration_array(root["domains"], maximum=8):
@@ -246,7 +288,7 @@ class BusinessQueryConfigurationLoader:
                     optional=cls._OPTIONAL_ACTION_KEYS,
                 )
                 action_id = _configuration_string(action["action"])
-                contract = contracts.get(action_id)
+                contract = contract_by_action.get(action_id)
                 if (
                     contract is None
                     or str(contract.domain_id) != domain_id
@@ -256,14 +298,14 @@ class BusinessQueryConfigurationLoader:
                 configured[action_id] = cls._parse_action(
                     action,
                     contract=contract,
-                    config_version="business-query-v2",
+                    config_version=config_version,
                     domain_enabled=domain_enabled,
                 )
-        if set(configured) != set(contracts) or seen_domains != {"employee", "transaction"}:
+        if set(configured) != set(contract_by_action) or seen_domains != {"employee", "transaction"}:
             raise BusinessConfigurationError("business.configuration_action_mismatch")
         return BusinessQueryConfiguration(
-            config_version="business-query-v2",
-            code_contract_version="business-query-contract-v2",
+            config_version=config_version,
+            code_contract_version=code_contract_version,
             actions=tuple(sorted(configured.items())),
         )
 
@@ -307,6 +349,11 @@ class BusinessQueryConfigurationLoader:
                 required=cls._FIELD_KEYS,
                 optional=cls._OPTIONAL_FIELD_KEYS,
             )
+            if config_version == "business-query-v2" and set(field) & {
+                "operator_combinations",
+                "normalization_profile",
+            }:
+                raise BusinessConfigurationError("business.configuration_schema_invalid")
             logical = _configuration_string(field["logical_name"])
             definition = definitions.get(logical)
             if definition is None or any(item.logical_name == logical for item in query_fields):
@@ -322,7 +369,7 @@ class BusinessQueryConfigurationLoader:
                 or exposure != definition.input_exposure
             ):
                 raise BusinessConfigurationError("business.invalid_query_fields")
-            raw_operators = _configuration_array(field["allowed_operators"], maximum=8)
+            raw_operators = _configuration_array(field["allowed_operators"], maximum=10)
             try:
                 operators = tuple(
                     BusinessQueryOperator(_configuration_string(item)) for item in raw_operators
@@ -348,6 +395,36 @@ class BusinessQueryConfigurationLoader:
                 )
             elif definition.max_text_chars is not None:
                 raise BusinessConfigurationError("business.invalid_query_fields")
+            operator_combinations: tuple[frozenset[BusinessQueryOperator], ...] = ()
+            if "operator_combinations" in field:
+                parsed_combinations: list[frozenset[BusinessQueryOperator]] = []
+                for raw_combination in _configuration_array(
+                    field["operator_combinations"], maximum=8
+                ):
+                    raw_members = _configuration_array(raw_combination, maximum=4)
+                    try:
+                        combination = frozenset(
+                            BusinessQueryOperator(_configuration_string(item))
+                            for item in raw_members
+                        )
+                    except ValueError as exc:
+                        raise BusinessConfigurationError(
+                            "business.invalid_query_fields"
+                        ) from exc
+                    if (
+                        not 2 <= len(combination) <= 4
+                        or len(combination) != len(raw_members)
+                        or combination not in definition.allowed_operator_combinations
+                        or combination in parsed_combinations
+                    ):
+                        raise BusinessConfigurationError("business.invalid_query_fields")
+                    parsed_combinations.append(combination)
+                operator_combinations = tuple(parsed_combinations)
+            normalization_profile = field.get("normalization_profile")
+            if normalization_profile is not None:
+                normalization_profile = _configuration_string(normalization_profile)
+            if normalization_profile != definition.normalization_profile:
+                raise BusinessConfigurationError("business.invalid_query_fields")
             query_fields.append(
                 BusinessQueryFieldSettings(
                     logical_name=logical,
@@ -358,6 +435,8 @@ class BusinessQueryConfigurationLoader:
                     max_text_chars=max_chars,
                     service_field=definition.service_field,
                     input_exposure=definition.input_exposure,
+                    allowed_operator_combinations=operator_combinations,
+                    normalization_profile=normalization_profile,
                 )
             )
             user_visible = _configuration_bool(field["user_visible"])
@@ -673,6 +752,16 @@ class BusinessSettingsValidator:
                                 key=lambda operator: operator.value,
                             )
                         ),
+                        allowed_operator_combinations=tuple(
+                            sorted(
+                                query_settings_by_name[
+                                    item.logical_name
+                                ].allowed_operator_combinations,
+                                key=lambda combination: tuple(
+                                    sorted(operator.value for operator in combination)
+                                ),
+                            )
+                        ),
                     )
                     for item in definition.query_fields
                     if item.logical_name in query_settings_by_name
@@ -885,7 +974,7 @@ class BusinessSettingsValidator:
             "allowed_sort_directions": value.allowed_sort_directions,
             "max_sort_items": value.max_sort_items,
         }
-        if value.config_version == "business-query-v2":
+        if value.config_version in {"business-query-v2", "business-query-v3"}:
             material.update(
                 {
                     "max_page": value.max_page,
@@ -906,6 +995,12 @@ class BusinessSettingsValidator:
                 selected["input_exposure"] = (
                     None if field.input_exposure is None else field.input_exposure.value
                 )
+                if value.config_version == "business-query-v3":
+                    selected["allowed_operator_combinations"] = tuple(
+                        tuple(sorted(operator.value for operator in combination))
+                        for combination in field.allowed_operator_combinations
+                    )
+                    selected["normalization_profile"] = field.normalization_profile
         return material
 
     @staticmethod
@@ -974,10 +1069,16 @@ class BusinessSettingsValidator:
                 "max_sort_items": limits.max_sort_items,
             },
         }
-        if definition.code_contract_version.endswith("-v2"):
+        if definition.code_contract_version.endswith(("-v2", "-v3")):
             query_fields = cast(list[dict[str, object]], material["query_fields"])
             for selected, field in zip(query_fields, definition.query_fields, strict=True):
                 selected["service_field"] = field.service_field
+                if definition.code_contract_version.endswith("-v3"):
+                    selected["allowed_operator_combinations"] = tuple(
+                        tuple(sorted(operator.value for operator in combination))
+                        for combination in field.allowed_operator_combinations
+                    )
+                    selected["normalization_profile"] = field.normalization_profile
             limit_material = cast(dict[str, object], material["contract_limits"])
             limit_material["max_page"] = limits.max_page
         return material
@@ -1047,7 +1148,7 @@ class BusinessSettingsValidator:
                 or type(selected.required) is not bool
                 or selected.model_safe_description != field.model_safe_description
                 or (
-                    settings.config_version == "business-query-v2"
+                    settings.config_version in {"business-query-v2", "business-query-v3"}
                     and (
                         selected.service_field != field.service_field
                         or selected.input_exposure != field.input_exposure
@@ -1056,6 +1157,14 @@ class BusinessSettingsValidator:
                 or not selected.allowed_operators
                 or len(selected.allowed_operators) != len(set(selected.allowed_operators))
                 or not set(selected.allowed_operators).issubset(field.allowed_operators)
+                or not set(selected.allowed_operator_combinations).issubset(
+                    field.allowed_operator_combinations
+                )
+                or any(
+                    not combination.issubset(set(selected.allowed_operators))
+                    for combination in selected.allowed_operator_combinations
+                )
+                or selected.normalization_profile != field.normalization_profile
                 or (selected.required and not selected.enabled)
                 or (
                     field.max_text_chars is None
@@ -1144,7 +1253,7 @@ class BusinessSettingsValidator:
             raise BusinessConfigurationError("business.invalid_sort_limits")
         if limits.fixed_page != settings.fixed_page:
             raise BusinessConfigurationError("business.invalid_fixed_page")
-        if settings.config_version == "business-query-v2":
+        if settings.config_version in {"business-query-v2", "business-query-v3"}:
             if (
                 type(limits.max_page) is not int
                 or type(settings.max_page) is not int
@@ -1153,7 +1262,12 @@ class BusinessSettingsValidator:
                 raise BusinessConfigurationError("business.invalid_page_limits")
             expected = next(
                 (
-                    item for item in business_query_v2_action_contracts()
+                    item
+                    for item in (
+                        business_query_v3_action_contracts()
+                        if settings.config_version == "business-query-v3"
+                        else business_query_v2_action_contracts()
+                    )
                     if item.action_id == definition.descriptor.capability_id
                 ),
                 None,

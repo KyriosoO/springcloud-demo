@@ -92,7 +92,7 @@ def test_semantic_mapper_rejects_profile_or_filter_configuration_mismatch() -> N
 
 
 def test_employee_provider_contains_two_distinct_actions_and_no_detail_fallback() -> None:
-    actions = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)
+    actions = dict(BusinessQueryConfigurationLoader.load_v3_resource().actions)
     provider = EmployeeSearchDomainProvider(
         search_settings=actions["employee.search"],
         semantic_settings=actions["employee.semantic_search"],

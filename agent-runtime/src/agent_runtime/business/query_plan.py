@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
@@ -27,6 +27,7 @@ from agent_runtime.business.contracts import (
     BusinessTextPolicyId,
 )
 from agent_runtime.business.settings import BusinessConfigurationSnapshot
+from agent_runtime.business.region_normalization import normalize_admin_region
 
 
 _ID = re.compile(r"[a-z][a-z0-9_.-]{0,127}")
@@ -50,6 +51,13 @@ _PROHIBITED_KEYS = frozenset(
         "headers",
         "jwt",
         "role",
+    }
+)
+_MULTI_VALUE_OPERATORS = frozenset(
+    {
+        BusinessQueryOperator.IN,
+        BusinessQueryOperator.PREFIX_ANY,
+        BusinessQueryOperator.CONTAINS_ANY,
     }
 )
 
@@ -76,7 +84,12 @@ class QueryPlanValueRef:
     value_ref: str
 
 
-QueryPlanArgumentValue: TypeAlias = QueryPlanLiteral | QueryPlanValueRef
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QueryPlanValueRefs:
+    value_refs: tuple[str, ...]
+
+
+QueryPlanArgumentValue: TypeAlias = QueryPlanLiteral | QueryPlanValueRef | QueryPlanValueRefs
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -129,6 +142,7 @@ class BusinessQueryPlan:
 class ProtectedValueSlots:
     request_id: str
     values: Mapping[str, object]
+    logical_fields: Mapping[str, str] = field(default_factory=dict)
 
     __hash__ = None  # type: ignore[assignment]
 
@@ -138,7 +152,14 @@ class ProtectedValueSlots:
         copied = dict(self.values)
         if len(copied) > 32 or any(_SLOT_ID.fullmatch(key) is None for key in copied):
             raise InvalidProtectedValue()
+        typed = dict(self.logical_fields)
+        if (
+            any(_SLOT_ID.fullmatch(key) is None or _ID.fullmatch(value) is None for key, value in typed.items())
+            or not set(typed).issubset(copied)
+        ):
+            raise InvalidProtectedValue()
         object.__setattr__(self, "values", MappingProxyType(copied))
+        object.__setattr__(self, "logical_fields", MappingProxyType(typed))
 
     def __repr__(self) -> str:
         return f"ProtectedValueSlots(request_id=<redacted>, count={len(self.values)})"
@@ -244,6 +265,19 @@ class ExactBusinessQueryPlanDecoder:
             if not isinstance(value_ref, str) or _SLOT_ID.fullmatch(value_ref) is None:
                 raise InvalidBusinessQueryPlan()
             return QueryPlanValueRef(value_ref=value_ref)
+        if set(raw) == {"value_refs"}:
+            value_refs = raw["value_refs"]
+            if (
+                not isinstance(value_refs, tuple)
+                or not 1 <= len(value_refs) <= 16
+                or len(value_refs) != len(set(value_refs))
+                or any(
+                    not isinstance(value_ref, str) or _SLOT_ID.fullmatch(value_ref) is None
+                    for value_ref in value_refs
+                )
+            ):
+                raise InvalidBusinessQueryPlan()
+            return QueryPlanValueRefs(value_refs=tuple(str(value_ref) for value_ref in value_refs))
         raise InvalidBusinessQueryPlan()
 
     @classmethod
@@ -284,7 +318,7 @@ class ExactBusinessQueryPlanDecoder:
             except ValueError as exc:
                 raise InvalidBusinessQueryPlan() from exc
             value = cls._decode_tagged_value(item["value"])
-            if typed_operator is BusinessQueryOperator.IN and isinstance(value, QueryPlanLiteral):
+            if typed_operator in _MULTI_VALUE_OPERATORS and isinstance(value, QueryPlanLiteral):
                 if not isinstance(value.value, tuple) or not 1 <= len(value.value) <= 16:
                     raise InvalidBusinessQueryPlan()
             filters.append(BusinessQueryFilter(field=field, operator=typed_operator, value=value))
@@ -470,18 +504,23 @@ class DefaultBusinessQueryPlanValidator:
             if item.operator not in field.allowed_operators or item.operator not in configured.allowed_operators:
                 raise InvalidBusinessQueryPlan()
             previous = seen_operators.setdefault(item.field, set())
-            if (
-                item.operator in previous
-                or (BusinessQueryOperator.EQ in previous)
-                or (item.operator is BusinessQueryOperator.EQ and previous)
-                or (
-                    item.operator in {BusinessQueryOperator.CONTAINS, BusinessQueryOperator.PREFIX, BusinessQueryOperator.IN}
-                    and previous
-                )
-            ):
+            if item.operator in previous:
                 raise InvalidBusinessQueryPlan()
+            if previous:
+                selected_combination = frozenset((*previous, item.operator))
+                range_combination = frozenset(
+                    {BusinessQueryOperator.GT, BusinessQueryOperator.LT}
+                )
+                allowed_combinations = set(field.allowed_operator_combinations) & set(
+                    configured.allowed_operator_combinations
+                )
+                if (
+                    selected_combination != range_combination
+                    and selected_combination not in allowed_combinations
+                ):
+                    raise InvalidBusinessQueryPlan()
             previous.add(item.operator)
-            if item.operator is BusinessQueryOperator.IN and isinstance(item.value, QueryPlanLiteral):
+            if item.operator in _MULTI_VALUE_OPERATORS and isinstance(item.value, QueryPlanLiteral):
                 literal_values = item.value.value
                 if not isinstance(literal_values, tuple) or not 1 <= len(literal_values) <= 16:
                     raise InvalidBusinessQueryPlan()
@@ -494,7 +533,23 @@ class DefaultBusinessQueryPlanValidator:
                         definition_action=definition,
                         operator=item.operator,
                     )
+            elif item.operator in _MULTI_VALUE_OPERATORS:
+                if not isinstance(item.value, QueryPlanValueRefs):
+                    raise InvalidBusinessQueryPlan()
+                cls._validate_value(
+                    item.value,
+                    definition=field,
+                    settings=configured,
+                    action_settings=settings,
+                    definition_action=definition,
+                    operator=item.operator,
+                )
             else:
+                if isinstance(item.value, QueryPlanValueRefs) or (
+                    isinstance(item.value, QueryPlanLiteral)
+                    and isinstance(item.value.value, tuple)
+                ):
+                    raise InvalidBusinessQueryPlan()
                 cls._validate_value(
                     item.value,
                     definition=field,
@@ -557,11 +612,17 @@ class DefaultBusinessQueryPlanValidator:
             definition.allowed_operators
         ):
             raise InvalidBusinessQueryPlan("business.plan_snapshot_mismatch")
-        if isinstance(value, QueryPlanValueRef):
+        if isinstance(value, (QueryPlanValueRef, QueryPlanValueRefs)):
             if definition.input_exposure not in {
                 BusinessInputExposure.PROTECTED_REF,
                 BusinessInputExposure.LITERAL_OR_PROTECTED_REF,
             }:
+                raise InvalidBusinessQueryPlan()
+            if isinstance(value, QueryPlanValueRefs) and (
+                operator not in _MULTI_VALUE_OPERATORS
+                or not 1 <= len(value.value_refs) <= 16
+                or len(value.value_refs) != len(set(value.value_refs))
+            ):
                 raise InvalidBusinessQueryPlan()
             return
         if definition.input_exposure is BusinessInputExposure.PROTECTED_REF:
@@ -585,10 +646,10 @@ class DefaultBusinessQueryPlanValidator:
                 text_policy = BusinessTextPolicyId.SAFE_CONTAINS_TOKEN
             if not _matches_text_policy(literal, text_policy):
                 raise InvalidBusinessQueryPlan()
-            if (
-                definition.input_exposure is BusinessInputExposure.LITERAL_OR_PROTECTED_REF
-                and not _is_safe_city_fragment(literal)
-            ):
+            if definition.normalization_profile is not None and normalize_admin_region(
+                literal,
+                profile=settings.normalization_profile,
+            ) is None:
                 raise InvalidBusinessQueryPlan()
             return
         if definition.value_type is BusinessQueryValueType.DECIMAL:
@@ -700,7 +761,12 @@ class RequestProtectedValueBinder:
                 {
                     "field": item.field,
                     "operator": item.operator.value,
-                    "value": self._bind_value(item.value, slots=slots, used_refs=used_refs),
+                    "value": self._bind_value(
+                        item.value,
+                        slots=slots,
+                        used_refs=used_refs,
+                        expected_logical_name=item.field,
+                    ),
                 }
                 for item in planned.filters
             )
@@ -715,12 +781,14 @@ class RequestProtectedValueBinder:
                     planned.keyword,
                     slots=slots,
                     used_refs=used_refs,
+                    expected_logical_name="contact_address",
                 )
         elif isinstance(planned, EmployeeSemanticQueryArguments):
             arguments["query"] = self._bind_value(
                 planned.query,
                 slots=slots,
                 used_refs=used_refs,
+                expected_logical_name="query",
             )
             arguments["size"] = planned.size
         else:
@@ -729,6 +797,7 @@ class RequestProtectedValueBinder:
                     value,
                     slots=slots,
                     used_refs=used_refs,
+                    expected_logical_name=logical_name,
                 )
         return ActionCandidate(
             capability_id=plan.plan.action,
@@ -741,13 +810,32 @@ class RequestProtectedValueBinder:
         *,
         slots: ProtectedValueSlots,
         used_refs: set[str],
+        expected_logical_name: str,
     ) -> JsonValue:
         if isinstance(value, QueryPlanLiteral):
             return value.value
-        if value.value_ref in used_refs or value.value_ref not in slots.values:
+        references = (
+            (value.value_ref,)
+            if isinstance(value, QueryPlanValueRef)
+            else value.value_refs
+        )
+        if (
+            any(reference in used_refs or reference not in slots.values for reference in references)
+            or any(
+                reference in slots.logical_fields
+                and slots.logical_fields[reference] != expected_logical_name
+                for reference in references
+            )
+            or isinstance(value, QueryPlanValueRefs)
+            and any(reference not in slots.logical_fields for reference in references)
+        ):
             raise InvalidProtectedValue()
-        used_refs.add(value.value_ref)
-        raw = slots.values[value.value_ref]
+        used_refs.update(references)
+        raw: object = (
+            tuple(slots.values[reference] for reference in references)
+            if isinstance(value, QueryPlanValueRefs)
+            else slots.values[references[0]]
+        )
         try:
             frozen = freeze_json_object(
                 {"value": raw},
@@ -799,15 +887,6 @@ def _matches_text_policy(value: str, policy: BusinessTextPolicyId | None) -> boo
             continue
         return False
     return True
-
-
-def _is_safe_city_fragment(value: str) -> bool:
-    return value in frozenset(
-        {
-            "上海", "北京", "广州", "深圳", "杭州", "南京", "苏州", "成都",
-            "重庆", "天津", "武汉", "西安", "厦门", "青岛", "宁波", "长沙",
-        }
-    )
 
 
 def _validate_sort_list(

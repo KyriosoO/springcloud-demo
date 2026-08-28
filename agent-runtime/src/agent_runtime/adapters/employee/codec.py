@@ -14,8 +14,9 @@ from agent_runtime.business.contracts import (
     InvalidBusinessArguments,
     InvalidBusinessWireResponse,
     BusinessQueryOperator,
-    business_query_v2_action_contract,
+    business_query_v3_action_contract,
 )
+from agent_runtime.business.region_normalization import normalize_admin_region
 from agent_runtime.adapters.employee.contracts import (
     EmployeeDetailInput,
     EmployeeDetailWireRequest,
@@ -36,6 +37,18 @@ from agent_runtime.model.question_policy import DENY_CLASSES, classify_question
 
 _BIDI = {"RLO", "LRO", "RLE", "LRE", "PDF", "RLI", "LRI", "FSI", "PDI"}
 _TARGETS = {"idCardNo", "memberNo", "chineseName", "publicEmail", "position"}
+_MULTI_VALUE_OPERATORS = frozenset(
+    {
+        BusinessQueryOperator.IN,
+        BusinessQueryOperator.PREFIX_ANY,
+        BusinessQueryOperator.CONTAINS_ANY,
+    }
+)
+_EMPLOYEE_OPERATOR_ALIASES = {
+    BusinessQueryOperator.IN: "in",
+    BusinessQueryOperator.PREFIX_ANY: "prefixAny",
+    BusinessQueryOperator.CONTAINS_ANY: "containsAny",
+}
 
 
 def _normalize(value: object, *, minimum: int, maximum: int, optional: bool = False) -> str | None:
@@ -164,9 +177,10 @@ class EmployeeSearchArgumentValidator:
         ):
             raise InvalidCapabilityArguments("business.invalid_arguments")
 
-        contract = business_query_v2_action_contract("employee.search")
+        contract = business_query_v3_action_contract("employee.search")
         definitions = {item.logical_name: item for item in contract.query_fields}
         filters: list[EmployeeSearchFilter] = []
+        seen_operators: dict[str, set[BusinessQueryOperator]] = {}
         for raw in raw_filters:
             if not isinstance(raw, Mapping) or set(raw) != {"field", "operator", "value"}:
                 raise InvalidCapabilityArguments("business.invalid_arguments")
@@ -180,12 +194,22 @@ class EmployeeSearchArgumentValidator:
                 raise InvalidCapabilityArguments("business.invalid_arguments") from exc
             if selected_operator not in definitions[field].allowed_operators:
                 raise InvalidCapabilityArguments("business.invalid_arguments")
+            previous = seen_operators.setdefault(field, set())
+            if selected_operator in previous:
+                raise InvalidCapabilityArguments("business.invalid_arguments")
+            if previous:
+                combination = frozenset((*previous, selected_operator))
+                if combination not in definitions[field].allowed_operator_combinations:
+                    raise InvalidCapabilityArguments("business.invalid_arguments")
+            previous.add(selected_operator)
             selected_value: str | tuple[str, ...]
-            if selected_operator is BusinessQueryOperator.IN:
+            if selected_operator in _MULTI_VALUE_OPERATORS:
                 raw_values = raw["value"]
                 if type(raw_values) is not tuple or not 1 <= len(raw_values) <= 16:
                     raise InvalidCapabilityArguments("business.invalid_arguments")
                 selected_value = tuple(_argument_text(value) for value in raw_values)
+                if len(selected_value) != len(set(selected_value)):
+                    raise InvalidCapabilityArguments("business.invalid_arguments")
             else:
                 selected_value = _argument_text(raw["value"])
             filters.append(EmployeeSearchFilter(field=field, operator=operator, value=selected_value))
@@ -235,6 +259,7 @@ class EmployeeSearchRequestMapper:
         }
         allowed_filters = frozenset(settings.allowed_filter_field_ids or ())
         wire_filters: list[EmployeeSearchWireFilter] = []
+        seen_operators: dict[str, set[BusinessQueryOperator]] = {}
         for item in input.filters:
             selected = configured.get(item.field)
             if (
@@ -244,18 +269,58 @@ class EmployeeSearchRequestMapper:
                 or item.operator not in {operator.value for operator in selected.allowed_operators}
             ):
                 raise InvalidBusinessArguments("business.invalid_arguments")
-            if item.operator == BusinessQueryOperator.IN.value:
-                if type(item.value) is not tuple:
+            selected_operator = BusinessQueryOperator(item.operator)
+            previous = seen_operators.setdefault(item.field, set())
+            if selected_operator in previous:
+                raise InvalidBusinessArguments("business.invalid_arguments")
+            if previous:
+                combination = frozenset((*previous, selected_operator))
+                if combination not in selected.allowed_operator_combinations:
+                    raise InvalidBusinessArguments("business.invalid_arguments")
+            previous.add(selected_operator)
+            wire_operator = _EMPLOYEE_OPERATOR_ALIASES.get(
+                selected_operator,
+                selected_operator.value,
+            )
+            normalized_value = item.value
+            if selected.normalization_profile is not None:
+                if isinstance(item.value, tuple):
+                    normalized_values = tuple(
+                        normalize_admin_region(
+                            value,
+                            profile=selected.normalization_profile,
+                        )
+                        for value in item.value
+                    )
+                    if any(value is None for value in normalized_values):
+                        raise InvalidBusinessArguments("business.invalid_arguments")
+                    normalized_value = tuple(
+                        value for value in normalized_values if value is not None
+                    )
+                else:
+                    selected_region = normalize_admin_region(
+                        item.value,
+                        profile=selected.normalization_profile,
+                    )
+                    if selected_region is None:
+                        raise InvalidBusinessArguments("business.invalid_arguments")
+                    normalized_value = selected_region
+            if selected_operator in _MULTI_VALUE_OPERATORS:
+                if type(normalized_value) is not tuple:
                     raise InvalidBusinessArguments("business.invalid_arguments")
                 wire_filters.append(
                     EmployeeSearchWireFilter(
-                        field=selected.service_field, operator=item.operator, values=item.value
+                        field=selected.service_field,
+                        operator=wire_operator,
+                        values=normalized_value,
                     )
                 )
-            elif type(item.value) is str:
+            elif type(normalized_value) is str:
                 wire_filters.append(
                     EmployeeSearchWireFilter(
-                        field=selected.service_field, operator=item.operator, value=item.value
+                        field=selected.service_field,
+                        operator=wire_operator,
+                        value=normalized_value,
                     )
                 )
             else:

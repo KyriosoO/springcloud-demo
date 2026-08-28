@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any, Callable, Generic, Literal, NewType, Protocol, TypeVar
 
@@ -53,6 +53,8 @@ class BusinessQueryOperator(StrEnum):
     CONTAINS = "contains"
     PREFIX = "prefix"
     IN = "in"
+    PREFIX_ANY = "prefix_any"
+    CONTAINS_ANY = "contains_any"
     GT = "gt"
     LT = "lt"
 
@@ -180,6 +182,8 @@ class BusinessQueryFieldDefinition:
     text_policy_id: BusinessTextPolicyId | None = None
     enum_values: frozenset[str] = frozenset()
     service_field: str | None = None
+    allowed_operator_combinations: tuple[frozenset[BusinessQueryOperator], ...] = ()
+    normalization_profile: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -199,6 +203,8 @@ class BusinessQueryFieldSettings:
     max_text_chars: int | None = None
     service_field: str | None = None
     input_exposure: BusinessInputExposure | None = None
+    allowed_operator_combinations: tuple[frozenset[BusinessQueryOperator], ...] = ()
+    normalization_profile: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -450,6 +456,80 @@ def business_query_v2_action_contracts() -> tuple[BusinessQueryActionContract, .
 def business_query_v2_action_contract(action_id: str) -> BusinessQueryActionContract:
     matches = tuple(
         item for item in business_query_v2_action_contracts() if item.action_id == action_id
+    )
+    if len(matches) != 1:
+        raise ValueError("business.unknown_action_contract")
+    return matches[0]
+
+
+def business_query_v3_action_contracts() -> tuple[BusinessQueryActionContract, ...]:
+    """Current contracts; v2 remains immutable for historical callers and evidence."""
+
+    contracts = business_query_v2_action_contracts()
+    updated: list[BusinessQueryActionContract] = []
+    for contract in contracts:
+        if contract.action_id != "employee.search":
+            updated.append(contract)
+            continue
+        fields: list[BusinessQueryFieldDefinition] = []
+        for field in contract.query_fields:
+            if field.logical_name == "contact_address":
+                fields.append(
+                    replace(
+                        field,
+                        allowed_operators=frozenset(
+                            {
+                                BusinessQueryOperator.CONTAINS,
+                                BusinessQueryOperator.CONTAINS_ANY,
+                            }
+                        ),
+                        normalization_profile="cn-admin-region-v1",
+                    )
+                )
+            elif field.logical_name == "chinese_name":
+                fields.append(
+                    replace(
+                        field,
+                        allowed_operators=frozenset(
+                            {
+                                BusinessQueryOperator.EQ,
+                                BusinessQueryOperator.CONTAINS,
+                                BusinessQueryOperator.PREFIX,
+                                BusinessQueryOperator.IN,
+                                BusinessQueryOperator.PREFIX_ANY,
+                            }
+                        ),
+                        allowed_operator_combinations=(
+                            frozenset(
+                                {
+                                    BusinessQueryOperator.PREFIX,
+                                    BusinessQueryOperator.CONTAINS,
+                                }
+                            ),
+                            frozenset(
+                                {
+                                    BusinessQueryOperator.PREFIX,
+                                    BusinessQueryOperator.EQ,
+                                }
+                            ),
+                        ),
+                    )
+                )
+            else:
+                fields.append(field)
+        updated.append(
+            replace(
+                contract,
+                code_contract_version="employee-search-plan-v3",
+                query_fields=tuple(fields),
+            )
+        )
+    return tuple(updated)
+
+
+def business_query_v3_action_contract(action_id: str) -> BusinessQueryActionContract:
+    matches = tuple(
+        item for item in business_query_v3_action_contracts() if item.action_id == action_id
     )
     if len(matches) != 1:
         raise ValueError("business.unknown_action_contract")

@@ -29,7 +29,7 @@ test = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"agent_runtime.business" = ["business-query.v2.json"]
+"agent_runtime.business" = ["business-query.v2.json", "business-query.v3.json"]
 "agent_runtime.knowledge.evidence" = ["egress-policy-catalog.json"]
 
 [tool.pytest.ini_options]

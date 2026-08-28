@@ -18,9 +18,17 @@ from agent_runtime.model.question_policy import (
 )
 
 
-BUSINESS_QUESTION_EGRESS_POLICY_VERSION = "business-question-egress-v1"
+BUSINESS_QUESTION_EGRESS_POLICY_VERSION = "business-question-egress-v2"
 _SLOT_ID = re.compile(r"slot-[1-9][0-9]{0,5}")
 _BUSINESS_ANCHOR = re.compile(r"(?:员工|交易|employee|transaction)", re.IGNORECASE)
+_EMPLOYEE_NAME_CUE = re.compile(
+    r"(?:"
+    r"姓(?:氏)?(?:为|是)?\s*(?:[\u4e00-\u9fff]{1,2}|protected-ref\(slot-[1-9][0-9]{0,5}\))"
+    r"|(?:[\u4e00-\u9fff]{1,2}|protected-ref\(slot-[1-9][0-9]{0,5}\))姓"
+    r"|(?:员工姓名|姓名|名叫)\s*(?:为|是|中?包含|含有)?\s*"
+    r"(?:[\u4e00-\u9fff]{1,4}|protected-ref\(slot-[1-9][0-9]{0,5}\))"
+    r")"
+)
 _EXPLICIT_SENSITIVE_CLASSES = DENY_CLASSES - {QuestionDataClass.UNKNOWN}
 
 
@@ -61,7 +69,7 @@ class QuestionEgressGuard:
         return (
             isinstance(question, str)
             and bool(question)
-            and _BUSINESS_ANCHOR.search(question) is not None
+            and _has_business_admission_cue(question)
         )
 
     def evaluate_business(
@@ -79,7 +87,7 @@ class QuestionEgressGuard:
             return self._business_denied(QuestionEgressReasonCode.INVALID_QUESTION)
         minimized = normalize_question(question)
         values = dict(protected_values or {})
-        if len(values) > 8 or any(_SLOT_ID.fullmatch(slot_id) is None for slot_id in values):
+        if len(values) > 16 or any(_SLOT_ID.fullmatch(slot_id) is None for slot_id in values):
             return self._business_denied(QuestionEgressReasonCode.INVALID_QUESTION)
         redacted = minimized
         for slot_id, raw_value in sorted(values.items()):
@@ -112,7 +120,7 @@ class QuestionEgressGuard:
         classes = classify_question(classification_input)
         if classes & _EXPLICIT_SENSITIVE_CLASSES:
             return self._business_denied(QuestionEgressReasonCode.SENSITIVE_INPUT)
-        if not _BUSINESS_ANCHOR.search(redacted):
+        if not _has_business_admission_cue(redacted):
             return self._business_denied(QuestionEgressReasonCode.UNKNOWN_INPUT)
         return QuestionEgressDecision(
             disposition=QuestionEgressDisposition.ALLOWED,
@@ -135,3 +143,7 @@ class QuestionEgressGuard:
             policy_version=BUSINESS_QUESTION_EGRESS_POLICY_VERSION,
             reason_code=reason,
         )
+
+
+def _has_business_admission_cue(question: str) -> bool:
+    return bool(_BUSINESS_ANCHOR.search(question) or _EMPLOYEE_NAME_CUE.search(question))

@@ -379,7 +379,7 @@ class TransactionListSearchRequestMapper:
         self, input: TransactionListSearchInput, settings: BusinessActionSettings
     ) -> TransactionListSearchWireRequest:
         if (
-            settings.config_version != "business-query-v2"
+            settings.config_version not in {"business-query-v2", "business-query-v3"}
             or settings.code_contract_version != "transaction-search-plan-v2"
             or settings.service_contract_ref != "transaction.search.v1"
             or settings.max_page_size is None

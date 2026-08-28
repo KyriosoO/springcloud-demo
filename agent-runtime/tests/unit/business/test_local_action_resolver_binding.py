@@ -39,7 +39,7 @@ class ResolverStub:
 
 
 def _source(*, employee_enabled: bool, transaction_enabled: bool) -> BusinessConfigurationSource:
-    configured = dict(BusinessQueryConfigurationLoader.load_v2_resource().actions)
+    configured = dict(BusinessQueryConfigurationLoader.load_v3_resource().actions)
     return BusinessConfigurationSource(
         global_settings=BusinessGlobalSettings(),
         actions=(

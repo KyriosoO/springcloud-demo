@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from typing import Any, Sequence
 
 from agent_runtime.capability_api.contracts import JsonObject, freeze_json_object
-from agent_runtime.business.contracts import BusinessActionDefinition
+from agent_runtime.business.contracts import (
+    BusinessActionDefinition,
+    BusinessInputExposure,
+    BusinessQueryOperator,
+)
+from agent_runtime.business.region_normalization import CN_ADMIN_REGION_ALIASES
 from agent_runtime.business.settings import BusinessConfigurationSnapshot
 
 
@@ -36,17 +41,32 @@ def build_business_planner_catalog(
             code = query_by_name.get(configured.logical_name)
             if code is None:
                 raise ValueError("business.plan_snapshot_mismatch")
-            fields.append(
-                {
-                    "logical_name": code.logical_name,
-                    "description": configured.model_safe_description,
-                    "value_type": code.value_type.value,
-                    "operators": tuple(item.value for item in configured.allowed_operators),
-                    "input_exposure": code.input_exposure.value,
-                    "required": configured.required,
-                    "max_text_chars": configured.max_text_chars,
-                }
-            )
+            field_material: dict[str, object] = {
+                "logical_name": code.logical_name,
+                "description": configured.model_safe_description,
+                "value_type": code.value_type.value,
+                "operators": tuple(item.value for item in configured.allowed_operators),
+                "input_exposure": code.input_exposure.value,
+                "required": configured.required,
+                "max_text_chars": configured.max_text_chars,
+            }
+            if settings.config_version == "business-query-v3":
+                field_material.update(
+                    {
+                    "operator_contracts": tuple(
+                        _operator_contract(operator, code.input_exposure)
+                        for operator in configured.allowed_operators
+                    ),
+                    "operator_combinations": tuple(
+                        tuple(sorted(operator.value for operator in combination))
+                        for combination in configured.allowed_operator_combinations
+                    ),
+                    "normalization_profile": configured.normalization_profile,
+                    }
+                )
+                if configured.normalization_profile is not None:
+                    field_material["accepted_region_aliases"] = tuple(CN_ADMIN_REGION_ALIASES)
+            fields.append(field_material)
         if not fields:
             raise ValueError("business.plan_snapshot_mismatch")
         enabled_names = {item["logical_name"] for item in fields}
@@ -77,7 +97,7 @@ def build_business_planner_catalog(
             "combination_rules": rules,
             "limits": limits,
         }
-        if settings.config_version == "business-query-v2":
+        if settings.config_version in {"business-query-v2", "business-query-v3"}:
             limits["max_page"] = settings.max_page
             action["argument_shape"] = (
                 "semantic_query" if settings.semantic_profile_id is not None else "filters"
@@ -93,11 +113,8 @@ def build_business_planner_catalog(
                     "max_text_chars": settings.keyword_max_text_chars,
                 }
         actions.append(action)
-    schema_version = (
-        2
-        if all(value.config_version == "business-query-v2" for _, value in snapshot.actions)
-        else 1
-    )
+    config_versions = {value.config_version for _, value in snapshot.actions}
+    schema_version = 3 if config_versions == {"business-query-v3"} else 2 if config_versions == {"business-query-v2"} else 1
     payload = freeze_json_object(
         {
             "schema_version": schema_version,
@@ -110,7 +127,42 @@ def build_business_planner_catalog(
             },
         },
         max_bytes=32768,
-        max_depth=8,
-        max_collection_items=256,
+        max_depth=10,
+        max_collection_items=1024,
     )
     return BusinessPlannerCatalog(snapshot_id=snapshot.snapshot_id, payload=payload)
+
+
+def _operator_contract(
+    operator: BusinessQueryOperator,
+    exposure: BusinessInputExposure,
+) -> dict[str, object]:
+    multi = operator in {
+        BusinessQueryOperator.IN,
+        BusinessQueryOperator.PREFIX_ANY,
+        BusinessQueryOperator.CONTAINS_ANY,
+    }
+    forms: tuple[str, ...]
+    if exposure is BusinessInputExposure.PROTECTED_REF:
+        forms = ("value_refs",) if multi else ("value_ref",)
+    elif exposure is BusinessInputExposure.LITERAL:
+        forms = ("literal_list",) if multi else ("literal",)
+    else:
+        forms = ("literal_list", "value_refs") if multi else ("literal", "value_ref")
+    semantics = {
+        BusinessQueryOperator.EQ: "exact_single",
+        BusinessQueryOperator.CONTAINS: "contains_single",
+        BusinessQueryOperator.PREFIX: "prefix_single",
+        BusinessQueryOperator.IN: "exact_any",
+        BusinessQueryOperator.PREFIX_ANY: "prefix_any",
+        BusinessQueryOperator.CONTAINS_ANY: "contains_any",
+        BusinessQueryOperator.GT: "exclusive_lower_bound",
+        BusinessQueryOperator.LT: "exclusive_upper_bound",
+    }
+    return {
+        "operator": operator.value,
+        "semantics": semantics[operator],
+        "cardinality": "multi" if multi else "single",
+        "value_forms": forms,
+        "max_values": 16 if multi else 1,
+    }
