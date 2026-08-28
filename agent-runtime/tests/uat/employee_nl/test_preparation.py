@@ -28,7 +28,7 @@ from tests.uat.employee_nl.runner import (
 
 _ROOT = Path(__file__).resolve().parents[4]
 _MANIFEST = Path(__file__).with_name("evidence") / (
-    "employee-natural-language-v1-20260828-candidate-03.manifest.json"
+    "employee-natural-language-v1-20260828-candidate-04.manifest.json"
 )
 
 
@@ -65,13 +65,13 @@ def test_manifest_freezes_cases_budgets_and_all_asset_hashes() -> None:
         json.loads(_MANIFEST.read_text(encoding="utf-8")),
         repository=_ROOT,
     )
-    assert len(cast(list[object], manifest["assets"])) == 45
+    assert len(cast(list[object], manifest["assets"])) == 59
     assert len(cast(list[object], manifest["cases"])) == CASE_COUNT
     assert sum(case.expected_model_calls for case in cases()) <= MODEL_CALL_BUDGET
     assert sum(case.expected_employee_calls for case in cases()) <= EMPLOYEE_SEARCH_BUDGET
-    assert manifest["sourceHead"] == "af7ccbacb713402caa57a1b8245b3029e7b557eb"
+    assert manifest["sourceHead"] == "6b719cc620c84937c5b87f4f99b5b5ca488402c1"
     assert cast(dict[str, object], manifest["task"])["version"] == (
-        "business-query-plan-v6"
+        "business-query-plan-v7"
     )
     assert len(sha256_file(_MANIFEST)) == 64
 
@@ -126,7 +126,7 @@ def test_result_schema_rejects_nonzero_forbidden_endpoints() -> None:
     result: dict[str, object] = {
         "schemaVersion": 1,
         "status": "failed_unconsumed",
-        "runId": "employee-natural-language-v1-20260828-candidate-03",
+        "runId": "employee-natural-language-v1-20260828-candidate-04",
         "authorizationReference": "P3_00:GATE-082",
         "frozenHead": "0" * 40,
         "manifestSha256": "1" * 64,
