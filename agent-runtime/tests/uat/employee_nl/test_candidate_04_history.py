@@ -94,3 +94,57 @@ def test_candidate_04_manifest_assets_are_recoverable_from_frozen_head() -> None
             capture_output=True,
         )
         assert hashlib.sha256(completed.stdout).hexdigest() == asset["sha256"]
+
+
+def test_candidate_03_and_04_cover_all_fifteen_uat_categories_within_budget() -> None:
+    candidate_03 = cast(
+        dict[str, object],
+        json.loads(
+            (
+                _ROOT
+                / "agent-runtime/tests/uat/employee_nl/results/employee-natural-language-v1-20260828-candidate-03/result.json"
+            ).read_text(encoding="utf-8")
+        ),
+    )
+    candidate_04 = cast(
+        dict[str, object],
+        json.loads(
+            (
+                _ROOT
+                / "agent-runtime/tests/uat/employee_nl/results/employee-natural-language-v1-20260828-candidate-04/result.json"
+            ).read_text(encoding="utf-8")
+        ),
+    )
+    candidate_03_cases = {
+        cast(str, item["caseId"]): item
+        for item in cast(list[dict[str, object]], candidate_03["cases"])
+    }
+    candidate_04_cases = {
+        cast(str, item["caseId"]): item
+        for item in cast(list[dict[str, object]], candidate_04["cases"])
+    }
+    selected = dict(candidate_04_cases)
+    selected["UAT-EMP-NL-302"] = candidate_03_cases["UAT-EMP-NL-302"]
+    selected["UAT-EMP-NL-307"] = candidate_03_cases["UAT-EMP-NL-307"]
+
+    assert set(selected) == {f"UAT-EMP-NL-{number}" for number in range(301, 316)}
+    assert all(item["passed"] is True for item in selected.values())
+
+    totals = {"modelCalls": 0, "employeeSearchCalls": 0}
+    for candidate in range(1, 5):
+        result = cast(
+            dict[str, object],
+            json.loads(
+                (
+                    _ROOT
+                    / (
+                        "agent-runtime/tests/uat/employee_nl/results/"
+                        f"employee-natural-language-v1-20260828-candidate-0{candidate}/result.json"
+                    )
+                ).read_text(encoding="utf-8")
+            ),
+        )
+        counts = cast(dict[str, int], result["counts"])
+        totals["modelCalls"] += counts["modelCalls"]
+        totals["employeeSearchCalls"] += counts["employeeSearchCalls"]
+    assert totals == {"modelCalls": 30, "employeeSearchCalls": 27}

@@ -118,6 +118,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `IMPL-EMP-111` | `agent-runtime/src/agent_runtime/adapters/employee/normalizer.py` | 区分 raw hits、有效记录与 semantic partial page，保留真实 total/truncated；search 分页和全部无效记录失败关闭 |
 | `IMPL-EMP-112` | `agent-runtime/src/agent_runtime/adapters/employee/protected_input.py` | 单/复姓、多姓名、多姓及姓名片段逐值 slots，保留连接词且不生成计划 |
 | `IMPL-EMP-113` | `agent-runtime/src/agent_runtime/adapters/employee/codec.py` | `prefix_any/contains_any` 到既有 `SearchFilter.values` 与 Java operator alias 的固定映射 |
+| `IMPL-EMP-114` | `agent-runtime/src/agent_runtime/business/region_normalization.py`；`agent-runtime/src/agent_runtime/business/business-query.v3.json` | `contact_address` 的代码绑定行政区目录、有限别名规范化和配置收紧 profile |
 
 ## 8. 测试与验证设计
 
@@ -161,7 +162,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 
 ## 10. 风险、评审记录与实现就绪判定
 
-主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter；把多跳语义检索误套普通搜索 3000ms 上限会产生真实 timeout。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。语义 timeout 仅通过 action 独立预算纠正，不恢复 fallback 或额外调用；受控真实联调和 run03 UAT 已独立完成，历史失败证据保持不可变。
+主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter；把多跳语义检索误套普通搜索 3000ms 上限会产生真实 timeout。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。语义 timeout 仅通过 action 独立预算纠正，不恢复 fallback 或额外调用；受控真实联调、run03 UAT 和15类自然语言扩展UAT均已独立完成，历史失败证据保持不可变。
 
 | 项目 | 判定 |
 |---|---|
@@ -184,3 +185,6 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `REQ-EMP-101` | `DR-EMP-106` | `IMPL-EMP-105` | `TEST-EMP-107` | `VAL-EMP-103` |
 | `REQ-EMP-102`; `CON-EMP-101` | `DR-EMP-107` | `IMPL-EMP-102`; `IMPL-EMP-105` | `TEST-EMP-103`; `TEST-EMP-108` | `VAL-EMP-101`; `VAL-EMP-103` |
 | `REQ-EMP-102`; `REQ-EMP-103` | `DR-EMP-108` | `IMPL-EMP-101`; `IMPL-EMP-103`; `IMPL-EMP-111` | `TEST-EMP-104`; `TEST-EMP-109` | `VAL-EMP-101`; `VAL-EMP-103` |
+| `REQ-EMP-101`; `CON-EMP-101` | `DR-EMP-109` | `IMPL-EMP-102`; `IMPL-EMP-113` | `TEST-EMP-111` | `VAL-EMP-101`; `VAL-EMP-102` |
+| `REQ-EMP-103` | `DR-EMP-110` | `IMPL-EMP-108`; `IMPL-EMP-112` | `TEST-EMP-110` | `VAL-EMP-101`; `VAL-EMP-103` |
+| `REQ-EMP-101`; `REQ-EMP-103` | `DR-EMP-111` | `IMPL-EMP-102`; `IMPL-EMP-114` | `TEST-EMP-111` | `VAL-EMP-101`; `VAL-EMP-103` |

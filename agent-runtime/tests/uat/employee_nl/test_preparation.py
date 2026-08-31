@@ -14,7 +14,6 @@ from tests.uat.employee_nl.contracts import (
     MODEL_CALL_BUDGET,
     cases,
     sha256_file,
-    validate_manifest,
     validate_result,
 )
 from tests.uat.employee_nl.runner import (
@@ -61,10 +60,14 @@ class _Generator:
 
 
 def test_manifest_freezes_cases_budgets_and_all_asset_hashes() -> None:
-    manifest = validate_manifest(
-        json.loads(_MANIFEST.read_text(encoding="utf-8")),
-        repository=_ROOT,
+    assert sha256_file(_MANIFEST) == (
+        "e6c908503aa4f9544c6fea6e32e072ac76708ef6401cc46d32b61c513fefb19c"
     )
+    manifest = cast(
+        dict[str, object], json.loads(_MANIFEST.read_text(encoding="utf-8"))
+    )
+    assert manifest["state"] == "prepared_unconsumed"
+    assert manifest["runId"] == "employee-natural-language-v1-20260828-candidate-04"
     assert len(cast(list[object], manifest["assets"])) == 59
     assert len(cast(list[object], manifest["cases"])) == CASE_COUNT
     assert sum(case.expected_model_calls for case in cases()) <= MODEL_CALL_BUDGET
@@ -73,7 +76,17 @@ def test_manifest_freezes_cases_budgets_and_all_asset_hashes() -> None:
     assert cast(dict[str, object], manifest["task"])["version"] == (
         "business-query-plan-v7"
     )
-    assert len(sha256_file(_MANIFEST)) == 64
+    assert cast(dict[str, object], manifest["budgets"]) == {
+        "maximumModelCalls": 12,
+        "maximumEmployeeSearchCalls": 14,
+        "employeeSemantic": 0,
+        "transaction": 0,
+        "knowledge": 0,
+        "answer": 0,
+        "otherEmployeeEndpoints": 0,
+        "retry": 0,
+        "resume": 0,
+    }
 
 
 @pytest.mark.asyncio

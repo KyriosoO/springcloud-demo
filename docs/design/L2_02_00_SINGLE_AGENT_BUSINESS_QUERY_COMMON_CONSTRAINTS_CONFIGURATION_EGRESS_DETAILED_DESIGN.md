@@ -170,7 +170,7 @@ Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny
 | `IMPL-BQCOM-107` | `agent-runtime/src/agent_runtime/business/user_projection.py` | 用户结果字段白名单与有限脱敏 |
 | `IMPL-BQCOM-108` | `agent-runtime/src/agent_runtime/business/egress.py` | 模型字段交集、未知/敏感/冲突零调用 |
 | `IMPL-BQCOM-109` | `agent-runtime/src/agent_runtime/business/business-query.v3.json` | 当前三动作配置、Employee 多值 operator、组合与行政区 profile；v2 保持历史兼容 |
-| `IMPL-BQCOM-110` | `agent-runtime/src/agent_runtime/business/region_catalog.py` | 版本化省/市/自治区有限别名目录和确定性规范化 |
+| `IMPL-BQCOM-110` | `agent-runtime/src/agent_runtime/business/region_normalization.py` | 版本化省/市/自治区有限别名目录和确定性规范化 |
 
 ## 7. 测试与验证设计
 
@@ -236,3 +236,6 @@ Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny
 | `CON-BQCOM-102` | `DR-BQCOM-106` | `IMPL-BQCOM-102`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-103` |
 | `REQ-BQCOM-102`; `REQ-BQCOM-104` | `DR-BQCOM-107` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-104` | `TEST-BQCOM-103`; `TEST-BQCOM-107` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |
 | `REQ-BQCOM-103`; `CON-BQCOM-102` | `DR-BQCOM-108` | `IMPL-BQCOM-107` | `TEST-BQCOM-106`; `TEST-BQCOM-108` | `VAL-BQCOM-102` |
+| `REQ-BQCOM-101`; `REQ-BQCOM-103` | `DR-BQCOM-109` | `IMPL-BQCOM-101`; `IMPL-BQCOM-106`; `IMPL-BQCOM-109` | `TEST-BQCOM-109` | `VAL-BQCOM-101`; `VAL-BQCOM-102` |
+| `REQ-BQCOM-101`; `CON-BQCOM-101` | `DR-BQCOM-110` | `IMPL-BQCOM-101`; `IMPL-BQCOM-102`; `IMPL-BQCOM-109` | `TEST-BQCOM-110` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |
+| `REQ-BQCOM-102`; `CON-BQCOM-102` | `DR-BQCOM-111` | `IMPL-BQCOM-103`; `IMPL-BQCOM-109`; `IMPL-BQCOM-110` | `TEST-BQCOM-110` | `VAL-BQCOM-101`; `VAL-BQCOM-102` |
