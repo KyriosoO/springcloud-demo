@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "readAlias": "agent-doc-tax-policy-v2-read",
+  "expectedIndexName": "agent-doc-tax-policy-v4-20260903-corpus-a5",
+  "expectedIndexUuid": "SurWRSglRd6ZRddEBWy2Sw",
+  "mappingVersion": "agent-knowledge-tax-v2-corpus-a1",
+  "policySnapshotId": "5e7323100b1bfd44e7452e3ce409ff146800961c07a077b2585b670665b03136",
+  "lawSnapshotId": "b537176bf80323178aaaa1ca328f1534641b62f2671d8aa2e136fcef63495104"
+}

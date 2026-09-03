@@ -15,6 +15,9 @@ from agent_runtime.knowledge.evidence.catalog import (
 
 
 RESOURCE = Path(catalog_module.__file__).with_name("egress-policy-catalog.json")
+CURRENT_RESOURCE = Path(catalog_module.__file__).with_name("egress-policy-catalog-v2.json")
+CURRENT_POLICY_SNAPSHOT = "5e7323100b1bfd44e7452e3ce409ff146800961c07a077b2585b670665b03136"
+CURRENT_LAW_SNAPSHOT = "b537176bf80323178aaaa1ca328f1534641b62f2671d8aa2e136fcef63495104"
 
 
 def test_real_catalog_loads_from_fixed_hash_bound_resource() -> None:
@@ -34,11 +37,51 @@ def test_real_catalog_loads_from_fixed_hash_bound_resource() -> None:
     assert binding == first
 
 
+def test_current_catalog_adds_candidate_snapshot_and_attachment_bindings() -> None:
+    catalog = KnowledgeEgressPolicyCatalog.load_current_resource()
+
+    assert catalog.snapshot.catalog_version == "tax-egress-catalog-v2"
+    assert catalog.snapshot.export_id == "tax-egress-export-20260903-corpus-a5"
+    assert len(catalog.snapshot.bindings) == 5600
+    assert catalog.snapshot.source_sha256 == hashlib.sha256(CURRENT_RESOURCE.read_bytes()).hexdigest()
+    attachment_id = "tax-50abf52b7a181b8974c97fd4@asset-0b9c99e7dfb27c8e600743d7"
+    policy, binding = catalog.resolve(
+        document_id=attachment_id,
+        policy_ref="public:tax_policy",
+        index_snapshot_id=CURRENT_POLICY_SNAPSHOT,
+    )
+    assert policy.disposition.value == "allow_minimal"
+    assert binding.document_id == attachment_id
+    law_binding = next(
+        item
+        for item in catalog.snapshot.bindings
+        if CURRENT_LAW_SNAPSHOT in item.allowed_index_snapshot_ids
+    )
+    law_policy, resolved_law_binding = catalog.resolve(
+        document_id=law_binding.document_id,
+        policy_ref=law_binding.policy_ref,
+        index_snapshot_id=CURRENT_LAW_SNAPSHOT,
+    )
+    assert law_policy.disposition.value == "allow_minimal"
+    assert resolved_law_binding == law_binding
+
+
 def test_resource_hash_mismatch_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(catalog_module, "EXPECTED_KNOWLEDGE_EGRESS_CATALOG_SHA256", "0" * 64)
 
     with pytest.raises(KnowledgePolicyCatalogError, match="knowledge.policy_catalog_hash_mismatch"):
         KnowledgeEgressPolicyCatalog.load_v1_resource()
+
+
+def test_current_resource_hash_mismatch_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        catalog_module,
+        "EXPECTED_CURRENT_KNOWLEDGE_EGRESS_CATALOG_SHA256",
+        "0" * 64,
+    )
+
+    with pytest.raises(KnowledgePolicyCatalogError, match="knowledge.policy_catalog_hash_mismatch"):
+        KnowledgeEgressPolicyCatalog.load_current_resource()
 
 
 @pytest.mark.parametrize(

@@ -550,7 +550,7 @@ class KnowledgeCompositionRoot:
         if tasks is None or retrieval is None:
             raise ValueError("knowledge.dependencies_required")
         typed_policy_catalog = (
-            KnowledgeEgressPolicyCatalog.load_v1_resource()
+            KnowledgeEgressPolicyCatalog.load_current_resource()
             if policy_catalog is None
             else policy_catalog
         )

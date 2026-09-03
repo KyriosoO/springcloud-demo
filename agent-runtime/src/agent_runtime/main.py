@@ -93,7 +93,7 @@ def build_runtime(
         enabled=knowledge_settings.enabled
     )
     policy_catalog = (
-        KnowledgeEgressPolicyCatalog.load_v1_resource()
+        KnowledgeEgressPolicyCatalog.load_current_resource()
         if knowledge_settings.enabled
         else None
     )

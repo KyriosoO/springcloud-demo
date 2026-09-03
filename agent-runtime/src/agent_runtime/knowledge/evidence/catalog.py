@@ -23,6 +23,8 @@ class KnowledgePolicyCatalogError(ValueError):
 
 EXPECTED_KNOWLEDGE_EGRESS_CATALOG_SHA256 = "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698"
 _CATALOG_RESOURCE = "egress-policy-catalog.json"
+EXPECTED_CURRENT_KNOWLEDGE_EGRESS_CATALOG_SHA256 = "c6d2954a32a38527cf975a74f1a666ac0edbc3cd65561f35472e621dd1400f32"
+_CURRENT_CATALOG_RESOURCE = "egress-policy-catalog-v2.json"
 _MAX_CATALOG_BYTES = 4 * 1024 * 1024
 _SAFE_ID = re.compile(r"[A-Za-z0-9._:-]{1,256}")
 _LOWER_HEX_64 = re.compile(r"[0-9a-f]{64}")
@@ -221,8 +223,22 @@ class KnowledgeEgressPolicyCatalog:
 
     @classmethod
     def load_v1_resource(cls) -> Self:
+        return cls._load_resource(
+            resource_name=_CATALOG_RESOURCE,
+            expected_sha256=EXPECTED_KNOWLEDGE_EGRESS_CATALOG_SHA256,
+        )
+
+    @classmethod
+    def load_current_resource(cls) -> Self:
+        return cls._load_resource(
+            resource_name=_CURRENT_CATALOG_RESOURCE,
+            expected_sha256=EXPECTED_CURRENT_KNOWLEDGE_EGRESS_CATALOG_SHA256,
+        )
+
+    @classmethod
+    def _load_resource(cls, *, resource_name: str, expected_sha256: str) -> Self:
         try:
-            resource = importlib.resources.files(__package__).joinpath(_CATALOG_RESOURCE)
+            resource = importlib.resources.files(__package__).joinpath(resource_name)
             with resource.open("rb") as stream:
                 raw = stream.read(_MAX_CATALOG_BYTES + 1)
         except (FileNotFoundError, OSError) as exc:
@@ -230,7 +246,7 @@ class KnowledgeEgressPolicyCatalog:
         if len(raw) > _MAX_CATALOG_BYTES:
             raise KnowledgePolicyCatalogError("knowledge.policy_catalog_invalid")
         source_sha256 = hashlib.sha256(raw).hexdigest()
-        if source_sha256 != EXPECTED_KNOWLEDGE_EGRESS_CATALOG_SHA256:
+        if source_sha256 != expected_sha256:
             raise KnowledgePolicyCatalogError("knowledge.policy_catalog_hash_mismatch")
         return cls(_parse_snapshot(raw, source_sha256=source_sha256))
 
