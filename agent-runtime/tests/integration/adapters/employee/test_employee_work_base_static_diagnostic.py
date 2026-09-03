@@ -91,6 +91,19 @@ def test_repository_asset_scan_ignores_ordinary_language_imports(
     assert _employee_asset_counts(tmp_path)["employeeImportComponents"] == 0
 
 
+def test_repository_asset_scan_ignores_mypy_cache(
+    tmp_path: Path,
+) -> None:
+    cache = tmp_path / ".mypy_cache" / "3.12" / "agent_runtime"
+    cache.mkdir(parents=True)
+    (cache / "bootstrap.data.json").write_text(
+        '{"employee":"applicationrunner"}',
+        encoding="utf-8",
+    )
+
+    assert _employee_asset_counts(tmp_path)["employeeInitializationComponents"] == 0
+
+
 def test_frozen_evidence_has_strict_static_limited_conclusion() -> None:
     evidence = load_strict_json(_EVIDENCE_PATH)
     validate_evidence(evidence)

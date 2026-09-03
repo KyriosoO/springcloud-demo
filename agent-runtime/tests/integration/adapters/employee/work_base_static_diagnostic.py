@@ -214,6 +214,7 @@ def _employee_asset_counts(repository_root: Path) -> dict[str, int]:
         ".git",
         ".idea",
         ".codex-live",
+        ".mypy_cache",
         ".venv",
         "__pycache__",
         "agent-runtime",

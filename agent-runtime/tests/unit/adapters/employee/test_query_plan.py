@@ -131,7 +131,7 @@ def test_employee_protected_input_is_single_request_local_value_and_model_safe()
     )
     decision = QuestionEgressGuard().evaluate_business(
         f"请查看员工详情，身份证号 {raw}",
-        protected_values=slots.values,  # type: ignore[arg-type]
+        protected_values=slots.values,
     )
 
     assert decision.disposition is QuestionEgressDisposition.ALLOWED
