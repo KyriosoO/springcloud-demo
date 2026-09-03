@@ -6,7 +6,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from tests.integration.adapters.frozen_manifest import materialize_manifest_at_commit
+from tests.integration.adapters.frozen_manifest import (
+    materialize_current_hash_bindings,
+    materialize_manifest_at_commit,
+)
 from tests.integration.adapters.transaction.egress_candidate_v4 import (
     AUTHORIZATION_REFERENCE,
     MAXIMUM_PAID_ANSWER_CALLS,
@@ -40,8 +43,17 @@ FROZEN_SOURCE_COMMIT = "680cd25ac0475f301260123c8ce6229ed05dc8c9"
 
 
 def test_candidate_manifest_authorization_and_all_assets_are_frozen(tmp_path: Path) -> None:
-    manifest_sha256 = sha256_file(MANIFEST)
+    raw_authorization = load_strict_json(AUTHORIZATION)
+    manifest_relative = MANIFEST.relative_to(ROOT).as_posix()
+    checkout_root = materialize_current_hash_bindings(
+        {manifest_relative: raw_authorization["manifestSha256"]},
+        repository_root=ROOT,
+        destination=tmp_path / "authorized-checkout",
+    )
+    authorized_manifest = checkout_root.joinpath(*Path(manifest_relative).parts)
+    manifest_sha256 = sha256_file(authorized_manifest)
     raw_manifest = load_strict_json(MANIFEST)
+    assert load_strict_json(authorized_manifest) == raw_manifest
     frozen_repository = materialize_manifest_at_commit(
         raw_manifest,
         repository_root=ROOT,
@@ -50,7 +62,6 @@ def test_candidate_manifest_authorization_and_all_assets_are_frozen(tmp_path: Pa
         collection_names=("history", "assetHashes"),
     )
     manifest = validate_manifest(raw_manifest, repository_root=frozen_repository)
-    raw_authorization = load_strict_json(AUTHORIZATION)
     assert raw_authorization["manifestSha256"] == manifest_sha256
     authorization = validate_authorization(
         raw_authorization,
