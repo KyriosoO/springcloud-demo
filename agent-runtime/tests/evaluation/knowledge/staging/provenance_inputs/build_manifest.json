@@ -1,0 +1,20 @@
+{
+  "dataset": "salpt/chinatax-policy-corpus",
+  "datasetUrl": "https://huggingface.co/datasets/salpt/chinatax-policy-corpus/resolve/main/data/train-00000-of-00001.parquet",
+  "sourceCrawledAt": "2026-02-27",
+  "index": "agent-doc-tax-policy-v2-20260227-bge-m3",
+  "readAlias": "agent-doc-tax-policy-v2-read",
+  "writeAlias": "agent-doc-tax-policy-v2-write",
+  "tenantId": "tenant-local",
+  "domain": "tax_policy",
+  "materialType": "tax_policy",
+  "retrievalProfile": "tax_policy_v2_default",
+  "profileVersion": "chinatax-policy-v2-20260227-bge-m3",
+  "dimension": 1024,
+  "rows": 5593,
+  "plannedChunks": 13003,
+  "indexedChunks": 13003,
+  "failedChunks": 0,
+  "esCount": 13003,
+  "builtAt": "2026-07-09T12:38:47Z"
+}

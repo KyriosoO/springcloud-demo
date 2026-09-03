@@ -8,3 +8,13 @@
 *.md text eol=lf working-tree-encoding=UTF-8
 *.sql text eol=lf working-tree-encoding=UTF-8
 *.json text eol=lf working-tree-encoding=UTF-8
+
+# This frozen Transaction manifest was originally authorized and hashed with
+# CRLF bytes. Preserve that checkout representation without rewriting the
+# immutable evidence object or its recorded SHA-256.
+agent-runtime/tests/integration/adapters/transaction/evidence/transaction-egress-v4-20260817-candidate-04.manifest.json text eol=crlf working-tree-encoding=UTF-8
+
+# The staging validator needs exact byte mirrors of two formerly ignored
+# provenance inputs so a clean checkout can reproduce their frozen hashes.
+agent-runtime/tests/evaluation/knowledge/staging/provenance_inputs/post-cutover-gold-report.json binary
+agent-runtime/tests/evaluation/knowledge/staging/provenance_inputs/build_manifest.json binary

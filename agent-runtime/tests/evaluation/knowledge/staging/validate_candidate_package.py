@@ -13,6 +13,13 @@ from typing import Any
 from tests.evaluation.knowledge.run_evaluation import EvaluationRunError, load_dataset
 
 
+_TRACKED_PROVENANCE_MIRRORS = {
+    ".tmp/chinatax-v2/post-cutover-gold-report.json": "post-cutover-gold-report.json",
+    ".tmp/chinatax-v2/build_manifest.json": "build_manifest.json",
+}
+_TRACKED_PROVENANCE_ROOT = Path(__file__).resolve().parent / "provenance_inputs"
+
+
 _CANDIDATE_FIELDS = {
     "candidate_id",
     "question",
@@ -245,6 +252,22 @@ def _validate_no_sensitive_value(question: str) -> None:
         raise CandidatePackageError("candidate_package.sensitive_value_detected")
 
 
+def _resolve_provenance_input(repository_root: Path, relative: str) -> Path:
+    primary = (repository_root / relative).resolve()
+    if not primary.is_relative_to(repository_root):
+        raise CandidatePackageError("candidate_package.provenance_input_missing")
+    if primary.is_file():
+        return primary
+    mirror_name = _TRACKED_PROVENANCE_MIRRORS.get(relative)
+    if mirror_name is None:
+        raise CandidatePackageError("candidate_package.provenance_input_missing")
+    mirror_root = _TRACKED_PROVENANCE_ROOT.resolve()
+    mirror = (mirror_root / mirror_name).resolve()
+    if not mirror.is_relative_to(mirror_root) or not mirror.is_file():
+        raise CandidatePackageError("candidate_package.provenance_input_missing")
+    return mirror
+
+
 def _validate_candidates(path: Path, *, repository_root: Path) -> tuple[tuple[dict[str, Any], ...], Counter[str]]:
     candidates = read_jsonl(path)
     if len(candidates) < 24:
@@ -324,7 +347,10 @@ def _validate_candidates(path: Path, *, repository_root: Path) -> tuple[tuple[di
         raise CandidatePackageError("candidate_package.missing_stratum_boundary")
     if len(legacy_candidates) != 6:
         raise CandidatePackageError("candidate_package.legacy_candidate_count_mismatch")
-    legacy_path = (repository_root / ".tmp/chinatax-v2/post-cutover-gold-report.json").resolve()
+    legacy_path = _resolve_provenance_input(
+        repository_root,
+        ".tmp/chinatax-v2/post-cutover-gold-report.json",
+    )
     legacy_report = _read_json(legacy_path)
     legacy_questions = {
         item["caseId"]: item["query"]
@@ -568,9 +594,7 @@ def _validate_provenance(
         _validate_text(item["path"], code="candidate_package.invalid_provenance_path", maximum=512)
         if not isinstance(item["sha256"], str) or not _LOWER_HEX_64.fullmatch(item["sha256"]):
             raise CandidatePackageError("candidate_package.invalid_provenance_hash")
-        input_path = (repository_root / item["path"]).resolve()
-        if not input_path.is_relative_to(repository_root) or not input_path.is_file():
-            raise CandidatePackageError("candidate_package.provenance_input_missing")
+        input_path = _resolve_provenance_input(repository_root, item["path"])
         if _sha256(input_path) != item["sha256"]:
             raise CandidatePackageError("candidate_package.provenance_input_hash_mismatch")
         if not isinstance(item["role"], str) or item["role"] in inputs_by_role:

@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.40 |
+| 当前版本 | v2.41 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-03 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -14,7 +14,7 @@
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
 
-v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrite V2 精确 JSON 输出合同。v2.35 依据 ROADMAP_01 阶段 A 新增语料只读审计、版本化处理、候选索引、发布回滚和专项 UAT 工作包，并把入口门禁与 alias 发布门禁拆开以消除循环。v2.36 依据审计 v1 的实际失败修复来源可达性、正文完整性、人工优先级和精确预算边界。v2.37～v2.38 如实保留早期 candidate/UAT 及严格合同复评。v2.39 修复 legacy DOC 扁平解析导致条款关系缺失的问题并保留结构化 a4 中间候选。v2.40 将网络/损坏容器异常收敛为逐资产有限失败，以最终工具源码重建 Stage A corpus candidate-08/a5，并用 UAT/release attempt-05 完成可复现发布收口；阶段 B 仍独立阻塞。
+v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrite V2 精确 JSON 输出合同。v2.35 依据 ROADMAP_01 阶段 A 新增语料只读审计、版本化处理、候选索引、发布回滚和专项 UAT 工作包，并把入口门禁与 alias 发布门禁拆开以消除循环。v2.36 依据审计 v1 的实际失败修复来源可达性、正文完整性、人工优先级和精确预算边界。v2.37～v2.38 如实保留早期 candidate/UAT 及严格合同复评。v2.39 修复 legacy DOC 扁平解析导致条款关系缺失的问题并保留结构化 a4 中间候选。v2.40 将网络/损坏容器异常收敛为逐资产有限失败，以最终工具源码重建 Stage A corpus candidate-08/a5，并用 UAT/release attempt-05 完成发布收口；v2.41 修正 catalog Git/LF 分发哈希，增加历史评估输入的精确只读镜像，并保留旧 Transaction 授权字节的 CRLF checkout 语义，使正式隔离回归可由干净检出复现。阶段 B 仍独立阻塞。
 
 ## 2. 目标、范围与计划原则
 
@@ -463,7 +463,7 @@ Employee/Transaction 保持已完成。Knowledge 阶段 A 已完成 Audit、Desi
 | `UAT_01 v1.19` Functional | 当前 Knowledge 生产对象图 | 37 项逐 case trace、Rewrite V2 合同、Spring E2E、Java/Python 契约 | 37/37 Passed | Implemented and verified | 无目标内缺口 |
 | `UAT_01 v1.19` Effectiveness | P5 v2 metric、当前 Rewrite V2 + Summary V4、版本化 candidate runner | non-live、历史哈希、安全 Gate、candidate-07 history 与 traceability schema v2 | 当前 candidate-07 无效；最新有效 partial | Evidence missing | 当前任务组合未形成有效测量；作为显式剩余风险，不阻塞阶段 A |
 | `UAT_01 v1.19` 阶段 A | 正文/附件/表格/OCR/时效/授权/Evidence 14 类专项 | 流水线、candidate 与 typed retrieval 已验证 | `UAT-KCORPUS-A-01～14` 14/14 Passed | Implemented and verified | attempt-05 为最终证据；阶段 B 四项发现独立记录，不影响阶段 A |
-| `P3_00 v2.40` 工作包、Gate 与阶段 A | 既有工作包及阶段 A 6 包均闭合 | `GATE-080/081/082/083/084` Closed | 既有 UAT 不回退；阶段 A 14/14 | Implemented and verified | 禁止额外模型调用、阶段 B 调参或新效果候选 |
+| `P3_00 v2.41` 工作包、Gate 与阶段 A | 既有工作包及阶段 A 6 包均闭合 | `GATE-080/081/082/083/084` Closed | 既有 UAT 不回退；阶段 A 14/14 | Implemented and verified | 禁止额外模型调用、阶段 B 调参或新效果候选 |
 | `ARCHITECTURE.md` 权威索引 | 不对应生产实现 | 链接、版本与状态校验 | 引用 P3/UAT 高层状态 | Not applicable | 索引不复制运行流水或动态测试总数 |
 
 ## 17. Employee 自然语言扩展工作包（v2.33）
@@ -512,7 +512,7 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 
 该修复只解决模型请求合同未显式描述本地严格 decoder 的缺口：V2 明确唯一 `candidates` 字段、1..`max_candidates` 数量、字符串边界、语义保持和禁止直接回答；本地 parser、Question Guard、候选语义校验和原问题 fallback 不放宽。验证台只从最终受控响应的 `result.answerSummary` 显示 Knowledge 加工后文本，并继续保留完整结构化结果；不新增模型调用、后端 DTO 或敏感正文诊断字段。Rewrite V1、历史 candidate 和效果结论保持不可变，当前 Rewrite V2 + Summary V4 组合的效果证据仍为 `Evidence missing`。
 
-## 19. Knowledge 阶段 A 语料完整性实施与收口（v2.40）
+## 19. Knowledge 阶段 A 语料完整性实施与收口（v2.41）
 
 ### 19.1 只读事实与精确目标
 
@@ -566,12 +566,12 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 
 - Stage A corpus candidate-08 build manifest SHA-256=`6cc043633dce354b5b83aa0592e84db702484566d76def8fab84afea3c09ead6`；asset manifest SHA-256=`c64c1cc69636bdfad6dbca2e9f127f8ccd9855e3baeabf70a6bc5fdd0405d01c`；mapping SHA-256=`7b83f96b013c6f6cfa671f13488d45101d2273a048eac88cc764fcf218fb3cdf`；processing result SHA-256=`2e780aa33ccb83dec30d292087471d1d5ad5e52c253a019bcec27e123eefbbb0`。
 - candidate a5 由阶段 A 起始索引 14783 chunk 加 738 个合格新 chunk 构成，共15521 chunk、5600个唯一document；附件父关系缺失=0、条款引用=55、空 content/embedding=0，candidate write block=true；规范化内容 fingerprint=`bb63efe76774b9c82226625b25a9fabfc0be3004d8a678e5a739020107bf943b`，构建记录的工具源码 SHA-256=`81deb7ba75959485b8035412910617ba4eb4bb05359a1563d7bf8df633d05368` 与最终源码复算一致。
-- policy catalog v1 字节保持不变，SHA-256=`442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698`；catalog v2 SHA-256=`c6d2954a32a38527cf975a74f1a666ac0edbc3cd65561f35472e621dd1400f32`，与 candidate 5600 个 document full-membership 完全一致；a5 policy/law snapshot 分别为 `5e7323100b1bfd44e7452e3ce409ff146800961c07a077b2585b670665b03136` / `b537176bf80323178aaaa1ca328f1534641b62f2671d8aa2e136fcef63495104`，覆盖5463/137个document；a4 和更早 snapshot 仍保留。
+- policy catalog v1 字节保持不变，SHA-256=`442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698`；catalog v2 的 Git/LF 分发字节 SHA-256=`76dcbfa6da01b76b431417e5b540f7a540fd9daa352a61c36d1bb9fdc31b2a9b`，其规范化内容与 candidate 5600 个 document full-membership 完全一致；a5 policy/law snapshot 分别为 `5e7323100b1bfd44e7452e3ce409ff146800961c07a077b2585b670665b03136` / `b537176bf80323178aaaa1ca328f1534641b62f2671d8aa2e136fcef63495104`，覆盖5463/137个document；a4 和更早 snapshot 仍保留。
 - UAT attempt-01（SHA-256=`5659904b75a211ed6f046509783a53679af2bb499df590c4713f1fbc7c1fb21b`）原样保留；正式复核发现其 PDF 用例只引用 live manifest，时效和当前税法也没有在同次运行中直接断言，因此不得作为最终 14/14 权威证据。
 - 最终 UAT attempt-05：run=`knowledge-corpus-stage-a-uat-v1-20260903-attempt-05`，14/14 Passed，有限结果 SHA-256=`ad86ae89b48e0c96426cbadddef526d391e6b61214a254bba90049286afc162a`；模型/Business调用均为0，并在同次运行验证738个附件chunk、55个条款引用、native PDF fixture、ACTIVE/EXPIRED、tax.law 当前税法、alias 精确绑定及酒店住宿两类直接原文。attempt-01/02/04 保持不变；attempt-03 因前序索引元数据仍指向初始基线而不作为最终发布追踪。
 - 首次发布后的 UAT 使用最终用户问句做向量 top20 断言，目标附件位于 rank 59；工具立即把 alias 回滚至旧目标，回滚 evidence SHA-256=`39ec3e5fbadc8ce37ffe8537b883fc0f8a69032463eecf4112ec83d2b5290e31`。这证明阶段 B 改写/排序缺口，不证明语料缺失。
 - 最终 release run=`knowledge-corpus-stage-a-release-v1-20260903-attempt-05`，journal SHA-256=`623438fbedf9ff83c57607fc3b16735576a79c9b6a382092ad7b55e248b6010e`；按 a4→a5→a4→a5 三次原子操作完成回滚演练，alias 最终精确指向 a5，阶段 A 起始索引和 a1～a4 候选均未修改、未删除。
-- 本次最终验证实际结果：阶段 A 工具 30 passed；Knowledge/追踪定向集合 206 passed、6 个显式 live opt-in skipped；正式隔离 Transaction host/preflight 14/14，Runtime 全量 non-live 1551 passed、27 个显式 opt-in skipped、0 failed；strict mypy 483 个 Runtime 源/测试文件与 13 个语料工具源码文件均通过，compileall 与 PowerShell AST 通过。Java reactor 为 common-security 21/0、employee-service 50/20 skipped、mq-procedure-service 51/2 skipped、es-query-service 43/0，agent-service 40/1 skipped，全部 0 failure/0 error；跳过项均为未获本阶段授权的历史或真实 live 用例。
+- 本次最终验证实际结果：阶段 A 工具 30 passed；Knowledge/追踪定向集合 206 passed、6 个显式 live opt-in skipped；正式隔离 Transaction host/preflight 14/14，Runtime 全量 non-live 1552 passed、27 个显式 opt-in skipped、0 failed；strict mypy 483 个 Runtime 源/测试文件与 13 个语料工具源码文件均通过，compileall 与 PowerShell AST 通过。Java reactor 为 common-security 21/0、employee-service 50/20 skipped、mq-procedure-service 51/2 skipped、es-query-service 43/0，agent-service 40/1 skipped，全部 0 failure/0 error；跳过项均为未获本阶段授权的历史或真实 live 用例。
 - `WP-KCORPUS-PIPELINE-01`、`WP-KCORPUS-INDEX-01`、`WP-KCORPUS-UAT-01`、`WP-KCORPUS-RELEASE-01` 均为 Done；`GATE-084/GATE-KRG-002` Closed。
 
 ### 19.7 正式代码、数据与索引复评

@@ -1,0 +1,374 @@
+{
+  "index": "agent-doc-tax-policy-v2-read",
+  "goldSetVersion": "tax-policy-core-v1",
+  "profileVersion": "chinatax-policy-v2-dataopt-20260710-bge-m3",
+  "caseCount": 6,
+  "expectedCaseCount": 5,
+  "expectedHitCount": 5,
+  "topKHitRate": 1.0,
+  "mrr": 0.9,
+  "elapsedSec": 1.04,
+  "results": [
+    {
+      "caseId": "tax-vat-current-rates",
+      "query": "增值税有哪些税率？",
+      "caseType": "qa_current_law",
+      "expectedDocumentIds": [
+        "tax-curated-vat-rates-current",
+        "tax-ed86dea9630deb65973c6bb2",
+        "tax-31d17b20b37475140af18a93"
+      ],
+      "hitDocumentIds": [
+        "tax-curated-vat-rates-current",
+        "tax-8624be5fa74f5d9fc1c6c3d2",
+        "tax-17f6aa95a569a33ff0e3eb32",
+        "tax-ed86dea9630deb65973c6bb2",
+        "tax-7056cc6ddfe76a7499d6193a",
+        "tax-bfa4cdc752ac2c8d37e69ebd",
+        "tax-2ef81d63dcc542ae91dcee07",
+        "tax-fd1b360e4010875e072e61af",
+        "tax-e38e527b6a5d4cb5646f80df",
+        "tax-280fd1c4e0f936ebb0dfcac2"
+      ],
+      "firstExpectedRank": 1,
+      "passed": true,
+      "topTitles": [
+        {
+          "documentId": "tax-curated-vat-rates-current",
+          "chunkId": "tax-curated-vat-rates-current#c0000",
+          "title": "现行增值税税率当前口径汇总",
+          "score": 17.850136,
+          "rrfScore": 0.03225806451612904
+        },
+        {
+          "documentId": "tax-8624be5fa74f5d9fc1c6c3d2",
+          "chunkId": "tax-8624be5fa74f5d9fc1c6c3d2#d0000",
+          "title": "财政部 税务总局关于调整增值税税率的通知",
+          "score": 15.6698,
+          "rrfScore": 0.03053613053613053
+        },
+        {
+          "documentId": "tax-17f6aa95a569a33ff0e3eb32",
+          "chunkId": "tax-17f6aa95a569a33ff0e3eb32#d0000",
+          "title": "国家税务总局关于增值税一般纳税人取调整增值税扣税凭证抵扣期限有进项税额抵扣问题的通知",
+          "score": 20.83492,
+          "rrfScore": 0.01639344262295082
+        },
+        {
+          "documentId": "tax-ed86dea9630deb65973c6bb2",
+          "chunkId": "tax-ed86dea9630deb65973c6bb2#d0001",
+          "title": "中华人民共和国增值税法",
+          "score": 0.8804888,
+          "rrfScore": 0.01639344262295082
+        },
+        {
+          "documentId": "tax-7056cc6ddfe76a7499d6193a",
+          "chunkId": "tax-7056cc6ddfe76a7499d6193a#d0003",
+          "title": "财政部 国家税务总局关于在全国开展交通运输业和部分现代服务业营业税改征增值税试点税收政策的通知",
+          "score": 0.8742509,
+          "rrfScore": 0.01587301587301587
+        }
+      ]
+    },
+    {
+      "caseId": "tax-vat-general-taxpayer-current-rates",
+      "query": "目前增值税一般纳税人适用的税率有哪些？",
+      "caseType": "qa_current_law",
+      "expectedDocumentIds": [
+        "tax-curated-vat-rates-current",
+        "tax-ed86dea9630deb65973c6bb2",
+        "tax-31d17b20b37475140af18a93"
+      ],
+      "hitDocumentIds": [
+        "tax-curated-vat-rates-current",
+        "tax-curated-vat-small-scale-current",
+        "tax-curated-eit-rates-current",
+        "tax-bcdf32533b0e2912c89b7e4c",
+        "tax-ed86dea9630deb65973c6bb2",
+        "tax-bfa4cdc752ac2c8d37e69ebd",
+        "tax-fd1b360e4010875e072e61af",
+        "tax-31d17b20b37475140af18a93",
+        "tax-6dd2403e7a81bd2ceb48b916",
+        "tax-2ef81d63dcc542ae91dcee07"
+      ],
+      "firstExpectedRank": 1,
+      "passed": true,
+      "topTitles": [
+        {
+          "documentId": "tax-curated-vat-rates-current",
+          "chunkId": "tax-curated-vat-rates-current#c0000",
+          "title": "现行增值税税率当前口径汇总",
+          "score": 40.552673,
+          "rrfScore": 0.03278688524590164
+        },
+        {
+          "documentId": "tax-curated-vat-small-scale-current",
+          "chunkId": "tax-curated-vat-small-scale-current#c0000",
+          "title": "小规模纳税人增值税征收率当前口径汇总",
+          "score": 20.2032,
+          "rrfScore": 0.03041474654377881
+        },
+        {
+          "documentId": "tax-curated-eit-rates-current",
+          "chunkId": "tax-curated-eit-rates-current#c0000",
+          "title": "企业所得税税率当前口径汇总",
+          "score": 34.468803,
+          "rrfScore": 0.01612903225806452
+        },
+        {
+          "documentId": "tax-bcdf32533b0e2912c89b7e4c",
+          "chunkId": "tax-bcdf32533b0e2912c89b7e4c#d0000",
+          "title": "税务部门现行有效 失效 废止规章目录",
+          "score": 22.49271,
+          "rrfScore": 0.01587301587301587
+        },
+        {
+          "documentId": "tax-ed86dea9630deb65973c6bb2",
+          "chunkId": "tax-ed86dea9630deb65973c6bb2#d0001",
+          "title": "中华人民共和国增值税法",
+          "score": 0.88199776,
+          "rrfScore": 0.01587301587301587
+        }
+      ]
+    },
+    {
+      "caseId": "tax-vat-small-scale-rate",
+      "query": "小规模纳税人增值税征收率是多少？",
+      "caseType": "qa_current_policy",
+      "expectedDocumentIds": [
+        "tax-curated-vat-small-scale-current",
+        "tax-986604ed425418fdaff65f6e",
+        "tax-fbd2a31b07bc3ce308d0dd47"
+      ],
+      "hitDocumentIds": [
+        "tax-curated-vat-small-scale-current",
+        "tax-fd1b360e4010875e072e61af",
+        "tax-fbd2a31b07bc3ce308d0dd47",
+        "tax-1ecabbde51b4aed35cbe3b33",
+        "tax-56396d84c1c83000dbdb7819",
+        "tax-9b479fdeec22294ce16c208e",
+        "tax-fb2a8365d9d02916aaca2add",
+        "tax-48d6e39ece2a1ea4959e1a12",
+        "tax-d123d3af3c8dd891430e4fc3"
+      ],
+      "firstExpectedRank": 1,
+      "passed": true,
+      "topTitles": [
+        {
+          "documentId": "tax-curated-vat-small-scale-current",
+          "chunkId": "tax-curated-vat-small-scale-current#c0000",
+          "title": "小规模纳税人增值税征收率当前口径汇总",
+          "score": 37.478737,
+          "rrfScore": 0.03278688524590164
+        },
+        {
+          "documentId": "tax-fd1b360e4010875e072e61af",
+          "chunkId": "tax-fd1b360e4010875e072e61af#d0000",
+          "title": "关于《国家税务总局关于简并增值税征收率有关问题的公告》的解读",
+          "score": 21.450914,
+          "rrfScore": 0.03125
+        },
+        {
+          "documentId": "tax-fbd2a31b07bc3ce308d0dd47",
+          "chunkId": "tax-fbd2a31b07bc3ce308d0dd47#d0000",
+          "title": "财政部 税务总局关于增值税小规模纳税人减免增值税政策的公告",
+          "score": 16.890663,
+          "rrfScore": 0.03041474654377881
+        },
+        {
+          "documentId": "tax-1ecabbde51b4aed35cbe3b33",
+          "chunkId": "tax-1ecabbde51b4aed35cbe3b33#d0000",
+          "title": "财政部 税务总局关于对增值税小规模纳税人免征增值税的公告",
+          "score": 16.890663,
+          "rrfScore": 0.02987736900780379
+        },
+        {
+          "documentId": "tax-56396d84c1c83000dbdb7819",
+          "chunkId": "tax-56396d84c1c83000dbdb7819#d0000",
+          "title": "国家税务总局关于增值税小规模纳税人减免增值税等政策有关征管事项的公告",
+          "score": 17.088524,
+          "rrfScore": 0.02941176470588236
+        }
+      ]
+    },
+    {
+      "caseId": "tax-eit-basic-rate",
+      "query": "企业所得税税率是多少？",
+      "caseType": "qa_current_law",
+      "expectedDocumentIds": [
+        "tax-curated-eit-rates-current",
+        "tax-0d5b04990b508ca61326d670"
+      ],
+      "hitDocumentIds": [
+        "tax-beb08bcefd488e33babbc858",
+        "tax-curated-eit-rates-current",
+        "tax-0a6af8f478442f943998c0e1",
+        "tax-69fa39699dcdaf168ed1abe2",
+        "tax-7fd1fbadf88c2d0ed4e82879",
+        "tax-c0ce87467df4d5c71b9828b5",
+        "tax-8e29f0803ce47e41a98c7335",
+        "tax-cb50cd3d7a8fcc46f82d7e81",
+        "tax-bcd9a101de51a42f093e6c16"
+      ],
+      "firstExpectedRank": 2,
+      "passed": true,
+      "topTitles": [
+        {
+          "documentId": "tax-beb08bcefd488e33babbc858",
+          "chunkId": "tax-beb08bcefd488e33babbc858#d0001",
+          "title": "关于《涉税专业服务信用评价管理办法》的解读",
+          "score": 9.774028,
+          "rrfScore": 0.01639344262295082
+        },
+        {
+          "documentId": "tax-curated-eit-rates-current",
+          "chunkId": "tax-curated-eit-rates-current#c0000",
+          "title": "企业所得税税率当前口径汇总",
+          "score": 0.88110495,
+          "rrfScore": 0.01639344262295082
+        },
+        {
+          "documentId": "tax-0a6af8f478442f943998c0e1",
+          "chunkId": "tax-0a6af8f478442f943998c0e1#d0003",
+          "title": "中华人民共和国国营企业所得税条例（草案）",
+          "score": 0.84717077,
+          "rrfScore": 0.01612903225806452
+        },
+        {
+          "documentId": "tax-69fa39699dcdaf168ed1abe2",
+          "chunkId": "tax-69fa39699dcdaf168ed1abe2#d0029",
+          "title": "国家税务总局关于印发《〈中华人民共和国政府和新加坡共和国政府关于对所得避免双重征税和防止偷漏税的协定〉及议定书条文解释》的通知",
+          "score": 8.155018,
+          "rrfScore": 0.01612903225806452
+        },
+        {
+          "documentId": "tax-7fd1fbadf88c2d0ed4e82879",
+          "chunkId": "tax-7fd1fbadf88c2d0ed4e82879#d0002",
+          "title": "国家税务总局关于印发《企业所得税核定征收办法（试行）》的通知",
+          "score": 0.8444342,
+          "rrfScore": 0.01587301587301587
+        }
+      ]
+    },
+    {
+      "caseId": "tax-eit-small-low-profit",
+      "query": "小型微利企业企业所得税优惠税率是多少？",
+      "caseType": "qa_current_policy",
+      "expectedDocumentIds": [
+        "tax-curated-eit-rates-current",
+        "tax-f186c1cf633380d4a6b6cd49",
+        "tax-7b4a5fb175298a9545704b1d",
+        "tax-f4ede0cfeb676756c93a4866",
+        "tax-2ddc0de47ec202ec1296f075"
+      ],
+      "hitDocumentIds": [
+        "tax-f186c1cf633380d4a6b6cd49",
+        "tax-f4ede0cfeb676756c93a4866",
+        "tax-7b4a5fb175298a9545704b1d",
+        "tax-7fef922a520713a8858fe7ba",
+        "tax-2ddc0de47ec202ec1296f075",
+        "tax-558abe7cf40c2b0f5d0fa347",
+        "tax-834d8b465a157f7efd1142c4",
+        "tax-cd4256fb8d9bd919bd5c4666",
+        "tax-d73c8786a944de8fe79cb1cc",
+        "tax-0ebc24c7ad8003e440cacccd"
+      ],
+      "firstExpectedRank": 1,
+      "passed": true,
+      "topTitles": [
+        {
+          "documentId": "tax-f186c1cf633380d4a6b6cd49",
+          "chunkId": "tax-f186c1cf633380d4a6b6cd49#d0000",
+          "title": "财政部 国家税务总局关于小型微利企业所得税优惠政策的通知",
+          "score": 41.449837,
+          "rrfScore": 0.03252247488101534
+        },
+        {
+          "documentId": "tax-f4ede0cfeb676756c93a4866",
+          "chunkId": "tax-f4ede0cfeb676756c93a4866#d0000",
+          "title": "财政部 税务总局关于扩大小型微利企业所得税优惠政策范围的通知",
+          "score": 41.449837,
+          "rrfScore": 0.03149801587301587
+        },
+        {
+          "documentId": "tax-7b4a5fb175298a9545704b1d",
+          "chunkId": "tax-7b4a5fb175298a9545704b1d#d0000",
+          "title": "财政部 国家税务总局关于小型微利企业所得税优惠政策有关问题的通知",
+          "score": 40.047638,
+          "rrfScore": 0.02964254577157803
+        },
+        {
+          "documentId": "tax-7fef922a520713a8858fe7ba",
+          "chunkId": "tax-7fef922a520713a8858fe7ba#d0000",
+          "title": "财政部 国家税务总局关于小型微利企业所得税优惠政策有关问题的通知",
+          "score": 40.047638,
+          "rrfScore": 0.0292063492063492
+        },
+        {
+          "documentId": "tax-2ddc0de47ec202ec1296f075",
+          "chunkId": "tax-2ddc0de47ec202ec1296f075#d0000",
+          "title": "财政部 国家税务总局关于继续实施小型微利企业所得税优惠政策的通知",
+          "score": 40.047638,
+          "rrfScore": 0.02819138376017471
+        }
+      ]
+    },
+    {
+      "caseId": "tax-vat-invoice-lost",
+      "query": "增值税专用发票丢失怎么处理？",
+      "caseType": "procedure",
+      "expectedDocumentIds": [],
+      "hitDocumentIds": [
+        "tax-eaeed7450244b19d16d11b6e",
+        "tax-5395affd1ab501a1d0c21a66",
+        "tax-6307f2dcfac6d52377a6e1a4",
+        "tax-55a3ad18b131e928581e4388",
+        "tax-ac5ae80e12707acd1c0fa454",
+        "tax-79b93b295a88684623f68c63",
+        "tax-a39ab584d49837521bf3ea2f",
+        "tax-c419746e4705b1ca0ca30951",
+        "tax-cf828f14898d2df3ca32ece0",
+        "tax-880c5f59ecfa426b51d10a27"
+      ],
+      "firstExpectedRank": null,
+      "passed": null,
+      "topTitles": [
+        {
+          "documentId": "tax-eaeed7450244b19d16d11b6e",
+          "chunkId": "tax-eaeed7450244b19d16d11b6e#d0000",
+          "title": "国家税务总局关于被盗、丢失增值税专用发票的处理意见的通知",
+          "score": 40.972153,
+          "rrfScore": 0.03278688524590164
+        },
+        {
+          "documentId": "tax-5395affd1ab501a1d0c21a66",
+          "chunkId": "tax-5395affd1ab501a1d0c21a66#d0000",
+          "title": "国家税务总局关于被盗、丢失增值税专用发票有关问题的公告",
+          "score": 32.881676,
+          "rrfScore": 0.03225806451612904
+        },
+        {
+          "documentId": "tax-6307f2dcfac6d52377a6e1a4",
+          "chunkId": "tax-6307f2dcfac6d52377a6e1a4#d0000",
+          "title": "国家税务总局关于外贸企业丢失增值税专用发票抵扣联出口退税有关问题的通知",
+          "score": 29.600138,
+          "rrfScore": 0.03149801587301587
+        },
+        {
+          "documentId": "tax-55a3ad18b131e928581e4388",
+          "chunkId": "tax-55a3ad18b131e928581e4388#d0000",
+          "title": "国家税务总局关于简化增值税发票领用和使用程序有关问题的公告",
+          "score": 19.219015,
+          "rrfScore": 0.0292063492063492
+        },
+        {
+          "documentId": "tax-ac5ae80e12707acd1c0fa454",
+          "chunkId": "tax-ac5ae80e12707acd1c0fa454#d0000",
+          "title": "国家税务总局关于走逃（失联）企业开具增值税专用发票认定处理有关问题的公告",
+          "score": 22.236336,
+          "rrfScore": 0.02899159663865547
+        }
+      ]
+    }
+  ]
+}

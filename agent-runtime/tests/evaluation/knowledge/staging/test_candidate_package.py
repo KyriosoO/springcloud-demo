@@ -9,6 +9,7 @@ import pytest
 from tests.evaluation.knowledge.staging.review_candidates import _snippet
 from tests.evaluation.knowledge.staging.validate_candidate_package import (
     CandidatePackageError,
+    _resolve_provenance_input,
     read_jsonl,
     validate_package,
 )
@@ -24,6 +25,15 @@ def _copy_package(destination: Path) -> Path:
         if source.is_file():
             shutil.copy2(source, destination / source.name)
     return destination
+
+
+def test_tracked_provenance_mirror_removes_ignored_tmp_dependency(tmp_path: Path) -> None:
+    resolved = _resolve_provenance_input(
+        tmp_path,
+        ".tmp/chinatax-v2/post-cutover-gold-report.json",
+    )
+    assert resolved.name == "post-cutover-gold-report.json"
+    assert resolved.parent.name == "provenance_inputs"
 
 
 def test_representative_dataset_is_frozen_and_gate_028_is_closed() -> None:
