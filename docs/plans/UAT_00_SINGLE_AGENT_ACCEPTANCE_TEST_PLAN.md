@@ -7,9 +7,9 @@
 | 当前版本 | v1.24 |
 | 文档状态 | Reviewed |
 | 更新日期 | 2026-08-28 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.2；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.3；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
 | 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8；Employee L2 v2.8；Transaction L2 v2.6 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.33 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.40 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
 

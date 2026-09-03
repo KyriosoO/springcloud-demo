@@ -7,18 +7,18 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.6 |
-| 更新时间 | 2026-08-28 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.1 |
+| 当前版本 | v2.8 |
+| 更新时间 | 2026-09-02 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.3 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
-| 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配；Business 与 Knowledge 功能验收已完成，最新有效 Knowledge 效果等级为 `partially_effective`，不等于整体效果达标 |
+| 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配；Business/Knowledge 功能验收及 Knowledge 阶段 A 离线语料发布已完成，最新有效 Knowledge 效果等级为 `partially_effective`，不等于整体效果达标 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 将运行候选、Gate、哈希和付费次数移出 L0，只保留稳定系统边界、功能验收状态和最新有效效果等级；具体工作包、门禁、候选与证据由 P3、UAT_01 和 evidence 分别治理。
+修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 将运行流水移出 L0；v2.7 增加与在线 Agent 隔离的阶段 A 离线语料构建平面；v2.8 如实同步该离线平面已实施并通过发布验证，不改变单一 `knowledge.query`、公共接口或权限边界。
 
 ## 2. 架构目标、非目标与架构原则
 
-目标是用最小可靠设计实现一个逻辑 Agent，保留 Knowledge、Employee、Transaction 三个能力域；优先满足可理解、可验证、权限隔离、敏感数据保护和失败关闭。非目标包括业务写入、聚合、多 Agent、规则平台、业务数据库直连、新业务公开接口和产品级审批或证据平台。
+目标是用最小可靠设计实现一个逻辑 Agent，保留 Knowledge、Employee、Transaction 三个能力域；优先满足可理解、可验证、权限隔离、敏感数据保护和失败关闭。阶段 A 允许独立离线工具补齐官方知识语料并发布新只读索引。非目标包括在线业务写入、聚合、多 Agent、规则平台、业务数据库直连、新业务公开接口、通用内容平台和产品级审批或证据平台。
 
 架构原则与全局不变量：LangGraph 是唯一编排权威；Core 每请求只执行一个已验证 Action；LLM 只生成受限逻辑 QueryPlan；配置只能收紧代码和业务接口；业务服务负责最终授权与数据访问；Knowledge 和 Business 独立，不互相 fallback。
 
@@ -29,10 +29,11 @@
 | 接入治理 | Java `agent-service` | 认证、严格请求合同、转发和请求上下文 | 编排、业务角色授权、SQL/ES |
 | 编排运行 | Python `agent-runtime` / LangGraph | 单请求状态、模型规划、能力注册与执行 | 业务数据库访问、替代业务授权 |
 | Knowledge | 既有 Knowledge Capability/Adapter | 独立问题改写、检索、证据与摘要 | Business 回退或业务查询 |
+| Knowledge 离线语料 | 项目级 Corpus Tool + `es-query-service` 物理资源边界 | 官方 asset、解析/OCR、切片、候选索引和受控 alias 发布 | 用户请求、在线排序、Agent 物理索引访问或新服务 |
 | Employee | Employee Adapter + `employee-service` | ES 条件查询或语义查询；服务完成最终授权 | Agent 直连 ES、两接口拼装 |
 | Transaction | Transaction Adapter + `mq-procedure-service` | 固定 search 列表查询；服务完成最终授权与 SQL | Agent 直连数据库、聚合或写入 |
 
-Spring 与 Python 是两个进程、一个逻辑 Agent；现有 auth-service 提供用户身份，业务数据和索引始终归属业务服务。依赖方向为 `Access → Runtime/Model → Business validation → Core/Adapter → 业务服务`。
+Spring 与 Python 是两个进程、一个逻辑 Agent；现有 auth-service 提供用户身份，业务数据和索引始终归属业务服务。在线依赖方向为 `Access → Runtime/Model → Core/Adapter → 业务服务`。离线语料平面仅通过门禁后发布的只读 alias/Profile 与在线 Knowledge 相交，不进入用户请求对象图。
 
 ## 4. 唯一顶层调用链
 
@@ -63,14 +64,15 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 | `SA-AD-003` | 统一字段级 JSON 配置只能收紧代码与服务合同 | 无配置中心和动态规则引擎 |
 | `SA-AD-004` | 业务服务最终授权；受保护输入和结果模型出域分离 | Employee ES 守卫需单独补齐 |
 | `SA-AD-005` | Knowledge 独立保留，旧 Business 证据不能证明新动作 | 明确当前实现与目标差距 |
+| `SA-AD-006` | 阶段 A 使用离线工具构建新候选索引，现行索引只读；发布以原子 alias 切换和精确回滚为边界 | Agent 仍不接触物理索引，且不新增在线服务 |
 
 ## 7. 下位 L1 分域治理
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
-| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.9 | Knowledge 问题改写、检索、证据、摘要和效果口径 | 功能验收完成；最新有效效果等级为 `partially_effective`，运行明细由 UAT_01/evidence 治理 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.6 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.4 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
+| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.15 | Knowledge 在线查询和阶段 A 离线语料构建/发布边界 | 在线功能验收保持完成；阶段 A 已由 P3/UAT_01 验证收口 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
 
 ## 8. 质量属性、风险与当前结论
 
