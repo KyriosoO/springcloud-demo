@@ -202,11 +202,14 @@ def materialize_current_hash_bindings(
         if _SHA256.fullmatch(expected_sha256) is None:
             raise AssertionError(f"invalid current hash binding: {relative}")
         source = _safe_target(repository_root, relative)
-        if not source.is_file() or _sha256_file(source) != expected_sha256:
+        if not source.is_file():
+            raise AssertionError(f"current frozen asset hash mismatch: {relative}")
+        payload = _match_checkout_payload(source.read_bytes(), expected_sha256)
+        if payload is None:
             raise AssertionError(f"current frozen asset hash mismatch: {relative}")
         target = _safe_target(destination, relative)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(source.read_bytes())
+        target.write_bytes(payload)
     return destination
 
 
