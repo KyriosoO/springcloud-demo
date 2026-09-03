@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.10 |
-| 日期 | 2026-08-28 |
+| 当前版本 | v1.15 |
+| 日期 | 2026-09-03 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.9](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.15](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2 与 Summary V4 已实现并通过验证；效果运行与门禁状态由 UAT_01/P3 管理 |
+| 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2、Rewrite V2、Summary V4 与阶段 A 发布后只读快照消费已实现并通过验证；效果运行与门禁状态由 UAT_01/P3 管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -28,6 +28,11 @@
 | v1.6 | 2026-08-28 | 任务版本与依赖纠偏 | 将组合根步骤统一为 Rewrite V1 + Summary V3；历史 V1/V2 责任不变 |
 | v1.8 | 2026-08-28 | Summary V4 实施同步 | 组合根已唯一切换为 Rewrite V1 + Summary V4，disabled 零依赖和 V1～V3 历史哈希保持不变 |
 | v1.10 | 2026-08-28 | 稳定权威纠偏 | 移除候选、Gate、预算和运行流水，只保留流程、任务版本、配置、失败语义及验证合同 |
+| v1.11 | 2026-09-02 | Rewrite 输出合同纠偏 | 新增 Rewrite V2 精确 JSON Schema 提示并切换生产组合根；复用既有严格 decoder、Guard、fallback，Rewrite V1 与历史证据保持不可变 |
+| v1.12 | 2026-09-02 | 阶段 A 语料边界 | 明确在线流程只消费发布后的只读 Profile/快照；离线语料处理由 L2_01_01 治理，不改变域选择、Rewrite、排序或公共失败语义 |
+| v1.13 | 2026-09-02 | 阶段 A 发布绑定 | 同步 current policy catalog 与 candidate a2 只读绑定已通过启动、typed retrieval、Evidence 和防回退验证；在线算法不变 |
+| v1.14 | 2026-09-03 | 阶段 A 当前快照复评 | 同步 candidate a4 的 index UUID、policy/law snapshot 与 catalog v2 绑定；旧快照继续可校验，在线域选择、Rewrite、排序和失败语义不变 |
+| v1.15 | 2026-09-03 | 阶段 A 最终快照迁移 | 将最终源码一致的 candidate a5 policy/law snapshot 追加到 catalog v2 并切换当前启动绑定；a4 与全部旧快照仍可校验，在线域选择、Rewrite、排序和失败语义不变 |
 
 ## 3. 目标与范围
 
@@ -39,7 +44,7 @@
 
 - 动作 descriptor、空参数 validator 和 capability handler；
 - `tax.policy`、`tax.law` 逻辑域目录与确定性选择；
-- 原问题保护、rewrite task v1、候选校验与原问题回退；
+- 原问题保护、rewrite task v2、候选校验与原问题回退；
 - 检索计划、阶段 deadline、coverage 充分性和结果映射；
 - 流程级配置、启动校验、日志和组合根任务版本绑定。
 
@@ -48,7 +53,7 @@
 - ES/BGE HTTP、RRF/rerank 算法和物理 Profile；
 - 证据策略、摘要 decoder、P5 数据集与指标；
 - DeepSeek transport、公共 Core/HTTP、Employee/Transaction；
-- 文档录入、索引维护、独立 Knowledge Service。
+- 文档获取、解析/OCR、切片和候选索引写入（由 `L2_01_01` 的离线构建合同治理）、独立 Knowledge Service。
 
 ## 4. 上位约束与追踪
 
@@ -62,6 +67,7 @@
 | `REQ-KFLOW-004` | 阶段失败、授权拒绝、零域、无候选和摘要失败保持可区分 |
 | `REQ-KFLOW-005` | 默认入口 disabled 零依赖；enabled 只在同一 Runtime 注册一个动作和两个固定任务 |
 | `REQ-KFLOW-006` | Knowledge 与 Business 共享单动作 Core 但互不 fallback，关闭时释放所有 owned resources |
+| `REQ-KFLOW-007` | 在线流程只消费已通过发布门禁的只读 Profile/index/policy snapshot；候选构建和 alias 切换不得由请求触发 |
 
 | 约束编号 | 来源与约束 |
 |---|---|
@@ -69,6 +75,7 @@
 | `CON-KFLOW-002` | `L1_01`：Capability 拥有查询策略，Adapter/Provider 拥有检索协议和物理映射 |
 | `CON-KFLOW-003` | `L2_00_01`：动作参数不由模型生成，Core 只执行注册 handler |
 | `CON-KFLOW-004` | `L2_00_02`：rewrite/summary 是代码绑定任务，默认模型可为 stub |
+| `CON-KFLOW-005` | `REQ-KCORPUS-001～006`、`L1_01 KQ-AD-011/012`：离线构建与在线查询隔离 |
 
 ### 4.2 端到端追踪矩阵
 
@@ -79,6 +86,7 @@
 | `REQ-KFLOW-003`、`CON-KFLOW-002` | `DR-KFLOW-006`、`DR-KFLOW-007` | `IMPL-KFLOW-005`、`IMPL-KFLOW-006` | `TEST-KFLOW-005`、`TEST-KFLOW-006` | `VAL-KFLOW-003` |
 | `REQ-KFLOW-004` | `DR-KFLOW-008`、`DR-KFLOW-009`、`DR-KFLOW-010` | `IMPL-KFLOW-007`、`IMPL-KFLOW-008` | `TEST-KFLOW-007`、`TEST-KFLOW-008` | `VAL-KFLOW-004` |
 | `REQ-KFLOW-005`、`REQ-KFLOW-006` | `DR-KFLOW-011`、`DR-KFLOW-012`、`DR-KFLOW-013`、`DR-KFLOW-014` | `IMPL-KFLOW-009`、`IMPL-KFLOW-010` | `TEST-KFLOW-009`、`TEST-KFLOW-010` | `VAL-KFLOW-005` |
+| `REQ-KFLOW-007`、`CON-KFLOW-005` | `DR-KFLOW-015` | `IMPL-KFLOW-011` | `TEST-KFLOW-011` | `VAL-KFLOW-006` |
 
 ## 5. 关联资源与责任边界
 
@@ -91,7 +99,7 @@
 | Plan Builder | 逻辑域×允许检索路径的有界计划 | 执行 HTTP 或排序 |
 | Retrieval Stage | 消费计划并返回 typed batch+coverage | 改写和摘要 |
 | Evidence Stage | 消费授权候选并形成最终本地/出域结果 | 首次读取授权 |
-| Composition Root | 绑定 Rewrite V1、目标 Summary V4、目录、Stages 和设置 | 请求级策略判断 |
+| Composition Root | 绑定 Rewrite V2、Summary V4、目录、Stages 和设置 | 请求级策略判断 |
 
 依赖方向为 `Capability → stage Protocol ← retrieval/evidence implementations`；目录和 settings 不依赖 HTTP/DeepSeek。禁止 Knowledge 内部阶段注册为公共能力，禁止 Capability 依赖 ES DSL 或模型 SDK。
 
@@ -99,9 +107,11 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、确定性域选择、rewrite v1、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合现已唯一绑定 `KnowledgeRewriteTaskV1` + `KnowledgeSummaryTaskV4`；V1～V3 只保留兼容、历史证据和可追溯回滚责任。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、确定性域选择、rewrite v2、计划 builder、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合唯一绑定 `KnowledgeRewriteTaskV2` + `KnowledgeSummaryTaskV4`；Rewrite V1 与 Summary V1～V3 只保留兼容、历史证据和可追溯回滚责任。
 
 旧 Summary V1～V3 保留给历史资产；新生产组合根完成切换后只能注册 V4，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
+
+阶段 A 不修改上述运行时：离线工具完成候选构建和发布后，启动配置只绑定新 Profile/index/policy snapshot。若任何快照不一致，Runtime 或 `es-query-service` 启动失败；在线请求不能选择候选索引、执行 alias 管理或回退旧/新索引。
 
 ## 7. 动作、逻辑域与请求状态
 
@@ -112,7 +122,7 @@
 | `DR-KFLOW-001` | 只注册 `knowledge.query`，argument schema 为 exact 空 object |
 | `DR-KFLOW-002` | 五阶段都在一次 handler 内，Core 看不到内部工具或第二动作 |
 | `DR-KFLOW-003` | 原问题先提取受保护约束；改写不得改变主体、时间、条件、否定或法条含义 |
-| `DR-KFLOW-004` | rewrite task v1 返回有界候选；候选逐个本地校验后选择第一个合法项 |
+| `DR-KFLOW-004` | rewrite task v2 只接受精确 `{"candidates":[...]}`；唯一字段为 `candidates`，数量为 1..`max_candidates`，每项为非空且不超过 1024 字符的字符串；候选逐个本地校验后选择第一个合法项 |
 | `DR-KFLOW-005` | 模型被拒绝/失败时仅在配置允许且原问题安全有效时回退原问题 |
 | `DR-KFLOW-006` | 逻辑域目录代码绑定且有序；配置只能选择已知域 |
 | `DR-KFLOW-007` | 计划仅含逻辑域、stable path、query、limit；不含索引/字段/DSL |
@@ -120,9 +130,10 @@
 | `DR-KFLOW-009` | 授权拒绝/读取权威失败优先于局部技术成功；coverage 必须与计划精确对应 |
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
 | `DR-KFLOW-011` | 默认启动入口必须先解析 `AGENT_KNOWLEDGE_ENABLED`；false 时不得加载下游配置、任务、策略或创建 client |
-| `DR-KFLOW-012` | true 时只向既有 Registry 追加一个 Provider，并只向既有 Model Gateway 追加 Rewrite V1/Summary V4；重复 ID/version 启动失败；Summary V1～V3 只作历史兼容，不进入新生产组合根 |
+| `DR-KFLOW-012` | true 时只向既有 Registry 追加一个 Provider，并只向既有 Model Gateway 追加 Rewrite V2/Summary V4；重复 ID/version 启动失败；Rewrite V1、Summary V1～V3 只作历史兼容，不进入新生产组合根 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
+| `DR-KFLOW-015` | 只有发布门禁通过并同步 Profile、物理 index UUID/mapping、逻辑 snapshot 及模型出域目录后，在线组合根才允许消费新 alias 目标；任何不一致失败关闭且不自动切换 |
 
 ### 7.2 动作契约
 
@@ -153,8 +164,8 @@ Selector 不判断被问文件是否真实存在；有合法域但检索无候�
 
 1. `QuestionSemanticGuard.extract(original)` 拒绝控制字符并提取受保护语义。
 2. `QuestionEgressGuard` 判定原问题是否允许送模型；拒绝时不调用 rewrite 模型。
-3. 允许时调用 `KnowledgeRewriteTaskV1`，最多返回配置规定的 1..3 个候选。
-4. parser 严格校验 JSON、唯一 key、列表大小和字符串边界。
+3. 允许时调用 `KnowledgeRewriteTaskV2`，最多返回配置规定的 1..3 个候选。V2 指令明确要求只输出 `{"candidates":["检索问题"]}`，不得输出 Markdown、解释、答案或输入中不存在的事实。
+4. V2 复用既有严格 parser，校验 JSON、唯一 key、列表大小和字符串边界；Provider 输出不合同时记录 `invalid_output`，不得用宽松提取或本地修补模型内容。
 5. `validate_candidate` 对每个候选检查受保护约束；选择第一个合法候选。
 6. 无合法候选时，仅在 `allow_original_fallback=true` 且原问题有效时用原问题；否则失败。
 
@@ -233,7 +244,7 @@ validate empty arguments
 1. 加载 `KnowledgeSettings`；disabled 时立即返回“无附加任务、无附加 Provider、无 owned Knowledge resource”的结果。
 2. enabled 时拒绝生产 stub provider；测试可显式注入 fake transport，但必须继续走同一装配函数和注册校验。
 3. enabled 时加载 `KnowledgeRetrievalSettings` 和 policy catalog，验证已启用域、Profile version、ES/BGE origins、1024 维、rerank model、final candidates 与 task version。
-4. 创建 Rewrite V1/Summary V4 definitions，并作为 `LocalModelCompositionRoot.additional_definitions` 的唯一 Knowledge 项；重复 `(task_id, task_version)` 失败。Summary V1～V3 仅承担历史兼容、不可变证据校验与显式回滚追踪，不进入切换后的生产组合根。
+4. 创建 Rewrite V2/Summary V4 definitions，并作为 `LocalModelCompositionRoot.additional_definitions` 的唯一 Knowledge 项；重复 `(task_id, task_version)` 失败。Rewrite V1、Summary V1～V3 仅承担历史兼容、不可变证据校验与显式回滚追踪，不进入切换后的生产组合根。
 5. 所有纯配置、目录、策略和任务校验完成后，才为三个固定 origin 分别创建 bounded HTTP client/transport并构建 Retrieval/Provider。
 6. 把 `KnowledgeCapabilityProvider` 作为 `BusinessQueryRuntimeCompositionRoot.additional_providers` 追加到同一 Runtime。
 7. 顶层 lifecycle 同时拥有 Business clients、Knowledge clients 和 model；关闭按资源逐项尝试，保留首个异常但仍释放其余资源。
@@ -253,6 +264,7 @@ validate empty arguments
 - 默认 Knowledge disabled；启用需完整配置和已就绪 Provider。
 - 请求状态随请求释放；知识正文不由 Agent 持久化，无数据迁移。
 - 回滚可禁用 `AGENT_KNOWLEDGE_ENABLED` 并重启；task version 回滚必须同步组合根和测试，不能覆盖历史 task 源码。
+- 语料发布不属于请求状态机。阶段 A 的 alias 原子切换、原目标记录、冒烟和失败回滚由 `L2_01_01` 治理；本流程只接受已发布且启动校验通过的只读快照。
 
 ## 14. 实现落点清单
 
@@ -263,13 +275,14 @@ validate empty arguments
 | `IMPL-KFLOW-001` | `agent-runtime/src/agent_runtime/knowledge/provider.py`：descriptor 和 registrations |
 | `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：`KnowledgeArgumentValidator`、`KnowledgeQueryCapability.handle` |
 | `IMPL-KFLOW-003` | `agent-runtime/src/agent_runtime/knowledge/question_semantics.py`：semantic guard |
-| `IMPL-KFLOW-004` | `agent-runtime/src/agent_runtime/knowledge/rewrite.py`：`KnowledgeRewriteTaskV1`、`KnowledgeQuestionRewriter.rewrite` |
+| `IMPL-KFLOW-004` | `agent-runtime/src/agent_runtime/knowledge/rewrite.py`：历史 `KnowledgeRewriteTaskV1` 与共享 `KnowledgeQuestionRewriter.rewrite`；`rewrite_v2.py`：当前 `KnowledgeRewriteTaskV2` 精确输出指令 |
 | `IMPL-KFLOW-005` | `agent-runtime/src/agent_runtime/knowledge/catalog.py`、`domain_selection.py` |
 | `IMPL-KFLOW-006` | `agent-runtime/src/agent_runtime/knowledge/planning.py`：`KnowledgeRetrievalPlanBuilder.build` |
 | `IMPL-KFLOW-007` | `agent-runtime/src/agent_runtime/knowledge/contracts.py`、`agent-runtime/src/agent_runtime/knowledge/context.py` |
 | `IMPL-KFLOW-008` | `agent-runtime/src/agent_runtime/knowledge/settings.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 的 Knowledge composition |
 | `IMPL-KFLOW-009` | `agent-runtime/src/agent_runtime/main.py`：按开关构建 Knowledge tasks/retrieval/provider 并追加到 Business Runtime |
 | `IMPL-KFLOW-010` | `agent-runtime/src/agent_runtime/bootstrap.py`：顶层 owned resource 生命周期与 disabled 零依赖装配 |
+| `IMPL-KFLOW-011` | `agent-runtime` 当前策略目录加载与 `serviceCenter/knowledge-runtime-binding.v1.json`：只读发布绑定；历史目录继续独立可校验 |
 
 ### 14.2 关键签名
 
@@ -309,7 +322,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 |---|---|
 | `TEST-KFLOW-001` | descriptor/empty arguments/单注册：`agent-runtime/tests/contract/knowledge/test_provider_registration.py` |
 | `TEST-KFLOW-002` | Capability 契约、阶段协同和上下文裁剪：`agent-runtime/tests/unit/knowledge/test_capability_contract.py`、`agent-runtime/tests/integration/knowledge/test_flow_with_fake_stages.py` |
-| `TEST-KFLOW-003` | 保护约束和 rewrite candidate：`agent-runtime/tests/contract/knowledge/test_provider_registration.py`、Knowledge Capability tests |
+| `TEST-KFLOW-003` | 保护约束和 Rewrite V2 精确请求/响应合同：`agent-runtime/tests/contract/knowledge/test_rewrite_task_v2.py`、`test_provider_registration.py`、Knowledge Capability tests |
 | `TEST-KFLOW-004` | input denied/模型失败/原问题回退与零调用 |
 | `TEST-KFLOW-005` | 两域单选/多选/零域与稳定顺序：`test_domain_selection.py` |
 | `TEST-KFLOW-006` | plan 域×路径、limit 和无物理资源字段：`test_planning.py` |
@@ -317,16 +330,18 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `TEST-KFLOW-008` | denied + zero-domain 与普通 zero-domain 反证：`agent-runtime/tests/evaluation/knowledge/test_live_p5_denied_zero_domain.py` |
 | `TEST-KFLOW-009` | `build_runtime` disabled/enabled、enabled+production-stub 拒绝、显式 fake 注入、唯一注册、缺失配置和重复任务/能力 |
 | `TEST-KFLOW-010` | Spring→当前 Runtime non-live：动作选择、两域、失败优先级、Business 隔离、取消及 client close |
+| `TEST-KFLOW-011` | 新 alias 目标下 Profile/index/policy snapshot 一致性；错绑启动失败、请求零管理调用、旧历史目录哈希不变 |
 
 ### 15.2 验证编号定义
 
 | 验证编号 | 判定 |
 |---|---|
 | `VAL-KFLOW-001` | Provider/Capability 契约和单动作调用计数测试通过 |
-| `VAL-KFLOW-002` | rewrite v1、Guard、fallback、敏感零调用测试通过 |
+| `VAL-KFLOW-002` | Rewrite V2 精确合同、Guard、fallback、敏感零调用测试通过；Rewrite V1 历史合同不变 |
 | `VAL-KFLOW-003` | 两域目录、计划、配置未知 key/越界启动失败测试通过 |
 | `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 Summary V4 单注册及 V1～V3 历史不可变通过 |
 | `VAL-KFLOW-005` | 当前启动入口 disabled 零依赖、enabled 唯一对象图和 Spring→Runtime 功能 UAT 通过 |
+| `VAL-KFLOW-006` | 阶段 A 发布绑定可由现有在线链路只读消费，且不改变域选择、Rewrite、排序、错误或 fallback 行为 |
 
 ## 16. 风险与保护条件
 
@@ -342,9 +357,9 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.9 可作为 Knowledge 流程、域目录 v2、默认关闭生产接线、配置和组合根代码评审依据 |
-| 当前允许实施范围 | 单动作、Rewrite V1、域目录 v2、Stage 协同、失败映射、Summary V4 目标绑定、同 Runtime 生产接线和 non-live 功能 UAT |
-| 当前禁止动作 | 新域/物理资源、公共契约变化、真实模型调用、索引写入和独立服务 |
+| 是否可作为实现依据 | 是，当前 v1.15 可作为 Knowledge 在线流程及阶段 A 发布后只读快照消费的代码评审依据 |
+| 当前允许实施范围 | 既有在线流程，以及发布门禁通过后同步 Profile/index/policy 快照绑定 |
+| 当前禁止动作 | 在线新域/物理资源选择、公共契约变化、真实模型调用、请求触发索引写入或独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
 
 ## 18. 三轮内部自检与独立评审记录
@@ -361,7 +376,11 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.6 三轮内审与独立复评 | Rewrite V1/Summary V3 唯一生产绑定、历史 V1/V2 隔离和上位版本一致；无 S0/S1/未处理 S2 | Passed |
 | v1.7 三轮内审与独立评审 | Summary V4 单绑定目标、V1～V3 历史隔离、组合根/回滚/门禁一致；无 S0/S1/未处理 S2 | Passed |
 | v1.10 三轮内审与独立评审 | 稳定流程权威、Summary V4 单绑定、效果运行状态下沉与跨层依赖核对通过；S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.11 聚焦内审与独立评审 | Rewrite V2 精确 JSON 合同、V1 历史隔离、fallback/失败关闭和生产单绑定一致；S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.13 对照复评 | current policy catalog、candidate a2 snapshot、typed retrieval 与现有在线流程消费一致；未改变域选择、Rewrite、排序、失败语义或 fallback，S0=0、S1=0、未处理S2=0 | Passed |
+| v1.14 对照复评 | candidate a4 的 policy/law snapshot、5600 项 catalog 全成员及启动 verifier 一致；保留旧快照，未改变在线算法或 fallback，S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.15 对照复评 | candidate a5 的 policy/law snapshot、5600 项 catalog 全成员、启动 verifier 与最终工具源码清单一致；a4/旧快照保留，未改变在线算法或 fallback，S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.9。
+- 当前版本：v1.15。
 - 文档状态：Approved。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。

@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.12 |
-| 日期 | 2026-08-28 |
+| 当前版本 | v1.16 |
+| 日期 | 2026-09-03 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V4、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.9](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.15](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4 与效果口径 v2 已完成；最新有效效果等级为 `partially_effective`，具体候选、门禁和运行证据由 UAT_01/P3/evidence 管理 |
+| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4、效果口径 v2 及阶段 A policy catalog v2/current snapshot 兼容已完成；最新有效效果等级为 `partially_effective`，具体候选、门禁和运行证据由 UAT_01/P3/evidence 管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -23,6 +23,10 @@
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立证据与效果稳定基线 | 保留证据、策略、摘要、严格校验和正式 P5 方法 |
 | v1.12 | 2026-08-28 | 效果收口与 Harness 状态合同纠偏 | 移除多代候选/Gate/哈希流水；明确有效测量与效果等级分离，并拆分准备态和授权后 live 预检 |
+| v1.13 | 2026-09-02 | 阶段 A Evidence 兼容 | 冻结新索引 snapshot 与版本化文档策略目录迁移规则；附件沿用父文档读取/出域策略并保留 asset/chunk 溯源，既有 Summary/validator 不变 |
+| v1.14 | 2026-09-02 | 阶段 A Evidence 收口 | 同步 catalog v2/current loader、5600 文档全成员校验、candidate a2 snapshot 与14/14专项 UAT；catalog v1和历史 evidence 不变 |
+| v1.15 | 2026-09-03 | 阶段 A 当前快照迁移 | 将 candidate a4 的 policy/law snapshot 追加到现行 catalog v2，保留所有旧 snapshot；5600 文档全成员、读取授权和 Evidence 连续子串合同复评通过 |
+| v1.16 | 2026-09-03 | 阶段 A 最终快照迁移 | 将 candidate a5 的 policy/law snapshot 追加到现行 catalog v2 并作为当前启动绑定；candidate a4 与更早 snapshot 继续保留，5600 文档全成员及 Evidence 合同不变 |
 
 ## 3. 目标与范围
 
@@ -38,6 +42,7 @@
 - Knowledge Summary V1～V3 历史兼容与 V4 当前生产任务；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
 - representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
+- 阶段 A 新语料的父文档策略继承、index snapshot 绑定、asset/chunk 溯源及旧策略目录不可变。
 
 ### 3.3 范围外与不负责
 
@@ -58,6 +63,7 @@
 | `REQ-KEV-004` | P5 以代表性成对 run 记录阶段、人工判断、安全和明确结论 |
 | `REQ-KEV-005` | 功能验收与效果验收独立，历史 `ineffective` 只作为诊断基线 |
 | `REQ-KEV-006` | 只有证据支持的新版本可进入新候选；精确授权前真实 outbound 为 0 |
+| `REQ-KEV-007` | 新语料发布必须形成新策略目录和 snapshot 绑定；附件不得绕过父文档读取/出域策略，历史目录不可变 |
 
 | 约束编号 | 来源与约束 |
 |---|---|
@@ -73,8 +79,9 @@
 | `REQ-KEV-001`、`CON-KEV-003` | `DR-KEV-001`、`DR-KEV-002`、`DR-KEV-003` | `IMPL-KEV-001`、`IMPL-KEV-002` | `TEST-KEV-001`、`TEST-KEV-002` | `VAL-KEV-001` |
 | `REQ-KEV-002`、`CON-KEV-001`、`CON-KEV-002` | `DR-KEV-004`、`DR-KEV-005`、`DR-KEV-006` | `IMPL-KEV-003`、`IMPL-KEV-004` | `TEST-KEV-003`、`TEST-KEV-004` | `VAL-KEV-002` |
 | `REQ-KEV-003`、`CON-KEV-004` | `DR-KEV-007`、`DR-KEV-008`、`DR-KEV-009`、`DR-KEV-016`、`DR-KEV-017` | `IMPL-KEV-005`、`IMPL-KEV-006` | `TEST-KEV-005`、`TEST-KEV-006` | `VAL-KEV-003` |
-| `REQ-KEV-004` | `DR-KEV-010`、`DR-KEV-011`、`DR-KEV-012`、`DR-KEV-018`、`DR-KEV-020` | `IMPL-KEV-007`、`IMPL-KEV-008`、`IMPL-KEV-010` | `TEST-KEV-007`、`TEST-KEV-008`、`TEST-KEV-010`、`TEST-KEV-012` | `VAL-KEV-004`、`VAL-KEV-006`、`VAL-KEV-007` |
+| `REQ-KEV-004` | `DR-KEV-010`、`DR-KEV-011`、`DR-KEV-012`、`DR-KEV-018`、`DR-KEV-020`、`DR-KEV-021`、`DR-KEV-022` | `IMPL-KEV-007`、`IMPL-KEV-008`、`IMPL-KEV-010` | `TEST-KEV-007`、`TEST-KEV-008`、`TEST-KEV-010`、`TEST-KEV-012`、`TEST-KEV-013` | `VAL-KEV-004`、`VAL-KEV-006`、`VAL-KEV-007` |
 | `REQ-KEV-005`、`REQ-KEV-006` | `DR-KEV-013`、`DR-KEV-014`、`DR-KEV-015`、`DR-KEV-019` | `IMPL-KEV-009` | `TEST-KEV-009`、`TEST-KEV-010`、`TEST-KEV-011` | `VAL-KEV-005`、`VAL-KEV-006` |
+| `REQ-KEV-007`、`CON-KEV-003` | `DR-KEV-023`、`DR-KEV-024`、`DR-KEV-025` | `IMPL-KEV-011` | `TEST-KEV-014`、`TEST-KEV-015`、`TEST-KEV-016` | `VAL-KEV-008` |
 
 ## 5. 关联资源与责任边界
 
@@ -129,6 +136,9 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-020` | live bootstrap 必须输出本次候选精确允许的运行时工作树条目；启动前和结果写入前的最终快照检查必须复用同一 allowlist，仅忽略当前 output 目录与该候选唯一未跟踪 authorization 记录。任何其他 staged、modified、untracked 条目或 HEAD 变化仍失败关闭；已消费候选不得通过修复后重跑 |
 | `DR-KEV-021` | 准备态测试可以断言正式 authorization/result 不存在，但只能在授权记录创建前执行；live launcher 已要求严格 authorization 存在后，不得再次运行任何“authorization 必须不存在”的准备态断言。授权后预检只校验绑定、冻结资产、预算、安全和历史不可变 |
 | `DR-KEV-022` | 一次合同有效且完整的效果运行关闭“效果已测量”责任，四类效果等级是输出；`effective` 是质量改进目标而非项目硬关闭条件。非 effective 不自动创建新候选，`invalid_run` 表示未形成测量且只能作为新的独立目标处理 |
+| `DR-KEV-023` | 阶段 A 附件 chunk 使用父 `documentId` 参与现有 policy resolve，并保留独立 asset/version/relation 定位；父绑定缺失、policyRef 冲突或 snapshot 不允许时 Evidence 构造失败且 summary 调用为 0 |
+| `DR-KEV-024` | 新发布必须使用新文件名和 catalog/export/source revision/hash；旧 `egress-policy-catalog.json` 及其 loader/hash 保持可验证，新目录只保留原 disposition/allowed fields/content limit，并增加对应新逻辑 snapshot |
+| `DR-KEV-025` | 候选 alias 生效前必须对所有候选 `documentId + policyRef + indexSnapshotId` 做全成员检查；发布后抽样构造 Evidence 并通过连续子串 validator，不得用 Profile 切换掩盖策略缺口 |
 
 ### 7.2 完整性复核
 
@@ -231,7 +241,7 @@ question denied flag / fresh Guard
 ## 12. 配置、发布与回滚
 
 - `KnowledgeEvidenceLimits.v1()` 代码绑定证据数、quote、payload 和结果上限；配置不能放宽。
-- 策略目录 artifact 随代码发布，启动严格加载；内容变化必须新 version/export/source revision 并重跑快照/出域测试。
+- 策略目录 artifact 随代码发布并严格加载；内容变化必须创建新资源、新 version/export/source revision/hash 并重跑全成员和出域测试。旧资源、常量及历史 manifest 继续独立可验证，不得原位改写。
 - 当前生产实现已唯一绑定独立 Summary V4；V1～V3 保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用 Knowledge；若显式恢复已验证旧任务绑定，必须形成新配置快照，不改写任何既有 task 源码和历史 evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
 
@@ -317,6 +327,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-008` | `agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl`、`live_contracts.py`、result schemas |
 | `IMPL-KEV-009` | `agent-runtime/tests/evaluation/knowledge`：历史有限诊断、效果口径 v2 与版本化优化反证 |
 | `IMPL-KEV-010` | `agent-runtime/tests/evaluation/knowledge/live_bootstrap.py`、`live_runner.py`、`live_contracts.py`、版本化 preparation/history/contracts/launcher |
+| `IMPL-KEV-011` | `agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog-v2.json` 与 current/legacy 双加载接缝；阶段 A policy catalog 生成器和全成员 validator 位于 `knowledge-corpus-tools`。全新官方父文档只能选择既有同域 policy，禁止新增 disposition、放宽字段上限或扩大角色 |
 
 ### 14.2 关键签名
 
@@ -400,6 +411,9 @@ def classify_conclusion(
 | `TEST-KEV-011` | Summary V4 fake 回归、安全 Gate 反证、manifest/预算/首 outbound/失败关闭及历史哈希 |
 | `TEST-KEV-012` | authorization/consumed/journal/checkpoint/failure 精确哈希；启动前与结束时 allowlist 一致；额外 staged/modified/untracked 或 HEAD 变化继续失败关闭；历史运行不得重用 |
 | `TEST-KEV-013` | 准备态 absence assertions 不进入授权后 live preflight；授权后预检接受唯一严格 authorization，并继续拒绝缺失、错绑及额外工作树变化 |
+| `TEST-KEV-014` | 新 catalog exact Schema/hash/export/source revision、旧 catalog/hash 字节不变 |
+| `TEST-KEV-015` | 附件 chunk 父 policy 继承、未知父/错 snapshot/冲突拒绝和 summary 零调用 |
+| `TEST-KEV-016` | 候选全成员 policy 检查、发布后 Evidence/引用连续子串及历史 candidate 回归 |
 
 ### 15.2 验证编号定义
 
@@ -412,6 +426,7 @@ def classify_conclusion(
 | `VAL-KEV-005` | 功能 UAT 与效果结论分离、诊断可复现、最新有效效果等级如实记录为 `partially_effective` |
 | `VAL-KEV-006` | 效果口径 v2 保留安全零调用和失败分母，Summary V4 覆盖多域直接证据，non-live 资产完整且无 outbound |
 | `VAL-KEV-007` | 历史失败运行保持 append-only；Harness 前后快照复用唯一 allowlist，准备态和授权后预检不冲突且不放宽其他工作树变化 |
+| `VAL-KEV-008` | 阶段 A 新索引的文档策略、snapshot 和 Evidence 兼容通过，旧策略目录与历史 evidence 哈希不变 |
 
 ## 16. 风险与保护条件
 
@@ -423,13 +438,13 @@ def classify_conclusion(
 | 策略/快照漂移 | 新文档或 index snapshot | fingerprint/full membership；新切片重验 | 否；真实外发需重新授权 |
 | 效果结论失真 | 删除失败、改 gold/阈值 | 冻结数据/Schema/append-only result | 否 |
 | 当前效果不足 | 最新有效运行的 Q3/Q4 未达标 | 保留 `partially_effective`；后续改进作为独立质量目标 | 不阻塞学习基线，但禁止“效果已 effective”声明 |
-| live 状态合同冲突 | 授权后预检再次执行准备态 absence assertion | 分离准备态测试与授权后 live preflight；失败运行历史化 | 阻塞该次测量，不自动触发新运行 |
+| live 状态合同冲突 | 授权后预检再次执行准备态 absence assertion | 分离准备态测试与授权后 live preflight；失败运行历史化 | 使该次测量无效，不自动触发新运行 |
 
 ## 17. 实施依据
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.12 可作为 Evidence、Summary V4、效果口径 v2、有限测量收口及 Harness 状态分离的实现依据 |
+| 是否可作为实现依据 | 是，当前 v1.16 可作为 Evidence、Summary V4、效果口径 v2 及阶段 A 新语料策略/溯源兼容依据 |
 | 当前允许实施范围 | 维护历史校验、修复准备态/live 预检分离、执行 non-live 验证并由 P3/UAT_01 如实同步运行状态 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -439,8 +454,12 @@ def classify_conclusion(
 | 轮次 | 检查重点 | 结论 |
 |---|---|---|
 | v1.12 内审 1～3 | 效果测量/等级分离、preparation/live preflight 状态合同、历史不可变、门禁无环和无权限扩张检查完成；修复两项计划状态矛盾 | Passed |
+| v1.14 对照复评 | catalog v2/current loader、5600 文档 full-membership、旧 catalog 精确哈希、读取授权、Evidence连续子串及14/14专项 UAT一致；S0=0、S1=0、未处理S2=0 | Passed |
+| v1.15 对照复评 | candidate a4 新 policy/law snapshot 分别覆盖 5463/137 个文档，目录与索引 5600 个 document 全成员一致；旧 catalog/snapshot 保留，S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.16 对照复评 | candidate a5 新 policy/law snapshot 分别覆盖 5463/137 个文档，目录与索引 5600 个 document 全成员一致；a4 及旧 catalog/snapshot 保留，读取授权和 Evidence 连续子串复核通过，S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.12。
+- 当前版本：v1.15。
 - 文档状态：Approved。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。

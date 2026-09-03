@@ -10,14 +10,14 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.9 |
-| 日期 | 2026-08-28 |
-| 权威范围 | Knowledge Capability/Adapter、问题改写、多域、多路召回与重排、证据、出域、摘要和效果验证 |
-| 上位文档 | [`L0_00` v2.6](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
+| 当前版本 | v1.15 |
+| 日期 | 2026-09-03 |
+| 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
+| 上位文档 | [`L0_00` v2.8](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 默认关闭的生产接线、功能 UAT、Summary V4 与效果口径 v2 已实施；最新有效效果等级为 `partially_effective`，当前任务版本没有更新的有效效果测量 |
+| 实施状态 | 在线生产接线、功能 UAT、Rewrite V2、Summary V4、效果口径 v2 与阶段 A 离线语料处理/受控发布均已实施验证；具体 Gate/UAT 证据由 P3/UAT_01 管理 |
 
 ## 2. 阅读导航
 
@@ -55,6 +55,12 @@
 |---|---|---|---|
 | v1.0 | 2026-08-21 | 建立新的可读能力架构基线 | 合并重复检索/授权/出域描述，突出四项能力、两级映射、失败优先级与 P5 结论 |
 | v1.9 | 2026-08-28 | 稳定权威与效果收口纠偏 | 保留生产流程、Summary V4、效果口径和最新有效效果等级；移除候选、Gate、哈希、预算及逐次运行流水，明确有效测量与效果等级相互独立 |
+| v1.10 | 2026-09-02 | 改写输出合同纠偏 | 生产改写任务升级为 Rewrite V2，向模型明确唯一 JSON 结构、候选数量和语义保持边界；V1 与历史运行保持不可变 |
+| v1.11 | 2026-09-02 | 阶段 A 语料完整性 | 增加与在线查询隔离的离线 Corpus Build Plane、不可变资产、候选索引、发布/回滚和策略快照迁移边界；不改变 `knowledge.query`、公共 DTO 或阶段 B 算法 |
+| v1.12 | 2026-09-02 | 审计事实模型修复 | 将现行索引库存、官方来源可达性与正文完整性拆分；来源不可达不推断正文缺失，P0/P1 只接受人工核验的官方替代来源 |
+| v1.13 | 2026-09-02 | 阶段 A 实施收口 | 同步版本化资产、candidate a2、策略目录 v2、14/14 专项 UAT 与受控 alias 发布事实；阶段 B 仍独立治理 |
+| v1.14 | 2026-09-03 | 阶段 A 结构完整性复评 | 正式复核发现旧 DOC 扁平解析未形成条款关系；改用结构化 legacy DOC 解析并发布 candidate a4，保留旧 candidate/索引且在线算法不变 |
+| v1.15 | 2026-09-03 | 阶段 A 可复现发布收口 | 将单资产网络/容器解析异常收敛为有限失败；以匹配最终工具源码的 candidate a5 完成新快照、14/14 UAT 和 a4→a5→a4→a5 发布/回滚演练，a4 及更早资产保持不变 |
 
 ## 4. 目标、范围与上位约束
 
@@ -68,11 +74,14 @@
 - 问题改写、逻辑知识域选择、检索计划、多路召回、融合与重排；
 - Knowledge Adapter、`es-query-service` 类型化只读消费、本地 BGE 消费；
 - 读取授权、证据、三层出域、摘要和 P5 效果验证。
+- 官方公开正文/附件的只读审计、离线受控获取、解析/OCR、结构化切片、embedding、候选索引及受控 alias 发布。
 
 ### 4.3 范围外
 
-- 文档录入、切分、文档侧向量化、物理索引生命周期和写入管理；
-- `es-query-service` 与 BGE 的内部实现治理；
+- 在线文档录入、用户上传、内容编辑、通用内容管理平台；
+- 阶段 B 的跨域召回、Query Rewrite、RRF/rerank 与公共失败语义优化；
+- 知识图谱、图数据库和第二套 Knowledge 在线链路；
+- `es-query-service` 与 BGE 的非阶段 A 内部实现治理；
 - Employee/Transaction、业务角色和业务字段出域；
 - 公共 Runtime、DeepSeek transport、HTTP 协议字段和通用错误码；
 - 独立 Knowledge 服务、持久工作流和生产级检索平台。
@@ -115,6 +124,8 @@
 | 对象 | 唯一权威 | Knowledge 使用方式 |
 |---|---|---|
 | 知识正文、来源、读取规则 | 知识内容/读取权威 | 通过类型化只读 Provider 消费，不复制规则 |
+| 原始正文/附件与解析产物 | 阶段 A 离线语料工具 + manifest | 只从批准官方来源生成不可变版本；在线 Runtime 不加载原始资产库 |
+| 候选索引、mapping 与 alias 发布 | `es-query-service`/ES 维护边界 | 离线工具只写精确候选索引；发布由门禁后原子 alias 操作完成 |
 | 文档级模型出域策略 | 知识策略权威 | 读取带版本快照并参与只收紧交集 |
 | 逻辑知识域目录 | Knowledge Capability | 启动校验并冻结 |
 | 逻辑域→稳定 Profile | Knowledge Adapter | 代码绑定或强类型收紧映射 |
@@ -140,6 +151,10 @@
 | Evidence Builder | 复核授权依据、来源和策略快照，构建最小证据 | 首次实施读取授权、持久化正文 |
 | Egress Policy | 计算三层交集并形成独立决定 | 以“用户可读”替代“允许外发” |
 | Summary | 仅依据允许证据生成摘要 | 使用模型常识补充事实 |
+| Offline Corpus Tool | 审计、下载、解析/OCR、切片、embedding、候选索引、质量报告 | 在线请求、域选择、排序、业务授权或公共 API |
+| Corpus Manifest | 来源、asset 版本/hash、父子关系、解析/质量/时效/索引快照 | 保存密钥、原始运行日志或替代原始附件 |
+
+离线审计同时维护三个独立事实：现行索引库存、官方来源可达性、可核验正文/附件完整性。来源页面 `403/404/timeout` 只改变可达性状态，不得反推已索引正文缺失；P0/P1 的旧 URL 只能通过人工证明的官方替代来源继续处理，禁止自动转用第三方副本。
 
 ### 6.2 依赖与两级映射
 
@@ -152,6 +167,10 @@ flowchart LR
     KC --> EP[Embedding Port] --> BGE[BGE-M3]
     KC --> RRP[Rerank Port] --> RR[bge-reranker]
     KC --> MP[L1_00 Model Port] --> DS[DeepSeek]
+    OF[Offline Corpus Tool] --> RA[Immutable Raw Assets]
+    OF --> CI[Candidate Index]
+    CI --> RG[Release Gate]
+    RG --> ESQ
 ```
 
 ```text
@@ -160,6 +179,8 @@ flowchart LR
 ```
 
 模型、Capability、Runtime 请求均不可指定 Profile 或物理资源；Profile 只能由代码绑定域映射选择。
+
+离线构建平面与在线查询平面只通过“已发布只读 alias + 版本化 Profile/策略快照”相交。离线工具不是新服务，不注册 Capability，不接受用户请求；Agent 仍不能看见或切换物理索引。
 
 ### 6.3 同层协作边界
 
@@ -262,6 +283,8 @@ accepted → rewritten → domains_selected → retrieved
 | Profile→物理资源 | `es-query-service` | 索引/只读别名、字段和过滤规则 | Agent 覆盖、写别名、管理接口 |
 | BGE Provider | Provider | 模型、地址、维度、长度、超时、健康 | 模型输出覆盖配置 |
 | 出域规则 | 安全/知识策略权威 | 全局与版本化收紧规则 | 下层放宽上层禁止 |
+| 语料 manifest | 离线语料工具 | 来源、hash、关系、解析/切片/embedding/质量版本 | 运行期热改、权限表达、物理查询 DSL |
+| alias 发布绑定 | `es-query-service`/维护者 | 精确旧目标、新候选、mapping/UUID/snapshot 与回滚目标 | Agent/模型/请求覆盖 |
 
 全部配置在启动期校验并冻结；缺失映射、未知枚举、模型/维度不兼容或策略冲突时失败关闭。本期无热更新。
 
@@ -333,6 +356,8 @@ accepted → rewritten → domains_selected → retrieved
 | 故障可区分 | 拒绝、不可验证、无结果、单路/整体失败、Rerank 和出域不混淆 | 故障注入和优先级测试 |
 | 可替换 | ES/BGE/DeepSeek 可用 fake 替代，Capability 无供应商依赖 | 依赖检查与 fake 集成 |
 | 效果可评估 | 改写、检索、重排、证据和摘要可分别测量 | P5 成对运行与人工 rubric |
+| 语料可追溯 | P0/P1 资产可从索引片段追溯到官方父文档及附件 hash | manifest、关系、抽样和直接 typed retrieval |
+| 发布可回滚 | 当前索引不原地修改，alias 切换失败可恢复精确旧目标 | 候选完整性、原子切换与回滚演练 |
 
 ## 12. 架构决策
 
@@ -348,14 +373,16 @@ accepted → rewritten → domains_selected → retrieved
 | `KQ-AD-008` | Embedding/Rerank/DeepSeek 均经 Port | 隔离供应商并便于 fake 验证 | 增加少量适配代码 |
 | `KQ-AD-009` | 技术单路失败可在证据充分时继续 | 兼顾多路容错与可信性 | 必须显式标记覆盖不完整 |
 | `KQ-AD-010` | 三份 L2 分别治理流程、检索、证据效果 | 控制文档数量并保持边界 | 需避免重复定义公共类型 |
+| `KQ-AD-011` | 阶段 A 使用独立离线 Corpus Build Plane，不新增在线服务 | 语料写入与用户查询隔离，保持一个 `knowledge.query` | 工具链和资产 workspace 需显式版本化 |
+| `KQ-AD-012` | 仅新建候选索引并经发布门禁原子切换 alias | 避免破坏现行索引并提供确定回滚 | 新快照必须同步 Profile 和出域目录 |
 
 ## 13. L2 交付边界
 
 | L2 | 唯一权威 | 必须固化 | 明确不负责 |
 |---|---|---|---|
 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 动作、阶段状态、改写、逻辑域、检索计划、配置、组合根、失败优先级 | Python 类型/函数、配置键、至少两域测试、流程状态与错误映射 | ES/BGE 协议、融合算法、证据/出域字段 |
-| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | Retrieval Port/Adapter、两级 Profile 映射、读取授权、统一候选、融合/RRF、Embedding/Rerank Provider | Python/Java 契约、Provider API、超时/上限、授权和禁止接口测试 | 逻辑域语义、文档策略、摘要、Employee/Transaction 查询 |
-| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence、三层出域、摘要、严格引用和 P5 | 证据/策略类型、任务、validator、代表性数据集、指标与效果结论 | 首次读取授权、检索传输、通用模型 Provider |
+| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | Retrieval Port/Adapter、两级 Profile、读取授权，以及阶段 A 离线资产/解析/切片/候选索引/alias 生命周期 | Python/Java 契约、离线工具合同、mapping/Profile、发布回滚和禁止接口测试 | 逻辑域语义、文档出域策略、摘要、Employee/Transaction 查询 |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence、三层出域、摘要、严格引用和 P5 | 证据/策略类型、语料来源兼容、任务、validator、代表性数据集、指标与效果结论 | 首次读取授权、语料解析、通用模型 Provider |
 
 建议依赖顺序：`L2_01_00` 固定阶段/域语义；`L2_01_01` 固定候选；`L2_01_02` 消费候选形成证据和效果。实现可以按直接依赖并行，不要求人工按文档全串行。
 
@@ -367,14 +394,15 @@ accepted → rewritten → domains_selected → retrieved
 - 当前冻结 Profile/索引快照的真实 JWT、ES、BGE-M3、Rerank 多域多路链已验证。
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
 - 历史有效效果等级及对应不可变运行资产由 UAT_01/evidence 管理；当前最新有效效果等级为 `partially_effective`，不得改述为整体效果达标。
-- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Summary V4，V1～V3 仅承担历史兼容和哈希追溯。
+- 阶段 A 离线 Corpus Build Plane 已完成 audit v3、官方附件版本化处理、结构化条款切片、candidate a5、14/14 专项 UAT 和原子 alias 发布；在线链路只消费发布后的只读 Profile/policy snapshot。a4 作为正式评审前的中间候选保留，旧 a1～a3 及原索引同样保持不可变且未删除。
+- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Rewrite V2 与 Summary V4。Rewrite V1、Summary V1～V3 仅承担历史兼容和哈希追溯。
 
 ### 14.2 目标生产接线
 
 Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
 
 - `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
-- `true`：目标版本在同一 Model Gateway 注册且只注册 Rewrite V1、Summary V4，在同一 Registry 追加且只追加 `knowledge.query`，并由同一 Core/Graph 保持顶层单动作；V1～V3 仅承担历史兼容和回滚追踪，不与 V4 同时进入当前生产对象图；
+- `true`：目标版本在同一 Model Gateway 注册且只注册 Rewrite V2、Summary V4，在同一 Registry 追加且只追加 `knowledge.query`，并由同一 Core/Graph 保持顶层单动作；Rewrite V1、Summary V1～V3 仅承担历史兼容和回滚追踪，不与当前任务组合同时进入生产对象图；
 - `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
 - 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
 - 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。
@@ -417,6 +445,8 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | 单路失败误报完整成功 | 缺少覆盖标记 | 过度肯定 | 充分性判定和覆盖信息 |
 | Prompt injection | 正文含指令文本 | 模型绕过控制 | 证据数据化、系统指令隔离、严格输出 |
 | 策略/快照漂移 | 版本不一致 | 错误外发或错误拒绝 | 版本绑定、启动校验、变更重验 |
+| 附件缺失或误解析 | 页面只有附件名、扫描件或表格被静默丢弃 | 必要直接证据无法召回或引用 | 不可变 asset、类型解析、OCR/表格标记、隔离与 P0/P1 质量门禁 |
+| 候选发布破坏现行检索 | 原地覆盖或 alias 目标不确定 | 在线查询不可用或快照混合 | 新索引、精确前置检查、原子 alias 切换、冒烟失败回滚 |
 | 效果结论被误读 | 把有效运行等同效果达标 | 错误验收 | 明确保留 `ineffective` 语义 |
 
 ### 15.2 追踪
@@ -429,6 +459,7 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | `CFG-01～04` | 8.2 | `L2_01_00/01/02` |
 | `SEC-01/02/05` | 7.4、10.1 | `L2_01_01` |
 | 知识测试与效果 | 11、14 | `L2_01_02` |
+| `REQ-KCORPUS-001～006` | 4～6、8、11～15 | `L2_01_01` 为主，`L2_01_00/02` 消费版本化快照 |
 
 ## 16. 评审记录
 
@@ -441,3 +472,9 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 | 5 | 独立聚焦评审与复评 | 首轮发现 production-stub 歧义和同步工厂半成品清理过度要求两项 S2；最小修复后复评默认关闭、共享 Core、生命周期、UAT 与门禁无环，无 S0/S1/未处理 S2 | Passed |
 | 6 | v1.9 三轮内审 | 运行流水下沉、效果测量/等级分离、权威边界、DAG 和无能力扩张检查完成；修复 P3 状态表与自引用关闭条件 | Passed |
 | 7 | v1.9 独立评审 | 生产代码、L0/L1/L2/P3/UAT 跨层核对通过；S0=0、S1=0、未处理 S2=0 | Passed |
+| 8 | v1.10 聚焦内审与独立评审 | Rewrite V2 精确 JSON 输出合同、V1 历史隔离、失败关闭和单一生产任务绑定一致；S0=0、S1=0、未处理 S2=0 | Passed |
+| 9 | v1.12 三轮内审 | 第1轮发现来源不可达与正文缺失混淆；修复三层事实、官方替代来源和发布阻塞语义，第2～3轮无新增问题 | Passed |
+| 10 | v1.12 独立评审与复评 | 首轮发现上游语料要求未逐项进入 L2 追踪及 P3 Audit→Design 依赖会阻碍 audit tool 实施；最小修复后复评在线/离线职责、三层事实、Gate、授权与非阶段 B 边界一致，S0=0、S1=0、未处理 S2=0 | Passed |
+| 11 | v1.13 实施对照复评 | audit/asset/parser/chunk/candidate/policy/alias 与 Approved 边界一致；14/14 专项 UAT、回滚演练及旧索引/历史资产保护通过，S0=0、S1=0、未处理 S2=0 | Passed |
+| 12 | v1.14 结构完整性复评 | 首轮发现 legacy DOC 被整体扁平化、条款关系为 0 的一项 S1；最小修复为结构化 block 解析、55 个条款引用、a4 新候选和新快照，复评 S0=0、S1=0、未处理 S2=0 | Passed |
+| 13 | v1.15 可复现发布复评 | 代码/数据评审发现网络异常会中止整批处理、损坏容器异常未统一隔离，以及 a4 构建源码哈希早于最终修复；最小修复后重建 a5，工具源码哈希、索引清单、快照、14/14 UAT 与三步 alias 演练一致，复评 S0=0、S1=0、未处理 S2=0 | Passed |

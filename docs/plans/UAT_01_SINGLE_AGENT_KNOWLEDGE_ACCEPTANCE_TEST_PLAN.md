@@ -5,14 +5,14 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.12 |
+| 当前版本 | v1.19 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-08-28 |
-| 适用范围 | `knowledge.query` 的生产接线、功能型验收、效果诊断与后续效果型验收 |
-| 上位依据 | `L1_00` v3.1、`L1_01` v1.9、`L2_01_00` v1.10、`L2_01_01` v1.9、`L2_01_02` v1.12、`P3_00` v2.29 |
+| 日期 | 2026-09-03 |
+| 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
+| 上位依据 | `L1_00` v3.4、`L1_01` v1.15、`L2_01_00` v1.15、`L2_01_01` v2.5、`L2_01_02` v1.16、`P3_00` v2.40 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
-本计划是 Knowledge 功能/效果验收、candidate 身份和效果结论的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.12 将当前机器可校验追踪资产升级为 schema v2，分别绑定最新有效效果、最新执行终态和当前 Summary 版本证据状态；candidate-01～07 的历史运行资产保持字节不变。
+本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
 
 ## 2. 目标、非目标与结论口径
 
@@ -21,14 +21,14 @@
 - Functional：`Passed` / `Failed`；
 - Effectiveness：`Effective` / `Partially effective` / `Ineffective` / `Invalid run`；当前任务版本尚无有效测量时，使用独立的 `evidenceStatus=missing` 表达，不新增效果结论枚举。
 
-功能通过不代表效果达标。一次有效、完整且安全 Gate 通过的运行关闭“效果已测量”责任，其效果等级必须如实记录；`effective` 是质量目标而非项目硬关闭条件。`invalid_run` 不形成有效测量，且不得自动重跑或创建新 candidate。当前阶段不修改知识正文、ES mapping/alias/index、公共 DTO、角色或出域权限，也不建立第二套在线流程。
+功能通过不代表效果达标。一次有效、完整且安全 Gate 通过的运行关闭“效果已测量”责任，其效果等级必须如实记录；`effective` 是质量目标而非项目硬关闭条件。`invalid_run` 不形成有效测量，且不得自动重跑或创建新 candidate。阶段 A 允许离线处理官方正文/附件、新建候选索引并在独立发布门禁后切换既有只读 alias；不改变公共 DTO、角色、出域权限、在线流程或阶段 B 检索算法。
 
 ## 3. 被验收的生产链路
 
 ```text
 Spring 公共接入与认证
   → Python Runtime / 单动作选择 knowledge.query
-  → Question Guard / KnowledgeRewriteTaskV1
+  → Question Guard / KnowledgeRewriteTaskV2
   → tax.policy / tax.law 逻辑域与 Retrieval Plan
   → es-query-service typed Knowledge endpoint / 最终读取授权
   → keyword + vector / RRF / BGE rerank
@@ -212,3 +212,54 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 | v1.11 独立评审 | 37 个功能用例、最新有效效果、candidate-07 无效测量及跨层引用一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.12 三轮内审 | 当前 authority、35/37 case、最新有效/最新执行/当前版本三层状态、历史哈希和 P3 DAG 完成三轮核对；第 1 轮修复 P3 状态与依赖，第 2～3 轮无新增问题 | Passed |
 | v1.12 独立评审与复评 | 第 1 轮修复多余 `Not run` 效果枚举；复评确认四类效果结论与 `evidenceStatus=missing` 职责分离，S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.13 Rewrite V2 聚焦评审 | 精确 JSON 合同、V1 历史不可变、功能 non-live 证据和当前任务组合效果证据缺口分离；S0=0、S1=0、未处理 S2=0 | Passed |
+
+## 11. 阶段 A 正文及附件完整性专项 UAT
+
+阶段 A 只验收“语料存在、可读、可检索、可追溯和可引用”，不把用户问题经 Domain/Rewrite/RRF/rerank 后是否进入最终 topK 作为通过条件。所有用例使用现有 typed Knowledge endpoint、读取授权和 Evidence 组件；模型 outbound=0，图谱调用=0，Business 调用=0。
+
+| Case | 风险 | 验证行为 | 通过条件 |
+|---|---|---|---|
+| `UAT-KCORPUS-A-01` | 页面正文被截断 | 页面正文完整且无附件依赖 | expected 原文可由 keyword 检索并与 asset/hash 对应 |
+| `UAT-KCORPUS-A-02` | 页面只列附件名 | PDF 附件正文进入候选 | PDF chunk 可检索、父文档/asset 可追溯 |
+| `UAT-KCORPUS-A-03` | Office 附件丢失 | DOC/DOCX 正文进入候选 | 原文可检索且 parser/version/hash 完整 |
+| `UAT-KCORPUS-A-04` | 表格语义丢失 | XLS/XLSX 或文档表格保留行列 | 单元格内容可检索，sheet/table/row 顺序可追溯 |
+| `UAT-KCORPUS-A-05` | 扫描件空文本 | 必要 OCR 产生带状态文本 | accepted OCR 可检索；review/rejected 不索引 |
+| `UAT-KCORPUS-A-06` | 父子关系孤立 | 父文档导航到附件/条款/chunk | 全关系可解析，无孤立附件 |
+| `UAT-KCORPUS-A-07` | 当前/历史混淆 | 生效、失效、废止元数据 | 当前有效与历史材料可确定性区分 |
+| `UAT-KCORPUS-A-08` | 关键词路径不覆盖附件 | direct typed keyword | 新增附件原文至少一个目标片段命中 |
+| `UAT-KCORPUS-A-09` | 向量路径未构建 | direct typed vector | 1024 维向量有效且目标片段可召回 |
+| `UAT-KCORPUS-A-10` | 未授权正文泄漏 | denied JWT/read decision | ES 正文、Agent、BGE 和 Evidence 均为零暴露 |
+| `UAT-KCORPUS-A-11` | 新快照不能构造证据 | 当前策略目录 + candidate | Evidence 引用存在、唯一且 quote 为连续子串 |
+| `UAT-KCORPUS-A-12` | 阶段 A 暗含图谱依赖 | 图谱不存在 | 全部语料验证继续完成，图谱调用为 0 |
+| `UAT-KCORPUS-A-13` | 酒店住宿税率缺少直接依据 | 官方服务分类附件 + 当前有效税率原文 | “住宿服务”分类和适用税率规则均存在、可读、可检索、可引用 |
+| `UAT-KCORPUS-A-14` | 阶段 B 缺口被误归因 | 直接 typed 命中但最终 topK 可失败 | 阶段 A 通过；用户端失败单独记录为域选择/改写/排序输入，不调参、不 fallback |
+
+专项 UAT 逐 case 保存有限追踪：`caseId → frozen candidate/index/profile/policy snapshot → asset/chunk hash → keyword/vector/read/evidence 状态 → result`。不得保存完整正文、向量、JWT 或原始业务响应。`UAT-KCORPUS-A-13` 不预设纳税人类型、计税方法或问题日期；它只证明回答所需分类原文和当前税率规则可供后续链路使用，不在阶段 A 生成税务结论。
+
+发布 Gate 只有在 14 项均通过、P0 全部和目标 P1 全部完成、P2 清单存在、alias 回滚演练及既有 37 项功能 UAT/35 项 Business UAT 防回退通过后才能关闭。若仅最终在线 topK 失败而直接 typed 检索通过，`UAT-KCORPUS-A-14` 必须形成阶段 B issue，而不是重开资产完整性用例。
+
+## 12. 评审记录
+
+| 轮次 | 范围 | 结论 |
+|---|---|---|
+| 内审 1～3 | 语料 UAT/在线功能/效果职责分离、14 case、P0/P1/P2、权限/Evidence、阶段 B 和图谱边界 | Passed |
+| 独立评审 | 用例与 REQ-KCORPUS、DR-KRET/KEV、P3 GATE-083/084 一致；S0=0、S1=0、未处理 S2=0 | Passed |
+| v1.15 聚焦内审 | 明确 `source_unreachable/source_unverified` 只表示来源核验阻塞，不等于正文缺失；P0/目标P1未核验时发布 Gate 保持 Open | Passed |
+| v1.15 独立评审与复评 | 复核14项专项与REQ/L1/L2/P3：来源不可达不冒充正文缺失，P0/目标P1未核验只阻塞发布，阶段B/topK不进入本阶段；S0=0、S1=0、未处理S2=0 | Passed |
+| v1.17 正式代码/数据评审首轮 | 发现 attempt-01 的 PDF 用例绑定 live manifest，而 P0 live asset 均为 Word；时效和当前税法也未在同次运行直接断言 | Fixed |
+| v1.17 复评 | attempt-02 在同次运行直接验证 native PDF parser、candidate ACTIVE/EXPIRED、tax.law 当前税法、精确 alias、酒店住宿分类与税率原文；14/14 Passed，S0/Blocker=0、S1/Major=0、未处理 S2/Minor=0 | Passed |
+| v1.18 正式代码/数据评审首轮 | 发现已发布 a2 对 4 个 legacy DOC 整体扁平化，条款引用为 0；attempt-03 另暴露 `old_index` 结果元数据仍指向初始基线 | Fixed |
+| v1.18 复评 | candidate a4 含 738 个附件 chunk、55 个条款引用且无孤立附件；attempt-04 记录真实前序 a2，并验证当前 snapshot、14/14 Passed，S0/Blocker=0、S1/Major=0、未处理 S2/Minor=0 | Passed |
+| v1.19 正式代码/数据评审首轮 | 发现单资产网络/损坏容器异常未统一隔离，且 a4 构建源码哈希早于最终修复，不能作为最终源码可复现发布证明 | Fixed |
+| v1.19 复评 | candidate a5 以最终工具源码重建相同规范化内容，UAT attempt-05 14/14 Passed，a4→a5→a4→a5 发布/回滚演练成功；S0/Blocker=0、S1/Major=0、未处理 S2/Minor=0 | Passed |
+
+## 13. v1.19 阶段 A 执行结论
+
+- 规范 UAT ID 为 `UAT-KCORPUS-A-01～14`，与 strict Schema、launcher 和有限 evidence 一致；早期文档中的 `UAT-KC-A-*` 仅为编号漂移，不代表用例失败。
+- build run=`knowledge-corpus-stage-a-v1-20260903-candidate-08`；最终 UAT run=`knowledge-corpus-stage-a-uat-v1-20260903-attempt-05`；candidate=`agent-doc-tax-policy-v4-20260903-corpus-a5`，UUID=`SurWRSglRd6ZRddEBWy2Sw`。
+- 14/14 Passed；model outbound=0，Business call=0；keyword/vector 直接 typed 检索、读取拒绝和 Evidence 合同均通过。
+- attempt-01 有限结果 SHA-256=`5659904b75a211ed6f046509783a53679af2bb499df590c4713f1fbc7c1fb21b`，attempt-02 有限结果 SHA-256=`24332d732058f04ad01ea431f42e8432819d99ecaca0533b33038bca931502bd`，均保持字节不变。attempt-03 虽通过行为断言，但结果中的前序索引仍错误指向初始基线，不能作为最终发布追踪；attempt-04 保留为 a4 有效中间证据。最终 attempt-05 有限结果 SHA-256=`ad86ae89b48e0c96426cbadddef526d391e6b61214a254bba90049286afc162a`；同次运行验证 738 个附件 chunk、55 个条款引用、ACTIVE/EXPIRED、`tax.law/tax-law-v1`、精确 alias、酒店住宿分类与税率原文。
+- 首次使用最终用户问句进行向量断言时发现目标附件位于 rank 59，alias 已立即回滚；该失败属于阶段 B 改写/排序边界，不改写为阶段 A 失败。改用直接原文检索语义后通过，最终发布仍执行完整切换→回滚→再发布三次原子操作。
+- 阶段 B 输入固定为 `domain_selection`、`query_rewrite`、`ranking`、`failure_semantics`；本轮未修改在线算法、Prompt、topK 或 fallback。
+- 既有 Knowledge Functional 37/37、Business 35/35 与历史 candidate/evidence 保持不变。
