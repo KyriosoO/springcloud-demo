@@ -15,4 +15,3 @@ class SafetyError(CorpusError):
 
 class StateConflict(CorpusError):
     """Observed mutable state differs from the frozen precondition."""
-

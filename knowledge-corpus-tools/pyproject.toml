@@ -24,6 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "jsonschema==4.25.1",
   "mypy==1.17.1",
   "pytest==8.4.1",
   "respx==0.22.0",

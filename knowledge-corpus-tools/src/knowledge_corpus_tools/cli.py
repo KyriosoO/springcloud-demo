@@ -7,7 +7,7 @@ from typing import Sequence
 
 from .audit import normalize_v1_audit
 from .indexing import build_candidate_index
-from .jsonio import canonical_bytes, load_jsonl, load_model
+from .jsonio import canonical_bytes, load_jsonl, load_model, sha256_file
 from .models import AuditItem, AuditSummary, StageAUatResult
 from .pipeline import acquire_catalog, process_assets
 from .release import AliasReleaseManager
@@ -79,6 +79,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         summary = load_model(args.summary, AuditSummary)
         if len(items) != summary.audit_item_count:
             raise SystemExit("audit item count differs from summary")
+        if sha256_file(args.items) != summary.audit_jsonl_sha256:
+            raise SystemExit("audit JSONL hash differs from summary")
         print(json.dumps({"valid": True, "items": len(items), "sha256": summary.audit_jsonl_sha256}, sort_keys=True))
         return 0
     if args.command == "normalize-audit-v1":
@@ -138,6 +140,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(canonical_bytes(build_result.model_dump(mode="json")).decode("utf-8"), end="")
         return 0
     if args.command == "release-rehearsal":
+        output = args.workspace / "runs" / args.run_id / "release-journal.v1.jsonl"
+        if output.exists():
+            raise SystemExit("release journal already exists")
         manager = AliasReleaseManager(args.es_endpoint)
         try:
             states = (
@@ -147,7 +152,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         finally:
             manager.close()
-        output = args.workspace / "runs" / args.run_id / "release-journal.v1.jsonl"
         write_jsonl(output, states)
         print(canonical_bytes(states[-1].model_dump(mode="json")).decode("utf-8"), end="")
         return 0

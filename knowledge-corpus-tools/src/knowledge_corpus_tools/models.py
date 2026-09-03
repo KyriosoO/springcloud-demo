@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -265,6 +266,12 @@ class ProcessingResult(StrictModel):
     chunk_count: int = Field(ge=0)
     failures: tuple[StageAFailure, ...] = Field(default_factory=tuple, max_length=4096)
 
+    @model_validator(mode="after")
+    def validate_asset_counts(self) -> ProcessingResult:
+        if self.accepted_asset_count + self.review_required_asset_count + self.rejected_asset_count != self.asset_count:
+            raise ValueError("processing asset counts must equal assetCount")
+        return self
+
 
 class BlockKind(StrEnum):
     HEADING = "heading"
@@ -324,6 +331,12 @@ class CorpusChunk(StrictModel):
     @classmethod
     def hash_is_lowercase(cls, value: str) -> str:
         return value.lower()
+
+    @model_validator(mode="after")
+    def validate_content_hash(self) -> CorpusChunk:
+        if hashlib.sha256(self.content.encode("utf-8")).hexdigest() != self.content_sha256:
+            raise ValueError("chunk content SHA-256 mismatch")
+        return self
 
 
 class BuildManifest(StrictModel):

@@ -10,16 +10,25 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 from docx import Document
+from docx.opc.exceptions import PackageNotFoundError
 import pymupdf
 from openpyxl import load_workbook  # type: ignore[import-untyped]
+from openpyxl.utils.exceptions import InvalidFileException  # type: ignore[import-untyped]
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 import xlrd  # type: ignore[import-untyped]
+from xlrd.biffh import XLRDError  # type: ignore[import-untyped]
 
 from .errors import ContractError
 from .models import AttachmentReference, BlockKind, OcrStatus, ParsedBlock, ParsedDocument
 from .safety import ALLOWED_EXTENSIONS, extension_from_name, normalize_official_url, validate_zip_container
 
 CLAUSE_PATTERN = re.compile(r"^(第[一二三四五六七八九十百千0-9]+条)\s*")
+HEADING_PATTERN = re.compile(
+    r"^(?:附件(?:[一二三四五六七八九十百千0-9]+)?[:：]?|"
+    r"第[一二三四五六七八九十百千0-9]+章(?:\s|$)|"
+    r"[一二三四五六七八九十百千]+、)"
+)
 OcrPage = Callable[[bytes], tuple[str, tuple[float, ...]]]
 _pymupdf: Any = pymupdf
 
@@ -54,6 +63,70 @@ def _block(ordinal: int, kind: BlockKind, text: str, **kwargs: Any) -> ParsedBlo
     return ParsedBlock(ordinal=ordinal, kind=kind, text=_clean(text), **kwargs)
 
 
+def _parse_structured_text(
+    text: str,
+    *,
+    page_number: int | None = None,
+    start_ordinal: int = 1,
+) -> list[ParsedBlock]:
+    """Preserve line, clause, heading and tabular boundaries from plain text."""
+
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").replace("\x0c", "\n")
+    blocks: list[ParsedBlock] = []
+    section_path: tuple[str, ...] = ()
+    table_rows: list[str] = []
+    table_number = 0
+
+    def append_table() -> None:
+        nonlocal table_number
+        if not table_rows:
+            return
+        table_number += 1
+        blocks.append(
+            _block(
+                start_ordinal + len(blocks),
+                BlockKind.TABLE,
+                "\n".join(table_rows),
+                section_path=section_path,
+                page_number=page_number,
+                table_id=f"table-{table_number}",
+            )
+        )
+        table_rows.clear()
+
+    for raw_line in normalized.split("\n"):
+        if "\t" in raw_line:
+            cells = tuple(cell.strip() for cell in raw_line.split("\t"))
+            if any(cells):
+                table_rows.append(" | ".join(cells))
+            continue
+        append_table()
+        line = _clean(raw_line)
+        if not line:
+            continue
+        clause_match = CLAUSE_PATTERN.match(line)
+        is_heading = clause_match is None and len(line) <= 120 and HEADING_PATTERN.match(line) is not None
+        if is_heading:
+            section_path = (line,)
+            kind = BlockKind.HEADING
+        elif clause_match is not None:
+            kind = BlockKind.CLAUSE
+        else:
+            kind = BlockKind.PARAGRAPH
+        blocks.append(
+            _block(
+                start_ordinal + len(blocks),
+                kind,
+                line,
+                section_path=section_path,
+                page_number=page_number,
+                clause_id=clause_match.group(1) if clause_match else None,
+            )
+        )
+    append_table()
+    return blocks
+
+
 def parse_asset(
     path: Path,
     *,
@@ -63,41 +136,44 @@ def parse_asset(
 ) -> ParsedDocument:
     suffix = path.suffix.lower()
     raw = path.read_bytes()
-    if suffix in {".html", ".htm"}:
-        blocks = _parse_html(raw)
-        parser_name = "beautifulsoup4-html"
-        parser_version = "4.15.0"
-    elif suffix == ".pdf":
-        blocks = _parse_pdf(raw)
-        parser_name = "pypdf"
-        parser_version = "6.16.2"
-        ocr_status = OcrStatus.NOT_APPLIED
-        if not blocks and ocr_engine is not None:
-            blocks, ocr_status = _parse_scanned_pdf(raw, ocr_engine)
-            parser_name = "pymupdf+rapidocr"
-            parser_version = "1.28.2+3.9.2"
-    elif suffix == ".docx":
-        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-            validate_zip_container(archive)
-        blocks = _parse_docx(raw)
-        parser_name = "python-docx"
-        parser_version = "1.2.0"
-    elif suffix == ".xlsx":
-        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-            validate_zip_container(archive)
-        blocks = _parse_xlsx(raw)
-        parser_name = "openpyxl"
-        parser_version = "3.1.5"
-    elif suffix == ".xls":
-        blocks = _parse_xls(raw)
-        parser_name = "xlrd"
-        parser_version = "2.0.2"
-    elif suffix == ".doc":
-        blocks = _parse_legacy_doc(path)
-        parser_name = "legacy-doc"
-        parser_version = "0.2.1"
-    else:
-        raise ContractError(f"unsupported parser extension: {suffix}")
+    try:
+        if suffix in {".html", ".htm"}:
+            blocks = _parse_html(raw)
+            parser_name = "beautifulsoup4-html"
+            parser_version = "4.15.0"
+        elif suffix == ".pdf":
+            blocks = _parse_pdf(raw)
+            parser_name = "pypdf-structured"
+            parser_version = "6.16.2+structure-v1"
+            ocr_status = OcrStatus.NOT_APPLIED
+            if not blocks and ocr_engine is not None:
+                blocks, ocr_status = _parse_scanned_pdf(raw, ocr_engine)
+                parser_name = "pymupdf+rapidocr"
+                parser_version = "1.28.2+3.9.2"
+        elif suffix == ".docx":
+            with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                validate_zip_container(archive)
+            blocks = _parse_docx(raw)
+            parser_name = "python-docx"
+            parser_version = "1.2.0"
+        elif suffix == ".xlsx":
+            with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                validate_zip_container(archive)
+            blocks = _parse_xlsx(raw)
+            parser_name = "openpyxl"
+            parser_version = "3.1.5"
+        elif suffix == ".xls":
+            blocks = _parse_xls(raw)
+            parser_name = "xlrd"
+            parser_version = "2.0.2"
+        elif suffix == ".doc":
+            blocks = _parse_legacy_doc(path)
+            parser_name = "legacy-doc-structured"
+            parser_version = "0.2.1+structure-v1"
+        else:
+            raise ContractError(f"unsupported parser extension: {suffix}")
+    except (zipfile.BadZipFile, PdfReadError, PackageNotFoundError, InvalidFileException, XLRDError) as exc:
+        raise ContractError("asset parser rejected malformed content") from exc
     if suffix != ".pdf":
         ocr_status = OcrStatus.NOT_APPLIED
     quality = "accepted" if blocks and ocr_status is not OcrStatus.REJECTED else "rejected"
@@ -142,14 +218,13 @@ def _parse_pdf(raw: bytes) -> list[ParsedBlock]:
     reader = PdfReader(io.BytesIO(raw), strict=True)
     blocks: list[ParsedBlock] = []
     for page_number, page in enumerate(reader.pages, start=1):
-        text = _clean(page.extract_text() or "")
-        if not text:
-            continue
-        for paragraph in re.split(r"\n{2,}", text):
-            if not paragraph:
-                continue
-            match = CLAUSE_PATTERN.match(paragraph)
-            blocks.append(_block(len(blocks) + 1, BlockKind.CLAUSE if match else BlockKind.PARAGRAPH, paragraph, page_number=page_number, clause_id=match.group(1) if match else None))
+        blocks.extend(
+            _parse_structured_text(
+                page.extract_text() or "",
+                page_number=page_number,
+                start_ordinal=len(blocks) + 1,
+            )
+        )
     return blocks
 
 
@@ -169,9 +244,13 @@ def _parse_scanned_pdf(raw: bytes, engine: OcrEngine) -> tuple[list[ParsedBlock]
             image = pixmap.tobytes("png")
             text, page_scores = engine(image)
             scores.extend(page_scores)
-            cleaned = _clean(text)
-            if cleaned:
-                blocks.append(_block(len(blocks) + 1, BlockKind.PARAGRAPH, cleaned, page_number=page_number))
+            blocks.extend(
+                _parse_structured_text(
+                    text,
+                    page_number=page_number,
+                    start_ordinal=len(blocks) + 1,
+                )
+            )
     finally:
         document.close()
     if not blocks or not scores:
@@ -280,5 +359,4 @@ def _parse_legacy_doc(path: Path) -> list[ParsedBlock]:
     except (ImportError, AttributeError) as exc:
         raise ContractError("legacy DOC parser unavailable") from exc
     result = extract_text(path.read_bytes())
-    text = _clean(str(result.text))
-    return [_block(1, BlockKind.PARAGRAPH, text)] if text else []
+    return _parse_structured_text(str(result.text))

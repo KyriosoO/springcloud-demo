@@ -66,4 +66,3 @@ def chunk_document(
                 )
             )
     return tuple(chunks)
-

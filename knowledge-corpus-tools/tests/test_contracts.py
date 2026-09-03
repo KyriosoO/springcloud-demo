@@ -19,10 +19,28 @@ from knowledge_corpus_tools.audit import _source_status
 from knowledge_corpus_tools.chunking import chunk_document
 from knowledge_corpus_tools.errors import ContractError, SafetyError, StateConflict
 from knowledge_corpus_tools.indexing import EmbeddingClient, ElasticsearchCandidateAdmin, to_index_document
-from knowledge_corpus_tools.jsonio import exclusive_write, strict_loads
-from knowledge_corpus_tools.models import OcrStatus, StageAUatCase, StageAUatResult
-from knowledge_corpus_tools.models import SourceStatus
+from knowledge_corpus_tools.cli import main as cli_main
+from knowledge_corpus_tools.jsonio import canonical_bytes, exclusive_write, sha256_bytes, strict_loads, write_jsonl
+from knowledge_corpus_tools.models import (
+    CorpusSource,
+    CorpusSourceCatalog,
+    AssetManifest,
+    AuditItem,
+    AuditSummary,
+    CorpusChunk,
+    IntegrityFinding,
+    IntegrityStatus,
+    OcrStatus,
+    Priority,
+    ProcessingResult,
+    SourceProbe,
+    SourcePolicy,
+    SourceStatus,
+    StageAUatCase,
+    StageAUatResult,
+)
 from knowledge_corpus_tools.parsing import discover_attachments, parse_asset
+from knowledge_corpus_tools.pipeline import acquire_catalog, process_assets
 from knowledge_corpus_tools.release import AliasReleaseManager
 from knowledge_corpus_tools.safety import normalize_official_url, validate_zip_container
 
@@ -45,6 +63,48 @@ def test_strict_json_and_exclusive_write(tmp_path: Path) -> None:
 def test_audit_distinguishes_missing_url_from_unreachable_source() -> None:
     assert _source_status({"officialSourceUrl": ""}) is SourceStatus.URL_MISSING
     assert _source_status({"officialSourceUrl": "https://www.chinatax.gov.cn/x", "sourceHttpStatus": 403}) is SourceStatus.UNREACHABLE
+
+
+def test_audit_validator_rejects_same_count_with_different_content(tmp_path: Path) -> None:
+    items = tmp_path / "audit.jsonl"
+    item = AuditItem(
+        schema_version=2,
+        document_id="doc-1",
+        title="标题",
+        validity_status="UNKNOWN",
+        logical_domain_id="tax.policy",
+        priority=Priority.P2,
+        priority_reason="inventory_only",
+        inventory=None,
+        source=SourceProbe(status=SourceStatus.URL_MISSING, redirect_count=0),
+        integrity=IntegrityFinding(status=IntegrityStatus.NOT_ASSESSABLE, reason="source_not_readable"),
+        requires_human_review=True,
+    )
+    write_jsonl(items, (item,))
+    summary = AuditSummary(
+        schema_version=2,
+        generated_at_utc=datetime.now(UTC),
+        current_alias="read",
+        current_index="index",
+        current_index_uuid="uuid",
+        current_document_count=0,
+        current_chunk_count=0,
+        audit_item_count=1,
+        priority_counts={Priority.P2: 1},
+        source_status_counts={SourceStatus.URL_MISSING: 1},
+        integrity_status_counts={IntegrityStatus.NOT_ASSESSABLE: 1},
+        es_read_requests=0,
+        source_get_budget=0,
+        source_get_used=0,
+        retry_count=0,
+        index_write_count=0,
+        audit_jsonl_sha256="0" * 64,
+    )
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_bytes(canonical_bytes(summary.model_dump(mode="json")))
+
+    with pytest.raises(SystemExit, match="hash differs"):
+        cli_main(["validate-audit", "--items", str(items), "--summary", str(summary_path)])
 
 
 @pytest.mark.parametrize(
@@ -152,6 +212,98 @@ def test_acquirer_records_official_docx_that_is_actually_legacy_doc(tmp_path: Pa
     assert manifest.format_mismatch is True
 
 
+def test_acquisition_isolates_network_timeout_as_limited_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog = CorpusSourceCatalog(
+        schema_version=1,
+        priority=Priority.P0,
+        assets=(
+            CorpusSource(
+                document_id="tax-1",
+                document_number="doc-1",
+                title="标题",
+                source_url="https://www.chinatax.gov.cn/source.html",
+                official_replacement_proof="official page",
+            ),
+        ),
+    )
+    policy = SourcePolicy(
+        schema_version=1,
+        allowed_hosts=("www.chinatax.gov.cn",),
+        max_asset_bytes=1024,
+        max_redirects=3,
+    )
+    catalog_path = tmp_path / "catalog.json"
+    policy_path = tmp_path / "policy.json"
+    catalog_path.write_bytes(canonical_bytes(catalog.model_dump(mode="json")))
+    policy_path.write_bytes(canonical_bytes(policy.model_dump(mode="json")))
+
+    def timeout_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(timeout_handler))
+    monkeypatch.setattr(
+        "knowledge_corpus_tools.pipeline.OfficialAssetAcquirer",
+        lambda **kwargs: OfficialAssetAcquirer(client=client, **kwargs),
+    )
+
+    result = acquire_catalog(
+        catalog_path=catalog_path,
+        policy_path=policy_path,
+        workspace=tmp_path,
+        run_id="timeout-run",
+        source_get_budget=1,
+    )
+
+    client.close()
+    assert result.source_get_used == 1
+    assert result.downloaded_asset_count == 0
+    assert [failure.reason for failure in result.failures] == ["source_unreachable"]
+
+
+def test_processing_isolates_malformed_office_container(tmp_path: Path) -> None:
+    raw = b"PK\x03\x04not-a-valid-office-container"
+    digest = hashlib.sha256(raw).hexdigest()
+    relative = Path("raw") / "sha256" / digest[:2] / f"{digest}.docx"
+    asset_path = tmp_path / relative
+    asset_path.parent.mkdir(parents=True)
+    asset_path.write_bytes(raw)
+    manifest = AssetManifest(
+        schema_version=1,
+        asset_id=f"asset-{digest[:24]}",
+        asset_version=digest,
+        parent_document_id="tax-1",
+        source_url="https://www.chinatax.gov.cn/a.docx",
+        source_final_url="https://www.chinatax.gov.cn/a.docx",
+        fetched_at_utc=datetime.now(UTC),
+        filename="a.docx",
+        source_extension=".docx",
+        extension=".docx",
+        format_mismatch=False,
+        declared_mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        detected_mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        sha256=digest,
+        byte_count=len(raw),
+        storage_relative_path=relative.as_posix(),
+        official_source_proof="official page",
+    )
+    manifest_path = tmp_path / "manifest.jsonl"
+    write_jsonl(manifest_path, (manifest,))
+
+    result = process_assets(
+        asset_manifest_path=manifest_path,
+        workspace=tmp_path,
+        run_id="malformed-run",
+        enable_ocr=False,
+    )
+
+    assert result.rejected_asset_count == 1
+    assert result.chunk_count == 0
+    assert [failure.reason for failure in result.failures] == ["parse_failed"]
+
+
 def test_parsers_preserve_docx_and_xlsx_tables(tmp_path: Path) -> None:
     docx = Document()
     docx.add_heading("附件", level=1)
@@ -224,6 +376,28 @@ def test_parser_removes_legacy_hyperlink_field_code_without_losing_visible_text(
     assert parsed.blocks[0].text == "旅游服务包括交通、住宿。"
 
 
+def test_legacy_parser_preserves_heading_clause_and_table_boundaries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Result:
+        text = "一、适用范围\r\n第一条 住宿服务。\r\n项目\t税率\r\n住宿服务\t6%"
+
+    import legacy_doc
+
+    monkeypatch.setattr(legacy_doc, "extract_text", lambda _: Result())
+    path = tmp_path / "legacy.doc"
+    path.write_bytes(b"unused by fake")
+
+    parsed = parse_asset(path, asset_id="asset-legacy", asset_sha256=SHA)
+
+    assert [block.kind.value for block in parsed.blocks] == ["heading", "clause", "table"]
+    assert parsed.blocks[1].clause_id == "第一条"
+    assert parsed.blocks[1].section_path == ("一、适用范围",)
+    assert parsed.blocks[2].table_id == "table-1"
+    assert parsed.blocks[2].text == "项目 | 税率\n住宿服务 | 6%"
+
+
 def test_chunking_is_deterministic_and_bounded(tmp_path: Path) -> None:
     path = tmp_path / "a.html"
     path.write_text("<html><body><p>" + "住宿服务。" * 400 + "</p></body></html>", encoding="utf-8")
@@ -232,6 +406,69 @@ def test_chunking_is_deterministic_and_bounded(tmp_path: Path) -> None:
     second = chunk_document(parsed, document_id="tax-1", asset_version=SHA)
     assert first == second
     assert all(1 <= len(chunk.content) <= 1600 for chunk in first)
+
+
+def test_chunk_contract_rejects_content_hash_mismatch() -> None:
+    with pytest.raises(ValidationError, match="content SHA-256 mismatch"):
+        CorpusChunk(
+            schema_version=1,
+            chunk_id="chunk-1",
+            document_id="doc-1",
+            asset_id="asset-1",
+            asset_version=SHA,
+            ordinal=1,
+            content="正文",
+            content_sha256=SHA,
+            ocr_applied=False,
+            ocr_confidence_status=OcrStatus.NOT_APPLIED,
+        )
+
+
+def test_processing_result_counts_are_closed() -> None:
+    with pytest.raises(ValidationError, match="counts must equal"):
+        ProcessingResult(
+            schema_version=1,
+            run_id="run-1",
+            asset_count=2,
+            accepted_asset_count=1,
+            review_required_asset_count=0,
+            rejected_asset_count=0,
+            chunk_count=1,
+        )
+
+
+def test_processing_rejects_manifest_path_outside_workspace(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    outside = tmp_path / "outside.html"
+    raw = b"<html><body><p>outside</p></body></html>"
+    outside.write_bytes(raw)
+    manifest = AssetManifest(
+        schema_version=1,
+        asset_id="asset-1",
+        asset_version=sha256_bytes(raw),
+        parent_document_id="doc-1",
+        source_url="https://www.chinatax.gov.cn/a.html",
+        source_final_url="https://www.chinatax.gov.cn/a.html",
+        fetched_at_utc=datetime.now(UTC),
+        filename="a.html",
+        source_extension=".html",
+        extension=".html",
+        detected_mime="text/html",
+        sha256=sha256_bytes(raw),
+        byte_count=len(raw),
+        storage_relative_path="../outside.html",
+        official_source_proof="official test fixture",
+    )
+    manifest_path = tmp_path / "manifest.jsonl"
+    write_jsonl(manifest_path, (manifest,))
+
+    with pytest.raises(StateConflict, match="escaped workspace"):
+        process_assets(
+            asset_manifest_path=manifest_path,
+            workspace=workspace,
+            run_id="run-1",
+            enable_ocr=False,
+        )
 
 
 def test_embedding_contract_uses_runtime_shape() -> None:
@@ -321,6 +558,28 @@ def test_alias_switch_checks_exact_preconditions_and_can_rollback() -> None:
     assert published.phase == "published"
     assert rolled_back.phase == "rolled_back"
     assert target["value"] == "old"
+
+
+def test_release_cli_rejects_existing_journal_before_http(tmp_path: Path) -> None:
+    output = tmp_path / "runs" / "run-1" / "release-journal.v1.jsonl"
+    output.parent.mkdir(parents=True)
+    output.write_text("frozen\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="already exists"):
+        cli_main(
+            [
+                "release-rehearsal",
+                "--workspace", str(tmp_path),
+                "--run-id", "run-1",
+                "--es-endpoint", "http://127.0.0.1:1",
+                "--alias", "read",
+                "--old-index", "old",
+                "--old-uuid", "old-uuid",
+                "--candidate-index", "candidate",
+                "--candidate-uuid", "candidate-uuid",
+            ]
+        )
+    assert output.read_text(encoding="utf-8") == "frozen\n"
 
 
 def test_uat_result_contract_is_finite_and_consistent() -> None:

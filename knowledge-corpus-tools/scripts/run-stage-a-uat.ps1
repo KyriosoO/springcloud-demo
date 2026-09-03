@@ -2,14 +2,16 @@
 param(
     [string]$RepositoryRoot = 'D:\codex',
     [string]$Workspace = 'D:\codex-data\knowledge-corpus-stage-a',
-    [string]$RunId = 'knowledge-corpus-stage-a-uat-v1-20260902-attempt-02',
+    [string]$RunId = 'knowledge-corpus-stage-a-uat-v1-20260903-attempt-05',
     [string]$ReadAlias = 'agent-doc-tax-policy-v2-read',
-    [string]$OldIndex = 'agent-doc-tax-policy-v3-20260803-agent-read-v1',
-    [string]$ExpectedIndexName = 'agent-doc-tax-policy-v4-20260902-corpus-a2',
-    [string]$ExpectedIndexUuid = 'mXLJZCIKSsCodksYuMiArQ',
+    [string]$OldIndex = 'agent-doc-tax-policy-v4-20260903-corpus-a4',
+    [string]$ExpectedIndexName = 'agent-doc-tax-policy-v4-20260903-corpus-a5',
+    [string]$ExpectedIndexUuid = 'SurWRSglRd6ZRddEBWy2Sw',
+    [int]$ExpectedAttachmentChunkCount = 738,
+    [int]$ExpectedClauseReferenceCount = 55,
     [string]$MappingVersion = 'agent-knowledge-tax-v2-corpus-a1',
-    [string]$PolicySnapshotId = 'f3ef2525d5df43e8ed12f921c867445b83535f0d63a2c35c6c144d8e627b634e',
-    [string]$LawSnapshotId = 'aeb16936305127d10ceba5ba6396251a49f8c22cfada99cef90dd083a83a5228'
+    [string]$PolicySnapshotId = '5e7323100b1bfd44e7452e3ce409ff146800961c07a077b2585b670665b03136',
+    [string]$LawSnapshotId = 'b537176bf80323178aaaa1ca328f1534641b62f2671d8aa2e136fcef63495104'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -188,11 +190,14 @@ try {
         track_total_hits = $true
         aggs = @{
             missing_parent = @{ missing = @{ field = 'parentDocumentId' } }
+            clause_references = @{ filter = @{ exists = @{ field = 'clauseId' } } }
         }
     } | ConvertTo-Json -Depth 10 -Compress
     $relationships = Invoke-RestMethod -Uri "http://127.0.0.1:9200/$ExpectedIndexName/_search" -Method Post `
         -ContentType 'application/json' -Body $relationshipBody -TimeoutSec 10
-    if ($relationships.hits.total.value -ne 31 -or $relationships.aggregations.missing_parent.doc_count -ne 0) {
+    if ($relationships.hits.total.value -ne $ExpectedAttachmentChunkCount -or
+        $relationships.aggregations.missing_parent.doc_count -ne 0 -or
+        $relationships.aggregations.clause_references.doc_count -ne $ExpectedClauseReferenceCount) {
         throw 'stage_a_uat.relationship_integrity_failed'
     }
     $validityBody = @{
@@ -264,11 +269,11 @@ try {
     $cases = @(
         (New-Case 1 'existing_contract' @('audit-v3:verified-complete-body')),
         (New-Case 2 'automated_test' @('knowledge-corpus-tools:test_native_pdf_parser_preserves_text')),
-        (New-Case 3 'live_direct' @('processing:candidate-05:legacy-office:4')),
+        (New-Case 3 'live_direct' @('processing:candidate-07:structured-legacy-office:4')),
         (New-Case 4 'automated_test' @('knowledge-corpus-tools:test_parsers_preserve_docx_and_xlsx_tables')),
         (New-Case 5 'automated_test' @('knowledge-corpus-tools:test_scanned_pdf_uses_bounded_ocr_and_marks_confidence')),
-        (New-Case 6 'live_direct' @('candidate-a2:parent-attachment-membership')),
-        (New-Case 7 'live_direct' @('candidate-a2:validity-active-and-expired')),
+        (New-Case 6 'live_direct' @('candidate-a4:parent-attachment-clause-membership')),
+        (New-Case 7 'live_direct' @('candidate-a4:validity-active-and-expired')),
         (New-Case 8 'live_direct' @('typed-keyword:attachment-hit')),
         (New-Case 9 'live_direct' @('typed-vector:attachment-hit')),
         (New-Case 10 'live_direct' @("typed-read-denied:http-$($denied.StatusCode)")),
@@ -286,7 +291,7 @@ try {
         candidate_index_uuid = $ExpectedIndexUuid
         p0_document_count = 3
         p0_attachment_count = 4
-        p0_chunk_count = 31
+        p0_chunk_count = $ExpectedAttachmentChunkCount
         model_outbound_count = 0
         business_call_count = 0
         cases = $cases

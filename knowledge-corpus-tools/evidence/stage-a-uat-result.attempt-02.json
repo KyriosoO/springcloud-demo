@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "run_id": "knowledge-corpus-stage-a-uat-v1-20260903-attempt-05",
+  "run_id": "knowledge-corpus-stage-a-uat-v1-20260902-attempt-02",
   "current_alias": "agent-doc-tax-policy-v2-read",
-  "old_index": "agent-doc-tax-policy-v4-20260903-corpus-a4",
-  "candidate_index": "agent-doc-tax-policy-v4-20260903-corpus-a5",
-  "candidate_index_uuid": "SurWRSglRd6ZRddEBWy2Sw",
+  "old_index": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+  "candidate_index": "agent-doc-tax-policy-v4-20260902-corpus-a2",
+  "candidate_index_uuid": "mXLJZCIKSsCodksYuMiArQ",
   "p0_document_count": 3,
   "p0_attachment_count": 4,
-  "p0_chunk_count": 738,
+  "p0_chunk_count": 31,
   "model_outbound_count": 0,
   "business_call_count": 0,
   "cases": [
@@ -33,7 +33,7 @@
       "case_id": "UAT-KCORPUS-A-03",
       "evidence_kind": "live_direct",
       "evidence_refs": [
-        "processing:candidate-07:structured-legacy-office:4"
+        "processing:candidate-05:legacy-office:4"
       ],
       "status": "passed",
       "failure_reason": "none"
@@ -60,7 +60,7 @@
       "case_id": "UAT-KCORPUS-A-06",
       "evidence_kind": "live_direct",
       "evidence_refs": [
-        "candidate-a4:parent-attachment-clause-membership"
+        "candidate-a2:parent-attachment-membership"
       ],
       "status": "passed",
       "failure_reason": "none"
@@ -69,7 +69,7 @@
       "case_id": "UAT-KCORPUS-A-07",
       "evidence_kind": "live_direct",
       "evidence_refs": [
-        "candidate-a4:validity-active-and-expired"
+        "candidate-a2:validity-active-and-expired"
       ],
       "status": "passed",
       "failure_reason": "none"
@@ -149,5 +149,5 @@
     "failure_semantics"
   ],
   "conclusion": "passed",
-  "completed_at_utc": "2026-09-03T11:38:37.9843683Z"
+  "completed_at_utc": "2026-09-03T10:30:37.4291006Z"
 }

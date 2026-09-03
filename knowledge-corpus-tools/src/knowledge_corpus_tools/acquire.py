@@ -64,8 +64,15 @@ class OfficialAssetAcquirer:
                 if response.status_code != 200:
                     raise SafetyError(f"official source HTTP status: {response.status_code}")
                 declared_length = response.headers.get("content-length")
-                if declared_length and int(declared_length) > self._max_asset_bytes:
-                    raise SafetyError("declared asset size exceeds limit")
+                if declared_length:
+                    try:
+                        declared_size = int(declared_length)
+                    except ValueError as exc:
+                        raise SafetyError("invalid declared asset size") from exc
+                    if declared_size < 0:
+                        raise SafetyError("invalid declared asset size")
+                    if declared_size > self._max_asset_bytes:
+                        raise SafetyError("declared asset size exceeds limit")
                 body = bytearray()
                 for part in response.iter_bytes():
                     body.extend(part)

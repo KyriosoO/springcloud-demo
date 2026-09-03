@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, cast
 
+import httpx
+
 from .acquire import OfficialAssetAcquirer
 from .chunking import chunk_document
 from .errors import ContractError, SafetyError, StateConflict
@@ -60,7 +62,7 @@ def acquire_catalog(
                     filename="source.html",
                 )
                 manifests.append(parent)
-            except (SafetyError, StateConflict, OSError) as exc:
+            except (SafetyError, StateConflict, OSError, httpx.HTTPError) as exc:
                 failures.append(
                     StageAFailure(
                         phase="source",
@@ -101,7 +103,7 @@ def acquire_catalog(
                             filename=reference.filename,
                         )
                     )
-                except SafetyError as exc:
+                except (SafetyError, StateConflict, OSError, httpx.HTTPError) as exc:
                     reason = "asset_too_large" if "size" in str(exc) else "invalid_mime" if "MIME" in str(exc) or "signature" in str(exc) else "source_unreachable"
                     failures.append(
                         StageAFailure(
@@ -138,7 +140,8 @@ def process_assets(
     enable_ocr: bool,
 ) -> ProcessingResult:
     manifests = load_jsonl(asset_manifest_path, AssetManifest)
-    run_dir = workspace.resolve() / "runs" / run_id
+    workspace_root = workspace.resolve()
+    run_dir = workspace_root / "runs" / run_id
     copied_manifest_path = run_dir / "asset-manifest.v1.jsonl"
     if copied_manifest_path.resolve() != asset_manifest_path.resolve():
         write_jsonl(copied_manifest_path, manifests)
@@ -148,7 +151,9 @@ def process_assets(
     ocr = RapidOcrEngine() if enable_ocr else None
     accepted = review = rejected = 0
     for manifest in manifests:
-        asset_path = workspace / manifest.storage_relative_path
+        asset_path = (workspace_root / manifest.storage_relative_path).resolve()
+        if workspace_root not in asset_path.parents:
+            raise StateConflict(f"asset path escaped workspace: {manifest.asset_id}")
         if sha256_file(asset_path) != manifest.sha256:
             raise StateConflict(f"asset hash changed: {manifest.asset_id}")
         try:
