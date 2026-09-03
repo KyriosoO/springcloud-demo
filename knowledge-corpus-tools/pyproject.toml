@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "knowledge-corpus-tools"
+version = "0.1.0"
+description = "Offline, fail-closed Knowledge corpus audit and candidate-index tooling."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "beautifulsoup4==4.15.0",
+  "httpx==0.28.1",
+  "legacy-doc==0.2.1",
+  "openpyxl==3.1.5",
+  "Pillow==12.3.0",
+  "pydantic==2.13.5",
+  "pypdf==6.16.2",
+  "PyMuPDF==1.28.2",
+  "python-docx==1.2.0",
+  "rapidocr==3.9.2",
+  "onnxruntime==1.29.0",
+  "xlrd==2.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy==1.17.1",
+  "pytest==8.4.1",
+  "respx==0.22.0",
+]
+
+[project.scripts]
+knowledge-corpus = "knowledge_corpus_tools.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/knowledge_corpus_tools"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["knowledge_corpus_tools"]

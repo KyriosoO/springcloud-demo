@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:single-agent:knowledge-corpus:stage-a-uat-result:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "current_alias",
+    "old_index",
+    "candidate_index",
+    "candidate_index_uuid",
+    "p0_document_count",
+    "p0_attachment_count",
+    "p0_chunk_count",
+    "model_outbound_count",
+    "business_call_count",
+    "cases",
+    "passed_count",
+    "failed_count",
+    "stage_b_findings",
+    "conclusion",
+    "completed_at_utc"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "current_alias": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "old_index": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "candidate_index": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "candidate_index_uuid": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "p0_document_count": {"type": "integer", "minimum": 0},
+    "p0_attachment_count": {"type": "integer", "minimum": 0},
+    "p0_chunk_count": {"type": "integer", "minimum": 0},
+    "model_outbound_count": {"const": 0},
+    "business_call_count": {"const": 0},
+    "cases": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {"$ref": "#/$defs/case"}
+    },
+    "passed_count": {"type": "integer", "minimum": 0, "maximum": 14},
+    "failed_count": {"type": "integer", "minimum": 0, "maximum": 14},
+    "stage_b_findings": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {"enum": ["domain_selection", "query_rewrite", "ranking", "failure_semantics"]}
+    },
+    "conclusion": {"enum": ["passed", "failed", "blocked"]},
+    "completed_at_utc": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "evidence_kind", "evidence_refs", "status", "failure_reason"],
+      "properties": {
+        "case_id": {"type": "string", "pattern": "^UAT-KCORPUS-A-(0[1-9]|1[0-4])$"},
+        "evidence_kind": {"enum": ["live_direct", "automated_test", "existing_contract"]},
+        "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
+        "status": {"enum": ["passed", "failed", "blocked"]},
+        "failure_reason": {"enum": ["none", "source_missing", "parse_failed", "index_incomplete", "retrieval_failed", "authorization_failed", "evidence_invalid"]}
+      }
+    }
+  }
+}

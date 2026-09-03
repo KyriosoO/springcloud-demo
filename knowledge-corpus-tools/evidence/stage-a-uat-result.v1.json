@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "run_id": "knowledge-corpus-stage-a-uat-v1-20260902-attempt-02",
+  "current_alias": "agent-doc-tax-policy-v2-read",
+  "old_index": "agent-doc-tax-policy-v3-20260803-agent-read-v1",
+  "candidate_index": "agent-doc-tax-policy-v4-20260902-corpus-a2",
+  "candidate_index_uuid": "mXLJZCIKSsCodksYuMiArQ",
+  "p0_document_count": 3,
+  "p0_attachment_count": 4,
+  "p0_chunk_count": 31,
+  "model_outbound_count": 0,
+  "business_call_count": 0,
+  "cases": [
+    {
+      "case_id": "UAT-KCORPUS-A-01",
+      "evidence_kind": "existing_contract",
+      "evidence_refs": [
+        "audit-v3:verified-complete-body"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-02",
+      "evidence_kind": "automated_test",
+      "evidence_refs": [
+        "knowledge-corpus-tools:test_native_pdf_parser_preserves_text"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-03",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "processing:candidate-05:legacy-office:4"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-04",
+      "evidence_kind": "automated_test",
+      "evidence_refs": [
+        "knowledge-corpus-tools:test_parsers_preserve_docx_and_xlsx_tables"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-05",
+      "evidence_kind": "automated_test",
+      "evidence_refs": [
+        "knowledge-corpus-tools:test_scanned_pdf_uses_bounded_ocr_and_marks_confidence"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-06",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "candidate-a2:parent-attachment-membership"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-07",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "candidate-a2:validity-active-and-expired"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-08",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "typed-keyword:attachment-hit"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-09",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "typed-vector:attachment-hit"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-10",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "typed-read-denied:http-401"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-11",
+      "evidence_kind": "existing_contract",
+      "evidence_refs": [
+        "agent-runtime:evidence-policy-and-contiguous-quote-tests"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-12",
+      "evidence_kind": "automated_test",
+      "evidence_refs": [
+        "stage-a:no-graph-dependency"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-13",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "typed-keyword:lodging-classification-hit",
+        "typed-keyword:vat-law-rate-rule"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    },
+    {
+      "case_id": "UAT-KCORPUS-A-14",
+      "evidence_kind": "live_direct",
+      "evidence_refs": [
+        "typed-retrieval-passed",
+        "stage-b:domain-rewrite-ranking-open"
+      ],
+      "status": "passed",
+      "failure_reason": "none"
+    }
+  ],
+  "passed_count": 14,
+  "failed_count": 0,
+  "stage_b_findings": [
+    "domain_selection",
+    "query_rewrite",
+    "ranking",
+    "failure_semantics"
+  ],
+  "conclusion": "passed",
+  "completed_at_utc": "2026-09-03T10:30:37.4291006Z"
+}

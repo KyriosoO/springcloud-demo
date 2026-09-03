@@ -1,0 +1,12 @@
+{
+  "allowed_hosts": [
+    "12366.chinatax.gov.cn",
+    "fgk.chinatax.gov.cn",
+    "www.chinatax.gov.cn",
+    "www.gov.cn",
+    "www.npc.gov.cn"
+  ],
+  "max_asset_bytes": 52428800,
+  "max_redirects": 3,
+  "schema_version": 1
+}
