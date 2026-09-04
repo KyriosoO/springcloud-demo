@@ -115,7 +115,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KCORPUS-RELEASE-01` | alias 发布、回滚演练与收口 | `L2_01_01 DR-KRET-025` | 原子切候选、冒烟、切回旧目标验证、最终切候选、状态/评审/Git | `WP-KCORPUS-UAT-01` | - | release journal、最终 binding、评审和提交；alias 生效由发布门禁独立判定 | alias/UUID/Profile/policy、全量回归、历史 hash | 精确原子恢复旧目标；不删除索引 | Done |
 | `WP-KRETRIEVAL-DIAG-01` | 阶段 B 根因诊断 | `REQ-KQUALITY-001～004` | 同索引十组零模型对照与有限排名证据 | - | - | diagnosis v1 JSONL、根因矩阵 | 当前服务窗口、改写反例、路径/融合/重排/Evidence | 不写索引、不调用外部模型 | Done |
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
-| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～019`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V4（共享V3合同）、一次域计划、服务窗口、排序/Evidence、有限 reason；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Done |
+| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～020`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V5（共享V3合同/V4澄清）、一次域计划、服务窗口、排序/Evidence、有限 reason；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 可复现验证结果 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
 | `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | run-03已停止：1通过/1失败/8未执行；三个批次证据不可变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 累计5端到端/12模型，零重试 | 各批失败即停止，无run-04授权 | Deferred |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
@@ -913,3 +913,20 @@ Business/answer/retry/resume始终0。先协议三轮内审及只读设计评审
 起始HEAD为`a03f6ec6ffb6fe95f394f7be022722e04b008bfd`，工作树clean。继续原目标内非live修复，不构成run-04或任何新增模型请求授权。依据§20.14，先处理有直接依据的域语义风险，摘要必要条款覆盖仍单独保留：原问题限定政策定义，两个必要chunk已到模型，不能用扩大topK解决。`B-DOM-001`：V4的域指令没有明确区分税务背景与必要原文类别；本地接受合法双域符合现有decoder，不应增加本地关键词删域。
 
 最小方案由L2_01_00 v1.19 DR-KFLOW-020治理：新增Rewrite V5指令、保持V3 exact合同/V4澄清、切换当前单绑定；Summary、排序、Evidence与全部冻结资产不变。三轮内审及只读设计复评已完成（同一执行者分阶段，不冒充另一人），strict首轮发现DR追踪行遗漏，补齐规范矩阵后0 errors/0 warnings。允许该切片非live实施；没有新门禁或付费候选。现有IMPLEMENT/NONLIVE的Done记录仍仅证明先前DR-019范围；DR-020代码和验证在本节后续记录前不得算Done。UAT Deferred、QUALITY Blocked、B-CR-001 Open不变。
+
+增量实施完成：`knowledge/rewrite_v5.py`仅叠加最小必要原文域指令，复用V4公开definition/request及V3 exact decoder；`bootstrap`唯一绑定Rewrite5/Summary4。新增合同和18项域计划fake，覆盖单域、双域、配置顺序、未启用/未知/重复域以及相同/不同query的请求内embedding复用。旧V3/V4及历史run源码、Prompt、gold和六项run-03证据不改；历史诊断测试仅在测试作用域从冻结提交加载原Knowledge组合类，不放开当前生产版本守卫。没有删除代码或增加生产依赖。
+
+实际测试和修复过程：首次新合同测试使用不存在的内部finish枚举，纠正为已有TOOL_CALLS；供应商length故障仍由wire测试覆盖。历史诊断首次未同步替换main中的导入绑定，补齐测试作用域隔离后46 passed。新fake首次把相同文本的embedding误计为每域一次，依据现有请求内去重实现修正精确断言，并追加不同文本的双调用反证。全量首轮1821 passed/27 skipped/1 failed，发现现行注册合同仍期望Rewrite4；迁移为精确5/4后重跑，不修改历史任务或放宽断言。
+
+| 本次实际命令 | 结果 |
+|---|---|
+| `python -m pytest tests/contract/knowledge/test_rewrite_task_v5.py tests/integration/knowledge/test_rewrite_v5_domain_boundary.py tests/integration/knowledge/test_stage_b_production.py tests/integration/knowledge/test_rewrite_v4_provider_boundary.py tests/integration/knowledge/test_summary_v4_composition.py tests/system_e2e/test_knowledge_stage_b_uat_v3.py -q --tb=short` | 132 passed；现行V5与历史V4分别验证，fake不证明LLM语义 |
+| `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1` | 最终host/preflight14 passed；全量1822 passed/27 opt-in skipped/0 failed，160.09秒，1条既有LangGraph预告 |
+| `python -m pytest tests/system_e2e/test_knowledge_stage_b_run_01_history.py tests/system_e2e/test_knowledge_stage_b_run_02_history.py tests/system_e2e/test_knowledge_stage_b_run_03_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short` | 25 passed；三批历史及Business35/Knowledge37追踪有效 |
+| agent-runtime：`python -m mypy --strict src`；`python -m compileall -q src tests/contract/knowledge/test_rewrite_task_v5.py tests/integration/knowledge/test_rewrite_v5_domain_boundary.py tests/system_e2e/test_knowledge_stage_b_uat_v3.py` | 124生产文件类型通过；编译通过 |
+| agent-service：`..\serviceCenter\mvnw.cmd -Dagent.runtime.python=C:\Python312\python.exe -Deureka.client.enabled=false test` | 40 tests/0 failures/0 errors/1 opt-in skip；Access、Business、Knowledge Spring→Runtime E2E实际执行。进程清除Key、stub/Knowledge默认false，测试独立注入fake；首次使用模块内不存在的wrapper路径未执行Maven，改用仓库现有wrapper |
+| L2详细设计strict；P3计划strict；历史hash；敏感模式扫描；`git diff --check` | 设计/计划0 errors/0 warnings；阶段A四项hash及三批冻结资产不变；变更文件密钥/JWT/私钥模式0命中，并人工复核仅合成测试数据 |
+
+代码对照设计评审1轮及修复后复评1轮：按DR-KFLOW-020核对公开definition复用、唯一注册/拒绝旧版本、disabled零依赖、原问题/澄清/decoder/预算不变、无本地语义路由或fallback、历史隔离及精确调用计数。首轮定位上述测试绑定和计数遗漏，修复后定向、全量和Spring回归通过；本增量Blocker/Major/未处理Minor为0。该评审为本执行者分阶段对照，不冒充另一名独立人员批准；整体B-CR-001仍Open，尚未通过阶段B最终评审。Java公共合同、安全策略、业务服务及PowerShell未改；Employee/Transaction/es-query-service模块Maven与AST本次未重复，不引用历史数字作为本轮结果。
+
+DR-020的IMPLEMENT/NONLIVE切片现已完成；GATE-KRG-006保持仅实现入口Closed。UAT Deferred、QUALITY Blocked不变。新增真实e2e/model/search/embedding/rerank均0，三批累计仍5/12/8/4/4；没有run-04或新manifest。V5实际选域效果缺证据，Summary V4必要引用覆盖仍待原意/gold/指令一致性核查，不能事后改判run-03。设计提交`84939c6`、代码提交`c9dfe6e968a16395dea07d2206fa3471d3893972`；状态提交及推送由Git日志和交付报告记录。L1仅更新当前绑定元数据，未改变KQ-AD-013/016或提升架构版本；当前L2/P3/UAT/索引分别为v1.19/v2.45/v1.23及对应版本引用。
