@@ -90,7 +90,8 @@ def build_runtime(
     employee_endpoint = active.get("AGENT_EMPLOYEE_BASE_URL", "http://127.0.0.1:9210")
     transaction_endpoint = active.get("AGENT_TRANSACTION_BASE_URL", "http://127.0.0.1:8182")
     knowledge_tasks = KnowledgeCompositionRoot.task_definitions(
-        enabled=knowledge_settings.enabled
+        enabled=knowledge_settings.enabled,
+        rewrite_max_candidates=knowledge_settings.rewrite_max_candidates,
     )
     policy_catalog = (
         KnowledgeEgressPolicyCatalog.load_current_resource()

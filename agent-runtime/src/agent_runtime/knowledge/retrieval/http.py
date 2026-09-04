@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+import time
 from typing import Final
 from typing import Literal, Protocol
 from urllib.parse import urlsplit
 
 import httpx
+
+from agent_runtime.observation import (
+    downstream_call_finished,
+    downstream_call_started,
+    knowledge_http_request_view,
+)
 
 
 _MAX_REQUEST_BYTES: Final = 2 * 1024 * 1024
@@ -76,6 +84,19 @@ class HttpxKnowledgeTransport:
         timeout_s: float,
     ) -> BoundedHttpResponse:
         _validate_request(request, timeout_s)
+        target, operation = _knowledge_target(request.relative_path)
+        try:
+            request_view = knowledge_http_request_view(request.relative_path, request.body)
+        except (UnicodeError, ValueError):
+            request_view = {"projectionStatus": "unavailable"}
+        observation_id = downstream_call_started(
+            target=target,
+            operation=operation,
+            method=request.method,
+            relative_path=request.relative_path,
+            request=request_view,
+        )
+        started = time.monotonic()
         try:
             async with self._client.stream(
                 request.method,
@@ -93,16 +114,51 @@ class HttpxKnowledgeTransport:
                     body.extend(chunk)
                     if len(body) > request.max_response_bytes:
                         raise RetrievalTransportError("response_too_large")
-                return BoundedHttpResponse(
+                result = BoundedHttpResponse(
                     status_code=response.status_code,
                     content_type=_media_type(response.headers.get("Content-Type")),
                     content_encoding=_content_encoding(response.headers.get("Content-Encoding")),
                     body=bytes(body),
                 )
+                downstream_call_finished(
+                    observation_id,
+                    status="completed",
+                    http_status=response.status_code,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                )
+                return result
+        except asyncio.CancelledError:
+            downstream_call_finished(
+                observation_id,
+                status="cancelled",
+                http_status=None,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            raise
         except httpx.TimeoutException as exc:
+            downstream_call_finished(
+                observation_id,
+                status="timeout",
+                http_status=None,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
             raise TimeoutError("knowledge.provider_timeout") from exc
         except httpx.RequestError as exc:
+            downstream_call_finished(
+                observation_id,
+                status="transport_failure",
+                http_status=None,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
             raise RetrievalTransportError("request_failed") from exc
+        except RetrievalTransportError as exc:
+            downstream_call_finished(
+                observation_id,
+                status="response_too_large" if exc.kind == "response_too_large" else "protocol_failure",
+                http_status=None,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            raise
 
 
 def _validate_origin(base_url: str) -> None:
@@ -182,3 +238,13 @@ def _content_encoding(raw: str | None) -> str | None:
     if raw is None:
         return None
     return raw.strip().lower()
+
+
+def _knowledge_target(relative_path: str) -> tuple[str, str]:
+    if relative_path == "/embed":
+        return "bge-embedding-service", "knowledge.embedding"
+    if relative_path == "/rerank":
+        return "bge-rerank-service", "knowledge.rerank"
+    if relative_path == "/es/knowledge/search":
+        return "es-query-service", "knowledge.search"
+    return "knowledge-provider", "unsupported"

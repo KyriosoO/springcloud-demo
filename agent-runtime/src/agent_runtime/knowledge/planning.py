@@ -9,6 +9,7 @@ from agent_runtime.knowledge.contracts import (
 )
 from agent_runtime.knowledge.errors import KnowledgeInputError
 from agent_runtime.knowledge.settings import KnowledgeSettings
+from agent_runtime.observation import record_plan
 
 
 class KnowledgeRetrievalPlanBuilder:
@@ -35,9 +36,15 @@ class KnowledgeRetrievalPlanBuilder:
                     )
                 )
                 ordinal += 1
-        return KnowledgeRetrievalPlan(
+        plan = KnowledgeRetrievalPlan(
             items=tuple(items),
             selected_domain_ids=domains.selected_domain_ids,
             config_version=settings.config_version,
         )
-
+        record_plan(
+            plan_type="knowledge_retrieval_plan",
+            source="runtime_after_rewrite",
+            validation_status="accepted",
+            plan=plan,
+        )
+        return plan

@@ -12,7 +12,15 @@ from starlette.requests import Request
 from agent_runtime.api.cancellation import MutableCancellationSignal, watch_disconnect
 from agent_runtime.api.errors import RuntimeProtocolViolation, RuntimeVersionConflict
 from agent_runtime.api.limits import RuntimeRequestLimiter
-from agent_runtime.api.models import FailureResponse, RuntimeInvokeRequest, RuntimeInvokeResponse
+from agent_runtime.api.models import (
+    FailureResponse,
+    ObservedDownstreamCall,
+    ObservedModelCall,
+    ObservedPlan,
+    RuntimeInspectResponse,
+    RuntimeInvokeRequest,
+    RuntimeInvokeResponse,
+)
 from agent_runtime.capability_api.contracts import (
     CapabilityExecutionContext,
     CapabilityStatus,
@@ -23,6 +31,7 @@ from agent_runtime.capability_api.contracts import (
 )
 from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.graph.state import AgentSemanticOutcome
+from agent_runtime.observation import observation_scope
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -182,3 +191,42 @@ async def invoke_agent(
                 "duration_ms": max(0.0, (active_clocks.monotonic() - started) * 1000),
             },
         )
+
+
+async def inspect_agent(
+    request: Request,
+    payload: RuntimeInvokeRequest,
+    authorization: str,
+    x_agent_contract_version: str,
+    runtime: RuntimeInvoker,
+    limiter: RuntimeRequestLimiter,
+    *,
+    clocks: RuntimeClocks | None = None,
+    disconnect_poll_s: float = 0.1,
+) -> RuntimeInspectResponse:
+    with observation_scope() as collector:
+        response = await invoke_agent(
+            request,
+            payload,
+            authorization,
+            x_agent_contract_version,
+            runtime,
+            limiter,
+            clocks=clocks,
+            disconnect_poll_s=disconnect_poll_s,
+        )
+        snapshot = collector.snapshot()
+    return RuntimeInspectResponse(
+        contractVersion=response.contract_version,
+        requestId=response.request_id,
+        status=response.status,
+        capabilityId=response.capability_id,
+        answerText=response.answer_text,
+        userResult=response.user_result,
+        failure=response.failure,
+        modelCalls=tuple(ObservedModelCall.model_validate(item) for item in snapshot.model_calls),
+        plans=tuple(ObservedPlan.model_validate(item) for item in snapshot.plans),
+        downstreamCalls=tuple(
+            ObservedDownstreamCall.model_validate(item) for item in snapshot.downstream_calls
+        ),
+    )

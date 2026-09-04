@@ -20,6 +20,7 @@ public class GatewayRouter {
 			c.setBackoff(Duration.ofMillis(500), Duration.ofMillis(500), 1, false);
 		});
 		return builder.routes()
+				.route("agent_route", r -> r.path("/agent.html", "/api/v1/agent/**").uri("lb://agent-service"))
 				.route("hello_route", r -> r.path("/test", "/api/**", "/orders/**").filters(f -> f.filter(retry)).uri("lb://openfeign-service"))
 				.route("ws_route", r -> r.path("/ws/**").uri("lb:ws://mq-procedure-service"))
 				.route("auth_route", r -> r.path("/login", "/login.html", "/home.html", "/as/**").filters(f -> f.filter(retry)).uri("lb://auth-service"))

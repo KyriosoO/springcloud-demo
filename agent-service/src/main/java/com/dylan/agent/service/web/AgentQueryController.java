@@ -5,6 +5,8 @@ import com.dylan.agent.service.application.AgentQueryApplicationService;
 import com.dylan.agent.service.application.AgentQueryCommand;
 import com.dylan.agent.service.contract.AgentQueryRequest;
 import com.dylan.agent.service.contract.AgentQueryResponse;
+import com.dylan.agent.service.contract.CapabilityStatus;
+import com.dylan.agent.service.contract.FailureResponse;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -41,7 +43,11 @@ public final class AgentQueryController {
     }
 
     static HttpStatus httpStatus(AgentQueryResponse response) {
-        return switch (response.status()) {
+        return httpStatus(response.status(), response.error());
+    }
+
+    static HttpStatus httpStatus(CapabilityStatus status, FailureResponse error) {
+        return switch (status) {
             case SUCCESS, NO_RESULT -> HttpStatus.OK;
             case UNSUPPORTED -> HttpStatus.UNPROCESSABLE_ENTITY;
             case INVALID_ARGUMENT -> HttpStatus.BAD_REQUEST;
@@ -49,7 +55,7 @@ public final class AgentQueryController {
             case FORBIDDEN, MODEL_EGRESS_DENIED -> HttpStatus.FORBIDDEN;
             case TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case DOWNSTREAM_FAILURE -> "core.ingress_capacity_exceeded".equals(
-                    response.error() == null ? null : response.error().code())
+                    error == null ? null : error.code())
                             ? HttpStatus.TOO_MANY_REQUESTS
                             : HttpStatus.BAD_GATEWAY;
             case INTERNAL_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;

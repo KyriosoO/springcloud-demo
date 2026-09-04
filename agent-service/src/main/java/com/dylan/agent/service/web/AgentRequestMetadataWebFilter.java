@@ -16,12 +16,14 @@ import reactor.core.publisher.Mono;
 public final class AgentRequestMetadataWebFilter implements WebFilter, Ordered {
     public static final String ATTRIBUTE = AgentRequestMetadata.class.getName();
     private static final String QUERY_PATH = "/api/v1/agent/queries";
+    private static final String QUERY_RUN_PATH = "/api/v1/agent/query-runs";
     private static final Pattern SAFE_CORRELATION = Pattern.compile("[\\x20-\\x7e]{1,128}");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         if (exchange.getRequest().getMethod() != HttpMethod.POST
-                || !QUERY_PATH.equals(exchange.getRequest().getPath().value())) {
+                || (!QUERY_PATH.equals(exchange.getRequest().getPath().value())
+                        && !QUERY_RUN_PATH.equals(exchange.getRequest().getPath().value()))) {
             return chain.filter(exchange);
         }
         if (exchange.getAttribute(ATTRIBUTE) != null) {

@@ -508,14 +508,14 @@ class KnowledgeTaskDefinitions:
 
 class KnowledgeCompositionRoot:
     @staticmethod
-    def task_definitions(*, enabled: bool) -> KnowledgeTaskDefinitions | None:
+    def task_definitions(*, enabled: bool, rewrite_max_candidates: int = 3) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
         from agent_runtime.knowledge.evidence.summary_task_v4 import KnowledgeSummaryTaskV4
-        from agent_runtime.knowledge.rewrite import KnowledgeRewriteTaskV1
+        from agent_runtime.knowledge.rewrite_v2 import KnowledgeRewriteTaskV2
 
         return KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV1.definition(),
+            rewrite=KnowledgeRewriteTaskV2.definition(max_candidates=rewrite_max_candidates),
             summary=KnowledgeSummaryTaskV4.definition(),
         )
 

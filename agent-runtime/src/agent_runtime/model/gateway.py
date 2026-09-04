@@ -17,6 +17,7 @@ from agent_runtime.model.contracts import (
     TInput,
     TOutput,
 )
+from agent_runtime.observation import model_call_failed, model_call_started, model_call_succeeded
 
 
 class FrozenModelTaskRegistry:
@@ -65,6 +66,7 @@ class BoundedStructuredModelGateway:
         input: TInput,
         context: ModelCallContext,
     ) -> ModelTaskResult[TOutput]:
+        observation_id: int | None = None
         erased_definition = cast(ModelTaskDefinition[Any, Any], definition)
         if not self._registry.owns(erased_definition) or type(input) is not definition.input_type:
             return ModelTaskResult(failure_kind=ModelProviderFailureKind.INPUT_DENIED)
@@ -88,20 +90,28 @@ class BoundedStructuredModelGateway:
                         self._waiting -= 1
                         queued = False
                     request = definition.build_request(input)
+                    observation_id = model_call_started(request)
                     response = await self._transport.complete(request, call_deadline=call_deadline)
                     output = definition.parse_response(response)
+                    model_call_succeeded(observation_id)
             return ModelTaskResult(output=output)
         except asyncio.CancelledError:
+            model_call_failed(observation_id, "cancelled")
             raise
         except TimeoutError:
+            model_call_failed(observation_id, ModelProviderFailureKind.PROVIDER_TIMEOUT.value)
             return ModelTaskResult(failure_kind=ModelProviderFailureKind.PROVIDER_TIMEOUT)
         except ModelInputDenied:
+            model_call_failed(observation_id, ModelProviderFailureKind.INPUT_DENIED.value)
             return ModelTaskResult(failure_kind=ModelProviderFailureKind.INPUT_DENIED)
         except InvalidModelOutput:
+            model_call_failed(observation_id, ModelProviderFailureKind.INVALID_OUTPUT.value)
             return ModelTaskResult(failure_kind=ModelProviderFailureKind.INVALID_OUTPUT)
         except ModelTransportError as exc:
+            model_call_failed(observation_id, exc.kind.value)
             return ModelTaskResult(failure_kind=exc.kind)
         except Exception:
+            model_call_failed(observation_id, ModelProviderFailureKind.PROVIDER_FAILURE.value)
             return ModelTaskResult(failure_kind=ModelProviderFailureKind.PROVIDER_FAILURE)
         finally:
             if queued:

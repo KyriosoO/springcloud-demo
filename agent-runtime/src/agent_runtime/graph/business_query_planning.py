@@ -44,6 +44,7 @@ from agent_runtime.model.contracts import (
     QuestionEgressDisposition,
 )
 from agent_runtime.model.input_guard import QuestionEgressGuard
+from agent_runtime.observation import record_plan
 
 
 _TERMINAL_STATUSES = frozenset(
@@ -177,6 +178,12 @@ class BusinessQueryPlanningNode:
                 snapshot=input.config_snapshot,
             )
             if isinstance(validated, UnsupportedBusinessQueryPlan):
+                record_plan(
+                    plan_type="business_query_plan",
+                    source="llm",
+                    validation_status="unsupported",
+                    plan=payload,
+                )
                 if validated.config_snapshot_id != snapshot_id:
                     return _terminal(
                         CapabilityStatus.INTERNAL_FAILURE,
@@ -194,6 +201,12 @@ class BusinessQueryPlanningNode:
                     "business.plan_snapshot_mismatch",
                     snapshot_id,
                 )
+            record_plan(
+                plan_type="business_query_plan",
+                source="llm",
+                validation_status="accepted",
+                plan=payload,
+            )
             if _planning_timed_out(input):
                 return _terminal(
                     CapabilityStatus.TIMEOUT,

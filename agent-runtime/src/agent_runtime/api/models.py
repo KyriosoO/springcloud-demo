@@ -150,6 +150,79 @@ class RuntimeInvokeResponse(StrictTransportModel):
         return self
 
 
+class ObservedModelCall(StrictTransportModel):
+    sequence: int = Field(ge=1)
+    task_id: str = Field(alias="taskId", min_length=1, max_length=64)
+    task_version: str = Field(alias="taskVersion", min_length=1, max_length=64)
+    request: dict[str, Any]
+    status: Literal["started", "succeeded", "failed"]
+    failure_kind: str | None = Field(alias="failureKind", max_length=64)
+
+    @model_validator(mode="after")
+    def validate_semantics(self) -> Self:
+        if self.status == "failed" and self.failure_kind is None:
+            raise ValueError("runtime.observation_model_call_invalid")
+        if self.status != "failed" and self.failure_kind is not None:
+            raise ValueError("runtime.observation_model_call_invalid")
+        return self
+
+
+class ObservedPlan(StrictTransportModel):
+    sequence: int = Field(ge=1)
+    type: Literal["business_query_plan", "knowledge_retrieval_plan"]
+    source: Literal["llm", "runtime_after_rewrite"]
+    validation_status: Literal["accepted", "unsupported"] = Field(alias="validationStatus")
+    plan: dict[str, Any]
+
+
+class ObservedDownstreamCall(StrictTransportModel):
+    sequence: int = Field(ge=1)
+    target: str = Field(min_length=1, max_length=80)
+    operation: str = Field(min_length=1, max_length=80)
+    method: Literal["GET", "POST"]
+    relative_path: str = Field(alias="relativePath", min_length=1, max_length=256)
+    request: dict[str, Any]
+    status: Literal[
+        "started",
+        "completed",
+        "cancelled",
+        "timeout",
+        "transport_failure",
+        "protocol_failure",
+        "response_too_large",
+        "tls_or_connect",
+    ]
+    http_status: int | None = Field(alias="httpStatus", ge=100, le=599)
+    duration_ms: int | None = Field(alias="durationMs", ge=0, le=120000)
+
+    @model_validator(mode="after")
+    def validate_semantics(self) -> Self:
+        if self.status == "started" and (self.http_status is not None or self.duration_ms is not None):
+            raise ValueError("runtime.observation_downstream_invalid")
+        if self.status != "started" and self.duration_ms is None:
+            raise ValueError("runtime.observation_downstream_invalid")
+        if self.status == "completed" and self.http_status is None:
+            raise ValueError("runtime.observation_downstream_invalid")
+        if self.status != "completed" and self.http_status is not None:
+            raise ValueError("runtime.observation_downstream_invalid")
+        return self
+
+
+class RuntimeInspectResponse(RuntimeInvokeResponse):
+    model_calls: tuple[ObservedModelCall, ...] = Field(alias="modelCalls", max_length=8)
+    plans: tuple[ObservedPlan, ...] = Field(max_length=4)
+    downstream_calls: tuple[ObservedDownstreamCall, ...] = Field(alias="downstreamCalls", max_length=32)
+
+    @model_validator(mode="after")
+    def validate_observation_sequences(self) -> Self:
+        sequences = [item.sequence for item in self.model_calls]
+        sequences.extend(item.sequence for item in self.plans)
+        sequences.extend(item.sequence for item in self.downstream_calls)
+        if len(sequences) != len(set(sequences)):
+            raise ValueError("runtime.observation_sequence_invalid")
+        return self
+
+
 class RuntimeProtocolError(StrictTransportModel):
     contract_version: Literal[1] = Field(alias="contractVersion")
     code: Literal["runtime.protocol_error", "runtime.internal_error"]

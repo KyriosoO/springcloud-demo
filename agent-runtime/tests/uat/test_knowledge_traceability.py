@@ -18,7 +18,7 @@ def test_knowledge_functional_uat_traceability_closes_all_37_cases() -> None:
     assert isinstance(cases, list)
     assert len(cases) == 37
     assert {item["status"] for item in cases} == {"passed"}
-    assert value["authority"] == "UAT_01 v1.12"
+    assert value["authority"] == "UAT_01 v1.13"
     assert value["functionalConclusion"] == "passed"
     effectiveness = value["effectiveness"]
     assert isinstance(effectiveness, dict)

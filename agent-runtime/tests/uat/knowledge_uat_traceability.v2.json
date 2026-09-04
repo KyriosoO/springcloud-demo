@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "suiteId": "single-agent-knowledge-functional-uat-v2",
-  "authority": "UAT_01 v1.12",
+  "authority": "UAT_01 v1.13",
   "functionalConclusion": "passed",
   "effectiveness": {
     "latestValid": {

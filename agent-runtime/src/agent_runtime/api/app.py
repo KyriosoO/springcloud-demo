@@ -9,9 +9,9 @@ from fastapi import FastAPI, Header, Request
 
 from agent_runtime.api.errors import RuntimeProtocolExceptionHandlers
 from agent_runtime.api.health import router as health_router
-from agent_runtime.api.ingress import RuntimeInvoker, invoke_agent
+from agent_runtime.api.ingress import RuntimeInvoker, inspect_agent, invoke_agent
 from agent_runtime.api.limits import MaxBodyBytesMiddleware, RuntimeRequestLimiter
-from agent_runtime.api.models import RuntimeInvokeRequest, RuntimeInvokeResponse
+from agent_runtime.api.models import RuntimeInspectResponse, RuntimeInvokeRequest, RuntimeInvokeResponse
 from agent_runtime.api.settings import RuntimeHttpSettings
 
 RuntimeFactory: TypeAlias = Callable[[], RuntimeInvoker | Awaitable[RuntimeInvoker]]
@@ -71,6 +71,31 @@ def create_app(settings: RuntimeHttpSettings, runtime_factory: RuntimeFactory) -
         if not request.app.state.ready or runtime is None:
             raise RuntimeError("runtime.not_ready")
         return await invoke_agent(
+            request,
+            payload,
+            authorization,
+            x_agent_contract_version,
+            runtime,
+            limiter,
+            disconnect_poll_s=settings.disconnect_poll_ms / 1000,
+        )
+
+    @app.post(
+        "/internal/v1/agent-runs:inspect",
+        response_model=RuntimeInspectResponse,
+        response_model_by_alias=True,
+        status_code=200,
+    )
+    async def inspect_route(
+        request: Request,
+        payload: RuntimeInvokeRequest,
+        authorization: str = Header(alias="Authorization"),
+        x_agent_contract_version: str = Header(alias="X-Agent-Contract-Version"),
+    ) -> RuntimeInspectResponse:
+        runtime = cast(RuntimeInvoker, request.app.state.runtime)
+        if not request.app.state.ready or runtime is None:
+            raise RuntimeError("runtime.not_ready")
+        return await inspect_agent(
             request,
             payload,
             authorization,

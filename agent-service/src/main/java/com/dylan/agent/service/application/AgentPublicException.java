@@ -43,6 +43,11 @@ public final class AgentPublicException extends RuntimeException {
                 "downstream.runtime_timeout", FailureSource.DOWNSTREAM);
     }
 
+    public static AgentPublicException inspectionDisabled() {
+        return new AgentPublicException(HttpStatus.FORBIDDEN, CapabilityStatus.FORBIDDEN,
+                "core.agent_inspection_disabled", FailureSource.CORE);
+    }
+
     public static AgentPublicException internalFailure() {
         return new AgentPublicException(HttpStatus.INTERNAL_SERVER_ERROR, CapabilityStatus.INTERNAL_FAILURE,
                 "core.internal_failure", FailureSource.CORE);

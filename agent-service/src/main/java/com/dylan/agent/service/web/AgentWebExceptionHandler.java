@@ -29,7 +29,8 @@ public final class AgentWebExceptionHandler implements ErrorWebExceptionHandler,
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable error) {
-        if (!"/api/v1/agent/queries".equals(exchange.getRequest().getPath().value())) {
+        String path = exchange.getRequest().getPath().value();
+        if (!"/api/v1/agent/queries".equals(path) && !"/api/v1/agent/query-runs".equals(path)) {
             return Mono.error(error);
         }
         if (error instanceof AgentPublicException publicError) {

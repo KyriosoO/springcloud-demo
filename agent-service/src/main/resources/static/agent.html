@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent 运行验证台</title>
+    <style>
+        :root { color-scheme: light; font-family: Inter, "Microsoft YaHei", sans-serif; }
+        body { margin: 0; background: #f4f6f8; color: #17212b; }
+        main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; }
+        h1 { margin: 0 0 6px; font-size: 28px; }
+        .subtitle { margin: 0 0 22px; color: #52606d; }
+        .card { background: #fff; border: 1px solid #dfe3e8; border-radius: 10px; padding: 18px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(23,33,43,.05); }
+        .card h2 { margin: 0 0 12px; font-size: 17px; }
+        textarea { box-sizing: border-box; width: 100%; min-height: 96px; resize: vertical; border: 1px solid #aab4be; border-radius: 7px; padding: 12px; font: inherit; }
+        .toolbar { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+        button { border: 0; border-radius: 7px; padding: 10px 18px; cursor: pointer; background: #1769aa; color: #fff; font-weight: 600; }
+        button.secondary { background: #5f6c7b; }
+        button:disabled { cursor: wait; opacity: .6; }
+        .status { color: #52606d; font-size: 14px; }
+        pre { margin: 0; padding: 14px; min-height: 46px; overflow: auto; border-radius: 7px; background: #111827; color: #d1e7ff; white-space: pre-wrap; word-break: break-word; }
+        .empty { color: #93a1af; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { border: 1px solid #dfe3e8; padding: 8px; text-align: left; vertical-align: top; }
+        th { background: #f7f8fa; }
+        .notice { padding: 10px 12px; margin-bottom: 16px; border-left: 4px solid #d9822b; background: #fff7e6; color: #6b4f1d; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Agent 运行验证台</h1>
+    <p class="subtitle">查看一次请求在既有生产执行图中的安全结构化投影。</p>
+    <div class="notice">本页面不展示 JWT、API Key、未授权知识正文、原始证据正文、向量值、受保护标识或模型原始响应；Knowledge 加工后文本只显示最终响应中已经授权并通过引用校验的摘要。下游请求为 Adapter/Provider 逻辑请求，不是 SQL 或 ES DSL。</div>
+
+    <section class="card">
+        <h2>1. 用户问题</h2>
+        <textarea id="question" maxlength="4096" placeholder="例如：帮我查一下在上海的员工"></textarea>
+        <div class="toolbar">
+            <button id="run" type="button">执行并观察</button>
+            <button id="clear" class="secondary" type="button">清空</button>
+            <span id="status" class="status">等待输入</span>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>2. 发送给 LLM 的请求（安全结构化投影）</h2>
+        <pre id="modelCalls" class="empty">尚无数据</pre>
+    </section>
+
+    <section class="card">
+        <h2>3. 结构化 Plan</h2>
+        <pre id="plans" class="empty">尚无数据</pre>
+    </section>
+
+    <section class="card">
+        <h2>4. 下游查询请求</h2>
+        <pre id="downstreamCalls" class="empty">尚无数据</pre>
+    </section>
+
+    <section class="card">
+        <h2>5. Knowledge 证据摘要（加工后文本）</h2>
+        <pre id="processedText" class="empty">尚无数据</pre>
+    </section>
+
+    <section class="card">
+        <h2>6. 完整结构化结果</h2>
+        <div id="resultTable"></div>
+        <pre id="result" class="empty">尚无数据</pre>
+    </section>
+</main>
+<script>
+    const question = document.getElementById('question');
+    const runButton = document.getElementById('run');
+    const statusText = document.getElementById('status');
+    const fields = ['modelCalls', 'plans', 'downstreamCalls', 'result'];
+
+    function renderJson(id, value) {
+        const element = document.getElementById(id);
+        const empty = value == null || (Array.isArray(value) && value.length === 0);
+        element.textContent = empty ? '尚无数据' : JSON.stringify(value, null, 2);
+        element.classList.toggle('empty', empty);
+    }
+
+    function renderResultTable(result) {
+        const host = document.getElementById('resultTable');
+        host.replaceChildren();
+        if (!result || !Array.isArray(result.records) || result.records.length === 0) return;
+        const keys = [...new Set(result.records.flatMap(row => Object.keys(row.fields || {})))];
+        const table = document.createElement('table');
+        const head = document.createElement('tr');
+        keys.forEach(key => {
+            const th = document.createElement('th');
+            th.textContent = key;
+            head.appendChild(th);
+        });
+        table.appendChild(head);
+        result.records.forEach(record => {
+            const row = document.createElement('tr');
+            keys.forEach(key => {
+                const cell = document.createElement('td');
+                const value = (record.fields || {})[key];
+                cell.textContent = value == null ? '' : String(value);
+                row.appendChild(cell);
+            });
+            table.appendChild(row);
+        });
+        host.appendChild(table);
+    }
+
+    function renderProcessedText(result) {
+        const element = document.getElementById('processedText');
+        const summary = result && typeof result.answerSummary === 'string'
+            ? result.answerSummary.trim()
+            : '';
+        element.textContent = summary || '尚无数据';
+        element.classList.toggle('empty', !summary);
+    }
+
+    function clearOutput() {
+        fields.forEach(id => renderJson(id, null));
+        renderProcessedText(null);
+        document.getElementById('resultTable').replaceChildren();
+        statusText.textContent = '等待输入';
+    }
+
+    runButton.addEventListener('click', async () => {
+        const value = question.value.trim();
+        if (!value) {
+            statusText.textContent = '请输入问题';
+            question.focus();
+            return;
+        }
+        clearOutput();
+        runButton.disabled = true;
+        statusText.textContent = '执行中…';
+        try {
+            const response = await fetch('/api/v1/agent/query-runs', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: value})
+            });
+            const contentType = response.headers.get('content-type') || '';
+            const payload = contentType.includes('application/json')
+                ? await response.json()
+                : {status: 'http_error', error: {code: `http.${response.status}`}};
+            const modelRequests = (payload.modelCalls || []).map(call => ({
+                sequence: call.sequence,
+                taskId: call.taskId,
+                taskVersion: call.taskVersion,
+                status: call.status,
+                failureKind: call.failureKind,
+                request: call.request
+            }));
+            renderJson('modelCalls', modelRequests);
+            renderJson('plans', payload.plans || []);
+            renderJson('downstreamCalls', payload.downstreamCalls || []);
+            const finalResult = {
+                requestId: payload.requestId,
+                correlationId: payload.correlationId,
+                status: payload.status,
+                capabilityId: payload.capabilityId,
+                answer: payload.answer,
+                result: payload.result,
+                error: payload.error
+            };
+            renderProcessedText(payload.result);
+            renderResultTable(payload.result);
+            renderJson('result', finalResult);
+            statusText.textContent = `${response.status} · ${payload.status || 'unknown'}`;
+        } catch (error) {
+            renderJson('result', {status: 'client_error', message: String(error)});
+            statusText.textContent = '请求失败';
+        } finally {
+            runButton.disabled = false;
+        }
+    });
+
+    document.getElementById('clear').addEventListener('click', () => {
+        question.value = '';
+        clearOutput();
+        question.focus();
+    });
+</script>
+</body>
+</html>

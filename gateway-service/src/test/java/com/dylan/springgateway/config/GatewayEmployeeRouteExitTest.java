@@ -39,8 +39,15 @@ class GatewayEmployeeRouteExitTest {
         List<Route> routes = routes();
 
         assertThat(routes).extracting(Route::getId).contains(
-                "hello_route", "ws_route", "auth_route", "direct_route",
+                "agent_route", "hello_route", "ws_route", "auth_route", "direct_route",
                 "mq_route", "workflow");
+        assertThat(matchingRouteIds(routes, "/agent.html")).containsExactly("agent_route");
+        assertThat(matchingRouteIds(routes, "/api/v1/agent/query-runs"))
+                .containsExactly("agent_route", "hello_route");
+        assertThat(routes.stream().map(Route::getId).toList().indexOf("agent_route"))
+                .isLessThan(routes.stream().map(Route::getId).toList().indexOf("hello_route"));
+        assertThat(routes.stream().filter(route -> "agent_route".equals(route.getId())).findFirst().orElseThrow()
+                .getFilters()).isEmpty();
         assertThat(matchingRouteIds(routes, "/workflows/42")).containsExactly("workflow");
     }
 

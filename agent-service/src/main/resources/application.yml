@@ -2,13 +2,13 @@ spring:
   application:
     name: agent-service
   config:
-    import: optional:configserver:http://127.0.0.1:8888
+    import: optional:configserver:http://127.0.0.1:9888
   jackson:
     deserialization:
       fail-on-unknown-properties: true
 
 server:
-  port: 8090
+  port: 8092
   max-http-request-header-size: 32KB
 
 agent:
@@ -24,6 +24,8 @@ agent:
     contract-version: 1
     connect-timeout: 1s
     max-response-bytes: 393216
+  inspection:
+    enabled: false
 
 management:
   endpoint:

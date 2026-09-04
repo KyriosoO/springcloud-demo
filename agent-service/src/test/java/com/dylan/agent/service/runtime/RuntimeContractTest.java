@@ -84,6 +84,29 @@ class RuntimeContractTest {
                 .expectError(RuntimeClientException.class).verify();
     }
 
+    @Test
+    void inspectionContractAcceptsSafeProjectionAndRejectsCredentialKeys() {
+        String valid = """
+                {"contractVersion":1,"requestId":"%s","status":"unsupported",
+                 "capabilityId":null,"answerText":"unsupported","userResult":null,
+                 "failure":{"code":"core.no_enabled_capability","source":"core"},
+                 "modelCalls":[{"sequence":1,"taskId":"business_query_plan","taskVersion":"v1",
+                   "request":{"input":{"question":"上海员工"}},
+                   "status":"failed","failureKind":"invalid_output"}],
+                 "plans":[],"downstreamCalls":[]}
+                """.formatted(requestId());
+        String credential = valid.replace(
+                "{\"input\":{\"question\":\"上海员工\"}}",
+                "{\"authorization\":\"Bearer secret\"}");
+
+        StepVerifier.create(client.decodeInspectResponse(json(HttpStatus.OK, valid), requestId()))
+                .assertNext(response -> assertThat(response.modelCalls()).hasSize(1))
+                .verifyComplete();
+        StepVerifier.create(client.decodeInspectResponse(json(HttpStatus.OK, credential), requestId()))
+                .expectError(RuntimeClientException.class)
+                .verify();
+    }
+
     private void assertStatus(int status, String code) {
         ClientResponse response = ClientResponse.create(HttpStatus.valueOf(status))
                 .header("Content-Type", "application/json")
