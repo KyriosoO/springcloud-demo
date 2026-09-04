@@ -1084,3 +1084,66 @@ KB-015a在旧/新两条记录中，各试验均分别保持lodging/living为2/4�
 | `git diff --check`；`git diff --cached --check`；逐文件暂存差异复核 | 仅本节及两个诊断测试文件；无生产src、配置、索引/alias或用户无关改动 |
 
 当前QUALITY仍Blocked、UAT仍Deferred、B-CR-001仍Major/Open；run-04终态与2通过/1失败/7未执行不变。本轮没有新run或付费请求，架构及UAT语义不变，不新增Gate或无关版本升级。本测试诊断增量不重复Maven/AST；没有新的Spring真实服务或效果UAT，不能用上述non-live通过替代。提交SHA及推送状态由Git日志与本次交付报告记录。
+
+### 20.21 只读补证：问题聚焦、总条数与同文档配额
+
+起始HEAD=`ff7cf53ed8d831df02ad0b4287b8ad94b2273f74`，工作树clean。该增量只做离线诊断和当前合同反例测试，不是第五批UAT、历史重跑或生产算法修订。没有读取LLM_API_KEY、创建新run、启动/停止服务或写索引。原run-04终态和六项hash不变。
+
+读取Stage A外部受控workspace的build/chunk有限元数据，再对当前a5物理索引执行限定到KB-004冻结73个chunk的只读检查。UUID仍为`SurWRSglRd6ZRddEBWy2Sw`；73份实际content按服务合同计算NFC/UTF-8 SHA-256，全部与冻结候选hash一致。初次误用物理contentHash比较失败；Java `KnowledgeSearchService.mapCandidate`实际返回现算正文hash，改按该合同核对后通过，不能把此前诊断误差描述为索引变更。没有保存正文、完整BGE响应、向量、凭据或真实业务数据。
+
+#### 20.21.1 已确认与未确认的根因
+
+| 观察 | 结论与证据强度 | 不得外推的结论 |
+|---|---|---|
+| 原final第9的lodging为58字符/172 UTF-8 bytes；前8已全部入选，其中同文档仅1条 | 强：原遗漏首先由总8条限制触发，不是该条的同文档3条配额。已有8条原文合计约13.4KB；小条款位于第9不能绕过总数 | 不能因此提高总8或32KB，也未重放原始Summary输入全部metadata字节 |
+| 固定39个policy候选，仅改变本地BGE query，人写的三种聚焦表达使lodging第1、living第3～4；均不含无关法律/税率词 | 强：该候选集的重排对问题表达敏感；中：提示每域聚焦可能改善候选顺序 | 原run-04未保留模型query，不能断言当时模型生成了哪一句，更不能把人工表达当作LLM UAT通过 |
+| 保留“增值税”的两种聚焦表达，living仍第27/13；原用户整问对照第26 | 强：在同一39候选中，强制保留领域词面不是可靠的相关性保护；领域ID与原问题仍可保留背景 | 只测试有限表达；不能认定所有带税务词的问题都会失败或建议本地删词规则 |
+| 采用第一次聚焦表达及域内rerank优先轮转的手工反事实，lodging全局第1、living第7、law_rate第2；living是同一文档第4个候选 | 强：在该反事实中，第7条会被现行每文档3条限制排除；这是不同于原运行的选择损失 | 不是原运行遗漏原因，也不是完整新流水线：law顺序冻结、未重新检索/摘要，未模拟全部payload bytes |
+| 检查短片段是否为必要条款的通用标题/前缀，未得到可稳定删除的关系 | 证据不足：不采用短文本长度黑名单、酒店关键词、文档ID或未经证明的标题删除 | 不把“短”直接当作无用或重复，更不修改Stage A切片/正文 |
+
+本次local BGE诊断共7次、只读ES HTTP共9次（含UUID及有限metadata/content校验）；外部模型、typed Knowledge search、embedding、Business、answer、retry/resume均0。前4次是聚焦表达及选择反事实，后3次是含税务词和原问题对照；不是请求预算补跑，不写任何历史运行计数。全部读取只发生在诊断工具上下文，Agent生产路径仍只访问es-query-service。
+
+用于复核的人工诊断表达如下，均不是已恢复的模型输出。输入限同一39个policy候选，BGE返回model=`BAAI/bge-reranker-v2-m3`，index唯一、文本与内存输入一致、分数有限；输出只记录名次。首行执行两次，第二次用于上述选择反事实，其余各一次；不以这些表达创建逐句在线规则。
+
+| 人工诊断query | lodging域内名次 | living域内名次 |
+|---|---:|---:|
+| 住宿服务的政策分类 | 1 | 4 |
+| 住宿服务属于哪类服务 | 1 | 4 |
+| 住宿服务是指什么 | 1 | 3 |
+| 住宿服务的政策分类和增值税法的税率规定是什么？ | 8 | 26 |
+| 增值税中住宿服务的政策分类及定义 | 1 | 27 |
+| 增值税中住宿服务属于哪类服务 | 1 | 13 |
+
+#### 20.21.2 设计取舍及授权边界
+
+当前`DR-KRET-027`要求关键词首位和rerank首位为强制锚点；`DR-KEV-026`明确每文档3/总8/32768bytes。当前代码符合这两条合同，不能把现有配额行为直接修成代码bug。`DR-KEV-017/027`的语义完整性主要由模型指令及UAT约束；§9.4又明确validator不做语义覆盖判定，输入domain coverage不能冒充答案完整性。
+
+| 候选处理 | 范围与判断 | 当前状态 |
+|---|---|---|
+| 仅放大topK或调整RRF权重 | §20.20未证明可让全部必要Evidence入选；增加窗口不解决同文档配额 | 不建议无证据实施 |
+| 每域query只聚焦分配给该域的子问题，由逻辑domain与原问题维持背景 | 保持V3 exact形状、显式日期/数字/否定/纳税条件Guard；若采用必须新Rewrite版本及评审，不能用本地删词或关键字纠域 | 有限本地证据支持继续设计；尚未批准或实施 |
+| 以rerank相关性代替强制关键词锚点，并重新评估同文档硬配额 | 会改变DR-KRET-027/DR-KEV-026；即便保持总8/32KB、读取/出域/引用不变，也改变现行每文档限制，存在单文档挤占和错误高排名风险 | 方案选择待确认，不直接把3改8，不放宽现行validator |
+| 引入要点规划/证据簇或额外模型选择器 | 新合同及调用面更大，当前证据不足以证明必要 | 暂不采用，避免为单例建新流程 |
+
+需要确认的最小边界：是否允许把“同文档最多3条”作为质量选择策略重新设计，而非不可调整的硬约束。若允许，先在已授权Knowledge L1及L2_01_00/01/02、P3/UAT范围内比较有界替代方案，完成三轮内审及正式复评，再实施；总8、32768bytes、5points、512字符quote、读取授权、三层出域、连续子串、唯一ref与历史资产仍不得放宽。该确认不包含新付费批次。当前没有采用或批准新的方案。
+
+#### 20.21.3 可复现合同反例与检查
+
+新增`tests/unit/knowledge/evidence/test_stage_b_selection_counterexamples.py`，只用合成公开文本和匿名文档组调用现行真实IntegrityVerifier/Selector，8项覆盖：原观察顺序形状的总数阻断、聚焦反事实形状的文档配额阻断、同文档3/4/5条与域覆盖不等于答案覆盖、锚点不能绕过配额/字节，以及全部现行上限不变。测试不调用网络、不读gold/真实正文、不修改限额；不是原运行的全文/字节/语义重放。
+
+首次源码树pytest因未显式安装/设置src而收集失败，改用命令进程内PYTHONPATH；不改全局环境。随后一项字节fixture过长，被已有candidate合法性检查先拒绝，改为4条各自合法、合计越界的合成片段，保持原字节断言，未放宽生产规则。新增反例、当前排序和原排名重放组合38 passed。后续最终回归、定向对照、hash与Git结果在本节末补充。
+
+仅执行上述边界的定向设计核查：现行代码对配额/锚点合同符合；“这些启发式保证问题所需条款完整”证据不足，不能据此给整个设计通过结论。QUALITY仍Blocked、UAT仍Deferred、B-CR-001仍Open；新方案的三轮内审、正式设计/代码评审及真实专项UAT尚未完成。
+
+本增量定向代码对照1轮、修复后复核1轮：检查DR-KEV-003/026、匿名合成fixture、原文/网络零依赖、先Integrity后Selector及历史保护。发现新fixture仍沿用单域successful_paths，已按选中域补齐两条路径；锚点反例也限定每域两个，避免用不可能的上游形状证明配额问题。定向复核符合当前合同；不作整体代码评审通过判断。没有语义性L1/L2修改或新设计批准，P3保持v2.47，仅追加诊断与执行记录。
+
+| 本轮最终命令/检查 | 实际结果 |
+|---|---|
+| `python -m pytest tests/unit/knowledge/evidence/test_stage_b_selection_counterexamples.py -q --tb=short` | 8 passed（0.08秒）；命令进程内PYTHONPATH指向src |
+| 上述文件 + `tests/unit/knowledge/retrieval/test_quality_ranking.py` + `tests/system_e2e/test_knowledge_stage_b_rank_replay.py` | 38 passed（0.21秒） |
+| `pwsh -NoProfile -File scripts/run-nonlive-regression.ps1` | 正式临时隔离安装：host/preflight14 passed（3.40秒），全量1939 passed/27 opt-in skipped/0 failed（226.46秒），1条既有LangGraph预告；脚本退出0 |
+| `python -m mypy --strict src`；`python -m compileall -q src tests/unit/knowledge/evidence/test_stage_b_selection_counterexamples.py` | 125个生产文件类型通过；编译通过 |
+| P3 `--strict`、`git diff --check` | 0 errors/0 warnings；差异检查通过 |
+| 四批历史/P5/Stage A最终hash、生产src差异、有限token模式扫描 | 历史回归及Stage A四项精确hash通过；生产src无差异；目标文件无凭据/JWT模式命中 |
+
+Java、公共接口、生产配置及PowerShell无改动，本增量没有重跑Maven、Spring真实入口或AST；不能以Python回归替代尚未执行的专项7例。当前只提交本节及合成反例测试，提交/推送SHA以Git日志和交付报告为准。
