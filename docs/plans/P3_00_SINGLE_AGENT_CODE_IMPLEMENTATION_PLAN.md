@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.44 |
+| 当前版本 | v2.45 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-04 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -40,7 +40,7 @@ v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件E
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.17 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.18 | 单动作、共享V3合同与V4澄清边界增量、发布后只读快照消费 | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.19 | 单动作、共享V3合同、V4澄清及V5最小必要域、发布后只读快照消费 | Approved |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.7 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.18 | Evidence/出域、Summary V4 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
@@ -907,3 +907,9 @@ Business/answer/retry/resume始终0。先协议三轮内审及只读设计评审
 本轮验证中的准备问题未隐藏：P3 Ready队列先改而工作包表仍Deferred，strict报READY-004，原子同步后三表一致；新增历史测试误估资产290项，首轮50 passed/1 failed，按实际冻结manifest和Git逐项核实为297后精确断言通过，没有改manifest或削弱源码hash检查。归档暂存时发现默认text换行转换将改变6项证据，在提交前沿用前两批的精确目录binary规则，仅追加`.gitattributes`的run-03一行；对6个精确路径重新应用归档属性后，暂存blob与运行原始字节逐项完全相等。没有修改旧规则、运行文件或哈希。
 
 运行后代码/证据对照评审1轮（本增量准备及运行后共2次），发现B-R3-001：默认Git行尾归一化破坏新历史字节可复现性；上述binary隔离与暂存blob对照完成最小修复并复评关闭。当前新增runner/诊断/历史归档无未关闭Blocker/Major/Minor；整体B-CR-001仍Open、阶段B未完成。该评审是本执行者的分阶段对照审查，不冒充独立人员批准。Java源码/接口/权限及PowerShell没有修改，本次不重复Maven/AST；实际Spring→Runtime受控执行已完成上述两个case，其余8个未执行边界保留。
+
+### 20.15 非live选域边界修复
+
+起始HEAD为`a03f6ec6ffb6fe95f394f7be022722e04b008bfd`，工作树clean。继续原目标内非live修复，不构成run-04或任何新增模型请求授权。依据§20.14，先处理有直接依据的域语义风险，摘要必要条款覆盖仍单独保留：原问题限定政策定义，两个必要chunk已到模型，不能用扩大topK解决。`B-DOM-001`：V4的域指令没有明确区分税务背景与必要原文类别；本地接受合法双域符合现有decoder，不应增加本地关键词删域。
+
+最小方案由L2_01_00 v1.19 DR-KFLOW-020治理：新增Rewrite V5指令、保持V3 exact合同/V4澄清、切换当前单绑定；Summary、排序、Evidence与全部冻结资产不变。三轮内审及只读设计复评已完成（同一执行者分阶段，不冒充另一人），strict首轮发现DR追踪行遗漏，补齐规范矩阵后0 errors/0 warnings。允许该切片非live实施；没有新门禁或付费候选。现有IMPLEMENT/NONLIVE的Done记录仍仅证明先前DR-019范围；DR-020代码和验证在本节后续记录前不得算Done。UAT Deferred、QUALITY Blocked、B-CR-001 Open不变。
