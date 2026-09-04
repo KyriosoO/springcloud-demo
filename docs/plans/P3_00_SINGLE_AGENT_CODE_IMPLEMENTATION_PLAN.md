@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.45 |
+| 当前版本 | v2.46 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-04 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -17,6 +17,8 @@
 v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrite V2 精确 JSON 输出合同。v2.35 依据 ROADMAP_01 阶段 A 新增语料只读审计、版本化处理、候选索引、发布回滚和专项 UAT 工作包，并把入口门禁与 alias 发布门禁拆开以消除循环。v2.36 依据审计 v1 的实际失败修复来源可达性、正文完整性、人工优先级和精确预算边界。v2.37～v2.38 如实保留早期 candidate/UAT 及严格合同复评。v2.39 修复 legacy DOC 扁平解析导致条款关系缺失的问题并保留结构化 a4 中间候选。v2.40 将网络/损坏容器异常收敛为逐资产有限失败，以最终工具源码重建 Stage A corpus candidate-08/a5，并用 UAT/release attempt-05 完成发布收口；v2.41 修正 catalog Git/LF 分发哈希，增加历史评估输入的精确只读镜像，并让历史测试辅助层在临时仓库内复原已授权换行字节，使正式隔离回归可由干净检出复现。阶段 B 仍独立阻塞。
 
 v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件Evidence配额和分域主题词语义；根因和逐轮复评见§20.4。已通过基线仍有效，受影响增量在复评通过前暂停，不新增付费候选。
+
+v2.46 承接用户对§20.16方案A的明确确认，先修订并评审Summary V5分类上下文证明语义，再实施和non-live验证。不构成新真实运行授权；实施/专项UAT/最终评审状态分别记录。
 
 ## 2. 目标、范围与计划原则
 
@@ -39,12 +41,12 @@ v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件E
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.17 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.19 | 单动作、共享V3合同、V4澄清及V5最小必要域、发布后只读快照消费 | Approved |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.18 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.20 | 单动作、共享V3合同、V4澄清及V5最小必要域、发布后只读快照消费 | Approved |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.7 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.18 | Evidence/出域、Summary V4 及阶段 A 策略快照兼容 | Approved |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.19 | Evidence/出域、Summary V5增量设计 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.21 | Knowledge 功能/效果及阶段 A 语料专项验收 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Knowledge 功能/效果及阶段 A 语料专项验收 | Reviewed |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -949,3 +951,15 @@ DR-020的IMPLEMENT/NONLIVE切片现已完成；GATE-KRG-006保持仅实现入口
 按实现技能的focused路径只补充已批准§9.2的证明边界测试，再进行一次定向代码对照复核：测试没有放宽validator、调用模型或改判历史，未发现该测试增量的新增代码问题。此次无架构/L2语义修订，无整份设计或阶段B正式通过结论；阶段B核心UAT及整体评审仍未完成。
 
 下一步有两种不同影响范围，尚未采用：A，保持原问句及双条款gold，明确与答案相关的显式分类上下文也须证据支持，然后先修订L1/L2并评审新的Summary任务（旧V4和validator不改）；B，另立明确询问“定义及所属分类依据”的新问题，同样保留两条款要求，不能覆盖旧case或声称同题效果改善。不得自行把原gold减为单条，不得在看到结果后修改本批问题或规则。为保持原验收目标，优先建议A，但其分类上下文语义需确认后再实施，不能仅在下位Prompt中暗改。无论选择哪项，都不授权自动开启新付费批次。UAT仍Deferred、QUALITY仍Blocked、B-CR-001仍Open；本轮新增全部真实调用0，累计计数不变，无run-04。
+
+### 20.17 Summary V5 分类上下文证明切片
+
+起始HEAD为 `993321ba1c8e0cba8da5136492cd99f12ee1bbb0`，工作树clean。用户明确采用§20.16方案A，授权恢复L1/L2语义修订、评审和非live实施；该回复不包含新付费批次。上位需求/L0的本次授权原文支持原则不变；唯一语义权威为L1_01 KQ-AD-017→L2_01_02 DR-KEV-027，组合根由L2_01_00 DR-KFLOW-012消费，不在P3复制规则。
+
+本切片按“设计→三轮内审→只读独立复评→Summary V5与单绑定→合同/集成/历史/全量验证→代码复评”推进；不新增工作包或门禁。GATE-KRG-006仍仅为实现入口Closed，既有IMPLEMENT/NONLIVE Done只证明其已记录切片；本增量未验证前不计Done。UAT Deferred、QUALITY Blocked、整体B-CR-001 Open。真实效果须以后续新绑定授权验证，累计预算不因任务升级重置。
+
+初始待验证落点：新task文件、bootstrap唯一Summary5与旧版本拒绝、当前测试迁移及历史测试作用域隔离。V1～V4、validator、case/gold、run-01～03、阶段A资产全部只读；无需Java/HTTP/Schema、索引、策略或额外模型任务变化。只提交本目标文件。
+
+三轮内审已完成：第1轮核对用户原意→L0原文支持→KQ-AD-017，明确只覆盖相关显式类别、无关背景不扩展且单条足够时不凑双引；第2轮核对V4公开definition、输入/Prompt/quote预算及validator职责，明确分类清单必须保留归属上下文、不能拼接同ref，修复流程实施范围仍排除Summary的旧表述；第3轮核对测试/gold/历史/DAG与缺证据状态，strict发现DR-KEV-027未列入规则目录，补齐后通过。
+
+随后冻结内容、按design-doc-review执行L1→L2→跨层只读复评：KQ-AD-017能治理DR-KEV-027，DR-KFLOW-012只消费版本绑定，P3/UAT不重定义语义；公开合同、责任、数据/权限、预算、失败、回滚及测试可执行性均闭合。该增量S0=0、S1=0、未处理S2=0，允许Summary V5及非live测试；无实现/真实效果通过声明。复评为本执行者的独立阶段，不冒充另一名人员/子代理评审。L1与两份L2/P3 strict最终均0 errors/0 warnings，后续代码必须另行复核；UAT/整体质量状态不变。

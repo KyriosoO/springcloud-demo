@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.19 |
+| 当前版本 | v1.20 |
 | 日期 | 2026-09-04 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.17](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.18](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V4、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；当前增量验证记录由P3管理，V5真实效果未测量，效果运行由UAT_01管理 |
 
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.20 | 2026-09-04 | 用户确认摘要分类上下文证明要求 | DR-KFLOW-012的目标单绑定调整为Rewrite5/Summary5，摘要语义由L2_01_02 DR-KEV-027治理；旧任务/validator/历史资产不变 |
 | v1.19 | 2026-09-04 | 原文类别与税务背景混淆 | DR-KFLOW-020新增Rewrite V5，仅明确最小必要域的判断顺序；保留V3 decoder、V4澄清规则、Summary V4和历史资产；实施及测量状态见P3 |
 | v1.18 | 2026-09-04 | 澄清触发边界偏窄 | 新增Rewrite V4，仅修正适用判断与资料查阅的Prompt决策边界；复用V3严格合同，V3及失败证据不变；实现及真实效果状态分别管理 |
 | v1.0 | 2026-08-21 | 建立 Knowledge 流程新基线 | 删除 candidate/Gate 流水，保留单动作、五阶段、问题保护、零域语义与当前任务版本 |
@@ -134,7 +135,7 @@
 | `DR-KFLOW-009` | 授权拒绝/读取权威失败优先于局部技术成功；coverage 必须与计划精确对应 |
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
 | `DR-KFLOW-011` | 默认启动入口必须先解析 `AGENT_KNOWLEDGE_ENABLED`；false 时不得加载下游配置、任务、策略或创建 client |
-| `DR-KFLOW-012` | true时唯一追加当前批准并实施的Rewrite任务/Summary V4与Knowledge Provider；§8.2当前为Rewrite V5；重复注册启动失败，旧任务不进入新生产对象图 |
+| `DR-KFLOW-012` | true时唯一追加当前批准并实施的Rewrite/Summary任务与Knowledge Provider；§8.2为Rewrite V5，Summary V5增量由L2_01_02 §9.4治理；重复注册启动失败，旧任务不进入新生产对象图 |
 | `DR-KFLOW-019` | §8.1的Rewrite V4仅收紧适用判断澄清指令，复用V3精确decoder/类型/预算；批准并实施后替换生产V3绑定，不双注册、不改变公共结果 |
 | `DR-KFLOW-020` | §8.2的Rewrite V5明确原文类别与最小必要域，复用V3合同及V4澄清规则；仅模型负责语义选域，不新增本地关键词规则、额外调用或Summary变更 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
@@ -308,7 +309,7 @@ validate empty arguments
 1. 加载 `KnowledgeSettings`；disabled 时立即返回“无附加任务、无附加 Provider、无 owned Knowledge resource”的结果。
 2. enabled 时拒绝生产 stub provider；测试可显式注入 fake transport，但必须继续走同一装配函数和注册校验。
 3. enabled 时加载 `KnowledgeRetrievalSettings` 和 policy catalog，验证已启用域、Profile version、ES/BGE origins、1024 维、rerank model、final candidates 与 task version。
-4. 按§8.2创建 Rewrite V5/Summary V4 definitions，并作为既有 Model Gateway 的唯一 Knowledge 注册项；旧Rewrite V1～V4不同时注册、不作自动后备。
+4. 按§8.2与L2_01_02 §9.4创建 Rewrite V5/Summary V5 definitions，并作为既有 Model Gateway 的唯一 Knowledge 注册项；旧Rewrite/Summary V1～V4不同时注册、不作自动后备。
 5. 所有纯配置、目录、策略和任务校验完成后，才为三个固定 origin 分别创建 bounded HTTP client/transport并构建 Retrieval/Provider。
 6. 把 `KnowledgeCapabilityProvider` 作为 `BusinessQueryRuntimeCompositionRoot.additional_providers` 追加到同一 Runtime。
 7. 顶层 lifecycle 同时拥有 Business clients、Knowledge clients 和 model；关闭按资源逐项尝试，保留首个异常但仍释放其余资源。
@@ -423,7 +424,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，v1.19的DR-KFLOW-020经下述三轮内审及独立于修订操作的只读复评，只批准非live实施；核心P0和真实UAT仍未通过 |
-| 当前允许实施范围 | 既有在线流程；DR-KFLOW-020的任务及生产单绑定修复，不涉及Profile/index/policy/Summary变更 |
+| 当前允许实施范围 | 既有在线流程、DR-KFLOW-020的Rewrite单绑定；L2_01_02 DR-KEV-027复评通过后依DR-KFLOW-012切换Summary V5；不涉及Profile/index/policy/validator变更 |
 | 当前禁止动作 | 未配置新域/物理资源选择、公共契约变化、未按UAT冻结或超预算的真实模型调用、请求触发索引写入或独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
 

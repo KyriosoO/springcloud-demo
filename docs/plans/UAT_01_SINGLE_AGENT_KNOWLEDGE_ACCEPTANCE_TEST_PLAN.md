@@ -5,14 +5,16 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.23 |
+| 当前版本 | v1.24 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.17、`L2_01_00` v1.19、`L2_01_01` v2.7、`L2_01_02` v1.18、`P3_00` v2.45；阶段 B 设计评审通过，新增运行协议评审及实施/UAT状态另记 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.18、`L2_01_00` v1.20、`L2_01_01` v2.7、`L2_01_02` v1.19、`P3_00` v2.46；阶段 B 设计评审通过，新增运行协议评审及实施/UAT状态另记 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
+
+v1.24承接用户确认的分类上下文证明要求，新增§14.9非live验证范围；保留全部冻结问题/gold/历史结果，当前版本语义效果不得继承历史通过结论。
 
 ## 2. 目标、非目标与结论口径
 
@@ -407,3 +409,11 @@ L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主�
 ### 14.8 后续非live修复的证明范围
 
 L2_01_00 DR-KFLOW-020新增Rewrite V5最小必要域指令；当前任务切换/测试状态见P3 §20.15。需要验证单policy、单law、真正双域，以及非酒店表达、澄清、unknown/disabled域、模型失败和无fallback。不改上述10个case、gold、顺序、阈值或run-01～03资产。fake只证明指令和执行边界，不证明LLM语义通过；V5真实效果状态为Evidence missing，不能继承V4任何成功结果。Summary V4必要条款覆盖另行核查，历史failed保持failed。当前未授权新真实批次，不生成新manifest或读取模型凭据。
+
+### 14.9 Summary V5 分类上下文证明验证
+
+用户确认保留原问句与双条款判据，由L1_01 KQ-AD-017及L2_01_02 DR-KEV-027明确分类上下文也需原文支持。不得删减KB-015a的requiredGold，或把原Failed改判为通过。新任务不强制双引用：单一连续片段若能完整证明定义与分类，允许单引用；分散证据需不同ref，缺失/冲突或超过既有边界则insufficient。
+
+non-live覆盖：V4→V5仅version/Prompt改变；显式分类与定义、非分类单要点、单/多ref、无关类别不展开、缺失/冲突/唯一ref限制；非法引用、模型异常/超时、出域拒绝和取消的既有失败语义不变。使用合成输入和fake证明任务/调用边界，不能证明LLM语义或替代逐case真实结果。
+
+当前Summary V5效果为Evidence missing；最新有效P5仍是历史partially_effective，旧Summary V4缺口和run-01～03终态保持原貌。既有37项功能追踪的Passed不外推为新增分类语义效果已通过；当前生产绑定必须另有non-live回归。没有新manifest、run-04或模型调用授权。实际实施、测试、评审和Git状态见P3 §20.17。
