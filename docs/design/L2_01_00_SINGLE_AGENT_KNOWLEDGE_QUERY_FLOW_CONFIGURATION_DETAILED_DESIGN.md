@@ -112,9 +112,9 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、V3格式语义域计划、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合绑定 `KnowledgeRewriteTaskV5` + `KnowledgeSummaryTaskV4`；V5增量真实效果尚未测量。Rewrite V1～V4旧绑定及Summary V1～V3保留历史兼容、证据和可追溯回滚责任；V3公开decoder/类型由V4/V5复用，具体验证状态见P3。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、V3格式语义域计划、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合绑定 `KnowledgeRewriteTaskV5` + `KnowledgeSummaryTaskV5`；V5增量真实效果尚未测量。Rewrite/Summary V1～V4保留历史兼容、证据和可追溯回滚责任；V3公开decoder/类型由V4/V5复用，具体验证状态见P3。
 
-旧 Summary V1～V3 保留给历史资产；新生产组合根完成切换后只能注册 V4，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
+旧 Summary V1～V4 保留给历史资产；当前生产组合根只能注册 V5，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 
 阶段 A 不修改上述运行时：离线工具完成候选构建和发布后，启动配置只绑定新 Profile/index/policy snapshot。若任何快照不一致，Runtime 或 `es-query-service` 启动失败；在线请求不能选择候选索引、执行 alias 管理或回退旧/新索引。
 
@@ -215,7 +215,7 @@ V4在生成域/query前先判定检索目的，不输出推理过程或新的int
 
 仅改Prompt适用于这个已定位的局部缺口，不作为阶段B整体修复方案。对比：扩大topK与选域语义无关；本地关键词纠域违反语义职责；新增领域理由Schema仍由同一模型产生且增加解码/治理成本。本方案不宣称静态测试能证明LLM语义稳定性。
 
-已将`KnowledgeCompositionRoot.task_definitions/build_provider`的唯一生产绑定及版本守卫改为V5；Summary继续V4。版本守卫继续由代码固定，不接受环境配置；生产不得注册或回退V4。旧V1～V4任务、runner、case/gold及所有冻结资产不改。历史测试若需要旧根，仅在测试作用域从其冻结Git源码加载该根或显式装配旧版本；不能为历史兼容放开生产守卫。回滚是整套源码/任务绑定的一致回退，不允许单请求切换任务。
+本Rewrite增量当时将`KnowledgeCompositionRoot.task_definitions/build_provider`的唯一Rewrite绑定及版本守卫改为V5、保留Summary V4；当前Summary绑定见§11.1。版本守卫继续由代码固定，不接受环境配置；生产不得注册或回退旧Rewrite V4。旧V1～V4任务、runner、case/gold及所有冻结资产不改。历史测试若需要旧根，仅在测试作用域从其冻结Git源码加载该根或显式装配旧版本；不能为历史兼容放开生产守卫。回滚是整套源码/任务绑定的一致回退，不允许单请求切换任务。
 
 验证追踪：`TEST-KFLOW-012`→新增V5请求/预算/指令合同、与V3/V4相同合法/非法decoder矩阵、历史源码哈希；当前生产fake验证policy/law/双域、澄清、unsupported、模型错误/超时及零下游调用、旧版本拒绝装配；独立保留非酒店表达。V5 fake只能证明指令、装配和行为边界，不得计为真实UAT通过。摘要必要条款覆盖仍为独立未关闭项，本设计不修改Summary、validator、gold、检索排序或Evidence配额；后续真实运行必须另有未消费绑定授权。
 

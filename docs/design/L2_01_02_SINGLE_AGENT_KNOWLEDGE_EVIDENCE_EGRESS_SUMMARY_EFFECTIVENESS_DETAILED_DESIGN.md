@@ -40,7 +40,7 @@
 - ranked candidate 完整性复核和确定性证据选择；
 - Evidence Bundle、coverage、source 和 question trace；
 - 全局规则∩逻辑域默认策略∩文档级收紧策略；
-- Knowledge Summary V1～V3 历史兼容与 V4 当前生产任务；
+- Knowledge Summary V1～V4 历史兼容与 V5 当前生产任务；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
 - representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
 - 阶段 A 新语料的父文档策略继承、index snapshot 绑定、asset/chunk 溯源及旧策略目录不可变。
@@ -104,11 +104,11 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前已有完整 Evidence contracts、integrity verifier、selector、代码绑定策略目录、三层 decider、Summary V1～V4、extractive validator、Stage、representative v1/v2、严格 P5 loader/runner/Schema 和 append-only 历史测试；生产组合根当前唯一使用 V4。
+当前已有完整 Evidence contracts、integrity verifier、selector、代码绑定策略目录、三层 decider、Summary V1～V5、extractive validator、Stage、representative v1/v2、严格 P5 loader/runner/Schema 和 append-only 历史测试；生产组合根当前唯一使用 V5。
 
 Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常并映射为 `summary_failure`，不得让 Provider 异常细节越过 Stage 或退化为 Core 内部异常。
 
-启用 Knowledge 的当前生产组合根只注册 `KnowledgeSummaryTaskV4`，不能并行注册两代任务。V1～V3 和历史 evidence 保持字节级兼容。最新有效效果等级为 `partially_effective`；不得为改善结论修改既有 evidence、gold、阈值或 validator。具体运行身份、历史结论和哈希由 UAT_01/evidence 管理。
+启用 Knowledge 的当前生产组合根只注册 `KnowledgeSummaryTaskV5`，不能并行注册两代任务。V1～V4 和历史 evidence 保持字节级兼容。最新有效效果等级为 `partially_effective`；不得为改善结论修改既有 evidence、gold、阈值或 validator。具体运行身份、历史结论和哈希由 UAT_01/evidence 管理。
 
 ## 7. 证据构建与选择
 
@@ -341,7 +341,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-002` | `agent-runtime/src/agent_runtime/knowledge/evidence/contracts.py`：Evidence/Bundle/limits/types |
 | `IMPL-KEV-003` | `agent-runtime/src/agent_runtime/knowledge/evidence/catalog.py`：strict catalog、fingerprint |
 | `IMPL-KEV-004` | `agent-runtime/src/agent_runtime/knowledge/evidence/policy.py`：`KnowledgeEvidenceEgressDecider.decide` |
-| `IMPL-KEV-005` | 已新增 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v4.py` 与 `KnowledgeSummaryTaskV4.definition`，并由生产组合根唯一绑定；V1～V3 源码和历史绑定保持不可变 |
+| `IMPL-KEV-005` | 历史独立 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v4.py` 与 `KnowledgeSummaryTaskV4.definition`；V1～V4 源码和历史绑定保持不可变，当前唯一生产绑定见 `IMPL-KEV-012` |
 | `IMPL-KEV-006` | `agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py`、`agent-runtime/src/agent_runtime/knowledge/evidence/stage.py` |
 | `IMPL-KEV-007` | `agent-runtime/tests/evaluation/knowledge/contracts.py`、`executor.py`、`live_executor.py` |
 | `IMPL-KEV-008` | `agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl`、`live_contracts.py`、result schemas |
