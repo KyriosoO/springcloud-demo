@@ -347,4 +347,4 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 
 ### 14.4 失败后的非live修复边界
 
-L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主体”过窄前提，区分适用判断与资料查阅，保留V3严格合同。此时V4尚未实施；实施后需验证同一生产根的指令绑定、精确解码与澄清零调用，不得把fake选择clarification当成真实模型已修复。§14.2的V3失败终态、冻结case及gold不变，其他9例仍未执行，B-CR-001保持Open；不创建新候选、不追加模型调用。
+L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主体”过窄前提，区分适用判断与资料查阅，保留V3严格合同。V4现已实施；同一生产根的指令绑定、精确解码、旧V3拒绝装配与澄清零调用已经non-live验证，执行账见P3_00 §20.8。当前固定功能追踪的任务元数据已同步V4，37个case及风险预期不变；不得把fake选择clarification当成真实模型已修复。§14.2的V3失败终态、冻结case及gold不变，其他9例仍未执行，B-CR-001保持Open；不创建新候选、不追加模型调用。当前Rewrite V4专项真实效果仍为Evidence missing。

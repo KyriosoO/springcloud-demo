@@ -115,7 +115,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KCORPUS-RELEASE-01` | alias 发布、回滚演练与收口 | `L2_01_01 DR-KRET-025` | 原子切候选、冒烟、切回旧目标验证、最终切候选、状态/评审/Git | `WP-KCORPUS-UAT-01` | - | release journal、最终 binding、评审和提交；alias 生效由发布门禁独立判定 | alias/UUID/Profile/policy、全量回归、历史 hash | 精确原子恢复旧目标；不删除索引 | Done |
 | `WP-KRETRIEVAL-DIAG-01` | 阶段 B 根因诊断 | `REQ-KQUALITY-001～004` | 同索引十组零模型对照与有限排名证据 | - | - | diagnosis v1 JSONL、根因矩阵 | 当前服务窗口、改写反例、路径/融合/重排/Evidence | 不写索引、不调用外部模型 | Done |
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
-| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～018`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V3、一次域计划、服务窗口、排序/Evidence、有限 reason | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Done |
+| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～019`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V4（共享V3合同）、一次域计划、服务窗口、排序/Evidence、有限 reason；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 可复现验证结果 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
 | `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | 冻结人工 gold、一次有限真实批次 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 最多20端到端/60模型、零重试 | 首例失败已停止；9例未执行，不补跑 | Deferred |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
@@ -753,4 +753,21 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 
 三轮内审依次核对语义/责任、合同/安全、追踪/有限验证；独立审查首轮发现主追踪与准入状态两项S2，最小修复后第二轮通过，S0/S1/未处理S2均0。设计可作为非live实施依据；不改变UAT Deferred、质量包Blocked、B-CR-001 Open。排序/Evidence必要条款缺口仍独立保留，不通过Prompt修订宣称关闭。不得再次读取模型Key或执行本批剩余预算。
 
-当前代码仍V3；V4实现、定向测试和复评结果待实际执行后追加，不继承此前通过数字。P3/UAT版本未因纯执行记录和来源版本同步而升级，已停止的真实批次继续绑定冻结V3。
+当前已新增`knowledge/rewrite_v4.py`，生产工厂与版本守卫唯一绑定Rewrite4/Summary4；V4直接复用V3公开输入构建与相同parse_response，没有复制decoder或增加本地意图规则。Prompt SHA-256=`a3baf3dcdc55e645660fecf94434669c72b27e8ba0545a02867e45f9ccfbc07d`，UTF-8长度3314bytes，低于8192硬上限；输入/输出/timeout预算不变。P3/UAT版本未因纯执行记录和来源版本同步而升级，已停止的真实批次继续绑定冻结V3。
+
+| 本增量实际验证 | 结果与限制 |
+|---|---|
+| V4/V3契约、注册、版本拒绝及生产根定向pytest（5文件；显式`PYTHONPATH=agent-runtime/src`） | 98 passed；共享parser、请求仅版本/指令变化、资料查阅search、澄清零下游、invalid/timeout无fallback；fake不证明真实意图 |
+| `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1` | 独立安装Python3.12环境：host/preflight14 passed；全量1687 passed/27 opt-in skipped/0 failed，1条既有LangGraph弃用预告；脚本清理临时环境 |
+| `python -m mypy --strict src`；`python -m compileall -q src` | 123生产文件类型通过，编译通过 |
+| agent-service：`mvnw.cmd -Dagent.runtime.python=C:\Python312\python.exe -Deureka.client.enabled=false test` | 40 tests/0 failures/0 errors/1 opt-in skip；含Access、Business、Knowledge三项Spring→Runtime E2E。测试进程显式PYTHONPATH当前src、stub模型、Knowledge默认false，清除Key；Knowledge测试独立注入同生产对象图fake |
+| UAT两份traceability与本批历史pytest（3文件） | 15 passed；35/37固定追踪保留，失败批次五项hash/冻结Git源码/计数/清理/禁止原始字段验证通过 |
+| 历史与阶段A保护 | V3源码/测试及冻结runner对照338b387无差异；阶段A四项最终hash、历史staging、本批有限evidence及运行binding无修改；没有新增真实模型、检索、embedding或rerank调用 |
+
+验证过程中的失败如实保留：第一次全局Python定向命令未设置源码路径，5个collection error，未执行测试；显式路径后98项中新增版本拒绝fixture缺少enabled_domains，97 passed/1 failed，补齐fixture后98通过，未改生产验证或期望。第一次Maven用未安装Runtime的全局Python且没有PYTHONPATH，Access liveness失败（40 tests/1 failure/1 skip）；日志确认为ModuleNotFoundError，补齐仅测试进程环境后通过。没有把这些环境/fixture问题当成付费重跑理由。
+
+本增量正式代码对照评审1轮，范围限DR-KFLOW-019、新任务/装配、共享decoder/guard和直接测试，复核模型登记身份、唯一任务、失败关闭、预算、无新敏感输入面、取消/lifecycle继承及历史保护。未发现新增Blocker/Major或需接受的Minor；这是本执行者的正式对照审查，不冒充独立评审人。整体B-CR-001仍Open：新Prompt真实语义未验证，必要分类Evidence仍有缺口。因此整体正式评审仍Major=1，UAT仍Deferred/failed，质量包仍Blocked，不宣布阶段B完成。
+
+es-query-service/common-security/Employee/Transaction Java源码未改，本增量不重复执行这些模块Maven；其上一轮实际结果保留在§20.7，不冒充本增量新执行。未改launcher，未重复PowerShell AST；本轮全量Python已执行相应脚本合同和历史测试。剩余安全可做事项是必要Evidence覆盖的非live诊断；新的真实语义确认不在本次已停止批次内。
+
+本增量设计提交`1a50221fd062935e73c227a6184d9263d0e765b8`、代码/测试/追踪元数据提交`5141da76497e6509421e23a4817a693ccbf112f6`已普通推送至origin/codex；状态同步提交以Git日志为准。提交不改变failed UAT或Major未关闭结论。
