@@ -768,6 +768,16 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 
 本增量正式代码对照评审1轮，范围限DR-KFLOW-019、新任务/装配、共享decoder/guard和直接测试，复核模型登记身份、唯一任务、失败关闭、预算、无新敏感输入面、取消/lifecycle继承及历史保护。未发现新增Blocker/Major或需接受的Minor；这是本执行者的正式对照审查，不冒充独立评审人。整体B-CR-001仍Open：新Prompt真实语义未验证，必要分类Evidence仍有缺口。因此整体正式评审仍Major=1，UAT仍Deferred/failed，质量包仍Blocked，不宣布阶段B完成。
 
-es-query-service/common-security/Employee/Transaction Java源码未改，本增量不重复执行这些模块Maven；其上一轮实际结果保留在§20.7，不冒充本增量新执行。未改launcher，未重复PowerShell AST；本轮全量Python已执行相应脚本合同和历史测试。剩余安全可做事项是必要Evidence覆盖的非live诊断；新的真实语义确认不在本次已停止批次内。
+es-query-service/common-security/Employee/Transaction Java源码未改，本增量不重复执行这些模块Maven；其上一轮实际结果保留在§20.7，不冒充本增量新执行。未改launcher，未重复PowerShell AST；本轮全量Python已执行相应脚本合同和历史测试。随后完成下述必要Evidence覆盖的非live诊断；新的真实语义确认不在本次已停止批次内。
 
 本增量设计提交`1a50221fd062935e73c227a6184d9263d0e765b8`、代码/测试/追踪元数据提交`5141da76497e6509421e23a4817a693ccbf112f6`已普通推送至origin/codex；状态同步提交以Git日志为准。提交不改变failed UAT或Major未关闭结论。
+
+### 20.9 必要Evidence风险的有限复核
+
+以`4181ed31d75118258063ebba0ba55017de852a55`为只读基线，定向核查DR-KRET-027/DR-KEV-026、当前排序/selector及冻结case；不修改实现或合同。按冻结有限排名重放“锚点→域内keyword/rerank交错→域间轮转”，所得前20项与真实记录逐项一致。住宿定义在完整57项身份序列中为第48项，因此该次排除发生于final20之前，不是每文档3条或8条Evidence配额造成；这个离线展开仅定位截断位置，不调用下游、不更改生产窗口，也不证明扩大到48能改善回答。
+
+冻结KB-001没有requiredGold，预期是澄清且零检索；它已证实的是错误进入检索并返回success。住宿定义在错误分支中未入选属于独立质量风险，不能把它当成其余9个未执行条款用例已经失败的证据。v7人工聚焦检索表达中住宿定义/生活服务总类分别在rank2/3且已入Evidence，说明既有路径具备局部能力，但不是模型生成query或专项UAT通过。有限记录只有query哈希，不能从中还原真实改写或断言单一根因。
+
+定向结论：排序及配额控制符合上述两条实现合同；真实语义与完整核心场景效果仍不可验证。不建议无证据扩大topK、改配额、按条款ID加分或新增第二查询；B-CR-001保持Open，整体正式评审仍未通过。无需新增任务版本、候选、门禁或证据副本。
+
+本次实际命令：显式`PYTHONPATH=agent-runtime/src`后执行`python -m pytest tests/unit/knowledge/retrieval/test_quality_ranking.py tests/system_e2e/test_knowledge_stage_b_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q`，25 passed；有限排名重放断言通过；本次新增模型/search/embedding/rerank调用全部0。仅修改P3/UAT状态解释，无生产差异；§20.8全量、类型和Java结果是前一增量实测，不冒充本次重跑。

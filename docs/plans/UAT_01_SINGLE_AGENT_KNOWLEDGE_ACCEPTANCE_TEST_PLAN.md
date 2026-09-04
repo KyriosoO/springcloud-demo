@@ -341,7 +341,7 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 
 阶段B专项Functional=Failed（KB-001），安全控制和non-live回归通过，整体Effectiveness未完成测量，不给出effective或整体改善结论。最新有效历史P5等级仍独立为partially_effective；阶段A14项、既有Knowledge37项和Business35项功能追踪不被本次新专项覆盖或改判。
 
-住宿定义从policy keyword rank19经过域融合rank34、rerank rank31后未入最终20/Evidence8，说明“原文存在”与“真实问题必要证据送达”不同。离线聚焦query改善不能冒充本次端到端改善；law规则进入Evidence且引用合法也不能证明适用条件充分。没有保留原始模型响应，因此不推断未记录的最终具体税率文案，也没有独立专家usefulness评分。
+住宿定义从policy keyword rank19经过域融合rank34、rerank rank31后未入最终20/Evidence8。有限排名重放与真实final20一致，完整身份序列中该条款位于48；该次排除发生在Evidence配额处理之前，不支持通过放宽配额关闭问题。KB-001的冻结预期本身是澄清且零检索，没有requiredGold；错误分支中的条款丢失只作为独立质量风险，不把其余9个未执行用例改判为失败。v7人工聚焦query可使住宿定义/生活服务总类入Evidence，但不能冒充真实模型或本批端到端改善；law规则进入Evidence且引用合法也不能证明适用条件充分。没有保留原始模型响应或改写文本，因此不推断未记录的最终具体税率文案或唯一根因，也没有独立专家usefulness评分。复核命令及边界见P3_00 §20.9。
 
 不新增付费运行。核心澄清及必要证据风险保持未关闭；后续方案先做非live根因/合同复核，真正的模型效果确认须另立受控目标，不能复用本批剩余预算。
 
