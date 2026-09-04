@@ -117,7 +117,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～018`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V3、一次域计划、服务窗口、排序/Evidence、有限 reason | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 可复现验证结果 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | 冻结人工 gold、一次有限真实批次 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 最多20端到端/60模型、零重试 | 失败停止，不补跑 | Ready |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | 冻结人工 gold、一次有限真实批次 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 最多20端到端/60模型、零重试 | 首例失败已停止；9例未执行，不补跑 | Deferred |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -285,7 +285,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Ready | WP-KRETRIEVAL-NONLIVE-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.6首例语义失败；授权批次已消费停止，9例未执行 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 
 ## 10. 实施交接
@@ -411,7 +411,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Ready |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20.6首例失败、其余未执行 | Deferred |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -678,12 +678,71 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 增量独立只读评审B-DR4-R1：范围L1_01及三份L2增量、P3/UAT/索引，依据REQ-KQUALITY与现有公共/策略合同；发现B-DR4-001（S2，L2_01_00 §8）比例判定未包括中文百分之及千分比记号，会使具体比例主题被错误分配。切回文档修订后补齐有限记号及对应测试要求。B-DR4-R2重新只读核查：比例/否定等原约束不弱化、质量配额不扩大可读/可出域集合、两域串行不增加调用和时限、旧limits/task隔离及工作包无环均闭合；S0=0、S1=0、未处理S2=0，增量允许实施，真实UAT仍未完成。此为与编辑阶段分离的自动化辅助复评，不代表外部人工审批。
 
 
-### 20.5 当前实施与 non-live 验证（2026-09-04）
+### 20.5 实施与预 UAT non-live 验证（2026-09-04）
 
-此前§15～19为阶段A收口时点记录；当前阶段B状态以本节及工作包表为准。总计56个工作包；IMPLEMENT/NONLIVE现为Done，UAT为Ready，QUALITY仍Blocked，不能宣称阶段B完成。
+此前§15～19为阶段A收口时点记录；当前阶段B状态以本节及工作包表为准。总计56个工作包；IMPLEMENT/NONLIVE为Done仅表示批准方案已编码和非live验证完成，不表示语义效果达标。§20.6真实首例失败后UAT为Deferred（失败停止，后续真实验证不在本批授权内），QUALITY为Blocked，核心澄清缺口与正式代码评审Major仍未关闭，不能宣称阶段B完成。Deferred不是通过或豁免：现有工作包状态枚举不含Failed，运行结果仍准确为failed；不为匹配校验器而新增重复门禁或伪造未完成前置。
 
 - 实现落点：`rewrite_v3.py`/`semantic_planner.py` 精确语义计划；`retrieval/quality_ranking.py` 域内串行排序、keyword/BGE锚点及交错填充；`evidence/builder.py` 必要锚点和有界选择；`capability.py` 路径coverage及有限失败原因；`bootstrap.py`/`main.py` 唯一V3/V4生产绑定；Java `KnowledgeSearchService` 修复vector顶层size缺省10的问题，公共DTO不变。
-- 最新正式隔离命令 `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1`：host/preflight 14 passed；全量1622 passed/27 opt-in skipped/0 failed，1条现有LangGraph依赖弃用预告。其后新增6项coverage测试，首次因fixture缺少require_semantic_plan失败，修正fixture后6 passed，未弱化断言或生产验证。
+- 预UAT时正式隔离命令 `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1`：host/preflight 14 passed；全量1622 passed/27 opt-in skipped/0 failed，1条现有LangGraph依赖弃用预告。其后新增6项coverage测试，首次因fixture缺少require_semantic_plan失败，修正fixture后6 passed，未弱化断言或生产验证；最终全量结果见§20.7。
 - strict mypy：122个生产模块通过；compileall通过。agent-service Maven终端本次40 tests/0 failure/1 skip；旧XML会累积，不冒充42项本次执行。相关reactor成功：common-security21/0skip，es-query-service43/0skip，Employee50/20skip，Transaction37/2skip；角色、公共接入、当前Spring→Runtime Business/Knowledge E2E及合同保持通过。
 - 零外部模型诊断至v7累计search136/embedding46/rerank36。v7聚焦分类query在相同a5快照下使住宿定义与生活服务总类同时进入Evidence；同文档legacy2对照仍缺一条。v5/v6泛化query仍不能保证必要条款，不能把结构性sufficient冒充P0达标。
 - 预UAT复核关闭：coverage路径集合遗漏测试、当前traceability authority、Summary V4真实请求投影识别和Spring unsupported=422的准备错误。历史任务/语料/alias不变。完整正式代码评审在专项UAT后执行，当前结论仅为可冻结实施基线。
+
+### 20.6 一次真实专项 UAT 终态（2026-09-04）
+
+本节取代§20.5的“准备”时点，不改写历史P5或阶段A结果。冻结HEAD=`338b387100f03f4153611b2324604c8e25466a2b`，run=`knowledge-stage-b-uat-v1-20260904-run-01`，reference=`P3_00:WP-KRETRIEVAL-UAT-01`。预算收紧为10端到端/30模型/40search/20embedding/20rerank；Business、retry、resume为0。
+
+| 有限资产（`agent-runtime/tests/system_e2e/knowledge_stage_b_run_01/`） | SHA-256 |
+|---|---|
+| manifest.json | ee56673a262894a135379ae50d1d0e32d4cf3fe1051d6b8b40a55ab8da08a675 |
+| consumed.json | 6a07070209e331d1cab326ffa907136a5cbeed65df84d165b2f3ef9de61b4f8d |
+| journal.jsonl | 780335f53c910e84980cf479076de6bab32d579d0a8aa6388d617d44c2218d42 |
+| evidence.jsonl | 563c36d4f57ea20f45c1e46fb44368e6cd862eebd67afc9f2dc5318927d0df24 |
+| result.json | 819738da2abeb58164e222356b12820739d1e98f9793da8c2aa8b174eb7035f2 |
+
+实际执行1个端到端请求、3次模型（selection V4/Rewrite V3/Summary V4各1）、4次search、2次embedding、2次rerank，Business/retry/resume均0。首例`UAT-KB-001`冻结预期为clarification_required/no_result且不检索；实际HTTP200/success、两域检索、最终1条law域引用，`passed=false`。这是可观测的产品语义失败，不是404、依赖失败或invalid_run。批次status=failed，其余9例未执行；不得使用剩余名义预算补跑或创建第二批。
+
+| 根因/局限 | 证据与强度 | 最小处理与当前状态 |
+|---|---|---|
+| 缺条件的适用判断被当作直接规则查询 | 三个模型任务succeeded；预期澄清而实际search/success，强证据；未保存模型原文，不能推断它内部补造了哪项事实 | 当前Prompt语义约束不足以可靠触发澄清；需区分适用判断与一般规则查询，不能加酒店专用本地计划分支；未关闭 |
+| 必要分类证据仍在排序/Evidence阶段丢失 | 同一a5快照，住宿定义policy keyword rank19、域融合rank34、域rerank rank31；未进final20/Evidence8，强证据 | 仅离线聚焦query可命中不代表真实模型query稳定；新方案必须先做同快照非live对照，不盲目扩大topK；未关闭 |
+| 域覆盖不等于答案语义覆盖 | final20/Evidence8含两域，但最终1条引用只在law；合法引用不证明分类/期间/适用条件齐全 | 保留严格引用校验；不能将结构性sufficient或provider成功记作UAT通过 |
+
+本次owned auth/es-query/agent/Runtime进程均停止，HTTP clients关闭，临时原始日志删除；有限evidence记录secretScanPassed。共享ES/BGE服务未停止，未写索引或alias。逐case状态见UAT_01 §14.2。冻结runner的单case `calls.e2e`错误显示0，而顶层`totals.e2e=1`及唯一case行证明实际1次；保留原字节，独立历史测试明确该低风险显示缺陷，不回写result。
+
+### 20.7 正式代码对照设计评审与最终 non-live 验证
+
+评审范围为当前三份Knowledge L2、生产组合根/Model/Capability/检索/Evidence/Java服务及直接测试；分实施后评审、最小修复后复评两轮。为自动化辅助的独立审查阶段，不冒充外部人工批准。
+
+| Issue | 等级 | 发现、修复及关闭证据 | 终态 |
+|---|---|---|---|
+| B-CR-001 | Major | 首例缺条件应澄清却直接返回success；当前结构校验无法证明自然语言适用条件充分，且必要分类证据未入选。不得用fake通过替代真实失败 | Open；核心P0与正式评审均未通过 |
+| B-CR-002 | Major | 新semantic planner未区别全角百分号/千分号等单位；反例首次3 failed/14 passed。最小新增比例单位保持校验，不改历史guard或Prompt；新增9项单元/生产零调用测试后38项定向通过 | Closed；提交7f5085a8d82107e9598c1cda9da79c78a49304d8 |
+| B-CR-003 | Minor | 冻结runner单case e2e计数未递增；顶层计数、journal及case数可独立核实，不影响停止或预算 | Accepted仅限本次不可变资产；历史测试显式覆盖，后续新runner需修复 |
+
+最终结论：Blocker=0、Major=1未关闭，正式代码评审未通过。已实施的确定性合同、授权、调用预算、取消、唯一链路及历史隔离验证通过，但不能据此宣布阶段B完成。未改gold、阈值、旧任务或冻结资产；未追加模型调用。
+
+| 实际命令/验证范围 | 本轮结果 |
+|---|---|
+| `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1`（正式隔离安装） | host/preflight 14 passed；全量1637 passed、27 opt-in skipped、0 failed；1条既有LangGraph弃用预告 |
+| `python -m pytest agent-runtime/tests/system_e2e/test_knowledge_stage_b_run_01_history.py -q` | 3 passed；5项有限资产hash、冻结提交源码、调用/清理/禁止原始数据字段校验 |
+| `python -m mypy --strict src`、`python -m compileall -q src`（agent-runtime） | 122生产文件类型通过；编译通过 |
+| agent-service `mvnw.cmd test` | 本次终端40 tests、0 failure、0 error、1 skip；含当前Spring→Runtime Business/Knowledge E2E；不使用陈旧XML累计总数 |
+| serviceCenter reactor相关模块`-am test` | common-security21/0skip；es-query-service43/0skip；Employee50/20skip；Transaction37/2skip；均0 failure/0 error |
+
+27项Python及Java所列opt-in/环境用例未执行，不计作新真实UAT通过。既有35项Business/37项Knowledge追踪与当前non-live防回退保持，阶段A与历史hash校验保持；本次未重复执行其历史live。只读/非付费诊断累计search136/embedding46/rerank36，加正式批次后的typed调用合计140/48/38；不将额外只读元数据检查计为业务search，也不宣称这些是全部HTTP总数。
+
+当前可交付为已评审设计、最小实现、通过的non-live、失败的有限UAT证据及真实状态。后续必须先解决澄清与一般规则查询的语义边界、必要证据覆盖，再以新设计版本/非live证据评估是否另立受控真实验证目标。本目标不创建新付费候选、不扩大接口/语料/索引或阶段C范围。Git按设计、实现、准备、评审修复及失败证据分别提交，提交不代表UAT或正式评审通过。
+
+最终状态复核：当前L1及三份L2严格结构校验通过，P3 strict为0 errors/0 warnings；UAT追踪及本次历史资产定向11 passed；PowerShell AST通过；阶段A四项最终资产SHA不变，当前alias仍指向a5、UUID=`SurWRSglRd6ZRddEBWy2Sw`，本次四个隔离监听端口均已释放。Git差异证明旧阶段A/evaluation staging与运行binding未改动。状态修订仅更正实施/验收结论和路线图旧入口表述，不改变设计合同或提升版本。P3校验器不识别“前置全部完成但一次授权已消费”的外部暂停情形，因此UAT使用已有Deferred并写明failed；不增加无决策价值的新门禁。
+
+| 已推送原子提交 | 内容 |
+|---|---|
+| 0ea390277a04f7703926eccb4e090fcadb00c549 | 阶段B根因、设计及实施入口评审 |
+| 9537548f0e73ef45725eeca185faed96d0cb2811 | 有界排序/Evidence设计校准 |
+| 245b4c9d8ca774421506ef28a76777e291e41105 | 当前语义规划、检索及安全控制实现 |
+| 338b387100f03f4153611b2324604c8e25466a2b | 非live诊断、专项批次准备与冻结源码 |
+| 7f5085a8d82107e9598c1cda9da79c78a49304d8 | 比例单位保持的代码评审修复 |
+| 85bcf2149a99cb5d038d8a9f688df7be03f562cf | 失败批次五项有限证据及冻结源码历史测试 |
+
+最终状态同步提交及远端/工作树以Git日志和交付报告为准，避免文档自引用提交SHA。所有推送均为当前codex分支的普通快进推送，无PR或历史改写。

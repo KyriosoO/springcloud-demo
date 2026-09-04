@@ -17,7 +17,7 @@
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 在线生产接线、Rewrite V3、Summary V4、阶段 B 有界检索及阶段 A 离线语料处理均已实施；新链路 non-live 通过，阶段 B 真实 UAT 尚未执行；具体 Gate/UAT 证据由 P3/UAT_01 管理 |
+| 实施状态 | 在线生产接线、Rewrite V3、Summary V4、阶段 B 有界检索及阶段 A 离线语料处理均已实施；新链路 non-live 通过，但阶段 B 真实专项未通过、语义效果仍有缺口；具体 Gate/UAT 与评审状态由 P3/UAT_01 管理 |
 
 ## 2. 阅读导航
 

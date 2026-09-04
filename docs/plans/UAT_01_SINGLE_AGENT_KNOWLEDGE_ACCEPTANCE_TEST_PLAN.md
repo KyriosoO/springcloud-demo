@@ -264,7 +264,7 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 - 阶段 B 输入固定为 `domain_selection`、`query_rewrite`、`ranking`、`failure_semantics`；本轮未修改在线算法、Prompt、topK 或 fallback。
 - 既有 Knowledge Functional 37/37、Business 35/35 与历史 candidate/evidence 保持不变。
 
-## 14. 阶段 B 独立专项验收（计划，尚未执行）
+## 14. 阶段 B 独立专项验收（真实首例失败，未收口）
 
 保持原37项功能用例、阶段 A 14项语料证据及历史 P5 效果结论不变。阶段 B 使用新的测试/运行命名空间，不能覆盖旧 evidence，也不依赖图谱。核心 P0 必须满足预先冻结的条件；整体 effective 不作为无限重跑理由，核心功能也不得被该原则豁免。
 
@@ -299,10 +299,48 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 
 首个真实失败停止该批并保留有限状态、调用计数和已完成case；不得补跑、续跑或创建额外付费候选。未执行与失败分别记录；其余授权内 fake/评审可继续，但核心P0缺证据则阶段B保持未完成。只保存安全摘要、引用标识/哈希和有限指标，不持久化原始模型响应、JWT或未授权正文。
 
-### 14.1 当前可执行批次准备
+### 14.1 已冻结批次及验证规则
 
-`tests/system_e2e/knowledge_stage_b_cases.py` 固定10个真实case：KB-001、015a、004、002、003、005、006、015b、016、008；执行顺序先澄清和单域定义，再双域及复杂期间，任一失败停止后续。总预算收紧为10端到端、30模型、40search、20embedding、20rerank；Business/answer/retry/resume均0，错误注入留在fake测试。仍未执行，不能计为通过。
+`tests/system_e2e/knowledge_stage_b_cases.py` 固定10个真实case：KB-001、015a、004、002、003、005、006、015b、016、008；执行顺序先澄清和单域定义，再双域及复杂期间，任一失败停止后续。总预算收紧为10端到端、30模型、40search、20embedding、20rerank；Business/answer/retry/resume均0，错误注入留在fake测试。当前该批已经消费并因首例失败停止，不能再次执行；终态见§14.2。
 
 `knowledge_stage_b_uat.py prepare` 在工作树干净后绑定提交、任务3/4、配置、a5索引UUID、所有实现及Java可执行资产SHA、case和原文gold。仅`execute`读取模型Key，真实认证及Spring入口调用当前生产Runtime，不使用评估专用在线分支。gold仅在结果产生后判定，不参与域、query、排序或Evidence。必要原文同时检查模型Evidence内容hash和最终已校验引用内的精确条款，不以只命中同文档代替正确回答；2026用例另需生效条款。
 
 原文rubric由本轮逐条读取已发布材料核对后固定；属于自动化辅助的原文核对，不代表外部税务专家批准。框架自动执行精确条款/域/状态rubric，不让待测模型自评分；实际usefulness需在最终结果中独立、如实评述。准备烟测为真实auth→Spring→stub Runtime，unsupported=422；没有模型或Knowledge请求，不冒充专项UAT。
+
+### 14.2 真实专项结果与未执行项
+
+唯一批次`knowledge-stage-b-uat-v1-20260904-run-01`的绑定、五项hash、调用账及代码评审问题见P3_00 §20.6～20.7。原始有限资产位于`agent-runtime/tests/system_e2e/knowledge_stage_b_run_01/`；历史校验从冻结提交读取源文件，不以当前修改后的源码冒充运行基线。
+
+| 冻结顺序 | Case | 验证目标 | 真实结果 |
+|---|---|---|---|
+| 1 | UAT-KB-001 | 住宿费用适用判断缺条件，应澄清且零检索 | Failed：实际success，两域检索、1条law引用；不符合冻结预期 |
+| 2 | UAT-KB-015a | 生活服务中的住宿定义 | Not executed：首例失败停止 |
+| 3 | UAT-KB-004 | 政策分类与法律规则共同取证 | Not executed：同上 |
+| 4 | UAT-KB-002 | 2026一般纳税人、一般计税 | Not executed：同上 |
+| 5 | UAT-KB-003 | 住宿与不动产租赁区别 | Not executed：同上 |
+| 6 | UAT-KB-005 | 小规模纳税人缺期间澄清 | Not executed：同上 |
+| 7 | UAT-KB-006 | 2016历史期间 | Not executed：同上 |
+| 8 | UAT-KB-015b | 明确条件的不同措辞 | Not executed：同上 |
+| 9 | UAT-KB-016 | 非酒店软件政策回归 | Not executed：同上 |
+| 10 | UAT-KB-008 | 单law域具体法条 | Not executed：同上 |
+
+实际1次端到端、3次模型、4次search、2次embedding、2次rerank，Business/retry/resume为0。模型三个任务均succeeded不能代替UAT通过；本次不是invalid_run，批次终态为failed。已停止owned进程、关闭clients并扫描删除临时原始日志，没有续跑或额外付费候选。冻结result单case e2e误记0的显示问题由顶层总数1和唯一case行校正解释，原资产不修改。
+
+### 14.3 non-live 风险证据与验收结论
+
+以下路径均相对`agent-runtime/`。本轮正式隔离回归实际通过，精确总数只在P3_00记录；fake仅证明合同/控制流，不能覆盖§14.2未通过的模型语义效果。
+
+| UAT风险 | 当前自动化证据 | 结论边界 |
+|---|---|---|
+| KB-001/005/007：澄清、非法改写、日期/比例单位/否定 | `tests/unit/knowledge/test_semantic_planner.py`；`tests/integration/knowledge/test_stage_b_production.py` | 通用守卫与模型返回澄清时的零调用通过；模型应否澄清的真实判断未通过 |
+| KB-008/012/017：域、拒绝、无fallback、并发取消 | `tests/unit/knowledge/retrieval/test_quality_ranking.py`；`tests/unit/knowledge/retrieval/test_stage.py`；当前Spring Knowledge E2E及Java安全链 | 控制流/授权通过；不代表未执行真实单域/双域case通过 |
+| KB-009/010/011：部分/全部失败、零命中、coverage完整性 | `tests/integration/knowledge/test_stage_b_production.py`；`tests/unit/knowledge/retrieval/test_stage.py` | reason、失败优先级、路径集合和零调用断言通过 |
+| KB-013/014：出域、敏感输入、引用 | `tests/unit/knowledge/evidence/test_builder_policy.py`；`tests/unit/knowledge/evidence/test_summary_validation_reasons.py`；当前Knowledge功能追踪 | 既有出域/引用校验保持，不证明最终语义完整 |
+| KB-018：窗口、排序、锚点、Evidence预算 | `tests/unit/knowledge/retrieval/test_quality_ranking.py`；Java `KnowledgeSearchServiceTest` | 有界合同通过；真实必要分类条款未入Evidence，质量风险仍开放 |
+| KB-002/003/004/006/015/016：核心条款与措辞覆盖 | `knowledge_stage_b_diagnosis.v1.jsonl`及local_validation v1～v7；§14.2真实结果 | 同快照离线诊断存在；尚无本批对应真实成功证据 |
+
+阶段B专项Functional=Failed（KB-001），安全控制和non-live回归通过，整体Effectiveness未完成测量，不给出effective或整体改善结论。最新有效历史P5等级仍独立为partially_effective；阶段A14项、既有Knowledge37项和Business35项功能追踪不被本次新专项覆盖或改判。
+
+住宿定义从policy keyword rank19经过域融合rank34、rerank rank31后未入最终20/Evidence8，说明“原文存在”与“真实问题必要证据送达”不同。离线聚焦query改善不能冒充本次端到端改善；law规则进入Evidence且引用合法也不能证明适用条件充分。没有保留原始模型响应，因此不推断未记录的最终具体税率文案，也没有独立专家usefulness评分。
+
+不新增付费运行。核心澄清及必要证据风险保持未关闭；后续方案先做非live根因/合同复核，真正的模型效果确认须另立受控目标，不能复用本批剩余预算。

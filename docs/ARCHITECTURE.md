@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求、设计与35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已实施；阶段 A 正文及附件完整性已完成审计、版本化处理、candidate 索引、14/14专项 UAT 和受控发布。最新有效效果等级仍为 `partially_effective`；阶段 B 检索质量已实施并通过 non-live，真实专项 UAT 尚未执行；图谱未实施。具体 Gate、candidate、测试总数和 evidence 只在 P3、UAT_01 与 evidence 中维护。
+Employee/Transaction 需求、设计与35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已实施；阶段 A 正文及附件完整性已完成审计、版本化处理、candidate 索引、14/14专项 UAT 和受控发布。最新有效效果等级仍为 `partially_effective`；阶段 B 已实施有界检索并通过 non-live，但真实专项首例语义失败、核心澄清与证据覆盖尚未收口；图谱未实施。具体 Gate、candidate、测试总数和 evidence 只在 P3、UAT_01 与 evidence 中维护。
