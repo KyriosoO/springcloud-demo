@@ -826,3 +826,18 @@ es-query-service/common-security/Employee/Transaction Java源码未改，本增�
 | 历史/敏感/差异 | 287源码从冻结Git重建hash通过；六项复制字节相同；阶段A四项hash不变；retained资产密钥/JWT/私钥模式扫描无命中；无生产或历史文件差异；git diff --check通过 |
 
 运行后正式对照评审1轮：主依据P3 §20.10授权/失败停止合同，支撑DR-KFLOW-005/019与UAT §14；范围仅新版本runner、直接fake/history测试、有限结果和旧runner调用接缝。复核唯一生产装配、Prompt/版本/目录/累计预算绑定、调用前消费、失败中断、gold仅用于判定、客户端和进程清理、字节保护。未发现该增量新增Blocker/Major；计数字段解释和混合换行重建已明确，不将本执行者的复核冒充外部独立评审。整体核心UAT失败及证据不足仍阻塞最终评审/收口。生产Java、业务DTO、索引和权限均未修改；本增量不重复Maven/PowerShell AST，既有结果保留§20.7～20.8，不冒充新执行。准备提交`501bca8b68c6efef9931c7dfbf3ad335c59d7f0b`已推送；运行证据/历史校验提交`3d5d3dbda06144f0a1f10e811896b7a2455ec6bf`，状态同步另行提交，推送结果由Git日志及交付报告记录。
+
+### 20.12 run-02失败边界的非live联合验证
+
+以`327da9391cdf36bf160f95bb6557a03919e1325b`为基线，只补`tests/integration/knowledge/test_rewrite_v4_provider_boundary.py`，不改生产代码、Prompt、任务合同或历史运行资产。原生产fake测试直接注入已解码的StructuredModelResponse，shared transport另行测试；新增13项用HTTP MockTransport连接真实DeepSeekChatTransport、provider decoder、当前Rewrite4、gateway与生产Runtime，验证成功、澄清、HTTP Content-Type、外层JSON、model标识、length终止、任务JSON/重复键/额外键/未知条件、解码后日期漂移、503和timeout。模型和Knowledge HTTP均fake；Business send主动拦截并断言0；使用硬编码synthetic key，不读取进程模型Key。
+
+定向核查结论：DR-KFLOW-005/019的严格解码、失败零检索/embedding/rerank/summary、固定任务版本、无Business fallback、关闭client和有限观察不泄露响应标记/JWT/key均符合。测试只观察真实provider decoder是否成功返回，不替换其判定；响应/任务解码失败均可能记录invalid_output，而解码后语义拒绝会留下模型succeeded。故历史run-02的failed/invalid_output可排除“已成功解码之后的语义保持检查”作为该失败条目的直接来源，仍不能在响应头、provider envelope和任务JSON之间确定具体根因。synthetic正向控制不证明模型分类或真实Evidence质量；不据此盲改Prompt、扩大512 token预算或放宽decoder。
+
+| 本次实际验证 | 结果与范围 |
+|---|---|
+| 新联合测试定向pytest | 首次13 passed；后续复核补Business调用硬拦截，最终版随下行118项全部通过 |
+| `python -m pytest tests/integration/knowledge/test_rewrite_v4_provider_boundary.py tests/integration/knowledge/test_stage_b_production.py tests/contract/knowledge/test_rewrite_task_v4.py tests/unit/model/test_deepseek_transport.py tests/system_e2e/test_knowledge_stage_b_run_02_history.py tests/system_e2e/test_knowledge_stage_b_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q`（agent-runtime，显式PYTHONPATH=src） | 118 passed，1条既有LangGraph预告；含最终Business拦截断言与旧/新批历史hash |
+| `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1` | host/preflight14 passed；全量1725 passed/27 opt-in skipped/0 failed，126.00秒、1条既有预告；临时环境已清理。全量验证版本与最终版本的差异仅为测试拦截增强，无生产差异，最终测试版已在上述118项中复验 |
+| `python -m mypy --strict src`；`python -m compileall -q src tests/integration/knowledge/test_rewrite_v4_provider_boundary.py` | 123生产文件类型及编译通过 |
+
+本增量执行一次定向代码对照核查并修复测试隔离遗漏；不作整体正式评审通过判断。新增模型/search/embedding/rerank真实调用均0；六项run-02及四项阶段A最终hash不变；未新增run-03。P3仅追加执行记录，版本仍v2.43，不升级设计或改写UAT_01的冻结逐case结果。UAT继续Deferred/failed，QUALITY继续Blocked、B-CR-001继续Open。Java/公共DTO/launcher未改，本次未重复Maven、Spring E2E或PowerShell AST，不将历史结果冒充本次执行。现有证据不能恢复未保留的模型响应；进一步真实确认须作为新的明确授权事项，不续用两批已停止预算。
