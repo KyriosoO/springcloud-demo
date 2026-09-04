@@ -423,3 +423,26 @@ non-live覆盖：V4→V5仅version/Prompt改变；显式分类与定义、非分
 §14.9之后用户明确授权准备并执行一次新独立V5批次，授权账见P3 §20.18。沿用§14.1的原10例、顺序、问题、人工原文gold和全部判据，前三批结果不变。新入口绑定selection-v4/Rewrite5/Summary5及当前Prompt，manifest Schema4保存前三批全部hash/实际预算；仍按失败即停止、未执行单列、无重试/续跑。KB-DIAG-001有限诊断Schema字段/原因枚举不变，诊断版本v2仅将允许任务版本更新为当前5/5，旧诊断源文件保持不可变并在CLI作用域适配。
 
 先证明当前生产根与任务绑定、Prompt请求哈希、累计预算、防复用、原异常/取消透传、上下文恢复及原gold判定等价，再冻结执行。不得把版本升级当成真实效果已通过；新增结果形成前，核心P0及整体专项仍未收口。原37/35功能追踪、阶段A及历史P5结论保持独立。
+
+### 14.11 run-04独立V5批次终态
+
+本节是§14.10的实际结果，取代§14.8/14.9尚无V5真实证据的时点说明，不修改任何历史执行结论。frozen HEAD、六项hash、调用预算、有限诊断及评审见P3 §20.19；归档为`agent-runtime/tests/system_e2e/knowledge_stage_b_run_04/`。沿用§14.1原10例，未改变gold或通过条件。
+
+| 顺序 | Case | 结果 | 有限判据 | 模型/search/embedding/rerank |
+|---|---|---|---|---|
+| 1 | UAT-KB-001 | Passed | HTTP200/no_result、clarification_required，所有检索与摘要0 | 2/0/0/0 |
+| 2 | UAT-KB-015a | Passed | 仅policy，lodging与living两条原文校验true，2条引用 | 3/2/1/1 |
+| 3 | UAT-KB-004 | Failed | 双域正确，但仅law_rate校验true，lodging/living均false；HTTP200/success不等于通过 | 3/4/2/2 |
+| 4 | UAT-KB-002 | Not executed | 第三例失败停止 | 0/0/0/0 |
+| 5 | UAT-KB-003 | Not executed | 同上 | 0/0/0/0 |
+| 6 | UAT-KB-005 | Not executed | 同上 | 0/0/0/0 |
+| 7 | UAT-KB-006 | Not executed | 同上 | 0/0/0/0 |
+| 8 | UAT-KB-015b | Not executed | 同上 | 0/0/0/0 |
+| 9 | UAT-KB-016 | Not executed | 同上 | 0/0/0/0 |
+| 10 | UAT-KB-008 | Not executed | 同上 | 0/0/0/0 |
+
+专项Functional=Failed；完整专项Effectiveness未测完，不赋予effective/partially_effective等级。前三批加本批累计8端到端/20模型/14search/7embedding/7rerank，Business/answer/retry/resume0；本批自身为3/8/6/3/3，授权已终止，不续用剩余预算或自动创建run-05。
+
+本次KB-015a证明V5可在原问句下正确单域并提供定义/分类证据，不证明其他表达稳定通过。KB-004中两项分类原文已在policy keyword第3/8名；living在域内rerank第28并未进入final20，lodging进入final第9但未进入Evidence8，Summary输入缺少两项必要原文。不能再将该例解释成单纯Summary格式错误、原文不存在或未选择policy；也不能由有限hash证据还原未保存的模型文本或归因全部落选原因。
+
+安全与执行边界：实际任务为selection-v4/Rewrite5/Summary5，全部succeeded，无模型失败诊断条目；clients、owned进程、原始临时日志和敏感扫描均通过。通过的结构/引用/域校验不等于完整语义验收，核心覆盖仍待处理。原37项Knowledge功能、35项Business功能、阶段A及历史P5最新有效partially_effective保持其原证明范围；不因这2项通过宣称阶段B完成。

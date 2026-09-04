@@ -17,7 +17,7 @@
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 在线生产接线、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V5、阶段 B 有界检索及阶段 A 离线语料处理均已实施；当前增量验证记录见P3，阶段 B 真实专项未通过、当前Rewrite V5/Summary V5没有真实效果证据；具体 Gate/UAT 与评审状态由 P3/UAT_01 管理 |
+| 实施状态 | 在线生产接线、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V5、阶段 B 有界检索及阶段 A 离线语料处理均已实施；当前V5已有部分真实场景验证，跨域必要条款覆盖及完整专项仍未通过；具体 Gate/UAT、证据与评审状态由 P3/UAT_01 管理 |
 
 ## 2. 阅读导航
 

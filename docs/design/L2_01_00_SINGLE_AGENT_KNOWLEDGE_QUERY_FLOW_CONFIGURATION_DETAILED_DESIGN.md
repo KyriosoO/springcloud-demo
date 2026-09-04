@@ -13,7 +13,7 @@
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.18](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；当前增量验证记录由P3管理，V5真实效果未测量，效果运行由UAT_01管理 |
+| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；当前V5已有部分真实场景验证但完整专项未通过，增量记录由P3管理，效果运行由UAT_01管理 |
 
 ## 2. 阅读导航与变更记录
 
