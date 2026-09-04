@@ -1,4 +1,4 @@
-"""The V3 implementation of the existing request-scoped rewrite stage."""
+"""The shared strict semantic-plan implementation of the request-scoped rewrite stage."""
 from __future__ import annotations
 
 import re

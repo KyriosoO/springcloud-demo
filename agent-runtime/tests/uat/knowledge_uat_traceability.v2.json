@@ -152,7 +152,7 @@
           "symbol": "k-nonlive-rewrite-invalid"
         }
       ],
-      "actualResult": "current Rewrite V3 rejects invalid output with zero retrieval, embedding, rerank and summary calls",
+      "actualResult": "current Rewrite V4 reuses the strict V3 decoder and rejects invalid output with zero retrieval, embedding, rerank and summary calls",
       "status": "passed"
     },
     {
@@ -165,7 +165,7 @@
           "symbol": "k-nonlive-rewrite-fallback"
         }
       ],
-      "actualResult": "current Rewrite V3 failure returns downstream_failure without original-question fallback",
+      "actualResult": "current Rewrite V4 failure returns downstream_failure without original-question fallback",
       "status": "passed"
     },
     {

@@ -6,6 +6,7 @@ import pytest
 
 from agent_runtime.capability_api.contracts import CapabilityStatus
 from agent_runtime.main import build_runtime
+from agent_runtime.knowledge.rewrite_v4 import INSTRUCTION
 from agent_runtime.model.contracts import ModelTaskId, StructuredFinishKind, StructuredModelResponse
 from tests.helpers import scope
 from tests.integration.knowledge.test_production_runtime_wiring import (
@@ -43,6 +44,9 @@ def plan(query, domain="tax.policy"):
     ("住宿服务税率", {"candidates": ["住宿服务税率"]}, CapabilityStatus.DOWNSTREAM_FAILURE, None),
     ("住宿服务税率", {"outcome": "unsupported", "queries": [], "missing_conditions": []}, CapabilityStatus.NO_RESULT, "no_matching_domain"),
     ("酒店住宿费用适用什么税率", {"outcome": "clarification_required", "queries": [], "missing_conditions": ["taxpayer_type"]}, CapabilityStatus.NO_RESULT, "clarification_required"),
+    ("酒店行业的住宿费用，适用哪种税率？", {"outcome": "clarification_required", "queries": [], "missing_conditions": ["taxpayer_type", "applicable_period"]}, CapabilityStatus.NO_RESULT, "clarification_required"),
+    ("软件开发服务适用哪种增值税税率？", {"outcome": "clarification_required", "queries": [], "missing_conditions": ["taxpayer_type", "calculation_method"]}, CapabilityStatus.NO_RESULT, "clarification_required"),
+    ("请列举生活服务的增值税分类规则", plan("生活服务增值税分类规则"), CapabilityStatus.SUCCESS, None),
     ("住宿服务税率", RuntimeError("synthetic"), CapabilityStatus.DOWNSTREAM_FAILURE, None),
     ("住宿服务税率", TimeoutError(), CapabilityStatus.TIMEOUT, None),
     ("住宿服务6％税率", plan("住宿服务6‰税率"), CapabilityStatus.DOWNSTREAM_FAILURE, None),
@@ -58,13 +62,19 @@ async def test_current_root_semantic_plan_failures_never_query_or_fallback(quest
     finally:
         await runtime.aclose()
     assert outcome.status is expected, outcome.failure
+    rewrite_calls = [r for r in model.requests if r.task_id is ModelTaskId.KNOWLEDGE_REWRITE]
+    assert len(rewrite_calls) == 1
+    assert rewrite_calls[0].task_version == "4"
+    assert rewrite_calls[0].system_instruction == INSTRUCTION
     if expected is not CapabilityStatus.SUCCESS:
         assert clients.paths == []
         assert len(model.requests) == 2
     if reason:
         assert outcome.user_result["reason"] == reason
     if reason == "clarification_required":
+        # Fake output proves the production branch, not the model's semantic choice.
         assert "查询条件不足" in outcome.answer_text
+        assert not any(r.task_id is ModelTaskId.KNOWLEDGE_SUMMARY for r in model.requests)
     assert all(item.is_closed for item in clients.clients)
 
 
