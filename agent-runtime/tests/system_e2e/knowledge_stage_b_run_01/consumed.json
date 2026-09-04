@@ -1,0 +1,1 @@
+{"manifestSha256": "ee56673a262894a135379ae50d1d0e32d4cf3fe1051d6b8b40a55ab8da08a675", "rule": "first_model_http_attempt; no retry/resume", "runId": "knowledge-stage-b-uat-v1-20260904-run-01"}
