@@ -8,7 +8,8 @@ import pytest
 
 from agent_runtime.adapters.http_transport import HttpxBusinessDomainTransport
 from agent_runtime.capability_api.contracts import CapabilityStatus
-from agent_runtime.knowledge.rewrite_v4 import INSTRUCTION
+from agent_runtime.bootstrap import KnowledgeCompositionRoot
+from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
 from agent_runtime.main import build_runtime
 from agent_runtime.model.deepseek import transport as transport_module
 from agent_runtime.model.settings import ModelApiKey, ModelProvider, ModelSettings
@@ -60,6 +61,11 @@ async def test_wire_response_to_current_rewrite_runtime_fails_closed(
 ):
     """Synthetic wire faults test boundary semantics, not live model correctness."""
     calls = []
+    # Current production binding; frozen run tests inject their original root.
+    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
+    assert tasks is not None
+    expected_rewrite = tasks.rewrite.build_request(KnowledgeSemanticPlanInput(
+        minimized_question=_QUESTION, enabled_domain_ids=("tax.policy", "tax.law")))
     decoded_calls = []
     business_calls = 0
     parse_response = transport_module.parse_deepseek_response
@@ -90,7 +96,7 @@ async def test_wire_response_to_current_rewrite_runtime_fails_closed(
         if len(calls) == 1:
             content = '{"capability_id":"knowledge.query"}'
         elif len(calls) == 2:
-            assert payload["messages"][0]["content"] == INSTRUCTION
+            assert payload["messages"][0]["content"] == expected_rewrite.system_instruction
             assert payload["max_tokens"] == 512
             assert payload["response_format"] == {"type": "json_object"}
             assert "tools" not in payload
@@ -158,7 +164,7 @@ async def test_wire_response_to_current_rewrite_runtime_fails_closed(
     assert (2 in decoded_calls) is provider_decoded
     assert len(calls) == (3 if fault == "none" else 2)
     assert [(row["taskId"], row["taskVersion"]) for row in observations.model_calls] == [
-        ("action_selection", "action-selection-v4"), ("knowledge_rewrite", "4"),
+        ("action_selection", "action-selection-v4"), ("knowledge_rewrite", expected_rewrite.task_version),
     ] + ([("knowledge_summary", "4")] if fault == "none" else [])
     rewrite = observations.model_calls[1]
     assert rewrite["status"] == ("failed" if model_failure else "succeeded")
