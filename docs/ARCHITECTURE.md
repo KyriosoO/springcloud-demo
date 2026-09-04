@@ -7,7 +7,7 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- `REQ_00` v2.4；L0 v2.8、L1 Core/Knowledge/Business v3.5/v1.18/v2.8，10份L2当前版本见下表。实施计划P3 v2.48；验收计划UAT_00 v1.24、UAT_01 v1.25；路线图ROADMAP_01 v0.8。阶段B新增语义仍须按评审和实施事实分开管理，不继承历史通过结论。本索引不复制工作包、Gate、candidate、哈希或动态测试总数。
+- `REQ_00` v2.4；L0 v2.8、L1 Core/Knowledge/Business v3.5/v1.18/v2.8，10份L2当前版本见下表。实施计划P3 v2.48；验收计划UAT_00 v1.24、UAT_01 v1.26；路线图ROADMAP_01 v0.8。阶段B新增语义仍须按评审和实施事实分开管理，不继承历史通过结论。本索引不复制工作包、Gate、candidate、哈希或动态测试总数。
 
 ## 2. 需求与总体架构
 
@@ -63,7 +63,7 @@
 ## 6. 实施计划与历史归档
 
 - 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.48 / Reviewed；工作包、Gate、当前验证和提交状态只在该计划维护。
-- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.24 / Reviewed；Knowledge 在线与阶段 A 语料专项验收由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.25 独立治理。后续演进见 [ROADMAP_01](plans/ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) v0.8。
+- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.24 / Reviewed；Knowledge 在线与阶段 A 语料专项验收由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.26 独立治理。后续演进见 [ROADMAP_01](plans/ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) v0.8。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。

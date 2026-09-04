@@ -218,7 +218,7 @@ Validator 构造 `summaryType=extractive_evidence`、`answerSummary`、points（
 3. 一段连续原文若同时支持全部要点，使用一个ref；分散在不同Evidence时使用多个不同ref。不得为了凑双引用增加冗余点。
 4. 证据缺失、冲突、只有模型常识可补充，或在总5点/每点512字符/唯一ref约束下无法完整证明时，输出exact `insufficient_evidence`。同一ref内多个不连续片段不能拼接、重复引用或通过扩展长度绕过。
 
-实现仅新增`knowledge/evidence/summary_task_v5.py::KnowledgeSummaryTaskV5.definition()`，用V4公开definition/build_request复用严格输入和parser，通过不可变替换仅更新`task_version="5"`及Prompt。不导入旧私有helper、不修改V1～V4源码。输入类型及双层预算不变：序列化Evidence输入JSON为32768bytes/1～8条，Model任务外层max_input_bytes为49152；输出1536tokens、任务timeout和取消传播不变。固定SystemInstruction仍满足Model层既有8192bytes上限。`bootstrap.KnowledgeCompositionRoot`只绑定Rewrite5/Summary5，并拒绝旧Summary装配；无环境开关或请求内版本fallback。disabled不创建任务/client。
+实现仅新增`knowledge/evidence/summary_task_v5.py::KnowledgeSummaryTaskV5.definition()`，用V4公开definition/build_request复用严格输入和parser，通过不可变替换仅更新`task_version="5"`及Prompt。不导入旧私有helper、不修改V1～V4源码。输入类型及双层预算不变：序列化Evidence输入JSON为32768bytes/1～8条，Model任务外层max_input_bytes为49152；输出1536tokens、任务timeout和取消传播不变。固定SystemInstruction仍满足Model层既有8192bytes上限。`bootstrap.KnowledgeCompositionRoot`只绑定L2_01_00当前Rewrite（V6）与Summary5，并拒绝旧Summary装配；无环境开关或请求内版本fallback。disabled不创建任务/client。
 
 validator仍仅按§9.2验证，合法单引用不会被本地语义规则拒绝；`coverage`仍为输入检索覆盖，不等于最终答案覆盖。不新增公共DTO、模型payload字段、模型复核调用、行业词面分支或检索/出域调整。单靠Prompt/fake不能证明模型遵循语义，真实专项缺口继续由P3/UAT_01管理。
 

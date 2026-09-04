@@ -17,7 +17,7 @@
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 在线生产接线、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V5、阶段 B 有界检索及阶段 A 离线语料处理均已实施；当前V5已有部分真实场景验证，跨域必要条款覆盖及完整专项仍未通过；具体 Gate/UAT、证据与评审状态由 P3/UAT_01 管理 |
+| 实施状态 | 在线生产接线、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索及阶段 A 离线语料处理均已实施；V6尚无真实效果测量，跨域必要条款覆盖及完整专项仍未通过；具体 Gate/UAT、证据与评审状态由 P3/UAT_01 管理 |
 
 ## 2. 阅读导航
 
@@ -126,7 +126,7 @@
 
 该增量经三轮内审及只读设计复评通过，允许下位合同及非live实施；已实施并通过定向non-live验证，不继承此前功能UAT的语义效果结论。下位合同、验证与当前状态分别见L2_01_02、P3及UAT_01。
 
-当前生产绑定为 Rewrite V5 语义计划（复用V3严格合同及V4澄清规则）与有界域内排序；当前增量验证不继承历史真实效果通过结论。实现入口、代码复核和专项验收状态只在 P3/UAT_01 记录。
+当前生产绑定为 Rewrite V6 语义计划（复用V3严格合同及V4/V5规则，每域聚焦由L2_01_00 DR-KFLOW-021治理）与有界域内排序；当前增量验证不继承历史真实效果通过结论。实现入口、代码复核和专项验收状态只在 P3/UAT_01 记录。
 
 ## 5. 能力边界
 
@@ -422,14 +422,14 @@ accepted → rewritten → domains_selected → retrieved
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
 - 历史有效效果等级及对应不可变运行资产由 UAT_01/evidence 管理；当前最新有效效果等级为 `partially_effective`，不得改述为整体效果达标。
 - 阶段 A 离线 Corpus Build Plane 已完成 audit v3、官方附件版本化处理、结构化条款切片、candidate a5、14/14 专项 UAT 和原子 alias 发布；在线链路只消费发布后的只读 Profile/policy snapshot。a4 作为正式评审前的中间候选保留，旧 a1～a3 及原索引同样保持不可变且未删除。
-- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Rewrite V5 与 Summary V5。Rewrite V1～V4任务绑定、Summary V1～V4仅承担历史兼容和哈希追溯；V3公开decoder/类型由V4/V5复用。
+- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Rewrite V6 与 Summary V5。Rewrite V1～V5任务绑定、Summary V1～V4仅承担历史兼容和哈希追溯；V3公开decoder/类型由V4/V5/V6复用。
 
 ### 14.2 目标生产接线
 
 Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
 
 - `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
-- `true`：当前实现在同一 Model Gateway 唯一注册 Rewrite V5、Summary V5，在同一 Registry 唯一追加 `knowledge.query`；旧Rewrite V1～V4不作为自动后备。当前实施进度由 P3 管理，尚未完成的目标不得标为已接线。
+- `true`：当前实现在同一 Model Gateway 唯一注册 Rewrite V6、Summary V5，在同一 Registry 唯一追加 `knowledge.query`；旧Rewrite V1～V5不作为自动后备。当前实施进度由 P3 管理，尚未完成的目标不得标为已接线。
 - `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
 - 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
 - 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。

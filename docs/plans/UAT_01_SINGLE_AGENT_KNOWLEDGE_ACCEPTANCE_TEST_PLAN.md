@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.25 |
+| 当前版本 | v1.26 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
@@ -15,6 +15,8 @@
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
 
 v1.25记录独立V5验证的明确授权及§14.10版本绑定；保持原10例/顺序/gold及失败即停止规则，不改变验收判据或历史结果。
+
+v1.26记录§14.12的Rewrite V6非live证明范围及当前任务效果缺口；不改变原用例/gold，不授权新批次。
 
 ## 2. 目标、非目标与结论口径
 
@@ -446,3 +448,9 @@ non-live覆盖：V4→V5仅version/Prompt改变；显式分类与定义、非分
 本次KB-015a证明V5可在原问句下正确单域并提供定义/分类证据，不证明其他表达稳定通过。KB-004中两项分类原文已在policy keyword第3/8名；living在域内rerank第28并未进入final20，lodging进入final第9但未进入Evidence8，Summary输入缺少两项必要原文。不能再将该例解释成单纯Summary格式错误、原文不存在或未选择policy；也不能由有限hash证据还原未保存的模型文本或归因全部落选原因。
 
 安全与执行边界：实际任务为selection-v4/Rewrite5/Summary5，全部succeeded，无模型失败诊断条目；clients、owned进程、原始临时日志和敏感扫描均通过。通过的结构/引用/域校验不等于完整语义验收，核心覆盖仍待处理。原37项Knowledge功能、35项Business功能、阶段A及历史P5最新有效partially_effective保持其原证明范围；不因这2项通过宣称阶段B完成。
+
+### 14.12 Rewrite V6 非live证明范围
+
+L2_01_00 DR-KFLOW-021已通过三轮内审与只读设计复评，当前生产绑定切换为Rewrite6/Summary5。该切片只调整每域表达的背景归属，不修改排序、锚点、Evidence配额、Summary、decoder或既有Guard。non-live使用合成双域/单域计划，证明各域表达原样进入keyword/embedding/rerank、原问题进入Summary、既有显式条件偏差和非法结构继续零下游调用；非酒店与明确限定本域税种的表达同样保留。
+
+这些测试不证明LLM能够可靠判断子问归属，不能继承run-04两例成功，也不能关闭KB-004及其他未执行用例。V6真实效果为Evidence missing；原10例、顺序、gold、四批不可变结果、历史37/35功能追踪与Stage A保持原范围。新付费运行未获授权；不创建run-05、不读取模型凭据、不执行outbound。配额设计和核心P0覆盖仍未关闭，当前实施/测试/评审证据见P3 §20.22。
