@@ -165,7 +165,7 @@ async def test_wire_response_to_current_rewrite_runtime_fails_closed(
     assert len(calls) == (3 if fault == "none" else 2)
     assert [(row["taskId"], row["taskVersion"]) for row in observations.model_calls] == [
         ("action_selection", "action-selection-v4"), ("knowledge_rewrite", expected_rewrite.task_version),
-    ] + ([("knowledge_summary", "4")] if fault == "none" else [])
+    ] + ([("knowledge_summary", tasks.summary.task_version)] if fault == "none" else [])
     rewrite = observations.model_calls[1]
     assert rewrite["status"] == ("failed" if model_failure else "succeeded")
     assert rewrite["failureKind"] == model_failure
