@@ -384,3 +384,22 @@ L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主�
 6. prepare/check-environment不读取模型Key。真实执行前必须完成fake等价性、故障分类、超限/未知值、请求隔离、绑定恢复、历史hash和累计预算测试。check-environment只执行原有认证→stub公共入口烟测，模型/Knowledge调用0。首个失败停止本批，所有未执行case单独列出；旧批完整字节不变。
 
 本次诊断不增加生产在线流程或新的门禁，不把可观测性改进冒充KB-015a语义已修复。设计协议评审记录、测试结果和真实执行状态在P3 §20.13后续追加。
+
+### 14.7 run-03独立批次终态
+
+本批按§14.6执行一次并因第二例失败停止，frozen HEAD、预算、六项不可变hash和有限根因矩阵见P3 §20.14，原始有限文件位于`agent-runtime/tests/system_e2e/knowledge_stage_b_run_03/`。与run-02不同，本批selection/Rewrite4/Summary4全部succeeded、modelFailures为空；不能回溯解释run-02格式错误或宣称其稳定修复。
+
+| 顺序 | Case | 结果 | 有限证据 |
+|---|---|---|---|
+| 1 | UAT-KB-001 | Passed | 澄清，HTTP200/no_result，2模型且所有检索/摘要0 |
+| 2 | UAT-KB-015a | Failed | 期望单policy，实际policy+law；lodging引用true、living引用false，1条引用；HTTP200/success不等于UAT通过 |
+| 3 | UAT-KB-004 | Not executed | 第二例失败停止 |
+| 4 | UAT-KB-002 | Not executed | 同上 |
+| 5 | UAT-KB-003 | Not executed | 同上 |
+| 6 | UAT-KB-005 | Not executed | 同上 |
+| 7 | UAT-KB-006 | Not executed | 同上 |
+| 8 | UAT-KB-015b | Not executed | 同上 |
+| 9 | UAT-KB-016 | Not executed | 同上 |
+| 10 | UAT-KB-008 | Not executed | 同上 |
+
+实际2端到端/5模型/4search/2embedding/2rerank，三批累计5/12/8/4/4，Business/answer/retry/resume0。两项必要原文均已进入summary输入（Evidence第2/4项）；本例排除语料缺失和topK截断作为直接损失点。选域过宽及最终覆盖未满足冻结rubric，专项Functional=Failed、整体Effectiveness仍未完成测量。现有证据不支持盲改检索窗口或继续付费试错，也不得事后降低该case的gold要求。客户端、owned进程、临时原始日志清理通过；无run-04，不复用剩余名义预算。既有35/37固定功能与阶段A验收不改判。
