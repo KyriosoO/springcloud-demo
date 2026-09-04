@@ -40,7 +40,7 @@ v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件E
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.17 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.17 | 单动作、Rewrite V3 及发布后只读快照消费 | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.18 | 单动作、共享V3合同与V4澄清边界增量、发布后只读快照消费 | Approved |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.7 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.18 | Evidence/出域、Summary V4 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
@@ -746,3 +746,11 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 | 85bcf2149a99cb5d038d8a9f688df7be03f562cf | 失败批次五项有限证据及冻结源码历史测试 |
 
 最终状态同步提交及远端/工作树以Git日志和交付报告为准，避免文档自引用提交SHA。所有推送均为当前codex分支的普通快进推送，无PR或历史改写。
+
+### 20.8 失败后非live澄清边界修复
+
+只读核实发现V3 Prompt的“具体主体”触发条件比REQ-KQUALITY-003/KQ-AD-015的“单一适用判断”更窄；行业/服务的适用提问未给出具名主体，也可能缺少必要条件。这是有源码依据的候选原因，不证明其是唯一根因。最小方案由L2_01_00 v1.18 DR-KFLOW-019治理：新增V4 Prompt，复用公开V3 definition/decoder/类型/预算，当前生产单绑定改为V4，旧V3和冻结批次不改；不新建intent Schema、本地税务规则或额外模型审核。
+
+三轮内审依次核对语义/责任、合同/安全、追踪/有限验证；独立审查首轮发现主追踪与准入状态两项S2，最小修复后第二轮通过，S0/S1/未处理S2均0。设计可作为非live实施依据；不改变UAT Deferred、质量包Blocked、B-CR-001 Open。排序/Evidence必要条款缺口仍独立保留，不通过Prompt修订宣称关闭。不得再次读取模型Key或执行本批剩余预算。
+
+当前代码仍V3；V4实现、定向测试和复评结果待实际执行后追加，不继承此前通过数字。P3/UAT版本未因纯执行记录和来源版本同步而升级，已停止的真实批次继续绑定冻结V3。

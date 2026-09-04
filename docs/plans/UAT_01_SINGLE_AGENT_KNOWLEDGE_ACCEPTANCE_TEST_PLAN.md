@@ -9,7 +9,7 @@
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.17、`L2_01_00` v1.17、`L2_01_01` v2.7、`L2_01_02` v1.18、`P3_00` v2.43；阶段 B 设计评审通过，实施/UAT状态另记 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.17、`L2_01_00` v1.18、`L2_01_01` v2.7、`L2_01_02` v1.18、`P3_00` v2.43；阶段 B 设计评审通过，实施/UAT状态另记 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -344,3 +344,7 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 住宿定义从policy keyword rank19经过域融合rank34、rerank rank31后未入最终20/Evidence8，说明“原文存在”与“真实问题必要证据送达”不同。离线聚焦query改善不能冒充本次端到端改善；law规则进入Evidence且引用合法也不能证明适用条件充分。没有保留原始模型响应，因此不推断未记录的最终具体税率文案，也没有独立专家usefulness评分。
 
 不新增付费运行。核心澄清及必要证据风险保持未关闭；后续方案先做非live根因/合同复核，真正的模型效果确认须另立受控目标，不能复用本批剩余预算。
+
+### 14.4 失败后的非live修复边界
+
+L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主体”过窄前提，区分适用判断与资料查阅，保留V3严格合同。此时V4尚未实施；实施后需验证同一生产根的指令绑定、精确解码与澄清零调用，不得把fake选择clarification当成真实模型已修复。§14.2的V3失败终态、冻结case及gold不变，其他9例仍未执行，B-CR-001保持Open；不创建新候选、不追加模型调用。
