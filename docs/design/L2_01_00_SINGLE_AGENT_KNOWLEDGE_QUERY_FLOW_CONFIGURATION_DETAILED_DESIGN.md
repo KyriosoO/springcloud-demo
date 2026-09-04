@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.16 |
+| 当前版本 | v1.17 |
 | 日期 | 2026-09-04 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.16](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.17](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled 惰性、Spring non-live E2E、域目录 v2、Rewrite V2、Summary V4 与阶段 A 发布后只读快照消费已实现并通过验证；效果运行与门禁状态由 UAT_01/P3 管理 |
 
@@ -166,8 +166,10 @@ Selector 不判断被问文件是否真实存在；有合法域但检索无候�
 2. V3 输入为安全原问题和已启用逻辑域安全目录；只含逻辑 ID、说明，不含 Profile、物理字段、索引或 URL。
 3. V3 唯一 JSON 字段为 `outcome/queries/missing_conditions`。search：queries为1～2个 exact `{domain_id,query}`，domain唯一且启用，query为非空NFC文本≤1024；missing_conditions必须为空。clarification_required：queries为空，missing_conditions为1～3个不重复有限值（subject/taxpayer_type/calculation_method/applicable_period）。unsupported：两个列表均为空。未知键、重复键、null、尾随JSON、非有限值和类型coercion均拒绝。
 4. 新 `KnowledgeRewriteTaskV3` 独立 exact decoder；新请求级 planner 实现同一 Rewrite Stage 协议，不复制 Capability 流程。模型提出的 domain/query 均为不可信数据；query 还须重新经过现有 QuestionEgressGuard，拒绝模型引入敏感值或不可外发输入，禁止把该失败降级为可用子集。任何一域不合法则整份计划拒绝；只有可信 planner 可设置新策略版本与域计划，外部请求和模型没有策略选择字段。
-5. 每个查询必须保留原问题显式数字、日期、文号、法条、否定、纳税人和计税方法约束；NFC规范化后校验。新增有限税务条件检查只防止遗漏/补造，不决定域或检索参数。服务/主体同义词由模型理解，原问题始终是摘要边界；本地校验不能宣称证明了任意自然语言等价，必须用保留集和人工原文UAT补证。
+5. 每个查询必须保留原问题显式数字、日期、文号、法条、否定、纳税人和计税方法约束；NFC规范化后校验。新增有限税务条件检查只防止遗漏/补造，不决定域或检索参数。服务/主体同义词由模型理解，原问题始终是摘要边界；本地校验不能宣称证明了任意自然语言等价，必须用保留集和人工原文UAT补证。 未附带具体数值的“税率/征收率”是问题主题，不要求每个分域表达重复；它们须在整组表达中完整保留且不得新增或互换。单域仍须保留；具体百分数及其类型、日期、纳税人、计税方法、否定条件仍逐query校验。
 6. V3失败/超时不得回退本地选域或原问题检索。clarification_required不执行检索/摘要；描述性分类与法规查阅不因未提供纳税人信息而一律拒绝。问题策略拒绝优先，模型0；普通unsupported保留既有no_matching_domain语义。
+
+主题分配只作用于未携带具体数值的税率类主题词；只要原问含比例记号（%/％/‰/‱或百分之/千分之/万分之），两类主题词继续逐query保持，不能以“分域聚焦”丢失数值含义。实现由semantic_planner承担，测试覆盖双域分配、单域丢失、整组丢失、新增类型、数字/中文比例反例；不修改历史QuestionSemanticGuard。
 
 改写结果同时保存 `question_egress_denied`，供后续零域/证据阶段正确决定策略拒绝优先级；不保存模型原始响应。
 
@@ -374,7 +376,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.16 已完成阶段 B 三轮内审和独立复评；允许实施新增语义，尚未完成 UAT |
+| 是否可作为实现依据 | 是，本次增量已完成三轮内审和独立复评，允许目标内实施；真实UAT与正式代码评审尚未完成 |
 | 当前允许实施范围 | 既有在线流程，以及发布门禁通过后同步 Profile/index/policy 快照绑定 |
 | 当前禁止动作 | 未配置新域/物理资源选择、公共契约变化、未按UAT冻结或超预算的真实模型调用、请求触发索引写入或独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
@@ -398,8 +400,8 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.14 对照复评 | candidate a4 的 policy/law snapshot、5600 项 catalog 全成员及启动 verifier 一致；保留旧快照，未改变在线算法或 fallback，S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.15 对照复评 | candidate a5 的 policy/law snapshot、5600 项 catalog 全成员、启动 verifier 与最终工具源码清单一致；a4/旧快照保留，未改变在线算法或 fallback，S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.16。
-- 文档状态：Approved；本轮三轮内审及独立复评通过，具体记录归 P3_00 §20，尚不代表实施完成。
+- 当前版本：v1.17。
+- 文档状态：Approved；本次实施校准三轮内审和独立复评通过，记录归 P3_00 §20.4，尚不代表实施完成。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
 ## 阶段 B 增量实施追踪

@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.20 |
+| 当前版本 | v1.21 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.16、`L2_01_00` v1.16、`L2_01_01` v2.6、`L2_01_02` v1.17、`P3_00` v2.42；阶段 B 设计评审通过，实施/UAT状态另记 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.17、`L2_01_00` v1.17、`L2_01_01` v2.7、`L2_01_02` v1.18、`P3_00` v2.43；阶段 B 设计评审通过，实施/UAT状态另记 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -80,8 +80,8 @@ Spring 公共接入与认证
 | Case | 场景 | 预期 |
 |---|---|---|
 | `UAT-K-RW-001` | 时间、主体、否定、法条等受保护约束 | rewrite 保留约束 |
-| `UAT-K-RW-002` | 模型返回非法候选 | 仅在设计允许且原问题安全时回退原问题，否则失败关闭 |
-| `UAT-K-RW-003` | rewrite timeout/provider failure | 固定失败语义，不进入检索或按已评审原问题回退规则执行 |
+| `UAT-K-RW-002` | 模型返回非法候选 | 当前V3失败关闭，检索/embedding/rerank/summary均0；旧fallback仅作历史合同，不作当前通过证据 |
+| `UAT-K-RW-003` | rewrite timeout/provider failure | 当前V3返回timeout/downstream_failure，不进入检索且无原问题fallback |
 | `UAT-K-RW-004` | 敏感或控制字符输入 | rewrite/summary 模型调用均为 0 |
 
 ### 5.3 逻辑域与失败优先级

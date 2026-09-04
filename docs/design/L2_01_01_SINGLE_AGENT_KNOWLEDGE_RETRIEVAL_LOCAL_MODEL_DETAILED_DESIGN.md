@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.6 |
+| 当前版本 | v2.7 |
 | 日期 | 2026-09-04 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.16](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.17](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -242,11 +242,13 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 - endpoint 默认 loopback `http://127.0.0.1:8909`，model exact `BAAI/bge-reranker-v2-m3`；
 - 阶段 B每个选中域用其唯一query与该域去重融合候选执行一次rerank，单域≤40条，两域合计≤80；同一identity若确实在两域召回，可分别参与两次域内排序，但不得新增另一域未召回的候选，总次数仍不超过原始路径条数80。每个rerank返回索引/正文/分数必须完整一致，不比较不同query的裸分数；最终按域内rank轮转填充。每域最多一次rerank，无失败重试。
 - 输出必须一一覆盖候选且索引唯一，score 有限；
-- 阶段 B目标采用确定性锚点保留：每个计划域选择“该域keyword结果首位”和“该域rerank首位”；同identity去重，按目录域序、keyword锚点、rerank锚点生成≤4条保留前缀，再按每域rerank降序、RRF降序、chunkId确定域内顺序，目录域序轮转填充到final_candidates。所有锚点必须来自本次已授权候选，不使用内容规则/gold/文档特判。配置final_candidates不足保留前缀时启动失败，不能静默丢弃域。
+- 阶段 B目标采用确定性锚点保留：每个计划域选择“该域keyword结果首位”和“该域rerank首位”；同identity去重，按目录域序、keyword锚点、rerank锚点生成≤4条保留前缀，余下项按本节定义的keyword/rerank交错序列在目录域序轮转填充到final_candidates。所有锚点必须来自本次已授权候选，不使用内容规则/gold/文档特判。配置final_candidates不足保留前缀时启动失败，不能静默丢弃域。
+
+阶段B域内填充在锚点之后使用两个有限序列：keyword source rank（并列chunkId）与rerank排序（分数、RRF、chunkId）。按相同offset先keyword后rerank交错，以documentId/chunkId去重；跳过已保留锚点后，在域之间每轮取一个尚未输出项。一个域没有keyword候选时仅使用rerank序列。不得让重复锚点或重复候选占用另一个域的轮转名额；任何候选只能来自该域本次授权召回。RRF计算、两个序列各自排名、最多4个锚点、final20及Evidence8不变。此为确定性排名融合，不使用gold、答案、问题ID、文档ID特判或新增内容信号。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
-- Stage为每个计划item建立有界任务；先按唯一query执行embedding（最多2次）再并发执行最多4次search，query→vector请求内映射，禁止错用第一域向量。所有路径完成并通过授权优先级检查后，执行每域最多1次rerank（共≤2次）；任何技术/授权失败不触发新域/新query。
+- Stage为每个计划item建立有界任务；先按唯一query执行embedding（最多2次）再并发执行最多4次search，query→vector请求内映射，禁止错用第一域向量。所有路径完成并通过授权优先级检查后，按目录顺序串行执行每域最多1次rerank（共≤2次），每次调用前检查剩余deadline，不延长阶段时限；任何技术/授权失败不触发新域/新query。
 - cancellation/deadline 传播到全部 transport；任一并发 path 异常或阶段失败时取消并 join 未完成任务。
 - 整域 forbidden/authority failure 是安全失败，不能用另一 path/domain 的 success 降级。
 - rate limit、timeout、provider failure 是技术失败，由 L2_01_00 coverage 规则决定是否部分继续。
@@ -457,9 +459,9 @@ KnowledgeSearchResponse search(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v2.6 已完成阶段 B 三轮内审和独立复评；允许实施新增语义，尚未完成 UAT |
+| 是否可作为实现依据 | 是，本次增量已完成三轮内审和独立复评，允许目标内实施；真实UAT与正式代码评审尚未完成 |
 | 当前允许实施范围 | 既有 typed endpoint/Profile/授权，以及官方语料审计、版本化处理、新候选索引和门禁后 alias 发布 |
-| 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或真实模型出域 |
+| 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或未冻结/超预算真实模型出域 |
 | 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
 
 ## 17. 三轮内部自检与独立评审记录
@@ -485,8 +487,8 @@ KnowledgeSearchResponse search(
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.6。
-- 文档状态：Approved；本轮三轮内审及独立复评通过，具体记录归 P3_00 §20，尚不代表实施完成。
+- 当前版本：v2.7。
+- 文档状态：Approved；本次实施校准三轮内审和独立复评通过，记录归 P3_00 §20.4，尚不代表实施完成。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 
 ## 阶段 B 增量实施追踪
