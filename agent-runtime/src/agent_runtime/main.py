@@ -103,6 +103,8 @@ def build_runtime(
         if knowledge_settings.enabled
         else None
     )
+    if retrieval_settings is not None and retrieval_settings.final_candidates < 2 * len(knowledge_settings.enabled_domain_ids):
+        raise ValueError("knowledge.final_candidates_cannot_cover_domain_anchors")
     model = LocalModelCompositionRoot.build(
         settings=model_settings,
         transport=model_transport,

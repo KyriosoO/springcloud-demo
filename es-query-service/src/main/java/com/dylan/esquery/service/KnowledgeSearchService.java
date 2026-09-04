@@ -100,8 +100,8 @@ public final class KnowledgeSearchService {
 		body.put("_source", Map.of("includes", new ArrayList<>(
 				new LinkedHashSet<>(profile.getSourceFields().values()))));
 		body.put("track_total_hits", false);
+		body.put("size", request.limit() + 1);
 		if ("keyword".equals(request.path())) {
-			body.put("size", request.limit() + 1);
 			body.put("query", Map.of("bool", Map.of(
 					"filter", List.of(categoryFilter),
 					"must", List.of(Map.of("multi_match", Map.of(

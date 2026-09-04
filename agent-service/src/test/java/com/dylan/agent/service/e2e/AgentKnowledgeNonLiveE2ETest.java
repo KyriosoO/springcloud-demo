@@ -74,9 +74,9 @@ class AgentKnowledgeNonLiveE2ETest {
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-multi-domain", "税务政策和税收法律有哪些规定",
                 200, "success", "knowledge.query", null);
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-rewrite-fallback", "税务政策改写失败仍如何处理",
-                200, "success", "knowledge.query", null);
+                502, "downstream_failure", "knowledge.query", "knowledge.rewrite_failure");
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-rewrite-invalid", "税务政策改写非法仍如何处理",
-                200, "success", "knowledge.query", null);
+                502, "downstream_failure", "knowledge.query", "knowledge.rewrite_failure");
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-no-result", "不存在资料的税务政策是什么",
                 200, "no_result", "knowledge.query", null);
         assertOutcome(client, DENIED_TOKEN, "k-nonlive-read-denied", "现行税务政策是什么",
@@ -115,6 +115,13 @@ class AgentKnowledgeNonLiveE2ETest {
         JsonNode sensitive = findCase(evidence, "k-nonlive-sensitive");
         sensitive.path("calls").elements().forEachRemaining(
                 node -> assertThat(node.asInt()).isZero());
+        for (String caseId : List.of("k-nonlive-rewrite-fallback", "k-nonlive-rewrite-invalid")) {
+            JsonNode calls = findCase(evidence, caseId).path("calls");
+            assertThat(calls.path("rewrite").asInt()).isEqualTo(1);
+            for (String key : List.of("search", "embed", "rerank", "summary")) {
+                assertThat(calls.path(key).asInt()).isZero();
+            }
+        }
 
         String finiteEvidence = Files.readString(evidencePath, StandardCharsets.UTF_8);
         String runtimeLog = Files.exists(runtimeLogPath)

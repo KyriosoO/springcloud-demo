@@ -53,7 +53,7 @@ class _KnowledgeModelTransport:
             content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
             content = json.dumps(
-                {"candidates": [payload["question"]]},
+                {"outcome": "search", "queries": [{"domain_id": "tax.policy", "query": payload["question"]}], "missing_conditions": []},
                 ensure_ascii=False,
                 separators=(",", ":"),
             )

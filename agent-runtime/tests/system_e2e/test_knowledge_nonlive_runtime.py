@@ -55,8 +55,8 @@ async def test_current_production_composition_executes_knowledge_matrix(
         ("k-nonlive-policy-admin", "现行增值税政策有哪些", _ADMIN, CapabilityStatus.SUCCESS),
         ("k-nonlive-law-viewer", "税收法律第一条规定什么", _VIEWER, CapabilityStatus.SUCCESS),
         ("k-nonlive-multi-domain", "税务政策和税收法律有哪些规定", _ADMIN, CapabilityStatus.SUCCESS),
-        ("k-nonlive-rewrite-fallback", "税务政策改写失败仍如何处理", _ADMIN, CapabilityStatus.SUCCESS),
-        ("k-nonlive-rewrite-invalid", "税务政策改写非法仍如何处理", _ADMIN, CapabilityStatus.SUCCESS),
+        ("k-nonlive-rewrite-fallback", "税务政策改写失败仍如何处理", _ADMIN, CapabilityStatus.DOWNSTREAM_FAILURE),
+        ("k-nonlive-rewrite-invalid", "税务政策改写非法仍如何处理", _ADMIN, CapabilityStatus.DOWNSTREAM_FAILURE),
         ("k-nonlive-no-result", "不存在资料的税务政策是什么", _ADMIN, CapabilityStatus.NO_RESULT),
         ("k-nonlive-read-denied", "现行税务政策是什么", _DENIED, CapabilityStatus.FORBIDDEN),
         ("k-nonlive-partial-path", "税务政策单路失败如何处理", _ADMIN, CapabilityStatus.SUCCESS),
@@ -92,6 +92,11 @@ async def test_current_production_composition_executes_knowledge_matrix(
         if item["caseId"] == "k-nonlive-sensitive"
     )
     assert all(count == 0 for count in sensitive["calls"].values())
+    for case_id in ("k-nonlive-rewrite-fallback", "k-nonlive-rewrite-invalid"):
+        # Stable historical ID, but the current V3 contract permits no fallback.
+        calls = next(item["calls"] for item in evidence["cases"] if item["caseId"] == case_id)
+        assert calls["rewrite"] == 1
+        assert all(calls[key] == 0 for key in ("search", "embed", "rerank", "summary"))
     assert evidence["totals"]["businessModel"] == 0
     assert evidence["totals"]["externalModelOutbound"] == 0
     assert "synthetic-secret" not in raw

@@ -38,12 +38,14 @@ class KnowledgeSearchServiceTest {
 	void buildsOnlyProfileOwnedKeywordAndVectorQueries() {
 		KnowledgeSearchRequest keyword = request("keyword", "政策", null, 5);
 		Map<String, Object> keywordBody = service.buildSearchBody(keyword, profile);
+		assertThat(keywordBody).containsEntry("size", 6);
 		assertThat(keywordBody.toString()).contains("category", "policy", "title", "content");
 		assertThat(keywordBody.toString()).doesNotContain("agent-doc-tax-policy-v2-read");
 
 		KnowledgeSearchRequest vector = request("vector", null,
 				java.util.Collections.nCopies(1024, 0.25d), 20);
 		Map<String, Object> vectorBody = service.buildSearchBody(vector, profile);
+		assertThat(vectorBody).containsEntry("size", 21);
 		assertThat(vectorBody.toString()).contains("embedding", "num_candidates=100", "k=21");
 	}
 

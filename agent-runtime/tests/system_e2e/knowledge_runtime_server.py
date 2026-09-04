@@ -89,8 +89,13 @@ class _KnowledgeModelTransport:
             if "改写非法" in question:
                 content = '{"candidates":[],"unexpected":true}'
             else:
+                # Fixed fake responses only; production domain intent is model-owned.
+                domains = {
+                    "税收法律第一条规定什么": ("tax.law",),
+                    "税务政策和税收法律有哪些规定": ("tax.policy", "tax.law"),
+                }.get(question, ("tax.policy",))
                 content = json.dumps(
-                    {"candidates": [question]},
+                    {"outcome": "search", "queries": [{"domain_id": domain, "query": question} for domain in domains], "missing_conditions": []},
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )

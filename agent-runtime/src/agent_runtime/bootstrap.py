@@ -512,10 +512,10 @@ class KnowledgeCompositionRoot:
         if not enabled:
             return None
         from agent_runtime.knowledge.evidence.summary_task_v4 import KnowledgeSummaryTaskV4
-        from agent_runtime.knowledge.rewrite_v2 import KnowledgeRewriteTaskV2
+        from agent_runtime.knowledge.rewrite_v3 import KnowledgeRewriteTaskV3
 
         return KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV2.definition(max_candidates=rewrite_max_candidates),
+            rewrite=KnowledgeRewriteTaskV3.definition(),
             summary=KnowledgeSummaryTaskV4.definition(),
         )
 
@@ -531,14 +531,13 @@ class KnowledgeCompositionRoot:
         from typing import cast
 
         from agent_runtime.knowledge.catalog import build_tax_domain_catalog
-        from agent_runtime.knowledge.domain_selection import DeterministicDomainSelector
         from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
         from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
-        from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput, KnowledgeSummaryOutput
+        from agent_runtime.knowledge.evidence.contracts import KnowledgeEvidenceLimits, KnowledgeSummaryInput, KnowledgeSummaryOutput
         from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
         from agent_runtime.knowledge.provider import KnowledgeCapabilityProvider
-        from agent_runtime.knowledge.question_semantics import QuestionSemanticGuard
-        from agent_runtime.knowledge.rewrite import KnowledgeQuestionRewriter, KnowledgeRewriteInput, KnowledgeRewriteOutput
+        from agent_runtime.knowledge.semantic_planner import KnowledgeSemanticPlanner
+        from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput
         from agent_runtime.knowledge.settings import KnowledgeSettings
         from agent_runtime.knowledge.contracts import KnowledgeRetrievalStage
 
@@ -556,17 +555,15 @@ class KnowledgeCompositionRoot:
         )
         if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
             raise ValueError("knowledge.policy_catalog_invalid")
-        rewrite_definition = cast(ModelTaskDefinition[KnowledgeRewriteInput, KnowledgeRewriteOutput], tasks.rewrite)
+        if tasks.rewrite.task_version != "3" or tasks.summary.task_version != "4":
+            raise ValueError("knowledge.production_task_version_invalid")
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
-        rewriter = KnowledgeQuestionRewriter(
-            guard=QuestionEgressGuard(max_question_chars=4096),
-            semantic_guard=QuestionSemanticGuard(),
+        rewriter = KnowledgeSemanticPlanner(
             gateway=model.gateway,
             context=model.context_accessor,
-            definition=rewrite_definition,
-            max_candidates=typed_settings.rewrite_max_candidates,
-            max_retrieval_query_chars=typed_settings.max_retrieval_query_chars,
-            allow_original_fallback=typed_settings.allow_original_fallback,
+            definition=cast(ModelTaskDefinition[KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput], tasks.rewrite),
+            enabled_domain_ids=typed_settings.enabled_domain_ids,
+            max_query_chars=typed_settings.max_retrieval_query_chars,
         )
         evidence = DefaultKnowledgeEvidenceStage(
             catalog=typed_policy_catalog,
@@ -574,6 +571,7 @@ class KnowledgeCompositionRoot:
             context=model.context_accessor,
             gateway=model.gateway,
             definition=summary_definition,
+            limits=KnowledgeEvidenceLimits.quality_v1(),
         )
         from agent_runtime.knowledge.capability import KnowledgeQueryCapability
 
@@ -581,9 +579,10 @@ class KnowledgeCompositionRoot:
             settings=typed_settings,
             enabled_domains=build_tax_domain_catalog().enabled(typed_settings.enabled_domain_ids),
             rewriter=rewriter,
-            selector=DeterministicDomainSelector(),
+            selector=None,
             planner=KnowledgeRetrievalPlanBuilder(),
             retrieval=cast(KnowledgeRetrievalStage[Any], retrieval),
             evidence=evidence,
+            require_semantic_plan=True,
         )
         return KnowledgeCapabilityProvider(enabled=True, handler=handler)

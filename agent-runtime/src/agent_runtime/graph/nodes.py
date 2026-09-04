@@ -324,11 +324,18 @@ def finalize_without_model(state: AgentRequestState) -> FinalOutcomeStateUpdate:
             )
         }
     if result.status is CapabilityStatus.NO_RESULT and result.egress.disposition is EgressDisposition.NOT_APPLICABLE:
+        text = _FIXED_TEXT[result.status]
+        if capability_id == "knowledge.query" and result.domain_result is not None:
+            reason = result.domain_result.get("reason")
+            if reason == "insufficient_evidence":
+                text = "已检索到资料，但不足以完整回答此问题。"
+            elif reason == "clarification_required":
+                text = "查询条件不足，请补充适用期间、纳税人类型或计税方法等必要条件。"
         return {
             "final_outcome": AgentSemanticOutcome(
                 status=result.status,
                 capability_id=capability_id,
-                answer_text=_FIXED_TEXT[result.status],
+                answer_text=text,
                 user_result=result.domain_result,
                 failure=None,
             )

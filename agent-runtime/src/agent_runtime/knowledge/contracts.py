@@ -41,6 +41,7 @@ class RewriteStageKind(StrEnum):
     INPUT_INVALID = "input_invalid"
     TIMEOUT = "timeout"
     FAILURE = "failure"
+    CLARIFICATION_REQUIRED = "clarification_required"
 
 
 class RetrievalStageKind(StrEnum):
@@ -150,6 +151,15 @@ class RewriteCandidate:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class PlannedDomainQuery:
+    domain_id: str
+    query: str
+
+
+KNOWLEDGE_QUALITY_VERSION = "knowledge-retrieval-quality-v1"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class RewriteResult:
     original_question: str
     selected_query: str
@@ -157,6 +167,8 @@ class RewriteResult:
     mode: RewriteMode
     question_policy_version: str
     question_egress_denied: bool
+    domain_queries: tuple[PlannedDomainQuery, ...] = ()
+    plan_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -188,6 +200,7 @@ class KnowledgeRetrievalPlan:
     items: tuple[RetrievalPlanItem, ...]
     selected_domain_ids: tuple[str, ...]
     config_version: str
+    quality_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -257,6 +270,7 @@ class KnowledgeEvidenceInput(Generic[TBatch]):
     question_policy_version: str
     question_egress_denied: bool
     batch: TBatch
+    quality_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -292,4 +306,3 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
         context: KnowledgeEvidenceContext,
         timeout_s: float,
     ) -> EvidenceStageResult: ...
-

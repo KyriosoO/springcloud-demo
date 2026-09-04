@@ -8,7 +8,7 @@ def test_production_composition_registers_only_summary_v4() -> None:
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
 
     assert tasks is not None
-    assert tasks.rewrite.task_version == "2"
+    assert tasks.rewrite.task_version == "3"
     assert tasks.summary.task_version == "4"
     assert tasks.summary.task_id is KnowledgeSummaryTaskV3.definition().task_id
 

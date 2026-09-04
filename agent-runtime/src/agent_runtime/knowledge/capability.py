@@ -17,6 +17,8 @@ from agent_runtime.capability_api.contracts import (
 )
 from agent_runtime.knowledge.context import to_evidence_context, to_retrieval_context
 from agent_runtime.knowledge.contracts import (
+    KNOWLEDGE_QUALITY_VERSION,
+    DomainSelection,
     DomainCandidateCount,
     EvidenceEgressDenialReason,
     EvidenceStageCode,
@@ -82,7 +84,7 @@ class KnowledgeArgumentValidator:
 
 
 class KnowledgeQueryCapability(Generic[TBatch]):
-    __slots__ = ("_domains", "_evidence", "_planner", "_retrieval", "_rewriter", "_selector", "_settings")
+    __slots__ = ("_domains", "_evidence", "_planner", "_retrieval", "_rewriter", "_selector", "_settings", "_semantic_required")
 
     def __init__(
         self,
@@ -90,10 +92,11 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         settings: KnowledgeSettings,
         enabled_domains: tuple[LogicalKnowledgeDomain, ...],
         rewriter: KnowledgeQuestionRewriteStage,
-        selector: DeterministicDomainSelector,
+        selector: DeterministicDomainSelector | None,
         planner: KnowledgeRetrievalPlanBuilder,
         retrieval: KnowledgeRetrievalStage[TBatch],
         evidence: KnowledgeEvidenceStage[TBatch],
+        require_semantic_plan: bool = False,
     ) -> None:
         if settings.enabled and not enabled_domains:
             raise ValueError("knowledge.enabled_domains_required")
@@ -104,6 +107,11 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         self._planner = planner
         self._retrieval = retrieval
         self._evidence = evidence
+        self._semantic_required = require_semantic_plan
+        if require_semantic_plan and selector is not None:
+            raise ValueError("knowledge.legacy_selector_forbidden")
+        if not require_semantic_plan and selector is None:
+            raise ValueError("knowledge.selector_required")
 
     async def handle(self, input: KnowledgeQueryArguments, context: CapabilityExecutionContext) -> CapabilityResult:
         del input
@@ -138,11 +146,30 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             )
         if rewrite.kind is RewriteStageKind.TIMEOUT:
             return _result(CapabilityStatus.TIMEOUT, code="knowledge.rewrite_timeout", source=FailureSource.DOWNSTREAM)
+        if rewrite.kind is RewriteStageKind.CLARIFICATION_REQUIRED:
+            return _result(CapabilityStatus.NO_RESULT, domain_result={
+                "reason": "clarification_required", "selected_domain_ids": (), "coverage_complete": False,
+            })
         if rewrite.kind is not RewriteStageKind.SUCCESS or rewrite.rewrite is None:
             return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
         rewritten = rewrite.rewrite
         started = asyncio.get_running_loop().time()
-        domains = self._selector.select(original_question=question, enabled_domains=self._domains)
+        if self._semantic_required:
+            ids = tuple(item.domain_id for item in rewritten.domain_queries)
+            enabled_ids = tuple(item.domain_id for item in self._domains)
+            if (
+                rewritten.plan_version != KNOWLEDGE_QUALITY_VERSION
+                or rewritten.question_egress_denied or rewritten.original_question != question
+                or len(set(ids)) != len(ids) or not set(ids).issubset(enabled_ids)
+            ):
+                return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
+            domains = DomainSelection(
+                selected_domain_ids=tuple(domain for domain in enabled_ids if domain in ids),
+                catalog_version=KNOWLEDGE_QUALITY_VERSION, reason_codes=("semantic_plan",),
+            )
+        else:
+            assert self._selector is not None
+            domains = self._selector.select(original_question=question, enabled_domains=self._domains)
         if asyncio.get_running_loop().time() - started > 0.05:
             return _result(CapabilityStatus.INTERNAL_FAILURE, code="knowledge.local_stage_overrun")
         if not domains.selected_domain_ids:
@@ -187,6 +214,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             question_policy_version=rewritten.question_policy_version,
             question_egress_denied=rewritten.question_egress_denied,
             batch=batch,
+            quality_version=plan.quality_version,
         )
         try:
             evidence = await self._run_phase(
@@ -245,8 +273,23 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             if result.stage_code in mapping:
                 return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code=mapping[result.stage_code], source=FailureSource.DOWNSTREAM)
         if result.kind in (RetrievalStageKind.SUCCESS, RetrievalStageKind.NO_RESULT) and result.coverage is not None:
-            if not self._valid_coverage(result.coverage, plan, require_candidates=result.kind is RetrievalStageKind.SUCCESS):
+            is_quality = plan.quality_version == KNOWLEDGE_QUALITY_VERSION
+            if not self._valid_coverage(
+                result.coverage, plan, require_candidates=result.kind is RetrievalStageKind.SUCCESS,
+                check_partial=not is_quality,
+            ):
+                if is_quality:
+                    return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.retrieval_failure", source=FailureSource.DOWNSTREAM)
                 return _result(CapabilityStatus.INTERNAL_FAILURE, code="knowledge.invalid_stage_result")
+            if is_quality and result.coverage.failed_paths:
+                counts = {item.logical_domain_id: item.count for item in result.coverage.candidate_count_by_domain}
+                successful = {item.logical_domain_id for item in result.coverage.successful_paths}
+                if (
+                    successful != set(plan.selected_domain_ids)
+                    or not all(counts.values())
+                    or sum(counts.values()) < self._settings.min_partial_candidates
+                ):
+                    return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.retrieval_failure", source=FailureSource.DOWNSTREAM)
             if result.kind is RetrievalStageKind.NO_RESULT and result.batch is None:
                 return _result(
                     CapabilityStatus.NO_RESULT,
@@ -256,7 +299,10 @@ class KnowledgeQueryCapability(Generic[TBatch]):
                 return result.batch, result.coverage
         return _result(CapabilityStatus.INTERNAL_FAILURE, code="knowledge.invalid_stage_result")
 
-    def _valid_coverage(self, coverage: RetrievalCoverage, plan: KnowledgeRetrievalPlan, *, require_candidates: bool) -> bool:
+    def _valid_coverage(
+        self, coverage: RetrievalCoverage, plan: KnowledgeRetrievalPlan, *,
+        require_candidates: bool, check_partial: bool = True,
+    ) -> bool:
         raw_complete: object = coverage.complete
         if type(raw_complete) is not bool:
             return False
@@ -279,7 +325,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             return not coverage.failed_paths and not any(counts.values())
         if not any(counts.values()):
             return False
-        if coverage.failed_paths:
+        if coverage.failed_paths and check_partial:
             successful_domains = {item.logical_domain_id for item in coverage.successful_paths}
             return (
                 successful_domains == set(plan.selected_domain_ids)

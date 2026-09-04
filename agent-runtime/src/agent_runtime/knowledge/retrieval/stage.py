@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from agent_runtime.knowledge.contracts import (
+    KNOWLEDGE_QUALITY_VERSION,
     DomainCandidateCount,
     FailedPath,
     KnowledgeRetrievalContext,
@@ -30,6 +31,7 @@ from agent_runtime.knowledge.retrieval.contracts import (
 from agent_runtime.knowledge.retrieval.es_adapter import PROFILE_BY_DOMAIN
 from agent_runtime.knowledge.retrieval.fusion import ReciprocalRankFusion
 from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
+from agent_runtime.knowledge.retrieval.quality_ranking import rank_by_domain
 
 
 class DefaultKnowledgeRetrievalStage:
@@ -80,23 +82,43 @@ class DefaultKnowledgeRetrievalStage:
         context: KnowledgeRetrievalContext,
         deadline: float,
     ) -> RetrievalStageResult[RankedKnowledgeBatch]:
-        vector: tuple[float, ...] | None = None
-        vector_failure: PathFailureKind | None = None
-        if any(item.path is RetrievalPath.VECTOR for item in plan.items):
+        quality = plan.quality_version == KNOWLEDGE_QUALITY_VERSION
+        if plan.quality_version is not None and not quality:
+            raise ValueError("knowledge.unknown_quality_version")
+        if quality and (
+            not 1 <= len(plan.selected_domain_ids) <= 2
+            or len(set(plan.selected_domain_ids)) != len(plan.selected_domain_ids)
+            or self._final_candidates < 2 * len(plan.selected_domain_ids)
+            or tuple((item.logical_domain_id, item.path) for item in plan.items) != tuple(
+                (domain, path) for domain in plan.selected_domain_ids for path in (RetrievalPath.KEYWORD, RetrievalPath.VECTOR)
+            )
+            or any(not 1 <= item.candidate_limit <= 20 for item in plan.items)
+            or any(plan.items[i].query_text != plan.items[i + 1].query_text for i in range(0, len(plan.items), 2))
+        ):
+            raise ValueError("knowledge.invalid_quality_plan")
+        vectors: dict[str, tuple[float, ...]] = {}
+        vector_failures: dict[str, PathFailureKind] = {}
+        vector_queries = tuple(dict.fromkeys(
+            item.query_text if quality else plan.items[0].query_text
+            for item in plan.items if item.path is RetrievalPath.VECTOR
+        ))
+        for query in vector_queries:
             try:
-                vector = await self._embedding.embed(
-                    text=plan.items[0].query_text,
+                vectors[query] = await self._embedding.embed(
+                    text=query,
                     timeout_s=min(3.0, deadline - asyncio.get_running_loop().time()),
                 )
             except TimeoutError:
-                vector_failure = PathFailureKind.TIMEOUT
+                vector_failures[query] = PathFailureKind.TIMEOUT
             except Exception:
-                vector_failure = PathFailureKind.DOWNSTREAM_FAILURE
+                vector_failures[query] = PathFailureKind.DOWNSTREAM_FAILURE
 
         calls: list[asyncio.Task[PathRetrievalResult]] = []
         call_ordinals: list[int] = []
         synthetic: dict[int, PathRetrievalResult] = {}
         for index, item in enumerate(plan.items):
+            query = item.query_text if quality else plan.items[0].query_text
+            vector_failure = vector_failures.get(query)
             if item.path is RetrievalPath.VECTOR and vector_failure is not None:
                 synthetic[index] = PathRetrievalResult(
                     kind=PathResultKind.TIMEOUT if vector_failure is PathFailureKind.TIMEOUT else PathResultKind.FAILURE,
@@ -111,7 +133,7 @@ class DefaultKnowledgeRetrievalStage:
                 retrieval_profile_id=PROFILE_BY_DOMAIN[item.logical_domain_id],
                 path=item.path,
                 query_text=item.query_text if item.path is RetrievalPath.KEYWORD else None,
-                query_vector=vector if item.path is RetrievalPath.VECTOR else None,
+                query_vector=vectors.get(query) if item.path is RetrievalPath.VECTOR else None,
                 candidate_limit=item.candidate_limit,
             )
             calls.append(
@@ -224,35 +246,20 @@ class DefaultKnowledgeRetrievalStage:
                 code = RetrievalStageCode.RETRIEVAL_TIMEOUT if any(item.failure_kind is PathFailureKind.TIMEOUT for item in failed) else RetrievalStageCode.RETRIEVAL_FAILURE
                 return RetrievalStageResult(kind=RetrievalStageKind.TIMEOUT if code is RetrievalStageCode.RETRIEVAL_TIMEOUT else RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=code)
             return RetrievalStageResult(kind=RetrievalStageKind.NO_RESULT, coverage=coverage)
-        rerank_candidates = tuple(item.candidate for item in fused)
         try:
-            scores = await self._rerank.rerank(
-                query=plan.items[0].query_text,
-                candidates=rerank_candidates,
-                timeout_s=min(5.0, deadline - asyncio.get_running_loop().time()),
-            )
+            if quality:
+                ranked = await rank_by_domain(
+                    plan=plan, sets=tuple(candidate_sets), fused=fused, fusion=self._fusion,
+                    rerank=self._rerank, deadline=deadline, final_candidates=self._final_candidates,
+                )
+            else:
+                ranked = await self._rank_legacy(plan=plan, sets=tuple(candidate_sets), deadline=deadline)
         except TimeoutError:
             return RetrievalStageResult(kind=RetrievalStageKind.TIMEOUT, stage_code=RetrievalStageCode.RERANK_TIMEOUT)
         except RetrievalTransportError:
             return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.RERANK_FAILURE)
         except Exception:
             return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
-        if {item.candidate_index for item in scores} != set(range(len(fused))):
-            return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
-        score_by_index = {item.candidate_index: item.score for item in scores}
-        ordered_fused = sorted(
-            enumerate(fused),
-            key=lambda pair: (-score_by_index[pair[0]], -pair[1].rrf_score, pair[1].candidate.chunk_id),
-        )[: self._final_candidates]
-        ranked = tuple(
-            RankedKnowledgeCandidate(
-                candidate=item.candidate,
-                domain_ids=item.domain_ids,
-                rerank_score=score_by_index[index],
-                rank=rank,
-            )
-            for rank, (index, item) in enumerate(ordered_fused, 1)
-        )
         profile_versions = {item.profile_version for item in candidate_sets}
         if len(profile_versions) != 1:
             return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
@@ -270,3 +277,22 @@ class DefaultKnowledgeRetrievalStage:
             complete=not failed,
         )
         return RetrievalStageResult(kind=RetrievalStageKind.SUCCESS, batch=batch, coverage=coverage)
+
+    async def _rank_legacy(
+        self, *, plan: KnowledgeRetrievalPlan, sets: tuple[PathCandidateSet, ...], deadline: float,
+    ) -> tuple[RankedKnowledgeCandidate, ...]:
+        """Frozen-plan callers retain their original ranking semantics."""
+        fused = self._fusion.fuse(sets)
+        scores = await self._rerank.rerank(
+            query=plan.items[0].query_text, candidates=tuple(item.candidate for item in fused),
+            timeout_s=min(5.0, deadline - asyncio.get_running_loop().time()),
+        )
+        if {item.candidate_index for item in scores} != set(range(len(fused))):
+            raise ValueError("knowledge.invalid_rerank_scores")
+        by_index = {item.candidate_index: item.score for item in scores}
+        ordered = sorted(enumerate(fused),
+                         key=lambda pair: (-by_index[pair[0]], -pair[1].rrf_score, pair[1].candidate.chunk_id))
+        return tuple(RankedKnowledgeCandidate(
+            candidate=item.candidate, domain_ids=item.domain_ids,
+            rerank_score=by_index[index], rank=rank,
+        ) for rank, (index, item) in enumerate(ordered[:self._final_candidates], 1))

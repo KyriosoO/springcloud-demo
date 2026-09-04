@@ -62,8 +62,8 @@
 
 ## 6. 实施计划与历史归档
 
-- 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.41 / Reviewed；工作包、Gate、当前验证和提交状态只在该计划维护。
-- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.24 / Reviewed；Knowledge 在线与阶段 A 语料专项验收由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.19 独立治理。后续演进见 [ROADMAP_01](plans/ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) v0.7。
+- 当前实施计划：[P3_00 单体 Agent 查询能力实施与收口计划](plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，v2.43 / Reviewed；工作包、Gate、当前验证和提交状态只在该计划维护。
+- 当前验收计划：[UAT_00 单体 Agent 结构化查询用户验收计划](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)，v1.24 / Reviewed；Knowledge 在线与阶段 A 语料专项验收由 [UAT_01](plans/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) v1.21 独立治理。后续演进见 [ROADMAP_01](plans/ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) v0.8。
 - 本次被替换的需求、设计和计划分别归档至 [需求历史目录](历史文档/)、[设计历史目录](design/历史文档/) 和 [计划历史目录](plans/历史文档/)；历史文档仅用于追溯，不是当前实施权威。
 - 批量发现当前设计时只扫描 `docs/design` 顶层，使用 `--non-recursive`，或显式使用 `--exclude '历史文档/**'`；归档来源链接与历史候选只能用于追溯，不能被纳入当前评审目标或替代现行上位文档。
 - 更早版本的 14 份设计文档：[2026-08-21 v0 基线归档](design/历史文档/2026-08-21-v0-baseline/)。
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction 需求、设计与35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已实施；阶段 A 正文及附件完整性已完成审计、版本化处理、candidate 索引、14/14专项 UAT 和受控发布。最新有效效果等级仍为 `partially_effective`；阶段 B 检索质量和图谱尚未实施。具体 Gate、candidate、测试总数和 evidence 只在 P3、UAT_01 与 evidence 中维护。
+Employee/Transaction 需求、设计与35/35 UAT 已完成且不得回退。Knowledge 默认关闭的生产接线、功能 UAT 37/37、域目录 v2、Summary V4 与效果口径 v2 已实施；阶段 A 正文及附件完整性已完成审计、版本化处理、candidate 索引、14/14专项 UAT 和受控发布。最新有效效果等级仍为 `partially_effective`；阶段 B 检索质量已实施并通过 non-live，真实专项 UAT 尚未执行；图谱未实施。具体 Gate、candidate、测试总数和 evidence 只在 P3、UAT_01 与 evidence 中维护。

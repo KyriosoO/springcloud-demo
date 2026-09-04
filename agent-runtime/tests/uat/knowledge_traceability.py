@@ -73,7 +73,7 @@ def validate_knowledge_uat_traceability(value: object) -> None:
     if (
         value["schemaVersion"] != 2
         or value["suiteId"] != "single-agent-knowledge-functional-uat-v2"
-        or value["authority"] != "UAT_01 v1.13"
+        or value["authority"] != "UAT_01 v1.21"
         or value["functionalConclusion"] != "passed"
     ):
         raise ValueError("knowledge_uat_traceability.identity_invalid")

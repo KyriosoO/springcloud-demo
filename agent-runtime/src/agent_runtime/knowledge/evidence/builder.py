@@ -6,7 +6,7 @@ import math
 import re
 import unicodedata
 
-from agent_runtime.knowledge.contracts import KnowledgeEvidenceInput
+from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION, KnowledgeEvidenceInput
 from agent_runtime.knowledge.evidence.contracts import (
     EvidenceCoverage,
     EvidenceSelectionResult,
@@ -56,6 +56,8 @@ class EvidenceIntegrityVerifier:
                 or type(item.rerank_score) not in (int, float)
                 or isinstance(item.rerank_score, bool)
                 or not math.isfinite(item.rerank_score)
+                or type(item.coverage_anchor) is not bool
+                or (item.coverage_anchor and input.quality_version != KNOWLEDGE_QUALITY_VERSION)
             ):
                 raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
             if any(domain not in input.selected_domain_ids for domain in item.domain_ids):
@@ -77,11 +79,13 @@ class EvidenceIntegrityVerifier:
                     domain_ids=tuple(domain for domain in input.selected_domain_ids if domain in item.domain_ids),
                     rerank_score=item.rerank_score,
                     profile_version=batch.profile_version,
+                    coverage_anchor=item.coverage_anchor,
                 )
             )
         snapshots = batch.index_snapshot_ids
         if (
-            not snapshots
+            sum(item.coverage_anchor for item in batch.candidates) > 2 * len(input.selected_domain_ids)
+            or not snapshots
             or len(set(snapshots)) != len(snapshots)
             or any(type(item) is not str or _LOWER_HEX_64.fullmatch(item) is None for item in snapshots)
             or any(item.candidate.index_snapshot_id not in snapshots for item in batch.candidates)
@@ -125,7 +129,8 @@ class DeterministicEvidenceSelector:
         minimized_question: str,
         limits: KnowledgeEvidenceLimits,
     ) -> EvidenceSelectionResult:
-        required = {
+        quality = input.quality_version == KNOWLEDGE_QUALITY_VERSION
+        required = set(input.selected_domain_ids) if quality else {
             item.logical_domain_id
             for item in input.coverage.candidate_count_by_domain
             if item.count > 0
@@ -168,6 +173,10 @@ class DeterministicEvidenceSelector:
             covered.update(item.domain_ids)
             return "added"
 
+        if quality:
+            for item in candidates:
+                if item.coverage_anchor and try_add(item) != "added":
+                    return EvidenceSelectionResult(bundle=None, sufficient=False)
         for item in candidates:
             if required - covered and (required - covered) & set(item.domain_ids):
                 try_add(item)
@@ -177,7 +186,7 @@ class DeterministicEvidenceSelector:
             if any(existing.evidence_id == _evidence_id(item.candidate.document_id, item.candidate.chunk_id, item.candidate.content_sha256) for existing in selected):
                 continue
             outcome = try_add(item)
-            if outcome in {"full", "byte_limit"}:
+            if outcome == "full" or (outcome == "byte_limit" and not quality):
                 break
         if not selected:
             return EvidenceSelectionResult(bundle=None, sufficient=False)

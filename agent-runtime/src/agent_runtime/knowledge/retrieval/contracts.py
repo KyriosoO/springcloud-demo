@@ -146,6 +146,7 @@ class RankedKnowledgeCandidate:
     domain_ids: tuple[str, ...]
     rerank_score: float
     rank: int
+    coverage_anchor: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

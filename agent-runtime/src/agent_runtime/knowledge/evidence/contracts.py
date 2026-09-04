@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from enum import StrEnum
 
@@ -56,6 +56,10 @@ class KnowledgeEvidenceLimits:
             max_domain_result_bytes=32768,
         )
 
+    @classmethod
+    def quality_v1(cls) -> "KnowledgeEvidenceLimits":
+        return replace(cls.v1(), max_per_document=3)
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class VerifiedKnowledgeCandidate:
@@ -64,6 +68,7 @@ class VerifiedKnowledgeCandidate:
     domain_ids: tuple[str, ...]
     rerank_score: float
     profile_version: str
+    coverage_anchor: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
