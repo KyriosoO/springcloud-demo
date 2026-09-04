@@ -930,3 +930,22 @@ Business/answer/retry/resume始终0。先协议三轮内审及只读设计评审
 代码对照设计评审1轮及修复后复评1轮：按DR-KFLOW-020核对公开definition复用、唯一注册/拒绝旧版本、disabled零依赖、原问题/澄清/decoder/预算不变、无本地语义路由或fallback、历史隔离及精确调用计数。首轮定位上述测试绑定和计数遗漏，修复后定向、全量和Spring回归通过；本增量Blocker/Major/未处理Minor为0。该评审为本执行者分阶段对照，不冒充另一名独立人员批准；整体B-CR-001仍Open，尚未通过阶段B最终评审。Java公共合同、安全策略、业务服务及PowerShell未改；Employee/Transaction/es-query-service模块Maven与AST本次未重复，不引用历史数字作为本轮结果。
 
 DR-020的IMPLEMENT/NONLIVE切片现已完成；GATE-KRG-006保持仅实现入口Closed。UAT Deferred、QUALITY Blocked不变。新增真实e2e/model/search/embedding/rerank均0，三批累计仍5/12/8/4/4；没有run-04或新manifest。V5实际选域效果缺证据，Summary V4必要引用覆盖仍待原意/gold/指令一致性核查，不能事后改判run-03。设计提交`84939c6`、代码提交`c9dfe6e968a16395dea07d2206fa3471d3893972`；状态提交及推送由Git日志和交付报告记录。L1仅更新当前绑定元数据，未改变KQ-AD-013/016或提升架构版本；当前L2/P3/UAT/索引分别为v1.19/v2.45/v1.23及对应版本引用。
+
+### 20.16 摘要覆盖与验收意图定向核查
+
+起始HEAD=`36a59b1fb51f2ad91aabb0504090e2569c02bc18`，工作树clean且与origin/codex一致。上一轮属于有代码、测试和提交的实际推进；本轮先只读核查L1 KQ-AD-016、L2_01_02 §9/DR-KEV-008/017、UAT_01 §14及冻结KB-015a，不读取凭据或启动真实运行。这里记录证据边界和待决策事项，不在P3新建摘要语义权威。
+
+| 核查点 | 直接证据 | 定向结论及影响 |
+|---|---|---|
+| 原文是否在送入Summary前丢失 | run-03历史测试复核两项gold的内容hash，Evidence排名2/4 | 两项均已进入输入；不建议以本例为依据修改语料、扩大窗口或Evidence配额 |
+| validator是否漏实现已要求的本地检查 | L2_01_02 §9.2与`summary_validation.py::validate`均为outcome/点数/ref/连续子串/大小等确定性检查；不实施自然语言覆盖判断 | 符合该确定性合同；不建议把它改为行业关键词/分类推理器，也不以完整性通过证明答案充分 |
+| coverage是否证明最终答案引用覆盖 | `summary_validation.py`从bundle复制检索域coverage，不根据最终points重新计算 | 两域检索完整与最终只引用一个域可以同时成立；当前字段不可外推为答案完整率，不修改公共DTO或历史结果 |
+| 问句与双条款预期是否无歧义 | KB-015a问“生活服务中的住宿服务如何定义”，冻结requiredGold为lodging+living；Summary V4只要求显式独立要点，且单条足够时不得冗余引用 | 冻结判定仍明确为Failed；但“给定分类语境”与“请求证明分类”的自然语言解读并不唯一，现有有限证据不足以把漏引父分类唯一归因为Summary Prompt缺陷。该意图边界应先明确，不能仅为过测强制每次多引一条 |
+
+新增`tests/unit/knowledge/evidence/test_summary_proof_boundaries.py`六项纯本地反证，直接沿用上述确定性合同：两种合成问句×单/双引用证明合法引用不等于语义覆盖；双域bundle/单域引用证明coverage来源；模型主动insufficient仍无结果。所有内容为合成数据，不接入LLM/ES/BGE，不导入gold参与生产，不改变现有断言。该测试是已知证明边界的刻画，不把不完整回答登记为语义正确。
+
+实际命令（agent-runtime，显式PYTHONPATH=src）：新增测试+summary_validation_reasons+summary_task_v4+run-03 history定向24 passed；随后`python -m pytest tests/unit/knowledge/evidence tests/contract/knowledge/test_summary_task.py tests/contract/knowledge/test_summary_task_v2.py tests/contract/knowledge/test_summary_task_v3.py tests/contract/knowledge/test_summary_task_v4.py tests/integration/knowledge/test_stage_b_production.py tests/integration/knowledge/test_summary_v4_composition.py tests/system_e2e/test_knowledge_stage_b_run_01_history.py tests/system_e2e/test_knowledge_stage_b_run_02_history.py tests/system_e2e/test_knowledge_stage_b_run_03_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short`为99 passed，1条既有LangGraph预告；新测试compileall通过。生产src、case/gold、三批历史及阶段A evidence相对起始HEAD均零差异。没有生产/Java/PS修改，本轮不重复全仓、Maven、mypy或AST；§20.15结果是上一轮实测，不冒充本轮执行。
+
+按实现技能的focused路径只补充已批准§9.2的证明边界测试，再进行一次定向代码对照复核：测试没有放宽validator、调用模型或改判历史，未发现该测试增量的新增代码问题。此次无架构/L2语义修订，无整份设计或阶段B正式通过结论；阶段B核心UAT及整体评审仍未完成。
+
+下一步有两种不同影响范围，尚未采用：A，保持原问句及双条款gold，明确与答案相关的显式分类上下文也须证据支持，然后先修订L1/L2并评审新的Summary任务（旧V4和validator不改）；B，另立明确询问“定义及所属分类依据”的新问题，同样保留两条款要求，不能覆盖旧case或声称同题效果改善。不得自行把原gold减为单条，不得在看到结果后修改本批问题或规则。为保持原验收目标，优先建议A，但其分类上下文语义需确认后再实施，不能仅在下位Prompt中暗改。无论选择哪项，都不授权自动开启新付费批次。UAT仍Deferred、QUALITY仍Blocked、B-CR-001仍Open；本轮新增全部真实调用0，累计计数不变，无run-04。
