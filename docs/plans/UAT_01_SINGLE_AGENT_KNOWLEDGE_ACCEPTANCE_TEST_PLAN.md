@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.21 |
+| 当前版本 | v1.22 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.17、`L2_01_00` v1.18、`L2_01_01` v2.7、`L2_01_02` v1.18、`P3_00` v2.43；阶段 B 设计评审通过，实施/UAT状态另记 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.17、`L2_01_00` v1.18、`L2_01_01` v2.7、`L2_01_02` v1.18、`P3_00` v2.44；阶段 B 设计评审通过，新增运行协议评审及实施/UAT状态另记 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -370,4 +370,17 @@ L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主�
 
 有限资产为`agent-runtime/tests/system_e2e/knowledge_stage_b_run_02/`，由`test_knowledge_stage_b_run_02_history.py`校验；manifest Schema2和结果Schema1分别冻结，所有runtime资产append-only。实际2端到端/4模型，search/embedding/rerank/Business/answer/retry/resume为0；两批合计3端到端/7模型/4search/2embedding/2rerank。cleanup全部通过，不保留原始响应，不再次读取模型Key。
 
-当前专项Functional=Failed（KB-015a），安全停止生效；KB-001精确反例获得真实通过，但完整效果、必要Evidence覆盖和usefulness尚未验证，不声明整体effective。`invalid_output`未记录具体decoder分支，不能断言是某字段、截断或Prompt错误；result中`taskBindingValid=false`是完整成功任务链未满足，不是V4版本错绑。既有阶段A/Knowledge37/Business35结论及历史P5不改判。无run-03，不复用已停止批次剩余预算；后续仅可先做有限诊断方案和non-live复现。
+该批终止时专项Functional=Failed（KB-015a），安全停止生效；KB-001精确反例获得真实通过，但完整效果、必要Evidence覆盖和usefulness尚未验证，不声明整体effective。`invalid_output`未记录具体decoder分支，不能断言是某字段、截断或Prompt错误；result中`taskBindingValid=false`是完整成功任务链未满足，不是V4版本错绑。既有阶段A/Knowledge37/Business35结论及历史P5不改判。该批不允许续跑；随后新授权的独立诊断批次见§14.6。
+
+### 14.6 独立run-03与有限失败诊断协议
+
+用户已授权“先补齐有限失败诊断，再准备并执行一次重新冻结的独立验证批次，仍受原累计调用上限约束”。本次仅新增版本化测试入口，不修改L2_01_00 §8/12的生产行为、公共DTO、Prompt、任务版本、decoder或validator。实现约束编号为KB-DIAG-001，代码落点为`tests/system_e2e/knowledge_stage_b_uat_v3.py`及直接诊断模块/测试，运行授权账由P3 §20.13唯一治理。
+
+1. 原10例的顺序、问题、gold、阈值、任务4/4及Prompt hash不变；run-03是新独立批次，不覆盖run-01/02。manifest Schema3绑定当前干净HEAD、源码/可执行资产、索引/配置、两个旧批全部hash及实际调用数、输出目录、诊断版本和累计预算。不得凭剩余预算启动第四批。
+2. 保留旧结果Schema1语义；新case有限扩展`modelFailures`最多3项，每项仅含taskId、taskVersion、stage、reason。taskId/version只允许当前三个任务；stage只允许provider、task_decoder、gateway。reason只允许代码固定枚举，不保存异常自由文本、JSON键/值、正文、问题、响应、JWT或密钥。
+3. provider诊断只在真实transport抛出既有异常之后映射：严格JSON、响应头/大小、响应模型/envelope、finish reason、tool/usage、transport/timeout/cancel及unknown有限类别；不保存实际model名称或finish值。Rewrite任务诊断只在原decoder已经拒绝后，在内存区分response形状、JSON结构、顶层合同、outcome、queries、missing_conditions或未分类合同失败，不改变原拒绝结果。
+4. instrumentation仅在单一CLI进程作用域运行，原transport/decoder仍是唯一接受判定。返回值、原异常、请求和调用数保持不变；未知诊断映射为有限fallback，不能把失败改为通过或触发第二请求。不得为记录诊断吞掉取消。每case重置诊断，request-context隔离，finally恢复绑定和释放client。
+5. 在结果写入前校验有限字段/枚举/数量；实际未捕获的失败只允许依据现有observation.failureKind写gateway类别。成功任务无失败条目；不得根据历史结果臆造run-02具体原因。
+6. prepare/check-environment不读取模型Key。真实执行前必须完成fake等价性、故障分类、超限/未知值、请求隔离、绑定恢复、历史hash和累计预算测试。check-environment只执行原有认证→stub公共入口烟测，模型/Knowledge调用0。首个失败停止本批，所有未执行case单独列出；旧批完整字节不变。
+
+本次诊断不增加生产在线流程或新的门禁，不把可观测性改进冒充KB-015a语义已修复。设计协议评审记录、测试结果和真实执行状态在P3 §20.13后续追加。

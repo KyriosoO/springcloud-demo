@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.43 |
+| 当前版本 | v2.44 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-04 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -840,4 +840,21 @@ es-query-service/common-security/Employee/Transaction Java源码未改，本增�
 | `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1` | host/preflight14 passed；全量1725 passed/27 opt-in skipped/0 failed，126.00秒、1条既有预告；临时环境已清理。全量验证版本与最终版本的差异仅为测试拦截增强，无生产差异，最终测试版已在上述118项中复验 |
 | `python -m mypy --strict src`；`python -m compileall -q src tests/integration/knowledge/test_rewrite_v4_provider_boundary.py` | 123生产文件类型及编译通过 |
 
-本增量执行一次定向代码对照核查并修复测试隔离遗漏；不作整体正式评审通过判断。新增模型/search/embedding/rerank真实调用均0；六项run-02及四项阶段A最终hash不变；未新增run-03。P3仅追加执行记录，版本仍v2.43，不升级设计或改写UAT_01的冻结逐case结果。UAT继续Deferred/failed，QUALITY继续Blocked、B-CR-001继续Open。Java/公共DTO/launcher未改，本次未重复Maven、Spring E2E或PowerShell AST，不将历史结果冒充本次执行。现有证据不能恢复未保留的模型响应；进一步真实确认须作为新的明确授权事项，不续用两批已停止预算。
+本增量执行一次定向代码对照核查并修复测试隔离遗漏；不作整体正式评审通过判断。新增模型/search/embedding/rerank真实调用均0；六项run-02及四项阶段A最终hash不变；该增量未新增run-03。该时点P3仅追加执行记录、版本v2.43，不升级设计或改写UAT_01的冻结逐case结果。UAT继续Deferred/failed，QUALITY继续Blocked、B-CR-001继续Open。Java/公共DTO/launcher未改，本次未重复Maven、Spring E2E或PowerShell AST，不将历史结果冒充本次执行。现有证据不能恢复未保留的模型响应；进一步真实确认须作为新的明确授权事项，不续用两批已停止预算。
+
+### 20.13 新授权run-03有限诊断与独立验证
+
+用户明确授权先补齐有限失败诊断，再准备并执行一次新冻结的独立批次。授权仅用于`knowledge-stage-b-uat-v3-20260904-run-03`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-03`；不重启run-02，不授权run-04。沿用原10例及顺序/gold，selection-v4/Rewrite4/Summary4、Prompt/生产合同/索引不变。设计补齐限UAT_01 §14.6 KB-DIAG-001测试运行协议，本计划治理授权/顺序/状态；ARCHITECTURE仅同步版本，不升级L1/L2或改生产接口。
+
+| 预算 | e2e | model | search | embedding | rerank |
+|---|---|---|---|---|---|
+| run-01/02实际累计 | 3 | 7 | 4 | 2 | 2 |
+| run-03独立批次上限 | 10 | 30 | 40 | 20 | 20 |
+| 包含本批的累计最大值 | 13 | 37 | 44 | 22 | 22 |
+| 原目标总上限 | 20 | 60 | 80 | 40 | 40 |
+
+Business/answer/retry/resume始终0。先协议三轮内审及只读设计评审，再实现版本化runner和诊断，随后fake/正式隔离回归/定向代码评审，提交干净HEAD后冻结manifest；仅execute读取Key并执行一次。首个模型outbound消费本批授权，失败立即停止，有限结果append-only；诊断不能改接受判定或触发补跑。旧批hash、阶段A索引和历史证据保持不变。
+
+当前处于协议准备，尚无新真实调用；整体B-CR-001 Open、QUALITY Blocked，不因获得授权声明UAT通过。受影响任务复用现有WP-KRETRIEVAL-UAT-01，不新增循环门禁。
+
+协议内审实际执行三轮：第一轮对照L2_01_00 §8/12及真实transport/gateway，限定诊断在原判定失败之后；第二轮对照V3共享parser与V4工厂，补足仅CLI作用域、原异常透传、取消和未知值的有限退路；第三轮对照两个冻结result和当前runner，复算累计预算13/37/44/22/22、拒绝旧目录复用、保持原case/gold及失败停止。随后切换只读设计评审，按详细设计可实施性和跨层职责核对KB-DIAG-001：未发现S0/S1或未处理S2，允许实施该测试协议。本结论为本执行者分阶段的自动化辅助评审，不冒充另一个独立评审人；不等于阶段B整体验收或B-CR-001关闭。
