@@ -1,0 +1,12 @@
+{"stage": "ready", "indexUuid": "SurWRSglRd6ZRddEBWy2Sw", "modelBudget": 0}
+{"stage": "http_status", "path": "/embed", "httpStatus": 200}
+{"stage": "http_status", "path": "/embed", "httpStatus": 200}
+{"stage": "http_status", "path": "/es/knowledge/search", "httpStatus": 200}
+{"stage": "http_status", "path": "/es/knowledge/search", "httpStatus": 200}
+{"stage": "http_status", "path": "/es/knowledge/search", "httpStatus": 200}
+{"stage": "http_status", "path": "/es/knowledge/search", "httpStatus": 200}
+{"stage": "http_status", "path": "/rerank", "httpStatus": 500}
+{"caseId": "policy_and_law", "status": "downstream_failure", "stageCode": "rerank_failure"}
+{"stage": "counts", "search": 4, "embedding": 2, "rerank": 2, "model": 0}
+{"stage": "cleanup", "ownedProcessesStopped": true, "rawLogsDeleted": true, "secretScanPassed": true}
+{"stage": "failure", "kind": "RuntimeError"}

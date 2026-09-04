@@ -298,3 +298,11 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 新 V3 的澄清/unsupported/非法输出与失败不回退原问题。合法 search 中原问题始终保留为摘要边界。时效未知不是当前有效；现有公共 DTO 缺少完整效力信息，无法证明时不得肯定回答，也不因此扩展 DTO/语料/索引。
 
 首个真实失败停止该批并保留有限状态、调用计数和已完成case；不得补跑、续跑或创建额外付费候选。未执行与失败分别记录；其余授权内 fake/评审可继续，但核心P0缺证据则阶段B保持未完成。只保存安全摘要、引用标识/哈希和有限指标，不持久化原始模型响应、JWT或未授权正文。
+
+### 14.1 当前可执行批次准备
+
+`tests/system_e2e/knowledge_stage_b_cases.py` 固定10个真实case：KB-001、015a、004、002、003、005、006、015b、016、008；执行顺序先澄清和单域定义，再双域及复杂期间，任一失败停止后续。总预算收紧为10端到端、30模型、40search、20embedding、20rerank；Business/answer/retry/resume均0，错误注入留在fake测试。仍未执行，不能计为通过。
+
+`knowledge_stage_b_uat.py prepare` 在工作树干净后绑定提交、任务3/4、配置、a5索引UUID、所有实现及Java可执行资产SHA、case和原文gold。仅`execute`读取模型Key，真实认证及Spring入口调用当前生产Runtime，不使用评估专用在线分支。gold仅在结果产生后判定，不参与域、query、排序或Evidence。必要原文同时检查模型Evidence内容hash和最终已校验引用内的精确条款，不以只命中同文档代替正确回答；2026用例另需生效条款。
+
+原文rubric由本轮逐条读取已发布材料核对后固定；属于自动化辅助的原文核对，不代表外部税务专家批准。框架自动执行精确条款/域/状态rubric，不让待测模型自评分；实际usefulness需在最终结果中独立、如实评述。准备烟测为真实auth→Spring→stub Runtime，unsupported=422；没有模型或Knowledge请求，不冒充专项UAT。

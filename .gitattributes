@@ -13,3 +13,6 @@
 # provenance inputs so a clean checkout can reproduce their frozen hashes.
 agent-runtime/tests/evaluation/knowledge/staging/provenance_inputs/post-cutover-gold-report.json binary
 agent-runtime/tests/evaluation/knowledge/staging/provenance_inputs/build_manifest.json binary
+
+# Preserve the already-recorded Stage B finite diagnostics byte-for-byte.
+agent-runtime/tests/system_e2e/knowledge_stage_b_local_validation.v[1-7].jsonl binary
