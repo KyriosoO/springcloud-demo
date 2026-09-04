@@ -1050,3 +1050,37 @@ readiness通过真实auth→Spring→stub Runtime的unsupported冒烟，模型�
 | `git diff --check`、`git diff --cached --check`及逐文件暂存复核 | 通过；只有本目标测试、有限资产和状态文档，无用户无关修改 |
 
 准备提交`77dad25db25205b3242e5a3b937de318a82d1053`已推送；有限证据/历史保护提交`af4589c23024599e7acca86340cd7afac862cacd`。文档状态为独立提交，最终SHA/推送与工作树结果见Git日志和交付报告。未执行7例及Java/AST不重复的范围已明确，不用non-live绿灯覆盖本次真实失败。
+
+### 20.20 冻结排名离线重放：排除未经证明的合并策略替换
+
+本次起点为`e231499cb7ec681617ff2e81fce55a5c0af07451`，只增加`tests/system_e2e/knowledge_stage_b_rank_replay.py`及其测试，不修改生产代码、Prompt、配置或历史资产。执行前校验四批全部有限资产哈希；固定原路径和域内rerank次序，以单调合成分数调用当前真实`rank_by_domain`，四条有检索记录均精确复现原final序列。空keyword路径合法，不等于漏失路径；身份冲突、不完整阶段、哈希变化或当前排名不一致均停止，不静默继续比较。
+
+试验只比较同一排名输入下的四种有界合并：keyword优先、rerank优先、keyword+rerank等权RRF、keyword+vector+rerank等权RRF。均保持现有每域首位锚点、跨域轮转及final20；gold只在排序完成后用于有限结果评价，不进入合并函数。该工具不访问服务、不读取凭据、不写运行文件；不产生新的模型、search、embedding或rerank HTTP请求。
+
+| KB-004合并试验 | lodging最终名次 | living最终名次 | law_rate最终名次 |
+|---|---:|---:|---:|
+| 当前策略精确重放 | 9 | 未入选 | 4 |
+| keyword优先 | 7 | 15 | 4 |
+| rerank优先 | 9 | 未入选 | 4 |
+| keyword+rerank RRF | 5 | 未入选 | 4 |
+| keyword+vector+rerank RRF | 7 | 未入选 | 4 |
+
+KB-015a在旧/新两条记录中，各试验均分别保持lodging/living为2/4和2/3。第一批KB-001没有requiredGold，仅验证原排名复现，不作为语义通过证据。结论限于这些冻结输入及四种策略：keyword优先可把living移入final20，但没有试验把全部三项必要条款放进前8；不能据此批准生产排序替换或宣称UAT修复。
+
+证据限制：历史未保留原rerank query、原分数、完整文档身份、正文长度和逐项配额原因。合成分数只复现次序，不代表原BGE数值；合成文档身份不用于Evidence。该工具明确不是Evidence配额/字节、出域或Summary重放：实际selector可因配额跳过前序项，因此“前8不齐”也不能单独证明其他策略最终Evidence必然失败。现有观察仍只证明原Evidence缺少两项必要原文，不冒充新策略效果。
+
+下一步设计依据：先区分是否需要更准确的域内检索表达、问题要点与候选的关联信号，或文档/条款重复造成的选择损失。必须给出不依赖gold/case/文档特判的一般性方案，并按既定设计评审流程处理；当前证据不足以唯一批准修改RRF权重、topK、每文档配额或Summary。不得恢复付费批次来替代诊断。
+
+验证与定向对照：新增20项反证覆盖零外部IO、有限输出、四条精确重放、历史篡改、生产排名漂移、空keyword、非法身份/阶段、锚点/去重/数量与gold隔离。首轮1 failed/19 passed系新测试误引用第一批历史模块不存在的RUN_ID常量，改为读取已校验result的runId后恢复；未改旧测试或运行证据。新测试、四批历史及排序/Evidence定向组合49 passed（42.57秒）。`python -m mypy --strict src`通过125个生产文件，`compileall`通过。按DR-KRET-027/DR-KEV-026与本节有限诊断边界执行一次定向代码对照：排名重放、生产无改动、历史保护及gold离线使用均符合；真实语义修复仍不可验证。该核查不是阶段B整体正式评审通过。
+
+本次最终实际命令（Python/PowerShell测试工作目录为agent-runtime）：
+
+| 命令/检查 | 结果 |
+|---|---|
+| `python -m pytest tests/system_e2e/test_knowledge_stage_b_rank_replay.py -q --tb=short` | 20 passed（0.13秒） |
+| `pwsh -NoProfile -File scripts/run-nonlive-regression.ps1` | 显式安装当前源码的临时隔离环境；Transaction host/preflight14 passed（3.59秒），全量1931 passed/27 opt-in skipped/0 failed（243.68秒）；1条既有LangGraph预告，脚本退出0 |
+| `python -m mypy --strict src`；`python -m compileall -q src tests/system_e2e/knowledge_stage_b_rank_replay.py tests/system_e2e/test_knowledge_stage_b_rank_replay.py` | mypy125生产文件通过；compileall通过 |
+| P3计划`--strict`；历史hash；目标差异敏感模式扫描 | 0 errors/0 warnings；四批历史、P5及Stage A四项最终hash不变；未命中凭据/JWT模式 |
+| `git diff --check`；`git diff --cached --check`；逐文件暂存差异复核 | 仅本节及两个诊断测试文件；无生产src、配置、索引/alias或用户无关改动 |
+
+当前QUALITY仍Blocked、UAT仍Deferred、B-CR-001仍Major/Open；run-04终态与2通过/1失败/7未执行不变。本轮没有新run或付费请求，架构及UAT语义不变，不新增Gate或无关版本升级。本测试诊断增量不重复Maven/AST；没有新的Spring真实服务或效果UAT，不能用上述non-live通过替代。提交SHA及推送状态由Git日志与本次交付报告记录。
