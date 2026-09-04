@@ -1,0 +1,8 @@
+{"caseId": "UAT-KB-001", "task": "action_selection", "ordinal": 1}
+{"caseId": "UAT-KB-001", "task": "knowledge_rewrite", "ordinal": 2}
+{"caseId": "UAT-KB-015a", "task": "action_selection", "ordinal": 3}
+{"caseId": "UAT-KB-015a", "task": "knowledge_rewrite", "ordinal": 4}
+{"caseId": "UAT-KB-015a", "task": "knowledge_summary", "ordinal": 5}
+{"caseId": "UAT-KB-004", "task": "action_selection", "ordinal": 6}
+{"caseId": "UAT-KB-004", "task": "knowledge_rewrite", "ordinal": 7}
+{"caseId": "UAT-KB-004", "task": "knowledge_summary", "ordinal": 8}

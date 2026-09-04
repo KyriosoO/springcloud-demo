@@ -19,3 +19,4 @@ agent-runtime/tests/system_e2e/knowledge_stage_b_local_validation.v[1-7].jsonl b
 agent-runtime/tests/system_e2e/knowledge_stage_b_run_01/* binary
 agent-runtime/tests/system_e2e/knowledge_stage_b_run_02/* binary
 agent-runtime/tests/system_e2e/knowledge_stage_b_run_03/* binary
+agent-runtime/tests/system_e2e/knowledge_stage_b_run_04/* binary
