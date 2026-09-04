@@ -9,7 +9,7 @@
 |---|---|
 | 当前版本 | v2.8 |
 | 更新时间 | 2026-09-02 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.3 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.4 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
 | 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配；Business/Knowledge 功能验收及 Knowledge 阶段 A 离线语料发布已完成，最新有效 Knowledge 效果等级为 `partially_effective`，不等于整体效果达标 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |

@@ -7,10 +7,10 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.4 |
-| 更新日期 | 2026-08-28 |
+| 当前版本 | v3.5 |
+| 更新日期 | 2026-09-04 |
 | 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.8 |
-| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.15；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.16；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
 | 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过；最新有效 Knowledge 效果等级为 `partially_effective` |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
@@ -18,6 +18,8 @@
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.4 保持 Business 候选准入职责不变，并明确模型不得把用户显式提出但 catalog 未开放的属性替换、丢弃或近似为已开放字段；此类请求必须在业务调用前失败关闭。
 
 ## 2. 架构目标、非目标与上位约束映射
+
+阶段 B 聚焦职责补充：Knowledge 在既有 `no_result` 状态及开放的 `result` 对象内返回有限 reason；Core 只根据已验证的内部 reason 选择固定展示文本，不理解问题、不改变 domain/action、不生成补充计划。普通无命中、证据不足和需要澄清必须可区分；未知 reason 保持通用文本。状态枚举、公开 DTO 字段和 Business 行为不变。详细映射归 L2_01_00 §10.1；这是目标设计，评审与实施事实归 P3。
 
 核心职责是让 LangGraph 在一个逻辑 Agent 中维护单请求状态，把已验证的 Business 计划或 Knowledge 单动作选择转换为唯一 Core ActionCandidate。非目标是不可信模型直达 handler、本地业务语义解析、业务 SQL/ES、角色判定、第二动作及 Business/Knowledge 相互 fallback。
 

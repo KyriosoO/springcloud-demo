@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.16 |
-| 日期 | 2026-09-03 |
+| 当前版本 | v1.17 |
+| 日期 | 2026-09-04 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V4、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.15](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.16](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V4、效果口径 v2 及阶段 A policy catalog v2/current snapshot 兼容已完成；最新有效效果等级为 `partially_effective`，具体候选、门禁和运行证据由 UAT_01/P3/evidence 管理 |
 
@@ -116,7 +116,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 |---|---|
 | `DR-KEV-001` | 逐 candidate 验证 content SHA-256、domain、Profile/index/read-policy snapshot 和当前计划成员 |
 | `DR-KEV-002` | evidence ID 由 document/chunk/content hash 确定性生成，不使用模型 ref 或可变排名 |
-| `DR-KEV-003` | 选择按 rerank 顺序、领域覆盖和固定 limits 确定，证据不足返回 no_result，不调用 summary |
+| `DR-KEV-003` | 阶段B按可信检索锚点、领域覆盖与最终确定性排序选Evidence；最多8条/每文档2条/32768bytes不变，缺少必需域或证据返回no_result且summary0 |
 | `DR-KEV-004` | 新鲜 Question Guard 拒绝优先，拒绝时 verify/select/policy/model 调用均为 0 |
 | `DR-KEV-005` | 出域集合为全局规则∩所有相关域策略∩文档策略，任何 deny/缺失/冲突拒绝 |
 | `DR-KEV-006` | 每次允许决定绑定 policy catalog、authority/export/source revision、文档策略和 index snapshot fingerprint |
@@ -154,7 +154,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 
 ### 7.3 选择与 Bundle
 
-Selector 最多选择 8 条证据，优先保持 rerank 顺序并覆盖选中域；构造 `QuestionEvidenceTrace`、`EvidenceCoverage`、`KnowledgeEvidenceBundle`。若 answerability 所需域/最小证据不满足，返回 `insufficient_evidence`。
+Selector最多选择8条证据，先按最终rank选择可信retrieval_anchor（≤4条），再补足每个selected domain，最后按最终rank填充；同一identity只使用一次，不能通过锚点绕过每文档2条或字节上限。预算无法保留必需域/锚点时返回insufficient_evidence，不能静默丢失必需项后肯定回答。普通填充候选超字节限制时跳过该项并继续尝试后续更小候选，扫描最多20条；full才停止。三层出域仍在选择后独立执行，拒绝不靠替换文档绕过。构造QuestionEvidenceTrace时使用原问题而非改写词作为回答范围。
 
 ## 8. 三层模型出域策略
 
@@ -444,7 +444,7 @@ def classify_conclusion(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.16 可作为 Evidence、Summary V4、效果口径 v2 及阶段 A 新语料策略/溯源兼容依据 |
+| 是否可作为实现依据 | 是，当前 v1.17 已完成阶段 B 三轮内审和独立复评；允许实施新增语义，尚未完成 UAT |
 | 当前允许实施范围 | 维护历史校验、修复准备态/live 预检分离、执行 non-live 验证并由 P3/UAT_01 如实同步运行状态 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -460,6 +460,16 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.15。
-- 文档状态：Approved。
+- 当前版本：v1.17。
+- 文档状态：Approved；本轮三轮内审及独立复评通过，具体记录归 P3_00 §20，尚不代表实施完成。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
+
+## 阶段 B 增量实施追踪
+
+| 来源 | 设计 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|
+| `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KEV-026` | knowledge/evidence/builder.py；现有stage/limits/policy/SummaryV4合同不扩张 | `TEST-KEV-017`：锚点必需覆盖、同文档2/总8/字节边界、全选中域、超大非必需项跳过、出域拒绝summary0、Summary原问及引用validator不变 | `VAL-KEV-009`：Evidence单元/契约/集成、当前生产根和UAT_01阶段B；历史37项功能和P5原结论不外推 |
+
+上述编号定义本轮新增验证，不继承已有 Passed。新生产策略为 `knowledge-retrieval-quality-v1`，显式由生产组合根选用；旧调用默认保持 legacy，历史任务/证据不修改。UAT 使用独立阶段 B 命名空间，验收标准和执行状态归 UAT_01/P3。
+
+`DR-KEV-026`：只有本地可信排序阶段可设置锚点；外部 DTO/模型不可注入。保留全部锚点及所有选中域的 Evidence 覆盖，同时满足既有每文档/总数/字节上限；无法同时满足时返回 insufficient_evidence，不丢必需项来换表面成功。历史 legacy batch 默认无锚点，继续原选择语义。

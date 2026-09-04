@@ -10,8 +10,8 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v1.15 |
-| 日期 | 2026-09-03 |
+| 当前版本 | v1.16 |
+| 日期 | 2026-09-04 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v2.8](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
@@ -79,9 +79,9 @@
 ### 4.3 范围外
 
 - 在线文档录入、用户上传、内容编辑、通用内容管理平台；
-- 阶段 B 的跨域召回、Query Rewrite、RRF/rerank 与公共失败语义优化；
+- 图谱、语料再导入、索引重建与公共 DTO/公开枚举变更；
 - 知识图谱、图数据库和第二套 Knowledge 在线链路；
-- `es-query-service` 与 BGE 的非阶段 A 内部实现治理；
+- BGE 服务内部实现，以及 `es-query-service` 既有类型化检索合同之外的内部治理；
 - Employee/Transaction、业务角色和业务字段出域；
 - 公共 Runtime、DeepSeek transport、HTTP 协议字段和通用错误码；
 - 独立 Knowledge 服务、持久工作流和生产级检索平台。
@@ -100,6 +100,26 @@
 | `SA-C-021` | 三层只收紧出域，任何未知或冲突拒绝 |
 
 `SA-C-003/004/013/020/022` 属于业务查询边界，不在本文重定义。
+
+### 4.5 阶段 B 方案与架构决策（待实施）
+
+依据 `REQ-KQUALITY-001～004`，采用“安全原问题驱动的一次性语义域计划 + 每域有界检索 + 确定性召回锚点保留”。生产仍只有一个 Knowledge Capability；新 Rewrite 任务同时产生允许域及每域一个检索表达，不增加额外模型轮次。模型负责语义，本地负责精确结构、域白名单、条件保护和预算。旧 Rewrite/Selector 仅保留历史兼容，不作为新任务失败后的旁路。
+
+| 方案 | 支持范围与主要问题 | 安全/成本/兼容性 | 结论 |
+|---|---|---|---|
+| 仅改 Prompt | 能改善表达，不能纠正向量窗口实际少返、域词面选择与重排后的证据丢失 | 成本低，但无法形成完整修复 | 不采用为完整方案 |
+| 仅增 topK | 不解决语义和截断标记；更多长正文增加重排/出域压力 | 可能越过既有每路20合同 | 不采用；不扩大既有窗口 |
+| 根因分层最小修复 | 语义域计划、修复既有窗口、保留每域检索锚点、有限失败原因 | 每域1次 embedding、2次 search；总域≤2；公共 DTO 与索引不变 | 推荐，先评审再实施和对比 |
+
+`KQ-AD-013`：一次 Rewrite 模型调用生成不可变域计划。原问题始终保留并作为最终回答边界；检索表达只是搜索数据，不是分类、税率或时效事实。未知域、重复域、条件增补/遗漏、非法输出、模型失败及超时失败关闭，不执行检索。没有可靠计划时不启用本地 Selector 后备。
+
+`KQ-AD-014`：每个选中域各用一个表达执行 keyword/vector，读取授权先于正文返回。最多4路、80条原始候选；RRF不变，每域最多一次BGE重排，跨域只比较域内排名而非不同query的裸分数。最多为每域保留一个关键词首位与一个重排首位的不同候选，再按域内排名轮转填充；最终20条、Evidence8条和每文档2条上限不变。此保护不保证答案充分，摘要仍必须拒绝缺失证据。
+
+`KQ-AD-015`：Knowledge产生有限内部原因，公共接入只渲染既有状态/字段。缺少决定单一适用结论的条件时允许 `no_result + clarification_required`；描述性分类/法律原文查询不机械要求纳税人信息。不得增加公开状态或补造条件。Core不负责税务判断。
+
+`KQ-AD-016`：阶段 B 不修改 Summary V4、读取策略、三层出域、原文子串或引用校验；不能利用未知时效元数据认定当前有效。功能与专项质量验收独立于历史 P5 运行，不能用新算法改判旧结果。
+
+当前已核实代码仍是 Rewrite V2、确定性域选择与既有排序；本节为已评审、待实施目标。实现入口、代码复核和专项验收状态只在 P3/UAT_01 记录。
 
 ## 5. 能力边界
 
@@ -208,7 +228,7 @@ flowchart LR
 - 原问题和采用的改写在请求内关联；不得记录无必要完整文本。
 - 调用 DeepSeek 前必须经过 `L1_00` 问题分类与最小化。
 - 模型给出候选，确定性组件校验格式、数量、长度与语义边界。
-- 改写失败时，只有原问题可确定性转换为安全检索表达才允许回退；否则明确失败。
+- 阶段 B 新计划任务失败时停止，不能使用未验证原问题触发本地选域；原问题回退仅属于 V1/V2 历史合同，不进入新生产绑定。
 
 ### 7.3 逻辑知识域
 
@@ -402,7 +422,7 @@ accepted → rewritten → domains_selected → retrieved
 Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
 
 - `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
-- `true`：目标版本在同一 Model Gateway 注册且只注册 Rewrite V2、Summary V4，在同一 Registry 追加且只追加 `knowledge.query`，并由同一 Core/Graph 保持顶层单动作；Rewrite V1、Summary V1～V3 仅承担历史兼容和回滚追踪，不与当前任务组合同时进入生产对象图；
+- `true`：阶段 B 目标在同一 Model Gateway 唯一注册 Rewrite V3、Summary V4，在同一 Registry 唯一追加 `knowledge.query`；V1/V2 不作为自动后备。当前实施进度由 P3 管理，尚未完成的目标不得标为已接线。
 - `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
 - 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
 - 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。
@@ -411,7 +431,7 @@ Business QueryPlan 只治理三个 Business action；`knowledge.query` 继续通
 
 ### 14.3 功能验收与效果验收
 
-功能验收覆盖 Spring→Runtime、读取授权、双路检索、Evidence、出域、当前 Summary 任务、失败优先级和零调用；它可以由 fake Model、真实生产对象图、Java 安全链与契约测试组合完成。效果验收继续使用 P5 成对运行、代表性数据和人工 rubric，必须独立给出结论。候选使用的具体 Summary 和评估口径版本必须写入冻结 manifest。
+功能验收覆盖 Spring→Runtime、读取授权、双路检索、Evidence、出域、当前 Summary 任务、失败优先级和零调用；它可以由 fake Model、真实生产对象图、Java 安全链与契约测试组合完成。历史 P5 成对运行及原评估口径保持不可变；阶段 B 使用 UAT_01 独立预冻结问题集和人工原文 rubric，不要求重复旧 P5 或图谱联合运行。功能、安全和效果分别给出结论；核心 P0 缺口仍阻塞阶段 B 收口。任务与配置版本必须进入运行快照。
 
 新效果运行只能在功能验收通过、根因诊断明确、最小优化形成新版本且 non-live 回归通过后准备。具体 run、manifest、授权和预算由 UAT_01/P3/evidence 管理；未经一次性精确授权不得产生真实模型 outbound。
 

@@ -5,9 +5,9 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.41 |
+| 当前版本 | v2.42 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-03 |
+| 更新时间 | 2026-09-04 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
 | 实施授权 | Ready 不等于实施授权；本任务已另行获得目标范围内代码实施、受控验证、文档同步及 Git 提交推送授权 |
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
@@ -26,9 +26,9 @@ v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrit
 
 | 来源 | 当前版本 | 权威责任 | 状态 |
 |---|---|---|---|
-| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.3 | 稳定业务目标、安全、受控多值及 Knowledge 阶段 A 语料完整性 | Approved |
+| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.4 | 稳定业务目标、安全、受控多值及 Knowledge 阶段 A 语料完整性 | Approved |
 | [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.8 | 系统边界和下位治理 | Approved |
-| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.4 | Runtime/Model/Core、受控 Business 候选准入、组合根及完整意图边界 | Approved |
+| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.5 | Runtime/Model/Core、受控 Business 候选准入、组合根及完整意图边界 | Approved |
 | [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.8 | Business 多值/组合边界、Adapter、结果卫生与最终授权 | Approved |
 | [`L2_00_00`](../design/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) | v1.3 | Spring 公共接入、Runtime 内部协议和当前生产启动入口状态 | Approved |
 | [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.3 | planning bridge、组合根和单动作 | Approved |
@@ -37,13 +37,13 @@ v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrit
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.15 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.15 | 单动作、Rewrite V2 及发布后只读快照消费 | Approved |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.5 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.16 | Evidence/出域、Summary V4 及阶段 A 策略快照兼容 | Approved |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.16 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.16 | 单动作、Rewrite V2 及发布后只读快照消费 | Approved |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.6 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.17 | Evidence/出域、Summary V4 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.19 | Knowledge 功能/效果及阶段 A 语料专项验收 | Reviewed |
-| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.7 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.20 | Knowledge 功能/效果及阶段 A 语料专项验收 | Reviewed |
+| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
 
@@ -111,6 +111,12 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KCORPUS-INDEX-01` | 候选索引与策略/Profile 快照 | `L2_01_01 DR-KRET-022～024`; `L2_01_02 DR-KEV-023～025` | 复制基线、写新增合格 chunk、新 mapping/snapshot/catalog、完整性验证 | `WP-KCORPUS-PIPELINE-01` | - | 新索引、build manifest、v2 egress catalog、binding | `TEST-KRET-017/018`; `VAL-KRET-007` | 候选保持未发布；不删除旧索引 | Done |
 | `WP-KCORPUS-UAT-01` | 阶段 A 直接检索 UAT | `UAT_01 v1.19` 阶段 A | 14类正文/附件/表格/OCR/时效/授权/Evidence及酒店住宿 P0 | `WP-KCORPUS-INDEX-01` | - | 逐 case 有限追踪和发布门禁证据 | typed keyword/vector、权限、引用、回归 | 不以阶段 B topK 失败否定语料存在性 | Done |
 | `WP-KCORPUS-RELEASE-01` | alias 发布、回滚演练与收口 | `L2_01_01 DR-KRET-025` | 原子切候选、冒烟、切回旧目标验证、最终切候选、状态/评审/Git | `WP-KCORPUS-UAT-01` | - | release journal、最终 binding、评审和提交；alias 生效由发布门禁独立判定 | alias/UUID/Profile/policy、全量回归、历史 hash | 精确原子恢复旧目标；不删除索引 | Done |
+| `WP-KRETRIEVAL-DIAG-01` | 阶段 B 根因诊断 | `REQ-KQUALITY-001～004` | 同索引十组零模型对照与有限排名证据 | - | - | diagnosis v1 JSONL、根因矩阵 | 当前服务窗口、改写反例、路径/融合/重排/Evidence | 不写索引、不调用外部模型 | Done |
+| `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
+| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～018`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V3、一次域计划、服务窗口、排序/Evidence、有限 reason | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Ready |
+| `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 可复现验证结果 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Blocked |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | 冻结人工 gold、一次有限真实批次 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 最多20端到端/60模型、零重试 | 失败停止，不补跑 | Blocked |
+| `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
 
@@ -172,8 +178,13 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `DEP-KCORPUS-003` | `WP-KCORPUS-PIPELINE-01` | `WP-KCORPUS-INDEX-01` | data | 只有质量通过且关系完整的 chunk 可进入候选 | `DR-KRET-018～022` |
 | `DEP-KCORPUS-004` | `WP-KCORPUS-INDEX-01` | `WP-KCORPUS-UAT-01` | validation | UAT 必须针对冻结 candidate/profile/policy snapshot | `UAT_01` 阶段 A |
 | `DEP-KCORPUS-005` | `WP-KCORPUS-UAT-01` | `WP-KCORPUS-RELEASE-01` | validation | alias 生效只依赖质量、安全、直接检索和回滚证据 | `GATE-084` |
+| `DEP-KQUALITY-001` | `WP-KRETRIEVAL-DIAG-01` | `WP-KRETRIEVAL-DESIGN-01` | validation | 根因先于设计 | §20 |
+| `DEP-KQUALITY-002` | `WP-KRETRIEVAL-DESIGN-01` | `WP-KRETRIEVAL-IMPLEMENT-01` | contract | 评审通过先于实现 | `GATE-KRG-006` |
+| `DEP-KQUALITY-003` | `WP-KRETRIEVAL-IMPLEMENT-01` | `WP-KRETRIEVAL-NONLIVE-01` | validation | 验证当前实现 | L2 TEST/VAL |
+| `DEP-KQUALITY-004` | `WP-KRETRIEVAL-NONLIVE-01` | `WP-KRETRIEVAL-UAT-01` | validation | fake 先于真实请求 | UAT_01 §14 |
+| `DEP-KQUALITY-005` | `WP-KRETRIEVAL-UAT-01` | `WP-KRETRIEVAL-QUALITY-01` | validation | 逐 case 证据与正式评审 | §20 |
 
-DAG 无环；Business 与 Knowledge 工作包之间没有反向依赖。Knowledge 接线只向既有 Runtime 添加可选 Provider/任务/resources，不恢复或重开 Business 工作包。所有已消费授权均不得复用；当前只允许按 candidate-07 失败历史化→Harness 状态合同修复→全量设计落实审计→最终收口单向推进，不创建 candidate-08。
+DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。既有已消费授权不可复用；新的阶段 B 授权不等于允许重跑历史 P5 candidate。
 
 ## 7. 阶段门禁
 
@@ -199,6 +210,7 @@ DAG 无环；Business 与 Knowledge 工作包之间没有反向依赖。Knowledg
 | `GATE-082` | `WP-EMP-NL-UAT-10` | integration | Employee自然语言扩展受控UAT与最终收口 | 是 | 四候选累计模型不超过30、Employee search不超过30；candidate-04代表性13/13通过并与candidate-03不可变302/307组成15类完整证据；至少一个地区成功列表、安全与零调用合同全部成立 | candidate-04 result SHA-256=`2dc6e4c3755f2a32542e6219d671b388a9b1eb7dc97c510225d995a5d3cc48fd`；history/combined coverage tests；全量回归与正式代码评审 | 用户/实施者/评审者 | 本目标最终收口 | exact hash、预算、逐case、零泄漏、历史不可变与代码对照设计复核 | 禁止任何额外模型调用或新候选；证据失效时如实重新打开，不得改判历史 | Closed |
 | `GATE-083` | `WP-KCORPUS-PIPELINE-01` | slice_implementation | 首次持久下载和候选索引写入 | 是 | 官方来源/P0-P2范围、显式外部workspace、解析工具版本、下载/存储/索引预算、精确旧alias目标与回滚方案明确；REQ/L1/L2三轮内审和独立评审通过 | audit v3、Approved 阶段 A 设计、工具/依赖快照、旧 alias 只读证明 | 维护者/评审者 | 首次持久下载前 | strict Schema/设计/计划校验与分层跨层评审 | 只允许不落盘的官方来源和索引元数据审计 | Closed |
 | `GATE-084` | `WP-KCORPUS-RELEASE-01` | release_effective | 候选 alias 生效 | 否 | P0及目标P1完成、P2清单、解析/OCR/表格质量、空正文/孤立附件、candidate完整性、typed keyword/vector、读取/出域/Evidence、回归和回滚演练通过 | Stage A corpus candidate-08/a5 build manifest、14/14 UAT attempt-05、release attempt-05 journal、测试和评审 | 维护者/UAT/评审者 | alias切换前 | 完整性、权限、引用、alias原子性和历史hash | 候选保持未发布；现行alias不变 | Closed |
+| `GATE-KRG-006` | `WP-KRETRIEVAL-IMPLEMENT-01` | slice_implementation | 阶段 B 受影响代码实施 | 是 | 根因/边界明确；三轮内审及独立分层跨层评审通过；无 fallback、权限/公共合同扩张 | §20 诊断及评审记录 | 设计维护者/评审者 | 生产代码修改前 | S0/S1/未处理 S2=0；不要求代码或 live 先完成 | 仅诊断与设计；不实施受影响代码 | Closed |
 
 ## 8. 外部资源与事实
 
@@ -581,3 +593,44 @@ candidate-03 后续设计复核：第1轮确认失败是模型把显式 `workBas
 ### 19.8 阶段 B 独立输入
 
 用户问句“酒店行业的住宿费用，适用哪种税率”仍可能因 `domain_selection/query_rewrite/ranking/failure_semantics` 无法把已存在的直接原文送入最终 topK。阶段 A 不修改 Domain、Rewrite、RRF、rerank、topK、Prompt 或 fallback；后续应先按 `GATE-KRG-006` 完成阶段 B 只读诊断与设计评审。
+
+## 20. 阶段 B：根因、实现入口与有限验收
+
+### 20.1 当前基线与根因矩阵
+
+起始分支 codex，HEAD `09eb9e26b2569990b92371d61e2728a72949e579`，与 origin/codex 一致且工作树干净。阶段 A 当前 alias/UUID 经只读核实不变。十组诊断使用生产 Adapter 和同一 corpus-a5 快照，但有意同时探测两域；它不是当前生产域选择结果，也不是端到端 UAT。有限 evidence：`agent-runtime/tests/system_e2e/knowledge_stage_b_diagnosis.v1.jsonl`，SHA-256=`daca09f544ff7a88d1a8386dfcc749b26fe017dc03e7323ce15237e6732f1bc7`。
+
+| 问题/环节 | 实证 | 证据强度 | 最小处理 |
+|---|---|---|---|
+| 向量窗口 | limit=20、k=21，但 Java vector body 无 size；十组两域均只返回10且 truncated=false | 代码+同快照实际响应，强 | 补已有合同的 size=limit+1，不加 topK |
+| 酒店原问域选择 | 本地 selector 仅 policy；离线 law 路径存在税法直接条款 | 单测反例+路径证据，强 | V3 一次性语义域计划，禁止失败扩域 |
+| 改写条件 | 现 guard 接受小规模/简易计税丢失和住宿改成货物的反例 | 可复现反例，强；一般语义保持不可由正则完备证明 | exact V3、显式条件守卫、原问题摘要边界及人工 UAT |
+| 分类 Evidence 丢失 | “住宿服务增值税税率”分类 keyword第2→融合第5→重排第18→未入 Evidence；“一般纳税人…”keyword第1→重排第19→未入 | 同快照有限排名，强 | 域内 rerank，保留各域 keyword/语义首位锚点；有界 Evidence |
+| 检索词差异 | “住宿服务生活服务”分类融合第1/重排第2并入选；原问没有召回分类附件 | 受控离线词变体，强；不能据此断言端到端已修复 | 每域一个受原问题约束的检索表达 |
+| 无结果文案折叠 | no_candidate 和 insufficient_evidence 均显示同一句无结果；覆盖不足可能转 internal_failure | 代码证据，强 | 现有状态+有限 reason，固定文案区分 |
+| 冷态 rerank | 首次56候选5秒超时；随后独立校准1.265秒及十组通过 | 一次冷态事件，中 | 保留5秒硬界，非 live 检查就绪；不凭单次超时放宽 |
+| 时效/语料缺口 | 写作日期不能证明适用期，content flags 不能充当法律 gold | 限制明确 | 人工核对适用条款；新缺口记阶段 A 维护，不改正文/索引 |
+
+诊断累计本地调用：embedding22、search88、rerank12、外部模型0；含首个失败探针、仅路径对照、单次校准和完整十组。auth/es 隔离进程均按持有的子进程句柄停止，临时原始日志已删除。有限基线文件不可覆盖。Knowledge 定向 source-tree 验证需进程级 PYTHONPATH：160 passed/6 opt-in skipped；正式全量仍须隔离安装入口，不能把源码树未安装导致的 collection error 视为产品失败。
+
+### 20.2 方案和控制
+
+采用 L1_01 §4.5、L2_01_00 §8/10.1、L2_01_01 §8.4/9.3、L2_01_02 §7.3 的最小组合；Summary V4、RRF k=60、per-path20、final20、Evidence8/每文档2/32768字节、公共 DTO 和阶段 A 索引均不扩张。V1/V2任务和历史资产保持字节不变。生产使用新 V3 一次计划与域内排序版本；历史调用默认维持原合同。
+
+授权总计最多20个真实端到端请求、60次外部模型 HTTP；包含 selection/rewrite/summary，自动 retry/resume=0。先冻结当前 commit、Prompt、配置、索引、case/gold 和各调用预算；不触及全局环境，不在准备阶段读取 LLM_API_KEY。失败即停止该真实批次，后续只能做 fake 修复，不补跑或新增付费候选。核心 P0 未通过则本包不标 Done。
+
+### 20.3 评审与实施状态
+
+本节记录本轮设计评审过程；最终结论以末尾复评及主表为准。初稿时GATE-KRG-006为Open、生产代码未修改，所有本轮验证不得继承历史Passed。
+
+| 内审 | 实际检查与发现 | 本轮修复 |
+|---|---|---|
+| B-IR-1 | 职责/唯一链路/原问/域计划；发现路线图授权在rerank之后、模糊酒店问题例子加入纳税人类型、阶段B退出错误依赖图谱 | 授权前移、例子仅检索表达、阶段B独立UAT；原问边界和新任务无fallback明确 |
+| B-IR-2 | Python/Java/公开响应/安全；发现不同域query的BGE分数不可直接比较、模型query还需安全复核、同identity跨域计数含糊、锚点与final容量冲突 | 域内rerank+rank轮转、重验QuestionGuard、80为路径候选总界、启动final≥2×域数；固定reason不改公开DTO |
+| B-IR-3 | DAG/预算/回滚/可验证性；P3 strict无环通过；L2 strict报告增量追踪缺来源/设计列及草案readiness用词不明确 | 补来源/设计列与“否，草案”判定；冻结前人工gold、20/60含selection、失败不补跑、历史/索引保护及冷态风险明确 |
+
+三轮内审结束时，独立设计评审尚未作出通过结论。一般自然语言等价和实际效力无法靠字符串guard证明，属于专项UAT必须验证的限制，不作为已完成能力声明。
+
+独立只读评审首轮冻结发现：B-DR-001（S1，L2_01_00 §9.3）coverage并集漏列no_result，合法零命中路径会被误判协议损坏；修复为三集合精确且互斥。B-DR-002（S2，L2_01_00 §17）历史禁止真实调用文字与本轮有限授权冲突；限定为未冻结/超预算调用。B-DR-003（S2，ARCHITECTURE）新草案版本仍带旧Approved；同步索引与本轮实际评审状态。评审阶段只读，以上修改在另行切回已授权文档修订阶段完成。
+
+独立复评 B-DR-R2：重新只读核对上述三项与完整层级/跨层 rubric，coverage三集合、已有公开结果对象及固定文案、受控域/预算/授权/历史边界和阶段B独立DAG一致；S0=0、S1=0、未处理S2=0，通过阶段B实施入口。L1两份、L2三份及P3严格校验通过。此为独立于编辑阶段的自动化辅助评审，不冒充外部人工审批。GATE-KRG-006关闭，Design=Done、Implement=Ready；生产代码和真实UAT仍未完成。ARCHITECTURE与metadata按本复评结论同步，不将设计Approved等同Implemented。

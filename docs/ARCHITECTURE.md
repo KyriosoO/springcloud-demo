@@ -7,21 +7,21 @@
 - `REQ_XX`：需求；`L0_XX`：总体架构；`L1_XX`：域/模块架构；`L2_<父 L1>_<序号>`：实施详细设计。
 - 编号是稳定沟通标识，不表示实施顺序或状态。
 - 设计状态只使用 `Draft / In Review / Approved / Deprecated`；代码实现、测试验证和部署生效状态分别记录，不能互相替代。
-- `REQ_00` v2.3 继续作为需求权威；当前设计基线为 L0 v2.8、L1 Core/Knowledge/Business v3.4/v1.15/v2.8，10 份 L2 的当前版本见下表。实施计划为 P3 v2.41，Business/Knowledge 验收计划分别为 UAT_00 v1.24、UAT_01 v1.19，阶段路线图为 ROADMAP_01 v0.7。本索引不复制工作包、Gate、candidate、哈希或动态测试总数。
+- `REQ_00` v2.4；L0 v2.8、L1 Core/Knowledge/Business v3.5/v1.16/v2.8，10份L2当前版本见下表。实施计划P3 v2.42；验收计划UAT_00 v1.24、UAT_01 v1.20；路线图ROADMAP_01 v0.8。阶段B新增语义仍须按评审和实施事实分开管理，不继承历史通过结论。本索引不复制工作包、Gate、candidate、哈希或动态测试总数。
 
 ## 2. 需求与总体架构
 
 | 编号 | 文档 | 版本/状态 | 阅读重点 |
 |---|---|---|---|
-| `REQ_00` | [单体 Agent 查询能力建设需求说明](REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.3 / Approved | 三动作、filters QueryPlan、字段边界及 Knowledge 阶段 A 语料完整性 |
+| `REQ_00` | [单体 Agent 查询能力建设需求说明](REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.4 / Approved | 三动作、filters QueryPlan、字段边界及 Knowledge 阶段 A 语料完整性 |
 | `L0_00` | [单体 Agent L0 总体架构](design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.8 / Approved | 系统边界、唯一链路、在线/离线 Knowledge 边界与权限 |
 
 ## 3. L1 架构
 
 | 编号 | 文档 | 版本/状态 | 治理范围 |
 |---|---|---|---|
-| `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.4 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
-| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.15 / Approved | 在线查询及离线语料构建平面、证据与受控发布 |
+| `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.5 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
+| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.16 / Approved | 在线查询及离线语料构建平面、证据与受控发布 |
 | `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.8 / Approved | 三动作 Adapter、多值/组合字段配置、operator-specific 文本安全、最终授权与列表结果 |
 
 ## 4. L2 详细设计
@@ -39,9 +39,9 @@
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.15 / Approved |
-| `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.5 / Approved |
-| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.16 / Approved |
+| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.16 / Approved |
+| `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.6 / Approved |
+| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.17 / Approved |
 
 ### 4.3 Business（受 `L1_02` 治理）
 

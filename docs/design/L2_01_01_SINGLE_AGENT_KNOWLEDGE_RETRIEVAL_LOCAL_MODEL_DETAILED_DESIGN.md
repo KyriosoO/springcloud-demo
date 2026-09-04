@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.5 |
-| 日期 | 2026-09-03 |
+| 当前版本 | v2.6 |
+| 日期 | 2026-09-04 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.15](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.16](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -55,7 +55,7 @@
 
 - 问题改写、域选择、证据、出域、摘要和 P5；
 - 在线文档录入、用户上传和通用内容管理；
-- 阶段 B 跨域召回、Rewrite、RRF/rerank 或公共失败语义优化；
+- 阶段 B 之外的图谱、新语料/索引发布，以及公共DTO或权限扩张；
 - 知识图谱或新的在线服务；
 - 通用 ES endpoint 的行为变化；
 - 角色分配、模型训练、生产级重试/缓存/熔断。
@@ -164,7 +164,7 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 
 `KnowledgePathRequest`：logical domain、retrieval profile、path、query text、optional vector、limit。`AuthorizedKnowledgeCandidate`：document/chunk ID、domain、title/content/source metadata、source rank、content SHA-256、policy ref、profile/index/read-policy snapshot metadata。
 
-`RankedKnowledgeBatch` 只包含最终有序 `RankedKnowledgeCandidate`、统一 profile version 和按首次出现稳定排列的 snapshot ID 集；构造时验证候选数量和连续 rank。Provider 的 `truncated` 仅表示该 path 的 top-k 边界，不等同于技术失败或 coverage 不完整，不进入最终 batch。
+`RankedKnowledgeBatch`仍只包含最终有序候选、统一profile version与snapshot集合。阶段B排序版本显式记录在内部配置；内部候选可增加可信`retrieval_anchor`标记（默认false保持旧显式装配兼容），不能接受模型/HTTP注入。连续rank代表最终确定性顺序，不再宣称全局BGE分数降序。path truncated表示窗口边界，不代表物理语料全覆盖。
 
 ### 7.3 Knowledge HTTP 请求
 
@@ -220,7 +220,7 @@ Agent 只持有 stable Profile ID 和 expected profile version=`tax-knowledge-se
 
 ### 8.4 ES 查询
 
-Service 只根据冻结 Profile 构造 keyword 或 vector query，自动附加 category filter 和 `_source` allowlist；limit 不超过 Profile max。返回映射为 DTO，不透传 ES `_score` 给融合算法，不暴露物理 index。
+Service只根据冻结Profile构造keyword/vector query，附加category filter与_source allowlist，limit≤20。两种路径都必须显式设置ES `size=limit+1`；vector同时设置`k=limit+1`，num_candidates保持原上限100。返回额外一条仅供truncated计算，最多映射limit条。修复当前vector缺少size导致默认少返与truncated假阴性，不扩大请求/响应DTO、Profile上限或索引能力。
 
 ## 9. 本地模型、RRF 与 rerank
 
@@ -240,13 +240,13 @@ Service 只根据冻结 Profile 构造 keyword 或 vector query，自动附加 c
 ### 9.3 BGE Rerank
 
 - endpoint 默认 loopback `http://127.0.0.1:8909`，model exact `BAAI/bge-reranker-v2-m3`；
-- 输入为 query + 融合后候选最小正文；两域×两路径×每路径 20 的硬上限为 80；
+- 阶段 B每个选中域用其唯一query与该域去重融合候选执行一次rerank，单域≤40条，两域合计≤80；同一identity若确实在两域召回，可分别参与两次域内排序，但不得新增另一域未召回的候选，总次数仍不超过原始路径条数80。每个rerank返回索引/正文/分数必须完整一致，不比较不同query的裸分数；最终按域内rank轮转填充。每域最多一次rerank，无失败重试。
 - 输出必须一一覆盖候选且索引唯一，score 有限；
-- 最终按 rerank score 降序及稳定 tie-break，截取 `final_candidates` 3..20。
+- 阶段 B目标采用确定性锚点保留：每个计划域选择“该域keyword结果首位”和“该域rerank首位”；同identity去重，按目录域序、keyword锚点、rerank锚点生成≤4条保留前缀，再按每域rerank降序、RRF降序、chunkId确定域内顺序，目录域序轮转填充到final_candidates。所有锚点必须来自本次已授权候选，不使用内容规则/gold/文档特判。配置final_candidates不足保留前缀时启动失败，不能静默丢弃域。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
-- Stage 为每个 plan item 建立有界任务；相同 query 的 vector embedding 至多一次。
+- Stage为每个计划item建立有界任务；先按唯一query执行embedding（最多2次）再并发执行最多4次search，query→vector请求内映射，禁止错用第一域向量。所有路径完成并通过授权优先级检查后，执行每域最多1次rerank（共≤2次）；任何技术/授权失败不触发新域/新query。
 - cancellation/deadline 传播到全部 transport；任一并发 path 异常或阶段失败时取消并 join 未完成任务。
 - 整域 forbidden/authority failure 是安全失败，不能用另一 path/domain 的 success 降级。
 - rate limit、timeout、provider failure 是技术失败，由 L2_01_00 coverage 规则决定是否部分继续。
@@ -270,7 +270,7 @@ Service 只根据冻结 Profile 构造 keyword 或 vector query，自动附加 c
 | embedding/rerank URL | loopback only，默认 8908/8909 |
 | embedding dimension | exact 1024 |
 | rerank model | exact `BAAI/bge-reranker-v2-m3` |
-| final candidates | 3..20 |
+| final candidates | 3..20；阶段 B 还须≥2×已启用域数，否则启动失败，不能由运行时静默裁掉锚点 |
 
 Java endpoint 默认 disabled；启用时全部 Profile 必须完整并通过 alias/index snapshot 校验。在线请求不修改 mapping、alias、索引或正文；阶段 A 的离线发布只能在本节定义的精确候选和发布门禁内执行。在线回滚仍可禁用 endpoint/Knowledge action；语料回滚恢复 alias 的精确旧目标，不迁移 Agent 数据。
 
@@ -457,9 +457,9 @@ KnowledgeSearchResponse search(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v2.5 可作为在线 retrieval 与阶段 A 离线语料生命周期维护及代码/数据评审依据 |
+| 是否可作为实现依据 | 是，当前 v2.6 已完成阶段 B 三轮内审和独立复评；允许实施新增语义，尚未完成 UAT |
 | 当前允许实施范围 | 既有 typed endpoint/Profile/授权，以及官方语料审计、版本化处理、新候选索引和门禁后 alias 发布 |
-| 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、阶段 B 算法、图谱、公共接口变化或真实模型出域 |
+| 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或真实模型出域 |
 | 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
 
 ## 17. 三轮内部自检与独立评审记录
@@ -485,6 +485,16 @@ KnowledgeSearchResponse search(
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.4。
-- 文档状态：Approved。
+- 当前版本：v2.6。
+- 文档状态：Approved；本轮三轮内审及独立复评通过，具体记录归 P3_00 §20，尚不代表实施完成。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
+
+## 阶段 B 增量实施追踪
+
+| 来源 | 设计 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|
+| `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KRET-027` | es-query-service KnowledgeSearchService.buildSearchBody；knowledge/retrieval/stage.py / contracts.py；bootstrap 策略绑定 | `TEST-KRET-022`：两路径size=limit+1和truncated、域内rerank/跨域round-robin、keyword/语义锚点、同分确定性、2/4/2调用上限、取消/授权/快照反证 | `VAL-KRET-008`：Java查询合同、Pythonretrieval fake与同索引本地有限对照、UAT_01 §14、历史回归 |
+
+上述编号定义本轮新增验证，不继承已有 Passed。新生产策略为 `knowledge-retrieval-quality-v1`，显式由生产组合根选用；旧调用默认保持 legacy，历史任务/证据不修改。UAT 使用独立阶段 B 命名空间，验收标准和执行状态归 UAT_01/P3。
+
+`DR-KRET-027`：既有 typed vector/keyword 窗口必须实际执行；每个预选域使用其自己的检索表达和授权候选作一次 rerank，最多2次且总候选≤80。每域 keyword 首位与 rerank 首位去重后作为锚点，随后按域内稳定排名 round-robin 填充；不比较不同 query 的原始分数，不用文档ID/gold/case加分。策略版本进入运行快照，不修改 Profile/alias/索引。

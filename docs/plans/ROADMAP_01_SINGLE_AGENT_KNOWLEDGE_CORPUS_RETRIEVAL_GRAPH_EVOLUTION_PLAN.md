@@ -5,9 +5,9 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `ROADMAP_01` |
-| 当前版本 | v0.7 |
+| 当前版本 | v0.8 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-03 |
+| 更新时间 | 2026-09-04 |
 | 规划性质 | 后续能力路线图，不是当前实施计划、完成声明或代码授权 |
 | 来源 | 当前非历史 Knowledge 架构与详细设计、现有检索链路，以及“正文附件补齐、检索质量修复、轻量知识图谱、原文最终取证”四项改进方向 |
 | 适用范围 | Knowledge 语料完整性、附件处理、跨域召回、问题改写、排序、失败语义、轻量知识图谱、效果验收 |
@@ -131,10 +131,10 @@ Ready 不等于实施授权。
 用户问题
 → 输入安全检查与问题改写
 → tax.policy / tax.law 受控单域或多域选择
-→ keyword + vector 原文召回
+→ es-query-service 当前用户读取授权
+→ keyword + vector 授权原文召回
 → 轻量图谱的实体识别、时效约束和候选文档扩展
 → 候选合并、RRF、rerank
-→ 当前用户读取授权
 → 原文 Evidence 选择与完整性校验
 → 三层模型出域决策
 → 受证据约束的摘要
@@ -215,8 +215,8 @@ Ready 不等于实施授权。
 改写应保留主体、服务类型、纳税人类型、计税方法、日期、税率/征收率和否定条件。以“酒店行业的住宿费用，适用哪种税率”为例，候选表达可覆盖：
 
 - 酒店、住宿服务、增值税、税率；
-- 住宿服务、生活服务、一般计税；
-- 酒店住宿、小规模纳税人、征收率。
+- 住宿服务、生活服务；
+- 酒店住宿、服务分类、适用规则。
 
 上述只是语义类别示例，不应硬编码为逐句规则。模型输出必须继续由确定性合同约束，不能改变用户问题或补造未提供的纳税人类型。
 
@@ -229,10 +229,9 @@ Ready 不等于实施授权。
 - 发文机关和材料权威性；
 - 生效、失效、废止和适用期间；
 - 服务分类、纳税人类型和计税方法；
-- 图谱候选与原问题实体的有界路径距离；
 - keyword/vector 路径、RRF 和 BGE rerank 分数。
 
-图谱距离不得覆盖读取授权、时效或原文相关度，也不得作为无原文关系的最终分数。
+阶段 B 只使用现有接口实际提供且可验证的信号；不能仅凭 writtenDate 推断现行有效。图谱距离属于阶段 C/D，不参与阶段 B 排序。本轮详细合同和实施状态以当前 Knowledge L1/L2 与 P3_00 §20 为准；当前方案不扩大 per-path top20，而先修复 vector size 的既有合同实现，再检验域内排序与有限召回锚点。
 
 ##### 4.5.2.4 失败语义
 
@@ -247,6 +246,10 @@ Ready 不等于实施授权。
 | `downstream_failure` | 依赖、超时、非法响应或全部技术路径失败 | 不得伪装为无结果 |
 
 内部 reason 不得泄漏索引、策略、正文或依赖内部细节。任何公共错误合同变化必须单独评审。
+
+##### 4.5.2.5 独立实施与验收路径
+
+阶段 B 由 P3_00 的诊断→设计→实施→non-live→专项 UAT→质量收口直接依赖链执行。GATE-KRG-006 只控制受影响代码实施，关闭条件不包含代码完成或 live UAT。UAT_01 §14 独立验证核心 P0、错误语义、安全和保留回归，不依赖 WP-KNOWLEDGE-UAT-02、图谱或阶段 C/D。各工作包和 Gate 动态状态仅由 P3_00 维护，本路线图后续表中旧 Blocked 是启动阶段 B 前的规划基线。
 
 #### 4.5.3 阶段 C：轻量知识图谱
 
@@ -414,7 +417,7 @@ flowchart LR
 |---|---|---|---|---|---|---|---|
 | `WP-KCORPUS-AUDIT-01` | 只读元数据、附件和索引覆盖核实；生成有限清单 | 下载附件、保存正文、写 ES、改 alias | `knowledge-corpus-tools` 审计入口及外部 workspace | `REQ-KCORPUS-001/005`、`DR-KRET-013/025` | Schema、抽样、零写入、敏感扫描 | 为 `GATE-KRG-001/002/006/007` 提供事实 | `implement-from-detailed-design` |
 | `WP-KCORPUS-ATTACHMENT-01` | 入口门禁通过后按版本化流水线实施；发布另受发布门禁控制 | 覆盖旧索引、无来源导入、静默忽略解析失败 | `knowledge-corpus-tools`、`es-query-service` 内部 mapping/Profile、版本化 policy catalog | `DR-KRET-013～025`、`DR-KEV-023～025` | 解析、OCR、表格、hash、索引、授权、回滚 | 发布后开放 `GATE-KRG-003` | `implement-from-detailed-design` |
-| `WP-KRETRIEVAL-QUALITY-01` | 仅在批准设计内调整 Prompt/配置/排序和内部 reason | 跨域 fallback、放宽授权、无限 topK | `agent-runtime` Knowledge 流程和既有 typed Provider | `DR-KFLOW-*`、`DR-KRET-*` 待修订项 | 离线指标、E2E、失败矩阵、零调用 | `GATE-KRG-004` | `implement-from-detailed-design` |
+| `WP-KRETRIEVAL-QUALITY-01` | 仅在批准设计内调整 Prompt/配置/排序和内部 reason | 跨域 fallback、放宽授权、无限 topK | `agent-runtime` Knowledge 与 es-query-service 既有 typed 查询内部实现 | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 离线指标、E2E、失败矩阵、零调用 | UAT_01 §14；P3_00 阶段 B 独立收口 | `implement-from-detailed-design` |
 | `WP-KGRAPH-CONTRACT-01` | 按已批准设计实现最小实体、关系、溯源、时效和类型化接口合同 | 未批准先编码、引入 Neo4j、让 Agent 看到物理查询 | 待详细设计确定的 `agent-runtime`/`es-query-service` 接缝 | 待新增 REQ/DR/IMPL/TEST/VAL | Schema fake、接口合同和物理信息零暴露 | `GATE-KRG-003` | `implement-from-detailed-design` |
 | `WP-KGRAPH-BUILD-01` | 按批准合同构建版本化关系数据 | 修改原文、无来源关系、自动生效 | 待详细设计确定 | 待新增 IMPL/TEST/VAL | 溯源、时效、hash、人工抽样 | `GATE-KRG-004` | `implement-from-detailed-design` |
 | `WP-KHYBRID-RETRIEVAL-01` | 图谱扩展候选后回到授权原文检索 | 图谱直接回答、第二链路、物理资源暴露 | `agent-runtime` Knowledge + `es-query-service` 类型化接口内部实现 | 待新增 DR/IMPL/TEST/VAL | provider spy、授权、原文引用、故障注入 | `GATE-KRG-005` | `implement-from-detailed-design` |
