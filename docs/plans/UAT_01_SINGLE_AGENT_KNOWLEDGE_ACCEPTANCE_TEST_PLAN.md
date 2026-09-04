@@ -309,7 +309,7 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 
 ### 14.2 真实专项结果与未执行项
 
-唯一批次`knowledge-stage-b-uat-v1-20260904-run-01`的绑定、五项hash、调用账及代码评审问题见P3_00 §20.6～20.7。原始有限资产位于`agent-runtime/tests/system_e2e/knowledge_stage_b_run_01/`；历史校验从冻结提交读取源文件，不以当前修改后的源码冒充运行基线。
+历史批次`knowledge-stage-b-uat-v1-20260904-run-01`的绑定、五项hash、调用账及代码评审问题见P3_00 §20.6～20.7。原始有限资产位于`agent-runtime/tests/system_e2e/knowledge_stage_b_run_01/`；历史校验从冻结提交读取源文件，不以当前修改后的源码冒充运行基线。后续独立批次见§14.5，不覆盖本节历史结论。
 
 | 冻结顺序 | Case | 验证目标 | 真实结果 |
 |---|---|---|---|
@@ -332,23 +332,42 @@ candidate-07 绑定 frozen HEAD=`e4ba0c6c5909bb04bbcd0206085e95952b2350a3`、run
 
 | UAT风险 | 当前自动化证据 | 结论边界 |
 |---|---|---|
-| KB-001/005/007：澄清、非法改写、日期/比例单位/否定 | `tests/unit/knowledge/test_semantic_planner.py`；`tests/integration/knowledge/test_stage_b_production.py` | 通用守卫与模型返回澄清时的零调用通过；模型应否澄清的真实判断未通过 |
+| KB-001/005/007：澄清、非法改写、日期/比例单位/否定 | `tests/unit/knowledge/test_semantic_planner.py`；`tests/integration/knowledge/test_stage_b_production.py` | 通用守卫和零调用通过；run-01真实澄清失败，run-02首例通过见§14.5，不外推其他措辞 |
 | KB-008/012/017：域、拒绝、无fallback、并发取消 | `tests/unit/knowledge/retrieval/test_quality_ranking.py`；`tests/unit/knowledge/retrieval/test_stage.py`；当前Spring Knowledge E2E及Java安全链 | 控制流/授权通过；不代表未执行真实单域/双域case通过 |
 | KB-009/010/011：部分/全部失败、零命中、coverage完整性 | `tests/integration/knowledge/test_stage_b_production.py`；`tests/unit/knowledge/retrieval/test_stage.py` | reason、失败优先级、路径集合和零调用断言通过 |
 | KB-013/014：出域、敏感输入、引用 | `tests/unit/knowledge/evidence/test_builder_policy.py`；`tests/unit/knowledge/evidence/test_summary_validation_reasons.py`；当前Knowledge功能追踪 | 既有出域/引用校验保持，不证明最终语义完整 |
 | KB-018：窗口、排序、锚点、Evidence预算 | `tests/unit/knowledge/retrieval/test_quality_ranking.py`；Java `KnowledgeSearchServiceTest` | 有界合同通过；真实必要分类条款未入Evidence，质量风险仍开放 |
 | KB-002/003/004/006/015/016：核心条款与措辞覆盖 | `knowledge_stage_b_diagnosis.v1.jsonl`及local_validation v1～v7；§14.2真实结果 | 同快照离线诊断存在；尚无本批对应真实成功证据 |
 
-阶段B专项Functional=Failed（KB-001），安全控制和non-live回归通过，整体Effectiveness未完成测量，不给出effective或整体改善结论。最新有效历史P5等级仍独立为partially_effective；阶段A14项、既有Knowledge37项和Business35项功能追踪不被本次新专项覆盖或改判。
+run-01时点阶段B专项Functional=Failed（KB-001），安全控制和non-live回归通过，整体Effectiveness未完成测量，不给出effective或整体改善结论；当前独立批次结论见§14.5。最新有效历史P5等级仍独立为partially_effective；阶段A14项、既有Knowledge37项和Business35项功能追踪不被新专项覆盖或改判。
 
 住宿定义从policy keyword rank19经过域融合rank34、rerank rank31后未入最终20/Evidence8。有限排名重放与真实final20一致，完整身份序列中该条款位于48；该次排除发生在Evidence配额处理之前，不支持通过放宽配额关闭问题。KB-001的冻结预期本身是澄清且零检索，没有requiredGold；错误分支中的条款丢失只作为独立质量风险，不把其余9个未执行用例改判为失败。v7人工聚焦query可使住宿定义/生活服务总类入Evidence，但不能冒充真实模型或本批端到端改善；law规则进入Evidence且引用合法也不能证明适用条件充分。没有保留原始模型响应或改写文本，因此不推断未记录的最终具体税率文案或唯一根因，也没有独立专家usefulness评分。复核命令及边界见P3_00 §20.9。
 
-不新增付费运行。核心澄清及必要证据风险保持未关闭；后续方案先做非live根因/合同复核，真正的模型效果确认须另立受控目标，不能复用本批剩余预算。
+run-01终止时不新增付费运行。后续方案先做非live根因/合同复核，真正的模型效果确认须独立授权，不能复用该批剩余预算；随后获得的授权及独立结果见§14.5。
 
 ### 14.4 失败后的非live修复边界
 
-L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主体”过窄前提，区分适用判断与资料查阅，保留V3严格合同。V4现已实施；同一生产根的指令绑定、精确解码、旧V3拒绝装配与澄清零调用已经non-live验证，执行账见P3_00 §20.8。当前固定功能追踪的任务元数据已同步V4，37个case及风险预期不变；不得把fake选择clarification当成真实模型已修复。§14.2的V3失败终态、冻结case及gold不变，其他9例仍未执行，B-CR-001保持Open；不创建新候选、不追加模型调用。当前Rewrite V4专项真实效果仍为Evidence missing。
+L2_01_00 v1.18批准DR-KFLOW-019：仅用新Rewrite V4 Prompt纠正“具体主体”过窄前提，区分适用判断与资料查阅，保留V3严格合同。V4现已实施；同一生产根的指令绑定、精确解码、旧V3拒绝装配与澄清零调用已经non-live验证，执行账见P3_00 §20.8。当前固定功能追踪的任务元数据已同步V4，37个case及风险预期不变；不得把fake选择clarification当成真实模型已修复。§14.2的V3失败终态、冻结case及gold不变，该批其他9例始终未执行。新授权之前V4真实效果为Evidence missing；当前有限真实证据及仍未完成事项见§14.5。
 
 ### 14.5 新授权V4独立验证
 
-用户随后明确授权新的独立批次；授权账和硬预算见P3_00 §20.10。run-02复用§14.1原10例及顺序/gold，不改判或重启run-01；用新版本入口重新冻结代码、Prompt、配置/索引及预算，再从首例验证V4。单批最多10端到端/30模型，计入原目标累计20/60上限；真实失败后立即停止，不补跑或自动追加第三批。新增任务版本核对、澄清零下游和单case e2e计数验证，不改变任何原验收阈值。当前为已授权待执行，不将准备或fake通过标成真实通过。
+用户随后明确授权新的独立批次；授权账和硬预算见P3_00 §20.10。run-02复用§14.1原10例及顺序/gold，不改判或重启run-01；新版本入口重新冻结代码、Prompt、配置/索引及预算，从首例验证V4。单批最多10端到端/30模型，计入原目标累计20/60上限；真实失败后立即停止，不补跑或自动追加第三批。新增任务版本核对、澄清零下游和单case e2e计数验证，不改变原验收阈值。
+
+本批已执行并停止，绑定与六项资产hash见P3_00 §20.11；当前结果如下：
+
+| 顺序 | Case | 真实结论 | 有限证据 |
+|---|---|---|---|
+| 1 | UAT-KB-001 | Passed | HTTP200/no_result/clarification_required；selection及Rewrite4成功，2模型且检索/摘要0 |
+| 2 | UAT-KB-015a | Failed | HTTP502/downstream_failure；Rewrite4 invalid_output，2模型且检索0，未验证必要条款 |
+| 3 | UAT-KB-004 | Not executed | 第二例失败停止，不能推断跨域取证通过 |
+| 4 | UAT-KB-002 | Not executed | 同上，未验证2026一般纳税人场景 |
+| 5 | UAT-KB-003 | Not executed | 同上，未验证住宿/租赁区别 |
+| 6 | UAT-KB-005 | Not executed | 同上，未验证缺期间澄清 |
+| 7 | UAT-KB-006 | Not executed | 同上，未验证历史期间 |
+| 8 | UAT-KB-015b | Not executed | 同上，未验证不同措辞 |
+| 9 | UAT-KB-016 | Not executed | 同上，未验证非酒店保留问题 |
+| 10 | UAT-KB-008 | Not executed | 同上，未验证单law域法条 |
+
+有限资产为`agent-runtime/tests/system_e2e/knowledge_stage_b_run_02/`，由`test_knowledge_stage_b_run_02_history.py`校验；manifest Schema2和结果Schema1分别冻结，所有runtime资产append-only。实际2端到端/4模型，search/embedding/rerank/Business/answer/retry/resume为0；两批合计3端到端/7模型/4search/2embedding/2rerank。cleanup全部通过，不保留原始响应，不再次读取模型Key。
+
+当前专项Functional=Failed（KB-015a），安全停止生效；KB-001精确反例获得真实通过，但完整效果、必要Evidence覆盖和usefulness尚未验证，不声明整体effective。`invalid_output`未记录具体decoder分支，不能断言是某字段、截断或Prompt错误；result中`taskBindingValid=false`是完整成功任务链未满足，不是V4版本错绑。既有阶段A/Knowledge37/Business35结论及历史P5不改判。无run-03，不复用已停止批次剩余预算；后续仅可先做有限诊断方案和non-live复现。
