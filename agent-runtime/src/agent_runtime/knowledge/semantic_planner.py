@@ -1,6 +1,8 @@
 """The V3 implementation of the existing request-scoped rewrite stage."""
 from __future__ import annotations
 
+import re
+
 from agent_runtime.knowledge.contracts import (
     KNOWLEDGE_QUALITY_VERSION, RewriteCandidate, RewriteCandidateSource, RewriteMode,
     RewriteResult, RewriteStageKind, RewriteStageResult,
@@ -19,6 +21,8 @@ _EXPLICIT_CONDITIONS = (
 )
 _RATE_TOPICS = ("征收率", "税率")
 _RATIO_MARKERS = ("%", "％", "‰", "‱", "百分之", "千分之", "万分之")
+_RATIO_VALUE = r"(?:[0-9]+(?:\.[0-9]+)?|[零〇一二三四五六七八九十百千万]+(?:点[零〇一二三四五六七八九]+)?)"
+_RATIO = re.compile(rf"(?:百分之|千分之|万分之){_RATIO_VALUE}|{_RATIO_VALUE}[%％‰‱]")
 
 
 class KnowledgeSemanticPlanner:
@@ -81,6 +85,9 @@ class KnowledgeSemanticPlanner:
                     candidate=item.query, constraints=constraints, max_chars=self._max_chars,
                 ).accepted
                 or self._guard.evaluate(item.query).disposition is QuestionEgressDisposition.DENIED
+                # The historical numeric guard does not bind Unicode ratio units.
+                # Preserve the entire value/unit token, not just marker presence.
+                or _RATIO.findall(item.query) != _RATIO.findall(original_question)
                 or any((term in original_question) != (term in item.query) for term in per_query)
             ):
                 return RewriteStageResult(kind=RewriteStageKind.FAILURE)

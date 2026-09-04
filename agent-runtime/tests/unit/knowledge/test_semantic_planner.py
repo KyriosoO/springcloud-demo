@@ -19,6 +19,12 @@ from agent_runtime.knowledge.semantic_planner import KnowledgeSemanticPlanner
     ("一般纳税人住宿服务分类与税率", ("住宿服务分类", "一般纳税人住宿服务税率"), False),
     ("2026年增值税住宿服务分类与税率", ("2026年增值税住宿服务分类", "2026年住宿服务税率"), True),
     ("住宿服务分类与税率", ("住宿服务生活服务", "住宿服务税率"), False),
+    ("住宿服务6％税率", ("住宿服务6‰税率",), False),
+    ("住宿服务6‰税率", ("住宿服务6‱税率",), False),
+    ("住宿服务6％税率", ("住宿服务6税率",), False),
+    ("住宿服务百分之六税率", ("住宿服务千分之六税率",), False),
+    ("住宿服务6％税率", ("住宿服务6％税率政策",), True),
+    ("住宿服务千分之六税率", ("住宿服务千分之六税率政策",), True),
 ])
 @pytest.mark.asyncio
 async def test_domain_focusing_preserves_topic_union_and_every_explicit_condition(question, queries, accepted):

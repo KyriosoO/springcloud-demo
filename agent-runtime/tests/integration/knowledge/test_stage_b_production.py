@@ -45,6 +45,9 @@ def plan(query, domain="tax.policy"):
     ("酒店住宿费用适用什么税率", {"outcome": "clarification_required", "queries": [], "missing_conditions": ["taxpayer_type"]}, CapabilityStatus.NO_RESULT, "clarification_required"),
     ("住宿服务税率", RuntimeError("synthetic"), CapabilityStatus.DOWNSTREAM_FAILURE, None),
     ("住宿服务税率", TimeoutError(), CapabilityStatus.TIMEOUT, None),
+    ("住宿服务6％税率", plan("住宿服务6‰税率"), CapabilityStatus.DOWNSTREAM_FAILURE, None),
+    ("住宿服务6‰税率", plan("住宿服务6‱税率"), CapabilityStatus.DOWNSTREAM_FAILURE, None),
+    ("住宿服务6％税率", plan("住宿服务6税率"), CapabilityStatus.DOWNSTREAM_FAILURE, None),
 ])
 @pytest.mark.asyncio
 async def test_current_root_semantic_plan_failures_never_query_or_fallback(question, output, expected, reason):
