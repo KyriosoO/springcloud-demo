@@ -9,7 +9,7 @@
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.18、`L2_01_00` v1.20、`L2_01_01` v2.7、`L2_01_02` v1.19、`P3_00` v2.47；阶段 B 设计评审通过，新增运行协议评审及实施/UAT状态另记 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.18、`L2_01_00` v1.21、`L2_01_01` v2.7、`L2_01_02` v1.19、`P3_00` v2.48；阶段 B 设计评审通过，新增运行协议评审及实施/UAT状态另记 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。

@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.47 |
+| 当前版本 | v2.48 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-04 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -19,6 +19,8 @@ v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrit
 v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件Evidence配额和分域主题词语义；根因和逐轮复评见§20.4。已通过基线仍有效，受影响增量在复评通过前暂停，不新增付费候选。
 
 v2.47记录用户对独立V5验证批次的明确授权，范围仅§20.18的run-04；保持原10例/gold、历史资产和累计预算，不授权失败后的下一批。V5设计与non-live实现已经完成，真实UAT及最终评审仍单独判断。
+
+v2.48记录DR-KFLOW-021的Rewrite V6非live切片：三轮内审和只读设计复评通过后实施；不改变排序、Evidence配额、Summary或四批真实运行终态，不准备第五批。
 
 ## 2. 目标、范围与计划原则
 
@@ -42,7 +44,7 @@ v2.47记录用户对独立V5验证批次的明确授权，范围仅§20.18的run
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.18 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.20 | 单动作、共享V3合同、V4澄清及V5最小必要域、发布后只读快照消费 | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.21 | 单动作、共享V3合同、最小必要域及V6每域子问聚焦；V6仅非live准入 | Approved |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.7 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.19 | Evidence/出域、Summary V5增量设计 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
@@ -1147,3 +1149,11 @@ KB-015a在旧/新两条记录中，各试验均分别保持lodging/living为2/4�
 | 四批历史/P5/Stage A最终hash、生产src差异、有限token模式扫描 | 历史回归及Stage A四项精确hash通过；生产src无差异；目标文件无凭据/JWT模式命中 |
 
 Java、公共接口、生产配置及PowerShell无改动，本增量没有重跑Maven、Spring真实入口或AST；不能以Python回归替代尚未执行的专项7例。当前只提交本节及合成反例测试，提交/推送SHA以Git日志和交付报告为准。
+
+### 20.22 Rewrite V6 每域子问聚焦切片
+
+起始HEAD=`32fa171e2defcff726cd559bb175b94947e704fe`。§20.21的有界诊断支持检索表达影响域内排名，但没有恢复历史模型query，也不能证明新Prompt能稳定生成正确表达。本切片只替换V5中要求每域复制全部税务/法律背景的笼统指令；作用于本域的显式税种、日期、数值、否定等条件不允许删除。模型负责语义归属，不新增本地删词或行业规则。
+
+设计：L2_01_00 v1.21 DR-KFLOW-021三轮内审完成，独立于修订操作的第1轮只读L2/跨层复评通过（S0=0、S1=0、未处理S2=0），允许新V6任务、唯一生产绑定和直接fake测试的非live实施。该分阶段审查由同一执行者完成，不代表外部人员批准。计划DAG不变；本切片不依赖待确认的Evidence配额，不关闭QUALITY、UAT或B-CR-001。
+
+实施前状态：生产仍为Rewrite5/Summary5，V6未实施。排序/锚点、Evidence每文档3/总8/32768bytes、Summary5及validator保持不变；不读LLM_API_KEY、不启动服务、不创建run-05、不执行任何模型outbound。run-04仍2 passed/1 failed/7未执行；不得用非live测试外推真实语义通过。实现、验证和代码复评完成后在本节追加实际结果。
