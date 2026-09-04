@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.48 |
+| 当前版本 | v2.49 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-04 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -20,7 +20,7 @@ v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件E
 
 v2.47记录用户对独立V5验证批次的明确授权，范围仅§20.18的run-04；保持原10例/gold、历史资产和累计预算，不授权失败后的下一批。V5设计与non-live实现已经完成，真实UAT及最终评审仍单独判断。
 
-v2.48记录DR-KFLOW-021的Rewrite V6非live切片：三轮内审和只读设计复评通过后实施；不改变排序、Evidence配额、Summary或四批真实运行终态，不准备第五批。
+v2.49记录用户再次授权后的质量策略V2设计与实施；§20.23为本次增量权威。v2.48的V6切片和四批真实终态保持原证据范围；旧批次不续跑，新执行必须另行冻结且计入原总预算。
 
 ## 2. 目标、范围与计划原则
 
@@ -43,12 +43,12 @@ v2.48记录DR-KFLOW-021的Rewrite V6非live切片：三轮内审和只读设计�
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.18 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.21 | 单动作、共享V3合同、最小必要域及V6每域子问聚焦；V6仅非live准入 | Approved |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.7 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.19 | Evidence/出域、Summary V5增量设计 及阶段 A 策略快照兼容 | Approved |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.19 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.22 | 单动作、共享V3合同、最小必要域及V6每域子问聚焦；V6仅非live准入 | Approved |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.8 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.20 | Evidence/出域、Summary V5增量设计 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.26 | Knowledge 功能/效果、阶段 A 语料及V6非live证明边界 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.27 | Knowledge 功能/效果、阶段 A 语料及V6非live证明边界 | Reviewed |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -1171,3 +1171,21 @@ Spring接入本轮实际验证：agent-service运行`..\serviceCenter\mvnw.cmd '
 文档状态同步后执行只读跨层复核：L1当前绑定、L2实现触点、P3及UAT_01 §14.12一致；L1/L2_01_02仅更新实际绑定元数据，没有新语义或版本升级。L2_01_00及L2_01_02严格校验、P3严格DAG校验均0 errors/0 warnings；6份目标文档55个本地Markdown链接存在，差异及凭据/JWT模式扫描通过。Java业务模块、PowerShell脚本、索引/alias均未改，本切片不重复其他Maven模块或AST；没有真实模型/业务/本地BGE请求。
 
 阶段B状态仍为QUALITY Blocked、UAT Deferred、B-CR-001 Major/Open。Evidence每文档3条的设计调整仍待用户确认，排序/锚点与Summary不改；V6真实效果Evidence missing，不创建第五批。设计提交与后续实现/状态提交、推送结果见Git日志及交付报告。
+
+### 20.23 恢复授权后的相关性与Evidence选择V2
+
+起始HEAD=`e0cc21de90a3c680aa7acf678dea7642f6ff99b5`，分支codex、工作树clean、与origin/codex一致。用户最新明确“授权并继续目标，现授权达成目标所需的各类权限，后续无需单独要求权限”，解除§20.21方案选择的暂停。按该授权先修订本节及Knowledge L1/L2、UAT/索引；不把授权视为设计已评审或实现已通过。
+
+根因沿用§20.21可核实的两个独立反例：关键词强制前排与总8条限制可能挤出相关条款；父文档配额又可能排除同一法规中的第四条必要原文。V2比较保留硬配额、两遍多样性与域覆盖/相关性方案，选择后者：每域语义首位、纯rerank域内顺序轮转、不设额外父文档配额。最终20、Evidence8/32768bytes、5points/512quote、读取/出域/validator/gold均不变，不增加模型选择器或行业特判。
+
+合同链：L1 KQ-AD-014→DR-KFLOW-022（版本生产/消费）→DR-KRET-028（排序）/DR-KEV-028（选择）→当前IMPLEMENT/NONLIVE工作包增量→UAT→QUALITY，DAG不新增节点或循环。原Done只证明旧切片；本次设计、实现、non-live分别在实际验证后记录，不继承Passed。GATE-KRG-006的历史Closed不自动批准新V2，在本增量设计复评通过前受影响实现暂停。
+
+授权边界：允许目标内设计/代码/测试/Git以及通过fake和冻结预检后的一次新独立验证，不能续用run-04。四批累计仍为8 E2E/20模型/14search/7embedding/7rerank；在原20/60/80/40/40总上限内剩余12/40/66/33/33，不因版本升级重置。若准备新批，只能沿用原10例/顺序/gold，单批最多10/30/40/20/20，失败停止、retry/resume0，未消费的预算不授权自动再建下一批。真正绑定的HEAD/manifest及实际调用账在准备后另记；当前没有新run、密钥读取或模型outbound。Stage A索引/alias、公共DTO、权限、历史run资产仍不可变。
+
+V2当前为设计待评审、未实施、未测量。设计内审/正式复评、测试与提交记录在完成后追加；QUALITY和总体B-CR-001仍未关闭。
+
+内审第1轮：比较三种方案并分离原总8条损失与反事实同文档3条损失，补充V1历史、无语义完整保证及L1选择依据。第2轮：逐项核对producer/consumer，补齐V2 planner/plan/两阶段/limits的成对版本与错配拒绝；无公共DTO、模型任务或安全策略变化。第3轮：检查DAG/预算/回滚和跨层追踪，严格校验发现5个DR/TEST/VAL表定义遗漏并补齐；三份L2及P3严格复验均0 errors/0 warnings。
+
+正式设计评审第1轮（仅只读）：范围冻结为KQ-AD-014、DR-KFLOW-022、DR-KRET-028、DR-KEV-028及P3/UAT/ARCH引用；依据REQ-KQUALITY-001～004、L0边界、现行rank/selector/limits/根和历史反例，检查L1→L2与L2→本切片实施准入。发现`B-V2-DOC-001`（S2）：实施依据仍只允许旧V6/Summary切片，与新增V2准入冲突；已切换回文档修订阶段最小同步允许范围和变更记录。该审查与修改分阶段进行，由同一执行者完成，不冒充外部人员批准。
+
+正式只读复评第2轮：逐项回读修改后的7份目标差异及上位约束，B-V2-DOC-001已关闭；V1/V2/legacy解释范围、producer/consumer、配额/预算、安全/失败/取消及回滚闭合，无S0/S1/未处理S2，允许本次V2实施和non-live。三份L2严格结构/追踪与P3 DAG校验通过；不将静态校验当作正式语义评审。GATE-KRG-006的准入现覆盖DR-KFLOW-022/DR-KRET-028/DR-KEV-028；实现与真实UAT仍未完成，不提前关闭QUALITY/B-CR-001。

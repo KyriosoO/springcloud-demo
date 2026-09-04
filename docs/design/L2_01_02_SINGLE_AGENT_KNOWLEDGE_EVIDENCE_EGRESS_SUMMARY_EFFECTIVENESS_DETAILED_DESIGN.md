@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.19 |
+| 当前版本 | v1.20 |
 | 日期 | 2026-09-04 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V5、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.18](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.19](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V5及non-live、效果口径 v2 及阶段 A policy catalog v2/current snapshot 兼容已完成；当前V5部分真实场景通过，但跨域必要Evidence覆盖及完整专项未通过；最新有效P5效果等级仍为 `partially_effective`，具体候选、门禁和运行证据由 UAT_01/P3/evidence 管理 |
 
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.20 | 2026-09-04 | 同一规范性文件的必要第四条款可能被文档配额排除 | DR-KEV-028与quality_v2()取消独立父文档配额，保持总8/32KB、域覆盖、出域和引用限制，历史V1不改 |
 | v1.19 | 2026-09-04 | 用户确认分类上下文证明要求后恢复执行 | 新增DR-KEV-027及Summary V5实施/测试映射；保留V4、公共Schema、validator和gold，区分指令合同验证与真实语义效果 |
 | v1.0 | 2026-08-21 | 建立证据与效果稳定基线 | 保留证据、策略、摘要、严格校验和正式 P5 方法 |
 | v1.12 | 2026-08-28 | 效果收口与 Harness 状态合同纠偏 | 移除多代候选/Gate/哈希流水；明确有效测量与效果等级分离，并拆分准备态和授权后 live 预检 |
@@ -84,6 +85,7 @@
 | `REQ-KEV-005`、`REQ-KEV-006` | `DR-KEV-013`、`DR-KEV-014`、`DR-KEV-015`、`DR-KEV-019` | `IMPL-KEV-009` | `TEST-KEV-009`、`TEST-KEV-010`、`TEST-KEV-011` | `VAL-KEV-005`、`VAL-KEV-006` |
 | `REQ-KEV-007`、`CON-KEV-003` | `DR-KEV-023`、`DR-KEV-024`、`DR-KEV-025` | `IMPL-KEV-011` | `TEST-KEV-014`、`TEST-KEV-015`、`TEST-KEV-016` | `VAL-KEV-008` |
 | `REQ-KEV-003`、`CON-KEV-001`、`CON-KEV-004`；`L1_01 KQ-AD-017` | `DR-KEV-027` | `IMPL-KEV-012`、`IMPL-KEV-006` | `TEST-KEV-018` | `VAL-KEV-010` |
+| `REQ-KEV-001`、`CON-KEV-003`；`KQ-AD-014` | `DR-KEV-028` | `IMPL-KEV-001`、`IMPL-KEV-002`：builder版本校验、limits新工厂和bootstrap成对绑定 | `TEST-KEV-019`：第四同文档条款、总8/字节、域覆盖、错配/未知版本、三层出域及历史cap | `VAL-KEV-011`：Evidence/current root/历史反例、全量non-live及专项原文覆盖 |
 
 ## 5. 关联资源与责任边界
 
@@ -118,7 +120,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 |---|---|
 | `DR-KEV-001` | 逐 candidate 验证 content SHA-256、domain、Profile/index/read-policy snapshot 和当前计划成员 |
 | `DR-KEV-002` | evidence ID 由 document/chunk/content hash 确定性生成，不使用模型 ref 或可变排名 |
-| `DR-KEV-003` | 阶段B按可信检索锚点、领域覆盖与最终确定性排序选Evidence；最多8条/32768bytes不变；新质量策略每文档3条，legacy每文档2条，缺少必需域或证据返回no_result且summary0 |
+| `DR-KEV-003` | 按版本化可信锚点、领域覆盖及最终确定性排序选Evidence；最多8条/32768bytes不变；V2不设独立父文档配额，V1每文档3条、legacy每文档2条；缺少必需域或证据返回no_result且summary0 |
 | `DR-KEV-004` | 新鲜 Question Guard 拒绝优先，拒绝时 verify/select/policy/model 调用均为 0 |
 | `DR-KEV-005` | 出域集合为全局规则∩所有相关域策略∩文档策略，任何 deny/缺失/冲突拒绝 |
 | `DR-KEV-006` | 每次允许决定绑定 policy catalog、authority/export/source revision、文档策略和 index snapshot fingerprint |
@@ -142,6 +144,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-024` | 新发布必须使用新文件名和 catalog/export/source revision/hash；旧 `egress-policy-catalog.json` 及其 loader/hash 保持可验证，新目录只保留原 disposition/allowed fields/content limit，并增加对应新逻辑 snapshot |
 | `DR-KEV-025` | 候选 alias 生效前必须对所有候选 `documentId + policyRef + indexSnapshotId` 做全成员检查；发布后抽样构造 Evidence 并通过连续子串 validator，不得用 Profile 切换掩盖策略缺口 |
 | `DR-KEV-027` | §9.4新Summary V5要求原文支持相关显式分类上下文，最小充分引用与既有硬边界不变；语义由模型理解、本地只验证完整性，fake不能证明真实效果 |
+| `DR-KEV-028` | §7.3及文末V2：取消独立父文档配额，版本/limits匹配，保留域覆盖、总8/32768bytes、三层出域与引用校验 |
 
 ### 7.2 完整性复核
 
@@ -157,9 +160,9 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 
 ### 7.3 选择与 Bundle
 
-Selector最多选择8条证据，先按最终rank选择可信retrieval_anchor（≤4条），再补足每个selected domain，最后按最终rank填充；同一identity只使用一次，不能通过锚点绕过质量策略每文档3条或字节上限；历史legacy仍为每文档2条。预算无法保留必需域/锚点时返回insufficient_evidence，不能静默丢失必需项后肯定回答。普通填充候选超字节限制时跳过该项并继续尝试后续更小候选，扫描最多20条；full才停止。三层出域仍在选择后独立执行，拒绝不靠替换文档绕过。构造QuestionEvidenceTrace时使用原问题而非改写词作为回答范围。
+Selector最多选择8条证据，先按最终rank选择可信retrieval_anchor（V2≤选中域数，V1≤2×选中域数），再补足每个selected domain，最后按最终rank填充。同一identity只使用一次；V2不因parent document相同额外排除第四条及后续相关条款，仍受总8条和32768bytes限制。预算无法保留必需域/锚点时返回insufficient_evidence，不能静默丢失必需项后肯定回答。普通填充候选超字节限制时跳过该项并继续尝试后续更小候选，扫描最多20条；full才停止。三层出域仍在选择后独立执行，拒绝不靠替换文档绕过。构造QuestionEvidenceTrace时使用原问题而非改写词作为回答范围。
 
-阶段B生产组合根显式注入新 `KnowledgeEvidenceLimits.quality_v1()`；旧 `v1()` 仍为每文档2条，不修改历史Summary任务。质量策略只调整已授权候选在总8条/32768字节中的配额，不增加可读/可出域文档、字段或权限；Summary最多5条引用、每条512字符及所有validator不变。测试必须证明同文档第三条可选、第四条被限制、legacy仍两条、全局字节和总条数不变。若三段仍不能覆盖必要内容，返回证据不足，不继续扩大配额。
+当前目标组合根将V2计划与新增 `KnowledgeEvidenceLimits.quality_v2()`成对注入；该内部工厂只把max_per_document设为总数上限8，其余limit完全复用v1。这表示取消额外文档配额，不是增加总Evidence或出域预算。旧quality_v1()仍为3、v1()仍为2，均保留历史测试；不修改Summary任务。测试必须证明同文档第四条按rank入选、第九条仍不入选、必需域/锚点不丢失、字节及全部出域和引用限制不变。错误相关性/必要条款排在前8之外仍是效果风险，不能据此自动扩容、添加行业规则或宣称语义完整。
 
 ## 8. 三层模型出域策略
 
@@ -260,7 +263,7 @@ question denied flag / fresh Guard
 
 ## 12. 配置、发布与回滚
 
-- `KnowledgeEvidenceLimits.v1()` 代码绑定证据数、quote、payload 和结果上限；配置不能放宽。
+- `KnowledgeEvidenceLimits.v1()/quality_v1()/quality_v2()`按计划版本代码绑定配额；总8/32768bytes、quote及结果上限不变。V2只用匹配的quality_v2工厂，配置不能扩大总预算。
 - 策略目录 artifact 随代码发布并严格加载；内容变化必须创建新资源、新 version/export/source revision/hash 并重跑全成员和出域测试。旧资源、常量及历史 manifest 继续独立可验证，不得原位改写。
 - 当前生产实现已唯一绑定独立 Summary V5；V1～V4 保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用 Knowledge；若显式恢复已验证旧任务绑定，必须形成新配置快照，不改写任何既有 task 源码和历史 evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
@@ -436,6 +439,7 @@ def classify_conclusion(
 | `TEST-KEV-015` | 附件 chunk 父 policy 继承、未知父/错 snapshot/冲突拒绝和 summary 零调用 |
 | `TEST-KEV-016` | 候选全成员 policy 检查、发布后 Evidence/引用连续子串及历史 candidate 回归 |
 | `TEST-KEV-018` | 新增 `tests/contract/knowledge/test_summary_task_v5.py` 与当前生产根集成测试；复用 `tests/unit/knowledge/evidence/test_summary_proof_boundaries.py`、stage失败矩阵；历史run-01～03和任务hash保持不可变 |
+| `TEST-KEV-019` | V2匿名同父第四条入选、第九条拒绝、byte预算、必需域/锚点、错误版本/limits在summary前拒绝、legacy2/V1三条与policy/validator不变 |
 
 ### 15.2 验证编号定义
 
@@ -450,6 +454,7 @@ def classify_conclusion(
 | `VAL-KEV-007` | 历史失败运行保持 append-only；Harness 前后快照复用唯一 allowlist，准备态和授权后预检不冲突且不放宽其他工作树变化 |
 | `VAL-KEV-008` | 阶段 A 新索引的文档策略、snapshot 和 Evidence 兼容通过，旧策略目录与历史 evidence 哈希不变 |
 | `VAL-KEV-010` | V5合同/生产根/Stage失败及历史回归、strict mypy、compileall通过；真实分类证明效果单独记为Evidence missing，不由non-live关闭 |
+| `VAL-KEV-011` | 新V2选择/当前根与旧反例同时通过，strict mypy/全量non-live/历史hash通过；真实原文覆盖必须单独执行专项 |
 
 ## 16. 风险与保护条件
 
@@ -468,7 +473,7 @@ def classify_conclusion(
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，本次增量已完成三轮内审和只读设计复评；V5代码及non-live对照复评已通过，阶段B真实UAT与整体正式评审仍未完成 |
-| 当前允许实施范围 | 维护历史校验和预检分离；DR-KEV-027增量完成设计复评后允许新增Summary V5、唯一绑定及non-live验证，不包含新付费批次 |
+| 当前允许实施范围 | 维护历史校验、Summary V5及预检分离；本次DR-KEV-028设计复评通过后允许V2 limits/builder/当前根成对实施及non-live，真实执行需按P3/UAT冻结并受剩余总预算约束 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
 
@@ -483,7 +488,7 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.19。
+- 当前版本：v1.20。
 - 文档状态：Approved；DR-KEV-027三轮内审和只读独立复评通过，允许本切片非live实施；记录归P3_00 §20.17，不代表真实效果通过。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
 
@@ -493,6 +498,10 @@ def classify_conclusion(
 |---|---|---|---|
 | `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KEV-026` | knowledge/evidence/builder.py；stage注入质量策略limits；policy/SummaryV4合同不扩张 | `TEST-KEV-017`：锚点必需覆盖、质量同文档3/legacy同文档2/总8/字节边界、全选中域、超大非必需项跳过、出域拒绝summary0、Summary原问及引用validator不变 | `VAL-KEV-009`：Evidence单元/契约/集成、当前生产根和UAT_01阶段B；历史37项功能和P5原结论不外推 |
 
-上述编号定义本轮新增验证，不继承已有 Passed。新生产策略为 `knowledge-retrieval-quality-v1`，显式由生产组合根选用；旧调用默认保持 legacy，历史任务/证据不修改。UAT 使用独立阶段 B 命名空间，验收标准和执行状态归 UAT_01/P3。
+DR-KEV-026治理历史V1；v1.20目标为下述V2，在设计复评前不得实施。旧调用默认保持legacy，历史任务/证据不修改。UAT使用独立阶段B命名空间，验收标准和执行状态归UAT_01/P3。
 
 `DR-KEV-026`：只有本地可信排序阶段可设置锚点；外部 DTO/模型不可注入。保留全部锚点及所有选中域的 Evidence 覆盖，同时满足质量策略每文档3/总8/32768字节上限；无法同时满足时返回 insufficient_evidence，不丢必需项来换表面成功。历史 legacy batch 默认无锚点，继续原选择语义。
+
+`DR-KEV-028`：V2沿用verify→select→policy→model→validate，按§7.3取消额外父文档配额，计划quality_version必须与limits工厂匹配；V2错配或未知版本在summary前作为evidence_failure拒绝。只有可信本地rerank首位可设置V2锚点，每个非空域最多一个、重复identity去重，最终数量≤域数；完整性校验、域覆盖、同identity唯一、32768bytes、8条/5points/512quote、三层出域均不变。父文档策略仍逐条适用，绝不因同父复用而跳过授权/出域检查。quality_v2仅用于当前根；legacy和V1原限额/测试保持原语义。
+
+版本化取舍不是放宽安全validator：每文档3条是降低内容集中度的质量启发式，会在单份规范包含多个必要条款时造成已证实的损失；移除其独立限制仍有总条数及字节界。错误高排名和单文档集中风险必须由真实专项如实记录。所有新反例用匿名合成正文，不用gold参与在线选择；V2未实施/未测量，不能提前声称通过。

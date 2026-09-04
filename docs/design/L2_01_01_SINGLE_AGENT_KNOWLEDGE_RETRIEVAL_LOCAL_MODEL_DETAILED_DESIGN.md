@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.7 |
+| 当前版本 | v2.8 |
 | 日期 | 2026-09-04 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.17](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.19](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -242,9 +242,9 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 - endpoint 默认 loopback `http://127.0.0.1:8909`，model exact `BAAI/bge-reranker-v2-m3`；
 - 阶段 B每个选中域用其唯一query与该域去重融合候选执行一次rerank，单域≤40条，两域合计≤80；同一identity若确实在两域召回，可分别参与两次域内排序，但不得新增另一域未召回的候选，总次数仍不超过原始路径条数80。每个rerank返回索引/正文/分数必须完整一致，不比较不同query的裸分数；最终按域内rank轮转填充。每域最多一次rerank，无失败重试。
 - 输出必须一一覆盖候选且索引唯一，score 有限；
-- 阶段 B目标采用确定性锚点保留：每个计划域选择“该域keyword结果首位”和“该域rerank首位”；同identity去重，按目录域序、keyword锚点、rerank锚点生成≤4条保留前缀，余下项按本节定义的keyword/rerank交错序列在目录域序轮转填充到final_candidates。所有锚点必须来自本次已授权候选，不使用内容规则/gold/文档特判。配置final_candidates不足保留前缀时启动失败，不能静默丢弃域。
+- 质量策略V2保留每个非空计划域的rerank首位；同identity去重、目录域序产生≤2条保留前缀。所有锚点必须来自本次已授权候选；不保留强制keyword首位，不使用内容规则/gold/文档特判。V1双锚点及交错填充仅用于历史合同，不原位修改。
 
-阶段B域内填充在锚点之后使用两个有限序列：keyword source rank（并列chunkId）与rerank排序（分数、RRF、chunkId）。按相同offset先keyword后rerank交错，以documentId/chunkId去重；跳过已保留锚点后，在域之间每轮取一个尚未输出项。一个域没有keyword候选时仅使用rerank序列。不得让重复锚点或重复候选占用另一个域的轮转名额；任何候选只能来自该域本次授权召回。RRF计算、两个序列各自排名、最多4个锚点、final20及Evidence8不变。此为确定性排名融合，不使用gold、答案、问题ID、文档ID特判或新增内容信号。
+V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同键保持既有稳定输入序）；不比较不同query裸分数。锚点后按目录域序轮转，每域取下一个尚未输出的identity；重复项不能占用轮转名额。仅在该域本次已授权、去重融合的候选中选择，关键词候选不会被整体丢弃。候选所属域及快照保留，跨域重复identity只输出一次。最终final20、Evidence8及BGE调用/输入/时限均不变；缺失分数、重复索引、非有限数、超时或取消仍沿既有失败路径，不能回退V1。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
@@ -487,16 +487,23 @@ KnowledgeSearchResponse search(
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.7。
+- 当前版本：v2.8。
 - 文档状态：Approved；本次实施校准三轮内审和独立复评通过，记录归 P3_00 §20.4，尚不代表实施完成。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 
 ## 阶段 B 增量实施追踪
 
+v2.8变更：DR-KRET-028及§9.3新增V2语义首位和域内相关性轮转，移除V1强制keyword锚点；本轮设计复评通过后可实施，未实施及真实效果缺口由P3如实管理。先前实施依据不覆盖未经本次复评的V2。
+
 | 来源 | 设计 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|
-| `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KRET-027` | es-query-service KnowledgeSearchService.buildSearchBody；knowledge/retrieval/stage.py / contracts.py；bootstrap 策略绑定 | `TEST-KRET-022`：两路径size=limit+1和truncated、域内rerank/跨域round-robin、keyword/语义锚点、同分确定性、2/4/2调用上限、取消/授权/快照反证 | `VAL-KRET-008`：Java查询合同、Pythonretrieval fake与同索引本地有限对照、UAT_01 §14、历史回归 |
+| `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KRET-027` | es-query-service KnowledgeSearchService.buildSearchBody；knowledge/retrieval/stage.py / contracts.py；历史V1策略绑定 | `TEST-KRET-022`：两路径size=limit+1和truncated、域内rerank/跨域round-robin、keyword/语义锚点、同分确定性、2/4/2调用上限、取消/授权/快照反证 | `VAL-KRET-008`：Java查询合同、Pythonretrieval fake与同索引本地有限对照、UAT_01 §14、历史回归 |
+| `REQ-KQUALITY-002`；`KQ-AD-014` | `DR-KRET-028` | 拟新增knowledge/retrieval/quality_ranking_v2.py；修改stage.py按内部版本分派，旧quality_ranking.py不改 | `TEST-KRET-023`：语义首位、关键词低位无强占、域轮转、跨域去重、相同分数、有限数/取消/授权零调用、V1不变 | `VAL-KRET-009`：定向retrieval/Evidence/current root、全量non-live、UAT_01 §14 |
 
-上述编号定义本轮新增验证，不继承已有 Passed。新生产策略为 `knowledge-retrieval-quality-v1`，显式由生产组合根选用；旧调用默认保持 legacy，历史任务/证据不修改。UAT 使用独立阶段 B 命名空间，验收标准和执行状态归 UAT_01/P3。
+V1为DR-KRET-027历史策略，保持旧排序源码及历史绑定；v2.8新增DR-KRET-028目标策略V2，评审前未实施。UAT使用独立阶段B命名空间，验收标准和执行状态归UAT_01/P3，不继承历史Passed。
 
 `DR-KRET-027`：既有 typed vector/keyword 窗口必须实际执行；每个预选域使用其自己的检索表达和授权候选作一次 rerank，最多2次且总候选≤80。每域 keyword 首位与 rerank 首位去重后作为锚点，随后按域内稳定排名 round-robin 填充；不比较不同 query 的原始分数，不用文档ID/gold/case加分。策略版本进入运行快照，不修改 Profile/alias/索引。
+
+`DR-KRET-028`：V2以§9.3单语义锚点和纯域内rerank轮转替代V1双锚点/交错填充；只有已授权候选可参与，RRF仅作既有融合及同分排序，不追加内容信号。stage接受None（legacy）、V1、V2，其余在下游前拒绝。最终候选3..20、既有启动最小值≥2×enabled域数仍保留，不为减少锚点放宽启动配置。BGE每域≤40、总≤80、串行≤2次、deadline和取消不变。新函数不导入evaluation/gold，不修改旧V1源码；改动不会改变Java契约、Profile/alias/index或task版本。
+
+V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语义覆盖；不能以合成排名测试关闭真实专项。实施前需三轮内审和独立只读复评；此时V2未实现。回滚与内部版本成对绑定见L2_01_00 DR-KFLOW-022。
