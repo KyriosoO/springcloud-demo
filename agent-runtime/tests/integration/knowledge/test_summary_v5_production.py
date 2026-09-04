@@ -133,7 +133,7 @@ async def test_current_runtime_summary_v5_proof_contract_and_failure_boundaries(
         await runtime.aclose()
     assert [(r.task_id, r.task_version) for r in model.requests] == [
         (ModelTaskId.ACTION_SELECTION, "action-selection-v4"),
-        (ModelTaskId.KNOWLEDGE_REWRITE, "5"), (ModelTaskId.KNOWLEDGE_SUMMARY, "5"),
+        (ModelTaskId.KNOWLEDGE_REWRITE, "6"), (ModelTaskId.KNOWLEDGE_SUMMARY, "5"),
     ]
     payload = json.loads(model.requests[-1].user_payload_json)
     assert business_calls == 0

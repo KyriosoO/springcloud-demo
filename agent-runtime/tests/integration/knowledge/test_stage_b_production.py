@@ -6,7 +6,7 @@ import pytest
 
 from agent_runtime.capability_api.contracts import CapabilityStatus
 from agent_runtime.main import build_runtime
-from agent_runtime.knowledge.rewrite_v5 import INSTRUCTION
+from agent_runtime.knowledge.rewrite_v6 import INSTRUCTION
 from agent_runtime.model.contracts import ModelTaskId, StructuredFinishKind, StructuredModelResponse
 from tests.helpers import scope
 from tests.integration.knowledge.test_production_runtime_wiring import (
@@ -64,7 +64,7 @@ async def test_current_root_semantic_plan_failures_never_query_or_fallback(quest
     assert outcome.status is expected, outcome.failure
     rewrite_calls = [r for r in model.requests if r.task_id is ModelTaskId.KNOWLEDGE_REWRITE]
     assert len(rewrite_calls) == 1
-    assert rewrite_calls[0].task_version == "5"
+    assert rewrite_calls[0].task_version == "6"
     assert rewrite_calls[0].system_instruction == INSTRUCTION
     if expected is not CapabilityStatus.SUCCESS:
         assert clients.paths == []

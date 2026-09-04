@@ -512,10 +512,10 @@ class KnowledgeCompositionRoot:
         if not enabled:
             return None
         from agent_runtime.knowledge.evidence.summary_task_v5 import KnowledgeSummaryTaskV5
-        from agent_runtime.knowledge.rewrite_v5 import KnowledgeRewriteTaskV5
+        from agent_runtime.knowledge.rewrite_v6 import KnowledgeRewriteTaskV6
 
         return KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV5.definition(),
+            rewrite=KnowledgeRewriteTaskV6.definition(),
             summary=KnowledgeSummaryTaskV5.definition(),
         )
 
@@ -555,7 +555,7 @@ class KnowledgeCompositionRoot:
         )
         if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
             raise ValueError("knowledge.policy_catalog_invalid")
-        if tasks.rewrite.task_version != "5" or tasks.summary.task_version != "5":
+        if tasks.rewrite.task_version != "6" or tasks.summary.task_version != "5":
             raise ValueError("knowledge.production_task_version_invalid")
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
         rewriter = KnowledgeSemanticPlanner(

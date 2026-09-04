@@ -11,6 +11,7 @@ from agent_runtime.knowledge.evidence.summary_task_v2 import KnowledgeSummaryTas
 from agent_runtime.knowledge.evidence.summary_task_v4 import KnowledgeSummaryTaskV4
 from agent_runtime.knowledge.rewrite_v3 import KnowledgeRewriteTaskV3
 from agent_runtime.knowledge.rewrite_v4 import KnowledgeRewriteTaskV4
+from agent_runtime.knowledge.rewrite_v5 import KnowledgeRewriteTaskV5
 from agent_runtime.knowledge.settings import KnowledgeSettings
 
 
@@ -18,7 +19,7 @@ def test_production_composition_registers_only_current_summary_v5() -> None:
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
 
     assert tasks is not None
-    assert tasks.rewrite.task_version == "5"
+    assert tasks.rewrite.task_version == "6"
     assert tasks.summary.task_version == "5"
     assert tasks.summary.task_id is KnowledgeSummaryTaskV3.definition().task_id
 
@@ -44,7 +45,7 @@ def test_current_root_rejects_old_summary_before_model_use(old_task) -> None:
         )
 
 
-@pytest.mark.parametrize("old_task", [KnowledgeRewriteTaskV3, KnowledgeRewriteTaskV4])
+@pytest.mark.parametrize("old_task", [KnowledgeRewriteTaskV3, KnowledgeRewriteTaskV4, KnowledgeRewriteTaskV5])
 def test_current_production_root_rejects_old_rewrite_v3_before_model_use(old_task) -> None:
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
     assert tasks is not None

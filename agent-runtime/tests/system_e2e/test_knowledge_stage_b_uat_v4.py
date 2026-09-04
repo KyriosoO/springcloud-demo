@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+import ast
 from dataclasses import replace
 import json
+from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import httpx
 import pytest
 
+from agent_runtime import bootstrap, main
 from agent_runtime.knowledge.rewrite_v5 import KnowledgeRewriteTaskV5
 from agent_runtime.model.contracts import InvalidModelOutput, StructuredFinishKind, StructuredModelResponse
 from agent_runtime.model.deepseek.transport import DeepSeekChatTransport
 from tests.integration.knowledge.test_rewrite_v4_provider_boundary import (
     test_wire_response_to_current_rewrite_runtime_fails_closed as wire_check,
 )
+from tests.integration.knowledge import test_rewrite_v4_provider_boundary as wire_module
 from tests.system_e2e import knowledge_stage_b_failure_diagnostics as diag
 from tests.system_e2e import knowledge_stage_b_uat as old
 from tests.system_e2e import knowledge_stage_b_uat_v2 as v2
@@ -175,6 +180,19 @@ def test_v5_assessment_preserves_frozen_verdict(failed):
     next(mark.args[1] for mark in _historical_wire_test.pytestmark if mark.name == "parametrize"))
 @pytest.mark.asyncio
 async def test_v5_diagnostics_with_current_production_root(monkeypatch, caplog, fault, status, failure, decoded, stage, reason):
+    # This diagnostic contract belongs to run-04, not the current V6 task.
+    # Read its trusted frozen composition; retain all original wire assertions.
+    source = subprocess.check_output([
+        "git", "show", "77dad25db25205b3242e5a3b937de318a82d1053:agent-runtime/src/agent_runtime/bootstrap.py",
+    ], cwd=Path(__file__).resolve().parents[3]).decode("utf-8")
+    node = next(item for item in ast.parse(source).body
+                if isinstance(item, ast.ClassDef) and item.name == "KnowledgeCompositionRoot")
+    namespace = dict(vars(bootstrap))
+    exec(compile(ast.Module(body=[node], type_ignores=[]), "frozen_run_04_bootstrap", "exec"), namespace)
+    historical_root = namespace["KnowledgeCompositionRoot"]
+    monkeypatch.setattr(bootstrap, "KnowledgeCompositionRoot", historical_root)
+    monkeypatch.setattr(main, "KnowledgeCompositionRoot", historical_root)
+    monkeypatch.setattr(wire_module, "KnowledgeCompositionRoot", historical_root)
     budget = SimpleNamespace(model_failures=[])
     before = DeepSeekChatTransport.complete, KnowledgeRewriteTaskV5.definition
     with new.run_04_bindings(), diag.diagnostic_scope(budget):

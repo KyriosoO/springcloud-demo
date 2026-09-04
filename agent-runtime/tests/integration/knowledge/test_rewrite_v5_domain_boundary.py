@@ -1,4 +1,4 @@
-"""Fake plans prove dispatch boundaries, never the model's semantic accuracy."""
+"""Current-root regression of V5 domain rules, retained by V6; not historical UAT."""
 from __future__ import annotations
 
 import pytest
@@ -6,7 +6,7 @@ import pytest
 from agent_runtime.capability_api.contracts import CapabilityStatus
 from agent_runtime.main import build_runtime
 from agent_runtime.model.contracts import ModelTaskId
-from agent_runtime.knowledge.rewrite_v5 import INSTRUCTION
+from agent_runtime.knowledge.rewrite_v6 import INSTRUCTION
 from agent_runtime.observation import observation_scope
 from tests.helpers import scope
 from tests.integration.knowledge.test_production_runtime_wiring import _KnowledgeClientFactory, _enabled_environment
@@ -45,7 +45,7 @@ async def test_current_root_uses_exact_model_domain_plan_without_local_routing(
     finally:
         await runtime.aclose()
     rewrite = [request for request in model.requests if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE]
-    assert len(rewrite) == 1 and rewrite[0].task_version == "5"
+    assert len(rewrite) == 1 and rewrite[0].task_version == "6"
     assert rewrite[0].system_instruction == INSTRUCTION
     assert {r.task_id for r in model.requests} <= {
         ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY}
