@@ -117,7 +117,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～019`；`DR-KRET-027`；`DR-KEV-026` | Rewrite V4（共享V3合同）、一次域计划、服务窗口、排序/Evidence、有限 reason；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试 | 不扩大公共 DTO/读取/出域 | 恢复上一代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 可复现验证结果 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | 冻结人工 gold、一次有限真实批次 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 最多20端到端/60模型、零重试 | 首例失败已停止；9例未执行，不补跑 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | 冻结人工 gold；run-01失败不可变，新增授权run-02独立验证V4 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 累计最多20端到端/60模型、零重试 | 各批失败即停止，不复用旧批次 | Ready |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -285,7 +285,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.6首例语义失败；授权批次已消费停止，9例未执行 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | Ready | WP-KRETRIEVAL-NONLIVE-01 | §20.10用户重新授权独立run-02；旧失败记录不变，执行前重新冻结 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 
 ## 10. 实施交接
@@ -411,7 +411,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20.6首例失败、其余未执行 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～019、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20.6旧失败；§20.10新授权待执行 | Ready |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -781,3 +781,11 @@ es-query-service/common-security/Employee/Transaction Java源码未改，本增�
 定向结论：排序及配额控制符合上述两条实现合同；真实语义与完整核心场景效果仍不可验证。不建议无证据扩大topK、改配额、按条款ID加分或新增第二查询；B-CR-001保持Open，整体正式评审仍未通过。无需新增任务版本、候选、门禁或证据副本。
 
 本次实际命令：显式`PYTHONPATH=agent-runtime/src`后执行`python -m pytest tests/unit/knowledge/retrieval/test_quality_ranking.py tests/system_e2e/test_knowledge_stage_b_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q`，25 passed；有限排名重放断言通过；本次新增模型/search/embedding/rerank调用全部0。仅修改P3/UAT状态解释，无生产差异；§20.8全量、类型和Java结果是前一增量实测，不冒充本次重跑。
+
+### 20.10 新增一次性run-02授权
+
+用户在目标阻塞后明确授权“准备并执行新的独立受控验证批次，验证V4修复及未执行场景，重新绑定代码、用例、配置和调用预算”。仅开放`knowledge-stage-b-uat-v2-20260904-run-02`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-02`；不是旧run-01的补跑或授权复用。用例、顺序、gold和通过条件沿用原10例，任务绑定selection-v4/Rewrite4/Summary4；本批上限10端到端/30模型/40search/20embedding/20rerank，Business/answer/retry/resume=0。加旧批实际1/3/4/2/2后累计上限11/33/44/22/22，仍低于原总授权20/60/80/40/40。任一真实失败停止新批次，不自动创建run-03。
+
+新入口`tests/system_e2e/knowledge_stage_b_uat_v2.py`只在独占CLI作用域复用冻结runner：新manifest绑定HEAD、3个Prompt hash、4/4任务、当前索引/配置/可执行文件、旧批五项hash、累计预算及唯一输出目录；修正新批单case e2e计数，调用前校验Prompt，澄清必须零下游。新入口和直接fake测试先验证，旧runner/cases/gold及run-01字节不改。prepare/check-environment不读取模型Key；execute是唯一读取入口。暂不关闭B-CR-001或质量包，真实结果形成后据实更新。
+
+本次准备验证：新/旧runner及历史、V4合同和生产fake五文件101 passed；正式隔离入口host/preflight14 passed、全量1707 passed/27 opt-in skipped/0 failed（1条既有LangGraph预告）；strict mypy123生产文件及源码/新入口compileall通过。P3 strict为0 errors/0 warnings，阶段A四项最终hash及旧runner源码不变；9200/8908/8909健康检查200。新入口check-environment完成真实auth→Spring→stub Runtime的422 unsupported冒烟，model/Knowledge=0，owned进程、clients和临时原始日志已清理。新入口定向代码对照复核覆盖版本、Prompt、累计预算、目录防复用、异常停止和旧模块作用域恢复；未发现本增量Blocker/Major，不替代整体B-CR-001的真实验证。仅授权/执行状态同步，批准的V4设计、公共接口和生产代码未修改。

@@ -17,3 +17,4 @@ agent-runtime/tests/evaluation/knowledge/staging/provenance_inputs/build_manifes
 # Preserve the already-recorded Stage B finite diagnostics byte-for-byte.
 agent-runtime/tests/system_e2e/knowledge_stage_b_local_validation.v[1-7].jsonl binary
 agent-runtime/tests/system_e2e/knowledge_stage_b_run_01/* binary
+agent-runtime/tests/system_e2e/knowledge_stage_b_run_02/* binary
