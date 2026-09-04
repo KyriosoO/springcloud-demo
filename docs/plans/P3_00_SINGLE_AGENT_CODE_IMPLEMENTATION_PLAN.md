@@ -963,3 +963,23 @@ DR-020的IMPLEMENT/NONLIVE切片现已完成；GATE-KRG-006保持仅实现入口
 三轮内审已完成：第1轮核对用户原意→L0原文支持→KQ-AD-017，明确只覆盖相关显式类别、无关背景不扩展且单条足够时不凑双引；第2轮核对V4公开definition、输入/Prompt/quote预算及validator职责，明确分类清单必须保留归属上下文、不能拼接同ref，修复流程实施范围仍排除Summary的旧表述；第3轮核对测试/gold/历史/DAG与缺证据状态，strict发现DR-KEV-027未列入规则目录，补齐后通过。
 
 随后冻结内容、按design-doc-review执行L1→L2→跨层只读复评：KQ-AD-017能治理DR-KEV-027，DR-KFLOW-012只消费版本绑定，P3/UAT不重定义语义；公开合同、责任、数据/权限、预算、失败、回滚及测试可执行性均闭合。该增量S0=0、S1=0、未处理S2=0，允许Summary V5及非live测试；无实现/真实效果通过声明。复评为本执行者的独立阶段，不冒充另一名人员/子代理评审。L1与两份L2/P3 strict最终均0 errors/0 warnings，后续代码必须另行复核；UAT/整体质量状态不变。
+
+
+Summary V5已完成实施及non-live复评：新增`summary_task_v5.py`，仅以V4公开definition/build_request和不可变替换扩展Prompt与version；bootstrap唯一Rewrite5/Summary5并拒绝旧任务。Prompt为2963 UTF-8 bytes，SHA-256=`fee1a061fd68f49198a8832e222cdebdb6ec6f78cf95b48f5f10fd6bdc494e96`，小于既有8192上限。输入JSON32768bytes/1～8条、任务外层49152bytes、输出1536tokens、5points/512字符/ref唯一、parser和validator全部保持原约束；L2补充了双层预算说明，不是放宽。没有新依赖、公共合同、配置开关、索引、授权或额外模型任务。
+
+本增量合同测试验证除了version/Prompt以外definition/request逐字段相等；生产fake覆盖合成分类+定义的单/双ref、缺证/冲突返回insufficient、非法ref/重复/非子串/超长/额外字段、模型异常/超时/取消。所有成功quote精确比对；Business send显式拦截且计数0，JWT仅透传读取端，observations/log不含正文或JWT。fake缺证/冲突由测试响应指定，不能声称模型会自行识别语义。旧wire测试从其显式组合根获得期望Summary版本，当前独立合同断言5/5；run-03测试仍从冻结Git加载4/4，不放开生产版本守卫。
+
+| 本次实际验证命令或范围 | 结果 |
+|---|---|
+| agent-runtime，PYTHONPATH=src：`python -m pytest -q tests/contract/knowledge/test_summary_task_v5.py tests/integration/knowledge/test_summary_v5_production.py tests/integration/knowledge/test_summary_v4_composition.py tests/integration/knowledge/test_rewrite_v4_provider_boundary.py tests/contract/knowledge/test_provider_registration.py` | 修正新增测试预期后48 passed |
+| 上述5文件追加`tests/integration/knowledge/test_evidence_stage.py tests/unit/knowledge/evidence tests/system_e2e/test_knowledge_stage_b_run_01_history.py tests/system_e2e/test_knowledge_stage_b_run_02_history.py tests/system_e2e/test_knowledge_stage_b_run_03_history.py tests/system_e2e/test_knowledge_stage_b_uat_v3.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py`，同一pytest -q命令 | 复评补强断言后156 passed；当前和历史绑定分别验证，Business35/Knowledge37既有追踪通过 |
+| `pwsh -NoProfile -File agent-runtime/scripts/run-nonlive-regression.ps1` | 正式隔离host/preflight14 passed；全量1857 passed/27 opt-in skipped/0 failed，172.44秒，1条既有LangGraph预告，临时环境清理完成；其后仅补强新测试的Business拦截及quote精确断言，已由上述156项复跑覆盖 |
+| agent-runtime：`python -m mypy --strict src`；`python -m compileall -q src tests/contract/knowledge/test_summary_task_v5.py tests/integration/knowledge/test_summary_v5_production.py` | 125个生产文件类型通过，编译通过 |
+| agent-service：`..\serviceCenter\mvnw.cmd '-Dagent.runtime.python=C:\Python312\python.exe' '-Deureka.client.enabled=false' test`；子进程PYTHONPATH=D:\codex\agent-runtime\src，stub/Knowledge默认false，移除进程Key，测试显式fake | 最终40 tests/0 failures/0 errors/1 opt-in skip；Access/Business/Knowledge Spring→Runtime实际执行 |
+| L1 Core/Knowledge、两份L2 strict；P3 strict；历史与敏感扫描；git diff --check | 当前结构及追踪0 errors/0 warnings；V1～V4与validator字节一致，run-01～03/P5历史验证通过；Stage A build/asset/UAT/release四项SHA与§19.6相同；目标差异敏感模式0命中，无历史/业务服务/索引变更 |
+
+未隐藏首次失败：新测试将Model外层预算误写为输入JSON预算，并把现有insufficient有限reason误期望为null，首轮3 failed/45 passed；核实V4和现有失败映射后修正测试及L2预算说明，不改生产行为。Maven首次参数未加引号，被PowerShell拆解，未进入测试；修正引号后Access因基础Python未安装源码而liveness失败，日志明确ModuleNotFoundError，另外Business/Knowledge E2E通过；仅给当前Maven进程设置绝对PYTHONPATH后整模块通过，不修改全局配置或测试断言。
+
+本增量正式代码对照复核1轮、修复后复评1轮：依据DR-KEV-027及DR-KFLOW-012核对公开definition复用、单绑定、disabled、预算/安全/失败/取消、历史隔离与测试。首轮补强测试对Business零调用及真实quote内容的证明；复评无未关闭Blocker/Major/Minor。状态同步时清除“建议新增”和旧当前Summary4描述，并修复L1 Core两项版本引用；预算层次及新运行绑定当前批准任务版本经只读设计复评，无语义扩权。审查均由本执行者分阶段完成，不冒充另一名独立人员批准；没有宣称阶段B整体正式评审通过。Java业务模块源码、公共DTO、PS均未改，Employee/Transaction/es-query-service/common-security Maven和PS AST本轮未重复。
+
+设计提交`60345fc`；代码提交`73a3cfa0aeb63933784d77436bf4e5bb93ba280a`；状态提交及推送见Git日志和最终交付。DR-KEV-027及当前组合根的IMPLEMENT/NONLIVE切片已完成。Stage B UAT仍Deferred、QUALITY仍Blocked、B-CR-001仍Open：Rewrite5/Summary5真实语义缺证据，冻结P0/gold不变。新增真实e2e/model/search/embedding/rerank均0，三批累计仍5/12/8/4/4，Business/answer/retry/resume0；没有读取LLM_API_KEY、生成新manifest或run-04，不将剩余总预算解释为新的执行授权。

@@ -85,9 +85,9 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.7 | 模型安全 catalog、v7 显式字段完整性与裸 slot 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
 | [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.2 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8 | QueryPlan、多值引用、字段组合、行政区规范化、validator、binder 与出域策略 |
-| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.15 | Knowledge 开关、单注册、域目录 v2、Rewrite V2/Summary V4 绑定、阶段与组合根接线 |
+| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.20 | Knowledge 开关、单注册、域目录 v2、Rewrite V5/Summary V5 绑定、阶段与组合根接线 |
 | [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v2.5 | Knowledge typed HTTP、读取授权、RRF/rerank、client 生命周期及阶段 A 离线语料生命周期 |
-| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.16 | Evidence/出域/Summary V4、效果口径 v2 与阶段 A policy snapshot 兼容合同 |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.19 | Evidence/出域/Summary V5、效果口径 v2 与阶段 A policy snapshot 兼容合同 |
 
 ## 8. 风险、验证与当前实施状态
 

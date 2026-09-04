@@ -118,7 +118,7 @@ Spring 公共接入与认证
 | `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入当前 Summary task |
 | `UAT-K-EV-004` | 未分类、策略缺失/冲突或文档收紧拒绝 | `model_egress_denied`，summary 调用 0 |
 | `UAT-K-EV-005` | 证据覆盖不足 | `no_result/insufficient_evidence`，不生成肯定回答 |
-| `UAT-K-EV-006` | 合法 Summary V4 | 独立子问题和适用逻辑域使用最小充分直接证据；缺少任一显式要点/域时 insufficient；ref 唯一、quote 为对应授权正文连续子串 |
+| `UAT-K-EV-006` | 合法当前Summary（V5） | 独立子问题和适用逻辑域使用最小充分直接证据；缺少任一显式要点/域时 insufficient；ref 唯一、quote 为对应授权正文连续子串 |
 | `UAT-K-EV-007` | unknown/duplicate ref 或非子串 quote | `knowledge.summary_failure`，不返回模型原文 |
 | `UAT-K-EV-008` | summary timeout/provider/schema failure | 固定 timeout/downstream failure，无 retry/resume |
 
@@ -135,7 +135,7 @@ Spring 公共接入与认证
 
 ## 6. 功能 UAT 通过条件
 
-上述 37 个 case 已通过 `knowledge_uat_traceability.v2.json` 追踪到实际自动化或等价有限证据；schema v2 同时校验 candidate-05 最新有效 `partially_effective`、candidate-07 最新执行 `invalid_run / failed_unconsumed` 以及 Summary V4 `Evidence missing`，但不修改历史运行文件。当前 Spring→Runtime 16 场景 E2E 实际执行且未 skip。允许按风险用 fake Model、Java Security、Python contract 和现有不可变只读证据组合验收，不机械要求全部 case 进行真实 LLM 调用。
+上述 37 个 case 已通过 `knowledge_uat_traceability.v2.json` 追踪到实际自动化或等价有限证据；schema v2 同时校验 candidate-05 最新有效 `partially_effective`、candidate-07 最新执行 `invalid_run / failed_unconsumed` 以及该追踪基线的Summary V4 `Evidence missing`，但不修改历史运行文件；它不代表当前任务版本，当前V5接线与新增证明义务另见§14.9及P3 §20.17。当前 Spring→Runtime 16 场景 E2E 实际执行且未 skip。允许按风险用 fake Model、Java Security、Python contract 和现有不可变只读证据组合验收，不机械要求全部 case 进行真实 LLM 调用。
 
 功能结论为 Passed 还要求：
 
@@ -416,4 +416,4 @@ L2_01_00 DR-KFLOW-020新增Rewrite V5最小必要域指令；当前任务切换/
 
 non-live覆盖：V4→V5仅version/Prompt改变；显式分类与定义、非分类单要点、单/多ref、无关类别不展开、缺失/冲突/唯一ref限制；非法引用、模型异常/超时、出域拒绝和取消的既有失败语义不变。使用合成输入和fake证明任务/调用边界，不能证明LLM语义或替代逐case真实结果。
 
-当前Summary V5效果为Evidence missing；最新有效P5仍是历史partially_effective，旧Summary V4缺口和run-01～03终态保持原貌。既有37项功能追踪的Passed不外推为新增分类语义效果已通过；当前生产绑定必须另有non-live回归。没有新manifest、run-04或模型调用授权。实际实施、测试、评审和Git状态见P3 §20.17。
+当前Summary V5已实施，合同、当前生产根、Spring E2E及失败边界non-live回归通过，效果仍为Evidence missing；最新有效P5仍是历史partially_effective，旧Summary V4缺口和run-01～03终态保持原貌。既有37项功能追踪的Passed不外推为新增分类语义效果已通过，v2追踪文件仍是其原版本基线而非当前任务的测量。没有新manifest、run-04或模型调用授权。实际实施、测试、评审和Git状态见P3 §20.17。

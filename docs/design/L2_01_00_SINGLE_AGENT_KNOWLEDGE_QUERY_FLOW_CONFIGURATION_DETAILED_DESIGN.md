@@ -13,7 +13,7 @@
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.18](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V4、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；当前增量验证记录由P3管理，V5真实效果未测量，效果运行由UAT_01管理 |
+| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V5（复用V3严格合同及V4澄清规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；当前增量验证记录由P3管理，V5真实效果未测量，效果运行由UAT_01管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -104,7 +104,7 @@
 | Plan Builder | 逻辑域×允许检索路径的有界计划 | 执行 HTTP 或排序 |
 | Retrieval Stage | 消费计划并返回 typed batch+coverage | 改写和摘要 |
 | Evidence Stage | 消费授权候选并形成最终本地/出域结果 | 首次读取授权 |
-| Composition Root | 唯一绑定 Rewrite V5、Summary V4、目录、Stages 和设置 | 请求级策略判断 |
+| Composition Root | 唯一绑定 Rewrite V5、Summary V5、目录、Stages 和设置 | 请求级策略判断 |
 
 依赖方向为 `Capability → stage Protocol ← retrieval/evidence implementations`；目录和 settings 不依赖 HTTP/DeepSeek。禁止 Knowledge 内部阶段注册为公共能力，禁止 Capability 依赖 ES DSL 或模型 SDK。
 
@@ -405,7 +405,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `VAL-KFLOW-001` | Provider/Capability 契约和单动作调用计数测试通过 |
 | `VAL-KFLOW-002` | 当前Rewrite精确合同、Guard、敏感零调用和无fallback；V5增量单独执行，不继承V4测试结论；旧任务历史合同不变 |
 | `VAL-KFLOW-003` | 两域目录、计划、配置未知 key/越界启动失败测试通过 |
-| `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 Summary V4 单注册及 V1～V3 历史不可变通过 |
+| `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 Summary V5 单注册及 V1～V4 历史不可变通过 |
 | `VAL-KFLOW-005` | 当前启动入口 disabled 零依赖、enabled 唯一对象图和 Spring→Runtime 功能 UAT 通过 |
 | `VAL-KFLOW-006` | 阶段 A 发布绑定可由现有在线链路只读消费，且不改变域选择、Rewrite、排序、错误或 fallback 行为 |
 
@@ -452,7 +452,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.18 独立审查首轮 | 分离作者修改阶段后重新核对L1/L2/REQ及代码契约；无S0/S1，发现S2：DR019未进入§4.2主追踪表、实施依据的否决状态不明确；已最小修复 | Fixed，待复评 |
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
-- 当前版本：v1.19。
+- 当前版本：v1.20。
 - 文档状态：Approved；DR-KFLOW-020增量评审通过，实施及验证记录见P3，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
