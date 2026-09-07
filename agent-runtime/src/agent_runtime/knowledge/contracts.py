@@ -156,8 +156,30 @@ class PlannedDomainQuery:
     query: str
 
 
+class KnowledgeQuestionKind(StrEnum):
+    LOOKUP = "lookup"
+    APPLICABILITY = "applicability"
+
+
+class KnowledgeRequirementKind(StrEnum):
+    SUBJECT_SCOPE = "subject_scope"
+    RULE = "rule"
+    TEMPORAL_SCOPE = "temporal_scope"
+    CONSTRAINT = "constraint"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KnowledgeEvidenceRequirement:
+    requirement_id: str
+    domain_id: str
+    kind: KnowledgeRequirementKind
+    focus: str
+
+
 KNOWLEDGE_QUALITY_VERSION = "knowledge-retrieval-quality-v1"
 KNOWLEDGE_QUALITY_VERSION_V2 = "knowledge-retrieval-quality-v2"
+# Not a supported runtime version until both ranking and Evidence consumers exist.
+KNOWLEDGE_QUALITY_VERSION_V3 = "knowledge-retrieval-quality-v3"
 KNOWLEDGE_QUALITY_VERSIONS = frozenset((KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSION_V2))
 
 
@@ -171,6 +193,8 @@ class RewriteResult:
     question_egress_denied: bool
     domain_queries: tuple[PlannedDomainQuery, ...] = ()
     plan_version: str | None = None
+    question_kind: KnowledgeQuestionKind | None = None
+    evidence_requirements: tuple[KnowledgeEvidenceRequirement, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -203,6 +227,8 @@ class KnowledgeRetrievalPlan:
     selected_domain_ids: tuple[str, ...]
     config_version: str
     quality_version: str | None = None
+    question_kind: KnowledgeQuestionKind | None = None
+    evidence_requirements: tuple[KnowledgeEvidenceRequirement, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -273,6 +299,8 @@ class KnowledgeEvidenceInput(Generic[TBatch]):
     question_egress_denied: bool
     batch: TBatch
     quality_version: str | None = None
+    question_kind: KnowledgeQuestionKind | None = None
+    evidence_requirements: tuple[KnowledgeEvidenceRequirement, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

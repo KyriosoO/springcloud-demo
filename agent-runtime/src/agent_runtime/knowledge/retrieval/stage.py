@@ -34,6 +34,7 @@ from agent_runtime.knowledge.retrieval.fusion import ReciprocalRankFusion
 from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
 from agent_runtime.knowledge.retrieval.quality_ranking import rank_by_domain
 from agent_runtime.knowledge.retrieval.quality_ranking_v2 import rank_by_domain_v2
+from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
 
 
 class DefaultKnowledgeRetrievalStage:
@@ -87,6 +88,10 @@ class DefaultKnowledgeRetrievalStage:
         quality = plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS
         if plan.quality_version is not None and not quality:
             raise ValueError("knowledge.unknown_quality_version")
+        validate_plan_requirements(
+            quality_version=plan.quality_version, question_kind=plan.question_kind,
+            requirements=plan.evidence_requirements, domain_ids=plan.selected_domain_ids,
+        )
         if quality and (
             not 1 <= len(plan.selected_domain_ids) <= 2
             or len(set(plan.selected_domain_ids)) != len(plan.selected_domain_ids)

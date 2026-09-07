@@ -39,6 +39,7 @@ from agent_runtime.knowledge.contracts import (
 )
 from agent_runtime.knowledge.domain_selection import DeterministicDomainSelector
 from agent_runtime.knowledge.errors import KnowledgeInputError
+from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
 from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
 from agent_runtime.knowledge.settings import KnowledgeSettings
 from agent_runtime.knowledge.contracts import LogicalKnowledgeDomain
@@ -153,6 +154,17 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         if rewrite.kind is not RewriteStageKind.SUCCESS or rewrite.rewrite is None:
             return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
         rewritten = rewrite.rewrite
+        # Reject unimplemented consumers even with an explicitly injected planner.
+        if rewritten.plan_version is not None and rewritten.plan_version not in KNOWLEDGE_QUALITY_VERSIONS:
+            return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
+        try:
+            validate_plan_requirements(
+                quality_version=rewritten.plan_version, question_kind=rewritten.question_kind,
+                requirements=rewritten.evidence_requirements,
+                domain_ids=tuple(item.domain_id for item in rewritten.domain_queries),
+            )
+        except KnowledgeInputError:
+            return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
         started = asyncio.get_running_loop().time()
         if self._semantic_required:
             ids = tuple(item.domain_id for item in rewritten.domain_queries)
@@ -216,6 +228,8 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             question_egress_denied=rewritten.question_egress_denied,
             batch=batch,
             quality_version=plan.quality_version,
+            question_kind=plan.question_kind,
+            evidence_requirements=plan.evidence_requirements,
         )
         try:
             evidence = await self._run_phase(

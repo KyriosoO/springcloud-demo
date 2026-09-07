@@ -20,6 +20,8 @@ from agent_runtime.knowledge.evidence.contracts import (
     VerifiedKnowledgeCandidate,
 )
 from agent_runtime.knowledge.retrieval.contracts import RankedKnowledgeBatch
+from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
+from agent_runtime.knowledge.errors import KnowledgeInputError
 
 
 class EvidenceIntegrityError(ValueError):
@@ -38,6 +40,13 @@ class EvidenceIntegrityVerifier:
         batch = input.batch
         if input.quality_version is not None and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS:
             raise EvidenceIntegrityError("knowledge.unknown_quality_version")
+        try:
+            validate_plan_requirements(
+                quality_version=input.quality_version, question_kind=input.question_kind,
+                requirements=input.evidence_requirements, domain_ids=input.selected_domain_ids,
+            )
+        except KnowledgeInputError as exc:
+            raise EvidenceIntegrityError("knowledge.requirement_version_mismatch") from exc
         if not isinstance(batch, RankedKnowledgeBatch):
             raise EvidenceIntegrityError("knowledge.invalid_ranked_batch")
         if (

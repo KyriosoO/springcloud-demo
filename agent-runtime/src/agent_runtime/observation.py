@@ -311,7 +311,7 @@ def knowledge_http_request_view(relative_path: str, body: bytes) -> dict[str, An
     if relative_path == "/rerank":
         documents = parsed.get("documents")
         return {
-            "query": parsed.get("query"),
+            "query": "<hidden>",
             "documentCount": len(documents) if isinstance(documents, list) else 0,
             "topN": parsed.get("top_n"),
             "normalize": parsed.get("normalize"),

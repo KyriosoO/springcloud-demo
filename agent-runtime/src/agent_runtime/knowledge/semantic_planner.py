@@ -1,26 +1,25 @@
 """The shared strict semantic-plan implementation of the request-scoped rewrite stage."""
 from __future__ import annotations
 
-import re
-
 from agent_runtime.knowledge.contracts import (
-    KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSIONS, RewriteCandidate, RewriteCandidateSource, RewriteMode,
+    KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSION_V3, KNOWLEDGE_QUALITY_VERSIONS,
+    KnowledgeEvidenceRequirement, KnowledgeQuestionKind, RewriteCandidate, RewriteCandidateSource, RewriteMode,
     RewriteResult, RewriteStageKind, RewriteStageResult,
 )
+from agent_runtime.knowledge.evidence_requirements import protected_ratio_tokens, validate_requirement_focuses
 from agent_runtime.knowledge.errors import KnowledgeInputError
 from agent_runtime.knowledge.question_semantics import QuestionSemanticGuard
 from agent_runtime.knowledge.tax_question_semantics import TAX_CATEGORY_CONDITIONS
 from agent_runtime.knowledge.rewrite_v3 import (
     KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput,
 )
+from agent_runtime.knowledge.rewrite_v7 import KnowledgeRequirementPlanOutput, validate_requirement_plan_output
 from agent_runtime.model.context import ModelCallContextAccessor
-from agent_runtime.model.contracts import ModelProviderFailureKind, ModelTaskDefinition, QuestionEgressDisposition, StructuredModelGateway
+from agent_runtime.model.contracts import ModelProviderFailureKind, ModelTaskDefinition, ModelTaskId, QuestionEgressDisposition, StructuredModelGateway
 from agent_runtime.model.input_guard import QuestionEgressGuard
 
 _RATE_TOPICS = ("征收率", "税率")
 _RATIO_MARKERS = ("%", "％", "‰", "‱", "百分之", "千分之", "万分之")
-_RATIO_VALUE = r"(?:[0-9]+(?:\.[0-9]+)?|[零〇一二三四五六七八九十百千万]+(?:点[零〇一二三四五六七八九]+)?)"
-_RATIO = re.compile(rf"(?:百分之|千分之|万分之){_RATIO_VALUE}|{_RATIO_VALUE}[%％‰‱]")
 
 
 class KnowledgeSemanticPlanner:
@@ -31,8 +30,15 @@ class KnowledgeSemanticPlanner:
         quality_version: str = KNOWLEDGE_QUALITY_VERSION,
         semantic_guard: QuestionSemanticGuard | None = None,
     ) -> None:
-        if quality_version not in KNOWLEDGE_QUALITY_VERSIONS:
+        if quality_version not in KNOWLEDGE_QUALITY_VERSIONS and quality_version != KNOWLEDGE_QUALITY_VERSION_V3:
             raise ValueError("knowledge.unknown_quality_version")
+        if (quality_version == KNOWLEDGE_QUALITY_VERSION_V3) != (definition.task_version == "7"):
+            raise ValueError("knowledge.requirement_version_mismatch")
+        if quality_version == KNOWLEDGE_QUALITY_VERSION_V3 and (
+            definition.task_id is not ModelTaskId.KNOWLEDGE_REWRITE
+            or definition.input_type is not KnowledgeSemanticPlanInput
+        ):
+            raise ValueError("knowledge.requirement_version_mismatch")
         self._quality_version = quality_version
         self._gateway, self._context = gateway, context
         self._domains = enabled_domain_ids
@@ -72,6 +78,18 @@ class KnowledgeSemanticPlanner:
                 kind=RewriteStageKind.TIMEOUT if result.failure_kind is ModelProviderFailureKind.PROVIDER_TIMEOUT
                 else RewriteStageKind.FAILURE,
             )
+        question_kind: KnowledgeQuestionKind | None = None
+        requirements: tuple[KnowledgeEvidenceRequirement, ...] = ()
+        if self._quality_version == KNOWLEDGE_QUALITY_VERSION_V3:
+            if type(output) is not KnowledgeRequirementPlanOutput:
+                return RewriteStageResult(kind=RewriteStageKind.FAILURE)
+            try:
+                validate_requirement_plan_output(output, enabled_domain_ids=self._domains)
+            except KnowledgeInputError:
+                return RewriteStageResult(kind=RewriteStageKind.FAILURE)
+            question_kind, requirements = output.question_kind, output.evidence_requirements
+        elif isinstance(output, KnowledgeRequirementPlanOutput):
+            return RewriteStageResult(kind=RewriteStageKind.FAILURE)
         if output.outcome == "clarification_required":
             return RewriteStageResult(kind=RewriteStageKind.CLARIFICATION_REQUIRED)
         if any(item.domain_id not in self._domains for item in output.queries):
@@ -91,9 +109,16 @@ class KnowledgeSemanticPlanner:
                 or self._guard.evaluate(item.query).disposition is QuestionEgressDisposition.DENIED
                 # The historical numeric guard does not bind Unicode ratio units.
                 # Preserve the entire value/unit token, not just marker presence.
-                or _RATIO.findall(item.query) != _RATIO.findall(original_question)
+                or protected_ratio_tokens(item.query) != protected_ratio_tokens(original_question)
                 or any((term in original_question) != (term in item.query) for term in per_query)
             ):
+                return RewriteStageResult(kind=RewriteStageKind.FAILURE)
+        if requirements:
+            try:
+                validate_requirement_focuses(
+                    original_question=original_question, requirements=requirements, semantic_guard=self._semantic,
+                )
+            except KnowledgeInputError:
                 return RewriteStageResult(kind=RewriteStageKind.FAILURE)
         return RewriteStageResult(
             kind=RewriteStageKind.SUCCESS,
@@ -104,5 +129,6 @@ class KnowledgeSemanticPlanner:
                                  for i, item in enumerate(plans, 1)),
                 mode=RewriteMode.MODEL, question_policy_version=decision.policy_version,
                 question_egress_denied=False, domain_queries=plans, plan_version=self._quality_version,
+                question_kind=question_kind, evidence_requirements=requirements,
             ),
         )
