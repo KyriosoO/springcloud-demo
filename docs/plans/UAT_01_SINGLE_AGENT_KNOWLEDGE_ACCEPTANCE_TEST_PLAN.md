@@ -553,3 +553,9 @@ L2_01_00 DR-KFLOW-023已纠正已有税务类别词的数值误识别。新增no
 本批1 E2E/3模型/2search/1embedding/1rerank；累计15/37/23/12/12，未超修订上限21/60/80/40/40。Business/answer/retry/resume0，任务及quality绑定有效；model/provider与全部下游均成功，不代表所需证明完整。law_effective已在向量12位、最终重排15位，但没有进入8条Evidence；lodging所属policy根本未选。该逐阶段有限证据支持规划和Evidence覆盖缺口，不支持“知识库不存在相关资料”或“本次服务超时”。不保存或重建模型原响应/最终原文答案。
 
 安全与owned资源清理通过；本批result=failed、Functional专项Failed，完整Effectiveness未测完，不宣布effective或partially_effective，不把当前HTTP200当作UAT通过。既有37项Knowledge、35项Business功能追踪和历史P5结论不变。本批已终止，不补跑、不续跑、不自动run-08；下一步先按P3的非live设计诊断建议处理必要证据责任，不能通过变更gold、放宽validator、无条件双域或扩大topK改判本次结果。
+
+### 14.20 来源对应校验的非live证据边界
+
+§14.1的必要原文必须是最终quote**实际引用**的来源，不能仅因该原文存在于Summary输入且包含相同句子就判为通过。P3 §20.35记录冻结评分器的合成错源反例，以及新增`stage-b-citation-binding-v1`校验器和生产对象图fake验证。新校验使用当前请求已验证bundle、实际政策过滤后的Summary输入和公开citation，核对引用ID对应的片段标识、内容hash及连续引文；不根据quote反建引用，不把gold送入在线链路，不调整原case/gold或通过阈值。
+
+本工具只提供来源对应和必要条款的有限检查，不代替域/任务/调用预算/安全/usefulness评分，尚未接入任何真实执行器，也不授权新的模型调用。历史结果不含重新验证所需的完整引用对应信息，因此不重放、不重新评分、不宣称历史结果均已通过新检查；既有通过记录只保留原证明范围，run-07失败及六项未执行保持不变。后续若采用该校验，须显式绑定新版本化执行合同，不能复用已消费的run-07。当前专项仍未完成。

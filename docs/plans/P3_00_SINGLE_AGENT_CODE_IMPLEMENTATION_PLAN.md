@@ -1428,3 +1428,19 @@ UAT工作包Deferred、QUALITY Blocked，整体B-CR-001 Major/Open；GATE-KRG-00
 归档后实际验证：`python -m pytest tests/system_e2e/test_knowledge_stage_b_run_07_history.py tests/system_e2e/test_knowledge_stage_b_uat_v7.py -q --tb=short`为67 passed（20.26秒）；严格字段、六项hash、342项冻结源、3项复用/7项独立边界、1失败/6未执行、累计账、逐阶段排名及无raw payload均验证。再次正式隔离回归为host/preflight14 passed（3.47秒），全量2214 passed/27 opt-in skipped/0 failed（248.25秒、1条既有预告），临时环境清理完成。当前35/37追踪仍通过；新增历史测试compileall通过。P3 strict 0 errors/0 warnings，三份状态文档41个本地Markdown链接0缺失，六项新资产敏感模式0命中，git diff --check通过。
 
 终态代码/证据正式审查1轮：来源与调用账独立、原判据/阈值不变、历史与本次结果分离、HTTP成功不冒充核心验收、阶段定位不重建模型输出、版本化数据无秘密、owned清理与旧资产保护符合本次执行合同。归档/runner增量未发现未关闭Blocker/Major/Minor；不改变总体B-CR-001 Major/Open和上述三项语义/覆盖风险。生产源/Prompt/索引绑定相对本批冻结提交差异为空，本次没有删除业务或共享代码。仅提交已验证的执行器、失败事实、历史测试和当前状态，不以Git交付表示阶段B完成。
+
+### 20.35 引用来源验收反例及非live修复
+
+起始HEAD=`8b7602ff25ce4140780278bec4a42677931b74ce`，工作树clean。继续执行失败后的授权内非live审查；不读取模型Key、不调用真实依赖、不创建run-08。UAT_01 §14.1已要求必要原文hash与最终引用对应，L2_01_02 §13.6/13.7允许有限诊断及版本化Harness；本切片落实既有要求，不修改生产语义、公共合同、gold、阈值或历史评分器。
+
+发现`B-R7-EVAL-001`（medium，验收完整性）：冻结`knowledge_stage_b_cases.py::assess`分别检查“gold正文位于Summary输入”和“最终quote出现在该正文”，未绑定quote实际citation.evidenceId。同一句话同时存在于两份不同来源时，引用另一来源仍可能通过。合成反例从run-07冻结提交读取评分器并核对manifest SHA，仅在测试内存替换合成gold；旧评分器确实返回true。**这证明判据存在可能假通过的缺口，不证明任何历史case实际错引，不是run-07已确认失败的根因，也不能据此改判旧结果。** 历史有限结果缺少重新评分所需的逐引用对应关系，保持原结论及其旧证明范围。
+
+最小处理：新增测试专用`tests/system_e2e/knowledge_stage_b_citation_check.py`（`stage-b-citation-binding-v1`），不修改或接入已消费runner。调用方必须在当前请求内提供已验证bundle、实际出域决定生成的Summary输入、已验证公开points及预先冻结gold；不能根据quote反推来源。校验引用ID→bundle片段标识/内容hash→该来源连续quote→必要条款。先核对实际模型输入与bundle一致，再作结果后评估；gold不进入在线模型/规划/检索/排序。只返回有限布尔值和原因，不返回问题、正文、引用ID或原始响应；完整对象只在请求内存使用。它不代替域、任务、预算、安全及人工语义/usefulness判定，也不产生整体UAT通过结论。
+
+代码对照设计review_and_fix两轮，范围仅新增校验器与两个测试文件：第1轮发现`B-R7-EVAL-002`（medium），仅比hash仍不能区分相同正文的不同chunk；已补齐gold已有chunk标识的对应校验和正反例，未改gold。精确类型反例另覆盖bool冒充schema整数、整数冒充coverage布尔和非法gold键。第2轮复核请求内取证、政策可省略模型元数据、未知/重复引用、同文不同来源、零I/O及有限输出，当前非live校验切片Blocker/Major/未处理Minor为0。这是同一执行者分离编辑阶段的复核，不宣称另一独立人员审查。
+
+新增40项定向验证通过：其中2项使用当前`build_runtime`生产对象图、fake模型及fake类型化服务，观察真正出域输入和公开citation，不构造另一条在线流程；两种合法连续引文均可获得Runtime成功结果，但新验收只接受指定来源。本切片不经过Spring入口，不冒充新Spring E2E。每例fake任务3次（selection-v4/Rewrite6/Summary5）、search2、embedding1、rerank1，Business0，client关闭且日志/observations无合成正文或JWT。命令为`python -m pytest tests/system_e2e/test_knowledge_stage_b_citation_check.py tests/integration/knowledge/test_stage_b_citation_binding.py -q --tb=short`（40 passed，3.98秒，1条既有LangChain预告）；测试子进程移除Key并使用当前src。校验器单文件strict mypy通过，正式隔离全量结果见本节末段。代码/测试原子提交为`c8db12abf3f7ca6031b5c6b7801b61ef5aaca0ef`。
+
+文档定向核查仅检查本节与UAT_01 §14.20是否正确落实§14.1/L2 §13.6/13.7：来源绑定、历史不可变、有限输出和无新付费授权均符合；没有上位语义变更，不升级L0/L1/L2或重新声称整体设计通过。P3 v2.50/UAT v1.28只追加缺口及已执行证据。WP-KRETRIEVAL-UAT-01仍Deferred、QUALITY仍Blocked，B-CR-001及B-R7-DOM/COV/PROOF三项仍Open。该工具尚未用于真实运行，后续若采用必须纳入新的版本化执行合同；本轮不创建或授权该批次。累计真实计数仍15/37/23/12/12。
+
+最终验证：`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`正式临时安装入口通过，host/preflight14 passed（4.03秒），全量2253 passed/27 opt-in skipped/0 failed（392.79秒、1条既有LangChain预告），临时环境已清理。全量收集后增加的“相同正文、不同chunk”1项反例另由上述最终40项定向回归覆盖，不把全量计数写成2254。全量包含七批历史hash/冻结源、Knowledge/Core/Business及原35/37功能追踪；不是重新执行35/37真实UAT。`python -m mypy --strict src`128生产文件及新校验器单文件通过，`python -m compileall -q src`和三个新文件通过。P3 strict为0 errors/0 warnings；两份文档21个本地Markdown链接无缺失，5个目标文件凭据/JWT扫描0命中，git diff --check通过。生产源/服务/阶段A绑定/旧gold/七批资产相对起始提交无修改。本切片无Java、PowerShell或生产修改，未重跑Maven、Spring→Runtime Java测试及AST；没有真实ES/BGE/模型请求，不计为新端到端或效果验证。
