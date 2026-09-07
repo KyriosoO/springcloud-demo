@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.54 |
+| 当前版本 | v2.55 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-07 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -1748,3 +1748,18 @@ agent-service Maven命令同§20.42，进程PYTHONPATH指向当前源码且移�
 L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个本地链接存在；有限JSON计数/排名/预算算术及凭据/JWT模式扫描通过。源码引用仅在新离线模块及其测试，没有接入现行builder或在线生产。历史run、StageA evidence及旧工具源码、Java服务/权限、现行索引/alias均不变；新模块使当前工具源码fingerprint变化，不用于覆盖旧build manifest或重新证明历史运行。有限数据见`knowledge-corpus-tools/evidence/vector-representation-full-policy-20260907.v1.json`，不保存原文或向量。此次无Java/PowerShell/Runtime源码变化，未重复其Maven/AST/全量Runtime，上一轮§20.44结果仍仅表示当时执行；本纯函数不能代替后续迁移的完整验证。
 
 本切片表示设计/实施/non-live已完成；下一步在同一目标下落实738附件限定候选的构建合同、模型完整快照、全记录/旧向量保持及真实只读候选验证。不要求对已授权政策结构正常步骤重复授权，也不自动复用已消费模型批次。阶段B仍未完成：UAT=Deferred、QUALITY=Blocked，无新付费run或索引发布。
+
+### 20.47 限定政策附件向量候选（2026-09-07，v2.55）
+
+承接用户政策ES向量结构授权及L2_01_01 v2.11 DR-KRET-031，不扩大付费批次、索引删除或读取权限。起始HEAD=`1ee25343ecbfc2eecefa93421b9d1d40cb65c162`，工作树与origin/codex一致。实际ES9.4.1，源索引write-blocked，15521记录；已发表alias不动。现有原生clone可保留底层段与全部law/旧policy向量，避免_source重建的精度变化；旧StageA工具会因既有trace字段而拒绝重复导入，不修改其历史行为。
+
+本增量归`WP-KRETRIEVAL-IMPLEMENT-01`的后续政策存储切片；主表Done仅表示§20.37～20.40在线切片，不包含本增量。`WP-KRETRIEVAL-QUALITY-01`仍Blocked，专项UAT仍Deferred。以本节单一进度表记录新动作，不重复新增Gate或把发布前置变成编码阻塞：
+
+| 动作 | 直接前置及设计 | 状态 | 验证/失败边界 |
+|---|---|---|---|
+| 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
+| builder及fake验证 | 上述合同评审 | Ready | TEST-KRET-026/VAL-KRET-012；无alias写入 |
+| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Blocked | clone新名称、738附件有限BGE，全记录对照、失败封存 |
+| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；原alias保持至发布证据齐全 |
+
+准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。

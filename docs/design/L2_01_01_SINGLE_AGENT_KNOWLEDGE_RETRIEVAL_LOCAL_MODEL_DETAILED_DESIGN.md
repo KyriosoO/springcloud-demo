@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.10 |
+| 当前版本 | v2.11 |
 | 日期 | 2026-09-07 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-030离线纯向量表示已实施并通过定向/工具回归及代码复评；没有ES写入或发布。既有quality-v3及Rewrite8/Summary6不变 |
+| 本次增量 | DR-KRET-031限定附件候选构建合同已评审，可实施builder；DR-KRET-030纯表示已实施，没有ES写入或发布。既有quality-v3及Rewrite8/Summary6不变 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v2.11 | 2026-09-07 | 政策向量结构授权后继续，避免全库重编码和共享law退化 | 新候选原生clone、限定附件向量替换、全记录保持验证、失败封存和模型/token前置；不改变现行索引、公共DTO或发布条件 |
 | v2.10 | 2026-09-07 | 政策向量结构追加授权及上下文不足对照 | 明确标题/现有章节/原文输入、确定性哈希、有限校验和原文不可变；旧DR-KRET-021正文向量保留历史责任，候选迁移须另有实现合同 |
 | v2.9 | 2026-09-07 | 单一域排名无法保留同域不同必要证明 | 设计quality-v3按请求级需求重排及锚点，保持既有检索窗口、Evidence和阶段时限；不修改HTTP/索引或旧排序 |
 | v1.0 | 2026-08-21 | 建立检索基础设施稳定基线 | 删除真实联调流水，突出 Agent/ES 边界、授权前置、统一候选、快照和本地模型契约 |
@@ -105,6 +106,7 @@
 | `REQ-KRET-006`、`REQ-KRET-009`、`REQ-KCORPUS-001`、`REQ-KCORPUS-002`、`REQ-KCORPUS-003`、`REQ-KCORPUS-005`、`CON-KRET-005` | `DR-KRET-013`、`DR-KRET-014`、`DR-KRET-015`、`DR-KRET-016`、`DR-KRET-017`、`DR-KRET-018`、`DR-KRET-019`、`DR-KRET-020`、`DR-KRET-026` | `IMPL-KRET-010`、`IMPL-KRET-011`、`IMPL-KRET-012`、`IMPL-KRET-013` | `TEST-KRET-010`、`TEST-KRET-011`、`TEST-KRET-012`、`TEST-KRET-013`、`TEST-KRET-014`、`TEST-KRET-015`、`TEST-KRET-016`、`TEST-KRET-021` | `VAL-KRET-006` |
 | `REQ-KRET-007`、`REQ-KRET-008`、`REQ-KCORPUS-004`、`REQ-KCORPUS-006` | `DR-KRET-021`、`DR-KRET-022`、`DR-KRET-023`、`DR-KRET-024`、`DR-KRET-025` | `IMPL-KRET-014`、`IMPL-KRET-015`、`IMPL-KRET-016` | `TEST-KRET-017`、`TEST-KRET-018`、`TEST-KRET-019`、`TEST-KRET-020` | `VAL-KRET-007` |
 | `REQ-KRET-004`、`REQ-KRET-006`、`REQ-KRET-008`、`CON-KRET-004`；`KQ-AD-019` | `DR-KRET-030` | `IMPL-KRET-018` | `TEST-KRET-025` | `VAL-KRET-011` |
+| `REQ-KRET-007/008`、`REQ-KCORPUS-003/004/006`；`KQ-AD-019` | `DR-KRET-031` | `IMPL-KRET-019` | `TEST-KRET-026` | `VAL-KRET-012` |
 
 ## 5. 关联资源与责任边界
 
@@ -163,6 +165,7 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 | `DR-KRET-024` | 发布生成新 policy/law snapshot 与当前 catalog；全成员、Profile、UUID、mapping/hash 一致后才可生效 |
 | `DR-KRET-025` | alias 以精确旧目标为前置执行原子切换、冒烟、原子回滚演练和最终切换；不删除旧索引 |
 | `DR-KRET-030` | §12.8纯构造同记录title/section/content的版本化向量输入，严格类型/大小/哈希，原文和既有builder不变，不执行I/O |
+| `DR-KRET-031` | §12.9只克隆精确只读源，替换policy受控附件的embedding和独立表示元数据；全记录原文/权限及其余向量保持，失败封存不发布 |
 | `DR-KRET-026` | 审计把索引库存、来源可达性和正文完整性作为三个独立状态；非 200/网络失败只产生有限 source status，不推断正文缺失，不自动重试或转用非权威来源 |
 
 ### 7.2 Python 内部类型
@@ -383,6 +386,30 @@ assetVersion = sha256(rawBytes)
 
 候选构建/发布未包含在本纯函数实施依据内：需先冻结实际BGE模型快照及输入版本、精确源UUID/只读状态、policy范围、全记录保留与law向量不变、无重复ID、mapping及策略快照、失败隔离和原alias回滚目标，再按既有生命周期设计补齐新构建器的具体合同并评审。对照排名改善不是发布门槛的替代，特别不能只比较gold子集、忽略整个候选库竞争或原保留问题退化。
 
+### 12.9 限定附件候选构建（DR-KRET-031；评审通过，可实施构建器）
+
+继承KQ-AD-019、REQ-KCORPUS-003/004/006。在线根、查询窗口、正文、条款、ACL/出域与公共DTO不变；旧`indexing.py`/`release.py`及历史资产不改。该切片只产出没有alias的只读候选，不包含alias生效、策略目录迁移或新的付费运行。
+
+**选择范围**：以当前Java `application-knowledge-live.yml`的tax.policy类别集合与`assetKind=attachment`交集为唯一选择器，不使用gold、case、文档ID、问题或动态排名。未选中记录（含全部law）原样克隆。命中的附件还必须满足`relationType=attachment_chunk`、独立asset/parent身份存在、旧contentHash等于实际原文SHA、现有ACL元数据非空；任一异常使整批停止，不跳过该记录。预期总数、policy数、附件数由一次只读盘点绑定，不作为代码硬编码。
+
+**建议新增** `vector_candidate.py`：同步`build_policy_vector_candidate(spec, *, client, prepare_vectors)`是离线入口；client由调用者创建/关闭，base URL只允许HTTP loopback origin，无redirect/retry，构建器验证origin/redirect和有限timeout后才允许调用。不可从用户HTTP请求调用。frozen `VectorCandidateSpec`绑定源索引、UUID、mapping SHA、全记录fingerprint、精确计数、candidate名称、model snapshot SHA。candidate仅允许`agent-doc-tax-policy-v<major>-<yyyymmdd>-vector-b<revision>`，拒绝源/已存在索引、空/非法路径。源必须write-blocked、green且非数据流；现行alias保持原完整映射。配置仅传已核实绑定，不允许修改类别/operator或mapping任意字段。HTTP总上限400（含失败封存的预留1次），单响应≤16MiB；connect/read/write/pool各阶段timeout≤30秒，流式读取每块后检查请求已耗时，超过30秒即停止。同步HTTP阶段timeout不冒充从DNS到最后字节的绝对wall-time上限；只使用已核实的本地服务，不增加后台超时线程或自动重试。超限停止，不输出响应正文。
+
+**准备与无写入前置**：全源按唯一chunkId排序读取（每页≤250、总≤20000），拒绝重复_id/chunkId、分页不完整、超时、分片失败和缺向量。向量必须1024个非bool有限数字，非零且可表示float32。逐条记录`SHA256(canonical JSON [_id, _source去embedding] + float32向量字节)`，排序后形成全记录fingerprint；保留字段的canonical JSON不做NFC/trim或其他变换。源全部记录校验及三项计数/mapping/UUID/fingerprint匹配后，才构造待替换输入。
+
+`prepare_vectors`是调用者拥有的有界本地模型接缝：入参为有序tuple的`VectorRepresentation`，返回等长tuple向量。真实驱动必须先核对实际模型、tokenizer、服务源码、容器/镜像及max_length快照，并对全部输入做无截断token预检；任一输入超限则embedding和候选写入均0。一次准备最多1000条/32条一批，无自动重试；首尾模型身份须相同，原文、向量和JWT不落盘。仅health、假的token计数或手填hash不能批准真实构建。新候选工具不引入Tokenizer/模型运行依赖，由既有受控本地模型环境执行该前置。prepare失败、响应形状/维度/有限数错误均发生在clone之前。
+
+**构建与核对**：
+
+1. 准备后再次核对源UUID/mapping/write block及alias；再次确认目标不存在。通过ES原生`_clone`复制全部记录和已有向量，不使用全库重编码或_source重建。保持副本数，不携带alias，不修改source设置；等待候选分片就绪（有界30秒），不以clone已受理冒充完成。
+2. 候选`index.resize.source.name/uuid`必须回指精确源，取得并绑定新UUID。完整扫描候选，初始fingerprint必须与源相同；没有alias才允许取消候选write block。克隆操作及只读验证失败不重发clone，不删除候选或源。
+3. 仅在候选增加4个keyword溯源字段：`vectorRepresentationVersion`、`vectorInputSha256`、`vectorModelSnapshotSha256`、`vectorBodySha256`；更新mapping `_meta.mapping_version`为`agent-knowledge-tax-v3-policy-context-v1`，其他mapping及ANN参数原样保留。字段已经存在或冲突即拒绝，不覆盖历史表示。使用partial update，仅写embedding与4字段，不使用script/upsert；每批≤32、每条绑定候选scan所得seq_no/primary_term，任一冲突/部分失败停止，不重试。
+4. 完成后先refresh并write-block候选，再完整扫描核对：所有_id/chunkId、数量、原始非向量字段保持；非目标向量按float32逐字节相同；目标向量等于准备结果的float32表示且4个新字段精确匹配。原有contentHash/indexVersion/source/ACL等不改写，实际新物理版本由新index UUID/mapping与build evidence表达。完整成功前不可标记built。
+5. 最后核对源UUID/mapping/write block/alias未漂移。返回有限frozen结果（目标UUID、数量、源/候选fingerprint、模型/输入版本、调用次数）；调用者使用exclusive新路径保存有限结果及失败状态，禁止保存源正文、原始响应或向量。不将本结果套用旧BuildManifest或旧语料UAT。
+
+**失败、并发与恢复**：无重试/resume，名称存在即拒绝重入；源只读加首尾绑定、目标CAS保护并发，不能声称跨ES事务。已确认candidate归属和UUID后，失败清理仅尝试将该候选write-block；清理失败须显式报`candidate_seal_failed`，不得覆盖原失败或声称已封存。clone网络结果不明时先只读确认精确name/resize.source归属，再决定能否封存；无法确认时只报告，不触碰任何索引。不中止或删除不属于本次的进程/索引。HTTP/JSON/schema错误只输出有限阶段/原因，不保留原始异常链及请求/正文。KeyboardInterrupt/取消也执行同一有限封存，随后向上取消。
+
+**验证/发布边界**：用mock HTTP证明所有写路径只指向candidate、clone全记录保持、异常/并发/重入/响应篡改拒绝；真实构建前冻结模型与源绑定，真实构建后须验证新索引ANN及typed检索。构建通过不代表核心P0或阶段B通过。alias发布仍需§12.6的新policy/law快照、全成员策略、typed授权/Evidence/回归及精确回滚验证；这些动作不属于本构建函数。参考[ES clone合同](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-clone)和[向量_source及精度合同](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector)，保留源段并用float32验证避免误称可恢复旧double输入。
+
 ## 13. 实现落点清单
 
 ### 13.1 实现编号定义
@@ -406,6 +433,7 @@ assetVersion = sha256(rawBytes)
 | `IMPL-KRET-015` | 新建 `knowledge-corpus-tools` 项目的 release module：候选校验、alias 原子切换、冒烟、回滚和发布 journal |
 | `IMPL-KRET-016` | 新版本 Knowledge egress catalog、`application-knowledge-live.yml`/`serviceCenter` binding：新 snapshot 严格绑定，旧 catalog/历史证据不变 |
 | `IMPL-KRET-018` | 新增 `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_representation.py`：DR-KRET-030纯表示，不接入当前builder |
+| `IMPL-KRET-019` | 建议新增 `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_candidate.py`：§12.9同步builder/spec/有限结果及HTTP错误边界；只拥有新候选写入，不负责模型加载或发布 |
 
 ### 13.2 关键签名
 
@@ -470,6 +498,7 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-020` | 阶段 A 14 项 UAT：直接 typed keyword/vector、授权、Evidence 连续子串、P0 酒店住宿证据及阶段 B 归因 |
 | `TEST-KRET-021` | 审计三层状态、403/404/timeout 不推断正文缺失、种子计入预算、人工官方替代映射及非权威来源拒绝 |
 | `TEST-KRET-025` | 新增 `knowledge-corpus-tools/tests/test_vector_representation.py`：精确输入/哈希、去重顺序、空值/类型/大小/UTF-8边界、原文与repr隔离、不可变、无网络/在线调用方 |
+| `TEST-KRET-026` | 建议新增 `knowledge-corpus-tools/tests/test_vector_candidate.py`：混合policy/law全记录保留、只替换附件、输入/源漂移/预算/重复/错维度零写入、clone异步/不明结果/失败封存、CAS冲突、逐条后置比较、alias零写入、无敏感错误及旧builder保护 |
 
 ### 14.2 验证编号定义
 
@@ -483,6 +512,7 @@ KnowledgeSearchResponse search(
 | `VAL-KRET-006` | P0/P1/P2 审计、资产/解析/OCR/表格/chunk 质量与 quarantine 检查通过 |
 | `VAL-KRET-007` | 新候选索引、策略/Profile 快照、typed 检索、读取/Evidence、alias 切换/回滚和防回退回归通过 |
 | `VAL-KRET-011` | 纯构造器定向测试、离线工具回归、strict mypy/compileall、旧文件与历史哈希、代码对照复核；不代表候选索引或真实UAT通过 |
+| `VAL-KRET-012` | 建议新增测试完成后，在工具目录运行`python -m pytest tests/test_vector_candidate.py`及全部工具测试、strict mypy/compileall、代码对照评审；真实源/模型/token绑定、候选全记录对照及有限evidence另行执行，不用fake批准发布 |
 
 ## 15. 风险与保护条件
 
@@ -503,11 +533,13 @@ KnowledgeSearchResponse search(
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，DR-KRET-029已评审实施并完成成对接线及non-live；真实UAT尚未完成，见P3 §20.40 |
-| 当前允许实施范围 | 阶段B §9.4已实施；§12.8纯表示增量已通过切片评审，可实施。政策向量结构已获追加授权，但候选构建/发布的具体新合同尚未完成，不因纯函数通过授权覆写旧索引；阶段A现行索引/alias/语料保持只读 |
+| 当前允许实施范围 | 阶段B §9.4及§12.8已实施；§12.9候选构建合同已完成三轮内审及分离编辑设计评审，可实施builder及fake。真实构建仍须模型/token/源绑定，现行索引/alias/原文保持只读；发布仍受§12.6约束 |
 | 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或未冻结/超预算真实模型出域 |
 | 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
 
 ## 17. 三轮内部自检与独立评审记录
+
+v2.11三轮内审：第一轮核对仅附件重编码/全源clone及来源/引用/权限，明确原向量float32保持而非承诺恢复旧double；第二轮核对源只读/候选CAS/不明clone归属和失败封存，补齐client/响应/HTTP硬预算；第三轮核对TEST/VAL落点、未实现标记及P3直接前置，修复新测试命令被误判为现存引用。随后分离编辑进行L2及REQ-KCORPUS-003/004/006→SA-AD-006→KQ-AD-019跨层只读复评：构建器实施切片无S0/S1/未处理S2，可以编码；真实模型准备、候选实测和发布仍须其执行证据。同一执行者分阶段复核，不冒充外部独立人员；不将规则设计等同构建已完成。
 
 v2.10聚焦设计复评：三轮内审核对表示/原文、有限错误和哈希、追踪/DAG；分离编辑只读复评DR-KRET-030及上位KQ-AD-019，无S0/S1/未处理S2，准入纯函数实施。由同一执行者完成，不冒充外部独立人员；候选构建/发布尚不具备实施依据。
 
@@ -534,7 +566,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.10；DR-KRET-029排序及完整生产接线已实施，真实效果待验证；DR-KRET-030增量设计/实现状态单列，旧批准基线保持原证明范围。
+- 当前版本：v2.11；DR-KRET-029/030已实施，DR-KRET-031候选增量已评审、未实施；旧批准基线保持原证明范围。
 - 文档状态：Approved；历史实施校准评审见P3_00 §20.4，需求增量设计评审及当前实施证据见§20.36～20.40；设计批准本身不替代实施或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 
