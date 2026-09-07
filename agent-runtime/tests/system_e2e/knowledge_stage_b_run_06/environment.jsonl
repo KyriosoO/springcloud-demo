@@ -1,0 +1,4 @@
+{"stage": "spring_runtime_ready", "mode": "readiness_only"}
+{"stage": "spring_auth_stub_smoke", "status": "unsupported", "model": 0, "knowledge": 0}
+{"stage": "runtime_cleanup", "clientsClosed": true}
+{"stage": "cleanup", "ownedProcessesStopped": true, "rawLogsDeleted": true, "secretScanPassed": true}

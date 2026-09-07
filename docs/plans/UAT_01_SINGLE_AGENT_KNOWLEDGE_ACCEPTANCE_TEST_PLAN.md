@@ -493,3 +493,24 @@ non-live必须覆盖：关键词第一名但语义低位不强制入选、同域
 2026-09-07用户明确批准新的独立批次；授权及累计预算见P3 §20.28。§14.14的run-05终态保持不变，P3 §20.27两次合成本地诊断仅证明当前有限负载可用，不证明原超时根因。新批保持§14.1原10例、顺序、人工原文gold及全部判据，任务Rewrite6/Summary5和quality-v2不变，不调整窗口、超时、Prompt或安全边界。
 
 版本化runner只新增无正文的下游操作/状态/HTTP状态码/耗时投影，以便区分新运行的依赖故障；诊断不能替代必要条款覆盖或把HTTP成功当作UAT通过。单批最多10端到端/30模型/40search/20embedding/20rerank，五批累计与本批合计仍受原预算限制，Business/answer/retry/resume0；首例失败即停止，不自动建立run-07。准备及fake通过不等于真实通过，当前仍为run-05的1通过/1失败/8未执行及V2效果Evidence missing。37/35既有功能追踪、Stage A和历史P5保持各自原证明范围。
+
+### 14.16 run-06真实专项终态
+
+冻结提交、manifest、六项SHA和诊断见P3 §20.29。本节取代§14.15准备状态，不覆盖过去五批结果。全部沿用原10例/顺序/gold：
+
+| 顺序 | Case | 实际结果 | 模型/search/embedding/rerank |
+|---|---|---|---|
+| 1 | UAT-KB-001 | Passed：缺条件澄清；检索及Summary0 | 2/0/0/0 |
+| 2 | UAT-KB-015a | Passed：单policy；lodging/living均true，2条引用 | 3/2/1/1 |
+| 3 | UAT-KB-004 | Passed：policy+law；lodging/living/law_rate均true，3条引用 | 3/4/2/2 |
+| 4 | UAT-KB-002 | Failed：HTTP502/downstream_failure；Rewrite模型succeeded，本地检索计划未形成 | 2/0/0/0 |
+| 5 | UAT-KB-003 | Not executed：第四例失败停止 | 0/0/0/0 |
+| 6 | UAT-KB-005 | Not executed：同上 | 0/0/0/0 |
+| 7 | UAT-KB-006 | Not executed：同上 | 0/0/0/0 |
+| 8 | UAT-KB-015b | Not executed：同上 | 0/0/0/0 |
+| 9 | UAT-KB-016 | Not executed：同上 | 0/0/0/0 |
+| 10 | UAT-KB-008 | Not executed：同上 | 0/0/0/0 |
+
+本批4端到端/10模型/6search/3embedding/3rerank，六批累计14/34/21/11/11，Business/answer/retry/resume0。原跨域必要证据反例本次通过，但第四例及六个未执行用例未通过；专项Functional=Failed，完整Effectiveness未测完，不赋予effective/partially_effective等级。安全和owned资源清理通过，run-06授权已终止，不自动建立run-07。
+
+第四例无下游操作，不能归因于此次BGE/ES；模型任务完成不等于本地语义校验通过。P3记录的中文词素/数字顺序误拒绝只由独立fake反例证实，不冒充历史模型输出。后续非live修复不得修改原问题、gold或本批失败资产，也不能复用本批剩余预算。原35/37功能追踪及阶段A继续保留原证明范围。
