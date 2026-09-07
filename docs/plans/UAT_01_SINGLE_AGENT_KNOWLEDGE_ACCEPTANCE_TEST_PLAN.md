@@ -487,3 +487,9 @@ non-live必须覆盖：关键词第一名但语义低位不强制入选、同域
 本批2端到端/4模型/1search/1embedding/1rerank，五批累计10/24/15/8/8，Business/answer/retry/resume0。全部模型任务为selection-v4/Rewrite6且succeeded，未调用Summary5；第二例taskBindingValid=false是缺少预期Summary而非用了旧任务。quality绑定正确不等于排序结果已验证。
 
 安全/清理检查通过；返回timeout而非“未找到结果”，没有重试、续跑或第六批。专项Functional=Failed；完整Effectiveness未测完，V2必要Evidence覆盖仍Evidence missing，不继承run-04成功结论。原37项Knowledge功能、35项Business功能及阶段A结果不改判。下一步应先查明本地BGE推理在既有限时内的可用性，不能以health=200直接判定性能就绪；本目标不自动重新冻结或付费验证。
+
+### 14.15 run-06新独立验证授权与证明范围
+
+2026-09-07用户明确批准新的独立批次；授权及累计预算见P3 §20.28。§14.14的run-05终态保持不变，P3 §20.27两次合成本地诊断仅证明当前有限负载可用，不证明原超时根因。新批保持§14.1原10例、顺序、人工原文gold及全部判据，任务Rewrite6/Summary5和quality-v2不变，不调整窗口、超时、Prompt或安全边界。
+
+版本化runner只新增无正文的下游操作/状态/HTTP状态码/耗时投影，以便区分新运行的依赖故障；诊断不能替代必要条款覆盖或把HTTP成功当作UAT通过。单批最多10端到端/30模型/40search/20embedding/20rerank，五批累计与本批合计仍受原预算限制，Business/answer/retry/resume0；首例失败即停止，不自动建立run-07。准备及fake通过不等于真实通过，当前仍为run-05的1通过/1失败/8未执行及V2效果Evidence missing。37/35既有功能追踪、Stage A和历史P5保持各自原证明范围。

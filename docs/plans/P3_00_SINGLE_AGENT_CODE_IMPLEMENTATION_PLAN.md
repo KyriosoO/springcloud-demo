@@ -121,7 +121,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～022`；`DR-KRET-027/028`；`DR-KEV-026～028` | Rewrite6/Summary5、质量V2及成对limits；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试；V2见§20.24 | 不扩大公共 DTO/读取/出域 | 恢复成对代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.24/20.25全量与Transaction容器复验通过，环境阻塞解除 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | §20.26 run-05：1通过/1超时失败/8未执行；五批不可变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 原10例，累计10 E2E/24模型，零重试 | 授权终止，不续跑、不自动追加第六批 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | §20.28新授权run-06；五批终态不可变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 原10例，累计10 E2E/24模型，零重试 | 新批冻结后一次执行，失败即停，不自动追加run-07 | Ready |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -289,7 +289,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.24/20.25全量及Transaction复验通过；环境恢复 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.26第二例超时失败；已停止，不复用授权 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | Ready | WP-KRETRIEVAL-NONLIVE-01 | §20.28新独立授权；fake/环境通过，冻结后一次执行 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 
 ## 10. 实施交接
@@ -415,7 +415,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-013～015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.24 V2及原实现证据 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-013～015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.24/20.25实际回归及环境复验通过；不代表真实效果 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.26 run-05有限终态；核心覆盖及完整专项仍未通过 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.28新批准备通过；核心覆盖及完整专项尚未通过 | Ready |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -1285,3 +1285,17 @@ NONLIVE恢复Done、UAT Ready、QUALITY及B-CR-001仍Open/Blocked。按既有§2
 实际验证：`python -m pytest tests/integration/knowledge/test_rewrite_v6_query_focus.py tests/contract/knowledge/test_bge_embedding.py tests/contract/knowledge/test_bge_rerank.py tests/system_e2e/test_knowledge_stage_b_run_05_history.py -q --tb=short`为21 passed（25.02秒；1条既有LangChain pending-deprecation warning）；修改测试compileall通过。未重跑全量Python/Java：没有生产或Java变更，§20.26全量2042/27及对应Java验证仍为上次实际结果，不冒充本轮重复执行。P3 strict为0 errors/0 warnings；JSON有限字段、计数、来源/hash及git diff --check通过；src、冻结runner、run-05资产相对起始HEAD无差异。
 
 本轮是追加诊断事实及测试强度，没有变更设计语义、工作包DAG、门禁或UAT通过标准，版本保持v2.49，不触发无关L0/L1/L2/UAT升级。当前不建议修改3秒/5秒配置；缺少原失败负载/有限异常证据，无法确认可安全修复的生产根因。run-05保持failed，8例未执行，V2完整效果仍Evidence missing；禁止自动创建第六批的执行边界不变。
+
+### 20.28 run-06明确授权、有限诊断及冻结准备
+
+2026-09-07用户针对上次请求明确“授权，继续目标”，批准一次新的独立10 E2E/30模型批次，不是run-05续跑。本节取代§20.27的待授权状态，不改历史失败结论。起始HEAD=`e6f4a16a6a8743e8f440f6eef05fae327980038e`，codex与origin/codex一致、工作树clean。新run=`knowledge-stage-b-uat-v6-20260907-run-06`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-06`；单批上限10/30/40/20/20（E2E/模型/search/embedding/rerank），加五批实际10/24/15/8/8后最多20/54/55/28/28，不突破原20/60/80/40/40。Business、answer、retry/resume均0；失败停止，不补跑旧批、不自动建立run-07。
+
+最小变化是新版本化测试入口`knowledge_stage_b_uat_v6.py`，沿用原10例/顺序/gold、selection-v4/Rewrite6/Summary5、quality-v2和现有服务生命周期。manifest Schema6新增有限下游诊断版本及前五批不可变绑定。结果仅追加operation、status、httpStatus、durationMs；每请求embedding≤2、search≤4、rerank≤2，总条数≤8，严格有限枚举/整数边界；不保存request、response、query、正文或异常文本。HTTP200只证明HTTP完成，不能替代Adapter严格解码通过。该变化落实L2_01_01 §11允许的有限诊断并补足B-R5-EVID-001未来观测，不回填旧批证据，不新增生产诊断层或放宽超时。
+
+源代码、Prompt、配置、公共DTO、安全策略、Stage A索引/alias和历史runner均不变。prepare/check-environment不读取模型凭据；仅正式execute允许读取进程级Key。先做fake、正式隔离回归及无模型环境预检，再提交/推送本次入口和授权记录，以clean HEAD冻结manifest；冻结后到终态之间不修改tracked文件。当前尚无新manifest、consumed或模型outbound，QUALITY和B-CR-001仍未关闭。
+
+定向fake首轮：新/旧runner及run-05历史90 passed（14.67秒，1条既有LangChain预告）；之后加强逐case断言，证明下游投影确实进入有限verdict且不携带request，待完整回归核验。只读代码对照复核检查原判据、Prompt身份、累计预算、无重试、目录防复用、故障有限枚举、同请求观测投影和旧模块作用域恢复；没有改变业务设计或DAG，不重新包装为架构设计评审。正式回归、环境检查和本增量复评结论将在实际完成后追加。
+
+实际复验：移除测试子进程Key后执行`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`，host/preflight14 passed（3.86秒），全量2094 passed/27 opt-in skipped/0 failed（297.35秒，1条既有预告），包含加强后的10个逐case投影断言及所有历史。strict mypy127生产文件和src/新runner/tests的compileall通过。无模型check-environment通过真实auth→Spring→stub Runtime（HTTP422 unsupported）；model/search0，clients、owned进程、原始日志及secretScan全部清理通过。P3 strict 0 errors/0 warnings，两份计划21个本地链接有效；源码、索引绑定、run-01～05无差异，凭据/JWT模式扫描0命中、git diff --check通过。
+
+本增量代码正式对照复评共2轮：首轮发现逐case投影缺少直接断言的测试弱项，已加强并经全量验证；复评检查L2_01_01 §11/当前UAT合同，有限投影与原modelTasks、预算、gold和失败停止一致，未处理Blocker/Major/Minor=0。审查由同一执行者分离编辑阶段完成，不冒充外部独立人员；总体B-CR-001仍Major/Open。Java/PowerShell/生产源未变，不重复Maven或AST，既有实际结果见§20.24/20.25，不外推本批成功。UAT现在Ready、QUALITY仍Blocked；本节只同步授权/执行状态，P3 v2.49与UAT_01 v1.27保持不变。
