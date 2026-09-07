@@ -12,7 +12,7 @@
 | 日期 | 2026-09-07 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-029需求重排已实施，生产唯一绑定quality-v3及Rewrite7/Summary6；组件和完整对象图non-live证据归P3 §20.38～20.40 |
+| 本次增量 | DR-KRET-029需求重排已实施，生产唯一绑定quality-v3及Rewrite8/Summary6；V8仅恢复既有意图指令、必要证据合同不变，当前验证证据归P3；检索实现未因任务版本同步改变 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 

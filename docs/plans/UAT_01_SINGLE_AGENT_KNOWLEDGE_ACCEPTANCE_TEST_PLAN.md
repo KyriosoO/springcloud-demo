@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.30 |
+| 当前版本 | v1.31 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-07 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.20、`L2_01_00` v1.24、`L2_01_01` v2.9、`L2_01_02` v1.21、`P3_00` v2.52；必要证据增量已实施并通过non-live；旧功能/运行证据各自保留 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.20、`L2_01_00` v1.25、`L2_01_01` v2.9、`L2_01_02` v1.21、`P3_00` v2.53；必要证据增量及V8澄清指令切片已实施，定向non-live通过；尚无新效果结论 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -623,3 +623,9 @@ L2_01_00 DR-KFLOW-023已纠正已有税务类别词的数值误识别。新增no
 真实调用共1 E2E、2外部模型、4search、2embedding、2rerank；没有Summary HTTP尝试，Business/answer/retry/resume0。累计16/39/27/14/14，未超本次授权；授权已消费且停止，不自动run-09。source绑定和语义/usefulness仅在有最终引文时才有证明价值，本批无引文，不能把澄清分支默认citationBindingValid=true解释为引用通过。
 
 功能结论：原37功能追踪保留其既有non-live证据；阶段B专项Failed。效果结论：本批未形成完整效果测量，九例和Summary6真实效果尚未验证；不得称为effective或将旧成功自动迁移。安全/运行约束：未超预算、禁止动作0、owned进程退出/client关闭、日志扫描清理通过；但缺条件case零检索这一功能断言失败。P3 §20.43治理工作包和缺口，历史P5 candidate与阶段A终态不变。
+
+### 14.24 澄清规则恢复与向量结构诊断的证明范围
+
+依据L2_01_00 §8.6，当前生产代码已绑定Rewrite8/Summary6/quality-v3；V8只恢复被V7遗漏的澄清优先指令，五字段decoder、原十例/gold和通过标准不变。定向fake及当前根验证通过，不代表真实模型正确选择意图；本版本真实效果仍Evidence missing。§14.23保持唯一最新执行终态，不补跑、不复用剩余预算、不新建run-09。
+
+用户另授权政策库ES向量存储结构调整，本次只读ANN/精确检索对照及其限制见P3 §20.45。索引和alias没有变更，结构候选尚未实施或发布。这些离线排名证据不能代替Spring端到端或核心P0通过；未来方案必须保持原文/引用、共享law范围、权限及旧索引可回滚，先做有限非付费对照，不自动追加模型批次。原35/37功能追踪不回退，阶段B专项仍未完成。

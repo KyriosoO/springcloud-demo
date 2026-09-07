@@ -12,13 +12,13 @@
 | 文档状态 | Approved |
 | 当前版本 | v1.20 |
 | 日期 | 2026-09-07 |
-| 本次增量 | KQ-AD-018已评审并实施，当前单绑定Rewrite7/Summary6/quality-v3；non-live和真实验收的不同证明范围由P3/UAT_01治理 |
+| 本次增量 | KQ-AD-018已评审并实施，当前单绑定Rewrite8/Summary6/quality-v3；V8按L2_01_00 §8.6恢复既有澄清指令，合同不变；non-live和真实验收的不同证明范围由P3/UAT_01治理 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v2.8](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 在线生产单绑定Rewrite V7、Summary V6、质量策略V3和阶段A离线语料处理已实施；新完整对象图non-live已验证，模型选域、适用性证明及完整真实专项仍未通过；具体Gate/UAT、证据与评审状态由P3/UAT_01管理 |
+| 实施状态 | 在线生产单绑定Rewrite V8、Summary V6、质量策略V3和阶段A离线语料处理已实施；当前对象图定向non-live已验证，模型选域、适用性证明及完整真实专项仍未通过；具体Gate/UAT、证据与评审状态由P3/UAT_01管理 |
 
 ## 2. 阅读导航
 
@@ -131,7 +131,7 @@ V2是同一流水线内的版本化质量策略，不增加模型、检索、输
 
 该增量经三轮内审及只读设计复评通过，允许下位合同及非live实施；已实施并通过定向non-live验证，不继承此前功能UAT的语义效果结论。下位合同、验证与当前状态分别见L2_01_02、P3及UAT_01。
 
-当前生产绑定为Rewrite V7必要证据计划、Summary V6覆盖声明及需求排序V3；保留既有每域表达与显式条件保护。此前V6/V5/V2验证不继承为新版真实效果通过。实现入口、代码复核和专项验收状态只在P3/UAT_01记录。
+当前生产绑定为Rewrite V8（复用V7必要证据合同并恢复澄清优先指令）、Summary V6覆盖声明及需求排序V3；保留既有每域表达与显式条件保护。此前任务验证不继承为新版真实效果通过。实现入口、代码复核和专项验收状态只在P3/UAT_01记录。
 
 ### 4.6 必要证据覆盖增量（KQ-AD-018；已实施，真实效果待验证）
 
@@ -147,7 +147,7 @@ V2是同一流水线内的版本化质量策略，不增加模型、检索、输
 
 检索仍最多两域、四路、80条原始候选。新质量策略V3对每个证据需求在其已授权域内候选池作一次本地重排，并保留该需求首位候选；这些保留项只是覆盖机会，不是“已证明”标记。最多4次重排，最多160次候选评分，仍受原20秒检索阶段deadline；不提高每路20、最终20、Evidence8或32KiB上限，不增加检索轮次。摘要在原问题及冻结需求下逐项声明引用；本地额外核对完整需求ID、来源归域和实际引用对应，之后仍执行原有唯一引用及连续子串校验。任一需求无法证明则证据不足，不返回部分肯定结论。
 
-Knowledge内部计划/阶段数据可增加版本化字段；公共Core、Spring/Runtime HTTP及ES业务DTO、三个Stage Protocol方法签名不变。禁止借query字符串、全局变量或隐藏上下文传递需求。逻辑域/需求来自已安全处理的问题，不扩大文档模型可见字段；既有读取与三层出域仍独立拒绝优先。旧任务与策略源码不变，新Rewrite7/Summary6/quality-v3在代码中成对唯一绑定，不允许运行时降级。
+Knowledge内部计划/阶段数据可增加版本化字段；公共Core、Spring/Runtime HTTP及ES业务DTO、三个Stage Protocol方法签名不变。禁止借query字符串、全局变量或隐藏上下文传递需求。逻辑域/需求来自已安全处理的问题，不扩大文档模型可见字段；既有读取与三层出域仍独立拒绝优先。旧任务与策略源码不变，当前Rewrite8/Summary6/quality-v3在代码中成对唯一绑定，V8与V7输出合同一致，不允许运行时降级。
 
 L2_01_00独占需求类型、规划校验与请求内传递；L2_01_01独占需求导向排序及候选保留；L2_01_02独占Evidence预算、出域载荷和摘要覆盖校验。共享ID只用于请求内机械追踪，不是图谱、长期记忆或新的知识事实。模型可能遗漏/误归类要点、错误选域或虚报语义支持；局部校验不能证明自然语言蕴含，须以固定原文判据和非酒店保留问题实测，设计通过不等于核心P0或阶段B完成。
 
@@ -445,14 +445,14 @@ accepted → rewritten → domains_selected → retrieved
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
 - 历史有效效果等级及对应不可变运行资产由 UAT_01/evidence 管理；当前最新有效效果等级为 `partially_effective`，不得改述为整体效果达标。
 - 阶段 A 离线 Corpus Build Plane 已完成 audit v3、官方附件版本化处理、结构化条款切片、candidate a5、14/14 专项 UAT 和原子 alias 发布；在线链路只消费发布后的只读 Profile/policy snapshot。a4 作为正式评审前的中间候选保留，旧 a1～a3 及原索引同样保持不可变且未删除。
-- 默认Runtime仍禁用Knowledge；当前显式启用路径唯一绑定Rewrite V7、Summary V6及质量策略V3。旧Rewrite V1～V6、Summary V1～V5仅承担历史兼容和哈希追溯；旧decoder与基类保持，V7/V6使用新精确合同。
+- 默认Runtime仍禁用Knowledge；当前显式启用路径唯一绑定Rewrite V8、Summary V6及质量策略V3。旧Rewrite V1～V7、Summary V1～V5保留历史兼容和哈希追溯；V8复用V7严格decoder，不注册历史任务。
 
 ### 14.2 目标生产接线
 
 Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
 
 - `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
-- `true`：当前实现在同一Model Gateway唯一注册Rewrite V7、Summary V6，在同一Registry唯一追加`knowledge.query`；旧版本不作为自动后备。当前实施及验收进度由P3管理，已接线不代表真实效果通过。
+- `true`：当前实现在同一Model Gateway唯一注册Rewrite V8、Summary V6，在同一Registry唯一追加`knowledge.query`；旧版本不作为自动后备。当前实施及验收进度由P3管理，已接线不代表真实效果通过。
 - `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
 - 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
 - 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。

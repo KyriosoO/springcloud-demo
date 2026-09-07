@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.52 |
+| 当前版本 | v2.53 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-07 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -25,6 +25,8 @@ v2.49记录用户再次授权后的质量策略V2设计与实施；§20.23为本
 v2.50依据用户明确批准，将累计E2E上限调整为21、模型仍60；§20.33及UAT_01 §14.18治理一次独立七例验证与三项历史证据的受限复用，不改历史失败或生产设计。
 
 v2.51依据继续目标授权，为§20.34三项已定位缺口修订必要证据合同并重算原工作包；不新增门禁、工作包或付费授权，旧已消费运行不变。设计与实现状态分开，以§20.36为本增量依据。
+
+v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复澄清优先规则；只实施和验证non-live，不新增运行、预算、工作包或门禁。
 
 ## 2. 目标、范围与计划原则
 
@@ -48,11 +50,11 @@ v2.51依据继续目标授权，为§20.34三项已定位缺口修订必要证�
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.20 | KQ-AD-018必要证据责任；在线/离线边界不变 | Approved；已实施及non-live验证，见§20.40 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.24 | DR-KFLOW-024新需求计划及内部透传 | Approved；已实施及non-live验证，见§20.40 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.25 | DR-KFLOW-024需求计划及025澄清优先规则恢复 | Approved；已实施，当前验证见§20.44 |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.9 | DR-KRET-029需求导向排序；typed服务及阶段A不变 | Approved；已实施及non-live验证，见§20.40 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.30 | 原十例新版完整执行合同；历史失败与既有功能证明范围不变 | Reviewed；run-08首例Failed、九例未执行 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.31 | 原十例及历史失败不变；V8非live证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -1666,3 +1668,49 @@ agent-service实际执行Maven测试40项、0失败/错误、1历史opt-in跳过
 提交前发现默认Git文本属性会把新有限JSON的CRLF转LF，故沿用旧run目录规则，为`.gitattributes`精确增加run-08目录binary一行。仅影响本批七文件；原始资产不转换，暂存blob逐项SHA必须等于原始target/归档/hash常量。该必要字节保护不修改历史规则、manifest或全局Git配置。
 
 有限失败证据、历史验证及精确字节属性提交=`1ab4f6c5ac77246a26ab3ae4a9b5d1653474be80`；提交前七项暂存blob与target/归档/hash常量全部相等。未删除文件或提交目标外修改。设计、实施、non-live已完成的证据范围不变；实现入口GATE-KRG-006保持Closed，UAT=Deferred、QUALITY=Blocked，整体目标未完成。后续优先处理B-R8-SEM的非live设计分析，不创建新run、不补跑旧批、不把未消费余额误当持续付费授权。
+
+### 20.44 澄清优先指令恢复（non-live）
+
+起始clean HEAD=`61a8f68ce4428b8edfe761394d23122007c24bcf`且与origin/codex一致。代码逐段比较补强B-R8-SEM根因：V4明确先判适用/查阅、禁止默认用户条件和将不完整适用降为查阅；V5/V6继承该段，V7完整重写Prompt时遗漏大部且改为“确定条件下的具体适用判断”。这是现行DR-KFLOW-019继承缺失的直接证据；本批真实终态失败仍不能精确归因其全部模型推理或question_kind。结构validator无法代替语义判断，不能靠新增本地关键词分支或topK关闭。
+
+L2_01_00 v1.25/DR-KFLOW-025最小方案：新V8精确替换V7意图段，保留五字段decoder identity、输入、预算及其余指令；仅当前根绑定8/6/v3，旧7显式历史可用但生产不可达。Summary/排序/索引/策略/公共DTO不变。受影响IMPLEMENT/NONLIVE先暂停至该切片设计复评；无新DAG边或Gate，UAT继续Deferred、QUALITY继续Blocked。
+
+三轮内审：第1轮核对REQ-KQUALITY-003/KQ-AD-015、§8.1与8.5，固定先决策再计划及不机械要求所有条件，补齐主追踪；第2轮核对decoder兼容、版本守卫、原8192bytes和零调用、rollback，补入旧run-08依赖helper须按冻结源码隔离而非改断言；第3轮校验测试定义和版本状态，修复REQ来源本地映射与VAL-KFLOW-008定义缺失，严格校验最终0 errors/0 warnings。随后冻结修改，按L2及跨层rubric执行只读复评：本非live切片S0=0/S1=0/未处理S2=0，准入实施。该审查由同一执行者分阶段进行，不冒充外部独立人员，不证明真实模型语义。新增任务/测试此时尚未实现。
+
+实施已完成：新增`knowledge/rewrite_v8.py`、V8合同测试及历史fixture隔离恢复测试；当前根唯一8/6/v3，Spring fake harness同步8。没有修改历史V4～V7任务、run-08 runner/原断言或七项运行文件。旧fake helper未列入live manifest，历史fixture因此将其冻结提交源码SHA单独核对，不伪造manifest条目；仅精确匹配该已消费runner的一项fake测试，测试后恢复当前根与module。
+
+首次定向命令未设置进程PYTHONPATH，发生6项collection错误、没有测试执行；纠正测试环境后226 passed/1 fixture error，根因为把历史fake helper误当manifest资产。按实际冻结源码校验修复并补隔离作用域/恢复测试后，V8+V7合同、当前生产根、历史run-08及Spring Python harness定向296 passed（44.76秒，1条既有LangChain预告）。`mypy --strict src`134源文件、compileall通过。没有放宽decoder、原断言或运行合同。
+
+正式代码对照DR-KFLOW-025只读复核：版本/指令之外definition/request相同、parse_response同一对象、预算不变；旧版本不进当前根，disabled/非法任务在资源创建前拒绝；当前fake覆盖澄清/unsupported零下游、单/多域、coverage/引用拒绝、授权/敏感输入、并发/取消和无fallback。历史helper问题已修复，复核未发现本切片未处理Blocker/Major；同一执行者阶段分离，不冒充外部独立评审。真实语义B-R8-SEM及B-CR-001仍Open，不能据fake通过宣布阶段B完成。
+
+首次正式隔离全量：host/preflight14 passed（3.93秒）；2750 passed/27 opt-in skipped/2 failed（292.00秒）。两项均复现：当前注册测试仍断言7而非8；需求重排时钟相减得0.010000000002037268，严格≤0.01断言误报。前者按本增量迁移当前版本断言；后者仅在该测试替换ranker模块所见时钟为0→0.03，保留原≤0.01、只调用一次和下一需求前TimeoutError全部断言，取消测试内真实sleep，生产deadline逻辑不变。定向注册/排序/历史44 passed（12.07秒）。该测试修正按DR-KRET-029复评，属于可复现性修复，不是放宽时限或新增排序策略。
+
+agent-service Maven命令同§20.42，进程PYTHONPATH指向当前源码且移除Key：40 tests/0 failures/0 errors/1历史opt-in skip，BUILD SUCCESS（29.774秒）；当前Access、Business、Knowledge Spring→Runtime E2E均执行。1份L1、三份L2及P3严格结构/追踪/DAG校验均0 errors/0 warnings；外围L1/L2仅据实际任务绑定同步，不改变语义或升级版本。授权消耗仍为§20.43。新增外部模型0、不读取Key、不创建run-09；本地ES/BGE结构诊断单独记入§20.45，不与真实UAT调用账混算。
+
+最终重跑`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`：正式临时环境显式安装当前源码，host/preflight14 passed、全量2752 passed/27 opt-in skipped/0 failed（292.23秒，1条既有LangChain预告），脚本退出0并清理临时环境。27跳过为既有受控live/诊断opt-in，不是本次关键E2E跳过；不以其为真实效果通过。后续追踪/隔离复核14 passed（0.83秒）；所有新增及修改Python编译通过。全量包括Knowledge/Core/Business/Employee/Transaction、历史八批及原35/37追踪；其他Java模块和PowerShell源码未改，未重跑其Maven/AST，不复制旧数字冒充本轮。
+
+修复后的第二轮只读代码复评、最终跨层状态复核均未发现本切片未处理Blocker/Major/Minor；修正L2末尾旧“未实施/7”状态，明确8/6/v3是代码绑定、不是当前用户服务已重启或真实UATPassed。7份修改Markdown的57个本地链接均存在；凭据/JWT模式扫描0命中，diff及暂存完整差异检查通过，无删除文件、旧任务/runner/运行文件及StageA工具/发布绑定零差异。
+
+代码及测试原子提交=`7162ee5122f6d1069bcf1048168a14981451a6c7`，11个精确路径；目标文档/只读诊断另行提交后一并推送。IMPLEMENT/NONLIVE对本次澄清恢复保持Done，UAT=Deferred、QUALITY=Blocked；真实语义Major和新的向量结构验证不因该提交关闭。阶段B目标保持未完成，下一步为§20.45授权内结构对照与必要设计，不再重复本轮完整回归或重启已消费批次。
+
+### 20.45 政策库向量存储结构追加授权与只读诊断
+
+2026-09-07用户明确允许为目标调整政策库ES向量存储结构。该授权解除阶段B原先“结构一律不可调整”的对应限制，允许目标内结构方案、候选对照及必要迁移设计；不自动批准任意重建、覆盖旧索引、扩大权限、修改原文/公共DTO或新增付费run。授权范围内正常步骤不再逐项申请；任何写入/发布前仍须有审查通过的具体方案、验证和可回滚目标。当前只完成读取和诊断，存储方案尚未批准实施。
+
+实际环境：ES 9.4.1，alias=`agent-doc-tax-policy-v2-read`，目标=`agent-doc-tax-policy-v4-20260903-corpus-a5`、UUID=`SurWRSglRd6ZRddEBWy2Sw`。该物理索引由tax.policy与tax.law共享、按Profile channel过滤；不能只因名称含policy就覆盖或丢弃law内容。15,521记录均有向量；14,783基线条款、738附件片段。当前embedding为1024维cosine、bbq_hnsw、m16/ef_construction100/rescore oversample3。正文2～1166字符、均值591.33；小于100字符的片段1,060条。
+
+诊断固定原始公开问题/既有人工gold，只在离线检查比较、不供在线排序；同一policy过滤、同一查询向量，ANN沿用k21/num_candidates100，精确对照使用cosine script_score top100。5题ANN与精确前20 ID均20/20重合。下表“窗外”表示未进入指定窗口，不代表原文不存在：
+
+| 问题类型 | 必要片段 | ANN前21排名 | 精确前100排名 |
+|---|---|---|---|
+| 短检索词“住宿服务生活服务” | lodging / living | 2 / 5 | 2 / 5 |
+| 生活服务中住宿如何定义 | lodging / living | 6 / 窗外 | 6 / 窗外 |
+| 住宿与不动产租赁分类边界 | lodging / rent | 窗外 / 21 | 窗外 / 21 |
+| 2016一般计税住宿税率 | lodging / historical_rate | 窗外 / 窗外 | 窗外 / 70 |
+| 软件即征即退证明材料（保留问题） | software | 2 | 2 |
+
+这5题没有显示ANN量化/近似损失，暂不建议先更换HNSW或量化算法，也不能外推为全库算法无损。`knowledge-corpus-tools/indexing.py`目前只将`chunk.content`送入embedding，不带标题和层级。四条必要片段长度58/74/39/43，section仅为宽泛“销售服务”或“税率和征收率”；均有parentDocumentId但validityStatus=UNKNOWN，不能将有effectiveDate误判为现行有效。因此“上下文不足的短条款向量”是有证据支持的候选解释，尚非已验证修复。
+
+最小下一步是对照验证“保留引用原文，另构造带可信标题/父级分类上下文的向量输入”，必要时完善条款层级关系；不改原文hash或用模型补写政策，不以gold/文档ID定制生产加分。采用新的候选索引及版本化构建器，不复用仅接收阶段A前置mapping的旧create_and_clone去覆盖a5；保留共享law数据、旧索引、读授权/出域元数据及快照，发布只在必要原文覆盖、引用、兼容和回滚验证通过后进行。若单纯上下文向量无收益则不发布，继续按证据区分分块/检索/排序问题，不无限放大窗口。
+
+本次实际本地诊断：ES HTTP17（其中一次dense_vector missing聚合不支持，改用exists过滤后成功）、BGE HTTP1/文本5；付费模型、rerank、业务接口、ES写入/新索引/alias切换均0。未保存向量、原始模型响应、JWT或正文。该诊断不是一次新的UAT，不能关闭缺条件错误查询、必要证据或完整专项风险；run-08及累计付费账保持不变。结构追加授权与Prompt遗漏属于两个独立因果层面，不能互相冒充关闭证据。
