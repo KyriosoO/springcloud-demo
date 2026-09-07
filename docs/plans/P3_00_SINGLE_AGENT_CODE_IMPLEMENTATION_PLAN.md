@@ -7,7 +7,7 @@
 | 文档编号 | P3_00 |
 | 当前版本 | v2.49 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-04 |
+| 更新时间 | 2026-09-07 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
 | 实施授权 | Ready 不等于实施授权；本任务已另行获得目标范围内代码实施、受控验证、文档同步及 Git 提交推送授权 |
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
@@ -1266,3 +1266,22 @@ NONLIVE恢复Done、UAT Ready、QUALITY及B-CR-001仍Open/Blocked。按既有§2
 三份L2 strict及P3 strict最终0 errors/0 warnings；7份当前文档57个本地Markdown链接存在。Stage A四项hash及前四批资产相对起始HEAD不变，run-05七项逐字节/冻结源码验证通过；敏感模式扫描0命中，严格有限evidence递归禁用raw payload字段，git diff --check通过。最后只读复评未发现新增代码或状态冲突；归档审查与故障反例补充共两轮，整体B-CR-001及UAT/QUALITY缺口仍保留，不宣称阶段B完成。
 
 本目标增量已按设计`371631c`、V2实现`851a42d`、runner/恢复预检状态`91c1266`、run-05证据/反例及本次终态文档分开提交；完整SHA和推送结果以Git日志及交付报告为准。run-05已终止、无第六批；owned隔离进程已关闭、原始日志已删除，既有BGE/ES与用户服务未停止或修改。剩余工作为本地BGE推理时延/协议故障的有界诊断，以及新的独立目标下是否重新进行真实核心P0/剩余8例验证；不能在当前已消费批次内补跑。
+
+### 20.27 run-05后续本地依赖诊断（非UAT重放）
+
+2026-09-07从`dbac18c0c7bf5421e3882e3566b7b2583c95bc02`的clean工作树继续，只做两次预先限定的loopback合成输入诊断：embedding1、rerank1；paid model、E2E、Knowledge search、Business、retry/resume均0，不读取LLM_API_KEY，不调用原case、不修改索引、不重启BGE。输入为27字符合成句，rerank使用20份各1600字符合成文本，不读取业务数据或知识正文。调用复用当前BgeM3EmbeddingAdapter、BgeRerankAdapter及HttpxKnowledgeTransport，3秒/5秒上限不变。
+
+| 本地操作 | 本次实测 | 可证明的范围 |
+|---|---|---|
+| embedding | 219ms；1024维有限数严格校验通过 | 当前服务能完成该合成输入；不证明run-05当时成功或冷启动根因 |
+| rerank | 891ms；20条index/text/score一一对应校验通过 | 当前服务能处理该合成负载；不证明真实20条候选、排队或最坏负载满足时限 |
+
+两个HTTP client均已关闭，无密钥、JWT、原始向量或响应持久化。有限记录为[local-model probe v1](../../agent-runtime/tests/system_e2e/knowledge_stage_b_local_model_probe.v1.json)，SHA-256=`8b8e31007a1ca4dc354e54adbe778c0170104544b931b03297e63f3b63e23f15`。记录不是candidate或UAT evidence，不重分类任何既有结果。这两次本地调用作为目标新增诊断单独计数，不回写原批次计数；五批UAT仍为10 E2E/24模型/15search/8embedding/8rerank。
+
+定向代码对照设计核查L2_01_01 §9～11和§20.26的B-R5-EVID-001：`HttpxKnowledgeTransport.send`已将timeout/transport/protocol失败及durationMs送入`RunObservationCollector`，snapshot仍保留；但冻结runner的`run_server`只持久化modelTasks、retrievalStages和计数，`assess`没有保留下游状态/耗时。因此缺口位于测试证据投影，不应通过新增生产诊断层、放宽超时或重写历史结果修复。适配器响应解码失败与HTTP成功仍须分层区别；仅HTTP200不能证明严格解码成功。
+
+本轮按聚焦实施路径，只加强现有两项fake故障反例：捕获当前生产Runtime observation，断言embedding timeout或protocol_failure、search completed/200、rerank timeout及非负整数durationMs，同时保留原timeout、Summary0、endpoint次数和关闭断言。未改变测试预期来容忍失败，也未修改src、Prompt、质量配置、冻结runner或运行资产。定向复评结论为：有限状态在生产观测可取符合；run-05底层原因仍不可验证，不能事后补证；整体B-CR-001仍Major/Open。
+
+实际验证：`python -m pytest tests/integration/knowledge/test_rewrite_v6_query_focus.py tests/contract/knowledge/test_bge_embedding.py tests/contract/knowledge/test_bge_rerank.py tests/system_e2e/test_knowledge_stage_b_run_05_history.py -q --tb=short`为21 passed（25.02秒；1条既有LangChain pending-deprecation warning）；修改测试compileall通过。未重跑全量Python/Java：没有生产或Java变更，§20.26全量2042/27及对应Java验证仍为上次实际结果，不冒充本轮重复执行。P3 strict为0 errors/0 warnings；JSON有限字段、计数、来源/hash及git diff --check通过；src、冻结runner、run-05资产相对起始HEAD无差异。
+
+本轮是追加诊断事实及测试强度，没有变更设计语义、工作包DAG、门禁或UAT通过标准，版本保持v2.49，不触发无关L0/L1/L2/UAT升级。当前不建议修改3秒/5秒配置；缺少原失败负载/有限异常证据，无法确认可安全修复的生产根因。run-05保持failed，8例未执行，V2完整效果仍Evidence missing；禁止自动创建第六批的执行边界不变。

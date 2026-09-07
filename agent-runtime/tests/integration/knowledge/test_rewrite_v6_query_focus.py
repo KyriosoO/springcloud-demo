@@ -139,13 +139,24 @@ async def test_embedding_failure_then_rerank_timeout_is_not_no_result(embedding_
     clients = TimeoutClients()
     runtime = build_runtime(_enabled_environment(), model_transport=model, knowledge_http_client_factory=clients)
     try:
-        outcome = await runtime.ainvoke(question=question, scope=scope(question))
+        with observation_scope() as collector:
+            outcome = await runtime.ainvoke(question=question, scope=scope(question))
+            observation = collector.snapshot()
     finally:
         await runtime.aclose()
     assert outcome.status is CapabilityStatus.TIMEOUT
     assert outcome.failure.code == "knowledge.retrieval_timeout"
     assert [r.task_id for r in model.requests] == [ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE]
     assert [path for path, _ in clients.payloads] == ["/embed", "/es/knowledge/search", "/rerank"]
+    # Existing finite transport observations distinguish failures even though
+    # frozen run05 did not persist them. Do not backfill that historical run.
+    expected_embedding = "timeout" if embedding_failure == "timeout" else "protocol_failure"
+    assert [(row["operation"], row["status"], row["httpStatus"]) for row in observation.downstream_calls] == [
+        ("knowledge.embedding", expected_embedding, None),
+        ("knowledge.search", "completed", 200),
+        ("knowledge.rerank", "timeout", None),
+    ]
+    assert all(type(row["durationMs"]) is int and row["durationMs"] >= 0 for row in observation.downstream_calls)
     assert all(client.is_closed for client in clients.clients)
 
 

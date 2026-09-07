@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "diagnosticId": "local-bge-synthetic-20260907",
+  "observedDate": "2026-09-07",
+  "sourceHead": "dbac18c0c7bf5421e3882e3566b7b2583c95bc02",
+  "purpose": "current_local_dependency_contract_and_latency_only",
+  "inputKind": "synthetic_no_business_or_corpus_data",
+  "queryCharacters": 27,
+  "rerankDocumentCharacters": 1600,
+  "calls": {
+    "embedding": 1,
+    "rerank": 1,
+    "knowledgeSearch": 0,
+    "business": 0,
+    "paidModel": 0,
+    "e2e": 0,
+    "retry": 0,
+    "resume": 0
+  },
+  "rows": [
+    {
+      "operation": "embedding",
+      "attempts": 1,
+      "items": 1,
+      "deadlineMs": 3000,
+      "validatedItems": 1024,
+      "status": "contract_valid",
+      "elapsedMs": 219,
+      "clientClosed": true
+    },
+    {
+      "operation": "rerank",
+      "attempts": 1,
+      "items": 20,
+      "deadlineMs": 5000,
+      "validatedItems": 20,
+      "status": "contract_valid",
+      "elapsedMs": 891,
+      "clientClosed": true
+    }
+  ],
+  "images": {
+    "embedding": "sha256:44a253c510171c35c165bc0fe28f73501826d5d982ba3a1e4b5746a0eaf0f613",
+    "rerank": "sha256:322c5a46791681b021194dd02633fb701c91130a95e89cecd7ecad4ef157468d"
+  },
+  "failedRunReplayed": false,
+  "historicalRootCauseConfirmed": false,
+  "uatCompletionProven": false
+}
