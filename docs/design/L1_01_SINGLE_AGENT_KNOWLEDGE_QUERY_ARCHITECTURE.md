@@ -12,7 +12,7 @@
 | 文档状态 | Approved |
 | 当前版本 | v1.21 |
 | 日期 | 2026-09-07 |
-| 本次增量 | KQ-AD-019已完成三轮内审及分离编辑的只读设计复评，可实施离线纯表示；候选构建/发布仍未实施。既有Rewrite8/Summary6/quality-v3及其证明范围不变 |
+| 本次增量 | KQ-AD-019纯向量表示已完成设计复评、实施和non-live；候选构建/发布仍未实施。既有Rewrite8/Summary6/quality-v3及其证明范围不变 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v2.8](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |

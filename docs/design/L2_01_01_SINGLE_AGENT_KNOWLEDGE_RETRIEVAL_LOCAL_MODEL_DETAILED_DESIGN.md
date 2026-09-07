@@ -12,7 +12,7 @@
 | 日期 | 2026-09-07 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-030离线纯向量表示已完成设计复评，可实施；不实施ES写入或发布。既有quality-v3及Rewrite8/Summary6不变 |
+| 本次增量 | DR-KRET-030离线纯向量表示已实施并通过定向/工具回归及代码复评；没有ES写入或发布。既有quality-v3及Rewrite8/Summary6不变 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -510,6 +510,8 @@ KnowledgeSearchResponse search(
 ## 17. 三轮内部自检与独立评审记录
 
 v2.10聚焦设计复评：三轮内审核对表示/原文、有限错误和哈希、追踪/DAG；分离编辑只读复评DR-KRET-030及上位KQ-AD-019，无S0/S1/未处理S2，准入纯函数实施。由同一执行者完成，不冒充外部独立人员；候选构建/发布尚不具备实施依据。
+
+DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__context__`保留原输入的问题，复评确认有限错误、原字节/哈希、不可变和无I/O；纯函数切片无未处理Blocker/Major/Minor。测试与有限对照证据见P3 §20.46；不外推为候选迁移或阶段B整体完成。
 
 | 轮次 | 检查重点 | 结论 |
 |---|---|---|

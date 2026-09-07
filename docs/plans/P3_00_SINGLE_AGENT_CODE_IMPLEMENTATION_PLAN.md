@@ -1740,3 +1740,11 @@ agent-service Maven命令同§20.42，进程PYTHONPATH指向当前源码且移�
 后续只读模型来源核查确认8908由既有Docker BGE-M3服务提供，实际encode固定max_length=1024、fp16；容器镜像/服务源码hash、缓存revision及库版本记录于本轮有限evidence。使用同一只读源、相同fingerprint和缓存tokenizer纯CPU计数，额外ES17次、embedding0：738附件正文/新表示最长224/244 tokens，均不截断；13,171基线正文4条超限（max1070），新表示7条超限（max1102），纯函数字符/字节校验拒绝0。故前述全库向量试验7条context实际被服务截断，不能视为全库无损构建证明。累计本轮ES57，BGE仍989/30821、health1、付费0/写入0。追加复核区分纯函数字节边界与模型token前置，并将无截断预检明确于L2 §12.8；不引入Tokenizer依赖、不修改BGE服务、不放宽输入边界。
 
 随后完成“仅重编码738个受控附件、保留13,171基线向量”的全policy离线对照，仍是同五问题和源fingerprint，范围按assetKind与Profile而非gold/文档ID。必要原文排名依次为1/2、1/3、4/6、33/18、2；定义/边界明显改善，税率规则进入前20但住宿定义仍33，软件保留问题仍2。该最小范围比全部重编码更适合进入候选设计，且全部待重编码文本无token截断；不修改law、不重新处理正文或放大窗口。新增ES18、BGE25/743文本、18.2秒，写入和付费0；本轮累计ES75、BGE1014/31564文本、health1。局部候选本身尚未构建/发布，不能称为真实检索或完整P0通过。历史税率覆盖、旧基线向量来源、模型权重身份及完整发布回归继续显式待办。
+
+设计/诊断提交=`499f837`。随后DR-KRET-030纯函数及48项新测试完成，旧indexing.py、既有依赖和生产根未改。正式代码对照设计复核两轮：首轮`B-VEC-001`发现`raise ... from None`仍在异常`__context__`保存非法输入；改为离开Unicode处理块后抛有限ContractError，并验证cause/context均None。第二轮复核原字节、精确去重、三种错误、字符/字节边界、frozen/repr、无网络/全局读写/计划/gold依赖，纯函数切片无未处理Blocker/Major/Minor。该复核与作者编辑分开执行，不冒充外部独立人员；整体语义和P0风险不关闭。
+
+实际验证：使用已存在`D:\codex-data\knowledge-corpus-stage-a\.venv\Scripts\python.exe`，`-m pytest -o addopts='' tests -q --tb=short`最终78 passed（1.07秒），含48新例与30原工具例；`-m mypy --strict src`14文件通过；`-m compileall -q src tests`通过。先在通用C:\Python312检查工具依赖时缺pymupdf，未执行工具回归；定位README指定既有隔离环境后全部通过，无安装或全局配置修改。agent-runtime以进程PYTHONPATH运行run-08 history及两份current traceability，18 passed（12.62秒，1条既有LangChain预告），覆盖七项冻结hash和原35/37追踪。所有测试子进程移除Key，无真实模型调用。
+
+L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个本地链接存在；有限JSON计数/排名/预算算术及凭据/JWT模式扫描通过。源码引用仅在新离线模块及其测试，没有接入现行builder或在线生产。历史run、StageA evidence及旧工具源码、Java服务/权限、现行索引/alias均不变；新模块使当前工具源码fingerprint变化，不用于覆盖旧build manifest或重新证明历史运行。有限数据见`knowledge-corpus-tools/evidence/vector-representation-full-policy-20260907.v1.json`，不保存原文或向量。此次无Java/PowerShell/Runtime源码变化，未重复其Maven/AST/全量Runtime，上一轮§20.44结果仍仅表示当时执行；本纯函数不能代替后续迁移的完整验证。
+
+本切片表示设计/实施/non-live已完成；下一步在同一目标下落实738附件限定候选的构建合同、模型完整快照、全记录/旧向量保持及真实只读候选验证。不要求对已授权政策结构正常步骤重复授权，也不自动复用已消费模型批次。阶段B仍未完成：UAT=Deferred、QUALITY=Blocked，无新付费run或索引发布。
