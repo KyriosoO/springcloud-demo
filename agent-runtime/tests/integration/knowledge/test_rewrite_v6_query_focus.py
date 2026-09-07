@@ -116,6 +116,39 @@ async def test_v2_limits_mismatch_fails_before_summary(monkeypatch):
     assert all(client.is_closed for client in clients.clients)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("embedding_failure", ["timeout", "protocol"])
+async def test_embedding_failure_then_rerank_timeout_is_not_no_result(embedding_failure):
+    class TimeoutClients(RecordingClients):
+        def __call__(self, base_url):
+            client = super().__call__(base_url)
+
+            async def fail(request):
+                if request.url.path == "/embed" and embedding_failure == "protocol":
+                    from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
+                    raise RetrievalTransportError("invalid_response")
+                if request.url.path in ("/embed", "/rerank"):
+                    raise httpx.ReadTimeout("synthetic bounded dependency timeout", request=request)
+
+            client.event_hooks["request"].append(fail)
+            return client
+
+    question = "住宿服务的政策分类"
+    model = PlanModel({"outcome": "search", "queries": [
+        {"domain_id": "tax.policy", "query": question}], "missing_conditions": []})
+    clients = TimeoutClients()
+    runtime = build_runtime(_enabled_environment(), model_transport=model, knowledge_http_client_factory=clients)
+    try:
+        outcome = await runtime.ainvoke(question=question, scope=scope(question))
+    finally:
+        await runtime.aclose()
+    assert outcome.status is CapabilityStatus.TIMEOUT
+    assert outcome.failure.code == "knowledge.retrieval_timeout"
+    assert [r.task_id for r in model.requests] == [ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE]
+    assert [path for path, _ in clients.payloads] == ["/embed", "/es/knowledge/search", "/rerank"]
+    assert all(client.is_closed for client in clients.clients)
+
+
 @pytest.mark.parametrize("query", [
     "2016年住宿服务6％税率政策",  # Lost negation.
     "2017年不适用住宿服务6％税率政策",  # Changed date.
