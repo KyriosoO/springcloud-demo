@@ -10,9 +10,9 @@
 | 文档编号 | `L2_01_02` |
 | 当前版本 | v1.21 |
 | 日期 | 2026-09-07 |
-| 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6已审未实施）、抽取式校验、本地结果和 P5 效果验证 |
+| 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6组件已实施、生产待接线）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KEV-029/030经三轮内审及两轮正式只读评审通过，允许non-live实施；当前未实施，生产仍Summary5/quality-v2 |
+| 本次增量 | DR-KEV-029/030组件已实施并通过non-live复核；完整生产接线待完成，生产仍Summary5/quality-v2，证据归P3 §20.39 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V5及non-live、效果口径 v2 及阶段 A policy catalog v2/current snapshot 兼容已完成；当前V5部分真实场景通过，但跨域必要Evidence覆盖及完整专项未通过；最新有效P5效果等级仍为 `partially_effective`，具体候选、门禁和运行证据由 UAT_01/P3/evidence 管理 |
 
@@ -232,7 +232,7 @@ validator仍仅按§9.2验证，合法单引用不会被本地语义规则拒绝
 
 测试分两层：non-live验证Prompt要求、输入/parser预算不变、单/多引用合法性、重复/未知/拼接引用拒绝、insufficient/model failure/timeout/cancel及下游计数、唯一生产绑定和旧源码hash；真实UAT在新的未消费授权后按冻结问题与原双条款判据验证，不修改失败case/gold，不以fake语义结果冒充通过。历史运行测试只在测试作用域加载冻结旧根，生产守卫不得放开。回滚优先禁用Knowledge；如恢复旧绑定，回退对应源码和新配置快照，不能改历史或单请求切换。
 
-### 9.5 需求锚点与Summary V6覆盖合同（设计目标）
+### 9.5 需求锚点与Summary V6覆盖合同（组件已实施，生产待接线）
 
 `DR-KEV-029`承接DR-KFLOW-024及DR-KRET-029：Evidence完整性先校验请求需求、quality-v3、候选requirement_ids和所属域。每个需求ID最多落在一个候选；V3锚点总数≤4，标记和coverage_anchor一致；错误ID/域/重复映射为evidence_failure，Summary0。合法计划某需求无候选、预算装不下必需锚点时返回insufficient_evidence、Summary0，不伪造技术失败或丢弃需求。最终先按rank保留全部需求锚点，再按既有顺序填充；必须覆盖全部请求需求及选中域，仍最多8证据/32768bytes、每父文档≤总8。
 
@@ -514,7 +514,7 @@ def classify_conclusion(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，DR-KEV-029/030经三轮内审及两轮正式只读评审，准入non-live实现；当前未实施，整体真实UAT仍未完成 |
+| 是否可作为实现依据 | 是，DR-KEV-029/030已评审，组件已实施并通过non-live；成对接线和整体真实UAT仍未完成，见P3 §20.39 |
 | 当前允许实施范围 | §9.5需求选择/新载荷/覆盖validator及测试专用Schema2来源适配；保留旧V1～V5和安全算法。已消费真实授权不复用，剩余总预算不构成新批次权限 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -530,7 +530,7 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.21；DR-KEV-029/030增量已评审未实施，当前生产仍V5。
+- 当前版本：v1.21；DR-KEV-029/030组件已评审实施，成对接线待完成，当前生产仍V5。
 - 文档状态：Approved；DR-KEV-027/028三轮内审和只读独立复评通过，允许本切片非live实施；记录归P3_00 §20.17，不代表真实效果通过。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
 
