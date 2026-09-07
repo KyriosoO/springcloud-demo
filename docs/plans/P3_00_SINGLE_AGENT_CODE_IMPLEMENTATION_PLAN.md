@@ -44,7 +44,7 @@ v2.49记录用户再次授权后的质量策略V2设计与实施；§20.23为本
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.19 | Knowledge 在线流程与阶段 A 离线 Corpus Build Plane | Approved |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.22 | 单动作、共享V3合同、最小必要域及V6每域子问聚焦；V6仅非live准入 | Approved |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.23 | 共享V3合同、V6每域聚焦；DR-KFLOW-023类别词/数量分离 | Approved，仅增量non-live准入 |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.8 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.20 | Evidence/出域、Summary V5增量设计 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
@@ -1326,3 +1326,13 @@ NONLIVE恢复Done、UAT Ready、QUALITY及B-CR-001仍Open/Blocked。按既有§2
 归档验证：新history与run-06 fake共59 passed（11.36秒），包括六项SHA、332项冻结Git源码、严格有限结果、累计预算、原gold、停止/清理及冻结Guard反例。该反例使用冻结Git源码，不要求未来生产永远保留误拒绝。全量2094/27、mypy/compileall等真实命令见§20.28；归档后最终复核结果在后续追加。阶段A和既有35/37功能结论保持原范围，未继承为新增条件语义通过。
 
 归档后再次执行正式隔离入口`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`，host/preflight14 passed，全量2101 passed/27 opt-in skipped/0 failed（277.33秒，1条既有预告）。归档测试和六项原始资产逐字节/hash复核通过；版本化runner、生产源码、Stage A绑定及旧六批源资产未改变。有限证据正式复核检查严格字段、调用账本、失败即停止、原gold和不可变源码来源，无新增Blocker/Major；B-R6-DES-001与总体B-CR-001仍待后续处理，不以归档通过替代专项UAT通过。
+
+### 20.30 类别词误识别最小设计修订
+
+用户阶段B持续授权包含失败后的根因分析、目标内设计与非live修复；run-06仍停止，不读取Key、不新建付费批次。B-R6-DES-001已由§20.29反例证实。L2_01_00升级v1.23/DR-KFLOW-023：新内部Guard仅排除已有四个税务类别短语中的数字词素，逐query类别存在性、真正数字/比例/日期/文号/法条/否定检查保持；新Guard与旧默认隔离，当前根显式绑定，任务/Prompt和历史字节不变。REQ/L1已要求保护实际条件并由LLM理解，无须修改上层语义；P3/UAT/ARCH只同步直接依据。
+
+本切片复用既有实施→nonlive依赖，没有新增Gate/工作包或重新申请付费额度。主表Done描述§20.24之前已验实现，本增量设计待审、实现未开始、nonlive未开始；其当前状态以本节为准，未批准不能编码。QUALITY仍Blocked、UAT仍Deferred；预算累计14/34/21/11/11不变。
+
+三轮内审记录：(1) 核对L1 KQ-AD-013/REQ-KQUALITY-001与真实反例，排除Prompt维持词序、集合比较及泛化词典方案；(2) 核对Guard原始token/计数/候选长度边界，纠正“长度由extract统一控制”的描述，原文其他约束不受mask影响且类别检查必须成对；(3) 核对代码调用方、旧Guard/任务历史依赖、主追踪及唯一当前根，修复§8/§11残留V5引用与版本状态歧义。内审不构成正式批准，接下来冻结设计修订执行只读L2/跨层评审。
+
+正式设计复评第1轮（独立于编辑阶段的只读检查）：按L2实施可行性与跨层rubric核对上述REQ/L1、旧Guard、Planner、bootstrap及测试落点；公共合同/权限/阶段A不变，类别保护与新数字提取成对、历史默认与回滚明确、真实数量顺序不放宽、没有case特判/新增Gate。S0=0、S1=0、未处理S2=0，批准DR-KFLOW-023非live切片；当前实现尚未开始。L2 strict与P3 strict均0 errors/0 warnings。此为同一执行者分离阶段审查，不冒充另一独立人员批准；不构成新付费授权或完整UAT结论。

@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.22 |
-| 日期 | 2026-09-04 |
+| 当前版本 | v1.23 |
+| 日期 | 2026-09-07 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.19](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；V6尚无真实效果测量，完整专项未通过，增量记录由P3管理，效果运行由UAT_01管理 |
+| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；已有有限真实证据，完整专项未通过。DR-KFLOW-023已评审、待实施；增量记录由P3管理，效果运行由UAT_01管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -21,6 +21,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.23 | 2026-09-07 | 类别词中的中文词素被错误识别为数值 | DR-KFLOW-023区分既有四类税务条件与数量约束，保留历史Guard和真实数字/日期/比例检查；仅当前根显式绑定，已评审准入非live实施 |
 | v1.22 | 2026-09-04 | 排序与Evidence策略必须同版消费 | DR-KFLOW-022定义V2内部版本透传、唯一成对绑定及历史V1隔离，不改变模型或HTTP Schema |
 | v1.21 | 2026-09-04 | 每域检索表达被其他子问题的背景牵引 | 新增DR-KFLOW-021：Rewrite V6只调整每域表达聚焦指令，保留V3 decoder/Guard和V4/V5澄清/最小必要域；排序、Evidence配额、Summary及历史资产不改；本增量评审前不可实施 |
 | v1.20 | 2026-09-04 | 用户确认摘要分类上下文证明要求 | DR-KFLOW-012的目标单绑定调整为Rewrite5/Summary5，摘要语义由L2_01_02 DR-KEV-027治理；旧任务/validator/历史资产不变 |
@@ -96,6 +97,7 @@
 | `REQ-KFLOW-002`、`REQ-KFLOW-003`、`CON-KFLOW-004` | `DR-KFLOW-020` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-012` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
 | `REQ-KFLOW-002`、`REQ-KFLOW-003`、`CON-KFLOW-004` | `DR-KFLOW-021` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-013` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
 | `REQ-KFLOW-003`、`CON-KFLOW-004`；`KQ-AD-014` | `DR-KFLOW-022` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010`：semantic_planner、planning、capability、bootstrap的内部版本透传 | `TEST-KFLOW-014`：V2成对绑定、未知版本零检索、历史V1、disabled与单动作 | `VAL-KFLOW-005`：当前根/历史根及严格类型回归 |
+| `REQ-KFLOW-002`、`CON-KFLOW-004`；`KQ-AD-013` | `DR-KFLOW-023` | `IMPL-KFLOW-003`、`IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-015` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
 
 ## 5. 关联资源与责任边界
 
@@ -116,7 +118,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、V3格式语义域计划、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合绑定 `KnowledgeRewriteTaskV6` + `KnowledgeSummaryTaskV5`；§8.3的V6已实施，尚无真实效果测量。Rewrite V1～V5及Summary V1～V4保留历史兼容、证据和可追溯回滚责任；V3公开decoder/类型由V4/V5/V6复用，具体验证状态见P3。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、V3格式语义域计划、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合绑定 `KnowledgeRewriteTaskV6` + `KnowledgeSummaryTaskV5`；§8.3的V6已实施，已有有限真实验证但完整专项未通过。§8.4的类别词识别纠偏尚未实施。Rewrite V1～V5及Summary V1～V4保留历史兼容、证据和可追溯回滚责任；V3公开decoder/类型由V4/V5/V6复用，具体验证状态见P3。
 
 旧 Summary V1～V4 保留给历史资产；当前生产组合根只能注册 V5，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 
@@ -144,6 +146,7 @@
 | `DR-KFLOW-020` | §8.2的Rewrite V5明确原文类别与最小必要域，复用V3合同及V4澄清规则；仅模型负责语义选域，不新增本地关键词规则、额外调用或Summary变更 |
 | `DR-KFLOW-021` | §8.3的Rewrite V6以本域待证明子问题为query边界，不把其他子问题的背景词机械复制到每域；原问题和所有既有显式条件校验不变，V6批准并实施后唯一替换V5，不影响排序/Evidence/Summary |
 | `DR-KFLOW-022` | 质量策略V2内部版本沿planner→plan→retrieval→Evidence透传并与limits成对绑定；详见文末增量，模型及HTTP不能选择版本 |
+| `DR-KFLOW-023` | 当前根仅将既有四个明确类别短语与数量分开检查；数字之外的约束、逐域类别保护及全部失败关闭不变，历史Guard/default不变；详见§8.4 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
 | `DR-KFLOW-015` | 只有发布门禁通过并同步 Profile、物理 index UUID/mapping、逻辑 snapshot 及模型出域目录后，在线组合根才允许消费新 alias 目标；任何不一致失败关闭且不自动切换 |
@@ -175,7 +178,7 @@ Selector 不判断被问文件是否真实存在；有合法域但检索无候�
 
 ## 8. 问题改写详细设计
 
-本节列出由V3引入并继续复用的严格合同；当前生产任务版本是§8.2的V5，并非同时执行多个Rewrite任务。
+本节列出由V3引入并继续复用的严格合同；当前生产任务版本是§8.3的V6，并非同时执行多个Rewrite任务。§8.4仅定义本地类别词数值识别纠偏，不改变任务或Prompt。
 
 1. 原问题经当前 `QuestionEgressGuard` 后才可调用模型；原文保留在请求内，不把语义规划交给输入安全层。V1/V2 原任务文件及其 parser 保持历史字节不变。
 2. V3 输入为安全原问题和已启用逻辑域安全目录；只含逻辑 ID、说明，不含 Profile、物理字段、索引或 URL。
@@ -247,6 +250,21 @@ V6规则：
 允许动作仅为本切片评审通过后的非live实施；不依赖待确认的Evidence配额调整，也不授权新的付费批次。回滚通过一致恢复源码及任务绑定，不能运行时切换旧任务；无数据迁移、公开DTO、索引、角色或出域范围变化。
 
 证据限制：现行Guard能拒绝其已编码的日期、数值、比例、否定和纳税条件偏差，不足以证明任意税种、法律名称或主体同义表达的语义归属。V6不新增这些词的本地黑白名单，也不把结构合法当作语义正确。非酒店保留问题与“税种明确修饰本域”的成对UAT必须继续验证该风险；未获新授权前不得以fake或本地BGE试验关闭它。
+
+### 8.4 类别词与数量约束分离（DR-KFLOW-023）
+
+直接依据为REQ-KQUALITY-001、REQ-KFLOW-002和L1 KQ-AD-013。当前数字提取把“一般纳税人”“一般计税”的“一”当成数量，导致仅将年份提前、保留全部条件的改写被误拒绝。此处纠正约束类型识别，不允许删去真实数字、弱化条件保护或由本地代替模型生成计划。
+
+最小方案比较：仅要求Prompt维持原词序会把正常表达限制转移给模型，无法可靠修复；数字改为集合比较会丢失次数/顺序并可能掩盖数值对应关系，不采用；新增全量语义Schema或中文分析器范围过大。采用新内部`TaxQuestionSemanticGuard`，只处理已经有独立保护的四个代码绑定完整短语：`一般纳税人`、`小规模纳税人`、`一般计税`、`简易计税`。不按具体UAT问题、文档ID或酒店关键词特判。
+
+1. 建议新增`knowledge/tax_question_semantics.py`，定义四短语只读tuple和继承旧Guard的`TaxQuestionSemanticGuard.extract(original_question: str) -> ProtectedConstraintSet`。首先在原NFC文本执行旧extract，原类型、控制字符、128字符约束token及32/64约束数限制仍生效；候选1024字符限制由原validate_candidate保留，原问题总长仍由入口控制。
+2. 只在用于提取numbers的局部副本中把完整短语替换为等长空格，防止两侧数值被拼接；禁止删单独“一”、泛化后缀或任意词典/配置。重用旧extract取得该副本的numbers；原始返回中的dates、document_numbers、article_refs和negations必须来自未替换原文。全部约束仍保持原顺序、次数及精确值；不作集合化、排序、归一比例或丢弃单位。
+3. 类别词没有从原问题、模型输入或输出查询删除。Planner逐query对四个短语继续执行与原问相同的存在性检查；任何遗漏、新增或替换整份计划失败。Guard与Planner共享这一静态tuple，不能各自扩充或由请求/环境选择。类别词检查与新数字提取必须成对使用，不能用新Guard单独证明完整语义等价。
+4. 建议修改`KnowledgeSemanticPlanner.__init__`增加内部可选`semantic_guard: QuestionSemanticGuard | None = None`；默认仍旧Guard，历史调用方无需迁移。当前bootstrap显式传新Guard；disabled无实例/下游资源。只有内部代码可绑定，不新增公共DTO、模型字段、配置或选择开关。旧`question_semantics.py`、Rewrite/Summary/Prompt、decoder、历史runner和冻结资产逐字节不变。
+5. 继承旧validate_candidate，真正数字顺序、日期、文号、法条及否定检查保持；Planner另有比例完整值/单位与逐域类别检查，两者不可移除。错误继续knowledge.rewrite_failure，下游和Summary0，无fallback，不新增外部错误枚举。原问题仍为Summary边界，无额外模型或业务调用。
+6. 这是有限词素误分类修复，不是任意语义等价证明；多组真实数字重排、其他汉字词素/否定词歧义仍按既有失败关闭处理，记录风险而不顺带建设规则引擎。真实模型是否输出了误拒绝表达未知，不以合成反例改判历史UAT。
+
+实现切片依赖：本节设计评审→新Guard/Planner成对绑定→单元/当前根fake/历史/类型/Spring回归→代码复评。回滚单位为当前根Guard绑定及配对实现，旧Guard仍可追溯；默认禁用Knowledge也可隔离，禁止请求内切换或live补跑。本节经三轮内审及分离编辑阶段的只读L2/跨层复评通过，允许本切片非live实施；审批和实施证据归P3。
 
 ## 9. 检索计划与核心流程
 
@@ -338,7 +356,7 @@ validate empty arguments
 1. 加载 `KnowledgeSettings`；disabled 时立即返回“无附加任务、无附加 Provider、无 owned Knowledge resource”的结果。
 2. enabled 时拒绝生产 stub provider；测试可显式注入 fake transport，但必须继续走同一装配函数和注册校验。
 3. enabled 时加载 `KnowledgeRetrievalSettings` 和 policy catalog，验证已启用域、Profile version、ES/BGE origins、1024 维、rerank model、final candidates 与 task version。
-4. 按§8.2与L2_01_02 §9.4创建 Rewrite V5/Summary V5 definitions，并作为既有 Model Gateway 的唯一 Knowledge 注册项；旧Rewrite/Summary V1～V4不同时注册、不作自动后备。
+4. 按§8.3与L2_01_02 §9.4创建 Rewrite V6/Summary V5 definitions，并作为既有 Model Gateway 的唯一 Knowledge 注册项；旧Rewrite/Summary不同时注册、不作自动后备。§8.4获批并实施后只在当前Planner显式绑定新Guard。
 5. 所有纯配置、目录、策略和任务校验完成后，才为三个固定 origin 分别创建 bounded HTTP client/transport并构建 Retrieval/Provider。
 6. 把 `KnowledgeCapabilityProvider` 作为 `BusinessQueryRuntimeCompositionRoot.additional_providers` 追加到同一 Runtime。
 7. 顶层 lifecycle 同时拥有 Business clients、Knowledge clients 和 model；关闭按资源逐项尝试，保留首个异常但仍释放其余资源。
@@ -368,8 +386,8 @@ validate empty arguments
 |---|---|
 | `IMPL-KFLOW-001` | `agent-runtime/src/agent_runtime/knowledge/provider.py`：descriptor 和 registrations |
 | `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：`KnowledgeArgumentValidator`、`KnowledgeQueryCapability.handle` |
-| `IMPL-KFLOW-003` | `agent-runtime/src/agent_runtime/knowledge/question_semantics.py`：semantic guard |
-| `IMPL-KFLOW-004` | 已有 `knowledge/rewrite_v3.py`（精确合同）、`knowledge/semantic_planner.py`、V4/V5/V6任务；DR-KFLOW-021已新增`knowledge/rewrite_v6.py`并修改bootstrap唯一绑定及版本守卫；旧任务、planner和Guard不改 |
+| `IMPL-KFLOW-003` | 已有`knowledge/question_semantics.py`旧Guard不改；DR-KFLOW-023建议新增`knowledge/tax_question_semantics.py`类别词数字分离 |
+| `IMPL-KFLOW-004` | 已有`knowledge/rewrite_v3.py`（精确合同）、`knowledge/semantic_planner.py`、V4/V5/V6任务；DR-KFLOW-023建议增加Planner内部Guard注入及共享类别tuple，旧默认与任务不变 |
 | `IMPL-KFLOW-005` | `agent-runtime/src/agent_runtime/knowledge/catalog.py`、`domain_selection.py` |
 | `IMPL-KFLOW-006` | `agent-runtime/src/agent_runtime/knowledge/planning.py`：`KnowledgeRetrievalPlanBuilder.build` |
 | `IMPL-KFLOW-007` | `agent-runtime/src/agent_runtime/knowledge/contracts.py`、`agent-runtime/src/agent_runtime/knowledge/context.py` |
@@ -428,6 +446,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `TEST-KFLOW-012` | DR-KFLOW-020：V5仅改指令/版本、V3 exact合同等价、当前生产唯一V5与旧版本拒绝、单域/双域fake及非酒店保留表达；真实语义另行UAT，不修改历史gold |
 | `TEST-KFLOW-013` | DR-KFLOW-021：V6指令局部替换/同一decoder与预算、每域聚焦及显式条件不丢失、原问Summary、当前单绑定与旧版本拒绝、历史隔离；合同/生产fake/防回退，真实语义不由fake证明 |
 | `TEST-KFLOW-014` | DR-KFLOW-022：quality-v2从当前根透传、错误版本拒绝、V2/limits配对、历史V1默认、disabled及单动作防回退 |
+| `TEST-KFLOW-015` | DR-KFLOW-023：建议新增`test_tax_question_semantics.py`及`test_tax_semantic_guard_production.py`；类别/年份变序成功、类别丢失新增、实际数字/比例/日期/文号/法条/否定变化拒绝、重复数量和上限、旧默认和历史哈希、当前根唯一绑定/零调用/资源关闭 |
 
 ### 15.2 验证编号定义
 
@@ -455,7 +474,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，DR-KFLOW-021经下述三轮内审及独立于修订操作的只读复评，只批准V6非live切片；核心P0和真实UAT仍未通过 |
-| 当前允许实施范围 | 既有在线流程、Rewrite6/Summary5；本次DR-KFLOW-022及下位DR-KRET-028/DR-KEV-028质量V2通过只读设计复评后允许成对实施与non-live，禁止Profile/index/policy/validator变化 |
+| 当前允许实施范围 | 既有在线流程、Rewrite6/Summary5和质量V2；DR-KFLOW-023已完成三轮内审及只读设计复评，允许当前内部Guard绑定及non-live。禁止Profile/index/policy、真实数值约束及权限变化 |
 | 当前禁止动作 | 未配置新域/物理资源选择、公共契约变化、未按UAT冻结或超预算的真实模型调用、请求触发索引写入或独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
 
@@ -483,8 +502,8 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.18 独立审查首轮 | 分离作者修改阶段后重新核对L1/L2/REQ及代码契约；无S0/S1，发现S2：DR019未进入§4.2主追踪表、实施依据的否决状态不明确；已最小修复 | Fixed，待复评 |
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
-- 当前版本：v1.22。
-- 文档状态：Approved；DR-KFLOW-021/022增量评审通过，实施及验证记录见P3，不代表真实UAT通过。
+- 当前版本：v1.23。
+- 文档状态：Approved；DR-KFLOW-023允许非live实施。增量审批及验证记录见P3，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
 ## 阶段 B 增量实施追踪

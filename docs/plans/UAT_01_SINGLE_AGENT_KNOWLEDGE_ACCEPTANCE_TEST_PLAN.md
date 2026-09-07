@@ -9,7 +9,7 @@
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-04 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.19、`L2_01_00` v1.22、`L2_01_01` v2.8、`L2_01_02` v1.20、`P3_00` v2.49；阶段 B 设计评审通过，新增运行协议评审及实施/UAT状态另记 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.19、`L2_01_00` v1.23、`L2_01_01` v2.8、`L2_01_02` v1.20、`P3_00` v2.49；阶段 B 设计及DR-KFLOW-023增量已审；实施/UAT状态另记 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -514,3 +514,7 @@ non-live必须覆盖：关键词第一名但语义低位不强制入选、同域
 本批4端到端/10模型/6search/3embedding/3rerank，六批累计14/34/21/11/11，Business/answer/retry/resume0。原跨域必要证据反例本次通过，但第四例及六个未执行用例未通过；专项Functional=Failed，完整Effectiveness未测完，不赋予effective/partially_effective等级。安全和owned资源清理通过，run-06授权已终止，不自动建立run-07。
 
 第四例无下游操作，不能归因于此次BGE/ES；模型任务完成不等于本地语义校验通过。P3记录的中文词素/数字顺序误拒绝只由独立fake反例证实，不冒充历史模型输出。后续非live修复不得修改原问题、gold或本批失败资产，也不能复用本批剩余预算。原35/37功能追踪及阶段A继续保留原证明范围。
+
+### 14.17 类别词保护纠偏的验收边界
+
+L2_01_00 DR-KFLOW-023拟纠正已有税务类别词的数值误识别。新增non-live应证明完整条件下年份前置可通过，类别遗漏/补造、实际数字/比例/日期/否定改变仍拒绝且下游0；不能通过交换多个真实数字、修改UAT原问题或gold取得通过。此处只同步设计依据和反例验证方式，原10例及逐项判据不变，不增加付费额度或新批次。设计/实施状态归P3 §20.30，run-06结果与未测量风险不变。
