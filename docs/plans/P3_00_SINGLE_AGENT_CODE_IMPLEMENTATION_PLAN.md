@@ -1758,8 +1758,27 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 | 动作 | 直接前置及设计 | 状态 | 验证/失败边界 |
 |---|---|---|---|
 | 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
-| builder及fake验证 | 上述合同评审 | Ready | TEST-KRET-026/VAL-KRET-012；无alias写入 |
-| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Blocked | clone新名称、738附件有限BGE，全记录对照、失败封存 |
+| builder及fake验证 | 上述合同评审 | Done | TEST-KRET-026/VAL-KRET-012；87新增fake及原工具回归通过，无真实写入 |
+| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Ready | 先完成token/模型首尾绑定，再clone新名称、738附件有限BGE，全记录对照、失败封存；尚未执行 |
 | typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；原alias保持至发布证据齐全 |
 
 准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。
+
+已提交设计`249fcd974e603f6c7d53b768afb14ff05d8ba263`后，新增`vector_candidate.py`及`test_vector_candidate.py`。不改旧`indexing.py`/`release.py`、Java/Runtime生产代码、冻结资产或索引。builder选择器与Java配置严格相同：字段为`channel`，不是猜测的`category`；只更新其中的attachment。HTTP origin/环境代理/redirect/超时、严格JSON/有限向量、完整scan/fingerprint、原生clone、候选只读初态、CAS批量partial update、最终逐条比对及失败封存均有反例。只读扫描真实源15521条，policy13909、attachment738；所有目标附件身份/ACL/原文hash及全库向量格式通过。盘点64次ES读取，候选写入/alias/embedding/付费均0；额外版本/定义/计数/元数据类型检查4次只读，正文/向量未落盘。
+
+源绑定：UUID=`SurWRSglRd6ZRddEBWy2Sw`；mapping SHA=`7b83f96b013c6f6cfa671f13488d45101d2273a048eac88cc764fcf218fb3cdf`；全记录fingerprint=`fac81f8f0fc73b23b0b7719c846662faf35e20b7dc3a6a70379abad917e1e418`。本fingerprint按DR-KRET-031全字段+float32算法，不与§20.46较窄字段对照hash混用；真实构建仍重新核对，不以盘点时事实假定源永不变化。
+
+代码对照评审共4轮（同一执行者分阶段，不冒充外部人员）：首轮发现bulk回执未绑定文档ID、候选初始设置检查及取消清理诊断不足，完成最小修复；第二轮发现HTTP环境代理可继承及边界反例不足，强制trust_env=false并补齐大小/流超时/重复JSON/预算/篡改测试，澄清分阶段timeout；第三轮暂存复核发现callback可通过自定义异常reason带出任意文本，以及数字1可误当write-block true，收敛全部错误码并严格区分类型；第四轮只读复核代码、87个反例/成功例及全量工具结果，builder切片Blocker=0、Major=0、未处理Minor=0。真实驱动/model/token/ANN/typed/发布均不包含在本次通过结论内。
+
+实际命令与结果：
+
+| 命令/环境 | 本次结果 |
+|---|---|
+| 既有corpus隔离Python，工具目录`-m pytest` | 165 passed（1.84秒）：87新builder、48表示、30原工具 |
+| 同环境`-m mypy --strict src` | 15源文件通过 |
+| 同环境`-m compileall -q src tests` | 通过 |
+| C:\Python312\python.exe，进程移除Key、PYTHONPATH=当前src，`-m pytest tests/system_e2e/test_knowledge_stage_b_run_08_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short` | 18 passed（12.77秒），1条既有LangChain预告；七项冻结hash及35/37追踪，不冒充重跑真实UAT |
+
+环境失败如实记录：工具目录直接`-m mypy`因包级查找缺py.typed未执行类型检查，改为README既有源码入口`--strict src`后通过；初用agent-runtime/.venv运行追踪因该服务环境没有pytest而未执行测试，改用既有C:\Python312及进程PYTHONPATH后通过，无安装或全局配置变动。新代码首次类型检查发现7处Optional控制流注解问题，通过NoReturn及已有运行时校验表达修复，不弱化类型或测试。
+
+本轮不重复无变更的Java/Maven、PowerShell AST、全量Runtime或Spring E2E；新模块没有在线调用方，待真实索引接线/发布前执行相应完整验证。当前source/alias、StageA和run-08历史均未变；不创建run-09、不读取Key、不重用付费授权。阶段B整体仍未完成，下一步直接完成已授权模型/token准备及无alias候选构建，再按证据推进typed检索和发布。
