@@ -19,7 +19,9 @@ _PROMPT_INJECTION = re.compile(
 )
 _CHINESE_ID = re.compile(r"(?<!\d)\d{17}[0-9Xx](?!\d)")
 _PHONE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
-_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+# Presence classification needs no word separator: Chinese text and punctuation
+# may directly surround an ASCII email. This is not an address extractor.
+_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _EMPLOYEE_ID = re.compile(r"(?:员工编号|工号|employee\s*id)\s*[:=：#]?\s*[A-Za-z0-9_-]{2,}", re.IGNORECASE)
 _TRANSACTION_ID = re.compile(r"(?:交易号|流水号|transaction\s*id)\s*[:=：#]?\s*[A-Za-z0-9_-]{4,}", re.IGNORECASE)
 _FINANCIAL_ACCOUNT = re.compile(r"(?:银行卡|银行账户|账户|账号|account)\s*[:=：#]?\s*\d{6,}", re.IGNORECASE)
