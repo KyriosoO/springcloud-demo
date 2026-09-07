@@ -12,7 +12,7 @@
 | 日期 | 2026-09-07 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-029经三轮内审及两轮正式只读评审通过，允许non-live实施；当前未实施，生产排序仍quality-v2 |
+| 本次增量 | DR-KRET-029需求重排组件已实施并通过non-live复核，生产排序仍quality-v2；完整接线等待Summary消费者，证据归P3 §20.38 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -248,7 +248,7 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
 V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同键保持既有稳定输入序）；不比较不同query裸分数。锚点后按目录域序轮转，每域取下一个尚未输出的identity；重复项不能占用轮转名额。仅在该域本次已授权、去重融合的候选中选择，关键词候选不会被整体丢弃。候选所属域及快照保留，跨域重复identity只输出一次。最终final20、Evidence8及BGE调用/输入/时限均不变；缺失分数、重复索引、非有限数、超时或取消仍沿既有失败路径，不能回退V1。
 
-### 9.4 必要证据需求排序（DR-KRET-029；设计目标）
+### 9.4 必要证据需求排序（DR-KRET-029；组件已实施，生产待接线）
 
 来源为KQ-AD-018及DR-KFLOW-024。新`knowledge-retrieval-quality-v3`不是多轮检索：域、queries、requirements在首次检索前一次冻结；search仍每域keyword/vector各一次、每路≤20、原始候选≤80、embedding≤2，Profile/index/alias均不变。不存在失败后扩域、新query或追加检索。
 
@@ -480,7 +480,7 @@ KnowledgeSearchResponse search(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，DR-KRET-029经三轮内审及两轮正式只读评审，准入non-live实现；当前未实施，不继承真实UAT通过 |
+| 是否可作为实现依据 | 是，DR-KRET-029已评审，需求排序组件已实施并通过non-live；完整接线与真实UAT尚未完成，见P3 §20.38 |
 | 当前允许实施范围 | 阶段B §9.4需求排序与内部标签，保持typed服务合同。阶段A已发布索引/alias/语料仅只读，不因本次文档包含生命周期设计而授权重新构建 |
 | 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或未冻结/超预算真实模型出域 |
 | 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
@@ -508,7 +508,7 @@ KnowledgeSearchResponse search(
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.9；DR-KRET-029增量已评审未实施，旧批准基线保持原证明范围。
+- 当前版本：v2.9；DR-KRET-029排序组件已实施，生产接线待Summary消费者完成；旧批准基线保持原证明范围。
 - 文档状态：Approved；本次实施校准三轮内审和独立复评通过，记录归 P3_00 §20.4，尚不代表实施完成。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 
