@@ -532,3 +532,24 @@ L2_01_00 DR-KFLOW-023已纠正已有税务类别词的数值误识别。新增no
 5. 累计最大21 E2E/60模型/80search/40embedding/40rerank；本批7/21/28/14/14。模型包含selection、Rewrite、Summary所有HTTP尝试，复用历史调用只计旧账一次。单case3模型/4search/2embedding/2rerank不变；禁Business/answer，retry/resume0。新独立CLI仅执行七例，不给生产请求传入case/gold或替换在线检索。
 6. 保留原append-only evidence/result Schema及下游有限诊断，run-07 result只包含本批实际case、调用数和未执行项。三项复用由manifest/联合追踪表达，不伪造模型输出/当前调用。预算耗尽、首例或后续任一失败都停止整批，清理owned进程/client/原始日志；不自动建run-08。新增manifest和环境预检均不读取模型Key，仅execute在验证冻结后允许读取。
 7. non-live必须验证七例顺序/原判据、三项复用来源和漂移拒绝、累计21/60硬上限、重复消费拒绝、旧模块绑定恢复、Prompt/任务一致、其他endpoint零调用及失败停止。执行前完成当前生产根回归、历史hash与无模型Spring/auth烟测；真实安全及效果分别报告。若复用前提失效或本批失败，整体专项保持未完成，不把既有35/37功能追踪当作本专项通过。
+
+### 14.19 run-07唯一终态及联合追踪
+
+2026-09-07执行`knowledge-stage-b-uat-v7-20260907-run-07`，冻结和六项SHA见P3 §20.34及`tests/system_e2e/knowledge_stage_b_run_07/`。本节取代§14.18的待执行状态，不覆盖协议或旧失败。复用的代码/配置/任务/索引/可执行资产前提已通过，但本批首例失败，因此未形成原10例联合验收通过。
+
+| Case | 证据来源 | 最终状态 | 模型/search/embedding/rerank |
+|---|---|---|---|
+| UAT-KB-001 | run-06成功，受限兼容复用 | Passed，仅原运行证据 | 本批0/0/0/0 |
+| UAT-KB-015a | 同上 | Passed，仅原运行证据 | 本批0/0/0/0 |
+| UAT-KB-004 | 同上 | Passed，仅原运行证据 | 本批0/0/0/0 |
+| UAT-KB-002 | run-07首例 | Failed：只选law；只覆盖law_rate，缺lodging/law_effective | 3/2/1/1 |
+| UAT-KB-003 | run-07 | Not executed，首例失败停止 | 0/0/0/0 |
+| UAT-KB-005 | run-07 | Not executed，同上 | 0/0/0/0 |
+| UAT-KB-006 | run-07 | Not executed，同上 | 0/0/0/0 |
+| UAT-KB-015b | run-07 | Not executed，同上 | 0/0/0/0 |
+| UAT-KB-016 | run-07 | Not executed，同上 | 0/0/0/0 |
+| UAT-KB-008 | run-07 | Not executed，同上 | 0/0/0/0 |
+
+本批1 E2E/3模型/2search/1embedding/1rerank；累计15/37/23/12/12，未超修订上限21/60/80/40/40。Business/answer/retry/resume0，任务及quality绑定有效；model/provider与全部下游均成功，不代表所需证明完整。law_effective已在向量12位、最终重排15位，但没有进入8条Evidence；lodging所属policy根本未选。该逐阶段有限证据支持规划和Evidence覆盖缺口，不支持“知识库不存在相关资料”或“本次服务超时”。不保存或重建模型原响应/最终原文答案。
+
+安全与owned资源清理通过；本批result=failed、Functional专项Failed，完整Effectiveness未测完，不宣布effective或partially_effective，不把当前HTTP200当作UAT通过。既有37项Knowledge、35项Business功能追踪和历史P5结论不变。本批已终止，不补跑、不续跑、不自动run-08；下一步先按P3的非live设计诊断建议处理必要证据责任，不能通过变更gold、放宽validator、无条件双域或扩大topK改判本次结果。
