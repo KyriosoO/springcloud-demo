@@ -9,6 +9,7 @@ from agent_runtime.knowledge.contracts import (
 )
 from agent_runtime.knowledge.errors import KnowledgeInputError
 from agent_runtime.knowledge.question_semantics import QuestionSemanticGuard
+from agent_runtime.knowledge.tax_question_semantics import TAX_CATEGORY_CONDITIONS
 from agent_runtime.knowledge.rewrite_v3 import (
     KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput,
 )
@@ -16,9 +17,6 @@ from agent_runtime.model.context import ModelCallContextAccessor
 from agent_runtime.model.contracts import ModelProviderFailureKind, ModelTaskDefinition, QuestionEgressDisposition, StructuredModelGateway
 from agent_runtime.model.input_guard import QuestionEgressGuard
 
-_EXPLICIT_CONDITIONS = (
-    "一般纳税人", "小规模纳税人", "一般计税", "简易计税",
-)
 _RATE_TOPICS = ("征收率", "税率")
 _RATIO_MARKERS = ("%", "％", "‰", "‱", "百分之", "千分之", "万分之")
 _RATIO_VALUE = r"(?:[0-9]+(?:\.[0-9]+)?|[零〇一二三四五六七八九十百千万]+(?:点[零〇一二三四五六七八九]+)?)"
@@ -31,6 +29,7 @@ class KnowledgeSemanticPlanner:
         enabled_domain_ids: tuple[str, ...], max_query_chars: int = 1024,
         definition: ModelTaskDefinition[KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput],
         quality_version: str = KNOWLEDGE_QUALITY_VERSION,
+        semantic_guard: QuestionSemanticGuard | None = None,
     ) -> None:
         if quality_version not in KNOWLEDGE_QUALITY_VERSIONS:
             raise ValueError("knowledge.unknown_quality_version")
@@ -38,7 +37,8 @@ class KnowledgeSemanticPlanner:
         self._gateway, self._context = gateway, context
         self._domains = enabled_domain_ids
         self._max_chars = max_query_chars
-        self._guard, self._semantic = QuestionEgressGuard(), QuestionSemanticGuard()
+        self._guard = QuestionEgressGuard()
+        self._semantic = QuestionSemanticGuard() if semantic_guard is None else semantic_guard
         self._definition = definition
 
     async def rewrite(self, *, original_question: str, timeout_s: float) -> RewriteStageResult:
@@ -80,7 +80,7 @@ class KnowledgeSemanticPlanner:
         if plans and any((term in original_question) != any(term in item.query for item in plans)
                          for term in _RATE_TOPICS):
             return RewriteStageResult(kind=RewriteStageKind.FAILURE)
-        per_query = _EXPLICIT_CONDITIONS + (
+        per_query = TAX_CATEGORY_CONDITIONS + (
             _RATE_TOPICS if any(marker in original_question for marker in _RATIO_MARKERS) else ()
         )
         for item in plans:

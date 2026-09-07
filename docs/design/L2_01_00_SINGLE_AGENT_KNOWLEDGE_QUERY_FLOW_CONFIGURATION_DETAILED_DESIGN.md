@@ -13,7 +13,7 @@
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.19](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；已有有限真实证据，完整专项未通过。DR-KFLOW-023已评审、待实施；增量记录由P3管理，效果运行由UAT_01管理 |
+| 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；已有有限真实证据，完整专项未通过。DR-KFLOW-023已评审并实施，验证记录由P3管理，效果运行由UAT_01管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -118,7 +118,7 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、V3格式语义域计划、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合绑定 `KnowledgeRewriteTaskV6` + `KnowledgeSummaryTaskV5`；§8.3的V6已实施，已有有限真实验证但完整专项未通过。§8.4的类别词识别纠偏尚未实施。Rewrite V1～V5及Summary V1～V4保留历史兼容、证据和可追溯回滚责任；V3公开decoder/类型由V4/V5/V6复用，具体验证状态见P3。
+当前实现已有：`knowledge.query` provider、空对象参数、`KnowledgeQueryCapability`、`tax-domain-catalog-v2`、V3格式语义域计划、typed Retrieval/Evidence Stage、阶段 deadline、可注入组合根及默认关闭生产接线。显式启用的生产组合绑定 `KnowledgeRewriteTaskV6` + `KnowledgeSummaryTaskV5`；§8.3的V6已实施，已有有限真实验证但完整专项未通过。§8.4的类别词识别纠偏已实施，未作新live测量。Rewrite V1～V5及Summary V1～V4保留历史兼容、证据和可追溯回滚责任；V3公开decoder/类型由V4/V5/V6复用，具体验证状态见P3。
 
 旧 Summary V1～V4 保留给历史资产；当前生产组合根只能注册 V5，不得覆盖或删除历史任务。阶段执行接缝必须在 deadline/cancel 校验通过后才创建对应 awaitable，避免预算已耗尽时遗留未等待协程。
 
@@ -257,10 +257,10 @@ V6规则：
 
 最小方案比较：仅要求Prompt维持原词序会把正常表达限制转移给模型，无法可靠修复；数字改为集合比较会丢失次数/顺序并可能掩盖数值对应关系，不采用；新增全量语义Schema或中文分析器范围过大。采用新内部`TaxQuestionSemanticGuard`，只处理已经有独立保护的四个代码绑定完整短语：`一般纳税人`、`小规模纳税人`、`一般计税`、`简易计税`。不按具体UAT问题、文档ID或酒店关键词特判。
 
-1. 建议新增`knowledge/tax_question_semantics.py`，定义四短语只读tuple和继承旧Guard的`TaxQuestionSemanticGuard.extract(original_question: str) -> ProtectedConstraintSet`。首先在原NFC文本执行旧extract，原类型、控制字符、128字符约束token及32/64约束数限制仍生效；候选1024字符限制由原validate_candidate保留，原问题总长仍由入口控制。
+1. 已新增`knowledge/tax_question_semantics.py`，定义四短语只读tuple和继承旧Guard的`TaxQuestionSemanticGuard.extract(original_question: str) -> ProtectedConstraintSet`。首先在原NFC文本执行旧extract，原类型、控制字符、128字符约束token及32/64约束数限制仍生效；候选1024字符限制由原validate_candidate保留，原问题总长仍由入口控制。
 2. 只在用于提取numbers的局部副本中把完整短语替换为等长空格，防止两侧数值被拼接；禁止删单独“一”、泛化后缀或任意词典/配置。重用旧extract取得该副本的numbers；原始返回中的dates、document_numbers、article_refs和negations必须来自未替换原文。全部约束仍保持原顺序、次数及精确值；不作集合化、排序、归一比例或丢弃单位。
 3. 类别词没有从原问题、模型输入或输出查询删除。Planner逐query对四个短语继续执行与原问相同的存在性检查；任何遗漏、新增或替换整份计划失败。Guard与Planner共享这一静态tuple，不能各自扩充或由请求/环境选择。类别词检查与新数字提取必须成对使用，不能用新Guard单独证明完整语义等价。
-4. 建议修改`KnowledgeSemanticPlanner.__init__`增加内部可选`semantic_guard: QuestionSemanticGuard | None = None`；默认仍旧Guard，历史调用方无需迁移。当前bootstrap显式传新Guard；disabled无实例/下游资源。只有内部代码可绑定，不新增公共DTO、模型字段、配置或选择开关。旧`question_semantics.py`、Rewrite/Summary/Prompt、decoder、历史runner和冻结资产逐字节不变。
+4. 已修改`KnowledgeSemanticPlanner.__init__`增加内部可选`semantic_guard: QuestionSemanticGuard | None = None`；默认仍旧Guard，历史调用方无需迁移。当前bootstrap显式传新Guard；disabled无实例/下游资源。只有内部代码可绑定，不新增公共DTO、模型字段、配置或选择开关。旧`question_semantics.py`、Rewrite/Summary/Prompt、decoder、历史runner和冻结资产逐字节不变。
 5. 继承旧validate_candidate，真正数字顺序、日期、文号、法条及否定检查保持；Planner另有比例完整值/单位与逐域类别检查，两者不可移除。错误继续knowledge.rewrite_failure，下游和Summary0，无fallback，不新增外部错误枚举。原问题仍为Summary边界，无额外模型或业务调用。
 6. 这是有限词素误分类修复，不是任意语义等价证明；多组真实数字重排、其他汉字词素/否定词歧义仍按既有失败关闭处理，记录风险而不顺带建设规则引擎。真实模型是否输出了误拒绝表达未知，不以合成反例改判历史UAT。
 
@@ -356,7 +356,7 @@ validate empty arguments
 1. 加载 `KnowledgeSettings`；disabled 时立即返回“无附加任务、无附加 Provider、无 owned Knowledge resource”的结果。
 2. enabled 时拒绝生产 stub provider；测试可显式注入 fake transport，但必须继续走同一装配函数和注册校验。
 3. enabled 时加载 `KnowledgeRetrievalSettings` 和 policy catalog，验证已启用域、Profile version、ES/BGE origins、1024 维、rerank model、final candidates 与 task version。
-4. 按§8.3与L2_01_02 §9.4创建 Rewrite V6/Summary V5 definitions，并作为既有 Model Gateway 的唯一 Knowledge 注册项；旧Rewrite/Summary不同时注册、不作自动后备。§8.4获批并实施后只在当前Planner显式绑定新Guard。
+4. 按§8.3与L2_01_02 §9.4创建 Rewrite V6/Summary V5 definitions，并作为既有 Model Gateway 的唯一 Knowledge 注册项；旧Rewrite/Summary不同时注册、不作自动后备。§8.4已在当前Planner显式绑定新Guard。
 5. 所有纯配置、目录、策略和任务校验完成后，才为三个固定 origin 分别创建 bounded HTTP client/transport并构建 Retrieval/Provider。
 6. 把 `KnowledgeCapabilityProvider` 作为 `BusinessQueryRuntimeCompositionRoot.additional_providers` 追加到同一 Runtime。
 7. 顶层 lifecycle 同时拥有 Business clients、Knowledge clients 和 model；关闭按资源逐项尝试，保留首个异常但仍释放其余资源。
@@ -386,8 +386,8 @@ validate empty arguments
 |---|---|
 | `IMPL-KFLOW-001` | `agent-runtime/src/agent_runtime/knowledge/provider.py`：descriptor 和 registrations |
 | `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：`KnowledgeArgumentValidator`、`KnowledgeQueryCapability.handle` |
-| `IMPL-KFLOW-003` | 已有`knowledge/question_semantics.py`旧Guard不改；DR-KFLOW-023建议新增`knowledge/tax_question_semantics.py`类别词数字分离 |
-| `IMPL-KFLOW-004` | 已有`knowledge/rewrite_v3.py`（精确合同）、`knowledge/semantic_planner.py`、V4/V5/V6任务；DR-KFLOW-023建议增加Planner内部Guard注入及共享类别tuple，旧默认与任务不变 |
+| `IMPL-KFLOW-003` | 已有`knowledge/question_semantics.py`旧Guard不改；DR-KFLOW-023已新增`knowledge/tax_question_semantics.py`类别词数字分离 |
+| `IMPL-KFLOW-004` | 已有`knowledge/rewrite_v3.py`（精确合同）、`knowledge/semantic_planner.py`、V4/V5/V6任务；DR-KFLOW-023已增加Planner内部Guard注入及共享类别tuple，旧默认与任务不变 |
 | `IMPL-KFLOW-005` | `agent-runtime/src/agent_runtime/knowledge/catalog.py`、`domain_selection.py` |
 | `IMPL-KFLOW-006` | `agent-runtime/src/agent_runtime/knowledge/planning.py`：`KnowledgeRetrievalPlanBuilder.build` |
 | `IMPL-KFLOW-007` | `agent-runtime/src/agent_runtime/knowledge/contracts.py`、`agent-runtime/src/agent_runtime/knowledge/context.py` |
@@ -446,7 +446,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `TEST-KFLOW-012` | DR-KFLOW-020：V5仅改指令/版本、V3 exact合同等价、当前生产唯一V5与旧版本拒绝、单域/双域fake及非酒店保留表达；真实语义另行UAT，不修改历史gold |
 | `TEST-KFLOW-013` | DR-KFLOW-021：V6指令局部替换/同一decoder与预算、每域聚焦及显式条件不丢失、原问Summary、当前单绑定与旧版本拒绝、历史隔离；合同/生产fake/防回退，真实语义不由fake证明 |
 | `TEST-KFLOW-014` | DR-KFLOW-022：quality-v2从当前根透传、错误版本拒绝、V2/limits配对、历史V1默认、disabled及单动作防回退 |
-| `TEST-KFLOW-015` | DR-KFLOW-023：建议新增`test_tax_question_semantics.py`及`test_tax_semantic_guard_production.py`；类别/年份变序成功、类别丢失新增、实际数字/比例/日期/文号/法条/否定变化拒绝、重复数量和上限、旧默认和历史哈希、当前根唯一绑定/零调用/资源关闭 |
+| `TEST-KFLOW-015` | DR-KFLOW-023：已新增`test_tax_question_semantics.py`及`test_tax_semantic_guard_production.py`；类别/年份变序成功、类别丢失新增、实际数字/比例/日期/文号/法条/否定变化拒绝、重复数量和上限、旧默认和历史哈希、当前根唯一绑定/零调用/资源关闭 |
 
 ### 15.2 验证编号定义
 

@@ -537,6 +537,7 @@ class KnowledgeCompositionRoot:
         from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
         from agent_runtime.knowledge.provider import KnowledgeCapabilityProvider
         from agent_runtime.knowledge.semantic_planner import KnowledgeSemanticPlanner
+        from agent_runtime.knowledge.tax_question_semantics import TaxQuestionSemanticGuard
         from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput
         from agent_runtime.knowledge.settings import KnowledgeSettings
         from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION_V2, KnowledgeRetrievalStage
@@ -565,6 +566,7 @@ class KnowledgeCompositionRoot:
             enabled_domain_ids=typed_settings.enabled_domain_ids,
             max_query_chars=typed_settings.max_retrieval_query_chars,
             quality_version=KNOWLEDGE_QUALITY_VERSION_V2,
+            semantic_guard=TaxQuestionSemanticGuard(),
         )
         evidence = DefaultKnowledgeEvidenceStage(
             catalog=typed_policy_catalog,
