@@ -592,3 +592,34 @@ L2_01_00 DR-KFLOW-023已纠正已有税务类别词的数值误识别。新增no
 5. 复用既有Spring→当前生产Runtime、真实auth与typed Knowledge生命周期，不复制在线流程。测试进程在同请求内只读捕获已验证bundle及实际policy过滤后的`KnowledgeRequirementSummaryInput`，序列化必须等于实际Summary HTTP输入；不保存正文/需求focus/响应。结果后调用来源绑定v2，并同时验证原域/原gold、原有限reason、任务序列、quality与调用数。wrong-citation不得用池中其他相同quote补证；结构coverage不能替代原文语义/usefulness。
 6. consumed在首次模型HTTP尝试前独占写入；每次模型调用先同步journal，硬预算在发送前检查。失败停整批，保留有限result/evidence/未执行清单。证据只保存case ID、状态/reason枚举、任务/版本、调用计数、源hash/排名、来源绑定及逐gold布尔值；禁问题、focus、quote、原始响应、JWT/Key。HTTP状态不能代替验收结论。只终止本次Popen对象对应进程并确认退出，关闭client，扫描删除临时原始日志。
 7. fake覆盖新输入实际绑定、错源、旧Schema拒绝、全部十例顺序、原判据、不复用旧成功、累计预算、每case第5次rerank拒绝、任务/Prompt/tokens漂移、重复消费、目录/资产漂移和退出恢复。真实前冻结测试结果及绑定；真实失败后仅分析/non-live，不再创建付费批次。专项全部十例、核心P0、来源/语义/安全/清理均通过才可关闭；否则如实Failed/Not executed，保留整体未完成。
+
+### 14.23 run-08有限失败结果
+
+唯一执行`knowledge-stage-b-uat-v8-20260907-run-08`，frozen HEAD=`1fbd62aeebc01af0951ddcd62281be589f6eba6a`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-08`。360项源码/258项可执行资产，selection-v4/Rewrite7/Summary6、quality-v3、citation-binding-v2；原十例/gold与阶段A索引快照不变。七项原始资产保存在`agent-runtime/tests/system_e2e/knowledge_stage_b_run_08/`，相对target原文件逐字复制并复核SHA，无覆盖历史。
+
+| 资产 | SHA-256 |
+|---|---|
+| manifest.json | `73a7fc36587211e211dbae43006207a33e8cc2e34ce6a4d97bfad44db3f5a210` |
+| authorization.json | `0c153370e01d2b9f2f9c6f93d6d3846cde17b9f6720be9f27ef300217292476e` |
+| consumed.json | `970a66e09b02294dbedeefb3c50ca2ef8ba4e9f2daa4265f83be61125537ea32` |
+| journal.jsonl | `a5f25a7738064498fcdf9208b3113eccdfb884aead88d5ab0984fe206f67bae9` |
+| result.json | `cdef650dd3aa78247b98073770635e659bfd92403cffaa3867523feba26253c9` |
+| evidence.jsonl | `f39f15495a1c0bc6557bccfe98102cc345d1238e19304836bc464fb8d29ed9cc` |
+| environment.jsonl | `2d2c1e39beec6b038ef0b1b4dd727afab69fd0cf7ca44a4c8ac4fad608b9c15f` |
+
+| case | 新版结果 | 实际模型/search/embedding/rerank | 结论依据 |
+|---|---|---|---|
+| UAT-KB-001 | Failed | 2/4/2/2 | 预期澄清且零检索；实际双域search，Summary在outbound前被执行器拦截，HTTP502 |
+| UAT-KB-015a | Not executed | 0/0/0/0 | 首例失败停止，不复用旧版Passed |
+| UAT-KB-004 | Not executed | 0/0/0/0 | 同上 |
+| UAT-KB-002 | Not executed | 0/0/0/0 | 分类、规则、时效核心P0仍未被新版本验证 |
+| UAT-KB-003 | Not executed | 0/0/0/0 | 首例失败停止 |
+| UAT-KB-005 | Not executed | 0/0/0/0 | 首例失败停止 |
+| UAT-KB-006 | Not executed | 0/0/0/0 | 首例失败停止 |
+| UAT-KB-015b | Not executed | 0/0/0/0 | 首例失败停止 |
+| UAT-KB-016 | Not executed | 0/0/0/0 | 首例失败停止 |
+| UAT-KB-008 | Not executed | 0/0/0/0 | 首例失败停止 |
+
+真实调用共1 E2E、2外部模型、4search、2embedding、2rerank；没有Summary HTTP尝试，Business/answer/retry/resume0。累计16/39/27/14/14，未超本次授权；授权已消费且停止，不自动run-09。source绑定和语义/usefulness仅在有最终引文时才有证明价值，本批无引文，不能把澄清分支默认citationBindingValid=true解释为引用通过。
+
+功能结论：原37功能追踪保留其既有non-live证据；阶段B专项Failed。效果结论：本批未形成完整效果测量，九例和Summary6真实效果尚未验证；不得称为effective或将旧成功自动迁移。安全/运行约束：未超预算、禁止动作0、owned进程退出/client关闭、日志扫描清理通过；但缺条件case零检索这一功能断言失败。P3 §20.43治理工作包和缺口，历史P5 candidate与阶段A终态不变。
