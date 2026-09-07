@@ -82,6 +82,7 @@ class _KnowledgeModelTransport:
             else:
                 content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
+            assert request.task_version == "7"
             self._probe.counts["rewrite"] += 1
             question = payload["question"]
             if "改写失败" in question:
@@ -95,11 +96,15 @@ class _KnowledgeModelTransport:
                     "税务政策和税收法律有哪些规定": ("tax.policy", "tax.law"),
                 }.get(question, ("tax.policy",))
                 content = json.dumps(
-                    {"outcome": "search", "queries": [{"domain_id": domain, "query": question} for domain in domains], "missing_conditions": []},
+                    {"outcome": "search", "question_kind": "lookup",
+                     "queries": [{"domain_id": domain, "query": question} for domain in domains],
+                     "requirements": [{"requirement_id": f"r{i}", "domain_id": domain, "kind": "rule", "focus": question}
+                                      for i, domain in enumerate(domains, 1)], "missing_conditions": []},
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
+            assert request.task_version == "6" and payload["schema_version"] == 2
             self._probe.counts["summary"] += 1
             question = payload["question"]
             if "摘要失败" in question:
@@ -116,7 +121,9 @@ class _KnowledgeModelTransport:
             else:
                 points = [{"evidence_ref": first["evidence_ref"], "quote": first["content"]}]
             content = json.dumps(
-                {"outcome": "answer", "points": points},
+                {"outcome": "answer", "points": points,
+                 "coverage": [{"requirement_id": item["requirement_id"], "evidence_refs": [first["evidence_ref"]]}
+                              for item in payload["requirements"]]},
                 ensure_ascii=False,
                 separators=(",", ":"),
             )

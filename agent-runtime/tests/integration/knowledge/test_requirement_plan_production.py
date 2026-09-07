@@ -1,4 +1,4 @@
-"""Current components and V7 preparation, not a claim that V3 is production-enabled."""
+"""Requirement components and current version pairing; not live effectiveness."""
 from __future__ import annotations
 
 import asyncio
@@ -229,12 +229,22 @@ async def test_old_version_with_requirements_rejected_before_retrieval_io_and_v3
 
 
 @pytest.mark.asyncio
-async def test_current_capability_rejects_v3_before_fake_downstream_can_bypass_unsupported_consumers():
+@pytest.mark.parametrize("fault", ["missing", "empty_with_kind", "empty_with_requirements", "empty_with_list", "empty_wrong_question"])
+async def test_current_capability_rejects_invalid_v3_requirements_before_downstream(fault):
     result, _ = await invoke(wire_plan())
+    rewritten = replace(result.rewrite, evidence_requirements=())
+    if fault == "empty_with_kind":
+        rewritten = replace(rewritten, domain_queries=())
+    elif fault == "empty_with_requirements":
+        rewritten = replace(result.rewrite, domain_queries=(), question_kind=None)
+    elif fault == "empty_with_list":
+        rewritten = replace(rewritten, domain_queries=(), question_kind=None, evidence_requirements=[])
+    elif fault == "empty_wrong_question":
+        rewritten = replace(rewritten, domain_queries=(), question_kind=None, original_question="不同税务问题")
 
     class Rewrite:
         async def rewrite(self, **kwargs):
-            return RewriteStageResult(kind=RewriteStageKind.SUCCESS, rewrite=result.rewrite)
+            return RewriteStageResult(kind=RewriteStageKind.SUCCESS, rewrite=rewritten)
 
     class NoCalls:
         calls = 0
@@ -256,10 +266,10 @@ async def test_current_capability_rejects_v3_before_fake_downstream_can_bypass_u
     assert outcome.status is CapabilityStatus.DOWNSTREAM_FAILURE and no_calls.calls == 0
 
 
-def test_current_root_and_runtime_version_set_are_not_prematurely_switched():
+def test_current_root_pairs_requirement_consumers_and_runtime_version():
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "6" and tasks.summary.task_version == "5"
-    assert KNOWLEDGE_QUALITY_VERSION_V3 not in KNOWLEDGE_QUALITY_VERSIONS
+    assert tasks.rewrite.task_version == "7" and tasks.summary.task_version == "6"
+    assert KNOWLEDGE_QUALITY_VERSION_V3 in KNOWLEDGE_QUALITY_VERSIONS
     assert KnowledgeCompositionRoot.task_definitions(enabled=False) is None
 
 

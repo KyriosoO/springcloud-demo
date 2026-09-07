@@ -178,9 +178,9 @@ class KnowledgeEvidenceRequirement:
 
 KNOWLEDGE_QUALITY_VERSION = "knowledge-retrieval-quality-v1"
 KNOWLEDGE_QUALITY_VERSION_V2 = "knowledge-retrieval-quality-v2"
-# Not a supported runtime version until both ranking and Evidence consumers exist.
+# Both requirement-aware consumers are available; production binds this with V7/V6.
 KNOWLEDGE_QUALITY_VERSION_V3 = "knowledge-retrieval-quality-v3"
-KNOWLEDGE_QUALITY_VERSIONS = frozenset((KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSION_V2))
+KNOWLEDGE_QUALITY_VERSIONS = frozenset((KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSION_V2, KNOWLEDGE_QUALITY_VERSION_V3))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

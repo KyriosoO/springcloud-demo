@@ -17,6 +17,7 @@ from agent_runtime.capability_api.contracts import (
 )
 from agent_runtime.knowledge.context import to_evidence_context, to_retrieval_context
 from agent_runtime.knowledge.contracts import (
+    KNOWLEDGE_QUALITY_VERSION_V3,
     KNOWLEDGE_QUALITY_VERSIONS,
     DomainSelection,
     DomainCandidateCount,
@@ -158,11 +159,17 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         if rewritten.plan_version is not None and rewritten.plan_version not in KNOWLEDGE_QUALITY_VERSIONS:
             return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
         try:
-            validate_plan_requirements(
-                quality_version=rewritten.plan_version, question_kind=rewritten.question_kind,
-                requirements=rewritten.evidence_requirements,
-                domain_ids=tuple(item.domain_id for item in rewritten.domain_queries),
-            )
+            # Rewrite V7 has already validated unsupported's empty terminal shape.
+            # It is not a search plan and must not require search proof obligations.
+            if rewritten.plan_version == KNOWLEDGE_QUALITY_VERSION_V3 and not rewritten.domain_queries:
+                if rewritten.question_kind is not None or type(rewritten.evidence_requirements) is not tuple or rewritten.evidence_requirements:
+                    raise KnowledgeInputError("knowledge.invalid_evidence_requirements")
+            else:
+                validate_plan_requirements(
+                    quality_version=rewritten.plan_version, question_kind=rewritten.question_kind,
+                    requirements=rewritten.evidence_requirements,
+                    domain_ids=tuple(item.domain_id for item in rewritten.domain_queries),
+                )
         except KnowledgeInputError:
             return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
         started = asyncio.get_running_loop().time()

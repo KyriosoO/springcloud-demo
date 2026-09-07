@@ -70,6 +70,7 @@ from agent_runtime.model.contracts import (
     AnswerGroundingPolicy,
     BusinessQueryPlanGenerator,
     ModelTaskDefinition,
+    ModelTaskId,
     StructuredModelGateway,
     StructuredModelTransport,
 )
@@ -511,13 +512,27 @@ class KnowledgeCompositionRoot:
     def task_definitions(*, enabled: bool, rewrite_max_candidates: int = 3) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
-        from agent_runtime.knowledge.evidence.summary_task_v5 import KnowledgeSummaryTaskV5
-        from agent_runtime.knowledge.rewrite_v6 import KnowledgeRewriteTaskV6
+        from agent_runtime.knowledge.evidence.summary_task_v6 import KnowledgeSummaryTaskV6
+        from agent_runtime.knowledge.rewrite_v7 import KnowledgeRewriteTaskV7
 
-        return KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV6.definition(),
-            summary=KnowledgeSummaryTaskV5.definition(),
+        tasks = KnowledgeTaskDefinitions(
+            rewrite=KnowledgeRewriteTaskV7.definition(),
+            summary=KnowledgeSummaryTaskV6.definition(),
         )
+        # Run during main's configuration phase, before allocating any clients.
+        KnowledgeCompositionRoot._validate_tasks(tasks)
+        return tasks
+
+    @staticmethod
+    def _validate_tasks(tasks: KnowledgeTaskDefinitions) -> None:
+        from agent_runtime.knowledge.evidence.contracts import KnowledgeRequirementSummaryInput
+        from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
+
+        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "7"
+            or tasks.rewrite.input_type is not KnowledgeSemanticPlanInput
+            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "6"
+            or tasks.summary.input_type is not KnowledgeRequirementSummaryInput):
+            raise ValueError("knowledge.production_task_version_invalid")
 
     @staticmethod
     def build_provider(
@@ -540,7 +555,7 @@ class KnowledgeCompositionRoot:
         from agent_runtime.knowledge.tax_question_semantics import TaxQuestionSemanticGuard
         from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput
         from agent_runtime.knowledge.settings import KnowledgeSettings
-        from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION_V2, KnowledgeRetrievalStage
+        from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION_V3, KnowledgeRetrievalStage
 
         typed_settings = cast(KnowledgeSettings, settings)
         if not typed_settings.enabled:
@@ -556,8 +571,7 @@ class KnowledgeCompositionRoot:
         )
         if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
             raise ValueError("knowledge.policy_catalog_invalid")
-        if tasks.rewrite.task_version != "6" or tasks.summary.task_version != "5":
-            raise ValueError("knowledge.production_task_version_invalid")
+        KnowledgeCompositionRoot._validate_tasks(tasks)
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
         rewriter = KnowledgeSemanticPlanner(
             gateway=model.gateway,
@@ -565,7 +579,7 @@ class KnowledgeCompositionRoot:
             definition=cast(ModelTaskDefinition[KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput], tasks.rewrite),
             enabled_domain_ids=typed_settings.enabled_domain_ids,
             max_query_chars=typed_settings.max_retrieval_query_chars,
-            quality_version=KNOWLEDGE_QUALITY_VERSION_V2,
+            quality_version=KNOWLEDGE_QUALITY_VERSION_V3,
             semantic_guard=TaxQuestionSemanticGuard(),
         )
         evidence = DefaultKnowledgeEvidenceStage(
@@ -574,7 +588,7 @@ class KnowledgeCompositionRoot:
             context=model.context_accessor,
             gateway=model.gateway,
             definition=summary_definition,
-            limits=KnowledgeEvidenceLimits.quality_v2(),
+            limits=KnowledgeEvidenceLimits.quality_v3(),
         )
         from agent_runtime.knowledge.capability import KnowledgeQueryCapability
 
