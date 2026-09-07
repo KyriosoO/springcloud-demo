@@ -49,12 +49,12 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.20 | KQ-AD-018必要证据责任；在线/离线边界不变 | Approved；已实施及non-live验证，见§20.40 |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；在线non-live及离线候选已验证，发布未完成，见§20.40/20.48 |
 | [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.25 | DR-KFLOW-024需求计划及025澄清优先规则恢复 | Approved；已实施，当前验证见§20.44 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.9 | DR-KRET-029需求导向排序；typed服务及阶段A不变 | Approved；已实施及non-live验证，见§20.40 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.12 | DR-KRET-029需求导向排序及030/031限定向量候选；typed服务及阶段A不变 | Approved；真实构建/检索对照通过，typed/发布待完成，见§20.48 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.31 | 原十例及历史失败不变；V8非live证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.32 | 原十例及历史失败不变；V8非live和政策存储增量证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -1759,7 +1759,7 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 |---|---|---|---|
 | 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
 | builder及fake验证 | 上述合同评审 | Done | TEST-KRET-026/VAL-KRET-012；87新增fake及原工具回归通过，无真实写入 |
-| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | In Progress | 模型/token已通过；b1在clone后因临时来源假设失败，终态不可重入；§20.48修复后另名绑定验证 |
+| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Done | b1失败保持不可变；§20.48修复后另名b2完成真实构建、全记录保持和同窗口对照，无alias |
 | typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；原alias保持至发布证据齐全 |
 
 准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。
@@ -1795,4 +1795,37 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 
 根因`B-CLONE-001`：ES9.4.1官方`ResizeSourceIndexSettingsUpdater`在所有主分片启动后删除临时resize source设置；旧L2/fixture错误假定该字段永久存在。不是数据、权限、向量或业务接口缺口。最小修复只改L2_01_01 v2.12 DR-KRET-031的clone归属合同及builder/fake；不加永久marker、锁服务、Gate或修改公共DTO。先冻结发现，再完成三轮内审及分离编辑的L2/跨层复评，设计问题已关闭；允许最小实现修复，source/ACL/全记录比较与无alias边界不变。同一执行者分阶段，不冒充外部独立人员。
 
-本节后续直接动作：修复clone确认回执/UUID与临时来源消失兼容→fake及正式代码复评→依据现有政策结构授权，另名绑定新存储候选（不能恢复b1）→完整构建验证→ANN/typed/目录与发布验证。此处新存储候选不是新付费模型run；不创建run-09，不读取Key，不扩大模型预算。QUALITY仍Blocked，专项UAT仍Deferred，阶段B不宣称完成。
+后续实施已完成clone确认回执/UUID与临时来源消失兼容，提交`399a592e50d7f5c6a01a7ba56bdcbcf6fc9e9743`；源码修复、14个新增fake和当时全工具213例通过后，使用新源绑定v2另名构建b2，没有恢复b1。归属不明且无来源/UUID证据时不做清理写入，原文/ACL/非目标向量与源别名保护保持。新存储候选不是新付费模型run；不创建run-09、不读取Key、不扩大模型预算。
+
+#### 20.48.1 新候选完整构建与同窗口检索结果
+
+真实执行以`399a592`为构建HEAD，绑定、result、ANN对照均保存在`knowledge-corpus-tools/evidence/policy-vector-candidate-20260907-b2/`，字节不可覆盖：
+
+| 资产/事实 | 当前结果 |
+|---|---|
+| 候选 | `agent-doc-tax-policy-v5-20260907-vector-b2`；UUID=`jJ5Ww3LCRWWycfDkUZvmdw`；`built_read_only_unpublished` |
+| binding SHA-256 | `26d9644b3c2b30511249b79c09399557ced6dfb6f11d526829e43c6e2296ee3f` |
+| result SHA-256 | `71f08b8be07738ce2925b2931387ff9e5ec1c1b3840b7fbb6a0273a0664de518` |
+| ANN comparison SHA-256 | `003929b26104b0d1b9724d0bd7666f4854fd44923a0df290ef35a46c10fb5eff` |
+| 全记录保持 | 15521条；policy13909；仅更新738个policy附件向量及4项表示元数据；所有原文/引用/ACL不变，law及其余基线向量float32字节相同 |
+| 候选 fingerprint | `fb285fc5e5e838fbccb2025f24c0f4472802b8beb7190247cefc9a2978b9a17d`；源fingerprint仍为§20.47绑定值 |
+| 构建实耗 | ES HTTP228；本地BGE HTTP24/738文本；max tokens244；96.36秒；付费/retry/resume/alias写入0 |
+| 检索对照实耗 | ES读取HTTP24、本地BGE HTTP1/5文本；max tokens26；付费/写入/retry0；同一模型、固定五题与gold，窗口20、k21、num_candidates100 |
+
+| 问题类型/必要片段 | 原索引 keyword / vector | b2 keyword / vector |
+|---|---|---|
+| 住宿服务生活服务：lodging/living | 5,2 / 2,5 | 5,2 / 1,2 |
+| 住宿如何定义：lodging/living | 窗外,2 / 6,窗外 | 窗外,2 / 1,3 |
+| 住宿与不动产租赁：lodging/rent | 均窗外 / 均窗外 | 均窗外 / 4,6 |
+| 2016一般计税住宿税率：lodging/historical_rate | 2,窗外 / 均窗外 | 2,窗外 / 窗外,18 |
+| 软件即征即退材料：software | 1 / 2 | 1 / 2 |
+
+五题所需原文均进入候选的keyword/vector合并池。尤其历史税率问题虽向量路径的住宿定义仍在窗外，keyword第2名已提供它，vector第18名提供税率；不得继续把单路排名33解读为整个候选池仍缺定义。该事实只关闭“这五题的同窗口候选池缺证据”诊断，尚不证明quality-v3会保留全部必要片段、typed授权、Evidence、摘要或完整UAT通过。未改变topK、gold、原文、算法、现行服务或alias。
+
+本地准备、克隆修复及对照工具按DR-KRET-030/031完成分阶段代码复核。对照工具首轮发现Python优化模式会移除断言，增加`-O`启动即拒绝并补测试；复评确认gold仅用于检索后排名、固定服务窗口、严格绑定/有限输出、无写入/模型Key及禁止覆盖。新证据hash和证明范围加入直接测试；本切片Blocker/Major=0，未处理Minor=0，由同一执行者分离编辑复核，不冒充外部独立人员。
+
+本次最终工具命令：既有corpus隔离Python在工具目录执行`-m pytest -o addopts='' tests -q --tb=short`，216 passed（4.51秒）；`-m mypy --strict src scripts/run-policy-vector-candidate.py scripts/compare-policy-vector-candidate.py`，18文件通过；`-m compileall -q src tests scripts`通过。Runtime run-08历史与两份追踪定向入口最终18 passed（12.25秒，1条既有LangChain预告），原35/37功能追踪和七项run-08 hash保持。未重跑无源码变化的Java/Maven、Spring E2E、PowerShell或全量Runtime，不将此前结果复制为本轮通过。
+
+本节从本地准备到当前对照合计ES HTTP395（含两次clone及b2限定写入）、本地BGE HTTP49/1481文本；源/alias写入、外部付费模型、Business、服务启停均0。b1保留只读且失败结果不改写；b2保留只读未发布。精确索引、目录/Profile快照、typed授权/Evidence、回滚和发布仍是下一直接步骤；当前Java启动校验确实要求真实alias/UUID/mapping/snapshot，不以绕过Verifier完成验证。QUALITY仍Blocked，专项UAT仍Deferred，阶段B整体保持未完成。
+
+候选有限证据、同窗口工具及其测试原子提交=`294e70eb715c40e5715c99ddf1cb9f43851c711a`；暂存逐文件/完整diff及敏感模式扫描通过（0命中）。状态同步不修改设计语义、任务或UAT完成定义，不为测试计数变化再次升级版本。L2/P3严格校验0 errors/0 warnings；在线Runtime、Java服务和原历史资产相对本节起点无文件差异。

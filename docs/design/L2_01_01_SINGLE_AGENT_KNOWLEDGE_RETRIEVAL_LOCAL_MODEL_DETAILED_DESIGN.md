@@ -12,7 +12,7 @@
 | 日期 | 2026-09-07 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-031真实clone暴露临时resize来源标记假设错误；确认回执、新UUID及全记录核验修订已通过本切片复评，允许最小实现修复。无发布，既有quality-v3及Rewrite8/Summary6不变 |
+| 本次增量 | DR-KRET-031的临时resize来源假设已修复并完成真实候选构建；全记录保持及同窗口检索对照通过，typed授权/Evidence和发布仍待验证。既有quality-v3及Rewrite8/Summary6不变 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -546,7 +546,7 @@ v2.11三轮内审：第一轮核对仅附件重编码/全源clone及来源/引�
 
 v2.12集成合同纠偏：`B-CLONE-001`（S1）为永久resize来源假设与ES9.4.1恢复行为冲突，阻塞候选实施，不影响源索引。内审第1轮以官方API/源码及只读目标核查替换该假设，保留精确回执、新UUID和完整fingerprint；第2轮修复“先等green再绑定UUID”的步骤歧义，明确不明结果缺少来源时零清理写入；第3轮核对失败资产不重入、原文/ACL/非目标向量、TEST/VAL及发布前置。随后分离编辑对本DR-KRET-031切片及上位REQ-KCORPUS-003/004/006、SA-AD-006、KQ-AD-019进行只读复评，B-CLONE-001设计已关闭，无S0/S1/未处理S2，允许最小builder/fake修复。未批准复用失败构建、切alias或追加付费运行；同一执行者分阶段评审，不冒充外部人员。
 
-代码阶段补充复核澄清HTTP分阶段timeout而非绝对wall-time，并显式禁止环境代理；属于既有本地出域边界的落实，不放宽超时或权限。DR-KRET-031 builder已完成代码对照复评，尚未接入真实模型准备/候选发布，详见P3 §20.47；该结论不批准真实效果UAT。
+代码阶段补充复核澄清HTTP分阶段timeout而非绝对wall-time，并显式禁止环境代理；属于既有本地出域边界的落实，不放宽超时或权限。DR-KRET-031 builder及本地模型准备已完成代码对照复评和真实只读候选构建，全记录原文/权限/非目标向量保持通过；同窗口检索对照的证明边界仅为候选召回，不含typed授权、rerank、Evidence、摘要或发布。当前状态及有限证据由P3 §20.48管理，不批准追加付费效果UAT。
 
 v2.10聚焦设计复评：三轮内审核对表示/原文、有限错误和哈希、追踪/DAG；分离编辑只读复评DR-KRET-030及上位KQ-AD-019，无S0/S1/未处理S2，准入纯函数实施。由同一执行者完成，不冒充外部独立人员；候选构建/发布尚不具备实施依据。
 
@@ -573,7 +573,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.12；DR-KRET-029/030已实施；DR-KRET-031已发生真实集成，永久resize标记假设修复按本切片评审执行，完整构建/发布尚未通过；旧批准基线保持原证明范围。
+- 当前版本：v2.12；DR-KRET-029/030已实施；DR-KRET-031的真实候选构建、全记录保持及同窗口检索对照通过；typed授权/Evidence及发布尚未完成，旧批准基线保持原证明范围。
 - 文档状态：Approved；历史实施校准评审见P3_00 §20.4，需求增量设计评审及当前实施证据见§20.36～20.40；设计批准本身不替代实施或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 
