@@ -1370,3 +1370,7 @@ DR-KFLOW-023设计/实施/nonlive均Done，替代§20.30准备时点；增量代
 结论：已执行六批没有超限；不足发生在失败后剩余验收与原累计上限之间，并非应当放宽validator或删减gold。当前禁止自动新批和复用余额的约束继续有效。后续若要求全部真实验收收口，必须先独立决定证据复用范围、新批清单及累计预算调整；这些尚未获准、未写成新运行资产。本次仅追加事实和算术核查，不调整版本、DAG、门禁、用例、预算或通过标准。IMPLEMENT/NONLIVE保持Done，UAT Deferred、QUALITY Blocked，未创建run-07。
 
 本轮实际验证：移除测试子进程Key并设置当前src路径，执行六个`test_knowledge_stage_b_run_0N_history.py`及`tests/uat/test_current_traceability.py`、`test_knowledge_traceability.py`，44 passed（53.54秒）；历史hash/冻结源、原判据、累计计数、既有35/37追踪通过。P3 strict为0 errors/0 warnings，git diff --check通过。只改本节事实记录，没有源码/测试/配置/历史资产变化，因此未重跑全量Python、mypy或Java；§20.31数字仅代表上轮执行。本轮模型及真实Knowledge/Business调用均0。
+
+后续以`cbfb11486be4cbe0292f326d3e9239ecf836aecb`执行只读targeted_check，范围仅为上述三项run-06成功证据与DR-KFLOW-023修复的代码兼容性。相对run-06冻结HEAD，生产差异仅bootstrap绑定、Planner内部注入/静态tuple共用及新Guard；任务/Prompt、case/gold、检索/评分/摘要实现未变。三项原问题均不含四个类别短语，原有逐query检查亦禁止候选新增它们；因此任何可接受候选均不触发新mask，合法澄清分支也不变。结论为符合这一限定兼容性检查，不是全部实现批准、正式证据合并或当前版本真实UAT通过。
+
+本次实际验证：旧默认Guard与当前Guard的39组Planner非live对照（前三项原问、单/双域、澄清、非法输入及新增类别/数量/否定条件）结果一致；`python -m pytest tests/unit/knowledge/test_tax_question_semantics.py tests/integration/knowledge/test_tax_semantic_guard_production.py tests/system_e2e/test_knowledge_stage_b_run_06_history.py -q --tb=short`为53 passed（23.63秒，1条既有LangChain预告），测试子进程移除Key并使用当前src。未保存或重建历史模型输出，真实模型/下游调用0。后续若决定复用，仍须核对新冻结时配置/索引/模型绑定及原评分合同，并正式批准新批次范围；本核查不证明外部模型未来输出稳定，不改变剩余七项或原累计上限。无源码变化，未重跑全量或Java；本节仅补充证据适用范围，不新增运行资产或Gate。
