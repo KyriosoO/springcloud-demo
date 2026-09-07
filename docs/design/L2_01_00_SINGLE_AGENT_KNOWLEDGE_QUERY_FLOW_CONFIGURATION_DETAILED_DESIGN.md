@@ -8,10 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.23 |
+| 当前版本 | v1.24 |
 | 日期 | 2026-09-07 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.19](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | DR-KFLOW-024经三轮内审及两轮正式只读评审通过，允许non-live实施；当前未实施，生产仍Rewrite6/Summary5/quality-v2 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；已有有限真实证据，完整专项未通过。DR-KFLOW-023已评审并实施，验证记录由P3管理，效果运行由UAT_01管理 |
 
@@ -21,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.24 | 2026-09-07 | 必要证明未在规划和下游形成共同合同 | 新Rewrite7需求计划及内部透传、成对版本/回滚和严格失败关闭；旧V3～V6合同保留，不改公开接口 |
 | v1.23 | 2026-09-07 | 类别词中的中文词素被错误识别为数值 | DR-KFLOW-023区分既有四类税务条件与数量约束，保留历史Guard和真实数字/日期/比例检查；仅当前根显式绑定，已评审准入非live实施 |
 | v1.22 | 2026-09-04 | 排序与Evidence策略必须同版消费 | DR-KFLOW-022定义V2内部版本透传、唯一成对绑定及历史V1隔离，不改变模型或HTTP Schema |
 | v1.21 | 2026-09-04 | 每域检索表达被其他子问题的背景牵引 | 新增DR-KFLOW-021：Rewrite V6只调整每域表达聚焦指令，保留V3 decoder/Guard和V4/V5澄清/最小必要域；排序、Evidence配额、Summary及历史资产不改；本增量评审前不可实施 |
@@ -98,6 +100,7 @@
 | `REQ-KFLOW-002`、`REQ-KFLOW-003`、`CON-KFLOW-004` | `DR-KFLOW-021` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-013` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
 | `REQ-KFLOW-003`、`CON-KFLOW-004`；`KQ-AD-014` | `DR-KFLOW-022` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010`：semantic_planner、planning、capability、bootstrap的内部版本透传 | `TEST-KFLOW-014`：V2成对绑定、未知版本零检索、历史V1、disabled与单动作 | `VAL-KFLOW-005`：当前根/历史根及严格类型回归 |
 | `REQ-KFLOW-002`、`CON-KFLOW-004`；`KQ-AD-013` | `DR-KFLOW-023` | `IMPL-KFLOW-003`、`IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-015` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
+| `REQ-KFLOW-002`、`REQ-KFLOW-003`、`REQ-KFLOW-005`；`KQ-AD-018` | `DR-KFLOW-024` | `IMPL-KFLOW-012` | `TEST-KFLOW-016` | `VAL-KFLOW-007` |
 
 ## 5. 关联资源与责任边界
 
@@ -136,7 +139,7 @@
 | `DR-KFLOW-004` | 生产使用V3定义的 exact outcome/queries/missing_conditions 合同；V4/V5复用同一decoder，仅改变§8.1/8.2指令；每域最多一个表达、最多两域；旧任务只读历史 |
 | `DR-KFLOW-005` | V3模型/解码/约束失败停止且检索0；敏感输入模型0。旧 original fallback 设置只服务显式历史装配，不得触发生产回退 |
 | `DR-KFLOW-006` | 逻辑域目录代码绑定且有序；配置只能选择已知域 |
-| `DR-KFLOW-007` | 计划仅含逻辑域、stable path、query、limit；不含索引/字段/DSL |
+| `DR-KFLOW-007` | 计划只含逻辑域、stable path、query、limit及代码绑定版本；DR-KFLOW-024仅增加内部证据需求，不含物理索引/字段/DSL |
 | `DR-KFLOW-008` | 每阶段使用总 deadline 派生的较小 phase deadline；仅在预算校验通过后创建阶段 operation，超时不进入下一阶段 |
 | `DR-KFLOW-009` | 授权拒绝/读取权威失败优先于局部技术成功；coverage 必须与计划精确对应 |
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
@@ -147,6 +150,7 @@
 | `DR-KFLOW-021` | §8.3的Rewrite V6以本域待证明子问题为query边界，不把其他子问题的背景词机械复制到每域；原问题和所有既有显式条件校验不变，V6批准并实施后唯一替换V5，不影响排序/Evidence/Summary |
 | `DR-KFLOW-022` | 质量策略V2内部版本沿planner→plan→retrieval→Evidence透传并与limits成对绑定；详见文末增量，模型及HTTP不能选择版本 |
 | `DR-KFLOW-023` | 当前根仅将既有四个明确类别短语与数量分开检查；数字之外的约束、逐域类别保护及全部失败关闭不变，历史Guard/default不变；详见§8.4 |
+| `DR-KFLOW-024` | §8.5新Rewrite7一次生成有界需求，检索前冻结并贯穿后续阶段；当前未实施，不把旧三字段输出当作新合同接受 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
 | `DR-KFLOW-015` | 只有发布门禁通过并同步 Profile、物理 index UUID/mapping、逻辑 snapshot 及模型出域目录后，在线组合根才允许消费新 alias 目标；任何不一致失败关闭且不自动切换 |
@@ -265,6 +269,45 @@ V6规则：
 6. 这是有限词素误分类修复，不是任意语义等价证明；多组真实数字重排、其他汉字词素/否定词歧义仍按既有失败关闭处理，记录风险而不顺带建设规则引擎。真实模型是否输出了误拒绝表达未知，不以合成反例改判历史UAT。
 
 实现切片依赖：本节设计评审→新Guard/Planner成对绑定→单元/当前根fake/历史/类型/Spring回归→代码复评。回滚单位为当前根Guard绑定及配对实现，旧Guard仍可追溯；默认禁用Knowledge也可隔离，禁止请求内切换或live补跑。本节经三轮内审及分离编辑阶段的只读L2/跨层复评通过，允许本切片非live实施；审批和实施证据归P3。
+
+### 8.5 必要证据计划（DR-KFLOW-024；设计目标）
+
+依据KQ-AD-018，新增`knowledge/rewrite_v7.py::KnowledgeRewriteTaskV7.definition()`，不修改旧任务，不复用V3 parser来宽松接受新字段。task_id仍knowledge_rewrite、version=`7`，同一ModelGateway单次调用；输入仍安全原问和启用域安全目录。新exact JSON为：
+
+```json
+{"outcome":"search","question_kind":"applicability","queries":[{"domain_id":"tax.policy","query":"保留原问限制的政策检索表达"},{"domain_id":"tax.law","query":"保留原问限制的法律检索表达"}],"requirements":[{"requirement_id":"r1","domain_id":"tax.policy","kind":"subject_scope","focus":"所问服务的分类依据"},{"requirement_id":"r2","domain_id":"tax.law","kind":"rule","focus":"该问题所需的适用规则"},{"requirement_id":"r3","domain_id":"tax.law","kind":"temporal_scope","focus":"规则在所问期间的施行依据"}],"missing_conditions":[]}
+```
+
+示例只展示形状，不是固定双域计划、查询词或在线gold；实际问题的语义与域由模型一次确定。
+
+| 字段/对象 | 精确合同及所有者 |
+|---|---|
+| outcome | search / clarification_required / unsupported；原三种语义不变 |
+| question_kind | search必为lookup或applicability；其余两种终态必须是none，不允许null |
+| queries | search为1～2个唯一启用域、NFC非空query≤1024；沿用现行逐query数值/日期/否定/类别及整组主题保护；非search为空 |
+| requirements | search为1～4个exact对象；非search为空；顺序ID必须为r1..rN、不缺号、不重复；domain必须在queries中且每个query域至少有一项需求 |
+| kind | subject_scope / rule / temporal_scope / constraint；lookup按问题选择1～4项，不强制适用性三项；applicability必须各有且仅有一个subject_scope、rule、temporal_scope，余下一项可为constraint |
+| focus | NFC非空文本≤192 code points；描述待查证的问题，不得输出税率、类别归属等答案；不是SQL、URL、索引、文档ID或调用指令 |
+| missing_conditions | search/unsupported为空；clarification_required为原subject/taxpayer_type/calculation_method/applicable_period中的1～3个唯一值 |
+
+所有层次拒绝unknown/duplicate key、bool冒充整数、null、coercion、非有限值、尾随JSON。新任务输出上限1536tokens，输入16384bytes、指令8192bytes、任务8秒不变；超限/截断按非法输出失败，不追加模型请求。模型只生成需求，不生成引文或已证事实。applicability的三角色是回答责任的机械完整性，不是本地识别问题类型；对类型误判、需求错误及自然语言蕴含仍必须进行真实UAT。
+
+安全及校验顺序：原问QuestionEgressGuard→模型一次→exact decode→既有query guards→全部focus的QuestionEgressGuard→需求/域关联与版本冻结。focus可省略与该证明无关的原问条件，但禁止新增原问没有的数字/日期/比例/文号/法条/否定及四类税务条件；以现行保护token的计数子集校验，不用focus改写检索query。某个focus不安全或需求非法使整份计划失败，search/embedding/rerank/summary全0；不丢弃非法项后执行子集。缺少决定性用户条件仍用已有clarification，不为补齐三角色捏造期间或主体。未知必要域不能用当前可用域替代。
+
+`IMPL-KFLOW-012`触点（均为拟新增/修改，不是已实现声明）：
+
+- `knowledge/contracts.py`新增frozen/slots `KnowledgeEvidenceRequirement(requirement_id, domain_id, kind, focus)`及有限枚举；`RewriteResult`、`KnowledgeRetrievalPlan`、`KnowledgeEvidenceInput`追加默认空tuple的`evidence_requirements`及默认None的`question_kind`。内部question_kind只用lookup/applicability枚举，非search不建立检索计划。旧实例保持空/None；quality-v3成功检索必须有kind及非空需求，旧quality拒绝非空需求或kind。Plan/Evidence消费边界可据此复核三角色，不能在第一次解码后丢失目的信息。
+- `rewrite_v7.py`复用现有`KnowledgeSemanticPlanInput`，新增继承`KnowledgeSemanticPlanOutput`的frozen/slots输出子类型（question_kind及evidence_requirements），新decoder只解新五字段合同；非search的外部none在可信decoder中映射内部None。definition保持Planner既有泛型基类签名，返回子类型；Planner必须检查V7输出的实际子类型及版本，不用cast或getattr默认空绕过。复用既有公开请求工厂取得安全域目录及输入JSON，再一次性替换为新完整指令、版本与输出预算，不导入私有helper。原有V1/V2构造默认、旧任务对象及其parser保持原语义。
+- `planning.py::KnowledgeRetrievalPlanBuilder.build`在I/O前校验域、kind、需求与代码版本，并原样传递kind/tuple；`capability.py::KnowledgeQueryCapability.handle`把相同两项传至EvidenceInput，不能重建或从摘要反推。Stage Protocol的三个方法签名保持不变；不改公共Core/HTTP/Java/ES DTO。核心结构检查集中于拟新增`knowledge/evidence_requirements.py`的纯函数，各边界复用同一合同，不能复制四套角色规则。
+- `bootstrap.KnowledgeCompositionRoot`在全套实现及测试通过后唯一绑定Rewrite7/Summary6/quality-v3和对应limits；当前仍6/5/v2。版本由代码选择，不提供环境热切换；disabled不创建需求、任务或client。新配置final_candidates至少4，保持现有≥2×enabled域数及最大20。所有版本/数量配置错误在client创建前拒绝。
+
+V7输出子类型、outcome对应的kind/需求形状及配对版本校验必须先于clarification_required或unsupported提前返回；即使fake或内部Provider绕过decoder，也不能把非法终态当作正常拒绝。合法unsupported保持现行SUCCESS rewrite/空域的内部约定，question_kind=None、需求空，Capability在no_matching_domain终态结束，不建立检索计划；clarification保持现行有限reason映射。
+
+数据仅驻留同请求；不得通过query编码、ContextVar、全局registry、持久化或额外Capability传递。需求ID不是跨请求引用。观测只消费安全投影：planning.py在record_plan前为V3显式投影原有计划字段，省略question_kind/evidence_requirements，不把新dataclass整体交给通用_to_plain；无需扩展公开观测Schema。Summary观测保留当前白名单，不加入requirements；observation.py::knowledge_http_request_view对/rerank的既有query键统一返回固定隐藏标记，防止focus通过下游请求展示泄漏。不引入版本侧信道或修改RerankPort/HTTP DTO。此调整只收紧观测内容，不改变实际BGE请求及旧任务输入，现行观测测试需覆盖Plan/Summary/下游三处均不含focus，历史运行观测字节不改。
+
+`TEST-KFLOW-016`：新增V7任务精确JSON/大小/重复键矩阵；search/lookup/applicability/clarification/unsupported，漏三角色、重复/乱序ID、未知/未查询域、无需求的查询域、超4项、focus敏感/新增受保护token均零检索；同一域多个角色合法、资料查阅不被三角色强迫；既有query条件保护不退化。生产根fake验证tuple贯穿、版本错配/旧形状拒绝、disabled、单动作、无fallback、取消/关闭、非酒店表达和历史源hash。新增测试路径为`tests/contract/knowledge/test_rewrite_task_v7.py`、`tests/unit/knowledge/test_evidence_requirements.py`、`tests/integration/knowledge/test_requirement_plan_production.py`。`VAL-KFLOW-007`要求这些测试、strict mypy、compileall、现行Spring→Runtime及历史回归实际通过；fake不证明LLM规划正确。
+
+本节的目标合同与§8.1～8.4历史Prompt增量区分：此前“不增加intent/需求Schema”的取舍只适用于当时局部修复。此次有跨阶段丢失证据，不通过隐式prompt约定代替类型合同。实施需先完成本增量评审，整套新绑定可禁用或按一致源码回退，不能请求内fallback；新真实批次不在本节授权范围。
 
 ## 9. 检索计划与核心流程
 
@@ -395,6 +438,7 @@ validate empty arguments
 | `IMPL-KFLOW-009` | `agent-runtime/src/agent_runtime/main.py`：按开关构建 Knowledge tasks/retrieval/provider 并追加到 Business Runtime |
 | `IMPL-KFLOW-010` | `agent-runtime/src/agent_runtime/bootstrap.py`：顶层 owned resource 生命周期与 disabled 零依赖装配 |
 | `IMPL-KFLOW-011` | `agent-runtime` 当前策略目录加载与 `serviceCenter/knowledge-runtime-binding.v1.json`：只读发布绑定；历史目录继续独立可校验 |
+| `IMPL-KFLOW-012` | 拟新增/修改§8.5明确的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测；不改历史任务与公开合同 |
 
 ### 14.2 关键签名
 
@@ -447,6 +491,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `TEST-KFLOW-013` | DR-KFLOW-021：V6指令局部替换/同一decoder与预算、每域聚焦及显式条件不丢失、原问Summary、当前单绑定与旧版本拒绝、历史隔离；合同/生产fake/防回退，真实语义不由fake证明 |
 | `TEST-KFLOW-014` | DR-KFLOW-022：quality-v2从当前根透传、错误版本拒绝、V2/limits配对、历史V1默认、disabled及单动作防回退 |
 | `TEST-KFLOW-015` | DR-KFLOW-023：已新增`test_tax_question_semantics.py`及`test_tax_semantic_guard_production.py`；类别/年份变序成功、类别丢失新增、实际数字/比例/日期/文号/法条/否定变化拒绝、重复数量和上限、旧默认和历史哈希、当前根唯一绑定/零调用/资源关闭 |
+| `TEST-KFLOW-016` | §8.5 V7精确合同、终态前校验、同域多角色、语义保护、需求透传、版本矩阵与三处观测不展示focus；拟新增测试路径见该节 |
 
 ### 15.2 验证编号定义
 
@@ -458,6 +503,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 Summary V5 单注册及 V1～V4 历史不可变通过 |
 | `VAL-KFLOW-005` | 当前启动入口 disabled 零依赖、enabled 唯一对象图和 Spring→Runtime 功能 UAT 通过 |
 | `VAL-KFLOW-006` | 阶段 A 发布绑定可由现有在线链路只读消费，且不改变域选择、Rewrite、排序、错误或 fallback 行为 |
+| `VAL-KFLOW-007` | §8.5任务/计划/current root fake、strict mypy、compileall、历史hash及Spring回归；新真实语义另行验证 |
 
 ## 16. 风险与保护条件
 
@@ -473,8 +519,8 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，DR-KFLOW-021经下述三轮内审及独立于修订操作的只读复评，只批准V6非live切片；核心P0和真实UAT仍未通过 |
-| 当前允许实施范围 | 既有在线流程、Rewrite6/Summary5和质量V2；DR-KFLOW-023已完成三轮内审及只读设计复评，允许当前内部Guard绑定及non-live。禁止Profile/index/policy、真实数值约束及权限变化 |
+| 是否可作为实现依据 | 是，DR-KFLOW-024经三轮内审及两轮正式只读复评，准入新需求计划non-live实施；当前未实施，核心P0及真实UAT仍未通过 |
+| 当前允许实施范围 | §8.5内部需求类型/V7任务、严格校验与透传、安全观测及成对绑定；后续消费者完成前不切生产根。禁止Profile/index/policy、真实数值约束及权限变化 |
 | 当前禁止动作 | 未配置新域/物理资源选择、公共契约变化、未按UAT冻结或超预算的真实模型调用、请求触发索引写入或独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
 
@@ -502,7 +548,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.18 独立审查首轮 | 分离作者修改阶段后重新核对L1/L2/REQ及代码契约；无S0/S1，发现S2：DR019未进入§4.2主追踪表、实施依据的否决状态不明确；已最小修复 | Fixed，待复评 |
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
-- 当前版本：v1.23。
+- 当前版本：v1.24；DR-KFLOW-024增量已评审未实施，当前生产仍Rewrite6。
 - 文档状态：Approved；DR-KFLOW-023允许非live实施。增量审批及验证记录见P3，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
