@@ -10,6 +10,7 @@ from agent_runtime.capability_api.contracts import CapabilityStatus
 from agent_runtime.main import build_runtime
 from agent_runtime.model.contracts import ModelTaskId
 from agent_runtime.knowledge.rewrite_v6 import INSTRUCTION
+from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION_V2
 from agent_runtime.observation import observation_scope
 from tests.helpers import scope
 from tests.integration.knowledge.test_production_runtime_wiring import _KnowledgeClientFactory, _enabled_environment
@@ -65,6 +66,7 @@ async def test_current_root_dispatches_domain_queries_unchanged_and_summarizes_o
     assert json.loads(summary.user_payload_json)["question"] == question
     assert len(observation.plans) == 1
     planned = observation.plans[0]["plan"]
+    assert planned["quality_version"] == KNOWLEDGE_QUALITY_VERSION_V2
     assert tuple(planned["selected_domain_ids"]) == tuple(domain for domain, _ in queries)
     assert {(item["logical_domain_id"], item["query_text"]) for item in planned["items"]} == set(queries)
 
@@ -82,6 +84,35 @@ async def test_current_root_dispatches_domain_queries_unchanged_and_summarizes_o
     assert [value["query"] for path, value in clients.payloads if path == "/rerank"] == [query for _, query in queries]
     assert set(clients.paths) == {"/es/knowledge/search", "/embed", "/rerank"}
     assert len(clients.es_authorizations) == len(searches)
+    assert all(client.is_closed for client in clients.clients)
+
+
+@pytest.mark.asyncio
+async def test_v2_limits_mismatch_fails_before_summary(monkeypatch):
+    from dataclasses import replace
+    from agent_runtime.knowledge.evidence.builder import DeterministicEvidenceSelector
+    from agent_runtime.knowledge.evidence.contracts import KnowledgeEvidenceLimits
+
+    original = DeterministicEvidenceSelector.select
+
+    def mismatched(selector, **kwargs):
+        kwargs["limits"] = replace(KnowledgeEvidenceLimits.v1(), max_per_document=3)
+        return original(selector, **kwargs)
+
+    monkeypatch.setattr(DeterministicEvidenceSelector, "select", mismatched)
+    question = "住宿服务的政策分类"
+    model = PlanModel({"outcome": "search", "queries": [
+        {"domain_id": "tax.policy", "query": question}], "missing_conditions": []})
+    clients = RecordingClients()
+    runtime = build_runtime(_enabled_environment(), model_transport=model, knowledge_http_client_factory=clients)
+    try:
+        outcome = await runtime.ainvoke(question=question, scope=scope(question))
+    finally:
+        await runtime.aclose()
+    assert outcome.status is CapabilityStatus.DOWNSTREAM_FAILURE
+    assert outcome.failure.code == "knowledge.evidence_failure"
+    assert [r.task_id for r in model.requests] == [ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE]
+    assert sum(path == "/es/knowledge/search" for path, _ in clients.payloads) == 2
     assert all(client.is_closed for client in clients.clients)
 
 

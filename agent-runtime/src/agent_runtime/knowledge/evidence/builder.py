@@ -6,7 +6,9 @@ import math
 import re
 import unicodedata
 
-from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION, KnowledgeEvidenceInput
+from agent_runtime.knowledge.contracts import (
+    KNOWLEDGE_QUALITY_VERSION_V2, KNOWLEDGE_QUALITY_VERSIONS, KnowledgeEvidenceInput,
+)
 from agent_runtime.knowledge.evidence.contracts import (
     EvidenceCoverage,
     EvidenceSelectionResult,
@@ -34,6 +36,8 @@ class EvidenceIntegrityVerifier:
         input: KnowledgeEvidenceInput[RankedKnowledgeBatch],
     ) -> tuple[VerifiedKnowledgeCandidate, ...]:
         batch = input.batch
+        if input.quality_version is not None and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS:
+            raise EvidenceIntegrityError("knowledge.unknown_quality_version")
         if not isinstance(batch, RankedKnowledgeBatch):
             raise EvidenceIntegrityError("knowledge.invalid_ranked_batch")
         if (
@@ -57,7 +61,7 @@ class EvidenceIntegrityVerifier:
                 or isinstance(item.rerank_score, bool)
                 or not math.isfinite(item.rerank_score)
                 or type(item.coverage_anchor) is not bool
-                or (item.coverage_anchor and input.quality_version != KNOWLEDGE_QUALITY_VERSION)
+                or (item.coverage_anchor and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS)
             ):
                 raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
             if any(domain not in input.selected_domain_ids for domain in item.domain_ids):
@@ -83,8 +87,9 @@ class EvidenceIntegrityVerifier:
                 )
             )
         snapshots = batch.index_snapshot_ids
+        anchor_multiplier = 1 if input.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 else 2
         if (
-            sum(item.coverage_anchor for item in batch.candidates) > 2 * len(input.selected_domain_ids)
+            sum(item.coverage_anchor for item in batch.candidates) > anchor_multiplier * len(input.selected_domain_ids)
             or not snapshots
             or len(set(snapshots)) != len(snapshots)
             or any(type(item) is not str or _LOWER_HEX_64.fullmatch(item) is None for item in snapshots)
@@ -129,7 +134,9 @@ class DeterministicEvidenceSelector:
         minimized_question: str,
         limits: KnowledgeEvidenceLimits,
     ) -> EvidenceSelectionResult:
-        quality = input.quality_version == KNOWLEDGE_QUALITY_VERSION
+        quality = input.quality_version in KNOWLEDGE_QUALITY_VERSIONS
+        if input.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 and limits != KnowledgeEvidenceLimits.quality_v2():
+            raise EvidenceIntegrityError("knowledge.evidence_limits_version_mismatch")
         required = set(input.selected_domain_ids) if quality else {
             item.logical_domain_id
             for item in input.coverage.candidate_count_by_domain

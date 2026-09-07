@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from agent_runtime.knowledge.contracts import (
     DomainSelection,
-    KNOWLEDGE_QUALITY_VERSION,
+    KNOWLEDGE_QUALITY_VERSIONS,
     KnowledgeRetrievalPlan,
     RetrievalPath,
     RetrievalPlanItem,
@@ -25,7 +25,7 @@ class KnowledgeRetrievalPlanBuilder:
             raise KnowledgeInputError("knowledge.plan_domains_required")
         queries = {item.domain_id: item.query for item in rewrite.domain_queries}
         if rewrite.plan_version is not None and (
-            rewrite.plan_version != KNOWLEDGE_QUALITY_VERSION
+            rewrite.plan_version not in KNOWLEDGE_QUALITY_VERSIONS
             or len(queries) != len(rewrite.domain_queries)
             or tuple(queries) != domains.selected_domain_ids
             or not set(queries).issubset(settings.enabled_domain_ids)

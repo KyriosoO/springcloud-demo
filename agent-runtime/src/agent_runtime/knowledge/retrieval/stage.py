@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 
 from agent_runtime.knowledge.contracts import (
-    KNOWLEDGE_QUALITY_VERSION,
+    KNOWLEDGE_QUALITY_VERSION_V2,
+    KNOWLEDGE_QUALITY_VERSIONS,
     DomainCandidateCount,
     FailedPath,
     KnowledgeRetrievalContext,
@@ -32,6 +33,7 @@ from agent_runtime.knowledge.retrieval.es_adapter import PROFILE_BY_DOMAIN
 from agent_runtime.knowledge.retrieval.fusion import ReciprocalRankFusion
 from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
 from agent_runtime.knowledge.retrieval.quality_ranking import rank_by_domain
+from agent_runtime.knowledge.retrieval.quality_ranking_v2 import rank_by_domain_v2
 
 
 class DefaultKnowledgeRetrievalStage:
@@ -82,7 +84,7 @@ class DefaultKnowledgeRetrievalStage:
         context: KnowledgeRetrievalContext,
         deadline: float,
     ) -> RetrievalStageResult[RankedKnowledgeBatch]:
-        quality = plan.quality_version == KNOWLEDGE_QUALITY_VERSION
+        quality = plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS
         if plan.quality_version is not None and not quality:
             raise ValueError("knowledge.unknown_quality_version")
         if quality and (
@@ -248,7 +250,8 @@ class DefaultKnowledgeRetrievalStage:
             return RetrievalStageResult(kind=RetrievalStageKind.NO_RESULT, coverage=coverage)
         try:
             if quality:
-                ranked = await rank_by_domain(
+                ranker = rank_by_domain_v2 if plan.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 else rank_by_domain
+                ranked = await ranker(
                     plan=plan, sets=tuple(candidate_sets), fused=fused, fusion=self._fusion,
                     rerank=self._rerank, deadline=deadline, final_candidates=self._final_candidates,
                 )

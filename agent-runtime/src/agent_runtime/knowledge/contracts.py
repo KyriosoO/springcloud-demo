@@ -157,6 +157,8 @@ class PlannedDomainQuery:
 
 
 KNOWLEDGE_QUALITY_VERSION = "knowledge-retrieval-quality-v1"
+KNOWLEDGE_QUALITY_VERSION_V2 = "knowledge-retrieval-quality-v2"
+KNOWLEDGE_QUALITY_VERSIONS = frozenset((KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSION_V2))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

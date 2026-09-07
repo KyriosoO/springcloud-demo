@@ -17,7 +17,7 @@ from agent_runtime.capability_api.contracts import (
 )
 from agent_runtime.knowledge.context import to_evidence_context, to_retrieval_context
 from agent_runtime.knowledge.contracts import (
-    KNOWLEDGE_QUALITY_VERSION,
+    KNOWLEDGE_QUALITY_VERSIONS,
     DomainSelection,
     DomainCandidateCount,
     EvidenceEgressDenialReason,
@@ -158,14 +158,15 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             ids = tuple(item.domain_id for item in rewritten.domain_queries)
             enabled_ids = tuple(item.domain_id for item in self._domains)
             if (
-                rewritten.plan_version != KNOWLEDGE_QUALITY_VERSION
+                rewritten.plan_version not in KNOWLEDGE_QUALITY_VERSIONS
                 or rewritten.question_egress_denied or rewritten.original_question != question
                 or len(set(ids)) != len(ids) or not set(ids).issubset(enabled_ids)
             ):
                 return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure", source=FailureSource.DOWNSTREAM)
+            assert rewritten.plan_version is not None
             domains = DomainSelection(
                 selected_domain_ids=tuple(domain for domain in enabled_ids if domain in ids),
-                catalog_version=KNOWLEDGE_QUALITY_VERSION, reason_codes=("semantic_plan",),
+                catalog_version=rewritten.plan_version, reason_codes=("semantic_plan",),
             )
         else:
             assert self._selector is not None
@@ -273,7 +274,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             if result.stage_code in mapping:
                 return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code=mapping[result.stage_code], source=FailureSource.DOWNSTREAM)
         if result.kind in (RetrievalStageKind.SUCCESS, RetrievalStageKind.NO_RESULT) and result.coverage is not None:
-            is_quality = plan.quality_version == KNOWLEDGE_QUALITY_VERSION
+            is_quality = plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS
             if not self._valid_coverage(
                 result.coverage, plan, require_candidates=result.kind is RetrievalStageKind.SUCCESS,
                 check_partial=not is_quality,

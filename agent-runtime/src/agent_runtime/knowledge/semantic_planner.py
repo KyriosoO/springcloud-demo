@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from agent_runtime.knowledge.contracts import (
-    KNOWLEDGE_QUALITY_VERSION, RewriteCandidate, RewriteCandidateSource, RewriteMode,
+    KNOWLEDGE_QUALITY_VERSION, KNOWLEDGE_QUALITY_VERSIONS, RewriteCandidate, RewriteCandidateSource, RewriteMode,
     RewriteResult, RewriteStageKind, RewriteStageResult,
 )
 from agent_runtime.knowledge.errors import KnowledgeInputError
@@ -30,7 +30,11 @@ class KnowledgeSemanticPlanner:
         self, *, gateway: StructuredModelGateway, context: ModelCallContextAccessor,
         enabled_domain_ids: tuple[str, ...], max_query_chars: int = 1024,
         definition: ModelTaskDefinition[KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput],
+        quality_version: str = KNOWLEDGE_QUALITY_VERSION,
     ) -> None:
+        if quality_version not in KNOWLEDGE_QUALITY_VERSIONS:
+            raise ValueError("knowledge.unknown_quality_version")
+        self._quality_version = quality_version
         self._gateway, self._context = gateway, context
         self._domains = enabled_domain_ids
         self._max_chars = max_query_chars
@@ -99,6 +103,6 @@ class KnowledgeSemanticPlanner:
                 candidates=tuple(RewriteCandidate(text=item.query, source=RewriteCandidateSource.MODEL, ordinal=i)
                                  for i, item in enumerate(plans, 1)),
                 mode=RewriteMode.MODEL, question_policy_version=decision.policy_version,
-                question_egress_denied=False, domain_queries=plans, plan_version=KNOWLEDGE_QUALITY_VERSION,
+                question_egress_denied=False, domain_queries=plans, plan_version=self._quality_version,
             ),
         )

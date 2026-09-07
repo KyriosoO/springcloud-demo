@@ -539,7 +539,7 @@ class KnowledgeCompositionRoot:
         from agent_runtime.knowledge.semantic_planner import KnowledgeSemanticPlanner
         from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput
         from agent_runtime.knowledge.settings import KnowledgeSettings
-        from agent_runtime.knowledge.contracts import KnowledgeRetrievalStage
+        from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION_V2, KnowledgeRetrievalStage
 
         typed_settings = cast(KnowledgeSettings, settings)
         if not typed_settings.enabled:
@@ -564,6 +564,7 @@ class KnowledgeCompositionRoot:
             definition=cast(ModelTaskDefinition[KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput], tasks.rewrite),
             enabled_domain_ids=typed_settings.enabled_domain_ids,
             max_query_chars=typed_settings.max_retrieval_query_chars,
+            quality_version=KNOWLEDGE_QUALITY_VERSION_V2,
         )
         evidence = DefaultKnowledgeEvidenceStage(
             catalog=typed_policy_catalog,
@@ -571,7 +572,7 @@ class KnowledgeCompositionRoot:
             context=model.context_accessor,
             gateway=model.gateway,
             definition=summary_definition,
-            limits=KnowledgeEvidenceLimits.quality_v1(),
+            limits=KnowledgeEvidenceLimits.quality_v2(),
         )
         from agent_runtime.knowledge.capability import KnowledgeQueryCapability
 

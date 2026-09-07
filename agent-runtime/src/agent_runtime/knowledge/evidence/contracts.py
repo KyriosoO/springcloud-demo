@@ -60,6 +60,10 @@ class KnowledgeEvidenceLimits:
     def quality_v1(cls) -> "KnowledgeEvidenceLimits":
         return replace(cls.v1(), max_per_document=3)
 
+    @classmethod
+    def quality_v2(cls) -> "KnowledgeEvidenceLimits":
+        return replace(cls.v1(), max_per_document=cls.v1().max_evidence)
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class VerifiedKnowledgeCandidate:
