@@ -4,6 +4,7 @@ import asyncio
 
 from agent_runtime.capability_api.contracts import EgressDisposition, ModelEgressResult
 from agent_runtime.knowledge.contracts import (
+    KNOWLEDGE_QUALITY_VERSION_V3,
     EvidenceEgressDenialReason,
     EvidenceNoResultReason,
     EvidenceStageCode,
@@ -20,15 +21,19 @@ from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalo
 from agent_runtime.knowledge.evidence.contracts import (
     EvidencePolicyDenial,
     KnowledgeEvidenceLimits,
+    KnowledgeRequirementSummaryInput,
     SummaryOutcome,
 )
 from agent_runtime.knowledge.evidence.policy import KnowledgeEvidenceEgressDecider
 from agent_runtime.knowledge.evidence.summary_validation import ExtractiveSummaryValidator, InvalidSummary
+from agent_runtime.knowledge.evidence.requirement_validation import RequirementCoverageValidator
+from agent_runtime.knowledge.evidence.summary_task_v6 import requirement_summary_input_json
 from agent_runtime.knowledge.retrieval.contracts import RankedKnowledgeBatch
 from agent_runtime.model.context import ModelCallContextAccessor
 from agent_runtime.model.contracts import (
     ModelProviderFailureKind,
     ModelTaskDefinition,
+    ModelTaskId,
     QuestionEgressDisposition,
     StructuredModelGateway,
 )
@@ -79,6 +84,13 @@ class DefaultKnowledgeEvidenceStage:
         if decision.policy_version != input.question_policy_version:
             return self._denied(EvidenceEgressDenialReason.POLICY_CONFLICT)
         assert decision.minimized_question is not None
+        v3 = input.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
+        if ((v3 and (self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
+                     or self._definition.task_version != "6"
+                     or self._definition.input_type is not KnowledgeRequirementSummaryInput
+                     or self._limits != KnowledgeEvidenceLimits.quality_v3()))
+            or (not v3 and (self._definition.task_version == "6" or self._definition.input_type is KnowledgeRequirementSummaryInput))):
+            return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.EVIDENCE_FAILURE)
         try:
             verified = self._verifier.verify(input=input)
             selection = self._selector.select(
@@ -101,6 +113,17 @@ class DefaultKnowledgeEvidenceStage:
                 EvidencePolicyDenial.POLICY_CONFLICT: EvidenceEgressDenialReason.POLICY_CONFLICT,
             }
             return self._denied(denial_mapping[policy.denial_reason or EvidencePolicyDenial.POLICY_CONFLICT])
+        summary_input = policy.summary_input
+        if v3:
+            summary_input = KnowledgeRequirementSummaryInput(
+                schema_version=2, question=summary_input.question, coverage=summary_input.coverage,
+                evidence=summary_input.evidence, requirements=input.evidence_requirements,
+            )
+            try:
+                if len(requirement_summary_input_json(summary_input).encode("utf-8")) > self._limits.max_summary_input_bytes:
+                    raise ValueError("knowledge.summary_input_invalid")
+            except (ValueError, TypeError, AttributeError):
+                return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.EVIDENCE_FAILURE)
         try:
             call_context = self._context.require_current()
         except Exception:
@@ -115,7 +138,7 @@ class DefaultKnowledgeEvidenceStage:
             async with asyncio.timeout_at(deadline):
                 model_result = await self._gateway.generate(
                     definition=self._definition,
-                    input=policy.summary_input,
+                    input=summary_input,
                     context=call_context,
                 )
         except asyncio.CancelledError:
@@ -133,7 +156,15 @@ class DefaultKnowledgeEvidenceStage:
             return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.SUMMARY_FAILURE)
         assert model_result.output is not None
         try:
-            validated = self._validator.validate(output=model_result.output, bundle=selection.bundle, limits=self._limits)
+            output = model_result.output
+            if v3:
+                if not isinstance(summary_input, KnowledgeRequirementSummaryInput):
+                    raise ValueError("knowledge.summary_input_invalid")
+                output = RequirementCoverageValidator().validate(
+                    output=output, requirements=input.evidence_requirements,
+                    summary_input=summary_input, bundle=selection.bundle,
+                )
+            validated = self._validator.validate(output=output, bundle=selection.bundle, limits=self._limits)
         except InvalidSummary:
             return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.INVALID_SUMMARY)
         if validated.insufficient:

@@ -7,7 +7,8 @@ import re
 import unicodedata
 
 from agent_runtime.knowledge.contracts import (
-    KNOWLEDGE_QUALITY_VERSION_V2, KNOWLEDGE_QUALITY_VERSIONS, KnowledgeEvidenceInput,
+    KNOWLEDGE_QUALITY_VERSION_V2, KNOWLEDGE_QUALITY_VERSION_V3, KNOWLEDGE_QUALITY_VERSIONS,
+    KnowledgeEvidenceInput, KnowledgeEvidenceRequirement,
 )
 from agent_runtime.knowledge.evidence.contracts import (
     EvidenceCoverage,
@@ -16,12 +17,16 @@ from agent_runtime.knowledge.evidence.contracts import (
     KnowledgeEvidence,
     KnowledgeEvidenceBundle,
     KnowledgeEvidenceLimits,
+    KnowledgeRequirementSummaryInput,
     QuestionEvidenceTrace,
+    SummaryCoverageInput,
+    SummaryEvidenceInput,
     VerifiedKnowledgeCandidate,
 )
 from agent_runtime.knowledge.retrieval.contracts import RankedKnowledgeBatch
 from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
 from agent_runtime.knowledge.errors import KnowledgeInputError
+from agent_runtime.knowledge.evidence.summary_task_v6 import requirement_summary_input_json
 
 
 class EvidenceIntegrityError(ValueError):
@@ -38,7 +43,8 @@ class EvidenceIntegrityVerifier:
         input: KnowledgeEvidenceInput[RankedKnowledgeBatch],
     ) -> tuple[VerifiedKnowledgeCandidate, ...]:
         batch = input.batch
-        if input.quality_version is not None and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS:
+        v3 = input.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
+        if input.quality_version is not None and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS and not v3:
             raise EvidenceIntegrityError("knowledge.unknown_quality_version")
         try:
             validate_plan_requirements(
@@ -49,8 +55,7 @@ class EvidenceIntegrityVerifier:
             raise EvidenceIntegrityError("knowledge.requirement_version_mismatch") from exc
         if not isinstance(batch, RankedKnowledgeBatch):
             raise EvidenceIntegrityError("knowledge.invalid_ranked_batch")
-        # Requirement-aware Evidence is not enabled yet; legacy consumers cannot ignore tags.
-        if any(type(item.requirement_ids) is not tuple or item.requirement_ids for item in batch.candidates):
+        if not v3 and any(type(item.requirement_ids) is not tuple or item.requirement_ids for item in batch.candidates):
             raise EvidenceIntegrityError("knowledge.requirement_version_mismatch")
         if (
             batch.profile_version != "tax-knowledge-search-v1"
@@ -62,6 +67,8 @@ class EvidenceIntegrityVerifier:
         verified: list[VerifiedKnowledgeCandidate] = []
         document_facts: dict[str, tuple[str, str, str]] = {}
         identities: set[tuple[str, str]] = set()
+        requirement_domains = {item.requirement_id: item.domain_id for item in input.evidence_requirements}
+        seen_requirements: set[str] = set()
         for expected_rank, item in enumerate(batch.candidates, 1):
             candidate = item.candidate
             expected_domains = tuple(domain for domain in input.selected_domain_ids if domain in item.domain_ids)
@@ -73,9 +80,17 @@ class EvidenceIntegrityVerifier:
                 or isinstance(item.rerank_score, bool)
                 or not math.isfinite(item.rerank_score)
                 or type(item.coverage_anchor) is not bool
-                or (item.coverage_anchor and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS)
+                or (item.coverage_anchor and input.quality_version not in KNOWLEDGE_QUALITY_VERSIONS and not v3)
             ):
                 raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
+            if v3:
+                labels = item.requirement_ids
+                if (type(labels) is not tuple or any(type(label) is not str or label not in requirement_domains for label in labels)
+                    or labels != tuple(label for label in requirement_domains if label in labels)
+                    or any(label in seen_requirements or requirement_domains[label] not in item.domain_ids for label in labels)
+                    or item.coverage_anchor != bool(labels)):
+                    raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
+                seen_requirements.update(labels)
             if any(domain not in input.selected_domain_ids for domain in item.domain_ids):
                 raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
             if hashlib.sha256(unicodedata.normalize("NFC", candidate.content).encode("utf-8")).hexdigest() != candidate.content_sha256:
@@ -96,12 +111,13 @@ class EvidenceIntegrityVerifier:
                     rerank_score=item.rerank_score,
                     profile_version=batch.profile_version,
                     coverage_anchor=item.coverage_anchor,
+                    requirement_ids=item.requirement_ids,
                 )
             )
         snapshots = batch.index_snapshot_ids
         anchor_multiplier = 1 if input.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 else 2
         if (
-            sum(item.coverage_anchor for item in batch.candidates) > anchor_multiplier * len(input.selected_domain_ids)
+            sum(item.coverage_anchor for item in batch.candidates) > (4 if v3 else anchor_multiplier * len(input.selected_domain_ids))
             or not snapshots
             or len(set(snapshots)) != len(snapshots)
             or any(type(item) is not str or _LOWER_HEX_64.fullmatch(item) is None for item in snapshots)
@@ -137,6 +153,24 @@ def _maximal_bytes(question: str, evidence: tuple[KnowledgeEvidence, ...], cover
     return len(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
 
 
+def _requirement_maximal_bytes(
+    question: str, evidence: tuple[KnowledgeEvidence, ...], coverage: EvidenceCoverage,
+    requirements: tuple[KnowledgeEvidenceRequirement, ...],
+) -> int:
+    value = KnowledgeRequirementSummaryInput(
+        schema_version=2, question=question, requirements=requirements,
+        coverage=SummaryCoverageInput(retrieval_complete=coverage.retrieval_complete,
+                                      domain_coverage_complete=not coverage.missing_domain_ids),
+        evidence=tuple(SummaryEvidenceInput(
+            evidence_ref=f"e{index}", content=item.content, domain_ids=item.domain_ids,
+            title=item.source.title, document_number=item.source.document_number,
+            written_date=item.source.written_date.isoformat() if item.source.written_date else None,
+            material_type=item.source.material_type,
+        ) for index, item in enumerate(evidence, 1)),
+    )
+    return len(requirement_summary_input_json(value).encode("utf-8"))
+
+
 class DeterministicEvidenceSelector:
     def select(
         self,
@@ -146,9 +180,16 @@ class DeterministicEvidenceSelector:
         minimized_question: str,
         limits: KnowledgeEvidenceLimits,
     ) -> EvidenceSelectionResult:
-        quality = input.quality_version in KNOWLEDGE_QUALITY_VERSIONS
+        v3 = input.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
+        quality = input.quality_version in KNOWLEDGE_QUALITY_VERSIONS or v3
         if input.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 and limits != KnowledgeEvidenceLimits.quality_v2():
             raise EvidenceIntegrityError("knowledge.evidence_limits_version_mismatch")
+        if v3:
+            if limits != KnowledgeEvidenceLimits.quality_v3():
+                raise EvidenceIntegrityError("knowledge.evidence_limits_version_mismatch")
+            labels = {label for item in candidates for label in item.requirement_ids}
+            if labels != {item.requirement_id for item in input.evidence_requirements}:
+                return EvidenceSelectionResult(bundle=None, sufficient=False)
         required = set(input.selected_domain_ids) if quality else {
             item.logical_domain_id
             for item in input.coverage.candidate_count_by_domain
@@ -185,7 +226,9 @@ class DeterministicEvidenceSelector:
                 missing_domain_ids=tuple(domain for domain in input.selected_domain_ids if domain not in represented),
                 failed_paths=input.coverage.failed_paths,
             )
-            if _maximal_bytes(minimized_question, provisional, coverage) > limits.max_summary_input_bytes:
+            size = (_requirement_maximal_bytes(minimized_question, provisional, coverage, input.evidence_requirements)
+                    if v3 else _maximal_bytes(minimized_question, provisional, coverage))
+            if size > limits.max_summary_input_bytes:
                 return "byte_limit"
             selected.append(evidence)
             per_document[candidate.document_id] = per_document.get(candidate.document_id, 0) + 1
@@ -220,7 +263,8 @@ class DeterministicEvidenceSelector:
             failed_paths=input.coverage.failed_paths,
         )
         evidence_tuple = tuple(selected)
-        byte_count = _maximal_bytes(minimized_question, evidence_tuple, coverage)
+        byte_count = (_requirement_maximal_bytes(minimized_question, evidence_tuple, coverage, input.evidence_requirements)
+                      if v3 else _maximal_bytes(minimized_question, evidence_tuple, coverage))
         return EvidenceSelectionResult(
             sufficient=True,
             bundle=KnowledgeEvidenceBundle(

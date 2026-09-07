@@ -5,7 +5,7 @@ from datetime import date
 from enum import StrEnum
 
 from agent_runtime.capability_api.contracts import JsonObject
-from agent_runtime.knowledge.contracts import FailedPath
+from agent_runtime.knowledge.contracts import FailedPath, KnowledgeEvidenceRequirement
 from agent_runtime.knowledge.retrieval.contracts import AuthorizedKnowledgeCandidate
 
 
@@ -64,6 +64,10 @@ class KnowledgeEvidenceLimits:
     def quality_v2(cls) -> "KnowledgeEvidenceLimits":
         return replace(cls.v1(), max_per_document=cls.v1().max_evidence)
 
+    @classmethod
+    def quality_v3(cls) -> "KnowledgeEvidenceLimits":
+        return cls.quality_v2()
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class VerifiedKnowledgeCandidate:
@@ -73,6 +77,7 @@ class VerifiedKnowledgeCandidate:
     rerank_score: float
     profile_version: str
     coverage_anchor: bool = False
+    requirement_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -152,6 +157,11 @@ class KnowledgeSummaryInput:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class KnowledgeRequirementSummaryInput(KnowledgeSummaryInput):
+    requirements: tuple[KnowledgeEvidenceRequirement, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class KnowledgeSummaryPoint:
     evidence_ref: str
     quote: str
@@ -161,6 +171,17 @@ class KnowledgeSummaryPoint:
 class KnowledgeSummaryOutput:
     outcome: SummaryOutcome
     points: tuple[KnowledgeSummaryPoint, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SummaryRequirementCoverage:
+    requirement_id: str
+    evidence_refs: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KnowledgeRequirementSummaryOutput(KnowledgeSummaryOutput):
+    coverage: tuple[SummaryRequirementCoverage, ...]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

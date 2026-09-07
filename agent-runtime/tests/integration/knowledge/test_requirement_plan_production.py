@@ -208,7 +208,7 @@ async def test_cancellation_propagates_without_retry():
 
 
 @pytest.mark.asyncio
-async def test_old_version_with_requirements_rejected_before_retrieval_io_and_v3_evidence_not_yet_enabled():
+async def test_old_version_with_requirements_rejected_before_retrieval_io_and_v3_evidence_requires_labels():
     result, _ = await invoke(wire_plan(applicability=True))
     plan = build_plan(result.rewrite)
     for version in (KNOWLEDGE_QUALITY_VERSION_V2, None):
@@ -220,9 +220,10 @@ async def test_old_version_with_requirements_rejected_before_retrieval_io_and_v3
         with pytest.raises(EvidenceIntegrityError):
             EvidenceIntegrityVerifier().verify(input=replace(evidence_input(), quality_version=version,
                                                             question_kind=plan.question_kind, evidence_requirements=plan.evidence_requirements))
-    with pytest.raises(EvidenceIntegrityError):
-        EvidenceIntegrityVerifier().verify(input=replace(evidence_input(), quality_version=KNOWLEDGE_QUALITY_VERSION_V3,
-                                                        question_kind=plan.question_kind, evidence_requirements=plan.evidence_requirements))
+    from tests.requirement_evidence_helpers import select
+    missing_labels = replace(evidence_input(), quality_version=KNOWLEDGE_QUALITY_VERSION_V3,
+                             question_kind=plan.question_kind, evidence_requirements=plan.evidence_requirements)
+    assert not select(missing_labels).sufficient
     with pytest.raises(KnowledgeInputError, match="version_mismatch"):
         build_plan(replace(result.rewrite, plan_version=KNOWLEDGE_QUALITY_VERSION_V2))
 
