@@ -466,3 +466,24 @@ non-live必须覆盖：关键词第一名但语义低位不强制入选、同域
 当前进展：V2已实施，生产根fake、排序/选择边界、调用次数、配额错配Summary零调用及新run-05 runner的fake验证通过；实际命令结果归P3 §20.24。新批尚未冻结或执行：环境预检曾失败，单独服务启动/清理复核成功，但Git持久化句柄占用及Transaction测试容器验证尚未解除。没有manifest、consumed或模型outbound，不把预检错误标成新效果结论，也不重置既有四批预算。最新已执行专项仍为§14.11的2通过/1失败/7未执行；当前V2效果为Evidence missing，Stage B仍未完成。37/35功能追踪和Stage A保持原证明范围，不继承为新增真实专项通过。
 
 2026-09-07恢复核实：上述环境阻塞已解除；Transaction容器测试和独立Spring→Runtime无模型预检通过，有限原失败资产仍保留。当前NONLIVE/UAT执行状态以P3 §20.25为准。只允许既有授权的一次run-05，任务Rewrite6/Summary5和quality-v2，不改变原10例/顺序/gold；实际freeze和结果产生前仍为Evidence missing。
+
+### 14.14 run-05质量V2专项终态
+
+2026-09-07按§14.13执行，冻结与7项资产hash见P3 §20.26；归档`agent-runtime/tests/system_e2e/knowledge_stage_b_run_05/`。原10例、顺序、gold和安全/效果判据未改；先前环境失败及本次恢复预检分别保留。
+
+| 顺序 | Case | 实际结果 | 模型/search/embedding/rerank |
+|---|---|---|---|
+| 1 | UAT-KB-001 | Passed：HTTP200/no_result、clarification_required；无检索及Summary | 2/0/0/0 |
+| 2 | UAT-KB-015a | Failed：HTTP504/timeout；policy选择正确，keyword20条，但排序未完成，无Evidence/Summary | 2/1/1/1 |
+| 3 | UAT-KB-004 | Not executed：第二例失败停止 | 0/0/0/0 |
+| 4 | UAT-KB-002 | Not executed：同上 | 0/0/0/0 |
+| 5 | UAT-KB-003 | Not executed：同上 | 0/0/0/0 |
+| 6 | UAT-KB-005 | Not executed：同上 | 0/0/0/0 |
+| 7 | UAT-KB-006 | Not executed：同上 | 0/0/0/0 |
+| 8 | UAT-KB-015b | Not executed：同上 | 0/0/0/0 |
+| 9 | UAT-KB-016 | Not executed：同上 | 0/0/0/0 |
+| 10 | UAT-KB-008 | Not executed：同上 | 0/0/0/0 |
+
+本批2端到端/4模型/1search/1embedding/1rerank，五批累计10/24/15/8/8，Business/answer/retry/resume0。全部模型任务为selection-v4/Rewrite6且succeeded，未调用Summary5；第二例taskBindingValid=false是缺少预期Summary而非用了旧任务。quality绑定正确不等于排序结果已验证。
+
+安全/清理检查通过；返回timeout而非“未找到结果”，没有重试、续跑或第六批。专项Functional=Failed；完整Effectiveness未测完，V2必要Evidence覆盖仍Evidence missing，不继承run-04成功结论。原37项Knowledge功能、35项Business功能及阶段A结果不改判。下一步应先查明本地BGE推理在既有限时内的可用性，不能以health=200直接判定性能就绪；本目标不自动重新冻结或付费验证。

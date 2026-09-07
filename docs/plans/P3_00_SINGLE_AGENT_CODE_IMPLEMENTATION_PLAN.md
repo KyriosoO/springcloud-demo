@@ -121,7 +121,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～022`；`DR-KRET-027/028`；`DR-KEV-026～028` | Rewrite6/Summary5、质量V2及成对limits；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试；V2见§20.24 | 不扩大公共 DTO/读取/出域 | 恢复成对代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.24/20.25全量与Transaction容器复验通过，环境阻塞解除 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | run-04终态不变；新V2 runner完成fake及环境预检，待冻结/执行 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 原10例，累计预算20/60，零重试 | §20.23允许一次新独立批，失败不自动追加 | Ready |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | §20.26 run-05：1通过/1超时失败/8未执行；五批不可变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 原10例，累计10 E2E/24模型，零重试 | 授权终止，不续跑、不自动追加第六批 | Deferred |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -289,7 +289,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.24/20.25全量及Transaction复验通过；环境恢复 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Ready | WP-KRETRIEVAL-NONLIVE-01 | §20.25预检通过，待冻结；既有终态不可复用 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.26第二例超时失败；已停止，不复用授权 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 
 ## 10. 实施交接
@@ -415,7 +415,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-013～015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.24 V2及原实现证据 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-013～015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.24/20.25实际回归及环境复验通过；不代表真实效果 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.25通过non-live及环境预检，待新批冻结；真实专项尚未通过 | Ready |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～022、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.26 run-05有限终态；核心覆盖及完整专项仍未通过 | Deferred |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -1230,3 +1230,39 @@ Maven测试子进程移除进程Key；agent-service仅对子进程设置绝对PY
 新独立非模型环境预检`knowledge_stage_b_uat_v5 check-environment`通过：Spring/Runtime ready、认证stub unsupported，model=0/knowledge=0，clientsClosed/ownedProcessesStopped/rawLogsDeleted/secretScanPassed均true。2026-09-04首次PermissionError文件原样保留；恢复检查保存在独立target目录，不覆盖失败记录。V2实现提交`851a42d`，正式代码切片复评结论保持Blocker/Major/未处理Minor=0。
 
 NONLIVE恢复Done、UAT Ready、QUALITY及B-CR-001仍Open/Blocked。按既有§20.23授权准备唯一run-05：原10例和gold不变，上限10/30/40/20/20，四批累计8/20/14/7/7；失败停止，不自动新增第六批。当前无manifest/consumed/模型outbound；freeze与终态由后续有限资产及本计划记录，不能预先声称UAT通过。
+
+### 20.26 run-05终态、有限诊断及评审
+
+2026-09-07执行唯一新批`knowledge-stage-b-uat-v5-20260904-run-05`（run名保留首次准备日期）；frozen HEAD=`91c1266f2df913609406bc3b53127585923f0625`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-05`。执行前tracked工作树clean且HEAD=origin/codex；321项源码资产、258项可执行资产、原10例/gold、索引绑定、任务selection-v4/Rewrite6/Summary5及quality-v2冻结。准备与执行之间未改tracked文件或可执行资产。
+
+| 有限归档文件 | SHA-256 |
+|---|---|
+| manifest.json | `1910e8a1c3ef31aa232031b48c2df7e61edc1f41e74c3234cdbab880afd80bbd` |
+| environment.jsonl（9月4日失败） | `9e54ca56bef6c43b53f99963b2bb5348f63672340bdb0c86aec79ccffbf3e681` |
+| environment-recovered.jsonl（9月7日预检） | `ae7eb72e35937dfa8a144093e7d69a408cb2b62c84f5c42885ee5eaad6e4f3c7` |
+| consumed.json | `9d01af797de6314a93840bc0c3904437757e227ea2a66a9f228a1d33a23ba73c` |
+| journal.jsonl | `0bf32c39e1021482bcd71ef3ee46c2f8fecb54db14b983accfaf097d4b9aed67` |
+| evidence.jsonl | `3bde6582172b6436d8ec65dbb5aab4d9e5f16128e399b8644ca23de8b7f9f455` |
+| result.json | `075c2549f7545ab02961f872c37e8789176f7ad6c69b3f3773740ffd638e0c0c` |
+
+原样归档至`agent-runtime/tests/system_e2e/knowledge_stage_b_run_05/`，包括先前未消费环境失败及恢复预检，不覆盖任何原资产。当前批status=failed（已消费），1通过/1失败/8未执行。KB-001正确clarification_required，模型2、其他0；KB-015a HTTP504/timeout，模型2/search1/embedding1/rerank1，尚无Summary。合计2 E2E/4模型/1search/1embedding/1rerank；五批累计10/24/15/8/8，Business/answer/retry/resume0。模型计数是HTTP尝试而非供应商账单；未消费余额不授权第六批。
+
+| 根因核查 | 可核实证据及强度 | 判断与最小处理 |
+|---|---|---|
+| 选域/任务输出 | 两例selection及Rewrite6均succeeded；第二例只选tax.policy，quality-v2 accepted（强） | 不是此次直接失败点；taskBindingValid=false是预期Summary未发生，不是版本错配 |
+| vector路径缺失 | embedding尝试1，但只有keyword search1及20条授权候选；未发vector search（强）；没有保存该次embedding的有限异常分类/耗时（不足） | 限定为embedding未产出可用向量；不能确定是超时、协议或传输错误 |
+| 排序未完成 | 记录两次fusion、无成功rerank/final_rank/Evidence探针，rerank尝试1，最终timeout（强） | 直接阻塞在排序请求之后完成之前；既有代码将局部/阶段deadline超时映射504。没有足够证据分辨具体计时器或Docker/GPU原因 |
+| 安全与失败语义 | 不进入Summary、不伪装no_result，无第二动作；client/owned进程/原始日志/secretScan均通过（强） | 保留当前失败关闭，不通过放宽超时、跳过rerank或改判来关闭UAT |
+| 健康预检 | HTTP health和认证stub通过；预检不执行BGE推理（强） | 存活不等于在3秒embedding/5秒rerank内完成。后续应先做独立有界本地性能诊断；当前不重跑原问题或付费batch |
+
+只读复核后未更改生产代码、Prompt、超时、gold、配置或数据。只增加两项fake HTTP故障反例，覆盖embedding超时/协议失败后keyword成功、rerank超时，验证当前Runtime返回timeout/knowledge.retrieval_timeout、Summary0、只调用三类既有endpoint、clients关闭。该反例证明失败映射，不冒充本次底层原因重现。新归档测试验证7项hash、321项冻结Git源码、原判据、累计预算、停止和有限payload。定向17 passed（28.84秒）；新runner及run-04预检回归38 passed（13.49秒）。
+
+正式本增量代码/证据复评：对DR-KFLOW-017/021/022、DR-KRET-028、DR-KEV-028与UAT §14逐项核查，冻结版本/单绑定/无fallback/域内排序/边界/历史/预算/清理符合。新增故障测试和证据测试可验证，无需修改生产代码。`B-R5-EVID-001`为证据局限：未保存BGE异常类别和耗时，不能事后补造；未来有限诊断宜只增加操作枚举、状态及耗时，不保存内容。该问题不改判原运行；本切片无新增未修复代码Blocker/Major，整体B-CR-001仍Major/Open，核心跨域P0和其余8例未验证，阶段B正式整体评审不能通过。
+
+设计语义未再次变化，仅按实际终态同步P3/UAT和上层实施摘要，不虚构新设计三轮批准。质量策略V2已实施但真实相关性/Evidence有效性仍Evidence missing；不能将本次timeout评价为其质量成功或失败。专项Functional=Failed，完整Effectiveness未完成测量，不给effective或partially_effective等级。阶段A及既有35/37功能证据保持原证明范围。后续完整回归、静态检查、Git与最终风险在本节末记录。
+
+最终复验：`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`退出0；Transaction host/preflight14 passed（4.05秒），正式全量2042 passed/27 opt-in skipped/0 failed（308.89秒）。包含Knowledge/Business/Core/Employee/Transaction、Spring测试用Runtime、现行35/37功能追踪和全部历史；不把这些非live结果替代本批未执行8例或真实摘要。`python -m mypy --strict src`127个文件通过，`python -m compileall -q src tests/system_e2e/test_knowledge_stage_b_run_05_history.py tests/integration/knowledge/test_rewrite_v6_query_focus.py`通过。Java未有新变更，实际各模块结果仍见§20.24/20.25，不复制为本批重复执行；PowerShell未改，不重复AST。
+
+三份L2 strict及P3 strict最终0 errors/0 warnings；7份当前文档57个本地Markdown链接存在。Stage A四项hash及前四批资产相对起始HEAD不变，run-05七项逐字节/冻结源码验证通过；敏感模式扫描0命中，严格有限evidence递归禁用raw payload字段，git diff --check通过。最后只读复评未发现新增代码或状态冲突；归档审查与故障反例补充共两轮，整体B-CR-001及UAT/QUALITY缺口仍保留，不宣称阶段B完成。
+
+本目标增量已按设计`371631c`、V2实现`851a42d`、runner/恢复预检状态`91c1266`、run-05证据/反例及本次终态文档分开提交；完整SHA和推送结果以Git日志及交付报告为准。run-05已终止、无第六批；owned隔离进程已关闭、原始日志已删除，既有BGE/ES与用户服务未停止或修改。剩余工作为本地BGE推理时延/协议故障的有界诊断，以及新的独立目标下是否重新进行真实核心P0/剩余8例验证；不能在当前已消费批次内补跑。
