@@ -1388,3 +1388,11 @@ DR-KFLOW-023设计/实施/nonlive均Done，替代§20.30准备时点；增量代
 实施范围仅新`tests/system_e2e/knowledge_stage_b_uat_v7.py`及直接fake/历史测试，沿用既有生产Runtime、原判据、有限诊断和owned生命周期；P3/UAT/ARCH同步直接版本和状态。没有生产、Prompt、公开DTO、权限、索引、旧runner/资产修改。审批顺序为三轮内审→分离编辑阶段的只读设计评审→新runner/fake与回归→代码复评→无模型环境检查→提交并冻结→唯一live→终态/评审/Git。复用既有UAT工作包，不新增Gate或虚构DAG依赖；新协议待审期间只读/文档可做，尚未实施或调用模型。
 
 三轮内审完成：(1) 对照原10例责任和Guard兼容证据，明确“3复用+7新执行”不能写为同批10/10；(2) 核对预算/JSON合同，补齐重复key、非有限数及bool冒充整数拒绝，累计账不重置；(3) 核对历史保护、源码/可执行漂移、停止/回滚、DAG和最小范围，旧批只读，新协议不改生产。正式设计评审第1轮在文档编辑结束后只读执行，范围为P3 §20.33/UAT §14.18到L2 DR-KFLOW-023和原验收合同的交接；S0=0、S1=0、未处理S2=0，允许新runner非live实施。复用正式批准仅在§14.18列明快照条件全部成立时生效；真实执行仍须runner/回归/代码评审、环境与冻结预检。此为同一执行者分离阶段评审，不冒充外部独立人员批准。P3 strict与diff检查通过，当前代码尚未修改、模型调用0。
+
+非live实现已新增v7入口及直接fake测试，原生产源、六批runner/资产、问题和gold均未修改。UAT §14.18追踪为：固定七例→`CASES`切片/继承顺序预算；历史复用→`run06_assets/validate_reuse`；精确协议→`strict_json/same_json/validate_manifest`；累计账→`prior_bindings`；消费/停止/清理→继承只读版本化runner并在CLI作用域恢复绑定。60项定向测试通过（7.17秒）：真实历史hash及已审Git源校验、七例顺序/原判据、快照/源码/可执行漂移拒绝、21/60累计硬上限、bool/浮点整数/重复key/非有限数拒绝、消费资产拒绝、取消恢复、旧Prompt/额外调用/其他endpoint拒绝。准备测试仅隔离旧文件扫描，另验证必须调用旧冻结资产校验；实际完整资产验证仍需clean HEAD准备和execute预检。
+
+本增量正式代码对照设计第1轮（编辑结束后只读检查）限定新runner及测试到本节/UAT §14.18，复核任务绑定、原判据、复用兼容来源、配置/可执行/索引拒绝、总账、单case、失败停止、凭据读取和旧模块恢复，未发现未处理Blocker/Major/Minor；不将该切片结论当作整体B-CR-001通过。该审查仍由同一执行者分离阶段完成。`python -m mypy --strict src`通过（128源文件），`python -m compileall -q src tests/system_e2e/knowledge_stage_b_uat_v7.py tests/system_e2e/test_knowledge_stage_b_uat_v7.py`通过；新增文件敏感模式扫描0命中。完整隔离回归与环境烟测尚待终态，不预记真实UAT结果。
+
+执行前验证已完成：`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`在Python3.12.4临时虚拟环境显式安装当前源码，host/preflight14 passed（4.42秒），全量2207 passed/27 opt-in skipped/0 failed（384.17秒、1条既有LangChain预告），退出清理临时环境。包含当前35/37追踪、Knowledge/Business/Core及历史资产校验；跳过仅代表已有opt-in边界，不计作本批真实通过。`python -m tests.system_e2e.knowledge_stage_b_uat_v7 check-environment --root target/knowledge-stage-b-uat-v7-20260907-run-07`通过真实auth→Spring→stub Runtime冒烟，model/knowledge0；alias/UUID检查、clientsClosed、ownedProcessesStopped、rawLogsDeleted、secretScanPassed均通过。8908/8909只读health200，无embedding/rerank计算调用。上述子进程均移除Key，不读取模型凭据。
+
+正式复评第2轮结合实际回归和环境终态，当前runner切片无未处理Blocker/Major/Minor，允许提交、clean HEAD冻结和唯一run-07执行；总体UAT仍In Progress，QUALITY及B-CR-001未关闭。Java源/可执行产物和PowerShell脚本未修改，未重复Maven或AST，既有模块结果不冒充本轮执行；本轮真实Spring smoke已执行，可执行资产仍须在冻结及execute时逐项校验。P3 strict/diff通过，执行后只追加真实有限终态，不改旧六批或预记通过。
