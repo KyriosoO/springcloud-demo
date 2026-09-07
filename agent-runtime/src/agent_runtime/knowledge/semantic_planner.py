@@ -32,7 +32,7 @@ class KnowledgeSemanticPlanner:
     ) -> None:
         if quality_version not in KNOWLEDGE_QUALITY_VERSIONS and quality_version != KNOWLEDGE_QUALITY_VERSION_V3:
             raise ValueError("knowledge.unknown_quality_version")
-        if (quality_version == KNOWLEDGE_QUALITY_VERSION_V3) != (definition.task_version == "7"):
+        if (quality_version == KNOWLEDGE_QUALITY_VERSION_V3) != (definition.task_version in {"7", "8"}):
             raise ValueError("knowledge.requirement_version_mismatch")
         if quality_version == KNOWLEDGE_QUALITY_VERSION_V3 and (
             definition.task_id is not ModelTaskId.KNOWLEDGE_REWRITE

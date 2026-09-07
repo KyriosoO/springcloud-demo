@@ -321,9 +321,17 @@ async def test_actual_bge_adapter_uses_focus_and_validates_echo_before_next_requ
 
 
 @pytest.mark.asyncio
-async def test_deadline_checked_before_next_requirement_even_when_port_returns_late():
+async def test_deadline_checked_before_next_requirement_even_when_port_returns_late(monkeypatch):
     # Direct ranker test isolates the inter-call guard from Stage's outer timeout.
     from agent_runtime.knowledge.retrieval.contracts import FusedCandidate
+    from agent_runtime.knowledge.retrieval import quality_ranking_v3
+    from types import SimpleNamespace
+
+    # A synthetic clock removes wall-clock scheduling and large monotonic-time
+    # subtraction error, without weakening the strict budget or call assertions.
+    clock = [0.0]
+    monkeypatch.setattr(quality_ranking_v3, "asyncio", SimpleNamespace(
+        get_running_loop=lambda: SimpleNamespace(time=lambda: clock[0])))
 
     one = FusedCandidate(candidate=candidate(), domain_ids=("tax.policy",), path_ranks=(), rrf_score=1.0)
 
@@ -334,14 +342,14 @@ async def test_deadline_checked_before_next_requirement_even_when_port_returns_l
     class Late(FocusRerank):
         async def rerank(self, **kwargs):
             value = await super().rerank(**kwargs)
-            await asyncio.sleep(0.03)
+            clock[0] = 0.03
             return value
 
     _, plan = requirement_plan()
     rerank = Late()
     with pytest.raises(TimeoutError, match="rerank_deadline"):
         await rank_requirement_candidates(plan=plan, sets=(), fused=(one,), fusion=Pool(), rerank=rerank,
-            deadline=asyncio.get_running_loop().time() + 0.01, final_candidates=20)
+            deadline=0.01, final_candidates=20)
     assert len(rerank.calls) == 1 and 0 < rerank.calls[0][2] <= 0.01
 
 

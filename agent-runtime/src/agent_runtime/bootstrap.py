@@ -513,10 +513,10 @@ class KnowledgeCompositionRoot:
         if not enabled:
             return None
         from agent_runtime.knowledge.evidence.summary_task_v6 import KnowledgeSummaryTaskV6
-        from agent_runtime.knowledge.rewrite_v7 import KnowledgeRewriteTaskV7
+        from agent_runtime.knowledge.rewrite_v8 import KnowledgeRewriteTaskV8
 
         tasks = KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV7.definition(),
+            rewrite=KnowledgeRewriteTaskV8.definition(),
             summary=KnowledgeSummaryTaskV6.definition(),
         )
         # Run during main's configuration phase, before allocating any clients.
@@ -528,7 +528,7 @@ class KnowledgeCompositionRoot:
         from agent_runtime.knowledge.evidence.contracts import KnowledgeRequirementSummaryInput
         from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
 
-        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "7"
+        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "8"
             or tasks.rewrite.input_type is not KnowledgeSemanticPlanInput
             or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "6"
             or tasks.summary.input_type is not KnowledgeRequirementSummaryInput):
