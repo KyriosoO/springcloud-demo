@@ -10,11 +10,11 @@
 | 文档编号 | `L2_01_02` |
 | 当前版本 | v1.21 |
 | 日期 | 2026-09-07 |
-| 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6组件已实施、生产待接线）、抽取式校验、本地结果和 P5 效果验证 |
+| 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KEV-029/030组件已实施并通过non-live复核；完整生产接线待完成，生产仍Summary5/quality-v2，证据归P3 §20.39 |
+| 本次增量 | DR-KEV-029/030已实施并成对接线，生产Summary6/quality-v3；组件与完整对象图non-live证据归P3 §20.39～20.40，真实效果待验证 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy、生产接线、功能 UAT、Summary V5及non-live、效果口径 v2 及阶段 A policy catalog v2/current snapshot 兼容已完成；当前V5部分真实场景通过，但跨域必要Evidence覆盖及完整专项未通过；最新有效P5效果等级仍为 `partially_effective`，具体候选、门禁和运行证据由 UAT_01/P3/evidence 管理 |
+| 实施状态 | Evidence/Policy、Summary V6/quality-v3生产接线及non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -109,11 +109,11 @@
 
 ## 6. 当前实现基线与最小变更
 
-当前已有完整 Evidence contracts、integrity verifier、selector、代码绑定策略目录、三层 decider、Summary V1～V5、extractive validator、Stage、representative v1/v2、严格 P5 loader/runner/Schema 和 append-only 历史测试；生产组合根当前唯一使用 V5。
+当前已有Evidence contracts、integrity verifier、selector、三层decider、Summary V1～V6、需求coverage validator、extractive validator、Stage和历史P5工具；生产组合根当前唯一使用V6。V1～V5及历史P5合同保持原证明范围。
 
 Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常并映射为 `summary_failure`，不得让 Provider 异常细节越过 Stage 或退化为 Core 内部异常。
 
-启用 Knowledge 的当前生产组合根只注册 `KnowledgeSummaryTaskV5`，不能并行注册两代任务。V1～V4 和历史 evidence 保持字节级兼容。最新有效效果等级为 `partially_effective`；不得为改善结论修改既有 evidence、gold、阈值或 validator。具体运行身份、历史结论和哈希由 UAT_01/evidence 管理。
+启用Knowledge的当前生产组合根只注册`KnowledgeSummaryTaskV6`，不能并行注册两代任务。V1～V5和历史evidence保持字节级兼容。最新有效P5效果等级为`partially_effective`，不代表当前V6效果；不得修改既有evidence、gold、阈值或validator。运行身份、历史结论和哈希由UAT_01/evidence管理。
 
 ## 7. 证据构建与选择
 
@@ -139,7 +139,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-016` | Summary v3 在不改 parser/validator/Schema 的前提下，要求对可由不同证据独立回答的条件、日期、税率和主体类型逐项覆盖；最多 5 个唯一 ref，单条证据足够时不增加冗余引用 |
 | `DR-KEV-017` | Summary V4 继承 V3 全部安全约束；问题含多个独立要点或 evidence 跨多个适用逻辑域时，每个有直接证据的要点/域至少采用一个非重复 ref，任一显式要点或适用域缺少直接证据则输出 `insufficient_evidence`，禁止部分肯定回答 |
 | `DR-KEV-018` | 效果口径 v2 仅从 summary completion 分母排除必须零模型调用的 `security_negative`；普通无结果、证据不足、失败和超时仍计入。answerable 的显式 `gold_issue` 从 faithfulness/usefulness 模型质量分母排除并单独计数；质量可评样本不足原 answerable 集合的 90% 时整次 run 无效 |
-| `DR-KEV-019` | 每次新效果运行必须冻结当前批准的Summary任务版本（本版V5）、效果口径 v2 实现和测试哈希；Q1～Q4 阈值、安全 Gate、dataset/gold、人工 rubric 枚举和 append-only 历史合同均不变 |
+| `DR-KEV-019` | 每次新效果运行必须冻结当前批准的Summary任务版本（当前V6）、效果口径 v2 实现和测试哈希；Q1～Q4 阈值、安全 Gate、dataset/gold、人工 rubric 枚举和 append-only 历史合同均不变 |
 | `DR-KEV-020` | live bootstrap 必须输出本次候选精确允许的运行时工作树条目；启动前和结果写入前的最终快照检查必须复用同一 allowlist，仅忽略当前 output 目录与该候选唯一未跟踪 authorization 记录。任何其他 staged、modified、untracked 条目或 HEAD 变化仍失败关闭；已消费候选不得通过修复后重跑 |
 | `DR-KEV-021` | 准备态测试可以断言正式 authorization/result 不存在，但只能在授权记录创建前执行；live launcher 已要求严格 authorization 存在后，不得再次运行任何“authorization 必须不存在”的准备态断言。授权后预检只校验绑定、冻结资产、预算、安全和历史不可变 |
 | `DR-KEV-022` | 一次合同有效且完整的效果运行关闭“效果已测量”责任，四类效果等级是输出；`effective` 是质量改进目标而非项目硬关闭条件。非 effective 不自动创建新候选，`invalid_run` 表示未形成测量且只能作为新的独立目标处理 |
@@ -148,8 +148,8 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-025` | 候选 alias 生效前必须对所有候选 `documentId + policyRef + indexSnapshotId` 做全成员检查；发布后抽样构造 Evidence 并通过连续子串 validator，不得用 Profile 切换掩盖策略缺口 |
 | `DR-KEV-027` | §9.4新Summary V5要求原文支持相关显式分类上下文，最小充分引用与既有硬边界不变；语义由模型理解、本地只验证完整性，fake不能证明真实效果 |
 | `DR-KEV-028` | §7.3及文末V2：取消独立父文档配额，版本/limits匹配，保留域覆盖、总8/32768bytes、三层出域与引用校验 |
-| `DR-KEV-029` | §9.5拟新增需求锚点完整性、同预算选择及包含需求的实际出域载荷计量 |
-| `DR-KEV-030` | §9.5拟新增Summary6类型及coverage精确合同，源/域/引文绑定后仍执行旧抽取validator |
+| `DR-KEV-029` | §9.5已实施需求锚点完整性、同预算选择及包含需求的实际出域载荷计量 |
+| `DR-KEV-030` | §9.5已实施Summary6类型及coverage精确合同，源/域/引文绑定后仍执行旧抽取validator |
 
 ### 7.2 完整性复核
 
@@ -167,7 +167,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 
 Selector最多选择8条证据，先按最终rank选择可信retrieval_anchor（V2≤选中域数，V1≤2×选中域数），再补足每个selected domain，最后按最终rank填充。同一identity只使用一次；V2不因parent document相同额外排除第四条及后续相关条款，仍受总8条和32768bytes限制。预算无法保留必需域/锚点时返回insufficient_evidence，不能静默丢失必需项后肯定回答。普通填充候选超字节限制时跳过该项并继续尝试后续更小候选，扫描最多20条；full才停止。三层出域仍在选择后独立执行，拒绝不靠替换文档绕过。构造QuestionEvidenceTrace时使用原问题而非改写词作为回答范围。
 
-当前目标组合根将V2计划与新增 `KnowledgeEvidenceLimits.quality_v2()`成对注入；该内部工厂只把max_per_document设为总数上限8，其余limit完全复用v1。这表示取消额外文档配额，不是增加总Evidence或出域预算。旧quality_v1()仍为3、v1()仍为2，均保留历史测试；不修改Summary任务。测试必须证明同文档第四条按rank入选、第九条仍不入选、必需域/锚点不丢失、字节及全部出域和引用限制不变。错误相关性/必要条款排在前8之外仍是效果风险，不能据此自动扩容、添加行业规则或宣称语义完整。
+本节V2历史增量将V2计划与 `KnowledgeEvidenceLimits.quality_v2()`成对注入；当前V3成对合同见§9.5；该内部工厂只把max_per_document设为总数上限8，其余limit完全复用v1。这表示取消额外文档配额，不是增加总Evidence或出域预算。旧quality_v1()仍为3、v1()仍为2，均保留历史测试；不修改Summary任务。测试必须证明同文档第四条按rank入选、第九条仍不入选、必需域/锚点不丢失、字节及全部出域和引用限制不变。错误相关性/必要条款排在前8之外仍是效果风险，不能据此自动扩容、添加行业规则或宣称语义完整。
 
 ## 8. 三层模型出域策略
 
@@ -189,7 +189,7 @@ Global allowed fields/limits
 
 ### 8.3 最小模型 payload
 
-当前V1～V5只发送 Guard 最小化问题、coverage 两个布尔值和最多 8 条 `SummaryEvidenceInput(evidence_ref, content, optional metadata)`；不发送 JWT、subject、内部 document ID、content hash、策略细节、Profile、index 或原始 Provider 响应。§9.5的V6设计仅增加来自安全问题的需求数据，不增加文档可见字段；完整新payload仍计入32KiB预算。
+历史V1～V5只发送 Guard 最小化问题、coverage 两个布尔值和最多 8 条 `SummaryEvidenceInput(evidence_ref, content, optional metadata)`；不发送 JWT、subject、内部 document ID、content hash、策略细节、Profile、index 或原始 Provider 响应。当前§9.5的V6仅增加来自安全问题的需求数据，不增加文档可见字段；完整新payload仍计入32KiB预算。
 
 ## 9. Knowledge Summary V2～V4 接口契约设计与确定性校验
 
@@ -226,13 +226,13 @@ Validator 构造 `summaryType=extractive_evidence`、`answerSummary`、points（
 3. 一段连续原文若同时支持全部要点，使用一个ref；分散在不同Evidence时使用多个不同ref。不得为了凑双引用增加冗余点。
 4. 证据缺失、冲突、只有模型常识可补充，或在总5点/每点512字符/唯一ref约束下无法完整证明时，输出exact `insufficient_evidence`。同一ref内多个不连续片段不能拼接、重复引用或通过扩展长度绕过。
 
-实现仅新增`knowledge/evidence/summary_task_v5.py::KnowledgeSummaryTaskV5.definition()`，用V4公开definition/build_request复用严格输入和parser，通过不可变替换仅更新`task_version="5"`及Prompt。不导入旧私有helper、不修改V1～V4源码。输入类型及双层预算不变：序列化Evidence输入JSON为32768bytes/1～8条，Model任务外层max_input_bytes为49152；输出1536tokens、任务timeout和取消传播不变。固定SystemInstruction仍满足Model层既有8192bytes上限。`bootstrap.KnowledgeCompositionRoot`只绑定L2_01_00当前Rewrite（V6）与Summary5，并拒绝旧Summary装配；无环境开关或请求内版本fallback。disabled不创建任务/client。
+实现仅新增`knowledge/evidence/summary_task_v5.py::KnowledgeSummaryTaskV5.definition()`，用V4公开definition/build_request复用严格输入和parser，通过不可变替换仅更新`task_version="5"`及Prompt。不导入旧私有helper、不修改V1～V4源码。输入类型及双层预算不变：序列化Evidence输入JSON为32768bytes/1～8条，Model任务外层max_input_bytes为49152；输出1536tokens、任务timeout和取消传播不变。固定SystemInstruction仍满足Model层既有8192bytes上限。该V5增量当时的`bootstrap.KnowledgeCompositionRoot`只绑定Rewrite6与Summary5；当前成对绑定见§9.5，并拒绝旧Summary装配；无环境开关或请求内版本fallback。disabled不创建任务/client。
 
 validator仍仅按§9.2验证，合法单引用不会被本地语义规则拒绝；`coverage`仍为输入检索覆盖，不等于最终答案覆盖。不新增公共DTO、模型payload字段、模型复核调用、行业词面分支或检索/出域调整。单靠Prompt/fake不能证明模型遵循语义，真实专项缺口继续由P3/UAT_01管理。
 
 测试分两层：non-live验证Prompt要求、输入/parser预算不变、单/多引用合法性、重复/未知/拼接引用拒绝、insufficient/model failure/timeout/cancel及下游计数、唯一生产绑定和旧源码hash；真实UAT在新的未消费授权后按冻结问题与原双条款判据验证，不修改失败case/gold，不以fake语义结果冒充通过。历史运行测试只在测试作用域加载冻结旧根，生产守卫不得放开。回滚优先禁用Knowledge；如恢复旧绑定，回退对应源码和新配置快照，不能改历史或单请求切换。
 
-### 9.5 需求锚点与Summary V6覆盖合同（组件已实施，生产待接线）
+### 9.5 需求锚点与Summary V6覆盖合同（已实施并接线，真实效果待验证）
 
 `DR-KEV-029`承接DR-KFLOW-024及DR-KRET-029：Evidence完整性先校验请求需求、quality-v3、候选requirement_ids和所属域。每个需求ID最多落在一个候选；V3锚点总数≤4，标记和coverage_anchor一致；错误ID/域/重复映射为evidence_failure，Summary0。合法计划某需求无候选、预算装不下必需锚点时返回insufficient_evidence、Summary0，不伪造技术失败或丢弃需求。最终先按rank保留全部需求锚点，再按既有顺序填充；必须覆盖全部请求需求及选中域，仍最多8证据/32768bytes、每父文档≤总8。
 
@@ -260,11 +260,11 @@ V6使用同一ModelGateway一次Summary调用，不增加复核模型；模型�
 
 本地只能验证**声明完整且引用来自所需域**，不能证明quote蕴含需求，也不能修复Rewrite错误识别lookup/applicability或漏掉实际问题。这些属于模型与原文UAT责任；不能把r1..rN齐全当作语义通过。检索anchor也不构成自动coverage。现有来源对应验收工具仍只在离线评分后使用gold，不能被在线validator导入。
 
-验收兼容接缝：既有测试专用stage-b-citation-binding-v1只接受schema_version=1，保持源码及原测试不变。拟新增测试专用`tests/system_e2e/knowledge_stage_b_citation_check_v2.py`，版本stage-b-citation-binding-v2；入口必须精确接受KnowledgeRequirementSummaryInput/schema2，先拒绝错误类型、bool/schema、非法需求基础形状，再把**同一实际policy投影**的question/coverage/evidence原样构成原基类schema1，只为复用V1已有零I/O来源对应算法。转换不得取回被policy删除的字段、换正文/引用、加载历史模型输入或凭quote反推来源；不忽略V1任何来源校验。它仅评价来源/预定原文，与生产coverage validator及人工语义评分分开；requirements不是gold，不能据此改验收必要条款。版本2须有真实新输入经该投影仍能拒绝同文错源、错chunk/篡改metadata的fake当前根测试；未接入新执行合同前不能声称新真实UAT已具备该校验。不得直接放宽V1的schema1检查接受任意版本。
+验收兼容接缝：既有测试专用stage-b-citation-binding-v1只接受schema_version=1，保持源码及原测试不变。已新增测试专用`tests/system_e2e/knowledge_stage_b_citation_check_v2.py`，版本stage-b-citation-binding-v2；入口必须精确接受KnowledgeRequirementSummaryInput/schema2，先拒绝错误类型、bool/schema、非法需求基础形状，再把**同一实际policy投影**的question/coverage/evidence原样构成原基类schema1，只为复用V1已有零I/O来源对应算法。转换不得取回被policy删除的字段、换正文/引用、加载历史模型输入或凭quote反推来源；不忽略V1任何来源校验。它仅评价来源/预定原文，与生产coverage validator及人工语义评分分开；requirements不是gold，不能据此改验收必要条款。版本2须有真实新输入经该投影仍能拒绝同文错源、错chunk/篡改metadata的fake当前根测试；未接入新执行合同前不能声称新真实UAT已具备该校验。不得直接放宽V1的schema1检查接受任意版本。
 
-`IMPL-KEV-013`（拟新增/修改）：新增`evidence/summary_task_v6.py`及`evidence/requirement_validation.py`；内部类型置于evidence/contracts.py，源需求类型仅引用knowledge/contracts.py；builder消费候选标签并使用新payload预算函数；stage对V3在同一流程执行新类型构造及coverage validator；bootstrap全套单绑定。policy目录、decider授权算法、旧Summary1～5源码/序列化函数、summary_validation.py、公共DTO及历史数据保持不变。
+`IMPL-KEV-013`（已实施）：新增`evidence/summary_task_v6.py`及`evidence/requirement_validation.py`；内部类型置于evidence/contracts.py，源需求类型仅引用knowledge/contracts.py；builder消费候选标签并使用新payload预算函数；stage对V3在同一流程执行新类型构造及coverage validator；bootstrap全套单绑定。policy目录、decider授权算法、旧Summary1～5源码/序列化函数、summary_validation.py、公共DTO及历史数据保持不变。
 
-`TEST-KEV-020`（拟新增`tests/contract/knowledge/test_summary_task_v6.py`、`tests/unit/knowledge/evidence/test_requirement_coverage.py`及当前根集成）：同域不同需求首位/重复anchor去重、4需求/8证据/32KiB包含需求开销、空需求错配、漏ID/增ID/重复ID/错域/错ref/同文不同来源、point未被使用、仅全文含答案而quote不支持的语义保留反例；合法一引文覆盖多需求、多来源联合支持、insufficient、非法/超时/取消、三层拒绝Summary0、旧输入序列化/任务hash不变。对语义反例不伪称本地能自动识别，人工原文评分应判失败。`VAL-KEV-012`要求新合同与生产对象图fake、现有子串/权限/Knowledge/Business历史全量、类型和Spring回归；新真实效果仍待有权限的独立验证，不复用已消费运行。
+`TEST-KEV-020`（已实现`tests/contract/knowledge/test_summary_task_v6.py`、`tests/unit/knowledge/evidence/test_requirement_coverage.py`及当前根集成）：同域不同需求首位/重复anchor去重、4需求/8证据/32KiB包含需求开销、空需求错配、漏ID/增ID/重复ID/错域/错ref/同文不同来源、point未被使用、仅全文含答案而quote不支持的语义保留反例；合法一引文覆盖多需求、多来源联合支持、insufficient、非法/超时/取消、三层拒绝Summary0、旧输入序列化/任务hash不变。对语义反例不伪称本地能自动识别，人工原文评分应判失败。`VAL-KEV-012`要求新合同与生产对象图fake、现有子串/权限/Knowledge/Business历史全量、类型和Spring回归；新真实效果仍待有权限的独立验证，不复用已消费运行。
 
 ## 10. Evidence Stage 核心流程、错误分类与调用方可见语义
 
@@ -302,9 +302,9 @@ question denied flag / fresh Guard
 
 ## 12. 配置、发布与回滚
 
-- `KnowledgeEvidenceLimits.v1()/quality_v1()/quality_v2()`按计划版本代码绑定配额；总8/32768bytes、quote及结果上限不变。V2只用匹配的quality_v2工厂，配置不能扩大总预算。
+- `KnowledgeEvidenceLimits.v1()/quality_v1()/quality_v2()/quality_v3()`按计划版本代码绑定配额；总8/32768bytes、quote及结果上限不变。当前V3只用匹配的quality_v3工厂，历史V2仍配quality_v2，配置不能扩大总预算。
 - 策略目录 artifact 随代码发布并严格加载；内容变化必须创建新资源、新 version/export/source revision/hash 并重跑全成员和出域测试。旧资源、常量及历史 manifest 继续独立可验证，不得原位改写。
-- 当前生产实现已唯一绑定独立 Summary V5；V1～V4 保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用 Knowledge；若显式恢复已验证旧任务绑定，必须形成新配置快照，不改写任何既有 task 源码和历史 evidence。
+- 当前生产实现唯一绑定Summary V6；V1～V5保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
 
 ## 13. P5 效果验证设计与当前结论
@@ -391,7 +391,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-010` | `agent-runtime/tests/evaluation/knowledge/live_bootstrap.py`、`live_runner.py`、`live_contracts.py`、版本化 preparation/history/contracts/launcher |
 | `IMPL-KEV-011` | `agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog-v2.json` 与 current/legacy 双加载接缝；阶段 A policy catalog 生成器和全成员 validator 位于 `knowledge-corpus-tools`。全新官方父文档只能选择既有同域 policy，禁止新增 disposition、放宽字段上限或扩大角色 |
 | `IMPL-KEV-012` | 已新增 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v5.py`；已修改 `bootstrap.KnowledgeCompositionRoot.task_definitions/build_provider` 的唯一Summary绑定和版本守卫；旧task/validator只读，non-live验证见P3 §20.17 |
-| `IMPL-KEV-013` | 拟新增§9.5 Summary6/coverage validator及内部子类型；修改builder/Stage/当前根配对；保持旧serializer、policy及extractive validator |
+| `IMPL-KEV-013` | 已实施§9.5 Summary6/coverage validator及内部子类型；修改builder/Stage/当前根配对；保持旧serializer、policy及extractive validator |
 
 ### 14.2 关键签名
 
@@ -514,7 +514,7 @@ def classify_conclusion(
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，DR-KEV-029/030已评审，组件已实施并通过non-live；成对接线和整体真实UAT仍未完成，见P3 §20.39 |
+| 是否可作为实现依据 | 是，DR-KEV-029/030已评审实施，成对接线及non-live通过；整体真实UAT仍未完成，见P3 §20.40 |
 | 当前允许实施范围 | §9.5需求选择/新载荷/覆盖validator及测试专用Schema2来源适配；保留旧V1～V5和安全算法。已消费真实授权不复用，剩余总预算不构成新批次权限 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
@@ -530,7 +530,7 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.21；DR-KEV-029/030组件已评审实施，成对接线待完成，当前生产仍V5。
+- 当前版本：v1.21；DR-KEV-029/030已评审实施及成对接线，当前生产V6；真实效果待验证。
 - 文档状态：Approved；DR-KEV-027/028三轮内审和只读独立复评通过，允许本切片非live实施；记录归P3_00 §20.17，不代表真实效果通过。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
 

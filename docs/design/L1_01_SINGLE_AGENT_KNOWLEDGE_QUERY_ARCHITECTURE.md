@@ -12,13 +12,13 @@
 | 文档状态 | Approved |
 | 当前版本 | v1.20 |
 | 日期 | 2026-09-07 |
-| 本次增量 | KQ-AD-018已完成三轮内审与两轮正式只读评审，允许non-live实施；整体实施未完成，部分进度由P3治理，旧生产基线保持 |
+| 本次增量 | KQ-AD-018已评审并实施，当前单绑定Rewrite7/Summary6/quality-v3；non-live和真实验收的不同证明范围由P3/UAT_01治理 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v2.8](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 在线生产接线、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、质量策略V2、阶段 B 有界检索及阶段 A 离线语料处理均已实施；有限场景已验证，但必要域及适用性条款覆盖、完整专项仍未通过；具体 Gate/UAT、证据与评审状态由 P3/UAT_01 管理 |
+| 实施状态 | 在线生产单绑定Rewrite V7、Summary V6、质量策略V3和阶段A离线语料处理已实施；新完整对象图non-live已验证，模型选域、适用性证明及完整真实专项仍未通过；具体Gate/UAT、证据与评审状态由P3/UAT_01管理 |
 
 ## 2. 阅读导航
 
@@ -54,7 +54,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
-| v1.20 | 2026-09-07 | 域覆盖及合法引文不能保证适用性证明完整 | 新增请求级必要证据合同，供一次性规划、需求导向排序及摘要覆盖校验共同消费；增量已评审未实施，生产仍为Rewrite6/Summary5/quality-v2 |
+| v1.20 | 2026-09-07 | 域覆盖及合法引文不能保证适用性证明完整 | 新增请求级必要证据合同，供一次性规划、需求导向排序及摘要覆盖校验共同消费；设计批准时尚未实施，当时生产为Rewrite6/Summary5/quality-v2；当前状态见§1 |
 | v1.18 | 2026-09-04 | 用户确认分类上下文的证明要求后恢复执行 | KQ-AD-017明确与答案相关的显式分类上下文须原文支持；设计新Summary V5，旧V4与确定性validator不改，实施及效果状态分开记录 |
 | v1.19 | 2026-09-04 | 已证实关键词占位及父文档配额选择损失，用户授权继续 | KQ-AD-014采用域覆盖与语义相关性V2，保留总预算及安全合同；V1历史不改，设计/实现/真实效果分开管理 |
 | v1.0 | 2026-08-21 | 建立新的可读能力架构基线 | 合并重复检索/授权/出域描述，突出四项能力、两级映射、失败优先级与 P5 结论 |
@@ -131,11 +131,11 @@ V2是同一流水线内的版本化质量策略，不增加模型、检索、输
 
 该增量经三轮内审及只读设计复评通过，允许下位合同及非live实施；已实施并通过定向non-live验证，不继承此前功能UAT的语义效果结论。下位合同、验证与当前状态分别见L2_01_02、P3及UAT_01。
 
-当前生产绑定为 Rewrite V6 语义计划（复用V3严格合同及V4/V5规则，每域聚焦由L2_01_00 DR-KFLOW-021治理）与有界域内排序；当前增量验证不继承历史真实效果通过结论。实现入口、代码复核和专项验收状态只在 P3/UAT_01 记录。
+当前生产绑定为Rewrite V7必要证据计划、Summary V6覆盖声明及需求排序V3；保留既有每域表达与显式条件保护。此前V6/V5/V2验证不继承为新版真实效果通过。实现入口、代码复核和专项验收状态只在P3/UAT_01记录。
 
-### 4.6 必要证据覆盖增量（KQ-AD-018；设计目标）
+### 4.6 必要证据覆盖增量（KQ-AD-018；已实施，真实效果待验证）
 
-当前计划只有域及查询表达，排序只保留每域首位，摘要只有自然语言完整性指令。已确认的失败说明：必要类别域可未进入计划；同域时效原文虽被召回却排出Evidence；合法单引文不能证明适用性完整。具体逐例证据由P3/UAT_01治理。此前仅改Prompt的局部方案仍保留历史解释责任，不再作为这三个缺口的完整处理方案。
+本增量之前的计划只有域及查询表达，排序只保留每域首位，摘要只有自然语言完整性指令。已确认的失败说明：必要类别域可未进入计划；同域时效原文虽被召回却排出Evidence；合法单引文不能证明适用性完整。具体逐例证据由P3/UAT_01治理。此前仅改Prompt的局部方案仍保留历史解释责任，不再作为这三个缺口的完整处理方案。
 
 | 方案 | 能处理的缺口 | 代价/残余风险 | 决策 |
 |---|---|---|---|
@@ -445,14 +445,14 @@ accepted → rewritten → domains_selected → retrieved
 - 问题输入安全、文档策略目录/快照、summary v2 真实出域和 post-consumption 校验已形成证据。
 - 历史有效效果等级及对应不可变运行资产由 UAT_01/evidence 管理；当前最新有效效果等级为 `partially_effective`，不得改述为整体效果达标。
 - 阶段 A 离线 Corpus Build Plane 已完成 audit v3、官方附件版本化处理、结构化条款切片、candidate a5、14/14 专项 UAT 和原子 alias 发布；在线链路只消费发布后的只读 Profile/policy snapshot。a4 作为正式评审前的中间候选保留，旧 a1～a3 及原索引同样保持不可变且未删除。
-- 默认 Runtime 未启用真实 Knowledge Provider/DeepSeek 作为生产配置；当前显式启用路径已唯一绑定 Rewrite V6 与 Summary V5。Rewrite V1～V5任务绑定、Summary V1～V4仅承担历史兼容和哈希追溯；V3公开decoder/类型由V4/V5/V6复用。
+- 默认Runtime仍禁用Knowledge；当前显式启用路径唯一绑定Rewrite V7、Summary V6及质量策略V3。旧Rewrite V1～V6、Summary V1～V5仅承担历史兼容和哈希追溯；旧decoder与基类保持，V7/V6使用新精确合同。
 
 ### 14.2 目标生产接线
 
 Knowledge 不获得独立 Runtime 或第二套 Registry。默认启动入口先读取 `AGENT_KNOWLEDGE_ENABLED`：
 
 - `false`：不注册 `knowledge.query`、不加载 Knowledge task/policy/retrieval 配置、不创建 ES/BGE client；Business 三动作保持原对象图；
-- `true`：当前实现在同一 Model Gateway 唯一注册 Rewrite V6、Summary V5，在同一 Registry 唯一追加 `knowledge.query`；旧Rewrite V1～V5不作为自动后备。当前实施进度由 P3 管理，尚未完成的目标不得标为已接线。
+- `true`：当前实现在同一Model Gateway唯一注册Rewrite V7、Summary V6，在同一Registry唯一追加`knowledge.query`；旧版本不作为自动后备。当前实施及验收进度由P3管理，已接线不代表真实效果通过。
 - `true` 与生产 `AGENT_MODEL_PROVIDER=stub` 的组合启动失败；non-live 只能通过测试组合入口显式注入 fake transport，不能静默得到空 Registry；
 - 启动前冻结逻辑域、Profile、Embedding 维度、Rerank 模型、策略目录和 task version；缺失、重复或不一致均失败关闭；
 - 顶层组合根拥有 es-query-service、Embedding、Rerank client，并在取消/关闭时释放；Capability/Adapter 不自行管理进程生命周期。
