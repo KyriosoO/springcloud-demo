@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.49 |
+| 当前版本 | v2.50 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-07 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -21,6 +21,8 @@ v2.43 聚焦修订阶段B实施中验证出的请求内rerank并发、长附件E
 v2.47记录用户对独立V5验证批次的明确授权，范围仅§20.18的run-04；保持原10例/gold、历史资产和累计预算，不授权失败后的下一批。V5设计与non-live实现已经完成，真实UAT及最终评审仍单独判断。
 
 v2.49记录用户再次授权后的质量策略V2设计与实施；§20.23为本次增量权威。v2.48的V6切片和四批真实终态保持原证据范围；旧批次不续跑，新执行必须另行冻结且计入原总预算。
+
+v2.50依据用户明确批准，将累计E2E上限调整为21、模型仍60；§20.33及UAT_01 §14.18治理一次独立七例验证与三项历史证据的受限复用，不改历史失败或生产设计。
 
 ## 2. 目标、范围与计划原则
 
@@ -48,7 +50,7 @@ v2.49记录用户再次授权后的质量策略V2设计与实施；§20.23为本
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.8 | typed retrieval、阶段 A asset/parser/chunk/candidate/alias 生命周期 | Approved |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.20 | Evidence/出域、Summary V5增量设计 及阶段 A 策略快照兼容 | Approved |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.27 | Knowledge 功能/效果、阶段 A 语料及V6非live证明边界 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.28 | Knowledge 功能/效果、阶段 A 语料及独立七例验证/证据复用边界 | Reviewed |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -121,7 +123,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | Knowledge L1/L2；诊断 | 最小方案、三轮内审和独立评审 | `WP-KRETRIEVAL-DIAG-01` | - | 经评审设计、独立 UAT 路径 | 合同、预算、安全与 DAG | 不改变历史版本 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-016～023`；`DR-KRET-027/028`；`DR-KEV-026～028` | Rewrite6/Summary5、质量V2及成对limits；不代表真实P0通过 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | 最小实现、定向测试；V2见§20.24；类别Guard见§20.31 | 不扩大公共 DTO/读取/出域 | 恢复成对代码绑定；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2 | fake、契约、Spring E2E、Python/Java/类型/历史 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.24/20.25全量与Transaction容器复验通过，环境阻塞解除 | 各调用次数、失败优先级、零泄漏 | 不运行付费 UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14 | §20.29 run-06：3通过/1失败/6未执行；六批不可变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 原10例，累计14 E2E/34模型，零重试 | 本批已终止，不续跑、不自动追加run-07 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.18 | §20.33独立七例准备；run-06三项受限复用，历史六批不可变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 累计上限21 E2E/60模型，单批7/21，零重试 | 设计/runner复评及冻结预检后仅一次run-07，失败停止 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -289,7 +291,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.24/20.25全量及Transaction复验通过；环境恢复 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.29前三例通过、第四例检索前拒绝；已停止，不续跑 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.33批准独立七例；复用前三项须快照兼容预检，未宣布通过 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；增量设计已复评通过，不继承live通过 |
 
 ## 10. 实施交接
@@ -415,7 +417,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～023、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-013～015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.24 V2与§20.31类别Guard实施证据 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～023、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-013～015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.31最新全量/Spring/类型回归；不代表真实效果 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～023、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14 | §20.29 run-06有限终态；核心条件与完整专项尚未通过 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～023、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14.18 | §20.33独立批次准备；核心条件与完整专项尚未通过 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -1374,3 +1376,15 @@ DR-KFLOW-023设计/实施/nonlive均Done，替代§20.30准备时点；增量代
 后续以`cbfb11486be4cbe0292f326d3e9239ecf836aecb`执行只读targeted_check，范围仅为上述三项run-06成功证据与DR-KFLOW-023修复的代码兼容性。相对run-06冻结HEAD，生产差异仅bootstrap绑定、Planner内部注入/静态tuple共用及新Guard；任务/Prompt、case/gold、检索/评分/摘要实现未变。三项原问题均不含四个类别短语，原有逐query检查亦禁止候选新增它们；因此任何可接受候选均不触发新mask，合法澄清分支也不变。结论为符合这一限定兼容性检查，不是全部实现批准、正式证据合并或当前版本真实UAT通过。
 
 本次实际验证：旧默认Guard与当前Guard的39组Planner非live对照（前三项原问、单/双域、澄清、非法输入及新增类别/数量/否定条件）结果一致；`python -m pytest tests/unit/knowledge/test_tax_question_semantics.py tests/integration/knowledge/test_tax_semantic_guard_production.py tests/system_e2e/test_knowledge_stage_b_run_06_history.py -q --tb=short`为53 passed（23.63秒，1条既有LangChain预告），测试子进程移除Key并使用当前src。未保存或重建历史模型输出，真实模型/下游调用0。后续若决定复用，仍须核对新冻结时配置/索引/模型绑定及原评分合同，并正式批准新批次范围；本核查不证明外部模型未来输出稳定，不改变剩余七项或原累计上限。无源码变化，未重跑全量或Java；本节仅补充证据适用范围，不新增运行资产或Gate。
+
+### 20.33 独立七例授权与证据复用计划
+
+2026-09-07用户明确“允许，继续目标”，批准上一轮精确请求：累计E2E上限21、模型仍60，评审复用run-06前三项，独立验证剩余七项且失败停止。本节取代§20.32待授权状态；起始HEAD为`eeae6eb4f4111a5c7602d3ca46ff5a322499d64a`、工作树clean、与origin/codex一致。只允许`knowledge-stage-b-uat-v7-20260907-run-07`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-07`，不重启旧批，不授权run-08。
+
+新批固定顺序为KB-002、003、005、006、015b、016、008；原问题/域/gold/阈值完全复用旧10例对应项，不修改冻结case文件。单批上限7 E2E/21模型/28search/14embedding/14rerank；加六批14/34/21/11/11后，最多21/55/49/25/25，不突破修订后21/60/80/40/40。Business/answer/retry/resume均0；首个outbound消费授权，失败停止，余量不授权下一批。
+
+复用决定受UAT_01 §14.18约束：run-06的KB-001/015a/004仅作为原版本实际执行证据，必须通过只读源码/任务/配置/索引/可执行资产一致性及Guard兼容校验。不会在run-07生成这三项的虚假执行行或重计调用；10例联合追踪明确区分3项复用和7项本批结果。任何复用前提失效，停止新批准备，不扩大到全10例或提高其他上限。
+
+实施范围仅新`tests/system_e2e/knowledge_stage_b_uat_v7.py`及直接fake/历史测试，沿用既有生产Runtime、原判据、有限诊断和owned生命周期；P3/UAT/ARCH同步直接版本和状态。没有生产、Prompt、公开DTO、权限、索引、旧runner/资产修改。审批顺序为三轮内审→分离编辑阶段的只读设计评审→新runner/fake与回归→代码复评→无模型环境检查→提交并冻结→唯一live→终态/评审/Git。复用既有UAT工作包，不新增Gate或虚构DAG依赖；新协议待审期间只读/文档可做，尚未实施或调用模型。
+
+三轮内审完成：(1) 对照原10例责任和Guard兼容证据，明确“3复用+7新执行”不能写为同批10/10；(2) 核对预算/JSON合同，补齐重复key、非有限数及bool冒充整数拒绝，累计账不重置；(3) 核对历史保护、源码/可执行漂移、停止/回滚、DAG和最小范围，旧批只读，新协议不改生产。正式设计评审第1轮在文档编辑结束后只读执行，范围为P3 §20.33/UAT §14.18到L2 DR-KFLOW-023和原验收合同的交接；S0=0、S1=0、未处理S2=0，允许新runner非live实施。复用正式批准仅在§14.18列明快照条件全部成立时生效；真实执行仍须runner/回归/代码评审、环境与冻结预检。此为同一执行者分离阶段评审，不冒充外部独立人员批准。P3 strict与diff检查通过，当前代码尚未修改、模型调用0。
