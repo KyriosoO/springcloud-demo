@@ -498,12 +498,12 @@ v2.8变更：DR-KRET-028及§9.3新增V2语义首位和域内相关性轮转，�
 | 来源 | 设计 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|
 | `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KRET-027` | es-query-service KnowledgeSearchService.buildSearchBody；knowledge/retrieval/stage.py / contracts.py；历史V1策略绑定 | `TEST-KRET-022`：两路径size=limit+1和truncated、域内rerank/跨域round-robin、keyword/语义锚点、同分确定性、2/4/2调用上限、取消/授权/快照反证 | `VAL-KRET-008`：Java查询合同、Pythonretrieval fake与同索引本地有限对照、UAT_01 §14、历史回归 |
-| `REQ-KQUALITY-002`；`KQ-AD-014` | `DR-KRET-028` | 拟新增knowledge/retrieval/quality_ranking_v2.py；修改stage.py按内部版本分派，旧quality_ranking.py不改 | `TEST-KRET-023`：语义首位、关键词低位无强占、域轮转、跨域去重、相同分数、有限数/取消/授权零调用、V1不变 | `VAL-KRET-009`：定向retrieval/Evidence/current root、全量non-live、UAT_01 §14 |
+| `REQ-KQUALITY-002`；`KQ-AD-014` | `DR-KRET-028` | 已新增knowledge/retrieval/quality_ranking_v2.py；修改stage.py按内部版本分派，旧quality_ranking.py不改 | `TEST-KRET-023`：语义首位、关键词低位无强占、域轮转、跨域去重、相同分数、有限数/取消/授权零调用、V1不变 | `VAL-KRET-009`：定向retrieval/Evidence/current root、全量non-live、UAT_01 §14 |
 
-V1为DR-KRET-027历史策略，保持旧排序源码及历史绑定；v2.8新增DR-KRET-028目标策略V2，评审前未实施。UAT使用独立阶段B命名空间，验收标准和执行状态归UAT_01/P3，不继承历史Passed。
+V1为DR-KRET-027历史策略，保持旧排序源码及历史绑定；v2.8新增DR-KRET-028策略V2，已按增量评审结论实施。UAT使用独立阶段B命名空间，验收标准和执行状态归UAT_01/P3，不继承历史Passed。
 
 `DR-KRET-027`：既有 typed vector/keyword 窗口必须实际执行；每个预选域使用其自己的检索表达和授权候选作一次 rerank，最多2次且总候选≤80。每域 keyword 首位与 rerank 首位去重后作为锚点，随后按域内稳定排名 round-robin 填充；不比较不同 query 的原始分数，不用文档ID/gold/case加分。策略版本进入运行快照，不修改 Profile/alias/索引。
 
 `DR-KRET-028`：V2以§9.3单语义锚点和纯域内rerank轮转替代V1双锚点/交错填充；只有已授权候选可参与，RRF仅作既有融合及同分排序，不追加内容信号。stage接受None（legacy）、V1、V2，其余在下游前拒绝。最终候选3..20、既有启动最小值≥2×enabled域数仍保留，不为减少锚点放宽启动配置。BGE每域≤40、总≤80、串行≤2次、deadline和取消不变。新函数不导入evaluation/gold，不修改旧V1源码；改动不会改变Java契约、Profile/alias/index或task版本。
 
-V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语义覆盖；不能以合成排名测试关闭真实专项。实施前需三轮内审和独立只读复评；此时V2未实现。回滚与内部版本成对绑定见L2_01_00 DR-KFLOW-022。
+V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语义覆盖；不能以合成排名测试关闭真实专项。实施前三轮内审和独立只读复评已通过；V2已实现，真实专项效果未确认。回滚与内部版本成对绑定见L2_01_00 DR-KFLOW-022。

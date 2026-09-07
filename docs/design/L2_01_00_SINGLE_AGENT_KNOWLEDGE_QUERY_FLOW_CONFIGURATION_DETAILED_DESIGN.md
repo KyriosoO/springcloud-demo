@@ -484,7 +484,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
 - 当前版本：v1.22。
-- 文档状态：Approved；DR-KFLOW-021增量评审通过，实施及验证记录见P3，不代表真实UAT通过。
+- 文档状态：Approved；DR-KFLOW-021/022增量评审通过，实施及验证记录见P3，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
 ## 阶段 B 增量实施追踪
@@ -505,7 +505,7 @@ v1.22新增本节：生产根在保留Rewrite6/Summary5的前提下，将`knowle
 
 Retrieval按版本选择旧V1或新V2内部排序函数，Evidence按同一版本验证锚点；V2根不得错配旧每文档3条limits。历史冻结根默认V1、quality_v1仍3，legacy仍2。当前根只用V2，不增加请求内版本切换、第二流程或新配置服务。修改触点为contracts常量、semantic_planner、planning、capability、bootstrap及下位两阶段consumer；旧Rewrite/Summary源码、Guard、HTTP、policy和历史运行资产不改。
 
-本增量评审前状态：V2未实施，既有Approved只覆盖此前范围。实现准入由本次三轮内审和独立只读设计复评决定，真实专项完成仍由P3/UAT判定。回滚可禁用Knowledge，或将同一代码发布中的planner/ranking/limits绑定整体恢复为V1；不得单独切换一端或改写历史证据。
+本增量当前状态：V2已按三轮内审和只读设计复评结论实施，非live与代码复核记录归P3；真实专项完成仍由P3/UAT判定，不能继承旧批Passed。回滚可禁用Knowledge，或将同一代码发布中的planner/ranking/limits绑定整体恢复为V1；不得单独切换一端或改写历史证据。
 
 v1.21内审1：对照REQ-KQUALITY-001与KQ-AD-013，明确只允许不重复其他子问的背景，作用于本域的税种/法律条件不能删除；原问题、每域1表达及总预算不变。内审2：核实V5 definition公开可替换，唯一旧指令精确替换，V3 decoder/planner/Guard不变；补充本地无法证明任意语义归属的限制，禁止以fake冒充语义保持。内审3：补齐DR-021主追踪、实现/测试映射及回滚，纠正§6“V5未测量”的过时状态，明确V6未实施、配额/锚点和独立真实UAT仍未关闭。
 
