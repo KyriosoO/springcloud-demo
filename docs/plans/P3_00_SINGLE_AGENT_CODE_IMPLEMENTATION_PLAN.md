@@ -1599,3 +1599,30 @@ UAT工作包Deferred、QUALITY Blocked，整体B-CR-001 Major/Open；GATE-KRG-00
 代码/测试提交=`e1c391e3f2568e968fbffa1c30165314004175dd`，9项精确路径；status、diff --check、cached清单及完整差异、凭据/JWT模式0命中通过，无文件删除。文档仅同步已有批准合同的实际状态，L1/L2/P3/UAT版本不变、不新增门禁或语义批准。
 
 IMPLEMENT=Done、NONLIVE=Done；GATE-KRG-006保持Closed，UAT=Deferred、QUALITY=Blocked。当前真实执行器仍是已消费的旧6/5/v2合同，不能用于新7/6/v3；未来新批还需显式定义Schema2来源绑定、原十例版本影响覆盖及≤4次重排预算，取得有效未消费执行合同后方可运行。旧三项成功不能自动迁移到新版本，剩余总预算不等于新批授权。阶段B整体未完成，不以non-live通过关闭核心P0或把结构coverage当作语义证明。
+
+### 20.41 新版本专项UAT的只读恢复核算
+
+2026-09-07从clean HEAD=`75b18a04212d4e1e4b2ce10a73d0576485f2a090`复核唯一剩余直接工作包`WP-KRETRIEVAL-UAT-01`。本节只是计划级依赖、兼容性和预算核算，不创建新run、manifest、authorization或执行器，不批准额外调用，不改变原case/gold及历史状态。前一切片实施/验证/推送为实际进展；本次通过读取当前源码及七批调用账核实下一步限制，不重跑已通过全量。
+
+run-07六项文件SHA与§20.34一致。由其manifest.priorRuns.calls加result.totals重新求和，累计为15 E2E/37 model/23 search/12 embedding/12 rerank，Business/retry/resume均0。目标原上限20 E2E/60 model剩5/23；最后一次精确运行协议上限21/60剩6/23。两者都不足以在新版完整测量原十例，不能由计划自行选择更宽上限或把历史余额作为新授权。
+
+| 原case | 现有证据与新版直接影响 | 完整通过路径模型次数 |
+|---|---|---|
+| KB-001 | run-06澄清Passed仅属旧任务；V7非search新五字段及终态需真实验证 | 2：selection+Rewrite |
+| KB-015a | run-06单policy Passed；V7需求、V3重排、V6引用覆盖已变化 | 3 |
+| KB-004 | run-06双域Passed；同上，不满足旧三项复用条件 | 3 |
+| KB-002 | run-07 Failed；必要域、分类/规则/时效共同证明为核心缺口 | 3 |
+| KB-003 | 旧批未执行；单域两类必要原文及多需求 | 3 |
+| KB-005 | 旧批未执行；缺必要期间的澄清，不允许假设条件后查询 | 2：selection+Rewrite |
+| KB-006 | 旧批未执行；历史期间、分类及适用规则 | 3 |
+| KB-015b | 旧批未执行；措辞变体、双域和适用性证明 | 3 |
+| KB-016 | 旧批未执行；非酒店保留问题和文号约束 | 3 |
+| KB-008 | 旧批未执行；单law查阅，不强制适用判断三角色 | 3 |
+
+原十例及七项gold读取自未修改的`tests/system_e2e/knowledge_stage_b_cases.py`。完整成功路径为两例澄清、八例检索摘要，即10 E2E/28 model；这是预算推导，不是已执行结果。23次模型余额不足，不能跳过selection、改成fake模型、删除用例或把旧三项合算为新版通过。若未来保持通用每case最多3模型的保守运行上限，则需新批最多10/30，累计上限至少25/67；这些只是待用户明确批准的请求规模，不在本节生效。search≤4、embedding≤2、V3 rerank≤4的单case硬边界不变，新批及累计本地调用上限也须一起明确，不沿用旧≤2 rerank合同。
+
+兼容性只读检查：相对旧复用准入提交`550b012ad390463816372054d1c87f5877209f40`，允许范围内现行生产源码有18条变化（含新需求类型/两消费者/根/观测/安全修复），超出旧协议只允许三文件且必须精确字节一致的约束；新任务为7/6、quality-v3，不能通过更新旧hash放行。Rewrite7输出上限由旧512变为1536tokens，Summary6实际输入为Schema2且增加coverage输出；未来费用快照与来源校验应绑定已实施`stage-b-citation-binding-v2`，不能直接使用旧schema1评分或只改旧runner的版本常量。
+
+下一步最小范围是明确批准新版本原十例的独立执行合同及足够的累计预算，然后按现有L2/UAT规则完成新runner/快照/有限证据的non-live验证和冻结，再执行一次失败即停止的真实批次。无需重新设计生产链路、重建索引、修改gold、增加审批Gate或重复全部已通过代码实施。授权和合同未满足前，UAT继续Deferred、QUALITY继续Blocked；本轮Key读取、模型/ES/BGE调用、服务启动、新候选资产均0。
+
+本轮focused计划自审确认：只有UAT这一直接后继受限，不重开已完成IMPLEMENT/NONLIVE，不新增Gate/依赖、不改上位合同。实际只读脚本断言10例/2澄清/8检索/28模型成功路径、run-07六项hash全部相等；P3严格校验0 errors/0 warnings，git diff --check通过，差异仅本计划。没有生产或测试代码修改，不重复pytest、Maven或live，以前一节完整回归保持其实际证明范围。
