@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.11 |
+| 当前版本 | v2.12 |
 | 日期 | 2026-09-07 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-031限定附件候选builder已实施并通过fake/工具回归及代码复评；尚未真实构建或发布。既有quality-v3及Rewrite8/Summary6不变 |
+| 本次增量 | DR-KRET-031真实clone暴露临时resize来源标记假设错误；确认回执、新UUID及全记录核验修订已通过本切片复评，允许最小实现修复。无发布，既有quality-v3及Rewrite8/Summary6不变 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v2.12 | 2026-09-07 | ES 9.4.1在主分片启动后删除resize来源设置，旧永久标记假设导致成功clone被拒绝 | 以精确clone确认回执、新UUID及全记录fingerprint建立归属；临时标记存在时仍校验，结果不明且不能证明归属时零清理写入；不重入失败候选 |
 | v2.11 | 2026-09-07 | 政策向量结构授权后继续，避免全库重编码和共享law退化 | 新候选原生clone、限定附件向量替换、全记录保持验证、失败封存和模型/token前置；不改变现行索引、公共DTO或发布条件 |
 | v2.10 | 2026-09-07 | 政策向量结构追加授权及上下文不足对照 | 明确标题/现有章节/原文输入、确定性哈希、有限校验和原文不可变；旧DR-KRET-021正文向量保留历史责任，候选迁移须另有实现合同 |
 | v2.9 | 2026-09-07 | 单一域排名无法保留同域不同必要证明 | 设计quality-v3按请求级需求重排及锚点，保持既有检索窗口、Evidence和阶段时限；不修改HTTP/索引或旧排序 |
@@ -386,7 +387,7 @@ assetVersion = sha256(rawBytes)
 
 候选构建/发布未包含在本纯函数实施依据内：需先冻结实际BGE模型快照及输入版本、精确源UUID/只读状态、policy范围、全记录保留与law向量不变、无重复ID、mapping及策略快照、失败隔离和原alias回滚目标，再按既有生命周期设计补齐新构建器的具体合同并评审。对照排名改善不是发布门槛的替代，特别不能只比较gold子集、忽略整个候选库竞争或原保留问题退化。
 
-### 12.9 限定附件候选构建（DR-KRET-031；builder已实施，真实构建待执行）
+### 12.9 限定附件候选构建（DR-KRET-031；真实集成修复切片）
 
 继承KQ-AD-019、REQ-KCORPUS-003/004/006。在线根、查询窗口、正文、条款、ACL/出域与公共DTO不变；旧`indexing.py`/`release.py`及历史资产不改。该切片只产出没有alias的只读候选，不包含alias生效、策略目录迁移或新的付费运行。
 
@@ -400,13 +401,15 @@ assetVersion = sha256(rawBytes)
 
 **构建与核对**：
 
-1. 准备后再次核对源UUID/mapping/write block及alias；再次确认目标不存在。通过ES原生`_clone`复制全部记录和已有向量，不使用全库重编码或_source重建。保持副本数，不携带alias，不修改source设置；等待候选分片就绪（有界30秒），不以clone已受理冒充完成。
-2. 候选`index.resize.source.name/uuid`必须回指精确源，取得并绑定新UUID。完整扫描候选，初始fingerprint必须与源相同；没有alias才允许取消候选write block。克隆操作及只读验证失败不重发clone，不删除候选或源。
+1. 准备后再次核对源UUID/mapping/write block及alias；再次确认目标不存在。通过ES原生`_clone`复制全部记录和已有向量，不使用全库重编码或_source重建。保持副本数，不携带alias，不修改source设置；先按下一项绑定确认回执/UUID再等待候选分片就绪（有界30秒），不以clone已受理冒充完成。
+2. clone回执必须`acknowledged=true`、`index`精确等于候选名、`shards_acknowledged`为bool（false不冒充就绪）；收到确认后立即只读获取并固定非源的新UUID，再等待green，并再次核对UUID。ES 9.4.1在主分片启动后会删除`index.resize.source`，它不是永久来源合同；若name/uuid仍存在则逐个严格匹配源，未知子字段或格式异常仍拒绝。没有临时标记时，只有本进程取得的精确成功回执或已固定UUID才允许继续识别目标。完整扫描候选，初始fingerprint必须与源相同；没有alias、全记录一致及写保护初态通过后才允许取消候选write block。克隆操作及只读验证失败不重发clone，不删除候选或源。
 3. 仅在候选增加4个keyword溯源字段：`vectorRepresentationVersion`、`vectorInputSha256`、`vectorModelSnapshotSha256`、`vectorBodySha256`；更新mapping `_meta.mapping_version`为`agent-knowledge-tax-v3-policy-context-v1`，其他mapping及ANN参数原样保留。字段已经存在或冲突即拒绝，不覆盖历史表示。使用partial update，仅写embedding与4字段，不使用script/upsert；每批≤32、每条绑定候选scan所得seq_no/primary_term，任一冲突/部分失败停止，不重试。
 4. 完成后先refresh并write-block候选，再完整扫描核对：所有_id/chunkId、数量、原始非向量字段保持；非目标向量按float32逐字节相同；目标向量等于准备结果的float32表示且4个新字段精确匹配。原有contentHash/indexVersion/source/ACL等不改写，实际新物理版本由新index UUID/mapping与build evidence表达。完整成功前不可标记built。
 5. 最后核对源UUID/mapping/write block/alias未漂移。返回有限frozen结果（目标UUID、数量、源/候选fingerprint、模型/输入版本、调用次数）；调用者使用exclusive新路径保存有限结果及失败状态，禁止保存源正文、原始响应或向量。不将本结果套用旧BuildManifest或旧语料UAT。
 
-**失败、并发与恢复**：无重试/resume，名称存在即拒绝重入；源只读加首尾绑定、目标CAS保护并发，不能声称跨ES事务。已确认candidate归属和UUID后，失败清理仅尝试将该候选write-block；清理失败须显式报`candidate_seal_failed`，不得覆盖原失败或声称已封存。clone网络结果不明时先只读确认精确name/resize.source归属，再决定能否封存；无法确认时只报告，不触碰任何索引。不中止或删除不属于本次的进程/索引。HTTP/JSON/schema错误只输出有限阶段/原因，不保留原始异常链及请求/正文。KeyboardInterrupt/取消也执行同一有限封存，随后向上取消。
+**失败、并发与恢复**：无重试/resume，名称存在即拒绝重入；源只读加首尾绑定、目标CAS保护并发，不能声称跨ES事务。已确认candidate归属和UUID后，失败清理仅尝试将该候选write-block；清理失败须显式报`candidate_seal_failed`，不得覆盖原失败或声称已封存。clone网络结果不明时仅允许只读探查：如果尚有完整且精确的临时name/uuid来源对，可据此固定新UUID后封存；标记已经消失且没有成功回执或既有UUID时，不凭名称/内容相似猜测归属，不进行清理写入。目标初始write-block提供停止后的保守保护；后续只读核查可另存有限补充证据，不能改写原失败终态。不中止或删除不属于本次的进程/索引。HTTP/JSON/schema错误只输出有限阶段/原因，不保留原始异常链及请求/正文。KeyboardInterrupt/取消也执行同一有限封存，随后向上取消。
+
+来源：[ES 9.4.1 ResizeSourceIndexSettingsUpdater](https://github.com/elastic/elasticsearch/blob/v9.4.1/server/src/main/java/org/elasticsearch/cluster/routing/allocation/ResizeSourceIndexSettingsUpdater.java)。建议最小修改既有`_Build.run/candidate/seal_on_failure`和其fake：正常响应模拟临时来源删除；覆盖确认回执字段缺失/错误、来源部分存在或不符、确认后UUID替换、不明结果无来源时零写入，以及初始全记录不符仍禁止更新。保留原CAS、全字段/非目标向量对照和alias零写入，不以跳过来源校验代替归属证明。该修复不需要新的公共DTO、持久索引字段、锁服务或Gate。
 
 **验证/发布边界**：用mock HTTP证明所有写路径只指向candidate、clone全记录保持、异常/并发/重入/响应篡改拒绝；真实构建前冻结模型与源绑定，真实构建后须验证新索引ANN及typed检索。构建通过不代表核心P0或阶段B通过。alias发布仍需§12.6的新policy/law快照、全成员策略、typed授权/Evidence/回归及精确回滚验证；这些动作不属于本构建函数。参考[ES clone合同](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-clone)和[向量_source及精度合同](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector)，保留源段并用float32验证避免误称可恢复旧double输入。
 
@@ -498,7 +501,7 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-020` | 阶段 A 14 项 UAT：直接 typed keyword/vector、授权、Evidence 连续子串、P0 酒店住宿证据及阶段 B 归因 |
 | `TEST-KRET-021` | 审计三层状态、403/404/timeout 不推断正文缺失、种子计入预算、人工官方替代映射及非权威来源拒绝 |
 | `TEST-KRET-025` | 新增 `knowledge-corpus-tools/tests/test_vector_representation.py`：精确输入/哈希、去重顺序、空值/类型/大小/UTF-8边界、原文与repr隔离、不可变、无网络/在线调用方 |
-| `TEST-KRET-026` | `knowledge-corpus-tools/tests/test_vector_candidate.py`：混合policy/law全记录保留、只替换附件、输入/源漂移/预算/重复/错维度零写入、clone异步/不明结果/失败封存、CAS冲突、逐条后置比较、alias零写入、无敏感错误及旧builder保护 |
+| `TEST-KRET-026` | `knowledge-corpus-tools/tests/test_vector_candidate.py`：混合policy/law全记录保留、只替换附件、输入/源漂移/预算/重复/错维度零写入、clone回执/临时来源删除/UUID替换/不明结果/失败封存、CAS冲突、逐条后置比较、alias零写入、无敏感错误及旧builder保护；直接local preparation/runner测试验证真实环境接缝及token超限零clone |
 
 ### 14.2 验证编号定义
 
@@ -541,6 +544,8 @@ KnowledgeSearchResponse search(
 
 v2.11三轮内审：第一轮核对仅附件重编码/全源clone及来源/引用/权限，明确原向量float32保持而非承诺恢复旧double；第二轮核对源只读/候选CAS/不明clone归属和失败封存，补齐client/响应/HTTP硬预算；第三轮核对TEST/VAL落点、未实现标记及P3直接前置，修复新测试命令被误判为现存引用。随后分离编辑进行L2及REQ-KCORPUS-003/004/006→SA-AD-006→KQ-AD-019跨层只读复评：构建器实施切片无S0/S1/未处理S2，可以编码；真实模型准备、候选实测和发布仍须其执行证据。同一执行者分阶段复核，不冒充外部独立人员；不将规则设计等同构建已完成。
 
+v2.12集成合同纠偏：`B-CLONE-001`（S1）为永久resize来源假设与ES9.4.1恢复行为冲突，阻塞候选实施，不影响源索引。内审第1轮以官方API/源码及只读目标核查替换该假设，保留精确回执、新UUID和完整fingerprint；第2轮修复“先等green再绑定UUID”的步骤歧义，明确不明结果缺少来源时零清理写入；第3轮核对失败资产不重入、原文/ACL/非目标向量、TEST/VAL及发布前置。随后分离编辑对本DR-KRET-031切片及上位REQ-KCORPUS-003/004/006、SA-AD-006、KQ-AD-019进行只读复评，B-CLONE-001设计已关闭，无S0/S1/未处理S2，允许最小builder/fake修复。未批准复用失败构建、切alias或追加付费运行；同一执行者分阶段评审，不冒充外部人员。
+
 代码阶段补充复核澄清HTTP分阶段timeout而非绝对wall-time，并显式禁止环境代理；属于既有本地出域边界的落实，不放宽超时或权限。DR-KRET-031 builder已完成代码对照复评，尚未接入真实模型准备/候选发布，详见P3 §20.47；该结论不批准真实效果UAT。
 
 v2.10聚焦设计复评：三轮内审核对表示/原文、有限错误和哈希、追踪/DAG；分离编辑只读复评DR-KRET-030及上位KQ-AD-019，无S0/S1/未处理S2，准入纯函数实施。由同一执行者完成，不冒充外部独立人员；候选构建/发布尚不具备实施依据。
@@ -568,7 +573,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.11；DR-KRET-029/030已实施，DR-KRET-031 builder已实施及fake验证，真实构建/发布待执行；旧批准基线保持原证明范围。
+- 当前版本：v2.12；DR-KRET-029/030已实施；DR-KRET-031已发生真实集成，永久resize标记假设修复按本切片评审执行，完整构建/发布尚未通过；旧批准基线保持原证明范围。
 - 文档状态：Approved；历史实施校准评审见P3_00 §20.4，需求增量设计评审及当前实施证据见§20.36～20.40；设计批准本身不替代实施或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 

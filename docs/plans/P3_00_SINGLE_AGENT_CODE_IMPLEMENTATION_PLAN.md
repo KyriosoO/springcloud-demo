@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.55 |
+| 当前版本 | v2.56 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-07 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -1759,7 +1759,7 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 |---|---|---|---|
 | 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
 | builder及fake验证 | 上述合同评审 | Done | TEST-KRET-026/VAL-KRET-012；87新增fake及原工具回归通过，无真实写入 |
-| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Ready | 先完成token/模型首尾绑定，再clone新名称、738附件有限BGE，全记录对照、失败封存；尚未执行 |
+| 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | In Progress | 模型/token已通过；b1在clone后因临时来源假设失败，终态不可重入；§20.48修复后另名绑定验证 |
 | typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；原alias保持至发布证据齐全 |
 
 准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。
@@ -1782,3 +1782,17 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 环境失败如实记录：工具目录直接`-m mypy`因包级查找缺py.typed未执行类型检查，改为README既有源码入口`--strict src`后通过；初用agent-runtime/.venv运行追踪因该服务环境没有pytest而未执行测试，改用既有C:\Python312及进程PYTHONPATH后通过，无安装或全局配置变动。新代码首次类型检查发现7处Optional控制流注解问题，通过NoReturn及已有运行时校验表达修复，不弱化类型或测试。
 
 本轮不重复无变更的Java/Maven、PowerShell AST、全量Runtime或Spring E2E；新模块没有在线调用方，待真实索引接线/发布前执行相应完整验证。当前source/alias、StageA和run-08历史均未变；不创建run-09、不读取Key、不重用付费授权。阶段B整体仍未完成，下一步直接完成已授权模型/token准备及无alias候选构建，再按证据推进typed检索和发布。
+
+### 20.48 本地模型接缝及首次候选集成（2026-09-07，v2.56）
+
+起始HEAD=`f81d4683ec9da669dbc1a23cd3fc10365fcd4411`。新增离线`local_vector_preparation.py`、版本化`run-policy-vector-candidate.py`、两份直接测试及源绑定文件，提交`bf87a86`并推送codex。模型在既有Docker环境核对11份权重/Tokenizer/配置文件、服务源码、实际Encoder实现、库版本、唯一cache revision与启动身份；不得导入另一份embedding模型或继承Key。真实preflight发现refs/main在模型加载时刷新时间，修正为“唯一snapshot目录和实际模型文件在启动前已存在且首尾hash不变”，不把mutable ref mtime当作加载身份。fake测试覆盖token超限、首尾模型漂移、非法向量、超时、无重试和有限错误，runner验证exclusive binding/result及禁止重入。
+
+实际命令：工具隔离Python `-m pytest -o addopts='' tests -q --tb=short`，199 passed（2.24秒）；`-m mypy --strict src scripts/run-policy-vector-candidate.py`，17文件通过；`-m compileall -q src tests scripts`通过。首次新增测试误把POST _search当作写入，改为明确允许只读POST _search但拒绝clone/mapping/update路径，未放宽零写入语义。正式代码对照复核两轮关闭模型身份时序误判及runner/真实builder接缝覆盖问题，本地准备切片通过；不声称其fake证明真实ES兼容。
+
+源绑定见`knowledge-corpus-tools/evidence/policy-vector-source-binding-20260907.v1.json`。真实b1入口为`scripts/run-policy-vector-candidate.py --source-binding evidence/policy-vector-source-binding-20260907.v1.json --container <binding.json中的完整容器ID> --output-directory evidence/policy-vector-candidate-20260907-b1 --execute`，不可再次执行。模型snapshot SHA=`bb701284a410cc88e80816bea0f40c0420fd501ed30f879cd290802c5835b4ec`；738文本无截断（最大244 tokens），24次本地BGE HTTP、738文本；ES HTTP72，其中clone已发生，但尚未解除候选写保护、添加字段或更新向量。外部模型/付费/Business/retry/resume/alias写入均0。
+
+b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SHA=`62566e2973ffbac96340f2f14e4559fc6a06010929b66eebdc0c77a635c27496`。不改写该结果。补充65次只读核查证明新UUID=`bQPe6P2fR-SEBbpqH4-2wg`、write-block=true、alias为空；全15521记录fingerprint和mapping均与源相同。`post-failure-check.json`仅证明停止后实际只读状态，不冒称原自动封存成功。源alias仍精确指向a5，旧索引未改动；b1保留，不删除、不补跑。此前健康/容量检查3次ES读取、故障定义/恢复/alias检查3次读取，均无额外写入。
+
+根因`B-CLONE-001`：ES9.4.1官方`ResizeSourceIndexSettingsUpdater`在所有主分片启动后删除临时resize source设置；旧L2/fixture错误假定该字段永久存在。不是数据、权限、向量或业务接口缺口。最小修复只改L2_01_01 v2.12 DR-KRET-031的clone归属合同及builder/fake；不加永久marker、锁服务、Gate或修改公共DTO。先冻结发现，再完成三轮内审及分离编辑的L2/跨层复评，设计问题已关闭；允许最小实现修复，source/ACL/全记录比较与无alias边界不变。同一执行者分阶段，不冒充外部独立人员。
+
+本节后续直接动作：修复clone确认回执/UUID与临时来源消失兼容→fake及正式代码复评→依据现有政策结构授权，另名绑定新存储候选（不能恢复b1）→完整构建验证→ANN/typed/目录与发布验证。此处新存储候选不是新付费模型run；不创建run-09，不读取Key，不扩大模型预算。QUALITY仍Blocked，专项UAT仍Deferred，阶段B不宣称完成。
