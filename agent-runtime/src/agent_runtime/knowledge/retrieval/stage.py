@@ -4,6 +4,7 @@ import asyncio
 
 from agent_runtime.knowledge.contracts import (
     KNOWLEDGE_QUALITY_VERSION_V2,
+    KNOWLEDGE_QUALITY_VERSION_V3,
     KNOWLEDGE_QUALITY_VERSIONS,
     DomainCandidateCount,
     FailedPath,
@@ -34,6 +35,7 @@ from agent_runtime.knowledge.retrieval.fusion import ReciprocalRankFusion
 from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
 from agent_runtime.knowledge.retrieval.quality_ranking import rank_by_domain
 from agent_runtime.knowledge.retrieval.quality_ranking_v2 import rank_by_domain_v2
+from agent_runtime.knowledge.retrieval.quality_ranking_v3 import rank_requirement_candidates
 from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
 
 
@@ -85,7 +87,7 @@ class DefaultKnowledgeRetrievalStage:
         context: KnowledgeRetrievalContext,
         deadline: float,
     ) -> RetrievalStageResult[RankedKnowledgeBatch]:
-        quality = plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS
+        quality = plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS or plan.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
         if plan.quality_version is not None and not quality:
             raise ValueError("knowledge.unknown_quality_version")
         validate_plan_requirements(
@@ -96,6 +98,7 @@ class DefaultKnowledgeRetrievalStage:
             not 1 <= len(plan.selected_domain_ids) <= 2
             or len(set(plan.selected_domain_ids)) != len(plan.selected_domain_ids)
             or self._final_candidates < 2 * len(plan.selected_domain_ids)
+            or (plan.quality_version == KNOWLEDGE_QUALITY_VERSION_V3 and self._final_candidates < 4)
             or tuple((item.logical_domain_id, item.path) for item in plan.items) != tuple(
                 (domain, path) for domain in plan.selected_domain_ids for path in (RetrievalPath.KEYWORD, RetrievalPath.VECTOR)
             )
@@ -239,6 +242,9 @@ class DefaultKnowledgeRetrievalStage:
                     stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT,
                 )
 
+        profile_versions = {item.profile_version for item in candidate_sets}
+        if len(profile_versions) > 1:
+            return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
         fused = self._fusion.fuse(tuple(candidate_sets))
         if not fused:
             counts = tuple(DomainCandidateCount(logical_domain_id=domain, count=0) for domain in plan.selected_domain_ids)
@@ -255,7 +261,10 @@ class DefaultKnowledgeRetrievalStage:
             return RetrievalStageResult(kind=RetrievalStageKind.NO_RESULT, coverage=coverage)
         try:
             if quality:
-                ranker = rank_by_domain_v2 if plan.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 else rank_by_domain
+                if plan.quality_version == KNOWLEDGE_QUALITY_VERSION_V3:
+                    ranker = rank_requirement_candidates
+                else:
+                    ranker = rank_by_domain_v2 if plan.quality_version == KNOWLEDGE_QUALITY_VERSION_V2 else rank_by_domain
                 ranked = await ranker(
                     plan=plan, sets=tuple(candidate_sets), fused=fused, fusion=self._fusion,
                     rerank=self._rerank, deadline=deadline, final_candidates=self._final_candidates,
@@ -267,9 +276,6 @@ class DefaultKnowledgeRetrievalStage:
         except RetrievalTransportError:
             return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.RERANK_FAILURE)
         except Exception:
-            return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
-        profile_versions = {item.profile_version for item in candidate_sets}
-        if len(profile_versions) != 1:
             return RetrievalStageResult(kind=RetrievalStageKind.DOWNSTREAM_FAILURE, stage_code=RetrievalStageCode.INVALID_PROVIDER_RESULT)
         snapshots = tuple(dict.fromkeys(item.index_snapshot_id for item in candidate_sets))
         batch = RankedKnowledgeBatch(candidates=ranked, profile_version=next(iter(profile_versions)), index_snapshot_ids=snapshots)

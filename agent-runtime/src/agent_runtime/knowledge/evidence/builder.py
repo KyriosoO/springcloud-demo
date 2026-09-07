@@ -49,6 +49,9 @@ class EvidenceIntegrityVerifier:
             raise EvidenceIntegrityError("knowledge.requirement_version_mismatch") from exc
         if not isinstance(batch, RankedKnowledgeBatch):
             raise EvidenceIntegrityError("knowledge.invalid_ranked_batch")
+        # Requirement-aware Evidence is not enabled yet; legacy consumers cannot ignore tags.
+        if any(type(item.requirement_ids) is not tuple or item.requirement_ids for item in batch.candidates):
+            raise EvidenceIntegrityError("knowledge.requirement_version_mismatch")
         if (
             batch.profile_version != "tax-knowledge-search-v1"
             or not input.selected_domain_ids

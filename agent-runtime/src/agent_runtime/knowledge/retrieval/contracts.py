@@ -147,6 +147,7 @@ class RankedKnowledgeCandidate:
     rerank_score: float
     rank: int
     coverage_anchor: bool = False
+    requirement_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

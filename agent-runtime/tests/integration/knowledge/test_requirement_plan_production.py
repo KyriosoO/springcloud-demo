@@ -208,10 +208,10 @@ async def test_cancellation_propagates_without_retry():
 
 
 @pytest.mark.asyncio
-async def test_unimplemented_v3_and_old_version_with_requirements_rejected_before_retrieval_io():
+async def test_old_version_with_requirements_rejected_before_retrieval_io_and_v3_evidence_not_yet_enabled():
     result, _ = await invoke(wire_plan(applicability=True))
     plan = build_plan(result.rewrite)
-    for version in (KNOWLEDGE_QUALITY_VERSION_V3, KNOWLEDGE_QUALITY_VERSION_V2, None):
+    for version in (KNOWLEDGE_QUALITY_VERSION_V2, None):
         embedding, search, rerank = FakeEmbedding(), FakeSearch(), FakeRerank()
         stage = DefaultKnowledgeRetrievalStage(embedding=embedding, search=search, rerank=rerank)
         rejected = await stage.execute(plan=replace(plan, quality_version=version), context=to_retrieval_context(scope().context), timeout_s=5)
@@ -220,6 +220,9 @@ async def test_unimplemented_v3_and_old_version_with_requirements_rejected_befor
         with pytest.raises(EvidenceIntegrityError):
             EvidenceIntegrityVerifier().verify(input=replace(evidence_input(), quality_version=version,
                                                             question_kind=plan.question_kind, evidence_requirements=plan.evidence_requirements))
+    with pytest.raises(EvidenceIntegrityError):
+        EvidenceIntegrityVerifier().verify(input=replace(evidence_input(), quality_version=KNOWLEDGE_QUALITY_VERSION_V3,
+                                                        question_kind=plan.question_kind, evidence_requirements=plan.evidence_requirements))
     with pytest.raises(KnowledgeInputError, match="version_mismatch"):
         build_plan(replace(result.rewrite, plan_version=KNOWLEDGE_QUALITY_VERSION_V2))
 
@@ -257,3 +260,19 @@ def test_current_root_and_runtime_version_set_are_not_prematurely_switched():
     assert tasks.rewrite.task_version == "6" and tasks.summary.task_version == "5"
     assert KNOWLEDGE_QUALITY_VERSION_V3 not in KNOWLEDGE_QUALITY_VERSIONS
     assert KnowledgeCompositionRoot.task_definitions(enabled=False) is None
+
+
+@pytest.mark.asyncio
+async def test_v7_gateway_plan_reaches_requirement_ranker_without_changing_search_queries():
+    from tests.unit.knowledge.retrieval.test_quality_ranking_v3 import FocusRerank, Search
+
+    rewritten, transport = await invoke(wire_plan(applicability=True, second_domain=True))
+    plan = build_plan(rewritten.rewrite)
+    search, rerank, embedding = Search(count=2), FocusRerank(), FakeEmbedding()
+    outcome = await DefaultKnowledgeRetrievalStage(search=search, embedding=embedding, rerank=rerank).execute(
+        plan=plan, context=to_retrieval_context(scope().context), timeout_s=4)
+    assert outcome.kind is RetrievalStageKind.SUCCESS
+    assert len(transport.calls) == 1 and len(search.calls) == 4 and embedding.calls == 1
+    assert [call[0] for call in rerank.calls] == [requirement.focus for requirement in plan.evidence_requirements]
+    assert all(request.query_text == plan.items[0].query_text for request in search.calls if request.query_text is not None)
+    assert sorted(label for item in outcome.batch.candidates for label in item.requirement_ids) == ["r1", "r2", "r3"]
