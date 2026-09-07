@@ -118,7 +118,10 @@ class FakeES:
                 self.target_definition["aliases"] = {"do-not-touch": {}}
             if self.mode == "clone_wrong_parent":
                 self.target_definition["settings"]["index"]["resize"]["source"]["uuid"] = "other"
-            return httpx.Response(200, json={"acknowledged": True, "shards_acknowledged": False})
+            if self.mode not in {"clone_wrong_parent", "clone_alias"}:
+                self.target_definition["settings"]["index"].pop("resize")
+            return httpx.Response(200, json={"acknowledged": True, "shards_acknowledged": False,
+                                            "index": TARGET})
         if path.endswith("/_search"):
             candidate = path == f"/{TARGET}/_search"
             docs = self.target if candidate else self.source
@@ -217,6 +220,7 @@ def test_clone_preserves_all_source_values_only_attachment_vector_changes() -> N
     assert result.updated_count == 1 and result.total_count == 3 and result.policy_count == 2
     assert result.http_requests == len(es.calls)
     assert result.candidate_uuid == "candidate-uuid"
+    assert "resize" not in es.target_definition["settings"]["index"]
     assert len(inputs) == 1 and inputs[0].text == "测试标题\n第一条\n" + SECRET
     assert es.source == original and es.source_definition == definition
     assert es.target is not None and es.target_definition is not None
@@ -536,3 +540,83 @@ def test_mutated_callback_error_is_sanitized_at_public_boundary() -> None:
         execute(es, prepare=prepare)
     assert SECRET not in str(captured.value) and captured.value.reason == "operation_invalid"
     assert captured.value.__context__ is None
+
+
+@pytest.mark.parametrize("field,value", [("index", None), ("index", SOURCE),
+                                         ("acknowledged", False), ("acknowledged", 1),
+                                         ("shards_acknowledged", None), ("shards_acknowledged", 1)])
+def test_unbound_clone_receipt_without_transient_source_never_writes_again(field: str, value: Any) -> None:
+    es = FakeES()
+    original = es.handle
+    def handle(request: httpx.Request) -> httpx.Response:
+        response = original(request)
+        if "/_clone/" in request.url.path:
+            payload = response.json()
+            payload[field] = value
+            return httpx.Response(200, json=payload)
+        return response
+    es.handle = handle  # type: ignore[method-assign]
+    with pytest.raises(CandidateError) as caught:
+        execute(es)
+    assert caught.value.reason == "write_not_acknowledged"
+    assert caught.value.seal_status == "candidate_seal_failed"
+    assert es.bulk_count == 0
+    assert not any(method == "PUT" for method, _, _ in es.calls)
+
+
+def test_ambiguous_clone_with_source_metadata_already_removed_never_claims_ownership() -> None:
+    es = FakeES()
+    original = es.handle
+    def handle(request: httpx.Request) -> httpx.Response:
+        response = original(request)
+        if "/_clone/" in request.url.path:
+            raise httpx.ReadTimeout(SECRET)
+        return response
+    es.handle = handle  # type: ignore[method-assign]
+    with pytest.raises(CandidateError) as caught:
+        execute(es)
+    assert caught.value.reason == "http_or_json_invalid"
+    assert caught.value.seal_status == "candidate_seal_failed"
+    assert not any(method == "PUT" for method, _, _ in es.calls)
+    assert es.bulk_count == 0
+
+
+def test_uuid_is_bound_before_green_and_replacement_is_never_modified() -> None:
+    es = FakeES()
+    original = es.handle
+    reads = 0
+    def handle(request: httpx.Request) -> httpx.Response:
+        nonlocal reads
+        response = original(request)
+        if request.method == "GET" and request.url.path == f"/{TARGET}":
+            reads += 1
+        if request.url.path == f"/_cluster/health/{TARGET}":
+            assert reads == 1
+            es.target_definition["settings"]["index"]["uuid"] = "replacement"
+        return response
+    es.handle = handle  # type: ignore[method-assign]
+    with pytest.raises(CandidateError) as caught:
+        execute(es)
+    assert caught.value.reason == "candidate_identity_invalid"
+    assert caught.value.seal_status == "candidate_seal_failed"
+    assert not any(method == "PUT" for method, _, _ in es.calls)
+
+
+@pytest.mark.parametrize("parent,valid", [({"name": SOURCE}, True), ({"uuid": "source-uuid"}, True),
+                                        ({"name": "other"}, False), ({"uuid": "other"}, False),
+                                        ({"extra": "unknown"}, False), (None, False)])
+def test_transient_source_fields_still_require_exact_identity(parent: Any, valid: bool) -> None:
+    es = FakeES()
+    original = es.handle
+    def handle(request: httpx.Request) -> httpx.Response:
+        response = original(request)
+        if "/_clone/" in request.url.path:
+            es.target_definition["settings"]["index"]["resize"] = {"source": parent}
+        return response
+    es.handle = handle  # type: ignore[method-assign]
+    if valid:
+        execute(es)
+    else:
+        with pytest.raises(CandidateError):
+            execute(es)
+        assert not any(method == "PUT" for method, _, _ in es.calls)

@@ -188,6 +188,7 @@ class _Build:
         self.calls = 0
         self.phase = "preflight"
         self.clone_attempted = False
+        self.clone_acknowledged = False
         self.uuid: str | None = None
         url = client.base_url
         timeouts = client.timeout.as_dict().values()
@@ -328,9 +329,14 @@ class _Build:
     def candidate(self) -> dict[str, Any]:
         data = self.definition(self.spec.candidate_index)
         settings = _object(_object(data["settings"])["index"])
-        parent = _object(_object(settings.get("resize")).get("source"))
+        # ES removes resize source metadata after primaries become active.
+        # A positive, target-bound clone response is the normal ownership proof.
+        parent = _object(_object(settings.get("resize", {})).get("source", {}))
+        expected_parent = {"name": self.spec.source_index, "uuid": self.spec.source_uuid}
         uuid = settings.get("uuid")
-        if (parent != {"name": self.spec.source_index, "uuid": self.spec.source_uuid}
+        if (any(key not in expected_parent or value != expected_parent[key]
+                for key, value in parent.items())
+                or (self.uuid is None and not self.clone_acknowledged and parent != expected_parent)
                 or type(uuid) is not str or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", uuid)
                 or uuid == self.spec.source_uuid or (self.uuid is not None and uuid != self.uuid)):
             self.fail("candidate_identity_invalid")
@@ -401,9 +407,15 @@ class _Build:
         self.absent()
         replicas = _object(_object(source["settings"])["index"])["number_of_replicas"]
         self.clone_attempted = True
-        self.acknowledged("POST", f"/{self.spec.source_index}/_clone/{self.spec.candidate_index}",
-                          {"settings": {"index.number_of_replicas": replicas,
-                                        "index.blocks.write": True}})
+        response = self.request("POST", f"/{self.spec.source_index}/_clone/{self.spec.candidate_index}",
+                                body={"settings": {"index.number_of_replicas": replicas,
+                                                   "index.blocks.write": True}})
+        if (response is None or response.get("acknowledged") is not True
+                or response.get("index") != self.spec.candidate_index
+                or type(response.get("shards_acknowledged")) is not bool):
+            self.fail("write_not_acknowledged")
+        self.clone_acknowledged = True
+        self.candidate()  # Bind UUID before waiting, so later replacement fails closed.
         self.ready(self.spec.candidate_index)
         clone = self.candidate()
         clone_settings = _object(_object(clone["settings"])["index"])
