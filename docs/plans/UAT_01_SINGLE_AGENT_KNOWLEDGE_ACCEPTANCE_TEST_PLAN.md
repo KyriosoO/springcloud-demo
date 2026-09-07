@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.29 |
+| 当前版本 | v1.30 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-07 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.20、`L2_01_00` v1.24、`L2_01_01` v2.9、`L2_01_02` v1.21、`P3_00` v2.51；必要证据增量已评审、未实施；旧功能/运行证据各自保留 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.20、`L2_01_00` v1.24、`L2_01_01` v2.9、`L2_01_02` v1.21、`P3_00` v2.52；必要证据增量已实施并通过non-live；旧功能/运行证据各自保留 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -580,3 +580,15 @@ L2_01_00 DR-KFLOW-023已纠正已有税务类别词的数值误识别。新增no
 新任务/质量策略会使§14.18/14.19三项旧成功证据的同版本复用前提不再成立；仍保留其历史Passed，但新版本不能自动按“三旧+七新”合算通过。新的真实验证如获授权，需对原十例重新作版本影响覆盖安排，不能据此删例、改gold或自动创建批次。
 
 本增量设计/代码/non-live评审通过只允许继续安全实施与测试。真实专项仍Deferred、最新run-07仍Failed且其他六项未执行；没有读取Key、启动服务、调用模型/ES/BGE或新增候选的动作。剩余总预算不等于新批次授权，后续真实执行必须另有明确的未消费绑定与停止规则。
+
+### 14.22 原十例新版完整验证协议
+
+2026-09-07用户明确批准准备、冻结并执行一次run-08。本节仅更新执行合同，继承§14.21及L2_01_02 §9.5来源对应/语义判据，不调整生产实现或原问题/gold。旧三例不复用为新版通过；历史所有终态不变。
+
+1. 唯一新run为`knowledge-stage-b-uat-v8-20260907-run-08`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-08`。原`knowledge_stage_b_cases.py`十例按原顺序完整执行，首个失败停止；不补跑、续跑或自动run-09。
+2. 本批上限E2E/model/search/embedding/rerank=10/30/40/20/40，累计上限25/67/80/40/52；历史实际15/37/23/12/12逐文件校验后计账。单case最多3/4/2/4次对应模型/检索/embedding/rerank；Business、answer、retry、resume均0。两澄清、八完整成功预计28模型，只是预算推导，实际按HTTP尝试记录。
+3. 新Schema8 manifest绑定clean HEAD、原十例及gold、七批hash/计数、所有目标源码/测试、Java可执行资产、配置/索引binding、任务selection-v4/Rewrite7/Summary6、Prompt hash、输出tokens512/1536/1536、quality-v3和citation-binding-v2。禁`reusedEvidence`。原始manifest独占创建；运行前验证完整资产集合而非只验证剩余条目，拒绝未知/重复key、bool/float冒充整数、删减资产/用例及任何漂移。
+4. prepare/check-environment不读Key；非live与代码复核通过后，冻结manifest并独占生成authorization.json，绑定HEAD/run/reference/manifest SHA/dataset SHA/本批及累计预算/live=true。仅execute在校验后读进程Key。准备目录位于target；所有预检均精确检查目录允许文件，不以Git忽略状态放过重跑。已有evidence/journal/consumed/result拒绝执行。一次性本地启动和readiness不产生模型调用，不改变alias。
+5. 复用既有Spring→当前生产Runtime、真实auth与typed Knowledge生命周期，不复制在线流程。测试进程在同请求内只读捕获已验证bundle及实际policy过滤后的`KnowledgeRequirementSummaryInput`，序列化必须等于实际Summary HTTP输入；不保存正文/需求focus/响应。结果后调用来源绑定v2，并同时验证原域/原gold、原有限reason、任务序列、quality与调用数。wrong-citation不得用池中其他相同quote补证；结构coverage不能替代原文语义/usefulness。
+6. consumed在首次模型HTTP尝试前独占写入；每次模型调用先同步journal，硬预算在发送前检查。失败停整批，保留有限result/evidence/未执行清单。证据只保存case ID、状态/reason枚举、任务/版本、调用计数、源hash/排名、来源绑定及逐gold布尔值；禁问题、focus、quote、原始响应、JWT/Key。HTTP状态不能代替验收结论。只终止本次Popen对象对应进程并确认退出，关闭client，扫描删除临时原始日志。
+7. fake覆盖新输入实际绑定、错源、旧Schema拒绝、全部十例顺序、原判据、不复用旧成功、累计预算、每case第5次rerank拒绝、任务/Prompt/tokens漂移、重复消费、目录/资产漂移和退出恢复。真实前冻结测试结果及绑定；真实失败后仅分析/non-live，不再创建付费批次。专项全部十例、核心P0、来源/语义/安全/清理均通过才可关闭；否则如实Failed/Not executed，保留整体未完成。

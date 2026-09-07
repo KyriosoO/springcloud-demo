@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.51 |
+| 当前版本 | v2.52 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-07 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -52,7 +52,7 @@ v2.51依据继续目标授权，为§20.34三项已定位缺口修订必要证�
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.9 | DR-KRET-029需求导向排序；typed服务及阶段A不变 | Approved；已实施及non-live验证，见§20.40 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.29 | 新需求合同验收设计；历史失败与既有功能证明范围不变 | Reviewed；新验收待执行 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.30 | 原十例新版完整执行合同；历史失败与既有功能证明范围不变 | Reviewed；新验收待执行 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -125,7 +125,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/DR-KRET-029/DR-KEV-029/030 | §20.36必要证据增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024`；`DR-KRET-029`；`DR-KEV-029/030` | 当前唯一Rewrite7/Summary6/quality-v3 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.37～20.40公共合同、两个消费者、单绑定及代码复评通过 | 新TEST/VAL与公开接口零差异 | 整套绑定回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 新合同、fake、Spring、Python/类型/历史防回退 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.40正式隔离全量、当前根及Spring E2E通过 | 调用计数、零泄漏、来源绑定 | 不运行付费UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.19 | §20.34 run-07首例失败/后六例未执行；三项复用前提通过但联合验收未通过 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 累计15 E2E/37模型，未超21/60；零重试 | 授权已终止，不自动run-08；先审查适用证据缺口 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.22 | §20.42已获一次run-08授权；先协议评审、runner fake及冻结，再完整验证原十例 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 本批10/30、累计25/67及本地预算；零重试 | 任一失败停止，不自动run-09 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -293,7 +293,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36三轮内审/两轮正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.37～20.40内部合同、两个消费者与唯一成对绑定已实施及复评 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.40当前完整对象图、Spring及正式隔离回归通过，不继承为真实UAT |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.34 run-07一项失败、六项未执行；历史三项复用不能构成完整专项通过 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.42一次run-08准备/冻结/执行授权；旧结果不迁移 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；新需求设计、实现和non-live已完成，真实专项仍未完成 |
 
 ## 10. 实施交接
@@ -1626,3 +1626,17 @@ run-07六项文件SHA与§20.34一致。由其manifest.priorRuns.calls加result.
 下一步最小范围是明确批准新版本原十例的独立执行合同及足够的累计预算，然后按现有L2/UAT规则完成新runner/快照/有限证据的non-live验证和冻结，再执行一次失败即停止的真实批次。无需重新设计生产链路、重建索引、修改gold、增加审批Gate或重复全部已通过代码实施。授权和合同未满足前，UAT继续Deferred、QUALITY继续Blocked；本轮Key读取、模型/ES/BGE调用、服务启动、新候选资产均0。
 
 本轮focused计划自审确认：只有UAT这一直接后继受限，不重开已完成IMPLEMENT/NONLIVE，不新增Gate/依赖、不改上位合同。实际只读脚本断言10例/2澄清/8检索/28模型成功路径、run-07六项hash全部相等；P3严格校验0 errors/0 warnings，git diff --check通过，差异仅本计划。没有生产或测试代码修改，不重复pytest、Maven或live，以前一节完整回归保持其实际证明范围。
+
+### 20.42 新版十例执行授权与准备
+
+2026-09-07用户对§20.41之后明确提出的run-08规模回复“授权”：本批10 E2E/30模型/40search/20embedding/40rerank，累计25/67/80/40/52；Business/answer/retry/resume0。起点clean HEAD=`5b245eaa0c4d5cea248b07a60e91fabfc4471ad0`。本授权只恢复UAT工作包，不重开已完成生产实施/non-live，不自动授权run-09。旧七批和原10例/gold不变，新模型版本不复用旧三项通过。
+
+具体执行合同由UAT_01 §14.22治理，技术继承DR-KFLOW-024、DR-KRET-029、DR-KEV-029/030。修改范围为新增测试runner/直接fake测试、P3/UAT_01及ARCHITECTURE版本索引；不改L1/L2稳定设计、生产源码、公开接口、索引或权限。先完成协议三轮自审与分离编辑的只读跨层评审，再实施runner、fake和代码复核，提交后生成实际冻结绑定；最后执行唯一真实批次。不得在runner未验证时提前读取Key。
+
+三轮协议内审：第一轮确认原十例不复用与Schema2实际输入/引用源绑定；第二轮发现旧执行器只有哈希子集检查及无显式authorization，协议补入完整资产集合、独占authorization及target目录允许集合；第三轮核对DAG、预算算术、先journal后outbound、失败终态、owned清理和无run-09，未发现新增问题。随后分离编辑进行只读跨层评审，针对本协议实施准入结论通过，S0=0/S1=0/未处理S2=0；同一执行者阶段分离，不冒充外部独立人员。实际代码、安全及效果通过仍须后续证据，不以协议评审替代。
+
+执行器实施新增`knowledge_stage_b_uat_v8.py`及直接fake测试，不改历史runner。正式代码对照协议复核两轮：首轮B-R8-001发现环境预检失败记录未参与执行准入，修复为严格要求readiness、Spring/auth/stub冒烟、client关闭及owned进程/日志清理的唯一成功记录；增加缺失、失败、重复异常及清理不通过拒绝用例。复评读取完整代码/测试，确认实际Schema2输入捕获而非从payload重建，原gold/域/任务/quality判据未弱化；本执行器切片Blocker=0/Major=0/未处理Minor=0。该结论不等于阶段B真实效果已通过。
+
+2026-09-07实际验证：`scripts/run-nonlive-regression.ps1`在临时安装当前源码的隔离环境中host/preflight 14 passed、全量2670 passed/27 opt-in skipped/0 failed（297.96秒）。收集后补入6项预检测试，另行运行v8+citation-v2+两份当前UAT追踪=88 passed（3.37秒）；旧base+v8+run-07 history=79 passed（14.24秒），覆盖最终切片，不把新增6项冒称已进入前次全量收集。`mypy --strict src`133文件通过，`compileall`源码和两新增文件通过。P3严格校验0 errors/0 warnings，diff --check通过，历史七批hash及35/37追踪通过。
+
+agent-service实际执行Maven测试40项、0失败/错误、1历史opt-in跳过（31.530秒），含当前Spring→Runtime Business/Knowledge E2E。命令使用`-Dagent.runtime.python=C:\Python312\python.exe`及进程级`PYTHONPATH=D:\codex\agent-runtime\src`；前次未设置PYTHONPATH导致隔离子进程`ModuleNotFoundError`，不是生产缺陷，不改断言或全局安装。另一次未引用PowerShell的`-D`参数导致命令解析失败，已用带引号参数纠正。其他Java/PowerShell源码未变，不称为本切片全部重跑。所有non-live命令移除子进程Key；新增真实模型/search/embedding/rerank=0，依赖只读health不计业务查询。冻结和执行尚未发生。
