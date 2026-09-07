@@ -12,7 +12,7 @@
 | 文档状态 | Approved |
 | 当前版本 | v1.20 |
 | 日期 | 2026-09-07 |
-| 本次增量 | KQ-AD-018已完成三轮内审与两轮正式只读评审，允许non-live实施；当前未实施，旧批准基线保持 |
+| 本次增量 | KQ-AD-018已完成三轮内审与两轮正式只读评审，允许non-live实施；整体实施未完成，部分进度由P3治理，旧生产基线保持 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v2.8](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 来源文档 | [L1_01 v0.7 归档版](历史文档/2026-08-21-v0-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |

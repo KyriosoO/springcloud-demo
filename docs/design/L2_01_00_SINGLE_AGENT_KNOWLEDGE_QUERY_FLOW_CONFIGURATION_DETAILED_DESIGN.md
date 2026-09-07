@@ -12,7 +12,7 @@
 | 日期 | 2026-09-07 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KFLOW-024经三轮内审及两轮正式只读评审通过，允许non-live实施；当前未实施，生产仍Rewrite6/Summary5/quality-v2 |
+| 本次增量 | DR-KFLOW-024经三轮内审及两轮正式只读评审通过，允许non-live实施；整体实施未完成，部分进度由P3治理，生产仍Rewrite6/Summary5/quality-v2 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled 惰性、域目录 v2、Rewrite V6（复用V3严格合同及V4/V5规则）、Summary V5、阶段 B 有界检索与阶段 A 发布后只读快照消费已实现；已有有限真实证据，完整专项未通过。DR-KFLOW-023已评审并实施，验证记录由P3管理，效果运行由UAT_01管理 |
 
@@ -150,7 +150,7 @@
 | `DR-KFLOW-021` | §8.3的Rewrite V6以本域待证明子问题为query边界，不把其他子问题的背景词机械复制到每域；原问题和所有既有显式条件校验不变，V6批准并实施后唯一替换V5，不影响排序/Evidence/Summary |
 | `DR-KFLOW-022` | 质量策略V2内部版本沿planner→plan→retrieval→Evidence透传并与limits成对绑定；详见文末增量，模型及HTTP不能选择版本 |
 | `DR-KFLOW-023` | 当前根仅将既有四个明确类别短语与数量分开检查；数字之外的约束、逐域类别保护及全部失败关闭不变，历史Guard/default不变；详见§8.4 |
-| `DR-KFLOW-024` | §8.5新Rewrite7一次生成有界需求，检索前冻结并贯穿后续阶段；当前未实施，不把旧三字段输出当作新合同接受 |
+| `DR-KFLOW-024` | §8.5新Rewrite7一次生成有界需求，检索前冻结并贯穿后续阶段；整体实施未完成，不把旧三字段输出当作新合同接受 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
 | `DR-KFLOW-015` | 只有发布门禁通过并同步 Profile、物理 index UUID/mapping、逻辑 snapshot 及模型出域目录后，在线组合根才允许消费新 alias 目标；任何不一致失败关闭且不自动切换 |
@@ -294,7 +294,7 @@ V6规则：
 
 安全及校验顺序：原问QuestionEgressGuard→模型一次→exact decode→既有query guards→全部focus的QuestionEgressGuard→需求/域关联与版本冻结。focus可省略与该证明无关的原问条件，但禁止新增原问没有的数字/日期/比例/文号/法条/否定及四类税务条件；以现行保护token的计数子集校验，不用focus改写检索query。某个focus不安全或需求非法使整份计划失败，search/embedding/rerank/summary全0；不丢弃非法项后执行子集。缺少决定性用户条件仍用已有clarification，不为补齐三角色捏造期间或主体。未知必要域不能用当前可用域替代。
 
-`IMPL-KFLOW-012`触点（均为拟新增/修改，不是已实现声明）：
+`IMPL-KFLOW-012`批准的新增/修改目标（部分实施进度由P3治理，不是全套已实现声明）：
 
 - `knowledge/contracts.py`新增frozen/slots `KnowledgeEvidenceRequirement(requirement_id, domain_id, kind, focus)`及有限枚举；`RewriteResult`、`KnowledgeRetrievalPlan`、`KnowledgeEvidenceInput`追加默认空tuple的`evidence_requirements`及默认None的`question_kind`。内部question_kind只用lookup/applicability枚举，非search不建立检索计划。旧实例保持空/None；quality-v3成功检索必须有kind及非空需求，旧quality拒绝非空需求或kind。Plan/Evidence消费边界可据此复核三角色，不能在第一次解码后丢失目的信息。
 - `rewrite_v7.py`复用现有`KnowledgeSemanticPlanInput`，新增继承`KnowledgeSemanticPlanOutput`的frozen/slots输出子类型（question_kind及evidence_requirements），新decoder只解新五字段合同；非search的外部none在可信decoder中映射内部None。definition保持Planner既有泛型基类签名，返回子类型；Planner必须检查V7输出的实际子类型及版本，不用cast或getattr默认空绕过。复用既有公开请求工厂取得安全域目录及输入JSON，再一次性替换为新完整指令、版本与输出预算，不导入私有helper。原有V1/V2构造默认、旧任务对象及其parser保持原语义。
@@ -438,7 +438,7 @@ validate empty arguments
 | `IMPL-KFLOW-009` | `agent-runtime/src/agent_runtime/main.py`：按开关构建 Knowledge tasks/retrieval/provider 并追加到 Business Runtime |
 | `IMPL-KFLOW-010` | `agent-runtime/src/agent_runtime/bootstrap.py`：顶层 owned resource 生命周期与 disabled 零依赖装配 |
 | `IMPL-KFLOW-011` | `agent-runtime` 当前策略目录加载与 `serviceCenter/knowledge-runtime-binding.v1.json`：只读发布绑定；历史目录继续独立可校验 |
-| `IMPL-KFLOW-012` | 拟新增/修改§8.5明确的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测；不改历史任务与公开合同 |
+| `IMPL-KFLOW-012` | §8.5批准的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测目标；部分实施进度由P3治理；不改历史任务与公开合同 |
 
 ### 14.2 关键签名
 
@@ -519,7 +519,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，DR-KFLOW-024经三轮内审及两轮正式只读复评，准入新需求计划non-live实施；当前未实施，核心P0及真实UAT仍未通过 |
+| 是否可作为实现依据 | 是，DR-KFLOW-024经三轮内审及两轮正式只读复评，准入新需求计划non-live实施；整体实施未完成，核心P0及真实UAT仍未通过 |
 | 当前允许实施范围 | §8.5内部需求类型/V7任务、严格校验与透传、安全观测及成对绑定；后续消费者完成前不切生产根。禁止Profile/index/policy、真实数值约束及权限变化 |
 | 当前禁止动作 | 未配置新域/物理资源选择、公共契约变化、未按UAT冻结或超预算的真实模型调用、请求触发索引写入或独立服务 |
 | 回滚单位 | Knowledge Capability + settings/catalog + task bindings + Stage providers |
@@ -548,7 +548,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.18 独立审查首轮 | 分离作者修改阶段后重新核对L1/L2/REQ及代码契约；无S0/S1，发现S2：DR019未进入§4.2主追踪表、实施依据的否决状态不明确；已最小修复 | Fixed，待复评 |
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
-- 当前版本：v1.24；DR-KFLOW-024增量已评审未实施，当前生产仍Rewrite6。
+- 当前版本：v1.24；DR-KFLOW-024增量已评审，整体实施未完成，当前生产仍Rewrite6。
 - 文档状态：Approved；DR-KFLOW-023允许非live实施。增量审批及验证记录见P3，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
