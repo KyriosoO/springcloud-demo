@@ -1760,7 +1760,7 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 | 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
 | builder及fake验证 | 上述合同评审 | Done | TEST-KRET-026/VAL-KRET-012；87新增fake及原工具回归通过，无真实写入 |
 | 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Done | b1失败保持不可变；§20.48修复后另名b2完成真实构建、全记录保持和同窗口对照，无alias |
-| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；原alias保持至发布证据齐全 |
+| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；§20.49已完成目录/快照离线准备及Runtime严格校验，实际typed验证与发布未完成，原alias不动 |
 
 准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。
 
@@ -1829,3 +1829,27 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 本节从本地准备到当前对照合计ES HTTP395（含两次clone及b2限定写入）、本地BGE HTTP49/1481文本；源/alias写入、外部付费模型、Business、服务启停均0。b1保留只读且失败结果不改写；b2保留只读未发布。精确索引、目录/Profile快照、typed授权/Evidence、回滚和发布仍是下一直接步骤；当前Java启动校验确实要求真实alias/UUID/mapping/snapshot，不以绕过Verifier完成验证。QUALITY仍Blocked，专项UAT仍Deferred，阶段B整体保持未完成。
 
 候选有限证据、同窗口工具及其测试原子提交=`294e70eb715c40e5715c99ddf1cb9f43851c711a`；暂存逐文件/完整diff及敏感模式扫描通过（0命中）。状态同步不修改设计语义、任务或UAT完成定义，不为测试计数变化再次升级版本。L2/P3严格校验0 errors/0 warnings；在线Runtime、Java服务和原历史资产相对本节起点无文件差异。
+
+### 20.49 候选目录与Profile离线准备（2026-09-07）
+
+沿既有L2_01_01 DR-KRET-024实施，不改变设计语义、公开合同或版本，不新增Gate。起始HEAD=`4489f47156c6060cd583ade41c9637c18767ddcc`，工作树干净。`catalog_preparation.py`只扩展同一文档、同一policy的所属域新快照；`prepare-policy-vector-publication.py`只读核验b2并生成pending文件，不改变生产resource、serviceCenter启动binding或alias。
+
+真实准备命令（工具目录、既有corpus隔离Python）：`python scripts/prepare-policy-vector-publication.py --candidate-directory D:\codex\knowledge-corpus-tools\evidence\policy-vector-candidate-20260907-b2 --output-directory D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2`。输出路径已存在时禁止覆盖或重入。输入精确绑定b2构建result和binding、当前旧catalog；核对候选UUID、完整mapping及分片/分析器设置、write-block、无alias、全部15521条的fingerprint及成员关系，首尾源与候选定义相同。本次ES只读HTTP67，embedding/付费/ES写入/alias写入/服务启停均0；未读取Key。
+
+| 准备/校验结果 | 事实与有限证据 |
+|---|---|
+| pending目录 | 上述本地受控目录；仅保存文档标识/策略/快照元数据，无正文、向量、JWT或模型响应；不直接作为生效配置 |
+| 新catalog SHA-256 | `87c3963a15ea98cca444438c3439094b6881bba31ceaef265db92f5caab21b00`，2581948字节；旧catalog/hash/loader不变 |
+| pending binding SHA-256 | `a6d2c00eddf46827750a8100357c909bab944f27d10b41218e2c9754457f9682`；新policy/law快照按Java既有五段输入公式计算 |
+| 新policy snapshot | `8bb0918b1a8e6edd9bc2b88b23bb99571810b1423796b27ed3287e92a82d6025`；5463份实际policy文档 |
+| 新law snapshot | `522d4da243e338196143a92bf7e57ed6dffa063c9abd009892e2a5ed8fa8a7a3`；137份实际law文档；其1612条记录的向量/正文未改，物理UUID变化仍须新快照 |
+| Runtime真实校验 | 使用当前`catalog.py`的`_parse_snapshot`、`KnowledgeEgressPolicyCatalog`及`resolve`，5600个新绑定、22396个原有绑定全部解析；5600次未知快照均拒绝；全部policy/字段上限相同，当前resource再次加载仍不变 |
+| 有限evidence | `knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/`；`preparation.json` SHA=`cfce562ee4f5e69e75c511450a9598ce9cda9c721a3f07b1b117df2754c3c7d3`，`runtime-catalog-check.json` SHA=`0fd0fd58904298c8181bc87d9e398a7b5d303020e91fc191d6b393bc9258cebd` |
+
+原preparation中的`runtime_loader_validation_pending`是生成时事实，后续校验由独立有限结果补充，不覆盖原文件。Runtime校验为本地实际validator调用，网络0；不是Java typed检索、授权链、Evidence或UAT证明。没有将2.58MB pending目录复制进当前生产resource或Git，版本化工具、来源hash和有限证据足以追溯本准备步骤。
+
+代码对照DR-KRET-024/031分两轮复核：首轮`B-PREP-001`发现仅校验mapping版本不能发现同版本结构漂移，改为完整mapping/原字段/四trace字段及关键settings比较；`B-PREP-002`将本地文件读取收紧为4MiB+1预读，避免先加载任意大文件。补齐错误结构、目录成员/快照、重复输出、非法写入、80次HTTP上限和`-O`禁止测试。第二轮复核固定源、只读HTTP、旧policy与绑定保持、同域快照、无生产接线、有限日志与结果；本离线切片Blocker/Major=0，未处理Minor=0。同一执行者分离编辑复核，不冒充外部独立人员。设计未发生语义变化，不重复三轮设计内审或新增批准门。
+
+实际验证：工具目录`python -m pytest -o addopts='' -q --tb=short`最终259 passed（2.98秒）；`python -m mypy --strict src scripts/prepare-policy-vector-publication.py scripts/run-policy-vector-candidate.py scripts/compare-policy-vector-candidate.py`20文件通过；`python -m compileall -q src tests scripts`通过。新增43项测试，其中首次超大参数测试因pytest自动生成过长用例ID造成2个setup error，改为有限ID后通过，没有放宽输入或断言。Runtime以C:\Python312及进程PYTHONPATH执行policy catalog、egress manifest、run-08 history、Business/Knowledge两份traceability，共31 passed（14.03秒，1条既有LangChain预告）。原35/37功能追踪和冻结run-08 hash保持。Java/Runtime生产代码、公开DTO、配置及历史资产未改，本轮没有重跑Maven、Spring E2E或全量Runtime，不能把此前结果算作本轮通过。
+
+工具/测试/有限证据提交=`bba85df38123776d1232f06e7ff2d028ca089732`。当前完成的是候选发布**准备**，不是发布：下一步仍须让真实Java Profile校验、typed keyword/vector、读取拒绝、出域/Evidence验证和精确alias回滚顺序可执行；不得通过绕过Verifier或提前替换现行alias取得通过。QUALITY=Blocked、专项UAT=Deferred不变，run-08保持失败终态，无run-09或新的付费授权消费。
