@@ -11,7 +11,7 @@
 | 当前版本 | v1.21 |
 | 日期 | 2026-09-07 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 本次增量 | DR-KEV-029/030已实施并成对接线，生产Summary6/quality-v3；组件与完整对象图non-live证据归P3 §20.39～20.40，真实效果待验证 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、Summary V6/quality-v3生产接线及non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |

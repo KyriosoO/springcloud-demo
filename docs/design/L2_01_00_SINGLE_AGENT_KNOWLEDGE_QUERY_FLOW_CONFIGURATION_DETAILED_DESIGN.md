@@ -11,7 +11,7 @@
 | 当前版本 | v1.25 |
 | 日期 | 2026-09-07 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.20](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 本次增量 | DR-KFLOW-025已完成三轮内审、分阶段只读设计复评和实施；Rewrite8恢复§8.1指令且不改五字段合同，当前绑定8/6/v3；真实语义效果未验证 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V8/Summary V6/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；新对象图已通过定向non-live，当前版本真实效果尚未验证。DR-KFLOW-023/024/025已实施，验证由P3管理，效果由UAT_01管理 |
