@@ -1352,3 +1352,21 @@ NONLIVE恢复Done、UAT Ready、QUALITY及B-CR-001仍Open/Blocked。按既有§2
 最终正式隔离回归：`pwsh -NoProfile -File scripts/run-nonlive-regression.ps1`在显式安装当前源码的临时环境执行，host/preflight14 passed（4.01秒），全量2147 passed/27 opt-in skipped/0 failed（354.91秒，1条既有LangChain预告）；包含46项新测试、所有历史hash、35/37既有功能追踪、Business/Core/Knowledge回归。临时环境由入口安全清理。49个当前文档本地链接有效、凭据/JWT模式0命中、git diff --check通过；旧Guard、旧任务、Stage A绑定和run-01～06相对基线字节不变。
 
 DR-KFLOW-023设计/实施/nonlive均Done，替代§20.30准备时点；增量代码review_and_fix两轮完成，B-R6-CR-001修复，当前切片Blocker=0、Major=0、未处理Minor=0。B-R6-DES-001的可复现类别词误分类已关闭；这不确认它就是run-06真实拒绝根因。总体B-CR-001仍Major/Open，WP-KRETRIEVAL-UAT-01 Deferred、QUALITY Blocked。没有新live运行或自动创建run-07，未覆盖gold、失败结果或放宽核心P0。后续必须先针对剩余真实验收作独立批次决策，不能直接执行被冻结的run-06或复用剩余额度。未修改用户运行中的服务和现行索引，未实施图谱或阶段C/D。
+
+### 20.32 剩余真实验收与累计预算只读复核
+
+2026-09-07以`550b012ad390463816372054d1c87f5877209f40`为基线，逐一读取run-01～06不可变result及原10例清单，不读取模型凭据、不重放请求。核查问题仅限剩余预算能否覆盖未通过场景，不构成新的执行授权、完整设计批准或UAT通过结论。
+
+| 资源 | 原累计上限 | 六批实际累计 | 剩余 |
+|---|---|---|---|
+| E2E | 20 | 14 | 6 |
+| 外部模型HTTP | 60 | 34 | 26 |
+| search | 80 | 21 | 59 |
+| embedding | 40 | 11 | 29 |
+| rerank | 40 | 11 | 29 |
+
+历史通过case去重后只有`UAT-KB-001/015a/004`三项；没有真实通过记录的七项为`UAT-KB-002/003/005/006/015b/016/008`。其中KB-002在run-06失败，后六项在全部六批均未执行。即使后续经评审允许等价复用前三项、且其余七项均一次成功，也至少需要7个E2E，超过剩余6个；这只是最乐观下限，不预先认定旧版本证据可覆盖当前Guard。若仍按现有原10例完整新批的冻结上限预检，累计将需24 E2E/64模型，同样超出20/60；不能依赖“也许提前失败或少调Summary”通过预算预检。
+
+结论：已执行六批没有超限；不足发生在失败后剩余验收与原累计上限之间，并非应当放宽validator或删减gold。当前禁止自动新批和复用余额的约束继续有效。后续若要求全部真实验收收口，必须先独立决定证据复用范围、新批清单及累计预算调整；这些尚未获准、未写成新运行资产。本次仅追加事实和算术核查，不调整版本、DAG、门禁、用例、预算或通过标准。IMPLEMENT/NONLIVE保持Done，UAT Deferred、QUALITY Blocked，未创建run-07。
+
+本轮实际验证：移除测试子进程Key并设置当前src路径，执行六个`test_knowledge_stage_b_run_0N_history.py`及`tests/uat/test_current_traceability.py`、`test_knowledge_traceability.py`，44 passed（53.54秒）；历史hash/冻结源、原判据、累计计数、既有35/37追踪通过。P3 strict为0 errors/0 warnings，git diff --check通过。只改本节事实记录，没有源码/测试/配置/历史资产变化，因此未重跑全量Python、mypy或Java；§20.31数字仅代表上轮执行。本轮模型及真实Knowledge/Business调用均0。
