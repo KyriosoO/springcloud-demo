@@ -1975,3 +1975,36 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 | L2/P3严格校验、有限证据敏感字段扫描、git diff --check | 0 errors/warnings；0敏感字段/凭据模式命中；diff通过。首次P3命令相对路径位于Runtime目录而报文件不存在，改为绝对路径后通过，不改validator |
 
 本轮没有Java、业务合同或Runtime生产修改，未重复Maven及完整Spring Java E2E；不把§20.52的40/29项Java结果复制为本轮执行。本轮全量包括Knowledge/Core/Business、历史hash和追踪回归；它及合成检查都不证明八个真实手工计划的最终排序或Summary。b2 alias已只读再次确认不变，本次owned服务端口/诊断容器为空。后续先处理当前快照实际排序/Evidence证明，再评估受控完整UAT；已消费run-08和禁止自动run-09的边界不变。
+
+### 20.54 预热修复后的当前排序实测与两项剩余缺口（2026-09-08）
+
+从clean `4ba5d5ed6ee3fdc7b687af262e0df01545c93bd9`继续。按现有本地只读/BGE验证授权执行修复后的独立诊断，不续写§20.53失败文件，不恢复付费run-08，不创建run-09。先单列一次DR-KRET-033合成预热：40项、1296ms、clientClosed=true、rerank1；再以同一已提交手工计划工具/八个固定计划测量当前b2及quality-v3。原计划、gold、窗口、在线时限、排序、Selector、policy及任何生产源码均未修改；这不是新的付费批次或正式UAT。
+
+实际命令（Runtime目录；移除进程Key，PYTHONPATH指向当前Runtime/corpus源码，JAVA_HOME为本机Java25）：`C:\Python312\python.exe -m tests.system_e2e.knowledge_stage_b_quality_v3_probe --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\quality-v3-post-warmup-20260908-01.jsonl`。完整八例执行终态`measured`，实耗search22/embedding11/rerank18；加独立启动检查，本轮rerank19。外部模型、Business、索引/alias写入、retry/resume均0。真实auth/es-query owned PID28516/28340已停止，client关闭、原始日志扫描删除和前后精确索引/模型/源码绑定检查通过。
+
+| 手工计划来源 | 必需原文进入实际policy允许Evidence的位置 | 该诊断结论 |
+|---|---|---|
+| UAT-KB-015a | lodging1、living5 | 原定义/分类来源保留 |
+| UAT-KB-004 | lodging1、law_rate2、living7 | 原跨域分类/税率来源保留 |
+| UAT-KB-002 | law_rate2、lodging4、law_effective6 | 原适用规则/定义/施行来源保留 |
+| UAT-KB-003 | lodging1；rent缺失 | 未满足预定必要来源覆盖 |
+| UAT-KB-006 | lodging3；historical_rate缺失 | 未满足预定必要来源覆盖 |
+| UAT-KB-015b | law_rate2、law_effective6、lodging7 | 原多要点来源保留 |
+| UAT-KB-016 | software1 | 保留回归来源保留 |
+| UAT-KB-008 | law_rate1 | 指定法条来源保留 |
+
+八例均完成真实Stage/RRF/需求重排/Selector/三层策略；六例保留全部预定原文。所有`selectionSufficient=true`仅证明结构及预算可用，不能抹掉两个语义来源缺口。001/005澄清没有执行；没有真实Rewrite或Summary、没有用户端引用/usefulness判定。不得以6/8或`measured`标记专项UAT Passed。
+
+`B-RANK-CTX-001`根因定位：003的rent在vector第1，两个需求重排分别第28/17；006的historical_rate在vector第6，三个需求重排第27/13/22。两者均不在最终20，也不在Evidence8。故不是这两条原文不存在、域未选择、召回窗口缺失或policy拒绝；直接丢失发生于重排后锚点/轮转窗口。不能直接推导增加topK、恢复旧双锚点或替换gold。
+
+另作3次有界只读运维源检查（两份唯一文档），在当前BGE容器中使用本地缓存tokenizer、零推理复核：两片段分别39/43字符、26/39 tokens，必要条款完整处于512窗口内，排除其token截断。现行Adapter仅把content送给BGE；这两份文档另有标题与writtenDate，原短片段不含2016或住宿用词。上下文缺失可能影响相关度，但改善效果尚未测量，也未审核当前入选文档是否能提供等价证明；**不是已证实的唯一模型根因**。不修改正文、补写元数据、放宽validator或通过改变expected来关闭。下一最小诊断应比较既有授权元数据的上下文表示与现有正文表示，固定候选池、模型和问题，gold只用于结果后观察；须先明确方案/边界并按原流程评审，不能直接改在线排序。
+
+原始诊断文件逐字复制到`knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-post-warmup-20260908-01.jsonl`，SHA=`923697c6a8314e8f4a64d83f307e91df7bc308f7240c70007f5589ce1a95af5f`；旧失败SHA仍`7387ba9450d46529c48434592d09a2b846cfb4c5532b922ec2a6b25512c378b6`。有限token/元数据控制台结果归`knowledge_stage_b_rerank_visibility.v1.json`，显式标注人工记录来源及未证明项；未保存正文、问题、JWT或模型响应。证据/定向追踪提交=`c066e9a`。
+
+零外部调用的离线反事实检查：仅对该不可变文件中的每域召回rank及每需求BGE排序，比较`sum(path 1/(60+rank)) + 1/(60+requirement_rerank_rank)`的等权rank融合，再按既有需求锚点/轮转取20；gold仅在完成排序后查位置，未输入排序。两条缺口位置分别变成11/18，仍不在前8，其余六例保持预定来源位于前8。未重放Selector字节预算、policy或Summary，故不是实际Evidence通过；不调整权重试参直到gold通过，不据此修改线上算法。该结果不支持“仅增加一层等权RRF即可关闭”方案，也不证明所有其他融合参数无效。
+
+本轮代码/证据复核两轮：首轮核对来源commit/hash、八例不删减、两个失败不能因结构sufficient而改判；补齐从原始rerank分数复算人工记录的名次，并验证目标分数无并列歧义。复评核对新旧字节、实际调用数、仅本地元数据检查、三层策略和owned进程清理；本次测试/证据切片无未处理Blocker/Major/Minor，两个业务质量缺口仍Open。不冒充独立外部人员或整体代码评审完成；无设计语义修订，不为动态计数升级文档。
+
+本轮实际定向命令为§20.53相同七个pytest文件，新增两项不可变证据测试后最终`187 passed`（1.21秒）；`compileall -q tests/system_e2e/test_knowledge_stage_b_quality_v3_probe.py`通过。原35/37追踪及相关排序/Evidence/Summary6契约保持既有证明范围。无生产/Java修改，不重复上一轮全量2866项、mypy或Maven，也不声称本轮重跑这些命令。最初运维hash命令在Runtime目录误用了仓库相对路径，绝对路径复核后通过；一次无输出metadata投影仍计入上述3次读取，不隐瞒调用。有限资产敏感模式扫描0命中，Git diff检查通过；索引/alias和历史正式UAT结果不变。
+
+当前`WP-KRETRIEVAL-QUALITY-01=Blocked`、专项UAT=Deferred保持；存储发布及推理就绪已验证，剩余是两条必要来源的重排/窗口问题和当前Rewrite8/Summary6完整端到端实证。不得自动调用付费模型、创建run-09或将这次本地手工计划诊断当作全目标完成。
