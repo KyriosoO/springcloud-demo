@@ -160,3 +160,58 @@ def test_failed_real_probe_is_immutable_not_uat_and_stays_bound_to_frozen_source
     assert all(terminal[k] == 0 for k in ("modelCalls", "businessCalls", "indexWrites", "retry", "resume"))
     assert all(terminal[k] is True for k in ("ownedProcessesStopped", "rawLogsDeleted", "secretScanPassed"))
     assert "not_functional_or_effectiveness_uat" in terminal["limitations"]
+
+
+def test_post_fix_measurement_preserves_all_cases_and_does_not_reclassify_missing_sources():
+    path = probe.REPO / "knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-post-warmup-20260908-01.jsonl"
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "923697c6a8314e8f4a64d83f307e91df7bc308f7240c70007f5589ce1a95af5f"
+    rows = [json.loads(line) for line in raw.splitlines()]
+    prepared, terminal = rows[0], rows[-1]
+    frozen = probe.subprocess.check_output(["git", "show", prepared["head"] + ":agent-runtime/tests/system_e2e/knowledge_stage_b_quality_v3_probe.py"], cwd=probe.REPO)
+    assert hashlib.sha256(frozen).hexdigest() == prepared["scriptSha256"]
+    assert prepared["head"] == "4ba5d5ed6ee3fdc7b687af262e0df01545c93bd9"
+    assert terminal["status"] == "measured" and terminal["casesMeasured"] == 8
+    assert terminal["counts"] == {"search": 22, "embedding": 11, "rerank": 18}
+    assert all(terminal[k] == 0 for k in ("modelCalls", "businessCalls", "indexWrites", "retry", "resume"))
+    assert all(terminal[k] is True for k in ("ownedProcessesStopped", "rawLogsDeleted", "secretScanPassed"))
+    cases = [row for row in rows if row["event"] == "case"]
+    assert [row["caseId"] for row in cases] == prepared["caseIds"] == [spec[0] for spec in probe.SPECIFICATIONS]
+    assert all(row["status"] == "measured" for row in cases)
+    missing = {(row["caseId"], label) for row in cases for label, value in row["requiredSources"].items()
+               if not value["allowedOriginalClause"]}
+    assert missing == {("UAT-KB-003", "rent"), ("UAT-KB-006", "historical_rate")}
+    assert terminal["casesWithRequiredSources"] == sum(
+        all(value["allowedOriginalClause"] for value in row["requiredSources"].values()) for row in cases) == 6
+    assert all(row["selectionSufficient"] and row["policyAllowed"] for row in cases)
+    # Structural sufficiency is not semantic proof and must not erase the two gaps.
+    assert "not_functional_or_effectiveness_uat" in terminal["limitations"]
+
+
+def test_visibility_record_separates_observed_loss_from_unproven_optimization():
+    value = json.loads((probe.REPO / "agent-runtime/tests/system_e2e/knowledge_stage_b_rerank_visibility.v1.json").read_text())
+    assert value["kind"] == "local_rerank_diagnosis_not_uat"
+    assert value["recordedFrom"] == "bounded_console_outputs_and_immutable_probe"
+    source = probe.REPO / "knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-post-warmup-20260908-01.jsonl"
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == value["probeSha256"]
+    frozen = probe.subprocess.check_output(["git", "show", value["sourceHead"] + ":serviceCenter/warmup-knowledge-reranker.py"], cwd=probe.REPO)
+    assert hashlib.sha256(frozen).hexdigest() == value["startupCheck"]["scriptSha256"]
+    events = list(map(json.loads, source.read_bytes().splitlines()))
+    cases = {row["caseId"]: row for row in events if row["event"] == "case"}
+    for row in value["visibilityInspection"]["rows"]:
+        assert row["clauseVisibleAt512"] and 0 <= row["clauseStart"] < row["clauseEnd"] <= row["visibleContentEnd"] <= row["contentCharacters"]
+        expected = cases[row["caseId"]]["requiredSources"][row["sourceLabel"]]
+        assert expected["pathRanks"] and expected["finalRank"] is None and expected["evidenceRank"] is None
+        assert probe.GOLD[row["sourceLabel"]]["sha256"] == row["sha256"]
+        ranks = []
+        for stage in events:
+            if stage.get("stage") != "rerank" or stage["caseId"] != row["caseId"]:
+                continue
+            ordered = sorted(stage["candidates"], key=lambda item: -item["score"])
+            target = next(item for item in ordered if item["chunkId"] == row["chunkId"])
+            assert sum(item["score"] == target["score"] for item in ordered) == 1
+            ranks.append(1 + ordered.index(target))
+        assert ranks == row["rerankRanksByRequirement"]
+    assert value["findings"]["sourcesLostBeforeFinalWindow"]
+    assert not any(value["findings"][key] for key in ("metadataContextImprovementProven", "semanticEquivalentEvidenceAudited",
+                                                    "rewriteOrSummaryMeasured", "uatPassed"))

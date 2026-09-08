@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "kind": "local_rerank_diagnosis_not_uat",
+  "recordedFrom": "bounded_console_outputs_and_immutable_probe",
+  "sourceHead": "4ba5d5ed6ee3fdc7b687af262e0df01545c93bd9",
+  "probeSha256": "923697c6a8314e8f4a64d83f307e91df7bc308f7240c70007f5589ce1a95af5f",
+  "previousFailedProbeSha256": "7387ba9450d46529c48434592d09a2b846cfb4c5532b922ec2a6b25512c378b6",
+  "startupCheck": {
+    "scriptSha256": "d37b016330b45b24c19c378a6e5ff29b22bc0b643e9b95996864e8bbe4b914d8",
+    "status": "ready",
+    "items": 40,
+    "elapsedMs": 1296,
+    "rerankCalls": 1,
+    "clientClosed": true
+  },
+  "measured": {
+    "manualPlans": 8,
+    "requiredSourcesPreserved": 6,
+    "searchCalls": 22,
+    "embeddingCalls": 11,
+    "rerankCalls": 18,
+    "paidModelCalls": 0,
+    "businessCalls": 0,
+    "indexWrites": 0,
+    "retry": 0,
+    "resume": 0
+  },
+  "visibilityInspection": {
+    "operationalSourceReads": 3,
+    "uniqueDocuments": 2,
+    "tokenizer": "BAAI/bge-reranker-v2-m3",
+    "localFilesOnly": true,
+    "tokenizerInferenceCalls": 0,
+    "rawSourcePersisted": false,
+    "rows": [
+      {
+        "caseId": "UAT-KB-003",
+        "sourceLabel": "rent",
+        "chunkId": "chunk-ceaf416255c52a326b13ef40fe81f8b9",
+        "sha256": "7b9d059827d126d52aba25b64e5925938999f2423ca3fc9fef144b518dc37c4e",
+        "contentCharacters": 39,
+        "contentTokens": 26,
+        "queryTokens": 10,
+        "clauseStart": 9,
+        "clauseEnd": 38,
+        "visibleContentEnd": 39,
+        "clauseVisibleAt512": true,
+        "titleCharacters": 14,
+        "sectionCharacters": 6,
+        "hasWrittenDate": true,
+        "hasDocumentNumber": false,
+        "contentContainsYear2016": false,
+        "contentContainsLodging": false,
+        "rerankRanksByRequirement": [28, 17],
+        "finalRank": null,
+        "evidenceRank": null
+      },
+      {
+        "caseId": "UAT-KB-006",
+        "sourceLabel": "historical_rate",
+        "chunkId": "chunk-622936954ae6957cf7f4a65c073694d7",
+        "sha256": "0abcc7ef8ef9da34e2194b46a73ab7366fc0824cd486009dfd0c0884df12416a",
+        "contentCharacters": 43,
+        "contentTokens": 39,
+        "queryTokens": 18,
+        "clauseStart": 37,
+        "clauseEnd": 42,
+        "visibleContentEnd": 43,
+        "clauseVisibleAt512": true,
+        "titleCharacters": 14,
+        "sectionCharacters": 10,
+        "hasWrittenDate": true,
+        "hasDocumentNumber": false,
+        "contentContainsYear2016": false,
+        "contentContainsLodging": false,
+        "rerankRanksByRequirement": [27, 13, 22],
+        "finalRank": null,
+        "evidenceRank": null
+      }
+    ]
+  },
+  "findings": {
+    "recallMissingForTheseSources": false,
+    "tokenTruncationForTheseSources": false,
+    "sourcesLostBeforeFinalWindow": true,
+    "metadataContextImprovementProven": false,
+    "semanticEquivalentEvidenceAudited": false,
+    "rewriteOrSummaryMeasured": false,
+    "uatPassed": false
+  }
+}
