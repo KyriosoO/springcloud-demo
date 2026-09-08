@@ -2080,3 +2080,21 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 三轮内审已完成：①旧helper固定v1/a5，明确新runner仅局部读取v2/b2且完整资产冻结；②旧观察器只覆盖raw Adapter，新增当前Adapter只读探针、方法只执行一次、原文及实际Summary绑定不变；③固定28模型与32+1本地rerank，预热前持久化尝试、失败/中断不重试、目录排他、十例不删减、累计范围明确。未修改历史代码或放宽validator。
 
 分离的正式只读复评覆盖UAT_01 §14.32、P3当前DAG及L2_01_00 §8.6/11.1、L2_01_01 §9.4～9.6、L2_01_02 §9.5、原case/gold与旧runner生命周期。结论：该测试接缝可实施，S0=0/S1=0/未处理S2=0；授权仅本次执行，不证明真实效果。复评为同一执行者与编辑分离阶段，不冒充外部人员评审。后续实际fake、冻结、调用及终态在本节追加。
+
+#### 20.56.1 新runner准入验证
+
+仅新增`tests/system_e2e/knowledge_stage_b_uat_v9.py`及直接测试；版本化入口复用既有生命周期，明确v2 binding/当前8/6/v3/context Adapter。首次导入检查发现V8没有独立INSTRUCTION导出，已改为从真实任务请求工厂取指令；未修改V8生产实现。代码复核另将environment完整成功校验前移到authorization独占创建之前，防止坏预检产生看似有效授权。正式只读复评原十例、gold、实际Summary捕获、单次context观测、逐HTTP预算、预热尝试先落盘、失败/中断/重复拒绝、路径patch恢复及旧hash，无未处理Blocker/Major/Minor；这是本runner切片结论，不是阶段B整体UAT通过。
+
+本次实际验证（Python3.12.4；各non-live子进程移除Key）：
+
+| 命令/范围 | 结果 |
+|---|---|
+| Runtime `python -m pytest tests/system_e2e/test_knowledge_stage_b_uat_v9.py -q --tb=short` | 初始80 passed（3.79s）；包含当前完整对象图、真实provider wire及context三次观察 |
+| 同目录 `python -m pytest tests/system_e2e/test_knowledge_stage_b_uat_v9.py tests/system_e2e/test_knowledge_stage_b_run_08_history.py tests/system_e2e/test_knowledge_reranker_warmup.py tests/system_e2e/test_knowledge_stage_b_citation_check_v2.py -q --tb=short` | 最终131 passed（19.78s），含追加CLI三阶段/不重复预热、JSON重复key/非有限反例；新runner直接测试83项 |
+| `pwsh -NoProfile -File .\scripts\run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe`，PYTEST_ADDOPTS=--tb=short | host/preflight14 passed（3.77s）；隔离安装后全量3014 passed/27历史opt-in skipped/0 failed（432.52s），1既有LangChain预告；全量采集后新增的3项已由上行覆盖，临时venv已清理 |
+| `python -m mypy --strict src`；新增runner/tests `compileall -q` | 135源文件通过；编译通过 |
+| agent-service `..\serviceCenter\mvnw.cmd -Dagent.runtime.python=C:\Python312\python.exe -Deureka.client.enabled=false test`，Java25、stub/Knowledge false默认 | BUILD SUCCESS（41.238s），40项/0失败/0错误/1旧opt-in skip；当前Business及Knowledge Spring E2E各1项实际通过、0skip |
+| es-query-service `..\serviceCenter\mvnw.cmd -Dtest=Knowledge*Test -Deureka.client.enabled=false test` | BUILD SUCCESS（10.533s），29项/0失败/0错误/0skip |
+| P3 strict、现有两启动/回归脚本AST、staged完整diff和凭据模式扫描 | 0 errors/warnings、AST0错误、凭据模式0命中、diff通过 |
+
+额外仅3次只读ES元数据请求核对b2 alias/UUID/write-block/mapping，BGE容器/镜像身份有效；没有新模型或BGE推理调用。隔离端口18080/18090/19091/19201空闲，Java25及既有classpath/auth JAR可读。没有Java生产或Business修改，不重复Employee/Transaction/common-security各模块Maven全量，保留旧证据范围。代码提交与精确clean冻结以随后manifest记录为准；真实环境预检、一次预热和付费UAT尚待执行。
