@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.13 |
+| 当前版本 | v2.14 |
 | 日期 | 2026-09-08 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-032区分隔离验证别名与线上发布别名，消除真实typed验证和发布前置循环；不关闭ProfileVerifier、不改线上绑定，当前实施证据归P3 |
+| 本次增量 | DR-KRET-033区分本地重排服务端口/health可达与推理就绪；启动期一次合成预热，不改变在线5秒及检索20秒合同；增量评审和实施状态归P3 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v2.14 | 2026-09-08 | 同镜像冷实例首次推理超过在线时限，health并不证明推理就绪 | 增加启动期固定合成文本、一次有界预热；在线超时、排序、正文和接口均不变 |
 | v2.13 | 2026-09-08 | 真实Java启动需实际alias，而发布前又要求typed/回滚验证，原文未区分测试与线上alias | 增加仅供隔离服务的临时只读alias生命周期；验证完成移除，线上发布仍需全回归、策略及回滚证据 |
 | v2.12 | 2026-09-07 | ES 9.4.1在主分片启动后删除resize来源设置，旧永久标记假设导致成功clone被拒绝 | 以精确clone确认回执、新UUID及全记录fingerprint建立归属；临时标记存在时仍校验，结果不明且不能证明归属时零清理写入；不重入失败候选 |
 | v2.11 | 2026-09-07 | 政策向量结构授权后继续，避免全库重编码和共享law退化 | 新候选原生clone、限定附件向量替换、全记录保持验证、失败封存和模型/token前置；不改变现行索引、公共DTO或发布条件 |
@@ -105,6 +106,7 @@
 | `REQ-KRET-003`、`CON-KRET-001` | `DR-KRET-006`、`DR-KRET-007` | `IMPL-KRET-005`、`IMPL-KRET-006` | `TEST-KRET-005`、`TEST-KRET-006` | `VAL-KRET-003` |
 | `REQ-KRET-004`、`CON-KRET-004` | `DR-KRET-008`、`DR-KRET-009`、`DR-KRET-010` | `IMPL-KRET-007`、`IMPL-KRET-008` | `TEST-KRET-007`、`TEST-KRET-008` | `VAL-KRET-004` |
 | `REQ-KRET-005` | `DR-KRET-011`、`DR-KRET-012` | `IMPL-KRET-009` | `TEST-KRET-009` | `VAL-KRET-005` |
+| `REQ-KRET-004`、`CON-KRET-004` | `DR-KRET-033` | `IMPL-KRET-021` | `TEST-KRET-028` | `VAL-KRET-014` |
 | `REQ-KRET-006`、`REQ-KRET-009`、`REQ-KCORPUS-001`、`REQ-KCORPUS-002`、`REQ-KCORPUS-003`、`REQ-KCORPUS-005`、`CON-KRET-005` | `DR-KRET-013`、`DR-KRET-014`、`DR-KRET-015`、`DR-KRET-016`、`DR-KRET-017`、`DR-KRET-018`、`DR-KRET-019`、`DR-KRET-020`、`DR-KRET-026` | `IMPL-KRET-010`、`IMPL-KRET-011`、`IMPL-KRET-012`、`IMPL-KRET-013` | `TEST-KRET-010`、`TEST-KRET-011`、`TEST-KRET-012`、`TEST-KRET-013`、`TEST-KRET-014`、`TEST-KRET-015`、`TEST-KRET-016`、`TEST-KRET-021` | `VAL-KRET-006` |
 | `REQ-KRET-007`、`REQ-KRET-008`、`REQ-KCORPUS-004`、`REQ-KCORPUS-006` | `DR-KRET-021`、`DR-KRET-022`、`DR-KRET-023`、`DR-KRET-024`、`DR-KRET-025` | `IMPL-KRET-014`、`IMPL-KRET-015`、`IMPL-KRET-016` | `TEST-KRET-017`、`TEST-KRET-018`、`TEST-KRET-019`、`TEST-KRET-020` | `VAL-KRET-007` |
 | `REQ-KRET-004`、`REQ-KRET-006`、`REQ-KRET-008`、`CON-KRET-004`；`KQ-AD-019` | `DR-KRET-030` | `IMPL-KRET-018` | `TEST-KRET-025` | `VAL-KRET-011` |
@@ -168,6 +170,7 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 | `DR-KRET-025` | alias 以精确旧目标为前置执行原子切换、冒烟、原子回滚演练和最终切换；不删除旧索引 |
 | `DR-KRET-030` | §12.8纯构造同记录title/section/content的版本化向量输入，严格类型/大小/哈希，原文和既有builder不变，不执行I/O |
 | `DR-KRET-031` | §12.9只克隆精确只读源，替换policy受控附件的embedding和独立表示元数据；全记录原文/权限及其余向量保持，失败封存不发布 |
+| `DR-KRET-033` | §9.5启动期一次合成重排预热，失败不启动新的Knowledge调用方；不重试用户请求、不放宽在线deadline |
 | `DR-KRET-026` | 审计把索引库存、来源可达性和正文完整性作为三个独立状态；非 200/网络失败只产生有限 source status，不推断正文缺失，不自动重试或转用非权威来源 |
 
 ### 7.2 Python 内部类型
@@ -272,6 +275,16 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 `TEST-KRET-024`（已实现`tests/unit/knowledge/retrieval/test_quality_ranking_v3.py`及stage集成）：同域规则/时效分别排名、低位必要证据作为需求首位保留、不同域无需广播、相同identity多需求标签合并、稳定轮转/tie、空域无BGE、4次/160评分硬上限、≤4search/2embed不变、deadline前不建新调用、取消传播、非法/重复/缺失分数拒绝、forbidden/快照异常BGE0。反例使用匿名合成正文与fake分数，不把人工gold接入排序，也不据此宣称真实排名已改善。
 
 `VAL-KRET-010`：上述单元/契约、当前根fake端到端、strict mypy/compileall、既有ES Java DTO/授权测试及全量Knowledge/Core/Business/历史回归通过后才可切生产单绑定。V3与V2预算不同须冻结新快照；本设计不授权新BGE实测或付费运行。回滚整体恢复planner/ranker/Evidence/Summary版本，或禁用Knowledge；不改阶段A快照。
+
+### 9.5 本地重排启动预热（DR-KRET-033；增量评审通过，实施状态见P3）
+
+端口与`/health`正常只证明服务可达。冷实例模型/GPU初始化可能使首次推理超过在线5秒，不能据此提高在线时限、删除候选或增加查询重试。采用一次显式启动检查，不建设定时探针、缓存或额外在线流程。
+
+- **触发与所有权**：serviceCenter在显式启用Knowledge时、Python环境准备完成后且启动新的服务进程前执行；`PlanOnly`及Knowledge disabled不调用。`SkipInfrastructureCheck`仅跳过TCP盘点，不跳过推理预热。手工启动/本地验证入口使用同一独立工具。Runtime在线对象图不导入它，不自动预热、不改变ready公共响应。
+- **固定输入与端点**：仅向loopback `127.0.0.1:8909/rerank`发送一次POST，40条各4096字符的代码内合成文本、固定非业务query、`top_n=40`、`normalize=true`。不访问ES/embedding/LLM/业务服务，不读Key/JWT/问题/正文；不允许endpoint或输入参数覆盖。
+- **边界**：启动预热绝对时限30秒，响应上限2MiB，不使用环境代理、重定向或重试；严格校验200、JSON/identity、UTF-8、无重复/未知key、模型名、完整40项唯一整数index（拒绝bool）、精确合成text回显和有限数值score（拒绝bool）。任何失败关闭连接、返回非零退出码，启动器不启动新的服务。该30秒只属于运维合成检查，在线rerank仍5秒、stage仍20秒。
+- **观测与失效**：只输出有限status、耗时、数量、contract判定；不输出响应或环境。单操作人启动窗口，不承诺其他客户端并发下的性能SLA；检查后BGE被重启/换模型则原就绪证据失效。下游在客户端超时后可能继续计算，工具不再次请求，也不停止用户拥有的BGE进程。
+- **兼容与验证**：不新增配置项/依赖、修改模型服务或公共DTO；仅新增运维工具并接入启动脚本。fake覆盖错模型、重复/缺失index、非法数值、超限、错误状态/类型、超时及零重试；实际冷实例验证与当前服务检查分别记录，不把合成预热计为UAT或原文排序通过。新诊断的启动预算单列rerank=1，不能偷偷注入已冻结或已消费的历史runner，也不赋予重跑失败case或追加付费批次的权限。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
@@ -449,6 +462,7 @@ finally先停止且核实本次Popen PID，再关闭、扫描并删除本次精�
 | `IMPL-KRET-018` | 新增 `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_representation.py`：DR-KRET-030纯表示，不接入当前builder |
 | `IMPL-KRET-019` | `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_candidate.py`：§12.9同步builder/spec/有限结果及HTTP错误边界；只拥有新候选写入，不负责模型加载或发布 |
 | `IMPL-KRET-020` | 建议新增`validation_alias.py`及版本化typed验证launcher：DR-KRET-032仅临时alias/隔离服务/有限证据；旧release.py、冻结launcher及在线Runtime不变 |
+| `IMPL-KRET-021` | 建议新增`serviceCenter/warmup-knowledge-reranker.py`同步CLI（固定输入/端点，无参数覆盖；有限JSON stdout和退出码），并由`run-all-services.ps1`在启动循环前调用；非live工具可显式执行，不修改历史launcher |
 
 ### 13.2 关键签名
 
@@ -514,6 +528,7 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-021` | 审计三层状态、403/404/timeout 不推断正文缺失、种子计入预算、人工官方替代映射及非权威来源拒绝 |
 | `TEST-KRET-025` | 新增 `knowledge-corpus-tools/tests/test_vector_representation.py`：精确输入/哈希、去重顺序、空值/类型/大小/UTF-8边界、原文与repr隔离、不可变、无网络/在线调用方 |
 | `TEST-KRET-027` | 建议新增`knowledge-corpus-tools/tests/test_validation_alias.py`及版本化launcher fake：精确UUID/只读/alias、冲突/超时/不明写入、有限预算、finally/进程/日志；真实typed矩阵另存有限结果，不以mock替代 |
+| `TEST-KRET-028` | 建议新增`agent-runtime/tests/system_e2e/test_knowledge_reranker_warmup.py`：固定合成40项、严格响应、绝对deadline、超限、client关闭/零重试及启动顺序/disabled/PlanOnly；不调用真实服务 |
 | `TEST-KRET-026` | `knowledge-corpus-tools/tests/test_vector_candidate.py`：混合policy/law全记录保留、只替换附件、输入/源漂移/预算/重复/错维度零写入、clone回执/临时来源删除/UUID替换/不明结果/失败封存、CAS冲突、逐条后置比较、alias零写入、无敏感错误及旧builder保护；直接local preparation/runner测试验证真实环境接缝及token超限零clone |
 
 ### 14.2 验证编号定义
@@ -530,6 +545,7 @@ KnowledgeSearchResponse search(
 | `VAL-KRET-011` | 纯构造器定向测试、离线工具回归、strict mypy/compileall、旧文件与历史哈希、代码对照复核；不代表候选索引或真实UAT通过 |
 | `VAL-KRET-012` | 在工具目录运行`python -m pytest tests/test_vector_candidate.py`及全部工具测试、strict mypy/compileall、代码对照评审；真实源/模型/token绑定、候选全记录对照及有限evidence另行执行，不用fake批准发布 |
 | `VAL-KRET-013` | 在工具目录运行新增`tests/test_validation_alias.py`和launcher fake、工具全量/mypy/compileall，再执行版本化隔离typed验证；`TEST-KRET-027`覆盖DR-KRET-032归属/预算/拒绝/清理，真实结果与fake分离，未完成全回归/发布不得关闭主工作包 |
+| `VAL-KRET-014` | 新预热定向pytest、Python编译/类型、PowerShell AST及PlanOnly通过；真实固定合成调用另存有限结果。在线5秒/20秒合同及Business/Knowledge回归不变；预热不是阶段B UAT证据 |
 
 ## 15. 风险与保护条件
 
@@ -550,11 +566,13 @@ KnowledgeSearchResponse search(
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，DR-KRET-029已评审实施并完成成对接线及non-live；真实UAT尚未完成，见P3 §20.40 |
-| 当前允许实施范围 | 阶段B §9.4及§12.8/12.9已有实现；DR-KRET-032允许补齐隔离typed验证工具，线上alias/原文保持只读；发布仍受§12.6/12.7约束，不外推现有召回对照为真实效果 |
+| 当前允许实施范围 | 阶段B §9.4及§12.8/12.9已有实现；DR-KRET-032隔离typed验证和发布状态归P3；DR-KRET-033允许启动期合成预热工具/接线/fake，在线时限、原文及索引不变；发布仍受§12.6/12.7约束，不外推局部对照为真实效果 |
 | 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或未冻结/超预算真实模型出域 |
 | 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
 
 ## 17. 三轮内部自检与独立评审记录
+
+v2.14聚焦修订`B-READY-001`：仅TCP/health检查不能证明冷实例已满足在线推理时限。内审1确认只在运维启动期使用合成文本，不修改在线5秒/20秒及排序；内审2补齐重复key、bool冒充数值、完整回显、绝对deadline和下游超时后仍可能计算的边界；内审3明确disabled/PlanOnly零调用、单次预算、无历史runner注入、TEST/VAL和无新增Gate。冻结编辑后，按上位L1_01 §8本地模型配置/§10有界资源、REQ-KRET-004及CON-KRET-004，对§9.5、实际BGE接口及启动脚本作分层/跨层只读复评：本运维预热实施切片S0=0、S1=0、未处理S2=0，允许新增工具、启动接线和fake；不批准追加付费UAT或关闭阶段B。由同一执行者分离编辑复核，不冒充外部独立人员；端到端效果仍待真实证据。
 
 v2.13聚焦审查：`B-ALIAS-001`（S1）为§12.7把所有alias操作放在typed验证之后，而Java启动依赖实际alias，形成发布前验证循环。内审1区分临时测试alias和线上发布；内审2补齐不明回执、UUID/归属漂移和清理失败时禁止越权恢复，明确多HTTP调用并非ES CAS；内审3补齐有限预算、TEST/VAL、未验证状态与不新增Gate。随后冻结编辑，按REQ-KCORPUS-003/004/006→KQ-AD-019→DR-KRET-024/025/032与实际KnowledgeProfileVerifier进行分层/跨层只读复评：本隔离验证实施切片无S0/S1/未处理S2，B-ALIAS-001设计关闭。允许实施临时alias/launcher，不批准线上发布、真实摘要或阶段B完成。由同一执行者分阶段复评，不冒充外部独立人员。
 
@@ -589,7 +607,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.13；DR-KRET-029/030已实施；DR-KRET-031的真实候选构建、全记录保持及同窗口检索对照通过；DR-KRET-032隔离验证实施/执行状态归P3，旧批准基线保持原证明范围。
+- 当前版本：v2.14；DR-KRET-029/030已实施；DR-KRET-031的真实候选构建、全记录保持及同窗口检索对照通过；DR-KRET-032/033实施/执行状态归P3，旧批准基线保持原证明范围。
 - 文档状态：Approved；历史实施校准评审见P3_00 §20.4，需求增量设计评审及当前实施证据见§20.36～20.40；设计批准本身不替代实施或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 

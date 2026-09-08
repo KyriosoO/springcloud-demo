@@ -51,7 +51,7 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；在线non-live及离线候选已验证，发布未完成，见§20.40/20.48 |
 | [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.25 | DR-KFLOW-024需求计划及025澄清优先规则恢复 | Approved；已实施，当前验证见§20.44 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.13 | DR-KRET-029需求排序及030/031限定向量候选；032隔离typed验证，不变更线上服务合同 | Approved；真实构建/检索对照通过，typed/发布待完成，见§20.48～20.49 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.14 | DR-KRET-029需求排序、030～032向量发布及033启动期合成预热；不变更在线超时/服务合同 | Approved；向量typed/回滚/发布已完成，启动预热实施和阶段B质量/UAT仍待完成，见§20.52～20.53 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
 | [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.32 | 原十例及历史失败不变；V8非live和政策存储增量证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
@@ -1942,3 +1942,22 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 当前只关闭§20.47存储切片：表示、构建、目录、typed、回滚及发布均已完成。`WP-KRETRIEVAL-QUALITY-01=Blocked`、专项UAT=Deferred仍保持；Rewrite8/Summary6/quality-v3在新索引上的原十例完整问答、澄清零检索和必要证据/usefulness未通过本次发布测试。run-08仍失败且不可恢复，未创建run-09、未读取Key、未自动追加付费验证；下一步先在当前新快照核实必要证据经真实融合/rerank/quality-v3是否保留，再决定完整受控UAT，不把存储改善当作整体目标已完成。
 
 发布有限证据及8091防护提交=`b35c0907b3c2be498870ecf5633e748ba55918d5`。最终代码对照复评核对30发布例、15回滚例、14目录例和2814全回归、真实索引/alias、来源hash及旧资产Git差异；本存储发布切片无未处理Blocker/Major/Minor，不外推整体阶段B通过。文档只作实施状态和命令勘误：L1_01保持v1.21、L2_01_01保持v2.13、P3保持v2.56、UAT_01保持v1.32；无新的设计合同，无需为动态计数升级版本。L1/L2/P3严格校验均0 errors/0 warnings，三份修改文档32个本地链接全部存在；原35/37追踪和run-08/旧candidate哈希由全回归校验通过。
+
+### 20.53 当前quality-v3诊断与本地重排冷启动（2026-09-08）
+
+从`d06160b55077abf951e6a34e724f5645dece4545`继续；向量发布已完成，不能继续用旧quality-v1 typed兼容检查或合成分数重放声称新排序/Evidence通过。新测试入口`knowledge_stage_b_quality_v3_probe.py`冻结八个手工检索计划，调用真实当前Stage/RRF/ranker/Selector/策略；gold只在排序及选证后评估，001/005澄清和真实Rewrite/Summary不在本诊断证明范围。上限search/embedding/rerank=22/11/18，模型/Business/索引写入/retry/resume0。
+
+唯一真实诊断源提交=`88900bfa660074334ec5429ab2afff26d165f81d`；使用C:\Python312、当前Runtime及corpus/src进程PYTHONPATH、Java25，未读取Key。执行`python -m tests.system_e2e.knowledge_stage_b_quality_v3_probe --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\quality-v3-probe-20260908-01.jsonl`。原始字节复制到`knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-probe-20260908-01.jsonl`，SHA=`7387ba9450d46529c48434592d09a2b846cfb4c5532b922ec2a6b25512c378b6`，不可覆盖/重入。
+
+| 诊断事实 | 有限结果 |
+|---|---|
+| 首例UAT-KB-015a | keyword20、vector20，RRF去重35；首次BGE rerank触发现行5秒timeout，`rerank_timeout`，未产生最终排序或Evidence |
+| 终态 | Failed；其余七个手工计划未执行；不补跑，不计为UAT通过 |
+| 实耗 | search2、embedding1、rerank1；ES管理预检读取3；外部模型/Business/索引与alias写入/retry/resume0 |
+| 环境/清理 | 当前b2精确binding/catalog及Java ProfileVerifier通过；随机HMAC/真实auth内存ADMIN，owned进程停止、原始日志扫描删除通过 |
+
+`B-READY-001`根因复核：当前BGE镜像GPU CUDA可用、FP16、batch16/max_length512；仅health可达不证明推理就绪。一次现有实例合成35×4096字符、实际strict Adapter校验耗时1421ms。随后同镜像创建只读模型缓存、network=none、4GiB上限的临时容器，health正常后第一次相同合成评分7167ms，第二次801ms；启动health等待9018ms。该独立冷实例复现证明启动前置不足，不声称已获取原失败请求全部内部计时或排除所有并发因素。只停止并删除已核验ID/独占label的本次容器，现有BGE/ES未改。有限控制台结果归`knowledge_stage_b_local_model_probe.v2.json`，明确人工记录来源而非伪造运行器原始输出。本合成诊断本地rerank3、外部模型/检索/embedding0；未重放失败case。
+
+方案比较：扩大在线timeout会改变用户deadline且掩盖冷启动；缩小候选池损害已证明的必要证据召回；因此采用独立启动期一次合成预热。L2_01_01 v2.14 DR-KRET-033已完成三轮内审及分离编辑的分层/跨层复评，无S0/S1/未处理S2，允许只改运维工具/启动接线及直接fake。在线5秒、stage20秒、排序、索引、权限和模型预算均不变；不新增Gate、不改变工作包DAG。P3/UAT只同步本地预检和当前状态，不因动态测试计数升级版本。
+
+本节关闭的是设计中的“health等同推理就绪”假设，工具实际实施/验证结果随后追加。`WP-KRETRIEVAL-QUALITY-01=Blocked`、专项UAT=Deferred；run-08失败、原35/37功能追踪、旧P5及阶段A内容不变。新快照上的完整排序/Evidence、Rewrite8澄清与Summary6语义覆盖仍未完成；不读取Key、不创建run-09，不外推存储发布或合成预热为阶段B通过。
