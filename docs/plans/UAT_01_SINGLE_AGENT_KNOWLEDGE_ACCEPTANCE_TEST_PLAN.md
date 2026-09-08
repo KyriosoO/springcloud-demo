@@ -9,7 +9,7 @@
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-08 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.26、`L2_01_01` v2.15、`L2_01_02` v1.21、`P3_00` v2.58；§14.32记录新独立十例的明确授权，原case/gold及生产设计不变；尚无新端到端UAT结论 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.26、`L2_01_01` v2.15、`L2_01_02` v1.21、`P3_00` v2.58；§14.32记录独立十例授权，§14.33为run-09失败终态：1通过/1失败/8未执行；原case/gold及生产设计不变 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -693,3 +693,26 @@ P3 §20.55的固定八例配对采用相同候选/查询/模型/窗口，正文�
 5. **授权及消费**：仅生成精确HEAD/run/reference/manifest SHA/dataset/预算/live绑定的authorization；运行目录仅允许manifest/startup/environment/authorization规定文件。已有consumed/journal/evidence/result或失败startup禁止执行。首次模型HTTP前独占consumed、每次HTTP前fsync journal并检查任务/Prompt/输入/预算，付费请求只在execute读取进程Key后发生。失败停止整批，不补跑任何case；保留有限失败及未执行清单。未到模型即失败也不自动重用该批。
 6. **证据与判定**：复用实际bundle及policy过滤后的Summary input捕获和来源绑定v2，仍核对原域、澄清、必要原文、引用及语义/usefulness，不以HTTP200、结构coverage或手工计划8/8代替。仅记录caseID、有限状态/reason、任务/版本、调用数、来源hash/排名和布尔判据；禁止问题、focus、quote、元数据正文、原始模型/业务响应、Key/JWT。前后只读索引/模型校验、owned PID退出及原始日志扫描删除必须通过。
 7. **准入与关闭**：三轮内审、分离的正式只读设计复评通过后实施runner；fake覆盖预算、完整资产/历史/当前绑定、旧observer不可冒充、预热失败/重复、模型漂移、重复消费、错源、十例顺序和patch恢复。代码复核及non-live通过后提交、冻结再执行。十例、核心P0、来源/语义、安全及清理实际通过才关闭专项；首个失败则Failed，其余Not executed，阶段B保持未完成。原35/37功能证据与历史效果等级不被本协议改判。
+
+### 14.33 run-09实际终态与未完成责任
+
+§14.32的一次性授权已经执行并消费，run-09为本阶段最新真实执行，终态Failed。精确冻结、八项原始资产及SHA由evidence/P3 §20.56.2维护；本文只记录用例、效果结论和证明范围。既有run-01～08及P5 candidate结论不变，不续跑、不自动run-10。
+
+| 原用例 | 本批状态 | model/search/embedding/在线rerank | 实际证据或未执行原因 |
+|---|---|---|---|
+| UAT-KB-001 | Passed | 2/0/0/0 | 当前Rewrite8正确澄清；HTTP200/no_result/clarification_required，零检索。 |
+| UAT-KB-015a | Failed | 2/0/0/0 | Rewrite8 invalid_output；HTTP502/downstream_failure，未产生检索、Summary或有效引用。 |
+| UAT-KB-004 | Not executed | 0/0/0/0 | 首个失败停止整批。 |
+| UAT-KB-002 | Not executed | 0/0/0/0 | 核心分类/规则/时效仍须当前版本真实验证。 |
+| UAT-KB-003 | Not executed | 0/0/0/0 | 首个失败停止，不用此前本地8/8配对冒充。 |
+| UAT-KB-005 | Not executed | 0/0/0/0 | 另一澄清用例未执行，不能从001外推通过。 |
+| UAT-KB-006 | Not executed | 0/0/0/0 | 首个失败停止。 |
+| UAT-KB-015b | Not executed | 0/0/0/0 | 首个失败停止。 |
+| UAT-KB-016 | Not executed | 0/0/0/0 | 首个失败停止。 |
+| UAT-KB-008 | Not executed | 0/0/0/0 | 首个失败停止。 |
+
+本批2次E2E、4次付费模型；另有一次独立启动合成rerank，不属于上述case或效果证据。Summary、Business、answer、retry、resume为0；调用未超预算。前后绑定、进程/client关闭、日志扫描清理通过，没有任何索引或alias修改。
+
+模型原始响应按安全合同未保存；invalid_output不能确定具体字段、provider响应或finish原因。015a未生成实际Summary输入，input_binding_missing和必要原文false是上游停止的后果，不能推断新向量索引、排序或引文校验已失败。非live合成lookup计划通过严格解析，其他非法形状均拒绝；fake只验证合同，不补齐真实用例。
+
+验收结论：原35/37功能证据保持其既有证明范围；阶段B专项Failed，当前Rewrite8仅001获得本批通过证据，Summary6及完整原十例效果仍Evidence missing，不能宣称effective或阶段B完成。诊断/工作包状态见P3；历史章节中的“未创建run-09”保留当时语境，本节是最新执行权威。后续只能先做有依据的非付费诊断，不把剩余额度视作新批次授权。
