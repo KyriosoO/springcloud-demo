@@ -42,6 +42,7 @@ from agent_runtime.knowledge.retrieval.http import (
     build_knowledge_http_client,
 )
 from agent_runtime.knowledge.retrieval.provider import LocalKnowledgeRetrievalFactory
+from agent_runtime.knowledge.retrieval.bge_rerank_context import ContextualBgeRerankAdapter
 from agent_runtime.knowledge.retrieval.settings import KnowledgeRetrievalSettings
 from agent_runtime.knowledge.settings import KnowledgeSettings
 
@@ -138,6 +139,7 @@ def build_runtime(
             search_transport=HttpxKnowledgeTransport(knowledge_clients[0]),
             embedding_transport=HttpxKnowledgeTransport(knowledge_clients[1]),
             rerank_transport=HttpxKnowledgeTransport(knowledge_clients[2]),
+            rerank_input_version=ContextualBgeRerankAdapter.INPUT_VERSION,
         )
         knowledge_providers = (
             KnowledgeCompositionRoot.build_provider(

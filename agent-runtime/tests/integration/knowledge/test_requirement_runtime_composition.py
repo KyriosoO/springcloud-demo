@@ -101,8 +101,9 @@ class Clients(_KnowledgeClientFactory):
             if request.url.path == "/rerank":
                 if self.fault == "rerank": return httpx.Response(500, stream=_FixedStream(b""))
                 top = CONTENTS[FOCUSES.index(value["query"])]
+                scoring_top = top + "\n文档标题：增值税政策资料" + str(CONTENTS.index(top) + 1)
                 return self._json({"model": "BAAI/bge-reranker-v2-m3", "results": [
-                    {"index": i, "text": text, "score": 1.0 if text == top else 0.0}
+                    {"index": i, "text": text, "score": 1.0 if text == scoring_top else 0.0}
                     for i, text in enumerate(value["documents"])]})
             assert request.url.path == "/es/knowledge/search"
             self.es_authorizations.append(request.headers["Authorization"])
@@ -154,6 +155,11 @@ async def test_current_root_retains_three_proof_anchors_and_summary_coverage(mul
     assert [(r.task_id, r.task_version) for r in model.requests] == [
         (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "8"), (ModelTaskId.KNOWLEDGE_SUMMARY, "6")]
     assert [v["query"] for p, v in clients.payloads if p == "/rerank"] == list(FOCUSES)
+    expected_documents = [text + "\n文档标题：增值税政策资料" + str(i) for i, text in enumerate(CONTENTS, 1)]
+    for path, body in clients.payloads:
+        if path == "/rerank":
+            assert body["documents"] == (expected_documents[:1] if multi and body["query"] == FOCUSES[0]
+                else expected_documents[1:] if multi else expected_documents)
     assert clients.paths.count("/es/knowledge/search") == (4 if multi else 2)
     assert clients.paths.count("/embed") == 1 and clients.paths.count("/rerank") == 3
     assert len(observation.plans) == 1 and observation.plans[0]["plan"]["quality_version"] == KNOWLEDGE_QUALITY_VERSION_V3
@@ -162,6 +168,7 @@ async def test_current_root_retains_three_proof_anchors_and_summary_coverage(mul
     assert payload["question"] == QUESTION and payload["requirements"] == plan(multi=multi)["requirements"]
     visible = json.dumps(asdict(observation), ensure_ascii=False) + caplog.text
     assert all(text not in visible for text in CONTENTS + FOCUSES)
+    assert "文档标题：" not in visible and "成文日期（非生效日期）" not in visible
     assert "header.payload.signature" not in visible
     assert all("header.payload.signature" not in r.user_payload_json for r in model.requests)
 
