@@ -172,3 +172,43 @@ def test_entry_restores_scoped_patch_even_on_failure_and_marks_experiment(monkey
     record = json.loads((tmp_path / "finite.jsonl").read_text())
     assert record["rankedArm"] == "context" and record["pairedRawScoring"]
     assert record["experimentSourceSha256"] == hashlib.sha256(Path(experiment.__file__).read_bytes()).hexdigest()
+
+
+def test_immutable_paired_measurement_is_eight_local_plans_not_live_uat():
+    path = experiment.probe.REPO / "knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-context-paired-20260908-01.jsonl"
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "beae7ddda48b4afd8382c975f1cb107c0e24a6d489b497808c6a82a4d8b35275"
+    rows = [json.loads(line) for line in raw.splitlines()]
+    assert rows[0]["head"] == "401988e531a231e10cbfc50ce50e00b8cbe8d8b4"
+    assert rows[0]["experimentSourceSha256"] == hashlib.sha256(Path(experiment.__file__).read_bytes()).hexdigest()
+    cases = [r for r in rows if r["event"] == "case"]
+    assert [c["caseId"] for c in cases] == [s[0] for s in experiment.probe.SPECIFICATIONS]
+    assert all(c["status"] == "measured" and c["policyAllowed"] and
+               all(s["allowedOriginalClause"] for s in c["requiredSources"].values()) for c in cases)
+    assert cases[3]["requiredSources"]["rent"]["evidenceRank"] == 2
+    assert cases[4]["requiredSources"]["historical_rate"]["evidenceRank"] == 6
+    for case in cases:
+        arms = {arm: [r for r in rows if r.get("caseId") == case["caseId"] and r.get("stage") == arm]
+                for arm in ("rerank_raw", "rerank")}
+        assert len(arms["rerank_raw"]) == len(arms["rerank"]) == case["counts"]["rerank"] // 2
+        for left, right in zip(arms["rerank_raw"], arms["rerank"], strict=True):
+            assert left["ordinal"] == right["ordinal"]
+            # Scores are emitted in the server's rank order, not request order.
+            # The paired request-order contract is checked separately above.
+            left_ids = [(v["chunkId"], v["sha256"]) for v in left["candidates"]]
+            right_ids = [(v["chunkId"], v["sha256"]) for v in right["candidates"]]
+            assert len(left_ids) == len(set(left_ids)) == len(right_ids) == len(set(right_ids))
+            assert sorted(left_ids) == sorted(right_ids)
+    terminal = rows[-1]
+    assert terminal["status"] == "measured" and terminal["casesWithRequiredSources"] == 8
+    assert terminal["counts"] == {"search": 22, "embedding": 11, "rerank": 36}
+    assert all(terminal[key] == 0 for key in ("modelCalls", "businessCalls", "indexWrites", "retry", "resume"))
+    assert all(terminal[key] is True for key in ("ownedProcessesStopped", "rawLogsDeleted", "secretScanPassed"))
+    assert "not_functional_or_effectiveness_uat" in terminal["limitations"]
+    def check(value):
+        if isinstance(value, dict):
+            assert not set(value) & {"query", "question", "content", "title", "text", "documentNumber", "writtenDate", "token", "authorization"}
+            for child in value.values(): check(child)
+        elif isinstance(value, list):
+            for child in value: check(child)
+    check(rows)

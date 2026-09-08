@@ -5,14 +5,16 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.56 |
+| 当前版本 | v2.57 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-07 |
+| 更新时间 | 2026-09-08 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
 | 实施授权 | Ready 不等于实施授权；本任务已另行获得目标范围内代码实施、受控验证、文档同步及 Git 提交推送授权 |
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+
+v2.57依据§20.55配对诊断及L2_01_01 DR-KRET-034推进授权上下文评分表示；保持既有StageB工作包/DAG、预算和付费运行限制，不新增Gate或候选。
 
 v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrite V2 精确 JSON 输出合同。v2.35 依据 ROADMAP_01 阶段 A 新增语料只读审计、版本化处理、候选索引、发布回滚和专项 UAT 工作包，并把入口门禁与 alias 发布门禁拆开以消除循环。v2.36 依据审计 v1 的实际失败修复来源可达性、正文完整性、人工优先级和精确预算边界。v2.37～v2.38 如实保留早期 candidate/UAT 及严格合同复评。v2.39 修复 legacy DOC 扁平解析导致条款关系缺失的问题并保留结构化 a4 中间候选。v2.40 将网络/损坏容器异常收敛为逐资产有限失败，以最终工具源码重建 Stage A corpus candidate-08/a5，并用 UAT/release attempt-05 完成发布收口；v2.41 修正 catalog Git/LF 分发哈希，增加历史评估输入的精确只读镜像，并让历史测试辅助层在临时仓库内复原已授权换行字节，使正式隔离回归可由干净检出复现。阶段 B 仍独立阻塞。
 
@@ -2024,3 +2026,11 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 方案内审三轮：第一轮限定读取授权→评分→原文Evidence所有权，排除未公开section和成文日期等同生效日期；第二轮核实DTO真实上限为title/documentNumber各256，修正表示总上限及exact echo独立校验，禁止替换candidate.content/hash；第三轮核实双臂实际预算36+独立预热1、失败全批停止、旧文件不变和不使用gold调参。随后单独只读复评L2_01_01 §7.4/§8.3/§9.4、当前Stage/Adapter/Selector及§20.54证据：仅上述离线实验可实施，S0=0、S1=0、未处理S2=0；线上表示变更仍未批准。该复评是与编写分离的检查阶段，不冒充独立外部评审人员。
 
 实现范围冻结为`tests/system_e2e/knowledge_stage_b_context_rerank_probe.py`及直接测试；独立BGE派生文本校验只存在于实验工具，生产Adapter不改。代码复核首轮发现3个输入边界测试在构造真实candidate时已提前触发原validator，尚未覆盖实验格式器；改用显式合成对象测试格式器，未放宽原断言或生产校验。复评验证配对query/候选顺序、raw失败不调用context、context失败不回退raw、403时rerank0、原文/hash不变、patch退出恢复、精确source绑定和有限结果。该实验切片Blocker/Major/未处理Minor为0，整体StageB质量仍未关闭。实际定向八文件pytest=`214 passed`（1.72秒）；`mypy --strict src`=134源文件通过；两个新增文件compileall通过。尚未执行真实本地配对，未重跑全量/Maven，旧§20.54的6/8不作为本次实验结论。
+
+实际配对已于clean `401988e531a231e10cbfc50ce50e00b8cbe8d8b4`执行一次：入口`python -m tests.system_e2e.knowledge_stage_b_context_rerank_probe --execute --result <受控外部路径>`，source SHA=`18376f164d5811925b4ffa0fb212a47072687b1b2637b7e95c3f1219777ad81d`；合成预热1次/1578ms，正文与上下文共rerank36、search22、embedding11，外部模型/Business/index/alias/retry/resume均0。8例全部保留预定原文；context Evidence位置依次为015a(lodging1/living3)、004(lodging1/living2/law_rate3)、002(lodging1/law_rate5/law_effective6)、003(lodging1/rent2)、006(lodging1/historical_rate6)、015b(lodging1/law_rate2/law_effective6)、016(software1)、008(law_rate1)。两个原缺口中，rent对应rule裸重排名次17→1；historical_rate的三个需求分别27/13/22→24/10/4，由现有轮转和Selector进入Evidence6。未改变排序或gold。
+
+完整有限文件为`knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-context-paired-20260908-01.jsonl`，SHA=`beae7ddda48b4afd8382c975f1cb107c0e24a6d489b497808c6a82a4d8b35275`。前后绑定/快照、policy/原文及清理检查通过；本次PID8484/33288均已停止，18090/19201无监听，原始日志扫描删除，旧两份探针和所有付费结果不变。该结果支持最小表示修复，不证明Rewrite8/Summary6、澄清、用户引用或usefulness；专项UAT仍Deferred。
+
+线上设计三轮内审：①在L1既有本地模型职责内只用typed授权metadata，明确成文日期不是时效、派生表示不是Evidence；②固定4700字符/单次5秒/2MiB，保持4次160评分及20秒，旧Adapter不动且新错误不能回退raw；③仅内部Factory版本参数，main固定新值、历史默认保留、disabled零资源，运行快照需新表示SHA，回滚整版代码。只读正式复评L2_01_01 §9.6与L2_01_00 §11.1、Provider/main/typed契约及8例配对证据：S0=0、S1=0、无未处理S2，可实施DR-KRET-034；不是外部人员批准或整体UAT通过。REQ/L0/L1无职责变化，不无关升级。
+
+实施顺序仍为当前DIAG→已完成的设计复评→`IMPL-KRET-022`新Adapter/Factory/main→`VAL-KRET-015`→后续完整UAT；不要求付费UAT先通过才允许代码修复。当前仅设计批准，代码和新根non-live尚待实施；不得自动启动run-09。
