@@ -49,9 +49,9 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；在线non-live及离线候选已验证，发布未完成，见§20.40/20.48 |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成，见§20.52～20.53 |
 | [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.25 | DR-KFLOW-024需求计划及025澄清优先规则恢复 | Approved；已实施，当前验证见§20.44 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.14 | DR-KRET-029需求排序、030～032向量发布及033启动期合成预热；不变更在线超时/服务合同 | Approved；向量typed/回滚/发布已完成，启动预热实施和阶段B质量/UAT仍待完成，见§20.52～20.53 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.14 | DR-KRET-029需求排序、030～032向量发布及033启动期合成预热；不变更在线超时/服务合同 | Approved；向量发布及预热工具已完成，阶段B质量/UAT仍未完成，见§20.52～20.53 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
 | [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.32 | 原十例及历史失败不变；V8非live和政策存储增量证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
@@ -1961,3 +1961,17 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 方案比较：扩大在线timeout会改变用户deadline且掩盖冷启动；缩小候选池损害已证明的必要证据召回；因此采用独立启动期一次合成预热。L2_01_01 v2.14 DR-KRET-033已完成三轮内审及分离编辑的分层/跨层复评，无S0/S1/未处理S2，允许只改运维工具/启动接线及直接fake。在线5秒、stage20秒、排序、索引、权限和模型预算均不变；不新增Gate、不改变工作包DAG。P3/UAT只同步本地预检和当前状态，不因动态测试计数升级版本。
 
 本节关闭的是设计中的“health等同推理就绪”假设，工具实际实施/验证结果随后追加。`WP-KRETRIEVAL-QUALITY-01=Blocked`、专项UAT=Deferred；run-08失败、原35/37功能追踪、旧P5及阶段A内容不变。新快照上的完整排序/Evidence、Rewrite8澄清与Summary6语义覆盖仍未完成；不读取Key、不创建run-09，不外推存储发布或合成预热为阶段B通过。
+
+DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提交=`b6affb9`。`serviceCenter/warmup-knowledge-reranker.py`仅依赖已有httpx，30秒绝对startup deadline内单次发送40条合成文本，2MiB有界严格响应；serviceCenter只在Knowledge enabled、环境构建完成后、进程启动循环前调用。PlanOnly/disabled零调用；TCP跳过参数不跳过预热；独立CLI不接受endpoint/文本覆盖，不读Key。在线Runtime src、Java、公共DTO、5秒/20秒及索引均无改动。实际以`agent-runtime/.venv/Scripts/python.exe serviceCenter/warmup-knowledge-reranker.py`执行一次：40项严格通过、1515ms、clientClosed=true，本地rerank1；源SHA=`d37b016330b45b24c19c378a6e5ff29b22bc0b643e9b95996864e8bbe4b914d8`。它和前三次合成容量请求分别计账，本节合计search2/embedding1/rerank5、付费及索引写入0；没有再次执行原失败批次。
+
+代码对照DR-KRET-029/033及三层策略分两轮复核：首轮补齐新诊断失败文件的原SHA/冻结源码校验，修正启动顺序测试误匹配`Assert-Plan`内部循环的测试定位；不改生产顺序或放宽断言。复评核对40项严格回显、bool/重复key/非有限数、超时/transport/超限关闭、只一次请求、fixed origin/no proxy、gold仅在真实排序后评估、PID/日志/历史保护。两项工具切片无未处理Blocker/Major/Minor；同一执行者分离编辑复核，不冒充外部评审，不外推完整阶段B通过。
+
+| 本轮最终验证 | 实际结果/范围 |
+|---|---|
+| Runtime `scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe`；进程移除Key，PYTEST_ADDOPTS=--tb=short | 隔离安装；host/preflight14 passed（3.92秒）；全量2866 passed/27历史opt-in skipped/0 failed（390.02秒），1条既有LangChain预告；临时环境已清理 |
+| Runtime `python -m pytest tests/system_e2e/test_knowledge_stage_b_quality_v3_probe.py tests/system_e2e/test_knowledge_reranker_warmup.py tests/unit/knowledge/retrieval/test_quality_ranking_v3.py tests/unit/knowledge/evidence/test_requirement_coverage.py tests/contract/knowledge/test_summary_task_v6.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short` | 最终185 passed（1.30秒）；含全量采集后补入的失败文件hash/冻结源码反例追踪；原35/37追踪保持，不冒充真实UAT |
+| `python -m mypy --strict src ../serviceCenter/warmup-knowledge-reranker.py`；`python -m compileall -q src tests ../serviceCenter/warmup-knowledge-reranker.py` | 135源文件strict通过；compileall通过 |
+| PowerShell AST及`serviceCenter/run-all-services.ps1 -PlanOnly -EnableKnowledge -ModelProvider deepseek` | AST0错误；14服务有序计划，无服务启动/Key读取/模型调用 |
+| L2/P3严格校验、有限证据敏感字段扫描、git diff --check | 0 errors/warnings；0敏感字段/凭据模式命中；diff通过。首次P3命令相对路径位于Runtime目录而报文件不存在，改为绝对路径后通过，不改validator |
+
+本轮没有Java、业务合同或Runtime生产修改，未重复Maven及完整Spring Java E2E；不把§20.52的40/29项Java结果复制为本轮执行。本轮全量包括Knowledge/Core/Business、历史hash和追踪回归；它及合成检查都不证明八个真实手工计划的最终排序或Summary。b2 alias已只读再次确认不变，本次owned服务端口/诊断容器为空。后续先处理当前快照实际排序/Evidence证明，再评估受控完整UAT；已消费run-08和禁止自动run-09的边界不变。
