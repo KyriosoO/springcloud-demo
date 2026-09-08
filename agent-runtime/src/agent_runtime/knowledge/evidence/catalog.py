@@ -23,8 +23,9 @@ class KnowledgePolicyCatalogError(ValueError):
 
 EXPECTED_KNOWLEDGE_EGRESS_CATALOG_SHA256 = "442761355510165265cb2eee3be8ee8a310c38ab7796a998ff1863073dbbd698"
 _CATALOG_RESOURCE = "egress-policy-catalog.json"
-EXPECTED_CURRENT_KNOWLEDGE_EGRESS_CATALOG_SHA256 = "76dcbfa6da01b76b431417e5b540f7a540fd9daa352a61c36d1bb9fdc31b2a9b"
-_CURRENT_CATALOG_RESOURCE = "egress-policy-catalog-v2.json"
+EXPECTED_V2_KNOWLEDGE_EGRESS_CATALOG_SHA256 = "76dcbfa6da01b76b431417e5b540f7a540fd9daa352a61c36d1bb9fdc31b2a9b"
+EXPECTED_CURRENT_KNOWLEDGE_EGRESS_CATALOG_SHA256 = "87c3963a15ea98cca444438c3439094b6881bba31ceaef265db92f5caab21b00"
+_CURRENT_CATALOG_RESOURCE = "egress-policy-catalog-v3.json"
 _MAX_CATALOG_BYTES = 4 * 1024 * 1024
 _SAFE_ID = re.compile(r"[A-Za-z0-9._:-]{1,256}")
 _LOWER_HEX_64 = re.compile(r"[0-9a-f]{64}")
@@ -226,6 +227,14 @@ class KnowledgeEgressPolicyCatalog:
         return cls._load_resource(
             resource_name=_CATALOG_RESOURCE,
             expected_sha256=EXPECTED_KNOWLEDGE_EGRESS_CATALOG_SHA256,
+        )
+
+    @classmethod
+    def load_v2_resource(cls) -> Self:
+        """Keep the immutable Stage A catalog explicitly available for rollback."""
+        return cls._load_resource(
+            resource_name="egress-policy-catalog-v2.json",
+            expected_sha256=EXPECTED_V2_KNOWLEDGE_EGRESS_CATALOG_SHA256,
         )
 
     @classmethod

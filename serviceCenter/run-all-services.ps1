@@ -60,7 +60,7 @@ if ($EnableKnowledge) {
         $KnowledgeBindingPath = if (-not [string]::IsNullOrWhiteSpace($env:SERVICE_CENTER_KNOWLEDGE_BINDING_PATH)) {
             $env:SERVICE_CENTER_KNOWLEDGE_BINDING_PATH
         } else {
-            Join-Path $PSScriptRoot 'knowledge-runtime-binding.v1.json'
+            Join-Path $PSScriptRoot 'knowledge-runtime-binding.v2.json'
         }
     }
     $resolvedBindingPath = (Resolve-Path -LiteralPath $KnowledgeBindingPath -ErrorAction Stop).Path
