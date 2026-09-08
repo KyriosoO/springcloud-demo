@@ -9,7 +9,7 @@
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-07 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.25、`L2_01_01` v2.12、`L2_01_02` v1.21、`P3_00` v2.56；仅同步候选集成修复引用，验收合同v1.32不变；没有新UAT或效果结论 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.25、`L2_01_01` v2.13、`L2_01_02` v1.21、`P3_00` v2.56；仅同步隔离候选验证引用，验收合同v1.32不变；没有新UAT或效果结论 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -645,3 +645,11 @@ P3 §20.48已记录真实b2候选构建及同窗口ANN对照：五个固定问�
 P3 §20.49进一步完成候选全部记录fingerprint核对、新policy/law快照和5600份文档目录的离线准备；当前Runtime严格validator已验证新旧绑定与未知快照拒绝，策略及字段上限不变。候选和新目录均未启用，现行alias、catalog resource、服务启动binding未改。没有新增模型调用、Java typed UAT、rerank/Evidence或Spring端到端结果；这些步骤仍须各自的实际证据。
 
 因此，原35/37功能追踪保留既有证据，§14.23仍是阶段B最新真实失败终态；Rewrite8/Summary6/quality-v3在新向量候选上的完整专项UAT仍未完成。不得用离线目录校验替代读取授权或最终必要证据、引用与usefulness，也不得自动创建run-09。
+
+### 14.27 候选真实类型化检索的有限证明
+
+P3 §20.50记录隔离typed验证，前三次预检/环境/响应合同失败保持原始结果，第四次16/16组合通过：policy/law各自ADMIN/VIEWER的keyword/vector允许，UNKNOWN拒绝403，service/malformed/missing拒绝401且无正文。当前Java ProfileVerifier及Python strict decoder、正文hash、新旧目录策略边界、Evidence连续子串与引用唯一性实际通过；服务进程、原始日志和临时alias清理通过，线上alias及当前resource/binding未修改。
+
+这是候选检索、授权及Evidence兼容证据，不是新增功能/效果UAT：本地embedding2次、外部模型0；选证使用v1兼容限制及合成原文引用，未执行quality-v3排序或真实Summary。真实回滚演练、线上发布和新候选上的原十例专项仍未完成。四项原始hash及调用计数由evidence/P3维护，不在此复制动态测试总数。
+
+原35/37功能追踪保持既有证明范围；§14.23仍是阶段B最新付费执行失败终态，当前Rewrite8/Summary6整体效果仍Evidence missing。不能用16项typed允许/拒绝组合替代核心P0适用性、澄清零检索、最终必要证据覆盖或usefulness；不改变gold/阈值，不自动run-09。

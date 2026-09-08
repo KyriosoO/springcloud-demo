@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.12 |
-| 日期 | 2026-09-07 |
+| 当前版本 | v2.13 |
+| 日期 | 2026-09-08 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-031的临时resize来源假设已修复并完成真实候选构建；全记录保持及同窗口检索对照通过，typed授权/Evidence和发布仍待验证。既有quality-v3及Rewrite8/Summary6不变 |
+| 本次增量 | DR-KRET-032区分隔离验证别名与线上发布别名，消除真实typed验证和发布前置循环；不关闭ProfileVerifier、不改线上绑定，当前实施证据归P3 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v2.13 | 2026-09-08 | 真实Java启动需实际alias，而发布前又要求typed/回滚验证，原文未区分测试与线上alias | 增加仅供隔离服务的临时只读alias生命周期；验证完成移除，线上发布仍需全回归、策略及回滚证据 |
 | v2.12 | 2026-09-07 | ES 9.4.1在主分片启动后删除resize来源设置，旧永久标记假设导致成功clone被拒绝 | 以精确clone确认回执、新UUID及全记录fingerprint建立归属；临时标记存在时仍校验，结果不明且不能证明归属时零清理写入；不重入失败候选 |
 | v2.11 | 2026-09-07 | 政策向量结构授权后继续，避免全库重编码和共享law退化 | 新候选原生clone、限定附件向量替换、全记录保持验证、失败封存和模型/token前置；不改变现行索引、公共DTO或发布条件 |
 | v2.10 | 2026-09-07 | 政策向量结构追加授权及上下文不足对照 | 明确标题/现有章节/原文输入、确定性哈希、有限校验和原文不可变；旧DR-KRET-021正文向量保留历史责任，候选迁移须另有实现合同 |
@@ -363,12 +364,22 @@ assetVersion = sha256(rawBytes)
 
 `DR-KRET-024`：候选发布必须生成新的 policy/law snapshot 和新的模型出域目录资源。旧目录文件和 loader 保持可校验；新目录对现有文档保留原 policy/disposition/字段上限，只增加与所属逻辑域对应的新 snapshot。附件沿用父 `documentId`；全新官方父文档只能显式绑定既有同域 policy，二者均不得绕过目录全成员校验。目录 hash、Profile index name/UUID/mapping/snapshot 与服务启动绑定必须同时更新。
 
-`DR-KRET-025`：发布门禁只阻塞 alias 生效，不阻塞已批准的下载、解析和候选构建。切换前必须校验 alias 当前目标等于记录的旧索引且候选无 alias；用单次 `_aliases` 原子 remove/add 切换。切换后执行 typed keyword/vector、读取拒绝、Evidence 和回归冒烟；失败用同样精确前置检查原子恢复旧目标。回滚演练必须先切候选、验证、切回旧目标并验证；最终发布需再次切至候选。阶段 A 不删除任何旧索引。
+`DR-KRET-025`：发布门禁只阻塞线上读取alias生效，不阻塞已批准的下载、解析、候选构建及DR-KRET-032隔离验证。线上切换前必须校验alias当前目标等于记录的旧索引且候选无alias（临时验证alias已移除）；用单次 `_aliases` 原子remove/add切换。切换后执行typed keyword/vector、读取拒绝、Evidence和回归冒烟；失败以精确前置检查原子恢复旧目标。发布前可在隔离alias上演练候选→旧目标→候选及相应Profile重启；线上实际发布仍需验证新绑定生效并保留精确旧绑定回滚路径。阶段A不删除任何旧索引。
+
+`DR-KRET-032`：候选typed验证属于离线运维/测试，不是第二条在线查询链路。新增工具只可管理`agent-knowledge-validation-<32位小写随机hex>`临时alias；每次生成新名称，创建前必须不存在，且与线上alias不同。输入显式绑定source/candidate名称、UUID及当前线上alias目标，两个索引必须write-blocked；只用`is_write_index=false`，不得加filter/routing或更新文档、mapping、索引设置。Java仍执行真实`KnowledgeProfileVerifier`，隔离服务通过进程环境接收临时alias、精确候选及新policy/law快照；alias名称不参与既有snapshot哈希算法，不得关闭验证器或绕过typed endpoint。
+
+实施切片：建议新增`knowledge-corpus-tools/src/knowledge_corpus_tools/validation_alias.py`，同步context manager拥有临时alias的创建、候选/源切换及finally移除；入口参数为已校验固定绑定和本地HTTP client，不接受任意ES动作。每次写入前重新检查索引UUID/write-block、线上alias精确目标和临时alias归属；响应不明时不重试，仅只读确认并在归属仍明确时清理本次临时alias。其他进程改变归属或线上绑定时停止写入并报告有限冲突，禁止“恢复”他人的修改。`_aliases`只保证单次动作原子，不冒称读取检查与写入跨请求CAS；本地一次性运维窗口禁止并行发布，随机独占名称避免测试相互争用。
+
+当前ES9.4.1管理响应按官方`IndicesAliasesResponse`核对：成功需要`acknowledged=true`、`errors=false`，再验证alias实际目标；`errors=true`或结果不明不可当成功。现行StageA alias的空flags `{}`按冻结基线精确保持，不要求补写flags；仅本次临时alias强制`is_write_index=false`。该差异不修改旧alias或索引写保护。来源：[ES9.4.1响应实现](https://github.com/elastic/elasticsearch/blob/v9.4.1/server/src/main/java/org/elasticsearch/action/admin/indices/alias/IndicesAliasesResponse.java)。
+
+建议新增版本化测试launcher，显式读取pending binding/catalog及其预期SHA，使用固定loopback端口启动本次owned auth/es-query进程；ADMIN来自真实auth，VIEWER/UNKNOWN/service-token可用同一随机HMAC在内存签发。不得读取模型Key、启动模型任务或复用冻结launcher的硬编码线上绑定。只测既有`/es/knowledge/search`：policy/law keyword/vector、ADMIN/VIEWER允许及UNKNOWN/missing/malformed/service-token拒绝，响应经现行Python Adapter严格解码、实际正文hash与catalog成员/Evidence引用校验；合成引用校验不计为真实摘要或quality-v3端到端通过。只保留有限状态、计数、hash，不保存JWT/原文/向量。HTTP使用trust_env=false、无redirect/retry、响应大小/次数/timeout硬上限。
+
+finally先停止且核实本次Popen PID，再关闭、扫描并删除本次精确临时日志，最后按归属检查移除临时alias；任一清理失败使验证失败并明确残留，不影响线上alias、不删除索引。初始建议预算：模型0、typed search≤24、embedding≤6、rerank0、alias写≤4（创建/两次演练/删除）、ES管理读取≤40；readiness仅health，可有限等待。真实验证失败后先诊断，不自动重新执行同批。脚本/fake测试须覆盖端口冲突零启动、UUID/别名漂移零写入、拒绝响应零正文、清理/超时/不明写入，以及线上绑定和历史文件不变。
 
 ### 12.7 入口门禁、发布门禁与完成边界
 
 - 入口门禁：设计评审通过、官方来源/P0-P2 范围、显式 workspace、解析工具版本、下载/存储/索引操作预算和精确回滚目标齐全；只阻塞首次持久下载和候选写入。
-- 发布门禁：P0 全部、目标 P1 全部、P2 清单，解析/OCR/表格质量、空正文/孤立附件为零、candidate mapping/count/fingerprint、typed keyword/vector、读取/出域/Evidence、全量回归及回滚演练通过；只阻塞 alias 切换。任一 P0 或目标 P1 仍为 `source_unreachable/source_unverified` 时保持发布门禁 Open，但不阻塞已评审流水线和其他候选资产处理。
+- 发布门禁：P0 全部、目标 P1 全部、P2 清单，解析/OCR/表格质量、空正文/孤立附件为零、candidate mapping/count/fingerprint、隔离typed keyword/vector、读取/出域/Evidence、全量回归及隔离回滚演练通过；只阻塞线上alias切换，不阻塞DR-KRET-032临时验证alias。任一P0或目标P1仍为`source_unreachable/source_unverified`时保持发布门禁Open，但不阻塞已评审流水线和其他候选资产处理。
 - 阶段 A 不以最终 `knowledge.query` topK 命中为通过条件。直接 typed retrieval 已证明新增原文存在、可读、可引用，但用户端仍失败时，记录阶段 B 的域选择/Rewrite/排序缺口，不在本阶段调参或增加 fallback。
 
 ### 12.8 派生向量输入（DR-KRET-030；已评审，纯函数实施切片）
@@ -437,6 +448,7 @@ assetVersion = sha256(rawBytes)
 | `IMPL-KRET-016` | 新版本 Knowledge egress catalog、`application-knowledge-live.yml`/`serviceCenter` binding：新 snapshot 严格绑定，旧 catalog/历史证据不变 |
 | `IMPL-KRET-018` | 新增 `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_representation.py`：DR-KRET-030纯表示，不接入当前builder |
 | `IMPL-KRET-019` | `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_candidate.py`：§12.9同步builder/spec/有限结果及HTTP错误边界；只拥有新候选写入，不负责模型加载或发布 |
+| `IMPL-KRET-020` | 建议新增`validation_alias.py`及版本化typed验证launcher：DR-KRET-032仅临时alias/隔离服务/有限证据；旧release.py、冻结launcher及在线Runtime不变 |
 
 ### 13.2 关键签名
 
@@ -501,6 +513,7 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-020` | 阶段 A 14 项 UAT：直接 typed keyword/vector、授权、Evidence 连续子串、P0 酒店住宿证据及阶段 B 归因 |
 | `TEST-KRET-021` | 审计三层状态、403/404/timeout 不推断正文缺失、种子计入预算、人工官方替代映射及非权威来源拒绝 |
 | `TEST-KRET-025` | 新增 `knowledge-corpus-tools/tests/test_vector_representation.py`：精确输入/哈希、去重顺序、空值/类型/大小/UTF-8边界、原文与repr隔离、不可变、无网络/在线调用方 |
+| `TEST-KRET-027` | 建议新增`knowledge-corpus-tools/tests/test_validation_alias.py`及版本化launcher fake：精确UUID/只读/alias、冲突/超时/不明写入、有限预算、finally/进程/日志；真实typed矩阵另存有限结果，不以mock替代 |
 | `TEST-KRET-026` | `knowledge-corpus-tools/tests/test_vector_candidate.py`：混合policy/law全记录保留、只替换附件、输入/源漂移/预算/重复/错维度零写入、clone回执/临时来源删除/UUID替换/不明结果/失败封存、CAS冲突、逐条后置比较、alias零写入、无敏感错误及旧builder保护；直接local preparation/runner测试验证真实环境接缝及token超限零clone |
 
 ### 14.2 验证编号定义
@@ -516,6 +529,7 @@ KnowledgeSearchResponse search(
 | `VAL-KRET-007` | 新候选索引、策略/Profile 快照、typed 检索、读取/Evidence、alias 切换/回滚和防回退回归通过 |
 | `VAL-KRET-011` | 纯构造器定向测试、离线工具回归、strict mypy/compileall、旧文件与历史哈希、代码对照复核；不代表候选索引或真实UAT通过 |
 | `VAL-KRET-012` | 在工具目录运行`python -m pytest tests/test_vector_candidate.py`及全部工具测试、strict mypy/compileall、代码对照评审；真实源/模型/token绑定、候选全记录对照及有限evidence另行执行，不用fake批准发布 |
+| `VAL-KRET-013` | 在工具目录运行新增`tests/test_validation_alias.py`和launcher fake、工具全量/mypy/compileall，再执行版本化隔离typed验证；`TEST-KRET-027`覆盖DR-KRET-032归属/预算/拒绝/清理，真实结果与fake分离，未完成全回归/发布不得关闭主工作包 |
 
 ## 15. 风险与保护条件
 
@@ -536,11 +550,13 @@ KnowledgeSearchResponse search(
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，DR-KRET-029已评审实施并完成成对接线及non-live；真实UAT尚未完成，见P3 §20.40 |
-| 当前允许实施范围 | 阶段B §9.4及§12.8已实施；§12.9 builder及fake已完成代码复评。下一步真实构建须先完成模型/token/源绑定，现行索引/alias/原文保持只读；发布仍受§12.6约束 |
+| 当前允许实施范围 | 阶段B §9.4及§12.8/12.9已有实现；DR-KRET-032允许补齐隔离typed验证工具，线上alias/原文保持只读；发布仍受§12.6/12.7约束，不外推现有召回对照为真实效果 |
 | 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或未冻结/超预算真实模型出域 |
 | 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
 
 ## 17. 三轮内部自检与独立评审记录
+
+v2.13聚焦审查：`B-ALIAS-001`（S1）为§12.7把所有alias操作放在typed验证之后，而Java启动依赖实际alias，形成发布前验证循环。内审1区分临时测试alias和线上发布；内审2补齐不明回执、UUID/归属漂移和清理失败时禁止越权恢复，明确多HTTP调用并非ES CAS；内审3补齐有限预算、TEST/VAL、未验证状态与不新增Gate。随后冻结编辑，按REQ-KCORPUS-003/004/006→KQ-AD-019→DR-KRET-024/025/032与实际KnowledgeProfileVerifier进行分层/跨层只读复评：本隔离验证实施切片无S0/S1/未处理S2，B-ALIAS-001设计关闭。允许实施临时alias/launcher，不批准线上发布、真实摘要或阶段B完成。由同一执行者分阶段复评，不冒充外部独立人员。
 
 v2.11三轮内审：第一轮核对仅附件重编码/全源clone及来源/引用/权限，明确原向量float32保持而非承诺恢复旧double；第二轮核对源只读/候选CAS/不明clone归属和失败封存，补齐client/响应/HTTP硬预算；第三轮核对TEST/VAL落点、未实现标记及P3直接前置，修复新测试命令被误判为现存引用。随后分离编辑进行L2及REQ-KCORPUS-003/004/006→SA-AD-006→KQ-AD-019跨层只读复评：构建器实施切片无S0/S1/未处理S2，可以编码；真实模型准备、候选实测和发布仍须其执行证据。同一执行者分阶段复核，不冒充外部独立人员；不将规则设计等同构建已完成。
 
@@ -573,7 +589,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.12；DR-KRET-029/030已实施；DR-KRET-031的真实候选构建、全记录保持及同窗口检索对照通过；typed授权/Evidence及发布尚未完成，旧批准基线保持原证明范围。
+- 当前版本：v2.13；DR-KRET-029/030已实施；DR-KRET-031的真实候选构建、全记录保持及同窗口检索对照通过；DR-KRET-032隔离验证实施/执行状态归P3，旧批准基线保持原证明范围。
 - 文档状态：Approved；历史实施校准评审见P3_00 §20.4，需求增量设计评审及当前实施证据见§20.36～20.40；设计批准本身不替代实施或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 

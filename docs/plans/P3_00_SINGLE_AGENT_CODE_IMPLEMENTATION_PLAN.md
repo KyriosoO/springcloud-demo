@@ -51,7 +51,7 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；在线non-live及离线候选已验证，发布未完成，见§20.40/20.48 |
 | [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.25 | DR-KFLOW-024需求计划及025澄清优先规则恢复 | Approved；已实施，当前验证见§20.44 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.12 | DR-KRET-029需求导向排序及030/031限定向量候选；typed服务及阶段A不变 | Approved；真实构建/检索对照通过，typed/发布待完成，见§20.48 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.13 | DR-KRET-029需求排序及030/031限定向量候选；032隔离typed验证，不变更线上服务合同 | Approved；真实构建/检索对照通过，typed/发布待完成，见§20.48～20.49 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
 | [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.32 | 原十例及历史失败不变；V8非live和政策存储增量证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
@@ -1760,7 +1760,7 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 | 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
 | builder及fake验证 | 上述合同评审 | Done | TEST-KRET-026/VAL-KRET-012；87新增fake及原工具回归通过，无真实写入 |
 | 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Done | b1失败保持不可变；§20.48修复后另名b2完成真实构建、全记录保持和同窗口对照，无alias |
-| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025；§20.49已完成目录/快照离线准备及Runtime严格校验，实际typed验证与发布未完成，原alias不动 |
+| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025/032；§20.50隔离真实typed/授权/Evidence兼容及相关全回归通过；真实回滚演练、受控发布仍未完成，原alias不动 |
 
 准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。
 
@@ -1853,3 +1853,40 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 实际验证：工具目录`python -m pytest -o addopts='' -q --tb=short`最终259 passed（2.98秒）；`python -m mypy --strict src scripts/prepare-policy-vector-publication.py scripts/run-policy-vector-candidate.py scripts/compare-policy-vector-candidate.py`20文件通过；`python -m compileall -q src tests scripts`通过。新增43项测试，其中首次超大参数测试因pytest自动生成过长用例ID造成2个setup error，改为有限ID后通过，没有放宽输入或断言。Runtime以C:\Python312及进程PYTHONPATH执行policy catalog、egress manifest、run-08 history、Business/Knowledge两份traceability，共31 passed（14.03秒，1条既有LangChain预告）。原35/37功能追踪和冻结run-08 hash保持。Java/Runtime生产代码、公开DTO、配置及历史资产未改，本轮没有重跑Maven、Spring E2E或全量Runtime，不能把此前结果算作本轮通过。
 
 工具/测试/有限证据提交=`bba85df38123776d1232f06e7ff2d028ca089732`。当前完成的是候选发布**准备**，不是发布：下一步仍须让真实Java Profile校验、typed keyword/vector、读取拒绝、出域/Evidence验证和精确alias回滚顺序可执行；不得通过绕过Verifier或提前替换现行alias取得通过。QUALITY=Blocked、专项UAT=Deferred不变，run-08保持失败终态，无run-09或新的付费授权消费。
+
+### 20.50 隔离真实typed验证与发布前防回退（2026-09-08）
+
+起始HEAD=`9cccc897b788956817efac906b0cb9862b7ac255`。复核发现`B-ALIAS-001`：原发布条件要求先typed验证，真实Java启动又要求alias已经存在；如果把隔离测试alias也算线上发布，会形成循环。按个人验证项目背景，L2_01_01 v2.13 DR-KRET-032只新增随机临时alias，不加新服务、Gate或第二在线流程。三轮内审分别核对链路/职责、归属/不明写入/清理、预算/依赖/验收边界；冻结编辑后的L2及跨层复评通过，允许实现此切片，不批准线上发布。P3/UAT只同步状态和上位版本，未为测试数量变化升级版本。
+
+新增离线`validation_alias.py`及`validate-policy-vector-typed-v1.py`，固定loopback、source/candidate UUID、write-block、线上alias空flags基线和pending binding/catalog hash。临时alias独占随机名称、`is_write_index=false`，创建/切换/删除前检查归属；不明响应不重试，冲突时不覆盖他人修改。该流程是单操作人窗口，不冒称多HTTP请求具有分布式CAS。真实ADMIN由隔离auth签发，VIEWER/UNKNOWN/service-token使用同一随机HMAC内存签发；Java原ProfileVerifier、Python原strict decoder及授权均不修改。
+
+实际入口为corpus隔离Python执行`python scripts/validate-policy-vector-typed-v1.py --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\typed-validation-20260908-04.json`。该已存在结果不可覆盖或重入。以下四次非付费集成各有独立有限终态；失败后先按证据修复并通过fake再另次验证，未恢复旧执行：
+
+| 执行 | 终态及原因 | typed / embedding / ES管理读取 / 临时alias写入 | 原始结果SHA-256 |
+|---|---|---|---|
+| 01 | Failed；预检误要求现行alias带false标记，实际冻结StageA flags为`{}`；修复工具基线检查，未修改旧alias | 0 / 0 / 3 / 0 | `ecf611dbcdbcd73d370ea009da3b477db590a4c23f424b99795c6d97ba3120aa` |
+| 02 | Failed；ES9.4.1回执包含`errors=false`，旧fake误要求仅acknowledged；创建/清理实际完成，随后只读确认无残留；核对官方源码并修复精确响应合同 | 0 / 0 / 8 / 2 | `26cf361e3aa5ec2eade3ab1fdeeef8dd0574c3ecbe87c1d397a4bacc7b4f1085` |
+| 03 | Failed；PATH选择Java8导致服务退出；改为预检JAVA_HOME的Java25，不改全局环境。owned PID停止、日志扫描删除、临时alias移除 | 0 / 0 / 13 / 2 | `e1af256d29ef7874cf8191a1a6a1cfdf455526f4882ea6923a6438af72d9f764` |
+| 04 | Passed；真实typed及权限16组合、严格解码/正文hash/目录/Evidence引用兼容通过，owned进程及日志清理通过 | 16 / 2 / 13 / 2 | `c1e7b29ee099bcbbfeb4e640e70e70844003b6de555b73ec85d140c21ff25c95` |
+
+四项文件位于`knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/typed-validation-20260908-01.json`至`04.json`，保留源文件CRLF字节。`.gitattributes`仅对此四文件加binary，避免仓库默认LF转换破坏已记录hash；四项历史测试固定校验原SHA、失败/成功、零模型/线上写入及证明限制，不改任何旧evidence。本表管理读取只计runner请求，额外手工只读alias/settings诊断不混入runner精确计数。
+
+04覆盖policy/law各自ADMIN/VIEWER的keyword/vector，8个允许路径各严格校验20候选（160次候选校验，不是160份唯一文档）；各域UNKNOWN=403、service/malformed/missing=401，共8个拒绝且零正文。使用当前Adapter和Evidence完整性/策略/连续子串/唯一性validator，未知snapshot与重复引用拒绝；选证使用既有v1兼容限制和合成原文引用，不执行quality-v3需求重排、Summary或Spring真实模型链。此结果不能证明原十个阶段B case通过。
+
+成功实测launcher SHA=`54ec6f9a95f187c48a5dcd512373fea185358a2cef477e2fd118f11a413c191d`；当时alias模块SHA=`0a641c1ec0aabdf6d16a172838be825b9fe910ffb02e8c24a4f0d37d4a1abf56`。后续代码评审收紧Python数值0/1与bool相等导致的回执/flags误接受，增加8个反例；最终模块SHA=`b15c8bda5d935b675eec41269ee9613ac603133be66754d8d84258df5b313ad2`。实测响应本来就是bool，新收紧以fake验证，不额外重跑真实请求或声称原实测覆盖最终源码hash。
+
+正式代码对照复核分两轮：首轮关闭上述bool类型问题、清理预算预留及证据CRLF入库问题；第二轮按DR-KRET-024/025/032核对精确归属、读取授权、响应限额、拒绝零正文、client/PID/finally、敏感扫描、旧配置不变和测试结果。本工具/launcher切片Blocker=0、Major=0、未处理Minor=0；由同一执行者分离编辑复核，不冒充外部人员，阶段B原在线语义/效果问题不在本切片关闭范围。
+
+| 本次实际验证入口 | 结果与边界 |
+|---|---|
+| corpus既有隔离Python，工具目录`-m pytest` | 最终291 passed（2.96秒），含28个alias fake、4个不可变结果测试；无模型或服务启动 |
+| 同环境`-m mypy --strict src`、`-m compileall -q src scripts` | 18源文件strict通过，compileall通过；bare mypy曾因包查找缺py.typed失败，明确源码入口后通过 |
+| Runtime目录C:\Python312，当前进程PYTHONPATH及移除Key，`-m pytest tests/system_e2e/test_policy_vector_typed_validation.py -q --tb=short` | 14 passed，真实Java形状的fake经实际Adapter/Evidence/拒绝检查；不是外部实测 |
+| Runtime `scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe` | 临时隔离安装当前源码：冻结host/preflight14 passed；全量2766 passed/27 opt-in skipped/0 failed（289.21秒），1条既有LangChain预告；临时环境已清理 |
+| Runtime `-m mypy --strict src`、`-m compileall -q src tests/system_e2e/test_policy_vector_typed_validation.py` | 134源文件strict通过，compileall通过 |
+| es-query-service `..\serviceCenter\mvnw.cmd '-Dtest=Knowledge*Test' '-Deureka.client.enabled=false' test` | 29 tests/0 failures/0 errors/0 skips，BUILD SUCCESS；DTO/security/endpoint/Profile不改 |
+| agent-service `..\serviceCenter\mvnw.cmd '-Dagent.runtime.python=C:\Python312\python.exe' '-Deureka.client.enabled=false' test` | 40 tests/0 failures/0 errors/1历史opt-in skip，BUILD SUCCESS（28.048秒）；Access/Business/Knowledge E2E实际执行；进程PYTHONPATH=当前Runtime/src、provider=stub、Knowledge=false、移除Key |
+
+首轮Spring命令遗漏PYTHONPATH，40项中Access liveness 1失败；所选Python直接探测无法导入Runtime，且Access测试不主动设置源码路径。恢复既有§20.42命令的进程环境后全通过，不改生产代码、断言或全局安装；其余Java模块无变更，未在本切片重复Maven，不把历史结果算作本次执行。
+
+新结果合计typed16、本地embedding2、rerank/外部模型/Business/retry/resume/线上alias写入均0；临时alias写入合计6、runner管理读取37。当前source/线上alias、旧catalog resource、serviceCenter binding、所有冻结run文件均不变，临时alias为空，04 owned PID3068/30692已退出，原始日志已扫描删除。下一直接步骤是隔离alias候选→旧目标→候选的真实Profile重启/回滚演练，再评估受控发布；不能把fake演练当真实演练。QUALITY=Blocked、专项UAT=Deferred，run-08失败保持，无run-09、不读取Key，目标仍未全部完成。
