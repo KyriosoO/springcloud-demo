@@ -1760,7 +1760,7 @@ L1、三份Knowledge L2和P3严格结构/追踪校验0 errors/0 warnings，63个
 | 构建合同及评审 | KQ-AD-019、DR-KRET-031、当前源/模型事实 | Done | 三轮内审和分离编辑L2/跨层复评通过；只准入builder |
 | builder及fake验证 | 上述合同评审 | Done | TEST-KRET-026/VAL-KRET-012；87新增fake及原工具回归通过，无真实写入 |
 | 模型/token前置与真实候选 | builder/fake通过、源/模型精确绑定 | Done | b1失败保持不可变；§20.48修复后另名b2完成真实构建、全记录保持和同窗口对照，无alias |
-| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Blocked | DR-KRET-024/025/032；§20.50隔离真实typed/授权/Evidence兼容及相关全回归通过；真实回滚演练、受控发布仍未完成，原alias不动 |
+| typed验证及受控发布 | 候选完整性、新policy/law快照与目录、授权/Evidence/回滚 | Done | DR-KRET-024/025/032；§20.50～20.52真实typed、隔离回滚和受控发布通过；现行alias指向b2，a5保留；不关闭完整专项UAT |
 
 准备可并行读取模型hash，不能提前消费写入/模型请求。当前模型缓存revision和refs/main相同；模型文件最后修改早于既有容器启动。pytorch_model.bin SHA-256=`b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38`（2271145830字节）；tokenizer.json=`21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08`；sentencepiece=`cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865`。这些只读事实补齐上一轮模型权重hash缺口，正式构建仍须首尾核验全部模型/服务快照和每个输入token上限，不以health替代。
 
@@ -1860,7 +1860,7 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 
 新增离线`validation_alias.py`及`validate-policy-vector-typed-v1.py`，固定loopback、source/candidate UUID、write-block、线上alias空flags基线和pending binding/catalog hash。临时alias独占随机名称、`is_write_index=false`，创建/切换/删除前检查归属；不明响应不重试，冲突时不覆盖他人修改。该流程是单操作人窗口，不冒称多HTTP请求具有分布式CAS。真实ADMIN由隔离auth签发，VIEWER/UNKNOWN/service-token使用同一随机HMAC内存签发；Java原ProfileVerifier、Python原strict decoder及授权均不修改。
 
-实际入口为corpus隔离Python执行`python scripts/validate-policy-vector-typed-v1.py --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\typed-validation-20260908-04.json`。该已存在结果不可覆盖或重入。以下四次非付费集成各有独立有限终态；失败后先按证据修复并通过fake再另次验证，未恢复旧执行：
+实际入口脚本为`python scripts/validate-policy-vector-typed-v1.py --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\typed-validation-20260908-04.json`。该已存在结果不可覆盖或重入。环境勘误：此前写为“corpus隔离Python”不足以复现，§20.51确认它缺少Runtime所需FastAPI；可复现环境必须使用C:\Python312及进程PYTHONPATH，不从原有限结果推断未记录的解释器身份。以下四次非付费集成各有独立有限终态；失败后先按证据修复并通过fake再另次验证，未恢复旧执行：
 
 | 执行 | 终态及原因 | typed / embedding / ES管理读取 / 临时alias写入 | 原始结果SHA-256 |
 |---|---|---|---|
@@ -1890,3 +1890,55 @@ b1终态为`failed / clone / schema_invalid / candidate_seal_failed`，result SH
 首轮Spring命令遗漏PYTHONPATH，40项中Access liveness 1失败；所选Python直接探测无法导入Runtime，且Access测试不主动设置源码路径。恢复既有§20.42命令的进程环境后全通过，不改生产代码、断言或全局安装；其余Java模块无变更，未在本切片重复Maven，不把历史结果算作本次执行。
 
 新结果合计typed16、本地embedding2、rerank/外部模型/Business/retry/resume/线上alias写入均0；临时alias写入合计6、runner管理读取37。当前source/线上alias、旧catalog resource、serviceCenter binding、所有冻结run文件均不变，临时alias为空，04 owned PID3068/30692已退出，原始日志已扫描删除。下一直接步骤是隔离alias候选→旧目标→候选的真实Profile重启/回滚演练，再评估受控发布；不能把fake演练当真实演练。QUALITY=Blocked、专项UAT=Deferred，run-08失败保持，无run-09、不读取Key，目标仍未全部完成。
+
+### 20.51 真实回滚演练及安装态修复（2026-09-08）
+
+沿DR-KRET-024/025/032实施，不增加设计语义、门禁或版本。起始HEAD=`3bab4f7a54d8d3f3632605e821b83d135eed70f6`；回滚launcher提交=`5404b9e93d08db7722f144696831ce8142937821`。`rehearse-policy-vector-rollback-v1.py`绑定既有typed helper、alias模块、Java可执行资产及新旧索引；在一个临时alias上执行候选→a5→候选，每段先停止本次服务，再切换alias、用对应Profile重新启动真实auth/es-query。Popen对象/PID核验、日志扫描删除和alias归属检查不可跳过。
+
+两次有限结果位于`knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/`，保留原始字节：
+
+| 结果文件 | 终态 | typed / 本地embedding / 管理读取 / 临时alias写入 | SHA-256 |
+|---|---|---|---|
+| rollback-rehearsal-20260908-01.jsonl | Failed；corpus Python缺少FastAPI，实际Java启动成功但Runtime导入失败；停止并清理，无typed/model调用 | 0 / 0 / 13 / 2 | `6841870de283ce5fbd667c56c8258aa3996a5c8dad86d690973a16a301dab109` |
+| rollback-rehearsal-20260908-02.jsonl | Passed；3段各8项真实typed/拒绝检查通过，原alias始终指向a5，最终临时alias为空 | 24 / 6 / 23 / 4 | `76b8456e510bb2228bfafbabf75f31251d982541719191ab5630b8ea554f227b` |
+
+先以无网络Runtime导入复现`ModuleNotFoundError: fastapi`，改用既有C:\Python312，不安装全局依赖、不改旧结果或重入01。02执行环境：移除进程Key，`PYTHONPATH=D:\codex\agent-runtime\src;D:\codex\knowledge-corpus-tools\src`、`JAVA_HOME=C:\Program Files\Java\jdk-25.0.2`；命令`C:\Python312\python.exe scripts/rehearse-policy-vector-rollback-v1.py --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\rollback-rehearsal-20260908-02.jsonl`，工作目录knowledge-corpus-tools。已消费结果禁止再次执行。两个回滚结果共24typed、6embedding、0外部模型；各段进程退出/日志清理通过，不是付费候选或在线发布。
+
+目录与启动接线随后增加`egress-policy-catalog-v3.json`、`knowledge-runtime-binding.v2.json`；旧v1/v2目录、旧binding及历史资产不变。v3保留5600文档、全部原策略和22396旧快照成员，只添加所属域的5463 policy/137 law新绑定；默认loader转v3，保留显式`load_v2_resource()`。serviceCenter启用Knowledge时默认选binding v2，显式路径和环境覆盖优先级不变；disabled不加载Knowledge。新目录/绑定hash仍为§20.49准备值。
+
+安装态首次全回归出现181 failed/2602 passed/27 skipped；源码目录定向测试通过不等于wheel可用。根因`B-PACK-001`：pyproject.package-data只包含旧目录，安装后的v3文件缺失。补齐唯一资源声明、增加打包清单断言后，隔离安装全量通过；未改validator或测试预期以掩盖错误。
+
+分阶段代码对照复核：回滚工具首轮关闭prepare输出失败时未用client释放、可执行文件首尾hash漂移问题，15个fake通过后复评；发布/接线首轮补齐完整mapping/settings及全记录fingerprint检查，冻结旧任务/结果、新同域绑定、误回执和不明写入的精确回滚；最终读取代码、diff和测试复评，本存储发布切片Blocker/Major=0。由同一执行者分离编辑复核，不冒充外部独立人员；未发生设计语义变化，不重复三轮架构内审。
+
+### 20.52 政策向量b2受控发布（2026-09-08）
+
+发布代码/目录/测试提交=`81dac4e706817022803d3abb77a60ee41fb43366`，工作树干净后执行一次`publish-policy-vector-v1.py --execute --result D:\codex-data\knowledge-policy-vector\publication-preparation-20260907-b2\publication-20260908-01.jsonl`；解释器及进程环境同§20.51。绑定真实回滚02证据、Java原可执行资产、新旧目录/UUID和同一源/候选fingerprint，不读取Key，不执行模型或Business。
+
+| 发布事实 | 结果 |
+|---|---|
+| 前置完整性 | 源、候选各15521条全字段/float32向量fingerprint再次等于冻结值；完整mapping只差批准的4个trace字段和版本；均write-blocked；候选无alias |
+| 原子切换 | `agent-doc-tax-policy-v2-read`：a5→`agent-doc-tax-policy-v5-20260907-vector-b2`；1次`_aliases`精确remove/add；a5不删除、不改正文/向量 |
+| 新索引身份 | UUID=`jJ5Ww3LCRWWycfDkUZvmdw`；mapping=`agent-knowledge-tax-v3-policy-context-v1`；新policy/law快照及目录见§20.49 |
+| 发布冒烟 | 16/16；policy/law×ADMIN/VIEWER×keyword/vector允许，UNKNOWN403、service/malformed/missing401；strict decoder、正文hash、目录、Evidence子串/唯一性通过 |
+| 实耗 | 完整性只读HTTP130、管理GET10、线上alias写入1；typed16、本地embedding2；model/Business/rerank/retry/resume=0 |
+| 清理 | owned PID31552/10852退出，原始日志扫描删除，未停止其他用户进程；临时alias为空 |
+| 有限证据 | `knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/publication-20260908-01.jsonl`；SHA=`e716addba9d02979bc5104a6a1df1ead83b84bd6a0a9968686351e644b1917d0` |
+| 实测launcher hash | `8c675be23fa8867d54f9f97b2cc578c6ca3b14f225f123e519a49b0f7a0ebfb2`，从上述提交读取原源码校验，不假定后续代码hash等于实测版本 |
+
+切换后用实际发布alias和新Profile启动真实服务，而非只验证临时alias。默认启动binding v2与Runtime v3同步；本机实际`agent-runtime/.venv`也已用`python -m pip install --disable-pip-version-check --no-deps .`安装当前包，并以`-I`隔离导入确认v3、精确hash和5600绑定。没有新增生产依赖或全局安装。其他工作副本的`-SkipBuild`不负责更新旧安装；旧进程不会热更新，本次未为演示额外启动整套服务。回滚路径明确保留a5及binding v1；发生失败时工具先按UUID/alias精确前置恢复a5，操作者使用`-KnowledgeBindingPath D:\codex\serviceCenter\knowledge-runtime-binding.v1.json`启动；v3目录保留旧成员，无需删除或改旧目录。真实隔离回滚通过，实际发布成功故未额外往返线上alias制造无价值写入。
+
+发布后代码复核`B-PUB-002`发现停机窗口检查漏了默认Runtime 8091（已有8090/8092/9201及隔离端口检查）；最小补入8091并增加占用拒绝fake。运行后只读检查确认这些端口实际均无服务，未发生旧Runtime读取新索引。原实测代码和结果由冻结commit/hash保持，不改写为新检查已在原实测执行；该收紧没有重跑发布或模型。
+
+| 本次验证命令 | 结果 |
+|---|---|
+| Runtime `scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe`（隔离安装，移除Key，PYTEST_ADDOPTS=--tb=short） | 资源修复后首次全量2784 passed；补齐发布30例及最终修复后重新执行：host14 passed、全量2814 passed/27 opt-in skipped/0 failed（278.03秒），1条既有LangChain预告；临时测试环境清理完成 |
+| Runtime `-m pytest tests/system_e2e/test_policy_vector_publication.py tests/system_e2e/test_policy_vector_rollback_rehearsal.py tests/unit/knowledge/evidence/test_policy_catalog.py -q --tb=short` | 最终59 passed（4.11秒）：30发布、15回滚、14目录；全部为fake或不可变证据校验，不冒充额外真实验证 |
+| Runtime `-m mypy --strict src` / `-m compileall -q src tests/system_e2e/test_policy_vector_publication.py ../knowledge-corpus-tools/scripts/publish-policy-vector-v1.py` | 134源文件strict通过；compileall通过 |
+| corpus隔离Python，工具目录`-m pytest -q --tb=short`、`-m mypy --strict src`、`-m compileall -q src scripts` | 291通过、18源文件strict通过、compileall通过 |
+| agent-service Maven `'-Dagent.runtime.python=C:\Python312\python.exe' '-Deureka.client.enabled=false' test`（当前PYTHONPATH、stub、Knowledge=false、移除Key） | 40 tests，0 failures/errors，1历史opt-in skip；BUILD SUCCESS（27.853秒）；当前Spring→Runtime Access/Business/Knowledge非live链路执行 |
+| es-query-service Maven `'-Dtest=Knowledge*Test' '-Deureka.client.enabled=false' test` | 29 tests，0 failures/errors/skips，BUILD SUCCESS（5.480秒） |
+| PowerShell Parser.ParseFile(serviceCenter/run-all-services.ps1)、暂存敏感扫描、git diff --check | AST0错误、凭据/JWT模式0命中、diff通过；目录全部绑定另由严格测试逐项检查 |
+
+当前只关闭§20.47存储切片：表示、构建、目录、typed、回滚及发布均已完成。`WP-KRETRIEVAL-QUALITY-01=Blocked`、专项UAT=Deferred仍保持；Rewrite8/Summary6/quality-v3在新索引上的原十例完整问答、澄清零检索和必要证据/usefulness未通过本次发布测试。run-08仍失败且不可恢复，未创建run-09、未读取Key、未自动追加付费验证；下一步先在当前新快照核实必要证据经真实融合/rerank/quality-v3是否保留，再决定完整受控UAT，不把存储改善当作整体目标已完成。
+
+发布有限证据及8091防护提交=`b35c0907b3c2be498870ecf5633e748ba55918d5`。最终代码对照复评核对30发布例、15回滚例、14目录例和2814全回归、真实索引/alias、来源hash及旧资产Git差异；本存储发布切片无未处理Blocker/Major/Minor，不外推整体阶段B通过。文档只作实施状态和命令勘误：L1_01保持v1.21、L2_01_01保持v2.13、P3保持v2.56、UAT_01保持v1.32；无新的设计合同，无需为动态计数升级版本。L1/L2/P3严格校验均0 errors/0 warnings，三份修改文档32个本地链接全部存在；原35/37追踪和run-08/旧candidate哈希由全回归校验通过。
