@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.33 |
+| 当前版本 | v1.34 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-08 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.26、`L2_01_01` v2.15、`L2_01_02` v1.21、`P3_00` v2.57；§14.31补充评分表示快照和non-live要求，原case/gold不变；没有新端到端UAT或效果结论 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.26、`L2_01_01` v2.15、`L2_01_02` v1.21、`P3_00` v2.58；§14.32记录新独立十例的明确授权，原case/gold及生产设计不变；尚无新端到端UAT结论 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -681,3 +681,15 @@ P3 §20.55的固定八例配对采用相同候选/查询/模型/窗口，正文�
 新生产表示为`authorized-body-first-metadata-v1`；后续正式运行快照必须同时冻结表示版本、源码、当前任务与b2/policy快照。non-live验证必须证明单需求仅一次BGE、没有实验raw+context双调用、原文/引用不被派生文本替换、默认disabled及错误失败关闭不回退。新旧版本不得混称同一效果测量；§14.23正式失败、历史资产和原case/gold不变。该验收补充不新增付费额度或运行许可；新线上实现通过后仍须完成原澄清、模型规划、Summary引用及usefulness责任。
 
 上述生产绑定、严格HTTP反证、当前完整对象图及Spring→Runtime non-live验证现已通过，实际命令和结果见P3 §20.55；不是待实施设计，也不是完整真实UAT。原35/37追踪及历史效果结论保留原证明范围，当前Rewrite8/Summary6完整专项仍未完成。没有新付费请求、run-09或旧运行续跑。
+
+### 14.32 当前生产版本的独立十例执行协议（v1.34）
+
+2026-09-08用户明确批准上一轮提出的独立完整十例及预算。只授权`knowledge-stage-b-uat-v9-20260908-run-09`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-09`；不恢复run-08，不自动run-10。§14.22～14.31禁止自动新批次的历史叙述保持当时范围，本节是这一次执行的新依据。
+
+1. **范围及预算**：原`knowledge_stage_b_cases.py`十例、顺序、人工gold及来源绑定v2通过标准均不变。两例澄清必须2次模型且零检索；其余八例最多3次模型、4search、2embedding、4rerank。整批E2E/model/search/embedding/在线rerank上限10/28/32/16/32；另允许一次启动合成rerank，单列上限1，实际本地rerank合计最多33。逐文件核对前八批累计16/39/27/14/14；累计上限26/67/80/40/52（含本次启动rerank）。不把此前非UAT本地诊断混入正式预算，不隐藏其既有记录。Business、answer、retry、resume均0。
+2. **冻结**：新Schema9 manifest独占创建，冻结clean HEAD、原dataset、全部源码/测试与Java可执行资产、八批hash/计数、当前v2 runtime binding/b2索引UUID/alias/mapping/policy/law快照、catalog、BGE容器/镜像身份、selection-v4/Rewrite8/Summary6及Prompt/tokens、quality-v3、citation-binding-v2、`authorized-body-first-metadata-v1`和预热源码。重新枚举全资产集比较，禁止删项、未知/重复key和整数类型漂移；保留历史v1文件真实hash但不得把它当作本次服务配置。
+3. **最小测试接缝**：新增版本化runner及直接fake测试，复用既有Spring→当前main、真实auth、owned服务和有限结果生命周期。只在新测试上下文把历史服务helper的固定binding读取重定向到已存在的v2文件，其他路径不变，退出必恢复；不改历史文件、生产src、公开DTO或ES。新只读观察器跟踪当前ContextualBgeRerankAdapter，原方法只调用一次；不执行raw/context双臂，也不将gold输入在线处理。
+4. **环境前置**：prepare不读取Key。check-environment独占生成startup及environment有限资产；按现有合成工具只预热一次，失败停止，不重试。核对模型身份、只读索引绑定及health，然后真实auth+Spring+stub冒烟，模型/Knowledge调用0。执行前必须验证该次预热成功、client关闭、environment四项通过、索引/模型身份未变；执行过程中不再预热。预热尝试计数先落盘，进程中断不能获得第二次尝试。
+5. **授权及消费**：仅生成精确HEAD/run/reference/manifest SHA/dataset/预算/live绑定的authorization；运行目录仅允许manifest/startup/environment/authorization规定文件。已有consumed/journal/evidence/result或失败startup禁止执行。首次模型HTTP前独占consumed、每次HTTP前fsync journal并检查任务/Prompt/输入/预算，付费请求只在execute读取进程Key后发生。失败停止整批，不补跑任何case；保留有限失败及未执行清单。未到模型即失败也不自动重用该批。
+6. **证据与判定**：复用实际bundle及policy过滤后的Summary input捕获和来源绑定v2，仍核对原域、澄清、必要原文、引用及语义/usefulness，不以HTTP200、结构coverage或手工计划8/8代替。仅记录caseID、有限状态/reason、任务/版本、调用数、来源hash/排名和布尔判据；禁止问题、focus、quote、元数据正文、原始模型/业务响应、Key/JWT。前后只读索引/模型校验、owned PID退出及原始日志扫描删除必须通过。
+7. **准入与关闭**：三轮内审、分离的正式只读设计复评通过后实施runner；fake覆盖预算、完整资产/历史/当前绑定、旧observer不可冒充、预热失败/重复、模型漂移、重复消费、错源、十例顺序和patch恢复。代码复核及non-live通过后提交、冻结再执行。十例、核心P0、来源/语义、安全及清理实际通过才关闭专项；首个失败则Failed，其余Not executed，阶段B保持未完成。原35/37功能证据与历史效果等级不被本协议改判。

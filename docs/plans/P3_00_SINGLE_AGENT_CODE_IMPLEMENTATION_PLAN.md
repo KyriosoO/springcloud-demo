@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.57 |
+| 当前版本 | v2.58 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-08 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -14,7 +14,7 @@
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
 
-v2.57依据§20.55配对诊断及L2_01_01 DR-KRET-034完成授权上下文评分表示的设计、实施和non-live验证；保持既有StageB工作包/DAG、预算和付费运行限制，不新增Gate或候选，完整真实专项仍未完成。
+v2.58依据用户明确授权和UAT_01 §14.32恢复一次独立原十例验证，当前生产设计不变；累计E2E上限26、模型67，本批10/28，启动rerank单列1。历史终态不可变，不授权run-10；完整真实专项仍未完成。
 
 v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrite V2 精确 JSON 输出合同。v2.35 依据 ROADMAP_01 阶段 A 新增语料只读审计、版本化处理、候选索引、发布回滚和专项 UAT 工作包，并把入口门禁与 alias 发布门禁拆开以消除循环。v2.36 依据审计 v1 的实际失败修复来源可达性、正文完整性、人工优先级和精确预算边界。v2.37～v2.38 如实保留早期 candidate/UAT 及严格合同复评。v2.39 修复 legacy DOC 扁平解析导致条款关系缺失的问题并保留结构化 a4 中间候选。v2.40 将网络/损坏容器异常收敛为逐资产有限失败，以最终工具源码重建 Stage A corpus candidate-08/a5，并用 UAT/release attempt-05 完成发布收口；v2.41 修正 catalog Git/LF 分发哈希，增加历史评估输入的精确只读镜像，并让历史测试辅助层在临时仓库内复原已授权换行字节，使正式隔离回归可由干净检出复现。阶段 B 仍独立阻塞。
 
@@ -129,7 +129,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024/025`；`DR-KRET-029/034`；`DR-KEV-029/030` | 当前唯一Rewrite8/Summary6/quality-v3及授权上下文评分表示 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.37～20.40及§20.55公共合同、消费者、单绑定与代码复评通过 | 新TEST/VAL与公开接口零差异 | 整套绑定回退；本次表示修复不改索引 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 新合同、fake、Spring、Python/类型/历史防回退 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.55当前正式隔离全量、当前根及Spring E2E通过 | 调用计数、零泄漏、来源绑定 | 不运行付费UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.22～14.23 | §20.43 run-08首例澄清失败、九例未执行；有效失败证据不等于通过 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 实际1/2/4/2/2；累计16/39/27/14/14，零重试 | 已消费终止，不自动run-09；仅非live诊断 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.32 | §20.56独立原十例准备；历史run-08失败不变 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 本批10/28/32/16/32，另预热1；累计26/67/80/40/52 | 新授权仅run-09，失败停批，不自动run-10 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -297,7 +297,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.37～20.40及§20.55内部合同、消费者、当前8/6/v3与评分表示已实施及复评 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.55当前完整对象图、Spring及正式隔离回归通过，不继承为真实UAT |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.43 run-08首例Failed、其余九例未执行；授权终止不补跑 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.56新授权原十例准备；旧run-08终态不变，不续跑 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；新需求设计、实现和non-live已完成，真实专项仍未完成 |
 
 ## 10. 实施交接
@@ -423,7 +423,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.37～20.40及§20.55公共合同、需求排序、Summary覆盖及唯一成对绑定 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | 当前完整对象图及代码复评通过；不替代真实效果 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | 当前8/6/v3及授权上下文评分表示的完整对象图fake/Spring | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.31 | §20.55正式隔离回归、类型及Spring实际通过 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～023、DR-KRET-027/028、DR-KEV-026～028 | §20 当前目标落点 | TEST-KFLOW-014/015、TEST-KRET-022/023、TEST-KEV-017～019；UAT_01 §14.19 | §20.34选域/必要Evidence缺口；完整专项未通过 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～025、DR-KRET-027/028/034、DR-KEV-026～028 | §20.56 当前目标落点 | TEST-KFLOW-014/015/017、TEST-KRET-022/023/029、TEST-KEV-017～019；UAT_01 §14.32 | 当前生产non-live完成，独立原十例真实验证准备 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2070,3 +2070,13 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 完成后额外4次只读ES元数据请求复核：现行alias仍指向b2、UUID=`jJ5Ww3LCRWWycfDkUZvmdw`、count15521、write block=true；首次flat settings过滤投影未返回所需键，改用完整settings读取后确认，不把空投影误判为真实漂移。索引/alias写入0，旧索引/历史证据不变。只停止本次owned隔离服务；没有重启用户持续运行的服务，生产部署需加载新提交方能采用新评分表示。
 
 提交拆分：`a9aeb75`离线方案、`401988e`配对工具/测试、`ba48afb`正式设计和有限证据、`8721305`生产表示及当前根测试、`86fd1cb`冻结测试时钟隔离；最终状态同步独立提交，最终SHA和远端结果以Git及交付报告为准。所有当前增量验证完成，但本轮外部模型0，未读取Key、未创建run-09或复用run-08。两条固定手工计划的来源覆盖缺口已在8/8局部配对关闭，当前Rewrite8/Summary6的澄清、模型规划、最终引用和usefulness仍需完整真实专项证据；`WP-KRETRIEVAL-UAT-01=Deferred`、`WP-KRETRIEVAL-QUALITY-01=Blocked`保持，不能宣布阶段B全部完成。
+
+### 20.56 当前生产版本原十例独立UAT（2026-09-08）
+
+用户明确批准上一轮提出的10 E2E/28模型及32search/16embedding/32在线rerank，另一次启动预热，累计E2E上限26、模型67；精确协议由UAT_01 v1.34 §14.32治理。起始clean HEAD=`36ba62d2e91eab6ea9f7781e73da1414f4365e6f`，与origin/codex一致。八批实际累计16/39/27/14/14，旧run-08已消费，不能恢复。新授权只允许独立run-09；不自动run-10，不改原十例/gold、当前生产代码或b2索引/alias。
+
+直接DAG：既有NONLIVE已完成→本协议三轮内审/设计复评→新runner/fake与代码复核→提交clean冻结→一次预热/环境检查→独占authorization→一次完整UAT→QUALITY评审/验证/状态及Git。UAT=In Progress，QUALITY=Blocked至原判据实测通过；GATE-KRG-006保持原已关闭实施入口，不新增重复审批门。准备不等于UAT通过。
+
+三轮内审已完成：①旧helper固定v1/a5，明确新runner仅局部读取v2/b2且完整资产冻结；②旧观察器只覆盖raw Adapter，新增当前Adapter只读探针、方法只执行一次、原文及实际Summary绑定不变；③固定28模型与32+1本地rerank，预热前持久化尝试、失败/中断不重试、目录排他、十例不删减、累计范围明确。未修改历史代码或放宽validator。
+
+分离的正式只读复评覆盖UAT_01 §14.32、P3当前DAG及L2_01_00 §8.6/11.1、L2_01_01 §9.4～9.6、L2_01_02 §9.5、原case/gold与旧runner生命周期。结论：该测试接缝可实施，S0=0/S1=0/未处理S2=0；授权仅本次执行，不证明真实效果。复评为同一执行者与编辑分离阶段，不冒充外部人员评审。后续实际fake、冻结、调用及终态在本节追加。
