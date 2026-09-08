@@ -2142,3 +2142,37 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 本轮代码和证据复评两轮：首轮关闭上述两类新测试fixture缺陷；第二轮与编辑分离地只读核对UAT §14.32/14.33、原始八项SHA、frozen源码、四条journal、逐case计数/状态、模型边界和当前DAG，禁止从通用invalid_output推导未经证实的根因。此次状态同步不改变设计或验收标准，不触发无关上位升级。复评仅涵盖新runner、不可变归档、测试及状态：能可靠记录失败、严格停止且无未处理切片Blocker/Major；不是外部独立人员评审，也不是阶段B全体代码/效果评审通过。总体B-CR-001及本节B-R9-OUTPUT-001仍Open，`WP-KRETRIEVAL-UAT-01=Deferred`、`WP-KRETRIEVAL-QUALITY-01=Blocked`。原35/37功能追踪保持原范围，当前Summary6完整效果Evidence missing；不得自动创建run-10、重跑run-09或借本次归档扩张授权。
 
 失败证据/复核测试提交`52684f39ebd78dc3f6acef6121702609578a19b5`；提交前8项归档与暂存blob逐字节一致、凭据模式0命中、暂存完整差异核对通过。仅本节和UAT最新终态另作状态提交，提交/推送最终结果以Git及交付报告为准，不修改冻结manifest中的执行HEAD。
+
+### 20.57 失败原因的非live观察接缝
+
+起始clean HEAD=`556792b170ad241d8143bfdbac8b9f6c3c420657`。上一轮执行和归档形成真实进展，本轮仅继续B-R9-OUTPUT-001的非付费诊断，不恢复任何已消费运行。主工作包、原十例/gold及关闭条件不变；UAT Deferred、QUALITY Blocked，禁止run-10或额外模型outbound。
+
+直接依据为L2_01_00 §8.5/8.6/10.1的同一严格decoder、原异常映射及零下游，UAT_01 §14.32/14.33的有限信息和历史不可变边界。只读核实发现：ModelBoundaryError已有code，Gateway在except内部调用model_call_failed时仍可访问当前异常及cause，随后统一折叠invalid_output。不必修改历史V7/V8 parser、生产Gateway、公开observation DTO或接口；也不能从保存的run-09结果补回已丢弃的cause。
+
+候选比较：保存模型响应违反安全边界；修改公共观测字段扩大接口影响；改生产异常码牵涉冻结parser且当前无充分根因。最小方案是在`tests/system_e2e`新增版本化测试观察器与直接测试：仅在显式作用域旁观现有失败回调，原回调仍恰好一次，返回值、异常、取消、超时及下游计数不变。它只把已存在异常投影为固定白名单的阶段/code/cause类别，不读取正文、异常消息/args、JSON文档、栈局部变量或调用新的decoder；未知值统一unknown。仅保存进程内不可变小记录，每作用域最多8项、溢出显式标识；离开作用域恢复patch、停止记录，拒绝嵌套/重叠安装，其他请求上下文不采集。没有文件输出、CLI、Key读取、网络入口、模型执行能力或新运行Schema；未来如何接入真实执行必须另行明确，不能修改run-09。
+
+三轮内审：①排除在P3重定义生产错误或改变decoder identity，仅落实既有测试诊断责任；②将任意exception字符串改为代码白名单和有限cause类型，检查未知/畸形code、循环cause、记录上限与敏感反例；③增加作用域外并发、退出后子任务、取消、嵌套拒绝和恢复测试，不新增公共ContextVar合同或生产观察链路。REQ/L0/L1/L2职责及接口没有变化，按最小范围不升级这些文档或UAT协议。
+
+实施范围仅新增`tests/system_e2e/knowledge_model_failure_probe_v1.py`及`test_knowledge_model_failure_probe_v1.py`，P3只记录计划/证据。直接顺序：上述规则复核→仅fake实现/测试→当前根零下游及现行观测防回退→代码对照复评→状态/Git；真实UAT保持独立暂停。待实现的测试包括provider framing/JSON、task JSON/shape/semantic、成功无记录、未知异常、敏感异常不泄漏、8项上限、相同公开ModelTaskResult、当前8/6/v3根失败零检索和client关闭，以及旧八项hash不变。使用synthetic transport，不读取Key、不访问真实服务，不声称能重建本次真实失败的字段。
+
+正式只读复核：依据上述L2和现行Gateway/异常/observation合同，分别检查数据所有权、单decoder、零副作用、可验证性及计划直接DAG。该观察器仅消费已有有限错误，不新增生产规则、公开Schema或运行授权；S0=0、S1=0、无未处理S2，允许上述两文件non-live实施。审查是同一执行者与编辑分离阶段，不冒充外部独立人员批准；具体未知字段无法还原及整体UAT缺口保持Open。
+
+#### 20.57.1 实施、代码复评及验证结果
+
+上述两文件已实施。观察器只在已有Gateway失败回调执行期间读取当前异常：20个精确code白名单映射有限阶段，cause只按已知类型分类、最多追溯8层，未知类型不调用其自定义属性；不读取异常消息、JSON文本或frame。记录为frozen/slots对象、tuple快照，最多8项并显式overflowed。单安装锁防止嵌套覆盖，测试级ContextVar隔离其他请求，退出后关闭collector并恢复原hook；未来其他作用域运行时，旧子任务也不能追加到任一collector。生产代码不引用该测试模块。
+
+代码对照复评两轮，第一轮发现并修复：B-DIAG-CR-001，未知cause子类可能重载属性，应停止跟随而非执行自定义逻辑；B-DIAG-CR-002，新测试不应要求可演进的生产HEAD永久等于基线，改为仅保护历史run-09原始字节，当前生产零差异由本次Git检查证明；B-DIAG-TEST-003，补足旧子任务在新观察作用域仍在运行时的隔离，以及取消作用域所有者后恢复hook/锁的反证，避免仅在hook已经撤销后断言无记录的弱测试。类型检查最初1项attr-defined失败（Gateway未显式导出导入的hook），改为对现有测试patch目标作明确Callable类型绑定，未修改生产模块导出或加ignore。第二轮只读复评全部安全、上下文、有限输出、回调一次、原ModelTaskResult与观测完全一致及真实生产根零下游：该诊断切片Blocker/Major/未处理Minor为0，不是阶段B整体评审通过，也非外部独立人员批准。
+
+| 本轮实际命令（Runtime目录，non-live child移除Key） | 结果及范围 |
+|---|---|
+| `python -m pytest tests/system_e2e/test_knowledge_model_failure_probe_v1.py -q --tb=short` | 初版28 passed（2.15s），随后新增两个反证；最终直接测试30项由下列组合覆盖 |
+| `python -m pytest tests/system_e2e/test_knowledge_model_failure_probe_v1.py tests/unit/test_run_observation.py tests/unit/model/test_budget_concurrency.py tests/contract/knowledge/test_rewrite_task_v7.py tests/contract/knowledge/test_rewrite_task_v8.py tests/integration/knowledge/test_requirement_runtime_composition.py -q --tb=short` | 232 passed（48.41s）；包含当时29项probe、共享观测/并发、V7/V8合同与当前8/6/v3完整对象图 |
+| `python -m pytest tests/system_e2e/test_knowledge_model_failure_probe_v1.py tests/system_e2e/test_knowledge_stage_b_run_09_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short` | 最终52 passed（14.81s）；包含最终30项probe、冻结Git/run-09哈希及既有35/37追踪 |
+| `python -m mypy --strict src tests/system_e2e/knowledge_model_failure_probe_v1.py` | 修复后136源文件通过，无ignore或生产导出变更 |
+| `python -m compileall -q tests/system_e2e/knowledge_model_failure_probe_v1.py tests/system_e2e/test_knowledge_model_failure_probe_v1.py`；P3 strict；Git范围/差异扫描 | 编译通过；P3 0 errors/warnings；目标外及生产src修改0 |
+
+上述pytest各有1项既有LangChain预告，不影响断言。本轮没有重跑全量隔离bootstrap、Spring/Java/Maven或任何真实接口：仅新增test-only观察器且不装配到生产，当前根和受影响共享观察/并发回归已执行，旧全量/Java证据保留原范围。没有修改任务/Prompt/配置、生产src、公开DTO、索引、alias或任何历史资产；无Key读取/付费/本地BGE/业务调用、无服务启动、无新run。
+
+本轮只能关闭“无法保留既有有限异常类别”的non-live测试工具缺口，不能关闭B-R9-OUTPUT-001的真实原因或8例未执行责任；run-09的已丢弃信息无法恢复。下一次真实执行需明确的新批次及观察证据绑定，当前没有这项权限，不准备run-10，也不把该工具或synthetic结果改称新UAT通过。P3/UAT现有终态、总体目标及关闭判据保持不变。
+
+观察器及30项直接测试提交`13d80c4e0dd46b59aa9ea606061dcc22038ed318`，仅包含上述两个新增测试文件；提交前已检查status、diff --check、暂存文件清单及完整暂存差异。本节验证记录另作状态提交，不改变run-09 frozen HEAD或历史资产；推送结果以交付时Git核实为准。
