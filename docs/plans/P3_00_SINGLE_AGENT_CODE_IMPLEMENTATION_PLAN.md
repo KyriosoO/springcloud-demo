@@ -2008,3 +2008,19 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 本轮实际定向命令为§20.53相同七个pytest文件，新增两项不可变证据测试后最终`187 passed`（1.21秒）；`compileall -q tests/system_e2e/test_knowledge_stage_b_quality_v3_probe.py`通过。原35/37追踪及相关排序/Evidence/Summary6契约保持既有证明范围。无生产/Java修改，不重复上一轮全量2866项、mypy或Maven，也不声称本轮重跑这些命令。最初运维hash命令在Runtime目录误用了仓库相对路径，绝对路径复核后通过；一次无输出metadata投影仍计入上述3次读取，不隐瞒调用。有限资产敏感模式扫描0命中，Git diff检查通过；索引/alias和历史正式UAT结果不变。
 
 当前`WP-KRETRIEVAL-QUALITY-01=Blocked`、专项UAT=Deferred保持；存储发布及推理就绪已验证，剩余是两条必要来源的重排/窗口问题和当前Rewrite8/Summary6完整端到端实证。不得自动调用付费模型、创建run-09或将这次本地手工计划诊断当作全目标完成。
+
+### 20.55 授权元数据重排表示的有限离线配对方案（2026-09-08）
+
+承接§20.54，仅执行既有DIAG范围的本地实验，不改变L2在线合同或生产版本。比较同一批已授权候选的正文评分与上下文评分；不增加Gate、付费candidate或索引版本。保持当前8个手工计划、原gold、b2快照、模型及keyword/vector20、final20、Evidence8不变。备选“只加Prompt”不能解释已给定计划后的丢失；“扩大窗口/调融合权重”尚无必要性证据；本次只检验当前typed DTO已经提供的元数据是否改善短条款相关度。
+
+- 表示唯一固定为：原始content在前，随后非空title、documentNumber、writtenDate，中文标签分别为“文档标题”“文号”“成文日期（非生效日期）”。不读取ES私有section、上文/邻居、附件全文、URL或新字段，不生成事实、行业标签或时效判断。title/documentNumber各≤256字符、content≤4096、日期ISO；总表示≤4700字符，原始正文不截断、不覆盖。空元数据不补造，全部为空时表示保持原正文。长文受原模型512 token窗口约束，不声称尾部元数据一定被模型看到。
+- 两臂在同一个RerankPort调用内使用完全相同的query及有序候选；先raw，再context，各一次本地BGE，禁止失败重试。raw输出仅作对照，context分数进入本次测试对象图的现有quality-v3 ranker和Selector；不安装到生产组合根。候选content/hash、授权、Evidence及Summary输入仍为原始对象，表示不是可引用证据，也不发送给外部模型。
+- 复用冻结`knowledge_stage_b_quality_v3_probe.py`的计划、typed检索、Stage、Selector、三层策略、原文核对与owned服务清理；新测试入口在限定上下文替换测试观察器，离开后恢复。不得改写冻结源码、历史结果或生产src。派生BGE响应独立校验其真实发送文本的exact echo，不伪造回显来骗过原Adapter。gold只在排序完成后用于判定，不进入表示、query、评分或排序。
+- 固定预算：8个手工计划，typed search≤22、embedding≤11、配对rerank≤36（每例≤8）；如冷实例需要，单独计入一次既有合成预热，合计≤37次本地rerank。HTTP仍5秒/2MiB，Stage仍20秒；两臂占用同一有限诊断deadline，不据此提高线上时限。外部LLM、Business、索引/alias写入、retry/resume均0。不读LLM_API_KEY。
+- 继承前后源码HEAD、helper/hash、binding/catalog、模型容器及Java产物、只读alias/UUID/write-block检查。结果以新精确路径`xb`创建append-only有限JSONL，只存标识/hash、分数/名次、计数、覆盖及清理布尔值；不落问题、正文、标题、文号、日期、JWT或原始HTTP响应。异常停止全批、保留有限失败，PID核实后仅停止本次服务并扫描删除原始日志。
+- 判定预先固定：配对完成且所有8例均保留原定必要来源、原6例无回退，才支持进入在线设计修订；若任一缺口仍在或原6例回退，则不采用该表示作为当前修复，不再改变模板或调参追逐gold。两臂分数及候选池可复算，但不把raw单次分数差异自动当成历史结果失效。实际context Evidence由现有Selector/policy计算，禁止用“进入final20”冒充Evidence8通过。
+- 这是检索/Evidence局部诊断，不验证LLM选域/Rewrite8、Summary6引用/usefulness、澄清或完整Spring端到端；即使8例通过也不能关闭专项UAT。实际预算、结论、测试和评审状态在本节追加，不更新长期UAT测试总数。
+
+方案内审三轮：第一轮限定读取授权→评分→原文Evidence所有权，排除未公开section和成文日期等同生效日期；第二轮核实DTO真实上限为title/documentNumber各256，修正表示总上限及exact echo独立校验，禁止替换candidate.content/hash；第三轮核实双臂实际预算36+独立预热1、失败全批停止、旧文件不变和不使用gold调参。随后单独只读复评L2_01_01 §7.4/§8.3/§9.4、当前Stage/Adapter/Selector及§20.54证据：仅上述离线实验可实施，S0=0、S1=0、未处理S2=0；线上表示变更仍未批准。该复评是与编写分离的检查阶段，不冒充独立外部评审人员。
+
+实现范围冻结为`tests/system_e2e/knowledge_stage_b_context_rerank_probe.py`及直接测试；独立BGE派生文本校验只存在于实验工具，生产Adapter不改。代码复核首轮发现3个输入边界测试在构造真实candidate时已提前触发原validator，尚未覆盖实验格式器；改用显式合成对象测试格式器，未放宽原断言或生产校验。复评验证配对query/候选顺序、raw失败不调用context、context失败不回退raw、403时rerank0、原文/hash不变、patch退出恢复、精确source绑定和有限结果。该实验切片Blocker/Major/未处理Minor为0，整体StageB质量仍未关闭。实际定向八文件pytest=`214 passed`（1.72秒）；`mypy --strict src`=134源文件通过；两个新增文件compileall通过。尚未执行真实本地配对，未重跑全量/Maven，旧§20.54的6/8不作为本次实验结论。
