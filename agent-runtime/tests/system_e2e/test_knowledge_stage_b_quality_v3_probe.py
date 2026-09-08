@@ -143,3 +143,20 @@ def test_model_identity_is_only_container_and_image_not_environment(monkeypatch)
     monkeypatch.setattr(probe.subprocess, "check_output", inspect)
     assert len(probe.local_models()) == 2
     assert all(c[0:3] == ["docker", "inspect", "--format"] and c[3] == "{{.Id}} {{.Image}} {{.State.Running}}" for c in calls)
+
+
+def test_failed_real_probe_is_immutable_not_uat_and_stays_bound_to_frozen_source():
+    path = probe.REPO / "knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/quality-v3-probe-20260908-01.jsonl"
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "7387ba9450d46529c48434592d09a2b846cfb4c5532b922ec2a6b25512c378b6"
+    rows = [json.loads(line) for line in raw.splitlines()]
+    prepared, terminal = rows[0], rows[-1]
+    frozen = probe.subprocess.check_output(["git", "show", prepared["head"] + ":agent-runtime/tests/system_e2e/knowledge_stage_b_quality_v3_probe.py"], cwd=probe.REPO)
+    assert hashlib.sha256(frozen).hexdigest() == prepared["scriptSha256"]
+    cases = [row for row in rows if row["event"] == "case"]
+    assert len(cases) == 1 and cases[0]["caseId"] == "UAT-KB-015a"
+    assert cases[0]["status"] == "retrieval_failed" and cases[0]["stageCode"] == "rerank_timeout"
+    assert terminal["status"] == "failed" and terminal["counts"] == {"search": 2, "embedding": 1, "rerank": 1}
+    assert all(terminal[k] == 0 for k in ("modelCalls", "businessCalls", "indexWrites", "retry", "resume"))
+    assert all(terminal[k] is True for k in ("ownedProcessesStopped", "rawLogsDeleted", "secretScanPassed"))
+    assert "not_functional_or_effectiveness_uat" in terminal["limitations"]

@@ -446,6 +446,11 @@ if ($SkipBuild) {
     Install-Projects
 }
 
+if ($EnableKnowledge) {
+    Write-Host 'CHECK  Knowledge reranker synthetic warmup (one local request; no LLM or corpus data)'
+    Invoke-Checked $RuntimePython @((Join-Path $PSScriptRoot 'warmup-knowledge-reranker.py')) $RepoRoot
+}
+
 New-Item -ItemType Directory -Force -Path $LogRoot | Out-Null
 $started = [System.Collections.ArrayList]::new()
 Write-LauncherState $started

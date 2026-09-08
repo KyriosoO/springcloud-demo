@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "diagnosticId": "local-bge-cold-start-20260908",
+  "sourceHead": "88900bfa660074334ec5429ab2afff26d165f81d",
+  "recordedFrom": "finite_console_outputs_of_explicit_local_diagnostic_commands",
+  "inputKind": "synthetic_only_no_corpus_or_business_data",
+  "rerankerImage": "sha256:322c5a46791681b021194dd02633fb701c91130a95e89cecd7ecad4ef157468d",
+  "settings": {"device": "cuda:0", "fp16": true, "batchSize": 16, "maxLength": 512},
+  "library": {"FlagEmbedding": "1.4.0"},
+  "rows": [
+    {"instance": "existing", "sequence": 1, "items": 35, "charactersPerItem": 4096, "deadlineMs": 5000, "elapsedMs": 1421, "validatedItems": 35, "contractValid": true},
+    {"instance": "isolated_cold", "sequence": 1, "items": 35, "charactersPerItem": 4096, "measurementDeadlineMs": 30000, "elapsedMs": 7167, "underProduction5s": false, "contractValid": true},
+    {"instance": "isolated_cold", "sequence": 2, "items": 35, "charactersPerItem": 4096, "measurementDeadlineMs": 30000, "elapsedMs": 801, "underProduction5s": true, "contractValid": true}
+  ],
+  "coldInstanceHealthWaitMs": 9018,
+  "isolation": {"network": "none", "modelCacheReadOnly": true, "memoryLimitGiB": 4, "existingServiceUnchanged": true, "ownedContainerStoppedAndRemoved": true},
+  "calls": {"rerank": 3, "embedding": 0, "knowledgeSearch": 0, "business": 0, "paidModel": 0, "retry": 0, "resume": 0},
+  "productionTimeoutChanged": false,
+  "startupToolValidation": {
+    "path": "serviceCenter/warmup-knowledge-reranker.py",
+    "sourceSha256": "d37b016330b45b24c19c378a6e5ff29b22bc0b643e9b95996864e8bbe4b914d8",
+    "interpreter": "agent-runtime/.venv/Scripts/python.exe",
+    "status": "ready",
+    "items": 40,
+    "rerankCalls": 1,
+    "elapsedMs": 1515,
+    "clientClosed": true,
+    "separateFromThreeDiagnosticCalls": true
+  },
+  "failedCaseReplayed": false,
+  "originalFailureExclusiveCauseProven": false,
+  "conclusion": "health_does_not_prove_cold_inference_readiness",
+  "limitations": ["synthetic_load_not_uat", "cold_reproduction_not_full_original_request_trace", "gpu_concurrency_not_capacity_sla"]
+}
