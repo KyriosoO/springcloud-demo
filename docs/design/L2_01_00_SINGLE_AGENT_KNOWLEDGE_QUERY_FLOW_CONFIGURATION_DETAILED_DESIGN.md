@@ -12,7 +12,7 @@
 | 日期 | 2026-09-08 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KFLOW-025已完成三轮内审、分阶段只读设计复评和实施；Rewrite8恢复§8.1指令且不改五字段合同，当前绑定8/6/v3；真实语义效果未验证 |
+| 本次增量 | DR-KFLOW-025及§11.1授权上下文评分绑定已实施并完成non-live验证，证据见P3；当前8/6/v3和五字段合同不变，真实语义效果未验证 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V8/Summary V6/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；新对象图已通过定向non-live，当前版本真实效果尚未验证。DR-KFLOW-023/024/025已实施，验证由P3管理，效果由UAT_01管理 |
 
@@ -303,7 +303,7 @@ V6规则：
 - `knowledge/contracts.py`新增frozen/slots `KnowledgeEvidenceRequirement(requirement_id, domain_id, kind, focus)`及有限枚举；`RewriteResult`、`KnowledgeRetrievalPlan`、`KnowledgeEvidenceInput`追加默认空tuple的`evidence_requirements`及默认None的`question_kind`。内部question_kind只用lookup/applicability枚举，非search不建立检索计划。旧实例保持空/None；quality-v3成功检索必须有kind及非空需求，旧quality拒绝非空需求或kind。Plan/Evidence消费边界可据此复核三角色，不能在第一次解码后丢失目的信息。
 - `rewrite_v7.py`复用现有`KnowledgeSemanticPlanInput`，新增继承`KnowledgeSemanticPlanOutput`的frozen/slots输出子类型（question_kind及evidence_requirements），新decoder只解新五字段合同；非search的外部none在可信decoder中映射内部None。definition保持Planner既有泛型基类签名，返回子类型；Planner必须检查V7输出的实际子类型及版本，不用cast或getattr默认空绕过。复用既有公开请求工厂取得安全域目录及输入JSON，再一次性替换为新完整指令、版本与输出预算，不导入私有helper。原有V1/V2构造默认、旧任务对象及其parser保持原语义。
 - `planning.py::KnowledgeRetrievalPlanBuilder.build`在I/O前校验域、kind、需求与代码版本，并原样传递kind/tuple；`capability.py::KnowledgeQueryCapability.handle`把相同两项传至EvidenceInput，不能重建或从摘要反推。Stage Protocol的三个方法签名保持不变；不改公共Core/HTTP/Java/ES DTO。核心结构检查集中于已实现的`knowledge/evidence_requirements.py`的纯函数，各边界复用同一合同，不能复制四套角色规则。
-- `bootstrap.KnowledgeCompositionRoot`当前唯一绑定Rewrite7/Summary6/quality-v3和对应limits。版本由代码选择，不提供环境热切换；disabled不创建需求、任务或client。final_candidates至少4，保持现有≥2×enabled域数及最大20。任务工厂在资源创建前核对版本/ID/输入类型，Provider再次核对；数量配置同样在client创建前拒绝。
+- 本节引入的`bootstrap.KnowledgeCompositionRoot`绑定为Rewrite7/Summary6/quality-v3；当前Rewrite已由DR-KFLOW-025升级为8，Summary6/quality-v3及对应limits不变。版本由代码选择，不提供环境热切换；disabled不创建需求、任务或client。final_candidates至少4，保持现有≥2×enabled域数及最大20。任务工厂在资源创建前核对版本/ID/输入类型，Provider再次核对；数量配置同样在client创建前拒绝。
 
 V7输出子类型、outcome对应的kind/需求形状及配对版本校验必须先于clarification_required或unsupported提前返回；即使fake或内部Provider绕过decoder，也不能把非法终态当作正常拒绝。合法unsupported保持现行SUCCESS rewrite/空域的内部约定，question_kind=None、需求空，Capability在no_matching_domain终态结束，不建立检索计划；clarification保持现行有限reason映射。
 
@@ -431,7 +431,7 @@ validate empty arguments
 
 不得把部分构建对象暴露为 ready Runtime。通过把所有可预见校验前置到 client 创建之前，避免为同步启动路径另建异步“半成品清理”协议；已成功装配的 Runtime 必须完整关闭 owned resources。
 
-授权上下文评分增量：按L2_01_01 DR-KRET-034，main在第5步为同一Retrieval Factory显式绑定`authorized-body-first-metadata-v1`；仅本地BGE评分表示变化，当前8/6/v3计划/任务、Evidence原文及次数不变。Factory默认raw仅承担旧显式调用兼容，不是当前根后备；无环境/请求版本开关，disabled不构造它。后续运行快照必须包含新表示版本及源码SHA；线上实施/验证状态由P3管理，不继承旧UAT证明。
+授权上下文评分增量：按L2_01_01 DR-KRET-034，main在第5步为同一Retrieval Factory显式绑定`authorized-body-first-metadata-v1`；仅本地BGE评分表示变化，当前8/6/v3计划/任务、Evidence原文及次数不变。Factory默认raw仅承担旧显式调用兼容，不是当前根后备；无环境/请求版本开关，disabled不构造它。该接线已实施并通过non-live验证，证据由P3管理；后续运行快照必须包含新表示版本及源码SHA，不继承旧UAT证明。
 
 ## 12. 权限、安全、审计与一致性
 

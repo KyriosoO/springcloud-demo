@@ -679,3 +679,5 @@ P3 §20.54记录预热修复后基于当前b2和quality-v3的八个固定手工�
 P3 §20.55的固定八例配对采用相同候选/查询/模型/窗口，正文对照与授权元数据表示各一次评分；后者经现有ranker/Selector/policy实际保留8/8预定原文，003 rent进入Evidence2、006 historical_rate进入Evidence6，原六例无回退。该局部证据支持L2_01_01 DR-KRET-034，但不是原十例端到端UAT通过，也没有测量当前Rewrite8/Summary6或人工usefulness。
 
 新生产表示为`authorized-body-first-metadata-v1`；后续正式运行快照必须同时冻结表示版本、源码、当前任务与b2/policy快照。non-live验证必须证明单需求仅一次BGE、没有实验raw+context双调用、原文/引用不被派生文本替换、默认disabled及错误失败关闭不回退。新旧版本不得混称同一效果测量；§14.23正式失败、历史资产和原case/gold不变。该验收补充不新增付费额度或运行许可；新线上实现通过后仍须完成原澄清、模型规划、Summary引用及usefulness责任。
+
+上述生产绑定、严格HTTP反证、当前完整对象图及Spring→Runtime non-live验证现已通过，实际命令和结果见P3 §20.55；不是待实施设计，也不是完整真实UAT。原35/37追踪及历史效果结论保留原证明范围，当前Rewrite8/Summary6完整专项仍未完成。没有新付费请求、run-09或旧运行续跑。
