@@ -211,3 +211,42 @@ def test_immutable_rollback_evidence_is_not_quality_uat(runner, number, digest, 
         assert len(rows) == 5
         assert all(row["status"] == "passed" and len(row["checks"]) == 8 for row in rows[1:4])
         assert all(row["ownedProcessesStopped"] and row["rawLogsDeleted"] and row["secretScanPassed"] for row in rows[1:4])
+
+
+@pytest.mark.parametrize("busy", [None, 8091, 8092, 9201])
+def test_publication_requires_default_runtime_and_access_ports_idle(runner, monkeypatch, busy):
+    rehearsal, support = runner.support_module()
+    old = json.loads((runner.REPO / "serviceCenter/knowledge-runtime-binding.v1.json").read_bytes())
+    new = json.loads((runner.REPO / "serviceCenter/knowledge-runtime-binding.v2.json").read_bytes())
+    monkeypatch.setattr(support, "preflight", lambda: (new, old, b"catalog"))
+    proof = (runner.REPO / "knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/rollback-rehearsal-20260908-02.jsonl").read_bytes()
+    monkeypatch.setattr(rehearsal, "artifact_hashes", lambda: json.loads(proof.splitlines()[0])["artifactHashes"])
+    observed = []
+    class Socket:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def bind(self, address):
+            observed.append(address[1])
+            if address[1] == busy: raise OSError("port busy")
+    monkeypatch.setattr(runner.socket, "socket", Socket)
+    if busy:
+        with pytest.raises(OSError): runner.check_prerequisites(rehearsal, support)
+    else:
+        runner.check_prerequisites(rehearsal, support)
+        assert observed == [8090, 8091, 8092, 9201]
+
+
+def test_published_result_remains_bound_to_actual_frozen_source(runner):
+    path = runner.REPO / "knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/publication-20260908-01.jsonl"
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "e716addba9d02979bc5104a6a1df1ead83b84bd6a0a9968686351e644b1917d0"
+    rows = [json.loads(line) for line in raw.splitlines()]
+    prepared, terminal = rows[0], rows[-1]
+    frozen = runner.subprocess.check_output(["git", "show", prepared["head"] + ":knowledge-corpus-tools/scripts/publish-policy-vector-v1.py"], cwd=runner.REPO)
+    assert hashlib.sha256(frozen).hexdigest() == prepared["launcherSha256"]
+    assert terminal["status"] == "published" and terminal["onlineAliasWrites"] == 1
+    assert terminal["typedCalls"] == 16 and terminal["embeddingCalls"] == 2 and len(terminal["checks"]) == 16
+    assert terminal["integrityReadHttp"] == 130 and terminal["esManagementReads"] == 10
+    assert all(terminal[key] == 0 for key in ("modelCalls", "businessCalls", "retry", "resume"))
+    assert all(terminal[key] is True for key in ("ownedProcessesStopped", "rawLogsDeleted", "secretScanPassed"))
+    assert "not_stage_b_uat" in terminal["limitations"]

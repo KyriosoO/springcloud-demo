@@ -105,7 +105,7 @@ def check_prerequisites(rehearsal, support):
     rows = [json.loads(line) for line in proof.splitlines()]
     if rows[-1]["status"] != "passed" or rows[-1]["phasesPassed"] != 3:
         raise ValueError("rollback_not_verified")
-    for port in (8090, 8092, 9201):
+    for port in (8090, 8091, 8092, 9201):
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", port))
     for path, digest in (("serviceCenter/knowledge-runtime-binding.v2.json", support.BINDING_SHA),
