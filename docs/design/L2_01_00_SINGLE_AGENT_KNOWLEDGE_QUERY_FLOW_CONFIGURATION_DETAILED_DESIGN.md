@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.27 |
+| 当前版本 | v1.28 |
 | 日期 | 2026-09-09 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KFLOW-026已配对Rewrite8/Summary7/quality-v3；只改变摘要指令，五字段规划及检索不变，实际验证由P3管理 |
+| 本次增量 | DR-KFLOW-027拟修复文号前查阅措辞误入保护token；只改变当前Guard的文号边界，8/7/v3、模型/HTTP合同及检索不变，实施证据由P3管理 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V8/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；当前对象图定向non-live通过，真实效果尚未验证。DR-KFLOW-023～026已实施，验证由P3管理，效果由UAT_01管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.28 | 2026-09-09 | 正常查阅前缀被当作文号本体，合理focus误拒 | §8.8限定前缀词法分离，保持机关/年份/编号及旧Guard字节；新增当前根Guard与反证测试落点 |
 | v1.27 | 2026-09-09 | 原问分类限定未完整体现在引用中 | 目标配对Summary7，Rewrite8、检索和内部合同保持；不修改历史版本 |
 | v1.26 | 2026-09-08 | 授权元数据评分表示接线 | §11.1明确内部评分版本、历史兼容、disabled惰性和快照；Rewrite8/Summary6/quality-v3及预算不变 |
 | v1.25 | 2026-09-07 | 完整重写V7 Prompt遗漏澄清优先规则 | §8.6恢复既有意图/条件决策顺序，保持decoder和预算；纠正§11.1旧绑定说明，不改历史任务 |
@@ -105,6 +106,7 @@
 | `REQ-KFLOW-002`、`CON-KFLOW-004`；`KQ-AD-013` | `DR-KFLOW-023` | `IMPL-KFLOW-003`、`IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-015` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
 | `REQ-KFLOW-002`、`REQ-KFLOW-003`、`REQ-KFLOW-005`；`KQ-AD-018` | `DR-KFLOW-024` | `IMPL-KFLOW-012` | `TEST-KFLOW-016` | `VAL-KFLOW-007` |
 | `REQ-KFLOW-002`、`REQ-KFLOW-004`；`KQ-AD-015` | `DR-KFLOW-025` | `IMPL-KFLOW-013` | `TEST-KFLOW-017` | `VAL-KFLOW-008` |
+| `REQ-KFLOW-002`；`KQ-AD-013` | `DR-KFLOW-027` | `IMPL-KFLOW-015` | `TEST-KFLOW-019` | `VAL-KFLOW-010` |
 | `REQ-KFLOW-004`；`KQ-AD-018` | `DR-KFLOW-026` | `IMPL-KFLOW-014` | `TEST-KFLOW-018` | `VAL-KFLOW-009` |
 
 ## 5. 关联资源与责任边界
@@ -158,6 +160,7 @@
 | `DR-KFLOW-024` | §8.5 Rewrite7一次生成有界需求，检索前冻结并贯穿后续阶段；已实施及non-live验证，不把旧三字段输出当作新合同接受 |
 | `DR-KFLOW-025` | §8.6恢复澄清优先指令，新V8复用相同五字段decoder；不以fake证明真实语义，生产版本切换须完成该切片评审 |
 | `DR-KFLOW-026` | §8.7仅将当前摘要绑定升级为V7，Rewrite8/quality-v3及全部限额不变；版本严格匹配，不新增在线流程 |
+| `DR-KFLOW-027` | §8.8只分离文号前有限查阅措辞，保留真正约束、旧Guard和模型输入；新当前根Guard不生成检索计划 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
 | `DR-KFLOW-015` | 只有发布门禁通过并同步 Profile、物理 index UUID/mapping、逻辑 snapshot 及模型出域目录后，在线组合根才允许消费新 alias 目标；任何不一致失败关闭且不自动切换 |
@@ -264,6 +267,8 @@ V6规则：
 
 ### 8.4 类别词与数量约束分离（DR-KFLOW-023）
 
+本节Tax Guard及旧默认的字节和行为保持；当前根新增的文号前缀边界规则仅由§8.8在该Guard之上实现，不改变本节其他约束。
+
 直接依据为REQ-KQUALITY-001、REQ-KFLOW-002和L1 KQ-AD-013。当前数字提取把“一般纳税人”“一般计税”的“一”当成数量，导致仅将年份提前、保留全部条件的改写被误拒绝。此处纠正约束类型识别，不允许删去真实数字、弱化条件保护或由本地代替模型生成计划。
 
 最小方案比较：仅要求Prompt维持原词序会把正常表达限制转移给模型，无法可靠修复；数字改为集合比较会丢失次数/顺序并可能掩盖数值对应关系，不采用；新增全量语义Schema或中文分析器范围过大。采用新内部`TaxQuestionSemanticGuard`，只处理已经有独立保护的四个代码绑定完整短语：`一般纳税人`、`小规模纳税人`、`一般计税`、`简易计税`。不按具体UAT问题、文档ID或酒店关键词特判。
@@ -344,6 +349,20 @@ L2_01_02 §9.6治理Summary7的分类前提证明语义；本层不重复其Prom
 REQ-KFLOW-004→DR-KFLOW-026→IMPL-KFLOW-014（上述两个现有方法）→TEST-KFLOW-018（当前root配对/拒绝旧版/disabled、Spring→Runtime、历史fixture隔离）→VAL-KFLOW-009（定向合同、实际对象图、strict mypy、全量non-live及原UAT）。旧runner测试只在特定测试范围读取冻结Git根及helper，不更新其冻结断言或把历史运行换成当前生产。回滚为禁用或成对源码回退，无请求内切换。
 
 三轮内审与跨层只读设计复评随L2_01_02 §9.6完成：职责不变、当前与目标分离、旧版本字节保护、单动作/生命周期及预算不回退，S0/S1/未处理S2=0，允许此两方法和直接测试的最小实施，不代表真实效果已达标。
+
+### 8.8 文号本体与查阅前缀分离（DR-KFLOW-027；设计修订，实施待验证）
+
+依据REQ-KFLOW-002/DR-KFLOW-003及L1 KQ-AD-013：保护用户真正的约束，不要求模型保留与文号无关的查阅措辞。已复现旧Guard将“请分别查找财税〔2011〕100号”整体提取为文号，使合法focus“财税〔2011〕100号的软件产品定义”被拒为新增约束。这是词法边界缺陷，不是模型错误，也不证明更宽泛的改写均安全。
+
+方案比较：Prompt要求逐字保留查阅前缀会把错误词法当成模型合同，不采用；只比年份/编号或允许任意后缀匹配会丢失机关，禁止；新增通用NLP依赖和全量中文规则引擎超出最小修复。采用当前根专用Guard，仅在旧文号token开头识别一次有限查阅前缀，剩余文号保持原字节和顺序。
+
+1. 建议新增`knowledge/document_reference_semantics.py::DocumentReferenceSemanticGuard(TaxQuestionSemanticGuard)`。`extract(original_question: str) -> ProtectedConstraintSet`先执行原Tax Guard全部校验，再只替换document_numbers；numbers/dates/article_refs/negations及四类别独立检查不变。原问、模型query/focus、Prompt、检索请求和Summary输入均不重写。
+2. 可分离前缀语法固定为：可选礼貌词`请/请帮我/帮我/麻烦/麻烦帮我`，可选`分别/同时`，必须接一个`查找/查询/检索/查阅/查看/对比/比较`。只匹配token起始处一次，不循环删除、不允许任意中间文本；余部必须为1～24个汉字或ASCII字母的非空机关前缀，加旧式`〔YYYY〕N号`或`[YYYY]N号`（YYYY为4位ASCII数字，N为1～12位ASCII数字）。只剥离匹配的请求措辞，不剥离地域或机关，不把不同括号、简称、年份、编号或前导零归一。未识别的表达保持旧token，不猜测。`苏财税`不能变成`财税`；`请不要查找`不能当成`请查找`；重复查阅动词最多去掉第一组，不能使重复前缀与裸文号等价。若真实机关名称恰以前述动词开头，词法有歧义，不能声称本规则证明其法律身份；该边界需要语料证据驱动的后续处理，而非自动扩张规范化。
+3. 该有限语法只解释明确的查阅措辞，不选择domain/action、生成filter或判断法律事实；不读取gold、case ID、文档ID、在线索引或配置。复合文号识别及公告式年份表达保持现行边界，本节不以局部修复声称已覆盖所有自然语言。
+4. query仍按全部受保护组精确值/顺序/次数比较；focus仍按原问token计数子集校验。两者必须消费同一Guard实例。删除、替换机关/年份/编号，新增或重复focus约束仍拒绝；拒绝整份计划，公开映射继续`knowledge.rewrite_failure`，search/embedding/rerank/Summary全部0。实际数量、日期、否定条件不因前缀分离而移除。
+5. 当前`bootstrap.KnowledgeCompositionRoot.build_provider`显式绑定新Guard；默认Planner、旧`question_semantics.py`和`tax_question_semantics.py`保持字节不变，历史构造不迁移。disabled不实例化Guard或HTTP资源；没有共享可变状态、新依赖、环境开关或额外请求。按当前根绑定一致源码回滚，禁止请求内fallback。
+
+`IMPL-KFLOW-015`为上述建议新增Guard和建议修改当前根一处注入；`TEST-KFLOW-019`为新增`tests/unit/knowledge/test_document_reference_semantics.py`及`tests/integration/knowledge/test_document_reference_guard_production.py`。覆盖不同查阅词、裸文号、未知机关/地区前缀、机关更换、年号/编号/括号、真实数字/否定、重复约束、非法/超限原问、旧Guard不变、当前8/7/v3根成功、query/focus任一拒绝零下游、原问/query不被改写、并发隔离、disabled与client关闭。`VAL-KFLOW-010`要求定向测试、历史哈希、当前根/Spring和正式non-live回归、strict mypy及compileall。真实Rewrite行为和整体召回改善仍需单独实测，不用本节fake改判既有失败。
 
 ## 9. 检索计划与核心流程
 
@@ -479,6 +498,7 @@ validate empty arguments
 | `IMPL-KFLOW-012` | §8.5批准的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测目标；部分实施进度由P3治理；不改历史任务与公开合同 |
 | `IMPL-KFLOW-013` | §8.6已实施V8指令恢复、当前根单绑定和相同内部合同版本识别；不新增decoder、语义分类器或模型调用 |
 | `IMPL-KFLOW-014` | §8.7当前根绑定Summary7，Stage历史合同兼容6/7，Rewrite8不变 |
+| `IMPL-KFLOW-015` | §8.8建议新增document_reference_semantics.py及bootstrap显式注入；原两个Guard不改 |
 
 ### 14.2 关键签名
 
@@ -534,6 +554,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `TEST-KFLOW-016` | §8.5 V7精确合同、终态前校验、同域多角色、语义保护、需求透传、版本矩阵与三处观测不展示focus；已实现测试路径见该节及当前根test_requirement_runtime_composition.py |
 | `TEST-KFLOW-017` | §8.6 V8指令恢复、五字段decoder identity/矩阵、当前根/旧版拒绝、澄清零下游及历史作用域恢复；VAL-KFLOW-008不替代真实UAT |
 | `TEST-KFLOW-018` | §8.7版本配对/拒绝旧版、disabled、当前Spring根和冻结历史fixture隔离 |
+| `TEST-KFLOW-019` | §8.8文号正反例、旧Guard、当前生产query/focus、整份拒绝零下游及生命周期；新增两测试文件 |
 
 ### 15.2 验证编号定义
 
@@ -548,6 +569,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | `VAL-KFLOW-007` | §8.5任务/计划/current root fake、strict mypy、compileall、历史hash及Spring回归；新真实语义另行验证 |
 | `VAL-KFLOW-008` | §8.6 V8合同/当前根/Spring、历史隔离与hash、正式全量non-live、strict mypy、compileall；不产生或证明真实模型调用 |
 | `VAL-KFLOW-009` | §8.7当前根/合同/Spring/类型/全量与原专项UAT分别给出实际证据 |
+| `VAL-KFLOW-010` | §8.8定向/历史/当前根及Spring、正式隔离non-live、strict mypy、compileall；不证明真实改写或召回精度 |
 
 ## 16. 风险与保护条件
 
@@ -592,7 +614,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | v1.18 独立审查首轮 | 分离作者修改阶段后重新核对L1/L2/REQ及代码契约；无S0/S1，发现S2：DR019未进入§4.2主追踪表、实施依据的否决状态不明确；已最小修复 | Fixed，待复评 |
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
-- 当前版本：v1.27；DR-KFLOW-024～026已评审实施，当前任务8/7/v3；验证见P3，真实专项未通过。
+- 当前版本：v1.28；DR-KFLOW-024～026已评审实施，当前任务8/7/v3；DR-KFLOW-027设计增量的评审及实施状态见P3，真实专项未通过。
 - 文档状态：Approved；DR-KFLOW-025已完成非live实施准入评审。增量审查及验证记录见P3，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 
