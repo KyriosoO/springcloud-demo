@@ -1,0 +1,2 @@
+{"manifestSha256": "7b558c0058be884565544724a5e65a70d99df2fb298bb04031f2a5cd03c121ea", "model": 0, "rerank": 1, "runId": "knowledge-stage-b-uat-v12-20260909-run-12", "stage": "warmup_attempt"}
+{"clientsClosed": true, "items": 40, "rerank": 1, "stage": "warmup_ready"}
