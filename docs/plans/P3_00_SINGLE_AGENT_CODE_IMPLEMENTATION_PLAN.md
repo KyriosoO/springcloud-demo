@@ -129,7 +129,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024/025`；`DR-KRET-029/034`；`DR-KEV-029/030` | 当前唯一Rewrite8/Summary6/quality-v3及授权上下文评分表示 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.37～20.40及§20.55公共合同、消费者、单绑定与代码复评通过 | 新TEST/VAL与公开接口零差异 | 整套绑定回退；本次表示修复不改索引 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 新合同、fake、Spring、Python/类型/历史防回退 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.55当前正式隔离全量、当前根及Spring E2E通过 | 调用计数、零泄漏、来源绑定 | 不运行付费UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.33 | §20.56.2 run-09失败：1通过/1失败/8未执行 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 实际2/4/0/0/0，另预热1；累计18/43/27/14/15 | 授权已消费，不能重跑或自动run-10 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.33/14.34 | §20.58持续授权恢复；run-09失败保持 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 先单独诊断1次Rewrite；正式累计原18/43/27/14/15不改 | 新批次先冻结有界预算；不重用旧运行 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -297,7 +297,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.37～20.40及§20.55内部合同、消费者、当前8/6/v3与评分表示已实施及复评 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.55当前完整对象图、Spring及正式隔离回归通过，不继承为真实UAT |
-| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | WP-KRETRIEVAL-NONLIVE-01 | §20.56.2 run-09已失败停止；Rewrite8非法响应，8例未执行，不续跑 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.58持续授权恢复，先1次Rewrite诊断；run-09失败及8例未执行不改 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；新需求设计、实现和non-live已完成，真实专项仍未完成 |
 
 ## 10. 实施交接
@@ -423,7 +423,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.37～20.40及§20.55公共合同、需求排序、Summary覆盖及唯一成对绑定 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | 当前完整对象图及代码复评通过；不替代真实效果 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | 当前8/6/v3及授权上下文评分表示的完整对象图fake/Spring | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.31 | §20.55正式隔离回归、类型及Spring实际通过 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～025、DR-KRET-027/028/034、DR-KEV-026～028 | §20.56.2 当前目标落点 | TEST-KFLOW-014/015/017、TEST-KRET-022/023/029、TEST-KEV-017～019；UAT_01 §14.33 | non-live通过；真实1通过/1失败/8未执行，完整专项未通过 | Deferred |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～025、DR-KRET-027/028/034、DR-KEV-026～028 | §20.58 当前目标落点 | TEST-KFLOW-014/015/017、TEST-KRET-022/023/029、TEST-KEV-017～019；UAT_01 §14.33/14.34 | 持续授权恢复；原真实1通过/1失败/8未执行不改，专项未通过 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2176,3 +2176,11 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 本轮只能关闭“无法保留既有有限异常类别”的non-live测试工具缺口，不能关闭B-R9-OUTPUT-001的真实原因或8例未执行责任；run-09的已丢弃信息无法恢复。下一次真实执行需明确的新批次及观察证据绑定，当前没有这项权限，不准备run-10，也不把该工具或synthetic结果改称新UAT通过。P3/UAT现有终态、总体目标及关闭判据保持不变。
 
 观察器及30项直接测试提交`13d80c4e0dd46b59aa9ea606061dcc22038ed318`，仅包含上述两个新增测试文件；提交前已检查status、diff --check、暂存文件清单及完整暂存差异。本节验证记录另作状态提交，不改变run-09 frozen HEAD或历史资产；推送结果以交付时Git核实为准。
+
+### 20.58 持续授权恢复与单次Rewrite诊断（2026-09-09）
+
+起始clean HEAD=`534041efc17743fdbee492f3377d711f67773dad`，与origin/codex一致。用户授权完成目标所需权限且无需后续逐项申请；新执行依据为UAT_01 §14.34，不复用run-09或将其剩余额度充当新授权。先以最多1次Rewrite HTTP定位B-R9-OUTPUT-001，其他阶段全0；本次授权后的诊断单列计数。已完成的存储发布及上下文重排不重新实施，不因invalid_output猜测ES根因。
+
+直接顺序：§14.34三轮内审/设计复核→版本化单次诊断工具及fake→提交冻结→一次执行→根据有限原因最小修复/设计评审→当前根non-live→有界正式专项→整体评审/Git。新增文件仅`tests/system_e2e/knowledge_rewrite_diagnostic_v1.py`及直接测试，复用已验证错误投影，增加固定throwSite枚举；不改公共观测、旧任务或历史运行。UAT=In Progress，QUALITY仍Blocked，诊断本身不能关闭整体目标。正常范围内不再向用户重复申请，但仍禁止重试已消费运行或无根因地追加付费批次。
+
+诊断准入：首轮fake发现三项静态行号映射偏差和一个测试环境mock作用域错误，已对照冻结代码修正行号、限制mock存活期，不改生产断言。合并诊断/旧probe/run-09历史回归58 passed（14.26s）；追加import-source和binding先于client校验后，最终直接20 passed（0.85s）。`mypy --strict src`135源文件、两文件compileall、P3 strict及diff检查通过。代码复评两轮分别核对有限site、零原文、同一decoder、未知异常不检查、消费前落盘、导入来源/字节绑定、仅1个HTTP、超时取消和client关闭；无未处理Blocker/Major。上述为分离编辑后的同一执行者复核，不冒充外部独立人员审查，fake不证明真实失败原因。测试工具未进入生产，无Java或索引改动，不为单任务诊断重跑无关Maven。

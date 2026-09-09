@@ -716,3 +716,15 @@ P3 §20.55的固定八例配对采用相同候选/查询/模型/窗口，正文�
 模型原始响应按安全合同未保存；invalid_output不能确定具体字段、provider响应或finish原因。015a未生成实际Summary输入，input_binding_missing和必要原文false是上游停止的后果，不能推断新向量索引、排序或引文校验已失败。非live合成lookup计划通过严格解析，其他非法形状均拒绝；fake只验证合同，不补齐真实用例。
 
 验收结论：原35/37功能证据保持其既有证明范围；阶段B专项Failed，当前Rewrite8仅001获得本批通过证据，Summary6及完整原十例效果仍Evidence missing，不能宣称effective或阶段B完成。诊断/工作包状态见P3；历史章节中的“未创建run-09”保留当时语境，本节是最新执行权威。后续只能先做有依据的非付费诊断，不把剩余额度视作新批次授权。
+
+### 14.34 持续授权下的单次Rewrite诊断
+
+2026-09-09用户明确授权完成目标所需权限、后续无需逐项请求。本节替代§14.33仅允许非付费工作的后续限制，不改变run-09及此前结果、预算、终态或重用禁令。持续授权不表示无限循环：先执行独立`knowledge-rewrite-diagnostic-v1-20260909-01`，reference=`UAT_01:14.34`，只有原UAT-KB-015a的安全公开问题、当前Rewrite8和既有ModelGateway/DeepSeek transport；最多1次模型HTTP，selection/Summary/ES/embedding/rerank/Business/answer/E2E/retry/resume全0。诊断不是正式UAT、不能关闭原十例。
+
+执行前提交并冻结clean HEAD、Runtime源码及直接测试工具hash、原case文件、任务/Prompt/输入hash、模型及预算；manifest不得包含Key。独占目录、consumed及journal在HTTP尝试前持久化；同目录失败或成功都不能重入。Key仅execute读取进程变量，原问题先经QuestionEgressGuard；调用只用原模型/端点/1536tokens/8秒，不修改当前生产decoder或请求。原输出仅驻留内存，成功只记录有限outcome及数量，失败只记录phase/code/cause及throwSite枚举。
+
+throwSite仅允许当前冻结parser/validator的已知代码对象及静态行号映射到固定枚举，用于区分字段形状、枚举、ID/域关系、角色完整性；不读取frame locals/globals、异常消息/args、源文件路径、模型JSON或正文，不重新解析或放宽响应。未知位置统一unknown，最多8层cause/32帧，无任意类名/路径输出。离开作用域恢复原观察hook，关闭client；错误分类不得改变原ModelTaskResult。直接fake必须覆盖恶意异常、未知位置、零网络/重复执行拒绝、HTTP次数、超时/取消及清理。
+
+三轮内审已分别完成：①只诊断不执行后续检索、不把合成或单任务成功当E2E；②复用原parser只旁观固定异常位置、禁止原文和任意traceback输出；③固定1次请求、独占持久化及无重试、失败后先分析和fake。分离编辑后的设计对照复评基于L2_01_00 §8.5/8.6/10.1及现行Gateway错误合同：本诊断接缝可实施，S0/S1/未处理S2为0；不是外部独立人员批准或阶段B通过。无需修改生产L2合同或新增门禁。
+
+诊断后仅按已确认原因作最小修复，设计语义变化先修订并完成原评审流程。恢复正式专项前重新固定当前版本、原用例/gold/快照与调用预算，并核算本次新增诊断；沿用本次持续授权，不再要求用户逐批重复批准，但执行器必须有有界预算且每个批次只执行一次。失败停止后不得机械补跑，必须有改变下一行动的根因及修复证据；不放宽字段、权限、引用或原验收标准。
