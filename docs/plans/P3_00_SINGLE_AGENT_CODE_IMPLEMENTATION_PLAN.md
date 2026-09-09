@@ -2394,3 +2394,11 @@ Maven数字来自本次控制台，未计入target里2026-08-24遗留的Structur
 本增量没有Python/PowerShell或公共接口修改，未重跑正式全量Python、mypy/compileall、PowerShell AST及其他业务Java模块；此前§20.64.1结果保持其当时范围，不冒称本次全仓验证。Java编译及当前基线/追踪/历史回归已执行；Spring→Runtime和全目标验证仍随最终收口执行。真实ES/BGE/外部模型、索引写入、alias及付费运行均0，仅使用测试拥有的fake HTTP/Servlet；Java模式匹配不能证明Lucene兼容、真实排名或性能。
 
 当前该代码增量IMPLEMENT/NONLIVE完成，UAT恢复In Progress、QUALITY仍Blocked。下一步按UAT_01 §14.43完成同索引24题有界隔离typed对照，补齐相关性分级并分别报告开发/留出、文号/非文号及召回/Evidence。该对照前保持生产开关关闭；不创建run-13，不继承或改判旧真实失败，也不以新增单测关闭整体准确性目标。
+
+#### 20.66.2 同快照对照准备
+
+沿UAT_01 §14.43和DR-KRET-035既定验证责任，新增一个薄测试runner及直接fake测试；只在动态加载的历史support模块上替换Popen入口，不修改Python全局subprocess或冻结helper。固定flag仅允许注入本次es-query-service/19201一次；复用原24题、现行检索/Evidence、预算和PID/日志清理。prepared前校验旧基线、问题/计划、binding、实际BGE身份及稳定Java资产；补充四个新配置/helper编译类hash。检索耗时为有限附加观察；cluster配置前后只读确认，不改变任何全局设置。P3/UAT只补执行绑定和状态，不改变L2、问题、gold、指标或公开合同。
+
+代码/测试初次定向129 passed；分离编辑的首轮复核B-DOCNO-BENCH-001发现终态计数不一致时抛出异常会丢失有限terminal，改为原终态对象status=failed并保留非零退出；新增反证。另将缺失cluster开关视为未知拒绝，严格解码重复JSON，未放宽集群设置。修复后定向130 passed（1.55s）、当前src strict mypy 137源文件通过、新增两Python文件compileall通过。最终复评和执行结果另列；目前无新增真实请求，无生产启用。
+
+最终新增runner/原benchmark/基线/dataset/metrics、Business/Knowledge追踪及Stage B/P5历史联合回归213 passed（110.17s），1项既有LangChain预告。第二轮只读代码复评对照DR-KRET-035和§14.43核实原脚本及全局subprocess不变、单次固定flag、真实模型身份/Java配置绑定、一次检索/失败无重试、计数异常保留终态、来源与旧证据不可变；本测试切片Blocker/Major/未处理Minor=0，不冒充独立外部人员或实际效果评审。执行协议是既定VAL的有限绑定和预先判据，未改变设计；P3依赖定向复核保持无环，UAT/QUALITY状态不变。精确两文件凭据模式0命中、diff --check通过。下一步在提交后的clean HEAD上执行一次非付费对照，结果只写新路径，不重跑原基线。
