@@ -17,6 +17,11 @@ public final class KnowledgeTestProfiles {
 
 	public static KnowledgeSearchProperties enabledProperties(String snapshot,
 			Map<String, String> sourceFields) {
+		return enabledProperties(snapshot, sourceFields, false);
+	}
+
+	public static KnowledgeSearchProperties enabledProperties(String snapshot,
+			Map<String, String> sourceFields, boolean documentNumberMatching) {
 		KnowledgeSearchProfile profile = new KnowledgeSearchProfile();
 		profile.setLogicalDomainId("tax.policy");
 		profile.setProfileVersion("tax-knowledge-search-v1");
@@ -31,6 +36,7 @@ public final class KnowledgeTestProfiles {
 		profile.setKeywordFields(List.of("title", "content"));
 		profile.setVectorField("embedding");
 		profile.setSourceFields(sourceFields);
+		profile.setDocumentNumberMatching(documentNumberMatching);
 
 		KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
 		properties.setEnabled(true);

@@ -121,6 +121,7 @@ public class KnowledgeSearchProperties implements InitializingBean {
 		private Map<String, String> sourceFields = new LinkedHashMap<>();
 		private int maxCandidates = 20;
 		private int maxContentChars = 4096;
+		private boolean documentNumberMatching;
 		private boolean frozen;
 
 		private void freeze() {
@@ -166,5 +167,7 @@ public class KnowledgeSearchProperties implements InitializingBean {
 		public void setMaxCandidates(int value) { ensureMutable(); this.maxCandidates = value; }
 		public int getMaxContentChars() { return maxContentChars; }
 		public void setMaxContentChars(int value) { ensureMutable(); this.maxContentChars = value; }
+		public boolean isDocumentNumberMatching() { return documentNumberMatching; }
+		public void setDocumentNumberMatching(boolean value) { ensureMutable(); this.documentNumberMatching = value; }
 	}
 }

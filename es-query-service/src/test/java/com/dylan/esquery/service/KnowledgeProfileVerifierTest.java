@@ -1,6 +1,7 @@
 package com.dylan.esquery.service;
 
 import static com.dylan.esquery.KnowledgeTestProfiles.enabledProperties;
+import static com.dylan.esquery.KnowledgeTestProfiles.defaultSourceFields;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +18,8 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RestClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 import com.dylan.esquery.config.KnowledgeSearchProperties;
@@ -95,6 +98,33 @@ class KnowledgeProfileVerifierTest {
 
 	private static Response response(String json) throws Exception {
 		return response(json, "application/json", null);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"{\"type\":\"keyword\"}", "{\"type\":\"constant_keyword\"}",
+			"{\"type\":\"keyword\",\"index\":true}", "{\"type\":\"text\"}",
+			"{\"type\":\"keyword\",\"index\":false}", "{\"type\":\"keyword\",\"normalizer\":\"lowercase\"}"})
+	void validatesOnlyEnabledDocumentNumberMappings(String definition) throws Exception {
+		String snapshot = KnowledgeProfileVerifier.snapshot("tax-policy-v1", "agent-doc-tax-policy-v2-000001",
+				"index-uuid-1", "tax-knowledge-search-v1", "mapping-v1");
+		String mapping = mappingJson().replace("\"document_number\":{\"type\":\"keyword\"}", "\"document_number\":" + definition);
+		for (boolean flag : new boolean[] {false, true}) {
+			KnowledgeSearchProperties properties = enabledProperties(snapshot, defaultSourceFields(), flag);
+			RestClient client = mock(RestClient.class);
+			Response alias = response(aliasJson(false));
+			Response settings = response(settingsJson("index-uuid-1"));
+			Response fields = response(mapping);
+			when(client.performRequest(any())).thenReturn(alias, settings, fields);
+			KnowledgeProfileVerifier verifier = new KnowledgeProfileVerifier(client, new ObjectMapper(), properties);
+			boolean invalid = definition.contains("text") || definition.contains("false") || definition.contains("normalizer");
+			if (flag && invalid) {
+				assertThatThrownBy(() -> verifier.verify("tax-policy-v1", properties.requireProfile("tax.policy", "tax-policy-v1")))
+						.isInstanceOf(IllegalStateException.class);
+			} else {
+				verifier.verify("tax-policy-v1", properties.requireProfile("tax.policy", "tax-policy-v1"));
+			}
+			verify(client, times(3)).performRequest(any());
+		}
 	}
 
 	private static Response response(String json, String contentType, String contentEncoding) throws Exception {

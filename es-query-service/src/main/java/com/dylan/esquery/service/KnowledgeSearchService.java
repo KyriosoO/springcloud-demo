@@ -102,10 +102,24 @@ public final class KnowledgeSearchService {
 		body.put("track_total_hits", false);
 		body.put("size", request.limit() + 1);
 		if ("keyword".equals(request.path())) {
-			body.put("query", Map.of("bool", Map.of(
-					"filter", List.of(categoryFilter),
-					"must", List.of(Map.of("multi_match", Map.of(
-							"query", request.queryText(), "fields", profile.getKeywordFields()))))));
+			Map<String, Object> textQuery = Map.of("multi_match", Map.of(
+					"query", request.queryText(), "fields", profile.getKeywordFields()));
+			List<String> patterns = profile.isDocumentNumberMatching()
+					? DocumentNumberQuery.patterns(request.queryText()) : List.of();
+			if (patterns.isEmpty()) {
+				body.put("query", Map.of("bool", Map.of(
+						"filter", List.of(categoryFilter), "must", List.of(textQuery))));
+			} else {
+				String field = profile.getSourceFields().get("document-number");
+				List<Map<String, Object>> matches = patterns.stream().map(pattern ->
+						Map.<String, Object>of("regexp", Map.of(field, Map.of("value", pattern,
+								"flags", "NONE", "case_insensitive", false, "max_determinized_states", 256))))
+						.toList();
+				Map<String, Object> metadataQuery = Map.of("constant_score", Map.of("boost", 100,
+						"filter", Map.of("bool", Map.of("should", matches, "minimum_should_match", 1))));
+				body.put("query", Map.of("bool", Map.of("filter", List.of(categoryFilter),
+						"should", List.of(textQuery, metadataQuery), "minimum_should_match", 1)));
+			}
 		} else {
 			Map<String, Object> knn = new LinkedHashMap<>();
 			knn.put("field", profile.getVectorField());

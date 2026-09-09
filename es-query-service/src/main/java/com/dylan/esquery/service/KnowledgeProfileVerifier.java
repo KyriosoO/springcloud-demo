@@ -105,6 +105,15 @@ public final class KnowledgeProfileVerifier implements SmartInitializingSingleto
 					: Set.of("text", "match_only_text", "keyword", "constant_keyword", "wildcard");
 			requireType(profileId, propertiesNode, sourceField.getValue(), allowedTypes);
 		}
+		if (profile.isDocumentNumberMatching()) {
+			String field = profile.getSourceFields().get("document-number");
+			requireType(profileId, propertiesNode, field, Set.of("keyword", "constant_keyword"));
+			JsonNode documentNumber = fieldDefinition(propertiesNode, field);
+			if (documentNumber.has("normalizer")
+					|| documentNumber.has("index") && !documentNumber.path("index").asBoolean()) {
+				throw invalid(profileId);
+			}
+		}
 		JsonNode vector = fieldDefinition(propertiesNode, profile.getVectorField());
 		if (!"dense_vector".equals(vector.path("type").asText()) || vector.path("dims").asInt(-1) != 1024) {
 			throw invalid(profileId);

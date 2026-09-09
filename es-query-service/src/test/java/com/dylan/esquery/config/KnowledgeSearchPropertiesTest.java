@@ -8,6 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import com.dylan.esquery.config.KnowledgeSearchProperties.KnowledgeSearchProfile;
 
@@ -38,6 +41,35 @@ class KnowledgeSearchPropertiesTest {
 		properties.setEnabled(true);
 		assertThatThrownBy(properties::afterPropertiesSet)
 				.isInstanceOf(IllegalStateException.class);
+	}
+
+	@Test
+	void documentNumberFlagDefaultsOffAndIsFrozenWithTheProfile() {
+		KnowledgeSearchProfile original = enabledProperties("0".repeat(64)).requireProfile("tax.policy", "tax-policy-v1");
+		assertThat(original.isDocumentNumberMatching()).isFalse();
+		assertThatThrownBy(() -> original.setDocumentNumberMatching(true)).isInstanceOf(IllegalStateException.class);
+		KnowledgeSearchProfile profile = copyOf(original);
+		profile.setDocumentNumberMatching(true);
+		KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
+		properties.setEnabled(true);
+		properties.setProfiles(Map.of("tax-policy-v1", profile));
+		properties.afterPropertiesSet();
+		assertThat(properties.requireProfile("tax.policy", "tax-policy-v1").isDocumentNumberMatching()).isTrue();
+		assertThatThrownBy(() -> profile.setDocumentNumberMatching(false)).isInstanceOf(IllegalStateException.class);
+	}
+
+	@Test
+	void bindsDocumentNumberFlagAsABooleanAndRejectsMalformedValues() {
+		String key = "es.query.knowledge.profiles.tax-policy-v1.document-number-matching";
+		for (String value : new String[] {"true", "false"}) {
+			KnowledgeSearchProperties properties = new Binder(new MapConfigurationPropertySource(Map.of(key, value)))
+					.bind("es.query.knowledge", Bindable.of(KnowledgeSearchProperties.class)).get();
+			assertThat(properties.getProfiles().get("tax-policy-v1").isDocumentNumberMatching())
+					.isEqualTo(Boolean.parseBoolean(value));
+		}
+		assertThatThrownBy(() -> new Binder(new MapConfigurationPropertySource(Map.of(key, "enabled")))
+				.bind("es.query.knowledge", Bindable.of(KnowledgeSearchProperties.class)))
+				.isInstanceOf(org.springframework.boot.context.properties.bind.BindException.class);
 	}
 
 	@Test
@@ -84,6 +116,7 @@ class KnowledgeSearchPropertiesTest {
 		copy.setSourceFields(source.getSourceFields());
 		copy.setMaxCandidates(source.getMaxCandidates());
 		copy.setMaxContentChars(source.getMaxContentChars());
+		copy.setDocumentNumberMatching(source.isDocumentNumberMatching());
 		return copy;
 	}
 }
