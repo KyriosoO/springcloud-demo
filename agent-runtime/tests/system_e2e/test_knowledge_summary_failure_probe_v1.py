@@ -1,20 +1,34 @@
 """Synthetic non-live counterexamples; these do not diagnose a discarded live output."""
-import ast
 from dataclasses import FrozenInstanceError, asdict, replace
-import inspect
 import json
-import textwrap
 
 import pytest
 
 from agent_runtime.knowledge.evidence.contracts import KnowledgeEvidenceLimits, SummaryOutcome
-from agent_runtime.knowledge.evidence.requirement_validation import RequirementCoverageValidator
+from agent_runtime.knowledge.evidence.requirement_validation import (
+    CoverageValidationFailureReason, InvalidRequirementCoverage, RequirementCoverageValidator,
+)
 from agent_runtime.knowledge.evidence.summary_validation import (
     ExtractiveSummaryValidator, InvalidSummary, SummaryValidationFailureReason,
 )
 from tests.requirement_evidence_helpers import bound_input, output_for
 from tests.system_e2e.knowledge_summary_failure_probe_v1 import (
-    COVERAGE_SITES, SummaryFailureDiagnostic, project_summary_failure,
+    COVERAGE_REASONS, EXTRACTIVE_REASONS, SummaryFailureDiagnostic, project_summary_failure,
+)
+
+
+FAULTS = (
+    ("input_types", "coverage_input_invalid", "input_contract"),
+    ("input_contract", "coverage_input_invalid", "input_contract"),
+    ("bundle_binding", "coverage_bundle_invalid", "bundle_binding"),
+    ("source_binding", "coverage_source_invalid", "source_binding"),
+    ("insufficient_payload", "coverage_outcome_invalid", "outcome_points"),
+    ("outcome_points", "coverage_outcome_invalid", "outcome_points"),
+    ("coverage_ids", "coverage_ids_invalid", "coverage_ids"),
+    ("point_refs", "coverage_refs_invalid", "coverage_refs"),
+    ("coverage_refs", "coverage_refs_invalid", "coverage_refs"),
+    ("coverage_domain", "coverage_domain_mismatch", "coverage_domain"),
+    ("unused_points", "coverage_unused_points", "unused_points"),
 )
 
 
@@ -31,8 +45,10 @@ def coverage_error(fault):
     elif fault == "outcome_points": output = replace(output, points=())
     elif fault == "coverage_ids": output = replace(output, coverage=tuple(reversed(output.coverage)))
     elif fault == "point_refs": output = replace(output, points=(*output.points, output.points[0]))
-    elif fault == "coverage_refs_or_domain":
+    elif fault == "coverage_refs":
         output = replace(output, coverage=(replace(output.coverage[0], evidence_refs=("e8",)), *output.coverage[1:]))
+    elif fault == "coverage_domain":
+        value = replace(value, requirements=(replace(value.requirements[0], domain_id="tax.law"), *value.requirements[1:]))
     elif fault == "unused_points":
         output = replace(output, coverage=tuple(replace(item, evidence_refs=("e1",)) for item in output.coverage))
     else: raise AssertionError(fault)
@@ -41,11 +57,15 @@ def coverage_error(fault):
     return raised.value
 
 
-@pytest.mark.parametrize("fault", tuple(COVERAGE_SITES.values()))
-def test_each_existing_coverage_rejection_classified_without_reentry(fault):
+@pytest.mark.parametrize("fault,expected_reason,branch", FAULTS)
+def test_each_existing_coverage_rejection_classified_without_reentry(fault, expected_reason, branch):
     error = coverage_error(fault)
     trace, reason = error.__traceback__, error.reason
-    expected = SummaryFailureDiagnostic("requirement_coverage", "unknown_evidence_ref", fault)
+    assert type(error) is InvalidRequirementCoverage
+    assert error.coverage_reason.value == expected_reason
+    assert reason is SummaryValidationFailureReason.UNKNOWN_EVIDENCE_REF
+    assert str(error) == "knowledge.invalid_summary"
+    expected = SummaryFailureDiagnostic("requirement_coverage", expected_reason, branch)
     assert project_summary_failure(error) == expected
     assert project_summary_failure(error) == expected
     assert error.__traceback__ is trace and error.reason is reason
@@ -74,7 +94,7 @@ def test_domain_mismatch_is_rejected_and_not_repaired():
     value = replace(value, requirements=requirements)
     with pytest.raises(InvalidSummary) as raised:
         RequirementCoverageValidator().validate(output=output_for(value), requirements=requirements, summary_input=value, bundle=bundle)
-    assert project_summary_failure(raised.value).branch == "coverage_refs_or_domain"
+    assert project_summary_failure(raised.value).branch == "coverage_domain"
 
 
 def test_success_is_unchanged_and_does_not_generate_failure_record():
@@ -96,20 +116,30 @@ def test_unknown_types_and_malicious_exception_properties_are_not_accessed():
     assert project_summary_failure(error) == SummaryFailureDiagnostic()
 
 
-def test_unknown_throw_site_cannot_invent_a_production_branch():
+def test_reason_category_is_not_a_claim_about_actual_production_execution():
     try:
         raise InvalidSummary(SummaryValidationFailureReason.QUOTE_EMPTY)
     except InvalidSummary as error:
-        assert project_summary_failure(error) == SummaryFailureDiagnostic(reason="quote_empty")
+        assert project_summary_failure(error) == SummaryFailureDiagnostic("extractive_summary", "quote_empty", "quote_and_result_contract")
     with pytest.raises(FrozenInstanceError):
         SummaryFailureDiagnostic().phase = "changed"
 
 
-def test_static_sites_exactly_cover_current_rejection_branches():
-    lines, start = inspect.getsourcelines(RequirementCoverageValidator.validate)
-    tree = ast.parse(textwrap.dedent("".join(lines)))
-    sites = {start + node.lineno - 1 for node in ast.walk(tree) if isinstance(node, ast.Raise)}
-    assert sites == set(COVERAGE_SITES)
+def test_fixtures_cover_all_coverage_reasons_and_categories_are_exhaustive():
+    assert {reason for _, reason, _ in FAULTS} == {reason.value for reason in COVERAGE_REASONS}
+    assert not EXTRACTIVE_REASONS.intersection(COVERAGE_REASONS)
+    assert set(SummaryValidationFailureReason) == EXTRACTIVE_REASONS
+    assert set(CoverageValidationFailureReason) == set(COVERAGE_REASONS)
+
+
+def test_unknown_coverage_reason_and_subclass_are_not_read_or_exposed():
+    error = InvalidRequirementCoverage(CoverageValidationFailureReason.INPUT_INVALID)
+    error.coverage_reason = "synthetic secret"
+    assert project_summary_failure(error) == SummaryFailureDiagnostic()
+    class HostileCoverage(InvalidRequirementCoverage):
+        def __getattribute__(self, name):
+            raise AssertionError("must not read unknown coverage exception")
+    assert project_summary_failure(HostileCoverage(CoverageValidationFailureReason.INPUT_INVALID)) == SummaryFailureDiagnostic()
 
 
 def test_projection_never_reenters_either_validator(monkeypatch):
@@ -121,7 +151,7 @@ def test_projection_never_reenters_either_validator(monkeypatch):
     assert project_summary_failure(error).branch == "coverage_ids"
 
 
-def test_bounded_trace_does_not_walk_to_deep_validator():
+def test_depth_does_not_change_typed_reason_projection():
     def nested(depth):
         if depth:
             return nested(depth - 1)
@@ -129,7 +159,7 @@ def test_bounded_trace_does_not_walk_to_deep_validator():
         return RequirementCoverageValidator().validate(output=None, requirements=value.requirements, summary_input=value, bundle=bundle)
     with pytest.raises(InvalidSummary) as raised:
         nested(40)
-    assert project_summary_failure(raised.value) == SummaryFailureDiagnostic(reason="unknown_evidence_ref")
+    assert project_summary_failure(raised.value) == SummaryFailureDiagnostic("requirement_coverage", "coverage_input_invalid", "input_contract")
 
 
 def test_decoder_success_does_not_imply_quote_validation_success():

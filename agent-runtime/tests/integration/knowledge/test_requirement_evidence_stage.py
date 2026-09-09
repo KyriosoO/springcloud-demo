@@ -13,6 +13,9 @@ from agent_runtime.knowledge.evidence.contracts import (
     KnowledgeEgressDisposition, KnowledgeEgressField, SummaryOutcome,
 )
 from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
+from agent_runtime.knowledge.evidence.requirement_validation import (
+    CoverageValidationFailureReason, InvalidRequirementCoverage, RequirementCoverageValidator,
+)
 from agent_runtime.knowledge.evidence.summary_task_v5 import KnowledgeSummaryTaskV5
 from agent_runtime.knowledge.evidence.summary_task_v6 import KnowledgeSummaryTaskV6
 from agent_runtime.model.context import ModelCallContextAccessor
@@ -71,6 +74,23 @@ async def test_stage_single_model_call_and_finite_output(fault, kind, code):
     if kind is EvidenceStageKind.SUCCESS:
         assert len(result.domain_result["points"]) == 3 and result.domain_result["schemaVersion"] == 1
         assert "coverage" not in result.domain_result["points"][0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason", tuple(CoverageValidationFailureReason))
+async def test_internal_coverage_reasons_keep_same_public_failure_and_one_call(reason, monkeypatch, caplog):
+    def reject(self, **kwargs):
+        raise InvalidRequirementCoverage(reason)
+    monkeypatch.setattr(RequirementCoverageValidator, "validate", reject)
+    gateway = Gateway()
+    with observation_scope() as collector:
+        result = await call_with_model_context(lambda: stage(gateway).build_result(input=requirement_input(), context=_context(), timeout_s=2))
+        observation = collector.snapshot()
+    assert type(reason) is CoverageValidationFailureReason
+    assert result.kind is EvidenceStageKind.DOWNSTREAM_FAILURE
+    assert result.stage_code is EvidenceStageCode.INVALID_SUMMARY
+    assert result.domain_result is None and len(gateway.inputs) == 1
+    assert reason.value not in repr(result) + repr(observation) + caplog.text
 
 
 @pytest.mark.asyncio
