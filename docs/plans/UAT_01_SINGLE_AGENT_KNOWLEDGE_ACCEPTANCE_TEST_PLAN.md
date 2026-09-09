@@ -754,3 +754,9 @@ run-11按§14.36一次执行，终态Failed/consumed；001通过澄清（model2�
 实际E2E/model/search/embedding/在线rerank=2/5/2/1/1；另启动rerank1，Business/answer/retry/resume=0。前后索引/模型身份、owned服务关闭及原始日志删除通过。八个原始文件逐字节归档于`tests/system_e2e/knowledge_stage_b_run_11/`，绑定与hash见P3/evidence；禁止复用。此前十批、单次Rewrite诊断及既有功能35/37证据结论不变。
 
 只新增Summary7通用指令，要求定义与问题显式分类关系都由实际quote支持，一个requirement可引用多点，但一段已充分时不强求多ref；当前先按L2_01_02 §9.6和L2_01_00 §8.7完成设计复核再实施。Rewrite8、输入输出合同、decoder、validator、索引、排序及原十例gold保持不变。先定向/fake、当前根/Spring和全量验证及代码复评，随后依据持续授权冻结新版本的有界完整专项。已结束批次不重用；测试通过不代表真实效果达标，当前专项仍未完成。
+
+### 14.38 Summary7修订后的有界专项
+
+在§14.34持续授权内，新`knowledge-stage-b-uat-v12-20260909-run-12`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-12`，只验证已修订的Summary7，不恢复run-11。原十例/顺序/gold/来源判据不变，Rewrite8/quality-v3、b2和本地模型绑定不变；单批E2E/model/search/embedding/在线rerank上限仍10/28/32/16/32，启动rerank单列1。前序正式已用20/48/29/15/18（最后一项含三次启动），本批后累计上限30/76/61/31/51；独立Rewrite诊断1次模型另列，全部模型合计上限77。Business/answer/retry/resume=0，首个失败停止，其余未执行。
+
+版本化薄runner复用v11的JDK预检、服务、消费、有限观察、原判据及清理，仅替换当前任务/Prompt绑定并加入run-11精确历史hash和累计数。prepare/check-environment不读Key，源码/可执行资产/当前索引及任务快照完整冻结；先完成当前根7实际wire捕获、预算、旧版/未知Prompt拒绝、历史哈希和patch恢复fake，再提交冻结执行。三轮内审及与编辑分离的只读复评核对了实际摘要根因、仅任务版本改动、单批/累计预算和原失败关闭；允许该测试接缝实施，不增加Gate、不宣称阶段B已通过或外部人员评审。仍按实际结果决定专项关闭，禁止机械追加无根因的付费运行。
