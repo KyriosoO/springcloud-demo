@@ -2486,3 +2486,17 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 状态同步后，Business/Knowledge当前追踪、新来源工具/结果及候选unit/Stage/根联合93 passed（7.76s，原LangChain预告1项）；两份追踪保持既有35/37功能证据范围。P3严格计划校验与当前L2_01_02严格结构校验均0错误/警告；五项旧dataset/结果/噪声/binding SHA与起点一致，新增三份代码/测试及有限结果凭据模式扫描0命中，diff --check通过。只同步P3 v2.64、UAT_01 v1.40及ARCH版本入口，不修改REQ/L0/L1/L2语义或扩散动态测试数量。
 
 工作包/Gate状态保持：IMPLEMENT/NONLIVE已完成范围不变，UAT In Progress、QUALITY Blocked、GATE-KRG-006 Closed。后续直接任务是完整相关性原文分级与同池对照，再决定生产文号配置及selector绑定；高分错误来源、真实选域/Rewrite与Summary后置拒绝仍独立保留。没有创建新付费运行，不把此前run-12或未执行用例改判。没有生产或Java/PowerShell修改，本轮不重复全模块Maven、AST或全量隔离回归；上轮结果不冒充本轮重新执行。
+
+### 20.70 相关性原文核对进度（4/24题，不是全局质量结论）
+
+起始clean HEAD=`f82cfb494307b1c7d9c22e67aea4531302c28b90`。沿DR-KEV-033/034继续核对固定旧/新top20并集：483个问题—来源组合、288个不同chunk，8次有界只读来源查询及6次快照检查完成；正文SHA与旧记录匹配，模型/embedding/rerank/Business/索引写入均0，没有启动服务或读取Key。来源读取属于离线运维核对，不冒充当前服务授权。只在内存查看公开原文，仓库仅保存ID/hash和有限分级理由。
+
+新增`retrieval_relevance.review.v1.jsonl`记录首4题81项判断；首6行SHA=`35d85862eba1f1b6994ac2b2c84cf06f29a0b74cd6e9115cdcea9550ee4ae200`，以prefix测试保护，后续只能追加其余用例核对，不改旧判断。001～003逐份查看当前正文；004复用既有25来源核对中本题21项观察并核实当前正文哈希。判断为执行者辅助原文评审，非外部人工/专家或独立盲评；未用待测DeepSeek、在线分数或gold成员身份自动生成相关性。首4题选择遵循原编号顺序，未因结果优劣挑题。
+
+新增测试侧`retrieval_relevance_review.py`核对所有输入SHA、审计元数据、完整逐题并集和判断来源后复用既有纯计分函数；部分标注不能偷偷填0、改变原必要来源或产生全局均值。分级0=无关，1=有帮助但不能直接作答的背景/导航，2=不完整直接支持，3=对至少一个显式要求的完整直接支持；Precision沿既有grade>0口径，因此包含背景，不能称作直接答案精确率。逐题结果见UAT_01 §14.44.3。当前首4题candidate的Evidence分级直方图证明：低分过滤对001/004有效，但002仍有2条、003仍有5条无关输入，004还保留历史平行定义；不得据此启用生产或宣称完整相关性已通过。
+
+核实`policy.py`与Summary7→6→既有serializer：当前策略允许的title/document_number/written_date仍保留，没有支持“摘要前元数据被丢失”的证据，不建议修改该接缝。未修改生产源码、Profile、任务、索引、权限或公开合同；本次仅追加验证进度，不升级架构/UAT版本或增加Gate。
+
+验证：新评分/指标/旧来源核对联合103 passed（0.85s）；再含实际来源结果、准入重放与当前35/37追踪联合119 passed（1.47s）。首轮测试出现2项setup/teardown错误，参数化ID展开超大测试输入；改为固定短ID后通过，断言和被测上限不变。新增模块首次strict mypy发现5项局部变量复用/返回列表推断问题，改为独立case_grades及显式结果类型后通过。与编辑分离的定向代码对照检查发现：若dataset与ledger同时改写，仅互相校验不足；固定已授权dataset SHA并补充反证，另补首4题append-only前缀保护。最终联合121 passed（1.40s）、src与新模块strict mypy139源文件及两文件compileall通过，P3严格计划校验0错误/警告。复查确认旧/新排名共用分级池、未核对null、必要来源0分冲突拒绝、无正文输出和旧资产只读；目标切片未留Blocker/Major，完整相关性、生产生效和专项UAT仍不可验证，不作全阶段代码评审通过结论。
+
+下一步继续核对005～024（402项），留出不得用于调整阈值；完成前保持全部全局相关性指标null、默认legacy及文号默认关闭。UAT In Progress、QUALITY Blocked及历史付费终态不变，不自动创建新付费批次。精确指标可用`python -B -m tests.evaluation.knowledge.retrieval_relevance_review`离线复算，不需要ES、模型或正文文件。
