@@ -12,7 +12,7 @@
 | 日期 | 2026-09-09 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-035既有keyword请求内的有界文号元数据匹配；已实施并通过non-live复核，默认关闭，实际检索对照待完成；不改变公共DTO、向量、授权或索引 |
+| 本次增量 | DR-KRET-035既有keyword请求内的有界文号元数据匹配；已实施、non-live复核及隔离检索对照完成，生产默认关闭；完整质量及生效状态见P3/UAT，不改变公共DTO、向量、授权或索引 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -649,7 +649,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.16；DR-KRET-035已实施并完成non-live代码复评，仍须隔离typed对照后才可启用配置；DR-KRET-034及既有规则保持原证明范围，不把局部验证写成完整UAT。
+- 当前版本：v2.16；DR-KRET-035已实施并完成non-live代码复评和隔离typed检索对照；配置生效及完整质量由P3/UAT治理，生产默认关闭。DR-KRET-034及既有规则保持原证明范围，不把局部验证写成完整UAT。
 - 文档状态：Approved；历史实施校准评审见P3_00 §20.4，需求增量设计评审及当前实施证据见§20.36～20.40；设计批准本身不替代实施或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 

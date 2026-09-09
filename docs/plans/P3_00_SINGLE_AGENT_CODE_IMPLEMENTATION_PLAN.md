@@ -135,7 +135,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034/035`；`DR-KEV-029～033` | 已有当前链路保持，§20.66文号匹配增量已实施 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.66.1新增量代码对照复评 | 新TEST/VAL与公开接口零差异 | 默认关闭/源码回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 已有回归保持，DR-KRET-035 Java/基线/历史回归已验证 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.66.1新增量验证；旧记录不改 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.43、DR-KEV-032/033 | 分层检索计分、同快照文号对照待完成；旧失败不改 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | non-live已完成；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.43、DR-KEV-032/033 | 同快照文号召回增益已测；完整相关性、生产生效及真实回答仍待完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 非付费对照已完成；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -303,7 +303,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.66.1文号匹配已实施/复评；旧增量保持 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.66.1 Java、基线和历史通过；旧回归保持 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | 待同快照对照及相关性标注；旧失败及8项未执行保持，暂停付费 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.66.3同快照增益已测，待相关性标注/生效/真实回答；旧失败及8项未执行保持，暂停付费 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；新需求设计、实现和non-live已完成，真实专项仍未完成 |
 
 ## 10. 实施交接
@@ -2406,3 +2406,13 @@ Maven数字来自本次控制台，未计入target里2026-08-24遗留的Structur
 首次准备提交`8ec1160dc72985370efd24b253dd3da25f76cd8a`执行在cluster前检停止，search/embedding/rerank/model及隔离服务启动均0；唯一运行前检GET=1。有限原记录SHA=`7489e996950a79d4c10cda8f886c86332b1280b535ccce29b791e88c3b159f85`，逐字节保存在`tests/evaluation/knowledge/document_number_benchmark.preflight-failure.v1.jsonl`。两次追加只读配置核查证明`flat_settings=true`和嵌套filter_path组合返回空对象，而nested形式返回defaults.search.allow_expensive_queries=true；根因为Harness响应形状错误，不是ES配置拒绝或召回缺陷，不修改cluster。
 
 最小修复当前测试runner使用nested响应和精确类型/优先级判定；新增真实形状、空响应、畸形层、false优先及旧失败SHA/冻结提交源码hash反证，原benchmark/helper/dataset/result不变。定向136 passed（1.68s）。聚焦复评核对只有GET形状修复、未知仍拒绝、旧结果不续写及零题目消费；Blocker/Major/未处理Minor=0。修复后新提交、新结果路径开始首次24题测量，预算仍54/27/29+预热1；旧前检终态不改，不补跑任何题目或付费运行。完整相关性与真实摘要仍未关闭。
+
+#### 20.66.3 有界文号匹配真实检索对照完成
+
+在clean HEAD=`cc1d305d5d2913cc55c02322c1b4244e0154f2be`（已推送）执行`python -B -m tests.system_e2e.knowledge_document_number_benchmark_v1 --execute --result D:\codex-data\knowledge-document-number-benchmark-20260909-comparison-02.jsonl`，仅子进程JDK25/PYTHONPATH及Key移除。终态measured，24题全部必要来源入选；原始有限记录逐字节归档，SHA=`b50ee584b09dc3b8d724886240a25b0e9de23e046d5245ef5ef395b81e865299`。分组指标和预先判据核查见UAT_01 §14.43.2，不将24/24写成Precision或功能UAT通过。
+
+实际typed search54、embedding24、在线rerank29，启动本地合成预热1；来源审计2、cluster配置读取2，原索引前后alias/settings/mapping身份检查6。隔离服务readiness和Profile启动检查为运维前置，未冒称在线search计数。另有首个失败前检1和定向诊断2次只读cluster GET，均单列，零题目消费。外部模型、Business、索引/alias写入、retry/resume均0，没有读取Key、新付费运行或修改服务配置。仅本次PID34900/19256已停止并二次查证不存在，原始日志扫描删除；原b2索引、两个BGE身份和历史证据不变。
+
+新增只读`test_document_number_benchmark_result.py`逐题复算原指标、非文号/留出无回退、KRB-006由keyword找回两来源、预算/清理、源码提交hash及未标注Precision/nDCG为null。该测试与新runner、原benchmark、旧基线/dataset/指标联合137 passed（1.36s）。分离只读代码/证据复评确认没有gold在线参与或旧结果覆盖，首次前检失败原样保留，当前数据与假设分离；本切片Blocker/Major/未处理Minor=0，非整个阶段B或独立外部人员评审。
+
+阶段B仍需完整相关性分级、对新结果噪声的Precision/nDCG核查、生产配置生效及真实Rewrite/Summary后置失败收口；目前仅证明已知来源的召回与首位排序增益，未启用生产开关。WP-KRETRIEVAL-UAT-01保持In Progress、QUALITY保持Blocked；后续按实际损失推进，不重建索引或重复付费来追求住宿单题通过。
