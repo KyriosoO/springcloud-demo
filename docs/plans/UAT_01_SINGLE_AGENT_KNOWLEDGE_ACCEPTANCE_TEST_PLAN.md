@@ -789,3 +789,13 @@ run-11按§14.36一次执行，终态Failed/consumed；001通过澄清（model2�
 本次只改内部拒绝原因及测试投影、指标；不读取Key、不创建run-13、不重跑历史。未来真实执行仍先完成有效观察、case与实际剩余预算核算；不得以新增计分工具自动获得另一整批付费额度，也不得用新算法给旧run补造缺失的后置原因。§14.39的行号探针由稳定枚举投影替代，源历史仍可从当时Git读取。
 
 冻结兼容补充：L2_01_02 v1.24将新覆盖原因放在requirement_validation.py的独立枚举/兼容异常子类中，旧summary_validation.py、原十种枚举及历史哈希断言不变；投影只接受两个明确的异常类型。新诊断不会改变旧运行的失败分类，也不新增公共输出字段。
+
+本次`test_historical_retrieval_separation.py`只读核对哈希后完成分层复算，结论如下；这不是新的真实UAT，也不是对原失败重新判定：
+
+| 既有有限证据 | 可证明的检索结果 | 必须保留的限制/原结论 |
+|---|---|---|
+| run-11 / UAT-KB-015a | 必要两来源位于Evidence第1/4位，Recall@20=1、MRR=1、Evidence coverage=1 | 原Failed：HTTP200但遗漏必要分类引用；检索到不等于回答充分 |
+| run-12 / UAT-KB-015a | 必要两来源位于Evidence第1/7位，Recall@20=1、MRR=1、Evidence coverage=1 | 原Failed：HTTP502；实际后置拒绝原因未保存，另有已观察到的多选域偏差 |
+| 既有quality-v3-context八题手工计划probe | 每题必要来源Recall@20和Evidence coverage均为1 | 非真实Rewrite、无Summary、非功能/效果UAT；不得当作整体准确率 |
+
+三组均没有完整人工相关性分级，Precision@20/nDCG@20为null，不得以必要来源命中推导精确率。原文件SHA、字节、Failed和未执行状态保持不变；测试结果及命令由P3最终验证记录治理。本轮新增模型/真实检索调用均为0；代表集与留出集整体测量仍未完成。

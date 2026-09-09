@@ -2262,3 +2262,24 @@ run-11冻结`09413f7bf0a0b3d34476b76b9db7571fbeb9b21e`，manifest=`56c3fc8b1d312
 设计提交`4f88e93`已推送。首轮实现的166项定向测试通过，但正式隔离全量发现历史Summary V2～V5与诊断manifest直接校验summary_validation.py整文件SHA；只增加枚举也违反冻结合同。此问题归为设计落点遗漏，不是效果失败；暂停受影响实现，不修改旧哈希、历史测试或断言。比较后不选“更新旧哈希/把全部旧测试迁移到冻结Git”，采用最小方案：覆盖模块本地新枚举和InvalidSummary兼容子类，原摘要validator整文件还原不产生diff。
 
 L2_01_02 v1.24复核三轮：①核对旧摘要文件/任务哈希与新覆盖模块的修改边界；②核对父异常reason、固定文本、Stage catch、严格类型投影和未知子类零属性访问；③核对无新增配置/网络/依赖、旧断言保持、直接回归和原工作包DAG。随后分离只读设计复评确认：公共行为不变，父类兼容但新coverage_reason可诊断，历史哈希可验证；该修正可实施，S0/S1/未处理S2=0。以上为同一执行者分阶段复核，不声称外部独立人员评审；L2/P3 strict均0错误/0警告。
+
+#### 20.62.2 实施、有限复算及切片收口
+
+兼容设计提交`97ba5e192b96e9076d34f7fe4bc8a87a1c712396`，代码/测试提交`43272cb8ac9eb0330e9aa0121f13f88c389a2efe`。代码共7文件：一个覆盖校验生产模块、现有probe及其测试、Stage拒绝映射测试、新增指标纯函数及两份测试。DR-KEV-032/033已实施；原摘要validator SHA仍为`80a3846814dc360291078649697aebdd2b393971b8abb933ed0f645200c4f6d6`，旧enum/哈希测试零diff。新probe不读取调用栈、行号或消息，不接入live；指标无I/O、无问题/回答正文、无在线gold，未标注Precision/nDCG为null，缺料/未知保留但不评分。
+
+只读复算见UAT_01 §14.40：run-11和run-12的015a必要来源Recall@20、MRR、Evidence coverage均为1，但原回答均Failed；八个历史手工计划必要来源Recall@20及Evidence coverage均为1，不是八次真实模型端到端成功。这些资产没有完整相关性分级，不能推导Precision/nDCG或整体召回准确率。三项新回归分别先验SHA、复算、保留原终态及确认字节不变，没有新建历史结果副本或改判旧UAT。
+
+代码对照评审采用与编辑分离的两轮只读阶段：首轮发现旧validator整文件冻结冲突，返回设计修订而非更新哈希；复评核对v1.24异常兼容、拒绝集合/顺序、公开映射、严格类型与恶意子类、指标边界/null/分母、无正文和历史保护，并增加八个手工计划的独立分层反证。该两项DR切片Blocker=0、Major=0、无未处理Minor；不是外部独立人员批准，也不表示阶段B整体代码或效果评审通过。P3/ROADMAP与UAT/L2两处版本引用漂移已在兼容设计提交中最小同步。
+
+| 本轮实际验证命令及范围 | 结果 |
+|---|---|
+| `agent-runtime/scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe`（显式安装当前源码的临时隔离环境） | 最终host/preflight 14 passed（3.54s）；全量3363 passed、27 skipped、0 failed（310.37s）。跳过均为既有opt-in/live或指定历史诊断资产，不能算新效果UAT通过；1项既有LangChain预告 |
+| `python -B -m pytest`：probe、coverage、原摘要reason、Stage、新指标及历史复算、Summary V2～V5和诊断manifest的11文件组合 | 195 passed（0.53s）；随后新增的八手工计划复算已被最终全量覆盖 |
+| `python -B -m pytest tests/evaluation/knowledge/test_retrieval_metrics.py tests/evaluation/knowledge/test_historical_retrieval_separation.py tests/system_e2e/test_knowledge_summary_failure_probe_v1.py tests/integration/knowledge/test_requirement_evidence_stage.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q -p no:cacheprovider --tb=short` | 最终128 passed（0.57s）；单独三项历史分层复算3 passed（0.03s） |
+| `python -B -m mypy --strict src tests/evaluation/knowledge/retrieval_metrics.py tests/system_e2e/knowledge_summary_failure_probe_v1.py`；`compileall`生产src及本次直接测试 | 138源文件类型通过；编译通过 |
+| agent-service中`..\serviceCenter\mvnw.cmd -Dagent.runtime.python=C:\Python312\python.exe -Deureka.client.enabled=false test`（仅子进程JDK25/fake配置及无Key环境） | BUILD SUCCESS，40 tests、0 failures、0 errors、1 skipped（29.366s）；Business与Knowledge的Spring→Runtime当前根E2E实际执行，旧Structured UAT opt-in跳过 |
+| L2 strict、P3 strict；当前7文件凭据/JWT/私钥模式扫描；Git范围、完整暂存差异及diff --check | 0 errors/warnings；模式0命中；只含本目标文件，历史资产零变更 |
+
+上述命令有重叠，不相加。失败经过保留：初始定向有一项旧enum总数断言失败；首轮全量3356 passed/27 skipped/5 failed（315.57s），五项均为上述冻结哈希冲突。最终采用v1.24落点、还原旧文件和旧测试后重新执行正式全量通过，未放宽断言或跳过失败。非live子进程移除Key；没有读取凭据、调用真实模型/ES/BGE、修改索引/alias、启动真实业务服务或创建run-13。Maven仅启动测试管理的fake Runtime，不持久化真实JWT/正文。
+
+未重复执行无Java/DTO/授权改动的Employee、Transaction、es-query-service、common-security全模块Maven；没有PowerShell修改，未单独重跑AST。跨域防回退由本次完整Python、两条Spring E2E及既有35/37追踪核实，不能据此声称所有外部服务或新效果已经验收。当前仍需人工确认20～30题及不少于三分之一留出集、完整相关性分级、同快照检索基线/对比和基于真实损失的最小改进；run-12实际后置拒绝原因仍不可恢复。`WP-KRETRIEVAL-UAT-01=In Progress`、`WP-KRETRIEVAL-QUALITY-01=Blocked`，不以局部指标1.0关闭整体目标。最终状态提交及推送结果以Git和交付报告为准。

@@ -220,9 +220,9 @@ answer 最多 5 点；每个 `evidence_ref` 只能使用一次。V2 强化模型
 
 #### 9.2.1 需求覆盖拒绝的有限诊断（DR-KEV-032）
 
-依据REQ-KQUALITY-003，建议仅修改`requirement_validation.py`：新增`CoverageValidationFailureReason`及`InvalidRequirementCoverage(InvalidSummary)`，为现有拒绝条件赋予明确内部原因，不改变合法/非法集合、成功结果或公开错误。覆盖校验分别使用`coverage_input_invalid`、`coverage_bundle_invalid`、`coverage_source_invalid`、`coverage_outcome_invalid`、`coverage_ids_invalid`、`coverage_refs_invalid`、`coverage_domain_mismatch`、`coverage_unused_points`。先验证引用形状/集合，再核对域；不得将错域和未知引用混为同一原因。`summary_validation.py`、原抽取式校验枚举及旧哈希断言整文件保持字节不变，不通过修改旧期待值兼容新诊断。
+依据REQ-KQUALITY-003，已在`requirement_validation.py`新增`CoverageValidationFailureReason`及`InvalidRequirementCoverage(InvalidSummary)`，为现有拒绝条件赋予明确内部原因，不改变合法/非法集合、成功结果或公开错误。覆盖校验分别使用`coverage_input_invalid`、`coverage_bundle_invalid`、`coverage_source_invalid`、`coverage_outcome_invalid`、`coverage_ids_invalid`、`coverage_refs_invalid`、`coverage_domain_mismatch`、`coverage_unused_points`。先验证引用形状/集合，再核对域；不得将错域和未知引用混为同一原因。`summary_validation.py`、原抽取式校验枚举及旧哈希断言整文件保持字节不变，不通过修改旧期待值兼容新诊断。
 
-新异常的`coverage_reason`只携带新枚举；父类`reason`保留原UNKNOWN_EVIDENCE_REF兼容值，异常文本仍为固定`knowledge.invalid_summary`。Stage以既有`except InvalidSummary`捕获子类，仍映射为INVALID_SUMMARY/knowledge.summary_failure。建议把现有测试专用`knowledge_summary_failure_probe_v1.py`改为严格类型及枚举投影：仅精确InvalidRequirementCoverage读取coverage_reason、仅精确InvalidSummary读取原reason，其他子类不读属性。保留有限phase/reason/branch结构，不再读取traceback、frame或源码行号。phase只表示枚举所属校验类别，不证明任意构造异常曾在生产执行；实际执行仍需调用方证据。未知异常类型、未知枚举返回unknown；不读取异常message/args/cause、局部变量、正文、模型输出、JWT或路径。该工具不装入生产对象图，不新增观测公共DTO，也不自动安装运行hook；以后需要真实采集时必须在未消费且预算明确的执行合同中接入，不能补写旧结果。
+新异常的`coverage_reason`只携带新枚举；父类`reason`保留原UNKNOWN_EVIDENCE_REF兼容值，异常文本仍为固定`knowledge.invalid_summary`。Stage以既有`except InvalidSummary`捕获子类，仍映射为INVALID_SUMMARY/knowledge.summary_failure。现有测试专用`knowledge_summary_failure_probe_v1.py`已改为严格类型及枚举投影：仅精确InvalidRequirementCoverage读取coverage_reason、仅精确InvalidSummary读取原reason，其他子类不读属性。保留有限phase/reason/branch结构，不再读取traceback、frame或源码行号。phase只表示枚举所属校验类别，不证明任意构造异常曾在生产执行；实际执行仍需调用方证据。未知异常类型、未知枚举返回unknown；不读取异常message/args/cause、局部变量、正文、模型输出、JWT或路径。该工具不装入生产对象图，不新增观测公共DTO，也不自动安装运行hook；以后需要真实采集时必须在未消费且预算明确的执行合同中接入，不能补写旧结果。
 
 追踪：REQ-KQUALITY-003→DR-KEV-032→IMPL-KEV-015（一个生产覆盖模块和已有测试投影）→TEST-KEV-022（逐类拒绝原因、深调用栈无关、恶意异常不读取、父异常兼容/公开映射不变、当前Summary解码后拒绝反例、旧摘要任务及validator哈希不变）→VAL-KEV-014（定向pytest、strict mypy、compileall及Knowledge/Core/Business回归）。回滚整个代码提交，不修改冻结历史；无配置默认值、网络、持久状态或Java/HTTP变更。
 
@@ -406,7 +406,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 依据用户2026-09-09补充和REQ-KQUALITY-002/004，住宿问题是诊断样本，不是整体检索质量的单题硬门槛。资料未录入、不完整或尚未核实，应分别记录corpus_gap/unknown；已确认必要原文存在却未召回，仍计为检索损失。阶段B整体实现仍需验证一次性选域、改写保真、排名、权限和失败语义，不能以改变目标名称豁免真实缺陷。
 
-建议新增测试侧零I/O纯函数`tests/evaluation/knowledge/retrieval_metrics.py::score_retrieval`，只消费人工确认的来源标识、排名和可选相关性分级，不消费问题正文、模型回答或在线gold。来源身份为不可变(chunk_id, sha256)；每项必要依据可以预先声明多个人工核验的等价来源，同一来源可支持多项依据。不得从向量相近、标题相同或模型答案自动推断等价。旧固定chunk/gold与历史分数不修改；新指标是额外分层观察，不是对旧验收重新判通过。
+已新增测试侧零I/O纯函数`tests/evaluation/knowledge/retrieval_metrics.py::score_retrieval`，只消费人工确认的来源标识、排名和可选相关性分级，不消费问题正文、模型回答或在线gold。来源身份为不可变(chunk_id, sha256)；每项必要依据可以预先声明多个人工核验的等价来源，同一来源可支持多项依据。不得从向量相近、标题相同或模型答案自动推断等价。旧固定chunk/gold与历史分数不修改；新指标是额外分层观察，不是对旧验收重新判通过。
 
 输入上限：k为整数1～80（不接受bool）；有序候选≤80、Evidence≤8、必要依据组1～8、每组来源1～16、分级表≤256；来源ID为1～256个ASCII字母/数字/点/下划线/横线/#，sha256为64个小写十六进制字符。引用/分级不得重复或矛盾，Evidence必须属于提供的候选池。仅present状态允许非空必要依据；missing/unknown须空依据，指标为null而非1或0，调用方必须保留这些case及数量。工具拒绝不满足合同的输入，不截断、不补标签。
 
@@ -414,7 +414,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 同语料/问题集的配对比较必须固定未改变因素，分别绑定旧/新代码、配置、Profile、索引、embedding及rerank快照；历史手工计划只证明给定计划后的检索，不能代替真实LLM选域/改写或端到端。代表性问题集须包含非住宿题及不参与调参的留出集，在新测量前人工确认依据和标准；不得根据已看到结果删除失败题或降低阈值。正文/附件问题进入语料清单；摘要502仍是运行缺陷，但不能据此将已成功的召回指标记为0。
 
-追踪：REQ-KQUALITY-002/004→DR-KEV-033→IMPL-KEV-016（建议新增上述测试纯函数）→TEST-KEV-023（无命中、多依据/等价来源、缺料/未知、未标注/null、分母、分级冲突、重复/超限、Evidence错源和不可变输入）→VAL-KEV-015（pytest、mypy及既有有限证据分层复算）。无新线上流程、服务、配置、模型任务、索引或付费调用；P3治理实施状态，UAT_01治理代表性case与实际测量。离线分层复算不能关闭新的整体质量验收。
+追踪：REQ-KQUALITY-002/004→DR-KEV-033→IMPL-KEV-016（上述测试纯函数已实施）→TEST-KEV-023（无命中、多依据/等价来源、缺料/未知、未标注/null、分母、分级冲突、重复/超限、Evidence错源和不可变输入）→VAL-KEV-015（pytest、mypy及既有有限证据分层复算）。无新线上流程、服务、配置、模型任务、索引或付费调用；P3治理实施状态，UAT_01治理代表性case与实际测量。离线分层复算不能关闭新的整体质量验收。
 
 ## 14. 实现落点清单
 
@@ -436,8 +436,8 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-012` | 已新增 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v5.py`；已修改 `bootstrap.KnowledgeCompositionRoot.task_definitions/build_provider` 的唯一Summary绑定和版本守卫；旧task/validator只读，non-live验证见P3 §20.17 |
 | `IMPL-KEV-013` | 已实施§9.5 Summary6/coverage validator及内部子类型；修改builder/Stage/当前根配对；保持旧serializer、policy及extractive validator |
 | `IMPL-KEV-014` | §9.6 Summary7仅更换指令和版本；同一V6 parser、当前根及Stage版本接缝 |
-| `IMPL-KEV-015` | §9.2.1 requirement_validation.py内的拒绝枚举/兼容异常及既有测试投影，建议修改；旧摘要validator字节、公开错误及通过条件不变 |
-| `IMPL-KEV-016` | §13.8测试侧分层检索计分纯函数，建议新增；不进入生产排序或历史判据 |
+| `IMPL-KEV-015` | §9.2.1 requirement_validation.py内的拒绝枚举/兼容异常及既有测试投影，已实施；旧摘要validator字节、公开错误及通过条件不变 |
+| `IMPL-KEV-016` | §13.8测试侧分层检索计分纯函数，已实施；不进入生产排序或历史判据 |
 
 ### 14.2 关键签名
 
