@@ -2299,3 +2299,18 @@ L2_01_02 v1.24复核三轮：①核对旧摘要文件/任务哈希与新覆盖�
 当前定向命令：新dataset/runner、计分/历史复算、旧probe、Business/Knowledge追踪组合`pytest -q -p no:cacheprovider --tb=short`为148 passed（1.13s）；`mypy --strict src tests/evaluation/knowledge/retrieval_benchmark_dataset.py`为137源文件通过，新增四Python文件compileall通过。最初测试2 failed/38 passed/2 errors（超长参数ID含setup/teardown），修正后直接41 passed，再补充反证由148项覆盖；未删除或弱化原历史断言。尚未执行新本地测量，不读取Key。
 
 源码冻结前正式隔离命令`agent-runtime/scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe`实际完成：host/preflight 14 passed（3.72s），全量3410 passed、27 skipped、0 failed（491.31s），1项既有LangChain预告。跳过均为既有opt-in/live或历史诊断，不能计为本次新UAT；该命令移除子进程Key且不消费真实运行。P3 strict为0错误/0警告，五项新资产凭据/JWT/私钥模式0命中，diff --check通过；生产src、serviceCenter、业务Java和历史资产零diff。此测试侧增量未重复Java/Maven或PowerShell AST（无相应改动），真实检索执行与其证据单列，不能用non-live替代。
+
+#### 20.63.1 本地测量完成与下一步决策
+
+协议提交`e24f883`、源码提交`0727bfd8e8bceb62f5044dcd4bfd253ab7eff802`已推送origin/codex；干净HEAD上运行`python -B -m tests.system_e2e.knowledge_retrieval_benchmark_v1 --execute --result D:\codex-data\knowledge-retrieval-benchmark-20260909-v1.jsonl`，仅子进程JDK25/PYTHONPATH配置并移除Key。终态measured，24题完成、23题必要来源齐全，分组指标见UAT_01 §14.41.1；实际search54/embedding24/rerank29，另1次本地合成预热、2次来源审计，0外部模型/Business/写索引/重试/续跑。运行产物按字节复制到测试evidence，未规范化或重写原记录；SHA一致，敏感key/凭据模式扫描0命中。owned PID 33904/34524停止已复查，临时原始日志已扫描删除，无旧服务停止或索引/alias变化。
+
+新`test_retrieval_benchmark_baseline.py`只读验证原SHA、绑定、24项原指标复算、KRB-006损失、预算及清理，不从测量终态推导UAT Passed；完整定向组合新增后149 passed（1.09s）。此前3410项正式全量不包含这一项新增的只读evidence测试，未伪报为3411全量。最终分离只读代码/证据复核确认薄runner复用当前授权检索、gold不参与在线评分、异常停批/零命中继续和来源前后检查；该切片Blocker/Major/未处理Minor=0，整体QUALITY仍Blocked、UAT仍In Progress。
+
+| 已确认问题/线索 | 证据与判断 | 最小后续处理 |
+|---|---|---|
+| 多文档同域查询召回损失 | KRB-006两份公告原文均存在且hash已验，但keyword/vector各20项均无必要来源，融合37项、按需求两次重排仍无法补回 | 先对开发集上的单/多文号规范化及有界查询表达做同快照对照；不以增大最终topK或改摘要解决召回前损失 |
+| 文号检索字段未参与keyword | 当前KnowledgeSearchService使用Profile的title/content/section做multi_match；现行mapping的documentNo为keyword且只是返回字段 | 先核实文号表达及metadata匹配方案；不能仅把keyword型documentNo加入全文query就声称可解决。不先重建向量库 |
+| 改写语义校验误把问句前缀纳入文号 | KRB-015准备阶段核实_DOCUMENT将“请分别查找财税〔2011〕100号”当完整文号 | 独立修正文号边界的设计与测试，保留年份/编号/否定约束；不通过弱化validator或逐句业务特判解决 |
+| 结构覆盖与语义覆盖不同 | KRB-006 selectionSufficient=true但必要来源覆盖0；本轮没有Summary | 结构校验不作为答案充分性结论；保留外部事实/引用核对，不伪造本次摘要结果 |
+
+当前决策：先修复有证据支持的查询表达/召回覆盖问题，再以同快照代表集和不参与调参的留出集验证；只有仍存在可定位的向量表示/切片损失时，才提出最小结构改进和候选索引对照。现有基线23/24并不证明无需任何结构改进，也不证明已达到整体准确率目标。尚缺完整相关性分级、新旧对照、真实Rewrite及摘要后置失败收口；不再以住宿单题必须答出为质量唯一门槛，不自动产生新付费运行。

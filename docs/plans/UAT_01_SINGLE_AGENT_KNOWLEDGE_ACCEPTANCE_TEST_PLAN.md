@@ -817,3 +817,17 @@ run-11按§14.36一次执行，终态Failed/consumed；001通过澄清（model2�
 三轮聚焦内审依次核查并收紧：①按文档族而非句式分组，避免相邻改写泄漏到留出集，声明首批present-only和标注来源限制；②当前生产context rerank与历史raw adapter区分，gold只在来源检查/结果计分侧；③区分零命中与技术失败，旧probe把所有非SUCCESS当故障，新benchmark须以当前Stage原始NO_RESULT记录零命中而非伪造SUCCESS，技术失败停止批次，调用计数和owned资源清理仍复用已有组件。只在测试编排层实现这个分支，不改生产状态和历史probe。
 
 与编辑分离的只读设计复核对照REQ-KQUALITY-002/004、L1_01 §4.6、DR-KEV-033、当前Java Profile/Stage及本节：来源、固定域/需求、指标、预算、失败终态和前后快照边界闭合，允许上述测试基准切片实施，S0/S1/未处理S2=0。这是同一执行者分阶段审查，不是外部独立人员批准；不作整个阶段B、gold人工独立评审或真实UAT通过结论。
+
+#### 14.41.1 本地基线实测及边界
+
+源码`0727bfd8e8bceb62f5044dcd4bfd253ab7eff802`完成一次测量，有限原始记录为`agent-runtime/tests/evaluation/knowledge/retrieval_benchmark.result.v1.jsonl`，SHA-256=`1cc5f91c6ca5d7d9edb45354be17ca1c0b8a498b30c7e64cb3c78ff3febb521c`。24题全部measured，没有技术中断；23题全部必要来源进入Evidence，KRB-006两份公告期限查询的两个必要来源均未进入keyword/vector窗口、最终候选或Evidence。保留该损失，不删除题目、补造等价来源或更改gold。住宿两题均命中必要来源，但不是两次真实模型回答成功。
+
+| 分组 | 题数/完整必要来源入选 | 平均必要来源Recall@20 | MRR@20 | 平均Evidence覆盖 |
+|---|---|---|---|---|
+| 开发集 | 16/15 | 0.9375 | 0.90625 | 0.9375 |
+| 文档族留出集 | 8/8 | 1 | 1 | 1 |
+| 全部 | 24/23 | 0.958333 | 0.9375 | 0.958333 |
+
+上述是按题等权、对已知必要来源的指标，不是Precision、全库准确率或端到端UAT通过率；所有非空结果缺少完整相关性分级，Precision/nDCG保持null。KRB-006的结构性`selectionSufficient=true`不等于语义证据充分：两来源在两个召回窗口均缺失，后续ranker无从补回；本次没有执行Summary，不能推测最终答复是否会被拒绝。已保存的所有排名和旧失败不变。
+
+本地实际计数search54、embedding24、rerank29，合成预热另1；来源前后审计2次。外部模型、Business、写索引、retry/resume均0，没有读取Key或创建run-13。前后HEAD、绑定、索引身份、Java资产及本地模型身份一致；本次owned进程已停止，原始日志扫描并删除。检索基线测量有效，但未实施或证明进一步质量提升，整体阶段B/UAT不据此关闭。
