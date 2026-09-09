@@ -2184,3 +2184,11 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 直接顺序：§14.34三轮内审/设计复核→版本化单次诊断工具及fake→提交冻结→一次执行→根据有限原因最小修复/设计评审→当前根non-live→有界正式专项→整体评审/Git。新增文件仅`tests/system_e2e/knowledge_rewrite_diagnostic_v1.py`及直接测试，复用已验证错误投影，增加固定throwSite枚举；不改公共观测、旧任务或历史运行。UAT=In Progress，QUALITY仍Blocked，诊断本身不能关闭整体目标。正常范围内不再向用户重复申请，但仍禁止重试已消费运行或无根因地追加付费批次。
 
 诊断准入：首轮fake发现三项静态行号映射偏差和一个测试环境mock作用域错误，已对照冻结代码修正行号、限制mock存活期，不改生产断言。合并诊断/旧probe/run-09历史回归58 passed（14.26s）；追加import-source和binding先于client校验后，最终直接20 passed（0.85s）。`mypy --strict src`135源文件、两文件compileall、P3 strict及diff检查通过。代码复评两轮分别核对有限site、零原文、同一decoder、未知异常不检查、消费前落盘、导入来源/字节绑定、仅1个HTTP、超时取消和client关闭；无未处理Blocker/Major。上述为分离编辑后的同一执行者复核，不冒充外部独立人员审查，fake不证明真实失败原因。测试工具未进入生产，无Java或索引改动，不为单任务诊断重跑无关Maven。
+
+### 20.59 真实单任务结果与完整链路续进
+
+文档提交`e6af884`、测试工具提交`6e864a5f6ce8f07165362e13ded0fbc249706035`已推送codex。后者为单次诊断frozen HEAD，manifest SHA=`dca59ed52e9dd007c41aa1c0f273a158404a1f6cd4fb89b5d89d4c49d49d29ac`。prepare不读Key、execute独占执行一次：Rewrite8成功，search/1查询/1要求；模型1、其他调用全0，client关闭。最终合并fake/probe/run-09历史60 passed（15.49s）。没有重现旧失败，不宣称B-R9-OUTPUT-001已定位或修复。
+
+下一直接工作依据UAT_01 §14.35，在原版本和原十例中接入有限失败观察，形成新的有界完整测量；不改变Prompt、validator、索引或gold。新runner最小复用v9生命周期，新增九批历史及独立诊断绑定，不复制服务启动或Runtime。正常推进不再重复请求权限。WP-KRETRIEVAL-UAT-01=In Progress、QUALITY=Blocked，正式十例/核心P0及最终评审仍未完成；不以这一次单任务成功关闭工作包。版本化证据目录及执行终态随后按真实结果追加。
+
+单任务四文件逐字节归档于`tests/system_e2e/knowledge_rewrite_diagnostic_01/`，固定hash由新runner绑定。run-10代码复核第一轮发现历史result只统计在线rerank，不含run-09 startup1；已将startupCalls单列纳入总预算，不改旧结果或放宽总数。第二轮检查原任务/十例/gold/解码器、有限异常无消息、回调一次、patch恢复、先绑定后Key、消费/预算、当前context对象图及服务生命周期，无未处理Blocker/Major（仅此接缝范围，非阶段B整体通过）。新旧runner/诊断/probe/run-09历史五文件联合206 passed（23.79s），新增compileall及strict mypy135源文件通过，P3 strict零错误/警告；没有Java/生产源码变化。本次不以重复Maven或无关全量代替待执行真实专项。
