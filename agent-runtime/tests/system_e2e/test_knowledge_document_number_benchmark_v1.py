@@ -1,7 +1,10 @@
 """The comparison cannot silently change the corpus, models or production config."""
 from copy import deepcopy
 from io import BytesIO
+import hashlib
 import json
+from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -62,10 +65,13 @@ def test_prepared_comparison_rejects_baseline_drift(key):
         runner.validate_prepared(value, baseline)
 
 
-@pytest.mark.parametrize("value,allowed", [({}, False), ({"defaults": {"search.allow_expensive_queries": "false"}}, False),
-    ({"defaults": {"search.allow_expensive_queries": "true"}, "persistent": {"search.allow_expensive_queries": False}}, False),
-    ({"persistent": {"search.allow_expensive_queries": "false"}, "transient": {"search.allow_expensive_queries": "true"}}, True),
-    ({"persistent": {"search.allow_expensive_queries": "unknown"}}, False)])
+@pytest.mark.parametrize("value,allowed", [({}, False), ({"defaults": {"search": {"allow_expensive_queries": "false"}}}, False),
+    ({"defaults": {"search": {"allow_expensive_queries": "true"}}, "persistent": {"search": {"allow_expensive_queries": False}}}, False),
+    ({"persistent": {"search": {"allow_expensive_queries": "false"}}, "transient": {"search": {"allow_expensive_queries": "true"}}}, True),
+    ({"defaults": {"search": {"allow_expensive_queries": "true"}}}, True),
+    ({"persistent": {"search": {"allow_expensive_queries": "unknown"}}}, False),
+    ({"defaults": {"search.allow_expensive_queries": "true"}}, False),
+    ({"defaults": []}, False), ({"defaults": {"search": None}}, False), ([], False)])
 def test_cluster_settings_precedence_without_relaxing_cluster(value, allowed):
     assert runner.expensive_queries_allowed(value) is allowed
 
@@ -84,8 +90,12 @@ def test_wrapper_reuses_benchmark_and_restores_on_success_or_failure(monkeypatch
     monkeypatch.setattr(base, "artifact_hashes", lambda: dict(baseline["artifactHashes"]))
     monkeypatch.setattr(base, "check_index", lambda *a: reads.append("index"))
     monkeypatch.setattr(base, "emit_line", lambda stream, value: emitted.append(value))
-    support = SimpleNamespace(subprocess=SimpleNamespace(Popen=lambda *a, **kw: started.append(a)),
-        bounded_request=lambda c, m, u: (reads.append(m) or 200, b'{"defaults":{"search.allow_expensive_queries":"true"}}'))
+    def request(client, method, url):
+        assert method == "GET" and "flat_settings=false" in url
+        reads.append(method)
+        return 200, b'{"defaults":{"search":{"allow_expensive_queries":"true"}}}'
+
+    support = SimpleNamespace(subprocess=SimpleNamespace(Popen=lambda *a, **kw: started.append(a)), bounded_request=request)
     monkeypatch.setattr(base, "load_support", lambda: support)
     before = base.load_support, base.artifact_hashes, base.check_index, base.emit_line, base.ObservedSearch
 
@@ -151,3 +161,17 @@ def test_missing_launch_is_failed_terminal_not_lost_evidence(monkeypatch):
     assert runner.main() == 1
     assert emitted[0]["status"] == "failed" and emitted[0]["profileFlagLaunches"] == 0
     assert emitted[0]["failureReason"] == "probe_artifacts_changed"
+
+
+def test_original_preflight_failure_and_source_revision_remain_verifiable():
+    path = runner.BASELINE.with_name("document_number_benchmark.preflight-failure.v1.jsonl")
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "7489e996950a79d4c10cda8f886c86332b1280b535ccce29b791e88c3b159f85"
+    prepared, terminal = (json.loads(line) for line in raw.splitlines())
+    assert prepared["head"] == "8ec1160dc72985370efd24b253dd3da25f76cd8a"
+    source = subprocess.check_output(["git", "show", prepared["head"] +
+        ":agent-runtime/tests/system_e2e/knowledge_document_number_benchmark_v1.py"], cwd=runner.base.REPO)
+    assert hashlib.sha256(source).hexdigest() == prepared["comparisonSha256"]
+    assert terminal["status"] == "failed" and terminal["clusterSettingReads"] == 1
+    assert terminal["counts"] == {"search": 0, "embedding": 0, "rerank": 0}
+    assert all(terminal[k] == 0 for k in ("modelCalls", "businessCalls", "indexWrites", "profileFlagLaunches", "retry", "resume"))

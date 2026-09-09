@@ -74,9 +74,14 @@ def configured_support(support, state):
 
 
 def expensive_queries_allowed(value):
+    if type(value) is not dict:
+        return False
     setting = None
     for source in ("defaults", "persistent", "transient"):
-        setting = value.get(source, {}).get("search.allow_expensive_queries", setting)
+        layer = value.get(source, {})
+        if type(layer) is not dict or type(layer.get("search", {})) is not dict:
+            return False
+        setting = layer.get("search", {}).get("allow_expensive_queries", setting)
     return setting is True or type(setting) is str and setting == "true"
 
 
@@ -99,7 +104,7 @@ def main():
         with httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False, follow_redirects=False,
                           timeout=5, headers={"Accept-Encoding": "identity"}) as client:
             status, raw = support.bounded_request(client, "GET", "/_cluster/settings?include_defaults=true"
-                "&flat_settings=true&filter_path=defaults.search.allow_expensive_queries,"
+                "&flat_settings=false&filter_path=defaults.search.allow_expensive_queries,"
                 "persistent.search.allow_expensive_queries,transient.search.allow_expensive_queries")
         if status != 200 or not expensive_queries_allowed(json.loads(
                 raw, object_pairs_hook=base._unique, parse_constant=base._reject_constant)):

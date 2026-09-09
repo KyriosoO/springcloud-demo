@@ -2402,3 +2402,7 @@ Maven数字来自本次控制台，未计入target里2026-08-24遗留的Structur
 代码/测试初次定向129 passed；分离编辑的首轮复核B-DOCNO-BENCH-001发现终态计数不一致时抛出异常会丢失有限terminal，改为原终态对象status=failed并保留非零退出；新增反证。另将缺失cluster开关视为未知拒绝，严格解码重复JSON，未放宽集群设置。修复后定向130 passed（1.55s）、当前src strict mypy 137源文件通过、新增两Python文件compileall通过。最终复评和执行结果另列；目前无新增真实请求，无生产启用。
 
 最终新增runner/原benchmark/基线/dataset/metrics、Business/Knowledge追踪及Stage B/P5历史联合回归213 passed（110.17s），1项既有LangChain预告。第二轮只读代码复评对照DR-KRET-035和§14.43核实原脚本及全局subprocess不变、单次固定flag、真实模型身份/Java配置绑定、一次检索/失败无重试、计数异常保留终态、来源与旧证据不可变；本测试切片Blocker/Major/未处理Minor=0，不冒充独立外部人员或实际效果评审。执行协议是既定VAL的有限绑定和预先判据，未改变设计；P3依赖定向复核保持无环，UAT/QUALITY状态不变。精确两文件凭据模式0命中、diff --check通过。下一步在提交后的clean HEAD上执行一次非付费对照，结果只写新路径，不重跑原基线。
+
+首次准备提交`8ec1160dc72985370efd24b253dd3da25f76cd8a`执行在cluster前检停止，search/embedding/rerank/model及隔离服务启动均0；唯一运行前检GET=1。有限原记录SHA=`7489e996950a79d4c10cda8f886c86332b1280b535ccce29b791e88c3b159f85`，逐字节保存在`tests/evaluation/knowledge/document_number_benchmark.preflight-failure.v1.jsonl`。两次追加只读配置核查证明`flat_settings=true`和嵌套filter_path组合返回空对象，而nested形式返回defaults.search.allow_expensive_queries=true；根因为Harness响应形状错误，不是ES配置拒绝或召回缺陷，不修改cluster。
+
+最小修复当前测试runner使用nested响应和精确类型/优先级判定；新增真实形状、空响应、畸形层、false优先及旧失败SHA/冻结提交源码hash反证，原benchmark/helper/dataset/result不变。定向136 passed（1.68s）。聚焦复评核对只有GET形状修复、未知仍拒绝、旧结果不续写及零题目消费；Blocker/Major/未处理Minor=0。修复后新提交、新结果路径开始首次24题测量，预算仍54/27/29+预热1；旧前检终态不改，不补跑任何题目或付费运行。完整相关性与真实摘要仍未关闭。
