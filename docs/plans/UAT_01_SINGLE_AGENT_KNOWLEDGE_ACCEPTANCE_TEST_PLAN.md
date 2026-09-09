@@ -746,3 +746,11 @@ run-10预检完成一次本地rerank预热后，三个隔离Java服务均报Unsu
 相同持续授权下新`knowledge-stage-b-uat-v11-20260909-run-11`、reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-11`只修复测试子进程Java选择：固定已安装JDK25、先验证major版本和PATH解析，再执行任何预热/服务启动；将java.exe SHA及版本加入manifest，每次前置及末尾验证一致。只修改子进程环境，退出恢复，不改全局变量、不安装依赖、不改变生产或历史runner。其余沿用§14.35原十例及10/28/32/16/32+启动1预算，模型累计上限仍71（独立诊断另1），本地rerank累计上限49，新增1是run-10已发生预热而非遗漏调用。
 
 三轮聚焦内审分别核查环境因果、预热前版本失败关闭、旧目录不重用及累计计数；分离编辑后的只读设计复核确认这是现有启动合同实现缺陷而非检索/公共接口设计变化，S0/S1/未处理S2=0。新增薄启动器和direct fake后方可提交冻结执行；不再重复上位设计改版或建立新Gate，不把环境修复当UAT通过。
+
+### 14.37 完整链路中的摘要遗漏与最小修订
+
+run-11按§14.36一次执行，终态Failed/consumed；001通过澄清（model2，其余0），015a失败（model3/search2/embedding1/在线rerank1）。015a的动作选择、Rewrite8、Summary6均成功，返回HTTP200/1point，但只引用下位定义，未引用问题明确要求的上位分类关系。必要的两份原文均在实际授权Summary输入内（最终Evidence第1和第4位），有限判据为lodging=true、living=false、required_source_not_cited；不能据此归因为语料或召回缺失，也不能把HTTP200当通过。004、002、003、005、006、015b、016、008均Not executed，首个失败后停止。
+
+实际E2E/model/search/embedding/在线rerank=2/5/2/1/1；另启动rerank1，Business/answer/retry/resume=0。前后索引/模型身份、owned服务关闭及原始日志删除通过。八个原始文件逐字节归档于`tests/system_e2e/knowledge_stage_b_run_11/`，绑定与hash见P3/evidence；禁止复用。此前十批、单次Rewrite诊断及既有功能35/37证据结论不变。
+
+只新增Summary7通用指令，要求定义与问题显式分类关系都由实际quote支持，一个requirement可引用多点，但一段已充分时不强求多ref；当前先按L2_01_02 §9.6和L2_01_00 §8.7完成设计复核再实施。Rewrite8、输入输出合同、decoder、validator、索引、排序及原十例gold保持不变。先定向/fake、当前根/Spring和全量验证及代码复评，随后依据持续授权冻结新版本的有界完整专项。已结束批次不重用；测试通过不代表真实效果达标，当前专项仍未完成。

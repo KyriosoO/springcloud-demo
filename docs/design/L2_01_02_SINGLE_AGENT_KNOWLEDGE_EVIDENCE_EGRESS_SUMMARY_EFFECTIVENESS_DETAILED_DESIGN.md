@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.21 |
+| 当前版本 | v1.22 |
 | 日期 | 2026-09-07 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KEV-029/030已实施并成对接线，生产Summary6/quality-v3；组件与完整对象图non-live证据归P3 §20.39～20.40，真实效果待验证 |
+| 本次增量 | DR-KEV-031细化原问显式分类关系的引文证明，目标Summary7仅改Prompt；当前仍Summary6，增量评审后实施，状态由P3治理 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、Summary V6/quality-v3生产接线及non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.22 | 2026-09-09 | 必要分类原文已进入模型但回答只引用下位定义 | Summary7明确原问分类前提也需引用支持，复用V6精确decoder/coverage/原文校验；不改检索或强制固定引用数 |
 | v1.21 | 2026-09-07 | 引用合法与问题覆盖缺少可核对关联 | 设计需求锚点预算及Summary6严格coverage，保留旧任务/输入序列化/抽取validator，公共结果与出域权限不改 |
 | v1.20 | 2026-09-04 | 同一规范性文件的必要第四条款可能被文档配额排除 | DR-KEV-028与quality_v2()取消独立父文档配额，保持总8/32KB、域覆盖、出域和引用限制，历史V1不改 |
 | v1.19 | 2026-09-04 | 用户确认分类上下文证明要求后恢复执行 | 新增DR-KEV-027及Summary V5实施/测试映射；保留V4、公共Schema、validator和gold，区分指令合同验证与真实语义效果 |
@@ -89,6 +90,7 @@
 | `REQ-KEV-003`、`CON-KEV-001`、`CON-KEV-004`；`L1_01 KQ-AD-017` | `DR-KEV-027` | `IMPL-KEV-012`、`IMPL-KEV-006` | `TEST-KEV-018` | `VAL-KEV-010` |
 | `REQ-KEV-001`、`CON-KEV-003`；`KQ-AD-014` | `DR-KEV-028` | `IMPL-KEV-001`、`IMPL-KEV-002`：builder版本校验、limits新工厂和bootstrap成对绑定 | `TEST-KEV-019`：第四同文档条款、总8/字节、域覆盖、错配/未知版本、三层出域及历史cap | `VAL-KEV-011`：Evidence/current root/历史反例、全量non-live及专项原文覆盖 |
 | `REQ-KEV-001`、`REQ-KEV-002`、`REQ-KEV-003`、`CON-KEV-001`、`CON-KEV-003`、`CON-KEV-004`；`KQ-AD-018` | `DR-KEV-029`、`DR-KEV-030` | `IMPL-KEV-013` | `TEST-KEV-020` | `VAL-KEV-012` |
+| `REQ-KEV-001`、`REQ-KEV-003`；`KQ-AD-018` | `DR-KEV-031` | `IMPL-KEV-014` | `TEST-KEV-021` | `VAL-KEV-013` |
 
 ## 5. 关联资源与责任边界
 
@@ -150,6 +152,7 @@ Evidence Stage 必须在模型 Gateway 边界吸收非取消、非超时异常�
 | `DR-KEV-028` | §7.3及文末V2：取消独立父文档配额，版本/limits匹配，保留域覆盖、总8/32768bytes、三层出域与引用校验 |
 | `DR-KEV-029` | §9.5已实施需求锚点完整性、同预算选择及包含需求的实际出域载荷计量 |
 | `DR-KEV-030` | §9.5已实施Summary6类型及coverage精确合同，源/域/引文绑定后仍执行旧抽取validator |
+| `DR-KEV-031` | §9.6要求原问题中的分类限定得到实际quote支持；Summary7复用V6合同，不把用户前提、检索到的未引用正文或coverage布尔值当作证明 |
 
 ### 7.2 完整性复核
 
@@ -265,6 +268,22 @@ V6使用同一ModelGateway一次Summary调用，不增加复核模型；模型�
 `IMPL-KEV-013`（已实施）：新增`evidence/summary_task_v6.py`及`evidence/requirement_validation.py`；内部类型置于evidence/contracts.py，源需求类型仅引用knowledge/contracts.py；builder消费候选标签并使用新payload预算函数；stage对V3在同一流程执行新类型构造及coverage validator；bootstrap全套单绑定。policy目录、decider授权算法、旧Summary1～5源码/序列化函数、summary_validation.py、公共DTO及历史数据保持不变。
 
 `TEST-KEV-020`（已实现`tests/contract/knowledge/test_summary_task_v6.py`、`tests/unit/knowledge/evidence/test_requirement_coverage.py`及当前根集成）：同域不同需求首位/重复anchor去重、4需求/8证据/32KiB包含需求开销、空需求错配、漏ID/增ID/重复ID/错域/错ref/同文不同来源、point未被使用、仅全文含答案而quote不支持的语义保留反例；合法一引文覆盖多需求、多来源联合支持、insufficient、非法/超时/取消、三层拒绝Summary0、旧输入序列化/任务hash不变。对语义反例不伪称本地能自动识别，人工原文评分应判失败。`VAL-KEV-012`要求新合同与生产对象图fake、现有子串/权限/Knowledge/Business历史全量、类型和Spring回归；新真实效果仍待有权限的独立验证，不复用已消费运行。
+
+### 9.6 显式分类前提与定义的联合证明（DR-KEV-031；目标待实施）
+
+依据REQ-KEV-001/003及KQ-AD-018的“全部显式条件需原文支持”。根因证据见UAT_01/P3：必要上位分类和下位定义都进入了实际Summary输入，但只引用了下位定义。本地coverage校验没有语义蕴含能力，不应伪装能自动发现该遗漏。这里只细化既有模型责任，不新增本地行业规则。
+
+方案比较：扩大topK、修改ES或rerank不能修复已经入选而未引用的关系；按特定行业/文档ID补引文会把gold植入生产；增加第二个判断模型扩大成本且不提供确定保证。因此先只新增Summary7的通用Prompt，不同时改变Rewrite8或检索算法。
+
+1. 用户原问的上位类别、子类定义及归属关系若构成问题的显式限定，不能把该归属当作已证事实。定义与所属关系都是回答需支持的要点；未被requirements单独列出的显式要点仍需核对。
+2. quote集合必须同时支持定义和必要的分类关系。单份连续原文已同时证明时一个point即可；证据分散时允许同一个requirement的coverage引用多个不同point，不能因为只有r1而只输出一条引文。不得机械强制两个ref，也不加入固定行业、文档或case示例。
+3. 最小性仅在完整性满足后成立。返回前检查“删除某point是否失去原问题一个显式要点”；不得把未引用全文、标题推测或模型常识补成分类桥接依据。仅有定义而关系缺证据时保持insufficient_evidence，不输出部分肯定答案。
+4. 新`evidence/summary_task_v7.py::KnowledgeSummaryTaskV7.definition()`（建议新增）复用V6公开definition及**同一parse_response对象**，build_request复用V6工厂后仅修改version与指令。输入schema2、输出、类型、1～5points/唯一ref/512字符、32KiB、1536tokens/15秒及三层出域全部不变。coverage及extractive validator均不改。
+5. `bootstrap.KnowledgeCompositionRoot`唯一配对Rewrite8/Summary7/quality-v3。EvidenceStage显式允许合同相同的6和7用于受控历史构造；生产根拒绝6及未知版本，不提供热切换或fallback。旧V6和历史manifest/evidence字节不可变；回滚仍为禁用或整套源码回退。
+
+追踪：REQ-KEV-001/003→DR-KEV-031→IMPL-KEV-014（新任务/当前root/Stage版本检查）→TEST-KEV-021（`tests/contract/knowledge/test_summary_task_v7.py`、当前需求Runtime集成与Spring fake）→VAL-KEV-013（定向、类型、Spring、隔离全量及原十例UAT）。测试覆盖单条原文足够、两来源共同证明一个需求、仅有定义的语义保留反例、拒绝/超时/错域/错引用零回退；只验证Prompt和fake不能证明真实语义，原UAT gold不变。冻结旧runner依赖其冻结Git根/fixture，不为了历史断言保留旧生产绑定。
+
+三轮内审：①把根因限定为摘要遗漏而非推断Rewrite缺陷，避免同时修改两任务；②明确同一需求可引用多个point、一份证据可独立完整，防止机械增加引用数；③保持全部旧validator、预算/权限、历史资产及实际UAT责任。独立于编辑步骤的只读设计复评通过，S0/S1/未处理S2=0，仅允许该增量实施；同一执行者分阶段复核，不冒充外部独立人员评审。当前模型效果仍未通过。
 
 ## 10. Evidence Stage 核心流程、错误分类与调用方可见语义
 
@@ -392,6 +411,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-011` | `agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog-v2.json` 与 current/legacy 双加载接缝；阶段 A policy catalog 生成器和全成员 validator 位于 `knowledge-corpus-tools`。全新官方父文档只能选择既有同域 policy，禁止新增 disposition、放宽字段上限或扩大角色 |
 | `IMPL-KEV-012` | 已新增 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v5.py`；已修改 `bootstrap.KnowledgeCompositionRoot.task_definitions/build_provider` 的唯一Summary绑定和版本守卫；旧task/validator只读，non-live验证见P3 §20.17 |
 | `IMPL-KEV-013` | 已实施§9.5 Summary6/coverage validator及内部子类型；修改builder/Stage/当前根配对；保持旧serializer、policy及extractive validator |
+| `IMPL-KEV-014` | §9.6 Summary7仅更换指令和版本；同一V6 parser、当前根及Stage版本接缝 |
 
 ### 14.2 关键签名
 
@@ -481,6 +501,7 @@ def classify_conclusion(
 | `TEST-KEV-018` | 新增 `tests/contract/knowledge/test_summary_task_v5.py` 与当前生产根集成测试；复用 `tests/unit/knowledge/evidence/test_summary_proof_boundaries.py`、stage失败矩阵；历史run-01～03和任务hash保持不可变 |
 | `TEST-KEV-019` | V2匿名同父第四条入选、第九条拒绝、byte预算、必需域/锚点、错误版本/limits在summary前拒绝、legacy2/V1三条与policy/validator不变 |
 | `TEST-KEV-020` | §9.5需求标签、完整/不足、coverage错源/错域/漏项、预算与出域、精确输入类型及旧序列化；合成反例不冒充语义效果 |
+| `TEST-KEV-021` | §9.6单来源完整、多来源联合证明同一需求、定义不足、Prompt/decoder identity及当前根 |
 
 ### 15.2 验证编号定义
 
@@ -497,6 +518,7 @@ def classify_conclusion(
 | `VAL-KEV-010` | V5合同/生产根/Stage失败及历史回归、strict mypy、compileall通过；真实分类证明效果单独记为Evidence missing，不由non-live关闭 |
 | `VAL-KEV-011` | 新V2选择/当前根与旧反例同时通过，strict mypy/全量non-live/历史hash通过；真实原文覆盖必须单独执行专项 |
 | `VAL-KEV-012` | §9.5新合同、当前根fake、历史/类型/全量Knowledge与Business、Spring回归及来源对应验收；不复用旧效果Passed |
+| `VAL-KEV-013` | §9.6定向、类型、Spring、隔离全量与不改gold的原十例专项；Prompt测试不替代真实效果 |
 
 ## 16. 风险与保护条件
 
