@@ -20,15 +20,15 @@ def encode(values):
 
 def test_partial_review_does_not_turn_unjudged_sources_into_zero():
     result = review.evaluate_review()
-    assert (result["status"], result["reviewedCases"], result["totalCases"]) == ("partial", 4, 24)
-    assert (result["reviewedPairs"], result["totalPairs"]) == (81, 483)
+    assert (result["status"], result["reviewedCases"], result["totalCases"]) == ("partial", 8, 24)
+    assert (result["reviewedPairs"], result["totalPairs"]) == (163, 483)
     assert result["overallGradedMetrics"] is None
-    assert all(c["gradedMetrics"] is None and c["status"] == "unreviewed" for c in result["cases"][4:])
-    assert all(c["status"] == "executor_reviewed" for c in result["cases"][:4])
-    for case in result["cases"][:4]:
-        for metrics in case["gradedMetrics"].values():
+    assert all(c["gradedMetrics"] is None and c["status"] == "unreviewed" for c in result["cases"][8:])
+    assert all(c["status"] == "executor_reviewed" for c in result["cases"][:8])
+    for case in result["cases"][:8]:
+        for version, metrics in case["gradedMetrics"].items():
             assert metrics["unjudged_top_count"] == 0
-            assert metrics["evidence_coverage"] == 1
+            assert metrics["evidence_coverage"] == (0 if case["caseId"] == "KRB-006" and version == "baseline" else 1)
 
 
 def test_initial_source_judgments_are_append_only():
@@ -36,10 +36,15 @@ def test_initial_source_judgments_are_append_only():
     assert hashlib.sha256(initial).hexdigest() == "35d85862eba1f1b6994ac2b2c84cf06f29a0b74cd6e9115cdcea9550ee4ae200"
 
 
+def test_second_source_review_batch_is_append_only():
+    second = b"\n".join(review.PATH.read_bytes().splitlines()[:10]) + b"\n"
+    assert hashlib.sha256(second).hexdigest() == "35e57fbe73ba5aca298c160786e343d5657a4f808169f63de18e94c8f1fed322"
+
+
 def test_rank_scoring_matches_independent_arithmetic_and_shared_pool():
     result = review.evaluate_review()
     ledger = {v["caseId"]: v for v in rows() if v["event"] == "case_review"}
-    for case in result["cases"][:4]:
+    for case in result["cases"][:8]:
         grades = {v["chunkId"]: v["grade"] for v in ledger[case["caseId"]]["judgments"]}
         ideal = sum((2 ** g - 1) / math.log2(i + 2)
                     for i, g in enumerate(sorted(grades.values(), reverse=True)[:20]))
@@ -63,6 +68,26 @@ def test_evidence_grade_bins_keep_high_score_historical_parallel_visible():
     assert sum(case["evidenceGradeCounts"]["legacy"]) == 8
     assert "not_independent_blind_review" in result["limitations"]
     assert "no_equivalent_source_added" in result["limitations"]
+
+
+def test_document_number_gain_does_not_hide_remaining_irrelevant_evidence():
+    case = review.evaluate_review()["cases"][5]
+    baseline, comparison = (case["gradedMetrics"][key] for key in ("baseline", "comparison"))
+    assert baseline["necessary_recall_at_k"] == baseline["precision_at_k"] == 0
+    assert comparison["necessary_recall_at_k"] == 1
+    assert comparison["precision_at_k"] == 0.1
+    assert comparison["ndcg_at_k"] == 1
+    # Both selectors replay the improved retrieval pool. They are not a
+    # comparison with the original retrieval baseline above.
+    assert case["evidenceGradeCounts"] == {"legacy": [6, 0, 0, 2], "candidate": [6, 0, 0, 2]}
+
+
+def test_background_grade_is_not_promoted_to_direct_support():
+    case = review.evaluate_review()["cases"][4]
+    assert case["evidenceGradeCounts"] == {"legacy": [0, 6, 1, 1], "candidate": [0, 6, 1, 1]}
+    ledger = next(v for v in rows() if v.get("caseId") == "KRB-005")
+    assert sum(v["grade"] == 3 for v in ledger["judgments"]) == 1
+    assert all(v["grade"] == 1 for v in ledger["judgments"] if v["reason"] == "historical_parallel")
 
 
 @pytest.mark.parametrize("field,value", [
