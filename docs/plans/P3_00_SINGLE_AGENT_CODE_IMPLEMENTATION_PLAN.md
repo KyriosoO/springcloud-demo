@@ -56,11 +56,11 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成，见§20.52～20.53 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.27 | DR-KFLOW-024～026需求计划、澄清及当前摘要配对 | Approved；已实施，当前验证见§20.60 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.28 | DR-KFLOW-024～027需求计划、澄清、当前摘要配对及文号边界 | Approved；已实施，文号增量non-live验证见§20.64.1 |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.15 | 需求排序、向量发布、合成预热及授权上下文评分 | Approved；局部实施完成，阶段B质量/UAT仍未完成 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.24 | DR-KEV-029～033需求预算、覆盖、有限拒绝与检索分层计分 | Approved；§20.62增量单独验证，真实专项未通过 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.36 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.40分层计分、§14.41代表集基线，未将旧失败改判为通过 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.37 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.40分层计分、§14.41代表集基线、§14.42文号增量验证，未将旧失败改判为通过 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.9 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -2328,3 +2328,37 @@ L2_01_02 v1.24复核三轮：①核对旧摘要文件/任务哈希与新覆盖�
 设计内审三轮：①核对KQ-AD-013和旧Guard冻结，明确新增实现只替换文号token，补齐§8.4旧Tax规则与当前派生规则关系；②核对单次前缀语法、非空机关、ASCII年号、未知/重复/否定和机关歧义，补充不归一括号/地域、重复不循环和未覆盖表达限制；③核对当前root测试未被legacy fixture替换、校验先后与零下游，strict发现四个ID只有正文说明、未进入定义表，补齐定义和直接追踪。不修改Prompt、公共DTO、策略、索引或旧任务。
 
 独立于编辑阶段的只读设计复核第1轮：实际重读§8.8、L1 KQ-AD-013及UAT §14.42，按L2实现可行性和跨层约束rubric核实职责、query/focus共用Guard、旧源码兼容、有限语法/限额、失败、测试与回滚；S0=0、S1=0、未处理S2=0，允许该Guard非live实施。接受限制B-REF-DES-001：有限词法不证明所有机关法律身份，未知/歧义表达和其他数字词素不能外推为任意改写正确；不据此减少质量验收。该评审为同一执行者分离修改后的只读复核，不声称外部独立人员批准。L2/P3 strict最终0 errors/0 warnings，原先四条追踪warning已补齐而非关闭校验。
+
+#### 20.64.1 文号修复实施、验证与代码复评
+
+设计提交`7a4dbb78d41a45ebd304f4e1b42599ce751639aa`、代码提交`a00b576c2f9e45d80349c21d3866a2d6cd57a210`已推送origin/codex。实现仅新增34行当前Guard、bootstrap显式注入和两份测试文件；旧两个Guard、模型任务/Prompt、生产查询文本、业务服务、公共合同、索引/alias、代表集及历史证据未修改。没有删除文件。该增量只修复KRB-015词法误拒，不能修复KRB-006多文档召回或证明真实Rewrite/Summary质量。
+
+代码对照设计复核两轮，范围为DR-KFLOW-027/IMPL-KFLOW-015/TEST-KFLOW-019/VAL-KFLOW-010及当前调用链：首轮B-REF-CR-001（测试完整性，medium）指出多域原问题的成功测试仅模拟一个域，不能证明两个focus共同通过；已补为policy+law、两项requirement、4次search、1次embedding、2次rerank及两项合成引用，未修改已有测试断言。第二轮重新只读检查同一Guard实例、原输入不重写、机关/年份/编号/重复条件拒绝、全部计划零下游、请求隔离、disabled/双重关闭及冻结兼容。该切片Blocker/Major/未处理Minor=0；这是同一执行者分离编辑后的复评，不是外部独立人员评审，也不覆盖整个阶段B质量。
+
+实际验证（执行子进程移除LLM_API_KEY）：
+
+| 命令/范围 | 本次结果 |
+|---|---|
+| `python -B -m pytest -q -p no:cacheprovider --tb=short tests/unit/knowledge/test_document_reference_semantics.py tests/integration/knowledge/test_document_reference_guard_production.py tests/unit/knowledge/test_tax_question_semantics.py tests/unit/knowledge/test_evidence_requirements.py tests/integration/knowledge/test_requirement_runtime_composition.py tests/evaluation/knowledge/test_retrieval_benchmark_baseline.py` | 203 passed，86.98s，1项既有LangChain预告；包含首轮测试修复 |
+| `agent-runtime/scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe` | Transaction host/preflight 14 passed（4.70s）；全量3507 passed / 27既有opt-in skipped / 0 failed（502.85s）；隔离环境清理后进程exit=0 |
+| `python -B -m mypy --strict src` | 137 source files通过 |
+| `python -B -m compileall -q`，精确四个修改Python文件 | 通过 |
+| `serviceCenter/mvnw.cmd -Dagent.runtime.python=C:\Python312\python.exe -Deureka.client.enabled=false test`（agent-service目录，JDK25、当前源码PYTHONPATH、stub） | BUILD SUCCESS；40 tests / 0 failures / 0 errors / 1 skipped，40.853s；Business/Knowledge Spring→Runtime E2E均执行通过 |
+| 两个旧Guard及代表集/原结果SHA、全量历史测试、精确四文件凭据模式扫描、`git diff --check` | SHA与修改前一致；凭据/JWT/私钥模式0命中；无冻结资产diff |
+
+Maven数字来自本次控制台，未计入target里2026-08-24遗留的StructuredQueryUAT XML；本次skip为已有opt-in System E2E，不冒充真实效果通过。业务Java、服务配置与PowerShell脚本未修改，未重复Employee/Transaction/es-query-service Maven或PowerShell AST。27项opt-in跳过不计为阶段B真实UAT通过。真实模型/业务ES/BGE/索引写入/alias/重试/续跑均0；不读取Key、不创建run-13。整体QUALITY仍Blocked、UAT仍In Progress，后续必须完成召回缺口、完整相关性标注和新旧对照。
+
+### 20.65 双文号召回损失的只读对照
+
+在§20.64代码已推送后，针对已冻结开发集KRB-006执行四次只读ES诊断，不修改线上查询、类型化接口、索引或问题/gold。原问题不变，category过滤与policy Profile一致，size=20、只取chunkId/documentNo元数据，无正文/向量/model/BGE。先后读取settings核对当前b2 UUID=`jJ5Ww3LCRWWycfDkUZvmdw`和write block=true，中间field_caps确认documentNo为可搜索keyword、title/content/section为text。总计7次只读ES HTTP请求（4 search、1 field_caps、2 settings），各search均无timeout/shard failure，未启动服务或保存原始响应。
+
+| 对照 | 返回数 | 必要来源情况 | 证据边界 |
+|---|---|---|---|
+| 原问题全文multi_match title/content/section | 20（总匹配13828） | 两份来源均不在前20 | 复现当前keyword窗口损失 |
+| 相同全文，仅增加keyword字段documentNo | 20（总匹配13828） | 两份来源均不在前20 | 单纯追加字段无收益，不能据此宣布修复 |
+| 使用已核实库内完整文号的terms查询 | 2（总匹配2） | 两份必要原文分别第1/2 | 只证明现有元数据可精确定位；文号由离线源检查提供，不证明线上识别或LLM计划 |
+| 相同两个文号仅去掉机关间ASCII空格 | 0 | 无匹配 | 字符表示差异足以导致exact miss，非资料缺失 |
+
+该反例支持下一步优先设计“原问题/受控query中的文号识别与现有元数据匹配”。不得将两个gold文号、年份/编号、case ID或文档ID硬编码到生产；不得把去空格后的字符串直接用于现有keyword就宣称规范化已实现。需比较在es-query-service内部完成有限、安全的等价表示匹配与新增规范化元数据字段两种影响范围；只有前者无法可靠闭合语义/性能时才使用新候选索引，原索引/alias及正文不变。识别不确定时仍走既有有界检索与证据不足合同，不能匹配同年份/编号的其他机关。该段是诊断和候选方向，不新增实现合同、不批准修改当前字段/索引；具体设计评审仍是实施前置。
+
+完整相关性标注、新旧同快照/留出集对照、真实Rewrite/后置失败及阶段B专项UAT仍未完成。不得将诊断中的2/2已知目标命中计入原24题基线、真实UAT或召回质量改进率。住宿题继续只作代表性样本；语料缺失单列而非强制补造答案，不删除资料存在却漏召的失败题。
