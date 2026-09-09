@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.35 |
+| 当前版本 | v1.36 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-09 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.27、`L2_01_01` v2.15、`L2_01_02` v1.24、`P3_00` v2.59；§14.39为run-12历史终态，§14.40治理新的分层计分，不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.27、`L2_01_01` v2.15、`L2_01_02` v1.24、`P3_00` v2.60；§14.39为run-12历史终态，§14.40治理分层计分，v1.36新增§14.41代表集基线，不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -799,3 +799,21 @@ run-11按§14.36一次执行，终态Failed/consumed；001通过澄清（model2�
 | 既有quality-v3-context八题手工计划probe | 每题必要来源Recall@20和Evidence coverage均为1 | 非真实Rewrite、无Summary、非功能/效果UAT；不得当作整体准确率 |
 
 三组均没有完整人工相关性分级，Precision@20/nDCG@20为null，不得以必要来源命中推导精确率。原文件SHA、字节、Failed和未执行状态保持不变；测试结果及命令由P3最终验证记录治理。本轮新增模型/真实检索调用均为0；代表集与留出集整体测量仍未完成。
+
+### 14.41 代表性检索基线：原问题、固定域、无付费模型
+
+落实§14.40及DR-KEV-033，已建立`retrieval-benchmark-v1`的24题、20个当前来源片段。16题用于诊断，8题按车辆购置税、环保税、印花税、发票遗失四个文档族留出；留出指不参与本轮参数调整，不声称历史上从未观察过这些文档。住宿仅2题，其余覆盖软件、企业/个人所得税、申报、资源税、日期和条款；三题预先选择policy+law，其余单域。本文档不复制问题/gold；新增`tests/evaluation/knowledge/retrieval_benchmark.v1.json`为唯一问题、来源及分组资产。
+
+来源由执行者在当前b2只读逐段核对，绑定chunkId及NFC正文UTF-8 SHA-256，短原文锚点只在测试资产中用于核实依据；不使用ES旧contentHash代替当前类型化服务的正文哈希，不使用待测DeepSeek自评生成gold，也不声称外部人员已经批准。首批24题均有明确原文，只证明已知资料下检索能力，不代表全库语料覆盖；新发现的缺料/未知须单列后续清单，不能塞入本批已存在分母或删除不命中的题。历史条号和法律/实施细则混淆只影响新标注，不改旧dataset/evidence。
+
+检索计划使用原问题全文，不调用Rewrite；域及最多4个requirement在检索前固定。gold和锚点仅用于前后来源核验及排名后计分，不进入query、focus、排序或Evidence选择。复用现有`DefaultKnowledgeRetrievalStage`、RRF、quality-v3需求排序、`ContextualBgeRerankAdapter`和现有Evidence/出域实现；不得误用历史raw-content rerank或复制线上业务流程。查询计划只包含逻辑域；物理索引检查仅属于离线运维预检，实际检索仍走既有类型化Java接口及读取授权。
+
+已新增严格fixture loader、薄benchmark runner及直接fake测试，实施及执行状态由P3 §20.63记录。薄runner复用已版本化quality-v3 probe的服务管理、计数、观测及有限输出，在进程作用域替换fixture和当前rerank依赖，退出恢复；不改冻结probe或历史哈希。严格拒绝未知字段、重复/超限来源与case、跨组文档族、非法域/需求及来源快照漂移。调用前记录HEAD、问题资产hash、当前binding/catalog、实际Java资产和BGE身份；结果独占创建、append-only，失败停止本批，无重试/续跑。只保留ID/hash、排名、有限原因、指标及计数，不保存正文、JWT、向量或模型原始输出。
+
+本基线最多24次本地检索Stage；类型化search上限54、embedding上限27、在线rerank上限按冻结requirement总数生成且不得超过32；启动合成rerank预热另1。源码/索引身份检查及20来源正文前后核对单列，不混入在线检索计数。外部模型、Business、answer、索引写入、alias操作、retry/resume均0，不读取LLM_API_KEY，不创建run-13或付费candidate。单路/全路技术失败、来源/绑定变化按失败关闭；正常检索损失记为0或实际分数，不因不命中而跳过余题。缺失完整相关性分级时非空结果的Precision及nDCG为null；空结果的Precision为0，沿用既有计分合同。
+
+本次仅形成可复现基线：全部24题被测量、预算和绑定/安全成立才属于有效测量；不设事后通过阈值，不宣布专项UAT通过。冻结基线后、改进前再确定提升条件并核对相关性，留出集不得用于挑选参数。现有真实运行失败、35/37功能追踪和整体QUALITY未完成状态保持不变。
+
+三轮聚焦内审依次核查并收紧：①按文档族而非句式分组，避免相邻改写泄漏到留出集，声明首批present-only和标注来源限制；②当前生产context rerank与历史raw adapter区分，gold只在来源检查/结果计分侧；③区分零命中与技术失败，旧probe把所有非SUCCESS当故障，新benchmark须以当前Stage原始NO_RESULT记录零命中而非伪造SUCCESS，技术失败停止批次，调用计数和owned资源清理仍复用已有组件。只在测试编排层实现这个分支，不改生产状态和历史probe。
+
+与编辑分离的只读设计复核对照REQ-KQUALITY-002/004、L1_01 §4.6、DR-KEV-033、当前Java Profile/Stage及本节：来源、固定域/需求、指标、预算、失败终态和前后快照边界闭合，允许上述测试基准切片实施，S0/S1/未处理S2=0。这是同一执行者分阶段审查，不是外部独立人员批准；不作整个阶段B、gold人工独立评审或真实UAT通过结论。

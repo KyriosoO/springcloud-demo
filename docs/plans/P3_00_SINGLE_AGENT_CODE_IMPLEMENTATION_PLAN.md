@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.59 |
+| 当前版本 | v2.60 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-09 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -15,6 +15,8 @@
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
 
 v2.59依据用户补充，将整体检索质量与资料缺口、摘要质量分层验收，执行§20.62的有限计分和拒绝诊断修复；当前真实终态仍为§20.61的run-12失败，不创建新付费批次，不改判历史。§20.56.2及更早记录保留各自时点。
+
+v2.60推进§20.63代表集与本地检索基线，保持真实专项及最终QUALITY未完成；不增加付费批次、Gate或上位架构变更。
 
 v2.34 在不修改 Rewrite V1 或历史候选的前提下新增 Knowledge Rewrite V2 精确 JSON 输出合同。v2.35 依据 ROADMAP_01 阶段 A 新增语料只读审计、版本化处理、候选索引、发布回滚和专项 UAT 工作包，并把入口门禁与 alias 发布门禁拆开以消除循环。v2.36 依据审计 v1 的实际失败修复来源可达性、正文完整性、人工优先级和精确预算边界。v2.37～v2.38 如实保留早期 candidate/UAT 及严格合同复评。v2.39 修复 legacy DOC 扁平解析导致条款关系缺失的问题并保留结构化 a4 中间候选。v2.40 将网络/损坏容器异常收敛为逐资产有限失败，以最终工具源码重建 Stage A corpus candidate-08/a5，并用 UAT/release attempt-05 完成发布收口；v2.41 修正 catalog Git/LF 分发哈希，增加历史评估输入的精确只读镜像，并让历史测试辅助层在临时仓库内复原已授权换行字节，使正式隔离回归可由干净检出复现。阶段 B 仍独立阻塞。
 
@@ -56,7 +58,7 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.15 | 需求排序、向量发布、合成预热及授权上下文评分 | Approved；局部实施完成，阶段B质量/UAT仍未完成 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.24 | DR-KEV-029～033需求预算、覆盖、有限拒绝与检索分层计分 | Approved；§20.62增量单独验证，真实专项未通过 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.35 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.40分层计分，未将旧失败改判为通过 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.36 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.40分层计分、§14.41代表集基线，未将旧失败改判为通过 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.9 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -2283,3 +2285,17 @@ L2_01_02 v1.24复核三轮：①核对旧摘要文件/任务哈希与新覆盖�
 上述命令有重叠，不相加。失败经过保留：初始定向有一项旧enum总数断言失败；首轮全量3356 passed/27 skipped/5 failed（315.57s），五项均为上述冻结哈希冲突。最终采用v1.24落点、还原旧文件和旧测试后重新执行正式全量通过，未放宽断言或跳过失败。非live子进程移除Key；没有读取凭据、调用真实模型/ES/BGE、修改索引/alias、启动真实业务服务或创建run-13。Maven仅启动测试管理的fake Runtime，不持久化真实JWT/正文。
 
 未重复执行无Java/DTO/授权改动的Employee、Transaction、es-query-service、common-security全模块Maven；没有PowerShell修改，未单独重跑AST。跨域防回退由本次完整Python、两条Spring E2E及既有35/37追踪核实，不能据此声称所有外部服务或新效果已经验收。当前仍需人工确认20～30题及不少于三分之一留出集、完整相关性分级、同快照检索基线/对比和基于真实损失的最小改进；run-12实际后置拒绝原因仍不可恢复。`WP-KRETRIEVAL-UAT-01=In Progress`、`WP-KRETRIEVAL-QUALITY-01=Blocked`，不以局部指标1.0关闭整体目标。最终状态提交及推送结果以Git和交付报告为准。
+
+### 20.63 代表集与本地检索基线
+
+依据UAT_01 §14.41/DR-KEV-033继续同一个`WP-KRETRIEVAL-UAT-01`，不增加Gate。执行次序为来源核对和24题协议→三轮聚焦内审及分离只读设计复核→测试侧fixture/薄runner→fake、类型及历史回归→提交源码→有界本地检索测量→归因及正式复评。已有计分工具为直接前置，当前生产检索/任务/索引不改；本轮不消费付费额度。
+
+目标修改范围为UAT_01本协议、P3状态，以及`tests/evaluation/knowledge/retrieval_benchmark.v1.json`、严格loader、`tests/system_e2e/knowledge_retrieval_benchmark_v1.py`和直接测试。既有probe/helper/历史result保持字节不变；以当前生产context rerank进行测量。方案不新增公共合同、来源下载、索引构建或服务，执行者原文核对和后续相关性标注状态必须如实区分。基线有效不等于质量已经达标，QUALITY仍Blocked；尚未执行结果不得写为Done。
+
+源码准备：24题（16开发/8文档族留出）、20来源/26锚点已只读核对当前b2；fixture SHA=`ca076f8096ddf1210ddcf26da1a23135ee14c3cf415960fbaf03ea1e3a8f84f9`。预算search54/embedding27/rerank29，启动rerank另1。所有题均present且无相关性grade，不能代表全库语料覆盖或精确率；空返回的P@20可确定为0，其余未标注为null，沿用原计分合同，不修改指标。
+
+文档三轮内审及一次分离只读设计复核见UAT_01 §14.41。代码两轮复核：第一轮修复fixture焦点缺少公共税务语境、超大pytest参数ID、空结果精确率断言，并让loader在I/O前调用当前需求/敏感输入校验；第二轮修复来源预检的隐式NFC转换，补齐非NFC、重复、域和来源缺失反证。复核后此测试切片Blocker/Major/未处理Minor=0，不是整个阶段B或外部人员评审。24题保留原问题；其中KRB-015暴露文号识别把“请分别查找”纳入文号的真实线索，暂用原问题连续片段作为手工focus以保留现行合同，未修复生产缺陷或冒称验证Rewrite成功；该缺口进入下一步诊断，不通过改题隐藏。
+
+当前定向命令：新dataset/runner、计分/历史复算、旧probe、Business/Knowledge追踪组合`pytest -q -p no:cacheprovider --tb=short`为148 passed（1.13s）；`mypy --strict src tests/evaluation/knowledge/retrieval_benchmark_dataset.py`为137源文件通过，新增四Python文件compileall通过。最初测试2 failed/38 passed/2 errors（超长参数ID含setup/teardown），修正后直接41 passed，再补充反证由148项覆盖；未删除或弱化原历史断言。尚未执行新本地测量，不读取Key。
+
+源码冻结前正式隔离命令`agent-runtime/scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe`实际完成：host/preflight 14 passed（3.72s），全量3410 passed、27 skipped、0 failed（491.31s），1项既有LangChain预告。跳过均为既有opt-in/live或历史诊断，不能计为本次新UAT；该命令移除子进程Key且不消费真实运行。P3 strict为0错误/0警告，五项新资产凭据/JWT/私钥模式0命中，diff --check通过；生产src、serviceCenter、业务Java和历史资产零diff。此测试侧增量未重复Java/Maven或PowerShell AST（无相应改动），真实检索执行与其证据单列，不能用non-live替代。
