@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "retrieval-noise-source-inspection-v1",
+  "datasetSha256": "ca076f8096ddf1210ddcf26da1a23135ee14c3cf415960fbaf03ea1e3a8f84f9",
+  "baselineSha256": "1cc5f91c6ca5d7d9edb45354be17ca1c0b8a498b30c7e64cb3c78ff3febb521c",
+  "comparisonSha256": "b50ee584b09dc3b8d724886240a25b0e9de23e046d5245ef5ef395b81e865299",
+  "reviewer": "codex_source_inspection_not_independent_human_approval",
+  "status": "diagnostic_not_qrels",
+  "scope": [
+    "KRB-004_old_new_top20_union",
+    "KRB-006_added_removed_only"
+  ],
+  "sourceCheck": {
+    "indexName": "agent-doc-tax-policy-v5-20260907-vector-b2",
+    "httpReads": 4,
+    "returnedSources": 26,
+    "uniqueSources": 25,
+    "allContentHashesMatched": true,
+    "rawContentPersisted": false,
+    "modelCalls": 0,
+    "indexWrites": 0
+  },
+  "observations": [
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-1240ea3c271f3f14f66d839a#d0000",
+      "sha256": "1b48142931047016b0b78c30766718177f51ceaffeb685f01a2032b7b5a9bf5f",
+      "observation": "direct_definition"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-1240ea3c271f3f14f66d839a#d0002",
+      "sha256": "67586b03cd5983e0a59fd05b435463479454becc2ed7f0de2d6588de29907cb4",
+      "observation": "same_document_other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-1c77086dbe0495f8a8f9a5f6#d0002",
+      "sha256": "e1b8e95dfd31e529bb02499220167875dba7a40ca9f3685a3d4a74d06b4ad2ef",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-355e4a21dd0f267619884ad1#d0000",
+      "sha256": "fc240b439a945249703d05378ca15fd56d819d944d684bd78cf512fcc58d9918",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-355e4a21dd0f267619884ad1#d0001",
+      "sha256": "3ba1990ed0224d22b6003863c6a34175e28c6497d2a972bbf03a619ab049c190",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-355e4a21dd0f267619884ad1#d0002",
+      "sha256": "043d4a59581ff1a5f1a9de59da3ccb67e71c908c562d429534cf52e1787155a3",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-552b4c96ca2adc2249e8deb0#d0000",
+      "sha256": "76a35c1edcf94e93e915c4be7e0f5b001e4baf770e332a6b830e32a9409af8c1",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-552b4c96ca2adc2249e8deb0#d0001",
+      "sha256": "5d6be6221e8805d03532aa9c81ea40c8810c04b18afb8bc9d16fa7a00ee84530",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-673133bd61fc6d2e4920d13d#d0000",
+      "sha256": "e3d0701231aa265d5529f7a415dca0d9dee9f0190af1ba48dca3f7532be8d5b3",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-6c442c3fef2d8912ac293bb9#d0000",
+      "sha256": "ae7d9a76a97d7ed1f63ec4af9f62caac5d7477f21244de76a369b4902cc0d328",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-6c442c3fef2d8912ac293bb9#d0006",
+      "sha256": "30e819aab476fa8b958e996c572d852315fc4270d6f4248960225c3f4fb28187",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-6f44f88816fceb2d8316da0b#d0000",
+      "sha256": "74b2bc8b453cc798ef39844f6ce4a2ed5b79752eb25901397c35d3ca64c29d1e",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-74629c8e3b636ca0b504dc35#d0008",
+      "sha256": "49e29877fdb1c02eceb188352d9640eba2fe1c573dac1e50a39f1568136fc9f7",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-806f27f01adf6b6592dcd73d#d0000",
+      "sha256": "75fd107b9026b6746398c42e7aeaf1f6809918628022e55e47cb8087ea9a426c",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-918303f9e6223aeaab6ecf2f#d0000",
+      "sha256": "96f6c2451c893296669f56038d81c03d8cb730afaa8d08be1eb13ac6b97c97e8",
+      "observation": "older_document_same_definition"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-966365509a43a967bc763061#d0002",
+      "sha256": "267173a8e359a2de0f7f7c17756f480f895169ecfde67a5f03c56c1091a4ca72",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-9fba99faeac9b65d1071d0cc#d0000",
+      "sha256": "3a469754a399387b932a6c0981aea73ef440ecd7698d78cdbf75b088409164ae",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-c502d0a34d4523be14111387#d0000",
+      "sha256": "7831242bf67e31852589f516117caada6b24a3a4f2aefcaa5ac13961c18f78b7",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-d1e32814f13435578e5acd41#d0004",
+      "sha256": "4a99955f819aa7b91079a9ac58e4626fd88d8d3164aedc9e9bb693f76ea5dcac",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-d5dd819958b0586f8248b11e#d0000",
+      "sha256": "d060dabd9ccd857290e333a87624a240af3744d7b07714287c1992afeb229108",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-004",
+      "chunkId": "tax-f910be0f464a2220a472e1e3#d0004",
+      "sha256": "26b457d04357e7b68d8e93bcc5654e128824a9a9923d17ccd4c69dd808c43fc8",
+      "observation": "other_subject"
+    },
+    {
+      "caseId": "KRB-006",
+      "chunkId": "tax-7869144929a9cf2c1f938a0f#d0000",
+      "sha256": "9b35d11a6c608927e5d3dc41e0dbc8c1a45ace8cb07f512cabd18022adbe5a8e",
+      "observation": "other_document_period"
+    },
+    {
+      "caseId": "KRB-006",
+      "chunkId": "tax-87f2cbe8c4ff0be06667dc48#d0000",
+      "sha256": "42f0fef3f8182f610b1a3b09652b5f4f9a92ed12ec389f44a05f1dda253e1e57",
+      "observation": "direct_requested_period"
+    },
+    {
+      "caseId": "KRB-006",
+      "chunkId": "tax-aae246c793cd4b5bf8e150f0#d0000",
+      "sha256": "d8a172021d0bd4d8ddb35c0b96d7d9b7eec3c906a068bba223e8d72ec946e001",
+      "observation": "other_document_period"
+    },
+    {
+      "caseId": "KRB-006",
+      "chunkId": "tax-b61f6bd5fba2fe7b297d8454#d0000",
+      "sha256": "ab52534af576aeb757f5a5e5923b10fa7859c710162e3c3eb6f6c4bdb1823df7",
+      "observation": "direct_requested_period"
+    }
+  ],
+  "limitations": [
+    "not_complete_relevance_grades",
+    "not_full_benchmark_precision",
+    "not_new_uat",
+    "no_source_equivalence_added",
+    "not_current_law_advice",
+    "holdout_not_used_for_tuning"
+  ]
+}

@@ -135,7 +135,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034/035`；`DR-KEV-029～033` | 已有当前链路保持，§20.66文号匹配增量已实施 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.66.1新增量代码对照复评 | 新TEST/VAL与公开接口零差异 | 默认关闭/源码回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 已有回归保持，DR-KRET-035 Java/基线/历史回归已验证 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.66.1新增量验证；旧记录不改 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.43、DR-KEV-032/033 | 同快照文号召回增益已测；完整相关性、生产生效及真实回答仍待完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 非付费对照已完成；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.43、DR-KEV-032/033 | 文号召回增益已测；§20.67已定位尾部噪声，相关性、生效及真实回答待完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 非付费对照已完成；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -303,7 +303,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.66.1文号匹配已实施/复评；旧增量保持 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.66.1 Java、基线和历史通过；旧回归保持 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.66.3同快照增益已测，待相关性标注/生效/真实回答；旧失败及8项未执行保持，暂停付费 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.66.3增益已测、§20.67尾部噪声已定位；待相关性/生效/真实回答，暂停付费 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 阶段B独立DAG与§20证据；新需求设计、实现和non-live已完成，真实专项仍未完成 |
 
 ## 10. 实施交接
@@ -2416,3 +2416,19 @@ Maven数字来自本次控制台，未计入target里2026-08-24遗留的Structur
 新增只读`test_document_number_benchmark_result.py`逐题复算原指标、非文号/留出无回退、KRB-006由keyword找回两来源、预算/清理、源码提交hash及未标注Precision/nDCG为null。该测试与新runner、原benchmark、旧基线/dataset/指标联合137 passed（1.36s）。分离只读代码/证据复评确认没有gold在线参与或旧结果覆盖，首次前检失败原样保留，当前数据与假设分离；本切片Blocker/Major/未处理Minor=0，非整个阶段B或独立外部人员评审。
 
 阶段B仍需完整相关性分级、对新结果噪声的Precision/nDCG核查、生产配置生效及真实Rewrite/Summary后置失败收口；目前仅证明已知来源的召回与首位排序增益，未启用生产开关。WP-KRETRIEVAL-UAT-01保持In Progress、QUALITY保持Blocked；后续按实际损失推进，不重建索引或重复付费来追求住宿单题通过。
+
+### 20.67 检索覆盖之外的尾部噪声诊断
+
+§20.66.3结果及复算测试已以`e60ce02f3ec7ece184d4a500f5fdfe4ab2204985`提交并推送。此次继续读取同一结果，不重跑检索或模型。新旧24题top20按来源身份合并共483个问题—来源配对；只有004/006两题候选顺序变化，新增与移出各3项。先核查004的新旧候选并集21项及006变动4项，避免把必要来源已找到等同完整相关性通过。
+
+执行4次离线只读ES来源检查，返回26项、去重25项，全部正文UTF-8 SHA与既有结果一致。有限记录`tests/evaluation/knowledge/retrieval_noise.source_inspection.v1.json`，SHA=`1b10c1db9e5e0a5ea44a56b3fee404f8e03ef0bf8fd0a810822d80be389a3f3e`。只保存ID/hash/有限观察，不保存正文；这是执行者原文核查，不是独立人工批准的qrels，也不修改旧gold或推导全库Precision/nDCG。没有启动服务、读取Key、调用BGE/外部模型、写索引/alias或新增付费批次。
+
+已确认004第1项直接回答指定文件中的定义，第2项是不同历史文件中的相同定义，不自动升级为指定文件的等价来源；新增第3项虽来自相同文号，但内容为成本核算、监管及执行信息，不能回答本地化定义。其余候选包含汉字防伪、设备改造、税收程序等不同主题。006新增两项均为要求的公告期限，移出的两项是其他文件的期限。故文号补召有收益，但同文号、相似词或高排名都不能自动代表片段直接相关。
+
+代码定位：`quality_ranking_v3.py::rank_requirement_candidates`保护需求首位后轮转填充最多20项；`builder.py::DeterministicEvidenceSelector.select`保护锚点/域后按顺序填充最多8项，没有可选尾部的最低相关性准入。004已保存rerank分数前两项约0.9932/0.9384，第3项0.1219、第4项0.0102，仍有低分片段进入Evidence。该行为符合当前数量上限合同，但设计未证明其噪声质量；不因本次观察直接修改已批准算法或放宽validator。
+
+仅开发集16题做一次零I/O探索：对原top20采用任一既有focus分数≥0.5的近似筛选，320个候选剩162个，原128个Evidence中97个满足条件，22项已知必要来源均保留；未使用8题留出集选择阈值。004可由20项缩至2项，而005/006/008仍各20项，证明统一分数截断不能解决所有问题。0.5不是校准概率、批准阈值或新通过条件；此试算不是V3首次选中分数与实际Selector的完整重放，不能作为发布依据、完整相关性分级或UAT通过。
+
+新增`test_retrieval_noise_inspection.py`复核25项池范围/来源hash/有限字段/非qrels身份及开发集探索结果，旧结果Precision/nDCG继续null。首轮分离只读复核补齐root字段白名单及精确scope断言，防止未来混入正文或将局部记录冒充完整池；修复后复评对照DR-KEV-033，未处理问题0，仅限诊断测试切片，不代表噪声治理设计或整个阶段B已通过。联合基准、loader、计分及结果回归139 passed（1.37s）；strict mypy src共137源文件通过，新测试compileall通过；新增两文件凭据/JWT/正文键模式0命中。上述范围没有生产修改，不重复声称全量Python/Java或真实端到端已经重验。
+
+下一可执行事项：先依据本次损失在Knowledge相关L2中评估可选Evidence准入，明确分数/文号信号的局限、必要条款保护、低置信需求及失败语义，完成目标要求的设计内审和评审后再实施；不得把当前实现Done状态扩展为新筛选算法的准入。并行准备完整相关性原文复核，但不得由待测模型生成gold或把这些执行者观察写成人工验收。保持现有WP依赖与Gate不变，UAT In Progress、QUALITY Blocked；生产文号开关未开启，阶段A和历史结果不变。
