@@ -429,7 +429,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | 所有证据统一按分数删除或跨focus取最大分重排 | 可能丢失需求锚点，改变既有需求覆盖/排序；当前有限证据不足，不采用 |
 | 仅对非锚点可选项做版本化准入，之后复用旧selector | 不新增检索和模型调用、不调整排名及公开合同；采用为可验证候选，不提前作为已达标的生产默认 |
 
-建议新增`knowledge/evidence/admission.py::ScoreAwareEvidenceSelector`，继承现有`DeterministicEvidenceSelector`的同步`select`签名。固定版本`optional-evidence-score-v1`，固定候选阈值`MIN_OPTIONAL_SCORE=0.5`；不提供请求参数、热更新、环境覆盖或任意表达式。0.5只是已登记开发集探索的首个候选，不是相关概率、通用BGE阈值或最终验收标准；不搜索阈值网格，不使用留出集选参数。
+已新增候选实现`knowledge/evidence/admission.py::ScoreAwareEvidenceSelector`，继承现有`DeterministicEvidenceSelector`的同步`select`签名，尚未绑定生产默认。固定版本`optional-evidence-score-v1`，固定候选阈值`MIN_OPTIONAL_SCORE=0.5`；不提供请求参数、热更新、环境覆盖或任意表达式。0.5只是已登记开发集探索的首个候选，不是相关概率、通用BGE阈值或最终验收标准；不搜索阈值网格，不使用留出集选参数。
 
 调用顺序和行为：
 
@@ -562,7 +562,7 @@ def classify_conclusion(
 | `TEST-KEV-021` | §9.6单来源完整、多来源联合证明同一需求、定义不足、Prompt/decoder identity及当前根 |
 | `TEST-KEV-022` | §9.2.1覆盖拒绝的明确原因、深栈/恶意异常无数据访问、公开失败及成功行为不变 |
 | `TEST-KEV-023` | §13.8检索/回答分离、等价依据、缺料/未知/null、分级完整性、严格预算及有限证据复算 |
-| `TEST-KEV-024` | 建议新增`tests/unit/knowledge/test_evidence_admission.py`及对应Stage/组合根集成测试：§13.9保序筛选、锚点/限额/严格输入、安全与legacy兼容；固定实际排序的开发/留出验证不冒充完整相关性 |
+| `TEST-KEV-024` | `tests/unit/knowledge/test_evidence_admission.py`、`tests/integration/knowledge/test_evidence_admission_stage.py`、`test_evidence_admission_composition.py`及`tests/evaluation/knowledge/test_evidence_admission_rank_replay.py`：§13.9保序筛选、锚点/限额/严格输入、安全与legacy兼容；固定实际排序的开发/留出验证不冒充完整相关性 |
 
 ### 15.2 验证编号定义
 
@@ -601,7 +601,7 @@ def classify_conclusion(
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，DR-KEV-029/030已评审实施，成对接线及non-live通过；整体真实UAT仍未完成，见P3 §20.40 |
-| 当前允许实施范围 | §9.5需求选择/新载荷/覆盖validator及测试专用Schema2来源适配；保留旧V1～V5和安全算法。已消费真实授权不复用，剩余总预算不构成新批次权限 |
+| 当前允许实施范围 | §9.5需求选择/新载荷/覆盖validator、测试专用Schema2来源适配及§13.9可选Evidence候选的non-live实施验证；保留历史任务/证据和安全算法，不自动生产启用。已消费真实授权不复用，剩余总预算不构成新批次权限 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
 
@@ -616,7 +616,7 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.22；DR-KEV-029～031已评审实施及成对接线，当前生产V7；真实效果待验证。
+- 当前版本：v1.25；DR-KEV-029～031已评审实施及成对接线，当前生产V7；DR-KEV-034为未生产启用的候选实现，真实效果待验证。
 - 文档状态：Approved；DR-KEV-027/028三轮内审和只读独立复评通过，允许本切片非live实施；记录归P3_00 §20.17，不代表真实效果通过。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
 
