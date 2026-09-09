@@ -542,6 +542,7 @@ class KnowledgeCompositionRoot:
         tasks: KnowledgeTaskDefinitions | None,
         retrieval: object | None,
         policy_catalog: object | None = None,
+        evidence_selection_version: str = "legacy",
     ) -> CapabilityRegistrationProvider:
         from typing import cast
 
@@ -564,6 +565,12 @@ class KnowledgeCompositionRoot:
             return KnowledgeCapabilityProvider(enabled=False, handler=None)
         if tasks is None or retrieval is None:
             raise ValueError("knowledge.dependencies_required")
+        from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
+
+        if type(evidence_selection_version) is not str or evidence_selection_version not in (
+            "legacy", ScoreAwareEvidenceSelector.VERSION,
+        ):
+            raise ValueError("knowledge.evidence_selection_version_invalid")
         typed_policy_catalog = (
             KnowledgeEgressPolicyCatalog.load_current_resource()
             if policy_catalog is None
@@ -589,6 +596,7 @@ class KnowledgeCompositionRoot:
             gateway=model.gateway,
             definition=summary_definition,
             limits=KnowledgeEvidenceLimits.quality_v3(),
+            selector=ScoreAwareEvidenceSelector() if evidence_selection_version == ScoreAwareEvidenceSelector.VERSION else None,
         )
         from agent_runtime.knowledge.capability import KnowledgeQueryCapability
 
