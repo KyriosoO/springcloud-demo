@@ -1,0 +1,6 @@
+{"stage": "local_model_readiness", "embedding": true, "rerank": true, "model": 0}
+{"stage": "startup_diagnostic", "service": "agent-service", "exceptionClasses": ["java.lang.UnsupportedClassVersionError"], "markers": []}
+{"stage": "startup_diagnostic", "service": "auth-service", "exceptionClasses": ["java.lang.UnsupportedClassVersionError"], "markers": []}
+{"stage": "startup_diagnostic", "service": "es-query-service", "exceptionClasses": ["java.lang.UnsupportedClassVersionError"], "markers": []}
+{"stage": "cleanup", "ownedProcessesStopped": true, "rawLogsDeleted": true, "secretScanPassed": true}
+{"stage": "failure", "kind": "RuntimeError"}

@@ -738,3 +738,11 @@ throwSite仅允许当前冻结parser/validator的已知代码对象及静态行�
 复用版本化v9的独占prepare→单次warmup/environment→authorize→execute、源码/可执行资产/索引/模型前后绑定、真实auth/Spring、日志扫描及owned PID退出。不复制生产流程、不改公共Schema。新manifest记录全部九批历史及单任务诊断hash；新错误观察仅在当前测试Runtime作用域将原异常投影为有限phase/code/cause/throwSite，附当前caseId和任务枚举，最多每case3项，原回调仍一次，取消/退出恢复；不读取任何原始模型响应、frame局部值或异常消息。其余有限result结构不变，首个失败停止整批，未执行项保持未执行。
 
 三轮内审依次核实：①单任务成功不能填补十例缺口，旧失败不可变；②观察器不增加模型调用、不改decoder或下游路径，未知异常只记unknown；③预算/消费、原gold、服务清理和前后绑定完整，不增加Gate/设计版本或重复全量平台。与编辑分离的正式只读复核按照L2既有错误边界、§14.32及上述有限观察合同通过，S0/S1/未处理S2=0；这是同一执行者分阶段审查，不声称外部独立人员批准。只允许新runner/直接fake/有限证据实施，生产代码不因单次成功作无依据改动。正式十例及核心P0通过前，阶段B保持未完成。
+
+### 14.36 Java启动环境纠正，不重用失败预检
+
+run-10预检完成一次本地rerank预热后，三个隔离Java服务均报UnsupportedClassVersionError；当前PATH为Java8而class/JAR为Java25。无模型Key读取、无付费请求、无UAT case、无业务检索；owned进程及原始日志已清理。保留原manifest/startup/environment，不为未执行批次伪造consumed或result，也不在该目录重试。
+
+相同持续授权下新`knowledge-stage-b-uat-v11-20260909-run-11`、reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-11`只修复测试子进程Java选择：固定已安装JDK25、先验证major版本和PATH解析，再执行任何预热/服务启动；将java.exe SHA及版本加入manifest，每次前置及末尾验证一致。只修改子进程环境，退出恢复，不改全局变量、不安装依赖、不改变生产或历史runner。其余沿用§14.35原十例及10/28/32/16/32+启动1预算，模型累计上限仍71（独立诊断另1），本地rerank累计上限49，新增1是run-10已发生预热而非遗漏调用。
+
+三轮聚焦内审分别核查环境因果、预热前版本失败关闭、旧目录不重用及累计计数；分离编辑后的只读设计复核确认这是现有启动合同实现缺陷而非检索/公共接口设计变化，S0/S1/未处理S2=0。新增薄启动器和direct fake后方可提交冻结执行；不再重复上位设计改版或建立新Gate，不把环境修复当UAT通过。

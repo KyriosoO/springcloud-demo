@@ -2192,3 +2192,5 @@ DR-KRET-033实施提交=`d8c407c29cdc98c1d570ed0be97d1cf730766592`，设计提�
 下一直接工作依据UAT_01 §14.35，在原版本和原十例中接入有限失败观察，形成新的有界完整测量；不改变Prompt、validator、索引或gold。新runner最小复用v9生命周期，新增九批历史及独立诊断绑定，不复制服务启动或Runtime。正常推进不再重复请求权限。WP-KRETRIEVAL-UAT-01=In Progress、QUALITY=Blocked，正式十例/核心P0及最终评审仍未完成；不以这一次单任务成功关闭工作包。版本化证据目录及执行终态随后按真实结果追加。
 
 单任务四文件逐字节归档于`tests/system_e2e/knowledge_rewrite_diagnostic_01/`，固定hash由新runner绑定。run-10代码复核第一轮发现历史result只统计在线rerank，不含run-09 startup1；已将startupCalls单列纳入总预算，不改旧结果或放宽总数。第二轮检查原任务/十例/gold/解码器、有限异常无消息、回调一次、patch恢复、先绑定后Key、消费/预算、当前context对象图及服务生命周期，无未处理Blocker/Major（仅此接缝范围，非阶段B整体通过）。新旧runner/诊断/probe/run-09历史五文件联合206 passed（23.79s），新增compileall及strict mypy135源文件通过，P3 strict零错误/警告；没有Java/生产源码变化。本次不以重复Maven或无关全量代替待执行真实专项。
+
+run-10冻结`9774cac766d64b37d0d1a203adb80891be9a40a2`，manifest=`c8d1605700a23a72e85155a957570f11fad31cee2dfc3b5860a8beb5ffceaccf`。check-environment失败：PATH的Oracle Java8无法加载Java25编译产物；一次启动rerank成功，其余调用0，未创建authorization/consumed/result。旧服务helper只调用裸java，预检没有绑定JDK，是测试环境缺陷；不是ES/模型故障。三个owned进程退出、日志扫描删除和端口释放通过，三文件逐字节保留。新UAT协议§14.36规定仅子进程固定并预检已有JDK25、manifest绑定可执行文件，直接修复后继续；不重复运行run-10，不改已执行字节，UAT仍In Progress。
