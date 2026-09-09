@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.22 |
+| 当前版本 | v1.23 |
 | 日期 | 2026-09-09 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V7（V7为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KEV-031已新增Summary7细化显式分类关系的引文证明；仅改Prompt、复用V6合同，真实效果未验证，状态由P3治理 |
+| 本次增量 | DR-KEV-032/033：检索计分与摘要结论分离、后置拒绝显式有限原因；本增量实施状态由P3治理，不改变引用、权限或历史结果 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、Summary V7/quality-v3生产接线及定向non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.23 | 2026-09-09 | 用户明确以整体召回质量而非住宿单题回答为主；后置拒绝缺少可用原因 | 新增分层检索指标和内部拒绝枚举，历史P5及原十例不改判；不修改模型任务、索引或公共合同 |
 | v1.22 | 2026-09-09 | 必要分类原文已进入模型但回答只引用下位定义 | Summary7明确原问分类前提也需引用支持，复用V6精确decoder/coverage/原文校验；不改检索或强制固定引用数 |
 | v1.21 | 2026-09-07 | 引用合法与问题覆盖缺少可核对关联 | 设计需求锚点预算及Summary6严格coverage，保留旧任务/输入序列化/抽取validator，公共结果与出域权限不改 |
 | v1.20 | 2026-09-04 | 同一规范性文件的必要第四条款可能被文档配额排除 | DR-KEV-028与quality_v2()取消独立父文档配额，保持总8/32KB、域覆盖、出域和引用限制，历史V1不改 |
@@ -216,6 +217,14 @@ answer 最多 5 点；每个 `evidence_ref` 只能使用一次。V2 强化模型
 
 内部诊断 reason 仅用于测试/受控诊断：`outcome_points_mismatch`、`point_count_invalid`、`unknown_evidence_ref`、`duplicate_evidence_ref`、`quote_empty`、`quote_too_long`、`quote_control_character`、`quote_not_substring`、`answer_too_large`、`result_too_large`。公共调用方只看到 `knowledge.summary_failure`，不看到内容或诊断分支。
 
+#### 9.2.1 需求覆盖拒绝的有限诊断（DR-KEV-032）
+
+依据REQ-KQUALITY-003，建议修改`summary_validation.py::SummaryValidationFailureReason`及`requirement_validation.py::RequirementCoverageValidator.validate`：仅为现有拒绝条件赋予明确内部原因，不改变合法/非法集合、成功结果或公开错误。覆盖校验分别使用`coverage_input_invalid`、`coverage_bundle_invalid`、`coverage_source_invalid`、`coverage_outcome_invalid`、`coverage_ids_invalid`、`coverage_refs_invalid`、`coverage_domain_mismatch`、`coverage_unused_points`。先验证引用形状/集合，再核对域；不得将错域和未知引用混为同一原因。原抽取式校验枚举及全部断言保持不变。
+
+`InvalidSummary.reason`只携带枚举，异常文本仍为固定`knowledge.invalid_summary`；Stage仍将全部InvalidSummary映射为既有INVALID_SUMMARY/knowledge.summary_failure。建议把现有测试专用`knowledge_summary_failure_probe_v1.py`改为严格类型及枚举投影，保留有限phase/reason/branch结构，不再读取traceback、frame或源码行号。phase只表示枚举所属校验类别，不证明任意构造异常曾在生产执行；实际执行仍需调用方证据。未知异常类型、未知reason返回unknown；不读取异常message/args/cause、局部变量、正文、模型输出、JWT或路径。该工具不装入生产对象图，不新增观测公共DTO，也不自动安装运行hook；以后需要真实采集时必须在未消费且预算明确的执行合同中接入，不能补写旧结果。
+
+追踪：REQ-KQUALITY-003→DR-KEV-032→IMPL-KEV-015（上述两个生产模块和已有测试投影）→TEST-KEV-022（逐类拒绝原因、深调用栈无关、恶意异常不读取、成功/公开映射不变、当前Summary解码后拒绝反例）→VAL-KEV-014（定向pytest、strict mypy、compileall及Knowledge/Core/Business回归）。回滚整个代码提交，不修改冻结历史；无配置默认值、网络、持久状态或Java/HTTP变更。
+
 ### 9.3 本地结果
 
 Validator 构造 `summaryType=extractive_evidence`、`answerSummary`、points（quote+citation）和 coverage。citation 使用本地 evidence ID、domain、title/source/document metadata；模型不能提供或修改这些可信引用字段。
@@ -392,6 +401,20 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 准备态测试和授权后 live 预检必须分阶段：准备态可证明 authorization/result 尚不存在；正式 authorization 创建后，launcher 只能执行绑定、冻结资产、预算、安全、历史和 fail-closed 校验，不能再次执行“authorization 必须不存在”的断言。任何运行失败均按是否已发生首次 outbound 区分 `failed_unconsumed` 或 `failed_consumed`，形成有限 append-only 证据后停止。
 
+### 13.8 阶段B检索计分与回答质量分离（DR-KEV-033）
+
+依据用户2026-09-09补充和REQ-KQUALITY-002/004，住宿问题是诊断样本，不是整体检索质量的单题硬门槛。资料未录入、不完整或尚未核实，应分别记录corpus_gap/unknown；已确认必要原文存在却未召回，仍计为检索损失。阶段B整体实现仍需验证一次性选域、改写保真、排名、权限和失败语义，不能以改变目标名称豁免真实缺陷。
+
+建议新增测试侧零I/O纯函数`tests/evaluation/knowledge/retrieval_metrics.py::score_retrieval`，只消费人工确认的来源标识、排名和可选相关性分级，不消费问题正文、模型回答或在线gold。来源身份为不可变(chunk_id, sha256)；每项必要依据可以预先声明多个人工核验的等价来源，同一来源可支持多项依据。不得从向量相近、标题相同或模型答案自动推断等价。旧固定chunk/gold与历史分数不修改；新指标是额外分层观察，不是对旧验收重新判通过。
+
+输入上限：k为整数1～80（不接受bool）；有序候选≤80、Evidence≤8、必要依据组1～8、每组来源1～16、分级表≤256；来源ID为1～256个ASCII字母/数字/点/下划线/横线/#，sha256为64个小写十六进制字符。引用/分级不得重复或矛盾，Evidence必须属于提供的候选池。仅present状态允许非空必要依据；missing/unknown须空依据，指标为null而非1或0，调用方必须保留这些case及数量。工具拒绝不满足合同的输入，不截断、不补标签。
+
+计分：必要依据Recall@k=前k覆盖的依据组/全部依据组；MRR@k=首个已知相关来源名次的倒数，无命中为0；Evidence覆盖率=Evidence覆盖的依据组/全部依据组，与摘要points无关。可选人工相关性grade为0～3；只有前k每个返回来源均已标注时才计算Precision@k（相关返回数/k）和nDCG@k（gain=2^grade-1，log2(rank+1)折损，理想序列来自冻结标注池）。标注不全或没有正相关理想项时P/nDCG分别保留可计算值或null，不把未标注候选当不相关；理想池范围和未标注数必须披露。必要来源若同时有grade=0属于标注冲突，应拒绝。这些指标只在声明的标注池内有效，不声称全库绝对召回。
+
+同语料/问题集的配对比较必须固定未改变因素，分别绑定旧/新代码、配置、Profile、索引、embedding及rerank快照；历史手工计划只证明给定计划后的检索，不能代替真实LLM选域/改写或端到端。代表性问题集须包含非住宿题及不参与调参的留出集，在新测量前人工确认依据和标准；不得根据已看到结果删除失败题或降低阈值。正文/附件问题进入语料清单；摘要502仍是运行缺陷，但不能据此将已成功的召回指标记为0。
+
+追踪：REQ-KQUALITY-002/004→DR-KEV-033→IMPL-KEV-016（建议新增上述测试纯函数）→TEST-KEV-023（无命中、多依据/等价来源、缺料/未知、未标注/null、分母、分级冲突、重复/超限、Evidence错源和不可变输入）→VAL-KEV-015（pytest、mypy及既有有限证据分层复算）。无新线上流程、服务、配置、模型任务、索引或付费调用；P3治理实施状态，UAT_01治理代表性case与实际测量。离线分层复算不能关闭新的整体质量验收。
+
 ## 14. 实现落点清单
 
 ### 14.1 实现编号定义
@@ -412,6 +435,8 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-012` | 已新增 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v5.py`；已修改 `bootstrap.KnowledgeCompositionRoot.task_definitions/build_provider` 的唯一Summary绑定和版本守卫；旧task/validator只读，non-live验证见P3 §20.17 |
 | `IMPL-KEV-013` | 已实施§9.5 Summary6/coverage validator及内部子类型；修改builder/Stage/当前根配对；保持旧serializer、policy及extractive validator |
 | `IMPL-KEV-014` | §9.6 Summary7仅更换指令和版本；同一V6 parser、当前根及Stage版本接缝 |
+| `IMPL-KEV-015` | §9.2.1内部拒绝枚举及既有测试投影，建议修改；不改变公开错误及通过条件 |
+| `IMPL-KEV-016` | §13.8测试侧分层检索计分纯函数，建议新增；不进入生产排序或历史判据 |
 
 ### 14.2 关键签名
 
@@ -502,6 +527,8 @@ def classify_conclusion(
 | `TEST-KEV-019` | V2匿名同父第四条入选、第九条拒绝、byte预算、必需域/锚点、错误版本/limits在summary前拒绝、legacy2/V1三条与policy/validator不变 |
 | `TEST-KEV-020` | §9.5需求标签、完整/不足、coverage错源/错域/漏项、预算与出域、精确输入类型及旧序列化；合成反例不冒充语义效果 |
 | `TEST-KEV-021` | §9.6单来源完整、多来源联合证明同一需求、定义不足、Prompt/decoder identity及当前根 |
+| `TEST-KEV-022` | §9.2.1覆盖拒绝的明确原因、深栈/恶意异常无数据访问、公开失败及成功行为不变 |
+| `TEST-KEV-023` | §13.8检索/回答分离、等价依据、缺料/未知/null、分级完整性、严格预算及有限证据复算 |
 
 ### 15.2 验证编号定义
 
@@ -519,6 +546,8 @@ def classify_conclusion(
 | `VAL-KEV-011` | 新V2选择/当前根与旧反例同时通过，strict mypy/全量non-live/历史hash通过；真实原文覆盖必须单独执行专项 |
 | `VAL-KEV-012` | §9.5新合同、当前根fake、历史/类型/全量Knowledge与Business、Spring回归及来源对应验收；不复用旧效果Passed |
 | `VAL-KEV-013` | §9.6定向、类型、Spring、隔离全量与不改gold的原十例专项；Prompt测试不替代真实效果 |
+| `VAL-KEV-014` | §9.2.1拒绝分类、恶意输入、成功/公开映射及Knowledge相关回归、类型检查 |
+| `VAL-KEV-015` | §13.8必要依据、相关性标注和有限历史复算；区分给定计划、真实规划与摘要结论 |
 
 ## 16. 风险与保护条件
 
