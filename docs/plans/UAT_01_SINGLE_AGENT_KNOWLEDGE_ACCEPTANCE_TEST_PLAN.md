@@ -760,3 +760,13 @@ run-11按§14.36一次执行，终态Failed/consumed；001通过澄清（model2�
 在§14.34持续授权内，新`knowledge-stage-b-uat-v12-20260909-run-12`，reference=`P3_00:WP-KRETRIEVAL-UAT-01/run-12`，只验证已修订的Summary7，不恢复run-11。原十例/顺序/gold/来源判据不变，Rewrite8/quality-v3、b2和本地模型绑定不变；单批E2E/model/search/embedding/在线rerank上限仍10/28/32/16/32，启动rerank单列1。前序正式已用20/48/29/15/18（最后一项含三次启动），本批后累计上限30/76/61/31/51；独立Rewrite诊断1次模型另列，全部模型合计上限77。Business/answer/retry/resume=0，首个失败停止，其余未执行。
 
 版本化薄runner复用v11的JDK预检、服务、消费、有限观察、原判据及清理，仅替换当前任务/Prompt绑定并加入run-11精确历史hash和累计数。prepare/check-environment不读Key，源码/可执行资产/当前索引及任务快照完整冻结；先完成当前根7实际wire捕获、预算、旧版/未知Prompt拒绝、历史哈希和patch恢复fake，再提交冻结执行。三轮内审及与编辑分离的只读复评核对了实际摘要根因、仅任务版本改动、单批/累计预算和原失败关闭；允许该测试接缝实施，不增加Gate、不宣称阶段B已通过或外部人员评审。仍按实际结果决定专项关闭，禁止机械追加无根因的付费运行。
+
+### 14.39 run-12终态与后置校验诊断边界
+
+§14.38已一次执行并消费，终态Failed。001为Passed（澄清、model2、零检索）；015a为Failed（HTTP502/downstream_failure、model3/search4/embedding1/在线rerank2），其余原八例Not executed。三项模型任务均成功解码，但未返回有效points；必要上下位原文仍在实际Summary输入中（第1/7位）。本次计划选择tax.policy和tax.law，与仅问政策分类的预期不符；这是已观察到的域语义偏差，不表示由失败触发fallback。不能据模型任务成功就认为后置覆盖、引用或原文校验已通过。
+
+本批E2E/model/search/embedding/在线rerank为2/5/4/1/2，启动rerank另1；累计正式22/53/33/16/21（含四次启动rerank），独立Rewrite诊断model1另列，全部已知模型54。预算未超；前后绑定、owned进程/client退出和原始日志扫描删除均通过。八个原始资产逐字节归档于`tests/system_e2e/knowledge_stage_b_run_12/`，完整hash由历史校验测试维护。禁止重用本批；未准备run-13。
+
+现有有限结果没有保留生产Evidence后置校验的拒绝枚举，citation_invalid是无有效points时的验收结论，不能反推出真实quote、coverage域关系、重复引用或子串的哪一项错误。模型原始响应按合同销毁，不能恢复或补造旧运行诊断。先在test-only新增纯函数有限投影并用合成数据验证：只接受精确InvalidSummary类型、已定义reason枚举、当前两个validator代码对象和预先审定的静态抛出分支；最多检查32个frame的代码身份/行号，输出有限phase/reason/branch，绝不读取locals/globals、异常消息、任意路径、模型文本或quote。未知类型全部unknown；未知位置的phase/branch为unknown，只保留已核实的reason枚举。不重新解析或再次调用validator，无IO、Key、网络、全局hook或生产注册。
+
+聚焦三轮内审分别核实：①旧终态及诊断不确定性，不能伪造旧原因；②精确类型/固定枚举/零原文及原validator不变；③纯函数无资源副作用、合成反证和历史hash，不新增Gate或付费批次。与编辑分离的只读设计复核对照L2现有失败关闭与有限证据边界，通过该non-live工具切片，S0/S1/未处理S2=0；同一执行者分阶段复核，不声称外部独立人员审查。当前不猜测性增加Rewrite9/Summary8、不修改索引或gold；该工具不接线执行新真实批次，也不能关闭专项。后续真实诊断须先明确最小场景、只读观察接线和有限预算，并在现有持续授权下重新冻结；不得自动补跑本批。
