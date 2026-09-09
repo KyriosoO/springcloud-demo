@@ -1,0 +1,713 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "retrieval-benchmark-v1",
+  "bindingSha256": "a6d2c00eddf46827750a8100357c909bab944f27d10b41218e2c9754457f9682",
+  "sourceReview": "executor_source_inspection_not_external_human_approval",
+  "limitations": [
+    "present_sources_only",
+    "manual_domains_not_llm_rewrite",
+    "no_summary",
+    "ungraded_relevance",
+    "holdout_for_this_tuning_round_only"
+  ],
+  "sources": [
+    {
+      "id": "lodging",
+      "chunkId": "chunk-a099c95f4e5cc6fa034a6aac0c4ededf",
+      "sha256": "f75587a18625412be4019c6f534ecf6ddfe133fd968984ce75406200cb77ebde",
+      "domainId": "tax.policy",
+      "family": "lodging",
+      "anchors": [
+        "住宿服务，是指提供住宿场所及配套服务等的活动"
+      ]
+    },
+    {
+      "id": "living",
+      "chunkId": "chunk-d901c3f6395113b9dc1fd0ef7b748236",
+      "sha256": "6b845e33a7a53777961b871707601c8dec674cc8e7243a0a823ae2fd80a28d2a",
+      "domainId": "tax.policy",
+      "family": "lodging",
+      "anchors": [
+        "餐饮住宿服务"
+      ]
+    },
+    {
+      "id": "software",
+      "chunkId": "tax-1240ea3c271f3f14f66d839a#d0000",
+      "sha256": "1b48142931047016b0b78c30766718177f51ceaffeb685f01a2032b7b5a9bf5f",
+      "domainId": "tax.policy",
+      "family": "software",
+      "anchors": [
+        "取得省级软件产业主管部门认可的软件检测机构出具的检测证明材料",
+        "单纯对进口软件产品进行汉字化处理不包括在内",
+        "本通知所称软件产品，是指信息处理程序及相关文档和数据"
+      ]
+    },
+    {
+      "id": "small_2023",
+      "chunkId": "tax-87f2cbe8c4ff0be06667dc48#d0000",
+      "sha256": "42f0fef3f8182f610b1a3b09652b5f4f9a92ed12ec389f44a05f1dda253e1e57",
+      "domainId": "tax.policy",
+      "family": "small_enterprise",
+      "anchors": [
+        "年度应纳税所得额不超过300万元、从业人数不超过300人、资产总额不超过5000万元",
+        "本公告执行期限为2023年1月1日至2024年12月31日"
+      ]
+    },
+    {
+      "id": "small_2022",
+      "chunkId": "tax-b61f6bd5fba2fe7b297d8454#d0000",
+      "sha256": "ab52534af576aeb757f5a5e5923b10fa7859c710162e3c3eb6f6c4bdb1823df7",
+      "domainId": "tax.policy",
+      "family": "small_enterprise",
+      "anchors": [
+        "本公告执行期限为2022年1月1日至2024年12月31日"
+      ]
+    },
+    {
+      "id": "eit_rate",
+      "chunkId": "tax-0d5b04990b508ca61326d670#d0000",
+      "sha256": "3d342976f51b22b11bbcefe4133a61a8f7b22481baa39fe7ae42c93c86f64186",
+      "domainId": "tax.law",
+      "family": "enterprise_income",
+      "anchors": [
+        "第四条 企业所得税的税率为25％"
+      ]
+    },
+    {
+      "id": "eit_small",
+      "chunkId": "tax-0d5b04990b508ca61326d670#d0004",
+      "sha256": "80aa4c5b1b74784f0c53d47217e408813c51d48442d25b38cd34c834a07dd4f9",
+      "domainId": "tax.law",
+      "family": "enterprise_income",
+      "anchors": [
+        "第二十八条 符合条件的小型微利企业，减按20％的税率征收企业所得税"
+      ]
+    },
+    {
+      "id": "iit_income",
+      "chunkId": "tax-1c4a540ad06359ff5d8c570c#d0001",
+      "sha256": "450f7bc39c9fc8300e694bb36d272ed997d2b3b2ef89bdc320369cb1e5c0ea54",
+      "domainId": "tax.law",
+      "family": "personal_income",
+      "anchors": [
+        "居民个人的综合所得，以每一纳税年度的收入额减除费用六万元"
+      ]
+    },
+    {
+      "id": "iit_deductions",
+      "chunkId": "tax-1c4a540ad06359ff5d8c570c#d0002",
+      "sha256": "43daf8804e77dc28ad75b4850491fab836bbaac8f0dcf2ae9f48d956a7d94d44",
+      "domainId": "tax.law",
+      "family": "personal_income",
+      "anchors": [
+        "专项附加扣除，包括子女教育、继续教育、大病医疗、住房贷款利息或者住房租金、赡养老人等支出"
+      ]
+    },
+    {
+      "id": "declaration",
+      "chunkId": "tax-8920abcb0dab57b922b4cfe8#d0004",
+      "sha256": "400200e114b4db81c19e480c76331d4932fbfd72ca2814acf1b5ba2a90ac938a",
+      "domainId": "tax.law",
+      "family": "collection_regulation",
+      "anchors": [
+        "第三十二条 纳税人在纳税期内没有应纳税款的，也应当按照规定办理纳税申报"
+      ]
+    },
+    {
+      "id": "resource_use",
+      "chunkId": "tax-9b875d03460770dea6c39191#d0000",
+      "sha256": "325e8c2088f13b82e956468c3cc85b353574c8242d692d75fda38841922b154d",
+      "domainId": "tax.law",
+      "family": "resource",
+      "anchors": [
+        "但是，自用于连续生产应税产品的，不缴纳资源税"
+      ]
+    },
+    {
+      "id": "resource_date",
+      "chunkId": "tax-9b875d03460770dea6c39191#d0001",
+      "sha256": "3de932876760aaca779841968f633e6a63e2413914e966473891e0a1c1f987aa",
+      "domainId": "tax.law",
+      "family": "resource",
+      "anchors": [
+        "自月度或者季度终了之日起十五日内"
+      ]
+    },
+    {
+      "id": "vat_rate",
+      "chunkId": "tax-ed86dea9630deb65973c6bb2#d0001",
+      "sha256": "c0a21ef606eed5e4536e886f6bdb83fd7eb619fcae3d58b5126bfc3d92a5c58e",
+      "domainId": "tax.law",
+      "family": "vat",
+      "anchors": [
+        "税率为百分之六"
+      ]
+    },
+    {
+      "id": "vat_date",
+      "chunkId": "tax-ed86dea9630deb65973c6bb2#d0005",
+      "sha256": "a4206f5102c3ba63d4abb86178047453e8e8972c74beaa4f55c1f460c3aec426",
+      "domainId": "tax.law",
+      "family": "vat",
+      "anchors": [
+        "本法自2026年1月1日起施行"
+      ]
+    },
+    {
+      "id": "vehicle_price",
+      "chunkId": "tax-d95d777673636d1706c5d877#d0000",
+      "sha256": "7fbf70405e0beda835af1eeaea0a62a1b8934200afe128eebf27e1535f302e3f",
+      "domainId": "tax.law",
+      "family": "vehicle",
+      "anchors": [
+        "为纳税人实际支付给销售者的全部价款，不包括增值税税款"
+      ]
+    },
+    {
+      "id": "vehicle_return",
+      "chunkId": "tax-d95d777673636d1706c5d877#d0001",
+      "sha256": "0e62cd692b5d410545965fd3c81f2a9fdda7b13a8eee6064a13f9445a73b6d1e",
+      "domainId": "tax.law",
+      "family": "vehicle",
+      "anchors": [
+        "退税额以已缴税款为基准，自缴纳税款之日至申请退税之日，每满一年扣减百分之十"
+      ]
+    },
+    {
+      "id": "environment",
+      "chunkId": "tax-9cbb809b1b2cb3422161f02e#d0002",
+      "sha256": "6219d09cfd25d7591b4e31da8ed54a9b957f2044abb69590afeaf0441a450c2e",
+      "domainId": "tax.law",
+      "family": "environment",
+      "anchors": [
+        "第十二条 下列情形，暂予免征环境保护税",
+        "农业生产（不包括规模化养殖）排放应税污染物",
+        "低于国家和地方规定的污染物排放标准百分之三十的，减按百分之七十五征收环境保护税"
+      ]
+    },
+    {
+      "id": "stamp_price",
+      "chunkId": "tax-6b4ec183df80e5073a3b4462#d0000",
+      "sha256": "f1b6a791bd0a8b294b8e2fb98ff779c8f70aa4970e012bdfa451762e5e05b2ab",
+      "domainId": "tax.law",
+      "family": "stamp",
+      "anchors": [
+        "应税合同的计税依据，为合同所列的金额，不包括列明的增值税税款"
+      ]
+    },
+    {
+      "id": "stamp_location",
+      "chunkId": "tax-6b4ec183df80e5073a3b4462#d0001",
+      "sha256": "0e0626c5af68b1d8917c1c8d8ab7bfddec816c3d886060443c8eaf11ab027384",
+      "domainId": "tax.law",
+      "family": "stamp",
+      "anchors": [
+        "纳税人为单位的，应当向其机构所在地的主管税务机关申报缴纳印花税"
+      ]
+    },
+    {
+      "id": "lost_invoice",
+      "chunkId": "tax-5395affd1ab501a1d0c21a66#d0000",
+      "sha256": "6fbba047f507c1b5f71c6702b48d96ef7910df8ffd517b4f77e581590fd5e1c4",
+      "domainId": "tax.policy",
+      "family": "invoice",
+      "anchors": [
+        "决定取消纳税人的增值税专用发票发生被盗、丢失时必须统一在《中国税务报》上刊登“遗失声明”的规定",
+        "国税函〔1995〕292号）同时废止"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "caseId": "KRB-001",
+      "split": "development",
+      "corpusState": "present",
+      "question": "增值税政策中住宿服务如何定义，属于生活服务的哪一类？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "subject_scope",
+          "focus": "增值税政策中住宿服务如何定义"
+        },
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "增值税政策中住宿服务属于生活服务的哪一类"
+        }
+      ],
+      "requiredSources": [
+        "lodging",
+        "living"
+      ]
+    },
+    {
+      "caseId": "KRB-002",
+      "split": "development",
+      "corpusState": "present",
+      "question": "请分别查找住宿服务的生活服务分类和增值税法第十条税率规定。",
+      "domains": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "增值税政策中住宿服务的生活服务分类"
+        },
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "增值税法第十条税率规定"
+        }
+      ],
+      "requiredSources": [
+        "living",
+        "lodging",
+        "vat_rate"
+      ]
+    },
+    {
+      "caseId": "KRB-003",
+      "split": "development",
+      "corpusState": "present",
+      "question": "财税〔2011〕100号规定，软件产品享受增值税即征即退需要取得哪些证明材料？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "财税〔2011〕100号规定，软件产品享受增值税即征即退需要取得哪些证明材料？"
+        }
+      ],
+      "requiredSources": [
+        "software"
+      ]
+    },
+    {
+      "caseId": "KRB-004",
+      "split": "development",
+      "corpusState": "present",
+      "question": "财税〔2011〕100号所说的本地化改造是否包括单纯汉字化处理？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "财税〔2011〕100号所说的本地化改造是否包括单纯汉字化处理？"
+        }
+      ],
+      "requiredSources": [
+        "software"
+      ]
+    },
+    {
+      "caseId": "KRB-005",
+      "split": "development",
+      "corpusState": "present",
+      "question": "财政部税务总局公告2023年第6号如何定义小型微利企业？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "财政部税务总局公告2023年第6号如何定义小型微利企业？"
+        }
+      ],
+      "requiredSources": [
+        "small_2023"
+      ]
+    },
+    {
+      "caseId": "KRB-006",
+      "split": "development",
+      "corpusState": "present",
+      "question": "财政部税务总局公告2022年第13号和2023年第6号各自规定的执行期限是什么？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "财政部税务总局公告2022年第13号规定的执行期限"
+        },
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "财政部税务总局公告2023年第6号规定的执行期限"
+        }
+      ],
+      "requiredSources": [
+        "small_2022",
+        "small_2023"
+      ]
+    },
+    {
+      "caseId": "KRB-007",
+      "split": "development",
+      "corpusState": "present",
+      "question": "企业所得税法第四条规定的税率有哪些？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "企业所得税法第四条规定的税率有哪些？"
+        }
+      ],
+      "requiredSources": [
+        "eit_rate"
+      ]
+    },
+    {
+      "caseId": "KRB-008",
+      "split": "development",
+      "corpusState": "present",
+      "question": "请分别查找企业所得税法第二十八条对小型微利企业的规定，以及财政部税务总局公告2023年第6号的小型微利企业条件。",
+      "domains": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "财政部税务总局公告2023年第6号的小型微利企业条件"
+        },
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "企业所得税法第二十八条对小型微利企业的规定"
+        }
+      ],
+      "requiredSources": [
+        "small_2023",
+        "eit_small"
+      ]
+    },
+    {
+      "caseId": "KRB-009",
+      "split": "development",
+      "corpusState": "present",
+      "question": "个人所得税法第六条怎样计算居民个人综合所得的应纳税所得额？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "个人所得税法第六条怎样计算居民个人综合所得的应纳税所得额？"
+        }
+      ],
+      "requiredSources": [
+        "iit_income"
+      ]
+    },
+    {
+      "caseId": "KRB-010",
+      "split": "development",
+      "corpusState": "present",
+      "question": "个人所得税法所称专项附加扣除包括哪些支出？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "个人所得税法所称专项附加扣除包括哪些支出？"
+        }
+      ],
+      "requiredSources": [
+        "iit_deductions"
+      ]
+    },
+    {
+      "caseId": "KRB-011",
+      "split": "development",
+      "corpusState": "present",
+      "question": "按照税收征收管理法实施细则，没有应纳税款时是否仍需申报？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "按照税收征收管理法实施细则，没有应纳税款时是否仍需申报？"
+        }
+      ],
+      "requiredSources": [
+        "declaration"
+      ]
+    },
+    {
+      "caseId": "KRB-012",
+      "split": "development",
+      "corpusState": "present",
+      "question": "资源税法规定，自用应税产品与自用于连续生产应税产品的纳税处理有什么区别？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "资源税法规定，自用应税产品与自用于连续生产应税产品的纳税处理有什么区别？"
+        }
+      ],
+      "requiredSources": [
+        "resource_use"
+      ]
+    },
+    {
+      "caseId": "KRB-013",
+      "split": "development",
+      "corpusState": "present",
+      "question": "增值税法规定从哪一天开始施行？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "增值税法规定从哪一天开始施行？"
+        }
+      ],
+      "requiredSources": [
+        "vat_date"
+      ]
+    },
+    {
+      "caseId": "KRB-014",
+      "split": "development",
+      "corpusState": "present",
+      "question": "查询增值税法第十条中销售服务的税率规定。",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "查询增值税法第十条中销售服务的税率规定。"
+        }
+      ],
+      "requiredSources": [
+        "vat_rate"
+      ]
+    },
+    {
+      "caseId": "KRB-015",
+      "split": "development",
+      "corpusState": "present",
+      "question": "请分别查找财税〔2011〕100号的软件产品定义，以及增值税法第十条的销售服务税率规定。",
+      "domains": [
+        "tax.policy",
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "请分别查找财税〔2011〕100号的软件产品定义"
+        },
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "增值税法第十条的销售服务税率规定"
+        }
+      ],
+      "requiredSources": [
+        "software",
+        "vat_rate"
+      ]
+    },
+    {
+      "caseId": "KRB-016",
+      "split": "development",
+      "corpusState": "present",
+      "question": "资源税法规定，按月或者按季缴纳资源税的申报缴纳期限是什么？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "资源税法规定，按月或者按季缴纳资源税的申报缴纳期限是什么？"
+        }
+      ],
+      "requiredSources": [
+        "resource_date"
+      ]
+    },
+    {
+      "caseId": "KRB-017",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "车辆购置税法规定，购买自用应税车辆的计税价格是否包括增值税？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "车辆购置税法规定，购买自用应税车辆的计税价格是否包括增值税？"
+        }
+      ],
+      "requiredSources": [
+        "vehicle_price"
+      ]
+    },
+    {
+      "caseId": "KRB-018",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "根据车辆购置税法，车辆退回销售企业时如何计算退税额？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "根据车辆购置税法，车辆退回销售企业时如何计算退税额？"
+        }
+      ],
+      "requiredSources": [
+        "vehicle_return"
+      ]
+    },
+    {
+      "caseId": "KRB-019",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "环境保护税法第十二条对农业生产排污的免税规定是否包括规模化养殖？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "环境保护税法第十二条对农业生产排污的免税规定是否包括规模化养殖？"
+        }
+      ],
+      "requiredSources": [
+        "environment"
+      ]
+    },
+    {
+      "caseId": "KRB-020",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "环境保护税法规定，污染物排放浓度低于规定标准时怎样减征？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "环境保护税法规定，污染物排放浓度低于规定标准时怎样减征？"
+        }
+      ],
+      "requiredSources": [
+        "environment"
+      ]
+    },
+    {
+      "caseId": "KRB-021",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "印花税法规定，应税合同计税依据是否包括列明的增值税税款？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "印花税法规定，应税合同计税依据是否包括列明的增值税税款？"
+        }
+      ],
+      "requiredSources": [
+        "stamp_price"
+      ]
+    },
+    {
+      "caseId": "KRB-022",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "按照印花税法，单位纳税人应向哪个所在地的主管税务机关申报？",
+      "domains": [
+        "tax.law"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.law",
+          "kind": "rule",
+          "focus": "按照印花税法，单位纳税人应向哪个所在地的主管税务机关申报？"
+        }
+      ],
+      "requiredSources": [
+        "stamp_location"
+      ]
+    },
+    {
+      "caseId": "KRB-023",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "国家税务总局公告2016年第50号是否取消了专用发票遗失登报声明的要求？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "国家税务总局公告2016年第50号是否取消了专用发票遗失登报声明的要求？"
+        }
+      ],
+      "requiredSources": [
+        "lost_invoice"
+      ]
+    },
+    {
+      "caseId": "KRB-024",
+      "split": "holdout",
+      "corpusState": "present",
+      "question": "国家税务总局公告2016年第50号同时废止了哪份被盗丢失专用发票处理通知？",
+      "domains": [
+        "tax.policy"
+      ],
+      "requirements": [
+        {
+          "domainId": "tax.policy",
+          "kind": "rule",
+          "focus": "国家税务总局公告2016年第50号同时废止了哪份被盗丢失专用发票处理通知？"
+        }
+      ],
+      "requiredSources": [
+        "lost_invoice"
+      ]
+    }
+  ]
+}
