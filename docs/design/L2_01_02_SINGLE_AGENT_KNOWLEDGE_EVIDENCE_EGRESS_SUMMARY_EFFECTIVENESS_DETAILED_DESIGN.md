@@ -8,7 +8,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.23 |
+| 当前版本 | v1.24 |
 | 日期 | 2026-09-09 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V7（V7为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.24 | 2026-09-09 | 全量回归发现旧摘要校验器整文件受冻结哈希保护 | DR-KEV-032改为需求覆盖模块内的独立枚举及兼容异常子类；旧validator、枚举及哈希断言均保持字节不变 |
 | v1.23 | 2026-09-09 | 用户明确以整体召回质量而非住宿单题回答为主；后置拒绝缺少可用原因 | 新增分层检索指标和内部拒绝枚举，历史P5及原十例不改判；不修改模型任务、索引或公共合同 |
 | v1.22 | 2026-09-09 | 必要分类原文已进入模型但回答只引用下位定义 | Summary7明确原问分类前提也需引用支持，复用V6精确decoder/coverage/原文校验；不改检索或强制固定引用数 |
 | v1.21 | 2026-09-07 | 引用合法与问题覆盖缺少可核对关联 | 设计需求锚点预算及Summary6严格coverage，保留旧任务/输入序列化/抽取validator，公共结果与出域权限不改 |
@@ -219,11 +220,11 @@ answer 最多 5 点；每个 `evidence_ref` 只能使用一次。V2 强化模型
 
 #### 9.2.1 需求覆盖拒绝的有限诊断（DR-KEV-032）
 
-依据REQ-KQUALITY-003，建议修改`summary_validation.py::SummaryValidationFailureReason`及`requirement_validation.py::RequirementCoverageValidator.validate`：仅为现有拒绝条件赋予明确内部原因，不改变合法/非法集合、成功结果或公开错误。覆盖校验分别使用`coverage_input_invalid`、`coverage_bundle_invalid`、`coverage_source_invalid`、`coverage_outcome_invalid`、`coverage_ids_invalid`、`coverage_refs_invalid`、`coverage_domain_mismatch`、`coverage_unused_points`。先验证引用形状/集合，再核对域；不得将错域和未知引用混为同一原因。原抽取式校验枚举及全部断言保持不变。
+依据REQ-KQUALITY-003，建议仅修改`requirement_validation.py`：新增`CoverageValidationFailureReason`及`InvalidRequirementCoverage(InvalidSummary)`，为现有拒绝条件赋予明确内部原因，不改变合法/非法集合、成功结果或公开错误。覆盖校验分别使用`coverage_input_invalid`、`coverage_bundle_invalid`、`coverage_source_invalid`、`coverage_outcome_invalid`、`coverage_ids_invalid`、`coverage_refs_invalid`、`coverage_domain_mismatch`、`coverage_unused_points`。先验证引用形状/集合，再核对域；不得将错域和未知引用混为同一原因。`summary_validation.py`、原抽取式校验枚举及旧哈希断言整文件保持字节不变，不通过修改旧期待值兼容新诊断。
 
-`InvalidSummary.reason`只携带枚举，异常文本仍为固定`knowledge.invalid_summary`；Stage仍将全部InvalidSummary映射为既有INVALID_SUMMARY/knowledge.summary_failure。建议把现有测试专用`knowledge_summary_failure_probe_v1.py`改为严格类型及枚举投影，保留有限phase/reason/branch结构，不再读取traceback、frame或源码行号。phase只表示枚举所属校验类别，不证明任意构造异常曾在生产执行；实际执行仍需调用方证据。未知异常类型、未知reason返回unknown；不读取异常message/args/cause、局部变量、正文、模型输出、JWT或路径。该工具不装入生产对象图，不新增观测公共DTO，也不自动安装运行hook；以后需要真实采集时必须在未消费且预算明确的执行合同中接入，不能补写旧结果。
+新异常的`coverage_reason`只携带新枚举；父类`reason`保留原UNKNOWN_EVIDENCE_REF兼容值，异常文本仍为固定`knowledge.invalid_summary`。Stage以既有`except InvalidSummary`捕获子类，仍映射为INVALID_SUMMARY/knowledge.summary_failure。建议把现有测试专用`knowledge_summary_failure_probe_v1.py`改为严格类型及枚举投影：仅精确InvalidRequirementCoverage读取coverage_reason、仅精确InvalidSummary读取原reason，其他子类不读属性。保留有限phase/reason/branch结构，不再读取traceback、frame或源码行号。phase只表示枚举所属校验类别，不证明任意构造异常曾在生产执行；实际执行仍需调用方证据。未知异常类型、未知枚举返回unknown；不读取异常message/args/cause、局部变量、正文、模型输出、JWT或路径。该工具不装入生产对象图，不新增观测公共DTO，也不自动安装运行hook；以后需要真实采集时必须在未消费且预算明确的执行合同中接入，不能补写旧结果。
 
-追踪：REQ-KQUALITY-003→DR-KEV-032→IMPL-KEV-015（上述两个生产模块和已有测试投影）→TEST-KEV-022（逐类拒绝原因、深调用栈无关、恶意异常不读取、成功/公开映射不变、当前Summary解码后拒绝反例）→VAL-KEV-014（定向pytest、strict mypy、compileall及Knowledge/Core/Business回归）。回滚整个代码提交，不修改冻结历史；无配置默认值、网络、持久状态或Java/HTTP变更。
+追踪：REQ-KQUALITY-003→DR-KEV-032→IMPL-KEV-015（一个生产覆盖模块和已有测试投影）→TEST-KEV-022（逐类拒绝原因、深调用栈无关、恶意异常不读取、父异常兼容/公开映射不变、当前Summary解码后拒绝反例、旧摘要任务及validator哈希不变）→VAL-KEV-014（定向pytest、strict mypy、compileall及Knowledge/Core/Business回归）。回滚整个代码提交，不修改冻结历史；无配置默认值、网络、持久状态或Java/HTTP变更。
 
 ### 9.3 本地结果
 
@@ -435,7 +436,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-012` | 已新增 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v5.py`；已修改 `bootstrap.KnowledgeCompositionRoot.task_definitions/build_provider` 的唯一Summary绑定和版本守卫；旧task/validator只读，non-live验证见P3 §20.17 |
 | `IMPL-KEV-013` | 已实施§9.5 Summary6/coverage validator及内部子类型；修改builder/Stage/当前根配对；保持旧serializer、policy及extractive validator |
 | `IMPL-KEV-014` | §9.6 Summary7仅更换指令和版本；同一V6 parser、当前根及Stage版本接缝 |
-| `IMPL-KEV-015` | §9.2.1内部拒绝枚举及既有测试投影，建议修改；不改变公开错误及通过条件 |
+| `IMPL-KEV-015` | §9.2.1 requirement_validation.py内的拒绝枚举/兼容异常及既有测试投影，建议修改；旧摘要validator字节、公开错误及通过条件不变 |
 | `IMPL-KEV-016` | §13.8测试侧分层检索计分纯函数，建议新增；不进入生产排序或历史判据 |
 
 ### 14.2 关键签名

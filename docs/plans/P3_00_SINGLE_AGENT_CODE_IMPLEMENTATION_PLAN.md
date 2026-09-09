@@ -54,10 +54,10 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成，见§20.52～20.53 |
 | [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.27 | DR-KFLOW-024～026需求计划、澄清及当前摘要配对 | Approved；已实施，当前验证见§20.60 |
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.15 | 需求排序、向量发布、合成预热及授权上下文评分 | Approved；局部实施完成，阶段B质量/UAT仍未完成 |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.23 | DR-KEV-029～033需求预算、覆盖、有限拒绝与检索分层计分 | Approved；§20.62增量单独验证，真实专项未通过 |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.24 | DR-KEV-029～033需求预算、覆盖、有限拒绝与检索分层计分 | Approved；§20.62增量单独验证，真实专项未通过 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
 | [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.35 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.40分层计分，未将旧失败改判为通过 |
-| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
+| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.9 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
 
@@ -2251,8 +2251,14 @@ run-11冻结`09413f7bf0a0b3d34476b76b9db7571fbeb9b21e`，manifest=`56c3fc8b1d312
 
 当前安全可执行顺序：①按原证据区分语料/检索/回答；②三轮内审和只读独立阶段复评设计；③实现测试侧指标与明确内部原因，定向及必要回归；④基于人工可核实原文扩充代表集、留出集及冻结通过标准；⑤有界检索对比及必要端到端；⑥正式评审和质量收口。不新增Gate，不把真实模型证据当作这两个零网络代码切片的入口；整体UAT与QUALITY仍未完成。旧20.61时点的行号探针只保留历史来源，当前工具升级为稳定枚举投影。
 
-本增量允许修改范围：L2_01_02、P3、UAT_01、ROADMAP_01及ARCHITECTURE版本入口；`summary_validation.py`内部枚举、`requirement_validation.py`原拒绝原因、已有纯测试探针及直接测试；新增`tests/evaluation/knowledge/retrieval_metrics.py`及测试、有限只读复算资产。无公共DTO/Stage签名/结果语义、模型任务、配置、索引、alias、权限及历史资产修改。没有新付费运行，本轮不读取Key。
+本增量最终允许修改范围（以v1.24修正为准）：L2_01_02、P3、UAT_01、ROADMAP_01及ARCHITECTURE版本入口；`requirement_validation.py`内部枚举/兼容异常/原拒绝原因、已有纯测试探针及直接测试；新增`tests/evaluation/knowledge/retrieval_metrics.py`及测试、有限只读复算资产。`summary_validation.py`及旧哈希测试不修改。无公共DTO/Stage签名/结果语义、模型任务、配置、索引、alias、权限及历史资产修改。没有新付费运行，本轮不读取Key。
 
 验收：拒绝条件不变而原因可区分；指标不读摘要结果，不把missing/unknown或未标注计为通过；有限原证据可分开呈现必要原文入选与回答失败；原35/37及History保留证明范围。具体代码、测试及设计/代码评审结果在本节记录；尚未执行的代表性整体质量测量不得标为Done。
 
 设计三轮内审已执行：①分开现有资料漏召回与缺料分母，补齐未标注指标为null，禁止据摘要结果反算检索；②核对内部枚举而非公共契约，明确phase不是生产执行证明，来源ID/哈希输入必须有界；③核对现有WP直接依赖、历史不可变、无新付费批次及后续代表集/留出集未完成，避免新增循环门禁。随后与编辑分离的只读设计复评覆盖REQ-KQUALITY-002/003/004、L1_01 §4.6、L2_01_02 §9.2.1/13.8及当前P3/UAT/ROADMAP：两个切片可实施，S0=0、S1=0、无未处理S2；不代表全阶段或外部人员评审通过。L2/P3严格校验均0错误/0警告，Git差异无空白错误。
+
+#### 20.62.1 冻结兼容设计复核
+
+设计提交`4f88e93`已推送。首轮实现的166项定向测试通过，但正式隔离全量发现历史Summary V2～V5与诊断manifest直接校验summary_validation.py整文件SHA；只增加枚举也违反冻结合同。此问题归为设计落点遗漏，不是效果失败；暂停受影响实现，不修改旧哈希、历史测试或断言。比较后不选“更新旧哈希/把全部旧测试迁移到冻结Git”，采用最小方案：覆盖模块本地新枚举和InvalidSummary兼容子类，原摘要validator整文件还原不产生diff。
+
+L2_01_02 v1.24复核三轮：①核对旧摘要文件/任务哈希与新覆盖模块的修改边界；②核对父异常reason、固定文本、Stage catch、严格类型投影和未知子类零属性访问；③核对无新增配置/网络/依赖、旧断言保持、直接回归和原工作包DAG。随后分离只读设计复评确认：公共行为不变，父类兼容但新coverage_reason可诊断，历史哈希可验证；该修正可实施，S0/S1/未处理S2=0。以上为同一执行者分阶段复核，不声称外部独立人员评审；L2/P3 strict均0错误/0警告。

@@ -41,7 +41,7 @@
 |---|---|---|
 | `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.27 / Approved（摘要指令已实施，当前8/7/v3；真实效果待验证） |
 | `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.15 / Approved（授权上下文评分已实施，验证见P3；真实效果待验证） |
-| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.23 / Approved（检索分层计分和内部拒绝诊断增量，实际状态由P3治理） |
+| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.24 / Approved（检索分层计分和内部拒绝诊断增量，实际状态由P3治理） |
 
 ### 4.3 Business（受 `L1_02` 治理）
 
