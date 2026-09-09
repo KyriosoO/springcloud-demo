@@ -86,10 +86,10 @@ class DefaultKnowledgeEvidenceStage:
         assert decision.minimized_question is not None
         v3 = input.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
         if ((v3 and (self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
-                     or self._definition.task_version != "6"
+                     or self._definition.task_version not in {"6", "7"}
                      or self._definition.input_type is not KnowledgeRequirementSummaryInput
                      or self._limits != KnowledgeEvidenceLimits.quality_v3()))
-            or (not v3 and (self._definition.task_version == "6" or self._definition.input_type is KnowledgeRequirementSummaryInput))):
+            or (not v3 and (self._definition.task_version in {"6", "7"} or self._definition.input_type is KnowledgeRequirementSummaryInput))):
             return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.EVIDENCE_FAILURE)
         try:
             verified = self._verifier.verify(input=input)

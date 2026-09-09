@@ -512,12 +512,12 @@ class KnowledgeCompositionRoot:
     def task_definitions(*, enabled: bool, rewrite_max_candidates: int = 3) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
-        from agent_runtime.knowledge.evidence.summary_task_v6 import KnowledgeSummaryTaskV6
+        from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
         from agent_runtime.knowledge.rewrite_v8 import KnowledgeRewriteTaskV8
 
         tasks = KnowledgeTaskDefinitions(
             rewrite=KnowledgeRewriteTaskV8.definition(),
-            summary=KnowledgeSummaryTaskV6.definition(),
+            summary=KnowledgeSummaryTaskV7.definition(),
         )
         # Run during main's configuration phase, before allocating any clients.
         KnowledgeCompositionRoot._validate_tasks(tasks)
@@ -530,7 +530,7 @@ class KnowledgeCompositionRoot:
 
         if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "8"
             or tasks.rewrite.input_type is not KnowledgeSemanticPlanInput
-            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "6"
+            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "7"
             or tasks.summary.input_type is not KnowledgeRequirementSummaryInput):
             raise ValueError("knowledge.production_task_version_invalid")
 

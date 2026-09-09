@@ -52,11 +52,11 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
 | [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成，见§20.52～20.53 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.25 | DR-KFLOW-024需求计划及025澄清优先规则恢复 | Approved；已实施，当前验证见§20.44 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.14 | DR-KRET-029需求排序、030～032向量发布及033启动期合成预热；不变更在线超时/服务合同 | Approved；向量发布及预热工具已完成，阶段B质量/UAT仍未完成，见§20.52～20.53 |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.21 | DR-KEV-029/030需求预算与Summary6覆盖 | Approved；已实施及non-live验证，见§20.40 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.27 | DR-KFLOW-024～026需求计划、澄清及当前摘要配对 | Approved；已实施，当前验证见§20.60 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.15 | 需求排序、向量发布、合成预热及授权上下文评分 | Approved；局部实施完成，阶段B质量/UAT仍未完成 |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.22 | DR-KEV-029～031需求预算、覆盖及显式分类证明 | Approved；Summary7已实施，真实效果未验证 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.32 | 原十例及历史失败不变；V8非live和政策存储增量证明范围 | Reviewed；run-08首例Failed、九例未执行，未新增付费执行 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.34 | 原十例、历史失败及最新执行增量 | Reviewed；当前终态与后续有界协议见§14.37～14.38，专项未通过 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.8 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -127,9 +127,9 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KCORPUS-RELEASE-01` | alias 发布、回滚演练与收口 | `L2_01_01 DR-KRET-025` | 原子切候选、冒烟、切回旧目标验证、最终切候选、状态/评审/Git | `WP-KCORPUS-UAT-01` | - | release journal、最终 binding、评审和提交；alias 生效由发布门禁独立判定 | alias/UUID/Profile/policy、全量回归、历史 hash | 精确原子恢复旧目标；不删除索引 | Done |
 | `WP-KRETRIEVAL-DIAG-01` | 阶段 B 根因诊断 | `REQ-KQUALITY-001～004` | 同索引十组零模型对照与有限排名证据 | - | - | diagnosis v1 JSONL、根因矩阵 | 当前服务窗口、改写反例、路径/融合/重排/Evidence | 不写索引、不调用外部模型 | Done |
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
-| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024/025`；`DR-KRET-029/034`；`DR-KEV-029/030` | 当前唯一Rewrite8/Summary6/quality-v3及授权上下文评分表示 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.37～20.40及§20.55公共合同、消费者、单绑定与代码复评通过 | 新TEST/VAL与公开接口零差异 | 整套绑定回退；本次表示修复不改索引 | Done |
-| `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 新合同、fake、Spring、Python/类型/历史防回退 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.55当前正式隔离全量、当前根及Spring E2E通过 | 调用计数、零泄漏、来源绑定 | 不运行付费UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.33/14.34 | §20.58持续授权恢复；run-09失败保持 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 先单独诊断1次Rewrite；正式累计原18/43/27/14/15不改 | 新批次先冻结有界预算；不重用旧运行 | In Progress |
+| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～026`；`DR-KRET-029/034`；`DR-KEV-029～031` | 当前唯一Rewrite8/Summary7/quality-v3及授权上下文评分表示 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.60当前摘要指令及代码复评通过 | 新TEST/VAL与公开接口零差异 | 禁用或整套源码回退；索引不变 | Done |
+| `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | 新合同、fake、Spring、Python/类型/历史防回退 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.60.1正式隔离全量、当前根及Spring E2E通过 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.37/14.38 | 摘要实证修订后新的有界十例；旧失败不改 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 有限证据 | 单批10/28；累计正式20/48已用，诊断1另列 | 新批次先冻结有界预算；不重用旧运行 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -2200,3 +2200,22 @@ run-10冻结`9774cac766d64b37d0d1a203adb80891be9a40a2`，manifest=`c8d1605700a23
 run-11冻结`09413f7bf0a0b3d34476b76b9db7571fbeb9b21e`，manifest=`56c3fc8b1d312e734a5ca13ed38390869befb8222673ddff7c70fb3c534b2807`，result=`2025550720405361a79d659cf02dc500dfb5561c983171d6b7bd5cf01e0d0392`，完整八文件归档`tests/system_e2e/knowledge_stage_b_run_11/`，逐字节核对原target。执行与停止见UAT_01 §14.37：001 Passed，015a Failed，其余8项未执行；实际模型5，必要上位/下位原文均已进入Summary，缺失的是引用支持，不是召回。累计正式E2E/model为20/48，独立诊断模型1另列。运行环境JDK25修复有效，所有owned进程/日志清理通过。
 
 最小直接DAG：L2_01_02 DR-KEV-031与L2_01_00 DR-KFLOW-026三轮内审及分离设计复评→Summary7/当前root/Stage版本→定向及全量/Spring验证→代码复评→新版本有界专项→最终收口。不新增Gate，不改Rewrite8/索引/gold/validator，不把已检索正文或模型coverage声明当语义证明。两份L2版本v1.22/v1.27，ARCHITECTURE仅更新版本索引；P3/UAT本次是执行增量，不因测试数量变化升级长期合同。当前UAT=In Progress、QUALITY=Blocked；新代码未实施前仍8/6/v3，Summary7效果尚未验证。
+
+#### 20.60.1 实施、验证及代码复评
+
+已新增`summary_task_v7.py`，仅指令/版本区别于V6，同一parse_response及输入输出合同；bootstrap唯一8/7/v3，Stage保留6/7历史构造但生产根拒绝6/未知版。当前根、注册合同及Spring fake的版本期待同步；v9/v10特定冻结测试在隔离作用域读取run-11冻结Git根/helper，不改其旧断言。run-09历史测试的“run-10不存在”改为核对当时Git树，不把历史事实误作永远禁止后续授权；原历史八文件/hash不变。
+
+两轮代码对照复评：首轮及测试修复了历史fixture错误换行假设、遗漏的当前注册版本期待、历史时间边界，以及新fake仍生成旧Summary6请求的问题；未改旧任务、gold、生产decoder/validator或放宽失败断言。第二轮核对同一parser/预算、分类完整性指令、single/multi-ref、当前根/disabled/旧版拒绝、失败关闭、历史作用域恢复和实际新任务wire；本次增量Blocker/Major/未处理Minor=0。与编辑分离、同一执行者审查，不冒充外部独立评审或整体阶段B通过。
+
+| 本轮实际验证（non-live child移除Key） | 结果 |
+|---|---|
+| 新Summary7、Rewrite8、当前需求root/plan、历史v9/v10定向pytest | 347 passed，45.17s |
+| 新v12预算/绑定/原根/原判据、run-11历史及注册合同pytest | 80 passed，5.42s；初轮旧fake请求1失败已修正 |
+| v12、Summary7、Evidence Stage及Business/Knowledge追踪组合pytest | 153 passed，5.74s；与上述有重叠，不相加 |
+| `scripts/run-nonlive-regression.ps1 -PythonExecutable C:\Python312\python.exe` | 最终Transaction host 14 passed/3.58s；全量3269 passed、27 opt-in skipped、0 failed/409.35s，临时venv清理；初轮3189 passed/27 skipped/2 failed为上述注册期待与历史时间断言，已修复并全量复验 |
+| `python -m mypy --strict src`、`python -m compileall -q src`及新增测试/runner | 136源文件通过，编译通过 |
+| agent-service `mvnw.cmd -Dagent.runtime.python=C:\Python312\python.exe -Deureka.client.enabled=false test` | JDK25、PYTHONPATH指向Runtime src、stub/Knowledge disabled；40 tests，0失败/错误、1历史系统opt-in跳过；Business及Knowledge Spring E2E均实际通过。初次缺PYTHONPATH导致main导入失败，纠正执行环境后复验，不改Java代码 |
+| es-query-service `mvnw.cmd -Dtest=Knowledge*Test -Deureka.client.enabled=false test` | 29 tests，0失败/错误/跳过 |
+| L2两文件strict、P3 strict、历史hash、敏感模式及Git差异 | 0错误/警告；历史资产不变、新增文件敏感模式0命中、diff检查通过 |
+
+受控专项协议见UAT_01 §14.38：真实调用仅在提交冻结后发生。所有上述测试均不能证明Summary7真实语义效果，QUALITY及专项关闭仍须原十例实际证据。此次没有Java/公开DTO、索引/alias、读取权限或出域变更；LangChain及Java依赖预告保持既有范围，未引入额外依赖来压掉警告。

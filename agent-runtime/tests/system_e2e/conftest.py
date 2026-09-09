@@ -35,15 +35,19 @@ def isolate_consumed_run07_test_input(request, monkeypatch):
 @pytest.fixture(autouse=True)
 def isolate_consumed_run08_root_fixture(request, monkeypatch):
     """Only the consumed runner's source-bound fake test uses its frozen root."""
-    if (request.module.__name__ != "tests.system_e2e.test_knowledge_stage_b_uat_v8"
-            or request.function.__name__ != "test_capture_hooks_on_actual_current_production_root_and_provider_wire"):
+    run08 = (request.module.__name__ == "tests.system_e2e.test_knowledge_stage_b_uat_v8"
+             and request.function.__name__ == "test_capture_hooks_on_actual_current_production_root_and_provider_wire")
+    run09_10 = (request.module.__name__ in {"tests.system_e2e.test_knowledge_stage_b_uat_v9",
+                                          "tests.system_e2e.test_knowledge_stage_b_uat_v10"}
+                and request.function.__name__ == "test_current_root_capture_provider_wire_and_context_observer")
+    if not (run08 or run09_10):
         return
     import agent_runtime.bootstrap as bootstrap
     import agent_runtime.main as main
     import tests.integration.knowledge as package
 
     repo = Path(__file__).resolve().parents[3]
-    manifest = json.loads((Path(__file__).parent / "knowledge_stage_b_run_08" / "manifest.json").read_bytes())
+    manifest = json.loads((Path(__file__).parent / ("knowledge_stage_b_run_08" if run08 else "knowledge_stage_b_run_11") / "manifest.json").read_bytes())
     head = manifest["frozenHead"]
 
     def frozen(path):
@@ -51,8 +55,17 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
         # The fake helper was not a live execution asset. Pin its source at the
         # same frozen commit separately; do not invent an entry in the manifest.
         helper = "agent-runtime/tests/integration/knowledge/test_requirement_runtime_composition.py"
-        expected = ("9d456883c1d65baef30d0151dc6ce0ae34f3ff6a71035b5a8ffe701dbc8bfde1"
-                    if path == helper else manifest["assets"][path])
+        if run08:
+            expected = ("9d456883c1d65baef30d0151dc6ce0ae34f3ff6a71035b5a8ffe701dbc8bfde1"
+                        if path == helper else manifest["assets"][path])
+        else:
+            # Both historical tests require 8/6/v3. Pin Git blobs from run-11's
+            # unchanged pair and verify against its exact recorded source hash.
+            assert head == "09413f7bf0a0b3d34476b76b9db7571fbeb9b21e"
+            expected = ("1be6f5415e7787c22e6b8a136835134cc53a14f2b3e10b93a8520aa07694b6d8"
+                        if path == helper else "f2ca11c06dc9101297b4e1f46b070207ac3ee2fd32edf080032944d41e29e595")
+            if path != helper:
+                assert hashlib.sha256(source).hexdigest() == manifest["assets"][path]
         assert hashlib.sha256(source).hexdigest() == expected
         return source.decode("utf-8")
 

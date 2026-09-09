@@ -104,7 +104,7 @@ class _KnowledgeModelTransport:
                     separators=(",", ":"),
                 )
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
-            assert request.task_version == "6" and payload["schema_version"] == 2
+            assert request.task_version == "7" and payload["schema_version"] == 2
             self._probe.counts["summary"] += 1
             question = payload["question"]
             if "摘要失败" in question:

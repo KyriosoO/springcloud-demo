@@ -61,7 +61,7 @@ class Model:
             if self.fault == "rewrite_timeout": raise TimeoutError("synthetic")
             value = deepcopy(self.output)
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
-            assert request.task_version == "6" and payload["schema_version"] == 2
+            assert request.task_version == "7" and payload["schema_version"] == 2
             if self.fault == "summary_failure": raise RuntimeError("synthetic")
             if self.fault == "summary_timeout": raise TimeoutError("synthetic")
             if self.fault == "wait":
@@ -153,7 +153,7 @@ async def test_current_root_retains_three_proof_anchors_and_summary_coverage(mul
     assert result.status is CapabilityStatus.SUCCESS, result.failure
     assert result.capability_id == "knowledge.query" and [p["quote"] for p in result.user_result["points"]] == list(CONTENTS)
     assert [(r.task_id, r.task_version) for r in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "8"), (ModelTaskId.KNOWLEDGE_SUMMARY, "6")]
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "8"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
     assert [v["query"] for p, v in clients.payloads if p == "/rerank"] == list(FOCUSES)
     expected_documents = [text + "\n文档标题：增值税政策资料" + str(i) for i, text in enumerate(CONTENTS, 1)]
     for path, body in clients.payloads:
@@ -250,12 +250,14 @@ def test_minimum_four_checked_before_any_client_or_model_factory(domains, monkey
                        "AGENT_KNOWLEDGE_FINAL_CANDIDATES": "3"}, model_transport=Model(plan()), knowledge_http_client_factory=forbidden)
 
 
-@pytest.mark.parametrize("fault", ["rewrite_version", "summary_version", "rewrite_id", "summary_id", "rewrite_type", "summary_type"])
+@pytest.mark.parametrize("fault", ["rewrite_version", "summary_version", "summary_six", "summary_unknown", "rewrite_id", "summary_id", "rewrite_type", "summary_type"])
 def test_production_rejects_mixed_task_pair_before_model_use(fault):
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "8" and tasks.summary.task_version == "6"
+    assert tasks.rewrite.task_version == "8" and tasks.summary.task_version == "7"
     if fault == "rewrite_version": tasks = replace(tasks, rewrite=KnowledgeRewriteTaskV6.definition())
     elif fault == "summary_version": tasks = replace(tasks, summary=KnowledgeSummaryTaskV5.definition())
+    elif fault in {"summary_six", "summary_unknown"}:
+        tasks = replace(tasks, summary=replace(tasks.summary, task_version="6" if fault == "summary_six" else "999"))
     elif fault == "rewrite_id": tasks = replace(tasks, rewrite=replace(tasks.rewrite, task_id=ModelTaskId.KNOWLEDGE_SUMMARY))
     elif fault == "summary_id": tasks = replace(tasks, summary=replace(tasks.summary, task_id=ModelTaskId.KNOWLEDGE_REWRITE))
     elif fault == "rewrite_type": tasks = replace(tasks, rewrite=replace(tasks.rewrite, input_type=KnowledgeRequirementSummaryInput))
@@ -389,13 +391,13 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
 def test_task_factory_version_error_precedes_client_allocation(task, monkeypatch):
     from agent_runtime import main
     from agent_runtime.knowledge.rewrite_v8 import KnowledgeRewriteTaskV8
-    from agent_runtime.knowledge.evidence.summary_task_v6 import KnowledgeSummaryTaskV6
+    from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
     def forbidden(*args, **kwargs): raise AssertionError("No resources before configuration validation")
     monkeypatch.setattr(main.LocalModelCompositionRoot, "build", forbidden)
     monkeypatch.setattr(main, "HttpxBusinessDomainTransport", forbidden)
     if task == "rewrite":
         monkeypatch.setattr(KnowledgeRewriteTaskV8, "definition", KnowledgeRewriteTaskV6.definition)
     else:
-        monkeypatch.setattr(KnowledgeSummaryTaskV6, "definition", KnowledgeSummaryTaskV5.definition)
+        monkeypatch.setattr(KnowledgeSummaryTaskV7, "definition", KnowledgeSummaryTaskV5.definition)
     with pytest.raises(ValueError, match="production_task_version_invalid"):
         build_runtime(_enabled_environment(), model_transport=Model(plan()), knowledge_http_client_factory=forbidden)

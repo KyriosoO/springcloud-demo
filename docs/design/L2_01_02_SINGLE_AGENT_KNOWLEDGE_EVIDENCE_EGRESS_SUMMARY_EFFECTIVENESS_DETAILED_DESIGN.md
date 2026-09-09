@@ -9,12 +9,12 @@
 |---|---|
 | 文档编号 | `L2_01_02` |
 | 当前版本 | v1.22 |
-| 日期 | 2026-09-07 |
-| 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V6（V6为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
+| 日期 | 2026-09-09 |
+| 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V7（V7为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KEV-031细化原问显式分类关系的引文证明，目标Summary7仅改Prompt；当前仍Summary6，增量评审后实施，状态由P3治理 |
+| 本次增量 | DR-KEV-031已新增Summary7细化显式分类关系的引文证明；仅改Prompt、复用V6合同，真实效果未验证，状态由P3治理 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | Evidence/Policy、Summary V6/quality-v3生产接线及non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
+| 实施状态 | Evidence/Policy、Summary V7/quality-v3生产接线及定向non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -269,7 +269,7 @@ V6使用同一ModelGateway一次Summary调用，不增加复核模型；模型�
 
 `TEST-KEV-020`（已实现`tests/contract/knowledge/test_summary_task_v6.py`、`tests/unit/knowledge/evidence/test_requirement_coverage.py`及当前根集成）：同域不同需求首位/重复anchor去重、4需求/8证据/32KiB包含需求开销、空需求错配、漏ID/增ID/重复ID/错域/错ref/同文不同来源、point未被使用、仅全文含答案而quote不支持的语义保留反例；合法一引文覆盖多需求、多来源联合支持、insufficient、非法/超时/取消、三层拒绝Summary0、旧输入序列化/任务hash不变。对语义反例不伪称本地能自动识别，人工原文评分应判失败。`VAL-KEV-012`要求新合同与生产对象图fake、现有子串/权限/Knowledge/Business历史全量、类型和Spring回归；新真实效果仍待有权限的独立验证，不复用已消费运行。
 
-### 9.6 显式分类前提与定义的联合证明（DR-KEV-031；目标待实施）
+### 9.6 显式分类前提与定义的联合证明（DR-KEV-031；已实施）
 
 依据REQ-KEV-001/003及KQ-AD-018的“全部显式条件需原文支持”。根因证据见UAT_01/P3：必要上位分类和下位定义都进入了实际Summary输入，但只引用了下位定义。本地coverage校验没有语义蕴含能力，不应伪装能自动发现该遗漏。这里只细化既有模型责任，不新增本地行业规则。
 
@@ -278,7 +278,7 @@ V6使用同一ModelGateway一次Summary调用，不增加复核模型；模型�
 1. 用户原问的上位类别、子类定义及归属关系若构成问题的显式限定，不能把该归属当作已证事实。定义与所属关系都是回答需支持的要点；未被requirements单独列出的显式要点仍需核对。
 2. quote集合必须同时支持定义和必要的分类关系。单份连续原文已同时证明时一个point即可；证据分散时允许同一个requirement的coverage引用多个不同point，不能因为只有r1而只输出一条引文。不得机械强制两个ref，也不加入固定行业、文档或case示例。
 3. 最小性仅在完整性满足后成立。返回前检查“删除某point是否失去原问题一个显式要点”；不得把未引用全文、标题推测或模型常识补成分类桥接依据。仅有定义而关系缺证据时保持insufficient_evidence，不输出部分肯定答案。
-4. 新`evidence/summary_task_v7.py::KnowledgeSummaryTaskV7.definition()`（建议新增）复用V6公开definition及**同一parse_response对象**，build_request复用V6工厂后仅修改version与指令。输入schema2、输出、类型、1～5points/唯一ref/512字符、32KiB、1536tokens/15秒及三层出域全部不变。coverage及extractive validator均不改。
+4. 已新增`evidence/summary_task_v7.py::KnowledgeSummaryTaskV7.definition()`复用V6公开definition及**同一parse_response对象**，build_request复用V6工厂后仅修改version与指令。输入schema2、输出、类型、1～5points/唯一ref/512字符、32KiB、1536tokens/15秒及三层出域全部不变。coverage及extractive validator均不改。
 5. `bootstrap.KnowledgeCompositionRoot`唯一配对Rewrite8/Summary7/quality-v3。EvidenceStage显式允许合同相同的6和7用于受控历史构造；生产根拒绝6及未知版本，不提供热切换或fallback。旧V6和历史manifest/evidence字节不可变；回滚仍为禁用或整套源码回退。
 
 追踪：REQ-KEV-001/003→DR-KEV-031→IMPL-KEV-014（新任务/当前root/Stage版本检查）→TEST-KEV-021（`tests/contract/knowledge/test_summary_task_v7.py`、当前需求Runtime集成与Spring fake）→VAL-KEV-013（定向、类型、Spring、隔离全量及原十例UAT）。测试覆盖单条原文足够、两来源共同证明一个需求、仅有定义的语义保留反例、拒绝/超时/错域/错引用零回退；只验证Prompt和fake不能证明真实语义，原UAT gold不变。冻结旧runner依赖其冻结Git根/fixture，不为了历史断言保留旧生产绑定。
@@ -323,7 +323,7 @@ question denied flag / fresh Guard
 
 - `KnowledgeEvidenceLimits.v1()/quality_v1()/quality_v2()/quality_v3()`按计划版本代码绑定配额；总8/32768bytes、quote及结果上限不变。当前V3只用匹配的quality_v3工厂，历史V2仍配quality_v2，配置不能扩大总预算。
 - 策略目录 artifact 随代码发布并严格加载；内容变化必须创建新资源、新 version/export/source revision/hash 并重跑全成员和出域测试。旧资源、常量及历史 manifest 继续独立可验证，不得原位改写。
-- 当前生产实现唯一绑定Summary V6；V1～V5保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
+- 当前生产实现唯一绑定Summary V7；V1～V6保留历史兼容、冻结资产验证与可追溯回滚责任。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
 
 ## 13. P5 效果验证设计与当前结论
@@ -552,7 +552,7 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.21；DR-KEV-029/030已评审实施及成对接线，当前生产V6；真实效果待验证。
+- 当前版本：v1.22；DR-KEV-029～031已评审实施及成对接线，当前生产V7；真实效果待验证。
 - 文档状态：Approved；DR-KEV-027/028三轮内审和只读独立复评通过，允许本切片非live实施；记录归P3_00 §20.17，不代表真实效果通过。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
 

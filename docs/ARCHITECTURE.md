@@ -39,9 +39,9 @@
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.27 / Approved（摘要指令增量待实施，当前8/6/v3；真实效果待验证） |
+| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.27 / Approved（摘要指令已实施，当前8/7/v3；真实效果待验证） |
 | `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.15 / Approved（授权上下文评分已实施，验证见P3；真实效果待验证） |
-| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.22 / Approved（Summary7指令增量待实施，真实效果待验证） |
+| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.22 / Approved（Summary7指令已实施，真实效果待验证） |
 
 ### 4.3 Business（受 `L1_02` 治理）
 
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction需求、设计与35/35 UAT保持原证明范围且不得回退。Knowledge默认关闭，当前生产已唯一绑定Rewrite V8/Summary V6、质量策略V3并完成当前对象图定向non-live；原37项功能UAT、域目录v2、效果口径v2和阶段A语料发布保持原证明范围。最新有效P5仍为`partially_effective`；当前新版本真实效果尚未验证，阶段B必要证据覆盖及完整专项仍未通过；图谱未实施。具体Gate、candidate、测试总数和evidence只在P3、UAT_01与evidence中维护。
+Employee/Transaction需求、设计与35/35 UAT保持原证明范围且不得回退。Knowledge默认关闭，当前生产已唯一绑定Rewrite V8/Summary V7、质量策略V3并完成当前对象图定向non-live；原37项功能UAT、域目录v2、效果口径v2和阶段A语料发布保持原证明范围。最新有效P5仍为`partially_effective`；当前新版本真实效果尚未验证，阶段B必要证据覆盖及完整专项仍未通过；图谱未实施。具体Gate、candidate、测试总数和evidence只在P3、UAT_01与evidence中维护。
