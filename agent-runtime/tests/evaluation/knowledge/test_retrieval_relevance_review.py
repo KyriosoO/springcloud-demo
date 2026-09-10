@@ -1,5 +1,6 @@
 """Source judgments remain separate from online ranking and old run results."""
 import copy
+from collections import Counter
 from dataclasses import replace
 import hashlib
 import json
@@ -175,6 +176,62 @@ def test_holdout_noise_remains_visible_after_candidate_admission():
     # Necessary support survives but high-score irrelevant clauses still do
     # too. Neither a perfect nDCG nor an unchanged gold hit proves readiness.
     assert cases[21]["gradedMetrics"]["comparison"]["precision_at_k"] == 0.15
+
+
+def test_remaining_noise_is_optional_not_a_requirement_anchor():
+    # Validate every frozen input before joining identities. This diagnoses
+    # recorded selection, not new model output or semantic adequacy online.
+    assert review.evaluate_review()["status"] == "pool_reviewed"
+    ranked_rows = [json.loads(line) for line in
+                   (review.DIRECTORY / review.INPUTS["comparisonSha256"][0]).read_bytes().splitlines()]
+    replay_rows = [json.loads(line) for line in
+                   (review.DIRECTORY / review.INPUTS["sourceReplaySha256"][0]).read_bytes().splitlines()]
+    judgments = {v["caseId"]: {review.identity(j): j for j in v["judgments"]}
+                 for v in rows() if v["event"] == "case_review"}
+    ranked = {v["caseId"]: {review.identity(c): c for c in v["ranked"]}
+              for v in ranked_rows if v["event"] == "case"}
+    roles, reasons = Counter(), Counter()
+    for case in (v for v in replay_rows if v["event"] == "case"):
+        for item in case["candidate"]["evidence"]:
+            source = review.identity(item)
+            judgment = judgments[case["caseId"]][source]
+            anchor = bool(ranked[case["caseId"]][source]["requirementIds"])
+            roles[anchor, judgment["grade"]] += 1
+            if judgment["grade"] == 0:
+                assert not anchor  # Dropping mandatory anchors cannot fix this noise.
+                reasons[judgment["reason"]] += 1
+    assert roles == {
+        (False, 0): 50, (False, 1): 52, (False, 2): 5, (False, 3): 4,
+        (True, 1): 2, (True, 2): 1, (True, 3): 26,
+    }
+    assert reasons == {"other_subject": 22, "other_requirement": 20, "other_instrument": 8}
+    # Some optional sources are direct support; anchors alone are not a safe
+    # substitute. Two anchors are only background, despite structural coverage.
+    assert roles[False, 2] + roles[False, 3] == 9
+    assert roles[True, 1] == 2
+
+
+@pytest.mark.parametrize("case_id", ["KRB-003", "KRB-007", "KRB-009", "KRB-022"])
+def test_high_rerank_score_does_not_prove_direct_relevance(case_id):
+    assert review.evaluate_review()["status"] == "pool_reviewed"
+    saved = [json.loads(line) for line in
+             (review.DIRECTORY / review.INPUTS["comparisonSha256"][0]).read_bytes().splitlines()]
+    part = [v for v in saved if v.get("caseId") == case_id]
+    ranked = next(v for v in part if v["event"] == "case")["ranked"]
+    second = ranked[1]
+    source = review.identity(second)
+    assert second["rank"] == 2 and second["requirementIds"] == []
+    passes = [v for v in part if v.get("stage") == "rerank"]
+    assert len(passes) == 1  # No ambiguous cross-focus/first-selection score join.
+    score = next(v["score"] for v in passes[0]["candidates"] if review.identity(v) == source)
+    judgment = next(j for v in rows() if v.get("caseId") == case_id
+                    for j in v["judgments"] if review.identity(j) == source)
+    assert score > 0.9
+    assert (judgment["grade"], judgment["reason"]) == (0, "other_requirement")
+    replay = [json.loads(line) for line in
+              (review.DIRECTORY / review.INPUTS["sourceReplaySha256"][0]).read_bytes().splitlines()]
+    selected = next(v for v in replay if v.get("caseId") == case_id and v["event"] == "case")
+    assert source in {review.identity(v) for v in selected["candidate"]["evidence"]}
 
 
 def test_development_context_loss_is_not_hidden_by_aggregate_improvement():
