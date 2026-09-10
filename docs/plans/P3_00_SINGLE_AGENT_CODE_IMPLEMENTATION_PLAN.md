@@ -143,7 +143,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.51、DR-KFLOW-028、DR-KEV-032～034 | 当前9/7代表集已执行2题：跨域通过，同域双文号召回不足；8题未执行，见§20.79 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 新批2 E2E/6模型；已知累计25/63，批准上限33/87但失败后不可使用余量补跑 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.54、DR-KFLOW-028/029、DR-KEV-032～034 | 旧批2题终态保持；用户授权新9项独立验证，按§20.85准备，未提前计通过 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 已知累计25/63；本次独立上限9/27，累计上限34/90；失败停止不转移余量 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -2949,3 +2949,15 @@ A为focused_both，B为original_keyword。MRR使用grade>0的相关性口径时�
 该切片只新增三个测试侧文件及P3/UAT证据记录；REQ/L1/L2合同、生产代码和版本不改，无需为执行计数升级架构文档。按REQ-KQUALITY-002/004→DR-KEV-033进行编辑后分离代码/证据复核：身份复用、共同理想池、严格类型、partial/null、无网络/敏感正文、历史不可变及局部下降披露均符合；复核改为显式导入SourceRef以免依赖旧模块偶然导出。没有新设计语义，不伪称新增三轮设计评审或外部人员批准。原问覆盖切片与本次分级补核已完成，WP-KRETRIEVAL-UAT-01/整体质量仍未完成，§14.51旧failed终态及累计25 E2E/63模型不变。
 
 最终分离复评确认该测试/证据切片无未关闭Blocker/Major；两份状态文档追加后，UAT追踪及新分级测试联合56 passed/1.17秒。P3 `validate_implementation_plan.py --file ... --strict`为0错误/0警告（初次误用位置参数只产生CLI用法错误，修正后通过）；复算CLI实际执行为pool_reviewed/496/459/37/0。新增文件凭据模式0命中，旧review、对照及binding四项SHA核对通过；Git属性明确JSON为LF，可从干净检出复现新分级哈希。此次未改Java/生产代码，因此未重复上一切片Maven及全仓13分钟隔离回归，不把既有执行数量冒充本次结果；本次472项为完整Knowledge evaluation加直接策略及UAT追踪的定向回归。
+
+### 20.85 九项独立真实UAT准备与执行
+
+2026-09-10从`19cb2b44ff249ac46840e55b3a3229013262d0e5`干净工作树恢复；用户批准新的9项、最多27模型请求，执行前冻结HEAD/manifest/预算。按UAT_01 §14.54准备`knowledge-representative-uat-v2-20260910-02`，reference=`UAT_01:14.54`；原run-01 failed/consumed及累计25/63不改，不复用原余量。本次新上限9/27，累计上限34/90，只授权一个批次，失败即停。
+
+新增测试侧`knowledge_representative_uat_v2.py`与直接测试。为保护被冻结的V1，V2使用其已验证流程的版本化副本；精确差异测试约束仅八处批次ID/reference/清单/预算/累计记录/测试快照/完成数量变化。所有业务调用、来源与引用判据、两阶段stub→live、安全hook、无重试及清理逻辑保持；不叠加历史生产装配覆盖、不修改生产src、Java、Prompt或公共合同。新增run-02有限资产的Git binary属性，防止后续提交换行改变运行哈希。
+
+准备阶段直接fake、新旧执行器及run-01不可变历史测试联合111 passed/24.67秒，既有LangChain预告1项。覆盖9题上限/第10题禁止、精确model wire及日志先于outbound、失败停止、非法输出、权限/出域、缺证据、取消及清理后禁止恢复。只读环境预检通过：JDK25身份、编译Profile与源码相同、隔离端口空闲、当前索引binding和本地BGE健康/容器身份匹配；该预检无Key读取、启动或模型推理。
+
+授权及协议核对分三次完成：一、原九题/anchor和4题既有留出不变；二、每题与全批预算、累计34/90、首个outbound消费、失败停止不转移余额；三、当前源码/制品冻结、内存凭据、历史保护、隔离PID清理与后置引用责任。没有新架构或L2语义，不为运行计数升级REQ/L1/L2或重复全套设计。执行器随后进行与编辑分离的代码对照复核及冻结；完整专项、人工usefulness和质量包仍未关闭，最终结论必须来自实际结果。
+
+准备后分离只读代码复评：按UAT §14.54、DR-KFLOW-029/DR-KRET-037与原§14.51调用/授权/来源合同，核对八处差异、全部被复用函数及新测试的实际runner绑定；无未关闭Blocker/Major。历史副本是冻结运行兼容资产，不是新在线流程；测试用例复用不覆盖旧断言，修改仅将长差异清单展开以便逐项审阅。该评审由同一执行者分离编辑阶段完成，不冒充外部人员。新runner、Knowledge evaluation、原问策略及35/37追踪联合518 passed/46.44秒（既有预告1项）；compileall通过，P3严格校验0错误/警告。没有生产或Java修改，本次不重复此前完整隔离回归及Maven，不将其历史数量冒充当前执行。执行前Git差异与凭据扫描、最终冻结绑定和真实结果另按实际记录。
