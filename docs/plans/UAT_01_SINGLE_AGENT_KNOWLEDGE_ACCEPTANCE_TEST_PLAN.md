@@ -1031,3 +1031,5 @@ DR-KRET-035代码及non-live已完成，命令、代码复评与提交见P3 §20
 判断：measured仅表示本次真实Summary尝试形成可审查的decoder/后置结果；success还需原validator实际通过，insufficient_evidence如实记录，不自动算答案质量通过。若再次拒绝，以本次有限原因决定最小修复；若未复现，不反推run-12原因已修复。来源不足记资料/检索限制，不修改gold或强迫住宿通过。无论结果如何，不关闭阶段B全部UAT，不自动产生第二次付费调用。
 
 实施前复核：三轮内审依次核对（1）固定前两任务与真实Summary证明范围，补明确partial-model而非E2E；（2）Key读取、一次HTTP、原validator旁观、来源授权和有限输出，补started阻断未消费重启；（3）资源、快照、失败和预算，补预热独立计数。随后分离编辑执行只读设计对照复核：用户持续授权→本节→DR-KEV-032→既有run_case/transport/隔离管理的职责与合同一致，局部实施门S0=0、S1=0、未处理S2=0。该评审由同一执行者分阶段完成，不称外部独立审查；真实执行仍须先通过fake和提交冻结。无需修改L1/L2、公共合同、阈值或索引。
+
+执行终态：本次measured，KRB-001的真实Summary7成功，coverage及extractive两个原validator实际通过；20候选→4条Evidence，lodging/living两项既有必要来源hash均进入输入，全部检索路径完整。没有复现后置拒绝，因此不能确定run-12原因，也不据此改写旧失败或猜测性修改Prompt。正文和模型原始输出未保存，不追加人工语义rubric通过结论。该结果只增加当前Summary7真实局部验证，不证明真实Rewrite、跨域完整UAT或总体答案准确率。预算、清理、hash和证据位置见P3 §20.75.1；已知累计付费55，不再自动追加本诊断或任何旧批次。

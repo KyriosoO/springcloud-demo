@@ -2629,3 +2629,15 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 准备验证：新增工具及直接测试，复用当前根、本地服务和原DeepSeek transport。三轮设计内审与分离的只读复核见UAT §14.48；代码对照复核两轮，第一轮发现`B-SUM-DIAG-001`（Major）：完整性检查仅在请求结束后执行，部分检索可能先花费模型请求。已把完整检索/域覆盖检查前移到凭据读取及outbound之前，并加入部分路径反例；同时冻结全部es-query-service编译资源而非只冻结两个class，防止运行制品未覆盖漂移。第二轮核对精确payload、started/consumed独占保存、原validator只调用一次、取消恢复、有限结果与失败停止，无本切片未处理Blocker/Major；不称外部独立审查。
 
 实际non-live：新增文件首轮14 passed；加固后与本地smoke、当前根观察、run-12历史四文件联合`python -B -m pytest ... -q -p no:cacheprovider`为42 passed/38.29秒（1项既有LangChain预告）。`python -B -m mypy --strict src`138文件通过；两新增文件compileall通过，P3严格校验0错误/0警告，diff --check通过。所有测试子进程移除Key环境项而不读值，无真实调用。冻结前只提交两份测试代码和P3/UAT限定协议；生产源、原Prompt、历史资产、索引和公共合同无修改。真实结果必须另行追加，不预填Passed。
+
+#### 20.75.1 一次真实诊断结果及下一行动
+
+准备提交并推送`ffcffd6c59c3682febc79e38380084440d3da30a`后，工具prepare在无Key子进程生成manifest，SHA=`bfeab7e5b90e0ca4498f305be65c74ac46606d6850f43e656e800027a4f52e85`。随后只执行一次`python -B -m tests.system_e2e.knowledge_summary_diagnostic_v1 execute --manifest-sha256 ...`，精确绑定§14.48和该HEAD。结果SHA=`5a0e43bcff39c6b8d630de59dc5b2c444de2bbb14da6e44fdf78432435c3aac2`；六份有限资产原字节保存在`agent-runtime/tests/system_e2e/knowledge_summary_diagnostic_01/`，新增hash/计数/证明范围回归断言。
+
+本次status=measured，KRB-001结果success，真实Summary7解码、coverage、extractive均通过，无后置拒绝。固定selection/Rewrite两次不计真实模型；实际外部Summary1、search2、embedding1、在线rerank2、合成预热1、部分模型Runtime1；Business/answer/retry/resume/indexWrites均0。所有5次在线下游HTTP200；20候选→4条Evidence，原必要lodging/living hash均在输入。没有保存原始输出，故不补填人工引用语义/完整回答质量评分，也不能据本次成功解释run-12失败的原因。
+
+本次owned PID32016/15612已由原进程句柄确认退出，结束后再次查询均不存在。日志已扫描并删除，secretScanPassed=true；前后alias/UUID/write-block/mapping、服务制品hash保持，未修改索引/配置，未停止共享ES/BGE。模型Key只在真实Summary准备完成后读取，未输出/持久化；没有未授权正文或原始响应资产。
+
+已知付费累计54→55，正式全模型E2E历史仍22，本次部分模型诊断另列。当前结论不支持再盲改Summary Prompt、放宽validator或为了住宿单题重建库；后续应以24题代表集的整体召回/相关性指标和完整规划链路补齐剩余验证，高分无关Evidence仍是质量风险。UAT=In Progress、QUALITY=Blocked保持，不复用已消费运行、不自动追加付费诊断。
+
+执行后验证：新增工具测试、纯拒绝投影及run-12历史三文件联合pytest **42 passed/10.82秒**，1项既有LangChain预告；六份新资产hash与原运行目录一致、只含有限字段，凭据模式扫描0命中；P3严格校验0错误/0警告，diff --check通过。有限证据对照复核确认measured与完整UAT/人工语义有效性没有混淆，历史资产无修改。此次未重复生产代码未变的全仓Python、Java及Spring测试，也未重跑真实请求；原42项准备回归和138文件类型检查的实际范围见上文。

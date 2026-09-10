@@ -145,3 +145,29 @@ async def test_cancelled_real_transport_closes_client_and_restores_validator(tmp
     assert all(c.is_closed for c in clients.clients)
     assert ExtractiveSummaryValidator.validate is original
     assert (tmp_path / "consumed.json").exists()
+
+
+def test_recorded_single_summary_measurement_is_immutable_not_full_uat():
+    from pathlib import Path
+    root = Path(__file__).with_name("knowledge_summary_diagnostic_01")
+    hashes = {
+        "manifest.json": "bfeab7e5b90e0ca4498f305be65c74ac46606d6850f43e656e800027a4f52e85",
+        "started.json": "a42c982c5c3001944329e76c2f267241a133488774384c21c591d4d6f7c61601",
+        "summary_prepared.json": "315264a2dad42187749b3dbb8bf86e6df9c3b4975d598166e11236dad8834d64",
+        "consumed.json": "f8f924f4564783f7475e435e3ffe481feb2b150a53d5321a040397c2cd07b9ec",
+        "journal.jsonl": "1076ff77436685c7d17d8917546613a9ec06d4c8a22da1311504d3fb16c199b1",
+        "result.json": "5a0e43bcff39c6b8d630de59dc5b2c444de2bbb14da6e44fdf78432435c3aac2",
+    }
+    assert {p.name for p in root.iterdir()} == set(hashes)
+    assert {name: diagnostic.digest((root / name).read_bytes()) for name in hashes} == hashes
+    manifest = json.loads((root / "manifest.json").read_bytes())
+    result = json.loads((root / "result.json").read_bytes())
+    assert manifest["frozenHead"] == "ffcffd6c59c3682febc79e38380084440d3da30a"
+    assert manifest["limits"] == diagnostic.LIMITS and manifest["knownPaidBefore"] == 54
+    assert result["status"] == "measured" and result["modelAttempts"] == result["partialModelRuntime"] == 1
+    assert result["counts"] == diagnostic.LOCAL_LIMITS and result["warmupCalls"] == 1
+    assert result["case"]["status"] == "success" and result["case"]["fixedPlanningCalls"] == 2
+    assert result["case"]["validation"] == {"phases": ["coverage", "extractive"], "failures": []}
+    assert result["case"]["retrievalPathsComplete"]
+    assert result["limitations"] == ["fixed_planning", "not_full_model_uat", "no_spring_http_hop"]
+    assert all(result[k] is True for k in ("ownedProcessesStopped", "rawLogsDeleted", "secretScanPassed"))
