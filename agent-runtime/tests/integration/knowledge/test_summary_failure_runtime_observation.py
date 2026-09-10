@@ -8,6 +8,7 @@ from contextvars import ContextVar
 from dataclasses import asdict
 import asyncio
 import json
+import time
 
 import pytest
 
@@ -126,35 +127,51 @@ async def test_concurrent_requests_do_not_mix_rejections_or_retain_observation(o
 
 
 @pytest.mark.asyncio
-async def test_cancellation_restores_observation_scope_without_manufacturing_failure(observed_validators, monkeypatch):
+@pytest.mark.parametrize("startup_delay", [0.0, 2.05], ids=["normal-startup", "slow-startup"])
+async def test_cancellation_restores_observation_scope_without_manufacturing_failure(observed_validators, monkeypatch, startup_delay):
     from agent_runtime.model.contracts import ModelTaskId
-    from tests.integration.knowledge.test_requirement_runtime_composition import Model
+    from tests.integration.knowledge import test_requirement_runtime_composition as harness
 
-    entered, instances, records = asyncio.Event(), [], []
-    original = Model.complete
+    async def forbidden_business(*args, **kwargs):
+        pytest.fail("Knowledge cancellation must not invoke Business")
 
-    async def observed_model(self, request, *, call_deadline):
-        if request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
-            instances.append(self)
-            entered.set()
-        return await original(self, request, call_deadline=call_deadline)
+    original_build = harness.build_runtime
+
+    def delayed_build(*args, **kwargs):
+        # 慢启动反例：即使构建超过等待上限，也不应提前取消尚未开始的请求。
+        time.sleep(startup_delay)
+        return original_build(*args, **kwargs)
+
+    monkeypatch.setattr(harness, "build_runtime", delayed_build)
+    monkeypatch.setattr(harness.HttpxBusinessDomainTransport, "send", forbidden_business)
+    model, clients = harness.Model(harness.plan(), fault="wait"), harness.Clients()
+    # 取消验证针对已启动Runtime内的请求，不把同步配置/HTTP client构建计入2秒等待。
+    runtime = harness.build_runtime(
+        {**harness._enabled_environment(), "AGENT_KNOWLEDGE_ENABLED_DOMAINS": "tax.policy,tax.law"},
+        model_transport=model, knowledge_http_client_factory=clients,
+    )
+    records = []
 
     async def waiting_request():
-        with observed_validators() as record:
+        with observed_validators() as record, harness.observation_scope():
             records.append(record)
-            await invoke(model_fault="wait")
+            await runtime.ainvoke(question=harness.QUESTION, scope=harness.scope(harness.QUESTION))
 
-    with monkeypatch.context() as patch:
-        patch.setattr(Model, "complete", observed_model)
-        task = asyncio.create_task(waiting_request())
+    task = asyncio.create_task(waiting_request())
+    try:
+        await asyncio.wait_for(model.entered.wait(), 2)
+    finally:
+        task.cancel()
         try:
-            await asyncio.wait_for(entered.wait(), 2)
-        finally:
-            task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
-    assert len(instances) == 1 and instances[0].released.is_set()
-    assert len(instances[0].requests) == 3
+        finally:
+            await runtime.aclose()
+            await runtime.aclose()
+    assert model.released.is_set() and all(client.is_closed for client in clients.clients)
+    assert [request.task_id for request in model.requests] == [
+        ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY,
+    ]
     assert records == [{"calls": [], "failures": []}]
     result, _, _, _ = await invoke(model_fault="quote")
     assert result.status is CapabilityStatus.DOWNSTREAM_FAILURE

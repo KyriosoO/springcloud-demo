@@ -1,4 +1,4 @@
-"""Actual 8/6/v3 production root, synthetic transports; not live effectiveness."""
+"""Actual 9/7/v3 production root, synthetic transports; not live effectiveness."""
 from __future__ import annotations
 
 import asyncio
@@ -56,7 +56,7 @@ class Model:
             value = {"capability_id": "knowledge.query"}
             if self.fault == "second_action": value["second"] = "employee.search"
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
-            assert request.task_version == "8" and request.max_output_tokens == 1536
+            assert request.task_version == "9" and request.max_output_tokens == 1536
             if self.fault == "rewrite_failure": raise RuntimeError("synthetic")
             if self.fault == "rewrite_timeout": raise TimeoutError("synthetic")
             value = deepcopy(self.output)
@@ -153,7 +153,7 @@ async def test_current_root_retains_three_proof_anchors_and_summary_coverage(mul
     assert result.status is CapabilityStatus.SUCCESS, result.failure
     assert result.capability_id == "knowledge.query" and [p["quote"] for p in result.user_result["points"]] == list(CONTENTS)
     assert [(r.task_id, r.task_version) for r in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "8"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "9"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
     assert [v["query"] for p, v in clients.payloads if p == "/rerank"] == list(FOCUSES)
     expected_documents = [text + "\n文档标题：增值税政策资料" + str(i) for i, text in enumerate(CONTENTS, 1)]
     for path, body in clients.payloads:
@@ -253,7 +253,7 @@ def test_minimum_four_checked_before_any_client_or_model_factory(domains, monkey
 @pytest.mark.parametrize("fault", ["rewrite_version", "summary_version", "summary_six", "summary_unknown", "rewrite_id", "summary_id", "rewrite_type", "summary_type"])
 def test_production_rejects_mixed_task_pair_before_model_use(fault):
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "8" and tasks.summary.task_version == "7"
+    assert tasks.rewrite.task_version == "9" and tasks.summary.task_version == "7"
     if fault == "rewrite_version": tasks = replace(tasks, rewrite=KnowledgeRewriteTaskV6.definition())
     elif fault == "summary_version": tasks = replace(tasks, summary=KnowledgeSummaryTaskV5.definition())
     elif fault in {"summary_six", "summary_unknown"}:
@@ -294,7 +294,7 @@ def test_historical_root_isolation_is_exact_scoped_and_restored(monkeypatch):
             assert module.KnowledgeCompositionRoot is expected
         assert bootstrap.KnowledgeCompositionRoot is main.KnowledgeCompositionRoot is current
     assert legacy_root().task_definitions(enabled=True).rewrite.task_version == "6"
-    assert current.task_definitions(enabled=True).rewrite.task_version == "8"
+    assert current.task_definitions(enabled=True).rewrite.task_version == "9"
 
 
 @pytest.mark.asyncio
@@ -390,13 +390,13 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
 @pytest.mark.parametrize("task", ["rewrite", "summary"])
 def test_task_factory_version_error_precedes_client_allocation(task, monkeypatch):
     from agent_runtime import main
-    from agent_runtime.knowledge.rewrite_v8 import KnowledgeRewriteTaskV8
+    from agent_runtime.knowledge.rewrite_v9 import KnowledgeRewriteTaskV9
     from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
     def forbidden(*args, **kwargs): raise AssertionError("No resources before configuration validation")
     monkeypatch.setattr(main.LocalModelCompositionRoot, "build", forbidden)
     monkeypatch.setattr(main, "HttpxBusinessDomainTransport", forbidden)
     if task == "rewrite":
-        monkeypatch.setattr(KnowledgeRewriteTaskV8, "definition", KnowledgeRewriteTaskV6.definition)
+        monkeypatch.setattr(KnowledgeRewriteTaskV9, "definition", KnowledgeRewriteTaskV6.definition)
     else:
         monkeypatch.setattr(KnowledgeSummaryTaskV7, "definition", KnowledgeSummaryTaskV5.definition)
     with pytest.raises(ValueError, match="production_task_version_invalid"):

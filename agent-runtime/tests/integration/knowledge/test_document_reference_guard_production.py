@@ -46,7 +46,7 @@ async def test_current_root_accepts_reference_query_and_focus_without_rewriting_
     assert all(type(guard) is DocumentReferenceSemanticGuard for guard, _ in seen)
     assert [(request.task_id, request.task_version) for request in model.requests] == [
         (ModelTaskId.ACTION_SELECTION, "action-selection-v4"),
-        (ModelTaskId.KNOWLEDGE_REWRITE, "8"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7"),
+        (ModelTaskId.KNOWLEDGE_REWRITE, "9"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7"),
     ]
     for request in model.requests[1:]:
         assert json.loads(request.user_payload_json)["question"] == question
@@ -91,17 +91,36 @@ async def test_invalid_second_domain_rejects_valid_first_domain_too(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_original_multi_domain_question_allows_local_focus_without_invented_reference(monkeypatch):
-    law_focus = "增值税法第十条的销售服务税率规定"
-    monkeypatch.setattr(harness, "FOCUSES", (FOCUS, law_focus, harness.FOCUSES[2]))
-    question = "请分别查找财税〔2011〕100号的软件产品定义，以及增值税法第十条的销售服务税率规定。"
-    value = output(query=question)
-    value["queries"].append({"domain_id": "tax.law", "query": question})
+@pytest.mark.parametrize("global_condition", ["", "2026年，"], ids=["local-only", "shared-year"])
+@pytest.mark.parametrize("mutation", [None, "missing_condition", "other_domain", "new_focus_condition"])
+async def test_original_multi_domain_question_allows_local_focus_without_invented_reference(monkeypatch, global_condition, mutation):
+    policy_focus = global_condition + FOCUS
+    law_focus = global_condition + "增值税法第十条的销售服务税率规定"
+    monkeypatch.setattr(harness, "FOCUSES", (policy_focus, law_focus, harness.FOCUSES[2]))
+    question = global_condition + "请分别查找财税〔2011〕100号的软件产品定义，以及增值税法第十条的销售服务税率规定。"
+    value = output(query=policy_focus, focus=policy_focus)
+    value["queries"].append({"domain_id": "tax.law", "query": law_focus})
     value["requirements"].append({"requirement_id": "r2", "domain_id": "tax.law", "kind": "rule", "focus": law_focus})
+    if mutation == "missing_condition":
+        value["queries"][1]["query"] = law_focus.replace(global_condition or "第十条", "")
+    elif mutation == "other_domain":
+        value["queries"][1]["query"] += FOCUS
+    elif mutation == "new_focus_condition":
+        value["requirements"][1]["focus"] += "2027年"
     result, model, clients, observation = await harness.invoke(value, question=question, multi=True, monkeypatch=monkeypatch)
+    if mutation is not None:
+        assert result.status is CapabilityStatus.DOWNSTREAM_FAILURE
+        assert result.failure.code == "knowledge.rewrite_failure"
+        assert len(model.requests) == 2
+        assert clients.paths == [] and observation.plans == () and observation.downstream_calls == ()
+        return
     assert result.status is CapabilityStatus.SUCCESS, result.failure
     assert len(model.requests) == 3 and clients.paths.count("/es/knowledge/search") == 4
-    assert clients.paths.count("/embed") == 1 and clients.paths.count("/rerank") == 2
+    assert clients.paths.count("/embed") == 2 and clients.paths.count("/rerank") == 2
+    assert [(body["logicalDomainId"], body["queryText"]) for path, body in clients.payloads
+            if path == "/es/knowledge/search" and body["path"] == "keyword"] == [
+        ("tax.policy", policy_focus), ("tax.law", law_focus),
+    ]
     assert observation.plans[0]["plan"]["selected_domain_ids"] == ["tax.policy", "tax.law"]
     assert [point["quote"] for point in result.user_result["points"]] == list(harness.CONTENTS[:2])
     # Synthetic evidence proves wiring and guards, not actual legal correctness.

@@ -40,14 +40,36 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
     run09_10 = (request.module.__name__ in {"tests.system_e2e.test_knowledge_stage_b_uat_v9",
                                           "tests.system_e2e.test_knowledge_stage_b_uat_v10"}
                 and request.function.__name__ == "test_current_root_capture_provider_wire_and_context_observer")
-    if not (run08 or run09_10):
+    run12 = (request.module.__name__ == "tests.system_e2e.test_knowledge_stage_b_uat_v12"
+             and request.function.__name__ == "test_current_root_capture_provider_wire_and_context_observer")
+    consumed_v8_tests = {
+        "tests.system_e2e.test_knowledge_current_chain_v1": {
+            "test_full_current_root_uses_actual_wire_planning_and_post_source_binding",
+            "test_failure_never_passes_or_retries_and_remains_finite",
+            "test_cancel_preserves_attempt_and_restores_observers",
+            "test_sensitive_input_zero_wire_and_zero_local",
+        },
+        "tests.system_e2e.test_knowledge_activation_local_smoke": {
+            "test_current_root_fake_summary_no_answer_and_finite_observation",
+            "test_partial_vector_failure_cannot_pass_complete_integration",
+            "test_sensitive_input_no_model_or_transport",
+        },
+        "tests.system_e2e.test_knowledge_summary_diagnostic_v1": {
+            "test_current_root_real_transport_decoder_and_postvalidation_finite",
+            "test_cancelled_real_transport_closes_client_and_restores_validator",
+        },
+    }
+    current_chain = request.function.__name__ in consumed_v8_tests.get(request.module.__name__, set())
+    if not (run08 or run09_10 or run12 or current_chain):
         return
     import agent_runtime.bootstrap as bootstrap
     import agent_runtime.main as main
     import tests.integration.knowledge as package
 
     repo = Path(__file__).resolve().parents[3]
-    manifest = json.loads((Path(__file__).parent / ("knowledge_stage_b_run_08" if run08 else "knowledge_stage_b_run_11") / "manifest.json").read_bytes())
+    directory = ("knowledge_stage_b_run_08" if run08 else "knowledge_stage_b_run_12" if run12
+                 else "knowledge_current_chain_01" if current_chain else "knowledge_stage_b_run_11")
+    manifest = json.loads((Path(__file__).parent / directory / "manifest.json").read_bytes())
     head = manifest["frozenHead"]
 
     def frozen(path):
@@ -55,7 +77,12 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
         # The fake helper was not a live execution asset. Pin its source at the
         # same frozen commit separately; do not invent an entry in the manifest.
         helper = "agent-runtime/tests/integration/knowledge/test_requirement_runtime_composition.py"
-        if run08:
+        if run12 or current_chain:
+            assert head == ("05ffadd353eb7299849e1c63893bb18fc6671f66" if run12
+                            else "44cfb95b018dae508662e61184894422f1f2fe83")
+            expected = ("d5624553a8cff7bd9838f41190442afade6d28ef5993325f2718950b99f16e5a"
+                        if path == helper else manifest["assets"][path])
+        elif run08:
             expected = ("9d456883c1d65baef30d0151dc6ce0ae34f3ff6a71035b5a8ffe701dbc8bfde1"
                         if path == helper else manifest["assets"][path])
         else:
@@ -84,6 +111,13 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
                  f"git:{head}:{name}", "exec"), vars(module))
     monkeypatch.setitem(sys.modules, name, module)
     monkeypatch.setattr(package, "test_requirement_runtime_composition", module, raising=False)
+    if current_chain:
+        # 仅恢复已消费测试的显式导入；当前生产测试不使用冻结根，也不改旧断言。
+        if hasattr(request.module, "production"):
+            monkeypatch.setattr(request.module, "production", module)
+        for symbol in ("Clients", "CONTENTS", "FOCUSES", "QUESTION"):
+            if hasattr(request.module, symbol):
+                monkeypatch.setattr(request.module, symbol, getattr(module, symbol))
 
 
 @pytest.fixture(autouse=True)
@@ -96,6 +130,7 @@ def isolate_consumed_entrypoint_signature(request, monkeypatch, isolate_consumed
         ("test_knowledge_stage_b_uat_v8.py", "test_capture_hooks_on_actual_current_production_root_and_provider_wire"),
         ("test_knowledge_stage_b_uat_v9.py", "test_current_root_capture_provider_wire_and_context_observer"),
         ("test_knowledge_stage_b_uat_v10.py", "test_current_root_capture_provider_wire_and_context_observer"),
+        ("test_knowledge_stage_b_uat_v12.py", "test_current_root_capture_provider_wire_and_context_observer"),
     }
     path = Path(request.module.__file__).resolve()
     if path.parent != Path(__file__).resolve().parent or (path.name, request.function.__name__) not in targets:
