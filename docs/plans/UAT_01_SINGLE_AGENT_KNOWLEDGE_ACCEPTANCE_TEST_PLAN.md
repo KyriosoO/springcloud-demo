@@ -956,3 +956,5 @@ DR-KRET-035代码及non-live已完成，命令、代码复评与提交见P3 §20
 推理前冻结工具源码/HEAD、Docker镜像与容器ID、模型文件hash和上述输入；输出每题每臂20个有限score及token数、耗时、峰值显存，且预热/正式forward分别计数。任何加载、hash、source、shape、timeout/OOM或清理不明均形成failed，不重试。宿主和workerstdout/stderr有界捕获，错误仅投影有限枚举，不持久化原始流；真实源只通过stdin传入本地worker内存。
 
 预先判据：先检查同一512worker是否能合理复现既有512排名（跨批次浮点差异单列，不能冒称精确分数复现）；然后比较新两臂的nDCG@20、前8中grade>0和grade≥2数量、必要来源覆盖、耗时和峰值显存。全部20候选相同，所以Precision@20不变，不能称召回提升。仅在四题必要来源前8覆盖均不下降、nDCG均不下降且至少一题排名/前8相关性严格改善时，把1024判为值得扩大非付费验证的假设；不满足则不推荐生产切换。任何结果都不直接批准生产1024或重新校准0.5，不修改历史结果/阈值/评估标准。最终仍需完整代表集、当前生产链路及资源预算验证；局部diagnostic measured不是阶段B Passed。
+
+2026-09-10实际测量已完成，有限结果见`agent-runtime/tests/evaluation/knowledge/rerank_window.result.v1.jsonl`，源码/哈希/调用数和资源结果由P3 §20.71.1记录。四个非住宿development题的必要来源前8覆盖均保持，nDCG两升、一降、一平；KRB-010下降，未满足上述预先判据。因此不推荐生产窗口切换，不改旧结果、gold或阈值。该次measured仅关闭局部诊断执行，不是整体召回准确性提升或阶段B UAT Passed；剩余相关性分级、候选证据噪声与当前完整链路验证仍待完成。

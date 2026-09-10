@@ -139,9 +139,9 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KCORPUS-RELEASE-01` | alias 发布、回滚演练与收口 | `L2_01_01 DR-KRET-025` | 原子切候选、冒烟、切回旧目标验证、最终切候选、状态/评审/Git | `WP-KCORPUS-UAT-01` | - | release journal、最终 binding、评审和提交；alias 生效由发布门禁独立判定 | alias/UUID/Profile/policy、全量回归、历史 hash | 精确原子恢复旧目标；不删除索引 | Done |
 | `WP-KRETRIEVAL-DIAG-01` | 阶段 B 根因诊断 | `REQ-KQUALITY-001～004` | 同索引十组零模型对照与有限排名证据 | - | - | diagnosis v1 JSONL、根因矩阵 | 当前服务窗口、改写反例、路径/融合/重排/Evidence | 不写索引、不调用外部模型 | Done |
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
-| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034/035`；`DR-KEV-029～034` | §20.68候选实现及代码复评完成；未生产生效 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68新切片代码对照复评 | TEST-KEV-024/VAL-KEV-016与公开接口零差异 | legacy绑定回退；索引不变 | Done |
-| `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.68.2定向、正式隔离、类型、Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | §20.68新增量验证；旧记录不改 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.44、DR-KEV-032～034 | 排序准入重放通过；真实来源同池、相关性/生效/真实回答仍未完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.68候选和§20.71测试工具实施完成；未生产生效 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-031/VAL-KRET-017；公共接口零差异 | legacy绑定回退；索引不变 | Done |
+| `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.68.2既有回归、§20.71工具定向/类型/历史与同池实测通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.45、DR-KEV-032～034 | 来源重放和窗口诊断完成；相关性全量分级、生产生效及真实回答仍未完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -236,7 +236,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | `GATE-082` | `WP-EMP-NL-UAT-10` | integration | Employee自然语言扩展受控UAT与最终收口 | 是 | 四候选累计模型不超过30、Employee search不超过30；candidate-04代表性13/13通过并与candidate-03不可变302/307组成15类完整证据；至少一个地区成功列表、安全与零调用合同全部成立 | candidate-04 result SHA-256=`2dc6e4c3755f2a32542e6219d671b388a9b1eb7dc97c510225d995a5d3cc48fd`；history/combined coverage tests；全量回归与正式代码评审 | 用户/实施者/评审者 | 本目标最终收口 | exact hash、预算、逐case、零泄漏、历史不可变与代码对照设计复核 | 禁止任何额外模型调用或新候选；证据失效时如实重新打开，不得改判历史 | Closed |
 | `GATE-083` | `WP-KCORPUS-PIPELINE-01` | slice_implementation | 首次持久下载和候选索引写入 | 是 | 官方来源/P0-P2范围、显式外部workspace、解析工具版本、下载/存储/索引预算、精确旧alias目标与回滚方案明确；REQ/L1/L2三轮内审和独立评审通过 | audit v3、Approved 阶段 A 设计、工具/依赖快照、旧 alias 只读证明 | 维护者/评审者 | 首次持久下载前 | strict Schema/设计/计划校验与分层跨层评审 | 只允许不落盘的官方来源和索引元数据审计 | Closed |
 | `GATE-084` | `WP-KCORPUS-RELEASE-01` | release_effective | 候选 alias 生效 | 否 | P0及目标P1完成、P2清单、解析/OCR/表格质量、空正文/孤立附件、candidate完整性、typed keyword/vector、读取/出域/Evidence、回归和回滚演练通过 | Stage A corpus candidate-08/a5 build manifest、14/14 UAT attempt-05、release attempt-05 journal、测试和评审 | 维护者/UAT/评审者 | alias切换前 | 完整性、权限、引用、alias原子性和历史hash | 候选保持未发布；现行alias不变 | Closed |
-| `GATE-KRG-006` | `WP-KRETRIEVAL-IMPLEMENT-01` | slice_implementation | §20.36/20.55/20.66/20.68合同、评分、文号与可选Evidence增量实施 | 是 | 三轮内审及正式分层/跨层复评通过；无fallback或公共接口/权限扩张 | 对应§20记录及L1/L2新DR | 设计维护者/评审者 | 新增量代码修改前 | S0/S1/未处理S2=0；不依赖live结果 | 新增量已审，允许non-live；真实UAT仍暂停 | Closed |
+| `GATE-KRG-006` | `WP-KRETRIEVAL-IMPLEMENT-01` | slice_implementation | §20.36/20.55/20.66/20.68/20.71合同、评分、文号、可选Evidence与离线窗口诊断 | 是 | 三轮内审及正式分层/跨层复评通过；无fallback或公共接口/权限扩张 | 对应§20记录及L1/L2新DR | 设计维护者/评审者 | 新增量代码修改前 | S0/S1/未处理S2=0；不依赖live结果 | 新增量已审，允许non-live；真实UAT仍暂停 | Closed |
 
 ## 8. 外部资源与事实
 
@@ -2528,3 +2528,22 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 设计内审三轮实际完成：第1轮确认问题是输入截断而非资料缺失，并限制同池不能证明新召回；补齐query在512下也不得截断，防止两臂同时改变问题。第2轮核查本地FlagEmbedding有隐式OOM缩批探测，明确使用固定batch直接forward、缓存完全离线与哈希前置；不改HTTP/生产服务或沿用未校准0.5。第3轮核查worker所有权、容器内独立deadline、宿主观察超时不重启、有限失败先记录及新结果独占；精确预算及开发集判据落UAT，避免候选/Gate流水扩散到L2。旧任务/索引和无酒店特判均保持，内审不作为正式批准。
 
 分离正式设计复评第1轮：按L2实施准入与跨层rubric重读REQ-KQUALITY-002/004、L1 KQ-AD-014/018、L2 §9.6/9.8、peer DR-KEV-034和UAT协议；核对公开DTO不变、来源权限继承/运维身份限制、单变量与模型config能力、无重试worker、有限输出、同池指标限制及生产/阈值未放行。严格结构校验初次发现DR编号未入规则定义表，补定义后再次0错误/警告；不是放宽校验。复评后本诊断切片S0/S1/未处理S2均0，允许两个测试工具及fake实施，再按冻结协议验证；由同一执行者分离编辑/只读评审，不冒充外部专家或独立盲评。GATE-KRG-006纳入该DR的实施准入，旧整体UAT/QUALITY状态不变。完整相关性和实际生产性能仍未验证，不影响这个可独立实施的诊断工具。
+
+#### 20.71.1 工具实施、局部实测与决策
+
+设计提交`1f865f9`、工具提交`88c4fbea63523a0b793dd05253062e74f4d6cc0d`已推送。只新增两个测试工具及fake，不修改生产src、服务、索引/alias、Prompt、gold或旧证据。代码对照DR-KRET-036复核第1轮发现：`B-WINDOW-001`输入管道异常时Popen上下文可能无界等待；`B-WINDOW-002`输出丢失缺少明确的未知调用计数。两项均为本诊断可靠性问题，最小修为有界宿主收尾/容器deadline、未知计数与外部模型次数分离，并补管道断裂、超时、输出超限、阶段计数及直接forward无隐式重试反证。第2轮按同一合同复评，工具切片Blocker/Major/未处理Minor=0；同一执行者分离复核，不是外部独立评审或阶段B全面通过。
+
+一次本地对照从上述clean工具提交执行，result=`tests/evaluation/knowledge/rerank_window.result.v1.jsonl`，SHA=`2813ff8679cf9ef6c5623a42b35ec6755da5c407d3e968f7324fea94b8493bd4`；与仓库外原始有限记录逐字节一致。终态measured；7次运维来源读取、6次前后快照核对、80次正式本地forward/160对、2次合成预热；外部模型/HTTP重排/重新embedding/Business/写入/retry/resume均0。实际六份缓存文件SHA、镜像/容器与输入绑定通过；临时worker退出已核实，共享容器和服务未停止。没有保存正文、问题、token IDs或原始异常。
+
+| 题目 | nDCG@20：512→1024 | 前8相关（grade>0） | 前8直接/部分支持（grade≥2） | 必要来源覆盖 |
+|---|---|---|---|---|
+| KRB-009，综合所得计算 | 0.88917→0.95761 | 5→7 | 2→3 | 1→1 |
+| KRB-010，专项附加扣除 | 1.00000→0.99168 | 5→5 | 1→1 | 1→1 |
+| KRB-011，零应纳税款申报 | 0.91314→0.93866 | 2→2 | 1→1 | 1→1 |
+| KRB-012，资源税自用边界 | 0.99658→0.99658 | 5→5 | 1→1 | 1→1 |
+
+512新worker四题nDCG与旧512相同、第一名一致，最大分数差0.001272；批次/浮点限制仍保留，不声称全部精确分数或排名一致。两臂相同final20，Precision@20不变，不能声称全库召回提升。1024各题本地正式评分399～493ms，512为314～338ms；峰值已分配显存分别1127.46～1131.85MiB与1113.18～1114.18MiB，不含完整线上调用开销，不代替SLA。
+
+**决策**：010退化使UAT_01 §14.45事先定义的“每题nDCG不下降”判据不成立；不推荐切换生产1024，不因均值改善改判。截断是真实存在的局部因素，但不是统一扩大窗口的充分理由。保持生产512和当前Evidence策略；不自动搬用0.5阈值、不创建新付费批次。下一优先项是完成013～024原文相关性分级、核对候选准入的噪声/必要来源保留，再决定最小生产改动；不是继续围绕住宿题或窗口调参。住宿等资料缺失问题继续分列为corpus missing/unknown，既不强求肯定答案，也不计为检索成功。
+
+本切片实际验证：最初全局Python没有安装源码，直接pytest收集失败；显式设置仅该子进程的PYTHONPATH后通过，不修改生产依赖或冻结host测试。直接fake最终39 passed/0.58s；Knowledge evaluation、当前上下文/排序、Business/Knowledge追踪和run-12历史组合421 passed/33.81s（1项既有LangChain预告）；src strict mypy 138文件通过、三工具compileall通过。实测后新增有限结果校验与fake合计43 passed/0.71s，校验冻结源提交hash、原分级前15行hash、实际计数及逐项指标复算。未重跑全仓隔离回归、Java或Spring E2E，不以局部测试冒称这些通过；本次无相应生产/Java文件变更。当前完整分级仍12/24题、243/483对，整体Precision/nDCG保持null；WP-KRETRIEVAL-QUALITY-01及阶段B正式UAT不因本诊断而关闭。
