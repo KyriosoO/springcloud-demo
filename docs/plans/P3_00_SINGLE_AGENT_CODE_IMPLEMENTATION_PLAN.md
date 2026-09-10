@@ -2755,3 +2755,19 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 协议三轮内审：第1轮将“整份来源所有anchor”修正为本题显式要点的既有anchor子集，避免要求软件定义同时回答证明材料等无关内容；原gold不改。第2轮核查10题顺序、4题既有留出、单题/批次/累计预算、真实Spring入口和每需求rerank，区分固定计划检索证据与本轮三任务模型证据。第3轮核查started先于副作用、失败不续跑、清理、资料缺口/历史责任及人工usefulness边界，没有新增改阈值或隐式授权。
 
 编辑冻结后的只读跨层正式复核第1轮，范围仅UAT_01 §14.51与本节对DR-KFLOW-028、DR-KEV-033/034和用户33/87授权的继承。协议未改变生产行为、gold、来源授权或历史终态，预算与关闭责任无环；S0=0/S1=0/未处理S2=0，通过该测试入口实施准入。结论不包括尚未存在的runner正确性或真实效果；由同一执行者分离只读阶段完成，不冒充外部独立人员。下一步按implementation技能完成有限入口及fake，再进行代码对照复核。
+
+实施为`tests/system_e2e/knowledge_representative_uat_v1.py`及直接测试：仅复用已有真实Spring入口、服务生命周期和来源校验，不修改生产模型、planner或领域返回；ModelRequest投影和HTTP请求逐一核对，10题顺序/30次模型及其他端点预算有界。当前9/7真实decoder与整个生产组合根的测试只替换网络响应，既有task及历史资产未改。
+
+代码对照复核3轮（同一执行者的分离只读审查，非外部人员）：第1轮修复HTTP非200未及时阻止下一题的入口边界，补精确停止测试；最初2个fake失败分别是内部tuple未转成真实HTTP JSON，以及部分召回足够时实际会执行Summary，修正fixture使之忠于当前合同，仍将该批不完整路径判失败，未放宽生产validator。第2轮补齐请求断开/取消后的有限`request_incomplete`记录，已尝试case不再误列not_executed，保留计数且不续跑。第3轮检查固定来源只用于事后评估、密钥晚读取、真实对象图、调用计数、异常/清理及不可变资产，Blocker=0/Major=0，无未处理Minor；仅准入本批执行，不宣布阶段B或真实效果通过。
+
+本轮执行结果（全部non-live命令在子进程移除Key环境项、不读取值）：
+
+| 命令/范围 | 实际结果与边界 |
+|---|---|
+| `python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v1.py -q --tb=short -p no:cacheprovider` | 最终45 passed，11.99秒；含3任务真实decoder、严格来源绑定、零下游、预算、Spring异常、取消/不可续跑及输出安全；1项既有LangChain预告 |
+| `PYTEST_ADDOPTS='--tb=short -x' ./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe` | 正式隔离安装当前源码；14 host/preflight passed（4.01秒），全量3988 passed/27 opt-in skipped/0 failed（462.06秒）。包含新入口前44项、历史hash及35/37-case追踪；末次仅中断记录的修复在全量加载后完成，由上行最终45项补验，不冒称全量重新执行 |
+| `../serviceCenter/mvnw.cmd -Dtest=AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test`（agent-service/JDK25.0.2） | BUILD SUCCESS，2 JUnit方法、0失败/错误/跳过，15.893秒；内部16 Knowledge+15 Business，真实Spring及当前Runtime、fake模型/领域；既有JDK/Netty警告不作失败 |
+| `python -m mypy --strict src`；`python -m compileall -q src tests/system_e2e/knowledge_representative_uat_v1.py tests/system_e2e/test_knowledge_representative_uat_v1.py` | 140 source files通过；源码及两个新增测试入口编译通过 |
+| P3 `validate_implementation_plan.py --strict`；目标凭据模式扫描；`git diff --check` | 0错误/0警告；两个新增文件密钥/JWT模式0命中；diff检查通过 |
+
+未修改Java生产接口/权限、其他业务模块、PowerShell或索引，因此未重复其他Java模块全量/AST/索引发布；Spring同链路及上述全量non-live承担必要防回退。以上不是新真实UAT结果，模型新增仍0；源代码、协议和制品在提交干净工作树后冻结，再执行唯一授权批次。
