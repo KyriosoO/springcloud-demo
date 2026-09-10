@@ -2677,3 +2677,49 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 三轮内审：第1轮修复把类别词与数字同等施加顺序/次数的新限制，保留数字等六组原顺序/计数，类别词保持既有presence语义；同时纠正目标L2内当前Summary6/7漂移。第2轮核对两个独立文号/法条、未分配全局、同域多角色和重复原值的计数公式，明确focus必须先安全/子集校验，不能只看query并集或声称已证明自然语言归属。第3轮修复“歧义一律clarification”超出现有missing_conditions表达范围，改为既有可表达澄清/unsupported；校验直接DAG、旧版本行为、0新调用和回滚，修正实施依据判定为明确“否，待复评”。L1/L2/P3严格结构检查现为0错误/0警告；不把结构校验视为设计批准。
 
 分离编辑后的正式只读设计复核第1轮：依次核对L1条件保持/职责、L2 DR-028完整输入到终态及六组计数、V7精确decoder/V8原意规则/Document Guard、下位两阶段不变需求消费，以及P3/UAT直接追踪。S0=0/S1=0/未处理S2=0；接受B-SCOPE-LIMIT-001（全局条件错误归为局部可能结构通过），以原问Summary和独立人工语义判据控制，不声称被validator证明。该结论只准入§8.9非live代码/测试，当前IMPLEMENT恢复本切片；实际生产接线、全回归和真实UAT尚待证据。复核由同一执行者在只读阶段完成，不冒充外部独立人员。
+
+#### 20.77.1 纯校验、V9及Planner部分实施
+
+设计提交`81c967dc3873a4f369b94db68f1cb5eeb5caa66f`已形成，尚未推送。新增`query_constraint_scope.py`和`rewrite_v9.py`，Planner只对版本9使用请求级scope校验；7/8原行为保持。新增三份unit/contract测试，现行V8合同测试只调整版本准入矩阵：9与quality-v3兼容、10及quality-v2/9拒绝；当前生产根仍拒绝9，未修改bootstrap或Spring测试服务。旧任务/Guard/requirement validator及历史资产没有修改，未新增模型、ES、业务请求或索引写入。
+
+代码对照复核两轮，范围仅DR-028纯校验/任务/Planner，不包含尚未实施的生产迁移。首轮CR-SCOPE-001发现旧整组税率主题前置检查会使V9未先校验focus即提前返回；已把该旧检查限定在旧分支，新分支由scope按设计先核对所有focus。补充顺序反例和V7/V8/旧Guard冻结Git源码比较，复评未发现该切片未关闭Blocker/Major；接受原B-SCOPE-LIMIT-001语义证明限制。此为同一执行者分离编辑后的代码复核，不冒充外部评审；全量失败诊断未完成前不准入生产切换。
+
+实际验证（Python3.12，执行子进程先移除Key环境项且不读取值）：
+
+- 最初纯函数/V9合同测试45 passed/1 failed，失败来自测试fixture重复整份Prompt导致先触发既有长度限制；改为只重复被测段落，未放宽产品限制。随后与V7/V8、文号/税务Guard/需求测试联合361 passed。
+- Planner初版五文件208 passed；顺序修复及历史保护补充后，同一五文件`test_semantic_planner_v9.py`、`test_semantic_planner.py`、`test_rewrite_task_v8.py`、`test_rewrite_task_v9.py`、`test_query_constraint_scope.py`执行`python -m pytest ... -q --tb=short`，**210 passed/1.62秒**。
+- 最终源码`python -m pytest tests/unit/knowledge tests/contract/knowledge tests/integration/knowledge tests/evaluation/knowledge tests/system_e2e/test_knowledge_current_chain_history.py -q --tb=short`：**1605 passed/6 opt-in skipped/342.02秒**；没有用skip证明真实运行。`python -m mypy --strict src`：140 source files通过；`python -m compileall -q src`通过。
+- 官方隔离入口`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`在上述顺序微调前安装快照并运行：Transaction host/preflight **14 passed**；全量 **3924 passed/27 skipped/1 failed/719.83秒**。唯一失败是`test_summary_failure_runtime_observation.py::test_cancellation_restores_observation_scope_without_manufacturing_failure`。运行时与另一轮源码Knowledge回归存在时间重叠，可能受负载/时序影响，但不能据此认定根因。该测试单独源码复测**1 passed/2.59秒**，也在上述1605项中通过；这些结果不覆盖或改判隔离全量失败。
+- 拟补充相同安装方式的串行定向诊断，但执行命令在创建进程前被工具策略拦截，未运行；未改写命令绕过，也未创建该诊断临时环境。该项保持待查，不修改取消断言或放宽2秒等待。
+- L1/L2严格结构校验0错误/0警告，目标增量凭据模式扫描0命中、diff --check通过。所有pytest均有同一项既有LangChain预告，不新增生产依赖。未重跑Java/Spring，也未声称新V9已完成其生产对象图UAT。
+
+因此当前仅为部分实施：先查清取消回归并完成正式隔离复验，再迁移当前根/Spring及必要历史测试接缝，最后按代表集的真实语义证据决定UAT收口。WP-KRETRIEVAL-UAT-01仍In Progress、QUALITY仍Blocked；全部已知付费仍57，本轮新增0。代码/状态差异保持本地，尚未提交推送，不能以定向通过签发全量通过或阶段B完成。
+
+#### 20.77.2 当前根接线、取消夹具与历史兼容收口
+
+本节追加2026-09-10的后续实际结果，替代§20.77.1的“生产未接线、全量待查”当前状态，不改写其失败记录。当前生产根唯一绑定Rewrite9/Summary7/quality-v3；沿用原V7精确decoder、V8意图、Summary7、文号Guard、索引及权限。纯scope/Planner和bootstrap对应DR-KFLOW-028/IMPL-KFLOW-016；现行Runtime helper、版本守卫和Spring fake同步9，旧任务/Guard/公开DTO及历史运行资产不改。
+
+当前根定向测试使用独立政策文号与法律法条，合法分域计划实际执行4 search、2 embedding、2 rerank及既有3个fake模型任务，原问题原样进入Summary；缺失/串域query、伪造focus均在计划阶段零下游。全局条件、单域、重复计数、版本拒绝、取消、请求隔离及disabled/关闭由TEST-KFLOW-020和既有回归覆盖。这不是实际LLM语义测量。
+
+| 复核项 | 根因、最小修复及关闭依据 |
+|---|---|
+| CR-SCOPE-002：取消测试把启动耗时混入请求等待 | 原fixture在被等待的task中同步构建Runtime，2秒等待同时消耗配置和HTTP client启动时间。合成2.05秒慢启动可稳定复现1 failed；把Runtime构建移至发起请求之前后1 passed，另保留正常/慢启动参数。未增加原2秒请求等待、未修改生产取消行为；新增CancelledError、资源释放、双重关闭、零Business及下个请求观测隔离断言。它证明fixture的确定性缺陷，不能还原此前那次全量失败的未记录调度时间。修复后旧8/7根正式串行回归3927 passed/27 skipped/0 failed（651.36秒），是接线前基线，不是新V9证明。 |
+| CR-SCOPE-003：已消费run-12混用历史根与当前入口 | 当前根迁移后的七文件历史/现行定向验证先得146 passed/1 failed：冻结8/7根不接受当前main的evidence_selection_version参数。只在非冻结conftest的精确历史测试白名单中恢复既有冻结入口签名；旧runner、测试断言、manifest和result不改。run-12及current-chain历史helper按冻结提交及hash读取；新增隔离测试证明退出后恢复当前9/7根、main和helper，其他测试不受影响。修复后目标两文件82 passed；最终全量再验证通过。 |
+
+当前增量正式代码对照设计复核两轮：首轮覆盖scope公式/顺序、精确输出/Prompt、根和历史隔离，发现上述run-12签名问题后暂停提交并修复；第二轮在编辑完成后只读核对DR-028逐项落点、单次声明/无fallback、有限原因、当前根/Spring、取消及历史恢复测试，并对照下列实际全量结果。该non-live切片Blocker=0、Major=0、未处理Minor=0；接受原B-SCOPE-LIMIT-001，模型错误声明全局条件仍可能通过机械校验，必须由原问和后续语义UAT识别。此为同一执行者分离阶段的正式对照复核，不冒充外部独立人员评审，也不签发阶段B整体质量通过。
+
+本次最终命令及结果（先删除子进程Key环境项，不读取值；Python3.12，Maven使用JDK25.0.2）：
+
+| 命令/范围 | 实际结果 |
+|---|---|
+| `python -m pytest tests/system_e2e/test_run08_fixture_isolation.py tests/system_e2e/test_knowledge_stage_b_uat_v12.py -q --tb=short` | 82 passed，4.42秒；1项既有LangChain预告 |
+| `PYTEST_ADDOPTS='--tb=short -x'`，`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`；正式临时环境安装当前源码，串行执行 | Transaction host/preflight 14 passed（3.86秒）；全量3939 passed/27 opt-in skipped/0 failed（460.88秒）。包含Knowledge/Core/Business及历史hash/35与37-case追踪；27项跳过不计作当前live通过，脚本完成临时环境清理 |
+| `../serviceCenter/mvnw.cmd -Dtest=AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test`（agent-service） | BUILD SUCCESS，2个JUnit方法/0失败/0错误/0跳过，14.493秒；方法内部实际覆盖16 Knowledge和15 Business场景，并检查认证拒绝与调用计数。模型和领域依赖为fake；既有Netty/JDK及开发缓存警告未作为失败 |
+| `python -m mypy --strict src`；`python -m compileall -q src` | strict检查140个source files通过；编译通过 |
+| L1_01、L2_01_00、L2_01_02及P3 strict文档校验；目标凭据模式扫描；`git diff --check` | 均0错误/0警告；22个目标文件扫描0命中；差异检查通过。提交前执行完整暂存复核，不以文档结构校验代替设计审查 |
+
+仅同步L1_01 v1.22、L2_01_00 v1.29、L2_01_02 v1.25、P3 v2.66、UAT_01 v1.42及ARCHITECTURE的实际接线/验证状态，不为计数再次升版；L2_01_02仅澄清摘要增量的历史8/7配对与当前Rewrite权威，未改变摘要合同。本轮未重跑未修改的其他Java业务模块全量、真实服务或真实模型，未重新发布/测量索引，也未重新签发旧UAT。没有删除旧代码/历史资产；没有读取Key、新增paid请求或运行candidate，全部已知paid仍57。
+
+用户目标继续以代表问题集召回准确性、必要覆盖、相关性和有依据回答为准；资料缺失不要求住宿单题强行成功。当前合同缺陷已完成non-live修复，但留出噪声、真实分域语义及完整专项仍有未关闭风险。WP-KRETRIEVAL-UAT-01保持In Progress、WP-KRETRIEVAL-QUALITY-01保持Blocked；下一步应基于固定代表集确认新版的语义验收与可执行预算，不重放已消费批次。代码/测试与本节状态分别原子提交；具体SHA和推送结果由Git及最终交付报告记录。
+
+代码及测试提交为`cc11a9018594ca698432ed11f2ca95bf220feeb2`，与设计提交`81c967dc3873a4f369b94db68f1cb5eeb5caa66f`可分辨；未删除文件。当前状态同步独立提交，不在文档中嵌入自身提交SHA。

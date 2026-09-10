@@ -292,7 +292,7 @@ V6使用同一ModelGateway一次Summary调用，不增加复核模型；模型�
 2. quote集合必须同时支持定义和必要的分类关系。单份连续原文已同时证明时一个point即可；证据分散时允许同一个requirement的coverage引用多个不同point，不能因为只有r1而只输出一条引文。不得机械强制两个ref，也不加入固定行业、文档或case示例。
 3. 最小性仅在完整性满足后成立。返回前检查“删除某point是否失去原问题一个显式要点”；不得把未引用全文、标题推测或模型常识补成分类桥接依据。仅有定义而关系缺证据时保持insufficient_evidence，不输出部分肯定答案。
 4. 已新增`evidence/summary_task_v7.py::KnowledgeSummaryTaskV7.definition()`复用V6公开definition及**同一parse_response对象**，build_request复用V6工厂后仅修改version与指令。输入schema2、输出、类型、1～5points/唯一ref/512字符、32KiB、1536tokens/15秒及三层出域全部不变。coverage及extractive validator均不改。
-5. `bootstrap.KnowledgeCompositionRoot`唯一配对Rewrite8/Summary7/quality-v3。EvidenceStage显式允许合同相同的6和7用于受控历史构造；生产根拒绝6及未知版本，不提供热切换或fallback。旧V6和历史manifest/evidence字节不可变；回滚仍为禁用或整套源码回退。
+5. 本摘要增量实施时`bootstrap.KnowledgeCompositionRoot`唯一配对Rewrite8/Summary7/quality-v3；当前Rewrite绑定由L2_01_00 §8.9治理，Summary7/quality-v3保持。EvidenceStage显式允许合同相同的6和7用于受控历史构造；生产根拒绝Summary6及未知版本，不提供热切换或fallback。旧V6和历史manifest/evidence字节不可变；回滚仍为禁用或整套源码回退。
 
 追踪：REQ-KEV-001/003→DR-KEV-031→IMPL-KEV-014（新任务/当前root/Stage版本检查）→TEST-KEV-021（`tests/contract/knowledge/test_summary_task_v7.py`、当前需求Runtime集成与Spring fake）→VAL-KEV-013（定向、类型、Spring、隔离全量及原十例UAT）。测试覆盖单条原文足够、两来源共同证明一个需求、仅有定义的语义保留反例、拒绝/超时/错域/错引用零回退；只验证Prompt和fake不能证明真实语义，原UAT gold不变。冻结旧runner依赖其冻结Git根/fixture，不为了历史断言保留旧生产绑定。
 
