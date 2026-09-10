@@ -2824,3 +2824,27 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 设计提交`8a7b8a2`；最终暂存复核顺带校正P3当前依据表已有的L1_01/L2_01_00/UAT_01旧版本，未改上位正文。本次无新运行资产、无真实模型/ES/BGE/业务请求、无索引或alias操作，历史结果hash保持；旧真实批次仍failed，未执行8题保持未执行，累计25/63不变。§9.7既有未知机关/简写歧义限制仍保留，不把多文号识别当作完整语义理解。下一步仍需在不复用历史授权的边界下验证真实检索质量；当前不部署、不增加付费批次，WP-KRETRIEVAL-UAT-01和QUALITY不关闭。
 
 本切片没有Python源码、其他Java业务模块或PowerShell变化，因此本轮没有重跑Python全量隔离、Employee/Transaction模块全量或AST；上次完整non-live数字只属于§20.79.1，不重复列作本次结果。替代检查为当前78项关联历史/追踪、两条Spring集成、es-query-service全量及mypy/编译。尚未执行同索引真实检索对照，故不能量化本修正的真实召回增益。
+
+### 20.81 当前文号检索的有限只读复核
+
+2026-09-10，clean HEAD=`64e56d07a8c3d34b5605eff098c58508fcd08f76`。本节是§20.80之后的新诊断，不改写该节当时“未执行真实检索”的事实，也不是§20.79.1付费批次的补跑。只启动本次持有进程句柄的隔离auth-service/18090与当前编译es-query-service/19201，复用版本化生命周期helper及现行binding.v2，ADMIN JWT仅在内存。执行前固定5种人工公开文号表达、最多5次keyword请求，均调用既有`POST /es/knowledge/search`，tax.policy/tax-policy-v1、limit=20；不进入Agent模型规划或摘要。
+
+编译类`DocumentNumberQuery.class` SHA-256=`235f744f247fd3a06d4975377d91baf3cc41b4c88277bd8ce437befd33873388`，binding SHA-256=`a6d2c00eddf46827750a8100357c909bab944f27d10b41218e2c9754457f9682`。alias仍指向`agent-doc-tax-policy-v5-20260907-vector-b2`，UUID=`jJ5Ww3LCRWWycfDkUZvmdw`；运行前后write-block=true，返回policySnapshot与绑定一致。两个预期来源仅用于响应后按chunkId、contentSha256及本次正文计算hash核对，不传入查询或排序；原始响应、正文、JWT均不落盘。
+
+| 预先固定的表达类型 | query SHA-256 | 2022原文排名 | 2023原文排名 | HTTP / 候选数 / 耗时ms |
+|---|---|---|---|---|
+| 原KRB-006问题，紧邻连接词简写 | ac251d416d67f32116d0d36b6ae2f0a6dadde4b9333f57f2f288e3317bbcf623 | 1 | 2 | 200 / 20 / 157 |
+| 两个完整文号以空格分开，随后问各自期限 | b27458c2d89ca5680220bd1cbee79465ed85ed2808236947b5603bbc70da3aed | 1 | 2 | 200 / 20 / 47 |
+| 两个完整文号以顿号分开，随后问各自期限 | b57ffe2f3ce8fe16ae667a5bda179ce3885322abe6515daa8594784e45d67759 | 1 | 2 | 200 / 20 / 46 |
+| 每个完整文号后均跟“规定的执行期限”，中间空格 | 5f5576dd72899f60a66260f4d2a9be59781410318456a3850dbcfe589cdced10 | 1 | 未入top20 | 200 / 20 / 32 |
+| 单独第二个完整文号及期限问题 | 70b20c7c368e20f15558886a491067baf94a45e6995c889c5d6844822cb3d924 | 未入top20 | 1 | 200 / 20 / 47 |
+
+结论：当前索引中的两份正文存在且可经真实读取授权返回；上一切片的相邻完整文号修正能够在当前typed检索中工作，但加入说明文字仍能复现第二来源召回缺失。第五项单文号不要求返回第一份来源；这5项是词法表达诊断，不统计为5个UAT通过，也没有旧/新服务同条件双臂，不能把排名变化归因成已量化的修复增益。历史真实query未保存，仍不能认定第四种人工表达就是当时模型输出。
+
+随后定点只读核查L1_01 KQ-AD-013/014、L2_01_00每域单表达、L2_01_01 §9.7及`planning.py`、`retrieval/stage.py`：当前两路共用同一改写query，Stage还校验相等；原问只保留为后续语义/摘要边界，不是独立检索来源。因此“语义约束仍在”不等于“原始词面召回能力仍在”。这是可验证的设计取舍和后续比较点，尚不足以证明所有改写或向量表示有缺陷。
+
+不建议继续为说明文字堆叠文号正则，也不建议据此立即重建向量索引、提高topK或改Summary。推荐先做原问保留与改写互补的非付费对照，再决定是否修订每域单表达/两路同query合同；比较必须保留非文号问题、双域隔离、候选与调用预算，并分别核对召回收益和噪声。若增加检索来源，须在请求前固定而非失败后追加，并处理重复来源对RRF权重的影响。该建议不是新设计的实施准入：本轮未修改L1/L2、生产代码、Prompt、配置或索引，没有新增Gate或付费候选。
+
+新增实际调用：keyword search=5；模型、embedding、rerank、Business、answer、索引写入、retry/resume均0。子进程未读取Key；退出时已停止本次两个服务、扫描并删除临时原始日志，secretScanPassed=true，18090/19201无残留监听。累计付费批次仍25 E2E/63模型，原终态与8题not_executed不变。阶段B专项UAT及QUALITY仍未完成；本节只记录诊断证据，不修改完成判据、gold或历史结果。
+
+本轮验证：agent-runtime执行`python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v1.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/evaluation/knowledge/test_document_number_benchmark_result.py -q --tb=short -p no:cacheprovider`，78 passed、13.08秒，1项既有LangChain预告；P3严格校验0错误/0警告，`git diff --check`通过。仅增补本节事实记录，v2.68设计/计划合同不变，不触发其他文档版本联动。完成定点设计取舍核查和证据差异复核，不冒充全层设计或正式代码评审；没有代码差异。本轮未重跑Python全量、Maven全量、mypy或完整Spring端到端；上述真实读取也未测vector/rerank/Summary，故不作这些能力的新完成声明。
