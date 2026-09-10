@@ -10,6 +10,7 @@ es:
       profiles:
         tax-policy-v1:
           logical-domain-id: tax.policy
+          document-number-matching: true
           profile-version: tax-knowledge-search-v1
           read-policy-version: tax-public-authenticated-v1
           read-alias: ${AGENT_KNOWLEDGE_READ_ALIAS}

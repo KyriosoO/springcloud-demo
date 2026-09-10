@@ -19,7 +19,7 @@ def records():
     return [probe.worker.decode(line) for line in raw.splitlines()]
 
 
-def test_frozen_source_and_input_identity():
+def test_frozen_source_and_input_identity(source_replay_frozen_profile):
     first = records()[0]
     assert first["event"] == "prepared" and first["head"] == HEAD
     for key, name in (("workerSha256", "knowledge_rerank_window_worker_v1.py"),
@@ -37,7 +37,7 @@ def test_frozen_source_and_input_identity():
     assert first["modelHashes"] == probe.worker.HASHES
 
 
-def test_actual_counts_and_post_inference_metrics_recompute():
+def test_actual_counts_and_post_inference_metrics_recompute(source_replay_frozen_profile):
     data = records()
     events = probe.checked_events(b"\n".join(json.dumps(e).encode() for e in data
         if e["event"] in ("ready", "warmup", "arm", "complete", "failed")))

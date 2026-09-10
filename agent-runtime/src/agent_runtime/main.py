@@ -37,6 +37,7 @@ from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
 from agent_runtime.model.settings import ModelProvider, ModelSettings
 from agent_runtime.model.contracts import StructuredModelTransport
 from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
+from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
 from agent_runtime.knowledge.retrieval.http import (
     HttpxKnowledgeTransport,
     build_knowledge_http_client,
@@ -148,6 +149,7 @@ def build_runtime(
                 tasks=knowledge_tasks,
                 retrieval=retrieval.stage,
                 policy_catalog=policy_catalog,
+                evidence_selection_version=ScoreAwareEvidenceSelector.VERSION,
             ),
         )
     return BusinessQueryRuntimeCompositionRoot.build(

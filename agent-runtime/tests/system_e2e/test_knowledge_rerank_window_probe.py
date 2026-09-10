@@ -110,7 +110,7 @@ def test_model_hash_precedes_import_or_inference(monkeypatch):
     assert calls == ["model.safetensors"]
 
 
-def test_current_input_binding_and_graded_metrics():
+def test_current_input_binding_and_graded_metrics(source_replay_frozen_profile):
     rows, dataset, pool, profiles = probe.source.load_inputs()
     cases, saved, subset = probe.select_inputs(rows, dataset, pool)
     assert len(subset) == 70
@@ -137,7 +137,7 @@ def test_worker_alive_is_unknown_on_observation_error(monkeypatch):
         probe.worker_alive("owned-synthetic-marker")
 
 
-def test_main_failure_preserves_terminal_and_cannot_resume(tmp_path, monkeypatch):
+def test_main_failure_preserves_terminal_and_cannot_resume(tmp_path, monkeypatch, window_probe_frozen_inputs):
     result = tmp_path / "result.jsonl"
     monkeypatch.setattr(probe, "RESULT", result)
     monkeypatch.setattr(probe.source.base, "clean_head", lambda *a: "frozen-test-head")
@@ -154,7 +154,7 @@ def test_main_failure_preserves_terminal_and_cannot_resume(tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize("active,timeout,exit_code", [(False, False, 0), (True, False, 1), (False, True, 1)])
-def test_main_complete_fake_and_cleanup_gate(tmp_path, monkeypatch, active, timeout, exit_code):
+def test_main_complete_fake_and_cleanup_gate(tmp_path, monkeypatch, active, timeout, exit_code, window_probe_frozen_inputs):
     monkeypatch.setattr(probe, "RESULT", tmp_path / "result.jsonl")
     monkeypatch.setattr(probe.source.base, "clean_head", lambda *a: "frozen-test-head")
     monkeypatch.setattr(probe, "container_identity", lambda: None)

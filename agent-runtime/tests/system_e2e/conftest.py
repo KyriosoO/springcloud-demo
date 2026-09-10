@@ -7,7 +7,7 @@ import json
 import hashlib
 from pathlib import Path
 import sys
-from types import ModuleType
+from types import FunctionType, ModuleType
 
 import pytest
 
@@ -84,3 +84,40 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
                  f"git:{head}:{name}", "exec"), vars(module))
     monkeypatch.setitem(sys.modules, name, module)
     monkeypatch.setattr(package, "test_requirement_runtime_composition", module, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def isolate_consumed_entrypoint_signature(request, monkeypatch, isolate_consumed_run08_root_fixture):
+    # These tests already choose a frozen root. Pair it with the pre-admission
+    # entrypoint instead of passing a new internal argument into an old root.
+    targets = {
+        ("test_knowledge_stage_b_uat_v3.py", "test_diagnostics_preserve_actual_wire_runtime_assertions"),
+        ("test_knowledge_stage_b_uat_v4.py", "test_v5_diagnostics_with_current_production_root"),
+        ("test_knowledge_stage_b_uat_v8.py", "test_capture_hooks_on_actual_current_production_root_and_provider_wire"),
+        ("test_knowledge_stage_b_uat_v9.py", "test_current_root_capture_provider_wire_and_context_observer"),
+        ("test_knowledge_stage_b_uat_v10.py", "test_current_root_capture_provider_wire_and_context_observer"),
+    }
+    path = Path(request.module.__file__).resolve()
+    if path.parent != Path(__file__).resolve().parent or (path.name, request.function.__name__) not in targets:
+        return
+    import agent_runtime.main as main
+
+    head = "17e1846d38064818db313fd8c4b7f01a4f6534ba"
+    source = subprocess.run(["git", "show", f"{head}:agent-runtime/src/agent_runtime/main.py"],
+                            cwd=path.parents[3], capture_output=True, timeout=10, check=True).stdout
+    nodes = [node for node in ast.parse(source).body
+             if isinstance(node, ast.FunctionDef) and node.name == "build_runtime"]
+    assert len(nodes) == 1
+    namespace = dict(vars(main))
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), f"git:{head}:build_runtime", "exec"), namespace)
+    original = namespace["build_runtime"]
+    # Preserve each test's subsequently selected historical root. No production
+    # fallback or source rewrite; the complete old function comes from Git.
+    build = FunctionType(original.__code__, vars(main), "build_runtime", original.__defaults__)
+    build.__kwdefaults__ = original.__kwdefaults__
+    monkeypatch.setattr(main, "build_runtime", build)
+    for name in ("tests.integration.knowledge.test_rewrite_v4_provider_boundary",
+                 "tests.integration.knowledge.test_requirement_runtime_composition"):
+        module = sys.modules.get(name)
+        if module is not None and hasattr(module, "build_runtime"):
+            monkeypatch.setattr(module, "build_runtime", build)

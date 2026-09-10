@@ -133,12 +133,19 @@ def test_snapshot_budget_counts_attempts_and_forbids_mutation():
     assert checker.reads == len(calls) == 1
 
 
-def test_frozen_inputs_and_scope_are_bound_before_reads():
+def test_frozen_inputs_and_scope_are_bound_before_reads(source_replay_frozen_profile):
     rows, dataset, pool, _ = replay.load_inputs()
     assert len(pool) == 504 and len(dataset.cases) == 24
     assert rows[0]["rerankInputVersion"] == "authorized-body-first-metadata-v1"
     assert "offline_source_replay_not_fresh_read_authorization" in replay.LIMITATIONS
     assert "ungraded_relevance" in replay.LIMITATIONS
+
+
+def test_changed_historical_profile_still_fails_closed(source_replay_frozen_profile, monkeypatch):
+    monkeypatch.setattr(replay, "PROFILE", SimpleNamespace(
+        read_bytes=lambda: source_replay_frozen_profile + b"\n# changed\n"))
+    with pytest.raises(replay.ReplayError, match="^source_profile_changed$"):
+        replay.load_inputs()
 
 
 @pytest.mark.parametrize("error", [replay.ReplayError("source_hash_changed"),

@@ -25,6 +25,7 @@ LEGACY_ROOT_TEST_FILES = frozenset(name + ".py" for name in (
 @lru_cache(maxsize=1)
 def legacy_root():
     import agent_runtime.bootstrap as bootstrap
+    from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
 
     repo = Path(__file__).resolve().parents[4]
     source = subprocess.check_output(
@@ -36,7 +37,19 @@ def legacy_root():
         raise AssertionError("knowledge.historical_root_missing")
     namespace = dict(vars(bootstrap))
     exec(compile(ast.Module(body=nodes, type_ignores=[]), f"git:{ROOT_BASELINE}:KnowledgeCompositionRoot", "exec"), namespace)
-    return namespace["KnowledgeCompositionRoot"]
+    root = namespace["KnowledgeCompositionRoot"]
+    frozen_build = root.build_provider
+
+    def historical_build(*, evidence_selection_version="legacy", **kwargs):
+        # Only the exact historical modules below use this bridge. Their old
+        # plans/selection stay unchanged when the current entrypoint adds its
+        # internal binding argument; current-root tests must never use it.
+        if evidence_selection_version not in ("legacy", ScoreAwareEvidenceSelector.VERSION):
+            raise ValueError("knowledge.historical_selection_version_invalid")
+        return frozen_build(**kwargs)
+
+    root.build_provider = staticmethod(historical_build)
+    return root
 
 
 @pytest.fixture(autouse=True)

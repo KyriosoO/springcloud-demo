@@ -17,7 +17,7 @@ def records():
             for line in raw.splitlines()]
 
 
-def test_source_replay_exact_schema_budgets_snapshot_and_source_provenance():
+def test_source_replay_exact_schema_budgets_snapshot_and_source_provenance(source_replay_frozen_profile):
     rows = records()
     assert len(rows) == 26
     prepared, terminal = rows[0], rows[-1]
