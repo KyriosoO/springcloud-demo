@@ -1155,3 +1155,23 @@ P3 §20.84追加当前对照的来源分级，不修改§14.53原结果中的nul
 复用§14.51的真实Spring入口、内存JWT、当前main对象图、来源及引用检查、有限Schema、客户端关闭和核实PID清理。新V2入口只改变批次元数据、批准清单和预算；旧V1入口/测试及所有原件保持字节不变，差异测试锁定八处变更。运行前绑定当前HEAD、源码/Java制品、Prompt、dataset、配置/索引及BGE容器身份；manifest保存哈希与有限预期，不保存问题、正文、JWT、Key或原始模型响应。启动/readiness与非live准备不读取Key，真实执行阶段才读取进程级Key。
 
 每题仍须三个真实模型任务成功、正确域、完整且有界检索、合法coverage/extractive及全部本题必要来源引用绑定，沿用§14.51判据。自动通过不是独立人工usefulness；功能、安全、召回和摘要分别报告，不因离线24题覆盖1.0豁免真实失败。失败不改历史或阈值，先保留终态和完成安全清理；完整专项及最终质量状态依据本批结果和剩余风险另行核实。实际冻结、测试和Git记录归P3 §20.85。
+
+#### 14.54.1 实际结果：五项通过，Rewrite失败停止
+
+本批于2026-09-10完成唯一终态failed，frozen HEAD=`ab809be1f4fb71f1c01580fb782c039aaf1d64fb`；manifest SHA-256=`c8b6a8e85167e2b320a1fa8781bc3af79b50509def7c624b3b7bbcee8de7cacc`；result SHA-256=`d3ab38d039d36dd31e9c29a128111ee80f8ad87804d80b77d04a2ad8e4c5c77e`。19项有限原件位于`agent-runtime/tests/system_e2e/knowledge_representative_run_02/`；执行前协议及源码只从冻结提交校验，所有旧批原件及结果不变。
+
+| case | 本批状态 | 实际来源及回答校验 | 模型/search/embedding/rerank |
+|---|---|---|---|
+| KRB-006 | Passed | tax.policy；small_2022:1和small_2023:2在path、最终排序、Evidence及实际引用均存在；coverage/extractive通过 | 3/2/1/2 |
+| KRB-004 | Passed | tax.policy；software:2引用及来源绑定通过 | 3/2/1/1 |
+| KRB-010 | Passed | tax.law；iit_deductions:1引用及来源绑定通过 | 3/2/1/1 |
+| KRB-011 | Passed | tax.law；declaration:1引用及来源绑定通过 | 3/2/1/1 |
+| KRB-012 | Passed | tax.law；resource_use:1引用及来源绑定通过 | 3/2/1/1 |
+| KRB-017 | Failed，HTTP502/downstream_failure | selection成功；Rewrite9 invalid_output，尚无已接受plan；未执行检索/重排/摘要，不归因于原文缺失 | 2/0/0/0 |
+| KRB-019、021、023 | Not executed | 第6题失败后停止，不补跑，不以旧测试或离线对照冒充本批执行 | 0/0/0/0 |
+
+合计6次E2E、17模型、10search、5embedding、6rerank，另1次本地启动预热；Business/answer/索引写入/retry/resume为0，已知累计31 E2E/80模型。全部已执行请求未超预算，未使用剩余授权继续请求；四题既有holdout只执行017且失败，不声称留出验收通过。前五题三个真实任务均成功、检索完整、引用和必要anchor绑定通过，但全部manualUsefulness未评估，自动判据不能代替独立人工整体语义/有用性结论。
+
+本批KRB-006通过证明此次真实链路已取得两份必要原文，旧§14.51失败保持不变；不是单因果消融结论。017有限记录只定位到Model响应校验阶段，无法区别供应商包络/截断、JSON或需求结构问题；不保存原始响应意味着这部分根因证据缺失，不能猜测后放宽校验或直接优化索引。非live补充反证及现有失败关闭、清理与哈希复核归P3 §20.85.1。
+
+Business35/35和Knowledge37/37既有功能追踪保持，不因批次失败自动改判；阶段B新增真实专项未全部通过，整体质量仍未收口。已完成安全清理和后置源/制品/索引绑定检查，没有创建下一付费批次。当前未关闭项为017原因细分与真实通过证据、019/021/023未执行、独立人工usefulness和剩余相关性噪声；不得以此次五题通过或离线24题完整覆盖宣称这些事项完成。
