@@ -2619,3 +2619,13 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 实际命令：`python -B -m pytest tests/integration/knowledge/test_summary_failure_runtime_observation.py tests/integration/knowledge/test_requirement_runtime_composition.py tests/unit/knowledge/evidence/test_requirement_coverage.py tests/system_e2e/test_knowledge_summary_failure_probe_v1.py tests/system_e2e/test_knowledge_stage_b_run_12_history.py -q -p no:cacheprovider`为133 passed/71.50秒；定向复核将模型观察的空集合all断言改为三项任务/状态精确匹配后，新增文件单独12 passed/19.12秒（均仅1项既有LangChain预告）。`python -B -m mypy --strict src`138文件通过，新增文件compileall、凭据模式扫描及diff --check通过。测试均以Python3.12及子进程PYTHONPATH=当前src执行，不读取Key，无真实HTTP、服务启动或付费调用。
 
 一次定向代码对照复核及断言加固后的复验符合本切片合同；不是外部独立审查或全阶段正式评审。P3仅追加验证记录，版本、DAG和UAT/QUALITY状态不变；未重复全仓Python、Java或Spring回归，未用这些合成测试填补真实模型效果缺口。后续真实诊断仍须在既有持续授权下先明确新的有限执行合同、观察接线和预算，不恢复run-12或按剩余额度机械开启批次。
+
+### 20.75 有界真实Summary诊断准备
+
+起点clean HEAD=`cc98c0020009f3963d4b79fadb78df8cd882dd12`。WP-KRETRIEVAL-UAT-01下一切片依据UAT_01 §14.48，不新增Gate或正式run-13：先实现并fake验证测试侧一次Summary7诊断，再提交冻结，最后使用持续授权执行最多1次真实Summary。固定selection/Rewrite只负责把安全已确认问题送入当前根，不能证明真实规划；最多1次部分模型Runtime、1模型HTTP、2 search/1 embedding/2 rerank及1预热。已知付费54，执行后上限55；不机械使用旧批次剩余预算。
+
+允许实施及验证本诊断工具；提交前禁止真实outbound。阶段B正式UAT继续In Progress，QUALITY继续Blocked；完整代表集召回改善、当前根部署、真实规划和真实答案质量各自独立判断，不再以住宿单题决定总体方向。§14.48定义输入授权、消费点、预算、有限观察和退出清理，P3只记录步骤和实际结果。
+
+准备验证：新增工具及直接测试，复用当前根、本地服务和原DeepSeek transport。三轮设计内审与分离的只读复核见UAT §14.48；代码对照复核两轮，第一轮发现`B-SUM-DIAG-001`（Major）：完整性检查仅在请求结束后执行，部分检索可能先花费模型请求。已把完整检索/域覆盖检查前移到凭据读取及outbound之前，并加入部分路径反例；同时冻结全部es-query-service编译资源而非只冻结两个class，防止运行制品未覆盖漂移。第二轮核对精确payload、started/consumed独占保存、原validator只调用一次、取消恢复、有限结果与失败停止，无本切片未处理Blocker/Major；不称外部独立审查。
+
+实际non-live：新增文件首轮14 passed；加固后与本地smoke、当前根观察、run-12历史四文件联合`python -B -m pytest ... -q -p no:cacheprovider`为42 passed/38.29秒（1项既有LangChain预告）。`python -B -m mypy --strict src`138文件通过；两新增文件compileall通过，P3严格校验0错误/0警告，diff --check通过。所有测试子进程移除Key环境项而不读值，无真实调用。冻结前只提交两份测试代码和P3/UAT限定协议；生产源、原Prompt、历史资产、索引和公共合同无修改。真实结果必须另行追加，不预填Passed。

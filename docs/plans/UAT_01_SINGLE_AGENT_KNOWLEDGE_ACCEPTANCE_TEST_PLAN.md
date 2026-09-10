@@ -1017,3 +1017,17 @@ DR-KRET-035代码及non-live已完成，命令、代码复评与提交见P3 §20
 首次检查曾因未验证vector路径完整而误报passed，已否定该完整通过结论；补齐调用/HTTP完整性断言和超时反例后重新非付费核实通过。生产部分路径语义、gold、阈值、权限、历史资产不变。实际命令、两次调用数、PID/日志清理及复核见P3 §20.73，不复制全仓测试总数。
 
 隔离实例接线缺口已关闭，不等于常驻应用已运行、Spring到真实服务已重新验收，或LLM规划/摘要效果已通过。两题仍入选8条Evidence，高分无关来源风险保留；阶段B真实专项保持未完成，后续不能以本次固定模型结果替代真实效果证据。
+
+### 14.48 一次真实Summary的后置拒绝诊断
+
+沿§14.34/14.39持续授权和L2_01_02 DR-KEV-032，仅新增`knowledge-summary-diagnostic-v1-20260910-01`，reference=`UAT_01:14.48`。目的是测得当前Summary7解码及两个后置校验的真实结果，不恢复run-12，也不是正式全模型E2E或新效果候选。当前已知付费54次，本操作最多新增1次，合计最多55；正式E2E历史22不增加，另列1次部分模型Runtime诊断。无自动retry/resume，任何失败停止，不自动追加运行。
+
+固定KRB-001 development问题及既有人工domains/requirements，仅因其与未定位的定义/归属拒绝同类，不要求住宿问题必须肯定回答。使用当前main根、固定selection和Rewrite8响应、真实Summary7、真实隔离auth/es-query-service及本地ES/BGE；固定前两项只经过真实decoder，不能作为LLM规划证据。禁止读取gold来生成模型计划、排序或摘要。当前policy-only计划，最多2 search、1 embedding、2在线rerank，另1次既有合成rerank预热；其他模型任务的外部HTTP、Business、answer、索引/alias写入均0。
+
+只修改建议新增的测试侧`knowledge_summary_diagnostic_v1.py`及直接fake测试，复用已有`knowledge_activation_local_smoke.run_case`、隔离服务管理及纯拒绝投影，不改生产代码/Prompt/validator。准备阶段不读Key、不访问网络：干净提交上冻结HEAD、目标脚本与直接依赖、全部生产src、数据集、当前绑定、服务制品、任务/Prompt及上述预算。execute必须精确匹配manifest SHA及当前资产；独占写started后禁止再次执行，即使尚未模型消费。真实输入只由现有读取授权、完整性及三层出域后的Summary请求产生；精确请求hash和有限Evidence hash在首次outbound前追加保存，不保存正文。只有到达这一步才读取进程Key，调用既有零重试DeepSeek transport；request hook只允许一次固定地址的Summary7精确payload，先独占写consumed/journal再发出。
+
+请求作用域观察两个原validator各一次，捕获仅为DR-KEV-032的精确类型/枚举投影并原异常重抛；不得补调用validator、修补输出或读取异常文本/栈/locals。所有patch在finally恢复，客户端关闭；原服务管理核实本次PID并扫描删除原始日志。终态只保存状态、公开有限failure code、有限模型任务状态、校验阶段/原因、调用计数、来源/配置hash与资源清理状态。前后alias/UUID/write-block/mapping和制品hash不变；输出文件独占追加，不修改任何历史资产。启动/读取/出域失败产生有限失败且模型0，不尝试绕过；中断保持started/consumed，不续跑。
+
+判断：measured仅表示本次真实Summary尝试形成可审查的decoder/后置结果；success还需原validator实际通过，insufficient_evidence如实记录，不自动算答案质量通过。若再次拒绝，以本次有限原因决定最小修复；若未复现，不反推run-12原因已修复。来源不足记资料/检索限制，不修改gold或强迫住宿通过。无论结果如何，不关闭阶段B全部UAT，不自动产生第二次付费调用。
+
+实施前复核：三轮内审依次核对（1）固定前两任务与真实Summary证明范围，补明确partial-model而非E2E；（2）Key读取、一次HTTP、原validator旁观、来源授权和有限输出，补started阻断未消费重启；（3）资源、快照、失败和预算，补预热独立计数。随后分离编辑执行只读设计对照复核：用户持续授权→本节→DR-KEV-032→既有run_case/transport/隔离管理的职责与合同一致，局部实施门S0=0、S1=0、未处理S2=0。该评审由同一执行者分阶段完成，不称外部独立审查；真实执行仍须先通过fake和提交冻结。无需修改L1/L2、公共合同、阈值或索引。
