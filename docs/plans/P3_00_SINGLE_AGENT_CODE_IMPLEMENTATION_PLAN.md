@@ -2487,7 +2487,7 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 
 工作包/Gate状态保持：IMPLEMENT/NONLIVE已完成范围不变，UAT In Progress、QUALITY Blocked、GATE-KRG-006 Closed。后续直接任务是完整相关性原文分级与同池对照，再决定生产文号配置及selector绑定；高分错误来源、真实选域/Rewrite与Summary后置拒绝仍独立保留。没有创建新付费运行，不把此前run-12或未执行用例改判。没有生产或Java/PowerShell修改，本轮不重复全模块Maven、AST或全量隔离回归；上轮结果不冒充本轮重新执行。
 
-### 20.70 相关性原文核对进度（4/24题，不是全局质量结论）
+### 20.70 相关性原文核对进度（8/24题，不是全局质量结论）
 
 起始clean HEAD=`f82cfb494307b1c7d9c22e67aea4531302c28b90`。沿DR-KEV-033/034继续核对固定旧/新top20并集：483个问题—来源组合、288个不同chunk，8次有界只读来源查询及6次快照检查完成；正文SHA与旧记录匹配，模型/embedding/rerank/Business/索引写入均0，没有启动服务或读取Key。来源读取属于离线运维核对，不冒充当前服务授权。只在内存查看公开原文，仓库仅保存ID/hash和有限分级理由。
 
@@ -2499,4 +2499,10 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 
 验证：新评分/指标/旧来源核对联合103 passed（0.85s）；再含实际来源结果、准入重放与当前35/37追踪联合119 passed（1.47s）。首轮测试出现2项setup/teardown错误，参数化ID展开超大测试输入；改为固定短ID后通过，断言和被测上限不变。新增模块首次strict mypy发现5项局部变量复用/返回列表推断问题，改为独立case_grades及显式结果类型后通过。与编辑分离的定向代码对照检查发现：若dataset与ledger同时改写，仅互相校验不足；固定已授权dataset SHA并补充反证，另补首4题append-only前缀保护。最终联合121 passed（1.40s）、src与新模块strict mypy139源文件及两文件compileall通过，P3严格计划校验0错误/警告。复查确认旧/新排名共用分级池、未核对null、必要来源0分冲突拒绝、无正文输出和旧资产只读；目标切片未留Blocker/Major，完整相关性、生产生效和专项UAT仍不可验证，不作全阶段代码评审通过结论。
 
-下一步继续核对005～024（402项），留出不得用于调整阈值；完成前保持全部全局相关性指标null、默认legacy及文号默认关闭。UAT In Progress、QUALITY Blocked及历史付费终态不变，不自动创建新付费批次。精确指标可用`python -B -m tests.evaluation.knowledge.retrieval_relevance_review`离线复算，不需要ES、模型或正文文件。
+首批工具/分级提交`626260a1db448133a664f9dd6338ff23bae3bf1d`，首批状态提交`88ea6627a49314e5e86eaf6e2214c9284d8bba35`，均已推送origin/codex。随后复用本节已读取且匹配哈希的内存来源，完整查看005～008涉及的70个不同chunk，追加82项分级；没有新增ES、BGE、模型、业务调用或索引写入，不将旧来源审计冒充新运行。当前8/24题、163/483项已核对，首10行SHA=`35e57fbe73ba5aca298c160786e343d5657a4f808169f63de18e94c8f1fed322`，原首6行保持不变；数据集、gold及历史排名均不改写。全部是development题，尚未用holdout调整策略。
+
+第二批直接发现：006旧检索缺少两份指定公告，文号对照后必要覆盖0→1、Precision@20为0→0.10；但是这个改善后的同池中，legacy/candidate两种selector均保留6条0分Evidence。005的8条Evidence含6条背景、1条不完整直接支持及1条完整直接支持；007/008候选仍有2/3条0分。这些观察不支持把“同文号/高分/背景相关”当作直接回答证明，不批准候选生效。新增反证测试区分原检索baseline与改善后池内selector的legacy，避免混淆两种对照；原首批哈希和独立算术测试继续保留，扩展覆盖8题。首个CLI在仓库根运行因tests模块不可导入而失败，改在agent-runtime目录执行即通过，没有修改导入合同或全局环境。
+
+当前联合124 passed（1.54s），src及评分模块strict mypy139源文件、两文件compileall通过，P3严格校验0错误/警告，凭据模式扫描0命中及diff --check通过。追加内容完成一次与编辑分离的定向代码/证据复核：旧判断不可变、分级范围与来源并集一致、必要来源不被0分误标、两种对照不混淆、未核对null及无线上读取/调参均符合DR-KEV-033/034；同一执行者复核，不冒充独立专家或全阶段正式评审。本批仅追加分级和测试，未修改生产源码、评分阈值、模型任务、索引或默认配置。逐题指标由UAT_01 §14.44.3管理；正式全量、真实Rewrite/Summary和生产生效未在本批执行，不把这些定向结果外推为阶段B通过。
+
+下一步继续核对009～024（320项），留出不得用于调整阈值；完成前保持全部全局相关性指标null、默认legacy及文号默认关闭。UAT In Progress、QUALITY Blocked及历史付费终态不变，不自动创建新付费批次。精确指标可在agent-runtime目录使用`python -B -m tests.evaluation.knowledge.retrieval_relevance_review`离线复算，不需要ES、模型或正文文件。
