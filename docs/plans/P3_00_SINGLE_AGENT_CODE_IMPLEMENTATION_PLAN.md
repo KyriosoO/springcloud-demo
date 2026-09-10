@@ -2848,3 +2848,21 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 新增实际调用：keyword search=5；模型、embedding、rerank、Business、answer、索引写入、retry/resume均0。子进程未读取Key；退出时已停止本次两个服务、扫描并删除临时原始日志，secretScanPassed=true，18090/19201无残留监听。累计付费批次仍25 E2E/63模型，原终态与8题not_executed不变。阶段B专项UAT及QUALITY仍未完成；本节只记录诊断证据，不修改完成判据、gold或历史结果。
 
 本轮验证：agent-runtime执行`python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v1.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/evaluation/knowledge/test_document_number_benchmark_result.py -q --tb=short -p no:cacheprovider`，78 passed、13.08秒，1项既有LangChain预告；P3严格校验0错误/0警告，`git diff --check`通过。仅增补本节事实记录，v2.68设计/计划合同不变，不触发其他文档版本联动。完成定点设计取舍核查和证据差异复核，不冒充全层设计或正式代码评审；没有代码差异。本轮未重跑Python全量、Maven全量、mypy或完整Spring端到端；上述真实读取也未测vector/rerank/Summary，故不作这些能力的新完成声明。
+
+### 20.82 原问与人工聚焦表达的非付费对照协议
+
+本诊断属于WP-KRETRIEVAL-QUALITY-01根因分析，依据§20.81及用户“不以住宿单题强过为目标、优先整体召回准确率”的要求。它不批准改变L1 KQ-AD-014或L2每域同query生产合同：只在独立测试工具中，先经现行typed Adapter取得授权候选，再用原RRF、quality-v3重排、当前ScoreAware selector及三层策略离线比较两组候选；不进入生产Stage，不覆盖其同query校验。若结论支持改变生产，必须另行完成受影响L1/L2语义修订和规定评审后实施。
+
+实验固定既有`retrieval_benchmark.v1.json`全部24题（16开发、8既有留出，非新盲测），不改问题、gold、来源或分组。没有真实Rewrite query留存，因此每域人工聚焦表达统一为该题既有同域requirements.focus按原序用单个空格连接；不按case特判，不从gold/正文/文号元数据生成query。每题原问和聚焦表达在网络前执行输入安全校验；明确标记manual_focus_not_model_output，不把此实验当作Rewrite效果或真实UAT。
+
+组A：聚焦keyword＋聚焦vector；组B：原问keyword＋同一个聚焦vector。先固定全部请求，后取得每域3份独立来源（原问keyword、聚焦keyword、聚焦vector），两组各只含2路，不把三路合并给B，也不因缺失重查。向量结果仅在同题同域内共享；两组分别执行现行每需求重排和Evidence选择。原问keyword可能包含其他域子问，但仅在已经人工冻结的域内经相同读取授权查询；这项风险必须单列，不能推断它天然优于模型分域表达。
+
+上限按24题/27域/29需求预先确定：typed search≤81、embedding≤27、rerank≤58；另允许一次既有本地合成rerank预热。模型/E2E/Business/answer/索引写入/retry/resume均0；不读取Key。服务仅隔离auth/18090、es-query/19201，沿现行v2 binding；预算、候选20、最终20、Evidence8、32KiB和各Adapter时限不放宽。前后只读核对alias/UUID/write-block及20个已知来源hash，原始正文/JWT/向量不持久化。技术失败即停止并保留有限终态，不创建付费candidate。
+
+逐题报告：两种keyword和共享vector的必要来源命中、融合池/最终排名/Evidence的必要来源覆盖、MRR、policy结论和调用数；开发/留出分开汇总。未对新增完整候选池人工分级的Precision/nDCG保持null。若B任何题必要召回或Evidence覆盖下降，不直接推荐全局切换；即使24题均不退且部分改善，也只支持进一步设计评估，不证明任意LLM改写、语言多样性或摘要usefulness。保留所有失败、平局和负向结果。
+
+实验范围内审三轮：1）核对24题来源不进入在线请求及人工表达限制；2）改为共享向量但各臂独立两路，防止B偷用第三路/增大窗口，技术失败与零命中分离；3）明确当前selector、分组、限额、历史保护及不得自动部署/付费。定点协议复核完成，无新的公开合同、权限或索引修改；仅允许新测试工具、直接fake测试和有限结果。不是对替代生产设计的正式准入，也不关闭专项UAT或QUALITY。
+
+实施范围仅`tests/system_e2e/knowledge_query_representation_probe.py`与直接测试。先构造typed Adapter流式fake验证；初版fixture错误使用已消费响应、chunkId含计分器不接受的冒号，均修正fixture，不修改生产读取或计分器。沿既有计分合同，空排名Precision为0、nDCG为null；有未分级候选时两者null。新增工具不导入生产Stage，不用patch绕过同query校验；patch仅适配旧服务helper到现行binding文件。新13项fake与原quality-v3/历史文号基准共50 passed（1.87秒），新文件compileall通过。
+
+执行前代码定点复核：来源检查在维护侧、gold仅响应后评分；每臂独立2路、共享同题同域向量而非合并第三路；当前ScoreAware selector只在完整verifier之后，策略拒绝不改判；预算先计尝试，异常不重试；输出独占创建、只有有限身份/计数/指标；临时服务和client按原helper清理。补齐Java身份及全部ES编译资源/认证JAR指纹，前后检查HEAD/tracked差异，避免双臂制品漂移。审查范围局限于实验是否符合协议，不宣称生产替代方案已通过设计或全仓代码评审。接下来只运行该零付费实验一次，结果另附本节。
