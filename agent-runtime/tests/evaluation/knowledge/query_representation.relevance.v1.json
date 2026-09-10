@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "query-representation-relevance-v1",
+  "reviewer": "codex_source_review_not_external_human_approval",
+  "datasetSha256": "ca076f8096ddf1210ddcf26da1a23135ee14c3cf415960fbaf03ea1e3a8f84f9",
+  "bindingSha256": "a6d2c00eddf46827750a8100357c909bab944f27d10b41218e2c9754457f9682",
+  "ablationSha256": "dc58b7f024740ea586b2e49e12e35f9f19631f99f719d307f26a30641f41e884",
+  "priorReviewSha256": "cba0ea89b26ca9334328d91f49d609c1cfad23fbfb6b63af72513ed6050d7e9e",
+  "pool": "focused_both_original_keyword_top20_union_by_case",
+  "sourceAudit": {
+    "head": "e1ad6939e2b8d426afedfe5f08145f22445e2f63",
+    "sourceReads": 1,
+    "snapshotReads": 6,
+    "sourcesRead": 37,
+    "pairsRead": 37,
+    "allContentHashesMatched": true,
+    "modelCalls": 0,
+    "indexWrites": 0,
+    "retry": 0,
+    "resume": 0,
+    "rawContentFilePersisted": false,
+    "freshReadAuthorization": false
+  },
+  "limitations": [
+    "executor_assisted_not_external_human_approval",
+    "not_independent_blind_review",
+    "manual_focus_not_model_output",
+    "no_summary_or_current_live_uat",
+    "no_equivalent_source_added",
+    "prior_judgments_reused_only_by_case_chunk_hash",
+    "unreviewed_pairs_not_zero"
+  ],
+  "cases": [
+    {
+      "caseId": "KRB-001",
+      "judgments": [
+        {
+          "chunkId": "chunk-0f3a9d23b961af8f811f3cb8f0b7e8a1",
+          "sha256": "780439913652e3823721a76032fc83e5159b114e1757b80018124fa77de2d776",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-1a3a58dcb12c51dd9cf86af6d187aa0d",
+          "sha256": "7c8ef16f5949760aaef75c31fe9d4bc7ea48c654dd2ac8de3c17073cc914d4a8",
+          "grade": 1,
+          "reason": "source_navigation",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-377f5d478f9d0b8cc32aeecca6994e8b",
+          "sha256": "20773483fdf0d335de3e465a29d245ca4ed0a320477b96389910bd37cde930b0",
+          "grade": 1,
+          "reason": "scope_context",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-48922353e07532c5165de1ddedfb8154",
+          "sha256": "2907365cef5ebf945b4d161be81a3654ae8dd5e69d7e8c7bc17fb47d7c4d098f",
+          "grade": 1,
+          "reason": "scope_context",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-6bbb0ffe58c512fa93153a5abf2ab367",
+          "sha256": "f5cdd60addc70620009f243f7ca68716573353a07b8b2e3375ba48a465072e71",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-848715fe8f3c2ff3d658fe30eff7433b",
+          "sha256": "cdd396439650534ec916bfa08966c54d74134856e030cb1427de296e327e45cb",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-102f7388894cddc8c379b8b6#d0000",
+          "sha256": "9dfa9b066976ed226e6266e73629cf039cffb26e4e4a41dd96295fb39ff8a6ac",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-3d3cae14eec9896d002bd21e#d0000",
+          "sha256": "e5f761e3c215c2758403f2f974c05a05ba7c993fe391e6c737e4a2943ec76e88",
+          "grade": 1,
+          "reason": "scope_context",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-3d3cae14eec9896d002bd21e#d0001",
+          "sha256": "df775d564047b6c77215de75ebbf231df6558169f743fea475b80c5c6ad56094",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-4c73d4739a105e9780333f7d#d0000",
+          "sha256": "a5d5fa79a3d9c5a6053f7b8d55c33f9c1ffc8a8cc7aa9d93215802deb7243a73",
+          "grade": 0,
+          "reason": "other_subject",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-6729023929ac0866909f64be#d0000",
+          "sha256": "31bb398a1c70d06a92ffbd0737951d33af619ad4f0f675723b16061a371e8281",
+          "grade": 0,
+          "reason": "other_subject",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-9939e96e4e957a8d8dcb34f6#d0000",
+          "sha256": "3874924a367e4aa9d9710142779de9f11c5bd2e8f0bd28d0c4d613dcb65a69f8",
+          "grade": 1,
+          "reason": "scope_context",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-c57f97fa731973cf3ecfb4aa#d0000",
+          "sha256": "e8c31afa0f075afd28cbfb7057d47a809bdb2ace8238069d61e673e83ae105bb",
+          "grade": 0,
+          "reason": "other_subject",
+          "basis": "current_full_source_review"
+        }
+      ]
+    },
+    {
+      "caseId": "KRB-002",
+      "judgments": [
+        {
+          "chunkId": "chunk-595cb9031c42146e62846256283c6356",
+          "sha256": "4a668a0cf2d51a7820ceb86caf3717e3da97619ea6ff4e3990f23a3e853b9452",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-cba0ab0feccf829851145ca810e53b3f",
+          "sha256": "09808b8e3e00a53175a71b972962a0f37157fe13d4f3e09fa6a820cfec2db603",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "chunk-fb9e070f744db395979acfd92872fd22",
+          "sha256": "9fd986365e04fbf9833fde9954d7e83baa1b92b3fd2d3d2d126caba802aaa0ae",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-1cd82c88132876a9697b8531#d0004",
+          "sha256": "329044584f1810b58c66614976a9ee0269adc92ed4a5e685b1b0df0694861e2a",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-f0debae5e7147a4996ccef35#d0001",
+          "sha256": "1b99238876fb98c6c47ca27f457c30130871ca4aab87f540def63c8af8c69b68",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        }
+      ]
+    },
+    {
+      "caseId": "KRB-006",
+      "judgments": [
+        {
+          "chunkId": "tax-1ecabbde51b4aed35cbe3b33#d0000",
+          "sha256": "e6957f5fed1358b1e10f6627226c2d10664ee84c0171b25d46c52e72d56fef20",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-3336043e9e46d5cdabea38f1#d0000",
+          "sha256": "71b2b0550b42791193d6ebe87a8b852a210d8056cebf4ac696d4ad0f1c9c9e5e",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-4ccabfab9212ff40c6047ea4#d0003",
+          "sha256": "d7d5afb7a7ea86a512d23d753cf9941f325b65106b7b26f65b2f0ebe7d5ede4b",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-858937c389ebf427c6351dca#d0000",
+          "sha256": "361389427f4297191d8baeae5515ced419743d3cd86c435757e9575573cd1884",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-9fed923bae7e2a0e511e689a#d0002",
+          "sha256": "342cec74e86c47b50be74c7703683dfbf5dbd646126adcbfb716b4b2da576fff",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-a1d3ac3a67b9fb1708403635#d0000",
+          "sha256": "e3f9875a5e2fe85b6e2510b49262c8b5b073cf79e8432f93752dd1e187243b09",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-b3d4031bd3525fae3a32ac44#d0000",
+          "sha256": "9e48509a6dc224e58b7228e80596da000320a80ed7b06a41bbb3ba38508d7836",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-cb5597409503c0efb2b8bf19#d0000",
+          "sha256": "93ad3e2f5aeaf87047c512d0ee6f1e0070fb8b47f8776b22c1e79e5004bca78f",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-cf9d1eb82d2da69e04fb8491#d0025",
+          "sha256": "cb91e8d2e1908c0c5fae47c1a9b01c7cc6f62c37b33c5330d54423ae146597e8",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-fd7acfd2e7d4c050aade37cf#d0000",
+          "sha256": "297394430c3401b381ae23059864e95dff173f1dd19fc8d7a3998e779a653c49",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        }
+      ]
+    },
+    {
+      "caseId": "KRB-008",
+      "judgments": [
+        {
+          "chunkId": "tax-008c9d6e47d38eceef4628cd#d0001",
+          "sha256": "ae5d9613229ffe04685f9bfdae376dd195d1b6142840063668359fe580e7c79e",
+          "grade": 1,
+          "reason": "historical_parallel",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-0d5b04990b508ca61326d670#d0000",
+          "sha256": "3d342976f51b22b11bbcefe4133a61a8f7b22481baa39fe7ae42c93c86f64186",
+          "grade": 1,
+          "reason": "source_navigation",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-53038bbccfa3e9c2d537e0d6#d0005",
+          "sha256": "b52bab01f0a4637d0f6b70634fa855a5b837297a347aa033a9e6a706c5470390",
+          "grade": 0,
+          "reason": "other_instrument",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-6d35f6eb457362e05f59b716#d0003",
+          "sha256": "c2de305dcfabad6a651ebd8a9a669f5178c05e781f090f3fd7dd740f85c222a0",
+          "grade": 0,
+          "reason": "other_requirement",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-72345aea740ac0533d987bbb#d0000",
+          "sha256": "094360700fee3f680d30c69e05782d92c66a0b43c7f75646bd1ba1b16ee80c8c",
+          "grade": 1,
+          "reason": "historical_parallel",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-a328b5761385bde359fd0c12#d0001",
+          "sha256": "f0d08e5b981fbdb7c0447f62f6456ad3f9c0f2f239a26b5ff669eb52edee1af5",
+          "grade": 2,
+          "reason": "partial_direct",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-d80471027710660e1c6d953e#d0000",
+          "sha256": "fc6c8510994d3eda8dd246c84cb09ab72ec514e0d4352a774e7228b2cfe1cb53",
+          "grade": 1,
+          "reason": "historical_parallel",
+          "basis": "current_full_source_review"
+        },
+        {
+          "chunkId": "tax-f4ede0cfeb676756c93a4866#d0000",
+          "sha256": "db4629496badc2b3b1b095e8656798105dafc52a430e03ffacee1efa14c48e80",
+          "grade": 1,
+          "reason": "historical_parallel",
+          "basis": "current_full_source_review"
+        }
+      ]
+    },
+    {
+      "caseId": "KRB-015",
+      "judgments": [
+        {
+          "chunkId": "tax-cf9d1eb82d2da69e04fb8491#d0024",
+          "sha256": "b5179865cac4f929cb2504e7e5c6ce9777b09d525141f6023b7829224ff3d16e",
+          "grade": 1,
+          "reason": "source_navigation",
+          "basis": "current_full_source_review"
+        }
+      ]
+    }
+  ]
+}

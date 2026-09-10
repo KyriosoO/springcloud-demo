@@ -2924,3 +2924,28 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 全量结束后对历史桥接和最终暂存范围完成第3次分离代码复核：35个失败均已修复而未改断言；当前root与历史fixture隔离、无模型/排序/索引扩权，完整回归闭合本切片。该实施及non-live切片Blocker=0/Major=0，文档引用Minor已修复；不据此接受未通过的真实专项。设计3轮内审/2轮正式复评的原结论不扩张，评审仍为同一执行者分阶段复核。前置工具`8ae1cfe`、有限结果`42cf97b`、设计`b19733a`已分别推送；本次代码、测试与状态同步单独原子提交，具体SHA由Git交付记录追踪。
 
 本轮增量实施和non-live验证完成；WP-KRETRIEVAL-UAT-01及质量收口仍未完成，旧failed终态及8题未执行保持。模型/E2E新增0，累计仍63/25，不复用已消费批次余额；未部署新代码、未修改索引/alias、未创建新付费候选。§20.82人工表达的局部必要覆盖提升不能证明新模型改写、Precision/nDCG或usefulness；这些效果风险继续由UAT_01治理，不自动关闭阶段B。
+
+### 20.84 原问keyword对照的相关性补核（DR-KEV-033；离线观察）
+
+2026-09-10从`e1ad6939e2b8d426afedfe5f08145f22445e2f63`干净工作树开始，只补齐§20.82已冻结对照的相关性观察，不修改生产策略、问题/gold、阈值或旧结果。两臂top20逐题并集496项，按同一case、chunkId、正文SHA复用既有483项标注中的459项；001/002/006/008/015五题其余37项执行完整来源核对。来源审计复用现有有界SourceReader：一次只读ES来源请求、六次前后alias/settings/mapping核验，37项正文SHA均匹配；属于先前类型化授权结果的运维审计，不宣称重新验证业务读取授权。预检曾因未设置局部源码路径及错误假设全部单域而在网络前停止，纠正后执行上述唯一来源批次；模型、embedding、rerank、Business、索引写、retry/resume均0，未读取Key，未启动服务或保存正文文件。
+
+新增`tests/evaluation/knowledge/query_representation.relevance.v1.json`（SHA=`f8c60f201fb75173f14d6602214adda452c5b240619058e99bdd84b0b3556635`）仅保存有限审计、37项分级与理由；`query_representation_relevance.py`用既有score_retrieval复算，不把来源名、排名、gold或模型答案自动转成标签。旧review SHA=`cba0ea89b26ca9334328d91f49d609c1cfad23fbfb6b63af72513ed6050d7e9e`及对照SHA=`dc58b7f024740ea586b2e49e12e35f9f19631f99f719d307f26a30641f41e884`保持；旧结果的null指标不覆盖。两臂共用当前逐题并集理想序列，缺少任何配对标注时该题分级指标及不完整分组总体均为null，不把缺失标作0，不只平均已完成题。现有分级rubric及0～3含义不变，没有新增等价gold。此次是执行者辅助原文核对，非外部专家或独立盲评；8题holdout为已有留出，不能重新称为新盲测。
+
+| 固定问题范围 | 必要Recall/Evidence覆盖 A→B | Precision@20 A→B | nDCG@20 A→B |
+|---|---|---|---|
+| development 16题 | 0.96875→1 | 0.378125→0.3875 | 0.911642→0.937537 |
+| 既有holdout 8题 | 1→1 | 0.2125→0.2125 | 0.982659→0.982659 |
+| 全24题等权 | 0.979167→1 | 0.322917→0.329167 | 0.935314→0.952578 |
+
+A为focused_both，B为original_keyword。MRR使用grade>0的相关性口径时两臂均1，不能覆盖原结果的必要来源MRR。KRB-015 nDCG从0.956104929略降至0.955443268，精确率0.65及必要Evidence覆盖1保持；必须保留该回退，不声称逐题全面提升。最终Evidence分级[0,1,2,3]总数A=[51,58,6,29]，B=[49,57,6,30]；grade1是背景，不是直接支持。新增必要来源不等于消除噪声：B仍49项不相关，阶段B准确性与真实专项责任未关闭。不得据此修改gold/阈值、逐题调参、扩大topK或启动新付费批次。
+
+验证（命令在agent-runtime执行，当前子进程显式设置`PYTHONPATH=D:/codex/agent-runtime/src;D:/codex/agent-runtime`，不改变全局环境）：
+
+- `python -B -m pytest tests/evaluation/knowledge/test_query_representation_relevance.py tests/evaluation/knowledge/test_query_representation_result.py tests/evaluation/knowledge/test_retrieval_relevance_review.py -q --tb=short -p no:cacheprovider`：132 passed/3.43秒。首次遗漏局部源码路径导致3项收集错误；补齐路径后超长/特殊字符参数ID触发Windows测试fixture错误，改用有限测试ID后通过，输入与断言未减弱。
+- `python -B -m pytest tests/evaluation/knowledge tests/unit/knowledge/test_original_keyword_planning.py tests/unit/knowledge/retrieval/test_original_keyword_stage.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider`：472 passed/52.72秒，既有LangChain预告1项，0失败/0跳过。
+- `python -m mypy --strict src`：140个源码文件通过；`python -m compileall -q tests/evaluation/knowledge/query_representation_relevance.py tests/evaluation/knowledge/test_query_representation_relevance.py`通过。
+- 复算命令`python -m tests.evaluation.knowledge.query_representation_relevance`零网络、零文件写入输出逐题有限指标；测试另行独立计算Precision/nDCG/Evidence分级，验证旧文件漂移、错源、重复、bool、缺标注、篡改历史分级、原始正文混入均拒绝。
+
+该切片只新增三个测试侧文件及P3/UAT证据记录；REQ/L1/L2合同、生产代码和版本不改，无需为执行计数升级架构文档。按REQ-KQUALITY-002/004→DR-KEV-033进行编辑后分离代码/证据复核：身份复用、共同理想池、严格类型、partial/null、无网络/敏感正文、历史不可变及局部下降披露均符合；复核改为显式导入SourceRef以免依赖旧模块偶然导出。没有新设计语义，不伪称新增三轮设计评审或外部人员批准。原问覆盖切片与本次分级补核已完成，WP-KRETRIEVAL-UAT-01/整体质量仍未完成，§14.51旧failed终态及累计25 E2E/63模型不变。
+
+最终分离复评确认该测试/证据切片无未关闭Blocker/Major；两份状态文档追加后，UAT追踪及新分级测试联合56 passed/1.17秒。P3 `validate_implementation_plan.py --file ... --strict`为0错误/0警告（初次误用位置参数只产生CLI用法错误，修正后通过）；复算CLI实际执行为pool_reviewed/496/459/37/0。新增文件凭据模式0命中，旧review、对照及binding四项SHA核对通过；Git属性明确JSON为LF，可从干净检出复现新分级哈希。此次未改Java/生产代码，因此未重复上一切片Maven及全仓13分钟隔离回归，不把既有执行数量冒充本次结果；本次472项为完整Knowledge evaluation加直接策略及UAT追踪的定向回归。
