@@ -308,7 +308,7 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 
 `TEST-KRET-029`：单次HTTP、格式/边界、wrong echo/model/index/score、重复JSON、取消/超时、原文/hash不变、拒绝零BGE、当前根唯一绑定、旧factory默认和未知版本拒绝、观测无正文或元数据；合成输入下与已测实验表示/分数一致。实验代码不得成为生产依赖。真实Rewrite/Summary、引用及usefulness仍独立验收。
 
-### 9.7 文号元数据软匹配（DR-KRET-035；已实施，默认关闭）
+### 9.7 文号元数据软匹配（DR-KRET-035；已实施，live Profile 显式启用）
 
 **根因和方案选择**：现有`documentNo`为keyword，完整元数据可定位但与问题空格表示不一致；整句multi_match追加该字段不能解决此缺口。只改Prompt不能补齐服务字段行为；只扩大窗口增加噪声和成本；立即新增归一字段/候选索引涉及全记录迁移。优先采用可关闭的服务内部`document-number-whitespace-v1`，原文/向量/索引不动。若此方案在有限语法、错误机关反证或真实耗时上不能通过，则停止启用，另行评审规范化元数据候选索引，不继续堆叠规则。
 
@@ -316,7 +316,7 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 2. **有限词法**：仅接受完整`机关〔YYYY〕N号`、`机关[YYYY]N号`、`机关公告YYYY年第N号`。输入沿公开合同≤1024 Unicode码点；机关由汉字/ASCII字母及ASCII或全角空格构成，去空格后2..48字符；年份4位ASCII数字、编号1..12位，保留大小写、前导零、成对括号种类及地域机关。允许从机关开头剥离一次明确查阅前缀（与当前Guard的请/帮我/麻烦、分别/同时、查询/查找/检索/查阅/查看/对比/比较同一有限语法）；不做同义机关推断，不从超长机关末尾截取一个短机关。
 3. **列举**：完整文号后紧邻`、/和/与/或/以及`及可选空格时，下一项若只有同一格式的`YYYY年第N号`或`〔YYYY〕N号/[YYYY]N号`，只继承紧邻的完整机关和公告标记，年份/编号必须显式存在。不同完整机关分别保留；不跨句、跨任意文字借用机关，不补年份、不去掉地域。稳定去重后最多4项，单项规范形式≤80字符；任何已识别项超限则整项额外匹配关闭，不截取前4项。无法识别的简写不继承，已独立识别的完整项可保留软匹配，原全文始终保留所有条件。该行为不证明所有文号或问题已理解；最终仍由原问题及引用校验控制。
 4. **ES形状**：将已验证的字符逐一转义，以`[ 　]*`连接，只允许空格差异，不生成通配`.*`或接受用户正则。每项表达式≤900字符，`flags=NONE`、`case_insensitive=false`、`max_determinized_states=256`；只使用Profile的`source-fields.document-number`。元数据项OR合并为一个constant_score子句，固定boost=100；它与原multi_match按should/minimum_should_match=1合并，category过滤始终在最外层。不是文号硬过滤：提到某文件的跨域查询仍可返回同域其他相关原文。该固定加分不是相关性或法律有效性证明，也不保证任意索引的首位；不得配置任意权重、gold、case ID或目标文档ID。
-5. **配置与启动**：Profile新增私有服务布尔`document-number-matching`，默认false且初始化后冻结。开启时Verifier要求document-number字段为keyword/constant_keyword，不能显式`index=false`或设置normalizer（避免大小写等隐式等价）；旧false Profile保持原mapping兼容。当前配置文件不默认启用，先经隔离typed对照验证再做显式配置启用；这是后续质量/运行工作，不以fake放行。索引snapshot仍标识同一物理内容，源码和配置hash共同标识检索行为，不伪称旧manifest证明新查询。
+5. **配置与启动**：Profile私有服务布尔`document-number-matching`的类型默认仍为false且初始化后冻结。开启时Verifier要求document-number字段为keyword/constant_keyword，不能显式`index=false`或设置normalizer（避免大小写等隐式等价）；旧false Profile保持原mapping兼容。隔离typed同快照对照、完整相关性及非文号/错误机关反证完成后，当前`application-knowledge-live.yml`仅对tax-policy-v1显式设为true；tax-law-v1及普通application.yml默认disabled行为不变。启用依据、运行部署和回滚状态由P3/UAT管理，不能以fake或代码配置变更冒称运行中服务已升级。索引snapshot仍标识同一物理内容，源码和配置hash共同标识检索行为，不伪称旧manifest证明新查询。
 6. **失败和运维**：未知词法只是不采用可选信号，不是失败后再查；已发ES请求失败沿原异常映射，不能移除子句重试或扩大域。集群禁止昂贵查询时regex会失败，不自动修改集群设置；启用前必须在当前环境测量。现有请求/响应大小、超时、limit+1哨兵、最终top20及返回字段不变；无额外HTTP、缓存、线程、依赖和日志。关闭开关/部署原代码即回滚，不写alias/index或旧资产。
 
 `TEST-KRET-030`：合成不同机关/年号/括号/前导零、单/多文号、紧邻简写、非紧邻不继承、查阅前缀、歧义/超限/注入、不可变/并发；启用/禁用/无文号/vector查询形状、category不可绕过、单次HTTP、授权失败零调用、ES拒绝零重试、mapping不兼容启动拒绝和冻结开关。不能仅断言生成了字符串，需验证目标匹配与错误机关不匹配。
@@ -667,7 +667,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.17；DR-KRET-036仅新增离线窗口诊断方法，尚未实施。DR-KRET-034/035及既有规则保持原证明范围，生产参数不变。
+- 当前版本：v2.17；DR-KRET-036工具及离线诊断已完成，未满足扩大窗口判据，生产512保持。DR-KRET-035已在live政策Profile显式启用；代码配置与运行部署状态分开，真实专项仍由P3/UAT管理。
 - 文档状态：Approved；本增量三轮内审及分离设计复评见P3 §20.71，仅批准测试侧工具实施及有界非付费对照；既有批准范围不撤销，不替代生产生效或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 

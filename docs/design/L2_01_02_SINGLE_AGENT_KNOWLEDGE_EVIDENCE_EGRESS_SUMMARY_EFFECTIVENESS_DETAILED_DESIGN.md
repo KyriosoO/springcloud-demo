@@ -9,7 +9,7 @@
 |---|---|
 | 文档编号 | `L2_01_02` |
 | 当前版本 | v1.25 |
-| 日期 | 2026-09-09 |
+| 日期 | 2026-09-10 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V7（V7为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
 | 上位文档 | [`L1_01` v1.21](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
 | 本次增量 | DR-KEV-034：可选Evidence分数准入的有界候选策略；实施与生效分离，不改变需求锚点、引用、权限或历史结果 |
@@ -419,7 +419,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 追踪：REQ-KQUALITY-002/004→DR-KEV-033→IMPL-KEV-016（上述测试纯函数已实施）→TEST-KEV-023（无命中、多依据/等价来源、缺料/未知、未标注/null、分母、分级冲突、重复/超限、Evidence错源和不可变输入）→VAL-KEV-015（pytest、mypy及既有有限证据分层复算）。无新线上流程、服务、配置、模型任务、索引或付费调用；P3治理实施状态，UAT_01治理代表性case与实际测量。离线分层复算不能关闭新的整体质量验收。
 
-### 13.9 可选Evidence准入（DR-KEV-034；候选策略，尚未生产生效）
+### 13.9 可选Evidence准入（DR-KEV-034；已绑定当前生产组合根）
 
 **目的与依据**：继承REQ-KEV-001、REQ-KQUALITY-002/004及L1_01 KQ-AD-014允许的版本化证据选择。当前质量策略保护需求首位后补入最多8条；数量上限不等于相关性充分。低分可选尾部是已核实的噪声来源，但高分、同文号及锚点标签均不能证明直接回答原问题。只处理这一独立损失，不把资料缺口、域规划、摘要502或高分错误来源一并宣称修复。
 
@@ -429,7 +429,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | 所有证据统一按分数删除或跨focus取最大分重排 | 可能丢失需求锚点，改变既有需求覆盖/排序；当前有限证据不足，不采用 |
 | 仅对非锚点可选项做版本化准入，之后复用旧selector | 不新增检索和模型调用、不调整排名及公开合同；采用为可验证候选，不提前作为已达标的生产默认 |
 
-已新增候选实现`knowledge/evidence/admission.py::ScoreAwareEvidenceSelector`，继承现有`DeterministicEvidenceSelector`的同步`select`签名，尚未绑定生产默认。固定版本`optional-evidence-score-v1`，固定候选阈值`MIN_OPTIONAL_SCORE=0.5`；不提供请求参数、热更新、环境覆盖或任意表达式。0.5只是已登记开发集探索的首个候选，不是相关概率、通用BGE阈值或最终验收标准；不搜索阈值网格，不使用留出集选参数。
+已实现`knowledge/evidence/admission.py::ScoreAwareEvidenceSelector`，继承现有`DeterministicEvidenceSelector`的同步`select`签名；完成本节生效前置后，当前main显式绑定。固定版本`optional-evidence-score-v1`，固定候选阈值`MIN_OPTIONAL_SCORE=0.5`；不提供请求参数、热更新、环境覆盖或任意表达式。0.5仍只是已登记开发集探索的首个候选，不是相关概率、通用BGE阈值或最终验收标准；不搜索阈值网格，不使用留出集选参数。其已验证改善仅限可选尾部选择，不代表整体效果达标。
 
 调用顺序和行为：
 
@@ -439,13 +439,13 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 4. 把保序子集交给旧selector；仍执行原需求/域覆盖、总8条/32768字节、来源、出域交集和引用/子串校验。无足够证据沿用`insufficient_evidence`，非法输入沿用技术失败，不增加公共状态或重试。低分锚点被保留只代表原覆盖机会不丢失，不证明其足够；最终语义责任仍在受证据约束的Summary与UAT，不用结构标签掩盖无相关原文。
 5. 这是纯请求内同步选择，没有网络、磁盘、缓存、模型、gold、文号/酒店特判，不生成或改写正文。不修改输入tuple、batch、原rank或requirement集合；调用无可变跨请求状态，取消和client生命周期仍归原Stage/Runtime。筛选发生在读取授权之后、模型出域决策之前；只有实际选择的Evidence按原三层策略决策，不能根据出域拒绝再换片段重试。
 
-**装配与兼容**：建议仅在`KnowledgeCompositionRoot.build_provider`增加内部`evidence_selection_version: str = "legacy"`参数；enabled时只接受legacy/上述版本，未知值在创建处理器前拒绝；disabled不实例化selector。新版本通过已有Stage selector参数注入，不修改旧builder、ranker、任务、摘要validator或历史资产。当前main仍不传该参数，生产默认保持原选择；本候选经同池相关性、必要来源及当前根验证后才允许在main显式绑定，实际生效与回滚由P3/UAT管理。回滚只恢复legacy绑定，不删除新旧证据。任务输入/输出合同未变，不升级Rewrite/Summary版本，不新增配置中心或生产依赖。
+**装配与兼容**：`KnowledgeCompositionRoot.build_provider`已增加内部`evidence_selection_version: str = "legacy"`参数；enabled时只接受legacy/上述版本，未知值在创建处理器前拒绝；disabled不实例化selector。新版本通过已有Stage selector参数注入，不修改旧builder、ranker、任务、摘要validator或历史资产。当前main在Knowledge enabled时显式传入上述版本，内部调用默认legacy保持兼容；同池相关性、必要来源及当前根验证是此绑定的前置，依据及实际部署状态由P3/UAT管理。回滚只恢复legacy绑定，不删除新旧证据。任务输入/输出合同未变，不升级Rewrite/Summary版本，不新增配置中心或生产依赖。
 
 **验证与生效判据**：先固定本策略再使用未调参留出集；用同一原问题/计划、索引、授权来源和实际排序重放，不能把此前“any-focus最大值”试算作为当前selector实测。比较必要来源是否仍在最终Evidence、低分非锚点是否不再入选及实际输入条数/字节；完整相关性标注不足时Precision/nDCG仍为null。必须覆盖等于/低于阈值、低分/合并锚点、缺锚点、畸形分数、低分损坏正文、字节预算、单/多域、拒绝/取消和旧版本不变。任何必要来源损失或留出回退均阻止生产绑定；旧20项召回率不能代替新Evidence覆盖与相关性结论。不因为拒绝低分而减少权限、失败语义或端到端验收责任。
 
 对照只追加新结果，至少绑定selector版本/源码SHA、首次分数来源、旧结果SHA、模型/输入版本和当前索引；允许复用不可变检索记录做零网络策略检验，但缺少正文/字节信息的记录只能证明候选准入，不能冒充完整selector或真实检索重跑。补齐完整相关性属于生效/质量责任，不阻塞这个纯函数及合成集成测试的实施；失败不自动改阈值或删除问题。
 
-追踪：REQ-KEV-001、REQ-KQUALITY-002/004→DR-KEV-034→IMPL-KEV-017→TEST-KEV-024→VAL-KEV-016。本切片三轮内审及分离设计复评已通过（P3 §20.68），允许纯selector、内部装配和non-live测试实施；不批准生产生效、付费候选或索引/alias变更。低分准入无法消除全部高分但不相关来源，完整相关性/UAT和真实后置拒绝仍是阶段B后续责任。
+追踪：REQ-KEV-001、REQ-KQUALITY-002/004→DR-KEV-034→IMPL-KEV-017→TEST-KEV-024→VAL-KEV-016。本切片三轮内审及分离设计复评已通过；完整相关性和同池来源保持补齐后，按既有判据完成当前main显式绑定，记录由P3/UAT治理。该状态同步不更改判据、阈值或安全合同，不批准新付费候选或索引/alias变更。低分准入无法消除全部高分但不相关来源，真实专项UAT和后置拒绝仍是阶段B后续责任。
 
 ## 14. 实现落点清单
 
@@ -469,7 +469,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-014` | §9.6 Summary7仅更换指令和版本；同一V6 parser、当前根及Stage版本接缝 |
 | `IMPL-KEV-015` | §9.2.1 requirement_validation.py内的拒绝枚举/兼容异常及既有测试投影，已实施；旧摘要validator字节、公开错误及通过条件不变 |
 | `IMPL-KEV-016` | §13.8测试侧分层检索计分纯函数，已实施；不进入生产排序或历史判据 |
-| `IMPL-KEV-017` | 建议新增`knowledge/evidence/admission.py::ScoreAwareEvidenceSelector`；建议修改bootstrap.py的内部装配参数，复用Stage既有selector注入，不修改旧builder或main默认 |
+| `IMPL-KEV-017` | 已新增`knowledge/evidence/admission.py::ScoreAwareEvidenceSelector`及bootstrap.py内部版本参数；当前main显式绑定，复用Stage既有selector注入，旧builder和内部legacy默认不变 |
 
 ### 14.2 关键签名
 
@@ -601,7 +601,7 @@ def classify_conclusion(
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 是，DR-KEV-029/030已评审实施，成对接线及non-live通过；整体真实UAT仍未完成，见P3 §20.40 |
-| 当前允许实施范围 | §9.5需求选择/新载荷/覆盖validator、测试专用Schema2来源适配及§13.9可选Evidence候选的non-live实施验证；保留历史任务/证据和安全算法，不自动生产启用。已消费真实授权不复用，剩余总预算不构成新批次权限 |
+| 当前允许实施范围 | §9.5需求选择/新载荷/覆盖validator、测试专用Schema2来源适配及§13.9可选Evidence实现和满足前置后的main显式绑定；保留历史任务/证据和安全算法。运行部署与真实效果分列，已消费真实授权不复用，剩余总预算不构成新批次权限 |
 | 当前禁止动作 | 改写历史资产、自动重跑/补跑/续跑、放宽 validator/权限/阈值、未经新独立目标精确授权真实调用、宣称效果已 effective |
 | 回滚单位 | Evidence components + policy catalog + summary task binding；P5 历史结果永不回滚覆盖 |
 
@@ -616,7 +616,7 @@ def classify_conclusion(
 | v1.12 独立评审 | Summary V4、效果口径 v2、candidate-07 无效测量及 DR-KEV-021/022 与当前代码/计划边界一致；S0=0、S1=0、未处理 S2=0 | Passed |
 | v1.13 内审 1～3与独立评审 | 附件父策略继承、新旧目录隔离、snapshot 全成员、Evidence 连续子串和无权限扩张检查通过；S0=0、S1=0、未处理 S2=0 | Passed |
 
-- 当前版本：v1.25；DR-KEV-029～031已评审实施及成对接线，当前生产V7；DR-KEV-034为未生产启用的候选实现，真实效果待验证。
+- 当前版本：v1.25；DR-KEV-029～031已评审实施及成对接线，当前生产V7；DR-KEV-034已在当前main显式绑定，运行实例升级及真实效果不能由代码配置变更推定。
 - 文档状态：Approved；DR-KEV-027/028三轮内审和只读独立复评通过，允许本切片非live实施；记录归P3_00 §20.17，不代表真实效果通过。
 - 最新有效效果等级为 `partially_effective`；历史运行身份和原结论由 UAT_01/evidence 维护，均不得重写或改判。
 
