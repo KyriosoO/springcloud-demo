@@ -3004,3 +3004,19 @@ KRB-006本次两份必要来源small_2022/2023均已进入召回、最终排序�
 新增真实模型/E2E/检索/embedding/rerank均0，已知累计31 E2E/80模型不变。既有观察器只能在异常发生时捕获，不能恢复017原始原因；兼容测试也不代表已向冻结runner补接线。后续若有独立授权的运行，应复用本观察器并在执行前验证接线，不复用已停止批次余额。017真实通过、019/021/023执行、人工usefulness及剩余相关性噪声仍未关闭；UAT保持In Progress，QUALITY保持Blocked。
 
 状态增补后最终复核：新测试、旧probe、两个代表集历史及35/37追踪联合100 passed/10.88秒；compileall通过，P3 strict为0错误/0警告，三个目标文件凭据模式0命中，Git diff/check与精确暂存范围通过。此次仅一个新增测试文件及P3/UAT执行记录，不改文档语义版本；测试和状态分别形成可辨识提交，推送及最终HEAD由Git记录。
+
+### 20.87 剩余Evidence噪声的零网络分解
+
+2026-09-10从`fa6e980edef813fb2809fe2a75e35634e0919dc4`干净工作树继续REQ-KQUALITY-002/004、DR-KEV-033/034的根因核实。只复用§20.82/20.84已冻结的24题排名和496对来源分级，按case/chunk/SHA精确关联，不重新检索、读取正文或修改标签。original_keyword臂142条Evidence中grade0/1/2/3仍为49/57/6/30；49条0分分布在17题，其中other_requirement=21、other_subject=19、other_instrument=9，development31/既有holdout18。13条0分位于最终候选前三名；Evidence位置2～8分别为6/7/6/7/8/6/9，不能把噪声全称为低位尾部。
+
+确认49条0分的最终rank全部大于该题requirement数量。冻结quality-v3先放唯一需求锚点、最多每需求一条，因此这些条目必为可选项，不是锚点保护强行留下。核对原测量提交`8ae1cfe366d10353f789adb03349f9f9a9ff2ba8`至当前，ranker、admission和builder无差异，probe文件SHA与原header一致。结合测量真实调用ScoreAwareEvidenceSelector，可推出这些可选项曾通过固定0.5准入；但有限记录只有身份和顺序，没有精确分数、标签或正文，不能反推分差、重建完整打分或选择新阈值。结论限于这组人工query及已评来源，不外推真实Rewrite9输出或全库质量。
+
+处理判断：不建议以这项证据修改锚点保护、扩大topK、重建索引或直接抬高分数阈值。可选分数准入已减少低分噪声，但高分相似不保证回答相同主体/要求/文件；后续优化若确有必要，先取得同池有界分数与问题约束诊断，再按原设计评审流程选择最小方案，不用gold在线筛选或留出调参。依据UAT_01 §14.47既有边界，不把消除全部噪声增加为真实专项前置；原必要覆盖、引用、权限和功能验收条件不降低。当前诊断明确了剩余噪声类别，未声称已消除噪声或修复017模型解码失败。
+
+新增三个离线复算反证位于`tests/evaluation/knowledge/test_query_representation_noise_diagnosis.py`，复用原严格loader/hash检查，记录完整性、分级/位置/分组算术、锚点上界以及缺分数不可推断。没有新工具入口、候选、JSON结果副本或生产逻辑。定向命令`python -B -m pytest tests/evaluation/knowledge/test_query_representation_noise_diagnosis.py tests/evaluation/knowledge/test_query_representation_relevance.py tests/evaluation/knowledge/test_query_representation_result.py tests/unit/knowledge/test_evidence_admission.py tests/unit/knowledge/retrieval/test_quality_ranking_v3.py -q --tb=short -p no:cacheprovider`：132 passed/1.60秒。PowerShell独立按相同身份关联复算得到相同49/21/19/9和49项非锚点结论；没有以未分级项补0、改gold或减少用例。
+
+本轮真实模型、E2E、检索、embedding、rerank、索引写入均0，未读取Key或启动服务；累计31 E2E/80模型及旧failed终态不变。P3工作包仍UAT In Progress、QUALITY Blocked；017真实原因和通过证据、019/021/023未执行及人工usefulness不能由本离线诊断关闭。只更新本节和UAT验收解释，不升级架构/详细设计版本或建立额外Gate。
+
+相关回归命令`python -B -m pytest tests/evaluation/knowledge tests/unit/knowledge/test_evidence_admission.py tests/unit/knowledge/retrieval/test_quality_ranking_v3.py tests/unit/knowledge/test_original_keyword_planning.py tests/unit/knowledge/retrieval/test_original_keyword_stage.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider`：534 passed/36.27秒，0失败/0跳过，既有LangChain预告1项；src strict mypy 140文件、compileall及P3 strict通过。新增测试与两个代表集历史/35与37追踪最终联合61 passed/4.09秒。三份原排名/分级SHA不变，目标凭据模式扫描0命中。没有生产/Java/脚本变更，未重复Maven、Spring服务级E2E、全仓隔离回归或PowerShell AST，不把上轮执行计数冒充本轮结果。
+
+按DR-KEV-033/034分离代码/证据复核两轮：首轮补充当前分级文件固定SHA及二次读取同hash校验，避免合法但不同的分级被当作原诊断；复评确认身份复用、有限计数、rank大于锚点上界的单向推理、未知分数边界、无网络/原文/生产修改均符合。本离线诊断切片无未处理Blocker/Major；不是外部独立人员评审、阈值生效批准或整体阶段B完成。测试与状态作为本目标的一个有限诊断提交，最终SHA及推送结果归Git。
