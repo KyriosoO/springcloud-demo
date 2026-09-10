@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.67 |
+| 当前版本 | v2.68 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-10 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -65,12 +65,12 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.21 | KQ-AD-018必要证据及019派生向量；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成，见§20.52～20.53 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.28 | DR-KFLOW-024～027需求计划、澄清、当前摘要配对及文号边界 | Approved；已实施，文号增量non-live验证见§20.64.1 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.17 | 需求排序、上下文评分、文号匹配及离线窗口诊断 | Approved；文号live政策配置显式启用见§20.72，窗口保持512 |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.22 | 必要证据、派生向量及当前9/7/v3绑定；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.29 | DR-KFLOW-024～028需求计划、澄清、摘要配对、文号及分域条件 | Approved；当前分域条件已实施，真实终态见§20.79.1 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.18 | 需求排序、上下文评分、文号匹配及离线窗口诊断 | Approved；完整文号边界修正见§20.80，窗口保持512 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.25 | DR-KEV-029～034需求预算、覆盖、拒绝、分层计分与可选Evidence准入 | §20.68增量评审和实施分开，真实专项未通过 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.41 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.44完整相关性分级及§14.45窗口结论，不改判旧失败 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.44 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.51真实终态及§14.52非live边界验证，不改判旧失败 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.9 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -2797,3 +2797,13 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 归档暂存复核发现Git默认文本规则会把新journal的CRLF归一为LF；没有提交该差异。沿仓库既有历史保护方式，仅在`.gitattributes`增加本次精确归档目录的binary规则，重新按原件暂存；不修改journal字节或已存SHA，也不改变其他目录属性。新增逐资产Git过滤前后对象hash一致性测试，避免“本地hash通过、干净clone失败”的假通过。此为归档兼容修正，不改变UAT终态或授权。
 
 最终上方五文件联合复测78 passed（22.33秒）；归档单独20 passed（1.49秒），最终文档同步后的追踪/历史复核先前31 passed（0.37秒）。15个暂存Git对象与原文件原字节hash全部一致，P3 strict及diff --check通过。证据提交`403b185316e226e77bb6304b4b1ad0daee61c7fc`包含该限定属性修正，未删除或覆盖历史资产；代码入口提交`a48b94cd0f0db2a5f6285fd521bdf6afd51e6c2c`，协议提交`c8ea2d7a9ebc6c80457c175386c007e723028b20`，冻结准备记录提交`cf848006fc48cd09d4f732177967ae2c2e9864a4`。本次仅同步P3 v2.67/UAT_01 v1.43的真实终态，不为统计变动再升架构版本；后置范围仍未包含新的纯检索对照或付费运行。
+
+### 20.80 完整文号扫描边界：非付费诊断及最小修正
+
+基线`c61dfd507e105a06efcf548d8aab148f75df46d3`工作树干净。本轮只读核查源码、编译资源及配置覆盖，没有发现文号开关被关闭的证据；45项Java词法/查询形状/Profile测试全部通过，不能由此证明未覆盖表达正确。使用当前编译类的9种合成Java调用发现：完整文号A与完整文号B以空格分隔时只提取A，改为顿号可提取两项；A后夹入说明文字再跟裸年号、或逗号加简写不继承，属于既有安全限制。没有读取Key、调用模型、读取ES或启动业务服务。
+
+确认缺陷是去空格后搜索仍让前一文号的“号”参加下一匹配的负向边界判断；两份完整标识被错误当成同一段汉字。本次仅修正已经消费完整文号后的扫描区域，不增加正则句式、不猜机关、不从任意长机关抽取后缀。与改Prompt、扩大topK、按子问追加查询或重建索引相比，修复范围最小，且可用合成反证证明。实际失败批次只保存plan hash而不保存query，故该缺陷是可能影响真实召回的独立确认问题，不声称它是KRB-006唯一根因，也不改判§20.79.1。
+
+设计范围仅L2_01_01 §9.7/DR-KRET-035及TEST-KRET-030，P3/UAT和索引同步；上位L1_01的读取授权、每域有限查询和候选预算无变化，REQ/L0/L1不修改。三轮内审：第1轮明确完整标识与简写不同，空格不是新的简写继承连接词；第2轮补充第二机关超长、错误机关和第五完整文号的整体关闭反证，防止区域起点造成后缀/上限绕过；第3轮纠正L2末尾版本及新旧实施状态，保留阶段B未完成和本批禁止补跑。没有增加Gate或依赖边。
+
+冻结编辑后按L2实施准入清单进行分离只读正式复核：正常/边界/错误输入、单请求metadata OR及原全文/category、权限前置、配置兼容、请求级不可变状态、上限、回滚、测试追踪均有明确约束。S0=0/S1=0/未处理S2=0，批准该一处Java扫描修正和直接测试；不批准新的付费运行或声明效果达标。评审由同一执行者在独立只读阶段完成，不冒充外部独立人员。下一步先写回归测试确认旧代码失败，再实施并复测。
