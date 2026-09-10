@@ -1,0 +1,6 @@
+{"caseId": "KRB-015", "task": "action_selection", "ordinal": 1, "requestSha256": "1022b06486b54c83f32df44a239c70aa4e864b9994fd2e48ba2f5333a051c3a0"}
+{"caseId": "KRB-015", "task": "knowledge_rewrite", "ordinal": 2, "requestSha256": "46740a97dcbcdacc639071b56c08dba61a205125660ca11b86e538068a755b01"}
+{"caseId": "KRB-015", "task": "knowledge_summary", "ordinal": 3, "requestSha256": "289b6458ca0d5795865e75ba7b1b28a8aa9b447312b264eabdb68dd30948e158"}
+{"caseId": "KRB-006", "task": "action_selection", "ordinal": 4, "requestSha256": "3ba85e77e167fa3b011bf9897678ce410e613e31d22355f7513b2a86874ea792"}
+{"caseId": "KRB-006", "task": "knowledge_rewrite", "ordinal": 5, "requestSha256": "d5469ca3ba301795436559d9a2157b56e8be43ea3d1cf1ff0c7620a8b51e44a2"}
+{"caseId": "KRB-006", "task": "knowledge_summary", "ordinal": 6, "requestSha256": "f8d8e0e550724081f193cc3e270f077cad5600a9e93437445953bb9f1d1191e6"}
