@@ -2609,3 +2609,13 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 代码对照复核两轮：第一轮发现并关闭B-ACT-SMOKE-001，第二轮只读核验固定模型不参与实际规划证明、有限HTTP/零外部出域、gold仅作结果核对、拒绝优先级、异常资源清理、历史不变及输出无正文；本测试切片无未关闭Blocker/Major。这是同一执行者分离编辑后的复核，不称外部独立评审。P3/UAT仅更新实际状态，不改变设计语义或虚构新三轮设计评审。未重复无生产改动的全仓Python、Spring和Java测试，沿用§20.72.1明确的上一轮证据范围，不冒称本轮重新执行。
 
 当前根与隔离真实服务的部署接缝已验证，但没有常驻启动用户应用，也没有Spring HTTP入口的新真实服务全链路实测；前一轮Spring fake E2E仍只证明其原范围。正式真实模型UAT保持In Progress、QUALITY保持Blocked；run-12、历史计数和未执行场景不改。剩余重点为高分无关Evidence及真实摘要后置拒绝，不再把住宿单题、重复索引重建或新增付费批次当成默认下一步。
+
+### 20.74 当前Runtime后置拒绝的非付费验证
+
+起点clean HEAD=`49ae4ea771cf6ca9cc021fa5a33e6025b7b5f6d9`。沿DR-KEV-032/TEST-KEV-022补齐一份`tests/integration/knowledge/test_summary_failure_runtime_observation.py`，只使用当前生产组合根和合成transport，不改变生产代码、Prompt、validator、纯投影工具或历史文件。pytest fixture在请求作用域旁观两个原校验器：原函数只执行一次、原异常原样重抛；ContextVar隔离并发记录，结束/取消时恢复作用域，fixture退出后恢复类方法。该fixture不是已接入live的观察器，不创建新运行、公共DTO或持久诊断。
+
+现行链路实测可区分coverage_ids_invalid、coverage_refs_invalid、coverage_domain_mismatch和quote_not_substring；这些场景三项模型任务均完成解码，后置拒绝仍映射原knowledge.summary_failure且不产生用户结果。正常成功、insufficient_evidence、decoder拒绝、模型失败/超时和Rewrite失败分别保持原行为；未实际进入后置校验时不制造拒绝记录。并发错误不串请求，取消传播、client关闭和观察作用域恢复均验证。有限记录、既有observation及日志无合成正文/focus/token。此证据不能反推run-12已销毁响应的真实拒绝原因，不据此改变规则或改判旧失败。
+
+实际命令：`python -B -m pytest tests/integration/knowledge/test_summary_failure_runtime_observation.py tests/integration/knowledge/test_requirement_runtime_composition.py tests/unit/knowledge/evidence/test_requirement_coverage.py tests/system_e2e/test_knowledge_summary_failure_probe_v1.py tests/system_e2e/test_knowledge_stage_b_run_12_history.py -q -p no:cacheprovider`为133 passed/71.50秒；定向复核将模型观察的空集合all断言改为三项任务/状态精确匹配后，新增文件单独12 passed/19.12秒（均仅1项既有LangChain预告）。`python -B -m mypy --strict src`138文件通过，新增文件compileall、凭据模式扫描及diff --check通过。测试均以Python3.12及子进程PYTHONPATH=当前src执行，不读取Key，无真实HTTP、服务启动或付费调用。
+
+一次定向代码对照复核及断言加固后的复验符合本切片合同；不是外部独立审查或全阶段正式评审。P3仅追加验证记录，版本、DAG和UAT/QUALITY状态不变；未重复全仓Python、Java或Spring回归，未用这些合成测试填补真实模型效果缺口。后续真实诊断仍须在既有持续授权下先明确新的有限执行合同、观察接线和预算，不恢复run-12或按剩余额度机械开启批次。
