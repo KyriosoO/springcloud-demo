@@ -160,12 +160,22 @@ def evaluate_review(raw: bytes | None = None) -> dict[str, Any]:
             "gradedMetrics": {"baseline": scores[0], "comparison": scores[1]},
             "evidenceGradeCounts": {name: grade_counts(replay[name]["evidence"], graded)
                                      for name in ("legacy", "candidate")}})
+    overall = None
+    if len(judgments) == len(pools):
+        # Equal weight per case, not per source. In particular the graded MRR
+        # includes useful context; it is not the old required-source-only MRR.
+        fields = ("necessary_recall_at_k", "mrr_at_k", "evidence_coverage",
+                  "precision_at_k", "ndcg_at_k")
+        overall = {version: {field: sum(row["gradedMetrics"][version][field]
+                                        for row in results) / len(results)
+                             for field in fields}
+                   for version in ("baseline", "comparison")}
     return {"reviewId": header["reviewId"], "reviewSha256": hashlib.sha256(raw).hexdigest(),
         "status": "pool_reviewed" if len(judgments) == len(pools) else "partial",
         "reviewedCases": len(judgments), "totalCases": len(pools),
         "reviewedPairs": sum(len(v) for v in judgments.values()),
         "totalPairs": sum(len(v) for v in pools.values()),
-        "overallGradedMetrics": None, "limitations": LIMITATIONS, "cases": results}
+        "overallGradedMetrics": overall, "limitations": LIMITATIONS, "cases": results}
 
 
 if __name__ == "__main__":

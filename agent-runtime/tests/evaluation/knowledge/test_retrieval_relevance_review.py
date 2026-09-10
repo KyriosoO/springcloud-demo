@@ -19,7 +19,9 @@ def encode(values):
 
 
 def test_partial_review_does_not_turn_unjudged_sources_into_zero():
-    result = review.evaluate_review()
+    # Keep the historical partial-review behavior as a fixture, rather than
+    # requiring the current append-only review to remain unfinished forever.
+    result = review.evaluate_review(encode(rows()[:15]))
     assert (result["status"], result["reviewedCases"], result["totalCases"]) == ("partial", 12, 24)
     assert (result["reviewedPairs"], result["totalPairs"]) == (243, 483)
     assert result["overallGradedMetrics"] is None
@@ -32,24 +34,60 @@ def test_partial_review_does_not_turn_unjudged_sources_into_zero():
 
 
 def test_initial_source_judgments_are_append_only():
-    initial = b"\n".join(review.PATH.read_bytes().splitlines()[:6]) + b"\n"
+    initial = b"".join(review.PATH.read_bytes().splitlines(keepends=True)[:6])
     assert hashlib.sha256(initial).hexdigest() == "35d85862eba1f1b6994ac2b2c84cf06f29a0b74cd6e9115cdcea9550ee4ae200"
 
 
 def test_second_source_review_batch_is_append_only():
-    second = b"\n".join(review.PATH.read_bytes().splitlines()[:10]) + b"\n"
+    second = b"".join(review.PATH.read_bytes().splitlines(keepends=True)[:10])
     assert hashlib.sha256(second).hexdigest() == "35e57fbe73ba5aca298c160786e343d5657a4f808169f63de18e94c8f1fed322"
 
 
 def test_third_source_review_batch_is_append_only():
-    third = b"\n".join(review.PATH.read_bytes().splitlines()[:15]) + b"\n"
+    third = b"".join(review.PATH.read_bytes().splitlines(keepends=True)[:15])
     assert hashlib.sha256(third).hexdigest() == "d64b298fc18067be448feeecae51c1614e9a6e2226a102faaa809d871158d593"
+
+
+def test_complete_source_review_is_append_only_and_fully_judged():
+    frozen = b"".join(review.PATH.read_bytes().splitlines(keepends=True)[:28])
+    assert hashlib.sha256(frozen).hexdigest() == "cba0ea89b26ca9334328d91f49d609c1cfad23fbfb6b63af72513ed6050d7e9e"
+    result = review.evaluate_review()
+    assert (result["status"], result["reviewedCases"], result["totalCases"]) == ("pool_reviewed", 24, 24)
+    assert (result["reviewedPairs"], result["totalPairs"]) == (483, 483)
+    assert all(c["status"] == "executor_reviewed" for c in result["cases"])
+    assert all(c["gradedMetrics"][v]["unjudged_top_count"] == 0
+               for c in result["cases"] for v in ("baseline", "comparison"))
+
+
+def test_complete_review_macro_means_are_case_weighted_not_pool_weighted():
+    result = review.evaluate_review()
+    for version in ("baseline", "comparison"):
+        assert set(result["overallGradedMetrics"][version]) == {
+            "necessary_recall_at_k", "mrr_at_k", "evidence_coverage", "precision_at_k", "ndcg_at_k"}
+        for metric, value in result["overallGradedMetrics"][version].items():
+            expected = sum(c["gradedMetrics"][version][metric] for c in result["cases"]) / 24
+            assert value == pytest.approx(expected)
+    baseline, comparison = (result["overallGradedMetrics"][v] for v in ("baseline", "comparison"))
+    assert baseline["necessary_recall_at_k"] == pytest.approx(23 / 24)
+    assert comparison["necessary_recall_at_k"] == 1
+    assert baseline["precision_at_k"] == pytest.approx(154 / 480)
+    assert comparison["precision_at_k"] == pytest.approx(156 / 480)
+    # Grade-1 context counts for graded MRR, not just the required sources in
+    # the original benchmark. Never overwrite that historical run's metric.
+    assert comparison["mrr_at_k"] == 1
+
+
+def test_missing_last_review_does_not_average_only_completed_cases():
+    result = review.evaluate_review(encode(rows()[:-1]))
+    assert result["status"] == "partial" and result["reviewedCases"] == 23
+    assert result["overallGradedMetrics"] is None
+    assert result["cases"][-1]["gradedMetrics"] is None
 
 
 def test_rank_scoring_matches_independent_arithmetic_and_shared_pool():
     result = review.evaluate_review()
     ledger = {v["caseId"]: v for v in rows() if v["event"] == "case_review"}
-    for case in result["cases"][:12]:
+    for case in result["cases"]:
         grades = {v["chunkId"]: v["grade"] for v in ledger[case["caseId"]]["judgments"]}
         ideal = sum((2 ** g - 1) / math.log2(i + 2)
                     for i, g in enumerate(sorted(grades.values(), reverse=True)[:20]))
@@ -115,6 +153,36 @@ def test_candidate_tail_reduction_is_not_a_new_retrieval_metric():
         assert case["evidenceGradeCounts"] == {"legacy": legacy, "candidate": candidate}
         assert case["gradedMetrics"]["baseline"] == case["gradedMetrics"]["comparison"]
         assert candidate[1] > 0  # Background remains; it is not an answer.
+
+
+def test_current_source_replay_keeps_each_direct_source_not_just_total_count():
+    ledger = {v["caseId"]: v for v in rows() if v["event"] == "case_review"}
+    path = review.DIRECTORY / review.INPUTS["sourceReplaySha256"][0]
+    replay = [json.loads(line) for line in path.read_bytes().splitlines()]
+    for case in (v for v in replay if v["event"] == "case"):
+        direct = {(v["chunkId"], v["sha256"]) for v in ledger[case["caseId"]]["judgments"] if v["grade"] >= 2}
+        selected = {name: {(v["chunkId"], v["sha256"]) for v in case[name]["evidence"]}
+                    for name in ("legacy", "candidate")}
+        assert direct & selected["legacy"] == direct & selected["candidate"]
+
+
+def test_holdout_noise_remains_visible_after_candidate_admission():
+    cases = review.evaluate_review()["cases"]
+    assert cases[20]["evidenceGradeCounts"] == {"legacy": [7, 0, 0, 1], "candidate": [0, 0, 0, 1]}
+    assert cases[21]["evidenceGradeCounts"] == {"legacy": [7, 0, 0, 1], "candidate": [7, 0, 0, 1]}
+    for case in cases[16:]:
+        assert case["gradedMetrics"]["baseline"] == case["gradedMetrics"]["comparison"]
+    # Necessary support survives but high-score irrelevant clauses still do
+    # too. Neither a perfect nDCG nor an unchanged gold hit proves readiness.
+    assert cases[21]["gradedMetrics"]["comparison"]["precision_at_k"] == 0.15
+
+
+def test_development_context_loss_is_not_hidden_by_aggregate_improvement():
+    case = review.evaluate_review()["cases"][6]
+    assert case["evidenceGradeCounts"] == {"legacy": [2, 5, 0, 1], "candidate": [2, 4, 0, 1]}
+    legacy, candidate = (case["evidenceGradeCounts"][v] for v in ("legacy", "candidate"))
+    assert sum(candidate[1:]) / sum(candidate) < sum(legacy[1:]) / sum(legacy)
+    assert candidate[2:] == legacy[2:]
 
 
 @pytest.mark.parametrize("field,value", [
