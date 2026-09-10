@@ -2985,3 +2985,22 @@ KRB-006本次两份必要来源small_2022/2023均已进入召回、最终排序�
 - Git diff确认生产src、Java、冻结V2执行器/测试、原dataset及历史批次无变更；`git diff --check`通过。本次没有生产/Java修改，未重复§20.83.1正式隔离全仓与Maven，明确不把旧计数作为本轮通过；真实Spring→Runtime及auth/es只在获授权的本批执行一次。
 
 后置正式代码/证据复核分两次独立于编辑的只读阶段：第一轮核对终态、请求账本、引用绑定、异常停止和数据边界，发现Git原始blob不能直接等同全部Windows运行字节、旧键存在显式映射，按上述规则最小补充溯源说明及反证；第二轮核对修复、1037项结果、19项原件及文档逐题对应，本有限证据/测试切片Blocker=0/Major=0，来源说明Minor已处理。评审仍为同一执行者分离阶段复核，不冒充外部独立人员或正式人工usefulness。没有新的设计语义，不额外升级L1/L2或声称重复完成设计三轮。准备、有限证据/非live测试、P3/UAT状态按可辨识提交推送；整体UAT和QUALITY不关闭。
+
+### 20.86 既有有限失败观察器的当前链路兼容验证
+
+2026-09-10从`85ecb0a6e959109b373d29e7226ff0c86e375cd5`干净工作树继续non-live工作。§20.85.1所述017根因缺口不是仓库完全没有诊断能力：`knowledge_model_failure_probe_v1.observe_failures`及UAT_01 §14.34～14.35已有有限phase/code/cause合同，旧v10执行器曾接入；代表集v1/v2的`observe`只接入摘要后置校验，没有接入Model失败观察器。该遗漏解释了记录为何只有invalid_output，不能据此判断真实响应究竟哪里非法。冻结执行器、原19项证据及所有历史失败保持不变，不事后补填诊断结果。
+
+最小处理是新增`tests/system_e2e/test_knowledge_representative_failure_observation.py`，复用现有观察器和当前V2 runner的fake组合根，不建立新诊断系统、生产hook、公共DTO或付费入口。七种HTTP/Rewrite9边界验证成功无记录、包络与finish_reason归provider_response、JSON与五字段结构归rewrite_decoder；旧白名单未覆盖Content-Type，明确只得unknown，不宣称全部错误已细分。四种当前根场景验证成功/非法计划/非法JSON/超时在观察前后实际公开结果、model/plan观测、最终判定和每类调用次数相同；取消反证保证hook恢复、锁释放及client关闭。失败计划仍只到两次fake模型HTTP，检索/embedding/rerank均0；diagnostics仅含三个固定枚举字段，日志及有限测试文件不含合成私有正文、问题、Key或JWT。
+
+本轮实际验证（全部模型网络为MockTransport，未读取进程Key、未启动真实服务）：
+
+- `python -B -m pytest tests/system_e2e/test_knowledge_representative_failure_observation.py tests/system_e2e/test_knowledge_model_failure_probe_v1.py tests/contract/knowledge/test_rewrite_v9_failure_boundary.py -q --tb=short -p no:cacheprovider`：49 passed/7.29秒。
+- 上述新测试及既有probe，联合§20.85.1完整1037项命令的相同目标：1079 passed/55.23秒，0失败/0跳过，既有LangChain预告1项；包含新旧代表集历史SHA、Knowledge contract/evaluation、原问策略和Business35/Knowledge37追踪。
+- 复核发现仅比较派生verdict不足以证明公开行为不变，增加实际response及model/plan观测的比较；`python -B -m pytest tests/system_e2e/test_knowledge_representative_failure_observation.py -q --tb=short -p no:cacheprovider`复测12 passed/6.29秒。新增断言未改变被测代码或历史fixture。
+- `python -m mypy --strict src`：140个source files通过；新测试compileall通过。当前测试入口显式使用子进程PYTHONPATH，不修改全局环境或生产依赖。
+
+该测试切片依据UAT_01既有有限诊断合同进行两轮分离编辑/只读代码复核：首轮增加实际公开输出反证，复评确认仅测试文件、无生产/历史/索引变更、无外部请求或新运行入口。本切片Blocker/Major为0；不冒充外部独立评审或全阶段验收。没有新的设计语义，不新增工作包、Gate、候选或上位版本升级。未重跑Java、Spring服务级E2E及正式隔离全仓，因本次仅增加兼容测试；本轮结果不冒充这些验证。
+
+新增真实模型/E2E/检索/embedding/rerank均0，已知累计31 E2E/80模型不变。既有观察器只能在异常发生时捕获，不能恢复017原始原因；兼容测试也不代表已向冻结runner补接线。后续若有独立授权的运行，应复用本观察器并在执行前验证接线，不复用已停止批次余额。017真实通过、019/021/023执行、人工usefulness及剩余相关性噪声仍未关闭；UAT保持In Progress，QUALITY保持Blocked。
+
+状态增补后最终复核：新测试、旧probe、两个代表集历史及35/37追踪联合100 passed/10.88秒；compileall通过，P3 strict为0错误/0警告，三个目标文件凭据模式0命中，Git diff/check与精确暂存范围通过。此次仅一个新增测试文件及P3/UAT执行记录，不改文档语义版本；测试和状态分别形成可辨识提交，推送及最终HEAD由Git记录。
