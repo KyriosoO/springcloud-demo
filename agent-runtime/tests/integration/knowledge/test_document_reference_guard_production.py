@@ -53,9 +53,11 @@ async def test_current_root_accepts_reference_query_and_focus_without_rewriting_
     assert clients.paths.count("/es/knowledge/search") == 2
     assert clients.paths.count("/embed") == 1 and clients.paths.count("/rerank") == 1
     assert [body["queryText"] for path, body in clients.payloads
-            if path == "/es/knowledge/search" and body["path"] == "keyword"] == [FOCUS]
+            if path == "/es/knowledge/search" and body["path"] == "keyword"] == [question]
+    assert [body["texts"] for path, body in clients.payloads if path == "/embed"] == [[FOCUS]]
     assert len(observation.plans) == 1
-    assert {item["query_text"] for item in observation.plans[0]["plan"]["items"]} == {FOCUS}
+    assert [item["query_text"] for item in observation.plans[0]["plan"]["items"]] == [question, FOCUS]
+    assert "original_keyword_query" not in observation.plans[0]["plan"]
     visible = json.dumps(asdict(observation), ensure_ascii=False) + caplog.text
     assert "header.payload.signature" not in visible
     assert all(text not in visible for text in harness.CONTENTS)
@@ -119,8 +121,9 @@ async def test_original_multi_domain_question_allows_local_focus_without_invente
     assert clients.paths.count("/embed") == 2 and clients.paths.count("/rerank") == 2
     assert [(body["logicalDomainId"], body["queryText"]) for path, body in clients.payloads
             if path == "/es/knowledge/search" and body["path"] == "keyword"] == [
-        ("tax.policy", policy_focus), ("tax.law", law_focus),
+        ("tax.policy", question), ("tax.law", question),
     ]
+    assert [body["texts"] for path, body in clients.payloads if path == "/embed"] == [[policy_focus], [law_focus]]
     assert observation.plans[0]["plan"]["selected_domain_ids"] == ["tax.policy", "tax.law"]
     assert [point["quote"] for point in result.user_result["points"]] == list(harness.CONTENTS[:2])
     # Synthetic evidence proves wiring and guards, not actual legal correctness.

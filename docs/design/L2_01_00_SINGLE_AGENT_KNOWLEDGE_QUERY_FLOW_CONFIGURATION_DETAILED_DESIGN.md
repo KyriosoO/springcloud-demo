@@ -12,9 +12,9 @@
 | 日期 | 2026-09-10 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v1.23](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KFLOW-029原问keyword与分域vector计划；增量评审通过、尚未实施；现行Rewrite9/Summary7及quality-v3合同不改 |
+| 本次增量 | DR-KFLOW-029原问keyword与分域vector计划已实施，当前对象图定向non-live通过；现行Rewrite9/Summary7及quality-v3合同不改，真实专项未通过 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
-| 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V9/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；当前对象图定向non-live通过，真实效果尚未验证。DR-KFLOW-023～028已实施，验证由P3管理，效果由UAT_01管理 |
+| 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V9/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；当前对象图定向non-live通过，真实效果尚未验证。DR-KFLOW-023～029已实施，验证由P3管理，效果由UAT_01管理 |
 
 ## 2. 阅读导航与变更记录
 
@@ -397,11 +397,11 @@ REQ-KFLOW-004→DR-KFLOW-026→IMPL-KFLOW-014（上述两个现有方法）→TE
 
 `VAL-KFLOW-011`：新增unit/contract/current-root集成、现行Spring fake、历史hash和scope相关回归、strict mypy、compileall、正式non-live全量。UAT_01专项语义/真实证据另行治理，本设计不新增真实运行或预算，不重复已消费批次。阶段B继续以代表集准确率及必要覆盖验收；资料缺失不要求住宿单题成功，不借此放过资料充分场景的实际缺陷。
 
-### 8.10 同预算原问关键词保留（DR-KFLOW-029；设计增量，尚未实施）
+### 8.10 同预算原问关键词保留（DR-KFLOW-029；已实施，真实专项待验证）
 
 依据REQ-KQUALITY-001/002及L1 KQ-AD-014：现有SemanticPlanner继续安全检查、一次Rewrite9、精确解码及§8.9分域条件校验。只有合法search才建立计划；模型失败、非法计划、clarification或unsupported不能因有原问而进入检索。原问不是本地生成的业务计划，也不用于扩域。
 
-`KnowledgeRetrievalPlanBuilder`建议增加代码级关键字参数`preserve_original_keyword: bool=False`。默认保持既有显式旧调用语义；建议修改当前`main.py`经`KnowledgeCompositionRoot.build_provider`显式传true。不是环境配置或模型字段，不允许请求级选择；参数必须为实际bool。true只适用于quality-v3合法MODEL rewrite，不能附着于legacy/旧quality/denied计划。
+`KnowledgeRetrievalPlanBuilder`已增加代码级关键字参数`preserve_original_keyword: bool=False`。默认保持既有显式旧调用语义；当前`agent-runtime/src/agent_runtime/main.py`经`KnowledgeCompositionRoot.build_provider`显式传true。不是环境配置或模型字段，不允许请求级选择；参数必须为实际bool。true只适用于quality-v3合法MODEL rewrite，不能附着于legacy/旧quality/denied计划。
 
 在网络前复用`QuestionEgressGuard.evaluate(rewrite.original_question)`获得ALLOWED的`minimized_question`，只做现有NFC及空白标准化，不抽词、截断、识别文号或生成子问。生产Capability继续验证original_question与同请求输入一致。安全拒绝、空值、类型或版本非法时计划构造失败且不产生检索调用；不以“原问不可用”回退安全已拒绝的问题。
 
@@ -409,11 +409,11 @@ REQ-KFLOW-004→DR-KFLOW-026→IMPL-KFLOW-014（上述两个现有方法）→TE
 - 原问安全但长度超过该配置值（用户输入仍遵循现有4096上限）：两路预先固定用该域已校验query，保持长问题兼容；不截断原问或扩大HTTP上限，不因检索结果改变此选择。
 - queries、requirements、question_kind、域顺序、每路20及总4路、最多2次embedding/4次需求rerank、截止时间均不变。不同域仍独立授权；原问包含其他域条件可能引入噪声，但不得据此客户端增删条件或跨域补查。
 
-`IMPL-KFLOW-017`建议修改：`knowledge/contracts.py::KnowledgeRetrievalPlan`末尾追加frozen/slots字段`original_keyword_query: str | None = None`。非None只由上述Builder从安全同请求原问赋值，用于显式表达keyword来源；它不是模型输出、HTTP字段、能力参数或认证凭据。长问题及默认旧调用保持None。Builder按路径填入真实query_text，观测继续仅投影原有items/domain/config/quality，不把新增字段或整个dataclass自动输出；没有原问的副本进入日志/evidence。既有验证台可看到已经安全处理的真实检索文本，不额外暴露内部字段。
+`IMPL-KFLOW-017`已修改：`knowledge/contracts.py::KnowledgeRetrievalPlan`末尾追加frozen/slots字段`original_keyword_query: str | None = None`。非None只由上述Builder从安全同请求原问赋值，用于显式表达keyword来源；它不是模型输出、HTTP字段、能力参数或认证凭据。长问题及默认旧调用保持None。Builder按路径填入真实query_text，观测继续仅投影原有items/domain/config/quality，不把新增字段或整个dataclass自动输出；没有原问的副本进入日志/evidence。既有验证台可看到已经安全处理的真实检索文本，不额外暴露内部字段。
 
 Stage对该字段执行DR-KRET-037消费校验；不删除旧同query校验。目标为main显式启用而旧Builder/Provider调用默认false，保护历史重放；冻结资产仍从冻结提交读取，不能因默认兼容就重跑旧批次。无需新Rewrite/Summary task或Prompt版本，因为模型输入、输出、decoder和指令均不变；检索策略身份由当前源码提交及内部计划字段追踪。disabled不建Provider/client。回滚是禁用Knowledge或一致源码回退/显式装配恢复，不是请求内fallback。
 
-`TEST-KFLOW-021`→建议新增`tests/unit/knowledge/test_original_keyword_planning.py`，验证两域原问keyword/各域vector、同request、NFC/空白、1024边界、配置收紧、长原问不截断、unsafe/model failure/unsupported零调用、旧默认及任务不变；当前main对象图测试证明显式启用、disabled惰性、观测无内部字段和并发隔离。`VAL-KFLOW-012`为上述测试、现有QueryPlan/Knowledge/Core/Business回归、Spring E2E、strict mypy和compileall；真实语义效果仍单独UAT。此增量不调整公共接口、安全策略、索引或排序，评审完成后才允许代码实施。
+`TEST-KFLOW-021`→已新增`tests/unit/knowledge/test_original_keyword_planning.py`，验证两域原问keyword/各域vector、同request、NFC/空白、1024边界、配置收紧、长原问不截断、unsafe/model failure/unsupported零调用、旧默认及任务不变；当前main对象图测试证明显式启用、disabled惰性、观测无内部字段和并发隔离。`VAL-KFLOW-012`为上述测试、现有QueryPlan/Knowledge/Core/Business回归、Spring E2E、strict mypy和compileall；真实语义效果仍单独UAT。此增量不调整公共接口、安全策略、索引或排序，实施和验证证据归P3 §20.83。
 
 ## 9. 检索计划与核心流程
 
@@ -670,7 +670,7 @@ v1.29/DR-KFLOW-028三轮内审及一次分离只读设计复核完成，经过�
 | v1.18 独立审查首轮 | 分离作者修改阶段后重新核对L1/L2/REQ及代码契约；无S0/S1，发现S2：DR019未进入§4.2主追踪表、实施依据的否决状态不明确；已最小修复 | Fixed，待复评 |
 | v1.18 独立复评 | 主追踪、实施准入、定义/查阅与适用判断、共享decoder、指令大小、失败零调用、单绑定及历史隔离闭合；S0=0、S1=0、未处理S2=0。为自动化辅助的分阶段审查，不冒充外部人工批准 | Passed，仅非live实施 |
 
-- 当前版本：v1.29；DR-KFLOW-024～028已评审实施，当前任务9/7/v3；纯校验/V9/Planner、生产根及现行Spring fake已落实，命令及评审见P3 §20.77.2，真实专项未通过。
+- 当前版本：v1.30；DR-KFLOW-024～029已评审实施，当前任务9/7/v3及原问keyword接线；纯校验/V9/Planner、生产根及现行Spring fake已落实，命令及评审见P3 §20.77.2/§20.83，真实专项未通过。
 - 文档状态：Approved；本次DR-KFLOW-028非live实施准入评审通过，不代表真实UAT通过。
 - 新版本不继承旧版 candidate、Gate 或评审流水；来源与当前任务绑定已明确。
 

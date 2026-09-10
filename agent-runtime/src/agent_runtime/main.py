@@ -150,6 +150,7 @@ def build_runtime(
                 retrieval=retrieval.stage,
                 policy_catalog=policy_catalog,
                 evidence_selection_version=ScoreAwareEvidenceSelector.VERSION,
+                preserve_original_keyword=True,
             ),
         )
     return BusinessQueryRuntimeCompositionRoot.build(

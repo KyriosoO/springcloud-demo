@@ -40,12 +40,15 @@ def legacy_root():
     root = namespace["KnowledgeCompositionRoot"]
     frozen_build = root.build_provider
 
-    def historical_build(*, evidence_selection_version="legacy", **kwargs):
+    def historical_build(*, evidence_selection_version="legacy", preserve_original_keyword=False, **kwargs):
         # Only the exact historical modules below use this bridge. Their old
         # plans/selection stay unchanged when the current entrypoint adds its
         # internal binding argument; current-root tests must never use it.
         if evidence_selection_version not in ("legacy", ScoreAwareEvidenceSelector.VERSION):
             raise ValueError("knowledge.historical_selection_version_invalid")
+        if type(preserve_original_keyword) is not bool:
+            raise ValueError("knowledge.historical_query_representation_invalid")
+        # Historical callers intentionally retain their frozen same-query builder.
         return frozen_build(**kwargs)
 
     root.build_provider = staticmethod(historical_build)

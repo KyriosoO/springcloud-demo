@@ -12,7 +12,7 @@
 | 日期 | 2026-09-10 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v1.23](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-037同预算双表示计划消费校验；增量评审通过、尚未实施；不修改服务、索引、RRF或需求重排 |
+| 本次增量 | DR-KRET-037同预算双表示计划消费校验已实施、定向non-live通过；不修改服务、索引、RRF或需求重排；真实专项待验证 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -343,7 +343,7 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 
 已实现`tests/system_e2e/knowledge_rerank_window_probe_v1.py`（宿主：来源/worker/有限记录）及`knowledge_rerank_window_worker_v1.py`（容器内：缓存模型及tokenize/forward）。只由测试工具引用，生产src不导入。fake覆盖来源/身份/预算漂移、同分、非有限输出、错误/超时/仍存活、独占文件、无下载和零重试；实际数据只证明冻结同池诊断。设计内审/分离复评及该切片实施验证记录由P3/UAT治理；后续生产变更另行评审，不用本节作为默认参数修改授权。
 
-### 9.9 原问keyword计划消费校验（DR-KRET-037；设计增量，尚未实施）
+### 9.9 原问keyword计划消费校验（DR-KRET-037；已实施，真实专项待验证）
 
 直接继承L1 KQ-AD-014与L2_01_00 DR-KFLOW-029。仅修改既有`retrieval/stage.py::DefaultKnowledgeRetrievalStage._execute`在首个embedding之前的计划检查，不新增Provider、路径或HTTP字段。`original_keyword_query`是可信本地Builder给出的来源断言，不是外部安全凭据；不接受前端、模型或JSON透传赋值。
 
@@ -354,7 +354,7 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 
 `IMPL-KRET-025`为上述Stage与现有typed Adapter、BGE组合的直接测试；向量按各域vector文本生成、同文本仍仅请求内复用，搜索仍每域2路，各臂来源和RRF权重不增加。需求rerank继续使用requirements.focus而非keyword原问；Evidence和Summary完全不改。Java接口、Profile、limit+1实现、索引/alias、读取授权及三层出域无变更。
 
-`TEST-KRET-032`→建议新增`tests/unit/knowledge/retrieval/test_original_keyword_stage.py`：真实Stage配fake Ports验证两域4search/≤2embedding/按需求rerank；旧None同query保留，非法来源/空值/非NFC/超限/控制字符/敏感值/错域/错序/额外路径全部零调用；单路与整域失败不新增路径，取消后没有任务泄漏。`VAL-KRET-018`为定向测试、既有quality-v1/v2/v3及当前生产对象图/Spring回归、mypy/compileall和历史哈希。召回互补不证明精确率、Summary或任意模型改写有效，不能关闭真实专项UAT。
+`TEST-KRET-032`→已新增`tests/unit/knowledge/retrieval/test_original_keyword_stage.py`：真实Stage配fake Ports验证两域4search/≤2embedding/按需求rerank；旧None同query保留，非法来源/空值/非NFC/超限/控制字符/敏感值/错域/错序/额外路径全部零调用；单路与整域失败不新增路径，取消后没有任务泄漏。`VAL-KRET-018`为定向测试、既有quality-v1/v2/v3及当前生产对象图/Spring回归、mypy/compileall和历史哈希。召回互补不证明精确率、Summary或任意模型改写有效，不能关闭真实专项UAT。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
@@ -686,7 +686,7 @@ DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__conte
 | v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 | v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
 
-- 当前版本：v2.18；DR-KRET-036工具及离线诊断已完成，未满足扩大窗口判据，生产512保持。DR-KRET-035的完整文号扫描边界为本次局部修正；代码配置与运行部署状态分开，实施和真实专项仍由P3/UAT管理。
+- 当前版本：v2.19；DR-KRET-036工具及离线诊断已完成，未满足扩大窗口判据，生产512保持。DR-KRET-037计划消费校验及DR-KRET-035完整文号扫描边界均已实施；代码配置与运行部署状态分开，实施和真实专项仍由P3/UAT管理。
 - 文档状态：Approved；既有增量评审见P3 §20.71，本次完整文号边界三轮内审与分离设计复评见P3 §20.80，仅批准该服务内部切片及non-live验证，不替代生产部署或真实UAT。
 - 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
 

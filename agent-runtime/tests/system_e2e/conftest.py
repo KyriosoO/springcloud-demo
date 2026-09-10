@@ -102,6 +102,17 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
     namespace = dict(vars(bootstrap))
     exec(compile(ast.Module(body=nodes, type_ignores=[]), f"git:{head}:KnowledgeCompositionRoot", "exec"), namespace)
     root = namespace["KnowledgeCompositionRoot"]
+    if current_chain:
+        frozen_build = root.build_provider
+
+        def historical_build(*, preserve_original_keyword=False, **kwargs):
+            # Exact consumed-test allowlist above only: keep the frozen v8
+            # same-query plan, not the current entrypoint's new strategy.
+            if type(preserve_original_keyword) is not bool:
+                raise ValueError("knowledge.historical_query_representation_invalid")
+            return frozen_build(**kwargs)
+
+        root.build_provider = staticmethod(historical_build)
     monkeypatch.setattr(bootstrap, "KnowledgeCompositionRoot", root)
     monkeypatch.setattr(main, "KnowledgeCompositionRoot", root)
     name = "tests.integration.knowledge.test_requirement_runtime_composition"

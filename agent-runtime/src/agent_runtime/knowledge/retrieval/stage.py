@@ -36,7 +36,31 @@ from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
 from agent_runtime.knowledge.retrieval.quality_ranking import rank_by_domain
 from agent_runtime.knowledge.retrieval.quality_ranking_v2 import rank_by_domain_v2
 from agent_runtime.knowledge.retrieval.quality_ranking_v3 import rank_requirement_candidates
-from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
+from agent_runtime.knowledge.evidence_requirements import valid_plan_text, validate_plan_requirements
+from agent_runtime.model.contracts import QuestionEgressDisposition
+from agent_runtime.model.input_guard import QuestionEgressGuard
+
+
+def _validate_original_keyword(plan: KnowledgeRetrievalPlan) -> None:
+    original = plan.original_keyword_query
+    if original is None:
+        return
+    if plan.quality_version != KNOWLEDGE_QUALITY_VERSION_V3 or not valid_plan_text(original, max_chars=1024):
+        raise ValueError("knowledge.invalid_quality_plan")
+    guard = QuestionEgressGuard()
+    decision = guard.evaluate(original)
+    if decision.disposition is not QuestionEgressDisposition.ALLOWED or decision.minimized_question != original:
+        raise ValueError("knowledge.invalid_quality_plan")
+    for ordinal, item in enumerate(plan.items, 1):
+        if (
+            item.logical_domain_id not in PROFILE_BY_DOMAIN
+            or type(item.candidate_limit) is not int
+            or type(item.ordinal) is not int or item.ordinal != ordinal
+            or not valid_plan_text(item.query_text, max_chars=1024)
+            or guard.evaluate(item.query_text).disposition is not QuestionEgressDisposition.ALLOWED
+            or (item.path is RetrievalPath.KEYWORD and item.query_text != original)
+        ):
+            raise ValueError("knowledge.invalid_quality_plan")
 
 
 class DefaultKnowledgeRetrievalStage:
@@ -94,6 +118,7 @@ class DefaultKnowledgeRetrievalStage:
             quality_version=plan.quality_version, question_kind=plan.question_kind,
             requirements=plan.evidence_requirements, domain_ids=plan.selected_domain_ids,
         )
+        _validate_original_keyword(plan)
         if quality and (
             not 1 <= len(plan.selected_domain_ids) <= 2
             or len(set(plan.selected_domain_ids)) != len(plan.selected_domain_ids)
@@ -103,7 +128,9 @@ class DefaultKnowledgeRetrievalStage:
                 (domain, path) for domain in plan.selected_domain_ids for path in (RetrievalPath.KEYWORD, RetrievalPath.VECTOR)
             )
             or any(not 1 <= item.candidate_limit <= 20 for item in plan.items)
-            or any(plan.items[i].query_text != plan.items[i + 1].query_text for i in range(0, len(plan.items), 2))
+            or (plan.original_keyword_query is None and any(
+                plan.items[i].query_text != plan.items[i + 1].query_text for i in range(0, len(plan.items), 2)
+            ))
         ):
             raise ValueError("knowledge.invalid_quality_plan")
         vectors: dict[str, tuple[float, ...]] = {}

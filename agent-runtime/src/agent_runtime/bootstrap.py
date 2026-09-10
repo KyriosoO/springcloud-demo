@@ -543,6 +543,7 @@ class KnowledgeCompositionRoot:
         retrieval: object | None,
         policy_catalog: object | None = None,
         evidence_selection_version: str = "legacy",
+        preserve_original_keyword: bool = False,
     ) -> CapabilityRegistrationProvider:
         from typing import cast
 
@@ -605,7 +606,7 @@ class KnowledgeCompositionRoot:
             enabled_domains=build_tax_domain_catalog().enabled(typed_settings.enabled_domain_ids),
             rewriter=rewriter,
             selector=None,
-            planner=KnowledgeRetrievalPlanBuilder(),
+            planner=KnowledgeRetrievalPlanBuilder(preserve_original_keyword=preserve_original_keyword),
             retrieval=cast(KnowledgeRetrievalStage[Any], retrieval),
             evidence=evidence,
             require_semantic_plan=True,

@@ -2896,3 +2896,31 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 冻结编辑后完成分层和跨层只读正式复核：L0/REQ约束→KQ-AD-014→DR-KFLOW-029/DR-KRET-037→IMPL/TEST/VAL链，构造器/Stage/组合根/Java现有接口边界、正常/超长/非法/取消/兼容/回滚均明确。第1轮一项S2为计划描述把尚未实施的main接线写成当前行为，已改为建议/目标；重新读取修复及全部增量后第2轮通过，S0=0/S1=0/未处理S2=0。评审为同一执行者分离修改阶段的只读复核，不冒充外部独立人员。L1及两份L2 strict均0错误/0警告，P3 strict及diff检查通过。仅批准该Python切片及non-live验证，不批准部署、付费批次或专项/QUALITY收口。
 
 准备实施：`knowledge/contracts.py`新增内部可空原问来源；`planning.py`增加代码级显式选择，`retrieval/stage.py`保留旧相等规则并验证新来源；`bootstrap.py`和`main.py`显式接线。测试先验证旧源码缺少该能力，再实施并运行新计划/Stage反证、当前root与Spring、Knowledge/Core/Business和历史回归。无新环境变量、外部依赖或公开状态；旧任务、检索窗口、RRF、需求rerank、selector和三层策略保持字节。精确测试结果待实施后另记，不预写通过。
+
+#### 20.83.1 实施映射与代码对照复核
+
+设计提交`b19733a`完成后最小修改五个生产文件：contracts追加可空来源，planning复用安全规范化并按既有长度预选，stage在首个I/O前执行原问来源/类型/路径检查，bootstrap保留默认false，main显式true。没有新增环境变量、模型输入输出字段、任务版本、HTTP字段或额外检索。新增46项Builder/Stage测试并更新33项当前root测试中的真实路径断言；不是通过删除旧相等断言允许任意计划。历史integration仅在原10个精确文件范围内桥接新关键字参数，继续从既有冻结提交读取旧root；当前root及Spring harness不进入该隔离。
+
+测试开发先运行旧源码，18项因缺少新参数失败；实施后修复测试fixture误用观测`view()`和低于现有配置下限的32字符设置，改用真实`snapshot()`及128边界，不放宽生产配置或断言。最终三文件定向联合79 passed/45.13秒，包含两域4search/≤2embedding、按需求rerank、原问/向量各自来源、长问题预选、21类非法计划零I/O、部分失败不扩路、取消及当前root隔离。既有LangChain弃用预告1项不影响结果。
+
+代码对照复核按DR-KFLOW-029/DR-KRET-037分两次只读检查：第一轮逐项核对来源绑定、严格bool/int、合法vector空白兼容、None旧规则、并发/截止时间、观测投影、历史fixture精确隔离和主入口。未发现需放宽安全或增加生产接缝的问题；状态同步发现本层底部当前版本仍为旧版、一个`main.py`引用无法唯一解析，已最小同步当前版本及完整路径。第二轮重新检查增量及引用，L1/两L2 strict均0错误/0警告；本代码切片未发现未关闭Blocker/Major。此为同一执行者在编辑后分离的代码/文档只读复核，不冒充外部独立人员评审。新候选池精确率未标注、跨域原问噪声和实际模型改写效果仍属已明确保留的专项风险。
+
+首轮全量运行中的阶段性检查：Spring `AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest` 2个JUnit通过，内部16个Knowledge与15个Business场景全部完成；es-query-service `mvnw.cmd test` 99 passed/0 skipped；strict mypy 140 source files通过、源码及直接测试compileall通过；正式隔离入口Transaction host/preflight 14 passed。源码/任务差异、有限结果SHA、目标凭据模式扫描和PowerShell AST检查通过，18090/19201本次隔离服务无遗留监听。当时正式全量仍在执行，该阶段性结果不冒充全量通过；最终结果见本节末尾。
+
+全量回归随后发现历史system E2E还存在另一处旧root与当前入口签名混装：独立`-x`复现为`TypeError: unexpected keyword argument 'preserve_original_keyword'`，发生于网络前，不是检索结果变化。只在`tests/system_e2e/conftest.py`既有`consumed_v8_tests`精确名单增加严格bool关键字桥接；旧root仍从原manifest frozen HEAD读取并校验SHA，旧runner/测试/断言/结果不改，当前生产及代表集新runner不使用该桥接。修复后activation smoke、current-chain、summary diagnostic、current-chain history、当前representative runner及其history六文件联合129 passed/85.11秒。保留这次失败，不将修复后的定向结果冒充首轮全量通过；启动最终源码的正式隔离全量复验，未增加真实模型或索引调用。
+
+首轮正式隔离全量终态为4059 passed/35 failed/27 opt-in或条件证据skipped，802.89秒。35项失败全部属于上述三个旧测试模块的构造签名错误，已由129项定向复验覆盖；其余当前Knowledge、Business/Core、历史哈希及35/37 UAT追踪未失败。27项跳过不计为真实验证通过，其中还包含既有未生成/未opt-in的诊断证据，而非全是付费live。第二轮仅用`PYTEST_ADDOPTS='-q --tb=short'`缩短输出，不过滤用例、不改变配置、assertion或正式隔离安装方式。
+
+最终复验（2026-09-10，执行前移除子进程Key环境、不读取值）：
+
+| 实际命令/范围 | 结果 |
+|---|---|
+| agent-runtime：`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`；仅附加上述安静输出选项 | Python3.12隔离环境显式安装当前源码；Transaction host/preflight 14 passed/5.02秒；完整4121项收集，4094 passed/27 skipped/0 failed/754.74秒，既有LangChain预告1项。临时环境由原脚本finally安全清理 |
+| agent-service：`../serviceCenter/mvnw.cmd -Dtest=AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test`（JDK25） | 2个JUnit、31个内部场景完成，0失败/0跳过；23.215秒 |
+| es-query-service：`../serviceCenter/mvnw.cmd test`（JDK25） | 99项，0失败/0跳过；13.735秒 |
+| agent-runtime：`python -m mypy --strict src`；`python -m compileall -q src`及本轮直接测试/fixture | 140个source files类型通过；编译通过 |
+| L1、两L2、P3 strict文档校验；PowerShell AST；15个目标文件凭据模式扫描；`git diff --check`/暂存差异检查 | 0错误/0警告；AST错误0；凭据模式0命中；差异检查通过。有限对照结果及旧付费批次/索引绑定字节保持 |
+
+全量结束后对历史桥接和最终暂存范围完成第3次分离代码复核：35个失败均已修复而未改断言；当前root与历史fixture隔离、无模型/排序/索引扩权，完整回归闭合本切片。该实施及non-live切片Blocker=0/Major=0，文档引用Minor已修复；不据此接受未通过的真实专项。设计3轮内审/2轮正式复评的原结论不扩张，评审仍为同一执行者分阶段复核。前置工具`8ae1cfe`、有限结果`42cf97b`、设计`b19733a`已分别推送；本次代码、测试与状态同步单独原子提交，具体SHA由Git交付记录追踪。
+
+本轮增量实施和non-live验证完成；WP-KRETRIEVAL-UAT-01及质量收口仍未完成，旧failed终态及8题未执行保持。模型/E2E新增0，累计仍63/25，不复用已消费批次余额；未部署新代码、未修改索引/alias、未创建新付费候选。§20.82人工表达的局部必要覆盖提升不能证明新模型改写、Precision/nDCG或usefulness；这些效果风险继续由UAT_01治理，不自动关闭阶段B。

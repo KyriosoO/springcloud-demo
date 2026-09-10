@@ -229,6 +229,7 @@ class KnowledgeRetrievalPlan:
     quality_version: str | None = None
     question_kind: KnowledgeQuestionKind | None = None
     evidence_requirements: tuple[KnowledgeEvidenceRequirement, ...] = ()
+    original_keyword_query: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
