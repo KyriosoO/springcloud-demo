@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.42 |
+| 当前版本 | v1.43 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-10 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.22、`L2_01_00` v1.29、`L2_01_01` v2.17、`L2_01_02` v1.25、`P3_00` v2.66；§14.49保留当前链路失败，§14.50为分域条件non-live验收；不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.22、`L2_01_00` v1.29、`L2_01_01` v2.17、`L2_01_02` v1.25、`P3_00` v2.67；§14.51为当前版本有限代表集验收；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -1080,3 +1080,30 @@ L2_01_00 DR-KFLOW-028先解决独立文号/法条查询的逐域误拒，不以�
 本增量三轮内审及分离只读设计复核通过，仅允许non-live实施和验证；原完整UAT仍未通过，真实模型新增0。不得把本节新的机械约束测试当作自然语言归属实测。
 
 non-live实施状态：Rewrite9沿用V7精确decoder/V8意图，纯scope校验、Planner及当前生产根9/7/v3已落实；现行Spring fake同步新根。独立文号/法条、共享条件及错误声明的当前根测试分别检查实际计数、原问Summary和零下游，冻结测试只从对应Git源隔离读取旧根，不冒充现行能力。定向、Spring及正式隔离回归结果由P3 §20.77.2记录。真实模型的条件归属及完整专项仍未验证；本节不新增付费运行，也不据此重开或补跑旧批次。
+
+### 14.51 当前版本代表性真实专项（一次批次）
+
+2026-09-10用户明确批准累计33次端到端尝试/87次模型HTTP，即在已知23/57之上仅新增至多10/30；不复用任何历史授权或目录，失败停止，不自动新增下一批。新增`knowledge-representative-uat-v1`测试入口只复用既有Spring→当前Runtime调用及隔离服务生命周期，不继承v8～v12的历史装配覆盖链。目标是§14.40的整体召回准确性分层验证，非住宿单题优化；不是重新定义生产合同。
+
+冻结顺序及来源如下。问题、域和原文来源沿`retrieval_benchmark.v1.json`；anchor为该来源既有anchors的**从1开始**序号，只选本题显式询问的原文，不要求回答同文档其他无关问题。原24题和原10题/gold不变；新批结果不覆盖原10题未执行项，也不自动关闭其风险。
+
+| 顺序 | case | 覆盖风险 | 必要原文anchor |
+|---|---|---|---|
+| 1 | KRB-015 | 独立政策文号/法律法条跨域、不串条件 | software:3；vat_rate:1 |
+| 2 | KRB-006 | 两份政策的执行期间完整保留 | small_2022:1；small_2023:2 |
+| 3 | KRB-004 | 软件定义中的否定/例外 | software:2 |
+| 4 | KRB-010 | 个人所得税扣除项目列举 | iit_deductions:1 |
+| 5 | KRB-011 | 无应纳税款仍申报 | declaration:1 |
+| 6 | KRB-012 | 资源税自用与连续生产例外 | resource_use:1 |
+| 7 | KRB-017 | 车辆计税价不含增值税（既有留出） | vehicle_price:1 |
+| 8 | KRB-019 | 环保农业免税例外（既有留出） | environment:2 |
+| 9 | KRB-021 | 印花税合同金额排除项（既有留出） | stamp_price:1 |
+| 10 | KRB-023 | 发票遗失公告否定约束（既有留出） | lost_invoice:1 |
+
+运行前冻结源码提交、以上顺序及来源hash、selection-v4/Rewrite9/Summary7实际Prompt、quality-v3、策略/索引binding、Java制品和本地模型身份。每题至多3模型/4 search/2 embedding/4 rerank；全批上限10端到端、30模型、40 search、20 embedding、40 rerank，另最多1次本地rerank启动预热。Business/旧answer/索引写入/retry/resume均0；未花完不代表可以补跑。全部问题已在现有安全fixture中审核，真实原文仅经授权接口及既有出域策略进入模型；日志只保留ID/hash/枚举/计数和逐阶段来源身份，不保留问题、正文、引用文本、JWT或模型原始响应。
+
+进入执行前先非付费检查JDK、编译Profile、依赖/索引身份，启动真实auth/es/Spring后用stub未知能力检查Spring认证及Runtime通路；该探测模型和检索均0，不算一次真实UAT。随后同一服务环境建立当前deepseek生产根，才在进程内读取Key。新增`started`独占文件在预热/服务副作用之前写入；模型request hook逐次先写consumed/journal再发送，精确核对实际ModelRequest到HTTP的投影、任务顺序/版本/Prompt和预算。不存在被测模型替换为固定答案或本地正确计划的路径。失败/取消也必须关闭client、核实并停止本次PID、扫描删除临时原始日志，终态只写一次；不允许有started的目录重新执行。
+
+每题通过要求：真实三个任务成功、Spring返回success/knowledge.query、域准确、已接受plan符合当前合同；真实两路/每域调用和每需求重排有界且完整；生产coverage和extractive validator通过；最终引用与同请求实际policy投影、来源hash及以上全部必要anchor绑定。逐阶段记录必要来源是否召回、最终排序/Evidence是否保留以及引用覆盖。anchor匹配只证明指定原文存在，不自动证明整题语义充分或独立usefulness；后续人工语义复核单列，不由LLM自评代替。任何自动判据失败即停止批次，剩余题明确not_executed；摘要失败不反向否定已实际证明的召回，也不能作为整题通过。
+
+本批只覆盖10题当前根语义/端到端，不是新的盲测或全库结论；4题既有留出不得再用于调参。权限拒绝、敏感输入、超时/取消、无结果和澄清风险由当前non-live/Java契约证据继续独立复核，不付费重复制造失败。住宿资料不足另归语料问题，当前24题均present，不能把本批检索失败改判为missing。功能、安全、召回与摘要分别报告，阶段B最终关闭仍须核对未覆盖风险及正式评审。
