@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.18 |
+| 当前版本 | v2.19 |
 | 日期 | 2026-09-10 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.22](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-035完整文号连续扫描边界修正；仅服务内部词法，不新增机关推断、查询轮次、候选预算或索引变更；增量评审与实施状态由P3治理 |
+| 上位文档 | [`L1_01` v1.23](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | DR-KRET-037同预算双表示计划消费校验；增量评审通过、尚未实施；不修改服务、索引、RRF或需求重排 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v2.19 | 2026-09-10 | 原问keyword与改写vector需要显式合法计划而非绕过相等校验 | §9.9明确新来源字段、旧计划同query、安全与类型校验、零调用反证；公开接口及排名预算不变 |
 | v2.18 | 2026-09-10 | 两个完整文号空格分隔时，去空格后被上一文号的末字阻断 | §9.7明确已识别完整文号后的扫描起点及反证测试；不跨文字继承简写、不改Prompt或扩大topK |
 | v2.17 | 2026-09-10 | 长片段可使重排看不到尾部元数据，不能由截断直接推导效果改善 | §9.8定义同池窗口对照、缓存模型/有限进程及结果边界；生产切换须另据效果和资源证据评审 |
 | v2.16 | 2026-09-09 | 原文存在但多文号查询遗漏，keyword元数据存在表示差异 | §9.7新增服务内部标识词法及软匹配、默认关闭开关、mapping校验和非live验证；不扩大候选窗口或重建索引 |
@@ -341,6 +342,19 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 5. **判断与兼容**：同一top20池重排不能证明召回率提升；比较nDCG、前8相关性/直接支持/必要来源及时间资源，分数与qrels只在离线测量后结合。评分分布改变时不得自动沿用DR-KEV-034的0.5候选阈值。任何必要来源下降、无增益或资源不可接受均阻止生产切换；局部开发集改善只允许继续代表集验证，不关闭阶段B UAT。历史任务/结果、当前模型服务、原文、向量、alias及权限不改；回滚本测试无需部署动作。
 
 已实现`tests/system_e2e/knowledge_rerank_window_probe_v1.py`（宿主：来源/worker/有限记录）及`knowledge_rerank_window_worker_v1.py`（容器内：缓存模型及tokenize/forward）。只由测试工具引用，生产src不导入。fake覆盖来源/身份/预算漂移、同分、非有限输出、错误/超时/仍存活、独占文件、无下载和零重试；实际数据只证明冻结同池诊断。设计内审/分离复评及该切片实施验证记录由P3/UAT治理；后续生产变更另行评审，不用本节作为默认参数修改授权。
+
+### 9.9 原问keyword计划消费校验（DR-KRET-037；设计增量，尚未实施）
+
+直接继承L1 KQ-AD-014与L2_01_00 DR-KFLOW-029。仅修改既有`retrieval/stage.py::DefaultKnowledgeRetrievalStage._execute`在首个embedding之前的计划检查，不新增Provider、路径或HTTP字段。`original_keyword_query`是可信本地Builder给出的来源断言，不是外部安全凭据；不接受前端、模型或JSON透传赋值。
+
+1. 字段为None：所有quality版本继续检查每域keyword/vector两项query_text相同，legacy流程保持原样。不得简单移除现行相等约束。
+2. 字段非None：必须为quality-v3、实际非空str、≤1024，满足既有`valid_plan_text`，且已经按现有QuestionEgressGuard规范化并被允许；所有keyword.query_text必须与该值exact相同。所有vector.query_text复用`valid_plan_text(..., max_chars=1024)`及Guard安全检查，不要求vector文本的空白与Guard.minimized_question相等，也不重新标准化已经通过decoder的合法query；它们来自原SemanticPlanner的分域query，不用keyword替换embedding输入。
+3. 保留原需求验证、1～2唯一已启用域、每域顺序keyword/vector、候选1～20及final边界；新来源模式还要求域属于现有`PROFILE_BY_DOMAIN`、candidate_limit为实际int、ordinal为按1..N排列的实际int。未知域、错路径/顺序、额外路径、类型或原问不一致均在网络前拒绝。不要用相同文本校验消灭合法的双表示。
+4. 任何构造后篡改或消费校验失败按原INVALID_PROVIDER_RESULT→downstream_failure收口，embedding/search/rerank为0；不尝试旧同query执行。每域vector失败只影响原计划该路径，不能补keyword或换query；原整域拒绝优先级、coverage、超时及取消不变。
+
+`IMPL-KRET-025`为上述Stage与现有typed Adapter、BGE组合的直接测试；向量按各域vector文本生成、同文本仍仅请求内复用，搜索仍每域2路，各臂来源和RRF权重不增加。需求rerank继续使用requirements.focus而非keyword原问；Evidence和Summary完全不改。Java接口、Profile、limit+1实现、索引/alias、读取授权及三层出域无变更。
+
+`TEST-KRET-032`→建议新增`tests/unit/knowledge/retrieval/test_original_keyword_stage.py`：真实Stage配fake Ports验证两域4search/≤2embedding/按需求rerank；旧None同query保留，非法来源/空值/非NFC/超限/控制字符/敏感值/错域/错序/额外路径全部零调用；单路与整域失败不新增路径，取消后没有任务泄漏。`VAL-KRET-018`为定向测试、既有quality-v1/v2/v3及当前生产对象图/Spring回归、mypy/compileall和历史哈希。召回互补不证明精确率、Summary或任意模型改写有效，不能关闭真实专项UAT。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 

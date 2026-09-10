@@ -65,9 +65,9 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.22 | 必要证据、派生向量及当前9/7/v3绑定；在线/离线边界不变 | Approved；向量发布已完成，阶段B质量/UAT未完成 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.29 | DR-KFLOW-024～028需求计划、澄清、摘要配对、文号及分域条件 | Approved；当前分域条件已实施，真实终态见§20.79.1 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.18 | 需求排序、上下文评分、文号匹配及离线窗口诊断 | Approved；完整文号边界修正见§20.80，窗口保持512 |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.23 | 必要证据、派生向量及原问keyword/改写vector互补边界 | 原有Approved；当前互补增量准入见§20.83，阶段B质量/UAT未完成 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.30 | DR-KFLOW-024～029需求计划、语义条件及原问来源 | 原有Approved；DR-KFLOW-029准入见§20.83；真实终态仍§20.79.1 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.19 | 原问keyword严格消费、需求排序、文号匹配及窗口诊断 | 原有Approved；DR-KRET-037准入见§20.83，窗口保持512 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.25 | DR-KEV-029～034需求预算、覆盖、拒绝、分层计分与可选Evidence准入 | §20.68增量评审和实施分开，真实专项未通过 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
 | [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.44 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.51真实终态及§14.52非live边界验证，不改判旧失败 |
@@ -2884,3 +2884,15 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 新增结果验证按冻结提交读取runner源码并校验SHA，重新计算24题指标，逐题检查query来源、请求数、策略、终态和KRB-006来源损失。实际命令（agent-runtime）：`python -B -m pytest tests/system_e2e/test_knowledge_query_representation_probe.py tests/evaluation/knowledge/test_query_representation_result.py tests/unit/knowledge/retrieval/test_quality_ranking_v3.py tests/evaluation/knowledge/test_document_number_benchmark_result.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider`，108 passed，3.85秒。该验证包含旧批次历史保护、Business35/Knowledge37追踪，不是108条真实UAT；本切片未修改生产，未重跑全量Python/Maven。
 
 结论：支持进入“原问keyword与改写vector互补、每域仍两路”的设计评估，不支持立即扩大窗口、重建向量库或为酒店/文号增加专用分支。下一步必须明确安全原问来源、1024字符HTTP边界、长问题兼容、计划校验和历史隔离；L1/L2评审通过后才能实施。旧付费批次failed及8题未执行不变，累计25 E2E/63模型不变，未复用剩余预算；专项UAT与QUALITY仍未完成。
+
+### 20.83 原问keyword互补设计与非live实施
+
+依据REQ-KQUALITY-001/002、L1 KQ-AD-014和§20.82实测，修改范围为L1_01 v1.23、L2_01_00 v1.30/DR-KFLOW-029、L2_01_01 v2.19/DR-KRET-037；L2_01_02仅上位版本索引，P3/UAT_01/ARCHITECTURE仅直接状态和追踪。REQ/L0、模型任务/Prompt、Java公开DTO、索引、排序和Evidence不改。继续使用既有WP-KRETRIEVAL-QUALITY-01/IMPLEMENT/NONLIVE依赖，不增工作包或门禁，不重开已通过的入口；本切片语义修改在下述评审通过前暂停实施。
+
+方案对比：仅Prompt不能保留原始词面；追加第三路增加HTTP及RRF权重；扩大topK/改索引没有本次必要性证据；选用“原问keyword＋分域改写vector”且只对符合原检索长度的安全原问启用。改写仍由LLM一次生成，非法或拒绝不会因原问存在而执行。1024以上原问在I/O前固定旧双改写策略，不截断、不拆问、不追加检索；长问题不宣称同等收益。新内部来源字段不进入公共DTO或模型，默认旧调用兼容，main显式绑定；同一Stage仍严格拒绝未经声明的不同文本计划。
+
+三轮内审已完成：第1轮校对4096用户输入/1024检索边界，补齐长问题预选而非截断；第2轮发现新Stage若要求vector文本等于Guard空白最小化结果，会拒绝既有decoder允许的合法空格，修订为复用valid_plan_text与安全检查、原样传递vector；第3轮纠正§9.1旧同query总述和误写章节，补齐实际int/域/来源/序号验证、旧资产默认及新增字段观测隔离。
+
+冻结编辑后完成分层和跨层只读正式复核：L0/REQ约束→KQ-AD-014→DR-KFLOW-029/DR-KRET-037→IMPL/TEST/VAL链，构造器/Stage/组合根/Java现有接口边界、正常/超长/非法/取消/兼容/回滚均明确。第1轮一项S2为计划描述把尚未实施的main接线写成当前行为，已改为建议/目标；重新读取修复及全部增量后第2轮通过，S0=0/S1=0/未处理S2=0。评审为同一执行者分离修改阶段的只读复核，不冒充外部独立人员。L1及两份L2 strict均0错误/0警告，P3 strict及diff检查通过。仅批准该Python切片及non-live验证，不批准部署、付费批次或专项/QUALITY收口。
+
+准备实施：`knowledge/contracts.py`新增内部可空原问来源；`planning.py`增加代码级显式选择，`retrieval/stage.py`保留旧相等规则并验证新来源；`bootstrap.py`和`main.py`显式接线。测试先验证旧源码缺少该能力，再实施并运行新计划/Stage反证、当前root与Spring、Knowledge/Core/Business和历史回归。无新环境变量、外部依赖或公开状态；旧任务、检索窗口、RRF、需求rerank、selector和三层策略保持字节。精确测试结果待实施后另记，不预写通过。

@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.29 |
+| 当前版本 | v1.30 |
 | 日期 | 2026-09-10 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.22](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KFLOW-028复用requirements声明分域条件，Rewrite9、请求内严格校验及生产根9/7/v3已实施；真实效果仍待验证，不增加公开字段、模型调用或检索预算 |
+| 上位文档 | [`L1_01` v1.23](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | DR-KFLOW-029原问keyword与分域vector计划；增量评审通过、尚未实施；现行Rewrite9/Summary7及quality-v3合同不改 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V9/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；当前对象图定向non-live通过，真实效果尚未验证。DR-KFLOW-023～028已实施，验证由P3管理，效果由UAT_01管理 |
 
@@ -22,6 +22,7 @@
 
 | 版本 | 日期 | 变更原因 | 变更内容 |
 |---|---|---|---|
+| v1.30 | 2026-09-10 | 改写表达替代两路原问使词面线索同时丢失 | §8.10定义原问来源、长度预选、内部计划字段与显式组合根接线，不修改模型输出及公开DTO |
 | v1.29 | 2026-09-10 | 分域聚焦与逐query复制全部约束冲突 | §8.9明确需求归属、未分配条件保守全局、计数/顺序及语义证明限制；版本化替换而非移除Guard |
 | v1.28 | 2026-09-09 | 正常查阅前缀被当作文号本体，合理focus误拒 | §8.8限定前缀词法分离，保持机关/年份/编号及旧Guard字节；新增当前根Guard与反证测试落点 |
 | v1.27 | 2026-09-09 | 原问分类限定未完整体现在引用中 | 目标配对Summary7，Rewrite8、检索和内部合同保持；不修改历史版本 |
@@ -396,11 +397,29 @@ REQ-KFLOW-004→DR-KFLOW-026→IMPL-KFLOW-014（上述两个现有方法）→TE
 
 `VAL-KFLOW-011`：新增unit/contract/current-root集成、现行Spring fake、历史hash和scope相关回归、strict mypy、compileall、正式non-live全量。UAT_01专项语义/真实证据另行治理，本设计不新增真实运行或预算，不重复已消费批次。阶段B继续以代表集准确率及必要覆盖验收；资料缺失不要求住宿单题成功，不借此放过资料充分场景的实际缺陷。
 
+### 8.10 同预算原问关键词保留（DR-KFLOW-029；设计增量，尚未实施）
+
+依据REQ-KQUALITY-001/002及L1 KQ-AD-014：现有SemanticPlanner继续安全检查、一次Rewrite9、精确解码及§8.9分域条件校验。只有合法search才建立计划；模型失败、非法计划、clarification或unsupported不能因有原问而进入检索。原问不是本地生成的业务计划，也不用于扩域。
+
+`KnowledgeRetrievalPlanBuilder`建议增加代码级关键字参数`preserve_original_keyword: bool=False`。默认保持既有显式旧调用语义；建议修改当前`main.py`经`KnowledgeCompositionRoot.build_provider`显式传true。不是环境配置或模型字段，不允许请求级选择；参数必须为实际bool。true只适用于quality-v3合法MODEL rewrite，不能附着于legacy/旧quality/denied计划。
+
+在网络前复用`QuestionEgressGuard.evaluate(rewrite.original_question)`获得ALLOWED的`minimized_question`，只做现有NFC及空白标准化，不抽词、截断、识别文号或生成子问。生产Capability继续验证original_question与同请求输入一致。安全拒绝、空值、类型或版本非法时计划构造失败且不产生检索调用；不以“原问不可用”回退安全已拒绝的问题。
+
+- 安全规范化原问长度≤`settings.max_retrieval_query_chars`（现有配置可收紧、代码最大1024）：每个已选域keyword使用同一原问，vector使用该域已校验query。
+- 原问安全但长度超过该配置值（用户输入仍遵循现有4096上限）：两路预先固定用该域已校验query，保持长问题兼容；不截断原问或扩大HTTP上限，不因检索结果改变此选择。
+- queries、requirements、question_kind、域顺序、每路20及总4路、最多2次embedding/4次需求rerank、截止时间均不变。不同域仍独立授权；原问包含其他域条件可能引入噪声，但不得据此客户端增删条件或跨域补查。
+
+`IMPL-KFLOW-017`建议修改：`knowledge/contracts.py::KnowledgeRetrievalPlan`末尾追加frozen/slots字段`original_keyword_query: str | None = None`。非None只由上述Builder从安全同请求原问赋值，用于显式表达keyword来源；它不是模型输出、HTTP字段、能力参数或认证凭据。长问题及默认旧调用保持None。Builder按路径填入真实query_text，观测继续仅投影原有items/domain/config/quality，不把新增字段或整个dataclass自动输出；没有原问的副本进入日志/evidence。既有验证台可看到已经安全处理的真实检索文本，不额外暴露内部字段。
+
+Stage对该字段执行DR-KRET-037消费校验；不删除旧同query校验。目标为main显式启用而旧Builder/Provider调用默认false，保护历史重放；冻结资产仍从冻结提交读取，不能因默认兼容就重跑旧批次。无需新Rewrite/Summary task或Prompt版本，因为模型输入、输出、decoder和指令均不变；检索策略身份由当前源码提交及内部计划字段追踪。disabled不建Provider/client。回滚是禁用Knowledge或一致源码回退/显式装配恢复，不是请求内fallback。
+
+`TEST-KFLOW-021`→建议新增`tests/unit/knowledge/test_original_keyword_planning.py`，验证两域原问keyword/各域vector、同request、NFC/空白、1024边界、配置收紧、长原问不截断、unsafe/model failure/unsupported零调用、旧默认及任务不变；当前main对象图测试证明显式启用、disabled惰性、观测无内部字段和并发隔离。`VAL-KFLOW-012`为上述测试、现有QueryPlan/Knowledge/Core/Business回归、Spring E2E、strict mypy和compileall；真实语义效果仍单独UAT。此增量不调整公共接口、安全策略、索引或排序，评审完成后才允许代码实施。
+
 ## 9. 检索计划与核心流程
 
 ### 9.1 计划
 
-对每个已批准域按目录路径生成keyword/vector两项，使用该域唯一query；limit≤20，稳定顺序为目录→路径。V3 plan携带不可变原问题用于最终语义边界；同域两路表达必须相同。域集合固定后任何路径结果不得追加域或query。
+对每个已批准域按目录路径生成keyword/vector两项；limit≤20，稳定顺序为目录→路径。DR-KFLOW-029目标模式按§8.10绑定安全原问keyword及分域改写vector；原问超长和历史默认调用仍为同域两路同query。原问题在请求内保留用于最终语义边界，不从改写重建；新增计划字段仅表示可直接检索的安全原问。域集合固定后任何路径结果不得追加域、路径或改变表达。
 
 ### 9.2 主流程
 
