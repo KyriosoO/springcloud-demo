@@ -2866,3 +2866,21 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 实施范围仅`tests/system_e2e/knowledge_query_representation_probe.py`与直接测试。先构造typed Adapter流式fake验证；初版fixture错误使用已消费响应、chunkId含计分器不接受的冒号，均修正fixture，不修改生产读取或计分器。沿既有计分合同，空排名Precision为0、nDCG为null；有未分级候选时两者null。新增工具不导入生产Stage，不用patch绕过同query校验；patch仅适配旧服务helper到现行binding文件。新13项fake与原quality-v3/历史文号基准共50 passed（1.87秒），新文件compileall通过。
 
 执行前代码定点复核：来源检查在维护侧、gold仅响应后评分；每臂独立2路、共享同题同域向量而非合并第三路；当前ScoreAware selector只在完整verifier之后，策略拒绝不改判；预算先计尝试，异常不重试；输出独占创建、只有有限身份/计数/指标；临时服务和client按原helper清理。补齐Java身份及全部ES编译资源/认证JAR指纹，前后检查HEAD/tracked差异，避免双臂制品漂移。审查范围局限于实验是否符合协议，不宣称生产替代方案已通过设计或全仓代码评审。接下来只运行该零付费实验一次，结果另附本节。
+
+#### 20.82.1 实测结果及局限
+
+准备提交`8ae1cfe366d10353f789adb03349f9f9a9ff2ba8`已推送后，按上节协议执行一次。有限结果为`agent-runtime/tests/evaluation/knowledge/query_representation.result.v1.jsonl`，194927字节，SHA-256=`dc58b7f024740ea586b2e49e12e35f9f19631f99f719d307f26a30641f41e884`，终态`measured`。前后alias、UUID、write-block及20个来源哈希一致；Java编译资源、认证JAR、binding、HEAD及tracked工作树未漂移。未修改Stage A索引或历史结果。
+
+| 分组 | A：两路聚焦 必要召回/Evidence覆盖 | B：原问keyword＋同一聚焦vector | 两组MRR | 必要来源完整的题数 A→B |
+|---|---|---|---|---|
+| 16开发题 | 0.96875 / 0.96875 | 1 / 1 | 0.96875 | 15→16 |
+| 8既有留出题 | 1 / 1 | 1 / 1 | 1 | 8→8 |
+| 全部24题 | 0.9791666667 / 0.9791666667 | 1 / 1 | 0.9791666667 | 23→24 |
+
+只有KRB-006的必要召回与Evidence覆盖从0.5升到1，其余23题这两项指标均未下降。该题原问keyword返回small_2022第1、small_2023第2；人工聚焦keyword只返回前者，聚焦vector两者均未进入top20。A融合池没有small_2023，B融合池和最终Evidence中存在，故本次可将损失定位在召回而非重排。两组KRB-013的MRR均0.5，其余均1。未分级的新增完整候选池使Precision/nDCG保持null，不能称为准确率100%、所有排名不变或整体effective。48个臂均通过Evidence选择与策略，仅说明这些局部合同成立，不等于Summary充分性或usefulness。
+
+实际调用：typed search=81、embedding=27、rerank=58，另有一次合成rerank预热；模型/E2E/Business/answer/索引写入/retry/resume均0。清理记录ownedProcessesStopped/rawLogsDeleted/secretScanPassed均true；JWT、原始响应、正文和向量未落盘。固定query来自人工聚焦规则，并非真实Rewrite输出；8题是已经使用过的留出组，不冒充新盲测。
+
+新增结果验证按冻结提交读取runner源码并校验SHA，重新计算24题指标，逐题检查query来源、请求数、策略、终态和KRB-006来源损失。实际命令（agent-runtime）：`python -B -m pytest tests/system_e2e/test_knowledge_query_representation_probe.py tests/evaluation/knowledge/test_query_representation_result.py tests/unit/knowledge/retrieval/test_quality_ranking_v3.py tests/evaluation/knowledge/test_document_number_benchmark_result.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider`，108 passed，3.85秒。该验证包含旧批次历史保护、Business35/Knowledge37追踪，不是108条真实UAT；本切片未修改生产，未重跑全量Python/Maven。
+
+结论：支持进入“原问keyword与改写vector互补、每域仍两路”的设计评估，不支持立即扩大窗口、重建向量库或为酒店/文号增加专用分支。下一步必须明确安全原问来源、1024字符HTTP边界、长问题兼容、计划校验和历史隔离；L1/L2评审通过后才能实施。旧付费批次failed及8题未执行不变，累计25 E2E/63模型不变，未复用剩余预算；专项UAT与QUALITY仍未完成。
