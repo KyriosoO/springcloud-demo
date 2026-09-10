@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.40 |
+| 当前版本 | v1.41 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-09-09 |
+| 日期 | 2026-09-10 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.28、`L2_01_01` v2.16、`L2_01_02` v1.25、`P3_00` v2.64；§14.39为run-12历史终态，§14.40分层计分、§14.41代表集基线、§14.42文号Guard、§14.43元数据匹配、§14.44可选Evidence准入及真实来源同池验证；不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.21、`L2_01_00` v1.28、`L2_01_01` v2.17、`L2_01_02` v1.25、`P3_00` v2.65；§14.39为run-12历史终态，§14.40～44为既有分层验证，§14.45新增离线窗口诊断；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -937,3 +937,22 @@ DR-KRET-035代码及non-live已完成，命令、代码复评与提交见P3 §20
 表中“旧/新检索”是文号开关前后对照；最后一列则固定在文号改善后的来源池，对比legacy/candidate两种Evidence选择器，并非原检索baseline与candidate。006虽通过文号召回补回两个直接来源，8条Evidence中仍有6条不相关，分数准入未改善；005虽然0分为零，但保留6条背景和1条部分直接支持，只有1条完整直接支持。尚不能据此认定整体精确率、直接支持质量或真实Summary已通过。
 
 009～012旧/新检索指标均未变化，最后一列的减少仅来自同池Evidence准入。009/010存在其他税种的相似词面噪声；011的同法规其他条款不能支持所问事实，候选仍保留2条0分；012候选虽没有0分，仍有3条仅背景来源。两种指标和直接支持必须分开解释，不因必要来源覆盖为1或nDCG较高宣称回答正确。剩余013～024继续按原顺序核对，不改留出、阈值或旧判断。
+
+### 14.45 离线窗口单变量诊断（非端到端UAT）
+
+依据DR-KRET-036，以已完成原文分级且有token截断证据的KRB-009～012四个development题作第一步反例诊断；不是挑成功题，不含酒店特判、holdout调参或新gold。固定原dataset SHA=`ca076f8096ddf1210ddcf26da1a23135ee14c3cf415960fbaf03ea1e3a8f84f9`、文号对照SHA=`b50ee584b09dc3b8d724886240a25b0e9de23e046d5245ef5ef395b81e865299`、原分级前15行SHA=`d64b298fc18067be448feeecae51c1614e9a6e2226a102faaa809d871158d593`。只取每题原final20，同一focus，80对/70个来源；该池之外的漏召不能由实验诊断。
+
+| 绑定/预算 | 固定内容 |
+|---|---|
+| 模型 | 本地BAAI/bge-reranker-v2-m3，revision `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`；权重SHA须实际匹配缓存blob `d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286`；config SHA=`13dcd6c31d9fec9d1d8e158702072f62d7fa7d312a64b9fe057bec9a08cfe41a`，四份tokenizer SHA与token诊断一致 |
+| 表示/窗口 | 两臂均使用`authorized-body-first-metadata-v1`，只比较512/1024；不实施metadata-first，不变更query、原文或模型 |
+| 数量 | 4题×20条×2臂=160对；固定batch=2，80次正式forward；另允许每臂一次相同合成query/文本预热，共2次forward；没有compute_score隐式探测/OOM重试 |
+| 执行 | 缓存模型local_files_only、trust_remote_code=false、cuda:0/fp16/eval；同一临时worker，奇偶题交替两臂先后顺序；新进程批次与线上batch16不同，延迟只作实验观察 |
+| 时限/身份 | 容器内worker总300秒、TERM后5秒KILL；宿主等待315秒，超时只核查原worker、不重启；随机worker标识精确核对退出。共享服务/容器不停止、不改配置 |
+| 来源 | 复用既有有限SourceReader，每批10条，最多7次来源读取；前后6次alias/settings/mapping检查；原binding/UUID/write-block/hash不变 |
+| 零调用 | 外部模型、Rewrite/Summary/answer、Business、重新embedding、HTTP检索推理和索引/alias写入均0；ES读仅运维来源核对，不冒充新用户授权 |
+| 记录 | 新JSONL独占创建，prepared先写；一次worker启动前追加worker_started，之后仅追加有限worker结果和terminal；失败reason白名单。禁止正文、问题、token IDs、异常原文和环境值 |
+
+推理前冻结工具源码/HEAD、Docker镜像与容器ID、模型文件hash和上述输入；输出每题每臂20个有限score及token数、耗时、峰值显存，且预热/正式forward分别计数。任何加载、hash、source、shape、timeout/OOM或清理不明均形成failed，不重试。宿主和workerstdout/stderr有界捕获，错误仅投影有限枚举，不持久化原始流；真实源只通过stdin传入本地worker内存。
+
+预先判据：先检查同一512worker是否能合理复现既有512排名（跨批次浮点差异单列，不能冒称精确分数复现）；然后比较新两臂的nDCG@20、前8中grade>0和grade≥2数量、必要来源覆盖、耗时和峰值显存。全部20候选相同，所以Precision@20不变，不能称召回提升。仅在四题必要来源前8覆盖均不下降、nDCG均不下降且至少一题排名/前8相关性严格改善时，把1024判为值得扩大非付费验证的假设；不满足则不推荐生产切换。任何结果都不直接批准生产1024或重新校准0.5，不修改历史结果/阈值/评估标准。最终仍需完整代表集、当前生产链路及资源预算验证；局部diagnostic measured不是阶段B Passed。
