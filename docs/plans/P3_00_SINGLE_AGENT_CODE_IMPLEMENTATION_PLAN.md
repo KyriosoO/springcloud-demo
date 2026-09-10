@@ -141,7 +141,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.49、DR-KEV-032～034 | 来源重放、完整相关性及真实Summary局部验证完成；全模型跨域待验证 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 正式22/53；独立诊断2/2；§14.49待执行≤1/3 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.49、DR-KEV-032～034 | 来源重放、完整相关性及真实Summary局部完成；跨域新例改写后拒绝，先纠偏约束归属设计 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 全模型23/55；独立诊断2/2；已知模型合计57，停止该批 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -309,7 +309,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | 同池来源、完整相关性、隔离服务及Summary局部完成；按§20.76准备单例全模型验证，不重跑旧批次 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.76.1跨域新例Failed；2模型/0检索，约束归属设计缺口已non-live复现，不重跑旧批次 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性、默认接线和隔离实例验证已完成；真实专项及高分噪声风险未关闭 |
 
 ## 10. 实施交接
@@ -435,7 +435,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72文号配置及Evidence默认代码接线；已有增量保持原范围 | TEST-KRET-030、TEST-KEV-024；UAT_01 §14.46及既有追踪 | 代码接线完成，运行实例升级另列 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72默认接线、当前根及历史防回退 | TEST-KRET-030、TEST-KEV-024、VAL-KEV-016；UAT_01 §14.46 | §20.72.1实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.72默认代码接线及§20.73隔离实例，§20.61历史终态 | UAT_01 §14.39～14.47 | run-12失败不改；同池来源/相关性及固定模型接线已验证，真实模型完整链路待收口 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.72默认代码接线、§20.73隔离实例及§20.76.1当前终态 | UAT_01 §14.39～14.49 | run-12及新跨域Failed保持；同池相关性已测，当前规划到答案仍未闭合 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2651,3 +2651,15 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 实施及代码对照复核：新增`knowledge_current_chain_v1.py`与直接fake测试，不修改生产源。首轮18 failed/7 passed揭示测试侧错误地在deepseek分支注入transport，已按生产自主管理client修正；随后发现内部不可变结果未转成公开JSON形状导致citation checker误拒绝，已在内存按现有序列化合同转换，未放宽checker。32项直接fake覆盖真实三任务HTTP/decoder、不同query实际计数、权限/出域、部分失败Summary零outbound、非法计划、source/anchor、取消、独占生命周期、敏感输入和预算；与Summary诊断/citation-v2联合64 passed。扩大到原run-12历史及当前root回归，五文件联合118 passed/91.39秒，1项既有LangChain预告。strict mypy：138 source files通过；两新增文件compileall通过。测试没有读取真实Key或使用真实网络。
 
 正式限定代码对照评审分两轮：C1（managed transport接线）与C2（不可变结果公开投影）已修复并有成功/失败反例；复评检查§14.49全部任务、预算、引用、取消、历史和有限输出，无未关闭Blocker/Major，Minor已处理（生命周期fake不依赖本地Java编译目录）。复评追加冻结/首尾检查现有BGE容器及镜像身份，不修改模型。此为同一执行者分离编辑的只读代码复核，不声称外部独立评审。仅允许该测试切片冻结和一次执行，不代表阶段B或整体质量通过；最终受控结果另行追加。
+
+#### 20.76.1 实际终态与约束归属缺口
+
+准备代码提交并推送`44cfb95b018dae508662e61184894422f1f2fe83`；无Key prepare冻结manifest SHA=`e81276d7708f06d871e64af82f13269edaf91c323f29c7a75c37999a722d6bba`，run/reference仍为UAT §14.49。只执行一次，KRB-015 **Failed**：action-selection-v4和Rewrite8结构解码均succeeded，随后公开`knowledge.rewrite_failure`，尚未生成Retrieval Plan；search/embedding/在线rerank/Summary均0。实际外部模型2、Runtime1、合成预热1；Business/answer/retry/resume/indexWrites均0。累计全模型请求23、其模型55，独立两次诊断模型2，全部已知模型**57**。不自动使用剩余额度、不补跑、不恢复该目录。
+
+六项原字节归档到`agent-runtime/tests/system_e2e/knowledge_current_chain_01/`，result SHA=`f525f6e27a78dd63fc0f9acf0855bca5d9ff39528842744f359d1c6af1420ae1`；新增history测试逐项保护hash、冻结源码、终态、调用数和证明边界。服务PID12636/34716由原句柄关闭后另行查询均不存在；profile startup、client关闭、原始日志删除和secretScan均通过。前后b2只读绑定、编译制品、BGE容器/镜像检查通过，没有索引写入或共享服务停止。没有保存原始模型响应，不能恢复它具体在哪个语义分支被拒，也不能声称模型成功解码即代表合法改写。
+
+零模型定向设计核查确认独立缺口 **B-QUERY-SCOPE-001**：L2_01_00 §8.3/8.8仍要求每域query复制全部原问数字/文号/法条；`semantic_planner`对每个query使用同一完整`ProtectedConstraintSet`。对原KRB-015，构造“政策域仅查指定文号的软件定义”“法律域仅查指定法条税率”两个安全合成表达，当前Guard都返回`missing_constraint`，复制整句则accepted。这是可复现的跨子问题过度约束，不是对本次未保留模型响应的重建，不足以认定本次失败的唯一具体根因。
+
+下一方案应先在现有L1/L2范围明确“整组不丢原问条件、分域只携带所属及全局条件”的约束归属合同，再评审实现；不得直接删除Guard或仅把全部逐query校验改成集合并集，否则可能把一般纳税人/日期等条件错误挪到无关域。有限结构化拒绝原因应在现有内部合同内保留，不公开原始query/响应。该方案尚待设计，当前不修改生产规则或Prompt。优先级是修正已复现规划约束，而不是基于这次**零检索**失败继续重建向量库、扩大topK或追求住宿单题。既有24题整体检索改善、留出高分噪声及资料覆盖限制分别保留；UAT In Progress、QUALITY Blocked不变。
+
+执行后归档验证：新history、当前runner、run-12历史及完整相关性四文件联合pytest **92 passed/29.50秒**（1项既有LangChain预告）；三份目标Python compileall通过；P3 strict校验0错误/0警告；六份有限资产复制前后hash完全相同，凭据模式扫描0命中、再次核实两PID均不存在，diff --check通过。完整相关性CLI离线复算24题/483项：必要Recall@20为0.958333→1.000000，P@20为0.320833→0.325000，nDCG@20为0.913317→0.954983。指标只是已固定且资料present的问题池，不代表全库、任意问题或模型答案准确率。本次未修改生产代码，未重复Java/Spring全量或新付费调用；当前归档代码/证据复核未发现新的有限资产合同问题，B-QUERY-SCOPE-001设计事项保持待处理，不能据归档测试通过关闭阶段B。
