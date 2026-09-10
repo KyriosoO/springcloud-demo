@@ -1033,3 +1033,28 @@ DR-KRET-035代码及non-live已完成，命令、代码复评与提交见P3 §20
 实施前复核：三轮内审依次核对（1）固定前两任务与真实Summary证明范围，补明确partial-model而非E2E；（2）Key读取、一次HTTP、原validator旁观、来源授权和有限输出，补started阻断未消费重启；（3）资源、快照、失败和预算，补预热独立计数。随后分离编辑执行只读设计对照复核：用户持续授权→本节→DR-KEV-032→既有run_case/transport/隔离管理的职责与合同一致，局部实施门S0=0、S1=0、未处理S2=0。该评审由同一执行者分阶段完成，不称外部独立审查；真实执行仍须先通过fake和提交冻结。无需修改L1/L2、公共合同、阈值或索引。
 
 执行终态：本次measured，KRB-001的真实Summary7成功，coverage及extractive两个原validator实际通过；20候选→4条Evidence，lodging/living两项既有必要来源hash均进入输入，全部检索路径完整。没有复现后置拒绝，因此不能确定run-12原因，也不据此改写旧失败或猜测性修改Prompt。正文和模型原始输出未保存，不追加人工语义rubric通过结论。该结果只增加当前Summary7真实局部验证，不证明真实Rewrite、跨域完整UAT或总体答案准确率。预算、清理、hash和证据位置见P3 §20.75.1；已知累计付费55，不再自动追加本诊断或任何旧批次。
+
+### 14.49 当前全模型跨域链路的单例验证
+
+依据§14.34持续授权和§14.40分层目标，下一步仅验证既有development KRB-015：指定文件的软件产品定义与增值税法销售服务税率两个独立查阅要点。不是住宿单题，不重用run-12、不改原问题/来源/标注，也不宣称覆盖全部专项。§14.44.4表明必要来源已全部保留但高分背景仍存在；本次不再改排序或阈值，不把消除全部噪声作为无限诊断前置。当前真实Summary局部成功已改变下一行动：由固定规划转为实际selection/Rewrite/Summary贯穿当前根，保留后置有限拒绝观察。
+
+| 绑定 | 内容 |
+|---|---|
+| run/reference | `knowledge-current-chain-v1-20260910-01` / `UAT_01:14.49` |
+| case/来源 | 原`retrieval-benchmark-v1`的KRB-015及software、vat_rate来源；dataset SHA与§14.41一致。所有已有anchors分别检查，不从本次模型输出生成gold |
+| 模型 | action-selection-v4、Rewrite8、Summary7各至多1次，固定现行模型和Prompt；共至多3次外部HTTP，禁止Business/answer/重试/续跑 |
+| 本地在线预算 | search≤4、embedding≤2、rerank≤4；另1次既有合成预热；单个Runtime请求，沿原40秒上下文deadline |
+| 累计 | 既有正式22请求/53模型，独立Rewrite1及Summary1，全部已知模型55。本次上限1请求/3模型后为23请求/58模型；请求数使用§14.34之后用户持续授权，不重置原20请求账本，不把诊断混成正式E2E |
+| 索引/安全 | 当前b2绑定、全部生产源码和服务制品冻结；只读、授权、三层出域、原validator、单动作、取消及日志清理不变；无索引/alias写入 |
+
+建议新增测试侧`knowledge_current_chain_v1.py`及直接fake测试。复用已有当前根调用、隔离服务/PID清理、DeepSeek transport、有限拒绝观察及citation-binding-v2；不得调用固定模型父类生成任何规划或摘要。当前根使用deepseek配置及实际传输，凭据仅在execute且问题安全核实、隔离服务就绪后读入内存。模型catalog/输入由生产代码构造；预期域、来源和anchors只在执行后评分，不能进入模型、查询或排序。原始问题仅来自已冻结的安全公开fixture。
+
+prepare不读Key、不联网，在干净提交上保存HEAD、资产/制品hash、dataset、三个任务/Prompt版本及预算。execute重算并精确匹配manifest；独占started阻断同目录重启。每次HTTP前独占保存序号journal事件，首次另写consumed；限制精确URL、任务顺序、原payload及总次数，失败不继续下一case或重发。每次模型调用只保存输入hash/任务枚举，不保存原输入/响应；实际Retrieval Plan仅保留允许域、需求ID/类别/域、条数和hash，不保存自由文本。未知结构只返回有限诊断，不尝试修复计划。
+
+运行后只在内存对实际授权bundle、policy后的Summary输入及公开points执行既有citation-binding-v2，逐一核对预先来源的每个anchor是否出现在它所绑定来源的实际quote中。该自动化源片段检查不是独立人工usefulness评审，不修改原validator或把模型自评当人工评分。两个需求的实际归域必须正确，实际计划恰为policy+law；需求数量允许原合同范围，不能强求固定r1/r2或把人工focus注入Rewrite。完整路径按实际计划核对四次search、1～2次embedding（按不同query）、与非空需求数一致的rerank及所有HTTP200，不以smoke旧固定计划的一次embedding断言替代。
+
+通过条件：三个真实任务顺序完成，唯一knowledge.query，正确双域及需求归域，全部路径完整，两个原validator通过，全部必要来源/anchors经真实引用绑定通过，预算/快照/清理/敏感扫描通过。若仅insufficient、502、非法计划、缺来源或anchor检查失败，逐项如实Failed；不能以measured改判Passed，也不认定一定是模型错误。资料缺口、检索、引用与执行原因分列；不自动再准备或执行下一付费批次。即使该例Passed，仍须审核阶段B其余功能/效果要求，不能用一个成功例宣告全部完成。
+
+实施前三轮内审：①将固定模型替身排除，明确实际Rewrite生成域/需求且gold仅执行后使用；②实际不同query决定embedding次数、完整路径须在Summary前阻断部分检索，保存事件先于每次HTTP；③区分原20请求、后续持续授权与55次已消费账本，不因新文件重置。分离编辑后的只读设计复核覆盖REQ-KQUALITY-001～004→L1_01 KQ-AD-018→L2现有V8/V7/quality-v3/DR-KEV-032～034→本协议与P3工作包：没有新增公共合同、排序或安全策略；独占状态、失败停止、资源清理和验证责任闭合，允许该测试切片实施，S0/S1/未处理S2=0。评审由同一执行者分阶段完成，不称外部独立审查。自然语言语义并不由ID/域集合机械证明，源绑定及冻结anchors只是预定自动化风险判据，不能替代独立人工usefulness。
+
+实施核对：测试侧只在生产managed client边界计数/观察，不向deepseek根注入替代transport，不切stub；三个任务均调用原DeepSeek transport及原decoder。原结果在内存转换为公开JSON形状后进行source/anchor核对，不修改validator。现有BGE容器/镜像身份通过本地只读Docker检查冻结并首尾比较。代码复核、fake及回归结果见P3 §20.76；本节尚无新的真实运行结论。

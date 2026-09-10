@@ -141,7 +141,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.47、DR-KEV-032～034 | 来源重放、完整相关性及当前根隔离真实服务接线完成；真实模型回答未完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.49、DR-KEV-032～034 | 来源重放、完整相关性及真实Summary局部验证完成；全模型跨域待验证 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 正式22/53；独立诊断2/2；§14.49待执行≤1/3 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -309,7 +309,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | 同池来源及完整相关性已核验，当前根隔离真实服务已验证；真实模型回答待完成，不追加付费 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | 同池来源、完整相关性、隔离服务及Summary局部完成；按§20.76准备单例全模型验证，不重跑旧批次 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性、默认接线和隔离实例验证已完成；真实专项及高分噪声风险未关闭 |
 
 ## 10. 实施交接
@@ -2641,3 +2641,13 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 已知付费累计54→55，正式全模型E2E历史仍22，本次部分模型诊断另列。当前结论不支持再盲改Summary Prompt、放宽validator或为了住宿单题重建库；后续应以24题代表集的整体召回/相关性指标和完整规划链路补齐剩余验证，高分无关Evidence仍是质量风险。UAT=In Progress、QUALITY=Blocked保持，不复用已消费运行、不自动追加付费诊断。
 
 执行后验证：新增工具测试、纯拒绝投影及run-12历史三文件联合pytest **42 passed/10.82秒**，1项既有LangChain预告；六份新资产hash与原运行目录一致、只含有限字段，凭据模式扫描0命中；P3严格校验0错误/0警告，diff --check通过。有限证据对照复核确认measured与完整UAT/人工语义有效性没有混淆，历史资产无修改。此次未重复生产代码未变的全仓Python、Java及Spring测试，也未重跑真实请求；原42项准备回归和138文件类型检查的实际范围见上文。
+
+### 20.76 非住宿跨域全模型单例准备
+
+WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要召回和Evidence尾部，不再因残余高分噪声无限新增算法；先以KRB-015验证实际LLM规划到原文引用的完整当前Runtime链路。只新增测试侧执行器和direct fake，生产代码、L1/L2、索引、任务/阈值及旧运行不改。三轮内审与分离只读设计复核见UAT；先测试、代码对照复核、提交冻结，再在已有持续授权内最多1请求/3模型，已知累计模型最多58。授权不是同目录重试或旧批次续跑。
+
+本切片在non-live完成前禁止真实执行；单例通过也不自动关闭整个UAT/QUALITY。现有RISK包括高分无关来源、资料缺口样本缺失、自然语言人工usefulness与完整专项证据不足。P3保持UAT In Progress、QUALITY Blocked，下一步由真实有限结果决定，不预填Passed。
+
+实施及代码对照复核：新增`knowledge_current_chain_v1.py`与直接fake测试，不修改生产源。首轮18 failed/7 passed揭示测试侧错误地在deepseek分支注入transport，已按生产自主管理client修正；随后发现内部不可变结果未转成公开JSON形状导致citation checker误拒绝，已在内存按现有序列化合同转换，未放宽checker。32项直接fake覆盖真实三任务HTTP/decoder、不同query实际计数、权限/出域、部分失败Summary零outbound、非法计划、source/anchor、取消、独占生命周期、敏感输入和预算；与Summary诊断/citation-v2联合64 passed。扩大到原run-12历史及当前root回归，五文件联合118 passed/91.39秒，1项既有LangChain预告。strict mypy：138 source files通过；两新增文件compileall通过。测试没有读取真实Key或使用真实网络。
+
+正式限定代码对照评审分两轮：C1（managed transport接线）与C2（不可变结果公开投影）已修复并有成功/失败反例；复评检查§14.49全部任务、预算、引用、取消、历史和有限输出，无未关闭Blocker/Major，Minor已处理（生命周期fake不依赖本地Java编译目录）。复评追加冻结/首尾检查现有BGE容器及镜像身份，不修改模型。此为同一执行者分离编辑的只读代码复核，不声称外部独立评审。仅允许该测试切片冻结和一次执行，不代表阶段B或整体质量通过；最终受控结果另行追加。
