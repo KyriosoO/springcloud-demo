@@ -8,7 +8,7 @@
 | 当前版本 | v1.43 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-10 |
-| 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，以及 Knowledge 阶段 A 语料完整性专项验收 |
+| 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，阶段 A 语料完整性及阶段 B 检索质量专项验收 |
 | 上位依据 | `L1_00` v3.5、`L1_01` v1.22、`L2_01_00` v1.29、`L2_01_01` v2.17、`L2_01_02` v1.25、`P3_00` v2.67；§14.51为当前版本有限代表集验收；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
@@ -36,12 +36,12 @@ v1.29只增加§14.21新内部需求合同的验收设计；不更改任何原ca
 ```text
 Spring 公共接入与认证
   → Python Runtime / 单动作选择 knowledge.query
-  → Question Guard / KnowledgeRewriteTaskV2
+  → Question Guard / 当前 KnowledgeRewriteTaskV9（阶段 B；旧运行各自绑定历史版本）
   → tax.policy / tax.law 逻辑域与 Retrieval Plan
   → es-query-service typed Knowledge endpoint / 最终读取授权
   → keyword + vector / RRF / BGE rerank
   → Evidence 完整性、选择与三层出域交集
-  → 当前生产 KnowledgeSummaryTaskV4（每个效果候选另行冻结其 task/Prompt 快照）
+  → 当前生产 KnowledgeSummaryTaskV7（阶段 B；既有功能/效果证据仍绑定其原任务版本）
   → 多要点与适用逻辑域直接证据覆盖、引用唯一性与原文连续子串校验
   → 受控 Knowledge 结果
 ```
@@ -1107,3 +1107,19 @@ non-live实施状态：Rewrite9沿用V7精确decoder/V8意图，纯scope校验�
 每题通过要求：真实三个任务成功、Spring返回success/knowledge.query、域准确、已接受plan符合当前合同；真实两路/每域调用和每需求重排有界且完整；生产coverage和extractive validator通过；最终引用与同请求实际policy投影、来源hash及以上全部必要anchor绑定。逐阶段记录必要来源是否召回、最终排序/Evidence是否保留以及引用覆盖。anchor匹配只证明指定原文存在，不自动证明整题语义充分或独立usefulness；后续人工语义复核单列，不由LLM自评代替。任何自动判据失败即停止批次，剩余题明确not_executed；摘要失败不反向否定已实际证明的召回，也不能作为整题通过。
 
 本批只覆盖10题当前根语义/端到端，不是新的盲测或全库结论；4题既有留出不得再用于调参。权限拒绝、敏感输入、超时/取消、无结果和澄清风险由当前non-live/Java契约证据继续独立复核，不付费重复制造失败。住宿资料不足另归语料问题，当前24题均present，不能把本批检索失败改判为missing。功能、安全、召回与摘要分别报告，阶段B最终关闭仍须核对未覆盖风险及正式评审。
+
+#### 14.51.1 实际结果：失败停止，不补跑
+
+本批已在2026-09-10执行，frozen HEAD=`cf848006fc48cd09d4f732177967ae2c2e9864a4`；manifest SHA-256=`5dee5f15977deb3637dc5a901df04ccc275dbb8b6073020f4a0a8b9f145112e9`，result SHA-256=`18d666dcd0c29a50f5d8bb08ebcb92079ee9806dbe26a85d578b27be747187c0`。15项有限原件归`tests/system_e2e/knowledge_representative_run_01/`，冻结入口和本节执行前版本从该Git提交读取，不用当前增补后的文档替代原manifest。
+
+| case | 实际状态 | 召回/回答证据 | 模型/search/embedding/rerank |
+|---|---|---|---|
+| KRB-015 | Passed | 两域计划通过；两个必要来源在path、最终排序、Evidence及实际引用全部存在；coverage/extractive通过 | 3/4/2/2 |
+| KRB-006 | Failed，HTTP200/no_result | small_2022已到Evidence；small_2023在keyword/vector各top20即缺失，并非后续排序排除。当前公开返回未作肯定回答；不是整个问题通过 | 3/2/1/2 |
+| KRB-004、010、011、012、017、019、021、023 | Not executed | 第二题失败后停止；没有补跑，不能复用旧结果冒称本批通过 | 0/0/0/0 |
+
+合计2次E2E尝试、6模型、6search、3embedding、4rerank，另本地启动预热rerank1；Business/answer/索引写入/retry/resume为0。已知累计25 E2E/63模型，未花费余量不得用于恢复或新增批次。原37/37功能UAT和Business35/35风险追踪未失效，但阶段B代表集专项未通过，不宣称整体effective或完整专项已测量。
+
+KRB-006三模型任务均succeeded、两级摘要校验无异常，result中的sourceCheck未通过表示无满足本题预期的引用，不是模型返回非法JSON。相同binding的既有固定查询记录能召回两个来源，故不能标记为资料缺失；当前有限记录没有保留真实query/focus，尚不能确定模型措辞与文号规范化各自的影响。只确认召回窗口漏掉必要来源，不能凭该结论直接扩topK或更改摘要。
+
+运行后冻结源码/制品、容器身份及只读索引绑定复核不变，已停止本次服务并清理原始日志，敏感模式扫描通过。后续人工usefulness未评估，4题既有留出未执行；本次属于失败即停的有限专项结果，不外推总体通过率。测试与代码/证据评审、具体根因强度及工作包状态由P3 §20.79.1记录。§3仅纠正当前已实施9/7入口，不更改历史任务或验收结果。

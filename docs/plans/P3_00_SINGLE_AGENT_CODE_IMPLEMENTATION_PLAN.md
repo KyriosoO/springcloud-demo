@@ -143,7 +143,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.50、DR-KFLOW-028、DR-KEV-032～034 | 分域合同及当前9/7根non-live已完成；真实语义与完整专项待验证，剩余噪声和预算边界见§20.78 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 历史全模型23/55、独立诊断2模型，合计57；真实执行待与当前20/60上限明确对齐 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.51、DR-KFLOW-028、DR-KEV-032～034 | 当前9/7代表集已执行2题：跨域通过，同域双文号召回不足；8题未执行，见§20.79 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 新批2 E2E/6模型；已知累计25/63，批准上限33/87但失败后不可使用余量补跑 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -311,7 +311,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.77.2已修复当前分域合同；§20.78记录噪声反例与预算冲突，真实专项尚不可执行，不重跑旧批次 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.79已执行唯一授权批：1通过/1失败/8未执行；不是预算不足，失败后按约定停止，不重跑旧批次 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性、默认接线和隔离实例验证已完成；真实专项及高分噪声风险未关闭 |
 
 ## 10. 实施交接
@@ -437,7 +437,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72文号配置及Evidence默认代码接线；已有增量保持原范围 | TEST-KRET-030、TEST-KEV-024；UAT_01 §14.46及既有追踪 | 代码接线完成，运行实例升级另列 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72默认接线、当前根及历史防回退 | TEST-KRET-030、TEST-KEV-024、VAL-KEV-016；UAT_01 §14.46 | §20.72.1实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～028、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.77.2当前根non-live完成；§20.78噪声/预算核对，§20.76.1历史终态保持 | UAT_01 §14.39～14.50 | 必要来源与相关性分开，当前真实规划到答案未闭合；新付费执行须明确可用预算 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～028、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.79当前根真实跨域通过、同域双文号召回不足；全部历史终态保持 | UAT_01 §14.39～14.51 | 必要来源与相关性分开；本批终态失败，剩余8题未执行，不从余量自动追加 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2771,3 +2771,29 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 | P3 `validate_implementation_plan.py --strict`；目标凭据模式扫描；`git diff --check` | 0错误/0警告；两个新增文件密钥/JWT模式0命中；diff检查通过 |
 
 未修改Java生产接口/权限、其他业务模块、PowerShell或索引，因此未重复其他Java模块全量/AST/索引发布；Spring同链路及上述全量non-live承担必要防回退。以上不是新真实UAT结果，模型新增仍0；源代码、协议和制品在提交干净工作树后冻结，再执行唯一授权批次。
+
+#### 20.79.1 本批唯一终态与召回诊断
+
+已按协议在`cf848006fc48cd09d4f732177967ae2c2e9864a4`冻结并执行`knowledge-representative-uat-v1-20260910-01`，manifest SHA-256=`5dee5f15977deb3637dc5a901df04ccc275dbb8b6073020f4a0a8b9f145112e9`。使用真实auth/Spring/Runtime/es-query-service、本地BGE和DeepSeek当前9/7任务；不是旧版覆盖链或固定模型答案。运行从干净且已推送HEAD开始，结束前没有tracked修改。
+
+终态failed：KRB-015通过、KRB-006失败，后8题未执行。模型6、E2E2、search6、embedding3、rerank4，另启动rerank1；Business/answer/indexWrites/retry/resume全部0。新增6次均在发送前写journal，与逐case的selection/Rewrite9/Summary7各1次吻合。历史23/57加本批后已知累计25 E2E/63模型；未耗尽33/87不代表可以补跑，本目标没有新增第二批。
+
+| 事实/推断 | 证据及结论 |
+|---|---|
+| 已确认：独立文号/法条跨域当前根成功 | KRB-015两域四路、两个需求重排，必要两来源从召回到Evidence及引用均存在，两个生产validator通过；只是本题通过，不代表10题或全库 |
+| 已确认：同域双文号损失发生在召回前20 | KRB-006 keyword/vector各20候选均无small_2023来源，35个融合候选、最终20与Evidence8也均无该父文档；small_2022从各阶段到Evidence仍存在。不能通过后续重排找回未召回来源 |
+| 已确认：不是技术失败或已知资料缺失 | 三模型HTTP成功且任务解码成功，所有已计划检索/embedding/rerank成功；同binding/dataset的既有文号固定查询结果中，该题两个来源及Evidence覆盖均1。新增运行没有正文变动，不能把失败重分类为corpus missing |
+| 有限解释：失败关闭有效，回答尚未满足 | 公开HTTP200/no_result，coverage/extractive阶段完成且无validator异常；没有所需引用。事后sourceCheck的citation_invalid仅表示没有通过预期引用检查，不是模型JSON非法或公共引用校验故障 |
+| 待验证的设计风险 | 当前每域仅一个query并保留该域全部文号条件；同域多个独立文档可能竞争一个召回窗口。实际query/focus和模型原始响应未保存，只有plan hash及有限阶段来源，因此不能反推具体措辞或把该推断定为唯一根因 |
+
+方案判断：不建议立即改Summary、降低覆盖要求、改gold、仅放宽topK或再调用模型；这些动作不能根据当前证据修复已定位的召回损失。后续优先做纯non-live的多文号表达/服务文号提取与固定查询对照，区分合并表达、标识规范化和窗口竞争；若证明一域一query无法可靠表达独立子问，再比较预算守恒的按子需求预规划与现行方案，经设计评审后实施，不做失败后追加查询或单题特判。该分析未改变设计合同、生产源码、索引或历史任务。
+
+15项原始有限资产逐字节复制到`agent-runtime/tests/system_e2e/knowledge_representative_run_01/`，原target资产未改，结果SHA-256=`18d666dcd0c29a50f5d8bb08ebcb92079ee9806dbe26a85d578b27be747187c0`。结束后只读验证432个源码/配置/历史资产、260个Java运行资产及JDK/容器绑定与冻结一致；索引alias/UUID/mapping/write block未变。所有本次隔离PID已停止，18090/19201/18080/19091无监听；客户端关闭，临时原始日志扫描和删除完成，15文件凭据/正文/原始query模式扫描0命中。PowerShell端口不存在的查询曾以exit1表示无匹配，随后显式计数0并exit0复核；不是清理失败。
+
+新增历史测试固定15个SHA、冻结Git源、6项journal、真实版本、失败停止、清理和有限字段。联合新runner、Business/Knowledge追踪及既有文号基准验证：`python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v1.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/evaluation/knowledge/test_document_number_benchmark_result.py -q --tb=short -p no:cacheprovider`，77 passed（11.94秒）。不重复真实运行，不将fake或历史固定计划计作剩余8题完成。
+
+本次后置代码/证据只读复核：hash/调用上限/来源绑定/任务版本/停止和清理均符合§14.51，没有发现本批runner的未关闭Blocker/Major；真实质量失败仍保留。Business35/35及Knowledge37/37既有功能追踪保持，不能由此关闭阶段B专项。WP-KRETRIEVAL-UAT-01仍In Progress，QUALITY仍Blocked；不新增Gate、不改判历史，不宣告目标完成。
+
+归档暂存复核发现Git默认文本规则会把新journal的CRLF归一为LF；没有提交该差异。沿仓库既有历史保护方式，仅在`.gitattributes`增加本次精确归档目录的binary规则，重新按原件暂存；不修改journal字节或已存SHA，也不改变其他目录属性。新增逐资产Git过滤前后对象hash一致性测试，避免“本地hash通过、干净clone失败”的假通过。此为归档兼容修正，不改变UAT终态或授权。
+
+最终上方五文件联合复测78 passed（22.33秒）；归档单独20 passed（1.49秒），最终文档同步后的追踪/历史复核先前31 passed（0.37秒）。15个暂存Git对象与原文件原字节hash全部一致，P3 strict及diff --check通过。证据提交`403b185316e226e77bb6304b4b1ad0daee61c7fc`包含该限定属性修正，未删除或覆盖历史资产；代码入口提交`a48b94cd0f0db2a5f6285fd521bdf6afd51e6c2c`，协议提交`c8ea2d7a9ebc6c80457c175386c007e723028b20`，冻结准备记录提交`cf848006fc48cd09d4f732177967ae2c2e9864a4`。本次仅同步P3 v2.67/UAT_01 v1.43的真实终态，不为统计变动再升架构版本；后置范围仍未包含新的纯检索对照或付费运行。
