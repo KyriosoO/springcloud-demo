@@ -143,7 +143,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.49、DR-KEV-032～034 | 来源重放、完整相关性及真实Summary局部完成；跨域新例改写后拒绝，先纠偏约束归属设计 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 全模型23/55；独立诊断2/2；已知模型合计57，停止该批 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.50、DR-KFLOW-028、DR-KEV-032～034 | 分域合同及当前9/7根non-live已完成；真实语义与完整专项待验证，剩余噪声和预算边界见§20.78 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 历史全模型23/55、独立诊断2模型，合计57；真实执行待与当前20/60上限明确对齐 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -311,7 +311,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.76.1跨域新例Failed；2模型/0检索，约束归属设计缺口已non-live复现，不重跑旧批次 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.77.2已修复当前分域合同；§20.78记录噪声反例与预算冲突，真实专项尚不可执行，不重跑旧批次 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性、默认接线和隔离实例验证已完成；真实专项及高分噪声风险未关闭 |
 
 ## 10. 实施交接
@@ -437,7 +437,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72文号配置及Evidence默认代码接线；已有增量保持原范围 | TEST-KRET-030、TEST-KEV-024；UAT_01 §14.46及既有追踪 | 代码接线完成，运行实例升级另列 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72默认接线、当前根及历史防回退 | TEST-KRET-030、TEST-KEV-024、VAL-KEV-016；UAT_01 §14.46 | §20.72.1实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.72默认代码接线、§20.73隔离实例及§20.76.1当前终态 | UAT_01 §14.39～14.49 | run-12及新跨域Failed保持；同池相关性已测，当前规划到答案仍未闭合 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～028、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.77.2当前根non-live完成；§20.78噪声/预算核对，§20.76.1历史终态保持 | UAT_01 §14.39～14.50 | 必要来源与相关性分开，当前真实规划到答案未闭合；新付费执行须明确可用预算 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2723,3 +2723,25 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 用户目标继续以代表问题集召回准确性、必要覆盖、相关性和有依据回答为准；资料缺失不要求住宿单题强行成功。当前合同缺陷已完成non-live修复，但留出噪声、真实分域语义及完整专项仍有未关闭风险。WP-KRETRIEVAL-UAT-01保持In Progress、WP-KRETRIEVAL-QUALITY-01保持Blocked；下一步应基于固定代表集确认新版的语义验收与可执行预算，不重放已消费批次。代码/测试与本节状态分别原子提交；具体SHA和推送结果由Git及最终交付报告记录。
 
 代码及测试提交为`cc11a9018594ca698432ed11f2ca95bf220feeb2`，与设计提交`81c967dc3873a4f369b94db68f1cb5eeb5caa66f`可分辨；未删除文件。当前状态同步独立提交，不在文档中嵌入自身提交SHA。
+
+### 20.78 剩余噪声归因与真实专项预算核对
+
+2026-09-10起点clean HEAD=`7d04aaa502231f06ba048ab4f8f38fc820d92344`。沿UAT_01 §14.40/14.50及DR-KEV-033/034，只读关联已有483项分级、文号对照排序/单需求评分和真实来源选择记录；先用现有CLI校验全部输入SHA及完整标注，再按caseId、chunkId和正文SHA精确关联。不新增原文读取、模型、索引写入、评估结果文件或在线规则，不改变原问题、gold、阈值或历史结果。
+
+| 已定位现象 | 证据与有限结论 |
+|---|---|
+| 140条候选Evidence中的50条无关来源均为可选项 | other_subject=22、other_requirement=20、other_instrument=8；没有一条是需求锚点。不能以删除必需锚点解决这些噪声 |
+| 可选项同时包含9条直接支持 | grade2=5、grade3=4；另外29条锚点中2条只是grade1背景。不能把“只保留锚点”或结构覆盖当成语义充分 |
+| 无关项可以有很高的重排分数 | 单需求003/007/009/022的第二名均为other_requirement，分数分别约0.96759/0.94448/0.95540/0.99299，实际仍进入候选Evidence。只核对单需求以避免跨focus首次分数歧义；不是把这些分数校准成概率 |
+
+定向代码对照检查：`quality_ranking_v3.py`按各需求首位设置锚点、轮流补充，`admission.py`仅按首次分数筛选可选项，符合现行DR-KRET-029/DR-KEV-034；没有发现本切片的接线违规。上述限制属于已显露的相关性/模型评分风险，不据此放宽validator、改成只保留锚点、统一调高阈值或再次扩大窗口。测试中的case/grade仅用于事后反证，不进入任何生产选择或排序；观察过的holdout不能反过来选阈值。
+
+在既有`test_retrieval_relevance_review.py`增加1项角色/原因核对及4项高分反例，保留全部旧断言；复用既有生产排序重放测试而不另建Harness。联合`test_evidence_admission_rank_replay.py`、`tests/unit/knowledge/test_evidence_admission.py`执行`python -B -m pytest ... -q -p no:cacheprovider`，86 passed（2.06秒）。它证明历史来源关联、评分反例及现行选择合同，不证明新召回、真实语义或Summary效果。仅测试增量的一轮分离代码/证据复核确认精确来源身份、先校验hash、零网络和历史不变；不是整个阶段的正式评审通过。
+
+随后同一pytest命令增加`test_retrieval_benchmark_dataset.py`、`test_retrieval_metrics.py`和`tests/integration/knowledge/test_evidence_admission_stage.py`，六文件联合194 passed（2.86秒）；P3 strict校验0错误/0警告、diff --check通过。本切片未修改生产/Java/索引，因此未重复全仓及Spring/Maven运行，保留§20.77.2的原验证范围，不把194项冒称全量UAT。
+
+真实调用账本另行逐文件核对：11个有result的stage-b运行，其journal条数分别与result模型计数一致，合计22次全模型Runtime请求尝试/53模型；两次独立Rewrite和Summary诊断各1模型；current-chain另1 Runtime/2模型。已知合计为23次全模型Runtime请求尝试、57模型，不是23次成功；部分模型Summary诊断不混成完整端到端通过，run-10无付费结果也不计作通过。
+
+当前续进目标明确保留“最多20端到端/60模型”，而§20.56及后续历史协议记载过追加额度；本计划不得自行把这些表述合成为新的运行授权，也不反向改判旧运行的权限。按当前60模型上限只有3次余额，20端到端上限没有正余额；不能将其解释为又一整批额度，不能靠单例成功关闭完整专项。**只暂停下一真实批次，等待精确可执行预算对齐**；不新增Gate，不重开已完成non-live工作，不创建付费candidate。模型/Key/服务/索引操作本轮均0，现有代码及文档处理权限不受影响。
+
+工作包仍In Progress，QUALITY仍Blocked，DAG不变。下一步是在明确预算后按UAT_01现有分层责任冻结有限代表性验收：验证当前V9真实条件归属、关键检索及有引用回答；资料missing/unknown分列，不能围绕住宿单题调参，也不能用固定计划Recall=1冒充真实UAT。若后续要改变评分/选择设计，必须先以当前反例提出最小方案并完成规定评审，不能仅修改本计划绕过设计。
