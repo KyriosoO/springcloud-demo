@@ -68,7 +68,7 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.16 | 需求排序、上下文评分及文号元数据匹配 | Approved；DR-KRET-035已实施并non-live验证，不放行配置启用 |
 | [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.25 | DR-KEV-029～034需求预算、覆盖、拒绝、分层计分与可选Evidence准入 | §20.68增量评审和实施分开，真实专项未通过 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.39 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.44候选准入验证已审，不改判旧失败 |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.41 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.44完整相关性分级及§14.45窗口结论，不改判旧失败 |
 | [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.9 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
@@ -435,7 +435,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.68可选Evidence准入；已有增量保持原范围 | TEST-KEV-024；UAT_01 §14.44及既有追踪 | 候选实现/复评通过，未生产生效 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.68 selector/Stage/当前根及历史防回退 | TEST-KEV-024、VAL-KEV-016；UAT_01 §14.44 | §20.68.2实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.68新候选验证，§20.61历史终态 | UAT_01 §14.39～14.44 | run-12失败不改；新non-live完成，后续真实来源/相关性待验证 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.68新候选验证，§20.61历史终态 | UAT_01 §14.39～14.45 | run-12失败不改；同池真实来源/相关性已验证，生产生效与完整链路待收口 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2489,7 +2489,9 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 
 工作包/Gate状态保持：IMPLEMENT/NONLIVE已完成范围不变，UAT In Progress、QUALITY Blocked、GATE-KRG-006 Closed。后续直接任务是完整相关性原文分级与同池对照，再决定生产文号配置及selector绑定；高分错误来源、真实选域/Rewrite与Summary后置拒绝仍独立保留。没有创建新付费运行，不把此前run-12或未执行用例改判。没有生产或Java/PowerShell修改，本轮不重复全模块Maven、AST或全量隔离回归；上轮结果不冒充本轮重新执行。
 
-### 20.70 相关性原文核对进度（12/24题，不是全局质量结论）
+### 20.70 相关性原文核对（完整24/24题，非端到端结论）
+
+以下保留前三批核对过程；最新完整分级、验证与后续事项见§20.70.1。每批只证明其当时范围，不把历史局部计数改成全量通过。
 
 起始clean HEAD=`f82cfb494307b1c7d9c22e67aea4531302c28b90`。沿DR-KEV-033/034继续核对固定旧/新top20并集：483个问题—来源组合、288个不同chunk，8次有界只读来源查询及6次快照检查完成；正文SHA与旧记录匹配，模型/embedding/rerank/Business/索引写入均0，没有启动服务或读取Key。来源读取属于离线运维核对，不冒充当前服务授权。只在内存查看公开原文，仓库仅保存ID/hash和有限分级理由。
 
@@ -2515,7 +2517,28 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 
 本批评分/指标/噪声/真实来源重放/准入重放及Business、Knowledge追踪七文件联合127 passed（1.76s，状态同步后复验1.65s）；src及评分模块strict mypy139源文件、评分/测试compileall通过，P3严格校验0错误/警告。追加前缀保护、同法规/异税种反证和“同池selector减少噪声不改变原检索指标”测试，未削弱原断言。一次与编辑分离的定向代码/证据检查，对旧记录只追加、共享标注池独立复算、未核对null及两种对照分离均结论符合DR-KEV-033/034；不是独立人工分级批准或整阶段评审通过。未修改生产/Java/PowerShell，不以本批定向验证冒充新的全量或真实端到端通过。
 
-下一步继续核对013～024（240项），留出不得用于调整阈值；完成前保持全部全局相关性指标null、默认legacy及文号默认关闭。UAT In Progress、QUALITY Blocked及历史付费终态不变，不自动创建新付费批次。精确指标可在agent-runtime目录使用`python -B -m tests.evaluation.knowledge.retrieval_relevance_review`离线复算，不需要ES、模型或正文文件。
+前三批结束时尚待核对013～024（240项），完整结果现见下节；留出不得用于调整阈值。精确指标可在agent-runtime目录使用`python -B -m tests.evaluation.knowledge.retrieval_relevance_review`离线复算，不需要ES、模型或正文文件。默认legacy及文号默认关闭，UAT In Progress、QUALITY Blocked及历史付费终态不变，不自动创建新付费批次。
+
+#### 20.70.1 完整分级、追踪测试及有限质量复核（2026-09-10）
+
+从`91f3d09ae9e3f5eaaea84d2a65391f12249e4f32`继续，013～024全部20项/题经原文核对后追加240项。来源审计`relevance-source-audit-20260910-02`共131个不同chunk、8次有界来源读取及6次快照读取；前后来源hash/绑定一致。读取仅为离线运维来源核查，不冒充新的用户读取授权。正文只驻留核对进程内存，该进程已退出；未启动/停止共享服务，未调用模型/BGE/Business或写入索引，没有读取Key、保存原始正文或重放已消费运行。一次宿主编码准备错误在任何网络调用前结束，后以同一有界读取工具完成；没有隐藏额外数据读取。
+
+完整ledger为28行、24题/483个问题—来源组合，SHA=`cba0ea89b26ca9334328d91f49d609c1cfad23fbfb6b63af72513ed6050d7e9e`；Git基线的原15行逐字节前缀相同，原首6/10/15行hash继续保护。全量只是该已冻结present-only池，且仍为执行者辅助来源核对，不是外部专家/独立盲评。旧dataset、gold、baseline、文号对照、source replay及噪声审计hash均不变。
+
+原测试把当前ledger固定为12题，追加后实测112 passed/1 failed；修复不是把旧断言改成“全部通过”，而是显式使用原15行保留12题/243项部分核对及null断言，并新增24题/483项完整性、23题时不输出宏平均、全24题独立算术、来源identity保留及留出高分噪声反证。离线CLI现在仅在全部核对后输出既有五指标的按题等权宏平均，不覆盖任何旧结果；分级MRR与旧仅必要来源MRR不混用。无生产代码、公共Schema或安全合同变化，不需架构语义升级或新增Gate。
+
+完整结果由UAT_01 §14.44.4管理：文号对照补回006，整体P@20为0.320833→0.325000；可选Evidence的无关项90→50，直接支持36项逐题identity均保留，背景66→54。开发007的背景相关比例6/8→5/7下降必须保留解释，不能用总均值隐藏；留出022仍有7条0分。完整分级关闭的是“缺少相关性标注”这一证据缺口，不表示剩余高分噪声、真实规划、摘要拒绝或阶段B目标已完成。
+
+代码对照复核与编辑分离进行，冻结范围为DR-KEV-033/034的ledger、纯复算及直接测试，对照REQ-KQUALITY-002/004、L2 §13.8/13.9及UAT固定池。首轮`B-RELEVANCE-001`发现既有prefix测试先规范化换行再hash，不能证明严格字节不变；改为保留原换行计算前缀，并额外直接比较Git旧文件是当前文件完整前缀。第二轮核对严格输入、零网络/无敏感载荷、完整/部分分母、两种对照不混淆、逐题直接来源保持、历史不变及无线上gold调用方，切片无未处理Blocker/Major。由同一执行者分离只读复核，不冒充独立人员，也不发布整个Knowledge代码评审通过结论。
+
+实际验证（C:\Python312，子进程显式PYTHONPATH指向当前src）：
+
+- `python -B -m pytest tests/evaluation/knowledge/test_retrieval_metrics.py tests/evaluation/knowledge/test_retrieval_relevance_review.py tests/evaluation/knowledge/test_rerank_window_result.py -q -p no:cacheprovider`：最终119 passed，1.77秒。
+- `python -B -m pytest tests/unit/knowledge tests/contract/knowledge tests/integration/knowledge tests/evaluation/knowledge tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/system_e2e/test_knowledge_stage_b_run_12_history.py -q -p no:cacheprovider`：1474 passed、6个显式opt-in skipped、1条既有LangChain预告，148.27秒；含Knowledge、35/37追踪、历史run-12，不代替全仓/Java或新真实UAT。末次新增23题反证和字节前缀加固由上面的最终定向命令覆盖。
+- `python -B -m mypy --strict src tests/evaluation/knowledge/retrieval_relevance_review.py`：139源文件通过；`compileall`评分及测试文件通过。
+- P3严格计划校验0错误/0警告；两份计划本地链接、完整ledger有限字段/凭据模式扫描、历史输入SHA、原15行字节前缀及`git diff --check`均通过。分级/代码/测试提交=`db9d073635f61593d6f20ab3945792effe34977a`；仅3个明确目标文件，暂存字节与已验证工作树一致。
+
+下一动作是按既有生效条件复核两项已实现候选及当前根/服务配置，不再重复来源分级或扩窗试验；高分同文档异条款仍属质量改进输入。生产启用、当前完整链路及未执行真实case仍未完成，不因本记录宣布全阶段完成或重新消费付费授权。文档只同步实际状态，保留P3 v2.65/UAT v1.41及现有工作包/Gate。
 
 ### 20.71 重排输入可见性与离线窗口对照
 
