@@ -52,12 +52,14 @@ class KnowledgeDocumentNumberSearchTest {
 		assertThat(body(enabled, vector)).isEqualTo(body(disabled, vector));
 	}
 
-	@Test
-	void optionalSignalUsesFixedMappingAndPreservesTextFilterAndBounds() {
+	@ParameterizedTest
+	@ValueSource(strings = {"请查询甲乙公告2031年第1号和2032年第2号的区别",
+			"甲乙公告2031年第1号 甲乙公告2032年第2号 执行期限",
+			"甲乙公告2031年第1号　甲乙公告2032年第2号 执行期限"})
+	void optionalSignalUsesFixedMappingAndPreservesTextFilterAndBounds(String text) {
 		Map<String, String> fields = new LinkedHashMap<>(defaultSourceFields());
 		fields.put("document-number", "metadata.officialNumber");
 		KnowledgeSearchProperties properties = enabledProperties("0".repeat(64), fields, true);
-		String text = "请查询甲乙公告2031年第1号和2032年第2号的区别";
 		JsonNode result = body(properties, request(text));
 		JsonNode query = result.path("query").path("bool");
 		assertThat(result.path("size").asInt()).isEqualTo(21);
@@ -70,6 +72,10 @@ class KnowledgeDocumentNumberSearchTest {
 		assertThat(metadata.path("filter").path("bool").path("minimum_should_match").asInt()).isEqualTo(1);
 		JsonNode clauses = metadata.path("filter").path("bool").path("should");
 		assertThat(clauses.size()).isEqualTo(2);
+		assertThat("甲乙公告2031年第1号").matches(clauses.get(0).path("regexp")
+				.path("metadata.officialNumber").path("value").asText());
+		assertThat("甲乙公告2032年第2号").matches(clauses.get(1).path("regexp")
+				.path("metadata.officialNumber").path("value").asText());
 		for (JsonNode clause : clauses) {
 			JsonNode regex = clause.path("regexp").path("metadata.officialNumber");
 			assertThat(regex.path("flags").asText()).isEqualTo("NONE");

@@ -34,7 +34,9 @@ final class DocumentNumberQuery {
 		Set<String> references = new LinkedHashSet<>();
 		Matcher search = SEARCH.matcher(compact);
 		int cursor = 0;
-		while (search.find(cursor)) {
+		// A consumed full reference is a boundary even when spaces were removed.
+		// Keep opaque region bounds so its final Han character cannot hide the next issuer.
+		while (search.region(cursor, compact.length()).find()) {
 			Reference previous = fullReference(search);
 			if (!add(references, previous)) {
 				return List.of();

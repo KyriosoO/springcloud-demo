@@ -47,6 +47,35 @@ class DocumentNumberQueryTest {
 	}
 
 	@ParameterizedTest
+	@ValueSource(strings = {"", " ", "　", " 　"})
+	void completeReferencesStartAtTheEndOfThePreviousReference(String separator) {
+		List<String> references = List.of("甲乙公告2031年第07号", "甲乙公告2032年第8号", "丙丁〔2033〕9号");
+		List<String> patterns = DocumentNumberQuery.patterns(String.join(separator, references));
+		assertThat(patterns).hasSize(references.size());
+		for (int index = 0; index < references.size(); index++) {
+			assertThat(references.get(index)).matches(patterns.get(index));
+			assertThat("错误机关公告2032年第8号").doesNotMatch(patterns.get(index));
+		}
+	}
+
+	@Test
+	void completeReferenceScanningRetainsWholeSignalLimitsAndStableDeduplication() {
+		String four = "甲乙〔2031〕1号 甲乙[2032]2号 丙丁公告2033年第3号 戊己公告2034年第4号";
+		assertThat(DocumentNumberQuery.patterns(four)).hasSize(4);
+		assertThat(DocumentNumberQuery.patterns(four + " 戊己公告2034年第4号"))
+				.isEqualTo(DocumentNumberQuery.patterns(four));
+		assertThat(DocumentNumberQuery.patterns(four + " 庚辛〔2035〕5号")).isEmpty();
+		assertThat(DocumentNumberQuery.patterns("甲乙〔2031〕1号 " + "丙".repeat(49) + "〔2032〕2号")).isEmpty();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {" 2032年第8号", "，2032年第8号", "执行期限 2032年第8号执行期限"})
+	void aNewScanBoundaryDoesNotAuthorizeShorthandInheritance(String tail) {
+		assertThat(DocumentNumberQuery.patterns("甲乙公告2031年第07号" + tail)).singleElement()
+				.satisfies(pattern -> assertThat("甲乙公告2032年第8号").doesNotMatch(pattern));
+	}
+
+	@ParameterizedTest
 	@ValueSource(strings = {"。2032年第8号", "和随后发布的2032年第8号", "和第8号", "和〔2032〕8号"})
 	void doesNotGuessUnknownOrNonAdjacentShorthand(String tail) {
 		assertThat(DocumentNumberQuery.patterns("甲乙公告2031年第07号" + tail)).hasSize(1);

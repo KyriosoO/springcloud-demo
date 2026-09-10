@@ -2804,6 +2804,23 @@ WP-KRETRIEVAL-UAT-01依据UAT_01 §14.49推进：当前已改进的24题必要�
 
 确认缺陷是去空格后搜索仍让前一文号的“号”参加下一匹配的负向边界判断；两份完整标识被错误当成同一段汉字。本次仅修正已经消费完整文号后的扫描区域，不增加正则句式、不猜机关、不从任意长机关抽取后缀。与改Prompt、扩大topK、按子问追加查询或重建索引相比，修复范围最小，且可用合成反证证明。实际失败批次只保存plan hash而不保存query，故该缺陷是可能影响真实召回的独立确认问题，不声称它是KRB-006唯一根因，也不改判§20.79.1。
 
-设计范围仅L2_01_01 §9.7/DR-KRET-035及TEST-KRET-030，P3/UAT和索引同步；上位L1_01的读取授权、每域有限查询和候选预算无变化，REQ/L0/L1不修改。三轮内审：第1轮明确完整标识与简写不同，空格不是新的简写继承连接词；第2轮补充第二机关超长、错误机关和第五完整文号的整体关闭反证，防止区域起点造成后缀/上限绕过；第3轮纠正L2末尾版本及新旧实施状态，保留阶段B未完成和本批禁止补跑。没有增加Gate或依赖边。
+设计范围仅L2_01_01 §9.7/DR-KRET-035及TEST-KRET-030，P3/UAT和文档入口索引同步；上位L1_01的读取授权、每域有限查询和候选预算无变化，REQ/L0/L1不修改。三轮内审：第1轮明确完整标识与简写不同，空格不是新的简写继承连接词；第2轮补充第二机关超长、错误机关和第五完整文号的整体关闭反证，防止区域起点造成后缀/上限绕过；第3轮纠正L2末尾版本及新旧实施状态，保留阶段B未完成和本批禁止补跑。没有增加Gate或依赖边。
 
 冻结编辑后按L2实施准入清单进行分离只读正式复核：正常/边界/错误输入、单请求metadata OR及原全文/category、权限前置、配置兼容、请求级不可变状态、上限、回滚、测试追踪均有明确约束。S0=0/S1=0/未处理S2=0，批准该一处Java扫描修正和直接测试；不批准新的付费运行或声明效果达标。评审由同一执行者在独立只读阶段完成，不冒充外部独立人员。下一步先写回归测试确认旧代码失败，再实施并复测。
+
+实施只改`DocumentNumberQuery.patterns`一处循环：在已消费位置重置Matcher的opaque区域，再执行原SEARCH；不修改任何词法pattern、语义Prompt或查询DSL形状。新增8项纯函数参数化/边界测试并给既有服务查询形状增加2种完整文号表达，原断言保留且新增目标匹配断言。先运行旧生产实现：46项中7项按预期失败、0错误；再修正生产循环，同一目标55项（包含9项Profile）全过。不是删除或放宽失败测试。
+
+| 本轮实际命令/范围（JDK25.0.2，子进程移除Key且不读取） | 结果 |
+|---|---|
+| es-query-service：`../serviceCenter/mvnw.cmd -Dtest=DocumentNumberQueryTest,KnowledgeDocumentNumberSearchTest,KnowledgeSearchPropertiesTest test` | 修复后55 passed，0失败/错误/跳过，6.890秒 |
+| es-query-service：`../serviceCenter/mvnw.cmd test` | 全量99 passed，0失败/错误/跳过，6.974秒；包含DTO、Profile、读取授权、Servlet安全链、单次HTTP及错误映射 |
+| agent-runtime：§20.79.1的五文件联合pytest命令 | 78 passed，13.60秒；当前runner、不可变15项归档、Business35/Knowledge37追踪和原文号基准；既有LangChain预告1项 |
+| agent-service：`../serviceCenter/mvnw.cmd -Dtest=AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test` | 2 JUnit方法（16 Knowledge+15 Business），0失败/错误/跳过，14.545秒；当前Spring/Runtime、fake领域，不代表真实ES或模型 |
+| agent-runtime：`python -m mypy --strict src`；`python -m compileall -q src` | 140个source files类型通过；编译通过 |
+| L2 `validate_detailed_design.py --strict`；P3 `validate_implementation_plan.py --strict`；`git diff --check` | 0错误/0警告；diff通过 |
+
+正式代码对照复核1轮，覆盖该3文件diff、唯一调用方`KnowledgeSearchService`、既有公开Request DTO与权限/查询测试。扫描起点只向前移动、不回退试探机关后缀；四项和单项边界由原add统一执行；原QueryText和category保留、vector不变、网络调用无增量。Blocker=0/Major=0，无未处理Minor，仅该局部切片通过；同一执行者的分离只读审查，非外部独立人员。未发现需要删除的无调用方代码。
+
+设计提交`8a7b8a2`；最终暂存复核顺带校正P3当前依据表已有的L1_01/L2_01_00/UAT_01旧版本，未改上位正文。本次无新运行资产、无真实模型/ES/BGE/业务请求、无索引或alias操作，历史结果hash保持；旧真实批次仍failed，未执行8题保持未执行，累计25/63不变。§9.7既有未知机关/简写歧义限制仍保留，不把多文号识别当作完整语义理解。下一步仍需在不复用历史授权的边界下验证真实检索质量；当前不部署、不增加付费批次，WP-KRETRIEVAL-UAT-01和QUALITY不关闭。
+
+本切片没有Python源码、其他Java业务模块或PowerShell变化，因此本轮没有重跑Python全量隔离、Employee/Transaction模块全量或AST；上次完整non-live数字只属于§20.79.1，不重复列作本次结果。替代检查为当前78项关联历史/追踪、两条Spring集成、es-query-service全量及mypy/编译。尚未执行同索引真实检索对照，故不能量化本修正的真实召回增益。
