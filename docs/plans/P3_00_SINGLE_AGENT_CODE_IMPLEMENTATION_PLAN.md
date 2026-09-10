@@ -141,7 +141,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.46、DR-KEV-032～034 | 来源重放、完整相关性及默认代码接线完成；运行实例升级和真实回答未完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 旧对照保持；不自动补跑付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.47、DR-KEV-032～034 | 来源重放、完整相关性及当前根隔离真实服务接线完成；真实模型回答未完成 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列 | 累计正式22/53已用，诊断1另列 | 旧对照保持；不自动补跑付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -309,8 +309,8 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | 同池来源及完整相关性已核验，默认代码已接线；运行实例及真实回答待完成，不追加付费 |
-| 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性和默认代码接线已完成；运行实例升级、真实专项及高分噪声风险未关闭 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | 同池来源及完整相关性已核验，当前根隔离真实服务已验证；真实模型回答待完成，不追加付费 |
+| 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性、默认接线和隔离实例验证已完成；真实专项及高分噪声风险未关闭 |
 
 ## 10. 实施交接
 
@@ -435,7 +435,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72文号配置及Evidence默认代码接线；已有增量保持原范围 | TEST-KRET-030、TEST-KEV-024；UAT_01 §14.46及既有追踪 | 代码接线完成，运行实例升级另列 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72默认接线、当前根及历史防回退 | TEST-KRET-030、TEST-KEV-024、VAL-KEV-016；UAT_01 §14.46 | §20.72.1实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.72默认代码接线，§20.61历史终态 | UAT_01 §14.39～14.46 | run-12失败不改；同池真实来源/相关性已验证，运行实例与完整链路待收口 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～027、DR-KRET-027/028/034/035、DR-KEV-026～034 | §20.72默认代码接线及§20.73隔离实例，§20.61历史终态 | UAT_01 §14.39～14.47 | run-12失败不改；同池来源/相关性及固定模型接线已验证，真实模型完整链路待收口 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -2591,3 +2591,21 @@ IMPLEMENT/NONLIVE=Done只覆盖上述候选切片；UAT=In Progress，QUALITY=Bl
 - 两份目标L2严格结构/追踪/链接校验及P3严格DAG校验均0错误/0警告；四份文档本地链接通过。已修改路径不含冻结运行资产，原ledger/result/runner不变；当前差异凭据模式扫描及`git diff --check`通过。没有新增运行日志、正文或模型原始响应资产。
 
 本轮未重跑无代码/公开合同变化的Employee、Transaction及common-security全模块Maven，也未执行真实服务部署、额外付费批次或索引写入；不以已完成回归替代这些未执行项。代码/配置/测试提交=`81b780c569958a2ab486a5f4e097f935a366d6ad`，仅11个明确目标文件；四份状态文档另成提交，最终SHA及push结果由Git和交付报告记录。下一步是受控运行实例验证及剩余检索/摘要质量诊断；不复用已消费run-12，也不把住宿资料缺口作为必须造出肯定答案的条件。
+
+### 20.73 当前默认接线的隔离本地验证
+
+起点clean HEAD=`af06e9c584ec30df93fc7f81abb2b9f2c88203f8`。监听检查表明Agent及Knowledge Java服务未运行，ES/BGE依赖在运行；不能把它们误判为已加载新代码的应用。新增测试侧`knowledge_activation_local_smoke.py`及直接测试，复用已有hash绑定的隔离服务管理，不改变生产实现、设计合同、任务、阈值或索引。该操作验证DR-KRET-035/DR-KEV-034当前接线，不新增Gate或付费candidate。
+
+预定范围为KRB-006政策文号、KRB-022法律查询、拒绝角色及敏感输入。使用真实隔离auth-service签发ADMIN、共享随机HMAC签发UNKNOWN，只在内存传递；当前`main.build_runtime`注入固定selection/Rewrite8/Summary7模型transport，其他检索、授权、解码、筛选和出域均用当前实现及真实本地服务。固定摘要刻意返回`insufficient_evidence`，不伪造肯定回答或声称模型理解/效果已验证。单次最多6 search、3 embedding、3 rerank，另1次既有合成rerank预热；非法endpoint或超限锁定停止，无重试、无Business、无外部模型。
+
+**首次运行存在验证缺陷**：四项执行完毕，但006仅发出1次search，向量路径未完成，初版仅检查必要来源和最终状态而误报passed。该次不计完整接线通过。只有两次embedding HTTP200访问记录可辅助定位，未保留首个失败的HTTP细节，故只能确认向量前置失败，不能把冷启动/超时假设写成确证根因。`B-ACT-SMOKE-001`（Major）修复为同时要求完整调用计数、全部检索HTTP200和既有路径终态；新增HTTP失败及embedding超时反例，证明即使关键词已取回必要来源且摘要返回可解码结果，也不能冒充双路成功。生产允许部分路径结果的合同未改，不把诊断的完整接线判据强加给生产。
+
+修复及fake验证后，只执行一次新的非付费本地复验，不重启任何历史消费运行。最终四项通过：006和022分别2 search/1 embedding/2或1 rerank，全部HTTP200；必要原文hash均进入Summary输入，selector版本为`optional-evidence-score-v1`，每题完整验证20候选、选8条。006两条必要来源位于前2；022必要来源仍在，但8条入选不能证明噪声消除。拒绝角色2次search均403，1次问题embedding、0 rerank/selector/Summary；敏感输入模型与检索均0。固定摘要的`no_result/insufficient_evidence`只是测试输入对应的正确输出，不是两题的真实答案或效果结论。
+
+两次操作实际合计：11 search、6 embedding、6正式rerank及2预热；固定模型调用16，外部模型0、Business0、索引写入0。每次分别检查前后alias/index UUID、write block及mapping version；未更改已发布b2。真实加载Profile源码与classes资源SHA均为`717e4acc8bd82602af2cdced623175582dfe7a980290df3baab1910d2d8e7df5`，前后服务制品hash不变。自有PID首轮24408/30632、复验28048/30976均已退出并再次核查；全部原始日志按既有工具扫描和删除，无Key/JWT泄漏，不触碰常驻Docker依赖。未保存正文或原始模型/服务响应。
+
+验证：定向初版11项、接线合并27项、加部分路径反例后28项均实际通过；最终运行`python -B -m pytest tests/system_e2e/test_knowledge_activation_local_smoke.py tests/integration/knowledge/test_requirement_runtime_composition.py tests/integration/knowledge/test_evidence_admission_composition.py tests/system_e2e/test_knowledge_stage_b_run_12_history.py tests/evaluation/knowledge/test_evidence_source_replay_result.py -q`得到**86 passed/66.83秒**，1项既有LangChain预告。`python -B -m mypy --strict src`138文件通过，两份新增脚本compileall通过。实测命令为agent-runtime目录下`python -B -m tests.system_e2e.knowledge_activation_local_smoke --execute-local`，Python3.12、JDK25.0.2、进程级PYTHONPATH指向当前src，执行前删除该子进程的Key环境项但不读取值。
+
+代码对照复核两轮：第一轮发现并关闭B-ACT-SMOKE-001，第二轮只读核验固定模型不参与实际规划证明、有限HTTP/零外部出域、gold仅作结果核对、拒绝优先级、异常资源清理、历史不变及输出无正文；本测试切片无未关闭Blocker/Major。这是同一执行者分离编辑后的复核，不称外部独立评审。P3/UAT仅更新实际状态，不改变设计语义或虚构新三轮设计评审。未重复无生产改动的全仓Python、Spring和Java测试，沿用§20.72.1明确的上一轮证据范围，不冒称本轮重新执行。
+
+当前根与隔离真实服务的部署接缝已验证，但没有常驻启动用户应用，也没有Spring HTTP入口的新真实服务全链路实测；前一轮Spring fake E2E仍只证明其原范围。正式真实模型UAT保持In Progress、QUALITY保持Blocked；run-12、历史计数和未执行场景不改。剩余重点为高分无关Evidence及真实摘要后置拒绝，不再把住宿单题、重复索引重建或新增付费批次当成默认下一步。
