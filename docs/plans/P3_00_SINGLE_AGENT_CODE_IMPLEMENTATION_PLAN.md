@@ -3125,3 +3125,24 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 - `python -B -m mypy --strict src --cache-dir <unique>`：140源码通过；`python -X pycache_prefix=<unique> -m compileall -q tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py`通过。
 - P3 `validate_implementation_plan.py --file docs/plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md --strict`：0错误/0警告。run-04全部15项当前文件与归档提交`00f5d3e3b2c42a5b345b26f23caa9de6e1e6e641`Git blob逐字节一致；新增测试另锁定result SHA及KRB-006有限状态。目标差异/UTF-8/凭据模式检查通过，不修改历史资产。
 - 新增真实模型、E2E、检索、embedding、rerank、索引写入均0；没有启动真实服务。此次仅测试和操作记录改变，未重跑Maven、真实Spring服务级E2E、完整evaluation或全仓隔离回归，不冒称这些验证本轮通过。P3/UAT版本及架构语义不变。
+
+### 20.90 剩余九题诊断及人工验收
+
+用户明确接受9 E2E/27模型一次性补证范围，协议见UAT_01 §14.59。起始clean HEAD=`c679521a20192348de55a4ac68aa20e8d0ecb148`；这是新的精确授权，不恢复旧批次。沿用WP-KRETRIEVAL-UAT-01，QUALITY仍Blocked；不新增重复Gate或架构版本。直接依赖为既有L2_01_00 §8.5/8.9与L2_01_02人工rubric → §14.59协议复核 → V2诊断/执行器和fake测试 → 代码复核/提交 → 新manifest冻结 → 人工实际就绪 → 一次真实验收 → 原件及UAT状态复核。准备不依赖人的提前等待，真实批次必须等待实际就绪。
+
+仅允许本计划/UAT协议、新测试诊断/执行器/直接测试及本批有限运行资产；不改生产src、旧Prompt、公共DTO、索引、角色或历史工具/记录。九题通过与KRB-015既有人工证据结合才能评价这一固定集合的补证完成，不能自动宣布整体效果effective。失败则保留有限终态，停批后只进行有证据的非live分析和必要状态收口。
+
+协议内审三轮：第1轮区分真实模型错误、结构性诊断与准入判据，要求先调用原validator并重抛同一异常；第2轮补齐原异常身份关联、有限cause链、同上下文清空、取消卸载及恶意类型unknown；第3轮复核九题排除015、9/27及本地预算、独立人工就绪和停批，无工作包循环。只读设计复核对照L2_01_00 §8.5/8.9、L2_01_02 §13.4及旧V1 observer/人评执行器：本协议保持生产合同和安全边界，测试诊断有明确非权威角色、枚举及验证范围，无未处理S0/S1/S2，允许实施本测试切片。该独立于编辑的复核由同一执行者分阶段完成，不冒称外部评审；真实验收仍待fake/代码复核/冻结/用户实际就绪。
+
+#### 20.90.1 非live准备及代码复核
+
+已新增V2有限观察器、九题human执行器及两份直接测试，保留原validator和原异常身份；原计划成功/拒绝结果及下游零调用不变。直接约束映射为：§14.59诊断枚举/上下文→probe V2及19种真实decoder反例；九题/9-27预算/不可恢复→runner V2及顺序、预算、重复执行反例；人工隔离→原ReviewSession/HumanBudget及现行HTTP/DOM测试；历史保护→冻结Git blob与history测试。正式代码对照协议复核两轮，由同一执行者在编辑后单独复核：首轮删除新runner未用import，核实异常关联、观察器互斥/卸载、canonical冻结与人工前置；第二轮结合全部测试复核，本测试切片Blocker=0/Major=0。动态测试编排器未全量静态标注作为明确低风险限制接受，不增加忽略规则或改动历史工具；不将此复核称为外部人员独立评审。
+
+本次验证均在测试子进程移除Key、显式当前源码PYTHONPATH及process-only Git safe.directory后执行：
+
+- 两份新测试：`python -B -m pytest tests/system_e2e/test_knowledge_model_failure_probe_v2.py tests/system_e2e/test_knowledge_representative_human_uat_v2.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：53 passed/8.98秒。
+- 按§20.89.3列出的20个路径，加V2 probe、V2 human、V1 human、human_review、representative V3五项直接测试，以相同pytest参数执行：845 passed/127.41秒，0 failed/0 skipped；仅既有LangChain弃用预告。首次误用不存在的`tests/unit/knowledge/rewrite`目录，0测试执行，之后按实际路径修正；没有删除失败测试或修改断言。
+- `python -B -m mypy --strict src tests/system_e2e/knowledge_model_failure_probe_v2.py --cache-dir <unique>`：141文件通过。额外尝试将动态human编排器也纳入strict检查得到55项未标注函数/历史动态接缝错误，未宣称通过；当前生产及新强类型probe检查完整通过，编排器由53/845项fake/集成及compileall证明相应行为，不引入type-ignore或扩大历史工具修改。
+- 四份新Python `compileall -q`通过；`node --test agent-runtime/tests/system_e2e/test_knowledge_human_review_ui.cjs`：3 passed。P3严格校验0错误/0警告；目标6文件UTF-8/凭据模式和Git差异检查通过。run-04全部15项与归档提交`00f5d3e3b2c42a5b345b26f23caa9de6e1e6e641`逐字节一致；src、原V1工具及索引绑定无差异。
+
+本准备没有读取Key、模型outbound、真实服务启动、检索或索引写入。未重跑全仓隔离/Maven或实际Spring业务服务级E2E，不把上述相关回归冒称全仓验证。准备完成允许提交/freeze，尚未完成本批真实UAT；正式执行必须另取本次实际HEAD/manifest且用户在页面确认就绪。

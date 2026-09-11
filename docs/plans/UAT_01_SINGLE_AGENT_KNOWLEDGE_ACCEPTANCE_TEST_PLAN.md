@@ -1258,3 +1258,23 @@ KRB-015的人工方式为user_interactive，question哈希=`7a81bd55b4822bbd59fe
 #### 14.58.2 停批后的非live诊断结论
 
 KRB-006双公告执行期限问题可以表达为lookup、单tax.policy域及两个temporal_scope需求；手工声明计划已通过当前Rewrite9/root并进入模拟检索，不要求适用性三角色。此结果只证明合同可表达，不能改判§14.58.1真实失败或替代人工评价。多个不同非法计划会留下相同的semantic_contract记录，具体真实违规仍不可验证；search为0，不能归因为语料或向量排序。本次仅新增诊断回归及状态记录，验证命令和计数归P3 §20.89.3；不修改生产合同、历史记录或UAT判据，不读取Key、不进行真实outbound、不新建付费批次。十题人工证据仍1项通过、9项缺失，专项UAT未完成。
+
+### 14.59 剩余九题有限诊断及一次人工验收
+
+用户2026-09-11明确授权：先补齐有限故障诊断，再开展最多9 E2E/27模型的新人工验收，失败即停，不补跑。不是恢复§14.58或转移其余额。新run=`knowledge-representative-human-uat-v2-20260911-05`，reference=`UAT_01:14.59`；沿用§14.51问题、域、anchor、source hash，仅排除已有当前版本人工通过的KRB-015。固定顺序006/004/010/011/012/017/019/021/023；不根据运行结果换题或删题。真实执行前重新冻结代码、Prompt、配置、索引和manifest。
+
+上限为9 E2E/27模型/36 search/18 embedding/36在线rerank，另本地合成预热rerank1；每题上限3/4/2/4，Business/answer/indexWrites/retry/resume=0。已知累计37 E2E/97模型，本批累计上限46/124。自动或人工失败、超时、取消均终止本批，不使用未花费额度另建批次。selection-v4/Rewrite9/Summary7及生产源码/任务/索引不变。
+
+**诊断增量（测试专用）**：建议新增`tests/system_e2e/knowledge_model_failure_probe_v2.py`。复用V1有限投影、8条上限、上下文隔离、安装互斥及卸载，不修改旧文件；仅在本次版本化测试作用域内包裹原V7需求计划校验函数。先调用原校验；成功不计算诊断，失败必须重新抛出同一异常。只对实际拒绝的精确内部类型读取有界结构，不重新解析模型原始响应、不读取异常消息、args、traceback或frame locals。
+
+新增诊断字段`detail`只允许固定枚举：unknown、query_count、query_text、search_missing_conditions、missing_conditions、terminal_state、domains、requirement_count、requirement_id、requirement_domain、focus_text、domain_coverage、applicability_roles。只能描述一个已经观察到的结构违规，不声称还原模型意图或唯一根因。未知类型、超出可安全检查的结构或无法对应原异常时为unknown；不得输出值、query/focus、非法枚举原文、文号、字段路径或其他模型内容。数量、文本、域、ID、角色检查受L2_01_00 §8.5现有合同约束，该诊断不是第二套准入validator，永不决定放行、fallback、修复计划或重试。需用原合同的正反例防止诊断漂移。
+
+异常关联仅存在同一上下文，记录原异常身份与有限枚举，投影时核对有界cause链的同一异常，随后清空；不跨请求、线程或批次保存。异常引用可能间接持有短期调用帧，因此必须在投影、作用域取消及卸载时释放；不声称物理内存擦除。wrapper/collector安装或观察异常不得改变被测计划的结果；采用显式unknown退化，不能记录任意异常内容。停止与预算仍由既有执行器负责。
+
+**版本化执行**：建议新增`knowledge_representative_human_uat_v2.py`，复用现有ReviewSession/页面及V3来源、授权、调用账本、隔离服务清理接缝；只调整批次绑定、九题数量、累计上限和V2故障观察。V1及所有旧result/manifest保持字节不变。最终冻结比较必须使用规范化JSON字节，不用Python字典相等混同bool/int。有限result保留原结构，只在新modelFailure记录增加detail及manifest诊断版本；不改变旧Schema或公开HTTP观察合同。全部新工具、直接测试、旧依赖及来源一并纳入manifest。
+
+人工仍由用户或指定人员在原本机内存页面逐项填写，无默认通过、无模型/执行者代评；就绪后才执行真实前置和outbound。沿用§14.58的600秒单次/1800秒总等待、随机token/nonce、Host/Origin校验、textContent和关闭停止，响应后评价不产生模型调用。KRB-015不再次展示或评估，其当前已通过证据与本次九题分别追踪。
+
+**实施及验证前置**：三轮内审及独立于编辑的设计复核后，实施V2和直接fake测试；覆盖19种拒绝、成功/不支持/澄清、未知/恶意类型、关联错配、上下文并发、取消、原异常身份及正常结果不变。执行器测试须证明九题顺序、全部预算、无人就绪零副作用、单题失败停批、未执行集合、清理、bool/int冻结差异及旧资产哈希。设计/代码复核和提交通过才prepare；prepare不读取Key，execute仍先等待真实评审者就绪。协议已完成本切片复核，可实施测试工具；不以授权或准备替代UAT结果。
+
+本切片现为Prepared non-live：V2观察器及human执行器已实施，直接测试、相关回归、历史字节和代码对照协议复核通过，具体命令及类型检查范围限制归P3 §20.90.1。当前业务/模型合同、旧工具、case/gold及历史结果无修改；尚未冻结执行或产生本批真实结果，不预先标记九题人工通过。
