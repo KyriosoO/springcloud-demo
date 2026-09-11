@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.45 |
+| 当前版本 | v1.46 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-11 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，阶段 A 语料完整性及阶段 B 检索质量专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.31、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.69；§14.61仅non-live协议迁移；不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.31、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.70；§14.62为当前flash独立十题授权；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -1334,3 +1334,13 @@ KRB-010有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / sh
 当前deepseek-flash后端与Rewrite10的真实效果尚未测量。原3/10人工通过、Business35/Knowledge37功能证据及历史P5各自保持原证明范围，不因协议设计或fake通过被改判为新版真实UAT完成。当前目标只允许non-live，模型调用0；不得复用run-06剩余额度。后续真实验证须另有新的完整版本/快照/预算绑定，不能把本节当作付费授权。
 
 本增量已通过设计三轮内审、分阶段复评、代码两轮复核和正式隔离non-live回归；Spring公共入口分别覆盖Knowledge和Business当前对象图。命令、数量、历史夹具迁移及全部失败修复过程只记录于P3 §20.92，不在本计划复制动态测试总数。复核由同一执行者分阶段完成，不声称外部独立评审；真实专项UAT仍未完成。
+
+### 14.62 flash/Rewrite10完整十题一次性人工验收
+
+用户新授权取代§14.61的“不得准备新批次”限制，仅允许本批`knowledge-representative-human-uat-v4-20260911-07`，reference=`UAT_01:14.62`。以当前提交冻结后执行，仍不改变§14.51十题的问题、顺序、域、anchor、gold或source hash。KRB-015/006/004/010/011/012/017/019/021/023全部在当前flash、selection-v4/Rewrite10/Summary7及quality-v3下重新验证；旧3/10不是本批复用通过。
+
+预算最多10 E2E/30模型/40 search/20 embedding/40在线rerank，另1次本地合成rerank预热；单题模型/search/embedding/rerank=3/4/2/4，Business/answer/indexWrites/retry/resume=0。执行前freeze覆盖HEAD、模型名、两条任务固定HTTP路径、输出工具Schema哈希、Prompt、case、配置、索引和可执行资产；模型原始输出仍不保存，输入和evidence保护不变。Rewrite仅使用Beta严格输出协议，不执行函数或增加第二次调用。
+
+保持§14.58真实用户人工评价：就绪前无Key读取、付费、预热或服务启动；每题自动检查通过后才展示同请求受控回答/证据，由用户逐项评价，执行者不得代填。失败、人工不通过/超时或取消立即停批并清理owned资源，保留有限终态，不补跑，不自动准备下一批。旧run-06和此前结果字节不变。当前仅恢复准备与执行权限，尚未获得本批结果，不预先宣称新版UAT通过。
+
+新执行器在就绪后、依赖预检前封存authorization/started，保证预检失败也留下零调用终态并禁止恢复；未就绪不启动本批。非live已验证当前10/7生产对象图、两条固定path、原自动判据、真人评价及终态清理，具体命令与计数只归P3 §20.93。执行前仍须最终冻结与人工就绪。

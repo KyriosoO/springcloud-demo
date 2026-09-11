@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.69 |
+| 当前版本 | v2.70 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-11 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -143,7 +143,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.59、DR-KFLOW-028/029、DR-KEV-032～034 | §20.90.2本批006/004人工通过、010解码失败停批；合并015既有现场评价共3题通过/7题人评缺失；旧自动证据及失败均保持 | `WP-KRETRIEVAL-NONLIVE-01` | - | 自动与人工逐case分列，旧结果不回填；结构/枚举错误未具体定位 | 本批3 E2E/8模型，已知累计40/105；授权耗尽，不补跑或新建付费批次 | 旧对照保持；不以剩余预算续跑 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.62、DR-KFLOW-030、DR-MODEL-110/111、DR-KEV-032～034 | §20.93恢复flash/Rewrite10完整十题准备及一次执行；旧3/10仅保留原模型范围，run-06失败不改判 | `WP-KRETRIEVAL-NONLIVE-01` | - | 当前版本自动与人工逐case分列，不回填或继承旧通过 | 本批最多10 E2E/30模型；执行前冻结、人工就绪；失败停止 | 不复用旧余额；不追加批次 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -238,7 +238,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | `GATE-082` | `WP-EMP-NL-UAT-10` | integration | Employee自然语言扩展受控UAT与最终收口 | 是 | 四候选累计模型不超过30、Employee search不超过30；candidate-04代表性13/13通过并与candidate-03不可变302/307组成15类完整证据；至少一个地区成功列表、安全与零调用合同全部成立 | candidate-04 result SHA-256=`2dc6e4c3755f2a32542e6219d671b388a9b1eb7dc97c510225d995a5d3cc48fd`；history/combined coverage tests；全量回归与正式代码评审 | 用户/实施者/评审者 | 本目标最终收口 | exact hash、预算、逐case、零泄漏、历史不可变与代码对照设计复核 | 禁止任何额外模型调用或新候选；证据失效时如实重新打开，不得改判历史 | Closed |
 | `GATE-083` | `WP-KCORPUS-PIPELINE-01` | slice_implementation | 首次持久下载和候选索引写入 | 是 | 官方来源/P0-P2范围、显式外部workspace、解析工具版本、下载/存储/索引预算、精确旧alias目标与回滚方案明确；REQ/L1/L2三轮内审和独立评审通过 | audit v3、Approved 阶段 A 设计、工具/依赖快照、旧 alias 只读证明 | 维护者/评审者 | 首次持久下载前 | strict Schema/设计/计划校验与分层跨层评审 | 只允许不落盘的官方来源和索引元数据审计 | Closed |
 | `GATE-084` | `WP-KCORPUS-RELEASE-01` | release_effective | 候选 alias 生效 | 否 | P0及目标P1完成、P2清单、解析/OCR/表格质量、空正文/孤立附件、candidate完整性、typed keyword/vector、读取/出域/Evidence、回归和回滚演练通过 | Stage A corpus candidate-08/a5 build manifest、14/14 UAT attempt-05、release attempt-05 journal、测试和评审 | 维护者/UAT/评审者 | alias切换前 | 完整性、权限、引用、alias原子性和历史hash | 候选保持未发布；现行alias不变 | Closed |
-| `GATE-KRG-006` | `WP-KRETRIEVAL-IMPLEMENT-01` | slice_implementation | §20.36/20.55/20.66/20.68/20.71合同、评分、文号、可选Evidence与离线窗口诊断 | 是 | 三轮内审及正式分层/跨层复评通过；无fallback或公共接口/权限扩张 | 对应§20记录及L1/L2新DR | 设计维护者/评审者 | 新增量代码修改前 | S0/S1/未处理S2=0；不依赖live结果 | 新增量已审，允许non-live；真实UAT仍暂停 | Closed |
+| `GATE-KRG-006` | `WP-KRETRIEVAL-IMPLEMENT-01` | slice_implementation | §20.36/20.55/20.66/20.68/20.71合同、评分、文号、可选Evidence与离线窗口诊断 | 是 | 三轮内审及正式分层/跨层复评通过；无fallback或公共接口/权限扩张 | 对应§20记录及L1/L2新DR | 设计维护者/评审者 | 新增量代码修改前 | S0/S1/未处理S2=0；不依赖live结果 | 已审增量准入不变；本批真实UAT仅依§20.93授权 | Closed |
 
 ## 8. 外部资源与事实
 
@@ -311,7 +311,7 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.90.2固定十题中015/006/004有当前人工通过，010本批失败、另6题未执行；七题人工证据仍缺失，旧失败不可改判 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.93新增flash/Rewrite10十题授权；当前版本真实结果待取得，旧3/10不外推到新模型，旧失败不可改判 |
 | 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 召回/必要引用自动验收取得新证据；独立语义评审未完成，剩余噪声是保留风险而非新增无限调参门禁 |
 
 ## 10. 实施交接
@@ -3260,3 +3260,19 @@ WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前
 收口范围：本轮真实模型/E2E业务/search/embedding/rerank/索引写入均0（Spring E2E使用fake依赖）；无新candidate/授权/消费资产，无历史运行文件或旧Rewrite源修改。代码及直接测试和文档状态分别形成提交，推送当前codex；提交SHA与远端核对结果见交付报告，避免自引用提交哈希。整体阶段B仍未完成，3/10人评及其余真实效果缺口保持，不自动申请或执行新付费批次。
 
 提交前元数据复核进一步同步L1_00指向的Knowledge任务版本，以及两份L2末尾“当前实施/允许范围/复核依据”到已批准的§6.1/§8.11，避免正文已经10但收口表仍标旧任务或旧准入范围。仅修正当前引用与状态，无新增语义或代码；修正后再执行两份L2及P3严格验证。
+
+### 20.93 flash/Rewrite10独立十题人工验收恢复
+
+2026-09-11用户针对上一条“准备并执行最多10端到端/30模型、冻结版本及预算、失败停止”的请求明确授权。本节解除§20.92的后续新批次暂停，起始HEAD=`144aec31c356d80bdf82f2ba38bbc597601c05b7`，codex工作树clean。仅新增版本化测试执行器及直接fake测试，沿用已评审L2_00_02 §6.1、L2_01_00 §8.11及UAT_01 §14.58人工合同；不改生产源码、检索配置、索引、公开接口、安全策略或任何历史文件。
+
+本批`knowledge-representative-human-uat-v4-20260911-07`、reference=`UAT_01:14.62`，完整十题以当前flash/Rewrite10/Summary7重新测量；旧3/10只保留原模型证明范围，不作为本批通过行。上限10 E2E/30模型/40 search/20 embedding/40在线rerank，另1次本地合成rerank预热；单题3/4/2/4，Business/answer/indexWrites/retry/resume=0。knownBefore=41/107，含本批累计上限51/137，仅用于记账，不复用旧剩余额度。
+
+执行顺序为已有设计合同复核 → 当前执行器协议适配 → 定向fake/历史保护/当前对象图测试 → 分离代码复评 → 提交并冻结HEAD、case/Prompt/Schema/配置/index/可执行资产和预算 → 用户在内存页面确认就绪 → 一次真实执行 → 终态有限证据与状态同步。每题自动失败、人工拒绝/超时、快照漂移或清理失败均停止，不恢复、不补题、不新建下一批。正式UAT及QUALITY在实际终态前继续未完成；不新增Gate、不修改DAG及既有关闭条件。
+
+协议适配只把执行器期望绑定为10/7、flash，Rewrite固定Beta路径，其他任务固定普通路径；保持发送前精确payload核对、预算/consumed/journal顺序和原自动评分。历史执行器不得直接迁移或复用授权，测试专用上下文退出必须恢复所有被临时绑定的变量。manifest额外绑定输出工具Schema哈希，不把工具参数或原文保存到结果。
+
+准备阶段复核：已有L2合同不变，P3/UAT只登记新增授权及派生执行约束。聚焦内审检查任务/固定path、预算和历史边界后，分离代码复核发现`B-FLASH-UAT-001`：沿用的预检位于终态保护之外，失败可能没有封存本次尝试。只在新runner中把依赖预检放入authorization/started之后的try/finally；未就绪仍不封存或读取Key，预检失败记录零调用有限终态且不可恢复。补充反例后复评无未关闭Blocker/Major；由同一执行者分阶段完成，不称外部独立评审。
+
+定向验证：新执行器首次测试25 passed/3 failed，原因为新增测试的fixture误指向wrapper而非base，修正该测试接缝后45 passed；追加预检终态测试和模型快照断言后，执行器/人工页面/旧run-06/35与37追踪联合回归89 passed（18.66秒）。`python -B -m mypy --strict src`141个源文件通过；新runner和测试compileall通过；P3严格校验0错误0警告，5个目标文件凭据模式扫描0命中，生产源/索引绑定/历史结果diff为空。全量回归另行记录，不把定向结果冒充全仓通过。
+
+正式隔离入口`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`：host/preflight 14 passed（3.63秒），全量4695 passed/27 skipped/0 failed（645.33秒），临时venv已清理。全量收集包含新增45项；随后新增的预检终态反例和最终修复由上述89项联合验证覆盖，不冒称进入同次全量收集。27项跳过仍为既有opt-in及未生成GATE-050证据，不能计作live通过。1条既有LangChain预告保留。生产源和Java/PowerShell均未改，本轮不重复Maven/AST，沿用§20.92实际Spring两组E2E的代码证明范围；本次真实环境仍须preflight和Spring认证stub冒烟。最终分离复评第2轮确认固定新旧协议、人工不可代填、预检/执行失败终态、预算和恢复边界；本执行器增量无未关闭Blocker/Major/Minor，允许提交冻结及唯一批次执行，不代表专项UAT通过。
