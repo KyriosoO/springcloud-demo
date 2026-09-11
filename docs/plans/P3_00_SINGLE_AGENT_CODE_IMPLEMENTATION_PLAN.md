@@ -143,7 +143,7 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.54、DR-KFLOW-028/029、DR-KEV-032～034 | §20.85.1新批5通过/1失败/3未执行；旧批终态保持，完整专项未通过 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 本批6 E2E/17模型，已知累计31/80；失败停止、不补跑或转移余量 | 旧对照保持；不自动追加付费 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.40～14.57、DR-KFLOW-028/029、DR-KEV-032～034 | §20.88.1新批4/4通过，与run-02同生产版本合计9题有成功证据；人工usefulness仍未评估，旧批终态保持 | `WP-KRETRIEVAL-NONLIVE-01` | - | 逐 case 检索/运行/回答分列，不以高分或结构覆盖代替相关性 | 本批4 E2E/12模型，累计35/92；授权已消费，无后续付费批次 | 旧对照保持；不自动追加付费 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
 
 ## 6. 直接依赖图
@@ -311,8 +311,8 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.85.1新批5通过/1失败/3未执行；旧批终态不改。Rewrite输出无效发生于检索前，不是预算不足，不补跑 |
-| 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 完整相关性、默认接线和隔离实例验证已完成；真实专项及高分噪声风险未关闭 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.88.1四项新批全部通过，同生产版本9题已有真实成功证据；人工usefulness及跨版本证据适用性未关闭，旧失败不可改判 |
+| 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 召回/必要引用自动验收取得新证据；独立语义评审未完成，剩余噪声是保留风险而非新增无限调参门禁 |
 
 ## 10. 实施交接
 
@@ -437,7 +437,7 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72文号配置及Evidence默认代码接线；已有增量保持原范围 | TEST-KRET-030、TEST-KEV-024；UAT_01 §14.46及既有追踪 | 代码接线完成，运行实例升级另列 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72默认接线、当前根及历史防回退 | TEST-KRET-030、TEST-KEV-024、VAL-KEV-016；UAT_01 §14.46 | §20.72.1实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～029、DR-KRET-027/028/034/035/037、DR-KEV-026～034 | §20.85.1同域双政策新验证通过，KRB-017在Rewrite响应校验失败；全部历史终态保持 | UAT_01 §14.39～14.54 | 新批5通过/1失败/3未执行；人工usefulness未评估，不从余量自动追加 | In Progress |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～029、DR-KRET-027/028/034/035/037、DR-KEV-026～034 | §20.88.1 KRB-017/019/021/023新批通过；run-02失败保持，不证明旧失败根因已消失 | UAT_01 §14.39～14.57 | 同生产版本9题有通过证据；人工usefulness未评估，跨域015为较早版本，不冒充当前10/10 | In Progress |
 | `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
 
 需求到工作包/UAT 的跨层映射：
@@ -3034,3 +3034,21 @@ KRB-006本次两份必要来源small_2022/2023均已进入召回、最终排序�
 最终定向命令（agent-runtime目录，进程级PYTHONPATH指向当前src和tests，Git safe.directory仅对子进程有效，Key从测试子进程移除）：`python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v3.py tests/system_e2e/test_knowledge_representative_uat_v2.py tests/system_e2e/test_knowledge_representative_failure_observation.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/system_e2e/test_knowledge_representative_run_02_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/contract/knowledge/test_rewrite_v9_failure_boundary.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp=target/pytest-run03-<unique>`：179 passed/35.01秒，0失败/0跳过；1项既有LangChain预告。src strict mypy通过140文件；新入口/测试compileall及P3 strict通过。19401环境复核通过：两个BGE容器身份、只读索引绑定、编译Profile、空闲隔离端口及JDK25.0.2；仍无模型调用。
 
 新批次按既有设计执行，不更改L1/L2语义；计划只记录明确授权、有限入口与状态。分离复核两轮：第一轮检查V2逐项差异、有限字段/记录边界、冻结和计数先行；第二轮核对19401的服务/ENV/manifest/白名单一致性、旧19201拒绝、四题原样继承、原判据不变及历史hash。当前准备切片无未处理Blocker/Major；为执行者分离复核，不冒称外部独立评审，正式真实结果仍待执行。
+
+#### 20.88.1 四项新批终态与证据边界
+
+准备提交及frozen HEAD=`5fe5c0fecb7f0491c186cc4b0d4e5e625c2defe6`，run=`knowledge-representative-uat-v3-20260911-03`，reference=`UAT_01:14.57`，manifest SHA-256=`2ea733b87928e6125cbf97ba8c19766650a9a780595e626472bcaea346a524db`。在干净冻结工作树上执行一次，直到终态前未修改tracked文件。结果SHA-256=`6652ecba3be238c06559a9f0b7333c0cc8469663669ad31912c0a7aca3b8a2c5`，status=passed，4/4自动验收通过、无未执行题；实际逐题结果由UAT_01 §14.57.1治理。
+
+实际命令（仅execute子进程允许读取Key，不输出值）：`python -B -m tests.system_e2e.knowledge_representative_uat_v3 execute --manifest-sha256 2ea733b87928e6125cbf97ba8c19766650a9a780595e626472bcaea346a524db`。调用为4 E2E、12模型、8 search、4 embedding、4 rerank，另1次本地启动预热；Business/旧answer/索引写入/retry/resume均0，累计35 E2E/92模型达到本次上限。三任务逐题成功，有限modelFailure为空且未溢出；未自动继续或创建其他付费批次。
+
+finally记录两个Runtime实例clientsClosed=true，核实并停止本批隔离服务，rawLogsDeleted/secretScanPassed=true。终态后且任何tracked修改前，再次以移除Key的子进程复算完整manifest、JDK/本地模型身份、索引binding和编译Profile；均与冻结一致，18090/19401/18080/19091可重新绑定。17项有限原件逐字节复制到`agent-runtime/tests/system_e2e/knowledge_representative_run_03/`，复制前后SHA一致；Git精确binary属性防止换行转换，不改旧run-01/02或任何历史资产。
+
+新增`test_knowledge_representative_run_03_history.py`校验17项哈希、冻结提交源码/协议、4题任务/域/必要引用、计数和journal复算、清理、有限诊断及敏感字段排除；另按manifest比较run-02/03全部Python/Agent/ES服务生产源码、dataset、Prompt、任务、索引和本地模型相同，唯一运行ENV变化为隔离端口。与两批旧历史及35/37追踪联合执行89 passed/5.61秒，无失败/跳过。此证据允许合并说明当前同版本9个不同case已有成功结果，不改run-02的失败终态，不将017此次成功推导为旧invalid_output根因已修复或永不复发。
+
+KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts/planning/stage/main五处原问keyword接线差异。既有non-live两域/来源/计数回归证明机制，不能替代当前版本该题新的真实结果；本轮不为此重复付费。所有真实结果manualUsefulness仍not_assessed，有限资产未保存完整输出，不能事后用anchor布尔值重建独立人工语义评审。剩余49项离线无关Evidence继续作为既有质量风险，不新增零噪声门禁或无依据改阈值。故本批执行/归档切片完成，UAT In Progress、QUALITY Blocked保持；后续只允许安全的非live证据适用性核查和评审，不自动新建付费候选，不宣称整体阶段B已经完成。
+
+最终回归命令（相同进程级源码路径、Git安全目录及移除Key；唯一工作区basetemp）：`python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v3.py tests/system_e2e/test_knowledge_representative_uat_v2.py tests/system_e2e/test_knowledge_representative_failure_observation.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/system_e2e/test_knowledge_representative_run_02_history.py tests/system_e2e/test_knowledge_representative_run_03_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/contract/knowledge/test_rewrite_v9_failure_boundary.py tests/evaluation/knowledge tests/unit/knowledge/test_original_keyword_planning.py tests/unit/knowledge/retrieval/test_original_keyword_stage.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp=target/pytest-run03-final-<unique>`：673 passed/73.75秒、0失败/0跳过，1项既有LangChain预告。`python -B -m mypy --strict src --cache-dir=target/mypy-run03-final`通过140源码文件；四个新增Python文件compileall通过。P3 strict 0错误/0警告，目标23文件凭据模式0命中，Git diff检查通过。673项是完整Knowledge evaluation加直接runner/合同/规划/历史/追踪回归，不冒充全仓；本轮生产与Java字节未改，未重复§20.83.1的正式隔离全量及Maven。真实Spring链路由本次4项UAT直接执行验证。
+
+后置代码/证据分离复核两轮：第一轮核对冻结绑定、原件集合/哈希、同版本复用、任务及计数先行、清理和不泄漏；将历史测试宽泛的端口字符串存在判断收紧为完整environment等价（仅19401一项不同），并添加九题成功身份去重追踪。第二轮读取最终差异并运行上述回归，未发现本次执行器/有限归档/状态同步切片未处理的Blocker/Major；人工语义及跨版本完整验收仍为不可验证项，未被这次切片复核关闭。本复核由同一执行者在编辑后分离完成，不冒称外部独立评审。原件与状态按目标范围提交，不删除任何历史文件，远端SHA以Git交付记录为准。
+
+本切片提交：准备及冻结`5fe5c0fecb7f0491c186cc4b0d4e5e625c2defe6`；17项不可变成功原件、binary保护与历史测试`5cf34ce8a2bec3e5453de8dc0f0e793fc4d5448f`。提交前逐项比较17个暂存blob与本地原件字节一致，暂存范围只有19个目标文件。状态同步另行提交，目标外修改与冻结历史均未进入差异。

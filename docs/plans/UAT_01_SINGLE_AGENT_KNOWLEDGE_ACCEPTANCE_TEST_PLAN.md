@@ -1201,3 +1201,20 @@ V3仅修改批准的批次元数据并接入§14.55已验证的现有有限观�
 逐题仍要求三个真实任务成功、准确域、完整有界检索、coverage/extractive通过及全部必要来源的实际引用绑定。有限诊断不构成失败题通过证据；自动判据不代替人工usefulness。不得为了事后人工评估新增原始回答/正文持久化；无法形成独立人工评估的部分继续标记not_assessed并在阶段B最终结论中披露。执行结果与后置校验归本节后续终态记录，准备/测试/提交记录归P3 §20.88。
 
 冻结前环境核实发现Windows保留19178～19277，原隔离ES端口19201绑定返回10013。因此本批使用已通过绑定检查的19401，固定Runtime base URL、请求白名单、服务启动和readiness均同步；18090/18080/19091不变。版本化隔离服务helper仅将19201替换为19401，其余生命周期/授权/日志清理字节等价；旧端口请求在新预算器中拒绝。该隔离环境调整不改变生产端点、公共DTO、索引、Windows保留范围或业务授权；配置仍纳入冻结快照。
+
+#### 14.57.1 四项批次实际通过及剩余验收责任
+
+2026-09-11在frozen HEAD=`5fe5c0fecb7f0491c186cc4b0d4e5e625c2defe6`执行本节唯一批次，manifest SHA-256=`2ea733b87928e6125cbf97ba8c19766650a9a780595e626472bcaea346a524db`，result SHA-256=`6652ecba3be238c06559a9f0b7333c0cc8469663669ad31912c0a7aca3b8a2c5`。17项有限原件位于`agent-runtime/tests/system_e2e/knowledge_representative_run_03/`，status=passed；新结果不回写或替代§14.54.1历史失败。
+
+| case | 真实域及必要原文 | 逐题结果 | 模型/search/embedding/rerank |
+|---|---|---|---|
+| KRB-017 | tax.law；vehicle_price:1 | Passed；车辆计税价必要来源及原文引用绑定通过 | 3/2/1/1 |
+| KRB-019 | tax.law；environment:2 | Passed；农业免税例外必要来源及原文引用绑定通过 | 3/2/1/1 |
+| KRB-021 | tax.law；stamp_price:1 | Passed；合同计税金额排除项必要来源及原文引用绑定通过 | 3/2/1/1 |
+| KRB-023 | tax.policy；lost_invoice:1 | Passed；发票遗失公告否定约束必要来源及原文引用绑定通过 | 3/2/1/1 |
+
+每题Spring HTTP200/success，selection-v4/Rewrite9/Summary7全部成功；path、final_rank、Evidence均含必要来源，coverage/extractive与实际引用sourceCheck通过，modelFailure.records为空、overflowed=false。全部4项已执行，合计4 E2E/12模型/8search/4embedding/4rerank，另1次本地预热；Business/旧answer/索引写入/retry/resume均0，累计35/92。本次四题均是已有holdout，不称新的盲评。停止/客户端/原始日志和冻结快照后置检查通过，详见P3 §20.88.1。
+
+run-02的5个通过题与本次4题具有相同生产源码、任务/Prompt、dataset、索引及模型快照，允许形成9个不同case的跨批成功追踪；run-02仍为failed且017旧失败保持。KRB-015的run-01成功早于原问keyword改动，不能直接汇总成“当前版本10/10完整UAT”。其当前版本证据适用性、全体人工usefulness仍需单列核查；本次所有manualUsefulness为not_assessed，不从来源锚点布尔值反推完整回答语义，也不补存原始模型响应。Business35/35与Knowledge37/37功能追踪保持原范围。
+
+本批功能/调用/必要引用的自动专项Passed，安全检查Passed；独立语义有用性未评估，整体效果不赋予effective或partially_effective等级，既有P5等级仍按其原版本解释。阶段B整体仍未收口，不自动新增批次、不重跑已消费目录、不复用余额；先完成现有证据能够支持的非live核查和明确风险交付。
