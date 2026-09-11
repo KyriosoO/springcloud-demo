@@ -34,6 +34,7 @@ agent-runtime/tests/system_e2e/knowledge_representative_run_02/* binary
 agent-runtime/tests/system_e2e/knowledge_representative_run_03/* binary
 agent-runtime/tests/system_e2e/knowledge_representative_human_run_04/* binary
 agent-runtime/tests/system_e2e/knowledge_representative_human_run_05/* binary
+agent-runtime/tests/system_e2e/knowledge_representative_human_run_06/* binary
 
 # Preserve the four captured candidate typed-validation results and their hashes.
 knowledge-corpus-tools/evidence/policy-vector-publication-20260907-b2/typed-validation-20260908-0[1-4].json binary
