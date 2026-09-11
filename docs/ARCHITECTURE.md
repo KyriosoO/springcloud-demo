@@ -39,7 +39,7 @@
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.32 / Approved（既有10/7/v3；固定域槽位设计准入non-live、未实施） |
+| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.32 / Approved（当前源码11/7/v3；固定域槽位已实施，真实效果未验证） |
 | `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.19 / Approved（原问keyword严格计划消费增量；候选及窗口不变） |
 | `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.25 / Approved（可选Evidence准入候选，实施与生效状态由P3治理） |
 
@@ -72,4 +72,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction需求、设计与35/35 UAT保持原证明范围且不得回退。Knowledge默认关闭，当前生产已唯一绑定Rewrite V10/Summary V7、质量策略V3并完成当前对象图定向non-live；原37项功能UAT、域目录v2、效果口径v2和阶段A语料发布保持原证明范围。最新有效P5仍为`partially_effective`；当前新版本真实效果尚未验证，阶段B必要证据覆盖及完整专项仍未通过；图谱未实施。具体Gate、candidate、测试总数和evidence只在P3、UAT_01与evidence中维护。
+Employee/Transaction需求、设计与35/35 UAT保持原证明范围且不得回退。Knowledge默认关闭，当前生产源码已唯一绑定Rewrite V11/Summary V7、质量策略V3并完成当前对象图定向non-live，尚未部署新版；原37项功能UAT、域目录v2、效果口径v2和阶段A语料发布保持原证明范围。最新有效P5仍为`partially_effective`；当前新版本真实效果尚未验证，阶段B必要证据覆盖及完整专项仍未通过；图谱未实施。具体Gate、candidate、测试总数和evidence只在P3、UAT_01与evidence中维护。

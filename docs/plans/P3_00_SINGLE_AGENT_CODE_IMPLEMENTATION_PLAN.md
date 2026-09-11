@@ -3309,7 +3309,7 @@ WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前
 
 本增量依附既有WP-KRETRIEVAL-QUALITY-01的有限修复，不新增工作包或Gate。直接依赖顺序：①L2语义及P3/UAT原子同步 → ②三轮内审及分离只读设计复评 → ③Rewrite11/当前root不可变域快照与Planner最小实现 → ④合同与current-root/non-live/Spring/类型/历史验证 → ⑤代码复评与提交推送。评审前③不得实施；既有GATE-KRG-006关闭不自动授权未评审增量。④/⑤无需真实UAT前置，真实专项仍是独立未完成责任，不能形成循环。
 
-当前状态：设计复评通过、V11未实施；既有生产10/7/v3继续保持，允许§8.12的non-live实现/测试，WP-KRETRIEVAL-UAT-01 In Progress、QUALITY Blocked。验收/真实测量限制见UAT_01 §14.63。本切片完成后也不得改判run-07或宣称阶段B完成；真实新版本测量必须另有绑定，不能自动补题。
+当前状态：设计复评通过，V11/当前源码根11/7/v3已实施并通过定向non-live，正式隔离全量及代码收口记录见§20.94.1；未部署或产生新真实调用。WP-KRETRIEVAL-UAT-01 In Progress、QUALITY Blocked。验收/真实测量限制见UAT_01 §14.63。本切片完成后也不得改判run-07或宣称阶段B完成；真实新版本测量必须另有绑定，不能自动补题。
 
 设计内审实际三轮：第1轮核对域唯一性与同域多需求、空串终态及无损转接，保留原语义拒绝；第2轮核对配置和调用方，明确None默认只服务disabled、enabled必须显式传入目录顺序元组，并补充观测不保存响应/中间JSON；第3轮核对版本、追踪、历史与DAG，当前10/7和拟议11/7明确分离，修正DR-KFLOW-004过时的当前V9描述，不把旧Approved状态继承到新增切片。
 
@@ -3318,3 +3318,49 @@ WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前
 第2轮只读复评核对修订文本与`semantic_planner.py`的selection后规划、目录排序及语义复核，确认两项关闭；单域配置、纯空白、terminal、requirements关联、无损映射、Provider既有子集、disabled与历史兼容边界闭合。S0=0/S1=0/未处理S2=0；仅准入DR-KFLOW-031的non-live实现，不代表新版代码或真人UAT通过。同一执行者分阶段审查，不声称外部独立评审。L2 strict及P3 strict均0错误0警告，目标变更只有五份Markdown，源码/配置/索引/历史运行字节不改；代码评审和新版测试属于下一实施阶段。
 
 本设计提交前实际执行：在测试子进程清除Key后，`python -B -m pytest tests/system_e2e/test_knowledge_representative_human_run_07_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider --maxfail=1`，20 passed/2.72秒，1条既有LangChain预告；确认15项run-07原件/源绑定和现有35/37追踪没有改判。L2严格结构/追踪、P3严格DAG、目标版本/链接与敏感模式、`git diff --check`均验证；当前只改设计文档，未重跑源码类型检查、全量Python或Maven/AST，不宣称V11测试已经通过。设计作为独立提交，后续最小实现及代码复评仍待执行。
+
+#### 20.94.1 Rewrite11实施及non-live代码收口
+
+实施基线为已推送的设计提交`dbb5120608c06d7953ab4384dbcc6eac17dee827`，没有使用未评审设计继续编码。按`DR-KFLOW-031 → IMPL-KFLOW-019 → TEST-KFLOW-023 → VAL-KFLOW-014`落实如下；本节是实施状态补记，不改变设计语义或升级文档版本。
+
+| 设计边界 | 实际实现和反证 |
+|---|---|
+| 固定启用域槽位及原语义 | `rewrite_v11.py`只替换queries Schema/Prompt片段，精确解码后按目录一对一转接V9公开parser；根其他四字段及requirements顺序不改，旧数组、重复键、非法空白及原非法语义继续拒绝 |
+| 同一不可变启动快照 | `main.py`显式传入KnowledgeSettings域元组；`bootstrap.py`唯一11/7并在provider前核对同一快照，disabled先返回；内部dataclass空元组默认仅让冻结旧根可构造，当前provider拒绝空值，不默认启用双域 |
+| 当前流程与调用计数 | `semantic_planner.py`仅把11纳入现有quality-v3/scope分支；当前root及真实Provider decoder的fake测试证明非法计划selection+Rewrite恰好2次、全部下游0，敏感原问模型0；Summary7/检索/权限不改 |
+| 当前测试迁移 | `test_requirement_runtime_composition.py`及直接Guard/Evidence/registration、Spring `knowledge_runtime_server.py`输出真实槽位形状，不把旧数组在调用处修补成成功 |
+| 冻结测试隔离 | 两个conftest按显式文件/函数allowlist，从相应冻结提交读取配套root、main入口及fixture并核验源哈希；恢复测试防止泄漏到当前11/7。历史runner/任务/manifest/result字节不改，历史运行不冒充当前证据 |
+
+代码复核采用`review_and_fix`，实际2次修复循环、3轮检查；第1次修复捕获入口与字节比较，第2次修复全量发现的旧stub绑定，第3轮复核通过。由同一执行者分阶段完成，不声称外部独立评审。范围为新增任务、当前root/Planner、直接测试和历史隔离接缝，不是全仓重新验收。
+
+| 问题ID | 等级与触发 | 最小修复及关闭证据 |
+|---|---|---|
+| CR-KFLOW-031-01 | medium：历史调用方未完整隔离。冻结runner已保存`from main import build_runtime`，只替换旧root会把新签名参数传给旧根，首个混合集成53 passed/4 failed；首次正式全量又发现旧stub模块捕获当前root、缺少新参数，3841 passed/27 skipped/1 failed。均为测试隔离不完整，不是模型或业务失败 | 同一冻结提交配对root/main，精确allowlist恢复已捕获入口；旧stub仅对一个原始零网络断言绑定其`c07bb23b49665607897ad5a4a6e079e36d2584a6`根，核验当时root/runner/test SHA，不改生产或历史文件。前三组复跑139/147 passed，补充stub与隔离恢复37 passed；最终全量另记 |
+| CR-KFLOW-031-02 | low：新历史任务检查先`read_text().encode()`，会掩盖换行字节变化，与字节不可变要求不等价 | 改成`read_bytes()`直接比较Git冻结blob；新版合同、run-07 history和两组UAT追踪129 passed，确认旧任务V1～V10和15项run-07原件不变 |
+
+第2轮定向复核后，正式全量暴露CR-KFLOW-031-01的旧stub同根因遗漏，已重新打开并修复；没有把定向通过当作全量通过。第3轮确认旧stub仅在指定原测试函数绑定当时1/2根、不替换当前main/Bootstrap，恢复测试通过；原有illegal矩阵、原始wire反证、精确域快照、同域多需求、并发和生命周期、历史恢复及无敏感输出均闭合，第二次正式全量通过。两项问题关闭，Blocker=0/Major=0/未处理Minor=0，仅本切片代码对照设计通过。内部格式映射不保证真实模型能正确理解域或召回证据，因此没有改判真实UAT。
+
+本轮实际验证（Python3.12.4；所有测试子进程清除Key，UTF-8，常规测试禁止生成pycache，compileall显式验证编译；源码树命令显式设置PYTHONPATH及进程级Git safe.directory，不修改全局环境）：
+
+| 命令或范围 | 实际结果 |
+|---|---|
+| `python -B -m pytest tests/contract/knowledge/test_rewrite_task_v11.py tests/contract/knowledge/test_rewrite_task_v10.py -q --tb=short -p no:cacheprovider` | 184 passed；早期合同切片 |
+| `python -B -m pytest tests/contract/knowledge/test_rewrite_task_v11.py tests/integration/knowledge/test_rewrite_v11_pipeline.py tests/unit/knowledge/test_semantic_planner_v9.py -q --tb=short -p no:cacheprovider` | 159 passed |
+| `python -B -m pytest tests/contract/knowledge tests/integration/knowledge -q --tb=short -p no:cacheprovider --maxfail=6` | 1109 passed/6 opt-in skipped，359.28秒；该次收集后新增的runtime_snapshot由下一定向及正式全量覆盖 |
+| `python -B -m pytest tests/system_e2e/test_knowledge_representative_human_uat_v4.py tests/system_e2e/test_knowledge_representative_uat_v3.py tests/system_e2e/test_knowledge_current_chain_v1.py tests/system_e2e/test_run08_fixture_isolation.py -q --tb=short -p no:cacheprovider` | 修复历史入口后139 passed，99.89秒 |
+| `python -B -m pytest tests/integration/knowledge/test_rewrite_v11_runtime_snapshot.py tests/system_e2e/test_knowledge_model_failure_probe_v1.py tests/system_e2e/test_knowledge_model_failure_probe_v2.py tests/system_e2e/test_knowledge_model_failure_probe_v3.py -q --tb=short -p no:cacheprovider --maxfail=3` | 147 passed，61.30秒 |
+| `python -B -m pytest tests/contract/knowledge/test_rewrite_task_v11.py tests/system_e2e/test_knowledge_representative_human_run_07_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider --maxfail=1` | 字节检查增强后129 passed，4.07秒 |
+| `python -B -m mypy --strict src`；`python -B -m compileall -q src tests/contract/knowledge/test_rewrite_task_v11.py tests/integration/knowledge/test_rewrite_v11_pipeline.py tests/integration/knowledge/test_rewrite_v11_runtime_snapshot.py` | mypy成功142个source files；compileall成功 |
+| agent-service：`../serviceCenter/mvnw.cmd -Dtest=AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test`，JDK25.0.2 | BUILD SUCCESS；2 JUnit/0失败/0错误/0跳过，内部16 Knowledge+15 Business场景，21.352秒；真实Spring/当前Runtime+fake模型/领域，本轮无Java源码变化 |
+| `python -B -m pytest tests/system_e2e/test_runtime_composition.py tests/system_e2e/test_run08_fixture_isolation.py tests/integration/knowledge/test_rewrite_v11_runtime_snapshot.py -q --tb=short -p no:cacheprovider --maxfail=3` | 第二次修复后37 passed，9.45秒；旧stub与当前root隔离/恢复，未放宽旧断言 |
+| `./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`；`PYTEST_ADDOPTS=-q --tb=short -p no:cacheprovider --maxfail=1` | 首次：host/preflight 14 passed/4.05秒；全量3841 passed/27 opt-in skipped/1 failed，665.67秒，旧stub启动绑定失败后停止；临时环境已清理 |
+| 同一正式隔离入口；`PYTEST_ADDOPTS=-q --tb=short -p no:cacheprovider --maxfail=3` | 第二次：host/preflight 14 passed/3.62秒；全量4873 passed/27 opt-in skipped/0 failed，586.60秒，exit=0；临时环境依脚本finally清理 |
+| L2严格结构/追踪及P3严格DAG；`git diff --check`；目标文件凭据模式/历史资产差异扫描 | 0错误/0警告；24个目标文件无凭据模式命中、无历史资产路径改动；6份文档71个本地链接均存在 |
+
+既有LangChain预告及JVM/Netty/Caffeine警告未导致失败；跳过的opt-in不是本次UAT通过。未修改Java业务端点或公开DTO，未单独重跑各业务模块全部Maven、未修改或运行新launcher，因此不把这些未执行项列为通过。当前未读取真实Key、未启动真实业务服务、未创建run-08或新manifest/authorization，真实模型/search/embedding/rerank新增均0；测试自有临时进程/环境按其生命周期关闭。原35/37功能追踪与run-07终态不变，阶段B专项仍未完成。
+
+状态同步范围为L2_01_00 v1.32、L1_00 v3.5、L1_01 v1.23、P3 v2.72、UAT_01 v1.48及ARCHITECTURE：只补记源码11/7/v3、验证与未部署/未真实测量事实，不修改已批准语义，不为测试数量升级版本。L1_00同时按目标文档实际版本纠正直接子文档索引和Summary7标签；未修改那些子文档。状态复核确认当前/历史绑定分离、case/gold/阈值不变、DAG与授权边界不变。
+
+状态同步后再次执行run-07 history及Business/Knowledge traceability三组测试，20 passed/2.56秒；L2/P3严格校验再次0错误0警告。这是本轮文档与历史状态复核，不继承设计提交前的同名测试计数，也不代表新人工UAT。
+
+代码/测试提交为`058ec1996fa8cf635ed25bcaec2e123bb6183b54`（18个目标文件，无删除文件、配置/索引/公共接口或历史运行变更）。本节与六份状态文档组成独立状态提交，两者同批推送codex；最终提交SHA、远端回读和工作树状态由最终报告记录。提交前已检查status、diff --check、暂存路径和完整暂存差异。本切片non-live实施、验证及代码复评完成，不新增Gate；整个阶段B仍因新版本真实规划/人工专项未验证而未完成，不能使用run-07剩余预算续跑。
