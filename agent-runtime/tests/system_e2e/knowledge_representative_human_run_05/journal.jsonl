@@ -1,0 +1,8 @@
+{"caseId": "KRB-006", "task": "action_selection", "ordinal": 1, "requestSha256": "3ba85e77e167fa3b011bf9897678ce410e613e31d22355f7513b2a86874ea792"}
+{"caseId": "KRB-006", "task": "knowledge_rewrite", "ordinal": 2, "requestSha256": "d5469ca3ba301795436559d9a2157b56e8be43ea3d1cf1ff0c7620a8b51e44a2"}
+{"caseId": "KRB-006", "task": "knowledge_summary", "ordinal": 3, "requestSha256": "d7b67e8d539ed5a6257a3f4ca53b76516a807b90146e5737dabb9a253151f893"}
+{"caseId": "KRB-004", "task": "action_selection", "ordinal": 4, "requestSha256": "845b1f71ea4ac792d3f4c5f86860d8cdb043b998bfdb34e1e6991c86cb499766"}
+{"caseId": "KRB-004", "task": "knowledge_rewrite", "ordinal": 5, "requestSha256": "35eff6dd3348551e33b514673dba1be3e814f0b93455f2e58c41204583e8d496"}
+{"caseId": "KRB-004", "task": "knowledge_summary", "ordinal": 6, "requestSha256": "04aafa4e4753a216dea2aa212f45ff3327afe2cb98d54540fd2a2a508f208cb2"}
+{"caseId": "KRB-010", "task": "action_selection", "ordinal": 7, "requestSha256": "0dfba3848f2b6d06b3ea5d0eac6fbd0b19938b4c0782d2943aed6863ac94b97d"}
+{"caseId": "KRB-010", "task": "knowledge_rewrite", "ordinal": 8, "requestSha256": "ec6e282d0659fc620a7f61421a996162488e7b4d7fd129fb3c9114f879814e66"}
