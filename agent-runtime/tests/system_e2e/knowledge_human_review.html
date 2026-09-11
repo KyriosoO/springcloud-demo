@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knowledge 人工验收</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main>
+<h1>Knowledge 人工验收</h1>
+<p>请本人阅读实际回答及授权原文后评价。自动校验通过不等于回答有用。本页面不保存正文，关闭或超时将停止本批，不会自动重跑。</p>
+<p id="status" role="status">连接中</p>
+<button id="ready" hidden>我已就绪，开始一次受控验收</button>
+<section id="review" hidden>
+<h2 id="case"></h2><h3>问题</h3><pre id="question"></pre>
+<h3>实际回答</h3><pre id="answer"></pre>
+<h3>实际引用</h3><div id="points"></div>
+<h3>本次摘要实际获准使用的原文</h3><div id="evidence"></div>
+<form id="form"><h3>人工评价（没有默认答案）</h3><div id="rubric"></div>
+<label>原因 <select id="reason" required><option value="">请选择</option>
+<option value="none">四项均通过</option><option value="quote_context">引用上下文有问题</option>
+<option value="relevance">不相关</option><option value="coverage">覆盖不足</option><option value="gold_issue">预期证据有疑问（不自动排除本题）</option></select></label>
+<p><label><input id="ack" type="checkbox" required>我已实际阅读问题、回答和上述原文，独立完成评价。</label></p>
+<button type="submit">提交本题，继续下一题</button></form>
+</section>
+<button id="close">停止本批并清空页面</button>
+</main></body></html>
