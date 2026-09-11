@@ -3208,3 +3208,24 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 - P3 `validate_implementation_plan.py --file docs/plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md --strict`：0错误/0警告；6目标文件UTF-8/凭据模式及git diff --check通过。run-05固定16哈希和冻结source blob由history测试核验；生产src、run-04/05及旧工具无Git差异。
 
 此次仅测试接缝和协议改变，没有重跑全仓隔离/Maven/真实Spring E2E；§20.90.4此前全量结果作为已有基线而非本轮结果。新模型/E2E/search/embedding/rerank/索引写入均0，未读取Key或启动真实服务。提交后只运行prepare，冻结绑定另由manifest保存，不再修改tracked文件；后续必须取得本批明确预算及人工就绪，旧批次不可续跑。
+
+#### 20.91.2 run-06 一次执行终态与证据收口
+
+2026-09-11用户确认执行§14.60完整绑定模板，真实用户随后在临时本机页面确认就绪。实际冻结HEAD=`b83d877e13593ed0a6a0655cc9661ae025b665ad`；运行绑定及逐case终态归UAT_01 §14.60.1。入口先核对534项source assets、260项executable assets、当前只读索引和本地依赖，tracked文件未改后才execute。首题KRB-010自动检查失败即停，状态failed且已consumed；其余六题未执行，不转移剩余预算或创建下一批。
+
+本批实际1 E2E/2模型/0 search/0 embedding/0在线rerank，另1次本地合成rerank预热；Business/answer/indexWrites/retry/resume均0。已知累计41 E2E/107模型。两次模型任务为selection-v4成功、Rewrite9 invalid_output；没有Summary7请求。有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / shape_or_enum / root_fields`，说明原JSON对象的顶层字段集合不等于五字段合同，不能确定实际缺少、改名或多出哪个字段。原始响应未保存，禁止还原或猜写。不存在检索，故本批不提供语料、向量召回或排序质量的新测量。
+
+本次不建议修改索引、放宽decoder或用本地补字段修复模型输出。既有Prompt明确列出五字段及三种终态示例，与原decoder字段集合一致；尚无证据证明具体Prompt冲突。新的合成反例仅证明多种顶层字段错误同属root_fields，不能证明模型本次输出内容或生成可靠性。后续若改进输出合同执行方式，应先做non-live方案核对，不以再次付费试错或新观察器代替实现根因分析。
+
+运行finally记录两次Runtime客户端关闭及ownedProcessesStopped/rawLogsDeleted/secretScanPassed全true；后置检查18090/19401/18080/19091均无listener。tracked修改前重新构造manifest进行canonical完整比对，并只读核对索引绑定通过。只删除本次隔离服务原始临时日志，有限原件保留；未停止其他服务或修改生产src、Prompt、配置、索引及旧批次资产。
+
+14项有限原件逐字节复制到`agent-runtime/tests/system_e2e/knowledge_representative_human_run_06/`，精确binary属性保护CRLF账本。新增`test_knowledge_representative_human_run_06_history.py`核对14项固定SHA、冻结提交源文件、授权/consumed/账本/终态、停批、自动失败不进入人评、清理和无正文/凭据持久化；包含五种缺字段及改名/额外字段合成反例。原件、归档、暂存blob三者字节一致。归档与测试提交=`ca714b8165f88514e50313c62175f00f0a472cf8`，已推送origin/codex；状态同步另作提交，不把failed批次提交为UAT完成。
+
+验证与复核：
+
+- live前同一冻结HEAD的正式隔离回归已在前一续进轮执行：`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`，Transaction host/preflight 14 passed/5.16秒，全量4552 passed/27 skipped/0 failed/780.64秒。跳过为独立opt-in live/诊断及一项未生成的GATE-050条件证据，不计为通过。本段补记该前置结果，不冒称本次归档后重跑全量。
+- 本次`python -B -m pytest`显式执行run-06 history、V3 probe/runner、run-05 history、V2 probe/runner及两份current/knowledge UAT traceability，参数`-q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：167 passed/43.52秒，0 failed/0 skipped；仅1项既有LangChain预告。执行前在子进程移除Key。新增测试`compileall -q`通过。
+- 归档代码/证据对照§14.60与L2_01_00 §8.5/8.9、L2_01_02 §13.4进行1轮分离复核：调用账本、同次原decoder诊断、自动失败不能人工覆盖、原件不可变、安全投影、停批/清理与测试意图一致；本归档切片Blocker=0/Major=0，无未处理Minor。由同一执行者分阶段完成，不冒称外部独立评审。真实模型输出不合约仍是整体UAT未关闭缺口。
+- 本次不修改生产代码或设计合同，没有重跑Maven、strict mypy或全仓隔离回归；已有前置结果与167项定向回归各自证明范围保持区分。P3严格验证、文档/差异及敏感扫描在提交状态文档前执行。
+
+WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前人工通过仍为015/006/004共3/10，010失败、其他六题未完成。此次只收口一个失败批次，不关闭阶段B，不改变既有Business35/Knowledge37功能用例及P5结论。没有可复用的本批授权，不恢复run-06或自动准备新付费批次。

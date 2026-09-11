@@ -1311,3 +1311,18 @@ V3的detail保留V2语义枚举，并新增root_shape、root_fields、question_k
 **验证与实施前置**：三轮内审和分离只读设计评审通过后，实施V3 probe、人评runner及直接测试。覆盖上述全部形状枚举、合法终态、typed语义拒绝、JSON语法/duplicate/nonfinite、引擎ValueError、未知类型、原返回对象/异常身份、失败的下游零调用、线程/异步隔离、取消卸载、关联错配、诊断故障unknown、同一次JSON解析及生产源码字节不变。runner覆盖七题顺序、7/21预算、已通过三题排除、无人就绪零副作用、失败停批、canonical冻结、历史保护及安全清理。人评仍复用原页面和600秒单题/1800秒总等待，执行者不得代填。
 
 本协议只改变当前测试诊断与待执行协议，不修改L2五字段合同或生产任务版本；§14.59作为run-05当时协议保持原义。V3 probe/runner和直接测试现已实施，三轮内审、分离设计复核及两轮代码对照复核通过，实际验证归P3 §20.91.1。当前为Prepared non-live（待提交后冻结）；不创建authorization、不执行真实调用。专项UAT In Progress、QUALITY Blocked及3/10人工证据状态不变。
+
+#### 14.60.1 授权执行与失败终态
+
+2026-09-11用户确认本批完整绑定模板，随后在本机页面实际确认就绪。frozen HEAD=`b83d877e13593ed0a6a0655cc9661ae025b665ad`，manifest SHA-256=`167325fdef1d838fd0e3388616e3f624c6b14fac0c76b1458386ff507a02ccb9`，run=`knowledge-representative-human-uat-v3-20260911-06`，reference=`UAT_01:14.60`。本批已consumed，以failed终止；本节为§14.60准备状态的后续终态，不改写当时协议或历史资产。
+
+| Case | 自动检查及人工状态 | 本次模型/search/embedding/在线rerank | 终态 |
+|---|---|---|---|
+| KRB-010 | HTTP502，Rewrite9 invalid_output；未形成可展示结果，人评not_assessed | 2/0/0/0 | Failed，立即停批 |
+| KRB-011、012、017、019、021、023 | 未执行，人评not_assessed | 各0/0/0/0 | Not executed |
+
+KRB-010有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / shape_or_enum / root_fields`，即顶层字段集合不符合精确五字段合同。该记录没有实际键名或响应正文，不能判断具体漏了、改名或额外生成哪个字段。检索尚未执行，不归因为语料、向量排名或Evidence选择；不改变gold、条件、validator或失败语义，也不以合成合法计划改判真实失败。
+
+14项原件归档于`agent-runtime/tests/system_e2e/knowledge_representative_human_run_06/`；result SHA-256=`5ce04b6059af8bf99fa0fbac9e71fabd9adaaaffef5e1dac0e5090395f31ffc4`，journal SHA-256=`1473c2eba71c744a575864dc2f708c1f2acd6dce15ee0d0f6c5f09dcc4d559b3`。预算、清理、哈希及实际验证命令归P3 §20.91.2。除本地一次合成rerank预热，没有其他检索/Business/answer/写索引/重试/续跑；隔离服务和临时原始日志已清理，原件字节保留。
+
+当前固定十题人工通过仍为015/006/004共3项，剩余7项没有当前人工通过证据；整体阶段B专项UAT未完成。原有35/37功能UAT与历史P5结论不变。本批剩余额度不可续用，没有新批次；后续先核对模型输出合同可靠性，不自动追加付费试验。
