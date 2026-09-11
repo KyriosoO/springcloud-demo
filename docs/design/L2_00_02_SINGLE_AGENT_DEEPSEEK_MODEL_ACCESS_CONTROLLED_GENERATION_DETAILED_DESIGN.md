@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.7 |
-| 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.4 |
+| 当前版本 | v2.8 |
+| 更新时间 | 2026-09-11 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.5 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 | Provider 基线 | 已有 DeepSeek transport、input guard 与已实施并由生产组合根绑定的 `business-query-plan-v7`；默认 provider 仍为 stub，v4～v6仅作历史兼容 |
 | 归档来源 | [v1.9 已评审旧版](历史文档/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN_v1.9.md)；当前代码和既有接口 |
@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：修改 Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v7` 已实施；它在 v6 裸 slot 合同上只强化显式字段完整性，不改变 Business decoder、validator、binder 或业务接口。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。
+范围外：除§6.1批准的Knowledge输出协议外修改Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v7` 已实施；它在 v6 裸 slot 合同上只强化显式字段完整性，不改变 Business decoder、validator、binder 或业务接口。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -82,7 +82,23 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 
 模型失败/timeout、非法 framing、输入拒绝或取消固定映射为 `unavailable/timeout/invalid_argument`，业务下游调用为 0，不 retry、fallback、选择 Knowledge 或第二 domain。JWT/slot/model response 不持久化；数据生命周期只在单请求内，事务边界与一致性归业务服务。
 
+### 6.1 固定模型与只承载输出的严格Schema协议
+
+`REQ-MODEL-105` / `DR-MODEL-110`：当前DeepSeek请求统一使用代码绑定的`deepseek-flash`；默认stub不变。不开放用户、模型或环境任意指定model/URL。响应identity仍严格核对当前model；旧任务源文件和历史运行model快照不改写。此变更影响所有当前DeepSeek任务的模型后端，不改变Business、selection、Summary的任务合同；旧成功效果不能冒充新后端实测。
+
+`REQ-MODEL-106` / `DR-MODEL-111`：Model内部新增`StructuredToolMode.SCHEMA_ONLY`，仅接受一个固定输出定义和TOOL_CALLS模式。它只承载JSON参数，不是可执行Capability、函数分发或工具循环。Provider在相同受控origin上为此模式固定POST `/beta/chat/completions`，function带`strict=true`，`tool_choice`固定唯一name，`thinking=disabled`、stream=false；其他模式仍用`/chat/completions`且不改变旧投影。任务不接触provider URL或strict私有参数，不增加模型请求。
+
+Schema使用当前Core已支持且provider严格模式可表达的object/array/string/enum子集；每层object必须`additionalProperties=false`且全部properties列入required。长度、数组数量、顺序、条件关联及语义仍由本地原validator校验，不因provider不支持minLength/maxLength/minItems/maxItems而放宽。只承载输出模式在HTTP前拒绝不支持的Schema关键字，不静默删除约束；不得扩充公共Core Schema。
+
+Knowledge新任务负责唯一name、单调用、无混合正文及arguments严格解码；字段缺失/重复/未知、无调用/多调用、错误name、截断、语义非法均失败关闭。不得补字段、清洗模型响应、重试、降级为普通JSON模式或执行输出函数。原始响应/arguments仍只在请求内，不写日志、evidence或观测；观测复用现有安全请求投影。
+
+`IMPL-MODEL-109`：`agent-runtime/src/agent_runtime/model/settings.py`、`agent-runtime/src/agent_runtime/model/contracts.py`、`agent-runtime/src/agent_runtime/model/deepseek/dto.py`及`agent-runtime/src/agent_runtime/model/deepseek/transport.py`；调用方为L2_01_00 §8.11新任务。`TEST-MODEL-109` / `VAL-MODEL-103`：固定model/两条固定path/strict/named choice/disabled thinking的MockTransport测试、不支持Schema的HTTP零调用、旧模式回归及严格类型检查。`REQ-MODEL-105/106 → DR-MODEL-110/111 → IMPL-MODEL-109 → TEST-MODEL-109 → VAL-MODEL-103`。
+
+依据2026-09-11核实的[官方首次调用](https://api-docs.deepseek.com/zh-cn/)、[Tool Calls严格模式](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)及[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)：JSON mode不等于Schema约束，strict是Beta，固定tool_choice不支持thinking enabled。官方未来模型路由调整不得用于解释此前失败。本增量已按先设计复评、后编码的顺序实施；实际non-live验证及状态归P3，不宣称真实生成可靠性已通过。
+
 ## 7. 实现落点清单
+
+§6.1新增实现、验证与状态见下述追踪；原Business条目不变。
 
 | 实现编号 | 已验证位置 | 目标变更 |
 |---|---|---|
@@ -134,9 +150,9 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
-| 当前实施状态 | v7 Prompt/task version 与直接合同测试已实施；candidate-03 暴露的显式字段替换问题已按通用规则修复，受控回归候选待冻结 |
-| 当前允许实施范围 | v7 fake/non-live 回归及总预算内独立受控候选；不得复用 candidate-03 或增加字段专用分支 |
-| 当前禁止动作 | 修改 Knowledge task、放宽 Business validator、复用历史授权或无界真实模型调用 |
+| 当前实施状态 | Business v7 Prompt/task version 与直接合同测试已实施；§6.1固定flash和Knowledge严格输出模式已实施，non-live验证由P3管理，真实新后端效果未验证 |
+| 当前允许实施范围 | Business v7 fake/non-live回归；本轮§6.1仅non-live迁移，不包含新的付费授权；不得复用历史批次或增加字段专用分支 |
+| 当前禁止动作 | 超出§6.1修改Knowledge task、放宽 Business validator、复用历史授权或无界真实模型调用 |
 
 风险包括 Prompt 遗漏/替换用户条件、敏感值出域和旧版本证据误用。candidate-03 证明仅依赖字段白名单不能阻止模型在进入 validator 前把显式未知字段改写成合法相近字段；v7 以通用字段完整性规则、adversarial fake、零调用、版本化 task/manifest 及不可变历史控制，不添加 workBase 专用识别或本地语义 Resolver。运行批次和证据哈希由 UAT_00/evidence 管理。
 

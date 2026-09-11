@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.44 |
+| 当前版本 | v1.45 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-11 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，阶段 A 语料完整性及阶段 B 检索质量专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_01_00` v1.30、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.68；§14.51真实终态保持，§14.52及§14.53仅non-live验证；不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.31、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.69；§14.61仅non-live协议迁移；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -1326,3 +1326,11 @@ KRB-010有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / sh
 14项原件归档于`agent-runtime/tests/system_e2e/knowledge_representative_human_run_06/`；result SHA-256=`5ce04b6059af8bf99fa0fbac9e71fabd9adaaaffef5e1dac0e5090395f31ffc4`，journal SHA-256=`1473c2eba71c744a575864dc2f708c1f2acd6dce15ee0d0f6c5f09dcc4d559b3`。预算、清理、哈希及实际验证命令归P3 §20.91.2。除本地一次合成rerank预热，没有其他检索/Business/answer/写索引/重试/续跑；隔离服务和临时原始日志已清理，原件字节保留。
 
 当前固定十题人工通过仍为015/006/004共3项，剩余7项没有当前人工通过证据；整体阶段B专项UAT未完成。原有35/37功能UAT与历史P5结论不变。本批剩余额度不可续用，没有新批次；后续先核对模型输出合同可靠性，不自动追加付费试验。
+
+### 14.61 Rewrite10输出协议与deepseek-flash的非live验证边界
+
+依据L2_00_02 §6.1、L2_01_00 §8.11及P3 §20.92设计并验证输出专用严格Schema协议。只迁移当前生产根与非live测试，不修改历史任务/runner/manifest/result，不创建run-07、candidate或授权资产。模型请求仍最多一次Rewrite；function仅承载结果参数，不执行工具或补请求。
+
+当前deepseek-flash后端与Rewrite10的真实效果尚未测量。原3/10人工通过、Business35/Knowledge37功能证据及历史P5各自保持原证明范围，不因协议设计或fake通过被改判为新版真实UAT完成。当前目标只允许non-live，模型调用0；不得复用run-06剩余额度。后续真实验证须另有新的完整版本/快照/预算绑定，不能把本节当作付费授权。
+
+本增量已通过设计三轮内审、分阶段复评、代码两轮复核和正式隔离non-live回归；Spring公共入口分别覆盖Knowledge和Business当前对象图。命令、数量、历史夹具迁移及全部失败修复过程只记录于P3 §20.92，不在本计划复制动态测试总数。复核由同一执行者分阶段完成，不声称外部独立评审；真实专项UAT仍未完成。

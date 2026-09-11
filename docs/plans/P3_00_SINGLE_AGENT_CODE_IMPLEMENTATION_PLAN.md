@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.68 |
+| 当前版本 | v2.69 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-11 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -3229,3 +3229,34 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 - 本次不修改生产代码或设计合同，没有重跑Maven、strict mypy或全仓隔离回归；已有前置结果与167项定向回归各自证明范围保持区分。P3严格验证、文档/差异及敏感扫描在提交状态文档前执行。
 
 WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前人工通过仍为015/006/004共3/10，010失败、其他六题未完成。此次只收口一个失败批次，不关闭阶段B，不改变既有Business35/Knowledge37功能用例及P5结论。没有可复用的本批授权，不恢复run-06或自动准备新付费批次。
+
+### 20.92 严格Schema输出协议与当前模型名纠偏（non-live）
+
+依据本轮用户“按照推荐方式”及`deepseek-flash`指示，目标只为当前失败后的协议可靠性修复；不读LLM_API_KEY、不产生模型outbound、不准备新批次。起始HEAD=`e50eae962c499fe4b747e7cb5f7fb9e6c1c48b6b`，codex工作树干净且与origin/codex一致。run-06及此前字节、有限失败分类和3/10人评不变。
+
+方案比较：只追加Prompt示例没有强制字段集合保证；只放宽decoder会掩盖契约违约；推荐新增输出专用严格Schema信封及Rewrite10，Provider改用官方当前`deepseek-flash`，本地精确语义校验不变。Beta固定path/named choice/disabled thinking由Model掌握，不提供工具执行。公共Core/HTTP/DTO、索引、读取/出域权限、检索和Summary合同均不变。后端模型切换影响全部当前DeepSeek任务，旧效果证据不继承。
+
+本增量归既有WP-KRETRIEVAL-QUALITY-01下的有限修复，不新增Gate。顺序：L2_00_02 v2.8、L2_01_00 v1.31设计与三轮内审/分离复评 → Model内部投影与Rewrite10 → 当前对象图/测试迁移 → 定向及正式non-live → 代码复评 → 状态与Git收口。设计通过后实施；当前增量已实施，non-live验证及最终复评结果见本节后续记录。整体QUALITY仍Blocked、UAT仍In Progress；本轮没有live关闭条件。
+
+设计内审与复核（实施前）：第1轮核对所有权与协议，限定单输出定义、禁止执行/补字段/额外调用；第2轮核对官方strict子集，明确Beta固定path、关闭thinking、全部属性required及本地数量/语义不可放宽；第3轮核对迁移、DAG和证据，明确共享model影响全部当前任务但不继承旧效果，修复Model文档两处缩写路径导致的REF-001。随后对两份L2增量及P3/UAT作1轮分离只读复评：无S0/S1/未处理S2，准入仅限本non-live切片。由同一执行者分阶段复核，不冒称外部独立评审。两份L2严格结构/追踪校验最终均0错误0警告，P3严格校验0错误0警告；人工复核确认公共合同、权限、索引、任务语义及历史资产不扩张。设计允许进入最小实施，UAT状态不变。
+
+实施映射：`DR-MODEL-110/111`对应固定flash、内部SCHEMA_ONLY及Provider固定Beta路径/严格投影；`DR-KFLOW-030`对应Rewrite10单信封解码、原V9参数原样进入既有精确decoder/scope guard和当前组合根10/7/v3。未引入工具dispatch、补字段或二次模型请求。官方strict暂不支持的长度和集合上限继续由原本地validator执行，不删约束。
+
+历史测试迁移：当前组合根、fake模型及wire断言升级到10；已消费代表性9/7 runner的显式测试通过`tests/system_e2e/conftest.py`有限名单读取run-06冻结提交的组合根和fake helper。组合根核对原manifest SHA，未纳入manifest的helper单独绑定原Git blob SHA；不改历史runner、用例断言和运行资产。新增隔离/恢复测试证明其他模块、其他函数及未来版本不受影响，当前生产测试仍验证10。首次全量发现此历史夹具依赖漂移，不能以删除测试或改变旧预期解决。
+
+本轮已执行的定向验证（均fake或本地静态验证，Key在测试子进程移除）：
+
+- `python -B -m pytest`新Rewrite10/Model及当前Knowledge组合根定向集合：迁移fake信封后271 passed；补充失败边界、Schema HTTP零调用及当前任务注册集合83 passed。
+- Knowledge unit/contract/integration扩展检查曾在8处旧版本断言失败后停止：1332 passed/8 failed/6 skipped；按当前生产绑定修正显式版本断言，不改状态/调用次数/语义断言。
+- 正式隔离全量首次：Transaction host/preflight 14 passed/3.68秒；全量4576 passed/72 failed/27 skipped/864.77秒。72项失败为19项当前任务断言漏迁移和53项冻结9/7 runner误借当前根；随后只修对应测试接缝。
+- 冻结代表性V1/V2/V3 runner、human runner、有限失败探针和隔离恢复集合：`python -B -m pytest`显式11个测试文件、`-q --tb=short -p no:cacheprovider --maxfail=3`，356 passed/157.53秒；当前period lookup及非法计划集合41 passed/12.94秒。
+- `../serviceCenter/mvnw.cmd -Dtest=AgentKnowledgeNonLiveE2ETest,AgentBusinessQueryPlanNonLiveE2ETest -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test`（agent-service目录）：2个JUnit测试通过、0失败/跳过，包含Knowledge16与Business15共31个内部场景。首次误用reactor `-pl ../agent-service`未找到模块、未执行测试，改为模块目录直接运行后通过；未启动真实业务服务或读取模型凭据。
+- `python -B -m mypy --strict src`：141个源文件通过；`python -B -m compileall -q src`及新增测试编译通过。两份L2 strict与P3 strict最终均0错误0警告；首次P3命令误加不支持的`--root`参数，纠正参数后通过。目标30个变更文件的凭据模式扫描0命中、历史运行资产变更0、`git diff --check`通过。
+
+代码对照设计分离复核：Model §6.1对应固定model、固定path、strict子集拒绝、超时/取消与旧模式；Knowledge §8.11对应单信封、原参数精确decoder、scope guard、无工具分发/重试和零检索。首轮发现当前/冻结夹具职责混用及一处历史源测试通配未来版本的维护缺陷，已改为精确冻结名单及显式Rewrite1～9列表；复评定向356/41项证明隔离恢复和原断言不变。评审上限2轮、实际2轮，由同一执行者分阶段完成，不称外部独立评审。最终正式重跑及差异复核通过，本non-live增量Blocker=0/Major=0且无未处理Minor；不把旧后端证据转为flash真实通过。
+
+最终正式隔离重跑：`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`（Python3.12、临时venv显式安装当前包、`PYTEST_ADDOPTS='-q --tb=short -p no:cacheprovider --maxfail=1'`）：Transaction host/preflight **14 passed/3.48秒**；全量 **4650 passed/27 skipped/0 failed/562.72秒**。临时环境由脚本finally清理。27项跳过为原opt-in live/诊断和一项未生成GATE-050条件证据，不计为通过；1项既有LangChain预告不影响结果。包含Knowledge、Model、Business/Core、UAT追踪与历史哈希回归。Java本轮仅实际执行上述两条Spring E2E，没有宣称重跑全部业务模块Maven测试。
+
+收口范围：本轮真实模型/E2E业务/search/embedding/rerank/索引写入均0（Spring E2E使用fake依赖）；无新candidate/授权/消费资产，无历史运行文件或旧Rewrite源修改。代码及直接测试和文档状态分别形成提交，推送当前codex；提交SHA与远端核对结果见交付报告，避免自引用提交哈希。整体阶段B仍未完成，3/10人评及其余真实效果缺口保持，不自动申请或执行新付费批次。
+
+提交前元数据复核进一步同步L1_00指向的Knowledge任务版本，以及两份L2末尾“当前实施/允许范围/复核依据”到已批准的§6.1/§8.11，避免正文已经10但收口表仍标旧任务或旧准入范围。仅修正当前引用与状态，无新增语义或代码；修正后再执行两份L2及P3严格验证。
