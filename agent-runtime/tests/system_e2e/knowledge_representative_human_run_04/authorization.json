@@ -1,0 +1,1 @@
+{"cumulativeLimits":{"e2e":45,"model":122},"frozenHead":"b1008000cf2716ec85fcb00116e188e060e102bb","limits":{"business":0,"e2e":10,"embedding":20,"model":30,"rerank":40,"resume":0,"retry":0,"search":40},"manifestSha256":"da805a618a194d17ada0f4eb37cd6732f76c2b9924943d82c525c0cedddf8cae","reference":"UAT_01:14.58","runId":"knowledge-representative-human-uat-v1-20260911-04"}
