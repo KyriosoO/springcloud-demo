@@ -94,6 +94,7 @@ def build_runtime(
     knowledge_tasks = KnowledgeCompositionRoot.task_definitions(
         enabled=knowledge_settings.enabled,
         rewrite_max_candidates=knowledge_settings.rewrite_max_candidates,
+        enabled_domain_ids=knowledge_settings.enabled_domain_ids,
     )
     policy_catalog = (
         KnowledgeEgressPolicyCatalog.load_current_resource()

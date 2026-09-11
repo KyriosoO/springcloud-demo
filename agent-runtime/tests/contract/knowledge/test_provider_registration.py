@@ -22,8 +22,9 @@ def test_disabled_knowledge_registers_descriptor_without_tasks_stages_or_clients
 
 
 def test_enabled_knowledge_defines_rewrite_and_summary_before_gateway_freeze() -> None:
-    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
+    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",))
 
     assert tasks is not None
     assert tuple(item.task_id.value for item in tasks.as_tuple()) == ("knowledge_rewrite", "knowledge_summary")
-    assert tuple(item.task_version for item in tasks.as_tuple()) == ("10", "7")
+    assert tuple(item.task_version for item in tasks.as_tuple()) == ("11", "7")
+    assert tasks.enabled_domain_ids == ("tax.policy",)

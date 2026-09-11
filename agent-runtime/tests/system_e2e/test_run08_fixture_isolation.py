@@ -11,10 +11,28 @@ from tests.integration.knowledge import test_requirement_runtime_composition as 
 from tests.system_e2e.conftest import isolate_consumed_entrypoint_signature, isolate_consumed_run08_root_fixture
 
 
+def test_historical_stub_isolation_never_replaces_current_main_or_other_tests(monkeypatch):
+    from tests.system_e2e import runtime_server
+    from tests.system_e2e.conftest import isolate_historical_stub_composition
+    root, build, stub_root = bootstrap.KnowledgeCompositionRoot, main.build_runtime, runtime_server.KnowledgeCompositionRoot
+    request = SimpleNamespace(module=SimpleNamespace(__name__="tests.system_e2e.test_runtime_composition"),
+        function=SimpleNamespace(__name__="test_test_only_composition_uses_stub_and_rejects_invalid_local_arguments_without_network"))
+    with monkeypatch.context() as patch:
+        isolate_historical_stub_composition.__wrapped__(request, patch)
+        tasks = runtime_server.KnowledgeCompositionRoot.task_definitions(enabled=True)
+        assert (tasks.rewrite.task_version, tasks.summary.task_version) == ("1", "2")
+        assert bootstrap.KnowledgeCompositionRoot is main.KnowledgeCompositionRoot is root
+        assert main.build_runtime is build
+    assert runtime_server.KnowledgeCompositionRoot is stub_root
+    request.function.__name__ = "unrelated_test"
+    isolate_historical_stub_composition.__wrapped__(request, monkeypatch)
+    assert runtime_server.KnowledgeCompositionRoot is stub_root
+
+
 def test_only_exact_consumed_test_uses_frozen_source_and_restores(monkeypatch):
     root = bootstrap.KnowledgeCompositionRoot
     name = current.__name__
-    assert root.task_definitions(enabled=True).rewrite.task_version == "10"
+    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
     request = SimpleNamespace(
         module=SimpleNamespace(__name__="tests.system_e2e.test_knowledge_stage_b_uat_v8"),
         function=SimpleNamespace(__name__="test_capture_hooks_on_actual_current_production_root_and_provider_wire"),
@@ -28,7 +46,7 @@ def test_only_exact_consumed_test_uses_frozen_source_and_restores(monkeypatch):
         assert sys.modules[name].KnowledgeCompositionRoot is frozen
     assert bootstrap.KnowledgeCompositionRoot is root and main.KnowledgeCompositionRoot is root
     assert sys.modules[name] is current
-    assert root.task_definitions(enabled=True).rewrite.task_version == "10"
+    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
 
 
 def test_other_test_in_same_module_keeps_current_root(monkeypatch):
@@ -53,7 +71,7 @@ def test_consumed_v8_binding_is_exact_and_current_v9_is_restored(module, functio
     root = bootstrap.KnowledgeCompositionRoot
     test_module = SimpleNamespace(__name__=module, production=current)
     request = SimpleNamespace(module=test_module, function=SimpleNamespace(__name__=function))
-    assert root.task_definitions(enabled=True).rewrite.task_version == "10"
+    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
     with monkeypatch.context() as patch:
         isolate_consumed_run08_root_fixture.__wrapped__(request, patch)
         frozen = bootstrap.KnowledgeCompositionRoot

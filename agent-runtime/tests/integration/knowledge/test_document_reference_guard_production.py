@@ -46,7 +46,7 @@ async def test_current_root_accepts_reference_query_and_focus_without_rewriting_
     assert all(type(guard) is DocumentReferenceSemanticGuard for guard, _ in seen)
     assert [(request.task_id, request.task_version) for request in model.requests] == [
         (ModelTaskId.ACTION_SELECTION, "action-selection-v4"),
-        (ModelTaskId.KNOWLEDGE_REWRITE, "10"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7"),
+        (ModelTaskId.KNOWLEDGE_REWRITE, "11"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7"),
     ]
     for request in model.requests[1:]:
         assert json.loads(request.user_payload_json)["question"] == question
@@ -82,7 +82,7 @@ async def test_invalid_query_or_focus_rejects_whole_plan_before_downstream(field
 @pytest.mark.asyncio
 async def test_invalid_second_domain_rejects_valid_first_domain_too(monkeypatch):
     value = output(query=QUESTION)
-    value["queries"].append({"domain_id": "tax.law", "query": QUESTION.replace("财税", "国税函")})
+    value["queries"]["tax.law"] = QUESTION.replace("财税", "国税函")
     requirement = deepcopy(value["requirements"][0])
     requirement.update(requirement_id="r2", domain_id="tax.law")
     value["requirements"].append(requirement)
@@ -101,12 +101,12 @@ async def test_original_multi_domain_question_allows_local_focus_without_invente
     monkeypatch.setattr(harness, "FOCUSES", (policy_focus, law_focus, harness.FOCUSES[2]))
     question = global_condition + "请分别查找财税〔2011〕100号的软件产品定义，以及增值税法第十条的销售服务税率规定。"
     value = output(query=policy_focus, focus=policy_focus)
-    value["queries"].append({"domain_id": "tax.law", "query": law_focus})
+    value["queries"]["tax.law"] = law_focus
     value["requirements"].append({"requirement_id": "r2", "domain_id": "tax.law", "kind": "rule", "focus": law_focus})
     if mutation == "missing_condition":
-        value["queries"][1]["query"] = law_focus.replace(global_condition or "第十条", "")
+        value["queries"]["tax.law"] = law_focus.replace(global_condition or "第十条", "")
     elif mutation == "other_domain":
-        value["queries"][1]["query"] += FOCUS
+        value["queries"]["tax.law"] += FOCUS
     elif mutation == "new_focus_condition":
         value["requirements"][1]["focus"] += "2027年"
     result, model, clients, observation = await harness.invoke(value, question=question, multi=True, monkeypatch=monkeypatch)
@@ -133,7 +133,9 @@ async def test_original_multi_domain_question_allows_local_focus_without_invente
 @pytest.mark.asyncio
 async def test_same_runtime_does_not_share_reference_constraints_between_requests(monkeypatch):
     monkeypatch.setattr(harness, "FOCUSES", (FOCUS,) + harness.FOCUSES[1:])
-    model, clients = harness.Model(output()), harness.Clients()
+    value = output()
+    del value["queries"]["tax.law"]
+    model, clients = harness.Model(value), harness.Clients()
     runtime = build_runtime(_enabled_environment(), model_transport=model, knowledge_http_client_factory=clients)
 
     async def one(question):

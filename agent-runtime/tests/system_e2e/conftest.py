@@ -12,6 +12,47 @@ from types import FunctionType, ModuleType
 import pytest
 
 
+def bind_consumed_entrypoint_imports(monkeypatch, build):
+    # These source-frozen runners captured the entrypoint with `from ... import`.
+    # Only the exact consumed-test fixtures call this; no current harness opts in.
+    for name in ("tests.system_e2e.knowledge_stage_b_uat", "tests.system_e2e.knowledge_activation_local_smoke"):
+        module = sys.modules.get(name)
+        if module is not None:
+            monkeypatch.setattr(module, "build_runtime", build)
+
+
+@pytest.fixture(autouse=True)
+def isolate_historical_stub_composition(request, monkeypatch):
+    # This immutable stub/employee.detail harness is not the current Spring E2E.
+    if (request.module.__name__ != "tests.system_e2e.test_runtime_composition" or request.function.__name__ !=
+            "test_test_only_composition_uses_stub_and_rejects_invalid_local_arguments_without_network"):
+        return
+    import agent_runtime.bootstrap as bootstrap
+    from tests.system_e2e import runtime_server
+    repo = Path(__file__).resolve().parents[3]
+    head = "c07bb23b49665607897ad5a4a6e079e36d2584a6"
+    paths = {
+        "agent-runtime/src/agent_runtime/bootstrap.py": "e4572dafab3bef52db1efdb35cd6e3f6ccb01e886b81f3d571f211e6cec95e0c",
+        "agent-runtime/tests/system_e2e/runtime_server.py": "987b30c3feb88d67b83c5f856fcd39d901e0bd366f2be53fca7328ebba95f1dc",
+        "agent-runtime/tests/system_e2e/test_runtime_composition.py": "352f4c05190f7173ddd543dbd4c23d9ba289fe37c81fe4724116db509ee883f7",
+    }
+    source = None
+    for path, expected in paths.items():
+        raw = subprocess.check_output(["git", "show", f"{head}:{path}"], cwd=repo)
+        assert hashlib.sha256(raw).hexdigest() == expected
+        if path.endswith("/bootstrap.py"):
+            source = raw
+        else:
+            assert (repo / path).read_bytes() == raw
+    assert source is not None
+    nodes = [node for node in ast.parse(source).body
+             if isinstance(node, ast.ClassDef) and node.name == "KnowledgeCompositionRoot"]
+    assert len(nodes) == 1
+    namespace = dict(vars(bootstrap))
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), f"git:{head}:KnowledgeCompositionRoot", "exec"), namespace)
+    monkeypatch.setattr(runtime_server, "KnowledgeCompositionRoot", namespace["KnowledgeCompositionRoot"])
+
+
 def frozen_run07_compatible_manifest():
     from tests.system_e2e import knowledge_stage_b_uat as old
     from tests.system_e2e import knowledge_stage_b_uat_v7 as run07
@@ -115,6 +156,12 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
         root.build_provider = staticmethod(historical_build)
     monkeypatch.setattr(bootstrap, "KnowledgeCompositionRoot", root)
     monkeypatch.setattr(main, "KnowledgeCompositionRoot", root)
+    from tests.integration.knowledge.conftest import frozen_entrypoint
+    main_path = "agent-runtime/src/agent_runtime/main.py"
+    main_source = subprocess.check_output(["git", "show", f"{head}:{main_path}"], cwd=repo)
+    assert hashlib.sha256(main_source).hexdigest() == manifest["assets"][main_path]
+    monkeypatch.setattr(main, "build_runtime", frozen_entrypoint(head, main_source))
+    bind_consumed_entrypoint_imports(monkeypatch, main.build_runtime)
     name = "tests.integration.knowledge.test_requirement_runtime_composition"
     module = ModuleType(name)
     module.__file__ = str(repo / "agent-runtime/tests/integration/knowledge/test_requirement_runtime_composition.py")
@@ -179,6 +226,9 @@ def isolate_consumed_representative_root(request, monkeypatch):
     root = namespace["KnowledgeCompositionRoot"]
     monkeypatch.setattr(bootstrap, "KnowledgeCompositionRoot", root)
     monkeypatch.setattr(main, "KnowledgeCompositionRoot", root)
+    from tests.integration.knowledge.conftest import frozen_entrypoint
+    monkeypatch.setattr(main, "build_runtime", frozen_entrypoint(head, frozen("agent-runtime/src/agent_runtime/main.py")))
+    bind_consumed_entrypoint_imports(monkeypatch, main.build_runtime)
     name = "tests.integration.knowledge.test_requirement_runtime_composition"
     module = ModuleType(name)
     module.__file__ = str(repo / helper)
@@ -186,6 +236,35 @@ def isolate_consumed_representative_root(request, monkeypatch):
     monkeypatch.setitem(sys.modules, name, module)
     monkeypatch.setattr(package, "test_requirement_runtime_composition", module, raising=False)
     monkeypatch.setattr(shared, "production", module)
+    if hasattr(request.module, "production"):
+        monkeypatch.setattr(request.module, "production", module)
+
+
+@pytest.fixture(autouse=True)
+def isolate_consumed_flash_root(request, monkeypatch):
+    targets = {
+        "tests.system_e2e.test_knowledge_representative_human_uat_v4": {
+            "test_actual_current_root_decoders_then_human_wait_make_no_extra_outbound",
+            "test_current_root_failures_preserve_zero_calls_and_no_leak",
+        },
+        "tests.system_e2e.test_knowledge_model_failure_probe_v1": {
+            "test_current_runtime_stops_before_retrieval_and_preserves_observations"},
+        "tests.system_e2e.test_knowledge_model_failure_probe_v2": {
+            "test_current_root_outcome_and_calls_are_unchanged"},
+        "tests.system_e2e.test_knowledge_model_failure_probe_v3": {
+            "test_current_production_root_rejects_with_zero_downstream"},
+    }
+    if request.function.__name__ not in targets.get(request.module.__name__, set()):
+        return
+    from tests.integration.knowledge.conftest import frozen_v10_fixture
+    from tests.system_e2e import test_knowledge_representative_uat_v1 as shared
+    module = frozen_v10_fixture(monkeypatch)
+    bind_consumed_entrypoint_imports(monkeypatch, module.build_runtime)
+    monkeypatch.setattr(shared, "production", module)
+    if request.module.__name__ == "tests.system_e2e.test_knowledge_representative_human_uat_v4":
+        monkeypatch.setattr(request.module.base.service_run, "build_runtime", module.build_runtime)
+    if request.module.__name__ != "tests.system_e2e.test_knowledge_representative_human_uat_v4" and hasattr(request.module, "invoke"):
+        monkeypatch.setattr(request.module, "invoke", module.invoke)
     if hasattr(request.module, "production"):
         monkeypatch.setattr(request.module, "production", module)
 
@@ -221,6 +300,7 @@ def isolate_consumed_entrypoint_signature(request, monkeypatch, isolate_consumed
     build = FunctionType(original.__code__, vars(main), "build_runtime", original.__defaults__)
     build.__kwdefaults__ = original.__kwdefaults__
     monkeypatch.setattr(main, "build_runtime", build)
+    bind_consumed_entrypoint_imports(monkeypatch, build)
     for name in ("tests.integration.knowledge.test_rewrite_v4_provider_boundary",
                  "tests.integration.knowledge.test_requirement_runtime_composition"):
         module = sys.modules.get(name)

@@ -1,4 +1,4 @@
-"""Actual 10/7/v3 production root, synthetic transports; not live effectiveness."""
+"""Actual 11/7/v3 production root, synthetic transports; not live effectiveness."""
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +20,7 @@ from agent_runtime.knowledge.evidence.contracts import KnowledgeRequirementSumma
 from agent_runtime.knowledge.evidence.summary_task_v5 import KnowledgeSummaryTaskV5
 from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
 from agent_runtime.knowledge.rewrite_v6 import KnowledgeRewriteTaskV6
-from agent_runtime.knowledge.rewrite_v10 import OUTPUT_NAME
+from agent_runtime.knowledge.rewrite_v11 import OUTPUT_NAME
 from agent_runtime.knowledge.settings import KnowledgeSettings
 from agent_runtime.main import build_runtime
 from agent_runtime.model.contracts import ModelTaskId, StructuredFinishKind, StructuredModelResponse, StructuredToolCall
@@ -34,11 +34,11 @@ FOCUSES = ("税务服务分类依据", "税务适用规则依据", "税务规则
 CONTENTS = ("合成税务资料：乙类属于甲类服务。", "合成税务资料：甲类服务执行标准规则。", "合成税务资料：本规则自指定期间施行。")
 
 
-def plan(*, multi=False, applicability=True, question=QUESTION):
+def plan(*, multi=False, applicability=True, question=QUESTION, enabled_domains=("tax.policy", "tax.law")):
     domains = ("tax.policy", "tax.law") if multi else ("tax.policy",)
     kinds = ("subject_scope", "rule", "temporal_scope") if applicability else ("rule",)
     return {"outcome": "search", "question_kind": "applicability" if applicability else "lookup",
-        "queries": [{"domain_id": d, "query": question} for d in domains],
+        "queries": {d: question if d in domains else "" for d in enabled_domains},
         "requirements": [{"requirement_id": f"r{i}", "domain_id": domains[-1] if i > 1 else domains[0],
                           "kind": kind, "focus": FOCUSES[i - 1]} for i, kind in enumerate(kinds, 1)],
         "missing_conditions": []}
@@ -57,7 +57,7 @@ class Model:
             value = {"capability_id": "knowledge.query"}
             if self.fault == "second_action": value["second"] = "employee.search"
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
-            assert request.task_version == "10" and request.max_output_tokens == 1536
+            assert request.task_version == "11" and request.max_output_tokens == 1536
             if self.fault == "rewrite_failure": raise RuntimeError("synthetic")
             if self.fault == "rewrite_timeout": raise TimeoutError("synthetic")
             value = deepcopy(self.output)
@@ -158,7 +158,7 @@ async def test_current_root_retains_three_proof_anchors_and_summary_coverage(mul
     assert result.status is CapabilityStatus.SUCCESS, result.failure
     assert result.capability_id == "knowledge.query" and [p["quote"] for p in result.user_result["points"]] == list(CONTENTS)
     assert [(r.task_id, r.task_version) for r in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "10"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "11"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
     assert [v["query"] for p, v in clients.payloads if p == "/rerank"] == list(FOCUSES)
     expected_documents = [text + "\n文档标题：增值税政策资料" + str(i) for i, text in enumerate(CONTENTS, 1)]
     for path, body in clients.payloads:
@@ -233,7 +233,7 @@ async def test_invalid_plan_zero_retrieval_and_zero_summary(fault):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("outcome,missing,reason", [("unsupported", [], "no_matching_domain"), ("clarification_required", ["taxpayer_type"], "clarification_required")])
 async def test_terminal_plan_no_retrieval_or_summary(outcome, missing, reason):
-    result, model, clients, _ = await invoke({"outcome": outcome, "question_kind": "none", "queries": [], "requirements": [], "missing_conditions": missing})
+    result, model, clients, _ = await invoke({"outcome": outcome, "question_kind": "none", "queries": {"tax.policy": "", "tax.law": ""}, "requirements": [], "missing_conditions": missing})
     assert result.status is CapabilityStatus.NO_RESULT and result.user_result["reason"] == reason
     assert len(model.requests) == 2 and clients.paths == []
 
@@ -257,8 +257,8 @@ def test_minimum_four_checked_before_any_client_or_model_factory(domains, monkey
 
 @pytest.mark.parametrize("fault", ["rewrite_version", "summary_version", "summary_six", "summary_unknown", "rewrite_id", "summary_id", "rewrite_type", "summary_type"])
 def test_production_rejects_mixed_task_pair_before_model_use(fault):
-    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "10" and tasks.summary.task_version == "7"
+    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",))
+    assert tasks.rewrite.task_version == "11" and tasks.summary.task_version == "7"
     if fault == "rewrite_version": tasks = replace(tasks, rewrite=KnowledgeRewriteTaskV6.definition())
     elif fault == "summary_version": tasks = replace(tasks, summary=KnowledgeSummaryTaskV5.definition())
     elif fault in {"summary_six", "summary_unknown"}:
@@ -274,7 +274,7 @@ def test_production_rejects_mixed_task_pair_before_model_use(fault):
 
 @pytest.mark.asyncio
 async def test_current_root_cancel_closes_all_clients_without_summary_retry():
-    model, clients = Model(plan(), fault="wait"), Clients()
+    model, clients = Model(plan(enabled_domains=("tax.policy",)), fault="wait"), Clients()
     runtime = build_runtime(_enabled_environment(), model_transport=model, knowledge_http_client_factory=clients)
     task = asyncio.create_task(runtime.ainvoke(question=QUESTION, scope=scope(QUESTION)))
     await asyncio.wait_for(model.entered.wait(), 2)
@@ -299,7 +299,7 @@ def test_historical_root_isolation_is_exact_scoped_and_restored(monkeypatch):
             assert module.KnowledgeCompositionRoot is expected
         assert bootstrap.KnowledgeCompositionRoot is main.KnowledgeCompositionRoot is current
     assert legacy_root().task_definitions(enabled=True).rewrite.task_version == "6"
-    assert current.task_definitions(enabled=True).rewrite.task_version == "10"
+    assert current.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
 
 
 @pytest.mark.asyncio
@@ -323,7 +323,7 @@ async def test_current_root_keeps_concurrent_requirement_state_request_local():
                 question = json.loads(request.user_payload_json)["question"]
                 await asyncio.sleep(0)
                 return StructuredModelResponse(finish_kind=StructuredFinishKind.TOOL_CALLS, content=None,
-                    tool_calls=(StructuredToolCall(name=OUTPUT_NAME, arguments_json=json.dumps(plan(question=question))),),
+                    tool_calls=(StructuredToolCall(name=OUTPUT_NAME, arguments_json=json.dumps(plan(question=question, enabled_domains=("tax.policy",)))),),
                     usage_total_tokens=0)
             return await super().complete(request, call_deadline=call_deadline)
 
@@ -347,8 +347,8 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
     from agent_runtime.model.settings import ModelApiKey, ModelProvider, ModelSettings
     from tests.integration.knowledge.test_rewrite_v4_provider_boundary import _envelope
 
-    calls, model, clients = [], Model(plan()), Clients()
-    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
+    calls, model, clients = [], Model(plan(enabled_domains=("tax.policy",))), Clients()
+    tasks = KnowledgeCompositionRoot.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",))
     definitions = (None, tasks.rewrite, tasks.summary)
     key = "synthetic-nonlive-requirement-wire-key"
 
@@ -405,13 +405,13 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
 @pytest.mark.parametrize("task", ["rewrite", "summary"])
 def test_task_factory_version_error_precedes_client_allocation(task, monkeypatch):
     from agent_runtime import main
-    from agent_runtime.knowledge.rewrite_v10 import KnowledgeRewriteTaskV10
+    from agent_runtime.knowledge.rewrite_v11 import KnowledgeRewriteTaskV11
     from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
     def forbidden(*args, **kwargs): raise AssertionError("No resources before configuration validation")
     monkeypatch.setattr(main.LocalModelCompositionRoot, "build", forbidden)
     monkeypatch.setattr(main, "HttpxBusinessDomainTransport", forbidden)
     if task == "rewrite":
-        monkeypatch.setattr(KnowledgeRewriteTaskV10, "definition", KnowledgeRewriteTaskV6.definition)
+        monkeypatch.setattr(KnowledgeRewriteTaskV11, "definition", lambda **kwargs: KnowledgeRewriteTaskV6.definition())
     else:
         monkeypatch.setattr(KnowledgeSummaryTaskV7, "definition", KnowledgeSummaryTaskV5.definition)
     with pytest.raises(ValueError, match="production_task_version_invalid"):

@@ -502,6 +502,9 @@ class BusinessQueryRuntimeCompositionRoot:
 class KnowledgeTaskDefinitions:
     rewrite: ModelTaskDefinition[Any, Any]
     summary: ModelTaskDefinition[Any, Any]
+    # Empty is constructible only for frozen historical test roots; current
+    # composition rejects it and always records an explicit enabled snapshot.
+    enabled_domain_ids: tuple[str, ...] = ()
 
     def as_tuple(self) -> tuple[ModelTaskDefinition[Any, Any], ...]:
         return (self.rewrite, self.summary)
@@ -509,15 +512,21 @@ class KnowledgeTaskDefinitions:
 
 class KnowledgeCompositionRoot:
     @staticmethod
-    def task_definitions(*, enabled: bool, rewrite_max_candidates: int = 3) -> KnowledgeTaskDefinitions | None:
+    def task_definitions(
+        *, enabled: bool, rewrite_max_candidates: int = 3,
+        enabled_domain_ids: tuple[str, ...] | None = None,
+    ) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
         from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
-        from agent_runtime.knowledge.rewrite_v10 import KnowledgeRewriteTaskV10
+        from agent_runtime.knowledge.rewrite_v11 import KnowledgeRewriteTaskV11
 
+        if enabled_domain_ids is None:
+            raise ValueError("knowledge.enabled_domains_required")
         tasks = KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV10.definition(),
+            rewrite=KnowledgeRewriteTaskV11.definition(enabled_domain_ids=enabled_domain_ids),
             summary=KnowledgeSummaryTaskV7.definition(),
+            enabled_domain_ids=enabled_domain_ids,
         )
         # Run during main's configuration phase, before allocating any clients.
         KnowledgeCompositionRoot._validate_tasks(tasks)
@@ -528,7 +537,7 @@ class KnowledgeCompositionRoot:
         from agent_runtime.knowledge.evidence.contracts import KnowledgeRequirementSummaryInput
         from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
 
-        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "10"
+        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "11"
             or tasks.rewrite.input_type is not KnowledgeSemanticPlanInput
             or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "7"
             or tasks.summary.input_type is not KnowledgeRequirementSummaryInput):
@@ -566,6 +575,9 @@ class KnowledgeCompositionRoot:
             return KnowledgeCapabilityProvider(enabled=False, handler=None)
         if tasks is None or retrieval is None:
             raise ValueError("knowledge.dependencies_required")
+        KnowledgeCompositionRoot._validate_tasks(tasks)
+        if type(tasks.enabled_domain_ids) is not tuple or tasks.enabled_domain_ids != typed_settings.enabled_domain_ids:
+            raise ValueError("knowledge.task_domain_snapshot_mismatch")
         from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
 
         if type(evidence_selection_version) is not str or evidence_selection_version not in (
@@ -579,7 +591,6 @@ class KnowledgeCompositionRoot:
         )
         if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
             raise ValueError("knowledge.policy_catalog_invalid")
-        KnowledgeCompositionRoot._validate_tasks(tasks)
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
         rewriter = KnowledgeSemanticPlanner(
             gateway=model.gateway,

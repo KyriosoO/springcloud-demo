@@ -60,7 +60,7 @@ async def test_admission_does_not_bypass_domain_or_egress_failure(fault, expecte
 def test_unknown_version_rejected_before_handler_or_model_use(version):
     with pytest.raises(ValueError, match="^knowledge.evidence_selection_version_invalid$"):
         KnowledgeCompositionRoot.build_provider(settings=KnowledgeSettings.from_env(_enabled_environment()),
-            model=None, tasks=KnowledgeCompositionRoot.task_definitions(enabled=True), retrieval=object(),
+            model=None, tasks=KnowledgeCompositionRoot.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)), retrieval=object(),
             evidence_selection_version=version)
 
 
@@ -114,6 +114,6 @@ def test_historical_bridge_is_not_a_second_current_production_binding():
     assert main.KnowledgeCompositionRoot is KnowledgeCompositionRoot
     assert historical is not KnowledgeCompositionRoot
     assert historical.task_definitions(enabled=True).summary.task_version == "5"
-    assert KnowledgeCompositionRoot.task_definitions(enabled=True).summary.task_version == "7"
+    assert KnowledgeCompositionRoot.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).summary.task_version == "7"
     with pytest.raises(ValueError, match="^knowledge.historical_selection_version_invalid$"):
         historical.build_provider(evidence_selection_version="unapproved")

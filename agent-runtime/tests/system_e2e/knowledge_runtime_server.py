@@ -83,7 +83,7 @@ class _KnowledgeModelTransport:
             else:
                 content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
-            assert request.task_version == "10"
+            assert request.task_version == "11"
             self._probe.counts["rewrite"] += 1
             question = payload["question"]
             if "改写失败" in question:
@@ -98,7 +98,8 @@ class _KnowledgeModelTransport:
                 }.get(question, ("tax.policy",))
                 content = json.dumps(
                     {"outcome": "search", "question_kind": "lookup",
-                     "queries": [{"domain_id": domain, "query": question} for domain in domains],
+                     "queries": {item["domain_id"]: question if item["domain_id"] in domains else ""
+                                 for item in payload["domains"]},
                      "requirements": [{"requirement_id": f"r{i}", "domain_id": domain, "kind": "rule", "focus": question}
                                       for i, domain in enumerate(domains, 1)], "missing_conditions": []},
                     ensure_ascii=False,
