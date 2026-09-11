@@ -1,0 +1,12 @@
+{"caseId": "KRB-017", "task": "action_selection", "ordinal": 1, "requestSha256": "1af9d6d935cd8a42d2da0aa4dbf33523ad636c9b2727fb61ff6a17bddb4ef0a3"}
+{"caseId": "KRB-017", "task": "knowledge_rewrite", "ordinal": 2, "requestSha256": "00e7033371b21090dec39d08b03febdaee8492da9126d61f4b0d3bbc809d522f"}
+{"caseId": "KRB-017", "task": "knowledge_summary", "ordinal": 3, "requestSha256": "a0c98ccf6b9d2917e4c9f8478f5b88446e9347448416aa784cb0421e576c47a1"}
+{"caseId": "KRB-019", "task": "action_selection", "ordinal": 4, "requestSha256": "c219b879ebea0ff5bd969105f6fb28de07775c13d63e108ae9dd85feb992ec10"}
+{"caseId": "KRB-019", "task": "knowledge_rewrite", "ordinal": 5, "requestSha256": "baee93627992b7112a5f58cdab11ce5409785e7368b0f8ad212bfe1788f2a3c5"}
+{"caseId": "KRB-019", "task": "knowledge_summary", "ordinal": 6, "requestSha256": "ea2bdefea9d684a6e01ef9c2ecb866cf5b1594f7217ba23233c1431deabb46ca"}
+{"caseId": "KRB-021", "task": "action_selection", "ordinal": 7, "requestSha256": "4b215fba6cd80e32e14e8360e5084bc8cadaf0e0c4a271e951ca484dd7bbce11"}
+{"caseId": "KRB-021", "task": "knowledge_rewrite", "ordinal": 8, "requestSha256": "2fa20cba3a6f8f40e38f5ec2fbca88e80fe4b9ea0c101dc178ff5e4a34c86df5"}
+{"caseId": "KRB-021", "task": "knowledge_summary", "ordinal": 9, "requestSha256": "740fb82b63abb7f860c6b8f8e87c91611fdb741960c5446bd3d2ca259bae4f3c"}
+{"caseId": "KRB-023", "task": "action_selection", "ordinal": 10, "requestSha256": "56976320f895b93a18a8407bcba6084ac48f48e5aaabee48ccf96c42e31489ad"}
+{"caseId": "KRB-023", "task": "knowledge_rewrite", "ordinal": 11, "requestSha256": "d2e1a4d0c18cbc6e0d0a65b754fedcf3c2f463de5ddd3d0105760e561935c50a"}
+{"caseId": "KRB-023", "task": "knowledge_summary", "ordinal": 12, "requestSha256": "e9adbd1354d969fc8addd58d69b4b6e035c7452fddbbafbbf696da8236bbef54"}
