@@ -3101,3 +3101,27 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 - 正式复核分两轮独立于编辑进行：第一轮核对§14.58就绪先行、唯一批次、任务/预算、响应后真实人工评价、拒绝零检索、停止和原件保护，处理HR-EV-001及上述哈希口径；第二轮核对实际回归、有限资产与P3/UAT终态，归档/状态同步切片无未处理Blocker/Major。该复核为同一执行者分离阶段检查，不冒称外部独立审查；KRB-006的具体语义违规原因及9题人工缺口仍不可验证，不被本次复核关闭。
 
 本轮仅归档15项新有限资产、增加对应Git字节保留规则及追加P3/UAT操作记录；无生产修复、无新设计语义，不触发L1/L2升级或重复设计三轮。后续应先以合成样例定位并区分语义合同分支，若确需修改诊断或规划设计，另按原目标评审流程处理；当前信息不足以推荐放宽validator或修改向量库，不进行更多真实调用。
+
+#### 20.89.3 Rewrite9语义合同非live诊断
+
+从clean `7d0212640e0ab16ee434b6c6fa98ec8f93ac8d5c`继续，只补充`tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py`和本节/UAT操作记录。依据L2_01_00 §8.5、§8.9及TEST-KFLOW-016，验证KRB-006公共问题在现有合同中的可表达性及有限故障诊断的信息边界；不修改生产源码、任务、Prompt、validator、历史observer或runner，不创建新候选。
+
+| 核查问题 | 当前证据与结论 |
+|---|---|
+| 双公告各自执行期限是否无法表达 | 手工声明的lookup、单tax.policy域、两个temporal_scope需求通过Rewrite9精确decoder及当前生产组合根；原问保留于keyword及embedding输入，模拟空索引得到no_result。只证明合同可表达，不证明模型会生成该计划或真实原文命中 |
+| 是否必须补齐适用性三角色 | 不需要；lookup允许1～4项实际需求，两个temporal_scope合法。误标applicability且缺三角色仍应拒绝，不能据此认定真实模型发生了该误标 |
+| semantic_contract能否定位唯一违规 | 19种合成非法计划分别触发内层invalid_requirement_plan或invalid_evidence_requirements，旧有限投影全部相同。旧记录没有保留内层code或具体规则，不能反推某个字段、角色、长度或域错误 |
+| 拒绝是否会继续执行 | 所有合成拒绝在当前root均为downstream_failure，仅selection/Rewrite各一次fake调用，search/embedding/rerank/Summary/Business为0；资源关闭由既有fake接缝核验 |
+| 本次真实失败是否属于向量召回问题 | KRB-006真实search为0；不能用本次失败评价索引或排序，也不应因此调整topK、改资料或放宽validator |
+
+合成问题来自公开问题正文，不从gold生成在线规则，不包含预期日期或真实模型输出；测试名称、注释及结论明确区分声明计划、fake验证和历史真实失败。历史run-04 result SHA保持不变，19项反证不是对真实响应的重放或根因复原。当前最小判断为：合同具备表达能力，诊断信息不足；没有证据支持生产修复。若将来另有真实验收目标，可评估精确白名单内层原因投影，但不得读取异常消息/模型内容、覆盖旧observer或为此自动建立付费批次。
+
+本切片代码对照设计进行一次定向复核：lookup/适用性边界、顺序ID、域关联、文本限制、失败零调用及历史不可变均符合所查合同；没有新增公开合同、配置、安全策略或生产行为，因此不触发设计语义变更或重复三轮内审。该复核只针对新测试与上述问题，不声称全仓或真实效果评审通过。真实具体违规原因仍不可验证，专项UAT In Progress、QUALITY Blocked、9项人工证据缺口不变。
+
+本次实际验证（agent-runtime目录；测试子进程移除Key，显式当前src/tests的PYTHONPATH，Git safe.directory仅进程级，唯一临时basetemp/cache）：
+
+- `python -B -m pytest tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：41 passed/29.31秒，0 failed/0 skipped。
+- 相关回归命令：`python -B -m pytest tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py tests/integration/knowledge/test_requirement_runtime_composition.py tests/integration/knowledge/test_requirement_plan_production.py tests/integration/knowledge/test_document_reference_guard_production.py tests/contract/knowledge/test_rewrite_task_v7.py tests/contract/knowledge/test_rewrite_task_v8.py tests/contract/knowledge/test_rewrite_task_v9.py tests/contract/knowledge/test_rewrite_v9_failure_boundary.py tests/unit/knowledge/test_evidence_requirements.py tests/unit/knowledge/test_query_constraint_scope.py tests/unit/knowledge/test_document_reference_semantics.py tests/unit/knowledge/test_original_keyword_planning.py tests/unit/knowledge/retrieval/test_original_keyword_stage.py tests/system_e2e/test_knowledge_model_failure_probe_v1.py tests/system_e2e/test_knowledge_representative_failure_observation.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/system_e2e/test_knowledge_representative_run_02_history.py tests/system_e2e/test_knowledge_representative_run_03_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：690 passed/146.44秒，0 failed/0 skipped；两次pytest各有1项既有LangChain弃用预告。该范围包括现行要求/保护/规划/observer、历史和35/37功能追踪，不是全仓隔离回归或新的真实UAT。
+- `python -B -m mypy --strict src --cache-dir <unique>`：140源码通过；`python -X pycache_prefix=<unique> -m compileall -q tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py`通过。
+- P3 `validate_implementation_plan.py --file docs/plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md --strict`：0错误/0警告。run-04全部15项当前文件与归档提交`00f5d3e3b2c42a5b345b26f23caa9de6e1e6e641`Git blob逐字节一致；新增测试另锁定result SHA及KRB-006有限状态。目标差异/UTF-8/凭据模式检查通过，不修改历史资产。
+- 新增真实模型、E2E、检索、embedding、rerank、索引写入均0；没有启动真实服务。此次仅测试和操作记录改变，未重跑Maven、真实Spring服务级E2E、完整evaluation或全仓隔离回归，不冒称这些验证本轮通过。P3/UAT版本及架构语义不变。
