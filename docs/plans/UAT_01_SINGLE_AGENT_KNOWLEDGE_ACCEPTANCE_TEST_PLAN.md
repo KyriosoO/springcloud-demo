@@ -7,7 +7,7 @@
 | 文档编号 | `UAT_01` |
 | 当前版本 | v1.44 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-09-10 |
+| 日期 | 2026-09-11 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，阶段 A 语料完整性及阶段 B 检索质量专项验收 |
 | 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_01_00` v1.30、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.68；§14.51真实终态保持，§14.52及§14.53仅non-live验证；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
@@ -1238,3 +1238,19 @@ run-02的5个通过题与本次4题具有相同生产源码、任务/Prompt、da
 准备与正式执行分开：本节初始状态为Prepared design，人工就绪和新批终态尚未取得；工作包及阶段B不预先关闭。权限/失败/取消风险继续复用既有non-live证据，当前十题不是新盲测或外部税务专家批准。若人工或自动失败，记录缺口并终止本批，不自动再试。
 
 非live实施已经完成：ReviewSession、静态页面和`knowledge_representative_human_uat_v1.py`执行器分别持有内存内容、浏览器展示及有界真实批次职责；没有修改既有Model/检索/validator。直接HTTP鉴权/nonce/有限结果测试、合成DOM过期响应/关闭测试和当前root真实decoder配合fake transport验证通过，命令与数值归P3 §20.89.1。当前状态为Prepared non-live，仍没有人的正式评价或新真实结果；旧九题成功和KRB-015历史证据边界不变，不冒称十题当前完整通过。
+
+#### 14.58.1 实际执行与人工评价
+
+2026-09-11用户确认可以阅读评价，随后在本机页面实际确认就绪。冻结HEAD=`b1008000cf2716ec85fcb00116e188e060e102bb`，manifest SHA-256=`da805a618a194d17ada0f4eb37cd6732f76c2b9924943d82c525c0cedddf8cae`。本批已consumed并以failed终止；原件位于`agent-runtime/tests/system_e2e/knowledge_representative_human_run_04/`，result SHA-256=`81f7d4151cbe1273a5ce1189267a77c94745184763ecfdb729023f2ef2822db4`。所有旧资产和结论不变。
+
+| Case | 本次自动检查 | 本次人工评价 | 本次模型/search/embedding/在线rerank | 结论 |
+|---|---|---|---|---|
+| KRB-015 | HTTP200，两域及两项必要来源/引用均通过 | 用户四项均true，reason=none | 3/4/2/2 | Passed，补齐当前版本及现场人工证据 |
+| KRB-006 | HTTP502；Rewrite9 invalid_output，semantic_contract | not_assessed，未形成可展示回答 | 2/0/0/0 | Failed，立即停止 |
+| KRB-004、010、011、012、017、019、021、023 | 未执行 | not_assessed | 各0/0/0/0 | Not executed，不以旧证据填成本次通过 |
+
+KRB-015的人工方式为user_interactive，question哈希=`7a81bd55b4822bbd59fe21df2bed6f906a4022ab56b4b9d4ed5bef1859c8855c`，实际展示包哈希=`d00d42cc86c3ff56e506f8324d1bb80082b9af664a8b0a9d48f76c4578c2c3ec`；不持久化展示正文、不由执行者代评，也不把一次用户评价称为盲测或外部税务专家批准。KRB-006有限诊断仅支持“需求计划的语义合同校验拒绝”，不能还原具体失败条件；search为0，故本次不能据此判断索引召回质量。没有降低断言、补跑或追加候选。
+
+合计2 E2E/5模型/4search/2embedding/2在线rerank，另一次合成预热；Business/answer/indexWrites/retry/resume=0。清理及后置绑定核对通过，具体计数/哈希/验证归P3 §20.89.2。当前十题人工证据1项通过、9项缺失；本批失败不改写旧功能35/37用例或既有P5结论，整体阶段B专项UAT仍未完成。下一步只允许非live诊断和有限证据收口，不恢复本批或自动建立付费循环。
+
+后置有限证据与状态复核完成；源/归档15项字节一致，精确Git binary规则保护本次CRLF账本，不改变历史资产。manifest问题哈希与人工question哈希分别使用原问UTF-8和规范化JSON字符串，已从同一冻结问题独立重算，不直接比较不同算法输入的摘要。相关non-live、页面行为及历史/功能追踪回归通过，命令与数量仅归P3 §20.89.2。自动失败原因未细化、9项人工证据未补齐，不能据归档完成宣布专项通过。

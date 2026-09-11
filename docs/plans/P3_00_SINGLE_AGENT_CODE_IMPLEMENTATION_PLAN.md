@@ -7,7 +7,7 @@
 | 文档编号 | P3_00 |
 | 当前版本 | v2.68 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-10 |
+| 更新时间 | 2026-09-11 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
 | 实施授权 | Ready 不等于实施授权；本任务已另行获得目标范围内代码实施、受控验证、文档同步及 Git 提交推送授权 |
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
@@ -3078,3 +3078,26 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 - P3严格校验0错误/0警告；八项新增工具/测试凭据模式扫描0命中，UTF-8及Git差异检查通过，历史哈希由上述history/evaluation测试验证。生产Python/Java零差异，本轮未重跑全仓隔离/Maven，复用其原适用范围并保留此限制。
 
 当前新增模型/E2E/真实检索/embedding/rerank/索引写入全部0，未读取Key、未启动真实业务服务。工具准备完成不等于真实验收已完成；人工参与仍需实际就绪，UAT In Progress、QUALITY Blocked保持。本次不改变P3/UAT版本号或既有35/37功能结果，操作证据仅在本节与§14.58追加。
+
+#### 20.89.2 人工辅助批次实际终态
+
+用户确认可以阅读评价并要求开始；2026-09-11从clean `b1008000cf2716ec85fcb00116e188e060e102bb`执行§14.58唯一批次。启动前核对495项冻结资产及manifest SHA-256 `da805a618a194d17ada0f4eb37cd6732f76c2b9924943d82c525c0cedddf8cae`；浏览器实际就绪提交后才进行服务及模型执行。执行者没有读取页面令牌或代填人工评分，没有修改tracked文件后继续执行。
+
+终态为`failed`且已consumed：KRB-015当前版本跨域完整链路自动通过，用户实际提交四项true、reason=none、method=user_interactive；KRB-006在Rewrite9解码阶段被拒，HTTP502/downstream_failure，人工not_assessed，随后停批。其余004/010/011/012/017/019/021/023未执行。KRB-015本次3模型/4search/2embedding/2rerank，KRB-006本次2模型且search/embedding/rerank均0；合计2 E2E/5模型/4search/2embedding/2在线rerank，另预热rerank1，Business/answer/indexWrites/retry/resume均0。已知累计更新为37 E2E/97模型；剩余额度不转移、不续跑。
+
+有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / semantic_contract`。代码核对表明Rewrite9沿用V7精确decoder，底层KnowledgeInputError可来自query/requirement数量、文本、域、ID、角色或终态组合等多项校验；现有记录未保存内层具体规则或模型输出，因此只能定位合同校验阶段，不能确定某个字段/角色错误，更不能认定是向量库、资料缺失或网络故障。不基于推测修改Prompt、validator、索引或gold，也不重新付费追取原输出。
+
+原件15项按字节复制至`agent-runtime/tests/system_e2e/knowledge_representative_human_run_04/`，源/归档SHA逐项一致。关键SHA：authorization=`64605e2d0c40159c4bafefe19694bc0990a9e64a65d97817fe5d61b7f068a320`；consumed/started=`98868b829f0223f60d0f879466f1d656779bf8c43ef8300691917efb043b034d`；journal=`5e678aeb5a56f9a2bfcdcbe97a89823c39d8ff502644e6d1af933281eec3df5b`；result=`81f7d4151cbe1273a5ce1189267a77c94745184763ecfdb729023f2ef2822db4`。保存的人工评价绑定question/packet哈希，不保存实际回答、quote、正文、JWT或令牌，不回填任何旧批结果。
+
+终态清理记录两次Runtime clientsClosed=true及ownedProcessesStopped/rawLogsDeleted/secretScanPassed=true；后置只读复算冻结manifest一致、索引binding未变，18090/19401/18080/19091均可重新绑定。只停止本次隔离服务，未停止共享ES/BGE；临时原始服务日志已删除，不保留可恢复副本。没有重试或新批次。
+
+本批补齐KRB-015当前版本自动及人工证据，但KRB-006本次失败和其余8题未执行不能用旧成功改判；十题仅1题具备实际人工评价，另外9题仍待有效证据。`WP-KRETRIEVAL-UAT-01`维持In Progress，QUALITY维持Blocked；既有Business35/35、Knowledge37/37功能追踪与历史P5等级保持各自范围，不宣称阶段B完成。
+
+后置验证与代码/证据复核：
+
+- 按§20.89.1相同完整路径集合重跑`python -B -m pytest ... -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：719 passed，96.99秒，0 failed/0 skipped；包含human两文件、representative V2/V3及故障观察、run-01～03历史、Business/Knowledge traceability、Rewrite9拒绝合同、Knowledge evaluation及原问keyword两组测试。仅一项既有LangChain弃用预告，不把该范围称为全仓隔离回归。
+- `node --test agent-runtime/tests/system_e2e/test_knowledge_human_review_ui.cjs`：3 passed；P3 `validate_implementation_plan.py --strict`：0错误/0警告；`git diff --check`通过。此次未修改生产Python/Java/Prompt/索引，不重复mypy、compileall或Maven，不将上轮结果计为本轮执行。
+- 一次性只读归档核验：严格JSON、15项源/归档字节及关键SHA、Git过滤前后对象、5条账本顺序/任务、按case重算计数、自动/人工独立状态、停止/未执行集合、cleanup、禁止正文/令牌字段及凭据模式均通过。首次检查发现新目录journal的CRLF会被Git规范化；HR-EV-001以`.gitattributes`精确新目录binary规则修复，未重写原件或旧目录。复核时发现核验脚本混同两种question哈希：manifest使用原问UTF-8，人工字段使用规范化JSON字符串；改为从同一冻结dataset问题分别重算后均一致，不修改任何记录。
+- 正式复核分两轮独立于编辑进行：第一轮核对§14.58就绪先行、唯一批次、任务/预算、响应后真实人工评价、拒绝零检索、停止和原件保护，处理HR-EV-001及上述哈希口径；第二轮核对实际回归、有限资产与P3/UAT终态，归档/状态同步切片无未处理Blocker/Major。该复核为同一执行者分离阶段检查，不冒称外部独立审查；KRB-006的具体语义违规原因及9题人工缺口仍不可验证，不被本次复核关闭。
+
+本轮仅归档15项新有限资产、增加对应Git字节保留规则及追加P3/UAT操作记录；无生产修复、无新设计语义，不触发L1/L2升级或重复设计三轮。后续应先以合成样例定位并区分语义合同分支，若确需修改诊断或规划设计，另按原目标评审流程处理；当前信息不足以推荐放宽validator或修改向量库，不进行更多真实调用。
