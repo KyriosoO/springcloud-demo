@@ -3182,3 +3182,29 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 | es-query-service：JDK25，`../serviceCenter/mvnw.cmd test` | 99 passed/0 skipped/0 failed，6.565秒；类型化检索、授权、文号查询及相关服务测试使用mock/本地fake，不写真实索引 |
 
 上述执行均在子进程移除模型Key而不读取其值，关闭live opt-in；生产源码和已消费run-05不变。本轮新增真实模型/业务/检索及索引写入均0。定向代码对照检查未证明需要生产修复，不签发整体代码或效果通过；完整non-live和Java复验补齐当前提交的验证记录，但不改变UAT_01 §14.59.1的3/10人工通过、七题缺证或failed终态。UAT仍In Progress、QUALITY仍Blocked；后续真实执行仍无可复用授权，不以剩余预算或目标自动续进解释为新批次。这里只补记现有工作包证据，不修改架构、版本、DAG、门禁或长期UAT计数。
+
+### 20.91 结构层诊断与七题独立准备
+
+用户授权后从clean `cc8c1c1edb1aeaebb024866ad2af0c5cedd81ab9`恢复。沿用WP-KRETRIEVAL-UAT-01，不新建重复Gate；QUALITY仍Blocked。直接依据L2_01_00 §8.5/8.9、L2_01_02 §13.4及UAT_01 §14.60，先完成结构层有限诊断、直接fake测试和新的七题非live准备。授权修改范围为P3/UAT协议、新V3测试probe/runner及直接测试；不修改生产任务、公开合同、索引或旧资产。此次“授权”不被解释为复用run-05的剩余额度。
+
+依赖仍为诊断协议 → 三轮内审/分离设计复核 → 实施与fake回归 → 代码复核/提交 → 实际HEAD/manifest冻结 → 明确本批预算授权及用户就绪 → 一次实际UAT。最后两项不阻塞前面的non-live实施，但禁止在未满足时读取Key或启动付费执行。拟定7/21及本地调用边界只由UAT_01 §14.60治理，本计划不复制运行合同。
+
+协议内审三轮：第一轮确认结构诊断不能从旧unknown反推原文，选择一次JSON解析旁路投影而非新Prompt/新生产decoder；第二轮补齐同一原异常身份、parse-local清理和诊断故障unknown；第三轮补齐作用域外/晚到任务不观察、预建task定义限制、差分准入测试及真实授权和人工就绪的后置依赖。只有测试准备可进入实施，不预先关闭真实UAT。
+
+分离只读设计评审第1轮：目标仅§14.60的测试诊断/七题准备切片，依据上述L2、原decoder、V1/V2 observer和原人评执行器，逐项核对唯一链路、同次解析、有限数据、原异常、并发/清理、历史兼容及后置预算；S0=0/S1=0/未处理S2=0，允许本切片实施。评审由同一执行者在编辑完成后独立阶段进行，不冒称外部评审。真实执行仍需准确冻结及授权，不属于本实施准入结论。
+
+#### 20.91.1 实施、验证与代码复核
+
+新增`knowledge_model_failure_probe_v3.py`、`knowledge_representative_human_uat_v3.py`及各自`test_*.py`，均在tests/system_e2e内；生产src、旧observer/runner/manifest及索引不变。映射为：§14.60同次解析/有限枚举→V3模块级json view；原准入/同异常→原parse装饰器及差分用例；上下文/退出→ContextVar与active标记；七题与预算→V3 batch/manifest/HumanBudget；原人工流程和停批→既有ReviewSession及新终态fake测试。观察器不构造任何替代计划或模型响应。
+
+本轮代码对照协议复核两轮，同一执行者分离阶段进行：第一轮CR-SHAPE-001修正strict mypy发现的非显式模块导出引用，直接使用标准json模块；CR-SHAPE-002补足成功返回时清除潜在嵌套失败身份，并加入反例。两项均为测试工具局部问题，不涉及生产合同。第二轮依据差分测试、实际root零调用、未知/解析引擎错误、同对象/同异常、异步/线程与晚到任务、原资产保护及七题冻结，Blocker=0/Major=0，无未处理Minor。本结论只覆盖本测试切片，不签发整个阶段B或真实UAT通过。动态runner沿用既有测试编排方式，不宣称其所有历史依赖均strict通过；新的强类型probe和全部生产src已检查。
+
+实际命令均在子进程移除Key、显式当前src/tests的PYTHONPATH、UTF-8和process-only Git safe.directory后执行：
+
+- `python -B -m pytest tests/system_e2e/test_knowledge_model_failure_probe_v3.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：首轮60 passed/15.38秒。
+- 两份V3新测试、两份对应V2测试及run-05 history，以相同pytest参数执行：143 passed/24.53秒；随后新增三个非变异/嵌套清理/manifest绑定反例，纳入下项回归。
+- 相关27路径回归：system_e2e下probe V1/V2/V3、human UAT V1/V2/V3、representative UAT V3、human_review、representative run-01～03 history及human run-05 history；contract下Rewrite V7/V8/V9与V9 failure boundary；integration下V9 period lookup diagnosis、requirement runtime composition、requirement plan production、document reference guard production；unit下evidence requirements、query constraint scope、document reference semantics、original keyword planning、retrieval/original keyword stage；uat下current及knowledge traceability。使用`python -B -m pytest <上述显式test路径> -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>`：926 passed/111.39秒，0 failed/0 skipped，含当前生产根及35/37功能追踪；仅1项既有LangChain弃用预告。不是全仓或真实效果测试。
+- `python -B -m mypy --strict src tests/system_e2e/knowledge_model_failure_probe_v3.py --cache-dir <unique>`：初次1项非显式json导出错误，修正后141文件通过。四份新Python `compileall -q`通过；`node --test agent-runtime/tests/system_e2e/test_knowledge_human_review_ui.cjs`：3 passed。
+- P3 `validate_implementation_plan.py --file docs/plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md --strict`：0错误/0警告；6目标文件UTF-8/凭据模式及git diff --check通过。run-05固定16哈希和冻结source blob由history测试核验；生产src、run-04/05及旧工具无Git差异。
+
+此次仅测试接缝和协议改变，没有重跑全仓隔离/Maven/真实Spring E2E；§20.90.4此前全量结果作为已有基线而非本轮结果。新模型/E2E/search/embedding/rerank/索引写入均0，未读取Key或启动真实服务。提交后只运行prepare，冻结绑定另由manifest保存，不再修改tracked文件；后续必须取得本批明确预算及人工就绪，旧批次不可续跑。

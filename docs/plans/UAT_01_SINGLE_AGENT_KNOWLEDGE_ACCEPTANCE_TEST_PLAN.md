@@ -1293,3 +1293,21 @@ KRB-006双公告执行期限问题可以表达为lookup、单tax.policy域及两
 人工方式为user_interactive，无默认通过；006展示包hash=`2f283330f2deee65b4e645515fab4f52cd5efb308b03ce8a96d11a23813f04aa`，004展示包hash=`183b9ef9b119126c8e916faadec36fee7790b27479831025da2177181c2fbadb`。这些摘要绑定实际内存展示，不持久化回答/正文。006本次通过不改判其上一批失败；015未重复执行，继续引用§14.58.1的人评成功。固定十题合计当前人工通过3项，仍缺7项。
 
 模型调用合计8、E2E3，其余计数和清理/后置冻结验证见P3 §20.90.2。010结构/枚举层拒绝早于V2语义诊断观察范围，unknown是如实的证据限制；非live可构造合法lookup和多个同类错误，不代表重建了真实模型输出。该题检索0，不能据此评价或修改向量库。专项UAT仍未完成，功能35/37及所有历史结论保持原证据边界。
+
+### 14.60 结构解码有限诊断及剩余七题准备
+
+用户授权后恢复执行，先完成测试专用诊断和独立批次的non-live准备；不续跑run-05、不转移余额。拟定run=`knowledge-representative-human-uat-v3-20260911-06`，reference=`UAT_01:14.60`，固定顺序010/011/012/017/019/021/023；来源、域、anchor及人工标准仍为§14.51。015/006/004已有人工通过，不重复执行。拟定上限7 E2E/21模型/28 search/14 embedding/28在线rerank，另本地合成预热rerank1；单题仍3/4/2/4，Business/answer/indexWrites/retry/resume=0，已知累计40/105，拟定累计上限47/126。准备不等于执行授权；必须提交后绑定实际HEAD/manifest，取得本批明确预算授权及真实评审者就绪才execute。失败立即终止本批，不补跑，不自动创建下一批。
+
+**方案选择**：仅追加Prompt示例无法诊断run-05；修改生产decoder/新任务会改变当前被测版本且暂无功能缺陷证据。不采用这两项。测试V3观察器复用V1/V2，补足原JSON解析与typed校验之间的信息缺口；不更改生产源码、Prompt、任务、配置、公开状态或索引。
+
+**结构观察合同**：在版本化测试作用域中装饰V7原parse函数，并仅代理该模块的json引用；不得全局替换json.loads。原parse仍调用原JSON解析一次，使用相同参数、duplicate/nonfinite处理和原返回对象。代理只对这次已经解析的exact dict/list/str执行有界形状投影，立即丢弃局部对象引用，只向ContextVar写有限枚举；不重新解析原始响应，不复制/保存其文本或对象树，不读取异常消息、args、traceback、frame locals。每次parse开始清空临时事实；成功只返回原对象并清空，不输出诊断；原parse实际抛出同一InvalidModelOutput后，才将该异常身份与有限枚举关联供原gateway观察。原异常原样重抛，诊断不能替代准入、修复或重试。
+
+V3的detail保留V2语义枚举，并新增root_shape、root_fields、question_kind_type、collection_type、collection_limit、query_shape、requirement_shape、requirement_kind_enum、question_kind_enum。只报告按原decoder顺序已经观察到的一种违规，不输出实际键、索引、数量、非法值、query/focus或任何原文。只在同一parse的原异常身份匹配且V1 cause=shape_or_enum时采用该形状事实；其他失败继续原V1/V2分类或unknown，不能把JSON语法/引擎异常猜成字段错误。对象仅检查固定根字段、最多2个query及4个requirement，超过数量立即分类，不遍历其内容；任何自定义类型或观察器异常只能unknown，不改变原结果。
+
+作用域仍由V1安装锁互斥；临时事实及异常关联按ContextVar隔离，在成功、投影、取消和卸载后清空，不声称物理内存擦除。装饰后创建的原任务定义用于本次生产根；作用域前已经创建的定义不承诺细粒度诊断。新执行器必须用真实生产组合根fake测试证明当前根确实经过装饰器，禁止复制一个替代decoder。旧observer、runner、历史资产保持不变；退出作用域恢复原函数及模块引用。
+
+作用域外上下文即使同时使用已装饰函数，也必须直接执行原parse而不检查结构；异步子任务只继承显式安装上下文，退出后共享active标记失效，晚到任务不再记录。JSON代理仅在同一同步parse内的活动标记为true时投影，嵌套调用不能复用前一错误；辅助投影异常降为unknown，不能吞掉原decoder异常。对重复键、非有限常量和JSON解析失败不取得对象树，保留原拒绝。准入差分测试必须同时比较成功输出和拒绝类型/外部code，不能只比较最终HTTP状态。
+
+**验证与实施前置**：三轮内审和分离只读设计评审通过后，实施V3 probe、人评runner及直接测试。覆盖上述全部形状枚举、合法终态、typed语义拒绝、JSON语法/duplicate/nonfinite、引擎ValueError、未知类型、原返回对象/异常身份、失败的下游零调用、线程/异步隔离、取消卸载、关联错配、诊断故障unknown、同一次JSON解析及生产源码字节不变。runner覆盖七题顺序、7/21预算、已通过三题排除、无人就绪零副作用、失败停批、canonical冻结、历史保护及安全清理。人评仍复用原页面和600秒单题/1800秒总等待，执行者不得代填。
+
+本协议只改变当前测试诊断与待执行协议，不修改L2五字段合同或生产任务版本；§14.59作为run-05当时协议保持原义。V3 probe/runner和直接测试现已实施，三轮内审、分离设计复核及两轮代码对照复核通过，实际验证归P3 §20.91.1。当前为Prepared non-live（待提交后冻结）；不创建authorization、不执行真实调用。专项UAT In Progress、QUALITY Blocked及3/10人工证据状态不变。
