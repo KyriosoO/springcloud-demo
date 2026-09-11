@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.46 |
+| 当前版本 | v1.47 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-11 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，阶段 A 语料完整性及阶段 B 检索质量专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.31、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.70；§14.62为当前flash独立十题授权；不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.31、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.71；§14.62.1记录flash独立十题批次终态；不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -1344,3 +1344,19 @@ KRB-010有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / sh
 保持§14.58真实用户人工评价：就绪前无Key读取、付费、预热或服务启动；每题自动检查通过后才展示同请求受控回答/证据，由用户逐项评价，执行者不得代填。失败、人工不通过/超时或取消立即停批并清理owned资源，保留有限终态，不补跑，不自动准备下一批。旧run-06和此前结果字节不变。当前仅恢复准备与执行权限，尚未获得本批结果，不预先宣称新版UAT通过。
 
 新执行器在就绪后、依赖预检前封存authorization/started，保证预检失败也留下零调用终态并禁止恢复；未就绪不启动本批。非live已验证当前10/7生产对象图、两条固定path、原自动判据、真人评价及终态清理，具体命令与计数只归P3 §20.93。执行前仍须最终冻结与人工就绪。
+
+#### 14.62.1 flash/Rewrite10人工验收终态
+
+用户明确开始人工评价并在本机页面确认就绪后，按§14.62唯一执行`knowledge-representative-human-uat-v4-20260911-07`。frozen HEAD=`8e34893ffb4b67e34bddccde231999c0734eb2af`，manifest SHA-256=`4b8334ece35d08a9db81fd33067db5635436708bf18ae70ea11f88b3b374db28`，reference=`UAT_01:14.62`。本批已consumed，以failed终止；不恢复、不补题、不追加新批次。此前未就绪超时发生在受控执行之前，未消费本批授权。
+
+| Case | 自动检查 | 真实人工评价 | 模型/search/embedding/在线rerank | 状态 |
+|---|---|---|---|---|
+| KRB-015 | HTTP200；policy+law必要来源在召回、最终排序和Evidence均覆盖；引用及子串校验通过 | 四项均true，user_interactive | 3/4/2/2 | Passed |
+| KRB-006 | HTTP502；Rewrite10 invalid_output，尚未检索 | not_assessed，不可由人工覆盖自动失败 | 2/0/0/0 | Failed，立即停批 |
+| KRB-004、010、011、012、017、019、021、023 | 未执行 | not_assessed | 各0/0/0/0 | Not executed |
+
+006有限原因是`rewrite_decoder / knowledge.invalid_requirement_plan / semantic_contract / domains`。只确认逻辑域合同拒绝；不能仅凭这一枚举判断实际是重复域、目录外域还是类型问题，更不能还原模型输出。严格Schema信封不能替代域唯一性和原问题语义校验，不以放宽合同关闭失败。
+
+15项不可变原件见`agent-runtime/tests/system_e2e/knowledge_representative_human_run_07/`；result SHA-256=`915724a415d10605d336f8c24139fc7dd2f51e4520f5df211099736a1ba0b69e`，journal SHA-256=`a095dc22e66ab9469b061b353909be319d71a37cb9d0f0bc5b43b3a50ff09511`。预算、清理、历史保护及本轮测试命令归P3 §20.93.1。未保存原始模型响应、问题正文、知识正文或凭据。
+
+当前flash/Rewrite10/Summary7十题证据为1 Passed、1 Failed、8 Not executed，专项UAT尚未完成；旧模型3/10不与当前1/10相加，既有35/37功能UAT保持其证明范围。此次失败不代表已重新完成全部效果测量，也不改变历史P5结论。后续真实测量必须使用新的独立授权和冻结绑定，不得复用本批剩余额度。
