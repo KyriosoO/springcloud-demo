@@ -1218,3 +1218,21 @@ V3仅修改批准的批次元数据并接入§14.55已验证的现有有限观�
 run-02的5个通过题与本次4题具有相同生产源码、任务/Prompt、dataset、索引及模型快照，允许形成9个不同case的跨批成功追踪；run-02仍为failed且017旧失败保持。KRB-015的run-01成功早于原问keyword改动，不能直接汇总成“当前版本10/10完整UAT”。其当前版本证据适用性、全体人工usefulness仍需单列核查；本次所有manualUsefulness为not_assessed，不从来源锚点布尔值反推完整回答语义，也不补存原始模型响应。Business35/35与Knowledge37/37功能追踪保持原范围。
 
 本批功能/调用/必要引用的自动专项Passed，安全检查Passed；独立语义有用性未评估，整体效果不赋予effective或partially_effective等级，既有P5等级仍按其原版本解释。阶段B整体仍未收口，不自动新增批次、不重跑已消费目录、不复用余额；先完成现有证据能够支持的非live核查和明确风险交付。
+
+### 14.58 当前版本人工辅助验收准备
+
+2026-09-11用户授权按推荐方式继续及达成目标所需权限。本节将后续验证限定为一次新的人工辅助批次，不恢复任何已消费运行，也不将授权视为人工评分。目标为当前版本KRB-015跨域实测及十题实际回答的usefulness；九题已有自动成功证据不失效，但旧有限结果不能重建回答，重测仅用于补充此前缺失的现场人工评价。不得再建立连续付费候选循环。
+
+**范围与预算**：新run=`knowledge-representative-human-uat-v1-20260911-04`，reference=`UAT_01:14.58`，严格沿用§14.51十题顺序、问题、域、anchor及source hash。至多10 E2E/30模型/40 search/20 embedding/40在线rerank，另启动rerank1；每题上限3/4/2/4，Business/answer/indexWrites/retry/resume=0。已知累计35 E2E/92模型，本批累计上限45/122；不是旧额度余额。任务保持selection-v4/Rewrite9/Summary7，生产源码、配置、索引和Prompt不因补证改变。所有绑定须在代码提交和fake验证后由manifest冻结。
+
+**人工前置**：实际评审者须是用户或用户指定人员；执行者/待测模型不得代填人工评价。先在独立本地测试页面确认就绪，再进行依赖检查和一次性服务/模型执行；无人就绪时不读取Key、不启动业务服务、不消费付费预算。人工待确认只阻塞真实验证，不阻塞页面、执行器和fake测试准备。
+
+**最小内存评审入口**：建议新增`tests/system_e2e/knowledge_human_review.py`及同目录静态页面，仅由测试工具在127.0.0.1随机空闲端口临时启动，不进入Agent公开API、生产组合根或启动脚本。每次运行随机会话token仅留内存；浏览器通过URL fragment接收后立即清除fragment、不使用local/sessionStorage，受控内容请求使用header传token。严格Host/Origin及token校验，禁止跨域与第三方资源，no-store、无HTTP访问日志；文本用textContent展示，不渲染来源HTML或外链。该token不是业务JWT；启动URL不得写运行evidence或控制台，程序直接打开本机浏览器。
+
+**评价对象与顺序**：新版本化测试执行器复用既有Spring→当前main对象图、预算、有限失败诊断、来源/引用及cleanup工具，保持旧runner字节不变。每题收到真实最终响应后先完成原自动检查；失败立即停批，不通过人工按钮覆盖。自动通过后，只在内存展示原问题、实际受控answerSummary/points和同请求实际policy投影后Summary evidence正文及允许元数据；不展示JWT、原始模型响应、内部Prompt或未授权bundle内容，不再读取来源。显示长度超限直接停止而非截断。人工等待发生在响应完成后，不能改变在线deadline、检索或排序。
+
+**有限结果**：沿用L2_01_02 §13.4四项布尔值`faithful/relevant/sufficientForInitialAnswer/useful`及`none/quote_context/relevance/coverage/gold_issue`原因。页面无默认选项，必须逐项选择并确认实际阅读；全true时reason必须none，存在false必须非none。每题随机nonce绑定case，拒绝重复、过期、未知字段和非bool；只接受首次提交。人工不通过立即停止，不能改gold、排除该题或由自动判据抵消。新结果单列自动判据与人工评价、评审方式`user_interactive`、问题/实际展示包SHA-256；保存的仅为ID/hash/枚举/布尔值/计数，不保存问题、回答、quote、正文或会话token。旧manualUsefulness=not_assessed不回填。
+
+**生命周期与测试**：就绪及每题人工等待各最多600秒，整批人工等待另有1800秒总上限；超时/关闭/取消后停止并标记not_assessed，不调用下一题。等待期间不刷新JWT或重试业务请求；若现有身份提前失效，保持其真实拒绝终态。提交后清空上一题浏览器DOM及服务端展示包；进程最终关闭listener并释放引用（不声称Python/浏览器可证明物理内存擦除）。必须先验证实际本地HTTP的鉴权/Host/Origin、XSS文本呈现约束、未知/重复/过期评价、无默认通过、大小/时间边界、清理、有限序列化无正文，以及fake端到端评价前后零额外模型调用。不会运行自动化工具点击真实人工评分按钮。
+
+准备与正式执行分开：本节初始状态为Prepared design，人工就绪和新批终态尚未取得；工作包及阶段B不预先关闭。权限/失败/取消风险继续复用既有non-live证据，当前十题不是新盲测或外部税务专家批准。若人工或自动失败，记录缺口并终止本批，不自动再试。
