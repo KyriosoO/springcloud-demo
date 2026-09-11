@@ -1277,4 +1277,19 @@ KRB-006双公告执行期限问题可以表达为lookup、单tax.policy域及两
 
 **实施及验证前置**：三轮内审及独立于编辑的设计复核后，实施V2和直接fake测试；覆盖19种拒绝、成功/不支持/澄清、未知/恶意类型、关联错配、上下文并发、取消、原异常身份及正常结果不变。执行器测试须证明九题顺序、全部预算、无人就绪零副作用、单题失败停批、未执行集合、清理、bool/int冻结差异及旧资产哈希。设计/代码复核和提交通过才prepare；prepare不读取Key，execute仍先等待真实评审者就绪。协议已完成本切片复核，可实施测试工具；不以授权或准备替代UAT结果。
 
-本切片现为Prepared non-live：V2观察器及human执行器已实施，直接测试、相关回归、历史字节和代码对照协议复核通过，具体命令及类型检查范围限制归P3 §20.90.1。当前业务/模型合同、旧工具、case/gold及历史结果无修改；尚未冻结执行或产生本批真实结果，不预先标记九题人工通过。
+本切片执行前状态为Prepared non-live：V2观察器及human执行器已实施，直接测试、相关回归、历史字节和代码对照协议复核通过，具体命令及类型检查范围限制归P3 §20.90.1。当时尚未冻结执行或产生本批真实结果，没有预先标记九题人工通过；实际终态见§14.59.1，业务/模型合同、旧工具、case/gold及历史结果无修改。
+
+#### 14.59.1 实际执行结果
+
+2026-09-11本批从clean frozen HEAD=`2091aee159b54caa4902937e395519209086efd5`执行；manifest SHA-256=`1c49ba66979ed9c1d568bfbb57212044ca456c1d903e9d5b0cbb1a3f483e19c9`，515项资产；用户在本机页面实际确认就绪并评价，执行者未代填。终态failed/consumed，原件16项位于`agent-runtime/tests/system_e2e/knowledge_representative_human_run_05/`，result SHA-256=`f4f353dee252cfa57e07f64621837b5556a298fb4a347d89da358d6eee134eb5`；不恢复、不补跑、不新建付费批次。
+
+| Case | 自动检查 | 用户实际rubric | 模型/search/embedding/在线rerank | 本批状态 |
+|---|---|---|---|---|
+| KRB-006 | HTTP200，两公告必要来源/引用与完整性均通过 | 四项true，reason=none | 3/2/1/2 | Passed |
+| KRB-004 | HTTP200，必要原文/引用与完整性均通过 | 四项true，reason=none | 3/2/1/1 | Passed |
+| KRB-010 | HTTP502，Rewrite9 exact decoder invalid_output，shape_or_enum，detail=unknown | not_assessed；无可供评价的回答 | 2/0/0/0 | Failed，立即停批 |
+| KRB-011、012、017、019、021、023 | 未执行 | not_assessed | 各0/0/0/0 | Not executed |
+
+人工方式为user_interactive，无默认通过；006展示包hash=`2f283330f2deee65b4e645515fab4f52cd5efb308b03ce8a96d11a23813f04aa`，004展示包hash=`183b9ef9b119126c8e916faadec36fee7790b27479831025da2177181c2fbadb`。这些摘要绑定实际内存展示，不持久化回答/正文。006本次通过不改判其上一批失败；015未重复执行，继续引用§14.58.1的人评成功。固定十题合计当前人工通过3项，仍缺7项。
+
+模型调用合计8、E2E3，其余计数和清理/后置冻结验证见P3 §20.90.2。010结构/枚举层拒绝早于V2语义诊断观察范围，unknown是如实的证据限制；非live可构造合法lookup和多个同类错误，不代表重建了真实模型输出。该题检索0，不能据此评价或修改向量库。专项UAT仍未完成，功能35/37及所有历史结论保持原证据边界。
