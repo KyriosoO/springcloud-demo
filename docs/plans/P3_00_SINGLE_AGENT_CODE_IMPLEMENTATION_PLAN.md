@@ -3166,3 +3166,19 @@ KRB-015的成功结果属于run-01：与当前生产源码有bootstrap/contracts
 - 代码/证据对照§14.59复核两轮：首轮修正Git属性测试路径；复评核实原件不可变、auth/manifest/consumed/账本/result一致、自动失败不能人工覆盖、真实人工评价不由测试补写、生产src/索引无差异，本次工具和归档无未关闭Blocker/Major。整体UAT失败及7项缺证仍是发布限制，不被本工具复核关闭。复核由同一执行者分离阶段完成。
 - P3严格验证、目标差异和安全扫描在状态同步后再次执行；完整全仓隔离/Maven本轮未重跑，当前实际Spring→Runtime真实请求已有3次，其余未执行边界明确保留。后续仅建议先做非live decoder合同与模型输出约束的一致性审查，不自行新增付费批次或用观察器修复模型计划。
 - 16项有限原件、精确binary规则及直接验证测试归档提交为`0f15687ee24a2d246718088fe07e850066e1c2f7`；Git暂存blob与源字节逐项一致。最终状态文档另作可辨识提交，未将failed批次提交为UAT完成。
+
+#### 20.90.4 续进：输出合同定向核查与正式non-live复验
+
+2026-09-11从clean HEAD=`33b211b8c36f1b792d3dd68f109b9237d0562fa0`继续。上一轮完成两项现场人工评价、失败归档和状态提交，本轮先核查L2_01_00 §8.5/8.9与实际Rewrite9、V7 decoder、Model Gateway及DeepSeek请求投影，不修改生产代码、Prompt、validator、配置或索引，不创建付费批次。
+
+定向结论：V9仍绑定同一V7精确decoder；实际指令5516 UTF-8 bytes，在8192上限内。指令的三份JSON示例只把两类域占位符替换成已启用域后，均由当前decoder接受；六个question/requirement枚举值均有描述，没有旧三字段输出示例混入当前五字段合同。请求投影为`response_format.type=json_object`、无tools，未携带字段级JSON Schema；不能把JSON对象格式要求误称为供应商已强制业务Schema。至少五处显式结构拒绝及两处枚举转换可归并到同一shape_or_enum记录，仍不能定位run-05实际错误字段。现有证据未证明Prompt/decoder冲突，不建议无依据修改索引、放宽校验或升级Prompt；合法合成计划不代表真实生成正确。
+
+| 本轮实际命令/范围 | 结果与边界 |
+|---|---|
+| `python -B -m pytest tests/contract/knowledge/test_rewrite_task_v7.py tests/contract/knowledge/test_rewrite_task_v8.py tests/contract/knowledge/test_rewrite_task_v9.py tests/contract/knowledge/test_rewrite_v9_failure_boundary.py tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py tests/integration/knowledge/test_requirement_runtime_composition.py tests/system_e2e/test_knowledge_representative_human_run_05_history.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp <unique>` | 305 passed/61.47秒；1项既有LangChain预告；仅non-live合同及当前根/历史证据，不替代人评 |
+| agent-runtime：`./scripts/run-nonlive-regression.ps1 -PythonExecutable C:/Python312/python.exe`，`PYTEST_ADDOPTS='-q --tb=short -p no:cacheprovider'` | Python3.12临时隔离安装当前源码；Transaction host/preflight 14 passed/3.75秒；全量4464 passed/27 skipped/0 failed/546.35秒；1项既有预告。跳过为独立opt-in live/诊断及尚未生成的条件证据，不能计为通过；脚本finally清理临时环境 |
+| agent-runtime：`python -B -m mypy --strict src --cache-dir <unique>`；`python -m compileall -q src` | 140个生产源码文件类型检查通过，源码编译通过；不扩大为全部动态测试执行器strict通过 |
+| agent-service：JDK25，`../serviceCenter/mvnw.cmd -Dagent.runtime.python=C:/Python312/python.exe -Deureka.client.enabled=false test` | 首轮40项中38 passed/1 failed/1 skipped，35.998秒：旧AgentAccessE2ETest直接启动main，但指定解释器未安装包且无源码路径，子进程报ModuleNotFoundError。两条新Business/Knowledge E2E已通过，不归因为生产查询故障。按README已有源码启动方式补齐测试进程`PYTHONPATH=D:/codex/agent-runtime/src`并显式stub/Knowledge disabled后复验：39 passed/1 skipped/0 failed，28.822秒；含接入冒烟、当前Business/Knowledge两条E2E（15/16内部场景）、安全和契约。跳过仅RUN_SYSTEM_E2E独立授权测试；未改断言、安装全局包或修改系统环境 |
+| es-query-service：JDK25，`../serviceCenter/mvnw.cmd test` | 99 passed/0 skipped/0 failed，6.565秒；类型化检索、授权、文号查询及相关服务测试使用mock/本地fake，不写真实索引 |
+
+上述执行均在子进程移除模型Key而不读取其值，关闭live opt-in；生产源码和已消费run-05不变。本轮新增真实模型/业务/检索及索引写入均0。定向代码对照检查未证明需要生产修复，不签发整体代码或效果通过；完整non-live和Java复验补齐当前提交的验证记录，但不改变UAT_01 §14.59.1的3/10人工通过、七题缺证或failed终态。UAT仍In Progress、QUALITY仍Blocked；后续真实执行仍无可复用授权，不以剩余预算或目标自动续进解释为新批次。这里只补记现有工作包证据，不修改架构、版本、DAG、门禁或长期UAT计数。
