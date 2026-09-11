@@ -51,7 +51,7 @@ class ModelSettings:
     max_response_bytes: int = 262144
 
     BASE_URL = "https://api.deepseek.com"
-    MODEL_NAME = "deepseek-v4-pro"
+    MODEL_NAME = "deepseek-flash"
 
     def __post_init__(self) -> None:
         ranges = {
@@ -88,4 +88,3 @@ class ModelSettings:
             max_request_bytes=_parse_integer(env, "AGENT_MODEL_MAX_REQUEST_BYTES", 131072),
             max_response_bytes=_parse_integer(env, "AGENT_MODEL_MAX_RESPONSE_BYTES", 262144),
         )
-

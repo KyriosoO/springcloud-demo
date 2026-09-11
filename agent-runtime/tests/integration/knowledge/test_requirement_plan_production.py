@@ -268,7 +268,7 @@ async def test_current_capability_rejects_invalid_v3_requirements_before_downstr
 
 def test_current_root_pairs_requirement_consumers_and_runtime_version():
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "9" and tasks.summary.task_version == "7"
+    assert tasks.rewrite.task_version == "10" and tasks.summary.task_version == "7"
     assert KNOWLEDGE_QUALITY_VERSION_V3 in KNOWLEDGE_QUALITY_VERSIONS
     assert KnowledgeCompositionRoot.task_definitions(enabled=False) is None
 

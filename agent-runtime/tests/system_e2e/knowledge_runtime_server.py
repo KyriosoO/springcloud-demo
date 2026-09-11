@@ -24,6 +24,7 @@ from agent_runtime.model.contracts import (
     StructuredFinishKind,
     StructuredModelRequest,
     StructuredModelResponse,
+    StructuredToolCall,
 )
 from tests.system_e2e.knowledge_nonlive_evidence import (
     EXPECTED_CASE_IDS,
@@ -82,7 +83,7 @@ class _KnowledgeModelTransport:
             else:
                 content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
-            assert request.task_version == "9"
+            assert request.task_version == "10"
             self._probe.counts["rewrite"] += 1
             question = payload["question"]
             if "改写失败" in question:
@@ -130,6 +131,12 @@ class _KnowledgeModelTransport:
         else:
             self._probe.counts["businessModel"] += 1
             raise AssertionError("knowledge_nonlive.business_model_forbidden")
+        if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
+            return StructuredModelResponse(
+                finish_kind=StructuredFinishKind.TOOL_CALLS, content=None,
+                tool_calls=(StructuredToolCall(name="knowledge_requirement_plan", arguments_json=content),),
+                usage_total_tokens=0,
+            )
         return StructuredModelResponse(
             finish_kind=StructuredFinishKind.STOP,
             content=content,

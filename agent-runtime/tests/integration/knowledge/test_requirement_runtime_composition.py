@@ -1,4 +1,4 @@
-"""Actual 9/7/v3 production root, synthetic transports; not live effectiveness."""
+"""Actual 10/7/v3 production root, synthetic transports; not live effectiveness."""
 from __future__ import annotations
 
 import asyncio
@@ -20,9 +20,10 @@ from agent_runtime.knowledge.evidence.contracts import KnowledgeRequirementSumma
 from agent_runtime.knowledge.evidence.summary_task_v5 import KnowledgeSummaryTaskV5
 from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
 from agent_runtime.knowledge.rewrite_v6 import KnowledgeRewriteTaskV6
+from agent_runtime.knowledge.rewrite_v10 import OUTPUT_NAME
 from agent_runtime.knowledge.settings import KnowledgeSettings
 from agent_runtime.main import build_runtime
-from agent_runtime.model.contracts import ModelTaskId, StructuredFinishKind, StructuredModelResponse
+from agent_runtime.model.contracts import ModelTaskId, StructuredFinishKind, StructuredModelResponse, StructuredToolCall
 from agent_runtime.observation import observation_scope
 from tests.helpers import scope
 from tests.integration.knowledge.test_production_runtime_wiring import _FixedStream, _KnowledgeClientFactory, _enabled_environment
@@ -56,7 +57,7 @@ class Model:
             value = {"capability_id": "knowledge.query"}
             if self.fault == "second_action": value["second"] = "employee.search"
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
-            assert request.task_version == "9" and request.max_output_tokens == 1536
+            assert request.task_version == "10" and request.max_output_tokens == 1536
             if self.fault == "rewrite_failure": raise RuntimeError("synthetic")
             if self.fault == "rewrite_timeout": raise TimeoutError("synthetic")
             value = deepcopy(self.output)
@@ -83,6 +84,10 @@ class Model:
             elif self.fault == "insufficient": value = {"outcome": "insufficient_evidence", "points": [], "coverage": []}
         else:
             raise AssertionError("No Business or answer model task")
+        if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
+            return StructuredModelResponse(finish_kind=StructuredFinishKind.TOOL_CALLS, content=None,
+                tool_calls=(StructuredToolCall(name=OUTPUT_NAME, arguments_json=json.dumps(value, ensure_ascii=False)),),
+                usage_total_tokens=0)
         return StructuredModelResponse(finish_kind=StructuredFinishKind.STOP, content=json.dumps(value, ensure_ascii=False),
             tool_calls=(), usage_total_tokens=0)
 
@@ -153,7 +158,7 @@ async def test_current_root_retains_three_proof_anchors_and_summary_coverage(mul
     assert result.status is CapabilityStatus.SUCCESS, result.failure
     assert result.capability_id == "knowledge.query" and [p["quote"] for p in result.user_result["points"]] == list(CONTENTS)
     assert [(r.task_id, r.task_version) for r in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "9"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "10"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7")]
     assert [v["query"] for p, v in clients.payloads if p == "/rerank"] == list(FOCUSES)
     expected_documents = [text + "\n文档标题：增值税政策资料" + str(i) for i, text in enumerate(CONTENTS, 1)]
     for path, body in clients.payloads:
@@ -253,7 +258,7 @@ def test_minimum_four_checked_before_any_client_or_model_factory(domains, monkey
 @pytest.mark.parametrize("fault", ["rewrite_version", "summary_version", "summary_six", "summary_unknown", "rewrite_id", "summary_id", "rewrite_type", "summary_type"])
 def test_production_rejects_mixed_task_pair_before_model_use(fault):
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "9" and tasks.summary.task_version == "7"
+    assert tasks.rewrite.task_version == "10" and tasks.summary.task_version == "7"
     if fault == "rewrite_version": tasks = replace(tasks, rewrite=KnowledgeRewriteTaskV6.definition())
     elif fault == "summary_version": tasks = replace(tasks, summary=KnowledgeSummaryTaskV5.definition())
     elif fault in {"summary_six", "summary_unknown"}:
@@ -294,7 +299,7 @@ def test_historical_root_isolation_is_exact_scoped_and_restored(monkeypatch):
             assert module.KnowledgeCompositionRoot is expected
         assert bootstrap.KnowledgeCompositionRoot is main.KnowledgeCompositionRoot is current
     assert legacy_root().task_definitions(enabled=True).rewrite.task_version == "6"
-    assert current.task_definitions(enabled=True).rewrite.task_version == "9"
+    assert current.task_definitions(enabled=True).rewrite.task_version == "10"
 
 
 @pytest.mark.asyncio
@@ -317,8 +322,9 @@ async def test_current_root_keeps_concurrent_requirement_state_request_local():
             if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
                 question = json.loads(request.user_payload_json)["question"]
                 await asyncio.sleep(0)
-                return StructuredModelResponse(finish_kind=StructuredFinishKind.STOP,
-                    content=json.dumps(plan(question=question)), tool_calls=(), usage_total_tokens=0)
+                return StructuredModelResponse(finish_kind=StructuredFinishKind.TOOL_CALLS, content=None,
+                    tool_calls=(StructuredToolCall(name=OUTPUT_NAME, arguments_json=json.dumps(plan(question=question))),),
+                    usage_total_tokens=0)
             return await super().complete(request, call_deadline=call_deadline)
 
     model, clients = ConcurrentModel(plan()), Clients()
@@ -347,12 +353,16 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
     key = "synthetic-nonlive-requirement-wire-key"
 
     async def handle(request):
-        assert str(request.url) == ModelSettings.BASE_URL + "/chat/completions"
+        index = len(calls)
+        assert str(request.url) == ModelSettings.BASE_URL + ("/beta/chat/completions" if index == 1 else "/chat/completions")
         assert request.headers["Authorization"] == "Bearer " + key
         payload = json.loads(request.content)
-        index = len(calls)
         calls.append(payload)
-        assert payload["response_format"] == {"type": "json_object"} and "tools" not in payload
+        if index == 1:
+            assert "response_format" not in payload and payload["tools"][0]["function"]["strict"] is True
+            assert payload["tool_choice"] == {"type": "function", "function": {"name": OUTPUT_NAME}}
+        else:
+            assert payload["response_format"] == {"type": "json_object"} and "tools" not in payload
         if index:
             assert payload["max_tokens"] == 1536
         task_id = (ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY)[index]
@@ -360,12 +370,17 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
             task_version=definitions[index].task_version if index else "action-selection-v4",
             max_output_tokens=payload["max_tokens"], user_payload_json=payload["messages"][1]["content"]),
             call_deadline=asyncio.get_running_loop().time() + 5)
-        value = json.loads(response.content)
+        value = json.loads(response.tool_calls[0].arguments_json if index == 1 else response.content)
         if fault == "rewrite_shape" and index == 1:
             value.pop("requirements")
         if fault == "summary_shape" and index == 2:
             value.pop("coverage")
         envelope = _envelope(json.dumps(value, ensure_ascii=False))
+        envelope["model"] = "deepseek-flash"
+        if index == 1:
+            envelope["choices"][0].update(finish_reason="tool_calls", message={"content": None,
+                "tool_calls": [{"type": "function", "function": {"name": OUTPUT_NAME,
+                                "arguments": json.dumps(value, ensure_ascii=False)}}]})
         if fault == "outer" and index == 1:
             envelope["model"] = "incorrect-provider-model"
         return clients._json(envelope)
@@ -390,13 +405,13 @@ async def test_current_wire_provider_and_two_task_decoders_are_not_bypassed(faul
 @pytest.mark.parametrize("task", ["rewrite", "summary"])
 def test_task_factory_version_error_precedes_client_allocation(task, monkeypatch):
     from agent_runtime import main
-    from agent_runtime.knowledge.rewrite_v9 import KnowledgeRewriteTaskV9
+    from agent_runtime.knowledge.rewrite_v10 import KnowledgeRewriteTaskV10
     from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
     def forbidden(*args, **kwargs): raise AssertionError("No resources before configuration validation")
     monkeypatch.setattr(main.LocalModelCompositionRoot, "build", forbidden)
     monkeypatch.setattr(main, "HttpxBusinessDomainTransport", forbidden)
     if task == "rewrite":
-        monkeypatch.setattr(KnowledgeRewriteTaskV9, "definition", KnowledgeRewriteTaskV6.definition)
+        monkeypatch.setattr(KnowledgeRewriteTaskV10, "definition", KnowledgeRewriteTaskV6.definition)
     else:
         monkeypatch.setattr(KnowledgeSummaryTaskV7, "definition", KnowledgeSummaryTaskV5.definition)
     with pytest.raises(ValueError, match="production_task_version_invalid"):

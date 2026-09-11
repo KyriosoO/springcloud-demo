@@ -114,7 +114,7 @@ def _response(
     body = json.dumps(
         {
             "object": "chat.completion",
-            "model": "deepseek-v4-pro",
+            "model": "deepseek-flash",
             "choices": [
                 {
                     "index": 0,

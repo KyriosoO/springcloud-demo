@@ -100,7 +100,7 @@ def test_projects_exact_request_fields_without_caller_model_or_url() -> None:
         "max_tokens",
         "response_format",
     }
-    assert projected["model"] == "deepseek-v4-pro"
+    assert projected["model"] == "deepseek-flash"
     assert projected["stream"] is False
     assert projected["thinking"] == {"type": "disabled"}
 
@@ -110,7 +110,7 @@ def test_parses_valid_provider_response_and_ignores_safe_new_top_level() -> None
         {
             "id": "ignored",
             "object": "chat.completion",
-            "model": "deepseek-v4-pro",
+            "model": "deepseek-flash",
             "choices": [
                 {
                     "index": 0,
@@ -135,9 +135,9 @@ def test_parses_valid_provider_response_and_ignores_safe_new_top_level() -> None
     [
         b'{"object":"chat.completion","object":"duplicate"}',
         b'{"object":"chat.completion","model":"wrong","choices":[]}',
-        b'{"object":"chat.completion","model":"deepseek-v4-pro","choices":[{"index":0,"finish_reason":"length","message":{"content":"x"}}]}',
-        b'{"object":"chat.completion","model":"deepseek-v4-pro","choices":[{"index":0,"finish_reason":"stop","message":{"content":1}}]}',
-        b'{"object":"chat.completion","model":"deepseek-v4-pro","choices":[{"index":0,"finish_reason":"stop","message":{"content":"\\ud800"}}]}',
+        b'{"object":"chat.completion","model":"deepseek-flash","choices":[{"index":0,"finish_reason":"length","message":{"content":"x"}}]}',
+        b'{"object":"chat.completion","model":"deepseek-flash","choices":[{"index":0,"finish_reason":"stop","message":{"content":1}}]}',
+        b'{"object":"chat.completion","model":"deepseek-flash","choices":[{"index":0,"finish_reason":"stop","message":{"content":"\\ud800"}}]}',
     ],
 )
 def test_rejects_duplicate_or_invalid_consumed_provider_fields(raw: bytes) -> None:

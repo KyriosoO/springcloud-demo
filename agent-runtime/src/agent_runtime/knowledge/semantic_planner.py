@@ -33,7 +33,7 @@ class KnowledgeSemanticPlanner:
     ) -> None:
         if quality_version not in KNOWLEDGE_QUALITY_VERSIONS and quality_version != KNOWLEDGE_QUALITY_VERSION_V3:
             raise ValueError("knowledge.unknown_quality_version")
-        if (quality_version == KNOWLEDGE_QUALITY_VERSION_V3) != (definition.task_version in {"7", "8", "9"}):
+        if (quality_version == KNOWLEDGE_QUALITY_VERSION_V3) != (definition.task_version in {"7", "8", "9", "10"}):
             raise ValueError("knowledge.requirement_version_mismatch")
         if quality_version == KNOWLEDGE_QUALITY_VERSION_V3 and (
             definition.task_id is not ModelTaskId.KNOWLEDGE_REWRITE
@@ -96,7 +96,7 @@ class KnowledgeSemanticPlanner:
         if any(item.domain_id not in self._domains for item in output.queries):
             return RewriteStageResult(kind=RewriteStageKind.FAILURE)
         plans = tuple(item for domain in self._domains for item in output.queries if item.domain_id == domain)
-        if self._definition.task_version == "9" and plans:
+        if self._definition.task_version in {"9", "10"} and plans:
             try:
                 validate_scoped_queries(
                     original_question=original_question, queries=plans, requirements=requirements,

@@ -46,7 +46,7 @@ async def test_current_root_accepts_reference_query_and_focus_without_rewriting_
     assert all(type(guard) is DocumentReferenceSemanticGuard for guard, _ in seen)
     assert [(request.task_id, request.task_version) for request in model.requests] == [
         (ModelTaskId.ACTION_SELECTION, "action-selection-v4"),
-        (ModelTaskId.KNOWLEDGE_REWRITE, "9"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7"),
+        (ModelTaskId.KNOWLEDGE_REWRITE, "10"), (ModelTaskId.KNOWLEDGE_SUMMARY, "7"),
     ]
     for request in model.requests[1:]:
         assert json.loads(request.user_payload_json)["question"] == question

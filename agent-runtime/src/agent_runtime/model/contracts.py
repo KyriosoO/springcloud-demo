@@ -85,6 +85,7 @@ class ModelTaskId(StrEnum):
 class StructuredToolMode(StrEnum):
     NONE = "none"
     REQUIRED = "required"
+    SCHEMA_ONLY = "schema_only"
 
 
 class StructuredOutputMode(StrEnum):
@@ -242,7 +243,10 @@ class StructuredModelRequest:
             raise ModelInputDenied("model.invalid_request")
         if any(not isinstance(tool, StructuredToolDefinition) for tool in self.tools):
             raise ModelInputDenied("model.invalid_request")
-        if self.tool_mode is StructuredToolMode.REQUIRED:
+        if self.tool_mode is StructuredToolMode.SCHEMA_ONLY:
+            if self.output_mode is not StructuredOutputMode.TOOL_CALLS or len(self.tools) != 1:
+                raise ModelInputDenied("model.invalid_request")
+        elif self.tool_mode is StructuredToolMode.REQUIRED:
             if self.output_mode is not StructuredOutputMode.TOOL_CALLS or not self.tools:
                 raise ModelInputDenied("model.invalid_request")
         elif self.tool_mode is StructuredToolMode.NONE:

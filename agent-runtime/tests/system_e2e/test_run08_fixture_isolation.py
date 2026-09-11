@@ -14,7 +14,7 @@ from tests.system_e2e.conftest import isolate_consumed_entrypoint_signature, iso
 def test_only_exact_consumed_test_uses_frozen_source_and_restores(monkeypatch):
     root = bootstrap.KnowledgeCompositionRoot
     name = current.__name__
-    assert root.task_definitions(enabled=True).rewrite.task_version == "9"
+    assert root.task_definitions(enabled=True).rewrite.task_version == "10"
     request = SimpleNamespace(
         module=SimpleNamespace(__name__="tests.system_e2e.test_knowledge_stage_b_uat_v8"),
         function=SimpleNamespace(__name__="test_capture_hooks_on_actual_current_production_root_and_provider_wire"),
@@ -28,7 +28,7 @@ def test_only_exact_consumed_test_uses_frozen_source_and_restores(monkeypatch):
         assert sys.modules[name].KnowledgeCompositionRoot is frozen
     assert bootstrap.KnowledgeCompositionRoot is root and main.KnowledgeCompositionRoot is root
     assert sys.modules[name] is current
-    assert root.task_definitions(enabled=True).rewrite.task_version == "9"
+    assert root.task_definitions(enabled=True).rewrite.task_version == "10"
 
 
 def test_other_test_in_same_module_keeps_current_root(monkeypatch):
@@ -53,7 +53,7 @@ def test_consumed_v8_binding_is_exact_and_current_v9_is_restored(module, functio
     root = bootstrap.KnowledgeCompositionRoot
     test_module = SimpleNamespace(__name__=module, production=current)
     request = SimpleNamespace(module=test_module, function=SimpleNamespace(__name__=function))
-    assert root.task_definitions(enabled=True).rewrite.task_version == "9"
+    assert root.task_definitions(enabled=True).rewrite.task_version == "10"
     with monkeypatch.context() as patch:
         isolate_consumed_run08_root_fixture.__wrapped__(request, patch)
         frozen = bootstrap.KnowledgeCompositionRoot

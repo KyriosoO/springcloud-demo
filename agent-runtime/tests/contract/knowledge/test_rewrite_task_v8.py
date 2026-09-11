@@ -73,17 +73,18 @@ def test_valid_outputs_are_identical_to_v7(value):
     assert KnowledgeRewriteTaskV8.definition().parse_response(response) == KnowledgeRewriteTaskV7.definition().parse_response(response)
 
 
-@pytest.mark.parametrize("version", ["7", "8", "unknown", "10"])
+@pytest.mark.parametrize("version", ["7", "8", "9", "unknown", "11"])
 def test_current_root_rejects_old_or_invented_version(version):
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True)
-    assert tasks.rewrite.task_version == "9" and tasks.summary.task_version == "7"
+    assert tasks.rewrite.task_version == "10" and tasks.summary.task_version == "7"
     with pytest.raises(ValueError, match="production_task_version_invalid"):
         KnowledgeCompositionRoot._validate_tasks(replace(tasks, rewrite=replace(tasks.rewrite, task_version=version)))
 
 
 @pytest.mark.parametrize("quality,version,valid", [
     (KNOWLEDGE_QUALITY_VERSION_V3, "7", True), (KNOWLEDGE_QUALITY_VERSION_V3, "8", True),
-    (KNOWLEDGE_QUALITY_VERSION_V3, "9", True), (KNOWLEDGE_QUALITY_VERSION_V3, "10", False),
+    (KNOWLEDGE_QUALITY_VERSION_V3, "9", True), (KNOWLEDGE_QUALITY_VERSION_V3, "10", True),
+    (KNOWLEDGE_QUALITY_VERSION_V3, "11", False),
     (KNOWLEDGE_QUALITY_VERSION_V2, "8", False), (KNOWLEDGE_QUALITY_VERSION_V2, "9", False),
 ])
 def test_only_same_wire_versions_can_share_internal_requirement_contract(quality, version, valid):

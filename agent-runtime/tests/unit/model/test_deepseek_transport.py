@@ -44,7 +44,7 @@ def _response_bytes() -> bytes:
     return json.dumps(
         {
             "object": "chat.completion",
-            "model": "deepseek-v4-pro",
+            "model": "deepseek-flash",
             "choices": [
                 {
                     "index": 0,
@@ -95,7 +95,7 @@ async def test_posts_one_canonical_request_and_strictly_decodes_response(caplog:
         assert request.url == "https://api.deepseek.com/chat/completions"
         assert request.headers["authorization"] == f"Bearer {SECRET}"
         assert request.headers["accept-encoding"] == "identity"
-        assert parsed["model"] == "deepseek-v4-pro"
+        assert parsed["model"] == "deepseek-flash"
         assert parsed["thinking"] == {"type": "disabled"}
         assert parsed["stream"] is False
         assert parsed["response_format"] == {"type": "json_object"}

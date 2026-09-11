@@ -7,6 +7,7 @@ from typing import cast
 from agent_runtime.capability_api.contracts import JsonObject, JsonValue, freeze_json_object
 from agent_runtime.model.contracts import (
     InvalidModelOutput,
+    ModelInputDenied,
     StructuredFinishKind,
     StructuredModelRequest,
     StructuredModelResponse,
@@ -48,7 +49,16 @@ def project_deepseek_request(request: StructuredModelRequest) -> DeepSeekRequest
         "temperature": 0,
         "max_tokens": request.max_output_tokens,
     }
-    if request.tool_mode is StructuredToolMode.REQUIRED:
+    if request.tool_mode is StructuredToolMode.SCHEMA_ONLY:
+        tool = request.tools[0]
+        _validate_strict_schema(tool.arguments_schema)
+        payload["tools"] = ({
+            "type": "function",
+            "function": {"name": tool.name, "description": tool.description,
+                         "parameters": tool.arguments_schema, "strict": True},
+        },)
+        payload["tool_choice"] = {"type": "function", "function": {"name": tool.name}}
+    elif request.tool_mode is StructuredToolMode.REQUIRED:
         payload["tools"] = tuple(
             {
                 "type": "function",
@@ -66,6 +76,27 @@ def project_deepseek_request(request: StructuredModelRequest) -> DeepSeekRequest
     else:
         raise InvalidModelOutput("model.invalid_request_projection")
     return DeepSeekRequest(payload=payload)
+
+
+def _validate_strict_schema(schema: JsonObject) -> None:
+    """Reject unsupported provider constraints; never silently drop local rules."""
+    kind = schema.get("type")
+    allowed = {
+        "object": {"type", "properties", "required", "additionalProperties"},
+        "array": {"type", "items"},
+        "string": {"type", "enum"},
+    }
+    if not isinstance(kind, str) or kind not in allowed or set(schema) - allowed[kind]:
+        raise ModelInputDenied("model.strict_schema_unsupported")
+    if kind == "object":
+        properties, required = schema.get("properties"), schema.get("required")
+        if (not isinstance(properties, Mapping) or not isinstance(required, tuple)
+                or set(required) != set(properties) or schema.get("additionalProperties") is not False):
+            raise ModelInputDenied("model.strict_schema_unsupported")
+        for child in properties.values():
+            _validate_strict_schema(cast(JsonObject, child))
+    elif kind == "array":
+        _validate_strict_schema(cast(JsonObject, schema["items"]))
 
 
 def _required_mapping(value: object, code: str) -> Mapping[str, JsonValue]:

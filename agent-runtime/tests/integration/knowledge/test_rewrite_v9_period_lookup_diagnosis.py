@@ -110,7 +110,7 @@ async def test_declared_lookup_reaches_current_root_retrieval_without_losing_que
     assert result.status is CapabilityStatus.NO_RESULT
     assert diagnostics.records == ()
     assert [(r.task_id, r.task_version) for r in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "9"),
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "10"),
     ]
     assert clients.paths.count("/es/knowledge/search") == 2
     assert clients.paths.count("/embed") == 1 and "/rerank" not in clients.paths
@@ -132,7 +132,7 @@ async def test_semantic_rejection_at_current_root_keeps_all_downstream_calls_zer
         )
     assert result.status is CapabilityStatus.DOWNSTREAM_FAILURE
     assert [(r.task_id, r.task_version) for r in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "9"),
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "10"),
     ]
     assert [asdict(record) for record in diagnostics.records] == [DIAGNOSTIC]
     assert not diagnostics.overflowed

@@ -13,6 +13,7 @@ from agent_runtime.model.contracts import (
     ModelTransportError,
     StructuredModelRequest,
     StructuredModelResponse,
+    StructuredToolMode,
 )
 from agent_runtime.model.deepseek.dto import parse_deepseek_response, project_deepseek_request
 from agent_runtime.model.deepseek.errors import (
@@ -110,7 +111,7 @@ class DeepSeekChatTransport:
             async with asyncio.timeout_at(call_deadline):
                 async with self._client.stream(
                     "POST",
-                    "/chat/completions",
+                    "/beta/chat/completions" if request.tool_mode is StructuredToolMode.SCHEMA_ONLY else "/chat/completions",
                     content=body,
                     headers=headers,
                     timeout=timeout,

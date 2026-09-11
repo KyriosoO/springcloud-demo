@@ -132,6 +132,65 @@ def isolate_consumed_run08_root_fixture(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def isolate_consumed_representative_root(request, monkeypatch):
+    """Frozen 9/7 runner tests use their source binding, never today's root."""
+    targets = {
+        f"tests.system_e2e.test_knowledge_representative_uat_v{version}": {
+            "test_current_9_7_real_decoders_and_safe_evidence",
+            "test_failure_never_passes_retries_or_leaks",
+            "test_cancellation_closes_clients_keeps_attempt",
+        } for version in (1, 2, 3)
+    }
+    targets["tests.system_e2e.test_knowledge_representative_uat_v3"].add(
+        "test_failure_projection_is_wired_to_actual_runner_without_raw_data")
+    for version in (1, 2, 3):
+        targets[f"tests.system_e2e.test_knowledge_representative_human_uat_v{version}"] = {
+            "test_actual_current_root_decoders_then_human_wait_make_no_extra_outbound"}
+    targets["tests.system_e2e.test_knowledge_representative_failure_observation"] = {
+        "test_observer_preserves_current_root_result_counts_and_safe_evidence",
+        "test_current_runner_cancellation_restores_observer_and_closes_clients",
+    }
+    if request.function.__name__ not in targets.get(request.module.__name__, set()):
+        return
+    import agent_runtime.bootstrap as bootstrap
+    import agent_runtime.main as main
+    import tests.integration.knowledge as package
+    from tests.system_e2e import test_knowledge_representative_uat_v1 as shared
+
+    repo = Path(__file__).resolve().parents[3]
+    manifest = json.loads((Path(__file__).parent / "knowledge_representative_human_run_06/manifest.json").read_bytes())
+    head = manifest["frozenHead"]
+    assert head == "b83d877e13593ed0a6a0655cc9661ae025b665ad"
+    helper = "agent-runtime/tests/integration/knowledge/test_requirement_runtime_composition.py"
+
+    def frozen(path):
+        source = subprocess.check_output(["git", "show", f"{head}:{path}"], cwd=repo)
+        # The fake helper is pinned separately; it was not a live manifest asset.
+        expected = ("49af9fd1595c2323a374ae1c8757ddfb9ea51f2f356be215674d1cb7be29edcc"
+                    if path == helper else manifest["assets"][path])
+        assert hashlib.sha256(source).hexdigest() == expected
+        return source.decode("utf-8")
+
+    nodes = [node for node in ast.parse(frozen("agent-runtime/src/agent_runtime/bootstrap.py")).body
+             if isinstance(node, ast.ClassDef) and node.name == "KnowledgeCompositionRoot"]
+    assert len(nodes) == 1
+    namespace = dict(vars(bootstrap))
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), f"git:{head}:KnowledgeCompositionRoot", "exec"), namespace)
+    root = namespace["KnowledgeCompositionRoot"]
+    monkeypatch.setattr(bootstrap, "KnowledgeCompositionRoot", root)
+    monkeypatch.setattr(main, "KnowledgeCompositionRoot", root)
+    name = "tests.integration.knowledge.test_requirement_runtime_composition"
+    module = ModuleType(name)
+    module.__file__ = str(repo / helper)
+    exec(compile(frozen(helper), f"git:{head}:{name}", "exec"), vars(module))
+    monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.setattr(package, "test_requirement_runtime_composition", module, raising=False)
+    monkeypatch.setattr(shared, "production", module)
+    if hasattr(request.module, "production"):
+        monkeypatch.setattr(request.module, "production", module)
+
+
+@pytest.fixture(autouse=True)
 def isolate_consumed_entrypoint_signature(request, monkeypatch, isolate_consumed_run08_root_fixture):
     # These tests already choose a frozen root. Pair it with the pre-admission
     # entrypoint instead of passing a new internal argument into an old root.
