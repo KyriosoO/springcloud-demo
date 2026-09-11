@@ -3020,3 +3020,17 @@ KRB-006本次两份必要来源small_2022/2023均已进入召回、最终排序�
 相关回归命令`python -B -m pytest tests/evaluation/knowledge tests/unit/knowledge/test_evidence_admission.py tests/unit/knowledge/retrieval/test_quality_ranking_v3.py tests/unit/knowledge/test_original_keyword_planning.py tests/unit/knowledge/retrieval/test_original_keyword_stage.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider`：534 passed/36.27秒，0失败/0跳过，既有LangChain预告1项；src strict mypy 140文件、compileall及P3 strict通过。新增测试与两个代表集历史/35与37追踪最终联合61 passed/4.09秒。三份原排名/分级SHA不变，目标凭据模式扫描0命中。没有生产/Java/脚本变更，未重复Maven、Spring服务级E2E、全仓隔离回归或PowerShell AST，不把上轮执行计数冒充本轮结果。
 
 按DR-KEV-033/034分离代码/证据复核两轮：首轮补充当前分级文件固定SHA及二次读取同hash校验，避免合法但不同的分级被当作原诊断；复评确认身份复用、有限计数、rank大于锚点上界的单向推理、未知分数边界、无网络/原文/生产修改均符合。本离线诊断切片无未处理Blocker/Major；不是外部独立人员评审、阈值生效批准或整体阶段B完成。测试与状态作为本目标的一个有限诊断提交，最终SHA及推送结果归Git。
+
+### 20.88 四项独立UAT恢复与有限诊断接线（2026-09-11）
+
+用户已明确授权独立4 E2E/12模型，累计35/92，按UAT_01 §14.57冻结并执行一次；这是新授权，不是§20.85失败批次续跑。`WP-KRETRIEVAL-UAT-01`维持In Progress，QUALITY维持Blocked；只解除本次预算授权阻塞，未提前关闭真实验收或人工usefulness责任。不增加Gate、模型任务、公共合同或索引变更。
+
+实施范围冻结为新`tests/system_e2e/knowledge_representative_uat_v3.py`及其直接fake测试、P3/UAT计划和本批有限资产。复用V2执行器及原§14.55观察器，仅批次元数据、四题清单和诊断接线变化；V1/V2原件保持只读。代码对照UAT §14.51/14.55/14.57及L2_01_02 DR-KEV-033/034，保留来源、引用、模型/本地调用计数、单动作、终态独占、安全清理和失败即停。新入口在fake、历史hash、类型及计划核查通过后提交冻结，再检查依赖及执行，不先消耗模型授权。
+
+初始HEAD=`f86f27fe1dce61b32f194869260de8f85a18e7f0`，tracked工作树无变更。当前ES/embedding/rerank端口可连接、四个隔离端口空闲；只是准备条件，不是服务身份/真实UAT通过。后续实际命令、绑定、结果及Git状态在本节记录，未执行项不计通过。
+
+准备期发现两项本地环境问题，尚无started或模型outbound：pytest旧临时目录因执行身份变化被拒绝，首次17 passed/92 setup errors；不改断言，改用工作区唯一临时目录后原109项通过。19201虽无监听但被Windows动态端口范围保留（10013），19401实际bind通过；新增`knowledge_representative_services_v3.py`只替换隔离ES端口，新入口同步ENV、manifest、readiness及严格endpoint计数白名单，并新增旧端口/未知路径零调用测试。未改系统端口保留、旧helper、生产配置或服务接口。此为受控执行环境修复，不改变验收判据。
+
+最终定向命令（agent-runtime目录，进程级PYTHONPATH指向当前src和tests，Git safe.directory仅对子进程有效，Key从测试子进程移除）：`python -B -m pytest tests/system_e2e/test_knowledge_representative_uat_v3.py tests/system_e2e/test_knowledge_representative_uat_v2.py tests/system_e2e/test_knowledge_representative_failure_observation.py tests/system_e2e/test_knowledge_representative_run_01_history.py tests/system_e2e/test_knowledge_representative_run_02_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/contract/knowledge/test_rewrite_v9_failure_boundary.py -q --tb=short --maxfail=1 -p no:cacheprovider --basetemp=target/pytest-run03-<unique>`：179 passed/35.01秒，0失败/0跳过；1项既有LangChain预告。src strict mypy通过140文件；新入口/测试compileall及P3 strict通过。19401环境复核通过：两个BGE容器身份、只读索引绑定、编译Profile、空闲隔离端口及JDK25.0.2；仍无模型调用。
+
+新批次按既有设计执行，不更改L1/L2语义；计划只记录明确授权、有限入口与状态。分离复核两轮：第一轮检查V2逐项差异、有限字段/记录边界、冻结和计数先行；第二轮核对19401的服务/ENV/manifest/白名单一致性、旧19201拒绝、四题原样继承、原判据不变及历史hash。当前准备切片无未处理Blocker/Major；为执行者分离复核，不冒称外部独立评审，正式真实结果仍待执行。
