@@ -5,7 +5,7 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.71 |
+| 当前版本 | v2.72 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-11 |
 | 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
@@ -13,6 +13,8 @@
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
+
+v2.72依据L2_01_00 v1.32推进§20.94的Rewrite固定域槽位设计纠偏；当前生产仍10/7/v3，新V11未实施。run-07终态不变，不增加付费批次、预算或门禁。
 
 v2.66依据L1_01 v1.22/L2_01_00 v1.29推进§20.77分域条件合同修复；本次不增加付费运行或重建索引，不把住宿单题作为整体召回的硬通过条件。
 
@@ -3296,3 +3298,23 @@ WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前
 本次收口聚焦复核：只审新history测试、15项有限资产、精确Git字节规则及P3/UAT状态；实施前已批准的Model §6.1、Flow §8.11和§14.62合同保持不变，因此不制造新的三轮架构评审。1轮分离代码/证据复核确认原SHA、5次journal顺序、真实人工记录、失败检索零调用、清理、不可恢复、有限诊断歧义和历史证明范围；归档增量无未关闭Blocker/Major/Minor，不等于当前模型UAT通过。由同一执行者分阶段完成，不称外部独立评审。补充`python -B -m mypy --strict src`141源文件通过、新history测试compileall通过、P3严格校验0错误0警告、`git diff --check`通过；生产/Java/PowerShell均未改，本轮未重新执行全量Python或Maven/AST。证据及其保护测试、文档终态分别提交并推送，提交SHA和远端核对结果列交付报告。
 
 最终历史/追踪补核：首次命令误写不存在的`test_knowledge_representative_human_run_04_history.py`，pytest退出1、0测试执行；经代码搜索确认run-04相关诊断位于`tests/integration/knowledge/test_rewrite_v9_period_lookup_diagnosis.py`。随后显式执行新run-07、旧run-05/06 history、该period lookup诊断及两份UAT traceability，75 passed/36.05秒、0失败；未删除或放宽断言。凭据/正文模式扫描、原件与归档15项SHA复核和生产/历史源零差异均通过。
+
+### 20.94 Rewrite固定启用域槽位修复（non-live设计增量）
+
+起始HEAD=`b9477ee8fc08b218361eae45aeabcb7d82a2b393`，codex与origin一致、工作树干净。§20.93.1的run-07已消费并失败，实际2 E2E/5模型、当前十题1通过/1失败/8未执行；累计43/112保持，没有可复用的剩余授权。本节不创建run-08或任何新运行资产、不读取Key、不产生outbound，也不改历史任务/诊断/结果。
+
+根因证据分层：真实有限记录只能定位Rewrite语义域合同拒绝，不能证明具体重复/未知/类型错误；当前V10严格Schema的queries数组能够容纳同域两项，而原validator拒绝，是代码和合成反例能复现的结构风险。检索在失败题调用为0，因此本切片不调整语料、索引、topK、融合、rerank或Evidence。前一只读诊断轮显式执行V10合同、Model Schema、V10失败边界、period lookup和run-07历史五组测试，134 passed；该数字不是V11证据。
+
+方案比较及责任由L2_01_00 §8.12 DR-KFLOW-031治理：推荐新Rewrite11的固定启用域字符串槽位；空串只表示未选中，全部非空槽位无损映射到原内部计划并通过原语义校验。保留多需求共用同一域，不合并重复query或放宽validator；同域不能重复是结构性质，不是语义准确性/召回提升证明。Model内部严格输出合同不变，公共DTO/接口、模型名、Summary、权限及阶段A资产不改。
+
+本增量依附既有WP-KRETRIEVAL-QUALITY-01的有限修复，不新增工作包或Gate。直接依赖顺序：①L2语义及P3/UAT原子同步 → ②三轮内审及分离只读设计复评 → ③Rewrite11/当前root不可变域快照与Planner最小实现 → ④合同与current-root/non-live/Spring/类型/历史验证 → ⑤代码复评与提交推送。评审前③不得实施；既有GATE-KRG-006关闭不自动授权未评审增量。④/⑤无需真实UAT前置，真实专项仍是独立未完成责任，不能形成循环。
+
+当前状态：设计复评通过、V11未实施；既有生产10/7/v3继续保持，允许§8.12的non-live实现/测试，WP-KRETRIEVAL-UAT-01 In Progress、QUALITY Blocked。验收/真实测量限制见UAT_01 §14.63。本切片完成后也不得改判run-07或宣称阶段B完成；真实新版本测量必须另有绑定，不能自动补题。
+
+设计内审实际三轮：第1轮核对域唯一性与同域多需求、空串终态及无损转接，保留原语义拒绝；第2轮核对配置和调用方，明确None默认只服务disabled、enabled必须显式传入目录顺序元组，并补充观测不保存响应/中间JSON；第3轮核对版本、追踪、历史与DAG，当前10/7和拟议11/7明确分离，修正DR-KFLOW-004过时的当前V9描述，不把旧Approved状态继承到新增切片。
+
+随后冻结作者阶段，进行只读分层/跨层复核，范围仅DR-KFLOW-031及L1 KQ-AD-013/018、Model SCHEMA_ONLY合同、当前代码落点、P3/UAT直接依赖。首轮发现两项：`REV-KFLOW-031-01`（S1）TEST-KFLOW-023将Rewrite一次误写为端到端模型一次，与现有动作选择+Rewrite两任务冲突；`REV-KFLOW-031-02`（S2）差分“输出相同”未排除旧数组无语义顺序，与Planner按目录排序冲突。返回作者阶段最小修复：分别规定Rewrite≤1/端到端≤2及全部下游0；只对query元组做目录顺序比较，其他字段和requirements顺序严格相同，并增加重复域不能被测试helper去重掩盖的反证要求。修改后待只读复评，不提前登记通过。
+
+第2轮只读复评核对修订文本与`semantic_planner.py`的selection后规划、目录排序及语义复核，确认两项关闭；单域配置、纯空白、terminal、requirements关联、无损映射、Provider既有子集、disabled与历史兼容边界闭合。S0=0/S1=0/未处理S2=0；仅准入DR-KFLOW-031的non-live实现，不代表新版代码或真人UAT通过。同一执行者分阶段审查，不声称外部独立评审。L2 strict及P3 strict均0错误0警告，目标变更只有五份Markdown，源码/配置/索引/历史运行字节不改；代码评审和新版测试属于下一实施阶段。
+
+本设计提交前实际执行：在测试子进程清除Key后，`python -B -m pytest tests/system_e2e/test_knowledge_representative_human_run_07_history.py tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py -q --tb=short -p no:cacheprovider --maxfail=1`，20 passed/2.72秒，1条既有LangChain预告；确认15项run-07原件/源绑定和现有35/37追踪没有改判。L2严格结构/追踪、P3严格DAG、目标版本/链接与敏感模式、`git diff --check`均验证；当前只改设计文档，未重跑源码类型检查、全量Python或Maven/AST，不宣称V11测试已经通过。设计作为独立提交，后续最小实现及代码复评仍待执行。

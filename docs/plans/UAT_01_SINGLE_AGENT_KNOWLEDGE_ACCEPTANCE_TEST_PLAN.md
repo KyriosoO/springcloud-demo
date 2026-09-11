@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `UAT_01` |
-| 当前版本 | v1.47 |
+| 当前版本 | v1.48 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-11 |
 | 适用范围 | `knowledge.query` 的生产接线、功能/效果验收，阶段 A 语料完整性及阶段 B 检索质量专项验收 |
-| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.31、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.71；§14.62.1记录flash独立十题批次终态；不改旧case/gold/结果 |
+| 上位依据 | `L1_00` v3.5、`L1_01` v1.23、`L2_00_02` v2.8、`L2_01_00` v1.32、`L2_01_01` v2.19、`L2_01_02` v1.25、`P3_00` v2.72；§14.62.1保留flash十题终态，§14.63只定义新结构non-live验证，不改旧case/gold/结果 |
 | 历史边界 | candidate-01～07 的既有 manifest/authorization/consumed/journal/result/evidence/failure 均保持不可变；candidate-07 为 `failed_unconsumed` |
 
 本计划是 Knowledge 功能/效果验收、candidate 身份、效果结论和阶段 A 语料专项验收的唯一计划权威；P3 是工作包与 Gate 状态唯一权威，evidence 是运行文件与哈希唯一权威。`UAT_00` 只治理公共接入与 Employee/Transaction。v1.14 新增不依赖外部 LLM 的阶段 A 14 项语料 UAT；v1.15 明确来源不可达不等于正文缺失，且未核验 P0/目标 P1 只能阻塞发布门禁；v1.16～v1.17 保留早期证据并完成严格合同复评；v1.18 以结构化 legacy DOC 和 a4 修复条款关系；v1.19 以最终工具源码一致的 Stage A corpus candidate-08/a5、UAT/release attempt-05 作为最终 14/14 权威证据。既有 37 项功能 UAT、效果状态及 Knowledge 效果 candidate-01～07 历史运行资产保持不变。
@@ -1360,3 +1360,11 @@ KRB-010有限诊断为`rewrite_decoder / knowledge.invalid_requirement_plan / sh
 15项不可变原件见`agent-runtime/tests/system_e2e/knowledge_representative_human_run_07/`；result SHA-256=`915724a415d10605d336f8c24139fc7dd2f51e4520f5df211099736a1ba0b69e`，journal SHA-256=`a095dc22e66ab9469b061b353909be319d71a37cb9d0f0bc5b43b3a50ff09511`。预算、清理、历史保护及本轮测试命令归P3 §20.93.1。未保存原始模型响应、问题正文、知识正文或凭据。
 
 当前flash/Rewrite10/Summary7十题证据为1 Passed、1 Failed、8 Not executed，专项UAT尚未完成；旧模型3/10不与当前1/10相加，既有35/37功能UAT保持其证明范围。此次失败不代表已重新完成全部效果测量，也不改变历史P5结论。后续真实测量必须使用新的独立授权和冻结绑定，不得复用本批剩余额度。
+
+### 14.63 固定启用域槽位的非live验收边界
+
+依据L2_01_00 §8.12和P3 §20.94，拟新增Rewrite11替换queries数组表示；设计三轮内审与两轮分离复评通过，代码未实施。固定启用域槽位不改变现有case、预期域、需求、原文anchor、gold、阈值或人工rubric，也不证明run-07真实失败一定是重复域。当前生产10/7/v3及§14.62.1终态继续有效。
+
+non-live必须验证：单域/双域精确Schema、空串未选中及非法空白拒绝、一个域多项需求、原V7合法计划的等价表示、原非法语义矩阵继续拒绝、缺失/未知/重复JSON键与旧数组拒绝、requirements关联空槽拒绝、原问题分域条件保护、启动/请求快照一致、并发与disabled/lifecycle，以及当前Spring→Runtime失败零下游。Prompt不混用旧数组/新object示例。fake只有合同与功能证明价值，不能替代当前模型真实规划或真人评价。
+
+本节不生成manifest/authorization/launcher或新付费批次、不读取LLM_API_KEY。run-07不得恢复，未执行八题不得自动补跑，旧3/10与当前1/10不能相加。新V11即使non-live通过，真实效果仍为未验证，专项UAT继续未完成；既有Business35/Knowledge37功能用例不改判。未来真实验证必须明确新版本及Schema/Prompt/配置快照和独立预算，并由真实用户评价，执行者不能代填。本节不授予该执行权限。
