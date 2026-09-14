@@ -7,10 +7,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 日期 | 2026-09-14 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
-| 当前基线 | Knowledge 与 Business 查询能力均已接入统一 Runtime；功能验收和效果验收分开治理，具体运行状态由 P3/UAT 计划及 evidence 记录 |
+| 当前基线 | Knowledge 与 Business 查询能力均已接入统一 Runtime；功能验收和效果验收分开治理，新Knowledge状态由P3_01/UAT_02记录；Business维护验收由UAT_00记录，原运行事实保留于历史计划及evidence |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
 | 归档来源 | [整理前 v2.5 原文](历史文档/2026-09-14-unified-v3-baseline/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md)；[完整性清单](历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -20,6 +20,8 @@
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 ## 2. 背景、设计目标与非目标
 
@@ -31,7 +33,7 @@
 
 | 对象 | verified existing | target design | 当前差距 |
 |---|---|---|---|
-| Knowledge | 既有问题改写、类型化检索、证据及摘要链路；最新有效效果等级为 partially_effective | 保持独立能力且不作为 Business fallback；离线补齐官方正文/附件，在线仍只消费受控只读索引 | 阶段 A 语料缺口已按有限 P0/P1/P2 边界完成处理并发布；旧阶段B目标取消；在线最小方案及资料表示后续工作由P3治理 |
+| Knowledge | 既有问题改写、类型化检索、证据及摘要链路；最新有效效果等级为 partially_effective | 保持独立能力且不作为 Business fallback；离线补齐官方正文/附件，在线仍只消费受控只读索引 | 阶段 A 语料缺口已按有限 P0/P1/P2 边界完成处理并发布；旧阶段B目标取消；在线最小方案及资料表示后续工作由P3_01治理 |
 | Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 读取守卫、endpoint-scoped 共享 converter、Agent Adapter 和真实 UAT 已通过 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | 已有真实列表证据，原验证范围见UAT_00 |
 | Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter、共享 converter、v4 完整意图与真实 UAT 已通过 | `employee.semantic_search` 返回受控列表；semantic+地址必须 unsupported/零调用 | 已有真实语义列表及不支持组合零调用证据，见UAT_00 |
 | Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权；新版 Adapter、operator-specific 文本策略和真实 UAT 已通过 | `transaction.search` 完整映射既有列表搜索能力 | 相对日期/聚合仍不开放；原列表验收见UAT_00 |
@@ -81,11 +83,11 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 
 `REQ-KQUALITY-004`：阶段 B 独立验证，不依赖图谱或新语料发布；阶段 A 索引/alias/正文及历史证据只读。核心原文充分场景必须满足预先确定的验收条件，功能、安全、效果分开报告；有限真实预算失败后不得自动补跑。
 
-上述目标已完成设计评审，不代表代码或专项 UAT 已完成；实施与证据状态仍归 P3/UAT_01。
+上述目标已完成设计评审，不代表代码或专项 UAT 已完成；新实施与验收状态归P3_01/UAT_02；原证据范围保留。
 
 ### 5.2 Knowledge 设计重建的需求边界（拟实施）
 
-本节沿用已批准的Knowledge需求，不改变Business、安全和语料发布合同。此前阶段B优化目标已取消；新设计及后续实施状态以P3当前章节为准，不继承旧授权和效果结论。
+本节沿用已批准的Knowledge需求，不改变Business、安全和语料发布合同。此前阶段B优化目标已取消；新设计及后续实施状态以P3_01为准，不继承旧授权和效果结论。
 
 | 需求 | 用户目标与成功判据 | 必要条件及拒绝边界 |
 |---|---|---|
@@ -95,7 +97,7 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 | `REQ-KQ-204` 最小可靠实现 | 复用一个Knowledge Capability及既有typed读取、授权、出域、原文引用；理解与确定性控制分离 | 不以模型自报coverage/证明角色、相似度阈值或域命中证明语义充分；安全约束与效果策略分别治理 |
 | `REQ-KQ-205` 可归因验收 | 功能、安全、召回、回答质量分别验证；新方案允许先形成可比较基线 | 不强迫单一住宿题成功，不改历史gold/阈值或连续付费追逐通过；当前设计完成不等于新代码、部署或效果完成 |
 
-首期采用原问题检索基线，改写增益及不同向量表示属于后续单变量实验，是否开放以新证据决策。来源为本次用户三类查询需求及取消旧目标后的设计重建授权；实现合同见Knowledge三份L2，验收方法见UAT_01新设计章节。
+首期采用原问题检索基线，改写增益及不同向量表示属于后续单变量实验，是否开放以新证据决策。来源为本次用户三类查询需求及取消旧目标后的设计重建授权；实现合同见Knowledge三份L2，验收方法见UAT_02 §5。
 
 ## 6. Employee 列表与语义查询
 
@@ -153,4 +155,4 @@ Employee 原始 ES JSON 必须在 Adapter 内进行 content-type、长度和结�
 5. Employee 自然语言扩展：单/复姓、多姓名、多姓氏、同字段 AND、行政区别名、多地区及问句/祈使句；真实模型和 Employee search 均受独立总预算约束。
 6. Knowledge 阶段 A：全量只读盘点，P0 与目标 P1 正文/附件处理，新候选索引、直接类型化检索、授权/Evidence 和 alias 回滚验收；召回质量与图谱留给后续阶段。
 
-实施状态由 P3 与 UAT 计划记录；本需求只要求 Employee/Transaction 读取守卫、严格 QueryPlan、固定 Adapter、业务最终授权、失败关闭及受控结果成立，不保存运行批次、调用计数或证据哈希。
+Business原实施状态在历史P3_00保留，维护验收由UAT_00记录；新Knowledge实施/验收分别由P3_01/UAT_02记录；本需求只要求 Employee/Transaction 读取守卫、严格 QueryPlan、固定 Adapter、业务最终授权、失败关闭及受控结果成立，不保存运行批次、调用计数或证据哈希。

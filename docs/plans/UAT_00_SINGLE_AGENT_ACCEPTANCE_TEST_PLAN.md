@@ -1,15 +1,15 @@
-# [UAT_00] 单体 Agent 结构化查询用户验收计划
+# [UAT_00] Business已完成验收与维护回归基线
 
 ## 1. 文档信息与来源
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 文档状态 | Reviewed |
 | 日期 | 2026-09-14 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.0；Employee L2 v3.0；Transaction L2 v3.0 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v3.0 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.1；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.1；Employee L2 v3.1；Transaction L2 v3.1 |
+| 原实施依据 | [历史P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v3.0；不是后续Knowledge实施前置 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
 | 归档来源 | [整理前 v1.24 原文](历史文档/2026-09-14-unified-v3-baseline/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -20,6 +20,8 @@
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+
 ## 2. 验收目标与范围外
 
 验证输入安全闸门先形成最小化问题和 request-local slots，真实 LLM 再根据安全目录生成 `employee.search`、`employee.semantic_search`、`transaction.search` 三动作之一的 filters QueryPlan，经严格 decoder/validator/`value_ref` slot binder 和一次 Adapter 调用，复用现有 Employee ES/向量或 Transaction SQL 接口，返回受控列表。输入闸门不得选择业务动作或生成 filters；Knowledge 保持独立，不在本阶段执行效果验收。
@@ -28,22 +30,22 @@
 
 ## 3. 原验证前置与后续复验边界
 
-原35项在冻结v4任务及当时服务/配置下验收，Employee扩展由§12单独验证v7。当前文档基线v3.0不改变这些原始版本，也不重授权运行。
+原35项在冻结v4任务及当时服务/配置下验收，Employee扩展由§12单独验证v7。当前文档版本v3.1不改变这些原始版本，也不重授权运行。
 
-1. 后续受影响用例先完成P3直接依赖与明确资源授权；不以UAT交接包和自身门禁互相阻塞。
+1. 后续受影响用例先核实对应Business合同、受影响自动化证据及明确资源授权；不以UAT交接包和自身门禁互相阻塞。
 2. Employee两个ES入口继续使用endpoint-scoped共享converter和真实Servlet角色矩阵；Controller单测/手工authority不替代真实JWT过滤链。detail/其他接口保持业务方原兼容行为。
 3. Transaction日期仍严格验证生产UTC零毫秒offset/legacy整秒epoch与上海时区同一instant；无批准时钟/精度的相对日期不猜测。
 4. 所有复验必须绑定task/code/config与读取授权；旧detail/stub不能充当当前成功业务证据。
 5. 真值与JWT只在授权请求内使用，日志/证据有限；不存在真实地区样本时如实报告数据缺口，不启用workBase。
 6. action预算保持search3000ms/semantic10000ms/transaction5000ms与请求deadline交集，无重试、fallback或第二动作。
 
-门禁状态唯一权威为P3，本文只规定风险与证据。
+旧门禁仅在历史P3_00中保留原状态，不因本次迁移重开。本维护基线只规定Business风险与证据；新Knowledge计划不是其前置。
 
 ## 4. 固定验收顺序
 
 | 阶段 | 内容 | 前置 | 当前状态 |
 |---|---|---|---|
-| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed：5/5，均由当前 Spring 安全/严格 JSON/Runtime E2E 自动化验证 |
+| `UAT-PUBLIC-02` | 公共接入冒烟 | 原`GATE-UAT-007`（历史前置，非重新准入） | Passed：5/5，均由当前 Spring 安全/严格 JSON/Runtime E2E 自动化验证 |
 | `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Passed：15/15；9 个真实场景，6 个风险等价自动化场景 |
 | `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Passed：15/15；9 个真实场景，6 个风险等价自动化场景 |
 | `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Passed：35/35 可追踪；18 次真实规划，17 个等价自动化风险闭合 |
@@ -114,7 +116,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 用例—证据追踪
 
-本v3.0是现行计划权威；uat_traceability.v2.json及loader中UAT_00 v1.24为原验证依据，字节保留。下列35项风险/预期/证据集合未变，因此等价复用；不标记为本轮新执行。扩展15类继续§12独立，不把原v4性能等同当前共享模型性能。新要求或证据失效时另补验证，不能靠改authority字面升级结果。
+本v3.1是Business维护验收权威；uat_traceability.v2.json及loader中UAT_00 v1.24为原验证依据，字节保留。下列35项风险/预期/证据集合未变，因此等价复用；不标记为本轮新执行。扩展15类继续§12独立，不把原v4性能等同当前共享模型性能。新要求或证据失效时另补验证，不能靠改authority字面升级结果。
 
 原35项机器可校验追踪资产为 `agent-runtime/tests/uat/uat_traceability.v2.json`，严格校验入口为 `tests/uat/test_current_traceability.py`。旧 `uat_cases.v1.json` 与 `structured-query-uat-v1` 结果只代表历史 `employee.detail + stub` 阶段，保持字节不变但不参与当前 35 个用例的通过判定。
 
@@ -162,7 +164,7 @@ v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f
 
 剩余 17 个用例按风险分别由当前 Spring→Runtime、Spring/Servlet/Reactive 安全链、Python 生产组合根 fake E2E 和 Java/Python 跨语言契约关闭；追踪资产验证每个引用路径与测试符号真实存在，并强制真实证据集合仍为 18。该分层与个人学习项目的风险相称：不重复付费验证确定性 codec/权限/严格 JSON，同时不降低 QueryPlan 真实模型及真实业务调用证据。
 
-正式可复现回归入口、Python/Java/mypy 的本轮精确执行数量及仓库级环境结论由 P3 最终验证记录保存，本计划不复制动态总数。新增无关测试或测试数量变化不会自动使 Business UAT 失效；只有某个固定 UAT case 的映射合同、自动化证据或真实 evidence 失效时，才重新打开该用例或对应门禁。Knowledge 的功能与效果验收只由 UAT_01 治理，不计入本计划的35个用例。
+原正式回归入口及原精确执行记录见历史P3_00；后续受影响Business复验的精确执行数量及环境结论保存在对应维护验证记录，本计划不复制动态总数。新增无关测试或测试数量变化不会自动使 Business UAT 失效；只有某个固定 UAT case 的映射合同、自动化证据或真实 evidence 失效时，才重新打开该用例或对应门禁。新Knowledge的功能与效果验收由UAT_02独立治理，原Knowledge结果留历史UAT_01，不计入本计划的35个用例。
 
 ## 12. Employee 自然语言扩展 UAT
 

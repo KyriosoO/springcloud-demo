@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 日期 | 2026-09-14 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V7（V7为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v3.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次整理 | 统一文档基线v3.0；整合有效合同，归档历史过程；不改变代码、任务、配置或索引版本 |
-| 实施状态 | Evidence/Policy、Summary V7/quality-v3生产接线及定向non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
+| 上位文档 | [`L1_01` v3.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.1计划入口与历史依据迁移；不改变代码、任务、配置、索引或业务合同 |
+| 实施状态 | Evidence/Policy、Summary V7/quality-v3生产接线及定向non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，原候选、门禁和证据保留于历史UAT_01/P3_00/evidence；新计划P3_01/UAT_02不继承通过 |
 | 归档来源 | [整理前 v1.27 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -21,6 +21,8 @@
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 ## 2. 阅读导航
 
@@ -227,7 +229,7 @@ Global allowed fields/limits
 
 ### 9.4 验收方法和一次测量的结束边界
 
-`DR-KEV-205`：新方案采用UAT_01 §15的四维验收，不重新解释旧P5阈值。安全为硬否决；功能验证真实代码分支/生命周期；召回只在人工确认原文存在的固定池计算必要来源/相关性/排名；回答按相关、充分、忠实、usefulness独立人工判定。缺料/未知保留原case及原因，不记为召回改善；非法引用、无依据适用结论不能靠总体平均掩盖。
+`DR-KEV-205`：新方案采用UAT_02 §5的四维验收，不重新解释旧P5阈值。安全为硬否决；功能验证真实代码分支/生命周期；召回只在人工确认原文存在的固定池计算必要来源/相关性/排名；回答按相关、充分、忠实、usefulness独立人工判定。缺料/未知保留原case及原因，不记为召回改善；非法引用、无依据适用结论不能靠总体平均掩盖。
 
 原问基线先固定代码/任务/模型/配置/索引/策略和有限问题集，只进行一个计划好的测量；结果可以不达标，失败后停止分析，不自动新建candidate。核心功能/安全不通过不得发布；效果未达标不能宣称优化成功，但不强迫无限付费。数据、模型或向量表示的后续实验是可选独立目标，预算和运行身份不从旧目标继承。本目标只设计方法，任何新真实执行上限为0。
 
@@ -245,7 +247,7 @@ Global allowed fields/limits
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KEV-202、DR-KEV-203 | IMPL-KEV-202：summary_task_v8.py新Prompt/decoder，复用原summary_validation.py，不修改旧任务 | TEST-KEV-202：三模式、未知/重复ref、伪造coverage、非子串/拼接、错时效语义保留反例、类型/输出信封、超时/取消 | VAL-KEV-202：Model/Evidence/current-root/Spring及历史回归 |
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KEV-204、DR-KEV-205 | IMPL-KEV-203：stage.py/当前根/脱敏观测直接接缝及后续tests/evaluation/knowledge与UAT追踪 | TEST-KEV-203：无明文/跨请求污染、无fallback、四维计分/缺料不删case | VAL-KEV-203：功能安全non-live后，另授权有限真实/人工评价 |
 
-新旧模式合同必须随Knowledge整套版本切换，不能只换Prompt、保留quality-v3的强制需求输入。回滚优先禁用Knowledge；恢复旧配对时仍检查当前索引/策略相容，不改历史结果或全局模型。阶段A、Business、公共DTO、policy权限均零变更。正式设计及文档验证记录见P3 §21。
+新旧模式合同必须随Knowledge整套版本切换，不能只换Prompt、保留quality-v3的强制需求输入。回滚优先禁用Knowledge；恢复旧配对时仍检查当前索引/策略相容，不改历史结果或全局模型。阶段A、Business、公共DTO、policy权限均零变更。原正式设计及文档验证记录见历史P3_00 §21；当前交接见P3_01。
 
 
 ### 9.6 Validator
@@ -336,7 +338,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 ### 13.5 适用范围
 
-本节P5 primary/ablation、Q1～Q4和rubric只解释原评估合同，不是目标12/8测量方法或继续运行授权。历史诊断、优化准备及可选准入流水见整理前归档；原结果不得重算改判。当前目标四维方法见§9.4及UAT_01，最新有效结果与最新执行分开。KQ历史效果不外推至新任务。
+本节P5 primary/ablation、Q1～Q4和rubric只解释原评估合同，不是目标12/8测量方法或继续运行授权。历史诊断、优化准备及可选准入流水见整理前归档；原结果不得重算改判。当前目标四维方法见§9.4及UAT_02 §5，最新有效结果与最新执行分开。KQ历史效果不外推至新任务。
 
 ## 14. 实现落点清单
 
@@ -534,4 +536,4 @@ def classify_conclusion(
 | REQ-KEV-001、REQ-KEV-003、REQ-KEV-007、KQ-AD-027/028 | DR-KEV-302、DR-KEV-303 | IMPL-KEV-302：既有Evidence identity/substring测试补齐新chunk回放；不改validator | TEST-KEV-302：派生标题/表头不是quote、拼接拒绝、不同hash作用域及旧snapshot | VAL-KEV-302：unit/contract/fake及后续typed只读证明 |
 | REQ-KQ-201/203/205、KQ-AD-026 | DR-KEV-304 | IMPL-KEV-303：后续UAT-KORG时效/充分性人工核对；不新增模型字段 | TEST-KEV-303：未知/部分失效、成文与生效不同、当前/历史期及合法却不充分引用 | VAL-KEV-303：功能安全与回答质量分列，不用模型自评代替人工 |
 
-本阶段只设计这些验证，不执行新的摘要或效果UAT。完整评审及本轮文档验证由P3 §22记录。
+本阶段只设计这些验证，不执行新的摘要或效果UAT。原完整评审与文档验证见历史P3_00 §22；后续实施/验收由P3_01/UAT_02记录。

@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 日期 | 2026-09-14 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.0 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 | Provider 基线 | 已有 DeepSeek transport、input guard 与已实施并由生产组合根绑定的 `business-query-plan-v7`；默认 provider 仍为 stub，v4～v6仅作历史兼容 |
 | 归档来源 | [整理前 v2.9 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
@@ -19,6 +19,8 @@
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -83,7 +85,7 @@ QueryPlan 模型只规划，不执行 answer task；结果再次发送模型必�
 
 ## 6. Transport、失败类型与事务边界
 
-复用现有 DeepSeek HTTP transport、超时、取消、client lifecycle 和 `LLM_API_KEY` 环境注入；默认 provider 必须继续为 stub。non-live 仅使用 fake transport，不读取密钥；真实调用另由 P3 live gate 明确约束。
+复用现有 DeepSeek HTTP transport、超时、取消、client lifecycle 和 `LLM_API_KEY` 环境注入；默认 provider 必须继续为 stub。non-live 仅使用 fake transport，不读取密钥；原Business真实调用按历史P3_00绑定追溯，维护回归由UAT_00记录；新Knowledge调用按P3_01/UAT_02另行授权。
 
 模型失败/timeout、非法 framing、输入拒绝或取消固定映射为 `unavailable/timeout/invalid_argument`，业务下游调用为 0，不 retry、fallback、选择 Knowledge 或第二 domain。JWT/slot/model response 不持久化；数据生命周期只在单请求内，事务边界与一致性归业务服务。
 
@@ -99,7 +101,7 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 
 `IMPL-MODEL-109`：`agent-runtime/src/agent_runtime/model/settings.py`、`agent-runtime/src/agent_runtime/model/contracts.py`、`agent-runtime/src/agent_runtime/model/deepseek/dto.py`及`agent-runtime/src/agent_runtime/model/deepseek/transport.py`；现行调用方按L2_01_00 §6源码基线解释；目标§8意图12复用该Model合同。`TEST-MODEL-109` / `VAL-MODEL-103`：固定model/两条固定path/strict/named choice/disabled thinking的MockTransport测试、不支持Schema的HTTP零调用、旧模式回归及严格类型检查。`REQ-MODEL-105/106 → DR-MODEL-110/111 → IMPL-MODEL-109 → TEST-MODEL-109 → VAL-MODEL-103`。
 
-依据2026-09-11核实的[官方首次调用](https://api-docs.deepseek.com/zh-cn/)、[Tool Calls严格模式](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)及[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)：JSON mode不等于Schema约束，strict是Beta，固定tool_choice不支持thinking enabled。官方未来模型路由调整不得用于解释此前失败。本增量已按先设计复评、后编码的顺序实施；实际non-live验证及状态归P3，不宣称真实生成可靠性已通过。
+依据2026-09-11核实的[官方首次调用](https://api-docs.deepseek.com/zh-cn/)、[Tool Calls严格模式](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)及[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)：JSON mode不等于Schema约束，strict是Beta，固定tool_choice不支持thinking enabled。官方未来模型路由调整不得用于解释此前失败。本增量已按先设计复评、后编码的顺序实施；原non-live验证及状态归历史P3_00，不宣称真实生成可靠性已通过。
 
 ### 6.2 Knowledge最小任务设计的Model边界（新设计，未实施）
 
@@ -110,7 +112,7 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 - 输入大小、输出tokens和阶段deadline分别由两份L2定义；最多selector+意图+摘要3次模型HTTP。schema枚举/required/additionalProperties和本地数量/跨字段校验同时保留；没有模型失败修复、重试或第二执行工具。
 - 新task独立构造Prompt和decoder，禁用多代字符串替换继承；版本12/8成对注册，旧11/7文件及冻结测试不改写。后续实现/测试义务为IMPL-KFLOW-201、IMPL-KEV-202及其TEST/VAL；本次只审批设计，不授权执行这些代码变更。
 
-§2、§10旧实施准入限于各自历史增量；后续Knowledge实施权限另按P3 §21申请；本轮仅文档整理。正式复核必须覆盖两任务schema能由当前Model支持子集表示、无新公开/业务调用、错配outbound0；新增模型后端或协议不在本设计内。
+§2、§10旧实施准入限于各自历史增量；后续Knowledge实施权限按P3_01 §8明确；本轮仅文档整理。正式复核必须覆盖两任务schema能由当前Model支持子集表示、无新公开/业务调用、错配outbound0；新增模型后端或协议不在本设计内。
 
 ## 7. 实现落点清单
 
@@ -166,7 +168,7 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
-| 当前实施状态 | Business v7 Prompt/task version 与直接合同测试已实施；§6.1固定flash和Knowledge严格输出模式已实施，non-live验证由P3管理，真实新后端效果未验证 |
+| 当前实施状态 | Business v7 Prompt/task version 与直接合同测试已实施；§6.1固定flash和Knowledge严格输出模式已实施，原non-live验证见历史P3_00，真实新后端效果未验证 |
 | 当前允许实施范围 | 后续独立授权后：Business v7 fake/non-live回归；§6.1原迁移已实施；后续变更先独立授权并执行non-live，不包含新的付费授权；不得复用历史批次或增加字段专用分支 |
 | 当前禁止动作 | 超出§6.1修改Knowledge task、放宽 Business validator、复用历史授权或无界真实模型调用 |
 

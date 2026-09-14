@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 日期 | 2026-09-14 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v3.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次整理 | 统一文档基线v3.0；整合有效合同，归档历史过程；不改变代码、任务、配置或索引版本 |
-| 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V11/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；DR-KFLOW-023～031已有定向non-live证据，真实专项未通过。验证由P3管理，效果由UAT_01管理 |
+| 上位文档 | [`L1_01` v3.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.1计划入口与历史依据迁移；不改变代码、任务、配置、索引或业务合同 |
+| 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V11/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；DR-KFLOW-023～031已有定向non-live证据，真实专项未通过。原验证/效果记录见历史P3_00/UAT_01；新实施/验收由P3_01/UAT_02管理 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -21,6 +21,8 @@
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 ## 2. 阅读导航
 
@@ -112,7 +114,7 @@
 
 最小变更原则：本轮仅整合已批准合同与迁移边界，不新增实现、依赖或质量策略。当前实现与待实施目标分别标识；不能将旧验证移作新合同通过。
 
-源码当前绑定Rewrite11/Summary7/quality-v3，旧策略仍在代码而非本次回滚对象。§8的意图12/Summary8/minimal-v1和§19资料接缝均为已批准待实施设计。后续按P3在线合同、检索/回答、组合工作包迁移；不得将模型任务或配置版本改为文档v3.0。旧实现与原测试由归档和冻结提交解释；本次只改文档。
+源码当前绑定Rewrite11/Summary7/quality-v3，旧策略仍在代码而非本次回滚对象。§8的意图12/Summary8/minimal-v1和§19资料接缝均为已批准待实施设计。后续按P3_01在线合同、检索/回答、组合工作包迁移；不得将模型任务或配置版本改为文档v3.0。旧实现与原测试由归档和冻结提交解释；本次只改文档。
 
 ## 7. 动作、逻辑域与请求状态
 
@@ -246,7 +248,7 @@
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-203、DR-KFLOW-204 | IMPL-KFLOW-202：planning.py、capability.py、contracts.py的请求内新版本数据通道；现有协议与错误映射复用 | TEST-KFLOW-202：Q逐阶段相等、仅4路径/1embedding、无失败扩域、部分/全失败、reason/HTTP映射、并发隔离 | VAL-KFLOW-202：current-root fake、Spring→Runtime、Knowledge/Core/Business回归 |
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：12/8唯一、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、已有启动静态验证；真实部署另行授权 |
 
-新文件名与类名为拟议落点，非已经存在。TEST/VAL是后续实施义务，不是本次已执行测试。设计内审/正式复评及文档验证见P3 §21；本目标不准入代码、测试、配置或服务操作。
+新文件名与类名为拟议落点，非已经存在。TEST/VAL是后续实施义务，不是本次已执行测试。原设计内审/正式复评及文档验证见历史P3_00 §21；当前交接见P3_01；本目标不准入代码、测试、配置或服务操作。
 
 ## 9. 检索计划与核心流程
 
@@ -366,7 +368,7 @@ validate empty arguments
 | `IMPL-KFLOW-009` | `agent-runtime/src/agent_runtime/main.py`：按开关构建 Knowledge tasks/retrieval/provider 并追加到 Business Runtime |
 | `IMPL-KFLOW-010` | `agent-runtime/src/agent_runtime/bootstrap.py`：顶层 owned resource 生命周期与 disabled 零依赖装配 |
 | `IMPL-KFLOW-011` | `agent-runtime` 当前策略目录加载与 `serviceCenter/knowledge-runtime-binding.v1.json`：只读发布绑定；历史目录继续独立可校验 |
-| `IMPL-KFLOW-012` | 整理前改写章节（见归档）批准的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测目标；部分实施进度由P3治理；不改历史任务与公开合同 |
+| `IMPL-KFLOW-012` | 整理前改写章节（见归档）批准的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测目标；原部分实施进度见历史P3_00；不改历史任务与公开合同 |
 | `IMPL-KFLOW-013` | 整理前改写章节（见归档）已实施V8指令恢复、当前根单绑定和相同内部合同版本识别；不新增decoder、语义分类器或模型调用 |
 | `IMPL-KFLOW-014` | 整理前改写章节（见归档）当前根绑定Summary7，Stage历史合同兼容6/7，Rewrite8不变 |
 | `IMPL-KFLOW-015` | 整理前改写章节（见归档）已实现document_reference_semantics.py及bootstrap显式注入；原两个Guard不改 |
@@ -466,7 +468,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 |---|---|
 | 是否可作为实现依据 | 按范围可用：目标合同可供后续授权实施；并非代码已完成 |
 | 现行实现 | 源码11/7/quality-v3，仅作为迁移事实；原定向non-live证据不证明部署或完整真实UAT |
-| 当前允许实施范围 | 后续独立授权后：§8的12/8/minimal-v1和§19资料接缝；设计评审后仍须独立实施授权，状态由P3治理 |
+| 当前允许实施范围 | 后续独立授权后：§8的12/8/minimal-v1和§19资料接缝；设计评审后仍须独立实施授权，状态由P3_01治理 |
 | 本轮权限 | 仅文档整合、归档、评审与验证，不修改或部署代码 |
 | 当前禁止动作 | 新公开契约/域/权限、自动fallback、索引写入、消费旧授权或重跑历史候选 |
 | 回滚单位 | Knowledge Capability、settings/catalog、成对任务绑定及Stage providers；优先禁用Knowledge |
@@ -501,4 +503,4 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | REQ-KQ-203/204、KQ-AD-026 | DR-KFLOW-302 | IMPL-KFLOW-302：复用es_adapter/codec及既有DTO白名单，测试防止离线字段泄漏 | TEST-KFLOW-302：成文非生效、未知日期/分类不注入、无额外父查询 | VAL-KFLOW-302：Python/Java契约和脱敏观测测试 |
 | REQ-KFLOW-007、CON-KFLOW-005、KQ-AD-028 | DR-KFLOW-303 | IMPL-KFLOW-303：既有Profile verifier、binding/catalog部署验证；不新增服务 | TEST-KFLOW-303：alias/UUID/catalog错配、取消及恢复旧成套绑定 | VAL-KFLOW-303：fake后另授权隔离typed验证 |
 
-本轮只读审计不运行这些测试或部署。测试缺口和发布步骤列入P3 §22，当前公开合同原样保留。
+本轮只读审计不运行这些测试或部署。测试缺口和发布步骤列入P3_01资料主线，当前公开合同原样保留。

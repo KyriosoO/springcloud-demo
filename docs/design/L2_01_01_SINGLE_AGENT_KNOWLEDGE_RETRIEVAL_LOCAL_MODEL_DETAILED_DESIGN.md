@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 日期 | 2026-09-14 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v3.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次整理 | 统一文档基线v3.0；整合有效合同，归档历史过程；不改变代码、任务、配置或索引版本 |
-| 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
+| 上位文档 | [`L1_01` v3.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.1计划入口与历史依据迁移；不改变代码、任务、配置、索引或业务合同 |
+| 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；原状态见历史P3_00/UAT_01；新实施/验收由P3_01/UAT_02管理 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -21,6 +21,8 @@
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 ## 2. 阅读导航
 
@@ -266,7 +268,7 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-202、DR-KRET-203 | IMPL-KRET-202：minimal_ranking.py、stage.py；provider.py继续当前BGE表示 | TEST-KRET-202：同分、跨域重复/冲突、无需求锚点、≤2rerank/80评分、失败/超时/取消、无gold导入 | VAL-KRET-202：定向、类型及current-root回归 |
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-204 | IMPL-KRET-203：后续tests/evaluation/knowledge中的独立同池比较及有限快照记录；本目标无代码资产 | TEST-KRET-203：不同语料/配置不得成对计分、缺标注为null、历史hash不变 | VAL-KRET-203：离线反例及后续只读服务验证，不能由fake证明真实召回 |
 
-仅Knowledge成对代码绑定迁移；检索部署前需功能、安全、typed Java及Business防回退通过。回滚为禁用Knowledge或恢复整套相容的代码/任务/配置绑定；不更改索引/alias，旧StageA原文及发布回滚证据保持不变。取消父配额/锚点/0.5为质量策略重新设计，不放宽读取授权、源完整性或原文引用；保留噪声和必要来源排在top20之外的效果风险，按UAT_01 §15验证。
+仅Knowledge成对代码绑定迁移；检索部署前需功能、安全、typed Java及Business防回退通过。回滚为禁用Knowledge或恢复整套相容的代码/任务/配置绑定；不更改索引/alias，旧StageA原文及发布回滚证据保持不变。取消父配额/锚点/0.5为质量策略重新设计，不放宽读取授权、源完整性或原文引用；保留噪声和必要来源排在top20之外的效果风险，按UAT_02 §5验证。
 
 
 ### 9.5 BGE-M3 Embedding
@@ -277,7 +279,7 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 - 每个请求的同一 query 可在请求内复用一次向量，不跨请求缓存。
 
 
-### 9.6 本地重排启动预热（DR-KRET-033；增量评审通过，实施状态见P3）
+### 9.6 本地重排启动预热（DR-KRET-033；增量评审通过，原实施状态见历史P3_00）
 
 端口与`/health`正常只证明服务可达。冷实例模型/GPU初始化可能使首次推理超过在线5秒，不能据此提高在线时限、删除候选或增加查询重试。采用一次显式启动检查，不建设定时探针、缓存或额外在线流程。
 
@@ -288,9 +290,9 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 - **兼容与验证**：不新增配置项/依赖、修改模型服务或公共DTO；仅新增运维工具并接入启动脚本。fake覆盖错模型、重复/缺失index、非法数值、超限、错误状态/类型、超时及零重试；实际冷实例验证与当前服务检查分别记录，不把合成预热计为UAT或原文排序通过。新诊断的启动预算单列rerank=1，不能偷偷注入已冻结或已消费的历史runner，也不赋予重跑失败case或追加付费批次的权限。
 
 
-### 9.7 授权上下文评分表示（DR-KRET-034；已实施，验证证据见P3）
+### 9.7 授权上下文评分表示（DR-KRET-034；已实施，原验证证据见历史P3_00）
 
-已召回短条款在单独评分时可能缺少同文档语境；有限配对依据由P3/UAT管理。采用固定`authorized-body-first-metadata-v1`，保留既有评分表示，不改原文、final20、Evidence8或检索窗口；目标排名由§9.1决定，不沿用旧需求锚点。表示仅用于本地BGE评分，不是新正文，也不证明法律适用性。
+已召回短条款在单独评分时可能缺少同文档语境；原有限配对依据由历史P3_00/UAT_01保存。采用固定`authorized-body-first-metadata-v1`，保留既有评分表示，不改原文、final20、Evidence8或检索窗口；目标排名由§9.1决定，不沿用旧需求锚点。表示仅用于本地BGE评分，不是新正文，也不证明法律适用性。
 
 1. 输入只来自Stage已通过读取授权、快照及完整性校验的`AuthorizedKnowledgeCandidate`。先放原始content，再依次追加非空title、document_number、written_date，行标签固定为`文档标题：`、`文号：`、`成文日期（非生效日期）：`，日期ISO。content≤4096且不截断；title/document_number各≤256，总表示≤4700字符。无元数据时只保留原文；不补值、不读私有section/邻居/URL、不生成摘要或事实。标题/日期仍是不可信来源信息，不能用成文日期判断有效/废止；模型512 token窗口不变，长文可能看不到尾部元数据。
 2. 新`ContextualBgeRerankAdapter`一次调用现有`/rerank`，query不变、documents为上述表示、top_n等于候选数、normalize=true；候选数1..40。沿既有5秒/2MiB/取消合同，检查JSON无重复/额外key、模型名、完整唯一整数index、派生表示exact echo和有限score；错误、超时、取消均失败，不重新以raw评分。不得伪造响应text或改candidate.content/hash来复用旧校验。
@@ -311,14 +313,14 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
    **完整标识边界补充**：一个完整文号已经结束时，其结束位置是后续独立完整文号扫描的合法起点。因此两个完整文号只以ASCII/全角空格分隔（去空格后直接相邻）也应分别识别；后项必须自己含完整机关及年号，不从前项借机关。实现将搜索区域起点移至已消费位置，让前项末字不再参与后项的负向边界判断；不得对任意汉字位置逐字符重试，以免从超长或错误机关中抽取后缀。已有紧邻连接词简写规则不扩展：空格/逗号不能用于简写继承，夹有任意说明文字时不推断后面的机关；词法无法正确识别的部分仍只依靠原全文查询，不新增请求或fallback。作用域仍为`DocumentNumberQuery.patterns(String)`与直接测试，公共DTO、调用方、Profile开关、boost及regex上限不变。此局部修正已实施并通过non-live验证，不证明真实模型曾输出这种表达或全部双文号问题已解决；未以本地编译冒称运行中服务已升级。
 4. **ES形状**：将已验证的字符逐一转义，以`[ 　]*`连接，只允许空格差异，不生成通配`.*`或接受用户正则。每项表达式≤900字符，`flags=NONE`、`case_insensitive=false`、`max_determinized_states=256`；只使用Profile的`source-fields.document-number`。元数据项OR合并为一个constant_score子句，固定boost=100；它与原multi_match按should/minimum_should_match=1合并，category过滤始终在最外层。不是文号硬过滤：提到某文件的跨域查询仍可返回同域其他相关原文。该固定加分不是相关性或法律有效性证明，也不保证任意索引的首位；不得配置任意权重、gold、case ID或目标文档ID。
-5. **配置与启动**：Profile私有服务布尔`document-number-matching`的类型默认仍为false且初始化后冻结。开启时Verifier要求document-number字段为keyword/constant_keyword，不能显式`index=false`或设置normalizer（避免大小写等隐式等价）；旧false Profile保持原mapping兼容。隔离typed同快照对照、完整相关性及非文号/错误机关反证完成后，当前`application-knowledge-live.yml`仅对tax-policy-v1显式设为true；tax-law-v1及普通application.yml默认disabled行为不变。启用依据、运行部署和回滚状态由P3/UAT管理，不能以fake或代码配置变更冒称运行中服务已升级。索引snapshot仍标识同一物理内容，源码和配置hash共同标识检索行为，不伪称旧manifest证明新查询。
+5. **配置与启动**：Profile私有服务布尔`document-number-matching`的类型默认仍为false且初始化后冻结。开启时Verifier要求document-number字段为keyword/constant_keyword，不能显式`index=false`或设置normalizer（避免大小写等隐式等价）；旧false Profile保持原mapping兼容。隔离typed同快照对照、完整相关性及非文号/错误机关反证完成后，当前`application-knowledge-live.yml`仅对tax-policy-v1显式设为true；tax-law-v1及普通application.yml默认disabled行为不变。原启用依据、运行部署和回滚状态由历史P3_00/UAT_01保存，不能以fake或代码配置变更冒称运行中服务已升级。索引snapshot仍标识同一物理内容，源码和配置hash共同标识检索行为，不伪称旧manifest证明新查询。
 6. **失败和运维**：未知词法只是不采用可选信号，不是失败后再查；已发ES请求失败沿原异常映射，不能移除子句重试或扩大域。集群禁止昂贵查询时regex会失败，不自动修改集群设置；启用前必须在当前环境测量。现有请求/响应大小、超时、limit+1哨兵、最终top20及返回字段不变；无额外HTTP、缓存、线程、依赖和日志。关闭开关/部署原代码即回滚，不写alias/index或旧资产。
 
 `TEST-KRET-030`：合成不同机关/年号/括号/前导零、单/多文号、紧邻简写、非紧邻不继承、查阅前缀、歧义/超限/注入、不可变/并发；启用/禁用/无文号/vector查询形状、category不可绕过、单次HTTP、授权失败零调用、ES拒绝零重试、mapping不兼容启动拒绝和冻结开关。不能仅断言生成了字符串，需验证目标匹配与错误机关不匹配。
 
 边界增补用例：同/不同机关两个完整文号以空格、全角空格或零间距相邻，两个目标均匹配；混合legacy/announcement、四项及第五项超限；第二项超长机关不得后缀命中；完整文号后裸年号/任意文字加简写仍不继承。服务测试检查同一keyword请求中两个正确metadata OR项及原multi_match/category保留，而非仅验证纯函数数量。先证明旧代码失败，再实施修正并执行上述Java合同/授权回归、当前Python历史与UAT追踪；不以合成测试代替真实效果。
 
-`VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。原相关性分级按整理前L2_01_02 §13.8追溯；目标四维比较由当前L2_01_02 §9.4及UAT_01 §15治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
+`VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。原相关性分级按整理前L2_01_02 §13.8追溯；目标四维比较由当前L2_01_02 §9.4及UAT_02 §5治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
 
 接受限制：标识词法不是机关知识库，不能证明任意前缀、别名或法律身份；同一文号很多chunk仍可能占满窗口，此增量不承诺多文档Evidence完整。精确标识可选加分不参与合法性、时效或摘要充分性判定。已知缺口和错误机关/长文号/非文号反证必须进入对照，而不是为此追加循环Gate或逐题规则。
 
@@ -502,7 +504,7 @@ finally先停止且核实本次Popen PID，再关闭、扫描并删除本次精�
 | `IMPL-KRET-020` | 建议新增`validation_alias.py`及版本化typed验证launcher：DR-KRET-032仅临时alias/隔离服务/有限证据；旧release.py、冻结launcher及在线Runtime不变 |
 | `IMPL-KRET-021` | `serviceCenter/warmup-knowledge-reranker.py`同步CLI（固定输入/端点，无参数覆盖；有限JSON stdout和退出码），由`run-all-services.ps1`在启动循环前调用；非live工具可显式执行，不修改历史launcher；实施证据见[整理前P3 §20.53](../plans/历史文档/2026-09-14-unified-v3-baseline/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) |
 | `IMPL-KRET-022` | 新增`knowledge/retrieval/bge_rerank_context.py`纯格式器/ContextualBgeRerankAdapter；provider.py内部版本参数、main.py显式绑定；旧bge_rerank.py不改 |
-| `IMPL-KRET-023` | 已新增`es-query-service/.../service/DocumentNumberQuery.java`包内纯函数；KnowledgeSearchService keyword构造、KnowledgeSearchProperties冻结布尔及KnowledgeProfileVerifier条件校验已接入；公共es-query-api、原配置默认和Python不变，验证与启用状态见P3/UAT |
+| `IMPL-KRET-023` | 已新增`es-query-service/.../service/DocumentNumberQuery.java`包内纯函数；KnowledgeSearchService keyword构造、KnowledgeSearchProperties冻结布尔及KnowledgeProfileVerifier条件校验已接入；公共es-query-api、原配置默认和Python不变，原验证与启用状态见历史P3_00/UAT_01 |
 | `IMPL-KRET-024` | 建议新增§9.8测试侧宿主与本地worker；复用只读来源与纯计分，生产对象图不引用 |
 
 ### 13.2 关键签名
@@ -615,8 +617,8 @@ KnowledgeSearchResponse search(
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：§9最小检索与§18资料合同可作为后续授权实施依据；非实现完成声明 |
-| 当前实现 | typed读取/授权、BGE、quality-v3与原阶段A已实现，原验证范围见P3/UAT；运行实例未在本轮核实 |
-| 当前允许实施范围 | 后续独立授权后：DR-KRET-201～204及301～307，按P3在线和资料两条直接依赖推进 |
+| 当前实现 | typed读取/授权、BGE、quality-v3与原阶段A已实现，原验证范围见历史P3_00/UAT_01；运行实例未在本轮核实 |
+| 当前允许实施范围 | 后续独立授权后：DR-KRET-201～204及301～307，按P3_01在线和资料两条直接依赖推进 |
 | 当前禁止动作 | 本轮仅文档；禁止代码、模型、运行配置、公共DTO、权限或索引操作 |
 | 回滚 | 后续在线按相容代码/任务/配置整体恢复或禁用；索引/alias回滚另按§12/18精确绑定 |
 
@@ -626,7 +628,7 @@ KnowledgeSearchResponse search(
 
 ## 18. 资料组织、结构切片与检索表示（新设计，未实施）
 
-本节依据REQ-KCORPUS-001～006、REQ-KQ-201～205和L1_01 §4.6。定向细化§12的离线职责；§18在线首期固定索引的设计不变。新标准化及chunker采用新版本，不修改旧parser/chunker/manifest或现行索引。事实及样本见P3 §22；字段名称均为拟议离线内部合同，不是公共DTO扩展。
+本节依据REQ-KCORPUS-001～006、REQ-KQ-201～205和L1_01 §4.6。定向细化§12的离线职责；§18在线首期固定索引的设计不变。新标准化及chunker采用新版本，不修改旧parser/chunker/manifest或现行索引。原事实及样本见历史P3_00 §22；字段名称均为拟议离线内部合同，不是公共DTO扩展。
 
 ### 18.1 来源层与标准化合同
 
@@ -688,7 +690,7 @@ KnowledgeSearchResponse search(
 
 ### 18.4 迁移、验证与回滚
 
-`DR-KRET-307`：先实现无网络标准化及结构回放，人工确认有限scope；再冻结新旧源manifest及chunk集合。纯向量对照固定切片、正文、ACL、模型与查询；重切片对照固定父文档/asset版本及原文预期span，评价身份不得仍用旧chunkId。分类和时效不能凭补齐率证明准确。实验预算与停止条件见UAT_01 §16；不自动创建效果candidate。
+`DR-KRET-307`：先实现无网络标准化及结构回放，人工确认有限scope；再冻结新旧源manifest及chunk集合。纯向量对照固定切片、正文、ACL、模型与查询；重切片对照固定父文档/asset版本及原文预期span，评价身份不得仍用旧chunkId。分类和时效不能凭补齐率证明准确。实验预算与停止条件见UAT_02 §6；不自动创建效果candidate。
 
 仅在另获实施/写索引授权后，使用现有离线候选工具创建新版本索引；当前索引和旧资产不变。先保留全库未受影响记录，逐项列清迁移/隔离/未处理数量及原因；不得遗漏law或无分类数据。变更集合、mapping、向量、策略目录/快照均精确绑定，既有DR-KRET-024/025/032控制隔离typed验证与原子发布。新来源/新chunk必须满足原读取及出域策略，不因父关系扩权。发布前验证旧目标、候选完整性、功能/安全/资料覆盖和保留题不退化；失败按成套相容绑定恢复，不删除旧索引。Git回滚不等于数据回滚。
 

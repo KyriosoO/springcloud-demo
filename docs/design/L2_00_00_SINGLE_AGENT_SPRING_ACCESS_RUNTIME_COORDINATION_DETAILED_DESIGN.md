@@ -8,10 +8,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_00` |
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 日期 | 2026-09-14 |
 | 权威范围 | `agent-service` 公共 HTTP 接入、Spring→Python 内部协议、预算/取消/容量、健康与错误映射 |
-| 上位文档 | [`L1_00` v3.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
+| 上位文档 | [`L1_00` v3.1](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
 | 实施状态 | Spring 公共接入和 `agent_runtime.main.build_runtime` 生产启动入口均已接线并通过 Java/Python 契约与系统 E2E；不据此声明外部部署已上线 |
 | 归档来源 | [整理前 v1.3 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -20,6 +20,8 @@
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 ## 2. 阅读导航
 
