@@ -1,0 +1,191 @@
+# [UAT_00] 单体 Agent 结构化查询用户验收计划
+
+## 1. 文档信息与来源
+
+| 项目 | 内容 |
+|---|---|
+| 当前版本 | v3.0 |
+| 文档状态 | Reviewed |
+| 日期 | 2026-09-14 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.0；Employee L2 v3.0；Transaction L2 v3.0 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v3.0 |
+| 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
+| 归档来源 | [整理前 v1.24 原文](历史文档/2026-09-14-unified-v3-baseline/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
+
+
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
+
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+## 2. 验收目标与范围外
+
+验证输入安全闸门先形成最小化问题和 request-local slots，真实 LLM 再根据安全目录生成 `employee.search`、`employee.semantic_search`、`transaction.search` 三动作之一的 filters QueryPlan，经严格 decoder/validator/`value_ref` slot binder 和一次 Adapter 调用，复用现有 Employee ES/向量或 Transaction SQL 接口，返回受控列表。输入闸门不得选择业务动作或生成 filters；Knowledge 保持独立，不在本阶段执行效果验收。
+
+范围外：真实业务写入、聚合、新 endpoint/DTO、DB/ES 直连、workBase 查询、跨域 fallback、Employee 双接口拼装、将不等价历史evidence冒充当前通过，以及未经授权的模型费用和敏感数据持久化。
+
+## 3. 原验证前置与后续复验边界
+
+原35项在冻结v4任务及当时服务/配置下验收，Employee扩展由§12单独验证v7。当前文档基线v3.0不改变这些原始版本，也不重授权运行。
+
+1. 后续受影响用例先完成P3直接依赖与明确资源授权；不以UAT交接包和自身门禁互相阻塞。
+2. Employee两个ES入口继续使用endpoint-scoped共享converter和真实Servlet角色矩阵；Controller单测/手工authority不替代真实JWT过滤链。detail/其他接口保持业务方原兼容行为。
+3. Transaction日期仍严格验证生产UTC零毫秒offset/legacy整秒epoch与上海时区同一instant；无批准时钟/精度的相对日期不猜测。
+4. 所有复验必须绑定task/code/config与读取授权；旧detail/stub不能充当当前成功业务证据。
+5. 真值与JWT只在授权请求内使用，日志/证据有限；不存在真实地区样本时如实报告数据缺口，不启用workBase。
+6. action预算保持search3000ms/semantic10000ms/transaction5000ms与请求deadline交集，无重试、fallback或第二动作。
+
+门禁状态唯一权威为P3，本文只规定风险与证据。
+
+## 4. 固定验收顺序
+
+| 阶段 | 内容 | 前置 | 当前状态 |
+|---|---|---|---|
+| `UAT-PUBLIC-02` | 公共接入冒烟 | `GATE-UAT-007` | Passed：5/5，均由当前 Spring 安全/严格 JSON/Runtime E2E 自动化验证 |
+| `UAT-EMP-02` | Employee search/semantic 列表 UAT | 公共冒烟、Employee 读取授权与 v4 完整意图约束 | Passed：15/15；9 个真实场景，6 个风险等价自动化场景 |
+| `UAT-TXN-02` | Transaction 类型/日期/金额/分页/排序 UAT | 公共冒烟、Transaction Date 合同、operator-specific 文本策略与 v4 相对日期约束 | Passed：15/15；9 个真实场景，6 个风险等价自动化场景 |
+| `UAT-BQ-CLOSURE-02` | Access/Core/Model/Config/Adapter/JWT/单动作收口 | Employee 与 Transaction 均完成 | Passed：35/35 可追踪；18 次真实规划，17 个等价自动化风险闭合 |
+
+Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行，则先 Employee、后 Transaction；Knowledge 政策查询 UAT 单独规划，不因 Business 失败启动。
+
+## 5. 公共接入冒烟
+
+| 用例 | 验证项 | 预期模型调用 | 预期业务调用 |
+|---|---|---:|---:|
+| `UAT-PUB-201` | missing/malformed 身份认证 | 0 | 0 |
+| `UAT-PUB-202` | duplicate key、额外字段、null 和非法 JSON | 0 | 0 |
+| `UAT-PUB-203` | 默认 stub 业务请求失败关闭，不生成成功查询 | 0 或按 stub 合同计 1；无真实 outbound | 0 |
+| `UAT-PUB-204` | 非业务或超出当前目录的问题 unsupported | 0 或 1；按明确入口设计断言 | 0 |
+| `UAT-PUB-205` | 第二动作/跨域/Knowledge/Resolver/ID-only 不可达 | 0 或 1；不得触发第二模型规划 | 0 |
+
+## 6. Employee UAT
+
+| 用例 | 用户意图与 QueryPlan 断言 | 预期模型/Employee 调用 | 结果与安全断言 |
+|---|---|---|---|
+| `UAT-EMP-201` | “查询上海员工”：`employee.search + contact_address + contains + 上海` | 1/1 | 只调用 search，rows 为受控列表；不使用 workBase |
+| `UAT-EMP-202` | 职位精确：`position eq` | 1/1 | 查询字段、operator 和用户投影精确匹配 |
+| `UAT-EMP-203` | 职位模糊：`position contains` | 1/1 | 不退化为其他 field/operator |
+| `UAT-EMP-204` | 姓名查询：`chinese_name + value_ref` | 1/1 | 模型、日志和 evidence 不含真实姓名 |
+| `UAT-EMP-205` | 员工标识：`employee_identifier eq + value_ref` | 1/1 | 不调用旧 detail，ID 不进入模型或 evidence |
+| `UAT-EMP-206` | Employee ES keyword + tagged literal/ref | 1/1 | 只对 contactAddress/chineseName/idCardNo 的现有 multi-match 解释；敏感 keyword 必须为 protected ref，模型和日志无明文 |
+| `UAT-EMP-207` | Employee page/size/sort | 1/1 | from 转换正确、size≤50、rows 不超界 |
+| `UAT-EMP-208` | 业务语义：`employee.semantic_search + query + size` | 1/1 | 只调用 vector-search；允许既有接口返回小于 k 的 partial hits，仅隔离缺必填身份字段的历史记录并保留真实 total/coverage；10000ms 上限、请求 deadline、零重试和零 fallback |
+| `UAT-EMP-209` | 未配置 Employee 字段；以 `workBaseSi/workBaseAf` 作为样例 | 1/0 | 模型依据通用目录返回 `unsupported`，或字段 validator 返回 `invalid_argument`；业务调用为 0，不增加 workBase 专用识别或拒绝逻辑 |
+| `UAT-EMP-210` | “语义能力 + 上海地址过滤” | 1/0 | 必须 exact unsupported；禁止省略上海后调用 semantic，也禁止调用 search、两次搜索或客户端补筛 |
+| `UAT-EMP-211` | ADMIN/VIEWER 实际 JWT role claim 分别经真实 Servlet 安全链访问 search 与 semantic | 各 1/1 | endpoint-scoped 共享 converter 生效，Employee 服务最终授权允许；detail/fallback 行为保持兼容 |
+| `UAT-EMP-212` | 无读取角色、service token | 1/1 或接入拒绝 0/0 | forbidden；不切换动作或域 |
+| `UAT-EMP-213` | missing/malformed token | 0/0 | unauthenticated；不调用模型和服务 |
+| `UAT-EMP-214` | 原始 ES hits 含未知字段、embedding、embeddingText、workBase 或缺必填字段的历史记录 | 1/1 | 仅七字段受控投影；合法 partial hits 保留真实 total/有效记录数，缺失姓名或标识记录隔离；非法类型或全部命中无效仍失败关闭 |
+| `UAT-EMP-215` | 详细地址、电话、邮箱、真实姓名及 identifier 输入 | 0/0 或 1/1，仅当 protected-ref 已成功绑定 | 模型 payload/log/evidence 不含具体敏感值 |
+
+普通与向量模式不得互相 fallback。真实数据为空或索引未同步时，应记录 no_result/数据缺口，不得把合成 workBase 值当真实能力。
+
+## 7. Transaction UAT
+
+| 用例 | QueryPlan 断言 | 模型/search 调用 | 结果与合同断言 |
+|---|---|---|---|
+| `UAT-TXN-201` | `trans_type eq`，真实类型允许合法 `_` | 1/1 | condition.transType 精确映射；不得把 LIKE 安全限制套用到 `=` |
+| `UAT-TXN-202` | `trans_type contains`，使用已存在类型中不含 `_/%/反斜杠` 的安全片段 | 1/1 | condition.transTypeContains；通配字符零调用拒绝，不公开 DTO suffix |
+| `UAT-TXN-203` | `trans_date eq` + canonical offset | 1/1 | Java Date instant、Asia/Shanghai 合同、返回 rows 一致 |
+| `UAT-TXN-204` | `trans_date gt + lt` | 1/1 | SQL 严格开区间；上下界不丢失 |
+| `UAT-TXN-205` | `amount eq` | 1/1 | canonical decimal→JSON number→BigDecimal，scale≤2 |
+| `UAT-TXN-206` | `amount gt + lt` | 1/1 | 同字段双 filter 和严格 open range |
+| `UAT-TXN-207` | `trans_type + trans_date + amount` 组合 | 1/1 | 所有用户条件完整存在，不能删条件执行更宽查询 |
+| `UAT-TXN-208` | page 2、size≤50 | 1/1 | page 不固定为1，offset 安全 |
+| `UAT-TXN-209` | 四字段各自排序、最多两项 | 1/1 | 只允许 ASC/DESC；稳定 tiebreaker 由业务服务掌握 |
+| `UAT-TXN-210` | trans_id protected-ref | 1/1 | 标识不进入模型、日志及结果明文 |
+| `UAT-TXN-211` | Decimal 超精度、float、非法 date/offset/size/sort | 0 或 1/0 | invalid_argument；不调用 search |
+| `UAT-TXN-212` | 相对自然日缺少批准时钟/precision/边界证明 | 1/0 | 即使 `trans_date` 已启用也必须 unsupported；不能猜测“今天/最近一周” |
+| `UAT-TXN-213` | ADMIN/VIEWER/denied/missing/malformed/service-token | 0/0 或 1/1，按接入/业务拒绝位置断言 | 最终读取授权仍由 Transaction 服务执行 |
+| `UAT-TXN-214` | rows/total/totalExact/page/size 及生产 Spring Date response | 1/1 | totalExact=false 仅表示 lower bound；仅接受真实 UTC `.000+00:00` 或 standalone 整秒 epoch 日期，转换上海时区；兼容九项 row 白名单并丢弃五项条件属性 |
+| `UAT-TXN-215` | 聚合、detail、写入、物理 SQL/表列 | 0/0 或 1/0 | unsupported/invalid；其他 endpoint=0 |
+
+## 8. 结构化阶段收口
+
+回归 Access 认证/严格 JSON、LangGraph/Core、对应冻结Model task、filters 两级 decoder、Business validator/binder、不可变 JSON snapshot、request-local slots、用户 JWT 透传、三个固定 endpoint、单 action latch、取消、Knowledge 隔离、用户投影及模型出域默认拒绝。
+
+每个成功业务 case 必须证明真实 QueryPlan 模型调用=1、对应 endpoint 调用=1、另一域/另一 Employee 动作/Knowledge/第二动作/重试=0。模型失败、非法计划、未配置字段、unsupported semantic+filter、非法日期/金额/分页均必须证明业务调用=0。
+
+## 9. 结果记录、敏感扫描与失败处理
+
+只允许记录 case ID、action、有限状态、模型/业务调用整数、projection/敏感扫描布尔值以及必要配置版本。不得保存原始用户问题、姓名、地址、身份证、电话、邮箱、JWT、模型原文、ES raw hits 或 Transaction raw rows。出现服务权限缺口、数据不具备、Date contract 不成立或模型失败时，暂停该用例并报告，不自动切换域、搜索方式或降低断言。
+
+## 10. 用例—证据追踪
+
+本v3.0是现行计划权威；uat_traceability.v2.json及loader中UAT_00 v1.24为原验证依据，字节保留。下列35项风险/预期/证据集合未变，因此等价复用；不标记为本轮新执行。扩展15类继续§12独立，不把原v4性能等同当前共享模型性能。新要求或证据失效时另补验证，不能靠改authority字面升级结果。
+
+原35项机器可校验追踪资产为 `agent-runtime/tests/uat/uat_traceability.v2.json`，严格校验入口为 `tests/uat/test_current_traceability.py`。旧 `uat_cases.v1.json` 与 `structured-query-uat-v1` 结果只代表历史 `employee.detail + stub` 阶段，保持字节不变但不参与当前 35 个用例的通过判定。
+
+| 用例 | 验证方式 | 当前证据 | 状态 |
+|---|---|---|---|
+| `UAT-PUB-201` | Spring 安全链 | `AgentSecurityContractTest#missingInvalidAndServiceTokensUseSafe401EnvelopeWithoutRuntime` | Passed |
+| `UAT-PUB-202` | Spring 严格 JSON | `AgentSecurityContractTest#duplicateNullAndMalformedJsonFailBeforeRuntime`；unknown-field 测试 | Passed |
+| `UAT-PUB-203` | 默认 stub/零外发契约 | `test_runtime_composition.py` | Passed |
+| `UAT-PUB-204` | Spring→Runtime non-live | `AgentBusinessQueryPlanNonLiveE2ETest` | Passed |
+| `UAT-PUB-205` | Spring→Runtime + 当前三动作组合根 | 第二动作/跨域用例；当前三动作 Resolver 零绑定与 cutover 测试 | Passed |
+| `UAT-EMP-201` | 真实 LLM + 真实业务 | run03 `UAT-EMP-201` | Passed |
+| `UAT-EMP-202` | Python Adapter 合同 | position `eq` 精确映射与受控用户结果投影 | Passed |
+| `UAT-EMP-203` | 真实 LLM + 真实业务 | run03 `UAT-EMP-203` | Passed |
+| `UAT-EMP-204` | 当前生产组合根 non-live | 姓名 `value_ref` 模型前替换/模型后绑定 | Passed |
+| `UAT-EMP-205` | 真实 LLM + 真实业务 | run03 `UAT-EMP-205` | Passed |
+| `UAT-EMP-206` | 当前生产组合根 non-live + 配置合同 | keyword protected-ref 与固定三字段服务解释 | Passed |
+| `UAT-EMP-207` | 真实 LLM + 真实业务 | run03 `UAT-EMP-207` | Passed |
+| `UAT-EMP-208` | 真实 LLM + 真实业务 | run03 `UAT-EMP-208` | Passed |
+| `UAT-EMP-209` | 真实 LLM + 通用配置白名单 | run03 + `test_unconfigured_field_is_unreachable_through_generic_allowlist` | Passed |
+| `UAT-EMP-210` | 真实 LLM 零业务调用 | run03 `UAT-EMP-210` | Passed |
+| `UAT-EMP-211` | 真实 LLM + Java Servlet 安全链 | run03 + `EmployeeEsSecurityIntegrationTest` ADMIN/VIEWER 双入口 | Passed |
+| `UAT-EMP-212` | 真实 LLM + Java Servlet 安全链 | run03 + denied/service-token 矩阵 | Passed |
+| `UAT-EMP-213` | Spring 接入 + Java Servlet 安全链 | missing/malformed 零下游调用 | Passed |
+| `UAT-EMP-214` | Python fake ES 合同 | unknown/embedding/workBase 丢弃与 partial hits 隔离 | Passed |
+| `UAT-EMP-215` | 输入保护 + 当前组合根 non-live | 地址/电话/邮箱/姓名/标识模型前保护 | Passed |
+| `UAT-TXN-201` | 真实 LLM + 真实业务 | run03 `UAT-TXN-201` | Passed |
+| `UAT-TXN-202` | 真实 LLM + 真实业务 | run03 `UAT-TXN-202` | Passed |
+| `UAT-TXN-203` | 真实 LLM + 真实业务 | run03 `UAT-TXN-203` | Passed |
+| `UAT-TXN-204` | Python/Java 范围合同 | 双 Date bound 与严格开区间 | Passed |
+| `UAT-TXN-205` | 真实 LLM + 真实业务 | run03 `UAT-TXN-205` | Passed |
+| `UAT-TXN-206` | 真实 LLM + 真实业务 | run03 `UAT-TXN-206` | Passed |
+| `UAT-TXN-207` | Python Adapter 合同 | type/date/amount 条件完整保留 | Passed |
+| `UAT-TXN-208` | 真实 LLM + 真实业务 | run03 `UAT-TXN-208` | Passed |
+| `UAT-TXN-209` | Python Adapter 合同 | 排序映射与非法/重复排序拒绝 | Passed |
+| `UAT-TXN-210` | Python protected-ref 合同 | 标识 request-local 绑定且模型不可见 | Passed |
+| `UAT-TXN-211` | Python/Java 输入合同 | Decimal/float/date/page/size/sort 非法输入零 search | Passed |
+| `UAT-TXN-212` | 真实 LLM 零业务调用 | run03 `UAT-TXN-212` | Passed |
+| `UAT-TXN-213` | 真实 LLM + Java Reactive 安全链 | run03 + ADMIN/VIEWER/拒绝矩阵 | Passed |
+| `UAT-TXN-214` | Python/Java 跨语言合同 | rows/totalExact/page/size/Date/Decimal | Passed |
+| `UAT-TXN-215` | 真实 LLM 零业务调用 | run03 `UAT-TXN-215` | Passed |
+
+## 11. 当前结论与证据边界
+
+v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；首次和第二次 UAT 不可变失败 SHA-256 分别为 `cc2905dab7a4d78fd52f7fd8c973b2c41fbaa77db47a0bc6036f45119f34c0c3`、`1b4c5eb334a42f699afb05d68210b0585cb6940401bec082a0ea2946a89a2c8f`。v4 run03 正式成功结果 SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`，只证明其中列出的 18 个真实场景，不外推为 35 次真实执行。
+
+剩余 17 个用例按风险分别由当前 Spring→Runtime、Spring/Servlet/Reactive 安全链、Python 生产组合根 fake E2E 和 Java/Python 跨语言契约关闭；追踪资产验证每个引用路径与测试符号真实存在，并强制真实证据集合仍为 18。该分层与个人学习项目的风险相称：不重复付费验证确定性 codec/权限/严格 JSON，同时不降低 QueryPlan 真实模型及真实业务调用证据。
+
+正式可复现回归入口、Python/Java/mypy 的本轮精确执行数量及仓库级环境结论由 P3 最终验证记录保存，本计划不复制动态总数。新增无关测试或测试数量变化不会自动使 Business UAT 失效；只有某个固定 UAT case 的映射合同、自动化证据或真实 evidence 失效时，才重新打开该用例或对应门禁。Knowledge 的功能与效果验收只由 UAT_01 治理，不计入本计划的35个用例。
+
+## 12. Employee 自然语言扩展 UAT
+
+本组不改写第5～10节的35项历史结论。以下是已终止历史UAT的规则，不是新调用授权。原受控UAT按候选冻结 HEAD、Business QueryPlan task、Prompt hash、business-query-v3 snapshot、15项用例和总预算；所有候选合计最多30次真实 QueryPlan、30次只读 Employee search，semantic/Transaction/Knowledge/answer、retry/resume/fallback 均为0。
+
+| 用例 | 输入风险类别 | 必须生成的计划/行为 | 通过条件 |
+|---|---|---|---|
+| `UAT-EMP-NL-301` | 姓杨/杨姓/姓氏为杨 | `chinese_name prefix + value_ref` | 真值模型零可见；search≤1 |
+| `UAT-EMP-NL-302` | 复姓 | `chinese_name prefix + value_ref` | 复姓形成单一 slot |
+| `UAT-EMP-NL-303` | 多姓氏 | `chinese_name prefix_any + value_refs` | 裸 slot 精确对应，不得用 `in` 近似 |
+| `UAT-EMP-NL-304` | 多完整姓名 | `chinese_name in + value_refs` | 精确任一，裸 slot 唯一 |
+| `UAT-EMP-NL-305` | 姓氏+姓名片段 | 同字段 `prefix + contains` 两 filter | AND完整保留，不合并/丢弃 |
+| `UAT-EMP-NL-306` | 上海市/上海地区/在上海 | `contact_address contains 上海` | 别名规范化后调用search |
+| `UAT-EMP-NL-307` | 上海地区 | `contact_address contains 上海` | 未使用workBase |
+| `UAT-EMP-NL-308` | 江苏省 | `contact_address contains 江苏` | 未使用workBase |
+| `UAT-EMP-NL-309` | 浙江短名 | `contact_address contains 浙江` | 未使用workBase |
+| `UAT-EMP-NL-310` | 多地区 | `contact_address contains_any` literal list | 不得用精确 `in` |
+| `UAT-EMP-NL-311` | 无“员工”但姓名强提示 | 进入受控规划或 exact unsupported | 本地不生成Employee计划 |
+| `UAT-EMP-NL-312` | 祈使句变化 | 语义等价 `prefix` 计划 | 本地句式不决定operator |
+| `UAT-EMP-NL-313` | denied角色 | 业务最终授权拒绝 | 仅一次 search，未授权数据不可返回 |
+| `UAT-EMP-NL-314` | workBase未配置字段 | invalid/unsupported | Employee调用0 |
+| `UAT-EMP-NL-315` | 超限protected slots | invalid_argument | 模型和Employee调用均为0 |
+
+每个 case 只记录 case ID、计划结构摘要、逻辑 operator、模型/Employee整数调用、有限结果状态、安全扫描布尔值和 Passed/Failed；不保存原问题、姓名/姓氏真值、员工标识、JWT、原始模型/业务响应或未脱敏地址。无真实命中时，正确计划、一次 search 和 `no_result` 可证明链路，但完整 UAT 必须至少包含一个已确认存在数据的地区列表成功场景。任一失败均不补跑单 case；先按实现、测试、环境、数据或设计分类，并保持该扩展组未完成。
+
+执行历史：candidate-01 在首个 provider 成功响应后因 harness 使用标准 `json.dumps` 处理冻结 `JsonObject` 而 `failed_consumed`（模型1、Employee0）；candidate-02 修复后301/302通过，303生成正确 `prefix_any/value_refs` 但用wrapper slot而被strict planning拒绝（模型3、Employee2）；candidate-03的301～313通过，314却把显式未配置字段替换成`contact_address contains`并产生一次不应发生的search（模型14、Employee14）。三者均append-only不可重跑。candidate-04使用v7通用显式字段完整性规则，13/13代表性用例通过（模型12、Employee11）：314返回`unsupported`且Employee0，315前模型拒绝；candidate-03不可变302/307补足复姓和“上海地区”类别。15类扩展最终Passed，四候选累计模型30、Employee27，semantic/Transaction/Knowledge/answer/retry/resume/其他endpoint/敏感值和日志泄漏均为0；至少一个上海地区场景返回受控列表。
