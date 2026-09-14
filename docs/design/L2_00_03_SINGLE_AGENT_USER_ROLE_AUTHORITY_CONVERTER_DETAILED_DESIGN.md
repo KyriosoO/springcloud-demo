@@ -8,23 +8,22 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_03` |
-| 当前版本 | v1.3 |
-| 日期 | 2026-08-28 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
 | 权威范围 | `common-security` 中用户 JWT `role` claim 到 Servlet/Reactive Authority 的唯一转换契约与具名 Bean |
-| 上位文档 | [`L1_00` v3.1](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
-| 来源文档 | [L2_00_03 v0.4 归档版](历史文档/2026-08-21-v0-baseline/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) |
+| 上位文档 | [`L1_00` v3.0](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
 | 实施状态 | 共享 Converter、自动配置及 Employee/Transaction/Knowledge Provider 生产代码消费已实现并验证；不据此声明外部部署已上线 |
+| 归档来源 | [整理前 v1.3 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-## 2. 阅读导航与变更记录
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-重点：第 6 节输入/输出契约、第 7 节规则、第 8 节消费方式、第 11 节实现落点。
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
-| 版本 | 日期 | 变更原因 | 变更内容 |
-|---|---|---|---|
-| v1.3 | 2026-08-28 | 上位权威同步 | 对齐 L1_00 v3.1；Authority 映射、具名 Bean 和业务最终授权合同不变 |
-| v1.2 | 2026-08-28 | 状态与上位版本同步 | 如实记录三个 Provider 的生产代码消费并对齐 L1；角色和授权合同不变 |
-| v1.1 | 2026-08-21 | 代码评审发现验证命令不能从仓库根执行 | 改为以 `serviceCenter/pom.xml` 为聚合入口并使用实际 artifactId 选择器；补强严格 claim 负向验证，不改变安全契约 |
-| v1.0 | 2026-08-21 | 建立共享安全契约新基线 | 删除实施门禁流水，明确当前严格大写角色列表、具名 Bean、fail-closed 和业务服务最终授权关系 |
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
+
+## 2. 阅读导航
+
+重点阅读§6输入/输出、§7规则、§8消费、§11落点。历次修订及旧评审只见归档；本v3.0整合已有有效合同，不新增能力。Knowledge新合同明确标记待实施，旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
 
 ## 3. 目标与范围
 
@@ -59,7 +58,7 @@
 
 | 约束编号 | 来源与约束 |
 |---|---|
-| `CON-AUTH-001` | `L0_00 SA-C-004/007`：用户 JWT 必需，业务服务最终授权 |
+| `CON-AUTH-001` | `L0_00 SA-AD-004`：用户 JWT 必需，业务服务最终授权 |
 | `CON-AUTH-002` | `L1_00`：共享 Converter 是 role→Authority 唯一权威 |
 | `CON-AUTH-003` | 当前 `auth-service` 签发 `role` 为大写字符串列表，允许值只有 `ADMIN/VIEWER` |
 
@@ -240,21 +239,11 @@ public final class UserRoleJwtAuthenticationConverter
 
 | 项目 | 结论 |
 |---|---|
-| 是否可作为实现依据 | 是，当前 v1.2 可作为共享 Authority Converter 及 Provider 消费代码评审依据 |
-| 当前允许实施范围 | common-security Converter/AutoConfiguration、三 Provider 显式绑定和测试 |
+| 是否可作为实现依据 | 是，本v3.0经评审后可作为共享 Authority Converter 及 Provider 消费代码评审依据 |
+| 当前允许实施范围 | 后续独立授权后：common-security Converter/AutoConfiguration、三 Provider 显式绑定和测试 |
 | 当前禁止动作 | 新角色、用户特例、auth-service 签发变更、业务授权迁移和生产生效 |
 | 回滚单位 | common-security 与所有显式消费 Provider 的兼容版本 |
 
-## 15. 三轮内部自检与独立评审记录
+## 15. v3.0评审记录
 
-| 轮次 | 检查重点 | 结论 |
-|---|---|---|
-| 内审 1 | claim 契约、唯一权威、来源和追踪一致 | Passed |
-| 内审 2 | fail-closed、Servlet/Reactive 覆盖和兼容一致 | Passed |
-| 内审 3 | 最小必要性、真实落点、测试和可读性检查通过 | Passed |
-| 独立评审 | 未发现 S0/S1/S2；claim、Bean、Servlet/Reactive 适配与 Provider 消费契约一致 | Passed |
-| v1.2 三轮内审与独立复评 | 上位版本和三个 Provider 生产代码消费状态已核实；角色/权限合同未扩大，无 S0/S1/未处理 S2 | Passed |
-
-- 当前版本：v1.2。
-- 文档状态：Approved。
-- 新版本不继承旧版评审流水；历史文档只作为来源。
+本轮仅整理文档，不继承旧评审。内审及正式分层、跨层复核的实际问题与结论见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)。整理前评审原样保存在归档；本轮为同一执行者分阶段复核，不冒充外部独立人员评审。

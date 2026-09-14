@@ -2,23 +2,28 @@
 
 > 文档状态：Approved
 
-## 1. 文档信息、来源与修订历史
+## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.3 |
-| 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.0 |
 | 关联责任边界 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| 归档来源 | [v1.8 已评审旧版](历史文档/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
+| 归档来源 | [整理前 v2.3 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.3 仅同步上位 Runtime 架构版本，Core/QueryPlan/Registry 合同不变；运行状态继续由 P3/UAT 治理。
+
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
+
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 设计目标、范围外与当前实现基线
 
 目标是在不修改公共 Core、HTTP、CapabilityResult 和 Knowledge 契约的前提下，由唯一 LangGraph Business bridge 执行 filters QueryPlan 验证并产生一个 ActionCandidate。范围外包括本地语义补参、SQL/ES 生成、业务权限判断、domain fallback 和真实模型调用。
 
-当前实现：`agent-runtime/src/agent_runtime/graph/business_query_planning.py`、`agent-runtime/src/agent_runtime/business/query_plan.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 及 Registry/Core 已承接新 filters QueryPlan、`employee.search`、`employee.semantic_search`、扩展 `transaction.search` 和唯一三动作生产组合根。Employee 服务端点级角色转换、六场景受控联调及正式 18 项 v4 UAT 全部通过；每个成功业务请求仅生成一个计划、执行一个固定 endpoint。
+当前实现：`agent-runtime/src/agent_runtime/graph/business_query_planning.py`、`agent-runtime/src/agent_runtime/business/query_plan.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 及 Registry/Core 已承接新 filters QueryPlan、`employee.search`、`employee.semantic_search`、扩展 `transaction.search` 和唯一三动作生产组合根。Employee 服务端点级角色转换及原受控联调/UAT有对应通过证据，范围见UAT_00；每个成功业务请求仅生成一个计划、执行一个固定 endpoint。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -119,10 +124,10 @@ async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: Requ
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计评审通过并取得实施授权后 |
 | 当前实施状态 | filters planning bridge、三动作组合根、单动作/取消/隔离及 non-live/live/UAT 验证已完成 |
-| 当前允许实施范围 | 仅允许按新的已评审需求修复现行链路并执行 non-live 回归 |
+| 当前允许实施范围 | 后续独立授权后：仅允许按新的已评审需求修复现行链路并执行 non-live 回归 |
 | 当前禁止动作 | 修改公共 Core/HTTP/Knowledge、恢复旁路或扩大授权 |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
 
 ## 10. 端到端追踪矩阵
 

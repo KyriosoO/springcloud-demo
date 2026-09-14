@@ -7,21 +7,23 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.6 |
-| 更新日期 | 2026-09-14 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v2.9 |
-| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.24；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v3.0 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.0；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
 | 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过；最新有效 Knowledge 效果等级为 `partially_effective` |
-| 归档来源 | [v1.5 已评审旧版](历史文档/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
+| 归档来源 | [整理前 v3.6 原文](历史文档/2026-09-14-unified-v3-baseline/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v3.4 保持 Business 候选准入职责不变，并明确模型不得把用户显式提出但 catalog 未开放的属性替换、丢弃或近似为已开放字段；此类请求必须在业务调用前失败关闭。
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 架构目标、非目标与上位约束映射
 
-既有职责：Knowledge 在既有 `no_result` 状态及开放的 `result` 对象内返回有限 reason；Core 只根据已验证的内部 reason 选择固定展示文本，不理解问题、不改变 domain/action、不生成补充计划。普通无命中、证据不足和需要澄清必须可区分；未知 reason 保持通用文本。状态枚举、公开 DTO 字段和 Business 行为不变。当前代码已有此接缝；新设计复用它，映射见 L2_01_00 §19。
+既有职责：Knowledge 在既有 `no_result` 状态及开放的 `result` 对象内返回有限 reason；Core 只根据已验证的内部 reason 选择固定展示文本，不理解问题、不改变 domain/action、不生成补充计划。普通无命中、证据不足和需要澄清必须可区分；未知 reason 保持通用文本。状态枚举、公开 DTO 字段和 Business 行为不变。当前代码已有此接缝；新设计复用它，映射见 L2_01_00 §8。
 
-v3.6仅同步Knowledge新设计边界与下位引用。后续由同一Knowledge handler承担查询类型、一次选域、原问题检索和模式化摘录；Core selector与单动作执行不增加语义职责。新任务12/8及策略尚未实施，当前源码仍11/7/v3；旧目标已取消，不继承其实施或模型授权。
+本次整合Knowledge新设计边界与下位引用。后续由同一Knowledge handler承担查询类型、一次选域、原问题检索和模式化摘录；Core selector与单动作执行不增加语义职责。新任务12/8及策略尚未实施，当前源码仍11/7/v3；旧目标已取消，不继承其实施或模型授权。
 
 核心职责是让 LangGraph 在一个逻辑 Agent 中维护单请求状态，把已验证的 Business 计划或 Knowledge 单动作选择转换为唯一 Core ActionCandidate。非目标是不可信模型直达 handler、本地业务语义解析、业务 SQL/ES、角色判定、第二动作及 Business/Knowledge 相互 fallback。
 
@@ -42,7 +44,7 @@ v3.6仅同步Knowledge新设计边界与下位引用。后续由同一Knowledge 
 | Model Port | 基于安全目录请求模型并返回 provider-neutral `JsonObject` | Business field 校验或 Adapter 调用 |
 | Business planning | strict decode、字段/config 验证、slot 绑定 | 生成缺失语义、数据库/ES 查询 |
 | Registry/Core | 查找唯一 capability、复核参数并执行一次 | 解释自然语言、调用第二动作 |
-| 组合根 | 始终装配 Business 三动作；按显式开关追加唯一 `knowledge.query`、两项 Knowledge 模型任务和 owned clients | 决定查询语义、复制 Runtime 或建立兼容旁路 |
+| 组合根 | 非stub生产配置装配Business三动作；按显式开关追加唯一 `knowledge.query`、两项 Knowledge 模型任务和 owned clients | 决定查询语义、复制 Runtime 或建立兼容旁路 |
 
 Business 依赖方向为 `LangGraph → provider-neutral Model Port → Business validation/binder → ActionCandidate → Core → Domain Handler`；Knowledge 依赖方向为 `LangGraph → capability selector → knowledge.query → Knowledge stages/ports`。两者共享 Registry、Core、Model Gateway 与请求上下文，但不共享领域计划、Adapter 或失败降级。provider 实现只能位于适配边界；Domain handler 不得反向依赖 LangGraph 或模型实现。
 
@@ -60,7 +62,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 ## 5. 生产组合根与单动作不变量
 
-目标 Registry 始终公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；仅当 `AGENT_KNOWLEDGE_ENABLED=true` 时追加且只追加一个 `knowledge.query`。旧 `employee.detail` 已核实仅由历史兼容测试及冻结资产使用，不进入目标生产 Registry。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义；未配置字段通过通用白名单自然不可达，具体字段与 DTO 映射仍归 Business L1/L2 所有。
+默认stub仅空能力安全冒烟，不装配业务Provider；非stub生产目标Registry公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；仅当 `AGENT_KNOWLEDGE_ENABLED=true` 时追加且只追加一个 `knowledge.query`。旧 `employee.detail` 已核实仅由历史兼容测试及冻结资产使用，不进入目标生产 Registry。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义；未配置字段通过通用白名单自然不可达，具体字段与 DTO 映射仍归 Business L1/L2 所有。
 
 生产 Business 对象图禁止 Local Resolver、ID-only selector、自动补全 filters、旧 fallback、跨域重试和第二次 handler 调用。Knowledge 由普通 capability selector 选择空参数动作，内部五阶段仍只对应一次 Core handler；不得进入 Business QueryPlan decoder/binder，也不得作为其失败后备。两类能力共享的 Core 单动作约束必须对“第二动作”统一拒绝。
 
@@ -82,14 +84,14 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 
 | L2 | 唯一权威责任 |
 |---|---|
-| [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v1.3 | Spring 接入、Runtime 协同及当前生产启动入口状态 |
-| [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v2.3 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v2.9 | 模型安全 catalog、v7 显式字段完整性与裸 slot 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
-| [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.3 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
-| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8 | QueryPlan、多值引用、字段组合、行政区规范化、validator、binder 与出域策略 |
-| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v1.33 | Knowledge 开关、单注册、域目录 v2、当前源码11/7对照及拟议12/8最小流程 |
-| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v2.20 | Knowledge typed HTTP、读取授权、RRF/rerank、client 生命周期及阶段 A 离线语料生命周期 |
-| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v1.26 | Evidence/出域、现有Summary7与拟议Summary8、四维验收 |
+| [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v3.0 | Spring 接入、Runtime 协同及当前生产启动入口状态 |
+| [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v3.0 | Business bridge、组合根、Registry、取消与单动作执行 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.0 | 模型安全 catalog、v7 显式字段完整性与裸 slot 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
+| [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v3.0 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
+| [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.0 | QueryPlan、多值引用、字段组合、行政区规范化、validator、binder 与出域策略 |
+| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v3.0 | Knowledge 开关、单注册、域目录 v2、当前源码11/7对照及拟议12/8最小流程 |
+| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v3.0 | Knowledge typed HTTP、读取授权、RRF/rerank、client 生命周期及阶段 A 离线语料生命周期 |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v3.0 | Evidence/出域、现有Summary7与拟议Summary8、四维验收 |
 
 ## 8. 风险、验证与当前实施状态
 

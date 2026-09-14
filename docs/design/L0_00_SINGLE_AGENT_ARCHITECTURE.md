@@ -7,14 +7,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.9 |
-| 更新时间 | 2026-09-14 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.5 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.0 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
 | 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配；Business/Knowledge 功能验收及 Knowledge 阶段 A 离线语料发布已完成，最新有效 Knowledge 效果等级为 `partially_effective`，不等于整体效果达标 |
-| 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
+| 归档来源 | [整理前 v2.9 原文](历史文档/2026-09-14-unified-v3-baseline/L0_00_SINGLE_AGENT_ARCHITECTURE.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.6 将运行流水移出 L0；v2.7 增加与在线 Agent 隔离的阶段 A 离线语料构建平面；v2.8 如实同步该离线平面已实施并通过发布验证，不改变单一 `knowledge.query`、公共接口或权限边界。
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 架构目标、非目标与架构原则
 
@@ -70,14 +72,14 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.6 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
-| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.24 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
-| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.0 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
+| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.0 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
+| [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
 
 ## 8. 质量属性、风险与当前结论
 
 安全优先于可用性：非法计划、模型失败、配置失配、敏感 slot 和不支持条件均失败关闭；Business每请求最多一次模型规划和一个业务动作；Knowledge在同一顶层动作内有界规划、检索和摘要，次数归其L2。保留请求级取消与确定性数值/时间合同，但不引入高可用框架、复杂重试、分布式事务或独立监控平台。
 
-v2.9只调整Knowledge职责及直接版本引用：新设计区分资料查找、原文解释和适用性查询，首期不要求自动改写或复杂证明规划。已验证功能属于其代码/配置快照，新设计通过不扩大这些证据的适用范围；系统边界、Business与读取/出域授权不变。
+当前Knowledge目标设计：新设计区分资料查找、原文解释和适用性查询，首期不要求自动改写或复杂证明规划。已验证功能属于其代码/配置快照，新设计通过不扩大这些证据的适用范围；系统边界、Business与读取/出域授权不变。
 
 主要风险：Employee ES endpoint-scoped 共享 converter 和读取守卫必须维持真实过滤链矩阵及历史 fallback 兼容；ES 原始 hits、受保护值和 Date/Decimal 必须维持当前已验证合同；workBase 字段数据无效且仅通过未配置自然不可达。non-live 和过滤链测试通过不等于成功受控真实联调或 UAT 完成。

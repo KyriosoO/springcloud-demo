@@ -8,48 +8,23 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.21 |
+| 当前版本 | v3.0 |
 | 日期 | 2026-09-14 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.25](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | §19补充来源/标准化/结构切片/分类时效/向量表示及后续迁移合同；§18在线首期不变。新设计未实施，不改现行索引/alias；评审见P3 §22 |
-| 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
+| 上位文档 | [`L1_01` v3.0](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次整理 | 统一文档基线v3.0；整合有效合同，归档历史过程；不改变代码、任务、配置或索引版本 |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
+| 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-## 2. 阅读导航与变更记录
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-§18为新设计首期权威：复用原问、RRF和域内重排，移除证明锚点等质量策略；旧在线策略为当前源码对照。阶段A及既有授权/物理边界继续有效。新设计未实施，不改索引/alias。 旧目标取消与评审/实施授权以P3 §21为准；本轮仅设计文档。
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
 
-重点：第 7 节 typed contract、第 8 节两级映射/授权、第 9 节 RRF/rerank、第 13 节实现落点。
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
-| 版本 | 日期 | 变更原因 | 变更内容 |
-|---|---|---|---|
-| v2.19 | 2026-09-10 | 原问keyword与改写vector需要显式合法计划而非绕过相等校验 | §9.9明确新来源字段、旧计划同query、安全与类型校验、零调用反证；公开接口及排名预算不变 |
-| v2.18 | 2026-09-10 | 两个完整文号空格分隔时，去空格后被上一文号的末字阻断 | §9.7明确已识别完整文号后的扫描起点及反证测试；不跨文字继承简写、不改Prompt或扩大topK |
-| v2.17 | 2026-09-10 | 长片段可使重排看不到尾部元数据，不能由截断直接推导效果改善 | §9.8定义同池窗口对照、缓存模型/有限进程及结果边界；生产切换须另据效果和资源证据评审 |
-| v2.16 | 2026-09-09 | 原文存在但多文号查询遗漏，keyword元数据存在表示差异 | §9.7新增服务内部标识词法及软匹配、默认关闭开关、mapping校验和非live验证；不扩大候选窗口或重建索引 |
-| v2.15 | 2026-09-08 | 有界配对诊断支持授权元数据改善短条款相关度 | §9.6新增固定评分表示与当前根显式版本绑定；原文、旧Adapter和历史资产不变，非live通过后才允许切换 |
-| v2.14 | 2026-09-08 | 同镜像冷实例首次推理超过在线时限，health并不证明推理就绪 | 增加启动期固定合成文本、一次有界预热；在线超时、排序、正文和接口均不变 |
-| v2.13 | 2026-09-08 | 真实Java启动需实际alias，而发布前又要求typed/回滚验证，原文未区分测试与线上alias | 增加仅供隔离服务的临时只读alias生命周期；验证完成移除，线上发布仍需全回归、策略及回滚证据 |
-| v2.12 | 2026-09-07 | ES 9.4.1在主分片启动后删除resize来源设置，旧永久标记假设导致成功clone被拒绝 | 以精确clone确认回执、新UUID及全记录fingerprint建立归属；临时标记存在时仍校验，结果不明且不能证明归属时零清理写入；不重入失败候选 |
-| v2.11 | 2026-09-07 | 政策向量结构授权后继续，避免全库重编码和共享law退化 | 新候选原生clone、限定附件向量替换、全记录保持验证、失败封存和模型/token前置；不改变现行索引、公共DTO或发布条件 |
-| v2.10 | 2026-09-07 | 政策向量结构追加授权及上下文不足对照 | 明确标题/现有章节/原文输入、确定性哈希、有限校验和原文不可变；旧DR-KRET-021正文向量保留历史责任，候选迁移须另有实现合同 |
-| v2.9 | 2026-09-07 | 单一域排名无法保留同域不同必要证明 | 设计quality-v3按请求级需求重排及锚点，保持既有检索窗口、Evidence和阶段时限；不修改HTTP/索引或旧排序 |
-| v1.0 | 2026-08-21 | 建立检索基础设施稳定基线 | 删除真实联调流水，突出 Agent/ES 边界、授权前置、统一候选、快照和本地模型契约 |
-| v1.1 | 2026-08-21 | 代码对照评审修复 | 补强并发失败清理、同 Profile 快照一致性，并校正 path 失败分类、rerank 上限和 batch 字段说明 |
-| v1.2 | 2026-08-26 | 生产接线与生命周期 | 明确三固定 origin client 的创建、所有权、失败清理、关闭及 non-live 调用计数 |
-| v1.3 | 2026-08-26 | 实施状态收口 | 如实同步 typed Provider、读取授权、RRF/rerank 与三个 owned client 已通过 Python/Java 验证 |
-| v1.4 | 2026-08-26 | 效果 UAT 证据同步 | 记录真实效果运行对检索链路的验证，不改变 typed contract、Profile 或排序算法 |
-| v1.5 | 2026-08-28 | 依赖与实现依据纠偏 | 同步 L1 当前版本并校正本文可实施版本；typed contract、Profile 与排序算法不变 |
-| v1.6 | 2026-08-28 | 上位效果设计同步 | 同步上位效果诊断结论；检索合同、Profile、RRF/rerank 实现及当前参数均不改变 |
-| v1.7 | 2026-08-28 | 上位实施状态同步 | 同步 L1/L2 当前版本与 Summary V4 non-live 状态；检索合同、Profile、RRF/rerank 实现及参数不变 |
-| v1.9 | 2026-08-28 | 稳定权威纠偏 | 移除候选运行状态，只保留 typed retrieval、Profile、授权、RRF/rerank 和 client 生命周期合同 |
-| v2.0 | 2026-09-02 | 阶段 A 语料生命周期 | 新增官方来源审计、不可变 asset、PDF/Office/OCR/表格解析、结构切片、候选索引、Profile/策略快照发布与 alias 回滚合同；在线 typed DTO 和排序算法不变 |
-| v2.1 | 2026-09-02 | 审计事实边界修复 | 将索引库存与官方页面可达性拆分；禁止由 403/404 推断正文缺失；补充官方替代来源人工绑定、精确预算计数和不可达来源对发布门禁的影响 |
-| v2.2 | 2026-09-02 | 阶段 A 实施收口 | 同步 audit v3、官方附件解析、31个新chunk、candidate a2、14/14专项 UAT 和原子 alias 发布/回滚验证，不改变在线排序算法 |
-| v2.3 | 2026-09-03 | 正式代码/数据复评修复 | 锁定审计文件哈希复算、chunk 内容哈希、处理计数闭合、workspace 路径归属和发布 journal 前置检查；以修复后的 UAT attempt-02 作为最终验收证据，attempt-01 原样保留 |
-| v2.4 | 2026-09-03 | 条款关系完整性修复 | 正式复核发现 legacy DOC 整体扁平化导致条款关系缺失；改为保留 heading/clause/page/table 边界的结构化解析，生成 candidate a4 并以 UAT attempt-04 完成发布复评 |
-| v2.5 | 2026-09-03 | 批次隔离与源码可复现收口 | 单资产网络失败和损坏 Office/PDF 容器统一形成有限失败并隔离；因 a4 构建早于该修复，以最终工具源码重建等价内容 candidate a5，并以 UAT attempt-05 和发布 attempt-05 收口 |
+## 2. 阅读导航
+
+重点阅读§7/8公开typed/授权、§9目标检索、§12既有语料发布、§18资料组织合同。历次修订及旧评审只见归档；本v3.0整合已有有效合同，不新增能力。Knowledge新合同明确标记待实施，旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
 
 ## 3. 目标与范围
 
@@ -142,11 +117,11 @@
 
 拆分按协议和物理资源权威形成稳定契约，不新增 knowledge-service 或通用检索平台。
 
-## 6. 当前实现基线与最小变更
+## 6. 当前实现基线与迁移
 
-Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage、RRF 和 rerank；Java 端已有 `es-query-api` DTO、专用 `/es/knowledge/search`、endpoint-scoped Security、Profile 配置/启动验证、读取 Guard 和 Service。并发 path 的异常路径必须取消并等待尚未结束的 sibling 调用；同一 Profile 的成功 path 必须返回一致的 profile/index/read-policy snapshot。
+最小变更原则：本轮仅整合已批准合同与迁移边界，不新增实现、依赖或质量策略。当前实现与待实施目标分别标识；不能将旧验证移作新合同通过。
 
-通用 `EsQueryController` 原有端点保持兼容且不得被 Agent 使用。Knowledge endpoint 默认 disabled；目标启用需要冻结 Profile 与真实授权配置。
+现代码仍为quality-v3，保留既有typed HTTP、BGE、来源/授权、阶段A发布及向量表示能力。目标§9替换需求驱动重排、锚点、配额和跨查询分数策略，§18为尚未实施的资料组织合同；本轮不改实现、配置、索引或alias。已发布快照与历史效果只在原UAT范围有效，仓库绑定不等于部署证明。
 
 ## 7. Python 与 HTTP 接口契约设计
 
@@ -181,10 +156,10 @@ Python 端已有 typed contracts、bounded HTTP、ES/BGE adapters、并发 stage
 | `DR-KRET-025` | alias 以精确旧目标为前置执行原子切换、冒烟、原子回滚演练和最终切换；不删除旧索引 |
 | `DR-KRET-030` | §12.8纯构造同记录title/section/content的版本化向量输入，严格类型/大小/哈希，原文和既有builder不变，不执行I/O |
 | `DR-KRET-031` | §12.9只克隆精确只读源，替换policy受控附件的embedding和独立表示元数据；全记录原文/权限及其余向量保持，失败封存不发布 |
-| `DR-KRET-033` | §9.5启动期一次合成重排预热，失败不启动新的Knowledge调用方；不重试用户请求、不放宽在线deadline |
-| `DR-KRET-034` | §9.6仅以现有授权候选的正文、标题、文号和成文日期评分；派生表示不是Evidence，当前根固定单一版本，失败不回退正文评分 |
-| `DR-KRET-035` | §9.7可关闭的有界文号词法/空格等价软匹配，固定category和单次keyword请求；未知标识不猜测、ES失败不重试、公共DTO和索引不变 |
-| `DR-KRET-036` | §9.8测试侧同池窗口单变量诊断；缓存模型、有限worker、无重试及独占结果，不修改生产窗口或自动迁移Evidence阈值 |
+| `DR-KRET-033` | §9.6启动期一次合成重排预热，失败不启动新的Knowledge调用方；不重试用户请求、不放宽在线deadline |
+| `DR-KRET-034` | §9.7仅以现有授权候选的正文、标题、文号和成文日期评分；派生表示不是Evidence，当前根固定单一版本，失败不回退正文评分 |
+| `DR-KRET-035` | §9.8可关闭的有界文号词法/空格等价软匹配，固定category和单次keyword请求；未知标识不猜测、ES失败不重试、公共DTO和索引不变 |
+| `DR-KRET-036` | 旧测试侧离线窗口诊断编号保留，完整方法见归档；不是目标窗口/阈值的实施要求，新表示对照按DR-KRET-306/307 |
 | `DR-KRET-026` | 审计把索引库存、来源可达性和正文完整性作为三个独立状态；非 200/网络失败只产生有限 source status，不推断正文缺失，不自动重试或转用非权威来源 |
 
 ### 7.2 Python 内部类型
@@ -249,48 +224,60 @@ Agent 只持有 stable Profile ID 和 expected profile version=`tax-knowledge-se
 
 Service只根据冻结Profile构造keyword/vector query，附加category filter与_source allowlist，limit≤20。两种路径都必须显式设置ES `size=limit+1`；vector同时设置`k=limit+1`，num_candidates保持原上限100。返回额外一条仅供truncated计算，最多映射limit条。修复当前vector缺少size导致默认少返与truncated假阴性，不扩大请求/响应DTO、Profile上限或索引能力。
 
-## 9. 本地模型、RRF 与 rerank
+## 9. 最小检索策略（新设计，未实施）
 
-### 9.1 BGE-M3 Embedding
+依据REQ-KQ-204/205及KQ-AD-021/022/024；本节整合原§18目标，替代归档原§9.1～9.4、DR-KRET-027～029/037的旧质量编排，不替代typed请求、授权、快照/完整性、单次调用、取消或阶段A离线合同。旧实现和诊断保持原证明范围；本设计不迁移索引。
+
+### 9.1 有界检索与确定性排名
+
+`DR-KRET-201`：只消费L2_01_00 §8通过校验的knowledge-minimal-v1计划。每域keyword、vector各一次，全部使用同一安全原问Q；只在请求内计算一次1024维有限向量，由两域复用。每路limit=20；ES既有多取一项仅用于truncated标记，不扩大返回窗口。至多4次search/1次embedding，无兜底轮询或额外文档读取。固定Profile/alias/服务DTO、Java文号开关及当前映射不变。
+
+每个非空域对该域已授权候选按既有identity去重/RRF（k=60）排序，最多40项；相同identity跨路径或域存在内容/hash/策略冲突时全请求失败，不选择更高分版本。源身份、路径、域和快照一直保留，不允许先按分数过滤后跳过完整性检查。
+
+`DR-KRET-202`：每个非空域调用一次现有RerankPort，query=Q、≤40项，按目录顺序串行，最多2次、总≤80项评分；不再按模型requirements/focus重复评分。沿用当前authorized-body-first-metadata-v1输入表示及本地512token窗口，未声称能看到完整长正文；原候选正文不可被评分文本替换。
+
+域内按rerank分降序→RRF降序→chunk_id→document_id确定性排列。严格检查候选索引全集/唯一、有限分数及当前适配器归一化合同。域间按固定目录次序round-robin，每次取下一未见identity，重复项合并其已核验域来源，直到20项或队列耗尽；不比较不同域池裸分、不添加keyword首位/证明锚点、文档配额或特定ID加分。轮转仅保留域进入窗口的机会，不代表该域首位相关或充分。
+
+新策略不调用现有quality-v3需求标签逻辑，也不把旧coverage_anchor补成true。拟新增`agent-runtime/src/agent_runtime/knowledge/retrieval/minimal_ranking.py`，复用fusion与RerankPort；旧quality_ranking*.py保持历史调用方，后续单独查引用再清理。
+
+### 9.2 失败、预算和生命周期
+
+`DR-KRET-203`：所有选中域读取拒绝遵循现有安全优先，取消未完成分支并join；不得继续用另一个域掩盖拒绝。完整性或快照冲突不降级为partial。普通技术单路失败仅按既有coverage/每域候选与总候选最小阈值判断是否继续；全路失败、必要域无成功路径、rerank非法/失败为downstream_failure，Summary0。只有完整成功且候选全空才能no_candidate。部分继续保留failedPaths及retrievalComplete=false，不追加路径。
+
+请求retrieval总deadline20秒、每个HTTP阶段≤5秒；每次启动前检查剩余时间，超时/取消后不接收迟到结果，不启动下一域/阶段；retry=0。owned search/embedding/rerank client仍由Runtime关闭，不增加新连接池或跨请求向量缓存。合成预热与在线预算分开，不能把真实冷启动超时改判检索无结果。
+
+### 9.3 索引、向量及评分策略的比较边界
+
+`DR-KRET-204`：首期原问策略在现有binding v2指定的语料/向量配置上建立新基线，不认为body-only或context向量天然更优。仓库binding证明预期配置，不证明运行实例实际alias；后续真实测量前只读核对UUID、Profile和policy快照。代码、模型、向量/语料、服务部署四类基线独立记录；一类变化不能由另一类Git回滚自动完成。
+
+后续比较body-only/context、query改写、窗口或阈值时，每次只改变一个变量。使用同一公开原文身份/hash、切片、候选评价集合、模型配置、读取策略；同模型同参数下比较必要来源Recall/MRR、噪声及Evidence覆盖。若索引不同，先证明两者只有预定向量表示不同，不能混入语料补齐或mapping变更；做不到则不称因果比较。保持已发布索引只读，不自动重建或切alias。任何需要实际索引/模型迁移的后续实验须另获明确目标授权，不在本实施首期隐含执行。
+
+### 9.4 实施追踪与回滚
+
+#### 新设计编号定义
+
+| 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
+|---|---|---|---|---|---|
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201、DR-KRET-202、DR-KRET-203、DR-KRET-204 | IMPL-KRET-201、IMPL-KRET-202、IMPL-KRET-203 | TEST-KRET-201、TEST-KRET-202、TEST-KRET-203 | VAL-KRET-201、VAL-KRET-202、VAL-KRET-203 | 需求定义见REQ_00 §5.2；本节前述条款和下表逐项展开；全部待实施验证 |
+
+| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|---|
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201 | IMPL-KRET-201：retrieval/stage.py读取新计划；es_adapter.py、bge_embedding.py端口复用、不改公共DTO | TEST-KRET-201：原问一致、最多4search/1embedding、只启用域、授权/快照拒绝和零后续 | VAL-KRET-201：unit/contract/fake集成 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-202、DR-KRET-203 | IMPL-KRET-202：minimal_ranking.py、stage.py；provider.py继续当前BGE表示 | TEST-KRET-202：同分、跨域重复/冲突、无需求锚点、≤2rerank/80评分、失败/超时/取消、无gold导入 | VAL-KRET-202：定向、类型及current-root回归 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-204 | IMPL-KRET-203：后续tests/evaluation/knowledge中的独立同池比较及有限快照记录；本目标无代码资产 | TEST-KRET-203：不同语料/配置不得成对计分、缺标注为null、历史hash不变 | VAL-KRET-203：离线反例及后续只读服务验证，不能由fake证明真实召回 |
+
+仅Knowledge成对代码绑定迁移；检索部署前需功能、安全、typed Java及Business防回退通过。回滚为禁用Knowledge或恢复整套相容的代码/任务/配置绑定；不更改索引/alias，旧StageA原文及发布回滚证据保持不变。取消父配额/锚点/0.5为质量策略重新设计，不放宽读取授权、源完整性或原文引用；保留噪声和必要来源排在top20之外的效果风险，按UAT_01 §15验证。
+
+
+### 9.5 BGE-M3 Embedding
 
 - endpoint 默认 loopback `http://127.0.0.1:8908`；
-- 输入仅当前 rewrite 文本，UTF-8/字节有界；
+- 目标输入仅通过安全校验的原问题Q，UTF-8/字节有界；旧实现使用对应冻结rewrite文本；
 - 输出 exact 1024 个有限 float，禁止 NaN/Infinity/字符串 coercion；
 - 每个请求的同一 query 可在请求内复用一次向量，不跨请求缓存。
 
-### 9.2 RRF
 
-按计划稳定顺序处理 path candidate set。每条 path 的 source rank 必须连续 1..n；候选 identity 为 `(document_id, chunk_id)`。同 identity 若除 domain/source rank 外内容不一致，返回 `knowledge.candidate_conflict`；否则合并 domain IDs/path ranks，累加 `1/(60+rank)`。
-
-排序键：RRF 降序、chunk ID、首次出现顺序。原始 ES/BGE 分数不跨路径直接比较。
-
-### 9.3 BGE Rerank
-
-- endpoint 默认 loopback `http://127.0.0.1:8909`，model exact `BAAI/bge-reranker-v2-m3`；
-- 阶段 B每个选中域用其唯一query与该域去重融合候选执行一次rerank，单域≤40条，两域合计≤80；同一identity若确实在两域召回，可分别参与两次域内排序，但不得新增另一域未召回的候选，总次数仍不超过原始路径条数80。每个rerank返回索引/正文/分数必须完整一致，不比较不同query的裸分数；最终按域内rank轮转填充。每域最多一次rerank，无失败重试。
-- 输出必须一一覆盖候选且索引唯一，score 有限；
-- 质量策略V2保留每个非空计划域的rerank首位；同identity去重、目录域序产生≤2条保留前缀。所有锚点必须来自本次已授权候选；不保留强制keyword首位，不使用内容规则/gold/文档特判。V1双锚点及交错填充仅用于历史合同，不原位修改。
-
-V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同键保持既有稳定输入序）；不比较不同query裸分数。锚点后按目录域序轮转，每域取下一个尚未输出的identity；重复项不能占用轮转名额。仅在该域本次已授权、去重融合的候选中选择，关键词候选不会被整体丢弃。候选所属域及快照保留，跨域重复identity只输出一次。最终final20、Evidence8及BGE调用/输入/时限均不变；缺失分数、重复索引、非有限数、超时或取消仍沿既有失败路径，不能回退V1。
-
-### 9.4 必要证据需求排序（DR-KRET-029；已实施并接线）
-
-来源为KQ-AD-018及DR-KFLOW-024。新`knowledge-retrieval-quality-v3`不是多轮检索：域、queries、requirements在首次检索前一次冻结；search仍每域keyword/vector各一次、每路≤20、原始候选≤80、embedding≤2，Profile/index/alias均不变。不存在失败后扩域、新query或追加检索。
-
-1. `DefaultKnowledgeRetrievalStage.execute`先校验V3计划需求ID/域/数量及版本；沿既有路径执行search、授权优先级与快照校验。只有本次已读取授权且通过完整性校验的候选可进入BGE。
-2. 对每域各自keyword/vector作原有RRF去重，池≤40。按冻结需求r1..rN顺序串行调用同一`RerankPort.rerank(query=requirement.focus, candidates=该需求域的池, timeout_s=min(5,remaining))`；focus只是候选相关性的提问视角，不改原检索条件、不证明政策事实。不同需求即使同域也分别排序；不另外运行V2域排序。总≤4次、候选评分总≤160、每HTTP仍2MiB上限，检索阶段20秒和请求总deadline不延长。域池为空时不调用该次BGE，不生成假锚点。
-3. 每次评分必须完整、一一对应、有限且文本一致；沿现有BGE协议验证。域内每需求排序键为score降序、RRF降序、chunk_id升序、稳定输入序。不同query裸分数不能合并比较。任何重排技术失败/非法响应/timeout按既有retrieval failure结束，不能使用V2结果或剩余需求掩盖。
-4. 取每个非空需求排序首位作候选锚点，按需求顺序输出；重复identity只输出一次，并按需求顺序合并`requirement_ids`。随后按需求队列轮转，每轮每队列取下一个未输出identity，填充至final_candidates≤20。跳过重复不占轮转名额，空/耗尽队列跳过；同分与重复结果可重现。普通填充项不冒充任何需求锚点。identity沿用(document_id,chunk_id)；返回candidate与domain_ids取Stage已校验的全路径canonical fused对象，域按计划目录顺序保留，禁止只取首个需求域丢掉合法合并域。每个唯一输出的rerank_score固定取首次入选队列的分数，不取跨query最大值/均值，不据此重新排序；rank只由锚点/轮转顺序决定。后续重复命中只合并标签，不改变score/rank。
-5. 新`RankedKnowledgeCandidate.requirement_ids: tuple[str,...]=()`仅由该ranker创建；V3的coverage_anchor恰等于该tuple是否非空。每个ID至多标在一个identity上，且该候选domain_ids含需求域。最多4个锚点、每需求有且仅有一个非空池首位；无候选需求不伪造标记，交Evidence作证据不足。模型和ES DTO无此字段，旧V1/V2不能带非空ID。
-6. 不使用gold、case、文档白名单、标题行业规则、已知税率或评估结果；禁止删除低排名候选来伪造窗口改善。锚点只证明“为该需求保留了一个检索机会”，不证明蕴含或充分性；真实选域/召回/重排质量仍需UAT。
-
-`IMPL-KRET-017`（已实施）：新增`knowledge/retrieval/quality_ranking_v3.py::rank_requirement_candidates`，关键字参数与V2接缝一致为plan、sets、fused、fusion、rerank、deadline、final_candidates，返回既有`tuple[RankedKnowledgeCandidate,...]`扩展对象。fused是Stage已按原完整性和冲突合同校验的全路径结果，不能由ranker重建以覆盖冲突；fusion对象仅用于各域同算法RRF。stage仅按可信quality_version分派；contracts新增默认空的内部tuple。旧quality_ranking.py/quality_ranking_v2.py及其模型/服务协议不改。新版本启动要求final_limit≥4且保留≥2×enabled域数，保证全部4项需求存在保留空间；不得截掉第4项来适配旧小配置。
-
-`TEST-KRET-024`（已实现`tests/unit/knowledge/retrieval/test_quality_ranking_v3.py`及stage集成）：同域规则/时效分别排名、低位必要证据作为需求首位保留、不同域无需广播、相同identity多需求标签合并、稳定轮转/tie、空域无BGE、4次/160评分硬上限、≤4search/2embed不变、deadline前不建新调用、取消传播、非法/重复/缺失分数拒绝、forbidden/快照异常BGE0。反例使用匿名合成正文与fake分数，不把人工gold接入排序，也不据此宣称真实排名已改善。
-
-`VAL-KRET-010`：上述单元/契约、当前根fake端到端、strict mypy/compileall、既有ES Java DTO/授权测试及全量Knowledge/Core/Business/历史回归通过后才可切生产单绑定。V3与V2预算不同须冻结新快照；本设计不授权新BGE实测或付费运行。回滚整体恢复planner/ranker/Evidence/Summary版本，或禁用Knowledge；不改阶段A快照。
-
-### 9.5 本地重排启动预热（DR-KRET-033；增量评审通过，实施状态见P3）
+### 9.6 本地重排启动预热（DR-KRET-033；增量评审通过，实施状态见P3）
 
 端口与`/health`正常只证明服务可达。冷实例模型/GPU初始化可能使首次推理超过在线5秒，不能据此提高在线时限、删除候选或增加查询重试。采用一次显式启动检查，不建设定时探针、缓存或额外在线流程。
 
@@ -300,19 +287,21 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 - **观测与失效**：只输出有限status、耗时、数量、contract判定；不输出响应或环境。单操作人启动窗口，不承诺其他客户端并发下的性能SLA；检查后BGE被重启/换模型则原就绪证据失效。下游在客户端超时后可能继续计算，工具不再次请求，也不停止用户拥有的BGE进程。
 - **兼容与验证**：不新增配置项/依赖、修改模型服务或公共DTO；仅新增运维工具并接入启动脚本。fake覆盖错模型、重复/缺失index、非法数值、超限、错误状态/类型、超时及零重试；实际冷实例验证与当前服务检查分别记录，不把合成预热计为UAT或原文排序通过。新诊断的启动预算单列rerank=1，不能偷偷注入已冻结或已消费的历史runner，也不赋予重跑失败case或追加付费批次的权限。
 
-### 9.6 授权上下文评分表示（DR-KRET-034；已实施，验证证据见P3）
 
-已召回短条款在单独评分时可能缺少同文档语境；有限配对依据由P3/UAT管理。采用固定`authorized-body-first-metadata-v1`，不改RRF、需求锚点、final20、Evidence8、query、gold或检索窗口。表示仅用于本地BGE评分，不是新正文，也不证明法律适用性。
+### 9.7 授权上下文评分表示（DR-KRET-034；已实施，验证证据见P3）
+
+已召回短条款在单独评分时可能缺少同文档语境；有限配对依据由P3/UAT管理。采用固定`authorized-body-first-metadata-v1`，保留既有评分表示，不改原文、final20、Evidence8或检索窗口；目标排名由§9.1决定，不沿用旧需求锚点。表示仅用于本地BGE评分，不是新正文，也不证明法律适用性。
 
 1. 输入只来自Stage已通过读取授权、快照及完整性校验的`AuthorizedKnowledgeCandidate`。先放原始content，再依次追加非空title、document_number、written_date，行标签固定为`文档标题：`、`文号：`、`成文日期（非生效日期）：`，日期ISO。content≤4096且不截断；title/document_number各≤256，总表示≤4700字符。无元数据时只保留原文；不补值、不读私有section/邻居/URL、不生成摘要或事实。标题/日期仍是不可信来源信息，不能用成文日期判断有效/废止；模型512 token窗口不变，长文可能看不到尾部元数据。
 2. 新`ContextualBgeRerankAdapter`一次调用现有`/rerank`，query不变、documents为上述表示、top_n等于候选数、normalize=true；候选数1..40。沿既有5秒/2MiB/取消合同，检查JSON无重复/额外key、模型名、完整唯一整数index、派生表示exact echo和有限score；错误、超时、取消均失败，不重新以raw评分。不得伪造响应text或改candidate.content/hash来复用旧校验。
-3. 返回仍为`tuple[RerankScore,...]`；ranker、候选及SHA、Evidence正文和外部模型载荷仍为原授权对象。观测继续隐藏rerank query/documents，只保留计数，不把新元数据加入公开诊断。每需求仍一次，共≤4次/160个评分，不运行实验双臂或额外外部模型。
+3. 返回仍为`tuple[RerankScore,...]`；ranker、候选及SHA、Evidence正文和外部模型载荷仍为原授权对象。观测继续隐藏rerank query/documents，只保留计数，不把新元数据加入公开诊断。目标按§9.1每个非空域一次，共≤2次/80个评分；旧实现每需求≤4次/160评分仅归档兼容，不进入目标计划。不得运行在线实验双臂或额外模型。
 4. 旧`bge_rerank.py`承担历史兼容，字节不改。`LocalKnowledgeRetrievalFactory.build`新增内部参数`rerank_input_version`，省略时保持`raw-content-v1`供既有显式历史/测试调用；仅接受该值和新版本，其余在transport调用前拒绝。components.rerank类型改为既有RerankPort。`main.build_runtime`在enabled分支显式选新版本，disabled仍零资源；无环境/请求切换、自动后备或第二生产链路。版本常量及文件SHA进入后续运行快照，旧manifest不能证明新表示。
 5. 当前根non-live、HTTP和类型回归通过后才可采用。新旧Adapter独立保留必要协议校验以保护冻结源，不建设通用转换框架。回滚部署此前完整代码或禁用Knowledge，不改policy/index/alias、历史或读取权限。当前原文数据不足以表达的语义仍须失败关闭。
 
 `TEST-KRET-029`：单次HTTP、格式/边界、wrong echo/model/index/score、重复JSON、取消/超时、原文/hash不变、拒绝零BGE、当前根唯一绑定、旧factory默认和未知版本拒绝、观测无正文或元数据；合成输入下与已测实验表示/分数一致。实验代码不得成为生产依赖。真实Rewrite/Summary、引用及usefulness仍独立验收。
 
-### 9.7 文号元数据软匹配（DR-KRET-035；已实施，live Profile 显式启用）
+
+### 9.8 文号元数据软匹配（DR-KRET-035；代码及仓库live Profile已配置，部署须另核实）
 
 **根因和方案选择**：现有`documentNo`为keyword，完整元数据可定位但与问题空格表示不一致；整句multi_match追加该字段不能解决此缺口。只改Prompt不能补齐服务字段行为；只扩大窗口增加噪声和成本；立即新增归一字段/候选索引涉及全记录迁移。优先采用可关闭的服务内部`document-number-whitespace-v1`，原文/向量/索引不动。若此方案在有限语法、错误机关反证或真实耗时上不能通过，则停止启用，另行评审规范化元数据候选索引，不继续堆叠规则。
 
@@ -329,40 +318,15 @@ V2域内排序键为rerank分数降序、RRF分数降序、chunkId升序（同�
 
 边界增补用例：同/不同机关两个完整文号以空格、全角空格或零间距相邻，两个目标均匹配；混合legacy/announcement、四项及第五项超限；第二项超长机关不得后缀命中；完整文号后裸年号/任意文字加简写仍不继承。服务测试检查同一keyword请求中两个正确metadata OR项及原multi_match/category保留，而非仅验证纯函数数量。先证明旧代码失败，再实施修正并执行上述Java合同/授权回归、当前Python历史与UAT追踪；不以合成测试代替真实效果。
 
-`VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。完整相关性分级由L2_01_02 §13.8治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
+`VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。原相关性分级按整理前L2_01_02 §13.8追溯；目标四维比较由当前L2_01_02 §9.4及UAT_01 §15治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
 
 接受限制：标识词法不是机关知识库，不能证明任意前缀、别名或法律身份；同一文号很多chunk仍可能占满窗口，此增量不承诺多文档Evidence完整。精确标识可选加分不参与合法性、时效或摘要充分性判定。已知缺口和错误机关/长文号/非文号反证必须进入对照，而不是为此追加循环Gate或逐题规则。
 
-### 9.8 离线重排窗口诊断（DR-KRET-036；增量设计评审通过）
-
-§9.6的正文优先表示与生产512-token窗口保持不变。字符上限不保证token可见；只把元数据移到前面会挤掉正文，盲目扩大检索topK不修复重排输入截断。推荐先对相同已授权来源池、同一query、模型权重和表示作有限窗口对照，不同时改变排序算法或Evidence准入。本节是离线测试方法，不创建第二在线流程，也不批准更大的生产窗口。
-
-1. **来源与作用域**：测试工具只读被冻结的typed结果、dataset及与其逐项SHA一致的当前公开来源；沿用现有来源/快照校验。精确case、池、模型revision/hash、窗口和调用预算归UAT管理。正文/query只在宿主及本地worker内存，通过stdin传入，不放进命令参数、日志或结果。运维读取不冒充一次新的用户读取授权；实验只使用原授权范围，不能让Agent直接查ES。
-2. **单变量**：先复现当前FlagEmbedding的query/文档tokenize及only_second截断，再用同一缓存权重直接forward，eval、fp16、固定batch和稳定同分次序。两臂只改变max_length，先确认query在较小窗口下也未截断；不调用含OOM缩batch重试的compute_score，不自动换CPU/模型/精度，不下载模型、不使用gold评分。缓存身份或窗口超出模型能力则推理前停止。量化/批次与线上不同所致限制必须披露，不能用离线耗时代替HTTP SLA。
-3. **进程与预算**：复用已运行容器中的缓存及依赖，仅启动带随机非敏感标识的临时worker；容器内timeout限制worker总时长并终止其进程组。宿主观测超时后不重启，只核实同一标识是否仍存活，最长等待原deadline结束；仅清理自己确认归属的worker，不停止共享容器/服务。固定推理批数，无重试；OOM、非法数、来源漂移或异常均保留有限失败并结束。
-4. **结果**：独占创建新结果文件，准备事件先于任何真实读取/推理；后续仅追加有限status/reason、源/代码/模型hash、case/chunk身份、分数、token数量、耗时、调用计数和资源统计。失败不能覆盖旧文件或保存异常正文。结果严格校验完整性、顺序、非bool有限数、实际预算及worker已结束；未知结果不写成measured。
-5. **判断与兼容**：同一top20池重排不能证明召回率提升；比较nDCG、前8相关性/直接支持/必要来源及时间资源，分数与qrels只在离线测量后结合。评分分布改变时不得自动沿用DR-KEV-034的0.5候选阈值。任何必要来源下降、无增益或资源不可接受均阻止生产切换；局部开发集改善只允许继续代表集验证，不关闭阶段B UAT。历史任务/结果、当前模型服务、原文、向量、alias及权限不改；回滚本测试无需部署动作。
-
-已实现`tests/system_e2e/knowledge_rerank_window_probe_v1.py`（宿主：来源/worker/有限记录）及`knowledge_rerank_window_worker_v1.py`（容器内：缓存模型及tokenize/forward）。只由测试工具引用，生产src不导入。fake覆盖来源/身份/预算漂移、同分、非有限输出、错误/超时/仍存活、独占文件、无下载和零重试；实际数据只证明冻结同池诊断。设计内审/分离复评及该切片实施验证记录由P3/UAT治理；后续生产变更另行评审，不用本节作为默认参数修改授权。
-
-### 9.9 原问keyword计划消费校验（DR-KRET-037；已实施，真实专项待验证）
-
-直接继承L1 KQ-AD-014与L2_01_00 DR-KFLOW-029。仅修改既有`retrieval/stage.py::DefaultKnowledgeRetrievalStage._execute`在首个embedding之前的计划检查，不新增Provider、路径或HTTP字段。`original_keyword_query`是可信本地Builder给出的来源断言，不是外部安全凭据；不接受前端、模型或JSON透传赋值。
-
-1. 字段为None：所有quality版本继续检查每域keyword/vector两项query_text相同，legacy流程保持原样。不得简单移除现行相等约束。
-2. 字段非None：必须为quality-v3、实际非空str、≤1024，满足既有`valid_plan_text`，且已经按现有QuestionEgressGuard规范化并被允许；所有keyword.query_text必须与该值exact相同。所有vector.query_text复用`valid_plan_text(..., max_chars=1024)`及Guard安全检查，不要求vector文本的空白与Guard.minimized_question相等，也不重新标准化已经通过decoder的合法query；它们来自原SemanticPlanner的分域query，不用keyword替换embedding输入。
-3. 保留原需求验证、1～2唯一已启用域、每域顺序keyword/vector、候选1～20及final边界；新来源模式还要求域属于现有`PROFILE_BY_DOMAIN`、candidate_limit为实际int、ordinal为按1..N排列的实际int。未知域、错路径/顺序、额外路径、类型或原问不一致均在网络前拒绝。不要用相同文本校验消灭合法的双表示。
-4. 任何构造后篡改或消费校验失败按原INVALID_PROVIDER_RESULT→downstream_failure收口，embedding/search/rerank为0；不尝试旧同query执行。每域vector失败只影响原计划该路径，不能补keyword或换query；原整域拒绝优先级、coverage、超时及取消不变。
-
-`IMPL-KRET-025`为上述Stage与现有typed Adapter、BGE组合的直接测试；向量按各域vector文本生成、同文本仍仅请求内复用，搜索仍每域2路，各臂来源和RRF权重不增加。需求rerank继续使用requirements.focus而非keyword原问；Evidence和Summary完全不改。Java接口、Profile、limit+1实现、索引/alias、读取授权及三层出域无变更。
-
-`TEST-KRET-032`→已新增`tests/unit/knowledge/retrieval/test_original_keyword_stage.py`：真实Stage配fake Ports验证两域4search/≤2embedding/按需求rerank；旧None同query保留，非法来源/空值/非NFC/超限/控制字符/敏感值/错域/错序/额外路径全部零调用；单路与整域失败不新增路径，取消后没有任务泄漏。`VAL-KRET-018`为定向测试、既有quality-v1/v2/v3及当前生产对象图/Spring回归、mypy/compileall和历史哈希。召回互补不证明精确率、Summary或任意模型改写有效，不能关闭真实专项UAT。
-
 ## 10. 并发、核心处理流程、错误分类与一致性
 
-§9.3和下列每域一次预算只描述保留的V2历史策略；当前生产已成对绑定§9.4 V3，每需求最多一次、总最多4次重排。其余并发、安全、失败与生命周期规则继续适用，不回算旧运行。
+目标使用§9.1/9.2；旧quality-v3的每需求重排不进入新主线。授权、失败与生命周期不变。
 
-- Stage为每个计划item建立有界任务；先按唯一query执行embedding（最多2次）再并发执行最多4次search，query→vector请求内映射，禁止错用第一域向量。所有路径完成并通过授权优先级检查后，按目录顺序串行执行每域最多1次rerank（共≤2次），每次调用前检查剩余deadline，不延长阶段时限；任何技术/授权失败不触发新域/新query。
+- Stage为每个计划item建立有界任务；对唯一原Q执行embedding（最多1次）再并发执行最多4次search，query→vector请求内映射，禁止错用第一域向量。所有路径完成并通过授权优先级检查后，按目录顺序串行执行每域最多1次rerank（共≤2次），每次调用前检查剩余deadline，不延长阶段时限；任何技术/授权失败不触发新域/新query。
 - cancellation/deadline 传播到全部 transport；任一并发 path 异常或阶段失败时取消并 join 未完成任务。
 - 整域 forbidden/authority failure 是安全失败，不能用另一 path/domain 的 success 降级。
 - rate limit、timeout、provider failure 是技术失败，由 L2_01_00 coverage 规则决定是否部分继续。
@@ -511,6 +475,8 @@ finally先停止且核实本次Popen PID，再关闭、扫描并删除本次精�
 
 ## 13. 实现落点清单
 
+保留组件和历史兼容编号见本节；新在线追踪见§9.4、新资料追踪见§18.5。旧实验落点不能作为目标策略已实施证明。
+
 ### 13.1 实现编号定义
 
 | 实现编号 | 路径与关键入口 |
@@ -524,17 +490,17 @@ finally先停止且核实本次Popen PID，再关闭、扫描并删除本次精�
 | `IMPL-KRET-007` | `agent-runtime/src/agent_runtime/knowledge/retrieval/fusion.py`、`bge_rerank.py`、`bge_embedding.py` |
 | `IMPL-KRET-008` | `agent-runtime/src/agent_runtime/knowledge/retrieval/settings.py`、Java `KnowledgeSearchProperties.java`/`KnowledgeProfileVerifier.java` |
 | `IMPL-KRET-009` | `agent-runtime/src/agent_runtime/knowledge/retrieval/http.py`、`agent-runtime/src/agent_runtime/bootstrap.py`：三个固定 client、transport 与 owned lifecycle |
-| `IMPL-KRET-010` | 新建 `knowledge-corpus-tools` 项目的 audit/contracts/schema modules：ES/官方来源只读盘点和 strict manifests |
-| `IMPL-KRET-011` | 新建 `knowledge-corpus-tools` 项目的 acquire/safety modules：官方域、redirect、大小、MIME/signature 与 immutable asset store |
-| `IMPL-KRET-012` | 新建 `knowledge-corpus-tools` 项目的 parsers/ocr modules：HTML/PDF/DOC/DOCX/XLS/XLSX、表格和 OCR |
-| `IMPL-KRET-013` | 新建 `knowledge-corpus-tools` 项目的 chunking module：结构块、稳定 chunk、关系和质量隔离 |
-| `IMPL-KRET-014` | 新建 `knowledge-corpus-tools` 项目的 embedding/indexing modules：BGE 1024 维、候选 mapping、复制和幂等写入 |
-| `IMPL-KRET-015` | 新建 `knowledge-corpus-tools` 项目的 release module：候选校验、alias 原子切换、冒烟、回滚和发布 journal |
+| `IMPL-KRET-010` | 已有 `knowledge-corpus-tools` 项目的 audit/contracts/schema modules：ES/官方来源只读盘点和 strict manifests |
+| `IMPL-KRET-011` | 已有 `knowledge-corpus-tools` 项目的 acquire/safety modules：官方域、redirect、大小、MIME/signature 与 immutable asset store |
+| `IMPL-KRET-012` | 已有 `knowledge-corpus-tools` 项目的 parsers/ocr modules：HTML/PDF/DOC/DOCX/XLS/XLSX、表格和 OCR |
+| `IMPL-KRET-013` | 已有 `knowledge-corpus-tools` 项目的 chunking module：结构块、稳定 chunk、关系和质量隔离 |
+| `IMPL-KRET-014` | 已有 `knowledge-corpus-tools` 项目的 embedding/indexing modules：BGE 1024 维、候选 mapping、复制和幂等写入 |
+| `IMPL-KRET-015` | 已有 `knowledge-corpus-tools` 项目的 release module：候选校验、alias 原子切换、冒烟、回滚和发布 journal |
 | `IMPL-KRET-016` | 新版本 Knowledge egress catalog、`application-knowledge-live.yml`/`serviceCenter` binding：新 snapshot 严格绑定，旧 catalog/历史证据不变 |
 | `IMPL-KRET-018` | 新增 `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_representation.py`：DR-KRET-030纯表示，不接入当前builder |
 | `IMPL-KRET-019` | `knowledge-corpus-tools/src/knowledge_corpus_tools/vector_candidate.py`：§12.9同步builder/spec/有限结果及HTTP错误边界；只拥有新候选写入，不负责模型加载或发布 |
 | `IMPL-KRET-020` | 建议新增`validation_alias.py`及版本化typed验证launcher：DR-KRET-032仅临时alias/隔离服务/有限证据；旧release.py、冻结launcher及在线Runtime不变 |
-| `IMPL-KRET-021` | `serviceCenter/warmup-knowledge-reranker.py`同步CLI（固定输入/端点，无参数覆盖；有限JSON stdout和退出码），由`run-all-services.ps1`在启动循环前调用；非live工具可显式执行，不修改历史launcher；实施证据见P3 §20.53 |
+| `IMPL-KRET-021` | `serviceCenter/warmup-knowledge-reranker.py`同步CLI（固定输入/端点，无参数覆盖；有限JSON stdout和退出码），由`run-all-services.ps1`在启动循环前调用；非live工具可显式执行，不修改历史launcher；实施证据见[整理前P3 §20.53](../plans/历史文档/2026-09-14-unified-v3-baseline/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) |
 | `IMPL-KRET-022` | 新增`knowledge/retrieval/bge_rerank_context.py`纯格式器/ContextualBgeRerankAdapter；provider.py内部版本参数、main.py显式绑定；旧bge_rerank.py不改 |
 | `IMPL-KRET-023` | 已新增`es-query-service/.../service/DocumentNumberQuery.java`包内纯函数；KnowledgeSearchService keyword构造、KnowledgeSearchProperties冻结布尔及KnowledgeProfileVerifier条件校验已接入；公共es-query-api、原配置默认和Python不变，验证与启用状态见P3/UAT |
 | `IMPL-KRET-024` | 建议新增§9.8测试侧宿主与本地worker；复用只读来源与纯计分，生产对象图不引用 |
@@ -575,6 +541,8 @@ KnowledgeSearchResponse search(
 ```
 
 ## 14. 测试与验证设计
+
+保留组件和历史兼容编号见本节；新在线追踪见§9.4、新资料追踪见§18.5。旧实验落点不能作为目标策略已实施证明。
 
 ### 14.1 测试编号定义
 
@@ -644,121 +612,23 @@ KnowledgeSearchResponse search(
 
 ## 16. 实施依据
 
-| 项目 | 结论 |
+| 项目 | 判定 |
 |---|---|
-| 是否可作为实现依据 | 是，DR-KRET-029已评审实施并完成成对接线及non-live；真实UAT尚未完成，见P3 §20.40 |
-| 当前允许实施范围 | 阶段B §9.4及§12.8/12.9已有实现；DR-KRET-032隔离typed验证和发布状态归P3；DR-KRET-033允许启动期合成预热工具/接线/fake，在线时限、原文及索引不变；发布仍受§12.6/12.7约束，不外推局部对照为真实效果 |
-| 当前禁止动作 | Agent/请求发起 ES 管理、原地覆盖/删除索引、未授权正文、未评审阶段 B 算法、图谱、公共接口变化或未冻结/超预算真实模型出域 |
-| 回滚单位 | 在线 retrieval 配置；离线 candidate 整体停用；alias 原子恢复精确旧目标；原始资产和历史证据不覆盖 |
+| 是否可作为实现依据 | 按范围可用：§9最小检索与§18资料合同可作为后续授权实施依据；非实现完成声明 |
+| 当前实现 | typed读取/授权、BGE、quality-v3与原阶段A已实现，原验证范围见P3/UAT；运行实例未在本轮核实 |
+| 当前允许实施范围 | 后续独立授权后：DR-KRET-201～204及301～307，按P3在线和资料两条直接依赖推进 |
+| 当前禁止动作 | 本轮仅文档；禁止代码、模型、运行配置、公共DTO、权限或索引操作 |
+| 回滚 | 后续在线按相容代码/任务/配置整体恢复或禁用；索引/alias回滚另按§12/18精确绑定 |
 
-## 17. 三轮内部自检与独立评审记录
+## 17. v3.0评审记录
 
-v2.14聚焦修订`B-READY-001`：仅TCP/health检查不能证明冷实例已满足在线推理时限。内审1确认只在运维启动期使用合成文本，不修改在线5秒/20秒及排序；内审2补齐重复key、bool冒充数值、完整回显、绝对deadline和下游超时后仍可能计算的边界；内审3明确disabled/PlanOnly零调用、单次预算、无历史runner注入、TEST/VAL和无新增Gate。冻结编辑后，按上位L1_01 §8本地模型配置/§10有界资源、REQ-KRET-004及CON-KRET-004，对§9.5、实际BGE接口及启动脚本作分层/跨层只读复评：本运维预热实施切片S0=0、S1=0、未处理S2=0，允许新增工具、启动接线和fake；不批准追加付费UAT或关闭阶段B。由同一执行者分离编辑复核，不冒充外部独立人员；端到端效果仍待真实证据。
+本轮仅整理文档，不继承旧评审。内审及正式分层、跨层复核的实际问题与结论见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)。整理前评审原样保存在归档；本轮为同一执行者分阶段复核，不冒充外部独立人员评审。
 
-v2.13聚焦审查：`B-ALIAS-001`（S1）为§12.7把所有alias操作放在typed验证之后，而Java启动依赖实际alias，形成发布前验证循环。内审1区分临时测试alias和线上发布；内审2补齐不明回执、UUID/归属漂移和清理失败时禁止越权恢复，明确多HTTP调用并非ES CAS；内审3补齐有限预算、TEST/VAL、未验证状态与不新增Gate。随后冻结编辑，按REQ-KCORPUS-003/004/006→KQ-AD-019→DR-KRET-024/025/032与实际KnowledgeProfileVerifier进行分层/跨层只读复评：本隔离验证实施切片无S0/S1/未处理S2，B-ALIAS-001设计关闭。允许实施临时alias/launcher，不批准线上发布、真实摘要或阶段B完成。由同一执行者分阶段复评，不冒充外部独立人员。
+## 18. 资料组织、结构切片与检索表示（新设计，未实施）
 
-v2.11三轮内审：第一轮核对仅附件重编码/全源clone及来源/引用/权限，明确原向量float32保持而非承诺恢复旧double；第二轮核对源只读/候选CAS/不明clone归属和失败封存，补齐client/响应/HTTP硬预算；第三轮核对TEST/VAL落点、未实现标记及P3直接前置，修复新测试命令被误判为现存引用。随后分离编辑进行L2及REQ-KCORPUS-003/004/006→SA-AD-006→KQ-AD-019跨层只读复评：构建器实施切片无S0/S1/未处理S2，可以编码；真实模型准备、候选实测和发布仍须其执行证据。同一执行者分阶段复核，不冒充外部独立人员；不将规则设计等同构建已完成。
+本节依据REQ-KCORPUS-001～006、REQ-KQ-201～205和L1_01 §4.6。定向细化§12的离线职责；§18在线首期固定索引的设计不变。新标准化及chunker采用新版本，不修改旧parser/chunker/manifest或现行索引。事实及样本见P3 §22；字段名称均为拟议离线内部合同，不是公共DTO扩展。
 
-v2.12集成合同纠偏：`B-CLONE-001`（S1）为永久resize来源假设与ES9.4.1恢复行为冲突，阻塞候选实施，不影响源索引。内审第1轮以官方API/源码及只读目标核查替换该假设，保留精确回执、新UUID和完整fingerprint；第2轮修复“先等green再绑定UUID”的步骤歧义，明确不明结果缺少来源时零清理写入；第3轮核对失败资产不重入、原文/ACL/非目标向量、TEST/VAL及发布前置。随后分离编辑对本DR-KRET-031切片及上位REQ-KCORPUS-003/004/006、SA-AD-006、KQ-AD-019进行只读复评，B-CLONE-001设计已关闭，无S0/S1/未处理S2，允许最小builder/fake修复。未批准复用失败构建、切alias或追加付费运行；同一执行者分阶段评审，不冒充外部人员。
-
-代码阶段补充复核澄清HTTP分阶段timeout而非绝对wall-time，并显式禁止环境代理；属于既有本地出域边界的落实，不放宽超时或权限。DR-KRET-031 builder及本地模型准备已完成代码对照复评和真实只读候选构建，全记录原文/权限/非目标向量保持通过；同窗口检索对照的证明边界仅为候选召回，不含typed授权、rerank、Evidence、摘要或发布。当前状态及有限证据由P3 §20.48管理，不批准追加付费效果UAT。
-
-v2.10聚焦设计复评：三轮内审核对表示/原文、有限错误和哈希、追踪/DAG；分离编辑只读复评DR-KRET-030及上位KQ-AD-019，无S0/S1/未处理S2，准入纯函数实施。由同一执行者完成，不冒充外部独立人员；候选构建/发布尚不具备实施依据。
-
-DR-KRET-030代码复核两轮：首轮修复非法Unicode异常仍通过`__context__`保留原输入的问题，复评确认有限错误、原字节/哈希、不可变和无I/O；纯函数切片无未处理Blocker/Major/Minor。测试与有限对照证据见P3 §20.46；不外推为候选迁移或阶段B整体完成。
-
-| 轮次 | 检查重点 | 结论 |
-|---|---|---|
-| 内审 1 | 两级 Profile、接口契约、来源与追踪一致 | Passed |
-| 内审 2 | 授权、错误分类、快照、本地模型和并发一致 | Passed |
-| 内审 3 | 真实落点、测试、兼容、链接和可读性检查通过 | Passed |
-| 独立评审 | `REV-L2-01-01-001` 已修复；typed retrieval、两级 Profile、读取授权、RRF/rerank 与实现复核通过 | Passed |
-| v1.2 聚焦评审与复评 | 前置纯校验替代半成品异步清理后，fixed origin、disabled 惰性、owned client、授权/快照失败关闭通过；无 S0/S1/未处理 S2 | Passed |
-| v1.5 三轮内审与独立复评 | 当前版本、上位依赖和实现依据已同步；retrieval/Profile/授权合同未改变，无 S0/S1/未处理 S2 | Passed |
-| v1.6 聚焦内审与独立评审 | 上位证据不足以批准检索调参；typed contract/Profile/排序不变；无 S0/S1/未处理 S2 | Passed |
-| v1.9 聚焦内审与独立评审 | typed retrieval、Profile/物理资源边界、授权及运行状态下沉核对通过；S0=0、S1=0、未处理 S2=0 | Passed |
-| v2.0 内审 1～3 | 在线/离线隔离、asset/解析/chunk/策略快照、候选零覆盖、门禁无环、回滚和非阶段 B 边界检查通过 | Passed |
-| v2.0 独立评审 | 阶段 A 合同、实现落点和跨层边界复核；S0=0、S1=0、未处理 S2=0 | Passed |
-| v2.1 内审 1 | 发现审计 v1 将来源不可达与正文缺失混淆、P0 关键字分级过宽、种子文档未计入父页面预算；已拆分三层事实、改为人工 P0/P1 清单并补齐预算语义 | Fixed |
-| v2.1 内审 2～3 | 复核官方替代来源、无重试/无第三方降级、入口/发布 Gate、在线合同和阶段 B 边界 | Passed |
-| v2.1 独立评审与复评 | 首轮修复 `REQ-KCORPUS-001～006` 逐项定义/追踪及 Audit/Design/Pipeline DAG；复评确认三层审计事实、官方替代来源、预算、候选零覆盖、alias回滚和历史不可变，S0=0、S1=0、未处理 S2=0 | Passed |
-| v2.2 代码/数据/索引对照评审首轮 | 受控来源、immutable asset、parser/OCR/table/chunk、candidate/policy full-membership、typed retrieval、alias三步演练及旧索引保护通过；复核发现 UAT attempt-01 的 PDF/时效证据映射不足，以及审计哈希、内容哈希、计数闭合、workspace 路径和 journal 前置保护需要收紧 | Fixed |
-| v2.3 复评 | 上述合同和测试均完成最小修复；UAT attempt-02 重新执行 14/14，通过同次运行直接验证 PDF parser、ACTIVE/EXPIRED、tax.law 当前税法 typed retrieval、alias 精确绑定及酒店住宿两类原文；Blocker=0、Major=0，未处理 Minor=0 | Passed |
-| v2.4 正式代码/数据评审首轮 | 发现 4 个官方 legacy DOC 虽有约 75 个“第…条”词面，但候选条款引用为 0；整体扁平化不满足 `DR-KRET-017～020/023` | Fixed |
-| v2.4 复评 | structured legacy DOC parser 形成 749 个有序 block、738 个 chunk 和 55 个条款引用；candidate a4、Profile/catalog 新快照、14/14 UAT attempt-04 与三步 alias 演练通过，Blocker=0、Major=0、未处理 Minor=0 | Passed |
-| v2.5 复评 | 新增 timeout、非法 Content-Length 和损坏容器有限失败测试；candidate a5 的工具源码 SHA、15521 chunk、5600 document、738 个新 chunk、55 个条款引用、14/14 UAT attempt-05 与 a4→a5→a4→a5 演练一致，Blocker=0、Major=0、未处理 Minor=0 | Passed |
-
-- 当前版本：v2.19；DR-KRET-036工具及离线诊断已完成，未满足扩大窗口判据，生产512保持。DR-KRET-037计划消费校验及DR-KRET-035完整文号扫描边界均已实施；代码配置与运行部署状态分开，实施和真实专项仍由P3/UAT管理。
-- 文档状态：Approved；既有增量评审见P3 §20.71，本次完整文号边界三轮内审与分离设计复评见P3 §20.80，仅批准该服务内部切片及non-live验证，不替代生产部署或真实UAT。
-- 新版本不继承旧版联调/Gate 流水；历史证据只支撑“当前冻结切片已验证”。
-
-## 阶段 B 增量实施追踪
-
-v2.8变更：DR-KRET-028及§9.3新增V2语义首位和域内相关性轮转，移除V1强制keyword锚点；本轮设计复评通过后可实施，未实施及真实效果缺口由P3如实管理。先前实施依据不覆盖未经本次复评的V2。
-
-| 来源 | 设计 | 实现落点 | 测试 | 验证 |
-|---|---|---|---|
-| `REQ-KQUALITY-001～004`；`KQ-AD-013～016` | `DR-KRET-027` | es-query-service KnowledgeSearchService.buildSearchBody；knowledge/retrieval/stage.py / contracts.py；历史V1策略绑定 | `TEST-KRET-022`：两路径size=limit+1和truncated、域内rerank/跨域round-robin、keyword/语义锚点、同分确定性、2/4/2调用上限、取消/授权/快照反证 | `VAL-KRET-008`：Java查询合同、Pythonretrieval fake与同索引本地有限对照、UAT_01 §14、历史回归 |
-| `REQ-KQUALITY-002`；`KQ-AD-014` | `DR-KRET-028` | 已新增knowledge/retrieval/quality_ranking_v2.py；修改stage.py按内部版本分派，旧quality_ranking.py不改 | `TEST-KRET-023`：语义首位、关键词低位无强占、域轮转、跨域去重、相同分数、有限数/取消/授权零调用、V1不变 | `VAL-KRET-009`：定向retrieval/Evidence/current root、全量non-live、UAT_01 §14 |
-| `REQ-KQUALITY-001/002`、`REQ-KRET-003/004`；`KQ-AD-018` | `DR-KRET-029` | `IMPL-KRET-017`：§9.4新需求排序及内部候选标签 | `TEST-KRET-024`：同域多证明、稳定去重/轮转、预算和失败路径 | `VAL-KRET-010`：非live、类型、服务契约和防回退；真实效果单独待测 |
-
-V1为DR-KRET-027历史策略，保持旧排序源码及历史绑定；v2.8新增DR-KRET-028策略V2，已按增量评审结论实施。UAT使用独立阶段B命名空间，验收标准和执行状态归UAT_01/P3，不继承历史Passed。
-
-`DR-KRET-027`：既有 typed vector/keyword 窗口必须实际执行；每个预选域使用其自己的检索表达和授权候选作一次 rerank，最多2次且总候选≤80。每域 keyword 首位与 rerank 首位去重后作为锚点，随后按域内稳定排名 round-robin 填充；不比较不同 query 的原始分数，不用文档ID/gold/case加分。策略版本进入运行快照，不修改 Profile/alias/索引。
-
-`DR-KRET-028`：V2以§9.3单语义锚点和纯域内rerank轮转替代V1双锚点/交错填充；只有已授权候选可参与，RRF仅作既有融合及同分排序，不追加内容信号。stage接受None（legacy）、V1、V2，其余在下游前拒绝。最终候选3..20、既有启动最小值≥2×enabled域数仍保留，不为减少锚点放宽启动配置。BGE每域≤40、总≤80、串行≤2次、deadline和取消不变。新函数不导入evaluation/gold，不修改旧V1源码；改动不会改变Java契约、Profile/alias/index或task版本。
-
-V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语义覆盖；不能以合成排名测试关闭真实专项。实施前三轮内审和独立只读复评已通过；V2已实现，真实专项效果未确认。回滚与内部版本成对绑定见L2_01_00 DR-KFLOW-022。
-
-## 18. 最小检索策略（新设计，未实施）
-
-依据REQ-KQ-204/205及KQ-AD-021/022/024；本节替代后续主线中§9.1～9.4、DR-KRET-027～029/037的质量编排，不替代typed请求、授权、快照/完整性、单次调用、取消或阶段A离线合同。旧实现和诊断保持原证明范围；本设计不迁移索引。
-
-### 18.1 有界检索与确定性排名
-
-`DR-KRET-201`：只消费L2_01_00 §19通过校验的knowledge-minimal-v1计划。每域keyword、vector各一次，全部使用同一安全原问Q；只在请求内计算一次1024维有限向量，由两域复用。每路limit=20；ES既有多取一项仅用于truncated标记，不扩大返回窗口。至多4次search/1次embedding，无兜底轮询或额外文档读取。固定Profile/alias/服务DTO、Java文号开关及当前映射不变。
-
-每个非空域对该域已授权候选按既有identity去重/RRF（k=60）排序，最多40项；相同identity跨路径或域存在内容/hash/策略冲突时全请求失败，不选择更高分版本。源身份、路径、域和快照一直保留，不允许先按分数过滤后跳过完整性检查。
-
-`DR-KRET-202`：每个非空域调用一次现有RerankPort，query=Q、≤40项，按目录顺序串行，最多2次、总≤80项评分；不再按模型requirements/focus重复评分。沿用当前authorized-body-first-metadata-v1输入表示及本地512token窗口，未声称能看到完整长正文；原候选正文不可被评分文本替换。
-
-域内按rerank分降序→RRF降序→chunk_id→document_id确定性排列。严格检查候选索引全集/唯一、有限分数及当前适配器归一化合同。域间按固定目录次序round-robin，每次取下一未见identity，重复项合并其已核验域来源，直到20项或队列耗尽；不比较不同域池裸分、不添加keyword首位/证明锚点、文档配额或特定ID加分。轮转仅保留域进入窗口的机会，不代表该域首位相关或充分。
-
-新策略不调用现有quality-v3需求标签逻辑，也不把旧coverage_anchor补成true。拟新增`agent-runtime/src/agent_runtime/knowledge/retrieval/minimal_ranking.py`，复用fusion与RerankPort；旧quality_ranking*.py保持历史调用方，后续单独查引用再清理。
-
-### 18.2 失败、预算和生命周期
-
-`DR-KRET-203`：所有选中域读取拒绝遵循现有安全优先，取消未完成分支并join；不得继续用另一个域掩盖拒绝。完整性或快照冲突不降级为partial。普通技术单路失败仅按既有coverage/每域候选与总候选最小阈值判断是否继续；全路失败、必要域无成功路径、rerank非法/失败为downstream_failure，Summary0。只有完整成功且候选全空才能no_candidate。部分继续保留failedPaths及retrievalComplete=false，不追加路径。
-
-请求retrieval总deadline20秒、每个HTTP阶段≤5秒；每次启动前检查剩余时间，超时/取消后不接收迟到结果，不启动下一域/阶段；retry=0。owned search/embedding/rerank client仍由Runtime关闭，不增加新连接池或跨请求向量缓存。合成预热与在线预算分开，不能把真实冷启动超时改判检索无结果。
-
-### 18.3 索引、向量及评分策略的比较边界
-
-`DR-KRET-204`：首期原问策略在现有binding v2指定的语料/向量配置上建立新基线，不认为body-only或context向量天然更优。仓库binding证明预期配置，不证明运行实例实际alias；后续真实测量前只读核对UUID、Profile和policy快照。代码、模型、向量/语料、服务部署四类基线独立记录；一类变化不能由另一类Git回滚自动完成。
-
-后续比较body-only/context、query改写、窗口或阈值时，每次只改变一个变量。使用同一公开原文身份/hash、切片、候选评价集合、模型配置、读取策略；同模型同参数下比较必要来源Recall/MRR、噪声及Evidence覆盖。若索引不同，先证明两者只有预定向量表示不同，不能混入语料补齐或mapping变更；做不到则不称因果比较。保持已发布索引只读，不自动重建或切alias。任何需要实际索引/模型迁移的后续实验须另获明确目标授权，不在本实施首期隐含执行。
-
-### 18.4 实施追踪与回滚
-
-#### 新设计编号定义
-
-| 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
-|---|---|---|---|---|---|
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201、DR-KRET-202、DR-KRET-203、DR-KRET-204 | IMPL-KRET-201、IMPL-KRET-202、IMPL-KRET-203 | TEST-KRET-201、TEST-KRET-202、TEST-KRET-203 | VAL-KRET-201、VAL-KRET-202、VAL-KRET-203 | 需求定义见REQ_00 §5.2；本节前述条款和下表逐项展开；全部待实施验证 |
-
-| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
-|---|---|---|---|---|
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201 | IMPL-KRET-201：retrieval/stage.py读取新计划；es_adapter.py、bge_embedding.py端口复用、不改公共DTO | TEST-KRET-201：原问一致、最多4search/1embedding、只启用域、授权/快照拒绝和零后续 | VAL-KRET-201：unit/contract/fake集成 |
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-202、DR-KRET-203 | IMPL-KRET-202：minimal_ranking.py、stage.py；provider.py继续当前BGE表示 | TEST-KRET-202：同分、跨域重复/冲突、无需求锚点、≤2rerank/80评分、失败/超时/取消、无gold导入 | VAL-KRET-202：定向、类型及current-root回归 |
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-204 | IMPL-KRET-203：后续tests/evaluation/knowledge中的独立同池比较及有限快照记录；本目标无代码资产 | TEST-KRET-203：不同语料/配置不得成对计分、缺标注为null、历史hash不变 | VAL-KRET-203：离线反例及后续只读服务验证，不能由fake证明真实召回 |
-
-仅Knowledge成对代码绑定迁移；检索部署前需功能、安全、typed Java及Business防回退通过。回滚为禁用Knowledge或恢复整套相容的代码/任务/配置绑定；不更改索引/alias，旧StageA原文及发布回滚证据保持不变。取消父配额/锚点/0.5为质量策略重新设计，不放宽读取授权、源完整性或原文引用；保留噪声和必要来源排在top20之外的效果风险，按UAT_01 §15验证。
-
-## 19. 资料组织、结构切片与检索表示（新设计，未实施）
-
-本节依据REQ-KCORPUS-001～006、REQ-KQ-201～205和L1_01 §18。定向细化§12的离线职责；§18在线首期固定索引的设计不变。新标准化及chunker采用新版本，不修改旧parser/chunker/manifest或现行索引。事实及样本见P3 §22；字段名称均为拟议离线内部合同，不是公共DTO扩展。
-
-### 19.1 来源层与标准化合同
+### 18.1 来源层与标准化合同
 
 `DR-KRET-301`：复用workspace的raw/parsed/manifests区，新增版本化sidecar `corpus-document-v2`，不建立生产数据库。先以已有合法本地资产重放；资料缺失记录缺口，不自动下载。严格JSON：重复键、未知键、错误类型拒绝；schemaVersion固定，字符串有界，未知为null或空tuple，不填猜测值；不可执行表达式/URL模板。原始11字段、源行身份和规范化结果分别保存，不覆盖来源值。
 
@@ -779,7 +649,7 @@ V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语
 
 只读核实发现某官方页面状态变化，应新增一次来源断言，不改旧snapshot。当前问题可返回未知时效资料作为查阅线索，但不得据此给出现行适用肯定结论；历史问题按明确期间核实，不能一律排除已废止文件。首期这些规则只用于离线核验/评估；在线缺少对应公共字段，不能宣称已支持时间过滤。
 
-### 19.2 身份、原文位置与结构切片
+### 18.2 身份、原文位置与结构切片
 
 `DR-KRET-303`：建立三个不同的hash作用域：原始资产bytes；规范解析源文本/ordered blocks；chunk精确可引用content。另有embeddingInputSha256，不能替代body hash。保留旧contentHash及其已知口径；未知标legacy_unknown，不重写旧字段或宣称数据损坏。Java对返回content重新计算的SHA继续治理在线完整性。
 
@@ -801,7 +671,7 @@ V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语
 
 输出为frozen chunk记录：既有document/asset/ordinal/content/hash，加source span、section/clause/table定位、structureStatus和contextRefs；未知定位可空但不得标verified。父关系完整不等于跨条款回答充分。质量未过的受影响单元保留隔离记录，并使其覆盖验收未完成，不能用跳过数量美化结果。
 
-### 19.3 分类消费与向量表示
+### 18.3 分类消费与向量表示
 
 `DR-KRET-305`：分类先保存在sidecar；需要ES消费时，由既有离线候选工具与es-query-service共同评审有限mapping/快照迁移。不按每个taxType/channel拆索引，不复制同文到多个分类库；独立索引只有隔离、生命周期、规模或同条件收益证据才能提出。现有channel→逻辑域映射保留，不用effectLevel推导相关性、用标签推导纳税人或用时效推导授权。
 
@@ -816,7 +686,7 @@ V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语
 
 输入预检必须按实际固定tokenizer计数，包含特殊token、标题、章节及分类开销；字符/UTF-8字节上限是独立约束。超长不静默截断、不借rerank窗口缩小原文；先在既有结构边界重切，仍不可表示则隔离并阻塞受影响范围。重切会改变实验变量，必须归入切片实验，不能继续声称纯向量表示对照。元数据最多512 code points且整体仍须满足实际token限额；不可用大量标签挤掉正文。模型/长度/维度未知则新embedding实验Blocked，本轮不得加载模型或执行推理。
 
-### 19.4 迁移、验证与回滚
+### 18.4 迁移、验证与回滚
 
 `DR-KRET-307`：先实现无网络标准化及结构回放，人工确认有限scope；再冻结新旧源manifest及chunk集合。纯向量对照固定切片、正文、ACL、模型与查询；重切片对照固定父文档/asset版本及原文预期span，评价身份不得仍用旧chunkId。分类和时效不能凭补齐率证明准确。实验预算与停止条件见UAT_01 §16；不自动创建效果candidate。
 
@@ -824,9 +694,9 @@ V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语
 
 “有限scope”指本次重规范化/重切片/表示变更及人工审计集合，不是仅保留这些文档作为搜索库；未受影响的全库竞争记录须原样保留并验证fingerprint。保留旧记录不代表已按新标准逐条认证，legacy_unknown/source_unverified仍需在结果中披露；不能把旧curated改称新官方gold。只对变更集合执行新准入，安全/快照及候选全记录保留检查仍覆盖全库，不扩大到重新采集全部历史资料。原预期依据无法核实的题单列source_gap，质量值为null且注明不具评价条件；保留在计划总数和数据缺口统计，不伪造Recall=0/1或悄悄删除。质量分母、有效/未评估数量必须同时披露。
 
-### 19.5 实施追踪（均为后续义务）
+### 18.5 实施追踪（均为后续义务）
 
-以下编号在本节定义，规则语义为§19.1～19.4；实现/测试/验证的具体含义在后续追踪表展开，并不表示代码已经存在。
+以下编号在本节定义，规则语义为§18.1～18.4；实现/测试/验证的具体含义在后续追踪表展开，并不表示代码已经存在。
 
 #### 新设计编号定义
 

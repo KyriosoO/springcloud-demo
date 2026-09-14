@@ -2,17 +2,22 @@
 
 > 文档状态：Approved
 
-## 1. 文档信息、上位约束与修订历史
+## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.8 |
-| 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
-| 归档来源 | [v1.8 已评审旧版](历史文档/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN_v1.8.md)；当前代码和既有接口 |
+| 归档来源 | [整理前 v2.8 原文](历史文档/2026-09-14-unified-v3-baseline/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.8 如实记录 v3合同、`value_refs`、多值 operator、有限同字段组合和行政区规范化均已实施；裸 slot 仍由既有 strict decoder/binder 校验，不新增容错或字符串改写。
+
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
+
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -82,7 +87,7 @@ filter 必须 exact 包含 `field/operator/value`；sort exact 为 `field/direct
 
 Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny`、`prefix_any→prefixAny`、`contains_any→containsAny`，均映射既有 `SearchFilter.values`；多个 filters 由服务 `bool.must` 组合。`chinese_name` 可配置 `eq/contains/prefix/in/prefix_any`，`contact_address` 仅配置 `contains/contains_any`。Transaction operator 集合保持不变；DTO/Java alias 仅归 Adapter 所有。
 
-文本策略由有限代码枚举及当前 filter operator 共同确定，不引入可配置表达式：普通安全 token 可包含 `_`，但 `contains` 必须收紧为不包含 `_`、`%`、反斜杠和控制字符的安全片段。`trans_type eq` 因现有 SQL 使用参数化 `=`，必须允许真实已存在的合法下划线类型；`trans_type contains` 因现有 Mapper 使用未转义 `LIKE`，必须在模型计划校验和 Adapter 两层均失败关闭。Employee 既有城市、敏感字段和 protected-ref 规则保持不变；统一配置只启用既有 operator，不能放宽代码绑定策略，也无需新增配置 schema 或规则引擎。
+文本策略由有限代码枚举及当前 filter operator 共同确定，不引入可配置表达式：普通安全 token 可包含 `_`，但 `contains` 必须收紧为不包含 `_`、`%`、反斜杠和控制字符的安全片段。`trans_type eq` 因现有 SQL 使用参数化 `=`，必须允许真实已存在的合法下划线类型；`trans_type contains` 因现有 Mapper 使用未转义 `LIKE`，必须在模型计划校验和 Adapter 两层均失败关闭。Employee按当前行政区、敏感字段及protected-ref多值规则处理；v3配置只启用代码允许的operator，不得放宽代码绑定策略，不引入规则引擎。
 
 时间文本必须是带明确 offset 的 ISO-8601/RFC3339 timestamp，按 `Asia/Shanghai` 合同归一，且 Java/Jackson/数据库 precision 必须由 contract test 证明；相对自然日未完成时钟/精度/边界验证时 unsupported。金额 literal 为 canonical decimal string，`abs≤9999999999999999.99`、scale≤2，发往 Java 时是 JSON number；禁止 float、舍入或截断。
 
@@ -90,54 +95,7 @@ Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny
 
 历史 `business-query.v2.json` 和 loader 保持字节与语义不变；当前生产新增 `business-query.v3.json`，仍由同一严格 Python 解码器读取并形成不可变 snapshot。本期不新增配置平台、DSL、watcher 或生产依赖。
 
-```json
-{
-  "config_version": "business-query-v2",
-  "code_contract_version": "business-query-contract-v2",
-  "domains": [{
-    "domain": "employee",
-    "actions": [{
-      "action": "employee.search",
-      "enabled": true,
-      "service_contract_ref": "employee.es.search.v1",
-      "pagination": {"max_page": 1000, "max_size": 50, "max_results": 50},
-      "sorts": {"max_items": 2, "directions": ["ASC", "DESC"]},
-      "keyword": {
-        "enabled": true,
-        "input_exposure": "literal_or_protected_ref",
-        "max_text_chars": 128,
-        "service_field_ids": ["contactAddress", "chineseName", "idCardNo"]
-      },
-      "timeout_ms": 2000,
-      "fields": [{
-        "logical_name": "contact_address",
-        "service_field": "contactAddress",
-        "model_safe_description": "员工联系地点的非敏感城市片段",
-        "value_type": "text",
-        "enabled": true,
-        "allowed_actions": ["employee.search"],
-        "allowed_operators": ["contains"],
-        "input_exposure": "literal_or_protected_ref",
-        "required": false,
-        "max_text_chars": 128,
-        "enum_values": [],
-        "combination_rules": [],
-        "data_class": "personal_address",
-        "user_visible": true,
-        "user_transform": "mask_address",
-        "model_visible": false,
-        "model_transform": "deny",
-        "sortable": false,
-        "result_required": false,
-        "code_contract_version": "employee.es.search.v1",
-        "service_contract_ref": "employee.es.search.v1"
-      }]
-    }]
-  }]
-}
-```
-
-示例只展示形状。v3 配置新增有限 `operator_combinations` 与 `normalization_profile`，两者必须是代码 definition 的子集；不得携带正则或表达式。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐且绝不进入模型目录。Employee keyword、endpoint、HTTP method 和 semantic profile 仍由既有代码边界控制。
+当前生效文件为`agent-runtime/src/agent_runtime/business/business-query.v3.json`；完整字段形状以该严格配置及本节约束核对。旧v2单值示例移至整理前归档，不再作为当前配置示例。v3 配置新增有限 `operator_combinations` 与 `normalization_profile`，两者必须是代码 definition 的子集；不得携带正则或表达式。`service_field` 只能与 Adapter 代码绑定映射逐字相同，用于启动对齐且绝不进入模型目录。Employee keyword、endpoint、HTTP method 和 semantic profile 仍由既有代码边界控制。
 
 输入 exposure 有限枚举保持不变；`value_refs` 是 protected_ref 的多值形状，不新增暴露类别。`contact_address` literal 只可通过版本化 code-bound 行政区目录规范化；配置只能选择该 profile，不能注入别名、正则或放宽判定。详细地址仍必须 protected ref。用户/模型 transform 为有限代码枚举，不能运行表达式。
 
@@ -219,10 +177,10 @@ Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
 | 当前实施状态 | QueryPlan/config/catalog/slot/projection、三动作 non-live/live/UAT 与跨语言合同验证已完成 |
-| 当前允许实施范围 | 已实施合同的缺陷修复、配置收紧和 non-live 回归 |
+| 当前允许实施范围 | 后续独立授权后：已实施合同的缺陷修复、配置收紧和 non-live 回归 |
 | 当前禁止动作 | 新增业务接口、权限扩权、放宽敏感/结果边界或允许 Agent 直接访问业务数据库/ES |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
 
 ## 10. 端到端追踪矩阵
 

@@ -4,33 +4,40 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v1.24 |
+| 当前版本 | v3.0 |
 | 文档状态 | Reviewed |
-| 更新日期 | 2026-08-28 |
-| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.3；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 |
-| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8；Employee L2 v2.8；Transaction L2 v2.6 |
-| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v2.40 |
+| 日期 | 2026-09-14 |
+| 上位来源 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.0；[`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0 |
+| 详细设计 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.0；Employee L2 v3.0；Transaction L2 v3.0 |
+| 实施前置 | [`P3_00`](P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) v3.0 |
 | 当前状态 | 35 个固定用例均已有可审查证据：18 个使用不可变真实 v4 QueryPlan/业务证据，17 个按风险使用当前生产组合根、Spring 安全链或跨语言契约自动化验证；没有把旧 detail/stub UAT 计入当前通过 |
-| 归档来源 | [v0.9 已评审旧版](历史文档/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN_v0.9.md)；当前代码和既有接口 |
+| 归档来源 | [整理前 v1.24 原文](历史文档/2026-09-14-unified-v3-baseline/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v1.24 保留原35项已通过结论并完成15类Employee自然语言扩展：candidate-04代表性13/13通过，结合candidate-03不可变302/307形成完整证据；四候选累计模型30、Employee27，未重跑历史候选。
+
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
+
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 验收目标与范围外
 
 验证输入安全闸门先形成最小化问题和 request-local slots，真实 LLM 再根据安全目录生成 `employee.search`、`employee.semantic_search`、`transaction.search` 三动作之一的 filters QueryPlan，经严格 decoder/validator/`value_ref` slot binder 和一次 Adapter 调用，复用现有 Employee ES/向量或 Transaction SQL 接口，返回受控列表。输入闸门不得选择业务动作或生成 filters；Knowledge 保持独立，不在本阶段执行效果验收。
 
-范围外：真实业务写入、聚合、新 endpoint/DTO、DB/ES 直连、workBase 查询、跨域 fallback、Employee 双接口拼装、历史 evidence 复用，以及未经授权的模型费用和敏感数据持久化。
+范围外：真实业务写入、聚合、新 endpoint/DTO、DB/ES 直连、workBase 查询、跨域 fallback、Employee 双接口拼装、将不等价历史evidence冒充当前通过，以及未经授权的模型费用和敏感数据持久化。
 
-## 3. 环境前置和准入门禁
+## 3. 原验证前置与后续复验边界
 
-1. P3 中正式 UAT 之前的 14 个新目标工作包按依赖完成，包括 v4 完整意图 Prompt；第 15 个 `WP-BQ-UAT-HANDOFF-02` 必须在 `GATE-UAT-007` 关闭后执行，不能反向作为本门禁前置；Employee 两入口最终读取授权已验证。
-2. `GATE-068` 已关闭；两个 Employee ES POST endpoint 使用明确绑定共享 `userRoleJwtAuthenticationConverter` 的专用真实 Servlet 安全链，ADMIN/VIEWER 允许及 denied/missing/malformed/service-token 拒绝矩阵成立；detail 和其他 endpoint 历史行为不变。仅有直接 Controller 单元测试或手工赋予 authority 的测试不能替代该证据。
-3. `GATE-069` 已关闭后才执行 Transaction 绝对 Date 用例；必须验证生产 Spring UTC 零毫秒 offset 响应字符串与 legacy standalone epoch 毫秒都转换为同一上海时区 instant，拒绝其他日期形态。相对自然日若无数据库精度/边界证据，仍按 unsupported 验收。
-4. 新三动作 filters task、code/config snapshot、权限、业务服务和 non-live/live 结果均属于当前设计，不得复用旧 detail 或旧 v2 Prompt 证据。
-5. 真实 provider、用户 JWT、Employee 标识和业务样本仅在明确授权后进程内使用；日志/evidence 只存有限 case 状态和调用计数。
-6. 联系地址样本确实支持 “上海” contains；若真实数据不存在，不得构造 workBase 样本伪造通过，应停止并报告数据前置缺失。
-7. `GATE-UAT-007` 是 UAT 准入与证据闭合门禁：成功业务规划风险必须由不可变真实 v4 结果覆盖；严格 JSON、身份拒绝、字段边界和跨语言契约可由当前自动化等价验证。默认 provider `stub` 不能单独形成业务成功证据。
-8. 三动作超时必须与代码/配置 snapshot 一致：Employee search 3000ms、semantic 10000ms、Transaction 5000ms；不得为规避超时增加重试、fallback 或第二次业务调用。
+原35项在冻结v4任务及当时服务/配置下验收，Employee扩展由§12单独验证v7。当前文档基线v3.0不改变这些原始版本，也不重授权运行。
+
+1. 后续受影响用例先完成P3直接依赖与明确资源授权；不以UAT交接包和自身门禁互相阻塞。
+2. Employee两个ES入口继续使用endpoint-scoped共享converter和真实Servlet角色矩阵；Controller单测/手工authority不替代真实JWT过滤链。detail/其他接口保持业务方原兼容行为。
+3. Transaction日期仍严格验证生产UTC零毫秒offset/legacy整秒epoch与上海时区同一instant；无批准时钟/精度的相对日期不猜测。
+4. 所有复验必须绑定task/code/config与读取授权；旧detail/stub不能充当当前成功业务证据。
+5. 真值与JWT只在授权请求内使用，日志/证据有限；不存在真实地区样本时如实报告数据缺口，不启用workBase。
+6. action预算保持search3000ms/semantic10000ms/transaction5000ms与请求deadline交集，无重试、fallback或第二动作。
+
+门禁状态唯一权威为P3，本文只规定风险与证据。
 
 ## 4. 固定验收顺序
 
@@ -97,7 +104,7 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 8. 结构化阶段收口
 
-回归 Access 认证/严格 JSON、LangGraph/Core、v4 Model task、filters 两级 decoder、Business validator/binder、不可变 JSON snapshot、request-local slots、用户 JWT 透传、三个固定 endpoint、单 action latch、取消、Knowledge 隔离、用户投影及模型出域默认拒绝。
+回归 Access 认证/严格 JSON、LangGraph/Core、对应冻结Model task、filters 两级 decoder、Business validator/binder、不可变 JSON snapshot、request-local slots、用户 JWT 透传、三个固定 endpoint、单 action latch、取消、Knowledge 隔离、用户投影及模型出域默认拒绝。
 
 每个成功业务 case 必须证明真实 QueryPlan 模型调用=1、对应 endpoint 调用=1、另一域/另一 Employee 动作/Knowledge/第二动作/重试=0。模型失败、非法计划、未配置字段、unsupported semantic+filter、非法日期/金额/分页均必须证明业务调用=0。
 
@@ -107,7 +114,9 @@ Employee 和 Transaction 用例组相互独立，若按用户指定顺序执行�
 
 ## 10. 用例—证据追踪
 
-当前权威机器可校验追踪资产为 `agent-runtime/tests/uat/uat_traceability.v2.json`，严格校验入口为 `tests/uat/test_current_traceability.py`。旧 `uat_cases.v1.json` 与 `structured-query-uat-v1` 结果只代表历史 `employee.detail + stub` 阶段，保持字节不变但不参与当前 35 个用例的通过判定。
+本v3.0是现行计划权威；uat_traceability.v2.json及loader中UAT_00 v1.24为原验证依据，字节保留。下列35项风险/预期/证据集合未变，因此等价复用；不标记为本轮新执行。扩展15类继续§12独立，不把原v4性能等同当前共享模型性能。新要求或证据失效时另补验证，不能靠改authority字面升级结果。
+
+原35项机器可校验追踪资产为 `agent-runtime/tests/uat/uat_traceability.v2.json`，严格校验入口为 `tests/uat/test_current_traceability.py`。旧 `uat_cases.v1.json` 与 `structured-query-uat-v1` 结果只代表历史 `employee.detail + stub` 阶段，保持字节不变但不参与当前 35 个用例的通过判定。
 
 | 用例 | 验证方式 | 当前证据 | 状态 |
 |---|---|---|---|
@@ -157,7 +166,7 @@ v3 controlled-run06 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f
 
 ## 12. Employee 自然语言扩展 UAT
 
-本组不改写第5～10节的35项历史结论。`GATE-081` 已由 non-live、类型、Java 与正式隔离全量回归关闭。受控 UAT 按候选冻结 HEAD、Business QueryPlan task、Prompt hash、business-query-v3 snapshot、15项用例和总预算；所有候选合计最多30次真实 QueryPlan、30次只读 Employee search，semantic/Transaction/Knowledge/answer、retry/resume/fallback 均为0。
+本组不改写第5～10节的35项历史结论。以下是已终止历史UAT的规则，不是新调用授权。原受控UAT按候选冻结 HEAD、Business QueryPlan task、Prompt hash、business-query-v3 snapshot、15项用例和总预算；所有候选合计最多30次真实 QueryPlan、30次只读 Employee search，semantic/Transaction/Knowledge/answer、retry/resume/fallback 均为0。
 
 | 用例 | 输入风险类别 | 必须生成的计划/行为 | 通过条件 |
 |---|---|---|---|

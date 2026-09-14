@@ -7,14 +7,19 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | REQ_00 |
-| 当前版本 | v2.5 |
-| 更新日期 | 2026-09-14 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
 | 需求来源 | 个人学习、Agent 架构验证，以及现有 Knowledge、Employee、Transaction 查询服务 |
 | 当前基线 | Knowledge 与 Business 查询能力均已接入统一 Runtime；功能验收和效果验收分开治理，具体运行状态由 P3/UAT 计划及 evidence 记录 |
 | 权威边界 | 规定业务目标、安全边界和验收；不代替 L0/L1/L2 或业务服务接口合同 |
-| 归档来源 | [v1.8 已评审旧版](历史文档/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS_v1.8.md)；当前代码和既有接口 |
+| 归档来源 | [整理前 v2.5 原文](历史文档/2026-09-14-unified-v3-baseline/REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md)；[完整性清单](历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.2 在既有 Employee 接口内增加受控多值引用、前缀/包含任一、同字段收紧型 AND 与有限行政区别名需求；v2.3 增加 Knowledge 阶段 A 的离线语料完整性要求，并保持在线查询合同、公共 DTO 与授权边界不变。
+
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
+
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 背景、设计目标与非目标
 
@@ -26,10 +31,10 @@
 
 | 对象 | verified existing | target design | 当前差距 |
 |---|---|---|---|
-| Knowledge | 既有问题改写、类型化检索、证据及摘要链路；最新有效效果等级为 partially_effective | 保持独立能力且不作为 Business fallback；离线补齐官方正文/附件，在线仍只消费受控只读索引 | 阶段 A 语料缺口已按有限 P0/P1/P2 边界完成处理并发布；域选择、改写、召回和排序质量仍由阶段 B 独立治理 |
-| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 读取守卫、endpoint-scoped 共享 converter、Agent Adapter 和真实 UAT 已通过 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | 上海联系地址真实查询返回 20 条；Employee search 6 次 |
-| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter、共享 converter、v4 完整意图与真实 UAT 已通过 | `employee.semantic_search` 返回受控列表；semantic+地址必须 unsupported/零调用 | 真实 semantic 返回 9 条；semantic+地址零业务调用 |
-| Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权；新版 Adapter、operator-specific 文本策略和真实 UAT 已通过 | `transaction.search` 完整映射既有列表搜索能力 | 正式 UAT search 7 次；相对日期/聚合零业务调用 |
+| Knowledge | 既有问题改写、类型化检索、证据及摘要链路；最新有效效果等级为 partially_effective | 保持独立能力且不作为 Business fallback；离线补齐官方正文/附件，在线仍只消费受控只读索引 | 阶段 A 语料缺口已按有限 P0/P1/P2 边界完成处理并发布；旧阶段B目标取消；在线最小方案及资料表示后续工作由P3治理 |
+| Employee 条件搜索 | `POST /employees/es/search` 支持 keyword、filter、分页、排序；Controller 读取守卫、endpoint-scoped 共享 converter、Agent Adapter 和真实 UAT 已通过 | `employee.search` 返回受控列表，业务服务执行读取角色授权 | 已有真实列表证据，原验证范围见UAT_00 |
+| Employee 语义搜索 | `POST /employees/es/vector-search` 支持 `queryText` 等语义检索参数，不支持结构化 filter；Agent Adapter、共享 converter、v4 完整意图与真实 UAT 已通过 | `employee.semantic_search` 返回受控列表；semantic+地址必须 unsupported/零调用 | 已有真实语义列表及不支持组合零调用证据，见UAT_00 |
+| Transaction 搜索 | `POST /txn/search` 已支持标识、类型、日期、金额、分页和排序，服务已执行读取授权；新版 Adapter、operator-specific 文本策略和真实 UAT 已通过 | `transaction.search` 完整映射既有列表搜索能力 | 相对日期/聚合仍不开放；原列表验收见UAT_00 |
 
 现有 `employee.detail` 属于已实现的历史能力，不是本版 Employee 主查询目标；调用方、兼容性和历史审计资产已核实，仅保留仍有调用方的历史兼容实现，不进入目标生产链路。
 
@@ -80,7 +85,7 @@ LangGraph 维护唯一请求级状态，每次请求最多调用一个动作和�
 
 ### 5.2 Knowledge 设计重建的需求边界（拟实施）
 
-v2.5仅澄清Knowledge需求，不改变Business、安全和语料发布合同。此前阶段B优化目标已取消；新设计及后续实施状态以P3当前章节为准，不继承旧授权和效果结论。
+本节沿用已批准的Knowledge需求，不改变Business、安全和语料发布合同。此前阶段B优化目标已取消；新设计及后续实施状态以P3当前章节为准，不继承旧授权和效果结论。
 
 | 需求 | 用户目标与成功判据 | 必要条件及拒绝边界 |
 |---|---|---|

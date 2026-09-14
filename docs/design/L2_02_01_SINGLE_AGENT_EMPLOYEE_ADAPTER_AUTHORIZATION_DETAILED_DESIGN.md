@@ -2,17 +2,22 @@
 
 > 文档状态：Approved
 
-## 1. 文档信息、上位约束与修订历史
+## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.8 |
-| 更新时间 | 2026-08-28 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v1.3 `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v2.8 |
-| 归档来源 | [v1.6 已评审旧版](历史文档/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN_v1.6.md)；当前代码和既有接口 |
+| 当前版本 | v3.0 |
+| 日期 | 2026-09-14 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.0；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v3.0 `DR-AUTH-007` |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.0 |
+| 归档来源 | [整理前 v2.8 原文](历史文档/2026-09-14-unified-v3-baseline/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。v2.8 如实记录姓名多值、同字段 AND 和行政区 contains-any 映射已落地；candidate-02 的拒绝发生在 Adapter 前，证明既有 endpoint 与 DTO 无需调整。
+
+本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
+
+修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
+
+本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -93,7 +98,7 @@ arguments exact 为 `query/size`；query 是安全业务文本 tagged literal，
 
 ## 6. 最终读取授权、权限与审计设计
 
-现有 `EmployeeEsController.search(...)` 和 `vectorSearch(...)` 已调用 `accessGuard.requireEmployeeRead(authentication)`。按共享安全设计 `L2_00_03 DR-AUTH-007`，还必须在现有 `EmployeeDetailSecurityConfiguration` 内新增仅匹配 `POST /employees/es/search` 和 `POST /employees/es/vector-search` 的 endpoint-scoped `SecurityFilterChain`，显式使用 `@Qualifier("userRoleJwtAuthenticationConverter")` 注入现有共享 Servlet converter。该链位于历史 detail 专用链之后、通用 fallback 链之前；只要求已认证用户进入 Controller，最终 ADMIN/VIEWER 读取决策仍由 `CapabilityAccessGuard.requireEmployeeRead` 执行。
+现有 `EmployeeEsController.search(...)` 和 `vectorSearch(...)` 已调用 `accessGuard.requireEmployeeRead(authentication)`。按共享安全设计 `L2_00_03 DR-AUTH-007`，已在现有 `EmployeeDetailSecurityConfiguration` 内建立仅匹配 `POST /employees/es/search` 和 `POST /employees/es/vector-search` 的 endpoint-scoped `SecurityFilterChain`，显式使用 `@Qualifier("userRoleJwtAuthenticationConverter")` 注入现有共享 Servlet converter。该链位于历史 detail 专用链之后、通用 fallback 链之前；只要求已认证用户进入 Controller，最终 ADMIN/VIEWER 读取决策仍由 `CapabilityAccessGuard.requireEmployeeRead` 执行。
 
 detail 专用链继续使用原有 matcher、converter 和读取权限；所有其他 Employee endpoint 继续匹配原有 authenticated-only fallback，其默认转换与既有调用方行为不得改变。不得为修复两个查询入口修改全局 converter、公共安全组件、公开 endpoint/DTO、角色集合或生产依赖。
 
@@ -168,10 +173,10 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
 | 当前实施状态 | endpoint-scoped converter、真实过滤链权限矩阵、detail/fallback 兼容、受控联调与 run03 UAT 已完成 |
-| 当前允许实施范围 | 已实施 Employee search/semantic 链路的缺陷修复及 non-live 回归 |
+| 当前允许实施范围 | 后续独立授权后：已实施 Employee search/semantic 链路的缺陷修复及 non-live 回归 |
 | 当前禁止动作 | 新增业务接口/DTO、修改全局 fallback、索引或业务数据，或恢复 detail 目标链路 |
 
-评审记录：当前大版本已通过独立分层与跨层评审；不继承旧版本评审过程。
+评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
 
 ## 11. 端到端追踪矩阵
 
