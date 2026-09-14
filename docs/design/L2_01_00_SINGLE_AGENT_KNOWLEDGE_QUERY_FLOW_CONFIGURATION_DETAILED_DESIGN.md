@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.33 |
+| 当前版本 | v1.34 |
 | 日期 | 2026-09-14 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.24](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | §19为新设计首期权威：意图12、原问题检索和模式化任务8；§7～18旧质量策略仅是当前源码与历史合同对照。新设计未实施，安全/授权/typed接口约束继续有效。 |
+| 上位文档 | [`L1_01` v1.25](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | §20补充离线资料与在线消费边界；§19意图12/原问/任务8设计不变。两项新设计均未实施，不增加公共元数据或读取能力；评审见P3 §22 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V11/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；DR-KFLOW-023～031已有定向non-live证据，真实专项未通过。验证由P3管理，效果由UAT_01管理 |
 
@@ -834,3 +834,31 @@ v1.21正式只读复评第1轮：冻结§8.3/DR-KFLOW-021修订后，依据REQ-K
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：12/8唯一、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、已有启动静态验证；真实部署另行授权 |
 
 新文件名与类名为拟议落点，非已经存在。TEST/VAL是后续实施义务，不是本次已执行测试。设计内审/正式复评及文档验证见P3 §21；本目标不准入代码、测试、配置或服务操作。
+
+## 20. 资料表示与在线流程的接缝（新设计，未实施）
+
+依据L1_01 §18的KQ-AD-025～028；离线具体字段与切片权威为L2_01_01 §19，引用权威为L2_01_02 §20。本节不改变§19的12/8/minimal-v1待实施方案，也不切换当前11/7/v3源码。
+
+`DR-KFLOW-301`：原始资料、标准化sidecar及向量构建只能由离线工具消费；Runtime不得读取本地语料目录、拼接ES字段、额外取父正文或按用户输入选择物理索引。读取授权仍先于候选正文进入后续Stage，父子关系只是来源关系，不是授权凭证。enabled=false继续无Knowledge依赖；新增离线元数据不成为统一启动的强制前置。
+
+`DR-KFLOW-302`：现typed候选仅有既有title/content/sourceUrl/documentNo/writtenDate等允许字段。taxType、effectLevel、validityStatus、effectiveDate及新的来源断言不会因为ES/sidecar存在而自动可见。首期不新增请求filter、公共响应字段或Prompt输入；writtenDate仍标记成文日期。无可靠时效证据时沿用既有不足/澄清边界，不能利用未传入的元数据宣称当前有效。支持按指定期间精确过滤或展示条款效力是另项合同设计，不伪装为本轮已具备。
+
+`DR-KFLOW-303`：离线候选迁移与在线代码发布独立。发布后的精确索引、Profile及文档出域目录必须成套相容；只读ES alias核实不等于运行Java/Python实例已加载该绑定。部署验收需分别证明索引实际目标、服务Profile、Runtime任务及策略；任一不一致失败关闭。回滚以相容整套绑定或禁用Knowledge为单位，不单换alias掩盖catalog不匹配。不得重用历史授权执行发布。
+
+### 20.1 实施追踪（未执行）
+
+#### 新设计编号定义
+
+| 规则编号 | 实现编号 | 测试编号 | 验证编号 |
+|---|---|---|---|
+| DR-KFLOW-301、DR-KFLOW-302、DR-KFLOW-303 | IMPL-KFLOW-301、IMPL-KFLOW-302、IMPL-KFLOW-303 | TEST-KFLOW-301、TEST-KFLOW-302、TEST-KFLOW-303 | VAL-KFLOW-301、VAL-KFLOW-302、VAL-KFLOW-303 |
+
+#### 资料接缝追踪
+
+| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|---|
+| REQ-KFLOW-007、CON-KFLOW-005、KQ-AD-025/028 | DR-KFLOW-301 | IMPL-KFLOW-301：现bootstrap/settings及离线工具的依赖隔离检查；原则上不改Runtime | TEST-KFLOW-301：disabled零依赖、不得导入corpus工具、父关系不扩读取 | VAL-KFLOW-301：静态及fake边界回归 |
+| REQ-KQ-203/204、KQ-AD-026 | DR-KFLOW-302 | IMPL-KFLOW-302：复用es_adapter/codec及既有DTO白名单，测试防止离线字段泄漏 | TEST-KFLOW-302：成文非生效、未知日期/分类不注入、无额外父查询 | VAL-KFLOW-302：Python/Java契约和脱敏观测测试 |
+| REQ-KFLOW-007、CON-KFLOW-005、KQ-AD-028 | DR-KFLOW-303 | IMPL-KFLOW-303：既有Profile verifier、binding/catalog部署验证；不新增服务 | TEST-KFLOW-303：alias/UUID/catalog错配、取消及恢复旧成套绑定 | VAL-KFLOW-303：fake后另授权隔离typed验证 |
+
+本轮只读审计不运行这些测试或部署。测试缺口和发布步骤列入P3 §22，当前公开合同原样保留。

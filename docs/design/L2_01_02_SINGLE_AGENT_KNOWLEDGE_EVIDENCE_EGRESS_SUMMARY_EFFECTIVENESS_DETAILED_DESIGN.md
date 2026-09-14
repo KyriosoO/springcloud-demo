@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v1.26 |
+| 当前版本 | v1.27 |
 | 日期 | 2026-09-14 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V7（V7为当前生产绑定）、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v1.24](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | §19为新设计首期权威：查询模式、最小Evidence及Summary8；旧需求证明/评分策略仅作当前源码对照。引用、安全、三层出域及旧评估结果不改；新设计未实施、未测效果。 |
+| 上位文档 | [`L1_01` v1.25](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | §20补充可引用原文、派生上下文、哈希与时效证据边界；§19模式化Summary8设计不变。新设计未实施、未测效果；评审见P3 §22 |
 | 来源文档 | [L2_01_02 v0.34 归档版](历史文档/2026-08-21-v0-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
 | 实施状态 | Evidence/Policy、Summary V7/quality-v3生产接线及定向non-live已完成；旧功能UAT、效果口径v2及阶段A快照保持原证明范围。新版真实效果未验证、完整专项未通过；最新有效P5仍为`partially_effective`，具体候选、门禁和证据由UAT_01/P3/evidence管理 |
 
@@ -697,3 +697,33 @@ DR-KEV-026治理历史V1；v1.20目标为下述V2，在设计复评前不得实�
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KEV-204、DR-KEV-205 | IMPL-KEV-203：stage.py/当前根/脱敏观测直接接缝及后续tests/evaluation/knowledge与UAT追踪 | TEST-KEV-203：无明文/跨请求污染、无fallback、四维计分/缺料不删case | VAL-KEV-203：功能安全non-live后，另授权有限真实/人工评价 |
 
 新旧模式合同必须随Knowledge整套版本切换，不能只换Prompt、保留quality-v3的强制需求输入。回滚优先禁用Knowledge；恢复旧配对时仍检查当前索引/策略相容，不改历史结果或全局模型。阶段A、Business、公共DTO、policy权限均零变更。正式设计及文档验证记录见P3 §21。
+
+## 20. 资料表示与原文证据边界（新设计，未实施）
+
+依据KQ-AD-025～028及L2_01_01 §19；§19新在线Summary8合同仍是独立待实施设计。本节不更改现有Evidence/Policy/引用validator、任务版本或公共返回字段。
+
+`DR-KEV-301`：source dataset是采集/分发来源，官方URL才是发布来源线索，两者都不自动证明当前效力或读取/出域许可。仅有curated名称、标题或模型摘要而缺少可核查来源的材料，不能作为新的官方gold或适用性证明。保留既有库存和历史证据；新迁移范围须标source_unverified并补人工来源核验，不能借新的分类标签把未知资料认证为官方。许可声明需保留来源，不把数据卡声明扩成商业再分发授权。
+
+`DR-KEV-302`：可引用content与检索context分别治理。标题、章节路径、父说明和重复表头可帮助检索，但不构成原文quote；只能引用实际已授权content的连续子串。跨chunk、跨表头/行或跨条款拼接不是连续原文，不得为了覆盖完整而放宽校验。需要多个片段时仍受既有唯一ref/条数/字节预算；当前公共合同无法表达完整表格或额外父读取时，返回既有不足边界并记录限制，不隐含新接口。
+
+`DR-KEV-303`：库存contentHash、原始asset hash、标准化源hash、chunk body hash和embedding input hash含义不同。Java对实际content生成的hash仍是在线输入完整性依据，不能改用元数据hash或新向量hash。重切片后使用新chunk identity，原evidence与旧snapshot保持可追溯；新策略目录仅迁移相容身份/快照且不扩权。未知旧hash口径不等于篡改，也不能用于证明精确原文相同。
+
+`DR-KEV-304`：成文日期仅作来源信息；当前源快照的active/pending不能替代当前核验。文档部分失效不证明某条款有效或失效；未知不是有效，也不是自动禁止查阅。资料查找允许受控返回相关原文线索；适用性肯定结论仍需明确期间、主体及直接规则证据。来源元数据未进入现有DTO时，不能在Prompt/结果中伪装已知；新时效展示/过滤另作公共合同评审。人工评估须把“片段引用合法”和“条件/期间有依据”分别评分。
+
+### 20.1 实施追踪（未执行）
+
+#### 新设计编号定义
+
+| 规则编号 | 实现编号 | 测试编号 | 验证编号 |
+|---|---|---|---|
+| DR-KEV-301、DR-KEV-302、DR-KEV-303、DR-KEV-304 | IMPL-KEV-301、IMPL-KEV-302、IMPL-KEV-303 | TEST-KEV-301、TEST-KEV-302、TEST-KEV-303 | VAL-KEV-301、VAL-KEV-302、VAL-KEV-303 |
+
+#### 资料证据追踪
+
+| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|---|
+| REQ-KEV-001、REQ-KEV-007、CON-KEV-003、KQ-AD-025/028 | DR-KEV-301 | IMPL-KEV-301：来源sidecar与后续人工gold准入；保留现policy/integrity | TEST-KEV-301：dataset/official/curated分离、来源未知及越权父关系 | VAL-KEV-301：来源人工核查及安全反例 |
+| REQ-KEV-001、REQ-KEV-003、REQ-KEV-007、KQ-AD-027/028 | DR-KEV-302、DR-KEV-303 | IMPL-KEV-302：既有Evidence identity/substring测试补齐新chunk回放；不改validator | TEST-KEV-302：派生标题/表头不是quote、拼接拒绝、不同hash作用域及旧snapshot | VAL-KEV-302：unit/contract/fake及后续typed只读证明 |
+| REQ-KQ-201/203/205、KQ-AD-026 | DR-KEV-304 | IMPL-KEV-303：后续UAT-KORG时效/充分性人工核对；不新增模型字段 | TEST-KEV-303：未知/部分失效、成文与生效不同、当前/历史期及合法却不充分引用 | VAL-KEV-303：功能安全与回答质量分列，不用模型自评代替人工 |
+
+本阶段只设计这些验证，不执行新的摘要或效果UAT。完整评审及本轮文档验证由P3 §22记录。

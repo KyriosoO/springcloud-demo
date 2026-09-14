@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.73 |
+| 当前版本 | v2.74 |
 | 文档状态 | Reviewed |
 | 更新时间 | 2026-09-14 |
-| 适用范围 | 已有Business/Knowledge及语料证据保留原范围；新Knowledge设计重建与后续实施交接，以§21为当前新增权威 |
-| 实施授权 | 当前仅§21设计重建、文档评审验证和目标文档Git提交推送；不授权代码、配置、服务、模型调用或索引操作。Ready不等于实施授权，旧预算/批次不继承 |
+| 适用范围 | §21在线重建实施交接保留；§22资料组织与检索表示只读审计、设计及独立后续计划为本次增量 |
+| 实施授权 | 本轮只读代码/文档/公开来源与既有Knowledge索引、有限抽样、授权文档修订评审验证及Git提交推送；不授权代码/配置修改、服务、推理或索引写入。Ready不等于实施授权，旧预算不继承 |
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
@@ -67,13 +67,13 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.24 | 三类查询、分类决策与原问最小链路 | Approved；新设计结论见§21，不证明实施或效果 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.33 | §19意图12/原问计划/失败映射；待实施 | Approved；新设计结论见§21，不证明实施或效果 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.20 | §18原问召回/RRF/域内重排；阶段A保持 | Approved；新设计结论见§21，不证明实施或效果 |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.26 | §19最小Evidence/Summary8与四维验收；待实施 | Approved；新设计结论见§21，不证明实施或效果 |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.25 | §17在线重建及§18资料组织决策 | Approved；新设计待实施，不证明效果 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.34 | §19在线合同、§20离线资料消费边界 | Approved；新设计待实施 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.21 | §18检索、§19来源/切片/分类/时效/表示及迁移 | Approved；新设计待实施 |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.27 | §19回答及§20原文/派生表示/时效证据边界 | Approved；新设计待实施 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.49 | §15新设计验收方法；旧37项及各真实结果保留原范围 | Reviewed；新设计结论见§21，不证明实施或效果 |
-| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.10 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.50 | §15在线与§16资料表示分维验收；旧证据不改判 | Reviewed；本轮未执行新UAT |
+| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.11 | 资料组织/表示的定向补充；旧阶段A证明范围保持 | Reviewed；当前资料设计未实施 |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
 
@@ -3453,3 +3453,167 @@ UAT_01 §15独占新方法和case类别；功能、安全、召回、回答四�
 校验过程未隐瞒：首轮Flow追踪列和P3 Ready固定措辞检查失败，补齐后通过；In Review暂态与历史Approved标记触发3份L2状态告警，正式复评通过后仅更新当前状态并重验，历史不改。一次自编版本检查使用错误PowerShell通配符，输出无效；已改为精确字符串及Stop-on-error重跑，最终10引用实际检查通过。发现脚本只把三份L2分为unknown，已人工按文件层级和正文确认，不靠发现器分类宣称已审查。
 
 本轮不执行pytest/mypy/compileall/Maven、服务、网络索引核查或真实UAT；不引用旧测试数字作为本轮结果。新增模型/search/embedding/rerank为0。设计包完成，后续5个实施/测量包未实施；文档交付以包含本节的目标提交成功推送为准，提交SHA、远端回读和最终工作树状态由最终报告给出，不写自引用SHA。
+
+## 22. 资料组织与检索表示设计审计
+
+### 22.1 本轮范围、来源和实际基线
+
+本轮目标仅审计及设计。§21在线设计及实施包保留，旧阶段B目标/预算不恢复。授权8份Knowledge设计/计划/索引文档；REQ/L0现有离线职责已经覆盖，不作无关升级。未改代码、测试、运行配置、公共合同或历史资产；未启动/停止服务、读取模型凭据或调用LLM/BGE推理。
+
+核实日期2026-09-14，起始分支codex，HEAD `968d3c89f993f532e7085a529f55cc41c6d39fc2`，upstream origin/codex一致，工作树clean。代码读取确认settings默认disabled，bootstrap enabled绑定Rewrite11/Summary7/quality-v3；12/8/minimal-v1仍是§21待实施设计。本轮没有核实运行Java/Python实例加载的配置或任务，不把仓库默认值等同部署行为。
+
+来源核实：[数据卡](https://huggingface.co/datasets/salpt/chinatax-policy-corpus)及HF只读API记录revision `db52ff69471dab17eef664fa7814d62798745720`，lastModified `2026-02-27T11:04:29.000Z`。卡片声明采集自税务法规库、采集日2026-02-27、5593条、11字段、CC-BY-NC-4.0。上述是发布者声明，不等于官方认证、当前全库状态或商业再分发许可；本轮没有下载完整源数据。数据集记录、官方正文、本地curated和新增附件chunk分别计数，不要求三者数量相等。
+
+| 事实层 | 本轮实际核实 | 证明范围与限制 |
+|---|---|---|
+| 仓库预期 | serviceCenter/knowledge-runtime-binding.v2.json、Java application-knowledge-live.yml | 预期Profile/alias；不是运行实例配置证明 |
+| 实际ES | 既有loopback 9200可读，版本9.4.1；alias `agent-doc-tax-policy-v2-read` → `agent-doc-tax-policy-v5-20260907-vector-b2`，write-block=true | 已证实本轮读取时目标；未调用typed在线服务或模型 |
+| 索引绑定 | UUID `jJ5Ww3LCRWWycfDkUZvmdw`；mapping canonical SHA256 `15edfec4b2cbecdef36113d353c27ae7e1222a434350ef02dddfa1781a3f5500` | mapping JSON排序键、紧凑分隔、ASCII转义后UTF-8 hash；不是全索引内容fingerprint |
+| 表示 | embedding映射1024维/cosine；mapping meta `agent-knowledge-tax-v3-policy-context-v1` | 未返回任何向量；维度/exists不证明有限数、模型一致或实际无截断 |
+| 模型 | 仓库BGE及已有构建manifest/表示源码 | 本轮未加载tokenizer、访问推理端口或核实实际服务模型；历史无截断证据只限原范围 |
+| 阶段A与效果 | 既有a5发布、v2绑定及UAT记录只读复用 | 不重做发布/效果验证；本次alias不等于a5，旧结果不改判 |
+
+### 22.2 有限统计、抽样方法与局限
+
+统计使用白名单_source、exists/聚合及search_after；元数据每页500、≤40页/20000条，实际33次分页search（含末页空结果），超时有界。正文长度由服务端脚本返回整数，完整正文/向量不进入日志。全库统计不调用embedding/rerank，也不写索引。返回timeout/shard failure或分页超限必须使该统计无效，不能以部分量外推。
+
+| 指标 | 本轮结果 | 解释 |
+|---|---|---|
+| chunk / distinct documentId | 15521 / 5600 | 其中旧chunk14783、新附件chunk738；documentId包含4个独立附件身份，不能称5600篇独立原始政策 |
+| 来源分布（chunk） | HF15518、curated3 | 不是两类来源的同等官方性认证 |
+| writtenDate/effectiveDate | 均15521非空，15521两值相等 | 明显口径风险；不推出每条都错误，也不以100%填充率认定时效完整 |
+| validityStatus | UNKNOWN8712、ACTIVE3567、EXPIRED1890、AMENDED1349、PENDING3 | chunk加权的库存枚举；不是当前政策有效性认证 |
+| effectLevel / taxType缺失 | 1557（10.03%）/3633（23.41%） | 分母15521；已存在分类但不完整，未核实原始行是否本来为空 |
+| labels / issuer缺失 | 4707（30.33%）/1559（10.04%） | 分母15521；不存在或空值，不能由模型补全 |
+| sourceUrl缺失 | 3（0.02%，curated） | 分母15521；缺URL不直接证明伪造，但新官方gold须另有可核查来源 |
+| channel分布（chunk） | 税务规范性4377、财税3447、工作2065、其他1643、解读1557、法律1231、部门规章640、行政法规381、国务院177、curated3 | 名称简写；chunk加权，不是独立政策数量、法律效力或相关性排名 |
+| 长度 | min2、p50=512、p95=1091、max1166、空0 | ES脚本String.length为UTF-16单位，不等于Python code point或模型token；也不证明全篇完整 |
+| 附件关系 | 4个附件doc、738chunk，parentDocumentId均可解析到本库父文档；同属1个父文档 | 只是已索引关系检查，不是全库官方附件清单完整率 |
+| 结构/表示字段 | assetId/parserVersion/sectionPath/vectorRepresentationVersion各738；clauseId55；tableId非空0 | 14783旧chunk缺少这些逐记录版本；没有tableId不能证明源资料没有表格 |
+| 附件短片段 | 355/738不足40字符；均值约53.45，最大348 | 风险信号不是删除阈值；表头、条号等短块可能必要 |
+| 存储contentHash重复 | 10组、超出首项共11条 | hash口径未统一，不能据此合并转载/修订或证明实际内容完全相同 |
+| embedding字段覆盖 | 15521/15521 | 仅存在性和mapping，未核实实际浮点数及逐记录模型来源 |
+
+在正文阅读前固定抽样：依次遍历排序后的channel、validityStatus，各选最小未入选documentId；补附件、表格、多税种、缺税种、缺日期维度，再选聚合最长/最短文档，剩余按稳定ID补足30。无可选tableId/缺effectiveDate分层时记录零候选，不伪造替代。附件样本计入其父文档配额；本次30个选中身份对应30个父范围，其中1个直接检查已有附件。样本有589个chunk，原文只在内存有限核对首/中/末及结构信号；不是逐条人工认证589个片段或全库法律适用性。
+
+冻结有序ID清单的SHA256（紧凑JSON、ASCII转义、UTF-8）为 `e8892bfabcf793d5cb7648b310f9b76f033bde391f21c7c822104d64932b6071`。分析后未更换样本；下表给出可重放身份，标题仅作简写，不保存正文。
+
+| 序号 | documentId | 样本/观察（非全库结论） |
+|---|---|---|
+| 1 | tax-curated-eit-rates-current | 人工汇总；sourceUrl缺失，需补来源核验而非当官方gold |
+| 2 | tax-0001c0a09c307565464b087b | 出口监管仓库；附件列名仍可见 |
+| 3 | tax-001544ec4d92c5703c34ae07 | 家禽业期限政策；旧成文日与ACTIVE不证明当前适用 |
+| 4 | tax-00d0b1427656304462a7448f | 注册税务师指导意见；税种缺失、长文句中边界 |
+| 5 | tax-00229650537a3b3d877107e7 | 通行费解读；税种缺失 |
+| 6 | tax-019ea6f7f4c35baaefe02c24 | 刑法修正案十二；法律、句中切分 |
+| 7 | tax-00715107b409f994bc644df2 | 加速折旧；部分修改状态、条件跨片风险 |
+| 8 | tax-02b44d339eb4c74550035f97 | 个人所得税规定；历史表格扁平化，tableId缺失 |
+| 9 | tax-0002924ef106c0c06b9dc13d | 特区城市减免规定；EXPIRED历史材料 |
+| 10 | tax-005f02ca7957e8b78645d112 | 纺织品出口退税；UNKNOWN |
+| 11 | tax-00e2f2e93411768b1b3fe617 | 建筑安装跨省个税；ACTIVE来源断言 |
+| 12 | tax-0153fe0190349ffd2d7a558d | 新版增值税发票；AMENDED |
+| 13 | tax-0118f775f1e2ce8326599048 | 协定独立个人劳务；EXPIRED |
+| 14 | tax-6f623dca1044eea5879ab6ec | 欠税公告办法；PENDING与官方当前状态不一致 |
+| 15 | tax-003fbb3fb580a29c857b233d | 无废城市方案；多税种标签 |
+| 16 | tax-50abf52b7a181b8974c97fd4@asset-0b9c99e7dfb27c8e600743d7 | 营改增实施办法附件342片，其中174片不足40字符 |
+| 17 | tax-011a092cafabd4c34ae721f8 | 农民合作社；多税种 |
+| 18 | tax-006e14df4a49b41524143578 | 离岛免税解读；税种缺失 |
+| 19 | tax-bf68682329533fb00cedaf31 | 民法典170片；目录与正文边界、长文 |
+| 20 | tax-c4e606c9698b71628de81e52 | 邮政快递布局意见；库存45字符只见注释/附件名线索，源正文未确认 |
+| 21 | tax-0065c0ef49a677c183569ac6 | 铁路航空汇总纳税；XLS附件列名线索 |
+| 22 | tax-006f56e6048b0a128f676d14 | 固定资产进项抵扣；短文 |
+| 23 | tax-008c9d6e47d38eceef4628cd | 小型微利征管解读；表格扁平及缺税种 |
+| 24 | tax-00b4c2584898390cc5568d03 | 跨境便利化改革；长文 |
+| 25 | tax-00cc0501b1d3c6b075489c55 | 海南所得税优惠；短文 |
+| 26 | tax-00d6b9ba6bc51c8788ba1fba | 宪法宣誓；缺税种 |
+| 27 | tax-00d80b04ca4cc42d360ee18c | 防汛车辆购置税；短文 |
+| 28 | tax-00ed00a70007fe2b9c0489b7 | 医保参保指导意见；较长文 |
+| 29 | tax-00f23a9d28705216fc244204 | 公益股权捐赠；短文 |
+| 30 | tax-00f6f7232ae99dc4d83656f1 | 个税优惠衔接；句中切片及条件连续性 |
+
+本次样本不具统计代表性，不能推算全库准确率；没有原始完整dataset行与所有资产文件的逐字比对，没有OCR原扫描件重新核验。第20/21项仅确认库存线索，不把网页预览截断或附件列名自动等同源文件缺失；后续语料维护可独立核实，不在本目标补下载。
+
+### 22.3 字段到存储与消费的映射
+
+代码依据：knowledge-corpus-tools的audit.py/models.py/chunking.py/indexing.py/vector_representation.py；es-query-service的application-knowledge-live.yml及KnowledgeSearchService.mapCandidate；Runtime的es_adapter及bge_rerank_context。旧14783片导入转换源码在本次跟踪文件检索中未定位，不能把现有映射全归因于当前工具；不执行遗留pyc。矩阵区分库存观察与可读代码事实。
+
+| 来源字段/关系 | 当前标准化及文档/chunk字段 | keyword/vector使用；返回/引用 | 缺口及最小处理 |
+|---|---|---|---|
+| title | 库存title；新增附件标题来自资产，父标题另有关系 | keyword、context向量、rerank；typed citation title | 保留raw/规范值及来源；标题不是适用性证明 |
+| channel | 库存channel；新附件复制父类别 | Java固定Profile域过滤，不直接返回模型 | 保留既有域映射；channel不能代替法律效力或文件类型 |
+| content | legacy切片正文；新ParsedBlock→chunk，原文/表格规范化有parser版本 | keyword/body向量/rerank/Evidence；typed content及Java重算hash | 旧全篇位置未知、短块/句中/表格边界；新结构回放及跨度合同 |
+| document_number | 库存documentNo | 既有文号接缝、rerank和citation | 旧标准化细节未证实；保留原值、单独规范键，不把文号当版本唯一键 |
+| effect_level | effectLevel可空 | 当前typed路径不消费、不返回 | 不是数据全丢失；先sidecar保真，多维分类而非强过滤 |
+| tax_type | taxType数组/可空；来源转换全集未证实 | 当前typed路径不消费、不返回 | 多值保留，缺失未知；不得由题目/模型补标签 |
+| aging | 库存validityStatus/currencyRank；原始aging/核验时刻未见独立字段 | 当前typed不返回时效字段 | 映射不足，需raw断言/时间及条款未知；不能以rank证明有效 |
+| labels | 库存labels可空 | 当前typed不消费/不返回 | 来源主题不等于逻辑域；先保真和来源标注 |
+| issuing_department | 库存issuer可空 | 当前typed不消费/不返回 | 机关可多值、不能猜地域或适用主体 |
+| written_date | 库存writtenDate；effectiveDate同值；新附件复制父元数据 | citation writtenDate、rerank明确成文 | 分离成文/发布/生效/失效，未知null；拒绝把父日期当附件独立核实 |
+| url | sourceUrl，部分相对fgk路径；新附件覆盖为来源文件URL | typed sourceUrl/citation | dataset分发来源与官方来源分别保存；原/最终URL及抓取时刻分开 |
+| sourceDataset/sourceRow/抓取时间 | 库存及新asset字段，HF sourceCrawledAt仍为数据集快照日 | 离线溯源，非在线许可 | 新附件有独立sourceFetchedAt；快照、抓取和状态核验不得混用 |
+| document/asset/clause/chunk | 738片有新结构字段；其余多数仅document/chunk/section | typed稳定候选，不提供任意父正文读取 | clauseId只55、tableId空；关系不存在不能补造，建立可验证位置与结构传递 |
+| hash/embedding | 旧body hash口径与新附件不同；表示/model版本仅738片显式 | Java重新计算body hash，vector查embedding | 样本旧hash不等实际body SHA，新附件一致；不据此改validator；独立hashScope与manifest补证 |
+
+### 22.4 主要发现与决策依据
+
+| 问题 | 强度及证据 | 最小设计选择/影响 | 不采用方案与未验证项 |
+|---|---|---|---|
+| 日期语义与快照陈旧 | 已证实全库同值；样本14本地PENDING、written/effective=2025-11-26。[官方页面](https://fgk.chinatax.gov.cn/zcfgk/c100011/c5245544/content.html)本轮为全文有效，正文明确2026-03-01施行 | DR-KRET-301/302：来源断言和独立日期；先sidecar | 不用成文填生效、不批量自动认证；只核实该反例，不认证全库现行法律状态 |
+| 附件过碎 | 已证实chunker逐ParsedBlock、不合并邻接短块；样本16及738片统计 | DR-KRET-304：同结构单元打包、条款路径/脚注/表格关系 | 不用固定最小长度删片，不认定已经降低召回；效果待比较 |
+| 传统切片上下文与位置不足 | 样本存在句中切分、扁平表格；已查样本charStart=0、charEnd=局部长度，当前indexing也生成局部offset | DR-KRET-303/304：明确parsed-source跨度，新版本保留source位置 | 不把局部offset假装全篇位置；表格原始列关系/OCR质量尚未核实 |
+| 分类存储与消费断层 | effectLevel/taxType/labels已部分保存；Javatyped只消费既有字段/channel | DR-KRET-305、DR-KFLOW-302：多维离线元数据，现接口不扩 | 不默认分类拆库，不宣称已实现分类/时效查询；公共字段扩展暂不实施 |
+| 表示与hash来源混合 | 14783片缺显式vectorRepresentationVersion；已核对样本247个legacy片hash不等精确body SHA，342附件片相等；Java在线重算 | DR-KRET-303/306：hash作用域、模型/表示manifest补证 | 不直接判存储损坏；缺旧导入源码/逐记录模型证明，不执行重算 |
+| 官方来源不完整 | 3条curated缺sourceUrl，完整原始来源未核验 | DR-KEV-301：不能作为新官方gold，后续人工核验 | 不删除旧资料/证据、不用模型补造URL；不是全库来源均不可信 |
+
+推荐L1方案B；本轮不调整线上排序、topK、Prompt或DTO，不整体回滚/重建。以上因果范围止于“存在结构/语义缺口”；召回和回答收益均Evidence missing。
+
+### 22.5 后续工作包、直接依赖与授权
+
+以下代码/数据步骤均未实施、未获本轮执行授权。Ready仅表示设计输入具备；无付费预算继承，也不以图谱或旧专项完成为前置。新资料包与§21在线重建可独立推进；对照阶段选择一套冻结在线实现，不要求先完成§21真实测量。
+
+| 工作包 | 设计/落点与交付物 | 直接依赖 | 状态 | 验证及完成条件 | 迁移/回滚、资源与后续权限 |
+|---|---|---|---|---|---|
+| WP-KORG-DESIGN-01 | 本节审计；L1 §18、三L2新节、UAT §16/ROADMAP §15 | 无 | Done | 三轮内审、两轮正式复核、文档验证通过；以包含本节的目标提交推送成功为Git收口证明 | 只文档；不动服务/模型/索引 |
+| WP-KORG-NORMALIZE-01 | DR-KRET-301/302/303、DR-KEV-301；normalization_v2.py/sidecar及来源位置Schema | WP-KORG-DESIGN-01 | Ready | TEST-KRET-301、hash/span反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 仅技术Ready，需代码/测试及有限资产读取新授权；sidecar追加，不迁现索引 |
+| WP-KORG-CHUNK-01 | DR-KRET-304；chunking_v2.py、结构fixture、span回放 | WP-KORG-NORMALIZE-01 | Blocked | TEST-KRET-302；条件/否定/表格/短块/长条款均可追溯；不静默遗漏 | 需代码/测试；新版本并存，旧chunker不覆盖；不依赖BGE或线上UAT |
+| WP-KORG-REPRESENT-01 | DR-KRET-305/306；独立表示、模型manifest补证及tokenizer预检 | WP-KORG-NORMALIZE-01 | Blocked | TEST-KRET-303；明确实际长度单位/版本，无截断；旧未知不回填 | 需代码/配置/本地固定tokenizer资源权限；无推理的纯构造可先完成，与CHUNK并行 |
+| WP-KORG-COMPARE-01 | DR-KRET-307、UAT-KORG-001～012；有限scope/原文gold/四维实验报告 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | Blocked | fake/类型→人工原文→另授权BGE及只读typed；逐阶段损失、保留题、安全与停止规则 | 需独立索引候选/BGE/只读服务/必要模型预算授权；同源切片与表示分轮；不切线上alias |
+| WP-KORG-RELEASE-01 | DR-KFLOW-303、DR-KEV-302/303及既有发布合同；选定候选的策略/索引兼容发布 | WP-KORG-COMPARE-01 | Blocked | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；无证据不得发布 | 需新索引/受控部署/alias写授权；精确旧绑定与原子回滚；不删旧索引 |
+
+直接边：DESIGN→NORMALIZE，NORMALIZE→CHUNK/REPRESENT，CHUNK/REPRESENT→COMPARE，COMPARE→RELEASE。6包6边，无反向边；新工作包规则由三L2定义，P3不自创设计DR。可选公共时效/分类DTO和额外父读取未列入关键链：若后续要实现，另作受影响公共契约设计与授权，当前包不能偷偷实现。
+
+没有新增重复Gate。设计评审是纯实现入口，COMPARE结果和既有发布安全条件仅控制RELEASE；不是要求先真实测量才能完成NORMALIZE/CHUNK/REPRESENT。任一候选质量失败只保留有限结论、停止该实验，不自动新candidate。代码/模型/配置/索引四类回滚独立记录，禁止单纯git回退冒称数据已恢复。
+
+### 22.6 评审与验证记录
+
+本轮三次内审与正式两轮复核均由同一执行者分阶段完成；正式阶段先只读冻结目标差异、检查并记录问题，退出评审阶段后最小修订，再只读复评。不冒充外部独立人员批准。范围仅8份目标文档新增内容及必要REQ/L0/旧在线设计/代码合同接缝，不重新批准全部历史流水；不是代码评审、部署证明或效果UAT。
+
+| 阶段 | 发现与处理 | 结论 |
+|---|---|---|
+| 内审1：来源/字段/时效 | 区分主题与适用主体；补新规则/实现/测试定义，修复严格检查的追踪列/来源引用告警；统计与原始字段转换未知分开 | 来源不补造、日期不借用、仅当前增量同步 |
+| 内审2：结构/引用/职责 | 补parsed-source-v2确定性连接、局部/全篇位置区别；父关系按全身份清单核验，不以样本集判孤立；派生表头与原文分离 | 不扩公共DTO、读取/出域或在线逻辑；旧原文及hash不改 |
+| 内审3：依赖/验证/范围 | 检查6包6边、§21与§22独立、预算/回滚权限；固定30样本hash、12用例及设计/实施/效果状态分列 | 无环，不要求真实UAT先于基础纯代码包；未执行不写通过 |
+| 正式第1轮，REV-KORG-001，S1 | normalizedSha256未明确自身排除和重放时间，可能不能确定性实现 | DR-KRET-301补schema/normalizer、canonical编码、自身排除、输入断言时间；UAT001补反例 |
+| 正式第1轮，REV-KORG-002，S1 | ≤30范围与完整竞争池易混淆；source_gap“保留分母”可能迫使未知gold计0/1 | DR-KRET-307及UAT16明确只限制变更/人工样本，保留完整竞争池；null、计划总数和可评估分母分别报告 |
+| 正式第1轮，REV-KORG-003，S2 | 克隆旧记录易被误认为新标准认证；缺失统计只有数量 | 明确仅变更集合新准入、全库保留/安全检查仍在；legacy未知披露；补分母/缺失率与channel分布 |
+| 正式第2轮复评 | 回读上述修订及L1→三L2→P3→UAT/ROADMAP/索引；核对REQ/L0职责未变、14项新DR对应12类验收、原文/派生表示、候选权限及未知口径 | S0=0、S1=0、未处理S2=0；资料设计与后续实施边界通过，未批准新代码/索引/效果 |
+
+非阻塞保留项REV-KORG-004（S2，接受）：L0下位索引仍标L1_01 v1.24，该引用是本次新增资料节之前的已审版本；顶层职责未变，本目标不授权仅为编号同步修改L0。当前8份目标入口及ARCH索引已同步v1.25，L1新资料节明确不改变上位职责；因此不阻塞本次设计，但不声称全仓所有历史/上位版本字面一致。待下次L0职责修订或专门元数据授权时同步该引用，不在本轮扩改。
+
+本轮实际验证：
+
+| 命令/检查 | 实际结果与范围 |
+|---|---|
+| validate_architecture_doc.py --file docs/design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md --root D:/codex --strict | 0 errors / 0 warnings |
+| validate_detailed_design.py --file <三份L2_01目标> --root D:/codex --strict | 最终三份均0 errors / 0 warnings；初次Ret新ID未定义、之后定义表/追踪列和源引用告警均已修复重验，不改校验器 |
+| validate_implementation_plan.py --file docs/plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md --strict | 0 errors / 0 warnings；既有主表检查之外另验证§22直接DAG |
+| PowerShell只读链接/版本/样本/依赖检查 | 8目标文档64个本地链接存在；7版本入口一致；30唯一样本ID/hash匹配；6包6直接边无环；12新UAT用例仅Designed |
+| 末次ES只读GET alias/mapping/settings/count | alias目标、UUID、mapping SHA、write-block及15521数量与起始一致；不等于全索引字节指纹或typed在线验证 |
+| Get-FileHash agent-runtime/tests/system_e2e/knowledge_representative_human_run_07/result.json -Algorithm SHA256 | `915724a415d10605d336f8c24139fc7dd2f51e4520f5df211099736a1ba0b69e`，与已有记录一致；不冒称全外部历史资产重算 |
+| git diff --name-only/--numstat；git diff --check；有限凭据模式扫描 | 仅8份授权Markdown；代码/测试/config/历史/UAT_00零diff；最终暂存完整差异在提交前另查 |
+
+工具局限如实保留：detailed-design发现器把外部GitHub链接误解析为Windows UNC并触发WinError64；停止该发现器，改为当前文件/明确上位人工解析及严格校验器。发现脚本层级推断和归档候选不是评审结论；本轮只将明确4份L1/L2作为正式目标。一次内存汇总读取超出输出边界导致JSON解析失败，未用于结论，后续按目标小块读取。早期命令中的拼写/不存在路径检索及只读统计语法错误均未修改状态，不计作测试通过。
+
+未执行pytest、mypy、compileall、Maven、Spring E2E、tokenizer/推理、真实效果或发布回滚：本目标禁止实现与服务操作，采用源码/文档对照和有限只读事实替代，本轮不继承旧测试数字作为当前验证。历史资产保护由受限Git差异证明，未重算所有外部raw/索引/向量字节。剩余风险为旧导入源码/原始行未完整核实、部分来源与OCR/表格质量未知、模型实际token长度/表示逐记录来源待补证，以及设计收益未测量。
+
+下一步仅WP-KORG-NORMALIZE-01技术Ready；另4个实施/实验/发布包待直接依赖及新授权。当前目标提交SHA、推送及工作树状态由最终报告回读，不向本文写入自引用SHA。完成后停止，不自动编码、索引重建或真实UAT。

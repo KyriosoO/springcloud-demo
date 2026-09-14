@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.20 |
+| 当前版本 | v2.21 |
 | 日期 | 2026-09-14 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.24](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | §18为新设计首期权威：复用原问、RRF和域内重排，移除证明锚点等质量策略；旧在线策略为当前源码对照。阶段A及既有授权/物理边界继续有效。新设计未实施，不改索引/alias。 |
+| 上位文档 | [`L1_01` v1.25](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | §19补充来源/标准化/结构切片/分类时效/向量表示及后续迁移合同；§18在线首期不变。新设计未实施，不改现行索引/alias；评审见P3 §22 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
@@ -753,3 +753,94 @@ V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-204 | IMPL-KRET-203：后续tests/evaluation/knowledge中的独立同池比较及有限快照记录；本目标无代码资产 | TEST-KRET-203：不同语料/配置不得成对计分、缺标注为null、历史hash不变 | VAL-KRET-203：离线反例及后续只读服务验证，不能由fake证明真实召回 |
 
 仅Knowledge成对代码绑定迁移；检索部署前需功能、安全、typed Java及Business防回退通过。回滚为禁用Knowledge或恢复整套相容的代码/任务/配置绑定；不更改索引/alias，旧StageA原文及发布回滚证据保持不变。取消父配额/锚点/0.5为质量策略重新设计，不放宽读取授权、源完整性或原文引用；保留噪声和必要来源排在top20之外的效果风险，按UAT_01 §15验证。
+
+## 19. 资料组织、结构切片与检索表示（新设计，未实施）
+
+本节依据REQ-KCORPUS-001～006、REQ-KQ-201～205和L1_01 §18。定向细化§12的离线职责；§18在线首期固定索引的设计不变。新标准化及chunker采用新版本，不修改旧parser/chunker/manifest或现行索引。事实及样本见P3 §22；字段名称均为拟议离线内部合同，不是公共DTO扩展。
+
+### 19.1 来源层与标准化合同
+
+`DR-KRET-301`：复用workspace的raw/parsed/manifests区，新增版本化sidecar `corpus-document-v2`，不建立生产数据库。先以已有合法本地资产重放；资料缺失记录缺口，不自动下载。严格JSON：重复键、未知键、错误类型拒绝；schemaVersion固定，字符串有界，未知为null或空tuple，不填猜测值；不可执行表达式/URL模板。原始11字段、源行身份和规范化结果分别保存，不覆盖来源值。
+
+| 内部部分 | 字段及规则 |
+|---|---|
+| identity | 保留现documentId及父/附件ID；sourceKind为dataset/official/curated；sourceRecordId、sourceSnapshot、assetId/version按来源选填。不得以行号、标题、文号单独作为全局身份；重复身份异内容为冲突 |
+| source | 数据集repo+revision、采集时间、原始/最终URL、原始行/资产hash、许可声明引用；官方发布者另记。相对URL只按已核实官方base解析，不能凭HF链接认证官方性 |
+| metadata | title、documentNumber、channelRaw、documentType、effectLevelRaw、taxTypes、labelsRaw、topics、issuers、applicableRegions、applicableSubjects；逐字段带origin=source/manual_verified/inferred/unknown、sourceRef和observedAt。首期禁止自动生成inferred值，主题与适用主体分开 |
+| temporal | writtenDate、publishedDate、effectiveFrom、effectiveTo、validityRaw、validityStatus、statusVerifiedAt、snapshotAt；日期ISO日或null，核验时间带时区；每个非空派生日期有sourceRef/原文span或官方显式元数据依据 |
+| relations | parentDocumentId、parentAssetId、relationType、revises/replaces（可空）；关系必须有来源，循环/悬空/身份冲突拒绝新记录；不据同标题自动建修订关系 |
+| provenance | rawSha256、normalizedSha256、normalizerVersion及hashScope；hash为64位小写hex。原始附件hash按bytes；标准化hash按版本规定的UTF-8 canonical JSON；不混用库存contentHash |
+
+集合保留源顺序、精确去重、NFC规范化仅作用于标准化字段，不改raw。源字段为数组时逐项保留；字符串分隔只能采用来源已确认的分隔符，不按任意标点猜标签。documentType采用law/regulation/policy/interpretation/other/unknown；channel与effectLevel各保留原值及独立映射版本，不能互相代填。税种允许多值，主题/地域/适用主体缺依据则unknown；未知分类不改变ACL或排除资料。单元数据字符串≤512 code points、标签集合每维≤32项、sourceRef≤2048；超限保留raw并标review_required，不截断后入候选。正文不适用元数据长度限制，由既有资产/解析预算治理。
+
+确定性合同：schemaVersion=2、normalizerVersion=`corpus-normalizer-v2`；normalizedSha256计算sidecar除自身normalizedSha256字段外的全部规范内容，JSON键排序、数组保留语义顺序、紧凑分隔、ensure_ascii=false、禁止NaN/Infinity，按UTF-8取SHA-256。source断言时间由冻结输入提供，不能由重放时钟补写；处理时间仅放外部run manifest，不参与内容对象。原始附件hash始终按原bytes；源行只有规范JSON可得时另标rawHashScope=source_record_canonical_json_v1，不冒称下载文件字节hash。相同来源断言/版本重放必须同hash；新官方核验或内容变化生成新断言版本，不覆盖旧sidecar。
+
+`DR-KRET-302`：snapshotAt只表示来源快照；statusVerifiedAt必须来自实际核验，不从爬取时间补成当前。validityStatus为active/partially_invalid/repealed/pending/unknown，保留validityRaw及映射版本；历史ACTIVE/PENDING只是当时断言。成文日期不得填effectiveFrom；无依据的旧effectiveDate只记legacy_raw，不能迁为可信时间。部分失效只描述文档整体，条款默认unknown，须有明确废止/修订原文才建立条款有效区间；生效/失效先后矛盾进入review_required。父文档日期、状态不得无条件复制为附件独立事实：可以记录inherited_context和parent来源，但不宣称附件单独核实。
+
+只读核实发现某官方页面状态变化，应新增一次来源断言，不改旧snapshot。当前问题可返回未知时效资料作为查阅线索，但不得据此给出现行适用肯定结论；历史问题按明确期间核实，不能一律排除已废止文件。首期这些规则只用于离线核验/评估；在线缺少对应公共字段，不能宣称已支持时间过滤。
+
+### 19.2 身份、原文位置与结构切片
+
+`DR-KRET-303`：建立三个不同的hash作用域：原始资产bytes；规范解析源文本/ordered blocks；chunk精确可引用content。另有embeddingInputSha256，不能替代body hash。保留旧contentHash及其已知口径；未知标legacy_unknown，不重写旧字段或宣称数据损坏。Java对返回content重新计算的SHA继续治理在线完整性。
+
+位置合同采用`sourceTextVersion/sourceTextSha256/spanUnit=unicode_code_point/spanScope=parsed_source/start/end`，半开区间且0≤start<end≤源长度；content必须等于该规范解析源中的连续子串。PDF页、表格行列和blockId作为独立定位辅助，不冒称code point等于原始文件byte或页坐标。旧charStart=0只视为chunk_local，不能伪装全篇位置。解析时的空白/表格转换有版本记录；无法还原源跨度的旧记录保持unverified，不凭chunk序号反推。
+
+原文层保留不可变的规范解析文本、ordered blocks和源asset hash；chunk引用该源而不是拼装的模型上下文。重放使用既有ID派生规则，输入包含新chunkerVersion和源版本，避免覆盖旧chunk；重复转载可通过规范正文hash建equivalent_content关系，但保留各自发布来源、权限、时效和版本。正文相同也不得合并不同授权/时效文档。父文档、附件身份不因重切片改变。
+
+最小可重放源构造为`parsed-source-v2`：按已验证ParsedDocument.blocks原顺序，把每个精确block.text用一个LF连接；不trim/NFC/合并空白、不改变块内字符，记录每个blockOrdinal及其起止位置、parser/asset版本。新增分隔符属于规范解析表示，不冒称下载原文件字节。原始11字段的大正文只保留不可变源引用与hash，不在sidecar复制第二套正文。索引构建前须验证每个输出span与该源逐字相等；没有原有ParsedDocument或原文不能生成verified全篇位置，只能标待源补证，不从旧片段拼回“完整原文”。
+
+关系核验使用已冻结的全父身份清单而非仅30个抽样集合，避免把样本外合法父文档误报孤立。relation source缺失和真正悬空分别记录。侧车标准化失败是单记录review_required；任何相关范围的覆盖验收保持未完成，不自动扩大到全库重新治理。
+
+`DR-KRET-304`：拟议`knowledge-structure-chunker-v2`以已有ParsedDocument为输入，先确定章节/条款栈，再在同一最小结构单元内顺序打包相邻块；不再每个paragraph无条件独立成chunk。标题/条号短块附着后续正文，活动条款路径可传给子块，但仅路径继承、不声称每片包含完整条款。原文只有两字符且无后续正文时保持源记录并标short_unresolved，不能丢弃后称覆盖完整。
+
+- 配置首个对照候选沿用最大1600 code points、重叠最多160作为硬上限；不是最优值断言。优先自然边界、保持连续span，不设置“至少40字符才合格”的盲目删除规则。
+- 不跨asset、条款、表格、不同读取/出域范围打包。列表主句、适用条件、否定、例外及脚注优先同片；超限按段/句分开并标split_context_required，父关系辅助定位不自动多读正文。边界切割仍无法保全的单元进入review_required，不能截断或删除后发布。
+- overlap只在同一结构单元内按完整句/块后缀复用，≤160且小于chunk长度；无合法边界时取0，不剪半句凑数。保留source span用于重复诊断；在线仍使用既有identity去重，不默认新增去重算法。
+- 表格保存表头、行列/合并单元及脚注关联；行组可做独立连续源跨度。重复表头只能放入检索context，不注入quote正文；单独行没有表头不能当充分依据。扁平化后无法恢复列关系时标table_structure_unknown，不能根据数值位置猜表格或编造tableId。
+- 目录条目与正文结构分开标记navigation/content/unknown，仅来源明确才分类；不凭相同条号误认正文。当前没有在线role过滤，后续是否排除导航项须在固定样本验证后另定，不暗中扩展DTO。
+
+输出为frozen chunk记录：既有document/asset/ordinal/content/hash，加source span、section/clause/table定位、structureStatus和contextRefs；未知定位可空但不得标verified。父关系完整不等于跨条款回答充分。质量未过的受影响单元保留隔离记录，并使其覆盖验收未完成，不能用跳过数量美化结果。
+
+### 19.3 分类消费与向量表示
+
+`DR-KRET-305`：分类先保存在sidecar；需要ES消费时，由既有离线候选工具与es-query-service共同评审有限mapping/快照迁移。不按每个taxType/channel拆索引，不复制同文到多个分类库；独立索引只有隔离、生命周期、规模或同条件收益证据才能提出。现有channel→逻辑域映射保留，不用effectLevel推导相关性、用标签推导纳税人或用时效推导授权。
+
+| 用途 | 现行/首期表示 | 后续可比较项及限制 |
+|---|---|---|
+| keyword | 现title/content/section及既有文号接缝 | 只比较可信结构字段的收录，不能同时修改查询权重和切片后归因到向量 |
+| embedding | 原文body与已实现title/section/body表示均保留原版本 | body-only；可信title+section+body；有限可信classification+body三候选。分类不得含推断事实、当前问题或gold |
+| rerank | 已授权正文优先，加有限title/文号/成文日期；当前512token窗口 | 保持该表示用于首轮切片/向量比较；不随向量试验偷偷调整重排窗口 |
+| Evidence/quote | 精确原文content及其实际hash | 不使用拼接标题、重复表头或推断标签作为正文；连续子串/引用合同不变 |
+
+`DR-KRET-306`：每次构建记录模型repo/revision或artifact hash、tokenizer hash、服务源码/配置版本、维度、最大token数、输入表示版本及input/body hash。向量字段有值只能证明覆盖，不能证明模型一致、数值有限或未截断；旧记录缺版本不能用当前服务型号回填历史事实。先使用已有构建manifest补证，无法逐记录证明则legacy_unknown，并如实限制对照结论。
+
+输入预检必须按实际固定tokenizer计数，包含特殊token、标题、章节及分类开销；字符/UTF-8字节上限是独立约束。超长不静默截断、不借rerank窗口缩小原文；先在既有结构边界重切，仍不可表示则隔离并阻塞受影响范围。重切会改变实验变量，必须归入切片实验，不能继续声称纯向量表示对照。元数据最多512 code points且整体仍须满足实际token限额；不可用大量标签挤掉正文。模型/长度/维度未知则新embedding实验Blocked，本轮不得加载模型或执行推理。
+
+### 19.4 迁移、验证与回滚
+
+`DR-KRET-307`：先实现无网络标准化及结构回放，人工确认有限scope；再冻结新旧源manifest及chunk集合。纯向量对照固定切片、正文、ACL、模型与查询；重切片对照固定父文档/asset版本及原文预期span，评价身份不得仍用旧chunkId。分类和时效不能凭补齐率证明准确。实验预算与停止条件见UAT_01 §16；不自动创建效果candidate。
+
+仅在另获实施/写索引授权后，使用现有离线候选工具创建新版本索引；当前索引和旧资产不变。先保留全库未受影响记录，逐项列清迁移/隔离/未处理数量及原因；不得遗漏law或无分类数据。变更集合、mapping、向量、策略目录/快照均精确绑定，既有DR-KRET-024/025/032控制隔离typed验证与原子发布。新来源/新chunk必须满足原读取及出域策略，不因父关系扩权。发布前验证旧目标、候选完整性、功能/安全/资料覆盖和保留题不退化；失败按成套相容绑定恢复，不删除旧索引。Git回滚不等于数据回滚。
+
+“有限scope”指本次重规范化/重切片/表示变更及人工审计集合，不是仅保留这些文档作为搜索库；未受影响的全库竞争记录须原样保留并验证fingerprint。保留旧记录不代表已按新标准逐条认证，legacy_unknown/source_unverified仍需在结果中披露；不能把旧curated改称新官方gold。只对变更集合执行新准入，安全/快照及候选全记录保留检查仍覆盖全库，不扩大到重新采集全部历史资料。原预期依据无法核实的题单列source_gap，质量值为null且注明不具评价条件；保留在计划总数和数据缺口统计，不伪造Recall=0/1或悄悄删除。质量分母、有效/未评估数量必须同时披露。
+
+### 19.5 实施追踪（均为后续义务）
+
+以下编号在本节定义，规则语义为§19.1～19.4；实现/测试/验证的具体含义在后续追踪表展开，并不表示代码已经存在。
+
+#### 新设计编号定义
+
+| 规则编号 | 实现编号 | 测试编号 | 验证编号 |
+|---|---|---|---|
+| DR-KRET-301、DR-KRET-302、DR-KRET-303、DR-KRET-304、DR-KRET-305、DR-KRET-306、DR-KRET-307 | IMPL-KRET-301、IMPL-KRET-302、IMPL-KRET-303、IMPL-KRET-304 | TEST-KRET-301、TEST-KRET-302、TEST-KRET-303、TEST-KRET-304 | VAL-KRET-301、VAL-KRET-302、VAL-KRET-303、VAL-KRET-304 |
+
+#### 资料设计追踪
+
+| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|---|
+| REQ-KCORPUS-001/003、KQ-AD-025/026 | DR-KRET-301、DR-KRET-302 | IMPL-KRET-301：拟新增knowledge_corpus_tools/normalization_v2.py及严格sidecar Schema；复用audit/models/source清单 | TEST-KRET-301：11字段、缺失/多值、来源冲突、日期同值/部分失效/未知及相对URL | VAL-KRET-301：纯单元/契约、人工来源对照；不调用模型 |
+| REQ-KCORPUS-002/003、KQ-AD-027 | DR-KRET-303、DR-KRET-304 | IMPL-KRET-302：拟新增chunking_v2.py/位置记录，复用ParsedDocument；旧chunking.py不覆盖 | TEST-KRET-302：句/条款/表格/脚注、短块、overlap、连续span、身份/hash稳定及冲突 | VAL-KRET-302：固定公开/合规fixture重放、字节/跨度及人工结构审计 |
+| REQ-KCORPUS-003/004、KQ-AD-026/027 | DR-KRET-305、DR-KRET-306 | IMPL-KRET-303：独立表示/无截断预检及已有manifest补证；不改线上Profile | TEST-KRET-303：三表示、token/字符/字节边界、推断标签拒绝、legacy_unknown | VAL-KRET-303：纯构造与tokenizer验证后另授权有限BGE对照 |
+| REQ-KCORPUS-005/006、KQ-AD-028 | DR-KRET-307 | IMPL-KRET-304：现vector_candidate/validation_alias/release接缝的显式新版本迁移计划及测试，不自动覆写冻结实现 | TEST-KRET-304：全记录保留、映射/策略错配、预算/中断/回滚及不改现行索引 | VAL-KRET-304：fake→另授权隔离typed→另授权发布；UAT-KORG各项 |
+
+本节不授权上述实施。本轮只验证设计可实施性与文档一致性；未读取模型凭据、重算向量或修改任何索引。
