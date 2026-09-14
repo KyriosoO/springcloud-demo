@@ -5,16 +5,16 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `ROADMAP_01` |
-| 当前版本 | v0.9 |
+| 当前版本 | v0.10 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-09 |
+| 更新时间 | 2026-09-14 |
 | 规划性质 | 后续能力路线图，不是当前实施计划、完成声明或代码授权 |
 | 来源 | 当前非历史 Knowledge 架构与详细设计、现有检索链路，以及“正文附件补齐、检索质量修复、轻量知识图谱、原文最终取证”四项改进方向 |
 | 适用范围 | Knowledge 语料完整性、附件处理、跨域召回、问题改写、排序、失败语义、轻量知识图谱、效果验收 |
 | 当前设计依据 | `L1_01`、`L2_01_00`、`L2_01_01`、`L2_01_02` 当前非历史版本 |
 | 实施授权 | 本路线图中的 `Ready` 仅表示规划前置具备，不等于数据库、索引、外部下载、代码或生产实施授权 |
 
-本路线图记录后续演进方向、直接依赖、门禁和验收顺序。阶段 A 已由 REQ_00 v2.3、L1_01 v1.15、L2_01_00 v1.15、L2_01_01 v2.5、L2_01_02 v1.16 和 P3 v2.40 实施收口；阶段 B 的当前设计和实施已进入独立专项验收，但尚未通过。阶段 C/D 仍须先完成相应设计修订。动态状态以当前P3/UAT为准。
+本路线图记录演进方向，不重复P3状态权威。阶段A已有离线语料与发布证据，保持原范围；旧阶段B优化目标已取消，历史结果不改判。当前新目标仅Knowledge设计重建，依据L1_01 §17、三份Knowledge L2的新设计节及P3 §21；新12/8/minimal-v1未实施。阶段C/D、图谱/记忆/多轮均退出本轮主线，须独立设计与授权。
 
 Ready 不等于实施授权。
 
@@ -22,6 +22,7 @@ Ready 不等于实施授权。
 
 | 版本 | 日期 | 变更内容 |
 |---|---|---|
+| v0.10 | 2026-09-14 | 旧优化目标取消，新设计与实施授权分离；原问基线、四维验收及P3 §21有限交接，阶段A不回退 |
 | v0.9 | 2026-09-09 | 按用户补充区分语料缺口、检索准确性及回答质量；住宿不作单题硬门槛，保留历史失败及整体实测责任 |
 | v0.1 | 2026-09-02 | 建立正文附件补齐、检索质量修复、轻量知识图谱和原文证据闭环的初始路线图 |
 | v0.2 | 2026-09-02 | 阶段 A 启动 | 明确 P0/P1/P2 有限完成范围，把首次持久获取/候选写入入口门禁与 alias 发布门禁拆开，消除以构建结果关闭构建入口的循环 |
@@ -33,7 +34,7 @@ Ready 不等于实施授权。
 
 ## 3. 来源清单与当前基线
 
-本路线图以当前非历史 `L1_01`、`L2_01_00`、`L2_01_01` 和 `L2_01_02` 为约束基线，并把上一轮问题诊断仅作为待复核的规划输入。当前设计之外的语料导入、索引生命周期和图谱能力，必须先建立新的权威设计。
+本路线图以当前非历史L1_01及三份Knowledge L2为约束。阶段A语料导入/索引生命周期已有设计，不再作为尚未补齐的通用前置。新查询方案以原问最小基线先分层测量，后续单变量改写、排序或向量比较以证据决定；不机械要求把所有阶段B策略全部实施。
 
 ## 4. 计划原则与范围
 
@@ -66,7 +67,7 @@ Ready 不等于实施授权。
 
 | 文档 | 当前稳定职责 | 与本路线图的关系 |
 |---|---|---|
-| `docs/design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md` | 一个 `knowledge.query` 内完成改写、逻辑域选择、多路召回、融合重排、Evidence 和摘要 | 保持唯一在线链路、两级映射、授权和出域边界；当前范围明确排除文档导入和索引生命周期 |
+| `docs/design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md` | 一个 `knowledge.query` 内完成改写、逻辑域选择、多路召回、融合重排、Evidence 和摘要 | 保持唯一在线链路、两级映射、授权和出域边界；阶段A已有离线语料与索引生命周期，在线查询不承担导入 |
 | `docs/design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md` | Knowledge 流程、域目录、检索计划、阶段失败和生产装配 | 跨域选择、问题改写和失败语义若调整，必须先修订本设计 |
 | `docs/design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md` | 类型化 keyword/vector 检索、Profile 映射、读取授权、RRF 和 rerank | 排序、Profile、候选扩展和图谱导航必须继续隐藏物理索引、字段和 DSL |
 | `docs/design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md` | Evidence 完整性、三层出域、抽取式摘要、引用校验和效果评估 | 图谱关系不能绕过原文 Evidence；效果 UAT 继续使用安全 Gate 和如实分类 |
@@ -85,7 +86,7 @@ Ready 不等于实施授权。
 
 | 缺口 | 当前状态 | 处理原则 |
 |---|---|---|
-| 文档正文、附件下载、解析、OCR、切片和索引发布合同 | 当前 L1/L2 明确范围外 | 先形成新的需求/L1/L2 权威设计并评审 |
+| 文档正文、附件下载、解析、OCR、切片和索引发布合同 | 阶段A已有Approved设计及发布证据 | 保留现有职责；新增语料问题作为独立维护，不重新启动阶段A |
 | 图谱实体、关系、溯源、时效和读取接口合同 | 尚未定义 | 先设计最小合同，不以本路线图表格代替详细设计 |
 | 跨域检索增强 | 当前设计允许受控多域，但有明确选择规则且禁止 fallback | 仅允许在问题语义要求时一次性规划多域，不得失败后自动切换域 |
 | 更细失败原因 | 当前公共状态以既有合同为准 | 优先作为内部有限 reason；若要改变公共 DTO，需另行评审和授权 |
@@ -204,6 +205,8 @@ Ready 不等于实施授权。
 
 #### 4.5.2 阶段 B：跨域召回、改写、排序和失败语义
 
+当前取舍：旧优化目标取消；以下为方向和历史方案输入，不是必须全部保留的实现义务。新首期采用L1_01 §17的资料查找/解释/适用性分型与原问题直接检索，Query Rewrite不是必选环节，证明清单、锚点/配额/绝对分阈值不继承。后续实施以P3 §21直接依赖为准，不继续§20旧批次；本轮无代码或模型授权。
+
 ##### 4.5.2.1 跨域召回
 
 - 多域选择必须由原问题语义一次性产生，例如问题同时要求政策分类与法律依据时选择 `tax.policy` 和 `tax.law`；
@@ -250,7 +253,7 @@ Ready 不等于实施授权。
 
 ##### 4.5.2.5 独立实施与验收路径
 
-阶段 B 由 P3_00 的诊断→设计→实施→non-live→专项 UAT→质量收口直接依赖链执行。GATE-KRG-006 只控制受影响代码实施，关闭条件不包含代码完成或 live UAT。UAT_01 §14 独立验证核心 P0、错误语义、安全和保留回归，不依赖 WP-KNOWLEDGE-UAT-02、图谱或阶段 C/D。各工作包和 Gate 动态状态仅由 P3_00 维护；本路线图只保留职责、依赖及状态入口，不能把实现入口通过等同专项验收通过。
+旧阶段B的GATE-KRG-006及UAT_01 §14属于历史实施/运行，不转移为新目标准入。当前独立路径见P3_00 §21：设计→合同→检索/回答切片→组合及功能安全验证→另授权有限测量；UAT_01 §15为新方法，不依赖图谱或阶段C/D。只维护一次P3工作包/状态权威，实施入口与质量通过不混同。
 
 按用户补充，阶段B主目标是代表性问题上的召回准确性和必要Evidence覆盖，不要求资料未录入的住宿单题一定回答成功。语料缺口必须有人工证据并单列，不能把原文已存在的漏召回归为录入问题。检索、运行安全和摘要质量分别报告；旧失败不改判，新的来源相关性标注、留出集和指标由UAT_01 §14.40/L2_01_02 §13.8治理。不得只证明单题命中就宣布整体提升，也不得因摘要格式失败否定已测得的召回改善。
 
@@ -332,7 +335,7 @@ Ready 不等于实施授权。
 |---|---|---|---|---|---|---|---|---|---|
 | `WP-KCORPUS-AUDIT-01` | 正文及附件缺口只读审计 | `L1_01 §4.3`、`L2_01_01 DR-KRET-002/003`、本路线图 §4.5.1.1 | 盘点来源、正文、附件、解析、父子关系、索引覆盖和 P0/P1/P2 优先级；不下载、不写索引 | - | - | 有限缺口清单、来源证明、优先级、设计输入 | Schema、抽样复核、敏感信息扫描、现有索引零写入 | 删除本轮临时诊断；不改变线上资产 | Done |
 | `WP-KCORPUS-ATTACHMENT-01` | 正文及附件版本化补齐 | `REQ-KCORPUS-001～006`；`L2_01_01 DR-KRET-013～025`；`L2_01_02 DR-KEV-023～025` | 受控获取、哈希、解析/OCR、结构化切片、父子绑定、新索引和回滚 | `WP-KCORPUS-AUDIT-01` | `GATE-KRG-001` | 版本化原始资产、解析结果、质量报告、新索引候选、回滚记录；alias 生效另受发布门禁控制 | 解析合同、表格/OCR抽样、索引完整性、别名切换演练 | 新索引整体下线；旧索引和别名目标可恢复 | Done |
-| `WP-KRETRIEVAL-QUALITY-01` | 跨域召回、改写、排序与失败语义修复 | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 在现有 typed contract 内优化域选择、改写、候选覆盖、RRF/rerank 和内部失败 reason | `WP-KCORPUS-AUDIT-01` | `GATE-KRG-006`仅控制实施入口 | 新版本配置/Prompt/实现、离线诊断、回归结果 | keyword/vector、跨域、排序、失败矩阵、零调用和防 fallback 测试 | 恢复旧版本配置/任务绑定；不改历史效果资产 | 见P3_00 §20 |
+| `WP-KRETRIEVAL-QUALITY-01` | 跨域召回、改写、排序与失败语义修复 | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 在现有 typed contract 内优化域选择、改写、候选覆盖、RRF/rerank 和内部失败 reason | `WP-KCORPUS-AUDIT-01` | `GATE-KRG-006`仅控制实施入口 | 新版本配置/Prompt/实现、离线诊断、回归结果 | keyword/vector、跨域、排序、失败矩阵、零调用和防 fallback 测试 | 恢复旧版本配置/任务绑定；不改历史效果资产 | 旧目标取消；当前见P3 §21 |
 | `WP-KGRAPH-CONTRACT-01` | 轻量图谱合同实现与只读接口 | 待新增 Knowledge Graph REQ/L1/L2；保持 `L1_01 §5/6` 两级映射 | 按已批准设计实现实体、关系、溯源、时效、版本、读取授权和类型化导航合同 | `WP-KCORPUS-AUDIT-01` | `GATE-KRG-007` | 严格 Schema、类型化接口、版本策略实现、fake 合同测试 | Schema 正反例、来源缺失、过期、未授权和物理信息零暴露 | 禁用图谱导航配置；原检索链路不受影响 | Blocked |
 | `WP-KGRAPH-BUILD-01` | 版本化关系数据构建 | `WP-KGRAPH-CONTRACT-01` 批准后的 IMPL/TEST/VAL | 从已核验原文提取、校验和发布最小关系数据，不修改原文 | `WP-KCORPUS-ATTACHMENT-01`、`WP-KGRAPH-CONTRACT-01` | - | 关系数据、来源绑定、时效信息、构建报告和只读快照 | 100% 可追溯、哈希、时效、抽样人工复核和敏感扫描 | 整体撤下图谱版本；不回滚原文索引 | Blocked |
 | `WP-KHYBRID-RETRIEVAL-01` | 图谱导航与原文检索联合 | 待新增联合检索 DR；保持 `L2_01_02 DR-KEV-*` | 在一个 `knowledge.query` 内使用图谱扩展候选，再回到授权原文 Evidence | `WP-KRETRIEVAL-QUALITY-01`、`WP-KGRAPH-BUILD-01` | - | 联合检索实现、类型化 Provider、配置快照和故障降级规则 | 图谱命中/缺失/过期/不可用、多跳、原文回证据、无图谱答案测试 | 关闭图谱导航，保留批准的原文检索路径 | Blocked |
@@ -406,7 +409,7 @@ flowchart LR
 |---|---|---|---|---|
 | 1 | `WP-KCORPUS-AUDIT-01` | Done | - | audit v3 已建立库存、来源可达性和完整性三层事实 |
 | 2 | `WP-KCORPUS-ATTACHMENT-01` | Done | - | candidate a5、14/14专项 UAT、alias回滚演练及发布完成 |
-| 3 | `WP-KRETRIEVAL-QUALITY-01` | 见P3_00 §20 | 独立专项UAT、核心P0及正式评审 | 实施入口已获批准；阶段B质量不能依赖图谱或用non-live代替真实效果 |
+| 3 | `WP-KRETRIEVAL-QUALITY-01` | 见P3_00 §21 | 旧目标取消 | 不继续旧专项；新实施计划独立依赖与授权，不继承旧Gate |
 | 4 | `WP-KGRAPH-CONTRACT-01` | Blocked | `WP-KCORPUS-AUDIT-01`、`GATE-KRG-007` | 当前没有图谱权威合同 |
 | 5 | `WP-KGRAPH-BUILD-01` | Blocked | `WP-KCORPUS-ATTACHMENT-01`、`WP-KGRAPH-CONTRACT-01`、`GATE-KRG-003` | 关系不能建立在缺失或未核验原文上 |
 | 6 | `WP-KHYBRID-RETRIEVAL-01` | Blocked | `WP-KRETRIEVAL-QUALITY-01`、`WP-KGRAPH-BUILD-01`、`GATE-KRG-004` | 需先有稳定原文基线和可追溯图谱快照 |
@@ -420,7 +423,7 @@ flowchart LR
 |---|---|---|---|---|---|---|---|
 | `WP-KCORPUS-AUDIT-01` | 只读元数据、附件和索引覆盖核实；生成有限清单 | 下载附件、保存正文、写 ES、改 alias | `knowledge-corpus-tools` 审计入口及外部 workspace | `REQ-KCORPUS-001/005`、`DR-KRET-013/025` | Schema、抽样、零写入、敏感扫描 | 为 `GATE-KRG-001/002/006/007` 提供事实 | `implement-from-detailed-design` |
 | `WP-KCORPUS-ATTACHMENT-01` | 入口门禁通过后按版本化流水线实施；发布另受发布门禁控制 | 覆盖旧索引、无来源导入、静默忽略解析失败 | `knowledge-corpus-tools`、`es-query-service` 内部 mapping/Profile、版本化 policy catalog | `DR-KRET-013～025`、`DR-KEV-023～025` | 解析、OCR、表格、hash、索引、授权、回滚 | 发布后开放 `GATE-KRG-003` | `implement-from-detailed-design` |
-| `WP-KRETRIEVAL-QUALITY-01` | 仅在批准设计内调整 Prompt/配置/排序和内部 reason | 跨域 fallback、放宽授权、无限 topK | `agent-runtime` Knowledge 与 es-query-service 既有 typed 查询内部实现 | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 离线指标、E2E、失败矩阵、零调用 | UAT_01 §14；P3_00 阶段 B 独立收口 | `implement-from-detailed-design` |
+| `WP-KRETRIEVAL-QUALITY-01` | 仅在批准设计内调整 Prompt/配置/排序和内部 reason | 跨域 fallback、放宽授权、无限 topK | `agent-runtime` Knowledge 与 es-query-service 既有 typed 查询内部实现 | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 离线指标、E2E、失败矩阵、零调用 | UAT_01 §14；P3_00 阶段 B 独立收口 | `implement-from-detailed-design`；旧目标取消，当前仅参考P3 §21 |
 | `WP-KGRAPH-CONTRACT-01` | 按已批准设计实现最小实体、关系、溯源、时效和类型化接口合同 | 未批准先编码、引入 Neo4j、让 Agent 看到物理查询 | 待详细设计确定的 `agent-runtime`/`es-query-service` 接缝 | 待新增 REQ/DR/IMPL/TEST/VAL | Schema fake、接口合同和物理信息零暴露 | `GATE-KRG-003` | `implement-from-detailed-design` |
 | `WP-KGRAPH-BUILD-01` | 按批准合同构建版本化关系数据 | 修改原文、无来源关系、自动生效 | 待详细设计确定 | 待新增 IMPL/TEST/VAL | 溯源、时效、hash、人工抽样 | `GATE-KRG-004` | `implement-from-detailed-design` |
 | `WP-KHYBRID-RETRIEVAL-01` | 图谱扩展候选后回到授权原文检索 | 图谱直接回答、第二链路、物理资源暴露 | `agent-runtime` Knowledge + `es-query-service` 类型化接口内部实现 | 待新增 DR/IMPL/TEST/VAL | provider spy、授权、原文引用、故障注入 | `GATE-KRG-005` | `implement-from-detailed-design` |
@@ -482,7 +485,7 @@ UAT case
 |---|---|---|---|---|---|
 | `WP-KCORPUS-AUDIT-01` | `REQ-KCORPUS-001/005`、`DR-KRET-013`、本路线图 §4.5.1.1 | strict audit JSONL/summary/hash | 全量计数、抽样、零写入 | audit v3、P0/P1/P2、三层事实 | Done |
 | `WP-KCORPUS-ATTACHMENT-01` | `REQ-KCORPUS-001～006`、`DR-KRET-013～025`、`DR-KEV-023～025` | `IMPL-KRET-010～016` | `TEST-KRET-010～020`、`TEST-KEV-016` | candidate a5结构完整、源码可复现、可检索、可引用且可回滚 | Done |
-| `WP-KRETRIEVAL-QUALITY-01` | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 当前Knowledge实现及P3_00 §20 | 跨域、改写、排序、失败矩阵 | 必要证据覆盖提升且安全不回退 | 见P3_00/UAT_01 |
+| `WP-KRETRIEVAL-QUALITY-01` | `DR-KFLOW-016～018`、`DR-KRET-027`、`DR-KEV-026` | 当前Knowledge实现及P3_00 §20 | 跨域、改写、排序、失败矩阵 | 必要证据覆盖提升且安全不回退 | 见P3_00/UAT_01；旧目标取消，当前仅参考P3 §21 |
 | `WP-KGRAPH-CONTRACT-01` | 待新增 Knowledge Graph REQ/L1/L2 | 合同和 Schema 待形成 | fake、正反例、物理信息零暴露 | 独立设计评审通过 | Blocked |
 | `WP-KGRAPH-BUILD-01` | 待批准图谱 DR | 待设计 | 来源、时效、hash、人工抽样 | 关系可追溯率 100% | Blocked |
 | `WP-KHYBRID-RETRIEVAL-01` | 待批准联合检索 DR + `DR-KEV-*` | 待设计 | 联合 E2E、授权、引用、故障注入 | 图谱仅导航，原文最终取证 | Blocked |
@@ -500,8 +503,10 @@ UAT case
 
 ## 14. 当前结论
 
-- 当前工作包/Gate状态唯一入口为P3_00；阶段B实现入口已通过，non-live完成，当前V5部分真实场景通过但完整专项仍未通过，质量收口尚未完成。UAT_01记录失败和未执行项，不把本路线图作为重复状态账本。
-- 阶段B剩余问题：跨域必要原文仍在排序/Evidence阶段丢失，域覆盖不能代表问题语义覆盖；已通过的精确澄清/分类场景不能外推所有表达。须先核对语义边界和同快照非live证据，不得只增加topK、放宽引用或针对酒店硬编码。
+当前新增结论以本段为准：原阶段B推进停止且不宣布其专项通过，新目标仅形成设计及有限实施计划。首期保持语料/模型/索引绑定，不整体回滚；功能/安全/召回/回答分别验收，后续效果尚未验证。下列阶段A终态是发布当时的证据，不等于当前alias实时目标；本轮未访问ES。
+
+- 当前工作包/Gate状态唯一入口为P3_00；旧阶段B失败和未执行项保持历史终态，新设计不继承旧授权或通过结论。
+- 新设计先分离资料查找、解释和适用性要求，形成原问可测基线；召回与回答质量仍待后续证据，不通过堆Prompt/阈值/单题特判宣布改进。
 - 本批真实调用已经停止，不补跑、续跑或追加付费候选；后续真实效果确认需要新的受控目标。阶段C/D仍未实施，不能替代阶段B核心P0验证。
 - 阶段A成果及其发布证据保持不可变；本路线图继续只提供跨阶段顺序，不替代P3/UAT/evidence权威。
 - 阶段 A 终态：audit v3 共5597项（P0=3个稳定标识，对应2份逻辑来源文档；目标P1=0、P2=5594）；5个官方 asset 经版本化处理形成749个有序block、738个新chunk和55个条款引用；最终源码一致的 candidate `agent-doc-tax-policy-v4-20260903-corpus-a5` 共15521 chunk；最终 UAT attempt-05 14/14 Passed（SHA-256=`ad86ae89b48e0c96426cbadddef526d391e6b61214a254bba90049286afc162a`）；alias 已按 a4→a5→a4→a5 完成原子切换/回滚并发布到 a5，起始索引和a1～a4均保持不变。

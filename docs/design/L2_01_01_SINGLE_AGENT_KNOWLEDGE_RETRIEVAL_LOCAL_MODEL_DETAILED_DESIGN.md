@@ -8,15 +8,17 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v2.19 |
-| 日期 | 2026-09-10 |
+| 当前版本 | v2.20 |
+| 日期 | 2026-09-14 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v1.23](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KRET-037同预算双表示计划消费校验已实施、定向non-live通过；不修改服务、索引、RRF或需求重排；真实专项待验证 |
+| 上位文档 | [`L1_01` v1.24](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | §18为新设计首期权威：复用原问、RRF和域内重排，移除证明锚点等质量策略；旧在线策略为当前源码对照。阶段A及既有授权/物理边界继续有效。新设计未实施，不改索引/alias。 |
 | 来源文档 | [L2_01_01 v0.8 归档版](历史文档/2026-08-21-v0-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；具体状态由 P3/UAT_01 管理 |
 
 ## 2. 阅读导航与变更记录
+
+§18为新设计首期权威：复用原问、RRF和域内重排，移除证明锚点等质量策略；旧在线策略为当前源码对照。阶段A及既有授权/物理边界继续有效。新设计未实施，不改索引/alias。 旧目标取消与评审/实施授权以P3 §21为准；本轮仅设计文档。
 
 重点：第 7 节 typed contract、第 8 节两级映射/授权、第 9 节 RRF/rerank、第 13 节实现落点。
 
@@ -97,7 +99,7 @@
 
 | 约束编号 | 来源与约束 |
 |---|---|
-| `CON-KRET-001` | `L0_00 SA-C-003/007/011/016/017` |
+| `CON-KRET-001` | `L0_00 §3/§5；SA-AD-004/006` |
 | `CON-KRET-002` | `L1_01`：域→Profile 属于 Adapter，Profile→物理资源属于 es-query-service |
 | `CON-KRET-003` | `L2_01_00`：输入是有序有限 Retrieval Plan，输出需精确 coverage |
 | `CON-KRET-004` | 本地模型固定 BGE-M3 1024 维与 BAAI/bge-reranker-v2-m3 |
@@ -707,3 +709,47 @@ V1为DR-KRET-027历史策略，保持旧排序源码及历史绑定；v2.8新增
 `DR-KRET-028`：V2以§9.3单语义锚点和纯域内rerank轮转替代V1双锚点/交错填充；只有已授权候选可参与，RRF仅作既有融合及同分排序，不追加内容信号。stage接受None（legacy）、V1、V2，其余在下游前拒绝。最终候选3..20、既有启动最小值≥2×enabled域数仍保留，不为减少锚点放宽启动配置。BGE每域≤40、总≤80、串行≤2次、deadline和取消不变。新函数不导入evaluation/gold，不修改旧V1源码；改动不会改变Java契约、Profile/alias/index或task版本。
 
 V2设计风险：BGE错误排序仍可排除必要原文，域轮转不证明语义覆盖；不能以合成排名测试关闭真实专项。实施前三轮内审和独立只读复评已通过；V2已实现，真实专项效果未确认。回滚与内部版本成对绑定见L2_01_00 DR-KFLOW-022。
+
+## 18. 最小检索策略（新设计，未实施）
+
+依据REQ-KQ-204/205及KQ-AD-021/022/024；本节替代后续主线中§9.1～9.4、DR-KRET-027～029/037的质量编排，不替代typed请求、授权、快照/完整性、单次调用、取消或阶段A离线合同。旧实现和诊断保持原证明范围；本设计不迁移索引。
+
+### 18.1 有界检索与确定性排名
+
+`DR-KRET-201`：只消费L2_01_00 §19通过校验的knowledge-minimal-v1计划。每域keyword、vector各一次，全部使用同一安全原问Q；只在请求内计算一次1024维有限向量，由两域复用。每路limit=20；ES既有多取一项仅用于truncated标记，不扩大返回窗口。至多4次search/1次embedding，无兜底轮询或额外文档读取。固定Profile/alias/服务DTO、Java文号开关及当前映射不变。
+
+每个非空域对该域已授权候选按既有identity去重/RRF（k=60）排序，最多40项；相同identity跨路径或域存在内容/hash/策略冲突时全请求失败，不选择更高分版本。源身份、路径、域和快照一直保留，不允许先按分数过滤后跳过完整性检查。
+
+`DR-KRET-202`：每个非空域调用一次现有RerankPort，query=Q、≤40项，按目录顺序串行，最多2次、总≤80项评分；不再按模型requirements/focus重复评分。沿用当前authorized-body-first-metadata-v1输入表示及本地512token窗口，未声称能看到完整长正文；原候选正文不可被评分文本替换。
+
+域内按rerank分降序→RRF降序→chunk_id→document_id确定性排列。严格检查候选索引全集/唯一、有限分数及当前适配器归一化合同。域间按固定目录次序round-robin，每次取下一未见identity，重复项合并其已核验域来源，直到20项或队列耗尽；不比较不同域池裸分、不添加keyword首位/证明锚点、文档配额或特定ID加分。轮转仅保留域进入窗口的机会，不代表该域首位相关或充分。
+
+新策略不调用现有quality-v3需求标签逻辑，也不把旧coverage_anchor补成true。拟新增`agent-runtime/src/agent_runtime/knowledge/retrieval/minimal_ranking.py`，复用fusion与RerankPort；旧quality_ranking*.py保持历史调用方，后续单独查引用再清理。
+
+### 18.2 失败、预算和生命周期
+
+`DR-KRET-203`：所有选中域读取拒绝遵循现有安全优先，取消未完成分支并join；不得继续用另一个域掩盖拒绝。完整性或快照冲突不降级为partial。普通技术单路失败仅按既有coverage/每域候选与总候选最小阈值判断是否继续；全路失败、必要域无成功路径、rerank非法/失败为downstream_failure，Summary0。只有完整成功且候选全空才能no_candidate。部分继续保留failedPaths及retrievalComplete=false，不追加路径。
+
+请求retrieval总deadline20秒、每个HTTP阶段≤5秒；每次启动前检查剩余时间，超时/取消后不接收迟到结果，不启动下一域/阶段；retry=0。owned search/embedding/rerank client仍由Runtime关闭，不增加新连接池或跨请求向量缓存。合成预热与在线预算分开，不能把真实冷启动超时改判检索无结果。
+
+### 18.3 索引、向量及评分策略的比较边界
+
+`DR-KRET-204`：首期原问策略在现有binding v2指定的语料/向量配置上建立新基线，不认为body-only或context向量天然更优。仓库binding证明预期配置，不证明运行实例实际alias；后续真实测量前只读核对UUID、Profile和policy快照。代码、模型、向量/语料、服务部署四类基线独立记录；一类变化不能由另一类Git回滚自动完成。
+
+后续比较body-only/context、query改写、窗口或阈值时，每次只改变一个变量。使用同一公开原文身份/hash、切片、候选评价集合、模型配置、读取策略；同模型同参数下比较必要来源Recall/MRR、噪声及Evidence覆盖。若索引不同，先证明两者只有预定向量表示不同，不能混入语料补齐或mapping变更；做不到则不称因果比较。保持已发布索引只读，不自动重建或切alias。任何需要实际索引/模型迁移的后续实验须另获明确目标授权，不在本实施首期隐含执行。
+
+### 18.4 实施追踪与回滚
+
+#### 新设计编号定义
+
+| 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
+|---|---|---|---|---|---|
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201、DR-KRET-202、DR-KRET-203、DR-KRET-204 | IMPL-KRET-201、IMPL-KRET-202、IMPL-KRET-203 | TEST-KRET-201、TEST-KRET-202、TEST-KRET-203 | VAL-KRET-201、VAL-KRET-202、VAL-KRET-203 | 需求定义见REQ_00 §5.2；本节前述条款和下表逐项展开；全部待实施验证 |
+
+| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|---|
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201 | IMPL-KRET-201：retrieval/stage.py读取新计划；es_adapter.py、bge_embedding.py端口复用、不改公共DTO | TEST-KRET-201：原问一致、最多4search/1embedding、只启用域、授权/快照拒绝和零后续 | VAL-KRET-201：unit/contract/fake集成 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-202、DR-KRET-203 | IMPL-KRET-202：minimal_ranking.py、stage.py；provider.py继续当前BGE表示 | TEST-KRET-202：同分、跨域重复/冲突、无需求锚点、≤2rerank/80评分、失败/超时/取消、无gold导入 | VAL-KRET-202：定向、类型及current-root回归 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-204 | IMPL-KRET-203：后续tests/evaluation/knowledge中的独立同池比较及有限快照记录；本目标无代码资产 | TEST-KRET-203：不同语料/配置不得成对计分、缺标注为null、历史hash不变 | VAL-KRET-203：离线反例及后续只读服务验证，不能由fake证明真实召回 |
+
+仅Knowledge成对代码绑定迁移；检索部署前需功能、安全、typed Java及Business防回退通过。回滚为禁用Knowledge或恢复整套相容的代码/任务/配置绑定；不更改索引/alias，旧StageA原文及发布回滚证据保持不变。取消父配额/锚点/0.5为质量策略重新设计，不放宽读取授权、源完整性或原文引用；保留噪声和必要来源排在top20之外的效果风险，按UAT_01 §15验证。

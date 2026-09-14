@@ -5,16 +5,16 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | P3_00 |
-| 当前版本 | v2.72 |
+| 当前版本 | v2.73 |
 | 文档状态 | Reviewed |
-| 更新时间 | 2026-09-11 |
-| 适用范围 | 已完成且不得回退的 Business/Knowledge 功能基线，以及效果测量终态、文档权威纠偏、全量设计落实审计和最终收口 |
-| 实施授权 | Ready 不等于实施授权；本任务已另行获得目标范围内代码实施、受控验证、文档同步及 Git 提交推送授权 |
+| 更新时间 | 2026-09-14 |
+| 适用范围 | 已有Business/Knowledge及语料证据保留原范围；新Knowledge设计重建与后续实施交接，以§21为当前新增权威 |
+| 实施授权 | 当前仅§21设计重建、文档评审验证和目标文档Git提交推送；不授权代码、配置、服务、模型调用或索引操作。Ready不等于实施授权，旧预算/批次不继承 |
 | 归档来源 | [v1.34 已评审旧版](历史文档/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN_v1.34.md)；当前代码和既有接口 |
 
 修订历史：本文件为新建大版本权威基线；旧版本仅作为归档来源，不继承过程记录。
 
-v2.72依据L2_01_00 v1.32推进§20.94的Rewrite固定域槽位设计纠偏；当前生产仍10/7/v3，新V11未实施。run-07终态不变，不增加付费批次、预算或门禁。
+v2.73：旧阶段B优化目标已取消，未完成的专项及质量包标为Deferred（取消，不是通过）。§19/§20及更早授权、Gate、预算和运行记录仅作历史，不构成当前执行许可。当前源码实际为11/7/v3，纠正旧v2.72首页“V11未实施”的漂移；新12/8/minimal-v1仅设计，后续边界见§21。
 
 v2.66依据L1_01 v1.22/L2_01_00 v1.29推进§20.77分域条件合同修复；本次不增加付费运行或重建索引，不把住宿单题作为整体召回的硬通过条件。
 
@@ -56,24 +56,24 @@ v2.53聚焦B-R8-SEM已核实的Prompt继承遗漏，依据L2_01_00 §8.6恢复�
 
 | 来源 | 当前版本 | 权威责任 | 状态 |
 |---|---|---|---|
-| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.4 | 稳定业务目标、安全、受控多值及 Knowledge 阶段 A 语料完整性 | Approved |
-| [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.8 | 系统边界和下位治理 | Approved |
-| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.5 | Runtime/Model/Core、受控 Business 候选准入、组合根及完整意图边界 | Approved |
+| [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) | v2.5 | 稳定业务目标、安全、受控多值及 Knowledge 阶段 A 语料完整性 | Approved |
+| [`L0_00`](../design/L0_00_SINGLE_AGENT_ARCHITECTURE.md) | v2.9 | 系统边界和下位治理 | Approved |
+| [`L1_00`](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.6 | Runtime/Model/Core、受控 Business 候选准入、组合根及完整意图边界 | Approved |
 | [`L1_02`](../design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v2.8 | Business 多值/组合边界、Adapter、结果卫生与最终授权 | Approved |
 | [`L2_00_00`](../design/L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) | v1.3 | Spring 公共接入、Runtime 内部协议和当前生产启动入口状态 | Approved |
 | [`L2_00_01`](../design/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) | v2.3 | planning bridge、组合根和单动作 | Approved |
-| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.7 | v7 显式字段完整性、裸 slot 多值/组合 Prompt 与 unsupported | Approved |
+| [`L2_00_02`](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | v2.9 | v7 显式字段完整性、裸 slot 多值/组合 Prompt 与 unsupported | Approved |
 | [`L2_00_03`](../design/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) | v1.3 | 用户角色 Authority 的 Servlet/Reactive 统一转换及 Provider 消费 | Approved |
 | [`L2_02_00`](../design/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) | v2.8 | filters、v3配置、多值binder、组合/region与结果出域 | Approved |
 | [`L2_02_01`](../design/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.8 | Employee search多值映射/semantic、记录卫生与最终读取授权 | Approved |
 | [`L2_02_02`](../design/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md) | v2.6 | Transaction Date/Decimal/page/sort 与跨语言合同 | Approved |
-| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.23 | 必要证据、派生向量及原问keyword/改写vector互补边界 | 原有Approved；当前互补增量准入见§20.83，阶段B质量/UAT未完成 |
-| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.30 | DR-KFLOW-024～029需求计划、语义条件及原问来源 | 原有Approved；DR-KFLOW-029准入见§20.83；真实终态仍§20.79.1 |
-| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.19 | 原问keyword严格消费、需求排序、文号匹配及窗口诊断 | 原有Approved；DR-KRET-037准入见§20.83，窗口保持512 |
-| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.25 | DR-KEV-029～034需求预算、覆盖、拒绝、分层计分与可选Evidence准入 | §20.68增量评审和实施分开，真实专项未通过 |
+| [`L1_01`](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v1.24 | 三类查询、分类决策与原问最小链路 | Approved；新设计结论见§21，不证明实施或效果 |
+| [`L2_01_00`](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v1.33 | §19意图12/原问计划/失败映射；待实施 | Approved；新设计结论见§21，不证明实施或效果 |
+| [`L2_01_01`](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v2.20 | §18原问召回/RRF/域内重排；阶段A保持 | Approved；新设计结论见§21，不证明实施或效果 |
+| [`L2_01_02`](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v1.26 | §19最小Evidence/Summary8与四维验收；待实施 | Approved；新设计结论见§21，不证明实施或效果 |
 | [`UAT_00`](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v1.24 | Business 35/35固定用例与15项Employee自然语言扩展 | Reviewed |
-| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.44 | 原十例历史及整体检索质量验收边界 | Reviewed；§14.51真实终态及§14.52非live边界验证，不改判旧失败 |
-| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.9 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
+| [`UAT_01`](UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v1.49 | §15新设计验收方法；旧37项及各真实结果保留原范围 | Reviewed；新设计结论见§21，不证明实施或效果 |
+| [`ROADMAP_01`](ROADMAP_01_SINGLE_AGENT_KNOWLEDGE_CORPUS_RETRIEVAL_GRAPH_EVOLUTION_PLAN.md) | v0.10 | 语料、检索质量与图谱后续路线；阶段 A 已完成 | Reviewed |
 
 Verified existing：Business filters plan、统一字段 JSON、v4 model catalog/完整意图 Prompt、Employee search/semantic Adapter、Employee Controller 最终读取守卫与 endpoint-scoped 共享 JWT role converter、真实 Servlet 过滤链角色/兼容矩阵、Transaction Date/Decimal/完整分页 Adapter、三动作生产组合根、旧目标入口退役核实、三动作 fake E2E、现有三个业务接口、隔离 Employee→es-query-service 只读联通、semantic 独立 10000ms action budget，以及现有向量 partial page/历史无姓名记录的 bounded codec/normalizer 合同。Employee 零模型生产 codec 返回 9/20 安全记录；Transaction production Spring UTC 零毫秒字符串/standalone epoch 严格双形态和零模型 20/104 生产 codec 均通过。配置 SHA-256=`47077b3783e6fc7179c22a53aab37f714b2c1d278ad96d925a614b6406f173ba`，v3 历史 manifest SHA-256=`3da2d9f250253b142e43f690d5dc4e7ff8cf9bfe57f2e52ff6d248ec2c8d75d2`，v4 当前 manifest SHA-256=`58b04d469dc7ed584e6689b12bae2cb8f0b5922d6f2893af8eceeede4068ea3c`。controlled-run06 六项真实模型场景通过，有限结果 SHA-256=`d80167215796c53c05b2f9443eaa5c96c0e82215b46d8d5df2f5e888b2f37ef6`；正式 run03 UAT 18/18 通过，SHA-256=`b49832426147dc14d56e571fea11b0345e16602d8cb5e2ea2eeb3dacb3326dd8`。前五次 controlled 失败 SHA-256 分别为 `fdc37b16e45d58733ede0a468e90b4db5242de8c84bcda7cca18ef07bd368607`、`121814993c53c2f0b4910bb5efe8b35bfe3da65dc395bd3270aa1c57b6eb5a08`、`737d76c296d7803618f74c370a4478b73e2a65a3bbec66ffee3d2d577b4a467d`、`3582693a77b4b791eabdc7253778936ac76ae7a779c09fad1edb3057bc7c14de`、`e028ae64eb97ca56b4e1ff09ac04423317536d20fdd9d1792e652cc9acfe2c4e`；所有历史结果及原 manifest 均保持不可变。
 
@@ -145,8 +145,8 @@ Verified existing：Business filters plan、统一字段 JSON、v4 model catalog
 | `WP-KRETRIEVAL-DESIGN-01` | 阶段 B 设计 | KQ-AD-018；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量；旧设计记录不覆盖 | `WP-KRETRIEVAL-DIAG-01` | - | 三轮内审及分离编辑的正式设计复评 | 合同、预算、安全与DAG | 不改变历史资产 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | 阶段 B 实施 | `DR-KFLOW-024～027`；`DR-KRET-029/034～036`；`DR-KEV-029～034` | §20.72文号政策配置及Evidence默认代码接线完成；不等于运行实例已升级 | `WP-KRETRIEVAL-DESIGN-01` | `GATE-KRG-006` | §20.68/20.71/20.72切片代码对照复评 | TEST-KEV-024/VAL-KEV-016、TEST-KRET-030/031；公共接口零差异 | legacy绑定/显式false回退；索引不变 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | 阶段 B 回归 | 当前阶段 B L2新需求增量 | §20.72.1正式隔离、当前根、Java/Spring及历史回归通过 | `WP-KRETRIEVAL-IMPLEMENT-01` | - | 各节分别记录验证范围，不跨轮复制计数 | 调用计数、零泄漏、来源绑定 | 不以fake关闭真实UAT | Done |
-| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.62.1、DR-KFLOW-030、DR-MODEL-110/111、DR-KEV-032～034 | §20.93.1记录flash/Rewrite10 run-07已消费failed：015人工通过、006失败、其余8题未执行；旧3/10不外推 | `WP-KRETRIEVAL-NONLIVE-01` | - | 当前版本自动与人工逐case分列，不回填或继承旧通过 | 本批实际2 E2E/5模型，首次失败停批；当前1/10通过 | 本批终态，不复用余额或追加批次 | In Progress |
-| `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 未达标保持未完成 | Blocked |
+| `WP-KRETRIEVAL-UAT-01` | 阶段 B 专项 UAT | `UAT_01` §14.62.1、DR-KFLOW-030、DR-MODEL-110/111、DR-KEV-032～034 | §20.93.1记录flash/Rewrite10 run-07已消费failed：015人工通过、006失败、其余8题未执行；旧3/10不外推 | `WP-KRETRIEVAL-NONLIVE-01` | - | 当前版本自动与人工逐case分列，不回填或继承旧通过 | 本批实际2 E2E/5模型，首次失败停批；当前1/10通过 | 本批终态，不复用余额或追加批次 | Deferred |
+| `WP-KRETRIEVAL-QUALITY-01` | 阶段 B 质量收口 | ROADMAP §4.5.2 | 正式代码评审、核心 P0、状态与 Git | `WP-KRETRIEVAL-UAT-01` | - | 评审结论和交付记录 | 核心 P0 不豁免，功能/安全/效果分列 | 旧目标取消；未通过事实保留，见§21 | Deferred |
 
 ## 6. 直接依赖图
 
@@ -313,8 +313,8 @@ DAG 无环；阶段 B 独立收口，不依赖阶段 C/D 或图谱联合 UAT。�
 | 52 | `WP-KRETRIEVAL-DESIGN-01` | Done | WP-KRETRIEVAL-DIAG-01 | §20.36及§20.55增量三轮内审/正式只读评审通过；只准入non-live实施 |
 | 53 | `WP-KRETRIEVAL-IMPLEMENT-01` | Done | WP-KRETRIEVAL-DESIGN-01 | §20.72文号政策配置及Evidence默认接线完成；运行实例和真实UAT另列 |
 | 54 | `WP-KRETRIEVAL-NONLIVE-01` | Done | WP-KRETRIEVAL-IMPLEMENT-01 | §20.72.1当前默认代码接线的正式隔离/类型/Java/Spring/历史回归通过 |
-| 55 | `WP-KRETRIEVAL-UAT-01` | In Progress | WP-KRETRIEVAL-NONLIVE-01 | §20.93.1已消费failed，flash当前015人工通过、006失败、其余8题未执行；没有可恢复或自动新增的付费批次 |
-| 56 | `WP-KRETRIEVAL-QUALITY-01` | Blocked | WP-KRETRIEVAL-UAT-01 | 召回/必要引用自动验收取得新证据；独立语义评审未完成，剩余噪声是保留风险而非新增无限调参门禁 |
+| 55 | `WP-KRETRIEVAL-UAT-01` | Deferred | 旧目标取消 | §20.93.1已消费failed，flash当前015人工通过、006失败、其余8题未执行；没有可恢复或自动新增的付费批次 |
+| 56 | `WP-KRETRIEVAL-QUALITY-01` | Deferred | 旧目标取消 | 召回/必要引用自动验收取得新证据；独立语义评审未完成，剩余噪声是保留风险而非新增无限调参门禁 |
 
 ## 10. 实施交接
 
@@ -439,8 +439,8 @@ Employee 旧调用方不兼容、workBase 数据无效、raw hits 泄漏、Date 
 | `WP-KRETRIEVAL-DESIGN-01` | REQ-KQUALITY-001～004；DR-KFLOW-024/025、DR-KRET-029/034、DR-KEV-029/030 | §20.36及§20.55必要证据/评分表示增量 | TEST-KFLOW-016、TEST-KRET-024/029、TEST-KEV-020；UAT_01 §14.21/14.31 | §20.36及§20.55三轮内审及正式评审 | Done |
 | `WP-KRETRIEVAL-IMPLEMENT-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72文号配置及Evidence默认代码接线；已有增量保持原范围 | TEST-KRET-030、TEST-KEV-024；UAT_01 §14.46及既有追踪 | 代码接线完成，运行实例升级另列 | Done |
 | `WP-KRETRIEVAL-NONLIVE-01` | REQ-KQUALITY-001～004；DR-KFLOW-024～027、DR-KRET-029/034/035、DR-KEV-029～034 | §20.72默认接线、当前根及历史防回退 | TEST-KRET-030、TEST-KEV-024、VAL-KEV-016；UAT_01 §14.46 | §20.72.1实际回归通过，计数分列 | Done |
-| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～029、DR-KRET-027/028/034/035/037、DR-KEV-026～034 | §20.88.1 KRB-017/019/021/023新批通过；run-02失败保持，不证明旧失败根因已消失 | UAT_01 §14.39～14.57 | 同生产版本9题有通过证据；人工usefulness未评估，跨域015为较早版本，不冒充当前10/10 | In Progress |
-| `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Blocked |
+| `WP-KRETRIEVAL-UAT-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～029、DR-KRET-027/028/034/035/037、DR-KEV-026～034 | §20.88.1 KRB-017/019/021/023新批通过；run-02失败保持，不证明旧失败根因已消失 | UAT_01 §14.39～14.57 | 同生产版本9题有通过证据；人工usefulness未评估，跨域015为较早版本，不冒充当前10/10 | Deferred |
+| `WP-KRETRIEVAL-QUALITY-01` | REQ-KQUALITY-001～004；DR-KFLOW-016～018、DR-KRET-027、DR-KEV-026 | §20 当前目标落点 | TEST-KFLOW-014、TEST-KRET-022、TEST-KEV-017；UAT_01 §14 | §20逐项证据 | Deferred |
 
 需求到工作包/UAT 的跨层映射：
 
@@ -3364,3 +3364,92 @@ WP-KRETRIEVAL-UAT-01仍In Progress，WP-KRETRIEVAL-QUALITY-01仍Blocked；当前
 状态同步后再次执行run-07 history及Business/Knowledge traceability三组测试，20 passed/2.56秒；L2/P3严格校验再次0错误0警告。这是本轮文档与历史状态复核，不继承设计提交前的同名测试计数，也不代表新人工UAT。
 
 代码/测试提交为`058ec1996fa8cf635ed25bcaec2e123bb6183b54`（18个目标文件，无删除文件、配置/索引/公共接口或历史运行变更）。本节与六份状态文档组成独立状态提交，两者同批推送codex；最终提交SHA、远端回读和工作树状态由最终报告记录。提交前已检查status、diff --check、暂存路径和完整暂存差异。本切片non-live实施、验证及代码复评完成，不新增Gate；整个阶段B仍因新版本真实规划/人工专项未验证而未完成，不能使用run-07剩余预算续跑。
+
+## 21. Knowledge设计重建与有限实施交接
+
+Ready 不等于实施授权。当前新目标只授权文档工作及其Git收口。
+
+### 21.1 本轮目标、事实基线与差异判断
+
+本节是当前新目标权威。旧阶段B优化目标取消，不回滚源码、不继承旧批次/预算/未完成candidate；WP-KRETRIEVAL-UAT-01及QUALITY-01为Deferred（取消而非Done），其历史失败记录与曾完成的代码包不改判。旧Gate不作为新包前置。本目标到设计及后续实施边界通过评审为止；代码、测试、运行配置、服务、数据库/索引、凭据及真实UAT操作均不授权。
+
+核实日期2026-09-14；起始codex HEAD `3ff8e40d26025ec18affb3714c72da9026920777`、upstream origin/codex相等，工作树clean。旧目标前对照为§20.1的`09eb9e26b2569990b92371d61e2728a72949e579`，仅历史差异基准，不是推荐回滚点。远端为当前origin，不新建分支或PR。
+
+| 核实项 | 事实及证据位置 | 判断强度与适用范围 | 新决策/处理 |
+|---|---|---|---|
+| 变更范围 | 上述两SHA间207提交/534文件；按路径git diff。Business/adapters、auth-service、employee-service、mq-procedure-service、agent-contracts、es-query-api、transaction-api、common-security无差异；当前仓库无mq-producer-service模块 | 已证实源码差异，不等于服务运行一致 | 保留非Knowledge；共享Model/入口改动另列，不因目录无diff断言完全无运行影响 |
+| 当前生产对象图 | main.py/bootstrap.py：Business v7、selector v4、Knowledge开关默认disabled；enabled唯一Rewrite11/Summary7/quality-v3，三owned client | 已证实源码；未启动或核实当前进程 | 保留Core/入口/生命周期，只规划Knowledge内部整套替换 |
+| 原实现复杂度 | semantic_planner、rewrite_v11、evidence_requirements / evidence/requirement_validation、quality_ranking_v3、ScoreAwareEvidenceSelector及Summary7 | 已证实职责叠加；因复杂度造成全部效果失败只是推断 | L1_01 §17分类及两方案比较；不把简化当已证明提升 |
+| 模型共享影响 | model/settings固定deepseek-flash；SCHEMA_ONLY支持、deepseek协议接缝；question_policy中文邻接邮箱识别安全修复 | 已证实，影响Knowledge之外的共享Model行为 | 保留安全修复/既有后端；本目标不切模型、不改Business任务或公共协议 |
+| 启动影响 | serviceCenter启动/绑定/预热逻辑及Knowledge可选依赖 | 已证实代码有变化；当前服务可用性尚未验证 | disabled零依赖；enabled依赖失败关闭，不能自动隐藏失败；后续COMPOSE静态及fake回归 |
+| 索引两条基线 | 仓库binding.v1指向corpus-a5；binding.v2预期policy-vector-b2及上下文向量Profile；源asset/正文发布证据仍在 | 已证实仓库绑定，不等于当前ES alias实时目标 | 不回滚/重建。后续只读核实实际绑定，首期固定一种；向量比较独立实验 |
+| 历史UAT | Business35、Knowledge37追踪及冻结结果；P5最近有效partially_effective；新模型/新任务不能继承旧效果 | 已证实有限记录；本轮未重跑 | 保留证据原范围；新设计Functional/质量待验证，trace authority漂移待后续测试资产包处理 |
+| 最后人工批 | UAT_01 §14.62.1、knowledge_representative_human_run_07/result.json：1通过、1失败、8未执行，5模型调用；失败原因仅semantic_contract/domains | 已证实有限终态；不能从枚举还原原始输出或具体域错误 | 不归因到未保存内容，不补跑、不建立新候选 |
+| 新意图/回答方案 | 三模式、无改写的原问基线、任务12/8、minimal-v1 | 设计决策，未实施；召回/回答提升证据不足 | 先non-live；后续另授权一次有限测量，不以连续候选求通过 |
+
+原版本对照涉及Agent UI等目标前已有改动，不将它们算作阶段B新增。详细“保留／重设计／退出”唯一决策表在L1_01 §17.2，本计划只管理实施。所有历史hash的本轮保护验证是Git范围及指定结果hash，不冒称重新验证所有外部原始资产。
+
+### 21.2 设计来源、合同与影响清单
+
+| 需求/决策 | 首期设计权威 | 后续代码/配置/测试影响 | 不变边界 |
+|---|---|---|---|
+| REQ-KQ-201～205；KQ-AD-020/021 | L2_01_00 §19，DR-KFLOW-201～205 | 新intent12/internal类型；semantic_planner/planning/capability；当前任务目录与fake | selector/公共HTTP不改；模型不回显Q、不计划证明集合 |
+| KQ-AD-022 | L2_01_01 §18，DR-KRET-201～204 | 原问同池、请求内embedding复用、minimal ranking；配置版本代码绑定；排序分阶段诊断 | typed接口、Profile物理映射、BGE重排512token窗口/embedding1024维、读取授权不改 |
+| KQ-AD-023 | L2_01_02 §19，DR-KEV-201～205 | minimal Evidence、新内部schema3、Summary8及decoder；直接脱敏观测/测试 | 三层出域、identity/hash、ref/子串/唯一性及公开extractive DTO不改 |
+| KQ-AD-024 | 三L2兼容/回滚、UAT_01 §15 | 同一root成对切换；旧测试迁移与历史隔离；后续traceability新版本 | Business35与Knowledge37旧证据不覆盖；旧task/source资产不静默删 |
+| 模型/运行环境 | L2_00_02 §6.2；L1_00 | 复用固定后端，任务及快照变化；启动测试检查enabled/disabled | 不安装新生产依赖、不改全局环境、不自动部署 |
+| 语料/向量 | L2_01_01 §18.3；StageA既有合同 | 首期仅记录只读绑定；新策略不写ES或切alias | corpus、parser、index/mapping、ACL和历史发布零修改 |
+
+旧实验中无调用方的requirement/proof策略、继承Prompt补丁及临时Harness是否清理，由COMPOSE包逐项引用/冻结资产扫描决定；“退出主线”不授权现在删除。存在冻结引用时优先冻结源读取/测试隔离，不把旧实验默认挂入生产，不恢复第二在线流程。
+
+### 21.3 后续工作包与直接依赖（新设计，不是本轮实施授权）
+
+| 工作包 | 设计与范围/交付物 | 直接依赖 | 状态 | 验证与完成条件 | 回滚与资源 |
+|---|---|---|---|---|---|
+| WP-KREBUILD-DESIGN-01 | 本轮12份授权文档、分类决策、方案及实施/验收边界 | 无 | Done | 内审≤3、分层/跨层正式复核、结构/追踪/DAG/范围检查通过；文档提交推送 | 只文档diff，不回滚历史；无服务/模型 |
+| WP-KREBUILD-CONTRACT-01 | DR-KFLOW-201/202及新内部plan/schema3、精确intent12；模式/目录/terminal合同 | WP-KREBUILD-DESIGN-01 | Ready | TEST-KFLOW-201；Model schema子集、错误/取消/敏感0outbound；mypy/compileall；代码对照复核 | 后续代码授权；新增独立类型/task，暂不切root |
+| WP-KREBUILD-RETRIEVAL-01 | DR-KFLOW-203及DR-KRET-201～204；原问两路、域内RRF/rerank及minimal配置 | WP-KREBUILD-CONTRACT-01 | Blocked | TEST/VAL-KRET-201～203，数量/顺序/Q一致、部分/全失败、同域拒绝；无网络fake | 本地fake；独立strategy，旧prod不变；无索引写入 |
+| WP-KREBUILD-EVIDENCE-01 | DR-KEV-201～205；minimal选择、mode input、Summary8；精确输出及模式语义反例 | WP-KREBUILD-CONTRACT-01 | Blocked | TEST/VAL-KEV-201～203；完整性先验证、预算、deny0、引用/未知coverage拒绝；模型fake | 与RETRIEVAL可并行；旧Prompt/serializer不改 |
+| WP-KREBUILD-COMPOSE-01 | DR-KFLOW-204/205；12/8/minimal-v1唯一接线、迁移测试、确认无调用方旧实现清理 | WP-KREBUILD-RETRIEVAL-01、WP-KREBUILD-EVIDENCE-01 | Blocked | current-root、Spring E2E、37功能重新逐case、Business35关键防退、Java安全/类型/non-live、正式代码评审；Blocker/Major0 | 后续代码/测试权限；不用live作基础代码包完成前置；禁用Knowledge或整套恢复相容发布 |
+| WP-KREBUILD-MEASURE-01 | UAT_01 §15：人工问题/来源冻结、真实typed只读确认、一次新版本有限测量、四维报告 | WP-KREBUILD-COMPOSE-01 | Blocked | 人工gold/语料就绪、新独立授权、版本绑定及预算预检；按预置判据分类，真实失败停止；未达标不写Passed | 需只读服务/模型与真人评价授权；无自动候选循环，不回滚索引；结果append-only |
+
+依赖边精确为DESIGN→CONTRACT，CONTRACT→RETRIEVAL/EVIDENCE，二者→COMPOSE，COMPOSE→MEASURE。没有MEASURE→基础代码的反向边，没有旧UAT或图谱前置。设计完成后仅CONTRACT具备技术Ready，仍不等于获准代码实施；其他包随直接依赖完成才就绪。不单设新Gate或另建“总收口候选”：COMPOSE完成实现交付，MEASURE形成自己的有限测量结论；质量未达标须报告但不重启取消目标。
+
+每包提交前完成相关测试/类型及代码对照检查，仅目标文件；依赖失败先定位实现/测试/设计/环境，不放宽安全。若提出新公共DTO、作用域/角色/数据/索引变化，阻塞相关包并另作决策，不通过下位文档越权。
+
+### 21.4 验收、变量和回滚边界
+
+UAT_01 §15独占新方法和case类别；功能、安全、召回、回答四维分列。新任务是整体简化基线，不能用与旧模型/旧索引不同的结果声称某一个策略产生因果提升。后续实验一次只改变改写、向量表示或一个评分参数；查询/语料不足与排序损失分开归类。新变量实验不属于首期实施必需，不为每个失败追加门禁/候选。
+
+四条回滚基线分别是代码提交（含任务类型）、模型后端/版本、配置及索引/策略快照、实际部署实例。首期只改代码绑定与相关配置，在相同索引上验证；真实进程不由本轮操作。清理前验证目标发布整体可恢复，不能单换Summary或伪造requirements给旧validator。原a5来源保留不意味着当前alias应恢复a5；向量表示优劣尚未有同条件受控结论，默认保持现状。
+
+### 21.5 本轮内审、正式评审和文档验证
+
+评审范围为本轮12份授权文档的新设计及其受影响上位/计划/验收接缝；不是重新批准全部历史章节，也不是代码评审或真实UAT。评审由同一执行者在编辑之外的只读阶段完成，不冒充外部独立人员。
+
+| 阶段 | 实际检查与发现 | 修复/结论 |
+|---|---|---|
+| 内审1 | 当前/历史基线、非Knowledge边界、REQ/L0/L1职责；发现P3首页V11状态、过期SA-C引用及旧目标继续措辞 | 修复现行入口和约束映射，旧任务/运行记录不改；取消不是通过 |
+| 内审2 | 两任务Schema、internal类型、错误/超时、原Q/DTO/模型边界 | 修正knowledge.invalid_question，补全总deadline收紧，安全Q观测不扩大；1024为typed接口code point约束 |
+| 内审3 | 追踪、四维判据、case分母、DAG、权限及回滚 | 补REQ/DR/IMPL/TEST/VAL定义与追踪；无命中/前置澄清不混入召回分母；6包6边无环，无新Gate |
+| 正式分层/跨层第1轮 | S1 REV-KD-001：冻结问题集与禁止保存任何Q矛盾；S2 REV-KD-002：JSON域键顺序可被误当语义；S2 REV-KD-003：ROADMAP仍称StageA设计缺失，单位表述及当前状态漂移 | 三项最小修复：批准无敏感值测试问句数据集；集合精确/代码排序；纠正StageA和取消状态、BGE单位。补四类Effectiveness映射，不改旧口径 |
+| 正式第2轮复评 | 再核REQ三模式→L1最小链→三L2合同→Model子集→P3依赖→UAT方法；回读修复与当前代码只读接缝 | S0=0、S1=0、未处理S2=0；方案及有限实施边界通过。不能由本结论宣布新代码/部署/效果通过 |
+
+接受的效果风险：原问长句/同义表达可能降低召回；域内重排和轮转不保证必要证据；5点/512字符的抽取模式不承担自由解释或无依据税务推理；模型对模式/缺条件/时效的语义判断只能后续实测，机械校验不证明充分性。当前服务、alias和真实新模型可用性未核实，后续只读环境预检必须先于真实测量；不阻塞设计结论，不批准越界修复。
+
+本轮文档验证记录（最终状态复验后有效）：
+
+| 命令/检查 | 范围和结果 |
+|---|---|
+| architecture-design-doc/scripts/validate_architecture_doc.py --file <目标> --root D:/codex --strict | L0、L1_00、L1_01三份；最终均0 errors/0 warnings |
+| detailed-design-document/scripts/validate_detailed_design.py --file <目标> --root D:/codex --strict | Model及Knowledge三L2四份；最终均0 errors/0 warnings |
+| plan-from-detailed-design/scripts/validate_implementation_plan.py --file docs/plans/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md --strict | 既有主计划结构/DAG/状态0 errors/0 warnings；新增§21用独立有限DAG检查补足 |
+| PowerShell只读Markdown链接/版本/新追踪检查 | 12目标文档84个本地Markdown/目录链接存在；P3当前来源表10个修改版本引用一致；新需求5/决策5/三L2规则14及TEST/VAL9组可定位；旧37个功能ID保留，新12题仅设计 |
+| PowerShell新§21依赖解析/拓扑排序 | 6包、6条直接边；无环、无缺失依赖、无旧Gate/UAT/图谱前置；CONTRACT仅技术Ready，代码权限未授予 |
+| git diff --name-only/--numstat 与固定目标白名单 | 只12份授权Markdown；源码/测试/配置/索引绑定、UAT_00、历史候选及归档零diff；未创建新报告或候选 |
+| Get-FileHash .../knowledge_representative_human_run_07/result.json -Algorithm SHA256 | 915724a415d10605d336f8c24139fc7dd2f51e4520f5df211099736a1ba0b69e，与原记录一致；其余tracked历史由零diff保护，不冒称全外部资产重算 |
+| git diff --check；目标新增内容有限凭据模式扫描；git status --short | 通过；无凭据/JWT/私钥模式，仅12目标文档变更；提交前另查暂存完整diff |
+
+校验过程未隐瞒：首轮Flow追踪列和P3 Ready固定措辞检查失败，补齐后通过；In Review暂态与历史Approved标记触发3份L2状态告警，正式复评通过后仅更新当前状态并重验，历史不改。一次自编版本检查使用错误PowerShell通配符，输出无效；已改为精确字符串及Stop-on-error重跑，最终10引用实际检查通过。发现脚本只把三份L2分为unknown，已人工按文件层级和正文确认，不靠发现器分类宣称已审查。
+
+本轮不执行pytest/mypy/compileall/Maven、服务、网络索引核查或真实UAT；不引用旧测试数字作为本轮结果。新增模型/search/embedding/rerank为0。设计包完成，后续5个实施/测量包未实施；文档交付以包含本节的目标提交成功推送为准，提交SHA、远端回读和最终工作树状态由最终报告给出，不写自引用SHA。

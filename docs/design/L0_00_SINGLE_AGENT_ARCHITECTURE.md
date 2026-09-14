@@ -7,9 +7,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.8 |
-| 更新时间 | 2026-09-02 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.4 |
+| 当前版本 | v2.9 |
+| 更新时间 | 2026-09-14 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v2.5 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
 | 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配；Business/Knowledge 功能验收及 Knowledge 阶段 A 离线语料发布已完成，最新有效 Knowledge 效果等级为 `partially_effective`，不等于整体效果达标 |
 | 归档来源 | [v1.5 已评审旧版](历史文档/L0_00_SINGLE_AGENT_ARCHITECTURE_v1.5.md)；当前代码和既有接口 |
@@ -28,7 +28,7 @@
 |---|---|---|---|
 | 接入治理 | Java `agent-service` | 认证、严格请求合同、转发和请求上下文 | 编排、业务角色授权、SQL/ES |
 | 编排运行 | Python `agent-runtime` / LangGraph | 单请求状态、模型规划、能力注册与执行 | 业务数据库访问、替代业务授权 |
-| Knowledge | 既有 Knowledge Capability/Adapter | 独立问题改写、检索、证据与摘要 | Business 回退或业务查询 |
+| Knowledge | 既有 Knowledge Capability/Adapter | 查询意图、一次域计划、检索、证据与抽取式回答；改写是否启用归Knowledge设计 | Business 回退或业务查询 |
 | Knowledge 离线语料 | 项目级 Corpus Tool + `es-query-service` 物理资源边界 | 官方 asset、解析/OCR、切片、候选索引和受控 alias 发布 | 用户请求、在线排序、Agent 物理索引访问或新服务 |
 | Employee | Employee Adapter + `employee-service` | ES 条件查询或语义查询；服务完成最终授权 | Agent 直连 ES、两接口拼装 |
 | Transaction | Transaction Adapter + `mq-procedure-service` | 固定 search 列表查询；服务完成最终授权与 SQL | Agent 直连数据库、聚合或写入 |
@@ -70,12 +70,14 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
-| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.4 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
-| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.15 | Knowledge 在线查询和阶段 A 离线语料构建/发布边界 | 在线功能验收保持完成；阶段 A 已由 P3/UAT_01 验证收口 |
+| [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.6 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
+| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v1.24 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v2.8 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
 
 ## 8. 质量属性、风险与当前结论
 
-安全优先于可用性：非法计划、模型失败、配置失配、敏感 slot 和不支持条件均失败关闭；调用计数应证明每请求最多一次模型规划和一个业务动作。保留请求级取消与确定性数值/时间合同，但不引入高可用框架、复杂重试、分布式事务或独立监控平台。
+安全优先于可用性：非法计划、模型失败、配置失配、敏感 slot 和不支持条件均失败关闭；Business每请求最多一次模型规划和一个业务动作；Knowledge在同一顶层动作内有界规划、检索和摘要，次数归其L2。保留请求级取消与确定性数值/时间合同，但不引入高可用框架、复杂重试、分布式事务或独立监控平台。
+
+v2.9只调整Knowledge职责及直接版本引用：新设计区分资料查找、原文解释和适用性查询，首期不要求自动改写或复杂证明规划。已验证功能属于其代码/配置快照，新设计通过不扩大这些证据的适用范围；系统边界、Business与读取/出域授权不变。
 
 主要风险：Employee ES endpoint-scoped 共享 converter 和读取守卫必须维持真实过滤链矩阵及历史 fallback 兼容；ES 原始 hits、受保护值和 Date/Decimal 必须维持当前已验证合同；workBase 字段数据无效且仅通过未配置自然不可达。non-live 和过滤链测试通过不等于成功受控真实联调或 UAT 完成。

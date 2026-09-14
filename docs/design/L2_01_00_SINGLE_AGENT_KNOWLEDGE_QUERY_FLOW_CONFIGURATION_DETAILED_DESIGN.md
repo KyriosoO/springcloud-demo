@@ -8,15 +8,17 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v1.32 |
-| 日期 | 2026-09-11 |
+| 当前版本 | v1.33 |
+| 日期 | 2026-09-14 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v1.23](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次增量 | DR-KFLOW-031：启用域固定槽位输出完成设计三轮内审及两轮分离复评，已实施11/7/v3并通过定向non-live；未部署或执行新版真实UAT |
+| 上位文档 | [`L1_01` v1.24](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次增量 | §19为新设计首期权威：意图12、原问题检索和模式化任务8；§7～18旧质量策略仅是当前源码与历史合同对照。新设计未实施，安全/授权/typed接口约束继续有效。 |
 | 来源文档 | [L2_01_00 v0.14 归档版](历史文档/2026-08-21-v0-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) |
 | 实施状态 | 生产入口、disabled惰性、域目录v2、Rewrite V11/Summary V7/quality-v3、阶段B有界检索与阶段A只读快照消费已实现；DR-KFLOW-023～031已有定向non-live证据，真实专项未通过。验证由P3管理，效果由UAT_01管理 |
 
 ## 2. 阅读导航与变更记录
+
+§19为新设计首期权威：意图12、原问题检索和模式化任务8；§7～18旧质量策略仅是当前源码与历史合同对照。新设计未实施，安全/授权/typed接口约束继续有效。 旧目标取消与评审/实施授权以P3 §21为准；本轮仅设计文档。
 
 重点：第 7 节动作/域、第 8 节改写、第 9 节主流程、第 10 节失败优先级、第 14 节实现落点。
 
@@ -86,7 +88,7 @@
 
 | 约束编号 | 来源与约束 |
 |---|---|
-| `CON-KFLOW-001` | `L0_00 SA-C-015/018/019/021` |
+| `CON-KFLOW-001` | `L0_00 §3/§5/§8；SA-AD-005` |
 | `CON-KFLOW-002` | `L1_01`：Capability 拥有查询策略，Adapter/Provider 拥有检索协议和物理映射 |
 | `CON-KFLOW-003` | `L2_00_01`：动作参数不由模型生成，Core 只执行注册 handler |
 | `CON-KFLOW-004` | `L2_00_02`：rewrite/summary 是代码绑定任务，默认模型可为 stub |
@@ -748,3 +750,87 @@ Retrieval按版本选择旧V1或新V2内部排序函数，Evidence按同一版�
 v1.21内审1：对照REQ-KQUALITY-001与KQ-AD-013，明确只允许不重复其他子问的背景，作用于本域的税种/法律条件不能删除；原问题、每域1表达及总预算不变。内审2：核实V5 definition公开可替换，唯一旧指令精确替换，V3 decoder/planner/Guard不变；补充本地无法证明任意语义归属的限制，禁止以fake冒充语义保持。内审3：补齐DR-021主追踪、实现/测试映射及回滚，纠正§6“V5未测量”的过时状态，明确V6未实施、配额/锚点和独立真实UAT仍未关闭。
 
 v1.21正式只读复评第1轮：冻结§8.3/DR-KFLOW-021修订后，依据REQ-KQUALITY-001/002、L1 KQ-AD-013/014/017、V3精确decoder/planner和V4/V5公开definition，审查L2实现可行性及跨层边界。S0=0、S1=0、未处理S2=0；追踪、语义职责、不变Guard/预算、版本兼容、失败关闭、单绑定和源码回滚闭合，允许本切片非live实施。严格结构校验0 errors/0 warnings。该结论来自同一执行者分离修改阶段的只读对照审查，不冒充另一名独立人员批准；不证明LLM条件归属、核心P0或整体UAT通过。Evidence配额与真实执行仍独立暂停。
+
+## 19. 最小查询流程合同（新设计，未实施）
+
+本节承接REQ-KQ-201～205与KQ-AD-020～024，作为后续首期实施权威；§8的Rewrite3～11、需求/scope增量及DR-KFLOW-016～031保留为当前源码/历史合同对照，不要求新链路继续调用。既有Guard、typed端口、授权、超时/取消、无fallback约束不被替代。旧任务文件不改写；新实现不通过伪造requirements绕过旧校验器。
+
+### 19.1 职责、数据及模型合同
+
+`DR-KFLOW-201`：既有Core selector只选择knowledge.query；进入同一handler后，Guard检查原问题。安全最小化、NFC后的完整问题记为Q，在本请求内冻结。Q长1～1024字符；公共接入仍接受原公开长度，超过Knowledge接口能力的请求在handler中返回既有INVALID_ARGUMENT/knowledge.invalid_question（规划与检索0），不截断、不调用模型压缩。此收紧是明确的首期能力限制，不修改Spring DTO，也不将长问题冒充unsupported语义。
+
+拟新增内部`KnowledgeQueryIntentTaskV12`（文件建议`agent-runtime/src/agent_runtime/knowledge/intent_task_v12.py`）：继续使用注册键knowledge_rewrite、version=12以复用现有任务目录，不表示执行查询文本改写。新任务独立构造Prompt/decoder，不链式字符串替换旧Prompt。输入为Q及启用域的只读安全目录（ID/安全描述）；无业务凭据、物理Profile/index、正文、证明需求或历史回答。
+
+输出只允许四字段：
+`{"outcome":"search","query_mode":"lookup","domains":{"tax.policy":"selected","tax.law":"not_selected"},"missing_conditions":[]}`。
+
+- outcome：search / clarification_required / unsupported。
+- query_mode：lookup / explanation / applicability / none。
+- domains：键集合精确等于该任务启动时的enabled域目录（1～2个）；值仅selected/not_selected。JSON对象键顺序不具有语义、不作为拒绝条件；解码后由代码按目录顺序形成不可变域元组。单域部署不要求另一个域的键。禁止重复键、额外域、null及其他值。
+- missing_conditions：0～4个唯一枚举，允许subject / period / taxpayer_type / calculation_method；不得返回自由文本或敏感输入。
+- search：模式非none，选1～2域，missing_conditions空。
+- clarification_required：模式非none、全部域not_selected、missing_conditions非空；仅对确实影响含义的条件提出澄清，普通资料查找不要求纳税人/计税法。
+- unsupported：模式none、全部域not_selected、missing_conditions空。
+- 不承诺模型能在本地证明语义分类正确；不会因检测不到关键词而本地改选域。模型不确定需求或不可表达时unsupported，不猜用户事实。
+
+复用Model既有SCHEMA_ONLY单输出承载协议：固定输出名knowledge_query_intent；每层object禁止额外字段，全部required；Provider不支持的集合上限仍本地检查。只有一次指定输出、无混合正文；异常不修复、不切JSON模式、不重试。任务系统指令≤8192bytes、输入≤16384bytes、输出≤512tokens、阶段8秒；这些是上限而非必须消耗。模型版本仍为当前共享配置的固定值，本设计不切换后端。
+
+`DR-KFLOW-202`：拟新增frozen/slots内部`KnowledgeQueryIntent`，字段为query_mode、selected_domain_ids、missing_conditions和outcome；Q与request-local context由代码持有，不让模型回显/覆盖。意图阶段结果为成功意图或现有有限失败；新内部类型不继承/伪装`KnowledgeRequirementPlanOutput`。在既有Capability流程增加一次版本分派，之后仍执行同一检索/Evidence阶段；不复制一个新Runtime。内部Stage数据注解可演进，三个调用入口rewrite/execute/build_result的keyword参数和公开HTTP不变；旧serializer及冻结构造器继续按旧版本读取，不对旧对象asdict追加新字段。
+
+### 19.2 确定性计划与原问责任
+
+`DR-KFLOW-203`：search后按目录顺序生成每域keyword/vector两项，query_text均精确为Q（vector HTTP只发送其本地embedding）。计划固定`knowledge-minimal-v1`版本、query_mode、域目录快照、Q及固定Profile映射；无requirements、focus、classification/proof role或评分指令。原问、计划、rerank和Summary的Q必须相同；拒绝错版本/不同Q/重复路径/非法域，不能把模型改写拼回去。
+
+检索接口上限与时限保持L2_01_01：每路20、域≤2、路径≤4；同一Q只embedding一次并在本请求内复用向量，不跨请求缓存。只选原问需要的域，不因结果为空/失败再选域。任一model失败时retrieval/embedding/rerank/summary均0；原问检索是正常固定路径，不是模型失败fallback。
+
+原问保留不等于检索完美：多主题噪声和长句相关性可能降低。后续若测试证明需要改写，另行预注册“同语料/同模型/同预算，仅改变query表示”的实验；未批准前不增加隐藏rewrite分支或模型调用。用户条件最终仍由原问约束Summary，不能以高召回分数作适用结论。
+
+### 19.3 公开结果与有限失败映射
+
+`DR-KFLOW-204`：复用当前CapabilityStatus、错误码和开放domain_result，以下reason均使用现有值；不新增HTTP/Java字段、动态澄清文本或新公开枚举。调用计数中的M包含selector，K为Knowledge意图，S为Summary，R为typed search；权限失败前可能已产生selector/意图，但不允许读取未授权正文。
+
+| 场景 | 现有公开映射 / reason | 用户语义 | 上限与零调用 |
+|---|---|---|---|
+| 接入认证/JSON非法 | 既有401/403/400 | 拒绝请求 | Runtime/模型/检索0 |
+| 敏感原问 | model_egress_denied/既有输入拒绝 | 输入不能处理 | 模型0、R0 |
+| Q超过Knowledge长度 | invalid_argument / knowledge.invalid_question | 输入不满足能力边界 | selector≤1，K/S/R0 |
+| 无支持域 | no_result / no_matching_domain | 无匹配知识能力 | M≤2，R/S0 |
+| 必要条件缺失 | no_result / clarification_required | 使用既有固定补充条件提示，不假设条件 | M≤2，R/S0 |
+| 意图模型非法/失败 | downstream_failure / knowledge.rewrite_failure | 规划失败，不是无结果 | M≤2，R/S0 |
+| 意图模型超时 | timeout / knowledge.rewrite_timeout | 规划超时 | M≤2，R/S0 |
+| 所有路径成功但零候选 | no_result / no_candidate | 当前检索未命中，不宣称全库无资料 | M≤2，R≤4，S0 |
+| 有候选但证据/表达预算不足 | no_result / insufficient_evidence | 无充分原文依据 | M≤3，R≤4，S≤1 |
+| 读取拒绝、授权权威故障、快照/完整性非法 | 既有授权或downstream_failure/evidence_failure | 不泄漏其他域正文；保持现有错误优先 | S0，不追加域/路径 |
+| 部分技术失败 | 仅在原覆盖规则满足时继续；coverage.retrievalComplete=false | 部分检索，不能说全面 | R≤4、S≤1，无重试 |
+| 所有路径技术失败/覆盖条件不满足 | downstream_failure / knowledge.retrieval_failure | 下游失败，不是无命中 | S0 |
+| 选中证据出域拒绝 | model_egress_denied / 既有policy reason | 资料不能用于模型处理 | S0，不换证据绕拒绝 |
+| Summary非法/超时 | downstream_failure或timeout / 既有summary错误码 | 回答生成失败 | S≤1，无Core answer |
+| 合法抽取 | success / 既有extractive_evidence | 按模式返回原文摘录 | M≤3，R≤4，无第二动作 |
+
+原有部分继续条件（每域至少一条成功路径及候选，总候选达到已冻结最小值）不放宽。单域全部无候选而另一域有结果时不能标成完整覆盖；按现有不足/失败语义结束，不由lookup模式绕开安全/覆盖规则。缺条件由模型判断只影响正常查询语义，不授权返回税务结论。
+
+上述阶段上限不是串行累加保证：沿用compute_phase_deadline，实际截止为min(请求剩余deadline-0.1秒, 阶段上限)，每个子HTTP再收紧。请求预算不足不启动下一阶段，返回既有对应timeout码；不得为了凑8+20+15秒修改Spring/Core公开超时。TEST-KFLOW-202须涵盖selector已消耗预算、检索成功但Summary时间不足、取消后迟到结果丢弃。
+
+### 19.4 配置、兼容与回滚
+
+`DR-KFLOW-205`：后续目标仅将当前11/7/v3替换为12/8/knowledge-minimal-v1的**成对代码绑定**。不提供请求级版本选择，不同时注册两代，不让配置扩大域或预算。默认disabled继续零Knowledge任务/client/配置要求；enabled配置错误仍启动失败关闭，不吞错自动降级。共享selector、Business v7、Model固定后端及三客户端所有权不变。
+
+预热的已知影响只登记为运维设计：原全量启动可能因Knowledge预热失败停止后续启动。首期保留显式enabled时失败关闭；disabled/PlanOnly不预热、不校验Knowledge依赖。不设计“失败后自动关Knowledge继续”的隐藏降级；需要只运行Business时由维护者显式disabled。后续验证serviceCenter路径，但本次不改脚本或新增服务。
+
+回滚优先显式禁用Knowledge；如恢复源码绑定，恢复整套任务/内部类型/配置与相容测试，不单独把Summary8接到quality-v3。模型、索引、alias与部署实例分别核对，代码回滚不执行ES操作、不恢复旧授权。历史版本只对冻结运行负责；清理前扫描所有现行/冻结调用方，不以删除旧测试掩盖兼容问题。
+
+### 19.5 实施与验证追踪（全部待实施）
+
+#### 新设计编号定义
+
+| 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
+|---|---|---|---|---|---|
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-201、DR-KFLOW-202、DR-KFLOW-203、DR-KFLOW-204、DR-KFLOW-205 | IMPL-KFLOW-201、IMPL-KFLOW-202、IMPL-KFLOW-203 | TEST-KFLOW-201、TEST-KFLOW-202、TEST-KFLOW-203 | VAL-KFLOW-201、VAL-KFLOW-202、VAL-KFLOW-203 | 需求定义见REQ_00 §5.2；本节前述条款和下表逐项展开；全部待实施验证 |
+
+| REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
+|---|---|---|---|---|
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-201、DR-KFLOW-202 | IMPL-KFLOW-201：拟新增intent_task_v12.py/intent_contracts.py，替换当前semantic_planner.py中的生产意图适配；旧任务文件只读 | TEST-KFLOW-201：三模式、单/双域、重复/未知/null、terminal组合、缺条件、长度、敏感输入、模型失败/超时/取消及0下游 | VAL-KFLOW-201：定向unit/contract，strict mypy/compileall，非live仅fake |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-203、DR-KFLOW-204 | IMPL-KFLOW-202：planning.py、capability.py、contracts.py的请求内新版本数据通道；现有协议与错误映射复用 | TEST-KFLOW-202：Q逐阶段相等、仅4路径/1embedding、无失败扩域、部分/全失败、reason/HTTP映射、并发隔离 | VAL-KFLOW-202：current-root fake、Spring→Runtime、Knowledge/Core/Business回归 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：12/8唯一、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、已有启动静态验证；真实部署另行授权 |
+
+新文件名与类名为拟议落点，非已经存在。TEST/VAL是后续实施义务，不是本次已执行测试。设计内审/正式复评及文档验证见P3 §21；本目标不准入代码、测试、配置或服务操作。

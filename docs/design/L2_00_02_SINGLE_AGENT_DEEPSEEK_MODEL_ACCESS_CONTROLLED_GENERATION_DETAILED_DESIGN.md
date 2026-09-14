@@ -6,9 +6,9 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v2.8 |
-| 更新时间 | 2026-09-11 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.5 |
+| 当前版本 | v2.9 |
+| 更新时间 | 2026-09-14 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.6 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 | Provider 基线 | 已有 DeepSeek transport、input guard 与已实施并由生产组合根绑定的 `business-query-plan-v7`；默认 provider 仍为 stub，v4～v6仅作历史兼容 |
 | 归档来源 | [v1.9 已评审旧版](历史文档/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN_v1.9.md)；当前代码和既有接口 |
@@ -19,7 +19,7 @@
 
 目标是生成一个 provider-neutral JSON 对象，由 Business 下游解码 filters QueryPlan。Model 层负责 minimized question、安全 catalog、受保护 slot 引用、Prompt、provider framing decoder、timeout/cancel 和 secret 安全；不负责业务字段合法性、Business DTO 映射、业务最终授权或业务调用。
 
-范围外：除§6.1批准的Knowledge输出协议外修改Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v7` 已实施；它在 v6 裸 slot 合同上只强化显式字段完整性，不改变 Business decoder、validator、binder 或业务接口。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。
+范围外：除§6.1既有协议与§6.2新Knowledge任务设计外修改Knowledge/answer task、将 SQL/ES/endpoint 暴露给模型、新增模型平台依赖、模型失败回退或修改现有公共 Core/HTTP 合同。当前 `business-query-plan-v7` 已实施；它在 v6 裸 slot 合同上只强化显式字段完整性，不改变 Business decoder、validator、binder 或业务接口。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。
 
 | 需求编号 | 需求 |
 |---|---|
@@ -95,6 +95,17 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 `IMPL-MODEL-109`：`agent-runtime/src/agent_runtime/model/settings.py`、`agent-runtime/src/agent_runtime/model/contracts.py`、`agent-runtime/src/agent_runtime/model/deepseek/dto.py`及`agent-runtime/src/agent_runtime/model/deepseek/transport.py`；调用方为L2_01_00 §8.11新任务。`TEST-MODEL-109` / `VAL-MODEL-103`：固定model/两条固定path/strict/named choice/disabled thinking的MockTransport测试、不支持Schema的HTTP零调用、旧模式回归及严格类型检查。`REQ-MODEL-105/106 → DR-MODEL-110/111 → IMPL-MODEL-109 → TEST-MODEL-109 → VAL-MODEL-103`。
 
 依据2026-09-11核实的[官方首次调用](https://api-docs.deepseek.com/zh-cn/)、[Tool Calls严格模式](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)及[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)：JSON mode不等于Schema约束，strict是Beta，固定tool_choice不支持thinking enabled。官方未来模型路由调整不得用于解释此前失败。本增量已按先设计复评、后编码的顺序实施；实际non-live验证及状态归P3，不宣称真实生成可靠性已通过。
+
+### 6.2 Knowledge最小任务设计的Model边界（新设计，未实施）
+
+当前§6.1共享固定后端、SCHEMA_ONLY信封、严格JSON子集及一次输出校验保持不变；本目标不切换deepseek-flash、不扩大Provider协议，不改变Business v7和action selector。拟议Knowledge任务只消费该既有能力，不需要修改Core任务ID枚举或公开DTO。
+
+- 意图任务注册键knowledge_rewrite/version12，固定输出名knowledge_query_intent：精确四字段、三类查询模式及一次选域，详细权威L2_01_00 §19。不输出改写文本或证明清单。
+- Summary注册键knowledge_summary/version8，固定输出名knowledge_extractive_answer：模式化抽取、最小两分支输出，详细权威L2_01_02 §19；引用/原文validator不变。
+- 输入大小、输出tokens和阶段deadline分别由两份L2定义；最多selector+意图+摘要3次模型HTTP。schema枚举/required/additionalProperties和本地数量/跨字段校验同时保留；没有模型失败修复、重试或第二执行工具。
+- 新task独立构造Prompt和decoder，禁用多代字符串替换继承；版本12/8成对注册，旧11/7文件及冻结测试不改写。后续实现/测试义务为IMPL-KFLOW-201、IMPL-KEV-202及其TEST/VAL；本次只审批设计，不授权执行这些代码变更。
+
+§2、§10旧实施准入限于各自历史增量；本次权限唯一取P3 §21。正式复核必须覆盖两任务schema能由当前Model支持子集表示、无新公开/业务调用、错配outbound0；新增模型后端或协议不在本设计内。
 
 ## 7. 实现落点清单
 
