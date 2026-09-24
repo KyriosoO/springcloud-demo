@@ -75,7 +75,7 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
-| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.1 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
+| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.2 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
 
 ## 8. 质量属性、风险与当前结论
