@@ -13,8 +13,8 @@
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。CONTRACT与RETRIEVAL已有独立授权及完成证据；本轮仅授权结构单元设计/计划修订和本地提交，不授权代码、索引、服务或模型操作 |
-| 计划执行状态 | Done=4（两项来源设计、CONTRACT、RETRIEVAL）；Ready=2；Blocked=6；生产接线/新UAT/资料实现未执行 |
+| 实施授权 | Ready 不等于实施授权。CONTRACT与RETRIEVAL已有独立授权及完成证据；NORMALIZE本轮获代码/测试与有限只读来源核对授权，不包含CHUNK、索引、服务或模型操作 |
+| 计划执行状态 | Done=4（两项来源设计、CONTRACT、RETRIEVAL）；Ready=1；In Progress=1（NORMALIZE）；Blocked=6；生产接线/新UAT未执行 |
 
 ## 2. 修改历史
 
@@ -24,6 +24,7 @@
 | 2 | 2026-09-15 | §7/12/13 | 跨阶段VAL可能被误读为早期包的全部前置 | v3.0内澄清各验证部分及后续承接包；工作包、直接依赖、状态和验收标准不变 |
 | 3 | 2026-09-15 | §1/3/5/7/9/10/12/14 | 按包推进实际实施 | v3.0状态更新：核实CONTRACT提交、完成RETRIEVAL组件与non-live；设计、12条直接依赖及验收判据不变 |
 | 4 | 2026-09-24 | §1/3～5/9/10/12～14 | 资料结构单元设计补齐 | v3.1承接L1/L2 v3.2：把解析顺序、稳定unit/span及策略选择分配到NORMALIZE/CHUNK；在线补取仍未授权，12包/12边与既有Done状态不变 |
+| 5 | 2026-09-24 | §1/5/9/12～14 | 启动NORMALIZE并修复范围外旧版引用 | v3.1内仅同步执行事实：NORMALIZE离线基础代码及测试已本地提交，真实来源验收待补；L0/L1_00五处Knowledge版本引用已另获授权修正 |
 
 ## 3. 来源清单与当前基线
 
@@ -62,7 +63,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-COMPOSE-01 | COMPOSE | L2_01_00 §8 DR-KFLOW-204/205；L2_01_02 §9 | 唯一root迁移与历史隔离 | WP-KREBUILD-RETRIEVAL-01、WP-KREBUILD-EVIDENCE-01 | - | bootstrap/capability/任务目录；受影响37风险新版验证 | current-root、Spring E2E、37功能重新逐case、Business35关键防退、Java安全/类型/non-live、正式代码评审；Blocker/Major0 | 后续代码/测试权限；不用live作基础代码包完成前置；禁用Knowledge或整套恢复相容发布 | Blocked |
 | WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205；UAT_02 §5 | 固定12题及一次独立测量 | WP-KREBUILD-COMPOSE-01 | - | 新版本问题/来源/预算绑定、有限结果及真人评价 | 人工gold/语料就绪、新独立授权、版本绑定及预算预检；按预置判据分类，真实失败停止；未达标不写Passed | 需只读服务/模型与真人评价授权；无自动候选循环，不回滚索引；结果append-only | Blocked |
 | WP-KORG-DESIGN-01 | DESIGN | L1_01 §4.6；L2_01_01 §18；L2_01_00/02 §19 | 已批准资料组织设计；本轮仅补结构单元与补取边界，不重判原完成证据 | - | - | 设计来源、样本边界及资料方案 | 原设计的内审/复核/文档及Git证明维持原范围；v3.2补充须单独评审和本地提交，不冒称新代码或推送 | 只文档；不动服务/模型/索引 | Done |
-| WP-KORG-NORMALIZE-01 | NORMALIZE | L2_01_01 §18 DR-KRET-301～303；L2_01_02 §19 DR-KEV-301；L2_01_00 §19 DR-KFLOW-301/302 | 标准化、不可变源版本及结构可信状态记录；不把现有DOCX乱序产物标verified | WP-KORG-DESIGN-01 | - | normalization_v2.py/来源位置Schema/fixture | TEST-KRET-301、hash/span及不可靠顺序反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 仅技术Ready，需代码/测试及有限资产读取新授权；sidecar追加，不迁现索引 | Ready |
+| WP-KORG-NORMALIZE-01 | NORMALIZE | L2_01_01 §18 DR-KRET-301～303；L2_01_02 §19 DR-KEV-301；L2_01_00 §19 DR-KFLOW-301/302 | 标准化、不可变源版本及结构可信状态记录；不把现有DOCX乱序产物标verified | WP-KORG-DESIGN-01 | - | normalization_v2.py/来源位置Schema/fixture | TEST-KRET-301、hash/span及不可靠顺序反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 离线基础与测试已提交；真实来源及完整父清单人工核验未闭合；sidecar追加，不迁现索引 | In Progress |
 | WP-KORG-CHUNK-01 | CHUNK | L2_01_01 §18 DR-KRET-303/304 | 最小修复受影响DOCX解析顺序，建立结构单元身份、同版本父子关系与连续chunk span | WP-KORG-NORMALIZE-01 | - | parser顺序接缝/chunking_v2.py及段表交错、短长条、表格/否定/例外fixture | TEST-KRET-302；完整单元可按源span恢复且hash一致，跨版本/悬空/乱序失败关闭，不静默遗漏 | 需代码/测试；新版本并存，旧chunker不覆盖；不依赖BGE或线上UAT | Blocked |
 | WP-KORG-REPRESENT-01 | REPRESENT | L2_01_01 §18 DR-KRET-305/306 | 独立检索表示及token前检；不把父单元或派生表头当可引用正文 | WP-KORG-NORMALIZE-01 | - | 表示构造/model manifest/tokenizer验证 | TEST-KRET-303；明确实际长度单位/版本，无截断、body/input hash独立；旧未知不回填 | 需代码/配置/本地固定tokenizer资源权限；无推理的纯构造可先完成，与CHUNK并行 | Blocked |
 | WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | scope/原文gold/排名损失/四维报告 | fake/类型→人工原文→另授权BGE及只读typed；逐阶段损失、保留题、安全与停止规则 | 需独立索引候选/BGE/只读服务/必要模型预算授权；同源切片与表示分轮；不切线上alias | Blocked |
@@ -121,7 +122,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | 5 | WP-KREBUILD-COMPOSE-01 | Blocked | WP-KREBUILD-EVIDENCE-01 | RETRIEVAL已完成；尚待Evidence/Summary8，未切生产 |
 | 6 | WP-KREBUILD-MEASURE-01 | Blocked | WP-KREBUILD-COMPOSE-01 | 等待直接前置；发布还需§7/8证据 |
 | 7 | WP-KORG-DESIGN-01 | Done | 无技术前置阻塞；后续操作须独立授权 | 来源设计已完成，非新实现 |
-| 8 | WP-KORG-NORMALIZE-01 | Ready | 无技术前置阻塞；后续操作须独立授权 | 本轮结构单元设计的首个可启动资料实现切片；只建立可信源前提，不声称已有父单元读取 |
+| 8 | WP-KORG-NORMALIZE-01 | In Progress | 真实来源及完整父清单人工核验待补 | 离线版本/来源/结构可信基础已提交；不声称已有切片或父单元读取 |
 | 9 | WP-KORG-CHUNK-01 | Blocked | WP-KORG-NORMALIZE-01 | 等待直接前置；发布还需§7/8证据 |
 | 10 | WP-KORG-REPRESENT-01 | Blocked | WP-KORG-NORMALIZE-01 | 等待直接前置；发布还需§7/8证据 |
 | 11 | WP-KORG-COMPARE-01 | Blocked | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | 等待直接前置；发布还需§7/8证据 |
@@ -171,7 +172,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-COMPOSE-01 | DR-KFLOW-204/205；DR-KEV-204 | IMPL-KFLOW-202/203；IMPL-KEV-203 | TEST-KFLOW-202/203；TEST-KEV-203；原37风险新版映射 | VAL-KFLOW-202/203；VAL-KEV-202/203；UAT_02 §3 | Blocked |
 | WP-KREBUILD-MEASURE-01 | DR-KEV-205；DR-KRET-204 | IMPL-KEV-203；IMPL-KRET-203 | UAT-KM-001～012 | VAL-KEV-203；VAL-KRET-203；UAT_02 §5 | Blocked |
 | WP-KORG-DESIGN-01 | 设计输入；REQ-KCORPUS-001～006 | 已批准三L2资料章节，不新增代码 | 原资料设计复核 | 原有限审计与文档验证 | Done |
-| WP-KORG-NORMALIZE-01 | DR-KRET-301/302及303的来源版本前提；DR-KEV-301；DR-KFLOW-301/302 | IMPL-KRET-301；IMPL-KEV-301；IMPL-KFLOW-301/302 | TEST-KRET-301；TEST-KEV-301；TEST-KFLOW-301/302 | VAL-KRET-301；VAL-KEV-301；VAL-KFLOW-301/302的离线/来源部分；UAT-KORG-001～004/009仅来源身份、附件关系与fake授权部分 | Ready |
+| WP-KORG-NORMALIZE-01 | DR-KRET-301/302及303的来源版本前提；DR-KEV-301；DR-KFLOW-301/302 | IMPL-KRET-301；IMPL-KEV-301；IMPL-KFLOW-301/302 | TEST-KRET-301；TEST-KEV-301；TEST-KFLOW-301/302 | VAL-KRET-301；VAL-KEV-301；VAL-KFLOW-301/302的离线/来源部分；UAT-KORG-001～004/009仅来源身份、附件关系与fake授权部分 | In Progress |
 | WP-KORG-CHUNK-01 | DR-KRET-303/304；DR-KEV-302/303 | IMPL-KRET-302；IMPL-KEV-302 | TEST-KRET-302；TEST-KEV-302 | VAL-KRET-302；VAL-KEV-302的结构/span部分；UAT-KORG-004的unit父子关系、005/006/008 | Blocked |
 | WP-KORG-REPRESENT-01 | DR-KRET-305/306；DR-KEV-302/303 | IMPL-KRET-303；IMPL-KEV-302 | TEST-KRET-303；TEST-KEV-302 | VAL-KRET-303；VAL-KEV-302；UAT-KORG-003/007/008 | Blocked |
 | WP-KORG-COMPARE-01 | DR-KRET-307；DR-KEV-304 | IMPL-KRET-304；IMPL-KEV-303 | TEST-KRET-304；TEST-KEV-303；UAT-KORG-001～012 | VAL-KRET-304；VAL-KEV-303；UAT_02 §6 | Blocked |
@@ -197,7 +198,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=4（两项来源设计、CONTRACT、RETRIEVAL）；Ready=2（EVIDENCE、NORMALIZE）；Blocked=6；In Progress=0。按本轮资料结构主题，下一步建议单独启动`WP-KORG-NORMALIZE-01`，先建立可信源与版本基础；在线`WP-KREBUILD-EVIDENCE-01`也保持Ready、可独立推进。本轮不自动启动，不切生产root、不执行新UAT。
+当前Done=4（两项来源设计、CONTRACT、RETRIEVAL）；Ready=1（EVIDENCE）；Blocked=6；In Progress=1（NORMALIZE）。NORMALIZE离线代码与测试已完成，但真实来源及完整父清单人工核验未闭合；在其完成前，`WP-KORG-CHUNK-01`仍Blocked。在线`WP-KREBUILD-EVIDENCE-01`保持Ready、可独立推进。本轮不切生产root、不执行新UAT。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
@@ -234,3 +235,11 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 代码对照复核为同一执行者两轮（非外部独立评审）：REV-KRET-001超时/取消被端口吞掉后仍可能推进下一阶段，已以timeout.expired/task.cancelling及零后续反例修正；REV-KRET-002读取策略ID应沿现有typed Adapter的256字符合同，已修正并验证256/257边界。同时核对已完成拒绝与畸形响应的优先级、并发请求隔离、Q/向量不缓存、有限排序及历史调用方不变。最终本包无未关闭Blocker/Major；不替代COMPOSE发布评审。
 
 6项跳过均需独立live/历史Gate opt-in（真实egress诊断4项、真实检索2项）；本轮无模型、BGE或ES实际调用，无密钥读取、服务启动和索引操作。现有LangChain反序列化默认值弃用提示不在本包修改范围。未执行全仓Python、Java/Maven、Spring跨进程E2E或真实UAT；P3 §12明确由后续COMPOSE/MEASURE承接。现有输入Guard仍可能拒绝无可识别税务语义的问句，本包不放宽该边界；原问相关性、top20噪声及512token重排窗口效果仍待实测。
+
+### 14.3 NORMALIZE启动证据与未闭合条件（2026-09-24）
+
+本地`codex_0915`提交`96cf200c5cc9009a8e587ef75de179a6ddeb6fb6`新增离线`normalization_v2.py`与15项直接测试；严格v2侧车、来源断言、不可变身份claim、原始资产hash、父附件/修订关系、规范解析源span及结构可信状态均有合成正反例。它不接入旧解析、索引构建或在线查询，旧DOCX乱序和扁平表格不被标为已验证。独立只读代码对照复评的阻断/高风险问题已修复，最终Blocker=0、High=0；该评审不证明真实来源或资料效果。
+
+Python3.12隔离环境执行`python -B -m pytest -p no:cacheprovider --basetemp <唯一工作区临时目录> --tb=short tests -q`，`knowledge-corpus-tools`全包306项通过；直接`tests/test_normalization_v2.py`为15项通过。`mypy --strict src/knowledge_corpus_tools/normalization_v2.py`与`compileall -q -f`通过。对一份既有官方附件执行只读抽样：本地文件SHA-256、旧asset manifest及旧parsed record hash相同，父文档ID一致；这是有限历史资产交叉核对，不等于新v2全量来源清单或当前官网复核。尚须对冻结来源记录、完整父清单及结构证明作人工核验，关闭`VAL-KRET-301`后才能将本包标Done、解除`DEP-KORG-002`。未知`aging/channel`映射保持unknown，不补造时效或文档类型。本轮没有模型调用、索引/alias写入或在线父单元补取。
+
+先前§13自检记录中的L0_00、L1_00旧版引用欠账，已在另获明确授权后由本地提交`c7f69edc37e41fc4a087e6b24839740db3e664a8`精确修正五处元数据；原复评当时的范围结论保留，不冒称该复评已覆盖后续修改。
