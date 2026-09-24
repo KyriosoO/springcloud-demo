@@ -4,19 +4,21 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.0 |
+| 当前版本 | v3.1 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-09-14 |
+| 日期 | 2026-09-24 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
-| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) §4.5/4.6；三份Knowledge L2 v3.1批准合同，引用迁移已复核 |
+| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) §4.5/4.6；三份Knowledge L2 v3.2批准合同，结构单元设计仍待实施 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.0；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.1；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 全部新方案用例Not executed；Functional/Safety Not evaluated，Retrieval/Answer evidence missing，资料验证未执行 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
 勘误（2026-09-15）：v3.0内澄清§6.3资料缺口与安全/执行失败的停止范围，沿用§6.1及来源L2的未知状态规则；不修改用例、阈值、预算或验收状态。
+
+v3.1补充结构单元、段落/表格顺序和父子关系的后续验收方法；未执行UAT，不改变历史case结果或当前模型/索引预算。
 
 ## 2. 范围与结果纪律
 
@@ -163,6 +165,8 @@
 
 对照分两个独立问题：A只改chunker，固定原始/规范解析源hash、问题、模型、检索配置及权限，向量输入类型不变；B只改向量表示，固定A选定或原有同一chunk集合及精确body hash、模型/服务和所有在线参数。更换切片时gold用稳定document/asset/source span，不用旧chunkId强求一一对应；同时变化parser、语料或模型时不能宣称单变量实验。
 
+结构前置先在不调用模型/ES的fixture上验证：文档类型、实际条款/章节结构与解析可信度共同决定条款型/章节型/通用型策略；DOCX段落和表格交错顺序必须与源一致，扁平表格不能冒称表头/单位/备注完整。每个verified结构单元必须有稳定的不可变`documentVersionId`、`unitId`、连续原文span和可重算hash；有上级结构单元时`parentUnitId`须指同版本且span包含该单元，无上级时为null。`parentDocumentId`仅是附件来源关系。短条单chunk、长条多chunk均能从不可变源恢复完整原文；单元完整性与chunk覆盖分开判定，子chunk未覆盖全部可引用内容blocks时不得发布受影响候选或宣称检索覆盖完整。乱序、悬空、跨版本或循环关系不得标单元完整。若parser变化是必要前置，先固定新旧解析产物并单独报告源/结构质量差异；不能把parser+chunker同时变化的结果宣称为纯切片收益。
+
 body、title/section/body、可信分类/body至多3种表示，先用纯构造/token统计筛除不合法项；每轮只比较基线与一个预选候选，不因失败扩成无限网格搜索。每次真实实验冻结run、代码/索引UUID/全记录变更清单、模型/tokenizer/表示/Prompt、case顺序、人工rubric、每个阶段调用预算及停止条件；本计划不授予任何调用或索引写预算。若有模型，统计selector/意图/Summary全部HTTP，不复用旧额度；无模型阶段仍须限定ES/BGE总量和候选数量。
 
 建议质量判据在执行前由维护者确认并固化：核心有充分原文的题必要来源覆盖不得为0；成对核心覆盖和保留集覆盖不得退化，至少一个预先选择的质量主指标改善且噪声/时延不突破预定容忍值，才考虑发布。指标阈值/容忍值未冻结则实验Blocked，不允许看到结果后降低。小样本只作局部决策依据，不声称统计显著或全库收益。数据/功能安全全部达标但质量无提升可以结束测量，不能使RELEASE自动Ready。
@@ -174,17 +178,19 @@ body、title/section/body、可信分类/body至多3种表示，先用纯构造/
 | UAT-KORG-001 | 源字段丢失/补造；DR-KRET-301、DR-KEV-301 | 11字段fixture、HF原行/官方/curated对照、hash自身排除及重放时钟反例 | 原值可追溯，未知不补造，许可/来源分离，同输入hash稳定 |
 | UAT-KORG-002 | 日期错填/陈旧；DR-KRET-302、DR-KEV-304 | 成文≠生效、pending变更、部分失效、历史/未知反例 | 不把成文填生效，不据文档整体状态认定条款；查阅与适用性分开 |
 | UAT-KORG-003 | 分类等同授权/相关性；DR-KRET-305 | 多标签/缺标签/机关/法律效力及channel映射契约 | 不按推断标签扩权或无条件排除，不引入分类分库 |
-| UAT-KORG-004 | 同题名误合并/关系丢失；DR-KRET-303 | 同标题不同版本、转载、附件父关系与冲突重放 | 稳定源身份/hashScope，关系有来源且可解析，旧记录不覆盖 |
-| UAT-KORG-005 | 条号/条件/例外过碎；DR-KRET-304 | 长短条款、否定/例外/列表/脚注结构fixture+人工核对 | 相邻合法打包，内容为连续span；跨单元不伪造，无法保全显式隔离 |
-| UAT-KORG-006 | 表格扁平与目录误认；DR-KRET-304 | 已有表格/页/目录样本，不重做OCR；表头/行关联人工核对 | 无猜造单元格/条款；重复表头不是quote；未知结构不标完整 |
+| UAT-KORG-004 | 同题名误合并/关系丢失；DR-KRET-303 | 同标题不同版本、转载、附件父关系、`unitId/parentUnitId`冲突重放 | 稳定源身份/hashScope，父文档与父结构单元不混用；同版本包含关系可解析，旧记录不覆盖 |
+| UAT-KORG-005 | 条号/条件/例外过碎；DR-KRET-303/304 | 条款型/章节型/通用型选择、短条单chunk与长条多chunk、否定/例外/列表/脚注fixture+人工核对 | 完整单元按源span/hash可恢复、chunk仍为连续原文；跨单元不伪造，无法保全显式隔离 |
+| UAT-KORG-006 | 表格扁平与目录误认；DR-KRET-304 | DOCX段表交错、表格表头/单位/备注/页/目录样本；对现有扁平化结果作反例 | 保持源顺序，无猜造单元格/条款；重复表头不是quote，未知结构不标完整 |
 | UAT-KORG-007 | 字符/token混同与截断；DR-KRET-306 | 固定tokenizer精确长度、三表示、长输入和版本缺失 | 特殊token计入，超长关闭；维度exists不代替模型/输入来源证明 |
 | UAT-KORG-008 | 派生上下文冒充原文；DR-KEV-302、DR-KEV-303 | keyword/vector/rerank/Evidence表示对照；非法标题/表头quote | 原content不变，hash作用域一致，拼接/跨片引用拒绝 |
-| UAT-KORG-009 | 读取/出域/父关系越权；DR-KFLOW-301、DR-KFLOW-302 | Java typed权限、Python策略/敏感0调用、默认disabled fake | 现公共合同不变，未授权正文不进入后续阶段/模型，Business不回退 |
+| UAT-KORG-009 | 读取/出域/父关系越权；DR-KFLOW-301、DR-KFLOW-302 | Java typed权限、Python策略/敏感0调用、默认disabled fake；检查当前无父正文补取 | 现公共合同不变，子chunk可读不推出父单元可读/可出域，未授权正文不进入后续阶段/模型，Business不回退 |
 | UAT-KORG-010 | 分段/向量收益混淆；DR-KRET-307 | 冻结父/asset/span、完整竞争池，单变量逐阶段排名及source_gap反例 | 无gold特判/删题；Recall/MRR/噪声与Evidence分列，null/分母可核 |
 | UAT-KORG-011 | 合法引用却无法回答；DR-KEV-304 | 三模式多税种/期间代表题，人工原文与usefulness；必要时另授权模型 | 足够与不足分别判断，时效未知不肯定，不由模型自评 |
 | UAT-KORG-012 | 发布错配/无法回滚；DR-KFLOW-303、DR-KRET-307 | fake故障→另授权隔离typed/alias回滚→发布冒烟 | 旧索引/资产不改，全记录变更可核，Profile/catalog匹配，恢复相容旧绑定 |
 
 001～008可先以纯离线fixture完成；009的fake与真实typed证据分开；010的BGE/ES、011的模型/人工回答、012的发布验证均须后续资源授权，不把单测代替真实集成。图谱、记忆和多轮不参与验收。
+
+在线父单元补取不属于当前UAT-KORG的通过条件。若未来单独批准，应先冻结新typed/候选`content`语义、逐单元读取与出域授权、同版本/深度1/≤8单元和既有Evidence预算、请求数/超时/取消及失败映射，再增加直接相关用例：未找到、未授权、技术失败、预算不足、循环/悬空/错版本、必要例外/定义缺失；安全拒绝必须零未授权正文与零模型出域，不完整时不得给出完整肯定答案。未通过合同评审前，这些是待评估风险，不计为当前已实施或已执行UAT。
 
 ### 6.3 报告与停止
 

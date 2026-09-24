@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-09-24 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v3.1](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.1计划入口与历史依据迁移；不改变代码、任务、配置、索引或业务合同 |
+| 上位文档 | [`L1_01` v3.2](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.2补齐结构单元身份、解析顺序前提和策略选择；仅待实施离线合同，不改变代码、索引或公共接口 |
 | 实施状态 | 在线 typed retrieval、Java Provider、本地模型及阶段 A 离线语料流水线、结构化 legacy DOC 解析、candidate a5、alias 发布/回滚均已验证；原状态见历史P3_00/UAT_01；新实施/验收由P3_01/UAT_02管理 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -25,6 +25,8 @@
 本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 勘误（2026-09-15）：仅修正§18对在线首期设计的章节指向；沿用v3.1，不改变设计、实施或验收状态。
+
+v3.2依据当前解析/切片代码核查定向补充§18.2；现有mapping含`parentDocumentId`但没有`parentUnitId`，仓库合同不能证明已部署索引具备结构单元或在线父读取。
 
 ## 2. 阅读导航
 
@@ -638,7 +640,7 @@ KnowledgeSearchResponse search(
 
 | 内部部分 | 字段及规则 |
 |---|---|
-| identity | 保留现documentId及父/附件ID；sourceKind为dataset/official/curated；sourceRecordId、sourceSnapshot、assetId/version按来源选填。不得以行号、标题、文号单独作为全局身份；重复身份异内容为冲突 |
+| identity | 保留现documentId及父/附件ID；sourceKind为dataset/official/curated；sourceRecordId、sourceSnapshot、assetId/version按来源选填；另以冻结来源身份、快照及原始内容hash确定内部不可变documentVersionId。不得以行号、标题、文号单独作为全局身份；重复身份异内容为冲突 |
 | source | 数据集repo+revision、采集时间、原始/最终URL、原始行/资产hash、许可声明引用；官方发布者另记。相对URL只按已核实官方base解析，不能凭HF链接认证官方性 |
 | metadata | title、documentNumber、channelRaw、documentType、effectLevelRaw、taxTypes、labelsRaw、topics、issuers、applicableRegions、applicableSubjects；逐字段带origin=source/manual_verified/inferred/unknown、sourceRef和observedAt。首期禁止自动生成inferred值，主题与适用主体分开 |
 | temporal | writtenDate、publishedDate、effectiveFrom、effectiveTo、validityRaw、validityStatus、statusVerifiedAt、snapshotAt；日期ISO日或null，核验时间带时区；每个非空派生日期有sourceRef/原文span或官方显式元数据依据 |
@@ -674,6 +676,18 @@ KnowledgeSearchResponse search(
 - 目录条目与正文结构分开标记navigation/content/unknown，仅来源明确才分类；不凭相同条号误认正文。当前没有在线role过滤，后续是否排除导航项须在固定样本验证后另定，不暗中扩展DTO。
 
 输出为frozen chunk记录：既有document/asset/ordinal/content/hash，加source span、section/clause/table定位、structureStatus和contextRefs；未知定位可空但不得标verified。父关系完整不等于跨条款回答充分。质量未过的受影响单元保留隔离记录，并使其覆盖验收未完成，不能用跳过数量美化结果。
+
+#### 18.2.1 解析前提、完整结构单元与策略选择（细化DR-KRET-303/304，待实施）
+
+当前`ParsedBlock`仅提供ordinal/kind/text及可选section/clause/table；现有DOCX解析先遍历所有段落、再遍历所有表格，不能据此证明两者的交错顺序。HTML/XLSX的表格扁平化也不能证明表头、单位、备注和行列关系。`parsed-source-v2`的verified顺序只接受能从原文件重放的实际块顺序；DOCX须由后续CHUNK范围内的解析接缝修复交错顺序后再标verified。旧产物可保留为legacy/unverified，不以chunker猜测恢复顺序。缺失或冲突的结构进入review_required，受影响范围不能宣称结构完整。
+
+离线结构单元是一个**同一不可变文档/附件版本内**的完整章节、条文、小节或表格，不是ES父文档，也不要求新增数据库或独立索引。内部`documentVersionId`取`documentId`、`sourceKind`、`sourceRecordId`（可为null）、冻结`sourceSnapshot`、`rawHashScope/rawSha256`、`assetId/assetVersion`（正文可为null）的严格键排序JSON（无额外字段、UTF-8、紧凑分隔）之SHA-256；来源快照或原始hash及其作用域无法确定时，不得标`complete_verified`。这是不可变内容/来源版本，不是时效状态或权限快照；相同正文但来源快照变化生成新版本，后续读取仍须按当次策略重新授权。`unitId`再取`documentVersionId`、`sourceTextSha256`、`parserVersion`、`unitType`、半开`start/end`的同一规范JSON之SHA-256；同一版本相同输入重放必须同ID，换版本、范围或解析版本生成新ID。结构单元的`parentUnitId`只指同版本内有真实包含关系的上级结构单元，根单元为null；`parentDocumentId`仍指附件所属来源文档，二者不可互代。条号、标题或同名文件不能单独形成身份；跨版本`parentUnitId`、悬空/循环关系和span不包含子单元均拒绝verified。
+
+结构单元记录`unitType`、源版本/源hash、半开连续span、原文hash、顺序、headingPath、结构可信状态及有来源的显式引用；完整原文优先从不可变`parsed-source-v2`按span恢复并逐字/hash校验，不在sidecar或索引无条件复制第二份正文。只有源、边界及所属有序blocks覆盖均完整可重放时才标单元`complete_verified`；否则`unverified/review_required`，不得由缺失或乱序旧chunk拼造完整父正文。chunk分别记录自己的连续span、body hash及所属`unitId`；父结构关系只在unit记录中以`parentUnitId`维护，避免chunk复制第二套父权威。短单元可一chunk，长单元可多chunk，但chunk命中不代表整单元相关或可读。单元完整性与切片覆盖是两项独立校验：即使单元可恢复，子chunk跨度并集若未覆盖该单元全部可引用内容blocks，`chunkSetCoverage`仍为unverified，受影响候选不得发布或声明检索覆盖完整；合法overlap不算遗漏。
+
+选择切片策略时同时使用带来源的documentType、实际可重放结构与解析可信度：有可信条款边界的资料（不论文件名/扩展名）按条组织；有可信章节/小节而无条款结构的按完整规则组织；其余使用保守通用段落策略并保留未知，不跨未验证边界合并。类型与结构冲突或无法判断条/目录时，只有源顺序与连续span仍可核验、且输出明确不声称条款/表格完整性时，才可采用保守段落片段；源顺序、范围或表格关键关系不可重放时必须review_required并阻断受影响结构候选，不得静默套法律策略。公司政策、科研报告只用作策略适用性对照，不扩大当前导入资料或在线领域。初期不用LLM补类型、例外/定义角色或关系；`contextRefs`仅收录可回到原文位置的明确引用、定义或附件关系，未解析者保留unknown，不按相似标题猜测。
+
+切片顺序仍为结构识别→单元内相邻块组织→超限按款/项/段/完整句拆分→连续span及关系校验。列表引导句、条件、否定、例外和脚注若不能在一个连续span中保全，应保留多个可追溯片段并标`split_context_required`，不拼成虚假的quote；长表格的表头重复只能进入派生检索表示。字符/字节/token预算分别验证，正文或表格无法安全切分时隔离且阻塞受影响范围，不静默截断。当前在线合同仍不按`parentUnitId`补取正文。
 
 ### 18.3 分类消费与向量表示
 
@@ -713,7 +727,7 @@ KnowledgeSearchResponse search(
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
 | REQ-KCORPUS-001/003、KQ-AD-025/026 | DR-KRET-301、DR-KRET-302 | IMPL-KRET-301：拟新增knowledge_corpus_tools/normalization_v2.py及严格sidecar Schema；复用audit/models/source清单 | TEST-KRET-301：11字段、缺失/多值、来源冲突、日期同值/部分失效/未知及相对URL | VAL-KRET-301：纯单元/契约、人工来源对照；不调用模型 |
-| REQ-KCORPUS-002/003、KQ-AD-027 | DR-KRET-303、DR-KRET-304 | IMPL-KRET-302：拟新增chunking_v2.py/位置记录，复用ParsedDocument；旧chunking.py不覆盖 | TEST-KRET-302：句/条款/表格/脚注、短块、overlap、连续span、身份/hash稳定及冲突 | VAL-KRET-302：固定公开/合规fixture重放、字节/跨度及人工结构审计 |
+| REQ-KCORPUS-002/003、KQ-AD-027 | DR-KRET-303、DR-KRET-304 | IMPL-KRET-302：拟新增chunking_v2.py/结构单元及位置记录，修复受影响DOCX解析顺序接缝；旧chunking.py不覆盖 | TEST-KRET-302：类型+结构策略、段表交错、短/长条、表格/脚注、连续span、unitId/parentUnitId与parentDocumentId区别、身份/hash稳定及冲突 | VAL-KRET-302：固定公开/合规fixture重放、字节/跨度/完整单元恢复及人工结构审计 |
 | REQ-KCORPUS-003/004、KQ-AD-026/027 | DR-KRET-305、DR-KRET-306 | IMPL-KRET-303：独立表示/无截断预检及已有manifest补证；不改线上Profile | TEST-KRET-303：三表示、token/字符/字节边界、推断标签拒绝、legacy_unknown | VAL-KRET-303：纯构造与tokenizer验证后另授权有限BGE对照 |
 | REQ-KCORPUS-005/006、KQ-AD-028 | DR-KRET-307 | IMPL-KRET-304：现vector_candidate/validation_alias/release接缝的显式新版本迁移计划及测试，不自动覆写冻结实现 | TEST-KRET-304：全记录保留、映射/策略错配、预算/中断/回滚及不改现行索引 | VAL-KRET-304：fake→另授权隔离typed→另授权发布；UAT-KORG各项 |
 
