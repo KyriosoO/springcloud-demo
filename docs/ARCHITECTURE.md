@@ -1,6 +1,6 @@
 # 架构文档索引
 
-本页是Agent统一文档版本序列的当前入口（索引v3.3；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
+本页是Agent统一文档版本序列的当前入口（索引v3.4；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
 
 ## 1. 编号与状态规则
 
@@ -21,7 +21,7 @@
 | 编号 | 文档 | 版本/状态 | 治理范围 |
 |---|---|---|---|
 | `L1_00` | [核心与运行架构](design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | v3.1 / Approved | Runtime、filters planning bridge、可选 Knowledge、Core 与共享 Registry/组合根 |
-| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v3.2 / Approved | 在线查询、结构单元与资料表示、证据及受控发布；父单元在线补取暂缓 |
+| `L1_01` | [知识查询能力架构](design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | v3.3 / Approved | 在线查询、结构单元与资料表示、证据及受控发布；父单元在线补取暂缓 |
 | `L1_02` | [业务查询适配架构](design/L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) | v3.1 / Approved | 三动作 Adapter、多值/组合字段配置、operator-specific 文本安全、最终授权与列表结果 |
 
 ## 4. L2 详细设计
@@ -39,9 +39,9 @@
 
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
-| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v3.2 / Approved |
-| `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v3.2 / Approved |
-| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v3.2 / Approved |
+| `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v3.3 / Approved |
+| `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v3.5 / Approved |
+| `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v3.3 / Approved |
 
 ### 4.3 Business（受 `L1_02` 治理）
 
@@ -58,14 +58,14 @@
 - Knowledge 是一个复合查询能力，在线流程固定为问题处理、逻辑域选择、检索计划、多路检索/融合/重排、证据与摘要；阶段 A 离线语料工具与在线请求隔离，不新增 `knowledge-service`。
 - Business 目标动作是 `employee.search`、`employee.semantic_search` 与 `transaction.search`；`employee.detail` 仅保留历史兼容调用方，不在目标生产组合根。Adapter 透传用户 JWT，业务服务完成最终授权。
 - 外部模型只接收各域明确允许的最小 payload；未知、敏感、冲突或未分类内容失败关闭。Business 真实结果出域默认关闭。
-- 原Knowledge最新有效效果等级为 `partially_effective`，只证明原冻结范围；具体运行在历史UAT_01/evidence保存。新方案由UAT_02治理，尚未执行，不继承历史通过。
+- 原Knowledge最新有效效果等级为 `partially_effective`，只证明原冻结范围；具体运行在历史UAT_01/evidence保存。新方案由UAT_02治理，当前仅有部分fake/non-live阶段证据；新版完整功能/安全UAT与真实效果测量尚未完成，不继承历史通过。
 
 ## 6. 当前计划、维护基线与历史资料
 
 | 定位 | 唯一入口 | 版本/状态 | 边界 |
 |---|---|---|---|
-| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.2 / Reviewed | 在线重建、资料组织两主线；技术Ready不是实施授权 |
-| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.2 / Reviewed | 功能、安全、召回、回答及资料验证；全部新用例未执行 |
+| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.4 / Reviewed | 在线重建、资料组织两主线；逐包实施与验收分开 |
+| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.4 / Reviewed | 功能、安全、召回、回答及资料验证；31项fake/non-live阶段证据不等于新版UAT通过 |
 | Business维护验收基线 | [UAT_00](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v3.1 / Reviewed | 原固定用例及Employee扩展证明范围保留；不重做UAT |
 | 历史计划与迁移映射 | [本次归档](plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md) | 原版本/状态不变 | 原ROADMAP_01、P3_00、UAT_01退出当前推进；UAT_00保留整理前快照 |
 
@@ -76,4 +76,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction及原Knowledge功能UAT保持原证明范围。当前仓库Knowledge默认关闭，生产绑定仍为源码11/7/quality-v3；目标意图12/Summary8尚未接入生产。新设计中CONTRACT、RETRIEVAL及资料主线NORMALIZE、CHUNK已分别完成P3_01限定的组件或离线范围；资料表示、生产组合、真实资料重切与索引发布、新版UAT及效果测量仍未完成，逐包状态以P3_01为准。本索引不证明运行部署或新版UAT通过，也不宣称效果改善；图谱仍为后续方向。已取消优化目标不恢复。文档评审、实施、部署及验收分别管理。
+Employee/Transaction及原Knowledge功能UAT保持原证明范围。当前仓库Knowledge默认关闭；本轮工作树中的唯一生产组合根已接线目标意图12/Summary8/minimal-v1，实际部署未核实。新设计中CONTRACT、RETRIEVAL、EVIDENCE及资料主线NORMALIZE、CHUNK、REPRESENT已分别完成P3_01限定的组件或离线范围；COMPOSE/COMPARE在制，真实资料重切、候选索引、发布、新版完整UAT及效果测量未完成，逐包状态以P3_01为准。本索引不证明运行部署或新版UAT通过，也不宣称效果改善；图谱仍为后续方向。已取消优化目标不恢复。文档评审、实施、部署及验收分别管理。
