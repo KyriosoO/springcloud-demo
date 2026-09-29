@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -50,7 +52,19 @@ public class KnowledgeSearchConfiguration {
 
 	@Bean
 	KnowledgeSearchService knowledgeSearchService(RestClient restClient, ObjectMapper objectMapper,
-			KnowledgeSearchProperties properties) {
+			KnowledgeSearchProperties properties, Environment environment) {
+		if (properties.usesExpectedIndexTarget()) {
+			// A fixed-target service must not bind or register as the normal production endpoint.
+			Integer port = environment.getProperty("server.port", Integer.class);
+			if (!environment.acceptsProfiles(Profiles.of("knowledge-b-isolation"))
+					|| !"127.0.0.1".equals(environment.getProperty("server.address"))
+					|| port == null || port < 1 || port > 65535 || port == 9201
+					|| !"false".equals(environment.getProperty("eureka.client.enabled"))
+					|| !"false".equals(environment.getProperty("spring.cloud.discovery.enabled"))
+					|| !"false".equals(environment.getProperty("spring.cloud.config.enabled"))) {
+				throw new IllegalStateException("Knowledge B isolation requires an isolated loopback launch");
+			}
+		}
 		return new KnowledgeSearchService(restClient, objectMapper, properties);
 	}
 

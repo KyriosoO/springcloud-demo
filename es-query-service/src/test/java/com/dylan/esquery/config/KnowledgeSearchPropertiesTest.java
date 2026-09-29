@@ -16,6 +16,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
 import com.dylan.esquery.config.KnowledgeSearchProperties.KnowledgeSearchProfile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class KnowledgeSearchPropertiesTest {
 
@@ -34,6 +35,7 @@ class KnowledgeSearchPropertiesTest {
 				.bind("es.query.knowledge", Bindable.of(KnowledgeSearchProperties.class)).get();
 		properties.afterPropertiesSet();
 		assertThat(properties.isEnabled()).isTrue();
+		assertThat(properties.usesExpectedIndexTarget()).isFalse();
 		assertThat(properties.getProfiles()).containsOnlyKeys("tax-policy-v1", "tax-law-v1");
 		KnowledgeSearchProfile policy = properties.requireProfile("tax.policy", "tax-policy-v1");
 		assertThat(policy.isDocumentNumberMatching()).isTrue();
@@ -58,6 +60,7 @@ class KnowledgeSearchPropertiesTest {
 				.bind("es.query.knowledge", Bindable.of(KnowledgeSearchProperties.class)).get();
 		properties.afterPropertiesSet();
 		assertThat(properties.isEnabled()).isFalse();
+		assertThat(properties.usesExpectedIndexTarget()).isFalse();
 		assertThat(properties.getProfiles()).isEmpty();
 	}
 
@@ -142,6 +145,132 @@ class KnowledgeSearchPropertiesTest {
 		properties.setProfiles(Map.of("tax-unknown-v1", profile));
 		assertThatThrownBy(properties::afterPropertiesSet)
 				.isInstanceOf(IllegalStateException.class);
+	}
+
+	@Test
+	void bIsolationSwitchRejectsMalformedAndUnboundValues() {
+		for (String value : new String[] {"TRUE", "yes", "enabled", "", " true "}) {
+			KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
+			properties.setBIsolationFixedTarget(value);
+			assertThatThrownBy(properties::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+		}
+		KnowledgeSearchProperties strayBinding = new KnowledgeSearchProperties();
+		strayBinding.setBIsolationRunId("b-run-12345");
+		assertThatThrownBy(strayBinding::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+
+		KnowledgeSearchProperties missingRun = new KnowledgeSearchProperties();
+		missingRun.setBIsolationFixedTarget("true");
+		assertThatThrownBy(missingRun::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+		KnowledgeSearchProperties disabledKnowledge = new KnowledgeSearchProperties();
+		disabledKnowledge.setBIsolationFixedTarget("true");
+		disabledKnowledge.setBIsolationRunId("b-run-12345");
+		assertThatThrownBy(disabledKnowledge::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+		for (String runId : new String[] {"tiny", "B-run-12345", "../escape", "b-run-12345 "}) {
+			KnowledgeSearchProperties invalidRun = new KnowledgeSearchProperties();
+			invalidRun.setEnabled(true);
+			invalidRun.setBIsolationFixedTarget("true");
+			invalidRun.setBIsolationRunId(runId);
+			assertThatThrownBy(invalidRun::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+		}
+		assertThatThrownBy(() -> new Binder(new MapConfigurationPropertySource(Map.of(
+				"es.query.knowledge.b-isolation-fixed-target", "unknown")))
+				.bind("es.query.knowledge", Bindable.of(KnowledgeSearchProperties.class)).get()
+				.afterPropertiesSet()).isInstanceOf(IllegalStateException.class);
+	}
+
+	@Test
+	void bIsolationRequiresRunOwnedAliasAndTwoProfilesOnTheSamePhysicalIndex() {
+		KnowledgeSearchProperties valid = bProperties("b-b-run-12345-0123456789abcdef-read", "test-index", "test-uuid",
+				"test-mapping-v1", "b-b-run-12345-0123456789abcdef-read", "test-index", "test-uuid",
+				"test-mapping-v1");
+		valid.afterPropertiesSet();
+		assertThat(valid.usesExpectedIndexTarget()).isTrue();
+		assertThatThrownBy(() -> valid.setBIsolationFixedTarget("false"))
+				.isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> valid.setProfiles(Map.of())).isInstanceOf(IllegalStateException.class);
+
+		for (String[] mismatch : new String[][] {
+				{"agent-doc-tax-policy-v2-read", "test-index", "test-uuid", "test-mapping-v1"},
+				{"b-other-run-12345-0123456789abcdef-read", "test-index", "test-uuid", "test-mapping-v1"},
+				{"b-b-run-12345-fedcba9876543210-read", "test-index", "test-uuid", "test-mapping-v1"},
+				{"b-b-run-12345-0123456789abcdef-read", "other-index", "test-uuid", "test-mapping-v1"},
+				{"b-b-run-12345-0123456789abcdef-read", "test-index", "other-uuid", "test-mapping-v1"},
+				{"b-b-run-12345-0123456789abcdef-read", "test-index", "test-uuid", "other-mapping"}
+		}) {
+			KnowledgeSearchProperties invalid = bProperties("b-b-run-12345-0123456789abcdef-read",
+					"test-index", "test-uuid", "test-mapping-v1",
+					mismatch[0], mismatch[1], mismatch[2], mismatch[3]);
+			assertThatThrownBy(invalid::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+		}
+		KnowledgeSearchProfile oneDomainProfile = copyOf(enabledProperties("0".repeat(64))
+				.requireProfile("tax.policy", "tax-policy-v1"));
+		oneDomainProfile.setReadAlias("b-b-run-12345-0123456789abcdef-read");
+		KnowledgeSearchProperties oneDomain = new KnowledgeSearchProperties();
+		oneDomain.setEnabled(true);
+		oneDomain.setBIsolationFixedTarget("true");
+		oneDomain.setBIsolationRunId("b-run-12345");
+		oneDomain.setProfiles(Map.of("tax-policy-v1", oneDomainProfile));
+		assertThatThrownBy(oneDomain::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
+	}
+
+	@Test
+	void bIsolationCannotBeEnabledByAProductionLaunch() {
+		KnowledgeSearchProperties properties = bProperties("b-b-run-12345-0123456789abcdef-read",
+				"test-index", "test-uuid", "test-mapping-v1",
+				"b-b-run-12345-0123456789abcdef-read", "test-index", "test-uuid", "test-mapping-v1");
+		properties.afterPropertiesSet();
+		KnowledgeSearchConfiguration configuration = new KnowledgeSearchConfiguration();
+		MockEnvironment production = new MockEnvironment().withProperty("server.address", "0.0.0.0")
+				.withProperty("server.port", "9201");
+		production.setActiveProfiles("knowledge-live");
+		assertThatThrownBy(() -> configuration.knowledgeSearchService(null, new ObjectMapper(),
+				properties, production)).isInstanceOf(IllegalStateException.class);
+
+		MockEnvironment isolated = new MockEnvironment().withProperty("server.address", "127.0.0.1")
+				.withProperty("server.port", "19201")
+				.withProperty("eureka.client.enabled", "false")
+				.withProperty("spring.cloud.discovery.enabled", "false")
+				.withProperty("spring.cloud.config.enabled", "false");
+		isolated.setActiveProfiles("knowledge-live", "knowledge-b-isolation");
+		assertThat(configuration.knowledgeSearchService(null, new ObjectMapper(), properties, isolated))
+				.isNotNull();
+		for (String key : new String[] {"server.address", "server.port", "eureka.client.enabled",
+				"spring.cloud.discovery.enabled", "spring.cloud.config.enabled"}) {
+			MockEnvironment invalid = new MockEnvironment().withProperty("server.address", "127.0.0.1")
+					.withProperty("server.port", "19201")
+					.withProperty("eureka.client.enabled", "false")
+					.withProperty("spring.cloud.discovery.enabled", "false")
+					.withProperty("spring.cloud.config.enabled", "false")
+					.withProperty(key, key.equals("server.address") ? "0.0.0.0"
+							: key.equals("server.port") ? "9201" : "true");
+			invalid.setActiveProfiles("knowledge-b-isolation");
+			assertThatThrownBy(() -> configuration.knowledgeSearchService(null, new ObjectMapper(),
+					properties, invalid)).isInstanceOf(IllegalStateException.class);
+		}
+	}
+
+	private static KnowledgeSearchProperties bProperties(String policyAlias, String policyIndex,
+			String policyUuid, String policyMapping, String lawAlias, String lawIndex, String lawUuid,
+			String lawMapping) {
+		KnowledgeSearchProfile source = enabledProperties("0".repeat(64))
+				.requireProfile("tax.policy", "tax-policy-v1");
+		KnowledgeSearchProfile policy = copyOf(source);
+		policy.setReadAlias(policyAlias);
+		policy.setExpectedIndexName(policyIndex);
+		policy.setExpectedIndexUuid(policyUuid);
+		policy.setMappingVersion(policyMapping);
+		KnowledgeSearchProfile law = copyOf(source);
+		law.setLogicalDomainId("tax.law");
+		law.setReadAlias(lawAlias);
+		law.setExpectedIndexName(lawIndex);
+		law.setExpectedIndexUuid(lawUuid);
+		law.setMappingVersion(lawMapping);
+		KnowledgeSearchProperties properties = new KnowledgeSearchProperties();
+		properties.setEnabled(true);
+		properties.setBIsolationFixedTarget("true");
+		properties.setBIsolationRunId("b-run-12345");
+		properties.setProfiles(Map.of("tax-policy-v1", policy, "tax-law-v1", law));
+		return properties;
 	}
 
 	private static KnowledgeSearchProfile copyOf(KnowledgeSearchProfile source) {

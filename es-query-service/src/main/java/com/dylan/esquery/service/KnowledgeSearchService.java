@@ -68,7 +68,9 @@ public final class KnowledgeSearchService {
 			throw new KnowledgeAuthorityUnavailableException();
 		}
 
-		Request esRequest = new Request("POST", "/" + profile.getReadAlias() + "/_search");
+		String target = properties.usesExpectedIndexTarget()
+				? profile.getExpectedIndexName() : profile.getReadAlias();
+		Request esRequest = new Request("POST", "/" + target + "/_search");
 		esRequest.setOptions(RequestOptions.DEFAULT.toBuilder()
 				.addHeader(HttpHeaders.ACCEPT_ENCODING, "identity"));
 		try {

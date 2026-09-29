@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,15 +19,20 @@ public class KnowledgeSearchProperties implements InitializingBean {
 	private static final Set<String> REQUIRED_SOURCE_FIELDS = Set.of(
 			"document-id", "chunk-id", "title", "content", "source-url",
 			"document-number", "written-date", "material-type", "policy-ref");
+	private static final Pattern B_RUN_ID = Pattern.compile("[a-z0-9][a-z0-9-]{4,95}");
 
 	private boolean enabled;
 	private Map<String, KnowledgeSearchProfile> profiles = new LinkedHashMap<>();
+	private String bIsolationFixedTarget = "false";
+	private String bIsolationRunId;
+	private boolean frozen;
 
 	public boolean isEnabled() {
 		return enabled;
 	}
 
 	public void setEnabled(boolean enabled) {
+		ensureMutable();
 		this.enabled = enabled;
 	}
 
@@ -35,12 +41,40 @@ public class KnowledgeSearchProperties implements InitializingBean {
 	}
 
 	public void setProfiles(Map<String, KnowledgeSearchProfile> profiles) {
+		ensureMutable();
 		this.profiles = profiles == null ? new LinkedHashMap<>() : new LinkedHashMap<>(profiles);
+	}
+
+	public String getBIsolationFixedTarget() {
+		return bIsolationFixedTarget;
+	}
+
+	public void setBIsolationFixedTarget(String value) {
+		ensureMutable();
+		this.bIsolationFixedTarget = value;
+	}
+
+	public String getBIsolationRunId() {
+		return bIsolationRunId;
+	}
+
+	public void setBIsolationRunId(String value) {
+		ensureMutable();
+		this.bIsolationRunId = value;
+	}
+
+	public boolean usesExpectedIndexTarget() {
+		if (!frozen) {
+			throw new IllegalStateException("Knowledge search configuration is not validated");
+		}
+		return "true".equals(bIsolationFixedTarget);
 	}
 
 	@Override
 	public void afterPropertiesSet() {
+		validateBIsolationSwitch();
 		if (!enabled) {
+			frozen = true;
 			return;
 		}
 		if (profiles.isEmpty()) {
@@ -48,7 +82,44 @@ public class KnowledgeSearchProperties implements InitializingBean {
 		}
 		Set<String> domains = new LinkedHashSet<>();
 		profiles.forEach((profileId, profile) -> validateProfile(profileId, profile, domains));
+		if ("true".equals(bIsolationFixedTarget)) {
+			validateBIsolationProfiles();
+		}
 		profiles = Collections.unmodifiableMap(new LinkedHashMap<>(profiles));
+		frozen = true;
+	}
+
+	private void validateBIsolationSwitch() {
+		if (!"true".equals(bIsolationFixedTarget) && !"false".equals(bIsolationFixedTarget)) {
+			throw new IllegalStateException("invalid Knowledge B isolation configuration");
+		}
+		if ("false".equals(bIsolationFixedTarget) && bIsolationRunId != null
+				|| "true".equals(bIsolationFixedTarget) && (!enabled || bIsolationRunId == null
+						|| !B_RUN_ID.matcher(bIsolationRunId).matches())) {
+			throw new IllegalStateException("invalid Knowledge B isolation configuration");
+		}
+	}
+
+	private void validateBIsolationProfiles() {
+		if (!profiles.keySet().equals(Set.of("tax-policy-v1", "tax-law-v1"))) {
+			throw new IllegalStateException("Knowledge B isolation requires both domains");
+		}
+		// The launcher proves ownership and alias flags; this only rejects an unbound or non-B alias.
+		String aliasPattern = "b-" + Pattern.quote(bIsolationRunId) + "-[0-9a-f]{16,32}-read";
+		KnowledgeSearchProfile policy = profiles.get("tax-policy-v1");
+		KnowledgeSearchProfile law = profiles.get("tax-law-v1");
+		if (!policy.readAlias.matches(aliasPattern) || !law.readAlias.equals(policy.readAlias)
+				|| !law.expectedIndexName.equals(policy.expectedIndexName)
+				|| !law.expectedIndexUuid.equals(policy.expectedIndexUuid)
+				|| !law.mappingVersion.equals(policy.mappingVersion)) {
+			throw new IllegalStateException("Knowledge B isolation profile binding is invalid");
+		}
+	}
+
+	private void ensureMutable() {
+		if (frozen) {
+			throw new IllegalStateException("Knowledge search configuration is frozen");
+		}
 	}
 
 	public KnowledgeSearchProfile requireProfile(String logicalDomainId, String retrievalProfileId) {
