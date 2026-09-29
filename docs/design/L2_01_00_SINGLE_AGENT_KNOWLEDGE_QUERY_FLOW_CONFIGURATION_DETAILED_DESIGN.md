@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.3 |
+| 当前版本 | v3.4 |
 | 日期 | 2026-09-29 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v3.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.3仅同步仓库组合根与阶段验证状态；v3.2的离线结构单元和在线父正文补取合同不变，公共接口、权限及失败语义不变 |
-| 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前工作树已在唯一根成对接线意图12/Summary8/minimal-v1，默认disabled惰性及域目录维持。37项新版风险仅31项有fake/non-live阶段证据、6项仍缺；隔离es-query-service单域typed只读预检已完成，但当前根真实typed全链、实际部署与完整专项未通过。原验证/效果记录见历史P3_00/UAT_01；新实施/验收由P3_01/UAT_02管理 |
+| 上位文档 | [`L1_01` v3.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.4仅纠正阶段验证状态和上位版本引用；§8/§19流程、公共接口、权限及失败语义合同不变 |
+| 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已成对接线意图12/Summary8/minimal-v1，默认disabled惰性及域目录维持。单域当前root到隔离真实typed接口已有有限只读预检，不证明Spring全链、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -27,6 +27,8 @@
 勘误（2026-09-15）：仅修正§8旧改写对照和§19目标意图合同的章节指向；沿用v3.1，不改变设计、实施或验收状态。
 
 v3.3仅记录本轮已完成组件及仓库唯一根接线的事实，不改变§8/§19规范合同；当前工作树不等于实际部署或新版UAT完成。
+
+v3.4仅同步有限只读typed预检和上位文档引用；动态用例计数由UAT_02维护，不改变规范合同或预记完整验收。
 
 v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；当前typed查询、模型任务和生产组合根保持原状。
 
@@ -254,7 +256,7 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-203、DR-KFLOW-204 | IMPL-KFLOW-202：planning.py、capability.py、contracts.py的请求内新版本数据通道；现有协议与错误映射复用 | TEST-KFLOW-202：Q逐阶段相等、仅4路径/1embedding、无失败扩域、部分/全失败、reason/HTTP映射、并发隔离 | VAL-KFLOW-202：current-root fake、Spring→Runtime、Knowledge/Core/Business回归 |
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：12/8唯一、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、已有启动静态验证；真实部署另行授权 |
 
-表中实现落点已有对应代码和fake/non-live阶段测试，具体已验证与仍缺的TEST/VAL由P3_01 §14.6及UAT_02 §3逐项界定；隔离单域typed只读预检不证明当前root真实typed全链、人工效果或发布通过。原设计内审/正式复评及文档验证见历史P3_00 §21；当前交接见P3_01。旧任务和历史运行依据不改写。
+表中实现落点已有对应代码和fake/non-live阶段测试，具体已验证与仍缺的TEST/VAL由P3_01 §14.6～14.8及UAT_02 §3逐项界定；当前root单域typed只读预检不证明Spring全链、人工效果或发布通过。原设计内审/正式复评及文档验证见历史P3_00 §21；当前交接见P3_01。旧任务和历史运行依据不改写。
 
 ## 9. 检索计划与核心流程
 
@@ -518,4 +520,4 @@ v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式�
 | REQ-KQ-203/204、KQ-AD-026 | DR-KFLOW-302 | IMPL-KFLOW-302：复用es_adapter/codec及既有DTO白名单，测试防止离线字段泄漏 | TEST-KFLOW-302：成文非生效、未知日期/分类不注入、无额外父查询 | VAL-KFLOW-302：Python/Java契约和脱敏观测测试 |
 | REQ-KFLOW-007、CON-KFLOW-005、KQ-AD-028 | DR-KFLOW-303 | IMPL-KFLOW-303：既有Profile verifier、binding/catalog部署验证；不新增服务 | TEST-KFLOW-303：alias/UUID/catalog错配、取消及恢复旧成套绑定 | VAL-KFLOW-303：fake后另授权隔离typed验证 |
 
-本轮部分静态/fake边界已随组合根验证，隔离单域typed只读预检见P3_01 §14.6；当前root真实资料typed全链、部署绑定、发布与回滚仍未执行，逐项证据和缺口见P3_01/UAT_02。当前公开合同原样保留。
+本轮部分静态/fake边界已随组合根验证，单域当前root到隔离真实typed接口的有限只读预检见P3_01 §14.8；Spring全链、部署绑定、发布与回滚仍未验证，逐项证据和缺口见P3_01/UAT_02。当前公开合同原样保留。

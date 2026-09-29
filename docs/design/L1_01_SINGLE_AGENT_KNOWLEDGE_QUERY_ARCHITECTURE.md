@@ -10,13 +10,13 @@
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
 | 文档状态 | Approved |
-| 当前版本 | v3.3 |
+| 当前版本 | v3.4 |
 | 日期 | 2026-09-29 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v3.1](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 本目标起始源码单绑定Rewrite V11、Summary V7、质量策略V3；当前工作树已成对接线意图任务12、Summary8和minimal-v1，默认Knowledge仍disabled。37项新版风险中31项有fake/non-live阶段证据、6项仍缺；隔离es-query-service单域typed只读预检已完成，当前根到真实服务的全链、实际部署及效果未核实。阶段A离线成果保留；原Gate/UAT见历史P3_00/UAT_01，新实施/验收由P3_01/UAT_02管理 |
+| 实施状态 | 本目标起始源码绑定Rewrite V11、Summary V7、质量策略V3；当前仓库已成对接线意图任务12、Summary8和minimal-v1，Knowledge默认仍disabled。当前单域root→隔离真实typed只读接线仅有有限预检，不证明Spring全链、实际部署或效果。阶段A离线成果保留；具体工作包与新版风险状态由P3_01/UAT_02分别维护，原Gate/UAT见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.25 原文](历史文档/2026-09-14-unified-v3-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
@@ -28,6 +28,8 @@
 v3.2定向补充§4.6的结构单元及受控上下文决策；该版本是待实施设计，不表示父单元在线读取、重切片或效果验证已经完成。
 
 v3.3仅同步本轮仓库接线与分包验证状态，不修改§4.5/4.6算法、安全或公共合同；实际部署、完整新版UAT和效果仍未验证。
+
+v3.4仅纠正状态元数据并移除易漂移的新版风险逐项计数；工作包与UAT状态改由P3_01/UAT_02保持权威，§4.5/4.6设计合同不变。
 
 ## 2. 阅读导航
 
@@ -499,7 +501,7 @@ accepted → intent_validated → domains_selected → retrieved
 
 ## 14. 实施状态与迁移边界
 
-当前工作树Knowledge默认disabled，显式启用时唯一接线意图任务12/Summary8/minimal-v1；Rewrite11/Summary7/quality-v3是本目标起始源码与冻结历史的绑定，不是当前请求级选择。在线EVIDENCE组件、资料NORMALIZE/CHUNK/REPRESENT离线组件已按P3_01的有限范围验证，COMPOSE与COMPARE仍有未闭合证据；隔离es-query-service单域typed只读预检已执行，但实际运行实例部署、当前root真实typed全链、资料候选与效果未验证。历史版本不提供请求级自动切换，也不因仓库接线改写历史结果。
+当前仓库Knowledge默认disabled，显式启用时唯一接线意图任务12/Summary8/minimal-v1；Rewrite11/Summary7/quality-v3是本目标起始源码与冻结历史的绑定，不是当前请求级选择。在线、离线组件及候选工作的证明范围由P3_01逐包维护；单域当前root→隔离真实typed只读接线已有有限预检，但Spring全链、实际部署、资料候选效果仍未验证。历史版本不提供请求级自动切换，也不因仓库接线改写历史结果。
 
 已有阶段A来源、附件、原文关系及发布回滚成果保留。既有功能UAT及最近有效partially_effective只证明原冻结范围；不外推为源码11/7或目标12/8效果通过。已取消的优化目标不恢复。当前任务/模型/语料/策略变更后的验收责任由UAT_02分别维护。
 

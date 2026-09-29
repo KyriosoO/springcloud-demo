@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.5 |
+| 当前版本 | v3.6 |
 | 日期 | 2026-09-29 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
-| 上位文档 | [`L1_01` v3.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.5仅同步当前检索组件、表示与新候选工具的阶段状态；v3.4归属证明合同不变，不修改旧构建器、公共接口或现行索引 |
+| 上位文档 | [`L1_01` v3.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.6仅同步上位版本引用和当前阶段证据边界；§9/§18检索、资料与候选合同不变 |
 | 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；本轮minimal检索已接入当前工作树唯一根，REPRESENT纯构造及新候选工具fake阶段已实现。新候选真实BGE/ES构建、typed对照、发布与效果均未执行；实际部署未核实。原状态见历史P3_00/UAT_01，新实施/验收由P3_01/UAT_02管理 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -34,6 +34,8 @@ v3.4（2026-09-29）针对新候选构建器的clone回执与首次读取之间�
 本次变更由同一任务内未参与起草的只读执行单元进行两轮定向设计复评；多目标alias与flags核验的S2已修复，目标切片S0/S1/未处理S2均为0。L2严格结构校验通过；这不表示真实ES操作、候选构建或新UAT已通过。
 
 v3.5只同步代码、fake与未执行真实对照的状态，不改变§9/§18设计。候选构建器的代码评审和缺口修复由P3_01记录，不能把fake通过当作真实索引完整性证明。
+
+v3.6仅同步L1_01版本与当前有限只读接线的证明边界；候选真实构建、对照及发布仍以P3_01/UAT_02为准，不改变§9/§18设计。
 
 ## 2. 阅读导航
 
@@ -271,7 +273,7 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
 | 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
 |---|---|---|---|---|---|
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201、DR-KRET-202、DR-KRET-203、DR-KRET-204 | IMPL-KRET-201、IMPL-KRET-202、IMPL-KRET-203 | TEST-KRET-201、TEST-KRET-202、TEST-KRET-203 | VAL-KRET-201、VAL-KRET-202、VAL-KRET-203 | 需求定义见REQ_00 §5.2；组件与当前根fake/non-live已有阶段证据，完整VAL、真实typed及效果待验 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KRET-201、DR-KRET-202、DR-KRET-203、DR-KRET-204 | IMPL-KRET-201、IMPL-KRET-202、IMPL-KRET-203 | TEST-KRET-201、TEST-KRET-202、TEST-KRET-203 | VAL-KRET-201、VAL-KRET-202、VAL-KRET-203 | 需求定义见REQ_00 §5.2；组件与当前根fake/non-live已有阶段证据，单域当前root只读预检见P3_01 §14.8；完整VAL、候选索引typed对照、两域矩阵及效果待验 |
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|

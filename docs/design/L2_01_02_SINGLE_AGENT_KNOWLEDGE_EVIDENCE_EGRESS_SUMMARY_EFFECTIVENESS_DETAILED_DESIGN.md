@@ -8,12 +8,12 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v3.3 |
+| 当前版本 | v3.4 |
 | 日期 | 2026-09-29 |
 | 权威范围 | 证据完整性/选择、三层出域、KnowledgeSummaryTaskV1～V8（V8为当前工作树绑定）、抽取式校验、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v3.3](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.3仅同步Summary8/Evidence组件及仓库接线状态；v3.2结构单元与在线补取边界不变，不改变validator或公共合同 |
-| 实施状态 | 本目标起始Evidence/Policy、Summary V7/quality-v3接线有原定向non-live证据；当前工作树已成对接线Summary8/Evidence minimal，并完成组件fake/non-live验证。37项新版风险仅31项有阶段证据、6项仍缺；隔离es-query-service单域typed只读预检不证明当前Evidence全链，真实部署与效果未核实。旧功能UAT、效果口径v2及阶段A快照保持原证明范围；最新有效P5仍为`partially_effective`，历史资产不改；新计划P3_01/UAT_02不继承通过 |
+| 上位文档 | [`L1_01` v3.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.4仅纠正仓库任务绑定、阶段验证状态和上位版本引用；§9/§19 Evidence、出域和引用合同不变 |
+| 实施状态 | 本目标起始Evidence/Policy、Summary V7/quality-v3接线有原定向non-live证据；当前仓库已成对接线Summary8/Evidence minimal，并完成组件fake/non-live验证。单域当前root到隔离真实typed接口仅有有限只读预检，不证明当前Evidence回答质量、Spring全链、真实部署或效果。新版风险状态以UAT_02为准；旧功能UAT、效果口径v2及阶段A快照保持原证明范围；最新有效P5仍为`partially_effective`，历史资产不改；新计划P3_01/UAT_02不继承通过 |
 | 归档来源 | [整理前 v1.27 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -30,6 +30,8 @@ v3.2只补未来合同影响说明；原有读取、出域、引用和Evidence�
 
 v3.3仅同步本轮仓库代码及阶段测试事实；Summary8上线部署、完整新版UAT与效果未验证，§9/§19规范合同不变。
 
+v3.4仅同步当前任务绑定与有限typed预检的证明边界；新版风险逐项状态由UAT_02维护，不改变Evidence规范合同或预记效果通过。
+
 ## 2. 阅读导航
 
 重点阅读§7/8完整性与出域、§9目标mode/Summary8、§13原评估兼容、§19资料原文边界。历次修订及旧评审只见归档；本v3.0整合已有有效合同，不新增能力。Knowledge新合同的组件及仓库接线已部分实施，剩余验收见P3_01/UAT_02；旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
@@ -45,7 +47,7 @@ v3.3仅同步本轮仓库代码及阶段测试事实；Summary8上线部署、�
 - ranked candidate 完整性复核和确定性证据选择；
 - Evidence Bundle、coverage、source 和 question trace；
 - 全局规则∩逻辑域默认策略∩文档级收紧策略；
-- Knowledge Summary V1～V6 历史兼容与 V7 当前生产任务；
+- Knowledge Summary V1～V7 历史兼容与 V8 当前仓库生产任务；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
 - representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
 - 阶段 A 新语料的父文档策略继承、index snapshot 绑定、asset/chunk 溯源及旧策略目录不可变。
@@ -544,4 +546,4 @@ def classify_conclusion(
 | REQ-KEV-001、REQ-KEV-003、REQ-KEV-007、KQ-AD-027/028 | DR-KEV-302、DR-KEV-303 | IMPL-KEV-302：既有Evidence identity/substring测试补齐新chunk回放；不改validator | TEST-KEV-302：派生标题/表头不是quote、拼接拒绝、不同hash作用域及旧snapshot | VAL-KEV-302：unit/contract/fake及后续typed只读证明 |
 | REQ-KQ-201/203/205、KQ-AD-026 | DR-KEV-304 | IMPL-KEV-303：后续UAT-KORG时效/充分性人工核对；不新增模型字段 | TEST-KEV-303：未知/部分失效、成文与生效不同、当前/历史期及合法却不充分引用 | VAL-KEV-303：功能安全与回答质量分列，不用模型自评代替人工 |
 
-这些验证中的组件fake/non-live阶段已执行，具体范围见P3_01 §14.6与UAT_02 §3；真实摘要、人工充分性和效果UAT尚未执行，不得从设计条目推断通过。原完整设计评审与文档验证见历史P3_00 §22；后续验收由P3_01/UAT_02记录。
+这些验证中的组件fake/non-live阶段已执行，具体范围见P3_01 §14.6～14.8与UAT_02 §3；当前root到隔离真实typed接口的单域只读预检不证明真实摘要、人工充分性或效果UAT，不得从设计条目推断通过。原完整设计评审与文档验证见历史P3_00 §22；后续验收由P3_01/UAT_02记录。
