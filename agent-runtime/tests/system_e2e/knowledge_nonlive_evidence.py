@@ -8,6 +8,8 @@ from pathlib import Path
 
 EXPECTED_CASE_IDS = frozenset({
     "k-nonlive-policy-admin",
+    "k-nonlive-explanation",
+    "k-nonlive-applicability",
     "k-nonlive-law-viewer",
     "k-nonlive-multi-domain",
     "k-nonlive-rewrite-fallback",
@@ -40,6 +42,14 @@ _TOTAL_KEYS = _CALL_KEYS | {"externalModelOutbound"}
 _PROFILE_BY_DOMAIN = {"tax.policy": "tax-policy-v1", "tax.law": "tax-law-v1"}
 _EXPECTED_TYPED_SEARCHES = {
     "k-nonlive-policy-admin": Counter({
+        ("tax.policy", "keyword", "tax-policy-v1"): 1,
+        ("tax.policy", "vector", "tax-policy-v1"): 1,
+    }),
+    "k-nonlive-explanation": Counter({
+        ("tax.policy", "keyword", "tax-policy-v1"): 1,
+        ("tax.policy", "vector", "tax-policy-v1"): 1,
+    }),
+    "k-nonlive-applicability": Counter({
         ("tax.policy", "keyword", "tax-policy-v1"): 1,
         ("tax.policy", "vector", "tax-policy-v1"): 1,
     }),

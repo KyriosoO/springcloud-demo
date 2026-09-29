@@ -41,6 +41,8 @@ _DOCUMENT_IDS = (
     "tax-001544ec4d92c5703c34ae07",
     "tax-00229650537a3b3d877107e7",
 )
+_EXPLANATION_QUESTION = "请依据税务政策原文解释纳税人办理申报的要求。"
+_APPLICABILITY_QUESTION = "仅按税务政策原文，若题述主体是纳税人，是否应依法办理申报？"
 _CALL_KEYS = ("action", "intent", "summary", "businessModel", "embed", "search", "rerank")
 _ACTIVE_CASE: ContextVar[str | None] = ContextVar("knowledge_nonlive_active_case", default=None)
 _CURRENT_QUERY: ContextVar[str] = ContextVar("knowledge_nonlive_current_query", default="")
@@ -112,8 +114,12 @@ class _KnowledgeModelTransport:
                     "税收法律第一条规定什么": ("tax.law",),
                     "税务政策和税收法律有哪些规定": ("tax.policy", "tax.law"),
                 }.get(question, ("tax.policy",))
+                mode = {
+                    _EXPLANATION_QUESTION: "explanation",
+                    _APPLICABILITY_QUESTION: "applicability",
+                }.get(question, "lookup")
                 content = json.dumps(
-                    {"outcome": "search", "query_mode": "lookup",
+                    {"outcome": "search", "query_mode": mode,
                      "domains": {item["domain_id"]: "selected" if item["domain_id"] in domains else "not_selected"
                                  for item in payload["domains"]}, "missing_conditions": []},
                     ensure_ascii=False,
@@ -135,7 +141,11 @@ class _KnowledgeModelTransport:
                     {"evidence_ref": first["evidence_ref"], "quote": first["content"], "claim": ""},
                 ]
             else:
-                points = [{"evidence_ref": first["evidence_ref"], "quote": first["content"], "claim": ""}]
+                claim = {
+                    _EXPLANATION_QUESTION: "原文要求纳税人依法办理申报。",
+                    _APPLICABILITY_QUESTION: "仅按所引原文，若题述主体确为纳税人，应当依法办理申报。",
+                }.get(question, "")
+                points = [{"evidence_ref": first["evidence_ref"], "quote": first["content"], "claim": claim}]
             content = json.dumps(
                 {"outcome": "answer", "points": points},
                 ensure_ascii=False,

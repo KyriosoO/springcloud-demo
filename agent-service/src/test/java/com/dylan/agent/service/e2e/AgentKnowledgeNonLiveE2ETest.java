@@ -75,6 +75,26 @@ class AgentKnowledgeNonLiveE2ETest {
 
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-policy-admin", "现行增值税政策有哪些",
                 200, "success", "knowledge.query", null);
+        String explanationResponse = assertOutcome(client, ADMIN_TOKEN, "k-nonlive-explanation",
+                "请依据税务政策原文解释纳税人办理申报的要求。",
+                200, "success", "knowledge.query", null);
+        String applicabilityResponse = assertOutcome(client, ADMIN_TOKEN, "k-nonlive-applicability",
+                "仅按税务政策原文，若题述主体是纳税人，是否应依法办理申报？",
+                200, "success", "knowledge.query", null);
+        for (String response : List.of(explanationResponse, applicabilityResponse)) {
+            JsonNode result = objectMapper.readTree(response).path("result");
+            assertThat(result.path("summaryType").asText())
+                    .isEqualTo("cited_limited_answer");
+            assertThat(result.path("points").size()).isEqualTo(1);
+            assertThat(result.path("points").get(0).path("quote").asText())
+                    .isEqualTo(SYNTHETIC_CONTENTS.get(0));
+            assertThat(result.path("points").get(0).path("citation").path("evidenceId").asText())
+                    .isNotBlank();
+        }
+        assertThat(objectMapper.readTree(explanationResponse).path("result").path("answerSummary").asText())
+                .contains("原文要求纳税人依法办理申报");
+        assertThat(objectMapper.readTree(applicabilityResponse).path("result").path("answerSummary").asText())
+                .contains("若题述主体确为纳税人");
         assertOutcome(client, VIEWER_TOKEN, "k-nonlive-law-viewer", "税收法律第一条规定什么",
                 200, "success", "knowledge.query", null);
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-multi-domain", "税务政策和税收法律有哪些规定",
@@ -116,13 +136,18 @@ class AgentKnowledgeNonLiveE2ETest {
         stopRuntime();
         JsonNode evidence = objectMapper.readTree(evidencePath.toFile());
         assertThat(evidence.path("status").asText()).isEqualTo("passed");
-        assertThat(evidence.path("cases").size()).isEqualTo(16);
+        assertThat(evidence.path("cases").size()).isEqualTo(18);
         assertThat(evidence.path("totals").path("businessModel").asInt()).isZero();
         assertThat(evidence.path("totals").path("externalModelOutbound").asInt()).isZero();
         assertThat(evidence.path("cleanup").path("runtimeClosed").asBoolean()).isTrue();
         assertThat(evidence.path("cleanup").path("knowledgeClientsClosed").asBoolean()).isTrue();
         assertTypedSearches(evidence, "k-nonlive-policy-admin", List.of(
                 "tax.policy:keyword:tax-policy-v1", "tax.policy:vector:tax-policy-v1"));
+        for (String caseId : List.of("k-nonlive-explanation", "k-nonlive-applicability")) {
+            assertTypedSearches(evidence, caseId, List.of(
+                    "tax.policy:keyword:tax-policy-v1", "tax.policy:vector:tax-policy-v1"));
+            assertThat(findCase(evidence, caseId).path("calls").path("summary").asInt()).isEqualTo(1);
+        }
         assertTypedSearches(evidence, "k-nonlive-law-viewer", List.of(
                 "tax.law:keyword:tax-law-v1", "tax.law:vector:tax-law-v1"));
         assertTypedSearches(evidence, "k-nonlive-multi-domain", List.of(
