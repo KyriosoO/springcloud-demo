@@ -227,6 +227,7 @@ class AgentKnowledgeNonLiveE2ETest {
                         "--server.port=0",
                         "--spring.main.web-application-type=reactive",
                         "--spring.cloud.config.enabled=false",
+                        "--eureka.client.enabled=false",
                         "--spring.config.import=",
                         "--agent.runtime.base-url=http://127.0.0.1:" + runtimePort,
                         "--spring.autoconfigure.exclude=com.dylan.common.security.JwtConfig,com.dylan.common.security.ReactiveResourceServerSecurityAutoConfiguration");
