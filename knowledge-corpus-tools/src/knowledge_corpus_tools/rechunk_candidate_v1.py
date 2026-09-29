@@ -739,16 +739,17 @@ def _representation_targets(
     spec: CandidateSpec, source: tuple[_Record, ...],
     representations: tuple[RetrievalRepresentationV2, ...],
 ) -> tuple[_Target, ...]:
-    if len(representations) != len(spec.update_ids):
+    if (type(representations) is not tuple
+            or (representations and len(representations) != len(spec.update_ids))):
         raise RechunkCandidateError("input_invalid", "preflight")
     source_by_id = {record.identifier: record for record in source}
     targets: list[_Target] = []
     binding: list[list[str]] = []
-    for identifier, scope, representation in zip(
-        spec.update_ids, spec.representation_scope, representations, strict=True,
-    ):
+    for ordinal, (identifier, scope) in enumerate(zip(
+        spec.update_ids, spec.representation_scope, strict=True,
+    )):
         record = source_by_id.get(identifier)
-        if record is None or type(representation) is not RetrievalRepresentationV2:
+        if record is None:
             raise RechunkCandidateError("input_invalid", "preflight")
         if tuple(record.fields.get(name) for name in (
             "documentId", "parentDocumentId", "assetId", "assetVersion",
@@ -761,14 +762,16 @@ def _representation_targets(
         try:
             exact = build_retrieval_representation_v2(
                 body=record.fields["content"], kind="body-only-v2")
-        except ContractError:
+        except (ContractError, KeyError):
             raise RechunkCandidateError("input_invalid", "preflight") from None
-        if (representation.version != spec.representation_version
-                or representation != exact):
+        if exact.version != spec.representation_version:
             raise RechunkCandidateError("input_invalid", "preflight")
-        targets.append(_Target(identifier, None, representation))
-        binding.append([identifier, representation.version,
-                        representation.input_sha256, representation.body_sha256])
+        if representations and (type(representations[ordinal]) is not RetrievalRepresentationV2
+                                or representations[ordinal] != exact):
+            raise RechunkCandidateError("input_invalid", "preflight")
+        targets.append(_Target(identifier, None, exact))
+        binding.append([identifier, exact.version,
+                        exact.input_sha256, exact.body_sha256])
     if _sha(canonical_bytes(binding)) != spec.representation_binding_sha256:
         raise RechunkCandidateError("input_invalid", "preflight")
     return tuple(targets)

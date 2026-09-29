@@ -481,16 +481,112 @@ def test_representation_candidate_updates_only_frozen_vector(tmp_path: Path) -> 
     binding = sha(canonical_bytes([["old-1", representation.version,
                                    representation.input_sha256, representation.body_sha256]]))
     spec = es.spec(tmp_path, mode="representation", representation_binding=binding)
+    received = []
+    def prepare(values: tuple[Any, ...]) -> PreparedVectorsV1:
+        received.extend(values)
+        assert es.candidate is None
+        return prepared(values)
     with es.client() as client:
         result = build_rechunk_candidate_v1(
-            spec, client=client, prepare_vectors=prepared,
-            representations=(representation,))
+            spec, client=client, prepare_vectors=prepare)
     assert result.updated_count == 1 and result.deleted_count == result.created_count == 0
+    assert result.http_requests == spec.max_http_requests - 3
+    assert received == [representation]
     assert es.candidate is not None
     assert es.candidate["old-1"]["content"] == original["old-1"]["content"]
     assert es.candidate["old-1"]["vectorRepresentationVersion"] == "body-only-v2"
     assert es.candidate["law-1"] == original["law-1"]
     assert es.candidate["unclassified-1"] == original["unclassified-1"]
+
+
+@pytest.mark.parametrize("invalid", ["binding", "external_body", "external_hash"])
+def test_b_rejects_unbound_or_untrusted_representation_before_clone(
+    tmp_path: Path, invalid: str,
+) -> None:
+    es, _, _ = inputs(tmp_path)
+    es.target_name = REP_TARGET
+    body = es.source["old-1"]["content"]
+    representation = build_retrieval_representation_v2(body=body, kind="body-only-v2")
+    binding = sha(canonical_bytes([["old-1", representation.version,
+                                    representation.input_sha256, representation.body_sha256]]))
+    spec = es.spec(tmp_path, mode="representation", representation_binding=binding)
+    supplied = ()
+    if invalid == "binding":
+        spec = replace(spec, representation_binding_sha256="f" * 64)
+    elif invalid == "external_body":
+        supplied = (build_retrieval_representation_v2(
+            body="外部传入的非源正文", kind="body-only-v2"),)
+    else:
+        supplied = (replace(representation, body_sha256="f" * 64),)
+    with es.client() as client, pytest.raises(RechunkCandidateError) as error:
+        build_rechunk_candidate_v1(
+            spec, client=client, prepare_vectors=lambda _: pytest.fail("must not prepare"),
+            representations=supplied,
+        )
+    assert error.value.reason == "input_invalid"
+    assert es.candidate is None
+    assert not any(path.endswith("/_clone") for _, path in es.calls)
+
+
+def test_b_rejects_frozen_update_order_drift_before_clone(tmp_path: Path) -> None:
+    es, _, _ = inputs(tmp_path)
+    es.target_name = REP_TARGET
+    second = copy.deepcopy(es.source["old-1"])
+    second["chunkId"] = "old-2"
+    second["content"] = "第二条 旧资料内容。"
+    second["contentHash"] = sha(second["content"].encode())
+    old_representation = build_vector_representation(
+        content=second["content"], title=second["title"], section=second["section"])
+    second["vectorInputSha256"] = old_representation.input_sha256
+    second["vectorBodySha256"] = old_representation.content_sha256
+    es.source["old-2"] = second
+    order = ("old-1", "old-2")
+    scopes = tuple(RepresentationScopeV1(
+        identifier, es.source[identifier]["documentId"],
+        es.source[identifier]["parentDocumentId"],
+        es.source[identifier]["assetId"], es.source[identifier]["assetVersion"],
+    ) for identifier in order)
+    representations = tuple(build_retrieval_representation_v2(
+        body=es.source[identifier]["content"], kind="body-only-v2",
+    ) for identifier in order)
+    binding = sha(canonical_bytes([
+        [identifier, representation.version, representation.input_sha256,
+         representation.body_sha256]
+        for identifier, representation in zip(order, representations, strict=True)
+    ]))
+    base = es.spec(tmp_path, mode="representation", representation_binding=binding)
+    spec = replace(base, source_count=len(es.source), source_fingerprint=fingerprint(es.source),
+                   max_write_ops=2, update_ids=order[::-1], representation_scope=scopes[::-1])
+    with es.client() as client, pytest.raises(RechunkCandidateError) as error:
+        build_rechunk_candidate_v1(
+            spec, client=client, prepare_vectors=lambda _: pytest.fail("must not prepare"))
+    assert error.value.reason == "input_invalid"
+    assert es.candidate is None
+    assert not any(path.endswith("/_clone") for _, path in es.calls)
+
+
+def test_b_rejects_body_change_even_when_source_snapshot_is_rebound(tmp_path: Path) -> None:
+    es, _, _ = inputs(tmp_path)
+    es.target_name = REP_TARGET
+    original = build_retrieval_representation_v2(
+        body=es.source["old-1"]["content"], kind="body-only-v2")
+    binding = sha(canonical_bytes([["old-1", original.version,
+                                    original.input_sha256, original.body_sha256]]))
+    record = es.source["old-1"]
+    record["content"] = "第一条 已改变的来源正文。"
+    record["contentHash"] = sha(record["content"].encode())
+    baseline = build_vector_representation(
+        content=record["content"], title=record["title"], section=record["section"])
+    record["vectorInputSha256"] = baseline.input_sha256
+    record["vectorBodySha256"] = baseline.content_sha256
+    spec = replace(es.spec(tmp_path, mode="representation", representation_binding=binding),
+                   source_fingerprint=fingerprint(es.source))
+    with es.client() as client, pytest.raises(RechunkCandidateError) as error:
+        build_rechunk_candidate_v1(
+            spec, client=client, prepare_vectors=lambda _: pytest.fail("must not prepare"))
+    assert error.value.reason == "input_invalid"
+    assert es.candidate is None
+    assert not any(path.endswith("/_clone") for _, path in es.calls)
 
 
 def test_b_clones_offline_a_source_without_switching_online_alias(tmp_path: Path) -> None:
