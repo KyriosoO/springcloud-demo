@@ -56,6 +56,8 @@ async def test_current_production_composition_executes_knowledge_matrix(
     )
     cases = (
         ("k-nonlive-policy-admin", "现行增值税政策有哪些", _ADMIN, CapabilityStatus.SUCCESS),
+        ("k-nonlive-explanation", "请依据税务政策原文解释纳税人办理申报的要求。", _ADMIN, CapabilityStatus.SUCCESS),
+        ("k-nonlive-applicability", "仅按税务政策原文，若题述主体是纳税人，是否应依法办理申报？", _ADMIN, CapabilityStatus.SUCCESS),
         ("k-nonlive-law-viewer", "税收法律第一条规定什么", _VIEWER, CapabilityStatus.SUCCESS),
         ("k-nonlive-multi-domain", "税务政策和税收法律有哪些规定", _ADMIN, CapabilityStatus.SUCCESS),
         ("k-nonlive-rewrite-fallback", "税务政策改写失败仍如何处理", _ADMIN, CapabilityStatus.DOWNSTREAM_FAILURE),
@@ -90,9 +92,28 @@ async def test_current_production_composition_executes_knowledge_matrix(
     assert outcomes["k-nonlive-sensitive"].capability_id is None
     assert outcomes["k-nonlive-read-denied"].failure is not None
     assert outcomes["k-nonlive-read-denied"].failure.code == "knowledge.domain_forbidden"
+    for case_id, answer in (
+        ("k-nonlive-explanation", "1. 原文要求纳税人依法办理申报。"),
+        ("k-nonlive-applicability", "1. 仅按所引原文，若题述主体确为纳税人，应当依法办理申报。"),
+    ):
+        result = outcomes[case_id].user_result
+        assert result is not None
+        assert result["summaryType"] == "cited_limited_answer"
+        assert result["answerSummary"] == answer
+        assert len(result["points"]) == 1
+        assert result["points"][0]["quote"] == "现行税务政策和法律规定纳税人应当依法办理申报。"
+        calls = next(item["calls"] for item in evidence["cases"] if item["caseId"] == case_id)
+        assert {key: calls[key] for key in ("action", "intent", "summary", "embed", "search", "rerank")} == {
+            "action": 1, "intent": 1, "summary": 1, "embed": 1, "search": 2, "rerank": 1,
+        }
+        assert calls["businessModel"] == 0
     expected_searches = {
         "k-nonlive-policy-admin": {("tax.policy", "keyword", "tax-policy-v1"),
                                      ("tax.policy", "vector", "tax-policy-v1")},
+        "k-nonlive-explanation": {("tax.policy", "keyword", "tax-policy-v1"),
+                                     ("tax.policy", "vector", "tax-policy-v1")},
+        "k-nonlive-applicability": {("tax.policy", "keyword", "tax-policy-v1"),
+                                       ("tax.policy", "vector", "tax-policy-v1")},
         "k-nonlive-law-viewer": {("tax.law", "keyword", "tax-law-v1"),
                                   ("tax.law", "vector", "tax-law-v1")},
         "k-nonlive-multi-domain": {("tax.policy", "keyword", "tax-policy-v1"),
