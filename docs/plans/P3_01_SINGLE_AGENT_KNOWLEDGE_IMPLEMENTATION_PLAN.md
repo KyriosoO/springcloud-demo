@@ -34,6 +34,7 @@
 | 12 | 2026-09-29 | §14.10 | COMPARE附件节标题解析缺陷的最小修复 | v3.6内记录v2 `.doc`解析修复及定向/全包验证；独立原件结构证明和A/B准入仍未完成，工作包状态不变 |
 | 13 | 2026-09-29 | §3/14.9/14.11 | 纠正旧库存正文hash表述并同步逐记录溯源前检 | v3.7区分旧索引`contentHash`、typed响应重算hash与四附件旧向量trace；同步UAT_02当前版本，不把只读前检写成全库冻结、A/B准入或人工gold |
 | 14 | 2026-09-29 | §14.12 | COMPARE的旧DOC原生段落与失败关闭前检 | v3.7内记录v2专用解析修复、独立原件对照和复评；结构证明、A/B准入及工作包状态不变 |
+| 15 | 2026-09-29 | §14.13 | COMPARE全库只读指纹及A单变量边界复核 | v3.7内补记当前b2完整竞争池指纹和A解析源漂移；B仍缺人工gold、模型快照及正式预算，不预记真实对照 |
 
 ## 3. 来源清单与当前基线
 
@@ -321,3 +322,11 @@ COMPARE的独立只读执行单元对预登记4份附件核对原始SHA后仅在
 提交`39fa0322`只调整`parse_asset_v2`的`.doc`路径：固定`legacy-doc==0.2.1`，在提取前严格核验完整piece table、CP/FC边界及解码，再区分原生段落结束`\r`与段内手动换行`\x0b`；新`parserVersion=0.2.1+native-paragraphs-v2`。旧`parse_asset`与冻结manifest不改。对既有四份SHA绑定附件只读重放，v2 blocks为342/149/179/60，分别与隔离Apache POI HWPF 5.5.1辅助解析的非空段落数一致；第三份旧187个行块中的两组段内换行恢复为179个原生段落。五处段落hash差异经原始Word字段边界核查，均为8个非显示`HYPERLINK`代码/URL被既有清洗规则移除，8处中文显示文字仍保留；该有限样本中未发现有效正文因本修复丢失。
 
 首次代码复核发现底层库会静默跳过越界piece、公开提取与v2复核可能共同漏字；新增v2专用严格预检及内存篡改负测后，独立复评该范围Blocker/Major/Minor均为0。实际复跑`knowledge-corpus-tools`全包440 passed、strict mypy 23 files成功；四原件原始SHA/字节数保持不变，第三份仅在内存篡改第二PCD时明确失败关闭。隔离解析辅助工具仍在忽略的临时目录，不构成持久独立`proofRef`。四份`parsed_source_v2`的order/structure仍为`unverified`，A的受影响候选仍`publishable=false`；人工gold、A/B主指标及噪声/时延容忍值也未冻结，故COMPARE保持In Progress、MEASURE仅技术Ready、RELEASE保持Blocked。本轮没有BGE/外部LLM请求、ES写入或alias切换。
+
+### 14.13 COMPARE全库只读指纹与单变量边界复核（2026-09-29，未启动真实对照）
+
+以仓库现有受限scanner只读扫描当前write-blocked的`agent-doc-tax-policy-v5-20260907-vector-b2`：read alias `agent-doc-tax-policy-v2-read`唯一指向UUID `jJ5Ww3LCRWWycfDkUZvmdw`，mapping SHA-256为`1c2ab9b48ae5b3fcd37b91fec883b6141d3616b2331cdf3a430ea4500a40db82`。69次ES只读HTTP完整扫描15521条及其1024维向量，每页≤250、单响应≤16 MiB；含向量全记录fingerprint为`fb285fc5e5e838fbccb2025f24c0f4472802b8beb7190247cefc9a2978b9a17d`，与冻结b2构建result一致。扫描前后definition、alias和计数不变，ES写入0；这是当前只读前检，不是新候选`CandidateSpec`的正式冻结或质量收益。
+
+A原预登记四份附件的旧b2块数为342/149/187/60，第三份经当前v2原生段落解析为179块；直接用旧b2对当前v2产物会同时改变parser与chunker，不符合UAT_02 §6.1的A单变量判据。本轮隔离HWPF交叉核对仅证明v2提取文本的有限段落对应，尚不足以给四份旧解析源的完整顺序及结构出具持久独立`proofRef`；旧`accepted`及hash不能替代该证明。因此A保持Not assessed/未执行，不按效果失败记录，也不创建额外parser基线或缩小预登记样本来凑通过。若后续能对同一解析源独立证明完整结构并使`chunking_v2.publishable=true`，才重新核对A准入及两候选预算；否则B可按原b2同chunk/正文基线独立准备。
+
+B所需的四附件738条旧向量模型、表示、正文和输入hash逐记录前检见§14.11，全库指纹前检已补齐；仍须维护者确认B精确范围、gold、主指标及噪声/时延容忍值，随后把当次source/alias/mapping、精确`update_ids`和表示binding冻结到正式spec，核对完整当前模型/tokenizer快照与旧快照的同一性并做无截断预检，按最终范围冻结精确调用及写入预算。若仍只替换738条且总数不变，工具公式给出的ES HTTP≤366、BGE batch≤24、写操作738仅为条件性上限，不是已批准的正式运行预算。本轮无BGE/外部LLM、ES写入、alias切换；COMPARE保持In Progress，MEASURE仅技术Ready，RELEASE保持Blocked。
