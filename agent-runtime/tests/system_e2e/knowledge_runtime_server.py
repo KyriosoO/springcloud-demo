@@ -6,6 +6,7 @@ import json
 import os
 from collections import Counter
 from collections.abc import Mapping
+from contextvars import ContextVar
 from pathlib import Path
 
 import httpx
@@ -41,6 +42,11 @@ _DOCUMENT_IDS = (
     "tax-00229650537a3b3d877107e7",
 )
 _CALL_KEYS = ("action", "intent", "summary", "businessModel", "embed", "search", "rerank")
+_ACTIVE_CASE: ContextVar[str | None] = ContextVar("knowledge_nonlive_active_case", default=None)
+_CURRENT_QUERY: ContextVar[str] = ContextVar("knowledge_nonlive_current_query", default="")
+_EXPECTED_AUTHORIZATION: ContextVar[str | None] = ContextVar(
+    "knowledge_nonlive_expected_authorization", default=None,
+)
 
 
 class _FixedStream(httpx.AsyncByteStream):
@@ -54,12 +60,20 @@ class _FixedStream(httpx.AsyncByteStream):
 class _Probe:
     def __init__(self) -> None:
         self.counts: Counter[str] = Counter()
+        self._case_counts: dict[str, Counter[str]] = {}
+
+    def increment(self, key: str) -> None:
+        self.counts[key] += 1
+        case_id = _ACTIVE_CASE.get()
+        if case_id is not None:
+            self._case_counts.setdefault(case_id, Counter())[key] += 1
 
     def snapshot(self) -> dict[str, int]:
         return {key: self.counts[key] for key in _CALL_KEYS}
 
-    def delta(self, before: dict[str, int]) -> dict[str, int]:
-        return {key: self.counts[key] - before[key] for key in _CALL_KEYS}
+    def case_snapshot(self, case_id: str) -> dict[str, int]:
+        counts = self._case_counts.get(case_id, Counter())
+        return {key: counts[key] for key in _CALL_KEYS}
 
 
 class _KnowledgeModelTransport:
@@ -76,7 +90,7 @@ class _KnowledgeModelTransport:
             raise TimeoutError("knowledge_nonlive.deadline")
         payload = json.loads(request.user_payload_json)
         if request.task_id is ModelTaskId.ACTION_SELECTION:
-            self._probe.counts["action"] += 1
+            self._probe.increment("action")
             question = payload["question"]
             if "第二动作" in question:
                 content = '{"capability_id":"knowledge.query","second":"employee.search"}'
@@ -86,7 +100,7 @@ class _KnowledgeModelTransport:
                 content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
             assert request.task_version == "12"
-            self._probe.counts["intent"] += 1
+            self._probe.increment("intent")
             question = payload["question"]
             if "改写失败" in question:
                 raise ModelTransportError(ModelProviderFailureKind.PROVIDER_FAILURE)
@@ -107,7 +121,7 @@ class _KnowledgeModelTransport:
                 )
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
             assert request.task_version == "8" and payload["schema_version"] == 3
-            self._probe.counts["summary"] += 1
+            self._probe.increment("summary")
             question = payload["question"]
             if "摘要失败" in question:
                 raise ModelTransportError(ModelProviderFailureKind.PROVIDER_FAILURE)
@@ -128,7 +142,7 @@ class _KnowledgeModelTransport:
                 separators=(",", ":"),
             )
         else:
-            self._probe.counts["businessModel"] += 1
+            self._probe.increment("businessModel")
             raise AssertionError("knowledge_nonlive.business_model_forbidden")
         if request.task_id in (ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY):
             return StructuredModelResponse(
@@ -149,7 +163,7 @@ class _KnowledgeClientFactory:
     def __init__(self, probe: _Probe, *, allowed_tokens: frozenset[str]) -> None:
         self._probe = probe
         self._allowed_authorizations = frozenset(f"Bearer {token}" for token in allowed_tokens)
-        self._current_query = ""
+        self.typed_searches: dict[str, list[dict[str, str]]] = {}
         self.clients: list[httpx.AsyncClient] = []
 
     def __call__(self, base_url: str) -> httpx.AsyncClient:
@@ -163,12 +177,13 @@ class _KnowledgeClientFactory:
 
     async def _handle(self, request: httpx.Request) -> httpx.Response:
         if request.url.path == "/embed":
-            self._probe.counts["embed"] += 1
+            self._probe.increment("embed")
             payload = json.loads(request.content)
-            self._current_query = payload["texts"][0]
+            if payload["texts"] != [_CURRENT_QUERY.get()]:
+                raise AssertionError("knowledge_nonlive.embedding_question_drift")
             return self._json({"dim": 1024, "vectors": [[0.0] * 1024]})
         if request.url.path == "/rerank":
-            self._probe.counts["rerank"] += 1
+            self._probe.increment("rerank")
             payload = json.loads(request.content)
             return self._json({
                 "model": "BAAI/bge-reranker-v2-m3",
@@ -179,9 +194,19 @@ class _KnowledgeClientFactory:
             })
         if request.url.path != "/es/knowledge/search":
             raise AssertionError("knowledge_nonlive.physical_path_forbidden")
-        self._probe.counts["search"] += 1
+        self._probe.increment("search")
         payload = json.loads(request.content)
-        query = payload["queryText"] or self._current_query
+        case_id = _ACTIVE_CASE.get()
+        if case_id is None:
+            raise AssertionError("knowledge_nonlive.case_context_missing")
+        self.typed_searches.setdefault(case_id, []).append({
+            "logicalDomainId": payload["logicalDomainId"],
+            "path": payload["path"],
+            "retrievalProfileId": payload["retrievalProfileId"],
+        })
+        if request.headers.get("Authorization") != _EXPECTED_AUTHORIZATION.get():
+            raise AssertionError("knowledge_nonlive.user_token_not_forwarded")
+        query = payload["queryText"] or _CURRENT_QUERY.get()
         if request.headers.get("Authorization") not in self._allowed_authorizations:
             return self._response(403, b"")
         if "全部检索失败" in query:
@@ -273,8 +298,17 @@ class KnowledgeNonLiveRuntime:
 
     async def ainvoke(self, *, question: str, scope: RequestExecutionScope) -> AgentSemanticOutcome:
         case_id = scope.context.correlation_id
-        before = self._probe.snapshot()
-        outcome = await self._delegate.ainvoke(question=question, scope=scope)
+        case_token = _ACTIVE_CASE.set(case_id)
+        query_token = _CURRENT_QUERY.set(question)
+        authorization_token = _EXPECTED_AUTHORIZATION.set(
+            f"Bearer {scope.context.user_token.reveal_for_outbound()}",
+        )
+        try:
+            outcome = await self._delegate.ainvoke(question=question, scope=scope)
+        finally:
+            _EXPECTED_AUTHORIZATION.reset(authorization_token)
+            _CURRENT_QUERY.reset(query_token)
+            _ACTIVE_CASE.reset(case_token)
         if case_id in EXPECTED_CASE_IDS:
             if case_id in self._case_ids:
                 raise RuntimeError("knowledge_nonlive.duplicate_case")
@@ -284,7 +318,8 @@ class KnowledgeNonLiveRuntime:
                 "status": outcome.status.value,
                 "capabilityId": outcome.capability_id,
                 "failureCode": outcome.failure.code if outcome.failure is not None else None,
-                "calls": self._probe.delta(before),
+                "calls": self._probe.case_snapshot(case_id),
+                "typedSearches": self._clients.typed_searches.get(case_id, []),
             })
         return outcome
 

@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.test.web.reactive.server.EntityExchangeResult;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import reactor.core.publisher.Mono;
@@ -42,6 +44,10 @@ class AgentKnowledgeNonLiveE2ETest {
     private static final String VIEWER_TOKEN = "synthetic-knowledge-viewer";
     private static final String DENIED_TOKEN = "synthetic-knowledge-denied";
     private static final String SERVICE_TOKEN = "synthetic-knowledge-service";
+    private static final List<String> SYNTHETIC_CONTENTS = List.of(
+            "现行税务政策和法律规定纳税人应当依法办理申报。",
+            "税务政策适用条件应当以税务机关发布的现行文件为准。",
+            "纳税人应当保存能够证明适用税务政策的完整资料。");
     private static final Path DEFAULT_PYTHON = Path.of(
             "..", ".tmp", "agent-runtime-venv", "Scripts", "python.exe").toAbsolutePath().normalize();
     private static final Path RUNTIME_ROOT = Path.of("..", "agent-runtime").toAbsolutePath().normalize();
@@ -79,8 +85,11 @@ class AgentKnowledgeNonLiveE2ETest {
                 502, "downstream_failure", "knowledge.query", "knowledge.rewrite_failure");
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-no-result", "不存在资料的税务政策是什么",
                 200, "no_result", "knowledge.query", null);
-        assertOutcome(client, DENIED_TOKEN, "k-nonlive-read-denied", "现行税务政策是什么",
+        String deniedResponse = assertOutcome(client, DENIED_TOKEN, "k-nonlive-read-denied", "现行税务政策是什么",
                 403, "forbidden", "knowledge.query", "knowledge.domain_forbidden");
+        for (String content : SYNTHETIC_CONTENTS) {
+            assertThat(deniedResponse).doesNotContain(content);
+        }
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-partial-path", "税务政策单路失败如何处理",
                 200, "success", "knowledge.query", null);
         assertOutcome(client, ADMIN_TOKEN, "k-nonlive-all-paths-fail", "税务政策全部检索失败",
@@ -112,6 +121,30 @@ class AgentKnowledgeNonLiveE2ETest {
         assertThat(evidence.path("totals").path("externalModelOutbound").asInt()).isZero();
         assertThat(evidence.path("cleanup").path("runtimeClosed").asBoolean()).isTrue();
         assertThat(evidence.path("cleanup").path("knowledgeClientsClosed").asBoolean()).isTrue();
+        assertTypedSearches(evidence, "k-nonlive-policy-admin", List.of(
+                "tax.policy:keyword:tax-policy-v1", "tax.policy:vector:tax-policy-v1"));
+        assertTypedSearches(evidence, "k-nonlive-law-viewer", List.of(
+                "tax.law:keyword:tax-law-v1", "tax.law:vector:tax-law-v1"));
+        assertTypedSearches(evidence, "k-nonlive-multi-domain", List.of(
+                "tax.policy:keyword:tax-policy-v1", "tax.policy:vector:tax-policy-v1",
+                "tax.law:keyword:tax-law-v1", "tax.law:vector:tax-law-v1"));
+        for (String caseId : List.of("k-nonlive-policy-admin", "k-nonlive-law-viewer")) {
+            JsonNode calls = findCase(evidence, caseId).path("calls");
+            assertThat(calls.path("search").asInt()).isEqualTo(2);
+            assertThat(calls.path("embed").asInt()).isEqualTo(1);
+            assertThat(calls.path("rerank").asInt()).isEqualTo(1);
+        }
+        JsonNode multiCalls = findCase(evidence, "k-nonlive-multi-domain").path("calls");
+        assertThat(multiCalls.path("search").asInt()).isEqualTo(4);
+        assertThat(multiCalls.path("embed").asInt()).isEqualTo(1);
+        assertThat(multiCalls.path("rerank").asInt()).isEqualTo(2);
+        JsonNode denied = findCase(evidence, "k-nonlive-read-denied");
+        assertThat(denied.path("calls").path("summary").asInt()).isZero();
+        assertThat(denied.path("calls").path("businessModel").asInt()).isZero();
+        assertThat(denied.path("typedSearches").size()).isBetween(1, 2);
+        for (JsonNode item : denied.path("typedSearches")) {
+            assertThat(item.path("logicalDomainId").asText()).isEqualTo("tax.policy");
+        }
         JsonNode sensitive = findCase(evidence, "k-nonlive-sensitive");
         sensitive.path("calls").elements().forEachRemaining(
                 node -> assertThat(node.asInt()).isZero());
@@ -142,7 +175,6 @@ class AgentKnowledgeNonLiveE2ETest {
         assertThat(runtimeLog).doesNotContain(
                 "synthetic-secret", ADMIN_TOKEN, VIEWER_TOKEN, DENIED_TOKEN, SERVICE_TOKEN);
         for (String forbidden : List.of(
-                "现行税务政策和法律规定纳税人应当依法办理申报。",
                 "你是受控知识查询意图分类器",
                 "你是税务知识原文证据选择器",
                 "\"capability_id\":\"knowledge.query\"",
@@ -150,6 +182,10 @@ class AgentKnowledgeNonLiveE2ETest {
                 "queryVector", "indexSnapshotId", "physicalIndex", "_index", "/_search")) {
             assertThat(finiteEvidence).doesNotContain(forbidden);
             assertThat(runtimeLog).doesNotContain(forbidden);
+        }
+        for (String content : SYNTHETIC_CONTENTS) {
+            assertThat(finiteEvidence).doesNotContain(content);
+            assertThat(runtimeLog).doesNotContain(content);
         }
     }
 
@@ -160,6 +196,16 @@ class AgentKnowledgeNonLiveE2ETest {
             }
         }
         throw new AssertionError("Missing evidence case " + caseId);
+    }
+
+    private void assertTypedSearches(JsonNode evidence, String caseId, List<String> expected) {
+        List<String> actual = new ArrayList<>();
+        for (JsonNode item : findCase(evidence, caseId).path("typedSearches")) {
+            actual.add(item.path("logicalDomainId").asText() + ":"
+                    + item.path("path").asText() + ":"
+                    + item.path("retrievalProfileId").asText());
+        }
+        assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
     }
 
     private void assertIngressRejected(WebTestClient client, String token) {
@@ -190,7 +236,7 @@ class AgentKnowledgeNonLiveE2ETest {
                 .build();
     }
 
-    private void assertOutcome(
+    private String assertOutcome(
             WebTestClient client,
             String token,
             String caseId,
@@ -219,6 +265,11 @@ class AgentKnowledgeNonLiveE2ETest {
         } else {
             body.jsonPath("$.error.code").isEqualTo(failureCode);
         }
+        if ("forbidden".equals(status)) {
+            body.jsonPath("$.result").doesNotExist();
+        }
+        EntityExchangeResult<byte[]> response = body.returnResult();
+        return new String(response.getResponseBody(), StandardCharsets.UTF_8);
     }
 
     private void startRuntime(int runtimePort) throws IOException {

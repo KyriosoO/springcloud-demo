@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import Counter
 from pathlib import Path
 
 
@@ -33,9 +34,26 @@ _TOP_LEVEL = {
     "security",
     "cleanup",
 }
-_CASE_KEYS = {"caseId", "status", "capabilityId", "failureCode", "calls"}
+_CASE_KEYS = {"caseId", "status", "capabilityId", "failureCode", "calls", "typedSearches"}
 _CALL_KEYS = {"action", "intent", "summary", "businessModel", "embed", "search", "rerank"}
 _TOTAL_KEYS = _CALL_KEYS | {"externalModelOutbound"}
+_PROFILE_BY_DOMAIN = {"tax.policy": "tax-policy-v1", "tax.law": "tax-law-v1"}
+_EXPECTED_TYPED_SEARCHES = {
+    "k-nonlive-policy-admin": Counter({
+        ("tax.policy", "keyword", "tax-policy-v1"): 1,
+        ("tax.policy", "vector", "tax-policy-v1"): 1,
+    }),
+    "k-nonlive-law-viewer": Counter({
+        ("tax.law", "keyword", "tax-law-v1"): 1,
+        ("tax.law", "vector", "tax-law-v1"): 1,
+    }),
+    "k-nonlive-multi-domain": Counter({
+        ("tax.policy", "keyword", "tax-policy-v1"): 1,
+        ("tax.policy", "vector", "tax-policy-v1"): 1,
+        ("tax.law", "keyword", "tax-law-v1"): 1,
+        ("tax.law", "vector", "tax-law-v1"): 1,
+    }),
+}
 
 
 def validate_knowledge_nonlive_evidence(value: object) -> None:
@@ -70,6 +88,19 @@ def validate_knowledge_nonlive_evidence(value: object) -> None:
             or type(item["calls"]) is not dict
             or set(item["calls"]) != _CALL_KEYS
             or any(type(count) is not int or count < 0 for count in item["calls"].values())
+            or type(item["typedSearches"]) is not list
+            or len(item["typedSearches"]) != item["calls"]["search"]
+            or any(
+                type(search) is not dict
+                or set(search) != {"logicalDomainId", "path", "retrievalProfileId"}
+                or type(search["logicalDomainId"]) is not str
+                or type(search["path"]) is not str
+                or type(search["retrievalProfileId"]) is not str
+                or search["logicalDomainId"] not in _PROFILE_BY_DOMAIN
+                or search["path"] not in {"keyword", "vector"}
+                or search["retrievalProfileId"] != _PROFILE_BY_DOMAIN[search["logicalDomainId"]]
+                for search in item["typedSearches"]
+            )
         ):
             raise ValueError("knowledge_nonlive.evidence_shape_invalid")
         case_ids.append(item["caseId"])
@@ -83,6 +114,17 @@ def validate_knowledge_nonlive_evidence(value: object) -> None:
         or not value["cleanup"]["knowledgeClientsClosed"]
     ):
         raise ValueError("knowledge_nonlive.evidence_false_pass")
+    if value["status"] == "passed":
+        by_id = {item["caseId"]: item for item in value["cases"]}
+        for case_id, expected in _EXPECTED_TYPED_SEARCHES.items():
+            actual = Counter(
+                (item["logicalDomainId"], item["path"], item["retrievalProfileId"])
+                for item in by_id[case_id]["typedSearches"]
+            )
+            if actual != expected:
+                raise ValueError("knowledge_nonlive.evidence_false_pass")
+        if by_id["k-nonlive-read-denied"]["calls"]["summary"] != 0:
+            raise ValueError("knowledge_nonlive.evidence_false_pass")
 
 
 def write_knowledge_nonlive_evidence(

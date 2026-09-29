@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -11,11 +12,13 @@ from agent_runtime.capability_api.contracts import (
     OpaqueUserToken,
 )
 from agent_runtime.core.execution import RequestExecutionScope
+from agent_runtime.model.contracts import ModelTaskId, StructuredModelRequest, StructuredModelResponse
 from tests.helpers import scope
 from tests.system_e2e.knowledge_nonlive_evidence import (
     validate_knowledge_nonlive_evidence,
 )
 from tests.system_e2e.knowledge_runtime_server import (
+    _KnowledgeModelTransport,
     build_knowledge_nonlive_runtime,
 )
 
@@ -87,11 +90,31 @@ async def test_current_production_composition_executes_knowledge_matrix(
     assert outcomes["k-nonlive-sensitive"].capability_id is None
     assert outcomes["k-nonlive-read-denied"].failure is not None
     assert outcomes["k-nonlive-read-denied"].failure.code == "knowledge.domain_forbidden"
+    expected_searches = {
+        "k-nonlive-policy-admin": {("tax.policy", "keyword", "tax-policy-v1"),
+                                     ("tax.policy", "vector", "tax-policy-v1")},
+        "k-nonlive-law-viewer": {("tax.law", "keyword", "tax-law-v1"),
+                                  ("tax.law", "vector", "tax-law-v1")},
+        "k-nonlive-multi-domain": {("tax.policy", "keyword", "tax-policy-v1"),
+                                    ("tax.policy", "vector", "tax-policy-v1"),
+                                    ("tax.law", "keyword", "tax-law-v1"),
+                                    ("tax.law", "vector", "tax-law-v1")},
+    }
+    for case in evidence["cases"]:
+        if case["caseId"] in expected_searches:
+            searches = [
+                (item["logicalDomainId"], item["path"], item["retrievalProfileId"])
+                for item in case["typedSearches"]
+            ]
+            assert len(searches) == len(expected_searches[case["caseId"]])
+            assert set(searches) == expected_searches[case["caseId"]]
     sensitive = next(
         item for item in evidence["cases"]
         if item["caseId"] == "k-nonlive-sensitive"
     )
     assert all(count == 0 for count in sensitive["calls"].values())
+    denied = next(item for item in evidence["cases"] if item["caseId"] == "k-nonlive-read-denied")
+    assert denied["calls"]["summary"] == 0
     for case_id in ("k-nonlive-rewrite-fallback", "k-nonlive-rewrite-invalid"):
         # Stable case IDs; the current intent task fails closed without fallback.
         calls = next(item["calls"] for item in evidence["cases"] if item["caseId"] == case_id)
@@ -103,6 +126,73 @@ async def test_current_production_composition_executes_knowledge_matrix(
     assert _ADMIN not in raw
     assert _VIEWER not in raw
     assert _DENIED not in raw
+    wrong_domain = json.loads(raw)
+    policy_case = next(item for item in wrong_domain["cases"] if item["caseId"] == "k-nonlive-policy-admin")
+    policy_case["typedSearches"][0]["logicalDomainId"] = "tax.law"
+    policy_case["typedSearches"][0]["retrievalProfileId"] = "tax-law-v1"
+    with pytest.raises(ValueError, match="knowledge_nonlive.evidence_false_pass"):
+        validate_knowledge_nonlive_evidence(wrong_domain)
+    malformed_search = json.loads(raw)
+    policy_case = next(
+        item for item in malformed_search["cases"]
+        if item["caseId"] == "k-nonlive-policy-admin"
+    )
+    policy_case["typedSearches"][0]["logicalDomainId"] = ["tax.policy"]
+    with pytest.raises(ValueError, match="knowledge_nonlive.evidence_shape_invalid"):
+        validate_knowledge_nonlive_evidence(malformed_search)
+
+
+@pytest.mark.asyncio
+async def test_nonlive_probe_keeps_concurrent_cases_separate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_complete = _KnowledgeModelTransport.complete
+    arrivals = 0
+    both_started = asyncio.Event()
+
+    async def complete_after_both_start(
+        transport: _KnowledgeModelTransport,
+        request: StructuredModelRequest,
+        *,
+        call_deadline: float,
+    ) -> StructuredModelResponse:
+        nonlocal arrivals
+        if request.task_id is ModelTaskId.ACTION_SELECTION:
+            arrivals += 1
+            if arrivals == 2:
+                both_started.set()
+            await asyncio.wait_for(both_started.wait(), timeout=2.0)
+        return await original_complete(transport, request, call_deadline=call_deadline)
+
+    monkeypatch.setattr(_KnowledgeModelTransport, "complete", complete_after_both_start)
+    runtime = build_knowledge_nonlive_runtime(_environment(tmp_path))
+    requests = (
+        ("k-nonlive-policy-admin", "现行增值税政策有哪些", _ADMIN),
+        ("k-nonlive-law-viewer", "税收法律第一条规定什么", _VIEWER),
+    )
+    outcomes = await asyncio.gather(*(
+        runtime.ainvoke(question=question, scope=_scope(question, case_id=case_id, token=token))
+        for case_id, question, token in requests
+    ))
+    assert arrivals == 2
+    assert all(outcome.status is CapabilityStatus.SUCCESS for outcome in outcomes)
+    await runtime.aclose()
+    evidence = json.loads((tmp_path / "evidence.json").read_text(encoding="utf-8"))
+    validate_knowledge_nonlive_evidence(evidence)
+    by_id = {item["caseId"]: item for item in evidence["cases"]}
+    assert set(by_id) == {case_id for case_id, _, _ in requests}
+    for case_id, domain_id, profile_id in (
+        ("k-nonlive-policy-admin", "tax.policy", "tax-policy-v1"),
+        ("k-nonlive-law-viewer", "tax.law", "tax-law-v1"),
+    ):
+        case = by_id[case_id]
+        assert case["calls"]["search"] == 2
+        assert case["calls"]["embed"] == 1
+        assert case["calls"]["rerank"] == 1
+        assert {(item["logicalDomainId"], item["path"], item["retrievalProfileId"])
+                for item in case["typedSearches"]} == {
+                    (domain_id, "keyword", profile_id), (domain_id, "vector", profile_id),
+                }
 
 
 def test_nonlive_runtime_rejects_real_model_provider(tmp_path: Path) -> None:
