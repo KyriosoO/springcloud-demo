@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import math
-from typing import Awaitable, Callable, Generic, TypeVar
+from typing import Awaitable, Callable, Generic, Protocol, TypeVar, cast
 
 from agent_runtime.capability_api.contracts import (
     CapabilityExecutionContext,
@@ -26,10 +27,12 @@ from agent_runtime.knowledge.contracts import (
     EvidenceStageKind,
     EvidenceStageResult,
     KnowledgeEvidenceInput,
+    KnowledgeEvidenceContext,
     KnowledgeEvidenceStage,
     KnowledgeQueryArguments,
     KnowledgeQuestionRewriteStage,
     KnowledgeRetrievalPlan,
+    KnowledgeRetrievalContext,
     KnowledgeRetrievalStage,
     PathRef,
     RetrievalCoverage,
@@ -40,13 +43,39 @@ from agent_runtime.knowledge.contracts import (
 )
 from agent_runtime.knowledge.domain_selection import DeterministicDomainSelector
 from agent_runtime.knowledge.errors import KnowledgeInputError
+from agent_runtime.knowledge.evidence.contracts import MinimalKnowledgeEvidenceInput
 from agent_runtime.knowledge.evidence_requirements import validate_plan_requirements
+from agent_runtime.knowledge.intent_contracts import KnowledgeIntentOutcome
+from agent_runtime.knowledge.intent_stage_v12 import MinimalIntentStageKind, MinimalKnowledgeIntentStage
+from agent_runtime.knowledge.minimal_plan import (
+    MinimalKnowledgePlanBuilder, MinimalKnowledgeRetrievalPlan, MinimalRetrievalSettings,
+)
 from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
+from agent_runtime.knowledge.retrieval.minimal_ranking import MinimalRankedBatch
 from agent_runtime.knowledge.settings import KnowledgeSettings
 from agent_runtime.knowledge.contracts import LogicalKnowledgeDomain
 
 TBatch = TypeVar("TBatch")
 TPhase = TypeVar("TPhase")
+
+
+class MinimalRetrievalPort(Protocol):
+    async def execute(self, *, plan: MinimalKnowledgeRetrievalPlan, context: KnowledgeRetrievalContext,
+                      timeout_s: float) -> RetrievalStageResult[MinimalRankedBatch]: ...
+
+
+class MinimalEvidencePort(Protocol):
+    async def build_result(self, *, input: MinimalKnowledgeEvidenceInput, context: KnowledgeEvidenceContext,
+                           timeout_s: float) -> EvidenceStageResult: ...
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MinimalFlowBindings:
+    intent: MinimalKnowledgeIntentStage
+    planner: MinimalKnowledgePlanBuilder
+    retrieval: MinimalRetrievalPort
+    evidence: MinimalEvidencePort
+    settings: MinimalRetrievalSettings
 
 
 def _result(
@@ -86,19 +115,20 @@ class KnowledgeArgumentValidator:
 
 
 class KnowledgeQueryCapability(Generic[TBatch]):
-    __slots__ = ("_domains", "_evidence", "_planner", "_retrieval", "_rewriter", "_selector", "_settings", "_semantic_required")
+    __slots__ = ("_domains", "_evidence", "_minimal_flow", "_planner", "_retrieval", "_rewriter", "_selector", "_settings", "_semantic_required")
 
     def __init__(
         self,
         *,
         settings: KnowledgeSettings,
         enabled_domains: tuple[LogicalKnowledgeDomain, ...],
-        rewriter: KnowledgeQuestionRewriteStage,
-        selector: DeterministicDomainSelector | None,
-        planner: KnowledgeRetrievalPlanBuilder,
-        retrieval: KnowledgeRetrievalStage[TBatch],
-        evidence: KnowledgeEvidenceStage[TBatch],
+        rewriter: KnowledgeQuestionRewriteStage | None = None,
+        selector: DeterministicDomainSelector | None = None,
+        planner: KnowledgeRetrievalPlanBuilder | None = None,
+        retrieval: KnowledgeRetrievalStage[TBatch] | None = None,
+        evidence: KnowledgeEvidenceStage[TBatch] | None = None,
         require_semantic_plan: bool = False,
+        minimal_flow: MinimalFlowBindings | None = None,
     ) -> None:
         if settings.enabled and not enabled_domains:
             raise ValueError("knowledge.enabled_domains_required")
@@ -109,7 +139,16 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         self._planner = planner
         self._retrieval = retrieval
         self._evidence = evidence
+        self._minimal_flow = minimal_flow
         self._semantic_required = require_semantic_plan
+        if minimal_flow is not None:
+            if (rewriter is not None or selector is not None or planner is not None or retrieval is not None
+                    or evidence is not None or require_semantic_plan
+                    or minimal_flow.settings.enabled_domain_ids != settings.enabled_domain_ids):
+                raise ValueError("knowledge.minimal_binding_invalid")
+            return
+        if rewriter is None or planner is None or retrieval is None or evidence is None:
+            raise ValueError("knowledge.dependencies_required")
         if require_semantic_plan and selector is not None:
             raise ValueError("knowledge.legacy_selector_forbidden")
         if not require_semantic_plan and selector is None:
@@ -122,9 +161,16 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         question = context.original_question
         if not question or not question.strip():
             return _result(CapabilityStatus.INVALID_ARGUMENT, code="knowledge.invalid_question")
+        if self._minimal_flow is not None:
+            return await self._handle_minimal(question=question, context=context, flow=self._minimal_flow)
+        rewriter, planner, retrieval_stage, evidence_stage = (
+            self._rewriter, self._planner, self._retrieval, self._evidence,
+        )
+        assert rewriter is not None and planner is not None
+        assert retrieval_stage is not None and evidence_stage is not None
         try:
             rewrite = await self._run_phase(
-                lambda: self._rewriter.rewrite(
+                lambda: rewriter.rewrite(
                     original_question=question,
                     timeout_s=self._settings.rewrite_timeout_ms / 1000,
                 ),
@@ -209,10 +255,10 @@ class KnowledgeQueryCapability(Generic[TBatch]):
                 domain_result={"reason": "no_matching_domain", "selected_domain_ids": (), "coverage_complete": True},
             )
         try:
-            plan = self._planner.build(rewrite=rewritten, domains=domains, settings=self._settings)
+            plan = planner.build(rewrite=rewritten, domains=domains, settings=self._settings)
             retrieval_context = to_retrieval_context(context)
             retrieval = await self._run_phase(
-                lambda: self._retrieval.execute(
+                lambda: retrieval_stage.execute(
                     plan=plan,
                     context=retrieval_context,
                     timeout_s=self._settings.retrieval_timeout_ms / 1000,
@@ -240,7 +286,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         )
         try:
             evidence = await self._run_phase(
-                lambda: self._evidence.build_result(
+                lambda: evidence_stage.build_result(
                     input=evidence_input,
                     context=to_evidence_context(context),
                     timeout_s=self._settings.evidence_timeout_ms / 1000,
@@ -251,6 +297,72 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         except TimeoutError:
             return _result(CapabilityStatus.TIMEOUT, code="knowledge.evidence_timeout", source=FailureSource.DOWNSTREAM)
         return self.map_evidence_result(result=evidence, question_egress_denied=rewritten.question_egress_denied)
+
+    async def _handle_minimal(
+        self, *, question: str, context: CapabilityExecutionContext, flow: MinimalFlowBindings,
+    ) -> CapabilityResult:
+        try:
+            planned = await self._run_phase(
+                lambda: flow.intent.rewrite(original_question=question,
+                                            timeout_s=self._settings.rewrite_timeout_ms / 1000),
+                context=context, phase_timeout_s=self._settings.rewrite_timeout_ms / 1000,
+            )
+        except TimeoutError:
+            return _result(CapabilityStatus.TIMEOUT, code="knowledge.rewrite_timeout", source=FailureSource.DOWNSTREAM)
+        if planned.kind is MinimalIntentStageKind.INPUT_INVALID:
+            return _result(CapabilityStatus.INVALID_ARGUMENT, code="knowledge.invalid_question")
+        if planned.kind is MinimalIntentStageKind.QUESTION_DENIED:
+            return _result(CapabilityStatus.MODEL_EGRESS_DENIED, code="knowledge.rewrite_input_denied",
+                source=FailureSource.POLICY,
+                egress=ModelEgressResult(disposition=EgressDisposition.DENIED,
+                    policy_version=planned.policy_version or "question-egress-v1",
+                    reason_code="knowledge.rewrite_input_denied"))
+        if planned.kind is MinimalIntentStageKind.TIMEOUT:
+            return _result(CapabilityStatus.TIMEOUT, code="knowledge.rewrite_timeout", source=FailureSource.DOWNSTREAM)
+        if (planned.kind is not MinimalIntentStageKind.SUCCESS or planned.question is None
+                or planned.intent is None or planned.policy_version is None):
+            return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure",
+                           source=FailureSource.DOWNSTREAM)
+        intent = planned.intent
+        if intent.outcome is KnowledgeIntentOutcome.UNSUPPORTED:
+            return _result(CapabilityStatus.NO_RESULT,
+                domain_result={"reason": "no_matching_domain", "selected_domain_ids": (), "coverage_complete": True})
+        if intent.outcome is KnowledgeIntentOutcome.CLARIFICATION_REQUIRED:
+            return _result(CapabilityStatus.NO_RESULT,
+                domain_result={"reason": "clarification_required", "selected_domain_ids": (), "coverage_complete": False})
+        try:
+            plan = flow.planner.build(question=planned.question, intent=intent, settings=flow.settings)
+        except ValueError:
+            return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.rewrite_failure",
+                           source=FailureSource.DOWNSTREAM)
+        try:
+            retrieval = await self._run_phase(
+                lambda: flow.retrieval.execute(plan=plan, context=to_retrieval_context(context),
+                    timeout_s=self._settings.retrieval_timeout_ms / 1000),
+                context=context, phase_timeout_s=self._settings.retrieval_timeout_ms / 1000,
+            )
+        except TimeoutError:
+            return _result(CapabilityStatus.TIMEOUT, code="knowledge.retrieval_timeout", source=FailureSource.DOWNSTREAM)
+        decision = self.map_retrieval_result(result=cast(RetrievalStageResult[TBatch], retrieval), plan=plan)
+        if isinstance(decision, CapabilityResult):
+            return decision
+        batch, coverage = decision
+        if not isinstance(batch, MinimalRankedBatch):
+            return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code="knowledge.retrieval_failure",
+                           source=FailureSource.DOWNSTREAM)
+        evidence_input = MinimalKnowledgeEvidenceInput(
+            question=planned.question, intent=intent, plan=plan, coverage=coverage,
+            question_policy_version=planned.policy_version, question_egress_denied=False, batch=batch,
+        )
+        try:
+            evidence = await self._run_phase(
+                lambda: flow.evidence.build_result(input=evidence_input, context=to_evidence_context(context),
+                    timeout_s=self._settings.evidence_timeout_ms / 1000),
+                context=context, phase_timeout_s=self._settings.evidence_timeout_ms / 1000,
+            )
+        except TimeoutError:
+            return _result(CapabilityStatus.TIMEOUT, code="knowledge.evidence_timeout", source=FailureSource.DOWNSTREAM)
+        return self.map_evidence_result(result=evidence, question_egress_denied=False)
 
     async def _run_phase(
         self,
@@ -272,7 +384,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         return result
 
     def map_retrieval_result(
-        self, *, result: RetrievalStageResult[TBatch], plan: KnowledgeRetrievalPlan
+        self, *, result: RetrievalStageResult[TBatch], plan: KnowledgeRetrievalPlan | MinimalKnowledgeRetrievalPlan
     ) -> tuple[TBatch, RetrievalCoverage] | CapabilityResult:
         if result.kind is RetrievalStageKind.FORBIDDEN and result.stage_code is RetrievalStageCode.DOMAIN_FORBIDDEN:
             return _result(CapabilityStatus.FORBIDDEN, code="knowledge.domain_forbidden", source=FailureSource.DOWNSTREAM)
@@ -295,7 +407,8 @@ class KnowledgeQueryCapability(Generic[TBatch]):
             if result.stage_code in mapping:
                 return _result(CapabilityStatus.DOWNSTREAM_FAILURE, code=mapping[result.stage_code], source=FailureSource.DOWNSTREAM)
         if result.kind in (RetrievalStageKind.SUCCESS, RetrievalStageKind.NO_RESULT) and result.coverage is not None:
-            is_quality = plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS
+            is_quality = (isinstance(plan, MinimalKnowledgeRetrievalPlan)
+                          or plan.quality_version in KNOWLEDGE_QUALITY_VERSIONS)
             if not self._valid_coverage(
                 result.coverage, plan, require_candidates=result.kind is RetrievalStageKind.SUCCESS,
                 check_partial=not is_quality,
@@ -322,7 +435,7 @@ class KnowledgeQueryCapability(Generic[TBatch]):
         return _result(CapabilityStatus.INTERNAL_FAILURE, code="knowledge.invalid_stage_result")
 
     def _valid_coverage(
-        self, coverage: RetrievalCoverage, plan: KnowledgeRetrievalPlan, *,
+        self, coverage: RetrievalCoverage, plan: KnowledgeRetrievalPlan | MinimalKnowledgeRetrievalPlan, *,
         require_candidates: bool, check_partial: bool = True,
     ) -> bool:
         raw_complete: object = coverage.complete

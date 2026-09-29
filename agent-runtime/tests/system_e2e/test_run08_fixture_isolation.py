@@ -32,7 +32,7 @@ def test_historical_stub_isolation_never_replaces_current_main_or_other_tests(mo
 def test_only_exact_consumed_test_uses_frozen_source_and_restores(monkeypatch):
     root = bootstrap.KnowledgeCompositionRoot
     name = current.__name__
-    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
+    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "12"
     request = SimpleNamespace(
         module=SimpleNamespace(__name__="tests.system_e2e.test_knowledge_stage_b_uat_v8"),
         function=SimpleNamespace(__name__="test_capture_hooks_on_actual_current_production_root_and_provider_wire"),
@@ -46,7 +46,7 @@ def test_only_exact_consumed_test_uses_frozen_source_and_restores(monkeypatch):
         assert sys.modules[name].KnowledgeCompositionRoot is frozen
     assert bootstrap.KnowledgeCompositionRoot is root and main.KnowledgeCompositionRoot is root
     assert sys.modules[name] is current
-    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
+    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "12"
 
 
 def test_other_test_in_same_module_keeps_current_root(monkeypatch):
@@ -67,11 +67,11 @@ def test_other_test_in_same_module_keeps_current_root(monkeypatch):
     ("tests.system_e2e.test_knowledge_stage_b_uat_v12",
      "test_current_root_capture_provider_wire_and_context_observer"),
 ])
-def test_consumed_v8_binding_is_exact_and_current_v9_is_restored(module, function, monkeypatch):
+def test_consumed_v8_binding_is_exact_and_current_root_is_restored(module, function, monkeypatch):
     root = bootstrap.KnowledgeCompositionRoot
     test_module = SimpleNamespace(__name__=module, production=current)
     request = SimpleNamespace(module=test_module, function=SimpleNamespace(__name__=function))
-    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "11"
+    assert root.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",)).rewrite.task_version == "12"
     with monkeypatch.context() as patch:
         isolate_consumed_run08_root_fixture.__wrapped__(request, patch)
         frozen = bootstrap.KnowledgeCompositionRoot

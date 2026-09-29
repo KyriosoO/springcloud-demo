@@ -26,5 +26,5 @@ def test_enabled_knowledge_defines_rewrite_and_summary_before_gateway_freeze() -
 
     assert tasks is not None
     assert tuple(item.task_id.value for item in tasks.as_tuple()) == ("knowledge_rewrite", "knowledge_summary")
-    assert tuple(item.task_version for item in tasks.as_tuple()) == ("11", "7")
+    assert tuple(item.task_version for item in tasks.as_tuple()) == ("12", "8")
     assert tasks.enabled_domain_ids == ("tax.policy",)

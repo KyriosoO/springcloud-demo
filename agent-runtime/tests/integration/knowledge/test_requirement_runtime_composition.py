@@ -286,11 +286,13 @@ async def test_current_root_cancel_closes_all_clients_without_summary_retry():
 
 def test_historical_root_isolation_is_exact_scoped_and_restored(monkeypatch):
     from agent_runtime import bootstrap, main
-    from tests.integration.knowledge.conftest import isolate_version_specific_knowledge_root, legacy_root
+    from tests.integration.knowledge.conftest import (
+        isolate_version_specific_knowledge_root, legacy_root, pre_minimal_root,
+    )
 
     current = bootstrap.KnowledgeCompositionRoot
     parent = Path(__file__).resolve().parent
-    for path, expected in ((Path(__file__), current), (parent.parent / "test_stage_b_production.py", current),
+    for path, expected in ((Path(__file__), pre_minimal_root()), (parent.parent / "test_stage_b_production.py", current),
                            (parent / "test_stage_b_production.py", legacy_root())):
         module = SimpleNamespace(__file__=str(path), KnowledgeCompositionRoot=current)
         with monkeypatch.context() as patch:

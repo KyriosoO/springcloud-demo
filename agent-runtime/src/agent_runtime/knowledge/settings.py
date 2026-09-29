@@ -74,6 +74,21 @@ class KnowledgeSettings:
         if unknown:
             raise KnowledgeConfigurationError("knowledge.settings_unknown_key")
         enabled = _boolean(env, "AGENT_KNOWLEDGE_ENABLED", False)
+        if not enabled:
+            # Disabled Knowledge must not parse downstream values or load its
+            # domain catalog. The values below are inert, code-bound defaults.
+            return cls(
+                enabled=False,
+                enabled_domain_ids=(),
+                rewrite_max_candidates=3,
+                allow_original_fallback=True,
+                max_retrieval_query_chars=1024,
+                per_path_candidate_limit=20,
+                min_partial_candidates=3,
+                rewrite_timeout_ms=8000,
+                retrieval_timeout_ms=20000,
+                evidence_timeout_ms=15000,
+            )
         raw_domains = env.get("AGENT_KNOWLEDGE_ENABLED_DOMAINS", "")
         known_order = tuple(item.domain_id for item in build_tax_domain_catalog().domains)
         if raw_domains == "":

@@ -513,19 +513,19 @@ class KnowledgeTaskDefinitions:
 class KnowledgeCompositionRoot:
     @staticmethod
     def task_definitions(
-        *, enabled: bool, rewrite_max_candidates: int = 3,
+        *, enabled: bool,
         enabled_domain_ids: tuple[str, ...] | None = None,
     ) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
-        from agent_runtime.knowledge.evidence.summary_task_v7 import KnowledgeSummaryTaskV7
-        from agent_runtime.knowledge.rewrite_v11 import KnowledgeRewriteTaskV11
+        from agent_runtime.knowledge.evidence.summary_task_v8 import KnowledgeSummaryTaskV8
+        from agent_runtime.knowledge.intent_task_v12 import KnowledgeQueryIntentTaskV12
 
         if enabled_domain_ids is None:
             raise ValueError("knowledge.enabled_domains_required")
         tasks = KnowledgeTaskDefinitions(
-            rewrite=KnowledgeRewriteTaskV11.definition(enabled_domain_ids=enabled_domain_ids),
-            summary=KnowledgeSummaryTaskV7.definition(),
+            rewrite=KnowledgeQueryIntentTaskV12.definition(enabled_domain_ids=enabled_domain_ids),
+            summary=KnowledgeSummaryTaskV8.definition(),
             enabled_domain_ids=enabled_domain_ids,
         )
         # Run during main's configuration phase, before allocating any clients.
@@ -534,13 +534,13 @@ class KnowledgeCompositionRoot:
 
     @staticmethod
     def _validate_tasks(tasks: KnowledgeTaskDefinitions) -> None:
-        from agent_runtime.knowledge.evidence.contracts import KnowledgeRequirementSummaryInput
-        from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput
+        from agent_runtime.knowledge.evidence.contracts import KnowledgeModeSummaryInput
+        from agent_runtime.knowledge.intent_contracts import KnowledgeQueryIntentInput
 
-        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "11"
-            or tasks.rewrite.input_type is not KnowledgeSemanticPlanInput
-            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "7"
-            or tasks.summary.input_type is not KnowledgeRequirementSummaryInput):
+        if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "12"
+            or tasks.rewrite.input_type is not KnowledgeQueryIntentInput
+            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "8"
+            or tasks.summary.input_type is not KnowledgeModeSummaryInput):
             raise ValueError("knowledge.production_task_version_invalid")
 
     @staticmethod
@@ -550,9 +550,8 @@ class KnowledgeCompositionRoot:
         model: LocalModelComponents,
         tasks: KnowledgeTaskDefinitions | None,
         retrieval: object | None,
+        minimal_settings: object | None = None,
         policy_catalog: object | None = None,
-        evidence_selection_version: str = "legacy",
-        preserve_original_keyword: bool = False,
     ) -> CapabilityRegistrationProvider:
         from typing import cast
 
@@ -560,30 +559,30 @@ class KnowledgeCompositionRoot:
         from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
         from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
         from agent_runtime.knowledge.evidence.contracts import KnowledgeEvidenceLimits, KnowledgeSummaryInput, KnowledgeSummaryOutput
-        from agent_runtime.knowledge.planning import KnowledgeRetrievalPlanBuilder
+        from agent_runtime.knowledge.evidence.minimal_selection import MinimalEvidenceSelector
+        from agent_runtime.knowledge.intent_contracts import KnowledgeQueryIntentInput, KnowledgeQueryIntent
+        from agent_runtime.knowledge.intent_stage_v12 import MinimalKnowledgeIntentStage
+        from agent_runtime.knowledge.minimal_plan import MinimalKnowledgePlanBuilder, MinimalRetrievalSettings
+        from agent_runtime.knowledge.capability import MinimalFlowBindings, MinimalRetrievalPort
         from agent_runtime.knowledge.provider import KnowledgeCapabilityProvider
-        from agent_runtime.knowledge.semantic_planner import KnowledgeSemanticPlanner
-        from agent_runtime.knowledge.document_reference_semantics import DocumentReferenceSemanticGuard
-        from agent_runtime.knowledge.rewrite_v3 import KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput
         from agent_runtime.knowledge.settings import KnowledgeSettings
-        from agent_runtime.knowledge.contracts import KNOWLEDGE_QUALITY_VERSION_V3, KnowledgeRetrievalStage
 
         typed_settings = cast(KnowledgeSettings, settings)
         if not typed_settings.enabled:
-            if tasks is not None or retrieval is not None:
+            if tasks is not None or retrieval is not None or minimal_settings is not None:
                 raise ValueError("knowledge.disabled_dependencies_forbidden")
             return KnowledgeCapabilityProvider(enabled=False, handler=None)
-        if tasks is None or retrieval is None:
+        if tasks is None or retrieval is None or not callable(getattr(retrieval, "execute", None)):
             raise ValueError("knowledge.dependencies_required")
+        if (type(minimal_settings) is not MinimalRetrievalSettings
+                or minimal_settings.enabled_domain_ids != typed_settings.enabled_domain_ids
+                or minimal_settings.per_path_candidate_limit != typed_settings.per_path_candidate_limit
+                or minimal_settings.min_partial_candidates != typed_settings.min_partial_candidates
+                or minimal_settings.retrieval_timeout_s != typed_settings.retrieval_timeout_ms / 1000):
+            raise ValueError("knowledge.minimal_binding_invalid")
         KnowledgeCompositionRoot._validate_tasks(tasks)
         if type(tasks.enabled_domain_ids) is not tuple or tasks.enabled_domain_ids != typed_settings.enabled_domain_ids:
             raise ValueError("knowledge.task_domain_snapshot_mismatch")
-        from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
-
-        if type(evidence_selection_version) is not str or evidence_selection_version not in (
-            "legacy", ScoreAwareEvidenceSelector.VERSION,
-        ):
-            raise ValueError("knowledge.evidence_selection_version_invalid")
         typed_policy_catalog = (
             KnowledgeEgressPolicyCatalog.load_current_resource()
             if policy_catalog is None
@@ -592,14 +591,12 @@ class KnowledgeCompositionRoot:
         if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
             raise ValueError("knowledge.policy_catalog_invalid")
         summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
-        rewriter = KnowledgeSemanticPlanner(
+        intent = MinimalKnowledgeIntentStage(
             gateway=model.gateway,
             context=model.context_accessor,
-            definition=cast(ModelTaskDefinition[KnowledgeSemanticPlanInput, KnowledgeSemanticPlanOutput], tasks.rewrite),
+            definition=cast(ModelTaskDefinition[KnowledgeQueryIntentInput, KnowledgeQueryIntent], tasks.rewrite),
             enabled_domain_ids=typed_settings.enabled_domain_ids,
             max_query_chars=typed_settings.max_retrieval_query_chars,
-            quality_version=KNOWLEDGE_QUALITY_VERSION_V3,
-            semantic_guard=DocumentReferenceSemanticGuard(),
         )
         evidence = DefaultKnowledgeEvidenceStage(
             catalog=typed_policy_catalog,
@@ -607,19 +604,16 @@ class KnowledgeCompositionRoot:
             context=model.context_accessor,
             gateway=model.gateway,
             definition=summary_definition,
-            limits=KnowledgeEvidenceLimits.quality_v3(),
-            selector=ScoreAwareEvidenceSelector() if evidence_selection_version == ScoreAwareEvidenceSelector.VERSION else None,
+            limits=KnowledgeEvidenceLimits.minimal_v1(),
+            selector=MinimalEvidenceSelector(),
         )
         from agent_runtime.knowledge.capability import KnowledgeQueryCapability
 
-        handler = KnowledgeQueryCapability(
+        handler: KnowledgeQueryCapability[Any] = KnowledgeQueryCapability(
             settings=typed_settings,
             enabled_domains=build_tax_domain_catalog().enabled(typed_settings.enabled_domain_ids),
-            rewriter=rewriter,
-            selector=None,
-            planner=KnowledgeRetrievalPlanBuilder(preserve_original_keyword=preserve_original_keyword),
-            retrieval=cast(KnowledgeRetrievalStage[Any], retrieval),
-            evidence=evidence,
-            require_semantic_plan=True,
+            minimal_flow=MinimalFlowBindings(intent=intent, planner=MinimalKnowledgePlanBuilder(),
+                retrieval=cast(MinimalRetrievalPort, retrieval), evidence=evidence,
+                settings=minimal_settings),
         )
         return KnowledgeCapabilityProvider(enabled=True, handler=handler)

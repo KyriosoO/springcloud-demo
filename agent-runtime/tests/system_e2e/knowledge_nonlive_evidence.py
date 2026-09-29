@@ -34,7 +34,7 @@ _TOP_LEVEL = {
     "cleanup",
 }
 _CASE_KEYS = {"caseId", "status", "capabilityId", "failureCode", "calls"}
-_CALL_KEYS = {"action", "rewrite", "summary", "businessModel", "embed", "search", "rerank"}
+_CALL_KEYS = {"action", "intent", "summary", "businessModel", "embed", "search", "rerank"}
 _TOTAL_KEYS = _CALL_KEYS | {"externalModelOutbound"}
 
 

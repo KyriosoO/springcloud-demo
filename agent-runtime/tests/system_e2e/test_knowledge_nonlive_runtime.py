@@ -93,9 +93,9 @@ async def test_current_production_composition_executes_knowledge_matrix(
     )
     assert all(count == 0 for count in sensitive["calls"].values())
     for case_id in ("k-nonlive-rewrite-fallback", "k-nonlive-rewrite-invalid"):
-        # Stable historical ID, but the current V3 contract permits no fallback.
+        # Stable case IDs; the current intent task fails closed without fallback.
         calls = next(item["calls"] for item in evidence["cases"] if item["caseId"] == case_id)
-        assert calls["rewrite"] == 1
+        assert calls["intent"] == 1
         assert all(calls[key] == 0 for key in ("search", "embed", "rerank", "summary"))
     assert evidence["totals"]["businessModel"] == 0
     assert evidence["totals"]["externalModelOutbound"] == 0

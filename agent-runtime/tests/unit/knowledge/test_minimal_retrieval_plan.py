@@ -37,6 +37,10 @@ def test_plan_freezes_original_question_catalog_profiles_and_budgets(domains, qu
     {"enabled_domain_ids": ["tax.law", "tax.policy"]}, {"enabled_domain_ids": ["tax.policy"] * 2},
     {"enabled_domain_ids": "tax.policy"}, {"enabled_domain_ids": [1]},
     {"min_partial_candidates": 2}, {"min_partial_candidates": 21}, {"min_partial_candidates": True},
+    {"per_path_candidate_limit": 4}, {"per_path_candidate_limit": 21},
+    {"per_path_candidate_limit": True}, {"final_candidate_limit": 2},
+    {"final_candidate_limit": 21}, {"final_candidate_limit": True},
+    {"per_path_candidate_limit": 5, "min_partial_candidates": 6},
     {"min_partial_candidates": "3"}, {"retrieval_timeout_s": 21}, {"retrieval_timeout_s": 0},
     {"retrieval_timeout_s": float("nan")}, {"retrieval_timeout_s": True},
     {"retrieval_timeout_s": "5"}, {"config_version": "knowledge-retrieval-quality-v3"},
@@ -56,6 +60,16 @@ def test_config_snapshot_copies_input_and_disabled_domain_is_not_allowed():
         make_plan(settings=settings)
     with pytest.raises(ValueError):
         make_plan(("tax.policy",)).validate(settings)
+
+
+def test_narrowed_per_path_budget_is_frozen_into_both_paths():
+    settings = MinimalRetrievalSettings.from_mapping({"per_path_candidate_limit": 5,
+        "final_candidate_limit": 3, "min_partial_candidates": 3})
+    plan = make_plan(("tax.policy",), settings=settings)
+    assert tuple(item.candidate_limit for item in plan.items) == (5, 5)
+    assert plan.settings.final_candidate_limit == 3
+    with pytest.raises(ValueError):
+        replace(plan, items=(replace(plan.items[0], candidate_limit=20), plan.items[1]))
 
 
 @pytest.mark.parametrize("change", [

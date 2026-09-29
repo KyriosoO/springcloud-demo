@@ -117,11 +117,21 @@ class AgentKnowledgeNonLiveE2ETest {
                 node -> assertThat(node.asInt()).isZero());
         for (String caseId : List.of("k-nonlive-rewrite-fallback", "k-nonlive-rewrite-invalid")) {
             JsonNode calls = findCase(evidence, caseId).path("calls");
-            assertThat(calls.path("rewrite").asInt()).isEqualTo(1);
+            assertThat(calls.path("intent").asInt()).isEqualTo(1);
             for (String key : List.of("search", "embed", "rerank", "summary")) {
                 assertThat(calls.path(key).asInt()).isZero();
             }
         }
+        for (String caseId : List.of("k-nonlive-unsupported", "k-nonlive-second-action")) {
+            JsonNode calls = findCase(evidence, caseId).path("calls");
+            assertThat(calls.path("action").asInt()).isEqualTo(1);
+            for (String key : List.of("intent", "summary", "businessModel", "embed", "search", "rerank")) {
+                assertThat(calls.path(key).asInt()).isZero();
+            }
+        }
+        JsonNode allPathsFailed = findCase(evidence, "k-nonlive-all-paths-fail").path("calls");
+        assertThat(allPathsFailed.path("search").asInt()).isPositive();
+        assertThat(allPathsFailed.path("summary").asInt()).isZero();
 
         String finiteEvidence = Files.readString(evidencePath, StandardCharsets.UTF_8);
         String runtimeLog = Files.exists(runtimeLogPath)
@@ -131,6 +141,16 @@ class AgentKnowledgeNonLiveE2ETest {
                 "synthetic-secret", ADMIN_TOKEN, VIEWER_TOKEN, DENIED_TOKEN, SERVICE_TOKEN);
         assertThat(runtimeLog).doesNotContain(
                 "synthetic-secret", ADMIN_TOKEN, VIEWER_TOKEN, DENIED_TOKEN, SERVICE_TOKEN);
+        for (String forbidden : List.of(
+                "现行税务政策和法律规定纳税人应当依法办理申报。",
+                "你是受控知识查询意图分类器",
+                "你是税务知识原文证据选择器",
+                "\"capability_id\":\"knowledge.query\"",
+                "\"evidence_ref\": \"e999\"",
+                "queryVector", "indexSnapshotId", "physicalIndex", "_index", "/_search")) {
+            assertThat(finiteEvidence).doesNotContain(forbidden);
+            assertThat(runtimeLog).doesNotContain(forbidden);
+        }
     }
 
     private JsonNode findCase(JsonNode evidence, String caseId) {

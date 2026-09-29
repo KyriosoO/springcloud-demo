@@ -59,13 +59,16 @@ def order_domain(pool: tuple[FusedCandidate, ...], scores: tuple[RerankScore, ..
 def round_robin(
     queues: tuple[tuple[tuple[FusedCandidate, float], ...], ...],
     all_candidates: tuple[FusedCandidate, ...],
+    *, limit: int = 20,
 ) -> tuple[MinimalRankedCandidate, ...]:
     """No score comparison across pools and no anchors, quotas or gold-derived hints."""
+    if type(limit) is not int or not 3 <= limit <= 20:
+        raise ValueError("knowledge.invalid_final_candidate_limit")
     by_id = {(item.candidate.document_id, item.candidate.chunk_id): item for item in all_candidates}
     seen: set[tuple[str, str]] = set()
     offsets = [0] * len(queues)
     result: list[MinimalRankedCandidate] = []
-    while len(result) < 20:
+    while len(result) < limit:
         progressed = False
         for index, queue in enumerate(queues):
             while offsets[index] < len(queue):
@@ -80,7 +83,7 @@ def round_robin(
                     path_ranks=source.path_ranks, rerank_score=score, rank=len(result) + 1))
                 progressed = True
                 break
-            if len(result) == 20:
+            if len(result) == limit:
                 break
         if not progressed:
             break

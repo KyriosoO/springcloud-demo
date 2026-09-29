@@ -83,13 +83,13 @@ def _terminal(results: tuple[PathRetrievalResult, ...]) -> RetrievalStageCode | 
     return None
 
 
-def _candidate_set(result: PathRetrievalResult) -> PathCandidateSet:
+def _candidate_set(result: PathRetrievalResult, *, limit: int) -> PathCandidateSet:
     if (result.profile_version != PROFILE_VERSION or type(result.index_snapshot_id) is not str
             or re.fullmatch(r"[0-9a-f]{64}", result.index_snapshot_id) is None
             or type(result.read_policy_version) is not str
             or re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", result.read_policy_version) is None
             or type(result.truncated) is not bool or type(result.candidates) is not tuple
-            or len(result.candidates) > 20 or result.failure is not None
+            or len(result.candidates) > limit or result.failure is not None
             or (result.kind is PathResultKind.CANDIDATES) != bool(result.candidates)):
         raise ValueError("knowledge.invalid_provider_result")
     for rank, candidate in enumerate(result.candidates, start=1):
@@ -192,7 +192,8 @@ class MinimalKnowledgeRetrievalStage:
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
         ordered = tuple(results[task] for task in tasks)
-        sets = tuple(_candidate_set(item) for item in ordered
+        sets = tuple(_candidate_set(item, limit=plan_item.candidate_limit)
+                     for plan_item, item in zip(plan.items, ordered, strict=True)
                      if item.kind in (PathResultKind.CANDIDATES, PathResultKind.NO_RESULT))
         snapshots: dict[str, tuple[str, str, str]] = {}
         for item in sets:
@@ -232,7 +233,7 @@ class MinimalKnowledgeRetrievalStage:
             except (RetrievalTransportError, ValueError) as exc:
                 raise _StageFailure(RetrievalStageCode.RERANK_FAILURE) from exc
         _remaining(deadline)
-        ranked = round_robin(tuple(queues), fused)
+        ranked = round_robin(tuple(queues), fused, limit=self._settings.final_candidate_limit)
         batch = MinimalRankedBatch(candidates=ranked, profile_version=PROFILE_VERSION,
             index_snapshot_ids=tuple(dict.fromkeys(item.index_snapshot_id for item in sets)))
         return RetrievalStageResult(kind=RetrievalStageKind.SUCCESS, batch=batch, coverage=coverage)
@@ -246,7 +247,8 @@ class MinimalKnowledgeRetrievalStage:
         request = KnowledgePathRequest(logical_domain_id=item.logical_domain_id,
             retrieval_profile_id=PROFILE_BY_DOMAIN[item.logical_domain_id], path=item.path,
             query_text=item.query_text if item.path is RetrievalPath.KEYWORD else None,
-            query_vector=vector if item.path is RetrievalPath.VECTOR else None, candidate_limit=20)
+            query_vector=vector if item.path is RetrievalPath.VECTOR else None,
+            candidate_limit=item.candidate_limit)
         try:
             result = await _bounded(lambda timeout: self._search.search(request=request,
                 context=context, timeout_s=timeout), deadline)

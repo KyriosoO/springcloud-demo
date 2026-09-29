@@ -16,6 +16,8 @@ from agent_runtime.api.settings import RuntimeHttpSettings
 from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.graph.state import AgentSemanticOutcome
 from agent_runtime.main import build_runtime
+from agent_runtime.knowledge.intent_task_v12 import OUTPUT_NAME as INTENT_OUTPUT_NAME
+from agent_runtime.knowledge.evidence.summary_task_v8 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
 from agent_runtime.model.contracts import (
     ModelProviderFailureKind,
@@ -38,7 +40,7 @@ _DOCUMENT_IDS = (
     "tax-001544ec4d92c5703c34ae07",
     "tax-00229650537a3b3d877107e7",
 )
-_CALL_KEYS = ("action", "rewrite", "summary", "businessModel", "embed", "search", "rerank")
+_CALL_KEYS = ("action", "intent", "summary", "businessModel", "embed", "search", "rerank")
 
 
 class _FixedStream(httpx.AsyncByteStream):
@@ -83,8 +85,8 @@ class _KnowledgeModelTransport:
             else:
                 content = '{"capability_id":"knowledge.query"}'
         elif request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
-            assert request.task_version == "11"
-            self._probe.counts["rewrite"] += 1
+            assert request.task_version == "12"
+            self._probe.counts["intent"] += 1
             question = payload["question"]
             if "改写失败" in question:
                 raise ModelTransportError(ModelProviderFailureKind.PROVIDER_FAILURE)
@@ -97,16 +99,14 @@ class _KnowledgeModelTransport:
                     "税务政策和税收法律有哪些规定": ("tax.policy", "tax.law"),
                 }.get(question, ("tax.policy",))
                 content = json.dumps(
-                    {"outcome": "search", "question_kind": "lookup",
-                     "queries": {item["domain_id"]: question if item["domain_id"] in domains else ""
-                                 for item in payload["domains"]},
-                     "requirements": [{"requirement_id": f"r{i}", "domain_id": domain, "kind": "rule", "focus": question}
-                                      for i, domain in enumerate(domains, 1)], "missing_conditions": []},
+                    {"outcome": "search", "query_mode": "lookup",
+                     "domains": {item["domain_id"]: "selected" if item["domain_id"] in domains else "not_selected"
+                                 for item in payload["domains"]}, "missing_conditions": []},
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
-            assert request.task_version == "7" and payload["schema_version"] == 2
+            assert request.task_version == "8" and payload["schema_version"] == 3
             self._probe.counts["summary"] += 1
             question = payload["question"]
             if "摘要失败" in question:
@@ -123,19 +123,18 @@ class _KnowledgeModelTransport:
             else:
                 points = [{"evidence_ref": first["evidence_ref"], "quote": first["content"]}]
             content = json.dumps(
-                {"outcome": "answer", "points": points,
-                 "coverage": [{"requirement_id": item["requirement_id"], "evidence_refs": [first["evidence_ref"]]}
-                              for item in payload["requirements"]]},
+                {"outcome": "answer", "points": points},
                 ensure_ascii=False,
                 separators=(",", ":"),
             )
         else:
             self._probe.counts["businessModel"] += 1
             raise AssertionError("knowledge_nonlive.business_model_forbidden")
-        if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
+        if request.task_id in (ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY):
             return StructuredModelResponse(
                 finish_kind=StructuredFinishKind.TOOL_CALLS, content=None,
-                tool_calls=(StructuredToolCall(name="knowledge_requirement_plan", arguments_json=content),),
+                tool_calls=(StructuredToolCall(name=INTENT_OUTPUT_NAME if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE
+                                               else SUMMARY_OUTPUT_NAME, arguments_json=content),),
                 usage_total_tokens=0,
             )
         return StructuredModelResponse(

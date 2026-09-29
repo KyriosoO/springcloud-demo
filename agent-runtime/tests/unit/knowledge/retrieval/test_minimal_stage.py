@@ -5,6 +5,7 @@ import pytest
 
 from agent_runtime.capability_api.contracts import CancellationSource
 from agent_runtime.knowledge.contracts import KnowledgeRetrievalContext, RetrievalPath, RetrievalStageCode, RetrievalStageKind
+from agent_runtime.knowledge.minimal_plan import MinimalRetrievalSettings
 from agent_runtime.knowledge.retrieval.contracts import PathResultFailure, PathResultKind, PathRetrievalResult, RerankScore
 from agent_runtime.knowledge.retrieval.http import RetrievalTransportError
 from agent_runtime.knowledge.retrieval.minimal_stage import MinimalKnowledgeRetrievalStage
@@ -94,6 +95,21 @@ async def test_two_domain_maximum_budget_original_q_serial_rerank_and_round_robi
     assert [c.domain_ids[0] for c in result.batch.candidates] == ["tax.policy", "tax.law"] * 10
     assert all(c.path_ranks and "coverage_anchor" not in asdict(c) for c in result.batch.candidates)
     assert result.coverage.complete and result.batch.index_snapshot_ids == ("a" * 64,)
+
+
+async def test_narrowed_search_and_final_budgets_are_enforced():
+    settings = MinimalRetrievalSettings(per_path_candidate_limit=5, final_candidate_limit=3)
+    plan = make_plan(settings=settings)
+    search = Search(count=5)
+    result = await run(search=search, plan=plan)
+    assert result.kind is RetrievalStageKind.SUCCESS
+    assert len(search.calls) == 4
+    assert all(item[0].candidate_limit == 5 for item in search.calls)
+    assert len(result.batch.candidates) == 3
+
+    over_limit = await run(search=Search(count=6), plan=plan, rerank=Rerank())
+    assert over_limit.kind is RetrievalStageKind.DOWNSTREAM_FAILURE
+    assert over_limit.stage_code is RetrievalStageCode.INVALID_PROVIDER_RESULT
 
 
 async def test_cross_domain_duplicate_merges_all_provenance_without_rerank_anchors():

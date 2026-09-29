@@ -45,6 +45,7 @@ from agent_runtime.knowledge.retrieval.http import (
 from agent_runtime.knowledge.retrieval.provider import LocalKnowledgeRetrievalFactory
 from agent_runtime.knowledge.retrieval.bge_rerank_context import ContextualBgeRerankAdapter
 from agent_runtime.knowledge.retrieval.settings import KnowledgeRetrievalSettings
+from agent_runtime.knowledge.minimal_plan import MinimalRetrievalSettings
 from agent_runtime.knowledge.settings import KnowledgeSettings
 
 
@@ -93,7 +94,6 @@ def build_runtime(
     transaction_endpoint = active.get("AGENT_TRANSACTION_BASE_URL", "http://127.0.0.1:8182")
     knowledge_tasks = KnowledgeCompositionRoot.task_definitions(
         enabled=knowledge_settings.enabled,
-        rewrite_max_candidates=knowledge_settings.rewrite_max_candidates,
         enabled_domain_ids=knowledge_settings.enabled_domain_ids,
     )
     policy_catalog = (
@@ -106,8 +106,14 @@ def build_runtime(
         if knowledge_settings.enabled
         else None
     )
-    if retrieval_settings is not None and retrieval_settings.final_candidates < max(4, 2 * len(knowledge_settings.enabled_domain_ids)):
-        raise ValueError("knowledge.final_candidates_cannot_cover_domain_anchors")
+    minimal_settings = (
+        MinimalRetrievalSettings(enabled_domain_ids=knowledge_settings.enabled_domain_ids,
+            per_path_candidate_limit=knowledge_settings.per_path_candidate_limit,
+            final_candidate_limit=retrieval_settings.final_candidates,
+            min_partial_candidates=knowledge_settings.min_partial_candidates,
+            retrieval_timeout_s=knowledge_settings.retrieval_timeout_ms / 1000)
+        if retrieval_settings is not None else None
+    )
     model = LocalModelCompositionRoot.build(
         settings=model_settings,
         transport=model_transport,
@@ -136,12 +142,13 @@ def build_runtime(
             knowledge_http_client_factory(retrieval_settings.embedding_base_url),
             knowledge_http_client_factory(retrieval_settings.rerank_base_url),
         )
-        retrieval = LocalKnowledgeRetrievalFactory.build(
+        assert minimal_settings is not None
+        retrieval = LocalKnowledgeRetrievalFactory.build_minimal(
             settings=retrieval_settings,
+            minimal_settings=minimal_settings,
             search_transport=HttpxKnowledgeTransport(knowledge_clients[0]),
             embedding_transport=HttpxKnowledgeTransport(knowledge_clients[1]),
             rerank_transport=HttpxKnowledgeTransport(knowledge_clients[2]),
-            rerank_input_version=ContextualBgeRerankAdapter.INPUT_VERSION,
         )
         knowledge_providers = (
             KnowledgeCompositionRoot.build_provider(
@@ -149,9 +156,8 @@ def build_runtime(
                 model=model,
                 tasks=knowledge_tasks,
                 retrieval=retrieval.stage,
+                minimal_settings=minimal_settings,
                 policy_catalog=policy_catalog,
-                evidence_selection_version=ScoreAwareEvidenceSelector.VERSION,
-                preserve_original_keyword=True,
             ),
         )
     return BusinessQueryRuntimeCompositionRoot.build(

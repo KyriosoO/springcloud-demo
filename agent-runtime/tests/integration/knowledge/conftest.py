@@ -18,11 +18,17 @@ import pytest
 
 
 ROOT_BASELINE = "806e1568c694a95769852a47e6c7ff00ec5b1f5a"
+PRE_MINIMAL_ROOT_BASELINE = "2e27086150360bda87ef09e319a2569a2246c07b"
 LEGACY_ROOT_TEST_FILES = frozenset(name + ".py" for name in (
     "test_production_runtime_wiring", "test_summary_v2_composition", "test_summary_v4_composition",
     "test_stage_b_production", "test_rewrite_v4_provider_boundary", "test_rewrite_v5_domain_boundary",
     "test_rewrite_v6_query_focus", "test_tax_semantic_guard_production", "test_summary_v5_production",
     "test_stage_b_citation_binding",
+))
+PRE_MINIMAL_ROOT_TEST_FILES = frozenset(name + ".py" for name in (
+    "test_document_reference_guard_production", "test_evidence_admission_composition",
+    "test_requirement_plan_production", "test_requirement_runtime_composition",
+    "test_rewrite_v11_runtime_snapshot", "test_summary_failure_runtime_observation",
 ))
 
 
@@ -75,25 +81,51 @@ def legacy_root():
     return root
 
 
+@lru_cache(maxsize=1)
+def pre_minimal_root():
+    """Run v11/Summary7-specific tests against the exact pre-cutover root."""
+    import agent_runtime.bootstrap as bootstrap
+
+    repo = Path(__file__).resolve().parents[4]
+    source = subprocess.check_output(
+        ["git", "show", f"{PRE_MINIMAL_ROOT_BASELINE}:agent-runtime/src/agent_runtime/bootstrap.py"], cwd=repo,
+    )
+    nodes = [node for node in ast.parse(source).body
+             if isinstance(node, ast.ClassDef) and node.name == "KnowledgeCompositionRoot"]
+    if len(nodes) != 1:
+        raise AssertionError("knowledge.pre_minimal_root_missing")
+    namespace = dict(vars(bootstrap))
+    exec(compile(ast.Module(body=nodes, type_ignores=[]),
+                 f"git:{PRE_MINIMAL_ROOT_BASELINE}:KnowledgeCompositionRoot", "exec"), namespace)
+    return namespace["KnowledgeCompositionRoot"]
+
+
 @pytest.fixture(autouse=True)
 def isolate_version_specific_knowledge_root(request, monkeypatch):
     # pytest's package name depends on source-tree/installed collection mode.
     # Match the exact test path, never a broad suffix or all Knowledge tests.
     path = Path(request.module.__file__).resolve()
-    if path.parent != Path(__file__).resolve().parent or path.name not in LEGACY_ROOT_TEST_FILES:
+    if (path.parent != Path(__file__).resolve().parent
+            or path.name not in LEGACY_ROOT_TEST_FILES | PRE_MINIMAL_ROOT_TEST_FILES):
         return
     import agent_runtime.bootstrap as bootstrap
     import agent_runtime.main as main
 
-    root = legacy_root()
+    historical = path.name in LEGACY_ROOT_TEST_FILES
+    root = legacy_root() if historical else pre_minimal_root()
     monkeypatch.setattr(bootstrap, "KnowledgeCompositionRoot", root)
     monkeypatch.setattr(main, "KnowledgeCompositionRoot", root)
-    build = frozen_entrypoint(ROOT_BASELINE)
+    build = frozen_entrypoint(ROOT_BASELINE if historical else PRE_MINIMAL_ROOT_BASELINE)
     monkeypatch.setattr(main, "build_runtime", build)
     if hasattr(request.module, "build_runtime"):
         monkeypatch.setattr(request.module, "build_runtime", build)
     if hasattr(request.module, "KnowledgeCompositionRoot"):
         monkeypatch.setattr(request.module, "KnowledgeCompositionRoot", root)
+    if not historical:
+        # Several v11-only modules reuse the requirement-era helper imported at
+        # collection time; patch its entrypoint for this test's scope as well.
+        import tests.integration.knowledge.test_requirement_runtime_composition as requirement_harness
+        monkeypatch.setattr(requirement_harness, "build_runtime", build)
 
 
 def frozen_v10_fixture(monkeypatch):
