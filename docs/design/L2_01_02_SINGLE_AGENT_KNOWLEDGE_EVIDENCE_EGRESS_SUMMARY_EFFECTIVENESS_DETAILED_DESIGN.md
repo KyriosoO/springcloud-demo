@@ -1,19 +1,19 @@
 # [L2_01_02] 单体 Agent Knowledge 证据、出域、摘要与效果验证详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.5 Summary9定向修订已通过独立复评）
+> 文档状态：Approved（v3.6 仅同步Summary9实施与验证状态；v3.5设计复评结论不变）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v3.5 |
+| 当前版本 | v3.6 |
 | 日期 | 2026-09-29 |
-| 权威范围 | 证据完整性/选择、三层出域、当前Summary8与目标Summary9、严格引用及有限回答、本地结果和 P5 效果验证 |
-| 上位文档 | [`L1_01` v3.5](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.5在不改Evidence/出域/原文引用安全合同的前提下，增加目标Summary9有界回应和验证台呈现合同；当前Summary8及历史资产不变 |
-| 实施状态 | 本目标起始Evidence/Policy、Summary V7/quality-v3接线有原定向non-live证据；当前仓库已成对接线Summary8/Evidence minimal，并完成组件fake/non-live验证。单域当前root到隔离真实typed接口仅有有限只读预检，不证明当前Evidence回答质量、Spring全链、真实部署或效果。新版风险状态以UAT_02为准；旧功能UAT、效果口径v2及阶段A快照保持原证明范围；最新有效P5仍为`partially_effective`，历史资产不改；新计划P3_01/UAT_02不继承通过 |
+| 权威范围 | 证据完整性/选择、三层出域、当前Summary9与历史Summary8、严格引用及有限回答、本地结果和 P5 历史效果验证边界 |
+| 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.6仅同步Summary9实施及合成验证事实；v3.5有界回答设计、安全和历史资产不变 |
+| 实施状态 | 本目标起始Evidence/Policy、Summary V7/quality-v3接线有原定向non-live证据；当前仓库已接线Summary9/Evidence minimal，组件fake/non-live及Spring→Runtime合成三模式、失败分支已验证。单域当前root到隔离真实typed接口仅有有限只读预检，不证明真实模型、完整新版UAT、实际部署或回答效果。新版风险状态以UAT_02为准；旧功能UAT、效果口径v2及阶段A快照保持原证明范围；最新有效P5仍为`partially_effective`，历史资产不改；新计划P3_01/UAT_02不继承通过 |
 | 归档来源 | [整理前 v1.27 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -32,24 +32,26 @@ v3.3仅同步本轮仓库代码及阶段测试事实；Summary8上线部署、�
 
 v3.5定向修订§9回答合同：当前仓库Summary8仍仅摘录，目标Summary9增加逐点直接证据支撑的有界回应；旧版本和历史证据不变。定向独立设计复评通过，代码及non-live尚未完成，不能据此启动付费测量。
 
+v3.6只同步Summary9仓库唯一绑定、组件及Spring合成三模式验证范围；§9有界回答和安全合同不变，真实语义、当前部署与新版完整UAT仍待验证。
+
 v3.4仅同步当前任务绑定与有限typed预检的证明边界；新版风险逐项状态由UAT_02维护，不改变Evidence规范合同或预记效果通过。
 
 ## 2. 阅读导航
 
-重点阅读§7/8完整性与出域、§9当前Summary8及目标Summary9、§13原评估兼容、§19资料原文边界。历次修订及旧评审只见归档；当前Summary9是待实施设计，剩余验收见P3_01/UAT_02；旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
+重点阅读§7/8完整性与出域、§9当前Summary9及历史Summary8、§13原评估兼容、§19资料原文边界。历次修订及旧评审只见归档；当前Summary9已在仓库接线，真实质量与完整新版UAT仍见P3_01/UAT_02；旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
 
 ## 3. 目标与范围
 
 ### 3.1 目标
 
-只使用本次请求中已授权、完整性可证且允许外发的知识片段生成可引用摘要；模型输出必须是原文连续子串并通过确定性校验。效果验证复用同一生产 Capability，不建立第二套流程，并允许如实得出未达标结论。
+只使用本次请求中已授权、完整性可证且允许外发的知识片段生成可引用结果；每点quote必须是原文连续子串并通过确定性校验，解释/适用性claim仅能作直接原文支持的有界回应。效果验证复用同一生产 Capability，不建立第二套流程，并允许如实得出未达标结论。
 
 ### 3.2 范围内
 
 - ranked candidate 完整性复核和确定性证据选择；
 - Evidence Bundle、coverage、source 和 question trace；
 - 全局规则∩逻辑域默认策略∩文档级收紧策略；
-- Knowledge Summary V1～V7 历史兼容与 V8 当前仓库生产任务；
+- Knowledge Summary V1～V8 历史兼容与 V9 当前仓库任务；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
 - representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
 - 阶段 A 新语料的父文档策略继承、index snapshot 绑定、asset/chunk 溯源及旧策略目录不可变。
@@ -119,7 +121,7 @@ v3.4仅同步当前任务绑定与有限typed预检的证明边界；新版风�
 
 最小变更原则：v3.0整理时仅整合已批准合同与迁移边界；当前实现及剩余验证按P3_01/UAT_02标记，不能将旧验证移作新合同通过。
 
-本目标起始源码Summary7/quality-v3包含requirements/coverage前置校验；当前工作树Summary8仅按mode取证，再复用原抽取式validator，见§9。§19资料表示已有纯离线组件，真实对照和发布仍待执行。旧源码保留历史解释，不提供两套并行生产合同；本次没有改旧任务、validator、政策目录或历史运行证据。
+本目标起始源码Summary7/quality-v3包含requirements/coverage前置校验；过渡Summary8仅按mode取证并复用原抽取式validator；当前仓库按§9接线Summary9的有引用有限回应，真实语义质量仍未验证。§19资料表示已有纯离线组件，真实对照和发布仍待执行。旧源码保留历史解释，不提供两套并行生产合同；本次没有改旧任务、validator、政策目录或历史运行证据。
 
 ## 7. 证据构建与选择
 
@@ -209,9 +211,9 @@ Global allowed fields/limits
 
 已新增`KnowledgeModeSummaryInput`和显式版本化serializer（内部schema_version=3）：复用既有Q、允许投影Evidence及检索coverage，加一个query_mode枚举；不增加文档出域字段，不继承requirements子类、不用旧asdict偷带新字段。实际出域仍由原policy生成最小输入，再由Stage加代码持有的模式，模式必须与本次意图精确一致。输入类型与task绑定不符在outbound前拒绝；旧schema1/2 serializer保持原字节语义。
 
-### 9.2 当前Summary8与目标Summary9的三类行为
+### 9.2 历史Summary8与当前Summary9的三类行为
 
-`DR-KEV-202`（当前仓库）：`agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v8.py::KnowledgeSummaryTaskV8`，task_id=knowledge_summary/version=8；一份Prompt按模式选择原文，不继承多代字符串补丁。输入原问题Q是唯一用户事实来源，evidence为不可信引用资料，不是可执行指令。模型不可补外部常识、日期、主体或计税方式，也不可因用户错误归类直接承认归属。
+`DR-KEV-202`（过渡12/8绑定，现保留兼容）：`agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v8.py::KnowledgeSummaryTaskV8`，task_id=knowledge_summary/version=8；一份Prompt按模式选择原文，不继承多代字符串补丁。输入原问题Q是唯一用户事实来源，evidence为不可信引用资料，不是可执行指令。模型不可补外部常识、日期、主体或计税方式，也不可因用户错误归类直接承认归属。
 
 采用现有SCHEMA_ONLY的一个固定输出名knowledge_extractive_answer；严格解码后只接受：
 `{"outcome":"answer","points":[{"evidence_ref":"e1","quote":"对应content的连续原文"}]}`
@@ -229,9 +231,9 @@ Global allowed fields/limits
 
 `DR-KEV-203`：新输出先经过唯一信封/exact对象decoder，再直接交给原`ExtractiveSummaryValidator`，保留ref存在、唯一、原文连续子串、控制字符/NFC、512字符、总点数和结果字节检查。本地citation仍从已授权Evidence构造，模型不得提供。新合同无requirements，故不调用旧RequirementCoverageValidator；这是移除模型自报证明集合的质量设计，不是删除原文、安全或权限校验。不得把旧coverage字段忽略后当新输出成功；它在新decoder中是未知字段，必须失败。
 
-当前Summary8输出仍用schemaVersion=1/summaryType=extractive_evidence/answerSummary/points/coverage。coverage仍仅是检索域/路径覆盖，**不代表答案完整、现行有效或法律适用证明**。不向公开结果增加模式/分数/缺条件字段；模式可在现有脱敏观测允许范围显示有限枚举；安全问题投影保持既有合同，不新增敏感原Q、正文或原响应展示。
+历史Summary8输出仍用schemaVersion=1/summaryType=extractive_evidence/answerSummary/points/coverage。当前Summary9沿用字段结构，仅按模式产生对应summaryType。coverage仍仅是检索域/路径覆盖，**不代表答案完整、现行有效或法律适用证明**。不向公开结果增加模式/分数/缺条件字段；模式可在现有脱敏观测允许范围显示有限枚举；安全问题投影保持既有合同，不新增敏感原Q、正文或原响应展示。
 
-`DR-KEV-206`（目标Summary9，待实施）：比较纯Prompt改写（无法表达明确判断）、不受控自由回答（难以约束来源）后，选择**逐点有引用的有限回应**。独立新任务`knowledge_summary`/version=`9`、固定SCHEMA_ONLY输出名`knowledge_cited_answer`；只替换现行Summary任务，不改变意图12、检索、Evidence选择、三层出域或模型调用次数。旧Summary8源码、注册定义、冻结测试和历史资产不改写；当前生产仍是12/8，只有通过设计复评与non-live后才切换到12/9。
+`DR-KEV-206`（当前仓库Summary9；真实语义待评价）：比较纯Prompt改写（无法表达明确判断）、不受控自由回答（难以约束来源）后，选择**逐点有引用的有限回应**。独立新任务`knowledge_summary`/version=`9`、固定SCHEMA_ONLY输出名`knowledge_cited_answer`；只替换过渡Summary8任务，不改变意图12、检索、Evidence选择、三层出域或模型调用次数。旧Summary8源码、注册定义、冻结测试和历史资产不改写；当前仓库唯一绑定为12/9，设计复评及组件、Spring合成non-live已完成，不代表真实回答充分性通过。
 
 Summary9使用既有`KnowledgeModeSummaryInput` schema3及相同Q、mode、coverage和已准许Evidence，不新增正文来源。输入中每个content仍是不可信资料而非指令。唯一模型输出恰为以下两种之一，不得带额外字段或重复JSON键：
 
@@ -270,7 +272,7 @@ Summary9使用既有`KnowledgeModeSummaryInput` schema3及相同Q、mode、cover
 | 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
 |---|---|---|---|---|---|
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KEV-201、DR-KEV-202、DR-KEV-203、DR-KEV-204、DR-KEV-205 | IMPL-KEV-201、IMPL-KEV-202、IMPL-KEV-203 | TEST-KEV-201、TEST-KEV-202、TEST-KEV-203 | VAL-KEV-201、VAL-KEV-202、VAL-KEV-203 | 需求定义见REQ_00 §5.2；组件及接线fake/non-live已有阶段证据，完整VAL与真实人工效果未关闭 |
-| REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KEV-206 | IMPL-KEV-204 | TEST-KEV-204 | VAL-KEV-204 | Summary9设计复评已通过，代码及non-live尚未完成；旧Summary8阶段证据不继承为有限回应通过 |
+| 上行第2～5项有界回答需求 | DR-KEV-206 | IMPL-KEV-204 | TEST-KEV-204 | VAL-KEV-204 | Summary9设计复评、仓库接线及组件/Spring合成non-live已完成；真实语义、完整新版UAT及部署未完成；旧Summary8阶段证据不继承为有限回应通过 |
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
@@ -284,14 +286,14 @@ Summary9使用既有`KnowledgeModeSummaryInput` schema3及相同Q、mode、cover
 
 ### 9.6 Validator
 
-当前Summary8校验顺序：outcome/points 组合→点数→ref 存在→ref 唯一→quote NFC→非空→≤quote limit→无控制字符→是对应 content 的连续子串→answer/result bytes 上限。目标Summary9在该原文/ref链之后增加必填claim的mode、NFC、长度、换行/控制字符及结果预算校验；不能跳过原校验后直接展示claim。
+原Summary8校验顺序：outcome/points 组合→点数→ref 存在→ref 唯一→quote NFC→非空→≤quote limit→无控制字符→是对应 content 的连续子串→answer/result bytes 上限。当前Summary9在该原文/ref链之后增加必填claim的mode、NFC、长度、换行/控制字符及结果预算校验；不能跳过原校验后直接展示claim。
 
 内部诊断 reason 仅用于测试/受控诊断：`outcome_points_mismatch`、`point_count_invalid`、`unknown_evidence_ref`、`duplicate_evidence_ref`、`quote_empty`、`quote_too_long`、`quote_control_character`、`quote_not_substring`、`answer_too_large`、`result_too_large`。公共调用方只看到 `knowledge.summary_failure`，不看到内容或诊断分支。
 
 
 ### 9.7 本地结果
 
-Validator 构造既有`schemaVersion=1`、`answerSummary`、points（quote+citation）和coverage；当前Summary8只产生`summaryType=extractive_evidence`，目标Summary9按§9.2的模式产生`extractive_evidence`或`cited_limited_answer`。citation使用本地evidence ID、domain、title/source/document metadata；模型不能提供或修改这些可信引用字段，claim不会进入citation或原文quote。
+Validator 构造既有`schemaVersion=1`、`answerSummary`、points（quote+citation）和coverage；历史Summary8只产生`summaryType=extractive_evidence`，当前Summary9按§9.2的模式产生`extractive_evidence`或`cited_limited_answer`。citation使用本地evidence ID、domain、title/source/document metadata；模型不能提供或修改这些可信引用字段，claim不会进入citation或原文quote。
 
 ## 10. Evidence Stage 核心流程、错误分类与调用方可见语义
 
@@ -301,7 +303,7 @@ question denied flag / fresh Guard
   → deterministic select
   → three-layer egress decide
   → require matching ModelCallContext
-  → current Summary8 / approved target Summary9 within same deadline
+  → current Summary9 within same deadline
   → strict parse + quote/ref validate + target claim shape validate
   → local domain result
 ```
@@ -331,7 +333,7 @@ question denied flag / fresh Guard
 
 - 目标limits按§9.1固定，实际模型payload包含mode和JSON开销；总8/32768bytes及quote/结果上限不变。旧工厂仅作为原版本兼容，不自动挑选。
 - 策略目录 artifact 随代码发布并严格加载；内容变化必须创建新资源、新 version/export/source revision/hash 并重跑全成员和出域测试。旧资源、常量及历史 manifest 继续独立可验证，不得原位改写。
-- 当前仓库唯一绑定Summary V8；目标V9须经设计评审、实施及non-live后与意图12成对绑定。V1～V8保留历史兼容、冻结资产验证与可追溯回滚责任，实际部署未核实。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
+- 当前仓库唯一绑定Summary V9/意图12，设计评审、实施及组件/Spring合成non-live已完成；V1～V8保留历史兼容、冻结资产验证与可追溯回滚责任，实际部署未核实。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
 
 ## 13. 既有P5评估合同与兼容边界
@@ -370,7 +372,7 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 
 ### 13.5 适用范围
 
-本节P5 primary/ablation、Q1～Q4和rubric只解释原评估合同，不是当前12/8或目标12/9测量方法或继续运行授权。历史诊断、优化准备及可选准入流水见整理前归档；原结果不得重算改判。当前目标四维方法见§9.4及UAT_02 §5，最新有效结果与最新执行分开。KQ历史效果不外推至新任务。
+本节P5 primary/ablation、Q1～Q4和rubric只解释原评估合同，不是过渡12/8或当前12/9测量方法或继续运行授权。历史诊断、优化准备及可选准入流水见整理前归档；原结果不得重算改判。当前目标四维方法见§9.4及UAT_02 §5，最新有效结果与最新执行分开。KQ历史效果不外推至新任务。
 
 ## 14. 实现落点清单
 
@@ -530,7 +532,7 @@ def classify_conclusion(
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：§9组件已在当前工作树接线，完整验证和效果仍按P3_01/UAT_02推进 |
-| 现行实现 | 起始Summary7及原Evidence保留原证明范围；当前工作树绑定Summary8/minimal Evidence，旧任务/P5按冻结版本解释 |
+| 现行实现 | 起始Summary7及原Evidence保留原证明范围；当前仓库绑定Summary9/minimal Evidence，过渡Summary8及旧任务/P5按冻结版本解释 |
 | 当前允许实施范围 | 当前独立目标按授权推进DR-KEV-201～205、301～304的剩余验证；真实测量须先冻结gold与预算 |
 | 本轮权限 | 当前独立目标允许目标内代码、测试和文档及有界验证；不扩大公共合同、权限或历史运行资产 |
 | 当前禁止动作 | 旧授权续用、重新消费候选、绕过完整性/出域/引用校验或声明整体效果通过 |
@@ -542,7 +544,7 @@ def classify_conclusion(
 
 ## 19. 资料表示与原文证据边界（部分离线组件已实施）
 
-依据KQ-AD-025～028及L2_01_01 §18；§9当前Summary8已在仓库接线、目标Summary9待实施，真实验收未完成。本节不更改现有Evidence/Policy/引用validator、旧任务版本或公共返回字段。
+依据KQ-AD-025～028及L2_01_01 §18；§9当前Summary9已在仓库接线，真实验收仍未完成。本节不更改现有Evidence/Policy/引用validator、旧任务版本或公共返回字段。
 
 `DR-KEV-301`：source dataset是采集/分发来源，官方URL才是发布来源线索，两者都不自动证明当前效力或读取/出域许可。仅有curated名称、标题或模型摘要而缺少可核查来源的材料，不能作为新的官方gold或适用性证明。保留既有库存和历史证据；新迁移范围须标source_unverified并补人工来源核验，不能借新的分类标签把未知资料认证为官方。许可声明需保留来源，不把数据卡声明扩成商业再分发授权。
 

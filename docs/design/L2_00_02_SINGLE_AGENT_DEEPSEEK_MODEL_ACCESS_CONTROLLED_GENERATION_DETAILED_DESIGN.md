@@ -1,12 +1,12 @@
 # [L2_00_02] 单体 Agent 模型接入与 Business filters QueryPlan 详细设计
 
-> 文档状态：Approved（v3.2 Knowledge Summary9定向修订已通过独立复评）
+> 文档状态：Approved（v3.3 仅同步Summary9实施状态；v3.2设计复评结论不变）
 
 ## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.2 |
+| 当前版本 | v3.3 |
 | 日期 | 2026-09-29 |
 | 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
@@ -23,6 +23,8 @@
 本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
 v3.2仅同步Knowledge目标Summary9任务注册和既有SCHEMA_ONLY承载能力；Business v7、共享模型后端、Provider协议和历史Summary8均不变。本版本定向独立复评通过，不表示代码已接线。
+
+v3.3只记录Summary9已在仓库唯一组合根接线、三模式Spring→Runtime合成non-live已通过；不改变§6.2模型合同、Business v7或历史Summary8。真实模型质量及部署状态仍未验证。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -105,14 +107,14 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 
 依据2026-09-11核实的[官方首次调用](https://api-docs.deepseek.com/zh-cn/)、[Tool Calls严格模式](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)及[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)：JSON mode不等于Schema约束，strict是Beta，固定tool_choice不支持thinking enabled。官方未来模型路由调整不得用于解释此前失败。本增量已按先设计复评、后编码的顺序实施；原non-live验证及状态归历史P3_00，不宣称真实生成可靠性已通过。
 
-### 6.2 Knowledge最小任务设计的Model边界（意图12/Summary8已在仓库接线；Summary9待实施）
+### 6.2 Knowledge最小任务设计的Model边界（当前仓库意图12/Summary9；旧Summary8仅兼容）
 
-当前§6.1共享固定后端、SCHEMA_ONLY信封、严格JSON子集及一次输出校验保持不变；本目标不切换deepseek-flash、不扩大Provider协议，不改变Business v7和action selector。拟议Knowledge任务只消费该既有能力，不需要修改Core任务ID枚举或公开DTO。
+当前§6.1共享固定后端、SCHEMA_ONLY信封、严格JSON子集及一次输出校验保持不变；本目标不切换deepseek-flash、不扩大Provider协议，不改变Business v7和action selector。当前Knowledge任务只消费该既有能力，不需要修改Core任务ID枚举或公开DTO。
 
 - 意图任务注册键knowledge_rewrite/version12，固定输出名knowledge_query_intent：精确四字段、三类查询模式及一次选域，详细权威L2_01_00 §8。不输出改写文本或证明清单。
-- 仓库当前Summary注册键knowledge_summary/version8、固定输出名knowledge_extractive_answer；目标version9独立注册、固定输出名knowledge_cited_answer，严格两分支及每点`evidence_ref/quote/claim`，详细权威L2_01_02 §9。旧version8及历史输入输出不改；当前原文/ref/引用validator先于有界claim检查，不能把模型claim当可信引用或原文。
+- 仓库当前Summary注册键knowledge_summary/version9、固定输出名knowledge_cited_answer，严格两分支及每点`evidence_ref/quote/claim`，详细权威L2_01_02 §9。旧version8的knowledge_extractive_answer及历史输入输出不改；当前原文/ref/引用validator先于有界claim检查，不能把模型claim当可信引用或原文。
 - 输入大小、输出tokens和阶段deadline分别由两份L2定义；最多selector+意图+摘要3次模型HTTP。schema枚举/required/additionalProperties和本地数量/跨字段校验同时保留；没有模型失败修复、重试或第二执行工具。
-- 新task独立构造Prompt和decoder，禁用多代字符串替换继承；当前仓库版本12/8成对注册，目标仅将Summary替换为9，与意图12及minimal-v1同一唯一组合根，旧11/7/8文件及冻结测试不改写。受影响实现/测试义务为L2_01_02的IMPL-KEV-204、TEST-KEV-204及VAL-KEV-204，不新增模型HTTP阶段或第二动作。
+- 新task独立构造Prompt和decoder，禁用多代字符串替换继承；当前仓库版本12/9与minimal-v1在同一唯一组合根注册，旧11/7/8文件及冻结测试不改写。受影响实现/测试义务为L2_01_02的IMPL-KEV-204、TEST-KEV-204及VAL-KEV-204；组件与Spring合成non-live已有证据，真实语义质量仍待评价。不新增模型HTTP阶段或第二动作。
 
 §2、§10旧实施准入限于各自历史增量；当前Knowledge实施权限按P3_01 §8及用户本目标授权明确。正式复核必须覆盖新任务schema能由当前Model支持子集表示、无新增公开字段/业务调用、错配outbound0；新增模型后端或协议不在本设计内。
 

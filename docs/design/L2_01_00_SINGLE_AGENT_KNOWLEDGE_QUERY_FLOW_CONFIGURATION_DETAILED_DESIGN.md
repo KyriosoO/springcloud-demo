@@ -1,19 +1,19 @@
 # [L2_01_00] 单体 Agent Knowledge 查询流程与配置详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.5 Summary9定向修订已通过独立复评）
+> 文档状态：Approved（v3.6 仅同步Summary9实施与验证状态；v3.5设计复评结论不变）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.5 |
+| 当前版本 | v3.6 |
 | 日期 | 2026-09-29 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v3.5](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.5仅承接目标Summary9有界回答、公开`summaryType`语义与12/9唯一任务绑定；域计划、检索、公开字段结构和安全优先级不变 |
-| 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已成对接线意图12/Summary8/minimal-v1，默认disabled惰性及域目录维持。单域当前root到隔离真实typed接口已有有限只读预检，不证明Spring全链、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
+| 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.6仅同步当前12/9仓库绑定和合成验证；v3.5回答合同、域计划、检索、公开字段结构和安全优先级不变 |
+| 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已接线意图12/Summary9/minimal-v1，默认disabled惰性及域目录维持。Spring→Runtime合成三模式与失败分支、单域当前root到隔离真实typed接口各有有限验证，不证明真实模型、完整新版UAT、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -31,6 +31,8 @@ v3.3仅记录本轮已完成组件及仓库唯一根接线的事实，不改变�
 v3.4仅同步有限只读typed预检和上位文档引用；动态用例计数由UAT_02维护，不改变规范合同或预记完整验收。
 
 v3.5将回答目标从Summary8摘录扩为Summary9的有引用有限回应；仓库当前仍为12/8/minimal-v1，目标12/9设计复评已通过、non-live验证尚未完成。新版本不增加模型调用、公开字段、域或读取权限。
+
+v3.6只同步当前12/9唯一根及三模式Spring合成non-live的阶段事实；§8/§9的设计、安全和公开字段合同不变，真实回答效果和新版完整UAT仍未完成。
 
 v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；当前typed查询、模型任务和生产组合根保持原状。
 
@@ -114,7 +116,7 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 | Plan Builder | 逻辑域×允许检索路径的有界计划 | 执行 HTTP 或排序 |
 | Retrieval Stage | 消费计划并返回 typed batch+coverage | 改写和摘要 |
 | Evidence Stage | 消费授权候选并形成最终本地/出域结果 | 首次读取授权 |
-| Composition Root | 唯一绑定当前已实施的任务、目录、Stages和设置；本目标起始源码11/7/v3，当前工作树按§8接线12/8/minimal-v1 | 请求级策略判断 |
+| Composition Root | 唯一绑定当前已实施的任务、目录、Stages和设置；本目标起始源码11/7/v3，当前仓库按§8接线12/9/minimal-v1 | 请求级策略判断 |
 
 依赖方向为 `Capability → stage Protocol ← retrieval/evidence implementations`；目录和 settings 不依赖 HTTP/DeepSeek。禁止 Knowledge 内部阶段注册为公共能力，禁止 Capability 依赖 ES DSL 或模型 SDK。
 
@@ -124,7 +126,7 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 
 最小变更原则：v3.0整理时仅整合已批准合同与迁移边界；当前实施范围见P3_01，不能将旧验证移作新合同通过。
 
-本目标起始源码绑定Rewrite11/Summary7/quality-v3，旧策略仍保留供冻结历史追溯。当前工作树按§8已接线意图12/Summary8/minimal-v1；§19资料基础仅部分离线实现，在线父正文补取仍未批准。剩余验证与测量按P3_01/UAT_02推进；不得将模型任务或配置版本改为文档v3.0。旧实现与原测试由归档和冻结提交解释，仓库接线不证明部署或真实效果。
+本目标起始源码绑定Rewrite11/Summary7/quality-v3，旧策略仍保留供冻结历史追溯。当前仓库按§8已接线意图12/Summary9/minimal-v1；§19资料基础仅部分离线实现，在线父正文补取仍未批准。剩余验证与测量按P3_01/UAT_02推进；不得将模型任务或配置版本改为文档v3.0。旧实现与原测试由归档和冻结提交解释，仓库接线不证明部署或真实效果。
 
 ## 7. 动作、逻辑域与请求状态
 
@@ -143,7 +145,7 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 | `DR-KFLOW-009` | 授权拒绝/读取权威失败优先于局部技术成功；coverage 必须与计划精确对应 |
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
 | `DR-KFLOW-011` | 默认启动入口必须先解析 `AGENT_KNOWLEDGE_ENABLED`；false 时不得加载下游配置、任务、策略或创建 client |
-| `DR-KFLOW-012` | 同一根唯一注册已批准并实施的任务/Provider；当前仓库12/8/minimal-v1，目标Summary9按§8.4在同一根中替换，不自动后备 |
+| `DR-KFLOW-012` | 同一根唯一注册已批准并实施的任务/Provider；当前仓库12/9/minimal-v1，旧Summary8不自动后备 |
 | `DR-KFLOW-019` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
 | `DR-KFLOW-020` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
 | `DR-KFLOW-021` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
@@ -238,7 +240,7 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 
 ### 8.4 配置、兼容与回滚
 
-`DR-KFLOW-205`：起始11/7/v3已成对替换为当前仓库12/8/knowledge-minimal-v1；目标Summary9只与意图12/minimal-v1作为**同一代码绑定**替换当前Summary8。不提供请求级版本选择，不同时注册两代，不让配置扩大域或预算。默认disabled继续零Knowledge任务/client/配置要求；enabled配置错误仍启动失败关闭，不吞错自动降级。共享selector、Business v7、Model固定后端及三客户端所有权不变。回滚恢复完整且相容的旧绑定，不仅替换Prompt。
+`DR-KFLOW-205`：起始11/7/v3经12/8过渡，当前仓库已接线12/9/knowledge-minimal-v1；Summary9仅与意图12/minimal-v1作为**同一代码绑定**运行，旧Summary8不作自动后备。不提供请求级版本选择，不同时注册两代，不让配置扩大域或预算。默认disabled继续零Knowledge任务/client/配置要求；enabled配置错误仍启动失败关闭，不吞错自动降级。共享selector、Business v7、Model固定后端及三客户端所有权不变。回滚恢复完整且相容的旧绑定，不仅替换Prompt。
 
 预热的已知影响只登记为运维设计：原全量启动可能因Knowledge预热失败停止后续启动。首期保留显式enabled时失败关闭；disabled/PlanOnly不预热、不校验Knowledge依赖。不设计“失败后自动关Knowledge继续”的隐藏降级；需要只运行Business时由维护者显式disabled。后续验证serviceCenter路径，但本次不改脚本或新增服务。
 
@@ -256,9 +258,9 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 |---|---|---|---|---|
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-201、DR-KFLOW-202 | IMPL-KFLOW-201：已新增intent_task_v12.py/intent_contracts.py，当前工作树生产意图适配按§8成对接线；旧任务文件保留 | TEST-KFLOW-201：三模式、单/双域、重复/未知/null、terminal组合、缺条件、长度、敏感输入、模型失败/超时/取消及0下游 | VAL-KFLOW-201：定向unit/contract，strict mypy/compileall，非live仅fake |
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-203、DR-KFLOW-204 | IMPL-KFLOW-202：planning.py、capability.py、contracts.py的请求内新版本数据通道；现有协议与错误映射复用 | TEST-KFLOW-202：Q逐阶段相等、仅4路径/1embedding、无失败扩域、部分/全失败、reason/HTTP映射、并发隔离 | VAL-KFLOW-202：current-root fake、Spring→Runtime、Knowledge/Core/Business回归 |
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：当前12/8与目标12/9各自唯一、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、已有启动静态验证；真实部署另行核实 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：当前12/9唯一、过渡12/8可追溯、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、Spring合成三模式；真实部署另行核实 |
 
-表中实现落点已有对应代码和fake/non-live阶段测试，具体已验证与仍缺的TEST/VAL由P3_01 §14.6～14.8及UAT_02 §3逐项界定；当前root单域typed只读预检不证明Spring全链、人工效果或发布通过。原设计内审/正式复评及文档验证见历史P3_00 §21；当前交接见P3_01。旧任务和历史运行依据不改写。
+表中实现落点已有对应代码和fake/non-live阶段测试，具体已验证与仍缺的TEST/VAL由P3_01及UAT_02 §3逐项界定；Spring→Runtime合成三模式和当前root单域typed只读预检均不证明真实模型、人工效果或发布通过。原设计内审/正式复评及文档验证见历史P3_00 §21；当前交接见P3_01。旧任务和历史运行依据不改写。
 
 ## 9. 检索计划与核心流程
 
@@ -315,7 +317,7 @@ validate empty arguments
 
 ### 10.1 当前目标的有限错误
 
-当前12/8及目标12/9链路均按§8.3的严格矩阵映射既有公开状态；目标仅增加`summaryType`语义值，不增加公开字段或错误状态。保留本节公共异常类别与安全优先级。旧阶段B查询改写、focus及证明需求相关原因只解释旧实现，不进入目标合同。
+当前12/9及过渡12/8链路均按§8.3的严格矩阵映射既有公开状态；Summary9仅增加`summaryType`语义值，不增加公开字段或错误状态。保留本节公共异常类别与安全优先级。旧阶段B查询改写、focus及证明需求相关原因只解释旧实现，不进入当前合同。
 
 ## 11. 配置、预算与启动校验
 
@@ -335,7 +337,7 @@ validate empty arguments
 1. 加载 `KnowledgeSettings`；disabled 时立即返回“无附加任务、无附加 Provider、无 owned Knowledge resource”的结果。
 2. enabled 时拒绝生产 stub provider；测试可显式注入 fake transport，但必须继续走同一装配函数和注册校验。
 3. enabled 时加载 `KnowledgeRetrievalSettings` 和 policy catalog，验证已启用域、Profile version、ES/BGE origins、1024 维、rerank model、final candidates 与 task version。
-4. 当前仓库按§8创建意图12/Summary8/minimal-v1唯一配对；目标通过设计及non-live后替换为意图12/Summary9/minimal-v1。新版37项风险、真实部署和效果均不得由接线自动判通过。旧任务不同时注册，也不作自动后备。
+4. 当前仓库按§8创建意图12/Summary9/minimal-v1唯一配对；组件与Spring合成non-live已验证。新版37项风险、真实部署和效果均不得由接线自动判通过。旧任务不同时注册，也不作自动后备。
 5. 所有纯配置、目录、策略和任务校验完成后，才为三个固定 origin 分别创建 bounded HTTP client/transport并构建 Retrieval/Provider。
 6. 把 `KnowledgeCapabilityProvider` 作为 `BusinessQueryRuntimeCompositionRoot.additional_providers` 追加到同一 Runtime。
 7. 顶层 lifecycle 同时拥有 Business clients、Knowledge clients 和 model；关闭按资源逐项尝试，保留首个异常但仍释放其余资源。
@@ -477,7 +479,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 项目 | 结论 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：目标合同部分已落实，剩余验证与状态由P3_01/UAT_02治理 |
-| 现行实现 | 本目标起始源码11/7/quality-v3；当前工作树已接线12/8/minimal-v1，旧定向non-live证据不证明部署或完整真实UAT |
+| 现行实现 | 本目标起始源码11/7/quality-v3；当前仓库已接线12/9/minimal-v1，合成non-live不证明部署或完整真实UAT |
 | 当前允许实施范围 | 当前独立目标按授权实施§8与§19的有限范围；真实操作仍须人工gold、精确预算及冻结前置，状态由P3_01治理 |
 | 本轮权限 | 当前独立目标允许相关代码、测试和文档修改及有界验证；不包括公共接口、权限扩大或未经冻结的真实操作 |
 | 当前禁止动作 | 新公开契约/域/权限、自动fallback、在线请求写索引、现行/历史索引原地写入、未冻结的新候选写入、消费旧授权或重跑历史候选；批准的新候选仅按L2_01_01 §18.4.1受控构建 |
@@ -489,7 +491,7 @@ v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式�
 
 ## 19. 资料表示与在线流程的接缝（部分离线基础已实施）
 
-依据L1_01 §4.6的KQ-AD-025～028；离线具体字段与切片权威为L2_01_01 §18，引用权威为L2_01_02 §19。本节只治理资料边界，不另行改变§8当前12/8与目标12/9的回答合同；离线资料基础仅按P3_01已完成包的有限范围实施。
+依据L1_01 §4.6的KQ-AD-025～028；离线具体字段与切片权威为L2_01_01 §18，引用权威为L2_01_02 §19。本节只治理资料边界，不另行改变§8当前12/9的回答合同；离线资料基础仅按P3_01已完成包的有限范围实施。
 
 `DR-KFLOW-301`：原始资料、标准化sidecar及向量构建只能由离线工具消费；Runtime不得读取本地语料目录、拼接ES字段、额外取父正文或按用户输入选择物理索引。读取授权仍先于候选正文进入后续Stage，父子关系只是来源关系，不是授权凭证。enabled=false继续无Knowledge依赖；新增离线元数据不成为统一启动的强制前置。
 
@@ -522,4 +524,4 @@ v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式�
 | REQ-KQ-203/204、KQ-AD-026 | DR-KFLOW-302 | IMPL-KFLOW-302：复用es_adapter/codec及既有DTO白名单，测试防止离线字段泄漏 | TEST-KFLOW-302：成文非生效、未知日期/分类不注入、无额外父查询 | VAL-KFLOW-302：Python/Java契约和脱敏观测测试 |
 | REQ-KFLOW-007、CON-KFLOW-005、KQ-AD-028 | DR-KFLOW-303 | IMPL-KFLOW-303：既有Profile verifier、binding/catalog部署验证；不新增服务 | TEST-KFLOW-303：alias/UUID/catalog错配、取消及恢复旧成套绑定 | VAL-KFLOW-303：fake后另授权隔离typed验证 |
 
-本轮部分静态/fake边界已随组合根验证，单域当前root到隔离真实typed接口的有限只读预检见P3_01 §14.8；Spring全链、部署绑定、发布与回滚仍未验证，逐项证据和缺口见P3_01/UAT_02。当前公开合同原样保留。
+本轮部分静态/fake边界已随组合根验证，Spring→Runtime合成三模式及失败分支已验证，单域当前root到隔离真实typed接口的有限只读预检见P3_01 §14.8；真实模型与typed同链、部署绑定、发布与回滚仍未验证，逐项证据和缺口见P3_01/UAT_02。当前公开合同原样保留。
