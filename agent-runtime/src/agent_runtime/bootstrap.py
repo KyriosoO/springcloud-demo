@@ -518,14 +518,14 @@ class KnowledgeCompositionRoot:
     ) -> KnowledgeTaskDefinitions | None:
         if not enabled:
             return None
-        from agent_runtime.knowledge.evidence.summary_task_v8 import KnowledgeSummaryTaskV8
+        from agent_runtime.knowledge.evidence.summary_task_v9 import KnowledgeSummaryTaskV9
         from agent_runtime.knowledge.intent_task_v12 import KnowledgeQueryIntentTaskV12
 
         if enabled_domain_ids is None:
             raise ValueError("knowledge.enabled_domains_required")
         tasks = KnowledgeTaskDefinitions(
             rewrite=KnowledgeQueryIntentTaskV12.definition(enabled_domain_ids=enabled_domain_ids),
-            summary=KnowledgeSummaryTaskV8.definition(),
+            summary=KnowledgeSummaryTaskV9.definition(),
             enabled_domain_ids=enabled_domain_ids,
         )
         # Run during main's configuration phase, before allocating any clients.
@@ -539,7 +539,7 @@ class KnowledgeCompositionRoot:
 
         if (tasks.rewrite.task_id is not ModelTaskId.KNOWLEDGE_REWRITE or tasks.rewrite.task_version != "12"
             or tasks.rewrite.input_type is not KnowledgeQueryIntentInput
-            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "8"
+            or tasks.summary.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY or tasks.summary.task_version != "9"
             or tasks.summary.input_type is not KnowledgeModeSummaryInput):
             raise ValueError("knowledge.production_task_version_invalid")
 

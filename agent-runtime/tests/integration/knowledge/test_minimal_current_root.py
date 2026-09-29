@@ -8,7 +8,7 @@ import pytest
 
 from agent_runtime.capability_api.contracts import CapabilityStatus
 from agent_runtime.knowledge.intent_task_v12 import KnowledgeQueryIntentTaskV12
-from agent_runtime.knowledge.evidence.summary_task_v8 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
+from agent_runtime.knowledge.evidence.summary_task_v9 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
 from agent_runtime.knowledge.intent_task_v12 import OUTPUT_NAME as INTENT_OUTPUT_NAME
 from agent_runtime.main import build_runtime
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
@@ -38,10 +38,15 @@ class MinimalModel:
                 "domains": {"tax.policy": "selected"}, "missing_conditions": []}
             name = INTENT_OUTPUT_NAME
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
-            assert request.task_version == "8" and payload["schema_version"] == 3
+            assert request.task_version == "9" and payload["schema_version"] == 3
             first = payload["evidence"][0]
+            mode = payload["query_mode"]
+            claim = "" if mode == "lookup" else (
+                "若题述事实准确，仅按指定条款，相关内容见引文。" if mode == "applicability"
+                else "相关内容见引文。"
+            )
             value = {"outcome": "answer", "points": [{"evidence_ref": first["evidence_ref"],
-                "quote": first["content"]}]}
+                "quote": first["content"], "claim": claim}]}
             name = SUMMARY_OUTPUT_NAME
         else:
             raise AssertionError("unrelated model task")
@@ -51,7 +56,7 @@ class MinimalModel:
 
 
 @pytest.mark.asyncio
-async def test_current_root_reaches_intent12_summary8_once_and_closes_owned_clients() -> None:
+async def test_current_root_reaches_intent12_summary9_once_and_closes_owned_clients() -> None:
     model, clients = MinimalModel(), _KnowledgeClientFactory()
     runtime = build_runtime(_enabled_environment(), model_transport=model,
                             knowledge_http_client_factory=clients)
@@ -63,7 +68,7 @@ async def test_current_root_reaches_intent12_summary8_once_and_closes_owned_clie
     assert outcome.status is CapabilityStatus.SUCCESS, (outcome.failure, clients.paths)
     assert outcome.capability_id == "knowledge.query"
     assert [(item.task_id, item.task_version) for item in model.requests[1:]] == [
-        (ModelTaskId.KNOWLEDGE_REWRITE, "12"), (ModelTaskId.KNOWLEDGE_SUMMARY, "8")]
+        (ModelTaskId.KNOWLEDGE_REWRITE, "12"), (ModelTaskId.KNOWLEDGE_SUMMARY, "9")]
     assert clients.paths.count("/embed") == 1
     assert clients.paths.count("/es/knowledge/search") == 2
     assert clients.paths.count("/rerank") == 1
@@ -273,6 +278,10 @@ async def test_current_root_preserves_original_question_and_mode_through_summary
     assert intent_input["question"] == summary_input["question"] == question
     assert summary_input["query_mode"] == mode
     assert "queries" not in intent_input and "requirements" not in summary_input
+    assert outcome.user_result is not None
+    assert outcome.user_result["summaryType"] == (
+        "extractive_evidence" if mode == "lookup" else "cited_limited_answer"
+    )
 
 
 @pytest.mark.asyncio

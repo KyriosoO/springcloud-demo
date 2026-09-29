@@ -18,7 +18,7 @@ from agent_runtime.core.execution import RequestExecutionScope
 from agent_runtime.graph.state import AgentSemanticOutcome
 from agent_runtime.main import build_runtime
 from agent_runtime.knowledge.intent_task_v12 import OUTPUT_NAME as INTENT_OUTPUT_NAME
-from agent_runtime.knowledge.evidence.summary_task_v8 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
+from agent_runtime.knowledge.evidence.summary_task_v9 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
 from agent_runtime.model.contracts import (
     ModelProviderFailureKind,
@@ -120,7 +120,7 @@ class _KnowledgeModelTransport:
                     separators=(",", ":"),
                 )
         elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY:
-            assert request.task_version == "8" and payload["schema_version"] == 3
+            assert request.task_version == "9" and payload["schema_version"] == 3
             self._probe.increment("summary")
             question = payload["question"]
             if "摘要失败" in question:
@@ -128,14 +128,14 @@ class _KnowledgeModelTransport:
             evidence = payload["evidence"]
             first = evidence[0]
             if "非法引用" in question:
-                points = [{"evidence_ref": "e999", "quote": first["content"]}]
+                points = [{"evidence_ref": "e999", "quote": first["content"], "claim": ""}]
             elif "重复引用" in question:
                 points = [
-                    {"evidence_ref": first["evidence_ref"], "quote": first["content"]},
-                    {"evidence_ref": first["evidence_ref"], "quote": first["content"]},
+                    {"evidence_ref": first["evidence_ref"], "quote": first["content"], "claim": ""},
+                    {"evidence_ref": first["evidence_ref"], "quote": first["content"], "claim": ""},
                 ]
             else:
-                points = [{"evidence_ref": first["evidence_ref"], "quote": first["content"]}]
+                points = [{"evidence_ref": first["evidence_ref"], "quote": first["content"], "claim": ""}]
             content = json.dumps(
                 {"outcome": "answer", "points": points},
                 ensure_ascii=False,

@@ -76,7 +76,7 @@ def test_valid_outputs_are_identical_to_v7(value):
 @pytest.mark.parametrize("version", ["7", "8", "9", "10", "11", "unknown"])
 def test_current_root_rejects_old_or_invented_version(version):
     tasks = KnowledgeCompositionRoot.task_definitions(enabled=True, enabled_domain_ids=("tax.policy",))
-    assert tasks.rewrite.task_version == "12" and tasks.summary.task_version == "8"
+    assert tasks.rewrite.task_version == "12" and tasks.summary.task_version == "9"
     with pytest.raises(ValueError, match="production_task_version_invalid"):
         KnowledgeCompositionRoot._validate_tasks(replace(tasks, rewrite=replace(tasks.rewrite, task_version=version)))
 

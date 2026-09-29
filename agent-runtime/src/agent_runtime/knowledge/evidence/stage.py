@@ -18,8 +18,10 @@ from agent_runtime.knowledge.evidence.builder import (
     EvidenceIntegrityVerifier,
 )
 from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
+from agent_runtime.knowledge.evidence.cited_summary_validation import CitedSummaryValidator, InvalidCitedSummary
 from agent_runtime.knowledge.evidence.contracts import (
     EvidencePolicyDenial,
+    KnowledgeCitedSummaryOutput,
     KnowledgeEvidenceLimits,
     KnowledgeModeSummaryInput,
     KnowledgeRequirementSummaryInput,
@@ -49,7 +51,7 @@ from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput, Kn
 
 
 class DefaultKnowledgeEvidenceStage:
-    __slots__ = ("_catalog", "_context", "_decider", "_definition", "_gateway", "_guard", "_limits", "_minimal_verifier", "_selector", "_validator", "_verifier")
+    __slots__ = ("_catalog", "_cited_validator", "_context", "_decider", "_definition", "_gateway", "_guard", "_limits", "_minimal_verifier", "_selector", "_validator", "_verifier")
 
     def __init__(
         self,
@@ -75,6 +77,7 @@ class DefaultKnowledgeEvidenceStage:
         self._selector = selector or DeterministicEvidenceSelector()
         self._decider = decider or KnowledgeEvidenceEgressDecider()
         self._validator = validator or ExtractiveSummaryValidator()
+        self._cited_validator = CitedSummaryValidator(self._validator)
         self._limits = limits or KnowledgeEvidenceLimits.v1()
 
     async def build_result(
@@ -97,13 +100,13 @@ class DefaultKnowledgeEvidenceStage:
         if (
             (minimal and (
                 self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
-                or self._definition.task_version != "8"
+                or self._definition.task_version not in {"8", "9"}
                 or self._definition.input_type is not KnowledgeModeSummaryInput
                 or self._limits != KnowledgeEvidenceLimits.minimal_v1()
                 or type(self._selector) is not MinimalEvidenceSelector
             ))
             or (not minimal and type(self._selector) is MinimalEvidenceSelector)
-            or (not minimal and self._definition.task_version == "8")
+            or (not minimal and self._definition.task_version in {"8", "9"})
             or (v3 and (self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
                      or self._definition.task_version not in {"6", "7"}
                      or self._definition.input_type is not KnowledgeRequirementSummaryInput
@@ -197,8 +200,13 @@ class DefaultKnowledgeEvidenceStage:
         assert model_result.output is not None
         try:
             output = model_result.output
-            if minimal and type(output) is not KnowledgeSummaryOutput:
-                raise InvalidSummary(SummaryValidationFailureReason.OUTCOME_POINTS_MISMATCH)
+            if minimal:
+                expected_output_type = (
+                    KnowledgeCitedSummaryOutput if self._definition.task_version == "9"
+                    else KnowledgeSummaryOutput
+                )
+                if type(output) is not expected_output_type:
+                    raise InvalidSummary(SummaryValidationFailureReason.OUTCOME_POINTS_MISMATCH)
             if v3 and isinstance(input, KnowledgeEvidenceInput):
                 if not isinstance(summary_input, KnowledgeRequirementSummaryInput):
                     raise ValueError("knowledge.summary_input_invalid")
@@ -206,8 +214,16 @@ class DefaultKnowledgeEvidenceStage:
                     output=output, requirements=input.evidence_requirements,
                     summary_input=summary_input, bundle=selection.bundle,
                 )
-            validated = self._validator.validate(output=output, bundle=selection.bundle, limits=self._limits)
-        except InvalidSummary:
+            if minimal and self._definition.task_version == "9":
+                if not isinstance(summary_input, KnowledgeModeSummaryInput) or not isinstance(output, KnowledgeCitedSummaryOutput):
+                    raise InvalidSummary(SummaryValidationFailureReason.OUTCOME_POINTS_MISMATCH)
+                validated = self._cited_validator.validate(
+                    output=output, query_mode=summary_input.query_mode,
+                    bundle=selection.bundle, limits=self._limits,
+                )
+            else:
+                validated = self._validator.validate(output=output, bundle=selection.bundle, limits=self._limits)
+        except (InvalidSummary, InvalidCitedSummary):
             return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.INVALID_SUMMARY)
         if validated.insufficient:
             return EvidenceStageResult(kind=EvidenceStageKind.NO_RESULT, no_result_reason=EvidenceNoResultReason.INSUFFICIENT_EVIDENCE)

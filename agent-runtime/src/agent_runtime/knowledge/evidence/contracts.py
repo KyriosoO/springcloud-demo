@@ -187,6 +187,16 @@ class KnowledgeSummaryOutput:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class KnowledgeCitedSummaryPoint(KnowledgeSummaryPoint):
+    claim: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KnowledgeCitedSummaryOutput(KnowledgeSummaryOutput):
+    points: tuple[KnowledgeCitedSummaryPoint, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SummaryRequirementCoverage:
     requirement_id: str
     evidence_refs: tuple[str, ...]

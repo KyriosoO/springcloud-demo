@@ -134,6 +134,12 @@ components:
           type: [string, "null"]
         result:
           type: [object, "null"]
+          description: >-
+            Capability-specific result. For Knowledge, summaryType=extractive_evidence
+            denotes quoted extracts; summaryType=cited_limited_answer denotes a
+            bounded response paired point-by-point with quoted source evidence.
+            The latter marker does not assert that semantic entailment or current
+            legal applicability has been independently verified.
         error:
           anyOf:
             - $ref: "#/components/schemas/FailureResponse"

@@ -29,7 +29,7 @@ import pytest
 from agent_runtime.adapters.http_transport import HttpxBusinessDomainTransport
 from agent_runtime.capability_api.contracts import CapabilityStatus, OpaqueUserToken
 from agent_runtime.core.execution import RequestExecutionScope
-from agent_runtime.knowledge.evidence.summary_task_v8 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
+from agent_runtime.knowledge.evidence.summary_task_v9 import OUTPUT_NAME as SUMMARY_OUTPUT_NAME
 from agent_runtime.knowledge.intent_task_v12 import OUTPUT_NAME as INTENT_OUTPUT_NAME
 from agent_runtime.main import build_runtime
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
@@ -261,7 +261,7 @@ class _FixedModel:
             value = {"outcome": "search", "query_mode": "lookup",
                      "domains": {"tax.policy": "selected", "tax.law": "not_selected"},
                      "missing_conditions": []}
-        elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY and request.task_version == "8":
+        elif request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY and request.task_version == "9":
             payload = json.loads(request.user_payload_json)
             if payload["schema_version"] != 3 or payload["question"] != _QUESTION:
                 raise AssertionError("knowledge_real_typed.summary_contract_drift")

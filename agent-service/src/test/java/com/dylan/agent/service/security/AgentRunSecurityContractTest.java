@@ -63,9 +63,12 @@ class AgentRunSecurityContractTest {
                                 "发送给 LLM 的请求（安全结构化投影）",
                                 "结构化 Plan",
                                 "下游查询请求",
-                                "Knowledge 证据摘要（加工后文本）",
+                                "Knowledge 加工后文本与原文依据",
                                 "完整结构化结果",
-                                "answerSummary")
+                                "answerSummary",
+                                "第${index + 1}点有限回答",
+                                "第${index + 1}点原文依据",
+                                "第${index + 1}点引用")
                         .contains("/api/v1/agent/query-runs")
                         .doesNotContain("structuredOutput", "innerHTML", "localStorage"));
 

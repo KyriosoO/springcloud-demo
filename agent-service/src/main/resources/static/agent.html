@@ -30,7 +30,7 @@
 <main>
     <h1>Agent 运行验证台</h1>
     <p class="subtitle">查看一次请求在既有生产执行图中的安全结构化投影。</p>
-    <div class="notice">本页面不展示 JWT、API Key、未授权知识正文、原始证据正文、向量值、受保护标识或模型原始响应；Knowledge 加工后文本只显示最终响应中已经授权并通过引用校验的摘要。下游请求为 Adapter/Provider 逻辑请求，不是 SQL 或 ES DSL。</div>
+    <div class="notice">本页面不展示 JWT、API Key、未授权知识正文、原始证据正文、向量值、受保护标识或模型原始响应；Knowledge 加工后文本只显示最终响应中已经授权并通过引用校验的内容，有限回答不等于已核实法律适用。下游请求为 Adapter/Provider 逻辑请求，不是 SQL 或 ES DSL。</div>
 
     <section class="card">
         <h2>1. 用户问题</h2>
@@ -58,7 +58,7 @@
     </section>
 
     <section class="card">
-        <h2>5. Knowledge 证据摘要（加工后文本）</h2>
+        <h2>5. Knowledge 加工后文本与原文依据</h2>
         <pre id="processedText" class="empty">尚无数据</pre>
     </section>
 
@@ -112,8 +112,39 @@
         const summary = result && typeof result.answerSummary === 'string'
             ? result.answerSummary.trim()
             : '';
-        element.textContent = summary || '尚无数据';
-        element.classList.toggle('empty', !summary);
+        if (!summary) {
+            element.textContent = '尚无数据';
+            element.classList.add('empty');
+            return;
+        }
+        if (result.summaryType !== 'cited_limited_answer') {
+            element.textContent = summary;
+            element.classList.remove('empty');
+            return;
+        }
+        const lines = summary.split('\n');
+        const points = Array.isArray(result.points) ? result.points : [];
+        const paired = points.length === lines.length && points.length > 0 && points.every((point, index) =>
+            lines[index].startsWith(`${index + 1}. `) &&
+            typeof point.quote === 'string' && point.quote.length > 0 &&
+            point.citation && typeof point.citation === 'object' &&
+            typeof point.citation.evidenceId === 'string' && point.citation.evidenceId.length > 0
+        );
+        if (!paired) {
+            element.textContent = '有限回答与原文依据无法逐点对应，请查看完整结构化结果。';
+            element.classList.add('empty');
+            return;
+        }
+        element.textContent = points.map((point, index) => {
+            const citation = point.citation;
+            const source = [citation.evidenceId, citation.title, citation.documentNumber, citation.writtenDate, citation.sourceUrl]
+                .filter(value => typeof value === 'string' && value.length > 0)
+                .join(' · ');
+            return `第${index + 1}点有限回答：${lines[index].slice(`${index + 1}. `.length)}\n` +
+                `第${index + 1}点原文依据：${point.quote}\n` +
+                `第${index + 1}点引用：${source}`;
+        }).join('\n\n');
+        element.classList.remove('empty');
     }
 
     function clearOutput() {
