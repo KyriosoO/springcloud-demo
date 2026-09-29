@@ -21,13 +21,20 @@ from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalo
 from agent_runtime.knowledge.evidence.contracts import (
     EvidencePolicyDenial,
     KnowledgeEvidenceLimits,
+    KnowledgeModeSummaryInput,
     KnowledgeRequirementSummaryInput,
-    SummaryOutcome,
+    MinimalKnowledgeEvidenceInput,
+)
+from agent_runtime.knowledge.evidence.minimal_selection import (
+    MinimalEvidenceIntegrityVerifier, MinimalEvidenceSelector,
 )
 from agent_runtime.knowledge.evidence.policy import KnowledgeEvidenceEgressDecider
-from agent_runtime.knowledge.evidence.summary_validation import ExtractiveSummaryValidator, InvalidSummary
+from agent_runtime.knowledge.evidence.summary_validation import (
+    ExtractiveSummaryValidator, InvalidSummary, SummaryValidationFailureReason,
+)
 from agent_runtime.knowledge.evidence.requirement_validation import RequirementCoverageValidator
 from agent_runtime.knowledge.evidence.summary_task_v6 import requirement_summary_input_json
+from agent_runtime.knowledge.evidence.summary_task_v8 import mode_summary_input_json
 from agent_runtime.knowledge.retrieval.contracts import RankedKnowledgeBatch
 from agent_runtime.model.context import ModelCallContextAccessor
 from agent_runtime.model.contracts import (
@@ -42,7 +49,7 @@ from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput, Kn
 
 
 class DefaultKnowledgeEvidenceStage:
-    __slots__ = ("_catalog", "_context", "_decider", "_definition", "_gateway", "_guard", "_limits", "_selector", "_validator", "_verifier")
+    __slots__ = ("_catalog", "_context", "_decider", "_definition", "_gateway", "_guard", "_limits", "_minimal_verifier", "_selector", "_validator", "_verifier")
 
     def __init__(
         self,
@@ -53,7 +60,7 @@ class DefaultKnowledgeEvidenceStage:
         gateway: StructuredModelGateway,
         definition: ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput],
         verifier: EvidenceIntegrityVerifier | None = None,
-        selector: DeterministicEvidenceSelector | None = None,
+        selector: DeterministicEvidenceSelector | MinimalEvidenceSelector | None = None,
         decider: KnowledgeEvidenceEgressDecider | None = None,
         validator: ExtractiveSummaryValidator | None = None,
         limits: KnowledgeEvidenceLimits | None = None,
@@ -64,6 +71,7 @@ class DefaultKnowledgeEvidenceStage:
         self._gateway = gateway
         self._definition = definition
         self._verifier = verifier or EvidenceIntegrityVerifier()
+        self._minimal_verifier = MinimalEvidenceIntegrityVerifier()
         self._selector = selector or DeterministicEvidenceSelector()
         self._decider = decider or KnowledgeEvidenceEgressDecider()
         self._validator = validator or ExtractiveSummaryValidator()
@@ -72,7 +80,7 @@ class DefaultKnowledgeEvidenceStage:
     async def build_result(
         self,
         *,
-        input: KnowledgeEvidenceInput[RankedKnowledgeBatch],
+        input: KnowledgeEvidenceInput[RankedKnowledgeBatch] | MinimalKnowledgeEvidenceInput,
         context: KnowledgeEvidenceContext,
         timeout_s: float,
     ) -> EvidenceStageResult:
@@ -84,21 +92,42 @@ class DefaultKnowledgeEvidenceStage:
         if decision.policy_version != input.question_policy_version:
             return self._denied(EvidenceEgressDenialReason.POLICY_CONFLICT)
         assert decision.minimized_question is not None
-        v3 = input.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
-        if ((v3 and (self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
+        minimal = isinstance(input, MinimalKnowledgeEvidenceInput)
+        v3 = isinstance(input, KnowledgeEvidenceInput) and input.quality_version == KNOWLEDGE_QUALITY_VERSION_V3
+        if (
+            (minimal and (
+                self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
+                or self._definition.task_version != "8"
+                or self._definition.input_type is not KnowledgeModeSummaryInput
+                or self._limits != KnowledgeEvidenceLimits.minimal_v1()
+                or type(self._selector) is not MinimalEvidenceSelector
+            ))
+            or (not minimal and type(self._selector) is MinimalEvidenceSelector)
+            or (not minimal and self._definition.task_version == "8")
+            or (v3 and (self._definition.task_id is not ModelTaskId.KNOWLEDGE_SUMMARY
                      or self._definition.task_version not in {"6", "7"}
                      or self._definition.input_type is not KnowledgeRequirementSummaryInput
                      or self._limits != KnowledgeEvidenceLimits.quality_v3()))
-            or (not v3 and (self._definition.task_version in {"6", "7"} or self._definition.input_type is KnowledgeRequirementSummaryInput))):
+            or (not minimal and not v3 and (self._definition.task_version in {"6", "7"} or self._definition.input_type is KnowledgeRequirementSummaryInput))
+        ):
             return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.EVIDENCE_FAILURE)
         try:
-            verified = self._verifier.verify(input=input)
-            selection = self._selector.select(
-                candidates=verified,
-                input=input,
-                minimized_question=decision.minimized_question,
-                limits=self._limits,
-            )
+            if isinstance(input, MinimalKnowledgeEvidenceInput):
+                if decision.minimized_question != input.plan.original_question:
+                    raise ValueError("knowledge.question_mismatch")
+                assert isinstance(self._selector, MinimalEvidenceSelector)
+                verified = self._minimal_verifier.verify(input=input)
+                selection = self._selector.select(
+                    candidates=verified, input=input, minimized_question=decision.minimized_question,
+                    limits=self._limits,
+                )
+            else:
+                assert isinstance(self._selector, DeterministicEvidenceSelector)
+                verified_legacy = self._verifier.verify(input=input)
+                selection = self._selector.select(
+                    candidates=verified_legacy, input=input, minimized_question=decision.minimized_question,
+                    limits=self._limits,
+                )
         except Exception:
             return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.EVIDENCE_FAILURE)
         if not selection.sufficient or selection.bundle is None:
@@ -114,7 +143,18 @@ class DefaultKnowledgeEvidenceStage:
             }
             return self._denied(denial_mapping[policy.denial_reason or EvidencePolicyDenial.POLICY_CONFLICT])
         summary_input = policy.summary_input
-        if v3:
+        if isinstance(input, MinimalKnowledgeEvidenceInput):
+            summary_input = KnowledgeModeSummaryInput(
+                schema_version=3, question=summary_input.question, coverage=summary_input.coverage,
+                evidence=summary_input.evidence, query_mode=input.plan.query_mode,
+            )
+            try:
+                if summary_input.question != decision.minimized_question:
+                    raise ValueError("knowledge.summary_input_invalid")
+                mode_summary_input_json(summary_input)
+            except (ValueError, TypeError, AttributeError):
+                return EvidenceStageResult(kind=EvidenceStageKind.DOWNSTREAM_FAILURE, stage_code=EvidenceStageCode.EVIDENCE_FAILURE)
+        elif v3:
             summary_input = KnowledgeRequirementSummaryInput(
                 schema_version=2, question=summary_input.question, coverage=summary_input.coverage,
                 evidence=summary_input.evidence, requirements=input.evidence_requirements,
@@ -157,7 +197,9 @@ class DefaultKnowledgeEvidenceStage:
         assert model_result.output is not None
         try:
             output = model_result.output
-            if v3:
+            if minimal and type(output) is not KnowledgeSummaryOutput:
+                raise InvalidSummary(SummaryValidationFailureReason.OUTCOME_POINTS_MISMATCH)
+            if v3 and isinstance(input, KnowledgeEvidenceInput):
                 if not isinstance(summary_input, KnowledgeRequirementSummaryInput):
                     raise ValueError("knowledge.summary_input_invalid")
                 output = RequirementCoverageValidator().validate(

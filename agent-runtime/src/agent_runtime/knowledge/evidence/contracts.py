@@ -5,8 +5,11 @@ from datetime import date
 from enum import StrEnum
 
 from agent_runtime.capability_api.contracts import JsonObject
-from agent_runtime.knowledge.contracts import FailedPath, KnowledgeEvidenceRequirement
+from agent_runtime.knowledge.contracts import FailedPath, KnowledgeEvidenceRequirement, RetrievalCoverage
+from agent_runtime.knowledge.intent_contracts import KnowledgeQueryIntent, KnowledgeQueryIntentInput, KnowledgeQueryMode
+from agent_runtime.knowledge.minimal_plan import MinimalKnowledgeRetrievalPlan
 from agent_runtime.knowledge.retrieval.contracts import AuthorizedKnowledgeCandidate
+from agent_runtime.knowledge.retrieval.minimal_ranking import MinimalRankedBatch
 
 
 class KnowledgeEgressDisposition(StrEnum):
@@ -67,6 +70,11 @@ class KnowledgeEvidenceLimits:
     @classmethod
     def quality_v3(cls) -> "KnowledgeEvidenceLimits":
         return cls.quality_v2()
+
+    @classmethod
+    def minimal_v1(cls) -> "KnowledgeEvidenceLimits":
+        # The total eight-item cap makes this value a non-binding document quota.
+        return replace(cls.v1(), max_per_document=cls.v1().max_evidence)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -157,6 +165,11 @@ class KnowledgeSummaryInput:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class KnowledgeModeSummaryInput(KnowledgeSummaryInput):
+    query_mode: KnowledgeQueryMode
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class KnowledgeRequirementSummaryInput(KnowledgeSummaryInput):
     requirements: tuple[KnowledgeEvidenceRequirement, ...]
 
@@ -227,6 +240,21 @@ class EvidencePolicyDecision:
 class EvidenceSelectionResult:
     bundle: KnowledgeEvidenceBundle | None
     sufficient: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MinimalKnowledgeEvidenceInput:
+    question: KnowledgeQueryIntentInput
+    intent: KnowledgeQueryIntent
+    plan: MinimalKnowledgeRetrievalPlan
+    coverage: RetrievalCoverage
+    question_policy_version: str
+    question_egress_denied: bool
+    batch: MinimalRankedBatch
+
+    @property
+    def original_question(self) -> str:
+        return self.question.minimized_question
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
