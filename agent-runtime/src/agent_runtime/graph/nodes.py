@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Literal, Protocol
 
 from langgraph.runtime import Runtime
@@ -141,6 +142,10 @@ async def select_action_node(
                 else None
             ),
         ))
+    except asyncio.CancelledError:
+        if runtime is not None:
+            await runtime.context.execution_scope.latch.cancel_unclaimed()
+        raise
     except InvalidActionResolution:
         return {
             "final_outcome": _failure_outcome(

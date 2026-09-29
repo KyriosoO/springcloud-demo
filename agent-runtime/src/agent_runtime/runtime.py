@@ -61,6 +61,11 @@ class AgentRuntimeInvoker:
                 {"question": question},
                 context=GraphRunContext(execution_scope=scope),
             )
+            # A cancelled Core action can leave LangGraph with no final outcome.
+            # The latch is authoritative for that terminal state, including a
+            # late graph value that must not be returned after cancellation.
+            if scope.latch.completion == "runtime_cancelled":
+                raise asyncio.CancelledError()
             outcome = output.get("final_outcome")
             if not isinstance(outcome, AgentSemanticOutcome):
                 raise ValueError("core.invalid_graph_state")
@@ -68,6 +73,8 @@ class AgentRuntimeInvoker:
         except asyncio.CancelledError:
             raise
         except Exception:
+            if scope.latch.completion == "runtime_cancelled":
+                raise asyncio.CancelledError() from None
             return AgentSemanticOutcome(
                 status=CapabilityStatus.INTERNAL_FAILURE,
                 capability_id=scope.latch.capability_id,

@@ -92,6 +92,12 @@ class ActionExecutionLatch:
             self._completion = completion
             self._state = ActionLatchState.FINISHED
 
+    async def cancel_unclaimed(self) -> None:
+        async with self._lock:
+            if self._state is ActionLatchState.OPEN:
+                self._completion = "runtime_cancelled"
+                self._state = ActionLatchState.FINISHED
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class RequestExecutionScope:
