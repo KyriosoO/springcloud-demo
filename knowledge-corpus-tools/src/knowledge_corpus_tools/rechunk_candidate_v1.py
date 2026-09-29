@@ -160,6 +160,7 @@ class CandidateSpec:
     update_ids: tuple[str, ...] = ()
     representation_scope: tuple[RepresentationScopeV1, ...] = ()
     representation_binding_sha256: str | None = None
+    assessment_intent_sha256: str | None = None
 
     def __post_init__(self) -> None:
         names_ok = (type(self.source_index) is str and type(self.candidate_index) is str
@@ -215,6 +216,7 @@ class CandidateSpec:
                                and not self.representation_scope
                                and self.online_index == self.source_index
                                and self.representation_binding_sha256 is None
+                               and self.assessment_intent_sha256 is None
                                and self.representation_version == self.baseline_representation_version)
             old_ids = tuple(identifier for change in self.changes for identifier in change.old_ids)
             valid = valid and 1 <= len(old_ids) <= 2000 and len(set(old_ids)) == len(old_ids)
@@ -246,6 +248,9 @@ class CandidateSpec:
                                and type(self.representation_binding_sha256) is str
                                and _HASH.fullmatch(self.representation_binding_sha256) is not None
                                and self.representation_version == "body-only-v2")
+            valid = valid and (self.assessment_intent_sha256 is None or
+                               type(self.assessment_intent_sha256) is str and
+                               _HASH.fullmatch(self.assessment_intent_sha256) is not None)
             for scope in self.representation_scope:
                 valid = valid and all(type(value) is str and bool(value.strip())
                                       and len(value) <= 256
