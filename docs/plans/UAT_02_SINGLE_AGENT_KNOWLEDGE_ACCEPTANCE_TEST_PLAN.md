@@ -4,15 +4,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.6 |
-| 文档状态 | v3.6 Reviewed（阶段证据同步；不代表UAT通过） |
+| 当前版本 | v3.7 |
+| 文档状态 | v3.7 Reviewed（权威版本引用同步；不代表UAT通过） |
 | 日期 | 2026-09-29 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.4 §4.5/4.6；Knowledge流程与Evidence L2 v3.4，检索/资料L2_01_01 v3.6批准合同；组件及离线实施进度以P3_01为准，不等于新版UAT已执行 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.6；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.7；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 37项风险中36项有当前目标 fake/non-live 直接证据、1项 partial/evidence missing；整体 Functional/Safety 未通过；当前root单域真实typed只读接线有有限预检，Spring全链、12题人工/效果与发布均Not assessed |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -31,6 +31,8 @@ v3.4同一目标内独立只读复评核对37行状态、12项资料用例、19�
 v3.5补录Spring→当前Runtime fake typed逐案域/路径/Profile和调用次数、读取拒绝零Summary及三条合成正文零公开泄漏；现有未绑定文档策略反例也已定位。五项由partial转为fake/non-live阶段已验证，EV006仍待真实回答与人工评价。v3.4当时的31/6记录保留为历史阶段快照，不改判真实集成或整体UAT。
 
 v3.6仅补录P3_01 §14.8当前root到隔离真实typed接口的单域只读接线预检：固定fake任务输出、policy keyword/vector各1次HTTP 200、embedding 1次、Business和外部LLM各0；不改变37项阶段状态，不证明Spring全链、真实模型选域、Evidence充分性或新版UAT通过。首次诊断的短期测试HMAC回溯泄漏已在测试工具中修复并复评，原临时值失效；有限诊断不保存JWT或原始响应。
+
+v3.7仅同步P3_01实施入口版本；37项风险、12题待冻结状态、资料验收判据及UAT结论均不变。
 
 ## 2. 范围与结果纪律
 

@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.6 |
+| 当前版本 | v3.7 |
 | 文档状态 | Reviewed（阶段状态同步；不表示整体目标或UAT完成） |
 | 日期 | 2026-09-29 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -32,6 +32,7 @@
 | 10 | 2026-09-29 | §1/3/5/9/12/14 | 关闭COMPOSE的non-live范围并记录对照前检 | v3.5补齐Spring逐case typed和拒绝路径断言、并发/证据防误报；36项fake/non-live风险有证据、EV006留给MEASURE人工评价。COMPARE仅纯离线预算预检，真实候选仍被结构证明/gold阻断 |
 | 11 | 2026-09-29 | §1/3/14 | 单域当前root真实typed只读接线补证 | v3.6记录显式opt-in隔离预检；不扩展COMPOSE完成范围，不把有限接线证据改写为Spring全链、真实效果或新版UAT通过 |
 | 12 | 2026-09-29 | §14.10 | COMPARE附件节标题解析缺陷的最小修复 | v3.6内记录v2 `.doc`解析修复及定向/全包验证；独立原件结构证明和A/B准入仍未完成，工作包状态不变 |
+| 13 | 2026-09-29 | §3/14.9/14.11 | 纠正旧库存正文hash表述并同步逐记录溯源前检 | v3.7区分旧索引`contentHash`、typed响应重算hash与四附件旧向量trace；同步UAT_02当前版本，不把只读前检写成全库冻结、A/B准入或人工gold |
 
 ## 3. 来源清单与当前基线
 
@@ -41,7 +42,7 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.4 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | 实施权威；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.6 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 新候选归属owner alias合同已复评；真实资料写入仍须冻结输入、逐记录证据、预算及安全前检 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.4 / Approved | §9、§19，DR-KEV-201～205/301～304 | 是 | 实施权威；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.6 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 37项风险中36项有fake/non-live阶段证据、EV006待真人评价；当前root单域真实typed只读接线有限预检已完成，Spring全链、人工效果与发布Not assessed |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.7 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 37项风险中36项有fake/non-live阶段证据、EV006待真人评价；当前root单域真实typed只读接线有限预检已完成，Spring全链、人工效果与发布Not assessed |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -298,7 +299,7 @@ COMPARE的独立只读执行单元对预登记4份附件核对原始SHA后仅在
 
 ### 14.9 12题草案原文定位与时效数据边界（只读，未冻结）
 
-按UAT_02 §5.3固定风险类别整理12题候选问句：其中8题的拟定必要来源在当前policy alias目标`agent-doc-tax-policy-v5-20260907-vector-b2`（UUID `jJ5Ww3LCRWWycfDkUZvmdw`）可定位到具体chunk并核对正文hash；其余包含无命中、前置澄清和证据不足反例。维护者尚未确认任何新gold、逐条相关性标签、完整预期或A/B阈值，故这只是审阅草案，不能据8/12定位启动MEASURE、补算指标或称人工验收已完成。官方政策法规库页面的有限核对支持公告原文期限、资源税法条号、增值税法第十/三十八条等短定位；2016年附件本轮仅有既存官方附件manifest及索引片段，官方DOCX直读未成功，不记为已完成独立原文复核。
+按UAT_02 §5.3固定风险类别整理12题候选问句：其中8题的拟定必要来源在当前policy alias目标`agent-doc-tax-policy-v5-20260907-vector-b2`（UUID `jJ5Ww3LCRWWycfDkUZvmdw`）可定位到具体chunk；其中2016年附件的3个拟用chunk可按当前`content`复算索引`contentHash`，其余8个拟用旧库存chunk的该字段与当前正文直接SHA-256不一致，历史字段口径尚未证实，不能称已按现行正文合同核对。当前typed服务会依据返回的`content`重新计算`contentSha256`，Runtime再校验；旧索引字段差异不直接证明在线Evidence失败，也不能替代原文人工核验。维护者尚未确认任何新gold、逐条相关性标签、完整预期或A/B阈值，故这只是审阅草案，不能据8/12定位启动MEASURE、补算指标或称人工验收已完成。官方政策法规库页面的有限核对支持公告原文期限、资源税法条号、增值税法第十/三十八条等短定位；2016年附件本轮仅有既存官方附件manifest及索引片段，官方DOCX直读未成功，不记为已完成独立原文复核。
 
 时效前检发现一项明确字段错误：当前索引中《中华人民共和国增值税法》的`effectiveDate=2024-12-25`对应成文日期，而官网第三十八条写明2026-01-01施行。公告2022年第13号和2023年第6号原文执行期限均至2024-12-31，但索引`status=ACTIVE`、`validityStatus=UNKNOWN`且`expiryDate`为空；这些字段不足以判断今日效力，也不能把原期限自动推成后续政策结论。当前在线typed响应仅有`writtenDate`等已定义字段，本次不原地修现行索引；使用上述资料冻结时效题gold或构建/发布候选前，须核对官方现行状态与来源断言，按L2_01_01 §18的版本化资料合同修正候选并另行验证。不能据索引`ACTIVE`或错误`effectiveDate`生成肯定适用结论。COMPARE、MEASURE和RELEASE状态保持§5所列未完成。
 
@@ -306,4 +307,10 @@ COMPARE的独立只读执行单元对预登记4份附件核对原始SHA后仅在
 
 四份candidate-08原始`.doc`附件的字节数及SHA-256与冻结manifest一致，当前解析重放的block数分别为342/149/187/60。首份附件ordinal 51、58、103、109为“第×节”标题，但冻结旧解析将其标为`paragraph`；根因是`.doc`的`parse_asset_v2`路径未启用已有的有界节标题识别。提交`ebede2ba`仅在v2路径启用该识别并将新输出的parserVersion改为`0.2.1+sections-v2`，历史`parse_asset`及冻结manifest的`0.2.1+structure-v1`不变。四份原件只读重解析后block数不变，首份上述四处均为`heading`；合成定向测试10 passed、`knowledge-corpus-tools`全包429 passed、受影响文件strict mypy通过，另一只读执行单元的定点代码复核无Blocker/Major/Minor。
 
-这些结果只证明已提取文本的节标题分类及v1兼容，不证明原始Word表格、全文顺序或遗漏。隔离Word COM空实例虽设置禁宏、禁链接更新和只读预期，但退出未能立即确认清理；因此未打开任何原件或副本，最终确认Word进程为0、原件hash及目录不变。四份附件仍缺独立、可审计的原文顺序/结构证明，不能仅凭重解析一致性或补造proofRef改为`publishable=true`。COMPARE仍In Progress；A/B人工gold、阈值、当前索引冻结及旧向量逐记录溯源也仍未完成。本次解析修复与原件复核未写ES、未调用BGE或外部LLM、未切换alias。
+这些结果只证明已提取文本的节标题分类及v1兼容，不证明原始Word表格、全文顺序或遗漏。隔离Word COM空实例虽设置禁宏、禁链接更新和只读预期，但退出未能立即确认清理；因此未打开任何原件或副本，最终确认Word进程为0、原件hash及目录不变。四份附件仍缺独立、可审计的原文顺序/结构证明，不能仅凭重解析一致性或补造proofRef改为`publishable=true`。该次记录时COMPARE仍In Progress；A/B人工gold、阈值、当前索引冻结及旧向量逐记录溯源尚未完成。本次解析修复与原件复核未写ES、未调用BGE或外部LLM、未切换alias。
+
+### 14.11 COMPARE旧向量溯源与原件结构复核（2026-09-29，只读）
+
+在当前write-blocked的b2目标（UUID `jJ5Ww3LCRWWycfDkUZvmdw`）中，按预登记的四个附件assetId有限查询，旧chunk共738条（342/149/187/60），无超时或失败分片。逐记录核对身份、asset版本和SHA-256；`vectorRepresentationVersion=policy-title-section-body-v1`、`vectorModelSnapshotSha256`与旧构建快照相符，按当前`content`及冻结旧表示算法分别复算正文、`vectorBodySha256`和`vectorInputSha256`，738条均一致。因此这四份附件的**旧向量逐记录来源前检**已有结果，不能仅因“只有全局快照”标为`legacy_unknown`；当前有限只读计数为15521，但此次未读取全库向量或计算全记录fingerprint，也未冻结完整当次模型快照和精确候选预算，不能据此启动真实A/B。
+
+四份`.doc`原件的字节数与SHA-256再次匹配既有manifest；机器未找到独立的DOC结构解析器，重复当前`legacy_doc`路径及官方HTML旁证均不能证明原件表格、顺序和无遗漏，四份v2结果仍为`publishable=false`。在不补造`proofRef`的前提下，A的当前样本不准入；B可按事前登记的“原只读索引同chunk基线”规则独立准备，但人工gold、质量主指标及噪声/时延容忍值、当前全库fingerprint、当次同模型快照和精确预算未冻结前，仍不得运行BGE、写候选或声称对照完成。COMPARE为In Progress，MEASURE仅技术Ready，RELEASE为Blocked；本次只读核查未调用BGE/外部LLM或写ES。
