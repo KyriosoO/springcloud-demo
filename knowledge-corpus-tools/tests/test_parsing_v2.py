@@ -94,6 +94,30 @@ def test_docx_v2_recognizes_sections_and_clause_overrides_heading_style(tmp_path
     assert revised.blocks[1].clause_id == "第一条"
 
 
+def test_legacy_doc_v2_recognizes_sections_without_changing_v1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Result:
+        text = "第一节 一般性规定\r\n第一条 具体规定\r\n第一节中规定的条件"
+
+    import legacy_doc
+
+    monkeypatch.setattr(legacy_doc, "extract_text", lambda _: Result())
+    path = tmp_path / "sections.doc"
+    path.write_bytes(b"synthetic legacy doc")
+    digest = sha256(path.read_bytes()).hexdigest()
+
+    legacy = parse_asset(path, asset_id="source", asset_sha256=digest)
+    revised = parse_asset_v2(path, asset_id="source", asset_sha256=digest)
+    assert legacy.parser_version == "0.2.1+structure-v1"
+    assert revised.parser_version == "0.2.1+sections-v2"
+    assert [block.kind for block in legacy.blocks] == [BlockKind.PARAGRAPH, BlockKind.CLAUSE, BlockKind.PARAGRAPH]
+    assert [block.kind for block in revised.blocks] == [BlockKind.HEADING, BlockKind.CLAUSE, BlockKind.PARAGRAPH]
+    assert revised.blocks[1].section_path == ("第一节 一般性规定",)
+    assert revised.blocks[2].section_path == ("第一节 一般性规定",)
+
+
 def test_html_v2_recognizes_only_bounded_section_heading(tmp_path: Path) -> None:
     path = tmp_path / "sections.html"
     path.write_text(

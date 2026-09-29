@@ -193,9 +193,9 @@ def _parse_asset_bytes(
             parser_name = "xlrd"
             parser_version = "2.0.2"
         elif suffix == ".doc":
-            blocks = _parse_legacy_doc_bytes(raw) if ordered_v2 else _parse_legacy_doc(path)
+            blocks = _parse_legacy_doc_bytes(raw, recognize_sections=True) if ordered_v2 else _parse_legacy_doc(path)
             parser_name = "legacy-doc-structured"
-            parser_version = "0.2.1+structure-v1"
+            parser_version = "0.2.1+sections-v2" if ordered_v2 else "0.2.1+structure-v1"
         else:
             raise ContractError(f"unsupported parser extension: {suffix}")
     except (zipfile.BadZipFile, PdfReadError, PackageNotFoundError, InvalidFileException, XLRDError) as exc:
@@ -438,10 +438,10 @@ def _parse_legacy_doc(path: Path) -> list[ParsedBlock]:
     return _parse_legacy_doc_bytes(path.read_bytes())
 
 
-def _parse_legacy_doc_bytes(raw: bytes) -> list[ParsedBlock]:
+def _parse_legacy_doc_bytes(raw: bytes, *, recognize_sections: bool = False) -> list[ParsedBlock]:
     try:
         from legacy_doc import extract_text  # type: ignore[import-untyped]
     except (ImportError, AttributeError) as exc:
         raise ContractError("legacy DOC parser unavailable") from exc
     result = extract_text(raw)
-    return _parse_structured_text(str(result.text))
+    return _parse_structured_text(str(result.text), recognize_sections=recognize_sections)
