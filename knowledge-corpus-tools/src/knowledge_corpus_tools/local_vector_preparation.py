@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from .errors import ContractError
+from .retrieval_representation_v2 import RetrievalRepresentationV2
 from .vector_candidate import _reject_constant, _unique_pairs, _vector_bytes, canonical_bytes
 from .vector_representation import VectorRepresentation
 
@@ -198,12 +199,23 @@ class LocalVectorPreparation:
             raise PreparationError("identity_invalid")
         return hashlib.sha256(self._snapshot).hexdigest()
 
-    def _prepare(self, items: tuple[VectorRepresentation, ...]) -> tuple[tuple[float, ...], ...]:
+    def _prepare(
+        self,
+        items: tuple[VectorRepresentation, ...] | tuple[RetrievalRepresentationV2, ...],
+        accepted_type: type[VectorRepresentation] | type[RetrievalRepresentationV2],
+        expected_token_counts: tuple[int, ...] | None,
+    ) -> tuple[tuple[float, ...], ...]:
         if self.consumed or self._snapshot is None:
             raise PreparationError("already_consumed")
         self.consumed = True
         if (type(items) is not tuple or not 1 <= len(items) <= 1000
-                or any(type(item) is not VectorRepresentation for item in items)):
+                or any(type(item) is not accepted_type for item in items)):
+            raise PreparationError("input_invalid")
+        if expected_token_counts is not None and (
+                type(expected_token_counts) is not tuple
+                or len(expected_token_counts) != len(items)
+                or any(type(count) is not int or not 1 <= count <= 1024
+                       for count in expected_token_counts)):
             raise PreparationError("input_invalid")
         if canonical_bytes(self.snapshot()) != self._snapshot:
             raise PreparationError("identity_changed")
@@ -211,6 +223,8 @@ class LocalVectorPreparation:
         counts = self._container(_TOKENS, {"revision": revision, "texts": [i.text for i in items]})
         if (type(counts) is not list or len(counts) != len(items)
                 or any(type(n) is not int or n < 1 for n in counts)):
+            raise PreparationError("tokens_invalid")
+        if expected_token_counts is not None and tuple(counts) != expected_token_counts:
             raise PreparationError("tokens_invalid")
         self.max_tokens = max(counts)
         if self.max_tokens > 1024:
@@ -244,14 +258,29 @@ class LocalVectorPreparation:
             raise PreparationError("identity_changed")
         return tuple(vectors)
 
-    def __call__(self, items: tuple[VectorRepresentation, ...]) -> tuple[tuple[float, ...], ...]:
+    def _call(
+        self,
+        items: tuple[VectorRepresentation, ...] | tuple[RetrievalRepresentationV2, ...],
+        accepted_type: type[VectorRepresentation] | type[RetrievalRepresentationV2],
+        expected_token_counts: tuple[int, ...] | None,
+    ) -> tuple[tuple[float, ...], ...]:
         # Sanitize failures outside the except block, including provider contexts.
         reason = "embedding_invalid"
         try:
-            return self._prepare(items)
+            return self._prepare(items, accepted_type, expected_token_counts)
         except PreparationError as error:
             reason = error.reason
         except Exception:
             pass
         self.failure_reason = reason
         raise PreparationError(reason)
+
+    def __call__(self, items: tuple[VectorRepresentation, ...]) -> tuple[tuple[float, ...], ...]:
+        return self._call(items, VectorRepresentation, None)
+
+    def _prepare_retrieval_v2(
+        self, items: tuple[RetrievalRepresentationV2, ...], *,
+        expected_token_counts: tuple[int, ...],
+    ) -> tuple[tuple[float, ...], ...]:
+        """Internal V2 seam: repeat preflight counts before any embedding HTTP."""
+        return self._call(items, RetrievalRepresentationV2, expected_token_counts)
