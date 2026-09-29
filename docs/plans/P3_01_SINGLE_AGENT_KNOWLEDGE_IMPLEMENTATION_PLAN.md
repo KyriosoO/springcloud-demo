@@ -33,6 +33,7 @@
 | 11 | 2026-09-29 | §1/3/14 | 单域当前root真实typed只读接线补证 | v3.6记录显式opt-in隔离预检；不扩展COMPOSE完成范围，不把有限接线证据改写为Spring全链、真实效果或新版UAT通过 |
 | 12 | 2026-09-29 | §14.10 | COMPARE附件节标题解析缺陷的最小修复 | v3.6内记录v2 `.doc`解析修复及定向/全包验证；独立原件结构证明和A/B准入仍未完成，工作包状态不变 |
 | 13 | 2026-09-29 | §3/14.9/14.11 | 纠正旧库存正文hash表述并同步逐记录溯源前检 | v3.7区分旧索引`contentHash`、typed响应重算hash与四附件旧向量trace；同步UAT_02当前版本，不把只读前检写成全库冻结、A/B准入或人工gold |
+| 14 | 2026-09-29 | §14.12 | COMPARE的旧DOC原生段落与失败关闭前检 | v3.7内记录v2专用解析修复、独立原件对照和复评；结构证明、A/B准入及工作包状态不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -314,3 +315,9 @@ COMPARE的独立只读执行单元对预登记4份附件核对原始SHA后仅在
 在当前write-blocked的b2目标（UUID `jJ5Ww3LCRWWycfDkUZvmdw`）中，按预登记的四个附件assetId有限查询，旧chunk共738条（342/149/187/60），无超时或失败分片。逐记录核对身份、asset版本和SHA-256；`vectorRepresentationVersion=policy-title-section-body-v1`、`vectorModelSnapshotSha256`与旧构建快照相符，按当前`content`及冻结旧表示算法分别复算正文、`vectorBodySha256`和`vectorInputSha256`，738条均一致。因此这四份附件的**旧向量逐记录来源前检**已有结果，不能仅因“只有全局快照”标为`legacy_unknown`；当前有限只读计数为15521，但此次未读取全库向量或计算全记录fingerprint，也未冻结完整当次模型快照和精确候选预算，不能据此启动真实A/B。
 
 四份`.doc`原件的字节数与SHA-256再次匹配既有manifest；机器未找到独立的DOC结构解析器，重复当前`legacy_doc`路径及官方HTML旁证均不能证明原件表格、顺序和无遗漏，四份v2结果仍为`publishable=false`。在不补造`proofRef`的前提下，A的当前样本不准入；B可按事前登记的“原只读索引同chunk基线”规则独立准备，但人工gold、质量主指标及噪声/时延容忍值、当前全库fingerprint、当次同模型快照和精确预算未冻结前，仍不得运行BGE、写候选或声称对照完成。COMPARE为In Progress，MEASURE仅技术Ready，RELEASE为Blocked；本次只读核查未调用BGE/外部LLM或写ES。
+
+### 14.12 COMPARE旧DOC原生段落与完整性前检（2026-09-29，未放行候选）
+
+提交`39fa0322`只调整`parse_asset_v2`的`.doc`路径：固定`legacy-doc==0.2.1`，在提取前严格核验完整piece table、CP/FC边界及解码，再区分原生段落结束`\r`与段内手动换行`\x0b`；新`parserVersion=0.2.1+native-paragraphs-v2`。旧`parse_asset`与冻结manifest不改。对既有四份SHA绑定附件只读重放，v2 blocks为342/149/179/60，分别与隔离Apache POI HWPF 5.5.1辅助解析的非空段落数一致；第三份旧187个行块中的两组段内换行恢复为179个原生段落。五处段落hash差异经原始Word字段边界核查，均为8个非显示`HYPERLINK`代码/URL被既有清洗规则移除，8处中文显示文字仍保留；该有限样本中未发现有效正文因本修复丢失。
+
+首次代码复核发现底层库会静默跳过越界piece、公开提取与v2复核可能共同漏字；新增v2专用严格预检及内存篡改负测后，独立复评该范围Blocker/Major/Minor均为0。实际复跑`knowledge-corpus-tools`全包440 passed、strict mypy 23 files成功；四原件原始SHA/字节数保持不变，第三份仅在内存篡改第二PCD时明确失败关闭。隔离解析辅助工具仍在忽略的临时目录，不构成持久独立`proofRef`。四份`parsed_source_v2`的order/structure仍为`unverified`，A的受影响候选仍`publishable=false`；人工gold、A/B主指标及噪声/时延容忍值也未冻结，故COMPARE保持In Progress、MEASURE仅技术Ready、RELEASE保持Blocked。本轮没有BGE/外部LLM请求、ES写入或alias切换。
