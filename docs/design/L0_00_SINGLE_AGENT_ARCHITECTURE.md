@@ -1,15 +1,15 @@
 # [L0_00] 单体 Agent 总体架构
 
 > 文档层级：L0
-> 文档状态：Approved
+> 文档状态：Approved（v3.2 定向修订已通过独立复评；不代表代码或UAT完成）
 
 ## 1. 文档信息、修订历史与来源
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
-| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.1 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-09-29 |
+| 上位需求 | [`REQ_00`](../REQ_00_SINGLE_AGENT_QUERY_REQUIREMENTS.md) v3.2 |
 | 权威范围 | 系统边界、部署组件、分域、顶层调用链、全局安全和下位 L1 治理 |
 | 当前实现 | Business 三动作与 Knowledge 可选能力均已接入同一 Runtime/Registry/Core；Knowledge 默认关闭、启用时惰性装配；Business/Knowledge 功能验收及 Knowledge 阶段 A 离线语料发布已完成，最新有效 Knowledge 效果等级为 `partially_effective`，不等于整体效果达标 |
 | 归档来源 | [整理前 v2.9 原文](历史文档/2026-09-14-unified-v3-baseline/L0_00_SINGLE_AGENT_ARCHITECTURE.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
@@ -19,6 +19,8 @@
 本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
 
 本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+
+v3.2仅把Knowledge回答边界从“仅抽取”修订为“直接原文支持的有限有引用回应”；权限、出域、引用和Business边界不变。定向独立复评通过，后续实施仍待验证，不表示当前版本已能给出有限判断。
 
 ## 2. 架构目标、非目标与架构原则
 
@@ -32,7 +34,7 @@
 |---|---|---|---|
 | 接入治理 | Java `agent-service` | 认证、严格请求合同、转发和请求上下文 | 编排、业务角色授权、SQL/ES |
 | 编排运行 | Python `agent-runtime` / LangGraph | 单请求状态、模型规划、能力注册与执行 | 业务数据库访问、替代业务授权 |
-| Knowledge | 既有 Knowledge Capability/Adapter | 查询意图、一次域计划、检索、证据与抽取式回答；改写是否启用归Knowledge设计 | Business 回退或业务查询 |
+| Knowledge | 既有 Knowledge Capability/Adapter | 查询意图、一次域计划、检索、证据与直接原文支持的有限有引用回答；改写是否启用归Knowledge设计 | Business 回退、无引用自由推理或业务查询 |
 | Knowledge 离线语料 | 项目级 Corpus Tool + `es-query-service` 物理资源边界 | 官方 asset、解析/OCR、切片、候选索引和受控 alias 发布 | 用户请求、在线排序、Agent 物理索引访问或新服务 |
 | Employee | Employee Adapter + `employee-service` | ES 条件查询或语义查询；服务完成最终授权 | Agent 直连 ES、两接口拼装 |
 | Transaction | Transaction Adapter + `mq-procedure-service` | 固定 search 列表查询；服务完成最终授权与 SQL | Agent 直连数据库、聚合或写入 |
@@ -75,7 +77,7 @@ Employee 两个现有 ES endpoint 已在 Controller 执行业务域读取守卫�
 | L1 | 权威责任 | 本次状态 |
 |---|---|---|
 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 | Runtime、LangGraph、Model Port、完整意图、Core、Registry、组合根与单动作 | Business 与可选 Knowledge 共用同一生产对象图；默认 stub/Knowledge disabled 保持安全 |
-| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.2 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
+| [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.5 | Knowledge 三类需求、最小查询链路及阶段 A 离线语料边界 | 既有功能/语料证据保持原范围；新设计待实施、待效果验证 |
 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 | Business fields/config、按 operator 收紧文本策略、Employee/Transaction Adapter、端点级角色转换与最终授权 | 三动作与35个固定 Business UAT 用例均已验证 |
 
 ## 8. 质量属性、风险与当前结论
