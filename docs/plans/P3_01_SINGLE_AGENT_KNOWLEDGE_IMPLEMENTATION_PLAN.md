@@ -31,6 +31,7 @@
 | 9 | 2026-09-29 | §1/3/5/9/12/14 | 本轮组件、组合根与候选工具阶段证据 | v3.4按实跑non-live同步EVIDENCE/REPRESENT完成、COMPOSE/COMPARE在制及真实测量/发布阻塞；引用L2_01_01 v3.5与UAT_02 v3.4，不预记新版UAT通过 |
 | 10 | 2026-09-29 | §1/3/5/9/12/14 | 关闭COMPOSE的non-live范围并记录对照前检 | v3.5补齐Spring逐case typed和拒绝路径断言、并发/证据防误报；36项fake/non-live风险有证据、EV006留给MEASURE人工评价。COMPARE仅纯离线预算预检，真实候选仍被结构证明/gold阻断 |
 | 11 | 2026-09-29 | §1/3/14 | 单域当前root真实typed只读接线补证 | v3.6记录显式opt-in隔离预检；不扩展COMPOSE完成范围，不把有限接线证据改写为Spring全链、真实效果或新版UAT通过 |
+| 12 | 2026-09-29 | §14.10 | COMPARE附件节标题解析缺陷的最小修复 | v3.6内记录v2 `.doc`解析修复及定向/全包验证；独立原件结构证明和A/B准入仍未完成，工作包状态不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -300,3 +301,9 @@ COMPARE的独立只读执行单元对预登记4份附件核对原始SHA后仅在
 按UAT_02 §5.3固定风险类别整理12题候选问句：其中8题的拟定必要来源在当前policy alias目标`agent-doc-tax-policy-v5-20260907-vector-b2`（UUID `jJ5Ww3LCRWWycfDkUZvmdw`）可定位到具体chunk并核对正文hash；其余包含无命中、前置澄清和证据不足反例。维护者尚未确认任何新gold、逐条相关性标签、完整预期或A/B阈值，故这只是审阅草案，不能据8/12定位启动MEASURE、补算指标或称人工验收已完成。官方政策法规库页面的有限核对支持公告原文期限、资源税法条号、增值税法第十/三十八条等短定位；2016年附件本轮仅有既存官方附件manifest及索引片段，官方DOCX直读未成功，不记为已完成独立原文复核。
 
 时效前检发现一项明确字段错误：当前索引中《中华人民共和国增值税法》的`effectiveDate=2024-12-25`对应成文日期，而官网第三十八条写明2026-01-01施行。公告2022年第13号和2023年第6号原文执行期限均至2024-12-31，但索引`status=ACTIVE`、`validityStatus=UNKNOWN`且`expiryDate`为空；这些字段不足以判断今日效力，也不能把原期限自动推成后续政策结论。当前在线typed响应仅有`writtenDate`等已定义字段，本次不原地修现行索引；使用上述资料冻结时效题gold或构建/发布候选前，须核对官方现行状态与来源断言，按L2_01_01 §18的版本化资料合同修正候选并另行验证。不能据索引`ACTIVE`或错误`effectiveDate`生成肯定适用结论。COMPARE、MEASURE和RELEASE状态保持§5所列未完成。
+
+### 14.10 COMPARE旧DOC节标题解析定向修复（2026-09-29）
+
+四份candidate-08原始`.doc`附件的字节数及SHA-256与冻结manifest一致，当前解析重放的block数分别为342/149/187/60。首份附件ordinal 51、58、103、109为“第×节”标题，但冻结旧解析将其标为`paragraph`；根因是`.doc`的`parse_asset_v2`路径未启用已有的有界节标题识别。提交`ebede2ba`仅在v2路径启用该识别并将新输出的parserVersion改为`0.2.1+sections-v2`，历史`parse_asset`及冻结manifest的`0.2.1+structure-v1`不变。四份原件只读重解析后block数不变，首份上述四处均为`heading`；合成定向测试10 passed、`knowledge-corpus-tools`全包429 passed、受影响文件strict mypy通过，另一只读执行单元的定点代码复核无Blocker/Major/Minor。
+
+这些结果只证明已提取文本的节标题分类及v1兼容，不证明原始Word表格、全文顺序或遗漏。隔离Word COM空实例虽设置禁宏、禁链接更新和只读预期，但退出未能立即确认清理；因此未打开任何原件或副本，最终确认Word进程为0、原件hash及目录不变。四份附件仍缺独立、可审计的原文顺序/结构证明，不能仅凭重解析一致性或补造proofRef改为`publishable=true`。COMPARE仍In Progress；A/B人工gold、阈值、当前索引冻结及旧向量逐记录溯源也仍未完成。本次解析修复与原件复核未写ES、未调用BGE或外部LLM、未切换alias。
