@@ -4,21 +4,23 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
+| 当前版本 | v3.2 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-09-24 |
+| 日期 | 2026-09-29 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
-| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) §4.5/4.6；三份Knowledge L2 v3.2批准合同，结构单元设计仍待实施 |
+| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) §4.5/4.6；三份Knowledge L2 v3.2批准合同；组件及离线实施进度以P3_01为准，不等于新版UAT已执行 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.1；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.2；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 全部新方案用例Not executed；Functional/Safety Not evaluated，Retrieval/Answer evidence missing，资料验证未执行 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
 勘误（2026-09-15）：v3.0内澄清§6.3资料缺口与安全/执行失败的停止范围，沿用§6.1及来源L2的未知状态规则；不修改用例、阈值、预算或验收状态。
 
 v3.1补充结构单元、段落/表格顺序和父子关系的后续验收方法；未执行UAT，不改变历史case结果或当前模型/索引预算。
+
+v3.2仅同步当前组件与离线工作包的实施状态；用例、判据和全部新版UAT未执行的结论不变。
 
 ## 2. 范围与结果纪律
 
@@ -90,7 +92,7 @@ v3.1补充结构单元、段落/表格顺序和父子关系的后续验收方法
 
 ### 5.1 证明范围与版本隔离
 
-当前源码11/7/v3，拟议12/8/knowledge-minimal-v1尚未实施。历史37功能用例、P5、阶段A、阶段B和人工run-07均只证明自己的冻结范围；P5最近有效partially_effective不代表现有V11或新V12效果达标，run-07失败亦不覆盖更早有效测量。不得把不同批次的通过题相加为新版全套通过。
+当前生产组合根仍绑定11/7/quality-v3；目标12/8/knowledge-minimal-v1的CONTRACT和RETRIEVAL独立组件已完成，EVIDENCE/Summary8与COMPOSE未完成，目标链路尚未接入生产或验收。历史37功能用例、P5、阶段A、阶段B和人工run-07均只证明自己的冻结范围；P5最近有效partially_effective不代表现有V11或新V12效果达标，run-07失败亦不覆盖更早有效测量。不得把不同批次的通过题相加为新版全套通过。
 
 新基线状态：Functional=Not evaluated（不是新增运行结果枚举，只是计划执行状态）；Safety=Not evaluated；Retrieval/Answer evidence=missing。后续实际运行沿用既有Passed/Failed及四类Effectiveness结论，新增维度留在当前验收记录，不改历史result Schema。本轮只承接已批准方法并复核追踪，不创建JSON追踪或候选、不读取凭据、不执行测试服务/LLM；P3_01 §5管工作包及授权。
 
@@ -152,7 +154,7 @@ v3.1补充结构单元、段落/表格顺序和父子关系的后续验收方法
 
 ## 6. 资料组织与检索表示验收方法（设计，未执行）
 
-依据L1_01 §4.6、L2_01_01 §18、L2_01_00/02 §19，实施由P3_01 §5独占。该补充不重做阶段A、不修改原37项功能或历史效果结果；来源/样本审计仅是先前冻结范围的事实，本轮不再次读取数据，不把抽样当作UAT执行。所有下列用例状态为Designed / Not executed，不创建新traceability、gold或candidate文件。
+依据L1_01 §4.6、L2_01_01 §18、L2_01_00/02 §19，实施由P3_01 §5独占。该补充不重做阶段A、不修改原37项功能或历史效果结果；既有来源/样本审计及后续NORMALIZE包的有限只读来源核对各有明确证明范围，均不构成UAT执行。所有下列用例状态为Designed / Not executed，不创建新traceability、gold或candidate文件。
 
 ### 6.1 四维判据与有限实验
 

@@ -6,14 +6,14 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.1 |
+| 当前版本 | v3.2 |
 | 文档状态 | Reviewed |
-| 日期 | 2026-09-28 |
+| 日期 | 2026-09-29 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。CONTRACT、RETRIEVAL已有独立完成证据；本轮授权NORMALIZE有限只读来源核对及CHUNK离线代码/测试，不包含REPRESENT、索引、服务、模型或在线父单元补取 |
+| 实施授权 | Ready 不等于实施授权。既往授权覆盖并已完成CONTRACT、RETRIEVAL、NORMALIZE有限只读来源核对及CHUNK离线代码/测试；REPRESENT、EVIDENCE、索引、服务、模型或在线父单元补取不因本计划状态获得实施授权 |
 | 计划执行状态 | Done=6（两项来源设计、CONTRACT、RETRIEVAL、NORMALIZE、CHUNK）；Ready=2（EVIDENCE、REPRESENT）；Blocked=4；生产接线/新UAT未执行 |
 
 ## 2. 修改历史
@@ -26,6 +26,7 @@
 | 4 | 2026-09-24 | §1/3～5/9/10/12～14 | 资料结构单元设计补齐 | v3.1承接L1/L2 v3.2：把解析顺序、稳定unit/span及策略选择分配到NORMALIZE/CHUNK；在线补取仍未授权，12包/12边与既有Done状态不变 |
 | 5 | 2026-09-24 | §1/5/9/12～14 | 启动NORMALIZE并修复范围外旧版引用 | v3.1内仅同步执行事实：NORMALIZE离线基础代码及测试已本地提交，真实来源验收待补；L0/L1_00五处Knowledge版本引用已另获授权修正 |
 | 6 | 2026-09-28 | §1/5/9/12/14 | 按依赖完成有限来源核对及离线CHUNK | v3.1内同步NORMALIZE、CHUNK的本包验证与审查边界；REPRESENT转Ready，不改12包/12边或在线合同 |
+| 7 | 2026-09-29 | §1/3/9 | 消除已完成包与当前描述的状态漂移 | v3.2仅修正既往授权、结构单元离线范围和COMPARE未关闭前置的表述；12包/12边、验收判据及执行结论不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -33,9 +34,9 @@
 |---|---|---|---|---|---|---|
 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | 目标架构 | L1 | v3.2 / Approved | §4.5/4.6最小链路与资料组织 | 是 | 已批准设计，不证明实施 |
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.2 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | 实施权威；在线补取未批准 |
-| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.2 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 实施权威；结构单元待实施 |
+| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.2 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 实施权威；结构单元离线切片已实现，表示与真实资料接入待实施 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.2 / Approved | §9、§19，DR-KEV-201～205/301～304 | 是 | 实施权威；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.1 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 未执行 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.2 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 未执行 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -126,7 +127,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | 8 | WP-KORG-NORMALIZE-01 | Done | 无；有限来源核验见§14.4 | 离线版本/来源/结构可信合同完成；不声称全库v2转换或父单元读取 |
 | 9 | WP-KORG-CHUNK-01 | Done | 无；代码及复评见§14.5 | v2离线切片合同完成；真实资料重切和候选发布仍未执行 |
 | 10 | WP-KORG-REPRESENT-01 | Ready | 无技术前置阻塞；需独立实施及固定tokenizer资源授权 | 下一项资料主线工作包；未启动，不把已完成CHUNK误作表示完成 |
-| 11 | WP-KORG-COMPARE-01 | Blocked | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | 等待直接前置；发布还需§7/8证据 |
+| 11 | WP-KORG-COMPARE-01 | Blocked | WP-KORG-REPRESENT-01 | CHUNK已Done；等待另一直接前置，发布还需§7/8证据 |
 | 12 | WP-KORG-RELEASE-01 | Blocked | WP-KORG-COMPARE-01 | 等待直接前置；发布还需§7/8证据 |
 
 ## 10. 实施交接
