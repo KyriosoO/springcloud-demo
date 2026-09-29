@@ -8,11 +8,11 @@
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.6 |
+| 当前版本 | v3.7 |
 | 日期 | 2026-09-29 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v3.4](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.6仅同步上位版本引用和当前阶段证据边界；§9/§18检索、资料与候选合同不变 |
+| 本次变更 | v3.7细化§18.4.1 的B表示输入来源及keyword混杂判据；定向独立复评S0/S1/未处理S2均为0，真实候选仍未构建 |
 | 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；本轮minimal检索已接入当前工作树唯一根，REPRESENT纯构造及新候选工具fake阶段已实现。新候选真实BGE/ES构建、typed对照、发布与效果均未执行；实际部署未核实。原状态见历史P3_00/UAT_01，新实施/验收由P3_01/UAT_02管理 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -36,6 +36,8 @@ v3.4（2026-09-29）针对新候选构建器的clone回执与首次读取之间�
 v3.5只同步代码、fake与未执行真实对照的状态，不改变§9/§18设计。候选构建器的代码评审和缺口修复由P3_01记录，不能把fake通过当作真实索引完整性证明。
 
 v3.6仅同步L1_01版本与当前有限只读接线的证明边界；候选真实构建、对照及发布仍以P3_01/UAT_02为准，不改变§9/§18设计。
+
+v3.7细化B模式构建器内部的表示生成接缝及单变量归因前检；不扩大样本、HTTP预算、在线读取或模型出域。首轮接缝复评的两项S2已修正；后续跨层复核发现keyword漂移混杂风险，按§18.4.1补入真实B对照停止条件。定向独立复评后S0/S1/未处理S2均为0；本版本只允许按已评审接缝实施并验证，不预记真实对照或发布通过。
 
 ## 2. 阅读导航
 
@@ -735,6 +737,10 @@ KnowledgeSearchResponse search(
 | 后验 | refresh并write-block候选后再全量扫描：源首尾绑定未变；候选UUID/映射/临时归属alias正确；未受影响记录的`_id`、全部非向量字段及float32向量逐条相同；旧变更`_id`全无、新chunk精确出现且总数=`源数-旧数+新数`；新chunk原文/span/hash、ACL/来源/时效、向量及表示溯源逐条与冻结输入相同。policy/law/无分类计数和全库fingerprint分别记录，不能仅以抽样或`_count`代替。完整验证后，按精确候选UUID及归属alias移除本次临时alias，再只读确认候选无alias；移除或确认失败不得标`built`，不得发布。完整验证前只允许`failed`。 |
 | 失败与发布 | clone前失败零索引写入；clone后任何异常/取消均在已确认候选UUID和随机归属alias后尝试write-block封存，封存失败显式`candidate_seal_failed`，不删除候选、不清理源或现行alias。失败封存的候选可保留临时归属alias作为隔离标记，但不得发布；归属不明时不封存别人的对象。构建完成前必须移除本次临时alias并确认最终候选无alias。构建不切线上alias；隔离typed验证仍用`DR-KRET-032`的另一种临时验证alias和既有Java授权，两类alias不互代。发布需独立满足`DR-KRET-024/025`、P3及UAT_02条件，并保存完整旧绑定；失败恢复旧alias/Profile/策略相容组合，不删除旧索引。 |
 
+B表示模式的入口只持有冻结`CandidateSpec`、有序`_id`、资产身份及表示输入/正文hash的有序绑定，不持久化正文或向量。构建器在上述**同一次完整源扫描**通过UUID、mapping、数量、全库fingerprint和逐记录旧向量溯源校验后，按有序`update_ids`从对应源记录`content`确定性构造`body-only-v2`表示，并与冻结`representation_binding_sha256`逐条、整体核对；任一缺失、身份/正文/hash漂移、超长或顺序不符均在clone前失败关闭。调用方可为fake/兼容测试显式提供表示tuple，但构建器仍须从已核验源记录重建并逐条比对，不信任外来正文。该接缝不增加一次源读取；HTTP、embedding及写操作仍按正式spec与既有公式精确计算，HTTP硬上限仍为400。当前738条若全部更新，条件性对应24批embedding与738写操作，不能当作通用常量或已冻结预算。真实操作前仍须冻结精确预算、模型/tokenizer及候选名。可引用原文、现行索引和线上alias不因本内部调整改变。
+
+B候选的CAS向量更新仍会重写ES底层文档；相同`_source.content`和完整竞争池**不能单独证明**keyword评分与并列顺序未变。真实成对typed对照必须在同题、同逻辑域、同Profile/ACL及固定查询条件下，逐题记录两臂keyword top20的有序`_id`、并列规则和阶段输出，并分列keyword、vector、RRF、rerank、final20的覆盖与排名。keyword有序列表不一致时，只有事前冻结的稳定并列规则可解释且不改变可评价候选及必要来源覆盖，才可继续归因；否则B记`confounded / Not assessed`，不得把final20收益归给向量表示或据此放行RELEASE。不得通过改gold、只比较vector路径或事后改变查询配置消除混杂。评分与计时口径由UAT_02 §6.1治理，运行事实由有限对照证据保存。
+
 旧记录的`vectorModelSnapshotSha256`须与其冻结构建manifest中完整旧快照的规范hash相同；当前准备结果须另以当前完整运行快照hash绑定，绝不回填或改写旧记录。模型同一性比较只允许**运行容器`started`时间**不同：从两份完整快照各自删除该一个字段后，`container`其余字段及`model`全部内容（镜像、容器ID、启动参数、模型文件与revision、tokenizer文件、服务/实现代码、依赖版本、max_length）须规范字节相等；旧/新完整快照hash不必相同，启动时间差异须记入有限对照证据。其余任何字段变化都不是同模型单变量对照，应停止A/B或另立独立实验，不以模型名称相同替代。此例外不允许重写历史hash，也不免除真实tokenizer无截断前检及向量结果校验。
 
 新记录的现有索引字段映射由离线构建器独占，写前对**完整待写`_source`**运行同等typed投影约束（`documentId/chunkId/title/content/materialType/aclRef`等必填、NFC、各字段上限、`content≤Profile.maxContentChars≤4096`、可选URL/文号/日期格式；不能以Python接受为由假定Java可读）。字段集合按冻结源mapping的属性集合`P`及以下互斥组求得：重算组`D`、明确退出组`X`，以及继承组`I=P-D-X`。对每个`I`字段，所有同资产旧记录的**存在性须一致**；若存在，值须逐字相同；合法可选字段一致缺省时在新记录中继续缺省。typed必填、ACL及来源身份字段另须全部存在并通过各自合同。不能从某个旧chunk随机择值，也不能把未知字段默认透传。新mapping只允许本节列明的5个结构字段，其余新增字段拒绝：
@@ -765,6 +771,6 @@ KnowledgeSearchResponse search(
 | REQ-KCORPUS-001/003、KQ-AD-025/026 | DR-KRET-301、DR-KRET-302 | IMPL-KRET-301：已有knowledge_corpus_tools/normalization_v2.py及严格sidecar Schema；复用audit/models/source清单 | TEST-KRET-301：11字段、缺失/多值、来源冲突、日期同值/部分失效/未知及相对URL | VAL-KRET-301：纯单元/契约、有限来源人工核对已完成；不调用模型 |
 | REQ-KCORPUS-002/003、KQ-AD-027 | DR-KRET-303、DR-KRET-304 | IMPL-KRET-302：已有chunking_v2.py/结构单元及位置记录，修复受影响DOCX解析顺序接缝；旧chunking.py不覆盖 | TEST-KRET-302：类型+结构策略、段表交错、短/长条、表格/脚注、连续span、unitId/parentUnitId与parentDocumentId区别、身份/hash稳定及冲突 | VAL-KRET-302：固定公开/合规fixture重放已完成；真实全量结构与发布未验证 |
 | REQ-KCORPUS-003/004、KQ-AD-026/027 | DR-KRET-305、DR-KRET-306 | IMPL-KRET-303：已有独立表示/无截断预检；旧manifest缺逐记录事实仍标legacy_unknown，不改线上Profile | TEST-KRET-303：三表示、token/字符/字节边界、推断标签拒绝、legacy_unknown | VAL-KRET-303：纯构造与固定tokenizer测试已完成；真实BGE对照未执行 |
-| REQ-KCORPUS-005/006、KQ-AD-028 | DR-KRET-307 | IMPL-KRET-304：已新增独立rechunk_candidate_v1.py及fake测试，不覆写冻结vector_candidate实现 | TEST-KRET-304：全记录保留、映射/策略错配、预算/中断/回滚及不改现行索引 | VAL-KRET-304：fake已完成，真实隔离typed及发布未执行；UAT-KORG各项仍须取证 |
+| REQ-KCORPUS-005/006、KQ-AD-028 | DR-KRET-307 | IMPL-KRET-304：已有独立rechunk_candidate_v1.py；`_representation_targets`已从已核验源扫描重建表示；一次性B入口仍待实现，冻结vector_candidate实现不覆写 | TEST-KRET-304：已有全记录保留、映射/策略错配、预算/中断/回滚及不改现行索引fake；源正文重建、外来tuple逐项比对、绑定或顺序漂移在准备/clone前零写入fake已补；真实keyword漂移检测待实现 | VAL-KRET-304：构建器fake与strict mypy已完成；真实隔离typed及发布未执行，UAT-KORG各项仍须取证 |
 
 v3.2修订时只设计、未实施；那次修订没有读取模型凭据、重算向量或修改索引。本轮已实现上述离线组件和fake构建器；当前目标对有限tokenizer/BGE、最多两项资料对照、最多两个新候选及满足条件后的发布虽有授权，真实操作仍取决于冻结输入、人工gold/阈值、精确预算、真实服务身份及发布门槛，文档状态不能替代这些证据。在线父单元补取、公共DTO变化、现行索引原地写入及历史资产修改仍不属于本合同。
