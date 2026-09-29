@@ -5,6 +5,7 @@ import hashlib
 import re
 import zipfile
 from collections.abc import Callable
+from importlib.metadata import PackageNotFoundError as MetadataPackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Literal, Protocol, cast
 from urllib.parse import unquote, urljoin, urlsplit
@@ -193,9 +194,9 @@ def _parse_asset_bytes(
             parser_name = "xlrd"
             parser_version = "2.0.2"
         elif suffix == ".doc":
-            blocks = _parse_legacy_doc_bytes(raw, recognize_sections=True) if ordered_v2 else _parse_legacy_doc(path)
+            blocks = _parse_legacy_doc_v2(raw) if ordered_v2 else _parse_legacy_doc(path)
             parser_name = "legacy-doc-structured"
-            parser_version = "0.2.1+sections-v2" if ordered_v2 else "0.2.1+structure-v1"
+            parser_version = "0.2.1+native-paragraphs-v2" if ordered_v2 else "0.2.1+structure-v1"
         else:
             raise ContractError(f"unsupported parser extension: {suffix}")
     except (zipfile.BadZipFile, PdfReadError, PackageNotFoundError, InvalidFileException, XLRDError) as exc:
@@ -445,3 +446,111 @@ def _parse_legacy_doc_bytes(raw: bytes, *, recognize_sections: bool = False) -> 
         raise ContractError("legacy DOC parser unavailable") from exc
     result = extract_text(raw)
     return _parse_structured_text(str(result.text), recognize_sections=recognize_sections)
+
+
+def _legacy_doc_raw_text(raw: bytes) -> str:
+    """Read the pinned parser's pre-normalized stream to retain CR versus VT."""
+    try:
+        from legacy_doc.ole import OleReader  # type: ignore[import-untyped]
+        from legacy_doc.types import ExtractionOptions  # type: ignore[import-untyped]
+        from legacy_doc.word import (  # type: ignore[import-untyped]
+            _extract_text_from_piece_table, _find_clx,
+        )
+    except (ImportError, AttributeError) as exc:
+        raise ContractError("pinned legacy DOC structure reader unavailable") from exc
+    ole = OleReader(raw, options=ExtractionOptions())
+    word = ole.read_stream("WordDocument")
+    if len(word) < 0x44:
+        raise ContractError("legacy DOC WordDocument stream is too small")
+    flags = int.from_bytes(word[0x0A:0x0C], "little")
+    table = ole.read_stream("1Table" if flags & 0x0200 else "0Table")
+    fc_min = int.from_bytes(word[0x18:0x1C], "little")
+    fc_mac = int.from_bytes(word[0x1C:0x20], "little")
+    if fc_mac <= fc_min:
+        raise ContractError("legacy DOC has no readable text range")
+    clx = _find_clx(table)
+    _validate_legacy_doc_pieces(word, clx, fc_min=fc_min, fc_mac=fc_mac)
+    text = _extract_text_from_piece_table(word, clx, fc_min, fc_mac)
+    if not isinstance(text, str):
+        raise ContractError("legacy DOC structure reader returned invalid text")
+    return text
+
+
+def _validate_legacy_doc_pieces(word: bytes, clx: bytes, *, fc_min: int, fc_mac: int) -> None:
+    """Reject any piece the pinned extractor would silently skip or replace."""
+    if fc_min < 0 or fc_mac <= fc_min or fc_mac > len(word):
+        raise ContractError("legacy DOC text range is invalid")
+    if len(clx) < 16 or (len(clx) - 4) % 12:
+        raise ContractError("legacy DOC piece table is malformed")
+    piece_count = (len(clx) - 4) // 12
+    cp_size = 4 * (piece_count + 1)
+    if cp_size + 8 * piece_count != len(clx):
+        raise ContractError("legacy DOC piece table has incomplete records")
+    cps = tuple(int.from_bytes(clx[i * 4:i * 4 + 4], "little")
+                for i in range(piece_count + 1))
+    if cps[0] != 0 or any(right <= left for left, right in zip(cps, cps[1:])):
+        raise ContractError("legacy DOC piece positions have gaps or empty pieces")
+    for index, (cp_start, cp_end) in enumerate(zip(cps, cps[1:])):
+        encoded = int.from_bytes(clx[cp_size + index * 8 + 2:cp_size + index * 8 + 6], "little")
+        compressed = bool(encoded & 0x40000000)
+        fc = (encoded & 0x3FFFFFFF) // 2 if compressed else encoded
+        byte_count = (cp_end - cp_start) * (1 if compressed else 2)
+        if fc < fc_min or fc + byte_count > fc_mac or fc + byte_count > len(word):
+            raise ContractError("legacy DOC piece points outside the complete source range")
+        data = word[fc:fc + byte_count]
+        try:
+            decoded = data.decode("cp1252" if compressed else "utf-16le", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise ContractError("legacy DOC piece has undecodable text") from exc
+        if "\ufffd" in decoded:
+            raise ContractError("legacy DOC piece contains replacement characters")
+
+
+def _parse_legacy_doc_v2(raw: bytes) -> list[ParsedBlock]:
+    """Keep native paragraphs intact while retaining their manual line breaks."""
+    try:
+        from legacy_doc import LegacyDocError, extract_text
+        from legacy_doc.normalize import normalize_word_text  # type: ignore[import-untyped]
+    except (ImportError, AttributeError) as exc:
+        raise ContractError("pinned legacy DOC parser unavailable") from exc
+    try:
+        if version("legacy-doc") != "0.2.1":
+            raise ContractError("unsupported legacy DOC parser version")
+        public = extract_text(raw)
+        if public.version != "0.2.1":
+            raise ContractError("legacy DOC result version mismatch")
+        native = _legacy_doc_raw_text(raw)
+        # The current DOC path has no reliable table-cell structure contract.
+        if "\x07" in native:
+            raise ContractError("legacy DOC table structure requires review")
+        paragraphs = tuple(part for raw_part in native.split("\r")
+                           if (part := normalize_word_text(raw_part)))
+    except MetadataPackageNotFoundError as exc:
+        raise ContractError("pinned legacy DOC parser unavailable") from exc
+    except (LegacyDocError, ValueError, IndexError, AttributeError) as exc:
+        raise ContractError("legacy DOC structure extraction failed") from exc
+    flat_text = "\n".join(paragraphs)
+    if not paragraphs or flat_text != public.text:
+        raise ContractError("legacy DOC native paragraphs differ from public extraction")
+
+    flat_blocks = _parse_structured_text(flat_text, recognize_sections=True)
+    grouped: list[ParsedBlock] = []
+    cursor = 0
+    for paragraph in paragraphs:
+        lines = paragraph.split("\n")
+        group = flat_blocks[cursor:cursor + len(lines)]
+        if len(group) != len(lines) or tuple(block.text for block in group) != tuple(_clean(line) for line in lines):
+            raise ContractError("legacy DOC paragraph-to-block mapping is ambiguous")
+        if len(group) > 1 and any(block.kind is not BlockKind.PARAGRAPH for block in group):
+            raise ContractError("legacy DOC mixed native paragraph structure requires review")
+        first = group[0]
+        grouped.append(ParsedBlock(
+            ordinal=len(grouped) + 1, kind=first.kind,
+            text="\n".join(block.text for block in group),
+            section_path=first.section_path, page_number=first.page_number,
+            table_id=first.table_id, clause_id=first.clause_id,
+        ))
+        cursor += len(lines)
+    if cursor != len(flat_blocks):
+        raise ContractError("legacy DOC paragraph mapping omitted blocks")
+    return grouped
