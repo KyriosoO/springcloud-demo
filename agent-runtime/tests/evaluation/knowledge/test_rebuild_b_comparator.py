@@ -16,7 +16,7 @@ from agent_runtime.knowledge.intent_contracts import (
 from agent_runtime.knowledge.minimal_plan import MinimalKnowledgePlanBuilder, MinimalRetrievalSettings
 from agent_runtime.knowledge.retrieval.contracts import PathResultKind, PathRetrievalResult, RerankScore
 from tests.evaluation.knowledge.rebuild_b_comparator import (
-    ArmEndpoint, CandidateRef, ComparisonCase, ComparisonRunError, ComparisonSpec, FrozenIdMapping,
+    ArmEndpoint, CallTotals, CandidateRef, ComparisonCase, ComparisonRunError, ComparisonSpec, FrozenIdMapping,
     LocalRuntimeAdmission, LocalRuntimeReceipt, SourceCorpusBinding,
     admit_completed_local_run, blind_label_pool, plan_fingerprint, plan_payload,
     run_comparison, score_comparison,
@@ -692,9 +692,7 @@ async def test_fake_score_cannot_be_relabeled_as_real_evidence():
                          labels=labels)
 
 
-async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
-    frozen = spec()
-    result, *_ = await execute()
+def _local_postflight_proof(frozen: ComparisonSpec) -> tuple[LocalRuntimeAdmission, LocalRuntimeReceipt]:
     admission = LocalRuntimeAdmission("local-run", "a" * 40, (
         ("baseline", frozen.source_corpus.index_name, frozen.source_corpus.index_uuid,
          "b-local-run-" + "a" * 16 + "-read", "1" * 64, 101),
@@ -710,6 +708,13 @@ async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
          ("candidate", tuple("b" * 64 for _ in range(22)))),
         (("baseline", tuple("c" * 64 for _ in range(22))),
          ("candidate", tuple("c" * 64 for _ in range(22)))))
+    return admission, receipt
+
+
+async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
+    frozen = spec()
+    result, *_ = await execute()
+    admission, receipt = _local_postflight_proof(frozen)
     with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
         admit_completed_local_run(spec=frozen, run=result, admission=admission, receipt=receipt)
     assert admit_completed_local_run(spec=frozen,
@@ -740,6 +745,64 @@ async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
                     run=replace(result, evidence_kind="local_pending_postflight"),
                     admission=admission,
                     receipt=replace(receipt, **{field: (valid[0], malformed)}))
+
+
+@pytest.mark.parametrize("drift,diagnostic", (
+    ("binding", "run_binding_invalid"), ("calls", "call_totals_invalid"),
+    ("path", "physical_paths_invalid"), ("raw", "raw_witness_invalid"),
+    ("canonical_shape", "canonical_witness_invalid"),
+    ("canonical_value", "canonical_requests_mismatch"),
+    ("metadata", "metadata_binding_invalid"), ("alias_budget", "budget_invalid"),
+    ("metadata_budget", "budget_invalid"), ("process_cleanup", "cleanup_incomplete"),
+    ("alias_cleanup", "cleanup_incomplete"), ("proxy", "proxy_violations"),
+))
+async def test_postflight_diagnostics_keep_rejecting_each_original_guard(drift, diagnostic):
+    frozen = spec()
+    result, *_ = await execute()
+    result = replace(result, evidence_kind="local_pending_postflight")
+    admission, receipt = _local_postflight_proof(frozen)
+    if drift == "binding":
+        result = replace(result, assessment_sha256="e" * 64)
+    elif drift == "calls":
+        result = replace(result, calls=replace(result.calls, typed_search=43))
+    elif drift == "path":
+        receipt = replace(receipt, arm_paths=(("baseline", ("/foreign/_search",)),
+                                             receipt.arm_paths[1]))
+    elif drift == "raw":
+        receipt = replace(receipt, arm_search_request_sha256=(("baseline", ("bad",)),
+            receipt.arm_search_request_sha256[1]))
+    elif drift == "canonical_shape":
+        receipt = replace(receipt, arm_search_canonical_request_sha256=())
+    elif drift == "canonical_value":
+        receipt = replace(receipt, arm_search_canonical_request_sha256=(
+            receipt.arm_search_canonical_request_sha256[0],
+            ("candidate", tuple("d" * 64 for _ in range(22)))))
+    elif drift == "metadata":
+        receipt = replace(receipt, post_metadata_sha256=(("baseline", "e" * 64),
+                                                        receipt.post_metadata_sha256[1]))
+    elif drift == "alias_budget":
+        receipt = replace(receipt, alias_writes=3)
+    elif drift == "metadata_budget":
+        receipt = replace(receipt, metadata_es_http=21)
+    elif drift == "process_cleanup":
+        receipt = replace(receipt, owned_processes_stopped=False)
+    elif drift == "alias_cleanup":
+        receipt = replace(receipt, aliases_removed=False)
+    else:
+        receipt = replace(receipt, proxy_violations=1)
+    with pytest.raises(ComparisonRunError, match="runtime_provenance_missing") as caught:
+        admit_completed_local_run(spec=frozen, run=result, admission=admission, receipt=receipt)
+    assert caught.value.stage == "postflight"
+    assert caught.value.postflight_diagnostic == diagnostic
+    assert caught.value.calls == result.calls
+    assert caught.value.unexecuted_case_ids == ()
+
+
+def test_postflight_diagnostic_rejects_external_text():
+    error = ComparisonRunError("runtime_provenance_missing", CallTotals(0, 0, 0), (),
+                              postflight_diagnostic="external-body-or-secret")
+    assert error.postflight_diagnostic is None
+    assert str(error) == "runtime_provenance_missing"
 
 
 async def test_local_builder_without_isolated_runtime_provenance_stops_at_preflight():

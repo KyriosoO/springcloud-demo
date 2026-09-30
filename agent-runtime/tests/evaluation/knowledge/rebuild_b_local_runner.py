@@ -111,6 +111,16 @@ class BLocalRunError(Exception):
         super().__init__(reason)
 
 
+class BLocalEvidenceError(BLocalRunError):
+    """A consumed run whose finite evidence could not be persisted."""
+
+    def __init__(self, *, run_id: str, calls: CallTotals, phase: str) -> None:
+        super().__init__("append_only_evidence_failed")
+        self.run_id = run_id
+        self.calls = calls
+        self.phase = phase
+
+
 def _canonical(value: object) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True,
                        separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
@@ -1374,7 +1384,9 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
     proxies: list[PhysicalEsProxy] = []
     result: ComparisonRun | None = None
     failed: ComparisonRunError | None = None
+    receipt: LocalRuntimeReceipt | None = None
     reason: str | None = None
+    phase = "model_identity_pre"
     pre_snapshots: tuple[tuple[str, str], ...] | None = None
     post_snapshots: tuple[tuple[str, str], ...] | None = None
     model_pre: dict[str, object] | None = None
@@ -1382,113 +1394,142 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
     lease: BIsolatedAliases | None = None
     stopped = False
     aliases_removed = False
-    with httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
-            follow_redirects=False, timeout=10.0) as es:
-        try:
-            model_pre = _capture_model_identity(inputs)
-            lease = BIsolatedAliases(client=es, baseline=identities[0], candidate=identities[1],
-                online_alias=inputs.read_alias, online_index=inputs.online_index,
-                online_uuid=inputs.online_uuid,
-                online_mapping_sha256=inputs.online_mapping_sha256,
-                online_alias_sha256=inputs.online_alias_sha256,
-                mapping_fingerprint=lambda value: sha256(_canonical(value)).hexdigest())
-            pre_snapshots = lease.open()
-            for identity, proxy_port in zip(identities, proxy_ports, strict=True):
-                proxy = PhysicalEsProxy(identity=identity, port=proxy_port,
-                    maximum_metadata=6,
-                    maximum_search=sum(len(case.plan.items) for case in spec.cases), backend=es)
-                proxy.start()
-                proxies.append(proxy)
-            env = {key: os.environ[key] for key in (
-                "SystemRoot", "SystemDrive", "PATH", "JAVA_HOME", "TEMP", "TMP",
-                "USERPROFILE", "APPDATA", "LOCALAPPDATA") if key in os.environ}
-            env["COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE"] = base64.b64encode(secret).decode()
-            for identity, port, proxy_port, arm in zip(identities, ports, proxy_ports,
-                    ("baseline", "candidate"), strict=True):
-                env_arm = dict(env)
-                env_arm.update({
-                    "AGENT_KNOWLEDGE_READ_ALIAS": identity.alias,
-                    "AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME": identity.index_name,
-                    "AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID": identity.index_uuid,
-                    "AGENT_KNOWLEDGE_MAPPING_VERSION": identity.mapping_version,
-                    "AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID": dict(profiles[arm])["tax.policy"],
-                    "AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID": dict(profiles[arm])["tax.law"],
-                })
-                process = subprocess.Popen(_java_args(jar=jar, config_dir=config_dir,
-                    port=port, proxy_port=proxy_port,
-                    identity=identity, run_id=inputs.run_id,
-                    policy_snapshot=dict(profiles[arm])["tax.policy"],
-                    law_snapshot=dict(profiles[arm])["tax.law"]),
-                    cwd=ROOT / "es-query-service", env=env_arm,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                processes.append(process)
-            _ready(processes, ports)
-            if any(proxy.metadata_count != 6 or proxy.violations for proxy in proxies):
-                raise BLocalRunError("java_startup_provenance_invalid")
-            admission = LocalRuntimeAdmission(inputs.run_id, inputs.frozen_head,
-                tuple((identity.arm, identity.index_name, identity.index_uuid,
-                       identity.alias, pre_hash, process.pid)
-                    for identity, (_, pre_hash), process in zip(identities, pre_snapshots,
-                        processes, strict=True)), jar_sha256)
-            async with AsyncExitStack() as stack:
-                arm_clients = [await stack.enter_async_context(build_knowledge_http_client(
-                    f"http://127.0.0.1:{port}")) for port in ports]
-                embed_client = await stack.enter_async_context(build_knowledge_http_client(
-                    "http://127.0.0.1:8908"))
-                rerank_client = await stack.enter_async_context(build_knowledge_http_client(
-                    "http://127.0.0.1:8909"))
-                arms = tuple(ArmEndpoint(_OwnedSearch(
-                    EsKnowledgeSearchAdapter(HttpxKnowledgeTransport(client)), process, port),
-                    profiles[arm], mapping) for client, process, port, arm, mapping in zip(arm_clients,
-                        processes, ports,
-                        ("baseline", "candidate"),
-                        (inputs.baseline_map, inputs.candidate_map), strict=True))
-                def context_for(case_id: str) -> KnowledgeRetrievalContext:
-                    _require_owned_listeners(processes, ports)
-                    return KnowledgeRetrievalContext(request_id=case_id,
-                        correlation_id=f"b-{inputs.run_id}-{case_id}",
-                        subject="isolated-b-comparison", user_token=token_for_context,
-                        deadline_monotonic=time.monotonic() + 30,
-                        cancellation=MutableCancellationSignal())
-                result = await run_comparison(spec=spec, baseline=arms[0], candidate=arms[1],
-                    embedding=BgeM3EmbeddingAdapter(HttpxKnowledgeTransport(embed_client)),
-                    rerank=ContextualBgeRerankAdapter(HttpxKnowledgeTransport(rerank_client)),
-                    context_for=context_for, provenance_sidecars=inputs.sidecars,
-                    local_admission=admission)
-            model_post = _capture_model_identity(inputs)
-            if _canonical(model_post) != _canonical(model_pre):
-                raise BLocalRunError("model_identity_changed")
-            if (any(proxy.metadata_count != 6 or proxy.violations for proxy in proxies)
-                    or any(process.poll() is not None for process in processes)):
-                raise BLocalRunError("runtime_provenance_invalid")
-            post_snapshots = lease.postcheck()
-        except ComparisonRunError as exc:
-            failed = exc
-            reason = exc.reason
-        except (BLocalTransportError, BLocalRunError, ValueError, TypeError):
-            reason = "local_execution_or_identity_failed"
-        except asyncio.CancelledError:
-            reason = "comparison_cancelled"
-        except Exception:
-            # A consumed run always gets a finite terminal reason; never emit
-            # an adapter/Java/HTTP exception or any response text.
-            reason = "local_unexpected_failure"
-        finally:
-            stopped = _stop_owned(processes)
-            for proxy in proxies:
-                try:
-                    proxy.close()
-                except Exception:
-                    reason = "proxy_cleanup_failed"
-            if lease is not None:
-                try:
-                    aliases_removed = lease.close()
-                except Exception:
-                    reason = "alias_cleanup_failed"
+    es: httpx.Client | None = None
+    try:
+        phase = "es_client_open"
+        es = httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+            follow_redirects=False, timeout=10.0)
+        phase = "model_identity_pre"
+        model_pre = _capture_model_identity(inputs)
+        lease = BIsolatedAliases(client=es, baseline=identities[0], candidate=identities[1],
+            online_alias=inputs.read_alias, online_index=inputs.online_index,
+            online_uuid=inputs.online_uuid,
+            online_mapping_sha256=inputs.online_mapping_sha256,
+            online_alias_sha256=inputs.online_alias_sha256,
+            mapping_fingerprint=lambda value: sha256(_canonical(value)).hexdigest())
+        phase = "alias_open"
+        pre_snapshots = lease.open()
+        phase = "proxy_start"
+        for identity, proxy_port in zip(identities, proxy_ports, strict=True):
+            proxy = PhysicalEsProxy(identity=identity, port=proxy_port,
+                maximum_metadata=6,
+                maximum_search=sum(len(case.plan.items) for case in spec.cases), backend=es)
+            proxy.start()
+            proxies.append(proxy)
+        env = {key: os.environ[key] for key in (
+            "SystemRoot", "SystemDrive", "PATH", "JAVA_HOME", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA") if key in os.environ}
+        env["COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE"] = base64.b64encode(secret).decode()
+        phase = "java_start"
+        for identity, port, proxy_port, arm in zip(identities, ports, proxy_ports,
+                ("baseline", "candidate"), strict=True):
+            env_arm = dict(env)
+            env_arm.update({
+                "AGENT_KNOWLEDGE_READ_ALIAS": identity.alias,
+                "AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME": identity.index_name,
+                "AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID": identity.index_uuid,
+                "AGENT_KNOWLEDGE_MAPPING_VERSION": identity.mapping_version,
+                "AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID": dict(profiles[arm])["tax.policy"],
+                "AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID": dict(profiles[arm])["tax.law"],
+            })
+            process = subprocess.Popen(_java_args(jar=jar, config_dir=config_dir,
+                port=port, proxy_port=proxy_port,
+                identity=identity, run_id=inputs.run_id,
+                policy_snapshot=dict(profiles[arm])["tax.policy"],
+                law_snapshot=dict(profiles[arm])["tax.law"]),
+                cwd=ROOT / "es-query-service", env=env_arm,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            processes.append(process)
+        phase = "java_readiness"
+        _ready(processes, ports)
+        if any(proxy.metadata_count != 6 or proxy.violations for proxy in proxies):
+            raise BLocalRunError("java_startup_provenance_invalid")
+        admission = LocalRuntimeAdmission(inputs.run_id, inputs.frozen_head,
+            tuple((identity.arm, identity.index_name, identity.index_uuid,
+                   identity.alias, pre_hash, process.pid)
+                for identity, (_, pre_hash), process in zip(identities, pre_snapshots,
+                    processes, strict=True)), jar_sha256)
+        async with AsyncExitStack() as stack:
+            arm_clients = [await stack.enter_async_context(build_knowledge_http_client(
+                f"http://127.0.0.1:{port}")) for port in ports]
+            embed_client = await stack.enter_async_context(build_knowledge_http_client(
+                "http://127.0.0.1:8908"))
+            rerank_client = await stack.enter_async_context(build_knowledge_http_client(
+                "http://127.0.0.1:8909"))
+            arms = tuple(ArmEndpoint(_OwnedSearch(
+                EsKnowledgeSearchAdapter(HttpxKnowledgeTransport(client)), process, port),
+                profiles[arm], mapping) for client, process, port, arm, mapping in zip(arm_clients,
+                    processes, ports,
+                    ("baseline", "candidate"),
+                    (inputs.baseline_map, inputs.candidate_map), strict=True))
+            def context_for(case_id: str) -> KnowledgeRetrievalContext:
+                _require_owned_listeners(processes, ports)
+                return KnowledgeRetrievalContext(request_id=case_id,
+                    correlation_id=f"b-{inputs.run_id}-{case_id}",
+                    subject="isolated-b-comparison", user_token=token_for_context,
+                    deadline_monotonic=time.monotonic() + 30,
+                    cancellation=MutableCancellationSignal())
+            phase = "comparison"
+            result = await run_comparison(spec=spec, baseline=arms[0], candidate=arms[1],
+                embedding=BgeM3EmbeddingAdapter(HttpxKnowledgeTransport(embed_client)),
+                rerank=ContextualBgeRerankAdapter(HttpxKnowledgeTransport(rerank_client)),
+                context_for=context_for, provenance_sidecars=inputs.sidecars,
+                local_admission=admission)
+        phase = "model_identity_post"
+        model_post = _capture_model_identity(inputs)
+        if _canonical(model_post) != _canonical(model_pre):
+            raise BLocalRunError("model_identity_changed")
+        phase = "runtime_identity_post"
+        if (any(proxy.metadata_count != 6 or proxy.violations for proxy in proxies)
+                or any(process.poll() is not None for process in processes)):
+            raise BLocalRunError("runtime_provenance_invalid")
+        phase = "alias_postcheck"
+        post_snapshots = lease.postcheck()
+    except ComparisonRunError as exc:
+        failed = exc
+        reason = exc.reason
+        phase = (exc.stage if exc.stage in {
+            "preflight", "embedding", "typed_retrieval_and_rerank", "postflight"}
+            else "comparison")
+    except (BLocalTransportError, BLocalRunError, ValueError, TypeError):
+        reason = ("es_client_open_failed" if phase == "es_client_open"
+                  else "local_execution_or_identity_failed")
+    except asyncio.CancelledError:
+        reason = "comparison_cancelled"
+    except Exception:
+        # A consumed run always gets a finite terminal reason; never emit
+        # an adapter/Java/HTTP exception or any response text.
+        reason = ("es_client_open_failed" if phase == "es_client_open"
+                  else "local_unexpected_failure")
+    finally:
+        stopped = _stop_owned(processes)
+        for proxy in proxies:
+            try:
+                proxy.close()
+            except Exception:
+                reason = "proxy_cleanup_failed"
+                phase = "proxy_cleanup"
+        if lease is not None:
+            try:
+                aliases_removed = lease.close()
+            except Exception:
+                reason = "alias_cleanup_failed"
+                phase = "alias_cleanup"
+        if es is not None:
+            try:
+                es.close()
+            except Exception:
+                reason = "es_client_close_failed"
+                phase = "es_client_close"
     proxy_violations = sum(proxy.violations for proxy in proxies)
-    if _hash_file(jar) != jar_sha256:
-        reason = "java_artifact_drift"
+    try:
+        if _hash_file(jar) != jar_sha256:
+            reason = "java_artifact_drift"
+            phase = "artifact_postcheck"
+    except BLocalRunError:
+        reason = "java_artifact_missing"
+        phase = "artifact_postcheck"
     counts = failed.calls if failed is not None else result.calls if result is not None else CallTotals(0, 0, 0)
     if (result is not None and reason is None and pre_snapshots is not None
             and post_snapshots is not None and lease is not None):
@@ -1505,15 +1546,19 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
                 if item.method == "POST"))
                 for identity, proxy in zip(identities, proxies, strict=True)))
         try:
+            phase = "postflight"
             result = admit_completed_local_run(spec=spec, run=result,
                 admission=admission, receipt=receipt)
-        except ComparisonRunError:
+        except ComparisonRunError as exc:
+            failed = exc
             reason = "runtime_provenance_missing"
     if result is None or reason is not None:
         terminal: dict[str, object] = {
             "schemaVersion": 1, "runId": inputs.run_id,
             "frozenHead": inputs.frozen_head, "status": "not_assessed",
             "reason": reason or "comparison_incomplete", "assessmentSha256": spec.assessment_sha256,
+            "evidenceKind": "local_unadmitted_diagnostic", "phase": phase,
+            "postflightDiagnostic": failed.postflight_diagnostic if failed is not None else None,
             "calls": asdict(counts), "aliasWrites": lease.alias_writes if lease else 0,
             "metadataEsHttp": (lease.metadata_calls if lease else 0)
                 + sum(proxy.metadata_attempts for proxy in proxies),
@@ -1523,6 +1568,10 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
                 list(failed.unexecuted_case_ids) if failed is not None else
                 [] if result is not None else [case.case_id for case in spec.cases]
             ),
+            "witness": {identity.arm: [asdict(item) for item in proxies[ordinal].requests]
+                if ordinal < len(proxies) else None
+                for ordinal, identity in enumerate(identities)},
+            "receipt": asdict(receipt) if receipt is not None else None,
             "modelIdentityPre": model_pre, "modelIdentityPost": model_post,
         }
     else:
@@ -1544,11 +1593,20 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
             "traces": asdict(result)["cases"],
             "modelIdentityPre": model_pre, "modelIdentityPost": model_post,
         }
-        _write_once(directory / "comparison-blind-label-pool.json", {
-            "schemaVersion": 1, "runId": inputs.run_id, "armHidden": True,
-            "items": [list(item) for item in blind_label_pool(result)],
-        })
-    _write_once(directory / "comparison-result.json", terminal)
+    evidence_phase = "blind_pool_write" if reason is None and result is not None else "terminal_write"
+    try:
+        if reason is None and result is not None:
+            _write_once(directory / "comparison-blind-label-pool.json", {
+                "schemaVersion": 1, "runId": inputs.run_id, "armHidden": True,
+                "items": [list(item) for item in blind_label_pool(result)],
+            })
+        evidence_phase = "terminal_write"
+        _write_once(directory / "comparison-result.json", terminal)
+    except BLocalRunError as exc:
+        if exc.reason != "append_only_evidence_failed":
+            raise
+        raise BLocalEvidenceError(run_id=inputs.run_id, calls=counts,
+                                  phase=evidence_phase) from None
     return terminal
 
 
@@ -1616,6 +1674,12 @@ def main() -> int:
                 terminal = asyncio.run(execute_local_comparison(directory=args.run_directory.resolve(),
                     inputs=inputs, jar=jar, jar_sha256=jar_sha,
                     ports=ports, proxy_ports=proxy_ports))
+    except BLocalEvidenceError as exc:
+        print(json.dumps({"status": "evidence_failed", "runId": exc.run_id,
+            "reason": "append_only_evidence_failed", "consumed": True,
+            "phase": exc.phase, "calls": asdict(exc.calls), "paid": 0,
+            "retry": 0, "resume": 0}, sort_keys=True))
+        return 1
     except (BLocalRunError, ComparisonRunError, reuse.ReuseBindingError, ValueError):
         print(json.dumps({"status": "preflight_failed", "paid": 0}, sort_keys=True))
         return 1

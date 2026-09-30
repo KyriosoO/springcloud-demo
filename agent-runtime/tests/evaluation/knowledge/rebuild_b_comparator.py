@@ -698,12 +698,20 @@ class LocalRuntimeReceipt:
     arm_search_canonical_request_sha256: tuple[tuple[str, tuple[str, ...]], ...]
 
 
+_POSTFLIGHT_DIAGNOSTICS = frozenset({
+    "run_binding_invalid", "call_totals_invalid", "physical_paths_invalid",
+    "raw_witness_invalid", "canonical_witness_invalid", "canonical_requests_mismatch",
+    "metadata_binding_invalid", "budget_invalid", "cleanup_incomplete", "proxy_violations",
+})
+
+
 class ComparisonRunError(Exception):
     """Safe terminal reason and limited completed trace for append-only failure evidence."""
 
     def __init__(self, reason: str, calls: CallTotals, completed: tuple[CaseTrace, ...], *,
                  case_id: str | None = None, arm: str | None = None,
-                 stage: str = "preflight", unexecuted_case_ids: tuple[str, ...] = ()) -> None:
+                 stage: str = "preflight", unexecuted_case_ids: tuple[str, ...] = (),
+                 postflight_diagnostic: str | None = None) -> None:
         super().__init__(reason)
         self.reason = reason
         self.outcome = ("not_assessed" if reason in (
@@ -714,6 +722,9 @@ class ComparisonRunError(Exception):
         self.arm = arm
         self.stage = stage
         self.unexecuted_case_ids = unexecuted_case_ids
+        self.postflight_diagnostic = (postflight_diagnostic
+            if type(postflight_diagnostic) is str
+            and postflight_diagnostic in _POSTFLIGHT_DIAGNOSTICS else None)
 
 
 class _Counts:
@@ -1284,6 +1295,7 @@ def admit_completed_local_run(*, spec: ComparisonSpec, run: ComparisonRun,
                               admission: LocalRuntimeAdmission,
                               receipt: LocalRuntimeReceipt) -> ComparisonRun:
     """Change local evidence status only after the runner proves postflight/cleanup."""
+    diagnostic: str | None = None
     if (type(spec) is not ComparisonSpec or type(run) is not ComparisonRun
             or type(admission) is not LocalRuntimeAdmission
             or type(receipt) is not LocalRuntimeReceipt
@@ -1293,15 +1305,18 @@ def admit_completed_local_run(*, spec: ComparisonSpec, run: ComparisonRun,
             or run.comparison_spec_sha256 != comparison_spec_fingerprint(spec)
             or len(run.cases) != len(spec.cases)
             or tuple(item.case_id for item in run.cases) != tuple(item.case_id for item in spec.cases)
-            or run.calls.typed_search != sum(len(case.plan.items) for case in spec.cases) * 2
+            or receipt.run_id != admission.run_id):
+        diagnostic = "run_binding_invalid"
+    elif (run.calls.typed_search != sum(len(case.plan.items) for case in spec.cases) * 2
             or run.calls.query_embedding != len(spec.cases)
             or run.calls.online_rerank > sum(len(case.plan.selected_domain_ids)
-                                             for case in spec.cases) * 2
-            or receipt.run_id != admission.run_id
-            or receipt.arm_paths != tuple((arm, tuple(f"/{binding[1]}/_search" for _ in range(
+                                             for case in spec.cases) * 2):
+        diagnostic = "call_totals_invalid"
+    elif receipt.arm_paths != tuple((arm, tuple(f"/{binding[1]}/_search" for _ in range(
                 sum(len(case.plan.items) for case in spec.cases))))
-                for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True))
-            or type(receipt.arm_search_request_sha256) is not tuple
+                for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True)):
+        diagnostic = "physical_paths_invalid"
+    elif (type(receipt.arm_search_request_sha256) is not tuple
             or len(receipt.arm_search_request_sha256) != 2
             or any(type(item) is not tuple or len(item) != 2
                    for item in receipt.arm_search_request_sha256)
@@ -1310,8 +1325,9 @@ def admit_completed_local_run(*, spec: ComparisonSpec, run: ComparisonRun,
                    or len(item[1]) != sum(len(case.plan.items) for case in spec.cases)
                    or any(type(digest) is not str or _SHA.fullmatch(digest) is None
                            for digest in item[1])
-                   for item in receipt.arm_search_request_sha256)
-            or type(receipt.arm_search_canonical_request_sha256) is not tuple
+                   for item in receipt.arm_search_request_sha256)):
+        diagnostic = "raw_witness_invalid"
+    elif (type(receipt.arm_search_canonical_request_sha256) is not tuple
             or len(receipt.arm_search_canonical_request_sha256) != 2
             or any(type(item) is not tuple or len(item) != 2
                    for item in receipt.arm_search_canonical_request_sha256)
@@ -1320,19 +1336,25 @@ def admit_completed_local_run(*, spec: ComparisonSpec, run: ComparisonRun,
                    or len(item[1]) != sum(len(case.plan.items) for case in spec.cases)
                    or any(type(digest) is not str or _SHA.fullmatch(digest) is None
                           for digest in item[1])
-                   for item in receipt.arm_search_canonical_request_sha256)
-            or Counter(receipt.arm_search_canonical_request_sha256[0][1])
-               != Counter(receipt.arm_search_canonical_request_sha256[1][1])
-            or receipt.post_metadata_sha256 != tuple((arm, binding[4])
-                for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True))
-            or receipt.alias_writes != 4
+                   for item in receipt.arm_search_canonical_request_sha256)):
+        diagnostic = "canonical_witness_invalid"
+    elif (Counter(receipt.arm_search_canonical_request_sha256[0][1])
+               != Counter(receipt.arm_search_canonical_request_sha256[1][1])):
+        diagnostic = "canonical_requests_mismatch"
+    elif receipt.post_metadata_sha256 != tuple((arm, binding[4])
+                for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True)):
+        diagnostic = "metadata_binding_invalid"
+    elif (receipt.alias_writes != 4
             or receipt.metadata_es_http != cast(dict[str, object],
-                _sidecar(spec.intent_raw)["comparisonBudget"])["metadataEsHttp"]
-            or receipt.owned_processes_stopped is not True
-            or receipt.aliases_removed is not True
-            or type(receipt.proxy_violations) is not int or receipt.proxy_violations != 0):
+                _sidecar(spec.intent_raw)["comparisonBudget"])["metadataEsHttp"]):
+        diagnostic = "budget_invalid"
+    elif (receipt.owned_processes_stopped is not True or receipt.aliases_removed is not True):
+        diagnostic = "cleanup_incomplete"
+    elif type(receipt.proxy_violations) is not int or receipt.proxy_violations != 0:
+        diagnostic = "proxy_violations"
+    if diagnostic is not None:
         raise ComparisonRunError("runtime_provenance_missing", run.calls, run.cases,
-            stage="postflight", unexecuted_case_ids=())
+            stage="postflight", unexecuted_case_ids=(), postflight_diagnostic=diagnostic)
     return ComparisonRun(run.cases, run.calls, run.assessment_sha256,
         run.uat_fixture_sha256, run.provenance_sha256, run.comparison_spec_sha256,
         "local_verified")

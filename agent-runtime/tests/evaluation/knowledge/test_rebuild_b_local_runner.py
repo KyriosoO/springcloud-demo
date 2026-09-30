@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
 from dataclasses import replace
 from hashlib import sha256
 from io import BytesIO
@@ -16,7 +17,8 @@ import httpx
 import pytest
 
 from tests.evaluation.knowledge import rebuild_b_local_runner as runner
-from tests.evaluation.knowledge.test_rebuild_b_comparator import plan_payload, spec
+from tests.evaluation.knowledge.rebuild_b_local_transport import RequestWitness
+from tests.evaluation.knowledge.test_rebuild_b_comparator import execute, plan_payload, spec
 
 
 def _reuse_directory(tmp_path: Path, monkeypatch) -> Path:
@@ -250,6 +252,244 @@ def test_unexpected_failure_after_consumption_keeps_finite_terminal(tmp_path: Pa
     assert not (tmp_path / "comparison-blind-label-pool.json").exists()
     assert b"do-not-persist" not in (tmp_path / "comparison-result.json").read_bytes()
     assert events == ["model", "lease"]
+
+
+def _fake_completed_comparison(tmp_path: Path, monkeypatch, *, mismatch: bool = True):
+    """Owned-process and proxy fakes; every possible HTTP request is denied."""
+    jar = _fake_frozen_jar(tmp_path, monkeypatch)
+    digest = sha256(jar.read_bytes()).hexdigest()
+    _attest(tmp_path, jar, artifact_hash=digest)
+    result, *_ = asyncio.run(execute())
+    result = replace(result, evidence_kind="local_pending_postflight")
+    snapshots = (("baseline", "1" * 64), ("candidate", "2" * 64))
+
+    class FakeLease:
+        metadata_calls = 8
+        alias_writes = 4
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def open(self):
+            return snapshots
+
+        def postcheck(self):
+            return snapshots
+
+        def close(self):
+            return True
+
+    class FakeProxy:
+        def __init__(self, *, identity, **_kwargs):
+            empty = sha256(b"").hexdigest()
+            canonical = ("d" if mismatch and identity.arm == "candidate" else "c") * 64
+            raw = ("a" if identity.arm == "baseline" else "b") * 64
+            self.requests = [RequestWitness("GET", f"/{identity.index_name}/_mapping",
+                empty, empty, 200) for _ in range(6)] + [RequestWitness("POST",
+                f"/{identity.index_name}/_search", raw, canonical, 200) for _ in range(22)]
+            self.metadata_count = self.metadata_attempts = 6
+            self.violations = 0
+
+        @property
+        def physical_search_paths(self):
+            return tuple(item.path for item in self.requests if item.method == "POST")
+
+        def start(self):
+            pass
+
+        def close(self):
+            pass
+
+    class FakeProcess:
+        next_pid = 5000
+
+        def __init__(self, *_args, **_kwargs):
+            self.pid = FakeProcess.next_pid
+            FakeProcess.next_pid += 1
+            self.returncode = None
+
+        def poll(self):
+            return self.returncode
+
+        def terminate(self):
+            self.returncode = 0
+
+        def wait(self, **_kwargs):
+            return self.returncode
+
+    async def fake_comparison(**_kwargs):
+        return result
+
+    def deny_http(_request):
+        pytest.fail("real HTTP request from a synthetic comparison")
+
+    original_client = httpx.Client
+    monkeypatch.setattr(runner.httpx, "Client", lambda **kwargs: original_client(
+        **kwargs, transport=httpx.MockTransport(deny_http)))
+    monkeypatch.setattr(runner, "build_knowledge_http_client", lambda url: httpx.AsyncClient(
+        base_url=url, transport=httpx.MockTransport(deny_http)))
+    monkeypatch.setattr(runner.shutil, "which", lambda _name: "java")
+    monkeypatch.setattr(runner, "_port_guard", lambda _ports: None)
+    monkeypatch.setattr(runner, "_ready", lambda _processes, _ports: None)
+    monkeypatch.setattr(runner, "_capture_model_identity", lambda _inputs: {"sha256": "5" * 64})
+    monkeypatch.setattr(runner, "BIsolatedAliases", FakeLease)
+    monkeypatch.setattr(runner, "PhysicalEsProxy", FakeProxy)
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeProcess)
+    monkeypatch.setattr(runner, "run_comparison", fake_comparison)
+    return {"directory": tmp_path, "inputs": _inputs(), "jar": jar,
+            "jar_sha256": digest, "ports": (19211, 19212), "proxy_ports": (19311, 19312)}
+
+
+def test_postflight_failure_preserves_only_unadmitted_safe_diagnostics(tmp_path: Path, monkeypatch):
+    args = _fake_completed_comparison(tmp_path, monkeypatch)
+    terminal = asyncio.run(runner.execute_local_comparison(**args))
+    assert terminal["status"] == "not_assessed"
+    assert terminal["reason"] == "runtime_provenance_missing"
+    assert terminal["evidenceKind"] == "local_unadmitted_diagnostic"
+    assert terminal["phase"] == "postflight"
+    assert terminal["postflightDiagnostic"] == "canonical_requests_mismatch"
+    assert terminal["calls"] == {"typed_search": 44, "query_embedding": 10, "online_rerank": 22}
+    assert terminal["receipt"]["arm_search_canonical_request_sha256"][1][1] == ("d" * 64,) * 22
+    assert terminal["witness"]["candidate"][-1]["canonical_request_sha256"] == "d" * 64
+    assert "traces" not in terminal
+    assert not (tmp_path / "comparison-blind-label-pool.json").exists()
+    saved = (tmp_path / "comparison-result.json").read_bytes()
+    assert json.loads(saved)["receipt"] is not None
+    assert b"original_question" not in saved and b"user_token" not in saved
+    assert b"request_body" not in saved and b"COMMON_SECURITY_JWT" not in saved
+
+
+def test_consumed_final_jar_hash_failure_still_persists_terminal(tmp_path: Path, monkeypatch):
+    args = _fake_completed_comparison(tmp_path, monkeypatch, mismatch=False)
+    original = runner._hash_file
+    calls = 0
+
+    def fail_final_hash(path):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise runner.BLocalRunError("java_artifact_missing")
+        return original(path)
+
+    monkeypatch.setattr(runner, "_hash_file", fail_final_hash)
+    terminal = asyncio.run(runner.execute_local_comparison(**args))
+    assert calls == 2
+    assert terminal["status"] == "not_assessed"
+    assert terminal["reason"] == "java_artifact_missing"
+    assert terminal["phase"] == "artifact_postcheck"
+    assert terminal["calls"]["typed_search"] == 44
+    assert terminal["receipt"] is None
+    assert len(terminal["witness"]["baseline"]) == 28
+    assert (tmp_path / "comparison-attempt.json").is_file()
+    assert (tmp_path / "comparison-result.json").is_file()
+    assert not (tmp_path / "comparison-blind-label-pool.json").exists()
+    assert "traces" not in terminal
+
+
+@pytest.mark.parametrize("error_type", (OSError, ValueError))
+def test_consumed_es_client_creation_failure_keeps_zero_call_terminal(
+        tmp_path: Path, monkeypatch, error_type):
+    args = _fake_completed_comparison(tmp_path, monkeypatch)
+
+    def fail_client(**_kwargs):
+        raise error_type("external-client-body-or-secret")
+
+    monkeypatch.setattr(runner.httpx, "Client", fail_client)
+    monkeypatch.setattr(runner, "_capture_model_identity",
+                        lambda _inputs: pytest.fail("model identity reached after client failure"))
+    terminal = asyncio.run(runner.execute_local_comparison(**args))
+    assert terminal["status"] == "not_assessed"
+    assert terminal["reason"] == "es_client_open_failed"
+    assert terminal["phase"] == "es_client_open"
+    assert terminal["calls"] == {"typed_search": 0, "query_embedding": 0, "online_rerank": 0}
+    assert terminal["metadataEsHttp"] == terminal["aliasWrites"] == 0
+    assert terminal["witness"] == {"baseline": None, "candidate": None}
+    assert terminal["receipt"] is None
+    assert (tmp_path / "comparison-attempt.json").is_file()
+    assert (tmp_path / "comparison-result.json").is_file()
+    assert not (tmp_path / "comparison-blind-label-pool.json").exists()
+    assert "traces" not in terminal
+    assert b"external-client-body-or-secret" not in (tmp_path / "comparison-result.json").read_bytes()
+
+
+@pytest.mark.parametrize("before_comparison", (True, False))
+def test_consumed_es_client_close_failure_keeps_finite_terminal(
+        tmp_path: Path, monkeypatch, before_comparison):
+    args = _fake_completed_comparison(tmp_path, monkeypatch, mismatch=False)
+
+    class FailingCloseClient:
+        def __enter__(self):
+            pytest.fail("ES client must use the explicit finite lifecycle")
+
+        def close(self):
+            raise OSError("external-client-body-or-secret")
+
+    monkeypatch.setattr(runner.httpx, "Client", lambda **_kwargs: FailingCloseClient())
+    if before_comparison:
+        def fail_identity(_inputs):
+            raise runner.BLocalRunError("model_snapshot_invalid")
+        monkeypatch.setattr(runner, "_capture_model_identity", fail_identity)
+    terminal = asyncio.run(runner.execute_local_comparison(**args))
+    assert terminal["status"] == "not_assessed"
+    assert terminal["reason"] == "es_client_close_failed"
+    assert terminal["phase"] == "es_client_close"
+    assert terminal["calls"] == ({"typed_search": 0, "query_embedding": 0, "online_rerank": 0}
+        if before_comparison else {"typed_search": 44, "query_embedding": 10, "online_rerank": 22})
+    assert terminal["ownedProcessesStopped"] is True
+    assert terminal["aliasesRemoved"] is (not before_comparison)
+    assert terminal["receipt"] is None
+    assert (tmp_path / "comparison-attempt.json").is_file()
+    assert (tmp_path / "comparison-result.json").is_file()
+    assert not (tmp_path / "comparison-blind-label-pool.json").exists()
+    assert "traces" not in terminal
+    assert b"external-client-body-or-secret" not in (tmp_path / "comparison-result.json").read_bytes()
+
+
+def test_consumed_terminal_write_failure_is_explicit_not_preflight(tmp_path: Path, monkeypatch):
+    args = _fake_completed_comparison(tmp_path, monkeypatch)
+    original = runner._write_once
+
+    def fail_terminal(path, value):
+        if path.name == "comparison-result.json":
+            raise runner.BLocalRunError("append_only_evidence_failed")
+        original(path, value)
+
+    monkeypatch.setattr(runner, "_write_once", fail_terminal)
+    with pytest.raises(runner.BLocalEvidenceError, match="append_only_evidence_failed") as caught:
+        asyncio.run(runner.execute_local_comparison(**args))
+    assert caught.value.run_id == "local-run"
+    assert caught.value.calls.typed_search == 44
+    assert caught.value.phase == "terminal_write"
+    assert (tmp_path / "comparison-attempt.json").is_file()
+    assert not (tmp_path / "comparison-result.json").exists()
+    assert not (tmp_path / "comparison-blind-label-pool.json").exists()
+
+
+def test_cli_consumed_evidence_failure_prints_only_finite_state(tmp_path: Path, monkeypatch, capsys):
+    @contextmanager
+    def artifact(*_args):
+        yield tmp_path / "fake.jar", "a" * 64
+
+    async def fail_evidence(**_kwargs):
+        raise runner.BLocalEvidenceError(run_id="local-run", calls=runner.CallTotals(44, 10, 22),
+                                        phase="terminal_write")
+
+    monkeypatch.setattr(runner.sys, "argv", ["rebuild-b", "--execute-once",
+        "--run-directory", str(tmp_path), "--baseline-port", "19211", "--candidate-port", "19212",
+        "--baseline-proxy-port", "19311", "--candidate-proxy-port", "19312"])
+    monkeypatch.setattr(runner, "_require_locked_python_environment", lambda _role: None)
+    monkeypatch.setattr(runner, "load_frozen_inputs", lambda _directory: _inputs())
+    monkeypatch.setattr(runner, "frozen_java_artifact", artifact)
+    monkeypatch.setattr(runner, "execute_local_comparison", fail_evidence)
+    assert runner.main() == 1
+    captured = capsys.readouterr()
+    value = json.loads(captured.out)
+    assert value == {"status": "evidence_failed", "runId": "local-run",
+        "reason": "append_only_evidence_failed", "consumed": True, "phase": "terminal_write",
+        "calls": {"typed_search": 44, "query_embedding": 10, "online_rerank": 22},
+        "paid": 0, "retry": 0, "resume": 0}
+    assert captured.err == ""
+    assert "preflight_failed" not in captured.out
 
 
 def test_model_identity_binds_old_embedding_and_fresh_rerank_without_inference(
