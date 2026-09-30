@@ -35,7 +35,22 @@ def _attest(directory: Path, jar: Path, *, artifact_hash: str) -> None:
         "artifactSha256": artifact_hash,
         "artifactBytes": jar.stat().st_size, "buildExitCode": 0,
         "workingTreeTrackedClean": True,
+        "runtimeConfigSha256": {name: sha256((name + " frozen\n").encode()).hexdigest()
+                                for name in runner._RUNTIME_CONFIG_FILES},
     })
+
+
+def _fake_frozen_jar(directory: Path, monkeypatch) -> Path:
+    jar = directory / "es-query-service/target/es-query-service-0.0.1-SNAPSHOT.jar"
+    jar.parent.mkdir(parents=True)
+    jar.write_bytes(b"fake-frozen-jar")
+    config_dir = directory / runner._RUNTIME_CONFIG_ROOT
+    config_dir.mkdir(parents=True)
+    for name in runner._RUNTIME_CONFIG_FILES:
+        (config_dir / name).write_bytes((name + " frozen\n").encode())
+    monkeypatch.setattr(runner, "_git_bytes", lambda _action, reference:
+        (reference.rsplit("/", 1)[-1] + " frozen\n").encode())
+    return jar
 
 
 def test_plan_round_trip_and_bad_frozen_item_rejected() -> None:
@@ -60,8 +75,7 @@ def test_arbitrary_jar_matching_caller_hash_is_not_admitted(tmp_path: Path, monk
 
 
 def test_unexpected_failure_after_consumption_keeps_finite_terminal(tmp_path: Path, monkeypatch) -> None:
-    jar = tmp_path / "frozen.jar"
-    jar.write_bytes(b"fake-frozen-jar")
+    jar = _fake_frozen_jar(tmp_path, monkeypatch)
     digest = sha256(jar.read_bytes()).hexdigest()
     _attest(tmp_path, jar, artifact_hash=digest)
     monkeypatch.setattr(runner.shutil, "which", lambda _name: "java")
@@ -98,8 +112,13 @@ def test_frozen_head_archive_build_attests_its_own_jar(tmp_path: Path, monkeypat
     with ZipFile(payload, "w") as archive:
         archive.writestr("serviceCenter/mvnw.cmd", "@echo off\r\n")
         archive.writestr("serviceCenter/pom.xml", "<project/>\n")
+        for name in runner._RUNTIME_CONFIG_FILES:
+            archive.writestr(f"{runner._RUNTIME_CONFIG_ROOT}/{name}",
+                             (name + " frozen\n").encode())
     monkeypatch.setattr(runner, "_git", lambda *args: "a" * 40 if args[0] == "rev-parse" else "")
-    monkeypatch.setattr(runner, "_git_bytes", lambda *_args: payload.getvalue())
+    monkeypatch.setattr(runner, "_git_bytes", lambda action, *args: (
+        payload.getvalue() if action == "archive" else
+        (args[0].rsplit("/", 1)[-1] + " frozen\n").encode()))
     maven = tmp_path / "mvn.cmd"
     maven.write_bytes(b"@echo off\r\n")
     monkeypatch.setattr(runner.shutil, "which", lambda _name: str(maven))
@@ -120,6 +139,104 @@ def test_frozen_head_archive_build_attests_its_own_jar(tmp_path: Path, monkeypat
         assert attestation["artifactSha256"] == digest
         assert attestation["frozenHead"] == "a" * 40
         assert attestation["workingTreeTrackedClean"] is True
+        assert attestation["runtimeConfigSha256"] == {
+            name: sha256((name + " frozen\n").encode()).hexdigest()
+            for name in runner._RUNTIME_CONFIG_FILES}
+
+
+def test_frozen_build_rejects_missing_runtime_config_before_maven_or_alias(
+        tmp_path: Path, monkeypatch) -> None:
+    payload = BytesIO()
+    with ZipFile(payload, "w") as archive:
+        archive.writestr("serviceCenter/pom.xml", "<project/>\n")
+    monkeypatch.setattr(runner, "_git", lambda *args: "a" * 40 if args[0] == "rev-parse" else "")
+    monkeypatch.setattr(runner, "_git_bytes", lambda action, *args: (
+        payload.getvalue() if action == "archive" else b"frozen config\n"))
+    maven = tmp_path / "mvn.cmd"
+    maven.write_bytes(b"@echo off\r\n")
+    monkeypatch.setattr(runner.shutil, "which", lambda _name: str(maven))
+    monkeypatch.setattr(runner.subprocess, "run", lambda *_args, **_kwargs:
+        pytest.fail("Maven or alias operation reached"))
+    with pytest.raises(runner.BLocalRunError, match="frozen_runtime_config_invalid"):
+        with runner.frozen_java_artifact(tmp_path, _inputs()):
+            pytest.fail("Java yielded without frozen config")
+    assert not (tmp_path / "comparison-java-attestation.json").exists()
+    assert not (tmp_path / "comparison-attempt.json").exists()
+
+
+def test_frozen_config_drift_rejected_before_alias_operation(tmp_path: Path, monkeypatch) -> None:
+    jar = _fake_frozen_jar(tmp_path, monkeypatch)
+    digest = sha256(jar.read_bytes()).hexdigest()
+    _attest(tmp_path, jar, artifact_hash=digest)
+    (tmp_path / runner._RUNTIME_CONFIG_ROOT / "application-es.yml").write_bytes(b"drifted\n")
+    monkeypatch.setattr(runner.shutil, "which", lambda _name: "java")
+    monkeypatch.setattr(runner, "_port_guard", lambda _ports: pytest.fail("port guard reached"))
+    monkeypatch.setattr(runner, "BIsolatedAliases", lambda **_kwargs:
+        pytest.fail("alias operation reached"))
+    with pytest.raises(runner.BLocalRunError, match="frozen_runtime_config_invalid"):
+        asyncio.run(runner.execute_local_comparison(directory=tmp_path,
+            inputs=_inputs(), jar=jar, jar_sha256=digest,
+            ports=(19211, 19212), proxy_ports=(19311, 19312)))
+    assert not (tmp_path / "comparison-attempt.json").exists()
+
+
+def test_runtime_config_blob_changes_profile_hash(monkeypatch) -> None:
+    files = {name: (name + " frozen\n").encode()
+             for name in (*runner._RUNTIME_CONFIG_FILES, "application-knowledge-live.yml")}
+    monkeypatch.setattr(runner, "_git_bytes", lambda _action, reference:
+        files[reference.rsplit("/", 1)[-1]])
+    before = runner._expected_profile_config_sha256("a" * 40, "tax.policy")
+    files["application-datasource.yml"] = b"different datasource\n"
+    assert runner._expected_profile_config_sha256("a" * 40, "tax.policy") != before
+
+
+def test_both_java_arms_use_one_frozen_config_and_keep_fixed_cli_guards(tmp_path: Path) -> None:
+    config_dir = tmp_path / "frozen config"
+    identity = runner.ArmIdentity("baseline", "physical-index", "index-uuid",
+                                  "1" * 64, "mapping-v1", "b-owned-baseline-0123456789abcdef-read")
+    candidate = runner.ArmIdentity("candidate", "candidate-index", "candidate-uuid",
+                                   "2" * 64, "mapping-v2", "b-owned-candidate-0123456789abcdef-read")
+    args = [runner._java_args(jar=Path("frozen.jar"), config_dir=config_dir,
+        port=port, proxy_port=proxy, identity=arm, run_id="frozen-run",
+        policy_snapshot="policy-snapshot", law_snapshot="law-snapshot")
+        for arm, port, proxy in ((identity, 19211, 19311), (candidate, 19212, 19312))]
+    config_option = "--spring.config.additional-location=" + config_dir.as_uri().rstrip("/") + "/"
+    for arm_args in args:
+        assert arm_args.count(config_option) == 1
+        assert "--management.endpoint.health.probes.enabled=true" in arm_args
+        assert "--management.endpoint.health.group.knowledge-validation.include=readinessState" in arm_args
+        assert "--spring.cloud.config.enabled=false" in arm_args
+        assert "--es.query.knowledge.b-isolation-fixed-target=true" in arm_args
+        assert "--common.security.secrets.allow-config-values=false" in arm_args
+        assert "--common.security.secrets.jwt.keys.ACTIVE.value=" in arm_args
+    assert "--spring.elasticsearch.uris=http://127.0.0.1:19311" in args[0]
+    assert "--spring.elasticsearch.uris=http://127.0.0.1:19312" in args[1]
+    assert "--es.query.knowledge.profiles.tax-policy-v1.expected-index-name=physical-index" in args[0]
+    assert "--es.query.knowledge.profiles.tax-policy-v1.expected-index-name=candidate-index" in args[1]
+
+
+def test_readiness_uses_b_only_group_and_still_requires_owned_pid(monkeypatch) -> None:
+    paths: list[str] = []
+    original_client = httpx.Client
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        return httpx.Response(200)
+
+    monkeypatch.setattr(runner.httpx, "Client", lambda **kwargs: original_client(
+        **kwargs, transport=httpx.MockTransport(respond)))
+    owned_ports: list[int] = []
+
+    def owner(port: int) -> int:
+        owned_ports.append(port)
+        return {19211: 11, 19212: 12}[port]
+
+    monkeypatch.setattr(runner, "_listener_owner", owner)
+    processes = [SimpleNamespace(pid=11, poll=lambda: None),
+                 SimpleNamespace(pid=12, poll=lambda: None)]
+    runner._ready(processes, (19211, 19212))
+    assert paths == ["/actuator/health/knowledge-validation"] * 2
+    assert owned_ports == [19211, 19212]
 
 
 def test_foreign_java_listener_is_rejected_before_jwt_search(monkeypatch) -> None:

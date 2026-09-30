@@ -31,7 +31,7 @@ import sys
 import tempfile
 import time
 import tomllib
-from typing import Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 from zipfile import ZipFile
 
 import httpx
@@ -54,6 +54,9 @@ from tests.evaluation.knowledge.rebuild_b_comparator import (
 from tests.evaluation.knowledge.rebuild_b_local_transport import (
     ArmIdentity, BIsolatedAliases, BLocalTransportError, PhysicalEsProxy,
 )
+
+if TYPE_CHECKING:
+    from knowledge_corpus_tools.b_candidate_freeze_v1 import GitState
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -83,6 +86,10 @@ _EXECUTION_SOURCES = (
 _PROFILE_IDS = {"tax.policy": "tax-policy-v1", "tax.law": "tax-law-v1"}
 _PROFILE_VERSION = "tax-knowledge-search-v1"
 _READ_POLICY_VERSION = "tax-public-authenticated-v1"
+_RUNTIME_CONFIG_FILES = (
+    "application.yml", "application-datasource.yml", "application-es.yml",
+)
+_RUNTIME_CONFIG_ROOT = "config-service/src/main/resources/config"
 
 
 class BLocalRunError(Exception):
@@ -144,6 +151,45 @@ def _git_bytes(*args: str) -> bytes:
     if result.returncode != 0:
         raise BLocalRunError("git_state_invalid")
     return result.stdout
+
+
+def _frozen_runtime_config_hashes(frozen_head: str) -> dict[str, str]:
+    if re.fullmatch(r"[0-9a-f]{40}", frozen_head) is None:
+        raise BLocalRunError("frozen_runtime_config_invalid")
+    hashes: dict[str, str] = {}
+    for name in _RUNTIME_CONFIG_FILES:
+        try:
+            raw = _git_bytes("show", f"{frozen_head}:{_RUNTIME_CONFIG_ROOT}/{name}")
+        except BLocalRunError:
+            raise BLocalRunError("frozen_runtime_config_invalid") from None
+        if not raw or len(raw) > 2 * 1024 * 1024:
+            raise BLocalRunError("frozen_runtime_config_invalid")
+        hashes[name] = sha256(raw).hexdigest()
+    return hashes
+
+
+def _frozen_runtime_config_dir(jar: Path, frozen_head: str) -> tuple[Path, dict[str, str]]:
+    resolved = jar.resolve()
+    if (resolved.name != "es-query-service-0.0.1-SNAPSHOT.jar"
+            or resolved.parent.name != "target"
+            or resolved.parent.parent.name != "es-query-service"):
+        raise BLocalRunError("frozen_runtime_config_invalid")
+    build_root = resolved.parents[2]
+    config_dir = (build_root / _RUNTIME_CONFIG_ROOT).resolve()
+    if not config_dir.is_relative_to(build_root):
+        raise BLocalRunError("frozen_runtime_config_invalid")
+    hashes = _frozen_runtime_config_hashes(frozen_head)
+    for name, expected in hashes.items():
+        path = (config_dir / name).resolve()
+        if not path.is_relative_to(config_dir):
+            raise BLocalRunError("frozen_runtime_config_invalid")
+        try:
+            raw = _read(path)
+        except BLocalRunError:
+            raise BLocalRunError("frozen_runtime_config_invalid") from None
+        if sha256(raw).hexdigest() != expected:
+            raise BLocalRunError("frozen_runtime_config_invalid")
+    return config_dir, hashes
 
 
 def _require_locked_python_environment(mode: str) -> None:
@@ -307,7 +353,7 @@ class _PreparationTransport(httpx.HTTPTransport):
 def prepare_local_b_inputs(directory: Path, *, client: httpx.Client,
                            observed_calls: Callable[[], int],
                            preparer: Callable[..., Any] | None = None,
-                           git_state_factory: Callable[[str], object] | None = None
+                           git_state_factory: Callable[[str], GitState] | None = None
                            ) -> dict[str, object]:
     """One scoped source preflight; no builder, BGE or model call occurs here."""
     # The corpus package has its own project venv, so the local launcher uses
@@ -316,10 +362,10 @@ def prepare_local_b_inputs(directory: Path, *, client: httpx.Client,
         corpus_src = str(ROOT / "knowledge-corpus-tools/src")
         if corpus_src not in sys.path:
             sys.path.insert(0, corpus_src)
-        from knowledge_corpus_tools.b_assessment_prepare_v1 import (  # type: ignore[import-not-found]
+        from knowledge_corpus_tools.b_assessment_prepare_v1 import (
             prepare_b_intent_v1,
         )
-        from knowledge_corpus_tools.b_candidate_freeze_v1 import GitState  # type: ignore[import-not-found]
+        from knowledge_corpus_tools.b_candidate_freeze_v1 import GitState
         preparer = prepare_b_intent_v1
         git_state_factory = lambda head: GitState(branch="codex_0915", head=head,
                                                   tracked_clean=True)
@@ -466,6 +512,7 @@ def frozen_java_artifact(directory: Path, inputs: FrozenInputs) -> Iterator[tupl
         maven = shutil.which("mvn")
         if not pom.is_file() or maven is None or not Path(maven).is_file():
             raise BLocalRunError("archive_invalid")
+        _, runtime_config_hashes = _frozen_runtime_config_dir(jar, inputs.frozen_head)
         command = [maven, "--offline", "--batch-mode", "-f", str(pom),
                    "-pl", ":es-query-service", "-am", "-DskipTests", "package"]
         safe_env = {key: os.environ[key] for key in (
@@ -490,6 +537,7 @@ def frozen_java_artifact(directory: Path, inputs: FrozenInputs) -> Iterator[tupl
                         "-DskipTests", "package"],
             "artifactSha256": jar_sha, "artifactBytes": jar.stat().st_size,
             "buildExitCode": 0, "workingTreeTrackedClean": True,
+            "runtimeConfigSha256": runtime_config_hashes,
         })
         yield jar, jar_sha
 
@@ -507,12 +555,18 @@ def _jwt(secret: bytes) -> str:
         sha256).digest()).rstrip(b"=")).decode("ascii")
 
 
-def _java_args(*, jar: Path, port: int, proxy_port: int, identity: ArmIdentity,
-               run_id: str, policy_snapshot: str, law_snapshot: str) -> list[str]:
+def _java_args(*, jar: Path, config_dir: Path, port: int, proxy_port: int,
+               identity: ArmIdentity, run_id: str, policy_snapshot: str,
+               law_snapshot: str) -> list[str]:
+    config_location = (config_dir.as_uri().rstrip("/") + "/" if config_dir.is_absolute()
+                       else "file:" + config_dir.as_posix().rstrip("/") + "/")
     return ["java", "-jar", str(jar), f"--server.port={port}", "--server.address=127.0.0.1",
         "--spring.profiles.active=datasource,es,knowledge-live,knowledge-b-isolation",
         "--spring.cloud.config.enabled=false", "--spring.cloud.discovery.enabled=false",
         "--eureka.client.enabled=false",
+        f"--spring.config.additional-location={config_location}",
+        "--management.endpoint.health.probes.enabled=true",
+        "--management.endpoint.health.group.knowledge-validation.include=readinessState",
         f"--spring.elasticsearch.uris=http://127.0.0.1:{proxy_port}",
         "--common.security.secrets.source-order[0]=environment",
         "--common.security.secrets.allow-config-values=false",
@@ -547,16 +601,18 @@ def _expected_profile_config_sha256(frozen_head: str, domain: str) -> str:
     raw_config = _git_bytes("show", f"{frozen_head}:es-query-service/src/main/resources/application-knowledge-live.yml")
     if not raw_config:
         raise BLocalRunError("profile_config_drift")
+    runtime_config_hashes = _frozen_runtime_config_hashes(frozen_head)
     sentinel = ArmIdentity("baseline", "frozen-index", "frozen-uuid", "0" * 64,
                            "frozen-mapping", "b-frozen-run-" + "a" * 16 + "-read")
-    template = _java_args(jar=Path("frozen-es-query-service.jar"), port=19211,
-                          proxy_port=19311, identity=sentinel, run_id="frozen-run",
-                          policy_snapshot="frozen-policy-snapshot",
-                          law_snapshot="frozen-law-snapshot")
+    template = _java_args(jar=Path("frozen-es-query-service.jar"),
+        config_dir=Path("frozen-config"), port=19211, proxy_port=19311,
+        identity=sentinel, run_id="frozen-run",
+        policy_snapshot="frozen-policy-snapshot", law_snapshot="frozen-law-snapshot")
     return sha256(_canonical({
         "schemaVersion": 1, "profileId": _PROFILE_IDS[domain],
         "profileVersion": _PROFILE_VERSION, "readPolicyVersion": _READ_POLICY_VERSION,
         "applicationKnowledgeLiveSha256": sha256(raw_config).hexdigest(),
+        "runtimeConfigSha256": runtime_config_hashes,
         "javaLaunchTemplate": template,
         "javaEnvironmentKeys": ["AGENT_KNOWLEDGE_READ_ALIAS",
             "AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME", "AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID",
@@ -604,7 +660,7 @@ def _ready(processes: list[subprocess.Popen[bytes]], ports: tuple[int, int]) -> 
                 if process.poll() is not None:
                     raise BLocalRunError("java_exited")
                 try:
-                    response = client.get(f"http://127.0.0.1:{port}/actuator/health")
+                    response = client.get(f"http://127.0.0.1:{port}/actuator/health/knowledge-validation")
                     if response.status_code == 200 and _listener_owner(port) == process.pid:
                         break
                 except httpx.HTTPError:
@@ -685,8 +741,9 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
     """Consume exactly one B window; all results are IDs/hashes/counts only."""
     attestation = _object(_read(directory / "comparison-java-attestation.json"))
     if (set(attestation) != {"schemaVersion", "runId", "frozenHead", "archiveSha256",
-                            "mavenExecutableSha256", "command", "artifactSha256",
-                            "artifactBytes", "buildExitCode", "workingTreeTrackedClean"}
+                             "mavenExecutableSha256", "command", "artifactSha256",
+                             "artifactBytes", "buildExitCode", "workingTreeTrackedClean",
+                             "runtimeConfigSha256"}
             or attestation["schemaVersion"] != 1
             or attestation["runId"] != inputs.run_id
             or attestation["frozenHead"] != inputs.frozen_head
@@ -704,6 +761,9 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
             or attestation["artifactBytes"] != jar.stat().st_size
             or type(jar_sha256) is not str or _HASH.fullmatch(jar_sha256) is None
             or _hash_file(jar.resolve()) != jar_sha256 or shutil.which("java") is None):
+        raise BLocalRunError("java_artifact_invalid")
+    config_dir, runtime_config_hashes = _frozen_runtime_config_dir(jar, inputs.frozen_head)
+    if attestation["runtimeConfigSha256"] != runtime_config_hashes:
         raise BLocalRunError("java_artifact_invalid")
     _port_guard((*ports, *proxy_ports))
     spec = inputs.spec
@@ -768,7 +828,8 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
                     "AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID": dict(profiles[arm])["tax.policy"],
                     "AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID": dict(profiles[arm])["tax.law"],
                 })
-                process = subprocess.Popen(_java_args(jar=jar, port=port, proxy_port=proxy_port,
+                process = subprocess.Popen(_java_args(jar=jar, config_dir=config_dir,
+                    port=port, proxy_port=proxy_port,
                     identity=identity, run_id=inputs.run_id,
                     policy_snapshot=dict(profiles[arm])["tax.policy"],
                     law_snapshot=dict(profiles[arm])["tax.law"]),
