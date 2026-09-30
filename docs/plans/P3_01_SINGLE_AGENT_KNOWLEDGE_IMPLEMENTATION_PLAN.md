@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.13 |
-| 文档状态 | Reviewed（B候选已只读构建，但比较无有效测量；MEASURE真实批次与发布未完成） |
+| 当前版本 | v3.14 |
+| 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
 | 实施授权 | Ready 不等于实施授权。当前独立目标已授权EVIDENCE、REPRESENT、COMPOSE、最多两项有限资料对照与新候选、一次有界真实测量及满足条件后的发布；每项仍须满足设计评审、冻结输入、预算、人工评价及自身完成条件。在线父单元补取与超范围操作未获授权 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选已构建为只读未发布索引，一次比较已消费但首次typed前失败、无有效测量；MEASURE仅有未冻结的构建准备，尚无manifest、authorization或模型调用。人工评价、发布及新版完整UAT未完成 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布，已消费的比较无有效测量；MEASURE已冻结一次12题批次，但在ledger初始化前以`failed_unconsumed / invalid_run`终止，12题未执行、模型及typed检索等执行调用均0（不含启动前只读ES元数据前检）。人工评价、发布及新版完整UAT未完成 |
 
 ## 2. 修改历史
 
@@ -42,6 +42,7 @@
 | 20 | 2026-09-29 | §1/3/14 | B冻结工具与Summary9合成三模式接线 | v3.11记录源绑定与比较器的synthetic-only验证及18个Spring合成case；不把fake指标当真实B，也不把合成claim当人工回答质量。COMPARE/MEASURE继续In Progress，RELEASE仍Blocked |
 | 21 | 2026-09-30 | §1/3/5/9/11/14 | 一次性B/MEASURE工具和本轮回归已提交 | v3.12仅同步提交`631cc47c`及§14.18的fake、类型、UI、Java和正式隔离回归；不改工作包依赖、门禁、阈值或真实UAT结论 |
 | 22 | 2026-09-30 | §1/3/5/9/12/14.19 | B候选与失败终态、MEASURE未冻结准备同步 | v3.13记录提交`c9b8642e`的append-only B证据：候选只读未发布、比较消费而无有效测量；MEASURE仅有build-only准备。COMPARE/MEASURE仍In Progress，RELEASE仍Blocked，A仍Not assessed；不改§14.1～14.18的历史发生状态 |
+| 23 | 2026-09-30 | §1/3/5/9/12/14.20 | MEASURE首次冻结批次失败终态同步 | v3.14仅记录`knowledge-rebuild-measure-20260930-02`冻结后在ledger初始化前失败、0模型及typed检索等执行调用（不含启动前只读ES元数据前检），随后最小修复只有non-live证明；不复用该run，不改§14.1～14.19的历史发生状态、门禁或阈值 |
 
 ## 3. 来源清单与当前基线
 
@@ -51,11 +52,11 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.8 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B两阶段冻结与隔离查询设计已复评；构建/比较器fake不能代替真实索引及运行归属证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.13 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | B候选已只读构建但比较无有效测量；EV006真人语义、完整typed全链、人工效果与发布Not assessed |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.14 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | B比较与MEASURE首次冻结批次均无有效效果测量；EV006真人语义、完整typed全链、人工效果与发布Not assessed |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
-原计划建立时的起始代码提交为`8ae32c50a567850c67b4d1e726304934ab07162c`；本次独立目标起点为`2e27086150360bda87ef09e319a2569a2246c07b`，当时仓库生产root绑定11/7/quality-v3，默认Knowledge disabled。当前仓库已成对接线intent12/Summary9/minimal-v1并保持disabled缺省；原12/8组件及COMPOSE的non-live证明按§14.6～14.7记录，Summary9定向证据见§14.16～14.17，工具与回归见§14.18，本次B有限终态和MEASURE准备边界见§14.19，单域当前root真实typed只读接线的有限预检见§14.8。COMPOSE Done只指仓库组合根、Spring fake与安全回归；Spring→Runtime Summary9合成三模式及失败链已验证，实际部署和效果仍待后续验证。仓库配置不是实际部署证明；真实测量仍须完成冻结、人工gold和停止条件。历史审计与运行状态见[迁移清单](历史文档/2026-09-14-knowledge-plan-handoff/README.md)，不复制到新计划作为新验证结果。
+原计划建立时的起始代码提交为`8ae32c50a567850c67b4d1e726304934ab07162c`；本次独立目标起点为`2e27086150360bda87ef09e319a2569a2246c07b`，当时仓库生产root绑定11/7/quality-v3，默认Knowledge disabled。当前仓库已成对接线intent12/Summary9/minimal-v1并保持disabled缺省；原12/8组件及COMPOSE的non-live证明按§14.6～14.7记录，Summary9定向证据见§14.16～14.17，工具与回归见§14.18，B有限终态及首次MEASURE准备边界见§14.19，本次MEASURE失败终态见§14.20，单域当前root真实typed只读接线的有限预检见§14.8。COMPOSE Done只指仓库组合根、Spring fake与安全回归；Spring→Runtime Summary9合成三模式及失败链已验证，实际部署和效果仍待后续验证。仓库配置不是实际部署证明；首次正式冻结不构成有效测量，后续必须另行决定是否准备新目标和新批次，不复用失败run。历史审计与运行状态见[迁移清单](历史文档/2026-09-14-knowledge-plan-handoff/README.md)，不复制到新计划作为新验证结果。
 
 ## 4. 计划原则与范围
 
@@ -78,7 +79,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-RETRIEVAL-01 | RETRIEVAL | L2_01_00 §8 DR-KFLOW-203；L2_01_01 §9 DR-KRET-201～204 | 原Q双路、域内融合/重排与有界配置 | WP-KREBUILD-CONTRACT-01 | - | planning/semantic_planner/ranking/config最小策略 | TEST/VAL-KRET-201～203，数量/顺序/Q一致、部分/全失败、同域拒绝；无网络fake | 本地fake；独立strategy，旧prod不变；无索引写入 | Done |
 | WP-KREBUILD-EVIDENCE-01 | EVIDENCE | L2_01_02 §9 DR-KEV-201～205 | minimal Evidence和Summary8 | WP-KREBUILD-CONTRACT-01 | - | mode input、evidence selector、serializer、summary_task_v8.py/decoder | TEST/VAL-KEV-201～203；完整性先验证、预算、deny0、引用/未知coverage拒绝；模型fake | 直接代码和fake证据见§14.6；旧Prompt/serializer不改 | Done |
 | WP-KREBUILD-COMPOSE-01 | COMPOSE | L2_01_00 §8 DR-KFLOW-204/205；L2_01_02 §9 | 唯一root迁移与历史隔离 | WP-KREBUILD-RETRIEVAL-01、WP-KREBUILD-EVIDENCE-01 | - | bootstrap/capability/任务目录；37风险新版映射及non-live验证 | current-root、Spring E2E、37风险逐case追踪、Business35关键防退、Java安全/类型/non-live、正式代码评审；实质回答充分性由MEASURE承担；Blocker/Major0 | 仓库接线及non-live范围完成，36项fake/non-live直接证据；§14.8另有单域当前root真实typed只读预检，EV006真人语义评价、Spring全链和部署均不属于本包Done | Done |
-| WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205/206；UAT_02 §5 | 固定12题及一次独立测量；Summary9最小回答接缝已完成 | WP-KREBUILD-COMPOSE-01 | - | Summary9独立任务/严格解码/原文及claim校验/唯一root及验证台同屏引用展示，继而新版本问题/来源/预算绑定、有限结果及真人评价 | REQ→L0/L1→L2设计复评及Summary9定向non-live已通过；仍须最终运行快照/预算冻结、一次有界真实批次及真人评价；按预置判据分类，技术失败停止 | `In Progress`仅表示回答接缝和工具的仓库实施及机械验证已完成；§14.19的build-only准备没有manifest、authorization或outbound，首个真实调用仍受完整冻结约束。旧Summary8及Done包历史范围不改写，无自动候选循环，结果append-only | In Progress |
+| WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205/206；UAT_02 §5 | 固定12题及一次独立测量；Summary9最小回答接缝已完成 | WP-KREBUILD-COMPOSE-01 | - | Summary9独立任务/严格解码/原文及claim校验/唯一root及验证台同屏引用展示，继而新版本问题/来源/预算绑定、有限结果及真人评价 | REQ→L0/L1→L2设计复评及Summary9定向non-live已通过；§14.20首次正式冻结批次在ledger前失败，仍无12题执行及真人评价；按预置判据分类，技术失败停止 | `In Progress`仅表示回答接缝与工具已实施，失败后的目录前检修复只有non-live证明。原run虽仍显示`authorized_unconsumed`，已停止且不得复用、续跑或改判；旧Summary8及Done包历史范围不改写 | In Progress |
 | WP-KORG-DESIGN-01 | DESIGN | L1_01 §4.6；L2_01_01 §18；L2_01_00/02 §19 | 已批准资料组织设计；本轮仅补结构单元与补取边界，不重判原完成证据 | - | - | 设计来源、样本边界及资料方案 | 原设计的内审/复核/文档及Git证明维持原范围；v3.2补充须单独评审和本地提交，不冒称新代码或推送 | 只文档；不动服务/模型/索引 | Done |
 | WP-KORG-NORMALIZE-01 | NORMALIZE | L2_01_01 §18 DR-KRET-301～303；L2_01_02 §19 DR-KEV-301；L2_01_00 §19 DR-KFLOW-301/302 | 标准化、不可变源版本及结构可信状态记录；不把现有DOCX乱序产物标verified | WP-KORG-DESIGN-01 | - | normalization_v2.py/来源位置Schema/fixture | TEST-KRET-301、hash/span及不可靠顺序反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 本包代码与有限来源核对见§14.3/14.4；未批量生成真实v2 sidecar或迁现索引 | Done |
 | WP-KORG-CHUNK-01 | CHUNK | L2_01_01 §18 DR-KRET-303/304 | 最小修复受影响DOCX解析顺序，建立结构单元身份、同版本父子关系与连续chunk span | WP-KORG-NORMALIZE-01 | - | parser顺序接缝/chunking_v2.py及段表交错、短长条、表格/否定/例外fixture | TEST-KRET-302；完整单元可按源span恢复且hash一致，跨版本/悬空/乱序失败关闭，不静默遗漏 | 本包离线代码、fixture和复评见§14.5；旧chunker不覆盖，真实资料重切/发布待后续包 | Done |
@@ -137,7 +138,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | 3 | WP-KREBUILD-RETRIEVAL-01 | Done | 无；提交及验证见§14.2 | 新策略独立验证，生产接线待COMPOSE |
 | 4 | WP-KREBUILD-EVIDENCE-01 | Done | 无；直接fake及代码复核见§14.6 | Summary8/Evidence组件完成，不预记完整UAT |
 | 5 | WP-KREBUILD-COMPOSE-01 | Done | §14.7：Spring逐案typed、拒绝/并发及有限证据复评；§14.8：单域当前root真实typed只读预检 | 仅non-live实现包关闭；附加预检不代表Spring全链、部署、37/37 UAT或效果通过 |
-| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；草案与阈值已确认，Summary9仓库实施/non-live已完成，完整运行组合冻结和预算预检未完成 | build-only构建证明不构成manifest或authorization；首个真实模型调用仍禁止，12题批次与人工评价均未启动 |
+| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；§14.20正式冻结批次已因结果父目录缺失在ledger前停止，后续最小修复仅non-live通过 | 该run不可复用；0模型/typed检索等执行调用、12题未执行（不含启动前只读ES元数据前检），人工评价未开始。不得由修复通过推断真实测量完成或自动重启批次 |
 | 7 | WP-KORG-DESIGN-01 | Done | 无技术前置阻塞；后续操作须独立授权 | 来源设计已完成，非新实现 |
 | 8 | WP-KORG-NORMALIZE-01 | Done | 无；有限来源核验见§14.4 | 离线版本/来源/结构可信合同完成；不声称全库v2转换或父单元读取 |
 | 9 | WP-KORG-CHUNK-01 | Done | 无；代码及复评见§14.5 | v2离线切片合同完成；真实资料重切和候选发布仍未执行 |
@@ -187,7 +188,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-RETRIEVAL-01 | DR-KFLOW-203；DR-KRET-201～204 | IMPL-KFLOW-202；IMPL-KRET-201～203 | TEST-KFLOW-202；TEST-KRET-201～203 | VAL-KFLOW-202；VAL-KRET-201～203 | Done |
 | WP-KREBUILD-EVIDENCE-01 | DR-KEV-201～205 | IMPL-KEV-201～203 | TEST-KEV-201～203 | VAL-KEV-201～203 | Done；仅组件fake/non-live |
 | WP-KREBUILD-COMPOSE-01 | DR-KFLOW-204/205；DR-KEV-204 | IMPL-KFLOW-202/203；IMPL-KEV-203 | TEST-KFLOW-202/203；TEST-KEV-203；原37风险新版映射 | VAL-KFLOW-202/203；VAL-KEV-202/203；UAT_02 §3 | Done；36项fake/non-live直接证据，EV006语义充分性按§12交MEASURE |
-| WP-KREBUILD-MEASURE-01 | DR-KEV-205/206；DR-KRET-204 | IMPL-KEV-203；IMPL-KRET-203 | UAT-KM-001～012 | VAL-KEV-203；VAL-KRET-203；UAT_02 §5 | In Progress：Summary9仓库接线及三模式Spring合成non-live已完成；单域当前root真实typed只读接线仅有有限预检，真实模型+typed的Spring全链、完整运行组合冻结、预算预检、真实批次与人工语义评价未完成，禁止首次模型调用直至冻结通过 |
+| WP-KREBUILD-MEASURE-01 | DR-KEV-205/206；DR-KRET-204 | IMPL-KEV-203；IMPL-KRET-203 | UAT-KM-001～012 | VAL-KEV-203；VAL-KRET-203；UAT_02 §5 | In Progress：Summary9仓库接线及三模式Spring合成non-live已完成；一次正式冻结及launcher前检后在ledger初始化前失败，12题未执行，Spring真实全链与人工语义评价仍未完成；该run不复用，后续修复只经non-live验证 |
 | WP-KORG-DESIGN-01 | 设计输入；REQ-KCORPUS-001～006 | 已批准三L2资料章节，不新增代码 | 原资料设计复核 | 原有限审计与文档验证 | Done |
 | WP-KORG-NORMALIZE-01 | DR-KRET-301/302及303的来源版本前提；DR-KEV-301；DR-KFLOW-301/302 | IMPL-KRET-301；IMPL-KEV-301；IMPL-KFLOW-301/302 | TEST-KRET-301；TEST-KEV-301；TEST-KFLOW-301/302 | VAL-KRET-301；VAL-KEV-301；VAL-KFLOW-301/302的离线/来源部分；UAT-KORG-001～004/009仅来源身份、附件关系与fake授权部分 | Done；仅本包离线/有限来源部分 |
 | WP-KORG-CHUNK-01 | DR-KRET-303/304；DR-KEV-302/303 | IMPL-KRET-302；IMPL-KEV-302 | TEST-KRET-302；TEST-KEV-302 | VAL-KRET-302；VAL-KEV-302的结构/span部分；UAT-KORG-004的unit父子关系、005/006/008 | Done；仅本包fixture/结构部分 |
@@ -217,7 +218,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.19。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B已生成一个只读未发布候选，但首次比较没有typed调用及有效质量结果；MEASURE仅有未冻结的build-only准备，题目/来源草案与阈值不等于运行组合、预算和人工回答评价已经冻结。12题真实测量和发布均未执行，不能宣称新UAT完成。
+当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.20。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B只读候选未发布、首次比较无有效质量结果；MEASURE首次正式冻结后在ledger初始化前失败，虽完成部分launcher准入，但模型/typed检索等执行调用为0、12题全未执行（不含启动前只读ES元数据前检），未形成可独立复核的运行快照。后续最小修复仅有non-live证据；人工评价及发布未执行，不能宣称新UAT完成。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
@@ -379,3 +380,17 @@ Spring→Runtime新增lookup以外的explanation、applicability合成场景后�
 同目录`comparison-result.json`记录本次成对比较已消费，终态`not_assessed / local_execution_or_identity_failed`：typed search、query embedding、online rerank均为0，预登记10题全部未执行；比较元数据ES请求12次、本次临时alias写入4次，`ownedProcessesStopped=true`、`aliasesRemoved=true`、`proxyViolations=0`。A仍为`Not assessed`；B无盲标、排名或质量指标，本run不得补跑、续跑或改判。静态诊断发现隔离Java启动禁用Config Server却未加载必需配置目录，是待修的启动配置缺口；有限终态未保存精确异常，不能断言它就是本次失败的唯一或直接原因。COMPARE保持`In Progress`，依赖有效比较的RELEASE保持`Blocked`，候选不切线上alias。
 
 [MEASURE本次build-only准备](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-01/README.md)仅保存当时clean HEAD的五个Maven构建及JAR hash；快照生成与服务启动的时序问题使其不作为真实测量冻结。该目录没有manifest、authorization、consumed或模型结果，外部LLM调用为0，不得把build-attestation当成已授权或已执行批次。后续最小时序修复已完成独立复评，20项直接fake测试通过且原120秒快照年龄校验未放宽。隔离launcher仅为Knowledge验证定义`readinessState`与`elasticsearch`健康group，不关闭全局数据库/ES健康；该定向检查不证明整服务或数据库健康，也不是真实启动通过证据。仍须在新的clean HEAD上重新准备和核验正式冻结，MEASURE保持`In Progress`。本节只同步新发生事实，不修改§14.1～14.18当时的结论、历史资产或UAT阈值。
+
+### 14.20 MEASURE失败终态及B/MEASURE的non-live修复（2026-09-30）
+
+[本次有限失败记录](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-02/README.md)绑定run `knowledge-rebuild-measure-20260930-02`、clean HEAD `d54ee293ec6517571f8a37fc616b1a7fceef19a3`及manifest SHA-256 `c10068ca11041917aaa4817f52b884caf90e0a01338872ec6b75bcf2e1f05450`。`manifest.json`、`authorization.json`、`build-attestation.json`三份冻结资产原字节保留；授权状态仍为`authorized_unconsumed`，但失败run不复用、不补跑或续跑。launcher报告三项自有隔离Spring服务完成目标健康、端口归属、登录和完整b2快照前检后才读取进程级模型密钥；这些前检没有持久化可独立复核的运行快照，不能升级为完整真实集成通过证据。
+
+runner进入`run_once`时，`OneShotLedger.__init__`因`agent-runtime/tests/uat/results`父目录不存在且`mkdir(parents=False)`抛出`FileNotFoundError`，发生在Runtime创建、任何case、reserve或consume之前。[执行者有限失败记录](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-02/executor-failure.json)依据实际traceback及冻结源码控制流记`failed_unconsumed / invalid_run`，并记录12题全部未执行、模型/typed search/query embedding/online rerank/Business/retry/resume均0；该记录不是runner自动journal。无consumed或journal文件；自有服务停止、目标端口释放，临时日志与快照已清理。人工rubric、Functional/Safety完整验收、召回和回答均`Not assessed`，不将0调用或部分启动前检当作有效效果测量。
+
+故障后仅在non-live范围修正严格共享结果父目录的prepare、缺目录静态拒绝和PowerShell pre-ledger有限失败fallback；run子目录仍须独占。定向测试23 passed、corpus环境与配置下3个helper的strict mypy、compileall、PowerShell AST 0 error及`git diff --check`通过；独立范围复评未发现新Blocker/Major。该结论不等于整体代码评审、真实启动复测或新版UAT通过。B原比较仍`Not assessed`、A仍未评价，B候选只读未发布，线上alias未切换；COMPARE/MEASURE保持`In Progress`，RELEASE保持`Blocked`。本节只记新发生事实，不回写§14.1～14.19、历史资产或既有阈值。
+
+MEASURE目录前检修复本地提交为`da6f098771a4fa2c50e59b54bf1590e5d0a727a0`，五项有限冻结及失败资产提交为`f250ffcd76ef29e27800e63830089e248617e8c7`。本轮另复核manifest中13项冻结Git blob和5项本地JAR SHA-256，以及manifest/authorization/build三者绑定，均一致；27项历史与当前追踪测试通过。上述完整性核查不补造已清理的运行快照、调用journal或人评。
+
+B启动配置的后续修复本地提交`a7c610e6b518d6b50f5c36fe87d3ad40efff15c4`只在non-live验证：从同一冻结archive加载`application.yml`、`application-datasource.yml`、`application-es.yml`，在构建证明和Profile fingerprint绑定三者hash，缺失或漂移在alias操作前拒绝。B专用就绪group仅含`readinessState`；保留各臂既有六次Profile元数据校验、PID、物理路径、代理权限及冻结预算，不借用MEASURE允许的ES健康请求，也不关闭全局DB/ES健康。B runner/transport/comparator定向fake共81 passed，runner以corpus项目配置执行显式`mypy --strict`成功，两个改动文件compileall及差异检查通过；独立源码复评未发现本修复范围的新Blocker/Major/Minor。没有新的服务启动、ES/BGE/模型调用；不将修复通过当作旧B重跑授权、真实启动通过或质量改善。
+
+本轮状态同步经两轮独立定向文档复评：首轮发现一项Minor，即概要中的“0检索/下游调用”可能误读为启动前ES请求也为0；修正为模型、typed检索等执行调用，并排除启动前只读元数据前检，复评关闭。未发现新Blocker/Major。P3严格校验0 error/0 warning、三份当前文档58个本地链接均可解析；8份状态文档及本次失败资产的JWT/密钥模式扫描0命中。以上均为文档与有限资产检查，不替代真实验收。

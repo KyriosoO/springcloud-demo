@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.13 |
-| 文档状态 | Reviewed（B候选已构建但比较无有效测量；MEASURE及新版UAT未完成） |
+| 当前版本 | v3.14 |
+| 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；新版UAT未完成） |
 | 日期 | 2026-09-30 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.8定向复评通过；组件及离线实施进度以P3_01为准，不等于新版UAT已执行 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.13；只负责包、直接依赖及操作准入 |
-| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据；B候选已只读构建，但一次比较在首次typed前失败，10题均未执行、无有效效果结论。MEASURE仅有未冻结构建准备，没有manifest、authorization或模型调用。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价；整体Functional/Safety、召回、回答及发布均未宣布通过 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.14；只负责包、直接依赖及操作准入 |
+| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据；B候选只读未发布，成对比较无有效测量。MEASURE首次冻结12题批次在ledger初始化前`failed_unconsumed / invalid_run`，12题未执行、模型和typed检索等执行调用0（不含启动前只读ES元数据前检），人工未评价；后续故障修复仅有non-live证明。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价；整体Functional/Safety、召回、回答及发布均未宣布通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
 勘误（2026-09-15）：v3.0内澄清§6.3资料缺口与安全/执行失败的停止范围，沿用§6.1及来源L2的未知状态规则；不修改用例、阈值、预算或验收状态。
@@ -47,6 +47,8 @@ v3.11补记B源绑定/比较输入工具的fake与静态验证及Spring→Runtim
 v3.12只同步P3_01 §14.18的一次性B/MEASURE工具本地提交及本轮fake、类型、UI、Java和正式隔离回归。维护者已确认B独占运行窗口要求，但没有实际B窗口、候选构建、盲标、真实模型测量或发布证据；37项风险分类、12题、质量阈值与停止条件不变。
 
 v3.13仅同步P3_01 §14.19及提交`c9b8642e`的B有限终态：候选构建完成、只读未发布；已消费的成对比较`not_assessed`、typed/embedding/rerank均0，10题未执行。A仍`Not assessed`；MEASURE没有正式冻结或模型调用。本次不改37项风险身份、12题、盲标/质量阈值、停止与发布条件，也不把构建成功改判为召回通过。
+
+v3.14仅同步P3_01 §14.20：正式MEASURE run `knowledge-rebuild-measure-20260930-02`已冻结，但在ledger初始化前失败，`failed_unconsumed / invalid_run`，12题均未执行、模型和typed检索调用均为0；执行者有限失败记录不是journal，授权虽仍显示`authorized_unconsumed`也不复用。本轮没有新的功能、召回、回答或人工评价通过结论；后续最小修复仅经non-live验证，不改题目、阈值、预算或历史结果。
 
 ## 2. 范围与结果纪律
 
@@ -122,7 +124,7 @@ v3.13仅同步P3_01 §14.19及提交`c9b8642e`的B有限终态：候选构建完
 
 ### 5.1 证明范围与版本隔离
 
-当前仓库的唯一Knowledge生产组合根已接入意图12、Summary9及knowledge-minimal-v1；§3所列原12/8证据与本轮12/9机械non-live各自只证明列明断言，不能拼接成新版37/37 UAT。实际部署的代码、Profile、索引和策略绑定仍须另行核实，不能据此宣称已发布或真实效果达标。历史37功能用例、P5、阶段A、阶段B和人工run-07均只证明自己的冻结范围；P5最近有效partially_effective不代表当前12/9效果达标，run-07失败亦不覆盖更早有效测量。不得把不同批次的通过题相加为新版全套通过。
+当前仓库的唯一Knowledge生产组合根已接入意图12、Summary9及knowledge-minimal-v1；§3所列原12/8证据与本轮12/9机械non-live各自只证明列明断言，不能拼接成新版37/37 UAT。首次正式MEASURE批次在任何case或模型调用前失败，有限启动前检不证明真实效果或完整Spring→Runtime集成。实际部署的代码、Profile、索引和策略绑定仍须另行核实，不能据此宣称已发布或真实效果达标。历史37功能用例、P5、阶段A、阶段B和人工run-07均只证明自己的冻结范围；P5最近有效partially_effective不代表当前12/9效果达标，run-07失败亦不覆盖更早有效测量。不得把不同批次的通过题相加为新版全套通过。
 
 v3.0计划创建时的基线为Functional/Safety Not evaluated、Retrieval/Answer evidence missing；v3.4当时把37案中的31项登记为fake/non-live阶段验证，6项partial/evidence missing；v3.5补证后分别为36项与1项，Functional/Safety整体仍不能判Passed。隔离typed单域只读预检不构成真实召回质量或回答效果测量，这两项、人工评价及发布仍Not assessed。后续实际运行沿用既有Passed/Failed及四类Effectiveness结论，新增维度留在当前验收记录，不改历史result Schema。v3.0创建时未创建JSON追踪或候选、读取凭据或执行测试服务/LLM；当前目标的有限执行须遵循§2、§5.4、§6.1的冻结及停止条件，工作包状态由P3_01 §5治理。
 
@@ -172,7 +174,7 @@ Summary9定向non-live已验证公开`summaryType`语义与验证台呈现：`ci
 
 ### 5.4 固定变量、预算与停止条件
 
-COMPOSE原限定non-live与Summary9定向non-live已完成，不能据此跳过新版完整UAT。当前独立目标已授予一次有界真实批次；执行前仍须冻结代码/意图12及Summary9任务与Prompt hash、模型实际版本、minimal配置、Profile与索引/ACL快照、12题gold/顺序、调用预算和人工rubric。Summary9设计修订、正式复评与对应机械non-live已完成；首个真实模型请求仍须等待完整运行冻结和预算预检。lookup保持旧摘录语义；解释/适用性的有界claim、逐点引用对应、非法claim/ref/quote零公开输出及既有拒绝时Summary0已有定向fake证据。claim是否真正被原文直接支持必须由维护者按12题人工rubric核对，结构成功不得自动计回答通过。仓库绑定不等于运行绑定，必须先只读核实；运行中快照不符立即终止，不自行改alias或数据。
+COMPOSE原限定non-live与Summary9定向non-live已完成，不能据此跳过新版完整UAT。本轮一次有界真实批次已按代码、任务/Prompt、模型、配置、Profile/索引/ACL、12题、预算和rubric冻结；run `knowledge-rebuild-measure-20260930-02`在ledger初始化前失败，模型请求为0，冻结本身不等于有效测量。该run停止且不得复用或续跑；后续最小目录前检修复只有non-live验证，不构成自动新增真实批次授权。lookup保持旧摘录语义；解释/适用性的有界claim、逐点引用对应、非法claim/ref/quote零公开输出及既有拒绝时Summary0已有定向fake证据。claim是否真正被原文直接支持必须由维护者按12题人工rubric核对，结构成功不得自动计回答通过。仓库绑定不等于运行绑定，必须先只读核实；运行中快照不符立即终止，不自行改alias或数据。
 
 建议首期仅一次12题端到端测量，上限12 E2E、36模型HTTP（selector/意图/Summary合计）、48 typed search、12 query embedding、24 online rerank；维持每请求≤3/4/1/2，startup预热独立事前列明、不得计入效果请求，不能凭空增加预算。无Business/旧answer、无自动retry/resume，无失败后追加或补题。实际terminal较早时只消耗已产生调用，不为凑预算补齐。
 
@@ -260,6 +262,6 @@ B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索�
 
 在线由P3_01的CONTRACT/RETRIEVAL/EVIDENCE→COMPOSE→MEASURE推进；资料由NORMALIZE→CHUNK/REPRESENT→COMPARE→RELEASE推进。前置不足只阻塞对应阶段，真实测量不是基础实现反向依赖；资料对照不依赖在线MEASURE，需自行冻结相容在线基线。
 
-后续逐case报告：版本与设计、风险、预期、实际测试/有限证据、执行状态、通过或失败原因、未验证范围；旧证据引用不能替代新执行。当前37项风险中36项已有fake/non-live阶段证据，EV006仍为partial/evidence missing，完整功能与安全UAT尚未完成；12个UAT-KM内容题未启动真实批次，12个UAT-KORG资料用例未形成完整通过证据。B/MEASURE工具的non-live证明见P3_01 §14.18，B候选与无效比较、MEASURE未冻结准备见§14.19；本次没有新的召回、回答或完整UAT通过结论。
+后续逐case报告：版本与设计、风险、预期、实际测试/有限证据、执行状态、通过或失败原因、未验证范围；旧证据引用不能替代新执行。当前37项风险中36项已有fake/non-live阶段证据，EV006仍为partial/evidence missing，完整功能与安全UAT尚未完成；12个UAT-KM内容题虽有一次正式冻结批次但全部未执行，12个UAT-KORG资料用例未形成完整通过证据。B/MEASURE工具的non-live证明见P3_01 §14.18，B候选与无效比较见§14.19，MEASURE失败终态与后续non-live修复见§14.20；本次没有新的召回、回答或完整UAT通过结论。
 
 v3.0迁移时的文档评审与验证见[迁移说明](历史文档/2026-09-14-knowledge-plan-handoff/README.md)；该轮只做权威承接，不修改算法、数据或阈值，且当时所有验收执行状态为Not executed。当前目标的阶段性功能/安全证据按§3记录，不反向改写迁移时结论。
