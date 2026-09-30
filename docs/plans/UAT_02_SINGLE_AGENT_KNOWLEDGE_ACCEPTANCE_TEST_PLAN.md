@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.16 |
+| 当前版本 | v3.17 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；新版UAT未完成） |
 | 日期 | 2026-09-30 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
@@ -12,7 +12,7 @@
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.16；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.17；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据；B候选只读未发布，成对比较无有效测量。MEASURE首次冻结12题批次在ledger初始化前`failed_unconsumed / invalid_run`，12题未执行、模型和typed检索等执行调用0（不含启动前只读ES元数据前检），人工未评价；后续故障修复仅有non-live证明。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价；整体Functional/Safety、召回、回答及发布均未宣布通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -53,6 +53,8 @@ v3.14仅同步P3_01 §14.20：正式MEASURE run `knowledge-rebuild-measure-20260
 v3.15记录维护者对新独立验证批次的授权：先执行不读取模型密钥、无推理/typed查询的真实启动预检；通过后建立新run与冻结绑定，执行既定B和12题测量。旧run与历史结果仍保持终态，A仍Not assessed。复用已建只读B候选，不创建新索引或重算语料向量；既有gold、题目、质量阈值和正式调用上限不变。启动预检、两臂新指纹扫描及正式比较/测量计数分别记录，预检成功不等于UAT或质量通过。具体内部接缝见L2_01_01 §18.4.2，执行证据追加至P3_01，不改历史终态。
 
 v3.16仅承接维护者精确确认的新MEASURE只读元数据72次：每题前后完整身份检查共48次HTTP，另有Profile启动6次和健康最多18次；实际attempt在发送前计数，失败也占用预算。独立启动预检48、freeze binding2及全记录前/后快照各67分别记账；模型36、typed48、embedding12、rerank24、12题/gold/rubric/质量阈值均不变。旧冻结manifest及终态不改，新工具和定向设计复评不预记任何UAT通过。
+
+v3.17仅同步P3_01 §14.23的新工具复评及B独立无推理启动：真实启动终态ready、ES元数据30及临时alias写4，执行模型/typed/BGE/JWT请求均0，自有进程及alias清理完成。该预检未执行比较或验收题，不能继承为Functional/Safety、召回、回答或发布Passed；MEASURE启动及新正式冻结仍待执行。
 
 ## 2. 范围与结果纪律
 

@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.16 |
+| 当前版本 | v3.17 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -45,6 +45,7 @@
 | 23 | 2026-09-30 | §1/3/5/9/12/14.20 | MEASURE首次冻结批次失败终态同步 | v3.14仅记录`knowledge-rebuild-measure-20260930-02`冻结后在ledger初始化前失败、0模型及typed检索等执行调用（不含启动前只读ES元数据前检），随后最小修复只有non-live证明；不复用该run，不改§14.1～14.19的历史发生状态、门禁或阈值 |
 | 24 | 2026-09-30 | §1/3/14.21 | 新独立验证授权及启动准入补齐 | v3.15先补独立无LLM启动预检和已建候选跨run绑定；保留旧失败run终态、题目、预算、gold及阈值，不新增Gate或候选索引 |
 | 25 | 2026-09-30 | §1/3/14.22 | 正式元数据HTTP与检查次数混淆 | v3.16据源码纠正新MEASURE元数据上限为维护者批准的72；保留每次双GET安全核查和实际attempt计数，其余正式预算与历史资产不变 |
+| 26 | 2026-09-30 | §3/14.23 | 新工具复评及B无推理启动预检完成 | v3.17记录有限真实启动证据，不预记B对照、MEASURE、人工评价或发布通过 |
 
 ## 3. 来源清单与当前基线
 
@@ -54,7 +55,7 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.10 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 启动预检与既有候选承接保持；新MEASURE元数据72次的计数纠正已定向复评；设计及fake不能代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.16 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新批次先预检再冻结；旧B比较与MEASURE均无有效测量，人工效果及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.17 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | B无推理启动通过不代替比较；旧B比较与MEASURE均无有效测量，人工效果及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -408,3 +409,11 @@ B启动配置的后续修复本地提交`a7c610e6b518d6b50f5c36fe87d3ad40efff15c
 工具源码复核发现`_alias_check`每次实际发送alias与index definition两个GET，12题前后共24次检查对应48次HTTP；§14.21采用的“case 24 + Profile 6 + health 18 = 48”分账错误。主执行者承认并暂停受影响正式预算改动，维护者随后明确授权新批次元数据上限72（case 48 + Profile 6 + health最多18）。L2_01_01 v3.10 §18.4.2据此修正；启动预检独立48、正式freeze binding2及前/后完整快照各67的边界保持。必须在发送前计实际attempt并以硬上限拒绝超额，不删除安全核查、假造计数或回写旧run。模型36、typed search48、query embedding12、rerank24不增加；此文档纠正及工具准备不证明真实预检、测量或发布通过。
 
 作者内审后，由同一任务内未参与起草的执行单元读取L2本节、P3、UAT_02及架构索引完成定向复评，S0=0、S1=0、未处理S2=0。后续代码复核须直接核查双GET经受控代理逐attempt计数，不把`aliasChecks`检查次数与HTTP次数相加冒充实测。
+
+### 14.23 新工具复评与B无推理启动（2026-09-30）
+
+本地提交`4b540e5b48bdc39e7ef1d571880cfde31d366675`仅修改私有验证工具及直接测试：B新run绑定旧构建Git来源、独立扫描attempt/terminal和完整记录身份；模型快照前后核验不执行推理；MEASURE受控ES代理在发送前按实际HTTP计数，启动only不读模型密钥，启动前后核验代码、构建及配置hash。两组工具分别由未参与相应修改的执行单元定向复评；B入口复制目录绕过Major已修复，最终Blocker/Major及未处理Minor均0。复评只覆盖工具源码与fake，不证明生产效果。
+
+本轮直接验证：B五文件fake初轮138 passed，目录修复后local runner 42 passed，复评定向2 passed；模型身份fake 7 passed。MEASURE harness 32 passed；8个私有Python源文件strict mypy成功，目录修复后runner strict复查成功；两份PowerShell AST 0 error、compileall和差异检查通过。这些有重叠的定向结果不相加为测试总数。额外探索性地对旧B测试整文件执行strict曾失败（88项，主要为原有未标注fixture），不在当前配置的源码检查范围；未删除断言或扩展无关测试重写，正式私有源码strict与实际pytest均通过。
+
+[B独立无推理启动预检](../../knowledge-corpus-tools/evidence/knowledge-b-startup-20260930-01/README.md)绑定上述clean HEAD，终态`ready`：元数据ES HTTP 30/30、临时alias写4/4、两臂就绪请求5/1；模型、typed/physical search、embedding、rerank、JWT HTTP、retry/resume均0。两个自有Java进程停止、四个目标端口无监听、临时alias移除，生产alias未切换。没有读取模型密钥；旧run和历史资产不变。此证据只证明冻结配置下的两臂服务启动及清理，B成对对照、MEASURE启动及12题、人评和发布仍未完成。工作包状态不变。
