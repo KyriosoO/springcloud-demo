@@ -1,6 +1,6 @@
 # 架构文档索引
 
-本页是Agent统一文档版本序列的当前入口（索引v3.15；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
+本页是Agent统一文档版本序列的当前入口（索引v3.16；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
 
 ## 1. 编号与状态规则
 
@@ -40,7 +40,7 @@
 | 编号 | 文档 | 版本/状态 |
 |---|---|---|
 | `L2_01_00` | [Knowledge 流程与配置](design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | v3.6 / Approved |
-| `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v3.9 / Approved |
+| `L2_01_01` | [Knowledge 检索、本地模型与阶段 A 语料生命周期](design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | v3.10 / Approved |
 | `L2_01_02` | [Knowledge 证据、出域、摘要与效果验证](design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | v3.6 / Approved |
 
 ### 4.3 Business（受 `L1_02` 治理）
@@ -64,8 +64,8 @@
 
 | 定位 | 唯一入口 | 版本/状态 | 边界 |
 |---|---|---|---|
-| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.15 / Reviewed | 在线重建、资料组织两主线；新独立验证先预检再冻结，旧失败run不复用，条件发布未完成 |
-| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.15 / Reviewed | 功能、安全、召回、回答及资料验证；预检或候选构建不能替代效果、完整新版UAT或人工评价 |
+| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.16 / Reviewed | 在线重建、资料组织两主线；新独立验证先预检再冻结，旧失败run不复用，条件发布未完成 |
+| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.16 / Reviewed | 功能、安全、召回、回答及资料验证；预检或候选构建不能替代效果、完整新版UAT或人工评价 |
 | Business维护验收基线 | [UAT_00](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v3.1 / Reviewed | 原固定用例及Employee扩展证明范围保留；不重做UAT |
 | 历史计划与迁移映射 | [本次归档](plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md) | 原版本/状态不变 | 原ROADMAP_01、P3_00、UAT_01退出当前推进；UAT_00保留整理前快照 |
 

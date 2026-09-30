@@ -6,14 +6,14 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.15 |
+| 当前版本 | v3.16 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。当前独立目标已授权EVIDENCE、REPRESENT、COMPOSE、有限资料对照与满足条件后的发布；旧B/MEASURE失败run不复用。维护者现另行授权新的独立验证批次：先无LLM真实启动预检，通过后新冻B比较及12题测量，复用既有只读候选，预算/题目/gold/阈值不变；不得续跑旧run、重建候选或扩大付费预算。每项仍须满足冻结输入、人工评价及自身完成条件。在线父单元补取与超范围操作未获授权 |
+| 实施授权 | Ready 不等于实施授权。当前独立目标已授权EVIDENCE、REPRESENT、COMPOSE、有限资料对照与满足条件后的发布；旧B/MEASURE失败run不复用。维护者现另行授权新的独立验证批次：先无LLM真实启动预检，通过后新冻B比较及12题测量，复用既有只读候选；并精确批准新MEASURE只读元数据72次（§14.22），其余预算/题目/gold/阈值不变。不得续跑旧run、重建候选或扩大付费预算。每项仍须满足冻结输入、人工评价及自身完成条件。在线父单元补取与超范围操作未获授权 |
 | 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布，已消费的比较无有效测量；MEASURE已冻结一次12题批次，但在ledger初始化前以`failed_unconsumed / invalid_run`终止，12题未执行、模型及typed检索等执行调用均0（不含启动前只读ES元数据前检）。人工评价、发布及新版完整UAT未完成 |
 
 ## 2. 修改历史
@@ -44,6 +44,7 @@
 | 22 | 2026-09-30 | §1/3/5/9/12/14.19 | B候选与失败终态、MEASURE未冻结准备同步 | v3.13记录提交`c9b8642e`的append-only B证据：候选只读未发布、比较消费而无有效测量；MEASURE仅有build-only准备。COMPARE/MEASURE仍In Progress，RELEASE仍Blocked，A仍Not assessed；不改§14.1～14.18的历史发生状态 |
 | 23 | 2026-09-30 | §1/3/5/9/12/14.20 | MEASURE首次冻结批次失败终态同步 | v3.14仅记录`knowledge-rebuild-measure-20260930-02`冻结后在ledger初始化前失败、0模型及typed检索等执行调用（不含启动前只读ES元数据前检），随后最小修复只有non-live证明；不复用该run，不改§14.1～14.19的历史发生状态、门禁或阈值 |
 | 24 | 2026-09-30 | §1/3/14.21 | 新独立验证授权及启动准入补齐 | v3.15先补独立无LLM启动预检和已建候选跨run绑定；保留旧失败run终态、题目、预算、gold及阈值，不新增Gate或候选索引 |
+| 25 | 2026-09-30 | §1/3/14.22 | 正式元数据HTTP与检查次数混淆 | v3.16据源码纠正新MEASURE元数据上限为维护者批准的72；保留每次双GET安全核查和实际attempt计数，其余正式预算与历史资产不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -51,9 +52,9 @@
 |---|---|---|---|---|---|---|
 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | 目标架构 | L1 | v3.6 / Approved | §4.5/4.6最小链路与资料组织、目标有限回答 | 是 | Summary9定向设计已复评，不证明真实效果 |
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
-| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.9 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 独立启动预检与既有只读候选承接已定向复评；设计及fake不能代替真实索引、运行归属或质量证据 |
+| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.10 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 启动预检与既有候选承接保持；新MEASURE元数据72次的计数纠正已定向复评；设计及fake不能代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.15 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新批次先预检再冻结；旧B比较与MEASURE均无有效测量，人工效果及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.16 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新批次先预检再冻结；旧B比较与MEASURE均无有效测量，人工效果及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -401,3 +402,9 @@ B启动配置的后续修复本地提交`a7c610e6b518d6b50f5c36fe87d3ad40efff15c
 维护者明确恢复目标并授权新的独立验证批次：先不读取模型密钥进行真实启动预检，通过后重新冻结B比较与12题MEASURE，正式题目、gold、阈值及调用上限沿用已确认版本。起始HEAD为`037b41335675d17d6b857c8b5f7dbfb9b5f3534f`，分支`codex_0915`且工作树干净。原B和MEASURE失败run不复用，其冻结资产、终态和证明局限保持不变。
 
 当前工具缺少启动only模式以及跨run绑定既有只读候选的入口。L2_01_01 v3.9 §18.4.2已定向补齐内部合同；作者内审和未参与起草执行单元复评先定位旧构建来源闭环S1、元数据分账S2，修正后本切片S0/S1/未处理S2为0。工具准备仍须完成直接fake、类型、AST及代码复评；本文不预记真实预检或新批次通过。不新增Gate、候选索引或公开合同；A仍Not assessed，COMPARE/MEASURE仍In Progress，RELEASE仍Blocked。
+
+### 14.22 新MEASURE元数据计数纠正（2026-09-30）
+
+工具源码复核发现`_alias_check`每次实际发送alias与index definition两个GET，12题前后共24次检查对应48次HTTP；§14.21采用的“case 24 + Profile 6 + health 18 = 48”分账错误。主执行者承认并暂停受影响正式预算改动，维护者随后明确授权新批次元数据上限72（case 48 + Profile 6 + health最多18）。L2_01_01 v3.10 §18.4.2据此修正；启动预检独立48、正式freeze binding2及前/后完整快照各67的边界保持。必须在发送前计实际attempt并以硬上限拒绝超额，不删除安全核查、假造计数或回写旧run。模型36、typed search48、query embedding12、rerank24不增加；此文档纠正及工具准备不证明真实预检、测量或发布通过。
+
+作者内审后，由同一任务内未参与起草的执行单元读取L2本节、P3、UAT_02及架构索引完成定向复评，S0=0、S1=0、未处理S2=0。后续代码复核须直接核查双GET经受控代理逐attempt计数，不把`aliasChecks`检查次数与HTTP次数相加冒充实测。

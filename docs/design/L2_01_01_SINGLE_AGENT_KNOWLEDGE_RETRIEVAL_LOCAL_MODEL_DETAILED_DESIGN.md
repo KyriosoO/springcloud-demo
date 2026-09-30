@@ -1,18 +1,18 @@
 # [L2_01_01] 单体 Agent Knowledge 检索与本地模型接入详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.9独立启动预检及既有只读候选承接定向复评通过；不改变在线检索合同）
+> 文档状态：Approved（v3.10仅纠正MEASURE只读元数据请求计数；不改变在线检索合同）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.9 |
+| 当前版本 | v3.10 |
 | 日期 | 2026-09-30 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.9仅补齐§18.4.2独立无LLM启动预检、既有只读候选的新批次来源闭环与元数据预算；定向内审及未参与起草执行单元复评S0/S1/未处理S2为0，不改变公开接口或在线检索语义 |
+| 本次变更 | v3.10纠正§18.4.2把24次身份检查误算为24次HTTP的错误；维护者已明确批准新MEASURE元数据上限72，保留双GET完整核查及实际计数守卫，模型/typed/推理预算与旧运行资产不变；同一任务内未参与起草的执行单元定向复评通过 |
 | 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；minimal检索、REPRESENT及候选工具已有组件/non-live证明，已建一个只读未发布B候选；旧成对比较及MEASURE失败终态不能证明质量。新预检/既有候选承接私有接缝待实施；正式对照、人工评价及发布状态由P3_01/UAT_02治理，不由设计Approved代替 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -768,19 +768,23 @@ B候选的CAS向量更新仍会重写ES底层文档；相同`_source.content`和
 
 #### 18.4.2 独立启动预检与既有候选承接（细化DR-KRET-307）
 
-旧B比较及MEASURE已有失败终态，不复用其run、授权或已消费目录。维护者本次另行授权新的独立验证批次，预算、题目、gold及阈值不变；先完成不读取模型密钥、不进行模型或BGE推理的真实启动预检，再冻结正式比较和测量。以下仅是内部验证工具合同，不新增公共接口、查询能力或生产服务。
+旧B比较及MEASURE已有失败终态，不复用其run、授权或已消费目录。维护者本次另行授权新的独立验证批次，题目、gold、阈值、B正式预算及MEASURE模型/typed/推理预算不变；随后明确批准仅将新MEASURE正式只读元数据上限纠正为72。先完成不读取模型密钥、不进行模型或BGE推理的真实启动预检，再冻结正式比较和测量。以下仅是内部验证工具合同，不新增公共接口、查询能力或生产服务。
 
 - **启动预检**：新目录、新run ID绑定当前干净`codex_0915` HEAD及实际JAR/配置hash；复用正式启动参数、端口归属、Profile核验与清理逻辑，不调用题目、ledger或比较器。B两臂最多30次ES元数据请求、4次本次随机隐藏alias添加/移除、每臂60次本地readiness检查；typed search、embedding、rerank、外部模型和JWT请求均为0。代理必须拒绝search，不能通过给正常比较的search额度来伪称零调用。预检允许的临时alias不是线上发布alias，清理只能移除仍能核实本次归属的对象。MEASURE预检使用clean HEAD构建证明和既有批准索引绑定，在临时目录派生启动输入，验证三Spring及Runtime生命周期；Runtime仅使用合成非空密钥且只请求健康端点，不读取真实密钥、运行case或形成正式authorization。ES全记录前检上限仍为67次，启动元数据、健康轮询和登录分别计数；不把这些隐藏为测量调用。预检失败保存有限阶段/原因、退出码、hash、实际计数及PID/alias清理状态，不保存原始服务输出、密钥、JWT、正文或向量。成功只能证明启动和绑定可用，不代表功能、质量或发布通过。
 - **既有只读候选的新批次绑定**：只复用已成功构建且保持write-block的候选，不重建、不写正文、不重算语料向量。旧构建binding/result/完整ID扫描作为不可变Git来源证明，保留原run、HEAD及字节；新run通过原路径、提交和SHA引用，而不是改写旧sidecar或伪造新builder result。新当前HEAD绑定新的运行配置、两域Profile、题目、计划和预算。执行前重新只读核验两臂UUID、mapping、write-block、全记录fingerprint、数量及ID/content hash一致性；每臂扫描上限为`1 + ceil(recordCount/250)`，现15521条对应64次。旧源证明与新扫描有任何不符即零typed/推理调用。新的内部准入分支必须同时验证旧构建来源与新扫描/配置绑定，不放宽旧v1准入或修改冻结资产；旧比较结果无论成功或失败均不作为新质量证明。
 - **正式执行**：预检有限证据和工具先完成验证与本地提交；之后建立新冻结，冻结后tracked文件不得变化。B仍只执行既定10题（44 typed search、10 query embedding、22 rerank、30元数据、4临时alias写上限，paid/retry/resume=0）；MEASURE仍只执行既定12题（36模型、48 typed search、12 embedding、24 rerank上限）。运行前身份或预算不满足时不进入case；运行中技术/安全/快照失败形成唯一有限终态并停止，不自动补跑、续跑或新增批次。独立预检及新扫描的计数单列，不算成旧run的续跑，也不冒充正式质量结果。
 
-MEASURE启动预检不要求重复全记录扫描，只核验启动身份；派生binding最多2次ES元数据、Profile启动最多6次、ES健康请求最多40次，独立启动元数据上限48，必须有实际计数/受限转发证明，不把无法观测的次数记为0。正式freeze的binding2次及服务就绪后的全记录快照67次分别执行，120秒鲜度不变。正式测量阶段48次元数据上限包含每case前后alias核查24次、Profile启动6次和至多18次ES健康请求；先等待自有端口再执行有限健康检查，不能以最多120轮未计数请求冒充48次预算。
+MEASURE启动预检不要求重复全记录扫描，只核验启动身份；派生binding最多2次ES元数据、Profile启动最多6次、ES健康请求最多40次，独立启动元数据上限48，必须有实际计数/受限转发证明，不把无法观测的次数记为0。正式freeze的binding2次及服务就绪后的全记录快照67次分别执行，120秒鲜度不变。
+
+正式MEASURE每case前后各执行一次完整身份检查，每次保留`/_alias/<readAlias>`与`/<expectedIndex>`两个GET，分别核验alias唯一目标/flags与索引UUID/mapping/write-block。12题对应24次检查、最多48次HTTP，而不是24次HTTP；加Profile启动6次及至多18次ES健康HTTP，新正式元数据总上限为72。每个实际HTTP attempt在发送前计数并受硬上限控制，包括失败请求；不以完成题数推算部分失败的实际次数。启动Java侧上限24与case侧上限48分账，合计不得超过72；先等待自有端口再执行有限健康检查，不以120轮未计数请求替代。此精确授权只适用于新冻结，不回写旧manifest的48字面量或旧终态，也不改变36模型、48 typed search、12 embedding、24 rerank的正式上限。
 
 既有候选来源闭环必须包含旧构建intent、scan-plan、binding、attempt、result、两臂scan result/full map和assessment-final；按旧提交、原路径及逐文件SHA验证其完整准入，不仅验证result摘要。旧builderRunId/oldHead与新comparisonRunId/newHead明确分开。新10题、必要来源、计划、阈值及fixture与维护者已确认版本逐项/规范hash相等，当前配置hash独立新冻。复用路径的构建ES/BGE/write预算均为0；两臂新扫描各64次与正式比较预算独立分账，旧builderBudget只作为历史事实，不能当作新写入授权。
 
 实施落点为现有B runner/transport、候选冻结工具及MEASURE prepare/launcher的私有接缝，避免复制一套在线链路。直接fake测试至少覆盖：预检禁止模型密钥读取及所有推理/search；新目录重用拒绝；配置/JAR漂移零启动；临时alias归属/清理；旧Git来源hash或原run漂移；新扫描UUID/fingerprint/ID不符零调用；正式批次不可续跑；有限失败证据及自有PID清理。对应验证为直接pytest、strict mypy、PowerShell AST和当前文档追踪；正式运行事实仍由P3_01/UAT_02记录。
 
 v3.9本切片完成作者内审和同一任务内未参与起草的执行单元定向复评；先发现旧构建来源链不完整描述的S1及预检/正式元数据预算分账S2并修正，复评结论仅覆盖本内部验证切片，不代表正式真实运行或UAT通过。
+
+v3.10计数纠正经同一任务内未参与起草的执行单元核对本节及P3/UAT/架构索引，S0=0、S1=0、未处理S2=0。工具仍须用实际HTTP attempt及失败负例证明预算守卫；该评审不证明真实启动、效果测量或发布通过。
 
 ### 18.5 实施追踪与剩余验证
 
