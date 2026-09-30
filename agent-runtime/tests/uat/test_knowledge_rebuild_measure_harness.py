@@ -285,7 +285,14 @@ def test_freeze_generator_and_static_preflight_reject_secret_environment(
         "tax.policy": dict(binding), "tax.law": dict(binding)}, {}))
     prepare.freeze(root=root, run_dir=run_dir, run_id=_RUN,
                    authorization_reference="UAT_02:MEASURE-TEST")
+    assert output_dir.parent.is_dir()
+    assert not output_dir.exists()
+    output_dir.parent.rmdir()
     env = dict(prepare._ENV)
+    with pytest.raises(runner.MeasurementError, match="result_parent_missing"):
+        runner.frozen_preflight(root=root, manifest_path=run_dir / "manifest.json",
+            authorization_path=run_dir / "authorization.json", output_dir=output_dir, environ=env)
+    prepare._prepare_result_parent(root)
     manifest, _, _ = runner.frozen_preflight(root=root,
         manifest_path=run_dir / "manifest.json", authorization_path=run_dir / "authorization.json",
         output_dir=output_dir, environ=env)
@@ -474,3 +481,40 @@ def test_launcher_limits_health_scope_without_disabling_knowledge_guards() -> No
     assert "Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation' $esProcess" in launcher
     assert "knowledge_rebuild_snapshot_preflight.py" in launcher
     assert "--spring.profiles.active=datasource,es,knowledge-live" in launcher
+
+
+def test_prepare_creates_only_shared_result_parent_and_retains_exclusive_run(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    asset_parent = root / "agent-runtime/tests/uat"
+    asset_parent.mkdir(parents=True)
+    prepare._prepare_result_parent(root)
+    result_parent = asset_parent / "results"
+    assert result_parent.is_dir()
+    assert list(result_parent.iterdir()) == []
+    prepare._prepare_result_parent(root)
+    output = result_parent / _RUN
+    manifest = {"runId": _RUN, "frozenHead": _HEAD, "authorizationReference": "UAT_02:MEASURE-TEST"}
+    runner.OneShotLedger(output_dir=output, manifest=manifest, manifest_sha256="b" * 64)
+    with pytest.raises(FileExistsError):
+        runner.OneShotLedger(output_dir=output, manifest=manifest, manifest_sha256="b" * 64)
+    assert not (output / "authorization.consumed.json").exists()
+
+
+def test_prepare_rejects_result_parent_file_without_overwriting_it(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    parent = root / "agent-runtime/tests/uat/results"
+    _write(parent, b"existing-user-file")
+    with pytest.raises(ValueError, match="result_parent_unavailable"):
+        prepare._prepare_result_parent(root)
+    assert parent.read_bytes() == b"existing-user-file"
+
+
+def test_launcher_preserves_preledger_failure_beside_validated_freeze() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    assert "$staticPreflightPassed = $false" in launcher
+    assert launcher.index("--phase static") < launcher.index("$staticPreflightPassed = $true")
+    assert "if ($staticPreflightPassed -and -not (Test-Path -LiteralPath $outputRoot))" in launcher
+    assert "Join-Path (Split-Path -Parent $manifestFull) 'launcher-failure.json'" in launcher
+    assert "evidenceLocation = 'frozen_asset_directory'" in launcher
+    assert "callCounts = $null" in launcher

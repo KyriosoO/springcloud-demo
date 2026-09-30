@@ -92,6 +92,19 @@ def _running_jar(root: Path) -> bool:
                for path in _JARS.values())
 
 
+def _prepare_result_parent(root: Path) -> None:
+    asset_parent = root / "agent-runtime/tests/uat"
+    result_parent = asset_parent / "results"
+    if asset_parent.resolve() != asset_parent or result_parent.resolve() != result_parent:
+        _fail("result_parent_invalid")
+    try:
+        result_parent.mkdir(parents=False, exist_ok=True)
+    except OSError:
+        _fail("result_parent_unavailable")
+    if not result_parent.is_dir() or result_parent.resolve() != result_parent:
+        _fail("result_parent_invalid")
+
+
 def build(*, root: Path, run_dir: Path) -> dict[str, Any]:
     root, run_dir = root.resolve(), run_dir.resolve()
     run_parent = root / "agent-runtime/tests/uat"
@@ -107,6 +120,7 @@ def build(*, root: Path, run_dir: Path) -> dict[str, Any]:
     head = _clean_head(root)
     if _running_jar(root):
         _fail("jar_in_use")
+    _prepare_result_parent(root)
     wrapper = root / "serviceCenter/mvnw.cmd"
     if not wrapper.is_file():
         _fail("maven_wrapper_missing")
@@ -195,6 +209,7 @@ def freeze(*, root: Path, run_dir: Path, run_id: str, authorization_reference: s
             or attestation.get("jarSha256") != {path: _sha(root / path) for path in _JARS.values()}
             or attestation.get("dependencyJarSha256") != {path: _sha(root / path) for path in _DEPENDENCY_JARS}):
         _fail("build_attestation_drift")
+    _prepare_result_parent(root)
     dataset_path = root / _DATASET
     dataset = _read_object(dataset_path)
     if len(dataset["cases"]) != 12 or len(dataset["sources"]) != 13:

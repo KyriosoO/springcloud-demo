@@ -117,6 +117,7 @@ $leakDetected = $false
 $runnerExit = $null
 $launcherFailure = $null
 $runRootCreated = $false
+$staticPreflightPassed = $false
 
 function Wait-Ready([string]$Uri, [Diagnostics.Process]$Process) {
     $port = ([uri]$Uri).Port
@@ -242,6 +243,7 @@ try {
     try {
         & $runtimePython -m tests.uat.knowledge_rebuild_measure_runner @runArgs --phase static
         if ($LASTEXITCODE -ne 0) { throw 'knowledge.measure.static_preflight_failed' }
+        $staticPreflightPassed = $true
     } finally { Pop-Location }
 
     Push-Location (Join-Path $repository 'knowledge-corpus-tools')
@@ -370,6 +372,15 @@ try {
 } catch {
     $launcherFailure = 'launcher_validation_or_runtime_failure'
     if ($leakDetected) { $launcherFailure = 'sensitive_output_detected' }
+    if ($staticPreflightPassed -and -not (Test-Path -LiteralPath $outputRoot)) {
+        # The ledger may fail before creating outputRoot. Preserve a finite
+        # terminal beside the already validated freeze, never alter its files.
+        Write-ExclusiveJson (Join-Path (Split-Path -Parent $manifestFull) 'launcher-failure.json') ([ordered]@{
+            schemaVersion = 1; runId = $runId; status = 'invalid_run'; reason = $launcherFailure
+            evidenceLocation = 'frozen_asset_directory'; authorizationConsumption = 'not_observed'
+            callCounts = $null
+        })
+    }
     if ((Test-Path -LiteralPath $outputRoot -PathType Container) -and
         -not (Test-Path -LiteralPath (Join-Path $outputRoot 'result.json')) -and
         -not (Test-Path -LiteralPath (Join-Path $outputRoot 'failure.json')) -and

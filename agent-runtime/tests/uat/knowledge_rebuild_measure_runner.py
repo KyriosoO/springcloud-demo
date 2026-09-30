@@ -195,6 +195,8 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
         _fail("run_path_invalid")
     if output_dir.exists():
         _fail("run_already_exists")
+    if not expected_output.parent.is_dir():
+        _fail("result_parent_missing")
     if (manifest["branch"] != "codex_0915" or type(manifest["frozenHead"]) is not str
             or not _HEAD.fullmatch(manifest["frozenHead"]) or manifest["model"] != ModelSettings.MODEL_NAME
             or manifest["taskVersions"] != {task.value: version for task, version in _TASKS.items()}
