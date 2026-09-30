@@ -1,6 +1,6 @@
 # 架构文档索引
 
-本页是Agent统一文档版本序列的当前入口（索引v3.11；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
+本页是Agent统一文档版本序列的当前入口（索引v3.12；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
 
 ## 1. 编号与状态规则
 
@@ -64,8 +64,8 @@
 
 | 定位 | 唯一入口 | 版本/状态 | 边界 |
 |---|---|---|---|
-| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.11 / Reviewed | 在线重建、资料组织两主线；Summary9仓库接线已完成，真实测量与条件发布仍未完成 |
-| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.11 / Reviewed | 功能、安全、召回、回答及资料验证；Summary9机械non-live不能替代新版完整UAT或人工效果评价 |
+| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.12 / Reviewed | 在线重建、资料组织两主线；B/MEASURE一次性工具及non-live已就绪，真实对照、测量与条件发布仍未完成 |
+| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.12 / Reviewed | 功能、安全、召回、回答及资料验证；工具fake与Summary9机械non-live不能替代新版完整UAT或人工效果评价 |
 | Business维护验收基线 | [UAT_00](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v3.1 / Reviewed | 原固定用例及Employee扩展证明范围保留；不重做UAT |
 | 历史计划与迁移映射 | [本次归档](plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md) | 原版本/状态不变 | 原ROADMAP_01、P3_00、UAT_01退出当前推进；UAT_00保留整理前快照 |
 
@@ -76,4 +76,4 @@
 
 ## 7. 当前基线状态
 
-Employee/Transaction及原Knowledge功能UAT保持原证明范围。当前仓库Knowledge默认关闭；唯一生产组合根已接线意图12/Summary9/minimal-v1，机械non-live及Spring→Runtime合成lookup、explanation、applicability与失败链通过，实际部署和真实回答质量未核实。单域当前root→隔离真实typed只读接线仅有有限预检。CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE及资料主线NORMALIZE、CHUNK、REPRESENT分别完成P3_01限定的组件、仓库non-live或离线范围；COMPARE和MEASURE在制，真实候选索引、发布、新版完整UAT及效果测量未完成，逐包状态以P3_01为准。本索引不证明运行部署或新版UAT通过，也不宣称效果改善；图谱仍为后续方向。已取消优化目标不恢复。文档评审、实施、部署及验收分别管理。
+Employee/Transaction及原Knowledge功能UAT保持原证明范围。当前仓库Knowledge默认关闭；唯一生产组合根已接线意图12/Summary9/minimal-v1，机械non-live及Spring→Runtime合成lookup、explanation、applicability与失败链通过，实际部署和真实回答质量未核实。单域当前root→隔离真实typed只读接线仅有有限预检。CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE及资料主线NORMALIZE、CHUNK、REPRESENT分别完成P3_01限定的组件、仓库non-live或离线范围；B/MEASURE一次性工具已有non-live验证，COMPARE和MEASURE仍在制，真实候选索引、发布、新版完整UAT及效果测量未完成，逐包状态以P3_01为准。本索引不证明运行部署或新版UAT通过，也不宣称效果改善；图谱仍为后续方向。已取消优化目标不恢复。文档评审、实施、部署及验收分别管理。

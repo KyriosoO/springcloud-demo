@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.11 |
-| 文档状态 | Reviewed（v3.10 B冻结设计复评结论保留；v3.11仅同步B工具和Summary9三模式合成证据；新版UAT未完成） |
-| 日期 | 2026-09-29 |
+| 当前版本 | v3.12 |
+| 文档状态 | Reviewed（B/MEASURE一次性工具non-live证据已同步；新版UAT未完成） |
+| 日期 | 2026-09-30 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.8定向复评通过；组件及离线实施进度以P3_01为准，不等于新版UAT已执行 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.11；只负责包、直接依赖及操作准入 |
-| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据；37项风险的现阶段机械证据不能代替新版37/37功能UAT或人工语义评价。整体Functional/Safety仍未宣布通过；Spring→Runtime当前Summary9合成lookup、explanation、applicability及失败链已通过，真实typed全链、12题人工/效果与发布均Not assessed |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.12；只负责包、直接依赖及操作准入 |
+| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据；B/MEASURE一次性工具也仅有fake/non-live证据。37项风险的现阶段机械证据不能代替新版37/37功能UAT或人工语义评价。整体Functional/Safety仍未宣布通过；真实B候选与成对typed对照、12题人工/效果及发布均Not assessed |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
 勘误（2026-09-15）：v3.0内澄清§6.3资料缺口与安全/执行失败的停止范围，沿用§6.1及来源L2的未知状态规则；不修改用例、阈值、预算或验收状态。
@@ -43,6 +43,8 @@ v3.9承接Summary9逐点有引用有限回应的目标：当前Summary8的摘录
 v3.10纠正B真实候选的Profile快照冻结顺序、两臂law快照及隔离物理查询边界：候选UUID产生前不得声明候选快照已冻结；两域共用候选物理索引时law快照hash也变化。定向独立复评S0/S1/S2均为0，但内部工具、Java接缝和真实B仍未完成，不改题、gold、指标或调用预算。本轮另如实同步Summary9仓库non-live，不把结构测试改判为真人回答质量。
 
 v3.11补记B源绑定/比较输入工具的fake与静态验证及Spring→Runtime Summary9三模式合成18案；synthetic比较结果固定为`Not assessed`，没有真实候选、盲标或真实模型回答评价。原37项风险的阶段分类、12题、阈值、预算和发布条件不变。
+
+v3.12只同步P3_01 §14.18的一次性B/MEASURE工具本地提交及本轮fake、类型、UI、Java和正式隔离回归。维护者已确认B独占运行窗口要求，但没有实际B窗口、候选构建、盲标、真实模型测量或发布证据；37项风险分类、12题、质量阈值与停止条件不变。
 
 ## 2. 范围与结果纪律
 
@@ -256,6 +258,6 @@ B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索�
 
 在线由P3_01的CONTRACT/RETRIEVAL/EVIDENCE→COMPOSE→MEASURE推进；资料由NORMALIZE→CHUNK/REPRESENT→COMPARE→RELEASE推进。前置不足只阻塞对应阶段，真实测量不是基础实现反向依赖；资料对照不依赖在线MEASURE，需自行冻结相容在线基线。
 
-后续逐case报告：版本与设计、风险、预期、实际测试/有限证据、执行状态、通过或失败原因、未验证范围；旧证据引用不能替代新执行。当前37项风险中36项已有fake/non-live阶段证据，EV006仍为partial/evidence missing，完整功能与安全UAT尚未完成；12个UAT-KM内容题和12个UAT-KORG资料用例仍待执行，精确内容题与gold仍由后续准备阶段冻结。本次没有新的UAT通过结论。
+后续逐case报告：版本与设计、风险、预期、实际测试/有限证据、执行状态、通过或失败原因、未验证范围；旧证据引用不能替代新执行。当前37项风险中36项已有fake/non-live阶段证据，EV006仍为partial/evidence missing，完整功能与安全UAT尚未完成；12个UAT-KM内容题和12个UAT-KORG资料用例仍待执行。B/MEASURE一次性工具的准备能力及本轮回归见P3_01 §14.18；已确认的问题/来源草案与阈值不等于实际运行组合、预算和人工评价已冻结。本次没有新的UAT通过结论。
 
 v3.0迁移时的文档评审与验证见[迁移说明](历史文档/2026-09-14-knowledge-plan-handoff/README.md)；该轮只做权威承接，不修改算法、数据或阈值，且当时所有验收执行状态为Not executed。当前目标的阶段性功能/安全证据按§3记录，不反向改写迁移时结论。
