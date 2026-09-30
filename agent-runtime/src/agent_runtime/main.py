@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import Callable
 from typing import Mapping
@@ -40,9 +41,11 @@ from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalo
 from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
 from agent_runtime.knowledge.retrieval.http import (
     HttpxKnowledgeTransport,
+    KnowledgeHttpTransport,
     build_knowledge_http_client,
 )
 from agent_runtime.knowledge.retrieval.provider import LocalKnowledgeRetrievalFactory
+from agent_runtime.knowledge.capability import MinimalRetrievalPort
 from agent_runtime.knowledge.retrieval.bge_rerank_context import ContextualBgeRerankAdapter
 from agent_runtime.knowledge.retrieval.settings import KnowledgeRetrievalSettings
 from agent_runtime.knowledge.minimal_plan import MinimalRetrievalSettings
@@ -50,6 +53,9 @@ from agent_runtime.knowledge.settings import KnowledgeSettings
 
 
 KnowledgeHttpClientFactory = Callable[[str], httpx.AsyncClient]
+KnowledgeRetrievalWrapper = Callable[[MinimalRetrievalPort], MinimalRetrievalPort]
+KnowledgeTransportWrapper = Callable[[str, KnowledgeHttpTransport], KnowledgeHttpTransport]
+ModelTransportWrapper = Callable[[StructuredModelTransport], StructuredModelTransport]
 
 
 class _DisabledSelector:
@@ -80,7 +86,10 @@ def build_runtime(
     environ: Mapping[str, str] | None = None,
     *,
     model_transport: StructuredModelTransport | None = None,
+    model_transport_wrapper: ModelTransportWrapper | None = None,
     knowledge_http_client_factory: KnowledgeHttpClientFactory = build_knowledge_http_client,
+    knowledge_retrieval_wrapper: KnowledgeRetrievalWrapper | None = None,
+    knowledge_transport_wrapper: KnowledgeTransportWrapper | None = None,
 ) -> AgentRuntimeInvoker | ModelContextBindingRuntimeInvoker:
     active = os.environ if environ is None else environ
     model_settings = ModelSettings.from_env(active)
@@ -117,6 +126,7 @@ def build_runtime(
     model = LocalModelCompositionRoot.build(
         settings=model_settings,
         transport=model_transport,
+        transport_wrapper=model_transport_wrapper,
         grounding_policies={},
         additional_definitions=(
             knowledge_tasks.as_tuple() if knowledge_tasks is not None else ()
@@ -142,24 +152,47 @@ def build_runtime(
             knowledge_http_client_factory(retrieval_settings.embedding_base_url),
             knowledge_http_client_factory(retrieval_settings.rerank_base_url),
         )
-        assert minimal_settings is not None
-        retrieval = LocalKnowledgeRetrievalFactory.build_minimal(
-            settings=retrieval_settings,
-            minimal_settings=minimal_settings,
-            search_transport=HttpxKnowledgeTransport(knowledge_clients[0]),
-            embedding_transport=HttpxKnowledgeTransport(knowledge_clients[1]),
-            rerank_transport=HttpxKnowledgeTransport(knowledge_clients[2]),
-        )
-        knowledge_providers = (
-            KnowledgeCompositionRoot.build_provider(
-                settings=knowledge_settings,
-                model=model,
-                tasks=knowledge_tasks,
-                retrieval=retrieval.stage,
+        try:
+            assert minimal_settings is not None
+            def transport(name: str, client: httpx.AsyncClient) -> KnowledgeHttpTransport:
+                value: KnowledgeHttpTransport = HttpxKnowledgeTransport(client)
+                if knowledge_transport_wrapper is not None:
+                    value = knowledge_transport_wrapper(name, value)
+                    if not callable(getattr(value, "send", None)):
+                        raise ValueError("knowledge.transport_wrapper_invalid")
+                return value
+            retrieval = LocalKnowledgeRetrievalFactory.build_minimal(
+                settings=retrieval_settings,
                 minimal_settings=minimal_settings,
-                policy_catalog=policy_catalog,
-            ),
-        )
+                search_transport=transport("search", knowledge_clients[0]),
+                embedding_transport=transport("embedding", knowledge_clients[1]),
+                rerank_transport=transport("rerank", knowledge_clients[2]),
+            )
+            retrieval_stage: MinimalRetrievalPort = retrieval.stage
+            if knowledge_retrieval_wrapper is not None:
+                retrieval_stage = knowledge_retrieval_wrapper(retrieval_stage)
+                if not callable(getattr(retrieval_stage, "execute", None)):
+                    raise ValueError("knowledge.retrieval_wrapper_invalid")
+            knowledge_providers = (
+                KnowledgeCompositionRoot.build_provider(
+                    settings=knowledge_settings,
+                    model=model,
+                    tasks=knowledge_tasks,
+                    retrieval=retrieval_stage,
+                    minimal_settings=minimal_settings,
+                    policy_catalog=policy_catalog,
+                ),
+            )
+        except Exception:
+            async def close_incomplete() -> None:
+                for client in knowledge_clients:
+                    await client.aclose()
+                await model.aclose()
+            try:
+                asyncio.get_running_loop().create_task(close_incomplete())
+            except RuntimeError:
+                asyncio.run(close_incomplete())
+            raise
     return BusinessQueryRuntimeCompositionRoot.build(
         model=model,
         employee_transport=employee_transport,

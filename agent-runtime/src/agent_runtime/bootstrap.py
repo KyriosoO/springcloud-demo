@@ -266,6 +266,7 @@ class LocalModelCompositionRoot:
         *,
         settings: ModelSettings,
         transport: StructuredModelTransport | None = None,
+        transport_wrapper: Callable[[StructuredModelTransport], StructuredModelTransport] | None = None,
         grounding_policies: Mapping[str, AnswerGroundingPolicy],
         max_question_chars: int = 4096,
         max_argument_bytes: int = 16384,
@@ -311,6 +312,20 @@ class LocalModelCompositionRoot:
             client = build_deepseek_http_client(settings)
             active_transport = DeepSeekChatTransport(settings=settings, client=client)
             close = client.aclose
+        if transport_wrapper is not None:
+            try:
+                active_transport = transport_wrapper(active_transport)
+                if not callable(getattr(active_transport, "complete", None)):
+                    raise ValueError("model.transport_wrapper_invalid")
+            except Exception:
+                if close is not None:
+                    async def close_failed() -> None:
+                        await close()
+                    try:
+                        asyncio.get_running_loop().create_task(close_failed())
+                    except RuntimeError:
+                        asyncio.run(close_failed())
+                raise
         gateway = BoundedStructuredModelGateway(
             transport=active_transport,
             definitions=definitions,

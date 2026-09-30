@@ -17,8 +17,9 @@ from agent_runtime.knowledge.minimal_plan import MinimalKnowledgePlanBuilder, Mi
 from agent_runtime.knowledge.retrieval.contracts import PathResultKind, PathRetrievalResult, RerankScore
 from tests.evaluation.knowledge.rebuild_b_comparator import (
     ArmEndpoint, CandidateRef, ComparisonCase, ComparisonRunError, ComparisonSpec, FrozenIdMapping,
-    SourceCorpusBinding,
-    blind_label_pool, plan_fingerprint, plan_payload, run_comparison, score_comparison,
+    LocalRuntimeAdmission, LocalRuntimeReceipt, SourceCorpusBinding,
+    admit_completed_local_run, blind_label_pool, plan_fingerprint, plan_payload,
+    run_comparison, score_comparison,
 )
 from tests.helpers import ManualCancellationSignal, scope
 from tests.retrieval_helpers import candidate
@@ -27,7 +28,7 @@ from tests.unit.knowledge.test_minimal_retrieval_plan import make_plan
 
 CASE_IDS = ("UAT-KM-001", "UAT-KM-002", "UAT-KM-003", "UAT-KM-005", "UAT-KM-006",
             "UAT-KM-007", "UAT-KM-008", "UAT-KM-009", "UAT-KM-011", "UAT-KM-012")
-COMMITTED_UAT_FIXTURE_SHA256 = "e673988d0898f04eaff5f108ba3b08d7edd5abb85b15f05777ca2bf9301d7630"
+COMMITTED_UAT_FIXTURE_SHA256 = "04a437d215ab242ea5e69eed95d109f47cf617135778f4d2cf5a13f6cddce26a"
 CANDIDATE_INPUT_KEYS = (
     "source_index", "source_uuid", "source_mapping_sha256", "source_fingerprint",
     "source_count", "read_alias", "online_index", "online_uuid",
@@ -691,6 +692,39 @@ async def test_fake_score_cannot_be_relabeled_as_real_evidence():
                          labels=labels)
 
 
+async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
+    frozen = spec()
+    result, *_ = await execute()
+    admission = LocalRuntimeAdmission("local-run", "a" * 40, (
+        ("baseline", frozen.source_corpus.index_name, frozen.source_corpus.index_uuid,
+         "b-local-run-" + "a" * 16 + "-read", "1" * 64, 101),
+        ("candidate", frozen.candidate_corpus.index_name, frozen.candidate_corpus.index_uuid,
+         "b-local-run-" + "b" * 16 + "-read", "2" * 64, 102),
+    ), "3" * 64)
+    receipt = LocalRuntimeReceipt("local-run", (
+        ("baseline", tuple("/full-baseline/_search" for _ in range(22))),
+        ("candidate", tuple("/full-candidate/_search" for _ in range(22))),
+    ), (("baseline", "1" * 64), ("candidate", "2" * 64)),
+        4, 20, True, True, 0,
+        (("baseline", tuple("a" * 64 for _ in range(22))),
+         ("candidate", tuple("a" * 64 for _ in range(22)))))
+    with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
+        admit_completed_local_run(spec=frozen, run=result, admission=admission, receipt=receipt)
+    assert admit_completed_local_run(spec=frozen,
+        run=replace(result, evidence_kind="local_pending_postflight"), admission=admission,
+        receipt=receipt).evidence_kind == "local_verified"
+    with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
+        admit_completed_local_run(spec=frozen,
+            run=replace(result, evidence_kind="local_pending_postflight"), admission=admission,
+            receipt=replace(receipt, owned_processes_stopped=False))
+    with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
+        admit_completed_local_run(spec=frozen,
+            run=replace(result, evidence_kind="local_pending_postflight"), admission=admission,
+            receipt=replace(receipt, arm_search_request_sha256=(
+                receipt.arm_search_request_sha256[0],
+                ("candidate", ("b" * 64, *tuple("a" * 64 for _ in range(21)))))))
+
+
 async def test_local_builder_without_isolated_runtime_provenance_stops_at_preflight():
     frozen = spec()
     baseline = endpoint(FakeSearch("baseline"), arm="baseline")
@@ -846,6 +880,31 @@ async def test_invalid_embedding_zero_typed_and_no_rerank():
         await execute(invalid_vector=True)
     assert caught.value.calls.query_embedding == 1
     assert caught.value.calls.typed_search == caught.value.calls.online_rerank == 0
+
+
+async def test_cancel_after_completed_case_preserves_attempted_calls_and_unexecuted_cases():
+    class CancellingEmbedding(FakeEmbedding):
+        async def embed(self, *, text, timeout_s):
+            if len(self.calls) == 1:
+                self.calls.append(text)
+                raise asyncio.CancelledError()
+            return await super().embed(text=text, timeout_s=timeout_s)
+
+    frozen = spec()
+    baseline = endpoint(FakeSearch("baseline"), arm="baseline")
+    candidate_arm = endpoint(FakeSearch("candidate"), arm="candidate")
+    with pytest.raises(ComparisonRunError) as caught:
+        await run_comparison(spec=frozen, baseline=baseline, candidate=candidate_arm,
+            embedding=CancellingEmbedding(), rerank=FakeRerank(), context_for=context_for,
+            provenance_sidecars=provenance_sidecars(frozen, baseline, candidate_arm),
+            clock=TickClock())
+    error = caught.value
+    assert error.reason == "comparison_cancelled"
+    assert error.calls.query_embedding == 2
+    assert error.calls.typed_search == 4
+    assert error.calls.online_rerank == 2
+    assert tuple(item.case_id for item in error.completed) == (CASE_IDS[0],)
+    assert error.unexecuted_case_ids == CASE_IDS[1:]
 
 
 def test_spec_rejects_duplicate_or_over_budget_before_any_port_is_called():

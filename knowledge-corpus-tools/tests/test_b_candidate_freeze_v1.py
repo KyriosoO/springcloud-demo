@@ -708,4 +708,6 @@ def test_comparator_accepts_real_freeze_and_two_fake_scan_sidecars(
         "sourceScanResult": "source-mapping-scan-result.json",
         "candidateScanResult": "candidate-mapping-scan-result.json",
     }.items()}
-    assert len(_verify_provenance(frozen, baseline, candidate, sidecars)) == 64
+    digest, execution_kind = _verify_provenance(frozen, baseline, candidate, sidecars)
+    assert len(digest) == 64
+    assert execution_kind == "fake"

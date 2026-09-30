@@ -1,4 +1,4 @@
-"""Synthetic-only, injected-port B comparison; never opens a service connection.
+"""Bounded, injected-port B comparison; this module never opens a service connection.
 
 The runner uses the current MinimalKnowledgeRetrievalStage for both arms.  Its
 cached embedding port returns one already validated query vector to both arms;
@@ -7,6 +7,8 @@ All returned records contain identities and hashes, never corpus text or vectors
 """
 from __future__ import annotations
 
+import asyncio
+from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 import hashlib
@@ -647,6 +649,54 @@ class ComparisonRun:
     evidence_kind: str
 
 
+@dataclass(frozen=True, slots=True)
+class LocalRuntimeAdmission:
+    """Pre-call ownership proof supplied by the isolated, bounded B launcher."""
+
+    run_id: str
+    frozen_head: str
+    arm_bindings: tuple[tuple[str, str, str, str, str, int], ...]
+    # arm, physical index, UUID, isolated alias, full preflight metadata SHA, owned PID
+    java_artifact_sha256: str
+
+    def validate(self, spec: ComparisonSpec, *, frozen_head: str) -> None:
+        expected = (spec.source_corpus, spec.candidate_corpus)
+        if (type(self.run_id) is not str or re.fullmatch(r"[a-z0-9][a-z0-9-]{4,95}", self.run_id) is None
+                or type(self.frozen_head) is not str or self.frozen_head != frozen_head
+                or re.fullmatch(r"[0-9a-f]{40}", self.frozen_head) is None
+                or type(self.java_artifact_sha256) is not str
+                or _SHA.fullmatch(self.java_artifact_sha256) is None
+                or type(self.arm_bindings) is not tuple or len(self.arm_bindings) != 2):
+            raise _invalid()
+        for arm, entry, corpus in zip(_ARMS, self.arm_bindings, expected, strict=True):
+            if (type(entry) is not tuple or len(entry) != 6
+                    or entry[0] != arm or entry[1] != corpus.index_name
+                    or entry[2] != corpus.index_uuid
+                    or type(entry[3]) is not str
+                    or re.fullmatch(rf"b-{re.escape(self.run_id)}-[0-9a-f]{{16,32}}-read", entry[3]) is None
+                    or type(entry[4]) is not str or _SHA.fullmatch(entry[4]) is None
+                    or type(entry[5]) is not int or entry[5] <= 0):
+                raise _invalid()
+        if self.arm_bindings[0][3] == self.arm_bindings[1][3] \
+                or self.arm_bindings[0][5] == self.arm_bindings[1][5]:
+            raise _invalid()
+
+
+@dataclass(frozen=True, slots=True)
+class LocalRuntimeReceipt:
+    """Post-call proof: all observed ES searches used the frozen physical paths."""
+
+    run_id: str
+    arm_paths: tuple[tuple[str, tuple[str, ...]], ...]
+    post_metadata_sha256: tuple[tuple[str, str], ...]
+    alias_writes: int
+    metadata_es_http: int
+    owned_processes_stopped: bool
+    aliases_removed: bool
+    proxy_violations: int
+    arm_search_request_sha256: tuple[tuple[str, tuple[str, ...]], ...]
+
+
 class ComparisonRunError(Exception):
     """Safe terminal reason and limited completed trace for append-only failure evidence."""
 
@@ -864,7 +914,8 @@ def _verify_representation_binding(binding: dict[str, object], builder_spec: dic
 
 
 def _verify_provenance(spec: ComparisonSpec, baseline: ArmEndpoint,
-                       candidate: ArmEndpoint, sidecars: Mapping[str, bytes]) -> str:
+                       candidate: ArmEndpoint, sidecars: Mapping[str, bytes],
+                       local_admission: LocalRuntimeAdmission | None = None) -> tuple[str, str]:
     """Cross-check read-only scan evidence, builder binding and both full-source maps."""
     try:
         if not isinstance(sidecars, Mapping) or set(sidecars) != set(_PROVENANCE_FILES):
@@ -1020,12 +1071,16 @@ def _verify_provenance(spec: ComparisonSpec, baseline: ArmEndpoint,
                     or type(result["retry"]) is not int or result["retry"] != 0
                     or type(result["resume"]) is not int or result["resume"] != 0):
                 raise _invalid()
-        # The existing five sidecars prove only the candidate build and full-source
-        # scans. They cannot attest isolated Java process ownership, fixed physical
-        # ES request paths, pre/post alias identity or real comparison call totals.
-        # Until the separate runner supplies and verifies that evidence, local is
-        # intentionally ineligible for any typed comparison or quality verdict.
         if built["executionKind"] == "local":
+            if local_admission is None:
+                raise ComparisonRunError("runtime_provenance_missing", CallTotals(0, 0, 0), ())
+            try:
+                local_admission.validate(spec, frozen_head=plan["frozenHead"])
+            except ValueError:
+                raise ComparisonRunError("runtime_provenance_missing", CallTotals(0, 0, 0), ()) from None
+            if local_admission.run_id != plan["runId"]:
+                raise ComparisonRunError("runtime_provenance_missing", CallTotals(0, 0, 0), ())
+        elif local_admission is not None:
             raise ComparisonRunError("runtime_provenance_missing", CallTotals(0, 0, 0), ())
         return hashlib.sha256(_canonical_bytes({
             "assessmentIntentSha256": spec.assessment_intent_sha256,
@@ -1035,7 +1090,13 @@ def _verify_provenance(spec: ComparisonSpec, baseline: ArmEndpoint,
                              for name in _PROVENANCE_FILES},
             "sourceIdMappingSha256": source_map.sha256,
             "candidateIdMappingSha256": candidate_map.sha256,
-        })).hexdigest()
+            "localAdmission": None if local_admission is None else {
+                "runId": local_admission.run_id,
+                "frozenHead": local_admission.frozen_head,
+                "armBindings": local_admission.arm_bindings,
+                "javaArtifactSha256": local_admission.java_artifact_sha256,
+            },
+        })).hexdigest(), cast(str, built["executionKind"])
     except (UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
         raise ComparisonRunError("source_id_mapping_confounded", CallTotals(0, 0, 0), ()) from None
 
@@ -1129,13 +1190,15 @@ async def run_comparison(*, spec: ComparisonSpec, baseline: ArmEndpoint, candida
                          embedding: EmbeddingPort, rerank: RerankPort,
                          context_for: Callable[[str], KnowledgeRetrievalContext],
                          provenance_sidecars: Mapping[str, bytes],
+                         local_admission: LocalRuntimeAdmission | None = None,
                          clock: Callable[[], float] = time.perf_counter) -> ComparisonRun:
-    """Diagnose frozen cases with injected fake ports; real admission remains closed."""
+    """Diagnose frozen cases; local results remain unscorable until postflight."""
     if type(spec) is not ComparisonSpec:
         raise _invalid()
     try:
         _validate_endpoints(spec, baseline, candidate)
-        provenance_sha256 = _verify_provenance(spec, baseline, candidate, provenance_sidecars)
+        provenance_sha256, execution_kind = _verify_provenance(
+            spec, baseline, candidate, provenance_sidecars, local_admission)
     except ComparisonRunError as exc:
         raise ComparisonRunError(exc.reason, CallTotals(0, 0, 0), (),
             stage="preflight", unexecuted_case_ids=tuple(case.case_id for case in spec.cases)) from None
@@ -1190,9 +1253,16 @@ async def run_comparison(*, spec: ComparisonSpec, baseline: ArmEndpoint, candida
             completed.append(CaseTrace(case.case_id, traces["baseline"], traces["candidate"]))
         return ComparisonRun(tuple(completed), counts.snapshot(), spec.assessment_sha256,
                              spec.uat_fixture_sha256, provenance_sha256,
-                             comparison_spec_fingerprint(spec), "synthetic_only")
+                             comparison_spec_fingerprint(spec),
+                             "synthetic_only" if execution_kind == "fake" else "local_pending_postflight")
     except ComparisonRunError as exc:
         raise ComparisonRunError(exc.reason, counts.snapshot(), tuple(completed),
+            case_id=current_case, arm=current_arm, stage=current_stage,
+            unexecuted_case_ids=tuple(item.case_id for item in spec.cases[len(completed):])) from None
+    except asyncio.CancelledError:
+        # Cancellation is a BaseException: preserve already attempted calls and
+        # completed cases for the consumed outer run's finite terminal record.
+        raise ComparisonRunError("comparison_cancelled", counts.snapshot(), tuple(completed),
             case_id=current_case, arm=current_arm, stage=current_stage,
             unexecuted_case_ids=tuple(item.case_id for item in spec.cases[len(completed):])) from None
     except Exception:
@@ -1200,6 +1270,52 @@ async def run_comparison(*, spec: ComparisonSpec, baseline: ArmEndpoint, candida
         raise ComparisonRunError("comparison_execution_failed", counts.snapshot(), tuple(completed),
             case_id=current_case, arm=current_arm, stage=current_stage,
             unexecuted_case_ids=tuple(item.case_id for item in spec.cases[len(completed):])) from None
+
+
+def admit_completed_local_run(*, spec: ComparisonSpec, run: ComparisonRun,
+                              admission: LocalRuntimeAdmission,
+                              receipt: LocalRuntimeReceipt) -> ComparisonRun:
+    """Change local evidence status only after the runner proves postflight/cleanup."""
+    if (type(spec) is not ComparisonSpec or type(run) is not ComparisonRun
+            or type(admission) is not LocalRuntimeAdmission
+            or type(receipt) is not LocalRuntimeReceipt
+            or run.evidence_kind != "local_pending_postflight"
+            or run.assessment_sha256 != spec.assessment_sha256
+            or run.uat_fixture_sha256 != spec.uat_fixture_sha256
+            or run.comparison_spec_sha256 != comparison_spec_fingerprint(spec)
+            or len(run.cases) != len(spec.cases)
+            or tuple(item.case_id for item in run.cases) != tuple(item.case_id for item in spec.cases)
+            or run.calls.typed_search != sum(len(case.plan.items) for case in spec.cases) * 2
+            or run.calls.query_embedding != len(spec.cases)
+            or run.calls.online_rerank > sum(len(case.plan.selected_domain_ids)
+                                             for case in spec.cases) * 2
+            or receipt.run_id != admission.run_id
+            or receipt.arm_paths != tuple((arm, tuple(f"/{binding[1]}/_search" for _ in range(
+                sum(len(case.plan.items) for case in spec.cases))))
+                for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True))
+            or type(receipt.arm_search_request_sha256) is not tuple
+            or len(receipt.arm_search_request_sha256) != 2
+            or tuple(item[0] for item in receipt.arm_search_request_sha256) != _ARMS
+            or any(type(item[1]) is not tuple
+                   or len(item[1]) != sum(len(case.plan.items) for case in spec.cases)
+                   or any(type(digest) is not str or _SHA.fullmatch(digest) is None
+                          for digest in item[1])
+                   for item in receipt.arm_search_request_sha256)
+            or Counter(receipt.arm_search_request_sha256[0][1])
+               != Counter(receipt.arm_search_request_sha256[1][1])
+            or receipt.post_metadata_sha256 != tuple((arm, binding[4])
+                for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True))
+            or receipt.alias_writes != 4
+            or receipt.metadata_es_http != cast(dict[str, object],
+                _sidecar(spec.intent_raw)["comparisonBudget"])["metadataEsHttp"]
+            or receipt.owned_processes_stopped is not True
+            or receipt.aliases_removed is not True
+            or type(receipt.proxy_violations) is not int or receipt.proxy_violations != 0):
+        raise ComparisonRunError("runtime_provenance_missing", run.calls, run.cases,
+            stage="postflight", unexecuted_case_ids=())
+    return ComparisonRun(run.cases, run.calls, run.assessment_sha256,
+        run.uat_fixture_sha256, run.provenance_sha256, run.comparison_spec_sha256,
+        "local_verified")
 
 
 BlindKey = tuple[str, str, str, str]
@@ -1253,7 +1369,7 @@ def score_comparison(*, spec: ComparisonSpec, run: ComparisonRun,
             or run.uat_fixture_sha256 != spec.uat_fixture_sha256
             or type(run.provenance_sha256) is not str or _SHA.fullmatch(run.provenance_sha256) is None
             or run.comparison_spec_sha256 != comparison_spec_fingerprint(spec)
-            or run.evidence_kind != "synthetic_only"
+            or run.evidence_kind not in ("synthetic_only", "local_verified")
             or tuple(case.case_id for case in run.cases) != tuple(case.case_id for case in spec.cases)):
         raise _invalid()
     pool = blind_label_pool(run)
@@ -1263,7 +1379,8 @@ def score_comparison(*, spec: ComparisonSpec, run: ComparisonRun,
         raise _invalid()
     missing = len(pool) - len(judged)
     reasons: list[str] = []
-    reasons.append("synthetic_only")
+    if run.evidence_kind == "synthetic_only":
+        reasons.append("synthetic_only")
     if missing:
         reasons.append("blind_labels_missing")
     recalls: dict[str, list[float]] = {arm: [] for arm in _ARMS}
@@ -1327,8 +1444,10 @@ def score_comparison(*, spec: ComparisonSpec, run: ComparisonRun,
         reasons.append("precision_regression")
     if candidate_latency > baseline_latency * 1.10:
         reasons.append("latency_regression")
-    # A fake-only run may diagnose ranking, but never certifies actual B quality.
-    outcome = "not_assessed"
+    not_assessed = (run.evidence_kind == "synthetic_only" or missing > 0
+                    or any(reason.startswith(("keyword_order_confounded:",
+                                               "unchanged_domain_confounded:")) for reason in reasons))
+    outcome = "not_assessed" if not_assessed else "failed" if reasons else "passed"
     return ComparisonMetrics(outcome, tuple(reasons), baseline_recall, candidate_recall,
         baseline_precision, candidate_precision, baseline_latency, candidate_latency,
         tuple(case_metrics), len(pool), missing)
