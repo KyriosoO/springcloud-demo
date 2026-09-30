@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.12 |
-| 文档状态 | Reviewed（B与MEASURE一次性工具的non-live验证已记录；真实B、效果UAT与发布未完成） |
+| 当前版本 | v3.13 |
+| 文档状态 | Reviewed（B候选已只读构建，但比较无有效测量；MEASURE真实批次与发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
 | 实施授权 | Ready 不等于实施授权。当前独立目标已授权EVIDENCE、REPRESENT、COMPOSE、最多两项有限资料对照与新候选、一次有界真实测量及满足条件后的发布；每项仍须满足设计评审、冻结输入、预算、人工评价及自身完成条件。在线父单元补取与超范围操作未获授权 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B和MEASURE一次性工具已提交并完成fake/non-live与回归验证；真实B候选/typed对照、真实12题模型测量、人工评价和发布均未执行，实际部署及新版UAT未完成 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选已构建为只读未发布索引，一次比较已消费但首次typed前失败、无有效测量；MEASURE仅有未冻结的构建准备，尚无manifest、authorization或模型调用。人工评价、发布及新版完整UAT未完成 |
 
 ## 2. 修改历史
 
@@ -41,6 +41,7 @@
 | 19 | 2026-09-29 | §1/3/5/9/12/14 | Summary9仓库实施与B冻结设计纠偏 | v3.10如实同步Summary9代码及定向non-live、正式隔离Python全量和独立代码复评；MEASURE转In Progress但真实批次未启动。L2_01_01 v3.8/UAT_02 v3.10的B两阶段冻结与隔离设计已定向复评，工具和Java仍待实施复评，真实B/发布未执行 |
 | 20 | 2026-09-29 | §1/3/14 | B冻结工具与Summary9合成三模式接线 | v3.11记录源绑定与比较器的synthetic-only验证及18个Spring合成case；不把fake指标当真实B，也不把合成claim当人工回答质量。COMPARE/MEASURE继续In Progress，RELEASE仍Blocked |
 | 21 | 2026-09-30 | §1/3/5/9/11/14 | 一次性B/MEASURE工具和本轮回归已提交 | v3.12仅同步提交`631cc47c`及§14.18的fake、类型、UI、Java和正式隔离回归；不改工作包依赖、门禁、阈值或真实UAT结论 |
+| 22 | 2026-09-30 | §1/3/5/9/12/14.19 | B候选与失败终态、MEASURE未冻结准备同步 | v3.13记录提交`c9b8642e`的append-only B证据：候选只读未发布、比较消费而无有效测量；MEASURE仅有build-only准备。COMPARE/MEASURE仍In Progress，RELEASE仍Blocked，A仍Not assessed；不改§14.1～14.18的历史发生状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -50,11 +51,11 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.8 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B两阶段冻结与隔离查询设计已复评；构建/比较器fake不能代替真实索引及运行归属证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.12 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 原12/8证据与Summary9机械non-live分别记录；B/MEASURE工具fake已验证，真实B、EV006真人语义、完整typed全链、人工效果与发布Not assessed |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.13 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | B候选已只读构建但比较无有效测量；EV006真人语义、完整typed全链、人工效果与发布Not assessed |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
-原计划建立时的起始代码提交为`8ae32c50a567850c67b4d1e726304934ab07162c`；本次独立目标起点为`2e27086150360bda87ef09e319a2569a2246c07b`，当时仓库生产root绑定11/7/quality-v3，默认Knowledge disabled。当前仓库已成对接线intent12/Summary9/minimal-v1并保持disabled缺省；原12/8组件及COMPOSE的non-live证明按§14.6～14.7记录，Summary9定向证据见§14.16～14.17，本轮工具与回归见§14.18，单域当前root真实typed只读接线的有限预检见§14.8。COMPOSE Done只指仓库组合根、Spring fake与安全回归；Spring→Runtime Summary9合成三模式及失败链已验证，实际部署和效果仍待后续验证。仓库配置不是实际部署证明；真实测量仍须完成冻结、人工gold和停止条件。历史审计与运行状态见[迁移清单](历史文档/2026-09-14-knowledge-plan-handoff/README.md)，不复制到新计划作为新验证结果。
+原计划建立时的起始代码提交为`8ae32c50a567850c67b4d1e726304934ab07162c`；本次独立目标起点为`2e27086150360bda87ef09e319a2569a2246c07b`，当时仓库生产root绑定11/7/quality-v3，默认Knowledge disabled。当前仓库已成对接线intent12/Summary9/minimal-v1并保持disabled缺省；原12/8组件及COMPOSE的non-live证明按§14.6～14.7记录，Summary9定向证据见§14.16～14.17，工具与回归见§14.18，本次B有限终态和MEASURE准备边界见§14.19，单域当前root真实typed只读接线的有限预检见§14.8。COMPOSE Done只指仓库组合根、Spring fake与安全回归；Spring→Runtime Summary9合成三模式及失败链已验证，实际部署和效果仍待后续验证。仓库配置不是实际部署证明；真实测量仍须完成冻结、人工gold和停止条件。历史审计与运行状态见[迁移清单](历史文档/2026-09-14-knowledge-plan-handoff/README.md)，不复制到新计划作为新验证结果。
 
 ## 4. 计划原则与范围
 
@@ -77,12 +78,12 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-RETRIEVAL-01 | RETRIEVAL | L2_01_00 §8 DR-KFLOW-203；L2_01_01 §9 DR-KRET-201～204 | 原Q双路、域内融合/重排与有界配置 | WP-KREBUILD-CONTRACT-01 | - | planning/semantic_planner/ranking/config最小策略 | TEST/VAL-KRET-201～203，数量/顺序/Q一致、部分/全失败、同域拒绝；无网络fake | 本地fake；独立strategy，旧prod不变；无索引写入 | Done |
 | WP-KREBUILD-EVIDENCE-01 | EVIDENCE | L2_01_02 §9 DR-KEV-201～205 | minimal Evidence和Summary8 | WP-KREBUILD-CONTRACT-01 | - | mode input、evidence selector、serializer、summary_task_v8.py/decoder | TEST/VAL-KEV-201～203；完整性先验证、预算、deny0、引用/未知coverage拒绝；模型fake | 直接代码和fake证据见§14.6；旧Prompt/serializer不改 | Done |
 | WP-KREBUILD-COMPOSE-01 | COMPOSE | L2_01_00 §8 DR-KFLOW-204/205；L2_01_02 §9 | 唯一root迁移与历史隔离 | WP-KREBUILD-RETRIEVAL-01、WP-KREBUILD-EVIDENCE-01 | - | bootstrap/capability/任务目录；37风险新版映射及non-live验证 | current-root、Spring E2E、37风险逐case追踪、Business35关键防退、Java安全/类型/non-live、正式代码评审；实质回答充分性由MEASURE承担；Blocker/Major0 | 仓库接线及non-live范围完成，36项fake/non-live直接证据；§14.8另有单域当前root真实typed只读预检，EV006真人语义评价、Spring全链和部署均不属于本包Done | Done |
-| WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205/206；UAT_02 §5 | 固定12题及一次独立测量；Summary9最小回答接缝已完成 | WP-KREBUILD-COMPOSE-01 | - | Summary9独立任务/严格解码/原文及claim校验/唯一root及验证台同屏引用展示，继而新版本问题/来源/预算绑定、有限结果及真人评价 | REQ→L0/L1→L2设计复评及Summary9定向non-live已通过；仍须最终运行快照/预算冻结、一次有界真实批次及真人评价；按预置判据分类，技术失败停止 | `In Progress`仅表示回答接缝仓库实施及机械验证已完成，首个真实调用仍受完整冻结约束。旧Summary8及Done包历史范围不改写，无自动候选循环，结果append-only | In Progress |
+| WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205/206；UAT_02 §5 | 固定12题及一次独立测量；Summary9最小回答接缝已完成 | WP-KREBUILD-COMPOSE-01 | - | Summary9独立任务/严格解码/原文及claim校验/唯一root及验证台同屏引用展示，继而新版本问题/来源/预算绑定、有限结果及真人评价 | REQ→L0/L1→L2设计复评及Summary9定向non-live已通过；仍须最终运行快照/预算冻结、一次有界真实批次及真人评价；按预置判据分类，技术失败停止 | `In Progress`仅表示回答接缝和工具的仓库实施及机械验证已完成；§14.19的build-only准备没有manifest、authorization或outbound，首个真实调用仍受完整冻结约束。旧Summary8及Done包历史范围不改写，无自动候选循环，结果append-only | In Progress |
 | WP-KORG-DESIGN-01 | DESIGN | L1_01 §4.6；L2_01_01 §18；L2_01_00/02 §19 | 已批准资料组织设计；本轮仅补结构单元与补取边界，不重判原完成证据 | - | - | 设计来源、样本边界及资料方案 | 原设计的内审/复核/文档及Git证明维持原范围；v3.2补充须单独评审和本地提交，不冒称新代码或推送 | 只文档；不动服务/模型/索引 | Done |
 | WP-KORG-NORMALIZE-01 | NORMALIZE | L2_01_01 §18 DR-KRET-301～303；L2_01_02 §19 DR-KEV-301；L2_01_00 §19 DR-KFLOW-301/302 | 标准化、不可变源版本及结构可信状态记录；不把现有DOCX乱序产物标verified | WP-KORG-DESIGN-01 | - | normalization_v2.py/来源位置Schema/fixture | TEST-KRET-301、hash/span及不可靠顺序反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 本包代码与有限来源核对见§14.3/14.4；未批量生成真实v2 sidecar或迁现索引 | Done |
 | WP-KORG-CHUNK-01 | CHUNK | L2_01_01 §18 DR-KRET-303/304 | 最小修复受影响DOCX解析顺序，建立结构单元身份、同版本父子关系与连续chunk span | WP-KORG-NORMALIZE-01 | - | parser顺序接缝/chunking_v2.py及段表交错、短长条、表格/否定/例外fixture | TEST-KRET-302；完整单元可按源span恢复且hash一致，跨版本/悬空/乱序失败关闭，不静默遗漏 | 本包离线代码、fixture和复评见§14.5；旧chunker不覆盖，真实资料重切/发布待后续包 | Done |
 | WP-KORG-REPRESENT-01 | REPRESENT | L2_01_01 §18 DR-KRET-305/306 | 独立检索表示及token前检；不把父单元或派生表头当可引用正文 | WP-KORG-NORMALIZE-01 | - | 表示构造/model manifest/tokenizer验证 | TEST-KRET-303；明确实际长度单位/版本，无截断、body/input hash独立；旧未知不回填 | 纯构造、固定tokenizer与直接证据见§14.6；无推理或索引写入 | Done |
-| WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→当前授权内有限BGE/新候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标、保留题及停止规则 | A保持Not assessed；B的两阶段冻结、双实例隔离查询及比较工具已有本地提交和fake证据（§14.18），正式spec、盲标及真实BGE/候选/typed对照仍未完成；不切线上alias | In Progress |
+| WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→当前授权内有限BGE/新候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标、保留题及停止规则 | A保持Not assessed；B候选已按冻结输入构建并只读未发布，但本次成对比较在首次typed前失败，10题均未执行、无盲标及质量结论（§14.19）；不补跑本次、不切线上alias | In Progress |
 | WP-KORG-RELEASE-01 | RELEASE | L2_01_00 §19 DR-KFLOW-303；L2_01_02 §19 DR-KEV-302/303 | 选定候选兼容发布 | WP-KORG-COMPARE-01 | - | 策略/Profile一致性、精确旧绑定、回滚与冒烟证据 | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；无证据不得发布 | 当前目标仅在条件满足后授权新索引/受控部署/alias写入；生效前仍须核实精确旧绑定与原子回滚；不删旧索引 | Blocked |
 
 ## 6. 直接依赖图
@@ -136,12 +137,12 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | 3 | WP-KREBUILD-RETRIEVAL-01 | Done | 无；提交及验证见§14.2 | 新策略独立验证，生产接线待COMPOSE |
 | 4 | WP-KREBUILD-EVIDENCE-01 | Done | 无；直接fake及代码复核见§14.6 | Summary8/Evidence组件完成，不预记完整UAT |
 | 5 | WP-KREBUILD-COMPOSE-01 | Done | §14.7：Spring逐案typed、拒绝/并发及有限证据复评；§14.8：单域当前root真实typed只读预检 | 仅non-live实现包关闭；附加预检不代表Spring全链、部署、37/37 UAT或效果通过 |
-| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；草案与阈值已确认，Summary9仓库实施/non-live已完成，完整运行组合冻结和预算预检未完成 | 当前只完成回答接缝；首个真实模型调用仍禁止；12题真实批次与人工评价均未启动 |
+| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；草案与阈值已确认，Summary9仓库实施/non-live已完成，完整运行组合冻结和预算预检未完成 | build-only构建证明不构成manifest或authorization；首个真实模型调用仍禁止，12题批次与人工评价均未启动 |
 | 7 | WP-KORG-DESIGN-01 | Done | 无技术前置阻塞；后续操作须独立授权 | 来源设计已完成，非新实现 |
 | 8 | WP-KORG-NORMALIZE-01 | Done | 无；有限来源核验见§14.4 | 离线版本/来源/结构可信合同完成；不声称全库v2转换或父单元读取 |
 | 9 | WP-KORG-CHUNK-01 | Done | 无；代码及复评见§14.5 | v2离线切片合同完成；真实资料重切和候选发布仍未执行 |
 | 10 | WP-KORG-REPRESENT-01 | Done | 无；纯构造及tokenizer验证见§14.6 | 不冒称真实向量效果或候选构建已通过 |
-| 11 | WP-KORG-COMPARE-01 | In Progress | 草案必要来源及B判据已确认；精确运行冻结、两臂盲标及真实BGE/ES对照未完成 | 直接前置已Done；B冻结、构建、隔离typed与比较工具完成fake/类型阶段，A为Not assessed；keyword漂移会阻断单变量归因 |
+| 11 | WP-KORG-COMPARE-01 | In Progress | B构建已形成只读未发布候选，但首次成对比较消费后在typed前失败；两臂盲标及有效质量对照缺失 | 直接前置已Done；A为Not assessed，B本次终态不可续跑/改判；后续需独立诊断及重新冻结的目标，不以候选构建代替COMPARE完成 |
 | 12 | WP-KORG-RELEASE-01 | Blocked | WP-KORG-COMPARE-01 | 等待直接前置；发布还需§7/8证据 |
 
 ## 10. 实施交接
@@ -191,7 +192,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KORG-NORMALIZE-01 | DR-KRET-301/302及303的来源版本前提；DR-KEV-301；DR-KFLOW-301/302 | IMPL-KRET-301；IMPL-KEV-301；IMPL-KFLOW-301/302 | TEST-KRET-301；TEST-KEV-301；TEST-KFLOW-301/302 | VAL-KRET-301；VAL-KEV-301；VAL-KFLOW-301/302的离线/来源部分；UAT-KORG-001～004/009仅来源身份、附件关系与fake授权部分 | Done；仅本包离线/有限来源部分 |
 | WP-KORG-CHUNK-01 | DR-KRET-303/304；DR-KEV-302/303 | IMPL-KRET-302；IMPL-KEV-302 | TEST-KRET-302；TEST-KEV-302 | VAL-KRET-302；VAL-KEV-302的结构/span部分；UAT-KORG-004的unit父子关系、005/006/008 | Done；仅本包fixture/结构部分 |
 | WP-KORG-REPRESENT-01 | DR-KRET-305/306；DR-KEV-302/303 | IMPL-KRET-303；IMPL-KEV-302 | TEST-KRET-303；TEST-KEV-302 | VAL-KRET-303；VAL-KEV-302；UAT-KORG-003/007/008 | Done；仅纯构造/固定tokenizer |
-| WP-KORG-COMPARE-01 | DR-KRET-307；DR-KEV-304 | IMPL-KRET-304；IMPL-KEV-303 | TEST-KRET-304；TEST-KEV-303；UAT-KORG-001～012 | VAL-KRET-304；VAL-KEV-303；UAT_02 §6 | In Progress；一次性B工具及fake完成，真实候选/对照未执行 |
+| WP-KORG-COMPARE-01 | DR-KRET-307；DR-KEV-304 | IMPL-KRET-304；IMPL-KEV-303 | TEST-KRET-304；TEST-KEV-303；UAT-KORG-001～012 | VAL-KRET-304；VAL-KEV-303；UAT_02 §6 | In Progress；B候选构建完成但只读未发布，首次比较not_assessed且typed=0；无盲标/质量结论 |
 | WP-KORG-RELEASE-01 | DR-KFLOW-303；DR-KRET-307；DR-KEV-302/303 | IMPL-KFLOW-303；IMPL-KRET-304；IMPL-KEV-302 | TEST-KFLOW-303；TEST-KRET-304；TEST-KEV-302 | VAL-KFLOW-303；VAL-KRET-304；VAL-KEV-302；UAT-KORG-012 | Blocked |
 
 跨阶段验证按以下责任切片执行，不新增VAL、工作包或门禁。实际验证记录注明已执行部分、结果及未执行部分的承接包；不得将部分通过写成整个VAL或整套UAT通过。
@@ -216,7 +217,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.18。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B/MEASURE一次性工具及fake已完成，人工确认的题目/来源草案与阈值仍不等于运行组合、预算和人工回答评价已经冻结；这些仍是首次真实调用前置。尚未生成可发布的真实v2候选、执行12题测量或发布，不能宣称新UAT完成。
+当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.19。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B已生成一个只读未发布候选，但首次比较没有typed调用及有效质量结果；MEASURE仅有未冻结的build-only准备，题目/来源草案与阈值不等于运行组合、预算和人工回答评价已经冻结。12题真实测量和发布均未执行，不能宣称新UAT完成。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
@@ -370,3 +371,11 @@ Spring→Runtime新增lookup以外的explanation、applicability合成场景后�
 本轮实际验证记录：正式`agent-runtime`隔离non-live回归5481 passed、28 opt-in skipped、0 failed；Transaction host/preflight 14 passed；`knowledge-corpus-tools`全包525用例、退出码0；B定向fake 76 passed、MEASURE定向fake 18 passed；Runtime源码strict mypy检查152个文件成功，B相关3文件与MEASURE相关5文件strict mypy成功；PowerShell AST 0 error；页面UI测试5 passed。Java五模块按Surefire `tests`总数（**包含**skipped）记录：`common-security` tests=21/skipped=0、`employee-service` tests=50/skipped=20、`mq-procedure-service` tests=37/skipped=2、`es-query-service` tests=106/skipped=0、`agent-service` tests=42/skipped=3，均failures/errors=0。旧§14记录中的数字是各次当时结果，本节不回写或相加成UAT总数。
 
 本次外部LLM、真实BGE、真实ES候选写入、真实B成对typed对照和alias切换均为0；没有12题模型回答、全量人工盲标或新版效果结论。A仍为`Not assessed`；COMPARE和MEASURE继续`In Progress`，RELEASE继续`Blocked`。真实操作前仍须核实实际部署/索引/模型快照、冻结精确预算和运行输入；完成真实测量及人工评价后再按UAT_02判定质量与发布条件。
+
+### 14.19 B候选构建、无效比较与MEASURE未冻结准备（2026-09-30）
+
+提交`c9b8642e9c20765814df4b3422cfa958a2c4900c`保存[B本次有限证据](../../knowledge-corpus-tools/evidence/knowledge-b-body-20260930-01/README.md)。只读核对`result.json`及source/candidate扫描结果：完整竞争池15521条、其中738条更新，候选`agent-doc-tax-policy-v6-20260930-body-b1`构建使用ES请求363/366及本地embedding批次24/24；构建终态为`built_read_only_unpublished`，线上alias写入0。`binding`、`assessment-intent`、`assessment-final`及`scan-plan`正文SHA-256均与同目录`.sha256`文件一致。以上证明候选构建及来源绑定，不证明召回收益或发布准入。
+
+同目录`comparison-result.json`记录本次成对比较已消费，终态`not_assessed / local_execution_or_identity_failed`：typed search、query embedding、online rerank均为0，预登记10题全部未执行；比较元数据ES请求12次、本次临时alias写入4次，`ownedProcessesStopped=true`、`aliasesRemoved=true`、`proxyViolations=0`。A仍为`Not assessed`；B无盲标、排名或质量指标，本run不得补跑、续跑或改判。静态诊断发现隔离Java启动禁用Config Server却未加载必需配置目录，是待修的启动配置缺口；有限终态未保存精确异常，不能断言它就是本次失败的唯一或直接原因。COMPARE保持`In Progress`，依赖有效比较的RELEASE保持`Blocked`，候选不切线上alias。
+
+[MEASURE本次build-only准备](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-01/README.md)仅保存当时clean HEAD的五个Maven构建及JAR hash；快照生成与服务启动的时序问题使其不作为真实测量冻结。该目录没有manifest、authorization、consumed或模型结果，外部LLM调用为0，不得把build-attestation当成已授权或已执行批次。后续最小时序修复已完成独立复评，20项直接fake测试通过且原120秒快照年龄校验未放宽。隔离launcher仅为Knowledge验证定义`readinessState`与`elasticsearch`健康group，不关闭全局数据库/ES健康；该定向检查不证明整服务或数据库健康，也不是真实启动通过证据。仍须在新的clean HEAD上重新准备和核验正式冻结，MEASURE保持`In Progress`。本节只同步新发生事实，不修改§14.1～14.18当时的结论、历史资产或UAT阈值。

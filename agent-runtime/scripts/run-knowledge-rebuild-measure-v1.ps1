@@ -248,10 +248,6 @@ try {
     try {
         & $corpusPython -c 'import bs4, httpx, knowledge_corpus_tools.b_id_mapping_v1'
         if ($LASTEXITCODE -ne 0) { throw 'knowledge.measure.corpus_environment_invalid' }
-        $env:PYTHONPATH = (Join-Path $repository 'knowledge-corpus-tools\src')
-        & $corpusPython (Join-Path $runtimeRoot 'tests\uat\knowledge_rebuild_snapshot_preflight.py') `
-            --manifest $manifestFull --manifest-sha256 $ExpectedManifestSha256 --output $snapshotPath
-        if ($LASTEXITCODE -ne 0) { throw 'knowledge.measure.snapshot_preflight_failed' }
     } finally { Pop-Location }
 
     $keyBytes = [Security.Cryptography.RandomNumberGenerator]::GetBytes(48)
@@ -286,10 +282,14 @@ try {
     Wait-Ready 'http://127.0.0.1:18090/public/test' $authProcess
     $esProcess = Start-Process -FilePath 'java' -ArgumentList (@('-jar', $esJar,
         '--server.port=19201', '--spring.profiles.active=datasource,es,knowledge-live',
+        '--management.endpoint.health.probes.enabled=true',
+        '--management.endpoint.health.group.knowledge-validation.include=readinessState,elasticsearch',
         '--spring.elasticsearch.uris=http://127.0.0.1:9200') + $commonArgs) `
         -WorkingDirectory (Join-Path $repository 'es-query-service') -WindowStyle Hidden -PassThru -Environment $esChildEnv `
         -RedirectStandardOutput $esOut -RedirectStandardError $esErr
-    Wait-Ready 'http://127.0.0.1:19201/actuator/health' $esProcess
+    # This read-only Knowledge run does not exercise the separate MySQL rebuild
+    # repository. Keep ES and application readiness mandatory in its own group.
+    Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation' $esProcess
     $agentProcess = Start-Process -FilePath 'java' -ArgumentList (@('-jar', $agentJar,
         '--server.port=19202', '--agent.runtime.base-url=http://127.0.0.1:19203',
         '--agent.runtime.contract-version=1', '--agent.inspection.enabled=false') + $commonArgs) `
@@ -298,6 +298,15 @@ try {
     Wait-OwnedPort 19202 $agentProcess
     Wait-OwnedPort 18090 $authProcess
     $userToken = Get-LoginToken ([string]$manifest.subject.userId)
+    # The snapshot attestation expires after 120 seconds. Create it only after
+    # the owned services are ready, but still before reading the model key.
+    Push-Location (Join-Path $repository 'knowledge-corpus-tools')
+    try {
+        $env:PYTHONPATH = (Join-Path $repository 'knowledge-corpus-tools\src')
+        & $corpusPython (Join-Path $runtimeRoot 'tests\uat\knowledge_rebuild_snapshot_preflight.py') `
+            --manifest $manifestFull --manifest-sha256 $ExpectedManifestSha256 --output $snapshotPath
+        if ($LASTEXITCODE -ne 0) { throw 'knowledge.measure.snapshot_preflight_failed' }
+    } finally { Pop-Location }
     $apiKey = [Environment]::GetEnvironmentVariable('LLM_API_KEY', 'Process')
     if ([string]::IsNullOrWhiteSpace($apiKey)) { throw 'knowledge.measure.api_key_missing' }
     $env:KNOWLEDGE_MEASURE_USER_JWT = $userToken

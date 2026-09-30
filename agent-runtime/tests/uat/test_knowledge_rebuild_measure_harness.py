@@ -445,3 +445,32 @@ def test_launcher_rejects_inherited_java_overrides_and_binds_owned_ports() -> No
     assert launcher.count("Wait-OwnedPort 18090 $authProcess") >= 2
     assert "Wait-OwnedPort 19201 $esProcess" in launcher
     assert launcher.count("Wait-OwnedPort 19202 $agentProcess") >= 2
+
+
+def test_launcher_creates_fresh_snapshot_after_owned_services_before_key_read() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    static_gate = launcher.index("--phase static")
+    login = launcher.index("$userToken = Get-LoginToken")
+    snapshot = launcher.index("--output $snapshotPath")
+    key_read = launcher.index("GetEnvironmentVariable('LLM_API_KEY'")
+    run_phase = launcher.index("--phase run")
+    assert static_gate < login < snapshot < key_read < run_phase
+    assert launcher.count("--output $snapshotPath") == 1
+    assert launcher.index("Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation'") < snapshot
+    assert launcher.index("Wait-OwnedPort 19202 $agentProcess") < snapshot
+    # Do not weaken the age guard to accommodate slow Java startup.
+    runner_source = (repository / "agent-runtime/tests/uat/knowledge_rebuild_measure_runner.py").read_text(encoding="utf-8")
+    assert "<= 120_000" in runner_source
+
+
+def test_launcher_limits_health_scope_without_disabling_knowledge_guards() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    assert "--management.endpoint.health.group.knowledge-validation.include=readinessState,elasticsearch" in launcher
+    assert "--management.endpoint.health.probes.enabled=true" in launcher
+    assert "--management.health.elasticsearch.enabled=false" not in launcher
+    assert "--management.health.db.enabled=false" not in launcher
+    assert "Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation' $esProcess" in launcher
+    assert "knowledge_rebuild_snapshot_preflight.py" in launcher
+    assert "--spring.profiles.active=datasource,es,knowledge-live" in launcher
