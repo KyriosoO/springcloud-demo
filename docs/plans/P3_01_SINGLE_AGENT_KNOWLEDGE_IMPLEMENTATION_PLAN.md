@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.19 |
+| 当前版本 | v3.20 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -48,6 +48,7 @@
 | 26 | 2026-09-30 | §3/14.23 | 新工具复评及B无推理启动预检完成 | v3.17记录有限真实启动证据，不预记B对照、MEASURE、人工评价或发布通过 |
 | 27 | 2026-09-30 | §14.24 | MEASURE无推理启动失败及non-live诊断 | v3.18保留端口归属失败终态，不自动复跑，未观测代理计数不补造0 |
 | 28 | 2026-09-30 | §1/3/5/12/14.25 | 新B全部调用后准入失败及内部请求见证纠偏 | v3.19区分旧首题前失败与新10题后验失败，仍无有效比较/人评/发布；承接L2_01_01 v3.11，不改历史终态、题目、预算或阈值 |
+| 29 | 2026-09-30 | §3/14.26 | 私有工具的消费后有限失败与自有进程清理证明缺口 | v3.20同步最小修复、定向non-live及独立代码复评；不改工作包状态、真实运行终态、预算、阈值或生产合同 |
 
 ## 3. 来源清单与当前基线
 
@@ -57,7 +58,7 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.11 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B内部双hash请求同一性已定向复评；MEASURE元数据72保持，设计与fake不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.19 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B虽执行全部题，后验准入失败仍无有效测量；MEASURE12题、人评及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.20 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B虽执行全部题，后验准入失败仍无有效测量；MEASURE12题、人评及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -441,3 +442,15 @@ L2_01_01 v3.11针对该内部缺陷先澄清双hash合同并完成作者内审�
 主执行者实际验证：在`agent-runtime`目录以项目venv执行`pytest tests/evaluation/knowledge/test_rebuild_b_comparator.py tests/evaluation/knowledge/test_rebuild_b_local_transport.py tests/evaluation/knowledge/test_rebuild_b_local_runner.py tests/evaluation/knowledge/test_rebuild_b_review.py -q`，131 passed。首次未指定源码路径时因venv已安装包缺`intent_contracts`产生collection错误；随后仅为该验证进程显式设置`PYTHONPATH=D:/codex/agent-runtime/src;D:/codex/knowledge-corpus-tools/src;D:/codex/agent-runtime`，纠正导入基线后得到上述通过结果，没有安装或修改全局环境、删除断言或跳过测试。两项元数据守卫定向测试`test_formal_proxy_counts_each_alias_get_and_rejects_seventy_third_metadata_attempt`、`test_formal_proxy_records_failed_metadata_attempt_before_backend_error`另得2 passed，实际计数保留且第73次拒绝；72仅为正式MEASURE运行上限，不是新批次授权。corpus项目venv配合双源码`MYPYPATH`及corpus项目配置执行显式strict mypy，四个受影响源码成功，未用`--follow-imports=silent`；七个受影响源码/测试compileall成功。
 
 文档/追踪有限检查：P3与L2严格校验各0 error/0 warning，四份当前文档69条本地链接无断裂，Business/原Knowledge追踪兼容12 passed；新增有限资产及四份文档敏感模式扫描无命中，Git差异检查通过。本轮未修改生产源码或Java，未重复全量Python/Maven、真实Spring全链、索引发布或人工质量评价；这些不得从本轮定向检查推定通过。收口现场只读检查九个本次隔离端口无监听，未停止用户服务。以上修复提交和状态同步均仅本地保存，不push、不部署；下一批真实执行需要独立决策，当前目标仍未全部完成。
+
+### 14.26 私有工具有限失败及清理边界修复（2026-09-30）
+
+本轮起始clean HEAD为`b109799c1e87f3af7fa0d609146b20bd839bea27`。静态复核发现MEASURE正式成功路径未核实自有进程实际停止即进入后验和成功写入，Java强制停止后亦缺有界等待。本地提交`13f9458cd69f6f18f588a85582a30f843975ba6f`改为使用已核实并固定的进程对象句柄执行Kill及最多5秒等待；退出检查、停止异常或超时均保守标为清理未知。成功路径必须先通过`Test-OwnedProcessesStopped`；失败路径保留代理可用时的有限计数及实际清理结论，不按裸PID重新查找并终止进程。正式成功result形状及运行预算不变。
+
+B后验拒绝原先只有泛化原因，且消费后的最终JAR读取异常可能绕过有限终态。本地提交`eb7d56171db761ac2ddbdd1fab6620dac670d3a6`保留全部原准入守卫，补充固定allowlist诊断、执行phase、已有receipt和有界双hash请求见证。失败证据明确为`local_unadmitted_diagnostic`，不保存traces、不生成blind pool、不评分，不能当作有效比较。终态落盘失败单独报告已消费及实际计数，不误报preflight失败或声称证据已保存。独立代码复核另以纯mock复现ES client构造异常发生在消费后却无终态；修复将创建及关闭纳入显式有限生命周期，关闭失败亦阻断准入和盲标池。原成功终态结构不变；外来异常文本不持久化。
+
+验证只覆盖私有工具及直接测试。主执行者用§14.25相同项目venv和进程级`PYTHONPATH`执行四份B定向测试，148 passed；随后客户端边界增量修复后，重新执行`pytest tests/evaluation/knowledge/test_rebuild_b_local_runner.py -q`，最终runner 50 passed。两者有重叠，不相加，也不把148项称为客户端修复后的整组重跑。MEASURE实现执行单元在最终源码上执行`pytest tests/uat/test_knowledge_rebuild_measure_harness.py -q`，36 passed、0 skipped；主执行者另核验两项新增清理测试，2 passed、34 deselected。corpus项目venv、双源码`MYPYPATH`及项目配置下，对B comparator/runner显式`mypy --strict`检查成功（2源文件，未隐藏import）；5个受影响Python源码/测试compileall成功，PowerShell AST 0 error，Git差异检查通过。
+
+同一任务内未参与对应实现的执行单元直接核对L2合同、源码和负例并执行定向测试；客户端异常Major修复后复评，范围内无未解决Blocker/Major，未报告待处理Minor。MEASURE定向复评还用纯内存进程mock确认Kill及HasExited异常失败关闭。本轮没有新增设计语义或生产链路修改，不改Java、公共DTO、Prompt、读取/出域权限、索引或alias，也不修改任何历史运行资产。
+
+本轮真实ES、BGE及外部模型调用均0，未读取模型密钥、未启停真实服务、未冻结或复跑新批次。新MEASURE元数据72、模型36、typed search48、query embedding12、rerank24的上限保持不变；预算纠正不是追加运行许可。A仍Not assessed；历史B后验失败无法因新诊断补回缺失见证或改判，MEASURE12题、人工评价及新版完整UAT仍未执行完成。Done=9、In Progress=2（COMPARE/MEASURE）、Blocked=1（RELEASE）保持；后续实际验证必须另作独立执行决策。以上仅本地提交，不push、不部署，不重复宣称§14.18全量Python/Maven或真实集成在本轮通过。

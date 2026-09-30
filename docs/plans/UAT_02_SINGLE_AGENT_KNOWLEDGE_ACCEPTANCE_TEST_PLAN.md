@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.19 |
+| 当前版本 | v3.20 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；新版UAT未完成） |
 | 日期 | 2026-09-30 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
@@ -12,7 +12,7 @@
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.19；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.20；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据。B候选只读未发布，新承接比较执行10题后因后验准入失败记Not assessed，未保存有效traces/盲标池。MEASURE首次正式批次及后续独立启动均失败，12题未执行、人工未评价；修复只有non-live证明。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价；整体Functional/Safety、召回、回答及发布均未宣布通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -59,6 +59,8 @@ v3.17仅同步P3_01 §14.23的新工具复评及B独立无推理启动：真实�
 v3.18仅同步P3_01 §14.24：MEASURE独立无推理启动在代理端口归属检查失败，未执行12题、未产生模型或BGE调用；已观察绑定前检2个元数据HTTP attempt，未取得的代理计数保持null。构建成功和启动失败均不改变功能、安全、召回、回答或发布验收结论，不覆盖历史结果、不自动复跑。
 
 v3.19仅同步P3_01 §14.25的新B承接终态和L2_01_01 v3.11内部请求见证：10题全部调用，typed44/query embedding10/rerank22，后验归属准入失败仍为Not assessed。缺少有效traces和人工盲标，不能计算质量指标，不能把调用完成改判为有效比较。旧首题前失败记录保持原样；预算、gold、阈值及用例身份不变。
+
+v3.20仅同步P3_01 §14.26的私有工具修复：MEASURE实际清理核实、B消费后有限终态及固定allowlist失败诊断经定向non-live与独立代码复评。失败诊断不作为有效比较，不产生traces、盲标池或质量分数；旧run不补证、不复跑或改判。本轮真实ES/BGE/模型调用0，12题、人工评价与发布未执行完成；37风险、资料用例、gold、阈值、预算及验收状态均不变。
 
 ## 2. 范围与结果纪律
 
