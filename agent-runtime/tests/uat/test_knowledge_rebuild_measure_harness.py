@@ -639,6 +639,61 @@ try {
     assert result.stdout.strip().endswith("attested-and-cleaned")
 
 
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell cleanup contract")
+def test_formal_cleanup_waits_for_owned_process_and_fails_closed_on_timeout() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    cleanup_functions = launcher[launcher.index("function Stop-OwnedProcesses"):
+                                 launcher.index("try {\n    if (-not $startup)")]
+    script = r"""
+$ErrorActionPreference='Stop'
+$ownedPythonChildren=@{}
+$ownedChildCleanupUnknown=$false
+$runtimeProcess=$null; $esProcess=$null; $authProcess=$null; $proxyProcess=$null
+__CLEANUP_FUNCTIONS__
+$script:killCalls=0; $script:waitMs=-1
+$agentProcess=[pscustomobject]@{ Id=123; HasExited=$false }
+$agentProcess | Add-Member -MemberType ScriptMethod -Name Kill -Value { $script:killCalls++ }
+$agentProcess | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {
+    param($timeoutMs) $script:waitMs=$timeoutMs; return $false
+}
+Stop-OwnedProcesses
+if ($script:killCalls -ne 1 -or $script:waitMs -ne 5000 -or
+    -not $ownedChildCleanupUnknown -or (Test-OwnedProcessesStopped)) {
+    throw 'stuck_process_claimed_stopped'
+}
+$ownedChildCleanupUnknown=$false
+$agentProcess=[pscustomobject]@{ Id=124; HasExited=$false }
+$agentProcess | Add-Member -MemberType ScriptMethod -Name Kill -Value { $this.HasExited=$true }
+$agentProcess | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {
+    param($timeoutMs) $script:waitMs=$timeoutMs; return $true
+}
+Stop-OwnedProcesses
+if ($script:waitMs -ne 5000 -or -not (Test-OwnedProcessesStopped)) {
+    throw 'stopped_process_rejected'
+}
+'bounded-cleanup'
+""".replace("__CLEANUP_FUNCTIONS__", cleanup_functions)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", script],
+                            text=True, capture_output=True, timeout=20, check=False)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("bounded-cleanup")
+
+
+def test_formal_result_and_failure_witness_require_cleanup_outcome() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    cleanup_gate = launcher.index("if (-not (Test-OwnedProcessesStopped)) { throw 'knowledge.measure.owned_cleanup_failed' }")
+    assert launcher.index("Stop-OwnedProcesses", launcher.index("Copy-Item -LiteralPath $postSnapshotPath")) < cleanup_gate
+    assert cleanup_gate < launcher.index("--phase postflight") < launcher.index("'measured_pending_human_rubric'")
+    failure_path = launcher[launcher.index("} catch {\n    $launcherFailure"):]
+    assert failure_path.index("Stop-OwnedProcesses") < failure_path.index("'es-proxy-witness.json'")
+    assert failure_path.count("ownedProcessesStopped = $cleanupStopped") >= 3
+    cleanup_functions = launcher[launcher.index("function Stop-OwnedProcesses"):
+                                 launcher.index("try {\n    if (-not $startup)")]
+    assert "Stop-Process -Id $process.Id" not in cleanup_functions
+
+
 def test_launcher_creates_fresh_snapshot_after_owned_services_before_key_read() -> None:
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")

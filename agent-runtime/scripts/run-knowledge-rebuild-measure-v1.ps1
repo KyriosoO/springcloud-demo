@@ -500,15 +500,23 @@ function Stop-OwnedProcesses {
         }
     }
     foreach ($child in @($ownedPythonChildren.Values)) {
-        if (-not $child.HasExited) {
-            try { $child.Kill() } catch {}
-            [void]$child.WaitForExit(5000)
+        try {
+            if (-not $child.HasExited) {
+                $child.Kill()
+                if (-not $child.WaitForExit(5000)) { $script:ownedChildCleanupUnknown = $true }
+            }
+        } catch {
+            $script:ownedChildCleanupUnknown = $true
         }
     }
     foreach ($process in @($runtimeProcess, $agentProcess, $esProcess, $authProcess, $proxyProcess)) {
-        if ($null -ne $process -and -not $process.HasExited) {
-            Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
-            if (-not $process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+        try {
+            if ($null -ne $process -and -not $process.HasExited) {
+                $process.Kill()
+                if (-not $process.WaitForExit(5000)) { $script:ownedChildCleanupUnknown = $true }
+            }
+        } catch {
+            $script:ownedChildCleanupUnknown = $true
         }
     }
 }
@@ -743,6 +751,7 @@ try {
     Copy-Item -LiteralPath $snapshotPath -Destination (Join-Path $outputRoot 'snapshot-preflight.json')
     Copy-Item -LiteralPath $postSnapshotPath -Destination (Join-Path $outputRoot 'snapshot-postflight.json')
     Stop-OwnedProcesses
+    if (-not (Test-OwnedProcessesStopped)) { throw 'knowledge.measure.owned_cleanup_failed' }
     $env:PYTHONPATH = 'src'
     Push-Location $runtimeRoot
     try {
@@ -780,8 +789,14 @@ try {
     $partialCounts = $null
     try { if ($null -ne $proxyProcess -and -not $proxyProcess.HasExited) { $partialCounts = Get-ProxyCounts -AllowViolations } } catch {}
     if ($null -eq $partialCounts -and $null -ne $proxyCounts) { $partialCounts = $proxyCounts }
-    if ($startup) {
+    $cleanupStopped = $false
+    try {
         Stop-OwnedProcesses
+        $cleanupStopped = Test-OwnedProcessesStopped
+    } catch {
+        $script:ownedChildCleanupUnknown = $true
+    }
+    if ($startup) {
         if (-not (Test-Path -LiteralPath (Join-Path $runRoot 'startup-result.json'))) {
             Write-ExclusiveJson (Join-Path $runRoot 'startup-result.json') ([ordered]@{
                 schemaVersion = 1; status = 'startup_preflight_failed'; startupId = $runId; exitCode = 1
@@ -791,7 +806,7 @@ try {
                 typedSearchEsHttp = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.searchEsHttp }
                 proxyViolations = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.proxyViolations }
                 modelHttp = 0; embeddingHttp = 0; rerankHttp = 0; runtimeKeyRead = $false
-                ownedProcessesStopped = Test-OwnedProcessesStopped
+                ownedProcessesStopped = $cleanupStopped
             })
         }
     } elseif ($staticPreflightPassed -and -not (Test-Path -LiteralPath $outputRoot)) {
@@ -800,7 +815,7 @@ try {
         Write-ExclusiveJson (Join-Path (Split-Path -Parent $manifestFull) 'launcher-failure.json') ([ordered]@{
             schemaVersion = 1; runId = $runId; status = 'invalid_run'; reason = $launcherFailure
             evidenceLocation = 'frozen_asset_directory'; authorizationConsumption = 'not_observed'
-            callCounts = $null
+            callCounts = $null; ownedProcessesStopped = $cleanupStopped
         })
     }
     if (-not $startup -and $staticPreflightPassed) {
@@ -817,6 +832,7 @@ try {
             aliasEsHttp = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.aliasEsHttp }
             indexDefinitionEsHttp = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.definitionEsHttp }
             proxyViolations = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.proxyViolations }
+            ownedProcessesStopped = $cleanupStopped
         })
     }
     if (-not $startup -and (Test-Path -LiteralPath $outputRoot -PathType Container) -and
@@ -826,6 +842,7 @@ try {
         Write-ExclusiveJson (Join-Path $outputRoot 'launcher-failure.json') ([ordered]@{
             schemaVersion = 1; runId = $runId; status = 'invalid_run'; reason = $launcherFailure
             consumed = (Test-Path -LiteralPath (Join-Path $outputRoot 'authorization.consumed.json'))
+            ownedProcessesStopped = $cleanupStopped
         })
     }
     throw
