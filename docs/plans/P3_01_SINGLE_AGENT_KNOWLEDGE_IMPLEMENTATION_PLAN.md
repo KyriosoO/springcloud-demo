@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.18 |
+| 当前版本 | v3.19 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。当前独立目标已授权EVIDENCE、REPRESENT、COMPOSE、有限资料对照与满足条件后的发布；旧B/MEASURE失败run不复用。维护者现另行授权新的独立验证批次：先无LLM真实启动预检，通过后新冻B比较及12题测量，复用既有只读候选；并精确批准新MEASURE只读元数据72次（§14.22），其余预算/题目/gold/阈值不变。不得续跑旧run、重建候选或扩大付费预算。每项仍须满足冻结输入、人工评价及自身完成条件。在线父单元补取与超范围操作未获授权 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布，已消费的比较无有效测量；MEASURE已冻结一次12题批次，但在ledger初始化前以`failed_unconsumed / invalid_run`终止，12题未执行、模型及typed检索等执行调用均0（不含启动前只读ES元数据前检）。人工评价、发布及新版完整UAT未完成 |
+| 实施授权 | Ready 不等于实施授权。当前目标已授权基础实施、有限资料对照与条件发布；此前另行授权无LLM启动预检后新冻B/12题测量、复用既有只读候选，并批准新MEASURE元数据72次（§14.22）。该B承接批次已消费并失败，MEASURE独立启动亦失败且未形成新的正式冻结；旧/新失败run均不可复用、补跑或续跑。本轮继续最小non-live修复、证据保护及状态收口；后续是否准备另一新批次须另作明确决策，本文不是滚动运行许可。不重建候选或扩大预算，在线父单元补取与超范围操作未获授权 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布；新承接比较执行全部10题后因后验归属准入失败记Not assessed，没有有效质量或盲标证明。MEASURE首次正式批次在ledger前失败，后续独立启动也失败，12题仍未执行。人工评价、发布及新版完整UAT未完成，逐批计数见§14 |
 
 ## 2. 修改历史
 
@@ -46,6 +46,8 @@
 | 24 | 2026-09-30 | §1/3/14.21 | 新独立验证授权及启动准入补齐 | v3.15先补独立无LLM启动预检和已建候选跨run绑定；保留旧失败run终态、题目、预算、gold及阈值，不新增Gate或候选索引 |
 | 25 | 2026-09-30 | §1/3/14.22 | 正式元数据HTTP与检查次数混淆 | v3.16据源码纠正新MEASURE元数据上限为维护者批准的72；保留每次双GET安全核查和实际attempt计数，其余正式预算与历史资产不变 |
 | 26 | 2026-09-30 | §3/14.23 | 新工具复评及B无推理启动预检完成 | v3.17记录有限真实启动证据，不预记B对照、MEASURE、人工评价或发布通过 |
+| 27 | 2026-09-30 | §14.24 | MEASURE无推理启动失败及non-live诊断 | v3.18保留端口归属失败终态，不自动复跑，未观测代理计数不补造0 |
+| 28 | 2026-09-30 | §1/3/5/12/14.25 | 新B全部调用后准入失败及内部请求见证纠偏 | v3.19区分旧首题前失败与新10题后验失败，仍无有效比较/人评/发布；承接L2_01_01 v3.11，不改历史终态、题目、预算或阈值 |
 
 ## 3. 来源清单与当前基线
 
@@ -53,9 +55,9 @@
 |---|---|---|---|---|---|---|
 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | 目标架构 | L1 | v3.6 / Approved | §4.5/4.6最小链路与资料组织、目标有限回答 | 是 | Summary9定向设计已复评，不证明真实效果 |
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
-| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.10 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | 启动预检与既有候选承接保持；新MEASURE元数据72次的计数纠正已定向复评；设计及fake不能代替真实运行或质量证据 |
+| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.11 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B内部双hash请求同一性已定向复评；MEASURE元数据72保持，设计与fake不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.17 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | B无推理启动通过不代替比较；旧B比较与MEASURE均无有效测量，人工效果及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.19 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B虽执行全部题，后验准入失败仍无有效测量；MEASURE12题、人评及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -82,12 +84,12 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-RETRIEVAL-01 | RETRIEVAL | L2_01_00 §8 DR-KFLOW-203；L2_01_01 §9 DR-KRET-201～204 | 原Q双路、域内融合/重排与有界配置 | WP-KREBUILD-CONTRACT-01 | - | planning/semantic_planner/ranking/config最小策略 | TEST/VAL-KRET-201～203，数量/顺序/Q一致、部分/全失败、同域拒绝；无网络fake | 本地fake；独立strategy，旧prod不变；无索引写入 | Done |
 | WP-KREBUILD-EVIDENCE-01 | EVIDENCE | L2_01_02 §9 DR-KEV-201～205 | minimal Evidence和Summary8 | WP-KREBUILD-CONTRACT-01 | - | mode input、evidence selector、serializer、summary_task_v8.py/decoder | TEST/VAL-KEV-201～203；完整性先验证、预算、deny0、引用/未知coverage拒绝；模型fake | 直接代码和fake证据见§14.6；旧Prompt/serializer不改 | Done |
 | WP-KREBUILD-COMPOSE-01 | COMPOSE | L2_01_00 §8 DR-KFLOW-204/205；L2_01_02 §9 | 唯一root迁移与历史隔离 | WP-KREBUILD-RETRIEVAL-01、WP-KREBUILD-EVIDENCE-01 | - | bootstrap/capability/任务目录；37风险新版映射及non-live验证 | current-root、Spring E2E、37风险逐case追踪、Business35关键防退、Java安全/类型/non-live、正式代码评审；实质回答充分性由MEASURE承担；Blocker/Major0 | 仓库接线及non-live范围完成，36项fake/non-live直接证据；§14.8另有单域当前root真实typed只读预检，EV006真人语义评价、Spring全链和部署均不属于本包Done | Done |
-| WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205/206；UAT_02 §5 | 固定12题及一次独立测量；Summary9最小回答接缝已完成 | WP-KREBUILD-COMPOSE-01 | - | Summary9独立任务/严格解码/原文及claim校验/唯一root及验证台同屏引用展示，继而新版本问题/来源/预算绑定、有限结果及真人评价 | REQ→L0/L1→L2设计复评及Summary9定向non-live已通过；§14.20首次正式冻结批次在ledger前失败，仍无12题执行及真人评价；按预置判据分类，技术失败停止 | `In Progress`仅表示回答接缝与工具已实施，失败后的目录前检修复只有non-live证明。原run虽仍显示`authorized_unconsumed`，已停止且不得复用、续跑或改判；旧Summary8及Done包历史范围不改写 | In Progress |
+| WP-KREBUILD-MEASURE-01 | MEASURE | L2_01_02 §9 DR-KEV-205/206；UAT_02 §5 | 固定12题及一次独立测量；Summary9最小回答接缝已完成 | WP-KREBUILD-COMPOSE-01 | - | Summary9独立任务/严格解码/原文及claim校验/唯一root及验证台同屏引用展示，继而新版本问题/来源/预算绑定、有限结果及真人评价 | REQ→L0/L1→L2设计复评及Summary9定向non-live已通过；§14.20首次正式批次及§14.24独立启动均失败，仍无12题执行及真人评价；技术失败停止 | In Progress仅表示回答接缝与工具已实施；目录/PID/健康路径修复只有non-live证明，旧失败目录均不可复用、续跑或改判；Done包历史范围不改写 | In Progress |
 | WP-KORG-DESIGN-01 | DESIGN | L1_01 §4.6；L2_01_01 §18；L2_01_00/02 §19 | 已批准资料组织设计；本轮仅补结构单元与补取边界，不重判原完成证据 | - | - | 设计来源、样本边界及资料方案 | 原设计的内审/复核/文档及Git证明维持原范围；v3.2补充须单独评审和本地提交，不冒称新代码或推送 | 只文档；不动服务/模型/索引 | Done |
 | WP-KORG-NORMALIZE-01 | NORMALIZE | L2_01_01 §18 DR-KRET-301～303；L2_01_02 §19 DR-KEV-301；L2_01_00 §19 DR-KFLOW-301/302 | 标准化、不可变源版本及结构可信状态记录；不把现有DOCX乱序产物标verified | WP-KORG-DESIGN-01 | - | normalization_v2.py/来源位置Schema/fixture | TEST-KRET-301、hash/span及不可靠顺序反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 本包代码与有限来源核对见§14.3/14.4；未批量生成真实v2 sidecar或迁现索引 | Done |
 | WP-KORG-CHUNK-01 | CHUNK | L2_01_01 §18 DR-KRET-303/304 | 最小修复受影响DOCX解析顺序，建立结构单元身份、同版本父子关系与连续chunk span | WP-KORG-NORMALIZE-01 | - | parser顺序接缝/chunking_v2.py及段表交错、短长条、表格/否定/例外fixture | TEST-KRET-302；完整单元可按源span恢复且hash一致，跨版本/悬空/乱序失败关闭，不静默遗漏 | 本包离线代码、fixture和复评见§14.5；旧chunker不覆盖，真实资料重切/发布待后续包 | Done |
 | WP-KORG-REPRESENT-01 | REPRESENT | L2_01_01 §18 DR-KRET-305/306 | 独立检索表示及token前检；不把父单元或派生表头当可引用正文 | WP-KORG-NORMALIZE-01 | - | 表示构造/model manifest/tokenizer验证 | TEST-KRET-303；明确实际长度单位/版本，无截断、body/input hash独立；旧未知不回填 | 纯构造、固定tokenizer与直接证据见§14.6；无推理或索引写入 | Done |
-| WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→当前授权内有限BGE/新候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标、保留题及停止规则 | A保持Not assessed；B候选已按冻结输入构建并只读未发布，但本次成对比较在首次typed前失败，10题均未执行、无盲标及质量结论（§14.19）；不补跑本次、不切线上alias | In Progress |
+| WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→有限BGE/候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标及停止规则 | A保持Not assessed；B候选只读未发布。旧比较首题前失败（§14.19），新承接比较10题全部调用后后验准入失败（§14.25），均无有效排名/盲标/质量结论；不补跑、不切线上alias | In Progress |
 | WP-KORG-RELEASE-01 | RELEASE | L2_01_00 §19 DR-KFLOW-303；L2_01_02 §19 DR-KEV-302/303 | 选定候选兼容发布 | WP-KORG-COMPARE-01 | - | 策略/Profile一致性、精确旧绑定、回滚与冒烟证据 | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；无证据不得发布 | 当前目标仅在条件满足后授权新索引/受控部署/alias写入；生效前仍须核实精确旧绑定与原子回滚；不删旧索引 | Blocked |
 
 ## 6. 直接依赖图
@@ -141,12 +143,12 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | 3 | WP-KREBUILD-RETRIEVAL-01 | Done | 无；提交及验证见§14.2 | 新策略独立验证，生产接线待COMPOSE |
 | 4 | WP-KREBUILD-EVIDENCE-01 | Done | 无；直接fake及代码复核见§14.6 | Summary8/Evidence组件完成，不预记完整UAT |
 | 5 | WP-KREBUILD-COMPOSE-01 | Done | §14.7：Spring逐案typed、拒绝/并发及有限证据复评；§14.8：单域当前root真实typed只读预检 | 仅non-live实现包关闭；附加预检不代表Spring全链、部署、37/37 UAT或效果通过 |
-| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；§14.20正式冻结批次已因结果父目录缺失在ledger前停止，后续最小修复仅non-live通过 | 该run不可复用；0模型/typed检索等执行调用、12题未执行（不含启动前只读ES元数据前检），人工评价未开始。不得由修复通过推断真实测量完成或自动重启批次 |
+| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；首次正式批次ledger前失败，后续独立启动端口归属失败，修复仅non-live通过 | 两个失败run均不可复用；12题未执行，人工评价未开始，启动前元数据单列。不由修复通过推断真实测量完成或自动重启批次 |
 | 7 | WP-KORG-DESIGN-01 | Done | 无技术前置阻塞；后续操作须独立授权 | 来源设计已完成，非新实现 |
 | 8 | WP-KORG-NORMALIZE-01 | Done | 无；有限来源核验见§14.4 | 离线版本/来源/结构可信合同完成；不声称全库v2转换或父单元读取 |
 | 9 | WP-KORG-CHUNK-01 | Done | 无；代码及复评见§14.5 | v2离线切片合同完成；真实资料重切和候选发布仍未执行 |
 | 10 | WP-KORG-REPRESENT-01 | Done | 无；纯构造及tokenizer验证见§14.6 | 不冒称真实向量效果或候选构建已通过 |
-| 11 | WP-KORG-COMPARE-01 | In Progress | B构建已形成只读未发布候选，但首次成对比较消费后在typed前失败；两臂盲标及有效质量对照缺失 | 直接前置已Done；A为Not assessed，B本次终态不可续跑/改判；后续需独立诊断及重新冻结的目标，不以候选构建代替COMPARE完成 |
+| 11 | WP-KORG-COMPARE-01 | In Progress | B候选只读未发布；新承接比较10题后验归属准入失败，缺有效traces/盲标及质量对照 | 直接前置已Done；A为Not assessed，旧/新失败终态不可续跑/改判；后续是否另建冻结批次须独立决定，不以完成调用数代替COMPARE完成 |
 | 12 | WP-KORG-RELEASE-01 | Blocked | WP-KORG-COMPARE-01 | 等待直接前置；发布还需§7/8证据 |
 
 ## 10. 实施交接
@@ -191,12 +193,12 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KREBUILD-RETRIEVAL-01 | DR-KFLOW-203；DR-KRET-201～204 | IMPL-KFLOW-202；IMPL-KRET-201～203 | TEST-KFLOW-202；TEST-KRET-201～203 | VAL-KFLOW-202；VAL-KRET-201～203 | Done |
 | WP-KREBUILD-EVIDENCE-01 | DR-KEV-201～205 | IMPL-KEV-201～203 | TEST-KEV-201～203 | VAL-KEV-201～203 | Done；仅组件fake/non-live |
 | WP-KREBUILD-COMPOSE-01 | DR-KFLOW-204/205；DR-KEV-204 | IMPL-KFLOW-202/203；IMPL-KEV-203 | TEST-KFLOW-202/203；TEST-KEV-203；原37风险新版映射 | VAL-KFLOW-202/203；VAL-KEV-202/203；UAT_02 §3 | Done；36项fake/non-live直接证据，EV006语义充分性按§12交MEASURE |
-| WP-KREBUILD-MEASURE-01 | DR-KEV-205/206；DR-KRET-204 | IMPL-KEV-203；IMPL-KRET-203 | UAT-KM-001～012 | VAL-KEV-203；VAL-KRET-203；UAT_02 §5 | In Progress：Summary9仓库接线及三模式Spring合成non-live已完成；一次正式冻结及launcher前检后在ledger初始化前失败，12题未执行，Spring真实全链与人工语义评价仍未完成；该run不复用，后续修复只经non-live验证 |
+| WP-KREBUILD-MEASURE-01 | DR-KEV-205/206；DR-KRET-204 | IMPL-KEV-203；IMPL-KRET-203 | UAT-KM-001～012 | VAL-KEV-203；VAL-KRET-203；UAT_02 §5 | In Progress：Summary9仓库接线及三模式Spring合成non-live已完成；正式批次ledger前失败、后续独立启动失败，12题及人工语义评价仍未完成；失败run不复用，修复仅non-live验证 |
 | WP-KORG-DESIGN-01 | 设计输入；REQ-KCORPUS-001～006 | 已批准三L2资料章节，不新增代码 | 原资料设计复核 | 原有限审计与文档验证 | Done |
 | WP-KORG-NORMALIZE-01 | DR-KRET-301/302及303的来源版本前提；DR-KEV-301；DR-KFLOW-301/302 | IMPL-KRET-301；IMPL-KEV-301；IMPL-KFLOW-301/302 | TEST-KRET-301；TEST-KEV-301；TEST-KFLOW-301/302 | VAL-KRET-301；VAL-KEV-301；VAL-KFLOW-301/302的离线/来源部分；UAT-KORG-001～004/009仅来源身份、附件关系与fake授权部分 | Done；仅本包离线/有限来源部分 |
 | WP-KORG-CHUNK-01 | DR-KRET-303/304；DR-KEV-302/303 | IMPL-KRET-302；IMPL-KEV-302 | TEST-KRET-302；TEST-KEV-302 | VAL-KRET-302；VAL-KEV-302的结构/span部分；UAT-KORG-004的unit父子关系、005/006/008 | Done；仅本包fixture/结构部分 |
 | WP-KORG-REPRESENT-01 | DR-KRET-305/306；DR-KEV-302/303 | IMPL-KRET-303；IMPL-KEV-302 | TEST-KRET-303；TEST-KEV-302 | VAL-KRET-303；VAL-KEV-302；UAT-KORG-003/007/008 | Done；仅纯构造/固定tokenizer |
-| WP-KORG-COMPARE-01 | DR-KRET-307；DR-KEV-304 | IMPL-KRET-304；IMPL-KEV-303 | TEST-KRET-304；TEST-KEV-303；UAT-KORG-001～012 | VAL-KRET-304；VAL-KEV-303；UAT_02 §6 | In Progress；B候选构建完成但只读未发布，首次比较not_assessed且typed=0；无盲标/质量结论 |
+| WP-KORG-COMPARE-01 | DR-KRET-307；DR-KEV-304 | IMPL-KRET-304；IMPL-KEV-303 | TEST-KRET-304；TEST-KEV-303；UAT-KORG-001～012 | VAL-KRET-304；VAL-KEV-303；UAT_02 §6 | In Progress；B候选只读未发布，新比较10题执行后not_assessed，typed44/embed10/rerank22；缺有效traces/盲标/质量结论 |
 | WP-KORG-RELEASE-01 | DR-KFLOW-303；DR-KRET-307；DR-KEV-302/303 | IMPL-KFLOW-303；IMPL-KRET-304；IMPL-KEV-302 | TEST-KFLOW-303；TEST-KRET-304；TEST-KEV-302 | VAL-KFLOW-303；VAL-KRET-304；VAL-KEV-302；UAT-KORG-012 | Blocked |
 
 跨阶段验证按以下责任切片执行，不新增VAL、工作包或门禁。实际验证记录注明已执行部分、结果及未执行部分的承接包；不得将部分通过写成整个VAL或整套UAT通过。
@@ -221,7 +223,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.20。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B只读候选未发布、首次比较无有效质量结果；MEASURE首次正式冻结后在ledger初始化前失败，虽完成部分launcher准入，但模型/typed检索等执行调用为0、12题全未执行（不含启动前只读ES元数据前检），未形成可独立复核的运行快照。后续最小修复仅有non-live证据；人工评价及发布未执行，不能宣称新UAT完成。
+当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.25。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B候选只读未发布，新承接比较10题全部调用后后验归属准入失败，仍无有效traces、盲标或质量结果；MEASURE首次正式批次ledger前失败、后续独立启动失败，12题及人工评价未执行。后续工具修复仅有non-live证明；没有发布，不能宣称新版UAT完成。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
@@ -423,3 +425,19 @@ B启动配置的后续修复本地提交`a7c610e6b518d6b50f5c36fe87d3ad40efff15c
 [新启动有限证据](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-03/README.md)绑定`a03486e653a69c434ca18fd5cec943e0aa243881`。五模块clean构建成功后，独立启动在`proxy_start`端口归属检查处终止，`startup_preflight_failed`，现场错误`knowledge.measure.port_owner_mismatch`。模型、embedding、rerank均0，未显式读取模型密钥；绑定前检记录2个元数据HTTP attempt，代理计数未取得，保持null而非补造0。自有进程报告停止，现场核查五个隔离端口无监听。此目录没有正式manifest/authorization/case journal，失败不自动复跑。继续只做根因核查与fake修复，不因此取消可独立推进的B比较；COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，12题真实测量、维护者人工评价及新版UAT均未完成。
 
 本地synthetic进程核实Windows虚拟环境redirector父PID与实际Python子PID不同，且子进程仍使用项目venv。后续私有launcher修复严格绑定父子关系、基础可执行文件、模块角色及创建时间，正式runner传入实际proxy监听PID，未监听子进程亦纳入可核实的清理，无法核实则清理状态失败而非假称退出。另只读核对本地Spring Boot 3.5.10源码，健康请求为`/_cluster/health/`；代理仅新增这一精确等价路径并与原路径共用预算，其他路径/参数/写操作仍拒绝。独立复评确认惰性进程对象的PID复用Major，已通过捕获时固定句柄及创建时间比对关闭，范围内无未解决Blocker/Major；测试基础Python路径从目标venv配置读取，不引入安装路径硬依赖。直接harness 34 passed、受影响Python源strict mypy、compileall、PowerShell AST 0 error及差异检查通过；这些仅为non-live修复验证，不构成新的启动通过或真实批次授权。
+
+### 14.25 B既有候选承接的后验失败及请求见证纠偏（2026-09-30）
+
+本地提交`7e3e7d601310ab4204e1f0a8ec98452ba742bed5`保存§14.24所述MEASURE私有启动修复，未复跑启动。提交`a6f83f7f941eedecaccb21fc8354608e0e23408c`补齐离线B复核辅助工具及合法空law路径的评分处理：无标签输出Not assessed，拒绝外来/null标签及与intent不一致的frozen HEAD；空law双路只有均合法零命中时才允许无rerank，非空缺stage仍拒绝。直接fake 69 passed；先前使用`--follow-imports=silent`的探索性类型检查不作为全链证明，随后以corpus项目venv、双源码MYPYPATH及项目配置执行未隐藏import的显式strict mypy，两源文件检查成功，compileall及差异检查通过。独立定向代码复评无未解决Blocker/Major；工具不能凭失败批次补造blind pool或运行归属。
+
+[新B承接有限失败证据](../../knowledge-corpus-tools/evidence/knowledge-b-reuse-20260930-01/README.md)绑定clean HEAD `a6f83f7f941eedecaccb21fc8354608e0e23408c`。两臂完整只读扫描各64次、各15521记录，ID/content hash文件与旧构建Git对应blob字节一致，所有源身份和指纹回链通过；不重建、不写正文、不重算语料向量。正式10题全部执行，typed search=44、query embedding=10、online rerank=22、元数据ES HTTP=30、临时alias写=4；预扫描128次独立分账，付费/retry/resume/线上alias切换均0。两臂进程停止、临时alias移除、proxy violations=0，现场核查四个隔离端口无监听；候选仍只读未发布。
+
+唯一终态为`not_assessed / runtime_provenance_missing`。失败资产未保存双臂请求见证、traces或准入receipt，故不能核查具体触发的后验条件、生成有效blind pool或补算质量。纯离线核查确认Java `Map.of`跨进程键序可不同，而冻结代理以原始JSON字节hash比较请求；同语义不同键序会被误拒，是已证实静态缺陷和本批的强候选原因，**不是本批实际触发条件的确证**。旧/新失败run均不重跑、不补判，A仍Not assessed；COMPARE/MEASURE仍In Progress，RELEASE仍Blocked，12题真实模型与维护者人评未完成。
+
+L2_01_01 v3.11针对该内部缺陷先澄清双hash合同并完成作者内审及未参与起草执行单元定向设计复评；GET摘要歧义S2已关闭，S0/S1/未处理S2为0。原始字节hash保留，规范JSON hash只解决对象键序/空白差异，不放宽路径、授权、次数、索引或清理核查；新的证明形状不补算旧见证。后续只做直接non-live修复验证，不自动启动第三次B或新的MEASURE冻结/真实调用。
+
+有限失败资产已本地提交`0f7466fa17312fa66f6d65cbd94000b870011cbf`，11个原始JSON及说明未改变运行终态；源/候选ID映射blob与旧Git资产完全相同。内部双hash修复本地提交`1c0d6d211135b335ff4b47ab256a165ce2fbde38`，限四个B私有源码、三个直接测试及L2_01_01合同，不改生产查询、Prompt、权限、索引正文或历史资产。同一任务内未参与实现的执行单元初检发现数字float舍入/下溢与receipt条目形状两个缺口，最小修复后分别核验数字词面差异、畸形有限拒绝、严格JSON负例及非法请求backend零调用；定向复评无未解决Blocker/Major。此结论只证明私有工具修复，不证明新真实启动、比较或质量通过。
+
+主执行者实际验证：在`agent-runtime`目录以项目venv执行`pytest tests/evaluation/knowledge/test_rebuild_b_comparator.py tests/evaluation/knowledge/test_rebuild_b_local_transport.py tests/evaluation/knowledge/test_rebuild_b_local_runner.py tests/evaluation/knowledge/test_rebuild_b_review.py -q`，131 passed。首次未指定源码路径时因venv已安装包缺`intent_contracts`产生collection错误；随后仅为该验证进程显式设置`PYTHONPATH=D:/codex/agent-runtime/src;D:/codex/knowledge-corpus-tools/src;D:/codex/agent-runtime`，纠正导入基线后得到上述通过结果，没有安装或修改全局环境、删除断言或跳过测试。两项元数据守卫定向测试`test_formal_proxy_counts_each_alias_get_and_rejects_seventy_third_metadata_attempt`、`test_formal_proxy_records_failed_metadata_attempt_before_backend_error`另得2 passed，实际计数保留且第73次拒绝；72仅为正式MEASURE运行上限，不是新批次授权。corpus项目venv配合双源码`MYPYPATH`及corpus项目配置执行显式strict mypy，四个受影响源码成功，未用`--follow-imports=silent`；七个受影响源码/测试compileall成功。
+
+文档/追踪有限检查：P3与L2严格校验各0 error/0 warning，四份当前文档69条本地链接无断裂，Business/原Knowledge追踪兼容12 passed；新增有限资产及四份文档敏感模式扫描无命中，Git差异检查通过。本轮未修改生产源码或Java，未重复全量Python/Maven、真实Spring全链、索引发布或人工质量评价；这些不得从本轮定向检查推定通过。收口现场只读检查九个本次隔离端口无监听，未停止用户服务。以上修复提交和状态同步均仅本地保存，不push、不部署；下一批真实执行需要独立决策，当前目标仍未全部完成。
