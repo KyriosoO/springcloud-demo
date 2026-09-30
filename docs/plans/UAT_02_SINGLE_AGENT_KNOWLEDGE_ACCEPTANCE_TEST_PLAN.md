@@ -4,15 +4,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.14 |
+| 当前版本 | v3.15 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；新版UAT未完成） |
 | 日期 | 2026-09-30 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
-| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.8定向复评通过；组件及离线实施进度以P3_01为准，不等于新版UAT已执行 |
+| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.9补齐独立启动预检和既有候选承接；组件及离线实施进度以P3_01为准，不等于新版UAT已执行 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.14；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.15；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据；B候选只读未发布，成对比较无有效测量。MEASURE首次冻结12题批次在ledger初始化前`failed_unconsumed / invalid_run`，12题未执行、模型和typed检索等执行调用0（不含启动前只读ES元数据前检），人工未评价；后续故障修复仅有non-live证明。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价；整体Functional/Safety、召回、回答及发布均未宣布通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -49,6 +49,8 @@ v3.12只同步P3_01 §14.18的一次性B/MEASURE工具本地提交及本轮fake�
 v3.13仅同步P3_01 §14.19及提交`c9b8642e`的B有限终态：候选构建完成、只读未发布；已消费的成对比较`not_assessed`、typed/embedding/rerank均0，10题未执行。A仍`Not assessed`；MEASURE没有正式冻结或模型调用。本次不改37项风险身份、12题、盲标/质量阈值、停止与发布条件，也不把构建成功改判为召回通过。
 
 v3.14仅同步P3_01 §14.20：正式MEASURE run `knowledge-rebuild-measure-20260930-02`已冻结，但在ledger初始化前失败，`failed_unconsumed / invalid_run`，12题均未执行、模型和typed检索调用均为0；执行者有限失败记录不是journal，授权虽仍显示`authorized_unconsumed`也不复用。本轮没有新的功能、召回、回答或人工评价通过结论；后续最小修复仅经non-live验证，不改题目、阈值、预算或历史结果。
+
+v3.15记录维护者对新独立验证批次的授权：先执行不读取模型密钥、无推理/typed查询的真实启动预检；通过后建立新run与冻结绑定，执行既定B和12题测量。旧run与历史结果仍保持终态，A仍Not assessed。复用已建只读B候选，不创建新索引或重算语料向量；既有gold、题目、质量阈值和正式调用上限不变。启动预检、两臂新指纹扫描及正式比较/测量计数分别记录，预检成功不等于UAT或质量通过。具体内部接缝见L2_01_01 §18.4.2，执行证据追加至P3_01，不改历史终态。
 
 ## 2. 范围与结果纪律
 
