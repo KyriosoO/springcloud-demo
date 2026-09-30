@@ -12,7 +12,7 @@ import argparse
 import asyncio
 import ctypes
 from contextlib import AsyncExitStack, contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from hashlib import sha256
 import base64
 import hmac
@@ -54,6 +54,7 @@ from tests.evaluation.knowledge.rebuild_b_comparator import (
 from tests.evaluation.knowledge.rebuild_b_local_transport import (
     ArmIdentity, BIsolatedAliases, BLocalTransportError, PhysicalEsProxy,
 )
+from tests.evaluation.knowledge import rebuild_b_reuse_binding as reuse
 
 if TYPE_CHECKING:
     from knowledge_corpus_tools.b_candidate_freeze_v1 import GitState
@@ -90,6 +91,18 @@ _RUNTIME_CONFIG_FILES = (
     "application.yml", "application-datasource.yml", "application-es.yml",
 )
 _RUNTIME_CONFIG_ROOT = "config-service/src/main/resources/config"
+_STARTUP_EVIDENCE_ROOT = ROOT / "knowledge-corpus-tools/evidence"
+_STARTUP_SOURCE_COMMIT = "c9b8642e9c20765814df4b3422cfa958a2c4900c"
+_STARTUP_SOURCE_PATH = "knowledge-corpus-tools/evidence/knowledge-b-body-20260930-01"
+_STARTUP_SOURCE_FILES = (
+    "scan-plan.json", "binding.json", "result.json", "attempt.json", "assessment-intent.json",
+    "assessment-final.json", "source-mapping-scan-result.json",
+    "candidate-mapping-scan-result.json", "source-id-mapping.json",
+    "candidate-id-mapping.json",
+)
+_STARTUP_BUDGET = {"metadataEsHttp": 30, "aliasWrites": 4,
+                   "readinessPerArm": 60, "typedSearch": 0, "queryEmbedding": 0,
+                   "rerank": 0, "paid": 0, "jwtHttp": 0, "retry": 0, "resume": 0}
 
 
 class BLocalRunError(Exception):
@@ -256,12 +269,168 @@ class FrozenInputs:
     mapping_versions: tuple[str, str]
 
 
+@dataclass(frozen=True, slots=True)
+class StartupInputs:
+    run_id: str
+    frozen_head: str
+    identities: tuple[ArmIdentity, ArmIdentity]
+    profile_snapshots: tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
+    read_alias: str
+    online_index: str
+    online_uuid: str
+    online_mapping_sha256: str
+    online_alias_sha256: str
+    source_hashes: dict[str, str]
+    config_hashes: dict[str, str]
+    input_sha256: str = ""
+
+
+def prepare_startup_inputs(run_directory: Path) -> StartupInputs:
+    """Freeze a new startup-only run from one immutable, successful Git bundle."""
+    directory = run_directory.resolve()
+    if (not directory.is_dir() or directory.parent != _STARTUP_EVIDENCE_ROOT.resolve()
+            or not re.fullmatch(r"[a-z0-9][a-z0-9-]{4,95}", directory.name)
+            or any(directory.iterdir())
+            or _git("branch", "--show-current") != "codex_0915"
+            or _git("status", "--porcelain", "--untracked-files=no")
+            or _git("status", "--porcelain", "--untracked-files=all", "--", *_EXECUTION_SOURCES)):
+        raise BLocalRunError("startup_preflight_invalid")
+    head = _git("rev-parse", "HEAD")
+    if re.fullmatch(r"[0-9a-f]{40}", head) is None:
+        raise BLocalRunError("startup_preflight_invalid")
+    try:
+        _git("merge-base", "--is-ancestor", _STARTUP_SOURCE_COMMIT, head)
+        source_raw = {}
+        for name in _STARTUP_SOURCE_FILES:
+            path = f"{_STARTUP_SOURCE_PATH}/{name}"
+            original = _git_bytes("show", f"{_STARTUP_SOURCE_COMMIT}:{path}")
+            if (not original or len(original) > 16 * 1024 * 1024
+                    or _git_bytes("show", f"{head}:{path}") != original):
+                raise BLocalRunError("startup_source_invalid")
+            source_raw[name] = original
+        hashes = {name: sha256(raw).hexdigest() for name, raw in source_raw.items()}
+        plan, binding, result, attempt, intent, final, source_scan, candidate_scan = (
+            _object(source_raw[name]) for name in _STARTUP_SOURCE_FILES[:8])
+        spec = binding["spec"]
+        source = intent["source"]
+        candidate = final["candidateIdentity"]
+        old_run_id = _STARTUP_SOURCE_PATH.rsplit("/", 1)[-1]
+        if (any(value.get("runId") != old_run_id for value in (plan, binding, result))
+                or plan["frozenHead"] != binding["frozenHead"]
+                or hashes["scan-plan.json"] != binding["scanPlanSha256"]
+                or hashes["binding.json"] != result["bindingSha256"]
+                or hashes["binding.json"] != attempt["bindingSha256"]
+                or hashes["binding.json"] != final["bindingSha256"]
+                or hashes["result.json"] != final["builderResultSha256"]
+                or any(value["assessmentIntentSha256"] != hashes["assessment-intent.json"]
+                       for value in (plan, binding, result, attempt, final, source_scan, candidate_scan))
+                or hashes["source-mapping-scan-result.json"] != binding["sourceMapScanResultSha256"]
+                or hashes["source-mapping-scan-result.json"] != final["sourceMapScanResultSha256"]
+                or hashes["candidate-mapping-scan-result.json"] != final["candidateMapScanResultSha256"]
+                or hashes["source-id-mapping.json"] != final["sourceIdMappingSha256"]
+                or hashes["candidate-id-mapping.json"] != final["candidateIdMappingSha256"]
+                or source_scan["sha256"] != hashes["source-id-mapping.json"]
+                or candidate_scan["sha256"] != hashes["candidate-id-mapping.json"]
+                or source_scan["status"] != "scanned_read_only"
+                or candidate_scan["status"] != "scanned_read_only"
+                or result["status"] != "built_read_only_unpublished"
+                or attempt["runId"] != old_run_id
+                or attempt["status"] != "consumed"
+                or attempt["executionKind"] != "local"
+                or result["executionKind"] != "local"
+                or attempt["retry"] != 0 or attempt["resume"] != 0
+                or result["sourceVerifiedByBuilder"] is not True
+                or result["onlineAliasWrites"] != 0
+                or not (source["indexName"] == plan["sourceIndex"] == spec["source_index"])
+                or not (source["indexUuid"] == plan["sourceUuid"] == spec["source_uuid"])
+                or source["mappingSha256"] != plan["sourceMappingSha256"]
+                or source["mappingSha256"] != spec["source_mapping_sha256"]
+                or not (source["recordCount"] == plan["sourceCount"] == spec["source_count"])
+                or source["sourceFingerprint"] != plan["sourceFingerprint"]
+                or source["sourceFingerprint"] != spec["source_fingerprint"]
+                or source_scan["indexName"] != source["indexName"]
+                or source_scan["indexUuid"] != source["indexUuid"]
+                or source_scan["recordCount"] != source["recordCount"]
+                or source_scan["sourceFingerprint"] != source["sourceFingerprint"]
+                or candidate["indexName"] != plan["candidateIndex"]
+                or candidate["indexName"] != spec["candidate_index"]
+                or candidate["indexName"] != result["candidateIndex"]
+                or candidate["indexUuid"] != result["candidateUuid"]
+                or candidate["mappingSha256"] != plan["candidateMappingSha256"]
+                or candidate["mappingSha256"] != spec["target_mapping_sha256"]
+                or candidate["recordCount"] != result["candidateCount"]
+                or candidate["sourceFingerprint"] != result["candidateFingerprint"]
+                or candidate_scan["indexName"] != candidate["indexName"]
+                or candidate_scan["indexUuid"] != candidate["indexUuid"]
+                or candidate_scan["recordCount"] != candidate["recordCount"]
+                or candidate_scan["sourceFingerprint"] != candidate["sourceFingerprint"]
+                or candidate_scan["mappingVersion"] != spec["target_mapping_version"]
+                or candidate["recordCount"] != source["recordCount"]
+                or spec["online_index"] != source["indexName"]
+                or spec["online_uuid"] != source["indexUuid"]
+                or spec["online_mapping_sha256"] != source["mappingSha256"]):
+            raise BLocalRunError("startup_source_invalid")
+        profiles = intent["profileParameters"]
+        if (type(profiles) is not dict or set(profiles) != set(_PROFILE_IDS)
+                or any(profiles[domain]["profileId"] != profile_id
+                       or profiles[domain]["profileVersion"] != _PROFILE_VERSION
+                       or profiles[domain]["readPolicyVersion"] != _READ_POLICY_VERSION
+                       or profiles[domain]["baselineMappingVersion"] != source_scan["mappingVersion"]
+                       or profiles[domain]["candidateMappingVersion"] != candidate_scan["mappingVersion"]
+                       for domain, profile_id in _PROFILE_IDS.items())):
+            raise BLocalRunError("startup_source_invalid")
+        snapshots = (intent["baselineProfileSnapshots"], final["candidateProfileSnapshots"])
+        if any(type(item) is not dict or set(item) != set(_PROFILE_IDS)
+               or any(type(item[domain]) is not str or _HASH.fullmatch(item[domain]) is None
+                      for domain in _PROFILE_IDS) for item in snapshots):
+            raise BLocalRunError("startup_source_invalid")
+        identities = (
+            ArmIdentity("baseline", source["indexName"], source["indexUuid"],
+                source["mappingSha256"], source_scan["mappingVersion"],
+                f"b-{directory.name}-{secrets.token_hex(8)}-read"),
+            ArmIdentity("candidate", candidate["indexName"], candidate["indexUuid"],
+                candidate["mappingSha256"], candidate_scan["mappingVersion"],
+                f"b-{directory.name}-{secrets.token_hex(8)}-read"),
+        )
+        config_hashes = {domain: _expected_profile_config_sha256(head, domain)
+                         for domain in _PROFILE_IDS}
+        runtime_hashes = _frozen_runtime_config_hashes(head)
+        inputs = StartupInputs(directory.name, head, identities,
+            tuple((arm, tuple((domain, values[domain]) for domain in _PROFILE_IDS))
+                  for arm, values in zip(("baseline", "candidate"), snapshots, strict=True)),
+            spec["read_alias"], spec["online_index"], spec["online_uuid"],
+            spec["online_mapping_sha256"], spec["alias_snapshot_sha256"],
+            hashes, config_hashes)
+    except (BLocalRunError, BLocalTransportError, KeyError, TypeError, ValueError):
+        raise BLocalRunError("startup_source_invalid") from None
+    startup_input = {
+        "schemaVersion": 1, "runId": inputs.run_id, "frozenHead": inputs.frozen_head,
+        "sourceBundleCommit": _STARTUP_SOURCE_COMMIT,
+        "sourceBundlePath": _STARTUP_SOURCE_PATH, "sourceBundleSha256": hashes,
+        "arms": [asdict(identity) for identity in inputs.identities],
+        "profileSnapshots": {arm: dict(values) for arm, values in inputs.profile_snapshots},
+        "profileConfigSha256": config_hashes, "runtimeConfigSha256": runtime_hashes,
+        "online": {"readAlias": inputs.read_alias, "indexName": inputs.online_index,
+                   "indexUuid": inputs.online_uuid,
+                   "mappingSha256": inputs.online_mapping_sha256,
+                   "aliasSha256": inputs.online_alias_sha256},
+        "budget": _STARTUP_BUDGET,
+    }
+    raw = _canonical(startup_input)
+    _write_bytes_once(directory / "startup-input.json", raw)
+    return replace(inputs, input_sha256=sha256(raw).hexdigest())
+
+
 def load_frozen_inputs(run_directory: Path) -> FrozenInputs:
     """No network; reject altered fixture, code, maps or reused run evidence."""
     directory = run_directory.resolve()
     if (not directory.is_dir() or any((directory / name).exists() for name in _OUTPUT_FILES)
             or _git("branch", "--show-current") != "codex_0915"):
         raise BLocalRunError("run_preflight_invalid")
+    if (directory / "reuse-intent.json").exists():
+        if directory.parent != _STARTUP_EVIDENCE_ROOT.resolve():
+            raise BLocalRunError("run_preflight_invalid")
+        return _load_reuse_inputs(directory)
     intent_raw = _read(directory / "assessment-intent.json")
     final_raw = _read(directory / "assessment-final.json")
     fixture_path = ROOT / "agent-runtime/tests/uat/knowledge_rebuild_measure.v1.json"
@@ -315,6 +484,122 @@ def load_frozen_inputs(run_directory: Path) -> FrozenInputs:
          intent["profileParameters"]["tax.policy"]["candidateMappingVersion"]))
 
 
+def _load_reuse_inputs(directory: Path) -> FrozenInputs:
+    """No network: validate the new freeze and fresh scans before alias writes."""
+    sidecars = {"reuseIntent": _read(directory / "reuse-intent.json"),
+        "reuseFinal": _read(directory / "reuse-final.json"),
+        "sourceScanResult": _read(directory / "source-scan-result.json"),
+        "candidateScanResult": _read(directory / "candidate-scan-result.json"),
+        "reuseAttempt": _read(directory / "reuse-scan-attempt.json"),
+        "reuseTerminal": _read(directory / "reuse-scan-terminal.json")}
+    intent = _object(sidecars["reuseIntent"])
+    head = intent.get("frozenHead")
+    if (type(head) is not str or re.fullmatch(r"[0-9a-f]{40}", head) is None
+            or intent.get("runId") != directory.name
+            or _git("rev-parse", "HEAD") != head
+            or _git("status", "--porcelain", "--untracked-files=no")
+            or _git("status", "--porcelain", "--untracked-files=all", "--", *_EXECUTION_SOURCES)):
+        raise BLocalRunError("frozen_code_or_fixture_drift")
+    try:
+        old = reuse.load_old_build()
+        _validate_profile_parameters(head, intent.get("profileParameters"))
+        expected_intent = reuse.freeze_new_reuse_input(old=old, run_id=directory.name,
+            frozen_head=head, profile_parameters=intent["profileParameters"],
+            config_raw=_git_bytes("show", f"{head}:{reuse.CONFIG_PATH}"),
+            fixture_raw=_read(ROOT / reuse.FIXTURE_PATH))
+        if expected_intent != sidecars["reuseIntent"]:
+            raise reuse.ReuseBindingError()
+        source_raw = _read(directory / "source-id-mapping.json", 16 * 1024 * 1024)
+        candidate_raw = _read(directory / "candidate-id-mapping.json", 16 * 1024 * 1024)
+        maps = tuple(FrozenIdMapping.from_bytes(raw, expected_sha256=sha256(raw).hexdigest())
+                     for raw in (source_raw, candidate_raw))
+        params = intent["profileParameters"]["tax.policy"]
+        versions = (params["baselineMappingVersion"], params["candidateMappingVersion"])
+        for arm, raw, original, mapping, version in zip(
+                ("source", "candidate"), (source_raw, candidate_raw),
+                (old.source_map, old.candidate_map), maps, versions, strict=True):
+            if mapping != original:
+                raise reuse.ReuseBindingError()
+            expected_receipt = reuse.scan_receipt(arm=arm, intent_raw=expected_intent,
+                map_raw=raw, es_http=64, mapping_version=version, execution_kind="local")
+            if sidecars[f"{arm}ScanResult"] != expected_receipt:
+                raise reuse.ReuseBindingError()
+        final = reuse.finalize_reuse_scans(intent_raw=expected_intent,
+            source_scan_raw=sidecars["sourceScanResult"],
+            candidate_scan_raw=sidecars["candidateScanResult"],
+            source_map_raw=source_raw, candidate_map_raw=candidate_raw)
+        if final != sidecars["reuseFinal"]:
+            raise reuse.ReuseBindingError()
+        reuse.verify_reuse_scan_execution(intent_raw=expected_intent, final_raw=final,
+            attempt_raw=sidecars["reuseAttempt"], terminal_raw=sidecars["reuseTerminal"])
+        spec = reuse.spec_for_reuse(old, intent_raw=expected_intent, final_raw=final)
+        prior = _object(dict(old.blobs)["binding.json"])["spec"]
+        return FrozenInputs(spec, sidecars, maps[0], maps[1], head, directory.name,
+            prior["read_alias"], prior["online_index"], prior["online_uuid"],
+            prior["online_mapping_sha256"], prior["alias_snapshot_sha256"], versions)
+    except (reuse.ReuseBindingError, ComparisonRunError, KeyError, TypeError, ValueError):
+        raise BLocalRunError("reuse_provenance_invalid") from None
+
+
+def prepare_reuse_inputs(directory: Path) -> dict[str, object]:
+    """Bind the existing immutable candidate to one new read-only comparison."""
+    directory = directory.resolve()
+    if (directory.parent != _STARTUP_EVIDENCE_ROOT.resolve() or directory.exists()
+            or _git("branch", "--show-current") != "codex_0915"
+            or _git("status", "--porcelain", "--untracked-files=no")
+            or _git("status", "--porcelain", "--untracked-files=all", "--", *_EXECUTION_SOURCES)):
+        raise BLocalRunError("reuse_preflight_invalid")
+    head = _git("rev-parse", "HEAD")
+    old = reuse.load_old_build()
+    profiles = _object(old.spec.intent_raw)["profileParameters"]
+    parameters = {domain: {**profiles[domain],
+        "configSha256": _expected_profile_config_sha256(head, domain)} for domain in _PROFILE_IDS}
+    _validate_profile_parameters(head, parameters)
+    raw = reuse.freeze_new_reuse_input(old=old, run_id=directory.name, frozen_head=head,
+        profile_parameters=parameters, config_raw=_git_bytes("show", f"{head}:{reuse.CONFIG_PATH}"),
+        fixture_raw=_read(ROOT / reuse.FIXTURE_PATH))
+    reuse.create_reuse_run(directory, raw)
+    attempts: dict[str, int] = {"source": 0, "candidate": 0}
+
+    def scan(arm: str, corpus: Any, maximum: int) -> reuse.ScanOutcome:
+        if arm not in ("source", "candidate") or maximum != 64 or attempts[arm] != 0:
+            raise BLocalRunError("reuse_scan_scope_invalid")
+        python = ROOT / "knowledge-corpus-tools/.venv/Scripts/python.exe"
+        environment = {key: os.environ[key] for key in (
+            "PATH", "SystemRoot", "SystemDrive", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA") if key in os.environ}
+        environment["PYTHONPATH"] = str(ROOT / "knowledge-corpus-tools/src")
+        attempts[arm] = -1
+        try:
+            output = subprocess.run([str(python), str(Path(__file__).with_name(
+                "rebuild_b_mapping_worker.py"))], cwd=ROOT, env=environment,
+                input=_canonical({"indexName": corpus.index_name, "indexUuid": corpus.index_uuid,
+                    "mappingSha256": corpus.mapping_sha256,
+                    "sourceFingerprint": corpus.full_fingerprint,
+                    "recordCount": corpus.record_count, "maxEsHttp": maximum}),
+                capture_output=True, timeout=600, check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            envelope = _object(output.stdout) if len(output.stdout) <= 16 * 1024 * 1024 else {}
+            count = envelope.get("esHttp")
+            attempts[arm] = count if type(count) is int and 0 <= count <= 64 else -1
+            if (set(envelope) != {"status", "reason", "esHttp", "rawBase64", "mappingVersion"}
+                    or envelope.get("status") != "scanned_read_only" or output.returncode != 0
+                    or attempts[arm] != 64 or envelope.get("reason") is not None
+                    or type(envelope.get("rawBase64")) is not str
+                    or type(envelope.get("mappingVersion")) is not str):
+                raise BLocalRunError("reuse_scan_failed")
+            map_raw = base64.b64decode(envelope["rawBase64"], validate=True)
+            return reuse.ScanOutcome(map_raw, attempts[arm], envelope["mappingVersion"])
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            attempts[arm] = -1
+            raise BLocalRunError("reuse_scan_count_unavailable") from None
+
+    reuse.execute_reuse_scans(directory, scan_arm=scan,
+        observed_calls=lambda arm: attempts[arm])
+    return {"runId": directory.name, "status": "reuse_scanned", "paid": 0,
+        "sourceEsHttp": attempts["source"], "candidateEsHttp": attempts["candidate"]}
+
+
 def _hash_file(path: Path) -> str:
     digest = sha256()
     try:
@@ -324,6 +609,86 @@ def _hash_file(path: Path) -> str:
     except OSError:
         raise BLocalRunError("java_artifact_missing") from None
     return digest.hexdigest()
+
+
+def _bounded_model_process(command: list[str], *, payload: bytes = b"",
+                           timeout: int = 300,
+                           corpus_python: bool = False) -> bytes:
+    """Finite Docker/worker stdout; no credential or provider environment."""
+    environment = {key: os.environ[key] for key in (
+        "PATH", "SystemRoot", "SystemDrive", "TEMP", "TMP",
+        "USERPROFILE", "APPDATA", "LOCALAPPDATA") if key in os.environ}
+    if corpus_python:
+        environment["PYTHONPATH"] = str(ROOT / "knowledge-corpus-tools/src")
+    try:
+        with tempfile.TemporaryFile() as output:
+            result = subprocess.run(command, input=payload, stdout=output,
+                stderr=subprocess.DEVNULL, cwd=ROOT, env=environment,
+                timeout=timeout, check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            size = output.tell()
+            if result.returncode != 0 or not 0 < size <= 32768:
+                raise BLocalRunError("model_identity_invalid")
+            output.seek(0)
+            return output.read()
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        raise BLocalRunError("model_identity_invalid") from None
+
+
+def _rerank_container_id() -> str:
+    listed = _bounded_model_process(["docker", "ps", "--filter", "publish=8909",
+        "--format", "{{.ID}}"], timeout=15).decode("ascii").splitlines()
+    if len(listed) != 1 or re.fullmatch(r"[a-f0-9]{12,64}", listed[0]) is None:
+        raise BLocalRunError("model_identity_invalid")
+    full = _bounded_model_process(["docker", "inspect", "--format", "{{.Id}}",
+                                   listed[0]], timeout=15).decode("ascii").strip()
+    if re.fullmatch(r"[a-f0-9]{64}", full) is None:
+        raise BLocalRunError("model_identity_invalid")
+    return full
+
+
+def _capture_model_identity(inputs: FrozenInputs) -> dict[str, object]:
+    """Freeze existing BGE bytes and current rerank bytes without inference."""
+    try:
+        binding_raw = (dict(reuse.load_old_build().blobs)["binding.json"]
+                       if "reuseIntent" in inputs.sidecars else inputs.sidecars["binding"])
+        binding = _object(binding_raw)["spec"]
+        old = binding["model_snapshot"]
+        old_container = old["container"]
+        embedding_id = old_container["id"]
+        old_model_sha = sha256(_canonical(old["model"])).hexdigest()
+        if (type(embedding_id) is not str
+                or re.fullmatch(r"[a-f0-9]{64}", embedding_id) is None
+                or binding["model_snapshot_sha256"] != sha256(_canonical(old)).hexdigest()):
+            raise BLocalRunError("model_identity_invalid")
+        rerank_id = _rerank_container_id()
+        python = (ROOT / "knowledge-corpus-tools/.venv/Scripts/python.exe").resolve()
+        if (not python.is_file()
+                or not python.is_relative_to((ROOT / "knowledge-corpus-tools/.venv").resolve())):
+            raise BLocalRunError("model_identity_invalid")
+        raw = _bounded_model_process([str(python), "-m",
+            "knowledge_corpus_tools.b_model_identity_v1"],
+            payload=_canonical({"embeddingContainerId": embedding_id,
+                "rerankContainerId": rerank_id,
+                "expectedEmbeddingModelSha256": old_model_sha}),
+            corpus_python=True)
+        current = _object(raw)
+        if (set(current) != {"schemaVersion", "embedding", "rerank", "sha256"}
+                or current["schemaVersion"] != 1
+                or type(current["sha256"]) is not str
+                or current["sha256"] != sha256(_canonical({
+                    "embedding": current["embedding"],
+                    "rerank": current["rerank"]})).hexdigest()
+                or current["embedding"]["model"] != old["model"]
+                or current["embedding"]["container"]["id"] != embedding_id
+                or current["rerank"]["container"]["id"] != rerank_id
+                or {key: value for key, value in current["embedding"]["container"].items()
+                    if key != "started"}
+                   != {key: value for key, value in old_container.items() if key != "started"}):
+            raise BLocalRunError("model_identity_invalid")
+        return current
+    except (KeyError, TypeError, ValueError, UnicodeError, ComparisonRunError):
+        raise BLocalRunError("model_identity_invalid") from None
 
 
 class _PreparationTransport(httpx.HTTPTransport):
@@ -479,7 +844,9 @@ def bind_local_b_request(directory: Path, *, binder: Callable[..., bytes] | None
 
 
 @contextmanager
-def frozen_java_artifact(directory: Path, inputs: FrozenInputs) -> Iterator[tuple[Path, str]]:
+def frozen_java_artifact(directory: Path, inputs: FrozenInputs | StartupInputs,
+                         *, attestation_name: str = "comparison-java-attestation.json"
+                         ) -> Iterator[tuple[Path, str]]:
     """Build the reactor from HEAD, not from a caller-supplied or locked JAR.
 
     The temporary archive excludes the active working tree and cannot overwrite
@@ -528,7 +895,10 @@ def frozen_java_artifact(directory: Path, inputs: FrozenInputs) -> Iterator[tupl
         if built.returncode != 0 or not jar.is_file() or jar.stat().st_size <= 0:
             raise BLocalRunError("frozen_java_build_failed")
         jar_sha = _hash_file(jar)
-        _write_once(directory / "comparison-java-attestation.json", {
+        if attestation_name not in ("comparison-java-attestation.json",
+                                    "startup-java-attestation.json"):
+            raise BLocalRunError("java_artifact_invalid")
+        _write_once(directory / attestation_name, {
             "schemaVersion": 1, "runId": inputs.run_id,
             "frozenHead": inputs.frozen_head, "archiveSha256": archive_sha,
             "mavenExecutableSha256": _hash_file(Path(maven)),
@@ -653,13 +1023,16 @@ def _stop_owned(processes: list[subprocess.Popen[bytes]]) -> bool:
     return all(process.poll() is not None for process in processes)
 
 
-def _ready(processes: list[subprocess.Popen[bytes]], ports: tuple[int, int]) -> None:
+def _ready(processes: list[subprocess.Popen[bytes]], ports: tuple[int, int],
+           observed_calls: list[int] | None = None) -> None:
     with httpx.Client(trust_env=False, follow_redirects=False, timeout=2.0) as client:
-        for process, port in zip(processes, ports, strict=True):
+        for ordinal, (process, port) in enumerate(zip(processes, ports, strict=True)):
             for _ in range(60):
                 if process.poll() is not None:
                     raise BLocalRunError("java_exited")
                 try:
+                    if observed_calls is not None:
+                        observed_calls[ordinal] += 1
                     response = client.get(f"http://127.0.0.1:{port}/actuator/health/knowledge-validation")
                     if response.status_code == 200 and _listener_owner(port) == process.pid:
                         break
@@ -735,6 +1108,216 @@ def _require_owned_listeners(processes: list[subprocess.Popen[bytes]],
             raise BLocalRunError("listener_owner_mismatch")
 
 
+def execute_startup_preflight(*, directory: Path, inputs: StartupInputs,
+        jar: Path, jar_sha256: str, ports: tuple[int, int],
+        proxy_ports: tuple[int, int], es: httpx.Client) -> dict[str, object]:
+    """Start both fixed-target Java arms without any typed or model request."""
+    attestation = _object(_read(directory / "startup-java-attestation.json"))
+    if (type(inputs.input_sha256) is not str
+            or _HASH.fullmatch(inputs.input_sha256) is None
+            or _hash_file(directory / "startup-input.json") != inputs.input_sha256
+            or set(attestation) != {"schemaVersion", "runId", "frozenHead", "archiveSha256",
+                                    "mavenExecutableSha256", "command", "artifactSha256",
+                                    "artifactBytes", "buildExitCode", "workingTreeTrackedClean",
+                                    "runtimeConfigSha256"}
+            or attestation.get("schemaVersion") != 1
+            or attestation.get("runId") != inputs.run_id
+            or attestation.get("frozenHead") != inputs.frozen_head
+            or type(attestation.get("archiveSha256")) is not str
+            or _HASH.fullmatch(attestation["archiveSha256"]) is None
+            or type(attestation.get("mavenExecutableSha256")) is not str
+            or _HASH.fullmatch(attestation["mavenExecutableSha256"]) is None
+            or attestation.get("command") != ["mvn", "--offline", "--batch-mode", "-f",
+                "serviceCenter/pom.xml", "-pl", ":es-query-service", "-am",
+                "-DskipTests", "package"]
+            or attestation.get("artifactSha256") != jar_sha256
+            or attestation.get("artifactBytes") != jar.stat().st_size
+            or attestation.get("buildExitCode") != 0
+            or attestation.get("workingTreeTrackedClean") is not True
+            or attestation.get("runtimeConfigSha256") != _frozen_runtime_config_hashes(inputs.frozen_head)
+            or _hash_file(jar) != jar_sha256):
+        raise BLocalRunError("java_artifact_invalid")
+    config_dir, config_hashes = _frozen_runtime_config_dir(jar, inputs.frozen_head)
+    if attestation["runtimeConfigSha256"] != config_hashes:
+        raise BLocalRunError("java_artifact_invalid")
+    _port_guard((*ports, *proxy_ports))
+    _write_once(directory / "startup-attempt.json", {
+        "schemaVersion": 1, "runId": inputs.run_id, "frozenHead": inputs.frozen_head,
+        "startupInputSha256": inputs.input_sha256,
+        "javaArtifactSha256": jar_sha256,
+        "aliases": [identity.alias for identity in inputs.identities],
+        "budget": _STARTUP_BUDGET,
+    })
+    lease: BIsolatedAliases | None = None
+    proxies: list[PhysicalEsProxy] = []
+    processes: list[subprocess.Popen[bytes]] = []
+    readiness_calls = [0, 0]
+    stage = "alias_open"
+    reason: str | None = None
+    aliases_removed = False
+    stopped = False
+    pre_snapshots: tuple[tuple[str, str], ...] | None = None
+    post_snapshots: tuple[tuple[str, str], ...] | None = None
+    try:
+        lease = BIsolatedAliases(client=es, baseline=inputs.identities[0],
+            candidate=inputs.identities[1], online_alias=inputs.read_alias,
+            online_index=inputs.online_index, online_uuid=inputs.online_uuid,
+            online_mapping_sha256=inputs.online_mapping_sha256,
+            online_alias_sha256=inputs.online_alias_sha256,
+            mapping_fingerprint=lambda value: sha256(_canonical(value)).hexdigest(),
+            metadata_budget=18)
+        pre_snapshots = lease.open()
+        stage = "proxy_start"
+        for identity, proxy_port in zip(inputs.identities, proxy_ports, strict=True):
+            proxy = PhysicalEsProxy(identity=identity, port=proxy_port,
+                maximum_metadata=6, maximum_search=0, backend=es)
+            proxies.append(proxy)
+            proxy.start()
+        env = {key: os.environ[key] for key in (
+            "SystemRoot", "SystemDrive", "PATH", "JAVA_HOME", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA") if key in os.environ}
+        env["COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE"] = base64.b64encode(secrets.token_bytes(48)).decode()
+        profiles = dict(inputs.profile_snapshots)
+        stage = "java_start"
+        for identity, port, proxy_port in zip(inputs.identities, ports, proxy_ports, strict=True):
+            arm_profiles = dict(profiles[identity.arm])
+            env_arm = dict(env)
+            env_arm.update({
+                "AGENT_KNOWLEDGE_READ_ALIAS": identity.alias,
+                "AGENT_KNOWLEDGE_EXPECTED_INDEX_NAME": identity.index_name,
+                "AGENT_KNOWLEDGE_EXPECTED_INDEX_UUID": identity.index_uuid,
+                "AGENT_KNOWLEDGE_MAPPING_VERSION": identity.mapping_version,
+                "AGENT_KNOWLEDGE_POLICY_SNAPSHOT_ID": arm_profiles["tax.policy"],
+                "AGENT_KNOWLEDGE_LAW_SNAPSHOT_ID": arm_profiles["tax.law"],
+            })
+            process = subprocess.Popen(_java_args(jar=jar, config_dir=config_dir,
+                port=port, proxy_port=proxy_port, identity=identity,
+                run_id=inputs.run_id, policy_snapshot=arm_profiles["tax.policy"],
+                law_snapshot=arm_profiles["tax.law"]),
+                cwd=ROOT / "es-query-service", env=env_arm,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            processes.append(process)
+        stage = "java_readiness"
+        _ready(processes, ports, readiness_calls)
+        _require_owned_listeners(processes, ports)
+        if any(proxy.metadata_count != 6 or proxy.violations
+               or proxy.physical_search_paths for proxy in proxies):
+            raise BLocalRunError("java_startup_provenance_invalid")
+        stage = "postcheck"
+        post_snapshots = lease.postcheck()
+    except BLocalRunError as exc:
+        reason = exc.reason if exc.reason in {
+            "java_exited", "java_readiness_timeout", "listener_owner_mismatch",
+            "java_startup_provenance_invalid"} else "startup_identity_failed"
+    except BLocalTransportError:
+        reason = "alias_or_proxy_failed"
+    except Exception:
+        reason = "startup_unexpected_failure"
+    finally:
+        stopped = _stop_owned(processes)
+        for proxy in proxies:
+            try:
+                proxy.close()
+            except Exception:
+                reason = "proxy_cleanup_failed"
+        if lease is not None:
+            try:
+                aliases_removed = lease.close()
+            except Exception:
+                reason = "alias_cleanup_failed"
+        else:
+            aliases_removed = True
+    violations = sum(proxy.violations for proxy in proxies)
+    metadata = (lease.metadata_calls if lease is not None else 0)
+    metadata += sum(proxy.metadata_attempts for proxy in proxies)
+    searches = sum(len(proxy.physical_search_paths) for proxy in proxies)
+    if not stopped:
+        reason = "owned_process_cleanup_failed"
+    elif not aliases_removed:
+        reason = "alias_cleanup_failed"
+    elif violations or searches:
+        reason = "proxy_operation_forbidden"
+    try:
+        artifact_unchanged = _hash_file(jar) == jar_sha256
+    except BLocalRunError:
+        artifact_unchanged = False
+    if not artifact_unchanged and reason is None:
+        reason = "java_artifact_drift"
+    elif (reason is None and (pre_snapshots is None or post_snapshots != pre_snapshots
+            or len(processes) != 2 or metadata != 30
+            or lease is None or lease.alias_writes != 4
+            or any(count < 1 or count > 60 for count in readiness_calls))):
+        reason = "startup_provenance_incomplete"
+    return {
+        "schemaVersion": 1, "runId": inputs.run_id,
+        "status": "ready" if reason is None else "not_ready",
+        "phase": "complete" if reason is None else stage,
+        "reason": reason, "exitCode": 0 if reason is None else 1,
+        "startupInputSha256": inputs.input_sha256,
+        "javaArtifactSha256": jar_sha256,
+        "runtimeConfigSha256": config_hashes,
+        "sourceBundleSha256": sha256(_canonical(inputs.source_hashes)).hexdigest(),
+        "readinessCalls": dict(zip(("baseline", "candidate"), readiness_calls, strict=True)),
+        "metadataEsHttp": metadata, "aliasWrites": lease.alias_writes if lease else 0,
+        "physicalSearchCount": searches, "typedSearch": 0, "queryEmbedding": 0,
+        "rerank": 0, "paid": 0, "jwtHttp": 0, "retry": 0, "resume": 0,
+        "ownedPids": [process.pid for process in processes],
+        "ownedProcessesStopped": stopped, "aliasesRemoved": aliases_removed,
+        "proxyViolations": violations,
+    }
+
+
+def run_startup_preflight(directory: Path, *, ports: tuple[int, int],
+                          proxy_ports: tuple[int, int]) -> dict[str, object]:
+    """One independent append-only startup attempt; no comparison case is loaded."""
+    directory = directory.resolve()
+    if (not directory.is_dir() or directory.parent != _STARTUP_EVIDENCE_ROOT.resolve()
+            or any(directory.iterdir())):
+        raise BLocalRunError("startup_preflight_invalid")
+    phase = "port_preflight"
+    inputs: StartupInputs | None = None
+    terminal: dict[str, object]
+    try:
+        _port_guard((*ports, *proxy_ports))
+        phase = "source_binding"
+        inputs = prepare_startup_inputs(directory)
+        phase = "frozen_java_build"
+        with frozen_java_artifact(directory, inputs,
+                attestation_name="startup-java-attestation.json") as (jar, jar_sha):
+            phase = "startup_execution"
+            with httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+                    follow_redirects=False, timeout=10.0) as es:
+                terminal = execute_startup_preflight(directory=directory, inputs=inputs,
+                    jar=jar, jar_sha256=jar_sha, ports=ports, proxy_ports=proxy_ports, es=es)
+    except BLocalRunError as exc:
+        terminal = {"schemaVersion": 1, "runId": directory.name, "status": "not_ready",
+            "phase": phase, "reason": exc.reason if exc.reason in {
+                "startup_preflight_invalid", "startup_source_invalid", "git_state_invalid",
+                "frozen_code_or_fixture_drift", "archive_invalid", "frozen_java_build_failed",
+                "frozen_runtime_config_invalid", "java_artifact_invalid", "java_artifact_missing",
+                "port_binding_invalid", "port_already_owned", "append_only_evidence_failed"}
+                else "startup_preflight_failed", "exitCode": 1,
+            "startupInputSha256": inputs.input_sha256 if inputs is not None else None,
+            "metadataEsHttp": 0, "aliasWrites": 0, "physicalSearchCount": 0,
+            "typedSearch": 0, "queryEmbedding": 0, "rerank": 0, "paid": 0,
+            "jwtHttp": 0, "retry": 0, "resume": 0,
+            "readinessCalls": {"baseline": 0, "candidate": 0},
+            "ownedPids": [], "ownedProcessesStopped": True,
+            "aliasesRemoved": True, "proxyViolations": 0}
+    except Exception:
+        terminal = {"schemaVersion": 1, "runId": directory.name, "status": "not_ready",
+            "phase": phase, "reason": "startup_unexpected_failure", "exitCode": 1,
+            "metadataEsHttp": 0, "aliasWrites": 0, "physicalSearchCount": 0,
+            "typedSearch": 0, "queryEmbedding": 0, "rerank": 0, "paid": 0,
+            "jwtHttp": 0, "retry": 0, "resume": 0,
+            "readinessCalls": {"baseline": 0, "candidate": 0},
+            "ownedPids": [], "ownedProcessesStopped": True,
+            "aliasesRemoved": True, "proxyViolations": 0}
+    _write_once(directory / "startup-result.json", terminal)
+    return terminal
+
+
 async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
         jar: Path, jar_sha256: str, ports: tuple[int, int],
         proxy_ports: tuple[int, int]) -> dict[str, object]:
@@ -794,12 +1377,15 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
     reason: str | None = None
     pre_snapshots: tuple[tuple[str, str], ...] | None = None
     post_snapshots: tuple[tuple[str, str], ...] | None = None
+    model_pre: dict[str, object] | None = None
+    model_post: dict[str, object] | None = None
     lease: BIsolatedAliases | None = None
     stopped = False
     aliases_removed = False
     with httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
             follow_redirects=False, timeout=10.0) as es:
         try:
+            model_pre = _capture_model_identity(inputs)
             lease = BIsolatedAliases(client=es, baseline=identities[0], candidate=identities[1],
                 online_alias=inputs.read_alias, online_index=inputs.online_index,
                 online_uuid=inputs.online_uuid,
@@ -870,6 +1456,9 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
                     rerank=ContextualBgeRerankAdapter(HttpxKnowledgeTransport(rerank_client)),
                     context_for=context_for, provenance_sidecars=inputs.sidecars,
                     local_admission=admission)
+            model_post = _capture_model_identity(inputs)
+            if _canonical(model_post) != _canonical(model_pre):
+                raise BLocalRunError("model_identity_changed")
             if (any(proxy.metadata_count != 6 or proxy.violations for proxy in proxies)
                     or any(process.poll() is not None for process in processes)):
                 raise BLocalRunError("runtime_provenance_invalid")
@@ -919,7 +1508,8 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
             reason = "runtime_provenance_missing"
     if result is None or reason is not None:
         terminal: dict[str, object] = {
-            "schemaVersion": 1, "runId": inputs.run_id, "status": "not_assessed",
+            "schemaVersion": 1, "runId": inputs.run_id,
+            "frozenHead": inputs.frozen_head, "status": "not_assessed",
             "reason": reason or "comparison_incomplete", "assessmentSha256": spec.assessment_sha256,
             "calls": asdict(counts), "aliasWrites": lease.alias_writes if lease else 0,
             "metadataEsHttp": (lease.metadata_calls if lease else 0)
@@ -930,10 +1520,12 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
                 list(failed.unexecuted_case_ids) if failed is not None else
                 [] if result is not None else [case.case_id for case in spec.cases]
             ),
+            "modelIdentityPre": model_pre, "modelIdentityPost": model_post,
         }
     else:
         terminal = {
             "schemaVersion": 1, "runId": inputs.run_id,
+            "frozenHead": inputs.frozen_head,
             "status": "completed_awaiting_blind_labels", "evidenceKind": result.evidence_kind,
             "assessmentSha256": spec.assessment_sha256, "uatFixtureSha256": spec.uat_fixture_sha256,
             "provenanceSha256": result.provenance_sha256,
@@ -947,6 +1539,7 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
             "witness": {identity.arm: [asdict(item) for item in proxy.requests]
                         for identity, proxy in zip(identities, proxies, strict=True)},
             "traces": asdict(result)["cases"],
+            "modelIdentityPre": model_pre, "modelIdentityPost": model_post,
         }
         _write_once(directory / "comparison-blind-label-pool.json", {
             "schemaVersion": 1, "runId": inputs.run_id, "armHidden": True,
@@ -963,14 +1556,23 @@ def main() -> int:
     modes.add_argument("--prepare-only", action="store_true")
     modes.add_argument("--bind-source-map", action="store_true")
     modes.add_argument("--execute-once", action="store_true")
+    modes.add_argument("--startup-preflight-only", action="store_true")
+    modes.add_argument("--prepare-reuse", action="store_true")
     parser.add_argument("--baseline-port", type=int)
     parser.add_argument("--candidate-port", type=int)
     parser.add_argument("--baseline-proxy-port", type=int)
     parser.add_argument("--candidate-proxy-port", type=int)
     args = parser.parse_args()
     try:
-        _require_locked_python_environment("comparison" if args.execute_once else "preparation")
-        if args.prepare_only or args.bind_source_map:
+        _require_locked_python_environment(
+            "comparison" if args.execute_once or args.startup_preflight_only or args.prepare_reuse
+            else "preparation")
+        if args.prepare_reuse:
+            if any(value is not None for value in (args.baseline_port, args.candidate_port,
+                    args.baseline_proxy_port, args.candidate_proxy_port)):
+                raise BLocalRunError("preparation_scope_invalid")
+            terminal = prepare_reuse_inputs(args.run_directory)
+        elif args.prepare_only or args.bind_source_map:
             if any(value is not None for value in (
                     args.baseline_port, args.candidate_port,
                     args.baseline_proxy_port, args.candidate_proxy_port)):
@@ -994,6 +1596,13 @@ def main() -> int:
                                                           observed_calls=lambda: transport.calls)
                 finally:
                     transport.close()
+        elif args.startup_preflight_only:
+            ports = (args.baseline_port, args.candidate_port)
+            proxy_ports = (args.baseline_proxy_port, args.candidate_proxy_port)
+            if any(type(port) is not int for port in (*ports, *proxy_ports)):
+                raise BLocalRunError("port_binding_invalid")
+            terminal = run_startup_preflight(args.run_directory,
+                ports=ports, proxy_ports=proxy_ports)
         else:
             ports = (args.baseline_port, args.candidate_port)
             proxy_ports = (args.baseline_proxy_port, args.candidate_proxy_port)
@@ -1004,12 +1613,12 @@ def main() -> int:
                 terminal = asyncio.run(execute_local_comparison(directory=args.run_directory.resolve(),
                     inputs=inputs, jar=jar, jar_sha256=jar_sha,
                     ports=ports, proxy_ports=proxy_ports))
-    except (BLocalRunError, ComparisonRunError, ValueError):
+    except (BLocalRunError, ComparisonRunError, reuse.ReuseBindingError, ValueError):
         print(json.dumps({"status": "preflight_failed", "paid": 0}, sort_keys=True))
         return 1
     print(json.dumps({key: terminal[key] for key in ("runId", "status", "paid")},
                      ensure_ascii=False, sort_keys=True))
-    return 0 if terminal["status"] in ("prepared", "source_bound",
+    return 0 if terminal["status"] in ("prepared", "source_bound", "ready", "reuse_scanned",
                                        "completed_awaiting_blind_labels") else 1
 
 

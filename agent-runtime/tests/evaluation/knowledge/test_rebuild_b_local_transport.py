@@ -169,6 +169,45 @@ def test_proxy_rejects_unknown_target_and_counts_failed_attempts() -> None:
         client.close()
 
 
+def test_startup_proxy_zero_search_budget_never_forwards_search() -> None:
+    fake = FakeEs()
+    client = httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+                          follow_redirects=False, transport=httpx.MockTransport(fake))
+    proxy = PhysicalEsProxy(identity=fake.identity("baseline", "frozen-source", "a" * 16),
+                             port=19310, maximum_metadata=6, maximum_search=0, backend=client)
+    try:
+        assert not proxy._admit("POST", "/frozen-source/_search", 25)
+        assert proxy.violations == 1
+        assert proxy.physical_search_paths == ()
+        assert fake.operations == []
+        assert proxy._admit("GET", "/frozen-source/_mapping", 0)
+    finally:
+        client.close()
+
+
+def test_startup_proxy_http_search_is_denied_before_backend() -> None:
+    fake = FakeEs()
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    backend = httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+        follow_redirects=False,
+        transport=httpx.MockTransport(lambda _request: pytest.fail("backend called")))
+    proxy = PhysicalEsProxy(identity=fake.identity("baseline", "frozen-source", "a" * 16),
+                             port=port, maximum_metadata=6, maximum_search=0, backend=backend)
+    try:
+        proxy.start()
+        with httpx.Client(trust_env=False, follow_redirects=False, timeout=5) as client:
+            response = client.post(f"http://127.0.0.1:{port}/frozen-source/_search", json={})
+        assert response.status_code == 502
+        assert proxy.violations > 0
+        assert proxy.physical_search_paths == ()
+        assert proxy.metadata_attempts == 0
+    finally:
+        proxy.close()
+        backend.close()
+
+
 def test_proxy_stream_refuses_oversized_fake_es_response_without_body_evidence() -> None:
     fake = FakeEs()
     with socket.socket() as probe:

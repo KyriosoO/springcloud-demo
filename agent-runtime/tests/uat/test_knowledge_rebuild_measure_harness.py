@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -30,6 +31,7 @@ from agent_runtime.bootstrap import LocalModelCompositionRoot
 from agent_runtime.main import build_runtime
 from tests.uat import knowledge_rebuild_measure_prepare as prepare
 from tests.uat import knowledge_rebuild_measure_runner as runner
+from tests.uat import knowledge_rebuild_measure_startup as startup
 
 
 _HEAD = "a" * 40
@@ -230,13 +232,37 @@ def test_alias_check_rejects_uuid_drift_without_search(tmp_path: Path) -> None:
         pytest.fail("unexpected query or external request")
 
     async def check() -> None:
-        async with httpx.AsyncClient(base_url="http://127.0.0.1:9200",
+        async with httpx.AsyncClient(base_url="http://127.0.0.1:19313",
                                      transport=httpx.MockTransport(handle)) as client:
             await runner._alias_check(manifest, client)
 
     with pytest.raises(runner.MeasurementError, match="index_metadata_drift"):
         asyncio.run(check())
     assert paths == [f"/_alias/{alias}", f"/{index}"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows owned-listener contract")
+def test_alias_check_rejects_unowned_proxy_before_any_get(monkeypatch: pytest.MonkeyPatch) -> None:
+    sends = 0
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        nonlocal sends
+        sends += 1
+        pytest.fail(f"unowned proxy reached {request.url.path}")
+
+    rows = [{"LocalPort": 19201, "OwningProcess": 11},
+            {"LocalPort": 19202, "OwningProcess": 22},
+            {"LocalPort": 19313, "OwningProcess": 999}]
+    monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: json.dumps(rows))
+
+    async def check() -> None:
+        async with httpx.AsyncClient(base_url="http://127.0.0.1:19313",
+                                     transport=httpx.MockTransport(handle)) as client:
+            await runner._alias_check({}, client, es_pid=11, agent_pid=22, proxy_pid=33)
+
+    with pytest.raises(runner.MeasurementError, match="owned_port_mismatch"):
+        asyncio.run(check())
+    assert sends == 0
 
 
 def test_freeze_generator_and_static_preflight_reject_secret_environment(
@@ -251,6 +277,8 @@ def test_freeze_generator_and_static_preflight_reject_secret_environment(
     for path in (*prepare._ASSETS, *prepare._JARS.values(), *runner._DEPENDENCY_JARS):
         if path != prepare._DATASET:
             _write(root / path, ("fixed:" + path).encode())
+    config = "config-service/src/main/resources/config/application.yml"
+    _write(root / config, b"fixture: config\n")
     attestation = {"schemaVersion": 1, "status": "built_from_clean_head", "branch": "codex_0915",
                    "head": _HEAD,
                    "jarSha256": {path: runner._sha(root / path) for path in prepare._JARS.values()},
@@ -285,6 +313,7 @@ def test_freeze_generator_and_static_preflight_reject_secret_environment(
         "tax.policy": dict(binding), "tax.law": dict(binding)}, {}))
     prepare.freeze(root=root, run_dir=run_dir, run_id=_RUN,
                    authorization_reference="UAT_02:MEASURE-TEST")
+    assert json.loads((run_dir / "manifest.json").read_bytes())["assetSha256"][config] == runner._sha(root / config)
     assert output_dir.parent.is_dir()
     assert not output_dir.exists()
     output_dir.parent.rmdir()
@@ -299,7 +328,17 @@ def test_freeze_generator_and_static_preflight_reject_secret_environment(
     assert manifest["answerDesign"] == "Summary9"
     assert manifest["subject"] == {"userId": "viewer_t", "role": "VIEWER"}
     assert manifest["jarBuildHead"] == _HEAD
+    assert manifest["runtimeMetadataEsHttpMax"] == 72
     assert set(manifest["promptSha256"]) == {"action_selection", "knowledge_rewrite", "knowledge_summary"}
+    manifest_path = run_dir / "manifest.json"
+    original_manifest = manifest_path.read_bytes()
+    outdated_manifest = json.loads(original_manifest)
+    outdated_manifest["runtimeMetadataEsHttpMax"] = 48
+    manifest_path.write_text(json.dumps(outdated_manifest), encoding="utf-8")
+    with pytest.raises(runner.MeasurementError, match="manifest_binding_invalid"):
+        runner.frozen_preflight(root=root, manifest_path=manifest_path,
+            authorization_path=run_dir / "authorization.json", output_dir=output_dir, environ=env)
+    manifest_path.write_bytes(original_manifest)
     dependency_path = root / sorted(runner._DEPENDENCY_JARS)[0]
     dependency_bytes = dependency_path.read_bytes()
     dependency_path.unlink()
@@ -518,3 +557,279 @@ def test_launcher_preserves_preledger_failure_beside_validated_freeze() -> None:
     assert "Join-Path (Split-Path -Parent $manifestFull) 'launcher-failure.json'" in launcher
     assert "evidenceLocation = 'frozen_asset_directory'" in launcher
     assert "callCounts = $null" in launcher
+
+
+def test_startup_input_is_temporary_and_bound_to_only_build_attestation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "repo"
+    run_dir = root / "agent-runtime/tests/uat" / _RUN
+    run_dir.mkdir(parents=True)
+    temp_root = tmp_path / "system-temp"
+    temp_root.mkdir()
+    startup_dir = temp_root / ("codex-knowledge-measure-startup-" + "a" * 32)
+    startup_dir.mkdir()
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(temp_root))
+    _write(root / prepare._DATASET, Path(__file__).with_name(
+        "knowledge_rebuild_measure.v1.json").read_bytes())
+    for path in (*prepare._ASSETS, *prepare._JARS.values(), *runner._DEPENDENCY_JARS):
+        if path != prepare._DATASET:
+            _write(root / path, ("fixture:" + path).encode())
+    _write(root / "config-service/src/main/resources/config/application.yml", b"key: value\n")
+    attestation = {"schemaVersion": 1, "status": "built_from_clean_head", "branch": "codex_0915",
+                   "head": _HEAD,
+                   "jarSha256": {path: runner._sha(root / path) for path in prepare._JARS.values()},
+                   "dependencyJarSha256": {path: runner._sha(root / path)
+                                            for path in runner._DEPENDENCY_JARS},
+                   "commands": runner._BUILD_COMMANDS}
+    runner._exclusive_json(run_dir / "build-attestation.json", attestation)
+
+    def fake_git(args: list[str], **kwargs: object) -> str:
+        del kwargs
+        if args[3:] == ["rev-parse", "HEAD"]:
+            return _HEAD + "\n"
+        if args[3:] == ["branch", "--show-current"]:
+            return "codex_0915\n"
+        if args[3:] == ["status", "--porcelain", "--untracked-files=all"]:
+            return "?? " + (run_dir / "build-attestation.json").relative_to(root).as_posix() + "\n"
+        raise AssertionError(args)
+
+    monkeypatch.setattr(subprocess, "check_output", fake_git)
+    dataset = json.loads((root / prepare._DATASET).read_text(encoding="utf-8"))
+    source = dataset["sourceCorpus"]
+    item = {"readAlias": source["readAlias"], "indexName": source["index"],
+            "indexUuid": source["indexUuid"], "mappingVersion": "v1",
+            "mappingSha256": source["mappingSha256"],
+            "fullFingerprint": source["fullFingerprint"], "recordCount": source["recordCount"],
+            "snapshotId": "a" * 64, "readPolicyVersion": "tax-public-authenticated-v1"}
+    bindings_called = 0
+
+    def fake_binding(actual_root: Path, actual_dataset: dict[str, Any],
+                     **kwargs: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+        nonlocal bindings_called
+        assert actual_root == root
+        assert actual_dataset == dataset
+        bindings_called += 1
+        kwargs["before_read"]()
+        kwargs["before_read"]()
+        return {"tax.policy": dict(item), "tax.law": dict(item)}, {}
+
+    monkeypatch.setattr(prepare, "_binding", fake_binding)
+    output = startup_dir / "startup-input.json"
+    value = prepare.startup_input(root=root, run_dir=run_dir, output_path=output)
+    assert startup._load_startup_input(output, runner._sha(output)) == value
+    with pytest.raises(startup.StartupError, match="startup_input_invalid"):
+        startup._load_startup_input(output, "0" * 64)
+    assert bindings_called == 1
+    assert (startup_dir / "startup-metadata-attempts.jsonl").read_bytes() == (
+        b'{"attempt":1}\n{"attempt":2}\n')
+    assert value["head"] == _HEAD and value["modelRequests"] == 0
+    assert value["runtimeEnv"] == prepare._ENV
+    assert value["bindingMetadataEsHttp"] == 2
+    assert set(path.name for path in run_dir.iterdir()) == {"build-attestation.json"}
+    assert value["configSha256"] == {
+        "config-service/src/main/resources/config/application.yml":
+            runner._sha(root / "config-service/src/main/resources/config/application.yml")}
+    with pytest.raises(ValueError, match="startup_path_invalid"):
+        prepare.startup_input(root=root, run_dir=run_dir, output_path=output)
+    (root / "auth-service/target/auth-service-0.0.1-SNAPSHOT.jar").write_bytes(b"changed")
+    another_dir = temp_root / ("codex-knowledge-measure-startup-" + "b" * 32)
+    another_dir.mkdir()
+    with pytest.raises(ValueError, match="startup_build_attestation_drift"):
+        prepare.startup_input(root=root, run_dir=run_dir,
+                              output_path=another_dir / "startup-input.json")
+    assert bindings_called == 1
+
+
+@pytest.mark.parametrize("failed_attempt", [1, 2])
+def test_binding_counts_failed_http_attempt_before_send(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failed_attempt: int,
+) -> None:
+    original_client = httpx.Client
+    attempts: list[int] = []
+    sends = 0
+
+    def backend(request: httpx.Request) -> httpx.Response:
+        nonlocal sends
+        sends += 1
+        assert attempts == list(range(1, sends + 1))
+        if sends == failed_attempt:
+            raise httpx.ConnectError("fake failure", request=request)
+        return httpx.Response(200, json={})
+
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: original_client(
+        **kwargs, transport=httpx.MockTransport(backend)))
+    with pytest.raises(httpx.ConnectError):
+        prepare._binding(tmp_path, {"sourceCorpus": {"readAlias": "read-v1", "index": "index-v1"}},
+                         before_read=lambda: attempts.append(len(attempts) + 1))
+    assert sends == failed_attempt and len(attempts) == failed_attempt
+
+
+def test_launcher_checks_exact_config_set_before_and_after_startup() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    assert "function Assert-FrozenConfig" in launcher
+    assert "function Assert-FrozenAssets" in launcher
+    assert "$manifest.jarSha256.PSObject.Properties" in launcher
+    assert "$manifest.dependencyJarSha256.PSObject.Properties" in launcher
+    assert "git -C $repository status --porcelain --untracked-files=no" in launcher
+    assert launcher.count("    Assert-FrozenAssets") == 5
+    assert "$actual.Count -ne $expected.Count" in launcher
+    assert "$file.LinkType" in launcher
+    assert launcher.index("    Assert-FrozenConfig") < launcher.index("$authProcess = Start-Process")
+    assert launcher.index("    Assert-FrozenConfig", launcher.index("$userToken = Get-LoginToken")) < launcher.index(
+        "GetEnvironmentVariable('LLM_API_KEY'")
+    assert "metadataEsHttp = $metadataAttempts" in launcher
+    assert "startup-metadata-attempts.jsonl" in launcher
+    assert "$leakDetected = Test-LogLeak\n        if ($leakDetected)" in launcher
+    assert "if ($leakDetected) { $launcherFailure = 'sensitive_output_detected' }" in launcher
+
+
+@pytest.mark.skipif(os.name != "nt" or shutil.which("pwsh") is None, reason="Windows PowerShell guard")
+def test_config_guard_rejects_hash_and_added_file_drift_without_service(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    guard = launcher[launcher.index("function Assert-FrozenConfig {"):launcher.index("function Stop-OwnedProcesses {")]
+    config = tmp_path / "config-service/src/main/resources/config/application.yml"
+    _write(config, b"frozen: yes\n")
+    expected = runner._sha(config)
+    program = (
+        "$ErrorActionPreference='Stop'; $startup=$true; "
+        f"$repository='{tmp_path}'; "
+        "$manifest=[pscustomobject]@{configSha256=[pscustomobject]@{"
+        f"'config-service/src/main/resources/config/application.yml'='{expected}'}}}}; "
+        + guard + "; Assert-FrozenConfig; "
+        f"[IO.File]::WriteAllText('{config}', 'changed'); "
+        "try { Assert-FrozenConfig; exit 11 } catch { if ($_.Exception.Message -cne 'knowledge.measure.config_hash_drift') {exit 12} }; "
+        f"[IO.File]::WriteAllText('{config}', \"frozen: yes`n\", [Text.Encoding]::UTF8); "
+        f"[IO.File]::WriteAllText('{config.with_name('added.yaml')}', 'extra'); "
+        "try { Assert-FrozenConfig; exit 13 } catch { if ($_.Exception.Message -cne 'knowledge.measure.config_hash_drift') {exit 14} }; exit 0"
+    )
+    completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
+                               capture_output=True, text=True, timeout=20, check=False)
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.skipif(os.name != "nt" or shutil.which("pwsh") is None, reason="Windows PowerShell guard")
+def test_asset_guard_rejects_code_drift_before_service_without_outbound(tmp_path: Path) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    guard = launcher[launcher.index("function Assert-FrozenAssets {"):launcher.index("function Stop-OwnedProcesses {")]
+    asset = tmp_path / "helper.py"
+    build = tmp_path / "build-attestation.json"
+    _write(asset, b"frozen helper\n")
+    _write(build, b"{}\n")
+    program = (
+        "$ErrorActionPreference='Stop'; $startup=$true; "
+        f"$repository='{tmp_path}'; "
+        "$manifest=[pscustomobject]@{"
+        f"head='{_HEAD}'; assetSha256=[pscustomobject]@{{'helper.py'='{runner._sha(asset)}'}}; "
+        "jarSha256=[pscustomobject]@{}; dependencyJarSha256=[pscustomobject]@{}; "
+        f"buildAttestationPath='build-attestation.json'; buildAttestationSha256='{runner._sha(build)}'}}; "
+        "function git { $global:LASTEXITCODE=0; if ($args -contains 'rev-parse') { "
+        f"'{_HEAD}' "
+        "} elseif ($args -contains 'branch') { 'codex_0915' } }; "
+        + guard + "; Assert-FrozenAssets; "
+        f"[IO.File]::WriteAllText('{asset}', 'drift'); "
+        "try { Assert-FrozenAssets; exit 11 } catch { if ($_.Exception.Message -cne 'knowledge.measure.asset_hash_drift') {exit 12} }; exit 0"
+    )
+    completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
+                               capture_output=True, text=True, timeout=20, check=False)
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_startup_proxy_denies_search_and_writes_before_fake_backend() -> None:
+    calls: list[tuple[str, str]] = []
+
+    def backend(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        return httpx.Response(200, json={"status": "green"})
+
+    with httpx.Client(base_url="http://127.0.0.1:9200", follow_redirects=False,
+                      trust_env=False, transport=httpx.MockTransport(backend)) as client:
+        proxy = startup.MeasureEsProxy(index_name="index-v1", read_alias="read-v1", port=19313,
+                                       metadata_limit=2, search_limit=0, backend=client)
+        assert proxy.forward("GET", "/_cluster/health", b"")[0] == 200
+        assert proxy.forward("GET", "/_alias/read-v1", b"")[0] == 200
+        for method, path, body in (("GET", "/_cluster/health", b""),
+                                   ("POST", "/read-v1/_search", b"{}"),
+                                   ("DELETE", "/index-v1", b""),
+                                   ("GET", "/other/_mapping", b"")):
+            with pytest.raises(startup.StartupError, match="proxy_request_forbidden"):
+                proxy.forward(method, path, body)
+        assert calls == [("GET", "/_cluster/health"), ("GET", "/_alias/read-v1")]
+        assert proxy.counts() == {"metadataEsHttp": 2, "searchEsHttp": 0, "proxyViolations": 4,
+                                  "healthEsHttp": 1, "aliasEsHttp": 1,
+                                  "settingsEsHttp": 0, "mappingEsHttp": 0,
+                                  "definitionEsHttp": 0}
+
+
+def test_formal_proxy_counts_each_alias_get_and_rejects_seventy_third_metadata_attempt() -> None:
+    calls: list[str] = []
+
+    def backend(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, json={})
+
+    with httpx.Client(base_url="http://127.0.0.1:9200", follow_redirects=False,
+                      trust_env=False, transport=httpx.MockTransport(backend)) as client:
+        proxy = startup.MeasureEsProxy(index_name="index-v1", read_alias="read-v1", port=19313,
+                                       metadata_limit=72, search_limit=48, backend=client)
+        for _ in range(18):
+            proxy.forward("GET", "/_cluster/health", b"")
+        for _ in range(2):
+            for path in ("/_alias/read-v1", "/index-v1/_settings", "/index-v1/_mapping"):
+                proxy.forward("GET", path, b"")
+        for _ in range(24):
+            proxy.forward("GET", "/_alias/read-v1", b"")
+            proxy.forward("GET", "/index-v1", b"")
+        assert proxy.counts() == {"metadataEsHttp": 72, "searchEsHttp": 0,
+                                  "proxyViolations": 0, "healthEsHttp": 18,
+                                  "aliasEsHttp": 26, "settingsEsHttp": 2,
+                                  "mappingEsHttp": 2, "definitionEsHttp": 24}
+        with pytest.raises(startup.StartupError, match="proxy_request_forbidden"):
+            proxy.forward("GET", "/index-v1", b"")
+        assert len(calls) == 72
+        assert proxy.counts()["proxyViolations"] == 1
+
+
+def test_formal_proxy_records_failed_metadata_attempt_before_backend_error() -> None:
+    def fail_backend(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("fake connection failure", request=request)
+
+    with httpx.Client(base_url="http://127.0.0.1:9200", follow_redirects=False,
+                      trust_env=False, transport=httpx.MockTransport(fail_backend)) as client:
+        proxy = startup.MeasureEsProxy(index_name="index-v1", read_alias="read-v1", port=19313,
+                                       metadata_limit=72, search_limit=48, backend=client)
+        with pytest.raises(httpx.ConnectError):
+            proxy.forward("GET", "/_alias/read-v1", b"")
+        assert proxy.counts() == {"metadataEsHttp": 1, "searchEsHttp": 0,
+                                  "proxyViolations": 1, "healthEsHttp": 0,
+                                  "aliasEsHttp": 1, "settingsEsHttp": 0,
+                                  "mappingEsHttp": 0, "definitionEsHttp": 0}
+
+
+def test_startup_runtime_uses_only_frozen_nonsecret_environment_and_denies_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = tmp_path / "violation.marker"
+    monkeypatch.setenv("LLM_API_KEY", "real-key-must-not-be-read")
+    with pytest.raises(startup.StartupError, match="startup_runtime_env_invalid"):
+        startup.runtime_app(startup_input={"runtimeEnv": {"AGENT_MODEL_PROVIDER": "deepseek"}},
+                            violation_marker=marker)
+    app = startup.runtime_app(startup_input={"runtimeEnv": dict(prepare._ENV)},
+                              violation_marker=marker)
+
+    async def check_lifespan() -> None:
+        async with app.router.lifespan_context(app):
+            assert app.state.ready is True
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
+                                         base_url="http://testserver") as client:
+                response = await client.get("/internal/health/ready")
+            assert response.status_code == 200
+        assert app.state.ready is False
+
+    asyncio.run(check_lifespan())
+    assert not marker.exists()

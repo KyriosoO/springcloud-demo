@@ -918,6 +918,13 @@ def _verify_provenance(spec: ComparisonSpec, baseline: ArmEndpoint,
                        local_admission: LocalRuntimeAdmission | None = None) -> tuple[str, str]:
     """Cross-check read-only scan evidence, builder binding and both full-source maps."""
     try:
+        from tests.evaluation.knowledge.rebuild_b_reuse_binding import (
+            REUSE_SIDECARS, verify_reuse_provenance,
+        )
+        if isinstance(sidecars, Mapping) and set(sidecars) == REUSE_SIDECARS:
+            # A comparison-only run has a new execution identity, not a new
+            # builder result. Keep the original v1 admission below unchanged.
+            return verify_reuse_provenance(spec, baseline, candidate, sidecars, local_admission)
         if not isinstance(sidecars, Mapping) or set(sidecars) != set(_PROVENANCE_FILES):
             raise _invalid()
         values = {name: _sidecar(sidecars[name]) for name in _PROVENANCE_FILES}

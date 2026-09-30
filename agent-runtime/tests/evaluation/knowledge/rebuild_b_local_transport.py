@@ -126,7 +126,7 @@ class PhysicalEsProxy:
                  maximum_search: int, backend: httpx.Client) -> None:
         if (type(port) is not int or not 1 <= port <= 65535
                 or type(maximum_metadata) is not int or not 1 <= maximum_metadata <= 512
-                or type(maximum_search) is not int or not 1 <= maximum_search <= 48
+                or type(maximum_search) is not int or not 0 <= maximum_search <= 48
                 or backend.base_url.scheme != "http" or backend.base_url.host != "127.0.0.1"
                 or backend.base_url.port != 9200 or backend.follow_redirects or backend.trust_env):
             raise BLocalTransportError("proxy_binding_invalid")
@@ -277,7 +277,7 @@ class BIsolatedAliases:
                 or re.fullmatch(r"[0-9a-f]{64}", online_mapping_sha256) is None
                 or type(online_alias_sha256) is not str
                 or re.fullmatch(r"[0-9a-f]{64}", online_alias_sha256) is None
-                or metadata_budget != 30 or alias_write_budget != 4):
+                or metadata_budget not in (18, 30) or alias_write_budget != 4):
             raise BLocalTransportError("alias_binding_invalid")
         self.client = client
         self.identities = (baseline, candidate)

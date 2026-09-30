@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from hashlib import sha256
 from io import BytesIO
 import json
@@ -16,6 +17,145 @@ import pytest
 
 from tests.evaluation.knowledge import rebuild_b_local_runner as runner
 from tests.evaluation.knowledge.test_rebuild_b_comparator import plan_payload, spec
+
+
+def _reuse_directory(tmp_path: Path, monkeypatch) -> Path:
+    from tests.evaluation.knowledge.test_rebuild_b_reuse_binding import _intent, _scan_artifacts
+    old = runner.reuse.load_old_build()
+    raw = _intent(old)
+    sidecars, _, _ = _scan_artifacts(old, raw)
+    intent = json.loads(raw)
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", tmp_path)
+    directory = tmp_path / intent["runId"]
+    directory.mkdir()
+    for key, filename in (("reuseIntent", "reuse-intent.json"),
+            ("reuseFinal", "reuse-final.json"), ("sourceScanResult", "source-scan-result.json"),
+            ("candidateScanResult", "candidate-scan-result.json"),
+            ("reuseAttempt", "reuse-scan-attempt.json"),
+            ("reuseTerminal", "reuse-scan-terminal.json")):
+        (directory / filename).write_bytes(sidecars[key])
+    for arm in ("source", "candidate"):
+        (directory / f"{arm}-id-mapping.json").write_bytes(
+            dict(old.blobs)[f"{arm}-id-mapping.json"])
+    monkeypatch.setattr(runner, "_git", lambda *args:
+        intent["frozenHead"] if args[0] == "rev-parse" else
+        "codex_0915" if args[0] == "branch" else "")
+    return directory
+
+
+def test_load_new_reuse_branch_has_no_network(tmp_path: Path, monkeypatch) -> None:
+    directory = _reuse_directory(tmp_path, monkeypatch)
+    monkeypatch.setattr(runner.httpx, "Client", lambda **_kwargs:
+        pytest.fail("network reached during frozen load"))
+    loaded = runner.load_frozen_inputs(directory)
+    assert loaded.run_id == directory.name
+    assert set(loaded.sidecars) == runner.reuse.REUSE_SIDECARS
+    assert len(loaded.baseline_map.records) == 15521
+    assert loaded.baseline_map.records == loaded.candidate_map.records
+
+
+def test_load_reuse_rejects_copied_run_outside_evidence_root(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    directory = _reuse_directory(tmp_path, monkeypatch)
+    expected_root = tmp_path / "official-evidence"
+    expected_root.mkdir()
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", expected_root)
+    monkeypatch.setattr(runner, "_load_reuse_inputs", lambda _directory:
+        pytest.fail("copied run must be rejected before sidecar admission"))
+    monkeypatch.setattr(runner.httpx, "Client", lambda **_kwargs:
+        pytest.fail("network reached for copied run"))
+    with pytest.raises(runner.BLocalRunError, match="run_preflight_invalid"):
+        runner.load_frozen_inputs(directory)
+
+
+@pytest.mark.parametrize("drift", ["receipt", "head", "map", "final", "consumed",
+                                  "missing_attempt", "missing_terminal"])
+def test_load_reuse_rejects_drift_before_alias_or_network(
+        tmp_path: Path, monkeypatch, drift: str) -> None:
+    directory = _reuse_directory(tmp_path, monkeypatch)
+    if drift == "head":
+        monkeypatch.setattr(runner, "_git", lambda *args:
+            "0" * 40 if args[0] == "rev-parse" else "codex_0915" if args[0] == "branch" else "")
+    elif drift == "consumed":
+        (directory / "comparison-attempt.json").write_bytes(b"{}\n")
+    elif drift in ("missing_attempt", "missing_terminal"):
+        filename = "reuse-scan-attempt.json" if drift == "missing_attempt" else "reuse-scan-terminal.json"
+        (directory / filename).unlink()
+    else:
+        filename = {"receipt": "source-scan-result.json", "map": "source-id-mapping.json",
+                    "final": "reuse-final.json"}[drift]
+        value = json.loads((directory / filename).read_bytes())
+        key = {"receipt": "esHttp", "map": "sourceFingerprint",
+               "final": "sourceIdMappingSha256"}[drift]
+        value[key] = 63 if drift == "receipt" else "0" * 64
+        (directory / filename).write_bytes(runner._canonical(value))
+    monkeypatch.setattr(runner.httpx, "Client", lambda **_kwargs:
+        pytest.fail("network reached during frozen load"))
+    with pytest.raises(runner.BLocalRunError):
+        runner.load_frozen_inputs(directory)
+
+
+def test_prepare_reuse_rejects_dirty_head_or_existing_directory(
+        tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", tmp_path)
+    monkeypatch.setattr(runner, "_git", lambda *args:
+        "codex_0915" if args[0] == "branch" else " M tracked.py")
+    with pytest.raises(runner.BLocalRunError, match="reuse_preflight_invalid"):
+        runner.prepare_reuse_inputs(tmp_path / "new-readonly-run")
+    assert not (tmp_path / "new-readonly-run").exists()
+
+
+@pytest.mark.parametrize("candidate_fails", [False, True])
+def test_prepare_reuse_isolates_corpus_worker_and_preserves_actual_failed_counts(
+        tmp_path: Path, monkeypatch, candidate_fails: bool) -> None:
+    from tests.evaluation.knowledge.test_rebuild_b_reuse_binding import _head
+    old = runner.reuse.load_old_build()
+    head = _head()
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", tmp_path)
+    monkeypatch.setattr(runner, "_git", lambda *args:
+        head if args[0] == "rev-parse" else "codex_0915" if args[0] == "branch" else "")
+    create, execute = runner.reuse.create_reuse_run, runner.reuse.execute_reuse_scans
+    monkeypatch.setattr(runner.reuse, "create_reuse_run", lambda directory, raw:
+        create(directory, raw, frozen_context=lambda _head: True))
+    monkeypatch.setattr(runner.reuse, "execute_reuse_scans", lambda directory, **kwargs:
+        execute(directory, **kwargs, frozen_context=lambda _head: True))
+    monkeypatch.setenv("LLM_API_KEY", "synthetic-must-not-reach-scan-worker")
+    sent: list[str] = []
+
+    def worker(command, **kwargs):
+        assert Path(command[0]) == runner.ROOT / "knowledge-corpus-tools/.venv/Scripts/python.exe"
+        assert Path(command[1]).name == "rebuild_b_mapping_worker.py"
+        assert "LLM_API_KEY" not in kwargs["env"]
+        assert kwargs["env"]["PYTHONPATH"] == str(runner.ROOT / "knowledge-corpus-tools/src")
+        identity = json.loads(kwargs["input"])
+        assert identity["maxEsHttp"] == 64 and identity["recordCount"] == 15521
+        arm = "source" if identity["indexName"] == old.spec.source_corpus.index_name else "candidate"
+        sent.append(arm)
+        failed = candidate_fails and arm == "candidate"
+        envelope = {"status": "failed" if failed else "scanned_read_only",
+            "reason": "scan_failed" if failed else None,
+            "esHttp": 7 if failed else 64,
+            "rawBase64": None if failed else runner.base64.b64encode(
+                dict(old.blobs)[f"{arm}-id-mapping.json"]).decode(),
+            "mappingVersion": None if failed else "agent-knowledge-tax-v3-policy-context-v1"}
+        return SimpleNamespace(returncode=1 if failed else 0, stdout=runner._canonical(envelope), stderr=b"")
+
+    original = runner.subprocess.run
+    monkeypatch.setattr(runner.subprocess, "run", lambda command, **kwargs:
+        worker(command, **kwargs) if Path(command[0]).name == "python.exe"
+        else original(command, **kwargs))
+    directory = tmp_path / "knowledge-b-isolated-worker-fake"
+    if candidate_fails:
+        with pytest.raises(runner.reuse.ReuseBindingError):
+            runner.prepare_reuse_inputs(directory)
+    else:
+        assert runner.prepare_reuse_inputs(directory)["status"] == "reuse_scanned"
+    assert sent == ["source", "candidate"]
+    terminal = json.loads((directory / "reuse-scan-terminal.json").read_bytes())
+    assert terminal["sourceEsHttp"] == 64
+    assert terminal["candidateEsHttp"] == (7 if candidate_fails else 64)
+    assert terminal["builderWriteOps"] == terminal["builderEmbeddingHttp"] == terminal["paid"] == 0
+    assert terminal["status"] == ("failed" if candidate_fails else "scanned_read_only")
 
 
 def _inputs() -> runner.FrozenInputs:
@@ -80,6 +220,9 @@ def test_unexpected_failure_after_consumption_keeps_finite_terminal(tmp_path: Pa
     _attest(tmp_path, jar, artifact_hash=digest)
     monkeypatch.setattr(runner.shutil, "which", lambda _name: "java")
     monkeypatch.setattr(runner, "_port_guard", lambda _ports: None)
+    events: list[str] = []
+    monkeypatch.setattr(runner, "_capture_model_identity",
+                        lambda _inputs: events.append("model") or {"sha256": "model-fake"})
 
     class ExplodingLease:
         metadata_calls = 0
@@ -89,6 +232,7 @@ def test_unexpected_failure_after_consumption_keeps_finite_terminal(tmp_path: Pa
             pass
 
         def open(self) -> None:
+            events.append("lease")
             raise RuntimeError("do-not-persist-raw-error-or-secret")
 
         def close(self) -> bool:
@@ -105,6 +249,55 @@ def test_unexpected_failure_after_consumption_keeps_finite_terminal(tmp_path: Pa
     assert (tmp_path / "comparison-result.json").is_file()
     assert not (tmp_path / "comparison-blind-label-pool.json").exists()
     assert b"do-not-persist" not in (tmp_path / "comparison-result.json").read_bytes()
+    assert events == ["model", "lease"]
+
+
+def test_model_identity_binds_old_embedding_and_fresh_rerank_without_inference(
+        monkeypatch) -> None:
+    old = runner.reuse.load_old_build()
+    binding = json.loads(dict(old.blobs)["binding.json"])["spec"]
+    prior = binding["model_snapshot"]
+    rerank_id = "f" * 64
+    new = {"schemaVersion": 1, "embedding": prior,
+           "rerank": {"container": {"id": rerank_id}, "model": {"revision": "fixed"}}}
+    new["sha256"] = sha256(runner._canonical({
+        "embedding": new["embedding"], "rerank": new["rerank"]})).hexdigest()
+    monkeypatch.setattr(runner, "_rerank_container_id", lambda: rerank_id)
+    seen: list[dict[str, str]] = []
+
+    def fake_worker(command: list[str], *, payload: bytes, corpus_python: bool) -> bytes:
+        assert command[-2:] == ["-m", "knowledge_corpus_tools.b_model_identity_v1"]
+        assert corpus_python is True
+        seen.append(json.loads(payload))
+        return runner._canonical(new)
+
+    monkeypatch.setattr(runner, "_bounded_model_process", fake_worker)
+    inputs = replace(_inputs(), sidecars={"reuseIntent": b"new-run"})
+    assert runner._capture_model_identity(inputs) == new
+    assert seen == [{"embeddingContainerId": prior["container"]["id"],
+                     "rerankContainerId": rerank_id,
+                     "expectedEmbeddingModelSha256": sha256(
+                         runner._canonical(prior["model"])).hexdigest()}]
+    changed = json.loads(runner._canonical(new))
+    changed["embedding"]["container"]["id"] = "e" * 64
+    changed["sha256"] = sha256(runner._canonical({
+        "embedding": changed["embedding"], "rerank": changed["rerank"]})).hexdigest()
+    monkeypatch.setattr(runner, "_bounded_model_process", lambda *_args, **_kwargs:
+                        runner._canonical(changed))
+    with pytest.raises(runner.BLocalRunError, match="model_identity_invalid"):
+        runner._capture_model_identity(inputs)
+
+
+def test_model_worker_subprocess_drops_ambient_credentials(monkeypatch) -> None:
+    monkeypatch.setenv("LLM_API_KEY", "must-not-inherit")
+
+    def fake_run(_command: list[str], **kwargs: object) -> SimpleNamespace:
+        assert "LLM_API_KEY" not in kwargs["env"]
+        kwargs["stdout"].write(b'{"limited":true}\n')
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    assert runner._bounded_model_process(["fake"], corpus_python=True) == b'{"limited":true}\n'
 
 
 def test_frozen_head_archive_build_attests_its_own_jar(tmp_path: Path, monkeypatch) -> None:
@@ -348,7 +541,8 @@ def test_launcher_uses_distinct_locked_venvs_and_is_frozen_source() -> None:
     script = "agent-runtime/scripts/run-knowledge-b-comparison-v1.ps1"
     assert script in runner._EXECUTION_SOURCES
     body = (runner.ROOT / script).read_text(encoding="utf-8")
-    assert "$pythonProject = if ($ExecuteOnce) { 'agent-runtime' } else { 'knowledge-corpus-tools' }" in body
+    assert "$pythonProject = if ($ExecuteOnce -or $StartupPreflightOnly -or $PrepareReuse) { 'agent-runtime' } else { 'knowledge-corpus-tools' }" in body
+    assert "--startup-preflight-only" in body
     assert "knowledge-corpus-tools\\.venv\\Scripts\\python.exe" not in body
 
 
@@ -460,3 +654,178 @@ def test_source_mapping_binding_refuses_unprepared_run(tmp_path: Path, monkeypat
     with pytest.raises(runner.BLocalRunError, match="source_binding_preflight_invalid"):
         runner.bind_local_b_request(directory, binder=lambda **_kwargs: b"{}\n")
     assert not (directory / "request.json").exists()
+
+
+def _startup_inputs(tmp_path: Path, monkeypatch) -> tuple[Path, runner.StartupInputs]:
+    directory = tmp_path / "knowledge-b-startup-fake-01"
+    directory.mkdir()
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", tmp_path)
+    original_git = runner._git
+    monkeypatch.setattr(runner, "_git", lambda *args:
+        "" if args[0] == "status" else original_git(*args))
+    return directory, runner.prepare_startup_inputs(directory)
+
+
+def test_startup_input_binds_old_git_bundle_and_current_head_without_es(
+        tmp_path: Path, monkeypatch) -> None:
+    directory, inputs = _startup_inputs(tmp_path, monkeypatch)
+    value = json.loads((directory / "startup-input.json").read_bytes())
+    assert value["runId"] == directory.name
+    assert value["frozenHead"] == runner._git("rev-parse", "HEAD")
+    assert value["sourceBundleCommit"] == runner._STARTUP_SOURCE_COMMIT
+    assert set(value["sourceBundleSha256"]) == set(runner._STARTUP_SOURCE_FILES)
+    assert value["budget"] == runner._STARTUP_BUDGET
+    assert inputs.input_sha256 == sha256((directory / "startup-input.json").read_bytes()).hexdigest()
+    assert {identity.arm for identity in inputs.identities} == {"baseline", "candidate"}
+    assert not any(path.name.startswith("comparison-") for path in directory.iterdir())
+    with pytest.raises(runner.BLocalRunError, match="startup_preflight_invalid"):
+        runner.prepare_startup_inputs(directory)
+
+
+def test_startup_rejects_synthetic_old_attempt_before_any_es(
+        tmp_path: Path, monkeypatch) -> None:
+    directory = tmp_path / "knowledge-b-startup-fake-02"
+    directory.mkdir()
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", tmp_path)
+    original_git = runner._git
+    original_git_bytes = runner._git_bytes
+    monkeypatch.setattr(runner, "_git", lambda *args:
+        "" if args[0] == "status" else original_git(*args))
+    original_attempt = original_git_bytes("show", f"{runner._STARTUP_SOURCE_COMMIT}:"
+        f"{runner._STARTUP_SOURCE_PATH}/attempt.json")
+    altered = json.loads(original_attempt)
+    altered["executionKind"] = "synthetic"
+    tampered = runner._canonical(altered)
+    monkeypatch.setattr(runner, "_git_bytes", lambda *args:
+        tampered if args[0] == "show" and args[1].endswith("/attempt.json")
+        else original_git_bytes(*args))
+    with pytest.raises(runner.BLocalRunError, match="startup_source_invalid"):
+        runner.prepare_startup_inputs(directory)
+    assert list(directory.iterdir()) == []
+
+
+@pytest.mark.parametrize("failure", ("none", "readiness", "forbidden_search"))
+def test_startup_fake_lifecycle_has_no_search_jwt_or_model(
+        tmp_path: Path, monkeypatch, failure: str) -> None:
+    directory, inputs = _startup_inputs(tmp_path, monkeypatch)
+    jar = tmp_path / "es-query-service-0.0.1-SNAPSHOT.jar"
+    jar.write_bytes(b"synthetic java artifact")
+    artifact_hash = sha256(jar.read_bytes()).hexdigest()
+    runtime_hashes = {name: "5" * 64 for name in runner._RUNTIME_CONFIG_FILES}
+    runner._write_once(directory / "startup-java-attestation.json", {
+        "schemaVersion": 1, "runId": inputs.run_id, "frozenHead": inputs.frozen_head,
+        "archiveSha256": "3" * 64, "mavenExecutableSha256": "4" * 64,
+        "command": ["mvn", "--offline", "--batch-mode", "-f", "serviceCenter/pom.xml",
+                    "-pl", ":es-query-service", "-am", "-DskipTests", "package"],
+        "artifactSha256": artifact_hash, "artifactBytes": jar.stat().st_size,
+        "buildExitCode": 0, "workingTreeTrackedClean": True,
+        "runtimeConfigSha256": runtime_hashes,
+    })
+    monkeypatch.setattr(runner, "_frozen_runtime_config_hashes", lambda _head: runtime_hashes)
+    monkeypatch.setattr(runner, "_frozen_runtime_config_dir",
+        lambda _jar, _head: (tmp_path, runtime_hashes))
+    monkeypatch.setattr(runner, "_port_guard", lambda _ports: None)
+    monkeypatch.setattr(runner, "_require_owned_listeners", lambda _processes, _ports: None)
+    monkeypatch.setattr(runner, "_jwt", lambda _secret: pytest.fail("JWT generated"))
+
+    class FakeLease:
+        def __init__(self, **kwargs: object) -> None:
+            assert kwargs["metadata_budget"] == 18
+            self.metadata_calls = 0
+            self.alias_writes = 0
+
+        def open(self) -> tuple[tuple[str, str], ...]:
+            self.metadata_calls += 8
+            self.alias_writes += 2
+            return (("baseline", "a" * 64), ("candidate", "b" * 64))
+
+        def postcheck(self) -> tuple[tuple[str, str], ...]:
+            self.metadata_calls += 6
+            return (("baseline", "a" * 64), ("candidate", "b" * 64))
+
+        def close(self) -> bool:
+            self.metadata_calls += 4
+            self.alias_writes += 2
+            return True
+
+    class FakeProxy:
+        def __init__(self, **kwargs: object) -> None:
+            assert kwargs["maximum_metadata"] == 6
+            assert kwargs["maximum_search"] == 0
+            self.metadata_count = 6
+            self.metadata_attempts = 6
+            self.violations = 1 if failure == "forbidden_search" else 0
+            self.physical_search_paths: tuple[str, ...] = ()
+
+        def start(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    class FakeProcess:
+        next_pid = 5000
+
+        def __init__(self, _args: object, **kwargs: object) -> None:
+            assert "COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE" in kwargs["env"]
+            assert "LLM_API_KEY" not in kwargs["env"]
+            self.pid = FakeProcess.next_pid
+            FakeProcess.next_pid += 1
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+        def terminate(self) -> None:
+            self.returncode = 0
+
+        def wait(self, **_kwargs: object) -> int:
+            assert self.returncode is not None
+            return self.returncode
+
+    monkeypatch.setattr(runner, "BIsolatedAliases", FakeLease)
+    monkeypatch.setattr(runner, "PhysicalEsProxy", FakeProxy)
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeProcess)
+    def fake_ready(_processes: object, _ports: object, calls: list[int]) -> None:
+        calls[:] = [1, 1]
+        if failure == "readiness":
+            raise runner.BLocalRunError("java_readiness_timeout")
+
+    monkeypatch.setattr(runner, "_ready", fake_ready)
+    with httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+            follow_redirects=False,
+            transport=httpx.MockTransport(lambda _request: pytest.fail("ES called"))) as es:
+        result = runner.execute_startup_preflight(directory=directory, inputs=inputs,
+            jar=jar, jar_sha256=artifact_hash, ports=(19211, 19212),
+            proxy_ports=(19311, 19312), es=es)
+    assert result["status"] == ("ready" if failure == "none" else "not_ready")
+    assert result["metadataEsHttp"] == (30 if failure == "none" else 24)
+    assert result["aliasWrites"] == 4
+    assert result["physicalSearchCount"] == 0
+    assert result["paid"] == result["typedSearch"] == result["jwtHttp"] == 0
+    assert result["ownedProcessesStopped"] is True
+    assert result["aliasesRemoved"] is True
+    assert result["reason"] == {"none": None, "readiness": "java_readiness_timeout",
+                                "forbidden_search": "proxy_operation_forbidden"}[failure]
+    assert not any(path.name.startswith("comparison-") for path in directory.iterdir())
+
+
+def test_startup_source_failure_writes_finite_once_only_terminal_without_es(
+        tmp_path: Path, monkeypatch) -> None:
+    directory = tmp_path / "knowledge-b-startup-fake-03"
+    directory.mkdir()
+    monkeypatch.setattr(runner, "_STARTUP_EVIDENCE_ROOT", tmp_path)
+    monkeypatch.setattr(runner, "_port_guard", lambda _ports: None)
+    monkeypatch.setattr(runner, "prepare_startup_inputs",
+        lambda _directory: (_ for _ in ()).throw(runner.BLocalRunError("startup_source_invalid")))
+    monkeypatch.setattr(runner, "frozen_java_artifact",
+        lambda *_args, **_kwargs: pytest.fail("Java build reached"))
+    result = runner.run_startup_preflight(directory, ports=(19211, 19212),
+        proxy_ports=(19311, 19312))
+    assert result["status"] == "not_ready"
+    assert result["reason"] == "startup_source_invalid"
+    assert result["metadataEsHttp"] == result["aliasWrites"] == 0
+    assert json.loads((directory / "startup-result.json").read_bytes()) == result
+    with pytest.raises(runner.BLocalRunError, match="startup_preflight_invalid"):
+        runner.run_startup_preflight(directory, ports=(19211, 19212),
+            proxy_ports=(19311, 19312))

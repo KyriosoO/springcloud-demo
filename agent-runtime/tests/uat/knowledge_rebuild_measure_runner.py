@@ -205,7 +205,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
             or manifest["subject"] != _SUBJECT
             or manifest["jarBuildHead"] != manifest["frozenHead"]
             or manifest["aliasFlags"] not in ({}, {"is_write_index": False})
-            or manifest["runtimeMetadataEsHttpMax"] != 48):
+            or manifest["runtimeMetadataEsHttpMax"] != 72):
         _fail("manifest_binding_invalid")
     try:
         branch = subprocess.check_output(["git", "-C", str(root), "branch", "--show-current"], text=True).strip()
@@ -253,6 +253,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
         "agent-runtime/src/agent_runtime/knowledge/intent_task_v12.py",
         "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v9.py",
         "auth-service/src/main/resources/auth-users.yml",
+        "agent-runtime/tests/uat/knowledge_rebuild_measure_startup.py",
         "agent-service/target/agent-service-0.0.1-SNAPSHOT.jar",
         "auth-service/target/auth-service-0.0.1-SNAPSHOT.jar",
         "es-query-service/target/es-query-service-0.0.1-SNAPSHOT.jar",
@@ -416,7 +417,16 @@ def frozen_postflight(*, root: Path, manifest_path: Path, authorization_path: Pa
     return manifest
 
 
-async def _alias_check(manifest: Mapping[str, Any], client: httpx.AsyncClient) -> None:
+async def _alias_check(manifest: Mapping[str, Any], client: httpx.AsyncClient, *,
+                       es_pid: int | None = None, agent_pid: int | None = None,
+                       proxy_pid: int | None = None) -> None:
+    if client.base_url != httpx.URL("http://127.0.0.1:19313"):
+        _fail("alias_proxy_origin_invalid")
+    if proxy_pid is not None:
+        if es_pid is None or agent_pid is None:
+            raise MeasurementError("knowledge.measure.owned_port_binding_invalid")
+        await asyncio.to_thread(_owned_ports_match, es_pid=es_pid, agent_pid=agent_pid,
+                                proxy_pid=proxy_pid)
     policy = manifest["indexBindings"]["tax.policy"]
     response = await client.get(f"/_alias/{policy['readAlias']}", timeout=5.0)
     if response.status_code != 200 or len(response.content) > 65536:
@@ -446,13 +456,14 @@ async def _alias_check(manifest: Mapping[str, Any], client: httpx.AsyncClient) -
         _fail("index_metadata_drift")
 
 
-def _owned_ports_match(*, es_pid: int, agent_pid: int) -> None:
+def _owned_ports_match(*, es_pid: int, agent_pid: int, proxy_pid: int | None = None) -> None:
     """Check Windows listener ownership immediately before sending a bearer token."""
-    if os.name != "nt" or es_pid < 1 or agent_pid < 1:
+    if os.name != "nt" or es_pid < 1 or agent_pid < 1 or proxy_pid is not None and proxy_pid < 1:
         _fail("owned_port_binding_invalid")
+    ports = "19201,19202,19313" if proxy_pid is not None else "19201,19202"
     command = (
         "$ErrorActionPreference='Stop'; "
-        "$rows=@(Get-NetTCPConnection -State Listen -LocalPort 19201,19202 | "
+        f"$rows=@(Get-NetTCPConnection -State Listen -LocalPort {ports} | "
         "Select-Object LocalPort,OwningProcess); "
         "ConvertTo-Json -InputObject $rows -Compress"
     )
@@ -463,7 +474,9 @@ def _owned_ports_match(*, es_pid: int, agent_pid: int) -> None:
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
         _fail("owned_port_check_failed")
     expected = {19201: es_pid, 19202: agent_pid}
-    if (type(rows) is not list or len(rows) < 2
+    if proxy_pid is not None:
+        expected[19313] = proxy_pid
+    if (type(rows) is not list or len(rows) < len(expected)
             or {row.get("LocalPort") for row in rows if type(row) is dict} != set(expected)
             or any(type(row) is not dict or set(row) != {"LocalPort", "OwningProcess"}
                    or type(row["LocalPort"]) is not int or type(row["OwningProcess"]) is not int
@@ -472,8 +485,10 @@ def _owned_ports_match(*, es_pid: int, agent_pid: int) -> None:
 
 
 async def _post_spring_owned(*, client: httpx.AsyncClient, question: str, case_id: str,
-                             token: str, es_pid: int, agent_pid: int) -> httpx.Response:
-    await asyncio.to_thread(_owned_ports_match, es_pid=es_pid, agent_pid=agent_pid)
+                             token: str, es_pid: int, agent_pid: int,
+                             proxy_pid: int | None = None) -> httpx.Response:
+    await asyncio.to_thread(_owned_ports_match, es_pid=es_pid, agent_pid=agent_pid,
+                            proxy_pid=proxy_pid)
     return await client.post("/api/v1/agent/queries", json={"question": question},
                              headers={"Authorization": f"Bearer {token}",
                                       "X-Correlation-Id": case_id}, timeout=45.0)
@@ -707,7 +722,8 @@ def _checked_public_review_size(value: Mapping[str, Any], *, secrets: tuple[str,
 
 async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Path,
                    token: str, environ: Mapping[str, str], client: httpx.AsyncClient,
-                   es_pid: int, agent_pid: int, server_factory: Any = uvicorn.Server) -> None:
+                   es_pid: int, agent_pid: int, proxy_pid: int,
+                   server_factory: Any = uvicorn.Server) -> None:
     """The client must target the isolated Spring agent-service, never Runtime directly."""
     if client.base_url != httpx.URL(manifest["springBaseUrl"]):
         _fail("spring_origin_invalid")
@@ -750,18 +766,21 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
         health = await client.get("/actuator/health/readiness", timeout=5.0)
         if health.status_code != 200:
             _fail("spring_not_ready")
-        async with httpx.AsyncClient(base_url="http://127.0.0.1:9200", trust_env=False,
+        async with httpx.AsyncClient(base_url="http://127.0.0.1:19313", trust_env=False,
                                      follow_redirects=False) as es_client:
             for case in manifest["cases"]:
                 case_id, question = case["caseId"], case["question"]
-                await _alias_check(manifest, es_client)
+                await _alias_check(manifest, es_client, es_pid=es_pid, agent_pid=agent_pid,
+                                   proxy_pid=proxy_pid)
                 alias_checks += 1
                 ledger.begin(case_id, question)
                 try:
                     response = await _post_spring_owned(client=client, question=question, case_id=case_id,
-                                                        token=token, es_pid=es_pid, agent_pid=agent_pid)
+                                                        token=token, es_pid=es_pid, agent_pid=agent_pid,
+                                                        proxy_pid=proxy_pid)
                     body = response.json()
-                    await _alias_check(manifest, es_client)
+                    await _alias_check(manifest, es_client, es_pid=es_pid, agent_pid=agent_pid,
+                                       proxy_pid=proxy_pid)
                     alias_checks += 1
                     if (type(body) is not dict or body.get("correlationId") != case_id
                             or not (body.get("capabilityId") == "knowledge.query"
@@ -863,9 +882,10 @@ async def _main(args: argparse.Namespace) -> None:
     try:
         es_pid = int(os.environ["KNOWLEDGE_MEASURE_OWNED_ES_PID"])
         agent_pid = int(os.environ["KNOWLEDGE_MEASURE_OWNED_AGENT_PID"])
+        proxy_pid = int(os.environ["KNOWLEDGE_MEASURE_OWNED_PROXY_PID"])
     except (KeyError, ValueError):
         _fail("owned_port_binding_invalid")
-    if es_pid < 1 or agent_pid < 1:
+    if es_pid < 1 or agent_pid < 1 or proxy_pid < 1:
         _fail("owned_port_binding_invalid")
     # ModelSettings.from_env is deliberately delayed until all non-live gates above.
     ModelSettings.from_env(os.environ)
@@ -880,8 +900,8 @@ async def _main(args: argparse.Namespace) -> None:
     async with httpx.AsyncClient(base_url=manifest["springBaseUrl"], follow_redirects=False,
                                  trust_env=False) as client:
         await run_once(manifest=manifest, output_dir=output_dir, review_dir=review_dir,
-                       token=token, environ=os.environ, client=client,
-                       es_pid=es_pid, agent_pid=agent_pid)
+                        token=token, environ=os.environ, client=client,
+                        es_pid=es_pid, agent_pid=agent_pid, proxy_pid=proxy_pid)
 
 
 def main() -> None:
