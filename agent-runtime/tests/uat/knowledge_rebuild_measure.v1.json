@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "datasetId": "knowledge-rebuild-measure-v1",
   "authority": "UAT_02 §5.2–5.5 and §6.1",
-  "confirmation": "maintainer_confirmed_question_draft_and_existing_thresholds_before_execution;005-007_reworded_as_explanation;012_public_tax_context_prefix_approved;B_numeric_criteria_confirmed;run_not_frozen_pending_answer_design",
+  "confirmation": "maintainer_confirmed_questions_sources_and_existing_thresholds;005-007_reworded_as_explanation;012_public_tax_context_prefix_approved;B_numeric_criteria_confirmed;Summary9_answer_design_approved;run_not_frozen_pending_final_code_jar_index_binding",
   "sourceReview": "executor_checked_current_es_content_sha256_and_official_source_locators;not_a_current_legal_effectiveness_opinion",
   "sourceCorpus": {
     "readAlias": "agent-doc-tax-policy-v2-read",
@@ -74,7 +74,7 @@
     "official_source_locators_do_not_prove_present_legal_effectiveness",
     "vat_law_index_effectiveDate_is_wrong;article_38_governs_enactment",
     "2016_attachment_paragraph_match_does_not_prove_whole_document_structure",
-    "Summary8_is_extractive;applicability_answer_usefulness_requires_human_judgment",
+    "Summary9_limited_grounded_judgment_requires_independent_human_rubric;no_live_result_yet",
     "source_and_index_binding_must_be_rechecked_before_B_or_paid_UAT",
     "A_comparison_not_assessed;no_candidate_or_result_has_been_created_by_this_fixture"
   ]
