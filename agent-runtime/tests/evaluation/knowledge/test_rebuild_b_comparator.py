@@ -801,6 +801,49 @@ async def test_no_result_is_scored_zero_without_retrieval_failure_or_rerank():
     assert scored.outcome == "not_assessed" and "recall_not_improved" in scored.reasons
 
 
+async def test_law_zero_hit_without_rerank_is_scored_zero():
+    result, *_ = await execute()
+    law_case = next(case for case in result.cases if case.case_id == "UAT-KM-006")
+
+    def empty_law(arm):
+        return replace(arm,
+            keyword=tuple(replace(item, ranked=()) for item in arm.keyword),
+            keyword_es_ids=tuple((domain, ()) for domain, _ in arm.keyword_es_ids),
+            vector=tuple(replace(item, ranked=()) for item in arm.vector),
+            fused=(), reranked=(), final20=())
+
+    changed_case = replace(law_case, baseline=empty_law(law_case.baseline),
+                           candidate=empty_law(law_case.candidate))
+    changed = replace(result, cases=tuple(changed_case if item.case_id == law_case.case_id
+                                          else item for item in result.cases))
+    scored = score_comparison(spec=spec(), run=changed,
+                              labels={key: True for key in blind_label_pool(changed)})
+    law_metric = next(item for item in scored.case_metrics if item.case_id == law_case.case_id)
+    assert law_metric.baseline_recall == law_metric.candidate_recall == 0
+    assert law_metric.baseline_precision == law_metric.candidate_precision == 0
+    assert not any(reason.startswith("unchanged_domain_confounded:UAT-KM-006")
+                   for reason in scored.reasons)
+
+
+@pytest.mark.parametrize("stage", ["missing_rerank", "duplicate_rerank", "duplicate_vector"])
+async def test_law_nonempty_or_duplicate_stage_rejected(stage):
+    result, *_ = await execute()
+    law_case = next(case for case in result.cases if case.case_id == "UAT-KM-006")
+    arm = law_case.baseline
+    if stage == "missing_rerank":
+        arm = replace(arm, reranked=())
+    elif stage == "duplicate_rerank":
+        arm = replace(arm, reranked=(*arm.reranked, arm.reranked[0]))
+    else:
+        arm = replace(arm, vector=(*arm.vector, arm.vector[0]))
+    changed_case = replace(law_case, baseline=arm)
+    changed = replace(result, cases=tuple(changed_case if item.case_id == law_case.case_id
+                                          else item for item in result.cases))
+    with pytest.raises(ValueError, match="comparison_invalid"):
+        score_comparison(spec=spec(), run=changed,
+                         labels={key: True for key in blind_label_pool(changed)})
+
+
 async def test_latency_regression_uses_per_arm_median_not_total_batch_time():
     result, *_ = await execute()
     changed = replace(result, cases=tuple(replace(case,

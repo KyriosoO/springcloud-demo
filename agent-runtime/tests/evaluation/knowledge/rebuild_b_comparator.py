@@ -1429,11 +1429,17 @@ def score_comparison(*, spec: ComparisonSpec, run: ComparisonRun,
             if base_ids != candidate_ids:
                 reasons.append(f"keyword_order_confounded:{case.case_id}:{domain}")
             if domain == "tax.law":
-                for stage in ("vector", "reranked"):
-                    base_items = getattr(trace.baseline, stage)
-                    cand_items = getattr(trace.candidate, stage)
-                    left = next(item.ranked for item in base_items if item.domain_id == domain)
-                    right = next(item.ranked for item in cand_items if item.domain_id == domain)
+                law_ranks: list[tuple[tuple[CandidateRef, ...], tuple[CandidateRef, ...]]] = []
+                for arm_trace in (trace.baseline, trace.candidate):
+                    keyword = [item.ranked for item in arm_trace.keyword if item.domain_id == domain]
+                    vector = [item.ranked for item in arm_trace.vector if item.domain_id == domain]
+                    reranked = [item.ranked for item in arm_trace.reranked if item.domain_id == domain]
+                    if (len(keyword) != 1 or len(vector) != 1
+                            or len(reranked) != (0 if not keyword[0] and not vector[0] else 1)):
+                        raise _invalid()
+                    law_ranks.append((vector[0], reranked[0] if reranked else ()))
+                for index, stage in enumerate(("vector", "reranked")):
+                    left, right = law_ranks[0][index], law_ranks[1][index]
                     if left != right:
                         reasons.append(f"unchanged_domain_confounded:{case.case_id}:{stage}")
         case_metrics.append(CaseMetrics(case.case_id, case_recalls["baseline"], case_recalls["candidate"],
