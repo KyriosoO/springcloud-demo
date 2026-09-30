@@ -707,7 +707,9 @@ async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
     ), (("baseline", "1" * 64), ("candidate", "2" * 64)),
         4, 20, True, True, 0,
         (("baseline", tuple("a" * 64 for _ in range(22))),
-         ("candidate", tuple("a" * 64 for _ in range(22)))))
+         ("candidate", tuple("b" * 64 for _ in range(22)))),
+        (("baseline", tuple("c" * 64 for _ in range(22))),
+         ("candidate", tuple("c" * 64 for _ in range(22)))))
     with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
         admit_completed_local_run(spec=frozen, run=result, admission=admission, receipt=receipt)
     assert admit_completed_local_run(spec=frozen,
@@ -720,9 +722,24 @@ async def test_local_postflight_rejects_synthetic_run_and_incomplete_receipt():
     with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
         admit_completed_local_run(spec=frozen,
             run=replace(result, evidence_kind="local_pending_postflight"), admission=admission,
+            receipt=replace(receipt, arm_search_canonical_request_sha256=(
+                receipt.arm_search_canonical_request_sha256[0],
+                ("candidate", ("d" * 64, *tuple("c" * 64 for _ in range(21)))))))
+    with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
+        admit_completed_local_run(spec=frozen,
+            run=replace(result, evidence_kind="local_pending_postflight"), admission=admission,
             receipt=replace(receipt, arm_search_request_sha256=(
-                receipt.arm_search_request_sha256[0],
-                ("candidate", ("b" * 64, *tuple("a" * 64 for _ in range(21)))))))
+                receipt.arm_search_request_sha256[0], ("candidate", ("bad",)))))
+    for field in ("arm_search_request_sha256", "arm_search_canonical_request_sha256"):
+        valid = getattr(receipt, field)
+        for malformed in (("candidate",),
+                          ("candidate", tuple("c" * 64 for _ in range(22)), "extra"),
+                          ["candidate", tuple("c" * 64 for _ in range(22))]):
+            with pytest.raises(ComparisonRunError, match="runtime_provenance_missing"):
+                admit_completed_local_run(spec=frozen,
+                    run=replace(result, evidence_kind="local_pending_postflight"),
+                    admission=admission,
+                    receipt=replace(receipt, **{field: (valid[0], malformed)}))
 
 
 async def test_local_builder_without_isolated_runtime_provenance_stops_at_preflight():

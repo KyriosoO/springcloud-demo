@@ -1,19 +1,19 @@
 # [L2_01_01] 单体 Agent Knowledge 检索与本地模型接入详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.10仅纠正MEASURE只读元数据请求计数；不改变在线检索合同）
+> 文档状态：Approved（v3.11澄清B内部请求同一性校验及实施状态；不改变在线检索合同）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.10 |
+| 当前版本 | v3.11 |
 | 日期 | 2026-09-30 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.10纠正§18.4.2把24次身份检查误算为24次HTTP的错误；维护者已明确批准新MEASURE元数据上限72，保留双GET完整核查及实际计数守卫，模型/typed/推理预算与旧运行资产不变；同一任务内未参与起草的执行单元定向复评通过 |
-| 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；minimal检索、REPRESENT及候选工具已有组件/non-live证明，已建一个只读未发布B候选；旧成对比较及MEASURE失败终态不能证明质量。新预检/既有候选承接私有接缝待实施；正式对照、人工评价及发布状态由P3_01/UAT_02治理，不由设计Approved代替 |
+| 本次变更 | v3.11将B双臂请求同一性明确为严格规范JSON而非对象键序；保留原始字节hash并新增内部规范hash，不改公共DTO、路由、预算或历史资产。同步已实施验证工具的职责状态；真实终态与质量判断仍由P3_01/UAT_02治理 |
+| 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；minimal检索、REPRESENT、候选构建、隔离typed runner及启动/既有候选承接工具已有组件/non-live证明，已建一个只读未发布B候选。真实调用不等于后验准入或质量通过；正式对照、人工评价及发布状态由P3_01/UAT_02治理，不由设计Approved代替 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
@@ -727,7 +727,7 @@ KnowledgeSearchResponse search(
 
 “有限scope”指本次重规范化/重切片/表示变更及人工审计集合，不是仅保留这些文档作为搜索库；未受影响的全库竞争记录须原样保留并验证fingerprint。保留旧记录不代表已按新标准逐条认证，legacy_unknown/source_unverified仍需在结果中披露；不能把旧curated改称新官方gold。只对变更集合执行新准入，安全/快照及候选全记录保留检查仍覆盖全库，不扩大到重新采集全部历史资料。原预期依据无法核实的题单列source_gap，质量值为null且注明不具评价条件；保留在计划总数和数据缺口统计，不伪造Recall=0/1或悄悄删除。质量分母、有效/未评估数量必须同时披露。
 
-#### 18.4.1 新版候选索引内部合同（细化`DR-KRET-307`，构建器fake已实施、真实构建待执行）
+#### 18.4.1 新版候选索引内部合同（细化`DR-KRET-307`，组件已实施；真实状态由P3/UAT治理）
 
 旧`vector_candidate.py`以只读源的全记录fingerprint、固定`chunkId`/数量和受控policy附件为前提，只替换向量；当前实际索引虽有`parentDocumentId`、`assetId`和向量溯源字段，但旧`charStart=0`是chunk-local，未具备`documentVersionId`、`unitId`及全篇span。最小变更必要性：只为支持重切片的ID/数量/span及新表示溯源新增隔离离线构建器；旧构建器、当前索引、在线DTO和alias流程均不改。新构建器不是在线查询或公共DTO。设计允许预登记≤30篇父文档及其经核验资产；当前实现首轮A仅接受`tax.policy`附件作为变更集合，正文或law重切不适用，不得外推附件样本收益。全库其余文档仍作为竞争集合，不按类别或缺失标签删除。
 
@@ -751,6 +751,10 @@ B候选的CAS向量更新仍会重写ES底层文档；相同`_source.content`和
 
 每臂运行前后只读核验alias完整目标/flags及绑定索引UUID、mapping，并核对每个typed响应的静态Profile快照；静态快照不能独自证明物理归属，实际请求路径及服务隔离开关也须在有限证据中核实。本次独占窗口不得并行删除/重建索引或切换隔离alias；若无法确认这些前提，或运行中任一物理归属、快照、策略漂移，固定10题分母的整批B记`Not assessed`，记录实际调用并停止后续调用，不根据局部结果放行。两个alias仅各创建和移除一次，不为按题交替切换alias；alias写上限为4，元数据只读及typed上限按题/路径在intent中逐项精确冻结，不能借用DR-KRET-032的阶段A示例预算。按题交替只切换请求目标Java实例。清理仅限本次精确拥有的两个alias，归属异常时不清理他人资源。
 
+B内部请求见证同时保留`request_sha256`（收到的原始UTF-8字节）和`canonical_request_sha256`（严格解析后的规范JSON），不保存请求正文。POST搜索转发前须拒绝非法UTF-8/JSON、重复对象键、非有限数及非对象根；规范化仅递归排序对象键和统一JSON序列化空白，保留数组顺序、字符串、数值类型及值，不规范化中文、条件、operator或向量内容。原始字节原样转发；GET只允许既有空body，两hash均为`SHA-256(b"")`的64位小写十六进制摘要，不使用null或空字符串。双臂相同请求按每臂22条POST规范hash的多重集合核对，原始hash只作字节身份见证，不要求跨JVM对象键序相等。路径、次数、授权、Profile、索引快照、清理及预算的其他准入条件不变。receipt及离线复核只接受有该双hash完整见证的新版本内部证明；缺规范hash的旧证据不能补算或升级为通过。严格解析失败须下游零调用并形成有限违规计数，不吞异常或以空hash通过。
+
+数值保留必须覆盖高精度小数及极小指数，不能先经二进制float舍入或下溢，再生成规范hash。内部规范编码保留JSON数字词面；例如`1.0000000000000001`与`1.0`、`1e-999`与`0.0`不能视为相同请求。该约束不放宽非有限数或现有服务合法输入边界，也不要求将数字不同写法判为同一请求。
+
 候选与基线共享Profile代码、ACL、category/keyword配置及查询参数；两臂的mappingVersion/mapping SHA按intent分别冻结，两域共用的**物理索引名称/UUID不同**，所以candidate的`tax.policy`与`tax.law`两个`indexSnapshotId`都须与各自baseline值不同。law不变性由全记录clone/CAS后验、law记录原文/向量/ACL及配置相等、逐阶段检索对照证明，不能以两臂law快照hash相等作断言。现有内部工具若仍要求构建前候选快照或law快照相等，只能完成fake组件验证；修订对应版本化内部冻结/比较合同并通过评审前，真实B、盲标和发布均不得启动。
 
 旧记录的`vectorModelSnapshotSha256`须与其冻结构建manifest中完整旧快照的规范hash相同；当前准备结果须另以当前完整运行快照hash绑定，绝不回填或改写旧记录。模型同一性比较只允许**运行容器`started`时间**不同：从两份完整快照各自删除该一个字段后，`container`其余字段及`model`全部内容（镜像、容器ID、启动参数、模型文件与revision、tokenizer文件、服务/实现代码、依赖版本、max_length）须规范字节相等；旧/新完整快照hash不必相同，启动时间差异须记入有限对照证据。其余任何字段变化都不是同模型单变量对照，应停止A/B或另立独立实验，不以模型名称相同替代。此例外不允许重写历史hash，也不免除真实tokenizer无截断前检及向量结果校验。
@@ -768,7 +772,7 @@ B候选的CAS向量更新仍会重写ES底层文档；相同`_source.content`和
 
 #### 18.4.2 独立启动预检与既有候选承接（细化DR-KRET-307）
 
-旧B比较及MEASURE已有失败终态，不复用其run、授权或已消费目录。维护者本次另行授权新的独立验证批次，题目、gold、阈值、B正式预算及MEASURE模型/typed/推理预算不变；随后明确批准仅将新MEASURE正式只读元数据上限纠正为72。先完成不读取模型密钥、不进行模型或BGE推理的真实启动预检，再冻结正式比较和测量。以下仅是内部验证工具合同，不新增公共接口、查询能力或生产服务。
+旧B比较及MEASURE已有失败终态，不复用其run、授权或已消费目录。维护者曾另行授权新的独立验证批次，题目、gold、阈值、B正式预算及MEASURE模型/typed/推理预算不变；随后明确批准仅将新MEASURE正式只读元数据上限纠正为72。该授权及运行终态以P3_01为准，不是本合同授予的滚动运行许可。技术顺序仍为先完成不读取模型密钥、不进行模型或BGE推理的真实启动预检，再冻结正式比较和测量。以下仅是内部验证工具合同，不新增公共接口、查询能力或生产服务。
 
 - **启动预检**：新目录、新run ID绑定当前干净`codex_0915` HEAD及实际JAR/配置hash；复用正式启动参数、端口归属、Profile核验与清理逻辑，不调用题目、ledger或比较器。B两臂最多30次ES元数据请求、4次本次随机隐藏alias添加/移除、每臂60次本地readiness检查；typed search、embedding、rerank、外部模型和JWT请求均为0。代理必须拒绝search，不能通过给正常比较的search额度来伪称零调用。预检允许的临时alias不是线上发布alias，清理只能移除仍能核实本次归属的对象。MEASURE预检使用clean HEAD构建证明和既有批准索引绑定，在临时目录派生启动输入，验证三Spring及Runtime生命周期；Runtime仅使用合成非空密钥且只请求健康端点，不读取真实密钥、运行case或形成正式authorization。ES全记录前检上限仍为67次，启动元数据、健康轮询和登录分别计数；不把这些隐藏为测量调用。预检失败保存有限阶段/原因、退出码、hash、实际计数及PID/alias清理状态，不保存原始服务输出、密钥、JWT、正文或向量。成功只能证明启动和绑定可用，不代表功能、质量或发布通过。
 - **既有只读候选的新批次绑定**：只复用已成功构建且保持write-block的候选，不重建、不写正文、不重算语料向量。旧构建binding/result/完整ID扫描作为不可变Git来源证明，保留原run、HEAD及字节；新run通过原路径、提交和SHA引用，而不是改写旧sidecar或伪造新builder result。新当前HEAD绑定新的运行配置、两域Profile、题目、计划和预算。执行前重新只读核验两臂UUID、mapping、write-block、全记录fingerprint、数量及ID/content hash一致性；每臂扫描上限为`1 + ceil(recordCount/250)`，现15521条对应64次。旧源证明与新扫描有任何不符即零typed/推理调用。新的内部准入分支必须同时验证旧构建来源与新扫描/配置绑定，不放宽旧v1准入或修改冻结资产；旧比较结果无论成功或失败均不作为新质量证明。
@@ -786,6 +790,8 @@ v3.9本切片完成作者内审和同一任务内未参与起草的执行单元�
 
 v3.10计数纠正经同一任务内未参与起草的执行单元核对本节及P3/UAT/架构索引，S0=0、S1=0、未处理S2=0。工具仍须用实际HTTP attempt及失败负例证明预算守卫；该评审不证明真实启动、效果测量或发布通过。
 
+v3.11作者内审及同一任务内未参与起草的执行单元定向源码/设计复评，先关闭GET双hash表示不明确的S2，复评S0=0、S1=0、未处理S2=0。结论只批准内部见证合同和状态修正，不补判已消费B、不证明新工具实施或真实质量通过。
+
 ### 18.5 实施追踪与剩余验证
 
 以下编号在本节定义，规则语义为§18.1～18.4；实现/测试/验证的具体含义在下表展开。已有离线组件与fake工具不代表真实语料重切、候选索引或效果验证已完成，逐包证据见P3_01。
@@ -802,7 +808,7 @@ v3.10计数纠正经同一任务内未参与起草的执行单元核对本节及
 |---|---|---|---|---|
 | REQ-KCORPUS-001/003、KQ-AD-025/026 | DR-KRET-301、DR-KRET-302 | IMPL-KRET-301：已有knowledge_corpus_tools/normalization_v2.py及严格sidecar Schema；复用audit/models/source清单 | TEST-KRET-301：11字段、缺失/多值、来源冲突、日期同值/部分失效/未知及相对URL | VAL-KRET-301：纯单元/契约、有限来源人工核对已完成；不调用模型 |
 | REQ-KCORPUS-002/003、KQ-AD-027 | DR-KRET-303、DR-KRET-304 | IMPL-KRET-302：已有chunking_v2.py/结构单元及位置记录，修复受影响DOCX解析顺序接缝；旧chunking.py不覆盖 | TEST-KRET-302：类型+结构策略、段表交错、短/长条、表格/脚注、连续span、unitId/parentUnitId与parentDocumentId区别、身份/hash稳定及冲突 | VAL-KRET-302：固定公开/合规fixture重放已完成；真实全量结构与发布未验证 |
-| REQ-KCORPUS-003/004、KQ-AD-026/027 | DR-KRET-305、DR-KRET-306 | IMPL-KRET-303：已有独立表示/无截断预检；旧manifest缺逐记录事实仍标legacy_unknown，不改线上Profile | TEST-KRET-303：三表示、token/字符/字节边界、推断标签拒绝、legacy_unknown | VAL-KRET-303：纯构造与固定tokenizer测试已完成；真实BGE对照未执行 |
-| REQ-KCORPUS-005/006、KQ-AD-028 | DR-KRET-307 | IMPL-KRET-304：已有独立rechunk_candidate_v1.py；`_representation_targets`已从已核验源扫描重建表示；两阶段B入口尚在fake阶段，隔离typed runner仍待实施，冻结vector_candidate实现不覆写。es-query-service `KnowledgeSearchService`及私有启动配置已接入默认关闭的固定物理查询开关，不改Controller/公开DTO | TEST-KRET-304：已有全记录保留、映射/策略错配、预算/中断/回滚及不改现行索引fake；源正文重建、外来tuple逐项比对、绑定或顺序漂移在准备/clone前零写入fake已补；Java默认alias、非法隔离配置拒绝、零命中固定物理请求路径、两模式相同查询体/授权/解码/失败的non-live已通过；真实keyword漂移待验证 | VAL-KRET-304：构建器fake与strict mypy、隔离Java Maven已通过；受控双实例/真实typed与发布均未执行，UAT-KORG各项仍须取证 |
+| REQ-KCORPUS-003/004、KQ-AD-026/027 | DR-KRET-305、DR-KRET-306 | IMPL-KRET-303：已有独立表示/无截断预检；旧manifest缺逐记录事实仍标legacy_unknown，不改线上Profile | TEST-KRET-303：三表示、token/字符/字节边界、推断标签拒绝、legacy_unknown | VAL-KRET-303：纯构造与固定tokenizer测试已完成；真实构建/比较的有限终态及是否有效由P3_01/UAT_02记录，不以发生BGE调用证明质量 |
+| REQ-KCORPUS-005/006、KQ-AD-028 | DR-KRET-307 | IMPL-KRET-304：已有独立rechunk_candidate_v1.py、两阶段B入口、隔离typed runner和既有候选承接；`_representation_targets`从已核验源扫描重建表示，冻结vector_candidate实现不覆写。es-query-service `KnowledgeSearchService`及私有启动配置已接入默认关闭的固定物理查询开关，不改Controller/公开DTO | TEST-KRET-304：已有全记录保留、映射/策略错配、预算/中断/回滚及不改现行索引fake；源正文重建、外来tuple逐项比对、绑定或顺序漂移在准备/clone前零写入fake已补；Java默认alias、非法隔离配置拒绝、零命中固定物理请求路径、两模式相同查询体/授权/解码/失败的non-live已通过；请求规范hash补充只在non-live证明，不改已消费运行 | VAL-KRET-304：构建器fake、strict mypy及隔离Java Maven已有证明；真实启动、typed执行、后验准入、人工盲标及发布逐层取证，当前有限终态见P3_01/UAT_02，不将失败调用算作有效比较 |
 
 v3.2修订时只设计、未实施；那次修订没有读取模型凭据、重算向量或修改索引。本轮已实现上述离线组件和fake构建器；当前目标对有限tokenizer/BGE、最多两项资料对照、最多两个新候选及满足条件后的发布虽有授权，真实操作仍取决于冻结输入、人工gold/阈值、精确预算、真实服务身份及发布门槛，文档状态不能替代这些证据。在线父单元补取、公共DTO变化、现行索引原地写入及历史资产修改仍不属于本合同。

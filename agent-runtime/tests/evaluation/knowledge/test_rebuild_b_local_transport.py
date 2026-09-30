@@ -10,6 +10,7 @@ import pytest
 
 from tests.evaluation.knowledge.rebuild_b_local_transport import (
     ArmIdentity, BIsolatedAliases, BLocalTransportError, PhysicalEsProxy, _canonical,
+    _request_hashes,
 )
 
 
@@ -227,6 +228,95 @@ def test_proxy_stream_refuses_oversized_fake_es_response_without_body_evidence()
         assert proxy.requests == []
         assert proxy.metadata_attempts == 1
         assert proxy.metadata_count == 0
+    finally:
+        proxy.close()
+        backend.close()
+
+
+def test_request_hashes_preserve_raw_but_ignore_only_object_key_order_and_whitespace() -> None:
+    left = b'{ "b": {"z": 2, "a": [1, 1.0]}, "a": "value" }'
+    right = b'{"a":"value","b":{"a":[1,1.0],"z":2}}'
+    assert _request_hashes("POST", left)[0] != _request_hashes("POST", right)[0]
+    assert _request_hashes("POST", left)[1] == _request_hashes("POST", right)[1]
+    baseline = _request_hashes("POST", b'{"items":[1,2],"value":1}')
+    for changed in (b'{"items":[2,1],"value":1}',
+                    b'{"items":[1,2],"value":1.0}',
+                    b'{"items":[1,2],"value":2}',
+                    b'{"items":[1,2],"value":"1"}'):
+        assert _request_hashes("POST", changed)[1] != baseline[1]
+    assert (_request_hashes("POST", b'{"value":1.0000000000000001}')[1]
+            != _request_hashes("POST", b'{"value":1.0}')[1])
+    assert (_request_hashes("POST", b'{"value":1e-999}')[1]
+            != _request_hashes("POST", b'{"value":0.0}')[1])
+    empty_sha256 = sha256(b"").hexdigest()
+    assert _request_hashes("GET", b"") == (empty_sha256, empty_sha256)
+    with pytest.raises(BLocalTransportError, match="request_invalid"):
+        _request_hashes("GET", b"x")
+
+
+@pytest.mark.parametrize("invalid", (
+    b'{"outer":{"x":1,"x":2}}', b'{"x":NaN}', b'{"x":Infinity}',
+    b'{"x":1e309}', b'{"nested":{"x":1e309}}', b'[1,2]', b'{"x":',
+    b'{"x":"\xff"}',
+))
+def test_invalid_search_json_never_reaches_backend(invalid: bytes) -> None:
+    fake = FakeEs()
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    forwarded: list[bytes] = []
+
+    def backend_request(request: httpx.Request) -> httpx.Response:
+        forwarded.append(request.content)
+        return httpx.Response(200, json={})
+
+    backend = httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+        follow_redirects=False, transport=httpx.MockTransport(backend_request))
+    proxy = PhysicalEsProxy(identity=fake.identity("baseline", "frozen-source", "a" * 16),
+        port=port, maximum_metadata=6, maximum_search=2, backend=backend)
+    try:
+        proxy.start()
+        with httpx.Client(trust_env=False, follow_redirects=False, timeout=5) as client:
+            response = client.post(f"http://127.0.0.1:{port}/frozen-source/_search",
+                content=invalid)
+        assert response.status_code == 502
+        assert forwarded == []
+        assert proxy.requests == []
+        assert proxy.physical_search_paths == ()
+        assert proxy.violations == 1
+    finally:
+        proxy.close()
+        backend.close()
+
+
+def test_proxy_forwards_original_search_bytes_and_records_both_hashes() -> None:
+    fake = FakeEs()
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    forwarded: list[bytes] = []
+
+    def backend_request(request: httpx.Request) -> httpx.Response:
+        forwarded.append(request.content)
+        return httpx.Response(200, json={})
+
+    backend = httpx.Client(base_url="http://127.0.0.1:9200", trust_env=False,
+        follow_redirects=False, transport=httpx.MockTransport(backend_request))
+    proxy = PhysicalEsProxy(identity=fake.identity("baseline", "frozen-source", "a" * 16),
+        port=port, maximum_metadata=6, maximum_search=2, backend=backend)
+    body = b'{ "b":2, "a":1 }'
+    try:
+        proxy.start()
+        with httpx.Client(trust_env=False, follow_redirects=False, timeout=5) as client:
+            search = client.post(f"http://127.0.0.1:{port}/frozen-source/_search", content=body)
+            metadata = client.get(f"http://127.0.0.1:{port}/frozen-source/_mapping")
+        assert search.status_code == metadata.status_code == 200
+        assert forwarded[0] == body
+        assert proxy.requests[0].request_sha256 == sha256(body).hexdigest()
+        assert proxy.requests[0].canonical_request_sha256 == _request_hashes("POST", body)[1]
+        empty_sha256 = sha256(b"").hexdigest()
+        assert proxy.requests[1].request_sha256 == empty_sha256
+        assert proxy.requests[1].canonical_request_sha256 == empty_sha256
     finally:
         proxy.close()
         backend.close()

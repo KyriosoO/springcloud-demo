@@ -82,12 +82,17 @@ def _fake_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     model["sha256"] = sha256(review._canonical_bytes({
         "embedding": model["embedding"], "rerank": model["rerank"]})).hexdigest()
     witness: dict[str, list[dict[str, object]]] = {}
+    empty_sha256 = sha256(b"").hexdigest()
     for arm, alias, corpus in zip(("baseline", "candidate"), aliases,
                                   (spec.source_corpus, spec.candidate_corpus), strict=True):
         witness[arm] = ([{"method": "GET", "path": f"/_alias/{alias}",
-                          "request_sha256": "e" * 64, "status": 200} for _ in range(6)]
+                          "request_sha256": empty_sha256,
+                          "canonical_request_sha256": empty_sha256,
+                          "status": 200} for _ in range(6)]
                         + [{"method": "POST", "path": f"/{corpus.index_name}/_search",
-                            "request_sha256": "f" * 64, "status": 200} for _ in range(22)])
+                            "request_sha256": ("f" if arm == "baseline" else "e") * 64,
+                            "canonical_request_sha256": "d" * 64,
+                            "status": 200} for _ in range(22)])
     _put(directory / "comparison-result.json", {"schemaVersion": 1,
         "runId": directory.name, "frozenHead": frozen_head,
         "status": "completed_awaiting_blind_labels", "evidenceKind": "local_verified",
@@ -137,6 +142,26 @@ def test_missing_label_stays_not_assessed(tmp_path: Path,
     assert score["outcome"] == "not_assessed"
     assert score["unjudgedCount"] == 1
     assert score["macroBaselinePrecision"] is None
+
+
+def test_old_or_mismatched_canonical_witness_rejected(tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    directory = _fake_run(tmp_path, monkeypatch)
+    path = directory / "comparison-result.json"
+    original = json.loads(path.read_bytes())
+    for drift in ("missing", "unequal", "bad_get"):
+        value = json.loads(json.dumps(original))
+        if drift == "missing":
+            for rows in value["witness"].values():
+                for row in rows:
+                    row.pop("canonical_request_sha256")
+        elif drift == "unequal":
+            value["witness"]["candidate"][-1]["canonical_request_sha256"] = "a" * 64
+        else:
+            value["witness"]["baseline"][0]["canonical_request_sha256"] = "a" * 64
+        _put(path, value)
+        with pytest.raises(review.ReviewError):
+            review.review(directory, labels_raw=None)
 
 
 @pytest.mark.parametrize("drift", ["failed", "pool", "calls", "cleanup", "model",

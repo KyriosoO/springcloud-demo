@@ -1500,6 +1500,9 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
             stopped, aliases_removed, proxy_violations,
             tuple((identity.arm, tuple(item.request_sha256 for item in proxy.requests
                 if item.method == "POST"))
+                for identity, proxy in zip(identities, proxies, strict=True)),
+            tuple((identity.arm, tuple(item.canonical_request_sha256 for item in proxy.requests
+                if item.method == "POST"))
                 for identity, proxy in zip(identities, proxies, strict=True)))
         try:
             result = admit_completed_local_run(spec=spec, run=result,

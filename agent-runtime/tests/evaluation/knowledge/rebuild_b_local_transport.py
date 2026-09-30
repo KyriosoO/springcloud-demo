@@ -1,7 +1,8 @@
 """Local-only ES identity and physical-request witness for one B comparison.
 
-The proxy deliberately does not parse, log or persist request/response bodies. It
-exists only to prove which physical ES path the two owned Java processes used.
+The proxy strictly parses search JSON in memory before forwarding original bytes.
+It never logs or persists request/response bodies; its witnesses prove the
+physical ES path and raw/canonical request identity of owned Java processes.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import re
 from threading import Lock, Thread
 from typing import Any, Callable
@@ -58,6 +60,60 @@ def _reject_constant(_: str) -> None:
 def _canonical(value: object) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True,
                        separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
+
+
+@dataclass(frozen=True, slots=True)
+class _JsonNumber:
+    literal: str
+
+
+def _number(literal: str) -> _JsonNumber:
+    # Check that ES-bound numeric literals fit a finite binary float, but do
+    # not round their value (including underflow) for the comparison witness.
+    if not math.isfinite(float(literal)):
+        raise ValueError("non_finite")
+    return _JsonNumber(literal)
+
+
+def _canonical_request(value: object) -> bytes:
+    def render(item: object) -> str:
+        if type(item) is dict:
+            object_items = item.items()
+            return "{" + ",".join(json.dumps(key, ensure_ascii=False) + ":" + render(child)
+                                  for key, child in sorted(object_items)) + "}"
+        if type(item) is list:
+            return "[" + ",".join(render(child) for child in item) + "]"
+        if type(item) is _JsonNumber:
+            return item.literal
+        if type(item) is str:
+            return json.dumps(item, ensure_ascii=False)
+        if item is True:
+            return "true"
+        if item is False:
+            return "false"
+        if item is None:
+            return "null"
+        raise ValueError("request_invalid")
+
+    return (render(value) + "\n").encode("utf-8")
+
+
+def _request_hashes(method: str, body: bytes) -> tuple[str, str]:
+    raw_sha256 = sha256(body).hexdigest()
+    if method == "GET" and not body:
+        return raw_sha256, raw_sha256
+    if method != "POST" or not body or len(body) > _MAX_BODY:
+        raise BLocalTransportError("request_invalid")
+    try:
+        value = json.loads(body.decode("utf-8"), object_pairs_hook=_unique,
+                           parse_constant=_reject_constant, parse_int=_number,
+                           parse_float=_number)
+        if type(value) is not dict:
+            raise ValueError("object_required")
+        canonical_sha256 = sha256(_canonical_request(value)).hexdigest()
+    except (UnicodeError, ValueError, TypeError, OverflowError, RecursionError):
+        raise BLocalTransportError("request_invalid") from None
+    return raw_sha256, canonical_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +172,7 @@ class RequestWitness:
     method: str
     path: str
     request_sha256: str
+    canonical_request_sha256: str
     status: int
 
 
@@ -196,6 +253,7 @@ class PhysicalEsProxy:
                     body = self.rfile.read(length)
                     if len(body) != length:
                         raise ValueError("body")
+                    raw_sha256, canonical_sha256 = _request_hashes(method, body)
                     with owner.backend.stream(method, path, content=body if method == "POST" else None,
                             headers={"Accept-Encoding": "identity", "Content-Type": "application/json"},
                             timeout=10.0, follow_redirects=False) as response:
@@ -208,8 +266,8 @@ class PhysicalEsProxy:
                             bounded.extend(part)
                         raw = bytes(bounded)
                         with owner._lock:
-                            owner.requests.append(RequestWitness(method, path, sha256(body).hexdigest(),
-                                                                 response.status_code))
+                            owner.requests.append(RequestWitness(method, path, raw_sha256,
+                                canonical_sha256, response.status_code))
                         self.send_response(response.status_code)
                         self.send_header("Content-Type", response.headers.get("content-type", "application/json"))
                         self.send_header("Content-Length", str(len(raw)))

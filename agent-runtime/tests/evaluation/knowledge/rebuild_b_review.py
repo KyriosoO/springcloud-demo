@@ -29,6 +29,7 @@ from tests.evaluation.knowledge.rebuild_b_local_runner import (
 
 EVIDENCE_ROOT = Path(__file__).resolve().parents[4] / "knowledge-corpus-tools/evidence"
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
+_EMPTY_SHA256 = sha256(b"").hexdigest()
 _REVIEW_CONFIRMATION = "maintainer_personally_reviewed_each_supplied_label_against_source_text"
 _SIDE_FILES = {
     "reuseIntent": "reuse-intent.json", "reuseFinal": "reuse-final.json",
@@ -222,29 +223,34 @@ def _completed_run(spec: ComparisonSpec, old: reuse.OldBuild, attempt: dict[str,
                                      if key != "started"})
     witness = terminal["witness"]
     _require(type(witness) is dict and set(witness) == {"baseline", "candidate"})
-    request_hashes: list[list[str]] = []
+    canonical_request_hashes: list[list[str]] = []
     for arm, alias, corpus in zip(("baseline", "candidate"), aliases,
                                   (spec.source_corpus, spec.candidate_corpus), strict=True):
         rows = witness[arm]
         _require(type(rows) is list and len(rows) == 6 + 22)
         allowed_get = {f"/_alias/{alias}", f"/{corpus.index_name}/_settings",
                        f"/{corpus.index_name}/_mapping"}
-        post_hashes: list[str] = []
+        post_canonical_hashes: list[str] = []
         gets = 0
         for row in rows:
-            _require(type(row) is dict and set(row) == {"method", "path", "request_sha256", "status"}
+            _require(type(row) is dict and set(row) == {"method", "path", "request_sha256",
+                "canonical_request_sha256", "status"}
                 and type(row["request_sha256"]) is str
                 and _SHA.fullmatch(row["request_sha256"]) is not None
+                and type(row["canonical_request_sha256"]) is str
+                and _SHA.fullmatch(row["canonical_request_sha256"]) is not None
                 and type(row["status"]) is int and row["status"] == 200)
             if row["method"] == "GET":
-                _require(row["path"] in allowed_get)
+                _require(row["path"] in allowed_get
+                    and row["request_sha256"] == _EMPTY_SHA256
+                    and row["canonical_request_sha256"] == _EMPTY_SHA256)
                 gets += 1
             else:
                 _require(row["method"] == "POST" and row["path"] == f"/{corpus.index_name}/_search")
-                post_hashes.append(row["request_sha256"])
-        _require(gets == 6 and len(post_hashes) == 22)
-        request_hashes.append(post_hashes)
-    _require(Counter(request_hashes[0]) == Counter(request_hashes[1]))
+                post_canonical_hashes.append(row["canonical_request_sha256"])
+        _require(gets == 6 and len(post_canonical_hashes) == 22)
+        canonical_request_hashes.append(post_canonical_hashes)
+    _require(Counter(canonical_request_hashes[0]) == Counter(canonical_request_hashes[1]))
     traces = _traces(terminal["traces"], spec)
     return ComparisonRun(traces, CallTotals(calls["typed_search"], calls["query_embedding"],
         calls["online_rerank"]), spec.assessment_sha256, spec.uat_fixture_sha256,

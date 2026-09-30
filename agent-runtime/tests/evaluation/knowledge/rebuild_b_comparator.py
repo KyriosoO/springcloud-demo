@@ -695,6 +695,7 @@ class LocalRuntimeReceipt:
     aliases_removed: bool
     proxy_violations: int
     arm_search_request_sha256: tuple[tuple[str, tuple[str, ...]], ...]
+    arm_search_canonical_request_sha256: tuple[tuple[str, tuple[str, ...]], ...]
 
 
 class ComparisonRunError(Exception):
@@ -1302,14 +1303,26 @@ def admit_completed_local_run(*, spec: ComparisonSpec, run: ComparisonRun,
                 for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True))
             or type(receipt.arm_search_request_sha256) is not tuple
             or len(receipt.arm_search_request_sha256) != 2
+            or any(type(item) is not tuple or len(item) != 2
+                   for item in receipt.arm_search_request_sha256)
             or tuple(item[0] for item in receipt.arm_search_request_sha256) != _ARMS
             or any(type(item[1]) is not tuple
                    or len(item[1]) != sum(len(case.plan.items) for case in spec.cases)
                    or any(type(digest) is not str or _SHA.fullmatch(digest) is None
-                          for digest in item[1])
+                           for digest in item[1])
                    for item in receipt.arm_search_request_sha256)
-            or Counter(receipt.arm_search_request_sha256[0][1])
-               != Counter(receipt.arm_search_request_sha256[1][1])
+            or type(receipt.arm_search_canonical_request_sha256) is not tuple
+            or len(receipt.arm_search_canonical_request_sha256) != 2
+            or any(type(item) is not tuple or len(item) != 2
+                   for item in receipt.arm_search_canonical_request_sha256)
+            or tuple(item[0] for item in receipt.arm_search_canonical_request_sha256) != _ARMS
+            or any(type(item[1]) is not tuple
+                   or len(item[1]) != sum(len(case.plan.items) for case in spec.cases)
+                   or any(type(digest) is not str or _SHA.fullmatch(digest) is None
+                          for digest in item[1])
+                   for item in receipt.arm_search_canonical_request_sha256)
+            or Counter(receipt.arm_search_canonical_request_sha256[0][1])
+               != Counter(receipt.arm_search_canonical_request_sha256[1][1])
             or receipt.post_metadata_sha256 != tuple((arm, binding[4])
                 for arm, binding in zip(_ARMS, admission.arm_bindings, strict=True))
             or receipt.alias_writes != 4
