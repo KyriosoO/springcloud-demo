@@ -63,7 +63,7 @@ class MeasureEsProxy:
         self._server: ThreadingHTTPServer | None = None
 
     def _admit(self, method: str, path: str, length: int) -> bool:
-        metadata = {"/_cluster/health", f"/_alias/{self.read_alias}",
+        metadata = {"/_cluster/health", "/_cluster/health/", f"/_alias/{self.read_alias}",
                     f"/{self.index_name}/_settings", f"/{self.index_name}/_mapping",
                     f"/{self.index_name}"}
         with self._lock:
@@ -84,7 +84,8 @@ class MeasureEsProxy:
         with self._lock:
             return {"metadataEsHttp": self.metadata_attempts,
                     "searchEsHttp": self.search_attempts, "proxyViolations": self.violations,
-                    "healthEsHttp": self._metadata_paths.get("/_cluster/health", 0),
+                    "healthEsHttp": (self._metadata_paths.get("/_cluster/health", 0)
+                                     + self._metadata_paths.get("/_cluster/health/", 0)),
                     "aliasEsHttp": self._metadata_paths.get(f"/_alias/{self.read_alias}", 0),
                     "settingsEsHttp": self._metadata_paths.get(f"/{self.index_name}/_settings", 0),
                     "mappingEsHttp": self._metadata_paths.get(f"/{self.index_name}/_mapping", 0),

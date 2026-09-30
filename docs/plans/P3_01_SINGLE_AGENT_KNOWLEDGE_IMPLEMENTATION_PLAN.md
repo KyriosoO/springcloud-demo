@@ -421,3 +421,5 @@ B启动配置的后续修复本地提交`a7c610e6b518d6b50f5c36fe87d3ad40efff15c
 ### 14.24 MEASURE独立启动失败（2026-09-30）
 
 [新启动有限证据](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-03/README.md)绑定`a03486e653a69c434ca18fd5cec943e0aa243881`。五模块clean构建成功后，独立启动在`proxy_start`端口归属检查处终止，`startup_preflight_failed`，现场错误`knowledge.measure.port_owner_mismatch`。模型、embedding、rerank均0，未显式读取模型密钥；绑定前检记录2个元数据HTTP attempt，代理计数未取得，保持null而非补造0。自有进程报告停止，现场核查五个隔离端口无监听。此目录没有正式manifest/authorization/case journal，失败不自动复跑。继续只做根因核查与fake修复，不因此取消可独立推进的B比较；COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，12题真实测量、维护者人工评价及新版UAT均未完成。
+
+本地synthetic进程核实Windows虚拟环境redirector父PID与实际Python子PID不同，且子进程仍使用项目venv。后续私有launcher修复严格绑定父子关系、基础可执行文件、模块角色及创建时间，正式runner传入实际proxy监听PID，未监听子进程亦纳入可核实的清理，无法核实则清理状态失败而非假称退出。另只读核对本地Spring Boot 3.5.10源码，健康请求为`/_cluster/health/`；代理仅新增这一精确等价路径并与原路径共用预算，其他路径/参数/写操作仍拒绝。独立复评确认惰性进程对象的PID复用Major，已通过捕获时固定句柄及创建时间比对关闭，范围内无未解决Blocker/Major；测试基础Python路径从目标venv配置读取，不引入安装路径硬依赖。直接harness 34 passed、受影响Python源strict mypy、compileall、PowerShell AST 0 error及差异检查通过；这些仅为non-live修复验证，不构成新的启动通过或真实批次授权。

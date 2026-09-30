@@ -491,6 +491,152 @@ def test_launcher_rejects_inherited_java_overrides_and_binds_owned_ports() -> No
     assert launcher.count("Wait-OwnedPort 18090 $authProcess") >= 2
     assert "Wait-OwnedPort 19201 $esProcess" in launcher
     assert launcher.count("Wait-OwnedPort 19202 $agentProcess") >= 2
+    assert "KNOWLEDGE_MEASURE_OWNED_PROXY_PID = [string]$(if ($ownedPythonChildren.ContainsKey(19313))" in launcher
+
+
+@pytest.mark.skipif(os.name != "nt" or shutil.which("pwsh") is None, reason="Windows venv redirector")
+def test_measure_launcher_attests_venv_listener_child_and_cleans_unlistened_child() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    listener_functions = launcher[launcher.index("function Test-ExpectedPythonChild"):
+                                  launcher.index("function Wait-Ready")]
+    cleanup_functions = launcher[launcher.index("function Stop-OwnedProcesses"):
+                                 launcher.index("try {\n    if (-not $startup)")]
+    script = r"""
+$ErrorActionPreference='Stop'
+$runtimePython='__RUNTIME_PYTHON__'
+$pythonBaseExecutable='__BASE_PYTHON__'
+$ownedPythonChildren=@{}
+$ownedChildCleanupUnknown=$false
+$runtimeProcess=$null; $agentProcess=$null; $esProcess=$null; $authProcess=$null
+function New-VenvChild {
+    $psi=[Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName=$runtimePython
+    $psi.ArgumentList.Add('-c')
+    $psi.ArgumentList.Add('import os,sys,time; print(str(os.getpid())+"|"+sys.prefix,flush=True); time.sleep(15)')
+    $psi.UseShellExecute=$false
+    $psi.RedirectStandardOutput=$true
+    $parent=[Diagnostics.Process]::Start($psi)
+    $parts=$parent.StandardOutput.ReadLine().Split('|')
+    [pscustomobject]@{ Parent=$parent; ChildPid=[int]$parts[0]; Prefix=$parts[1] }
+}
+function Get-NetTCPConnection {
+    param($State,$LocalPort,$ErrorAction)
+    if ($script:ownerPid -gt 0) { [pscustomobject]@{ OwningProcess=$script:ownerPid } }
+}
+function Get-CimInstance {
+    param($ClassName,$Filter,$ErrorAction)
+    if ($script:cimFails) { throw 'cim_unavailable' }
+    if ($Filter -notmatch '^(ProcessId|ParentProcessId)=') { throw 'unexpected_cim_query' }
+    [pscustomobject]@{
+        ProcessId=$script:childPid
+        ParentProcessId=$(if ($script:wrongParent) { 1 } else { $script:proxyProcess.Id })
+        ExecutablePath=$pythonBaseExecutable
+        CommandLine=$(if ($script:wrongRole) { 'python -m tests.uat.knowledge_rebuild_measure_startup runtime --test' }
+                      else { 'python -m tests.uat.knowledge_rebuild_measure_startup proxy --test' })
+        CreationDate=$script:childCreated
+    }
+}
+__LISTENER_FUNCTIONS__
+__CLEANUP_FUNCTIONS__
+function Assert-Rejected([string]$Label) {
+    try { [void](Test-OwnedListener 19313 $script:proxyProcess) }
+    catch { if ($_.Exception.Message -ceq 'knowledge.measure.port_owner_mismatch') { return } }
+    throw "unexpected_accept:$Label"
+}
+$first=New-VenvChild
+$proxyProcess=$first.Parent
+$script:childPid=$first.ChildPid
+$actualChild=CimCmdlets\Get-CimInstance Win32_Process -Filter "ProcessId=$script:childPid"
+if ($actualChild.ParentProcessId -ne $proxyProcess.Id -or
+    -not [IO.Path]::GetFullPath([string]$actualChild.ExecutablePath).Equals(
+        $pythonBaseExecutable,[StringComparison]::OrdinalIgnoreCase)) { throw 'redirector_relation_invalid' }
+$script:childCreated=$actualChild.CreationDate
+$script:ownerPid=$first.ChildPid
+try {
+    if ($first.Prefix -cne '__VENV_ROOT__') { throw 'venv_prefix_lost' }
+    $realChild=Microsoft.PowerShell.Management\Get-Process -Id $first.ChildPid
+    if ($realChild.HasExited -or $first.ChildPid -eq $proxyProcess.Id) { throw 'not_redirected' }
+    if (-not (Test-OwnedListener 19313 $proxyProcess)) { throw 'valid_child_rejected' }
+    if ($ownedPythonChildren[19313].Id -ne $first.ChildPid) { throw 'wrong_listener_pid' }
+    $script:childCreated=$actualChild.CreationDate.AddSeconds(-2)
+    Assert-Rejected 'reused_pid_creation_time'
+    $script:childCreated=$actualChild.CreationDate
+    $script:wrongRole=$true; Assert-Rejected 'role'; $script:wrongRole=$false
+    $script:wrongParent=$true; Assert-Rejected 'parent'; $script:wrongParent=$false
+    $script:ownerPid=$PID; Assert-Rejected 'unrelated'; $script:ownerPid=$first.ChildPid
+    if (-not (Test-OwnedListener 19313 $proxyProcess)) { throw 'recheck_failed' }
+} finally {
+    Stop-OwnedProcesses
+}
+if (-not (Test-OwnedProcessesStopped)) { throw 'captured_child_not_stopped' }
+$ownedPythonChildren=@{}; $ownedChildCleanupUnknown=$false
+$second=New-VenvChild
+$proxyProcess=$second.Parent
+$script:childPid=$second.ChildPid
+$script:childCreated=(CimCmdlets\Get-CimInstance Win32_Process -Filter "ProcessId=$script:childPid").CreationDate
+$script:ownerPid=0
+try {
+    Stop-OwnedProcesses
+    if (-not (Test-OwnedProcessesStopped)) { throw 'unlistened_child_not_stopped' }
+} finally {
+    $remaining=Get-Process -Id $second.ChildPid -ErrorAction SilentlyContinue
+    if ($remaining) { $remaining.Kill() }
+    if (-not $second.Parent.HasExited) { $second.Parent.Kill() }
+}
+$ownedPythonChildren=@{}; $ownedChildCleanupUnknown=$false
+$third=New-VenvChild
+$proxyProcess=$third.Parent
+$script:childPid=$third.ChildPid
+$script:childCreated=(CimCmdlets\Get-CimInstance Win32_Process -Filter "ProcessId=$script:childPid").CreationDate
+$script:cimFails=$true
+try {
+    Stop-OwnedProcesses
+    if (Test-OwnedProcessesStopped) { throw 'unknown_child_claimed_clean' }
+} finally {
+    $script:cimFails=$false
+    $remaining=Get-Process -Id $third.ChildPid -ErrorAction SilentlyContinue
+    if ($remaining) { $remaining.Kill() }
+    if (-not $third.Parent.HasExited) { $third.Parent.Kill() }
+}
+$ownedPythonChildren=@{}; $ownedChildCleanupUnknown=$false
+$fourth=New-VenvChild
+$proxyProcess=$fourth.Parent
+$script:childPid=$fourth.ChildPid
+$script:childCreated=(CimCmdlets\Get-CimInstance Win32_Process -Filter "ProcessId=$script:childPid").CreationDate.AddSeconds(-2)
+try {
+    Stop-OwnedProcesses
+    if (Test-OwnedProcessesStopped -or $ownedPythonChildren.Count -ne 0) {
+        throw 'drifted_child_claimed_or_killed'
+    }
+} finally {
+    $remaining=Get-Process -Id $fourth.ChildPid -ErrorAction SilentlyContinue
+    if ($remaining) { $remaining.Kill() }
+    if (-not $fourth.Parent.HasExited) { $fourth.Parent.Kill() }
+}
+'attested-and-cleaned'
+"""
+    venv_root = repository / "agent-runtime/.venv"
+    base_executable = ""
+    for line in (venv_root / "pyvenv.cfg").read_text(encoding="utf-8").splitlines():
+        name, separator, value = line.partition("=")
+        if separator and name.strip().casefold() == "executable":
+            base_executable = value.strip()
+            break
+    assert base_executable and Path(base_executable).is_file()
+    substitutions = {
+        "__RUNTIME_PYTHON__": str(venv_root / "Scripts/python.exe").replace("'", "''"),
+        "__BASE_PYTHON__": base_executable.replace("'", "''"),
+        "__VENV_ROOT__": str(venv_root).replace("'", "''"),
+        "__LISTENER_FUNCTIONS__": listener_functions,
+        "__CLEANUP_FUNCTIONS__": cleanup_functions,
+    }
+    for marker, value in substitutions.items():
+        script = script.replace(marker, value)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", script],
+                            text=True, capture_output=True, timeout=40, check=False)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("attested-and-cleaned")
 
 
 def test_launcher_creates_fresh_snapshot_after_owned_services_before_key_read() -> None:
@@ -762,6 +908,31 @@ def test_startup_proxy_denies_search_and_writes_before_fake_backend() -> None:
         assert calls == [("GET", "/_cluster/health"), ("GET", "/_alias/read-v1")]
         assert proxy.counts() == {"metadataEsHttp": 2, "searchEsHttp": 0, "proxyViolations": 4,
                                   "healthEsHttp": 1, "aliasEsHttp": 1,
+                                  "settingsEsHttp": 0, "mappingEsHttp": 0,
+                                  "definitionEsHttp": 0}
+
+
+def test_startup_proxy_counts_both_exact_health_paths_without_widening_routes() -> None:
+    calls: list[str] = []
+
+    def backend(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, json={"status": "green"})
+
+    with httpx.Client(base_url="http://127.0.0.1:9200", follow_redirects=False,
+                      trust_env=False, transport=httpx.MockTransport(backend)) as client:
+        proxy = startup.MeasureEsProxy(index_name="index-v1", read_alias="read-v1", port=19313,
+                                       metadata_limit=2, search_limit=0, backend=client)
+        assert proxy.forward("GET", "/_cluster/health", b"")[0] == 200
+        assert proxy.forward("GET", "/_cluster/health/", b"")[0] == 200
+        for path in ("/_cluster/health", "/_cluster/health/?pretty", "/_cluster/health/extra"):
+            with pytest.raises(startup.StartupError, match="proxy_request_forbidden"):
+                proxy.forward("GET", path, b"")
+        with pytest.raises(startup.StartupError, match="proxy_request_forbidden"):
+            proxy.forward("POST", "/_cluster/health/", b"{}")
+        assert calls == ["/_cluster/health", "/_cluster/health/"]
+        assert proxy.counts() == {"metadataEsHttp": 2, "searchEsHttp": 0, "proxyViolations": 4,
+                                  "healthEsHttp": 2, "aliasEsHttp": 0,
                                   "settingsEsHttp": 0, "mappingEsHttp": 0,
                                   "definitionEsHttp": 0}
 

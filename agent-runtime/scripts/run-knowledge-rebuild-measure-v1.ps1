@@ -20,6 +20,17 @@ if (-not (Test-Path -LiteralPath $runtimePython -PathType Leaf) -or
     -not (Test-Path -LiteralPath $corpusPython -PathType Leaf)) {
     throw 'knowledge.measure.isolated_python_missing'
 }
+$venvConfig = Get-Content -LiteralPath (Join-Path $runtimeRoot '.venv\pyvenv.cfg') -Raw -Encoding UTF8
+$venvExecutable = [regex]::Match($venvConfig, '(?m)^executable\s*=\s*([^\r\n]+)')
+$venvIsolation = [regex]::Match($venvConfig, '(?m)^include-system-site-packages\s*=\s*([^\r\n]+)')
+if (-not $venvExecutable.Success -or -not $venvIsolation.Success -or
+    $venvIsolation.Groups[1].Value.Trim() -cne 'false') {
+    throw 'knowledge.measure.isolated_python_invalid'
+}
+$pythonBaseExecutable = [IO.Path]::GetFullPath($venvExecutable.Groups[1].Value.Trim())
+if (-not (Test-Path -LiteralPath $pythonBaseExecutable -PathType Leaf)) {
+    throw 'knowledge.measure.isolated_python_invalid'
+}
 $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $startupStage = 'startup_input'
 $runRoot = Join-Path $tempBase $(if ($startup) {
@@ -206,6 +217,74 @@ $proxyCounts = $null
 $launcherFailure = $null
 $runRootCreated = $false
 $staticPreflightPassed = $false
+$ownedPythonChildren = @{}
+$ownedChildCleanupUnknown = $false
+
+function Test-ExpectedPythonChild([object]$Info, [int]$Port, [Diagnostics.Process]$Process) {
+    $role = if ($Port -eq 19313) { 'proxy' } else { 'runtime' }
+    $expectedCommand = "-m tests.uat.knowledge_rebuild_measure_startup $role "
+    try {
+        return ($null -ne $Info -and $Info.ParentProcessId -eq $Process.Id -and
+            [IO.Path]::GetFullPath([string]$Info.ExecutablePath).Equals(
+                $pythonBaseExecutable, [StringComparison]::OrdinalIgnoreCase) -and
+            ([string]$Info.CommandLine).Contains($expectedCommand, [StringComparison]::Ordinal) -and
+            [DateTime]$Info.CreationDate -ge $Process.StartTime.AddSeconds(-1))
+    } catch {
+        return $false
+    }
+}
+
+function Get-AttestedPythonProcess([object]$Info) {
+    $candidate = $null
+    try {
+        $candidate = [Diagnostics.Process]::GetProcessById([int]$Info.ProcessId)
+        $null = $candidate.Handle
+        if ($candidate.HasExited -or
+            [math]::Abs(($candidate.StartTime - [DateTime]$Info.CreationDate).TotalMilliseconds) -gt 1) {
+            $candidate.Dispose()
+            return $null
+        }
+        return $candidate
+    } catch {
+        if ($null -ne $candidate) { $candidate.Dispose() }
+        return $null
+    }
+}
+
+function Test-OwnedListener([int]$Port, [Diagnostics.Process]$Process) {
+    $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+    if ($listeners.Count -eq 0) { return $false }
+    if ($Port -notin @(19313, 19203)) {
+        if (@($listeners | Where-Object { $_.OwningProcess -ne $Process.Id }).Count -gt 0) {
+            throw 'knowledge.measure.port_owner_mismatch'
+        }
+        return $true
+    }
+    $owners = @($listeners | Select-Object -ExpandProperty OwningProcess -Unique)
+    if ($owners.Count -ne 1) { throw 'knowledge.measure.port_owner_mismatch' }
+    if ($owners[0] -eq $Process.Id) { return $true }
+    try {
+        $childInfo = @(Get-CimInstance Win32_Process -Filter "ProcessId=$($owners[0])" -ErrorAction Stop)
+    } catch {
+        throw 'knowledge.measure.port_owner_mismatch'
+    }
+    if ($childInfo.Count -ne 1 -or $childInfo[0].ProcessId -ne $owners[0] -or
+        -not (Test-ExpectedPythonChild $childInfo[0] $Port $Process)) {
+        throw 'knowledge.measure.port_owner_mismatch'
+    }
+    if ($ownedPythonChildren.ContainsKey($Port)) {
+        $known = $ownedPythonChildren[$Port]
+        if ($known.Id -ne $owners[0] -or $known.HasExited -or
+            [math]::Abs(($known.StartTime - [DateTime]$childInfo[0].CreationDate).TotalMilliseconds) -gt 1) {
+            throw 'knowledge.measure.port_owner_mismatch'
+        }
+    } else {
+        $candidate = Get-AttestedPythonProcess $childInfo[0]
+        if ($null -eq $candidate) { throw 'knowledge.measure.port_owner_mismatch' }
+        $ownedPythonChildren[$Port] = $candidate
+    }
+    return $true
+}
 
 function Wait-Ready([string]$Uri, [Diagnostics.Process]$Process, [int]$MaximumAttempts = 120) {
     $port = ([uri]$Uri).Port
@@ -217,9 +296,7 @@ function Wait-Ready([string]$Uri, [Diagnostics.Process]$Process, [int]$MaximumAt
             $ready = $response.StatusCode -eq 200
         } catch {}
         if ($ready) {
-            $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
-            if ($listeners.Count -eq 0 -or
-                @($listeners | Where-Object { $_.OwningProcess -ne $Process.Id }).Count -gt 0) {
+            if (-not (Test-OwnedListener $port $Process)) {
                 throw 'knowledge.measure.port_owner_mismatch'
             }
             return
@@ -232,11 +309,7 @@ function Wait-Ready([string]$Uri, [Diagnostics.Process]$Process, [int]$MaximumAt
 function Wait-OwnedPort([int]$Port, [Diagnostics.Process]$Process) {
     for ($attempt = 0; $attempt -lt 120; $attempt++) {
         if ($Process.HasExited) { throw 'knowledge.measure.owned_process_exited' }
-        $listener = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue
-        if ($listener) {
-            if (@($listener | Where-Object { $_.OwningProcess -ne $Process.Id }).Count -gt 0) {
-                throw 'knowledge.measure.port_owner_mismatch'
-            }
+        if (Test-OwnedListener $Port $Process) {
             return
         }
         Start-Sleep -Milliseconds 500
@@ -395,12 +468,58 @@ function Assert-FrozenAssets {
 }
 
 function Stop-OwnedProcesses {
+    foreach ($binding in @(@{ Port = 19313; Parent = $proxyProcess },
+                           @{ Port = 19203; Parent = $runtimeProcess })) {
+        $parent = $binding.Parent
+        if ($null -eq $parent) { continue }
+        try {
+            $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($parent.Id)" -ErrorAction Stop)
+        } catch {
+            $script:ownedChildCleanupUnknown = $true
+            continue
+        }
+        foreach ($info in $children) {
+            if (-not (Test-ExpectedPythonChild $info $binding.Port $parent)) {
+                $script:ownedChildCleanupUnknown = $true
+                continue
+            }
+            if ($ownedPythonChildren.ContainsKey($binding.Port)) {
+                if ($ownedPythonChildren[$binding.Port].Id -ne $info.ProcessId -or
+                    [math]::Abs(($ownedPythonChildren[$binding.Port].StartTime -
+                        [DateTime]$info.CreationDate).TotalMilliseconds) -gt 1) {
+                    $script:ownedChildCleanupUnknown = $true
+                }
+                continue
+            }
+            $candidate = Get-AttestedPythonProcess $info
+            if ($null -eq $candidate) {
+                $script:ownedChildCleanupUnknown = $true
+            } else {
+                $ownedPythonChildren[$binding.Port] = $candidate
+            }
+        }
+    }
+    foreach ($child in @($ownedPythonChildren.Values)) {
+        if (-not $child.HasExited) {
+            try { $child.Kill() } catch {}
+            [void]$child.WaitForExit(5000)
+        }
+    }
     foreach ($process in @($runtimeProcess, $agentProcess, $esProcess, $authProcess, $proxyProcess)) {
         if ($null -ne $process -and -not $process.HasExited) {
             Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
             if (-not $process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
         }
     }
+}
+
+function Test-OwnedProcessesStopped {
+    if ($ownedChildCleanupUnknown) { return $false }
+    foreach ($process in @($runtimeProcess, $agentProcess, $esProcess, $authProcess,
+                           $proxyProcess) + @($ownedPythonChildren.Values)) {
+        if ($null -ne $process -and -not $process.HasExited) { return $false }
+    }
+    return $true
 }
 
 try {
@@ -535,8 +654,7 @@ try {
             throw 'knowledge.measure.startup_runtime_close_failed'
         }
         Stop-OwnedProcesses
-        if (@($runtimeProcess, $agentProcess, $esProcess, $authProcess, $proxyProcess |
-                Where-Object { $null -ne $_ -and -not $_.HasExited }).Count -gt 0) {
+        if (-not (Test-OwnedProcessesStopped)) {
             throw 'knowledge.measure.startup_cleanup_failed'
         }
         $leakDetected = Test-LogLeak
@@ -585,7 +703,9 @@ try {
     Wait-OwnedPort 19313 $proxyProcess
     $env:KNOWLEDGE_MEASURE_OWNED_ES_PID = [string]$esProcess.Id
     $env:KNOWLEDGE_MEASURE_OWNED_AGENT_PID = [string]$agentProcess.Id
-    $env:KNOWLEDGE_MEASURE_OWNED_PROXY_PID = [string]$proxyProcess.Id
+    $env:KNOWLEDGE_MEASURE_OWNED_PROXY_PID = [string]$(if ($ownedPythonChildren.ContainsKey(19313)) {
+        $ownedPythonChildren[19313].Id
+    } else { $proxyProcess.Id })
     Push-Location $runtimeRoot
     try {
         & $runtimePython -m tests.uat.knowledge_rebuild_measure_runner @runArgs `
@@ -671,8 +791,7 @@ try {
                 typedSearchEsHttp = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.searchEsHttp }
                 proxyViolations = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.proxyViolations }
                 modelHttp = 0; embeddingHttp = 0; rerankHttp = 0; runtimeKeyRead = $false
-                ownedProcessesStopped = @($runtimeProcess, $agentProcess, $esProcess, $authProcess, $proxyProcess |
-                    Where-Object { $null -ne $_ -and -not $_.HasExited }).Count -eq 0
+                ownedProcessesStopped = Test-OwnedProcessesStopped
             })
         }
     } elseif ($staticPreflightPassed -and -not (Test-Path -LiteralPath $outputRoot)) {
