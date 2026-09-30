@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.17 |
+| 当前版本 | v3.18 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-09-30 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -417,3 +417,7 @@ B启动配置的后续修复本地提交`a7c610e6b518d6b50f5c36fe87d3ad40efff15c
 本轮直接验证：B五文件fake初轮138 passed，目录修复后local runner 42 passed，复评定向2 passed；模型身份fake 7 passed。MEASURE harness 32 passed；8个私有Python源文件strict mypy成功，目录修复后runner strict复查成功；两份PowerShell AST 0 error、compileall和差异检查通过。这些有重叠的定向结果不相加为测试总数。额外探索性地对旧B测试整文件执行strict曾失败（88项，主要为原有未标注fixture），不在当前配置的源码检查范围；未删除断言或扩展无关测试重写，正式私有源码strict与实际pytest均通过。
 
 [B独立无推理启动预检](../../knowledge-corpus-tools/evidence/knowledge-b-startup-20260930-01/README.md)绑定上述clean HEAD，终态`ready`：元数据ES HTTP 30/30、临时alias写4/4、两臂就绪请求5/1；模型、typed/physical search、embedding、rerank、JWT HTTP、retry/resume均0。两个自有Java进程停止、四个目标端口无监听、临时alias移除，生产alias未切换。没有读取模型密钥；旧run和历史资产不变。此证据只证明冻结配置下的两臂服务启动及清理，B成对对照、MEASURE启动及12题、人评和发布仍未完成。工作包状态不变。
+
+### 14.24 MEASURE独立启动失败（2026-09-30）
+
+[新启动有限证据](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20260930-03/README.md)绑定`a03486e653a69c434ca18fd5cec943e0aa243881`。五模块clean构建成功后，独立启动在`proxy_start`端口归属检查处终止，`startup_preflight_failed`，现场错误`knowledge.measure.port_owner_mismatch`。模型、embedding、rerank均0，未显式读取模型密钥；绑定前检记录2个元数据HTTP attempt，代理计数未取得，保持null而非补造0。自有进程报告停止，现场核查五个隔离端口无监听。此目录没有正式manifest/authorization/case journal，失败不自动复跑。继续只做根因核查与fake修复，不因此取消可独立推进的B比较；COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，12题真实测量、维护者人工评价及新版UAT均未完成。
