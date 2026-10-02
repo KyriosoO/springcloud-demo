@@ -50,6 +50,38 @@ class KnowledgeSearchServiceTest {
 	}
 
 	@Test
+	void sourceProjectionHasAStableOrderForKeywordAndVectorRequests() {
+		List<String> expected = List.of("chunk_id", "content", "document_id", "document_number",
+				"material_type", "policy_ref", "source_url", "title", "written_date");
+		for (KnowledgeSearchRequest request : List.of(
+				request("keyword", "政策", null, 5),
+				request("vector", null, java.util.Collections.nCopies(1024, 0.25d), 20))) {
+			Map<String, Object> body = service.buildSearchBody(request, profile);
+			assertThat(body.get("_source")).isEqualTo(Map.of("includes", expected));
+		}
+	}
+
+	@Test
+	void sourceProjectionDoesNotDependOnConfigurationInsertionOrderOrNestedNames() {
+		Map<String, String> fields = new LinkedHashMap<>();
+		defaultSourceFields().entrySet().stream()
+				.sorted(Map.Entry.<String, String>comparingByKey().reversed())
+				.forEach(entry -> fields.put(entry.getKey(), entry.getValue()));
+		fields.put("document-id", "identity.document_id");
+		KnowledgeSearchProperties nested = enabledProperties("0".repeat(64), fields);
+		KnowledgeSearchProfile nestedProfile = nested.requireProfile("tax.policy", "tax-policy-v1");
+		KnowledgeSearchService nestedService = new KnowledgeSearchService(null, objectMapper, nested);
+		List<String> expected = List.of("chunk_id", "content", "document_number", "identity.document_id",
+				"material_type", "policy_ref", "source_url", "title", "written_date");
+		for (KnowledgeSearchRequest request : List.of(
+				request("keyword", "政策", null, 5),
+				request("vector", null, java.util.Collections.nCopies(1024, 0.25d), 20))) {
+			assertThat(nestedService.buildSearchBody(request, nestedProfile).get("_source"))
+					.isEqualTo(Map.of("includes", expected));
+		}
+	}
+
+	@Test
 	void mapsSortsHashesAndTruncatesValidatedCandidates() throws Exception {
 		KnowledgeSearchRequest request = request("keyword", "政策", null, 1);
 		byte[] responseBody = objectMapper.writeValueAsBytes(Map.of("hits", Map.of("hits", List.of(

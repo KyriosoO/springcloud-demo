@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,8 +98,10 @@ public final class KnowledgeSearchService {
 		Map<String, Object> categoryFilter = Map.of("terms",
 				Map.of(profile.getCategoryField(), profile.getCategoryValues()));
 		Map<String, Object> body = new LinkedHashMap<>();
-		body.put("_source", Map.of("includes", new ArrayList<>(
-				new LinkedHashSet<>(profile.getSourceFields().values()))));
+		// The frozen profile uses an unordered immutable map. Keep the projection
+		// deterministic across JVMs without changing its field set or query semantics.
+		body.put("_source", Map.of("includes", profile.getSourceFields().values().stream()
+				.distinct().sorted().toList()));
 		body.put("track_total_hits", false);
 		body.put("size", request.limit() + 1);
 		if ("keyword".equals(request.path())) {
