@@ -91,7 +91,7 @@ class MeasureEsProxy:
                     "mappingEsHttp": self._metadata_paths.get(f"/{self.index_name}/_mapping", 0),
                     "definitionEsHttp": self._metadata_paths.get(f"/{self.index_name}", 0)}
 
-    def forward(self, method: str, path: str, body: bytes) -> tuple[int, str, bytes]:
+    def forward(self, method: str, path: str, body: bytes) -> tuple[int, str, bytes, str | None]:
         if not self._admit(method, path, len(body)):
             raise StartupError("knowledge.measure.proxy_request_forbidden")
         try:
@@ -100,12 +100,19 @@ class MeasureEsProxy:
                     timeout=10.0, follow_redirects=False) as response:
                 if response.headers.get("content-encoding", "identity") != "identity":
                     raise StartupError("knowledge.measure.proxy_response_encoding_invalid")
+                products = response.headers.get_list("x-elastic-product")
+                product = products[0] if products else None
+                if (len(products) > 1 or (product is not None and
+                        (not 1 <= len(product) <= 64
+                         or any(not 32 <= ord(char) <= 126 for char in product)))):
+                    raise StartupError("knowledge.measure.proxy_response_product_header_invalid")
                 bounded = bytearray()
                 for part in response.iter_bytes():
                     if len(bounded) + len(part) > _MAX_RESPONSE:
                         raise StartupError("knowledge.measure.proxy_response_too_large")
                     bounded.extend(part)
-                return response.status_code, response.headers.get("content-type", "application/json"), bytes(bounded)
+                return (response.status_code, response.headers.get("content-type", "application/json"),
+                        bytes(bounded), product)
         except Exception:
             with self._lock:
                 self.violations += 1
@@ -151,10 +158,13 @@ class MeasureEsProxy:
                     if len(body) != length:
                         raise ValueError("body")
                     forwarded = True
-                    status, content_type, value = owner.forward(method, self.path, body)
+                    status, content_type, value, product = owner.forward(method, self.path, body)
                     self.send_response(status)
                     self.send_header("Content-Type", content_type)
                     self.send_header("Content-Length", str(len(value)))
+                    if product is not None:
+                        # Preserve the upstream identity; never invent a valid product marker.
+                        self.send_header("X-Elastic-Product", product)
                     self.end_headers()
                     self.wfile.write(value)
                 except Exception:

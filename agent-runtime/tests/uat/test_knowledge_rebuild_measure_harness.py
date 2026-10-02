@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import tempfile
 from threading import Thread
+import time
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -1131,6 +1132,73 @@ def test_startup_proxy_denies_search_and_writes_before_fake_backend() -> None:
                                   "healthEsHttp": 1, "aliasEsHttp": 1,
                                   "settingsEsHttp": 0, "mappingEsHttp": 0,
                                   "definitionEsHttp": 0}
+
+
+@pytest.mark.parametrize("product", [None, "Elasticsearch", "NotElasticsearch"])
+def test_proxy_http_preserves_only_upstream_product_identity(product: str | None, unused_tcp_port: int) -> None:
+    calls: list[str] = []
+
+    def backend(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        headers = {"Content-Type": "application/json", "Set-Cookie": "DO_NOT_FORWARD",
+                   "X-Unrelated": "DO_NOT_FORWARD"}
+        if product is not None:
+            headers["x-elastic-product"] = product
+        return httpx.Response(200, content=b'{"status":"green"}', headers=headers)
+
+    with httpx.Client(base_url="http://127.0.0.1:9200", follow_redirects=False,
+                      trust_env=False, transport=httpx.MockTransport(backend)) as client:
+        proxy = startup.MeasureEsProxy(index_name="index-v1", read_alias="read-v1", port=unused_tcp_port,
+                                       metadata_limit=1, search_limit=0, backend=client)
+        thread = Thread(target=proxy.serve, daemon=True)
+        thread.start()
+        try:
+            deadline = time.monotonic() + 2
+            while proxy._server is None and thread.is_alive() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert proxy._server is not None
+            with httpx.Client(trust_env=False, timeout=2) as downstream:
+                response = downstream.get(f"http://127.0.0.1:{unused_tcp_port}/_cluster/health")
+            assert response.status_code == 200
+            assert response.content == b'{"status":"green"}'
+            assert response.headers.get("x-elastic-product") == product
+            assert "set-cookie" not in response.headers
+            assert "x-unrelated" not in response.headers
+            assert "DO_NOT_FORWARD" not in str(response.headers)
+            assert calls == ["/_cluster/health"]
+            assert proxy.counts()["metadataEsHttp"] == 1
+            assert proxy.counts()["proxyViolations"] == 0
+        finally:
+            if proxy._server is not None:
+                proxy._server.shutdown()
+            thread.join(timeout=5)
+            assert not thread.is_alive()
+
+
+@pytest.mark.parametrize("headers", [
+    [("x-elastic-product", "Elasticsearch"), ("x-elastic-product", "Elasticsearch")],
+    [("x-elastic-product", "a" * 65)],
+    [("x-elastic-product", "")],
+    [("x-elastic-product", "Elasticsearch\r\nSet-Cookie: DO_NOT_FORWARD")],
+    [("x-elastic-product", "Elastic\tsearch")],
+])
+def test_proxy_rejects_unsafe_product_header_without_another_backend_call(headers: list[tuple[str, str]]) -> None:
+    calls = 0
+
+    def backend(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"status": "green"}, headers=headers)
+
+    with httpx.Client(base_url="http://127.0.0.1:9200", follow_redirects=False,
+                      trust_env=False, transport=httpx.MockTransport(backend)) as client:
+        proxy = startup.MeasureEsProxy(index_name="index-v1", read_alias="read-v1", port=19313,
+                                       metadata_limit=1, search_limit=0, backend=client)
+        with pytest.raises(startup.StartupError, match="proxy_response_product_header_invalid"):
+            proxy.forward("GET", "/_cluster/health", b"")
+        assert calls == 1
+        assert proxy.counts()["metadataEsHttp"] == 1
+        assert proxy.counts()["proxyViolations"] == 1
 
 
 def test_startup_proxy_counts_both_exact_health_paths_without_widening_routes() -> None:
