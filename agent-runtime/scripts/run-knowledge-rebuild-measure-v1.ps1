@@ -215,6 +215,7 @@ $leakDetected = $false
 $runnerExit = $null
 $proxyCounts = $null
 $launcherFailure = $null
+$readinessObservation = $null
 $runRootCreated = $false
 $staticPreflightPassed = $false
 $ownedPythonChildren = @{}
@@ -286,23 +287,61 @@ function Test-OwnedListener([int]$Port, [Diagnostics.Process]$Process) {
     return $true
 }
 
+function Get-FiniteHealthStatus([object]$Response) {
+    # Diagnostic projection only: never persist a response body or exception text.
+    if ($Response.Content -isnot [string] -or
+        [Text.Encoding]::UTF8.GetByteCount($Response.Content) -gt 4096) { return 'unavailable' }
+    try {
+        $value = $Response.Content | ConvertFrom-Json -NoEnumerate -ErrorAction Stop
+        if ($null -ne $value -and $value.GetType() -eq [System.Management.Automation.PSCustomObject] -and
+            $value.status -is [string] -and
+            $value.status -cin @('UP', 'DOWN', 'OUT_OF_SERVICE', 'UNKNOWN')) {
+            return $value.status
+        }
+    } catch {}
+    return 'unavailable'
+}
+
 function Wait-Ready([string]$Uri, [Diagnostics.Process]$Process, [int]$MaximumAttempts = 120) {
     $port = ([uri]$Uri).Port
+    $role = switch ($port) { 18090 { 'auth' }; 19201 { 'es' }; 19203 { 'runtime' }; default { 'other' } }
+    $script:readinessObservation = [ordered]@{
+        endpointRole = $role; maximumAttempts = $MaximumAttempts; attempts = 0
+        httpStatusCounts = [ordered]@{}; healthStatusCounts = [ordered]@{}
+        transportFailures = 0; outcome = 'waiting'
+    }
     for ($attempt = 0; $attempt -lt $MaximumAttempts; $attempt++) {
-        if ($Process.HasExited) { throw 'knowledge.measure.owned_process_exited' }
+        if ($Process.HasExited) {
+            $script:readinessObservation.outcome = 'owned_process_exited'
+            throw 'knowledge.measure.owned_process_exited'
+        }
         $ready = $false
+        $script:readinessObservation.attempts++
         try {
             $response = Invoke-WebRequest -Uri $Uri -Method Get -TimeoutSec 2 -SkipHttpErrorCheck
             $ready = $response.StatusCode -eq 200
-        } catch {}
+            $status = if ($response.StatusCode -ge 100 -and $response.StatusCode -le 599) {
+                [string][int]$response.StatusCode
+            } else { 'invalid' }
+            $statuses = $script:readinessObservation.httpStatusCounts
+            if (-not $statuses.Contains($status)) { $statuses[$status] = 0 }
+            $statuses[$status]++
+            $health = Get-FiniteHealthStatus $response
+            $healthStatuses = $script:readinessObservation.healthStatusCounts
+            if (-not $healthStatuses.Contains($health)) { $healthStatuses[$health] = 0 }
+            $healthStatuses[$health]++
+        } catch { $script:readinessObservation.transportFailures++ }
         if ($ready) {
             if (-not (Test-OwnedListener $port $Process)) {
+                $script:readinessObservation.outcome = 'port_owner_mismatch'
                 throw 'knowledge.measure.port_owner_mismatch'
             }
+            $script:readinessObservation.outcome = 'ready'
             return
         }
         Start-Sleep -Milliseconds 500
     }
+    $script:readinessObservation.outcome = 'timeout'
     throw 'knowledge.measure.readiness_timeout'
 }
 
@@ -807,6 +846,7 @@ try {
                 proxyViolations = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.proxyViolations }
                 modelHttp = 0; embeddingHttp = 0; rerankHttp = 0; runtimeKeyRead = $false
                 ownedProcessesStopped = $cleanupStopped
+                readinessObservation = $readinessObservation
             })
         }
     } elseif ($staticPreflightPassed -and -not (Test-Path -LiteralPath $outputRoot)) {
@@ -816,6 +856,7 @@ try {
             schemaVersion = 1; runId = $runId; status = 'invalid_run'; reason = $launcherFailure
             evidenceLocation = 'frozen_asset_directory'; authorizationConsumption = 'not_observed'
             callCounts = $null; ownedProcessesStopped = $cleanupStopped
+            readinessObservation = $readinessObservation
         })
     }
     if (-not $startup -and $staticPreflightPassed) {
@@ -833,6 +874,7 @@ try {
             indexDefinitionEsHttp = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.definitionEsHttp }
             proxyViolations = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.proxyViolations }
             ownedProcessesStopped = $cleanupStopped
+            readinessObservation = $readinessObservation
         })
     }
     if (-not $startup -and (Test-Path -LiteralPath $outputRoot -PathType Container) -and

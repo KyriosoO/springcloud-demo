@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -721,6 +722,107 @@ def test_launcher_limits_health_scope_without_disabling_knowledge_guards() -> No
     assert "Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation' $esProcess" in launcher
     assert "knowledge_rebuild_snapshot_preflight.py" in launcher
     assert "--spring.profiles.active=datasource,es,knowledge-live" in launcher
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell readiness diagnostic")
+@pytest.mark.parametrize("responses,owner,expected_error,statuses,health,transport", [
+    ([{"code": 503, "body": '{"status":"DOWN","details":"DO_NOT_PERSIST"}'}] * 2,
+     True, "knowledge.measure.readiness_timeout", {"503": 2}, {"DOWN": 2}, 0),
+    ([{"code": 403, "body": '{"error":"DO_NOT_PERSIST"}'},
+      {"transport": True}, {"code": 503, "body": "not-json-DO_NOT_PERSIST"}],
+     True, "knowledge.measure.readiness_timeout", {"403": 1, "503": 1}, {"unavailable": 2}, 1),
+    ([{"code": 200, "body": '{"status":"UP"}'}],
+     True, None, {"200": 1}, {"UP": 1}, 0),
+    # Observation does not add a new body-shape readiness gate to the existing HTTP contract.
+    ([{"code": 200, "body": "not-json-DO_NOT_PERSIST"}],
+     True, None, {"200": 1}, {"unavailable": 1}, 0),
+    ([{"code": 200, "body": '{"status":"UP"}'}],
+     False, "knowledge.measure.port_owner_mismatch", {"200": 1}, {"UP": 1}, 0),
+    ([{"code": 503, "body": '{"status":"UP"}'}],
+     True, "knowledge.measure.readiness_timeout", {"503": 1}, {"UP": 1}, 0),
+])
+def test_readiness_diagnostic_is_bounded_and_preserves_failure_guard(
+    responses: list[dict[str, Any]], owner: bool, expected_error: str | None,
+    statuses: dict[str, int], health: dict[str, int], transport: int,
+) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    functions = launcher[launcher.index("function Get-FiniteHealthStatus"):
+                         launcher.index("function Wait-OwnedPort")]
+    # The current PowerShell process supplies the typed handle; every HTTP/sleep/owner operation is mocked.
+    encoded = base64.b64encode(json.dumps(responses).encode()).decode()
+    program = (
+        "$ErrorActionPreference='Stop'; $script:calls=0; $script:sleeps=0; "
+        f"$responses=ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}'))); "
+        "function Invoke-WebRequest { param($Uri,$Method,$TimeoutSec,[switch]$SkipHttpErrorCheck); "
+        "if ($Uri -cne 'http://127.0.0.1:19201/actuator/health/knowledge-validation' -or "
+        "$Method -cne 'Get' -or $TimeoutSec -ne 2 -or -not $SkipHttpErrorCheck) { throw 'bad_mock_call' }; "
+        "$item=$responses[$script:calls]; $script:calls++; "
+        "if ($item.transport) { throw 'DO_NOT_PERSIST' }; "
+        "return [pscustomobject]@{StatusCode=$item.code; Content=$item.body} }; "
+        f"function Test-OwnedListener {{ return ${str(owner).lower()} }}; "
+        "function Start-Sleep { param($Milliseconds); if ($Milliseconds -ne 500) {exit 9}; $script:sleeps++ }; "
+        + functions + "; $errorCode=$null; try { "
+        "Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation' "
+        f"([Diagnostics.Process]::GetCurrentProcess()) {len(responses)} "
+        "} catch { $errorCode=$_.Exception.Message }; "
+        "[ordered]@{errorCode=$errorCode; calls=$script:calls; sleeps=$script:sleeps; "
+        "observation=$script:readinessObservation} | ConvertTo-Json -Depth 6 -Compress"
+    )
+    completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
+                               capture_output=True, text=True, timeout=20, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert "DO_NOT_PERSIST" not in completed.stdout
+    value = json.loads(completed.stdout)
+    assert value["errorCode"] == expected_error
+    assert value["calls"] == len(responses)
+    assert value["sleeps"] == (len(responses) if expected_error == "knowledge.measure.readiness_timeout" else 0)
+    observation = value["observation"]
+    assert set(observation) == {"endpointRole", "maximumAttempts", "attempts", "httpStatusCounts",
+                                "healthStatusCounts", "transportFailures", "outcome"}
+    assert observation["endpointRole"] == "es"
+    assert observation["attempts"] == observation["maximumAttempts"] == len(responses)
+    assert observation["httpStatusCounts"] == statuses
+    assert observation["healthStatusCounts"] == health
+    assert observation["transportFailures"] == transport
+    assert observation["outcome"] == ("ready" if expected_error is None else
+                                       "port_owner_mismatch" if not owner else "timeout")
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell finite health projection")
+@pytest.mark.parametrize("body,expected", [
+    ('{"status":"DOWN","details":{"credential":"DO_NOT_PERSIST"}}', "DOWN"),
+    ('{"status":"OUT_OF_SERVICE"}', "OUT_OF_SERVICE"),
+    ('{"status":"UNKNOWN"}', "UNKNOWN"),
+    ('{"status":"down"}', "unavailable"),
+    ('{"status":"DO_NOT_PERSIST"}', "unavailable"),
+    ('{"status":200}', "unavailable"),
+    ('[{"status":"UP"}]', "unavailable"),
+    ('{"status":"UP","details":"' + "中" * 1400 + '"}', "unavailable"),
+])
+def test_finite_health_projection_never_copies_details(body: str, expected: str) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    function = launcher[launcher.index("function Get-FiniteHealthStatus"):
+                        launcher.index("function Wait-Ready")]
+    encoded = base64.b64encode(body.encode()).decode()
+    program = (
+        "$ErrorActionPreference='Stop'; " + function
+        + f"; $body=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}')); "
+        "Get-FiniteHealthStatus ([pscustomobject]@{Content=$body})"
+    )
+    completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
+                               capture_output=True, text=True, timeout=20, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == expected
+
+
+def test_failure_evidence_contains_only_projected_readiness_observation() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    failure_path = launcher[launcher.index("} catch {\n    $launcherFailure"):]
+    assert failure_path.count("readinessObservation = $readinessObservation") == 3
+    assert "response.Content" not in failure_path and "Exception.Message" not in failure_path
 
 
 def test_prepare_creates_only_shared_result_parent_and_retains_exclusive_run(tmp_path: Path) -> None:
