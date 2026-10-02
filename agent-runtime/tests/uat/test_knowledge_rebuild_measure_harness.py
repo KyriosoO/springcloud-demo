@@ -504,7 +504,7 @@ def test_measure_launcher_attests_venv_listener_child_and_cleans_unlistened_chil
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
     listener_functions = launcher[launcher.index("function Test-ExpectedPythonChild"):
                                   launcher.index("function Wait-Ready")]
-    cleanup_functions = launcher[launcher.index("function Stop-OwnedProcesses"):
+    cleanup_functions = launcher[launcher.index("function Add-CleanupIssue"):
                                  launcher.index("try {\n    if (-not $startup)")]
     script = r"""
 $ErrorActionPreference='Stop'
@@ -647,7 +647,7 @@ try {
 def test_formal_cleanup_waits_for_owned_process_and_fails_closed_on_timeout() -> None:
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
-    cleanup_functions = launcher[launcher.index("function Stop-OwnedProcesses"):
+    cleanup_functions = launcher[launcher.index("function Add-CleanupIssue"):
                                  launcher.index("try {\n    if (-not $startup)")]
     script = r"""
 $ErrorActionPreference='Stop'
@@ -693,9 +693,115 @@ def test_formal_result_and_failure_witness_require_cleanup_outcome() -> None:
     failure_path = launcher[launcher.index("} catch {\n    $launcherFailure"):]
     assert failure_path.index("Stop-OwnedProcesses") < failure_path.index("'es-proxy-witness.json'")
     assert failure_path.count("ownedProcessesStopped = $cleanupStopped") >= 3
-    cleanup_functions = launcher[launcher.index("function Stop-OwnedProcesses"):
+    cleanup_functions = launcher[launcher.index("function Add-CleanupIssue"):
                                  launcher.index("try {\n    if (-not $startup)")]
     assert "Stop-Process -Id $process.Id" not in cleanup_functions
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell cleanup diagnostics")
+@pytest.mark.parametrize("mode,expected", [
+    ("inventory", "child_inventory_failed"),
+    ("unexpected", "unexpected_child"),
+    ("identity", "child_identity_drift"),
+    ("attestation", "child_attestation_failed"),
+    ("child_timeout", "child_stop_timeout"),
+    ("child_error", "child_stop_failed"),
+    ("parent_timeout", "parent_stop_timeout"),
+    ("parent_error", "parent_stop_failed"),
+])
+def test_cleanup_reason_is_finite_and_does_not_relax_guard(mode: str, expected: str) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    program = r"""
+$ErrorActionPreference='Stop'
+$mode='__MODE__'
+$cleanupIssues=@{}; $ownedChildCleanupUnknown=$false; $ownedPythonChildren=@{}
+$runtimeProcess=$null; $agentProcess=$null; $esProcess=$null; $authProcess=$null
+$created=[DateTime]::Now
+$proxyProcess=[pscustomobject]@{Id=123; HasExited=$false}
+$proxyProcess | Add-Member -MemberType ScriptMethod -Name Kill -Value {
+    if($mode -ceq 'parent_error'){throw 'DO_NOT_PERSIST'}; $this.HasExited=$true
+}
+$proxyProcess | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {param($ms) return $mode -cne 'parent_timeout'}
+$child=[pscustomobject]@{Id=456; HasExited=$false; StartTime=$created}
+$child | Add-Member -MemberType ScriptMethod -Name Kill -Value {
+    if($mode -ceq 'child_error'){throw 'DO_NOT_PERSIST'}; $this.HasExited=$true
+}
+$child | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {param($ms) return $mode -cne 'child_timeout'}
+if($mode -ceq 'identity') {$child.Id=999; $ownedPythonChildren[19313]=$child}
+function Get-CimInstance {
+    param($ClassName,$Filter,$ErrorAction)
+    if($mode -ceq 'inventory'){throw 'DO_NOT_PERSIST'}
+    if($mode.StartsWith('parent_')){return}
+    [pscustomobject]@{ProcessId=456; CreationDate=$created}
+}
+function Test-ExpectedPythonChild {return $mode -cne 'unexpected'}
+function Get-AttestedPythonProcess {if($mode -ceq 'attestation'){return $null}; return $child}
+__FUNCTIONS__
+Stop-OwnedProcesses
+[ordered]@{stopped=(Test-OwnedProcessesStopped); issues=@(Get-CleanupIssues)} | ConvertTo-Json -Compress
+""".replace("__MODE__", mode).replace("__FUNCTIONS__", functions)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert "DO_NOT_PERSIST" not in result.stdout
+    value = json.loads(result.stdout)
+    assert value["stopped"] is False
+    assert expected in value["issues"]
+    assert set(value["issues"]) <= {expected, "process_still_running"}
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell counter diagnostics")
+@pytest.mark.parametrize("live,snapshot,fail_read,source,count", [
+    (False, True, False, "last_validated_snapshot", 8),
+    (True, True, False, "live_proxy", 9),
+    (True, True, True, "last_validated_snapshot", 8),
+    (False, False, False, "unavailable", None),
+])
+def test_failure_proxy_counts_preserve_source(live: bool, snapshot: bool, fail_read: bool, source: str, count: int | None) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    functions = launcher[launcher.index("function Get-FailureProxyObservation"):launcher.index("function Get-LocalPassword")]
+    program = r"""
+$ErrorActionPreference='Stop'
+$proxyProcess=[pscustomobject]@{HasExited=__EXITED__}
+$lastProxyCounts=__SNAPSHOT__
+function Get-ProxyCounts {param([switch]$AllowViolations); if(__FAIL__){throw 'DO_NOT_PERSIST'}; [pscustomobject]@{metadataEsHttp=9}}
+__FUNCTIONS__
+$value=Get-FailureProxyObservation
+$count=$null; if($null -ne $value.Counts){$count=$value.Counts.metadataEsHttp}
+[ordered]@{source=$value.Source; count=$count} | ConvertTo-Json -Compress
+""".replace("__EXITED__", "$false" if live else "$true").replace(
+        "__SNAPSHOT__", "[pscustomobject]@{metadataEsHttp=8}" if snapshot else "$null"
+    ).replace("__FAIL__", "$true" if fail_read else "$false").replace("__FUNCTIONS__", functions)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"source": source, "count": count}
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell validated counter snapshot")
+def test_proxy_snapshot_updates_only_after_validation() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    functions = launcher[launcher.index("function Get-ProxyCounts"):launcher.index("function Get-FailureProxyObservation")]
+    program = r"""
+$ErrorActionPreference='Stop'; $lastProxyCounts=$null
+$proxyProcess=[pscustomobject]@{HasExited=$false}
+$body='{"metadataEsHttp":3,"searchEsHttp":0,"proxyViolations":0,"healthEsHttp":1,"aliasEsHttp":2,"settingsEsHttp":0,"mappingEsHttp":0,"definitionEsHttp":0}'
+function Wait-OwnedPort {return}
+function Invoke-WebRequest {[pscustomobject]@{StatusCode=200;RawContentLength=$body.Length;Content=$body}}
+__FUNCTIONS__
+[void](Get-ProxyCounts)
+if($lastProxyCounts.metadataEsHttp -ne 3){throw 'snapshot_missing'}
+$body=$body.Replace('"metadataEsHttp":3','"metadataEsHttp":4')
+$rejected=$false
+try {[void](Get-ProxyCounts)} catch {if($_.Exception.Message -cne 'knowledge.measure.proxy_counts_invalid'){throw}; $rejected=$true}
+if(-not $rejected -or $lastProxyCounts.metadataEsHttp -ne 3){throw 'invalid_snapshot_accepted'}
+'validated-snapshot-retained'
+""".replace("__FUNCTIONS__", functions)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "validated-snapshot-retained"
 
 
 def test_launcher_creates_fresh_snapshot_after_owned_services_before_key_read() -> None:

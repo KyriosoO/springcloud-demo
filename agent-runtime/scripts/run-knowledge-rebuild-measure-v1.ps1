@@ -214,12 +214,14 @@ $apiKey = $null
 $leakDetected = $false
 $runnerExit = $null
 $proxyCounts = $null
+$lastProxyCounts = $null
 $launcherFailure = $null
 $readinessObservation = $null
 $runRootCreated = $false
 $staticPreflightPassed = $false
 $ownedPythonChildren = @{}
 $ownedChildCleanupUnknown = $false
+$cleanupIssues = @{}
 
 function Test-ExpectedPythonChild([object]$Info, [int]$Port, [Diagnostics.Process]$Process) {
     $role = if ($Port -eq 19313) { 'proxy' } else { 'runtime' }
@@ -386,7 +388,24 @@ function Get-ProxyCounts([switch]$AllowViolations) {
         (-not $AllowViolations -and $value.proxyViolations -ne 0)) {
         throw 'knowledge.measure.proxy_counts_invalid'
     }
+    $script:lastProxyCounts = $value
     return $value
+}
+
+function Get-FailureProxyObservation {
+    $counts = $null
+    $source = 'unavailable'
+    try {
+        if ($null -ne $proxyProcess -and -not $proxyProcess.HasExited) {
+            $counts = Get-ProxyCounts -AllowViolations
+            $source = 'live_proxy'
+        }
+    } catch {}
+    if ($null -eq $counts -and $null -ne $lastProxyCounts) {
+        $counts = $lastProxyCounts
+        $source = 'last_validated_snapshot'
+    }
+    [pscustomobject]@{ Counts = $counts; Source = $source }
 }
 
 function Get-LocalPassword([string]$User) {
@@ -511,6 +530,17 @@ function Assert-FrozenAssets {
     if ($LASTEXITCODE -ne 0 -or $trackedChanges) { throw 'knowledge.measure.git_binding_drift' }
 }
 
+function Add-CleanupIssue([string]$Reason) {
+    if ($Reason -cnotin @('child_inventory_failed', 'unexpected_child', 'child_identity_drift',
+            'child_attestation_failed', 'child_stop_timeout', 'child_stop_failed',
+            'parent_stop_timeout', 'parent_stop_failed', 'cleanup_check_failed')) {
+        throw 'knowledge.measure.cleanup_reason_invalid'
+    }
+    if ($null -eq $script:cleanupIssues) { $script:cleanupIssues = @{} }
+    $script:cleanupIssues[$Reason] = $true
+    $script:ownedChildCleanupUnknown = $true
+}
+
 function Stop-OwnedProcesses {
     foreach ($binding in @(@{ Port = 19313; Parent = $proxyProcess },
                            @{ Port = 19203; Parent = $runtimeProcess })) {
@@ -519,25 +549,25 @@ function Stop-OwnedProcesses {
         try {
             $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($parent.Id)" -ErrorAction Stop)
         } catch {
-            $script:ownedChildCleanupUnknown = $true
+            Add-CleanupIssue 'child_inventory_failed'
             continue
         }
         foreach ($info in $children) {
             if (-not (Test-ExpectedPythonChild $info $binding.Port $parent)) {
-                $script:ownedChildCleanupUnknown = $true
+                Add-CleanupIssue 'unexpected_child'
                 continue
             }
             if ($ownedPythonChildren.ContainsKey($binding.Port)) {
                 if ($ownedPythonChildren[$binding.Port].Id -ne $info.ProcessId -or
                     [math]::Abs(($ownedPythonChildren[$binding.Port].StartTime -
                         [DateTime]$info.CreationDate).TotalMilliseconds) -gt 1) {
-                    $script:ownedChildCleanupUnknown = $true
+                    Add-CleanupIssue 'child_identity_drift'
                 }
                 continue
             }
             $candidate = Get-AttestedPythonProcess $info
             if ($null -eq $candidate) {
-                $script:ownedChildCleanupUnknown = $true
+                Add-CleanupIssue 'child_attestation_failed'
             } else {
                 $ownedPythonChildren[$binding.Port] = $candidate
             }
@@ -547,20 +577,20 @@ function Stop-OwnedProcesses {
         try {
             if (-not $child.HasExited) {
                 $child.Kill()
-                if (-not $child.WaitForExit(5000)) { $script:ownedChildCleanupUnknown = $true }
+                if (-not $child.WaitForExit(5000)) { Add-CleanupIssue 'child_stop_timeout' }
             }
         } catch {
-            $script:ownedChildCleanupUnknown = $true
+            Add-CleanupIssue 'child_stop_failed'
         }
     }
     foreach ($process in @($runtimeProcess, $agentProcess, $esProcess, $authProcess, $proxyProcess)) {
         try {
             if ($null -ne $process -and -not $process.HasExited) {
                 $process.Kill()
-                if (-not $process.WaitForExit(5000)) { $script:ownedChildCleanupUnknown = $true }
+                if (-not $process.WaitForExit(5000)) { Add-CleanupIssue 'parent_stop_timeout' }
             }
         } catch {
-            $script:ownedChildCleanupUnknown = $true
+            Add-CleanupIssue 'parent_stop_failed'
         }
     }
 }
@@ -572,6 +602,18 @@ function Test-OwnedProcessesStopped {
         if ($null -ne $process -and -not $process.HasExited) { return $false }
     }
     return $true
+}
+
+function Get-CleanupIssues {
+    $reasons = @($cleanupIssues.Keys)
+    if ($ownedChildCleanupUnknown -and $reasons.Count -eq 0) { $reasons += 'cleanup_unknown' }
+    foreach ($process in @($runtimeProcess, $agentProcess, $esProcess, $authProcess,
+                           $proxyProcess) + @($ownedPythonChildren.Values)) {
+        try {
+            if ($null -ne $process -and -not $process.HasExited) { $reasons += 'process_still_running' }
+        } catch { $reasons += 'process_status_unavailable' }
+    }
+    $reasons | Sort-Object -Unique
 }
 
 try {
@@ -830,15 +872,14 @@ try {
 } catch {
     $launcherFailure = 'launcher_validation_or_runtime_failure'
     if ($leakDetected) { $launcherFailure = 'sensitive_output_detected' }
-    $partialCounts = $null
-    try { if ($null -ne $proxyProcess -and -not $proxyProcess.HasExited) { $partialCounts = Get-ProxyCounts -AllowViolations } } catch {}
-    if ($null -eq $partialCounts -and $null -ne $proxyCounts) { $partialCounts = $proxyCounts }
+    $proxyObservation = Get-FailureProxyObservation
+    $partialCounts = $proxyObservation.Counts
     $cleanupStopped = $false
     try {
         Stop-OwnedProcesses
         $cleanupStopped = Test-OwnedProcessesStopped
     } catch {
-        $script:ownedChildCleanupUnknown = $true
+        Add-CleanupIssue 'cleanup_check_failed'
     }
     if ($startup) {
         if (-not (Test-Path -LiteralPath (Join-Path $runRoot 'startup-result.json'))) {
@@ -852,6 +893,8 @@ try {
                 modelHttp = 0; embeddingHttp = 0; rerankHttp = 0; runtimeKeyRead = $false
                 ownedProcessesStopped = $cleanupStopped
                 readinessObservation = $readinessObservation
+                cleanupIssues = @(Get-CleanupIssues)
+                proxyCountsSource = $proxyObservation.Source
             })
         }
     } elseif ($staticPreflightPassed -and -not (Test-Path -LiteralPath $outputRoot)) {
@@ -862,6 +905,7 @@ try {
             evidenceLocation = 'frozen_asset_directory'; authorizationConsumption = 'not_observed'
             callCounts = $null; ownedProcessesStopped = $cleanupStopped
             readinessObservation = $readinessObservation
+            cleanupIssues = @(Get-CleanupIssues)
         })
     }
     if (-not $startup -and $staticPreflightPassed) {
@@ -880,6 +924,8 @@ try {
             proxyViolations = if ($null -eq $partialCounts) { $null } else { [int]$partialCounts.proxyViolations }
             ownedProcessesStopped = $cleanupStopped
             readinessObservation = $readinessObservation
+            cleanupIssues = @(Get-CleanupIssues)
+            proxyCountsSource = $proxyObservation.Source
         })
     }
     if (-not $startup -and (Test-Path -LiteralPath $outputRoot -PathType Container) -and
