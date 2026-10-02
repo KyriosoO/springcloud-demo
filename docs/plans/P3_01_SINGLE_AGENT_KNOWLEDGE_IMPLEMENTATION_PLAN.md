@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.23 |
+| 当前版本 | v3.24 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-10-02 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -499,3 +499,11 @@ B后验拒绝原先只有泛化原因，且消费后的最终JAR读取异常可�
 同一任务内未参与修改的只读执行单元核查当前L2、两个Java文件、新B原始JSON/11项hash及三文档状态，定向代码与状态复评未发现未解决Blocker/Major/Minor或S0/S1/S2；没有重跑主执行者测试，不冒充外部人员或效果评价。P3严格校验0 error/0 warning，三文档65条本地链接无断裂，Business/原Knowledge追踪兼容12 passed；有限资产及文档敏感模式扫描无命中，历史资产和公共DTO未修改。
 
 MEASURE保持§14.28的启动失败终态，具体ES健康超时根因未知；其原始清理false不改。A仍Not assessed、COMPARE/MEASURE仍In Progress、RELEASE仍Blocked；所有gold、rubric、阈值、预算及12包DAG不变。本轮未重复全量Python、其他Java模块或真实Spring全链，没有人工评价或发布。后续真实执行必须另作独立决策，修复和有限证据仅本地提交，不push、不部署。
+
+### 14.30 MEASURE就绪检查有限诊断补齐（2026-10-02）
+
+起始clean HEAD为`8425e58c2f4bc3115391eca4c5c6311a3053eade`。源码确认已有专用`knowledge-validation`健康组，包含`readinessState,elasticsearch`，未把独立MySQL健康作为本查询前置；旧预检没有健康HTTP响应证据，仍不能确定超时根因。本地提交`0ef99ecf14dfb79889f8d1c3d541bb84e2f3483d`只补齐私有launcher观测：记录固定端点角色、尝试上限/次数、HTTP状态计数、传输失败次数、白名单健康状态及固定终态；最多解析4096字节响应，只接受对象根，不保存URI、响应正文、details或异常文本。HTTP200及自有进程归属准入、轮询/ES预算、快照鲜度及密钥读取门禁均不变，诊断不是新的就绪判断或追加运行授权。
+
+项目venv、进程级双源码`PYTHONPATH`下执行`pytest tests/uat/test_knowledge_rebuild_measure_harness.py tests/uat/test_knowledge_rebuild_measure_fixture.py -q`，最终53 passed、0 skipped；根数组负例曾发现PowerShell展开及宽类型匹配问题，修复后保留持久回归。设置`MYPYPATH=D:/codex/agent-runtime/src;D:/codex/knowledge-corpus-tools/src`后直接测试显式`mypy --strict`通过（1源文件，未隐藏导入）；初次缺少源码路径的检查错误解析旧site-package，不作为最终源码检查结果。compileall通过、PowerShell AST 0 error。未参与修改的同一任务执行单元直接复核L2、源码及负例，未发现未解决Blocker/Major/Minor；主执行者另核关键证据，不冒充外部人员或真实集成评审。
+
+状态同步经同一只读执行单元定向复核，无实质状态问题；P3严格校验0 error/0 warning，三文档65条本地链接无断裂，Business/原Knowledge追踪兼容12 passed，敏感差异扫描无命中、Git差异检查通过。冻结12题fixture SHA-256与原值一致，三个已消费运行目录的Git字节差异为0。本轮真实ES/typed/model/embedding/rerank请求均0，未读取模型密钥、启停服务或另行冻结，没有全量Python/Maven、真实UAT或人工评价。历史B与MEASURE资产字节及终态不变，不能从新诊断补造旧响应或改判。Done=9、In Progress=2、Blocked=1及全部gold、阈值、预算、DAG不变；下一次真实执行须新独立决策，不复用已消费目录。本次只本地提交，不push、不部署。
