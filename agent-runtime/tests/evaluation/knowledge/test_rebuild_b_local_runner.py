@@ -183,6 +183,7 @@ def _attest(directory: Path, jar: Path, *, artifact_hash: str) -> None:
 
 
 def _fake_frozen_jar(directory: Path, monkeypatch) -> Path:
+    monkeypatch.setattr(runner, "_java_runtime_executable", lambda: "synthetic-java25.exe")
     jar = directory / "es-query-service/target/es-query-service-0.0.1-SNAPSHOT.jar"
     jar.parent.mkdir(parents=True)
     jar.write_bytes(b"fake-frozen-jar")
@@ -648,6 +649,93 @@ def test_both_java_arms_use_one_frozen_config_and_keep_fixed_cli_guards(tmp_path
     assert "--es.query.knowledge.profiles.tax-policy-v1.expected-index-name=candidate-index" in args[1]
 
 
+def test_java_runtime_uses_java_home_not_path_and_drops_ambient_options(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "jdk 25"
+    executable = home / "bin" / ("java.exe" if os.name == "nt" else "java")
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"synthetic executable")
+    monkeypatch.setenv("JAVA_HOME", str(home))
+    monkeypatch.setenv("PATH", "unrelated-java8-path")
+    for name in ("LLM_API_KEY", "JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "_JAVA_OPTIONS"):
+        monkeypatch.setenv(name, "must-not-inherit-or-persist")
+    commands: list[list[str]] = []
+
+    def fake_version(command: list[str], **kwargs: object) -> SimpleNamespace:
+        commands.append(command)
+        assert command == [str(executable.resolve()), "-version"]
+        assert kwargs["timeout"] == 10
+        assert set(kwargs["env"]).isdisjoint(
+            {"LLM_API_KEY", "JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "_JAVA_OPTIONS"})
+        return SimpleNamespace(returncode=0, stdout=b'openjdk version "25.0.2"\n')
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_version)
+    monkeypatch.setattr(runner.shutil, "which", lambda _name: pytest.fail("PATH java resolved"))
+    selected = runner._java_runtime_executable()
+    assert selected == str(executable.resolve()) and len(commands) == 1
+    args = runner._java_args(jar=Path("frozen.jar"), config_dir=tmp_path,
+        port=19211, proxy_port=19311,
+        identity=runner.ArmIdentity("baseline", "physical-index", "index-uuid", "1" * 64,
+            "v1", "b-owned-baseline-0123456789abcdef-read"),
+        run_id="frozen-run", policy_snapshot="policy", law_snapshot="law",
+        java_executable=selected)
+    assert args[0] == selected
+
+
+@pytest.mark.parametrize("home", ("", "relative-jdk", "missing"))
+def test_invalid_java_home_fails_before_executing_any_process(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, home: str) -> None:
+    monkeypatch.setenv("JAVA_HOME", str(tmp_path / "missing") if home == "missing" else home)
+    monkeypatch.setattr(runner.subprocess, "run", lambda *_args, **_kwargs:
+        pytest.fail("process reached with invalid JAVA_HOME"))
+    with pytest.raises(runner.BLocalRunError, match="^java_runtime_invalid$"):
+        runner._java_runtime_executable()
+
+
+@pytest.mark.parametrize("failure", ("java8", "java24", "failed", "oversized", "timeout", "oserror"))
+def test_java_runtime_version_errors_have_finite_reason(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
+    executable = tmp_path / "bin" / ("java.exe" if os.name == "nt" else "java")
+    executable.parent.mkdir()
+    executable.write_bytes(b"synthetic executable")
+    monkeypatch.setenv("JAVA_HOME", str(tmp_path))
+
+    def fake_version(command: list[str], **_kwargs: object) -> SimpleNamespace:
+        if failure == "timeout":
+            raise runner.subprocess.TimeoutExpired(command, 10, output=b"do-not-persist")
+        if failure == "oserror":
+            raise OSError("do-not-persist")
+        version = {"java8": b'java version "1.8.0_503"\n',
+                   "java24": b'openjdk version "24.0.2"\n',
+                   "oversized": b'openjdk version "25.0.2"\n' + b"x" * (16 * 1024)}
+        return SimpleNamespace(returncode=1 if failure == "failed" else 0,
+            stdout=version.get(failure, b'openjdk version "25.0.2"\n'))
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_version)
+    with pytest.raises(runner.BLocalRunError, match="^java_runtime_invalid$"):
+        runner._java_runtime_executable()
+
+
+def test_invalid_java_runtime_rejects_comparison_before_consumption_or_es(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    jar = _fake_frozen_jar(tmp_path, monkeypatch)
+    digest = sha256(jar.read_bytes()).hexdigest()
+    _attest(tmp_path, jar, artifact_hash=digest)
+    monkeypatch.setattr(runner, "_port_guard", lambda _ports: None)
+
+    def invalid_runtime() -> str:
+        raise runner.BLocalRunError("java_runtime_invalid")
+
+    monkeypatch.setattr(runner, "_java_runtime_executable", invalid_runtime)
+    monkeypatch.setattr(runner.httpx, "Client", lambda **_kwargs:
+        pytest.fail("ES reached with invalid Java runtime"))
+    with pytest.raises(runner.BLocalRunError, match="^java_runtime_invalid$"):
+        asyncio.run(runner.execute_local_comparison(directory=tmp_path,
+            inputs=_inputs(), jar=jar, jar_sha256=digest,
+            ports=(19211, 19212), proxy_ports=(19311, 19312)))
+    assert not (tmp_path / "comparison-attempt.json").exists()
+
+
 def test_readiness_uses_b_only_group_and_still_requires_owned_pid(monkeypatch) -> None:
     paths: list[str] = []
     original_client = httpx.Client
@@ -966,6 +1054,7 @@ def test_startup_fake_lifecycle_has_no_search_jwt_or_model(
         lambda _jar, _head: (tmp_path, runtime_hashes))
     monkeypatch.setattr(runner, "_port_guard", lambda _ports: None)
     monkeypatch.setattr(runner, "_require_owned_listeners", lambda _processes, _ports: None)
+    monkeypatch.setattr(runner, "_java_runtime_executable", lambda: "synthetic-java25.exe")
     monkeypatch.setattr(runner, "_jwt", lambda _secret: pytest.fail("JWT generated"))
 
     class FakeLease:
@@ -1007,6 +1096,7 @@ def test_startup_fake_lifecycle_has_no_search_jwt_or_model(
         next_pid = 5000
 
         def __init__(self, _args: object, **kwargs: object) -> None:
+            assert _args[0] == "synthetic-java25.exe"
             assert "COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE" in kwargs["env"]
             assert "LLM_API_KEY" not in kwargs["env"]
             self.pid = FakeProcess.next_pid

@@ -935,12 +935,36 @@ def _jwt(secret: bytes) -> str:
         sha256).digest()).rstrip(b"=")).decode("ascii")
 
 
+def _java_runtime_executable() -> str:
+    """Use Maven's JAVA_HOME, never an unrelated java found first on PATH."""
+    home = os.environ.get("JAVA_HOME", "").strip()
+    if not home or not Path(home).is_absolute():
+        raise BLocalRunError("java_runtime_invalid")
+    try:
+        executable = (Path(home) / "bin" / ("java.exe" if os.name == "nt" else "java")).resolve(strict=True)
+        if not executable.is_file():
+            raise BLocalRunError("java_runtime_invalid")
+        safe_env = {key: os.environ[key] for key in (
+            "SystemRoot", "SystemDrive", "PATH", "JAVA_HOME", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA") if key in os.environ}
+        result = subprocess.run([str(executable), "-version"], env=safe_env,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, RuntimeError, subprocess.TimeoutExpired):
+        raise BLocalRunError("java_runtime_invalid") from None
+    if (result.returncode != 0 or not isinstance(result.stdout, bytes)
+            or len(result.stdout) > 16 * 1024
+            or re.search(rb'(?:openjdk|java) version "25(?:\.|\")', result.stdout) is None):
+        raise BLocalRunError("java_runtime_invalid")
+    return str(executable)
+
+
 def _java_args(*, jar: Path, config_dir: Path, port: int, proxy_port: int,
                identity: ArmIdentity, run_id: str, policy_snapshot: str,
-               law_snapshot: str) -> list[str]:
+               law_snapshot: str, java_executable: str = "java") -> list[str]:
     config_location = (config_dir.as_uri().rstrip("/") + "/" if config_dir.is_absolute()
                        else "file:" + config_dir.as_posix().rstrip("/") + "/")
-    return ["java", "-jar", str(jar), f"--server.port={port}", "--server.address=127.0.0.1",
+    return [java_executable, "-jar", str(jar), f"--server.port={port}", "--server.address=127.0.0.1",
         "--spring.profiles.active=datasource,es,knowledge-live,knowledge-b-isolation",
         "--spring.cloud.config.enabled=false", "--spring.cloud.discovery.enabled=false",
         "--eureka.client.enabled=false",
@@ -1151,6 +1175,7 @@ def execute_startup_preflight(*, directory: Path, inputs: StartupInputs,
     if attestation["runtimeConfigSha256"] != config_hashes:
         raise BLocalRunError("java_artifact_invalid")
     _port_guard((*ports, *proxy_ports))
+    java_executable = _java_runtime_executable()
     _write_once(directory / "startup-attempt.json", {
         "schemaVersion": 1, "runId": inputs.run_id, "frozenHead": inputs.frozen_head,
         "startupInputSha256": inputs.input_sha256,
@@ -1203,7 +1228,7 @@ def execute_startup_preflight(*, directory: Path, inputs: StartupInputs,
             process = subprocess.Popen(_java_args(jar=jar, config_dir=config_dir,
                 port=port, proxy_port=proxy_port, identity=identity,
                 run_id=inputs.run_id, policy_snapshot=arm_profiles["tax.policy"],
-                law_snapshot=arm_profiles["tax.law"]),
+                law_snapshot=arm_profiles["tax.law"], java_executable=java_executable),
                 cwd=ROOT / "es-query-service", env=env_arm,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -1306,6 +1331,7 @@ def run_startup_preflight(directory: Path, *, ports: tuple[int, int],
                 "startup_preflight_invalid", "startup_source_invalid", "git_state_invalid",
                 "frozen_code_or_fixture_drift", "archive_invalid", "frozen_java_build_failed",
                 "frozen_runtime_config_invalid", "java_artifact_invalid", "java_artifact_missing",
+                "java_runtime_invalid",
                 "port_binding_invalid", "port_already_owned", "append_only_evidence_failed"}
                 else "startup_preflight_failed", "exitCode": 1,
             "startupInputSha256": inputs.input_sha256 if inputs is not None else None,
@@ -1353,12 +1379,13 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
             or type(attestation["artifactBytes"]) is not int
             or attestation["artifactBytes"] != jar.stat().st_size
             or type(jar_sha256) is not str or _HASH.fullmatch(jar_sha256) is None
-            or _hash_file(jar.resolve()) != jar_sha256 or shutil.which("java") is None):
+            or _hash_file(jar.resolve()) != jar_sha256):
         raise BLocalRunError("java_artifact_invalid")
     config_dir, runtime_config_hashes = _frozen_runtime_config_dir(jar, inputs.frozen_head)
     if attestation["runtimeConfigSha256"] != runtime_config_hashes:
         raise BLocalRunError("java_artifact_invalid")
     _port_guard((*ports, *proxy_ports))
+    java_executable = _java_runtime_executable()
     spec = inputs.spec
     profiles = dict(spec.profile_snapshots)
     identities = (
@@ -1436,7 +1463,7 @@ async def execute_local_comparison(*, directory: Path, inputs: FrozenInputs,
                 port=port, proxy_port=proxy_port,
                 identity=identity, run_id=inputs.run_id,
                 policy_snapshot=dict(profiles[arm])["tax.policy"],
-                law_snapshot=dict(profiles[arm])["tax.law"]),
+                law_snapshot=dict(profiles[arm])["tax.law"], java_executable=java_executable),
                 cwd=ROOT / "es-query-service", env=env_arm,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
