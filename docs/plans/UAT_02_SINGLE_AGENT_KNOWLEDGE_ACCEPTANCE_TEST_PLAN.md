@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.21 |
+| 当前版本 | v3.22 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；新版UAT未完成） |
 | 日期 | 2026-10-02 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
@@ -12,8 +12,8 @@
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.21；只负责包、直接依赖及操作准入 |
-| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，Summary9严格结构、引用与页面配对展示有fake/non-live及正式隔离回归证据。B候选只读未发布，历史承接比较执行10题后因后验准入失败记Not assessed。本次新独立无付费启动预检在Java就绪前失败，未冻结正式B/MEASURE。MEASURE12题未执行、人工未评价；修复只有non-live证明。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价；整体Functional/Safety、召回、回答及发布均未宣布通过 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.22；只负责包、直接依赖及操作准入 |
+| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。B候选只读未发布，历史比较无有效质量；本次新B无推理启动ready但尚未正式对照，MEASURE新启动在es_ready超时停止。12题未执行、人工未评价；37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价，整体Functional/Safety、召回、回答及发布均未宣布通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
 勘误（2026-09-15）：v3.0内澄清§6.3资料缺口与安全/执行失败的停止范围，沿用§6.1及来源L2的未知状态规则；不修改用例、阈值、预算或验收状态。
@@ -63,6 +63,8 @@ v3.19仅同步P3_01 §14.25的新B承接终态和L2_01_01 v3.11内部请求见�
 v3.20仅同步P3_01 §14.26的私有工具修复：MEASURE实际清理核实、B消费后有限终态及固定allowlist失败诊断经定向non-live与独立代码复评。失败诊断不作为有效比较，不产生traces、盲标池或质量分数；旧run不补证、不复跑或改判。本轮真实ES/BGE/模型调用0，12题、人工评价与发布未执行完成；37风险、资料用例、gold、阈值、预算及验收状态均不变。
 
 v3.21仅同步P3_01 §14.27：维护者再次明确授权的独立批次先做无付费预检，本次B启动终态`not_ready / java_exited`，元数据HTTP12、临时alias写4、typed/physical search及模型/BGE/JWT请求均0，自有进程和临时alias清理完成。未进入正式B或MEASURE冻结，不复跑失败目录；Java选择修复仅有non-live证明。12题、gold、阈值、正式预算、37项风险及资料验收状态不变，不把构建成功或修复测试改判为UAT通过。
+
+v3.22仅同步P3_01 §14.28：新授权下B启动ready，元数据30/临时alias写4，所有检索/推理0且清理完成；MEASURE启动es_ready超时，元数据48、检索/推理0，原始清理核实false保持不变。B可按自身直接依赖继续新冻结，不能用它替代MEASURE证明；MEASURE停止不复跑。预检不作为功能、质量或发布通过，所有题目、gold、rubric、阈值及预算不变。
 
 ## 2. 范围与结果纪律
 

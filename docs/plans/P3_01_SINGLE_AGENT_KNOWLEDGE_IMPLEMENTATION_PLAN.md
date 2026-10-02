@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.21 |
+| 当前版本 | v3.22 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
 | 日期 | 2026-10-02 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。当前目标已授权基础实施、有限资料对照与条件发布；新MEASURE元数据72次仍按§14.22分账。维护者于2026-10-02另行授权新独立批次，先无付费启动预检，通过后才新冻B/12题测量，沿用题目、gold、预算和阈值；本次B预检失败，未进入新正式冻结，按停止条件收口。只完成最小non-live修复及有限证据保护，不重试、复用或续跑本次及历史失败run；下一独立执行仍需明确决策，本文不是滚动运行许可。不重建候选或扩大预算，在线父单元补取与超范围操作未获授权 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布；历史承接比较执行10题后因后验准入失败，没有有效质量或盲标证明。本次新B启动预检在Java就绪前失败，未执行题目或冻结正式B/MEASURE。MEASURE12题、人工评价、发布及新版完整UAT仍未完成，逐批计数见§14 |
+| 实施授权 | Ready 不等于实施授权。维护者于2026-10-02再次授权使用修复后HEAD的新独立验证批次：先无付费预检，通过后新冻B及12题MEASURE，沿用既定预算/gold/阈值。B本次预检ready，按独立直接依赖继续当前扫描和正式冻结；MEASURE本次预检失败终止，不复跑该目录或自动另建批次。正式MEASURE元数据72的既有精确预算不变。授权与真实准入分别判断，本文不是滚动运行许可；不重建候选、扩大预算或纳入在线父单元补取 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布；历史比较无有效质量或盲标。本次新B无推理预检ready，但尚未正式对照；MEASURE新预检在es_ready超时，12题、人工评价、发布及新版完整UAT仍未完成，逐批计数见§14 |
 
 ## 2. 修改历史
 
@@ -50,6 +50,7 @@
 | 28 | 2026-09-30 | §1/3/5/12/14.25 | 新B全部调用后准入失败及内部请求见证纠偏 | v3.19区分旧首题前失败与新10题后验失败，仍无有效比较/人评/发布；承接L2_01_01 v3.11，不改历史终态、题目、预算或阈值 |
 | 29 | 2026-09-30 | §3/14.26 | 私有工具的消费后有限失败与自有进程清理证明缺口 | v3.20同步最小修复、定向non-live及独立代码复评；不改工作包状态、真实运行终态、预算、阈值或生产合同 |
 | 30 | 2026-10-02 | §1/3/14.27 | 新独立启动预检失败及Java运行时选择纠偏 | v3.21记录本次零推理终态、有限证据和私有工具non-live修复；不进入新正式冻结，不改变历史结果、gold、阈值、调用预算或包状态 |
+| 31 | 2026-10-02 | §1/3/14.28 | 新授权下两套独立无付费预检结果 | v3.22记录B ready与MEASURE es_ready失败；B可独立继续，MEASURE不复跑；不改历史终态、DAG、gold、阈值或预算 |
 
 ## 3. 来源清单与当前基线
 
@@ -59,7 +60,7 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.11 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B内部双hash请求同一性已定向复评；MEASURE元数据72保持，设计与fake不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.21 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 历史B无有效测量，本次启动失败且未进入正式冻结；MEASURE12题、人评及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.22 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | B本次预检ready不是质量证明；MEASURE新预检失败，12题、人评及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -475,3 +476,13 @@ B后验拒绝原先只有泛化原因，且消费后的最终JAR读取异常可�
 文档状态切片另经同一只读执行单元复核，无确认S0/S1/S2。主执行者执行P3严格校验，0 error/0 warning；三份当前文档62条本地链接及v3.21引用核对通过，10个目标文件敏感模式扫描无命中，Git差异检查通过。历史构建来源10份资产的当前SHA-256与冻结输入逐项相同，新启动4份JSON的SHA-256与README清单逐项相同。只核实本次依赖资产，不冒充全库历史资产重新扫描。
 
 本轮未重复全量Python/Maven回归、Spring真实全链、真实模型测量、人工评价或发布；没有这些项目的新通过结论。A仍Not assessed，COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，整体目标未完成。后续只能在新的独立执行决策下使用新目录及新冻结，不能继续本次失败run。本轮提交仅本地保存，不push、不部署。
+
+### 14.28 修复后新授权的独立无付费预检（2026-10-02）
+
+维护者明确再次授权使用修复后HEAD的新批次，先无付费预检，通过后新冻B/MEASURE，沿用预算、gold及阈值，不复用失败目录。起始`codex_0915` HEAD `35d108ecfcf4e3563b09b99844e1333a83c4db59`干净；九个隔离端口未占用，既有9200/8908/8909服务未停止。
+
+[B新预检](../../knowledge-corpus-tools/evidence/knowledge-b-startup-20261002-02/README.md)终态`ready / complete`；元数据HTTP30/30、随机临时alias写4/4、baseline/candidate readiness3/1；typed/physical search、模型、embedding、rerank、JWT HTTP、retry/resume均0，proxy violations0。自有进程停止、临时alias移除，四个B端口现场无监听。有限资产本地提交`6e81264d89721afe1c631b544827d07e5e212343`；只读执行单元另核四JSON/README hash与源码预算/清理一致，不重跑服务。该成功仅证明启动，尚未执行B题目、全记录新扫描或质量评价。
+
+[MEASURE新预检](../../agent-runtime/tests/uat/knowledge-rebuild-measure-20261002-01/README.md)从clean `6e81264d`完成五模块版本化clean构建（`-DskipTests`），然后无付费启动在`es_ready`超时；有限终态`startup_preflight_failed`，shell为`knowledge.measure.readiness_timeout`。元数据HTTP48/48，typed search/model/embedding/rerank均0，proxy violations0，`runtimeKeyRead=false`。原始结果`ownedProcessesStopped=false`保持不变，不能补改为true；退出后五个端口无监听且CIM未发现相应目标角色，只作为后续有限观察。服务日志按既有边界删除，没有具体健康响应可补证，不推断唯一根因。
+
+本次MEASURE预检已停止，没有正式manifest、authorization或12题执行；不自动重启、续跑或创建追加批次。B通过自己的预检，且按§6/7的直接依赖不依赖MEASURE，继续独立的新扫描及正式对照，不以MEASURE失败取消其授权，不以B成功替代MEASURE启动证明。两者计数分别保存，生产alias未切换，所有历史运行原字节不改；A仍Not assessed、COMPARE/MEASURE在制、RELEASE受阻。预检证据和工具在正式冻结前完成本地提交，后续冻结后不修改tracked文件。
