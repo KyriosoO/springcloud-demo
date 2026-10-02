@@ -289,10 +289,15 @@ function Test-OwnedListener([int]$Port, [Diagnostics.Process]$Process) {
 
 function Get-FiniteHealthStatus([object]$Response) {
     # Diagnostic projection only: never persist a response body or exception text.
-    if ($Response.Content -isnot [string] -or
-        [Text.Encoding]::UTF8.GetByteCount($Response.Content) -gt 4096) { return 'unavailable' }
     try {
-        $value = $Response.Content | ConvertFrom-Json -NoEnumerate -ErrorAction Stop
+        if ($Response.Content -is [byte[]]) {
+            if ($Response.Content.Length -gt 4096) { return 'unavailable' }
+            $body = [Text.UTF8Encoding]::new($false, $true).GetString($Response.Content)
+        } elseif ($Response.Content -is [string]) {
+            if ([Text.Encoding]::UTF8.GetByteCount($Response.Content) -gt 4096) { return 'unavailable' }
+            $body = $Response.Content
+        } else { return 'unavailable' }
+        $value = $body | ConvertFrom-Json -NoEnumerate -ErrorAction Stop
         if ($null -ne $value -and $value.GetType() -eq [System.Management.Automation.PSCustomObject] -and
             $value.status -is [string] -and
             $value.status -cin @('UP', 'DOWN', 'OUT_OF_SERVICE', 'UNKNOWN')) {

@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from threading import Thread
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -790,6 +792,7 @@ def test_readiness_diagnostic_is_bounded_and_preserves_failure_guard(
 
 
 @pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell finite health projection")
+@pytest.mark.parametrize("as_bytes", [False, True])
 @pytest.mark.parametrize("body,expected", [
     ('{"status":"DOWN","details":{"credential":"DO_NOT_PERSIST"}}', "DOWN"),
     ('{"status":"OUT_OF_SERVICE"}', "OUT_OF_SERVICE"),
@@ -800,7 +803,7 @@ def test_readiness_diagnostic_is_bounded_and_preserves_failure_guard(
     ('[{"status":"UP"}]', "unavailable"),
     ('{"status":"UP","details":"' + "中" * 1400 + '"}', "unavailable"),
 ])
-def test_finite_health_projection_never_copies_details(body: str, expected: str) -> None:
+def test_finite_health_projection_never_copies_details(body: str, expected: str, as_bytes: bool) -> None:
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
     function = launcher[launcher.index("function Get-FiniteHealthStatus"):
@@ -808,13 +811,74 @@ def test_finite_health_projection_never_copies_details(body: str, expected: str)
     encoded = base64.b64encode(body.encode()).decode()
     program = (
         "$ErrorActionPreference='Stop'; " + function
-        + f"; $body=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}')); "
-        "Get-FiniteHealthStatus ([pscustomobject]@{Content=$body})"
+        + f"; $body=[Convert]::FromBase64String('{encoded}'); "
+        + ("" if as_bytes else "$body=[Text.Encoding]::UTF8.GetString($body); ")
+        + "Get-FiniteHealthStatus ([pscustomobject]@{Content=$body})"
     )
     completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
                                capture_output=True, text=True, timeout=20, check=False)
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == expected
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell finite health projection")
+def test_finite_health_projection_rejects_invalid_utf8_bytes() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    function = launcher[launcher.index("function Get-FiniteHealthStatus"):
+                        launcher.index("function Wait-Ready")]
+    encoded = base64.b64encode(b'{"status":"UP","details":"\xff"}').decode()
+    program = (
+        "$ErrorActionPreference='Stop'; " + function
+        + f"; $body=[Convert]::FromBase64String('{encoded}'); "
+        "Get-FiniteHealthStatus ([pscustomobject]@{Content=$body})"
+    )
+    completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
+                               capture_output=True, text=True, timeout=20, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "unavailable"
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell real-shaped Actuator response")
+@pytest.mark.parametrize("media_type", ["application/json", "application/vnd.spring-boot.actuator.v3+json"])
+def test_finite_health_projection_handles_actuator_http_media_type(media_type: str) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    function = launcher[launcher.index("function Get-FiniteHealthStatus"):
+                        launcher.index("function Wait-Ready")]
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, _format: str, *args: object) -> None:
+            return
+
+        def do_GET(self) -> None:
+            body = b'{"status":"DOWN","details":"DO_NOT_PERSIST"}'
+            self.send_response(503)
+            self.send_header("Content-Type", media_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        program = (
+            "$ErrorActionPreference='Stop'; " + function
+            + f"; $response=Invoke-WebRequest -Uri 'http://127.0.0.1:{server.server_port}/health' "
+            "-TimeoutSec 2 -SkipHttpErrorCheck; "
+            "[ordered]@{code=$response.StatusCode; status=(Get-FiniteHealthStatus $response)} "
+            "| ConvertTo-Json -Compress"
+        )
+        completed = subprocess.run(["pwsh", "-NoProfile", "-Command", program],
+                                   capture_output=True, text=True, timeout=20, check=False)
+        assert completed.returncode == 0, completed.stderr
+        assert json.loads(completed.stdout) == {"code": 503, "status": "DOWN"}
+        assert "DO_NOT_PERSIST" not in completed.stdout
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 def test_failure_evidence_contains_only_projected_readiness_observation() -> None:
