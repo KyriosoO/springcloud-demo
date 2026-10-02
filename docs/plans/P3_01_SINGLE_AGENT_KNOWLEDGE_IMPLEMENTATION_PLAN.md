@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.20 |
+| 当前版本 | v3.21 |
 | 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；发布未完成） |
-| 日期 | 2026-09-30 |
+| 日期 | 2026-10-02 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。当前目标已授权基础实施、有限资料对照与条件发布；此前另行授权无LLM启动预检后新冻B/12题测量、复用既有只读候选，并批准新MEASURE元数据72次（§14.22）。该B承接批次已消费并失败，MEASURE独立启动亦失败且未形成新的正式冻结；旧/新失败run均不可复用、补跑或续跑。本轮继续最小non-live修复、证据保护及状态收口；后续是否准备另一新批次须另作明确决策，本文不是滚动运行许可。不重建候选或扩大预算，在线父单元补取与超范围操作未获授权 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布；新承接比较执行全部10题后因后验归属准入失败记Not assessed，没有有效质量或盲标证明。MEASURE首次正式批次在ledger前失败，后续独立启动也失败，12题仍未执行。人工评价、发布及新版完整UAT未完成，逐批计数见§14 |
+| 实施授权 | Ready 不等于实施授权。当前目标已授权基础实施、有限资料对照与条件发布；新MEASURE元数据72次仍按§14.22分账。维护者于2026-10-02另行授权新独立批次，先无付费启动预检，通过后才新冻B/12题测量，沿用题目、gold、预算和阈值；本次B预检失败，未进入新正式冻结，按停止条件收口。只完成最小non-live修复及有限证据保护，不重试、复用或续跑本次及历史失败run；下一独立执行仍需明确决策，本文不是滚动运行许可。不重建候选或扩大预算，在线父单元补取与超范围操作未获授权 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布；历史承接比较执行10题后因后验准入失败，没有有效质量或盲标证明。本次新B启动预检在Java就绪前失败，未执行题目或冻结正式B/MEASURE。MEASURE12题、人工评价、发布及新版完整UAT仍未完成，逐批计数见§14 |
 
 ## 2. 修改历史
 
@@ -49,6 +49,7 @@
 | 27 | 2026-09-30 | §14.24 | MEASURE无推理启动失败及non-live诊断 | v3.18保留端口归属失败终态，不自动复跑，未观测代理计数不补造0 |
 | 28 | 2026-09-30 | §1/3/5/12/14.25 | 新B全部调用后准入失败及内部请求见证纠偏 | v3.19区分旧首题前失败与新10题后验失败，仍无有效比较/人评/发布；承接L2_01_01 v3.11，不改历史终态、题目、预算或阈值 |
 | 29 | 2026-09-30 | §3/14.26 | 私有工具的消费后有限失败与自有进程清理证明缺口 | v3.20同步最小修复、定向non-live及独立代码复评；不改工作包状态、真实运行终态、预算、阈值或生产合同 |
+| 30 | 2026-10-02 | §1/3/14.27 | 新独立启动预检失败及Java运行时选择纠偏 | v3.21记录本次零推理终态、有限证据和私有工具non-live修复；不进入新正式冻结，不改变历史结果、gold、阈值、调用预算或包状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -58,7 +59,7 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.11 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B内部双hash请求同一性已定向复评；MEASURE元数据72保持，设计与fake不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.20 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B虽执行全部题，后验准入失败仍无有效测量；MEASURE12题、人评及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.21 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 历史B无有效测量，本次启动失败且未进入正式冻结；MEASURE12题、人评及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -454,3 +455,23 @@ B后验拒绝原先只有泛化原因，且消费后的最终JAR读取异常可�
 同一任务内未参与对应实现的执行单元直接核对L2合同、源码和负例并执行定向测试；客户端异常Major修复后复评，范围内无未解决Blocker/Major，未报告待处理Minor。MEASURE定向复评还用纯内存进程mock确认Kill及HasExited异常失败关闭。本轮没有新增设计语义或生产链路修改，不改Java、公共DTO、Prompt、读取/出域权限、索引或alias，也不修改任何历史运行资产。
 
 本轮真实ES、BGE及外部模型调用均0，未读取模型密钥、未启停真实服务、未冻结或复跑新批次。新MEASURE元数据72、模型36、typed search48、query embedding12、rerank24的上限保持不变；预算纠正不是追加运行许可。A仍Not assessed；历史B后验失败无法因新诊断补回缺失见证或改判，MEASURE12题、人工评价及新版完整UAT仍未执行完成。Done=9、In Progress=2（COMPARE/MEASURE）、Blocked=1（RELEASE）保持；后续实际验证必须另作独立执行决策。以上仅本地提交，不push、不部署，不重复宣称§14.18全量Python/Maven或真实集成在本轮通过。
+
+### 14.27 新独立启动预检失败及Java选择修复（2026-10-02）
+
+维护者再次明确授权“新独立验证批次，先无付费启动预检，通过后重新冻结B对照和12题MEASURE，沿用预算、gold及阈值，不复用失败”。起始`codex_0915` HEAD为`7f0eacb54824b45eb20fe19e0ba177ec5609b19d`，工作树干净；9200、8908、8909已有监听，九个计划隔离端口未占用。未停止既有用户服务，也未读取模型密钥。
+
+[本次B启动有限证据](../../knowledge-corpus-tools/evidence/knowledge-b-startup-20261002-01/README.md)记录唯一终态`not_ready / java_readiness / java_exited`。冻结archive的离线Maven构建成功，`-DskipTests`不作为测试通过证明；Java在就绪检查前退出。实际ES元数据HTTP12/30、随机临时alias写4/4、两臂readiness请求1/0；typed/physical search、query embedding、rerank、paid、JWT HTTP、retry/resume均0，proxy violations为0。自有Java进程已停止、临时alias移除，结束后核查九个隔离端口无监听，线上alias未切换。四份原始JSON创建后保持字节及hash不变。
+
+本批按失败停止条件终止，未执行比较题目、两臂全记录新扫描或正式B冻结；MEASURE本次构建、启动预检、正式冻结、授权和12题均未进入。不能用此前成功的启动预检替代当前组合证明，不能将失败目录复用、补跑或续跑。模型预算未使用不代表可以自动重开批次；题目、gold、阈值及所有正式预算不变。
+
+只读核实确认当前PATH的`java`是Oracle Java `1.8.0_503`，`JAVA_HOME`是JDK `25.0.2`，项目`serviceCenter/pom.xml`要求25。旧runner在隔离子进程原样传递PATH并使用裸`java`，Maven则使用`JAVA_HOME`；编译与启动Java选择不一致已证实，Java8不能运行该项目产物。未保存Java原始stderr，故不补造具体JVM异常栈或排除修复后可能出现的其他启动问题。
+
+本地提交`11c87c5565cec83b9c7ca0f43330b1bea0f0608b`保存本次有限失败资产，并只修复B私有runner及直接测试：从绝对`JAVA_HOME/bin/java.exe`选择Java，白名单环境下有界核验25；startup在alias操作前、正式比较在消费前失败关闭，并对两臂显式使用同一可执行文件。Profile launch模板默认字面量仍保持稳定，不改Prompt、生产组合根、公共DTO、读取/出域、索引正文或历史资产。MEASURE launcher已明确使用并检查`JAVA_HOME/bin/java.exe`，本次不修改其代码。
+
+直接non-live验证在项目venv及§14.25所列进程级`PYTHONPATH`下执行：`pytest tests/evaluation/knowledge/test_rebuild_b_local_runner.py -q`最终61 passed；随后一次运行B comparator、local transport、local runner、review四文件及`tests/uat/test_current_traceability.py`、`tests/uat/test_knowledge_traceability.py`，175 passed。这两个结果重叠，不相加为总数；历史追踪兼容通过不等于重新执行Business或原Knowledge UAT。首次新增测试fixture不符合原alias规则，按既有严格身份格式修正后通过，没有放宽validator或删除断言。corpus项目venv、双源码`MYPYPATH`及项目配置执行runner显式`mypy --strict`成功，两个受影响Python文件compileall成功。
+
+作者自审后，同一任务内未参与修改的只读执行单元核查L2 §18.4.2、源码、负例及原始有限JSON；修复范围内未发现未解决Blocker/Major/Minor。评审者没有重跑主执行者的61项测试，该独立源码复核不冒充外部人员评审、真实启动成功或质量通过。当前只同步P3/UAT/索引的授权及执行状态，不改工作包DAG、验收条件或设计合同。
+
+文档状态切片另经同一只读执行单元复核，无确认S0/S1/S2。主执行者执行P3严格校验，0 error/0 warning；三份当前文档62条本地链接及v3.21引用核对通过，10个目标文件敏感模式扫描无命中，Git差异检查通过。历史构建来源10份资产的当前SHA-256与冻结输入逐项相同，新启动4份JSON的SHA-256与README清单逐项相同。只核实本次依赖资产，不冒充全库历史资产重新扫描。
+
+本轮未重复全量Python/Maven回归、Spring真实全链、真实模型测量、人工评价或发布；没有这些项目的新通过结论。A仍Not assessed，COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，整体目标未完成。后续只能在新的独立执行决策下使用新目录及新冻结，不能继续本次失败run。本轮提交仅本地保存，不push、不部署。
