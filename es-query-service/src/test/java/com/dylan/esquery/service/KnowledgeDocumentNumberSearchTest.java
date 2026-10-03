@@ -26,6 +26,7 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.dylan.esquery.api.knowledge.KnowledgeSearchRequest;
@@ -46,10 +47,34 @@ class KnowledgeDocumentNumberSearchTest {
 		KnowledgeSearchProperties disabled = enabledProperties("0".repeat(64));
 		assertThat(disabled.requireProfile("tax.policy", "tax-policy-v1").isDocumentNumberMatching()).isFalse();
 		assertThat(body(disabled, request("甲乙〔2031〕1号")).toString()).doesNotContain("regexp", "constant_score");
+		assertThat(body(disabled, request("甲乙、丙丁公告2031年第1号")).toString()).doesNotContain("regexp", "constant_score");
 		assertThat(body(enabled, request("普通政策问题"))).isEqualTo(body(disabled, request("普通政策问题")));
 		KnowledgeSearchRequest vector = new KnowledgeSearchRequest(1, "tax.policy", "tax-policy-v1", "vector",
 				null, Collections.nCopies(1024, 0.25), 20);
 		assertThat(body(enabled, vector)).isEqualTo(body(disabled, vector));
+	}
+
+	@Test
+	void jointIssuerSignalKeepsTheOriginalQueryCategoryAndSingleMetadataClause() {
+		String text = "查找甲乙、丙丁公告2031年第07号的执行期限。";
+		JsonNode result = body(enabled, request(text));
+		JsonNode query = result.path("query").path("bool");
+		assertThat(result.path("size").asInt()).isEqualTo(21);
+		assertThat(query.path("filter").get(0).path("terms").path("category").get(0).asText()).isEqualTo("policy");
+		assertThat(query.path("should").get(0).path("multi_match").path("query").asText()).isEqualTo(text);
+		JsonNode metadata = query.path("should").get(1).path("constant_score");
+		assertThat(query.path("minimum_should_match").asInt()).isEqualTo(1);
+		assertThat(metadata.path("boost").asInt()).isEqualTo(100);
+		JsonNode clauses = metadata.path("filter").path("bool").path("should");
+		assertThat(clauses.size()).isEqualTo(1);
+		JsonNode regex = clauses.get(0).path("regexp").path("document_number");
+		assertThat("甲乙 丙丁公告2031年第07号").matches(regex.path("value").asText());
+		assertThat("丙丁公告2031年第07号").doesNotMatch(regex.path("value").asText());
+		assertThat(regex.path("flags").asText()).isEqualTo("NONE");
+		assertThat(regex.path("case_insensitive").asBoolean()).isFalse();
+		assertThat(regex.path("max_determinized_states").asInt()).isEqualTo(256);
+		assertThat(body(enabled, request("甲乙、、丙丁公告2031年第07号")))
+				.isEqualTo(body(enabledProperties("0".repeat(64)), request("甲乙、、丙丁公告2031年第07号")));
 	}
 
 	@ParameterizedTest
@@ -85,17 +110,18 @@ class KnowledgeDocumentNumberSearchTest {
 		}
 	}
 
-	@Test
-	void missingOrStaleReadDecisionMakesZeroRequests() {
+	@ParameterizedTest
+	@ValueSource(strings = {"甲乙〔2031〕1号", "甲乙、丙丁公告2031年第1号"})
+	void missingOrStaleReadDecisionMakesZeroRequests(String text) {
 		RestClient client = mock(RestClient.class);
 		KnowledgeSearchService service = new KnowledgeSearchService(client, mapper, enabled);
-		assertThatThrownBy(() -> service.search(request("甲乙〔2031〕1号"), null))
+		assertThatThrownBy(() -> service.search(request(text), null))
 				.isInstanceOf(KnowledgeAuthorityUnavailableException.class);
 		for (KnowledgeReadDecision invalid : List.of(
 				new KnowledgeReadDecision("tax.law", "tax-policy-v1", "tax-knowledge-search-v1", "tax-public-authenticated-v1", "synthetic"),
 				new KnowledgeReadDecision("tax.policy", "tax-policy-v1", "old", "tax-public-authenticated-v1", "synthetic"),
 				new KnowledgeReadDecision("tax.policy", "tax-policy-v1", "tax-knowledge-search-v1", "old", "synthetic"))) {
-			assertThatThrownBy(() -> service.search(request("甲乙〔2031〕1号"), invalid))
+			assertThatThrownBy(() -> service.search(request(text), invalid))
 					.isInstanceOf(KnowledgeAuthorityUnavailableException.class);
 		}
 		verifyNoInteractions(client);
@@ -116,8 +142,9 @@ class KnowledgeDocumentNumberSearchTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(ints = {200, 400})
-	void sendsOneRealHttpRequestAndDoesNotRetryRejectedMetadataQuery(int status) throws Exception {
+	@CsvSource(value = {"甲乙〔2031〕1号|200", "甲乙〔2031〕1号|400",
+			"甲乙、丙丁公告2031年第1号|200", "甲乙、丙丁公告2031年第1号|400"}, delimiter = '|')
+	void sendsOneRealHttpRequestAndDoesNotRetryRejectedMetadataQuery(String text, int status) throws Exception {
 		AtomicInteger calls = new AtomicInteger();
 		AtomicReference<String> method = new AtomicReference<>();
 		AtomicReference<JsonNode> captured = new AtomicReference<>();
@@ -139,14 +166,14 @@ class KnowledgeDocumentNumberSearchTest {
 			KnowledgeReadDecision decision = new KnowledgeReadDecision("tax.policy", "tax-policy-v1",
 					"tax-knowledge-search-v1", "tax-public-authenticated-v1", "synthetic");
 			if (status == 200) {
-				assertThat(service.search(request("甲乙〔2031〕1号"), decision).candidates()).isEmpty();
+				assertThat(service.search(request(text), decision).candidates()).isEmpty();
 			} else {
-				assertThatThrownBy(() -> service.search(request("甲乙〔2031〕1号"), decision))
+				assertThatThrownBy(() -> service.search(request(text), decision))
 						.isInstanceOf(KnowledgeProviderException.class);
 			}
 			assertThat(calls.get()).isEqualTo(1);
 			assertThat(method.get()).isEqualTo("POST");
-			assertThat(captured.get()).isEqualTo(body(enabled, request("甲乙〔2031〕1号")));
+			assertThat(captured.get()).isEqualTo(body(enabled, request(text)));
 		} finally {
 			server.stop(0);
 		}

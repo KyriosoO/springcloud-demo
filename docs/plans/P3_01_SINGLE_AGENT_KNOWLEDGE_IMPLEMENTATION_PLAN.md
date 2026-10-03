@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.29 |
+| 当前版本 | v3.30 |
 | 文档状态 | Reviewed（B主指标未改善；MEASURE已消费后停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -57,6 +57,7 @@
 | 35 | 2026-10-03 | §1/3/5/9/12/14.33 | 新MEASURE已消费后停止及当前状态漂移纠偏 | v3.27记录实际调用、4题结果和第005题失败定位边界；不复跑、不修改预算/gold/阈值，修正当前追踪行及UAT版本引用 |
 | 36 | 2026-10-03 | §3/14.34 | MEASURE失败响应观测不足 | v3.28记录私有runner的固定分类补齐及零outbound验证；不补写旧证据，不把观测修复说成第005题根因修复，工作包、预算和判据不变 |
 | 37 | 2026-10-03 | §14.35 | 已封存B来源损失及部分人评材料复核 | v3.29补录离线定位与四题审阅准备，不代填维护者评分、不改变失败终态或发布条件 |
+| 38 | 2026-10-03 | §3/14.36 | 独立有限元数据诊断及联合机关软匹配修正 | v3.30承接L2_01_01 v3.12已评审切片，只记录4次GET及non-live修正；不重跑、不改历史结果或发布条件 |
 
 ## 3. 来源清单与当前基线
 
@@ -64,9 +65,9 @@
 |---|---|---|---|---|---|---|
 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | 目标架构 | L1 | v3.6 / Approved | §4.5/4.6最小链路与资料组织、目标有限回答 | 是 | Summary9定向设计已复评，不证明真实效果 |
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
-| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.11 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B内部双hash请求同一性已定向复评；MEASURE元数据72保持，设计与fake不代替真实运行或质量证据 |
+| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.12 / Approved | §9、§18，DR-KRET-035/201～204/301～307 | 是 | 联合机关词法仅定向设计/non-live修正，B内部双hash合同保持；MEASURE元数据72不变，不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.29 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B协议完整但主指标未改善；新MEASURE完成4题后技术失败、停止，完整质量、人评及发布仍未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.30 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B协议完整但主指标未改善；新MEASURE完成4题后技术失败、停止，完整质量、人评及发布仍未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -570,3 +571,23 @@ MEASURE保持§14.28的启动失败终态，具体ES健康超时根因未知；�
 已在既有受控本地review目录准备四题人工核对说明，配合原公开加工结果供维护者阅读，不提交引文正文。执行者对001/002提出四项判据的初步建议，正式确认仍由维护者完成；003未返回所需期限，004未编造内容但公开状态不符合冻结no_result，不计用例通过。未填写正式rubric或215项B盲标；005具体技术根因仍不可验证，006～012未执行。局部人评即使完成也不能使整批invalid_run变成完整12题验收通过。
 
 本轮未读取模型密钥，没有网络、ES、模型、embedding、rerank或服务操作，不新增/续跑批次，不修改gold、阈值、预算、历史原始资产或12包DAG。COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，候选主指标未改善、现行b2保持，整体目标未完成；本次只本地提交，不push、不部署。
+
+### 14.36 独立有限元数据诊断及联合机关词法修正（2026-10-03）
+
+起始clean `codex_0915` HEAD为`a1ba290e8b2d78da71d46bc1f39018be502c7347`。维护者另行精确授权一次最多4次ES只读GET，分别为索引身份前后核查和small_2022/lease_real各一次有限元数据；[新诊断记录](../../knowledge-corpus-tools/evidence/knowledge-rebuild-review-20261003-01/current-metadata-probe.json)保存实际4次attempt，均HTTP200、前后UUID一致。没有读取正文或向量，没有模型、BGE、typed search、写入、alias或服务操作，retry/resume=0。该4次授权已耗尽，结果只诊断当前状态，不补写历史B/MEASURE字段。
+
+两条记录当前channel均为仓库Profile允许的财税文件；此观察不等于完整ACL、出域或历史字段核验。small_2022当前完整文号以空格连接两个机关，冻结第003题以顿号表达；原私有词法只保留末机关，不能使该完整元数据获得可选boost，确认一个软信号覆盖缺口，但不能据此解释全部top20损失。lease_real的文号存在，原第012题没有指定它；其检索匹配、授权或窗口原因仍未知，不以gold向原问注入文号。
+
+先按L2_01_01 §9.8/DR-KRET-035补齐通用联合机关词法，完成两轮作者内审、未参与起草执行单元的定向只读设计评审及L2严格校验，再修改`DocumentNumberQuery`和两份直接Java测试。保留全部显式机关，最多4片段、总机关码点≤48；空片段/单字/超限整信号关闭，不从末机关补匹配。原queryText、单次keyword、category、固定boost、limit、开关、vector、权限顺序及零重试不变；未改Prompt、模型任务、gold、topK、公共DTO、mapping、索引或部署绑定。
+
+实际non-live命令及结果：
+
+- `serviceCenter/mvnw.cmd -o -f es-query-service/pom.xml '-Dtest=DocumentNumberQueryTest,KnowledgeDocumentNumberSearchTest' test`：原测试46项通过；新增纯函数测试在旧源码上10项失败，证明会检出末机关截取；新增服务测试另有一处合成Profile字段名错误，已按真实fixture纠正，未修改生产mapper或放宽断言。
+- `serviceCenter/mvnw.cmd -o -f es-query-service/pom.xml test`（Java25.0.2，执行子进程直接置空模型密钥）：123 passed，0 failure/error/skipped，13.217秒；包括文号49项、服务形状/单次fake HTTP 12项，以及mapping、读取授权、Servlet安全、类型化响应和隔离查询。存在现有Mockito动态attach及JVM共享警告，不隐瞒为无警告。
+- `agent-runtime/.venv/Scripts/python.exe -m pytest -q tests/uat/test_current_traceability.py tests/uat/test_knowledge_traceability.py tests/evaluation/knowledge/test_live_p5_candidate_{01,02,04,05,06,07}_history.py`（实际命令逐文件展开、禁用插件自动加载）：26 passed（10.76秒），有1条asyncio_mode未识别配置警告。只证明原Business/Knowledge追踪和六份历史运行兼容，不把旧37项Passed搬到新UAT_02。
+
+上述检查无外部推理或真实typed检索；本地fake HTTP不计为真实ES请求。8份MEASURE原始资产及原B result/source-id-map共10项SHA保持不变，新元数据只保存4个来源字段，没有正文、向量或凭据。Python/Runtime/启动脚本没有修改，未机械重复全量Python、mypy、Spring Runtime E2E或其他模块Maven，也未以这些未执行项冒称本轮通过。
+
+另一未参与修改的执行单元按设计定向核对三份Java源码/测试、真实fixture字段映射及调用方，未发现确认缺陷；独立使用本地JShell检查接近1024码点、多片段、无年号和64个联合机关并发输入，无HTTP或服务操作。它读取现有Surefire报告而未独立重跑Maven；结论仅覆盖本切片，不称整系统代码评审、外部人工评价、真实质量或新版UAT通过。作者复核、独立设计与代码核查均未放宽引用、授权、阈值或历史证据。
+
+COMPARE/MEASURE仍In Progress、RELEASE仍Blocked；B两臂recall仍0.85、215项盲标仍待维护者，MEASURE仍failed_consumed/invalid_run，不补跑或使用余额。第005题的公开响应缺失仍阻止具体技术根因判断，006～012未执行。本修正只提供本地源码/non-live证据，不证明当前服务已升级、召回改善或完整UAT通过；新真实诊断、比较、测量及发布须相应独立决定，不自动开始。

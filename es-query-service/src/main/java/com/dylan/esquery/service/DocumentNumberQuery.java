@@ -9,7 +9,9 @@ import java.util.regex.Pattern;
 
 /** Optional metadata signal, not a query planner or an issuer identity resolver. */
 final class DocumentNumberQuery {
-	private static final String ISSUER = "[\\p{IsHan}A-Za-z]+?";
+	// Capture a whole joint issuer, including repeated separators, before validation.
+	// An invalid joint identifier must never degrade to a valid trailing issuer.
+	private static final String ISSUER = "[\\p{IsHan}A-Za-z]+?(?:、+[\\p{IsHan}A-Za-z]+?)*";
 	private static final String LEGACY = "(?:〔[0-9]{4}〕|\\[[0-9]{4}\\])[0-9]+号";
 	private static final String ANNOUNCEMENT = "公告[0-9]{4}年第[0-9]+号";
 	private static final String FULL = "(" + ISSUER + ")(" + ANNOUNCEMENT + "|" + LEGACY + ")";
@@ -79,8 +81,19 @@ final class DocumentNumberQuery {
 	}
 
 	private static boolean add(Set<String> references, Reference reference) {
-		int issuerLength = reference.issuer().codePointCount(0, reference.issuer().length());
-		String canonical = reference.issuer() + reference.number();
+		String[] issuerParts = reference.issuer().split("、", -1);
+		if (issuerParts.length > 4) {
+			return false;
+		}
+		for (String part : issuerParts) {
+			int length = part.codePointCount(0, part.length());
+			if (length < 2 || length > 48) {
+				return false;
+			}
+		}
+		String issuer = String.join("", issuerParts);
+		int issuerLength = issuer.codePointCount(0, issuer.length());
+		String canonical = issuer + reference.number();
 		if (issuerLength < 2 || issuerLength > 48 || !NUMBER.matcher(reference.number()).matches()
 				|| canonical.codePointCount(0, canonical.length()) > 80
 				|| whitespacePattern(canonical).length() > 900) {

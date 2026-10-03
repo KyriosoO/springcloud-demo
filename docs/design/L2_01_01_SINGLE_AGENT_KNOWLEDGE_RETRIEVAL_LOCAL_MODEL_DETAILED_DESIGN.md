@@ -1,18 +1,18 @@
 # [L2_01_01] 单体 Agent Knowledge 检索与本地模型接入详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.11澄清B内部请求同一性校验及实施状态；不改变在线检索合同）
+> 文档状态：Approved（v3.12新增§9.8联合机关词法经定向评审；原已批准范围保持，不代表真实效果或部署通过）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.11 |
-| 日期 | 2026-09-30 |
+| 当前版本 | v3.12 |
+| 日期 | 2026-10-03 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.11将B双臂请求同一性明确为严格规范JSON而非对象键序；保留原始字节hash并新增内部规范hash，不改公共DTO、路由、预算或历史资产。同步已实施验证工具的职责状态；真实终态与质量判断仍由P3_01/UAT_02治理 |
+| 本次变更 | v3.12针对已证实的联合机关文号标点/空格表示差异补充§9.8有界词法；不改模型、queryText、Profile开关、boost、公共DTO、索引或运行预算。定向评审仅允许相应non-live修正，真实效果及发布仍由P3_01/UAT_02治理 |
 | 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；minimal检索、REPRESENT、候选构建、隔离typed runner及启动/既有候选承接工具已有组件/non-live证明，已建一个只读未发布B候选。真实调用不等于后验准入或质量通过；正式对照、人工评价及发布状态由P3_01/UAT_02治理，不由设计Approved代替 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -326,6 +326,12 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
 1. **责任**：`KnowledgeSearchService`在既有读取决策核验后、一次keyword ES请求内构造可选文号加分子句。输入仍为当前`queryText`；只做文件标识词法及固定物理映射，不选择domain、action、query、requirement，不补用户条件、法律事实或模型计划。Agent/Rewrite/公共DTO不知道物理字段和表达式；向量路径完全不变。
 2. **有限词法**：仅接受完整`机关〔YYYY〕N号`、`机关[YYYY]N号`、`机关公告YYYY年第N号`。输入沿公开合同≤1024 Unicode码点；机关由汉字/ASCII字母及ASCII或全角空格构成，去空格后2..48字符；年份4位ASCII数字、编号1..12位，保留大小写、前导零、成对括号种类及地域机关。允许从机关开头剥离一次明确查阅前缀（与当前Guard的请/帮我/麻烦、分别/同时、查询/查找/检索/查阅/查看/对比/比较同一有限语法）；不做同义机关推断，不从超长机关末尾截取一个短机关。
+
+   **联合机关词法补充（v3.12，已定向评审，实施状态见本节末）**：当前有限只读元数据诊断确认，原问句以顿号分隔两个显式机关，而目标`documentNo`以空格连接；旧代码只提取后一个机关，不能使完整元数据获得可选加分。这是标识表示覆盖不足，不是已证明的整体召回根因；当前`channel`在仓库Profile允许集合内也不能证明完整ACL或出域许可。比较后选择通用`document-number-joint-issuer-whitespace-v2`：仅补充完整文号中由`、`连接的2..4个显式机关片段，每片段仍只含汉字/ASCII字母，去空格后各2..48码点，全部机关字符合计≤48。先对完整机关串（剥离一次既有查阅前缀后）核验片段数、非空及长度，再去掉机关间顿号生成一个完整字面标识，沿用现有`[ 　]*`表达式。不得丢掉任一机关、调整顺序、推断同义词/简称、猜测发布身份或匹配仅含最后一个机关的元数据。此处只支持元数据机关间为空格或无空格；不扩大为任意标点等价。已有单机关输入及输出保持兼容，年份/编号/括号/大小写/地域不变。
+
+   联合机关的空片段（连续顿号）、单字片段、超过4个片段或总长超限时，关闭整个可选文号信号，不从尾部重新抽取机关。完整扫描须先捕获这类可识别的无效联合串再核验，不因回溯而落到一个合法后缀；一个完整文号结束后，既有列举/简写规则仍适用，继承的是全部显式机关而不是最后一项。顿号只在文号年号之前作为联合机关分隔，在完整文号之后仍是原列举连接词；不扩大逗号、斜线、未知标点或任意文字的继承。其余1024码点输入、4个文号、规范标识80码点及regex900字符上限保持，任一已识别项无效仍整项信号关闭。规范化只用于软匹配，不能作为文档身份、授权、时效或法律判断依据。
+
+   其他方案不采用：仅改Prompt或gold会掩盖服务端表示差异；扩大topK不能修复字面标识匹配且增加成本；新增归一字段/全库迁移超出当前最小修正。若后续出现需要机关别名、法律身份解析或任意标点规则的需求，应另行比较元数据规范化，不继续追加逐题规则。回滚仍是关闭现有开关或部署原源码/配置的相容绑定；本补充不自动部署、重跑B/MEASURE或授权真实typed验证。
 3. **列举**：完整文号后紧邻`、/和/与/或/以及`及可选空格时，下一项若只有同一格式的`YYYY年第N号`或`〔YYYY〕N号/[YYYY]N号`，只继承紧邻的完整机关和公告标记，年份/编号必须显式存在。不同完整机关分别保留；不跨句、跨任意文字借用机关，不补年份、不去掉地域。稳定去重后最多4项，单项规范形式≤80字符；任何已识别项超限则整项额外匹配关闭，不截取前4项。无法识别的简写不继承，已独立识别的完整项可保留软匹配，原全文始终保留所有条件。该行为不证明所有文号或问题已理解；最终仍由原问题及引用校验控制。
 
    **完整标识边界补充**：一个完整文号已经结束时，其结束位置是后续独立完整文号扫描的合法起点。因此两个完整文号只以ASCII/全角空格分隔（去空格后直接相邻）也应分别识别；后项必须自己含完整机关及年号，不从前项借机关。实现将搜索区域起点移至已消费位置，让前项末字不再参与后项的负向边界判断；不得对任意汉字位置逐字符重试，以免从超长或错误机关中抽取后缀。已有紧邻连接词简写规则不扩展：空格/逗号不能用于简写继承，夹有任意说明文字时不推断后面的机关；词法无法正确识别的部分仍只依靠原全文查询，不新增请求或fallback。作用域仍为`DocumentNumberQuery.patterns(String)`与直接测试，公共DTO、调用方、Profile开关、boost及regex上限不变。此局部修正已实施并通过non-live验证，不证明真实模型曾输出这种表达或全部双文号问题已解决；未以本地编译冒称运行中服务已升级。
@@ -337,9 +343,13 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
 边界增补用例：同/不同机关两个完整文号以空格、全角空格或零间距相邻，两个目标均匹配；混合legacy/announcement、四项及第五项超限；第二项超长机关不得后缀命中；完整文号后裸年号/任意文字加简写仍不继承。服务测试检查同一keyword请求中两个正确metadata OR项及原multi_match/category保留，而非仅验证纯函数数量。先证明旧代码失败，再实施修正并执行上述Java合同/授权回归、当前Python历史与UAT追踪；不以合成测试代替真实效果。
 
+联合机关增补用例：使用合成机关验证2/4片段、含ASCII及补充平面汉字、公告/旧括号文号、空格等价、单机关兼容、双完整文号及紧邻简写继承全部机关；只含末机关/错误顺序/错误年份/前导零不匹配。连续顿号、单字机关、5片段、联合总长49码点及第二项非法均关闭整个信号，不得后缀命中。服务侧验证联合机关子句与原queryText、category、limit+1、固定boost同在一次keyword请求；开关关闭、无文号、vector、授权失败零调用和技术失败零重试均不变。实现范围仅为既有`DocumentNumberQuery`及直接Java测试，不新增生产依赖。
+
 `VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。原相关性分级按整理前L2_01_02 §13.8追溯；目标四维比较由当前L2_01_02 §9.4及UAT_02 §5治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
 
 接受限制：标识词法不是机关知识库，不能证明任意前缀、别名或法律身份；同一文号很多chunk仍可能占满窗口，此增量不承诺多文档Evidence完整。精确标识可选加分不参与合法性、时效或摘要充分性判定。已知缺口和错误机关/长文号/非文号反证必须进入对照，而不是为此追加循环Gate或逐题规则。
+
+v3.12补充于2026-10-03先完成两轮作者定向内审（完整捕获/边界与授权/测试追踪），再由同一任务内未参与起草的执行单元只读核对本节、上位最小检索约束及原源码，结论为该切片符合，未发现实质设计缺陷。其后已完成私有helper与直接Java测试修正，模块non-live验证见P3_01 §14.36。此结论不是全文件重新评审、部署或真实质量批准，不自动授权真实typed对照、B或MEASURE。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 
@@ -521,7 +531,7 @@ finally先停止且核实本次Popen PID，再关闭、扫描并删除本次精�
 | `IMPL-KRET-020` | 建议新增`validation_alias.py`及版本化typed验证launcher：DR-KRET-032仅临时alias/隔离服务/有限证据；旧release.py、冻结launcher及在线Runtime不变 |
 | `IMPL-KRET-021` | `serviceCenter/warmup-knowledge-reranker.py`同步CLI（固定输入/端点，无参数覆盖；有限JSON stdout和退出码），由`run-all-services.ps1`在启动循环前调用；非live工具可显式执行，不修改历史launcher；实施证据见[整理前P3 §20.53](../plans/历史文档/2026-09-14-unified-v3-baseline/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) |
 | `IMPL-KRET-022` | 新增`knowledge/retrieval/bge_rerank_context.py`纯格式器/ContextualBgeRerankAdapter；provider.py内部版本参数、main.py显式绑定；旧bge_rerank.py不改 |
-| `IMPL-KRET-023` | 已新增`es-query-service/.../service/DocumentNumberQuery.java`包内纯函数；KnowledgeSearchService keyword构造、KnowledgeSearchProperties冻结布尔及KnowledgeProfileVerifier条件校验已接入；公共es-query-api、原配置默认和Python不变，原验证与启用状态见历史P3_00/UAT_01 |
+| `IMPL-KRET-023` | 已有`es-query-service/.../service/DocumentNumberQuery.java`包内纯函数；KnowledgeSearchService keyword构造、KnowledgeSearchProperties冻结布尔及KnowledgeProfileVerifier条件校验已接入；v3.12联合机关词法增量已有直接non-live证明，未部署或测量真实收益。公共es-query-api、原配置默认和Python不变，原验证与启用状态见历史P3_00/UAT_01，当前增量见P3_01 §14.36 |
 | `IMPL-KRET-024` | 建议新增§9.8测试侧宿主与本地worker；复用只读来源与纯计分，生产对象图不引用 |
 
 ### 13.2 关键签名
@@ -592,7 +602,7 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-027` | 建议新增`knowledge-corpus-tools/tests/test_validation_alias.py`及版本化launcher fake：精确UUID/只读/alias、冲突/超时/不明写入、有限预算、finally/进程/日志；真实typed矩阵另存有限结果，不以mock替代 |
 | `TEST-KRET-028` | `agent-runtime/tests/system_e2e/test_knowledge_reranker_warmup.py`：固定合成40项、严格响应、绝对deadline、超限、client关闭/零重试及启动顺序/disabled/PlanOnly；不调用真实服务 |
 | `TEST-KRET-029` | §9.6表示/单次HTTP/原文所有权/失败关闭、factory版本及生产根fake/Spring E2E；不得替代真实UAT |
-| `TEST-KRET-030` | §9.7文号词法/安全正则/同请求查询形状、单次HTTP、mapping和默认/冻结反证；原case/gold不变 |
+| `TEST-KRET-030` | §9.8文号词法、联合机关完整保留/超限拒绝、安全正则/同请求查询形状、单次HTTP、mapping和默认/冻结反证；原case/gold不变 |
 | `TEST-KRET-031` | §9.8来源/缓存hash、token预算、唯一有界worker、输出/异常/独占记录、零重试和同池指标；不得外推完整UAT |
 | `TEST-KRET-026` | `knowledge-corpus-tools/tests/test_vector_candidate.py`：混合policy/law全记录保留、只替换附件、输入/源漂移/预算/重复/错维度零写入、clone回执/临时来源删除/UUID替换/不明结果/失败封存、CAS冲突、逐条后置比较、alias零写入、无敏感错误及旧builder保护；直接local preparation/runner测试验证真实环境接缝及token超限零clone |
 

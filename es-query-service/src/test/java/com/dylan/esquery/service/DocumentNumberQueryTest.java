@@ -13,6 +13,68 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentNumberQueryTest {
 	@ParameterizedTest
+	@ValueSource(strings = {"甲乙、丙丁公告2031年第07号", "查找甲乙、丙丁公告2031年第07号的执行期限。",
+			"请查阅甲 乙、丙　丁公告2031年第07号", "甲乙、丙丁〔2031〕07号", "甲乙、丙丁[2031]07号"})
+	void jointIssuersMatchAllExplicitPartsWithoutDroppingOrReorderingThem(String query) {
+		List<String> patterns = DocumentNumberQuery.patterns(query);
+		assertThat(patterns).hasSize(1);
+		String number = query.contains("公告") ? "公告2031年第07号"
+				: query.contains("〔") ? "〔2031〕07号" : "[2031]07号";
+		assertThat("甲乙 丙丁" + number).matches(patterns.getFirst());
+		assertThat("甲乙丙丁" + number).matches(patterns.getFirst());
+		assertThat("甲　乙　丙 丁" + number).matches(patterns.getFirst());
+		for (String wrong : List.of("丙丁" + number, "甲乙" + number, "丙丁甲乙" + number,
+				"甲乙丙丁" + number.replace("07号", "7号"), "甲乙丙丁" + number.replace("2031", "2032"),
+				"甲乙、丙丁" + number)) {
+			assertThat(wrong).doesNotMatch(patterns.getFirst());
+		}
+		assertThat(patterns.getFirst()).doesNotContain(".*", "、").hasSizeLessThanOrEqualTo(900);
+	}
+
+	@Test
+	void jointIssuersRetainFullIdentityAcrossCompleteReferencesAndAdjacentShorthand() {
+		List<String> patterns = DocumentNumberQuery.patterns(
+				"甲乙、丙丁〔2031〕07号和[2032]8号、戊己、庚辛公告2033年第9号以及2034年第10号");
+		assertThat(patterns).hasSize(4);
+		List<String> expected = List.of("甲乙丙丁〔2031〕07号", "甲乙丙丁[2032]8号",
+				"戊己庚辛公告2033年第9号", "戊己庚辛公告2034年第10号");
+		for (int index = 0; index < expected.size(); index++) {
+			assertThat(expected.get(index)).matches(patterns.get(index));
+		}
+		assertThat("丙丁[2032]8号").doesNotMatch(patterns.get(1));
+		assertThat("庚辛公告2034年第10号").doesNotMatch(patterns.get(3));
+		assertThat(DocumentNumberQuery.patterns("甲乙、丙丁公告2031年第07号 2032年第8号")).hasSize(1);
+		assertThat(DocumentNumberQuery.patterns("甲乙、丙丁公告2031年第07号 戊己、庚辛公告2032年第8号")).hasSize(2);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"甲乙、、丙丁", "甲、丙丁", "甲乙、丁", "甲乙、丙丁、戊己、庚辛、壬癸"})
+	void invalidJointIssuersDisableTheWholeSignalWithoutMatchingTheTail(String issuer) {
+		String invalid = issuer + "公告2031年第07号";
+		assertThat(DocumentNumberQuery.patterns(invalid)).isEmpty();
+		assertThat(DocumentNumberQuery.patterns("戊己〔2030〕1号、" + invalid)).isEmpty();
+	}
+
+	@Test
+	void jointIssuerPartAndCodePointLimitsIncludeAllSegments() {
+		assertThat(DocumentNumberQuery.patterns("甲乙、丙丁、戊己、庚辛公告2031年第1号"))
+				.singleElement().satisfies(pattern -> assertThat("甲乙 丙丁 戊己 庚辛公告2031年第1号").matches(pattern));
+		String maximum = "甲".repeat(24) + "、" + "乙".repeat(24);
+		assertThat(DocumentNumberQuery.patterns(maximum + "〔2031〕1号")).hasSize(1);
+		assertThat(DocumentNumberQuery.patterns(maximum + "乙〔2031〕1号")).isEmpty();
+		String han = new String(Character.toChars(0x20000));
+		assertThat(DocumentNumberQuery.patterns(han.repeat(24) + "、" + han.repeat(24) + "〔2031〕1号"))
+				.singleElement().satisfies(pattern -> assertThat(han.repeat(48) + "〔2031〕1号").matches(pattern));
+		assertThat(DocumentNumberQuery.patterns("甲省AB、丙省CD〔2031〕1号"))
+				.singleElement().satisfies(pattern -> {
+					assertThat("甲省AB 丙省CD〔2031〕1号").matches(pattern);
+					assertThat("甲省ab 丙省CD〔2031〕1号").doesNotMatch(pattern);
+				});
+		org.junit.jupiter.api.Assertions.assertTimeout(Duration.ofSeconds(2), () ->
+				assertThat(DocumentNumberQuery.patterns("甲乙、".repeat(200) + "丙丁〔2031〕1号")).isEmpty());
+	}
+
+	@ParameterizedTest
 	@ValueSource(strings = {"甲乙〔2031〕07号", "甲乙[2031]07号", "甲乙公告2031年第07号",
 			"甲 乙 公告2031年第07号", "请分别查找甲乙〔2031〕07号", "麻烦帮我同时比较甲乙〔2031〕07号"})
 	void matchesOnlyTheLiteralIssuerAndNumberWithOptionalSpaces(String query) {

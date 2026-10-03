@@ -4,15 +4,15 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.29 |
+| 当前版本 | v3.30 |
 | 文档状态 | Reviewed（新B主指标未改善；MEASURE技术失败停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
-| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.11澄清B内部请求同一性；组件、真实终态及离线实施进度以P3_01为准，不等于新版UAT通过 |
+| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.12定向补齐联合机关词法；组件、真实终态及离线实施进度以P3_01为准，不等于新版UAT通过 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.29；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.30；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答、人评及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -79,6 +79,8 @@ v3.27仅同步P3_01 §14.33：clean HEAD新冻结MEASURE真实启动后完成4�
 v3.28仅同步P3_01 §14.34的私有runner失败观测修复：固定状态/错误分类与布尔核查不保存响应正文，六项零outbound反例及相关124项回归通过；不补写旧失败资产，不声称第005题实际根因已修复。新工具的fake证据不替代真实测量、人评、发布或37/37 UAT通过；用例、gold、阈值、预算和既有运行终态不变。
 
 v3.29仅同步P3_01 §14.35：封存B中两项必要来源在双臂扫描存在但均未进入初始召回前20；未发现这两项仅在融合/重排之后丢失，具体过滤、匹配或窗口原因仍未知。四题公开结果的人工审阅材料已经准备，001/002初步意见不是维护者评分，003/004不计用例通过；正式rubric及215项盲标仍未填写。局部复核不改整批invalid_run、用例、gold、阈值、预算或验收状态，不授权新真实运行。
+
+v3.30仅同步P3_01 §14.36：另获一次4次GET授权的当前元数据诊断确认联合机关文号的软匹配表示缺口，按已定向评审的L2_01_01 v3.12实施并通过直接non-live；未重新测量，不证明真实召回收益或服务升级。当前channel允许不等于ACL/出域核验，012具体损失及005技术根因仍未知。原B/MEASURE终态、37风险、12题、gold、阈值、预算、人工评价和发布状态不变；本次精确只读诊断授权已耗尽，不自动进入新批次。
 
 ## 2. 范围与结果纪律
 
