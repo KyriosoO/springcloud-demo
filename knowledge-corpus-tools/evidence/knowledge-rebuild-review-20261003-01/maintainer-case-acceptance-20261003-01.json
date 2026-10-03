@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "maintainer_partial_case_acceptance",
+  "reviewDate": "2026-10-03",
+  "recordingHead": "978704ab6d52cc8a72ffd5100a03a77c090c38c2",
+  "runId": "knowledge-rebuild-measure-20261003-01",
+  "feedbackSource": "project_maintainer_messages_in_current_thread",
+  "scope": "overall_acceptance_of_four_completed_public_answers",
+  "bindings": {
+    "manifestSha256": "47dee2d00fdd980fb0280c269b5f390d4ba3febc9bfc7bdcd4dcf69190d5fcd8",
+    "casesSha256": "ae1fc5c5eca2bdb6215b5534f00a7921fa3d60bce0e79c391eb22d6e41efeefe",
+    "failureSha256": "3ff109f150f7dd5ac9262defabc863270228829ed3b68895699981e7aae30bc4"
+  },
+  "feedbackExcerpts": [
+    "003，004不能通过",
+    "001，002通过"
+  ],
+  "cases": [
+    {"caseId": "UAT-KM-001", "maintainerDecision": "Passed"},
+    {"caseId": "UAT-KM-002", "maintainerDecision": "Passed"},
+    {"caseId": "UAT-KM-003", "maintainerDecision": "Failed"},
+    {"caseId": "UAT-KM-004", "maintainerDecision": "Failed"}
+  ],
+  "rubricDimensionScores": "not_separately_supplied",
+  "originalRunStatus": "failed_consumed",
+  "batchEffectiveness": "invalid_run",
+  "remaining": {
+    "UAT-KM-005": "technical_failure_without_retained_public_response",
+    "UAT-KM-006_to_012": "not_executed",
+    "bCandidateRelevanceLabels": "215_unjudged"
+  },
+  "limits": [
+    "Records maintainer overall case decisions, not invented per-dimension scores.",
+    "Does not replace or modify frozen run assets, gold, thresholds or budgets.",
+    "Does not convert an incomplete run into full UAT or permit release.",
+    "Does not authorize a new run, retry, resume or additional external calls."
+  ]
+}
