@@ -1,18 +1,18 @@
 # [L2_01_00] 单体 Agent Knowledge 查询流程与配置详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.7的§20增量经独立定向复核；原在线合同保持）
+> 文档状态：Approved（§20设计及本包实现经独立定向复核；原在线合同保持）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.7 |
+| 当前版本 | v3.8 |
 | 日期 | 2026-10-03 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v3.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.7补齐同正式runner路径的无付费演练、预算前检与有限失败取证；不改生产阶段、任务、公共字段、安全或历史运行 |
+| 本次变更 | v3.8同步§20的私有演练接缝、单一预算定义、有限失败取证及有界清理实施证据；规范合同不变，不改生产阶段、任务、公共字段、安全或历史运行 |
 | 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已接线意图12/Summary9/minimal-v1，默认disabled惰性及域目录维持。Spring→Runtime合成三模式与失败分支、单域当前root到隔离真实typed接口各有有限验证，不证明真实模型、完整新版UAT、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -526,7 +526,7 @@ v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式�
 
 本轮部分静态/fake边界已随组合根验证，Spring→Runtime合成三模式及失败分支已验证，单域当前root到隔离真实typed接口的有限只读预检见P3_01 §14.8；真实模型与typed同链、部署绑定、发布与回滚仍未验证，逐项证据和缺口见P3_01/UAT_02。当前公开合同原样保留。
 
-## 20. 正式测量路径的无付费演练（待实施）
+## 20. 正式测量路径的无付费演练（本包non-live范围已实施）
 
 依据L1_01 §4.7/KQ-AD-029。本节补齐验证工具的可靠性，不增加在线Stage、运行模式、公共DTO或模型任务；现在不授予新批次，也不重跑旧批次。
 
@@ -547,10 +547,12 @@ v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式�
 | 取消及清理 | 启动部分失败、runner失败、取消、cleanup超时；只清理本测试所有且身份匹配的资源，PID复用/用户listener不得终止，最终清理不成功必须单列失败 |
 | 配额边界 | 上限、上限+1、失败attempt、预热与正式次数分离；守卫与推导清单一致，零retry/resume |
 
-| 规则 | 拟议落点（不是本轮已实施） | 测试与验证 |
+| 规则 | 当前实现落点（仅验证工具） | 测试与验证 |
 |---|---|---|
 | DR-KFLOW-401 | 现`agent-runtime/tests/uat/knowledge_rebuild_measure_runner.py`、startup、harness及`run-knowledge-rebuild-measure-v1.ps1`的私有测试接缝 | TEST-KFLOW-401：同入口完整/失败/误入live、无真实资源；VAL-KFLOW-401：定向non-live pytest及改动脚本AST |
-| DR-KFLOW-402 | 现prepare/runner预算定义及前检；与正式入口共用计算和attempt守卫 | TEST-KFLOW-402：推导/守卫一致及越限0outbound；VAL-KFLOW-402：预算边界和原冻结预算兼容检查 |
+| DR-KFLOW-402 | `tests/uat/knowledge_rebuild_measure_budget.py`的冻结PLAN；prepare/runner/startup/launcher共同消费，未来冻结包含其hash，attempt守卫仍在发送前 | TEST-KFLOW-402：推导/守卫一致及越限0outbound；VAL-KFLOW-402：预算边界和原冻结预算兼容检查 |
 | DR-KFLOW-403 | 现有限failure观测、append-only writer及launcher owned清理 | TEST-KFLOW-403：白名单、取证失败、取消/PID归属、无泄漏；VAL-KFLOW-403：故障注入与安全扫描 |
 
 本包完成于同路径正反向测试、预算/取证/清理证据及代码评审，不等待真实UAT。回滚只恢复相容的验证工具绑定；不改当前生产根或历史资产。之后任何真实运行仍需新的独立决定、实际部署/快照预检及授权冻结；无付费测试不是模型/ES/BGE就绪的替代证明。
+
+v3.8实施追踪：`test_knowledge_rebuild_dryrun.py`通过实际`run_once`、生产组合根、ASGI入口、decoder/validator/ledger执行12题合成请求；仅替代外部依赖和Spring传输桥，不证明真实Java协议或部署。正反向覆盖题前/题后快照、中途非200/malformed/超时/拒绝/非法引用、取证不可写、CLI取消、清理超时及PID复用；launcher生命周期反例调用AST提取的实际函数，非复制实现。代码独立复评及实际验证见P3_01 §14.40；历史失败的根因与终态不变。
