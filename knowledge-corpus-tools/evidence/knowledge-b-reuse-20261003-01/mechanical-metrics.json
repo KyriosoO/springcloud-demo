@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "runId": "knowledge-b-reuse-20261003-01",
+  "kind": "mechanical_metrics_without_human_labels",
+  "comparisonResultSha256": "50a03b7dc8cb8e2667c0bc509346e4db12f4fc6c5ceee953ed8dbd39ac21a934",
+  "outcome": "not_assessed",
+  "reasons": [
+    "blind_labels_missing",
+    "recall_not_improved"
+  ],
+  "macroBaselineRecall": 0.85,
+  "macroCandidateRecall": 0.85,
+  "macroBaselinePrecision": null,
+  "macroCandidatePrecision": null,
+  "medianBaselineLatency": 0.8365298499993514,
+  "medianCandidateLatency": 0.8396068999718409,
+  "labelPoolSize": 215,
+  "unjudgedCount": 215,
+  "cases": [
+    {
+      "caseId": "UAT-KM-001",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-002",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-003",
+      "baselineRecall": 0,
+      "candidateRecall": 0
+    },
+    {
+      "caseId": "UAT-KM-005",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-006",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-007",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-008",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-009",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-011",
+      "baselineRecall": 1,
+      "candidateRecall": 1
+    },
+    {
+      "caseId": "UAT-KM-012",
+      "baselineRecall": 0.5,
+      "candidateRecall": 0.5
+    }
+  ]
+}

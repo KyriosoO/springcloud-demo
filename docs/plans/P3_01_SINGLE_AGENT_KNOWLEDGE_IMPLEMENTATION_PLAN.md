@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.25 |
-| 文档状态 | Reviewed（新独立启动预检通过；正式比较、测量及发布未完成） |
+| 当前版本 | v3.26 |
+| 文档状态 | Reviewed（新B协议完整；质量未通过、人工盲标和MEASURE待完成） |
 | 日期 | 2026-10-03 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
 | 实施授权 | Ready 不等于实施授权。维护者于2026-10-03确认启动与清理修复后继续现有目标，采用修复后HEAD的新独立B与MEASURE批次，沿用既定预算/gold/阈值。新无推理预检通过见§14.31；历史失败目录均不复用、续跑或改判。正式MEASURE元数据72等预算不变。授权与真实准入分别判断，本文不是滚动运行许可；不重建候选、扩大预算或纳入在线父单元补取 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。B候选只读未发布，旧比较均无有效质量。新的B及MEASURE启动/清理前检已有有限通过证明；新正式扫描、比较、12题、人工评价、发布及新版完整UAT尚未完成，逐批证据见§14 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。§14.32新B协议完整、两臂recall相同未改善，215项盲标待人工完成；候选只读未发布。MEASURE启动/清理前检保持原证明范围，12题、人工回答评价及新版完整UAT尚未完成；保留现行b2，不追加对照 |
 
 ## 2. 修改历史
 
@@ -94,7 +94,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KORG-NORMALIZE-01 | NORMALIZE | L2_01_01 §18 DR-KRET-301～303；L2_01_02 §19 DR-KEV-301；L2_01_00 §19 DR-KFLOW-301/302 | 标准化、不可变源版本及结构可信状态记录；不把现有DOCX乱序产物标verified | WP-KORG-DESIGN-01 | - | normalization_v2.py/来源位置Schema/fixture | TEST-KRET-301、hash/span及不可靠顺序反例、来源人工核对；纯单元/契约/mypy/compileall；旧源保留 | 本包代码与有限来源核对见§14.3/14.4；未批量生成真实v2 sidecar或迁现索引 | Done |
 | WP-KORG-CHUNK-01 | CHUNK | L2_01_01 §18 DR-KRET-303/304 | 最小修复受影响DOCX解析顺序，建立结构单元身份、同版本父子关系与连续chunk span | WP-KORG-NORMALIZE-01 | - | parser顺序接缝/chunking_v2.py及段表交错、短长条、表格/否定/例外fixture | TEST-KRET-302；完整单元可按源span恢复且hash一致，跨版本/悬空/乱序失败关闭，不静默遗漏 | 本包离线代码、fixture和复评见§14.5；旧chunker不覆盖，真实资料重切/发布待后续包 | Done |
 | WP-KORG-REPRESENT-01 | REPRESENT | L2_01_01 §18 DR-KRET-305/306 | 独立检索表示及token前检；不把父单元或派生表头当可引用正文 | WP-KORG-NORMALIZE-01 | - | 表示构造/model manifest/tokenizer验证 | TEST-KRET-303；明确实际长度单位/版本，无截断、body/input hash独立；旧未知不回填 | 纯构造、固定tokenizer与直接证据见§14.6；无推理或索引写入 | Done |
-| WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→有限BGE/候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标及停止规则 | A保持Not assessed；B候选只读未发布，历史失败终态保留。§14.31新无推理预检ready；正式新扫描、对照、人工盲标及质量尚未完成，不切生产alias | In Progress |
+| WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→有限BGE/候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标及停止规则 | §14.32正式10题协议完整；两臂recall@20均0.85，主指标未改善，215项人工盲标缺失、precision为null；A仍Not assessed，候选不发布、不追加对照 | In Progress |
 | WP-KORG-RELEASE-01 | RELEASE | L2_01_00 §19 DR-KFLOW-303；L2_01_02 §19 DR-KEV-302/303 | 选定候选兼容发布 | WP-KORG-COMPARE-01 | - | 策略/Profile一致性、精确旧绑定、回滚与冒烟证据 | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；无证据不得发布 | 当前目标仅在条件满足后授权新索引/受控部署/alias写入；生效前仍须核实精确旧绑定与原子回滚；不删旧索引 | Blocked |
 
 ## 6. 直接依赖图
@@ -148,12 +148,12 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | 3 | WP-KREBUILD-RETRIEVAL-01 | Done | 无；提交及验证见§14.2 | 新策略独立验证，生产接线待COMPOSE |
 | 4 | WP-KREBUILD-EVIDENCE-01 | Done | 无；直接fake及代码复核见§14.6 | Summary8/Evidence组件完成，不预记完整UAT |
 | 5 | WP-KREBUILD-COMPOSE-01 | Done | §14.7：Spring逐案typed、拒绝/并发及有限证据复评；§14.8：单域当前root真实typed只读预检 | 仅non-live实现包关闭；附加预检不代表Spring全链、部署、37/37 UAT或效果通过 |
-| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；§14.31独立启动/清理通过，须完成当前HEAD正式新冻结 | 所有失败run均不可复用；12题未执行，人工评价未开始，启动前元数据单列。预检通过不等于真实测量完成 |
+| 6 | WP-KREBUILD-MEASURE-01 | In Progress | 无未完成直接依赖；§14.31独立启动/清理通过，新B终态收口后建立clean HEAD新冻结 | §14.32主指标无提升，保留现行b2；唯一12题绑定意图12/Summary9/minimal-v1与该索引。失败run不复用，人工回答评价仍待执行 |
 | 7 | WP-KORG-DESIGN-01 | Done | 无技术前置阻塞；后续操作须独立授权 | 来源设计已完成，非新实现 |
 | 8 | WP-KORG-NORMALIZE-01 | Done | 无；有限来源核验见§14.4 | 离线版本/来源/结构可信合同完成；不声称全库v2转换或父单元读取 |
 | 9 | WP-KORG-CHUNK-01 | Done | 无；代码及复评见§14.5 | v2离线切片合同完成；真实资料重切和候选发布仍未执行 |
 | 10 | WP-KORG-REPRESENT-01 | Done | 无；纯构造及tokenizer验证见§14.6 | 不冒称真实向量效果或候选构建已通过 |
-| 11 | WP-KORG-COMPARE-01 | In Progress | B候选只读未发布；§14.31新启动ready，正式两臂扫描、对照与人工盲标待执行 | 直接前置已Done；A为Not assessed，历史失败不可续跑/改判；新授权批次仍须冻结准入，不以启动或调用数代替COMPARE完成 |
+| 11 | WP-KORG-COMPARE-01 | In Progress | §14.32正式两臂扫描和10题对照协议完整，215项人工盲标尚缺 | 两臂recall相同，不满足改善条件，候选只读未发布；A仍Not assessed，不补跑、不将执行完成当作质量通过 |
 | 12 | WP-KORG-RELEASE-01 | Blocked | WP-KORG-COMPARE-01 | 等待直接前置；发布还需§7/8证据 |
 
 ## 10. 实施交接
@@ -522,3 +522,13 @@ MEASURE保持§14.28的启动失败终态，具体ES健康超时根因未知；�
 [B新无推理预检](../../knowledge-corpus-tools/evidence/knowledge-b-startup-20261003-01/README.md)在起始HEAD执行一次，终态`ready / complete`：元数据30、临时alias写4、两臂readiness3/1，其余typed/physical search、query embedding、rerank、paid、JWT HTTP、retry/resume均0。自有Java停止、临时alias移除、proxy violations0；四个B端口退出后无监听。冻结archive构建使用`-DskipTests`，不作为Maven测试证明；原始四JSON保持不变。
 
 本阶段未读取模型密钥、执行比较题目或12题，未改索引正文、生产alias、权限或历史资产；用户9200/8908/8909服务保留。A仍Not assessed、COMPARE/MEASURE仍In Progress、RELEASE仍Blocked。新授权只承接既定预算/gold/阈值，不复用旧失败批次；当前窗口并发修改条件在正式质量执行前另行核实。仅本地提交，不push；本阶段未重复全量Python/Maven、真实UAT或人工评价。
+
+### 14.32 新独立B完整执行与质量边界（2026-10-03）
+
+维护者确认本次B／MEASURE窗口内本人和其他任务不会修改目标索引或切换相关alias。在分支`codex_0915`、HEAD `781690c0a932a50fb898918d699b2c18ac41647d`执行[新B有限对照](../../knowledge-corpus-tools/evidence/knowledge-b-reuse-20261003-01/README.md)，不复用历史失败run。新双臂扫描各64次、各15521记录；正式10题typed44、query embedding10、rerank22、只读元数据30、临时alias写4、paid/retry/resume均0。终态`completed_awaiting_blind_labels / local_verified`，两个自有Java进程停止、两个隔离alias移除、proxy violations0，退出后四个B端口无监听；生产alias未切换，用户基础服务未停止。冻结archive打包使用`-DskipTests`，不记Maven测试通过。
+
+严格离线review核验来源及原始终态，生成未填写的215项盲标模板。机械评分只使用已冻结必要来源和排名：基线/候选宏平均recall@20均0.85，核心及保留题覆盖逐题未退化，未出现评分器检查的keyword/law域顺序混杂；median时延约0.83653/0.83961秒，候选未超过基线110%。主指标没有严格提高，不能据此发布；人工precision及完整B质量仍Not assessed，不代填215项标签或修改gold。A保持Not assessed，不补跑、不追加对照。COMPARE因人工证据仍缺保持In Progress，RELEASE保持Blocked；不存在合格候选时保留旧绑定，后续按§7记录未发布，不伪装为Done。
+
+唯一MEASURE批次选择现行b2索引及意图12/Summary9/minimal-v1组合；不是候选b1的回答证明。须先将本次有限终态/文档收口提交，再从clean HEAD新构建并冻结12题、manifest/authorization及72次正式元数据预算；36模型/48typed/12embedding/24rerank/gold/阈值不变。本节没有12题或真人回答评价的新通过结论。原始result、见证及历史证据保持不变；仅本地提交，不push或部署。
+
+本次运行后定向检查：严格P3校验0 error/0 warning，三份状态文档及README的68条本地链接无断裂，`test_rebuild_b_review.py`与两份历史追踪兼容测试共26 passed（55.41秒）；敏感模式扫描和Git差异检查通过。未改源码或历史资产、未机械重复全量Python/Maven。另一未参与执行的只读单元核查原始证据、旧Git来源10文件、两臂请求/模型/排名见证及新状态diff，定向复核无确认Blocker/Major；机械指标和空模板均与严格离线入口输出相等。该复核不冒充外部人员或真人相关性/回答评价。
