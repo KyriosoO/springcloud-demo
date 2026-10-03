@@ -51,6 +51,123 @@ def _hash(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+@pytest.mark.parametrize("failure_kind", (
+    "summary_failure", "unknown_fields", "invalid_json", "non_object", "wrong_correlation", "transport_failure",
+))
+def test_failed_case_keeps_only_finite_diagnostic_and_stops_batch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure_kind: str,
+) -> None:
+    case_id = "case-1"
+    unsafe_text = "fake-secret-and-private-response-do-not-persist"
+    ledgers: list[runner.OneShotLedger] = []
+    servers: list[Any] = []
+    posted_cases: list[str] = []
+
+    class CapturedLedger(runner.OneShotLedger):
+        def __init__(self, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            ledgers.append(self)
+
+    class FakeServer:
+        def __init__(self, config: object) -> None:
+            self.started = False
+            self.should_exit = False
+            servers.append(self)
+
+        async def serve(self) -> None:
+            self.started = True
+            while not self.should_exit:
+                await asyncio.sleep(0.001)
+
+    class FakeModel:
+        async def complete(self, request: StructuredModelRequest, *, call_deadline: float) -> StructuredModelResponse:
+            return StructuredModelResponse(finish_kind=StructuredFinishKind.STOP, content="{}",
+                                           tool_calls=(), usage_total_tokens=0)
+
+    async def fake_alias_check(*args: Any, **kwargs: Any) -> None:
+        pass
+
+    async def fake_post(**kwargs: Any) -> httpx.Response:
+        posted_cases.append(kwargs["case_id"])
+        if failure_kind == "transport_failure":
+            raise httpx.ConnectError(unsafe_text)
+        if failure_kind == "invalid_json":
+            return httpx.Response(502, content=unsafe_text.encode("utf-8"))
+        if failure_kind == "non_object":
+            return httpx.Response(502, json=[unsafe_text])
+        if failure_kind == "wrong_correlation":
+            return httpx.Response(200, json={"status": "success", "capabilityId": "knowledge.query",
+                                            "correlationId": unsafe_text})
+        if failure_kind == "unknown_fields":
+            return httpx.Response(500, json={"status": [unsafe_text], "capabilityId": unsafe_text,
+                                            "correlationId": unsafe_text, "error": {"code": [unsafe_text]},
+                                            "answer": unsafe_text, "result": {"points": [unsafe_text]}})
+        ledger = ledgers[0]
+        ledger.claim_runtime(correlation_id=case_id, question=kwargs["question"])
+        request = StructuredModelRequest(task_id=ModelTaskId.ACTION_SELECTION,
+            task_version="action-selection-v4", system_instruction="fake", user_payload_json="{}",
+            tools=(), tool_mode=StructuredToolMode.NONE, output_mode=StructuredOutputMode.JSON_OBJECT,
+            max_output_tokens=8)
+        await ledger.model(FakeModel()).complete(request, call_deadline=1.0)
+        return httpx.Response(502, json={"status": "downstream_failure", "capabilityId": "knowledge.query",
+            "correlationId": case_id, "error": {"code": "knowledge.summary_failure", "source": unsafe_text},
+            "answer": unsafe_text, "result": {"points": [unsafe_text]}})
+
+    async def forbid_network(*args: Any, **kwargs: Any) -> Any:
+        pytest.fail("non-live diagnostic test attempted real HTTP")
+
+    def health(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/actuator/health/readiness"
+        return httpx.Response(200, json={"status": "UP"})
+
+    monkeypatch.setattr(runner, "OneShotLedger", CapturedLedger)
+    monkeypatch.setattr(runner, "_alias_check", fake_alias_check)
+    monkeypatch.setattr(runner, "_post_spring_owned", fake_post)
+    monkeypatch.setattr(runner, "build_runtime", lambda *args, **kwargs: pytest.fail("real Runtime must not start"))
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", forbid_network)
+    output = tmp_path / _RUN
+    review = tmp_path / "private-review"
+    manifest: dict[str, Any] = {"runId": _RUN, "frozenHead": _HEAD, "authorizationReference": "UAT_02:MEASURE-TEST",
+        "_sha256": "b" * 64, "_authorizationSha256": "c" * 64,
+        "springBaseUrl": "http://127.0.0.1:19202",
+        "cases": [{"caseId": case_id, "question": "公共税务问题"},
+                  {"caseId": "case-2", "question": "不应执行的下一题"}]}
+
+    async def execute() -> None:
+        async with httpx.AsyncClient(base_url=manifest["springBaseUrl"],
+                                     transport=httpx.MockTransport(health)) as client:
+            await runner.run_once(manifest=manifest, output_dir=output, review_dir=review,
+                token=unsafe_text, environ={}, client=client, es_pid=1, agent_pid=2, proxy_pid=3,
+                server_factory=FakeServer)
+
+    with pytest.raises((runner.MeasurementError, json.JSONDecodeError, httpx.ConnectError)):
+        asyncio.run(execute())
+    failure_raw = (output / "failure.json").read_text(encoding="utf-8")
+    failure = json.loads(failure_raw)
+    assert unsafe_text not in failure_raw
+    assert failure["completedCases"] == 0
+    assert failure["reason"] == "case_technical_failure"
+    assert failure["status"] == ("failed_consumed" if failure_kind == "summary_failure" else "failed_unconsumed")
+    assert failure["counts"] == {"model": int(failure_kind == "summary_failure"), "search": 0, "embedding": 0, "rerank": 0}
+    observation = failure["failedCase"]
+    assert set(observation) == {"caseId", "httpStatus", "responseState", "publicStatus", "errorCode",
+                                "correlationMatches", "capabilityMatches"}
+    assert observation["caseId"] == case_id
+    assert observation["responseState"] == {"invalid_json": "invalid_json", "non_object": "non_object",
+                                             "transport_failure": "not_received"}.get(failure_kind, "object")
+    assert observation["publicStatus"] == {"summary_failure": "downstream_failure",
+                                            "wrong_correlation": "success"}.get(failure_kind, "unknown")
+    assert observation["errorCode"] == {"summary_failure": "knowledge.summary_failure",
+                                         "unknown_fields": "unknown"}.get(failure_kind)
+    assert observation["correlationMatches"] is (failure_kind == "summary_failure")
+    assert posted_cases == [case_id]
+    assert len(servers) == 1 and servers[0].should_exit
+    assert not (output / "measurement.json").exists()
+    assert not (output / "cases.jsonl").exists()
+    assert not (review / "public-review.jsonl").exists()
+    assert (output / "authorization.consumed.json").exists() is (failure_kind == "summary_failure")
+
+
 def test_model_consumption_precedes_fake_send_and_retry_is_forbidden(tmp_path: Path) -> None:
     output = tmp_path / _RUN
     manifest = {"runId": _RUN, "frozenHead": _HEAD, "authorizationReference": "UAT_02:MEASURE-TEST"}

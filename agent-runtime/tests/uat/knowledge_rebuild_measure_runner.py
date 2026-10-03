@@ -46,6 +46,16 @@ _MAX = {"cases": 12, "model": 36, "search": 48, "embedding": 12, "rerank": 24}
 _PER_CASE = {"model": 3, "search": 4, "embedding": 1, "rerank": 2}
 _REVIEW_MAX_BYTES = 4 * 1024 * 1024
 _SUBJECT = {"userId": "viewer_t", "role": "VIEWER"}
+_FAILURE_PUBLIC_STATUSES = frozenset({
+    "success", "no_result", "unsupported", "forbidden", "timeout",
+    "model_egress_denied", "downstream_failure", "internal_failure",
+})
+_FAILURE_ERROR_CODES = frozenset({
+    "core.no_supported_capability_candidate", "knowledge.evidence_read_forbidden",
+    "knowledge.evidence_timeout", "knowledge.summary_timeout", "knowledge.evidence_failure",
+    "knowledge.summary_failure", "knowledge.invalid_stage_result",
+    "knowledge.evidence_egress_denied", "knowledge.retrieval_failure",
+})
 _BUILD_COMMANDS = (
     [["serviceCenter/mvnw.cmd", "--batch-mode", "-f", f"{name}/pom.xml", "-DskipTests", "clean", "install"]
      for name in ("common-security", "es-query-api")]
@@ -673,6 +683,26 @@ def _finite_response(response: Mapping[str, Any]) -> dict[str, Any]:
                           for item in points if type(item) is dict and type(item.get("citation")) is dict]}
 
 
+def _failed_case_observation(*, case_id: str, http_status: int | None,
+                             response_parsed: bool, body: object) -> dict[str, Any]:
+    """Project untrusted failure responses to fixed classifications, never text."""
+    value = body if type(body) is dict else {}
+    status = value.get("status")
+    error = value.get("error")
+    code = error.get("code") if type(error) is dict else None
+    return {
+        "caseId": case_id,
+        "httpStatus": http_status if type(http_status) is int and 100 <= http_status <= 599 else None,
+        "responseState": ("not_received" if http_status is None else "invalid_json"
+                          if not response_parsed else "object" if type(body) is dict else "non_object"),
+        "publicStatus": status if type(status) is str and status in _FAILURE_PUBLIC_STATUSES else "unknown",
+        "errorCode": code if type(code) is str and code in _FAILURE_ERROR_CODES else None if code is None else "unknown",
+        "correlationMatches": value.get("correlationId") == case_id,
+        "capabilityMatches": (value.get("capabilityId") == "knowledge.query"
+                              or status == "unsupported" and value.get("capabilityId") is None),
+    }
+
+
 def _public_review(case: Mapping[str, Any], response: Mapping[str, Any]) -> dict[str, Any]:
     """Only the already-authorized public answer, never a provider response or raw ES body."""
     def bounded(value: object, limit: int) -> str:
@@ -752,6 +782,7 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                                            port=19203, workers=1, access_log=False, log_level="warning"))
     server_task = asyncio.create_task(server.serve())
     records: list[dict[str, Any]] = []
+    failed_case: dict[str, Any] | None = None
     alias_checks = 0
     review_bytes = 0
     try:
@@ -774,11 +805,16 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                                    proxy_pid=proxy_pid)
                 alias_checks += 1
                 ledger.begin(case_id, question)
+                response_http_status: int | None = None
+                response_parsed = False
+                body: object = None
                 try:
                     response = await _post_spring_owned(client=client, question=question, case_id=case_id,
                                                         token=token, es_pid=es_pid, agent_pid=agent_pid,
                                                         proxy_pid=proxy_pid)
+                    response_http_status = response.status_code
                     body = response.json()
+                    response_parsed = True
                     await _alias_check(manifest, es_client, es_pid=es_pid, agent_pid=agent_pid,
                                        proxy_pid=proxy_pid)
                     alias_checks += 1
@@ -788,13 +824,14 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                             or body.get("status") not in {"success", "no_result", "unsupported"}
                             or response.status_code >= 500 or ledger.fatal is not None):
                         _fail("case_technical_failure")
+                    checked_body = cast(dict[str, Any], body)
                     ledger.end()
                     ranked_ids = {item["chunkId"] for item in ledger.ranked}
                     necessary = {item["id"]: item["chunkId"] for item in manifest["sources"]
                                  if item["id"] in case["necessarySources"]}
                     represented = set().union(*(set(item["domainIds"]) for item in ledger.ranked))
                     record = {"caseId": case_id, "httpStatus": response.status_code,
-                              "response": _finite_response(body), "counts": dict(ledger.case_counts),
+                              "response": _finite_response(checked_body), "counts": dict(ledger.case_counts),
                               "runtimeInvocations": ledger.runtime_invocations,
                               "observedPlan": {"planPresent": ledger.planned_domains is not None,
                                                "queryMode": ledger.planned_query_mode,
@@ -805,7 +842,7 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                                                     "domains": case["expectedDomains"],
                                                     "necessarySources": case["necessarySources"]},
                               "observedDifference": {
-                                  "publicStatusDiffers": body["status"] != case["expectedPublicStatus"],
+                                  "publicStatusDiffers": checked_body["status"] != case["expectedPublicStatus"],
                                   **_plan_comparison(expected_mode=case["queryMode"],
                                                      expected_domains=case["expectedDomains"],
                                                      observed_mode=ledger.planned_query_mode,
@@ -813,7 +850,7 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                                   "missingExpectedDomainsInTop20": sorted(set(case["expectedDomains"]) - represented),
                                   "missingNecessarySourcesInTop20": sorted(
                                       source_id for source_id, chunk_id in necessary.items() if chunk_id not in ranked_ids)}}
-                    review_item = _public_review(case, body)
+                    review_item = _public_review(case, checked_body)
                     review_size = _checked_public_review_size(review_item, secrets=(token,
                         environ.get("LLM_API_KEY", ""), environ.get("COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE", "")))
                     if review_bytes + review_size > _REVIEW_MAX_BYTES:
@@ -824,6 +861,8 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                     _journal(output_dir / "cases.jsonl", record)
                     records.append(record)
                 except BaseException as exc:
+                    failed_case = _failed_case_observation(case_id=case_id, http_status=response_http_status,
+                                                          response_parsed=response_parsed, body=body)
                     if ledger.fatal is None:
                         ledger.fatal = (str(exc).removeprefix("knowledge.measure.")
                                         if isinstance(exc, MeasurementError) else "case_technical_failure")
@@ -837,10 +876,13 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                         "publicStatusMismatches": sum(item["observedDifference"]["publicStatusDiffers"] for item in records),
                         "humanRubric": "not_assessed"})
     except BaseException:
-        _exclusive_json(output_dir / "failure.json", {"schemaVersion": 1, "runId": manifest["runId"],
-                        "status": "failed_consumed" if ledger.consumed else "failed_unconsumed",
-                        "completedCases": len(records), "counts": ledger.total, "aliasChecks": alias_checks,
-                        "reason": ledger.fatal or "runner_failure"})
+        failure: dict[str, Any] = {"schemaVersion": 1, "runId": manifest["runId"],
+                   "status": "failed_consumed" if ledger.consumed else "failed_unconsumed",
+                   "completedCases": len(records), "counts": ledger.total, "aliasChecks": alias_checks,
+                   "reason": ledger.fatal or "runner_failure"}
+        if failed_case is not None:
+            failure["failedCase"] = failed_case
+        _exclusive_json(output_dir / "failure.json", failure)
         raise
     finally:
         server.should_exit = True
