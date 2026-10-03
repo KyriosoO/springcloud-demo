@@ -713,6 +713,7 @@ def test_cleanup_reason_is_finite_and_does_not_relax_guard(mode: str, expected: 
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
     functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    functions = launcher[launcher.index("function Get-PythonChildObservation"):launcher.index("function Get-AttestedPythonProcess")] + functions
     program = r"""
 $ErrorActionPreference='Stop'
 $mode='__MODE__'
@@ -802,6 +803,45 @@ if(-not $rejected -or $lastProxyCounts.metadataEsHttp -ne 3){throw 'invalid_snap
     result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=20)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "validated-snapshot-retained"
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell finite child identity projection")
+@pytest.mark.parametrize("mode,image,reason", [
+    ("valid", "python", "no_mismatch_observed"),
+    ("parent", "python", "parent_mismatch"),
+    ("executable", "console_host", "executable_mismatch"),
+    ("command", "python", "command_marker_mismatch"),
+    ("creation", "python", "creation_time_mismatch"),
+    ("missing", "unknown", "metadata_unavailable"),
+    ("other", "other", "executable_mismatch"),
+])
+def test_child_identity_projection_is_finite(mode: str, image: str, reason: str) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    functions = launcher[launcher.index("function Test-ExpectedPythonChild"):launcher.index("function Get-AttestedPythonProcess")]
+    program = r"""
+$ErrorActionPreference='Stop'
+$mode='__MODE__'; $pythonBaseExecutable='C:\Python\python.exe'
+$process=[Diagnostics.Process]::GetCurrentProcess()
+$info=[pscustomobject]@{Name='python.exe';ParentProcessId=$process.Id;ExecutablePath=$pythonBaseExecutable;CommandLine='-m tests.uat.knowledge_rebuild_measure_startup proxy sensitive-do-not-save';CreationDate=[DateTime]::Now}
+switch($mode) {
+ 'parent' {$info.ParentProcessId=0}
+ 'executable' {$info.Name='conhost.exe';$info.ExecutablePath='C:\Windows\System32\conhost.exe'}
+ 'command' {$info.CommandLine='sensitive-do-not-save'}
+ 'creation' {$info.CreationDate=$process.StartTime.AddSeconds(-2)}
+ 'missing' {$info=$null}
+ 'other' {$info.Name='private-process.exe';$info.ExecutablePath='C:\private\private-process.exe'}
+}
+__FUNCTIONS__
+[ordered]@{accepted=(Test-ExpectedPythonChild $info 19313 $process);observation=(Get-PythonChildObservation $info 19313 $process)} | ConvertTo-Json -Compress
+""".replace("__MODE__", mode).replace("__FUNCTIONS__", functions)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert "sensitive-do-not-save" not in result.stdout
+    assert "private-process" not in result.stdout
+    value = json.loads(result.stdout)
+    assert value["accepted"] is (mode == "valid")
+    assert value["observation"] == {"role": "proxy", "imageKind": image, "identityFailure": reason}
 
 
 def test_launcher_creates_fresh_snapshot_after_owned_services_before_key_read() -> None:

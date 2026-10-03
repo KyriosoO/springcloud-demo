@@ -222,6 +222,7 @@ $staticPreflightPassed = $false
 $ownedPythonChildren = @{}
 $ownedChildCleanupUnknown = $false
 $cleanupIssues = @{}
+$cleanupChildObservations = @{}
 
 function Test-ExpectedPythonChild([object]$Info, [int]$Port, [Diagnostics.Process]$Process) {
     $role = if ($Port -eq 19313) { 'proxy' } else { 'runtime' }
@@ -235,6 +236,35 @@ function Test-ExpectedPythonChild([object]$Info, [int]$Port, [Diagnostics.Proces
     } catch {
         return $false
     }
+}
+
+function Get-PythonChildObservation([object]$Info, [int]$Port, [object]$Process) {
+    # Diagnostic projection only; never changes the ownership decision.
+    $role = if ($Port -eq 19313) { 'proxy' } else { 'runtime' }
+    $imageKind = 'unknown'
+    $failure = 'metadata_unavailable'
+    try {
+        if ($null -ne $Info) {
+            $imageKind = switch -CaseSensitive (([string]$Info.Name).ToLowerInvariant()) {
+                'python.exe' { 'python' }
+                'pythonw.exe' { 'python' }
+                'conhost.exe' { 'console_host' }
+                '' { 'unknown' }
+                default { 'other' }
+            }
+            $expectedCommand = "-m tests.uat.knowledge_rebuild_measure_startup $role "
+            if ($Info.ParentProcessId -ne $Process.Id) { $failure = 'parent_mismatch' }
+            elseif (-not [IO.Path]::GetFullPath([string]$Info.ExecutablePath).Equals(
+                    $pythonBaseExecutable, [StringComparison]::OrdinalIgnoreCase)) {
+                $failure = 'executable_mismatch'
+            } elseif (-not ([string]$Info.CommandLine).Contains($expectedCommand, [StringComparison]::Ordinal)) {
+                $failure = 'command_marker_mismatch'
+            } elseif ([DateTime]$Info.CreationDate -lt $Process.StartTime.AddSeconds(-1)) {
+                $failure = 'creation_time_mismatch'
+            } else { $failure = 'no_mismatch_observed' }
+        }
+    } catch { $failure = 'metadata_unavailable' }
+    [pscustomobject]@{ role = $role; imageKind = $imageKind; identityFailure = $failure }
 }
 
 function Get-AttestedPythonProcess([object]$Info) {
@@ -555,6 +585,10 @@ function Stop-OwnedProcesses {
         foreach ($info in $children) {
             if (-not (Test-ExpectedPythonChild $info $binding.Port $parent)) {
                 Add-CleanupIssue 'unexpected_child'
+                $observation = Get-PythonChildObservation $info $binding.Port $parent
+                $key = "$($observation.role)|$($observation.imageKind)|$($observation.identityFailure)"
+                if ($null -eq $script:cleanupChildObservations) { $script:cleanupChildObservations = @{} }
+                $script:cleanupChildObservations[$key] = $observation
                 continue
             }
             if ($ownedPythonChildren.ContainsKey($binding.Port)) {
@@ -894,6 +928,7 @@ try {
                 ownedProcessesStopped = $cleanupStopped
                 readinessObservation = $readinessObservation
                 cleanupIssues = @(Get-CleanupIssues)
+                cleanupChildObservations = @($cleanupChildObservations.Values | Sort-Object role,imageKind,identityFailure)
                 proxyCountsSource = $proxyObservation.Source
             })
         }
@@ -906,6 +941,7 @@ try {
             callCounts = $null; ownedProcessesStopped = $cleanupStopped
             readinessObservation = $readinessObservation
             cleanupIssues = @(Get-CleanupIssues)
+            cleanupChildObservations = @($cleanupChildObservations.Values | Sort-Object role,imageKind,identityFailure)
         })
     }
     if (-not $startup -and $staticPreflightPassed) {
@@ -925,6 +961,7 @@ try {
             ownedProcessesStopped = $cleanupStopped
             readinessObservation = $readinessObservation
             cleanupIssues = @(Get-CleanupIssues)
+            cleanupChildObservations = @($cleanupChildObservations.Values | Sort-Object role,imageKind,identityFailure)
             proxyCountsSource = $proxyObservation.Source
         })
     }
