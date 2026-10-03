@@ -1,18 +1,18 @@
 # [L2_01_00] 单体 Agent Knowledge 查询流程与配置详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.6 仅同步Summary9实施与验证状态；v3.5设计复评结论不变）
+> 文档状态：Approved（v3.7的§20增量经独立定向复核；原在线合同保持）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.6 |
-| 日期 | 2026-09-29 |
+| 当前版本 | v3.7 |
+| 日期 | 2026-10-03 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.6仅同步当前12/9仓库绑定和合成验证；v3.5回答合同、域计划、检索、公开字段结构和安全优先级不变 |
+| 上位文档 | [`L1_01` v3.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.7补齐同正式runner路径的无付费演练、预算前检与有限失败取证；不改生产阶段、任务、公共字段、安全或历史运行 |
 | 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已接线意图12/Summary9/minimal-v1，默认disabled惰性及域目录维持。Spring→Runtime合成三模式与失败分支、单域当前root到隔离真实typed接口各有有限验证，不证明真实模型、完整新版UAT、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -525,3 +525,32 @@ v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式�
 | REQ-KFLOW-007、CON-KFLOW-005、KQ-AD-028 | DR-KFLOW-303 | IMPL-KFLOW-303：既有Profile verifier、binding/catalog部署验证；不新增服务 | TEST-KFLOW-303：alias/UUID/catalog错配、取消及恢复旧成套绑定 | VAL-KFLOW-303：fake后另授权隔离typed验证 |
 
 本轮部分静态/fake边界已随组合根验证，Spring→Runtime合成三模式及失败分支已验证，单域当前root到隔离真实typed接口的有限只读预检见P3_01 §14.8；真实模型与typed同链、部署绑定、发布与回滚仍未验证，逐项证据和缺口见P3_01/UAT_02。当前公开合同原样保留。
+
+## 20. 正式测量路径的无付费演练（待实施）
+
+依据L1_01 §4.7/KQ-AD-029。本节补齐验证工具的可靠性，不增加在线Stage、运行模式、公共DTO或模型任务；现在不授予新批次，也不重跑旧批次。
+
+`DR-KFLOW-401`：演练必须执行当前正式launcher所用的runner入口及其共同生命周期：目录/身份前检→账本初始化→请求构建→结果校验→checkpoint/终态→owned清理。现startup-only入口、静态字符串检查和纯函数单测可以保留，但不能单独作为本规则通过证据。外部模型、ES、BGE及业务依赖全部由测试注入的端口/transport或仅测试可用的本地fake替代；注入接缝必须在私有测试/验证工具层，不新增生产环境开关，不绕过生产decoder、validator、安全和预算代码。测试只使用合成密钥/JWT及公开fixture，不读取进程真实密钥；真实目标端口和网络均禁止。
+
+演练资产使用新临时测试空间，明确`non_live`、合成身份、全部真实调用0及fixture hash；不得生成可消费的真实authorization/consumed，或用fake响应将正式MEASURE记Passed。若测试需要模拟授权消费，使用不能被live入口接受的合成资产；真实入口遇到其标识必须在任何I/O前拒绝。同一runner路径指共用实际控制流，不是把live强校验关闭；真实身份和网络边界用负向测试证明。无付费演练完成也不能证明真实服务协议或模型充分性。
+
+`DR-KFLOW-402`：预算由一份冻结的任务/题/域/路径清单推导，守卫和预检共同消费该定义，不再在多个脚本手工维护乘法。模型HTTP统计selector/intent/Summary全部attempt，typed、embedding、rerank、只读身份/启动操作分列；attempt在发起调用前记账，非200、超时及取消不扣回。检查每请求及整批上限，越限在发送前拒绝；正常早停不补调用。现UAT_02既定预算不增加，健康检查/合成预热不混入效果计数。实现可复用现有限budget types，不建设通用调度/配额平台；与历史manifest绑定的旧预算保持不变。
+
+`DR-KFLOW-403`：失败取证使用固定白名单，保存阶段、caseId、已发生attempt数量、公开status/error code/source或协议分类、停止原因及cleanup结果；敏感的message/body、模型原响应、正文、向量、JWT、环境值及任意异常字符串不得保存。现runner已具备有限失败响应分类，本包复用并验证，不把它重写成第二套观测。失败证据写入失败时不能报成功：退出非零并输出安全分类，保留已有append-only记录及未执行清单；不能为补证追加下游或模型调用。未知根因保持unknown，不依据fake失败重判旧运行。
+
+| 场景 | 测试动作与必须断言 |
+|---|---|
+| 完整正向 | 固定12题合成响应经过实际runner控制流，精确任务/计划/次数、checkpoint、有限结果和终态完整；真实模型/目标ES/BGE/Business均0 |
+| 前检拒绝 | 目录冲突、未提交执行源码、身份/预算缺失、fake资产误入live入口，均在消费/下游前拒绝 |
+| 中途失败 | 非200、malformed、超时、授权拒绝、非法引用、快照漂移分别注入，保留正确分类及已完成题；停止后后续请求0，未执行题明确 |
+| 取证异常 | checkpoint/failure输出目标不可写，退出非零；不得吞错、伪造完整终态或重发请求 |
+| 取消及清理 | 启动部分失败、runner失败、取消、cleanup超时；只清理本测试所有且身份匹配的资源，PID复用/用户listener不得终止，最终清理不成功必须单列失败 |
+| 配额边界 | 上限、上限+1、失败attempt、预热与正式次数分离；守卫与推导清单一致，零retry/resume |
+
+| 规则 | 拟议落点（不是本轮已实施） | 测试与验证 |
+|---|---|---|
+| DR-KFLOW-401 | 现`agent-runtime/tests/uat/knowledge_rebuild_measure_runner.py`、startup、harness及`run-knowledge-rebuild-measure-v1.ps1`的私有测试接缝 | TEST-KFLOW-401：同入口完整/失败/误入live、无真实资源；VAL-KFLOW-401：定向non-live pytest及改动脚本AST |
+| DR-KFLOW-402 | 现prepare/runner预算定义及前检；与正式入口共用计算和attempt守卫 | TEST-KFLOW-402：推导/守卫一致及越限0outbound；VAL-KFLOW-402：预算边界和原冻结预算兼容检查 |
+| DR-KFLOW-403 | 现有限failure观测、append-only writer及launcher owned清理 | TEST-KFLOW-403：白名单、取证失败、取消/PID归属、无泄漏；VAL-KFLOW-403：故障注入与安全扫描 |
+
+本包完成于同路径正反向测试、预算/取证/清理证据及代码评审，不等待真实UAT。回滚只恢复相容的验证工具绑定；不改当前生产根或历史资产。之后任何真实运行仍需新的独立决定、实际部署/快照预检及授权冻结；无付费测试不是模型/ES/BGE就绪的替代证明。
