@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -279,8 +279,19 @@ def _labels(raw: bytes, *, run_id: str, result_sha: str, pool_sha: str,
     return judged, value["reviewerId"]
 
 
-def review(directory: Path, *, labels_raw: bytes | None) -> dict[str, object]:
-    """Return a blank blind template or bounded metrics; never write an asset."""
+@dataclass(frozen=True, slots=True)
+class CompletedReview:
+    spec: ComparisonSpec
+    run: ComparisonRun
+    old: reuse.OldBuild
+    frozen_head: str
+    result_sha256: str
+    pool_sha256: str
+    pool: tuple[tuple[str, str, str, str], ...]
+
+
+def load_completed(directory: Path) -> CompletedReview:
+    """Shared read-only admission; no labels, asset writes or new execution."""
     directory = directory.resolve()
     try:
         spec, sidecars, old = _frozen_spec(directory)
@@ -304,7 +315,20 @@ def review(directory: Path, *, labels_raw: bytes | None) -> dict[str, object]:
             and saved_pool["schemaVersion"] == 1 and saved_pool["runId"] == directory.name
             and saved_pool["armHidden"] is True
             and saved_pool["items"] == [list(key) for key in pool])
-        result_sha, pool_sha = _hash(result_raw), _hash(pool_raw)
+        return CompletedReview(spec, run, old, frozen_head,
+                               _hash(result_raw), _hash(pool_raw), pool)
+    except (ReviewError, reuse.ReuseBindingError, ComparisonRunError, ValueError, TypeError, KeyError,
+            UnicodeError, OSError, AttributeError, StopIteration):
+        raise ReviewError() from None
+
+
+def review(directory: Path, *, labels_raw: bytes | None) -> dict[str, object]:
+    """Return a blank blind template or bounded metrics; never write an asset."""
+    directory = directory.resolve()
+    try:
+        loaded = load_completed(directory)
+        spec, run, pool = loaded.spec, loaded.run, loaded.pool
+        result_sha, pool_sha = loaded.result_sha256, loaded.pool_sha256
         if labels_raw is None:
             return {"schemaVersion": 1, "runId": directory.name,
                 "comparisonResultSha256": result_sha, "blindPoolSha256": pool_sha,
