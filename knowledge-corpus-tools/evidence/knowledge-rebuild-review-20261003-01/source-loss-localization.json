@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "sealed_trace_source_loss_localization",
+  "sourceRunId": "knowledge-b-reuse-20261003-01",
+  "comparisonResultSha256": "50a03b7dc8cb8e2667c0bc509346e4db12f4fc6c5ceee953ed8dbd39ac21a934",
+  "sourceScanResultSha256": "30ebdbfcdc4e64371255632eb523cf1ecea9c249c3d5c4f66d72e8980fda1f22",
+  "sourceIdMappingSha256": "e2178b1ee9f13ce840e1a1b878cc7778e554ab1319eecb7e73b0ed1baa5a6f96",
+  "candidateScanResultSha256": "b883238eabc927cd6ff171c0af6111f4dbaec8a2006e4f474cf215098ab33bd6",
+  "candidateIdMappingSha256": "3930b68b10adc1a367190b2b4562c650e091a693b049b301553bab57f9c22350",
+  "measureManifestSha256": "47dee2d00fdd980fb0280c269b5f390d4ba3febc9bfc7bdcd4dcf69190d5fcd8",
+  "traceCaseCount": 10,
+  "necessarySourceOccurrencesPerArm": 16,
+  "missingSourceOccurrencesPerArm": 2,
+  "notHumanRubric": true,
+  "notNewMeasurement": true,
+  "newOutboundCount": 0,
+  "losses": [
+    {
+      "caseId": "UAT-KM-003",
+      "sourceId": "small_2022",
+      "documentId": "tax-b61f6bd5fba2fe7b297d8454",
+      "chunkId": "tax-b61f6bd5fba2fe7b297d8454#d0000",
+      "contentSha256": "ab52534af576aeb757f5a5e5923b10fa7859c710162e3c3eb6f6c4bdb1823df7",
+      "baselineScanContainsExactSource": true,
+      "candidateScanContainsExactSource": true,
+      "baseline": {"keywordTop20ContainsSource": false, "vectorTop20ContainsSource": false, "fusedContainsSource": false, "rerankedContainsSource": false, "final20ContainsSource": false, "counts": {"keyword": 20, "vector": 20, "fused": 39, "reranked": 39, "final20": 20}},
+      "candidate": {"keywordTop20ContainsSource": false, "vectorTop20ContainsSource": false, "fusedContainsSource": false, "rerankedContainsSource": false, "final20ContainsSource": false, "counts": {"keyword": 20, "vector": 20, "fused": 39, "reranked": 39, "final20": 20}},
+      "firstObservedLoss": "not_in_recall_window"
+    },
+    {
+      "caseId": "UAT-KM-012",
+      "sourceId": "lease_real",
+      "documentId": "tax-50abf52b7a181b8974c97fd4@asset-0b9c99e7dfb27c8e600743d7",
+      "chunkId": "chunk-ceaf416255c52a326b13ef40fe81f8b9",
+      "contentSha256": "7b9d059827d126d52aba25b64e5925938999f2423ca3fc9fef144b518dc37c4e",
+      "baselineScanContainsExactSource": true,
+      "candidateScanContainsExactSource": true,
+      "baseline": {"keywordTop20ContainsSource": false, "vectorTop20ContainsSource": false, "fusedContainsSource": false, "rerankedContainsSource": false, "final20ContainsSource": false, "counts": {"keyword": 20, "vector": 20, "fused": 39, "reranked": 39, "final20": 20}},
+      "candidate": {"keywordTop20ContainsSource": false, "vectorTop20ContainsSource": false, "fusedContainsSource": false, "rerankedContainsSource": false, "final20ContainsSource": false, "counts": {"keyword": 20, "vector": 20, "fused": 38, "reranked": 38, "final20": 20}},
+      "firstObservedLoss": "not_in_recall_window"
+    }
+  ],
+  "unresolvedCauses": ["profile_filter_or_authorization", "query_matching", "candidate_window_or_path_ranking"],
+  "measureCase005RootCause": "not_observable_from_preserved_evidence"
+}
