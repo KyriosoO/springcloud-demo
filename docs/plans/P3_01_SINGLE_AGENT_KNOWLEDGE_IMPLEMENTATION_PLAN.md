@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.27 |
+| 当前版本 | v3.28 |
 | 文档状态 | Reviewed（B主指标未改善；MEASURE已消费后停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -55,6 +55,7 @@
 | 33 | 2026-10-03 | §1/3/5/9/14.31 | 启动及清理修复后继续新独立验证 | v3.25同步B与MEASURE无推理启动证明和有限源码复核；不预记正式质量、人评或发布，不改gold、阈值、预算或DAG |
 | 34 | 2026-10-03 | §1/14.32 | 新B正式协议完整、质量边界明确 | v3.26记录recall相同及215项盲标缺口，保留现行b2；不把执行完整改判为质量通过 |
 | 35 | 2026-10-03 | §1/3/5/9/12/14.33 | 新MEASURE已消费后停止及当前状态漂移纠偏 | v3.27记录实际调用、4题结果和第005题失败定位边界；不复跑、不修改预算/gold/阈值，修正当前追踪行及UAT版本引用 |
+| 36 | 2026-10-03 | §3/14.34 | MEASURE失败响应观测不足 | v3.28记录私有runner的固定分类补齐及零outbound验证；不补写旧证据，不把观测修复说成第005题根因修复，工作包、预算和判据不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -64,7 +65,7 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.11 / Approved | §9、§18，DR-KRET-201～204/301～307 | 是 | B内部双hash请求同一性已定向复评；MEASURE元数据72保持，设计与fake不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；真人语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.27 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B协议完整但主指标未改善；新MEASURE完成4题后技术失败、停止，完整质量、人评及发布仍未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.28 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B协议完整但主指标未改善；新MEASURE完成4题后技术失败、停止，完整质量、人评及发布仍未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -550,3 +551,13 @@ MEASURE保持§14.28的启动失败终态，具体ES健康超时根因未知；�
 本次运行后已有定向non-live：`test_knowledge_rebuild_measure_fixture.py`与`test_knowledge_rebuild_measure_harness.py`共95 passed（69.22秒）。构建使用skipTests，不记为Java测试；源码未改，不机械重复全量回归。当前引用同时纠正UAT版本和§12旧比较状态的元数据漂移，不改变设计、DAG、用例、gold、阈值或预算。
 
 当前文档严格校验0 error/0 warning，三份状态文档及本次README共70条本地链接无断裂，有限JSON/JSONL按真实ledger格式配对核验、敏感模式及Git差异检查通过。另一未参与执行或编辑的只读单元独立核对原始8文件hash、freeze与fixture、预算/消费/停机源码及v3.27差异，无确认Blocker/Major；它未重跑真实调用或测试，不冒充外部人员、完整代码评审、人工回答质量或发布验收。本节的hash与传输证据不能补足第005题响应及整批postflight缺口。
+
+### 14.34 MEASURE失败响应的有限观测修复（2026-10-03）
+
+起始clean HEAD为`fa6a9f190f923ba6accb9346270d7b400ccf5053`。只读核实确认私有runner在公共响应校验失败时直接停止，未保留该题的HTTP状态或有限公开错误分类。仅修复当前runner和直接测试：新失败记录可附`failedCase`，保存冻结case身份、有限HTTP状态、JSON形态、白名单公开状态/错误码和关联/能力匹配布尔值；未知文本仅记固定unknown，不保存问句、回答、引文、原始响应、异常信息或凭据。原失败终态、消费及停止逻辑不变，launcher仍以失败资产是否存在判断，不增加重试、续跑或真实运行授权。
+
+六种fake反例覆盖技术失败、异常字段、非法JSON、非对象响应、关联不匹配与连接失败，均在首题停止；真实HTTP由测试守卫禁止。MEASURE fixture/harness及Summary9 contract/stage四文件共124 passed（71.18秒）；类型注解修正后两文件strict mypy通过、compileall通过，新增六反例复跑6 passed。这些计数有重叠，不相加。工具修复只对后续另获授权的新冻结生效，不能恢复或补写§14.33第005题响应，不能证明实际Summary、引用或回传根因已修复。
+
+实现本地提交`587a61eb847c0001071d4ef537f298c0ff02350c`。作者自审后，未参与修改的只读执行单元定向检查源码、launcher消费者、原始终态及三文档状态，未发现确认缺陷；另独立执行六新增反例和两项消费/零发送测试，8 passed（1.89秒），与上述回归重叠。其禁用插件自动加载的命令有一条asyncio_mode配置未识别警告，不影响这八项使用asyncio.run的测试；未独立重跑124项、mypy或compileall，不称完整设计/代码评审、真人评价或真实UAT。主执行者严格P3校验0 error/0 warning、三文档69条本地链接通过；原运行8份文件与起始Git字节一致，27项冻结资产中26项当前字节不变，受本轮修改的runner按原冻结HEAD及仓库checkout换行恢复并匹配原hash。没有把当前新工具伪称为旧运行使用的工具。
+
+本轮没有模型、ES、embedding、rerank或真实服务操作，不创建新批次，不切alias、不发布、不push；历史原始文件和绑定的冻结Git版本保持不变。COMPARE/MEASURE仍In Progress、RELEASE仍Blocked，现行b2保持；缺少人评、有效完整测量与候选主指标改善，整体目标未完成。后续决策应分别处理已有B盲标材料、已消费的无效MEASURE及是否继续质量实验，不自动复用余额或追加候选。
