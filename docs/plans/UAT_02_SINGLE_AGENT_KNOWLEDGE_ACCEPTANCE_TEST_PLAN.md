@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.32 |
+| 当前版本 | v3.33 |
 | 文档状态 | Reviewed（新B主指标未改善；MEASURE技术失败停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
@@ -12,7 +12,8 @@
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.32；只负责包、直接依赖及操作准入 |
+| 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.33；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -85,6 +86,8 @@ v3.30仅同步P3_01 §14.36：另获一次4次GET授权的当前元数据诊断�
 v3.31仅承接P3_01 §14.37的维护者明确人工结论：001/002 Passed、003/004 Failed。独立记录绑定原运行hash，不改原cases中的执行时状态或未评价标记，不补造四项分项评分；原始整批仍invalid_run，005技术失败、006～012未执行，215项B相关性盲标仍缺。局部评价不构成完整UAT、质量提升或发布证明，也不授权新调用。
 
 v3.32仅同步P3_01实施入口版本；该计划§14当前摘要已与§14.32/33/37的既有证据对齐。本次不新增执行或人工评价，不改变任何用例、gold、阈值、预算、验收结论或后续调用授权。
+
+v3.33承接P3_01 §14.38及另获授权的动作选择职责补齐：独立selector v5在Knowledge启用时绑定，关闭时保持原v4；当前MEASURE工具只接受未来严格v5冻结，不接受旧manifest或补写历史。增量仅完成non-live与独立代码复评，不能证明第004题真实修复、005根因已解决或新质量通过。37个风险、12题、gold、阈值、预算、原始终态与既有人工结论不变，没有新增真实执行或批次授权。
 
 ## 2. 范围与结果纪律
 

@@ -105,7 +105,7 @@ def test_failed_case_keeps_only_finite_diagnostic_and_stops_batch(
         ledger = ledgers[0]
         ledger.claim_runtime(correlation_id=case_id, question=kwargs["question"])
         request = StructuredModelRequest(task_id=ModelTaskId.ACTION_SELECTION,
-            task_version="action-selection-v4", system_instruction="fake", user_payload_json="{}",
+            task_version="action-selection-v5", system_instruction="fake", user_payload_json="{}",
             tools=(), tool_mode=StructuredToolMode.NONE, output_mode=StructuredOutputMode.JSON_OBJECT,
             max_output_tokens=8)
         await ledger.model(FakeModel()).complete(request, call_deadline=1.0)
@@ -187,7 +187,7 @@ def test_model_consumption_precedes_fake_send_and_retry_is_forbidden(tmp_path: P
     ledger.claim_runtime(correlation_id="case-1", question="公共税务问题")
     guarded = ledger.model(FakeModel())
     request = StructuredModelRequest(task_id=ModelTaskId.ACTION_SELECTION,
-        task_version="action-selection-v4", system_instruction="test", user_payload_json="{}",
+        task_version="action-selection-v5", system_instruction="test", user_payload_json="{}",
         tools=(), tool_mode=StructuredToolMode.NONE, output_mode=StructuredOutputMode.JSON_OBJECT,
         max_output_tokens=8)
     asyncio.run(guarded.complete(request, call_deadline=1.0))
@@ -451,8 +451,28 @@ def test_freeze_generator_and_static_preflight_reject_secret_environment(
     assert manifest["jarBuildHead"] == _HEAD
     assert manifest["runtimeMetadataEsHttpMax"] == 72
     assert set(manifest["promptSha256"]) == {"action_selection", "knowledge_rewrite", "knowledge_summary"}
+    selection_path = "agent-runtime/src/agent_runtime/model/deepseek/action_selector_v5.py"
+    legacy_path = "agent-runtime/src/agent_runtime/model/deepseek/action_selector.py"
+    assert manifest["taskVersions"]["action_selection"] == "action-selection-v5"
+    assert manifest["promptSha256"]["action_selection"] == runner._sha(root / selection_path)
+    assert legacy_path in manifest["assetSha256"]
     manifest_path = run_dir / "manifest.json"
     original_manifest = manifest_path.read_bytes()
+    for reason, mutate in (
+        ("manifest_binding_invalid", lambda value: value["taskVersions"].update(
+            {"action_selection": "action-selection-v4"})),
+        ("manifest_assets_missing", lambda value: value["assetSha256"].pop(selection_path)),
+        ("prompt_hash_drift", lambda value: value["promptSha256"].update(
+            {"action_selection": value["assetSha256"][legacy_path]})),
+    ):
+        invalid = json.loads(original_manifest)
+        mutate(invalid)
+        manifest_path.write_text(json.dumps(invalid), encoding="utf-8")
+        with pytest.raises(runner.MeasurementError, match=reason):
+            runner.frozen_preflight(root=root, manifest_path=manifest_path,
+                authorization_path=run_dir / "authorization.json", output_dir=output_dir, environ=env)
+        assert not output_dir.exists()
+    manifest_path.write_bytes(original_manifest)
     outdated_manifest = json.loads(original_manifest)
     outdated_manifest["runtimeMetadataEsHttpMax"] = 48
     manifest_path.write_text(json.dumps(outdated_manifest), encoding="utf-8")

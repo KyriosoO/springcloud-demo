@@ -29,6 +29,7 @@ class MinimalModel:
         assert call_deadline > asyncio.get_running_loop().time()
         self.requests.append(request)
         if request.task_id is ModelTaskId.ACTION_SELECTION:
+            assert request.task_version == "action-selection-v5"
             return StructuredModelResponse(finish_kind=StructuredFinishKind.STOP,
                 content='{"capability_id":"knowledge.query"}', tool_calls=(), usage_total_tokens=0)
         payload = json.loads(request.user_payload_json)
@@ -128,7 +129,7 @@ async def test_terminal_or_invalid_intent_has_zero_knowledge_downstream(
     await runtime.aclose()
     assert outcome.status is expected
     assert [(item.task_id, item.task_version) for item in model.requests] == [
-        (ModelTaskId.ACTION_SELECTION, "action-selection-v4"), (ModelTaskId.KNOWLEDGE_REWRITE, "12")]
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v5"), (ModelTaskId.KNOWLEDGE_REWRITE, "12")]
     assert not clients.paths
     if expected is CapabilityStatus.NO_RESULT:
         assert outcome.user_result == {"reason": "no_matching_domain",
@@ -417,3 +418,84 @@ async def test_current_root_cancellation_aborts_summary_and_closes_clients() -> 
         ModelTaskId.ACTION_SELECTION, ModelTaskId.KNOWLEDGE_REWRITE, ModelTaskId.KNOWLEDGE_SUMMARY]
     assert all(item.is_closed for item in clients.clients)
     assert len(clients.close_counts) == 3 and set(clients.close_counts.values()) == {1}
+
+
+@pytest.mark.asyncio
+async def test_unknown_document_lookup_reaches_typed_search_before_no_hit_result() -> None:
+    class EmptyClients(_KnowledgeClientFactory):
+        def _search_result(self, request: dict[str, object]) -> dict[str, object]:
+            return {**super()._search_result(request), "candidates": []}
+
+    model, clients = MinimalModel(), EmptyClients()
+    runtime = build_runtime(_enabled_environment(), model_transport=model,
+                            knowledge_http_client_factory=clients)
+    question = "查找2099年的税收政策原文及出处"
+    try:
+        outcome = await runtime.ainvoke(question=question, scope=scope(question))
+    finally:
+        await runtime.aclose()
+    assert outcome.status is CapabilityStatus.NO_RESULT
+    assert outcome.capability_id == "knowledge.query"
+    assert outcome.user_result == {"reason": "no_candidate", "selected_domain_ids": ("tax.policy",),
+                                   "coverage_complete": True}
+    assert [(item.task_id, item.task_version) for item in model.requests] == [
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v5"), (ModelTaskId.KNOWLEDGE_REWRITE, "12")]
+    assert all(json.loads(item.user_payload_json)["question"] == question for item in model.requests)
+    assert clients.paths.count("/embed") == 1 and clients.paths.count("/es/knowledge/search") == 2
+    assert "/rerank" not in clients.paths
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("output,failure,expected", [
+    ('{"capability_id":"agent_unsupported"}', None, CapabilityStatus.UNSUPPORTED),
+    ('{"capability_id":"unknown.query"}', None, CapabilityStatus.DOWNSTREAM_FAILURE),
+    ('{"capability_id":"knowledge.query","plan":{}}', None, CapabilityStatus.DOWNSTREAM_FAILURE),
+    (None, ModelProviderFailureKind.PROVIDER_TIMEOUT, CapabilityStatus.TIMEOUT),
+    (None, ModelProviderFailureKind.PROVIDER_FAILURE, CapabilityStatus.DOWNSTREAM_FAILURE),
+])
+async def test_current_selector_failure_never_forces_knowledge_or_retries(output, failure, expected) -> None:
+    class SelectionOnlyModel(MinimalModel):
+        async def complete(self, request: StructuredModelRequest, *, call_deadline: float) -> StructuredModelResponse:
+            self.requests.append(request)
+            assert request.task_id is ModelTaskId.ACTION_SELECTION and request.task_version == "action-selection-v5"
+            if failure is not None:
+                raise ModelTransportError(failure)
+            return StructuredModelResponse(finish_kind=StructuredFinishKind.STOP, content=output,
+                                           tool_calls=(), usage_total_tokens=0)
+
+    model, clients = SelectionOnlyModel(), _KnowledgeClientFactory()
+    runtime = build_runtime(_enabled_environment(), model_transport=model,
+                            knowledge_http_client_factory=clients)
+    question = "查找2099年的税收政策原文及出处"
+    try:
+        outcome = await runtime.ainvoke(question=question, scope=scope(question))
+    finally:
+        await runtime.aclose()
+    assert outcome.status is expected
+    assert len(model.requests) == 1 and clients.paths == []
+    assert all(client.is_closed for client in clients.clients)
+
+
+@pytest.mark.asyncio
+async def test_disabled_main_keeps_v4_definition_and_no_knowledge_clients(monkeypatch) -> None:
+    from agent_runtime.model.deepseek.action_selector import build_action_selection_task_definition
+    versions: list[str] = []
+    allocated = 0
+
+    def capture_definition(**kwargs):
+        definition = build_action_selection_task_definition(**kwargs)
+        versions.append(definition.task_version)
+        return definition
+
+    def forbidden(_origin: str) -> object:
+        nonlocal allocated
+        allocated += 1
+        raise AssertionError("disabled created Knowledge client")
+
+    monkeypatch.setattr("agent_runtime.bootstrap.build_action_selection_task_definition", capture_definition)
+    model = MinimalModel()
+    runtime = build_runtime({"AGENT_MODEL_PROVIDER": "stub", "AGENT_KNOWLEDGE_ENABLED": "false"},
+                            model_transport=model, knowledge_http_client_factory=forbidden)
+    await runtime.aclose()
+    assert versions == ["action-selection-v4"]
+    assert allocated == 0 and model.requests == []

@@ -1,18 +1,18 @@
 # [L1_00] 单体 Agent 核心与运行架构
 
 > 文档层级：L1
-> 文档状态：Approved
+> 文档状态：Approved（v3.2动作选择职责增量独立定向复评通过；原证明范围不扩大）
 
 ## 1. 文档信息、来源与修订历史
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
-| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v3.1 |
-| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.2；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-10-03 |
+| 上位文档 | [`L0_00`](L0_00_SINGLE_AGENT_ARCHITECTURE.md) v3.2 |
+| 关联 L1 | [`L1_01`](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6；[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 |
 | 权威范围 | LangGraph、Runtime、Model Port、Core、Registry、组合根和请求级状态 |
-| 当前实现 | Business 三动作生产对象图已实施；Knowledge 已由 `AGENT_KNOWLEDGE_ENABLED` 默认关闭地接入同一 Registry/Core，功能验收通过；最新有效 Knowledge 效果等级为 `partially_effective` |
+| 当前实现 | Business三动作对象图保持不变；Knowledge默认关闭，仓库当前12/9/minimal-v1已接入同一Registry/Core并有non-live证据。Knowledge启用时显式绑定action-selection-v5，关闭时保持原v4缺省；该增量已完成定向non-live及独立代码复评，真实效果未重新测量。旧Knowledge功能/效果结论仅适用原验证范围，不证明当前真实质量 |
 | 归档来源 | [整理前 v3.6 原文](历史文档/2026-09-14-unified-v3-baseline/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
@@ -21,11 +21,13 @@
 
 本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
 
+v3.2（2026-10-03）按维护者明确授权补齐能力选择与资料存在性判断的职责分界；仅新增选择任务合同，不改变Business、权限、公开DTO或历史验收。评审、实施及真实质量分别记录。
+
 ## 2. 架构目标、非目标与上位约束映射
 
 既有职责：Knowledge 在既有 `no_result` 状态及开放的 `result` 对象内返回有限 reason；Core 只根据已验证的内部 reason 选择固定展示文本，不理解问题、不改变 domain/action、不生成补充计划。普通无命中、证据不足和需要澄清必须可区分；未知 reason 保持通用文本。状态枚举、公开 DTO 字段和 Business 行为不变。当前代码已有此接缝；新设计复用它，映射见 L2_01_00 §8。
 
-本次整合Knowledge新设计边界与下位引用。后续由同一Knowledge handler承担查询类型、一次选域、原问题检索和模式化摘录；Core selector与单动作执行不增加语义职责。新任务12/8及策略尚未实施，当前源码仍11/7/v3；旧目标已取消，不继承其实施或模型授权。
+v3.1整理时源码为11/7/v3、目标为12/8；这不是当前绑定。当前仓库已接线意图12/Summary9/minimal-v1，由同一Knowledge handler承担查询类型、一次选域、原问题检索及有引用的有限回答。Core仍不解释资料存在性或适用性；具体实现和验收状态以P3_01/UAT_02为权威。旧目标已取消，不继承其实施或模型授权。
 
 核心职责是让 LangGraph 在一个逻辑 Agent 中维护单请求状态，把已验证的 Business 计划或 Knowledge 单动作选择转换为唯一 Core ActionCandidate。非目标是不可信模型直达 handler、本地业务语义解析、业务 SQL/ES、角色判定、第二动作及 Business/Knowledge 相互 fallback。
 
@@ -62,6 +64,14 @@ Business 依赖方向为 `LangGraph → provider-neutral Model Port → Business
 
 unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一致、取消和缺失 slot 均在 Adapter 前终止。业务拒绝不重试、不切换域/动作，且不得回退 Knowledge。
 
+### 4.1 能力选择不承担资料存在性判定
+
+选择器只根据安全能力目录和用户请求的操作类型选择一个已启用Capability。资料查找、依据原文解释和适用性询问属于目录中Knowledge职责时，即使文件名称、年份或事实尚未确认，也不能仅凭模型常识猜测文件不存在、过时或语料未覆盖而选择unsupported。资料是否存在、所需条件是否齐备和证据是否充分，由Knowledge在已批准的域计划、读取授权和Evidence链路内判定；不保证一定有结果。
+
+仍须拒绝目录未提供的能力、写操作和其他不可表达的请求。输入安全准入保持先于模型，不扩大允许出域的输入。选择器不回答问题、不生成域/检索条件、不修正用户事实，也不承诺资料真实或当前有效。模型输出unsupported后仍终止，禁止本地强制改选Knowledge、按文档名/测试题号特判或建立第二条fallback。
+
+下位L2_00_02 §6.3以独立action-selection-v5落实该职责：仅当前Knowledge启用组合根明确绑定v5；Knowledge关闭及既有直接模型组合根保留v4兼容。v4源文件、历史任务和冻结资产不改。fake验证证明任务合同、唯一选路和拒绝路径，不证明真实模型能稳定遵循语义要求。
+
 ## 5. 生产组合根与单动作不变量
 
 默认stub仅空能力安全冒烟，不装配业务Provider；非stub生产目标Registry公开 `employee.search`、`employee.semantic_search` 和 `transaction.search`；仅当 `AGENT_KNOWLEDGE_ENABLED=true` 时追加且只追加一个 `knowledge.query`。旧 `employee.detail` 已核实仅由历史兼容测试及冻结资产使用，不进入目标生产 Registry。目标安全 catalog 必须承接 `contact_address → contactAddress` 的业务动作语义；未配置字段通过通用白名单自然不可达，具体字段与 DTO 映射仍归 Business L1/L2 所有。
@@ -81,6 +91,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 | `CR-AD-003` | 所有失败在对应职责层停止，禁止任何替代业务执行链路 |
 | `CR-AD-004` | 既有 Knowledge 路径和公共 Core/HTTP 契约保持兼容 |
 | `CR-AD-005` | Knowledge 采用默认关闭、同 Runtime 可选注册；不复制组合根，资源生命周期由顶层组合根统一拥有 |
+| `CR-AD-006` | 能力选择按目录职责与请求操作分类，不承担资料存在性、时效、证据或个案适用性判断；Knowledge在既有链路内判定，unsupported不得由本地fallback覆盖 |
 
 ## 7. 下位 L2 详细设计与责任分解
 
@@ -88,12 +99,12 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 |---|---|
 | [`L2_00_00`](L2_00_00_SINGLE_AGENT_SPRING_ACCESS_RUNTIME_COORDINATION_DETAILED_DESIGN.md) v3.1 | Spring 接入、Runtime 协同及当前生产启动入口状态 |
 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md) v3.1 | Business bridge、组合根、Registry、取消与单动作执行 |
-| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.1 | 模型安全 catalog、v7 显式字段完整性与裸 slot 多值/组合语义 Prompt、不可表达组合 unsupported 和 provider response 严格解码 |
+| [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 | 模型安全catalog、Business v7、共享严格输出协议，以及按能力职责选路的独立action-selection-v5 |
 | [`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v3.1 | 用户 JWT 角色到 Servlet/Reactive Authority 的共享转换合同 |
 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.1 | QueryPlan、多值引用、字段组合、行政区规范化、validator、binder 与出域策略 |
-| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v3.2 | Knowledge 开关、单注册、域目录 v2、当前源码11/7对照及拟议12/8最小流程 |
-| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v3.2 | Knowledge typed HTTP、读取授权、RRF/rerank、client 生命周期及阶段 A 离线语料生命周期 |
-| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v3.2 | Evidence/出域、现有Summary7与拟议Summary8、四维验收 |
+| [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) v3.6 | Knowledge开关、单注册、意图12及minimal-v1流程 |
+| [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) v3.12 | typed读取、授权、融合/rerank及离线语料/结构/表示边界 |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) v3.6 | Evidence/出域、Summary9有引用的有限回答及四维验收 |
 
 ## 8. 风险、验证与当前实施状态
 
@@ -102,3 +113,7 @@ unsupported sentinel 不进入 Core；模型失败、非法 plan、快照不一�
 旧模型任务和旧 production bridge 只证明各自历史合同，不能替代当前版本验收。v7 在 v6 裸 slot 合同之上要求显式字段不可被替换或丢弃；catalog 未开放的显式字段必须 exact unsupported，仍由模型理解语义、本地严格校验，且业务调用为 0。具体运行批次、调用计数和证据哈希由 UAT_00/evidence 管理。当前实现未增加字段专用黑名单、本地语义 Resolver、重复付费调用或 live 审计平台。
 
 Knowledge 历史效果运行只作为效果诊断基线，不证明当前生产入口已接线或效果达标。生产对象图和功能 UAT 分别关闭接线、安全及失败语义；后续Knowledge效果运行按P3_01/UAT_02的版本绑定及独立精确授权控制；历史计划授权不恢复。
+
+v3.2限定验证：v5独立Prompt与exact输出、未知/额外字段/unsupported零下游、当前启用入口可达、disabled及v4兼容、Business v7不变、输入保护、超时/取消和资源关闭。历史失败案例不改判；本次仅授权non-live修复，不包含新的真实调用。
+
+本增量两轮作者内审（职责/兼容与追踪/冻结），一轮独立设计评审及一次S2修复复核：helper的Prompt hash位置耦合已按L2 §6.3纠正设计，无未关闭S0/S1/S2。独立执行单元未参与文档起草，核查源码和上位约束；未执行真实验证。L1/L2严格结构校验0错误0警告，不替代语义评审。

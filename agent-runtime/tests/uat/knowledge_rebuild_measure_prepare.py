@@ -39,6 +39,7 @@ _ASSETS = (
     "agent-runtime/src/agent_runtime/knowledge/catalog.py",
     "agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog-v3.json",
     "agent-runtime/src/agent_runtime/model/deepseek/action_selector.py",
+    "agent-runtime/src/agent_runtime/model/deepseek/action_selector_v5.py",
     "agent-runtime/src/agent_runtime/knowledge/intent_task_v12.py",
     "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v9.py",
     "auth-service/src/main/resources/auth-users.yml",
@@ -237,14 +238,18 @@ def freeze(*, root: Path, run_dir: Path, run_id: str, authorization_reference: s
     assets = {path: _sha(root / path) for path in (*_ASSETS, *_JARS.values(), *_DEPENDENCY_JARS)}
     assets.update(_config_hashes(root))
     count = bindings["tax.policy"]["recordCount"]
-    prompts = {"action_selection": assets[_ASSETS[9]], "knowledge_rewrite": assets[_ASSETS[10]],
-               "knowledge_summary": assets[_ASSETS[11]]}
+    prompts = {
+        "action_selection": assets["agent-runtime/src/agent_runtime/model/deepseek/action_selector_v5.py"],
+        "knowledge_rewrite": assets["agent-runtime/src/agent_runtime/knowledge/intent_task_v12.py"],
+        "knowledge_summary": assets["agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v9.py"],
+    }
     manifest = {"schemaVersion": 1, "runId": run_id, "branch": branch, "frozenHead": head,
                 "authorizationReference": authorization_reference, "datasetPath": _DATASET,
                 "datasetSha256": assets[_DATASET], "model": "deepseek-flash",
                 "taskVersions": {task.value: version for task, version in _TASKS.items()},
                 "assetSha256": assets, "indexBindings": bindings,
-                "policyCatalogSha256": assets[_ASSETS[8]],
+                "policyCatalogSha256": assets[
+                    "agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog-v3.json"],
                 "springBaseUrl": "http://127.0.0.1:19202", "runtimePort": 19203,
                 "budgets": _MAX, "runtimeEnv": _ENV, "subject": _SUBJECT, "cases": dataset["cases"],
                 "sources": dataset["sources"], "humanRubric": dataset["humanRubric"],

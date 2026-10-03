@@ -37,6 +37,7 @@ from agent_runtime.settings import CoreRuntimeSettings
 from agent_runtime.model.context import ModelContextBindingRuntimeInvoker
 from agent_runtime.model.settings import ModelProvider, ModelSettings
 from agent_runtime.model.contracts import StructuredModelTransport
+from agent_runtime.model.deepseek.action_selector_v5 import build_action_selection_v5_task_definition
 from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
 from agent_runtime.knowledge.evidence.admission import ScoreAwareEvidenceSelector
 from agent_runtime.knowledge.retrieval.http import (
@@ -128,6 +129,10 @@ def build_runtime(
         transport=model_transport,
         transport_wrapper=model_transport_wrapper,
         grounding_policies={},
+        action_selection_definition=(
+            build_action_selection_v5_task_definition(timeout_ms=model_settings.action_timeout_ms)
+            if knowledge_settings.enabled else None
+        ),
         additional_definitions=(
             knowledge_tasks.as_tuple() if knowledge_tasks is not None else ()
         ),

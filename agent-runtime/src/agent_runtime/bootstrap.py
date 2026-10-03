@@ -77,6 +77,7 @@ from agent_runtime.model.contracts import (
 from agent_runtime.model.deepseek.business_query_plan import DeepSeekBusinessQueryPlanGenerator
 from agent_runtime.model.deepseek.business_query_plan_v7 import build_business_query_plan_task_definition
 from agent_runtime.model.deepseek.action_selector import (
+    ActionSelectionTaskInput,
     DeepSeekCapabilitySelector,
     build_action_selection_task_definition,
 )
@@ -271,6 +272,7 @@ class LocalModelCompositionRoot:
         max_question_chars: int = 4096,
         max_argument_bytes: int = 16384,
         additional_definitions: Sequence[ModelTaskDefinition[Any, Any]] = (),
+        action_selection_definition: ModelTaskDefinition[ActionSelectionTaskInput, str] | None = None,
     ) -> LocalModelComponents:
         if (
             not isinstance(max_argument_bytes, int)
@@ -278,8 +280,15 @@ class LocalModelCompositionRoot:
             or max_argument_bytes <= 0
         ):
             raise ValueError("model.invalid_action_output_limit")
-        action_definition = build_action_selection_task_definition(
-            timeout_ms=settings.action_timeout_ms,
+        if action_selection_definition is not None and (
+            action_selection_definition.task_id is not ModelTaskId.ACTION_SELECTION
+            or action_selection_definition.input_type is not ActionSelectionTaskInput
+        ):
+            raise ValueError("model.action_task_definition_invalid")
+        action_definition = (
+            action_selection_definition
+            if action_selection_definition is not None
+            else build_action_selection_task_definition(timeout_ms=settings.action_timeout_ms)
         )
         business_query_plan_definition = build_business_query_plan_task_definition(
             timeout_ms=settings.action_timeout_ms,

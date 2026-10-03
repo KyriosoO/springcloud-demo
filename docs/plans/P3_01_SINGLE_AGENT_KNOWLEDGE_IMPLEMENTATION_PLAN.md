@@ -6,15 +6,15 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.32 |
+| 当前版本 | v3.33 |
 | 文档状态 | Reviewed（B主指标未改善；MEASURE已消费后停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready 不等于实施授权。维护者于2026-10-03确认启动与清理修复后继续现有目标，采用修复后HEAD的新独立B与MEASURE批次，沿用既定预算/gold/阈值。新无推理预检通过见§14.31；历史失败目录均不复用、续跑或改判。正式MEASURE元数据72等预算不变。授权与真实准入分别判断，本文不是滚动运行许可；不重建候选、扩大预算或纳入在线父单元补取 |
-| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。§14.32新B协议完整、两臂recall相同未改善，215项盲标待人工完成；候选只读未发布。§14.33新MEASURE完成4题后第005题技术失败，failed_consumed / invalid_run；模型13、typed8、embedding4、rerank4，已停止不补跑。§14.37维护者确认001/002通过、003/004不通过；完整12题及新版UAT仍未完成，保留现行b2，不发布或追加实验 |
+| 实施授权 | Ready 不等于实施授权。维护者于2026-10-03确认启动与清理修复后继续现有目标，采用修复后HEAD的新独立B与MEASURE批次，沿用既定预算/gold/阈值。新无推理预检通过见§14.31；历史失败目录均不复用、续跑或改判。最新授权仅补齐L1_00/L2_00_02动作选择合同、独立v5实现及non-live验证（§14.38），不是新的真实模型、ES/BGE、服务或批次授权。正式MEASURE元数据72等预算不变。授权与真实准入分别判断，本文不是滚动运行许可；不重建候选、扩大预算或纳入在线父单元补取 |
+| 计划执行状态 | Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。§14.32新B协议完整、两臂recall相同未改善，215项盲标待人工完成；候选只读未发布。§14.33新MEASURE完成4题后第005题技术失败，failed_consumed / invalid_run；模型13、typed8、embedding4、rerank4，已停止不补跑。§14.37维护者确认001/002通过、003/004不通过；§14.38动作选择v5只完成仓库non-live及独立复评，未重测004或修复005的真实根因。完整12题及新版UAT仍未完成，保留现行b2，不发布或追加实验 |
 
 ## 2. 修改历史
 
@@ -60,6 +60,7 @@
 | 38 | 2026-10-03 | §3/14.36 | 独立有限元数据诊断及联合机关软匹配修正 | v3.30承接L2_01_01 v3.12已评审切片，只记录4次GET及non-live修正；不重跑、不改历史结果或发布条件 |
 | 39 | 2026-10-03 | §1/3/5/9/12/14.37 | 维护者确认已完成四题的人工结论 | v3.31独立记录001/002 Passed、003/004 Failed，不补造分项评分，不改整批invalid_run、历史资产、预算或发布状态 |
 | 40 | 2026-10-03 | §14当前结论 | 当前摘要仍混用旧批次状态 | v3.32按§14.32/33/37同步新B有限证据、四题执行与人工结论；不修改各批次历史记录、工作包状态、阈值或授权 |
+| 41 | 2026-10-03 | §1/3/14.38 | 动作选择职责与新任务接线 | v3.33承接L1_00 v3.2、L2_00_02 v3.4定向复评，实施独立selector v5、enabled组合根及未来严格冻结；仅记录non-live验证，不改历史结果、gold、阈值、预算或12包DAG，不预记真实质量 |
 
 ## 3. 来源清单与当前基线
 
@@ -69,7 +70,9 @@
 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.6 / Approved | §8、§19，DR-KFLOW-201～205/301～303 | 是 | Summary9已按目标绑定完成仓库non-live；在线补取未批准 |
 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.12 / Approved | §9、§18，DR-KRET-035/201～204/301～307 | 是 | 联合机关词法仅定向设计/non-live修正，B内部双hash合同保持；MEASURE元数据72不变，不代替真实运行或质量证据 |
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.31 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B主指标未改善；MEASURE四题人工结论已确认，整批仍invalid_run，完整质量及发布未通过 |
+| [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
+| [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.33 / Reviewed | 新功能/安全/召回/回答及资料验证 | 是 | 新B主指标未改善；MEASURE四题人工结论已确认，整批仍invalid_run，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -235,7 +238,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），各阶段证据见§14.1～14.37。仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评、Spring合成三模式及有限失败路径已通过，但旧12/8与新12/9证据不能拼接为新版37/37。单域只读预检和最新四题的有限端到端记录不证明完整两域链路、常规生产部署或新版UAT通过。最新B（§14.32）10题协议完整且保存traces，双臂recall@20均0.85、主指标未改善，215项人工盲标仍缺、precision为null；A仍Not assessed，候选只读未发布。最新MEASURE（§14.33）完成001～004后005技术失败，模型13/typed8/embedding4/rerank4，整批failed_consumed / invalid_run；§14.37维护者确认001/002 Passed、003/004 Failed，005根因仍未知、006～012未执行。各旧失败批次保持原终态，不补跑、续跑或复用余额；后续观测及文号修复只具有限non-live证明。保留现行b2，没有合格候选或发布完成证据，完整测量与新版UAT尚未完成。
+当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），各阶段证据见§14.1～14.38。仓库Knowledge enabled root接线selector v5/12/9/minimal-v1，disabled保持v4；v5仅有本轮non-live证明（§14.38），不反向替换旧批次的selector v4。Summary9机械non-live与代码复评、Spring合成三模式及有限失败路径已通过，但旧12/8与新12/9证据不能拼接为新版37/37。单域只读预检和最新四题的有限端到端记录不证明完整两域链路、常规生产部署或新版UAT通过。最新B（§14.32）10题协议完整且保存traces，双臂recall@20均0.85、主指标未改善，215项人工盲标仍缺、precision为null；A仍Not assessed，候选只读未发布。最新MEASURE（§14.33）完成001～004后005技术失败，模型13/typed8/embedding4/rerank4，整批failed_consumed / invalid_run；§14.37维护者确认001/002 Passed、003/004 Failed，005根因仍未知、006～012未执行。各旧失败批次保持原终态，不补跑、续跑或复用余额；后续观测、文号及动作选择修复只具有限non-live证明。保留现行b2，没有合格候选或发布完成证据，完整测量与新版UAT尚未完成。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
@@ -608,3 +611,25 @@ COMPARE/MEASURE仍In Progress、RELEASE仍Blocked；B两臂recall仍0.85、215�
 维护者未单列四项rubric分数，本次不补造分项布尔值；上述明确整题决定照实保留，不要求重复确认。第005题技术失败、006～012未执行，整批仍`failed_consumed / invalid_run`，不以四题局部评价关闭MEASURE或宣称完整新版UAT通过。B的215项候选相关性盲标是另一项评价，仍未提供；两臂recall相同、主指标未改善，COMPARE仍In Progress、RELEASE仍Blocked。
 
 本次仅追加人工结论及当前状态，不修改原运行资产、gold、阈值、预算、工作包DAG或代码/配置；没有模型、ES、embedding、rerank及服务操作，不补跑、不发布、不push。历史§14.33～14.36保留其发生时的证据状态，以本节承接新的人工反馈。
+
+### 14.38 动作选择职责补齐、v5接线与non-live复评（2026-10-03）
+
+起始clean `codex_0915` HEAD为`d059a072b83669daabc31a1eb61f57f536e992ef`。维护者接受此前最小建议并授权继续：只修订L1_00/L2_00_02动作选择职责、使用独立新任务版本实施与non-live验证，不授权新的真实模型、ES/BGE、服务或批次。第004题原始结果只证明selector返回unsupported，不能证明模型内部的确切原因；本轮修正的是已确认的合同缺口，不把假设包装成实际模型根因。
+
+L1_00 v3.2 §4.1/CR-AD-006与L2_00_02 v3.4 §6.3/DR-MODEL-112明确：selector按请求操作与安全catalog职责选择，Knowledge范围内的查找、解释和依据判断不因标题/年份陌生、虚构或过时而提前拒绝；资料存在性、时效、条件与证据充分性留给已授权Knowledge链路。禁止本地强制选路、纠正问题、承诺命中或生成查询条件；exact decoder、guard、预算及失败关闭均不变。
+
+独立`action_selector_v5.py`复用v4输入 framing与严格输出协议，但同时绑定definition及request的独立v5版本/Prompt，不改v4闭包或历史源码。`LocalModelCompositionRoot.build`增加私有显式definition接缝，错task/input类型在创建Provider客户端前失败；默认仍v4。当前`main.py`仅在Knowledge enabled时选v5，disabled与Business v7不变，不新增环境开关。未来MEASURE工具严格绑定v5任务/Prompt并保留v4依赖资产，按固定路径取hash，不接受旧manifest、缺v5资产或旧Prompt冒充新冻结；本轮没有实际创建冻结、authorization或结果目录。
+
+设计增量执行两轮作者内审、一轮未参与起草执行单元的独立定向设计评审及一次S2修复复核；修复helper资产位置耦合与绑定说明后S0/S1/未处理S2均0。另一独立执行单元核查关键源码、调用方、测试与严格冻结规则并执行non-live检查；原Minor要求错definition在真实Provider分支也证明零资源，已用合成测试密钥和禁止客户端factory补齐STUB/DEEPSEEK各反例，复评无未关闭Blocker/Major/Minor。它不是外部人工UAT评价，也不以作者总结代替源码核查。
+
+实际验证（均无真实推理或目标服务操作，测试HTTP为fake）：
+
+- `agent-runtime/scripts/run-nonlive-regression.ps1 -PythonExecutable D:/codex/agent-runtime/.venv/Scripts/python.exe`：正式临时隔离安装入口，Transaction host/preflight **14 passed**；全量收集5735项，**5707 passed / 28 opt-in skipped / 0 failed**，878.41秒，有1条LangChain依赖的PendingDeprecationWarning。跳过项未执行、不记为真实UAT通过；这套全量收集后增加的test-only反例由下一项单独覆盖，计数不相加冒称一次新全量。
+- `python -m pytest -q tests/contract/model/test_action_selection_v5.py tests/integration/knowledge/test_minimal_current_root.py`（子进程模型密钥置空、PYTHONPATH仅指向当前src）：最终**42 passed**，10.75秒；包括v4兼容、v5 exact输出、错definition零客户端、当前enabled任务版本、fake不存在资料no_result、unsupported/非法输出/Provider超时或失败零下游、disabled保留v4构造及无Knowledge依赖。
+- `python -m mypy src`：Success，153个source文件；`python -m compileall -q src`及本轮修改的测试/helper文件通过。未改Java或PowerShell，未重复Maven或AST，不将既往执行误称本轮新验证。
+
+初次定向收集受本地旧安装包影响，改为子进程src路径后继续；一处新增测试使用了不存在的枚举，按真实合同修正。随后172项定向检查中171通过、1个新增fake空结果断言错误：现公开reason是`no_candidate`而不是`no_retrieval_hit`，已改为精确既有对象断言，未改生产reason或放宽校验。disabled构造测试初稿错误地期待空catalog发起模型请求，实际原合同在空catalog时零I/O失败关闭；调整为核对默认v4构造，不为错误期望修改生产行为。后续完整隔离回归和最终42项均通过，不隐瞒这些失败与修正。
+
+既有索引/Profile及读取/出域配置、旧v4/Business v7、12题dataset及历史B/MEASURE运行资产相对起始Git未改；原manifest、cases、failure及B比较result四项SHA-256核验通过。新工具不是旧冻结批次运行过的版本，旧资产仍按各自frozen HEAD追溯。L1架构、L2详细设计及P3三个strict校验器均0错误0警告，五份修改文档96条本地链接通过，工作包直接依赖和状态计数未变。没有新模型、ES、embedding、rerank调用、服务启动、alias切换或发布；没有修改gold、阈值、预算、公共DTO、安全策略或12包DAG。本轮仅本地提交，不push或部署。
+
+COMPARE/MEASURE仍In Progress，RELEASE仍Blocked：B recall相同没有收益、215项盲标仍缺；004仍Failed，005根因未知、006～012未执行，整批仍invalid_run。v5机械证据不证明004真实改善或完整新版37/37/12题通过。下一次真实验证须另行作独立决定，不能复用原目录、余额或以本节恢复授权；整体目标未完成。

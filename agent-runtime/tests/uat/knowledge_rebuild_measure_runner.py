@@ -37,7 +37,7 @@ _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _HEAD = re.compile(r"[0-9a-f]{40}\Z")
 _RUN = re.compile(r"[a-z0-9][a-z0-9-]{5,100}\Z")
 _TASKS = {
-    ModelTaskId.ACTION_SELECTION: "action-selection-v4",
+    ModelTaskId.ACTION_SELECTION: "action-selection-v5",
     ModelTaskId.KNOWLEDGE_REWRITE: "12",
     ModelTaskId.KNOWLEDGE_SUMMARY: "9",
 }
@@ -260,6 +260,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
         "agent-runtime/src/agent_runtime/knowledge/evidence/egress-policy-catalog-v3.json",
         "agent-runtime/src/agent_runtime/knowledge/catalog.py",
         "agent-runtime/src/agent_runtime/model/deepseek/action_selector.py",
+        "agent-runtime/src/agent_runtime/model/deepseek/action_selector_v5.py",
         "agent-runtime/src/agent_runtime/knowledge/intent_task_v12.py",
         "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v9.py",
         "auth-service/src/main/resources/auth-users.yml",
@@ -305,7 +306,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
                 or type(case["obligations"]) is not list):
             _fail("dataset_cases_invalid")
     prompt_paths = {
-        "action_selection": "agent-runtime/src/agent_runtime/model/deepseek/action_selector.py",
+        "action_selection": "agent-runtime/src/agent_runtime/model/deepseek/action_selector_v5.py",
         "knowledge_rewrite": "agent-runtime/src/agent_runtime/knowledge/intent_task_v12.py",
         "knowledge_summary": "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v9.py",
     }
