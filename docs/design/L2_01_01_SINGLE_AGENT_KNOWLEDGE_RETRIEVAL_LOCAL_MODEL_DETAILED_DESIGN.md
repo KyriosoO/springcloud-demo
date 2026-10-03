@@ -1,18 +1,18 @@
 # [L2_01_01] 单体 Agent Knowledge 检索与本地模型接入详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.13的§9.9增量经独立定向复核；原已批准范围保持）
+> 文档状态：Approved（§9.9原批准合同保持；v3.14仅同步离线实施及复评范围）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.13 |
+| 当前版本 | v3.14 |
 | 日期 | 2026-10-03 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v3.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.13定义离线逐阶段检索诊断及备选比较；不改变DR-KRET-201固定原问、窗口/调用上限、索引、公共合同或运行授权 |
+| 本次变更 | v3.14同步§9.9离线诊断、有限字面定位及测试落点；不改变DR-KRET-201固定原问、窗口/调用上限、索引、公共合同或运行授权 |
 | 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；minimal检索、REPRESENT、候选构建、隔离typed runner及启动/既有候选承接工具已有组件/non-live证明，已建一个只读未发布B候选。真实调用不等于后验准入或质量通过；正式对照、人工评价及发布状态由P3_01/UAT_02治理，不由设计Approved代替 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -351,7 +351,7 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
 v3.12补充于2026-10-03先完成两轮作者定向内审（完整捕获/边界与授权/测试追踪），再由同一任务内未参与起草的执行单元只读核对本节、上位最小检索约束及原源码，结论为该切片符合，未发现实质设计缺陷。其后已完成私有helper与直接Java测试修正，模块non-live验证见P3_01 §14.36。此结论不是全文件重新评审、部署或真实质量批准，不自动授权真实typed对照、B或MEASURE。
 
-### 9.9 检索损失诊断与备选比较（待实施，不改变在线检索合同）
+### 9.9 检索损失诊断与备选比较（离线范围已实施，不改变在线检索合同）
 
 依据L1_01 §4.7/KQ-AD-030及REQ-KQUALITY-001。`DR-KRET-401`：诊断器只消费合法取得的冻结trace、必要来源身份/hash和有限元数据；先重放既有证据，再判断是否需要新的只读诊断。历史trace不能表达的过滤、初召回排名或窗口外内容标记`unknown`，不得猜测或补写历史结果。真实ES/typed/BGE诊断必须另行给出精确范围、预算和运行授权；本设计不允许首次读取完整现库来填补旧运行证据。
 
@@ -385,17 +385,19 @@ v3.12补充于2026-10-03先完成两轮作者定向内审（完整捕获/边界�
 
 | 需求编号 | 规则编号 | 实现编号 | 测试编号 | 验证编号 | 定义位置与状态 |
 |---|---|---|---|---|---|
-| REQ-KQUALITY-001 | DR-KRET-401、DR-KRET-402、DR-KRET-403 | IMPL-KRET-401、IMPL-KRET-402、IMPL-KRET-403 | TEST-KRET-401、TEST-KRET-402、TEST-KRET-403 | VAL-KRET-401、VAL-KRET-402、VAL-KRET-403 | 上位原意/一次选域要求见REQ_00 §5.2；本节定义诊断、有限来源定位及方案选择，均待实施，不授予新在线轮次 |
+| REQ-KQUALITY-001 | DR-KRET-401、DR-KRET-402、DR-KRET-403 | IMPL-KRET-401、IMPL-KRET-402、IMPL-KRET-403 | TEST-KRET-401、TEST-KRET-402、TEST-KRET-403 | VAL-KRET-401、VAL-KRET-402、VAL-KRET-403 | 上位原意/一次选域要求见REQ_00 §5.2；本节离线诊断、有限定位及不自动选在线方案已实施，证据见P3_01 §14.42，不授予新在线轮次 |
 
 ##### 增量追踪矩阵
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
-| REQ-KQ-205；KQ-AD-030 | DR-KRET-401 | IMPL-KRET-401：离线诊断器；优先扩展evaluation/B比较trace reader，读取封存资产但不改writer或运行终态 | TEST-KRET-401：源存在/缺失、stage缺记录/确认无命中、首召回与重排损失区分、漂移和非法身份 | VAL-KRET-401：纯离线重放及人工核对，不连接服务 |
-| REQ-KQ-204；KQ-AD-030 | DR-KRET-402 | IMPL-KRET-402：离线来源定位边界；复用manifest/有限来源定位，不建设通用文件Agent | TEST-KRET-402：字面匹配、范围/返回数限制、无shell/模型/网络、输出无正文/向量/密钥 | VAL-KRET-402：公开合成fixture |
-| REQ-KQUALITY-001；KQ-AD-030 | DR-KRET-403 | IMPL-KRET-403：P3_01诊断结论与最小方案选择；线上仍用minimal_plan/minimal_stage | TEST-KRET-403：拒绝gold进入在线策略、保持次数/域/原问、unknown不能自动选新方案 | VAL-KRET-403：方案检查及现有原问/零fallback回归 |
+| REQ-KQ-205；KQ-AD-030 | DR-KRET-401 | IMPL-KRET-401：`tests/evaluation/knowledge/rebuild_retrieval_diagnose.py`复用`rebuild_b_review.load_completed`严格reader；不改writer或运行终态 | TEST-KRET-401：`test_rebuild_retrieval_diagnose.py`源存在/缺失、stage缺记录/确认无命中、首召回与重排损失、hash漂移、非法域/path及第21位反证 | VAL-KRET-401：完整封存B纯离线重放及独立核对，不连接服务 |
+| REQ-KQ-204；KQ-AD-030 | DR-KRET-402 | IMPL-KRET-402：同模块`locate_literals`只接收上游已批准且hash绑定的有限内存来源；不读目录、不建设通用文件Agent | TEST-KRET-402：同测试文件的字面匹配、范围/返回数限制、无shell/模型/网络、输出无正文/向量/密钥 | VAL-KRET-402：公开合成fixture；未扫描真实语料正文 |
+| REQ-KQUALITY-001；KQ-AD-030 | DR-KRET-403 | IMPL-KRET-403：P3_01 §14.41/42不采用及下一最小验证决策；线上仍用minimal_plan/minimal_stage | TEST-KRET-403：报告固定不选择online change，unknown不自动选方案；既有`tests/unit/knowledge/retrieval/test_minimal_stage.py`保持次数/域/原问 | VAL-KRET-403：方案检查及现有原问/零fallback回归，不将诊断用gold注入在线策略 |
 
 回滚只撤销新增离线诊断入口，现生产任务、配置、数据和历史资产均不动；若后续选择在线修正，再单独冻结对应相容回滚。本设计的完成条件是可定位的诊断报告，不要求召回已经提高或付费测量先通过。
+
+v3.14仅同步本节实施落点：严格窗口/域/path及各阶段成员准入、缺记录与无命中区分、来源hash漂移关闭、有限字面定位和unknown边界已有non-live证明。独立代码核查发现的第21位/path准入缺陷已修复并复评；两域共享物理库存的判断按原冻结binding核对，库存存在不代替过滤或授权。当前B仅定位到003/012在初召回前或窗口内损失，根因未知；Evidence/回答没有相应trace或人评时仍未知/未评价。此增量不是部署、召回提升或新版UAT批准，实际验证及本地提交见P3_01 §14.42。
 
 ## 10. 并发、核心处理流程、错误分类与一致性
 

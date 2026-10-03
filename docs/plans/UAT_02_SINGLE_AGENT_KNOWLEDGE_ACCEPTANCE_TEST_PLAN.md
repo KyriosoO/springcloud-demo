@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.36 |
-| 文档状态 | Reviewed（正式路径non-live演练已验证；诊断待实施，完整验收未完成） |
+| 当前版本 | v3.37 |
+| 文档状态 | Reviewed（正式路径演练及有限离线诊断已验证；完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
-| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.13 §9.9诊断待实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
+| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.36；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.37；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -319,7 +319,9 @@ B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索�
 
 **采用与不采用的证据量可以不同**：有效且完整的既有对照中，只要一项预先冻结的必要采用条件明确不满足，例如主指标没有严格改善，即可决定“不采用、保留基线”，不必仅为这个否决决定补齐其他不会改变决定的人工标注。未评价的precision、usefulness等仍记Not assessed/null，不能写成通过。若主指标计算、执行完整性或归因证据不足，只能作“证据不足，未采用”，不能虚构质量不达标。允许完成独立的有限决策交接，但不自动把整个COMPARE或完整UAT标Done。
 
-该规则不降低任何正向采用/发布阈值，不删题、不换gold、不缩分母、不放宽安全。要采用候选，§6.1全部正向判据及标注仍必须满足。当前B主指标没有改善，P3_01 §14.41已据严格离线验真及封存排名作出有限“不采用、保留b2”决定；原result中的not_assessed、precision=null、盲标缺口和历史终态保持原样。不补评、不改判，也不因否决候选关闭整个COMPARE、A或RELEASE；诊断工具仍待实施。
+该规则不降低任何正向采用/发布阈值，不删题、不换gold、不缩分母、不放宽安全。要采用候选，§6.1全部正向判据及标注仍必须满足。当前B主指标没有改善，P3_01 §14.41已据严格离线验真及封存排名作出有限“不采用、保留b2”决定；原result中的not_assessed、precision=null、盲标缺口和历史终态保持原样。不补评、不改判，也不因否决候选关闭整个COMPARE、A或RELEASE。
+
+v3.37仅同步P3_01 §14.42的离线诊断实施和独立复评：冻结10题/16来源双臂共32条库存存在，其中28条进入final20；003/012的4条只可定位到初召回之前或窗口内，过滤、词法、向量及窗口根因仍unknown。工具区分缺stage与确认无命中，拒绝非法域/path、hash漂移及窗口超限；字面定位仅合成公开fixture验证，不扫描实际全库，不将gold传入线上。该有限包Done不等于新召回、回答、Functional/Safety或发布通过；37风险、12资料用例、12题真实测量的原状态、阈值、预算与人工判断不变。
 
 ## 7. 后续执行与当前结论
 
