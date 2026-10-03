@@ -26,6 +26,7 @@ from agent_runtime.knowledge.retrieval.http import BoundedHttpRequest, BoundedHt
 from agent_runtime.main import build_runtime
 from agent_runtime.model.contracts import StructuredModelRequest, StructuredModelResponse, StructuredModelTransport
 from tests.uat.knowledge_rebuild_measure_prepare import _ENV
+from tests.uat.knowledge_rebuild_measure_budget import PLAN
 
 
 _NAME = re.compile(r"[A-Za-z0-9._-]{1,256}\Z")
@@ -44,8 +45,8 @@ class MeasureEsProxy:
                  metadata_limit: int, search_limit: int, backend: httpx.Client) -> None:
         if (not _NAME.fullmatch(index_name) or not _NAME.fullmatch(read_alias)
                 or type(port) is not int or not 1 <= port <= 65535
-                or type(metadata_limit) is not int or not 1 <= metadata_limit <= 72
-                or type(search_limit) is not int or not 0 <= search_limit <= 48
+                or type(metadata_limit) is not int or not 1 <= metadata_limit <= PLAN.launcher_limits()["runtimeMetadataEsHttpMax"]
+                or type(search_limit) is not int or not 0 <= search_limit <= PLAN.limits()["search"]
                 or backend.base_url != httpx.URL("http://127.0.0.1:9200")
                 or backend.follow_redirects or backend.trust_env):
             raise StartupError("knowledge.measure.proxy_binding_invalid")
@@ -234,8 +235,8 @@ def _load_startup_input(path: Path, expected_sha256: str) -> dict[str, Any]:
             or value.get("startupId") != path.resolve().parent.name
             or value.get("runtimeEnv") != _ENV
             or value.get("subject") != {"userId": "viewer_t", "role": "VIEWER"}
-            or value.get("bindingMetadataEsHttp") != 2
-            or value.get("maximumStartupMetadataEsHttp") != 48
+            or value.get("bindingMetadataEsHttp") != PLAN.startup_binding_reads
+            or value.get("maximumStartupMetadataEsHttp") != PLAN.launcher_limits()["startupMetadataMax"]
             or value.get("modelRequests") != 0 or value.get("typedSearchRequests") != 0
             or value.get("embeddingRequests") != 0 or value.get("rerankRequests") != 0):
         raise StartupError("knowledge.measure.startup_input_invalid")

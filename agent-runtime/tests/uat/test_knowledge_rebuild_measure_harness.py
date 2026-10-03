@@ -150,7 +150,7 @@ def test_failed_case_keeps_only_finite_diagnostic_and_stops_batch(
     assert failure["status"] == ("failed_consumed" if failure_kind == "summary_failure" else "failed_unconsumed")
     assert failure["counts"] == {"model": int(failure_kind == "summary_failure"), "search": 0, "embedding": 0, "rerank": 0}
     observation = failure["failedCase"]
-    assert set(observation) == {"caseId", "httpStatus", "responseState", "publicStatus", "errorCode",
+    assert set(observation) == {"caseId", "httpStatus", "responseState", "publicStatus", "errorCode", "errorSource",
                                 "correlationMatches", "capabilityMatches"}
     assert observation["caseId"] == case_id
     assert observation["responseState"] == {"invalid_json": "invalid_json", "non_object": "non_object",
@@ -642,7 +642,7 @@ def test_measure_launcher_attests_venv_listener_child_and_cleans_unlistened_chil
     listener_functions = launcher[launcher.index("function Test-ExpectedPythonChild"):
                                   launcher.index("function Wait-Ready")]
     cleanup_functions = launcher[launcher.index("function Add-CleanupIssue"):
-                                 launcher.index("try {\n    if (-not $startup)")]
+                                 launcher.index("Invoke-OwnedLifecycle -Action {\ntry {")]
     script = r"""
 $ErrorActionPreference='Stop'
 $runtimePython='__RUNTIME_PYTHON__'
@@ -785,7 +785,7 @@ def test_formal_cleanup_waits_for_owned_process_and_fails_closed_on_timeout() ->
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
     cleanup_functions = launcher[launcher.index("function Add-CleanupIssue"):
-                                 launcher.index("try {\n    if (-not $startup)")]
+                                 launcher.index("Invoke-OwnedLifecycle -Action {\ntry {")]
     script = r"""
 $ErrorActionPreference='Stop'
 $ownedPythonChildren=@{}
@@ -831,7 +831,7 @@ def test_formal_result_and_failure_witness_require_cleanup_outcome() -> None:
     assert failure_path.index("Stop-OwnedProcesses") < failure_path.index("'es-proxy-witness.json'")
     assert failure_path.count("ownedProcessesStopped = $cleanupStopped") >= 3
     cleanup_functions = launcher[launcher.index("function Add-CleanupIssue"):
-                                 launcher.index("try {\n    if (-not $startup)")]
+                                 launcher.index("Invoke-OwnedLifecycle -Action {\ntry {")]
     assert "Stop-Process -Id $process.Id" not in cleanup_functions
 
 
@@ -849,7 +849,7 @@ def test_formal_result_and_failure_witness_require_cleanup_outcome() -> None:
 def test_cleanup_reason_is_finite_and_does_not_relax_guard(mode: str, expected: str) -> None:
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
-    functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("Invoke-OwnedLifecycle -Action {\ntry {")]
     functions = launcher[launcher.index("function Get-PythonChildObservation"):launcher.index("function Get-AttestedPythonProcess")] + functions
     program = r"""
 $ErrorActionPreference='Stop'
@@ -988,7 +988,7 @@ def test_windowless_python_preserves_arguments_environment_and_both_logs(tmp_pat
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
     start = launcher[launcher.index("function Start-WindowlessPython"):launcher.index("function Test-ExpectedPythonChild")]
     identity = launcher[launcher.index("function Test-ExpectedPythonChild"):launcher.index("function Test-OwnedListener")]
-    cleanup = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    cleanup = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("Invoke-OwnedLifecycle -Action {\ntry {")]
     program = r"""
 $ErrorActionPreference='Stop'
 $runtimeWindowlessPython='__PYTHON__';$runtimeRoot='__DIRECTORY__'
@@ -1037,7 +1037,7 @@ try {
 def test_python_output_drain_failure_is_not_cleanup_success() -> None:
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
-    functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("Invoke-OwnedLifecycle -Action {\ntry {")]
     program = r"""
 $ErrorActionPreference='Stop'
 $ownedPythonChildren=@{};$cleanupIssues=@{};$ownedChildCleanupUnknown=$false

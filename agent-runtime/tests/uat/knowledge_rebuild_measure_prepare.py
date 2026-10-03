@@ -23,6 +23,7 @@ from tests.uat.knowledge_rebuild_measure_runner import (
     MeasurementError, _BUILD_COMMANDS, _DEPENDENCY_JARS, _MAX, _REQUIRED_ENV, _RUN, _SUBJECT, _TASKS,
     _exclusive_json, _read_object, _sha,
 )
+from tests.uat.knowledge_rebuild_measure_budget import PLAN
 
 
 _SERVICES = ("auth-service", "es-query-service", "agent-service")
@@ -31,6 +32,7 @@ _DATASET = "agent-runtime/tests/uat/knowledge_rebuild_measure.v1.json"
 _ASSETS = (
     _DATASET,
     "agent-runtime/tests/uat/knowledge_rebuild_measure_runner.py",
+    "agent-runtime/tests/uat/knowledge_rebuild_measure_budget.py",
     "agent-runtime/tests/uat/knowledge_rebuild_snapshot_preflight.py",
     "agent-runtime/tests/uat/knowledge_rebuild_measure_prepare.py",
     "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1",
@@ -232,7 +234,7 @@ def freeze(*, root: Path, run_dir: Path, run_id: str, authorization_reference: s
     _prepare_result_parent(root)
     dataset_path = root / _DATASET
     dataset = _read_object(dataset_path)
-    if len(dataset["cases"]) != 12 or len(dataset["sources"]) != 13:
+    if len(dataset["cases"]) != PLAN.case_count or len(dataset["sources"]) != 13:
         _fail("dataset_invalid")
     bindings, flags = _binding(root, dataset)
     assets = {path: _sha(root / path) for path in (*_ASSETS, *_JARS.values(), *_DEPENDENCY_JARS)}
@@ -259,14 +261,14 @@ def freeze(*, root: Path, run_dir: Path, run_id: str, authorization_reference: s
                 "buildAttestationSha256": _sha(attestation_path), "aliasFlags": flags,
                 "snapshotPreflightEsHttpRequests": 4 + (count + 249) // 250,
                 "snapshotPostflightEsHttpRequests": 4 + (count + 249) // 250,
-                 "runtimeMetadataEsHttpMax": 72}
+                 "runtimeMetadataEsHttpMax": PLAN.launcher_limits()["runtimeMetadataEsHttpMax"]}
     manifest_path = run_dir / "manifest.json"
     _exclusive_json(manifest_path, manifest)
     _exclusive_json(run_dir / "authorization.json", {"schemaVersion": 1,
         "status": "authorized_unconsumed", "runId": run_id, "frozenHead": head,
         "manifestSha256": _sha(manifest_path), "datasetSha256": assets[_DATASET],
         "authorizationReference": authorization_reference, "subject": _SUBJECT,
-        "maximumModelRequests": 36, "singleUse": True, "retryAllowed": False})
+        "maximumModelRequests": _MAX["model"], "singleUse": True, "retryAllowed": False})
     return manifest
 
 
@@ -306,7 +308,7 @@ def startup_input(*, root: Path, run_dir: Path, output_path: Path) -> dict[str, 
                 path: _sha(root / path) for path in _DEPENDENCY_JARS}):
         _fail("startup_build_attestation_drift")
     dataset = _read_object(root / _DATASET)
-    if len(dataset["cases"]) != 12 or len(dataset["sources"]) != 13:
+    if len(dataset["cases"]) != PLAN.case_count or len(dataset["sources"]) != 13:
         _fail("dataset_invalid")
     config_hashes = _config_hashes(root)
     attempts = 0
@@ -314,7 +316,7 @@ def startup_input(*, root: Path, run_dir: Path, output_path: Path) -> dict[str, 
     def record_metadata_attempt() -> None:
         nonlocal attempts
         attempts += 1
-        if attempts > 2:
+        if attempts > PLAN.startup_binding_reads:
             _fail("startup_metadata_budget_exhausted")
         witness = startup_dir / "startup-metadata-attempts.jsonl"
         with witness.open("xb" if attempts == 1 else "ab") as stream:
@@ -334,7 +336,8 @@ def startup_input(*, root: Path, run_dir: Path, output_path: Path) -> dict[str, 
               "assetSha256": {path: _sha(root / path) for path in _ASSETS},
               "datasetSha256": _sha(root / _DATASET), "indexBindings": bindings,
               "aliasFlags": flags, "runtimeEnv": _ENV, "subject": _SUBJECT,
-              "bindingMetadataEsHttp": 2, "maximumStartupMetadataEsHttp": 48,
+              "bindingMetadataEsHttp": PLAN.startup_binding_reads,
+              "maximumStartupMetadataEsHttp": PLAN.launcher_limits()["startupMetadataMax"],
               "modelRequests": 0, "typedSearchRequests": 0,
               "embeddingRequests": 0, "rerankRequests": 0}
     _exclusive_json(output_path, result)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from dataclasses import dataclass
 import hashlib
 import json
 import os
@@ -15,7 +16,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from typing import Any, Mapping, cast
+from typing import Any, Callable, Mapping, cast
 
 import httpx
 import uvicorn
@@ -31,19 +32,18 @@ from agent_runtime.knowledge.retrieval.settings import KnowledgeRetrievalSetting
 from agent_runtime.model.contracts import ModelTaskId, StructuredModelRequest, StructuredModelResponse, StructuredModelTransport
 from agent_runtime.model.settings import ModelSettings
 from agent_runtime.main import build_runtime
+from tests.uat.knowledge_rebuild_measure_budget import PLAN
 
 
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _HEAD = re.compile(r"[0-9a-f]{40}\Z")
 _RUN = re.compile(r"[a-z0-9][a-z0-9-]{5,100}\Z")
-_TASKS = {
-    ModelTaskId.ACTION_SELECTION: "action-selection-v5",
-    ModelTaskId.KNOWLEDGE_REWRITE: "12",
-    ModelTaskId.KNOWLEDGE_SUMMARY: "9",
-}
+_TASKS = dict(PLAN.tasks)
 _PATHS = {"search": "/es/knowledge/search", "embedding": "/embed", "rerank": "/rerank"}
-_MAX = {"cases": 12, "model": 36, "search": 48, "embedding": 12, "rerank": 24}
-_PER_CASE = {"model": 3, "search": 4, "embedding": 1, "rerank": 2}
+_MAX = PLAN.limits()
+_PER_CASE = PLAN.per_case()
+_SERVER_CLOSE_SECONDS = 5.0
+_NON_LIVE_REFERENCE = "NON_LIVE:WP-KVERIFY-DRYRUN-01"
 _REVIEW_MAX_BYTES = 4 * 1024 * 1024
 _SUBJECT = {"userId": "viewer_t", "role": "VIEWER"}
 _FAILURE_PUBLIC_STATUSES = frozenset({
@@ -56,6 +56,20 @@ _FAILURE_ERROR_CODES = frozenset({
     "knowledge.summary_failure", "knowledge.invalid_stage_result",
     "knowledge.evidence_egress_denied", "knowledge.retrieval_failure",
 })
+_FAILURE_REASONS = frozenset({
+    "case_technical_failure", "task_binding_drift", "task_forbidden_or_retry",
+    "budget_exhausted", "model_failure", "downstream_failure", "downstream_http_failure",
+    "runtime_scope_mismatch", "retrieval_scope_mismatch", "retrieval_plan_invalid_or_repeated",
+    "index_snapshot_drift", "candidate_policy_drift", "necessary_source_drift",
+    "public_review_invalid", "sensitive_public_review", "public_review_budget_exhausted",
+    "alias_drift", "index_metadata_drift", "owned_port_mismatch", "owned_port_check_failed",
+    "runtime_start_failed", "runtime_start_timeout", "spring_not_ready",
+    "runtime_invocation_mismatch", "runner_failure", "cancelled",
+})
+
+
+def _safe_failure_reason(value: object) -> str:
+    return value if type(value) is str and value in _FAILURE_REASONS else "unknown_failure"
 _BUILD_COMMANDS = (
     [["serviceCenter/mvnw.cmd", "--batch-mode", "-f", f"{name}/pom.xml", "-DskipTests", "clean", "install"]
      for name in ("common-security", "es-query-api")]
@@ -183,6 +197,8 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
     """Check every static binding before the API key is read or any outbound can happen."""
     root = root.resolve()
     manifest = _read_object(manifest_path)
+    if manifest.get("executionKind") == "non_live" or str(manifest.get("runId", "")).startswith("knowledge-dryrun-"):
+        _fail("non_live_asset_forbidden")
     authorization = _read_object(authorization_path)
     expected_keys = {"schemaVersion", "runId", "branch", "frozenHead", "authorizationReference",
                      "datasetPath", "datasetSha256", "model", "taskVersions", "assetSha256",
@@ -215,7 +231,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
             or manifest["subject"] != _SUBJECT
             or manifest["jarBuildHead"] != manifest["frozenHead"]
             or manifest["aliasFlags"] not in ({}, {"is_write_index": False})
-            or manifest["runtimeMetadataEsHttpMax"] != 72):
+            or manifest["runtimeMetadataEsHttpMax"] != PLAN.launcher_limits()["runtimeMetadataEsHttpMax"]):
         _fail("manifest_binding_invalid")
     try:
         branch = subprocess.check_output(["git", "-C", str(root), "branch", "--show-current"], text=True).strip()
@@ -265,6 +281,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
         "agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v9.py",
         "auth-service/src/main/resources/auth-users.yml",
         "agent-runtime/tests/uat/knowledge_rebuild_measure_startup.py",
+        "agent-runtime/tests/uat/knowledge_rebuild_measure_budget.py",
         "agent-service/target/agent-service-0.0.1-SNAPSHOT.jar",
         "auth-service/target/auth-service-0.0.1-SNAPSHOT.jar",
         "es-query-service/target/es-query-service-0.0.1-SNAPSHOT.jar",
@@ -287,7 +304,8 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
     cases = manifest["cases"]
     if (type(cases) is not list or cases != dataset.get("cases") or manifest["sources"] != dataset.get("sources")
             or manifest["humanRubric"] != dataset.get("humanRubric")
-            or len(cases) != 12 or len({case.get("caseId") for case in cases if type(case) is dict}) != 12):
+            or len(cases) != PLAN.case_count
+            or len({case.get("caseId") for case in cases if type(case) is dict}) != PLAN.case_count):
         _fail("dataset_cases_invalid")
     source_ids = {item.get("id") for item in manifest["sources"] if type(item) is dict}
     if len(source_ids) != len(manifest["sources"]) or not source_ids:
@@ -346,7 +364,7 @@ def frozen_preflight(*, root: Path, manifest_path: Path, authorization_path: Pat
             or authorization["datasetSha256"] != manifest["datasetSha256"]
             or authorization["authorizationReference"] != manifest["authorizationReference"]
             or authorization["subject"] != _SUBJECT
-            or authorization["maximumModelRequests"] != 36
+            or authorization["maximumModelRequests"] != _MAX["model"]
             or authorization["singleUse"] is not True or authorization["retryAllowed"] is not False):
         _fail("authorization_binding_invalid")
     if any(environ.get(key) != value for key, value in _REQUIRED_ENV.items()):
@@ -405,7 +423,8 @@ def frozen_postflight(*, root: Path, manifest_path: Path, authorization_path: Pa
     base_allowed = set(allowed)
     evidence_names = {"authorization.consumed.json", "attempts.jsonl", "cases.jsonl",
                       "measurement.json", "failure.json", "launcher-failure.json", "result.json",
-                      "snapshot-preflight.json", "snapshot-postflight.json"}
+                      "snapshot-preflight.json", "snapshot-postflight.json", "runner-cleanup.json",
+                      "final-cleanup-failure.json"}
     allowed.update("?? " + run_relative + "/" + name for name in evidence_names if (output_dir / name).is_file())
     if not base_allowed.issubset(status) or not set(status).issubset(allowed):
         _fail("worktree_postflight_drift")
@@ -572,11 +591,13 @@ class OneShotLedger:
 
     def consume(self) -> None:
         if not self.consumed:
-            _exclusive_json(self.output_dir / "authorization.consumed.json", {
+            non_live = self.manifest.get("executionKind") == "non_live"
+            _exclusive_json(self.output_dir / ("synthetic-consumed.json" if non_live else "authorization.consumed.json"), {
                 "schemaVersion": 1, "status": "consumed", "runId": self.manifest["runId"],
                 "frozenHead": self.manifest["frozenHead"], "manifestSha256": self.manifest_sha256,
                 "authorizationReference": self.manifest["authorizationReference"],
-                "maximumModelRequests": 36, "retryAllowed": False,
+                "maximumModelRequests": _MAX["model"], "retryAllowed": False,
+                **({"executionKind": "non_live", "liveConsumable": False} if non_live else {}),
             })
             self.consumed = True
 
@@ -698,6 +719,8 @@ def _failed_case_observation(*, case_id: str, http_status: int | None,
                           if not response_parsed else "object" if type(body) is dict else "non_object"),
         "publicStatus": status if type(status) is str and status in _FAILURE_PUBLIC_STATUSES else "unknown",
         "errorCode": code if type(code) is str and code in _FAILURE_ERROR_CODES else None if code is None else "unknown",
+        "errorSource": (error.get("source") if type(error) is dict
+                        and error.get("source") in ("core", "policy", "downstream", "capability") else None),
         "correlationMatches": value.get("correlationId") == case_id,
         "capabilityMatches": (value.get("capabilityId") == "knowledge.query"
                               or status == "unsupported" and value.get("capabilityId") is None),
@@ -726,7 +749,9 @@ def _public_review(case: Mapping[str, Any], response: Mapping[str, Any]) -> dict
                 _fail("public_review_invalid")
             citation = item["citation"]
             points.append({"quote": bounded(item.get("quote"), 8192),
-                           "citation": {key: bounded(citation.get(key, ""), 2048)
+                           "citation": {key: bounded("" if citation.get(key) is None
+                                                      and key in {"sourceUrl", "documentNumber", "writtenDate"}
+                                                      else citation.get(key, ""), 2048)
                                         for key in ("evidenceId", "title", "sourceUrl", "documentNumber", "writtenDate")}})
     return {"caseId": case["caseId"], "question": bounded(case["question"], 4096),
             "obligations": case["obligations"], "status": response.get("status"),
@@ -751,11 +776,49 @@ def _checked_public_review_size(value: Mapping[str, Any], *, secrets: tuple[str,
     return len(encoded.encode("utf-8"))
 
 
+@dataclass(frozen=True, slots=True)
+class _NonLivePorts:
+    """Private fixture seams, never available through CLI or environment switches."""
+    runtime_builder: Callable[..., Any]
+    metadata_transport: httpx.AsyncBaseTransport
+
+
+async def _close_server(server: Any, task: asyncio.Task[Any]) -> dict[str, Any]:
+    server.should_exit = True
+    done, _ = await asyncio.wait((task,), timeout=_SERVER_CLOSE_SECONDS)
+    reason = None
+    if not done:
+        reason = "runtime_close_timeout"
+        task.cancel()
+        done, _ = await asyncio.wait((task,), timeout=_SERVER_CLOSE_SECONDS)
+    if done:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            reason = reason or "runtime_cancelled"
+        except BaseException:
+            reason = reason or "runtime_close_failed"
+    return {"stopped": bool(done), "passed": bool(done) and reason is None, "reason": reason}
+
+
 async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Path,
                    token: str, environ: Mapping[str, str], client: httpx.AsyncClient,
                    es_pid: int, agent_pid: int, proxy_pid: int,
-                   server_factory: Any = uvicorn.Server) -> None:
+                   server_factory: Any = uvicorn.Server,
+                   _test_ports: _NonLivePorts | None = None) -> None:
     """The client must target the isolated Spring agent-service, never Runtime directly."""
+    non_live = manifest.get("executionKind") == "non_live"
+    if non_live != (_test_ports is not None) or non_live and (
+            not str(manifest.get("runId", "")).startswith("knowledge-dryrun-")
+            or manifest.get("authorizationReference") != _NON_LIVE_REFERENCE
+            or manifest.get("liveConsumable") is not False
+            or not _SHA.fullmatch(str(manifest.get("fixtureSha256", "")))):
+        _fail("non_live_binding_invalid")
+    if _test_ports is not None and server_factory is uvicorn.Server:
+        _fail("non_live_server_forbidden")
+    if non_live and manifest["fixtureSha256"] != hashlib.sha256(
+            json.dumps(manifest["cases"], sort_keys=True).encode()).hexdigest():
+        _fail("non_live_binding_invalid")
     if client.base_url != httpx.URL(manifest["springBaseUrl"]):
         _fail("spring_origin_invalid")
     review_dir.mkdir(parents=False, exist_ok=False)
@@ -774,7 +837,8 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
             await self.delegate.aclose()
 
     def runtime_factory() -> GuardedRuntime:
-        return GuardedRuntime(build_runtime(environ,
+        builder = build_runtime if _test_ports is None else _test_ports.runtime_builder
+        return GuardedRuntime(builder(environ,
             model_transport_wrapper=ledger.model,
             knowledge_transport_wrapper=ledger.transport,
             knowledge_retrieval_wrapper=ledger.retrieval))
@@ -786,6 +850,8 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
     failed_case: dict[str, Any] | None = None
     alias_checks = 0
     review_bytes = 0
+    stage = "runtime_start"
+    current_case_id: str | None = None
     try:
         for _ in range(100):
             if server.started:
@@ -795,13 +861,17 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
             await asyncio.sleep(0.05)
         else:
             _fail("runtime_start_timeout")
+        stage = "spring_readiness"
         health = await client.get("/actuator/health/readiness", timeout=5.0)
         if health.status_code != 200:
             _fail("spring_not_ready")
         async with httpx.AsyncClient(base_url="http://127.0.0.1:19313", trust_env=False,
-                                     follow_redirects=False) as es_client:
+                                     follow_redirects=False,
+                                     transport=None if _test_ports is None else _test_ports.metadata_transport) as es_client:
             for case in manifest["cases"]:
                 case_id, question = case["caseId"], case["question"]
+                current_case_id = case_id
+                stage = "case_snapshot_before"
                 await _alias_check(manifest, es_client, es_pid=es_pid, agent_pid=agent_pid,
                                    proxy_pid=proxy_pid)
                 alias_checks += 1
@@ -810,15 +880,18 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                 response_parsed = False
                 body: object = None
                 try:
+                    stage = "case_request"
                     response = await _post_spring_owned(client=client, question=question, case_id=case_id,
                                                         token=token, es_pid=es_pid, agent_pid=agent_pid,
                                                         proxy_pid=proxy_pid)
                     response_http_status = response.status_code
                     body = response.json()
                     response_parsed = True
+                    stage = "case_snapshot_after"
                     await _alias_check(manifest, es_client, es_pid=es_pid, agent_pid=agent_pid,
                                        proxy_pid=proxy_pid)
                     alias_checks += 1
+                    stage = "case_validation"
                     if (type(body) is not dict or body.get("correlationId") != case_id
                             or not (body.get("capabilityId") == "knowledge.query"
                                     or body.get("status") == "unsupported" and body.get("capabilityId") is None)
@@ -851,6 +924,7 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                                   "missingExpectedDomainsInTop20": sorted(set(case["expectedDomains"]) - represented),
                                   "missingNecessarySourcesInTop20": sorted(
                                       source_id for source_id, chunk_id in necessary.items() if chunk_id not in ranked_ids)}}
+                    stage = "case_evidence"
                     review_item = _public_review(case, checked_body)
                     review_size = _checked_public_review_size(review_item, secrets=(token,
                         environ.get("LLM_API_KEY", ""), environ.get("COMMON_SECURITY_JWT_HMAC_KEY_ACTIVE", "")))
@@ -861,13 +935,15 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                     review_bytes += review_size
                     _journal(output_dir / "cases.jsonl", record)
                     records.append(record)
+                    current_case_id = None
                 except BaseException as exc:
                     failed_case = _failed_case_observation(case_id=case_id, http_status=response_http_status,
                                                           response_parsed=response_parsed, body=body)
                     if ledger.fatal is None:
-                        ledger.fatal = (str(exc).removeprefix("knowledge.measure.")
+                        ledger.fatal = (_safe_failure_reason(str(exc).removeprefix("knowledge.measure."))
                                         if isinstance(exc, MeasurementError) else "case_technical_failure")
                     raise
+        stage = "terminal_evidence"
         _exclusive_json(output_dir / "measurement.json", {"schemaVersion": 1, "runId": manifest["runId"],
                         "status": "completed_pending_postflight", "caseCount": len(records),
                         "counts": ledger.total, "aliasChecks": alias_checks,
@@ -875,19 +951,44 @@ async def run_once(*, manifest: dict[str, Any], output_dir: Path, review_dir: Pa
                         "authorizationSha256": manifest["_authorizationSha256"],
                         "modelRequestsReservedUpperBound": ledger.total["model"],
                         "publicStatusMismatches": sum(item["observedDifference"]["publicStatusDiffers"] for item in records),
-                        "humanRubric": "not_assessed"})
-    except BaseException:
+                        "humanRubric": "not_assessed",
+                        **({"executionKind": "non_live", "liveConsumable": False,
+                            "fixtureSha256": manifest["fixtureSha256"],
+                            "realCalls": {"model": 0, "ES": 0, "BGE": 0, "Business": 0}}
+                           if non_live else {})})
+    except BaseException as exc:
+        if ledger.fatal is None:
+            ledger.fatal = (_safe_failure_reason(str(exc).removeprefix("knowledge.measure."))
+                            if isinstance(exc, MeasurementError) else
+                            "cancelled" if isinstance(exc, (asyncio.CancelledError, KeyboardInterrupt))
+                            else "runner_failure")
+        if failed_case is None and current_case_id is not None:
+            # A before-send snapshot failure identifies the next case, but does
+            # not mark it executed or consume any request budget.
+            failed_case = _failed_case_observation(case_id=current_case_id, http_status=None,
+                                                 response_parsed=False, body=None)
         failure: dict[str, Any] = {"schemaVersion": 1, "runId": manifest["runId"],
                    "status": "failed_consumed" if ledger.consumed else "failed_unconsumed",
                    "completedCases": len(records), "counts": ledger.total, "aliasChecks": alias_checks,
-                   "reason": ledger.fatal or "runner_failure"}
+                   "reason": _safe_failure_reason(ledger.fatal or "runner_failure"),
+                   "stage": stage,
+                   **({"executionKind": "non_live", "liveConsumable": False} if non_live else {})}
+        failure["unexecutedCases"] = [case["caseId"] for case in manifest["cases"] if case["caseId"] not in ledger.seen]
         if failed_case is not None:
             failure["failedCase"] = failed_case
-        _exclusive_json(output_dir / "failure.json", failure)
+        try:
+            _exclusive_json(output_dir / "failure.json", failure)
+        except OSError:
+            _fail("failure_evidence_write_failed")
         raise
     finally:
-        server.should_exit = True
-        await server_task
+        cleanup = await _close_server(server, server_task)
+        try:
+            _exclusive_json(output_dir / "runner-cleanup.json", cleanup)
+        except OSError:
+            _fail("cleanup_evidence_write_failed")
+        if not cleanup["passed"]:
+            _fail("runtime_cleanup_failed")
 
 
 async def _main(args: argparse.Namespace) -> None:
@@ -960,6 +1061,11 @@ def main() -> None:
         asyncio.run(_main(parser.parse_args()))
     except MeasurementError as exc:
         raise SystemExit(str(exc)) from None
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        raise SystemExit("knowledge.measure.cancelled") from None
+    except Exception:
+        # Terminal boundary: fail nonzero without exposing arbitrary exception text.
+        raise SystemExit("knowledge.measure.runner_failure") from None
 
 
 if __name__ == "__main__":

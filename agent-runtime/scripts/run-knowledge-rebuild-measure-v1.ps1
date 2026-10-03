@@ -98,18 +98,18 @@ if ($ExpectedManifestSha256 -notmatch '^[0-9a-f]{64}$' -or
     throw 'knowledge.measure.manifest_hash_invalid'
 }
 $manifest = Get-Content -LiteralPath $manifestFull -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($manifest.executionKind -ceq 'non_live' -or $manifest.runId -clike 'knowledge-dryrun-*') {
+    throw 'knowledge.measure.non_live_asset_forbidden'
+}
 if ($startup) {
     if ($manifest.schemaVersion -ne 1 -or $manifest.status -cne 'startup_input' -or
-        $manifest.branch -cne 'codex_0915' -or $manifest.maximumStartupMetadataEsHttp -ne 48 -or
-        $manifest.bindingMetadataEsHttp -ne 2 -or $manifest.subject.userId -cne 'viewer_t' -or
+        $manifest.branch -cne 'codex_0915' -or $manifest.subject.userId -cne 'viewer_t' -or
         $manifest.subject.role -cne 'VIEWER') {
         throw 'knowledge.measure.startup_binding_invalid'
     }
 } elseif ($manifest.schemaVersion -ne 1 -or $manifest.branch -ne 'codex_0915' -or
     $manifest.model -ne 'deepseek-flash' -or $manifest.springBaseUrl -ne 'http://127.0.0.1:19202' -or
-    $manifest.runtimePort -ne 19203 -or $manifest.budgets.model -ne 36 -or
-    $manifest.budgets.search -ne 48 -or $manifest.budgets.embedding -ne 12 -or
-    $manifest.budgets.rerank -ne 24 -or $manifest.budgets.cases -ne 12 -or
+    $manifest.runtimePort -ne 19203 -or
     $manifest.subject.userId -cne 'viewer_t' -or $manifest.subject.role -cne 'VIEWER') {
     throw 'knowledge.measure.manifest_binding_invalid'
 }
@@ -616,6 +616,14 @@ function Stop-OwnedProcesses {
                            @{ Port = 19203; Parent = $runtimeProcess })) {
         $parent = $binding.Parent
         if ($null -eq $parent) { continue }
+        # An exited parent's numeric PID may now belong to somebody else.
+        # Only handles attested before its exit remain ours to clean up.
+        if ($parent.HasExited) {
+            if (-not $ownedPythonChildren.ContainsKey($binding.Port)) {
+                Add-CleanupIssue 'child_identity_drift'
+            }
+            continue
+        }
         try {
             $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($parent.Id)" -ErrorAction Stop)
         } catch {
@@ -704,6 +712,26 @@ function Get-CleanupIssues {
     $reasons | Sort-Object -Unique
 }
 
+function Invoke-OwnedLifecycle([scriptblock]$Action) {
+    try { . $Action }
+    finally {
+        Stop-OwnedProcesses
+        if (-not (Test-OwnedProcessesStopped)) {
+            $cleanupEvidenceRoot = if ($startup -and $runRootCreated) { $runRoot }
+                elseif ($staticPreflightPassed -and (Test-Path -LiteralPath $outputRoot -PathType Container)) { $outputRoot }
+                else { $null }
+            if ($cleanupEvidenceRoot) {
+                Write-ExclusiveJson (Join-Path $cleanupEvidenceRoot 'final-cleanup-failure.json') ([ordered]@{
+                    schemaVersion = 1; status = 'cleanup_failed'; reason = 'final_cleanup_failed'
+                    ownedProcessesStopped = $false; cleanupIssues = @(Get-CleanupIssues)
+                })
+            }
+            throw 'knowledge.measure.final_cleanup_failed'
+        }
+    }
+}
+
+Invoke-OwnedLifecycle -Action {
 try {
     if (-not $startup) { New-Item -ItemType Directory -Path $runRoot | Out-Null }
     $runRootCreated = $true
@@ -716,6 +744,16 @@ try {
         } finally { Pop-Location }
     }
 
+    Push-Location $runtimeRoot
+    try {
+        $budgetJson = (& $runtimePython -m tests.uat.knowledge_rebuild_measure_budget | Out-String)
+        if ($LASTEXITCODE -ne 0) { throw 'knowledge.measure.budget_definition_invalid' }
+        $budgetPlan = $budgetJson | ConvertFrom-Json
+    } finally { Pop-Location }
+    if ($startup -and ($manifest.maximumStartupMetadataEsHttp -ne $budgetPlan.startupMetadataMax -or
+        $manifest.bindingMetadataEsHttp -ne $budgetPlan.startupBindingReads)) {
+        throw 'knowledge.measure.startup_binding_invalid'
+    }
     Push-Location (Join-Path $repository 'knowledge-corpus-tools')
     try {
         & $corpusPython -c 'import bs4, httpx, knowledge_corpus_tools.b_id_mapping_v1'
@@ -762,8 +800,8 @@ try {
     $authJar = Join-Path $repository 'auth-service\target\auth-service-0.0.1-SNAPSHOT.jar'
     $esJar = Join-Path $repository 'es-query-service\target\es-query-service-0.0.1-SNAPSHOT.jar'
     $agentJar = Join-Path $repository 'agent-service\target\agent-service-0.0.1-SNAPSHOT.jar'
-    $proxyMetadataLimit = if ($startup) { 46 } else { 72 }
-    $proxySearchLimit = if ($startup) { 0 } else { 48 }
+    $proxyMetadataLimit = if ($startup) { $budgetPlan.startupProxyMetadata } else { $budgetPlan.runtimeMetadataEsHttpMax }
+    $proxySearchLimit = if ($startup) { 0 } else { $budgetPlan.budgets.search }
     $proxyProcess = Start-WindowlessPython -Role 'proxy' -Arguments @(
         '-m', 'tests.uat.knowledge_rebuild_measure_startup', 'proxy',
         '--index-name', [string]$binding.indexName, '--read-alias', [string]$binding.readAlias,
@@ -787,13 +825,13 @@ try {
     # This read-only Knowledge run does not exercise the separate MySQL rebuild
     # repository. Keep ES and application readiness mandatory in its own group.
     Wait-OwnedPort 19201 $esProcess
-    $esHealthLimit = if ($startup) { 40 } else { 18 }
+    $esHealthLimit = if ($startup) { $budgetPlan.startupHealthReads } else { $budgetPlan.liveHealthReads }
     Wait-Ready 'http://127.0.0.1:19201/actuator/health/knowledge-validation' $esProcess $esHealthLimit
     $beforeCases = Get-ProxyCounts
-    $beforeCasesLimit = if ($startup) { 46 } else { 24 }
+    $beforeCasesLimit = if ($startup) { $budgetPlan.startupProxyMetadata } else { $budgetPlan.liveBeforeCases }
     if ($beforeCases.metadataEsHttp -gt $beforeCasesLimit -or $beforeCases.searchEsHttp -ne 0 -or
-        $beforeCases.aliasEsHttp -ne 2 -or $beforeCases.settingsEsHttp -ne 2 -or
-        $beforeCases.mappingEsHttp -ne 2 -or $beforeCases.definitionEsHttp -ne 0 -or
+        $beforeCases.aliasEsHttp -ne $budgetPlan.domainCount -or $beforeCases.settingsEsHttp -ne $budgetPlan.domainCount -or
+        $beforeCases.mappingEsHttp -ne $budgetPlan.domainCount -or $beforeCases.definitionEsHttp -ne 0 -or
         $beforeCases.healthEsHttp -lt 1 -or $beforeCases.healthEsHttp -gt $esHealthLimit) {
         throw 'knowledge.measure.startup_es_budget_exhausted'
     }
@@ -822,7 +860,7 @@ try {
             throw 'knowledge.measure.startup_outbound_attempted'
         }
         $startupCounts = Get-ProxyCounts
-        if ($startupCounts.metadataEsHttp + 2 -gt 48 -or $startupCounts.searchEsHttp -ne 0) {
+        if ($startupCounts.metadataEsHttp + $budgetPlan.startupBindingReads -gt $budgetPlan.startupMetadataMax -or $startupCounts.searchEsHttp -ne 0) {
             throw 'knowledge.measure.startup_es_budget_exhausted'
         }
         $startupStage = 'cleanup'
@@ -901,14 +939,14 @@ try {
     }
     $measurement = Get-Content -LiteralPath $measurementPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $proxyCounts = Get-ProxyCounts
-    if ($measurement.aliasChecks -isnot [long] -or $measurement.aliasChecks -ne 24 -or
-        $proxyCounts.metadataEsHttp -gt 72 -or
-        $proxyCounts.metadataEsHttp -ne $beforeCases.metadataEsHttp + 2 * $measurement.aliasChecks -or
+    if ($measurement.aliasChecks -isnot [long] -or $measurement.aliasChecks -ne $budgetPlan.identityChecks -or
+        $proxyCounts.metadataEsHttp -gt $budgetPlan.runtimeMetadataEsHttpMax -or
+        $proxyCounts.metadataEsHttp -ne $beforeCases.metadataEsHttp + $budgetPlan.identityReads * $measurement.aliasChecks -or
         $proxyCounts.healthEsHttp -ne $beforeCases.healthEsHttp -or
-        $proxyCounts.settingsEsHttp -ne 2 -or $proxyCounts.mappingEsHttp -ne 2 -or
-        $proxyCounts.aliasEsHttp -ne 2 + $measurement.aliasChecks -or
+        $proxyCounts.settingsEsHttp -ne $budgetPlan.domainCount -or $proxyCounts.mappingEsHttp -ne $budgetPlan.domainCount -or
+        $proxyCounts.aliasEsHttp -ne $budgetPlan.domainCount + $measurement.aliasChecks -or
         $proxyCounts.definitionEsHttp -ne $measurement.aliasChecks -or
-        $proxyCounts.searchEsHttp -gt 48 -or $proxyCounts.searchEsHttp -ne $measurement.counts.search) {
+        $proxyCounts.searchEsHttp -gt $budgetPlan.budgets.search -or $proxyCounts.searchEsHttp -ne $measurement.counts.search) {
         throw 'knowledge.measure.es_http_budget_or_witness_invalid'
     }
     Push-Location (Join-Path $repository 'knowledge-corpus-tools')
@@ -931,13 +969,13 @@ try {
     $leakDetected = (Test-LogLeak) -or (Test-EvidenceLeak)
     if ($leakDetected) { throw 'knowledge.measure.log_leak' }
     $measurement = Get-Content -LiteralPath $measurementPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($measurement.status -ne 'completed_pending_postflight' -or $measurement.caseCount -ne 12) {
+    if ($measurement.status -ne 'completed_pending_postflight' -or $measurement.caseCount -ne $budgetPlan.budgets.cases) {
         throw 'knowledge.measure.measurement_incomplete'
     }
     $qualityState = if ($measurement.publicStatusMismatches -eq 0) { 'not_assessed' } else { 'observed_below_frozen_expectation' }
     Write-ExclusiveJson (Join-Path $outputRoot 'result.json') ([ordered]@{
         schemaVersion = 1; runId = $runId; status = 'measured_pending_human_rubric'
-        qualityStatus = $qualityState; caseCount = 12; counts = $measurement.counts
+        qualityStatus = $qualityState; caseCount = $budgetPlan.budgets.cases; counts = $measurement.counts
         publicStatusMismatches = $measurement.publicStatusMismatches
         measurementSha256 = (Get-FileHash -LiteralPath $measurementPath -Algorithm SHA256).Hash.ToLowerInvariant()
         snapshotPreflightSha256 = (Get-FileHash -LiteralPath (Join-Path $outputRoot 'snapshot-preflight.json') -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -1028,6 +1066,7 @@ try {
     throw
 } finally {
     Stop-OwnedProcesses
+    $finalCleanupPassed = Test-OwnedProcessesStopped
     if (-not $leakDetected) { $leakDetected = (Test-LogLeak) -or (Test-EvidenceLeak) }
     $secret = $null; $userToken = $null; $apiKey = $null
     foreach ($name in $environmentSnapshot.Keys) {
@@ -1061,4 +1100,6 @@ try {
         }
     }
     if ($leakDetected) { throw 'knowledge.measure.log_leak' }
+    if (-not $finalCleanupPassed) { throw 'knowledge.measure.final_cleanup_failed' }
+}
 }
