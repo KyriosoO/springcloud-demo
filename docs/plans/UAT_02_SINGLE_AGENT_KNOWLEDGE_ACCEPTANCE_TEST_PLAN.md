@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.24 |
-| 文档状态 | Reviewed（B比较无有效测量；MEASURE冻结批次在首次模型调用前失败；新版UAT未完成） |
-| 日期 | 2026-10-02 |
+| 当前版本 | v3.25 |
+| 文档状态 | Reviewed（新独立启动前检通过；正式效果及新版UAT未完成） |
+| 日期 | 2026-10-03 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.6 §4.5/4.6；Knowledge流程与Evidence L2 v3.6已复评，检索/资料L2_01_01 v3.11澄清B内部请求同一性；组件、真实终态及离线实施进度以P3_01为准，不等于新版UAT通过 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.24；只负责包、直接依赖及操作准入 |
-| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。B候选只读未发布；新B10题调用完成但后验canonical_requests_mismatch拒绝，无有效质量或盲标。MEASURE新启动在es_ready超时停止，12题未执行、人工未评价；37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价，整体Functional/Safety、召回、回答及发布均未宣布通过 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.25；只负责包、直接依赖及操作准入 |
+| 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。B只读候选未发布，历史比较无有效质量。修复后的独立B与MEASURE无推理启动/清理前检通过；新正式比较、12题及人工评价尚未完成。37项风险的机械证据不能代替新版37/37功能UAT或人工语义评价，整体Functional/Safety、召回、回答及发布均未宣布通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
 勘误（2026-09-15）：v3.0内澄清§6.3资料缺口与安全/执行失败的停止范围，沿用§6.1及来源L2的未知状态规则；不修改用例、阈值、预算或验收状态。
@@ -69,6 +69,8 @@ v3.22仅同步P3_01 §14.28：新授权下B启动ready，元数据30/临时alias
 v3.23仅同步P3_01 §14.29：新B正式10题调用完成，后验规范请求hash不一致拒绝准入，仍Not assessed；没有traces、blind pool或人工质量结论。字段投影确定性修复仅有non-live证明，不改原始终态、不补跑；MEASURE保持启动失败。题目、gold、阈值、预算、功能风险及资料验收状态均不变。
 
 v3.24仅同步P3_01 §14.30的私有启动诊断non-live补齐：固定枚举及状态计数不保存正文，53项定向测试通过但不构成真实预检或UAT证据。B仍Not assessed、MEASURE旧启动失败根因未知、12题及人工评价未完成；所有风险、题目、gold、质量阈值、预算和发布条件不变，不自动追加真实批次。
+
+v3.25仅同步P3_01 §14.31：修复后独立无推理启动及清理已有有限通过证据，维护者要求继续新独立批次。正式比较、12题与人工评价尚未完成，历史失败终态不修改；功能风险、gold、阈值、预算、DAG和发布条件不变，启动通过不替代效果或新版UAT。
 
 ## 2. 范围与结果纪律
 
