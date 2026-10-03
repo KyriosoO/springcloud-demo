@@ -844,6 +844,81 @@ __FUNCTIONS__
     assert value["observation"] == {"role": "proxy", "imageKind": image, "identityFailure": reason}
 
 
+@pytest.mark.skipif(os.name != "nt" or shutil.which("pwsh") is None, reason="Windows no-console Python lifecycle")
+@pytest.mark.parametrize("role", ["proxy", "runtime"])
+def test_windowless_python_preserves_arguments_environment_and_both_logs(tmp_path: Path, role: str) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    start = launcher[launcher.index("function Start-WindowlessPython"):launcher.index("function Test-ExpectedPythonChild")]
+    identity = launcher[launcher.index("function Test-ExpectedPythonChild"):launcher.index("function Test-OwnedListener")]
+    cleanup = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    program = r"""
+$ErrorActionPreference='Stop'
+$runtimeWindowlessPython='__PYTHON__';$runtimeRoot='__DIRECTORY__'
+$baseConfig=Get-Content -LiteralPath '__VENV__\pyvenv.cfg' -Raw
+$basePython=[regex]::Match($baseConfig,'(?m)^executable\s*=\s*([^\r\n]+)').Groups[1].Value.Trim()
+$pythonBaseExecutable=Join-Path (Split-Path -Parent $basePython) 'pythonw.exe'
+$pythonOutputDrains=@();$ownedPythonChildren=@{};$cleanupIssues=@{};$ownedChildCleanupUnknown=$false
+$runtimeProcess=$null;$proxyProcess=$null;$agentProcess=$null;$esProcess=$null;$authProcess=$null
+$out=Join-Path $runtimeRoot 'out.log';$err=Join-Path $runtimeRoot 'err.log'
+$env:LLM_API_KEY='synthetic-must-not-inherit'
+__FUNCTIONS__
+$code='import json,os,sys,time;print(json.dumps({"argument":sys.argv[1],"keyEmpty":os.environ.get("LLM_API_KEY")=="","prefix":sys.prefix,"payload":"x"*262144}),flush=True);sys.stderr.write("e"*262144);sys.stderr.flush();time.sleep(2)'
+$code+=' # -m tests.uat.knowledge_rebuild_measure_startup __ROLE__ '
+$process=Start-WindowlessPython '__ROLE__' @('-c',$code,'quoted value 空格') $out $err
+try {
+    if(-not $process.StartInfo.CreateNoWindow -or $process.StartInfo.UseShellExecute){throw 'console_not_disabled'}
+    $children=@(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" -ErrorAction Stop)
+    if(@($children | Where-Object Name -eq 'conhost.exe').Count){throw 'console_child_created'}
+    foreach($childInfo in $children) {
+        $port=if('__ROLE__' -ceq 'proxy'){19313}else{19203}
+        if(-not (Test-ExpectedPythonChild $childInfo $port $process)){throw 'windowless_child_not_attested'}
+        $child=Get-AttestedPythonProcess $childInfo
+        if($null -eq $child){throw 'windowless_child_identity_drift'}
+        $ownedPythonChildren[$port]=$child
+    }
+    if(-not $process.WaitForExit(15000)){throw 'synthetic_exit_timeout'}
+    Stop-OwnedProcesses
+    if(-not (Test-OwnedProcessesStopped)){throw 'cleanup_failed'}
+    $value=Get-Content -LiteralPath $out -Raw | ConvertFrom-Json
+    if($value.argument -cne 'quoted value 空格' -or -not $value.keyEmpty -or $value.payload.Length -ne 262144){throw 'stdout_or_environment_invalid'}
+    if($value.prefix -cne '__VENV__'){throw 'venv_isolation_lost'}
+    if((Get-Content -LiteralPath $err -Raw).Length -ne 262144){throw 'stderr_incomplete'}
+    if(-not $pythonOutputDrains[0].Completed){throw 'streams_not_drained'}
+    Stop-OwnedProcesses
+    'windowless-lifecycle-passed'
+} finally {Stop-OwnedProcesses}
+""".replace("__PYTHON__", str(repository / "agent-runtime/.venv/Scripts/pythonw.exe").replace("'", "''")).replace(
+        "__DIRECTORY__", str(tmp_path).replace("'", "''")
+    ).replace("__VENV__", str(repository / "agent-runtime/.venv").replace("'", "''")).replace("__ROLE__", role).replace("__FUNCTIONS__", start + identity + cleanup)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "windowless-lifecycle-passed"
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="PowerShell output drain fail-closed")
+def test_python_output_drain_failure_is_not_cleanup_success() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")
+    functions = launcher[launcher.index("function Add-CleanupIssue"):launcher.index("try {\n    if (-not $startup)")]
+    program = r"""
+$ErrorActionPreference='Stop'
+$ownedPythonChildren=@{};$cleanupIssues=@{};$ownedChildCleanupUnknown=$false
+$runtimeProcess=$null;$proxyProcess=$null;$agentProcess=$null;$esProcess=$null;$authProcess=$null
+$stream=[IO.MemoryStream]::new()
+$pythonOutputDrains=@([pscustomobject]@{Completed=$false;Streams=@($stream);Tasks=@([Threading.Tasks.Task]::FromException([Exception]::new('DO_NOT_PERSIST')))})
+__FUNCTIONS__
+Stop-OwnedProcesses
+if(Test-OwnedProcessesStopped){throw 'drain_failure_accepted'}
+if(-not $cleanupIssues.ContainsKey('python_output_drain_failed') -or $stream.CanWrite){throw 'drain_not_closed'}
+Stop-OwnedProcesses
+'drain-failed-closed'
+""".replace("__FUNCTIONS__", functions)
+    result = subprocess.run(["pwsh", "-NoProfile", "-Command", program], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "drain-failed-closed"
+
+
 def test_launcher_creates_fresh_snapshot_after_owned_services_before_key_read() -> None:
     repository = Path(__file__).resolve().parents[3]
     launcher = (repository / "agent-runtime/scripts/run-knowledge-rebuild-measure-v1.ps1").read_text(encoding="utf-8")

@@ -31,6 +31,14 @@ $pythonBaseExecutable = [IO.Path]::GetFullPath($venvExecutable.Groups[1].Value.T
 if (-not (Test-Path -LiteralPath $pythonBaseExecutable -PathType Leaf)) {
     throw 'knowledge.measure.isolated_python_invalid'
 }
+# The Windows venv python.exe redirector can create a console for its child,
+# even with CreateNoWindow on the parent. Bind the same venv's GUI executable.
+$runtimeWindowlessPython = Join-Path $runtimeRoot '.venv\Scripts\pythonw.exe'
+$pythonBaseExecutable = Join-Path (Split-Path -Parent $pythonBaseExecutable) 'pythonw.exe'
+if (-not (Test-Path -LiteralPath $runtimeWindowlessPython -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $pythonBaseExecutable -PathType Leaf)) {
+    throw 'knowledge.measure.isolated_windowless_python_missing'
+}
 $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $startupStage = 'startup_input'
 $runRoot = Join-Path $tempBase $(if ($startup) {
@@ -223,6 +231,38 @@ $ownedPythonChildren = @{}
 $ownedChildCleanupUnknown = $false
 $cleanupIssues = @{}
 $cleanupChildObservations = @{}
+$pythonOutputDrains = @()
+
+function Start-WindowlessPython([string]$Role, [string[]]$Arguments,
+        [string]$OutputPath, [string]$ErrorPath) {
+    if ($Role -cnotin @('proxy', 'runtime')) { throw 'knowledge.measure.python_role_invalid' }
+    $info = [Diagnostics.ProcessStartInfo]::new()
+    $info.FileName = $runtimeWindowlessPython
+    $info.WorkingDirectory = $runtimeRoot
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $info.Environment['LLM_API_KEY'] = ''
+    foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
+    $stdout = [IO.FileStream]::new($OutputPath, [IO.FileMode]::CreateNew,
+        [IO.FileAccess]::Write, [IO.FileShare]::Read, 1, [IO.FileOptions]::Asynchronous)
+    try {
+        $stderr = [IO.FileStream]::new($ErrorPath, [IO.FileMode]::CreateNew,
+            [IO.FileAccess]::Write, [IO.FileShare]::Read, 1, [IO.FileOptions]::Asynchronous)
+    } catch { $stdout.Dispose(); throw }
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $info
+    $drain = [pscustomobject]@{ Streams = @($stdout, $stderr); Tasks = @(); Completed = $false }
+    $script:pythonOutputDrains += $drain
+    if (-not $process.Start()) { throw 'knowledge.measure.python_start_failed' }
+    # Register immediately so a subsequent output setup failure still gets cleaned up.
+    if ($Role -ceq 'proxy') { $script:proxyProcess = $process }
+    else { $script:runtimeProcess = $process }
+    $drain.Tasks += $process.StandardOutput.BaseStream.CopyToAsync($stdout)
+    $drain.Tasks += $process.StandardError.BaseStream.CopyToAsync($stderr)
+    return $process
+}
 
 function Test-ExpectedPythonChild([object]$Info, [int]$Port, [Diagnostics.Process]$Process) {
     $role = if ($Port -eq 19313) { 'proxy' } else { 'runtime' }
@@ -563,7 +603,7 @@ function Assert-FrozenAssets {
 function Add-CleanupIssue([string]$Reason) {
     if ($Reason -cnotin @('child_inventory_failed', 'unexpected_child', 'child_identity_drift',
             'child_attestation_failed', 'child_stop_timeout', 'child_stop_failed',
-            'parent_stop_timeout', 'parent_stop_failed', 'cleanup_check_failed')) {
+            'parent_stop_timeout', 'parent_stop_failed', 'cleanup_check_failed', 'python_output_drain_failed')) {
         throw 'knowledge.measure.cleanup_reason_invalid'
     }
     if ($null -eq $script:cleanupIssues) { $script:cleanupIssues = @{} }
@@ -625,6 +665,20 @@ function Stop-OwnedProcesses {
             }
         } catch {
             Add-CleanupIssue 'parent_stop_failed'
+        }
+    }
+    foreach ($drain in $pythonOutputDrains) {
+        if ($drain.Completed) { continue }
+        try {
+            foreach ($task in $drain.Tasks) {
+                if (-not $task.Wait(5000)) { throw 'knowledge.measure.python_output_drain_timeout' }
+            }
+        } catch { Add-CleanupIssue 'python_output_drain_failed' }
+        finally {
+            foreach ($stream in $drain.Streams) {
+                try { $stream.Dispose() } catch { Add-CleanupIssue 'python_output_drain_failed' }
+            }
+            $drain.Completed = $true
         }
     }
 }
@@ -710,13 +764,11 @@ try {
     $agentJar = Join-Path $repository 'agent-service\target\agent-service-0.0.1-SNAPSHOT.jar'
     $proxyMetadataLimit = if ($startup) { 46 } else { 72 }
     $proxySearchLimit = if ($startup) { 0 } else { 48 }
-    $proxyProcess = Start-Process -FilePath $runtimePython -ArgumentList @(
+    $proxyProcess = Start-WindowlessPython -Role 'proxy' -Arguments @(
         '-m', 'tests.uat.knowledge_rebuild_measure_startup', 'proxy',
         '--index-name', [string]$binding.indexName, '--read-alias', [string]$binding.readAlias,
         '--port', '19313', '--metadata-limit', [string]$proxyMetadataLimit,
-        '--search-limit', [string]$proxySearchLimit) -WorkingDirectory $runtimeRoot `
-        -WindowStyle Hidden -PassThru -Environment @{ LLM_API_KEY = '' } `
-        -RedirectStandardOutput $proxyOut -RedirectStandardError $proxyErr
+        '--search-limit', [string]$proxySearchLimit) -OutputPath $proxyOut -ErrorPath $proxyErr
     $startupStage = 'proxy_start'
     Wait-OwnedPort 19313 $proxyProcess
     $authProcess = Start-Process -FilePath $javaExe -ArgumentList (@('-jar', $authJar, '--server.port=18090') + $commonArgs) `
@@ -759,14 +811,12 @@ try {
     Assert-FrozenAssets
     if ($startup) {
         $startupStage = 'runtime_ready'
-        $runtimeProcess = Start-Process -FilePath $runtimePython -ArgumentList @(
+        $runtimeProcess = Start-WindowlessPython -Role 'runtime' -Arguments @(
             '-m', 'tests.uat.knowledge_rebuild_measure_startup', 'runtime',
             '--startup-input', $manifestFull, '--violation-marker', $runtimeViolation,
             '--expected-sha256', $ExpectedManifestSha256,
             '--stop-marker', $runtimeStopMarker, '--closed-marker', $runtimeClosedMarker) `
-            -WorkingDirectory $runtimeRoot -WindowStyle Hidden -PassThru `
-            -Environment @{ LLM_API_KEY = '' } `
-            -RedirectStandardOutput $runtimeOut -RedirectStandardError $runtimeErr
+            -OutputPath $runtimeOut -ErrorPath $runtimeErr
         Wait-Ready 'http://127.0.0.1:19203/internal/health/ready' $runtimeProcess
         if (Test-Path -LiteralPath $runtimeViolation) {
             throw 'knowledge.measure.startup_outbound_attempted'
