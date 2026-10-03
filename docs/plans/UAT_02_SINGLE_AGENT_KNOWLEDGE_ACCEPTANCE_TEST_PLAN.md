@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.31 |
+| 当前版本 | v3.32 |
 | 文档状态 | Reviewed（新B主指标未改善；MEASURE技术失败停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
@@ -12,7 +12,7 @@
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.31；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.32；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -83,6 +83,8 @@ v3.29仅同步P3_01 §14.35：封存B中两项必要来源在双臂扫描存在�
 v3.30仅同步P3_01 §14.36：另获一次4次GET授权的当前元数据诊断确认联合机关文号的软匹配表示缺口，按已定向评审的L2_01_01 v3.12实施并通过直接non-live；未重新测量，不证明真实召回收益或服务升级。当前channel允许不等于ACL/出域核验，012具体损失及005技术根因仍未知。原B/MEASURE终态、37风险、12题、gold、阈值、预算、人工评价和发布状态不变；本次精确只读诊断授权已耗尽，不自动进入新批次。
 
 v3.31仅承接P3_01 §14.37的维护者明确人工结论：001/002 Passed、003/004 Failed。独立记录绑定原运行hash，不改原cases中的执行时状态或未评价标记，不补造四项分项评分；原始整批仍invalid_run，005技术失败、006～012未执行，215项B相关性盲标仍缺。局部评价不构成完整UAT、质量提升或发布证明，也不授权新调用。
+
+v3.32仅同步P3_01实施入口版本；该计划§14当前摘要已与§14.32/33/37的既有证据对齐。本次不新增执行或人工评价，不改变任何用例、gold、阈值、预算、验收结论或后续调用授权。
 
 ## 2. 范围与结果纪律
 

@@ -6,7 +6,7 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.31 |
+| 当前版本 | v3.32 |
 | 文档状态 | Reviewed（B主指标未改善；MEASURE已消费后停止，完整验收未完成） |
 | 日期 | 2026-10-03 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
@@ -59,6 +59,7 @@
 | 37 | 2026-10-03 | §14.35 | 已封存B来源损失及部分人评材料复核 | v3.29补录离线定位与四题审阅准备，不代填维护者评分、不改变失败终态或发布条件 |
 | 38 | 2026-10-03 | §3/14.36 | 独立有限元数据诊断及联合机关软匹配修正 | v3.30承接L2_01_01 v3.12已评审切片，只记录4次GET及non-live修正；不重跑、不改历史结果或发布条件 |
 | 39 | 2026-10-03 | §1/3/5/9/12/14.37 | 维护者确认已完成四题的人工结论 | v3.31独立记录001/002 Passed、003/004 Failed，不补造分项评分，不改整批invalid_run、历史资产、预算或发布状态 |
+| 40 | 2026-10-03 | §14当前结论 | 当前摘要仍混用旧批次状态 | v3.32按§14.32/33/37同步新B有限证据、四题执行与人工结论；不修改各批次历史记录、工作包状态、阈值或授权 |
 
 ## 3. 来源清单与当前基线
 
@@ -234,7 +235,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE）。NORMALIZE/CHUNK旧有限证据见§14.4～14.5，当前阶段证据见§14.6～14.25。当前仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评已通过，但旧12/8与新12/9证据不能拼接为新版37/37。Spring→Runtime Summary9合成三模式及有限失败路径已通过；当前root→隔离es-query-service单域keyword/vector只读接线仅有有限预检，真实typed全链及实际部署未核实。B候选只读未发布，新承接比较10题全部调用后后验归属准入失败，仍无有效traces、盲标或质量结果；MEASURE首次正式批次ledger前失败、后续独立启动失败，12题及人工评价未执行。后续工具修复仅有non-live证明；没有发布，不能宣称新版UAT完成。
+当前Done=9（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），各阶段证据见§14.1～14.37。仓库root接线12/9/minimal-v1；Summary9机械non-live与代码复评、Spring合成三模式及有限失败路径已通过，但旧12/8与新12/9证据不能拼接为新版37/37。单域只读预检和最新四题的有限端到端记录不证明完整两域链路、常规生产部署或新版UAT通过。最新B（§14.32）10题协议完整且保存traces，双臂recall@20均0.85、主指标未改善，215项人工盲标仍缺、precision为null；A仍Not assessed，候选只读未发布。最新MEASURE（§14.33）完成001～004后005技术失败，模型13/typed8/embedding4/rerank4，整批failed_consumed / invalid_run；§14.37维护者确认001/002 Passed、003/004 Failed，005根因仍未知、006～012未执行。各旧失败批次保持原终态，不补跑、续跑或复用余额；后续观测及文号修复只具有限non-live证明。保留现行b2，没有合格候选或发布完成证据，完整测量与新版UAT尚未完成。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
