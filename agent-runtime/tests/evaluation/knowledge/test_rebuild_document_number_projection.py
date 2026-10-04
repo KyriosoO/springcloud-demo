@@ -215,7 +215,8 @@ def test_raw_java_numeric_spelling_is_not_rounded_by_hash_projection(draft):
     assert value["size"] == 21
 
 
-def test_complete_offline_build_flow_is_isolated_and_not_real_execution(monkeypatch, tmp_path, draft):
+@pytest.mark.parametrize("mode", ["preview", "lease", "body_failure", "retained", "delete_failure"])
+def test_complete_offline_build_flow_is_isolated_and_not_real_execution(monkeypatch, tmp_path, draft, mode):
     config = b"synthetic-config"
     archive = zipped([(x.CONFIG, config), (p.HELPER, b"synthetic-current"), ("serviceCenter/pom.xml", b"pom")])
     monkeypatch.setattr(p, "draft_from_repository", lambda root: draft)
@@ -256,10 +257,36 @@ def test_complete_offline_build_flow_is_isolated_and_not_real_execution(monkeypa
             return b"build-success"
         return b"" if "-proc:none" in args else outputs(draft, "old" if root.name.startswith("old") else "current")
     monkeypatch.setattr(x, "_command", command)
-    result = x.offline_project_repository(tmp_path)
-    assert result["realExecutionAllowed"] is False and result["networkRequests"] == result["servicesStarted"] == 0
-    assert result["mavenTestsExecuted"] is False and result["temporaryBuildsRemoved"] is True
-    assert result["qualityAssessment"] == "Not assessed" and len(result["proofs"]) == 2
+    remove = x.shutil.rmtree
+    if mode == "preview":
+        result = x.offline_project_repository(tmp_path)
+        assert result["realExecutionAllowed"] is False and result["networkRequests"] == result["servicesStarted"] == 0
+        assert result["mavenTestsExecuted"] is False and result["temporaryBuildsRemoved"] is True
+        assert result["qualityAssessment"] == "Not assessed" and len(result["proofs"]) == 2
+    elif mode == "lease":
+        with x.projected_java_pair(tmp_path) as lease:
+            assert all(jar.is_file() for jar in lease.jars)
+            lease.verify_artifacts()
+            assert "temporaryBuildsRemoved" not in lease.report
+    else:
+        if mode == "delete_failure":
+            def fail_remove(path):
+                raise OSError("synthetic-private-cleanup")
+            monkeypatch.setattr(x.shutil, "rmtree", fail_remove)
+        expected = RuntimeError if mode == "body_failure" else p.ProtocolError
+        with pytest.raises(expected) as caught:
+            with x.projected_java_pair(tmp_path) as lease:
+                if mode == "retained":
+                    lease.resources_released = False
+                raise RuntimeError("synthetic-private-body")
+        if mode != "body_failure":
+            assert caught.value.__suppress_context__ is True
+            assert all(build.exists() for build in builds)
+            # Dispose only the exact unique build root created by this fake
+            # test, after no processes/clients have ever been acquired.
+            target = builds[0].parent.resolve()
+            assert target.name.startswith("knowledge-document-number-offline-") and not target.is_symlink()
+            remove(target)
     assert all(not build.exists() for build in builds)
     assert (maven.parent / "m2.conf").read_bytes() == b"config"
 

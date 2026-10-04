@@ -4,8 +4,8 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.43 |
-| 文档状态 | Reviewed（有限attempt日志准备增量已复评；完整验收未完成） |
+| 当前版本 | v3.44 |
+| 文档状态 | Reviewed（同JAR资源与生产Stage装配增量；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
@@ -13,7 +13,7 @@
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.45；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.46；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -334,6 +334,8 @@ v3.41仅承接P3_01 §14.47的新快照与发送边界准备：完整竞争池�
 v3.42仅同步P3_01 §14.48的实际Java**离线投影**：同源码双臂只替换helper，两域固定10题/11单元，22份实际keyword投影只保存身份与hash；非helper类、依赖和配置字节一致，规范hash仅003/007的policy发生变化、所有law不变。该结果不证明命中、排名、回答或UAT通过，也不是新真实批次冻结或授权。没有启动服务或调用ES/BGE/模型；新窗口的运行装配、正式journal/清理、实际快照和精确预算仍待完成。原37风险、12资料用例、12题、人工结论、gold、阈值及历史终态均不改变。
 
 v3.43仅同步P3_01 §14.49的有限attempt日志准备：发送前持久化、失败计数不返还、回执失败保留pending、异常traceback有限化及禁止续写已有目录，均只用合成临时资产验证。writer不授予或核实实际授权，清理字段是caller报告而非资源释放证明；真实Java/proxy/client生命周期、快照、完整预算和新独立授权仍未完成。没有实际ES/BGE/模型调用或服务操作，不新增质量、功能UAT或发布结论；全部原用例、人工结论、gold、阈值及历史终态保持。
+
+v3.44承接P3_01 §14.50的同产物lease、自有资源及生产Stage装配：精确JAR保留至资源清理、实际句柄归属、正式Adapter/Stage双臂和发送前计数均仅以fake验证；捕获Stage时延不包含共享embedding，不充当真实质量/时延数据。没有启动服务、读取模型密钥、调用ES/BGE/模型或创建正式运行资产；真实代理、总入口、现场快照、精确冻结及独立授权仍待完成。本增量限定代码及文档复评通过，不改变37风险、12资料用例、12题、gold、阈值、人工判断及历史终态，也不批准真实执行。
 
 在线由P3_01的CONTRACT/RETRIEVAL/EVIDENCE→COMPOSE→MEASURE推进；资料由NORMALIZE→CHUNK/REPRESENT→COMPARE→RELEASE推进。前置不足只阻塞对应阶段，真实测量不是基础实现反向依赖；资料对照不依赖在线MEASURE，需自行冻结相容在线基线。
 

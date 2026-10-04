@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.45 |
-| 文档状态 | Reviewed（有限attempt日志增量已复评；完整验收未完成） |
+| 当前版本 | v3.46 |
+| 文档状态 | Reviewed（同JAR资源生命周期与生产Stage装配增量；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -73,6 +73,7 @@
 | 51 | 2026-10-04 | §14.47 | 本次新库存与真实发送计数不能复用旧工具假设 | v3.43新增新指纹扫描、发送前计数和Java投影hash守卫的fake准备；预算只作条件预测，真实装配、冻结及授权仍未完成，包状态和验收判据不变 |
 | 52 | 2026-10-04 | §14.48 | 发送守卫的期望hash须来自实际Java而不是合成DSL | v3.44完成同源码双臂离线编译和22项实际keyword投影；不启动服务，不增加真实操作权限，完整运行装配和质量判断仍未完成 |
 | 53 | 2026-10-04 | §14.49 | 发送前计数及失败回执需要可持久化且不泄露异常的接缝 | v3.45新增有限append-only attempt writer与故障反例，仅在合成临时目录验证；不创建实际运行资产，不以caller清理报告证明真实资源已释放 |
+| 54 | 2026-10-04 | §14.50 | 离线投影的JAR需保留至owned清理，正式Stage需同路径装配 | v3.46新增精确产物lease、自有资源句柄及计数Adapter/生产Stage双臂装配；仅fake验证，不自动启动服务或获得真实执行授权 |
 
 ## 3. 来源清单与当前基线
 
@@ -84,7 +85,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.43 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 有限日志合成验证不是实际批次、清理或质量证据；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.44 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 同JAR资源与Stage装配只做fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -931,3 +932,19 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 独立文档复评发现硬上限的反例表述超出实际测试，已修正并披露未执行触边；修后定向复评符合，无其他未处理问题。P3严格校验0错误/0警告，三文档95条本地链接及围栏通过；四项历史关键hash保持，有限凭据扫描无匹配，目标差异和暂存检查通过。校验及评审只覆盖本增量，不证明真实资源、当前部署或质量达标。
 
 下一步仍须补齐自有Java/proxy/client装配与实际清理证明、现场模型/策略和新库存快照、完整精确预算及独立授权。当前writer只是可复用的持久化接缝，未与真实执行生命周期装配；§14.47的257/378仍仅条件预测。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run及人工结论不变，不由新增fake或日志转为Done。本轮只本地提交，不push。
+
+### 14.50 同产物lease、自有资源与生产Stage装配（2026-10-04）
+
+起始clean `codex_0915` HEAD `130e27addcceae9b739a83d16fdff0b368ac4f9e`。按§9.1已选择的私有non-live准备范围，扩展[离线投影工具](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_projection.py)，新增[owned资源工具](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_owned.py)和[生产Stage装配](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_stage.py)；没有修改生产源码、配置、gold、阈值或历史资产，也没有建立实际run/authorization/consumed/result。
+
+- 同一次构建和投影的JAR通过lease保持有效，运行前核验产物hash及冻结配置；资源未证明释放则保留唯一临时构建目录，禁止删除正在使用的JAR。兼容离线preview仍在退出成功后才报告目录已删除，本轮未重新执行真实Maven构建。
+- owned工具立即登记实际Popen句柄、caller自有代理和HTTP client；清理只停止登记的句柄，不以端口PID当作关闭授权。部分启动失败、监听者漂移、取消、客户端/代理/端口清理失败和journal写失败均有合成反例；这些测试不能证明当前实际服务已清理。
+- 新装配直接使用正式ES/BGE Adapter和`MinimalKnowledgeRetrievalStage`，不是调用synthetic `ReplaySession`。固定10题/11域、双臂交替顺序和每题一次共享embedding，捕获keyword/vector/RRF/rerank/final20；保留严格DTO、原文hash、域授权及单变量校验。有限trace不保存正文、向量、JWT或原始异常，质量仍`Not assessed`。Stage时延范围明确不包含共享embedding，尚非真实时延比较证据。
+
+独立预审指出标准Base64密钥与Java解码不一致、临时目录删除双失败可泄露异常链两项问题，已最小修复。新工具接收48字节随机材料并标准Base64编码，同一原始材料供后续JWT签名；不读取模型密钥。独立纯fake双失败注入确认traceback不展示主体或删除异常，owned直接测试17 passed、0.67秒。Stage复评另外确认HTTP200非法DTO后仍可能继续未发送peer、共享embedding缺少总耗时截止；已在非成功path DTO后立即停止ledger，复用生产`_bounded`的3秒绝对deadline及迟到检查，新增三项反例。作者自查另补共享embedding阶段的signal取消监听，不以自审冒充独立评审。
+
+本轮相关回归`python -B -m pytest`（`-o addopts='' -q -p no:cacheprovider`）：六份`test_rebuild_document_number_{stage,owned,projection,comparison,transport,journal}.py`及minimal_stage/minimal_ranking/fusion/http/bge_rerank_context五份unit，最终**308 passed，12.60秒**；ES/BGE三份契约及旧b_local_transport/lexical_probe五份直接兼容测试另**104 passed，11.81秒**。首次合成验证117 passed/1 failed为测试使用不存在的取消枚举，改用既有`CLIENT_DISCONNECT`后通过，没有修改生产合同或放宽断言。临时`PYTHONPATH/MYPYPATH`指向两项目源码，`mypy --strict src`及projection/owned/stage/comparison四工具为157源文件通过；七份直接Python文件compileall通过。未执行全量Python/Maven、实际服务、ES/BGE/模型或真实UAT。
+
+独立Stage复评实际运行非法DTO停peer、绝对超时、吞取消后的迟到结果及调用中signal取消四项反例，**4 passed / 9 deselected，0.51秒**，两项问题关闭；相邻owned/projection及纯trace提取无新增已确认问题。该限定代码评审无未关闭Blocker/Major，不代表真实执行、整体质量或发布批准。独立文档复评核对三份实际diff、相关源码、版本状态及证明范围，未发现需修复的问题；只将本增量转为Reviewed，不批准真实执行或整体目标完成。P3严格校验0错误/0警告，三文档98条本地链接与围栏通过，四项历史关键hash保持。
+
+尚需同一总执行器的真实受限代理/启动健康检查、现场模型和策略快照、fresh库存前后核验、完整精确冻结与独立授权；当前接缝没有live CLI或默认连接，不等于完整真实生命周期已经验证。257/378仍仅条件预测。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run及人工结论保持，本轮仅本地提交、不push。

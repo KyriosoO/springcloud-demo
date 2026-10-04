@@ -8,6 +8,7 @@ The returned hashes are preparation evidence, never real-operation authority.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from io import BytesIO
@@ -19,7 +20,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
-from typing import Any
+from typing import Any, Iterator
 from zipfile import BadZipFile, ZipFile
 
 from tests.evaluation.knowledge import rebuild_document_number_comparison as p
@@ -62,6 +63,30 @@ class ProjectionProof:
         p.require(tuple(domain for domain, _ in rows) == case.plan.selected_domain_ids,
                   "projection_case_mismatch")
         return rows
+
+
+@dataclass(slots=True)
+class ProjectedJavaPair:
+    """Same attested binaries kept alive until owned runtime cleanup is proven.
+
+    This lease does not authorize startup. An authorized outer executor must
+    register its resources before using it and release them before lease exit.
+    """
+    draft: p.DraftProtocol
+    java: Path
+    jars: tuple[Path, ...]
+    configs: tuple[Path, ...]
+    proofs: tuple[ProjectionProof, ...]
+    report: dict[str, object]
+    resources_released: bool = True
+
+    def verify_artifacts(self) -> None:
+        p.require(len(self.jars) == len(self.proofs) == len(self.configs) == 2,
+                  "offline_pair_invalid")
+        for jar, proof in zip(self.jars, self.proofs, strict=True):
+            p.require(jar.is_file() and not jar.is_symlink()
+                      and sha256(jar.read_bytes()).hexdigest() == proof.jar_sha256,
+                      "offline_runtime_artifact_drift")
 
 
 def _safe_env() -> dict[str, str]:
@@ -237,8 +262,13 @@ def _validate_pair(proofs: tuple[ProjectionProof, ...], draft: p.DraftProtocol) 
                   "offline_law_drift")
 
 
-def offline_project_repository(root: Path = p.ROOT) -> dict[str, object]:
-    """Explicit offline operation, temporary isolated builds, no run assets."""
+@contextmanager
+def projected_java_pair(root: Path = p.ROOT) -> Iterator[ProjectedJavaPair]:
+    """Build once, inspect those exact JARs, then lease them to one caller.
+
+    Only owned build directories are removed. Failed runtime cleanup retains
+    the directory; never try removing an in-use JAR or stopping an unknown PID.
+    """
     draft = p.draft_from_repository(root)
     timestamp = p._git(root, "show", "-s", "--format=%ct", draft.frozen_head).decode("ascii").strip()
     p.require(re.fullmatch(r"[0-9]{10}", timestamp) is not None, "offline_timestamp_invalid")
@@ -267,9 +297,14 @@ def offline_project_repository(root: Path = p.ROOT) -> dict[str, object]:
     p.require(len(loaders) == 1 and loaders[0].is_file() and maven_config.is_file(),
               "offline_toolchain_unavailable")
     proofs = []
-    with tempfile.TemporaryDirectory(prefix="knowledge-document-number-offline-") as temporary:
+    jars: list[Path] = []
+    configs: list[Path] = []
+    temporary_root = Path(tempfile.mkdtemp(prefix="knowledge-document-number-offline-")).resolve()
+    temporary_parent = temporary_root.parent
+    lease: ProjectedJavaPair | None = None
+    try:
         for arm in p.ARMS:
-            build = Path(temporary) / arm
+            build = temporary_root / arm
             build.mkdir()
             arm_sources = dict(sources)
             arm_sources[p.HELPER] = p._git(root, "show", f"{p.OLD_HEAD if arm == 'old' else draft.frozen_head}:{p.HELPER}")
@@ -287,16 +322,17 @@ def offline_project_repository(root: Path = p.ROOT) -> dict[str, object]:
                 "-pl", ":es-query-service", "-am", "-DskipTests",
                 "-Dproject.build.outputTimestamp=" + timestamp, "package"], cwd=build / "serviceCenter", timeout=900)
             jar = build / "es-query-service/target/es-query-service-0.0.1-SNAPSHOT.jar"
-            inspect = Path(temporary) / (arm + "-projection")
+            inspect = temporary_root / (arm + "-projection")
             inspect.mkdir()
             proofs.append(_project(jar.read_bytes(), draft=draft, arm=arm, config_raw=config_raw,
                                    inspector_raw=inspector_raw, java=java, javac=javac, root=inspect))
-    pair = tuple(proofs)
-    _validate_pair(pair, draft)
-    p.require(p.draft_from_repository(root) == draft and INSPECTOR.read_bytes() == inspector_raw
-              and Path(__file__).read_bytes() == tool_raw,
-              "offline_source_drift")
-    return {"kind": "document_number_offline_projection_v1", "sourceHead": draft.frozen_head,
+            jars.append(jar)
+            configs.append(build / "config-service/src/main/resources/config")
+        pair = tuple(proofs)
+        _validate_pair(pair, draft)
+        p.require(p.draft_from_repository(root) == draft and INSPECTOR.read_bytes() == inspector_raw
+                  and Path(__file__).read_bytes() == tool_raw, "offline_source_drift")
+        report: dict[str, object] = {"kind": "document_number_offline_projection_v1", "sourceHead": draft.frozen_head,
         "sourceArchiveSha256": sha256(archive_raw).hexdigest(), "oldHelperSourceHead": p.OLD_HEAD,
         "buildOutputTimestamp": timestamp,
         "helperSha256": {"old": draft.old_helper_sha256, "current": draft.current_helper_sha256},
@@ -306,8 +342,37 @@ def offline_project_repository(root: Path = p.ROOT) -> dict[str, object]:
                                                ("mavenLoader", loaders[0]), ("mavenConfig", maven_config))},
         "proofs": [asdict(proof) for proof in pair], "realExecutionAllowed": False,
         "qualityAssessment": "Not assessed", "servicesStarted": 0, "networkRequests": 0,
-        "mavenTestsExecuted": False, "temporaryBuildsRemoved": True,
+        "mavenTestsExecuted": False,
         "runtimeSnapshotStatus": "not_observed;projection_only"}
+        lease = ProjectedJavaPair(draft, java, tuple(jars), tuple(configs), pair, report)
+        lease.verify_artifacts()
+        yield lease
+        p.require(p.draft_from_repository(root) == draft and INSPECTOR.read_bytes() == inspector_raw
+                  and Path(__file__).read_bytes() == tool_raw, "offline_source_drift")
+    finally:
+        if lease is None or lease.resources_released:
+            # This is exactly the unique mkdtemp target, not a computed repo or
+            # user directory. Revalidate identity before recursive removal.
+            p.require(not temporary_root.is_symlink() and temporary_root.resolve() == temporary_root
+                      and temporary_root.parent == temporary_parent
+                      and temporary_root.name.startswith("knowledge-document-number-offline-"),
+                      "offline_temporary_target_invalid")
+            failed = False
+            try:
+                shutil.rmtree(temporary_root)
+            except OSError:
+                failed = True
+            if failed:
+                raise p.ProtocolError("offline_temporary_cleanup_failed") from None
+        else:
+            raise p.ProtocolError("offline_owned_cleanup_incomplete") from None
+
+
+def offline_project_repository(root: Path = p.ROOT) -> dict[str, object]:
+    """Compatibility preview: no runtime resources, release before reporting."""
+    with projected_java_pair(root) as lease:
+        report = dict(lease.report)
+    return {**report, "temporaryBuildsRemoved": True}
 
 
 def main() -> None:

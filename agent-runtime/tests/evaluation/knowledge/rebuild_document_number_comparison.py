@@ -375,7 +375,14 @@ def _validate_pair(case: ComparisonCase, replay: CaseReplay) -> None:
 
 
 def _trace(arm: str, case: ComparisonCase, ports: _Ports, final: tuple[CandidateRef, ...]) -> ArmTrace:
-    sets: tuple[PathCandidateSet, ...] = tuple(_candidate_set(item, limit=20) for item in ports.arm.paths)
+    return captured_trace(arm, case, ports.arm.paths, tuple(ports.reranks), final)
+
+
+def captured_trace(arm: str, case: ComparisonCase, paths: tuple[PathRetrievalResult, ...],
+                   reranks: tuple[tuple[tuple[AuthorizedKnowledgeCandidate, ...], tuple[RerankScore, ...]], ...],
+                   final: tuple[CandidateRef, ...]) -> ArmTrace:
+    """Pure verification of captured production Stage inputs/output; no sends."""
+    sets: tuple[PathCandidateSet, ...] = tuple(_candidate_set(item, limit=20) for item in paths)
     keyword: list[StageRanks] = []
     vector: list[StageRanks] = []
     reranked: list[StageRanks] = []
@@ -385,7 +392,7 @@ def _trace(arm: str, case: ComparisonCase, ports: _Ports, final: tuple[Candidate
                            tuple(CandidateRef.from_candidate(c) for c in item.candidates))
         (keyword if item.path is RetrievalPath.KEYWORD else vector).append(ranks)
     fused = ReciprocalRankFusion().fuse(sets)
-    calls = iter(ports.reranks)
+    calls = iter(reranks)
     for domain in case.plan.selected_domain_ids:
         pool = domain_pool(sets, domain)
         if pool:
