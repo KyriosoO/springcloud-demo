@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.41 |
-| 文档状态 | Reviewed（发布守卫non-live增量已独立定向复评；完整验收未完成） |
+| 当前版本 | v3.42 |
+| 文档状态 | Reviewed（文号全链私有协议及non-live增量已定向复核；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -69,6 +69,7 @@
 | 47 | 2026-10-04 | §1/3/5/14.44 | 原005解释路径未进入正式runner合成覆盖 | v3.39补齐同runner/生产ASGI的explanation正向和非法引用停批反例；不归因旧失败，不改生产实现、gold或真实测量状态 |
 | 48 | 2026-10-04 | §9.1 | 恢复推进需明确可信基线及下一验证变量 | v3.40澄清旧A不能只补proofRef；优先提出同b2的文号修正检索全链对照，保留独立授权、预算及验收边界；不新增工作包、Gate或真实批次 |
 | 49 | 2026-10-04 | §5/14.45 | 旧发布工具遗漏完整alias及成功回执守卫 | v3.41按现有DR-KRET-025补齐空flags、候选无alias、严格回执与切后UUID核查；只执行fake/工具回归，RELEASE仍Blocked，不启动新批次或发布 |
+| 50 | 2026-10-04 | §9.1/14.46 | 维护者选择推荐的文号全链对照准备路线 | v3.42完成独立私有草案和内存生产Stage重放；不继承旧B协议或授权，不连接ES/BGE，不冻结真实批次，原包状态与阈值不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -80,7 +81,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.39 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 005合成路径和003词法局部收益各有证明边界；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.40 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 文号全链新增证据只为non-live；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -197,6 +198,8 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 从现有固定fixture的10个`retrievalDenominator=true`题、11个域单元可推导：成对typed search及物理search各≤44，共享query embedding≤10，成对rerank≤22；外部模型、Business、索引/alias写入、retry/resume均0。**这只是问题与路径数量的预算推导，不是完整可执行授权**：索引身份/全记录前后核验、Profile启动、健康检查和必要预热仍须按实际工具计算、分项冻结上限；不能继承旧全库fingerprint或隐去这些调用。precision仍须人工盲标，不由来源列表代填。
 
 MEASURE另按UAT_02 §5.4准备独立授权与冻结，既定12题/gold/阈值及12 E2E、36模型、48 typed、12 query embedding、24 rerank、72正式ES元数据上限不自动增加；准备期全库读取和startup操作仍单独事前列明。新测量即使形成完整有效终态，也不能代替COMPARE的质量和资料发布条件。上述推荐顺序不新增DAG边或审批Gate；若缺范围确认，继续保留各包原状态，而非再做合成测试或重复付费调用。
+
+维护者已选择推荐路线，授权本轮**私有协议与non-live验证准备**，交付见§14.46。该确认解决本地准备的范围选择，不是新的真实ES/BGE、MEASURE或发布授权。下一个实际操作阶段仍需完整预算、运行快照及独立授权；未由44次物理search的推导值假定其他ES请求为0。
 
 ## 10. 实施交接
 
@@ -833,3 +836,25 @@ DRYRUN仍仅non-live范围Done，14包/14边及11 Done、2 In Progress、1 Block
 未参与实现的独立执行单元直接核对L2、源码diff、CLI与新旧反例，并另运行同25项目标fake，复评无确认Blocker/Major或其他待修缺陷。此结论仅批准守卫增量，不重新批准整个设计或上线。固定12题、原B comparison result和MEASURE failure的hash保持；正文、索引、alias、运行配置、任务、gold、阈值、历史资产未修改，没有真实模型/ES/BGE/Business调用或服务操作。
 
 14包/14边、11 Done、2 In Progress、1 Blocked保持。RELEASE仍缺合格候选、质量/安全和部署回滚证据；COMPARE/MEASURE仍按原终态及§9.1等待相应独立决策，不由本轮守卫或更多fake转为Done。
+
+### 14.46 文号全检索链的私有草案及non-live验证（2026-10-04）
+
+起始clean `codex_0915` HEAD `0395537d59dba225575c8bd7fa9f800217c2e5f9`。依据维护者对§9.1推荐路线的选择，新增[私有协议与重放入口](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_comparison.py)及[直接测试](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_comparison.py)。本切片落实DR-KRET-204/401/403的独立同池、分阶段、有界对照准备，不新建工作包、Gate或公共合同；不是第三项已获授权A/B，不替代A或MEASURE。
+
+- 草案硬绑定现有12题fixture SHA-256 `04a437d215ab242ea5e69eed95d109f47cf617135778f4d2cf5a13f6cddce26a`，从中选择全部10个召回评价题及11个域单元；原问题、域、gold和阈值不改。当前HEAD与旧helper源HEAD之间的Java主源码、契约、依赖和启动配置范围仅允许`DocumentNumberQuery.java`差异；本地`--preview`实际核查通过。没有编译或启动新服务，源码核查不代表实际部署核查。
+- 两臂使用同一b2完整竞争池的目标范围、同问题/计划和共享query vector；允许policy keyword因helper改变，vector和law路径必须一致。原文、来源元数据、snapshot/readPolicy及共用候选评分漂移拒绝，RRF/域内重排/final20直接调用或重放核对当前生产组件，不另造在线算法。
+- 所有演练端口仅接受内存数据，没有HTTP/推理/进程启动回调。假调用上限为typed44、共享embedding10、rerank22；失败计attempt、停止并保留有限completed/unexecuted，session不能resume。取消后Stage child已收回。输出只含case/身份/hash/阶段排序及有限数值，不含正文、向量、令牌；演练计分固定`Not assessed`，precision/真实时延为null，不能成为采用或发布证明。
+- CLI只提供`--preview`，状态`non_live_only`、`realExecutionAllowed=false`、`runId=null`；不创建manifest/authorization/consumed或正式result。旧B比较器、四题词法探针、冻结fixture及历史目录不修改。
+
+真实准备仍未完成：新的完整库存前后核验、当前实际Profile/读取/出域策略与本地模型快照、物理请求见证、额外元数据/全库读取/启动健康检查及预热的**完整精确预算**、自有服务与代理清理、排他窗口和独立运行授权。预览不继承fixture或旧运行的全库fingerprint。后续应先补齐无付费执行器及其fake反例，汇总完整预算和冻结材料供一次确认；没有精确授权不执行真实读取或推理。MEASURE仍单独治理，不在本准备切片中读取密钥。
+
+本轮实际验证（`agent-runtime`，源码路径临时注入并恢复，没有安装或修改依赖）：
+
+- 新增直接fake单测39 passed；独立审查者另实跑同39项，0.38秒。
+- `python -m pytest tests/evaluation/knowledge/test_rebuild_document_number_comparison.py tests/evaluation/knowledge/test_rebuild_b_comparator.py tests/evaluation/knowledge/test_rebuild_lexical_probe.py tests/unit/knowledge/retrieval/test_minimal_stage.py tests/unit/knowledge/retrieval/test_minimal_ranking.py tests/unit/knowledge/retrieval/test_fusion.py tests/unit/knowledge/test_minimal_retrieval_plan.py -q`：296 passed，6.54秒，使用临时`PYTHONPATH=src;../knowledge-corpus-tools/src`。
+- 临时`MYPYPATH=src`下 `python -m mypy --strict src tests/evaluation/knowledge/rebuild_document_number_comparison.py`：154 source files通过；两份新增文件`compileall -q`通过。初次默认安装包定位缺模块，继而发现复用旧B工具类型会拖入不相关语料解析依赖；新协议改用隔离私有记录，最终无放宽检查、无新增依赖。不声称初次命令通过。
+- 本地源码`python -m tests.evaluation.knowledge.rebuild_document_number_comparison --preview`通过，只输出草案/未满足前置及计数推导，不执行真实freeze。
+
+独立执行单元未参与实现，直接核对设计、源码差异和全部反例，代码增量复评无确认Blocker/Major；随后独立核查三文档、fixture hash、包/边状态及原始验证输出，文档增量定向复核符合，未发现需修改的实质问题。仅限私有准备增量，不证明新真实批次已具备执行条件。P3严格校验0 errors/0 warnings，三文档86条本地链接及代码围栏检查通过；本轮核查的fixture、旧B result和MEASURE failure哈希保持。P3/UAT/索引状态同步和Git收口只本地进行，不push。
+
+14包/14边及11 Done、2 In Progress、1 Blocked保持。A仍Not assessed，B仍不采用，MEASURE仍原invalid_run且不补跑，RELEASE仍Blocked；37风险、12资料用例及12题真实评价均不由本轮fake关闭。没有真实模型、ES、BGE、Business、服务启停或索引/alias写入。
