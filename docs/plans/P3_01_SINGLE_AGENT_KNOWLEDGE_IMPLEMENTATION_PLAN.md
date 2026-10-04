@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.43 |
-| 文档状态 | Reviewed（新快照与发送边界私有准备增量已复核；完整验收未完成） |
+| 当前版本 | v3.44 |
+| 文档状态 | Reviewed（实际Java离线投影增量已复评；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -71,6 +71,7 @@
 | 49 | 2026-10-04 | §5/14.45 | 旧发布工具遗漏完整alias及成功回执守卫 | v3.41按现有DR-KRET-025补齐空flags、候选无alias、严格回执与切后UUID核查；只执行fake/工具回归，RELEASE仍Blocked，不启动新批次或发布 |
 | 50 | 2026-10-04 | §9.1/14.46 | 维护者选择推荐的文号全链对照准备路线 | v3.42完成独立私有草案和内存生产Stage重放；不继承旧B协议或授权，不连接ES/BGE，不冻结真实批次，原包状态与阈值不变 |
 | 51 | 2026-10-04 | §14.47 | 本次新库存与真实发送计数不能复用旧工具假设 | v3.43新增新指纹扫描、发送前计数和Java投影hash守卫的fake准备；预算只作条件预测，真实装配、冻结及授权仍未完成，包状态和验收判据不变 |
+| 52 | 2026-10-04 | §14.48 | 发送守卫的期望hash须来自实际Java而不是合成DSL | v3.44完成同源码双臂离线编译和22项实际keyword投影；不启动服务，不增加真实操作权限，完整运行装配和质量判断仍未完成 |
 
 ## 3. 来源清单与当前基线
 
@@ -82,7 +83,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.41 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 新快照和发送边界新增证据只为fake/non-live；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.42 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 实际Java离线投影不是部署、检索或回答质量证据；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -884,3 +885,32 @@ DRYRUN仍仅non-live范围Done，14包/14边及11 Done、2 In Progress、1 Block
 - P3 strict：0 errors/0 warnings；三文档链接/fence/版本、14包/14边及状态保全检查、历史fixture与封存B/MEASURE关键hash、范围和有限敏感扫描、工作树与暂存diff检查通过。未执行全量Python/Maven、真实索引读取、Java离线投影、服务或UAT，这些不由上述fake替代。
 
 本轮只本地提交，不push/部署。真实模型、ES、BGE、Business、服务启停及索引/alias写入均0；没有创建新run/授权/consumed/result。现行绑定和历史证明范围不变，完整目标仍未完成。
+
+### 14.48 实际Java离线投影及构建一致性（2026-10-04）
+
+起始clean `codex_0915` HEAD `260a709fb3a594f3b9029c177e08e766be3c91ce`。新增[私有离线投影工具](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_projection.py)、[同package Java inspector](../../agent-runtime/tests/evaluation/knowledge/DocumentNumberProjection.java)和[直接测试](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_projection.py)，补齐§14.47的期望keyword hash来源；不修改生产源码、Profile、gold或历史探针，也不新建运行授权资产。
+
+两臂取同一Git archive，旧臂仅替换固定旧提交的`DocumentNumberQuery.java`。在独立临时目录中用同一Java25、Maven离线构建，`-DskipTests`明确不作为Maven测试通过；编译时间戳固定为源提交时间`1791082199`。Maven直接由已核验的Java运行classworlds launcher，不经过Windows cmd再启动Java；只继承有限工具环境，不继承模型密钥或Java/Maven注入选项。解包先拒绝设备名、尾点/空格、控制字符、路径穿越、链接及Windows大小写重复，再进行排他写入；临时构建目录结束后删除，仓库已有target不触碰。
+
+Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.buildSearchBody`和所带Jackson，分别绑定policy与law Profile，不创建RestClient、Spring上下文或服务。问题从固定fixture派生，通过有界stdin输入，stdout在子进程返回后校验大小；Python只核查case/域/请求形状并计算保留数字字面值的规范hash，不实现文号正则或重新生成DSL。YAML中的索引占位符没有从环境补值，**此证明不涵盖完整启动校验、部署实例或当前索引**。
+
+最终实际离线执行通过（源HEAD同起始HEAD；工具为本轮新增内容，不视为真实批次冻结）：
+
+| 检查 | 有限结果 |
+|---|---|
+| 投影范围 | 两臂各11项keyword，即10题/11域单元，总22项；原问题、case顺序、gold与阈值保持 |
+| 构建唯一变量 | 非helper class fingerprint `e6b72c120942f503a862c8c2ad15bdbf2325bcaaa7d53e9db310b043707d1690`、依赖JAR fingerprint `535871781868d0a400eaa538aaae57af7b9cdd2448b25f10349bcd40e479a2d2`以及配置字节两臂全等，helper class不同 |
+| 请求差异 | 规范hash仅003/policy与007/policy不同；其余9个域单元相同，所有law相同。原始Map序列化顺序可以不同，不能用raw hash差异误判语义改变 |
+| 有限证明绑定 | source archive SHA `4d9b9aea17b464d6d15afd04ffe0b7df8b86f489cdaed694b449a0e48a9dd78f`；最终工具SHA `1f69f41dd48e690551fde8207af66b5ffb82c58ea47b30864db93d71810d5c1a`；22行及构建proof规范汇总SHA `591975fadb2a59c5effa43463c91438621200734dec8900beb24323e663d8d24` |
+| 证明边界 | 只确认实际Java投影来源及单变量构建一致性，不判断召回、排序、答案或发布质量；真实发送时仍须绑定新的冻结HEAD和实际实例 |
+
+首次实际构建触发`offline_pair_drift`，未保存分项hash，不能断言其唯一原因；两臂固定构建时间戳后严格相同比对通过，没有放宽指纹或内容要求。独立评审确认一个Windows设备/别名解包缺口，修复并添加写入前拒绝反例；初始backslash测试也揭示ZIP读取会规范化名称，现核对`orig_filename`，不修改断言来掩盖问题。最终定向独立代码复评无未关闭实质问题；独立审查者另运行49项fake通过，未重复实际Java构建。
+
+本轮实际验证：
+
+- `agent-runtime`使用§14.47列明的292项集合，在其命令文件列表前追加`tests/evaluation/knowledge/test_rebuild_document_number_projection.py`，仍用`-o addopts='' -q`：**341 passed，13.94秒**；直接新文件49项包含两域/身份/字节/环境/异常/解包反例。
+- 临时源码类型路径下`python -m mypy --strict src tests/evaluation/knowledge/rebuild_document_number_projection.py`：154 source files通过；新Python工具及测试`compileall -q`通过。
+- `python -B -m tests.evaluation.knowledge.rebuild_document_number_projection --offline-project`：实际双臂离线编译及22投影通过；Windows门禁修复后再次完整执行通过，临时目录清理。该构建跳过测试，不等于Maven单测或Spring/typed集成验证。
+- 未参与起草的只读执行单元直接核对三份文档差异、当前源码和原始有限验证输出，定向文档复评符合，无已确认实质缺陷；这不是外部人工评价或整体验收。P3 strict为0错误/0警告，三文档93条本地链接及fence、版本、14包/14边及状态保全通过；四项历史关键hash与起始Git字节一致，有限凭据扫描和Git差异检查通过。未执行全量Python/Maven、真实typed/ES/BGE/模型或UAT。
+
+下一步补齐自有Java/proxy/client运行装配、正式append-only journal与停止/清理、模型/策略和库存快照及完整精确冻结材料。§14.47的257/378仍只是条件预测，未获得真实执行额度；本轮无模型密钥读取、真实API调用、服务启停或索引/alias操作，不创建run/authorization/consumed/result。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run与人工结论不变；完整目标未完成，只做本地Git收口，不push。

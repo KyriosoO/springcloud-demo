@@ -4,8 +4,8 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.41 |
-| 文档状态 | Reviewed（新快照与发送边界准备证据已复核；完整验收未完成） |
+| 当前版本 | v3.42 |
+| 文档状态 | Reviewed（实际Java离线投影准备增量已复评；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
@@ -13,7 +13,7 @@
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.43；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.44；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -330,6 +330,8 @@ v3.38仅承接P3_01 §14.43另获精确授权的独立词法诊断：同现行b2
 v3.40同步P3_01 §14.46的文号全链**私有草案与内存重放**：从原12题中保留全部10个召回题/11域单元，固定原问题/gold/阈值，两臂同b2，仅helper源不同。演练直接使用当前生产Stage，记录keyword/vector/RRF/rerank/final20；预算、绑定漂移、失败停止及取消反例已验证。合成计分不是质量证据，precision和真实时延仍null，不能证明召回改善、采用或发布。新增入口没有真实执行模式、没有运行授权资产，也不继承旧全库fingerprint；完整ES/BGE/启动及前后库存预算、实际快照、执行器与清理、排他窗口和独立授权仍待准备。该范围确认不新增真实运行许可，不复跑A/B/MEASURE，不改变当前各项未通过状态。
 
 v3.41仅承接P3_01 §14.47的新快照与发送边界准备：完整竞争池重新计算指纹、不以旧fingerprint输入冒充当前证明；禁止隐藏认证/重试发送，失败计attempt并停新发送，physical keyword必须匹配case/arm独立投影hash。全部验证使用mock/内存，真实Java投影、服务装配、append-only journal、清理、现场模型/策略快照和精确授权仍未完成。预算是条件预测而非批准额度，fake无新增质量、UAT或发布结论；37风险、12资料用例、12题、gold、阈值、原终态与人工结论保持。
+
+v3.42仅同步P3_01 §14.48的实际Java**离线投影**：同源码双臂只替换helper，两域固定10题/11单元，22份实际keyword投影只保存身份与hash；非helper类、依赖和配置字节一致，规范hash仅003/007的policy发生变化、所有law不变。该结果不证明命中、排名、回答或UAT通过，也不是新真实批次冻结或授权。没有启动服务或调用ES/BGE/模型；新窗口的运行装配、正式journal/清理、实际快照和精确预算仍待完成。原37风险、12资料用例、12题、人工结论、gold、阈值及历史终态均不改变。
 
 在线由P3_01的CONTRACT/RETRIEVAL/EVIDENCE→COMPOSE→MEASURE推进；资料由NORMALIZE→CHUNK/REPRESENT→COMPARE→RELEASE推进。前置不足只阻塞对应阶段，真实测量不是基础实现反向依赖；资料对照不依赖在线MEASURE，需自行冻结相容在线基线。
 
