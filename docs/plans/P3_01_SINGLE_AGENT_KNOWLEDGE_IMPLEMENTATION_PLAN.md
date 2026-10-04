@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.51 |
-| 文档状态 | Reviewed（私有串行入口及文档增量定向复评通过；完整验收未完成） |
+| 当前版本 | v3.52 |
+| 文档状态 | Reviewed（实际离线构建记录与准备提议增量复核通过；新操作未授权，完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -79,6 +79,7 @@
 | 57 | 2026-10-04 | §14.53 | 全库存读取需发送前记账，后验不能放在日志封存之后 | v3.49复用scanner补齐三元数据与全记录前后核验、封存前postcheck及冻结响应绑定；仅non-live，不新建真实运行或授权资产 |
 | 58 | 2026-10-04 | §14.54 | 模型身份检查不得混入HTTP计数或仅信任caller标签 | v3.50补齐现有模型probe、实际产物/配置/catalog冻结及同journal非HTTP计数；仅fake验证，独立授权消费与总入口未完成 |
 | 59 | 2026-10-04 | §14.55 | 准备、授权一致性、一次消费、前后验与清理须串行闭合 | v3.51补齐私有外层和固定消费守卫；仅fake验证，不自签授权，不改变质量、历史或发布状态 |
+| 60 | 2026-10-04 | §14.56 | fake产物不能替代实际Java构建及请求投影 | v3.52实际离线构建两臂并核对11个域请求，准备下一独立只读范围；不扩展工具、不执行真实操作、不改变包或质量状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -90,7 +91,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.49 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 串行外层及消费仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.50 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 离线Java投影不代替现场或质量；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -1046,3 +1047,32 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 独立外层与消费守卫的private/fake实施范围已补齐，但可信确认来源、实际新run/grant、现场准备及冻结、完整盲标和新的合法测量仍未完成。现行b2、旧A/B/MEASURE终态、gold/阈值及14包/14边、11 Done/2 In Progress/1 Blocked不变；不得宣布COMPARE、MEASURE、整体UAT或RELEASE完成。下一步先整理新的精确准备/执行材料并核实相应授权，不复用失败批次或旧许可。
 
 文档内审与独立增量复评核查实际差异，修正P3来源表的UAT版本及补录本次修改映射后，无剩余确认问题；109本地链接、围栏、版本和P3严格检查0错误/0警告通过。Reviewed仅指本增量，不改变历史验收、运行授权或全目标状态。
+
+### 14.56 实际离线Java投影与下一准备范围（2026-10-04）
+
+在干净`codex_0915`提交`e1b775e6acfb34fa2d20ada7f00dc48a8250aad3`，使用corpus项目venv及临时双源码/Agent路径，实际执行：`python -B -m tests.evaluation.knowledge.rebuild_document_number_projection --offline-project`。工具从该提交导出两份临时源码，旧臂仅替换`DocumentNumberQuery.java`为`a1ba290e8b2d78da71d46bc1f39018be502c7347`中的文件；Java25启动Maven `--offline --batch-mode -pl :es-query-service -am -DskipTests package`，再调用真实package-private请求构造器。命令成功、临时构建目录已由工具清理；未修改当前target、启动服务或执行Maven测试。Java编译/请求投影不是实际ES检索、召回改善或UAT证明。
+
+实际产物核验：
+
+| 项目 | 结果 |
+|---|---|
+| 两臂共同配置hash | `717e4acc8bd82602af2cdced623175582dfe7a980290df3baab1910d2d8e7df5` |
+| 两臂共同业务类hash（排除helper） | `e6b72c120942f503a862c8c2ad15bdbf2325bcaaa7d53e9db310b043707d1690` |
+| 两臂共同依赖hash | `fa11861749f7ce80a1711e790e95ea391a437bbbcf38b55995c4cd3702da17e1` |
+| 旧臂JAR hash | `fd99d37d03ab31b63dadcfa989f4e663233ed52039940f9cfa376d94caf7edb7` |
+| 当前臂JAR hash | `9afb543a5782558b9043804858c6569fb905b35a781c5135cef232e79117fe3a` |
+| 原始源码helper hash | 旧`9eb7f0889f17e75568d7112d0355a69142d52f109f240df151366a64e8b97550`；当前`90b4c5c88d071f9e31dee557996d3b804752d953bead6a2dd699c54cc8ff43ff` |
+| 11个域单元规范请求投影 | 仅003 policy、007 policy不同；其余9个相同，全部law单元相同 |
+
+上述hash只绑定本次已清理的离线产物及起始提交，不作为后续JAR租约、当前部署、正式冻结或新操作许可。后续实际准备必须在其HEAD重新构建、核验并保持同一产物租约；不以本节历史hash替代新现场捕获。
+
+下一步只提出**一次独立无付费准备**，不立即执行、不再扩展私有工具或重做已通过fake回归。拟议最小范围如下，须维护者明确确认后才能操作：
+
+- 目标为现行b2的既有只读alias `agent-doc-tax-policy-v2-read`；预期索引`agent-doc-tax-policy-v5-20260907-vector-b2`、UUID `jJ5Ww3LCRWWycfDkUZvmdw`、mapping hash `1c2ab9b48ae5b3fcd37b91fec883b6141d3616b2331cdf3a430ea4500a40db82`及N=15521仅从旧证据取得，**当前尚未观察**。不吻合则停止，不自行换目标或扩大记录/调用额度。
+- 本地ES `http://127.0.0.1:9200`最多67次HTTP：3次有限元数据＋1次全扫描身份检查＋最多63个250条分页；只用于当前完整竞争池fingerprint/身份核实，不做相关性search、typed检索、写入或alias切换。保存有限身份、hash和记录清单，不保存完整正文/向量。
+- 固定Docker可执行文件`C:/Program Files/Docker/Docker/resources/bin/docker.exe`，本次本地文件SHA-256=`575b19fdc3cc3054714e6cbe92bcf86b708cc5dc46ad5e75bfd7591220de86fe`；显式本机named pipe。最多8次只读进程操作：分别按publish=8908/8909过滤定位及取完整ID共4次；将唯一实际ID显式绑定后，使用既有2次inspect＋2次只读模型文件hash探针共4次。定位/模型不符、非唯一、超时或失败即停止；不执行模型推理、容器启动/重启或远程Docker发现。不能从旧容器或端口宣称模型身份已验证。
+- 新run/reference、有效排他窗口及精确材料需绑定实际确认，准备期和随后正式执行使用独立身份；不能把本节提议自签为grant。正式全链对照、MEASURE、服务启动、预热和推理**不在这次准备提议内**；准备结果用于形成后续精确范围，不复用任何失败批次。
+
+本轮真实模型/ES/BGE/Docker/服务操作均0；只执行离线Java/Maven构建与本地文件/Git读取。旧A/B/MEASURE、人工结论、gold、阈值、14包/14边与11 Done/2 In Progress/1 Blocked保持。尚缺新的精确只读准备确认及现场捕获，不能关闭COMPARE、MEASURE或RELEASE。
+
+文档内审及独立子代理增量复核直接检查三文档diff与投影/身份/库存/预算源码，无需修正的实质问题。表中执行结果与转交的实际工具输出一致；评审者未重新执行构建或独立重算已清理JAR的字节hash，不冒称独立执行验收。109本地链接/围栏、P3严格检查0错误/0警告、4项历史关键hash及差异敏感模式检查通过；没有代码、测试、配置、历史运行资产改动。Reviewed仅指本轮记录和提议边界，不批准真实准备或质量验收。
