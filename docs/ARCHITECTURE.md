@@ -1,6 +1,6 @@
 # 架构文档索引
 
-本页是Agent统一文档版本序列的当前入口（索引v3.52；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
+本页是Agent统一文档版本序列的当前入口（索引v3.53；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
 
 ## 1. 编号与状态规则
 
@@ -64,8 +64,8 @@
 
 | 定位 | 唯一入口 | 版本/状态 | 边界 |
 |---|---|---|---|
-| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.52 / Reviewed | 实际离线Java投影通过；准备提议已复核、未获新操作授权，现场及完整验收未完成 |
-| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.50 / Reviewed | 离线Java投影不证明新许可或质量；阈值及未完成状态保持 |
+| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.53 / Reviewed | 独立无付费准备已完成；正式成对对照、完整验收及发布未完成 |
+| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.51 / Reviewed | 现场身份及库存核验不证明召回或回答改善；阈值及未完成状态保持 |
 | Business维护验收基线 | [UAT_00](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v3.1 / Reviewed | 原固定用例及Employee扩展证明范围保留；不重做UAT |
 | 历史计划与迁移映射 | [本次归档](plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md) | 原版本/状态不变 | 原ROADMAP_01、P3_00、UAT_01退出当前推进；UAT_00保留整理前快照 |
 

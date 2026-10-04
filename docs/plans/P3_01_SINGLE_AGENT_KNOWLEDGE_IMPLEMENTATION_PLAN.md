@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.52 |
-| 文档状态 | Reviewed（实际离线构建记录与准备提议增量复核通过；新操作未授权，完整验收未完成） |
+| 当前版本 | v3.53 |
+| 文档状态 | Reviewed（独立无付费准备、证据与状态同步增量复核通过；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -80,6 +80,7 @@
 | 58 | 2026-10-04 | §14.54 | 模型身份检查不得混入HTTP计数或仅信任caller标签 | v3.50补齐现有模型probe、实际产物/配置/catalog冻结及同journal非HTTP计数；仅fake验证，独立授权消费与总入口未完成 |
 | 59 | 2026-10-04 | §14.55 | 准备、授权一致性、一次消费、前后验与清理须串行闭合 | v3.51补齐私有外层和固定消费守卫；仅fake验证，不自签授权，不改变质量、历史或发布状态 |
 | 60 | 2026-10-04 | §14.56 | fake产物不能替代实际Java构建及请求投影 | v3.52实际离线构建两臂并核对11个域请求，准备下一独立只读范围；不扩展工具、不执行真实操作、不改变包或质量状态 |
+| 61 | 2026-10-04 | §14.57 | 维护者精确授权独立无付费准备 | v3.53完成67次ES只读及8次Docker身份操作，封存现场有限证据；不执行正式对照、推理或发布，不改变原包及验收状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -91,7 +92,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.50 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 离线Java投影不代替现场或质量；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.51 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 独立现场准备不代替质量；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -1076,3 +1077,27 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 本轮真实模型/ES/BGE/Docker/服务操作均0；只执行离线Java/Maven构建与本地文件/Git读取。旧A/B/MEASURE、人工结论、gold、阈值、14包/14边与11 Done/2 In Progress/1 Blocked保持。尚缺新的精确只读准备确认及现场捕获，不能关闭COMPARE、MEASURE或RELEASE。
 
 文档内审及独立子代理增量复核直接检查三文档diff与投影/身份/库存/预算源码，无需修正的实质问题。表中执行结果与转交的实际工具输出一致；评审者未重新执行构建或独立重算已清理JAR的字节hash，不冒称独立执行验收。109本地链接/围栏、P3严格检查0错误/0警告、4项历史关键hash及差异敏感模式检查通过；没有代码、测试、配置、历史运行资产改动。Reviewed仅指本轮记录和提议边界，不批准真实准备或质量验收。
+
+### 14.57 独立无付费准备终态（2026-10-04）
+
+维护者对§14.56及对话中的精确准备范围确认“授权，继续推进”。执行绑定干净`codex_0915` HEAD `27b18191449b3641a0951fc7e142922d720b2b1b`，新run `knowledge-document-number-20261004-01`，reference `P3_01:14.56-preparation`；排他窗口确认及UTC有效期限记录在新authorization中，不继承任何旧批次。一次性编排仅复用既有投影、身份探针及库存扫描器，不新增生产入口或Gate。源码复核修正provider关键字参数、消费写入失败分类及独立清理后，执行AST、依赖锁检查和独立增量复评，再进行真实准备。
+
+| 项目 | 实际结果 |
+|---|---|
+| 终态 | `prepared`，授权已消费；不补跑、不续跑 |
+| ES只读HTTP | 67：元数据3＋完整扫描64（身份1＋分页63）；相关性search、typed search均0 |
+| Docker只读进程 | 8：唯一容器定位4＋既有模型身份probe4；模型推理0 |
+| 完整竞争池 | 15521条；alias、索引UUID、mapping及写保护与授权预期相符，全部固定必要来源身份/hash存在 |
+| 完整source fingerprint | `fb285fc5e5e838fbccb2025f24c0f4472802b8beb7190247cefc9a2978b9a17d` |
+| 有限库存SHA-256 | `e2178b1ee9f13ce840e1a1b878cc7778e554ab1319eecb7e73b0ed1baa5a6f96`；只含身份/hash，无正文或向量 |
+| 实际模型身份SHA-256 | `b8dd942d15e24c741845dd2300a6e28f8c23501ab2256a04a26c1959b7d1b9a1`；读取模型文件核验，不做推理 |
+| 清理 | journal已封存，HTTP/定位/身份pending均0；客户端关闭，离线临时构建lease已释放，无服务/proxy启动 |
+| 禁止操作 | 模型/BGE推理、服务启停、索引/alias写入、MEASURE、retry/resume均0；未读取模型密钥 |
+
+有限证据见[准备result](../../agent-runtime/tests/uat/results/document-number-comparison/runs/knowledge-document-number-20261004-01/result.json)，SHA-256=`28b5acea2e57267f17eeaefeb14b4263360c4a17d05d27910c1b652f70ada340`。同目录保留授权、append-only attempts、实际投影、模型身份、有限库存和一次性执行源码；固定consumed在其独立目录保留，不覆盖旧资产。两臂本次共同业务类/配置/依赖一致，仅003/007 policy规范请求不同，全部law相同；实际JAR hash以本次projection为准，不复用§14.56已清理产物。
+
+该准备只证明当次现场身份和完整竞争池，不证明召回改善、回答、37项整体Functional/Safety、COMPARE/MEASURE或发布通过。A未评价、B不采用、原人工001/002 Passed与003/004 Failed、MEASURE invalid_run、11 Done/2 In Progress/1 Blocked保持。
+
+下一步形成文号helper全链成对对照的独立精确冻结与执行范围：保留原10个召回题、11域单元、gold/阈值和完整b2，仅比较旧/当前helper，不创建索引、不调用LLM、不重跑旧B/MEASURE。正式前后库存及模型身份复核必须计入其独立预算；本次准备不授予服务、推理或正式对照许可。后续HEAD变化时重新核对离线产物/静态身份与准备材料的兼容，不能将旧JAR或旧静态hash当作新部署身份；不为状态文档提交机械追加没有决策价值的准备全扫描。尚未执行该正式对照或MEASURE，当前本轮授权已耗尽。
+
+本轮独立子代理源码复核发现并关闭三处一次性编排问题；执行后独立重算授权、脚本、captures、identity、inventory及projection的规范hash，核对156条journal、完整回执与字段边界，再对三份文档作定向复评，修正两处版本/修改历史遗漏后通过。评审未再次访问ES/Docker或重算已清理JAR；因不持久化正文/向量，不能从有限身份清单独立重建全source fingerprint，不扩大证明范围。主执行者本地资产交叉验证、110条链接/围栏、4项历史关键hash、P3严格检查0错误/0警告及git diff检查通过。该轮没有生产源码、测试、配置或历史资产修改；未执行pytest全量、Maven测试、真实质量UAT或发布，离线Maven仅构建并跳过测试。
