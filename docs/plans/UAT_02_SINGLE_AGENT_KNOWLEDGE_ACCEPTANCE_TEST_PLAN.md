@@ -4,8 +4,8 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.38 |
-| 文档状态 | Reviewed（有限词法诊断及状态复核完成；完整验收未完成） |
+| 当前版本 | v3.39 |
+| 文档状态 | Reviewed（005解释路径合成补证及状态定向复核完成；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
@@ -13,7 +13,7 @@
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.38；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.39；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -245,7 +245,7 @@ COMPOSE原限定non-live与Summary9定向non-live已完成，不能据此跳过�
 
 本节是MEASURE首次真实调用前的技术证据，不阻塞独立的离线诊断，也不是新增审批Gate。演练Passed只表示验证工具的相应non-live可靠性；Functional/Safety/真实部署/答案充分性仍按原用例及§5.4/5.5分别判断。现有真实预算、12题、gold、四项rubric、技术/协议/安全失败停止整批和invalid_run规则不变。局部题目证据保留原用途，不能拼成完整有效测量；旧失败批次不复跑、不补证、不改判。
 
-当前证明：同一`run_once`以不可消费的`non_live`合成身份执行12题，实际生产decoder/validator及ledger未替换，Spring仅为内存传输桥；launcher以实际函数的动态生命周期反例核查部分启动、取消、超时和PID复用。前检、失败分类、append-only取证、预算及清理覆盖的实跑命令、独立评审和提交见P3_01 §14.40。真实模型/目标ES/BGE/Business调用为0；未执行真实Java服务全链、真实协议或效果UAT，37风险与历史12题状态保持。
+当前证明：同一`run_once`以不可消费的`non_live`合成身份执行12题，原组全部lookup；实际生产decoder/validator及ledger未替换，Spring仅为内存传输桥。v3.39补充005原问的explanation正向及非法quote停批反例，来源、正文/hash和验证义务明确synthetic，不沿用真实gold或冒充回答充分性。launcher以实际函数的动态生命周期反例核查部分启动、取消、超时和PID复用。前检、失败分类、append-only取证、预算及清理覆盖的实跑命令、独立评审和提交见P3_01 §14.40/44。真实模型/目标ES/BGE/Business调用为0；未执行真实Java服务全链、真实协议或效果UAT，005旧技术根因仍unknown，37风险与历史12题状态保持。
 
 ## 6. 资料组织与检索表示验收方法（设计与阶段证据，尚未完整验收）
 

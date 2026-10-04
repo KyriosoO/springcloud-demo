@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.38 |
-| 文档状态 | Reviewed（本轮有限词法诊断及证据/状态复核完成；完整验收未完成） |
+| 当前版本 | v3.39 |
+| 文档状态 | Reviewed（本轮005解释路径演练补证及状态定向复核完成；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -66,6 +66,7 @@
 | 44 | 2026-10-03 | §5/9/12/14.41 | 按现行验收合同明确B候选不采用 | v3.36只读验真及逐阶段排名比较，记录有限否决与仍未知原因；不补盲标、不改历史结果、不关闭COMPARE/A/MEASURE/RELEASE，不启动新运行 |
 | 45 | 2026-10-03 | §1/3/4/5/9/12/14.42 | 离线损失诊断本包实施及复评 | v3.37关闭DIAGNOSE有限离线范围，保留unknown、原终态和14包/14边；不预记召回提升、完整测量或发布 |
 | 46 | 2026-10-04 | §1/3/14/14.43 | 另获精确授权的同索引词法helper比较 | v3.38记录唯一有限诊断的8次typed/物理search及局部收益；旧终态、工作包DAG、整体质量和发布状态不变，不追加真实批次 |
+| 47 | 2026-10-04 | §1/3/5/14.44 | 原005解释路径未进入正式runner合成覆盖 | v3.39补齐同runner/生产ASGI的explanation正向和非法引用停批反例；不归因旧失败，不改生产实现、gold或真实测量状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -77,7 +78,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.38 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 独立词法诊断仅证明003局部收益；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.39 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 005合成路径和003词法局部收益各有证明边界；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -113,7 +114,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KORG-REPRESENT-01 | REPRESENT | L2_01_01 §18 DR-KRET-305/306 | 独立检索表示及token前检；不把父单元或派生表头当可引用正文 | WP-KORG-NORMALIZE-01 | - | 表示构造/model manifest/tokenizer验证 | TEST-KRET-303；明确实际长度单位/版本，无截断、body/input hash独立；旧未知不回填 | 纯构造、固定tokenizer与直接证据见§14.6；无推理或索引写入 | Done |
 | WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→有限BGE/候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标及停止规则 | §14.41据完整封存B的主指标未改善决定不采用、保留b2；precision仍null/215项未标，A仍Not assessed，整个COMPARE未完成、不追加对照 | In Progress |
 | WP-KORG-RELEASE-01 | RELEASE | L2_01_00 §19 DR-KFLOW-303；L2_01_02 §19 DR-KEV-302/303 | 选定候选兼容发布 | WP-KORG-COMPARE-01 | - | 策略/Profile一致性、精确旧绑定、回滚与冒烟证据 | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；无证据不得发布 | 当前目标仅在条件满足后授权新索引/受控部署/alias写入；生效前仍须核实精确旧绑定与原子回滚；不删旧索引 | Blocked |
-| WP-KVERIFY-DRYRUN-01 | DRYRUN | L1_01 §4.7；L2_01_00 §20 DR-KFLOW-401～403；UAT_02 §5.6 | 正式runner同路径演练、预算与失败/清理闭环；不重跑真实批次 | WP-KREBUILD-COMPOSE-01 | - | 私有测试接缝、合成12题及故障注入、有限演练证据 | §14.40：TEST/VAL-KFLOW-401～403、AST、零真实调用、安全扫描与独立代码复评通过；非startup-only证明 | 只恢复验证工具相容绑定，生产/历史不动；不授予真实批次或启动诊断 | Done |
+| WP-KVERIFY-DRYRUN-01 | DRYRUN | L1_01 §4.7；L2_01_00 §20 DR-KFLOW-401～403；UAT_02 §5.6 | 正式runner同路径演练、预算与失败/清理闭环；不重跑真实批次 | WP-KREBUILD-COMPOSE-01 | - | 私有测试接缝、合成12题及故障注入、有限演练证据 | §14.40/44：TEST/VAL-KFLOW-401～403及005解释正反向、零真实调用、安全扫描与独立代码复评通过；非startup-only或真实质量证明 | 只恢复验证工具相容绑定，生产/历史不动；不授予真实批次或启动诊断 | Done |
 | WP-KRETRIEVAL-DIAGNOSE-01 | DIAGNOSE | L1_01 §4.7；L2_01_01 §9.9 DR-KRET-401～403；UAT_02 §6.4 | 既有封存证据逐阶段损失与最小修正决策；不实施在线补检 | WP-KREBUILD-RETRIEVAL-01 | - | 离线trace/source reader、unknown分类、有限诊断和B不采用决策交接 | §14.42：TEST/VAL-KRET-401～403、严格封存重放、合成定位与独立复评通过；新读取仍须预算授权 | 新增离线入口可撤销，不改旧结果、数据或在线配置 | Done |
 
 ## 6. 直接依赖图
@@ -778,3 +779,19 @@ DIAGNOSE在可定位报告、明确unknown及有限决策交接范围Done。当�
 主执行者另实跑`tests/uat/test_current_traceability.py`与`tests/uat/test_knowledge_traceability.py`：12 passed，0.20秒；六份`test_live_p5_candidate_{01,02,04,05,06,07}_history.py`（逐文件展开）：14 passed，7.53秒。原MEASURE manifest/cases/failure及B comparison-result四项SHA-256与封存值一致，其他历史资产无Git差异。P3 strict检查0错误/0警告，三份文档80条本地链接及fence通过；有限资产凭据/正文/向量模式扫描未发现禁止内容，不宣称扫描穷尽所有秘密格式。Git范围与差异检查通过，只本地提交，不push。本轮未重复全量Python/Maven、Spring全链、PowerShell AST或历史付费UAT；这些没有新增通过结论。
 
 本次只证明同现行索引、原问、固定keyword窗口下的局部helper收益；不采用旧B候选、不关闭COMPARE/MEASURE/RELEASE，不把003原人工Failed改判Passed。下一步优先解决MEASURE仍缺的当前版本有效终态及回答评价；任何新批次均需独立范围、冻结、预算和授权，不能借本次非付费诊断增加模型调用。012应先保留初召回缺口及unknown，再决定是否需要新的有限过滤/窗口观测，不直接加topK、补检、grep或Deep Agents。
+
+### 14.44 原005解释路径的正式runner合成补证（2026-10-04）
+
+从clean `codex_0915` HEAD `b1907ba137d9d4b1d34d1d45390fbf08518a9a4e`只读复核。独立审查确认旧005的模型transport已完成不等于引用/回答校验通过；旧failure未记录具体公开错误，根因仍unknown。现runner已有白名单失败取证，无证据支持更改生产或猜测旧失败原因；但原12题合成演练均为lookup，不能证明005 explanation已经过正式runner＋生产ASGI。
+
+仅在[演练测试](../../agent-runtime/tests/uat/test_knowledge_rebuild_dryrun.py)新增005原问的explanation正向和非法quote反例，本地提交`e91e3a64996d556e3063f87259cb07f6bf693fd4`。原公开问题只读复用；来源、正文/hash及验证义务明确为synthetic，不沿用software gold，不评价真实召回或回答充分性。正常路径实际经过当前root、意图12、Summary9、typed decoder、Evidence/引用validator、账本、公开投影及清理。负向仅替换quote，保留合法非空claim与存在的ref，确实触发生产连续子串校验；005记录有限`knowledge.summary_failure/downstream`、停止006～012、无成功终态、无标记泄漏并清理所有owned内存client。两项均不可作为真实UAT或旧005根因证明。
+
+本轮实际验证（`agent-runtime`，临时`PYTHONPATH/MYPYPATH=src;../knowledge-corpus-tools/src`）：
+
+- `python -m pytest tests/uat/test_knowledge_rebuild_dryrun.py -k 'original_005 or 005_explanation' -q`：最终2 passed / 27 deselected，2.01秒。
+- `python -m pytest tests/uat/test_knowledge_rebuild_dryrun.py tests/uat/test_knowledge_rebuild_measure_harness.py tests/integration/knowledge/test_minimal_current_root.py -q`：154 passed，96.45秒。独立审查者另运行新增及直接相关no-network反例：21 passed / 107 deselected，9.93秒，复评无确认缺陷。
+- `python -m mypy src`：153 source files通过；`python -m mypy --follow-imports=silent tests/uat/test_knowledge_rebuild_dryrun.py`：该测试文件strict检查通过；该文件`compileall -q`通过。扩大为`mypy src tests/uat/test_knowledge_rebuild_dryrun.py`仍因未修改的导入辅助文件`test_minimal_current_root.py`报27项既有类型错误，未声称此扩大检查通过，也未以放宽仓库配置或无关改写掩盖。
+
+作者自查及独立只读复评完成；没有修改生产代码、Java、任务、运行配置、固定题/gold/阈值或历史资产。本轮没有真实模型/ES/BGE/Business调用、服务操作或新授权消费；临时合成结果不作为正式MEASURE资产提交。固定fixture及原B result、MEASURE manifest/cases/failure的SHA-256与起始值一致，其余历史无Git差异。未重复全量Python、Maven、真实Spring E2E或付费UAT，原证明范围保持。P3 strict为0错误/0警告，三份文档81条本地链接、fence、有限秘密模式和Git差异检查通过。独立审查直接核对旧attempts/failure、当前测试及三文档，增量状态同步结论符合，无确认S0/S1/S2；不是全部设计或上线重新批准。
+
+DRYRUN仍仅non-live范围Done，14包/14边及11 Done、2 In Progress、1 Blocked不变。COMPARE未完成，MEASURE仍invalid_run且005旧根因未知，RELEASE不具备准入。下一步需要新的独立精确测量决策及冻结、有效完整终态和维护者人工评价；不复用旧授权、不补题、不自行追加真实批次，也不以更多合成测试冒充整体目标完成。
