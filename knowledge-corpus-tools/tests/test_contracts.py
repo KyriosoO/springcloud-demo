@@ -537,18 +537,24 @@ def test_alias_switch_checks_exact_preconditions_and_can_rollback() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path == "/_alias/read":
-            return httpx.Response(200, json={target["value"]: {"aliases": {"read": {"is_write_index": False}}}})
+            return httpx.Response(200, json={target["value"]: {"aliases": {"read": {}}}})
         if path in {"/old", "/candidate"}:
             index = path[1:]
             return httpx.Response(200, json={index: {"settings": {"index": {"uuid": uuids[index]}}}})
         if path in {"/old/_alias", "/candidate/_alias"}:
             index = path.split("/")[1]
-            aliases = {"read": {"is_write_index": False}} if target["value"] == index else {}
+            aliases = {"read": {}} if target["value"] == index else {}
             return httpx.Response(200, json={index: {"aliases": aliases}})
         if path == "/_aliases":
             body = json.loads(request.content)
+            previous = target["value"]
+            destination = "candidate" if previous == "old" else "old"
+            assert body == {"actions": [
+                {"remove": {"index": previous, "alias": "read"}},
+                {"add": {"index": destination, "alias": "read"}},
+            ]}
             target["value"] = body["actions"][1]["add"]["index"]
-            return httpx.Response(200, json={"acknowledged": True})
+            return httpx.Response(200, json={"acknowledged": True, "errors": False})
         raise AssertionError(path)
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:

@@ -27,7 +27,15 @@ class AliasReleaseManager:
     def _targets(self, alias: str) -> tuple[str, ...]:
         response = self._client.get(f"{self._endpoint}/_alias/{alias}")
         response.raise_for_status()
-        return tuple(sorted(response.json().keys()))
+        bindings = response.json()
+        # The approved published alias has empty flags. A filter, routing or
+        # write-index flag is a different binding, not a target-only match.
+        if (type(bindings) is not dict or not bindings
+                or any(type(index) is not str or not index
+                       or metadata != {"aliases": {alias: {}}}
+                       for index, metadata in bindings.items())):
+            raise StateConflict("alias metadata differs from frozen precondition")
+        return tuple(sorted(bindings))
 
     def switch(
         self,
@@ -45,15 +53,19 @@ class AliasReleaseManager:
             raise StateConflict("index UUID differs from frozen precondition")
         candidate_alias = self._client.get(f"{self._endpoint}/{target_index}/_alias")
         candidate_alias.raise_for_status()
-        aliases = candidate_alias.json()[target_index].get("aliases", {})
-        if alias in aliases:
-            raise StateConflict("target already owns alias")
+        if candidate_alias.json() != {target_index: {"aliases": {}}}:
+            raise StateConflict("target must have no aliases")
         response = self._client.post(
             f"{self._endpoint}/_aliases",
             json={"actions": [{"remove": {"index": expected_from_index, "alias": alias}}, {"add": {"index": target_index, "alias": alias}}]},
         )
         response.raise_for_status()
-        if self._targets(alias) != (target_index,):
+        receipt = response.json()
+        if (type(receipt) is not dict or receipt.get("acknowledged") is not True
+                or receipt.get("errors") is not False):
+            raise StateConflict("alias switch acknowledgement invalid")
+        if (self._targets(alias) != (target_index,)
+                or self._uuid(target_index) != target_uuid):
             raise StateConflict("alias switch verification failed")
         return ReleaseState(
             schema_version=1,

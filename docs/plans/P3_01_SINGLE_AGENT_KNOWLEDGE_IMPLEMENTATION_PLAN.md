@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.40 |
-| 文档状态 | Reviewed（恢复推进的基线与验证选择已独立定向复核；完整验收未完成） |
+| 当前版本 | v3.41 |
+| 文档状态 | Reviewed（发布守卫non-live增量已独立定向复评；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -68,6 +68,7 @@
 | 46 | 2026-10-04 | §1/3/14/14.43 | 另获精确授权的同索引词法helper比较 | v3.38记录唯一有限诊断的8次typed/物理search及局部收益；旧终态、工作包DAG、整体质量和发布状态不变，不追加真实批次 |
 | 47 | 2026-10-04 | §1/3/5/14.44 | 原005解释路径未进入正式runner合成覆盖 | v3.39补齐同runner/生产ASGI的explanation正向和非法引用停批反例；不归因旧失败，不改生产实现、gold或真实测量状态 |
 | 48 | 2026-10-04 | §9.1 | 恢复推进需明确可信基线及下一验证变量 | v3.40澄清旧A不能只补proofRef；优先提出同b2的文号修正检索全链对照，保留独立授权、预算及验收边界；不新增工作包、Gate或真实批次 |
+| 49 | 2026-10-04 | §5/14.45 | 旧发布工具遗漏完整alias及成功回执守卫 | v3.41按现有DR-KRET-025补齐空flags、候选无alias、严格回执与切后UUID核查；只执行fake/工具回归，RELEASE仍Blocked，不启动新批次或发布 |
 
 ## 3. 来源清单与当前基线
 
@@ -114,7 +115,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 | WP-KORG-CHUNK-01 | CHUNK | L2_01_01 §18 DR-KRET-303/304 | 最小修复受影响DOCX解析顺序，建立结构单元身份、同版本父子关系与连续chunk span | WP-KORG-NORMALIZE-01 | - | parser顺序接缝/chunking_v2.py及段表交错、短长条、表格/否定/例外fixture | TEST-KRET-302；完整单元可按源span恢复且hash一致，跨版本/悬空/乱序失败关闭，不静默遗漏 | 本包离线代码、fixture和复评见§14.5；旧chunker不覆盖，真实资料重切/发布待后续包 | Done |
 | WP-KORG-REPRESENT-01 | REPRESENT | L2_01_01 §18 DR-KRET-305/306 | 独立检索表示及token前检；不把父单元或派生表头当可引用正文 | WP-KORG-NORMALIZE-01 | - | 表示构造/model manifest/tokenizer验证 | TEST-KRET-303；明确实际长度单位/版本，无截断、body/input hash独立；旧未知不回填 | 纯构造、固定tokenizer与直接证据见§14.6；无推理或索引写入 | Done |
 | WP-KORG-COMPARE-01 | COMPARE | L2_01_01 §18 DR-KRET-307；L2_01_02 §19 DR-KEV-304；UAT_02 §6 | 单变量有限对照 | WP-KORG-CHUNK-01、WP-KORG-REPRESENT-01 | - | 独立新版离线候选构建器、完整竞争池、scope/原文gold/排名损失/四维报告 | fake/类型→逐记录旧向量溯源及人工原文→有限BGE/候选/只读typed；逐阶段损失、keyword漂移归因、人工盲标及停止规则 | §14.41据完整封存B的主指标未改善决定不采用、保留b2；precision仍null/215项未标，A仍Not assessed，整个COMPARE未完成、不追加对照 | In Progress |
-| WP-KORG-RELEASE-01 | RELEASE | L2_01_00 §19 DR-KFLOW-303；L2_01_02 §19 DR-KEV-302/303 | 选定候选兼容发布 | WP-KORG-COMPARE-01 | - | 策略/Profile一致性、精确旧绑定、回滚与冒烟证据 | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；无证据不得发布 | 当前目标仅在条件满足后授权新索引/受控部署/alias写入；生效前仍须核实精确旧绑定与原子回滚；不删旧索引 | Blocked |
+| WP-KORG-RELEASE-01 | RELEASE | L2_01_00 §19 DR-KFLOW-303；L2_01_02 §19 DR-KEV-302/303 | 选定候选兼容发布 | WP-KORG-COMPARE-01 | - | 策略/Profile一致性、精确旧绑定、回滚与冒烟证据 | 预置收益与不退化条件通过、完整性/安全/关键回归、隔离回滚；§14.45仅补齐alias守卫fake，不代替真实验证；无证据不得发布 | 当前目标仅在条件满足后授权新索引/受控部署/alias写入；生效前仍须核实精确旧绑定与原子回滚；不删旧索引 | Blocked |
 | WP-KVERIFY-DRYRUN-01 | DRYRUN | L1_01 §4.7；L2_01_00 §20 DR-KFLOW-401～403；UAT_02 §5.6 | 正式runner同路径演练、预算与失败/清理闭环；不重跑真实批次 | WP-KREBUILD-COMPOSE-01 | - | 私有测试接缝、合成12题及故障注入、有限演练证据 | §14.40/44：TEST/VAL-KFLOW-401～403及005解释正反向、零真实调用、安全扫描与独立代码复评通过；非startup-only或真实质量证明 | 只恢复验证工具相容绑定，生产/历史不动；不授予真实批次或启动诊断 | Done |
 | WP-KRETRIEVAL-DIAGNOSE-01 | DIAGNOSE | L1_01 §4.7；L2_01_01 §9.9 DR-KRET-401～403；UAT_02 §6.4 | 既有封存证据逐阶段损失与最小修正决策；不实施在线补检 | WP-KREBUILD-RETRIEVAL-01 | - | 离线trace/source reader、unknown分类、有限诊断和B不采用决策交接 | §14.42：TEST/VAL-KRET-401～403、严格封存重放、合成定位与独立复评通过；新读取仍须预算授权 | 新增离线入口可撤销，不改旧结果、数据或在线配置 | Done |
 
@@ -812,3 +813,23 @@ DIAGNOSE在可定位报告、明确unknown及有限决策交接范围Done。当�
 作者自查及独立只读复评完成；没有修改生产代码、Java、任务、运行配置、固定题/gold/阈值或历史资产。本轮没有真实模型/ES/BGE/Business调用、服务操作或新授权消费；临时合成结果不作为正式MEASURE资产提交。固定fixture及原B result、MEASURE manifest/cases/failure的SHA-256与起始值一致，其余历史无Git差异。未重复全量Python、Maven、真实Spring E2E或付费UAT，原证明范围保持。P3 strict为0错误/0警告，三份文档81条本地链接、fence、有限秘密模式和Git差异检查通过。独立审查直接核对旧attempts/failure、当前测试及三文档，增量状态同步结论符合，无确认S0/S1/S2；不是全部设计或上线重新批准。
 
 DRYRUN仍仅non-live范围Done，14包/14边及11 Done、2 In Progress、1 Blocked不变。COMPARE未完成，MEASURE仍invalid_run且005旧根因未知，RELEASE不具备准入。下一步需要新的独立精确测量决策及冻结、有效完整终态和维护者人工评价；不复用旧授权、不补题、不自行追加真实批次，也不以更多合成测试冒充整体目标完成。
+
+### 14.45 发布alias的确定守卫补齐（2026-10-04）
+
+起始clean `codex_0915` HEAD `f03f1be1f95bde1f804e3721a3c064b3a8809273`。独立只读核查确认现有[release.py](../../knowledge-corpus-tools/src/knowledge_corpus_tools/release.py)只保留alias目标名称、仅拒绝候选持有同名alias、忽略`_aliases`成功回执；这不足以落实L2_01_01 DR-KRET-025及§12.6的候选无alias、现行空flags和`acknowledged=true/errors=false`合同。本轮只修复既有工具的这些确定守卫，不新建发布框架。IMPL-KRET-020及候选构建切片中的“旧release.py不改”限定对应切片，不是RELEASE的全局禁改；其旧冻结版本仍通过原HEAD追溯。
+
+- 前后读取都校验完整alias绑定，批准的StageA空flags `{}`必须精确保持；filter/routing/write-index等漂移拒绝，候选存在任何alias均在写入前拒绝。
+- 单次原子remove/add及`switch`签名、ReleaseState、CLI保持；严格检查布尔回执，切后再核目标UUID。不明确回执或切后漂移只失败，不重试、不自动补偿写、不记录成功。真实操作仍依赖排他窗口，未把这些前后检查冒称跨请求CAS。
+- 一次成功switch现在需要6次元数据GET和1次alias POST；后续真实发布/回滚预算须按实际调用冻结，不能借用旧工具计数或以本轮fake授权写入。
+
+新增[test_release_guard.py](../../knowledge-corpus-tools/tests/test_release_guard.py)覆盖前置flags、候选残留alias、错误/缺失/非布尔回执、切后flags/UUID/目标漂移及单次原子成功。既有[test_contracts.py](../../knowledge-corpus-tools/tests/test_contracts.py)的成功fixture同步批准的空flags及完整回执，并新增原子动作精确断言；未删除或放宽原断言。
+
+实际验证：
+
+- 工具目录 `python -m pytest tests/test_release_guard.py tests/test_contracts.py -k 'alias_switch or release' -q`：25项fake通过；`python -m pytest -o addopts= -q`：555 passed，10.93秒。
+- `python -m mypy --strict src/knowledge_corpus_tools/release.py`：1文件通过；默认`python -m mypy`无法按安装包定位缺少py.typed的包，改用现有源码入口 `python -m mypy --strict src/knowledge_corpus_tools`：28文件通过，没有修改配置或放宽类型检查。
+- `python -m compileall -q src tests/test_release_guard.py`及Git差异检查通过。未重复Agent全量Python、Java/Maven、Spring E2E或真实发布/UAT；本轮没有修改这些链路。
+
+未参与实现的独立执行单元直接核对L2、源码diff、CLI与新旧反例，并另运行同25项目标fake，复评无确认Blocker/Major或其他待修缺陷。此结论仅批准守卫增量，不重新批准整个设计或上线。固定12题、原B comparison result和MEASURE failure的hash保持；正文、索引、alias、运行配置、任务、gold、阈值、历史资产未修改，没有真实模型/ES/BGE/Business调用或服务操作。
+
+14包/14边、11 Done、2 In Progress、1 Blocked保持。RELEASE仍缺合格候选、质量/安全和部署回滚证据；COMPARE/MEASURE仍按原终态及§9.1等待相应独立决策，不由本轮守卫或更多fake转为Done。
