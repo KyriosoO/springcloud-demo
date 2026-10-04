@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.44 |
-| 文档状态 | Reviewed（实际Java离线投影增量已复评；完整验收未完成） |
+| 当前版本 | v3.45 |
+| 文档状态 | Reviewed（有限attempt日志增量已复评；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -72,6 +72,7 @@
 | 50 | 2026-10-04 | §9.1/14.46 | 维护者选择推荐的文号全链对照准备路线 | v3.42完成独立私有草案和内存生产Stage重放；不继承旧B协议或授权，不连接ES/BGE，不冻结真实批次，原包状态与阈值不变 |
 | 51 | 2026-10-04 | §14.47 | 本次新库存与真实发送计数不能复用旧工具假设 | v3.43新增新指纹扫描、发送前计数和Java投影hash守卫的fake准备；预算只作条件预测，真实装配、冻结及授权仍未完成，包状态和验收判据不变 |
 | 52 | 2026-10-04 | §14.48 | 发送守卫的期望hash须来自实际Java而不是合成DSL | v3.44完成同源码双臂离线编译和22项实际keyword投影；不启动服务，不增加真实操作权限，完整运行装配和质量判断仍未完成 |
+| 53 | 2026-10-04 | §14.49 | 发送前计数及失败回执需要可持久化且不泄露异常的接缝 | v3.45新增有限append-only attempt writer与故障反例，仅在合成临时目录验证；不创建实际运行资产，不以caller清理报告证明真实资源已释放 |
 
 ## 3. 来源清单与当前基线
 
@@ -83,7 +84,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.42 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 实际Java离线投影不是部署、检索或回答质量证据；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.43 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 有限日志合成验证不是实际批次、清理或质量证据；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -914,3 +915,19 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 - 未参与起草的只读执行单元直接核对三份文档差异、当前源码和原始有限验证输出，定向文档复评符合，无已确认实质缺陷；这不是外部人工评价或整体验收。P3 strict为0错误/0警告，三文档93条本地链接及fence、版本、14包/14边及状态保全通过；四项历史关键hash与起始Git字节一致，有限凭据扫描和Git差异检查通过。未执行全量Python/Maven、真实typed/ES/BGE/模型或UAT。
 
 下一步补齐自有Java/proxy/client运行装配、正式append-only journal与停止/清理、模型/策略和库存快照及完整精确冻结材料。§14.47的257/378仍只是条件预测，未获得真实执行额度；本轮无模型密钥读取、真实API调用、服务启停或索引/alias操作，不创建run/authorization/consumed/result。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run与人工结论不变；完整目标未完成，只做本地Git收口，不push。
+
+### 14.49 有限attempt日志与失败持久化接缝（2026-10-04）
+
+起始clean `codex_0915` HEAD `c9e685b354e2d33fce65e7199021a0ad19e1cbf8`。新增[私有日志工具](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_journal.py)及[直接测试](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_journal.py)，为既有发送计数器增加可选checkpoint；无实际执行入口，不修改生产代码、配置、题目或历史资产。
+
+同一ledger顺序锁内先计attempt、排他写入有限checkpoint并flush/fsync，成功后才允许delegate发送。写入失败不返还额度、停止新发送；回执失败保留pending，不假记completed。目录及文件必须新建，旧文件、半行及漂移日志不能续写；日志仅保存绑定hash、有限类别、计数和状态，不接收正文、向量、凭据或原始异常。文件身份、大小及有限完整hash核验已有漂移反例；另设单行、行数及总量硬上限，未单独执行其触边测试。
+
+`JournalBinding`只表达caller提供的身份；它不验证或授予运行授权。全部测试使用`synthetic_non_live`及pytest临时目录，没有创建正式run、authorization、consumed或result。`seal_cleanup`先停止新发送、要求在途回执完成，保存**caller自报**清理字段并明确`cleanupVerifiedByJournal=false`；其成功不证明Java/proxy/client/端口已经释放，不是UAT终态或发布许可。实际资源归属核查和清理仍由后续owned executor承担。
+
+独立初审发现创建后fstat失败遗漏句柄关闭、body与关闭双失败可在traceback展示原异常两项问题；已最小修复并新增3个反例，保留失败目录、不重开或覆盖。复评直接核对源码和测试，确认两项关闭，无阻止本次non-live准备收口的新问题。异常链抑制只指格式化traceback不展示原异常，不宣称所有场景的`__context__`都为空；此评审不是实际运行或整体目标验收。
+
+实际验证：直接journal/transport/projection **128 passed，1.29秒**，独立复评另实跑同集合128 passed、1.38秒；§14.48的341项集合追加日志测试并禁止pytest缓存后，**374 passed，13.59秒**；临时双源码类型路径下`python -m mypy --strict src tests/evaluation/knowledge/rebuild_document_number_journal.py tests/evaluation/knowledge/rebuild_document_number_transport.py`为155源文件通过，三份直接Python文件compileall通过。没有重复实际Java离线编译、全量Python/Maven或真实UAT。
+
+独立文档复评发现硬上限的反例表述超出实际测试，已修正并披露未执行触边；修后定向复评符合，无其他未处理问题。P3严格校验0错误/0警告，三文档95条本地链接及围栏通过；四项历史关键hash保持，有限凭据扫描无匹配，目标差异和暂存检查通过。校验及评审只覆盖本增量，不证明真实资源、当前部署或质量达标。
+
+下一步仍须补齐自有Java/proxy/client装配与实际清理证明、现场模型/策略和新库存快照、完整精确预算及独立授权。当前writer只是可复用的持久化接缝，未与真实执行生命周期装配；§14.47的257/378仍仅条件预测。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run及人工结论不变，不由新增fake或日志转为Done。本轮只本地提交，不push。

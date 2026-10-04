@@ -69,17 +69,31 @@ class Attempt:
 
 class AttemptLedger:
     """Reserve at the physical send boundary; failures never restore the budget."""
-    def __init__(self, limits: tuple[tuple[str, int], ...]) -> None:
+    def __init__(self, limits: tuple[tuple[str, int], ...], *,
+                 checkpoint: Callable[[str, int | None, Attempt | None], None] | None = None) -> None:
         valid = set(dict(BudgetPlan(1).rows()))
         p.require(type(limits) is tuple and bool(limits) and len(dict(limits)) == len(limits)
                   and all(k in valid and type(n) is int and 0 <= n <= 400 for k, n in limits),
                   "ledger_limits_invalid")
+        p.require(checkpoint is None or callable(checkpoint), "ledger_checkpoint_invalid")
         self.limits = dict(limits)
         self.counts = dict.fromkeys(self.limits, 0)
         self.events: list[Attempt] = []
         self._seen: set[tuple[str, str]] = set()
         self._lock = Lock()
         self._stopped = False
+        self._writer = checkpoint
+
+    def _checkpoint(self, event: str, ticket: int | None, attempt: Attempt | None) -> None:
+        failed = False
+        if self._writer is not None:
+            try:
+                self._writer(event, ticket, attempt)
+            except Exception:
+                failed = True
+        if failed:
+            self._stopped = True
+            raise p.ProtocolError("attempt_journal_failed")
 
     def begin(self, kind: str, label: str, body: bytes) -> int:
         p.require(type(label) is str and re.fullmatch(r"[A-Za-z0-9._:/-]{1,256}", label) is not None
@@ -91,7 +105,9 @@ class AttemptLedger:
             self._seen.add((kind, label))
             self.counts[kind] += 1
             self.events.append(Attempt(kind, label, sha256(body).hexdigest()))
-            return len(self.events) - 1
+            ticket = len(self.events) - 1
+            self._checkpoint("started", ticket, self.events[ticket])
+            return ticket
 
     def finish(self, ticket: int, outcome: str, status: int | None = None) -> None:
         p.require(type(ticket) is int and 0 <= ticket < len(self.events)
@@ -101,14 +117,19 @@ class AttemptLedger:
         with self._lock:
             event = self.events[ticket]
             p.require(event.outcome == "pending", "attempt_already_finished")
-            self.events[ticket] = Attempt(event.kind, event.label, event.request_sha256, outcome, status)
+            receipt = Attempt(event.kind, event.label, event.request_sha256, outcome, status)
+            # A failed durable receipt remains pending, never falsely completed.
+            self._checkpoint("finished", ticket, receipt)
+            self.events[ticket] = receipt
             if outcome != "completed" or status != 200:
                 self._stopped = True
 
     def abort(self) -> None:
         """Protocol failure also blocks new sends; in-flight receipts may finish."""
         with self._lock:
-            self._stopped = True
+            if not self._stopped:
+                self._stopped = True
+                self._checkpoint("stopped", None, None)
 
     def view(self) -> dict[str, object]:
         with self._lock:
@@ -184,15 +205,15 @@ class CountedKnowledgeTransport:
         try:
             response = await self.delegate.send(request=request, timeout_s=timeout_s)
         except asyncio.CancelledError:
-            self.ledger.finish(ticket, "cancelled")
             cancelled = True
         except Exception:
-            self.ledger.finish(ticket, "transport_failed")
             failed = True
         # Raise outside the handler so raw provider exception context is absent.
         if cancelled:
+            self.ledger.finish(ticket, "cancelled")
             raise asyncio.CancelledError
         if failed:
+            self.ledger.finish(ticket, "transport_failed")
             raise p.ProtocolError("adapter_transport_failed")
         if type(response) is not BoundedHttpResponse or type(response.status_code) is not int or not 100 <= response.status_code <= 599:
             self.ledger.finish(ticket, "transport_failed")
@@ -289,9 +310,9 @@ class PhysicalSearchGate:
         try:
             response = send(body)  # Original bytes, never a reconstructed ES query.
         except Exception:
-            self.ledger.finish(ticket, "transport_failed")
             failed = True
         if failed:
+            self.ledger.finish(ticket, "transport_failed")
             raise p.ProtocolError("physical_transport_failed")
         if type(response) is not BoundedHttpResponse or type(response.status_code) is not int or not 100 <= response.status_code <= 599:
             self.ledger.finish(ticket, "transport_failed")
