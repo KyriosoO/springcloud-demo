@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.42 |
-| 文档状态 | Reviewed（文号全链私有协议及non-live增量已定向复核；完整验收未完成） |
+| 当前版本 | v3.43 |
+| 文档状态 | Reviewed（新快照与发送边界私有准备增量已复核；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -70,6 +70,7 @@
 | 48 | 2026-10-04 | §9.1 | 恢复推进需明确可信基线及下一验证变量 | v3.40澄清旧A不能只补proofRef；优先提出同b2的文号修正检索全链对照，保留独立授权、预算及验收边界；不新增工作包、Gate或真实批次 |
 | 49 | 2026-10-04 | §5/14.45 | 旧发布工具遗漏完整alias及成功回执守卫 | v3.41按现有DR-KRET-025补齐空flags、候选无alias、严格回执与切后UUID核查；只执行fake/工具回归，RELEASE仍Blocked，不启动新批次或发布 |
 | 50 | 2026-10-04 | §9.1/14.46 | 维护者选择推荐的文号全链对照准备路线 | v3.42完成独立私有草案和内存生产Stage重放；不继承旧B协议或授权，不连接ES/BGE，不冻结真实批次，原包状态与阈值不变 |
+| 51 | 2026-10-04 | §14.47 | 本次新库存与真实发送计数不能复用旧工具假设 | v3.43新增新指纹扫描、发送前计数和Java投影hash守卫的fake准备；预算只作条件预测，真实装配、冻结及授权仍未完成，包状态和验收判据不变 |
 
 ## 3. 来源清单与当前基线
 
@@ -81,7 +82,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.40 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 文号全链新增证据只为non-live；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.41 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 新快照和发送边界新增证据只为fake/non-live；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -858,3 +859,28 @@ DRYRUN仍仅non-live范围Done，14包/14边及11 Done、2 In Progress、1 Block
 独立执行单元未参与实现，直接核对设计、源码差异和全部反例，代码增量复评无确认Blocker/Major；随后独立核查三文档、fixture hash、包/边状态及原始验证输出，文档增量定向复核符合，未发现需修改的实质问题。仅限私有准备增量，不证明新真实批次已具备执行条件。P3严格校验0 errors/0 warnings，三文档86条本地链接及代码围栏检查通过；本轮核查的fixture、旧B result和MEASURE failure哈希保持。P3/UAT/索引状态同步和Git收口只本地进行，不push。
 
 14包/14边及11 Done、2 In Progress、1 Blocked保持。A仍Not assessed，B仍不采用，MEASURE仍原invalid_run且不补跑，RELEASE仍Blocked；37风险、12资料用例及12题真实评价均不由本轮fake关闭。没有真实模型、ES、BGE、Business、服务启停或索引/alias写入。
+
+### 14.47 新快照及发送边界的独立私有准备（2026-10-04）
+
+起始clean `codex_0915` HEAD `f397efea525fde778d120708c656c946fa2988ad`，承接§14.46同b2完整竞争池、十题/十一域单元、旧/当前helper唯一变量的准备范围。新增四份私有工具/测试，不修改生产Java/Python、运行配置、gold、历史工具或运行资产：
+
+| 缺口 | 本轮实现 | 证明边界 |
+|---|---|---|
+| 旧scanner输入旧fingerprint，不能取得本次新库存 | [新快照读取器](../../knowledge-corpus-tools/src/knowledge_corpus_tools/document_number_snapshot_v1.py)及[测试](../../knowledge-corpus-tools/tests/test_document_number_snapshot_v1.py)：caller-owned client，一次definition＋ceil(N/250)次全记录读取，严格身份/mapping/写保护/顺序/数量/1024向量核验，计算新fingerprint，只返回ID/正文hash | 全竞争池包含law及无分类记录；不继承旧fingerprint，不读取实际ES。固定httpx版本的client门禁排除auth、cookies、hooks、mounts、未知transport及重试，异常不保留原始响应或异常链 |
+| 旧计数/成功回执不能证明失败attempt已消耗 | [发送边界接缝](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_transport.py)及[测试](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_transport.py)：委托现有production adapters，先reserve后send，typed及物理两个HTTP跳分别计数，失败/取消不返还、禁止重复，终态后拒绝新发送；原始bytes不重写 | ledger目前仅内存，未成为正式append-only运行journal；caller/delegate真实装配和生命周期尚未完成。JSON/HTTP/正文上限拒绝与有限receipt有fake反例，不能据此称真实协议有效 |
+| 格式合法的文号不等于冻结helper实际输出 | physical gate继续检查scope/DSL，并要求case/arm各域的独立期望keyword规范hash全等；添加、移除或错误机关信号均在发送前拒绝 | 本轮期望hash是合成fixture；未来真实hash必须由冻结Java源码/配置的离线实际投影产生并证明来源，不可从捕获请求反算期望。vector严格保持共享向量，law禁止文号信号 |
+
+预算工具只给出条件预测，不授予操作权限：**若**目标是同一物理索引、N=15521且按拟定启动形状，则独立fresh capture为67次ES，冻结前后扫描/元数据/物理检索为190次ES，合计ES上限257、所有HTTP跳上限378（含typed44、query embedding10、rerank22、预热rerank1、Java健康40、BGE健康4）。N只是声明输入，尚未现场核实；这些数字不是本次实际计数或已批准冻结预算，不替代旧B/MEASURE预算。实际索引/alias/Profile/策略/模型身份、Java投影、启动形状和非HTTP快照操作须在下一切片完成后统一冻结确认，不能将未列出的调用藏入这些行。
+
+下一步仍是完成自有Java/proxy/client的真实装配协议、有限元数据与模型快照、停止/append-only journal/清理及其fake验证，再汇总一次精确运行材料；当前入口无真实execute授权资产，不启动服务、不连接ES/BGE、不读取模型密钥。此准备不是第三项A/B，不替代MEASURE、人工评价或RELEASE。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/MEASURE原invalid_run均不变。
+
+独立初审发现两项中等问题：未绑定文号实际投影、caller client多轮认证可产生隐藏发送；首次复评又实证显式transport proxy可以绕过loopback要求。分别最小修复并增加零发送反例，第二次复评直接核对源码与三份文档diff，并独立执行6项client反例，全部确认问题关闭。自审另补有限异常无原始context、响应大小/媒体及失败后停新发送；不以自审冒充独立评审。最终仅此私有准备增量无未处理Blocker/Major，不判断全目标或真实运行就绪。
+
+本轮实际验证（各项目venv；临时源码路径只作用于执行子进程，没有安装或修改依赖）：
+
+- `agent-runtime`：`python -m pytest tests/evaluation/knowledge/test_rebuild_document_number_transport.py tests/evaluation/knowledge/test_rebuild_document_number_comparison.py tests/evaluation/knowledge/test_rebuild_b_local_transport.py tests/evaluation/knowledge/test_rebuild_lexical_probe.py tests/unit/knowledge/retrieval/test_minimal_stage.py tests/unit/knowledge/retrieval/test_http.py tests/unit/knowledge/retrieval/test_bge_rerank_context.py tests/contract/knowledge/test_es_adapter.py tests/contract/knowledge/test_bge_embedding.py tests/contract/knowledge/test_bge_rerank.py -o addopts='' -q`：**292 passed，11.16秒**，包括实际production adapters＋Stage的十题双臂合成send边界集成，不是实际Java服务。
+- `knowledge-corpus-tools`：`python -m pytest tests/test_document_number_snapshot_v1.py tests/test_b_id_mapping_v1.py tests/test_rechunk_candidate_v1.py -o addopts='' -q`：**146 passed，4.10秒**。首次修复回归中一个旧fake缺JSON媒体头、一个Auth测试注解与httpx类型不符；补正确fixture/header和Generator类型后通过，没有删断言或放宽守卫。
+- Agent `python -m mypy --strict src tests/evaluation/knowledge/rebuild_document_number_transport.py`：154 source files通过；语料工具 `python -m mypy --strict src/knowledge_corpus_tools/document_number_snapshot_v1.py tests/test_document_number_snapshot_v1.py`：2 source files通过；四新增文件`compileall -q`通过。
+- P3 strict：0 errors/0 warnings；三文档链接/fence/版本、14包/14边及状态保全检查、历史fixture与封存B/MEASURE关键hash、范围和有限敏感扫描、工作树与暂存diff检查通过。未执行全量Python/Maven、真实索引读取、Java离线投影、服务或UAT，这些不由上述fake替代。
+
+本轮只本地提交，不push/部署。真实模型、ES、BGE、Business、服务启停及索引/alias写入均0；没有创建新run/授权/consumed/result。现行绑定和历史证明范围不变，完整目标仍未完成。
