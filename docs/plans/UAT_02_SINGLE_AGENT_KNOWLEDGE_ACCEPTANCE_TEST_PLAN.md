@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.37 |
-| 文档状态 | Reviewed（正式路径演练及有限离线诊断已验证；完整验收未完成） |
-| 日期 | 2026-10-03 |
+| 当前版本 | v3.38 |
+| 文档状态 | Reviewed（有限词法诊断及状态复核完成；完整验收未完成） |
+| 日期 | 2026-10-04 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.37；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.38；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -322,6 +322,8 @@ B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索�
 该规则不降低任何正向采用/发布阈值，不删题、不换gold、不缩分母、不放宽安全。要采用候选，§6.1全部正向判据及标注仍必须满足。当前B主指标没有改善，P3_01 §14.41已据严格离线验真及封存排名作出有限“不采用、保留b2”决定；原result中的not_assessed、precision=null、盲标缺口和历史终态保持原样。不补评、不改判，也不因否决候选关闭整个COMPARE、A或RELEASE。
 
 v3.37仅同步P3_01 §14.42的离线诊断实施和独立复评：冻结10题/16来源双臂共32条库存存在，其中28条进入final20；003/012的4条只可定位到初召回之前或窗口内，过滤、词法、向量及窗口根因仍unknown。工具区分缺stage与确认无命中，拒绝非法域/path、hash漂移及窗口超限；字面定位仅合成公开fixture验证，不扫描实际全库，不将gold传入线上。该有限包Done不等于新召回、回答、Functional/Safety或发布通过；37风险、12资料用例、12题真实测量的原状态、阈值、预算与人工判断不变。
+
+v3.38仅承接P3_01 §14.43另获精确授权的独立词法诊断：同现行b2、同原问及配置，只比较旧/当前helper；typed8/物理search8/ES元数据18/readiness4，模型/BGE/写入0，终态completed、清理完成。001/002/012的keyword top20身份/hash/顺序相同；003必要来源从旧窗口无命中变为当前第1，证明有限词法收益，不证明双路召回、回答、完整UAT或发布通过。012的keyword缺口、005具体技术根因及其余未知保持，旧003人工Failed、原B不采用及MEASURE invalid_run不改判。本次未做全库fingerprint扫描，排他窗口和命中来源hash核对不冒充全库快照。37风险、12资料用例、12题、gold、阈值与未来测量预算均不变，不补跑或复用本次目录；新的真实批次仍须独立精确授权。
 
 ## 7. 后续执行与当前结论
 

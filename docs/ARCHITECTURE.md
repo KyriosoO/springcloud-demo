@@ -1,6 +1,6 @@
 # 架构文档索引
 
-本页是Agent统一文档版本序列的当前入口（索引v3.37；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
+本页是Agent统一文档版本序列的当前入口（索引v3.38；序列起点v3.0）。本次启用独立的新文档版本序列，不表示软件/API/task/config/index变更；原高版本纳入v3.0不构成回滚，后续各文档可独立递增。当前权威顺序为：`REQ_00 → L0_00 → L1_* → L2_* → 代码与验证证据`。旧版正文和历史审计材料只用于追溯，不得覆盖当前设计。
 
 ## 1. 编号与状态规则
 
@@ -64,8 +64,8 @@
 
 | 定位 | 唯一入口 | 版本/状态 | 边界 |
 |---|---|---|---|
-| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.37 / Reviewed | 演练与有限离线诊断完成，未知根因保留，原终态不变，不自动重跑 |
-| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.37 / Reviewed | 工具non-live及有限否决不等于质量验收；正向阈值不变，完整新版UAT未完成 |
+| 当前Knowledge实施计划 | [P3_01](plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) | v3.38 / Reviewed | 有限词法诊断有局部收益，未知根因及原终态保留，完整实施验收未完成 |
+| 当前Knowledge验收计划 | [UAT_02](plans/UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | v3.38 / Reviewed | 局部词法收益不等于完整召回或回答验收；正向阈值不变，完整新版UAT未完成 |
 | Business维护验收基线 | [UAT_00](plans/UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | v3.1 / Reviewed | 原固定用例及Employee扩展证明范围保留；不重做UAT |
 | 历史计划与迁移映射 | [本次归档](plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md) | 原版本/状态不变 | 原ROADMAP_01、P3_00、UAT_01退出当前推进；UAT_00保留整理前快照 |
 
@@ -76,6 +76,6 @@
 
 ## 7. 当前基线状态
 
-同正式路径无付费演练已完成本包实现、正反向验证和独立代码复评，只证明验证工具的相应non-live可靠性；离线检索诊断仍待实施，下一步依既有封存证据定位阶段损失，再选择最小检索修正。当前固定原问和调用上限不变，线上补检、Deep Agents及父单元补取未启用；不因演练通过宣称真实协议、召回或UAT提升。
+同正式路径无付费演练与有限离线损失诊断已完成各自实现和复评，只证明对应工具及证据范围。另获授权的同现行索引词法比较观察到必要来源恢复，未证明整体召回或回答质量改善。当前固定原问和调用上限不变，线上补检、Deep Agents及父单元补取未启用；完整测量、人工评价及发布条件仍未满足。
 
 Employee/Transaction及原Knowledge功能UAT保持原证明范围。当前仓库Knowledge默认关闭；启用时唯一生产组合根已接线action-selection-v5/意图12/Summary9/minimal-v1，关闭时保持原selector v4及Business v7。动作选择职责修正已有non-live及独立代码复评，实际部署和真实效果未复测；Spring→Runtime合成lookup、explanation、applicability与失败链保持原证明范围。独立隔离运行已有部分真实typed及公开结果证据，维护者已确认部分整题通过与不通过，但未形成完整有效测量，不证明常规部署或整体回答质量通过。CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE及资料主线NORMALIZE、CHUNK、REPRESENT分别完成P3_01限定的组件、仓库non-live或离线范围。新独立成对对照协议完整，但未满足主指标改善条件、候选相关性人工评价尚缺；端到端测量因技术失败停止，不补跑或继承历史通过。现行索引保持、候选未发布。COMPARE和MEASURE仍未完成，RELEASE受阻；新版完整UAT未通过，逐包状态以P3_01为准。本索引不复制运行身份、hash或动态测试数，不证明部署、效果改善或验收通过；图谱仍为后续方向，已取消优化目标不恢复。文档评审、实施、部署及验收分别管理。

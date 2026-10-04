@@ -6,14 +6,14 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.37 |
-| 文档状态 | Reviewed（原设计、演练和B不采用证明保持；离线诊断本包完成，完整验收未完成） |
-| 日期 | 2026-10-03 |
+| 当前版本 | v3.38 |
+| 文档状态 | Reviewed（本轮有限词法诊断及证据/状态复核完成；完整验收未完成） |
+| 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready不等于实施授权。历史独立B/MEASURE执行及授权消费见§14.31～37，原目录不复用；selector v5仓库non-live修正见§14.38。§14.40完成维护者要求的DRYRUN；继续总目标时，本轮落实必要的纯离线DIAGNOSE工具、测试、评审及本地提交（§14.42），不读取密钥、启动真实批次或操作服务/ES/BGE。本文不是滚动运行许可；新真实诊断、测量和发布仍须精确范围及有效授权，预算/gold/阈值及在线父读取禁令保持 |
+| 实施授权 | Ready不等于实施授权。历史独立B/MEASURE执行及授权消费见§14.31～37，原目录不复用；selector v5仓库non-live修正见§14.38。DRYRUN及纯离线DIAGNOSE见§14.40/42。本轮另经维护者确认一次独立词法诊断：同现行b2、旧/当前helper、固定001/002/003/012，typed与物理search各8、只读元数据18、健康检查≤40；模型/BGE/写入/retry/resume均0，具体冻结及终态见§14.43。该授权已执行，不是新B/MEASURE或滚动运行许可；后续操作仍须精确范围及有效授权，gold/阈值及在线父读取禁令保持 |
 | 计划执行状态 | Done=11（含DRYRUN、DIAGNOSE）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），共14包/14直接边。原Done证明范围保持；两项新包仅工具non-live及离线诊断完成，不证明效果。B主指标未改善、precision未评；MEASURE完成4题后005技术失败，001/002人工Passed、003/004 Failed，整批仍invalid_run。保留现行b2，不发布/追加实验 |
 
 ## 2. 修改历史
@@ -65,6 +65,7 @@
 | 43 | 2026-10-03 | §1/3/4/5/9/12/14.40 | 正式路径无付费演练包实施及复评 | v3.35关闭DRYRUN的有限non-live范围，同步单一预算、失败取证、清理及提交/验证；DIAGNOSE仍Ready，原效果/测量/发布状态和14包/14边不变 |
 | 44 | 2026-10-03 | §5/9/12/14.41 | 按现行验收合同明确B候选不采用 | v3.36只读验真及逐阶段排名比较，记录有限否决与仍未知原因；不补盲标、不改历史结果、不关闭COMPARE/A/MEASURE/RELEASE，不启动新运行 |
 | 45 | 2026-10-03 | §1/3/4/5/9/12/14.42 | 离线损失诊断本包实施及复评 | v3.37关闭DIAGNOSE有限离线范围，保留unknown、原终态和14包/14边；不预记召回提升、完整测量或发布 |
+| 46 | 2026-10-04 | §1/3/14/14.43 | 另获精确授权的同索引词法helper比较 | v3.38记录唯一有限诊断的8次typed/物理search及局部收益；旧终态、工作包DAG、整体质量和发布状态不变，不追加真实批次 |
 
 ## 3. 来源清单与当前基线
 
@@ -76,7 +77,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.37 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 演练及离线诊断工具已验证，B有限不采用决定保持；不改gold、阈值、预算或历史终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.38 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 独立词法诊断仅证明003局部收益；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -254,7 +255,7 @@ Corpus：标准化 → 切片/表示并行 → 对照 → 受控发布。
 
 ## 14. 当前结论
 
-当前Done=11（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT、DRYRUN、DIAGNOSE）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），各阶段证据见§14.1～14.42。DRYRUN只证明正式验证工具的non-live可靠性，DIAGNOSE只证明有限离线损失诊断，二者不是新真实批次或检索质量证明。仓库Knowledge enabled root接线selector v5/12/9/minimal-v1，disabled保持v4；v5仅有本轮non-live证明（§14.38），不反向替换旧批次的selector v4。Summary9机械non-live与代码复评、Spring合成三模式及有限失败路径已通过，但旧12/8与新12/9证据不能拼接为新版37/37。单域只读预检和最新四题的有限端到端记录不证明完整两域链路、常规生产部署或新版UAT通过。最新B（§14.32）10题协议完整且保存traces，双臂recall@20均0.85、主指标未改善，215项人工盲标仍缺、precision为null；§14.41已作不采用决定，A仍Not assessed，候选只读未发布。最新MEASURE（§14.33）完成001～004后005技术失败，模型13/typed8/embedding4/rerank4，整批failed_consumed / invalid_run；§14.37维护者确认001/002 Passed、003/004 Failed，005根因仍未知、006～012未执行。各旧失败批次保持原终态，不补跑、续跑或复用余额；后续观测、文号及动作选择修复只具有限non-live证明。保留现行b2，没有合格候选或发布完成证据，完整测量与新版UAT尚未完成。
+当前Done=11（两项来源设计、CONTRACT、RETRIEVAL、EVIDENCE、COMPOSE、NORMALIZE、CHUNK、REPRESENT、DRYRUN、DIAGNOSE）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），各阶段证据见§14.1～14.43。DRYRUN只证明正式验证工具的non-live可靠性，DIAGNOSE只证明有限离线损失诊断，二者不是新真实批次或检索质量证明。仓库Knowledge enabled root接线selector v5/12/9/minimal-v1，disabled保持v4；v5仅有non-live证明（§14.38），不反向替换旧批次的selector v4。Summary9机械non-live与代码复评、Spring合成三模式及有限失败路径已通过，但旧12/8与新12/9证据不能拼接为新版37/37。单域只读预检和最新四题的有限端到端记录不证明完整两域链路、常规生产部署或新版UAT通过。最新B（§14.32）10题协议完整且保存traces，双臂recall@20均0.85、主指标未改善，215项人工盲标仍缺、precision为null；§14.41已作不采用决定，A仍Not assessed，候选只读未发布。最新MEASURE（§14.33）完成001～004后005技术失败，模型13/typed8/embedding4/rerank4，整批failed_consumed / invalid_run；§14.37维护者确认001/002 Passed、003/004 Failed，005根因仍未知、006～012未执行。各旧失败批次保持原终态，不补跑、续跑或复用余额。另获授权的§14.43词法诊断确认003必要来源由旧keyword top20无命中提升至当前第1，001/002/012的keyword top20完全相同；012仍缺两项必要来源，不能证明双路、回答或整体质量提升。观测与动作选择修复仍只具non-live证明。保留现行b2，没有合格候选或发布完成证据，完整测量与新版UAT尚未完成。
 
 ### 14.1 CONTRACT完成证据（2026-09-15）
 
@@ -745,3 +746,35 @@ MEASURE 005仍无可追溯的公开错误响应，具体技术根因不可验证
 四份文档同步的独立定向复核无确认问题，不重新批准全部设计。P3与L2严格校验各0错误/0警告，85条本地文件链接无缺失；新增文档行的有限凭据模式扫描无发现，四项B/MEASURE关键资产SHA-256均与封存值一致，Git差异检查通过。链接检查不代替所有章节语义复核，有限敏感模式扫描也不宣称能穷尽所有秘密格式。
 
 DIAGNOSE在可定位报告、明确unknown及有限决策交接范围Done。当前11 Done/2 In Progress/0 Ready/1 Blocked、14包/14直接边保持无环；COMPARE、MEASURE未完成，RELEASE仍Blocked。新的非付费检索诊断或实际词法收益比较仍须独立冻结精确范围、预算及运行条件，不消耗旧4GET或旧B/MEASURE余额。未获有效新范围前停止真实执行；完整质量、12题测量、人评及发布未满足，整体目标不标完成。
+
+### 14.43 同现行索引的独立有限词法诊断（2026-10-04）
+
+维护者确认一次独立、无付费的旧/当前`DocumentNumberQuery`比较及窗口内无其他索引/alias修改；不继承旧4GET、B或MEASURE余额。起始HEAD `3c2f6a97ef2497f15198227ce3e9f2bd240c6f69`，仅实现[私有诊断入口](../../agent-runtime/tests/evaluation/knowledge/rebuild_lexical_probe.py)及直接测试，本地提交`1630138d55476fbfe8d59805618b6dcb8a38fc48`后冻结干净代码。原生产源码、任务、配置、公共DTO、gold及阈值不变。
+
+[本次manifest](../../knowledge-corpus-tools/evidence/knowledge-lexical-probe-20261004-01/manifest.json) SHA-256 `6cb0cd6159a018f58b540ddbffe6a333e5eebde1c9959086170a859e2c96dbe4`绑定上述提交、原题001/002/003/012和必要来源。两臂使用同一当前archive/YAML/现行b2索引，仅旧臂替换来自`a1ba290e8b2d78da71d46bc1f39018be502c7347`的helper。先离线Maven双构建及独立`javac`检查真实Java `buildSearchBody`，四题物理请求与固定投影精确相同后消费授权；build使用`-DskipTests`，不计Maven测试通过。
+
+运行使用两台本次owned隔离es-query Java及loopback白名单代理，沿用现行typed接口、正常只读alias、内存VIEWER用户JWT和严格Python响应解码。代理只放行固定元数据及逐题唯一keyword查询，发送前journal记账；gold仅用于离线来源核对，不进入查询。禁止cluster health、物理写入、B专用alias及失败后重试。正文、HMAC、JWT和原始响应只驻留内存，不进入有限证据。
+
+[结果](../../knowledge-corpus-tools/evidence/knowledge-lexical-probe-20261004-01/result.json) SHA-256 `84c68b3eb4f460e90a018f9dafb96353f6bfb0a0a9f4a663377095e87f3b8358`：唯一终态`completed`、reason=null，typed8/物理search8/ES元数据18/本地readiness4（上限40）；模型/embedding/rerank/索引及alias写入均0，retry/resume禁用，proxy violations0，owned进程和代理清理true。38项journal、8份case投影与结果逐项一致；退出后19221/19222/19321/19322均无监听。该目录不可续跑。
+
+前后alias目标/空flags、索引UUID `jJ5Ww3LCRWWycfDkUZvmdw`、mapping SHA均相同；两臂Profile启动也分别核验两域共用的物理binding。本轮没有全记录扫描，`fullRecordFingerprint=not_observed`，不能继承旧fingerprint作当前全库证明；内容一致性依赖维护者确认的排他窗口及已命中来源hash核对。
+
+| 原题 | 旧helper keyword top20 | 当前helper keyword top20 | 有限解释 |
+|---|---|---|---|
+| UAT-KM-001 | living第7、food_lodging第1、lodging第2 | 相同 | 完整top20的身份/hash/顺序相同，没有观察到回退 |
+| UAT-KM-002 | lodging第1 | 相同 | 完整top20相同，没有观察到回退 |
+| UAT-KM-003 | small_2022未命中 | small_2022第1 | 当前联合机关文号软匹配有局部收益，不反写旧失败根因或用例结果 |
+| UAT-KM-012 | lodging及lease_real均未命中 | 相同 | 完整keyword top20相同；未测vector、融合、rerank及回答，窗口外排名和过滤原因仍未知 |
+
+本轮实际验证（`agent-runtime`，临时`PYTHONPATH/MYPYPATH=src;../knowledge-corpus-tools/src`）：
+
+- `python -m pytest -q --tb=short tests/evaluation/knowledge/test_rebuild_lexical_probe.py`：最终66 passed，3.17秒，包含硬预算、非法路由、响应边界、单次消费、半包、未启动线程、失败清理、迟到违规及CLI反证。
+- `python -m pytest -q --tb=short tests/evaluation/knowledge/test_rebuild_lexical_probe.py tests/evaluation/knowledge/test_rebuild_retrieval_diagnose.py tests/evaluation/knowledge/test_rebuild_b_local_transport.py tests/evaluation/knowledge/test_rebuild_b_local_runner.py tests/contract/knowledge/test_es_adapter.py`：203 passed，61.94秒。
+- `python -m mypy src tests/evaluation/knowledge/rebuild_lexical_probe.py`：154 source files通过，仓库strict配置生效；两份新增Python文件`compileall -q`通过。
+- 实际离线双构建和真实Java投影检查通过。先前源码启动的类加载及Windows输出编码问题均在真实预算消费前检出，改为独立编译和显式UTF-8输出后通过；没有用放宽投影断言解决。真实执行中相应预检再次通过。
+
+未参与实现的独立执行单元直接读源码和设计，初审指出清理顺序、实际`documentNo`映射、Actuator媒体类型、CLI退出码等问题；复评补充迟到代理违规和未启动线程清理。修复后无剩余Blocker/Major，审查者独立运行16项定向fake通过（50 deselected），未冒称独立执行真实双构建。真实有限证据复核确认38条journal、160项候选及全部目标来源与结果一致；三份状态文档定向复核S0/S1/未处理S2均0，不重新批准全部设计。
+
+主执行者另实跑`tests/uat/test_current_traceability.py`与`tests/uat/test_knowledge_traceability.py`：12 passed，0.20秒；六份`test_live_p5_candidate_{01,02,04,05,06,07}_history.py`（逐文件展开）：14 passed，7.53秒。原MEASURE manifest/cases/failure及B comparison-result四项SHA-256与封存值一致，其他历史资产无Git差异。P3 strict检查0错误/0警告，三份文档80条本地链接及fence通过；有限资产凭据/正文/向量模式扫描未发现禁止内容，不宣称扫描穷尽所有秘密格式。Git范围与差异检查通过，只本地提交，不push。本轮未重复全量Python/Maven、Spring全链、PowerShell AST或历史付费UAT；这些没有新增通过结论。
+
+本次只证明同现行索引、原问、固定keyword窗口下的局部helper收益；不采用旧B候选、不关闭COMPARE/MEASURE/RELEASE，不把003原人工Failed改判Passed。下一步优先解决MEASURE仍缺的当前版本有效终态及回答评价；任何新批次均需独立范围、冻结、预算和授权，不能借本次非付费诊断增加模型调用。012应先保留初召回缺口及unknown，再决定是否需要新的有限过滤/窗口观测，不直接加topK、补检、grep或Deep Agents。
