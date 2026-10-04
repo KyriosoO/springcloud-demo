@@ -180,11 +180,15 @@ class OwnedComparisonRuntime:
     """
     def __init__(self, *, pair: ProjectedJavaPair, journal: AttemptJournal, binding: ReadBinding,
                  ports: tuple[int, int, int, int], metadata_sha256: tuple[tuple[str, str], ...],
-                 postcheck: Callable[[], Awaitable[None]] | None = None) -> None:
+                 postcheck: Callable[[], Awaitable[None]] | None = None,
+                 inventory_client: httpx.Client | None = None) -> None:
         p.require(postcheck is None or callable(postcheck), "runtime_postcheck_invalid")
+        p.require(inventory_client is None or type(inventory_client) is httpx.Client
+            and not inventory_client.is_closed, "runtime_inventory_client_invalid")
         self.pair, self.journal, self.binding = pair, journal, binding
         self.ports, self.metadata_sha256 = ports, metadata_sha256
         self.postcheck = postcheck
+        self.inventory_client = inventory_client
         self.attempted = False
 
     def _identity_ready(self, *, post: bool) -> None:
@@ -221,6 +225,7 @@ class OwnedComparisonRuntime:
             ledger=self.journal.ledger, backend=backend) for i, arm in enumerate(p.ARMS))
         for proxy in proxies:
             resources.add_proxy(proxy)
+            self.journal.check_operation()
             proxy.start()
         secret = secrets.token_bytes(48)
         for arm in p.ARMS:
@@ -271,6 +276,8 @@ class OwnedComparisonRuntime:
             self._identity_ready(post=False)
             self.pair.verify_artifacts()
             resources = OwnedJavaResources(pair=self.pair, journal=self.journal, ports=self.ports)
+            if self.inventory_client is not None:
+                resources.backends.append(self.inventory_client)
             result = await _cancel_bound(lambda: self._execute(resources, cancellation), cancellation)
         except asyncio.CancelledError:
             cancelled = True

@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.50 |
-| 文档状态 | Reviewed（现场身份私有接缝及非HTTP记账增量定向复评通过；完整验收未完成） |
+| 当前版本 | v3.51 |
+| 文档状态 | Reviewed（私有串行入口及文档增量定向复评通过；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -78,6 +78,7 @@
 | 56 | 2026-10-04 | §14.52 | 启动、预热、生产Stage及清理需使用同一产物与计数器 | v3.48新增统一私有装配与失败反例；只验证non-live生命周期，不核实现场快照或授权，不改变工作包及质量状态 |
 | 57 | 2026-10-04 | §14.53 | 全库存读取需发送前记账，后验不能放在日志封存之后 | v3.49复用scanner补齐三元数据与全记录前后核验、封存前postcheck及冻结响应绑定；仅non-live，不新建真实运行或授权资产 |
 | 58 | 2026-10-04 | §14.54 | 模型身份检查不得混入HTTP计数或仅信任caller标签 | v3.50补齐现有模型probe、实际产物/配置/catalog冻结及同journal非HTTP计数；仅fake验证，独立授权消费与总入口未完成 |
+| 59 | 2026-10-04 | §14.55 | 准备、授权一致性、一次消费、前后验与清理须串行闭合 | v3.51补齐私有外层和固定消费守卫；仅fake验证，不自签授权，不改变质量、历史或发布状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -89,7 +90,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.48 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 现场身份私有工具仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.49 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 串行外层及消费仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -1024,3 +1025,24 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 独立只读评审直接检查源码、现有设计和反例，证实上述tuple错配并复核修复、早期静态漂移拒绝及串行runtime接缝。评审者实际重跑identity＋journal **65 passed，5.47秒**和runtime新增身份集成子集 **4 passed、40未选，16.91秒**，本增量无未关闭Blocker/Major；不批准真实Docker、服务、推理、独立授权或整体UAT。未执行全量Python/Maven及真实效果测量。
 
 旧A/B/MEASURE结论、gold/阈值、14包/14边和11 Done/2 In Progress/1 Blocked均保持。独立授权引用、原子消费及外层总入口仍未完成，不恢复旧许可或新建真实运行资产；不能宣布COMPARE、MEASURE、功能/效果UAT或RELEASE完成。
+
+### 14.55 独立范围消费与私有串行入口（2026-10-04）
+
+新增[私有串行入口](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_runner.py)及[直接反例](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_runner.py)，复用前节的库存、身份、Stage、日志和owned清理，不新增Gate、线上检索分支或评分权威。本轮只有合成临时资产和fake资源，没有CLI、默认确认方、默认进程提供者或真实授权签发。
+
+- RunScope把新run、准备/正式阶段、HEAD、协议/投影、索引及模型目标、静态材料、前置捕获、HTTP/非HTTP上限、端口和排他有效窗口绑定为精确材料。外部可信调用方必须核实维护者的新精确确认及排他条件，再提供绑定材料hash、reference和决策记录hash的receipt。模块只检查一致性，不能证明人类确认来源；approved=true、任意引用字符串或自算hash均不能自行授权。当前尚无实际确认方、新正式grant或现场冻结材料。
+- 准备与正式使用不同的新run及确认：准备只允许库存/身份捕获，正式必须带完整捕获并再次前后核对。正式消费位置固定为仓库agent-runtime/tests/uat/results/document-number-comparison下的run标记和日志；仅合成范围可指定测试临时根。独占创建、完整写入、flush/fsync后才允许第一个受限操作。已有目录/标记、路径别名、短写和持久化失败均拒绝，残留标记不删除、不重试，不以换目录恢复机会。
+- 每次HTTP或模型probe边界以及proxy/Java启动前检查窗口与取消状态，不依赖watcher及时调度。代理先登记归属再检查/启动；前验必须实际返回成功捕获，不能仅凭pre计数进入执行。Stage成功后，在原日志封存前完成身份与库存后验，失败即停，不执行补证式后验、不切域或Capability。
+- 两类ledger分别停止，首个停止checkpoint失败也不妨碍第二类停止、排空worker和关闭client。正式库存client转交同一owned生命周期，准备/早期失败由外层关闭；拒绝非精确HTTP客户端前先接管可识别句柄。取消及迟到结果不返回成功；拒绝发生在已预留checkpoint时保留pending和有限失败，不能编造完成回执。清理/封存失败也不宣布成功。
+
+真实调用仍为零。若未来独立准备和正式前后各一次、现场N确为15521，准备HTTP67及身份probe4，正式HTTP269及身份probe8，合计HTTP336及非HTTP身份12；只是条件上限，不是批准额度、实测数量或已有授权。Git/文件/产物及PID/归属核查分别按冻结范围管理。输出仅为捕获与有限attempt证据，质量Not assessed、releaseAllowed=false，不替代人工评价、MEASURE或发布。
+
+本轮实际验证（corpus venv、临时双源码/Agent路径，不安装依赖）：
+
+- 十一份test_rebuild_document_number_*.py及minimal_stage/minimal_ranking/http/fusion/bge_rerank_context五份生产unit：python -B -m pytest -o addopts='' -q -p no:cacheprovider --tb=short，最终修后**501 passed，97.37秒**；新入口直接**35 passed，11.42秒**，不与前一集合相加。含精确材料拒绝、并发一次消费、短写/fsync失败保留标记、阶段失败、后验封存、停止失败、重复取消排空、逐次窗口/取消检查及完整fake Stage。
+- mypy --strict src：**153源文件通过**；四份直接工具mypy --strict --follow-imports=silent：**4文件通过**，保留strict目标检查，不把未修改导入模块列作本轮验证。五份修改Python compileall通过。首次扩大导入检查报28项（含新入口4项及既有语料解析依赖/类型问题），修复本轮问题后分开检查；不修改类型配置或安装依赖，不声称扩大检查通过。首次直接测试24通过/2失败为fixture取消参数与ledger故障注入错配，修正后通过；首次扩大回归因unit路径缺retrieval未执行，核实后才得到501项结果。
+- 独立子代理实际源码与反例复核发现proxy窗口检查、拒绝客户端句柄遗漏、worker取消检查三项缺陷，最小修复并补反例后最终复评**35 passed，11.19秒**，本轮私有工具无未关闭Blocker/Major；不是外部人员验收或真实运行批准。四项历史关键hash及diff检查通过；未执行全量Python/Maven、实际Java重建或真实效果UAT。
+
+独立外层与消费守卫的private/fake实施范围已补齐，但可信确认来源、实际新run/grant、现场准备及冻结、完整盲标和新的合法测量仍未完成。现行b2、旧A/B/MEASURE终态、gold/阈值及14包/14边、11 Done/2 In Progress/1 Blocked不变；不得宣布COMPARE、MEASURE、整体UAT或RELEASE完成。下一步先整理新的精确准备/执行材料并核实相应授权，不复用失败批次或旧许可。
+
+文档内审与独立增量复评核查实际差异，修正P3来源表的UAT版本及补录本次修改映射后，无剩余确认问题；109本地链接、围栏、版本和P3严格检查0错误/0警告通过。Reviewed仅指本增量，不改变历史验收、运行授权或全目标状态。

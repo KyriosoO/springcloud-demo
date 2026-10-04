@@ -7,6 +7,7 @@ No response bodies, credentials, vectors or exception objects enter the API.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from collections.abc import Callable
 from hashlib import sha256
 import os
 from pathlib import Path
@@ -59,7 +60,9 @@ class AttemptJournal:
     not proof that any process, client, proxy or port has actually been closed.
     """
     def __init__(self, *, directory: Path, binding: JournalBinding,
-                 limits: tuple[tuple[str, int], ...], identity_phases: tuple[str, ...] = ()) -> None:
+                 limits: tuple[tuple[str, int], ...], identity_phases: tuple[str, ...] = (),
+                 operation_guard: Callable[[], None] | None = None) -> None:
+        p.require(operation_guard is None or callable(operation_guard), "journal_guard_invalid")
         p.require(type(binding) is JournalBinding, "journal_binding_invalid")
         binding.__post_init__()
         p.require(directory.name == binding.run_id and directory.parent.is_dir()
@@ -73,6 +76,7 @@ class AttemptJournal:
         self._stream: BinaryIO | None = None
         self._path = directory / "attempts.jsonl"
         self._identity: tuple[int, int] | None = None
+        self._operation_guard = operation_guard
         self.ledger = AttemptLedger(limits, checkpoint=self._checkpoint)
         from tests.evaluation.knowledge.rebuild_document_number_identity import IdentityLedger
         self.identity_ledger = (IdentityLedger(phases=identity_phases, checkpoint=self._identity_checkpoint)
@@ -127,8 +131,18 @@ class AttemptJournal:
         self._size += len(raw)
         self._hash.update(raw)
 
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def check_operation(self) -> None:
+        if self._operation_guard is not None:
+            self._operation_guard()
+
     def _checkpoint(self, event: str, ticket: int | None, attempt: Attempt | None) -> None:
         # The ledger constructs finite fields and holds its one ordering lock.
+        if event == "started":
+            self.check_operation()
         with self._lock:
             if event == "stopped":
                 p.require(ticket is None and attempt is None, "journal_checkpoint_invalid")
@@ -142,6 +156,8 @@ class AttemptJournal:
     def _identity_checkpoint(self, event: str, ticket: int | None, attempt: IdentityAttempt | None) -> None:
         from tests.evaluation.knowledge.rebuild_document_number_identity import IdentityAttempt
         # Never disguise a Docker process receipt as a successful HTTP status.
+        if event == "started":
+            self.check_operation()
         with self._lock:
             if event == "stopped":
                 p.require(ticket is None and attempt is None, "journal_checkpoint_invalid")

@@ -141,6 +141,7 @@ class OwnedJavaResources:
         process: subprocess.Popen[bytes] | None = None
         failed = False
         try:
+            self.journal.check_operation()
             process = subprocess.Popen(args, env=environment, stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
