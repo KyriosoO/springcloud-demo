@@ -55,7 +55,7 @@ class DryRun:
         cases = [{"caseId": f"UAT-KM-{n:03}", "question": f"请查找增值税政策资料第{n}组",
                   "queryMode": "lookup", "expectedDomains": ["tax.policy"], "necessarySources": [],
                   "expectedPublicStatus": "success", "obligations": []} for n in range(1, 13)]
-        self.manifest = {"runId": "knowledge-dryrun-synthetic-01", "executionKind": "non_live",
+        self.manifest: dict[str, Any] = {"runId": "knowledge-dryrun-synthetic-01", "executionKind": "non_live",
                          "liveConsumable": False, "frozenHead": "a" * 40,
                          "authorizationReference": runner._NON_LIVE_REFERENCE,
                          "fixtureSha256": hashlib.sha256(json.dumps(cases, sort_keys=True).encode()).hexdigest(),
@@ -154,6 +154,121 @@ class DryRun:
                 await runner.run_once(manifest=self.manifest, output_dir=self.tmp / "output", review_dir=self.tmp / "review",
                     token="synthetic-token-not-a-JWT", environ={}, client=client, es_pid=1, agent_pid=2, proxy_pid=3,
                     server_factory=self.server, _test_ports=self.ports)
+
+
+class ExplanationCaseDryRun(DryRun):
+    """Reuse question 005, never its gold or real source, in the non-live chain."""
+
+    def __init__(self, tmp: Path, monkeypatch: pytest.MonkeyPatch, *, invalid_quote: bool = False) -> None:
+        super().__init__(tmp, monkeypatch)
+        fixture = json.loads(Path(__file__).with_name("knowledge_rebuild_measure.v1.json").read_bytes())
+        self.original_case = next(case for case in fixture["cases"] if case["caseId"] == "UAT-KM-005")
+        self.content = "合成演练材料：软件产品分为系统软件和应用软件；本材料仅用于测试，不代表真实文件。"
+        self.claim = "引文说明合成材料的软件产品分类。"
+        owner = self
+
+        class SyntheticClients(_KnowledgeClientFactory):
+            @staticmethod
+            def _search_result(request: dict[str, object]) -> dict[str, object]:
+                result = _KnowledgeClientFactory._search_result(request)
+                first = result["candidates"][0]  # type: ignore[index]
+                first.update(title="合成软件资料", content=owner.content,
+                             contentSha256=hashlib.sha256(owner.content.encode()).hexdigest())
+                return result
+
+        class ExplanationModel(MinimalModel):
+            async def complete(self, request: StructuredModelRequest, *, call_deadline: float) -> StructuredModelResponse:
+                payload = json.loads(request.user_payload_json)
+                if request.task_id is ModelTaskId.KNOWLEDGE_REWRITE:
+                    self.intent = {"outcome": "search", "query_mode": "explanation"
+                                   if payload["question"] == owner.original_case["question"] else "lookup",
+                                   "domains": {"tax.policy": "selected"}, "missing_conditions": []}
+                if request.task_id is ModelTaskId.KNOWLEDGE_SUMMARY and payload["question"] == owner.original_case["question"]:
+                    assert request.task_version == "9" and payload["query_mode"] == "explanation"
+                    assert payload["schema_version"] == 3 and call_deadline > asyncio.get_running_loop().time()
+                    first = payload["evidence"][0]
+                    assert first["content"] == owner.content
+                    self.requests.append(request)
+                    # The bad quote is otherwise schema-valid, including the required
+                    # explanation claim, so failure proves the real substring check.
+                    point = {"evidence_ref": first["evidence_ref"], "claim": owner.claim,
+                             "quote": "DO_NOT_PERSIST" if invalid_quote else first["content"]}
+                    return StructuredModelResponse(finish_kind=StructuredFinishKind.TOOL_CALLS, content=None,
+                        tool_calls=(StructuredToolCall(name=OUTPUT_NAME, arguments_json=json.dumps({
+                            "outcome": "answer", "points": [point]}, ensure_ascii=False)),), usage_total_tokens=0)
+                return await super().complete(request, call_deadline=call_deadline)
+
+        self.clients, self.model = SyntheticClients(), ExplanationModel()
+        source = SyntheticClients._search_result({"logicalDomainId": "tax.policy",
+                                                 "retrievalProfileId": "synthetic", "path": "keyword"})["candidates"][0]  # type: ignore[index]
+        self.synthetic_source = {"id": "synthetic-software", "chunkId": source["chunkId"],
+                                 "documentId": source["documentId"], "contentSha256": source["contentSha256"]}
+        self.manifest["runId"] = "knowledge-dryrun-explanation-005"
+        self.manifest["sources"] = [self.synthetic_source]
+        self.manifest["cases"][4] = {**self.original_case, "necessarySources": ["synthetic-software"],
+                                    "obligations": ["验证explanation取证路径；不评价真实软件文件内容或召回质量"]}
+        self.manifest["fixtureSha256"] = hashlib.sha256(
+            json.dumps(self.manifest["cases"], sort_keys=True).encode()).hexdigest()
+
+
+@pytest.mark.asyncio
+async def test_original_005_explanation_uses_formal_asgi_chain_and_synthetic_source_hash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = ExplanationCaseDryRun(tmp_path, monkeypatch)
+    await run.execute()
+    result = json.loads((tmp_path / "output/measurement.json").read_bytes())
+    records = [json.loads(line) for line in (tmp_path / "output/cases.jsonl").read_text().splitlines()]
+    reviews = [json.loads(line) for line in (tmp_path / "review/public-review.jsonl").read_text().splitlines()]
+    case, review = records[4], reviews[4]
+    assert len(records) == 12 and result["counts"] == {"model": 36, "search": 24, "embedding": 12, "rerank": 12}
+    assert case["caseId"] == "UAT-KM-005" and case["runtimeInvocations"] == 1
+    assert case["counts"] == {"model": 3, "search": 2, "embedding": 1, "rerank": 1}
+    assert case["observedPlan"] == {"planPresent": True, "queryMode": "explanation", "selectedDomainIds": ["tax.policy"]}
+    assert case["response"]["status"] == "success" and case["response"]["errorCode"] is None
+    assert case["observedDifference"]["queryModeDiffers"] is False
+    assert case["observedDifference"]["missingNecessarySourcesInTop20"] == []
+    source = run.synthetic_source
+    assert {key: case["rankedTop20"][0][key] for key in ("chunkId", "documentId", "contentSha256")} == {
+        key: source[key] for key in ("chunkId", "documentId", "contentSha256")}
+    assert case["indexSnapshotIds"] == [_SNAPSHOT_ID]
+    assert case["response"]["citations"][0]["quoteSha256"] == source["contentSha256"]
+    assert review["question"] == run.original_case["question"]
+    assert run.claim in review["answerSummary"] and review["points"][0]["quote"] == run.content
+    requests = run.model.requests[12:15]
+    assert [(request.task_id, request.task_version) for request in requests] == [
+        (ModelTaskId.ACTION_SELECTION, "action-selection-v5"), (ModelTaskId.KNOWLEDGE_REWRITE, "12"),
+        (ModelTaskId.KNOWLEDGE_SUMMARY, "9")]
+    assert all(json.loads(request.user_payload_json)["question"] == run.original_case["question"] for request in requests)
+    assert result["realCalls"] == {"model": 0, "ES": 0, "BGE": 0, "Business": 0}
+    assert result["executionKind"] == "non_live" and result["liveConsumable"] is False
+    assert result["aliasChecks"] == 24 and run.metadata == 48
+    assert run.servers[0].closed and all(client.is_closed for client in run.clients.clients)
+    assert json.loads((tmp_path / "output/runner-cleanup.json").read_bytes())["passed"] is True
+    assert not (tmp_path / "output/authorization.consumed.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_005_explanation_invalid_quote_stops_batch_with_finite_failure_and_cleanup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = ExplanationCaseDryRun(tmp_path, monkeypatch, invalid_quote=True)
+    with pytest.raises(runner.MeasurementError, match="case_technical_failure"):
+        await run.execute()
+    failure = json.loads((tmp_path / "output/failure.json").read_bytes())
+    assert failure["completedCases"] == 4 and run.posts == [f"UAT-KM-{n:03}" for n in range(1, 6)]
+    assert failure["counts"] == {"model": 15, "search": 10, "embedding": 5, "rerank": 5}
+    assert failure["stage"] == "case_validation" and failure["reason"] == "case_technical_failure"
+    assert failure["unexecutedCases"] == [f"UAT-KM-{n:03}" for n in range(6, 13)]
+    assert failure["failedCase"] == {"caseId": "UAT-KM-005", "httpStatus": 200, "responseState": "object",
+        "publicStatus": "downstream_failure", "errorCode": "knowledge.summary_failure", "errorSource": "downstream",
+        "correlationMatches": True, "capabilityMatches": True}
+    assert failure["executionKind"] == "non_live" and failure["liveConsumable"] is False
+    attempts = [json.loads(line) for line in (tmp_path / "output/attempts.jsonl").read_text().splitlines()]
+    model = [row for row in attempts if row["caseId"] == "UAT-KM-005" and row["kind"] == "model"]
+    assert len(model) == 6 and model[-1]["status"] == "completed"  # transport success is not validation success
+    assert run.servers[0].closed and all(client.is_closed for client in run.clients.clients)
+    assert json.loads((tmp_path / "output/runner-cleanup.json").read_bytes())["passed"] is True
+    assert not (tmp_path / "output/measurement.json").exists()
+    assert not (tmp_path / "output/authorization.consumed.json").exists()
+    for directory in (tmp_path / "output", tmp_path / "review"):
+        assert all("DO_NOT_PERSIST" not in path.read_text() for path in directory.iterdir())
 
 
 @pytest.mark.asyncio
