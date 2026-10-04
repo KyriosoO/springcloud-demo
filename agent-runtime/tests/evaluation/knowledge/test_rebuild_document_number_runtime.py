@@ -39,7 +39,7 @@ def journal(tmp_path):
     binding = JournalBinding("synthetic-document-number-004", "f" * 40, "1" * 64, "2" * 64,
                              "3" * 64, "4" * 64, "synthetic_non_live")
     with AttemptJournal(directory=tmp_path / binding.run_id, binding=binding,
-        limits=(("metadata", 12), ("javaHealth", 2), ("prewarmRerank", 1),
+        limits=(("metadata", 18), ("javaHealth", 2), ("prewarmRerank", 1),
             ("typedSearch", 44), ("physicalSearch", 44), ("queryEmbedding", 10), ("rerank", 22))) as value:
         yield value
 
@@ -113,6 +113,12 @@ def wire(monkeypatch, pair, journal, *, failure=None):
                 result = await scripted.send(request=r.BoundedHttpRequest(method="POST", relative_path=request.url.path,
                     headers=tuple(request.headers.items()), body=request.content, max_response_bytes=2 * 1024 * 1024), timeout_s=5)
                 content = result.body
+                if request.url.path == "/es/knowledge/search":
+                    dto = json.loads(content)
+                    dto["indexSnapshotId"] = ("a" * 64 if failure == "snapshot_drift"
+                        else BINDING.profile_snapshot(payload["logicalDomainId"]))
+                    if failure == "read_policy_drift": dto["readPolicyVersion"] = "other-policy"
+                    content = p.canonical(dto)
                 if failure == "pid_drift" and request.url.path == "/embed":
                     monkeypatch.setattr(o.shared, "_listener_owner", lambda port: 999)
                 if failure == "client_drift" and request.url.path == "/embed":
@@ -318,3 +324,79 @@ async def test_startup_absolute_deadline_rejects_swallowed_cancellation_and_late
                 method="GET", path=r._HEALTH, body=b"", maximum=4096, seconds=0.01, port=PORTS[0])
     assert len(actual) == journal.ledger.counts["javaHealth"] == 1
     assert journal.ledger.view()["pending"] == 0 and journal.ledger.view()["stopped"]
+
+
+async def test_postflight_uses_same_live_ledger_before_cleanup_seal(monkeypatch, pair, journal):
+    value, proxies, processes, clients, backend, _, _ = wire(monkeypatch, pair, journal)
+    checks = []
+    async def postcheck():
+        assert not journal._closed and not journal.ledger.view()["stopped"]
+        assert not pair.resources_released and not backend.is_closed
+        assert all(process.poll() is None for process in processes)
+        assert all(not client.is_closed for client in clients)
+        for n in range(3):
+            ticket = journal.ledger.begin("metadata", f"inventory/post/metadata/{n}", b"")
+            journal.ledger.finish(ticket, "completed", 200)
+        checks.append("postflight")
+    value.postcheck = postcheck
+    capture = await value.evaluate(cancellation=ManualCancellationSignal())
+    assert checks == ["postflight"] and journal._closed and pair.resources_released
+    assert dict(capture.counted_attempts)["metadata"] == 15
+    assert dict(capture.stage.counted_attempts)["metadata"] == 12  # Stage-only boundary.
+    assert all(proxy.closed for proxy in proxies) and backend.is_closed
+
+
+async def test_failed_postflight_never_returns_success_capture(monkeypatch, pair, journal):
+    value, proxies, processes, clients, backend, _, _ = wire(monkeypatch, pair, journal)
+    async def postcheck():
+        assert not journal._closed
+        raise ValueError("synthetic-source-drift")
+    value.postcheck = postcheck
+    with pytest.raises(p.ProtocolError, match="runtime_comparison_failed"):
+        await value.evaluate(cancellation=ManualCancellationSignal())
+    assert journal._closed and journal.ledger.view()["stopped"] and pair.resources_released
+    assert all(proxy.closed for proxy in proxies) and all(process.poll() == 0 for process in processes)
+    assert backend.is_closed and all(client.is_closed for client in clients)
+
+
+async def test_cancelled_postflight_receipt_drains_before_owned_cleanup(monkeypatch, pair, journal):
+    value, proxies, processes, _, backend, _, _ = wire(monkeypatch, pair, journal)
+    signal, entered, drained = ManualCancellationSignal(), asyncio.Event(), []
+    async def postcheck():
+        ticket = journal.ledger.begin("metadata", "inventory/post/metadata/0", b"")
+        entered.set()
+        try:
+            await asyncio.Future()
+        finally:
+            assert not journal._closed and not backend.is_closed
+            journal.ledger.finish(ticket, "cancelled")
+            drained.append(True)
+    value.postcheck = postcheck
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(value.evaluate(cancellation=signal))
+    await entered.wait()
+    signal.cancel(CancellationSource.CLIENT_DISCONNECT)
+    with pytest.raises(asyncio.CancelledError): await task
+    assert drained == [True] and asyncio.all_tasks() == before
+    assert journal._closed and journal.ledger.view()["pending"] == 0 and pair.resources_released
+    assert all(proxy.closed for proxy in proxies) and all(process.poll() == 0 for process in processes)
+
+
+async def test_startup_failure_cannot_enter_postflight(monkeypatch, pair, journal):
+    value, _, _, _, _, _, _ = wire(monkeypatch, pair, journal, failure="proxy_start")
+    async def postcheck():
+        pytest.fail("postflight invoked after startup failure")
+    value.postcheck = postcheck
+    with pytest.raises(p.ProtocolError):
+        await value.evaluate(cancellation=ManualCancellationSignal())
+
+
+@pytest.mark.parametrize("failure", ["snapshot_drift", "read_policy_drift"])
+async def test_joint_wrong_typed_binding_cannot_rerank_or_reach_peer_arm(monkeypatch, pair, journal, failure):
+    value, _, _, _, _, actual, _ = wire(monkeypatch, pair, journal, failure=failure)
+    with pytest.raises(p.ProtocolError, match="runtime_comparison_failed"):
+        await value.evaluate(cancellation=ManualCancellationSignal())
+    assert journal.ledger.counts["queryEmbedding"] == 1 and journal.ledger.counts["rerank"] == 0
+    typed = [request for request in actual if request.url.path == "/es/knowledge/search"]
+    assert typed and all(request.url.port == PORTS[0] for request in typed)
+    assert journal.ledger.view()["stopped"] and journal.ledger.view()["pending"] == 0

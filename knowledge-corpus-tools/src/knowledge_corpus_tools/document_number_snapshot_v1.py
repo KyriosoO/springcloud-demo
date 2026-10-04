@@ -14,7 +14,7 @@ import re
 import time
 import unicodedata
 from dataclasses import dataclass
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Protocol
 
 import httpcore
 import httpx
@@ -71,6 +71,13 @@ class FreshSnapshotResult:
     source_fingerprint: str
 
 
+class SnapshotAttempts(Protocol):
+    """Caller-owned durable attempt boundary; never an execution grant."""
+    def begin(self, method: str, path: str, body: bytes) -> int: ...
+    def finish(self, ticket: int, status: int | None, failed: bool) -> None: ...
+    def abort(self) -> None: ...
+
+
 def _unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -85,13 +92,30 @@ def _reject_constant(_: str) -> NoReturn:
 
 
 class _Scan:
-    def __init__(self, spec: FreshSnapshotSpec, client: httpx.Client) -> None:
+    def __init__(self, spec: FreshSnapshotSpec, client: httpx.Client,
+                 attempts: SnapshotAttempts | None) -> None:
         self.spec = spec
         self.client = client
+        self.attempts = attempts
         self.calls = 0
+        self.origin: str | None = None
 
     def fail(self, reason: str) -> NoReturn:
+        if self.attempts is not None:
+            self.attempts.abort()
         raise FreshSnapshotError(reason, self.calls)
+
+    def check_client(self) -> None:
+        url = self.client.base_url
+        if (not _single_send_client(self.client)
+                or url.scheme != "http" or url.host not in ("127.0.0.1", "localhost", "::1")
+                or url.path != "/" or url.query or url.fragment or url.userinfo
+                or self.client.trust_env or self.client.follow_redirects or self.client.is_closed
+                or self.origin is not None and str(url) != self.origin
+                or any(value is None or not math.isfinite(value) or not 0 < value <= 30
+                       for value in self.client.timeout.as_dict().values())):
+            self.fail("scan_client_invalid")
+        self.origin = str(url)
 
     def object(self, value: Any) -> dict[str, Any]:
         if type(value) is not dict:
@@ -99,18 +123,23 @@ class _Scan:
         return value
 
     def request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        self.check_client()
         if self.calls >= self.spec.max_http_requests:
             self.fail("scan_budget_exhausted")
+        payload = b"" if body is None else canonical_bytes(body)
+        ticket = None if self.attempts is None else self.attempts.begin(method, path, payload)
         self.calls += 1  # A disconnect/status/JSON failure still consumes an attempt.
         parsed: Any = None
         invalid = False
+        status: int | None = None
         started = time.monotonic()
         try:
             with self.client.stream(
-                method, path, content=None if body is None else canonical_bytes(body),
+                method, path, content=payload or None,
                 headers={"Content-Type": "application/json", "Accept-Encoding": "identity"},
                 follow_redirects=False, timeout=30.0,
             ) as response:
+                status = response.status_code
                 if (response.status_code != 200
                         or response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json"
                         or response.headers.get("Content-Encoding", "identity").strip().lower() != "identity"):
@@ -127,21 +156,15 @@ class _Scan:
                         invalid = type(parsed) is not dict
         except Exception:
             invalid = True
+        if self.attempts is not None and ticket is not None:
+            self.attempts.finish(ticket, status, invalid)
         # Raise outside the handler: do not retain a raw HTTP/JSON exception.
         if invalid:
             self.fail("scan_http_invalid")
         return self.object(parsed)
 
     def run(self) -> FreshSnapshotResult:
-        if not _single_send_client(self.client):
-            self.fail("scan_client_invalid")
-        url = self.client.base_url
-        if (url.scheme != "http" or url.host not in ("127.0.0.1", "localhost", "::1")
-                or url.path != "/" or url.query or url.fragment or url.userinfo
-                or self.client.trust_env or self.client.follow_redirects or self.client.is_closed
-                or any(value is None or not math.isfinite(value) or not 0 < value <= 30
-                       for value in self.client.timeout.as_dict().values())):
-            self.fail("scan_client_invalid")
+        self.check_client()
         spec = self.spec
         definition = self.request("GET", f"/{spec.index_name}")
         if set(definition) != {spec.index_name}:
@@ -230,9 +253,10 @@ class _Scan:
                                    len(records), mapping_version, fingerprint)
 
 
-def scan_fresh_snapshot(spec: FreshSnapshotSpec, *, client: httpx.Client) -> FreshSnapshotResult:
+def scan_fresh_snapshot(spec: FreshSnapshotSpec, *, client: httpx.Client,
+                        attempts: SnapshotAttempts | None = None) -> FreshSnapshotResult:
     """One definition + at most ceil(N/250) searches, no discovery or retry."""
-    scan = _Scan(spec, client)
+    scan = _Scan(spec, client, attempts)
     reason = "scan_records_invalid"
     try:
         return scan.run()

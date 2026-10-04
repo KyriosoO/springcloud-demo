@@ -167,6 +167,7 @@ async def _exchange(*, client: httpx.AsyncClient, journal: AttemptJournal, kind:
 class OwnedComparisonCapture:
     stage: StageComparisonResult
     cleanup: CleanupReport
+    counted_attempts: tuple[tuple[str, int], ...]
     quality_assessment: str = "Not assessed"
     release_allowed: bool = False
 
@@ -178,9 +179,12 @@ class OwnedComparisonRuntime:
     No invocation path in this module authorizes real execution.
     """
     def __init__(self, *, pair: ProjectedJavaPair, journal: AttemptJournal, binding: ReadBinding,
-                 ports: tuple[int, int, int, int], metadata_sha256: tuple[tuple[str, str], ...]) -> None:
+                 ports: tuple[int, int, int, int], metadata_sha256: tuple[tuple[str, str], ...],
+                 postcheck: Callable[[], Awaitable[None]] | None = None) -> None:
+        p.require(postcheck is None or callable(postcheck), "runtime_postcheck_invalid")
         self.pair, self.journal, self.binding = pair, journal, binding
         self.ports, self.metadata_sha256 = ports, metadata_sha256
+        self.postcheck = postcheck
         self.attempted = False
 
     async def _startup(self, resources: OwnedJavaResources) -> None:
@@ -235,8 +239,16 @@ class OwnedComparisonRuntime:
             typed=(_OwnedTypedTransport(resources, typed[0], self.ports[0]),
                    _OwnedTypedTransport(resources, typed[1], self.ports[1])),
             embedding=_ModelTransport(embedding, 8908), rerank=_ModelTransport(rerank, 8909),
-            physical=(proxies[0], proxies[1]))
-        return await stage.evaluate(token=OpaqueUserToken.from_raw(shared._jwt(secret)), cancellation=signal)
+            physical=(proxies[0], proxies[1]), binding=self.binding)
+        result = await stage.evaluate(token=OpaqueUserToken.from_raw(shared._jwt(secret)), cancellation=signal)
+        # The same ledger is stopped/sealed by owned cleanup. A successful
+        # postflight must run here, never after evaluate() returns or in a new
+        # uncounted log. Cancellation still drains this work before cleanup.
+        if self.postcheck is not None:
+            if signal.is_cancelled():
+                raise asyncio.CancelledError
+            await self.postcheck()
+        return result
 
     async def evaluate(self, *, cancellation: CancellationSignal) -> OwnedComparisonCapture:
         p.require(not self.attempted and not self.journal.ledger.view()["stopped"], "runtime_already_attempted")
@@ -278,4 +290,4 @@ class OwnedComparisonRuntime:
         if cancelled:
             raise asyncio.CancelledError from None
         assert result is not None and cleanup is not None
-        return OwnedComparisonCapture(result, cleanup)
+        return OwnedComparisonCapture(result, cleanup, tuple(self.journal.ledger.counts.items()))

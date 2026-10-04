@@ -22,6 +22,7 @@ from agent_runtime.knowledge.retrieval.es_adapter import EsKnowledgeSearchAdapte
 from agent_runtime.knowledge.retrieval.http import KnowledgeHttpTransport
 from agent_runtime.knowledge.retrieval.minimal_stage import MinimalKnowledgeRetrievalStage, _bounded
 from tests.evaluation.knowledge import rebuild_document_number_comparison as p
+from tests.evaluation.knowledge.rebuild_document_number_owned import ReadBinding
 from tests.evaluation.knowledge.rebuild_document_number_projection import ProjectedJavaPair
 from tests.evaluation.knowledge.rebuild_document_number_transport import (
     AttemptLedger, CountedKnowledgeTransport, PhysicalWitness,
@@ -62,11 +63,13 @@ async def _shared_embedding(*, case: p.ComparisonCase, transport: KnowledgeHttpT
 class _CapturedPorts:
     def __init__(self, *, case: p.ComparisonCase, arm: str, vector: tuple[float, ...],
                  context: KnowledgeRetrievalContext, ledger: AttemptLedger,
-                 typed: KnowledgeHttpTransport, rerank: KnowledgeHttpTransport) -> None:
+                 typed: KnowledgeHttpTransport, rerank: KnowledgeHttpTransport,
+                 binding: ReadBinding | None) -> None:
         self.case, self.arm, self.vector, self.context, self.ledger = case, arm, vector, context, ledger
         self.search_adapter = EsKnowledgeSearchAdapter(CountedKnowledgeTransport(
             delegate=typed, ledger=ledger, case=case, arm=arm, kind="typedSearch", vector=vector))
         self.rerank_transport = rerank
+        self.binding = binding
         self.paths: dict[tuple[str, object], PathRetrievalResult] = {}
         self.reranks: list[tuple[tuple[AuthorizedKnowledgeCandidate, ...], tuple[RerankScore, ...]]] = []
         self.embedding_used = False
@@ -82,6 +85,12 @@ class _CapturedPorts:
         key = (request.logical_domain_id, request.path)
         p.require(context is self.context and key not in self.paths, "stage_search_drift")
         result = await self.search_adapter.search(request=request, context=context, timeout_s=timeout_s)
+        if self.binding is not None and result.kind in (PathResultKind.CANDIDATES, PathResultKind.NO_RESULT):
+            matches = (result.index_snapshot_id == self.binding.profile_snapshot(request.logical_domain_id)
+                       and result.read_policy_version == "tax-public-authenticated-v1")
+            if not matches:
+                self.ledger.abort()
+                raise p.ProtocolError("stage_frozen_read_binding_drift")
         if result.kind not in (PathResultKind.CANDIDATES, PathResultKind.NO_RESULT):
             # The production adapter deliberately returns a terminal DTO.
             # This independent comparison forbids continued sends even for
@@ -130,13 +139,17 @@ class StageComparisonSession:
     def __init__(self, *, pair: ProjectedJavaPair, ledger: AttemptLedger,
                  typed: tuple[KnowledgeHttpTransport, KnowledgeHttpTransport],
                  embedding: KnowledgeHttpTransport, rerank: KnowledgeHttpTransport,
-                 physical: tuple[CasePhysicalPort, CasePhysicalPort]) -> None:
+                 physical: tuple[CasePhysicalPort, CasePhysicalPort], binding: ReadBinding | None = None) -> None:
         p.require(type(pair) is ProjectedJavaPair and type(ledger) is AttemptLedger
                   and type(typed) is tuple and len(typed) == 2 and type(physical) is tuple and len(physical) == 2,
                   "stage_binding_invalid")
         pair.draft.__post_init__()
+        p.require(binding is None or type(binding) is ReadBinding, "stage_binding_invalid")
+        if binding is not None:
+            binding.__post_init__()
         self.pair, self.ledger, self.typed = pair, ledger, typed
         self.embedding, self.rerank, self.physical = embedding, rerank, physical
+        self.binding = binding
         self.attempted = False
 
     async def evaluate(self, *, token: OpaqueUserToken, cancellation: CancellationSignal) -> StageComparisonResult:
@@ -168,7 +181,7 @@ class StageComparisonSession:
                         subject="isolated-document-number-comparison", user_token=token,
                         deadline_monotonic=asyncio.get_running_loop().time() + 30, cancellation=cancellation)
                     ports = _CapturedPorts(case=case, arm=arm, vector=vector, context=context, ledger=self.ledger,
-                        typed=self.typed[index], rerank=self.rerank)
+                        typed=self.typed[index], rerank=self.rerank, binding=self.binding)
                     started = time.perf_counter()
                     result = await MinimalKnowledgeRetrievalStage(search=ports, embedding=ports, rerank=ports,
                         settings=case.plan.settings).execute(plan=case.plan, context=context, timeout_s=20)

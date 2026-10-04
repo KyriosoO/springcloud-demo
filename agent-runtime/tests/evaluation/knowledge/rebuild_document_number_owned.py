@@ -39,6 +39,13 @@ class ReadBinding:
         p.require(self.read_alias not in (".", "..", "_all")
                   and self.index_name not in (".", "..", "_all"), "owned_binding_invalid")
 
+    def profile_snapshot(self, domain: str) -> str:
+        self.__post_init__()
+        p.require(domain in ("tax.policy", "tax.law"), "owned_profile_invalid")
+        profile = {"tax.policy": "tax-policy-v1", "tax.law": "tax-law-v1"}[domain]
+        return sha256("\n".join((profile, self.index_name, self.index_uuid,
+            "tax-knowledge-search-v1", self.mapping_version)).encode()).hexdigest()
+
 
 class OwnedProxy(Protocol):
     port: int
@@ -72,8 +79,7 @@ def java_args(*, pair: ProjectedJavaPair, arm: str, binding: ReadBinding,
         "--common.security.secrets.jwt.keys.ACTIVE.value=",
         "--es.query.knowledge.b-isolation-fixed-target=false"]
     for profile in ("tax-policy-v1", "tax-law-v1"):
-        snapshot = sha256("\n".join((profile, binding.index_name, binding.index_uuid,
-            "tax-knowledge-search-v1", binding.mapping_version)).encode()).hexdigest()
+        snapshot = binding.profile_snapshot({"tax-policy-v1": "tax.policy", "tax-law-v1": "tax.law"}[profile])
         for key, value in (("read-alias", binding.read_alias), ("expected-index-name", binding.index_name),
                            ("expected-index-uuid", binding.index_uuid), ("mapping-version", binding.mapping_version),
                            ("index-snapshot-id", snapshot)):
