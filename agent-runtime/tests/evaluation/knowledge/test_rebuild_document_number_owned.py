@@ -252,3 +252,11 @@ def test_binding_rejects_paths_controls_and_non_strings(field):
     for invalid in ("../index", "a\nb", "a/b", "", True):
         with pytest.raises(p.ProtocolError, match="binding_invalid"):
             replace(BINDING, **{field: invalid})
+
+
+@pytest.mark.parametrize("field", ["read_alias", "index_name"])
+def test_binding_rejects_dot_segments_and_global_selector_but_preserves_hidden_names(field):
+    for invalid in (".", "..", "_all"):
+        with pytest.raises(p.ProtocolError, match="binding_invalid"):
+            replace(BINDING, **{field: invalid})
+    assert getattr(replace(BINDING, **{field: ".synthetic-hidden"}), field) == ".synthetic-hidden"

@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.46 |
-| 文档状态 | Reviewed（同JAR资源生命周期与生产Stage装配增量；完整验收未完成） |
+| 当前版本 | v3.47 |
+| 文档状态 | Reviewed（只读物理代理及发送边界增量；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -74,6 +74,7 @@
 | 52 | 2026-10-04 | §14.48 | 发送守卫的期望hash须来自实际Java而不是合成DSL | v3.44完成同源码双臂离线编译和22项实际keyword投影；不启动服务，不增加真实操作权限，完整运行装配和质量判断仍未完成 |
 | 53 | 2026-10-04 | §14.49 | 发送前计数及失败回执需要可持久化且不泄露异常的接缝 | v3.45新增有限append-only attempt writer与故障反例，仅在合成临时目录验证；不创建实际运行资产，不以caller清理报告证明真实资源已释放 |
 | 54 | 2026-10-04 | §14.50 | 离线投影的JAR需保留至owned清理，正式Stage需同路径装配 | v3.46新增精确产物lease、自有资源句柄及计数Adapter/生产Stage双臂装配；仅fake验证，不自动启动服务或获得真实执行授权 |
+| 55 | 2026-10-04 | §14.51 | 自有代理需要限定实际ES路径、请求边界及失败清理 | v3.47补齐固定元数据和物理search代理、无隐藏发送守卫及有界连接清理；只有fake/non-live证明，不创建真实批次或改变质量结论 |
 
 ## 3. 来源清单与当前基线
 
@@ -85,7 +86,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.44 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 同JAR资源与Stage装配只做fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.45 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 物理代理及发送守卫仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -948,3 +949,22 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 独立Stage复评实际运行非法DTO停peer、绝对超时、吞取消后的迟到结果及调用中signal取消四项反例，**4 passed / 9 deselected，0.51秒**，两项问题关闭；相邻owned/projection及纯trace提取无新增已确认问题。该限定代码评审无未关闭Blocker/Major，不代表真实执行、整体质量或发布批准。独立文档复评核对三份实际diff、相关源码、版本状态及证明范围，未发现需修复的问题；只将本增量转为Reviewed，不批准真实执行或整体目标完成。P3严格校验0错误/0警告，三文档98条本地链接与围栏通过，四项历史关键hash保持。
 
 尚需同一总执行器的真实受限代理/启动健康检查、现场模型和策略快照、fresh库存前后核验、完整精确冻结与独立授权；当前接缝没有live CLI或默认连接，不等于完整真实生命周期已经验证。257/378仍仅条件预测。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run及人工结论保持，本轮仅本地提交、不push。
+
+### 14.51 只读物理代理及发送边界复评（2026-10-04）
+
+起始clean `codex_0915` HEAD `2d7dfe12eddc23017e1542244b1fea2b86fbcf63`。新增[私有物理代理](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_proxy.py)及[直接测试](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_proxy.py)，复用同一ledger、Java实际投影hash及production Stage；没有真实CLI、默认连接、密钥读取或运行授权资产。
+
+- 每臂仅允许两个冻结Profile的6次元数据GET，逐路径响应规范hash须与caller提供的当次冻结值全等；随后按草案顺序绑定case，只接受固定alias的POST search。keyword要求匹配独立Java投影，vector要求匹配共享向量，原始bytes不重写。调用前计attempt，失败停止两臂新发送；keyword/vector的backend I/O不被代理锁串行化。
+- 请求长度、重复Content-Length、Transfer-Encoding、部分正文及超时失败关闭；响应产品/媒体/编码、长度及总时限有界。仅关闭登记的本代理连接、线程及server；backend client由caller拥有。原始正文、向量和异常只在内存处理，不进入有限日志。
+- 单次发送守卫移入[轻量私有模块](../../knowledge-corpus-tools/src/knowledge_corpus_tools/http_client_safety.py)，避免Agent venv因间接导入语料解析器而要求bs4；旧snapshot导入位置保持兼容，未安装依赖。独立评审确认并关闭3项问题：默认client.params可改变竞争池；BaseHTTPRequestHandler吞掉请求行/头超时而不停止ledger；`.`/`..`名称经HTTP规范化越出固定路径。新增零实际发送、超时停批及名称构造反例，另拒绝`_all`而保留合法隐藏名称。
+
+本轮实际验证：
+
+- Agent `python -B -m pytest`：七份`test_rebuild_document_number_{proxy,stage,owned,projection,comparison,transport,journal}.py`加minimal_stage/minimal_ranking/fusion/http/bge_rerank_context五份unit，使用`-o addopts='' -q -p no:cacheprovider --tb=short`，最终**352 passed，21.10秒**。包含两臂十题44次合成物理请求、生产Stage及同ledger装配，未启动Java或真实HTTP server，不冒充真实清理、集成或质量证据。
+- Corpus `python -B -m pytest tests/test_document_number_snapshot_v1.py -o addopts='' -q -p no:cacheprovider`：**96 passed，3.79秒**；默认routing参数拒绝与旧scanner反例保持。临时双源码路径下Agent `mypy --strict src`及proxy/owned/stage/projection/comparison五工具：**158源文件通过**；七份本轮Python文件compileall通过。
+- 首次收集暴露bs4间接依赖，首次类型检查有5项新工具类型问题，均已修复；合并测试曾因测试网络守卫误拦Windows asyncio内部socketpair而出现级联失败，改为拦截实际native HTTP发送及服务入口后通过。未删除断言、放宽行为或隐藏初次失败；本轮没有全量Python/Maven、实际ES/BGE/模型、服务或UAT执行。
+- 未参与编写的只读执行单元直接核对源码和反例，实跑参数/请求边界9项及名称2项后确认3项关闭；本私有增量无未关闭Blocker/Major，不批准真实运行或整体质量。
+
+独立文档复核直接核对三份实际diff、相关源码和转交的原始验证输出，确认版本、证明范围与原状态一致，无需修复；只将本增量转为Reviewed。P3严格校验0错误/0警告，本轮四项历史关键hash保持，代码差异与文档链接/围栏检查通过，不以文档复评代替未执行的全量回归或真实验收。
+
+元数据hash由caller提供，不自动证明其来源、现场时效或授权有效。尚需统一外层执行器、受控启动健康检查、现场模型/Profile/策略快照、fresh库存前后扫描及完整精确冻结和独立授权；代理源码存在不等于真实生命周期已经证明。257/378仍仅条件预测。没有模型、ES、BGE或Business实际调用、服务启停及索引/alias写入，也没有新run/authorization/consumed/result。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run及人工结论保持；只本地Git收口，不push，完整目标未完成。

@@ -34,6 +34,10 @@ class ReadBinding:
         p.require(all(type(value) is str and re.fullmatch(r"[A-Za-z0-9._-]{1,128}", value) is not None
                       for value in (self.read_alias, self.index_name, self.index_uuid, self.mapping_version)),
                   "owned_binding_invalid")
+        # Dot segments are normalized by HTTP clients; _all is an ES-wide
+        # selector, not an exact bound alias/index. Keep legitimate .hidden.
+        p.require(self.read_alias not in (".", "..", "_all")
+                  and self.index_name not in (".", "..", "_all"), "owned_binding_invalid")
 
 
 class OwnedProxy(Protocol):

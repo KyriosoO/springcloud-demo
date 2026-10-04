@@ -435,6 +435,7 @@ def test_multi_send_auth_is_rejected_before_transport() -> None:
 @pytest.mark.parametrize("options", [
     {"cookies": {"secret": "private"}}, {"headers": {"Authorization": "Bearer private"}},
     {"headers": {"X-Unapproved": "private"}}, {"event_hooks": {"request": [lambda request: None]}},
+    {"params": {"routing": "synthetic-subset"}},
     {"mounts": {"http://": httpx.MockTransport(lambda request: pytest.fail("unexpected mounted send"))}},
 ])
 def test_hidden_client_state_is_rejected_before_send(options: dict[str, Any]) -> None:
