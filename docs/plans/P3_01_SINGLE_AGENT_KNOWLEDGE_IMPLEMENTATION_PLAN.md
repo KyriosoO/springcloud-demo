@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.47 |
-| 文档状态 | Reviewed（只读物理代理及发送边界增量；完整验收未完成） |
+| 当前版本 | v3.48 |
+| 文档状态 | Reviewed（自有启动、预热及Stage统一装配增量；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -75,6 +75,7 @@
 | 53 | 2026-10-04 | §14.49 | 发送前计数及失败回执需要可持久化且不泄露异常的接缝 | v3.45新增有限append-only attempt writer与故障反例，仅在合成临时目录验证；不创建实际运行资产，不以caller清理报告证明真实资源已释放 |
 | 54 | 2026-10-04 | §14.50 | 离线投影的JAR需保留至owned清理，正式Stage需同路径装配 | v3.46新增精确产物lease、自有资源句柄及计数Adapter/生产Stage双臂装配；仅fake验证，不自动启动服务或获得真实执行授权 |
 | 55 | 2026-10-04 | §14.51 | 自有代理需要限定实际ES路径、请求边界及失败清理 | v3.47补齐固定元数据和物理search代理、无隐藏发送守卫及有界连接清理；只有fake/non-live证明，不创建真实批次或改变质量结论 |
+| 56 | 2026-10-04 | §14.52 | 启动、预热、生产Stage及清理需使用同一产物与计数器 | v3.48新增统一私有装配与失败反例；只验证non-live生命周期，不核实现场快照或授权，不改变工作包及质量状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -86,7 +87,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.45 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 物理代理及发送守卫仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.46 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 自有启动至清理装配仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -968,3 +969,17 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 独立文档复核直接核对三份实际diff、相关源码和转交的原始验证输出，确认版本、证明范围与原状态一致，无需修复；只将本增量转为Reviewed。P3严格校验0错误/0警告，本轮四项历史关键hash保持，代码差异与文档链接/围栏检查通过，不以文档复评代替未执行的全量回归或真实验收。
 
 元数据hash由caller提供，不自动证明其来源、现场时效或授权有效。尚需统一外层执行器、受控启动健康检查、现场模型/Profile/策略快照、fresh库存前后扫描及完整精确冻结和独立授权；代理源码存在不等于真实生命周期已经证明。257/378仍仅条件预测。没有模型、ES、BGE或Business实际调用、服务启停及索引/alias写入，也没有新run/authorization/consumed/result。14包/14边、11 Done/2 In Progress/1 Blocked、A未评/B不采用/旧MEASURE invalid_run及人工结论保持；只本地Git收口，不push，完整目标未完成。
+
+### 14.52 自有启动、预热及Stage统一装配（2026-10-04）
+
+起始clean `codex_0915` HEAD `c7ad68dcb7bee592f56c855029165939c614d680`。新增[私有统一装配](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_runtime.py)和[直接测试](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_runtime.py)，把既有同产物lease、owned资源、物理代理、journal和生产Stage接在一起；没有live CLI、默认执行、快照采集、授权核验或发布入口。
+
+- 代理先登记再启动；进程创建取得Popen后立即登记，先于就绪检查及后续资源获取。原生端口等待有30秒总期限，不发送HTTP、不停止未知服务；确认自有PID后，每臂只发送一次计数的readiness健康GET。失败不轮询重试，不执行题目。两臂12次Profile元数据仍由实际代理计数，不由健康检查代替。
+- 复用版本化预热工具的合成40段payload及严格decoder，不调用其自建client入口；预热单独计一次`prewarmRerank`，30秒绝对期限不覆盖正式Stage的5秒调用边界。原始回复只驻留内存，不进入journal。每次typed发送前重核自有PID及固定origin，模型发送也核client；认证、cookies、params、hooks、redirect及隐含retry均不得改变一次attempt的含义。
+- 技术/协议失败停止新发送，取消时先排空子任务，再保护并完成owned清理；清理未知不能返回成功capture或释放构建目录。输出仍为有限Stage轨迹和清理报告，`quality_assessment=Not assessed`、`release_allowed=false`。
+
+独立源码复核发现：健康provider吞掉work-task取消并返回UP时，旧接缝仍可能发出第二臂健康及预热。已在发送前和响应接受前检查当前task的取消状态，新增首health吞取消的反例：只保留1次取消回执，后续health/预热/Stage为0，pending=0，owned资源清理。复核者未参与编写，直接检查源码并运行7项取消/期限反例，**7 passed / 27 deselected，6.38秒**；确认该缺陷关闭，本私有增量无未关闭Blocker/Major。文档的进程登记顺序措辞一并修正，三份实际diff的状态及证明边界复核后转为Reviewed，不批准真实执行或整体质量。
+
+修后实际验证：八份`test_rebuild_document_number_{runtime,proxy,stage,owned,projection,comparison,transport,journal}.py`、五份生产检索unit及预热工具测试，Agent `python -B -m pytest -o addopts='' -q -p no:cacheprovider --tb=short`合计**413 passed，47.01秒**；包括十题双臂44次合成typed/physical、共享embedding10、rerank22、健康2及预热1，均非真实调用。双源码路径下`mypy --strict src`及六份直接工具**159源文件通过**；新增两文件compileall通过。首次直接测试发现健康/预热client origin检查缺口，已补固定端口反例；首次单文件类型检查因遗漏Agent src路径产生import/stub错误，改用实际项目路径和完整src，不忽略import或安装新依赖。修前412项通过不替代此次取消修复后的结果。P3严格校验、103链接/围栏、14包状态、四项历史关键hash及差异检查通过；未执行全量Python/Maven或真实UAT。
+
+本增量只完成启动至清理的私有装配，尚未接入新鲜库存前后核验、现场模型/Profile/读取与出域策略快照及精确授权核验；caller元数据hash仍不能自证来源或时效。后续先形成完整独立冻结与预算材料，不把条件预测257/378当授权，不自行发起真实ES/BGE或MEASURE。没有服务启停、模型密钥读取、实际HTTP、索引/alias写入或新运行资产；14包/14边、11 Done/2 In Progress/1 Blocked和原质量/人工结论保持，完整目标未完成。
