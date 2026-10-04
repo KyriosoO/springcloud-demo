@@ -400,3 +400,48 @@ async def test_joint_wrong_typed_binding_cannot_rerank_or_reach_peer_arm(monkeyp
     typed = [request for request in actual if request.url.path == "/es/knowledge/search"]
     assert typed and all(request.url.port == PORTS[0] for request in typed)
     assert journal.ledger.view()["stopped"] and journal.ledger.view()["pending"] == 0
+
+
+@pytest.mark.parametrize("failure", [None, "no_pre", "post_drift", "no_post"])
+async def test_model_identity_pre_and_post_are_bound_to_owned_runtime_before_seal(monkeypatch, pair, tmp_path, failure):
+    # Reuse the real identity collector with a synthetic process provider;
+    # no Docker, native HTTP, Java/server or inference operation is possible.
+    from tests.evaluation.knowledge import rebuild_document_number_identity as identities
+    from tests.evaluation.knowledge.test_rebuild_document_number_identity import model_fixture, Provider
+    binding = JournalBinding("synthetic-document-number-009", "f" * 40, "1" * 64,
+                             "2" * 64, "3" * 64, "4" * 64, "synthetic_non_live")
+    monkeypatch.setattr(identities, "capture_static_identity", lambda *_: b'{"synthetic":true}\n')
+    model, embedding, rerank = model_fixture(tmp_path)
+    preparation_ledger = identities.IdentityLedger(phases=("preparation",), checkpoint=lambda *_: None)
+    expected = identities.IdentitySession(pair=pair, binding=BINDING, model=model, ledger=preparation_ledger,
+        process=Provider(model, embedding, rerank), expected=None).capture("preparation")
+    with AttemptJournal(directory=tmp_path / binding.run_id, binding=binding, identity_phases=("pre", "post"),
+        limits=(("metadata", 18), ("javaHealth", 2), ("prewarmRerank", 1),
+            ("typedSearch", 44), ("physicalSearch", 44), ("queryEmbedding", 10), ("rerank", 22))) as log:
+        assert log.identity_ledger is not None
+        provider = Provider(model, embedding, rerank, ledger=log.identity_ledger)
+        identity = identities.IdentitySession(pair=pair, binding=BINDING, model=model,
+            ledger=log.identity_ledger, process=provider, expected=expected)
+        if failure != "no_pre": await identity.capture_async("pre")
+        value, proxies, processes, clients, backend, actual, _ = wire(monkeypatch, pair, log)
+        async def postcheck():
+            assert not log._closed and not backend.is_closed and not pair.resources_released
+            if failure == "post_drift": provider.rerank = {**rerank, "serviceSha256": "e" * 64}
+            await identity.capture_async("post")
+        if failure != "no_post": value.postcheck = postcheck
+        if failure is None:
+            capture = await value.evaluate(cancellation=ManualCancellationSignal())
+            assert len(capture.stage.cases) == 10
+        else:
+            with pytest.raises(p.ProtocolError, match="runtime_comparison_failed"):
+                await value.evaluate(cancellation=ManualCancellationSignal())
+        assert log.identity_ledger.view()["pending"] == 0 and log.identity_ledger.view()["stopped"]
+        if failure == "no_pre":
+            assert processes == proxies == clients == actual == [] and provider.calls == []
+            # Fake wire borrowed a backend before runtime, not an owned resource.
+            backend.close()
+        else:
+            assert log._closed and pair.resources_released and backend.is_closed
+            assert all(proxy.closed for proxy in proxies) and all(client.is_closed for client in clients)
+            rows = [json.loads(line) for line in (tmp_path / binding.run_id / "attempts.jsonl").read_bytes().splitlines()]
+            assert rows[-1]["nonHttpModelIdentityCounts"] == {"pre": 4, "post": 0 if failure == "no_post" else 4}

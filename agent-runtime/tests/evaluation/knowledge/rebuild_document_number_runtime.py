@@ -187,6 +187,13 @@ class OwnedComparisonRuntime:
         self.postcheck = postcheck
         self.attempted = False
 
+    def _identity_ready(self, *, post: bool) -> None:
+        ledger = self.journal.identity_ledger
+        if ledger is not None:
+            state = ledger.view()
+            p.require(ledger.phases == ("pre", "post") and not state["stopped"] and state["pending"] == 0
+                and state["counts"] == {"pre": 4, "post": 4 if post else 0}, "runtime_identity_incomplete")
+
     async def _startup(self, resources: OwnedJavaResources) -> None:
         # Native process/port observation is not an HTTP readiness retry. Both
         # owned listeners must exist before the first counted health request.
@@ -248,6 +255,7 @@ class OwnedComparisonRuntime:
             if signal.is_cancelled():
                 raise asyncio.CancelledError
             await self.postcheck()
+        self._identity_ready(post=True)
         return result
 
     async def evaluate(self, *, cancellation: CancellationSignal) -> OwnedComparisonCapture:
@@ -260,6 +268,7 @@ class OwnedComparisonRuntime:
         try:
             if cancellation.is_cancelled():
                 raise asyncio.CancelledError
+            self._identity_ready(post=False)
             self.pair.verify_artifacts()
             resources = OwnedJavaResources(pair=self.pair, journal=self.journal, ports=self.ports)
             result = await _cancel_bound(lambda: self._execute(resources, cancellation), cancellation)
@@ -285,6 +294,8 @@ class OwnedComparisonRuntime:
                     failed = True
             else:
                 self.journal.ledger.abort()
+                if self.journal.identity_ledger is not None:
+                    self.journal.identity_ledger.abort()
         if failed:
             raise p.ProtocolError("runtime_comparison_failed") from None
         if cancelled:

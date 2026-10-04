@@ -12,9 +12,11 @@ import os
 from pathlib import Path
 import re
 from threading import Lock
-from typing import BinaryIO
+from typing import BinaryIO, TYPE_CHECKING
 
 from tests.evaluation.knowledge import rebuild_document_number_comparison as p
+if TYPE_CHECKING:
+    from tests.evaluation.knowledge.rebuild_document_number_identity import IdentityAttempt
 from tests.evaluation.knowledge.rebuild_document_number_transport import Attempt, AttemptLedger
 
 
@@ -57,7 +59,7 @@ class AttemptJournal:
     not proof that any process, client, proxy or port has actually been closed.
     """
     def __init__(self, *, directory: Path, binding: JournalBinding,
-                 limits: tuple[tuple[str, int], ...]) -> None:
+                 limits: tuple[tuple[str, int], ...], identity_phases: tuple[str, ...] = ()) -> None:
         p.require(type(binding) is JournalBinding, "journal_binding_invalid")
         binding.__post_init__()
         p.require(directory.name == binding.run_id and directory.parent.is_dir()
@@ -72,6 +74,9 @@ class AttemptJournal:
         self._path = directory / "attempts.jsonl"
         self._identity: tuple[int, int] | None = None
         self.ledger = AttemptLedger(limits, checkpoint=self._checkpoint)
+        from tests.evaluation.knowledge.rebuild_document_number_identity import IdentityLedger
+        self.identity_ledger = (IdentityLedger(phases=identity_phases, checkpoint=self._identity_checkpoint)
+                                if identity_phases else None)
         failed = False
         try:
             directory.mkdir(parents=False, exist_ok=False)
@@ -89,6 +94,7 @@ class AttemptJournal:
             raise p.ProtocolError("journal_create_and_close_failed" if close_failed else "journal_create_failed") from None
         try:
             self._append({"event": "binding", "binding": asdict(binding), "limits": dict(limits),
+                "nonHttpModelIdentityLimits": dict.fromkeys(identity_phases, 4),
                 "kind": "document_number_attempt_journal_v1", "liveConsumable": False,
                 "executionAuthorityGranted": False, "authorizationValidatedByJournal": False})
         except p.ProtocolError:
@@ -133,6 +139,19 @@ class AttemptJournal:
                 assert attempt is not None
                 self._append({"event": event, "ticket": ticket, "attempt": asdict(attempt)})
 
+    def _identity_checkpoint(self, event: str, ticket: int | None, attempt: IdentityAttempt | None) -> None:
+        from tests.evaluation.knowledge.rebuild_document_number_identity import IdentityAttempt
+        # Never disguise a Docker process receipt as a successful HTTP status.
+        with self._lock:
+            if event == "stopped":
+                p.require(ticket is None and attempt is None, "journal_checkpoint_invalid")
+                self._append({"event": "model_identity_stopped"})
+            else:
+                p.require(event in ("started", "finished") and type(ticket) is int and ticket >= 0
+                    and type(attempt) is IdentityAttempt, "journal_checkpoint_invalid")
+                assert attempt is not None
+                self._append({"event": "model_identity_" + event, "ticket": ticket, "attempt": asdict(attempt)})
+
     def seal_cleanup(self, report: CleanupReport) -> dict[str, object]:
         """Stop sends, require no in-flight receipts, record reported cleanup.
 
@@ -144,10 +163,16 @@ class AttemptJournal:
         self.ledger.abort()
         view = self.ledger.view()
         p.require(view["pending"] == 0, "journal_receipts_pending")
+        identity_view: dict[str, object] | None = None
+        if self.identity_ledger is not None:
+            self.identity_ledger.abort()
+            identity_view = self.identity_ledger.view()
+            p.require(identity_view["pending"] == 0, "journal_identity_receipts_pending")
         ok = all(asdict(report).values())
         value: dict[str, object] = {"event": "journal_closed", "counts": view["counts"],
             "attemptCount": len(self.ledger.events), "reportedCleanup": asdict(report),
             "cleanupVerifiedByJournal": False, "reason": "closed" if ok else "cleanup_failed",
+            "nonHttpModelIdentityCounts": {} if identity_view is None else identity_view["counts"],
             "qualityAssessment": "Not assessed", "releaseAllowed": False}
         with self._lock:
             self._append(value)

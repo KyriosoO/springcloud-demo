@@ -4,8 +4,8 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.47 |
-| 文档状态 | Reviewed（全库存发送计数与封存前后验增量定向复评通过；完整验收未完成） |
+| 当前版本 | v3.48 |
+| 文档状态 | Reviewed（现场身份私有接缝及非HTTP记账增量定向复评通过；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
@@ -13,7 +13,7 @@
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.49；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.50；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -344,6 +344,8 @@ v3.46承接P3_01 §14.52的启动至清理统一装配：单次计数readiness�
 v3.47承接P3_01 §14.53：三元数据与全竞争池读取在统一ledger发送前计数、捕获/前后核验、取消排空同步worker、封存前postcheck及typed冻结snapshot/读取策略核对均仅fake验证。独立定向评审的取消/停止日志失败、阶段并发及最后一页迟到成功反例经两轮最小修复、定向复评关闭，不冒充整体验收通过。固定HTTP调用图269/336仍是N=15521时的推导，不是实际计数、完整冻结或授权；非HTTP模型/现场策略和独立grant仍待准备。没有真实快照采集或HTTP/服务/索引操作；37风险、12资料用例、12题、gold、阈值、人工结论及历史终态不改变，也不宣称COMPARE/MEASURE或发布已通过。
 
 在线由P3_01的CONTRACT/RETRIEVAL/EVIDENCE→COMPOSE→MEASURE推进；资料由NORMALIZE→CHUNK/REPRESENT→COMPARE→RELEASE推进。前置不足只阻塞对应阶段，真实测量不是基础实现反向依赖；资料对照不依赖在线MEASURE，需自行冻结相容在线基线。
+
+v3.48承接P3_01 §14.54：模型四次只读probe、实际产物/配置/catalog身份、独立非HTTP记账和runtime封存前核验仅用fake验证，不证明真实Docker目标、现场快照、授权或质量。269/336 HTTP及4＋8模型身份进程操作分别为条件推导，不是新批准预算；Git/文件/PID与总入口仍需明确。两类ledger不冒充统一并发停闸；独立run/grant消费尚未落实。原37风险、12资料用例、12题、gold、阈值、人工结论、B不采用及MEASURE invalid_run保持，完整验收与发布未完成。
 
 后续逐case报告：版本与设计、风险、预期、实际测试/有限证据、执行状态、通过或失败原因、未验证范围；旧证据引用不能替代新执行。当前37项风险中36项已有fake/non-live阶段证据，EV006仍为partial/evidence missing，完整功能与安全UAT尚未完成。最新B见P3_01 §14.32：10题协议完整、recall未改善、215项盲标待完成，不能发布候选。最新MEASURE执行见§14.33，维护者人工结论见§14.37：001/002 Passed、003/004 Failed；003 no_result且必要来源缺失、004 unsupported，两者与冻结预期不同；005技术失败，006～012未执行，整批invalid_run且不补跑。12个UAT-KORG资料用例仍未形成完整通过证据。历史原终态保持；四题局部评价不构成新的召回改善、整批回答或完整UAT通过结论。
 

@@ -6,8 +6,8 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.49 |
-| 文档状态 | Reviewed（全库存发送计数与封存前后验增量定向复评通过；完整验收未完成） |
+| 当前版本 | v3.50 |
+| 文档状态 | Reviewed（现场身份私有接缝及非HTTP记账增量定向复评通过；完整验收未完成） |
 | 日期 | 2026-10-04 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
@@ -77,6 +77,7 @@
 | 55 | 2026-10-04 | §14.51 | 自有代理需要限定实际ES路径、请求边界及失败清理 | v3.47补齐固定元数据和物理search代理、无隐藏发送守卫及有界连接清理；只有fake/non-live证明，不创建真实批次或改变质量结论 |
 | 56 | 2026-10-04 | §14.52 | 启动、预热、生产Stage及清理需使用同一产物与计数器 | v3.48新增统一私有装配与失败反例；只验证non-live生命周期，不核实现场快照或授权，不改变工作包及质量状态 |
 | 57 | 2026-10-04 | §14.53 | 全库存读取需发送前记账，后验不能放在日志封存之后 | v3.49复用scanner补齐三元数据与全记录前后核验、封存前postcheck及冻结响应绑定；仅non-live，不新建真实运行或授权资产 |
+| 58 | 2026-10-04 | §14.54 | 模型身份检查不得混入HTTP计数或仅信任caller标签 | v3.50补齐现有模型probe、实际产物/配置/catalog冻结及同journal非HTTP计数；仅fake验证，独立授权消费与总入口未完成 |
 
 ## 3. 来源清单与当前基线
 
@@ -88,7 +89,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.47 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 全库存记账与封存前后验仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.48 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 现场身份私有工具仅fake验证；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -1006,3 +1007,20 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 独立子代理只读增量评审发现停止记录写失败时未排空worker、并发后验越过未完成前验两项可靠性缺陷；第一轮修复后复评又证实最后一页停账仍返回迟到成功。两轮最小修复及直接反例后，最终定向复评未发现新的确认缺陷，三项均关闭；评审者另实际运行14项子集、24项未选，3.76秒，全部通过。本结论只覆盖本次私有工具及三份文档增量，不批准真实运行或整项目验收。P3严格检查0错误/0警告、三文档105本地链接及围栏、四项历史关键hash及diff检查通过；未执行全量Python/Maven或真实UAT。
 
 现场模型/Profile配置/出域策略证据及独立run、授权有效窗口、消费守卫和外层总执行入口仍未完成；真实快照本轮没有采集，工具支持不等于现场已验证。没有模型密钥读取、实际服务/HTTP、索引或alias操作；原14包/14边、11 Done/2 In Progress/1 Blocked、A未评、B不采用及MEASURE原invalid_run保持，完整目标未完成。
+
+### 14.54 现场身份私有接缝与独立非HTTP计数（2026-10-04）
+
+新增[身份接缝](../../agent-runtime/tests/evaluation/knowledge/rebuild_document_number_identity.py)及[直接反例](../../agent-runtime/tests/evaluation/knowledge/test_rebuild_document_number_identity.py)，只复用现有只读模型采集、投影产物、实际配置和catalog；没有CLI、默认Docker provider、授权签发或真实执行入口，不修改线上检索与回答。
+
+- 模型采集复用`capture_model_identity`，每阶段恰好2次inspect、2次只读exec。采集前检查现有Python/项目依赖锁；完整两个container ID及embedding模型hash由未来外层明确绑定，不从旧B资产或当前端口猜测。Docker可执行文件固定路径/hash，每次检查重核；命令显式指定获准的本地named pipe或unix socket，不继承远程context，不推理、不读取模型密钥。
+- 静态材料实际核对冻结HEAD及tracked clean、同lease双JAR及共享类/依赖、两域Profile、冻结live YAML和三份共享配置、Java程序hash、加载的当前catalog和模型采集源码。运行配置按真实helper返回的目录与hash共同核对，不能用相同版本名替代；catalog身份仅证明资源不漂移，不证明新增读取或出域许可，也不等于Evidence/Summary测试。
+- `preparation`或有序`pre/post`各只能尝试一次；expected静态漂移在第一个Docker操作前拒绝。四次probe前将命令/输入hash写入同一append-only journal的独立非HTTPledger；失败不返还、不重试，不保存原始命令参数或进程输出。异步取消停止新操作并排空同步worker，即使停止checkpoint失败也不遗留worker；迟到及并发重入不能提交成功捕获。
+- 统一runtime在创建自有资源前要求pre4/post0；Stage后、清理封存前要求pre4/post4。遗漏或失败后验不得返回成功；日志封存前必须无在途非HTTP回执。两类ledger拥有独立停止状态，不声称同文件自动成为跨类别并发总闸；未来外层必须按前置、执行、后验顺序传播失败，不能忽略失败继续进入另一阶段。
+
+若真实准备和正式前后核验各一次，模型身份上限推导为4＋8＝12次本地进程操作，独立于§14.53的269/336 HTTP推导；Git、文件、PID及服务生命周期仍须在完整冻结材料中分别列明。本轮仅使用合成进程/HTTP提供者，未做现场采集，推导不是批准额度或实测计数。
+
+本轮实际验证使用corpus项目venv及临时双源码路径，未安装依赖：十份`test_rebuild_document_number_*.py`及minimal_stage/minimal_ranking/http/fusion/bge_rerank_context五份生产unit，`python -B -m pytest -o addopts='' -q -p no:cacheprovider --tb=short`，**466 passed，91.93秒**；另有既有warmup及模型身份工具两份测试**34 passed，0.20秒**，不相加冒称全量。`mypy --strict src`及identity/journal/runtime/inventory四工具**157源文件通过**。首次收集循环导入、首次类型检查配置helper返回tuple错配均真实失败；修复导入边界、解包及精确shared hash后通过，测试mock同步真实接口形状，未删除断言或放宽行为。
+
+独立只读评审直接检查源码、现有设计和反例，证实上述tuple错配并复核修复、早期静态漂移拒绝及串行runtime接缝。评审者实际重跑identity＋journal **65 passed，5.47秒**和runtime新增身份集成子集 **4 passed、40未选，16.91秒**，本增量无未关闭Blocker/Major；不批准真实Docker、服务、推理、独立授权或整体UAT。未执行全量Python/Maven及真实效果测量。
+
+旧A/B/MEASURE结论、gold/阈值、14包/14边和11 Done/2 In Progress/1 Blocked均保持。独立授权引用、原子消费及外层总入口仍未完成，不恢复旧许可或新建真实运行资产；不能宣布COMPARE、MEASURE、功能/效果UAT或RELEASE完成。
