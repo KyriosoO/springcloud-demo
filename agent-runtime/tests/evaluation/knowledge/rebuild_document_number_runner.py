@@ -241,6 +241,9 @@ class RunCapture:
 class IndependentRunner:
     """Consume, successful prechecks, owned runtime/postchecks, then closure.
 
+    The caller completes authorized model startup/readiness BEFORE capturing
+    and freezing execution identity via freeze_execution_identity. Preparation
+    timestamps are not current execution expectations; pre/post remain exact.
     Only synthetic runs accept an alternate root. Live scope always uses the
     fixed repository root, including a separate preparation run/confirmation.
     The client factory must create a fresh owned client, never a borrowed one.

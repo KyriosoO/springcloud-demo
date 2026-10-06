@@ -70,10 +70,6 @@ class MinimalEvidenceIntegrityVerifier:
         ):
             raise EvidenceIntegrityError("knowledge.evidence_integrity_failed")
         plan, intent, batch, coverage = input.plan, input.intent, input.batch, input.coverage
-        try:
-            plan.validate(plan.settings)
-        except (ValueError, TypeError, AttributeError) as exc:
-            raise EvidenceIntegrityError("knowledge.evidence_integrity_failed") from exc
         if (
             intent.outcome is not KnowledgeIntentOutcome.SEARCH
             or intent.query_mode is not plan.query_mode

@@ -54,6 +54,25 @@ def receipt(scope, raw):
     return r.ConfirmationReceipt(sha256(raw).hexdigest(), scope.reference, "e" * 64)
 
 
+def test_new_execution_scope_binds_complete_current_freeze_without_rewriting_preparation(scope, monkeypatch, tmp_path):
+    from tests.evaluation.knowledge import rebuild_document_number_identity as identity_module
+    from tests.evaluation.knowledge.test_rebuild_document_number_identity import session
+    preparation, _, _ = session(monkeypatch, scope.pair, tmp_path)
+    prepared = preparation.capture("preparation")
+    current_session, provider, _ = session(monkeypatch, scope.pair, tmp_path)
+    provider.started = "2026-10-06T00:00:00Z"
+    current = current_session.capture("preparation")
+    old_scope = replace(scope, identity=prepared, static_sha256=prepared.static_sha256)
+    old_authorization = old_scope.material()
+    new_scope = replace(old_scope, identity=identity_module.freeze_execution_identity(prepared, current))
+    assert new_scope.identity is current and old_scope.identity is prepared
+    assert old_scope.material() == old_authorization and new_scope.material() != old_authorization
+    expected_binding = r.p.canonical({"inventory": new_scope.inventory.preview(), "identity": current.preview()})
+    assert new_scope.journal_binding("0" * 64).snapshot_sha256 == sha256(expected_binding).hexdigest()
+    assert new_scope.limits() == old_scope.limits()
+    assert json.loads(new_scope.material())["modelIdentityProcessLimit"] == 8
+
+
 def setup(monkeypatch, scope, tmp_path, *, failure=None, actual_runtime=False):
     events, clients, logs = [], [], []
     original_journal = r.AttemptJournal

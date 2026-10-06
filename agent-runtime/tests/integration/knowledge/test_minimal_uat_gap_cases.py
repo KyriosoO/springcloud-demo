@@ -16,11 +16,10 @@ from agent_runtime.model.contracts import (
     StructuredModelRequest, StructuredModelResponse,
 )
 from agent_runtime.model.input_guard import QuestionEgressGuard
-from tests.evidence_helpers import synthetic_catalog
 from tests.helpers import scope
 from tests.integration.knowledge.test_evidence_stage import _context
 from tests.integration.knowledge.test_minimal_current_root import MinimalModel
-from tests.integration.knowledge.test_minimal_evidence_stage import FakeGateway, stage
+from tests.integration.knowledge.test_summary_v9_stage import FakeGateway, _stage
 from tests.integration.knowledge.test_production_runtime_wiring import _KnowledgeClientFactory, _enabled_environment
 from tests.model_helpers import call_with_model_context
 from tests.unit.knowledge.evidence.test_minimal_selection import minimal_input
@@ -229,7 +228,7 @@ async def test_minimal_evidence_policy_conflict_denies_before_summary(fault: str
         ranked = source.batch.candidates[0]
         source = replace(source, batch=replace(source.batch, candidates=(replace(ranked,
             candidate=replace(ranked.candidate, policy_ref="different-policy-ref")),)))
-    result = await call_with_model_context(lambda: stage(gateway, catalog=synthetic_catalog()).build_result(  # type: ignore[no-untyped-call]
+    result = await call_with_model_context(lambda: _stage(gateway).build_result(
         input=source, context=_context(), timeout_s=2))
     assert result.kind is EvidenceStageKind.MODEL_EGRESS_DENIED
     assert result.denial_reason is EvidenceEgressDenialReason.POLICY_CONFLICT

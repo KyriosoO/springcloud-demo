@@ -95,6 +95,12 @@ from agent_runtime.model.gateway import BoundedStructuredModelGateway
 from agent_runtime.model.grounding import GroundingPolicyRegistry
 from agent_runtime.model.input_guard import QuestionEgressGuard
 from agent_runtime.model.settings import ModelProvider, ModelSettings
+from agent_runtime.knowledge.capability import MinimalRetrievalPort
+from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
+from agent_runtime.knowledge.evidence.contracts import KnowledgeCitedSummaryOutput, KnowledgeModeSummaryInput
+from agent_runtime.knowledge.intent_contracts import KnowledgeQueryIntent, KnowledgeQueryIntentInput
+from agent_runtime.knowledge.minimal_plan import MinimalRetrievalSettings
+from agent_runtime.knowledge.settings import KnowledgeSettings
 
 
 class RuntimeCompositionRoot:
@@ -524,8 +530,8 @@ class BusinessQueryRuntimeCompositionRoot:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class KnowledgeTaskDefinitions:
-    rewrite: ModelTaskDefinition[Any, Any]
-    summary: ModelTaskDefinition[Any, Any]
+    rewrite: ModelTaskDefinition[KnowledgeQueryIntentInput, KnowledgeQueryIntent]
+    summary: ModelTaskDefinition[KnowledgeModeSummaryInput, KnowledgeCitedSummaryOutput]
     # Empty is constructible only for frozen historical test roots; current
     # composition rejects it and always records an explicit enabled snapshot.
     enabled_domain_ids: tuple[str, ...] = ()
@@ -570,28 +576,22 @@ class KnowledgeCompositionRoot:
     @staticmethod
     def build_provider(
         *,
-        settings: object,
+        settings: KnowledgeSettings,
         model: LocalModelComponents,
         tasks: KnowledgeTaskDefinitions | None,
-        retrieval: object | None,
-        minimal_settings: object | None = None,
-        policy_catalog: object | None = None,
+        retrieval: MinimalRetrievalPort | None,
+        minimal_settings: MinimalRetrievalSettings | None = None,
+        policy_catalog: KnowledgeEgressPolicyCatalog | None = None,
     ) -> CapabilityRegistrationProvider:
-        from typing import cast
-
-        from agent_runtime.knowledge.catalog import build_tax_domain_catalog
         from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
-        from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
-        from agent_runtime.knowledge.evidence.contracts import KnowledgeEvidenceLimits, KnowledgeSummaryInput, KnowledgeSummaryOutput
-        from agent_runtime.knowledge.evidence.minimal_selection import MinimalEvidenceSelector
-        from agent_runtime.knowledge.intent_contracts import KnowledgeQueryIntentInput, KnowledgeQueryIntent
+        from agent_runtime.knowledge.evidence.minimal_stage import MinimalKnowledgeEvidenceStage
         from agent_runtime.knowledge.intent_stage_v12 import MinimalKnowledgeIntentStage
         from agent_runtime.knowledge.minimal_plan import MinimalKnowledgePlanBuilder, MinimalRetrievalSettings
-        from agent_runtime.knowledge.capability import MinimalFlowBindings, MinimalRetrievalPort
+        from agent_runtime.knowledge.capability import MinimalFlowBindings
+        from agent_runtime.knowledge.minimal_capability import MinimalKnowledgeQueryCapability
         from agent_runtime.knowledge.provider import KnowledgeCapabilityProvider
-        from agent_runtime.knowledge.settings import KnowledgeSettings
 
-        typed_settings = cast(KnowledgeSettings, settings)
+        typed_settings = settings
         if not typed_settings.enabled:
             if tasks is not None or retrieval is not None or minimal_settings is not None:
                 raise ValueError("knowledge.disabled_dependencies_forbidden")
@@ -614,30 +614,25 @@ class KnowledgeCompositionRoot:
         )
         if not isinstance(typed_policy_catalog, KnowledgeEgressPolicyCatalog):
             raise ValueError("knowledge.policy_catalog_invalid")
-        summary_definition = cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput], tasks.summary)
         intent = MinimalKnowledgeIntentStage(
             gateway=model.gateway,
             context=model.context_accessor,
-            definition=cast(ModelTaskDefinition[KnowledgeQueryIntentInput, KnowledgeQueryIntent], tasks.rewrite),
+            definition=tasks.rewrite,
             enabled_domain_ids=typed_settings.enabled_domain_ids,
             max_query_chars=typed_settings.max_retrieval_query_chars,
         )
-        evidence = DefaultKnowledgeEvidenceStage(
+        evidence = MinimalKnowledgeEvidenceStage(
             catalog=typed_policy_catalog,
             guard=QuestionEgressGuard(max_question_chars=4096),
             context=model.context_accessor,
             gateway=model.gateway,
-            definition=summary_definition,
-            limits=KnowledgeEvidenceLimits.minimal_v1(),
-            selector=MinimalEvidenceSelector(),
+            definition=tasks.summary,
         )
-        from agent_runtime.knowledge.capability import KnowledgeQueryCapability
 
-        handler: KnowledgeQueryCapability[Any] = KnowledgeQueryCapability(
+        handler = MinimalKnowledgeQueryCapability(
             settings=typed_settings,
-            enabled_domains=build_tax_domain_catalog().enabled(typed_settings.enabled_domain_ids),
-            minimal_flow=MinimalFlowBindings(intent=intent, planner=MinimalKnowledgePlanBuilder(),
-                retrieval=cast(MinimalRetrievalPort, retrieval), evidence=evidence,
+            flow=MinimalFlowBindings(intent=intent, planner=MinimalKnowledgePlanBuilder(),
+                retrieval=retrieval, evidence=evidence,
                 settings=minimal_settings),
         )
         return KnowledgeCapabilityProvider(enabled=True, handler=handler)

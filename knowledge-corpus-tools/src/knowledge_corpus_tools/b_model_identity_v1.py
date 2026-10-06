@@ -99,6 +99,36 @@ def _require_locked_corpus_environment() -> None:
         raise BModelIdentityError() from None
 
 
+def _require_locked_identity_environment() -> None:
+    """Lock only the actual identity import path, not unused corpus parsers.
+
+    local_vector_preparation imports httpx and, through representation and
+    normalization contracts, pydantic. Container packages remain in snapshots.
+    """
+    if sys.version_info[:2] != (3, 12):
+        raise BModelIdentityError()
+    required = {"httpx", "pydantic"}
+    try:
+        project = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        dependencies = tomllib.loads(project.read_text(encoding="utf-8"))["project"]["dependencies"]
+        if type(dependencies) is not list:
+            raise BModelIdentityError()
+        checked = set()
+        for dependency in dependencies:
+            if type(dependency) is not str:
+                raise BModelIdentityError()
+            if dependency.split("==", 1)[0] not in required:
+                continue
+            match = re.fullmatch(r"([A-Za-z0-9][A-Za-z0-9._-]*)==([0-9][A-Za-z0-9._+-]*)", dependency)
+            if match is None or metadata.version(match.group(1)) != match.group(2):
+                raise BModelIdentityError()
+            checked.add(match.group(1))
+        if checked != required:
+            raise BModelIdentityError()
+    except (KeyError, OSError, UnicodeError, ValueError, metadata.PackageNotFoundError):
+        raise BModelIdentityError() from None
+
+
 def _support() -> tuple[Any, Any, _Process]:
     from .local_vector_preparation import (  # noqa: PLC0415
         LocalVectorPreparation, PreparationError, run_process,

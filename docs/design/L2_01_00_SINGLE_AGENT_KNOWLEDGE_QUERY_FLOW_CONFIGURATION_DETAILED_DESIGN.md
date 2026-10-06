@@ -1,18 +1,18 @@
 # [L2_01_00] 单体 Agent Knowledge 查询流程与配置详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（§20设计及本包实现经独立定向复核；原在线合同保持）
+> 文档状态：Approved（现行职责与历史兼容隔离的定向修订已复评；其余批准合同保持）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.8 |
-| 日期 | 2026-10-03 |
+| 当前版本 | v3.9 |
+| 日期 | 2026-10-06 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、问题改写、多阶段协同、失败优先级、请求状态和流程配置 |
 | 上位文档 | [`L1_01` v3.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.8同步§20的私有演练接缝、单一预算定义、有限失败取证及有界清理实施证据；规范合同不变，不改生产阶段、任务、公共字段、安全或历史运行 |
+| 本次变更 | v3.9收口现行意图职责与历史兼容：当前12/9静态强类型装配，旧版本类仅承接历史调用；不改变在线步骤、任务内容、公共字段或历史运行 |
 | 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已接线意图12/Summary9/minimal-v1，默认disabled惰性及域目录维持。Spring→Runtime合成三模式与失败分支、单域当前root到隔离真实typed接口各有有限验证，不证明真实模型、完整新版UAT、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -111,8 +111,8 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 |---|---|---|
 | Knowledge Provider | descriptor、空参数注册 | 流程阶段实现 |
 | Capability | 阶段顺序、deadline、失败优先级、公共结果 | ES/BGE/模型协议 |
-| Semantic Guard/Planner | 原问题保护、V3模型计划解码、受限语义域/查询表达 | 检索执行、角色授权或物理资源 |
-| Domain Catalog/Selector | 逻辑域定义与确定性选择 | 物理索引和读取授权 |
+| Intent Stage | 原问题保护、任务12精确解码、查询模式/逻辑域/缺失条件判断 | 查询改写、旧V3证明规划、检索执行、角色授权或物理资源 |
+| Domain Catalog | 逻辑域定义与启用上限；当前由Intent选域、Plan核对允许集合 | 独立问句选域、物理索引和读取授权 |
 | Plan Builder | 逻辑域×允许检索路径的有界计划 | 执行 HTTP 或排序 |
 | Retrieval Stage | 消费计划并返回 typed batch+coverage | 改写和摘要 |
 | Evidence Stage | 消费授权候选并形成最终本地/出域结果 | 首次读取授权 |
@@ -202,7 +202,7 @@ v3.2仅评估后续补取方案及准入，不撤销DR-KFLOW-301当前禁令；�
 
 复用Model既有SCHEMA_ONLY单输出承载协议：固定输出名knowledge_query_intent；每层object禁止额外字段，全部required；Provider不支持的集合上限仍本地检查。只有一次指定输出、无混合正文；异常不修复、不切JSON模式、不重试。任务系统指令≤8192bytes、输入≤16384bytes、输出≤512tokens、阶段8秒；这些是上限而非必须消耗。模型版本仍为当前共享配置的固定值，本设计不切换后端。
 
-`DR-KFLOW-202`：frozen/slots内部`KnowledgeQueryIntent`已在`intent_contracts.py`实现，字段为query_mode、selected_domain_ids、missing_conditions和outcome；Q与request-local context由代码持有，不让模型回显/覆盖。意图阶段结果为成功意图或现有有限失败；新内部类型不继承/伪装`KnowledgeRequirementPlanOutput`。在既有Capability流程增加一次版本分派，之后仍执行同一检索/Evidence阶段；不复制一个新Runtime。内部Stage数据注解可演进，三个调用入口rewrite/execute/build_result的keyword参数和公开HTTP不变；旧serializer及冻结构造器继续按旧版本读取，不对旧对象asdict追加新字段。
+`DR-KFLOW-202`：frozen/slots内部`KnowledgeQueryIntent`已在`intent_contracts.py`实现，字段为query_mode、selected_domain_ids、missing_conditions和outcome；Q与request-local context由代码持有，不让模型回显/覆盖。意图阶段结果为成功意图或现有有限失败；新内部类型不继承/伪装`KnowledgeRequirementPlanOutput`。当前组合根静态绑定仅处理意图12/Summary9的强类型Capability与Evidence Stage，不在当前请求内分派历史版本；复用既有无版本端口、结果类型和deadline，不新增Runtime、版本路由器或兼容包装。旧多版本类、serializer及冻结构造器仅承接显式历史测试，不注册当前生产入口，不对旧对象asdict追加新字段。三个调用入口rewrite/execute/build_result的keyword参数和公开HTTP不变。
 
 ### 8.2 确定性计划与原问责任
 
@@ -370,7 +370,7 @@ validate empty arguments
 | 实现编号 | 路径与关键入口 |
 |---|---|
 | `IMPL-KFLOW-001` | `agent-runtime/src/agent_runtime/knowledge/provider.py`：descriptor 和 registrations |
-| `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：`KnowledgeArgumentValidator`、`KnowledgeQueryCapability.handle` |
+| `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：参数校验及历史Capability；当前执行为`agent-runtime/src/agent_runtime/knowledge/minimal_capability.py`的`MinimalKnowledgeQueryCapability.handle` |
 | `IMPL-KFLOW-003` | 已有`knowledge/question_semantics.py`旧Guard不改；DR-KFLOW-023已新增`knowledge/tax_question_semantics.py`类别词数字分离 |
 | `IMPL-KFLOW-004` | 已有`knowledge/rewrite_v3.py`（精确合同）、`knowledge/semantic_planner.py`、V4/V5/V6任务；DR-KFLOW-023已增加Planner内部Guard注入及共享类别tuple，旧默认与任务不变 |
 | `IMPL-KFLOW-005` | `agent-runtime/src/agent_runtime/knowledge/catalog.py`、`domain_selection.py` |

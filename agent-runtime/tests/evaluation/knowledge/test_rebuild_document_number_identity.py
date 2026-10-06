@@ -82,6 +82,7 @@ class Provider:
     def __init__(self, binding, embedding, rerank, *, ledger=None):
         self.binding, self.embedding, self.rerank, self.ledger = binding, embedding, rerank, ledger
         self.calls = []
+        self.started = "2026-10-04T00:00:00Z"
 
     def __call__(self, command, raw):
         assert command[:3] == [str(self.binding.docker), "--host", self.binding.docker_host]
@@ -92,11 +93,11 @@ class Provider:
         if command[3] == "inspect":
             port = "8908" if is_embedding else "8909"
             return p.canonical({"id": self.binding.embedding_container_id if is_embedding else self.binding.rerank_container_id,
-                "image": "sha256:" + "c" * 64, "started": "2026-10-04T00:00:00Z", "running": True,
+                "image": "sha256:" + "c" * 64, "started": self.started, "running": True,
                 "path": "python", "args": ["-m", "uvicorn", "embedding_server:app", "--host", "0.0.0.0", "--port", port],
                 "ports": {port + "/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}})
         payload = json.loads(raw)
-        assert payload["started"] == "2026-10-04T00:00:00Z"
+        assert payload["started"] == self.started
         assert payload["files"] == (list(embed.MODEL_FILES) if is_embedding else sorted(models._RERANK_HASHES))
         assert command[-1] == (embed._PROBE if is_embedding else models._RERANK_PROBE)
         return p.canonical(self.embedding if is_embedding else self.rerank)
@@ -178,10 +179,111 @@ def test_failure_is_finite_consumed_and_never_retries(monkeypatch, pair, tmp_pat
 
 def test_wrong_project_environment_or_changed_executable_blocks_all_probes(monkeypatch, pair, tmp_path):
     value, provider, _ = session(monkeypatch, pair, tmp_path)
-    monkeypatch.setattr(models, "_require_locked_corpus_environment", lambda: (_ for _ in ()).throw(models.BModelIdentityError()))
+    monkeypatch.setattr(models, "_require_locked_identity_environment", lambda: (_ for _ in ()).throw(models.BModelIdentityError()))
     with pytest.raises(p.ProtocolError, match="capture_failed"):
         value.capture("preparation")
     assert provider.calls == []
+
+
+def recapture(material):
+    models_value = material["models"]
+    models_value["sha256"] = sha256(p.canonical({name: models_value[name]
+                                               for name in ("embedding", "rerank")})).hexdigest()
+    raw = p.canonical(material)
+    return i.IdentityCapture(sha256(p.canonical(material["static"])).hexdigest(),
+                             models_value["sha256"], sha256(raw).hexdigest(), raw)
+
+
+def test_prepare_to_execution_freeze_preserves_complete_current_identity_without_operations(monkeypatch, pair, tmp_path):
+    preparation, _, _ = session(monkeypatch, pair, tmp_path)
+    prepared = preparation.capture("preparation")
+    current_session, current_provider, _ = session(monkeypatch, pair, tmp_path)
+    current_provider.started = "2026-10-06T00:00:00Z"
+    current = current_session.capture("preparation")
+    original = (prepared.material, current.material)
+    monkeypatch.setattr(models, "capture_model_identity", lambda *_a, **_k: pytest.fail("no new probe"))
+    monkeypatch.setattr(i, "capture_static_identity", lambda *_: pytest.fail("no static recollection"))
+    frozen = i.freeze_execution_identity(prepared, current)
+    assert frozen is current and frozen.static_sha256 == prepared.static_sha256
+    assert frozen.model_sha256 != prepared.model_sha256 and frozen.identity_sha256 != prepared.identity_sha256
+    assert (prepared.material, current.material) == original
+    assert len(current_provider.calls) == 4 and current_session.ledger.view()["counts"] == {"preparation": 4}
+    assert i.freeze_execution_identity(current, current) is current
+
+
+@pytest.mark.parametrize("change", ["container", "image", "argv", "ports", "model-file", "revision",
+    "service", "packages", "max-length", "rerank-file", "rerank-service", "rerank-argv", "policy", "static", "docker"])
+def test_freeze_rejects_every_change_except_started(monkeypatch, pair, tmp_path, change):
+    preparation, _, _ = session(monkeypatch, pair, tmp_path)
+    prepared = preparation.capture("preparation")
+    material = json.loads(prepared.material)
+    embedding, rerank = material["models"]["embedding"], material["models"]["rerank"]
+    if change == "container": embedding["container"]["id"] = "f" * 64
+    elif change == "image": embedding["container"]["image"] = "sha256:" + "f" * 64
+    elif change == "argv": embedding["container"]["args"].append("changed")
+    elif change == "ports": embedding["container"]["ports"]["8908/tcp"][0]["HostIp"] = "0.0.0.0"
+    elif change == "model-file": embedding["model"]["files"]["tokenizer.json"]["sha256"] = "f" * 64
+    elif change == "revision": embedding["model"]["revision"] = "f" * 40
+    elif change == "service": embedding["model"]["service"]["sha256"] = "f" * 64
+    elif change == "packages": embedding["model"]["packages"]["torch"] = "2.0"
+    elif change == "max-length": embedding["model"]["max_length"] = 512
+    elif change == "rerank-file": rerank["model"]["files"]["tokenizer.json"] = "f" * 64
+    elif change == "rerank-service": rerank["model"]["serviceSha256"] = "f" * 64
+    elif change == "rerank-argv": rerank["container"]["argsSha256"] = "f" * 64
+    elif change == "policy": material["static"]["catalog"] = {"sourceSha256": "f" * 64}
+    elif change == "static": material["static"]["synthetic"] = False
+    elif change == "docker": material["docker"]["executableSha256"] = "f" * 64
+    current = recapture(material)
+    with pytest.raises(p.ProtocolError, match="identity_freeze_.*_drift"):
+        i.freeze_execution_identity(prepared, current)
+
+
+@pytest.mark.parametrize("side", ["prepared", "current"])
+@pytest.mark.parametrize("invalid", ["identity-hash", "static-hash", "model-hash", "snapshot-hash",
+    "incomplete-snapshot", "incomplete-model", "missing-started", "invalid-started", "duplicate-key", "noncanonical"])
+def test_freeze_boundary_rejects_forged_or_incomplete_captures(monkeypatch, pair, tmp_path, side, invalid):
+    preparation, _, _ = session(monkeypatch, pair, tmp_path)
+    good = preparation.capture("preparation")
+    if invalid.endswith("-hash") and invalid != "snapshot-hash":
+        bad = replace(good, **{invalid.split("-")[0] + "_sha256": "f" * 64})
+    else:
+        material = json.loads(good.material)
+        if invalid == "snapshot-hash": material["models"]["sha256"] = "f" * 64
+        elif invalid == "incomplete-snapshot": del material["models"]["embedding"]["container"]
+        elif invalid == "incomplete-model": del material["models"]["embedding"]["model"]["files"]
+        elif invalid == "missing-started": del material["models"]["rerank"]["container"]["started"]
+        elif invalid == "invalid-started": material["models"]["embedding"]["container"]["started"] = "unknown"
+        if invalid == "snapshot-hash":
+            raw = p.canonical(material)
+            bad = replace(good, material=raw, identity_sha256=sha256(raw).hexdigest())
+        elif invalid in ("duplicate-key", "noncanonical"):
+            raw = good.material.replace(b'{"docker":', b'{"duplicate":1,"duplicate":2,"docker":', 1) if invalid == "duplicate-key" else good.material + b" "
+            bad = replace(good, material=raw, identity_sha256=sha256(raw).hexdigest())
+        else:
+            bad = recapture(material)
+    with pytest.raises(p.ProtocolError):
+        i.freeze_execution_identity(bad if side == "prepared" else good, bad if side == "current" else good)
+
+
+@pytest.mark.parametrize("phase", ["pre", "post"])
+def test_formal_pre_post_still_reject_restart_after_current_freeze(monkeypatch, pair, tmp_path, phase):
+    preparation, _, _ = session(monkeypatch, pair, tmp_path)
+    prepared = preparation.capture("preparation")
+    current_session, current_provider, _ = session(monkeypatch, pair, tmp_path)
+    current_provider.started = "2026-10-06T00:00:00Z"
+    current = current_session.capture("preparation")
+    frozen = i.freeze_execution_identity(prepared, current)
+    execution, provider, _ = session(monkeypatch, pair, tmp_path, expected=frozen)
+    if phase == "post":
+        provider.started = current_provider.started
+        assert execution.capture("pre") == frozen
+    provider.started = "2026-10-07T00:00:00Z"
+    with pytest.raises(p.ProtocolError, match="capture_failed"):
+        execution.capture(phase)
+    assert execution.failure_phase == "expected_comparison"
+    assert execution.observed is not None and execution.observed != frozen
+    assert execution.ledger.view()["stopped"] is True
+    assert len(provider.calls) == (4 if phase == "pre" else 8)
 
 
 def test_executable_drift_between_commands_stops_without_second_probe(monkeypatch, pair, tmp_path):

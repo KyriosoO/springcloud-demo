@@ -111,6 +111,33 @@ def test_locked_environment_rejects_dependency_drift(
         identity._require_locked_corpus_environment()
 
 
+def test_identity_environment_locks_only_actual_import_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+    def version(name: str) -> str:
+        calls.append(name)
+        return {"httpx": "0.28.1", "pydantic": "2.13.5"}.get(name, "parser-drift")
+    monkeypatch.setattr(metadata, "version", version)
+    identity._require_locked_identity_environment()
+    assert set(calls) == {"httpx", "pydantic"} and len(calls) == 2
+    with pytest.raises(identity.BModelIdentityError):
+        identity._require_locked_corpus_environment()
+
+
+@pytest.mark.parametrize("dependency", ["httpx", "pydantic"])
+def test_identity_environment_rejects_required_dependency_drift(
+        monkeypatch: pytest.MonkeyPatch, dependency: str) -> None:
+    monkeypatch.setattr(metadata, "version", lambda name:
+        "0.0.0" if name == dependency else {"httpx": "0.28.1", "pydantic": "2.13.5"}[name])
+    with pytest.raises(identity.BModelIdentityError):
+        identity._require_locked_identity_environment()
+
+
+def test_identity_environment_still_requires_python312(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "version_info", (3, 11, 0))
+    with pytest.raises(identity.BModelIdentityError):
+        identity._require_locked_identity_environment()
+
+
 def test_cli_rejects_extra_input_without_snapshot(
         monkeypatch: pytest.MonkeyPatch) -> None:
     class Stream:

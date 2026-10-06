@@ -6,14 +6,14 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.54 |
-| 文档状态 | Reviewed（独立成对执行失败终态及有限诊断增量复核通过；完整验收未完成） |
+| 当前版本 | v3.55 |
+| 文档状态 | Reviewed（现行职责/历史兼容与冻结顺序的限定增量已复评；原工作包及验收状态保持） |
 | 日期 | 2026-10-06 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
 | 权威顺序 | 用户范围 → 仓库规则 → REQ/L0/L1/公共契约 → Knowledge L2 → 当前实现证据 → 本计划 |
-| 实施授权 | Ready不等于实施授权。历史独立B/MEASURE执行及授权消费见§14.31～37，原目录不复用；selector v5仓库non-live修正见§14.38。DRYRUN及纯离线DIAGNOSE见§14.40/42。本轮另经维护者确认一次独立词法诊断：同现行b2、旧/当前helper、固定001/002/003/012，typed与物理search各8、只读元数据18、健康检查≤40；模型/BGE/写入/retry/resume均0，具体冻结及终态见§14.43。该授权已执行，不是新B/MEASURE或滚动运行许可；后续操作仍须精确范围及有效授权，gold/阈值及在线父读取禁令保持 |
+| 实施授权 | Ready不等于实施授权。本轮仅授权现行/历史职责隔离、冻结顺序、局部重复检查及文档流水的收口，执行证据见§14.59；无真实服务、模型、ES或BGE操作许可，不推送。历史消费、终态和原范围由§14对应记录追溯，不可复用旧run或余额；未来真实执行须独立精确范围及有效授权，gold/阈值及在线父读取禁令保持 |
 | 计划执行状态 | Done=11（含DRYRUN、DIAGNOSE）；In Progress=2（COMPARE、MEASURE）；Ready=0；Blocked=1（RELEASE），共14包/14直接边。原Done证明范围保持；两项新包仅工具non-live及离线诊断完成，不证明效果。B主指标未改善、precision未评；MEASURE完成4题后005技术失败，001/002人工Passed、003/004 Failed，整批仍invalid_run。保留现行b2，不发布/追加实验 |
 
 ## 2. 修改历史
@@ -82,18 +82,19 @@
 | 60 | 2026-10-04 | §14.56 | fake产物不能替代实际Java构建及请求投影 | v3.52实际离线构建两臂并核对11个域请求，准备下一独立只读范围；不扩展工具、不执行真实操作、不改变包或质量状态 |
 | 61 | 2026-10-04 | §14.57 | 维护者精确授权独立无付费准备 | v3.53完成67次ES只读及8次Docker身份操作，封存现场有限证据；不执行正式对照、推理或发布，不改变原包及验收状态 |
 | 62 | 2026-10-06 | §1/14.58 | 独立成对执行前置身份核验失败 | v3.54如实封存一次消费后的失败及4次身份探针，HTTP/推理均0；补私有有限失败阶段诊断，不修改历史运行，不补跑，不改变质量及包状态 |
+| 63 | 2026-10-06 | §1/3/14.59 | 现行职责、历史兼容及验证冻结顺序收口 | v3.55记录静态12/9装配、准备到执行的纯身份转换和局部重复检查合并；UAT不再复制执行流水，原包、质量和历史终态不变 |
 
 ## 3. 来源清单与当前基线
 
 | 资源 | 角色 | 层级 | 状态/版本 | 权威范围 | 是否读取 | 置信度 |
 |---|---|---|---|---|---|---|
 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) | 目标架构 | L1 | v3.7 / Approved | §4.5/4.6原合同保持；§4.7新增验证/诊断决策 | 是 | 本轮增量已独立定向核查，不证明真实效果 |
-| [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.8 / Approved | §8/19原合同、§20 DR-KFLOW-401～403 | 是 | 演练本包已实施并独立代码复评；只证明验证工具non-live可靠性 |
-| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.14 / Approved | §9/18原合同、§9.9 DR-KRET-401～403 | 是 | 离线诊断及有限定位已实施、独立复评；在线补检未批准，预算不变 |
-| [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
+| [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 流程详细合同 | L2 | v3.9 / Approved | §8/19现行静态绑定、§20 DR-KFLOW-401～403 | 是 | 当前类与历史类隔离的限定修订已复评；原演练non-live证明范围不扩大 |
+| [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | 检索与资料合同 | L2 | v3.15 / Approved | §9/18冻结顺序、§9.9 DR-KRET-401～403 | 是 | 准备同模型核对与正式当前实例exact分开的限定修订已复评；旧批次、预算及在线补检禁令不变 |
+| [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.7 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | 当前Stage只绑定Summary9的限定修订已复评；原回答/安全及有限人工结论不变 |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.52 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 独立现场准备不代替质量；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.53 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 证据入口整理已复评，不重复执行流水；完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -1132,3 +1133,27 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 有限失败资产已本地提交为`0e8ccb64`，未推送；诊断及本次状态同步由后续本地提交承接，不改本次frozen HEAD。
 
 原14包/14边、11 Done/2 In Progress/1 Blocked、A未评价、B不采用、MEASURE invalid_run及001/002人工Passed、003/004 Failed保持。下一真实步骤需独立范围和有效授权，先取得与当前运行实例相符的模型身份，再绑定新的成对执行；保留完整库存前后核验和质量阈值，不重复本批、不忽略StartedAt或弱化exact expected。本轮已用尽独立消费机会，不能以剩余预算自动执行新准备或MEASURE。
+
+### 14.59 现行职责、历史兼容与验证冻结顺序收口（2026-10-06）
+
+维护者授权按定向评审建议进行最小收口。起始clean `codex_0915` HEAD为`d1abbee8c6c87f46c55e4d1587bcb46b25d9c157`；本轮只修改当前内部代码、直接测试及三份Knowledge L2/P3/UAT/架构索引，不执行真实服务、ES、Docker或模型操作，不读取密钥，不推送。
+
+| 处理项 | 实施及证明范围 |
+|---|---|
+| 现行职责与历史兼容 | 当前组合根静态绑定`MinimalKnowledgeQueryCapability`和`MinimalKnowledgeEvidenceStage`，意图12/模式输入/Summary9使用精确类型；原`capability.py`及`evidence/stage.py`保留历史调用、字节不变。只复用无版本分派的ports、bindings、deadline和结果构造，不新增路由器、包装器或继承适配层 |
+| 冻结顺序 | 授权范围内启动就绪→实际当前capture→`freeze_execution_identity(prepared,current)`→冻结→正式pre/post完整精确比较。新纯函数只允许既有同模型规则中的`started`准备期差异，static、Docker及其余模型/容器字段精确；返回完整current，不能证明采集来源、就绪或授权，不产生额外probe |
+| 局部重复检查 | 移除Evidence对不可变Plan按自身settings的重复完整重验；Plan构造与Retrieval的实际配置配对检查仍在，Evidence的问题/模式/coverage/batch/来源hash/策略及引用边界保留。身份helper只锁其实际导入的Python/httpx/pydantic，旧corpus CLI全量环境锁和完整模型快照不变 |
+| 文档职责 | UAT只保留风险、判据、当前结论及证据入口，不再重复版本和逐轮执行流水；实施授权摘要指向本轮范围和历史记录。三份L2增量定向复评通过，Approved不表示真实质量验收通过 |
+
+实际验证（均为本地/non-live；重复覆盖的多次执行不相加）：
+
+- Agent主执行者：设置进程级`PYTHONPATH=D:/codex/agent-runtime/src`后，`python -m pytest tests/unit tests/integration/knowledge tests/integration/business tests/integration/test_core_graph_with_stubs.py --ignore-glob='**/test_real_*.py' -q`：**1785 passed，165.55秒**，覆盖当前/历史Knowledge、共享Core及Business/Employee/Transaction单测；显式排除真实Knowledge用例，不冒充真实集成/UAT。
+- 在线实现定向验证：当前root/Summary9/风险接线、Summary9 contract及README要求的HTTP/startup **80 passed**；历史Evidence/Summary8/冻结根 **140 passed**，旧production/admission/v11/Summary2/4 **59 passed**。在线独立评审另执行六个直接测试文件 **192 passed**，只读穷举92组有限kind/code映射，与旧minimal分支一致。
+- 身份工具独立评审：corpus项目venv、双src路径下identity/runner **110 passed，16.70秒**；`knowledge-corpus-tools/tests/test_b_model_identity_v1.py` **11 passed**，包括准备期可允许差异与正式pre/post漂移拒绝。旧CLI和runner执行语义不变。
+- `python -m mypy src`：**155源文件通过**；两个身份工具及corpus身份模块的定向strict mypy、相关源码compileall和`git diff --check`通过。首次辅助检查读到陈旧site-packages或缺失源码类型路径后，以显式源码PYTHONPATH/MYPYPATH纠正；未安装依赖、弱化断言或更改锁。
+
+内审一轮聚焦职责、冻结与安全边界；两名未参与相应实现的子代理分别核查另一组的源码/测试及设计增量，一轮代码交叉复评均无确认缺陷。主执行者核对关键源码及实际验证输出，不把作者自审称为独立评审。三份L2严格检查及P3严格/DAG检查均0错误/0警告；136条本地链接、围栏、旧DR/UAT编号及版本入口核查通过，37项功能风险表与HEAD换行归一后相同。原Evidence文档裸`executor.py`引用警告通过补全真实路径修正，没有更改历史文件。增量敏感模式及diff检查通过。
+
+四项历史关键资产与HEAD blob一致、SHA-256可核查；没有历史运行、任务内容、公共DTO、权限、配置或索引变更。未执行Maven/真实质量UAT/发布，本轮无Java修改；non-live通过不证明召回改善。原14包/14边、11 Done/2 In Progress/1 Blocked、A未评价、B不采用、MEASURE invalid_run及四题人工结论保持，COMPARE/MEASURE未关闭、RELEASE仍Blocked。本轮变更由本次本地提交承接，不改写旧冻结HEAD。
+
+下一步先形成新独立文号全链成对对照的精确范围，使用修后代码及启动就绪后的完整当前身份；预算、排他窗口和授权需有效绑定后才执行。不得复用失败run，不能把本轮纯工具转换当作现场预检或真实执行许可。

@@ -326,10 +326,20 @@ async def test_current_root_tightened_candidate_limits_reach_typed_paths() -> No
     assert clients.limits == [5, 5]
 
 
-def test_current_root_rejects_mismatched_task_before_knowledge_clients(monkeypatch) -> None:
+@pytest.mark.parametrize("fault", ["intent_version", "summary_version", "summary_input"])
+def test_current_root_rejects_mismatched_task_before_knowledge_clients(monkeypatch, fault: str) -> None:
+    from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput
+    from agent_runtime.knowledge.evidence.summary_task_v9 import KnowledgeSummaryTaskV9
+
     original = KnowledgeQueryIntentTaskV12.definition
-    monkeypatch.setattr(KnowledgeQueryIntentTaskV12, "definition", staticmethod(
-        lambda **kwargs: replace(original(**kwargs), task_version="11")))
+    if fault == "intent_version":
+        monkeypatch.setattr(KnowledgeQueryIntentTaskV12, "definition", staticmethod(
+            lambda **kwargs: replace(original(**kwargs), task_version="11")))
+    else:
+        summary = KnowledgeSummaryTaskV9.definition()
+        wrong = (replace(summary, task_version="8") if fault == "summary_version"
+                 else replace(summary, input_type=KnowledgeSummaryInput))
+        monkeypatch.setattr(KnowledgeSummaryTaskV9, "definition", staticmethod(lambda: wrong))
     allocated = 0
 
     def forbidden(_origin: str) -> object:
@@ -341,6 +351,25 @@ def test_current_root_rejects_mismatched_task_before_knowledge_clients(monkeypat
         build_runtime(_enabled_environment(), model_transport=MinimalModel(),
                       knowledge_http_client_factory=forbidden)
     assert allocated == 0
+
+
+@pytest.mark.asyncio
+async def test_current_root_never_executes_historical_multiversion_classes(monkeypatch) -> None:
+    async def forbidden(*args: object, **kwargs: object) -> object:
+        raise AssertionError("current root executed historical version dispatch")
+
+    monkeypatch.setattr("agent_runtime.knowledge.capability.KnowledgeQueryCapability.handle", forbidden)
+    monkeypatch.setattr("agent_runtime.knowledge.evidence.stage.DefaultKnowledgeEvidenceStage.build_result", forbidden)
+    model, clients = MinimalModel(), _KnowledgeClientFactory()
+    runtime = build_runtime(_enabled_environment(), model_transport=model,
+                            knowledge_http_client_factory=clients)
+    question = "现行增值税政策有哪些"
+    try:
+        result = await runtime.ainvoke(question=question, scope=scope(question))
+    finally:
+        await runtime.aclose()
+    assert result.status is CapabilityStatus.SUCCESS
+    assert [item.task_version for item in model.requests[1:]] == ["12", "9"]
 
 
 @pytest.mark.asyncio

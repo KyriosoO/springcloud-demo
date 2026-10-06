@@ -1,18 +1,18 @@
 # [L2_01_02] 单体 Agent Knowledge 证据、出域、摘要与效果验证详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（v3.6 仅同步Summary9实施与验证状态；v3.5设计复评结论不变）
+> 文档状态：Approved（现行Summary9与历史实现隔离的定向修订已复评；有界回答合同保持）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v3.6 |
-| 日期 | 2026-09-29 |
+| 当前版本 | v3.7 |
+| 日期 | 2026-10-06 |
 | 权威范围 | 证据完整性/选择、三层出域、当前Summary9与历史Summary8、严格引用及有限回答、本地结果和 P5 历史效果验证边界 |
-| 上位文档 | [`L1_01` v3.6](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.6仅同步Summary9实施及合成验证事实；v3.5有界回答设计、安全和历史资产不变 |
+| 上位文档 | [`L1_01` v3.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.7将当前Stage收紧为模式输入/Summary9静态配对，历史版本保留原类；复用不可变Plan构造保证，不重复完整重验；有界回答、安全和历史资产不变 |
 | 实施状态 | 本目标起始Evidence/Policy、Summary V7/quality-v3接线有原定向non-live证据；当前仓库已接线Summary9/Evidence minimal，组件fake/non-live及Spring→Runtime合成三模式、失败分支已验证。单域当前root到隔离真实typed接口仅有有限只读预检，不证明真实模型、完整新版UAT、实际部署或回答效果。新版风险状态以UAT_02为准；旧功能UAT、效果口径v2及阶段A快照保持原证明范围；最新有效P5仍为`partially_effective`，历史资产不改；新计划P3_01/UAT_02不继承通过 |
 | 归档来源 | [整理前 v1.27 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -257,6 +257,8 @@ Summary9使用既有`KnowledgeModeSummaryInput` schema3及相同Q、mode、cover
 
 `DR-KEV-204`：fresh Guard→完整性→选择→三层policy→模式输入/type/context→一次Summary→exact decoder→原文/ref校验→目标版本的claim形状校验→本地结果。所有拒绝沿现有有限错误映射；policy deny/missing/conflict的Summary0、provider非法502/timeout、无充分证据no_result不变。既有多域读取拒绝不能被另一个域成功覆盖。并发请求无共享Evidence、引用或模式；取消丢弃迟到输出并释放owned client，不记录原响应、全文、JWT或凭据。
 
+当前`MinimalKnowledgeEvidenceStage`只接受`MinimalKnowledgeEvidenceInput`，构造时精确绑定`KnowledgeModeSummaryInput`/Summary9及minimal预算；旧`DefaultKnowledgeEvidenceStage`保留给历史版本测试，不进入当前组合根。跨阶段输入仍核对类型、原问题/意图/计划一致性、coverage、完整候选、身份/hash及策略快照；不可变Plan已由构造器真实校验、Retrieval校验Stage配置配对，Evidence不再以`plan.settings`重复完整自校验。该复用保证不适用于未经过这些构造边界的外部数据，不移除fresh Guard或Evidence完整性验证。
+
 为防止把移除requirements当作语义降低的理由，后续测试必须保留“有合法引用但答非所问/缺必要分类/引用历史当现行”的反例：机械validator可能接受，人工回答判据必须失败；不得写一个期待这些反例成功的UAT。功能通过和回答有效分开，禁止把结构可解码率冒称忠实度。
 
 ### 9.4 验收方法和一次测量的结束边界
@@ -387,8 +389,8 @@ clean frozen commit、live Provider、数据集/hash、principal/读取授权、
 | `IMPL-KEV-003` | `agent-runtime/src/agent_runtime/knowledge/evidence/catalog.py`：strict catalog、fingerprint |
 | `IMPL-KEV-004` | `agent-runtime/src/agent_runtime/knowledge/evidence/policy.py`：`KnowledgeEvidenceEgressDecider.decide` |
 | `IMPL-KEV-005` | 历史独立 `agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v4.py` 与 `KnowledgeSummaryTaskV4.definition`；V1～V4源码和历史绑定保持不可变；整理前当时源码为Summary7、当时目标Summary8，现目标见§9.5，不以本历史行描述当前绑定 |
-| `IMPL-KEV-006` | `agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py`、`agent-runtime/src/agent_runtime/knowledge/evidence/stage.py` |
-| `IMPL-KEV-007` | `agent-runtime/tests/evaluation/knowledge/contracts.py`、`executor.py`、`live_executor.py` |
+| `IMPL-KEV-006` | 原文校验复用`agent-runtime/src/agent_runtime/knowledge/evidence/summary_validation.py`；历史Stage为`agent-runtime/src/agent_runtime/knowledge/evidence/stage.py`，当前Stage为`agent-runtime/src/agent_runtime/knowledge/evidence/minimal_stage.py` |
+| `IMPL-KEV-007` | `agent-runtime/tests/evaluation/knowledge/contracts.py`、`agent-runtime/tests/evaluation/knowledge/executor.py`、`agent-runtime/tests/evaluation/knowledge/live_executor.py` |
 | `IMPL-KEV-008` | `agent-runtime/tests/evaluation/knowledge/representative_questions.v2.jsonl`、`live_contracts.py`、result schemas |
 | `IMPL-KEV-009` | `agent-runtime/tests/evaluation/knowledge`：历史有限诊断、效果口径 v2 与版本化优化反证 |
 | `IMPL-KEV-010` | `agent-runtime/tests/evaluation/knowledge/live_bootstrap.py`、`live_runner.py`、`live_contracts.py`、版本化 preparation/history/contracts/launcher |

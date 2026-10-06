@@ -13,6 +13,7 @@ from hashlib import sha256
 from pathlib import Path
 import re
 from threading import Lock
+from typing import Any
 
 from agent_runtime.knowledge.evidence.catalog import KnowledgeEgressPolicyCatalog
 from agent_runtime.knowledge.evidence import catalog as policy_source
@@ -154,6 +155,67 @@ class IdentityCapture:
             "executionAuthorityGranted": False, "qualityAssessment": "Not assessed"}
 
 
+def _capture_material(capture: IdentityCapture) -> dict[str, Any]:
+    """Validate externally supplied capture bytes and their complete hash chain."""
+    p.require(type(capture) is IdentityCapture and _sha(capture.static_sha256)
+        and _sha(capture.model_sha256) and _sha(capture.identity_sha256)
+        and type(capture.material) is bytes and 0 < len(capture.material) <= 65536
+        and sha256(capture.material).hexdigest() == capture.identity_sha256,
+        "identity_freeze_capture_invalid")
+    material = p._decode(capture.material)
+    p.require(set(material) == {"static", "models", "docker"}
+        and type(material["static"]) is dict and type(material["models"]) is dict
+        and type(material["docker"]) is dict and p.canonical(material) == capture.material
+        and sha256(p.canonical(material["static"])).hexdigest() == capture.static_sha256,
+        "identity_freeze_capture_invalid")
+    docker, models = material["docker"], material["models"]
+    p.require(set(docker) == {"host", "executableSha256"}
+        and docker["host"] in ("npipe:////./pipe/docker_engine", "unix:///var/run/docker.sock")
+        and _sha(docker["executableSha256"])
+        and set(models) == {"schemaVersion", "embedding", "rerank", "sha256"}
+        and type(models["schemaVersion"]) is int and models["schemaVersion"] == 1
+        and models["sha256"] == capture.model_sha256
+        and sha256(p.canonical({"embedding": models["embedding"], "rerank": models["rerank"]})).hexdigest()
+            == capture.model_sha256, "identity_freeze_capture_invalid")
+    for name in ("embedding", "rerank"):
+        snapshot = models[name]
+        p.require(type(snapshot) is dict and set(snapshot) == {"container", "model"}
+            and type(snapshot["container"]) is dict and type(snapshot["model"]) is dict,
+            "identity_freeze_capture_invalid")
+        container, model = snapshot["container"], snapshot["model"]
+        common = {"id", "image", "started", "running", "ports"}
+        p.require(set(container) == common | ({"path", "args"} if name == "embedding"
+                                            else {"pathSha256", "argsSha256"})
+            and _sha(container["id"]) and container["running"] is True
+            and type(container["started"]) is str
+            and re.fullmatch(r"[0-9TZ:.+-]{20,40}", container["started"]) is not None
+            and set(model) == ({"revision", "files", "service", "implementation", "max_length",
+                               "cache_provenance", "packages"} if name == "embedding"
+                              else {"revision", "files", "serviceSha256", "packages"}),
+            "identity_freeze_capture_invalid")
+    return material
+
+
+def freeze_execution_identity(prepared: IdentityCapture, current: IdentityCapture) -> IdentityCapture:
+    """Freeze an already captured, startup-ready instance; perform no probe.
+
+    The trusted caller owns readiness, capture provenance and authorization.
+    Across preparation only container started may differ. Formal pre/post still
+    compare exactly with the returned complete current capture. Neither input
+    is rewritten, and this conversion grants no execution authority.
+    """
+    old, new = _capture_material(prepared), _capture_material(current)
+    p.require(p.canonical(old["static"]) == p.canonical(new["static"])
+        and p.canonical(old["docker"]) == p.canonical(new["docker"]), "identity_freeze_static_drift")
+    for name in ("embedding", "rerank"):
+        before, after = old["models"][name], new["models"][name]
+        p.require(p.canonical(before["model"]) == p.canonical(after["model"])
+            and p.canonical({key: value for key, value in before["container"].items() if key != "started"})
+                == p.canonical({key: value for key, value in after["container"].items() if key != "started"}),
+            "identity_freeze_model_drift")
+    return current
+
+
 def capture_static_identity(pair: projection.ProjectedJavaPair, binding: ReadBinding) -> bytes:
     """Actual leased binaries/config and current catalog, not supplied labels.
 
@@ -266,9 +328,9 @@ class IdentitySession:
         try:
             from knowledge_corpus_tools import b_model_identity_v1 as models
             from knowledge_corpus_tools import local_vector_preparation as embed
-            # Calling the existing collector directly must not bypass its CLI's
-            # project environment lock. This check makes no Docker/model call.
-            models._require_locked_corpus_environment()
+            # Identity imports need only their own dependency pins. The old
+            # corpus CLI retains its full parser/build environment lock.
+            models._require_locked_identity_environment()
             static = capture_static_identity(self.pair, self.binding)
             p.require(self.expected is None or sha256(static).hexdigest() == self.expected.static_sha256,
                       "identity_static_drift")

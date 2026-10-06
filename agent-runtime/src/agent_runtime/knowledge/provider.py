@@ -4,10 +4,12 @@ from typing import Any
 
 from agent_runtime.capability_api.contracts import (
     CapabilityDescriptor,
+    CapabilityHandler,
     CapabilityKind,
     CapabilityRegistrationCandidate,
 )
-from agent_runtime.knowledge.capability import KnowledgeArgumentValidator, KnowledgeQueryCapability
+from agent_runtime.knowledge.capability import KnowledgeArgumentValidator
+from agent_runtime.knowledge.contracts import KnowledgeQueryArguments
 
 
 def knowledge_query_descriptor() -> CapabilityDescriptor:
@@ -25,7 +27,7 @@ def knowledge_query_descriptor() -> CapabilityDescriptor:
 class KnowledgeCapabilityProvider:
     __slots__ = ("_enabled", "_handler")
 
-    def __init__(self, *, enabled: bool, handler: KnowledgeQueryCapability[Any] | None) -> None:
+    def __init__(self, *, enabled: bool, handler: CapabilityHandler[KnowledgeQueryArguments] | None) -> None:
         if enabled and handler is None:
             raise ValueError("knowledge.handler_required")
         self._enabled = enabled
@@ -40,4 +42,3 @@ class KnowledgeCapabilityProvider:
                 handler=self._handler if self._enabled else None,
             ),
         )
-

@@ -10,7 +10,6 @@ from agent_runtime.knowledge.evidence.contracts import (
     KnowledgeCitedSummaryOutput,
     KnowledgeCitedSummaryPoint,
     KnowledgeModeSummaryInput,
-    KnowledgeSummaryInput,
     SummaryOutcome,
 )
 from agent_runtime.knowledge.evidence.summary_task_v8 import mode_summary_input_json
@@ -67,7 +66,7 @@ _OUTPUT_SCHEMA = _object({
 })
 
 
-def _build_request(value: KnowledgeSummaryInput) -> StructuredModelRequest:
+def _build_request(value: KnowledgeModeSummaryInput) -> StructuredModelRequest:
     if type(value) is not KnowledgeModeSummaryInput:
         raise ModelInputDenied("knowledge.summary_input_invalid")
     payload = mode_summary_input_json(value)
@@ -148,7 +147,7 @@ def _parse_response(response: StructuredModelResponse) -> KnowledgeCitedSummaryO
 
 class KnowledgeSummaryTaskV9:
     @staticmethod
-    def definition() -> ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeCitedSummaryOutput]:
+    def definition() -> ModelTaskDefinition[KnowledgeModeSummaryInput, KnowledgeCitedSummaryOutput]:
         return ModelTaskDefinition(
             task_id=ModelTaskId.KNOWLEDGE_SUMMARY,
             task_version="9",

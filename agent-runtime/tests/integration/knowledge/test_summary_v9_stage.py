@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import json
 from typing import Any, cast
 
@@ -10,11 +11,9 @@ from agent_runtime.knowledge.contracts import EvidenceStageCode, EvidenceStageKi
 from agent_runtime.capability_api.contracts import canonical_json_bytes
 from agent_runtime.knowledge.evidence.contracts import (
     KnowledgeCitedSummaryOutput, KnowledgeCitedSummaryPoint, KnowledgeEgressDisposition,
-    KnowledgeEvidenceLimits, KnowledgeModeSummaryInput, KnowledgeSummaryInput,
-    KnowledgeSummaryOutput, SummaryOutcome,
+    KnowledgeModeSummaryInput, SummaryOutcome,
 )
-from agent_runtime.knowledge.evidence.minimal_selection import MinimalEvidenceSelector
-from agent_runtime.knowledge.evidence.stage import DefaultKnowledgeEvidenceStage
+from agent_runtime.knowledge.evidence.minimal_stage import MinimalKnowledgeEvidenceStage
 from agent_runtime.knowledge.evidence.summary_task_v9 import KnowledgeSummaryTaskV9, OUTPUT_NAME
 from agent_runtime.knowledge.intent_contracts import KnowledgeQueryMode
 from agent_runtime.model.context import ModelCallContextAccessor
@@ -30,16 +29,86 @@ from tests.unit.knowledge.evidence.test_minimal_selection import minimal_input
 
 
 def _stage(gateway: Any, *, denied: bool = False,
-           definition: ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeCitedSummaryOutput] | None = None,
-           ) -> DefaultKnowledgeEvidenceStage:
-    return DefaultKnowledgeEvidenceStage(
+           definition: ModelTaskDefinition[KnowledgeModeSummaryInput, KnowledgeCitedSummaryOutput] | None = None,
+           ) -> MinimalKnowledgeEvidenceStage:
+    return MinimalKnowledgeEvidenceStage(
         catalog=synthetic_catalog(disposition=(KnowledgeEgressDisposition.DENY if denied
                                                else KnowledgeEgressDisposition.ALLOW_MINIMAL)),
         guard=QuestionEgressGuard(), context=ModelCallContextAccessor(), gateway=gateway,
-        definition=cast(ModelTaskDefinition[KnowledgeSummaryInput, KnowledgeSummaryOutput],
-                        definition or KnowledgeSummaryTaskV9.definition()),
-        limits=KnowledgeEvidenceLimits.minimal_v1(), selector=MinimalEvidenceSelector(),
+        definition=definition or KnowledgeSummaryTaskV9.definition(),
     )
+
+
+@pytest.mark.parametrize("fault", ["task_id", "version", "input_type"])
+def test_current_stage_rejects_wrong_binding_at_construction(fault: str) -> None:
+    from agent_runtime.knowledge.evidence.contracts import KnowledgeSummaryInput
+    from agent_runtime.model.contracts import ModelTaskId
+
+    definition = KnowledgeSummaryTaskV9.definition()
+    if fault == "task_id":
+        definition = replace(definition, task_id=ModelTaskId.KNOWLEDGE_REWRITE)
+    elif fault == "version":
+        definition = replace(definition, task_version="8")
+    else:
+        definition = replace(definition, input_type=KnowledgeSummaryInput)
+    gateway = FakeGateway()
+    with pytest.raises(ValueError, match="knowledge.production_task_version_invalid"):
+        _stage(gateway, definition=definition)
+    assert gateway.inputs == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fault", ["input", "hash", "mode", "question", "context", "policy_version",
+                                  "question_denied", "policy_missing"])
+async def test_current_stage_invalid_input_is_closed_before_summary(fault: str) -> None:
+    gateway = FakeGateway()
+    source = minimal_input()
+    context = _context()
+    if fault == "input":
+        source = object()
+    elif fault == "hash":
+        ranked = source.batch.candidates[0]
+        source = replace(source, batch=replace(source.batch, candidates=(replace(ranked,
+            candidate=replace(ranked.candidate, content_sha256="b" * 64)),)))
+    elif fault == "mode":
+        source = replace(source, intent=replace(source.intent, query_mode=KnowledgeQueryMode.EXPLANATION))
+    elif fault == "question":
+        source = replace(source, question=replace(source.question, minimized_question="其他税务政策"))
+    elif fault == "context":
+        context = replace(context, request_id="different-request")
+    elif fault == "policy_version":
+        source = replace(source, question_policy_version="different-policy")
+    elif fault == "question_denied":
+        source = replace(source, question_egress_denied=True)
+    else:
+        ranked = source.batch.candidates[0]
+        source = replace(source, batch=replace(source.batch, candidates=(replace(ranked,
+            candidate=replace(ranked.candidate, document_id="unknown")),)))
+    result = await call_with_model_context(lambda: _stage(gateway).build_result(
+        input=source, context=context, timeout_s=2,
+    ))
+    assert result.kind is (EvidenceStageKind.MODEL_EGRESS_DENIED
+                           if fault in {"policy_version", "question_denied", "policy_missing"}
+                           else EvidenceStageKind.DOWNSTREAM_FAILURE)
+    assert result.domain_result is None and gateway.inputs == []
+
+
+@pytest.mark.asyncio
+async def test_current_stage_selected_policy_denial_never_reselects_allowed_candidate() -> None:
+    from tests.integration.knowledge.test_minimal_evidence_stage import _catalog_with_second_document
+
+    gateway = FakeGateway()
+    source = minimal_input((("d1", "tax.policy", "税务政策正文"), ("d2", "tax.policy", "其他政策正文")))
+    second = source.batch.candidates[1]
+    source = replace(source, batch=replace(source.batch, candidates=(source.batch.candidates[0],
+        replace(second, candidate=replace(second.candidate, policy_ref="policy-doc-v2")))))
+    stage = MinimalKnowledgeEvidenceStage(
+        catalog=_catalog_with_second_document(deny_first=True), guard=QuestionEgressGuard(),
+        context=ModelCallContextAccessor(), gateway=gateway, definition=KnowledgeSummaryTaskV9.definition(),
+    )
+    result = await call_with_model_context(lambda: stage.build_result(input=source, context=_context(), timeout_s=2))
+    assert result.kind is EvidenceStageKind.MODEL_EGRESS_DENIED
+    assert result.domain_result is None and gateway.inputs == []
 
 
 class FakeGateway:
