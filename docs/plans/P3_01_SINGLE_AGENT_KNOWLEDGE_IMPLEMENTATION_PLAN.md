@@ -6,9 +6,9 @@
 |---|---|
 | 文档标识 | P3_01 |
 | 文档类型 | 设计驱动实施计划 |
-| 当前版本 | v3.53 |
-| 文档状态 | Reviewed（独立无付费准备、证据与状态同步增量复核通过；完整验收未完成） |
-| 日期 | 2026-10-04 |
+| 当前版本 | v3.54 |
+| 文档状态 | Reviewed（独立成对执行失败终态及有限诊断增量复核通过；完整验收未完成） |
+| 日期 | 2026-10-06 |
 | 目标计划路径 | docs/plans/P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md |
 | 适用范围 | 已批准Knowledge在线重建、资料组织与检索表示两条主线 |
 | 非范围 | Business重新设计、图谱、记忆、多轮、旧候选推进 |
@@ -81,6 +81,7 @@
 | 59 | 2026-10-04 | §14.55 | 准备、授权一致性、一次消费、前后验与清理须串行闭合 | v3.51补齐私有外层和固定消费守卫；仅fake验证，不自签授权，不改变质量、历史或发布状态 |
 | 60 | 2026-10-04 | §14.56 | fake产物不能替代实际Java构建及请求投影 | v3.52实际离线构建两臂并核对11个域请求，准备下一独立只读范围；不扩展工具、不执行真实操作、不改变包或质量状态 |
 | 61 | 2026-10-04 | §14.57 | 维护者精确授权独立无付费准备 | v3.53完成67次ES只读及8次Docker身份操作，封存现场有限证据；不执行正式对照、推理或发布，不改变原包及验收状态 |
+| 62 | 2026-10-06 | §1/14.58 | 独立成对执行前置身份核验失败 | v3.54如实封存一次消费后的失败及4次身份探针，HTTP/推理均0；补私有有限失败阶段诊断，不修改历史运行，不补跑，不改变质量及包状态 |
 
 ## 3. 来源清单与当前基线
 
@@ -92,7 +93,7 @@
 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence/回答合同 | L2 | v3.6 / Approved | §9、§19，DR-KEV-201～206/301～304 | 是 | Summary9三模式Spring合成链已验证；lookup两题人工Passed，完整真实语义效果未评价；父正文不自动成为Evidence |
 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) | 共享动作选择职责 | L1 | v3.2 / Approved | §4.1按能力职责选择，不预判资料存在性 | 是 | 本轮增量定向独立复评；Business与历史v4不变 |
 | [L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) | 模型任务及绑定合同 | L2 | v3.4 / Approved | §6.3、DR-MODEL-112动作选择v5 | 是 | 本轮增量已实施并有non-live证明，不表示实际部署或真实效果 |
-| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.51 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 独立现场准备不代替质量；不改gold、阈值或旧终态，完整质量及发布未通过 |
+| [UAT_02](UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 当前验收 | 计划 | v3.52 / Reviewed | 原功能/安全/召回/回答及资料判据，§5.6/6.4演练/诊断与不采用边界 | 是 | 独立现场准备不代替质量；不改gold、阈值或旧终态，完整质量及发布未通过 |
 | [UAT_00](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md) | Business维护基线 | 验收 | v3.1 / Reviewed | 固定35风险与Employee15类扩展，原证据范围 | 是 | 历史等价复用，不是本轮UAT |
 | [旧P3_00快照](历史文档/2026-09-14-knowledge-plan-handoff/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) | 承接与历史事实 | 归档 | v3.0 / 原状态保留 | §21/22新设计交接，其余旧执行不继承 | 是 | 冻结提交/原资产可追溯 |
 
@@ -1101,3 +1102,33 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 下一步形成文号helper全链成对对照的独立精确冻结与执行范围：保留原10个召回题、11域单元、gold/阈值和完整b2，仅比较旧/当前helper，不创建索引、不调用LLM、不重跑旧B/MEASURE。正式前后库存及模型身份复核必须计入其独立预算；本次准备不授予服务、推理或正式对照许可。后续HEAD变化时重新核对离线产物/静态身份与准备材料的兼容，不能将旧JAR或旧静态hash当作新部署身份；不为状态文档提交机械追加没有决策价值的准备全扫描。尚未执行该正式对照或MEASURE，当前本轮授权已耗尽。
 
 本轮独立子代理源码复核发现并关闭三处一次性编排问题；执行后独立重算授权、脚本、captures、identity、inventory及projection的规范hash，核对156条journal、完整回执与字段边界，再对三份文档作定向复评，修正两处版本/修改历史遗漏后通过。评审未再次访问ES/Docker或重算已清理JAR；因不持久化正文/向量，不能从有限身份清单独立重建全source fingerprint，不扩大证明范围。主执行者本地资产交叉验证、110条链接/围栏、4项历史关键hash、P3严格检查0错误/0警告及git diff检查通过。该轮没有生产源码、测试、配置或历史资产修改；未执行pytest全量、Maven测试、真实质量UAT或发布，离线Maven仅构建并跳过测试。
+
+### 14.58 独立成对执行前置失败及有限诊断修复（2026-10-06）
+
+维护者确认§14.57后提出的精确范围：HTTP≤269、模型身份只读探针≤8，最多两臂owned Java/proxy，LLM/索引/alias写入/retry/resume均0，并确认排他窗口。新run `knowledge-document-number-20261006-01`，reference `P3_01:14.57-execution`，冻结clean `codex_0915` HEAD `89bf287738c64e28645cbfb8e199f96d63f242c9`。§14.57捕获仅作为expected基线，不冒充本次现场观察。
+
+第一次本地预检在消费及任何受限操作之前发现Docker.exe文件hash改变，停止且0调用。只读本地核实新文件为29.8.2、Authenticode Valid / Docker Inc；本次冻结使用新SHA-256 `f71e5a9fe6a8db10c7296ad6fdf0c1d7d79634e644d7ec1e8a2c18d7dcb52d21`，该预检事实记录在decision，不修改旧准备资产。实际离线双臂Java/Maven构建通过，仅helper差异；一次性范围随后正式消费。
+
+| 项目 | 实际结果 |
+|---|---|
+| 唯一终态 | `failed_consumed`，reason=`runner_attempt_failed`；不可补跑、续跑或复用余量 |
+| 模型身份探针 | pre=4、post=0；4次只读进程均有completed回执，不证明collector已成功形成身份 |
+| HTTP与case | 全部HTTP分类0、case=0；未进入ES库存、Java/proxy启动、BGE推理或检索 |
+| 禁止操作 | 付费模型、Business、索引/alias写入、retry/resume均0；未读取模型密钥 |
+| 有限证据 | 12条连续journal、授权、decision、expected快照、实际离线projection、执行源码及result；没有observed identity或comparison |
+| 清理边界 | journal封存；客户端关闭，未启动服务/proxy；离线lease已成功退出。reportedCleanup是执行方报告，不冒充journal独立资源证明 |
+| 质量与发布 | `Not assessed`、releaseAllowed=false；前置技术失败不是召回质量失败 |
+
+证据见[独立执行result](../../agent-runtime/tests/uat/results/document-number-comparison/runs/knowledge-document-number-20261006-01/result.json)，SHA-256 `d3ec355103f899cfe19c5a8f4b84b49153d450ae62aa962b7ae3de0fa06ce89c`；同目录保留实际冻结执行源码，不用后续修复替换。独立只读复核确认hash链、计数、封存及资产边界一致。
+
+离线诊断：两批4项command摘要及collector源码相同，两个exec输入摘要均不同；输入仅含StartedAt和固定模型文件清单，因此有依据推断两个容器的启动时间均改变。相同container ID不证明完整运行身份仍相同；这不是模型文件变化的证明。当前封存证据无法确定第一处异常究竟发生于collector、静态复检、材料构造还是expected比对，不声称已查明唯一根因，也不补写旧结果。
+
+针对实际诊断缺口，最小修改既有IdentitySession及runner的私有字段，保留固定失败阶段；只有规范捕获完成后才保存observed供owner诊断，不能把它当作accepted身份。失败前清除上次成功capture；非active非法阶段拒绝也清除残留，并发拒绝不覆盖正在工作的capture。仍精确比对、失败关闭、一次消费及零重试；不记录原始异常、provider输出或正文，不新增框架、probe或线上行为。新字段只经fake验证，本次冻结执行器不具备这些后加字段，故不能反向补证。
+
+修后直接identity/runner两文件 **68 passed，14.84秒**；`mypy --strict`检查完整Agent src及两个直接工具 **155源文件通过**；四个修改源码/测试compileall通过。第一次68项通过只证明修前范围；独立复审发现非法阶段保留旧成功capture后，最小修复并重跑上述68项。没有放宽断言或真实复跑。未执行全量Python/Maven回归、真实效果UAT或发布；本轮离线Maven跳过测试。
+
+独立子代理未参与改动，定向源码复审及修后14项fake通过，确认诊断残留缺陷关闭；有限资产及三份文档定向复评通过，修正文档来源表的旧UAT版本遗漏。Reviewed只覆盖本增量，不批准整体质量。P3严格检查0错误/0警告、111本地链接及围栏、4项历史关键hash和diff检查通过。外层7份临时副本逐字节核对与正式run一致后清理，正式资产完整保留。
+
+有限失败资产已本地提交为`0e8ccb64`，未推送；诊断及本次状态同步由后续本地提交承接，不改本次frozen HEAD。
+
+原14包/14边、11 Done/2 In Progress/1 Blocked、A未评价、B不采用、MEASURE invalid_run及001/002人工Passed、003/004 Failed保持。下一真实步骤需独立范围和有效授权，先取得与当前运行实例相符的模型身份，再绑定新的成对执行；保留完整库存前后核验和质量阈值，不重复本批、不忽略StartedAt或弱化exact expected。本轮已用尽独立消费机会，不能以剩余预算自动执行新准备或MEASURE。

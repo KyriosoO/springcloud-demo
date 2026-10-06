@@ -260,6 +260,8 @@ class IndependentRunner:
         self.root = _ROOT if synthetic_root is None else synthetic_root
         self._attempted = False
         self._lock = Lock()
+        self.identity_failure_phase: str | None = None
+        self.identity_failure_capture: IdentityCapture | None = None
 
     def _window(self) -> None:
         p.require(self.scope.not_before <= time.time() < self.scope.expires_at, "runner_window_invalid")
@@ -324,7 +326,12 @@ class IndependentRunner:
 
             async def phase(name: str) -> tuple[InventoryCapture, IdentityCapture]:
                 self._window()
-                identity = await _guarded(lambda: identities.capture_async(name), cancellation, journal)
+                try:
+                    identity = await _guarded(lambda: identities.capture_async(name), cancellation, journal)
+                except Exception:
+                    self.identity_failure_phase = identities.failure_phase
+                    self.identity_failure_capture = identities.observed
+                    raise
                 p.require(identity.static_sha256 == self.scope.static_sha256, "runner_static_drift")
                 self._window()
                 inventory = await _guarded(lambda: inventories.capture_async(name), cancellation, journal)

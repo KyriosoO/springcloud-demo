@@ -116,6 +116,7 @@ def session(monkeypatch, pair, tmp_path, *, expected=None, checkpoint=None):
 def test_existing_collector_checks_all_four_commands_before_durable_dispatch(monkeypatch, pair, tmp_path):
     value, provider, entries = session(monkeypatch, pair, tmp_path)
     capture = value.capture("preparation")
+    assert value.observed == capture and value.failure_phase is None
     assert len(provider.calls) == 4 and [row[0] for row in entries] == ["started", "finished"] * 4
     assert value.ledger.view()["counts"] == {"preparation": 4}
     assert value.ledger.view()["pending"] == 0
@@ -136,6 +137,7 @@ def test_pre_and_post_match_preparation_and_never_reuse_a_phase(monkeypatch, pai
     with pytest.raises(p.ProtocolError, match="phase_invalid"):
         execution.capture("post")
     assert len(provider.calls) == 8 and execution.ledger.view()["stopped"] is True
+    assert execution.failure_phase == "phase_invalid" and execution.observed is None
 
 
 @pytest.mark.parametrize("phase", ["post", "pre", "unknown", "preparation/"])
@@ -144,6 +146,7 @@ def test_wrong_phase_sends_nothing(monkeypatch, pair, tmp_path, phase):
     with pytest.raises(p.ProtocolError, match="phase_invalid"):
         value.capture(phase)
     assert provider.calls == []
+    assert value.failure_phase == "phase_invalid" and value.observed is None
 
 
 @pytest.mark.parametrize("failure", ["start-checkpoint", "finish-checkpoint", "provider", "empty", "large", "malformed"])
@@ -256,6 +259,21 @@ def test_pre_or_post_identity_drift_cannot_produce_success(monkeypatch, pair, tm
         execution.capture("post")
     assert execution.ledger.view()["stopped"] is True
     assert len(provider.calls) == (4 if drift == "static" else 8)
+    assert execution.failure_phase == ("static_identity" if drift == "static" else "expected_comparison")
+    if drift == "static":
+        assert execution.observed is None  # Do not expose stale successful pre identity.
+    else:
+        assert execution.observed is not None and execution.observed != expected
+        assert execution.observed.model_sha256 != expected.model_sha256
+
+
+def test_invalid_collector_has_finite_phase_without_raw_output(monkeypatch, pair, tmp_path):
+    value, provider, _ = session(monkeypatch, pair, tmp_path)
+    provider.rerank = {**provider.rerank, "files": {"private-sensitive-output": "bad"}}
+    with pytest.raises(p.ProtocolError, match="capture_failed"):
+        value.capture("preparation")
+    assert len(provider.calls) == 4 and value.ledger.view()["pending"] == 0
+    assert value.failure_phase == "model_capture" and value.observed is None
 
 
 @pytest.mark.parametrize("stop_failure", [False, True])

@@ -237,6 +237,10 @@ class IdentitySession:
         self._active = False
         self._rejected = False
         self._lock = Lock()
+        # Finite diagnostics for the owning executor, including failed runs.
+        # These never turn a failed comparison into an accepted identity.
+        self.failure_phase: str | None = None
+        self.observed: IdentityCapture | None = None
 
     def capture(self, phase: str) -> IdentityCapture:
         with self._lock:
@@ -247,13 +251,19 @@ class IdentitySession:
             if valid:
                 self._attempted.append(phase)
                 self._active = True
+                self.failure_phase = None
+                self.observed = None
             else:
                 self._rejected = True
+                if not self._active:
+                    self.failure_phase = "phase_invalid"
+                    self.observed = None
         if not valid:
             self.ledger.abort()
             raise p.ProtocolError("identity_phase_invalid")
         result: IdentityCapture | None = None
         failed = False
+        failure_phase = "static_identity"
         try:
             from knowledge_corpus_tools import b_model_identity_v1 as models
             from knowledge_corpus_tools import local_vector_preparation as embed
@@ -263,6 +273,7 @@ class IdentitySession:
             static = capture_static_identity(self.pair, self.binding)
             p.require(self.expected is None or sha256(static).hexdigest() == self.expected.static_sha256,
                       "identity_static_drift")
+            failure_phase = "model_capture"
             self.model.verify_executable()
             ordinal = 0
             def counted(command: list[str], raw: bytes) -> bytes:
@@ -289,14 +300,18 @@ class IdentitySession:
                 return output
             snapshot = models.capture_model_identity(self.model.embedding_container_id,
                 self.model.rerank_container_id, self.model.embedding_model_sha256, process=counted)
+            failure_phase = "static_recheck"
             p.require(ordinal == 4 and capture_static_identity(self.pair, self.binding) == static,
                       "identity_static_drift")
             self.model.verify_executable()
+            failure_phase = "material_encoding"
             material = p.canonical({"static": p._decode(static), "models": snapshot,
                 "docker": {"host": self.model.docker_host, "executableSha256": self.model.docker_sha256}})
             p.require(len(material) <= 65536, "identity_material_size_invalid")
             result = IdentityCapture(sha256(static).hexdigest(), snapshot["sha256"],
                                      sha256(material).hexdigest(), material)
+            self.observed = result
+            failure_phase = "expected_comparison"
             p.require(self.expected is None or result == self.expected, "identity_observed_drift")
         except Exception:
             failed = True
@@ -307,6 +322,7 @@ class IdentitySession:
             if not failed:
                 self._completed.append(phase)
         if failed:
+            self.failure_phase = failure_phase
             self.ledger.abort()
             raise p.ProtocolError("identity_capture_failed") from None
         assert result is not None

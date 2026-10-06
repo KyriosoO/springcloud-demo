@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.51 |
-| 文档状态 | Reviewed（独立准备证据及验收边界增量复核通过；完整验收未完成） |
-| 日期 | 2026-10-04 |
+| 当前版本 | v3.52 |
+| 文档状态 | Reviewed（独立成对执行失败终态与诊断边界增量复核通过；完整验收未完成） |
+| 日期 | 2026-10-06 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
 | 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.8 §20演练本包已实施，L2_01_01 v3.14 §9.9有限离线诊断已实施，Evidence L2 v3.6原合同保持；原证明范围不扩大 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
 | 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.53；只负责包、直接依赖及操作准入 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.54；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -352,6 +352,8 @@ v3.49承接P3_01 §14.55：独立准备/执行范围的精确材料核对、固�
 v3.50同步P3_01 §14.56：旧/当前helper两臂实际离线Java构建及11域请求投影通过，只证明源码单变量和请求构造可核对，不证明现场身份、召回或回答改善。下一准备范围仍为未授权提议；本轮真实操作为0，原用例、人工结论、阈值及未完成状态不变。
 
 v3.51同步P3_01 §14.57：另获精确授权的一次无付费准备终态为prepared，完整竞争池与模型文件身份已当次核验，证据封存及清理完成；未执行相关性检索、推理、服务启动或写入。该结果不证明必要来源能进入top20、回答充分或新版完整UAT通过；不改原题、gold、阈值、人工判断或失败批次，不允许补跑/续跑。本次授权已消费，正式文号成对对照与MEASURE仍未执行，须独立冻结及许可；工作包状态保持。
+
+v3.52同步P3_01 §14.58：维护者确认的独立成对执行已形成`failed_consumed`，实际仅4次前置模型身份只读探针，HTTP、推理、case均0，未进入库存、服务启动或成对检索。结果为`Not assessed`，不是召回质量失败，也不是新的MEASURE结果。封存证据不能确定第一处底层异常；探针输入摘要支持容器启动时间变化的离线推断，不证明模型文件改变。后续私有诊断修复仅用fake验证，不能补写已封存结果。该批不可续跑、重用或返还余量；新现场准备/执行须有独立范围及许可，不降低原阈值或忽略运行身份变化。原用例、gold、人工结论、B不采用、MEASURE invalid_run及发布未完成状态均保持。
 
 后续逐case报告：版本与设计、风险、预期、实际测试/有限证据、执行状态、通过或失败原因、未验证范围；旧证据引用不能替代新执行。当前37项风险中36项已有fake/non-live阶段证据，EV006仍为partial/evidence missing，完整功能与安全UAT尚未完成。最新B见P3_01 §14.32：10题协议完整、recall未改善、215项盲标待完成，不能发布候选。最新MEASURE执行见§14.33，维护者人工结论见§14.37：001/002 Passed、003/004 Failed；003 no_result且必要来源缺失、004 unsupported，两者与冻结预期不同；005技术失败，006～012未执行，整批invalid_run且不补跑。12个UAT-KORG资料用例仍未形成完整通过证据。历史原终态保持；四题局部评价不构成新的召回改善、整批回答或完整UAT通过结论。
 

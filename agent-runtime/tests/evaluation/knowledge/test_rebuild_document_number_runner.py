@@ -73,6 +73,8 @@ def setup(monkeypatch, scope, tmp_path, *, failure=None, actual_runtime=False):
         clients.append(client)
         return client
     class Identities:
+        failure_phase = None
+        observed = None
         def __init__(self, **kwargs): self.ledger = kwargs["ledger"]
         async def capture_async(self, phase):
             events.append("identity/" + phase)
@@ -80,6 +82,8 @@ def setup(monkeypatch, scope, tmp_path, *, failure=None, actual_runtime=False):
                 ticket = self.ledger.begin(phase, ordinal, ["synthetic-process"], b"")
                 self.ledger.finish(ticket, failed=False)
                 if failure == "identity/" + phase and ordinal == 0:
+                    self.failure_phase = "model_capture"
+                    self.observed = scope.identity
                     raise r.p.ProtocolError("synthetic_failure")
             return scope.identity or prepared.identity
     class Inventories:
@@ -166,6 +170,11 @@ async def test_stage_failure_stops_serial_progress_and_leaves_consumed(scope, mo
     assert events[-1] == failure
     assert all(client.is_closed for client in clients) and all(log.closed for log in logs)
     assert logs[0].ledger.view()["stopped"] and logs[0].identity_ledger.view()["stopped"]
+    if failure.startswith("identity/"):
+        assert runner.identity_failure_phase == "model_capture"
+        assert runner.identity_failure_capture == scope.identity
+    else:
+        assert runner.identity_failure_phase is None and runner.identity_failure_capture is None
     replacement, *_ = setup(monkeypatch, scope, tmp_path)
     with pytest.raises(r.p.ProtocolError, match="runner_attempt_failed"):
         await replacement.evaluate(cancellation=ManualCancellationSignal())
