@@ -1,32 +1,22 @@
 # [L2_00_02] 单体 Agent 模型接入与 Business filters QueryPlan 详细设计
 
-> 文档状态：Approved（v3.4动作选择增量独立定向复评通过；既有证明范围不变）
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.4 |
-| 日期 | 2026-10-03 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 |
+| 当前版本 | v3.5 |
+| 日期 | 2026-10-06 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.3 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
-| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施并由生产组合根绑定的 `business-query-plan-v7`；默认 provider 仍为 stub，v4～v6仅作历史兼容 |
+| Provider 基线 | 已有 DeepSeek transport、input guard 与已实施并由生产组合根绑定的 `business-query-plan-v7`；默认 provider 仍为 stub，v4～v6仅用于历史追溯，不构成当前装配要求 |
 | 归档来源 | [整理前 v2.9 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
-
-本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
-
-本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
-
-v3.2仅同步Knowledge目标Summary9任务注册和既有SCHEMA_ONLY承载能力；Business v7、共享模型后端、Provider协议和历史Summary8均不变。本版本定向独立复评通过，不表示代码已接线。
-
-v3.3只记录Summary9已在仓库唯一组合根接线、三模式Spring→Runtime合成non-live已通过；不改变§6.2模型合同、Business v7或历史Summary8。真实模型质量及部署状态仍未验证。
-
-v3.4按维护者2026-10-03授权新增§6.3动作选择职责与新任务合同；该增量两轮作者内审、一轮独立定向设计评审及一次S2修复复核通过（helper固定路径Prompt绑定），无未关闭S0/S1/S2。独立v5任务、当前enabled组合根及未来MEASURE严格绑定已实施，定向non-live和独立代码复评通过；实际验证记录由P3_01 §14.38保存，不证明真实效果。既有Business v7、选择器v4、Provider协议和冻结证据不变，不包含新的真实验证授权。
+修订历史：[既往修订与评审过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-13)。本文只定义现行职责和合同；实施、部署及验收分别依据当前计划和原始证据，文档整理不继承历史通过结论。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -110,7 +100,7 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 
 依据2026-09-11核实的[官方首次调用](https://api-docs.deepseek.com/zh-cn/)、[Tool Calls严格模式](https://api-docs.deepseek.com/zh-cn/guides/tool_calls)及[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)：JSON mode不等于Schema约束，strict是Beta，固定tool_choice不支持thinking enabled。官方未来模型路由调整不得用于解释此前失败。本增量已按先设计复评、后编码的顺序实施；原non-live验证及状态归历史P3_00，不宣称真实生成可靠性已通过。
 
-### 6.2 Knowledge最小任务设计的Model边界（当前仓库意图12/Summary9；旧Summary8仅兼容）
+### 6.2 Knowledge最小任务设计的Model边界（当前仓库意图12/Summary9；旧Summary8仅作历史追溯）
 
 当前§6.1共享固定后端、SCHEMA_ONLY信封、严格JSON子集及一次输出校验保持不变；该Summary9增量不切换deepseek-flash、不扩大Provider协议、不改变Business v7和action selector。§6.3单独定义后来授权的选择器增量。当前Knowledge任务只消费既有Model能力，不需要修改Core任务ID枚举或公开DTO。
 
@@ -119,28 +109,28 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 - 输入大小、输出tokens和阶段deadline分别由两份L2定义；最多selector+意图+摘要3次模型HTTP。schema枚举/required/additionalProperties和本地数量/跨字段校验同时保留；没有模型失败修复、重试或第二执行工具。
 - 新task独立构造Prompt和decoder，禁用多代字符串替换继承；当前仓库版本12/9与minimal-v1在同一唯一组合根注册，旧11/7/8文件及冻结测试不改写。受影响实现/测试义务为L2_01_02的IMPL-KEV-204、TEST-KEV-204及VAL-KEV-204；组件与Spring合成non-live已有证据，真实语义质量仍待评价。不新增模型HTTP阶段或第二动作。
 
-§2、§10旧实施准入限于各自历史增量；当前Knowledge实施权限按P3_01 §8及用户本目标授权明确。正式复核必须覆盖新任务schema能由当前Model支持子集表示、无新增公开字段/业务调用、错配outbound0；新增模型后端或协议不在本设计内。
+任务Schema必须能由当前Model支持子集表示，错配在outbound前拒绝；新增模型后端或协议不属于本设计。设计及计划状态不能替代单独的运行授权。
 
 ### 6.3 按能力职责选择的新任务（action-selection-v5，仓库non-live已实施）
 
 `REQ-MODEL-107` / `DR-MODEL-112`来源于L1_00 §4.1 / CR-AD-006：选择器按安全目录和用户请求操作选择一个Capability，不依据模型常识预判文件存在性、政策真实性、时效或当前语料覆盖。目录内的资料查找、原文解释和适用性询问可以进入Knowledge；这不承诺有资料或可回答。所需条件、检索命中、证据充分性及受控结果由Knowledge处理。写操作、目录外任务及不可表达意图仍exact unsupported。
 
 1. 独立构造v5英文Prompt，不用对v4 Prompt的字符串替换继承。固定输入仍只有安全capabilities/question；输出仍唯一`{"capability_id":"目录中ID"}`，严格重复键、额外字段、深度/大小和目录成员检查，tool mode NONE、JSON_OBJECT，禁止答案、领域/检索条件、物理字段、工具、事实修正或额外解释。不得为某个题号、文档、年份或关键词编写本地路由。
-2. 复用v4输入冻结、request构造的协议框架及response framing校验；新版本使用独立build_request包装，同时将definition和生成request的task_version固定为v5，不能仅替换捕获v4闭包的外层definition。不改v4源文件/常量/既有调用方。预算沿用timeout、max_input_bytes=65536、max_output_tokens=512，选择阶段仍一次调用，不增加重试或模型阶段。
+2. 复用共享输入冻结、request构造及response framing校验；v5使用独立build_request包装，同时将definition和生成request的task_version固定为v5，不能仅替换捕获v4闭包的外层definition。不改v4源文件/常量/既有调用方。预算沿用timeout、max_input_bytes=65536、max_output_tokens=512，选择阶段仍一次调用，不增加重试或模型阶段。
 3. 当前main.py仅在Knowledge enabled时明确传入v5任务定义。LocalModelCompositionRoot.build新增私有可选action_selection_definition参数（类型`ModelTaskDefinition[ActionSelectionTaskInput, str] | None`），默认None沿用v4；显式定义必须为ACTION_SELECTION和既有输入类型，错配在创建Provider/HTTP资源前启动失败。Business v7与disabled兼容路径不变，不新增环境任务版本开关。
 4. 输入保护仍先于模型；拒绝输入模型0。目录无成员/非法输出/unsupported/超时/取消仍按既有typed错误终止，下游0；不得在unsupported后本地改选、重试、扩域或切换Capability。复用无状态任务和请求级上下文，取消与客户端关闭所有权不变。
-5. 未来MEASURE辅助工具的_TASKS、required assets、prompt_paths及prepare的prompt hash映射均严格绑定v5新模块；同时保留v4依赖源码hash。使用固定路径而非_ASSETS位置下标生成三项Prompt绑定，并验证缺v5资产、旧v4版本或误绑v4 Prompt均在outbound前拒绝，不能同时接受任意v4/v5以复用旧manifest。旧运行、gold和旧冻结任务不改、不续跑。只有独立授权的新批次才可产生真实调用。
-6. 回滚须恢复相容的选择任务、组合根和未来Harness绑定；仅回退一个Prompt不能复用旧授权。真实质量未验证，non-live只能证明合同、选路接缝和零调用不变量。历史004保持Failed；现有证据只确认其选择unsupported，不能确认模型内部推理。005仍无可恢复的公共错误根因。
+5. 验证辅助工具须严格冻结实际任务及Prompt身份；固定资产路径，错配在outbound前拒绝。它不是生产任务装配的第二入口，也不要求新批次兼容旧manifest。细节见[动作选择验证辅助工具冻结规则](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-23)；运行批准由当前验收计划及独立授权控制。
+6. 回滚恢复相容的选择任务、组合根和验证绑定；仅回退Prompt不能复用旧授权。non-live只证明合同、选路和零调用不变量，不证明真实语义质量。旧案例及结论见[选择器旧案例与回滚记录](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-24)。
 
-`IMPL-MODEL-110`：建议新增`model/deepseek/action_selector_v5.py`的`build_action_selection_v5_task_definition(...)`（同步纯构造，返回上述task definition，无I/O）；建议修改`bootstrap.py:LocalModelCompositionRoot.build`与`main.py:build_runtime`作显式绑定；建议修改当前`tests/uat/knowledge_rebuild_measure_runner.py:_TASKS`和`knowledge_rebuild_measure_prepare.py:_ASSETS`，仅为未来冻结作兼容准备。直接消费者为generic DeepSeekCapabilitySelector，decoder/guard/gateway不改。
+`IMPL-MODEL-110`：当前使用`model/deepseek/action_selector_v5.py`的`build_action_selection_v5_task_definition(...)`（同步纯构造，返回上述task definition，无I/O）；`bootstrap.py:LocalModelCompositionRoot.build`与`main.py:build_runtime`作显式绑定；验证辅助工具只承担§6.3第5项的精确冻结，不是Model生产职责。直接消费者为generic DeepSeekCapabilitySelector，decoder/guard/gateway不改。
 
-`TEST-MODEL-110`：建议新增`tests/contract/model/test_action_selection_v5.py`覆盖独立Prompt、安全输入、exact输出、任务错配启动零资源、v4字节与行为兼容；当前`tests/integration/knowledge/test_minimal_current_root.py`覆盖enabled绑定、lookup不存在资料的fake no_result、unsupported/非法输出/模型超时零检索及无fallback；MEASURE fake工具测试检查版本与资产绑定。`VAL-MODEL-104`：执行上述定向测试、现有model/Knowledge/Core/Business相关non-live回归、strict mypy、compileall；不运行真实模型、ES/BGE或服务。
+`TEST-MODEL-110`：现有`tests/contract/model/test_action_selection_v5.py`覆盖独立Prompt、安全输入、exact输出、任务错配启动零资源、disabled默认v4调用路径；当前`tests/integration/knowledge/test_minimal_current_root.py`覆盖enabled绑定、lookup不存在资料的fake no_result、unsupported/非法输出/模型超时零检索及无fallback；MEASURE fake工具测试检查版本与资产绑定。`VAL-MODEL-104`：执行上述定向测试、现有model/Knowledge/Core/Business相关non-live回归、strict mypy、compileall；不运行真实模型、ES/BGE或服务。
 
 追踪：`REQ-MODEL-107 → DR-MODEL-112 → IMPL-MODEL-110 → TEST-MODEL-110 → VAL-MODEL-104`。本增量不修改接口/DTO字段、读取授权、出域策略、gold或历史任务；其non-live实施不关闭MEASURE/COMPARE/RELEASE质量前置。
 
 ## 7. 实现落点清单
 
-§6.1新增实现、验证与状态见下述追踪；原Business条目不变。
+下表只列现行实现。历史`IMPL-MODEL-106`不复用，定义见[历史Business v5实现编号](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-25)。
 
 | 实现编号 | 已验证位置 | 目标变更 |
 |---|---|---|
@@ -149,9 +139,8 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 | `IMPL-MODEL-103` | `agent-runtime/src/agent_runtime/model/input_guard.py` | 安全地点片段、slot、Business 锚点与 prohibited 字段回归 |
 | `IMPL-MODEL-104` | `agent-runtime/src/agent_runtime/model/contracts.py` | 保留 generator `JsonObject` 边界，仅扩展必要 task 输入 |
 | `IMPL-MODEL-105` | `agent-runtime/src/agent_runtime/bootstrap.py` | 保持现有 provider-neutral generator/lifecycle 装配，不新增本地语义分支 |
-| `IMPL-MODEL-106` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan_v5.py` | v5 Prompt、task version、operator-specific value shape 和完整意图合同；v4 保持历史兼容 |
 | `IMPL-MODEL-107` | `agent-runtime/src/agent_runtime/business/planner_catalog.py` | 输出 operator 语义、cardinality、tagged forms、数量和字段组合，不泄漏物理字段 |
-| `IMPL-MODEL-108` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan_v7.py` | v7 显式字段完整性 Prompt；未知显式字段 exact unsupported，v6 保持历史兼容 |
+| `IMPL-MODEL-108` | `agent-runtime/src/agent_runtime/model/deepseek/business_query_plan_v7.py` | v7显式字段完整性Prompt；未知显式字段exact unsupported；旧v6只保留冻结追溯 |
 | `IMPL-MODEL-110` | bootstrap.py/main.py、action_selector_v5.py及当前MEASURE工具 | §6.3显式任务注入、独立Prompt及未来严格冻结已实施，定向non-live与独立代码复评通过；部署和真实质量未验证 |
 
 ## 8. 测试与验证设计
@@ -159,14 +148,14 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 | 测试编号 | 核心场景 |
 |---|---|
 | `TEST-MODEL-101` | 三动作安全目录、operator、workBase/物理信息/敏感字段为 0 |
-| `TEST-MODEL-102` | v4 Prompt：上海地址、职位、amount/date 范围；semantic+地点过滤和缺少批准时钟的相对日期必须 exact unsupported/零调用 |
+| `TEST-MODEL-102` | 现行v7 Prompt：上海地址、职位、amount/date 范围；semantic+地点过滤和缺少批准时钟的相对日期必须 exact unsupported/零调用 |
 | `TEST-MODEL-103` | duplicate key、非 JSON、深度/大小/float 非法，provider decoder 边界明确 |
 | `TEST-MODEL-104` | slot、详细地址/姓名/标识零出域，失败/取消/unsupported 业务零调用 |
 | `TEST-MODEL-105` | Knowledge/answer 现有任务、默认 stub、client close 和并发隔离回归 |
-| `TEST-MODEL-106` | 单/复姓、多姓名、多姓氏、同字段 AND、单/多地区及句式变化的 v5 fake Prompt/catalog 合同 |
+| `TEST-MODEL-106` | 单/复姓、多姓名、多姓氏、同字段 AND、单/多地区及句式变化的 现行v7 fake Prompt/catalog 合同 |
 | `TEST-MODEL-107` | `value_refs` 重复/跨请求/超限、非法 value shape、模型错误/超时均零 Employee 调用 |
 | `TEST-MODEL-108` | 显式未开放字段不得替换为相近字段；exact unsupported 或 strict invalid plan 均必须业务零调用 |
-| `TEST-MODEL-110` | §6.3新任务、v4兼容、错配启动零资源、当前入口及失败零检索；fake不证明真实语义改善 |
+| `TEST-MODEL-110` | §6.3现行v5及disabled默认v4、错配启动零资源、当前入口及失败零检索；fake不证明真实语义改善 |
 
 | 验证编号 | 验证方式 |
 |---|---|
@@ -189,7 +178,7 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 | `DR-MODEL-109` | 用户显式字段是不可丢弃约束；catalog 未开放时模型必须返回明确域的 `unsupported`，禁止近似字段替换、条件丢弃或关联值复用；不增加字段专用黑名单或本地语义解析 |
 | `DR-MODEL-112` | §6.3能力分类不承担资料存在性判定；v5独立任务、精确目录输出和输入保护，unsupported后不补救改选 |
 
-权限与审计：模型不接触角色与 JWT；仅记录 snapshot、task version、action、有限错误和调用计数。数据生命周期与迁移回滚不改变数据库或历史 evidence；v3 controlled/UAT 结果只能证明历史版本，不得替代 v4 UAT。使用独立版本化 manifest 与新结果路径，不新增生产级审批、复杂规则 DSL 或本地语义 Resolver。
+权限与审计：模型不接触角色与 JWT；仅记录 snapshot、task version、action、有限错误和调用计数。数据生命周期与迁移回滚不改变数据库或历史 evidence；历史controlled/UAT结果只证明其冻结版本，不能替代现行任务验收。使用独立版本化 manifest 与新结果路径，不新增生产级审批、复杂规则 DSL 或本地语义 Resolver。
 
 ## 10. 风险、评审记录与实现就绪判定
 
@@ -200,17 +189,17 @@ Knowledge新任务负责唯一name、单调用、无混合正文及arguments严�
 | 当前允许实施范围 | §6.3独立v5及non-live范围已按本次授权实施与复评；其余既有范围不变，不包含新的真实模型、ES/BGE或服务验证授权 |
 | 当前禁止动作 | 修改历史task/批次、放宽Business validator、unsupported后本地强制选路、额外真实调用或无界验证 |
 
-风险包括 Prompt 遗漏/替换用户条件、敏感值出域和旧版本证据误用。candidate-03 证明仅依赖字段白名单不能阻止模型在进入 validator 前把显式未知字段改写成合法相近字段；v7 以通用字段完整性规则、adversarial fake、零调用、版本化 task/manifest 及不可变历史控制，不添加 workBase 专用识别或本地语义 Resolver。运行批次和证据哈希由 UAT_00/evidence 管理。
+主要风险是模型替换/遗漏用户条件、敏感值出域和误用旧证据。现行v7以通用字段完整性Prompt、安全目录、严格validator和零调用反例控制，不增加本地语义Resolver；原实验过程见[Business字段完整性历史案例](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-28)，原运行结论不改写。
 
 ## 11. 端到端追踪矩阵
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
-| `REQ-MODEL-101`; `CON-MODEL-101` | `DR-MODEL-101` | `IMPL-MODEL-101`; `IMPL-MODEL-102` | `TEST-MODEL-101`; `TEST-MODEL-102` | `VAL-MODEL-101` |
+| `REQ-MODEL-101`; `CON-MODEL-101` | `DR-MODEL-101` | `IMPL-MODEL-101`; `IMPL-MODEL-108`; `IMPL-MODEL-102` | `TEST-MODEL-101`; `TEST-MODEL-102` | `VAL-MODEL-101` |
 | `REQ-MODEL-102` | `DR-MODEL-102` | `IMPL-MODEL-104` | `TEST-MODEL-103` | `VAL-MODEL-101` |
 | `REQ-MODEL-103` | `DR-MODEL-103` | `IMPL-MODEL-103` | `TEST-MODEL-104` | `VAL-MODEL-102` |
-| `REQ-MODEL-103` | `DR-MODEL-104` | `IMPL-MODEL-101` | `TEST-MODEL-102` | `VAL-MODEL-101` |
-| `REQ-MODEL-104` | `DR-MODEL-106`; `DR-MODEL-107` | `IMPL-MODEL-106`; `IMPL-MODEL-107` | `TEST-MODEL-106`; `TEST-MODEL-107` | `VAL-MODEL-101`; `VAL-MODEL-102` |
+| `REQ-MODEL-103` | `DR-MODEL-104` | `IMPL-MODEL-101`; `IMPL-MODEL-108` | `TEST-MODEL-102` | `VAL-MODEL-101` |
+| `REQ-MODEL-104` | `DR-MODEL-106`; `DR-MODEL-107` | `IMPL-MODEL-108`; `IMPL-MODEL-107` | `TEST-MODEL-106`; `TEST-MODEL-107` | `VAL-MODEL-101`; `VAL-MODEL-102` |
 | `REQ-MODEL-103`; `REQ-MODEL-104` | `DR-MODEL-108`; `DR-MODEL-109` | `IMPL-MODEL-108` | `TEST-MODEL-107`; `TEST-MODEL-108` | `VAL-MODEL-101`; `VAL-MODEL-102` |
 | `REQ-MODEL-102` | `DR-MODEL-105` | `IMPL-MODEL-105` | `TEST-MODEL-105` | `VAL-MODEL-102` |
 | `REQ-MODEL-107`（L1_00 CR-AD-006） | `DR-MODEL-112` | `IMPL-MODEL-110` | `TEST-MODEL-110` | `VAL-MODEL-104` |

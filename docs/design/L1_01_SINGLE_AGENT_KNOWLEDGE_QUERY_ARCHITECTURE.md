@@ -1,7 +1,7 @@
 # [L1_01] 单体 Agent 知识查询能力架构
 
 > 文档层级：L1
-> 文档状态：Draft（本轮合同收敛已自审、待正式评审；原批准范围不作为新增修订的审批证明）
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息
 
@@ -9,17 +9,19 @@
 |---|---|
 | 文档编号 | `L1_01` |
 | 文档层级 | L1 能力架构 |
-| 文档状态 | Draft（修订待评审）；现有实施与验收状态不变 |
-| 当前版本 | v3.8 |
+| 文档状态 | Approved（仅步骤一文档收敛范围） |
+| 当前版本 | v3.9 |
 | 日期 | 2026-10-06 |
 | 权威范围 | Knowledge 在线查询，以及阶段 A 离线语料审计、版本化处理、候选索引与受控发布边界 |
 | 上位文档 | [`L0_00` v3.2](L0_00_SINGLE_AGENT_ARCHITECTURE.md) |
 | 关联 L1 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md)、[`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) |
 | 下位文档 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)、[`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)、[`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) |
-| 实施状态 | 本目标起始源码绑定Rewrite V11、Summary V7、质量策略V3；当前仓库唯一根已接线意图任务12、Summary9和minimal-v1，Knowledge默认仍disabled。Spring→Runtime合成lookup、explanation、applicability及失败分支已验证；单域root→隔离真实typed只读接线仅有有限预检，不证明真实模型、完整新版UAT、实际部署或效果。阶段A离线成果保留；具体工作包与新版风险状态由P3_01/UAT_02分别维护，原Gate/UAT见历史P3_00/UAT_01 |
+| 实施状态 | 当前仓库唯一根已接线意图任务12、Summary9和minimal-v1，Knowledge默认仍disabled。Spring→Runtime合成lookup、explanation、applicability及失败分支已验证；单域root→隔离真实typed只读接线仅有有限预检，不证明真实模型、完整新版UAT、实际部署或效果。阶段A离线成果保留；具体工作包与新版风险状态由P3_01/UAT_02分别维护，原Gate/UAT见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.25 原文](历史文档/2026-09-14-unified-v3-baseline/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
-修订历史：v3.8收敛现行职责与历史合同，未改变在线算法、权限或验收结论；本轮仅作者自审，正式评审待后续完成。此前修订原文可从整理前提交`3d75bc7bedcc83a896b0951d95b11efdf18c53d1`追溯。
+修订历史：本版补齐步骤一的历史分离、现行职责与追踪收敛；原合同及运行结论保持原证明范围，本文不提供额外运行授权。此前正文可由起始提交81760c4d追溯。
+
+本版评审记录：2026-10-06，作者自检后，由未参与起草的两个执行单元分别核查Knowledge与共享Core/Business的现行正文、差异及关键源码事实；追踪路径、版本与表格问题修复后复评通过，无未关闭S0/S1/S2。范围包括上一轮81760c4d的P5历史分离与冻结顺序；不等于整套架构Ready、代码合规、真实质量、部署或新UAT通过。P3/UAT及架构索引的后续同步另行处理。
 
 ## 2. 阅读导航
 
@@ -37,8 +39,8 @@
 - 领域结果、证据上下文和模型安全载荷是三个不同视图。
 - Knowledge 出域采用全局 ∩ 逻辑域默认 ∩ 文档级收紧策略，缺失、未知或冲突失败关闭。
 - 整域授权拒绝和读取权威失败优先于其他域成功；仅技术性单路失败允许在证据充分时受控继续。
-- P5 结论可以是 `effective`、`partially_effective`、`ineffective` 或 `invalid_run`；最新有效效果等级为 `partially_effective`，不等于整体效果达标。原候选和运行明细保留在历史UAT_01/evidence；新方案验收由UAT_02治理，不继承原通过。
-- 安全负例以“模型零调用”验收，不能同时作为摘要有效完成率的失败样本；显式 `gold_issue` 必须由独立数据质量门禁约束，不能混入模型忠实度或可用性归因。普通 `no_result`、`insufficient_evidence`、技术失败和超时仍保留在各自适用的效果分母中。
+- 历史效果仅适用原冻结版本，不证明现行方案效果；当前功能、安全、召回及回答验收由UAT_02分别治理，不继承原Passed。
+- 功能、安全、召回和回答分别计分；拒绝与缺料如实列出，不按失败结果事后删除用例或放宽预定评价条件。历史P5分母只解释原运行，不控制现行验收。
 
 ### 3.2 简化内容
 
@@ -65,7 +67,7 @@
 ### 4.3 范围外
 
 - 在线文档录入、用户上传、内容编辑、通用内容管理平台；
-- 图谱、语料再导入、未评审的索引重建与公共 DTO/公开枚举变更；现有政策向量表示能力见L2_01_01 §12.8，后续候选构建/发布仍须独立授权并满足L2合同；
+- 图谱、语料再导入、未评审的索引重建与公共 DTO/公开枚举变更；现行资料表示及候选合同见L2_01_01 §18.3/18.4，后续候选构建/发布仍须独立授权并满足L2合同；
 - 知识图谱、图数据库和第二套 Knowledge 在线链路；
 - BGE 服务内部实现，以及 `es-query-service` 既有类型化检索合同之外的内部治理；
 - Employee/Transaction、业务角色和业务字段出域；
@@ -89,11 +91,9 @@
 
 ### 4.5 Knowledge 设计重建（后续实施权威）
 
-#### 4.5.1 事实、推断与问题定位
+#### 4.5.1 当前实现与证明边界
 
-原事实基线与Git比较范围见历史P3_00 §21.1；新承接范围见P3_01 §3。本目标起始源码是Rewrite11/Summary7/quality-v3；当前仓库已接线12/9/minimal-v1，二者不构成请求级并行生产选择。配置模型影响所有DeepSeek任务，代码回滚不能恢复独立的索引/服务实例。已有成功原文、人评和non-live只证明各自切片。当前实例部署、全套新版本真实效果及回滚后的效果优劣均未验证。
-
-已证实：现规划输出包含域、问题类型、改写、证明需求、focus及缺失条件；需求随后参与重排、锚点选择与Summary coverage校验。有限失败证据证明模型输出曾在域合同处失败，但不足以从未保存的原始响应确定更细原因。**有依据的设计推断**：多个阶段依赖同一次模型对证明结构的自声明，扩大结构失败面及语义错误传播；声明齐全不证明原文蕴含。不能据此承诺简化后召回一定提高。
+当前仓库唯一绑定为意图12/Summary9/minimal-v1；部署与真实质量不能由代码配置或non-live推断。复杂证明链的起始分析见[Knowledge重建起始诊断](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-31)，不再作为当前规划输出或兼容义务。
 
 #### 4.5.2 最终保留／重设计／退出决策
 
@@ -105,10 +105,10 @@
 | 来源/hash、Evidence/ref/连续子串/唯一性 | integrity及extractive validator | 保留；只证明来源及文本完整性 | 不把机械校验等同语义充分 |
 | 阶段A资产、父子关系、typed Profile及发布回滚 | 阶段A证据和当前binding文件 | 保留；语料与在线算法分属不同平面 | 本目标零索引操作，后续也不默认回退向量 |
 | keyword/vector、RRF、BGE端口 | retrieval组件和合同 | 保留组件，重设计组合策略 | 原问双路、每域一次rerank、固定预算与稳定排序 |
-| 动作选择/选域/Rewrite | 当前selector后还有复杂规划 | 重设计；不把三类任务合成证明引擎 | Core只选动作；轻量规划只判模式/域/缺条件，首期不生成检索改写 |
-| requirements/focus/coverage声明 | 当前quality-v3跨阶段传播 | 退出新主线的强制证明合同；未证明净收益且耦合高 | 新内部合同不携带这些字段；保留旧源码/冻结调用方至后续清理核实 |
+| 动作选择/选域/Rewrite | 旧selector后包含复杂规划 | 重设计；不把三类任务合成证明引擎 | Core只选动作；轻量规划只判模式/域/缺条件，首期不生成检索改写 |
+| requirements/focus/coverage声明 | 旧quality-v3跨阶段传播 | 退出新主线的强制证明合同；未证明净收益且耦合高 | 新内部合同不携带这些字段；保留旧源码/冻结调用方至后续清理核实 |
 | 锚点、父配额、0.5准入 | 有局部同池改善，非全局保证 | 重设计；效果策略不能成为安全公理 | 首期无证明锚点、无父配额、无裸分绝对门槛；保留域来源机会和总预算，噪声风险实测 |
-| Summary及适用性判断 | V7抽取+模型自报coverage | 重设计为按模式的原文选择，不新增自由生成 | 新任务无coverage自报；本地继续原校验，原问显式条件由模型/人工核对 |
+| Summary及适用性判断 | V7抽取+模型自报coverage | 重设计为逐点原文引用及有界回应，禁止自由生成 | 新任务无coverage自报；本地继续原校验，原问显式条件由模型/人工核对 |
 | 失败语义 | 现有no_result reason与技术错误 | 保留公开合同，明确每阶段原因 | 不把未命中/缺证据/缺条件/技术失败混成一个结论 |
 | 向量表示、模型切换与启动预热 | binding v2、全局flash、启动脚本 | 重设计比较/发布边界，不默认撤销成果 | 分开冻结代码/模型/索引；先不切模型或索引，预热仅显式启用Knowledge的依赖 |
 | 旧candidate/预算及连续复跑 | 已取消优化目标及不可变终态 | 退出；不是新目标前置或授权 | 不建新候选、不复用余额，证据原样保留 |
@@ -136,7 +136,7 @@
 → 确定性计划（原问keyword/vector；目录映射固定Profile）
 → 业务读取授权 → 有界召回/RRF → 每域一次原问rerank
 → 有界Evidence/完整性 → 三层出域
-→ 按模式选择原文片段 → 原引用/连续子串/唯一性校验 → 既有结果
+→ 按模式产生原文引用及有界回应 → 原引用/连续子串/唯一性与回应形状校验 → 既有结果
 ```
 
 `KQ-AD-020`：对应REQ-KQ-201～203，LLM只理解意图、模式、必要域及缺失条件；确定性代码只控制启用目录、类型/数量、预算和行为，不从句式生成业务计划。资料查找可以非穷尽，解释需覆盖所问，适用性不得补事实或把分类假设当结论。
@@ -151,7 +151,7 @@
 
 #### 4.5.5 实施和证明范围
 
-当前仓库已将原11/7/v3起始绑定成对替换为意图任务12、Summary9、`knowledge-minimal-v1`策略，只保留同一生产入口，而非并行请求选择；实际部署未核实。Summary9只替换了先前12/8配对中的Summary任务，不新增链路或模型调用；L2_01_02 §9的设计复评及组件、Spring合成non-live已完成，真实语义质量仍待人工评价。三个Stage方法签名及Java/Python公开HTTP字段结构保持；内部请求对象使用新版本类型，不塞入旧requirements造假兼容。细则分别归L2_01_00 §8、L2_01_01 §9、L2_01_02 §9。
+当前仓库绑定意图任务12、Summary9、`knowledge-minimal-v1`策略，只保留同一生产入口，而非并行请求选择；实际部署未核实。Summary9不新增链路或模型调用；L2_01_02 §9的设计复评及组件、Spring合成non-live已完成，真实语义质量仍待人工评价。Java/Python公开HTTP字段结构保持；内部Stage消费现行版本类型，不为历史测试恢复旧requirements。细则分别归L2_01_00 §8、L2_01_01 §9、L2_01_02 §9。
 
 实施及剩余验证按P3_01 §5推进；当前组件和成对接线已有fake/non-live阶段证据，完整功能安全回归及有限代表集测量尚未完成。设计通过本身不构成模型或索引操作授权，当前独立目标的有限授权及冻结前置由P3_01/UAT_02记录。允许已有原文关系/安全代码复用，不要求冻结全部内部实现；退出源码必须先证明无有效调用方及历史可追溯，禁止为历史测试把多代策略继续暴露为生产请求选择。
 
@@ -476,7 +476,7 @@ accepted → intent_validated → domains_selected → retrieved
 | 多域 | 至少两个域/替身覆盖单域、多域、零域、非法域和跨域失败 | 目录与集成测试 |
 | 故障可区分 | 拒绝、不可验证、无结果、单路/整体失败、Rerank 和出域不混淆 | 故障注入和优先级测试 |
 | 可替换 | ES/BGE/DeepSeek 可用 fake 替代，Capability 无供应商依赖 | 依赖检查与 fake 集成 |
-| 效果可评估 | 改写、检索、重排、证据和摘要可分别测量 | P5 成对运行与人工 rubric |
+| 效果可评估 | 意图、检索、重排、证据和回答可分别测量 | UAT_02四维验收及人工rubric；P5只解释历史 |
 | 语料可追溯 | P0/P1 资产可从索引片段追溯到官方父文档及附件 hash | manifest、关系、抽样和直接 typed retrieval |
 | 发布可回滚 | 当前索引不原地修改，alias 切换失败可恢复精确旧目标 | 候选完整性、原子切换与回滚演练 |
 
@@ -496,7 +496,7 @@ accepted → intent_validated → domains_selected → retrieved
 | `KQ-AD-010` | 三份 L2 分别治理流程、检索、证据效果 | 控制文档数量并保持边界 | 需避免重复定义公共类型 |
 | `KQ-AD-011` | 阶段 A 使用独立离线 Corpus Build Plane，不新增在线服务 | 语料写入与用户查询隔离，保持一个 `knowledge.query` | 工具链和资产 workspace 需显式版本化 |
 | `KQ-AD-012` | 仅新建候选索引并经发布门禁原子切换 alias | 避免破坏现行索引并提供确定回滚 | 新快照必须同步 Profile 和出域目录 |
-| `KQ-AD-019` | 保留已批准的政策派生向量表示与原文隔离 | 向量输入不成为可引用正文或授权依据 | 具体实现/快照按L2_01_01 §12.8，后续资料表示另按§4.6 |
+| `KQ-AD-019` | 保留已批准的政策派生向量表示与原文隔离 | 向量输入不成为可引用正文或授权依据 | 历史表示见L2_01_01 §12.8，现行资料表示按§18.3及本L1 §4.6 |
 
 
 ## 13. L2 交付边界
@@ -505,7 +505,7 @@ accepted → intent_validated → domains_selected → retrieved
 |---|---|---|---|
 | [`L2_01_00`](L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) | 动作、阶段状态、意图与原问题、逻辑域、检索计划、配置、组合根、失败优先级 | Python 类型/函数、配置键、至少两域测试、流程状态与错误映射 | ES/BGE 协议、融合算法、证据/出域字段 |
 | [`L2_01_01`](L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) | Retrieval Port/Adapter、两级 Profile、读取授权，以及阶段 A 离线资产/解析/切片/候选索引/alias 生命周期 | Python/Java 契约、离线工具合同、mapping/Profile、发布回滚和禁止接口测试 | 逻辑域语义、文档出域策略、摘要、Employee/Transaction 查询 |
-| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence、三层出域、摘要、严格引用和 P5 | 证据/策略类型、语料来源兼容、任务、validator、代表性数据集、指标与效果结论 | 首次读取授权、语料解析、通用模型 Provider |
+| [`L2_01_02`](L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) | Evidence、三层出域、Summary9、严格引用及分维度验收 | 证据/策略类型、语料来源兼容、任务、validator、代表性数据集、指标与效果结论 | 首次读取授权、语料解析、通用模型 Provider |
 
 建议依赖顺序：`L2_01_00` 固定阶段/域语义；`L2_01_01` 固定候选；`L2_01_02` 消费候选形成证据和效果。实现可以按直接依赖并行，不要求人工按文档全串行。
 

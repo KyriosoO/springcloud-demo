@@ -1,25 +1,21 @@
 # [L2_02_01] 单体 Agent Employee 条件/语义查询 Adapter 与授权详细设计
 
-> 文档状态：Approved
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v3.1 `DR-AUTH-007` |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.1 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-10-06 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.2；[`L2_00_03`](L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md) v3.2 `DR-AUTH-007` |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.2 |
 | 归档来源 | [整理前 v2.8 原文](历史文档/2026-09-14-unified-v3-baseline/L2_02_01_SINGLE_AGENT_EMPLOYEE_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
-
-本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
-
-本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+修订历史：[既往修订与评审过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-16)。本文只定义现行职责和合同；实施、部署及验收分别依据当前计划和原始证据，文档整理不继承历史通过结论。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -137,7 +133,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `TEST-EMP-104` | ES content-type、1 MiB、duplicate key、hits shape、未配置/unknown/embedding 字段经结果白名单自然丢弃 |
 | `TEST-EMP-105` | page/from overflow、size、sort、in 上限及 aggregate 禁止 |
 | `TEST-EMP-106` | 两个 ES POST 真实 SecurityFilterChain：共享 role converter、ADMIN/VIEWER 允许、denied/mixed/missing/malformed/service-token 拒绝、被拒绝请求零下游，以及 detail/其他 endpoint 历史调用方回归 |
-| `TEST-EMP-107` | detail 调用方、兼容性和冻结历史证据核查；目标组合根不可达 |
+| `TEST-EMP-107` | 当前Agent注册表不包含detail动作；仅在修改仍有效的业务detail入口或安全matcher时验证其调用方兼容 |
 | `TEST-EMP-108` | search 3000ms/semantic 10000ms action 独立预算、配置超界拒绝、单次向量调用、请求 deadline 截断及 timeout 后零重试/零 fallback |
 | `TEST-EMP-109` | semantic 实际 partial page、单条缺姓名/标识记录隔离、真实 total/returned/truncated 保留；整批无有效行、非法结构/字段类型及 search 分页不一致继续失败关闭 |
 | `TEST-EMP-110` | 姓某/某姓/复姓、多姓名、多姓、姓氏+姓名片段抽取与敏感值零模型/日志/diagnostics 暴露 |
@@ -158,7 +154,7 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 | `DR-EMP-103` | `contact_address → contactAddress`，workBase 不纳入本版 Agent 字段定义与启用配置 |
 | `DR-EMP-104` | bounded strict ES hits、字段白名单、敏感脱敏与模型出域默认拒绝 |
 | `DR-EMP-105` | 两个 ES 查询 POST endpoint 必须显式绑定共享 `userRoleJwtAuthenticationConverter`；最终 ADMIN/VIEWER 授权仍由 Employee 读取守卫判定，detail/其他 endpoint 行为不变，切换前完成完整安全链及调用方兼容验证 |
-| `DR-EMP-106` | detail 为历史实现，迁移/删除前核查 caller、公共兼容和冻结 evidence |
+| `DR-EMP-106` | Agent不注册detail；业务服务仍有效的detail入口保持其独立合同。历史Agent实现不形成当前Adapter的兼容职责 |
 | `DR-EMP-107` | semantic 动作因 Embedding+Feign+ES 链路采用 10000ms 代码绑定上限，普通 search 维持 3000ms；单动作、请求 deadline、失败关闭和历史证据保持不变 |
 | `DR-EMP-108` | semantic 容忍现有服务返回少于 k 的合法 partial page；两动作只隔离缺失/null/空白必填姓名或标识的历史记录，保留真实 total 与有效记录 coverage；其余响应错误或全部命中无效仍失败关闭 |
 | `DR-EMP-109` | `employee.search` 复用既有 values/anyFilterClause/bool.must：`in→in`、`prefix_any→prefixAny`、`contains_any→containsAny`，不改公共 DTO |
@@ -169,16 +165,16 @@ JWT 只透传业务服务，Agent 不根据角色放行业务。审计只记录 
 
 ## 10. 风险、评审记录与实现就绪判定
 
-主要风险：已有调用方可能依赖 authenticated-only fallback；raw hits 带 embeddingText、详细地址出域、向量接口被误判支持 filter；把多跳语义检索误套普通搜索 3000ms 上限会产生真实 timeout。首次真实失败证明只测 Controller 会产生权限假阳性；现已通过 endpoint-scoped 共享 converter、真实 Servlet 过滤链矩阵和 fallback 兼容测试关闭该安全实现缺口。语义 timeout 仅通过 action 独立预算纠正，不恢复 fallback 或额外调用；受控真实联调、run03 UAT 和15类自然语言扩展UAT均已独立完成，历史失败证据保持不可变。
+主要风险：安全测试绕过真实过滤链会漏验role claim，raw hits可能泄漏敏感字段，semantic接口不支持结构化filter，语义调用有独立deadline。分别由endpoint-scoped converter及真实安全链测试、白名单投影、严格动作合同和批准的超时预算控制。业务detail及其他endpoint的既有安全行为保留；原运行过程见[Employee旧风险与运行过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-21)，验收适用范围由UAT_00/evidence管理。
 
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
-| 当前实施状态 | endpoint-scoped converter、真实过滤链权限矩阵、detail/fallback 兼容、受控联调与 run03 UAT 已完成 |
+| 当前实施状态 | endpoint-scoped converter、真实过滤链权限矩阵、detail/fallback 兼容、既有验收的适用范围见UAT_00/evidence，本轮不重新执行 |
 | 当前允许实施范围 | 后续独立授权后：已实施 Employee search/semantic 链路的缺陷修复及 non-live 回归 |
 | 当前禁止动作 | 新增业务接口/DTO、修改全局 fallback、索引或业务数据，或恢复 detail 目标链路 |
 
-评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
+原文档整理评审见归档记录。本轮职责收敛的评审范围与结论独立记录，不继承旧版评审或运行结论。
 
 ## 11. 端到端追踪矩阵
 

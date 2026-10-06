@@ -1,25 +1,21 @@
 # [L2_02_02] 单体 Agent Transaction 列表查询、跨语言合同与 Adapter 详细设计
 
-> 文档状态：Approved
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 |
-| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.1 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-10-06 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.2 |
+| 关联责任边界 | [`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) v3.2 |
 | 归档来源 | [整理前 v2.6 原文](历史文档/2026-09-14-unified-v3-baseline/L2_02_02_SINGLE_AGENT_TRANSACTION_ADAPTER_AUTHORIZATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
-
-本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
-
-本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+修订历史：[既往修订与评审过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-17)。本文只定义现行职责和合同；实施、部署及验收分别依据当前计划和原始证据，文档整理不继承历史通过结论。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -133,11 +129,11 @@ Transaction 服务继续执行既有 ADMIN/VIEWER 最终读取授权；Adapter �
 | 项目 | 判定 |
 |---|---|
 | 是否可作为实现依据 | 按范围可用：设计通过且获得实施授权后 |
-| 当前实施状态 | Transaction Adapter、Date/Decimal/Page/Sort、Java/Python 合同、受控真实验证与 run03 UAT 已完成 |
+| 当前实施状态 | Transaction Adapter、Date/Decimal/Page/Sort、Java/Python 合同、既有验收的适用范围见UAT_00/evidence，本轮不重新执行 |
 | 当前允许实施范围 | 后续独立授权后：已实施 Transaction 链路的缺陷修复及 non-live 回归；相对日期须先取得边界证据 |
 | 当前禁止动作 | 扩张业务 DTO/SQL/公开接口、无证启用相对日期或允许 Agent 数据库直连 |
 
-评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
+原文档整理评审见归档记录。本轮职责收敛的评审范围与结论独立记录，不继承旧版评审或运行结论。
 
 ## 12. 端到端追踪矩阵
 

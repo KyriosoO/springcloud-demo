@@ -1,31 +1,27 @@
 # [L2_00_03] 单体 Agent 用户角色 Authority Converter 详细设计
 
 > 文档层级：L2
-> 文档状态：Approved
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_00_03` |
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-10-06 |
 | 权威范围 | `common-security` 中用户 JWT `role` claim 到 Servlet/Reactive Authority 的唯一转换契约与具名 Bean |
-| 上位文档 | [`L1_00` v3.1](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
+| 上位文档 | [`L1_00` v3.3](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) |
 | 实施状态 | 共享 Converter、自动配置及 Employee/Transaction/Knowledge Provider 生产代码消费已实现并验证；不据此声明外部部署已上线 |
 | 归档来源 | [整理前 v1.3 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_03_SINGLE_AGENT_USER_ROLE_AUTHORITY_CONVERTER_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
-
-本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
-
-本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+修订历史：[既往修订与评审过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-14)。本文只定义现行职责和合同；实施、部署及验收分别依据当前计划和原始证据，文档整理不继承历史通过结论。
 
 ## 2. 阅读导航
 
-重点阅读§6输入/输出、§7规则、§8消费、§11落点。历次修订及旧评审只见归档；本v3.0整合已有有效合同，不新增能力。Knowledge新合同明确标记待实施，旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
+重点阅读§6输入/输出、§7规则、§8消费、§11落点。历次修订及旧评审只见归档；本v3.0整合已有有效合同，不新增能力。本文件只定义本模块的现行职责，不复制Knowledge任务及历史迁移合同。
 
 ## 3. 目标与范围
 
@@ -176,7 +172,7 @@ Converter<Jwt, Mono<AbstractAuthenticationToken>> reactiveUserRoleJwtAuthenticat
 - 拒绝原因可用有限类别统计，但不得用日志输出 token。
 - Converter 无共享可变状态、无缓存、无数据库事务、无重试；线程安全依赖纯转换。
 - Bean 生命周期随 Spring Context；角色数据不持久化，无迁移。
-- `dylan` 是用户而非角色；该用户当前由 auth-service 分配 `ADMIN`，不在 Converter 写用户特例。
+- Converter只消费合法role claim，不按用户名赋权，不读取或复制auth-service的用户分配记录。
 
 ## 10. 配置、兼容、发布与回滚
 
@@ -248,4 +244,4 @@ public final class UserRoleJwtAuthenticationConverter
 
 ## 15. v3.0评审记录
 
-本轮仅整理文档，不继承旧评审。内审及正式分层、跨层复核的实际问题与结论见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)。整理前评审原样保存在归档；本轮为同一执行者分阶段复核，不冒充外部独立人员评审。
+原v3.0文档整理评审见归档记录，不是本轮结论。本轮只评审历史分离、职责收敛和追踪修正，不重新批准运行或UAT。

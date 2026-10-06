@@ -1,25 +1,21 @@
 # [L2_00_01] 单体 Agent Core 执行、QueryPlan 接缝与能力注册详细设计
 
-> 文档状态：Approved
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
-| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.1 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-10-06 |
+| 上位约束来源 | [`L1_00`](L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.3 |
 | 关联责任边界 | [`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；[`L2_02_00`](L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md) |
 | 归档来源 | [整理前 v2.3 原文](历史文档/2026-09-14-unified-v3-baseline/L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
-
-本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
-
-本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+修订历史：[既往修订与评审过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-12)。本文只定义现行职责和合同；实施、部署及验收分别依据当前计划和原始证据，文档整理不继承历史通过结论。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -89,7 +85,7 @@ async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: Requ
 | 实现编号 | 已验证位置 | 目标变更 |
 |---|---|---|
 | `IMPL-CORE-101` | `agent-runtime/src/agent_runtime/graph/business_query_planning.py` | 复用现有 node，承接新 filters plan 与单次调用顺序 |
-| `IMPL-CORE-102` | `agent-runtime/src/agent_runtime/bootstrap.py` | 新三动作/config/provider 组合根及唯一可达性 |
+| `IMPL-CORE-102` | `agent-runtime/src/agent_runtime/bootstrap.py` | 现行三动作/config/provider 组合根及唯一可达性 |
 | `IMPL-CORE-103` | `agent-runtime/src/agent_runtime/graph/state.py` | 请求级 snapshot、取消和 slot 生命周期复核 |
 | `IMPL-CORE-104` | `agent-runtime/src/agent_runtime/core/execution.py` | 保持公共 Core 不改；以回归验证一次执行 |
 
@@ -129,7 +125,7 @@ async CapabilityExecutionCore.execute(*, candidate: ActionCandidate, scope: Requ
 | 当前允许实施范围 | 后续独立授权后：仅允许按新的已评审需求修复现行链路并执行 non-live 回归 |
 | 当前禁止动作 | 修改公共 Core/HTTP/Knowledge、恢复旁路或扩大授权 |
 
-评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
+原文档整理评审见归档记录。本轮职责收敛的评审范围与结论独立记录，不继承旧版评审或运行结论。
 
 ## 10. 端到端追踪矩阵
 

@@ -1,25 +1,21 @@
 # [L2_02_00] 单体 Agent Business filters QueryPlan、字段配置与出域详细设计
 
-> 文档状态：Approved
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息与依据
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.1 |
-| 日期 | 2026-09-14 |
-| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.1 |
+| 当前版本 | v3.2 |
+| 日期 | 2026-10-06 |
+| 上位约束来源 | [`L1_02`](L1_02_SINGLE_AGENT_BUSINESS_QUERY_ADAPTER_ARCHITECTURE.md) v3.2 |
 | 关联责任边界 | [`L2_00_01`](L2_00_01_SINGLE_AGENT_CORE_EXECUTION_CAPABILITY_REGISTRATION_DETAILED_DESIGN.md)；[`L2_00_02`](L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md)；Employee/Transaction L2 |
 | 归档来源 | [整理前 v2.8 原文](历史文档/2026-09-14-unified-v3-baseline/L2_02_00_SINGLE_AGENT_BUSINESS_QUERY_COMMON_CONSTRAINTS_CONFIGURATION_EGRESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修订历史：2026-09-14，整理纳入统一文档基线v3.0；原版本、源提交及完整字节归档见上表。本次版本序列重置不是代码或设计回滚，评审、实施、部署和UAT状态分别管理。
-
-本轮v3.0经三轮内审及两轮同一执行者的分层/跨层正式复核通过；仅证明文档整合，不表示新实现、部署或UAT已完成。完整发现与验证见本次归档MIGRATION.md。
-
-本次v3.1仅修订计划引用、权威归属和维护状态，不改变业务合同；本轮限定迁移复核已通过（同一执行者分阶段），原v3.0评审范围不扩大为新实现/验收。新入口及历史追溯见[计划迁移说明](../plans/历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
+修订历史：[既往修订与评审过程](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-15)。本文只定义现行职责和合同；实施、部署及验收分别依据当前计划和原始证据，文档整理不继承历史通过结论。
 
 ## 2. 设计目标、范围外与当前实现基线
 
@@ -129,7 +125,7 @@ Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny
 | `IMPL-BQCOM-106` | `agent-runtime/src/agent_runtime/business/protected_input.py` | 请求级 slots 和地点片段/详细地址差异化保护 |
 | `IMPL-BQCOM-107` | `agent-runtime/src/agent_runtime/business/user_projection.py` | 用户结果字段白名单与有限脱敏 |
 | `IMPL-BQCOM-108` | `agent-runtime/src/agent_runtime/business/egress.py` | 模型字段交集、未知/敏感/冲突零调用 |
-| `IMPL-BQCOM-109` | `agent-runtime/src/agent_runtime/business/business-query.v3.json` | 当前三动作配置、Employee 多值 operator、组合与行政区 profile；v2 保持历史兼容 |
+| `IMPL-BQCOM-109` | `agent-runtime/src/agent_runtime/business/business-query.v3.json` | 当前三动作配置、Employee多值operator、组合与行政区profile；旧v2只作冻结历史追溯，不是现行配置合同 |
 | `IMPL-BQCOM-110` | `agent-runtime/src/agent_runtime/business/region_normalization.py` | 版本化省/市/自治区有限别名目录和确定性规范化 |
 
 ## 7. 测试与验证设计
@@ -182,19 +178,19 @@ Employee 普通搜索新增逻辑 `prefix_any/contains_any`：`in→in/equalsAny
 | 当前允许实施范围 | 后续独立授权后：已实施合同的缺陷修复、配置收紧和 non-live 回归 |
 | 当前禁止动作 | 新增业务接口、权限扩权、放宽敏感/结果边界或允许 Agent 直接访问业务数据库/ES |
 
-评审记录：本轮文档复核与实际验证见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)；不继承旧版评审状态。
+原文档整理评审见归档记录。本轮职责收敛的评审范围与结论独立记录，不继承旧版评审或运行结论。
 
 ## 10. 端到端追踪矩阵
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
 | `REQ-BQCOM-101`; `CON-BQCOM-101` | `DR-BQCOM-101` | `IMPL-BQCOM-101` | `TEST-BQCOM-101`; `TEST-BQCOM-102` | `VAL-BQCOM-101` |
-| `REQ-BQCOM-102` | `DR-BQCOM-102` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-104`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-101` |
+| `REQ-BQCOM-102` | `DR-BQCOM-102` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-109`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-101` |
 | `REQ-BQCOM-103` | `DR-BQCOM-103` | `IMPL-BQCOM-106` | `TEST-BQCOM-104` | `VAL-BQCOM-102` |
 | `REQ-BQCOM-103` | `DR-BQCOM-104` | `IMPL-BQCOM-107`; `IMPL-BQCOM-108` | `TEST-BQCOM-106` | `VAL-BQCOM-102` |
 | `REQ-BQCOM-104` | `DR-BQCOM-105` | `IMPL-BQCOM-101`; `IMPL-BQCOM-103` | `TEST-BQCOM-105`; `TEST-BQCOM-106` | `VAL-BQCOM-103` |
 | `CON-BQCOM-102` | `DR-BQCOM-106` | `IMPL-BQCOM-102`; `IMPL-BQCOM-105` | `TEST-BQCOM-103` | `VAL-BQCOM-103` |
-| `REQ-BQCOM-102`; `REQ-BQCOM-104` | `DR-BQCOM-107` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-104` | `TEST-BQCOM-103`; `TEST-BQCOM-107` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |
+| `REQ-BQCOM-102`; `REQ-BQCOM-104` | `DR-BQCOM-107` | `IMPL-BQCOM-102`; `IMPL-BQCOM-103`; `IMPL-BQCOM-109` | `TEST-BQCOM-103`; `TEST-BQCOM-107` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |
 | `REQ-BQCOM-103`; `CON-BQCOM-102` | `DR-BQCOM-108` | `IMPL-BQCOM-107` | `TEST-BQCOM-106`; `TEST-BQCOM-108` | `VAL-BQCOM-102` |
 | `REQ-BQCOM-101`; `REQ-BQCOM-103` | `DR-BQCOM-109` | `IMPL-BQCOM-101`; `IMPL-BQCOM-106`; `IMPL-BQCOM-109` | `TEST-BQCOM-109` | `VAL-BQCOM-101`; `VAL-BQCOM-102` |
 | `REQ-BQCOM-101`; `CON-BQCOM-101` | `DR-BQCOM-110` | `IMPL-BQCOM-101`; `IMPL-BQCOM-102`; `IMPL-BQCOM-109` | `TEST-BQCOM-110` | `VAL-BQCOM-101`; `VAL-BQCOM-103` |

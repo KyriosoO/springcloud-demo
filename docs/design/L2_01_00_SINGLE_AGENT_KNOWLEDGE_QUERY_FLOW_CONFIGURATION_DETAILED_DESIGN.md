@@ -1,18 +1,18 @@
 # [L2_01_00] 单体 Agent Knowledge 查询流程与配置详细设计
 
 > 文档层级：L2
-> 文档状态：Draft（本轮合同收敛已自审、待正式评审；原批准范围不作为新增修订的审批证明）
+> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_00` |
-| 当前版本 | v3.11 |
+| 当前版本 | v3.12 |
 | 日期 | 2026-10-06 |
 | 权威范围 | `knowledge.query` 单动作、逻辑域目录、意图规划、多阶段协同、失败优先级、请求状态和流程配置 |
-| 上位文档 | [`L1_01` v3.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.11收敛当前意图、历史责任及未批准补取边界；算法、安全和实施证明范围不变 |
+| 上位文档 | [`L1_01` v3.9](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.12补齐历史分离、现行职责及实现追踪；算法、安全和实施证明范围不变 |
 | 实施状态 | 本目标起始生产入口为Rewrite V11/Summary V7/quality-v3；当前仓库唯一根已接线意图12/Summary9/minimal-v1，默认disabled惰性及域目录维持。Spring→Runtime合成三模式与失败分支、单域当前root到隔离真实typed接口各有有限验证，不证明真实模型、完整新版UAT、实际部署或效果；工作包和新版风险状态分别以P3_01/UAT_02为准。原验证/效果记录见历史P3_00/UAT_01 |
 | 归档来源 | [整理前 v1.34 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -52,7 +52,7 @@
 | 需求编号 | 验收行为 |
 |---|---|
 | `REQ-KFLOW-001` | 一个 `knowledge.query` 内完整执行五阶段，不注册内部阶段为动作 |
-| `REQ-KFLOW-002` | 改写保持主体/时间/条件/否定/法律含义，非法候选不得用于检索 |
+| `REQ-KFLOW-002` | 现行原问意图与检索保持主体/时间/条件/否定/法律含义，非法规划不得用于检索 |
 | `REQ-KFLOW-003` | 逻辑域和检索计划由代码目录及只收紧配置决定 |
 | `REQ-KFLOW-004` | 阶段失败、授权拒绝、零域、无候选和摘要失败保持可区分 |
 | `REQ-KFLOW-005` | 默认入口 disabled 零依赖；enabled 只在同一 Runtime 注册一个动作和两个固定任务 |
@@ -64,30 +64,21 @@
 | `CON-KFLOW-001` | `L0_00 §3/§5/§8；SA-AD-005` |
 | `CON-KFLOW-002` | `L1_01`：Capability 拥有查询策略，Adapter/Provider 拥有检索协议和物理映射 |
 | `CON-KFLOW-003` | `L2_00_01`：动作参数不由模型生成，Core 只执行注册 handler |
-| `CON-KFLOW-004` | `L2_00_02`：rewrite/summary 是代码绑定任务，默认模型可为 stub |
+| `CON-KFLOW-004` | `L2_00_02`：意图/summary是代码绑定任务，默认模型可为 stub |
 | `CON-KFLOW-005` | `REQ-KCORPUS-001～006`、`L1_01 KQ-AD-011/012`：离线构建与在线查询隔离 |
 
-### 4.2 端到端追踪矩阵
+### 4.2 现行端到端追踪矩阵
+
+旧版本映射见[原端到端追踪矩阵](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-32)。下表继承稳定需求及必要边界，当前模式/任务以专门章节为准；映射不声明本轮已执行运行验证。
 
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
 | `REQ-KFLOW-001`、`CON-KFLOW-001`、`CON-KFLOW-003` | `DR-KFLOW-001`、`DR-KFLOW-002` | `IMPL-KFLOW-001`、`IMPL-KFLOW-002` | `TEST-KFLOW-001`、`TEST-KFLOW-002` | `VAL-KFLOW-001` |
-| `REQ-KFLOW-002`、`CON-KFLOW-004` | `DR-KFLOW-003`、`DR-KFLOW-004`、`DR-KFLOW-005` | `IMPL-KFLOW-003`、`IMPL-KFLOW-004` | `TEST-KFLOW-003`、`TEST-KFLOW-004` | `VAL-KFLOW-002` |
-| `REQ-KFLOW-003`、`CON-KFLOW-002` | `DR-KFLOW-006`、`DR-KFLOW-007` | `IMPL-KFLOW-005`、`IMPL-KFLOW-006` | `TEST-KFLOW-005`、`TEST-KFLOW-006` | `VAL-KFLOW-003` |
+| `REQ-KFLOW-002`、`CON-KFLOW-004` | `DR-KFLOW-003`、`DR-KFLOW-005` | `IMPL-KFLOW-201` | `TEST-KFLOW-003`、`TEST-KFLOW-004` | `VAL-KFLOW-002` |
+| `REQ-KFLOW-003`、`CON-KFLOW-002` | `DR-KFLOW-006`、`DR-KFLOW-007` | `IMPL-KFLOW-202`、`IMPL-KFLOW-005`、`IMPL-KFLOW-006` | `TEST-KFLOW-005`、`TEST-KFLOW-006` | `VAL-KFLOW-003` |
 | `REQ-KFLOW-004` | `DR-KFLOW-008`、`DR-KFLOW-009`、`DR-KFLOW-010` | `IMPL-KFLOW-007`、`IMPL-KFLOW-008` | `TEST-KFLOW-007`、`TEST-KFLOW-008` | `VAL-KFLOW-004` |
 | `REQ-KFLOW-005`、`REQ-KFLOW-006` | `DR-KFLOW-011`、`DR-KFLOW-012`、`DR-KFLOW-013`、`DR-KFLOW-014` | `IMPL-KFLOW-009`、`IMPL-KFLOW-010` | `TEST-KFLOW-009`、`TEST-KFLOW-010` | `VAL-KFLOW-005` |
 | `REQ-KFLOW-007`、`CON-KFLOW-005` | `DR-KFLOW-015` | `IMPL-KFLOW-011` | `TEST-KFLOW-011` | `VAL-KFLOW-006` |
-| `REQ-KFLOW-002`、`REQ-KFLOW-004`、`CON-KFLOW-004` | `DR-KFLOW-019` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-003`、`TEST-KFLOW-004`、`TEST-KFLOW-009` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
-| `REQ-KFLOW-002`、`REQ-KFLOW-003`、`CON-KFLOW-004` | `DR-KFLOW-020` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-012` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
-| `REQ-KFLOW-002`、`REQ-KFLOW-003`、`CON-KFLOW-004` | `DR-KFLOW-021` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-013` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
-| `REQ-KFLOW-003`、`CON-KFLOW-004`；`KQ-AD-014` | `DR-KFLOW-022` | `IMPL-KFLOW-004`、`IMPL-KFLOW-010`：semantic_planner、planning、capability、bootstrap的内部版本透传 | `TEST-KFLOW-014`：V2成对绑定、未知版本零检索、历史V1、disabled与单动作 | `VAL-KFLOW-005`：当前根/历史根及严格类型回归 |
-| `REQ-KFLOW-002`、`CON-KFLOW-004`；`KQ-AD-013` | `DR-KFLOW-023` | `IMPL-KFLOW-003`、`IMPL-KFLOW-004`、`IMPL-KFLOW-010` | `TEST-KFLOW-015` | `VAL-KFLOW-002`、`VAL-KFLOW-005` |
-| `REQ-KFLOW-002`、`REQ-KFLOW-003`、`REQ-KFLOW-005`；`KQ-AD-018` | `DR-KFLOW-024` | `IMPL-KFLOW-012` | `TEST-KFLOW-016` | `VAL-KFLOW-007` |
-| `REQ-KFLOW-002`、`REQ-KFLOW-004`；`KQ-AD-015` | `DR-KFLOW-025` | `IMPL-KFLOW-013` | `TEST-KFLOW-017` | `VAL-KFLOW-008` |
-| `REQ-KFLOW-002`；`KQ-AD-013` | `DR-KFLOW-027` | `IMPL-KFLOW-015` | `TEST-KFLOW-019` | `VAL-KFLOW-010` |
-| `REQ-KFLOW-002`；`KQ-AD-013/018` | `DR-KFLOW-028` | `IMPL-KFLOW-016` | `TEST-KFLOW-020` | `VAL-KFLOW-011` |
-| `REQ-KFLOW-004`；`KQ-AD-018` | `DR-KFLOW-026` | `IMPL-KFLOW-014` | `TEST-KFLOW-018` | `VAL-KFLOW-009` |
-| `REQ-KFLOW-002`、`REQ-KFLOW-003`、`REQ-KFLOW-004`；`KQ-AD-013/018` | `DR-KFLOW-031` | `IMPL-KFLOW-019` | `TEST-KFLOW-023` | `VAL-KFLOW-014` |
 
 ## 5. 关联资源与责任边界
 
@@ -121,8 +112,7 @@
 | `DR-KFLOW-001` | 只注册 `knowledge.query`，argument schema 为 exact 空 object |
 | `DR-KFLOW-002` | 五阶段都在一次 handler 内，Core 看不到内部工具或第二动作 |
 | `DR-KFLOW-003` | 原问题先经安全与约束保护；目标固定原问题，不生成改写，主体、时间、条件、否定和法条不得被补造或丢失 |
-| `DR-KFLOW-004` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-005` | 模型/解码/约束失败停止且检索0；敏感输入模型0。旧original fallback仅历史兼容，不得触发生产回退 |
+| `DR-KFLOW-005` | 模型/解码/约束失败停止且检索0；敏感输入模型0。旧original fallback仅解释历史，不得触发生产回退 |
 | `DR-KFLOW-006` | 逻辑域目录代码绑定且有序；配置只能选择已知域 |
 | `DR-KFLOW-007` | 计划只含逻辑域、stable path、query、limit及代码绑定版本；目标不携带旧证据需求，不含物理索引/字段/DSL |
 | `DR-KFLOW-008` | 每阶段使用总 deadline 派生的较小 phase deadline；仅在预算校验通过后创建阶段 operation，超时不进入下一阶段 |
@@ -130,21 +120,12 @@
 | `DR-KFLOW-010` | `question_egress_denied=true` 时策略拒绝优先于 zero-domain/no-result；普通零域仍为 no_result |
 | `DR-KFLOW-011` | 默认启动入口必须先解析 `AGENT_KNOWLEDGE_ENABLED`；false 时不得加载下游配置、任务、策略或创建 client |
 | `DR-KFLOW-012` | 同一根唯一注册已批准并实施的任务/Provider；当前仓库12/9/minimal-v1，旧Summary8不自动后备 |
-| `DR-KFLOW-019` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-020` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-021` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-022` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-023` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-024` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-025` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-026` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-027` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-028` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
-| `DR-KFLOW-031` | 旧实现策略编号保留，仅用于归档/兼容；目标规划与原问合同由DR-KFLOW-201～205及§8替代，不复用旧证明声明或候选格式 |
 | `DR-KFLOW-013` | Knowledge 与 Business 共享 Core 单动作约束但互不 fallback；Knowledge 不进入 Business QueryPlan decoder/binder |
 | `DR-KFLOW-014` | `enabled=true` 时生产 stub provider 是非法组合并启动失败；测试 fake 必须经显式注入接缝使用同一生产装配函数 |
 | `DR-KFLOW-015` | 只有发布门禁通过并同步 Profile、物理 index UUID/mapping、逻辑 snapshot 及模型出域目录后，在线组合根才允许消费新 alias 目标；任何不一致失败关闭且不自动切换 |
 
+
+历史编号原定义见[旧Flow策略规则目录](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-4)；这些编号不复用，也不作为现行实施或全量兼容回归要求。
 ### 7.2 动作契约
 
 `knowledge_query_descriptor()` 返回 ID=`knowledge.query`、kind=`query`、`api_version=1`、模型安全描述和 exact empty schema。`KnowledgeArgumentValidator.validate(arguments)` 只接受空 object，任何额外参数失败；问题来自 execution context。
@@ -241,7 +222,7 @@
 | REQ/CON | 设计规则 | 实现落点 | 测试 | 验证 |
 |---|---|---|---|---|
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-201、DR-KFLOW-202 | IMPL-KFLOW-201：已新增intent_task_v12.py/intent_contracts.py，当前工作树生产意图适配按§8成对接线；旧任务文件保留 | TEST-KFLOW-201：三模式、单/双域、重复/未知/null、terminal组合、缺条件、长度、敏感输入、模型失败/超时/取消及0下游 | VAL-KFLOW-201：定向unit/contract，strict mypy/compileall，非live仅fake |
-| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-203、DR-KFLOW-204 | IMPL-KFLOW-202：planning.py、capability.py、contracts.py的请求内新版本数据通道；现有协议与错误映射复用 | TEST-KFLOW-202：Q逐阶段相等、仅4路径/1embedding、无失败扩域、部分/全失败、reason/HTTP映射、并发隔离 | VAL-KFLOW-202：current-root fake、Spring→Runtime、Knowledge/Core/Business回归 |
+| REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-203、DR-KFLOW-204 | IMPL-KFLOW-202：minimal_plan.py、minimal_capability.py、intent_contracts.py的现行请求通道；capability.py仅复用MinimalFlowBindings、结果构造与deadline函数 | TEST-KFLOW-202：Q逐阶段相等、仅4路径/1embedding、无失败扩域、部分/全失败、reason/HTTP映射、并发隔离 | VAL-KFLOW-202：current-root fake、Spring→Runtime、Knowledge/Core/Business回归 |
 | REQ-KQ-201、REQ-KQ-202、REQ-KQ-203、REQ-KQ-204、REQ-KQ-205 | DR-KFLOW-205 | IMPL-KFLOW-203：bootstrap.py、main.py和直接测试；旧根仅冻结测试隔离，运行配置不自动改 | TEST-KFLOW-203：当前12/9唯一、过渡12/8可追溯、错配拒绝、disabled0依赖、全局模型不变、三client关闭、历史hash/取消 | VAL-KFLOW-203：生产可达性/历史引用扫描、Spring合成三模式；真实部署另行核实 |
 
 表中实现落点已有对应代码和fake/non-live阶段测试，具体已验证与仍缺的TEST/VAL由P3_01及UAT_02 §3逐项界定；Spring→Runtime合成三模式和当前root单域typed只读预检均不证明真实模型、人工效果或发布通过。原设计内审/正式复评及文档验证见历史P3_00 §21；当前交接见P3_01。旧任务和历史运行依据不改写。
@@ -301,7 +282,7 @@ validate empty arguments
 
 ### 10.1 当前目标的有限错误
 
-当前12/9及过渡12/8链路均按§8.3的严格矩阵映射既有公开状态；Summary9仅增加`summaryType`语义值，不增加公开字段或错误状态。保留本节公共异常类别与安全优先级。旧阶段B查询改写、focus及证明需求相关原因只解释旧实现，不进入当前合同。
+当前12/9链路按§8.3的严格矩阵映射既有公开状态；Summary9仅增加`summaryType`语义值，不增加公开字段或错误状态。保留本节公共异常类别与安全优先级。旧阶段B查询改写、focus及证明需求相关原因只解释旧实现，不进入当前合同。
 
 ## 11. 配置、预算与启动校验
 
@@ -333,7 +314,7 @@ validate empty arguments
 ## 12. 权限、安全、审计与一致性
 
 - Capability 把同一 `OpaqueUserToken`、subject 和 deadline 转成 Retrieval/Evidence context，不解析角色。
-- 原问题、rewrite、正文、向量、JWT、模型原响应不进入普通日志。
+- 原问题、规划载荷、正文、向量、JWT、模型原响应不进入普通日志。
 - 日志只记录 request/correlation、目录/config version、选中域数、阶段、状态、coverage 计数和耗时。
 - 每请求无持久状态、数据库事务、重试或 resume；取消后下一阶段调用次数为 0。
 - Retrieval/Evidence 执行发生于边界 Protocol 后，Capability 不依赖它们的 HTTP/模型实现。
@@ -345,114 +326,62 @@ validate empty arguments
 - 回滚可禁用 `AGENT_KNOWLEDGE_ENABLED` 并重启；task version 回滚必须同步组合根和测试，不能覆盖历史 task 源码。
 - 语料发布不属于请求状态机。阶段 A 的 alias 原子切换、原目标记录、冒烟和失败回滚由 `L2_01_01` 治理；本流程只接受已发布且启动校验通过的只读快照。
 
-## 14. 实现落点清单
+## 14. 当前实现落点
 
-本节旧IMPL/TEST/VAL编号仅定位保留组件和原版本兼容责任；新实现主线以§8.5、资料以§19追踪。涉及旧证明策略的具体操作见归档，不能按此重建并行生产流程。
+当前意图/最小Capability合同与实现以§8.5为准，资料接缝以§19为准；共享装配与生命周期组件如下。
 
-### 14.1 实现编号定义
-
-| 实现编号 | 路径与关键入口 |
+| 实现编号 | 路径与职责 |
 |---|---|
 | `IMPL-KFLOW-001` | `agent-runtime/src/agent_runtime/knowledge/provider.py`：descriptor 和 registrations |
-| `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：参数校验及历史Capability；当前执行为`agent-runtime/src/agent_runtime/knowledge/minimal_capability.py`的`MinimalKnowledgeQueryCapability.handle` |
-| `IMPL-KFLOW-003` | 已有`knowledge/question_semantics.py`旧Guard不改；DR-KFLOW-023已新增`knowledge/tax_question_semantics.py`类别词数字分离 |
-| `IMPL-KFLOW-004` | 已有`knowledge/rewrite_v3.py`（精确合同）、`knowledge/semantic_planner.py`、V4/V5/V6任务；DR-KFLOW-023已增加Planner内部Guard注入及共享类别tuple，旧默认与任务不变 |
+| `IMPL-KFLOW-002` | `agent-runtime/src/agent_runtime/knowledge/capability.py`：原Capability仅历史追溯；当前参数校验及执行为`agent-runtime/src/agent_runtime/knowledge/minimal_capability.py`的`MinimalKnowledgeQueryCapability.handle` |
 | `IMPL-KFLOW-005` | `agent-runtime/src/agent_runtime/knowledge/catalog.py`、`domain_selection.py` |
-| `IMPL-KFLOW-006` | `agent-runtime/src/agent_runtime/knowledge/planning.py`：`KnowledgeRetrievalPlanBuilder.build` |
+| `IMPL-KFLOW-006` | `agent-runtime/src/agent_runtime/knowledge/minimal_plan.py`：`MinimalKnowledgePlanBuilder.build`；旧planning.py仅追溯历史 |
 | `IMPL-KFLOW-007` | `agent-runtime/src/agent_runtime/knowledge/contracts.py`、`agent-runtime/src/agent_runtime/knowledge/context.py` |
 | `IMPL-KFLOW-008` | `agent-runtime/src/agent_runtime/knowledge/settings.py`、`agent-runtime/src/agent_runtime/bootstrap.py` 的 Knowledge composition |
 | `IMPL-KFLOW-009` | `agent-runtime/src/agent_runtime/main.py`：按开关构建 Knowledge tasks/retrieval/provider 并追加到 Business Runtime |
 | `IMPL-KFLOW-010` | `agent-runtime/src/agent_runtime/bootstrap.py`：顶层 owned resource 生命周期与 disabled 零依赖装配 |
 | `IMPL-KFLOW-011` | `agent-runtime` 当前策略目录加载与 `serviceCenter/knowledge-runtime-binding.v1.json`：只读发布绑定；历史目录继续独立可校验 |
-| `IMPL-KFLOW-012` | 整理前改写章节（见归档）批准的需求类型、V7任务、Planner/Capability透传、当前根成对绑定及安全观测目标；原部分实施进度见历史P3_00；不改历史任务与公开合同 |
-| `IMPL-KFLOW-013` | 整理前改写章节（见归档）已实施V8指令恢复、当前根单绑定和相同内部合同版本识别；不新增decoder、语义分类器或模型调用 |
-| `IMPL-KFLOW-014` | 整理前改写章节（见归档）当前根绑定Summary7，Stage历史合同兼容6/7，Rewrite8不变 |
-| `IMPL-KFLOW-015` | 整理前改写章节（见归档）已实现document_reference_semantics.py及bootstrap显式注入；原两个Guard不改 |
-| `IMPL-KFLOW-016` | 整理前改写章节（见归档）已新增query_constraint_scope.py/rewrite_v9.py，实现semantic_planner的版本9分支及bootstrap唯一绑定；旧任务/Guard/公共合同不改 |
-| `IMPL-KFLOW-019` | 整理前改写章节（见归档）已新增rewrite_v11.py及组合根不可变域快照、当前Planner接线；直接fake迁移、历史夹具隔离，不改公共DTO/旧任务/历史运行 |
 
-### 14.2 关键签名
+旧Rewrite、Stage签名和逐代实现编号见[旧Flow实现、阶段签名和验证追踪](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-5)，不构成当前运行时兼容义务。当前执行仅使用意图12与Summary9的请求类型；共享Protocol的具体输入由对应现行L2定义，不为旧requirements增设适配。
 
-```python
-class KnowledgeQuestionRewriteStage(Protocol):
-    async def rewrite(
-        self,
-        *,
-        original_question: str,
-        timeout_s: float,
-    ) -> RewriteStageResult: ...
+## 15. 当前测试与验证要求
 
-class KnowledgeRetrievalStage(Protocol[TBatch]):
-    async def execute(
-        self,
-        *,
-        plan: KnowledgeRetrievalPlan,
-        context: KnowledgeRetrievalContext,
-        timeout_s: float,
-    ) -> RetrievalStageResult[TBatch]: ...
+验证§8.5和§19的追踪：单动作、原问题不被改写或补造、域/计划/coverage一致、授权拒绝优先、模型失败零下游、disabled零创建、enabled唯一绑定、超时取消和owned client关闭。Spring/真实typed/效果证据分别记录，不将历史通过继承至当前。
 
-class KnowledgeEvidenceStage(Protocol[TBatch]):
-    async def build_result(
-        self,
-        *,
-        input: KnowledgeEvidenceInput[TBatch],
-        context: KnowledgeEvidenceContext,
-        timeout_s: float,
-    ) -> EvidenceStageResult: ...
-```
+旧TEST/VAL与验证结论见[旧Flow实现、阶段签名和验证追踪](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-5)。只有共享变更影响仍有有效调用方的历史组件时，才执行相应兼容检查；不以所有旧Rewrite/实验组合通过作为当前工作包的默认前置。
 
-## 15. 测试与验证设计
 
-本节旧IMPL/TEST/VAL编号仅定位保留组件和原版本兼容责任；新实现主线以§8.5、资料以§19追踪。涉及旧证明策略的具体操作见归档，不能按此重建并行生产流程。
 
-### 15.1 测试编号定义
+### 当前共享边界的测试编号
 
-| 测试编号 | 场景与路径 |
+| 测试编号 | 场景 |
 |---|---|
-| `TEST-KFLOW-001` | descriptor/empty arguments/单注册：`agent-runtime/tests/contract/knowledge/test_provider_registration.py` |
-| `TEST-KFLOW-002` | Capability 契约、阶段协同和上下文裁剪：`agent-runtime/tests/unit/knowledge/test_capability_contract.py`、`agent-runtime/tests/integration/knowledge/test_flow_with_fake_stages.py` |
-| `TEST-KFLOW-003` | V3精确合同与V4复用合同：`agent-runtime/tests/contract/knowledge/test_rewrite_task_v3.py`、`test_rewrite_task_v4.py`、`test_provider_registration.py`；历史V1/V2测试单独保留 |
-| `TEST-KFLOW-004` | 当前input denied/模型失败/澄清/unsupported零调用且无原问题回退；旧fallback仅验证显式历史装配 |
-| `TEST-KFLOW-005` | 两域单选/多选/零域与稳定顺序：`test_domain_selection.py` |
-| `TEST-KFLOW-006` | plan 域×路径、limit 和无物理资源字段：`test_planning.py` |
-| `TEST-KFLOW-007` | coverage、部分成功、授权优先和阶段 timeout：`agent-runtime/tests/integration/knowledge/test_flow_with_fake_stages.py` 与 Retrieval/Evidence Stage tests |
-| `TEST-KFLOW-008` | denied + zero-domain 与普通 zero-domain 反证：`agent-runtime/tests/evaluation/knowledge/test_live_p5_denied_zero_domain.py` |
-| `TEST-KFLOW-009` | `build_runtime` disabled/enabled、enabled+production-stub 拒绝、显式 fake 注入、唯一注册、缺失配置和重复任务/能力 |
-| `TEST-KFLOW-010` | Spring→当前 Runtime non-live：动作选择、两域、失败优先级、Business 隔离、取消及 client close |
-| `TEST-KFLOW-011` | 新 alias 目标下 Profile/index/policy snapshot 一致性；错绑启动失败、请求零管理调用、旧历史目录哈希不变 |
-| `TEST-KFLOW-012` | DR-KFLOW-020：V5仅改指令/版本、V3 exact合同等价、该历史版本唯一V5与旧版本拒绝、单域/双域fake及非酒店保留表达；真实语义另行UAT，不修改历史gold |
-| `TEST-KFLOW-013` | DR-KFLOW-021：V6指令局部替换/同一decoder与预算、每域聚焦及显式条件不丢失、原问Summary、当前单绑定与旧版本拒绝、历史隔离；合同/生产fake/防回退，真实语义不由fake证明 |
-| `TEST-KFLOW-014` | DR-KFLOW-022：quality-v2从当前根透传、错误版本拒绝、V2/limits配对、历史V1默认、disabled及单动作防回退 |
-| `TEST-KFLOW-015` | DR-KFLOW-023：已新增`test_tax_question_semantics.py`及`test_tax_semantic_guard_production.py`；类别/年份变序成功、类别丢失新增、实际数字/比例/日期/文号/法条/否定变化拒绝、重复数量和上限、旧默认和历史哈希、当前根唯一绑定/零调用/资源关闭 |
-| `TEST-KFLOW-016` | 整理前改写章节（见归档） V7精确合同、终态前校验、同域多角色、语义保护、需求透传、版本矩阵与三处观测不展示focus；已实现测试路径见该节及当前根test_requirement_runtime_composition.py |
-| `TEST-KFLOW-017` | 整理前改写章节（见归档） V8指令恢复、五字段decoder identity/矩阵、当前根/旧版拒绝、澄清零下游及历史作用域恢复；VAL-KFLOW-008不替代真实UAT |
-| `TEST-KFLOW-018` | 整理前改写章节（见归档）版本配对/拒绝旧版、disabled、当前Spring根和冻结历史fixture隔离 |
-| `TEST-KFLOW-019` | 整理前改写章节（见归档）文号正反例、旧Guard、当前生产query/focus、整份拒绝零下游及生命周期；新增两测试文件 |
-| `TEST-KFLOW-020` | 整理前改写章节（见归档）分域/全局计数和顺序、声明与query一致、语义限制反例、V9合同/current root和历史兼容 |
-| `TEST-KFLOW-023` | 整理前改写章节（见归档）固定域槽位、原语义差分、快照/请求隔离、当前根零调用及历史保护；已实施并定向执行通过 |
+| `TEST-KFLOW-001` | descriptor、空参数、唯一注册 |
+| `TEST-KFLOW-002` | Capability阶段、上下文裁剪及单动作 |
+| `TEST-KFLOW-003` | 现行意图12精确Schema、安全输入及原问题不变；不执行旧Rewrite任务 |
+| `TEST-KFLOW-004` | 输入拒绝、模型失败、澄清、unsupported零检索且无fallback |
+| `TEST-KFLOW-005` | 已批准的单域、多域、零域及稳定域顺序 |
+| `TEST-KFLOW-006` | 现行原问Plan的域×路径、limit及无物理字段 |
+| `TEST-KFLOW-007` | coverage、授权优先、部分/全部技术失败和阶段timeout |
+| `TEST-KFLOW-008` | 策略拒绝优先于zero-domain；普通zero-domain保持no_result |
+| `TEST-KFLOW-009` | disabled零依赖、enabled唯一装配、非法配置零资源 |
+| `TEST-KFLOW-010` | Spring→现行Runtime non-live、取消、隔离和client关闭 |
+| `TEST-KFLOW-011` | Profile/index/policy绑定及请求零管理写入 |
 
-### 15.2 验证编号定义
-
-| 验证编号 | 判定 |
+| 验证编号 | 方法与证明边界 |
 |---|---|
-| `VAL-KFLOW-001` | Provider/Capability 契约和单动作调用计数测试通过 |
-| `VAL-KFLOW-002` | 当前Rewrite精确合同、Guard、敏感零调用和无fallback；V5增量单独执行，不继承V4测试结论；旧任务历史合同不变 |
-| `VAL-KFLOW-003` | 两域目录、计划、配置未知 key/越界启动失败测试通过 |
-| `VAL-KFLOW-004` | Knowledge 非 live 回归、strict mypy、compileall、组合根 Summary V5 单注册及 V1～V4 历史不可变通过 |
-| `VAL-KFLOW-005` | 当前启动入口 disabled 零依赖、enabled 唯一对象图和 Spring→Runtime 功能 UAT 通过 |
-| `VAL-KFLOW-006` | 阶段 A 发布绑定可由现有在线链路只读消费，且不改变域选择、Rewrite、排序、错误或 fallback 行为 |
-| `VAL-KFLOW-007` | 整理前改写章节（见归档）任务/计划/current root fake、strict mypy、compileall、历史hash及Spring回归；新真实语义另行验证 |
-| `VAL-KFLOW-008` | 整理前改写章节（见归档） V8合同/当前根/Spring、历史隔离与hash、正式全量non-live、strict mypy、compileall；不产生或证明真实模型调用 |
-| `VAL-KFLOW-009` | 整理前改写章节（见归档）当前根/合同/Spring/类型/全量与原专项UAT分别给出实际证据 |
-| `VAL-KFLOW-010` | 整理前改写章节（见归档）定向/历史/当前根及Spring、正式隔离non-live、strict mypy、compileall；不证明真实改写或召回精度 |
-| `VAL-KFLOW-011` | 整理前改写章节（见归档）纯校验/合同/当前根/Spring/历史与正式non-live、类型检查；真实语义仍由UAT独立判断 |
-| `VAL-KFLOW-014` | 整理前改写章节（见归档）合同/当前根/Spring/历史及正式non-live、strict mypy/compileall；定向验证已通过，完整执行记录归[整理前P3 §20.94.1](../plans/历史文档/2026-09-14-unified-v3-baseline/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md)，不证明真实UAT |
+| `VAL-KFLOW-001` | Provider/Capability及单动作定向contract |
+| `VAL-KFLOW-002` | 现行意图、Guard、非法输出及零下游non-live |
+| `VAL-KFLOW-003` | 目录、Plan和严格配置测试 |
+| `VAL-KFLOW-004` | 现行失败及coverage矩阵、相关non-live、类型与编译检查 |
+| `VAL-KFLOW-005` | 当前组合根及Spring→Runtime功能安全验证；真实部署另核 |
+| `VAL-KFLOW-006` | 已批准发布组合的typed只读接线；不以fake替代发布 |
 
 ## 16. 风险与保护条件
 
 | 风险 | 触发 | 控制 | 是否阻塞/需授权 |
 |---|---|---|---|
-| 改写改变语义 | 模型删除否定/条件 | protected constraints + local validation | 否 |
+| 规划补造或丢失条件 | 模型将显式条件忽略或猜测 | 原问保持不变，受控意图合同及有引用回答；语义按人工评价 | 否 |
 | 零域掩盖拒绝 | 被拒问题恰好无域 | denied 优先规则和成对测试 | 否 |
 | 阶段变公共动作 | Core 可分别调用 rewrite/retrieve | 只注册 `knowledge.query` | 否 |
 | 配置扩权 | 动态域/路径 | 代码目录+未知 key 失败 | 否 |
@@ -469,7 +398,7 @@ class KnowledgeEvidenceStage(Protocol[TBatch]):
 | 当前禁止动作 | 新公开契约/域/权限、自动fallback、在线请求写索引、现行/历史索引原地写入、未冻结的新候选写入、消费旧授权或重跑历史候选；批准的新候选仅按L2_01_01 §18.4.1受控构建 |
 | 回滚单位 | Knowledge Capability、settings/catalog、成对任务绑定及Stage providers；优先禁用Knowledge |
 
-## 18. v3.0评审记录
+## 18. 评审记录与范围
 
 v3.0基线整理时仅整理文档，不继承旧评审。该次内审及正式分层、跨层复核的实际问题与结论见[整理记录](../历史文档/2026-09-14-unified-v3-baseline/MIGRATION.md)。整理前评审原样保存在归档；该次为同一执行者分阶段复核，不冒充外部独立人员评审。
 
