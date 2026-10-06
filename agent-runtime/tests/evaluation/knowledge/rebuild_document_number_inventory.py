@@ -90,7 +90,6 @@ class InventorySession:
             and type(ledger) is AttemptLedger and type(mapping_sha256) is str
             and re.fullmatch(r"[0-9a-f]{64}", mapping_sha256) is not None, "inventory_binding_invalid")
         draft.__post_init__()
-        binding.__post_init__()
         BudgetPlan(record_count)
         p.require(expected is None or type(expected) is InventoryCapture
             and expected.binding == binding and expected.mapping_sha256 == mapping_sha256

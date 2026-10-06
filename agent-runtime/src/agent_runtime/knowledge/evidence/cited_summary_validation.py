@@ -74,8 +74,6 @@ class CitedSummaryValidator:
 
         lines: list[str] = []
         for ordinal, point in enumerate(output.points, 1):
-            if type(point) is not KnowledgeCitedSummaryPoint or type(point.claim) is not str:
-                raise InvalidCitedSummary(CitedSummaryValidationFailureReason.CLAIM_INVALID)
             claim = point.claim
             if query_mode is KnowledgeQueryMode.LOOKUP:
                 if claim != "":

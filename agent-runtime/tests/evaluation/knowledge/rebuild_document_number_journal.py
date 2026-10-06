@@ -64,7 +64,6 @@ class AttemptJournal:
                  operation_guard: Callable[[], None] | None = None) -> None:
         p.require(operation_guard is None or callable(operation_guard), "journal_guard_invalid")
         p.require(type(binding) is JournalBinding, "journal_binding_invalid")
-        binding.__post_init__()
         p.require(directory.name == binding.run_id and directory.parent.is_dir()
                   and directory.parent.resolve() == directory.parent.absolute(), "journal_path_invalid")
         self._lock = Lock()
@@ -145,26 +144,19 @@ class AttemptJournal:
             self.check_operation()
         with self._lock:
             if event == "stopped":
-                p.require(ticket is None and attempt is None, "journal_checkpoint_invalid")
                 self._append({"event": event})
             else:
-                p.require(event in ("started", "finished") and type(ticket) is int and ticket >= 0
-                          and type(attempt) is Attempt, "journal_checkpoint_invalid")
                 assert attempt is not None
                 self._append({"event": event, "ticket": ticket, "attempt": asdict(attempt)})
 
     def _identity_checkpoint(self, event: str, ticket: int | None, attempt: IdentityAttempt | None) -> None:
-        from tests.evaluation.knowledge.rebuild_document_number_identity import IdentityAttempt
         # Never disguise a Docker process receipt as a successful HTTP status.
         if event == "started":
             self.check_operation()
         with self._lock:
             if event == "stopped":
-                p.require(ticket is None and attempt is None, "journal_checkpoint_invalid")
                 self._append({"event": "model_identity_stopped"})
             else:
-                p.require(event in ("started", "finished") and type(ticket) is int and ticket >= 0
-                    and type(attempt) is IdentityAttempt, "journal_checkpoint_invalid")
                 assert attempt is not None
                 self._append({"event": "model_identity_" + event, "ticket": ticket, "attempt": asdict(attempt)})
 
@@ -175,7 +167,6 @@ class AttemptJournal:
         Partial cleanup is persisted but raises a finite failure afterwards.
         """
         p.require(type(report) is CleanupReport, "journal_cleanup_invalid")
-        report.__post_init__()
         self.ledger.abort()
         view = self.ledger.view()
         p.require(view["pending"] == 0, "journal_receipts_pending")

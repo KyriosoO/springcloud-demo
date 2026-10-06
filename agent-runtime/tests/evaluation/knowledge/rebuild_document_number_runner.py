@@ -71,10 +71,8 @@ class RunScope:
             and all(type(port) is int and 1024 <= port <= 65535 and port not in (9200, 8908, 8909)
                     for port in self.ports), "runner_scope_invalid")
         self.pair.draft.__post_init__()
-        self.binding.__post_init__()
-        self.model.__post_init__()
         exact_http_limits(self.record_count, include_preparation=False)
-        self.journal_binding("0" * 64).__post_init__()
+        self.journal_binding("0" * 64)
         p.require((self.phase == "preparation" and self.inventory is None and self.identity is None)
             or (self.phase == "execution" and type(self.inventory) is InventoryCapture
                 and type(self.identity) is IdentityCapture), "runner_snapshot_required")

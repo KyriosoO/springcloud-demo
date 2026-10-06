@@ -145,8 +145,6 @@ class StageComparisonSession:
                   "stage_binding_invalid")
         pair.draft.__post_init__()
         p.require(binding is None or type(binding) is ReadBinding, "stage_binding_invalid")
-        if binding is not None:
-            binding.__post_init__()
         self.pair, self.ledger, self.typed = pair, ledger, typed
         self.embedding, self.rerank, self.physical = embedding, rerank, physical
         self.binding = binding

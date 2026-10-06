@@ -28,7 +28,7 @@ _MAX = 2 * 1024 * 1024
 
 
 def metadata_paths(binding: ReadBinding) -> tuple[str, str, str]:
-    binding.__post_init__()
+    p.require(type(binding) is ReadBinding, "owned_binding_invalid")
     return (f"/_alias/{binding.read_alias}", f"/{binding.index_name}/_settings",
             f"/{binding.index_name}/_mapping")
 

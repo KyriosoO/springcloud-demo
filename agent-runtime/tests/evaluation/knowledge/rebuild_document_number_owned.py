@@ -40,7 +40,6 @@ class ReadBinding:
                   and self.index_name not in (".", "..", "_all"), "owned_binding_invalid")
 
     def profile_snapshot(self, domain: str) -> str:
-        self.__post_init__()
         p.require(domain in ("tax.policy", "tax.law"), "owned_profile_invalid")
         profile = {"tax.policy": "tax-policy-v1", "tax.law": "tax-law-v1"}[domain]
         return sha256("\n".join((profile, self.index_name, self.index_uuid,
@@ -57,7 +56,7 @@ class OwnedProxy(Protocol):
 def java_args(*, pair: ProjectedJavaPair, arm: str, binding: ReadBinding,
               port: int, proxy_port: int) -> list[str]:
     p.require(arm in p.ARMS, "owned_arm_invalid")
-    binding.__post_init__()
+    p.require(type(binding) is ReadBinding, "owned_binding_invalid")
     pair.verify_artifacts()
     index = p.ARMS.index(arm)
     config = pair.configs[index]

@@ -161,7 +161,7 @@ def capture_static_identity(pair: projection.ProjectedJavaPair, binding: ReadBin
     Evidence/Summary. Git reads and file reads are separate non-HTTP work.
     """
     pair.verify_artifacts()
-    binding.__post_init__()
+    p.require(type(binding) is ReadBinding, "owned_binding_invalid")
     projection._validate_pair(pair.proofs, pair.draft)
     head = pair.draft.frozen_head
     p.require(_git_bytes("rev-parse", "HEAD").decode().strip() == head
@@ -224,7 +224,6 @@ class IdentitySession:
             and type(model) is ModelBinding and type(ledger) is IdentityLedger and callable(process)
             and ledger.phases == (("preparation",) if expected is None else ("pre", "post")),
             "identity_session_invalid")
-        model.__post_init__()
         p.require(expected is None or type(expected) is IdentityCapture and _sha(expected.static_sha256)
             and _sha(expected.model_sha256) and _sha(expected.identity_sha256)
             and type(expected.material) is bytes and 0 < len(expected.material) <= 65536
