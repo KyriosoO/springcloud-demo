@@ -146,6 +146,7 @@ async def test_serial_execution_consumes_before_providers_and_closes(scope, monk
                       "identity/post", "inventory/post"]
     assert result.quality_assessment == "Not assessed" and not result.release_allowed
     assert all(client.is_closed for client in clients) and all(log.closed for log in logs)
+    assert runner.failure_phase is None and not runner.final_cleanup_failed
     assert logs[0].identity_ledger.view()["counts"] == {"pre": 4, "post": 4}
     assert logs[0].ledger.counts["snapshotPrePost"] == 4
     with pytest.raises(r.p.ProtocolError, match="runner_already_attempted"):
@@ -170,6 +171,8 @@ async def test_stage_failure_stops_serial_progress_and_leaves_consumed(scope, mo
     assert events[-1] == failure
     assert all(client.is_closed for client in clients) and all(log.closed for log in logs)
     assert logs[0].ledger.view()["stopped"] and logs[0].identity_ledger.view()["stopped"]
+    assert runner.failure_phase == (failure if failure == "runtime" else "_".join(reversed(failure.split("/"))))
+    assert not runner.final_cleanup_failed
     if failure.startswith("identity/"):
         assert runner.identity_failure_phase == "model_capture"
         assert runner.identity_failure_capture == scope.identity
@@ -222,6 +225,40 @@ async def test_static_drift_before_consumption_zero_operation(scope, monkeypatch
         await runner.evaluate(cancellation=ManualCancellationSignal())
     assert events == ["confirmed"] and not clients and not logs
     assert not (tmp_path / "run-root").exists()
+    assert runner.failure_phase == "static_precheck"
+
+
+async def test_static_precheck_delegates_artifact_verification_once(scope, monkeypatch, tmp_path):
+    runner, events, clients, logs = setup(monkeypatch, scope, tmp_path)
+    verifications = []
+    original = r.ProjectedJavaPair.verify_artifacts
+    def verified(pair):
+        verifications.append(pair)
+        original(pair)
+    def capture(pair, binding):
+        pair.verify_artifacts()
+        return STATIC
+    monkeypatch.setattr(r.ProjectedJavaPair, "verify_artifacts", verified)
+    monkeypatch.setattr(r, "capture_static_identity", capture)
+    await runner.evaluate(cancellation=ManualCancellationSignal())
+    assert verifications == [scope.pair]
+
+
+@pytest.mark.parametrize("failure", [None, "inventory/preparation"])
+async def test_cleanup_failure_preserves_primary_stage_without_raw_exception(scope, monkeypatch, tmp_path, failure):
+    import traceback
+    scope = replace(scope, phase="preparation", inventory=None, identity=None)
+    runner, events, clients, logs = setup(monkeypatch, scope, tmp_path, failure=failure)
+    def close_then_fail(client):
+        client.close()
+        raise RuntimeError("private-provider-detail")
+    monkeypatch.setattr(r, "_close_client", close_then_fail)
+    with pytest.raises(r.p.ProtocolError, match="runner_attempt_failed") as caught:
+        await runner.evaluate(cancellation=ManualCancellationSignal())
+    assert runner.final_cleanup_failed
+    assert runner.failure_phase == ("cleanup" if failure is None else "preparation_inventory")
+    assert all(client.is_closed for client in clients) and all(log.closed for log in logs)
+    assert "private-provider-detail" not in "".join(traceback.format_exception(caught.value))
 
 
 def test_live_root_cannot_be_relocated(scope, tmp_path):
@@ -405,6 +442,9 @@ async def test_stop_checkpoint_failure_still_drains_and_closes(scope, monkeypatc
         await task
     assert drained.is_set() and clients[0].is_closed and logs[0].closed
     assert logs[0].ledger.view()["stopped"] and logs[0].identity_ledger.view()["stopped"]
+    # Earlier stop/checkpoint failure still rejects the phase; this flag only
+    # describes the subsequent owning-finally cleanup, which completed.
+    assert runner.failure_phase == "pre_identity" and not runner.final_cleanup_failed
 
 
 async def test_short_consumption_write_remains_consumed_zero_provider(scope, monkeypatch, tmp_path):

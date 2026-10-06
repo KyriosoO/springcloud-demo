@@ -262,6 +262,10 @@ class IndependentRunner:
         self._lock = Lock()
         self.identity_failure_phase: str | None = None
         self.identity_failure_capture: IdentityCapture | None = None
+        self.failure_phase: str | None = None
+        # Only the owning finally block's cleanup outcome. A stop/checkpoint
+        # failure inside a guarded phase remains that phase's primary failure.
+        self.final_cleanup_failed = False
 
     def _window(self) -> None:
         p.require(self.scope.not_before <= time.time() < self.scope.expires_at, "runner_window_invalid")
@@ -283,6 +287,7 @@ class IndependentRunner:
         client: httpx.Client | None = None
         result: RunCapture | None = None
         failed = cancelled = False
+        stage = "entry_validation"
         try:
             if cancellation.is_cancelled():
                 raise asyncio.CancelledError
@@ -293,6 +298,7 @@ class IndependentRunner:
                       "runner_live_root_fixed")
             # No restricted provider has been called yet. Human provenance is
             # verified by this explicit trusted caller, NOT by an approved flag.
+            stage = "confirmation"
             receipt = self.confirm(self.authorization)
             p.require(type(receipt) is ConfirmationReceipt
                 and receipt.authorization_sha256 == sha256(self.authorization).hexdigest()
@@ -301,15 +307,19 @@ class IndependentRunner:
             self._window()
             if cancellation.is_cancelled():
                 raise asyncio.CancelledError
-            self.scope.pair.verify_artifacts()
+            stage = "static_precheck"
+            # capture_static_identity owns the leased artifact verification.
             p.require(sha256(capture_static_identity(self.scope.pair, self.scope.binding)).hexdigest()
                 == self.scope.static_sha256, "runner_static_drift")
+            stage = "consume"
             directory = _consume(self.root, self.scope, self.authorization, receipt)
             phases = ("preparation",) if self.scope.phase == "preparation" else ("pre", "post")
+            stage = "journal_create"
             journal = AttemptJournal(directory=directory,
                 binding=self.scope.journal_binding(sha256(self.authorization).hexdigest()),
                 limits=self.scope.limits(), identity_phases=phases,
                 operation_guard=lambda: self._operation(cancellation))
+            stage = "client_create"
             created = self.client_factory()  # Opening a client performs no HTTP.
             # Take ownership before exact-type rejection, so a recognisable
             # but unsupported subclass does not leak its returned handle.
@@ -317,6 +327,7 @@ class IndependentRunner:
                 client = created
             p.require(type(client) is httpx.Client and not client.is_closed, "runner_client_invalid")
             assert journal.identity_ledger is not None
+            stage = "session_create"
             inventories = InventorySession(draft=self.scope.pair.draft, binding=self.scope.binding,
                 mapping_sha256=self.scope.mapping_sha256, record_count=self.scope.record_count,
                 ledger=journal.ledger, client=client, expected=self.scope.inventory)
@@ -325,6 +336,9 @@ class IndependentRunner:
                 expected=self.scope.identity)
 
             async def phase(name: str) -> tuple[InventoryCapture, IdentityCapture]:
+                nonlocal stage
+                previous_stage = stage
+                stage = name + "_identity"
                 self._window()
                 try:
                     identity = await _guarded(lambda: identities.capture_async(name), cancellation, journal)
@@ -333,21 +347,23 @@ class IndependentRunner:
                     self.identity_failure_capture = identities.observed
                     raise
                 p.require(identity.static_sha256 == self.scope.static_sha256, "runner_static_drift")
+                stage = name + "_inventory"
                 self._window()
                 inventory = await _guarded(lambda: inventories.capture_async(name), cancellation, journal)
+                stage = previous_stage
                 return inventory, identity
 
             inventory, identity = await phase(phases[0])
             if self.scope.phase == "preparation":
                 result = RunCapture(inventory, identity, None)
             else:
-                p.require(inventory == self.scope.inventory and identity == self.scope.identity,
-                          "runner_precheck_mismatch")
                 self._window()
                 async def postcheck() -> None:
-                    after_inventory, after_identity = await phase("post")
-                    p.require(after_inventory == inventory and after_identity == identity,
-                              "runner_postcheck_mismatch")
+                    # Both sessions compare every successful capture with the
+                    # same frozen expected snapshot. Keep the actual postflight,
+                    # not a second equality check of already validated values.
+                    await phase("post")
+                stage = "runtime"
                 runtime = OwnedComparisonRuntime(pair=self.scope.pair, journal=journal,
                     binding=self.scope.binding, ports=self.scope.ports,
                     metadata_sha256=inventory.metadata_sha256, postcheck=postcheck, inventory_client=client)
@@ -357,15 +373,16 @@ class IndependentRunner:
             cancelled = True
         except Exception:
             failed = True
+            self.failure_phase = stage
         finally:
             if journal is not None:
-                failed = not _stop(journal) or failed
+                self.final_cleanup_failed = not _stop(journal)
             if client is not None and not client.is_closed:
                 try:
                     closed = _close_client(client)
-                    failed = not closed or failed
+                    self.final_cleanup_failed = not closed or self.final_cleanup_failed
                 except Exception:
-                    failed = True
+                    self.final_cleanup_failed = True
             if journal is not None:
                 try:
                     if not journal.closed:
@@ -373,12 +390,16 @@ class IndependentRunner:
                             True if client is None else client.is_closed, self.scope.pair.resources_released,
                             self.scope.pair.resources_released))
                 except Exception:
-                    failed = True
+                    self.final_cleanup_failed = True
                 finally:
                     try:
                         journal.dispose()
                     except Exception:
-                        failed = True
+                        self.final_cleanup_failed = True
+            if self.final_cleanup_failed:
+                failed = True
+                if self.failure_phase is None:
+                    self.failure_phase = "cleanup"
         if failed:
             raise p.ProtocolError("runner_attempt_failed") from None
         if cancelled:
