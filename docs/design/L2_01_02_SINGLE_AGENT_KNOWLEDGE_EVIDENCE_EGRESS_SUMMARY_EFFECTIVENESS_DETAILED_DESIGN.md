@@ -1,18 +1,18 @@
 # [L2_01_02] 单体 Agent Knowledge 证据、出域、摘要与效果验证详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（现行Summary9与历史实现隔离的定向修订已复评；有界回答合同保持）
+> 文档状态：Draft（本轮合同收敛已自审、待正式评审；原批准范围不作为新增修订的审批证明）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_02` |
-| 当前版本 | v3.8 |
+| 当前版本 | v3.9 |
 | 日期 | 2026-10-06 |
-| 权威范围 | 证据完整性/选择、三层出域、当前Summary9与历史Summary8、严格引用及有限回答、本地结果和 P5 历史效果验证边界 |
-| 上位文档 | [`L1_01` v3.7](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.8仅分离历史记录；当前合同、安全边界及实施证明范围不变 |
+| 权威范围 | 证据完整性/选择、三层出域、当前Summary9及历史任务追溯、严格引用及有限回答、本地结果和 P5 历史效果验证边界 |
+| 上位文档 | [`L1_01` v3.8](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
+| 本次变更 | v3.9分离P5历史评估细则，明确历史任务保留不等于运行时兼容；当前Summary9合同不变 |
 | 实施状态 | 本目标起始Evidence/Policy、Summary V7/quality-v3接线有原定向non-live证据；当前仓库已接线Summary9/Evidence minimal，组件fake/non-live及Spring→Runtime合成三模式、失败分支已验证。单域当前root到隔离真实typed接口仅有有限只读预检，不证明真实模型、完整新版UAT、实际部署或回答效果。新版风险状态以UAT_02为准；旧功能UAT、效果口径v2及阶段A快照保持原证明范围；最新有效P5仍为`partially_effective`，历史资产不改；新计划P3_01/UAT_02不继承通过 |
 | 归档来源 | [整理前 v1.27 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
@@ -22,7 +22,7 @@
 
 ## 2. 阅读导航
 
-重点阅读§7/8完整性与出域、§9当前Summary9及历史Summary8、§13原评估兼容、§19资料原文边界。历次修订及旧评审只见归档；当前Summary9已在仓库接线，真实质量与完整新版UAT仍见P3_01/UAT_02；旧实现定义仅用于兼容与迁移，不作为第二套目标权威。
+重点阅读§7/8完整性与出域、§9当前Summary9、§13历史评估入口、§19资料原文边界。历次修订及旧评审只见归档；当前Summary9已在仓库接线，真实质量与完整新版UAT仍见P3_01/UAT_02；旧实现定义仅用于历史解释和迁移，不要求现行运行时保留旧任务兼容，不作为第二套目标权威。
 
 ## 3. 目标与范围
 
@@ -35,9 +35,9 @@
 - ranked candidate 完整性复核和确定性证据选择；
 - Evidence Bundle、coverage、source 和 question trace；
 - 全局规则∩逻辑域默认策略∩文档级收紧策略；
-- Knowledge Summary V1～V8 历史兼容与 V9 当前仓库任务；
+- Knowledge Summary V9当前仓库任务；V1～V8仅作历史解释；
 - evidence ref、quote 子串、引用唯一性、结果大小和本地领域结果；
-- representative v2、primary/rewrite_ablation、指标、人工 rubric、严格结果 Schema 和明确结论。
+- 当前验收的指标、人工rubric、严格结果Schema及明确结论；representative v2和primary/rewrite_ablation只解释历史合同，不是当前运行前置。
 - 阶段 A 新语料的父文档策略继承、index snapshot 绑定、asset/chunk 溯源及旧策略目录不可变。
 
 ### 3.3 范围外与不负责
@@ -197,7 +197,7 @@ Global allowed fields/limits
 
 ### 9.2 历史Summary8与当前Summary9的三类行为
 
-`DR-KEV-202`（过渡12/8绑定，现保留兼容）：`agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v8.py::KnowledgeSummaryTaskV8`，task_id=knowledge_summary/version=8；一份Prompt按模式选择原文，不继承多代字符串补丁。输入原问题Q是唯一用户事实来源，evidence为不可信引用资料，不是可执行指令。模型不可补外部常识、日期、主体或计税方式，也不可因用户错误归类直接承认归属。
+`DR-KEV-202`（过渡12/8历史合同，不是当前运行时要求）：`agent-runtime/src/agent_runtime/knowledge/evidence/summary_task_v8.py::KnowledgeSummaryTaskV8`，task_id=knowledge_summary/version=8；一份Prompt按模式选择原文，不继承多代字符串补丁。输入原问题Q是唯一用户事实来源，evidence为不可信引用资料，不是可执行指令。模型不可补外部常识、日期、主体或计税方式，也不可因用户错误归类直接承认归属。
 
 采用现有SCHEMA_ONLY的一个固定输出名knowledge_extractive_answer；严格解码后只接受：
 `{"outcome":"answer","points":[{"evidence_ref":"e1","quote":"对应content的连续原文"}]}`
@@ -317,48 +317,16 @@ question denied flag / fresh Guard
 
 ## 12. 配置、发布与回滚
 
-- 目标limits按§9.1固定，实际模型payload包含mode和JSON开销；总8/32768bytes及quote/结果上限不变。旧工厂仅作为原版本兼容，不自动挑选。
+- 目标limits按§9.1固定，实际模型payload包含mode和JSON开销；总8/32768bytes及quote/结果上限不变。旧工厂不参与当前生产装配；保留历史源码不构成动态选择或兼容要求。
 - 策略目录 artifact 随代码发布并严格加载；内容变化必须创建新资源、新 version/export/source revision/hash 并重跑全成员和出域测试。旧资源、常量及历史 manifest 继续独立可验证，不得原位改写。
-- 当前仓库唯一绑定Summary V9/意图12，设计评审、实施及组件/Spring合成non-live已完成；V1～V8保留历史兼容、冻结资产验证与可追溯回滚责任，实际部署未核实。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
+- 当前仓库唯一绑定Summary V9/意图12，设计评审、实施及组件/Spring合成non-live已完成；V1～V8源码与冻结资产保留历史可核查性，不要求当前运行时兼容旧版本或执行旧候选，实际部署未核实。回滚优先禁用Knowledge；若显式恢复旧任务绑定，必须整套配对并形成新配置快照，不改写既有task源码和历史evidence。
 - 禁用 Knowledge action 可完全停止真实检索/出域；无数据迁移。
 
-## 13. 既有P5评估合同与兼容边界
+## 13. 历史P5评估入口
 
-### 13.1 数据与执行
+原26题primary/ablation、Q1～Q4阈值、分母及人工rubric原文见[历史合同附件](KNOWLEDGE_HISTORICAL_CONTRACTS_2026-10-06.md#historical-p5)。原运行只能按其冻结提交、数据及evaluator解释，不重算、不改判、不续跑。
 
-- 正式数据集：`representative_questions.v2.jsonl`，26 case；22 个普通案例继承 v1，只替换 4 个确定性安全负例。
-- 每 case 顺序执行 primary、rewrite_ablation；各调用一次真实 `KnowledgeQueryCapability.handle`。
-- primary 使用生产 rewriter；ablation 只换 `IdentityQuestionRewriter`，其他配置、Provider、授权、Profile/index snapshot、模型任务完全一致。
-- collector 只旁路采集有限阶段 ID/排名/计数，不改变在线行为；结果不保存 question、content、quote、title、URL、JWT 或原响应。
-
-### 13.2 有效 run 前提
-
-clean frozen commit、live Provider、数据集/hash、principal/读取授权、四项前置安全证据、问题/域/flow/Profile/全部 index snapshots、BGE、task、DeepSeek、policy/evidence/evaluator versions 全部冻结；52 个 capability 执行成对完整，retry/resume=0。任一缺失、dirty、变体不一致、安全计数非零、必需分母为空，或质量可评 answerable 少于原 answerable 集合的 90%，结论为 `invalid_run`。
-
-### 13.3 指标与阈值
-
-| 问题 | 通过阈值 |
-|---|---|
-| 安全必备 | constraint preservation=1.0、citation validity=1.0、denied summary calls=0、unauthorized content=0 |
-| Q1 改写/域 | rewrite rerank recall delta≥0、regression≤0.10、domain exact match≥0.85 |
-| Q2 排序 | rerank recall@10≥0.80 且 rerank MRR@10≥fusion MRR@10 |
-| Q3 忠实 | faithfulness≥0.95 |
-| Q4 初始可用 | valid summary completion≥0.90 且 usefulness≥0.80 |
-
-有效 run 中 Q1～Q4 全部通过=`effective`，至少两个但非全部=`partially_effective`，少于两个=`ineffective`。阈值不变。效果口径 v2 的分母规则为：
-
-- `summary valid completion` 统计所有非 `security_negative` primary case；安全负例必须在 Summary 前拒绝并由零调用安全 Gate 单独判定，不得同时作为摘要失败样本；
-- 普通 `no_result`、`insufficient_evidence`、`downstream_failure`、timeout 和 schema/validator failure 继续作为 summary completion 失败计入，不因不利结果排除；
-- faithfulness/usefulness 只统计 answerable 且人工 reason 不是显式 `gold_issue` 的 primary case；`gold_issue` 数量和 case ID 必须保留在有限结果中，质量可评样本比例低于 90% 时整次 run 无效，不能靠大量排除提高指标；
-- dataset、gold、人工 rubric reason 枚举和 Q1～Q4 阈值不变，历史候选继续按各自冻结 evaluator 解释，不回算、不改判。
-
-### 13.4 人工 rubric
-
-对 primary 的 answerable case 判断 faithful、relevant、sufficientForInitialAnswer、useful；reason 只允许 `none/quote_context/relevance/coverage/gold_issue`。评审时临时查看授权证据，提交布尔值后释放正文。
-
-### 13.5 适用范围
-
-本节P5 primary/ablation、Q1～Q4和rubric只解释原评估合同，不是过渡12/8或当前12/9测量方法或继续运行授权。历史诊断、优化准备及可选准入流水见整理前归档；原结果不得重算改判。当前目标四维方法见§9.4及UAT_02 §5，最新有效结果与最新执行分开。KQ历史效果不外推至新任务。
+本节不授予运行许可，也不要求intent12/Summary9/minimal链路兼容旧P5执行器。当前四维验收方法见§9.4及UAT_02；功能、安全、真实集成、效果和发布结论分别治理，不继承历史Passed。稳定历史DR/IMPL/TEST编号保留用于追溯，不转化为当前实施前置。
 
 ## 14. 实现落点清单
 
