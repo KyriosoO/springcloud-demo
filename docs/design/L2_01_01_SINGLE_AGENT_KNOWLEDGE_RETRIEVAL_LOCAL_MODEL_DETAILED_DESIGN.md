@@ -1,24 +1,24 @@
 # [L2_01_01] 单体 Agent Knowledge 检索与本地模型接入详细设计
 
 > 文档层级：L2
-> 文档状态：Approved（仅步骤一职责收敛定向复评；实施、部署与UAT证明范围不扩大）
+> 文档状态：Approved（v3.19步骤一现行工厂及验证追踪补齐已通过作者自检和独立定向复评；实施、部署与UAT证明范围不扩大）
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 文档编号 | `L2_01_01` |
-| 当前版本 | v3.18 |
+| 当前版本 | v3.19 |
 | 日期 | 2026-10-06 |
 | 权威范围 | Knowledge typed retrieval、两级 Profile、读取授权、本地 BGE，以及阶段 A 离线语料审计、资产处理、候选索引和受控发布 |
 | 上位文档 | [`L1_01` v3.9](L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) |
-| 本次变更 | v3.18补齐历史策略/构建合同分离、现行检索追踪和专项对照协议边界；安全、归因及冻结顺序保持 |
+| 本次变更 | v3.19补齐现行build_minimal固定装配及对应实现/测试追踪，移出旧工厂兼容要求及文号增量的24题验证前置；安全、归因及冻结顺序保持 |
 | 实施状态 | 原在线typed读取/授权、BGE和阶段A离线成果保持原证明范围；minimal检索、REPRESENT、候选构建、隔离typed runner及启动/既有候选承接工具已有组件/non-live证明，已建一个只读未发布B候选。真实调用不等于后验准入或质量通过；正式对照、人工评价及发布状态由P3_01/UAT_02治理，不由设计Approved代替 |
 | 归档来源 | [整理前 v2.21 原文](历史文档/2026-09-14-unified-v3-baseline/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md)；[完整性清单](../历史文档/2026-09-14-unified-v3-baseline/README.md) |
 
 本文件纳入新的统一文档版本序列；v3.0不是软件、API、模型任务、配置或索引版本。原版本及字节归档见上表。评审状态、实施状态、部署状态和UAT状态分别判断；历史通过不自动覆盖新合同。
 
-修改历史：历次修订与评审原文见[历史附件](L2_01_01_REVISION_HISTORY_2026-10-06.md)。本次仅作历史分离及引用整理，不改变规范合同。附件不构成当前合同、状态或授权；当前合同以正文为准，实施及验收分别以P3_01/UAT_02为准。
+修改历史：历次修订与评审原文见[历史附件](L2_01_01_REVISION_HISTORY_2026-10-06.md)。本次纠正现行固定工厂及直接验证范围，旧工厂和文号实验前置原文见[history-35](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-35)、[history-36](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-36)；公共合同、安全要求和原证明范围不变。附件不构成当前合同、状态或授权；当前合同以正文为准，实施及验收分别以P3_01/UAT_02为准。
 
 ## 2. 阅读导航
 
@@ -290,10 +290,10 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 1. 输入只来自Stage已通过读取授权、快照及完整性校验的`AuthorizedKnowledgeCandidate`。先放原始content，再依次追加非空title、document_number、written_date，行标签固定为`文档标题：`、`文号：`、`成文日期（非生效日期）：`，日期ISO。content≤4096且不截断；title/document_number各≤256，总表示≤4700字符。无元数据时只保留原文；不补值、不读私有section/邻居/URL、不生成摘要或事实。标题/日期仍是不可信来源信息，不能用成文日期判断有效/废止；模型512 token窗口不变，长文可能看不到尾部元数据。
 2. 新`ContextualBgeRerankAdapter`一次调用现有`/rerank`，query不变、documents为上述表示、top_n等于候选数、normalize=true；候选数1..40。沿既有5秒/2MiB/取消合同，检查JSON无重复/额外key、模型名、完整唯一整数index、派生表示exact echo和有限score；错误、超时、取消均失败，不重新以raw评分。不得伪造响应text或改candidate.content/hash来复用旧校验。
 3. 返回仍为`tuple[RerankScore,...]`；ranker、候选及SHA、Evidence正文和外部模型载荷仍为原授权对象。观测继续隐藏rerank query/documents，只保留计数，不把新元数据加入公开诊断。目标按§9.1每个非空域一次，共≤2次/80个评分；旧实现每需求≤4次/160评分仅解释历史，不进入目标计划。不得运行在线实验双臂或额外模型。
-4. 旧`bge_rerank.py`保留历史可追溯性，不要求当前装配双版本。`LocalKnowledgeRetrievalFactory.build`新增内部参数`rerank_input_version`，省略时保持`raw-content-v1`供既有显式历史/测试调用；仅接受该值和新版本，其余在transport调用前拒绝。components.rerank类型改为既有RerankPort。`main.build_runtime`在enabled分支显式选新版本，disabled仍零资源；无环境/请求切换、自动后备或第二生产链路。版本常量及文件SHA进入后续运行快照，旧manifest不能证明新表示。
-5. 当前根non-live、HTTP和类型回归通过后才可采用。新旧Adapter独立保留必要协议校验以保护冻结源，不建设通用转换框架。回滚部署此前完整代码或禁用Knowledge，不改policy/index/alias、历史或读取权限。当前原文数据不足以表达的语义仍须失败关闭。
+4. 当前`main.build_runtime`在enabled分支调用`LocalKnowledgeRetrievalFactory.build_minimal`，固定构造`ContextualBgeRerankAdapter`及`MinimalKnowledgeRetrievalStage`；该工厂不接受`rerank_input_version`，不提供raw/context运行时切换、自动后备或第二生产链路。disabled分支不创建Knowledge资源。固定表示版本和相关源码纳入相应运行快照，旧manifest不能证明当前表示。旧`build`双版本入口及其专属测试只用于历史追溯，见[原描述](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-35)，不是现行工厂的兼容义务。
+5. 当前固定装配的表示格式、HTTP协议、类型及生产根non-live验证必须覆盖本节合同；协议校验由实际使用的Adapter负责，不为旧Adapter新增转换层或双版本校验。回滚部署此前完整相容代码或禁用Knowledge，不改policy/index/alias、历史或读取权限。当前原文数据不足以表达的语义仍须失败关闭。
 
-`TEST-KRET-029`：单次HTTP、格式/边界、wrong echo/model/index/score、重复JSON、取消/超时、原文/hash不变、拒绝零BGE、当前根唯一绑定、现行factory精确绑定和未知版本拒绝、观测无正文或元数据；合成输入下与已测实验表示/分数一致。实验代码不得成为生产依赖。真实Rewrite/Summary、引用及usefulness仍独立验收。
+`TEST-KRET-029`：单次HTTP、格式/边界、wrong echo/model/index/score、重复JSON、取消/超时、原文/hash不变、拒绝零BGE、当前根唯一绑定、build_minimal固定context装配及disabled零资源、观测无正文或元数据。使用合成输入验证本节固定表示和评分响应映射，不依赖历史实验实现或旧工厂版本分支。当前意图规划/Summary、引用及usefulness仍独立验收。
 
 
 ### 9.8 文号元数据软匹配（DR-KRET-035；代码及仓库live Profile已配置，部署须另核实）
@@ -317,11 +317,11 @@ Service只根据冻结Profile构造keyword/vector query，附加category filter�
 
 `TEST-KRET-030`：合成不同机关/年号/括号/前导零、单/多文号、紧邻简写、非紧邻不继承、查阅前缀、歧义/超限/注入、不可变/并发；启用/禁用/无文号/vector查询形状、category不可绕过、单次HTTP、授权失败零调用、ES拒绝零重试、mapping不兼容启动拒绝和冻结开关。不能仅断言生成了字符串，需验证目标匹配与错误机关不匹配。
 
-边界增补用例：同/不同机关两个完整文号以空格、全角空格或零间距相邻，两个目标均匹配；混合legacy/announcement、四项及第五项超限；第二项超长机关不得后缀命中；完整文号后裸年号/任意文字加简写仍不继承。服务测试检查同一keyword请求中两个正确metadata OR项及原multi_match/category保留，而非仅验证纯函数数量。先证明旧代码失败，再实施修正并执行上述Java合同/授权回归、当前Python历史与UAT追踪；不以合成测试代替真实效果。
+边界增补用例：同/不同机关两个完整文号以空格、全角空格或零间距相邻，两个目标均匹配；混合括号式/公告式文号、四项及第五项超限；第二项超长机关不得后缀命中；完整文号后裸年号/任意文字加简写仍不继承。服务测试检查同一keyword请求中两个正确metadata OR项及原multi_match/category保留，而非仅验证纯函数数量。现行回归保留这些成功与拒绝断言，不要求每次重现旧代码缺陷或执行整套历史Python/UAT流程；不以合成测试代替真实效果。
 
 联合机关增补用例：使用合成机关验证2/4片段、含ASCII及补充平面汉字、公告/旧括号文号、空格等价、单机关兼容、双完整文号及紧邻简写继承全部机关；只含末机关/错误顺序/错误年份/前导零不匹配。连续顿号、单字机关、5片段、联合总长49码点及第二项非法均关闭整个信号，不得后缀命中。服务侧验证联合机关子句与原queryText、category、limit+1、固定boost同在一次keyword请求；开关关闭、无文号、vector、授权失败零调用和技术失败零重试均不变。实现范围仅为既有`DocumentNumberQuery`及直接Java测试，不新增生产依赖。
 
-`VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。原相关性分级按整理前L2_01_02 §13.8追溯；目标四维比较由当前L2_01_02 §9.4及UAT_02 §5治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
+`VAL-KRET-016`：执行文号纯函数、同请求查询形状、mapping及读取授权的直接Java测试和相关Maven验证；仅在改动影响当前Python调用合同或行为时增加对应回归，不将历史兼容测试作为本节默认前置。真实收益必须由另行明确范围的当前同快照typed对照证明，事前固定问题、gold、源码、配置及索引，分别报告文号增益和非文号退化；不继承旧24题或旧实验开关安排。原验证流程见[历史附件](KNOWLEDGE_LEGACY_DESIGN_2026-10-06.md#history-36)，当前验收由L2_01_02 §9.4及UAT_02 §5治理；未标注Precision/nDCG仍为null。本节non-live通过不证明真实效果，也不授权新的真实运行。
 
 接受限制：标识词法不是机关知识库，不能证明任意前缀、别名或法律身份；同一文号很多chunk仍可能占满窗口，此增量不承诺多文档Evidence完整。精确标识可选加分不参与合法性、时效或摘要充分性判定。已知缺口和错误机关/长文号/非文号反证必须进入对照，而不是为此追加循环Gate或逐题规则。
 
@@ -509,7 +509,7 @@ DR-KRET-030/031及其原实施合同见[旧向量表示及限定附件构建合�
 | `IMPL-KRET-015` | 已有 `knowledge-corpus-tools` 项目的 release module：候选校验、alias 原子切换、冒烟、回滚和发布 journal |
 | `IMPL-KRET-016` | 新版本 Knowledge egress catalog、`application-knowledge-live.yml`/`serviceCenter` binding：新 snapshot 严格绑定，旧 catalog/历史证据不变 |
 | `IMPL-KRET-021` | `serviceCenter/warmup-knowledge-reranker.py`同步CLI（固定输入/端点，无参数覆盖；有限JSON stdout和退出码），由`run-all-services.ps1`在启动循环前调用；非live工具可显式执行，不修改历史launcher；实施证据见[整理前P3 §20.53](../plans/历史文档/2026-09-14-unified-v3-baseline/P3_00_SINGLE_AGENT_CODE_IMPLEMENTATION_PLAN.md) |
-| `IMPL-KRET-022` | 新增`knowledge/retrieval/bge_rerank_context.py`纯格式器/ContextualBgeRerankAdapter；provider.py内部版本参数、main.py显式绑定；旧bge_rerank.py不改 |
+| `IMPL-KRET-022` | 已有`knowledge/retrieval/bge_rerank_context.py`纯格式器/ContextualBgeRerankAdapter；provider.py的build_minimal固定装配，main.py enabled分支调用；旧build及raw Adapter不属于当前装配合同 |
 | `IMPL-KRET-023` | 已有`es-query-service/.../service/DocumentNumberQuery.java`包内纯函数；KnowledgeSearchService keyword构造、KnowledgeSearchProperties冻结布尔及KnowledgeProfileVerifier条件校验已接入；v3.12联合机关词法增量已有直接non-live证明，未部署或测量真实收益。公共es-query-api、原配置默认和Python不变，原验证与启用状态见历史P3_00/UAT_01，当前增量见P3_01 §14.36 |
 
 ### 13.2 关键签名
@@ -583,8 +583,8 @@ KnowledgeSearchResponse search(
 | `TEST-KRET-021` | 审计三层状态、403/404/timeout 不推断正文缺失、种子计入预算、人工官方替代映射及非权威来源拒绝 |
 | `TEST-KRET-027` | 建议新增`knowledge-corpus-tools/tests/test_validation_alias.py`及版本化launcher fake：精确UUID/只读/alias、冲突/超时/不明写入、有限预算、finally/进程/日志；真实typed矩阵另存有限结果，不以mock替代 |
 | `TEST-KRET-028` | `agent-runtime/tests/system_e2e/test_knowledge_reranker_warmup.py`：固定合成40项、严格响应、绝对deadline、超限、client关闭/零重试及启动顺序/disabled/PlanOnly；不调用真实服务 |
-| `TEST-KRET-029` | §9.7表示/单次HTTP/原文所有权/失败关闭、factory版本及生产根fake/Spring E2E；不得替代真实UAT |
-| `TEST-KRET-030` | §9.8文号词法、联合机关完整保留/超限拒绝、安全正则/同请求查询形状、单次HTTP、mapping和默认/冻结反证；原case/gold不变 |
+| `TEST-KRET-029` | §9.7固定表示/单次HTTP/原文所有权/失败关闭、build_minimal固定装配及生产根enabled/disabled fake/Spring E2E；不要求旧工厂版本分支，不得替代真实UAT |
+| `TEST-KRET-030` | §9.8文号词法、联合机关完整保留/超限拒绝、安全正则/同请求查询形状、单次HTTP、mapping和默认/冻结反证；保留直接成功/拒绝断言，历史case/gold不改写也不自动成为当前回归前置 |
 
 | 验证编号 | 方法与证明边界 |
 |---|---|
@@ -597,8 +597,8 @@ KnowledgeSearchResponse search(
 | `VAL-KRET-007` | 新候选索引、策略/Profile 快照、typed 检索、读取/Evidence、alias 切换/回滚和防回退回归验证 |
 | `VAL-KRET-013` | 在工具目录运行新增`tests/test_validation_alias.py`和launcher fake、工具全量/mypy/compileall，再执行版本化隔离typed验证；`TEST-KRET-027`覆盖DR-KRET-032归属/预算/拒绝/清理，真实结果与fake分离，未完成全回归/发布不得关闭主工作包 |
 | `VAL-KRET-014` | 新预热定向pytest、Python编译/类型、PowerShell AST及PlanOnly验证；真实固定合成调用另存有限结果。在线5秒/20秒合同及Business/Knowledge回归不变；预热不是阶段B UAT证据 |
-| `VAL-KRET-015` | 新表示unit/HTTP/factory/current root、strict mypy/compileall、正式隔离non-live全量、历史hash及安全投影；后续运行绑定新表示/源码，真实端到端另行验收 |
-| `VAL-KRET-016` | Java新增定向测试及Knowledge Maven、当前相关Python回归、只读同快照typed对照；fake不能替代召回增益或正式UAT |
+| `VAL-KRET-015` | 当前固定表示unit/HTTP/build_minimal/生产根、strict mypy/compileall及安全投影；影响生产组合根时执行正式隔离non-live回归；历史资产不可改写，但不要求旧工厂分支参与当前装配验证；真实端到端另行验收 |
+| `VAL-KRET-016` | §9.8直接Java文号/查询形状/mapping/授权测试及相关Maven；影响当前Python时补对应回归；真实收益另由预先确定范围的同快照typed对照验证，不绑定历史24题，fake不能替代正式UAT |
 
 ## 15. 风险与保护条件
 

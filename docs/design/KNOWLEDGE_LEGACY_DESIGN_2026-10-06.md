@@ -916,3 +916,28 @@ v3.2修订时只设计、未实施；那次修订没有读取模型凭据、重�
 | `REQ-KEV-001`；`KQ-AD-014` | `DR-KEV-034` | `IMPL-KEV-017` | `TEST-KEV-024` | `VAL-KEV-016` |
 
 ---
+
+<a id="history-35"></a>
+
+## history-35 旧rerank工厂及双版本验证描述
+
+补充来源：提交`ca43e869ac79dc58128ed56266f326d53ae03db7`中`L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md` v3.18 §9.7第4、5项及TEST-KRET-029。以下原文仅供追溯，不约束当前build_minimal装配。
+
+4. 旧`bge_rerank.py`保留历史可追溯性，不要求当前装配双版本。`LocalKnowledgeRetrievalFactory.build`新增内部参数`rerank_input_version`，省略时保持`raw-content-v1`供既有显式历史/测试调用；仅接受该值和新版本，其余在transport调用前拒绝。components.rerank类型改为既有RerankPort。`main.build_runtime`在enabled分支显式选新版本，disabled仍零资源；无环境/请求切换、自动后备或第二生产链路。版本常量及文件SHA进入后续运行快照，旧manifest不能证明新表示。
+5. 当前根non-live、HTTP和类型回归通过后才可采用。新旧Adapter独立保留必要协议校验以保护冻结源，不建设通用转换框架。回滚部署此前完整代码或禁用Knowledge，不改policy/index/alias、历史或读取权限。当前原文数据不足以表达的语义仍须失败关闭。
+
+`TEST-KRET-029`：单次HTTP、格式/边界、wrong echo/model/index/score、重复JSON、取消/超时、原文/hash不变、拒绝零BGE、当前根唯一绑定、现行factory精确绑定和未知版本拒绝、观测无正文或元数据；合成输入下与已测实验表示/分数一致。实验代码不得成为生产依赖。真实Rewrite/Summary、引用及usefulness仍独立验收。
+
+---
+
+<a id="history-36"></a>
+
+## history-36 文号边界修复与原24题验证流程
+
+补充来源：提交`ca43e869ac79dc58128ed56266f326d53ae03db7`中`L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md` v3.18 §9.8边界增补用例及VAL-KRET-016。以下原文仅保存原修复/实验流程，不作为当前每次修改的默认回归前置，不改变原用例和证据。
+
+边界增补用例：同/不同机关两个完整文号以空格、全角空格或零间距相邻，两个目标均匹配；混合legacy/announcement、四项及第五项超限；第二项超长机关不得后缀命中；完整文号后裸年号/任意文字加简写仍不继承。服务测试检查同一keyword请求中两个正确metadata OR项及原multi_match/category保留，而非仅验证纯函数数量。先证明旧代码失败，再实施修正并执行上述Java合同/授权回归、当前Python历史与UAT追踪；不以合成测试代替真实效果。
+
+`VAL-KRET-016`：先新Java纯函数/查询形状/mapping/安全测试，再相关Maven与当前Python基线/历史回归；随后保持原24题/gold/index，执行预先绑定源码和开关的隔离typed对照，文号召回增益与非文号回退分别报告。原相关性分级按整理前L2_01_02 §13.8追溯；目标四维比较由当前L2_01_02 §9.4及UAT_02 §5治理，未标注Precision/nDCG仍为null；本切片不证明整体效果或放行付费运行。
+
+---
