@@ -285,7 +285,6 @@ class TransactionListSearchArgumentValidator:
             or not 1 <= page <= 1000
             or type(size) is not int
             or not 1 <= size <= 50
-            or (page - 1) * size > 2147483647
         ):
             raise InvalidCapabilityArguments("business.invalid_arguments")
 
@@ -387,7 +386,6 @@ class TransactionListSearchRequestMapper:
             or settings.max_page is None
             or input.page > settings.max_page
             or input.size > min(settings.max_page_size, settings.max_result_count)
-            or (input.page - 1) * input.size > 2147483647
             or not input.filters
         ):
             raise InvalidBusinessArguments("business.invalid_arguments")

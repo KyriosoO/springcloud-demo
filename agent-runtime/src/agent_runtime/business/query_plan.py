@@ -492,7 +492,6 @@ class DefaultBusinessQueryPlanValidator:
             settings.max_page_size is None
             or arguments.size > settings.max_page_size
             or (settings.max_page is not None and arguments.page > settings.max_page)
-            or (arguments.page - 1) * arguments.size > 2147483647
             or (settings.fixed_page is not None and arguments.page != settings.fixed_page)
         ):
             raise InvalidBusinessQueryPlan()

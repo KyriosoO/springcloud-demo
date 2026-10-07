@@ -252,8 +252,6 @@ class EmployeeSearchRequestMapper:
         ):
             raise InvalidBusinessArguments("business.invalid_arguments")
         offset = (input.page - 1) * input.size
-        if offset > 2147483647:
-            raise InvalidBusinessArguments("business.invalid_arguments")
         configured = {
             item.logical_name: item for item in settings.query_fields if item.enabled
         }
