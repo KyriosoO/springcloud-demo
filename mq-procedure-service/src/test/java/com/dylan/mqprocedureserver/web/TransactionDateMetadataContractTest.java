@@ -14,9 +14,9 @@ class TransactionDateMetadataContractTest {
 
 	@Test
 	void productionTransactionDateUsesVerifiedSecondPrecision() throws Exception {
-		String url = System.getenv("AGENT_TXN_DATE_METADATA_JDBC_URL");
-		String username = System.getenv("AGENT_TXN_DATE_METADATA_USERNAME");
-		String password = System.getenv("AGENT_TXN_DATE_METADATA_PASSWORD");
+		String url = System.getenv("TXN_DATE_METADATA_JDBC_URL");
+		String username = System.getenv("TXN_DATE_METADATA_USERNAME");
+		String password = System.getenv("TXN_DATE_METADATA_PASSWORD");
 		Assumptions.assumeTrue(url != null && username != null && password != null);
 
 		try (Connection connection = DriverManager.getConnection(url, username, password);

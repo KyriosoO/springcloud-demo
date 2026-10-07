@@ -39,23 +39,13 @@ class EmployeeControllerResponseVisibilityContractTest {
 	}
 
 	@Test
-	void callerInventoryFreezesTheOnlyRepositoryHttpConsumer() throws Exception {
+	void callerInventoryRecordsNoRepositoryHttpConsumers() throws Exception {
 		JsonNode fixture = fixture("/contracts/employee-detail-callers-v1.json");
-		assertThat(fixture.path("callers")).hasSize(1);
-		JsonNode caller = fixture.path("callers").get(0);
+		assertThat(fixture.path("callers")).isEmpty();
 		assertThat(fixture.path("schemaVersion").asInt()).isEqualTo(1);
 		assertThat(fixture.path("inventoryScope").asText())
 				.isEqualTo("repository-static-production-http-callers");
 		assertThat(fixture.path("endpoint").asText()).isEqualTo("GET /employees/{idCardNo}");
-		assertThat(caller.path("callerId").asText())
-				.isEqualTo("agent-runtime.employee.detail");
-		assertThat(caller.path("allowedRoles")).extracting(JsonNode::asText)
-				.containsExactly("ADMIN", "VIEWER");
-		Path callerSource = repositoryFile(caller.path("source").asText());
-		assertThat(callerSource).isRegularFile();
-		assertThat(Files.readString(callerSource, StandardCharsets.UTF_8))
-				.contains("method=\"GET\"")
-				.contains("/employees/{encoded}");
 		JsonNode internalConsumer = fixture.path("nonHttpInternalConsumers").get(0);
 		Path internalSource = repositoryFile(internalConsumer.path("source").asText());
 		assertThat(internalSource).isRegularFile();

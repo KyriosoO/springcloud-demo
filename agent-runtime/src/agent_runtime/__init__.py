@@ -1,2 +1,0 @@
-"""Single-agent runtime package."""
-

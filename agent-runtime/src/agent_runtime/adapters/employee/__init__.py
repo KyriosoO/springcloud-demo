@@ -1,2 +1,0 @@
-"""Employee detail adapter."""
-

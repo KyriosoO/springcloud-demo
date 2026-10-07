@@ -13,7 +13,11 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +34,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import com.dylan.mqprocedureserver.config.TransactionSearchJsonConfiguration;
+import com.dylan.mqprocedureserver.config.TransactionSearchProperties;
+import com.dylan.mqprocedureserver.controller.TransactionController;
+import com.dylan.mqprocedureserver.controller.TransactionExceptionHandler;
 import com.dylan.mqprocedureserver.mapper.TransactionMapper;
+import com.dylan.mqprocedureserver.security.CapabilityAccessGuard;
+import com.dylan.mqprocedureserver.security.TransactionSearchSecurityConfiguration;
 import com.dylan.mqprocedureserver.service.TransactionOperKafkaProducer;
 import com.dylan.mqprocedureserver.service.TransactionOperMQProducer;
 import com.dylan.mqprocedureserver.service.TransactionService;
@@ -39,7 +49,7 @@ import com.dylan.transaction.api.model.Transaction;
 import reactor.core.publisher.Mono;
 
 @SpringBootTest(
-        classes = TransactionRealActionLiveIntegrationTest.LiveApplication.class,
+        classes = TransactionLiveContextTest.LiveApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.main.banner-mode=off",
@@ -141,5 +151,19 @@ class TransactionLiveContextTest {
         } finally {
             java.util.Arrays.fill(bytes, (byte) 0);
         }
+    }
+
+    @SpringBootConfiguration
+    @EnableAutoConfiguration
+    @EnableConfigurationProperties(TransactionSearchProperties.class)
+    @Import({
+            TransactionController.class,
+            TransactionExceptionHandler.class,
+            TransactionService.class,
+            CapabilityAccessGuard.class,
+            TransactionSearchSecurityConfiguration.class,
+            TransactionSearchJsonConfiguration.class
+    })
+    static class LiveApplication {
     }
 }

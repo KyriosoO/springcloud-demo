@@ -2,13 +2,7 @@
   "schemaVersion": 1,
   "inventoryScope": "repository-static-production-http-callers",
   "endpoint": "POST /txn/search",
-  "callers": [
-    {
-      "callerId": "agent-runtime.transaction.search",
-      "source": "agent-runtime/src/agent_runtime/adapters/transaction/codec.py",
-      "allowedRoles": ["ADMIN", "VIEWER"]
-    }
-  ],
+  "callers": [],
   "transportIntermediaries": [
     {
       "componentId": "gateway-service.mq-route",

@@ -40,12 +40,9 @@ class TransactionControllerResponseVisibilityContractTest {
 	}
 
 	@Test
-	void callerInventoryFreezesTheOnlyRepositoryHttpConsumer() throws Exception {
+	void callerInventoryRecordsNoRepositoryHttpConsumers() throws Exception {
 		JsonNode fixture = fixture("/contracts/transaction-search-callers-v1.json");
-		assertThat(fixture.path("callers")).hasSize(1);
-		assertThat(fixture.path("callers").get(0).path("callerId").asText())
-				.isEqualTo("agent-runtime.transaction.search");
-		assertThat(repositoryFile(fixture.path("callers").get(0).path("source").asText())).isRegularFile();
+		assertThat(fixture.path("callers")).isEmpty();
 		assertThat(repositoryFile(fixture.path("transportIntermediaries").get(0).path("source").asText()))
 				.isRegularFile();
 		assertThat(fixture.path("declaredExternalLegacyCallers")).isEmpty();

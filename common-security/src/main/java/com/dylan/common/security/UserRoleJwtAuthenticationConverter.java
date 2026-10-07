@@ -14,7 +14,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 /**
  * Strictly converts the user JWT role claim into the finite application
- * authorities shared by Agent-facing provider endpoints.
+ * authorities shared by protected business endpoints.
  */
 public final class UserRoleJwtAuthenticationConverter
 		implements Converter<Jwt, AbstractAuthenticationToken> {

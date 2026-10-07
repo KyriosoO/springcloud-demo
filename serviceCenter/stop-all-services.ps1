@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-Stops only Spring and Python service processes previously started by run-all-services.ps1.
+Stops only Spring service processes previously started by run-all-services.ps1.
 
 .DESCRIPTION
 The script validates the recorded repository, PID, process name, process start
@@ -49,8 +49,6 @@ $ExpectedProcessNames = @{
     'm-service-1' = 'java'
     'm-service-2' = 'java'
     'openfeign-service' = 'java'
-    'agent-runtime' = 'python'
-    'agent-service' = 'java'
     'gateway-service' = 'java'
 }
 
@@ -133,14 +131,6 @@ function Test-LegacyProcessIdentity {
     $instance = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
     if ($null -eq $instance -or [string]::IsNullOrWhiteSpace([string]$instance.CommandLine)) {
         return $false
-    }
-    if ([string]$Entry.name -eq 'agent-runtime') {
-        $runtimePython = Join-Path $ExpectedRepoRoot 'agent-runtime\.venv\Scripts\python.exe'
-        return [string]::Equals(
-            [string]$instance.ExecutablePath,
-            $runtimePython,
-            [StringComparison]::OrdinalIgnoreCase
-        ) -and [string]$instance.CommandLine -match '(?i)(^|\s)-m\s+agent_runtime\.main(\s|$)'
     }
     $jarMarker = Join-Path $ExpectedRepoRoot "$($Entry.name)\target\$($Entry.name)-"
     return [string]$instance.CommandLine -match '(?i)(^|\s)-jar(\s|$)' -and

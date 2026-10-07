@@ -2,13 +2,7 @@
   "schemaVersion": 1,
   "inventoryScope": "repository-static-production-http-callers",
   "endpoint": "GET /employees/{idCardNo}",
-  "callers": [
-    {
-      "callerId": "agent-runtime.employee.detail",
-      "source": "agent-runtime/src/agent_runtime/adapters/employee/codec.py",
-      "allowedRoles": ["ADMIN", "VIEWER"]
-    }
-  ],
+  "callers": [],
   "nonHttpInternalConsumers": [
     {
       "consumerId": "employee-service.employee-es-service",

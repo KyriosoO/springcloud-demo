@@ -9,6 +9,9 @@ import com.dylan.esquery.service.IndexRebuildService;
 import com.dylan.esquery.service.RebuildTaskRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +20,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class EsQueryControllerAccessTest {
 
@@ -42,6 +47,24 @@ class EsQueryControllerAccessTest {
 
 		assertThat(controller.fullRebuild("orders", request, "local-token").getTaskId()).isEqualTo("task-1");
 		verify(rebuildService).submitFullRebuild("orders", request);
+	}
+
+	@Test
+	void genericSearchRemainsAvailableAndKnowledgeEndpointIsRemoved() throws Exception {
+		EsDocumentService documents = mock(EsDocumentService.class);
+		EsQueryController controller = new EsQueryController(documents,
+				mock(IndexRebuildService.class), mock(RebuildTaskRepository.class),
+				new EsManagementAccessGuard(new EsQueryProperties()));
+		MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+		mvc.perform(post("/es/knowledge/search").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isNotFound());
+		verifyNoInteractions(documents);
+
+		when(documents.search("employees", "{}")).thenReturn("{}");
+		mvc.perform(post("/es/indexes/employees/search").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isOk());
+		verify(documents).search("employees", "{}");
 	}
 
 	private static EsQueryController controller(IndexRebuildService rebuildService, String managementToken) {
