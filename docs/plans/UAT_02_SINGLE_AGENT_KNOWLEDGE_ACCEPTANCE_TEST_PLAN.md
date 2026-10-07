@@ -4,16 +4,16 @@
 
 | 项目 | 内容 |
 |---|---|
-| 当前版本 | v3.54 |
-| 文档状态 | Reviewed（现行职责、冻结顺序与证据入口的定向整理已复评；完整验收未完成） |
-| 日期 | 2026-10-06 |
+| 当前版本 | v3.55 |
+| 文档状态 | Reviewed（第二步验收分工、失败影响范围及运行前置同步已定向复评；未新增验收通过） |
+| 日期 | 2026-10-07 |
 | 文档身份 | 新计划首版；不继承旧UAT_01状态、预算或执行授权 |
-| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.7 §4.5～4.7；L2_01_00 v3.10 §8/20、L2_01_01 v3.16 §9/18、Evidence L2 v3.8 §9；本轮只收口现行/历史实现及冻结顺序，风险、gold、阈值及原证明范围不扩大 |
+| 设计依据 | [L1_01](../design/L1_01_SINGLE_AGENT_KNOWLEDGE_QUERY_ARCHITECTURE.md) v3.9 §4.5～4.7；L2_01_00 v3.12 §8/20、L2_01_01 v3.19 §9/18、Evidence L2 v3.10 §9；本轮同步现行验收职责，风险、gold、阈值及原证明范围不扩大 |
 | 流程合同 | [L2_01_00](../design/L2_01_00_SINGLE_AGENT_KNOWLEDGE_QUERY_FLOW_CONFIGURATION_DETAILED_DESIGN.md) §8/19 |
 | 检索/资料合同 | [L2_01_01](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md) §9/18 |
 | Evidence/回答合同 | [L2_01_02](../design/L2_01_02_SINGLE_AGENT_KNOWLEDGE_EVIDENCE_EGRESS_SUMMARY_EFFECTIVENESS_DETAILED_DESIGN.md) §9/19 |
-| 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.2 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.4 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
-| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.56；只负责包、直接依赖及操作准入 |
+| 动作选择合同 | [L1_00](../design/L1_00_SINGLE_AGENT_CORE_RUNTIME_ARCHITECTURE.md) v3.3 §4.1；[L2_00_02](../design/L2_00_02_SINGLE_AGENT_DEEPSEEK_MODEL_ACCESS_CONTROLLED_GENERATION_DETAILED_DESIGN.md) v3.5 §6.3；按能力职责选择，不预判资料存在性；仅non-live证明 |
+| 实施入口 | [P3_01](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md) v3.57；只负责包、直接依赖及操作准入 |
 | 当前验收状态 | 仓库目标root已接线12/9/minimal-v1，机械non-live与Spring合成证据保持原范围。P3_01 §14.32新B正式10题协议完整，两臂recall@20均0.85、主指标未改善；215项盲标未完成，precision及整体质量Not assessed，候选不发布。§14.33唯一新MEASURE使用现行b2，完成4题后005技术失败，failed_consumed / invalid_run且已停止；§14.37维护者确认001/002 Passed、003/004 Failed，006～012未执行、不补跑。37项风险机械证据不代替新版37/37功能UAT，整体Functional/Safety、召回、回答及发布未通过 |
 | 修改历史 | 2026-09-14，从旧UAT_01 §5的风险身份、§15/16的已批准新方法承接；不改设计阈值 |
 
@@ -21,11 +21,11 @@
 
 ## 2. 范围与结果纪律
 
-本计划治理原12/8有限证据、当前仓库目标12/9/minimal-v1及资料组织两条主线；图谱、记忆、多轮、旧候选推进及Business重新验收不属于关键路径。Business继续由[UAT_00维护基线](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)管理，Knowledge变化不得重开无关Business用例，也不得掩盖共享合同回退。
+本计划治理当前仓库目标意图12/Summary9/minimal-v1及资料组织两条主线。原12/8及更早结果仅保留各自证明范围，不要求现行链路兼容旧任务。图谱、记忆、多轮、旧候选推进及Business重新验收不属于关键路径；Business继续由[UAT_00维护基线](UAT_00_SINGLE_AGENT_ACCEPTANCE_TEST_PLAN.md)管理，Knowledge变化不得重开无关Business用例，也不得掩盖共享合同回退。
 
 五类验收分别记录：功能、安全、召回、回答、资料质量与发布回滚。最后一类只用于资料主线。文档Reviewed与任何一种验收通过无关；Not evaluated/Not executed是计划状态，不新增公开API或历史result枚举。
 
-本计划创建及v3.2状态同步时没有生成新版追踪JSON、读取模型密钥、调用服务或推理。当前独立目标已授权一次有界真实测量与两项有限资料对照；执行仍须满足本计划的人工gold确认、冻结绑定、精确预算和停止条件。旧run、Gate及余额全部不可复用。技术失败按预先冻结协议停止，质量不达标如实记录，不自动新candidate。
+本轮只整理文档，不提供代码、服务、模型、ES/BGE或发布授权。先前批次的消费和终态由P3_01 §14及原资产追溯；没有未执行额度可以据本计划自动续用。后续操作按§5.4/§6.1的适用前置及独立有效授权执行，不自动新candidate。
 
 ## 3. 37个稳定功能/安全风险的目标版本映射
 
@@ -56,14 +56,14 @@
 | `UAT-K-RET-006` | 单路技术失败 | 仅在 coverage 与每域最小候选满足时部分继续 | L2_01_01 DR-KRET-201～204；L2_01_00 DR-KFLOW-203 | TEST-KRET-201～203；typed contract、fake路径/融合/rerank、Java读取授权 | Fake verified：R `test_partial_requires_minimum_and_successful_candidate_path_in_each_domain[1/2/3]`、`test_partial_missing_entire_domain_never_uses_other_domain` |
 | `UAT-K-RET-007` | 全路径失败或快照冲突 | `downstream_failure`，Evidence/summary 为 0 | L2_01_01 DR-KRET-201～204；L2_01_00 DR-KFLOW-203 | TEST-KRET-201～203；typed contract、fake路径/融合/rerank、Java读取授权 | Fake/non-live verified：R `test_all_failed_is_not_no_result[FAILURE/TIMEOUT]`、`test_empty_response_snapshot_conflict_also_fails_closed`；J `[k-nonlive-all-paths-fail]` search&gt;0/Summary0；Evidence不进入由当前flow短路源码确认 |
 | `UAT-K-RET-008` | 整域禁止或授权权威失败 | 安全失败优先，其他路径成功不得掩盖 | L2_01_01 DR-KRET-201～204；L2_01_00 DR-KFLOW-203 | TEST-KRET-201～203；typed contract、fake路径/融合/rerank、Java读取授权 | Fake verified：R `test_authorization_failure_cancels_and_joins_pending_paths[FORBIDDEN/READ_DECISION_UNVERIFIABLE/READ_AUTHORITY_FAILURE]`；P3_01 §14.6仅验证隔离typed未知角色403，整域跨路径拒绝的当前root真实全链仍Not assessed |
-| `UAT-K-EV-001` | candidate hash/domain/snapshot/policy ref 完整 | 生成确定性 Evidence Bundle | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake verified：E `test_complete_ranked_batch_is_verified_before_any_selection`、`test_domain_opportunity_then_global_fill_preserves_rank_and_fourth_same_document` |
-| `UAT-K-EV-002` | 完整性冲突或缺失 | `evidence_failure`，Summary调用0；前置selector/意图调用单列 | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake verified：E `test_complete_ranked_batch_is_verified_before_any_selection[late_hash/snapshot/rank_from_failed_path/rank_from_no_result_path]`、EI `test_minimal_pre_summary_failures_are_closed_with_zero_model_calls[bad_hash]` |
-| `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入当前 Summary task | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake verified：EI `test_minimal_stage_uses_mode_projection_and_local_citation_without_extra_fields`，仅最小字段出域 |
-| `UAT-K-EV-004` | 未分类、策略缺失/冲突或文档收紧拒绝 | `model_egress_denied`，summary 调用 0 | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake/non-live verified：EI `test_minimal_pre_summary_failures_are_closed_with_zero_model_calls[policy_deny/policy_missing]` 中 `policy_missing` 将候选文档改为目录未绑定身份并断言Summary0/无结果；`test_selected_policy_deny_does_not_fallback_to_allowed_later_candidate`，UG `test_minimal_evidence_policy_conflict_denies_before_summary`；真实索引的未分类策略覆盖仍Not assessed |
-| `UAT-K-EV-005` | 证据覆盖不足 | `no_result/insufficient_evidence`，不生成肯定回答 | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake verified：E `test_missing_selected_domain_is_insufficient_even_when_other_domain_has_evidence`、KR `test_current_root_model_insufficient_is_public_no_result_without_answer`，公开reason/固定非肯定文本 |
-| `UAT-K-EV-006` | 有据回答（各原任务版本按冻结证据） | 原Summary8仅摘录；当前仓库Summary9 lookup保持摘录、解释/适用性逐点有限回应，`answerSummary`第n段对应`points[n]`原文quote/citation；ref唯一、quote为授权正文连续子串，不伪造coverage或语义证明 | L2_01_02 DR-KEV-201～206 | TEST-KEV-201～204；Evidence/模型精确输出/claim模式/出域/引用及时间、否定、分类反例 | Partial/evidence missing：Summary9合同、stage、当前root、页面配对及Spring合成三模式/失败路径的fake/non-live已通过；001/002 lookup整题已获维护者Passed（P3_01 §14.37），其余模式、真实typed全链及完整回答评价仍未完成，不能判整项Passed |
-| `UAT-K-EV-007` | unknown/duplicate ref 或非子串 quote | `knowledge.summary_failure`，不返回模型原文 | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake verified：EI `test_minimal_summary_failure_matrix_has_one_call_and_no_model_text[duplicate_ref/unknown_ref/stitched_quote]` |
-| `UAT-K-EV-008` | summary timeout/provider/schema failure | 固定 timeout/downstream failure，无 retry/resume | L2_01_02 DR-KEV-201～205 | TEST-KEV-201～203；Evidence/模型精确输出/出域/引用反例 | Fake verified：EI `test_minimal_summary_timeout_or_cancel_releases_single_call[False/True]`、`test_minimal_summary_failure_matrix_has_one_call_and_no_model_text[failure]` |
+| `UAT-K-EV-001` | candidate hash/domain/snapshot/policy ref 完整 | 生成确定性 Evidence Bundle | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake verified：E `test_complete_ranked_batch_is_verified_before_any_selection`、`test_domain_opportunity_then_global_fill_preserves_rank_and_fourth_same_document` |
+| `UAT-K-EV-002` | 完整性冲突或缺失 | `evidence_failure`，Summary调用0；前置selector/意图调用单列 | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake verified：E `test_complete_ranked_batch_is_verified_before_any_selection[late_hash/snapshot/rank_from_failed_path/rank_from_no_result_path]`、EI `test_minimal_pre_summary_failures_are_closed_with_zero_model_calls[bad_hash]` |
+| `UAT-K-EV-003` | 全局∩域∩文档策略允许 | 仅最小 payload 进入当前 Summary task | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake verified：EI `test_minimal_stage_uses_mode_projection_and_local_citation_without_extra_fields`，仅最小字段出域 |
+| `UAT-K-EV-004` | 未分类、策略缺失/冲突或文档收紧拒绝 | `model_egress_denied`，summary 调用 0 | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake/non-live verified：EI `test_minimal_pre_summary_failures_are_closed_with_zero_model_calls[policy_deny/policy_missing]` 中 `policy_missing` 将候选文档改为目录未绑定身份并断言Summary0/无结果；`test_selected_policy_deny_does_not_fallback_to_allowed_later_candidate`，UG `test_minimal_evidence_policy_conflict_denies_before_summary`；真实索引的未分类策略覆盖仍Not assessed |
+| `UAT-K-EV-005` | 证据覆盖不足 | `no_result/insufficient_evidence`，不生成肯定回答 | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake verified：E `test_missing_selected_domain_is_insufficient_even_when_other_domain_has_evidence`、KR `test_current_root_model_insufficient_is_public_no_result_without_answer`，公开reason/固定非肯定文本 |
+| `UAT-K-EV-006` | 有据回答（各原任务版本按冻结证据） | 原Summary8仅摘录；当前仓库Summary9 lookup保持摘录、解释/适用性逐点有限回应，`answerSummary`第n段对应`points[n]`原文quote/citation；ref唯一、quote为授权正文连续子串，不伪造coverage或语义证明 | L2_01_02 DR-KEV-201/204/205/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/claim模式/出域/引用及时间、否定、分类反例 | Partial/evidence missing：Summary9合同、stage、当前root、页面配对及Spring合成三模式/失败路径的fake/non-live已通过；001/002 lookup整题已获维护者Passed（P3_01 §14.37），其余模式、真实typed全链及完整回答评价仍未完成，不能判整项Passed |
+| `UAT-K-EV-007` | unknown/duplicate ref 或非子串 quote | `knowledge.summary_failure`，不返回模型原文 | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake verified：EI `test_minimal_summary_failure_matrix_has_one_call_and_no_model_text[duplicate_ref/unknown_ref/stitched_quote]` |
+| `UAT-K-EV-008` | summary timeout/provider/schema failure | 固定 timeout/downstream failure，无 retry/resume | L2_01_02 DR-KEV-201/204/206 | TEST-KEV-201/203/204；Evidence/模型精确输出/出域/引用反例 | Fake verified：EI `test_minimal_summary_timeout_or_cancel_releases_single_call[False/True]`、`test_minimal_summary_failure_matrix_has_one_call_and_no_model_text[failure]` |
 | `UAT-K-ISO-001` | Knowledge 请求 | Employee/Transaction 调用 0 | L2_01_00 DR-KFLOW-204/205；L2_01_02 DR-KEV-204 | TEST-KFLOW-203/TEST-KEV-203；root/取消关闭/日志/Business隔离 | Fake verified：KR `test_knowledge_request_never_calls_employee_or_transaction_http`，两个Business HTTP transport各0调用 |
 | `UAT-K-ISO-002` | Business 失败 | Knowledge 调用 0 | L2_01_00 DR-KFLOW-204/205；L2_01_02 DR-KEV-204 | TEST-KFLOW-203/TEST-KEV-203；root/取消关闭/日志/Business隔离 | Fake verified：KR `test_business_failure_does_not_call_enabled_knowledge`，同根Knowledge enabled而其HTTP路径0 |
 | `UAT-K-ISO-003` | `AGENT_KNOWLEDGE_ENABLED=false` | 不注册动作、不创建 Knowledge client、不要求配置 | L2_01_00 DR-KFLOW-204/205；L2_01_02 DR-KEV-204 | TEST-KFLOW-203/TEST-KEV-203；root/取消关闭/日志/Business隔离 | Fake verified：PR `test_disabled_knowledge_registers_descriptor_without_tasks_stages_or_clients`、KR `test_disabled_current_root_does_not_create_knowledge_client` |
@@ -72,9 +72,13 @@
 | `UAT-K-ISO-006` | enabled + 生产 stub / 测试显式 fake | 显式enabled + 生产stub按当前启动合同失败；测试显式fake复用生产装配，意图12/Summary9唯一且外部outbound=0 | L2_01_00 DR-KFLOW-204/205；L2_01_02 DR-KEV-204 | TEST-KFLOW-203/TEST-KEV-203；root/取消关闭/日志/Business隔离 | Fake/non-live verified：KR `test_enabled_current_root_stub_without_fake_rejects_before_client_allocation`、`test_current_root_reaches_intent12_summary9_once_and_closes_owned_clients`；J外部模型outbound0（Spring合成链证据仍须区分其版本） |
 
 
-证据简称均指当前目标源码而非历史Passed：`J`=[Spring Knowledge non-live E2E](../../agent-service/src/test/java/com/dylan/agent/service/e2e/AgentKnowledgeNonLiveE2ETest.java) 的 `verifiesSpringToCurrentKnowledgeCompositionWithFiniteFailureSemantics`（方括号内为caseId）；`S`=[Spring安全契约](../../agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java)；`KR`=[当前生产组合根测试](../../agent-runtime/tests/integration/knowledge/test_minimal_current_root.py)；`UG`=[当前根UAT缺口反例](../../agent-runtime/tests/integration/knowledge/test_minimal_uat_gap_cases.py)；`IC`=[意图输入契约](../../agent-runtime/tests/unit/knowledge/test_intent_contracts.py)；`PL`=[最小计划测试](../../agent-runtime/tests/unit/knowledge/test_minimal_retrieval_plan.py)；`R`=[检索阶段测试](../../agent-runtime/tests/unit/knowledge/retrieval/test_minimal_stage.py)；`RA`=[typed适配fake测试](../../agent-runtime/tests/integration/knowledge/test_minimal_retrieval_adapters.py)；`E`=[Evidence选择测试](../../agent-runtime/tests/unit/knowledge/evidence/test_minimal_selection.py)；`EI`=[Evidence阶段测试](../../agent-runtime/tests/integration/knowledge/test_minimal_evidence_stage.py)；`SC`=[Summary8合同测试](../../agent-runtime/tests/contract/knowledge/test_summary_task_v8.py)；`PR`=[Provider注册测试](../../agent-runtime/tests/contract/knowledge/test_provider_registration.py)。v3.5阶段九个已定位Python文件同一命令执行 `pytest -q` 为228 passed（其中`KR`19项）；新增`UG`文件定向执行12 passed，已覆盖的正式全量回归计数另按§14.6实际结果记录；`J`当时1个测试方法执行16个synthetic case，Surefire为1 run/0失败/0错误/0跳过。v3.11新增两项后，`mvnw.cmd -q '-Dtest=AgentKnowledgeNonLiveE2ETest' test`当次通过18个synthetic case，仍为一个Java测试方法。`S` 的入口断言属另行现有Java合同测试，不因本次单独Spring E2E而记为同一命令重跑。全部fake均无真实模型HTTP请求。
+证据简称是定位入口，实际证明范围须核对记录绑定的提交与版本，文件当前存在不代表本轮已重跑：`J`=[Spring Knowledge non-live E2E](../../agent-service/src/test/java/com/dylan/agent/service/e2e/AgentKnowledgeNonLiveE2ETest.java) 的 `verifiesSpringToCurrentKnowledgeCompositionWithFiniteFailureSemantics`（方括号内为caseId）；`S`=[Spring安全契约](../../agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java)；`KR`=[当前生产组合根测试](../../agent-runtime/tests/integration/knowledge/test_minimal_current_root.py)；`UG`=[当前根UAT缺口反例](../../agent-runtime/tests/integration/knowledge/test_minimal_uat_gap_cases.py)；`IC`=[意图输入契约](../../agent-runtime/tests/unit/knowledge/test_intent_contracts.py)；`PL`=[最小计划测试](../../agent-runtime/tests/unit/knowledge/test_minimal_retrieval_plan.py)；`R`=[检索阶段测试](../../agent-runtime/tests/unit/knowledge/retrieval/test_minimal_stage.py)；`RA`=[typed适配fake测试](../../agent-runtime/tests/integration/knowledge/test_minimal_retrieval_adapters.py)；`E`=[Evidence选择测试](../../agent-runtime/tests/unit/knowledge/evidence/test_minimal_selection.py)；`EI`=[Evidence阶段测试](../../agent-runtime/tests/integration/knowledge/test_minimal_evidence_stage.py)；`PR`=[Provider注册测试](../../agent-runtime/tests/contract/knowledge/test_provider_registration.py)。
 
-当前逐案计数为36项 `Fake/non-live verified`、1项 `Partial/evidence missing`（EV006）；前者并非完整新版UAT Passed。Spring→Runtime的18个合成case按当前Summary9任务断言typed域/路径/Profile及调用次数；新增解释/适用性case只检查有限claim、原文quote与citation的结构对应，不是语义人工评价。测试证据使用请求级隔离，严格校验器拒绝错误域仍标`passed`，并发双请求反例通过。隔离Java typed单域读取与入口拒绝有P3_01 §14.6有限预检，当前root单域真实typed keyword/vector只读接线另有§14.8预检；实际BGE/候选ES对照质量、完整12题端到端、完整四维人工回答评价及发布冒烟仍未通过。四题维护者整题反馈见P3_01 §14.37，不用局部评价、单测、合成日志或有限接线代替完整验收。受控inspection响应的请求投影不属于普通日志/有限持久evidence；本轮未改变该公共诊断合同。功能与安全必需用例尚未100%完成。
+历次执行数量、原Summary8测试入口与版本演进见[整理前记录](P3_01_EXECUTION_HISTORY_2026-10-06.md#step2-uat-history)；不作为每次验收必须重跑的历史组合。
+
+当前逐案登记保持36项 `Fake/non-live verified`、1项 `Partial/evidence missing`（EV006），不改判为37/37 Passed。表中真实typed、部署或人工语义缺口按其对应维度承接，不要求每个确定性风险重复付费执行。EV006包含两种证明：Summary9结构、模式、引用和失败关闭由当前组件/生产根及Spring合成用例验证；原文是否充分支持真实回答由§5的人工评价验证。后者未完成不否定前者已有断言，也不能据前者宣布EV006整体或回答质量通过。
+
+接入认证、Java读取授权和Spring→Runtime→typed跨服务接线属于真实集成核验；fake不能替代实际协议/授权部署。需要的角色、域和路径按§3未验证边界列出，真实模型语义不作为这些确定性接口断言的前置。模型可用性只证明连通，不证明质量。受控inspection投影不是普通日志或有限持久evidence，公共诊断合同不变。
 
 全部用例须记录目标代码/task/config/模型与数据绑定、断言及有限调用数；37风险不等于37次付费调用，确定性反例使用fake/契约。角色矩阵在接入和业务读取两个拒绝位置分别取证；summary阶段零调用不等于前置selector从未调用，应记录各阶段计数。
 
@@ -82,9 +86,9 @@
 
 | 原资产 | 适用范围 | 新计划使用方式 | 不允许的推论 |
 |---|---|---|---|
-| [旧UAT_01完整快照](历史文档/2026-09-14-knowledge-plan-handoff/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 原37风险及各冻结任务/配置的功能证据、历史效果、当时待执行安排 | §3复用风险身份；§5/6承接已批准方法 | 原Passed不等于12/8已执行 |
+| [旧UAT_01完整快照](历史文档/2026-09-14-knowledge-plan-handoff/UAT_01_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md) | 原37风险及各冻结任务/配置的功能证据、历史效果、当时待执行安排 | §3复用风险身份；§5/6承接已批准方法 | 原Passed不等于现行12/9已执行 |
 | knowledge_uat_traceability.v1.json及原loader | 原authority UAT_01 v1.21及Summary4证明边界 | 保持字节和原始依据；后续新版本追踪另作实现 | 不改authority来制造新验收通过 |
-| 历史P5/代表性run/人工rubric | 各自冻结HEAD、模型、语料及协议；有效与无效结果分开 | 只作历史对照；具体事实回到归档及原evidence | 不拼题、不改判、不证明当前源码11/7或目标12/8 |
+| 历史P5/代表性run/人工rubric | 各自冻结HEAD、模型、语料及协议；有效与无效结果分开 | 只作历史对照；具体事实回到归档及原evidence | 不拼题、不改判、不证明现行12/9/minimal-v1 |
 | 阶段A正文/附件/发布资产 | 当时有限语料完整性、检索与回滚 | 复用数据来源及安全风险，不重做既有发布 | 不证明新chunk/向量表示已经更优 |
 
 历史引用必须按原冻结提交和原路径读取；归档内部链接原样保存，当前计划不将其相对路径解释为当前权威。详见[迁移说明](历史文档/2026-09-14-knowledge-plan-handoff/README.md)。
@@ -93,13 +97,13 @@
 
 ### 5.1 证明范围与版本隔离
 
-当前仓库的唯一Knowledge生产组合根已接入意图12、Summary9及knowledge-minimal-v1；§3所列原12/8证据与本轮12/9机械non-live各自只证明列明断言，不能拼接成新版37/37 UAT。首次正式MEASURE批次在任何case或模型调用前失败，有限启动前检不证明真实效果或完整Spring→Runtime集成。实际部署的代码、Profile、索引和策略绑定仍须另行核实，不能据此宣称已发布或真实效果达标。历史37功能用例、P5、阶段A、阶段B和人工run-07均只证明自己的冻结范围；P5最近有效partially_effective不代表当前12/9效果达标，run-07失败亦不覆盖更早有效测量。不得把不同批次的通过题相加为新版全套通过。
+当前仓库唯一Knowledge生产组合根为意图12、Summary9及knowledge-minimal-v1。功能、安全、真实集成、召回、回答及发布分别给出结论：不同测试可以覆盖同一目标版本的不同确定性风险，但须说明版本差异及适用性；不得拼接不同真实测量批次的成功题，制造一套完整的效果结果。现行部署仍须核实实际代码、Profile、索引和策略，仓库接线不是部署证明。历史P5、阶段A/B和原12/8证据只按各自冻结范围使用。
 
-v3.0计划创建时的基线为Functional/Safety Not evaluated、Retrieval/Answer evidence missing；v3.4当时把37案中的31项登记为fake/non-live阶段验证，6项partial/evidence missing；v3.5补证后分别为36项与1项，Functional/Safety整体仍不能判Passed。隔离typed单域只读预检不构成真实召回质量或回答效果测量，这两项、人工评价及发布仍Not assessed。后续实际运行沿用既有Passed/Failed及四类Effectiveness结论，新增维度留在当前验收记录，不改历史result Schema。v3.0创建时未创建JSON追踪或候选、读取凭据或执行测试服务/LLM；当前目标的有限执行须遵循§2、§5.4、§6.1的冻结及停止条件，工作包状态由P3_01 §5治理。
+本轮没有新增测试、真实调用或人工标注，保持§3和§7的现有状态。功能/安全通过须完成对应必需断言及其实际跨服务证据，不能因真实效果批次中断自动全部改判Failed，也不能省略尚未验证的真实集成。召回/回答按§5.2独立评价；未执行、未评价分别保留，不改历史result Schema。
 
 Summary9定向non-live已验证公开`summaryType`语义与验证台呈现：`cited_limited_answer`的第n段回答同屏对应第n点原文quote/citation，明确标为“有限回答／原文依据”；lookup仍为原文摘录。页面未把模型claim单独标成“证据摘要”，使用`textContent`且新增Node测试覆盖XSS边界。该前端断言只验证展示和结构对应，不替代维护者的语义评价。
 
-旧37个case稳定ID保持，COMPOSE原12/8的部分fake证据与本轮12/9定向non-live分别记录，旧证据不重写；问题改写相关用例保留“原意保护/非法规划/超时0下游”的风险目标，不能把新方案没有rewrite当删测理由。目标12/9完整准入仍需TEST-KFLOW-201～203、TEST-KRET-201～203、TEST-KEV-201～204及原37项的明确等价映射，尤其真实模型+真实typed的Spring整链和真实语义评价；缺口未执行/未评价不称37/37新版本通过。
+37个稳定ID及风险保持；COMPOSE维护TEST-KFLOW-201～203、TEST-KRET-201～203、TEST-KEV-201/203/204的现行映射。检索表示固定使用build_minimal及context装配，不以旧工厂版本分支或旧24题作为普通功能/安全回归前置。真实模型的选域、理解和回答充分性进入质量评价，确定性故障注入继续使用fake/契约；公开引用合法性不替代人工语义判断。
 
 ### 5.2 四维判据及阶段损失
 
@@ -110,7 +114,7 @@ Summary9定向non-live已验证公开`summaryType`语义与验证台呈现：`ci
 | 召回 | 在人工确认必要来源存在的冻结池，记录域选择→keyword/vector→RRF→rerank→final20→Evidence8的来源覆盖、MRR与噪声 | 12题中至少8题预置为search且有可核实必要来源，三种模式均须覆盖；无命中/前置澄清题不放入召回分母；可验证题最终必要来源宏平均recall@20≥0.80、precision@20≥0.40，核心已确认必要来源不能全丢；实际分母/空池明确 | 缺资料不算排序失败；命中不等于可回答；未做同条件A/B不称较旧方案提升 |
 | 回答 | 对原问题逐项核对相关、充分、忠实与usefulness；执行者可准备原文，最终真实评价由维护者独立于待测模型确认 | 12题全纳入；每题四项true才通过，≥10题通过；所有applicability题不得有无依据肯定结论，当前适用/历史有效混淆为硬失败 | 结构有效率不能冒称忠实度；“不足/澄清”只在预置预期如此时算正确 |
 
-这些是**新需求基线的预置目标**，不是降低或重算旧P5 Q1～Q4；旧结论不变。阈值是个人验证项目的有限初始选择，本轮维护者已确认草案问句、必要来源及既有阈值作为后续冻结输入；仍需在实际运行前核对最终代码/资料快照和回答合同，不能在看到新结果后降低。无法确认上述至少8题及三种模式的来源池时，即使P3_01中的MEASURE技术依赖已满足、标为Ready，首次真实执行仍受阻，不得自动删除case、补造gold或调用模型“找答案”。功能与安全合格可完成COMPOSE基础实施，未达到召回/回答目标不得宣称质量达标或擅自发布为优化成功。
+这些是**新需求基线的预置目标**，不是降低或重算旧P5 Q1～Q4；旧结论不变。阈值是个人验证项目的有限初始选择，维护者此前已确认草案问句、必要来源及既有阈值作为后续冻结输入；仍需在实际运行前核对最终代码/资料快照和回答合同，不能在看到新结果后降低。无法确认上述至少8题及三种模式的来源池时，即使P3_01中的MEASURE技术依赖已满足、标为Ready，首次真实执行仍受阻，不得自动删除case、补造gold或调用模型“找答案”。功能与安全合格可完成COMPOSE基础实施，未达到召回/回答目标不得宣称质量达标或擅自发布为优化成功。
 
 每题在各阶段报告必要source/block集合覆盖及排名；候选ID仅诊断使用，不进入在线排序。相同父文档不同必要条款不能只因父ID命中就算全部覆盖。precision@20分母为实际返回候选数（0记0），由人工相关标注计算；每题必要来源缺一部分按比例计recall，宏平均只取预先核实可检索池，另报全部12题含缺料的覆盖率。MRR按首个相关必要来源排名，未命中0；Evidence recall另列，不以rerank数值分代替。没有人工原文/相关性标注时这些指标为not_assessed，不自动算0或Passed。
 
@@ -133,23 +137,28 @@ Summary9定向non-live已验证公开`summaryType`语义与验证台呈现：`ci
 | UAT-KM-011 | applicability，当前与历史边界 | 有直接施行原文时须条件式回应不能直接用未来法判断题述过去交易，不推定当期税率；无直接时效依据时不足，writtenDate不当生效日期 |
 | UAT-KM-012 | applicability，类似分类边界 | 没有直接分类桥接/冲突未解决则不足，不以词面相似肯定 |
 
-截至P3_01 §14.9，仅形成供维护者审阅的12题精确问句与来源定位草案，未冻结任何gold：当时索引中8题有拟定必要来源chunk定位，官方网页只做有限条款核对，2016年附件原件尚未独立直读。增值税法索引`effectiveDate`误填成文日、两份小微公告的原文期限与索引空`expiryDate`不能直接推出今日效力，详见P3_01 §14.9。维护者仍须逐题确认原文范围、相关性标签、适用期间、允许回答与不足/澄清预期，并确认§5.2及§6.1质量阈值；此草案不改变§5.4首次真实模型调用前的冻结条件。
-
-后续只读核对已按官方页面快照与asset manifest的SHA-256定位2016年原始附件；官网链接以`.docx`结尾，实际字节为OLE `.doc`。隔离HWPF对KM-001/002拟用的生活服务、餐饮住宿服务和住宿服务原文段落作了独立定位，三条当前索引chunk与原件单段逐字相符；这只纠正上段当时“未独立直读”的证据状态，不证明全文结构、现行适用性或12题gold已获维护者确认。原件结构及BGE快照的其余边界见P3_01 §14.14。
-
-维护者随后确认按12题草案及§5.2/§6.1既有阈值作为预登记输入，并允许KM-005～007改为解释类问句、KM-012增加“从增值税服务分类看，”前缀；指定来源、考点及其余事实不变。此确认不等于已完成真实运行冻结：现有Summary8的逐字摘录合同不能完成KM-009/011要求的有限明确回应，须先修订回答设计并通过non-live验证，再以最终代码、任务、Prompt、索引和策略快照冻结唯一真实批次。B对照的全体返回候选相关性仍需独立人工标注，不能以必要来源列表替代`precision@20`的人评分子。
+12题精确问题、原文定位及维护者确认过程见[P3历史§14.9～17](P3_01_EXECUTION_HISTORY_2026-10-06.md#record-14-9)。已确认的解释类措辞、KM-012公共税务语义前缀、必要来源及阈值保持；Summary8不能完成有限判断的冲突已由当前Summary9合同及non-live接线处理，不再作为待实施前置。冻结前仍须核对这些既定输入与拟测版本、资料快照相容；不能看到结果后改变考点、gold或阈值。必要来源清单不代替全部返回候选的人工相关性标注。
 
 上述内容题可用公开、非敏感问题。功能/安全额外反例不必付费：未知域/模式/重复键；输出terminal组合；>1024长度；单/双域DENIED；policy缺失/冲突；坏hash；重复ref/非子串；少一路/全失败；模型超时；并发取消；disabled0依赖；Business不fallback。至少一个37风险case对应每项新DR，不以只测12题代替安全矩阵。
 
 ### 5.4 固定变量、预算与停止条件
 
-COMPOSE原限定non-live与Summary9定向non-live已完成，不能据此跳过新版完整UAT。本轮一次有界真实批次已按代码、任务/Prompt、模型、配置、Profile/索引/ACL、12题、预算和rubric冻结；run `knowledge-rebuild-measure-20260930-02`在ledger初始化前失败，模型请求为0，冻结本身不等于有效测量。该run停止且不得复用或续跑；后续最小目录前检修复只有non-live验证，不构成自动新增真实批次授权。lookup保持旧摘录语义；解释/适用性的有界claim、逐点引用对应、非法claim/ref/quote零公开输出及既有拒绝时Summary0已有定向fake证据。claim是否真正被原文直接支持必须由维护者按12题人工rubric核对，结构成功不得自动计回答通过。仓库绑定不等于运行绑定，必须先只读核实；运行中快照不符立即终止，不自行改alias或数据。
+COMPOSE和Summary9定向non-live保持原证明范围；两次MEASURE失败及局部人评见P3_01 §14.20/33/37，均不可复跑、续跑或补证。本节定义后续验收方法，不恢复已消费授权。
 
-后续新独立授权在P3_01 §14.33落实为`knowledge-rebuild-measure-20261003-01`：冻结HEAD `0e9e47345def6db376f4b2e9af481d445d8d707c`、现行b2及意图12/Summary9/minimal-v1；本次完成001～004，第005题技术失败停止，模型13/typed8/query embedding4/rerank4，原始终态failed_consumed。本批执行不完整，按§5.5为invalid_run；不是有效12题测量，没有完整postflight或人评，不补跑/续跑或新增付费候选。本段只补充新发生事实，不修改上段旧run终态。
+按[L2_01_01 §18.4.2](../design/L2_01_01_SINGLE_AGENT_KNOWLEDGE_RETRIEVAL_LOCAL_MODEL_DETAILED_DESIGN.md#1842-验证准备与执行冻结边界dr-kret-307)执行：预先登记问题/gold/阈值及操作范围 → 在有权限和分项预算时完成无付费启动就绪 → 采集当前代码/配置/任务/模型/策略/索引身份 → 核对准备材料相容性 → 最终冻结运行身份、精确预算及停止条件 → 正式preflight/执行/postflight。预登记问题/gold不因启动或结果改变；不得预猜候选UUID，也不得用准备快照代替启动后的当前实例。正式窗口内身份仍exact，漂移停止；冻结后执行源码变化不得继续消费原授权。
 
-建议首期仅一次12题端到端测量，上限12 E2E、36模型HTTP（selector/意图/Summary合计）、48 typed search、12 query embedding、24 online rerank；维持每请求≤3/4/1/2，startup预热独立事前列明、不得计入效果请求，不能凭空增加预算。无Business/旧answer、无自动retry/resume，无失败后追加或补题。实际terminal较早时只消耗已产生调用，不为凑预算补齐。
+现行12题方案的端到端上限保持12 E2E、36模型HTTP（selector/意图/Summary合计）、48 typed search、12 query embedding、24 online rerank；维持每请求≤3/4/1/2，startup预热独立事前列明、不得计入效果请求，不能凭空增加预算。无Business/旧answer、无自动retry/resume，无失败后追加或补题。实际terminal较早时只消耗已产生调用，不为凑预算补齐。
 
-技术/协议/安全失败停止该批，保留有限append-only终态及未执行清单，先fake诊断；不能称完整测量。正常no_result/clarification或人工判据不通过是有效测量输出，在安全合同仍成立时按预定顺序继续一次批次，最终如实分类，不修改预期。需要新批次只能作为新目标/新授权，本设计不预授予。
+技术/协议/安全失败仍按当前L2及正式runner停止该批，保留有限append-only终态及未执行清单，先fake诊断；不能称完整测量。正常no_result/clarification或人工判据不通过是测量输出，在安全及执行合同成立时按冻结顺序完成批次，不改预期。在线单路技术失败能否部分继续由L2_01_01 DR-KRET-203判断；这不等于MEASURE工具获准在批次技术失败后继续发下一题。
+
+| 触发情形 | 请求/批次处理 | 对其他验证的影响 |
+|---|---|---|
+| fake/契约用例预置的拒绝、超时或非法输出 | 按预期验证零后续、错误映射和资源释放；符合断言可判该风险测试通过 | 不触发真实批次，也不把正确拒绝当安全缺陷 |
+| 真实测量的正常无结果、澄清或质量不达标 | 依冻结预期记录；可继续既定题序 | 只影响对应质量判据，不据此重开无关功能/安全断言 |
+| 真实测量的非预期技术/协议错误，或安全、身份、预算、证据完整性失败 | 当前请求失败关闭；现行批次停止，保留有限终态，后续调用0 | 该批不能称完整有效测量；独立既有证据保持原范围，有证据表明共享缺陷时才重开受影响风险 |
+| 启动/准备失败、只读身份尚未确认 | 不冻结为可消费运行、不进入正式测量；报告已发生的准备操作 | 不等于产品功能或召回不合格；不反向重做无关组件验证 |
+
+**未生效建议**：独立题目技术失败后是否可以记Failed并继续，尚需同步L2_01_00 §20、L2_01_02 §9.4及runner/测试；只改本计划不能启用。旧批次停止规则、终态及不补跑要求不变，下一步不得先改测试期待继续再补设计。
 
 同条件对比可优先使用无外部LLM的固定候选池重放，各阶段损失可归因；若没有同索引/模型/条件的旧有效结果，不得拼接历史数据算增益。当前目标授权的A/B资料对照分别遵守§6.1与L2_01_01 §18.4.1，不与在线方案简化混为同一变量；任何额外实验或超出当前限额的语料/索引写入均须新目标及授权。
 
@@ -169,7 +178,7 @@ COMPOSE原限定non-live与Summary9定向non-live已完成，不能据此跳过�
 
 本节是MEASURE首次真实调用前的技术证据，不阻塞独立的离线诊断，也不是新增审批Gate。演练Passed只表示验证工具的相应non-live可靠性；Functional/Safety/真实部署/答案充分性仍按原用例及§5.4/5.5分别判断。现有真实预算、12题、gold、四项rubric、技术/协议/安全失败停止整批和invalid_run规则不变。局部题目证据保留原用途，不能拼成完整有效测量；旧失败批次不复跑、不补证、不改判。
 
-当前证明：同一`run_once`以不可消费的`non_live`合成身份执行12题，原组全部lookup；实际生产decoder/validator及ledger未替换，Spring仅为内存传输桥。v3.39补充005原问的explanation正向及非法quote停批反例，来源、正文/hash和验证义务明确synthetic，不沿用真实gold或冒充回答充分性。launcher以实际函数的动态生命周期反例核查部分启动、取消、超时和PID复用。前检、失败分类、append-only取证、预算及清理覆盖的实跑命令、独立评审和提交见P3_01 §14.40/44。真实模型/目标ES/BGE/Business调用为0；未执行真实Java服务全链、真实协议或效果UAT，005旧技术根因仍unknown，37风险与历史12题状态保持。
+现有DRYRUN完成证据及005解释正反例见P3_01 §14.40/44，不重复保存执行流水。后续只在runner、预算、装配或清理路径变化时重跑受影响反例；无新变化不机械重演全部历史批次。必须验证同一正式控制流，不能另做简化runner冒充。现有演练不证明真实Java部署、服务协议或语义质量，原005真实失败根因仍unknown。
 
 ## 6. 资料组织与检索表示验收方法（设计与阶段证据，尚未完整验收）
 
@@ -194,15 +203,13 @@ body、title/section/body、可信分类/body至多3种表示，先用纯构造/
 
 建议质量判据在执行前由维护者确认并固化：核心有充分原文的题必要来源覆盖不得为0；成对核心覆盖和保留集覆盖不得退化，至少一个预先选择的质量主指标改善且噪声/时延不突破预定容忍值，才考虑发布。指标阈值/容忍值未冻结则实验Blocked，不允许看到结果后降低。小样本只作局部决策依据，不声称统计显著或全库收益。数据/功能安全全部达标但质量无提升可以结束测量，不能使RELEASE自动Ready。
 
-本轮B在实际对照前已由维护者确认更具体的有限判据：同一b2 chunk/正文与在线配置下，必要来源宏平均`recall@20`须严格提高，`precision@20`不得低于基线；同机同条件的median检索时延不得高于基线110%；核心和保留题必要来源覆盖均不得退化。A因当前旧解析与新解析不能构成可信的单变量切片比较，保持`Not assessed`，不偷换parser基线或扩大候选预算。旧B首题前失败的0调用终态保持；新承接批次`not_assessed / runtime_provenance_missing`发生typed44/query embedding10/rerank22、元数据30/临时alias写4，无未执行题但未保存有效final20和盲标相关性。两次结果均不能计算或宣称上述指标达标，不补跑或补判。
+既定B质量判据保持：固定同一chunk/正文及在线配置，必要来源宏平均`recall@20`严格提高，`precision@20`不低于基线，同机同条件median检索时延不高于基线110%，核心及保留题逐题覆盖不退化。这些是该有限B方案的采用判据，不是所有功能验收的通用门槛。A仍Not assessed；B当前不采用及各历史失败终态由P3_01 §14统一追溯，不补跑或改判。
 
 B的同一成对分母固定为预登记的10个`retrievalDenominator=true`题；每题把全部必要来源（KM-007含policy和law）计算`recall@20`，两臂分别取题级宏平均。每题`precision@20`为人工判为直接关联任一显式子问题的final20候选数除以**实际返回候选数**，返回0个则记0，再分别取10题宏平均。对同题两臂final20按`(caseId, documentId, chunkId, contentSha256)`合并成隐藏臂身份的盲标池，最多400个题—候选判断；所有返回候选均须人工标注，必要来源清单不是全部相关候选。任一标签缺失时，两臂precision及B通过结论为`Not assessed`，不以未标候选为不相关或从分母删除。核心及保留题的必要来源题级覆盖逐题不得低于基线，不用平均值掩盖单题退化。
 
-冻结证据先后分离：构建前的`assessment intent`固定上述10题、人工确认的必要来源/阈值、baseline两域真实Profile快照、候选索引名称和静态Profile参数、精确变更清单及预算；不允许提供尚未生成UUID的candidate快照占位值。候选构建和双臂只读完整性核验后，按L2_01_01 §18.4.1从实际候选UUID推导policy/law两个快照，append-only生成最终assessment并核对预登记字段完全未变。两臂各使用固定指向对应索引的本次独占只读alias和隔离Java实例：启动前核实物理名称/UUID/mapping并运行现有Profile验证器；仅隔离B实例的内部查询目标固定为已核验的`expectedIndexName`，线上默认仍走`readAlias`，不能将隔离路径的结果冒充线上alias或发布验证。non-live须覆盖默认alias、隔离开关误启或绑定不足时拒绝启动、零命中固定ES请求路径，以及两模式相同查询体、授权、解码和失败语义。两臂运行前后独立核实alias完整目标及filter/routing/flags、索引UUID/mapping，响应后核对该臂Profile快照；有限证据还须核实实际请求路径和隔离开关，避免只信静态快照或现有Verifier代替完整flags检查。运行期间若不能排除第三方删除/重建目标索引或切换隔离alias，整批B为`Not assessed`，不以有限前后读取冒充任意外部并发的证明。alias仅创建/移除各一次，写上限4；只读元数据和typed预算由intent按题/路径精确冻结，不借用阶段A的示例预算。law内容/向量/ACL/配置不变由全记录与检索输出证明，不要求law的两臂物理快照hash相等。构建或准入前证据缺失、内部工具仍要求预猜hash时，B为`Not assessed`且typed调用0；请求后缺归属/快照证据或发生漂移时，记录已发生的真实调用数、整批`Not assessed`并停止后续调用。fake测试不得替代真实对照。
+成对B的构建意图、源向量溯源、候选实际UUID、隔离typed目标、请求见证、独占窗口、keyword不变性和时延归因，统一引用[L2专项协议](../design/KNOWLEDGE_EXPERIMENT_PROTOCOL_2026-10-06.md#protocol-1)及L2_01_01 §18.4.1，不在UAT复制执行器合同。适用时必须满足全部相关条件，不能因移出正文而跳过检查；启动后的正式身份冻结另按§5.4执行。其原b2路径、10题和alias写4等精确参数只约束绑定批次，普通单臂或功能/安全验证不继承；新操作须按实际范围计算并冻结预算。
 
-真实构建前还须从冻结HEAD读取源b2历史`binding.json`和`result.json`并核对intent中的双文件hash、旧索引身份、全记录fingerprint、旧表示版本及完整模型快照；不得仅凭当前索引名称推断旧向量来源。执行源码含未提交或未跟踪变更时禁止消费真实候选。该前检失败不创建candidate，不借新的候选预算补跑。
-
-B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索参数、模型及完整竞争池；物理索引身份和mappingVersion/mapping SHA分别按冻结intent绑定，不能强制相等。query embedding每题只生成一次供两臂复用。按冻结题序交替A→B/B→A，切换两台固定绑定的隔离Java实例而非切换alias；同机记录每题从首个typed search发起至final20排序完成的wall-clock时延，排除共享embedding、服务启动、健康检查、候选构建、臂前后索引元数据核验和人工标注。两臂各自对10个题级时延取median，再比较候选/基线≤1.10；该时延只评价固定物理索引下的表示效果，不证明线上alias切换性能。逐题/域核对keyword top20有序`_id`及冻结的并列规则，分列keyword→vector→RRF→rerank→final20的来源覆盖和排名；如果keyword差异无法由事前稳定并列规则解释，或改变可评价候选/必要来源覆盖，则B为`confounded / Not assessed`，不得把最终增益归因于向量表示或据此发布。候选索引由CAS向量更新造成的Lucene内部变化不是可忽略的对照噪声；不得事后改gold、查询顺序或调参来规避。
+B的时延口径保持：逐题自首个typed请求至final20排序完成，排除共享embedding、启动、预热、构建、元数据核验及人工标注；两臂交替顺序事前固定、各取10题median。逐题/域核对keyword有序ID及事前并列规则，分别报告keyword→vector→RRF→rerank→final20损失；无法解释且影响候选/来源覆盖的keyword变化记confounded / Not assessed，不把Lucene变化自动当作可忽略噪声，不以调gold或事后调参归因收益。
 
 ### 6.2 用例追踪
 
@@ -218,10 +225,10 @@ B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索�
 | UAT-KORG-008 | 派生上下文冒充原文；DR-KEV-302、DR-KEV-303 | keyword/vector/rerank/Evidence表示对照；非法标题/表头quote | 原content不变，hash作用域一致，拼接/跨片引用拒绝 |
 | UAT-KORG-009 | 读取/出域/父关系越权；DR-KFLOW-301、DR-KFLOW-302 | Java typed权限、Python策略/敏感0调用、默认disabled fake；检查当前无父正文补取 | 现公共合同不变，子chunk可读不推出父单元可读/可出域，未授权正文不进入后续阶段/模型，Business不回退 |
 | UAT-KORG-010 | 分段/向量收益混淆；DR-KRET-307 | 冻结父/asset/span、完整竞争池、逐记录旧向量来源、新chunk typed投影，单变量逐阶段排名及source_gap反例 | 无gold特判/删题；`legacy_unknown`不可冒充同条件对照；Recall/MRR/噪声与Evidence分列，null/分母可核 |
-| UAT-KORG-011 | 合法引用却无法回答；DR-KEV-304 | 三模式多税种/期间代表题，人工原文与usefulness；模型仅在当前有限批次且gold已确认后调用，超范围另授权 | 足够与不足分别判断，时效未知不肯定，不由模型自评 |
-| UAT-KORG-012 | 发布错配/无法回滚；DR-KFLOW-303、DR-KRET-307 | fake故障→当前授权及条件满足后的隔离typed/alias回滚→发布冒烟 | 旧索引/资产不改，全记录变更可核，Profile/catalog匹配，恢复相容旧绑定 |
+| UAT-KORG-011 | 合法引用却无法回答；DR-KEV-304 | 三模式多税种/期间代表题，人工原文与usefulness；模型仅在独立有效授权且gold已确认后调用，超范围另授权 | 足够与不足分别判断，时效未知不肯定，不由模型自评 |
+| UAT-KORG-012 | 发布错配/无法回滚；DR-KFLOW-303、DR-KRET-307 | fake故障→独立授权且条件满足后的隔离typed/alias回滚→发布冒烟 | 旧索引/资产不改，全记录变更可核，Profile/catalog匹配，恢复相容旧绑定 |
 
-001～008可先以纯离线fixture完成；009的fake与真实typed证据分开；010的BGE/ES、011的模型/人工回答、012的发布验证均须符合当前目标的有限授权、人工确认及各自前置门槛，超范围再单独授权。不把单测代替真实集成。图谱、记忆和多轮不参与验收。
+001～008可先以纯离线fixture完成；009的fake与真实typed证据分开；010的BGE/ES、011的模型/人工回答、012的发布验证均须符合对应操作的有效授权、人工确认及各自前置门槛，超范围再单独授权。不把单测代替真实集成。图谱、记忆和多轮不参与验收。
 
 在线父单元补取不属于当前UAT-KORG的通过条件。若未来单独批准，应先冻结新typed/候选`content`语义、逐单元读取与出域授权、同版本/深度1/≤8单元和既有Evidence预算、请求数/超时/取消及失败映射，再增加直接相关用例：未找到、未授权、技术失败、预算不足、循环/悬空/错版本、必要例外/定义缺失；安全拒绝必须零未授权正文与零模型出域，不完整时不得给出完整肯定答案。未通过合同评审前，这些是待评估风险，不计为当前已实施或已执行UAT。
 
@@ -256,6 +263,6 @@ B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索�
 - B对照：[P3_01 §14.32/41](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md)，协议完整但主指标未改善，不采用候选、保留现行b2；未评指标及原result不补改，A仍未评价。
 - MEASURE：[P3_01 §14.33/37](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md)，001/002人工Passed、003/004 Failed，005技术失败，006～012未执行；整批invalid_run且不补跑，局部评价不代表整体质量通过。
 - 工具与诊断：[P3_01 §14.40～58](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md)，DRYRUN/DIAGNOSE仅完成限定范围；独立词法诊断有局部收益，但后续成对执行前置失败，未形成新的有效质量测量。各次预算、hash及终态只在原证据/P3维护。
-- 本轮收口：[P3_01 §14.59](P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md)，当前类静态绑定、准备/执行身份顺序及重复检查的修订不更改用例、gold、阈值或历史终态；只验证non-live，不授予新真实批次或发布许可。
+- 本轮文档同步：按已批准现行职责修正来源版本、Summary9交接、验收分工与操作前置。未修改代码、测试或运行协议，不授予真实批次/发布许可，不改变上述运行结论。
 
 后续独立执行须按检索L2的现行冻结顺序，在启动就绪后取得当前完整身份、核对与准备模型同一性，再冻结正式预期；正式pre/post仍exact，不忽略窗口内重启。不降低§5/6采用及回答条件。COMPARE/MEASURE未完成、RELEASE受阻，完整新版UAT未通过。

@@ -1061,3 +1061,94 @@ Inspector仅从各自JAR加载冻结live YAML、实际`KnowledgeSearchService.bu
 四项历史关键资产与HEAD blob一致、SHA-256可核查；没有历史运行、任务内容、公共DTO、权限、配置或索引变更。未执行Maven/真实质量UAT/发布，本轮无Java修改；non-live通过不证明召回改善。原14包/14边、11 Done/2 In Progress/1 Blocked、A未评价、B不采用、MEASURE invalid_run及四题人工结论保持，COMPARE/MEASURE未关闭、RELEASE仍Blocked。本轮变更由本次本地提交承接，不改写旧冻结HEAD。
 
 下一步先形成新独立文号全链成对对照的精确范围，使用修后代码及启动就绪后的完整当前身份；预算、排他窗口和授权需有效绑定后才执行。不得复用失败run，不能把本轮纯工具转换当作现场预检或真实执行许可。
+
+
+---
+
+<a id="step2-uat-history"></a>
+
+## 第二步整理前UAT段落（2026-10-07）
+
+来源提交：`0383b6983f48ef7cf2de67f669d1ee9d80173db8`，`UAT_02_SINGLE_AGENT_KNOWLEDGE_ACCEPTANCE_TEST_PLAN.md` v3.54。下列移出段落按原文、原顺序保存，仅用于历史追溯；其版本、操作、授权和预算不因附存继续有效。现行验收按UAT_02，专项对照按L2指定协议。
+
+### UAT原片段 1
+
+本计划创建及v3.2状态同步时没有生成新版追踪JSON、读取模型密钥、调用服务或推理。当前独立目标已授权一次有界真实测量与两项有限资料对照；执行仍须满足本计划的人工gold确认、冻结绑定、精确预算和停止条件。旧run、Gate及余额全部不可复用。技术失败按预先冻结协议停止，质量不达标如实记录，不自动新candidate。
+
+### UAT原片段 2
+
+证据简称均指当前目标源码而非历史Passed：`J`=[Spring Knowledge non-live E2E](../../agent-service/src/test/java/com/dylan/agent/service/e2e/AgentKnowledgeNonLiveE2ETest.java) 的 `verifiesSpringToCurrentKnowledgeCompositionWithFiniteFailureSemantics`（方括号内为caseId）；`S`=[Spring安全契约](../../agent-service/src/test/java/com/dylan/agent/service/security/AgentSecurityContractTest.java)；`KR`=[当前生产组合根测试](../../agent-runtime/tests/integration/knowledge/test_minimal_current_root.py)；`UG`=[当前根UAT缺口反例](../../agent-runtime/tests/integration/knowledge/test_minimal_uat_gap_cases.py)；`IC`=[意图输入契约](../../agent-runtime/tests/unit/knowledge/test_intent_contracts.py)；`PL`=[最小计划测试](../../agent-runtime/tests/unit/knowledge/test_minimal_retrieval_plan.py)；`R`=[检索阶段测试](../../agent-runtime/tests/unit/knowledge/retrieval/test_minimal_stage.py)；`RA`=[typed适配fake测试](../../agent-runtime/tests/integration/knowledge/test_minimal_retrieval_adapters.py)；`E`=[Evidence选择测试](../../agent-runtime/tests/unit/knowledge/evidence/test_minimal_selection.py)；`EI`=[Evidence阶段测试](../../agent-runtime/tests/integration/knowledge/test_minimal_evidence_stage.py)；`SC`=[Summary8合同测试](../../agent-runtime/tests/contract/knowledge/test_summary_task_v8.py)；`PR`=[Provider注册测试](../../agent-runtime/tests/contract/knowledge/test_provider_registration.py)。v3.5阶段九个已定位Python文件同一命令执行 `pytest -q` 为228 passed（其中`KR`19项）；新增`UG`文件定向执行12 passed，已覆盖的正式全量回归计数另按§14.6实际结果记录；`J`当时1个测试方法执行16个synthetic case，Surefire为1 run/0失败/0错误/0跳过。v3.11新增两项后，`mvnw.cmd -q '-Dtest=AgentKnowledgeNonLiveE2ETest' test`当次通过18个synthetic case，仍为一个Java测试方法。`S` 的入口断言属另行现有Java合同测试，不因本次单独Spring E2E而记为同一命令重跑。全部fake均无真实模型HTTP请求。
+
+### UAT原片段 3
+
+当前逐案计数为36项 `Fake/non-live verified`、1项 `Partial/evidence missing`（EV006）；前者并非完整新版UAT Passed。Spring→Runtime的18个合成case按当前Summary9任务断言typed域/路径/Profile及调用次数；新增解释/适用性case只检查有限claim、原文quote与citation的结构对应，不是语义人工评价。测试证据使用请求级隔离，严格校验器拒绝错误域仍标`passed`，并发双请求反例通过。隔离Java typed单域读取与入口拒绝有P3_01 §14.6有限预检，当前root单域真实typed keyword/vector只读接线另有§14.8预检；实际BGE/候选ES对照质量、完整12题端到端、完整四维人工回答评价及发布冒烟仍未通过。四题维护者整题反馈见P3_01 §14.37，不用局部评价、单测、合成日志或有限接线代替完整验收。受控inspection响应的请求投影不属于普通日志/有限持久evidence；本轮未改变该公共诊断合同。功能与安全必需用例尚未100%完成。
+
+### UAT原片段 4
+
+当前仓库的唯一Knowledge生产组合根已接入意图12、Summary9及knowledge-minimal-v1；§3所列原12/8证据与本轮12/9机械non-live各自只证明列明断言，不能拼接成新版37/37 UAT。首次正式MEASURE批次在任何case或模型调用前失败，有限启动前检不证明真实效果或完整Spring→Runtime集成。实际部署的代码、Profile、索引和策略绑定仍须另行核实，不能据此宣称已发布或真实效果达标。历史37功能用例、P5、阶段A、阶段B和人工run-07均只证明自己的冻结范围；P5最近有效partially_effective不代表当前12/9效果达标，run-07失败亦不覆盖更早有效测量。不得把不同批次的通过题相加为新版全套通过。
+
+### UAT原片段 5
+
+v3.0计划创建时的基线为Functional/Safety Not evaluated、Retrieval/Answer evidence missing；v3.4当时把37案中的31项登记为fake/non-live阶段验证，6项partial/evidence missing；v3.5补证后分别为36项与1项，Functional/Safety整体仍不能判Passed。隔离typed单域只读预检不构成真实召回质量或回答效果测量，这两项、人工评价及发布仍Not assessed。后续实际运行沿用既有Passed/Failed及四类Effectiveness结论，新增维度留在当前验收记录，不改历史result Schema。v3.0创建时未创建JSON追踪或候选、读取凭据或执行测试服务/LLM；当前目标的有限执行须遵循§2、§5.4、§6.1的冻结及停止条件，工作包状态由P3_01 §5治理。
+
+### UAT原片段 6
+
+旧37个case稳定ID保持，COMPOSE原12/8的部分fake证据与本轮12/9定向non-live分别记录，旧证据不重写；问题改写相关用例保留“原意保护/非法规划/超时0下游”的风险目标，不能把新方案没有rewrite当删测理由。目标12/9完整准入仍需TEST-KFLOW-201～203、TEST-KRET-201～203、TEST-KEV-201～204及原37项的明确等价映射，尤其真实模型+真实typed的Spring整链和真实语义评价；缺口未执行/未评价不称37/37新版本通过。
+
+### UAT原片段 7
+
+截至P3_01 §14.9，仅形成供维护者审阅的12题精确问句与来源定位草案，未冻结任何gold：当时索引中8题有拟定必要来源chunk定位，官方网页只做有限条款核对，2016年附件原件尚未独立直读。增值税法索引`effectiveDate`误填成文日、两份小微公告的原文期限与索引空`expiryDate`不能直接推出今日效力，详见P3_01 §14.9。维护者仍须逐题确认原文范围、相关性标签、适用期间、允许回答与不足/澄清预期，并确认§5.2及§6.1质量阈值；此草案不改变§5.4首次真实模型调用前的冻结条件。
+
+后续只读核对已按官方页面快照与asset manifest的SHA-256定位2016年原始附件；官网链接以`.docx`结尾，实际字节为OLE `.doc`。隔离HWPF对KM-001/002拟用的生活服务、餐饮住宿服务和住宿服务原文段落作了独立定位，三条当前索引chunk与原件单段逐字相符；这只纠正上段当时“未独立直读”的证据状态，不证明全文结构、现行适用性或12题gold已获维护者确认。原件结构及BGE快照的其余边界见P3_01 §14.14。
+
+维护者随后确认按12题草案及§5.2/§6.1既有阈值作为预登记输入，并允许KM-005～007改为解释类问句、KM-012增加“从增值税服务分类看，”前缀；指定来源、考点及其余事实不变。此确认不等于已完成真实运行冻结：现有Summary8的逐字摘录合同不能完成KM-009/011要求的有限明确回应，须先修订回答设计并通过non-live验证，再以最终代码、任务、Prompt、索引和策略快照冻结唯一真实批次。B对照的全体返回候选相关性仍需独立人工标注，不能以必要来源列表替代`precision@20`的人评分子。
+
+### UAT原片段 8
+
+COMPOSE原限定non-live与Summary9定向non-live已完成，不能据此跳过新版完整UAT。本轮一次有界真实批次已按代码、任务/Prompt、模型、配置、Profile/索引/ACL、12题、预算和rubric冻结；run `knowledge-rebuild-measure-20260930-02`在ledger初始化前失败，模型请求为0，冻结本身不等于有效测量。该run停止且不得复用或续跑；后续最小目录前检修复只有non-live验证，不构成自动新增真实批次授权。lookup保持旧摘录语义；解释/适用性的有界claim、逐点引用对应、非法claim/ref/quote零公开输出及既有拒绝时Summary0已有定向fake证据。claim是否真正被原文直接支持必须由维护者按12题人工rubric核对，结构成功不得自动计回答通过。仓库绑定不等于运行绑定，必须先只读核实；运行中快照不符立即终止，不自行改alias或数据。
+
+后续新独立授权在P3_01 §14.33落实为`knowledge-rebuild-measure-20261003-01`：冻结HEAD `0e9e47345def6db376f4b2e9af481d445d8d707c`、现行b2及意图12/Summary9/minimal-v1；本次完成001～004，第005题技术失败停止，模型13/typed8/query embedding4/rerank4，原始终态failed_consumed。本批执行不完整，按§5.5为invalid_run；不是有效12题测量，没有完整postflight或人评，不补跑/续跑或新增付费候选。本段只补充新发生事实，不修改上段旧run终态。
+
+### UAT原片段 9
+
+当前证明：同一`run_once`以不可消费的`non_live`合成身份执行12题，原组全部lookup；实际生产decoder/validator及ledger未替换，Spring仅为内存传输桥。v3.39补充005原问的explanation正向及非法quote停批反例，来源、正文/hash和验证义务明确synthetic，不沿用真实gold或冒充回答充分性。launcher以实际函数的动态生命周期反例核查部分启动、取消、超时和PID复用。前检、失败分类、append-only取证、预算及清理覆盖的实跑命令、独立评审和提交见P3_01 §14.40/44。真实模型/目标ES/BGE/Business调用为0；未执行真实Java服务全链、真实协议或效果UAT，005旧技术根因仍unknown，37风险与历史12题状态保持。
+
+### UAT原片段 10
+
+本轮B在实际对照前已由维护者确认更具体的有限判据：同一b2 chunk/正文与在线配置下，必要来源宏平均`recall@20`须严格提高，`precision@20`不得低于基线；同机同条件的median检索时延不得高于基线110%；核心和保留题必要来源覆盖均不得退化。A因当前旧解析与新解析不能构成可信的单变量切片比较，保持`Not assessed`，不偷换parser基线或扩大候选预算。旧B首题前失败的0调用终态保持；新承接批次`not_assessed / runtime_provenance_missing`发生typed44/query embedding10/rerank22、元数据30/临时alias写4，无未执行题但未保存有效final20和盲标相关性。两次结果均不能计算或宣称上述指标达标，不补跑或补判。
+
+### UAT原片段 11
+
+冻结证据先后分离：构建前的`assessment intent`固定上述10题、人工确认的必要来源/阈值、baseline两域真实Profile快照、候选索引名称和静态Profile参数、精确变更清单及预算；不允许提供尚未生成UUID的candidate快照占位值。候选构建和双臂只读完整性核验后，按L2_01_01 §18.4.1从实际候选UUID推导policy/law两个快照，append-only生成最终assessment并核对预登记字段完全未变。两臂各使用固定指向对应索引的本次独占只读alias和隔离Java实例：启动前核实物理名称/UUID/mapping并运行现有Profile验证器；仅隔离B实例的内部查询目标固定为已核验的`expectedIndexName`，线上默认仍走`readAlias`，不能将隔离路径的结果冒充线上alias或发布验证。non-live须覆盖默认alias、隔离开关误启或绑定不足时拒绝启动、零命中固定ES请求路径，以及两模式相同查询体、授权、解码和失败语义。两臂运行前后独立核实alias完整目标及filter/routing/flags、索引UUID/mapping，响应后核对该臂Profile快照；有限证据还须核实实际请求路径和隔离开关，避免只信静态快照或现有Verifier代替完整flags检查。运行期间若不能排除第三方删除/重建目标索引或切换隔离alias，整批B为`Not assessed`，不以有限前后读取冒充任意外部并发的证明。alias仅创建/移除各一次，写上限4；只读元数据和typed预算由intent按题/路径精确冻结，不借用阶段A的示例预算。law内容/向量/ACL/配置不变由全记录与检索输出证明，不要求law的两臂物理快照hash相等。构建或准入前证据缺失、内部工具仍要求预猜hash时，B为`Not assessed`且typed调用0；请求后缺归属/快照证据或发生漂移时，记录已发生的真实调用数、整批`Not assessed`并停止后续调用。fake测试不得替代真实对照。
+
+真实构建前还须从冻结HEAD读取源b2历史`binding.json`和`result.json`并核对intent中的双文件hash、旧索引身份、全记录fingerprint、旧表示版本及完整模型快照；不得仅凭当前索引名称推断旧向量来源。执行源码含未提交或未跟踪变更时禁止消费真实候选。该前检失败不创建candidate，不借新的候选预算补跑。
+
+B的两臂使用相同原问、域、查询/category/ACL Profile参数、检索参数、模型及完整竞争池；物理索引身份和mappingVersion/mapping SHA分别按冻结intent绑定，不能强制相等。query embedding每题只生成一次供两臂复用。按冻结题序交替A→B/B→A，切换两台固定绑定的隔离Java实例而非切换alias；同机记录每题从首个typed search发起至final20排序完成的wall-clock时延，排除共享embedding、服务启动、健康检查、候选构建、臂前后索引元数据核验和人工标注。两臂各自对10个题级时延取median，再比较候选/基线≤1.10；该时延只评价固定物理索引下的表示效果，不证明线上alias切换性能。逐题/域核对keyword top20有序`_id`及冻结的并列规则，分列keyword→vector→RRF→rerank→final20的来源覆盖和排名；如果keyword差异无法由事前稳定并列规则解释，或改变可评价候选/必要来源覆盖，则B为`confounded / Not assessed`，不得把最终增益归因于向量表示或据此发布。候选索引由CAS向量更新造成的Lucene内部变化不是可忽略的对照噪声；不得事后改gold、查询顺序或调参来规避。
+
+<a id="step2-plan-history"></a>
+
+## 第二步整理前P3段落（2026-10-07）
+
+同一来源提交，`P3_01_SINGLE_AGENT_KNOWLEDGE_IMPLEMENTATION_PLAN.md` v3.56。原工作包完成证据、授权及评审按当时上下文解释；此处不提供当前操作许可，也不恢复原Summary8交接合同。
+
+### P3原片段 1
+
+| WP-KREBUILD-EVIDENCE-01 | EVIDENCE | L2_01_02 §9 DR-KEV-201～205 | minimal Evidence和Summary8 | WP-KREBUILD-CONTRACT-01 | - | mode input、evidence selector、serializer、summary_task_v8.py/decoder | TEST/VAL-KEV-201～203；完整性先验证、预算、deny0、引用/未知coverage拒绝；模型fake | 直接代码和fake证据见§14.6；旧Prompt/serializer不改 | Done |
+
+### P3原片段 2
+
+MEASURE另按UAT_02 §5.4准备独立授权与冻结，既定12题/gold/阈值及12 E2E、36模型、48 typed、12 query embedding、24 rerank、72正式ES元数据上限不自动增加；准备期全库读取和startup操作仍单独事前列明。新测量即使形成完整有效终态，也不能代替COMPARE的质量和资料发布条件。上述推荐顺序不新增DAG边或审批Gate；若缺范围确认，继续保留各包原状态，而非再做合成测试或重复付费调用。
+
+### P3原片段 3
+
+维护者已选择推荐路线，授权本轮**私有协议与non-live验证准备**，交付见§14.46。该确认解决本地准备的范围选择，不是新的真实ES/BGE、MEASURE或发布授权。下一个实际操作阶段仍需完整预算、运行快照及独立授权；未由44次物理search的推导值假定其他ES请求为0。
+
+### P3原片段 4
+
+文档审查与实施验证分开；本节只维护新计划实际文档复核结论。2026-09-14计划迁移的三轮内审及两轮同一执行者分阶段正式复核完成，最终S0/S1/未处理S2均0；记录由当次[迁移说明](历史文档/2026-09-14-knowledge-plan-handoff/README.md)集中承载；不得把源设计旧轮次写成本轮轮次。
+
+2026-09-15限定澄清完成一轮自检、措辞补齐及复核（同一执行者，非整套设计重新评审）：REV-P3-001的跨阶段VAL分工、REV-P3-002的资料缺口/安全停止边界、REV-P3-003的四处L2章节指向均已处理。P3及三份L2严格校验零错误/警告；12包/12直接边、状态、37+12+12用例、阈值/预算及设计追踪编号保持不变，36个本地链接可解析。仅五份当前文档本地修改，历史资产/代码/测试/配置未改；未执行实现、UAT或Git提交推送。
+
+2026-09-24结构单元补充执行两轮内审：第一轮核对文档类型、解析顺序、unit/content版本和可恢复span，修正根单元可无`parentUnitId`及版本身份；第二轮核对在线授权/引用、unit完整性与chunk覆盖、保守切片分流、P3直接依赖及UAT边界，修正缺块不得发布和解析异常必须复核的条件。随后由同一Codex任务内未参与起草的只读执行单元进行分层/跨层复评，目标七文档范围内S0=0、S1=0、未处理S2=0；该复评不冒充外部人员评审，也不证明新设计已实施。L0_00第78行及L1_00第13、94～96行中的Knowledge文档版本引用仍为v3.1，属本轮未授权文档的元数据欠账，接受为范围外S2并明确需另获这两份文档的引用修订授权；不得声称全套跨层版本引用已完全同步。
+
+2026-09-29对v3.4目标七文档执行只读分层/跨层复评，范围内S0/S1/未处理S2均0；五份P3/L1/L2严格校验零错误、零警告，目标文档88条本地链接均可解析，12包/12直接依赖无环。评审对象是计划与阶段证据表述，不是六个未闭合UAT风险、真实效果或发布的通过结论；范围外L0/L1_00旧版引用仍待处理。
