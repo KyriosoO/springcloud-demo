@@ -512,7 +512,7 @@ async def test_rejected_client_subclass_is_owned_and_closed(scope, monkeypatch, 
 async def test_actual_identity_worker_checks_signal_before_next_probe_even_without_watcher(scope, monkeypatch, tmp_path):
     from tests.evaluation.knowledge import rebuild_document_number_identity as identity_module
     from tests.evaluation.knowledge.test_rebuild_document_number_identity import model_fixture, Provider
-    model, embedding, rerank = model_fixture(tmp_path)
+    model, embedding, rerank = model_fixture(tmp_path, monkeypatch)
     scope = replace(scope, phase="preparation", model=model, identity=None, inventory=None)
     runner, events, clients, logs = setup(monkeypatch, scope, tmp_path)
     monkeypatch.setattr(r, "IdentitySession", identity_module.IdentitySession)

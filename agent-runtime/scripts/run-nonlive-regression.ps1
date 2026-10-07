@@ -55,7 +55,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'nonlive_regression.build_backend_install_failed'
     }
-    & $isolatedPython -m pip install --disable-pip-version-check --no-deps --no-build-isolation $runtimeRoot
+    & $isolatedPython -m pip install --disable-pip-version-check --no-build-isolation "${runtimeRoot}[test]"
     if ($LASTEXITCODE -ne 0) {
         throw 'nonlive_regression.install_failed'
     }

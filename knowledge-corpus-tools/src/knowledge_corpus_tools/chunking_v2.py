@@ -23,7 +23,7 @@ from .normalization_v2 import (
     _canonical,
     validate_source_span,
 )
-from .parsing import CLAUSE_PATTERN
+from .structure_patterns import CLAUSE_PATTERN
 
 CHUNKER_VERSION: Literal["knowledge-structure-chunker-v2"] = "knowledge-structure-chunker-v2"
 MAX_CHUNK_CODE_POINTS = 1600

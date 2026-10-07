@@ -26,8 +26,8 @@ from xlrd.biffh import XLRDError  # type: ignore[import-untyped]
 from .errors import ContractError
 from .models import AttachmentReference, BlockKind, OcrStatus, ParsedBlock, ParsedDocument
 from .safety import ALLOWED_EXTENSIONS, extension_from_name, normalize_official_url, validate_zip_container
+from .structure_patterns import CLAUSE_PATTERN
 
-CLAUSE_PATTERN = re.compile(r"^(第[一二三四五六七八九十百千0-9]+条)\s*")
 HEADING_PATTERN = re.compile(
     r"^(?:附件(?:[一二三四五六七八九十百千0-9]+)?[:：]?|"
     r"第[一二三四五六七八九十百千0-9]+章(?:\s|$)|"

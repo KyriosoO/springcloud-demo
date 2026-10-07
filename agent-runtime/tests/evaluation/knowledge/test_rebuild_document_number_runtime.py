@@ -411,7 +411,7 @@ async def test_model_identity_pre_and_post_are_bound_to_owned_runtime_before_sea
     binding = JournalBinding("synthetic-document-number-009", "f" * 40, "1" * 64,
                              "2" * 64, "3" * 64, "4" * 64, "synthetic_non_live")
     monkeypatch.setattr(identities, "capture_static_identity", lambda *_: b'{"synthetic":true}\n')
-    model, embedding, rerank = model_fixture(tmp_path)
+    model, embedding, rerank = model_fixture(tmp_path, monkeypatch)
     preparation_ledger = identities.IdentityLedger(phases=("preparation",), checkpoint=lambda *_: None)
     expected = identities.IdentitySession(pair=pair, binding=BINDING, model=model, ledger=preparation_ledger,
         process=Provider(model, embedding, rerank), expected=None).capture("preparation")

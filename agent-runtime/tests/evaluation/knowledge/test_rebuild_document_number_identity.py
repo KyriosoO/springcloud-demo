@@ -8,6 +8,7 @@ import socket
 import subprocess
 from threading import Event
 import traceback
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -63,7 +64,17 @@ def pair(tmp_path, draft):
 BINDING = ReadBinding("synthetic-alias", "synthetic-index", "synthetic-uuid", "synthetic-mapping-v1")
 
 
-def model_fixture(tmp_path):
+IDENTITY_DEPENDENCIES = {"httpx": "0.28.1", "pydantic": "2.13.5"}
+
+
+def model_fixture(tmp_path, monkeypatch):
+    # Simulate the corpus environment along with the synthetic model provider.
+    # Keep the real lock validator; never alter global importlib metadata or
+    # require the runtime test process to install the sibling production pins.
+    monkeypatch.setattr(models, "metadata", SimpleNamespace(
+        version=IDENTITY_DEPENDENCIES.__getitem__,
+        PackageNotFoundError=models.metadata.PackageNotFoundError,
+    ))
     executable = tmp_path / "docker.exe"
     executable.write_bytes(b"synthetic-docker")
     packages = {name: "1.0" for name in ("FlagEmbedding", "transformers", "torch")}
@@ -104,7 +115,7 @@ class Provider:
 
 
 def session(monkeypatch, pair, tmp_path, *, expected=None, checkpoint=None):
-    model, embedding, rerank = model_fixture(tmp_path)
+    model, embedding, rerank = model_fixture(tmp_path, monkeypatch)
     phases = ("preparation",) if expected is None else ("pre", "post")
     entries = []
     ledger = i.IdentityLedger(phases=phases, checkpoint=checkpoint or (lambda *args: entries.append(args)))
@@ -177,12 +188,16 @@ def test_failure_is_finite_consumed_and_never_retries(monkeypatch, pair, tmp_pat
     assert len(provider.calls) <= 1
 
 
-def test_wrong_project_environment_or_changed_executable_blocks_all_probes(monkeypatch, pair, tmp_path):
+@pytest.mark.parametrize("dependency", ["httpx", "pydantic"])
+def test_wrong_project_environment_blocks_all_probes(monkeypatch, pair, tmp_path, dependency):
     value, provider, _ = session(monkeypatch, pair, tmp_path)
-    monkeypatch.setattr(models, "_require_locked_identity_environment", lambda: (_ for _ in ()).throw(models.BModelIdentityError()))
+    monkeypatch.setattr(models.metadata, "version", lambda name:
+        "0.0.0" if name == dependency else IDENTITY_DEPENDENCIES[name])
     with pytest.raises(p.ProtocolError, match="capture_failed"):
         value.capture("preparation")
     assert provider.calls == []
+    assert value.ledger.view()["counts"] == {"preparation": 0}
+    assert value.ledger.view()["stopped"] is True
 
 
 def recapture(material):
@@ -301,8 +316,8 @@ def test_executable_drift_between_commands_stops_without_second_probe(monkeypatc
 @pytest.mark.parametrize("field,new_value", [("docker_host", "tcp://127.0.0.1:2375"),
     ("embedding_container_id", "a" * 12), ("rerank_container_id", "a" * 64),
     ("docker_sha256", "x" * 64), ("docker", Path("docker"))])
-def test_model_binding_does_not_discover_or_redirect_docker(tmp_path, field, new_value):
-    binding, _, _ = model_fixture(tmp_path)
+def test_model_binding_does_not_discover_or_redirect_docker(tmp_path, monkeypatch, field, new_value):
+    binding, _, _ = model_fixture(tmp_path, monkeypatch)
     with pytest.raises(p.ProtocolError, match="binding_invalid"):
         replace(binding, **{field: new_value})
 
